@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주사위 굴리기 (멀티플레이어)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .login-section, .game-section {
+            display: none;
+        }
+
+        .login-section.active, .game-section.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .host-badge {
+            background: #ffc107;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .connection-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .connection-status.connected {
+            background: #28a745;
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: #dc3545;
+            color: white;
+        }
+
+        .game-status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .game-status.waiting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .game-status.playing {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .host-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dice-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .dice {
+            width: 150px;
+            height: 150px;
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 15px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .dice.rolling {
+            animation: roll 0.5s ease-in-out;
+        }
+
+        @keyframes roll {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(90deg); }
+            50% { transform: rotate(180deg); }
+            75% { transform: rotate(270deg); }
+        }
+
+        .roll-button {
+            margin: 20px 0;
+        }
+
+        .users-section {
+            margin-bottom: 20px;
+        }
+
+        .progress-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #667eea;
+        }
+
+        .progress-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .progress-bar-container {
+            background: #e0e0e0;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .not-rolled-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #ddd;
+        }
+
+        .not-rolled-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 12px;
+        }
+
+        .not-rolled-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .not-rolled-tag {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .empty-not-rolled {
+            color: #28a745;
+            text-align: center;
+            padding: 10px;
+            font-weight: 600;
+            width: 100%;
+        }
+
+        .users-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .users-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 50px;
+        }
+
+        .user-tag {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-tag.host {
+            background: #667eea;
+            color: white;
+        }
+
+        .history-section {
+            margin-top: 30px;
+        }
+
+        .history-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .history-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .history-user {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .history-result {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .history-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .empty-history {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+
+        .logout-button {
+            background: #dc3545;
+            margin-top: 10px;
+        }
+
+        .logout-button:hover {
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 주사위 굴리기 (멀티플레이어)</h1>
+
+        <!-- 로그인 섹션 -->
+        <div class="login-section active" id="loginSection">
+            <div class="input-group">
+                <label for="nameInput">이름을 입력하세요</label>
+                <input type="text" id="nameInput" placeholder="이름 입력" />
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="hostCheckbox" />
+                <label for="hostCheckbox" style="margin: 0;">Host로 입장</label>
+            </div>
+            <button onclick="login()">입장하기</button>
+        </div>
+
+        <!-- 게임 섹션 -->
+        <div class="game-section" id="gameSection">
+            <div class="user-info">
+                <div>
+                    <span class="user-name" id="currentUser"></span>
+                    <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
+                </div>
+                <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
+            </div>
+
+            <!-- 주사위 범위 설정 -->
+            <div class="input-group">
+                <label for="diceRangeGame">주사위 최대값 (1 ~ 입력한 숫자)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="diceRangeGame" placeholder="예: 100" value="100" min="2" max="10000" style="flex: 1;" />
+                    <button onclick="updateDiceRange()" style="width: auto; padding: 12px 20px;">설정</button>
+                </div>
+                <div style="margin-top: 8px; font-size: 14px; color: #667eea; font-weight: 600;">
+                    현재 범위: 1 ~ <span id="currentRange">100</span>
+                </div>
+            </div>
+
+            <!-- 접속자 리스트 -->
+            <div class="users-section">
+                <div class="users-title">👥 접속자 (<span id="userCount">0</span>명)</div>
+                <div class="users-list" id="usersList">
+                    <div style="color: #999; text-align: center; padding: 10px; width: 100%;">접속자가 없습니다</div>
+                </div>
+            </div>
+
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
+            </div>
+
+            <!-- 진행 상황 표시 -->
+            <div class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-title">📊 진행 상황</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressCount">0/0</span> 명 완료
+                </div>
+                
+                <div class="not-rolled-section">
+                    <div class="not-rolled-title">⏳ 주사위를 굴리지 않은 사람</div>
+                    <div class="not-rolled-list" id="notRolledList">
+                        <!-- 미완료자 목록 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Host 전용 컨트롤 -->
+            <div class="host-controls" id="hostControls" style="display: none;">
+                <button onclick="startGame()" id="startButton">게임 시작</button>
+                <button onclick="endGame()" id="endButton" style="display: none;">게임 종료</button>
+            </div>
+
+            <!-- 주사위 영역 -->
+            <div class="dice-container">
+                <div class="dice" id="dice">?</div>
+            </div>
+
+            <button class="roll-button" onclick="rollDice()" id="rollButton" disabled>
+                주사위 굴리기
+            </button>
+
+            <!-- 기록 섹션 -->
+            <div class="history-section">
+                <div class="history-title">📋 게임 기록</div>
+                <div class="history-list" id="historyList">
+                    <div class="empty-history">아직 기록이 없습니다</div>
+                </div>
+            </div>
+
+            <button class="logout-button" onclick="logout()">로그아웃</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        let currentUser = '';
+        let isHost = false;
+        let isGameActive = false;
+        let diceMax = 100;
+
+        // 연결 상태 모니터링
+        socket.on('connect', () => {
+            document.getElementById('connectionStatus').textContent = '● 연결됨';
+            document.getElementById('connectionStatus').className = 'connection-status connected';
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connectionStatus').textContent = '● 연결 끊김';
+            document.getElementById('connectionStatus').className = 'connection-status disconnected';
+        });
+
+        // 게임 상태 수신
+        socket.on('gameState', (state) => {
+            diceMax = state.diceMax;
+            isGameActive = state.isGameActive;
+            document.getElementById('currentRange').textContent = diceMax;
+            updateUsers(state.users);
+            updateHistory(state.history);
+            
+            // 호스트 체크박스 상태 업데이트
+            updateHostCheckbox(state.users);
+        });
+
+        // 로그인
+        function login() {
+            const nameInput = document.getElementById('nameInput');
+            const hostCheckbox = document.getElementById('hostCheckbox');
+            const name = nameInput.value.trim();
+
+            if (name === '') {
+                alert('이름을 입력해주세요!');
+                return;
+            }
+
+            currentUser = name;
+            isHost = hostCheckbox.checked;
+
+            socket.emit('login', { name: currentUser, isHost: isHost });
+
+            document.getElementById('loginSection').classList.remove('active');
+            document.getElementById('gameSection').classList.add('active');
+            document.getElementById('currentUser').textContent = currentUser;
+
+            if (isHost) {
+                document.getElementById('hostBadge').style.display = 'inline-block';
+                document.getElementById('hostControls').style.display = 'grid';
+            }
+        }
+
+        // 로그인 에러
+        socket.on('loginError', (message) => {
+            alert(message);
+            logout();
+        });
+
+        // 로그아웃
+        function logout() {
+            socket.disconnect();
+            location.reload();
+        }
+
+        // 주사위 범위 업데이트
+        function updateDiceRange() {
+            const diceRangeInput = document.getElementById('diceRangeGame');
+            const rangeValue = parseInt(diceRangeInput.value);
+
+            if (isNaN(rangeValue) || rangeValue < 2) {
+                alert('주사위 최대값은 2 이상이어야 합니다!');
+                return;
+            }
+
+            if (rangeValue > 10000) {
+                alert('주사위 최대값은 10000 이하로 설정해주세요!');
+                return;
+            }
+
+            socket.emit('updateRange', rangeValue);
+        }
+
+        socket.on('rangeUpdated', (range) => {
+            diceMax = range;
+            document.getElementById('currentRange').textContent = range;
+            document.getElementById('diceRangeGame').value = range;
+        });
+
+        // 게임 시작
+        function startGame() {
+            socket.emit('startGame');
+        }
+
+        socket.on('gameStarted', (data) => {
+            isGameActive = true;
+            document.getElementById('gameStatus').textContent = '게임 진행 중!';
+            document.getElementById('gameStatus').classList.remove('waiting');
+            document.getElementById('gameStatus').classList.add('playing');
+            document.getElementById('startButton').style.display = 'none';
+            document.getElementById('endButton').style.display = 'block';
+            
+            // 주사위 버튼 활성화 및 텍스트 초기화
+            const rollButton = document.getElementById('rollButton');
+            rollButton.disabled = false;
+            rollButton.textContent = '주사위 굴리기';
+            
+            document.getElementById('dice').textContent = '?';
+            
+            // 진행 상황 섹션 표시
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
+            
+            // 기록 초기화
+            document.getElementById('historyList').innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
+        });
+
+        // 게임 종료
+        function endGame() {
+            socket.emit('endGame');
+        }
+
+        socket.on('gameEnded', (history) => {
+            isGameActive = false;
+            document.getElementById('gameStatus').textContent = '게임 종료됨';
+            document.getElementById('gameStatus').classList.remove('playing');
+            document.getElementById('gameStatus').classList.add('waiting');
+            document.getElementById('startButton').style.display = 'block';
+            document.getElementById('endButton').style.display = 'none';
+            document.getElementById('rollButton').disabled = true;
+            
+            // 진행 상황 섹션 숨기기
+            document.getElementById('progressSection').style.display = 'none';
+            
+            alert('게임이 종료되었습니다!\n\n총 ' + history.length + '번의 주사위가 굴려졌습니다.');
+        });
+
+        // 주사위 굴리기
+        function rollDice() {
+            if (!isGameActive) {
+                alert('게임이 진행 중이 아닙니다!');
+                return;
+            }
+
+            // 버튼 비활성화 (중복 클릭 방지)
+            const rollButton = document.getElementById('rollButton');
+            rollButton.disabled = true;
+            rollButton.textContent = '굴리는 중...';
+
+            const diceElement = document.getElementById('dice');
+            diceElement.classList.add('rolling');
+
+            // 애니메이션만 표시 (결과는 서버에서 받음)
+            let counter = 0;
+            const interval = setInterval(() => {
+                diceElement.textContent = Math.floor(Math.random() * diceMax) + 1;
+                counter++;
+                if (counter >= 10) {
+                    clearInterval(interval);
+                }
+            }, 50);
+
+            // 서버에 주사위 굴리기 요청 (결과 생성은 서버에서!)
+            socket.emit('requestRoll', { userName: currentUser });
+        }
+
+        // 주사위 결과 수신
+        socket.on('diceRolled', (record) => {
+            // 자기 자신의 결과라면 주사위 표시 및 애니메이션 종료
+            if (record.user === currentUser) {
+                const diceElement = document.getElementById('dice');
+                diceElement.textContent = record.result;
+                diceElement.classList.remove('rolling');
+                
+                // 버튼 비활성화 유지 (이미 굴렸으므로)
+                const rollButton = document.getElementById('rollButton');
+                rollButton.textContent = '이미 굴렸습니다';
+                rollButton.disabled = true;
+            }
+            
+            addToHistory(record);
+        });
+
+        // 진행 상황 업데이트
+        socket.on('rollProgress', (progress) => {
+            updateProgress(progress);
+        });
+
+        // 모두 완료 알림
+        socket.on('allPlayersRolled', (data) => {
+            alert(data.message);
+            // 완료 표시
+            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, #28a745 0%, #20c997 100%)';
+        });
+
+        // 주사위 굴리기 에러 처리
+        socket.on('rollError', (message) => {
+            alert(message);
+            
+            // 에러 시 버튼 복원
+            const rollButton = document.getElementById('rollButton');
+            const diceElement = document.getElementById('dice');
+            
+            // 이미 굴린 경우가 아니라면 버튼 다시 활성화
+            if (!message.includes('이미 주사위를 굴렸습니다')) {
+                rollButton.disabled = false;
+                rollButton.textContent = '주사위 굴리기';
+            } else {
+                rollButton.textContent = '이미 굴렸습니다';
+                rollButton.disabled = true;
+            }
+            
+            diceElement.classList.remove('rolling');
+        });
+
+        // 연결 에러 처리
+        socket.on('connectionError', (message) => {
+            alert(message);
+            setTimeout(() => location.reload(), 2000);
+        });
+
+        // Rate limit 에러 처리
+        socket.on('rateLimitError', (message) => {
+            alert(message);
+        });
+
+        // 권한 에러 처리
+        socket.on('permissionError', (message) => {
+            alert(message);
+        });
+
+        // 범위 에러 처리
+        socket.on('rangeError', (message) => {
+            alert(message);
+        });
+
+        // 사용자 목록 업데이트
+        socket.on('updateUsers', (users) => {
+            updateUsers(users);
+            updateHostCheckbox(users);
+        });
+
+        function updateUsers(users) {
+            const usersList = document.getElementById('usersList');
+            const userCount = document.getElementById('userCount');
+            
+            userCount.textContent = users.length;
+            
+            if (users.length === 0) {
+                usersList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px; width: 100%;">접속자가 없습니다</div>';
+                return;
+            }
+            
+            usersList.innerHTML = '';
+            
+            users.forEach((user) => {
+                const userTag = document.createElement('div');
+                userTag.className = 'user-tag' + (user.isHost ? ' host' : '');
+                
+                let content = user.name;
+                if (user.isHost) {
+                    content += ' 👑';
+                }
+                
+                // 자기 자신인 경우 (나) 표시
+                if (user.name === currentUser) {
+                    content += ' (나)';
+                }
+                
+                userTag.textContent = content;
+                usersList.appendChild(userTag);
+            });
+        }
+
+        // 호스트 체크박스 상태 업데이트
+        function updateHostCheckbox(users) {
+            const hostCheckbox = document.getElementById('hostCheckbox');
+            const hasHost = users.some(user => user.isHost === true);
+            
+            if (hasHost) {
+                hostCheckbox.disabled = true;
+                hostCheckbox.checked = false;
+                // 체크박스 옆 라벨 업데이트
+                const label = document.querySelector('label[for="hostCheckbox"]');
+                if (label) {
+                    label.textContent = 'Host로 입장 (이미 호스트가 있습니다)';
+                    label.style.color = '#999';
+                }
+            } else {
+                hostCheckbox.disabled = false;
+                const label = document.querySelector('label[for="hostCheckbox"]');
+                if (label) {
+                    label.textContent = 'Host로 입장';
+                    label.style.color = '';
+                }
+            }
+        }
+
+        // 진행 상황 업데이트
+        function updateProgress(progress) {
+            const { rolled, total, notRolledYet } = progress;
+            
+            // 진행률 계산
+            const percentage = total > 0 ? (rolled / total) * 100 : 0;
+            
+            // 프로그레스 바 업데이트
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = Math.round(percentage) + '%';
+            
+            // 카운트 업데이트
+            document.getElementById('progressCount').textContent = `${rolled}/${total}`;
+            
+            // 미완료자 목록 업데이트
+            const notRolledList = document.getElementById('notRolledList');
+            
+            if (notRolledYet.length === 0) {
+                notRolledList.innerHTML = '<div class="empty-not-rolled">✅ 모두 완료!</div>';
+            } else {
+                notRolledList.innerHTML = '';
+                notRolledYet.forEach(name => {
+                    const tag = document.createElement('div');
+                    tag.className = 'not-rolled-tag';
+                    tag.textContent = name;
+                    if (name === currentUser) {
+                        tag.textContent += ' (나)';
+                    }
+                    notRolledList.appendChild(tag);
+                });
+            }
+        }
+
+        // 기록 추가
+        function addToHistory(record) {
+            const historyList = document.getElementById('historyList');
+            
+            // 빈 메시지 제거
+            if (historyList.querySelector('.empty-history')) {
+                historyList.innerHTML = '';
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `
+                <div>
+                    <div class="history-user">${record.user}</div>
+                    <div class="history-time">${record.time}</div>
+                </div>
+                <div class="history-result">🎲 ${record.result}</div>
+            `;
+            historyList.insertBefore(item, historyList.firstChild);
+        }
+
+        // 전체 기록 업데이트
+        function updateHistory(history) {
+            const historyList = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
+                return;
+            }
+            
+            historyList.innerHTML = '';
+            
+            // 최신 기록부터 표시
+            for (let i = history.length - 1; i >= 0; i--) {
+                const record = history[i];
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <div>
+                        <div class="history-user">${record.user}</div>
+                        <div class="history-time">${record.time}</div>
+                    </div>
+                    <div class="history-result">🎲 ${record.result}</div>
+                `;
+                historyList.appendChild(item);
+            }
+        }
+    </script>
+</body>
+</html>

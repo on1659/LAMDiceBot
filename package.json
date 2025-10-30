@@ -1,0 +1,17 @@
+{
+  "name": "dice-game-multiplayer",
+  "version": "1.0.0",
+  "description": "멀티플레이어 주사위 게임",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.2.0",
+    "socket.io": "^4.6.1"
+  }
+}
