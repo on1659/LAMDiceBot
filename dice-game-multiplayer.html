@@ -650,10 +650,32 @@
             // 진행 상황 섹션 숨기기
             document.getElementById('progressSection').style.display = 'none';
             
-            alert('게임이 종료되었습니다!\n\n총 ' + history.length + '번의 주사위가 굴려졌습니다.');
+            // 최종 결과 정리
+            let resultsText = '게임이 종료되었습니다!\n\n=== 최종 결과 ===\n\n';
+            
+            history.forEach((record, index) => {
+                resultsText += `${index + 1}. ${record.user}: ${record.result}\n`;
+            });
+            
+            resultsText += `\n총 ${history.length}번의 주사위가 굴려졌습니다.`;
+            
+            alert(resultsText);
+            
+            // 내 주사위 결과 유지 (gameEnded 후에도 보이도록)
+            const myRecord = history.find(r => r.user === currentUser);
+            if (myRecord) {
+                const diceElement = document.getElementById('dice');
+                const rollButton = document.getElementById('rollButton');
+                
+                diceElement.textContent = myRecord.result;
+                rollButton.textContent = `내 결과: ${myRecord.result}`;
+            }
         });
 
         // 주사위 굴리기
+        // 주사위 애니메이션 interval을 저장할 변수
+        let diceAnimationInterval = null;
+
         function rollDice() {
             if (!isGameActive) {
                 alert('게임이 진행 중이 아닙니다!');
@@ -668,15 +690,15 @@
             const diceElement = document.getElementById('dice');
             diceElement.classList.add('rolling');
 
-            // 애니메이션만 표시 (결과는 서버에서 받음)
-            let counter = 0;
-            const interval = setInterval(() => {
-                diceElement.textContent = Math.floor(Math.random() * diceMax) + 1;
-                counter++;
-                if (counter >= 10) {
-                    clearInterval(interval);
-                }
-            }, 50);
+            // 서버 결과 대기 중 표시
+            diceElement.textContent = '🎲';
+            
+            // 간단한 로딩 애니메이션
+            let dots = 0;
+            diceAnimationInterval = setInterval(() => {
+                dots = (dots + 1) % 4;
+                diceElement.textContent = '🎲' + '.'.repeat(dots);
+            }, 200);
 
             // 서버에 주사위 굴리기 요청 (결과 생성은 서버에서!)
             socket.emit('requestRoll', { userName: currentUser });
@@ -686,13 +708,27 @@
         socket.on('diceRolled', (record) => {
             // 자기 자신의 결과라면 주사위 표시 및 애니메이션 종료
             if (record.user === currentUser) {
+                // 애니메이션 중지!
+                if (diceAnimationInterval) {
+                    clearInterval(diceAnimationInterval);
+                    diceAnimationInterval = null;
+                }
+
                 const diceElement = document.getElementById('dice');
+                
+                // 서버에서 받은 실제 결과로 표시!
                 diceElement.textContent = record.result;
                 diceElement.classList.remove('rolling');
                 
+                // 결과 강조 효과
+                diceElement.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    diceElement.style.transform = 'scale(1)';
+                }, 300);
+                
                 // 버튼 비활성화 유지 (이미 굴렸으므로)
                 const rollButton = document.getElementById('rollButton');
-                rollButton.textContent = '이미 굴렸습니다';
+                rollButton.textContent = `결과: ${record.result}`;
                 rollButton.disabled = true;
             }
             
