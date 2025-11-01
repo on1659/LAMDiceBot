@@ -408,8 +408,6 @@
             padding: 12px;
             color: #999;
             pointer-events: none;
-            white-space: pre-wrap;
-            word-break: break-word;
             font-family: inherit;
             font-size: 16px;
             line-height: 1.5;
@@ -872,12 +870,13 @@
                     <div class="order-input-group">
                         <div class="order-input-wrapper">
                             <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
-                            <textarea 
+                            <input 
+                                type="text"
                                 id="myOrderInput" 
                                 placeholder="주문할 내용을 입력하세요 (예: 오초, 오고)"
                                 maxlength="100"
                                 disabled
-                            ></textarea>
+                            />
                             <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
                         </div>
                         <button onclick="updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content;" disabled>저장</button>
@@ -1116,8 +1115,25 @@
             });
             
             orderInput.addEventListener('keydown', (e) => {
-                // Tab 또는 Enter로 자동완성 적용
-                if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestions.length > 0) {
+                // Enter 키 처리
+                if (e.key === 'Enter') {
+                    // 자동완성 드롭다운이 열려있으면 자동완성 적용
+                    if (currentSuggestions.length > 0) {
+                        e.preventDefault();
+                        const menuToApply = selectedSuggestionIndex >= 0 
+                            ? currentSuggestions[selectedSuggestionIndex] 
+                            : currentSuggestions[0];
+                        applySuggestion(menuToApply);
+                        return;
+                    }
+                    // 드롭다운이 없으면 주문 저장
+                    e.preventDefault();
+                    updateMyOrder();
+                    return;
+                }
+                
+                // Tab으로 자동완성 적용
+                if (e.key === 'Tab' && currentSuggestions.length > 0) {
                     e.preventDefault();
                     const menuToApply = selectedSuggestionIndex >= 0 
                         ? currentSuggestions[selectedSuggestionIndex] 
