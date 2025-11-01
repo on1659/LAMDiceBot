@@ -32,11 +32,14 @@ app.use(limiter);
 let gameState = {
     users: [],
     isGameActive: false,
+    isOrderActive: false, // 주문받기 활성화 여부
     diceMax: 100,
     history: [],
     rolledUsers: [], // 이번 게임에서 주사위를 굴린 사용자 목록
     gamePlayers: [], // 게임 시작 시 참여자 목록 (게임 중 입장한 사람 제외)
-    userDiceSettings: {} // 사용자별 주사위 설정 {userName: {min, max}}
+    userDiceSettings: {}, // 사용자별 주사위 설정 {userName: {max}} (최소값은 항상 1)
+    userOrders: {}, // 사용자별 주문 내역 {userName: "주문 내용"}
+    gameRules: '' // 게임 룰 (호스트만 설정, 게임 시작 후 수정 불가)
 };
 
 // 정적 파일 제공
@@ -143,12 +146,16 @@ io.on('connection', (socket) => {
 
         gameState.users.push(user);
         
-        // 사용자별 주사위 설정 초기화 (없으면 기본값)
+        // 사용자별 주사위 설정 초기화 (없으면 기본값, 최소값은 항상 1 고정)
         if (!gameState.userDiceSettings[name.trim()]) {
             gameState.userDiceSettings[name.trim()] = {
-                min: 1,
                 max: 100
             };
+        }
+        
+        // 사용자별 주문 초기화
+        if (!gameState.userOrders[name.trim()]) {
+            gameState.userOrders[name.trim()] = '';
         }
         
         console.log(`${name} 입장 (${isHost ? 'HOST' : '일반'})`);
@@ -164,19 +171,105 @@ io.on('connection', (socket) => {
             hasRolled: hasRolled,
             myResult: myResult,
             isGameActive: gameState.isGameActive,
+            isOrderActive: gameState.isOrderActive,
             isGamePlayer: gameState.gamePlayers.includes(name.trim()),
-            diceSettings: gameState.userDiceSettings[name.trim()]
+            diceSettings: gameState.userDiceSettings[name.trim()],
+            myOrder: gameState.userOrders[name.trim()] || '',
+            gameRules: gameState.gameRules
         });
 
         // 모든 클라이언트에게 업데이트된 사용자 목록 전송
         io.emit('updateUsers', gameState.users);
+        
+        // 모든 클라이언트에게 업데이트된 주문 목록 전송
+        io.emit('updateOrders', gameState.userOrders);
     });
 
-    // 개인 주사위 설정 업데이트
+    // 주문받기 시작
+    socket.on('startOrder', () => {
+        if (!checkRateLimit()) return;
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('permissionError', 'Host만 주문받기를 시작할 수 있습니다!');
+            return;
+        }
+        
+        gameState.isOrderActive = true;
+        // 주문받기 시작 시 기존 주문 초기화
+        gameState.userOrders = {};
+        gameState.users.forEach(u => {
+            gameState.userOrders[u.name] = '';
+        });
+        
+        io.emit('orderStarted');
+        io.emit('updateOrders', gameState.userOrders);
+        console.log('주문받기 시작');
+    });
+
+    // 주문받기 종료
+    socket.on('endOrder', () => {
+        if (!checkRateLimit()) return;
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('permissionError', 'Host만 주문받기를 종료할 수 있습니다!');
+            return;
+        }
+        
+        gameState.isOrderActive = false;
+        io.emit('orderEnded');
+        console.log('주문받기 종료');
+    });
+
+    // 주문 업데이트
+    socket.on('updateOrder', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { userName, order } = data;
+        
+        // 주문받기 활성화 확인
+        if (!gameState.isOrderActive) {
+            socket.emit('orderError', '주문받기가 시작되지 않았습니다!');
+            return;
+        }
+        
+        // 사용자 검증
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || user.name !== userName) {
+            socket.emit('orderError', '잘못된 사용자입니다!');
+            return;
+        }
+        
+        // 입력값 검증
+        if (typeof order !== 'string') {
+            socket.emit('orderError', '올바른 주문을 입력해주세요!');
+            return;
+        }
+        
+        // 주문 길이 제한
+        if (order.length > 100) {
+            socket.emit('orderError', '주문은 100자 이하로 입력해주세요!');
+            return;
+        }
+        
+        // 주문 저장
+        gameState.userOrders[userName] = order.trim();
+        
+        // 모든 클라이언트에게 업데이트된 주문 목록 전송
+        io.emit('updateOrders', gameState.userOrders);
+        
+        socket.emit('orderUpdated', { order: order.trim() });
+        console.log(`${userName}의 주문: ${order.trim() || '(삭제됨)'}`);
+    });
+
+    // 개인 주사위 설정 업데이트 (최소값은 항상 1)
     socket.on('updateUserDiceSettings', (data) => {
         if (!checkRateLimit()) return;
         
-        const { userName, min, max } = data;
+        const { userName, max } = data;
         
         // 사용자 검증
         const user = gameState.users.find(u => u.id === socket.id);
@@ -186,20 +279,18 @@ io.on('connection', (socket) => {
         }
         
         // 입력값 검증
-        if (typeof min !== 'number' || typeof max !== 'number' || 
-            min < 1 || max > 100000 || min >= max) {
-            socket.emit('settingsError', '올바른 범위를 입력해주세요! (최소 < 최대, 1~100000)');
+        if (typeof max !== 'number' || max < 2 || max > 100000) {
+            socket.emit('settingsError', '올바른 범위를 입력해주세요! (2~100000)');
             return;
         }
         
-        // 설정 저장
+        // 설정 저장 (최소값은 항상 1)
         gameState.userDiceSettings[userName] = {
-            min: Math.floor(min),
             max: Math.floor(max)
         };
         
         socket.emit('settingsUpdated', gameState.userDiceSettings[userName]);
-        console.log(`${userName}의 주사위 설정 변경: ${min} ~ ${max}`);
+        console.log(`${userName}의 주사위 설정 변경: 1 ~ ${max}`);
     });
 
     // 주사위 범위 업데이트 (전역 - 하위 호환성)
@@ -217,6 +308,45 @@ io.on('connection', (socket) => {
         console.log('주사위 범위 변경:', gameState.diceMax);
     });
 
+    // 게임 룰 업데이트 (호스트만, 게임 시작 전만 가능)
+    socket.on('updateGameRules', (data) => {
+        if (!checkRateLimit()) return;
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('permissionError', 'Host만 게임 룰을 수정할 수 있습니다!');
+            return;
+        }
+        
+        // 게임 시작 후 수정 불가
+        if (gameState.isGameActive) {
+            socket.emit('rulesError', '게임이 진행 중이면 룰을 수정할 수 없습니다!');
+            return;
+        }
+        
+        const { rules } = data;
+        
+        // 입력값 검증
+        if (typeof rules !== 'string') {
+            socket.emit('rulesError', '올바른 룰을 입력해주세요!');
+            return;
+        }
+        
+        // 룰 길이 제한
+        if (rules.length > 500) {
+            socket.emit('rulesError', '룰은 500자 이하로 입력해주세요!');
+            return;
+        }
+        
+        // 룰 저장
+        gameState.gameRules = rules.trim();
+        
+        // 모든 클라이언트에게 업데이트된 룰 전송
+        io.emit('gameRulesUpdated', gameState.gameRules);
+        console.log('게임 룰 업데이트:', gameState.gameRules);
+    });
+
     // 게임 시작
     socket.on('startGame', () => {
         if (!checkRateLimit()) return;
@@ -228,12 +358,19 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // 게임 시작 시 현재 룰 텍스트 영역의 값을 자동 저장 (저장 버튼을 누르지 않았어도)
+        // 클라이언트에서 최신 룰을 받아와서 저장하는 것이 아니므로,
+        // 서버의 현재 gameRules 값을 그대로 유지하고 모든 클라이언트에 동기화
+        
         gameState.isGameActive = true;
         gameState.history = [];
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         
         // 게임 시작 시점의 참여자 목록 저장 (이름만 저장)
         gameState.gamePlayers = gameState.users.map(u => u.name);
+        
+        // 게임 시작 시 모든 클라이언트에게 현재 룰을 동기화 (게임 시작 = 룰 확정)
+        io.emit('gameRulesUpdated', gameState.gameRules);
         
         io.emit('gameStarted', {
             players: gameState.gamePlayers,
@@ -303,11 +440,13 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // 사용자별 주사위 설정 가져오기
-        const userSettings = gameState.userDiceSettings[userName] || { min: 1, max: 100 };
+        // 사용자별 주사위 설정 가져오기 (최소값은 항상 1)
+        const userSettings = gameState.userDiceSettings[userName] || { max: 100 };
+        const min = 1;
+        const max = userSettings.max;
         
         // 시드 기반으로 서버에서 난수 생성
-        const result = seededRandom(clientSeed, userSettings.min, userSettings.max);
+        const result = seededRandom(clientSeed, min, max);
 
         // 굴린 사용자 목록에 추가
         gameState.rolledUsers.push(userName);
@@ -317,7 +456,7 @@ io.on('connection', (socket) => {
             result: result,
             time: new Date().toLocaleTimeString('ko-KR'),
             seed: clientSeed, // 검증을 위해 시드 저장
-            range: `${userSettings.min}~${userSettings.max}`
+            range: `1~${max}`
         };
 
         gameState.history.push(record);
@@ -337,7 +476,7 @@ io.on('connection', (socket) => {
             notRolledYet: notRolledYet
         });
         
-        console.log(`${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${userSettings.min}~${userSettings.max}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
+        console.log(`${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: 1~${max}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
         
         // 모두 굴렸는지 확인
         if (gameState.rolledUsers.length === gameState.gamePlayers.length) {
