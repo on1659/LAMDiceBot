@@ -3,7 +3,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -36,8 +35,16 @@ let gameState = {
     history: [],
     rolledUsers: [], // 이번 게임에서 주사위를 굴린 사용자 목록
     gamePlayers: [], // 게임 시작 시 참여자 목록 (게임 중 입장한 사람 제외)
-    userDiceSettings: {} // 사용자별 주사위 설정 {userName: {min, max}}
+    userDiceSettings: {} // 각 사용자별 주사위 설정 (userName: {min, max})
 };
+
+// 시드 기반 난수 생성 함수
+function seededRandom(seed, min, max) {
+    // 시드를 기반으로 0-1 사이의 난수 생성
+    const x = Math.sin(seed) * 10000;
+    const random = x - Math.floor(x);
+    return Math.floor(random * (max - min + 1)) + min;
+}
 
 // 정적 파일 제공
 app.use(express.static(__dirname));
@@ -45,21 +52,6 @@ app.use(express.static(__dirname));
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
 });
-
-// 시드 기반 랜덤 생성 함수
-function seededRandom(seed, min, max) {
-    // 시드를 해시화하여 난수 생성
-    const hash = crypto.createHash('sha256').update(seed).digest();
-    
-    // 해시의 첫 8바이트를 숫자로 변환
-    const num = hash.readBigUInt64BE(0);
-    
-    // 범위 내의 값으로 변환
-    const range = BigInt(max - min + 1);
-    const result = Number(num % range) + min;
-    
-    return result;
-}
 
 // WebSocket 연결
 io.on('connection', (socket) => {
@@ -97,12 +89,7 @@ io.on('connection', (socket) => {
     };
 
     // 새 사용자에게 현재 게임 상태 전송
-    socket.emit('gameState', {
-        ...gameState,
-        // 재접속 확인: 이미 굴렸는지 여부
-        hasRolled: (userName) => gameState.rolledUsers.includes(userName),
-        myResult: null // 클라이언트에서 자신의 결과를 찾아야 함
-    });
+    socket.emit('gameState', gameState);
 
     // 사용자 로그인
     socket.on('login', (data) => {
@@ -143,36 +130,24 @@ io.on('connection', (socket) => {
 
         gameState.users.push(user);
         
-        // 사용자별 주사위 설정 초기화 (없으면 기본값)
+        // 기본 주사위 설정 (전역 설정 사용)
         if (!gameState.userDiceSettings[name.trim()]) {
             gameState.userDiceSettings[name.trim()] = {
                 min: 1,
-                max: 100
+                max: gameState.diceMax
             };
         }
         
         console.log(`${name} 입장 (${isHost ? 'HOST' : '일반'})`);
 
-        // 재접속 시 이미 굴렸는지 확인
-        const hasRolled = gameState.rolledUsers.includes(name.trim());
-        const myResult = gameState.history.find(r => r.user === name.trim());
-        
-        // 로그인 성공 응답과 함께 재접속 정보 전송
-        socket.emit('loginSuccess', {
-            userName: name.trim(),
-            isHost: isHost,
-            hasRolled: hasRolled,
-            myResult: myResult,
-            isGameActive: gameState.isGameActive,
-            isGamePlayer: gameState.gamePlayers.includes(name.trim()),
-            diceSettings: gameState.userDiceSettings[name.trim()]
-        });
-
         // 모든 클라이언트에게 업데이트된 사용자 목록 전송
         io.emit('updateUsers', gameState.users);
+        
+        // 현재 사용자의 주사위 설정 전송
+        socket.emit('userDiceSettings', gameState.userDiceSettings[name.trim()]);
     });
 
-    // 개인 주사위 설정 업데이트
+    // 개인별 주사위 설정 업데이트
     socket.on('updateUserDiceSettings', (data) => {
         if (!checkRateLimit()) return;
         
@@ -187,22 +162,21 @@ io.on('connection', (socket) => {
         
         // 입력값 검증
         if (typeof min !== 'number' || typeof max !== 'number' || 
-            min < 1 || max > 100000 || min >= max) {
-            socket.emit('settingsError', '올바른 범위를 입력해주세요! (최소 < 최대, 1~100000)');
+            min < 1 || max > 10000 || min >= max) {
+            socket.emit('settingsError', '올바른 범위를 입력해주세요! (최소: 1, 최대: 10000, 최소 < 최대)');
             return;
         }
         
-        // 설정 저장
         gameState.userDiceSettings[userName] = {
             min: Math.floor(min),
             max: Math.floor(max)
         };
         
-        socket.emit('settingsUpdated', gameState.userDiceSettings[userName]);
+        socket.emit('userDiceSettings', gameState.userDiceSettings[userName]);
         console.log(`${userName}의 주사위 설정 변경: ${min} ~ ${max}`);
     });
 
-    // 주사위 범위 업데이트 (전역 - 하위 호환성)
+    // 주사위 범위 업데이트 (전역)
     socket.on('updateRange', (range) => {
         if (!checkRateLimit()) return;
         
@@ -267,7 +241,7 @@ io.on('connection', (socket) => {
         console.log('게임 종료, 총', gameState.history.length, '번 굴림');
     });
 
-    // 주사위 굴리기 요청 (클라이언트 시드 기반)
+    // 주사위 굴리기 요청 (시드 기반)
     socket.on('requestRoll', (data) => {
         if (!checkRateLimit()) return;
         
@@ -276,7 +250,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const { userName, clientSeed } = data;
+        const { userName, seed } = data;
         
         // 사용자 검증
         const user = gameState.users.find(u => u.id === socket.id);
@@ -296,18 +270,18 @@ io.on('connection', (socket) => {
             socket.emit('rollError', '이미 주사위를 굴렸습니다! 게임당 1회만 가능합니다.');
             return;
         }
-
-        // 클라이언트 시드 검증
-        if (!clientSeed || typeof clientSeed !== 'string') {
-            socket.emit('rollError', '올바른 시드가 필요합니다!');
+        
+        // 시드 검증
+        if (typeof seed !== 'number' || !Number.isFinite(seed)) {
+            socket.emit('rollError', '올바른 시드 값이 아닙니다!');
             return;
         }
 
         // 사용자별 주사위 설정 가져오기
-        const userSettings = gameState.userDiceSettings[userName] || { min: 1, max: 100 };
-        
+        const userSettings = gameState.userDiceSettings[userName] || { min: 1, max: gameState.diceMax };
+
         // 시드 기반으로 서버에서 난수 생성
-        const result = seededRandom(clientSeed, userSettings.min, userSettings.max);
+        const result = seededRandom(seed, userSettings.min, userSettings.max);
 
         // 굴린 사용자 목록에 추가
         gameState.rolledUsers.push(userName);
@@ -316,8 +290,7 @@ io.on('connection', (socket) => {
             user: userName,
             result: result,
             time: new Date().toLocaleTimeString('ko-KR'),
-            seed: clientSeed, // 검증을 위해 시드 저장
-            range: `${userSettings.min}~${userSettings.max}`
+            range: `${userSettings.min}-${userSettings.max}`
         };
 
         gameState.history.push(record);
@@ -337,7 +310,7 @@ io.on('connection', (socket) => {
             notRolledYet: notRolledYet
         });
         
-        console.log(`${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${userSettings.min}~${userSettings.max}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
+        console.log(`${userName}이(가) ${result} 굴림 (시드: ${seed}, 범위: ${userSettings.min}-${userSettings.max}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
         
         // 모두 굴렸는지 확인
         if (gameState.rolledUsers.length === gameState.gamePlayers.length) {
@@ -347,6 +320,20 @@ io.on('connection', (socket) => {
             });
             console.log('모든 참여자가 주사위를 굴렸습니다!');
         }
+    });
+    
+    // 재접속 시 굴림 상태 확인
+    socket.on('checkRollStatus', (userName) => {
+        if (!checkRateLimit()) return;
+        
+        const hasRolled = gameState.rolledUsers.includes(userName);
+        const isGamePlayer = gameState.gamePlayers.includes(userName);
+        
+        socket.emit('rollStatus', {
+            hasRolled: hasRolled,
+            isGamePlayer: isGamePlayer,
+            isGameActive: gameState.isGameActive
+        });
     });
 
     // 연결 해제

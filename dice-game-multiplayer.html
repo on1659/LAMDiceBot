@@ -399,6 +399,12 @@
             color: #999;
         }
 
+        .history-range {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
         .empty-history {
             text-align: center;
             color: #999;
@@ -412,6 +418,48 @@
 
         .logout-button:hover {
             box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        .dice-settings {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #2196f3;
+        }
+
+        .dice-settings-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .dice-range-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .reconnect-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .reconnect-notice strong {
+            color: #856404;
+            font-size: 16px;
+        }
+
+        .reconnect-notice p {
+            color: #856404;
+            margin-top: 8px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -442,15 +490,28 @@
                 <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
             </div>
 
-            <!-- 주사위 범위 설정 -->
-            <div class="input-group">
-                <label for="diceRangeGame">주사위 최대값 (1 ~ 입력한 숫자)</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" id="diceRangeGame" placeholder="예: 100" value="100" min="2" max="10000" style="flex: 1;" />
-                    <button onclick="updateDiceRange()" style="width: auto; padding: 12px 20px;">설정</button>
+            <!-- 재접속 알림 -->
+            <div class="reconnect-notice" id="reconnectNotice" style="display: none;">
+                <strong>🔄 재접속하셨습니다!</strong>
+                <p id="reconnectMessage"></p>
+            </div>
+
+            <!-- 개인 주사위 설정 -->
+            <div class="dice-settings">
+                <div class="dice-settings-title">🎯 내 주사위 범위 설정</div>
+                <div class="dice-range-inputs">
+                    <div class="input-group" style="margin: 0;">
+                        <label for="diceMin">최소값</label>
+                        <input type="number" id="diceMin" value="1" min="1" max="100000" />
+                    </div>
+                    <div class="input-group" style="margin: 0;">
+                        <label for="diceMax">최대값</label>
+                        <input type="number" id="diceMax" value="100" min="1" max="100000" />
+                    </div>
+                    <button onclick="updateMyDiceSettings()" style="width: auto; padding: 12px 20px;">설정</button>
                 </div>
-                <div style="margin-top: 8px; font-size: 14px; color: #667eea; font-weight: 600;">
-                    현재 범위: 1 ~ <span id="currentRange">100</span>
+                <div style="margin-top: 8px; font-size: 14px; color: #1976d2; font-weight: 600;">
+                    현재 범위: <span id="currentMyRange">1 ~ 100</span>
                 </div>
             </div>
 
@@ -519,6 +580,8 @@
         let isHost = false;
         let isGameActive = false;
         let diceMax = 100;
+        let myDiceSettings = { min: 1, max: 100 };
+        let hasRolledInCurrentGame = false;
 
         // 연결 상태 모니터링
         socket.on('connect', () => {
@@ -535,7 +598,6 @@
         socket.on('gameState', (state) => {
             diceMax = state.diceMax;
             isGameActive = state.isGameActive;
-            document.getElementById('currentRange').textContent = diceMax;
             updateUsers(state.users);
             updateHistory(state.history);
             
@@ -558,16 +620,68 @@
             isHost = hostCheckbox.checked;
 
             socket.emit('login', { name: currentUser, isHost: isHost });
+        }
 
+        // 로그인 성공
+        socket.on('loginSuccess', (data) => {
+            hasRolledInCurrentGame = data.hasRolled;
+            myDiceSettings = data.diceSettings;
+            isGameActive = data.isGameActive;
+            
             document.getElementById('loginSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
             document.getElementById('currentUser').textContent = currentUser;
+            
+            // 내 주사위 설정 적용
+            document.getElementById('diceMin').value = myDiceSettings.min;
+            document.getElementById('diceMax').value = myDiceSettings.max;
+            document.getElementById('currentMyRange').textContent = `${myDiceSettings.min} ~ ${myDiceSettings.max}`;
 
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'grid';
             }
-        }
+
+            // 재접속 처리
+            if (isGameActive && data.isGamePlayer) {
+                document.getElementById('gameStatus').textContent = '게임 진행 중!';
+                document.getElementById('gameStatus').classList.remove('waiting');
+                document.getElementById('gameStatus').classList.add('playing');
+                document.getElementById('progressSection').style.display = 'block';
+                
+                if (isHost) {
+                    document.getElementById('startButton').style.display = 'none';
+                    document.getElementById('endButton').style.display = 'block';
+                }
+                
+                const rollButton = document.getElementById('rollButton');
+                const diceElement = document.getElementById('dice');
+                const reconnectNotice = document.getElementById('reconnectNotice');
+                const reconnectMessage = document.getElementById('reconnectMessage');
+                
+                if (data.hasRolled && data.myResult) {
+                    // 이미 굴렸음
+                    diceElement.textContent = data.myResult.result;
+                    rollButton.textContent = `결과: ${data.myResult.result}`;
+                    rollButton.disabled = true;
+                    
+                    reconnectNotice.style.display = 'block';
+                    reconnectMessage.textContent = `이미 주사위를 굴렸습니다. 결과: ${data.myResult.result}`;
+                } else {
+                    // 아직 안 굴렸음 - 다시 굴릴 수 있음!
+                    diceElement.textContent = '?';
+                    rollButton.textContent = '주사위 굴리기';
+                    rollButton.disabled = false;
+                    hasRolledInCurrentGame = false;
+                    
+                    reconnectNotice.style.display = 'block';
+                    reconnectMessage.textContent = '아직 주사위를 굴리지 않았습니다. 다시 굴릴 수 있습니다!';
+                    reconnectMessage.style.color = '#155724';
+                    reconnectNotice.style.background = '#d4edda';
+                    reconnectNotice.style.borderColor = '#28a745';
+                }
+            }
+        });
 
         // 로그인 에러
         socket.on('loginError', (message) => {
@@ -581,28 +695,41 @@
             location.reload();
         }
 
-        // 주사위 범위 업데이트
-        function updateDiceRange() {
-            const diceRangeInput = document.getElementById('diceRangeGame');
-            const rangeValue = parseInt(diceRangeInput.value);
+        // 내 주사위 설정 업데이트
+        function updateMyDiceSettings() {
+            const min = parseInt(document.getElementById('diceMin').value);
+            const max = parseInt(document.getElementById('diceMax').value);
 
-            if (isNaN(rangeValue) || rangeValue < 2) {
-                alert('주사위 최대값은 2 이상이어야 합니다!');
+            if (isNaN(min) || isNaN(max)) {
+                alert('올바른 숫자를 입력해주세요!');
                 return;
             }
 
-            if (rangeValue > 10000) {
-                alert('주사위 최대값은 10000 이하로 설정해주세요!');
+            if (min >= max) {
+                alert('최소값은 최대값보다 작아야 합니다!');
                 return;
             }
 
-            socket.emit('updateRange', rangeValue);
+            if (min < 1 || max > 100000) {
+                alert('범위는 1 이상 100000 이하로 설정해주세요!');
+                return;
+            }
+
+            socket.emit('updateUserDiceSettings', {
+                userName: currentUser,
+                min: min,
+                max: max
+            });
         }
 
-        socket.on('rangeUpdated', (range) => {
-            diceMax = range;
-            document.getElementById('currentRange').textContent = range;
-            document.getElementById('diceRangeGame').value = range;
+        socket.on('settingsUpdated', (settings) => {
+            myDiceSettings = settings;
+            document.getElementById('currentMyRange').textContent = `${settings.min} ~ ${settings.max}`;
+            alert(`주사위 범위가 ${settings.min} ~ ${settings.max}로 설정되었습니다!`);
+        });
+
+        socket.on('settingsError', (message) => {
+            alert(message);
         });
 
         // 게임 시작
@@ -612,6 +739,11 @@
 
         socket.on('gameStarted', (data) => {
             isGameActive = true;
+            hasRolledInCurrentGame = false;
+            
+            // 재접속 알림 숨기기
+            document.getElementById('reconnectNotice').style.display = 'none';
+            
             document.getElementById('gameStatus').textContent = '게임 진행 중!';
             document.getElementById('gameStatus').classList.remove('waiting');
             document.getElementById('gameStatus').classList.add('playing');
@@ -640,6 +772,8 @@
 
         socket.on('gameEnded', (history) => {
             isGameActive = false;
+            hasRolledInCurrentGame = false;
+            
             document.getElementById('gameStatus').textContent = '게임 종료됨';
             document.getElementById('gameStatus').classList.remove('playing');
             document.getElementById('gameStatus').classList.add('waiting');
@@ -654,14 +788,14 @@
             let resultsText = '게임이 종료되었습니다!\n\n=== 최종 결과 ===\n\n';
             
             history.forEach((record, index) => {
-                resultsText += `${index + 1}. ${record.user}: ${record.result}\n`;
+                resultsText += `${index + 1}. ${record.user}: ${record.result} (범위: ${record.range})\n`;
             });
             
             resultsText += `\n총 ${history.length}번의 주사위가 굴려졌습니다.`;
             
             alert(resultsText);
             
-            // 내 주사위 결과 유지 (gameEnded 후에도 보이도록)
+            // 내 주사위 결과 유지
             const myRecord = history.find(r => r.user === currentUser);
             if (myRecord) {
                 const diceElement = document.getElementById('dice');
@@ -672,8 +806,12 @@
             }
         });
 
+        // 클라이언트 시드 생성
+        function generateClientSeed() {
+            return Date.now().toString() + Math.random().toString(36).substring(2);
+        }
+
         // 주사위 굴리기
-        // 주사위 애니메이션 interval을 저장할 변수
         let diceAnimationInterval = null;
 
         function rollDice() {
@@ -682,51 +820,57 @@
                 return;
             }
 
-            // 버튼 비활성화 (중복 클릭 방지)
+            if (hasRolledInCurrentGame) {
+                alert('이미 주사위를 굴렸습니다!');
+                return;
+            }
+
+            // 버튼 비활성화
             const rollButton = document.getElementById('rollButton');
             rollButton.disabled = true;
             rollButton.textContent = '굴리는 중...';
 
             const diceElement = document.getElementById('dice');
             diceElement.classList.add('rolling');
-
-            // 서버 결과 대기 중 표시
             diceElement.textContent = '🎲';
             
-            // 간단한 로딩 애니메이션
+            // 로딩 애니메이션
             let dots = 0;
             diceAnimationInterval = setInterval(() => {
                 dots = (dots + 1) % 4;
                 diceElement.textContent = '🎲' + '.'.repeat(dots);
             }, 200);
 
-            // 서버에 주사위 굴리기 요청 (결과 생성은 서버에서!)
-            socket.emit('requestRoll', { userName: currentUser });
+            // 클라이언트 시드 생성 후 서버에 전송
+            const clientSeed = generateClientSeed();
+            socket.emit('requestRoll', { 
+                userName: currentUser,
+                clientSeed: clientSeed
+            });
         }
 
         // 주사위 결과 수신
         socket.on('diceRolled', (record) => {
-            // 자기 자신의 결과라면 주사위 표시 및 애니메이션 종료
+            // 자기 자신의 결과라면
             if (record.user === currentUser) {
-                // 애니메이션 중지!
+                hasRolledInCurrentGame = true;
+                
+                // 애니메이션 중지
                 if (diceAnimationInterval) {
                     clearInterval(diceAnimationInterval);
                     diceAnimationInterval = null;
                 }
 
                 const diceElement = document.getElementById('dice');
-                
-                // 서버에서 받은 실제 결과로 표시!
                 diceElement.textContent = record.result;
                 diceElement.classList.remove('rolling');
                 
-                // 결과 강조 효과
+                // 결과 강조
                 diceElement.style.transform = 'scale(1.2)';
                 setTimeout(() => {
                     diceElement.style.transform = 'scale(1)';
                 }, 300);
                 
-                // 버튼 비활성화 유지 (이미 굴렸으므로)
                 const rollButton = document.getElementById('rollButton');
                 rollButton.textContent = `결과: ${record.result}`;
                 rollButton.disabled = true;
@@ -743,19 +887,21 @@
         // 모두 완료 알림
         socket.on('allPlayersRolled', (data) => {
             alert(data.message);
-            // 완료 표시
             document.getElementById('progressBar').style.background = 'linear-gradient(90deg, #28a745 0%, #20c997 100%)';
         });
 
-        // 주사위 굴리기 에러 처리
+        // 주사위 굴리기 에러
         socket.on('rollError', (message) => {
             alert(message);
             
-            // 에러 시 버튼 복원
             const rollButton = document.getElementById('rollButton');
             const diceElement = document.getElementById('dice');
             
-            // 이미 굴린 경우가 아니라면 버튼 다시 활성화
+            if (diceAnimationInterval) {
+                clearInterval(diceAnimationInterval);
+                diceAnimationInterval = null;
+            }
+            
             if (!message.includes('이미 주사위를 굴렸습니다')) {
                 rollButton.disabled = false;
                 rollButton.textContent = '주사위 굴리기';
@@ -767,23 +913,20 @@
             diceElement.classList.remove('rolling');
         });
 
-        // 연결 에러 처리
+        // 에러 처리
         socket.on('connectionError', (message) => {
             alert(message);
             setTimeout(() => location.reload(), 2000);
         });
 
-        // Rate limit 에러 처리
         socket.on('rateLimitError', (message) => {
             alert(message);
         });
 
-        // 권한 에러 처리
         socket.on('permissionError', (message) => {
             alert(message);
         });
 
-        // 범위 에러 처리
         socket.on('rangeError', (message) => {
             alert(message);
         });
@@ -816,7 +959,6 @@
                     content += ' 👑';
                 }
                 
-                // 자기 자신인 경우 (나) 표시
                 if (user.name === currentUser) {
                     content += ' (나)';
                 }
@@ -826,7 +968,6 @@
             });
         }
 
-        // 호스트 체크박스 상태 업데이트
         function updateHostCheckbox(users) {
             const hostCheckbox = document.getElementById('hostCheckbox');
             const hasHost = users.some(user => user.isHost === true);
@@ -834,7 +975,6 @@
             if (hasHost) {
                 hostCheckbox.disabled = true;
                 hostCheckbox.checked = false;
-                // 체크박스 옆 라벨 업데이트
                 const label = document.querySelector('label[for="hostCheckbox"]');
                 if (label) {
                     label.textContent = 'Host로 입장 (이미 호스트가 있습니다)';
@@ -850,22 +990,16 @@
             }
         }
 
-        // 진행 상황 업데이트
         function updateProgress(progress) {
             const { rolled, total, notRolledYet } = progress;
-            
-            // 진행률 계산
             const percentage = total > 0 ? (rolled / total) * 100 : 0;
             
-            // 프로그레스 바 업데이트
             const progressBar = document.getElementById('progressBar');
             progressBar.style.width = percentage + '%';
             progressBar.textContent = Math.round(percentage) + '%';
             
-            // 카운트 업데이트
             document.getElementById('progressCount').textContent = `${rolled}/${total}`;
             
-            // 미완료자 목록 업데이트
             const notRolledList = document.getElementById('notRolledList');
             
             if (notRolledYet.length === 0) {
@@ -884,11 +1018,9 @@
             }
         }
 
-        // 기록 추가
         function addToHistory(record) {
             const historyList = document.getElementById('historyList');
             
-            // 빈 메시지 제거
             if (historyList.querySelector('.empty-history')) {
                 historyList.innerHTML = '';
             }
@@ -898,6 +1030,7 @@
             item.innerHTML = `
                 <div>
                     <div class="history-user">${record.user}</div>
+                    <div class="history-range">${record.range}</div>
                     <div class="history-time">${record.time}</div>
                 </div>
                 <div class="history-result">🎲 ${record.result}</div>
@@ -905,7 +1038,6 @@
             historyList.insertBefore(item, historyList.firstChild);
         }
 
-        // 전체 기록 업데이트
         function updateHistory(history) {
             const historyList = document.getElementById('historyList');
             
@@ -916,7 +1048,6 @@
             
             historyList.innerHTML = '';
             
-            // 최신 기록부터 표시
             for (let i = history.length - 1; i >= 0; i--) {
                 const record = history[i];
                 const item = document.createElement('div');
@@ -924,6 +1055,7 @@
                 item.innerHTML = `
                     <div>
                         <div class="history-user">${record.user}</div>
+                        <div class="history-range">${record.range || '1~100'}</div>
                         <div class="history-time">${record.time}</div>
                     </div>
                     <div class="history-result">🎲 ${record.result}</div>
