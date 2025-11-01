@@ -392,6 +392,126 @@
             display: grid;
             grid-template-columns: 1fr auto;
             gap: 10px;
+            position: relative;
+        }
+
+        .order-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .autocomplete-suggestion {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            color: #999;
+            pointer-events: none;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: inherit;
+            font-size: 16px;
+            line-height: 1.5;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            z-index: 1;
+        }
+
+        #myOrderInput {
+            position: relative;
+            z-index: 2;
+            background-color: transparent;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        .autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #e3f2fd;
+        }
+
+        .menu-manager {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .menu-manager.active {
+            display: block;
+        }
+
+        .menu-manager-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-manager-input {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .menu-list {
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .menu-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            margin: 4px;
+            position: relative;
+        }
+
+        .menu-tag .delete-btn {
+            margin-left: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .menu-tag .delete-btn:hover {
+            opacity: 0.8;
         }
 
         .order-list {
@@ -731,14 +851,35 @@
                     <div class="my-order-title">
                         <span>📝</span>
                         <span>내 주문</span>
+                        <button onclick="toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: #f8f9fa; color: #667eea; border: 1px solid #667eea;">메뉴 관리</button>
                     </div>
+                    
+                    <!-- 자주 쓰는 메뉴 관리 -->
+                    <div class="menu-manager" id="menuManager">
+                        <div class="menu-manager-title">
+                            <span>📋 자주 쓰는 메뉴</span>
+                            <button onclick="toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px;">닫기</button>
+                        </div>
+                        <div class="menu-manager-input">
+                            <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
+                            <button onclick="addMenu()" style="width: auto; padding: 12px 20px; height: fit-content;">추가</button>
+                        </div>
+                        <div class="menu-list" id="menuList">
+                            <!-- 메뉴 목록이 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                    
                     <div class="order-input-group">
-                        <textarea 
-                            id="myOrderInput" 
-                            placeholder="주문할 내용을 입력하세요 (예: 치킨 + 콜라)"
-                            maxlength="100"
-                            disabled
-                        ></textarea>
+                        <div class="order-input-wrapper">
+                            <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
+                            <textarea 
+                                id="myOrderInput" 
+                                placeholder="주문할 내용을 입력하세요 (예: 치킨 + 콜라)"
+                                maxlength="100"
+                                disabled
+                            ></textarea>
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
+                        </div>
                         <button onclick="updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content;" disabled>저장</button>
                     </div>
                 </div>
@@ -792,6 +933,260 @@
         let ordersData = {};
         let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순)
         let usersList = []; // 접속자 목록
+        let frequentMenus = []; // 자주 쓰는 메뉴 목록
+        let currentSuggestions = []; // 현재 자동완성 제안 목록
+        let selectedSuggestionIndex = -1; // 선택된 제안 인덱스
+        
+        // 서버에서 자주 쓰는 메뉴 불러오기
+        function loadFrequentMenus() {
+            socket.emit('getFrequentMenus');
+        }
+        
+        // 서버에서 메뉴 목록 업데이트 수신
+        socket.on('frequentMenusUpdated', (menus) => {
+            frequentMenus = menus;
+            renderMenuList();
+        });
+        
+        // 메뉴 관리 UI 토글
+        function toggleMenuManager() {
+            const menuManager = document.getElementById('menuManager');
+            menuManager.classList.toggle('active');
+        }
+        
+        // 메뉴 추가
+        function addMenu() {
+            const menuInput = document.getElementById('menuInput');
+            const menu = menuInput.value.trim();
+            
+            if (menu === '') {
+                alert('메뉴명을 입력해주세요!');
+                return;
+            }
+            
+            // 서버에 메뉴 추가 요청
+            socket.emit('addFrequentMenu', { menu: menu });
+            menuInput.value = '';
+        }
+        
+        // 메뉴 입력 필드에서 Enter 키로 추가
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuInput = document.getElementById('menuInput');
+            if (menuInput) {
+                menuInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addMenu();
+                    }
+                });
+            }
+        });
+        
+        // 메뉴 삭제
+        function deleteMenu(menu) {
+            // 서버에 메뉴 삭제 요청
+            socket.emit('deleteFrequentMenu', { menu: menu });
+        }
+        
+        // 메뉴 에러 처리
+        socket.on('menuError', (message) => {
+            alert(message);
+        });
+        
+        // 메뉴 목록 렌더링
+        function renderMenuList() {
+            const menuList = document.getElementById('menuList');
+            
+            if (frequentMenus.length === 0) {
+                menuList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>';
+                return;
+            }
+            
+            menuList.innerHTML = '';
+            frequentMenus.forEach(menu => {
+                const tag = document.createElement('span');
+                tag.className = 'menu-tag';
+                tag.innerHTML = `${menu}<span class="delete-btn" onclick="deleteMenu('${menu}')">×</span>`;
+                menuList.appendChild(tag);
+            });
+        }
+        
+        // 자동완성 제안 찾기 (모든 일치 항목)
+        function findAutocompleteSuggestions(text) {
+            if (!text || text.trim() === '') {
+                return [];
+            }
+            
+            const lowerText = text.toLowerCase();
+            const suggestions = [];
+            
+            // 메뉴 목록에서 일치하는 모든 항목 찾기
+            for (const menu of frequentMenus) {
+                if (menu.toLowerCase().startsWith(lowerText)) {
+                    // 이미 완전히 입력한 경우는 제안하지 않음
+                    if (menu.toLowerCase() !== lowerText) {
+                        suggestions.push(menu);
+                    }
+                }
+            }
+            
+            return suggestions;
+        }
+        
+        // 자동완성 제안 업데이트
+        function updateAutocompleteSuggestion() {
+            const orderInput = document.getElementById('myOrderInput');
+            const suggestionDiv = document.getElementById('autocompleteSuggestion');
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            const text = orderInput.value;
+            
+            currentSuggestions = findAutocompleteSuggestions(text);
+            selectedSuggestionIndex = -1;
+            
+            if (currentSuggestions.length > 0) {
+                // 첫 번째 제안을 회색 텍스트로 표시
+                const firstSuggestion = currentSuggestions[0];
+                const remainingText = firstSuggestion.substring(text.length);
+                suggestionDiv.textContent = text + remainingText;
+                suggestionDiv.style.display = 'block';
+                
+                // 여러 개의 제안이 있으면 드롭다운 표시
+                if (currentSuggestions.length > 1) {
+                    renderAutocompleteDropdown();
+                    dropdownDiv.style.display = 'block';
+                } else {
+                    dropdownDiv.style.display = 'none';
+                }
+            } else {
+                suggestionDiv.textContent = '';
+                suggestionDiv.style.display = 'none';
+                dropdownDiv.style.display = 'none';
+            }
+        }
+        
+        // 자동완성 드롭다운 렌더링
+        function renderAutocompleteDropdown() {
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            const orderInput = document.getElementById('myOrderInput');
+            const text = orderInput.value;
+            
+            dropdownDiv.innerHTML = '';
+            
+            currentSuggestions.forEach((menu, index) => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item' + (index === selectedSuggestionIndex ? ' selected' : '');
+                item.textContent = menu;
+                
+                // 입력된 부분 강조
+                const prefix = document.createElement('strong');
+                prefix.textContent = menu.substring(0, text.length);
+                const suffix = document.createElement('span');
+                suffix.textContent = menu.substring(text.length);
+                
+                item.innerHTML = '';
+                item.appendChild(prefix);
+                item.appendChild(suffix);
+                
+                item.addEventListener('click', () => {
+                    applySuggestion(menu);
+                });
+                
+                dropdownDiv.appendChild(item);
+            });
+        }
+        
+        // 제안 적용
+        function applySuggestion(menu) {
+            const orderInput = document.getElementById('myOrderInput');
+            orderInput.value = menu;
+            currentSuggestions = [];
+            selectedSuggestionIndex = -1;
+            document.getElementById('autocompleteSuggestion').style.display = 'none';
+            document.getElementById('autocompleteDropdown').style.display = 'none';
+            orderInput.focus();
+        }
+        
+        // Tab 키로 자동완성 적용
+        function setupAutocomplete() {
+            const orderInput = document.getElementById('myOrderInput');
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            
+            orderInput.addEventListener('input', () => {
+                updateAutocompleteSuggestion();
+            });
+            
+            orderInput.addEventListener('keydown', (e) => {
+                // Tab 또는 Enter로 자동완성 적용
+                if ((e.key === 'Tab' || e.key === 'Enter') && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    const menuToApply = selectedSuggestionIndex >= 0 
+                        ? currentSuggestions[selectedSuggestionIndex] 
+                        : currentSuggestions[0];
+                    applySuggestion(menuToApply);
+                    return;
+                }
+                
+                // 방향키로 제안 선택
+                if (e.key === 'ArrowDown' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+                    renderAutocompleteDropdown();
+                    updateSuggestionDisplay();
+                    return;
+                }
+                
+                if (e.key === 'ArrowUp' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestionIndex = selectedSuggestionIndex <= 0 
+                        ? currentSuggestions.length - 1 
+                        : selectedSuggestionIndex - 1;
+                    renderAutocompleteDropdown();
+                    updateSuggestionDisplay();
+                    return;
+                }
+                
+                // Escape로 드롭다운 닫기
+                if (e.key === 'Escape') {
+                    currentSuggestions = [];
+                    selectedSuggestionIndex = -1;
+                    dropdownDiv.style.display = 'none';
+                    document.getElementById('autocompleteSuggestion').style.display = 'none';
+                    return;
+                }
+            });
+            
+            // 포커스 잃을 때 제안 숨기기
+            orderInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    document.getElementById('autocompleteSuggestion').style.display = 'none';
+                    dropdownDiv.style.display = 'none';
+                }, 200);
+            });
+            
+            // 포커스 받을 때 제안 업데이트
+            orderInput.addEventListener('focus', () => {
+                updateAutocompleteSuggestion();
+            });
+        }
+        
+        // 선택된 제안에 맞게 회색 텍스트 업데이트
+        function updateSuggestionDisplay() {
+            const suggestionDiv = document.getElementById('autocompleteSuggestion');
+            const orderInput = document.getElementById('myOrderInput');
+            const text = orderInput.value;
+            
+            if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
+                const selectedMenu = currentSuggestions[selectedSuggestionIndex];
+                const remainingText = selectedMenu.substring(text.length);
+                suggestionDiv.textContent = text + remainingText;
+                suggestionDiv.style.display = 'block';
+            } else if (currentSuggestions.length > 0) {
+                const firstMenu = currentSuggestions[0];
+                const remainingText = firstMenu.substring(text.length);
+                suggestionDiv.textContent = text + remainingText;
+                suggestionDiv.style.display = 'block';
+            }
+        }
 
         // 연결 상태 모니터링
         socket.on('connect', () => {
@@ -822,6 +1217,12 @@
                 updateGameRulesUI();
             }
             
+            // 자주 쓰는 메뉴 업데이트
+            if (state.frequentMenus !== undefined) {
+                frequentMenus = state.frequentMenus;
+                renderMenuList();
+            }
+            
             updateHostCheckbox(state.users);
             
             // 주문받기 상태 반영
@@ -832,6 +1233,8 @@
                 renderNotOrderedUsers();
             }
         });
+
+        // 페이지 로드 시 초기화는 로그인 후에 수행됨
 
         // 로그인
         function login() {
@@ -880,6 +1283,15 @@
             if (data.gameRules !== undefined) {
                 document.getElementById('gameRulesInput').value = data.gameRules || '';
                 updateGameRulesUI();
+            }
+            
+            // 자주 쓰는 메뉴 불러오기 (서버에서 전달받은 데이터 사용)
+            if (data.frequentMenus !== undefined) {
+                frequentMenus = data.frequentMenus;
+                renderMenuList();
+            } else {
+                // 서버에서 가져오기
+                loadFrequentMenus();
             }
             
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 표시
@@ -966,12 +1378,16 @@
         socket.on('orderStarted', () => {
             isOrderActive = true;
             document.getElementById('ordersSection').classList.add('active');
-            document.getElementById('myOrderInput').disabled = false;
-            document.getElementById('myOrderInput').value = '';
+            const orderInput = document.getElementById('myOrderInput');
+            orderInput.disabled = false;
+            orderInput.value = '';
             document.getElementById('orderSaveButton').disabled = false;
             document.getElementById('gameStatus').textContent = '주문받기 진행 중!';
             document.getElementById('gameStatus').classList.remove('waiting');
             document.getElementById('gameStatus').classList.add('ordering');
+            
+            // 자동완성 기능 활성화
+            setupAutocomplete();
             
             if (isHost) {
                 document.getElementById('startOrderButton').style.display = 'none';

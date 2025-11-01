@@ -4,6 +4,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -28,6 +29,34 @@ const limiter = rateLimit({
 // 모든 요청에 rate limiting 적용
 app.use(limiter);
 
+// 메뉴 파일 경로
+const MENUS_FILE = path.join(__dirname, 'frequentMenus.json');
+
+// 자주 쓰는 메뉴 목록 로드
+function loadFrequentMenus() {
+    try {
+        if (fs.existsSync(MENUS_FILE)) {
+            const data = fs.readFileSync(MENUS_FILE, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('메뉴 파일 읽기 오류:', error);
+    }
+    // 기본 메뉴 목록
+    return ['치킨', '피자', '햄버거', '콜라', '사이다', '떡볶이', '김치찌개'];
+}
+
+// 자주 쓰는 메뉴 목록 저장
+function saveFrequentMenus(menus) {
+    try {
+        fs.writeFileSync(MENUS_FILE, JSON.stringify(menus, null, 2), 'utf8');
+        return true;
+    } catch (error) {
+        console.error('메뉴 파일 쓰기 오류:', error);
+        return false;
+    }
+}
+
 // 게임 상태
 let gameState = {
     users: [],
@@ -39,7 +68,8 @@ let gameState = {
     gamePlayers: [], // 게임 시작 시 참여자 목록 (게임 중 입장한 사람 제외)
     userDiceSettings: {}, // 사용자별 주사위 설정 {userName: {max}} (최소값은 항상 1)
     userOrders: {}, // 사용자별 주문 내역 {userName: "주문 내용"}
-    gameRules: '' // 게임 룰 (호스트만 설정, 게임 시작 후 수정 불가)
+    gameRules: '', // 게임 룰 (호스트만 설정, 게임 시작 후 수정 불가)
+    frequentMenus: loadFrequentMenus() // 자주 쓰는 메뉴 목록
 };
 
 // 정적 파일 제공
@@ -104,7 +134,8 @@ io.on('connection', (socket) => {
         ...gameState,
         // 재접속 확인: 이미 굴렸는지 여부
         hasRolled: (userName) => gameState.rolledUsers.includes(userName),
-        myResult: null // 클라이언트에서 자신의 결과를 찾아야 함
+        myResult: null, // 클라이언트에서 자신의 결과를 찾아야 함
+        frequentMenus: gameState.frequentMenus // 자주 쓰는 메뉴 목록 포함
     });
 
     // 사용자 로그인
@@ -175,7 +206,8 @@ io.on('connection', (socket) => {
             isGamePlayer: gameState.gamePlayers.includes(name.trim()),
             diceSettings: gameState.userDiceSettings[name.trim()],
             myOrder: gameState.userOrders[name.trim()] || '',
-            gameRules: gameState.gameRules
+            gameRules: gameState.gameRules,
+            frequentMenus: gameState.frequentMenus
         });
 
         // 모든 클라이언트에게 업데이트된 사용자 목록 전송
@@ -345,6 +377,80 @@ io.on('connection', (socket) => {
         // 모든 클라이언트에게 업데이트된 룰 전송
         io.emit('gameRulesUpdated', gameState.gameRules);
         console.log('게임 룰 업데이트:', gameState.gameRules);
+    });
+
+    // 자주 쓰는 메뉴 목록 가져오기
+    socket.on('getFrequentMenus', () => {
+        if (!checkRateLimit()) return;
+        socket.emit('frequentMenusUpdated', gameState.frequentMenus);
+    });
+
+    // 자주 쓰는 메뉴 추가
+    socket.on('addFrequentMenu', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { menu } = data;
+        
+        // 입력값 검증
+        if (!menu || typeof menu !== 'string' || menu.trim().length === 0) {
+            socket.emit('menuError', '올바른 메뉴명을 입력해주세요!');
+            return;
+        }
+        
+        const menuTrimmed = menu.trim();
+        
+        // 중복 체크
+        if (gameState.frequentMenus.includes(menuTrimmed)) {
+            socket.emit('menuError', '이미 등록된 메뉴입니다!');
+            return;
+        }
+        
+        // 메뉴 추가
+        gameState.frequentMenus.push(menuTrimmed);
+        
+        // 파일에 저장
+        if (saveFrequentMenus(gameState.frequentMenus)) {
+            // 모든 클라이언트에게 업데이트된 메뉴 목록 전송
+            io.emit('frequentMenusUpdated', gameState.frequentMenus);
+            console.log('메뉴 추가:', menuTrimmed);
+        } else {
+            socket.emit('menuError', '메뉴 저장 중 오류가 발생했습니다!');
+            // 추가한 메뉴 롤백
+            gameState.frequentMenus = gameState.frequentMenus.filter(m => m !== menuTrimmed);
+        }
+    });
+
+    // 자주 쓰는 메뉴 삭제
+    socket.on('deleteFrequentMenu', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { menu } = data;
+        
+        // 입력값 검증
+        if (!menu || typeof menu !== 'string') {
+            socket.emit('menuError', '올바른 메뉴명을 입력해주세요!');
+            return;
+        }
+        
+        // 메뉴 삭제
+        const beforeLength = gameState.frequentMenus.length;
+        gameState.frequentMenus = gameState.frequentMenus.filter(m => m !== menu);
+        
+        if (gameState.frequentMenus.length === beforeLength) {
+            socket.emit('menuError', '존재하지 않는 메뉴입니다!');
+            return;
+        }
+        
+        // 파일에 저장
+        if (saveFrequentMenus(gameState.frequentMenus)) {
+            // 모든 클라이언트에게 업데이트된 메뉴 목록 전송
+            io.emit('frequentMenusUpdated', gameState.frequentMenus);
+            console.log('메뉴 삭제:', menu);
+        } else {
+            socket.emit('menuError', '메뉴 저장 중 오류가 발생했습니다!');
+            // 삭제한 메뉴 롤백 (파일 읽기로 복구)
+            gameState.frequentMenus = loadFrequentMenus();
+        }
     });
 
     // 게임 시작
