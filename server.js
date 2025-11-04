@@ -1034,12 +1034,7 @@ io.on('connection', (socket) => {
             totalPlayers: gameState.gamePlayers.length
         });
         
-        // 초기 진행 상황 전송
-        io.to(room.roomId).emit('rollProgress', {
-            rolled: 0,
-            total: gameState.gamePlayers.length,
-            notRolledYet: gameState.gamePlayers
-        });
+        // 주사위는 자유롭게 굴릴 수 있으므로 진행 상황 업데이트 불필요
         
         // 방 목록 업데이트 (게임 상태 변경)
         updateRoomsList();
@@ -1128,10 +1123,7 @@ io.on('connection', (socket) => {
             return;
         }
         
-        if (!gameState.isGameActive) {
-            socket.emit('rollError', '게임이 진행 중이 아닙니다!');
-            return;
-        }
+        // 주사위는 게임 진행 전/후 모두 자유롭게 굴릴 수 있음
 
         const { userName, clientSeed, min, max } = data;
         
@@ -1142,17 +1134,8 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 게임 시작 후 입장한 사용자 체크
-        if (!gameState.gamePlayers.includes(userName)) {
-            socket.emit('rollError', '게임 시작 이후에 입장하셨습니다. 다음 게임에 참여해주세요!');
-            return;
-        }
-
-        // 이미 굴린 사용자인지 확인
-        if (gameState.rolledUsers.includes(userName)) {
-            socket.emit('rollError', '이미 주사위를 굴렸습니다! 게임당 1회만 가능합니다.');
-            return;
-        }
+        // 주사위는 게임 진행 전/후 모두 자유롭게 굴릴 수 있음
+        // 게임 시작 후 입장한 사용자도 주사위를 굴릴 수 있음
 
         // 클라이언트 시드 검증
         if (!clientSeed || typeof clientSeed !== 'string') {
@@ -1182,9 +1165,6 @@ io.on('connection', (socket) => {
         // 시드 기반으로 서버에서 난수 생성
         const result = seededRandom(clientSeed, diceMin, diceMax);
 
-        // 굴린 사용자 목록에 추가
-        gameState.rolledUsers.push(userName);
-
         const record = {
             user: userName,
             result: result,
@@ -1198,28 +1178,7 @@ io.on('connection', (socket) => {
         // 같은 방의 모든 클라이언트에게 주사위 결과 전송
         io.to(room.roomId).emit('diceRolled', record);
         
-        // 아직 굴리지 않은 사람 목록
-        const notRolledYet = gameState.gamePlayers.filter(
-            player => !gameState.rolledUsers.includes(player)
-        );
-        
-        // 진행 상황 업데이트
-        io.to(room.roomId).emit('rollProgress', {
-            rolled: gameState.rolledUsers.length,
-            total: gameState.gamePlayers.length,
-            notRolledYet: notRolledYet
-        });
-        
-        console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
-        
-        // 모두 굴렸는지 확인
-        if (gameState.rolledUsers.length === gameState.gamePlayers.length) {
-            io.to(room.roomId).emit('allPlayersRolled', {
-                message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
-                totalPlayers: gameState.gamePlayers.length
-            });
-            console.log(`방 ${room.roomName} 모든 참여자가 주사위를 굴렸습니다!`);
-        }
+        console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax})`);
     });
 
     // 채팅 메시지 전송

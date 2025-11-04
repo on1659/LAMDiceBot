@@ -1216,7 +1216,7 @@
             <!-- 기록 섹션 -->
             <div class="history-section">
                 <div class="history-title-wrapper">
-                    <div class="history-title">📋 게임 기록</div>
+                    <div class="history-title" id="historyTitle">📋 게임 기록 - 연습경기</div>
                     <div class="sort-buttons">
                         <button class="sort-button" id="sortTimeBtn" onclick="sortHistory('time')">시간순</button>
                         <button class="sort-button" id="sortAscBtn" onclick="sortHistory('asc')">오름차순</button>
@@ -1888,6 +1888,12 @@
             myDiceSettings = data.diceSettings || { max: 100 };
             isGameActive = data.isGameActive;
             isOrderActive = data.isOrderActive;
+            
+            // 게임 기록 제목 설정
+            const historyTitle = document.getElementById('historyTitle');
+            if (historyTitle) {
+                historyTitle.textContent = isGameActive ? '📋 게임 기록' : '📋 게임 기록 - 연습경기';
+            }
             
             // 비공개 방 비밀번호 표시
             const passwordDisplay = document.getElementById('roomPasswordDisplay');
@@ -2701,6 +2707,9 @@
             hasRolledInCurrentGame = false;
             historyData = [];
             
+            // 게임 기록 제목 변경
+            document.getElementById('historyTitle').textContent = '📋 게임 기록';
+            
             // 준비 섹션 숨기기
             document.getElementById('readySection').style.display = 'none';
             
@@ -2774,6 +2783,9 @@
             hasRolledInCurrentGame = false;
             historyData = history;
             
+            // 게임 기록 제목 변경 (연습경기로)
+            document.getElementById('historyTitle').textContent = '📋 게임 기록 - 연습경기';
+            
             // 게임 종료 시 준비 상태 초기화
             isReady = false;
             readyUsers = [];
@@ -2841,7 +2853,7 @@
             historyData.push(record);
             
             if (record.user === currentUser) {
-                hasRolledInCurrentGame = true;
+                // 주사위는 자유롭게 굴릴 수 있음 (hasRolledInCurrentGame 사용 안함)
                 
                 if (diceAnimationInterval) {
                     clearInterval(diceAnimationInterval);
@@ -3060,15 +3072,7 @@
         
         // 주사위 명령어 처리
         function handleDiceCommand(command) {
-            if (!isGameActive) {
-                alert('게임이 진행 중이 아닙니다!');
-                return;
-            }
-
-            if (hasRolledInCurrentGame) {
-                alert('이미 주사위를 굴렸습니다!');
-                return;
-            }
+            // 주사위는 게임 진행 전/후 모두 자유롭게 굴릴 수 있음
             
             // /주사위 명령어 파싱
             const parts = command.trim().split(/\s+/);
