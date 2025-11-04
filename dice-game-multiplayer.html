@@ -677,7 +677,8 @@
 
         .order-text {
             color: #666;
-            font-size: 14px;
+            font-size: 20px;
+            font-weight: 600;
             word-break: break-word;
         }
 
@@ -887,7 +888,33 @@
             <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-01-27)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-04)</span>
+
+<b>🎨 UI 구성 개선</b>
+• 게임 화면 레이아웃 재구성 (방 제목 → 게임 룰 → 주사위 명령어 입력 → 주사위 아이콘)
+• 주사위 범위 설정 섹션 제거 (명령어로 대체)
+
+<b>🎲 주사위 굴리기 방식 변경</b>
+• 버튼 방식 → 채팅 명령어 방식으로 변경
+• `/주사위 [숫자]` 명령어로 주사위 굴리기 (예: /주사위 100)
+• 숫자 없이 `/주사위`만 입력하면 자동으로 100 사용
+• 주사위 굴리기 버튼 제거
+
+<b>🍔 주문받기 시스템 개선</b>
+• 주문받기 섹션 항상 표시 (주문받기 종료 후에도 주문 목록 표시)
+• 주문 목록 실시간 업데이트
+• 주문리스트 보기 버튼 항상 표시
+
+<b>📊 게임 기록 표시 개선</b>
+• 범위 표시 간소화 ("1~100" → "100"만 표시)
+
+<b>🕐 시간 기록 개선</b>
+• UTC+9 (한국 표준시) 적용
+• 주사위 굴리기 기록 및 채팅 메시지 시간을 한국 시간으로 표시
+
+---
+
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-03)</span>
 
 <b>🔄 방 생성 및 입장 시스템 개선</b>
 • 방 생성 시 방 제목 자동 생성 ("이름님의 Dice" 형식)
@@ -971,6 +998,20 @@
                 <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름 입력" maxlength="20" />
             </div>
             
+            <!-- 공개/비공개 설정 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                    <label for="createRoomPrivateCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">비공개 방</label>
+                </div>
+                <div id="createRoomPasswordContainer" style="display: none;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="createRoomPasswordInput">비밀번호</label>
+                        <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 입력 (4~20자)" maxlength="20" />
+                    </div>
+                </div>
+            </div>
+            
             <!-- 방 생성하기 버튼 (맨 아래) -->
             <button onclick="finalizeRoomCreation()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-top: 30px; width: 100%;">방 생성하기</button>
         </div>
@@ -982,10 +1023,19 @@
                     <span class="user-name" id="currentUser"></span>
                     <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
                 </div>
-                <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
+                    <span id="roomPasswordDisplay" style="font-size: 12px; color: #667eea; font-weight: 500; display: none;"></span>
+                </div>
             </div>
             
-            <!-- 방 정보 -->
+            <!-- 재접속 알림 -->
+            <div class="reconnect-notice" id="reconnectNotice" style="display: none;">
+                <strong>🔄 재접속하셨습니다!</strong>
+                <p id="reconnectMessage"></p>
+            </div>
+
+            <!-- 1. 방 제목 -->
             <div class="room-info-section" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
                 <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: #667eea; margin-bottom: 10px;">
                     <span id="roomNameText">방 제목</span>
@@ -1000,34 +1050,13 @@
                 <button id="editRoomNameButton" onclick="editRoomName()" style="width: auto; padding: 8px 16px; font-size: 14px; display: none;">방 제목 변경</button>
             </div>
 
-            <!-- 재접속 알림 -->
-            <div class="reconnect-notice" id="reconnectNotice" style="display: none;">
-                <strong>🔄 재접속하셨습니다!</strong>
-                <p id="reconnectMessage"></p>
-            </div>
-
-            <!-- 개인 주사위 설정 (최소값 1 고정) -->
-            <div class="dice-settings">
-                <div class="dice-settings-title">🎯 내 주사위 범위 설정 (1 ~ 최대값)</div>
-                <div class="dice-range-inputs">
-                    <div class="input-group" style="margin: 0;">
-                        <label for="diceMax">최대값</label>
-                        <input type="number" id="diceMax" value="100" min="2" max="100000" />
-                    </div>
-                    <button onclick="updateMyDiceSettings()" style="width: auto; padding: 12px 20px;">설정</button>
-                </div>
-                <div style="margin-top: 8px; font-size: 14px; color: #1976d2; font-weight: 600;">
-                    현재 범위: <span id="currentMyRange">1 ~ 100</span>
-                </div>
-            </div>
-
-            <!-- 게임 룰 섹션 (호스트만 수정 가능) -->
-            <div class="game-rules-section" id="gameRulesSection" style="display: none;">
+            <!-- 2. 게임 룰 섹션 -->
+            <div class="game-rules-section" id="gameRulesSection" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
                 <div class="dice-settings-title">📋 게임 룰</div>
                 <div class="input-group">
                     <textarea 
                         id="gameRulesInput" 
-                        placeholder="게임 룰을 입력하세요 (게임 시작 이후 설정 가능))"
+                        placeholder="게임 룰을 입력하세요 (게임 시작 전에만 수정 가능)"
                         maxlength="500"
                         rows="3"
                         disabled
@@ -1035,8 +1064,24 @@
                 </div>
                 <button onclick="updateGameRules()" id="gameRulesSaveButton" style="width: auto; padding: 12px 20px;" disabled>저장</button>
                 <div style="margin-top: 8px; font-size: 12px; color: #999;">
-                    게임 시작 후 수정 불가능합니다
+                    게임 시작 전에만 수정 가능합니다
                 </div>
+            </div>
+
+            <!-- 3. 주사위 굴리기 명령어 입력 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <div class="dice-settings-title" style="margin-bottom: 10px;">🎲 주사위 굴리기</div>
+                <div class="input-group" style="margin: 0;">
+                    <input type="text" id="diceCommandInput" placeholder="/주사위" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 16px; padding: 12px;" />
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    예: /주사위
+                </div>
+            </div>
+
+            <!-- 4. 주사위 아이콘 -->
+            <div class="dice-container" style="margin-bottom: 20px;">
+                <div class="dice" id="dice">?</div>
             </div>
 
             <!-- 접속자 리스트 -->
@@ -1089,22 +1134,17 @@
                 <button onclick="clearGameData()" id="clearDataButton" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">이전 게임 데이터 삭제</button>
             </div>
 
-            <!-- 주사위 영역 -->
-            <div class="dice-container">
-                <div class="dice" id="dice">?</div>
-            </div>
-
-            <button class="roll-button" onclick="rollDice()" id="rollButton" disabled>
-                주사위 굴리기
-            </button>
-
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection">
                 <div class="history-title-wrapper">
                     <div class="users-title">🍔 주문받기</div>
-                    <div class="sort-buttons">
-                        <button class="sort-button active" id="sortOrderAscBtn" onclick="sortOrders('asc')">가나다순</button>
-                        <button class="sort-button" id="sortOrderDescBtn" onclick="sortOrders('desc')">가나다 역순</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button onclick="showOrderList()" id="showOrderListButton" class="order-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 16px; font-size: 14px;">📋 주문리스트 보기</button>
+                        <div class="sort-buttons">
+                            <button class="sort-button active" id="sortOrderAscBtn" onclick="sortOrders('asc')">가나다순</button>
+                            <button class="sort-button" id="sortOrderDescBtn" onclick="sortOrders('desc')">가나다 역순</button>
+                            <button class="sort-button" id="sortOrderCountBtn" onclick="sortOrders('count')">주문 많은 순</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -1206,7 +1246,7 @@
         let historyData = [];
         let currentSortMode = 'desc';
         let ordersData = {};
-        let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순)
+        let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순), 'count' (주문 많은 순)
         let usersList = []; // 접속자 목록
         let frequentMenus = []; // 자주 쓰는 메뉴 목록
         let readyUsers = []; // 준비한 사용자 목록
@@ -1562,11 +1602,16 @@
                     ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
                     : room.roomName;
                 
+                // 비공개 방 표시
+                const privateBadge = room.isPrivate 
+                    ? '<span style="color: #ff6b6b; font-weight: bold; margin-left: 5px;">🔒 비공개</span>' 
+                    : '';
+                
                 const buttonText = isMyRoom ? '재입장' : '입장하기';
                 
                 roomItem.innerHTML = `
                     <div class="room-info">
-                        <div class="room-name">${roomNameHtml}</div>
+                        <div class="room-name">${roomNameHtml}${privateBadge}</div>
                         <div class="room-details">
                             호스트: ${room.hostName} | 인원: ${room.playerCount}명
                         </div>
@@ -1596,11 +1641,43 @@
                 return;
             }
             
-            // 기존 방에 입장할 때는 항상 일반 사용자로 입장 (호스트는 방 생성 시에만 설정)
+            // 방 정보 확인 (비공개 방인지 체크)
+            const room = roomsList.find(r => r.roomId === roomId);
+            if (room && room.isPrivate) {
+                // 비공개 방이면 비밀번호 입력 모달 표시
+                showPasswordModal(roomId, userName);
+            } else {
+                // 공개 방이면 바로 입장
+                socket.emit('joinRoom', {
+                    roomId: roomId,
+                    userName: userName,
+                    isHost: false,
+                    password: ''
+                });
+            }
+        }
+        
+        // 비밀번호 입력 모달 표시
+        function showPasswordModal(roomId, userName) {
+            const password = prompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:');
+            
+            if (password === null) {
+                // 취소
+                return;
+            }
+            
+            if (password === '') {
+                alert('⚠️ 비밀번호를 입력해주세요!');
+                showPasswordModal(roomId, userName); // 다시 모달 표시
+                return;
+            }
+            
+            // 비밀번호와 함께 입장 요청
             socket.emit('joinRoom', {
                 roomId: roomId,
                 userName: userName,
-                isHost: false
+                isHost: false,
+                password: password
             });
         }
         
@@ -1617,6 +1694,9 @@
             // 기본값 설정
             document.getElementById('createRoomNameInput').value = '';
             document.getElementById('createRoomHostNameInput').value = '';
+            document.getElementById('createRoomPrivateCheckbox').checked = false;
+            document.getElementById('createRoomPasswordInput').value = '';
+            document.getElementById('createRoomPasswordContainer').style.display = 'none';
             
             // 전역 이름 입력값을 가져와서 호스트 이름 입력칸에 기본값으로 설정 (있으면)
             const globalNameInput = document.getElementById('globalUserNameInput');
@@ -1632,6 +1712,24 @@
                 document.getElementById('createRoomHostNameInput').focus();
             }, 100);
         }
+        
+        // 비공개 방 체크박스 이벤트
+        document.addEventListener('DOMContentLoaded', () => {
+            const privateCheckbox = document.getElementById('createRoomPrivateCheckbox');
+            const passwordContainer = document.getElementById('createRoomPasswordContainer');
+            
+            if (privateCheckbox && passwordContainer) {
+                privateCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        passwordContainer.style.display = 'block';
+                        document.getElementById('createRoomPasswordInput').focus();
+                    } else {
+                        passwordContainer.style.display = 'none';
+                        document.getElementById('createRoomPasswordInput').value = '';
+                    }
+                });
+            }
+        });
         
         // 대기실로 돌아가기
         function goBackToLobby() {
@@ -1659,10 +1757,30 @@
                 return;
             }
             
+            // 비공개 방 설정 확인
+            const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
+            const password = document.getElementById('createRoomPasswordInput').value.trim();
+            
+            if (isPrivate) {
+                if (password === '') {
+                    alert('⚠️ 비공개 방은 비밀번호를 입력해주세요!');
+                    document.getElementById('createRoomPasswordInput').focus();
+                    return;
+                }
+                
+                if (password.length < 4 || password.length > 20) {
+                    alert('⚠️ 비밀번호는 4자 이상 20자 이하여야 합니다!');
+                    document.getElementById('createRoomPasswordInput').focus();
+                    return;
+                }
+            }
+            
             // 방 생성 (주사위 범위와 게임 룰은 방 생성 후 설정)
             socket.emit('createRoom', { 
                 userName: hostName,
-                roomName: roomName
+                roomName: roomName,
+                isPrivate: isPrivate,
+                password: isPrivate ? password : ''
             });
         }
         
@@ -1682,12 +1800,20 @@
                 return;
             }
             
-            // 기존 방에 입장할 때는 항상 일반 사용자로 입장 (호스트는 방 생성 시에만 설정)
-            socket.emit('joinRoom', {
-                roomId: selectedRoomId,
-                userName: userName,
-                isHost: false
-            });
+            // 방 정보 확인 (비공개 방인지 체크)
+            const room = roomsList.find(r => r.roomId === selectedRoomId);
+            if (room && room.isPrivate) {
+                // 비공개 방이면 비밀번호 입력 모달 표시
+                showPasswordModal(selectedRoomId, userName);
+            } else {
+                // 공개 방이면 바로 입장
+                socket.emit('joinRoom', {
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isHost: false,
+                    password: ''
+                });
+            }
         }
         
         // 전역 이름 입력창 초기화 (localStorage에서 불러오기)
@@ -1763,6 +1889,15 @@
             isGameActive = data.isGameActive;
             isOrderActive = data.isOrderActive;
             
+            // 비공개 방 비밀번호 표시
+            const passwordDisplay = document.getElementById('roomPasswordDisplay');
+            if (data.isPrivate && data.password) {
+                passwordDisplay.textContent = `🔒 비밀번호: ${data.password}`;
+                passwordDisplay.style.display = 'inline-block';
+            } else {
+                passwordDisplay.style.display = 'none';
+            }
+            
             // 방 제목 표시
             document.getElementById('roomNameText').textContent = data.roomName || '방';
             
@@ -1774,10 +1909,6 @@
             }
             
             document.getElementById('currentUser').textContent = currentUser;
-            
-            // 내 주사위 설정 적용
-            document.getElementById('diceMax').value = myDiceSettings.max;
-            document.getElementById('currentMyRange').textContent = `1 ~ ${myDiceSettings.max}`;
 
             // 내 주문 불러오기
             document.getElementById('myOrderInput').value = data.myOrder || '';
@@ -1787,13 +1918,9 @@
                 document.getElementById('hostControls').style.display = 'grid';
             }
             
-            // 모든 사용자에게 게임 룰 섹션 표시 (읽기 전용)
-            document.getElementById('gameRulesSection').style.display = 'block';
-            
             // 게임 룰 불러오기
             if (data.gameRules !== undefined) {
                 document.getElementById('gameRulesInput').value = data.gameRules || '';
-                updateGameRulesUI();
             }
             
             // 자주 쓰는 메뉴 불러오기
@@ -1807,6 +1934,11 @@
             // 준비 상태 초기화
             readyUsers = data.readyUsers || [];
             isReady = data.isReady || false;
+            
+            // 게임 룰 UI 업데이트 (초기화 후 반드시 호출)
+            setTimeout(() => {
+                updateGameRulesUI();
+            }, 100);
             renderReadyUsers();
             updateReadyButton();
             
@@ -1846,31 +1978,29 @@
                     document.getElementById('endButton').style.display = 'block';
                 }
                 
-                const rollButton = document.getElementById('rollButton');
                 const diceElement = document.getElementById('dice');
                 const reconnectNotice = document.getElementById('reconnectNotice');
                 const reconnectMessage = document.getElementById('reconnectMessage');
                 
                 if (data.hasRolled && data.myResult) {
                     diceElement.textContent = data.myResult.result;
-                    rollButton.textContent = `결과: ${data.myResult.result}`;
-                    rollButton.disabled = true;
                     
                     reconnectNotice.style.display = 'block';
                     reconnectMessage.textContent = `이미 주사위를 굴렸습니다. 결과: ${data.myResult.result}`;
                 } else {
                     diceElement.textContent = '?';
-                    rollButton.textContent = '주사위 굴리기';
-                    rollButton.disabled = false;
                     hasRolledInCurrentGame = false;
                     
                     reconnectNotice.style.display = 'block';
-                    reconnectMessage.textContent = '아직 주사위를 굴리지 않았습니다. 다시 굴릴 수 있습니다!';
+                    reconnectMessage.textContent = '아직 주사위를 굴리지 않았습니다. /주사위 명령어로 굴릴 수 있습니다!';
                     reconnectMessage.style.color = '#155724';
                     reconnectNotice.style.background = '#d4edda';
                     reconnectNotice.style.borderColor = '#28a745';
                 }
             }
+            
+            // 주문받기 섹션 항상 표시
+            document.getElementById('ordersSection').style.display = 'block';
             
             // 주문받기 상태 반영
             if (isOrderActive) {
@@ -1884,10 +2014,18 @@
                     document.getElementById('startOrderButton').style.display = 'none';
                     document.getElementById('endOrderButton').style.display = 'block';
                 }
+                
+                // 주문 목록과 주문하지 않은 사람 목록 표시
+                renderOrders();
+                renderNotOrderedUsers();
             } else if (isHost && !isGameActive) {
                 // 게임이 비활성화되고 주문받기도 비활성화된 상태에서 Host에게 주문받기 시작 버튼 표시
                 document.getElementById('startOrderButton').style.display = 'block';
                 document.getElementById('endOrderButton').style.display = 'none';
+                
+                // 주문받기가 종료되어도 주문 목록은 표시
+                renderOrders();
+                renderNotOrderedUsers();
             }
         }
         
@@ -1928,13 +2066,7 @@
                     editRoomNameButton.style.display = 'inline-block';
                 }
                 
-                // 게임 상태에 따라 버튼 표시
-                if (!isGameActive && !isOrderActive) {
-                    const startOrderButton = document.getElementById('startOrderButton');
-                    if (startOrderButton) {
-                        startOrderButton.style.display = 'block';
-                    }
-                }
+                // 주문받기 버튼은 더 이상 사용하지 않음
                 
                 // 게임 룰 저장 버튼 표시
                 updateGameRulesUI();
@@ -1968,6 +2100,8 @@
             isHost = true;
             // 호스트 전용 UI 업데이트
             updateHostUI();
+            // 게임 룰 UI 업데이트
+            updateGameRulesUI();
         });
         
         // 호스트 변경 알림
@@ -2027,10 +2161,6 @@
             document.getElementById('loginSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
             document.getElementById('currentUser').textContent = currentUser;
-            
-            // 내 주사위 설정 적용
-            document.getElementById('diceMax').value = myDiceSettings.max;
-            document.getElementById('currentMyRange').textContent = `1 ~ ${myDiceSettings.max}`;
 
             // 내 주문 불러오기
             document.getElementById('myOrderInput').value = data.myOrder || '';
@@ -2040,13 +2170,9 @@
                 document.getElementById('hostControls').style.display = 'grid';
             }
             
-            // 모든 사용자에게 게임 룰 섹션 표시 (읽기 전용)
-            document.getElementById('gameRulesSection').style.display = 'block';
-            
             // 게임 룰 불러오기
             if (data.gameRules !== undefined) {
                 document.getElementById('gameRulesInput').value = data.gameRules || '';
-                updateGameRulesUI();
             }
             
             // 자주 쓰는 메뉴 불러오기 (서버에서 전달받은 데이터 사용)
@@ -2057,6 +2183,11 @@
                 // 서버에서 가져오기
                 loadFrequentMenus();
             }
+            
+            // 게임 룰 UI 업데이트 (초기화 후 반드시 호출)
+            setTimeout(() => {
+                updateGameRulesUI();
+            }, 100);
             
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 표시
             if (isOrderActive) {
@@ -2077,32 +2208,30 @@
                     document.getElementById('endButton').style.display = 'block';
                 }
                 
-                const rollButton = document.getElementById('rollButton');
                 const diceElement = document.getElementById('dice');
                 const reconnectNotice = document.getElementById('reconnectNotice');
                 const reconnectMessage = document.getElementById('reconnectMessage');
                 
                 if (data.hasRolled && data.myResult) {
                     diceElement.textContent = data.myResult.result;
-                    rollButton.textContent = `결과: ${data.myResult.result}`;
-                    rollButton.disabled = true;
                     
                     reconnectNotice.style.display = 'block';
                     reconnectMessage.textContent = `이미 주사위를 굴렸습니다. 결과: ${data.myResult.result}`;
                 } else {
                     diceElement.textContent = '?';
-                    rollButton.textContent = '주사위 굴리기';
-                    rollButton.disabled = false;
                     hasRolledInCurrentGame = false;
                     
                     reconnectNotice.style.display = 'block';
-                    reconnectMessage.textContent = '아직 주사위를 굴리지 않았습니다. 다시 굴릴 수 있습니다!';
+                    reconnectMessage.textContent = '아직 주사위를 굴리지 않았습니다. /주사위 명령어로 굴릴 수 있습니다!';
                     reconnectMessage.style.color = '#155724';
                     reconnectNotice.style.background = '#d4edda';
                     reconnectNotice.style.borderColor = '#28a745';
                 }
             }
 
+            // 주문받기 섹션 항상 표시
+            document.getElementById('ordersSection').style.display = 'block';
+            
             // 주문받기 상태 반영
             if (isOrderActive) {
                 document.getElementById('ordersSection').classList.add('active');
@@ -2115,10 +2244,18 @@
                     document.getElementById('startOrderButton').style.display = 'none';
                     document.getElementById('endOrderButton').style.display = 'block';
                 }
+                
+                // 주문 목록과 주문하지 않은 사람 목록 표시
+                renderOrders();
+                renderNotOrderedUsers();
             } else if (isHost && !isGameActive) {
                 // 게임이 비활성화되고 주문받기도 비활성화된 상태에서 Host에게 주문받기 시작 버튼 표시
                 document.getElementById('startOrderButton').style.display = 'block';
                 document.getElementById('endOrderButton').style.display = 'none';
+                
+                // 주문받기가 종료되어도 주문 목록은 표시
+                renderOrders();
+                renderNotOrderedUsers();
             }
         });
 
@@ -2148,14 +2285,79 @@
             refreshRooms();
         });
 
+        // 주문리스트 보기
+        function showOrderList() {
+            if (!isOrderActive) {
+                alert('주문받기가 진행 중일 때만 주문리스트를 볼 수 있습니다!');
+                return;
+            }
+            
+            // 현재 주문리스트 수집
+            let orderListText = '=== 현재 주문리스트 ===\n\n';
+            
+            // 메뉴별로 그룹화 (가나다순 정렬)
+            const groupedOrders = groupOrdersByMenu(ordersData, 'asc');
+            
+            if (groupedOrders.length === 0) {
+                orderListText += '아직 주문이 없습니다.\n';
+            } else {
+                // 그룹화된 주문 목록 표시
+                groupedOrders.forEach((group, index) => {
+                    // 사용자 이름들을 한 줄에 표시 (이름순 정렬)
+                    const sortedUsers = [...group.users].sort((a, b) => {
+                        // 내 이름이면 맨 앞에
+                        if (a === currentUser) return -1;
+                        if (b === currentUser) return 1;
+                        return a.localeCompare(b, 'ko');
+                    });
+                    
+                    const userNames = sortedUsers.map(name => 
+                        name + (name === currentUser ? ' (나)' : '')
+                    ).join(', ');
+                    
+                    // 사용자 이름들
+                    orderListText += `${userNames}\n`;
+                    // 메뉴명
+                    orderListText += `${group.menu}\n`;
+                    
+                    // 마지막 항목이 아니면 빈 줄 추가
+                    if (index < groupedOrders.length - 1) {
+                        orderListText += '\n';
+                    }
+                });
+                
+                orderListText += `\n총 ${groupedOrders.length}개 메뉴`;
+            }
+            
+            // 주문하지 않은 사람 목록
+            const allUsers = usersList.map(u => u.name);
+            const orderedUsers = groupedOrders.flatMap(group => group.users);
+            const notOrderedUsers = allUsers.filter(user => !orderedUsers.includes(user));
+            
+            if (notOrderedUsers.length > 0) {
+                orderListText += `\n\n주문하지 않은 사람 (${notOrderedUsers.length}명):\n`;
+                notOrderedUsers.forEach((user, index) => {
+                    orderListText += `${index + 1}. ${user}\n`;
+                });
+            }
+            
+            alert(orderListText);
+        }
+
         // 주문받기 시작
         function startOrder() {
             socket.emit('startOrder');
         }
-
+        
+        // 주문받기 종료
+        function endOrder() {
+            socket.emit('endOrder');
+        }
+        
         socket.on('orderStarted', () => {
             isOrderActive = true;
             document.getElementById('ordersSection').classList.add('active');
+            document.getElementById('ordersSection').style.display = 'block';
             const orderInput = document.getElementById('myOrderInput');
             orderInput.disabled = false;
             orderInput.value = '';
@@ -2167,22 +2369,21 @@
             // 자동완성 기능 활성화
             setupAutocomplete();
             
+            // 주문리스트 보기 버튼은 항상 표시
+            document.getElementById('showOrderListButton').style.display = 'block';
+            
             if (isHost) {
                 document.getElementById('startOrderButton').style.display = 'none';
                 document.getElementById('endOrderButton').style.display = 'block';
             }
             
-            // 주문하지 않은 사람 목록 표시
+            // 주문 목록과 주문하지 않은 사람 목록 표시
+            renderOrders();
             renderNotOrderedUsers();
             
             console.log('주문받기가 시작되었습니다!');
         });
-
-        // 주문받기 종료
-        function endOrder() {
-            socket.emit('endOrder');
-        }
-
+        
         socket.on('orderEnded', () => {
             isOrderActive = false;
             document.getElementById('myOrderInput').disabled = true;
@@ -2190,6 +2391,9 @@
             document.getElementById('gameStatus').textContent = '게임 대기 중...';
             document.getElementById('gameStatus').classList.remove('ordering');
             document.getElementById('gameStatus').classList.add('waiting');
+            
+            // 주문받기 섹션은 유지하되 입력만 비활성화 (주문 목록은 계속 표시)
+            // document.getElementById('ordersSection').style.display = 'block';
             
             if (isHost) {
                 document.getElementById('startButton').style.display = 'block';
@@ -2201,7 +2405,13 @@
                     document.getElementById('startOrderButton').style.display = 'none';
                 }
                 document.getElementById('endOrderButton').style.display = 'none';
+                // 주문리스트 보기 버튼은 계속 표시
+                document.getElementById('showOrderListButton').style.display = 'block';
             }
+            
+            // 주문 목록과 주문하지 않은 사람 목록은 계속 표시
+            renderOrders();
+            renderNotOrderedUsers();
             
             alert('주문받기가 종료되었습니다!');
         });
@@ -2210,7 +2420,13 @@
         function updateMyOrder() {
             const orderInput = document.getElementById('myOrderInput');
             const order = orderInput.value.trim();
+            
+            if (!currentUser) {
+                alert('사용자 이름을 확인할 수 없습니다. 다시 로그인해주세요.');
+                return;
+            }
 
+            console.log('주문 전송:', { userName: currentUser, order: order });
             socket.emit('updateOrder', {
                 userName: currentUser,
                 order: order
@@ -2219,6 +2435,21 @@
 
         socket.on('orderUpdated', (data) => {
             console.log('주문이 업데이트되었습니다:', data.order);
+            
+            // 주문 저장 성공 피드백
+            const orderInput = document.getElementById('myOrderInput');
+            if (orderInput) {
+                // 시각적 피드백 (배경색 변경)
+                const originalBg = orderInput.style.backgroundColor;
+                orderInput.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    orderInput.style.backgroundColor = originalBg || '';
+                }, 500);
+            }
+            
+            // 주문 목록 항상 업데이트
+            renderOrders();
+            renderNotOrderedUsers();
         });
 
         socket.on('orderError', (message) => {
@@ -2228,7 +2459,9 @@
         // 주문 목록 업데이트
         socket.on('updateOrders', (orders) => {
             ordersData = orders;
+            // 주문 목록 항상 업데이트 (주문받기 상태와 관계없이)
             renderOrders();
+            renderNotOrderedUsers();
         });
 
         // 주문 목록을 메뉴별로 그룹화하고 정렬
@@ -2248,9 +2481,12 @@
                 grouped[menuKey].users.push(userName);
             });
             
-            // 가나다순 또는 역순 정렬 (메뉴명 기준)
+            // 정렬 모드에 따라 정렬
             const sortedGroups = Object.values(grouped).sort((a, b) => {
-                if (mode === 'desc') {
+                if (mode === 'count') {
+                    // 주문 많은 순 (인원수 기준 내림차순)
+                    return b.users.length - a.users.length;
+                } else if (mode === 'desc') {
                     return b.menu.localeCompare(a.menu, 'ko'); // 역순
                 } else {
                     return a.menu.localeCompare(b.menu, 'ko'); // 가나다순
@@ -2272,6 +2508,8 @@
                 document.getElementById('sortOrderAscBtn').classList.add('active');
             } else if (mode === 'desc') {
                 document.getElementById('sortOrderDescBtn').classList.add('active');
+            } else if (mode === 'count') {
+                document.getElementById('sortOrderCountBtn').classList.add('active');
             }
             
             renderOrders();
@@ -2347,11 +2585,7 @@
             const notOrderedSection = document.getElementById('notOrderedSection');
             const notOrderedList = document.getElementById('notOrderedList');
             
-            if (!isOrderActive) {
-                notOrderedSection.style.display = 'none';
-                return;
-            }
-            
+            // 주문받기 상태와 관계없이 주문하지 않은 사람 목록 표시
             // 주문한 사람 목록
             const orderedUsers = Object.entries(ordersData)
                 .filter(([name, order]) => order && order.trim() !== '')
@@ -2367,6 +2601,7 @@
                 return;
             }
             
+            // 주문하지 않은 사람이 있으면 항상 표시
             notOrderedSection.style.display = 'block';
             notOrderedList.innerHTML = '';
             
@@ -2379,35 +2614,7 @@
         }
 
         // 내 주사위 설정 업데이트
-        function updateMyDiceSettings() {
-            const max = parseInt(document.getElementById('diceMax').value);
-
-            if (isNaN(max)) {
-                alert('올바른 숫자를 입력해주세요!');
-                return;
-            }
-
-            if (max < 2) {
-                alert('최대값은 2 이상이어야 합니다!');
-                return;
-            }
-
-            if (max > 100000) {
-                alert('최대값은 100000 이하로 설정해주세요!');
-                return;
-            }
-
-            socket.emit('updateUserDiceSettings', {
-                userName: currentUser,
-                max: max
-            });
-        }
-
-        socket.on('settingsUpdated', (settings) => {
-            myDiceSettings = settings;
-            document.getElementById('currentMyRange').textContent = `1 ~ ${settings.max}`;
-            alert(`주사위 범위가 1 ~ ${settings.max}로 설정되었습니다!`);
-        });
+        // 주사위 설정 업데이트 (더 이상 사용하지 않음, 명령어로 대체)
 
         socket.on('settingsError', (message) => {
             alert(message);
@@ -2428,6 +2635,10 @@
             const rulesInput = document.getElementById('gameRulesInput');
             const rulesSaveButton = document.getElementById('gameRulesSaveButton');
             
+            if (!rulesInput || !rulesSaveButton) {
+                return; // 요소가 없으면 종료
+            }
+            
             // 저장 버튼은 호스트만 보이게
             if (isHost) {
                 rulesSaveButton.style.display = 'inline-block';
@@ -2436,19 +2647,31 @@
             }
             
             // 호스트이고 게임이 시작되지 않았을 때만 편집 가능
-            if (isHost && !isGameActive) {
+            // isGameActive가 undefined일 수 있으므로 명시적으로 체크
+            // 방에 입장하지 않은 경우를 대비해 isHost도 확인
+            const canEdit = isHost && (isGameActive === false || isGameActive === undefined || !isGameActive);
+            
+            if (canEdit) {
                 rulesInput.disabled = false;
                 rulesSaveButton.disabled = false;
+                rulesInput.style.cursor = 'text';
+                rulesInput.style.backgroundColor = '#ffffff';
             } else {
                 rulesInput.disabled = true;
                 rulesSaveButton.disabled = true;
+                rulesInput.style.cursor = 'not-allowed';
+                rulesInput.style.backgroundColor = '#f5f5f5';
             }
+            
+            console.log('게임 룰 UI 업데이트:', { isHost, isGameActive, canEdit });
         }
 
         // 게임 룰 업데이트 수신
         socket.on('gameRulesUpdated', (rules) => {
             document.getElementById('gameRulesInput').value = rules || '';
             console.log('게임 룰이 업데이트되었습니다:', rules);
+            // UI 업데이트
+            updateGameRulesUI();
         });
 
         socket.on('rulesError', (message) => {
@@ -2490,25 +2713,25 @@
             document.getElementById('startButton').style.display = 'none';
             document.getElementById('endButton').style.display = 'block';
             
-            // 게임 시작 시 주문받기 버튼 숨기기
-            if (isHost) {
-                document.getElementById('startOrderButton').style.display = 'none';
-                document.getElementById('endOrderButton').style.display = 'none';
-            }
-            
             // 게임 시작 시 룰 수정 불가능하도록 UI 업데이트
             updateGameRulesUI();
             
-            const rollButton = document.getElementById('rollButton');
-            rollButton.disabled = false;
-            rollButton.textContent = '주사위 굴리기';
+            // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             
             document.getElementById('dice').textContent = '?';
             document.getElementById('progressSection').style.display = 'block';
             document.getElementById('progressBar').style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
             
-            // 주문받기 섹션 숨기기
-            document.getElementById('ordersSection').classList.remove('active');
+            // 게임 시작 시 주문받기 입력만 비활성화 (주문 목록은 계속 표시)
+            if (!isOrderActive) {
+                document.getElementById('ordersSection').classList.remove('active');
+            }
+            
+            // 게임 시작 시 주문받기 버튼 숨기기
+            if (isHost) {
+                document.getElementById('startOrderButton').style.display = 'none';
+                document.getElementById('endOrderButton').style.display = 'none';
+            }
             
             renderHistory();
         });
@@ -2551,15 +2774,21 @@
             hasRolledInCurrentGame = false;
             historyData = history;
             
+            // 게임 종료 시 준비 상태 초기화
+            isReady = false;
+            readyUsers = [];
+            renderReadyUsers();
+            updateReadyButton();
+            
             // 게임 종료 시 준비 섹션 다시 표시
             document.getElementById('readySection').style.display = 'block';
             
-            document.getElementById('gameStatus').textContent = '게임 종료됨 - 주문받기를 시작하세요!';
+            document.getElementById('gameStatus').textContent = '게임 종료됨';
             document.getElementById('gameStatus').classList.remove('playing');
             document.getElementById('gameStatus').classList.add('waiting');
             document.getElementById('startButton').style.display = 'block';
             document.getElementById('endButton').style.display = 'none';
-            document.getElementById('rollButton').disabled = true;
+            // 주사위 굴리기 버튼은 제거됨
             document.getElementById('progressSection').style.display = 'none';
             
             // 주문받기 시작 버튼 표시 (Host만)
@@ -2570,12 +2799,15 @@
             // 게임 종료 시 룰 수정 가능하도록 UI 업데이트 (호스트만)
             updateGameRulesUI();
             
+            renderHistory();
+            
             let resultsText = '게임이 종료되었습니다!\n\n=== 최종 결과 ===\n\n';
             
             const sortedHistory = sortHistoryData([...history], currentSortMode);
             
             sortedHistory.forEach((record, index) => {
-                resultsText += `${index + 1}. ${record.user}: ${record.result} (범위: ${record.range})\n`;
+                const maxValue = record.range && record.range.includes('~') ? record.range.split('~')[1] : (record.range || '100');
+                resultsText += `${index + 1}. ${record.user}: ${record.result} (${maxValue})\n`;
             });
             
             resultsText += `\n총 ${history.length}번의 주사위가 굴려졌습니다.`;
@@ -2585,10 +2817,8 @@
             const myRecord = history.find(r => r.user === currentUser);
             if (myRecord) {
                 const diceElement = document.getElementById('dice');
-                const rollButton = document.getElementById('rollButton');
-                
                 diceElement.textContent = myRecord.result;
-                rollButton.textContent = `내 결과: ${myRecord.result}`;
+                // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             }
         });
 
@@ -2600,36 +2830,10 @@
         // 주사위 굴리기
         let diceAnimationInterval = null;
 
+        // rollDice 함수는 더 이상 사용하지 않음 (명령어로 대체)
         function rollDice() {
-            if (!isGameActive) {
-                alert('게임이 진행 중이 아닙니다!');
-                return;
-            }
-
-            if (hasRolledInCurrentGame) {
-                alert('이미 주사위를 굴렸습니다!');
-                return;
-            }
-
-            const rollButton = document.getElementById('rollButton');
-            rollButton.disabled = true;
-            rollButton.textContent = '굴리는 중...';
-
-            const diceElement = document.getElementById('dice');
-            diceElement.classList.add('rolling');
-            diceElement.textContent = '🎲';
-            
-            let dots = 0;
-            diceAnimationInterval = setInterval(() => {
-                dots = (dots + 1) % 4;
-                diceElement.textContent = '🎲' + '.'.repeat(dots);
-            }, 200);
-
-            const clientSeed = generateClientSeed();
-            socket.emit('requestRoll', { 
-                userName: currentUser,
-                clientSeed: clientSeed
-            });
+            // 주사위 굴리기는 /주사위 명령어로만 가능
+            alert('주사위 굴리기는 /주사위 명령어를 사용해주세요!\n예: /주사위 100');
         }
 
         // 주사위 결과 수신
@@ -2653,9 +2857,7 @@
                     diceElement.style.transform = 'scale(1)';
                 }, 300);
                 
-                const rollButton = document.getElementById('rollButton');
-                rollButton.textContent = `결과: ${record.result}`;
-                rollButton.disabled = true;
+                // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             }
             
             renderHistory();
@@ -2845,8 +3047,80 @@
                 return;
             }
             
+            // /주사위 명령어 처리
+            if (message.startsWith('/주사위')) {
+                handleDiceCommand(message);
+                chatInput.value = '';
+                return;
+            }
+            
             socket.emit('sendMessage', { message: message });
             chatInput.value = '';
+        }
+        
+        // 주사위 명령어 처리
+        function handleDiceCommand(command) {
+            if (!isGameActive) {
+                alert('게임이 진행 중이 아닙니다!');
+                return;
+            }
+
+            if (hasRolledInCurrentGame) {
+                alert('이미 주사위를 굴렸습니다!');
+                return;
+            }
+            
+            // /주사위 명령어 파싱
+            const parts = command.trim().split(/\s+/);
+            let maxValue = 100; // 기본값 100
+            
+            // 숫자가 제공된 경우
+            if (parts.length >= 2) {
+                const parsedValue = parseInt(parts[1]);
+                if (!isNaN(parsedValue) && parsedValue >= 1) {
+                    maxValue = parsedValue;
+                }
+            }
+            
+            // 범위 검증
+            if (maxValue < 1) {
+                alert('올바른 숫자를 입력해주세요! (1 이상)');
+                return;
+            }
+            
+            if (maxValue > 100000) {
+                alert('최대값은 100000까지 가능합니다!');
+                return;
+            }
+            
+            // 주사위 굴리기 (지정한 범위로)
+            rollDiceWithRange(1, maxValue);
+        }
+        
+        // 지정한 범위로 주사위 굴리기
+        function rollDiceWithRange(min, max) {
+            // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
+
+            const diceElement = document.getElementById('dice');
+            diceElement.classList.add('rolling');
+            diceElement.textContent = '🎲';
+            
+            let dots = 0;
+            if (diceAnimationInterval) {
+                clearInterval(diceAnimationInterval);
+            }
+            diceAnimationInterval = setInterval(() => {
+                dots = (dots + 1) % 4;
+                diceElement.textContent = '🎲' + '.'.repeat(dots);
+            }, 200);
+
+            const clientSeed = generateClientSeed();
+            socket.emit('requestRoll', { 
+                userName: currentUser,
+                clientSeed: clientSeed,
+                min: min,
+                max: max
+            });
         }
         
         // 채팅 입력창에서 Enter 키로 전송
@@ -2857,6 +3131,31 @@
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         sendChatMessage();
+                    }
+                });
+            }
+            
+            // 주사위 명령어 입력 필드에서 Enter 키로 실행
+            const diceCommandInput = document.getElementById('diceCommandInput');
+            if (diceCommandInput) {
+                diceCommandInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const command = diceCommandInput.value.trim();
+                        if (command) {
+                            if (command.startsWith('/주사위')) {
+                                handleDiceCommand(command);
+                            } else {
+                                // /주사위가 없으면 자동으로 붙여서 실행
+                                // 숫자만 입력한 경우도 처리
+                                if (/^\d+$/.test(command)) {
+                                    handleDiceCommand('/주사위 ' + command);
+                                } else {
+                                    handleDiceCommand('/주사위 ' + command);
+                                }
+                            }
+                            diceCommandInput.value = '';
+                        }
                     }
                 });
             }
@@ -3009,7 +3308,7 @@
                 item.innerHTML = `
                     <div>
                         <div class="history-user">${record.user}</div>
-                        <div class="history-range">${record.range || '1~100'}</div>
+                        <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
                         <div class="history-time">${record.time}</div>
                     </div>
                     <div class="history-result">🎲 ${record.result}</div>

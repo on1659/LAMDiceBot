@@ -165,7 +165,9 @@ io.on('connection', (socket) => {
             hostName: room.hostName,
             playerCount: room.gameState.users.length,
             isGameActive: room.gameState.isGameActive,
-            isOrderActive: room.gameState.isOrderActive
+            isOrderActive: room.gameState.isOrderActive,
+            isPrivate: room.isPrivate || false
+            // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
         socket.emit('roomsList', roomsList);
@@ -175,7 +177,7 @@ io.on('connection', (socket) => {
     socket.on('createRoom', (data) => {
         if (!checkRateLimit()) return;
         
-        const { userName, roomName } = data;
+        const { userName, roomName, isPrivate, password } = data;
         
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -185,6 +187,24 @@ io.on('connection', (socket) => {
         if (!roomName || typeof roomName !== 'string' || roomName.trim().length === 0) {
             socket.emit('roomError', '올바른 방 제목을 입력해주세요!');
             return;
+        }
+        
+        // 비공개 방 설정 확인
+        const isPrivateRoom = isPrivate === true;
+        let roomPassword = '';
+        
+        if (isPrivateRoom) {
+            if (!password || typeof password !== 'string' || password.trim().length === 0) {
+                socket.emit('roomError', '비공개 방은 비밀번호를 입력해주세요!');
+                return;
+            }
+            
+            if (password.trim().length < 4 || password.trim().length > 20) {
+                socket.emit('roomError', '비밀번호는 4자 이상 20자 이하여야 합니다!');
+                return;
+            }
+            
+            roomPassword = password.trim();
         }
         
         // 이미 방에 있으면 나가기
@@ -200,6 +220,8 @@ io.on('connection', (socket) => {
             hostId: socket.id,
             hostName: userName.trim(),
             roomName: finalRoomName,
+            isPrivate: isPrivateRoom,
+            password: roomPassword,
             gameState: createRoomGameState(),
             createdAt: new Date()
         };
@@ -229,6 +251,11 @@ io.on('connection', (socket) => {
         
         gameState.userOrders[userName.trim()] = '';
         
+        // 방 생성 시 호스트도 자동으로 준비 상태 추가
+        if (!gameState.isGameActive && !gameState.readyUsers.includes(userName.trim())) {
+            gameState.readyUsers.push(userName.trim());
+        }
+        
         socket.join(roomId);
         
         // 방 생성 성공 알림
@@ -236,7 +263,9 @@ io.on('connection', (socket) => {
             roomId,
             roomName: finalRoomName,
             readyUsers: gameState.readyUsers,
-            isReady: false,
+            isReady: true, // 방 생성 시 자동으로 준비 상태
+            isPrivate: isPrivateRoom,
+            password: isPrivateRoom ? roomPassword : '', // 비공개 방일 때만 비밀번호 전달
             gameState: {
                 ...gameState,
                 hasRolled: () => false,
@@ -250,6 +279,7 @@ io.on('connection', (socket) => {
         // 같은 방의 다른 사용자들에게 업데이트
         io.to(roomId).emit('updateUsers', gameState.users);
         io.to(roomId).emit('updateOrders', gameState.userOrders);
+        io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
         // 모든 클라이언트에게 방 목록 업데이트
         updateRoomsList();
@@ -259,7 +289,7 @@ io.on('connection', (socket) => {
     socket.on('joinRoom', (data) => {
         if (!checkRateLimit()) return;
         
-        const { roomId, userName, isHost } = data;
+        const { roomId, userName, isHost, password } = data;
         
         if (!roomId || !userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 정보를 입력해주세요!');
@@ -273,6 +303,15 @@ io.on('connection', (socket) => {
         
         const room = rooms[roomId];
         const gameState = room.gameState;
+        
+        // 비공개 방 비밀번호 확인
+        if (room.isPrivate) {
+            const providedPassword = password || '';
+            if (providedPassword !== room.password) {
+                socket.emit('roomError', '비밀번호가 일치하지 않습니다!');
+                return;
+            }
+        }
         
         // 최대 접속자 수 제한
         const MAX_USERS = 50;
@@ -321,6 +360,11 @@ io.on('connection', (socket) => {
             gameState.userOrders[userName.trim()] = '';
         }
         
+        // 방 입장 시 자동으로 준비 상태 추가 (게임 진행 중이 아닐 때만)
+        if (!gameState.isGameActive && !gameState.readyUsers.includes(userName.trim())) {
+            gameState.readyUsers.push(userName.trim());
+        }
+        
         socket.join(roomId);
         
         // 재접속 시 이미 굴렸는지 확인
@@ -339,7 +383,9 @@ io.on('connection', (socket) => {
             isOrderActive: gameState.isOrderActive,
             isGamePlayer: gameState.gamePlayers.includes(userName.trim()),
             readyUsers: gameState.readyUsers,
-            isReady: gameState.readyUsers.includes(userName.trim()),
+            isReady: true, // 방 입장 시 자동으로 준비 상태
+            isPrivate: room.isPrivate,
+            password: room.isPrivate ? room.password : '', // 비공개 방일 때만 비밀번호 전달
             diceSettings: gameState.userDiceSettings[userName.trim()],
             myOrder: gameState.userOrders[userName.trim()] || '',
             gameRules: gameState.gameRules,
@@ -355,8 +401,9 @@ io.on('connection', (socket) => {
         // 같은 방의 다른 사용자들에게 업데이트
         io.to(roomId).emit('updateUsers', gameState.users);
         io.to(roomId).emit('updateOrders', gameState.userOrders);
+        io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
-        console.log(`${userName}이(가) 방 ${room.roomName} (${roomId})에 입장`);
+        console.log(`${userName}이(가) 방 ${room.roomName} (${roomId})에 입장 (자동 준비)`);
     });
 
     // 방 나가기
@@ -475,7 +522,9 @@ io.on('connection', (socket) => {
             hostName: room.hostName,
             playerCount: room.gameState.users.length,
             isGameActive: room.gameState.isGameActive,
-            isOrderActive: room.gameState.isOrderActive
+            isOrderActive: room.gameState.isOrderActive,
+            isPrivate: room.isPrivate || false
+            // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
         io.emit('roomsListUpdated', roomsList);
@@ -676,8 +725,16 @@ io.on('connection', (socket) => {
         
         // 사용자 검증
         const user = gameState.users.find(u => u.id === socket.id);
-        if (!user || user.name !== userName) {
-            socket.emit('orderError', '잘못된 사용자입니다!');
+        if (!user) {
+            console.log(`주문 실패: 사용자를 찾을 수 없음. socket.id: ${socket.id}, userName: ${userName}`);
+            socket.emit('orderError', '사용자를 찾을 수 없습니다!');
+            return;
+        }
+        
+        const trimmedUserName = userName ? userName.trim() : '';
+        if (user.name !== trimmedUserName) {
+            console.log(`주문 실패: 사용자 이름 불일치. user.name: ${user.name}, userName: ${trimmedUserName}`);
+            socket.emit('orderError', `잘못된 사용자입니다! (${user.name} vs ${trimmedUserName})`);
             return;
         }
         
@@ -693,15 +750,21 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 주문 저장
-        gameState.userOrders[userName] = order.trim();
+        // userOrders가 없으면 초기화
+        if (!gameState.userOrders) {
+            gameState.userOrders = {};
+        }
+        
+        // 주문 저장 (userName은 이미 trimmedUserName으로 검증됨)
+        gameState.userOrders[trimmedUserName] = order.trim();
         
         // 같은 방의 모든 클라이언트에게 업데이트된 주문 목록 전송
         io.to(room.roomId).emit('updateOrders', gameState.userOrders);
         
         socket.emit('orderUpdated', { order: order.trim() });
-        console.log(`방 ${room.roomName}: ${userName}의 주문: ${order.trim() || '(삭제됨)'}`);
+        console.log(`방 ${room.roomName}: ${trimmedUserName}의 주문 저장 성공: ${order.trim() || '(삭제됨)'}`);
     });
+
 
     // 개인 주사위 설정 업데이트 (최소값은 항상 1)
     socket.on('updateUserDiceSettings', (data) => {
@@ -1005,8 +1068,9 @@ io.on('connection', (socket) => {
         gameState.isGameActive = false;
         gameState.gamePlayers = []; // 참여자 목록 초기화
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
-        // 준비 상태는 게임 종료 후에도 유지 (다음 게임을 위해)
+        gameState.readyUsers = []; // 준비 상태 초기화
         io.to(room.roomId).emit('gameEnded', gameState.history);
+        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
         // 방 목록 업데이트 (게임 상태 변경)
         updateRoomsList();
@@ -1069,7 +1133,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const { userName, clientSeed } = data;
+        const { userName, clientSeed, min, max } = data;
         
         // 사용자 검증
         const user = gameState.users.find(u => u.id === socket.id);
@@ -1096,13 +1160,27 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // 사용자별 주사위 설정 가져오기 (최소값은 항상 1)
-        const userSettings = gameState.userDiceSettings[userName] || { max: 100 };
-        const min = 1;
-        const max = userSettings.max;
+        // 주사위 범위 설정 (명령어에서 오는 경우 그 값 사용, 아니면 사용자 설정 사용)
+        let diceMin, diceMax;
+        if (min !== undefined && max !== undefined) {
+            // 명령어에서 지정한 범위 사용
+            diceMin = parseInt(min);
+            diceMax = parseInt(max);
+            
+            // 범위 검증
+            if (isNaN(diceMin) || isNaN(diceMax) || diceMin < 1 || diceMax < diceMin || diceMax > 100000) {
+                socket.emit('rollError', '올바른 주사위 범위를 입력해주세요! (1 이상, 최대값 100000 이하)');
+                return;
+            }
+        } else {
+            // 사용자별 주사위 설정 가져오기 (최소값은 항상 1)
+            const userSettings = gameState.userDiceSettings[userName] || { max: 100 };
+            diceMin = 1;
+            diceMax = userSettings.max;
+        }
         
         // 시드 기반으로 서버에서 난수 생성
-        const result = seededRandom(clientSeed, min, max);
+        const result = seededRandom(clientSeed, diceMin, diceMax);
 
         // 굴린 사용자 목록에 추가
         gameState.rolledUsers.push(userName);
@@ -1110,9 +1188,9 @@ io.on('connection', (socket) => {
         const record = {
             user: userName,
             result: result,
-            time: new Date().toLocaleTimeString('ko-KR'),
+            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             seed: clientSeed, // 검증을 위해 시드 저장
-            range: `1~${max}`
+            range: `${diceMin}~${diceMax}`
         };
 
         gameState.history.push(record);
@@ -1132,7 +1210,7 @@ io.on('connection', (socket) => {
             notRolledYet: notRolledYet
         });
         
-        console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: 1~${max}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
+        console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
         
         // 모두 굴렸는지 확인
         if (gameState.rolledUsers.length === gameState.gamePlayers.length) {
@@ -1179,7 +1257,7 @@ io.on('connection', (socket) => {
         const chatMessage = {
             userName: user.name,
             message: message.trim(),
-            time: new Date().toLocaleTimeString('ko-KR'),
+            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             isHost: user.isHost
         };
         
