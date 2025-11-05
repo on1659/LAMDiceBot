@@ -32,6 +32,16 @@
             max-height: 90vh;
             overflow-y: auto;
             margin: 20px auto;
+        }
+        
+        /* 로비 섹션이 활성화되어 있을 때는 중앙 정렬 */
+        body.lobby-active .container {
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* 게임 섹션이 활성화되어 있을 때 오른쪽 여백 추가 (게임 기록 섹션 공간 확보) */
+        body.game-active .container {
             margin-right: 370px; /* 게임 기록 너비(320px) + 여백(50px) */
         }
         
@@ -1613,8 +1623,9 @@
                 createRoomConnectionStatus.className = 'connection-status connected';
             }
             
-            // 방 목록 요청
+            // 방 목록 요청 및 초기 body 클래스 설정
             if (document.getElementById('lobbySection').classList.contains('active')) {
+                document.body.classList.add('lobby-active');
                 refreshRooms();
             }
         });
@@ -1810,6 +1821,10 @@
         function goBackToLobby() {
             document.getElementById('createRoomSection').classList.remove('active');
             document.getElementById('lobbySection').classList.add('active');
+            
+            // body 클래스 변경
+            document.body.classList.remove('game-active');
+            document.body.classList.add('lobby-active');
         }
         
         // 방 생성 최종 확인 및 생성
@@ -1941,6 +1956,10 @@
             document.getElementById('createRoomSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
             
+            // body 클래스 변경
+            document.body.classList.remove('lobby-active');
+            document.body.classList.add('game-active');
+            
             // 게임 기록 섹션 표시
             document.querySelector('.history-section').classList.add('visible');
             
@@ -1956,6 +1975,10 @@
             
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
+            
+            // body 클래스 변경
+            document.body.classList.remove('lobby-active');
+            document.body.classList.add('game-active');
             
             // 게임 기록 섹션 표시
             document.querySelector('.history-section').classList.add('visible');
@@ -2122,6 +2145,11 @@
             alert(data.message || '모든 사용자가 방을 떠났습니다.');
             document.getElementById('gameSection').classList.remove('active');
             document.getElementById('lobbySection').classList.add('active');
+            
+            // body 클래스 변경
+            document.body.classList.remove('game-active');
+            document.body.classList.add('lobby-active');
+            
             currentRoomId = null;
             currentUser = '';
             isHost = false;
@@ -2358,11 +2386,17 @@
         socket.on('roomLeft', () => {
             // 게임 기록 섹션 숨김
             document.querySelector('.history-section').classList.remove('visible');
+            
+            // body 클래스 변경
+            document.body.classList.remove('game-active');
+            document.body.classList.add('lobby-active');
+            
             currentRoomId = null;
             currentUser = '';
             isHost = false;
             document.getElementById('gameSection').classList.remove('active');
             document.getElementById('lobbySection').classList.add('active');
+            
             refreshRooms();
         });
 
