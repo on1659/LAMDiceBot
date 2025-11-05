@@ -949,7 +949,31 @@
             <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-04)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-06)</span>
+
+<b>💬 채팅 UI 개선</b>
+• 게임 시작 시 채팅에 게임 룰 자동 표시
+• 그라디언트 배경과 카드 스타일로 시각적 개선
+• 여러 줄 룰 지원 (중앙 정렬)
+
+<b>🎲 주사위 결과 표시 최적화</b>
+• /주사위 명령어와 결과를 같은 줄에 표시
+• 주사위 결과를 오른쪽 끝에 정렬
+• 기록 저장 여부에 따른 아이콘 표시 차별화
+  - 기록 저장: 🎲 아이콘 + 숫자 (예: 🎲 8)
+  - 기록 미저장: 숫자만 표시 (예: 8), 오른쪽 끝 정렬
+
+<b>📝 게임 기록 저장 로직 개선</b>
+• 게임 진행 중 최초 1회만 기록에 저장
+• 기록에 저장되지 않는 주사위는 채팅에 아이콘 없이 숫자만 표시
+
+<b>🐛 버그 수정</b>
+• 주사위를 굴리지 않은 사람 집계 기능 수정
+  - 게임 시작 후 주사위를 굴리지 않은 사람이 올바르게 집계되지 않던 문제 수정
+
+---
+
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-04)</span>
 
 <b>🎨 UI 구성 개선</b>
 • 게임 화면 레이아웃 재구성 (방 제목 → 게임 룰 → 주사위 명령어 입력 → 주사위 아이콘)
@@ -3356,7 +3380,7 @@
                 
                 if (rulesLines.length > 0) {
                     const rulesDiv = document.createElement('div');
-                    rulesDiv.style.cssText = 'font-size: 15px; color: #fff; background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: left;';
+                    rulesDiv.style.cssText = 'font-size: 15px; color: #fff; background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: center;';
                     // 모든 룰 줄을 줄바꿈으로 연결
                     rulesDiv.textContent = rulesLines.map(line => line.trim()).join('\n');
                     messageDiv.appendChild(rulesDiv);
