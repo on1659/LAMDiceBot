@@ -1034,7 +1034,28 @@ io.on('connection', (socket) => {
             totalPlayers: gameState.gamePlayers.length
         });
         
-        // 주사위는 자유롭게 굴릴 수 있으므로 진행 상황 업데이트 불필요
+        // 게임 시작 시 채팅에 게임 시작 메시지와 룰 전송
+        const gameStartMessage = {
+            userName: '시스템',
+            message: `---------------------------------------\n------------- 게임시작 --------------\n${gameState.gameRules || '게임 룰이 설정되지 않았습니다.'}\n---------------------------------------`,
+            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+            isHost: false,
+            isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
+        };
+        io.to(room.roomId).emit('newMessage', gameStartMessage);
+        
+        // 게임 시작 시 초기 진행 상황 전송 (아직 굴리지 않은 사람 목록 포함)
+        if (gameState.gamePlayers.length > 0) {
+            const notRolledYet = gameState.gamePlayers.filter(
+                player => !gameState.rolledUsers.includes(player)
+            );
+            
+            io.to(room.roomId).emit('rollProgress', {
+                rolled: gameState.rolledUsers.length,
+                total: gameState.gamePlayers.length,
+                notRolledYet: notRolledYet
+            });
+        }
         
         // 방 목록 업데이트 (게임 상태 변경)
         updateRoomsList();
@@ -1173,12 +1194,51 @@ io.on('connection', (socket) => {
             range: `${diceMin}~${diceMax}`
         };
 
-        gameState.history.push(record);
+        // 게임 진행 중이면 최초 1회만 기록에 저장
+        const isFirstRollInGame = gameState.isGameActive && gameState.gamePlayers.length > 0 && !gameState.rolledUsers.includes(userName);
+        const isNotGameActive = !gameState.isGameActive;
+        
+        // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장
+        if (isNotGameActive || isFirstRollInGame) {
+            gameState.history.push(record);
+        }
+        
+        // rolledUsers 배열에 사용자 추가 (중복 체크)
+        if (!gameState.rolledUsers.includes(userName)) {
+            gameState.rolledUsers.push(userName);
+        }
         
         // 같은 방의 모든 클라이언트에게 주사위 결과 전송
         io.to(room.roomId).emit('diceRolled', record);
         
-        console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax})`);
+        // 주사위 결과를 채팅에 표시하기 위해 diceRolled 이벤트로 전송 (별도 메시지로 보내지 않음)
+        
+        // 게임 진행 중이면 아직 굴리지 않은 사람 목록 계산 및 전송
+        if (gameState.isGameActive && gameState.gamePlayers.length > 0) {
+            const notRolledYet = gameState.gamePlayers.filter(
+                player => !gameState.rolledUsers.includes(player)
+            );
+            
+            // 진행 상황 업데이트
+            io.to(room.roomId).emit('rollProgress', {
+                rolled: gameState.rolledUsers.length,
+                total: gameState.gamePlayers.length,
+                notRolledYet: notRolledYet
+            });
+            
+            console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
+            
+            // 모두 굴렸는지 확인
+            if (gameState.rolledUsers.length === gameState.gamePlayers.length) {
+                io.to(room.roomId).emit('allPlayersRolled', {
+                    message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
+                    totalPlayers: gameState.gamePlayers.length
+                });
+                console.log(`방 ${room.roomName}: 모든 참여자가 주사위를 굴렸습니다!`);
+            }
+        } else {
+            console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax})`);
+        }
     });
 
     // 채팅 메시지 전송

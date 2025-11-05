@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>= LAM Dice :)</title>
+    <title>LAM Dice :)</title>
     <style>
         * {
             margin: 0;
@@ -15,10 +15,9 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
+            position: relative;
         }
 
         .container {
@@ -30,6 +29,12 @@
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
+            margin: 20px auto;
+            margin-right: 370px; /* 게임 기록 너비(320px) + 여백(50px) */
+        }
+        
+        .chat-history-wrapper {
+            margin-top: 20px;
         }
 
         h1 {
@@ -342,18 +347,55 @@
             color: #667eea;
             margin: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s;
+            transition: transform 0.3s, opacity 0.3s;
+            position: relative;
+        }
+        
+        .dice::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 15px;
+            pointer-events: none;
         }
 
         .dice.rolling {
-            animation: roll 0.5s ease-in-out;
+            animation: roll 0.3s infinite, shake 0.15s infinite, pulse 0.4s infinite;
+            filter: drop-shadow(0 0 15px rgba(102, 126, 234, 0.9));
+        }
+        
+        .dice.rolling .dice-content {
+            animation: fadeInOut 0.5s infinite;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
         @keyframes roll {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(90deg); }
-            50% { transform: rotate(180deg); }
-            75% { transform: rotate(270deg); }
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.15); }
+            50% { transform: rotate(180deg) scale(1.3); }
+            75% { transform: rotate(270deg) scale(1.15); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) translateY(0); }
+            25% { transform: translateX(-8px) translateY(-5px); }
+            50% { transform: translateX(8px) translateY(5px); }
+            75% { transform: translateX(-5px) translateY(8px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.8; filter: brightness(1.3); }
         }
 
         .roll-button {
@@ -695,7 +737,26 @@
         }
 
         .history-section {
-            margin-top: 30px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            z-index: 1000;
+            display: none; /* 기본적으로 숨김, 방 입장 시에만 표시 */
+        }
+        
+        .history-section.visible {
+            display: block;
+        }
+        
+        .chat-section {
+            margin-bottom: 0;
         }
 
         .history-title-wrapper {
@@ -742,7 +803,7 @@
         }
 
         .history-list {
-            max-height: 300px;
+            max-height: calc(100vh - 200px);
             overflow-y: auto;
             background: #f8f9fa;
             border-radius: 8px;
@@ -1068,21 +1129,6 @@
                 </div>
             </div>
 
-            <!-- 3. 주사위 굴리기 명령어 입력 -->
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <div class="dice-settings-title" style="margin-bottom: 10px;">🎲 주사위 굴리기</div>
-                <div class="input-group" style="margin: 0;">
-                    <input type="text" id="diceCommandInput" placeholder="/주사위" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 16px; padding: 12px;" />
-                </div>
-                <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                    예: /주사위
-                </div>
-            </div>
-
-            <!-- 4. 주사위 아이콘 -->
-            <div class="dice-container" style="margin-bottom: 20px;">
-                <div class="dice" id="dice">?</div>
-            </div>
 
             <!-- 접속자 리스트 -->
             <div class="users-section">
@@ -1202,33 +1248,35 @@
             </div>
 
             <!-- 채팅 섹션 -->
-            <div class="chat-section" style="margin-bottom: 20px;">
-                <div class="users-title" style="margin-bottom: 10px;">💬 채팅 </div>
-                <div class="chat-messages" id="chatMessages" style="background: #f8f9fa; border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto; margin-bottom: 10px; border: 2px solid #667eea;">
-                    <div style="color: #999; text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
-                    <input type="text" id="chatInput" placeholder="메시지 입력 (최대 200자)" maxlength="200" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
-                    <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">전송</button>
-                </div>
-            </div>
-
-            <!-- 기록 섹션 -->
-            <div class="history-section">
-                <div class="history-title-wrapper">
-                    <div class="history-title" id="historyTitle">📋 게임 기록 - 연습경기</div>
-                    <div class="sort-buttons">
-                        <button class="sort-button" id="sortTimeBtn" onclick="sortHistory('time')">시간순</button>
-                        <button class="sort-button" id="sortAscBtn" onclick="sortHistory('asc')">오름차순</button>
-                        <button class="sort-button active" id="sortDescBtn" onclick="sortHistory('desc')">내림차순</button>
+            <div class="chat-history-wrapper">
+                <div class="chat-section">
+                    <div class="users-title" style="margin-bottom: 10px;">💬 채팅 </div>
+                    <div class="chat-messages" id="chatMessages" style="background: #f8f9fa; border-radius: 8px; padding: 15px; max-height: 480px; overflow-y: auto; margin-bottom: 10px; border: 2px solid #667eea;">
+                        <div style="color: #999; text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
                     </div>
-                </div>
-                <div class="history-list" id="historyList">
-                    <div class="empty-history">아직 기록이 없습니다</div>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
+                        <input type="text" id="chatInput" placeholder="메시지 입력 (최대 200자)" maxlength="200" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
+                        <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">전송</button>
+                    </div>
                 </div>
             </div>
 
             <button class="logout-button" onclick="logout()">로그아웃</button>
+        </div>
+    </div>
+
+    <!-- 기록 섹션 (오른쪽 고정) -->
+    <div class="history-section">
+        <div class="history-title-wrapper">
+            <div class="history-title" id="historyTitle">📋 게임 기록 - 연습경기</div>
+            <div class="sort-buttons">
+                <button class="sort-button active" id="sortTimeBtn" onclick="sortHistory('time')">시간순</button>
+                <button class="sort-button" id="sortAscBtn" onclick="sortHistory('asc')">오름차순</button>
+                <button class="sort-button" id="sortDescBtn" onclick="sortHistory('desc')">내림차순</button>
+            </div>
+        </div>
+        <div class="history-list" id="historyList">
+            <div class="empty-history">아직 기록이 없습니다</div>
         </div>
     </div>
 
@@ -1243,8 +1291,9 @@
         let diceMax = 100;
         let myDiceSettings = { max: 100 };
         let hasRolledInCurrentGame = false;
+        let rolledUsersInGame = []; // 게임 중 굴린 사용자 목록 추적
         let historyData = [];
-        let currentSortMode = 'desc';
+        let currentSortMode = 'time'; // 기본값을 시간순으로 변경
         let ordersData = {};
         let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순), 'count' (주문 많은 순)
         let usersList = []; // 접속자 목록
@@ -1866,6 +1915,9 @@
             document.getElementById('createRoomSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
             
+            // 게임 기록 섹션 표시
+            document.querySelector('.history-section').classList.add('visible');
+            
             initializeGameScreen(data);
         });
         
@@ -1878,6 +1930,9 @@
             
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
+            
+            // 게임 기록 섹션 표시
+            document.querySelector('.history-section').classList.add('visible');
             
             initializeGameScreen(data);
         });
@@ -1984,17 +2039,13 @@
                     document.getElementById('endButton').style.display = 'block';
                 }
                 
-                const diceElement = document.getElementById('dice');
                 const reconnectNotice = document.getElementById('reconnectNotice');
                 const reconnectMessage = document.getElementById('reconnectMessage');
                 
                 if (data.hasRolled && data.myResult) {
-                    diceElement.textContent = data.myResult.result;
-                    
                     reconnectNotice.style.display = 'block';
                     reconnectMessage.textContent = `이미 주사위를 굴렸습니다. 결과: ${data.myResult.result}`;
                 } else {
-                    diceElement.textContent = '?';
                     hasRolledInCurrentGame = false;
                     
                     reconnectNotice.style.display = 'block';
@@ -2214,17 +2265,13 @@
                     document.getElementById('endButton').style.display = 'block';
                 }
                 
-                const diceElement = document.getElementById('dice');
                 const reconnectNotice = document.getElementById('reconnectNotice');
                 const reconnectMessage = document.getElementById('reconnectMessage');
                 
                 if (data.hasRolled && data.myResult) {
-                    diceElement.textContent = data.myResult.result;
-                    
                     reconnectNotice.style.display = 'block';
                     reconnectMessage.textContent = `이미 주사위를 굴렸습니다. 결과: ${data.myResult.result}`;
                 } else {
-                    diceElement.textContent = '?';
                     hasRolledInCurrentGame = false;
                     
                     reconnectNotice.style.display = 'block';
@@ -2283,6 +2330,8 @@
         
         // 방 나가기 완료
         socket.on('roomLeft', () => {
+            // 게임 기록 섹션 숨김
+            document.querySelector('.history-section').classList.remove('visible');
             currentRoomId = null;
             currentUser = '';
             isHost = false;
@@ -2299,7 +2348,7 @@
             }
             
             // 현재 주문리스트 수집
-            let orderListText = '=== 현재 주문리스트 ===\n\n';
+            let orderListText = '';
             
             // 메뉴별로 그룹화 (가나다순 정렬)
             const groupedOrders = groupOrdersByMenu(ordersData, 'asc');
@@ -2307,28 +2356,20 @@
             if (groupedOrders.length === 0) {
                 orderListText += '아직 주문이 없습니다.\n';
             } else {
-                // 그룹화된 주문 목록 표시
+                // 그룹화된 주문 목록 표시 (짧은 형식)
                 groupedOrders.forEach((group, index) => {
-                    // 사용자 이름들을 한 줄에 표시 (이름순 정렬)
+                    // 사용자 이름들을 한 줄에 표시 (이름순 정렬, (나) 표시 제거)
                     const sortedUsers = [...group.users].sort((a, b) => {
-                        // 내 이름이면 맨 앞에
-                        if (a === currentUser) return -1;
-                        if (b === currentUser) return 1;
                         return a.localeCompare(b, 'ko');
                     });
                     
-                    const userNames = sortedUsers.map(name => 
-                        name + (name === currentUser ? ' (나)' : '')
-                    ).join(', ');
+                    const userNames = sortedUsers.join(',');
                     
-                    // 사용자 이름들
-                    orderListText += `${userNames}\n`;
-                    // 메뉴명
-                    orderListText += `${group.menu}`;
-                    
-                    // 마지막 항목이 아니면 빈 줄 추가
-                    if (index < groupedOrders.length - 1) {
-                        orderListText += '\n';
+                    // 사용자 이름과 메뉴를 한 줄로 표시 (여러 명이면 개수 표시)
+                    if (group.users.length > 1) {
+                        orderListText += `${userNames} : ${group.menu} (${group.users.length}명)\n`;
+                    } else {
+                        orderListText += `${userNames} : ${group.menu}\n`;
                     }
                 });
                 
@@ -2347,7 +2388,109 @@
                 });
             }
             
-            alert(orderListText);
+            // 커스텀 모달로 표시
+            showOrderListModal(orderListText);
+        }
+        
+        // 주문리스트 모달 표시
+        function showOrderListModal(content) {
+            // 기존 모달이 있으면 제거
+            const existingModal = document.getElementById('orderListModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // 모달 오버레이 생성
+            const modalOverlay = document.createElement('div');
+            modalOverlay.id = 'orderListModal';
+            modalOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
+            
+            // 모달 컨텐츠 생성 (내용에 맞게 자동 크기 조절)
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                max-width: 90vw;
+                max-height: 90vh;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                display: inline-block;
+            `;
+            
+            // 제목
+            const title = document.createElement('div');
+            title.textContent = '=== 현재 주문리스트 ===';
+            title.style.cssText = `
+                font-size: 20px;
+                font-weight: bold;
+                color: #667eea;
+                margin-bottom: 20px;
+                text-align: center;
+            `;
+            
+            // 내용 영역
+            const contentDiv = document.createElement('div');
+            contentDiv.style.cssText = `
+                font-size: 16px;
+                line-height: 1.8;
+                color: #333;
+                white-space: pre-wrap;
+                word-break: break-word;
+                margin-bottom: 20px;
+            `;
+            contentDiv.textContent = content;
+            
+            // 닫기 버튼
+            const closeButton = document.createElement('button');
+            closeButton.textContent = '확인';
+            closeButton.style.cssText = `
+                padding: 12px 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                width: 100%;
+            `;
+            closeButton.onclick = () => {
+                modalOverlay.remove();
+            };
+            
+            // ESC 키로 닫기
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    modalOverlay.remove();
+                    document.removeEventListener('keydown', handleEsc);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+            
+            // 오버레이 클릭 시 닫기
+            modalOverlay.onclick = (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.remove();
+                    document.removeEventListener('keydown', handleEsc);
+                }
+            };
+            
+            modalContent.appendChild(title);
+            modalContent.appendChild(contentDiv);
+            modalContent.appendChild(closeButton);
+            modalOverlay.appendChild(modalContent);
+            document.body.appendChild(modalOverlay);
         }
 
         // 주문받기 시작
@@ -2705,6 +2848,7 @@
         socket.on('gameStarted', (data) => {
             isGameActive = true;
             hasRolledInCurrentGame = false;
+            rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
             historyData = [];
             
             // 게임 기록 제목 변경
@@ -2727,9 +2871,17 @@
             
             // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             
-            document.getElementById('dice').textContent = '?';
             document.getElementById('progressSection').style.display = 'block';
             document.getElementById('progressBar').style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
+            
+            // 게임 시작 시 초기 진행 상황 설정
+            if (data.players && data.players.length > 0) {
+                updateProgress({
+                    rolled: 0,
+                    total: data.players.length,
+                    notRolledYet: data.players
+                });
+            }
             
             // 게임 시작 시 주문받기 입력만 비활성화 (주문 목록은 계속 표시)
             if (!isOrderActive) {
@@ -2781,10 +2933,11 @@
         socket.on('gameEnded', (history) => {
             isGameActive = false;
             hasRolledInCurrentGame = false;
+            rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
             historyData = history;
             
             // 게임 기록 제목 변경 (연습경기로)
-            document.getElementById('historyTitle').textContent = '📋 게임 기록 - 연습경기';
+            document.getElementById('historyTitle').textContent = '📋 연습경기';
             
             // 게임 종료 시 준비 상태 초기화
             isReady = false;
@@ -2826,12 +2979,7 @@
             
             alert(resultsText);
             
-            const myRecord = history.find(r => r.user === currentUser);
-            if (myRecord) {
-                const diceElement = document.getElementById('dice');
-                diceElement.textContent = myRecord.result;
-                // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
-            }
+            // 주사위 UI가 제거되어 결과는 게임 기록에서만 확인 가능
         });
 
         // 클라이언트 시드 생성
@@ -2850,7 +2998,60 @@
 
         // 주사위 결과 수신
         socket.on('diceRolled', (record) => {
-            historyData.push(record);
+            // 게임 진행 중이면 최초 1회만 기록에 저장
+            const isFirstRollInGame = isGameActive && !rolledUsersInGame.includes(record.user);
+            const isNotGameActive = !isGameActive;
+            const shouldSaveToHistory = isNotGameActive || isFirstRollInGame;
+            
+            // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장
+            if (shouldSaveToHistory) {
+                historyData.push(record);
+            }
+            
+            // 게임 진행 중이고 해당 사용자가 처음 굴렸다면 목록에 추가
+            if (isGameActive && !rolledUsersInGame.includes(record.user)) {
+                rolledUsersInGame.push(record.user);
+            }
+            
+            // 현재 사용자가 굴렸다면 hasRolledInCurrentGame 플래그 설정
+            if (isGameActive && record.user === currentUser) {
+                hasRolledInCurrentGame = true;
+            }
+            
+            // /주사위 명령어 메시지를 찾아서 주사위 결과 추가
+            const chatMessages = document.getElementById('chatMessages');
+            const diceCommandMessages = Array.from(chatMessages.children).filter(div => 
+                div.getAttribute('data-dice-command') === 'true' && 
+                div.getAttribute('data-user-name') === record.user
+            );
+            
+            // 주사위 결과는 항상 표시하되, 기록에 저장되는 경우에만 아이콘 표시
+            if (diceCommandMessages.length > 0) {
+                // 마지막 /주사위 메시지를 찾아서 결과 추가
+                const lastDiceCommandMsg = diceCommandMessages[diceCommandMessages.length - 1];
+                const resultContainer = lastDiceCommandMsg.querySelector('span[data-dice-result-container="true"]');
+                if (resultContainer) {
+                    // 이미 주사위 결과가 추가되어 있는지 확인
+                    const existingResult = resultContainer.querySelector('span[data-dice-result]');
+                    if (!existingResult) {
+                        // 주사위 결과를 오른쪽 컨테이너에 추가
+                        const diceResultSpan = document.createElement('span');
+                        diceResultSpan.setAttribute('data-dice-result', 'true');
+                        // 기록에 저장되는 경우에만 아이콘 표시, 그렇지 않으면 숫자만
+                        if (shouldSaveToHistory) {
+                            diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
+                            diceResultSpan.textContent = `🎲 ${record.result}`;
+                        } else {
+                            // 아이콘 없는 숫자는 오른쪽 끝에 붙도록 스타일 적용
+                            diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
+                            diceResultSpan.textContent = record.result;
+                            // resultContainer를 오른쪽 끝에 붙도록 스타일 조정
+                            resultContainer.style.cssText = 'min-width: 60px; display: flex; justify-content: flex-end;';
+                        }
+                        resultContainer.appendChild(diceResultSpan);
+                    }
+                }
+            }
             
             if (record.user === currentUser) {
                 // 주사위는 자유롭게 굴릴 수 있음 (hasRolledInCurrentGame 사용 안함)
@@ -2860,14 +3061,7 @@
                     diceAnimationInterval = null;
                 }
 
-                const diceElement = document.getElementById('dice');
-                diceElement.textContent = record.result;
-                diceElement.classList.remove('rolling');
-                
-                diceElement.style.transform = 'scale(1.2)';
-                setTimeout(() => {
-                    diceElement.style.transform = 'scale(1)';
-                }, 300);
+                // 주사위 UI가 제거되어 결과는 게임 기록에서만 확인 가능
                 
                 // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             }
@@ -2890,23 +3084,10 @@
         socket.on('rollError', (message) => {
             alert(message);
             
-            const rollButton = document.getElementById('rollButton');
-            const diceElement = document.getElementById('dice');
-            
             if (diceAnimationInterval) {
                 clearInterval(diceAnimationInterval);
                 diceAnimationInterval = null;
             }
-            
-            if (!message.includes('이미 주사위를 굴렸습니다')) {
-                rollButton.disabled = false;
-                rollButton.textContent = '주사위 굴리기';
-            } else {
-                rollButton.textContent = '이미 굴렸습니다';
-                rollButton.disabled = true;
-            }
-            
-            diceElement.classList.remove('rolling');
         });
 
         // 에러 처리
@@ -3061,6 +3242,9 @@
             
             // /주사위 명령어 처리
             if (message.startsWith('/주사위')) {
+                // 먼저 채팅 메시지로 전송 (명령어도 채팅에 보이게)
+                socket.emit('sendMessage', { message: message });
+                // 그 다음 주사위 굴리기 실행
                 handleDiceCommand(message);
                 chatInput.value = '';
                 return;
@@ -3103,20 +3287,11 @@
         
         // 지정한 범위로 주사위 굴리기
         function rollDiceWithRange(min, max) {
-            // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
-
-            const diceElement = document.getElementById('dice');
-            diceElement.classList.add('rolling');
-            diceElement.textContent = '🎲';
-            
-            let dots = 0;
+            // 주사위 UI가 제거되어 애니메이션 없이 바로 주사위 굴리기 요청 전송
             if (diceAnimationInterval) {
                 clearInterval(diceAnimationInterval);
+                diceAnimationInterval = null;
             }
-            diceAnimationInterval = setInterval(() => {
-                dots = (dots + 1) % 4;
-                diceElement.textContent = '🎲' + '.'.repeat(dots);
-            }, 200);
 
             const clientSeed = generateClientSeed();
             socket.emit('requestRoll', { 
@@ -3139,30 +3314,6 @@
                 });
             }
             
-            // 주사위 명령어 입력 필드에서 Enter 키로 실행
-            const diceCommandInput = document.getElementById('diceCommandInput');
-            if (diceCommandInput) {
-                diceCommandInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const command = diceCommandInput.value.trim();
-                        if (command) {
-                            if (command.startsWith('/주사위')) {
-                                handleDiceCommand(command);
-                            } else {
-                                // /주사위가 없으면 자동으로 붙여서 실행
-                                // 숫자만 입력한 경우도 처리
-                                if (/^\d+$/.test(command)) {
-                                    handleDiceCommand('/주사위 ' + command);
-                                } else {
-                                    handleDiceCommand('/주사위 ' + command);
-                                }
-                            }
-                            diceCommandInput.value = '';
-                        }
-                    }
-                });
-            }
         });
         
         // 새 메시지 수신
@@ -3175,28 +3326,113 @@
             }
             
             const messageDiv = document.createElement('div');
-            messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: white; border-radius: 6px; border-left: 3px solid #667eea;';
             
-            const userNameSpan = document.createElement('span');
-            userNameSpan.style.cssText = 'font-weight: 600; color: #667eea; margin-right: 8px;';
-            userNameSpan.textContent = chatMessage.isHost ? `👑 ${chatMessage.userName}` : chatMessage.userName;
-            if (chatMessage.userName === currentUser) {
-                userNameSpan.textContent += ' (나)';
-                userNameSpan.style.color = '#764ba2';
+            // 시스템 메시지인지 확인
+            const isSystemMessage = chatMessage.isSystemMessage || chatMessage.userName === '시스템';
+            
+            // /주사위 명령어인지 확인
+            const isDiceCommand = chatMessage.message.startsWith('/주사위');
+            
+            // 시스템 메시지 처리
+            if (isSystemMessage) {
+                messageDiv.style.cssText = 'margin: 20px 0; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+                
+                // 게임 시작 메시지 파싱
+                const lines = chatMessage.message.split('\n');
+                const titleLine = lines.find(line => line.includes('게임시작'));
+                // 구분선과 제목을 제외한 모든 룰 줄 추출
+                const rulesLines = lines.filter(line => 
+                    !line.includes('---') && 
+                    !line.includes('게임시작') && 
+                    line.trim().length > 0
+                );
+                
+                if (titleLine) {
+                    const titleDiv = document.createElement('div');
+                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                    titleDiv.textContent = '🎮 게임 시작';
+                    messageDiv.appendChild(titleDiv);
+                }
+                
+                if (rulesLines.length > 0) {
+                    const rulesDiv = document.createElement('div');
+                    rulesDiv.style.cssText = 'font-size: 15px; color: #fff; background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: left;';
+                    // 모든 룰 줄을 줄바꿈으로 연결
+                    rulesDiv.textContent = rulesLines.map(line => line.trim()).join('\n');
+                    messageDiv.appendChild(rulesDiv);
+                }
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                return;
             }
             
-            const messageSpan = document.createElement('span');
-            messageSpan.style.color = '#333';
-            messageSpan.textContent = chatMessage.message;
+            // 일반 메시지는 왼쪽 정렬
+            messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: white; border-radius: 6px; border-left: 3px solid #667eea;';
             
-            const timeSpan = document.createElement('span');
-            timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-left: 8px;';
-            timeSpan.textContent = chatMessage.time;
-            
-            messageDiv.appendChild(userNameSpan);
-            messageDiv.appendChild(messageSpan);
-            messageDiv.appendChild(document.createElement('br'));
-            messageDiv.appendChild(timeSpan);
+            // /주사위 명령어인 경우 나중에 결과를 추가할 수 있도록 표시
+            if (isDiceCommand) {
+                messageDiv.setAttribute('data-dice-command', 'true');
+                messageDiv.setAttribute('data-user-name', chatMessage.userName);
+                // /주사위 명령어는 첫 줄을 flex로 만들어서 결과를 오른쪽 끝으로 정렬
+                messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: white; border-radius: 6px; border-left: 3px solid #667eea; display: flex; flex-direction: column;';
+                const firstLineDiv = document.createElement('div');
+                firstLineDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; width: 100%;';
+                messageDiv.appendChild(firstLineDiv);
+                
+                const leftContentSpan = document.createElement('span');
+                leftContentSpan.style.cssText = 'display: flex; align-items: center;';
+                
+                const userNameSpan = document.createElement('span');
+                userNameSpan.style.cssText = 'font-weight: 600; color: #667eea; margin-right: 8px;';
+                userNameSpan.textContent = chatMessage.isHost ? `👑 ${chatMessage.userName}` : chatMessage.userName;
+                if (chatMessage.userName === currentUser) {
+                    userNameSpan.textContent += ' (나)';
+                    userNameSpan.style.color = '#764ba2';
+                }
+                
+                const messageSpan = document.createElement('span');
+                messageSpan.style.color = '#333';
+                messageSpan.textContent = chatMessage.message;
+                messageSpan.setAttribute('data-dice-message', 'true');
+                
+                leftContentSpan.appendChild(userNameSpan);
+                leftContentSpan.appendChild(messageSpan);
+                firstLineDiv.appendChild(leftContentSpan);
+                
+                // 오른쪽에 주사위 결과를 넣을 공간을 미리 준비 (나중에 채워짐)
+                const rightContentSpan = document.createElement('span');
+                rightContentSpan.setAttribute('data-dice-result-container', 'true');
+                rightContentSpan.style.cssText = 'min-width: 60px;';
+                firstLineDiv.appendChild(rightContentSpan);
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+                timeSpan.textContent = chatMessage.time;
+                messageDiv.appendChild(timeSpan);
+            } else {
+                // 일반 메시지는 왼쪽 정렬
+                const userNameSpan = document.createElement('span');
+                userNameSpan.style.cssText = 'font-weight: 600; color: #667eea; margin-right: 8px;';
+                userNameSpan.textContent = chatMessage.isHost ? `👑 ${chatMessage.userName}` : chatMessage.userName;
+                if (chatMessage.userName === currentUser) {
+                    userNameSpan.textContent += ' (나)';
+                    userNameSpan.style.color = '#764ba2';
+                }
+                
+                const messageSpan = document.createElement('span');
+                messageSpan.style.color = '#333';
+                messageSpan.textContent = chatMessage.message;
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-left: 8px;';
+                timeSpan.textContent = chatMessage.time;
+                
+                messageDiv.appendChild(userNameSpan);
+                messageDiv.appendChild(messageSpan);
+                messageDiv.appendChild(document.createElement('br'));
+                messageDiv.appendChild(timeSpan);
+            }
             
             chatMessages.appendChild(messageDiv);
             
