@@ -828,6 +828,26 @@
         .chat-section {
             margin-bottom: 0;
         }
+        
+        /* 주사위 결과 애니메이션 */
+        @keyframes diceRoll {
+            0% {
+                transform: scale(0.5) rotate(-180deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2) rotate(0deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+        
+        .dice-result-animated {
+            display: inline-block;
+            animation: diceRoll 0.5s ease-out;
+        }
 
         .history-title-wrapper {
             display: flex;
@@ -1377,7 +1397,7 @@
             <div class="empty-history">아직 기록이 없습니다</div>
         </div>
         <div class="rolled-users-info" id="rolledUsersInfo" style="text-align: right; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; color: #666; font-size: 14px;">
-            총 굴림: <span id="rolledUsersCount">0</span>
+            총 기록: <span id="rolledUsersCount">0</span>
         </div>
     </div>
 
@@ -3005,6 +3025,10 @@
         socket.on('rulesError', (message) => {
             alert(message);
         });
+        
+        socket.on('gameError', (message) => {
+            alert(message);
+        });
 
         // 게임 시작
         function startGame() {
@@ -3190,9 +3214,11 @@
             const isFirstRollInGame = isGameActive && !rolledUsersInGame.includes(record.user) && !isNotReady;
             const isNotGameActive = !isGameActive;
             const shouldSaveToHistory = (isNotGameActive || isFirstRollInGame) && !isNotReady;
+            const isLastRoller = record.isLastRoller === true;
             
-            // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장 (준비하지 않은 사람 제외)
-            if (shouldSaveToHistory) {
+            // 마지막 굴리는 사람은 애니메이션 완료 후 기록에 저장 (애니메이션 중에는 저장하지 않음)
+            // 다른 사람들은 즉시 기록에 저장
+            if (shouldSaveToHistory && !(isLastRoller && isGameActive)) {
                 historyData.push(record);
             }
             
@@ -3248,17 +3274,54 @@
                         // 준비하지 않은 사람이거나 기록에 저장되지 않는 경우 숫자만 표시
                         const isNotReady = record.isNotReady === true;
                         
+                        const finalResult = record.result;
+                        const diceIcon = (shouldSaveToHistory && !isNotReady) ? '🎲 ' : '';
+                        
+                        // 애니메이션은 본게임에서 최초 1회만 재생 (기록에 저장되는 경우에만)
+                        const shouldAnimate = shouldSaveToHistory && !isNotReady;
+                        
+                        // 초기 스타일 설정
                         if (shouldSaveToHistory && !isNotReady) {
                             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
-                            diceResultSpan.textContent = `🎲 ${record.result}`;
+                            diceResultSpan.textContent = diceIcon;
                         } else {
-                            // 아이콘 없는 숫자는 오른쪽 끝에 붙도록 스타일 적용
                             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
-                            diceResultSpan.textContent = record.result;
+                            diceResultSpan.textContent = '';
                             // resultContainer를 오른쪽 끝에 붙도록 스타일 조정
                             resultContainer.style.cssText = 'min-width: 60px; display: flex; justify-content: flex-end;';
                         }
                         resultContainer.appendChild(diceResultSpan);
+                        
+                        // 애니메이션은 마지막 굴리는 사람에게만 재생 (총 1.5초)
+                        const isLastRoller = record.isLastRoller === true;
+                        if (shouldAnimate && isLastRoller) {
+                            // 애니메이션 중에는 기록에 저장하지 않음 (나중에 저장)
+                            // 숫자 카운트업 애니메이션 (총 1.5초: 30단계 * 50ms = 1500ms)
+                            let currentNum = 1;
+                            const maxNum = Math.min(finalResult, 100); // 너무 큰 숫자는 카운트업 시간이 길어지므로 제한
+                            const increment = Math.max(1, Math.floor(maxNum / 30)); // 30단계로 카운트업
+                            const countInterval = setInterval(() => {
+                                currentNum += increment;
+                                if (currentNum >= maxNum) {
+                                    currentNum = finalResult;
+                                    clearInterval(countInterval);
+                                    // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
+                                    window.lastRollerAnimationComplete = true;
+                                    window.lastRollerAnimationCompleteTime = Date.now();
+                                    
+                                    // 애니메이션 완료 후 기록에 저장
+                                    if (shouldSaveToHistory && !isNotReady) {
+                                        historyData.push(record);
+                                        updateRolledUsersCount();
+                                        renderHistory();
+                                    }
+                                }
+                                diceResultSpan.textContent = diceIcon + currentNum;
+                            }, 50); // 총 1.5초 (30단계 * 50ms = 1500ms)
+                        } else {
+                            // 애니메이션 없이 바로 최종 숫자 표시
+                            diceResultSpan.textContent = diceIcon + finalResult;
+                        }
                     }
                 }
             }
@@ -3698,11 +3761,52 @@
                 const isAllRolledMessage = chatMessage.message.includes('모든 참여자가 주사위를 굴렸습니다');
                 
                 if (isAllRolledMessage) {
-                    // 모든 참여자가 주사위를 굴렸다는 메시지 표시
-                    const titleDiv = document.createElement('div');
-                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
-                    titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
-                    messageDiv.appendChild(titleDiv);
+                    // 메시지 div는 먼저 추가하되 내용은 비워둠
+                    messageDiv.style.display = 'none'; // 먼저 숨김
+                    chatMessages.appendChild(messageDiv);
+                    
+                    // 애니메이션 완료 후 3초 뒤에 메시지 표시
+                    const showMessage = () => {
+                        const titleDiv = document.createElement('div');
+                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                        titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
+                        messageDiv.appendChild(titleDiv);
+                        messageDiv.style.display = 'block'; // 표시
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    };
+                    
+                    const checkAndShow = () => {
+                        if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
+                            const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
+                            if (elapsed >= 1500) {
+                                showMessage();
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    
+                    // 즉시 확인 (이미 3초가 지났을 수 있음)
+                    if (!checkAndShow()) {
+                        // 아직 시간이 안 지났으면 대기
+                        const waitInterval = setInterval(() => {
+                            if (checkAndShow()) {
+                                clearInterval(waitInterval);
+                            }
+                        }, 100);
+                        
+                        // 최대 10초 대기 후 강제 표시
+                        setTimeout(() => {
+                            clearInterval(waitInterval);
+                            if (!messageDiv.querySelector('div')) {
+                                showMessage();
+                            }
+                        }, 10000);
+                    } else {
+                        showMessage();
+                    }
+                    
+                    return; // 여기서 종료하여 아래 코드 실행 방지
                 } else if (titleLine) {
                     const titleDiv = document.createElement('div');
                     titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';

@@ -1020,13 +1020,19 @@ io.on('connection', (socket) => {
         // 클라이언트에서 최신 룰을 받아와서 저장하는 것이 아니므로,
         // 서버의 현재 gameRules 값을 그대로 유지하고 모든 클라이언트에 동기화
         
+        // 게임 시작 시 준비한 사용자들을 참여자 목록으로 설정
+        gameState.gamePlayers = [...gameState.readyUsers];
+        
+        // 참여자가 0명이면 게임 시작 불가
+        if (gameState.gamePlayers.length === 0) {
+            socket.emit('gameError', '참여자가 없습니다. 최소 1명 이상 준비해야 게임을 시작할 수 있습니다.');
+            return;
+        }
+        
         gameState.isGameActive = true;
         gameState.history = [];
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
-        
-        // 게임 시작 시 준비한 사용자들을 참여자 목록으로 설정
-        gameState.gamePlayers = [...gameState.readyUsers];
         
         // 게임 시작 시 같은 방의 모든 클라이언트에게 현재 룰을 동기화 (게임 시작 = 룰 확정)
         io.to(room.roomId).emit('gameRulesUpdated', gameState.gameRules);
@@ -1206,6 +1212,11 @@ io.on('connection', (socket) => {
         // 시드 기반으로 서버에서 난수 생성
         const result = seededRandom(clientSeed, diceMin, diceMax);
 
+        // 마지막 굴리는 사람인지 확인 (게임 진행 중이고, 이번 굴림으로 모든 사람이 굴렸을 때)
+        const isLastRoller = gameState.isGameActive && gameState.gamePlayers.length > 0 && 
+                             !gameState.rolledUsers.includes(userName) && !isNotReady &&
+                             (gameState.rolledUsers.length === gameState.gamePlayers.length - 1);
+        
         const record = {
             user: userName,
             result: result,
@@ -1213,7 +1224,8 @@ io.on('connection', (socket) => {
             seed: clientSeed, // 검증을 위해 시드 저장
             range: `${diceMin}~${diceMax}`,
             isNotReady: isNotReady, // 준비하지 않은 사람인지 플래그
-            deviceType: deviceType // 디바이스 타입 (ios, android, pc)
+            deviceType: deviceType, // 디바이스 타입 (ios, android, pc)
+            isLastRoller: isLastRoller // 마지막 굴리는 사람인지 플래그
         };
 
         // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람은 제외)
