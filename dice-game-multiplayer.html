@@ -40,9 +40,18 @@
             margin-right: auto;
         }
         
-        /* 게임 섹션이 활성화되어 있을 때 오른쪽 여백 추가 (게임 기록 섹션 공간 확보) */
+        /* 게임 섹션이 활성화되어 있을 때 컨테이너를 중앙에 배치 */
         body.game-active .container {
-            margin-right: 370px; /* 게임 기록 너비(320px) + 여백(50px) */
+            /* 컨테이너를 화면 중앙에 배치 (오른쪽으로 160px 추가 이동)
+               - 컨테이너 너비: 800px
+               - 기록 섹션 너비: 320px
+               - 컨테이너와 기록 섹션 사이 여백: 20px
+               총 너비: 800px + 20px + 320px = 1140px
+               중앙 정렬: (100vw - 1140px) / 2 + 160px
+            */
+            margin-left: calc((100vw - 1140px) / 2 + 160px);
+            margin-right: auto;
+            max-width: 800px;
         }
         
         .chat-history-wrapper {
@@ -751,7 +760,6 @@
         .history-section {
             position: fixed;
             top: 20px;
-            right: 20px;
             width: 320px;
             background: white;
             border-radius: 20px;
@@ -761,6 +769,16 @@
             overflow-y: auto;
             z-index: 1000;
             display: none; /* 기본적으로 숨김, 방 입장 시에만 표시 */
+        }
+        
+        /* 게임 섹션이 활성화되어 있을 때 기록 섹션을 컨테이너 바로 옆에 배치 */
+        body.game-active .history-section {
+            /* 컨테이너 오른쪽 끝 위치: (100vw - 1140px) / 2 + 160px + 800px
+               컨테이너와 기록 섹션 사이 여백: 20px
+               기록 섹션 왼쪽 위치: (100vw - 1140px) / 2 + 160px + 800px + 20px
+            */
+            left: calc((100vw - 1140px) / 2 + 160px + 800px + 20px);
+            right: auto;
         }
         
         .history-section.visible {
@@ -1291,7 +1309,7 @@
                         <div style="color: #999; text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
-                        <input type="text" id="chatInput" placeholder="메시지 입력 (최대 200자)" maxlength="200" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
+                        <input type="text" id="chatInput" placeholder="/주사위 - 입력하시면 주사위를 굴릴 수 있습니다." maxlength="200" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
                         <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">전송</button>
                     </div>
                 </div>
@@ -1315,13 +1333,19 @@
             <div class="empty-history">아직 기록이 없습니다</div>
         </div>
         <div class="rolled-users-info" id="rolledUsersInfo" style="text-align: right; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; color: #666; font-size: 14px;">
-            굴린인원: <span id="rolledUsersCount">0</span>
+            총 굴림: <span id="rolledUsersCount">0</span>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        
+        // 모바일 접속 감지
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   (window.innerWidth <= 768);
+        }
         
         let currentUser = '';
         let isHost = false;
@@ -3114,13 +3138,25 @@
                         diceResultSpan.setAttribute('data-dice-result', 'true');
                         // 준비하지 않은 사람이거나 기록에 저장되지 않는 경우 숫자만 표시
                         const isNotReady = record.isNotReady === true;
+                        const isMobile = isMobileDevice();
+                        
                         if (shouldSaveToHistory && !isNotReady) {
                             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
-                            diceResultSpan.textContent = `🎲 ${record.result}`;
+                            // 모바일 접속 시 핸드폰 아이콘 추가
+                            if (isMobile) {
+                                diceResultSpan.textContent = `🎲 ${record.result} 📱`;
+                            } else {
+                                diceResultSpan.textContent = `🎲 ${record.result}`;
+                            }
                         } else {
                             // 아이콘 없는 숫자는 오른쪽 끝에 붙도록 스타일 적용
                             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
-                            diceResultSpan.textContent = record.result;
+                            // 모바일 접속 시에도 숫자 옆에 핸드폰 아이콘 표시
+                            if (isMobile) {
+                                diceResultSpan.textContent = `${record.result} 📱`;
+                            } else {
+                                diceResultSpan.textContent = record.result;
+                            }
                             // resultContainer를 오른쪽 끝에 붙도록 스타일 조정
                             resultContainer.style.cssText = 'min-width: 60px; display: flex; justify-content: flex-end;';
                         }
