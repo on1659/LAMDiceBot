@@ -79,7 +79,8 @@ function createRoomGameState() {
         userDiceSettings: {}, // 사용자별 주사위 설정 {userName: {max}} (최소값은 항상 1)
         userOrders: {}, // 사용자별 주문 내역 {userName: "주문 내용"}
         gameRules: '', // 게임 룰 (호스트만 설정, 게임 시작 후 수정 불가)
-        frequentMenus: loadFrequentMenus() // 자주 쓰는 메뉴 목록
+        frequentMenus: loadFrequentMenus(), // 자주 쓰는 메뉴 목록
+        allPlayersRolledMessageSent: false // 모든 참여자가 주사위를 굴렸다는 메시지 전송 여부
     };
 }
 
@@ -1022,6 +1023,7 @@ io.on('connection', (socket) => {
         gameState.isGameActive = true;
         gameState.history = [];
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
+        gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
         
         // 게임 시작 시 준비한 사용자들을 참여자 목록으로 설정
         gameState.gamePlayers = [...gameState.readyUsers];
@@ -1085,6 +1087,7 @@ io.on('connection', (socket) => {
         gameState.gamePlayers = []; // 참여자 목록 초기화
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.readyUsers = []; // 준비 상태 초기화
+        gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
         io.to(room.roomId).emit('gameEnded', gameState.history);
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
@@ -1155,8 +1158,16 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // 게임 진행 중일 때 준비하지 않은 사람인지 확인
+        let isNotReady = false;
+        if (gameState.isGameActive && gameState.gamePlayers.length > 0) {
+            if (!gameState.gamePlayers.includes(userName)) {
+                // 준비하지 않은 사람은 처리하되 플래그 설정
+                isNotReady = true;
+            }
+        }
+        
         // 주사위는 게임 진행 전/후 모두 자유롭게 굴릴 수 있음
-        // 게임 시작 후 입장한 사용자도 주사위를 굴릴 수 있음
 
         // 클라이언트 시드 검증
         if (!clientSeed || typeof clientSeed !== 'string') {
@@ -1191,20 +1202,21 @@ io.on('connection', (socket) => {
             result: result,
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             seed: clientSeed, // 검증을 위해 시드 저장
-            range: `${diceMin}~${diceMax}`
+            range: `${diceMin}~${diceMax}`,
+            isNotReady: isNotReady // 준비하지 않은 사람인지 플래그
         };
 
-        // 게임 진행 중이면 최초 1회만 기록에 저장
-        const isFirstRollInGame = gameState.isGameActive && gameState.gamePlayers.length > 0 && !gameState.rolledUsers.includes(userName);
+        // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람은 제외)
+        const isFirstRollInGame = gameState.isGameActive && gameState.gamePlayers.length > 0 && !gameState.rolledUsers.includes(userName) && !isNotReady;
         const isNotGameActive = !gameState.isGameActive;
         
-        // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장
-        if (isNotGameActive || isFirstRollInGame) {
+        // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장 (준비하지 않은 사람 제외)
+        if ((isNotGameActive || isFirstRollInGame) && !isNotReady) {
             gameState.history.push(record);
         }
         
-        // rolledUsers 배열에 사용자 추가 (중복 체크)
-        if (!gameState.rolledUsers.includes(userName)) {
+        // rolledUsers 배열에 사용자 추가 (중복 체크, 준비하지 않은 사람은 제외)
+        if (!gameState.rolledUsers.includes(userName) && !isNotReady) {
             gameState.rolledUsers.push(userName);
         }
         
@@ -1228,12 +1240,25 @@ io.on('connection', (socket) => {
             
             console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
             
-            // 모두 굴렸는지 확인
-            if (gameState.rolledUsers.length === gameState.gamePlayers.length) {
+            // 모두 굴렸는지 확인 (메시지가 아직 전송되지 않았을 때만)
+            if (gameState.rolledUsers.length === gameState.gamePlayers.length && !gameState.allPlayersRolledMessageSent) {
+                gameState.allPlayersRolledMessageSent = true; // 플래그 설정하여 중복 전송 방지
+                
                 io.to(room.roomId).emit('allPlayersRolled', {
                     message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
                     totalPlayers: gameState.gamePlayers.length
                 });
+                
+                // 채팅에 시스템 메시지 전송
+                const allRolledMessage = {
+                    userName: '시스템',
+                    message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
+                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    isHost: false,
+                    isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
+                };
+                io.to(room.roomId).emit('newMessage', allRolledMessage);
+                
                 console.log(`방 ${room.roomName}: 모든 참여자가 주사위를 굴렸습니다!`);
             }
         } else {
