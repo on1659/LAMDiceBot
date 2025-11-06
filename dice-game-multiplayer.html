@@ -1349,7 +1349,11 @@
                         <div style="color: #999; text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
-                        <input type="text" id="chatInput" placeholder="/주사위 - 입력하시면 주사위를 굴릴 수 있습니다." maxlength="200" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
+                        <div style="position: relative;">
+                            <div class="autocomplete-suggestion" id="chatAutocompleteSuggestion" style="position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 10;"></div>
+                            <input type="text" id="chatInput" placeholder="/주사위 - 입력하시면 주사위를 굴릴 수 있습니다." maxlength="200" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px; position: relative; background: transparent;" />
+                            <div class="autocomplete-dropdown" id="chatAutocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;"></div>
+                        </div>
                         <button onclick="sendChatMessage()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">전송</button>
                     </div>
                 </div>
@@ -1404,6 +1408,12 @@
                 default:
                     return '💻';
             }
+        }
+        
+        // 모바일 접속 감지
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   (window.innerWidth <= 768);
         }
         
         let currentUser = '';
@@ -1497,6 +1507,29 @@
                 tag.innerHTML = `${menu}<span class="delete-btn" onclick="deleteMenu('${menu}')">×</span>`;
                 menuList.appendChild(tag);
             });
+        }
+        
+        // 채팅 입력창용 자동완성 제안 찾기
+        function findChatAutocompleteSuggestions(text) {
+            if (!text || text.trim() === '') {
+                return [];
+            }
+            
+            const trimmedText = text.trim();
+            
+            // /, /ㅈ, /주, /주ㅅ, /주사, /주사ㅇ, /주사우 등으로 시작하면 /주사위 제안
+            // 한글 자모 입력을 고려한 패턴 매칭
+            if (trimmedText === '/' || 
+                trimmedText === '/ㅈ' ||
+                trimmedText.startsWith('/주') ||
+                trimmedText.startsWith('/주사')) {
+                // /주사위로 완성되지 않은 경우에만 제안
+                if (trimmedText !== '/주사위' && !trimmedText.startsWith('/주사위')) {
+                    return ['/주사위'];
+                }
+            }
+            
+            return [];
         }
         
         // 자동완성 제안 찾기 (모든 일치 항목)
@@ -3480,12 +3513,148 @@
             });
         }
         
-        // 채팅 입력창에서 Enter 키로 전송
+        // 채팅 입력창 자동완성 관련 변수
+        let chatCurrentSuggestions = [];
+        let chatSelectedSuggestionIndex = -1;
+        
+        // 채팅 입력창 자동완성 드롭다운 렌더링
+        function renderChatAutocompleteDropdown() {
+            const dropdownDiv = document.getElementById('chatAutocompleteDropdown');
+            const chatInput = document.getElementById('chatInput');
+            const text = chatInput.value;
+            
+            dropdownDiv.innerHTML = '';
+            
+            chatCurrentSuggestions.forEach((suggestion, index) => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item' + (index === chatSelectedSuggestionIndex ? ' selected' : '');
+                item.textContent = suggestion;
+                
+                // 입력된 부분 강조
+                const prefix = document.createElement('strong');
+                prefix.textContent = suggestion.substring(0, text.length);
+                const suffix = document.createElement('span');
+                suffix.textContent = suggestion.substring(text.length);
+                
+                item.innerHTML = '';
+                item.appendChild(prefix);
+                item.appendChild(suffix);
+                
+                item.addEventListener('click', () => {
+                    applyChatSuggestion(suggestion);
+                });
+                
+                dropdownDiv.appendChild(item);
+            });
+        }
+        
+        // 채팅 입력창 자동완성 업데이트
+        function updateChatAutocompleteSuggestion() {
+            const chatInput = document.getElementById('chatInput');
+            const suggestionDiv = document.getElementById('chatAutocompleteSuggestion');
+            const dropdownDiv = document.getElementById('chatAutocompleteDropdown');
+            const text = chatInput.value;
+            
+            chatCurrentSuggestions = findChatAutocompleteSuggestions(text);
+            chatSelectedSuggestionIndex = -1;
+            
+            // 모바일에서만 드롭다운 표시
+            if (chatCurrentSuggestions.length > 0 && isMobileDevice()) {
+                // 회색 텍스트는 표시하지 않음 (드롭다운만 표시)
+                suggestionDiv.style.display = 'none';
+                
+                // 드롭다운 표시 (주문 메뉴처럼)
+                renderChatAutocompleteDropdown();
+                dropdownDiv.style.display = 'block';
+            } else {
+                suggestionDiv.textContent = '';
+                suggestionDiv.style.display = 'none';
+                dropdownDiv.style.display = 'none';
+            }
+        }
+        
+        // 채팅 입력창 자동완성 적용
+        function applyChatSuggestion(suggestion) {
+            const chatInput = document.getElementById('chatInput');
+            chatInput.value = suggestion;
+            chatCurrentSuggestions = [];
+            chatSelectedSuggestionIndex = -1;
+            document.getElementById('chatAutocompleteSuggestion').style.display = 'none';
+            document.getElementById('chatAutocompleteDropdown').style.display = 'none';
+            chatInput.focus();
+        }
+        
+        // 채팅 입력창에서 Enter 키로 전송 및 자동완성
         document.addEventListener('DOMContentLoaded', () => {
             const chatInput = document.getElementById('chatInput');
             if (chatInput) {
+                // /, /ㅈ, /주, /주ㅅ, /주사, /주사ㅇ, /주사우 등으로 시작할 때만 자동완성 작동
+                chatInput.addEventListener('input', () => {
+                    const text = chatInput.value.trim();
+                    if (text === '/' ||
+                        text === '/ㅈ' ||
+                        text.startsWith('/주') ||
+                        text.startsWith('/주사')) {
+                        updateChatAutocompleteSuggestion();
+                    } else {
+                        // 해당하지 않으면 자동완성 숨기기
+                        const suggestionDiv = document.getElementById('chatAutocompleteSuggestion');
+                        const dropdownDiv = document.getElementById('chatAutocompleteDropdown');
+                        if (suggestionDiv) suggestionDiv.style.display = 'none';
+                        if (dropdownDiv) dropdownDiv.style.display = 'none';
+                        chatCurrentSuggestions = [];
+                        chatSelectedSuggestionIndex = -1;
+                    }
+                });
+                
                 chatInput.addEventListener('keydown', (e) => {
+                    // Tab으로 자동완성 적용
+                    if (e.key === 'Tab' && chatCurrentSuggestions.length > 0) {
+                        e.preventDefault();
+                        const suggestionToApply = chatSelectedSuggestionIndex >= 0 
+                            ? chatCurrentSuggestions[chatSelectedSuggestionIndex] 
+                            : chatCurrentSuggestions[0];
+                        applyChatSuggestion(suggestionToApply);
+                        return;
+                    }
+                    
+                    // 방향키로 제안 선택
+                    if (e.key === 'ArrowDown' && chatCurrentSuggestions.length > 0) {
+                        e.preventDefault();
+                        chatSelectedSuggestionIndex = (chatSelectedSuggestionIndex + 1) % chatCurrentSuggestions.length;
+                        renderChatAutocompleteDropdown();
+                        return;
+                    }
+                    
+                    if (e.key === 'ArrowUp' && chatCurrentSuggestions.length > 0) {
+                        e.preventDefault();
+                        chatSelectedSuggestionIndex = chatSelectedSuggestionIndex <= 0 
+                            ? chatCurrentSuggestions.length - 1 
+                            : chatSelectedSuggestionIndex - 1;
+                        renderChatAutocompleteDropdown();
+                        return;
+                    }
+                    
+                    // Escape로 드롭다운 닫기
+                    if (e.key === 'Escape') {
+                        chatCurrentSuggestions = [];
+                        chatSelectedSuggestionIndex = -1;
+                        document.getElementById('chatAutocompleteSuggestion').style.display = 'none';
+                        document.getElementById('chatAutocompleteDropdown').style.display = 'none';
+                        return;
+                    }
+                    
+                    // Enter 키 처리
                     if (e.key === 'Enter') {
+                        // 자동완성 드롭다운이 열려있으면 자동완성 적용
+                        if (chatCurrentSuggestions.length > 0) {
+                            e.preventDefault();
+                            const suggestionToApply = chatSelectedSuggestionIndex >= 0 
+                                ? chatCurrentSuggestions[chatSelectedSuggestionIndex] 
+                                : chatCurrentSuggestions[0];
+                            applyChatSuggestion(suggestionToApply);
+                            return;
+                        }
                         e.preventDefault();
                         sendChatMessage();
                     }
