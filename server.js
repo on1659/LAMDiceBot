@@ -1151,6 +1151,15 @@ io.on('connection', (socket) => {
 
         const { userName, clientSeed, min, max } = data;
         
+        // User Agent로 디바이스 타입 확인
+        const userAgent = socket.handshake.headers['user-agent'] || '';
+        let deviceType = 'pc'; // 기본값은 PC
+        if (/iPhone|iPad|iPod/i.test(userAgent)) {
+            deviceType = 'ios';
+        } else if (/Android/i.test(userAgent)) {
+            deviceType = 'android';
+        }
+        
         // 사용자 검증
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user || user.name !== userName) {
@@ -1203,7 +1212,8 @@ io.on('connection', (socket) => {
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             seed: clientSeed, // 검증을 위해 시드 저장
             range: `${diceMin}~${diceMax}`,
-            isNotReady: isNotReady // 준비하지 않은 사람인지 플래그
+            isNotReady: isNotReady, // 준비하지 않은 사람인지 플래그
+            deviceType: deviceType // 디바이스 타입 (ios, android, pc)
         };
 
         // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람은 제외)
