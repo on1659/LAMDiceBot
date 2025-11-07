@@ -859,7 +859,10 @@ io.on('connection', (socket) => {
         
         // 같은 방의 모든 클라이언트에게 업데이트된 룰 전송
         io.to(room.roomId).emit('gameRulesUpdated', gameState.gameRules);
-        console.log(`방 ${room.roomName} 게임 룰 업데이트:`, gameState.gameRules);
+        // 호스트에게 저장 성공 메시지 전송
+        const rulesText = gameState.gameRules || '(룰 없음)';
+        socket.emit('rulesSaved', `${rulesText} 룰이 적용되었습니다.`);
+        
     });
 
     // 준비 상태 토글
@@ -1320,11 +1323,21 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // User Agent로 디바이스 타입 확인
+        const userAgent = socket.handshake.headers['user-agent'] || '';
+        let deviceType = 'pc'; // 기본값은 PC
+        if (/iPhone|iPad|iPod/i.test(userAgent)) {
+            deviceType = 'ios';
+        } else if (/Android/i.test(userAgent)) {
+            deviceType = 'android';
+        }
+        
         const chatMessage = {
             userName: user.name,
             message: message.trim(),
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
-            isHost: user.isHost
+            isHost: user.isHost,
+            deviceType: deviceType // 디바이스 타입 추가
         };
         
         // 같은 방의 모든 클라이언트에게 채팅 메시지 전송
