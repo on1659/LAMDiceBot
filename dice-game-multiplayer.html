@@ -862,6 +862,7 @@
             font-size: 20px;
             font-weight: 600;
             color: #333;
+            white-space: nowrap; /* 줄바꿈 방지 */
         }
 
         .sort-buttons {
@@ -1428,6 +1429,263 @@
                 default:
                     return '💻';
             }
+        }
+        
+        // 주사위 연출 효과 함수들
+        const diceAnimationEffects = {
+            // 1. 카운트업 애니메이션
+            countUp: function(diceResultSpan, diceIcon, finalResult, onComplete) {
+                let currentNum = 1;
+                const maxNum = Math.min(finalResult, 100);
+                const steps = 50;
+                const increment = Math.max(1, Math.floor(maxNum / steps));
+                const interval = setInterval(() => {
+                    currentNum += increment;
+                    if (currentNum >= maxNum) {
+                        currentNum = finalResult;
+                        clearInterval(interval);
+                        onComplete();
+                    }
+                    diceResultSpan.textContent = diceIcon + currentNum;
+                }, 60);
+            },
+            
+            // 2. 올라갔다가 내려오는 애니메이션
+            upAndDown: function(diceResultSpan, diceIcon, finalResult, onComplete) {
+                const targetNum = Math.min(finalResult, 100);
+                const maxNum = 100;
+                let currentNum = 1;
+                
+                // 1단계: 빠르게 100까지 올라가기
+                const upSteps = 30;
+                const upIncrement = Math.max(1, Math.floor(maxNum / upSteps));
+                const upInterval = setInterval(() => {
+                    currentNum += upIncrement;
+                    if (currentNum >= maxNum) {
+                        currentNum = maxNum;
+                        clearInterval(upInterval);
+                        diceResultSpan.textContent = diceIcon + maxNum;
+                        
+                        // 2단계: 0.3초 대기
+                        setTimeout(() => {
+                            // 3단계: 결과 숫자까지 내려오기 (도착 직전에 천천히)
+                            let downNum = maxNum;
+                            let downDelay = 30; // 초기 딜레이
+                            const downSteps = 40; // 내려오는 단계 수
+                            const downIncrement = Math.max(1, Math.floor((maxNum - targetNum) / downSteps));
+                            
+                            const countDown = () => {
+                                downNum -= downIncrement;
+                                
+                                // 도착 직전 (targetNum + 40% 범위)에 들어가면 천천히
+                                const slowDownThreshold = targetNum + (maxNum - targetNum) * 0.4;
+                                if (downNum <= slowDownThreshold) {
+                                    // 더 많이 느려지게 (증가량을 크게)
+                                    downDelay = Math.min(downDelay + 8, 200); // 점점 느려지게 (최대 200ms)
+                                }
+                                
+                                // 마지막 10% 범위에서는 더욱 천천히
+                                const verySlowThreshold = targetNum + (maxNum - targetNum) * 0.1;
+                                if (downNum <= verySlowThreshold) {
+                                    downDelay = Math.min(downDelay + 10, 300); // 매우 천천히 (최대 300ms)
+                                }
+                                
+                                if (downNum <= targetNum) {
+                                    downNum = targetNum;
+                                    diceResultSpan.textContent = diceIcon + targetNum;
+                                    setTimeout(() => {
+                                        onComplete();
+                                    }, 200);
+                                } else {
+                                    diceResultSpan.textContent = diceIcon + downNum;
+                                    setTimeout(countDown, downDelay);
+                                }
+                            };
+                            
+                            countDown();
+                        }, 150); // 0.15초 대기
+                    } else {
+                        diceResultSpan.textContent = diceIcon + currentNum;
+                    }
+                }, 30); // 빠르게 올라가기
+            },
+            
+            // 3. 한 자리씩 보여주는 애니메이션
+            digitByDigit: function(diceResultSpan, diceIcon, finalResult, onComplete) {
+                const targetNum = Math.min(finalResult, 99); // 최대 99까지
+                const onesDigit = targetNum % 10; // 1의 자리
+                const tensDigit = Math.floor(targetNum / 10); // 10의 자리
+                
+                // 한 자리수인 경우 (0~9)
+                if (targetNum < 10) {
+                    // 처음에 ? 표시
+                    diceResultSpan.textContent = diceIcon + '?';
+                    
+                    // 1의 자리만 애니메이션
+                    let onesCurrent = 0;
+                    let onesDelay = 100; // 초기 딜레이 (천천히)
+                    let passedTarget = false; // 목표 숫자를 지나쳤는지
+                    let spinCount = 0; // 몇 바퀴 돌았는지
+                    const minSpins = 2; // 최소 몇 바퀴 돌기
+                    
+                    const animateOnes = () => {
+                        onesCurrent++;
+                        if (onesCurrent > 9) {
+                            onesCurrent = 0;
+                            if (passedTarget) spinCount++;
+                        }
+                        
+                        // 목표 숫자를 지나쳤는지 확인
+                        if (onesCurrent === onesDigit && !passedTarget) {
+                            passedTarget = true;
+                        }
+                        
+                        diceResultSpan.textContent = diceIcon + onesCurrent;
+                        
+                        // 목표 숫자에 도달하고 최소 바퀴 수를 돌았으면
+                        if (onesCurrent === onesDigit && passedTarget && spinCount >= minSpins) {
+                            diceResultSpan.textContent = diceIcon + targetNum;
+                            
+                            // 확대/축소 연출 추가
+                            diceResultSpan.style.transition = 'transform 0.1s ease-out';
+                            diceResultSpan.style.transform = 'scale(1.3)';
+                            
+                            setTimeout(() => {
+                                diceResultSpan.style.transform = 'scale(1)';
+                                setTimeout(() => {
+                                    onComplete();
+                                }, 100);
+                            }, 100);
+                        } else {
+                            // 도착 직전에 천천히 (목표 숫자 - 3 범위)
+                            if (passedTarget && spinCount >= minSpins - 1) {
+                                const distance = (onesDigit - onesCurrent + 10) % 10;
+                                if (distance <= 3 && distance > 0) {
+                                    onesDelay = Math.min(onesDelay + 30, 200); // 점점 느려지게
+                                }
+                            }
+                            setTimeout(animateOnes, onesDelay);
+                        }
+                    };
+                    
+                    setTimeout(animateOnes, onesDelay);
+                } else {
+                    // 두 자리수인 경우 (10~99)
+                    // 처음에 ?? 표시
+                    diceResultSpan.textContent = diceIcon + '??';
+                    
+                    // 1의 자리 애니메이션
+                    let onesCurrent = 0;
+                    let onesDelay = 100; // 초기 딜레이 (천천히)
+                    let onesPassedTarget = false;
+                    let onesSpinCount = 0;
+                    const onesMinSpins = 2;
+                    
+                    const animateOnes = () => {
+                        onesCurrent++;
+                        if (onesCurrent > 9) {
+                            onesCurrent = 0;
+                            if (onesPassedTarget) onesSpinCount++;
+                        }
+                        
+                        if (onesCurrent === onesDigit && !onesPassedTarget) {
+                            onesPassedTarget = true;
+                        }
+                        
+                        diceResultSpan.textContent = diceIcon + '?' + onesCurrent;
+                        
+                        // 1의 자리가 목표 숫자에 도달하고 최소 바퀴 수를 돌았으면
+                        if (onesCurrent === onesDigit && onesPassedTarget && onesSpinCount >= onesMinSpins) {
+                            diceResultSpan.textContent = diceIcon + '?' + onesDigit;
+                            
+                            // 잠시 대기 후 10의 자리 애니메이션 시작
+                            setTimeout(() => {
+                                let tensCurrent = 0;
+                                let tensDelay = 100; // 초기 딜레이
+                                let tensPassedTarget = false;
+                                let tensSpinCount = 0;
+                                const tensMinSpins = 2;
+                                
+                                const animateTens = () => {
+                                    tensCurrent++;
+                                    if (tensCurrent > 9) {
+                                        tensCurrent = 0;
+                                        if (tensPassedTarget) tensSpinCount++;
+                                    }
+                                    
+                                    if (tensCurrent === tensDigit && !tensPassedTarget) {
+                                        tensPassedTarget = true;
+                                    }
+                                    
+                                    diceResultSpan.textContent = diceIcon + tensCurrent + onesDigit;
+                                    
+                                    // 10의 자리가 목표 숫자에 도달하고 최소 바퀴 수를 돌았으면
+                                    if (tensCurrent === tensDigit && tensPassedTarget && tensSpinCount >= tensMinSpins) {
+                                        diceResultSpan.textContent = diceIcon + targetNum;
+                                        
+                                        // 확대/축소 연출 추가
+                                        diceResultSpan.style.transition = 'transform 0.1s ease-out';
+                                        diceResultSpan.style.transform = 'scale(1.3)';
+                                        
+                                        setTimeout(() => {
+                                            diceResultSpan.style.transform = 'scale(1)';
+                                            setTimeout(() => {
+                                                onComplete();
+                                            }, 100);
+                                        }, 100);
+                                    } else {
+                                        // 도착 직전에 천천히 (목표 숫자 - 3 범위)
+                                        if (tensPassedTarget && tensSpinCount >= tensMinSpins - 1) {
+                                            const distance = (tensDigit - tensCurrent + 10) % 10;
+                                            if (distance <= 3 && distance > 0) {
+                                                tensDelay = Math.min(tensDelay + 30, 200); // 점점 느려지게
+                                            }
+                                        }
+                                        setTimeout(animateTens, tensDelay);
+                                    }
+                                };
+                                
+                                setTimeout(animateTens, tensDelay);
+                            }, 200); // 1의 자리와 10의 자리 사이 대기 시간
+                        } else {
+                            // 도착 직전에 천천히
+                            if (onesPassedTarget && onesSpinCount >= onesMinSpins - 1) {
+                                const distance = (onesDigit - onesCurrent + 10) % 10;
+                                if (distance <= 3 && distance > 0) {
+                                    onesDelay = Math.min(onesDelay + 30, 200);
+                                }
+                            }
+                            setTimeout(animateOnes, onesDelay);
+                        }
+                    };
+                    
+                    setTimeout(animateOnes, onesDelay);
+                }
+            }
+        };
+        
+        // 랜덤으로 연출 효과 선택 (또는 특정 효과 선택)
+        function playRandomDiceAnimation(diceResultSpan, diceIcon, finalResult, onComplete, animationIndex = null) {
+            const effectNames = Object.keys(diceAnimationEffects);
+            let selectedEffect;
+            
+            // 특정 애니메이션 인덱스가 지정된 경우 (테스트용: 1001~1006)
+            if (animationIndex !== null && animationIndex >= 0 && animationIndex < effectNames.length) {
+                selectedEffect = effectNames[animationIndex];
+                console.log(`테스트 애니메이션 선택: 인덱스 ${animationIndex} → ${selectedEffect}`);
+            } else {
+                // 결과에 따라 애니메이션 선택
+                // 80 미만일 때만 두 번째 애니메이션(upAndDown) 사용 가능
+                if (finalResult < 80 && effectNames.includes('upAndDown')) {
+                    // 80 미만이면 랜덤으로 선택 (countUp 또는 upAndDown)
+                    selectedEffect = effectNames[Math.floor(Math.random() * effectNames.length)];
+                } else {
+                    // 80 이상이면 첫 번째 애니메이션(countUp)만 사용
+                    selectedEffect = 'countUp';
+                }
+            }
+            
+            diceAnimationEffects[selectedEffect](diceResultSpan, diceIcon, finalResult, onComplete);
         }
         
         // 모바일 접속 감지
@@ -3060,6 +3318,10 @@
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
             historyData = [];
             
+            // 애니메이션 완료 플래그 초기화 (게임 재시작 시 이전 값이 남아있지 않도록)
+            window.lastRollerAnimationComplete = false;
+            window.lastRollerAnimationCompleteTime = null;
+            
             // 게임 기록 제목 변경
             document.getElementById('historyTitle').textContent = '📋 게임';
             
@@ -3146,6 +3408,10 @@
             isGameActive = false;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
+            
+            // 애니메이션 완료 플래그 초기화 (게임 종료 시)
+            window.lastRollerAnimationComplete = false;
+            window.lastRollerAnimationCompleteTime = null;
             historyData = history;
             
             // 게임 기록 제목 변경 (연습경기로)
@@ -3309,32 +3575,32 @@
                         }
                         resultContainer.appendChild(diceResultSpan);
                         
-                        // 애니메이션은 마지막 굴리는 사람에게만 재생 (총 1.5초)
+                        // 애니메이션은 마지막 굴리는 사람에게만 재생 (테스트용 1001~1006은 예외)
                         const isLastRoller = record.isLastRoller === true;
-                        if (shouldAnimate && isLastRoller) {
-                            // 애니메이션 중에는 기록에 저장하지 않음 (나중에 저장)
-                            // 숫자 카운트업 애니메이션 (총 1.5초: 30단계 * 50ms = 1500ms)
-                            let currentNum = 1;
-                            const maxNum = Math.min(finalResult, 100); // 너무 큰 숫자는 카운트업 시간이 길어지므로 제한
-                            const increment = Math.max(1, Math.floor(maxNum / 30)); // 30단계로 카운트업
-                            const countInterval = setInterval(() => {
-                                currentNum += increment;
-                                if (currentNum >= maxNum) {
-                                    currentNum = finalResult;
-                                    clearInterval(countInterval);
-                                    // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
-                                    window.lastRollerAnimationComplete = true;
-                                    window.lastRollerAnimationCompleteTime = Date.now();
-                                    
-                                    // 애니메이션 완료 후 기록에 저장
-                                    if (shouldSaveToHistory && !isNotReady) {
-                                        historyData.push(record);
-                                        updateRolledUsersCount();
-                                        renderHistory();
-                                    }
+                        const isTestAnimation = finalResult >= 1001 && finalResult <= 1006;
+                        if (shouldAnimate && (isLastRoller || isTestAnimation)) {
+                            // 애니메이션 완료 콜백 함수
+                            const onAnimationComplete = () => {
+                                // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
+                                window.lastRollerAnimationComplete = true;
+                                window.lastRollerAnimationCompleteTime = Date.now();
+                                
+                                // 애니메이션 완료 후 기록에 저장
+                                if (shouldSaveToHistory && !isNotReady) {
+                                    historyData.push(record);
+                                    updateRolledUsersCount();
+                                    renderHistory();
                                 }
-                                diceResultSpan.textContent = diceIcon + currentNum;
-                            }, 50); // 총 1.5초 (30단계 * 50ms = 1500ms)
+                            };
+                            
+                            // 테스트용: 1001~1006 범위면 해당 애니메이션 강제 선택
+                            let animationIndex = null;
+                            if (finalResult >= 1001 && finalResult <= 1006) {
+                                animationIndex = finalResult - 1001; // 1001→0, 1002→1, ..., 1006→5
+                            }
+                            
+                            // 랜덤으로 연출 효과 선택하여 재생 (또는 테스트용 특정 효과)
+                            playRandomDiceAnimation(diceResultSpan, diceIcon, finalResult, onAnimationComplete, animationIndex);
                         } else {
                             // 애니메이션 없이 바로 최종 숫자 표시
                             diceResultSpan.textContent = diceIcon + finalResult;
@@ -3534,6 +3800,13 @@
                 return;
             }
             
+            // /테스트 명령어 처리 (애니메이션 테스트용)
+            if (message.startsWith('/테스트')) {
+                handleTestCommand(message);
+                chatInput.value = '';
+                return;
+            }
+            
             // /주사위 명령어 처리
             if (message.startsWith('/주사위')) {
                 // 먼저 채팅 메시지로 전송 (명령어도 채팅에 보이게)
@@ -3546,6 +3819,82 @@
             
             socket.emit('sendMessage', { message: message });
             chatInput.value = '';
+        }
+        
+        // 테스트 명령어 처리 (애니메이션 테스트용)
+        function handleTestCommand(command) {
+            const parts = command.trim().split(/\s+/);
+            if (parts.length < 2) {
+                alert('사용법: /테스트 [애니메이션번호]\n예: /테스트 1001, /테스트 1002, /테스트 1003');
+                return;
+            }
+            
+            const animationNum = parseInt(parts[1]);
+            if (isNaN(animationNum) || (animationNum < 1001 || animationNum > 1003)) {
+                alert('애니메이션 번호는 1001, 1002, 1003 중 하나여야 합니다.');
+                return;
+            }
+            
+            // 랜덤 숫자 생성 (1~99)
+            const randomResult = Math.floor(Math.random() * 99) + 1;
+            
+            // 채팅 메시지 먼저 전송
+            socket.emit('sendMessage', { message: `/테스트 ${animationNum}` });
+            
+            // 가짜 주사위 결과 생성 (애니메이션 테스트용)
+            const testRecord = {
+                user: currentUser,
+                result: randomResult,
+                time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                seed: 'test',
+                range: '1~100',
+                isNotReady: false,
+                deviceType: isMobileDevice() ? (/iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'ios' : 'android') : 'pc',
+                isLastRoller: true // 애니메이션을 재생하기 위해 true로 설정
+            };
+            
+            // diceRolled 이벤트 핸들러 로직을 직접 실행 (테스트용)
+            setTimeout(() => {
+                // socket.on('diceRolled') 핸들러의 로직을 직접 실행
+                const isNotReady = testRecord.isNotReady === true;
+                const isFirstRollInGame = isGameActive && !rolledUsersInGame.includes(testRecord.user) && !isNotReady;
+                const isNotGameActive = !isGameActive;
+                const shouldSaveToHistory = (isNotGameActive || isFirstRollInGame) && !isNotReady;
+                
+                // 주사위 결과 표시 로직 실행
+                const chatMessages = document.getElementById('chatMessages');
+                const diceCommandMessages = Array.from(chatMessages.children).filter(div => 
+                    div.getAttribute('data-dice-command') === 'true' && 
+                    div.getAttribute('data-user-name') === testRecord.user
+                );
+                
+                if (diceCommandMessages.length > 0) {
+                    const lastDiceCommandMsg = diceCommandMessages[diceCommandMessages.length - 1];
+                    const resultContainer = lastDiceCommandMsg.querySelector('span[data-dice-result-container="true"]');
+                    if (resultContainer) {
+                        const existingResult = resultContainer.querySelector('span[data-dice-result]');
+                        if (!existingResult) {
+                            const diceResultSpan = document.createElement('span');
+                            diceResultSpan.setAttribute('data-dice-result', 'true');
+                            const finalResult = testRecord.result;
+                            const diceIcon = (shouldSaveToHistory && !isNotReady) ? '🎲 ' : '';
+                            
+                            diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
+                            diceResultSpan.textContent = diceIcon;
+                            resultContainer.appendChild(diceResultSpan);
+                            
+                            // 테스트용 애니메이션 재생
+                            const onAnimationComplete = () => {
+                                window.lastRollerAnimationComplete = true;
+                                window.lastRollerAnimationCompleteTime = Date.now();
+                            };
+                            
+                            const animationIndex = animationNum - 1001; // 1001→0, 1002→1, 1003→2
+                            playRandomDiceAnimation(diceResultSpan, diceIcon, finalResult, onAnimationComplete, animationIndex);
+                        }
+                    }
+                }
+            }, 500); // 채팅 메시지가 먼저 렌더링되도록 약간의 지연
         }
         
         // 주사위 명령어 처리
@@ -3563,6 +3912,7 @@
                     maxValue = parsedValue;
                 }
             }
+            
             
             // 범위 검증
             if (maxValue < 1) {
@@ -3760,8 +4110,8 @@
             // 시스템 메시지인지 확인
             const isSystemMessage = chatMessage.isSystemMessage || chatMessage.userName === '시스템';
             
-            // /주사위 명령어인지 확인
-            const isDiceCommand = chatMessage.message.startsWith('/주사위');
+            // /주사위 또는 /테스트 명령어인지 확인
+            const isDiceCommand = chatMessage.message.startsWith('/주사위') || chatMessage.message.startsWith('/테스트');
             
             // 시스템 메시지 처리
             if (isSystemMessage) {
