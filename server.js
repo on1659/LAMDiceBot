@@ -94,6 +94,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
 });
 
+// 사다리타기 게임 라우트
+app.get('/ladder', (req, res) => {
+    res.sendFile(path.join(__dirname, 'ladder-game-multiplayer.html'));
+});
+
 // 시드 기반 랜덤 생성 함수
 function seededRandom(seed, min, max) {
     // 시드를 해시화하여 난수 생성
@@ -167,18 +172,93 @@ io.on('connection', (socket) => {
             playerCount: room.gameState.users.length,
             isGameActive: room.gameState.isGameActive,
             isOrderActive: room.gameState.isOrderActive,
-            isPrivate: room.isPrivate || false
+            isPrivate: room.isPrivate || false,
+            gameType: room.gameType || 'dice' // 게임 타입 추가 (기본값: dice)
             // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
         socket.emit('roomsList', roomsList);
     });
 
-    // 방 생성
-    socket.on('createRoom', (data) => {
+    // 현재 방 정보 조회 (리다이렉트 후 방 정보 복구용)
+    socket.on('getCurrentRoom', async (data) => {
         if (!checkRateLimit()) return;
         
-        const { userName, roomName, isPrivate, password } = data;
+        const { roomId, userName } = data || {};
+        
+        if (!roomId || !userName) {
+            socket.emit('currentRoomInfo', null);
+            return;
+        }
+        
+        if (!rooms[roomId]) {
+            socket.emit('currentRoomInfo', null);
+            return;
+        }
+        
+        const room = rooms[roomId];
+        const gameState = room.gameState;
+        
+        // 같은 이름의 사용자 찾기 (리다이렉트로 인한 재연결인 경우)
+        const user = gameState.users.find(u => u.name === userName);
+        
+        if (!user) {
+            socket.emit('currentRoomInfo', null);
+            return;
+        }
+        
+        // 기존 사용자의 socket.id를 새 소켓으로 업데이트
+        user.id = socket.id;
+        socket.currentRoomId = roomId;
+        socket.userName = userName;
+        socket.isHost = user.isHost;
+        
+        // 호스트 ID도 업데이트
+        if (user.isHost) {
+            room.hostId = socket.id;
+        }
+        
+        socket.join(roomId);
+        
+        const hasRolled = gameState.rolledUsers.includes(user.name);
+        const myResult = gameState.history.find(r => r.user === user.name);
+        
+        socket.emit('currentRoomInfo', {
+            roomId: room.roomId,
+            roomName: room.roomName,
+            userName: user.name,
+            isHost: user.isHost,
+            hasRolled: hasRolled,
+            myResult: myResult,
+            isGameActive: gameState.isGameActive,
+            isOrderActive: gameState.isOrderActive,
+            isGamePlayer: gameState.gamePlayers.includes(user.name),
+            readyUsers: gameState.readyUsers,
+            isReady: gameState.readyUsers.includes(user.name),
+            isPrivate: room.isPrivate,
+            password: room.isPrivate ? room.password : '',
+            gameType: room.gameType || 'dice',
+            diceSettings: gameState.userDiceSettings[user.name],
+            myOrder: gameState.userOrders[user.name] || '',
+            gameRules: gameState.gameRules,
+            frequentMenus: gameState.frequentMenus,
+            gameState: {
+                ...gameState,
+                hasRolled: () => gameState.rolledUsers.includes(user.name),
+                myResult: myResult,
+                frequentMenus: gameState.frequentMenus
+            }
+        });
+        
+        // 사용자 목록 업데이트
+        io.to(roomId).emit('updateUsers', gameState.users);
+    });
+
+    // 방 생성
+    socket.on('createRoom', async (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { userName, roomName, isPrivate, password, gameType } = data;
         
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -208,9 +288,12 @@ io.on('connection', (socket) => {
             roomPassword = password.trim();
         }
         
+        // 게임 타입 검증
+        const validGameType = gameType === 'ladder' ? 'ladder' : 'dice'; // 기본값은 'dice'
+        
         // 이미 방에 있으면 나가기
         if (socket.currentRoomId) {
-            leaveRoom(socket);
+            await leaveRoom(socket);
         }
         
         const roomId = generateRoomId();
@@ -223,6 +306,7 @@ io.on('connection', (socket) => {
             roomName: finalRoomName,
             isPrivate: isPrivateRoom,
             password: roomPassword,
+            gameType: validGameType, // 게임 타입 추가
             gameState: createRoomGameState(),
             createdAt: new Date()
         };
@@ -263,10 +347,12 @@ io.on('connection', (socket) => {
         socket.emit('roomCreated', {
             roomId,
             roomName: finalRoomName,
+            userName: userName.trim(), // 호스트 이름 추가
             readyUsers: gameState.readyUsers,
             isReady: true, // 방 생성 시 자동으로 준비 상태
             isPrivate: isPrivateRoom,
             password: isPrivateRoom ? roomPassword : '', // 비공개 방일 때만 비밀번호 전달
+            gameType: validGameType, // 게임 타입 전달
             gameState: {
                 ...gameState,
                 hasRolled: () => false,
@@ -287,7 +373,7 @@ io.on('connection', (socket) => {
     });
 
     // 방 입장
-    socket.on('joinRoom', (data) => {
+    socket.on('joinRoom', async (data) => {
         if (!checkRateLimit()) return;
         
         const { roomId, userName, isHost, password } = data;
@@ -321,12 +407,6 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 중복 이름 체크
-        if (gameState.users.some(user => user.name === userName.trim())) {
-            socket.emit('roomError', '이미 사용 중인 이름입니다!');
-            return;
-        }
-        
         // 호스트 중복 체크
         const requestIsHost = isHost || false;
         if (requestIsHost && gameState.users.some(user => user.isHost === true)) {
@@ -336,22 +416,116 @@ io.on('connection', (socket) => {
         
         // 기존 방에서 나가기
         if (socket.currentRoomId) {
-            leaveRoom(socket);
+            await leaveRoom(socket);
         }
         
-        // 새 방 입장
-        socket.currentRoomId = roomId;
-        socket.userName = userName.trim();
-        socket.isHost = requestIsHost;
+        // 같은 이름의 사용자가 이미 있는지 확인
+        const existingUser = gameState.users.find(u => u.name === userName.trim());
         
+        // 중복 이름 체크 (재연결이 아닌 경우)
+        if (existingUser) {
+            // 방의 모든 socket 확인
+            const socketsInRoom = await io.in(roomId).fetchSockets();
+            
+            // 같은 이름을 가진 사용자가 이미 연결되어 있는지 확인
+            // socket.userName 또는 socket.id로 확인
+            const connectedUserWithSameName = socketsInRoom.find(s => 
+                (s.userName === userName.trim() || s.id === existingUser.id) && s.connected
+            );
+            
+            // 기존 사용자의 소켓이 아직 연결되어 있으면 중복 이름으로 거부
+            if (connectedUserWithSameName) {
+                socket.emit('roomError', '이미 사용 중인 이름입니다!');
+                return;
+            }
+            
+            // 기존 사용자의 소켓이 연결되지 않았으면 재연결로 간주
+            existingUser.id = socket.id;
+            const user = existingUser;
+            console.log(`사용자 ${userName.trim()}이(가) 방 ${roomId}에 재연결했습니다.`);
+            
+            // 새 방 입장
+            socket.currentRoomId = roomId;
+            socket.userName = userName.trim();
+            socket.isHost = user.isHost;
+            
+            // 호스트 ID도 업데이트
+            if (user.isHost) {
+                room.hostId = socket.id;
+            }
+            
+            socket.join(roomId);
+            
+            // 재접속 시 이미 굴렸는지 확인
+            const hasRolled = gameState.rolledUsers.includes(userName.trim());
+            const myResult = gameState.history.find(r => r.user === userName.trim());
+            
+            // 입장 성공 응답
+            socket.emit('roomJoined', {
+                roomId,
+                roomName: room.roomName,
+                userName: userName.trim(),
+                isHost: user.isHost,
+                hasRolled: hasRolled,
+                myResult: myResult,
+                isGameActive: gameState.isGameActive,
+                isOrderActive: gameState.isOrderActive,
+                isGamePlayer: gameState.gamePlayers.includes(userName.trim()),
+                readyUsers: gameState.readyUsers,
+                isReady: gameState.readyUsers.includes(userName.trim()),
+                isPrivate: room.isPrivate,
+                password: room.isPrivate ? room.password : '',
+                gameType: room.gameType || 'dice',
+                diceSettings: gameState.userDiceSettings[userName.trim()],
+                myOrder: gameState.userOrders[userName.trim()] || '',
+                gameRules: gameState.gameRules,
+                frequentMenus: gameState.frequentMenus,
+                gameState: {
+                    ...gameState,
+                    hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
+                    myResult: myResult,
+                    frequentMenus: gameState.frequentMenus
+                }
+            });
+            
+            // 같은 방의 다른 사용자들에게 업데이트
+            io.to(roomId).emit('updateUsers', gameState.users);
+            io.to(roomId).emit('updateOrders', gameState.userOrders);
+            io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            
+            console.log(`${userName.trim()}이(가) 방 ${room.roomName} (${roomId})에 재연결`);
+            return;
+        }
+        
+        // 새 사용자 추가 전 중복 이름 체크 (실제 연결된 socket 확인)
+        const socketsInRoom = await io.in(roomId).fetchSockets();
+        const alreadyConnectedWithSameName = socketsInRoom.find(s => 
+            s.userName === userName.trim() && s.connected
+        );
+        
+        if (alreadyConnectedWithSameName) {
+            socket.emit('roomError', '이미 사용 중인 이름입니다!');
+            return;
+        }
+        
+        // 새 사용자 추가
         const user = {
             id: socket.id,
             name: userName.trim(),
             isHost: requestIsHost,
             joinTime: new Date()
         };
-        
         gameState.users.push(user);
+        
+        // 새 방 입장
+        socket.currentRoomId = roomId;
+        socket.userName = userName.trim();
+        socket.isHost = user.isHost;
+        
+        // 호스트 ID도 업데이트
+        if (user.isHost) {
+            room.hostId = socket.id;
+        }
         
         if (!gameState.userDiceSettings[userName.trim()]) {
             gameState.userDiceSettings[userName.trim()] = { max: 100 };
@@ -387,6 +561,7 @@ io.on('connection', (socket) => {
             isReady: true, // 방 입장 시 자동으로 준비 상태
             isPrivate: room.isPrivate,
             password: room.isPrivate ? room.password : '', // 비공개 방일 때만 비밀번호 전달
+            gameType: room.gameType || 'dice', // 게임 타입 전달
             diceSettings: gameState.userDiceSettings[userName.trim()],
             myOrder: gameState.userOrders[userName.trim()] || '',
             gameRules: gameState.gameRules,
@@ -524,7 +699,8 @@ io.on('connection', (socket) => {
             playerCount: room.gameState.users.length,
             isGameActive: room.gameState.isGameActive,
             isOrderActive: room.gameState.isOrderActive,
-            isPrivate: room.isPrivate || false
+            isPrivate: room.isPrivate || false,
+            gameType: room.gameType || 'dice' // 게임 타입 추가
             // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
@@ -1347,11 +1523,101 @@ io.on('connection', (socket) => {
     });
 
     // 연결 해제
-    socket.on('disconnect', async () => {
-        if (socket.currentRoomId) {
-            await leaveRoom(socket);
+    socket.on('disconnect', async (reason) => {
+        console.log(`사용자 연결 해제: ${socket.id}, 이유: ${reason}, 방: ${socket.currentRoomId}, 사용자: ${socket.userName}`);
+        
+        // 'transport close'는 페이지 리다이렉트나 새로고침으로 인한 경우
+        // 이 경우 재연결을 기다려야 함
+        const isRedirect = reason === 'transport close' || reason === 'client namespace disconnect';
+        
+        // 리다이렉트나 페이지 새로고침의 경우 잠시 대기 후 방 삭제
+        if (socket.currentRoomId && rooms[socket.currentRoomId] && socket.userName) {
+            const roomId = socket.currentRoomId;
+            const userName = socket.userName;
+            const wasHost = socket.isHost;
+            
+            // 리다이렉트인 경우 더 오래 대기 (5초)
+            const waitTime = isRedirect ? 5000 : 3000;
+            
+            // 잠시 대기 후 사용자가 재연결하지 않았는지 확인
+            setTimeout(async () => {
+                if (!rooms[roomId]) return; // 이미 방이 삭제되었으면 종료
+                
+                const room = rooms[roomId];
+                const gameState = room.gameState;
+                
+                // 재연결 여부 확인: 같은 방에 같은 이름의 사용자가 있는지 확인
+                const socketsInRoom = await io.in(roomId).fetchSockets();
+                const reconnected = socketsInRoom.some(s => 
+                    s.currentRoomId === roomId && s.userName === userName
+                );
+                
+                if (!reconnected) {
+                    // 재연결하지 않았으면 방에서 제거
+                    // 사용자 목록에서 제거 (socket.id로 찾기)
+                    const userIndex = gameState.users.findIndex(u => u.id === socket.id);
+                    if (userIndex !== -1) {
+                        gameState.users.splice(userIndex, 1);
+                    } else {
+                        // socket.id로 찾지 못하면 이름으로 찾기 (리다이렉트로 인한 재연결 시)
+                        const userByName = gameState.users.find(u => u.name === userName);
+                        if (userByName) {
+                            // 같은 이름의 사용자가 있지만 다른 socket.id인 경우
+                            // 이는 재연결 중일 수 있으므로 제거하지 않음
+                            console.log(`사용자 ${userName}이(가) 재연결 중일 수 있습니다. 제거하지 않습니다.`);
+                            return;
+                        }
+                    }
+                    
+                    // 호스트가 나간 경우
+                    if (wasHost) {
+                        if (gameState.users.length > 0) {
+                            // 새 호스트 지정
+                            const newHost = gameState.users[0];
+                            newHost.isHost = true;
+                            
+                            const newHostSocket = socketsInRoom.find(s => s.id === newHost.id);
+                            if (newHostSocket) {
+                                newHostSocket.isHost = true;
+                                room.hostId = newHost.id;
+                                room.hostName = newHost.name;
+                                newHostSocket.emit('hostTransferred', { 
+                                    message: '호스트 권한이 전달되었습니다.',
+                                    roomName: room.roomName
+                                });
+                            }
+                            
+                            io.to(roomId).emit('updateUsers', gameState.users);
+                            io.to(roomId).emit('hostChanged', {
+                                newHostId: newHost.id,
+                                newHostName: newHost.name,
+                                message: `${userName} 호스트가 나갔습니다. ${newHost.name}님이 새 호스트가 되었습니다.`
+                            });
+                            updateRoomsList();
+                        } else {
+                            // 모든 사용자가 나감 - 방 삭제
+                            io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
+                            delete rooms[roomId];
+                            updateRoomsList();
+                            console.log(`방 삭제: ${room.roomName} (${roomId}) - 모든 사용자 나감`);
+                        }
+                    } else {
+                        // 일반 사용자 나감
+                        io.to(roomId).emit('updateUsers', gameState.users);
+                        
+                        if (gameState.users.length === 0) {
+                            // 모든 사용자가 나감 - 방 삭제
+                            io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
+                            delete rooms[roomId];
+                            updateRoomsList();
+                            console.log(`방 삭제: ${room.roomName} (${roomId}) - 모든 사용자 나감`);
+                        }
+                    }
+                } else {
+                    console.log(`사용자 ${userName}이(가) 방 ${roomId}에 재연결했습니다.`);
+                }
+            }, waitTime);
         }
-        console.log(`사용자 연결 해제: ${socket.id}`);
     });
 });
 

@@ -1066,12 +1066,6 @@
 • 주사위를 굴린 후에도 아이콘이 유지됨
 
 <b>🎬 주사위 애니메이션 개선</b>
-• 마지막 주사위 굴리기 시 3가지 랜덤 애니메이션 효과
-  - 카운트업: 숫자가 1부터 올라가는 효과
-  - 올라갔다 내려오기: 100까지 올라갔다가 결과까지 천천히 내려오는 효과 (80 미만일 때만)
-  - 한 자리씩 표시: 1의 자리부터 차례로 표시하는 효과
-• 애니메이션 속도 조정 및 연출 개선
-• 테스트 명령어: /테스트 1001, 1002, 1003
 
 <b>💰 구글 광고 추가</b>
 • Google AdSense 광고 통합
@@ -1209,6 +1203,21 @@
                 <label for="createRoomHostNameInput">호스트 이름</label>
                 <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름 입력" maxlength="20" />
             </div>
+            
+            <!-- 게임 타입 선택 -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: 500;">게임 타입</label>
+                        <div style="display: flex; gap: 15px;">
+                            <label style="flex: 1; display: flex; align-items: center; padding: 12px; background: white; border: 2px solid #667eea; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                                <input type="radio" name="gameType" value="dice" id="gameTypeDice" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                                <span style="font-weight: 500;">🎲 주사위 게임</span>
+                            </label>
+                            <label style="flex: 1; display: flex; align-items: center; padding: 12px; background: #e9ecef; border: 2px solid #ced4da; border-radius: 8px; cursor: not-allowed; opacity: 0.6;">
+                                <input type="radio" name="gameType" value="ladder" id="gameTypeLadder" disabled style="width: 20px; height: 20px; margin-right: 10px; cursor: not-allowed;" />
+                                <span style="font-weight: 500;">🪜 사다리타기 (준비 중)</span>
+                            </label>
+                        </div>
+                    </div>
             
             <!-- 공개/비공개 설정 -->
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
@@ -2120,11 +2129,16 @@
                     ? '<span style="color: #ff6b6b; font-weight: bold; margin-left: 5px;">🔒 비공개</span>' 
                     : '';
                 
+                // 게임 타입 표시
+                const gameTypeBadge = room.gameType === 'ladder'
+                    ? '<span style="color: #667eea; font-weight: bold; margin-left: 5px;">🪜 사다리타기</span>'
+                    : '<span style="color: #667eea; font-weight: bold; margin-left: 5px;">🎲 주사위</span>';
+                
                 const buttonText = isMyRoom ? '재입장' : '입장하기';
                 
                 roomItem.innerHTML = `
                     <div class="room-info">
-                        <div class="room-name">${roomNameHtml}${privateBadge}</div>
+                        <div class="room-name">${roomNameHtml}${privateBadge}${gameTypeBadge}</div>
                         <div class="room-details">
                             호스트: ${room.hostName} | 인원: ${room.playerCount}명
                         </div>
@@ -2292,12 +2306,23 @@
                 }
             }
             
+            // 게임 타입 가져오기 (사다리타기는 임시로 비활성화)
+            const gameTypeRadio = document.querySelector('input[name="gameType"]:checked');
+            let gameType = gameTypeRadio ? gameTypeRadio.value : 'dice';
+            
+            // 사다리타기는 임시로 차단
+            if (gameType === 'ladder') {
+                alert('⚠️ 사다리타기 게임은 현재 준비 중입니다. 주사위 게임을 이용해주세요.');
+                return;
+            }
+            
             // 방 생성 (주사위 범위와 게임 룰은 방 생성 후 설정)
             socket.emit('createRoom', { 
                 userName: hostName,
                 roomName: roomName,
                 isPrivate: isPrivate,
-                password: isPrivate ? password : ''
+                password: isPrivate ? password : '',
+                gameType: 'dice' // 항상 주사위 게임으로 고정
             });
         }
         
@@ -2379,6 +2404,19 @@
             currentUser = hostNameInput ? hostNameInput.value.trim() : data.userName;
             isHost = true;
             
+            // 게임 타입에 따라 적절한 페이지로 리다이렉트
+            const gameType = data.gameType || 'dice';
+            if (gameType === 'ladder') {
+                // 사용자 이름을 localStorage에 저장 (리다이렉트 후 재연결용)
+                localStorage.setItem('ladder_userName', currentUser);
+                // 사다리타기 게임 페이지로 이동
+                // 약간의 지연을 두어 roomCreated 이벤트 처리가 완료되도록 함
+                setTimeout(() => {
+                    window.location.href = `/ladder?roomId=${data.roomId}`;
+                }, 100);
+                return;
+            }
+            
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('createRoomSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
@@ -2399,6 +2437,14 @@
             const globalNameInput = document.getElementById('globalUserNameInput');
             currentUser = globalNameInput ? globalNameInput.value.trim() : data.userName; // 전역 이름 사용
             isHost = data.isHost;
+            
+            // 게임 타입에 따라 적절한 페이지로 리다이렉트
+            const gameType = data.gameType || 'dice';
+            if (gameType === 'ladder') {
+                // 사다리타기 게임 페이지로 이동
+                window.location.href = `/ladder?roomId=${data.roomId}`;
+                return;
+            }
             
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
