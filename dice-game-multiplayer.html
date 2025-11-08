@@ -1055,14 +1055,22 @@
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
 <b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-01-XX)</span>
 
+<b>⌨️ PC에서 /주사위 명령어 자동완성 지원</b>
+• PC에서도 자동완성 드롭다운이 표시됨 (기존에는 모바일만 지원)
+• Tab 키, 방향키(↑/↓), Enter 키로 자동완성 적용 가능
+
+<b>💬 채팅 기록에 주사위 결과 표시 기능 추가</b>
+• 중간에 접속한 사용자도 이전 주사위 결과를 확인할 수 있음
+• 채팅 기록과 함께 주사위 결과가 자동으로 표시됨
+• 서버에서 채팅 메시지와 주사위 결과를 연결하여 저장
+• 시스템 메시지(게임 시작, 모든 참여자 완료 등)도 채팅 기록에 포함
+
 <b>🪜 사다리타기 게임 기능 추가 (준비 중)</b>
 • 사다리타기 게임 전용 페이지 추가 (ladder-game-multiplayer.html)
 • 준비한 참가자 수에 따라 막대기 자동 생성
 • 참가자 수에 따른 동적 크기 조정 (1-3명: 크게, 4-6명: 중간, 7명 이상: 작게)
 • 도착지 텍스트 입력 기능 추가
 • 채팅 및 준비 상태 UI를 주사위 게임과 동일한 스타일로 통일
-• 중복 이름 체크 로직 강화 (재연결 vs 중복 구분)
-• 캔버스 잘림 문제 해결 및 반응형 처리
 • 로비에서 사다리타기 게임 생성 옵션 임시 비활성화 (준비 중)
 
 <b>📊 사용자 목록 정렬 개선</b>
@@ -1289,7 +1297,7 @@
                 <div class="input-group">
                     <textarea 
                         id="gameRulesInput" 
-                        placeholder="게임 룰을 입력하세요 (게임 시작 전에만 수정 가능)"
+                        placeholder="게임 룰을 입력하세요. (하이,로우,니어 등 다양하게 적으시면 됩니다.) "
                         maxlength="500"
                         rows="3"
                         disabled
@@ -2560,6 +2568,22 @@
                     renderNotOrderedUsers();
                 }, 100);
             }
+            
+            // 채팅 기록 불러오기
+            if (data.chatHistory && data.chatHistory.length > 0) {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = ''; // 기존 메시지 초기화
+                
+                // 채팅 기록을 순서대로 표시
+                data.chatHistory.forEach(chatMessage => {
+                    displayChatMessage(chatMessage);
+                });
+                
+                // 채팅 영역 스크롤을 맨 아래로
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100);
+            }
 
             // 재접속 처리
             if (isGameActive && data.isGamePlayer) {
@@ -3663,10 +3687,13 @@
                         }
                         resultContainer.appendChild(diceResultSpan);
                         
-                        // 애니메이션은 마지막 굴리는 사람에게만 재생 (테스트용 1001~1006은 예외)
+                        // 애니메이션은 마지막 굴리는 사람 또는 하이/로우/니어 게임 조건 만족 시 재생 (테스트용 1001~1006은 예외)
                         const isLastRoller = record.isLastRoller === true;
-                        const isTestAnimation = finalResult >= 1001 && finalResult <= 1006;
-                        if (shouldAnimate && (isLastRoller || isTestAnimation)) {
+                        const isHighGameAnimation = record.isHighGameAnimation === true;
+                        const isLowGameAnimation = record.isLowGameAnimation === true;
+                        const isNearGameAnimation = record.isNearGameAnimation === true;
+                        const isTestAnimation = finalResult >= 1001 && finalResult <= 1006;                        
+                        if (shouldAnimate && (isLastRoller || isHighGameAnimation || isLowGameAnimation || isNearGameAnimation || isTestAnimation)) {
                             // 애니메이션 완료 콜백 함수
                             const onAnimationComplete = () => {
                                 // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
@@ -4079,14 +4106,18 @@
             chatCurrentSuggestions = findChatAutocompleteSuggestions(text);
             chatSelectedSuggestionIndex = -1;
             
-            // 모바일에서만 드롭다운 표시
-            if (chatCurrentSuggestions.length > 0 && isMobileDevice()) {
-                // 회색 텍스트는 표시하지 않음 (드롭다운만 표시)
-                suggestionDiv.style.display = 'none';
-                
-                // 드롭다운 표시 (주문 메뉴처럼)
-                renderChatAutocompleteDropdown();
-                dropdownDiv.style.display = 'block';
+            if (chatCurrentSuggestions.length > 0) {
+                if (isMobileDevice()) {
+                    // 모바일: 드롭다운만 표시
+                    suggestionDiv.style.display = 'none';
+                    renderChatAutocompleteDropdown();
+                    dropdownDiv.style.display = 'block';
+                } else {
+                    // PC: 드롭다운 표시 (회색 텍스트는 표시하지 않음)
+                    suggestionDiv.style.display = 'none';
+                    renderChatAutocompleteDropdown();
+                    dropdownDiv.style.display = 'block';
+                }
             } else {
                 suggestionDiv.textContent = '';
                 suggestionDiv.style.display = 'none';
@@ -4185,7 +4216,8 @@
         });
         
         // 새 메시지 수신
-        socket.on('newMessage', (chatMessage) => {
+        // 채팅 메시지 표시 함수 (재사용 가능)
+        function displayChatMessage(chatMessage) {
             const chatMessages = document.getElementById('chatMessages');
             
             // 첫 메시지면 빈 상태 메시지 제거
@@ -4335,6 +4367,19 @@
                 rightContentSpan.style.cssText = 'min-width: 60px;';
                 firstLineDiv.appendChild(rightContentSpan);
                 
+                // 채팅 기록에서 불러온 경우 주사위 결과가 있으면 표시
+                if (chatMessage.diceResult) {
+                    const diceResultSpan = document.createElement('span');
+                    diceResultSpan.setAttribute('data-dice-result', 'true');
+                    diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
+                    
+                    // isNotReady인 경우 아이콘 없이 숫자만 표시
+                    const diceIcon = chatMessage.diceResult.isNotReady ? '' : '🎲 ';
+                    diceResultSpan.textContent = diceIcon + chatMessage.diceResult.result;
+                    
+                    rightContentSpan.appendChild(diceResultSpan);
+                }
+                
                 const timeSpan = document.createElement('span');
                 timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
                 timeSpan.textContent = chatMessage.time;
@@ -4377,6 +4422,11 @@
             
             // 스크롤을 맨 아래로
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // 새 메시지 수신
+        socket.on('newMessage', (chatMessage) => {
+            displayChatMessage(chatMessage);
         });
         
         // 채팅 에러 처리

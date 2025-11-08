@@ -511,6 +511,22 @@
                     readySection.style.display = 'block';
                 }
             }
+            
+            // 채팅 기록 불러오기
+            if (data.chatHistory && data.chatHistory.length > 0) {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = ''; // 기존 메시지 초기화
+                
+                // 채팅 기록을 순서대로 표시
+                data.chatHistory.forEach(chatMessage => {
+                    displayChatMessage(chatMessage);
+                });
+                
+                // 채팅 영역 스크롤을 맨 아래로
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100);
+            }
         });
 
         // 현재 방 정보 수신 (리다이렉트 후 방 정보 복구용)
@@ -553,6 +569,22 @@
                     readySection.style.display = 'block';
                 }
             }
+            
+            // 채팅 기록 불러오기
+            if (data.chatHistory && data.chatHistory.length > 0) {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = ''; // 기존 메시지 초기화
+                
+                // 채팅 기록을 순서대로 표시
+                data.chatHistory.forEach(chatMessage => {
+                    displayChatMessage(chatMessage);
+                });
+                
+                // 채팅 영역 스크롤을 맨 아래로
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100);
+            }
         });
 
         // 방 입장 성공
@@ -589,6 +621,22 @@
                 if (readySection) {
                     readySection.style.display = 'block';
                 }
+            }
+            
+            // 채팅 기록 불러오기
+            if (data.chatHistory && data.chatHistory.length > 0) {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = ''; // 기존 메시지 초기화
+                
+                // 채팅 기록을 순서대로 표시
+                data.chatHistory.forEach(chatMessage => {
+                    displayChatMessage(chatMessage);
+                });
+                
+                // 채팅 영역 스크롤을 맨 아래로
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100);
             }
         });
 
@@ -1198,7 +1246,8 @@
         }
 
         // 채팅 메시지 수신
-        socket.on('newMessage', (chatMessage) => {
+        // 채팅 메시지 표시 함수 (재사용 가능)
+        function displayChatMessage(chatMessage) {
             const chatMessages = document.getElementById('chatMessages');
             
             // 첫 메시지면 빈 상태 메시지 제거
@@ -1259,6 +1308,10 @@
             
             // 스크롤을 맨 아래로
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        socket.on('newMessage', (chatMessage) => {
+            displayChatMessage(chatMessage);
         });
 
         // Enter 키로 메시지 전송

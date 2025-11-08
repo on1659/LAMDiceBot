@@ -80,7 +80,8 @@ function createRoomGameState() {
         userOrders: {}, // 사용자별 주문 내역 {userName: "주문 내용"}
         gameRules: '', // 게임 룰 (호스트만 설정, 게임 시작 후 수정 불가)
         frequentMenus: loadFrequentMenus(), // 자주 쓰는 메뉴 목록
-        allPlayersRolledMessageSent: false // 모든 참여자가 주사위를 굴렸다는 메시지 전송 여부
+        allPlayersRolledMessageSent: false, // 모든 참여자가 주사위를 굴렸다는 메시지 전송 여부
+        chatHistory: [] // 채팅 기록 (최대 100개)
     };
 }
 
@@ -242,6 +243,7 @@ io.on('connection', (socket) => {
             myOrder: gameState.userOrders[user.name] || '',
             gameRules: gameState.gameRules,
             frequentMenus: gameState.frequentMenus,
+            chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             gameState: {
                 ...gameState,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
@@ -353,6 +355,7 @@ io.on('connection', (socket) => {
             isPrivate: isPrivateRoom,
             password: isPrivateRoom ? roomPassword : '', // 비공개 방일 때만 비밀번호 전달
             gameType: validGameType, // 게임 타입 전달
+            chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             gameState: {
                 ...gameState,
                 hasRolled: () => false,
@@ -566,6 +569,7 @@ io.on('connection', (socket) => {
             myOrder: gameState.userOrders[userName.trim()] || '',
             gameRules: gameState.gameRules,
             frequentMenus: gameState.frequentMenus,
+            chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             gameState: {
                 ...gameState,
                 hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -1229,6 +1233,13 @@ io.on('connection', (socket) => {
             isHost: false,
             isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
         };
+        
+        // 채팅 기록에 저장
+        gameState.chatHistory.push(gameStartMessage);
+        if (gameState.chatHistory.length > 100) {
+            gameState.chatHistory.shift();
+        }
+        
         io.to(room.roomId).emit('newMessage', gameStartMessage);
         
         // 게임 시작 시 초기 진행 상황 전송 (아직 굴리지 않은 사람 목록 포함)
@@ -1396,6 +1407,82 @@ io.on('connection', (socket) => {
                              !gameState.rolledUsers.includes(userName) && !isNotReady &&
                              (gameState.rolledUsers.length === gameState.gamePlayers.length - 1);
         
+        // 하이 게임 애니메이션 조건 확인
+        let isHighGameAnimation = false;
+        if (gameState.isGameActive && gameState.gamePlayers.length >= 5 && !isNotReady) {
+            // 게임 룰에 "하이"가 포함되어 있는지 확인
+            const isHighGame = gameState.gameRules && gameState.gameRules.toLowerCase().includes('하이');
+            
+            if (isHighGame && gameState.rolledUsers.length >= 5) {
+                // 6번째 이후 굴림 (rolledUsers.length가 5 이상이면 다음 굴림이 6번째 이상)
+                // 지금까지 나온 주사위 중 최고값 확인
+                const currentRolls = gameState.history
+                    .filter(h => gameState.gamePlayers.includes(h.user))
+                    .map(h => h.result);
+                
+                if (currentRolls.length > 0) {
+                    const maxRoll = Math.max(...currentRolls);
+                    // 현재 결과가 최고값이면 애니메이션
+                    isHighGameAnimation = result > maxRoll;
+                }
+            }
+        }
+        
+        // 로우 게임 애니메이션 조건 확인
+        let isLowGameAnimation = false;
+        if (gameState.isGameActive && gameState.gamePlayers.length >= 5 && !isNotReady) {
+            // 게임 룰에 "로우"가 포함되어 있는지 확인
+            const isLowGame = gameState.gameRules && gameState.gameRules.toLowerCase().includes('로우');
+            
+            if (isLowGame && gameState.rolledUsers.length >= 5) {
+                // 6번째 이후 굴림 (rolledUsers.length가 5 이상이면 다음 굴림이 6번째 이상)
+                // 지금까지 나온 주사위 중 최저값 확인
+                const currentRolls = gameState.history
+                    .filter(h => gameState.gamePlayers.includes(h.user))
+                    .map(h => h.result);
+                
+                if (currentRolls.length > 0) {
+                    const minRoll = Math.min(...currentRolls);
+                    // 현재 결과가 최저값이면 애니메이션
+                    isLowGameAnimation = result < minRoll;
+                }
+            }
+        }
+        
+        // 니어 게임 애니메이션 조건 확인
+        let isNearGameAnimation = false;
+        if (gameState.isGameActive && gameState.gamePlayers.length >= 5 && !isNotReady) {
+            // 게임 룰에서 "니어(숫자)" 또는 "니어 (숫자)" 패턴 찾기
+            const rulesLower = gameState.gameRules ? gameState.gameRules.toLowerCase() : '';
+            const nearMatch = rulesLower.match(/니어\s*\(?\s*(\d+)\s*\)?/);
+            
+            if (nearMatch && gameState.rolledUsers.length >= 5) {
+                // 6번째 이후 굴림 (rolledUsers.length가 5 이상이면 다음 굴림이 6번째 이상)
+                const targetNumber = parseInt(nearMatch[1]);
+                
+                // 지금까지 나온 주사위 중 타겟 숫자와의 거리 확인
+                const currentRolls = gameState.history
+                    .filter(h => gameState.gamePlayers.includes(h.user))
+                    .map(h => h.result);
+                
+                if (currentRolls.length > 0) {
+                    // 현재 결과와 타겟 숫자와의 거리
+                    const currentDistance = Math.abs(result - targetNumber);
+                    
+                    // 지금까지 나온 주사위 중 타겟 숫자와 가장 가까운 거리
+                    const minDistance = Math.min(...currentRolls.map(r => Math.abs(r - targetNumber)));
+                    
+                    // 현재 결과가 가장 가까우면 애니메이션
+                    isNearGameAnimation = currentDistance < minDistance;
+                } else {
+                    // 첫 번째 굴림인 경우 현재 결과가 타겟과 가까우면 애니메이션
+                    const currentDistance = Math.abs(result - targetNumber);
+                    // 첫 굴림이므로 항상 애니메이션 (하지만 6번째부터만 적용되므로 여기서는 false)
+                    isNearGameAnimation = false;
+                }
+            }
+        }
+        
         const record = {
             user: userName,
             result: result,
@@ -1404,7 +1491,10 @@ io.on('connection', (socket) => {
             range: `${diceMin}~${diceMax}`,
             isNotReady: isNotReady, // 준비하지 않은 사람인지 플래그
             deviceType: deviceType, // 디바이스 타입 (ios, android, pc)
-            isLastRoller: isLastRoller // 마지막 굴리는 사람인지 플래그
+            isLastRoller: isLastRoller, // 마지막 굴리는 사람인지 플래그
+            isHighGameAnimation: isHighGameAnimation, // 하이 게임 애니메이션 플래그
+            isLowGameAnimation: isLowGameAnimation, // 로우 게임 애니메이션 플래그
+            isNearGameAnimation: isNearGameAnimation // 니어 게임 애니메이션 플래그
         };
 
         // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람은 제외)
@@ -1424,7 +1514,27 @@ io.on('connection', (socket) => {
         // 같은 방의 모든 클라이언트에게 주사위 결과 전송
         io.to(room.roomId).emit('diceRolled', record);
         
-        // 주사위 결과를 채팅에 표시하기 위해 diceRolled 이벤트로 전송 (별도 메시지로 보내지 않음)
+        // 주사위 결과를 채팅 기록에 연결 (채팅 기록에서 /주사위 명령어 메시지를 찾아 결과 추가)
+        // 가장 최근 채팅 메시지 중 해당 사용자의 /주사위 메시지를 찾아서 결과 추가
+        for (let i = gameState.chatHistory.length - 1; i >= 0; i--) {
+            const msg = gameState.chatHistory[i];
+            if (msg.userName === userName && 
+                (msg.message.startsWith('/주사위') || msg.message.startsWith('/테스트')) &&
+                !msg.diceResult) {
+                // 주사위 결과 정보 추가
+                msg.diceResult = {
+                    result: result,
+                    range: record.range,
+                    isNotReady: isNotReady,
+                    deviceType: deviceType,
+                    isLastRoller: isLastRoller,
+                    isHighGameAnimation: isHighGameAnimation,
+                    isLowGameAnimation: isLowGameAnimation,
+                    isNearGameAnimation: isNearGameAnimation
+                };
+                break;
+            }
+        }
         
         // 게임 진행 중이면 아직 굴리지 않은 사람 목록 계산 및 전송
         if (gameState.isGameActive && gameState.gamePlayers.length > 0) {
@@ -1458,6 +1568,13 @@ io.on('connection', (socket) => {
                     isHost: false,
                     isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
                 };
+                
+                // 채팅 기록에 저장
+                gameState.chatHistory.push(allRolledMessage);
+                if (gameState.chatHistory.length > 100) {
+                    gameState.chatHistory.shift();
+                }
+                
                 io.to(room.roomId).emit('newMessage', allRolledMessage);
                 
                 console.log(`방 ${room.roomName}: 모든 참여자가 주사위를 굴렸습니다!`);
@@ -1515,6 +1632,12 @@ io.on('connection', (socket) => {
             isHost: user.isHost,
             deviceType: deviceType // 디바이스 타입 추가
         };
+        
+        // 채팅 기록에 저장 (최대 100개)
+        gameState.chatHistory.push(chatMessage);
+        if (gameState.chatHistory.length > 100) {
+            gameState.chatHistory.shift(); // 가장 오래된 메시지 제거
+        }
         
         // 같은 방의 모든 클라이언트에게 채팅 메시지 전송
         io.to(room.roomId).emit('newMessage', chatMessage);
