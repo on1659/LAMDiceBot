@@ -1055,6 +1055,16 @@
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
 <b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-01-XX)</span>
 
+<b>🪜 사다리타기 게임 기능 추가 (준비 중)</b>
+• 사다리타기 게임 전용 페이지 추가 (ladder-game-multiplayer.html)
+• 준비한 참가자 수에 따라 막대기 자동 생성
+• 참가자 수에 따른 동적 크기 조정 (1-3명: 크게, 4-6명: 중간, 7명 이상: 작게)
+• 도착지 텍스트 입력 기능 추가
+• 채팅 및 준비 상태 UI를 주사위 게임과 동일한 스타일로 통일
+• 중복 이름 체크 로직 강화 (재연결 vs 중복 구분)
+• 캔버스 잘림 문제 해결 및 반응형 처리
+• 로비에서 사다리타기 게임 생성 옵션 임시 비활성화 (준비 중)
+
 <b>📊 사용자 목록 정렬 개선</b>
 • 준비한 사람, 주사위를 굴리지 않은 사람, 주문하지 않은 사람 목록을 가나다순으로 정렬
 
@@ -1091,6 +1101,8 @@
 • 주사위를 굴리지 않은 사람 집계 기능 수정
   - 게임 시작 후 주사위를 굴리지 않은 사람이 올바르게 집계되지 않던 문제 수정
 • 게임 재시작 시 애니메이션 완료 플래그 초기화로 메시지 타이밍 문제 해결
+• Socket.IO 재연결 로직 개선 (disconnect 타임아웃 조정)
+• 중복 이름 체크 강화 (실제 연결된 socket 확인)
 
 ---
 
