@@ -119,6 +119,20 @@ function seededRandom(seed, min, max) {
 io.on('connection', (socket) => {
     console.log('새 사용자 연결:', socket.id);
     
+    // IP 주소 추출 함수
+    const getClientIP = (socket) => {
+        // 프록시/로드밸런서를 통한 경우
+        const forwarded = socket.handshake.headers['x-forwarded-for'];
+        if (forwarded) {
+            return forwarded.split(',')[0].trim();
+        }
+        // 직접 연결인 경우
+        return socket.handshake.address || socket.request.connection.remoteAddress || 'unknown';
+    };
+    
+    // 소켓 연결 시 IP 주소 저장
+    socket.clientIP = getClientIP(socket);
+    
     // 소켓별 정보 저장
     socket.currentRoomId = null; // 현재 방 ID
     socket.userName = null; // 사용자 이름
@@ -262,7 +276,7 @@ io.on('connection', (socket) => {
     socket.on('createRoom', async (data) => {
         if (!checkRateLimit()) return;
         
-        const { userName, roomName, isPrivate, password, gameType, expiryHours } = data;
+        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser } = data;
         
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -298,6 +312,9 @@ io.on('connection', (socket) => {
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 3시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 3;
         
+        // IP 차단 옵션 검증 (기본값: false)
+        const validBlockIPPerUser = blockIPPerUser === true;
+        
         // 이미 방에 있으면 나가기
         if (socket.currentRoomId) {
             await leaveRoom(socket);
@@ -315,6 +332,7 @@ io.on('connection', (socket) => {
             password: roomPassword,
             gameType: validGameType, // 게임 타입 추가
             expiryHours: validExpiryHours, // 방 유지 시간 추가 (시간 단위)
+            blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
             gameState: createRoomGameState(),
             createdAt: new Date()
         };
@@ -363,6 +381,7 @@ io.on('connection', (socket) => {
             gameType: validGameType, // 게임 타입 전달
             createdAt: room.createdAt, // 방 생성 시간 추가
             expiryHours: validExpiryHours, // 방 유지 시간 추가
+            blockIPPerUser: validBlockIPPerUser, // IP 차단 옵션 추가
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             gameState: {
                 ...gameState,
@@ -489,6 +508,7 @@ io.on('connection', (socket) => {
                 gameType: room.gameType || 'dice',
                 createdAt: room.createdAt, // 방 생성 시간 추가
                 expiryHours: room.expiryHours || 3, // 방 유지 시간 추가
+                blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
                 diceSettings: gameState.userDiceSettings[userName.trim()],
                 myOrder: gameState.userOrders[userName.trim()] || '',
                 gameRules: gameState.gameRules,
@@ -519,6 +539,19 @@ io.on('connection', (socket) => {
         if (alreadyConnectedWithSameName) {
             socket.emit('roomError', '이미 사용 중인 이름입니다!');
             return;
+        }
+        
+        // IP 차단 옵션이 활성화된 경우에만 같은 IP에서 이미 입장한 사용자가 있는지 확인
+        if (room.blockIPPerUser) {
+            const alreadyConnectedWithSameIP = socketsInRoom.find(s => 
+                s.clientIP === socket.clientIP && s.connected && s.id !== socket.id
+            );
+            
+            if (alreadyConnectedWithSameIP) {
+                const existingUserName = alreadyConnectedWithSameIP.userName || '알 수 없음';
+                socket.emit('roomError', `IP당 하나의 아이디만 입장 허용됩니다. 지금 당신은 "${existingUserName}" 아이디로 로그인되어 있습니다.`);
+                return;
+            }
         }
         
         // 새 사용자 추가
@@ -577,6 +610,7 @@ io.on('connection', (socket) => {
             gameType: room.gameType || 'dice', // 게임 타입 전달
             createdAt: room.createdAt, // 방 생성 시간 추가
             expiryHours: room.expiryHours || 3, // 방 유지 시간 추가
+            blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
             diceSettings: gameState.userDiceSettings[userName.trim()],
             myOrder: gameState.userOrders[userName.trim()] || '',
             gameRules: gameState.gameRules,

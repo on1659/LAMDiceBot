@@ -1285,6 +1285,17 @@
                 </div>
             </div>
             
+            <!-- IP 차단 설정 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <div style="display: flex; align-items: center;">
+                    <input type="checkbox" id="createRoomIPBlockCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                    <label for="createRoomIPBlockCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">🔒 IP당 하나의 아이디만 입장 허용</label>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    체크 시 같은 IP에서 여러 아이디로 입장할 수 없습니다.
+                </div>
+            </div>
+            
             <!-- 방 생성하기 버튼 (맨 아래) -->
             <button onclick="finalizeRoomCreation()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-top: 30px; width: 100%;">방 생성하기</button>
         </div>
@@ -1297,6 +1308,7 @@
                     <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="roomStatusIcons" style="display: flex; align-items: center; gap: 5px;"></span>
                     <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
                     <span id="roomPasswordDisplay" style="font-size: 12px; color: #667eea; font-weight: 500; display: none;"></span>
                 </div>
@@ -1441,6 +1453,13 @@
                 <!-- 전체 주문 목록 -->
                 <div class="order-list" id="orderList">
                     <div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                </div>
+                
+                <!-- 관전자 주문 목록 -->
+                <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
+                    <div class="users-title" style="margin-bottom: 15px; color: #999; font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                    <div class="order-list" id="spectatorOrderList">
+                    </div>
                 </div>
             </div>
 
@@ -1807,6 +1826,8 @@
         let ordersData = {};
         let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순), 'count' (주문 많은 순)
         let usersList = []; // 접속자 목록
+        let gamePlayers = []; // 게임에 참여한 사람 목록
+        let everPlayedUsers = []; // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
         let frequentMenus = []; // 자주 쓰는 메뉴 목록
         let readyUsers = []; // 준비한 사용자 목록
         let isReady = false; // 내 준비 상태
@@ -2325,6 +2346,7 @@
             document.getElementById('createRoomPrivateCheckbox').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
             document.getElementById('createRoomPasswordContainer').style.display = 'none';
+            document.getElementById('createRoomIPBlockCheckbox').checked = false; // IP 차단 옵션 기본값: 체크 안 함
             
             // 전역 이름 입력값을 가져와서 호스트 이름 입력칸에 기본값으로 설정 (있으면)
             const globalNameInput = document.getElementById('globalUserNameInput');
@@ -2421,6 +2443,10 @@
             const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
             const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
             
+            // IP 차단 옵션 가져오기 (기본값: false)
+            const ipBlockCheckbox = document.getElementById('createRoomIPBlockCheckbox');
+            const blockIPPerUser = ipBlockCheckbox ? ipBlockCheckbox.checked : false;
+            
             // 방 생성 (주사위 범위와 게임 룰은 방 생성 후 설정)
             socket.emit('createRoom', { 
                 userName: hostName,
@@ -2428,7 +2454,8 @@
                 isPrivate: isPrivate,
                 password: isPrivate ? password : '',
                 gameType: 'dice', // 항상 주사위 게임으로 고정
-                expiryHours: expiryHours // 방 유지 시간 (시간 단위)
+                expiryHours: expiryHours, // 방 유지 시간 (시간 단위)
+                blockIPPerUser: blockIPPerUser // IP당 하나의 아이디만 입장 허용
             });
         }
         
@@ -2567,6 +2594,13 @@
         
         // 게임 화면 초기화
         function initializeGameScreen(data) {
+            // 방 입장 시 게임 참여 이력 초기화
+            everPlayedUsers = [];
+            
+            // 기존 게임 상태가 있다면 참여자 목록 복원
+            if (data.gameState && data.gameState.gamePlayers) {
+                everPlayedUsers = [...data.gameState.gamePlayers];
+            }
             hasRolledInCurrentGame = data.hasRolled;
             myDiceSettings = data.diceSettings || { max: 100 };
             isGameActive = data.isGameActive;
@@ -2581,10 +2615,26 @@
             // 비공개 방 비밀번호 표시
             const passwordDisplay = document.getElementById('roomPasswordDisplay');
             if (data.isPrivate && data.password) {
-                passwordDisplay.textContent = `🔒 비밀번호: ${data.password}`;
+                passwordDisplay.textContent = `비밀번호: ${data.password}`;
                 passwordDisplay.style.display = 'inline-block';
             } else {
                 passwordDisplay.style.display = 'none';
+            }
+            
+            // 방 상태 아이콘 표시 (IP 차단만)
+            const roomStatusIcons = document.getElementById('roomStatusIcons');
+            roomStatusIcons.innerHTML = '';
+            
+            // IP 차단 옵션이 활성화된 경우에만 아이콘 표시
+            if (data.blockIPPerUser) {
+                const ipBlockIcon = document.createElement('span');
+                ipBlockIcon.textContent = '🔐';
+                ipBlockIcon.title = 'IP당 하나의 아이디만 입장 허용';
+                ipBlockIcon.style.fontSize = '16px';
+                roomStatusIcons.appendChild(ipBlockIcon);
+                roomStatusIcons.style.display = 'flex';
+            } else {
+                roomStatusIcons.style.display = 'none';
             }
             
             // 방 제목 표시
@@ -2643,6 +2693,17 @@
                 historyData = data.gameState.history || [];
                 ordersData = data.gameState.userOrders || {};
                 usersList = data.gameState.users || [];
+                gamePlayers = data.gameState.gamePlayers || []; // 게임 참여자 목록 저장
+                
+                // 방 입장 시 이미 진행 중인 게임이 있다면 참여자들을 everPlayedUsers에 추가
+                if (data.gameState.gamePlayers && data.gameState.gamePlayers.length > 0) {
+                    data.gameState.gamePlayers.forEach(player => {
+                        if (!everPlayedUsers.includes(player)) {
+                            everPlayedUsers.push(player);
+                        }
+                    });
+                }
+                
                 renderHistory();
                 renderOrders();
                 updateUsers(usersList);
@@ -3065,39 +3126,77 @@
             // 현재 주문리스트 수집
             let orderListText = '';
             
-            // 메뉴별로 그룹화 (가나다순 정렬)
-            const groupedOrders = groupOrdersByMenu(ordersData, 'asc');
+            // 게임 참여자와 관전자로 분리
+            const playerOrders = {};
+            const spectatorOrders = {};
             
-            if (groupedOrders.length === 0) {
-                orderListText += '아직 주문이 없습니다.\n';
-            } else {
-                // 그룹화된 주문 목록 표시 (짧은 형식)
-                groupedOrders.forEach((group, index) => {
-                    // 사용자 이름들을 한 줄에 표시 (이름순 정렬, (나) 표시 제거)
+            Object.entries(ordersData).forEach(([name, order]) => {
+                if (order && order.trim() !== '') {
+                    if (everPlayedUsers.includes(name)) {
+                        playerOrders[name] = order;
+                    } else {
+                        spectatorOrders[name] = order;
+                    }
+                }
+            });
+            
+            // 게임 참여자 주문 목록
+            const groupedPlayerOrders = groupOrdersByMenu(playerOrders, 'asc');
+            
+            if (groupedPlayerOrders.length > 0) {
+                orderListText += '=== 게임 참여자 주문 ===\n';
+                groupedPlayerOrders.forEach((group) => {
                     const sortedUsers = [...group.users].sort((a, b) => {
                         return a.localeCompare(b, 'ko');
                     });
                     
                     const userNames = sortedUsers.join(',');
                     
-                    // 사용자 이름과 메뉴를 한 줄로 표시 (여러 명이면 개수 표시)
                     if (group.users.length > 1) {
                         orderListText += `${userNames} : ${group.menu} (${group.users.length}명)\n`;
                     } else {
                         orderListText += `${userNames} : ${group.menu}\n`;
                     }
                 });
-                
-                orderListText += `\n총 ${groupedOrders.length}개 메뉴`;
+                orderListText += `\n총 ${groupedPlayerOrders.length}개 메뉴\n`;
+            }
+            
+            // 관전자 주문 목록
+            const groupedSpectatorOrders = groupOrdersByMenu(spectatorOrders, 'asc');
+            
+            if (groupedSpectatorOrders.length > 0) {
+                if (groupedPlayerOrders.length > 0) {
+                    orderListText += '\n';
+                }
+                orderListText += '=== 관전자 주문 ===\n';
+                groupedSpectatorOrders.forEach((group) => {
+                    const sortedUsers = [...group.users].sort((a, b) => {
+                        return a.localeCompare(b, 'ko');
+                    });
+                    
+                    const userNames = sortedUsers.join(',');
+                    
+                    if (group.users.length > 1) {
+                        orderListText += `${userNames} : ${group.menu} (${group.users.length}명)\n`;
+                    } else {
+                        orderListText += `${userNames} : ${group.menu}\n`;
+                    }
+                });
+                orderListText += `\n총 ${groupedSpectatorOrders.length}개 메뉴\n`;
+            }
+            
+            // 주문이 없을 때
+            if (groupedPlayerOrders.length === 0 && groupedSpectatorOrders.length === 0) {
+                orderListText += '아직 주문이 없습니다.\n';
             }
             
             // 주문하지 않은 사람 목록
             const allUsers = usersList.map(u => u.name);
-            const orderedUsers = groupedOrders.flatMap(group => group.users);
-            const notOrderedUsers = allUsers.filter(user => !orderedUsers.includes(user));
+            const allOrderedUsers = [...groupedPlayerOrders.flatMap(group => group.users), ...groupedSpectatorOrders.flatMap(group => group.users)];
+            const notOrderedUsers = allUsers.filter(user => !allOrderedUsers.includes(user));
             
             if (notOrderedUsers.length > 0) {
-                orderListText += `\n\n주문하지 않은 사람 (${notOrderedUsers.length}명):\n`;
+                orderListText += `\n주문하지 않은 사람 (${notOrderedUsers.length}명):\n`;
                 notOrderedUsers.forEach((user, index) => {
                     orderListText += `${index + 1}. ${user}\n`;
                 });
@@ -3382,6 +3481,8 @@
         // 주문 목록 렌더링 (그룹화된 형태)
         function renderOrders() {
             const orderList = document.getElementById('orderList');
+            const spectatorOrdersSection = document.getElementById('spectatorOrdersSection');
+            const spectatorOrderList = document.getElementById('spectatorOrderList');
             const notOrderedSection = document.getElementById('notOrderedSection');
             const notOrderedList = document.getElementById('notOrderedList');
             
@@ -3389,56 +3490,127 @@
             
             if (entries.length === 0) {
                 orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
+                spectatorOrdersSection.style.display = 'none';
                 // 주문하지 않은 사람 목록 표시
                 renderNotOrderedUsers();
                 return;
             }
             
-            // 메뉴별로 그룹화된 주문 목록 가져오기
-            const groupedOrders = groupOrdersByMenu(ordersData, currentOrderSortMode);
+            // 게임 참여자와 관전자로 분리
+            const playerOrders = {};
+            const spectatorOrders = {};
             
+            entries.forEach(([name, order]) => {
+                if (everPlayedUsers.includes(name)) {
+                    playerOrders[name] = order;
+                } else {
+                    spectatorOrders[name] = order;
+                }
+            });
+            
+            // 게임 참여자 주문 목록 렌더링
             orderList.innerHTML = '';
             
-            groupedOrders.forEach(group => {
-                // 같은 메뉴를 주문한 사람들이 여러 명이면 하나의 항목으로 표시
-                const item = document.createElement('div');
-                item.className = 'order-item';
+            if (Object.keys(playerOrders).length > 0) {
+                const groupedPlayerOrders = groupOrdersByMenu(playerOrders, currentOrderSortMode);
                 
-                // 왼쪽 영역
-                const leftDiv = document.createElement('div');
-                leftDiv.className = 'order-item-left';
-                
-                // 사용자 목록 생성 (내 주문이면 맨 앞에)
-                const sortedUsers = [...group.users].sort((a, b) => {
-                    if (a === currentUser) return -1;
-                    if (b === currentUser) return 1;
-                    return 0;
+                groupedPlayerOrders.forEach(group => {
+                    const item = document.createElement('div');
+                    item.className = 'order-item';
+                    
+                    const leftDiv = document.createElement('div');
+                    leftDiv.className = 'order-item-left';
+                    
+                    // 사용자 목록 생성 (내 주문이면 맨 앞에)
+                    const sortedUsers = [...group.users].sort((a, b) => {
+                        if (a === currentUser) return -1;
+                        if (b === currentUser) return 1;
+                        return 0;
+                    });
+                    
+                    const userNames = sortedUsers.map(name => {
+                        let displayName = name;
+                        if (name === currentUser) {
+                            displayName += ' (나)';
+                        }
+                        return displayName;
+                    }).join(', ');
+                    
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'order-user';
+                    userDiv.textContent = userNames;
+                    
+                    const orderDiv = document.createElement('div');
+                    orderDiv.className = 'order-text';
+                    orderDiv.textContent = group.menu;
+                    
+                    leftDiv.appendChild(userDiv);
+                    leftDiv.appendChild(orderDiv);
+                    
+                    const countDiv = document.createElement('div');
+                    countDiv.className = 'order-count';
+                    countDiv.textContent = group.users.length;
+                    
+                    item.appendChild(leftDiv);
+                    item.appendChild(countDiv);
+                    orderList.appendChild(item);
                 });
+            } else {
+                orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">게임 참여자 주문이 없습니다</div>';
+            }
+            
+            // 관전자 주문 목록 렌더링
+            if (Object.keys(spectatorOrders).length > 0) {
+                spectatorOrdersSection.style.display = 'block';
+                spectatorOrderList.innerHTML = '';
                 
-                const userNames = sortedUsers.map(name => 
-                    name + (name === currentUser ? ' (나)' : '')
-                ).join(', ');
+                const groupedSpectatorOrders = groupOrdersByMenu(spectatorOrders, currentOrderSortMode);
                 
-                const userDiv = document.createElement('div');
-                userDiv.className = 'order-user';
-                userDiv.textContent = userNames;
-                
-                const orderDiv = document.createElement('div');
-                orderDiv.className = 'order-text';
-                orderDiv.textContent = group.menu;
-                
-                leftDiv.appendChild(userDiv);
-                leftDiv.appendChild(orderDiv);
-                
-                // 오른쪽 인원수 (주사위 숫자처럼 크게 표시)
-                const countDiv = document.createElement('div');
-                countDiv.className = 'order-count';
-                countDiv.textContent = group.users.length;
-                
-                item.appendChild(leftDiv);
-                item.appendChild(countDiv);
-                orderList.appendChild(item);
-            });
+                groupedSpectatorOrders.forEach(group => {
+                    const item = document.createElement('div');
+                    item.className = 'order-item';
+                    item.style.opacity = '0.7'; // 관전자는 약간 투명하게
+                    
+                    const leftDiv = document.createElement('div');
+                    leftDiv.className = 'order-item-left';
+                    
+                    // 사용자 목록 생성 (내 주문이면 맨 앞에)
+                    const sortedUsers = [...group.users].sort((a, b) => {
+                        if (a === currentUser) return -1;
+                        if (b === currentUser) return 1;
+                        return 0;
+                    });
+                    
+                    const userNames = sortedUsers.map(name => {
+                        let displayName = name;
+                        if (name === currentUser) {
+                            displayName += ' (나)';
+                        }
+                        return displayName;
+                    }).join(', ');
+                    
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'order-user';
+                    userDiv.textContent = userNames;
+                    
+                    const orderDiv = document.createElement('div');
+                    orderDiv.className = 'order-text';
+                    orderDiv.textContent = group.menu;
+                    
+                    leftDiv.appendChild(userDiv);
+                    leftDiv.appendChild(orderDiv);
+                    
+                    const countDiv = document.createElement('div');
+                    countDiv.className = 'order-count';
+                    countDiv.textContent = group.users.length;
+                    
+                    item.appendChild(leftDiv);
+                    item.appendChild(countDiv);
+                    spectatorOrderList.appendChild(item);
+                });
+            } else {
+                spectatorOrdersSection.style.display = 'none';
+            }
             
             // 주문하지 않은 사람 목록 표시
             renderNotOrderedUsers();
@@ -3575,6 +3747,18 @@
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
             historyData = [];
+            
+            // 게임 참여자 목록 업데이트
+            gamePlayers = data.players || [];
+            
+            // 한번이라도 게임에 참여한 사람 목록에 추가 (중복 제거)
+            if (data.players && data.players.length > 0) {
+                data.players.forEach(player => {
+                    if (!everPlayedUsers.includes(player)) {
+                        everPlayedUsers.push(player);
+                    }
+                });
+            }
             
             // 애니메이션 완료 플래그 초기화 (게임 재시작 시 이전 값이 남아있지 않도록)
             window.lastRollerAnimationComplete = false;
