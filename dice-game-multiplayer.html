@@ -1329,28 +1329,6 @@
                 </div>
             </div>
 
-            <div class="game-status waiting" id="gameStatus">
-                게임 대기 중...
-            </div>
-
-            <!-- 진행 상황 표시 -->
-            <div class="progress-section" id="progressSection" style="display: none;">
-                <div class="progress-title">📊 진행 상황</div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progressBar"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="progressCount">0/0</span> 명 완료
-                </div>
-                
-                <div class="not-rolled-section">
-                    <div class="not-rolled-title">⏳ 주사위를 굴리지 않은 사람</div>
-                    <div class="not-rolled-list" id="notRolledList">
-                        <!-- 미완료자 목록 -->
-                    </div>
-                </div>
-            </div>
-
             <!-- Host 전용 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none;">
                 <button onclick="startGame()" id="startButton">게임 시작</button>
@@ -1374,6 +1352,14 @@
                     </div>
                 </div>
                 
+                <!-- 주문하지 않은 사람 목록 -->
+                <div class="not-ordered-section" id="notOrderedSection" style="display: none;">
+                    <div class="not-rolled-title" style="margin-top: 15px;">⏳ 주문하지 않은 사람</div>
+                    <div class="not-rolled-list" id="notOrderedList">
+                        <!-- 주문하지 않은 사람 목록 -->
+                    </div>
+                </div>
+
                 <!-- 내 주문 입력 -->
                 <div class="my-order-box">
                     <div class="my-order-title">
@@ -1417,13 +1403,29 @@
                 <div class="order-list" id="orderList">
                     <div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>
                 </div>
+            </div>
 
-                <!-- 주문하지 않은 사람 목록 -->
-                <div class="not-ordered-section" id="notOrderedSection" style="display: none;">
-                    <div class="not-rolled-title" style="margin-top: 15px;">⏳ 주문하지 않은 사람</div>
-                    <div class="not-rolled-list" id="notOrderedList">
-                        <!-- 주문하지 않은 사람 목록 -->
-                    </div>
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
+            </div>
+
+            <!-- 진행 상황 표시 -->
+            <div class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-title">📊 진행 상황</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressCount">0/0</span> 명 완료
+                </div>
+            </div>
+
+            <!-- 주사위를 굴리지 않은 사람 -->
+            <div class="not-rolled-section" id="notRolledSection" style="display: none;">
+                <div class="not-rolled-title">⏳ 주사위를 굴리지 않은 사람</div>
+                <div class="not-rolled-list" id="notRolledList">
+                    <!-- 미완료자 목록 -->
                 </div>
             </div>
 
@@ -3548,6 +3550,7 @@
             document.getElementById('endButton').style.display = 'none';
             // 주사위 굴리기 버튼은 제거됨
             document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('notRolledSection').style.display = 'none';
             
             // 주문받기 시작 버튼 표시 (Host만)
             if (isHost) {
@@ -4466,11 +4469,13 @@
             
             document.getElementById('progressCount').textContent = `${rolled}/${total}`;
             
+            const notRolledSection = document.getElementById('notRolledSection');
             const notRolledList = document.getElementById('notRolledList');
             
             if (notRolledYet.length === 0) {
-                notRolledList.innerHTML = '<div class="empty-not-rolled">✅ 모두 완료!</div>';
+                notRolledSection.style.display = 'none';
             } else {
+                notRolledSection.style.display = 'block';
                 notRolledList.innerHTML = '';
                 // 가나다순으로 정렬
                 const sortedNotRolledYet = [...notRolledYet].sort((a, b) => a.localeCompare(b, 'ko'));
