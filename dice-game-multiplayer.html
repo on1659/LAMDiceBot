@@ -1055,6 +1055,19 @@
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
 <b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-01-XX)</span>
 
+<b>⏰ 방 자동 삭제 기능 추가</b>
+• 방 생성 시 유지 시간 선택 가능 (1시간, 3시간, 6시간)
+• 기본값: 3시간
+• 방 목록에 각 방의 남은 시간 표시
+• 방 내부 접속자 섹션 아래에 실시간 카운트다운 표시
+• 설정한 시간이 지나면 자동으로 방 삭제
+• 로비에서 30초마다 방 목록 자동 새로고침으로 남은 시간 실시간 업데이트
+
+<b>🎨 UI 레이아웃 개선</b>
+• 진행 상황과 주사위를 굴리지 않은 사람 섹션을 채팅 섹션 바로 위로 이동
+• 게임 상태 표시(게임 진행 중!)를 진행 상황 위로 이동
+• 주문받기 섹션에서 "주문하지 않은 사람"을 "내 주문 입력" 위로 이동하여 순서 개선
+
 <b>⌨️ PC에서 /주사위 명령어 자동완성 지원</b>
 • PC에서도 자동완성 드롭다운이 표시됨 (기존에는 모바일만 지원)
 • Tab 키, 방향키(↑/↓), Enter 키로 자동완성 적용 가능
@@ -1253,6 +1266,25 @@
                 </div>
             </div>
             
+            <!-- 방 유지 시간 설정 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 500;">⏰ 방 유지 시간</label>
+                <div style="display: flex; gap: 10px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomExpiryTime" value="1" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>1시간</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomExpiryTime" value="3" checked style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>3시간 (기본)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomExpiryTime" value="6" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>6시간</span>
+                    </label>
+                </div>
+            </div>
+            
             <!-- 방 생성하기 버튼 (맨 아래) -->
             <button onclick="finalizeRoomCreation()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-top: 30px; width: 100%;">방 생성하기</button>
         </div>
@@ -1315,6 +1347,13 @@
                 <div class="users-title">👥 접속자 (<span id="userCount">0</span>명)</div>
                 <div class="users-list" id="usersList">
                     <div style="color: #999; text-align: center; padding: 10px; width: 100%;">접속자가 없습니다</div>
+                </div>
+            </div>
+            
+            <!-- 방 폭파까지 남은 시간 -->
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 12px; margin-bottom: 20px; text-align: center;">
+                <div style="color: #856404; font-weight: bold; font-size: 14px;">
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: #d9534f;">--:--:--</span>
                 </div>
             </div>
             
@@ -2069,6 +2108,8 @@
         let currentRoomId = null;
         let selectedRoomId = null;
         let roomsList = [];
+        let roomExpiryInterval = null; // 방 폭파 카운트다운 인터벌
+        let roomListRefreshInterval = null; // 방 목록 새로고침 인터벌
         
         // 연결 상태 모니터링 및 초기화
         socket.on('connect', () => {
@@ -2156,13 +2197,33 @@
                     ? '<span style="color: #667eea; font-weight: bold; margin-left: 5px;">🪜 사다리타기</span>'
                     : '<span style="color: #667eea; font-weight: bold; margin-left: 5px;">🎲 주사위</span>';
                 
+                // 남은 시간 표시
+                let remainingTimeText = '';
+                if (room.createdAt) {
+                    const createdAt = new Date(room.createdAt);
+                    const now = new Date();
+                    const expiryHours = room.expiryHours || 3; // 기본값 3시간
+                    const expiryHoursInMs = expiryHours * 60 * 60 * 1000;
+                    const expiryTime = createdAt.getTime() + expiryHoursInMs;
+                    const remaining = expiryTime - now.getTime();
+                    
+                    // 남은 시간 계산
+                    if (remaining > 0) {
+                        const hours = Math.floor(remaining / (1000 * 60 * 60));
+                        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                        remainingTimeText = ` | 남은 시간: ${hours}시간 ${minutes}분`;
+                    } else {
+                        remainingTimeText = ` | <span style="color: #dc3545; font-weight: bold;">폭파 예정</span>`;
+                    }
+                }
+                
                 const buttonText = isMyRoom ? '재입장' : '입장하기';
                 
                 roomItem.innerHTML = `
                     <div class="room-info">
                         <div class="room-name">${roomNameHtml}${privateBadge}${gameTypeBadge}</div>
                         <div class="room-details">
-                            호스트: ${room.hostName} | 인원: ${room.playerCount}명
+                            호스트: ${room.hostName} | 인원: ${room.playerCount}명${remainingTimeText}
                         </div>
                         <span class="room-status ${statusClass}">${statusText}</span>
                     </div>
@@ -2173,6 +2234,24 @@
                 
                 roomsListEl.appendChild(roomItem);
             });
+            
+            // 로비 섹션이 활성화되어 있으면 주기적으로 방 목록 새로고침 (남은 시간 업데이트)
+            const lobbySection = document.getElementById('lobbySection');
+            if (lobbySection && lobbySection.classList.contains('active')) {
+                // 기존 인터벌 정리
+                if (roomListRefreshInterval) {
+                    clearInterval(roomListRefreshInterval);
+                }
+                // 30초마다 방 목록 새로고침
+                roomListRefreshInterval = setInterval(() => {
+                    if (lobbySection.classList.contains('active')) {
+                        refreshRooms();
+                    } else {
+                        clearInterval(roomListRefreshInterval);
+                        roomListRefreshInterval = null;
+                    }
+                }, 30000); // 30초마다
+            }
         }
         
         // 방 바로 입장
@@ -2338,13 +2417,18 @@
                 return;
             }
             
+            // 방 유지 시간 가져오기 (기본값: 3시간)
+            const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
+            const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
+            
             // 방 생성 (주사위 범위와 게임 룰은 방 생성 후 설정)
             socket.emit('createRoom', { 
                 userName: hostName,
                 roomName: roomName,
                 isPrivate: isPrivate,
                 password: isPrivate ? password : '',
-                gameType: 'dice' // 항상 주사위 게임으로 고정
+                gameType: 'dice', // 항상 주사위 게임으로 고정
+                expiryHours: expiryHours // 방 유지 시간 (시간 단위)
             });
         }
         
@@ -2586,6 +2670,12 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }, 100);
             }
+            
+            // 방 폭파 카운트다운 시작
+            if (data.createdAt) {
+                const expiryHours = data.expiryHours || 3; // 기본값 3시간
+                startRoomExpiryCountdown(data.createdAt, expiryHours);
+            }
 
             // 재접속 처리
             if (isGameActive && data.isGamePlayer) {
@@ -2653,7 +2743,14 @@
         
         // 방 삭제 알림 (모든 사용자가 나감)
         socket.on('roomDeleted', (data) => {
-            alert(data.message || '모든 사용자가 방을 떠났습니다.');
+            alert(data.message || data.reason || '방이 삭제되었습니다.');
+            
+            // 카운트다운 중지
+            if (roomExpiryInterval) {
+                clearInterval(roomExpiryInterval);
+                roomExpiryInterval = null;
+            }
+            
             document.getElementById('gameSection').classList.remove('active');
             document.getElementById('lobbySection').classList.add('active');
             
@@ -2666,6 +2763,53 @@
             isHost = false;
             refreshRooms();
         });
+        
+        // 방 폭파 카운트다운 함수
+        function startRoomExpiryCountdown(createdAt, expiryHours) {
+            // 기존 인터벌 정리
+            if (roomExpiryInterval) {
+                clearInterval(roomExpiryInterval);
+            }
+            
+            const expirySection = document.getElementById('roomExpirySection');
+            const countdownElement = document.getElementById('roomExpiryCountdown');
+            
+            if (!expirySection || !countdownElement) return;
+            
+            expirySection.style.display = 'block';
+            
+            const expiryHoursValue = expiryHours || 3; // 기본값 3시간
+            
+            function updateCountdown() {
+                const now = new Date();
+                const createdAtDate = new Date(createdAt);
+                const expiryHoursInMs = expiryHoursValue * 60 * 60 * 1000;
+                const expiryTime = createdAtDate.getTime() + expiryHoursInMs;
+                const remaining = expiryTime - now.getTime();
+                
+                if (remaining <= 0) {
+                    countdownElement.textContent = '00:00:00';
+                    expirySection.style.background = '#f8d7da';
+                    expirySection.style.borderColor = '#dc3545';
+                    countdownElement.style.color = '#721c24';
+                    if (roomExpiryInterval) {
+                        clearInterval(roomExpiryInterval);
+                        roomExpiryInterval = null;
+                    }
+                    return;
+                }
+                
+                const hours = Math.floor(remaining / (1000 * 60 * 60));
+                const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                
+                countdownElement.textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+            
+            updateCountdown(); // 즉시 실행
+            roomExpiryInterval = setInterval(updateCountdown, 1000); // 1초마다 업데이트
+        }
         
         // 호스트 UI 업데이트 함수
         function updateHostUI() {

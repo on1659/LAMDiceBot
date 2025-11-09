@@ -174,7 +174,9 @@ io.on('connection', (socket) => {
             isGameActive: room.gameState.isGameActive,
             isOrderActive: room.gameState.isOrderActive,
             isPrivate: room.isPrivate || false,
-            gameType: room.gameType || 'dice' // 게임 타입 추가 (기본값: dice)
+            gameType: room.gameType || 'dice', // 게임 타입 추가 (기본값: dice)
+            createdAt: room.createdAt, // 방 생성 시간 추가
+            expiryHours: room.expiryHours || 3 // 방 유지 시간 추가 (기본값: 3시간)
             // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
@@ -260,7 +262,7 @@ io.on('connection', (socket) => {
     socket.on('createRoom', async (data) => {
         if (!checkRateLimit()) return;
         
-        const { userName, roomName, isPrivate, password, gameType } = data;
+        const { userName, roomName, isPrivate, password, gameType, expiryHours } = data;
         
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -293,6 +295,9 @@ io.on('connection', (socket) => {
         // 게임 타입 검증
         const validGameType = gameType === 'ladder' ? 'ladder' : 'dice'; // 기본값은 'dice'
         
+        // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 3시간)
+        const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 3;
+        
         // 이미 방에 있으면 나가기
         if (socket.currentRoomId) {
             await leaveRoom(socket);
@@ -309,6 +314,7 @@ io.on('connection', (socket) => {
             isPrivate: isPrivateRoom,
             password: roomPassword,
             gameType: validGameType, // 게임 타입 추가
+            expiryHours: validExpiryHours, // 방 유지 시간 추가 (시간 단위)
             gameState: createRoomGameState(),
             createdAt: new Date()
         };
@@ -355,6 +361,8 @@ io.on('connection', (socket) => {
             isPrivate: isPrivateRoom,
             password: isPrivateRoom ? roomPassword : '', // 비공개 방일 때만 비밀번호 전달
             gameType: validGameType, // 게임 타입 전달
+            createdAt: room.createdAt, // 방 생성 시간 추가
+            expiryHours: validExpiryHours, // 방 유지 시간 추가
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             gameState: {
                 ...gameState,
@@ -479,6 +487,8 @@ io.on('connection', (socket) => {
                 isPrivate: room.isPrivate,
                 password: room.isPrivate ? room.password : '',
                 gameType: room.gameType || 'dice',
+                createdAt: room.createdAt, // 방 생성 시간 추가
+                expiryHours: room.expiryHours || 3, // 방 유지 시간 추가
                 diceSettings: gameState.userDiceSettings[userName.trim()],
                 myOrder: gameState.userOrders[userName.trim()] || '',
                 gameRules: gameState.gameRules,
@@ -565,6 +575,8 @@ io.on('connection', (socket) => {
             isPrivate: room.isPrivate,
             password: room.isPrivate ? room.password : '', // 비공개 방일 때만 비밀번호 전달
             gameType: room.gameType || 'dice', // 게임 타입 전달
+            createdAt: room.createdAt, // 방 생성 시간 추가
+            expiryHours: room.expiryHours || 3, // 방 유지 시간 추가
             diceSettings: gameState.userDiceSettings[userName.trim()],
             myOrder: gameState.userOrders[userName.trim()] || '',
             gameRules: gameState.gameRules,
@@ -1749,4 +1761,45 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`🎲 주사위 게임 서버 시작!`);
     console.log(`포트: ${PORT}`);
     console.log('=================================');
+    
+    // 방 유지 시간에 따른 자동 방 삭제 체크 (1분마다 확인)
+    setInterval(() => {
+        const now = new Date();
+        
+        Object.keys(rooms).forEach(roomId => {
+            const room = rooms[roomId];
+            if (room && room.createdAt && room.expiryHours) {
+                const createdAt = new Date(room.createdAt);
+                const elapsed = now - createdAt;
+                const expiryHoursInMs = room.expiryHours * 60 * 60 * 1000; // 저장된 유지 시간을 밀리초로 변환
+                
+                if (elapsed >= expiryHoursInMs) {
+                    console.log(`방 ${roomId} (${room.roomName})이 ${room.expiryHours}시간 경과로 자동 삭제됩니다.`);
+                    
+                    // 방에 있는 모든 사용자에게 방 삭제 알림
+                    io.to(roomId).emit('roomDeleted', {
+                        reason: `방이 ${room.expiryHours}시간 경과로 자동 삭제되었습니다.`
+                    });
+                    
+                    // 방 삭제
+                    delete rooms[roomId];
+                    
+                    // 모든 클라이언트에게 방 목록 업데이트
+                    const roomsList = Object.entries(rooms).map(([id, r]) => ({
+                        roomId: id,
+                        roomName: r.roomName,
+                        hostName: r.hostName,
+                        playerCount: r.gameState.users.length,
+                        isGameActive: r.gameState.isGameActive,
+                        isOrderActive: r.gameState.isOrderActive,
+                        isPrivate: r.isPrivate || false,
+                        gameType: r.gameType || 'dice',
+                        createdAt: r.createdAt,
+                        expiryHours: r.expiryHours || 3 // 기본값 3시간
+                    }));
+                    io.emit('roomsListUpdated', roomsList);
+                }
+            }
+        });
+    }, 60000); // 1분마다 체크
 });
