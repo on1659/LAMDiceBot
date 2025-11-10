@@ -1833,6 +1833,29 @@
         let isReady = false; // 내 준비 상태
         let currentSuggestions = []; // 현재 자동완성 제안 목록
         let selectedSuggestionIndex = -1; // 선택된 제안 인덱스
+
+        // 기기 식별 정보 생성 함수
+        function getDeviceId() {
+            const info = {
+                userAgent: navigator.userAgent || '',
+                platform: navigator.platform || '',
+                hardwareConcurrency: navigator.hardwareConcurrency || 0,
+                screenWidth: screen.width || 0,
+                screenHeight: screen.height || 0,
+                language: navigator.language || '',
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+            };
+            // 정보를 문자열로 조합하여 간단한 해시 생성
+            const infoString = JSON.stringify(info);
+            // 간단한 해시 함수 (실제로는 더 복잡한 해시를 사용할 수 있음)
+            let hash = 0;
+            for (let i = 0; i < infoString.length; i++) {
+                const char = infoString.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // 32bit 정수로 변환
+            }
+            return hash.toString();
+        }
         
         // 서버에서 자주 쓰는 메뉴 불러오기
         function loadFrequentMenus() {
@@ -2301,7 +2324,8 @@
                     roomId: roomId,
                     userName: userName,
                     isHost: false,
-                    password: ''
+                    password: '',
+                    deviceId: getDeviceId()
                 });
             }
         }
@@ -2326,7 +2350,8 @@
                 roomId: roomId,
                 userName: userName,
                 isHost: false,
-                password: password
+                password: password,
+                deviceId: getDeviceId()
             });
         }
         
@@ -2486,7 +2511,8 @@
                     roomId: selectedRoomId,
                     userName: userName,
                     isHost: false,
-                    password: ''
+                    password: '',
+                    deviceId: getDeviceId()
                 });
             }
         }
@@ -4260,11 +4286,22 @@
                 // 그 다음 주사위 굴리기 실행
                 handleDiceCommand(message);
                 chatInput.value = '';
+                // 사용자가 메시지를 보낼 때는 채팅 영역을 맨 아래로 스크롤
+                const chatMessages = document.getElementById('chatMessages');
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100);
                 return;
             }
             
             socket.emit('sendMessage', { message: message });
             chatInput.value = '';
+            
+            // 사용자가 메시지를 보낼 때는 채팅 영역을 맨 아래로 스크롤
+            const chatMessages = document.getElementById('chatMessages');
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
         }
         
         // 테스트 명령어 처리 (애니메이션 테스트용)
@@ -4548,13 +4585,16 @@
         
         // 새 메시지 수신
         // 채팅 메시지 표시 함수 (재사용 가능)
-        function displayChatMessage(chatMessage) {
+        function displayChatMessage(chatMessage, forceScroll = false) {
             const chatMessages = document.getElementById('chatMessages');
             
             // 첫 메시지면 빈 상태 메시지 제거
             if (chatMessages.children.length === 1 && chatMessages.children[0].textContent === '채팅 메시지가 없습니다') {
                 chatMessages.innerHTML = '';
             }
+            
+            // 스크롤이 맨 아래에 있는지 확인 (10px 여유)
+            const isScrolledToBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 10;
             
             const messageDiv = document.createElement('div');
             
@@ -4593,7 +4633,9 @@
                         titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
                         messageDiv.appendChild(titleDiv);
                         messageDiv.style.display = 'block'; // 표시
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                        if (forceScroll || isScrolledToBottom) {
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
                     };
                     
                     const checkAndShow = () => {
@@ -4644,7 +4686,9 @@
                 }
                 
                 chatMessages.appendChild(messageDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                if (forceScroll || isScrolledToBottom) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
                 return;
             }
             
@@ -4751,8 +4795,10 @@
             
             chatMessages.appendChild(messageDiv);
             
-            // 스크롤을 맨 아래로
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            // 스크롤이 맨 아래에 있거나 강제 스크롤이면 스크롤
+            if (forceScroll || isScrolledToBottom) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
         }
         
         // 새 메시지 수신
