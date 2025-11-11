@@ -119,19 +119,40 @@ function seededRandom(seed, min, max) {
 io.on('connection', (socket) => {
     console.log('새 사용자 연결:', socket.id);
     
-    // IP 주소 추출 함수
+    // IP 주소 추출 함수 (개선)
     const getClientIP = (socket) => {
         // 프록시/로드밸런서를 통한 경우
         const forwarded = socket.handshake.headers['x-forwarded-for'];
         if (forwarded) {
-            return forwarded.split(',')[0].trim();
+            const ip = forwarded.split(',')[0].trim();
+            // IPv6를 IPv4로 변환하거나 그대로 반환
+            if (ip && ip !== '') {
+                return ip.replace(/^::ffff:/, ''); // IPv6-mapped IPv4 주소 처리
+            }
         }
         // 직접 연결인 경우
-        return socket.handshake.address || socket.request.connection.remoteAddress || 'unknown';
+        let address = socket.handshake.address || 
+                     socket.request?.connection?.remoteAddress || 
+                     socket.request?.socket?.remoteAddress ||
+                     socket.conn?.remoteAddress ||
+                     'unknown';
+        
+        // IPv6-mapped IPv4 주소 처리
+        if (address && address.startsWith('::ffff:')) {
+            address = address.replace('::ffff:', '');
+        }
+        
+        // IPv6 주소를 IPv4로 변환 시도 (로컬 테스트 환경)
+        if (address === '::1' || address === '::ffff:127.0.0.1') {
+            address = '127.0.0.1';
+        }
+        
+        return address || 'unknown';
     };
     
     // 소켓 연결 시 IP 주소 저장
     socket.clientIP = getClientIP(socket);
+    console.log(`소켓 연결 IP: ${socket.clientIP} (socket.id: ${socket.id})`);
     
     // 소켓별 정보 저장
     socket.currentRoomId = null; // 현재 방 ID
@@ -225,12 +246,49 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // IP 차단 옵션이 활성화된 경우, 같은 IP에서 이미 다른 사용자로 입장한 경우가 있는지 확인
+        if (room.blockIPPerUser) {
+            socket.deviceId = deviceId || null;
+            
+            // 모든 소켓을 확인하여 같은 IP/deviceId를 가진 다른 사용자 찾기
+            const allSockets = await io.fetchSockets();
+            const sameIPOrDeviceSockets = allSockets.filter(s => {
+                if (s.id === socket.id) return false; // 자기 자신 제외
+                if (!s.connected) return false; // 연결되지 않은 소켓 제외
+                if (s.userName === userName) return false; // 같은 이름은 재연결로 간주
+                
+                // IP가 같은 경우
+                if (s.clientIP === socket.clientIP) {
+                    // deviceId가 있으면 deviceId도 확인
+                    if (deviceId && s.deviceId) {
+                        return s.deviceId === deviceId;
+                    }
+                    // deviceId가 없으면 IP만 확인
+                    return true;
+                }
+                return false;
+            });
+            
+            if (sameIPOrDeviceSockets.length > 0) {
+                const existingSocket = sameIPOrDeviceSockets[0];
+                const existingRoomId = existingSocket.currentRoomId;
+                const existingUserName = existingSocket.userName || '알 수 없음';
+                
+                if (existingRoomId && rooms[existingRoomId]) {
+                    socket.emit('currentRoomInfo', null);
+                    socket.emit('roomError', `IP당 하나의 아이디만 입장 허용됩니다. 현재 "${existingUserName}" 아이디로 "${rooms[existingRoomId].roomName}" 방에 입장되어 있습니다.`);
+                    return;
+                }
+            }
+        } else {
+            socket.deviceId = deviceId || null;
+        }
+        
         // 기존 사용자의 socket.id를 새 소켓으로 업데이트
         user.id = socket.id;
         socket.currentRoomId = roomId;
         socket.userName = userName;
         socket.isHost = user.isHost;
-        socket.deviceId = deviceId || null; // 기기 식별 ID 저장
         
         // 호스트 ID도 업데이트
         if (user.isHost) {
@@ -316,6 +374,47 @@ io.on('connection', (socket) => {
         
         // IP 차단 옵션 검증 (기본값: false)
         const validBlockIPPerUser = blockIPPerUser === true;
+        
+        // IP 차단 옵션이 활성화된 경우, 같은 IP에서 이미 다른 방에 입장한 사용자가 있는지 확인
+        if (validBlockIPPerUser) {
+            const { deviceId } = data;
+            socket.deviceId = deviceId || null;
+            
+            // 모든 방을 순회하며 같은 IP/deviceId를 가진 사용자 찾기
+            const allSockets = await io.fetchSockets();
+            const sameIPOrDeviceSockets = allSockets.filter(s => {
+                if (s.id === socket.id) return false; // 자기 자신 제외
+                if (!s.connected) return false; // 연결되지 않은 소켓 제외
+                
+                // IP가 같은 경우
+                if (s.clientIP === socket.clientIP) {
+                    // deviceId가 있으면 deviceId도 확인
+                    if (deviceId && s.deviceId) {
+                        return s.deviceId === deviceId;
+                    }
+                    // deviceId가 없으면 IP만 확인
+                    return true;
+                }
+                return false;
+            });
+            
+            if (sameIPOrDeviceSockets.length > 0) {
+                const existingSocket = sameIPOrDeviceSockets[0];
+                const existingRoomId = existingSocket.currentRoomId;
+                const existingUserName = existingSocket.userName || '알 수 없음';
+                
+                console.log(`[IP 체크] 방 생성 차단: IP=${socket.clientIP}, deviceId=${deviceId || '없음'}, 기존 사용자=${existingUserName}, 기존 방=${existingRoomId}`);
+                
+                if (existingRoomId && rooms[existingRoomId]) {
+                    socket.emit('roomError', `IP당 하나의 아이디만 입장 허용됩니다. 현재 "${existingUserName}" 아이디로 "${rooms[existingRoomId].roomName}" 방에 입장되어 있습니다.`);
+                    return;
+                }
+            }
+        } else {
+            // IP 차단 옵션이 비활성화되어 있어도 deviceId는 저장
+            const { deviceId } = data;
+            socket.deviceId = deviceId || null;
+        }
         
         // 이미 방에 있으면 나가기
         if (socket.currentRoomId) {
@@ -548,28 +647,40 @@ io.on('connection', (socket) => {
             // deviceId 저장
             socket.deviceId = deviceId || null;
             
-            // IP가 같은 사용자 찾기
-            const sameIPUsers = socketsInRoom.filter(s => 
-                s.clientIP === socket.clientIP && s.connected && s.id !== socket.id
-            );
-            
-            if (sameIPUsers.length > 0) {
-                // IP가 같으면 기기 식별 정보도 같은지 확인
-                if (deviceId) {
-                    const sameDeviceUser = sameIPUsers.find(s => 
-                        s.deviceId === deviceId
-                    );
-                    
-                    if (sameDeviceUser) {
-                        // 같은 IP + 같은 기기 = 중복 접속
-                        const existingUserName = sameDeviceUser.userName || '알 수 없음';
-                        socket.emit('roomError', `IP당 하나의 아이디만 입장 허용됩니다. 지금 당신은 "${existingUserName}" 아이디로 로그인되어 있습니다.`);
-                        return;
+            // 모든 소켓을 확인하여 같은 IP/deviceId를 가진 사용자 찾기 (같은 방뿐만 아니라 모든 방)
+            const allSockets = await io.fetchSockets();
+            const sameIPOrDeviceSockets = allSockets.filter(s => {
+                if (s.id === socket.id) return false; // 자기 자신 제외
+                if (!s.connected) return false; // 연결되지 않은 소켓 제외
+                
+                // IP가 같은 경우
+                if (s.clientIP === socket.clientIP) {
+                    // deviceId가 있으면 deviceId도 확인
+                    if (deviceId && s.deviceId) {
+                        return s.deviceId === deviceId;
                     }
-                } else {
-                    // deviceId가 없으면 기존 방식대로 IP만 체크
-                    const existingUserName = sameIPUsers[0].userName || '알 수 없음';
+                    // deviceId가 없으면 IP만 확인
+                    return true;
+                }
+                return false;
+            });
+            
+            if (sameIPOrDeviceSockets.length > 0) {
+                const existingSocket = sameIPOrDeviceSockets[0];
+                const existingRoomId = existingSocket.currentRoomId;
+                const existingUserName = existingSocket.userName || '알 수 없음';
+                
+                console.log(`[IP 체크] 방 입장 차단: IP=${socket.clientIP}, deviceId=${deviceId || '없음'}, 기존 사용자=${existingUserName}, 기존 방=${existingRoomId}, 입장하려는 방=${roomId}`);
+                
+                // 같은 방에 있는 경우
+                if (existingRoomId === roomId) {
                     socket.emit('roomError', `IP당 하나의 아이디만 입장 허용됩니다. 지금 당신은 "${existingUserName}" 아이디로 로그인되어 있습니다.`);
+                    return;
+                }
+                
+                // 다른 방에 있는 경우
+                if (existingRoomId && rooms[existingRoomId]) {
+                    socket.emit('roomError', `IP당 하나의 아이디만 입장 허용됩니다. 현재 "${existingUserName}" 아이디로 "${rooms[existingRoomId].roomName}" 방에 입장되어 있습니다.`);
                     return;
                 }
             }
