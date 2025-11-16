@@ -3233,6 +3233,11 @@
             const allOrderedUsers = [...groupedPlayerOrders.flatMap(group => group.users), ...groupedSpectatorOrders.flatMap(group => group.users)];
             const notOrderedUsers = allUsers.filter(user => !allOrderedUsers.includes(user));
             
+            // 총 주문한 사람 숫자 표시
+            if (allOrderedUsers.length > 0) {
+                orderListText += `\n총 주문한 사람: ${allOrderedUsers.length}명\n`;
+            }
+            
             if (notOrderedUsers.length > 0) {
                 orderListText += `\n주문하지 않은 사람 (${notOrderedUsers.length}명):\n`;
                 notOrderedUsers.forEach((user, index) => {
