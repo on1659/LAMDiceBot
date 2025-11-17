@@ -1590,33 +1590,12 @@ io.on('connection', (socket) => {
         
         // 하이 게임 애니메이션 조건 확인
         let isHighGameAnimation = false;
-        if (gameState.isGameActive && gameState.gamePlayers.length >= 5 && !isNotReady) {
+        if (gameState.isGameActive && gameState.gamePlayers.length >= 4 && !isNotReady) {
             // 게임 룰에 "하이"가 포함되어 있는지 확인
             const isHighGame = gameState.gameRules && gameState.gameRules.toLowerCase().includes('하이');
             
-            if (isHighGame && gameState.rolledUsers.length >= 5) {
-                // 6번째 이후 굴림 (rolledUsers.length가 5 이상이면 다음 굴림이 6번째 이상)
-                // 지금까지 나온 주사위 중 최고값 확인
-                const currentRolls = gameState.history
-                    .filter(h => gameState.gamePlayers.includes(h.user))
-                    .map(h => h.result);
-                
-                if (currentRolls.length > 0) {
-                    const maxRoll = Math.max(...currentRolls);
-                    // 현재 결과가 최고값이면 애니메이션
-                    isHighGameAnimation = result > maxRoll;
-                }
-            }
-        }
-        
-        // 로우 게임 애니메이션 조건 확인
-        let isLowGameAnimation = false;
-        if (gameState.isGameActive && gameState.gamePlayers.length >= 5 && !isNotReady) {
-            // 게임 룰에 "로우"가 포함되어 있는지 확인
-            const isLowGame = gameState.gameRules && gameState.gameRules.toLowerCase().includes('로우');
-            
-            if (isLowGame && gameState.rolledUsers.length >= 5) {
-                // 6번째 이후 굴림 (rolledUsers.length가 5 이상이면 다음 굴림이 6번째 이상)
+            if (isHighGame && gameState.rolledUsers.length >= 3) {
+                // 4번째 이후 굴림 (rolledUsers.length가 3 이상이면 다음 굴림이 4번째 이상)
                 // 지금까지 나온 주사위 중 최저값 확인
                 const currentRolls = gameState.history
                     .filter(h => gameState.gamePlayers.includes(h.user))
@@ -1624,21 +1603,42 @@ io.on('connection', (socket) => {
                 
                 if (currentRolls.length > 0) {
                     const minRoll = Math.min(...currentRolls);
-                    // 현재 결과가 최저값이면 애니메이션
-                    isLowGameAnimation = result < minRoll;
+                    // 현재 결과가 최저값보다 작으면 애니메이션 (지금까지 결과 중 제일 작은 게 나왔을 때)
+                    isHighGameAnimation = result < minRoll;
+                }
+            }
+        }
+        
+        // 로우 게임 애니메이션 조건 확인
+        let isLowGameAnimation = false;
+        if (gameState.isGameActive && gameState.gamePlayers.length >= 4 && !isNotReady) {
+            // 게임 룰에 "로우"가 포함되어 있는지 확인
+            const isLowGame = gameState.gameRules && gameState.gameRules.toLowerCase().includes('로우');
+            
+            if (isLowGame && gameState.rolledUsers.length >= 3) {
+                // 4번째 이후 굴림 (rolledUsers.length가 3 이상이면 다음 굴림이 4번째 이상)
+                // 지금까지 나온 주사위 중 최고값 확인
+                const currentRolls = gameState.history
+                    .filter(h => gameState.gamePlayers.includes(h.user))
+                    .map(h => h.result);
+                
+                if (currentRolls.length > 0) {
+                    const maxRoll = Math.max(...currentRolls);
+                    // 현재 결과가 최고값보다 크면 애니메이션 (지금까지 결과 중 제일 큰 게 나왔을 때)
+                    isLowGameAnimation = result > maxRoll;
                 }
             }
         }
         
         // 니어 게임 애니메이션 조건 확인
         let isNearGameAnimation = false;
-        if (gameState.isGameActive && gameState.gamePlayers.length >= 5 && !isNotReady) {
+        if (gameState.isGameActive && gameState.gamePlayers.length >= 4 && !isNotReady) {
             // 게임 룰에서 "니어(숫자)" 또는 "니어 (숫자)" 패턴 찾기
             const rulesLower = gameState.gameRules ? gameState.gameRules.toLowerCase() : '';
             const nearMatch = rulesLower.match(/니어\s*\(?\s*(\d+)\s*\)?/);
             
-            if (nearMatch && gameState.rolledUsers.length >= 5) {
-                // 6번째 이후 굴림 (rolledUsers.length가 5 이상이면 다음 굴림이 6번째 이상)
+            if (nearMatch && gameState.rolledUsers.length >= 3) {
+                // 4번째 이후 굴림 (rolledUsers.length가 3 이상이면 다음 굴림이 4번째 이상)
                 const targetNumber = parseInt(nearMatch[1]);
                 
                 // 지금까지 나온 주사위 중 타겟 숫자와의 거리 확인
