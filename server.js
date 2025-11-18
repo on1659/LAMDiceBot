@@ -60,6 +60,9 @@ function saveFrequentMenus(menus) {
 // 방 관리 시스템
 const rooms = {}; // { roomId: { hostId, hostName, roomName, gameState, ... } }
 
+// 오늘의 주사위 기록 저장소 (방이 삭제되어도 유지)
+const todayDiceRecords = []; // { user, result, date, isGameActive, time, range, ... }
+
 // 방 ID 생성
 function generateRoomId() {
     return crypto.randomBytes(4).toString('hex');
@@ -88,15 +91,32 @@ function createRoomGameState() {
 // 게임 상태 (하위 호환성을 위해 유지, 실제로는 각 방의 gameState 사용)
 let gameState = createRoomGameState();
 
-// 정적 파일 제공
-app.use(express.static(__dirname));
+// 정적 파일 제공 (캐시 방지 설정)
+app.use(express.static(__dirname, {
+    setHeaders: (res, path) => {
+        // HTML 파일은 캐시하지 않음
+        if (path.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 
 app.get('/', (req, res) => {
+    // 캐시 방지 헤더 설정
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
 });
 
 // 사다리타기 게임 라우트
 app.get('/ladder', (req, res) => {
+    // 캐시 방지 헤더 설정
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'ladder-game-multiplayer.html'));
 });
 
@@ -198,6 +218,78 @@ io.on('connection', (socket) => {
         return rooms[socket.currentRoomId];
     };
 
+    // 주사위 결과를 1~100 범위로 정규화하는 함수
+    const normalizeTo100 = (result, rangeStr) => {
+        if (!rangeStr || typeof rangeStr !== 'string') {
+            // range 정보가 없으면 그대로 반환 (하위 호환성)
+            return result;
+        }
+        
+        // range 파싱 (예: "1~50", "10~20" 등)
+        const rangeMatch = rangeStr.match(/(\d+)~(\d+)/);
+        if (!rangeMatch) {
+            return result;
+        }
+        
+        const min = parseInt(rangeMatch[1]);
+        const max = parseInt(rangeMatch[2]);
+        
+        if (isNaN(min) || isNaN(max) || min >= max) {
+            return result;
+        }
+        
+        // 1~100 범위로 정규화: ((result - min) / (max - min)) * 99 + 1
+        const normalized = ((result - min) / (max - min)) * 99 + 1;
+        return normalized;
+    };
+
+    // 오늘의 주사위 통계 계산 (공식전만 포함)
+    const getTodayDiceStats = () => {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
+        let totalCount = 0;
+        let totalNormalizedSum = 0; // 정규화된 값의 합
+        
+        // 1. 전역 저장소의 기록 확인 (방이 삭제되어도 유지되는 기록)
+        const globalRecords = todayDiceRecords.filter(record => {
+            return record.date === today && record.isGameActive === true;
+        });
+        
+        totalCount += globalRecords.length;
+        globalRecords.forEach(record => {
+            if (typeof record.result === 'number') {
+                const normalized = normalizeTo100(record.result, record.range);
+                totalNormalizedSum += normalized;
+            }
+        });
+        
+        // 2. 현재 존재하는 모든 방의 게임 기록을 순회
+        Object.values(rooms).forEach(room => {
+            const gameState = room.gameState;
+            if (gameState && gameState.history) {
+                // 오늘 날짜의 기록 중 공식전(게임 진행 중)만 필터링
+                const todayRecords = gameState.history.filter(record => {
+                    // date 필드가 있고, 게임 진행 중일 때 굴린 주사위만 포함
+                    return record.date === today && record.isGameActive === true;
+                });
+                
+                totalCount += todayRecords.length;
+                todayRecords.forEach(record => {
+                    if (typeof record.result === 'number') {
+                        const normalized = normalizeTo100(record.result, record.range);
+                        totalNormalizedSum += normalized;
+                    }
+                });
+            }
+        });
+        
+        const average = totalCount > 0 ? (totalNormalizedSum / totalCount).toFixed(2) : 0;
+        
+        return {
+            count: totalCount,
+            average: parseFloat(average)
+        };
+    };
+
     // 방 목록 조회
     socket.on('getRooms', () => {
         if (!checkRateLimit()) return;
@@ -212,11 +304,19 @@ io.on('connection', (socket) => {
             isPrivate: room.isPrivate || false,
             gameType: room.gameType || 'dice', // 게임 타입 추가 (기본값: dice)
             createdAt: room.createdAt, // 방 생성 시간 추가
-            expiryHours: room.expiryHours || 3 // 방 유지 시간 추가 (기본값: 3시간)
+            expiryHours: room.expiryHours || 1 // 방 유지 시간 추가 (기본값: 1시간)
             // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
         socket.emit('roomsList', roomsList);
+    });
+
+    // 오늘의 주사위 통계 조회
+    socket.on('getTodayDiceStats', () => {
+        if (!checkRateLimit()) return;
+        
+        const stats = getTodayDiceStats();
+        socket.emit('todayDiceStats', stats);
     });
 
     // 현재 방 정보 조회 (리다이렉트 후 방 정보 복구용)
@@ -369,8 +469,8 @@ io.on('connection', (socket) => {
         // 게임 타입 검증
         const validGameType = gameType === 'ladder' ? 'ladder' : 'dice'; // 기본값은 'dice'
         
-        // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 3시간)
-        const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 3;
+        // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
+        const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
         
         // IP 차단 옵션 검증 (기본값: false)
         const validBlockIPPerUser = blockIPPerUser === true;
@@ -538,9 +638,14 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 호스트 중복 체크
+        // 호스트 중복 체크 및 빈 방 처리
         const requestIsHost = isHost || false;
-        if (requestIsHost && gameState.users.some(user => user.isHost === true)) {
+        
+        // 방에 사용자가 없으면 첫 입장자를 자동으로 방장으로 설정
+        const isEmptyRoom = gameState.users.length === 0;
+        const finalIsHost = isEmptyRoom ? true : requestIsHost;
+        
+        if (finalIsHost && gameState.users.some(user => user.isHost === true)) {
             socket.emit('roomError', '이미 호스트가 있습니다! 일반 사용자로 입장해주세요.');
             return;
         }
@@ -608,12 +713,13 @@ io.on('connection', (socket) => {
                 password: room.isPrivate ? room.password : '',
                 gameType: room.gameType || 'dice',
                 createdAt: room.createdAt, // 방 생성 시간 추가
-                expiryHours: room.expiryHours || 3, // 방 유지 시간 추가
+                expiryHours: room.expiryHours || 1, // 방 유지 시간 추가
                 blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
                 diceSettings: gameState.userDiceSettings[userName.trim()],
                 myOrder: gameState.userOrders[userName.trim()] || '',
                 gameRules: gameState.gameRules,
                 frequentMenus: gameState.frequentMenus,
+                chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
                 gameState: {
                     ...gameState,
                     hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -693,7 +799,7 @@ io.on('connection', (socket) => {
         const user = {
             id: socket.id,
             name: userName.trim(),
-            isHost: requestIsHost,
+            isHost: finalIsHost,
             joinTime: new Date()
         };
         gameState.users.push(user);
@@ -703,9 +809,10 @@ io.on('connection', (socket) => {
         socket.userName = userName.trim();
         socket.isHost = user.isHost;
         
-        // 호스트 ID도 업데이트
+        // 호스트 ID와 이름 업데이트
         if (user.isHost) {
             room.hostId = socket.id;
+            room.hostName = userName.trim();
         }
         
         if (!gameState.userDiceSettings[userName.trim()]) {
@@ -728,11 +835,11 @@ io.on('connection', (socket) => {
         const myResult = gameState.history.find(r => r.user === userName.trim());
         
         // 입장 성공 응답
-        socket.emit('roomJoined', {
-            roomId,
-            roomName: room.roomName,
-            userName: userName.trim(),
-            isHost: requestIsHost,
+            socket.emit('roomJoined', {
+                roomId,
+                roomName: room.roomName,
+                userName: userName.trim(),
+                isHost: finalIsHost,
             hasRolled: hasRolled,
             myResult: myResult,
             isGameActive: gameState.isGameActive,
@@ -817,6 +924,26 @@ io.on('connection', (socket) => {
                 console.log(`호스트 변경: ${room.roomName} (${roomId}) - 새 호스트: ${newHost.name} (${newHost.id})`);
             } else {
                 // 남은 사용자가 없으면 방 삭제
+                // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
+                const today = new Date().toISOString().split('T')[0];
+                if (gameState && gameState.history) {
+                    const todayGameRecords = gameState.history.filter(record => {
+                        return record.date === today && record.isGameActive === true;
+                    });
+                    todayGameRecords.forEach(record => {
+                        // 중복 체크 (이미 저장된 기록인지 확인)
+                        const alreadyExists = todayDiceRecords.some(r => 
+                            r.user === record.user && 
+                            r.result === record.result && 
+                            r.time === record.time &&
+                            r.date === record.date
+                        );
+                        if (!alreadyExists) {
+                            todayDiceRecords.push(record);
+                        }
+                    });
+                }
+                
                 io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
                 
                 // 모든 사용자 연결 해제
@@ -844,6 +971,26 @@ io.on('connection', (socket) => {
             
             // 남은 사용자가 없으면 방 삭제
             if (gameState.users.length === 0) {
+                // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
+                const today = new Date().toISOString().split('T')[0];
+                if (gameState && gameState.history) {
+                    const todayGameRecords = gameState.history.filter(record => {
+                        return record.date === today && record.isGameActive === true;
+                    });
+                    todayGameRecords.forEach(record => {
+                        // 중복 체크 (이미 저장된 기록인지 확인)
+                        const alreadyExists = todayDiceRecords.some(r => 
+                            r.user === record.user && 
+                            r.result === record.result && 
+                            r.time === record.time &&
+                            r.date === record.date
+                        );
+                        if (!alreadyExists) {
+                            todayDiceRecords.push(record);
+                        }
+                    });
+                }
+                
                 // 호스트 소켓 찾기
                 const socketsInRoom = await io.in(roomId).fetchSockets();
                 socketsInRoom.forEach(s => {
@@ -1394,7 +1541,8 @@ io.on('connection', (socket) => {
         }
         
         gameState.isGameActive = true;
-        gameState.history = [];
+        // history는 초기화하지 않음 (통계를 위해 누적 기록 유지)
+        // 현재 게임의 기록만 표시하려면 gamePlayers로 필터링
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
         
@@ -1461,11 +1609,19 @@ io.on('connection', (socket) => {
         }
         
         gameState.isGameActive = false;
+        
+        // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
+        const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
+        const currentGameHistory = gameState.history.filter(record => {
+            // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
+            return record.isGameActive === true && currentGamePlayers.includes(record.user);
+        });
+        
         gameState.gamePlayers = []; // 참여자 목록 초기화
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.readyUsers = []; // 준비 상태 초기화
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
-        io.to(room.roomId).emit('gameEnded', gameState.history);
+        io.to(room.roomId).emit('gameEnded', currentGameHistory);
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
         // 방 목록 업데이트 (게임 상태 변경)
@@ -1526,7 +1682,7 @@ io.on('connection', (socket) => {
         
         // 주사위는 게임 진행 전/후 모두 자유롭게 굴릴 수 있음
 
-        const { userName, clientSeed, min, max } = data;
+        const { userName: inputUserName, clientSeed, min, max } = data;
         
         // User Agent로 디바이스 타입 확인
         const userAgent = socket.handshake.headers['user-agent'] || '';
@@ -1539,10 +1695,13 @@ io.on('connection', (socket) => {
         
         // 사용자 검증
         const user = gameState.users.find(u => u.id === socket.id);
-        if (!user || user.name !== userName) {
+        if (!user || user.name !== inputUserName.trim()) {
             socket.emit('rollError', '잘못된 사용자입니다!');
             return;
         }
+        
+        // userName을 서버에 저장된 정규화된 값으로 통일 (공백 제거 등)
+        const userName = user.name;
         
         // 게임 진행 중일 때 준비하지 않은 사람인지 확인
         let isNotReady = false;
@@ -1664,10 +1823,13 @@ io.on('connection', (socket) => {
             }
         }
         
+        const now = new Date();
         const record = {
             user: userName,
             result: result,
-            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+            time: now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+            date: now.toISOString().split('T')[0], // YYYY-MM-DD 형식으로 날짜 저장
+            isGameActive: gameState.isGameActive, // 게임 진행 중일 때 굴린 주사위인지 플래그
             seed: clientSeed, // 검증을 위해 시드 저장
             range: `${diceMin}~${diceMax}`,
             isNotReady: isNotReady, // 준비하지 않은 사람인지 플래그
@@ -1685,6 +1847,11 @@ io.on('connection', (socket) => {
         // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장 (준비하지 않은 사람 제외)
         if ((isNotGameActive || isFirstRollInGame) && !isNotReady) {
             gameState.history.push(record);
+            
+            // 오늘의 주사위 통계 업데이트 (모든 클라이언트에게 전송)
+            // 전역 저장소는 방 삭제 시에만 저장하므로 여기서는 방의 기록만 집계
+            const stats = getTodayDiceStats();
+            io.emit('todayDiceStats', stats);
         }
         
         // rolledUsers 배열에 사용자 추가 (중복 체크, 준비하지 않은 사람은 제외)
@@ -1759,6 +1926,28 @@ io.on('connection', (socket) => {
                 io.to(room.roomId).emit('newMessage', allRolledMessage);
                 
                 console.log(`방 ${room.roomName}: 모든 참여자가 주사위를 굴렸습니다!`);
+                
+                // 모든 참여자가 주사위를 굴렸으면 자동으로 게임 종료
+                gameState.isGameActive = false;
+                
+                // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
+                const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
+                const currentGameHistory = gameState.history.filter(record => {
+                    // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
+                    return record.isGameActive === true && currentGamePlayers.includes(record.user);
+                });
+                
+                gameState.gamePlayers = []; // 참여자 목록 초기화
+                gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
+                gameState.readyUsers = []; // 준비 상태 초기화
+                gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+                io.to(room.roomId).emit('gameEnded', currentGameHistory);
+                io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+                
+                // 방 목록 업데이트 (게임 상태 변경)
+                updateRoomsList();
+                
+                console.log(`방 ${room.roomName} 게임 자동 종료, 총`, currentGameHistory.length, '번 굴림');
             }
         } else {
             console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax})`);
@@ -1900,6 +2089,26 @@ io.on('connection', (socket) => {
                             updateRoomsList();
                         } else {
                             // 모든 사용자가 나감 - 방 삭제
+                            // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
+                            const today = new Date().toISOString().split('T')[0];
+                            if (gameState && gameState.history) {
+                                const todayGameRecords = gameState.history.filter(record => {
+                                    return record.date === today && record.isGameActive === true;
+                                });
+                                todayGameRecords.forEach(record => {
+                                    // 중복 체크 (이미 저장된 기록인지 확인)
+                                    const alreadyExists = todayDiceRecords.some(r => 
+                                        r.user === record.user && 
+                                        r.result === record.result && 
+                                        r.time === record.time &&
+                                        r.date === record.date
+                                    );
+                                    if (!alreadyExists) {
+                                        todayDiceRecords.push(record);
+                                    }
+                                });
+                            }
+                            
                             io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
                             delete rooms[roomId];
                             updateRoomsList();
@@ -1911,6 +2120,26 @@ io.on('connection', (socket) => {
                         
                         if (gameState.users.length === 0) {
                             // 모든 사용자가 나감 - 방 삭제
+                            // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
+                            const today = new Date().toISOString().split('T')[0];
+                            if (gameState && gameState.history) {
+                                const todayGameRecords = gameState.history.filter(record => {
+                                    return record.date === today && record.isGameActive === true;
+                                });
+                                todayGameRecords.forEach(record => {
+                                    // 중복 체크 (이미 저장된 기록인지 확인)
+                                    const alreadyExists = todayDiceRecords.some(r => 
+                                        r.user === record.user && 
+                                        r.result === record.result && 
+                                        r.time === record.time &&
+                                        r.date === record.date
+                                    );
+                                    if (!alreadyExists) {
+                                        todayDiceRecords.push(record);
+                                    }
+                                });
+                            }
+                            
                             io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
                             delete rooms[roomId];
                             updateRoomsList();
@@ -1934,6 +2163,7 @@ server.listen(PORT, '0.0.0.0', () => {
     // 방 유지 시간에 따른 자동 방 삭제 체크 (1분마다 확인)
     setInterval(() => {
         const now = new Date();
+        const today = now.toISOString().split('T')[0]; // YYYY-MM-DD 형식
         
         Object.keys(rooms).forEach(roomId => {
             const room = rooms[roomId];
@@ -1943,12 +2173,35 @@ server.listen(PORT, '0.0.0.0', () => {
                 const expiryHoursInMs = room.expiryHours * 60 * 60 * 1000; // 저장된 유지 시간을 밀리초로 변환
                 
                 if (elapsed >= expiryHoursInMs) {
-                    console.log(`방 ${roomId} (${room.roomName})이 ${room.expiryHours}시간 경과로 자동 삭제됩니다.`);
+                    const hasUsers = room.gameState.users.length > 0;
+                    console.log(`방 ${roomId} (${room.roomName})이 ${room.expiryHours}시간 경과로 자동 삭제됩니다. (사용자 수: ${room.gameState.users.length})`);
                     
-                    // 방에 있는 모든 사용자에게 방 삭제 알림
-                    io.to(roomId).emit('roomDeleted', {
-                        reason: `방이 ${room.expiryHours}시간 경과로 자동 삭제되었습니다.`
-                    });
+                    // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
+                    const gameState = room.gameState;
+                    if (gameState && gameState.history) {
+                        const todayGameRecords = gameState.history.filter(record => {
+                            return record.date === today && record.isGameActive === true;
+                        });
+                        todayGameRecords.forEach(record => {
+                            // 중복 체크 (이미 저장된 기록인지 확인)
+                            const alreadyExists = todayDiceRecords.some(r => 
+                                r.user === record.user && 
+                                r.result === record.result && 
+                                r.time === record.time &&
+                                r.date === record.date
+                            );
+                            if (!alreadyExists) {
+                                todayDiceRecords.push(record);
+                            }
+                        });
+                    }
+                    
+                    // 방에 사용자가 있을 때만 삭제 알림 전송
+                    if (hasUsers) {
+                        io.to(roomId).emit('roomDeleted', {
+                            reason: `방이 ${room.expiryHours}시간 경과로 자동 삭제되었습니다.`
+                        });
+                    }
                     
                     // 방 삭제
                     delete rooms[roomId];
@@ -1964,7 +2217,7 @@ server.listen(PORT, '0.0.0.0', () => {
                         isPrivate: r.isPrivate || false,
                         gameType: r.gameType || 'dice',
                         createdAt: r.createdAt,
-                        expiryHours: r.expiryHours || 3 // 기본값 3시간
+                        expiryHours: r.expiryHours || 1 // 기본값 1시간
                     }));
                     io.emit('roomsListUpdated', roomsList);
                 }

@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>LAM Dice :)</title>
+    <!-- Google Fonts - 귀여운 폰트 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <style>
@@ -1014,7 +1021,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎲 LAM Dice :)</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
+            <div id="todayDiceStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
+                <div>오늘의 주사위 횟수: <strong id="todayDiceCount">0</strong>회</div>
+                <div>평균값: <strong id="todayDiceAverage">0</strong></div>
+            </div>
+        </div>
 
         <!-- 대기실 섹션 -->
         <div class="lobby-section active" id="lobbySection">
@@ -1053,14 +1066,25 @@
             <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-17)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-18)</span>
 
-<b>🎯 하이/로우 게임 애니메이션 조건 수정</b>
-• 하이/로우 게임 애니메이션 조건이 반대로 되어 있던 버그 수정
+<b>📊 대기실 통계 기능 추가</b>
+• 대기실 우상단에 오늘의 주사위 굴린 횟수와 평균값 표시
+• 모든 방에서 진행된 공식전 기록을 집계하여 표시
+• 공식전만 포함 (연습 제외)
+• 방이 삭제되어도 기록 유지
+• 주사위 범위가 100이 아닐 때 1~100 범위로 정규화하여 평균 계산
+
+<b>🎮 게임 자동 종료 기능</b>
+• 모든 참여자가 주사위를 굴리면 자동으로 게임 종료
+• 게임 종료 시 결과 팝업 제거 (게임 기록에서만 확인 가능)
 
 ---
 
-<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-01-XX)</span>
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-17)</span>
+
+<b>🎯 하이/로우 게임 애니메이션 조건 수정</b>
+• 하이/로우 게임 애니메이션 조건이 반대로 되어 있던 버그 수정
 
 <b>🔒 IP 중복 체크 및 MAC 주소 체크 개선</b>
 • IP 추출 로직 개선 (IPv6, 프록시 환경 지원)
@@ -2189,6 +2213,7 @@
             if (document.getElementById('lobbySection').classList.contains('active')) {
                 document.body.classList.add('lobby-active');
                 refreshRooms();
+                refreshTodayDiceStats();
             }
         });
 
@@ -2377,7 +2402,19 @@
         // 방 목록 새로고침
         function refreshRooms() {
             socket.emit('getRooms');
+            refreshTodayDiceStats();
         }
+        
+        // 오늘의 주사위 통계 새로고침
+        function refreshTodayDiceStats() {
+            socket.emit('getTodayDiceStats');
+        }
+        
+        // 오늘의 주사위 통계 수신
+        socket.on('todayDiceStats', (stats) => {
+            document.getElementById('todayDiceCount').textContent = stats.count || 0;
+            document.getElementById('todayDiceAverage').textContent = stats.average || 0;
+        });
         
         // 방 생성 페이지로 이동
         function showCreateRoomPage() {
@@ -2749,9 +2786,30 @@
                     });
                 }
                 
+                // 게임 진행 중일 때 rolledUsers 복원
+                if (isGameActive && data.gameState.rolledUsers) {
+                    rolledUsersInGame = [...data.gameState.rolledUsers];
+                } else {
+                    rolledUsersInGame = [];
+                }
+                
                 renderHistory();
                 renderOrders();
                 updateUsers(usersList);
+                
+                // 진행 상황 업데이트
+                if (isGameActive && gamePlayers.length > 0) {
+                    const rolled = rolledUsersInGame.length;
+                    const total = gamePlayers.length;
+                    updateProgress({
+                        rolled: rolled,
+                        total: total,
+                        notRolledYet: gamePlayers.filter(p => !rolledUsersInGame.includes(p))
+                    });
+                }
+                
+                // 굴린 인원 수 업데이트
+                updateRolledUsersCount();
             }
             
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 표시
@@ -2761,20 +2819,30 @@
                 }, 100);
             }
             
-            // 채팅 기록 불러오기
-            if (data.chatHistory && data.chatHistory.length > 0) {
-                const chatMessages = document.getElementById('chatMessages');
+            // 채팅 기록 불러오기 (항상 초기화)
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
                 chatMessages.innerHTML = ''; // 기존 메시지 초기화
                 
-                // 채팅 기록을 순서대로 표시
-                data.chatHistory.forEach(chatMessage => {
-                    displayChatMessage(chatMessage);
-                });
-                
-                // 채팅 영역 스크롤을 맨 아래로
-                setTimeout(() => {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                }, 100);
+                if (data.chatHistory && data.chatHistory.length > 0) {
+                    // 채팅 기록을 순서대로 표시
+                    data.chatHistory.forEach(chatMessage => {
+                        displayChatMessage(chatMessage);
+                    });
+                    
+                    // 채팅 영역 스크롤을 맨 아래로
+                    setTimeout(() => {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }, 100);
+                } else {
+                    // 채팅 기록이 없으면 빈 상태 메시지 표시
+                    const emptyMessage = document.createElement('div');
+                    emptyMessage.textContent = '채팅 메시지가 없습니다';
+                    emptyMessage.style.textAlign = 'center';
+                    emptyMessage.style.color = '#999';
+                    emptyMessage.style.padding = '20px';
+                    chatMessages.appendChild(emptyMessage);
+                }
             }
             
             // 방 폭파 카운트다운 시작
@@ -2789,6 +2857,17 @@
                 document.getElementById('gameStatus').classList.remove('waiting');
                 document.getElementById('gameStatus').classList.add('playing');
                 document.getElementById('progressSection').style.display = 'block';
+                
+                // 진행 상황 업데이트 (재접속 시에도)
+                if (gamePlayers.length > 0) {
+                    const rolled = rolledUsersInGame.length;
+                    const total = gamePlayers.length;
+                    updateProgress({
+                        rolled: rolled,
+                        total: total,
+                        notRolledYet: gamePlayers.filter(p => !rolledUsersInGame.includes(p))
+                    });
+                }
                 
                 if (isHost) {
                     document.getElementById('startButton').style.display = 'none';
@@ -3796,7 +3875,8 @@
             isGameActive = true;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
-            historyData = [];
+            // historyData는 초기화하지 않음 (통계를 위해 누적 기록 유지)
+            // 현재 게임의 기록만 표시하려면 renderHistory에서 gamePlayers로 필터링
             
             // 게임 참여자 목록 업데이트
             gamePlayers = data.players || [];
@@ -3896,7 +3976,7 @@
             alert(message);
         });
 
-        socket.on('gameEnded', (history) => {
+        socket.on('gameEnded', (currentGameHistory) => {
             isGameActive = false;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
@@ -3904,7 +3984,8 @@
             // 애니메이션 완료 플래그 초기화 (게임 종료 시)
             window.lastRollerAnimationComplete = false;
             window.lastRollerAnimationCompleteTime = null;
-            historyData = history;
+            // historyData는 누적 기록을 유지하므로 업데이트하지 않음
+            // currentGameHistory는 현재 게임의 기록만 포함됨
             
             // 게임 기록 제목 변경 (연습경기로)
             document.getElementById('historyTitle').textContent = '📋 연습';
@@ -3939,19 +4020,6 @@
             updateGameRulesUI();
             
             renderHistory();
-            
-            let resultsText = '게임이 종료되었습니다!\n\n=== 최종 결과 ===\n\n';
-            
-            const sortedHistory = sortHistoryData([...history], currentSortMode);
-            
-            sortedHistory.forEach((record, index) => {
-                const maxValue = record.range && record.range.includes('~') ? record.range.split('~')[1] : (record.range || '100');
-                resultsText += `${index + 1}. ${record.user}: ${record.result} (${maxValue})\n`;
-            });
-            
-            resultsText += `\n총 ${history.length}번의 주사위가 굴려졌습니다.`;
-            
-            alert(resultsText);
             
             // 주사위 UI가 제거되어 결과는 게임 기록에서만 확인 가능
         });
@@ -4944,13 +5012,23 @@
         function renderHistory() {
             const historyList = document.getElementById('historyList');
             
-            if (historyData.length === 0) {
+            // 게임 진행 중일 때는 현재 게임의 기록만 필터링해서 표시
+            let displayData = historyData;
+            if (isGameActive && gamePlayers.length > 0) {
+                // 현재 게임의 참여자가 굴린 기록만 필터링
+                displayData = historyData.filter(record => {
+                    // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 표시
+                    return record.isGameActive === true && gamePlayers.includes(record.user);
+                });
+            }
+            
+            if (displayData.length === 0) {
                 historyList.innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
                 updateRolledUsersCount();
                 return;
             }
             
-            const sortedData = sortHistoryData(historyData, currentSortMode);
+            const sortedData = sortHistoryData(displayData, currentSortMode);
             
             historyList.innerHTML = '';
             
