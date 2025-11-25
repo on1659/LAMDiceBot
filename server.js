@@ -1,3 +1,6 @@
+// 환경 변수 로드 (.env 파일 지원)
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -5,6 +8,7 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const fs = require('fs');
+const OpenAI = require('openai');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,6 +20,349 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// OpenAI 클라이언트 초기화
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+}) : null;
+
+// GPT API 호출 함수 (채팅용)
+async function callGPT(prompt) {
+    if (!openai) {
+        throw new Error('OPENAI_API_KEY가 설정되지 않았습니다.');
+    }
+    
+    try {
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                {
+                    role: 'system',
+                    content: '당신은 친근하고 도움이 되는 AI 어시스턴트입니다. 한국어로 대화합니다.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            max_tokens: 500,
+            temperature: 0.7
+        });
+        
+        return completion.choices[0].message.content;
+    } catch (error) {
+        console.error('GPT API 오류:', error);
+        throw error;
+    }
+}
+
+function buildRuleSuggestionPrompt(seedText) {
+    const base = seedText && seedText.trim()
+        ? `다음 설명을 바탕으로 주사위 게임 룰을 한 문장으로 정리하고, 어떤 숫자가 걸리는지 명확히 말해주세요: ${seedText.trim()}`
+        : '창의적인 주사위 게임 룰을 한 문장으로 제안하고, 누가 걸리는지 명확히 말해주세요.';
+    return `${base} 한국어로 답하고, 80자 이내로 작성하세요.`;
+}
+
+function parseRuleInfo(gameRules = '') {
+    const text = (gameRules || '').toLowerCase();
+    if (!text) {
+        return { type: 'none' };
+    }
+    if (text.includes('니어')) {
+        const match = (gameRules || '').match(/니어\s*(\d+)/i);
+        return { type: 'near', target: match ? parseInt(match[1], 10) : null };
+    }
+    if (text.includes('하이') || text.includes('high')) {
+        return { type: 'high' };
+    }
+    if (text.includes('로우') || text.includes('low')) {
+        return { type: 'low' };
+    }
+    return { type: 'custom' };
+}
+
+function analyzeStandardRule(ruleInfo, allRolls) {
+    if (!ruleInfo || !Array.isArray(allRolls) || allRolls.length === 0) {
+        return null;
+    }
+
+    let caughtUsers = [];
+    let reason = '';
+    let analyses = {};
+
+    switch (ruleInfo.type) {
+        case 'high': {
+            const minResult = Math.min(...allRolls.map(r => r.result));
+            caughtUsers = allRolls.filter(r => r.result === minResult).map(r => r.user);
+            reason = `하이 룰 - 최저 ${minResult}이(가) 당첨입니다.`;
+            break;
+        }
+        case 'low': {
+            const maxResult = Math.max(...allRolls.map(r => r.result));
+            caughtUsers = allRolls.filter(r => r.result === maxResult).map(r => r.user);
+            reason = `로우 룰 - 최고 ${maxResult}이(가) 당첨입니다.`;
+            break;
+        }
+        case 'near': {
+            const target = typeof ruleInfo.target === 'number' && !Number.isNaN(ruleInfo.target)
+                ? ruleInfo.target
+                : null;
+            if (target === null) {
+                return null;
+            }
+            let smallestDiff = Infinity;
+            allRolls.forEach(roll => {
+                const diff = Math.abs(roll.result - target);
+                if (diff < smallestDiff) {
+                    smallestDiff = diff;
+                }
+            });
+            caughtUsers = allRolls
+                .filter(roll => Math.abs(roll.result - target) === smallestDiff)
+                .map(roll => roll.user);
+            reason = `니어 ${target} 룰 - 목표와 가장 가까운 수가 당첨입니다.`;
+            break;
+        }
+        default:
+            return null;
+    }
+
+    if (caughtUsers.length === 0) {
+        return null;
+    }
+
+    allRolls.forEach(roll => {
+        const isCaught = caughtUsers.includes(roll.user);
+        analyses[roll.user] = {
+            isPromising: !isCaught,
+            reason: !isCaught ? reason : ''
+        };
+    });
+
+    return {
+        analyses,
+        caughtUsers,
+        reason
+    };
+}
+
+function applyRuleAnalysisResults(room, gameState, allGameRolls, analyses) {
+    if (!analyses || Object.keys(analyses).length === 0) {
+        return;
+    }
+
+    const activeGameId = gameState.currentGameId || null;
+
+    allGameRolls.forEach(roll => {
+        const analysis = analyses[roll.user];
+        if (!analysis) {
+            return;
+        }
+
+        const historyRecord = gameState.history.find(h =>
+            h.user === roll.user &&
+            h.result === roll.result &&
+            h.isGameActive === true &&
+            h.gameId === activeGameId
+        );
+
+        if (historyRecord) {
+            historyRecord.isCaught = !analysis.isPromising;
+        }
+
+        if (analysis.isPromising && analysis.reason) {
+            const updatedRecord = {
+                user: roll.user,
+                result: roll.result,
+                isGPTAnimation: true,
+                gptReason: analysis.reason
+            };
+            io.to(room.roomId).emit('diceRolledUpdate', updatedRecord);
+        }
+    });
+
+    io.to(room.roomId).emit('historyUpdated', gameState.history);
+}
+
+function storePendingAnalysisMessage(gameState, label, caughtUsers, reason = '') {
+    if (!caughtUsers || caughtUsers.length === 0) {
+        gameState.pendingAnalysisMessage = null;
+        return;
+    }
+    gameState.pendingAnalysisMessage = {
+        label,
+        caughtUsers: [...caughtUsers],
+        reason: reason || ''
+    };
+}
+
+function emitPendingAnalysisMessage(gameState, room) {
+    const pending = gameState.pendingAnalysisMessage;
+    if (!pending || !pending.caughtUsers || pending.caughtUsers.length === 0) {
+        return;
+    }
+
+    const label = pending.label || 'AI';
+    const baseMessage = pending.caughtUsers.length === 1
+        ? `${pending.caughtUsers[0]} 당첨!`
+        : `${pending.caughtUsers.join(', ')} 님 당첨!`;
+    const fullMessage = pending.reason
+        ? `${baseMessage} (${pending.reason})`
+        : baseMessage;
+
+    const chatMessage = {
+        userName: label,
+        message: fullMessage,
+        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        isHost: false,
+        deviceType: 'pc',
+        isSystemMessage: true
+    };
+
+    gameState.chatHistory.push(chatMessage);
+    if (gameState.chatHistory.length > 100) {
+        gameState.chatHistory.shift();
+    }
+
+    io.to(room.roomId).emit('newMessage', chatMessage);
+    console.log(`[룰 분석] ${label}: ${fullMessage}`);
+    gameState.pendingAnalysisMessage = null;
+}
+
+function finalizeGameEnd(room, gameState, options = {}) {
+    if (!room || !gameState) {
+        return;
+    }
+
+    releasePendingLastRollRecord(room, gameState);
+
+    const finishedGameId = options.gameId ?? (gameState.currentGameId || null);
+    const playersSnapshot = options.players ?? [...gameState.gamePlayers];
+
+    emitPendingAnalysisMessage(gameState, room);
+    updateAnalysisStatus(room, gameState, false);
+
+    const currentGameHistory = gameState.history.filter(record => {
+        const isParticipant = playersSnapshot.length === 0 || playersSnapshot.includes(record.user);
+        if (finishedGameId !== null && finishedGameId !== undefined) {
+            return record.gameId === finishedGameId && isParticipant;
+        }
+        return record.isGameActive === true && isParticipant;
+    });
+
+    gameState.gamePlayers = [];
+    gameState.rolledUsers = [];
+    gameState.readyUsers = [];
+    gameState.allPlayersRolledMessageSent = false;
+    gameState.pendingAnalysisMessage = null;
+    gameState.lastCompletedGameId = finishedGameId;
+    gameState.waitingForAnimationAck = false;
+    gameState.pendingGameEndData = null;
+
+    if (gameState.animationAckTimeout) {
+        clearTimeout(gameState.animationAckTimeout);
+        gameState.animationAckTimeout = null;
+    }
+
+    io.to(room.roomId).emit('gameEnded', {
+        gameId: finishedGameId,
+        records: currentGameHistory
+    });
+    io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+    updateRoomsList();
+}
+
+function releasePendingLastRollRecord(room, gameState) {
+    if (!room || !gameState || !gameState.pendingLastRollRecord) {
+        return;
+    }
+
+    const record = gameState.pendingLastRollRecord;
+    record.isPendingReveal = false;
+    io.to(room.roomId).emit('historyUpdated', [record]);
+    gameState.pendingLastRollRecord = null;
+}
+
+function updateAnalysisStatus(room, gameState, isPending) {
+    if (!room || !gameState) {
+        return;
+    }
+    if (gameState.analysisPending === isPending) {
+        return;
+    }
+    gameState.analysisPending = isPending;
+    io.to(room.roomId).emit('analysisStatusUpdate', { isPending: !!isPending });
+}
+
+// 모든 주사위 결과를 한 번에 분석하는 함수 (비용 절감)
+async function analyzeAllDiceWithGPT(gameRules, allRolls) {
+    if (!openai || allRolls.length === 0) {
+        return {};
+    }
+    
+    try {
+        // 사람이름:결과 형식으로 변환
+        const rollsStr = allRolls.map(r => `${r.user}:${r.result}`).join(',');
+        
+        // 룰 중심 프롬프트 (최고/최저는 룰에 따라 필요할 때만 포함)
+        const rulesLower = (gameRules || '').toLowerCase();
+        const needsMaxMin = rulesLower.includes('하이') || rulesLower.includes('높') || 
+                           rulesLower.includes('로우') || rulesLower.includes('낮') || 
+                           rulesLower.includes('high') || rulesLower.includes('low');
+        
+        let prompt;
+        if (needsMaxMin) {
+            const results = allRolls.map(r => r.result);
+            const maxResult = Math.max(...results);
+            const minResult = Math.min(...results);
+            prompt = `룰:${gameRules || '높은수승'} 결과:${rollsStr} 최고:${maxResult} 최저:${minResult} 누가 걸렸는지 판단. JSON:{"걸린사람들":["이름1","이름2"],"이유":"한문장"}`;
+        } else {
+            prompt = `룰:${gameRules || '높은수승'} 결과:${rollsStr} 누가 걸렸는지 판단. JSON:{"걸린사람들":["이름1","이름2"],"이유":"한문장"}`;
+        }
+        
+        console.log(`[GPT API 호출] 프롬프트: ${prompt}`);
+
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                {
+                    role: 'system',
+                    content: '주사위 게임 분석. 주어진 룰만 정확히 따르고, 룰에 따라 걸린 사람들의 이름을 배열로 반환. JSON만 반환.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            max_tokens: 100,
+            temperature: 0.1,
+            response_format: { type: 'json_object' }
+        });
+        
+        const response = JSON.parse(completion.choices[0].message.content);
+        const caughtUsers = response.걸린사람들 || [];
+        const reason = response.이유 || '';
+        
+        console.log(`[GPT API 응답] 걸린사람들: [${caughtUsers.join(', ')}], 이유: ${reason}`);
+        
+        // 결과를 객체로 변환 {사용자이름: {isPromising: boolean, reason: string}}
+        // 걸리지 않은 사람 = 유리한 사람 (생존한 사람)
+        const result = {};
+        allRolls.forEach(roll => {
+            const isCaught = caughtUsers.includes(roll.user);
+            result[roll.user] = {
+                isPromising: !isCaught, // 걸리지 않았으면 유리함
+                reason: !isCaught ? reason : ''
+            };
+        });
+        
+        return result;
+    } catch (error) {
+        console.error('[GPT 분석 오류]', error.message);
+        return {};
+    }
+}
 
 // Rate Limiting 설정 - HTTP 요청 제한
 const limiter = rateLimit({
@@ -84,8 +431,31 @@ function createRoomGameState() {
         gameRules: '', // 게임 룰 (호스트만 설정, 게임 시작 후 수정 불가)
         frequentMenus: loadFrequentMenus(), // 자주 쓰는 메뉴 목록
         allPlayersRolledMessageSent: false, // 모든 참여자가 주사위를 굴렸다는 메시지 전송 여부
-        chatHistory: [] // 채팅 기록 (최대 100개)
+        chatHistory: [], // 채팅 기록 (최대 100개)
+        pendingAnalysisMessage: null, // 종료 직전 안내할 분석 메시지
+        analysisPending: false, // 룰 분석 대기 상태
+        currentGameId: 0, // 최근에 시작한 공식전 ID
+        lastCompletedGameId: null, // 마지막으로 끝난 공식전 ID
+        waitingForAnimationAck: false,
+        animationAckTimeout: null,
+        pendingGameEndData: null,
+        pendingLastRollRecord: null
     };
+}
+
+function updateRoomsList() {
+    const roomsList = Object.entries(rooms).map(([roomId, room]) => ({
+        roomId,
+        roomName: room.roomName,
+        hostName: room.hostName,
+        playerCount: room.gameState.users.length,
+        isGameActive: room.gameState.isGameActive,
+        isOrderActive: room.gameState.isOrderActive,
+        isPrivate: room.isPrivate || false,
+        gameType: room.gameType || 'dice'
+    }));
+
+    io.emit('roomsListUpdated', roomsList);
 }
 
 // 게임 상태 (하위 호환성을 위해 유지, 실제로는 각 방의 gameState 사용)
@@ -706,6 +1076,8 @@ io.on('connection', (socket) => {
                 myResult: myResult,
                 isGameActive: gameState.isGameActive,
                 isOrderActive: gameState.isOrderActive,
+                currentGameId: gameState.currentGameId || 0,
+                lastCompletedGameId: gameState.lastCompletedGameId,
                 isGamePlayer: gameState.gamePlayers.includes(userName.trim()),
                 readyUsers: gameState.readyUsers,
                 isReady: gameState.readyUsers.includes(userName.trim()),
@@ -844,6 +1216,8 @@ io.on('connection', (socket) => {
             myResult: myResult,
             isGameActive: gameState.isGameActive,
             isOrderActive: gameState.isOrderActive,
+            currentGameId: gameState.currentGameId || 0,
+            lastCompletedGameId: gameState.lastCompletedGameId,
             isGamePlayer: gameState.gamePlayers.includes(userName.trim()),
             readyUsers: gameState.readyUsers,
             isReady: true, // 방 입장 시 자동으로 준비 상태
@@ -1021,23 +1395,6 @@ io.on('connection', (socket) => {
         await leaveRoom(socket);
         socket.emit('roomLeft');
     });
-
-    // 방 목록 업데이트 (모든 클라이언트에게)
-    function updateRoomsList() {
-        const roomsList = Object.entries(rooms).map(([roomId, room]) => ({
-            roomId,
-            roomName: room.roomName,
-            hostName: room.hostName,
-            playerCount: room.gameState.users.length,
-            isGameActive: room.gameState.isGameActive,
-            isOrderActive: room.gameState.isOrderActive,
-            isPrivate: room.isPrivate || false,
-            gameType: room.gameType || 'dice' // 게임 타입 추가
-            // 비밀번호는 보안상 목록에 포함하지 않음
-        }));
-        
-        io.emit('roomsListUpdated', roomsList);
-    }
 
     // 방 제목 변경
     socket.on('updateRoomName', (data) => {
@@ -1373,6 +1730,44 @@ io.on('connection', (socket) => {
         
     });
 
+    socket.on('requestRuleSuggestion', async (data = {}) => {
+        if (!checkRateLimit()) return;
+
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('permissionError', 'Host만 GPT 룰 제안을 받을 수 있습니다!');
+            return;
+        }
+
+        if (gameState.isGameActive) {
+            socket.emit('rulesError', '게임이 진행 중이면 GPT 룰을 요청할 수 없습니다!');
+            return;
+        }
+
+        if (!openai) {
+            socket.emit('ruleSuggestion', { error: 'GPT 기능이 비활성화되어 있습니다. OPENAI_API_KEY를 확인해주세요.' });
+            return;
+        }
+
+        const seed = typeof data.seed === 'string' ? data.seed.trim() : '';
+        try {
+            const prompt = buildRuleSuggestionPrompt(seed);
+            console.log(`[GPT 룰 제안 요청] 방 ${room.roomName} - ${seed || '기본 제안'}`);
+            const suggestion = await callGPT(prompt);
+            socket.emit('ruleSuggestion', { suggestion: suggestion?.trim() || '' });
+        } catch (error) {
+            console.error(`[GPT 룰 제안 오류] 방 ${room.roomName}:`, error.message);
+            socket.emit('ruleSuggestion', { error: 'GPT 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' });
+        }
+    });
+
     // 준비 상태 토글
     socket.on('toggleReady', () => {
         if (!checkRateLimit()) return;
@@ -1527,6 +1922,10 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // 게임 ID 증가 (공식전 식별자)
+        gameState.currentGameId = (gameState.currentGameId || 0) + 1;
+        gameState.lastCompletedGameId = null;
+
         // 게임 시작 시 현재 룰 텍스트 영역의 값을 자동 저장 (저장 버튼을 누르지 않았어도)
         // 클라이언트에서 최신 룰을 받아와서 저장하는 것이 아니므로,
         // 서버의 현재 gameRules 값을 그대로 유지하고 모든 클라이언트에 동기화
@@ -1545,13 +1944,22 @@ io.on('connection', (socket) => {
         // 현재 게임의 기록만 표시하려면 gamePlayers로 필터링
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+        updateAnalysisStatus(room, gameState, false); // 이전 분석 상태 초기화
+        gameState.pendingAnalysisMessage = null; // 이전 분석 결과 초기화
+        gameState.waitingForAnimationAck = false;
+        gameState.pendingGameEndData = null;
+        if (gameState.animationAckTimeout) {
+            clearTimeout(gameState.animationAckTimeout);
+            gameState.animationAckTimeout = null;
+        }
         
         // 게임 시작 시 같은 방의 모든 클라이언트에게 현재 룰을 동기화 (게임 시작 = 룰 확정)
         io.to(room.roomId).emit('gameRulesUpdated', gameState.gameRules);
         
         io.to(room.roomId).emit('gameStarted', {
             players: gameState.gamePlayers,
-            totalPlayers: gameState.gamePlayers.length
+            totalPlayers: gameState.gamePlayers.length,
+            currentGameId: gameState.currentGameId
         });
         
         // 게임 시작 시 채팅에 게임 시작 메시지와 룰 전송
@@ -1607,25 +2015,14 @@ io.on('connection', (socket) => {
             socket.emit('permissionError', 'Host만 게임을 종료할 수 있습니다!');
             return;
         }
+
+        if (gameState.analysisPending) {
+            socket.emit('gameError', '룰 분석이 진행 중입니다. 잠시만 기다려주세요!');
+            return;
+        }
         
         gameState.isGameActive = false;
-        
-        // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
-        const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
-        const currentGameHistory = gameState.history.filter(record => {
-            // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
-            return record.isGameActive === true && currentGamePlayers.includes(record.user);
-        });
-        
-        gameState.gamePlayers = []; // 참여자 목록 초기화
-        gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
-        gameState.readyUsers = []; // 준비 상태 초기화
-        gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
-        io.to(room.roomId).emit('gameEnded', currentGameHistory);
-        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
-        
-        // 방 목록 업데이트 (게임 상태 변경)
-        updateRoomsList();
+        finalizeGameEnd(room, gameState);
         
         console.log(`방 ${room.roomName} 게임 종료, 총`, gameState.history.length, '번 굴림');
     });
@@ -1660,6 +2057,17 @@ io.on('connection', (socket) => {
         gameState.gamePlayers = [];
         gameState.userOrders = {};
         gameState.gameRules = '';
+        gameState.pendingAnalysisMessage = null;
+        gameState.currentGameId = 0;
+        gameState.lastCompletedGameId = null;
+        gameState.waitingForAnimationAck = false;
+        gameState.pendingGameEndData = null;
+        gameState.pendingLastRollRecord = null;
+        if (gameState.animationAckTimeout) {
+            clearTimeout(gameState.animationAckTimeout);
+            gameState.animationAckTimeout = null;
+        }
+        updateAnalysisStatus(room, gameState, false);
         
         // 같은 방의 모든 클라이언트에게 업데이트 전송
         io.to(room.roomId).emit('gameDataCleared');
@@ -1670,7 +2078,7 @@ io.on('connection', (socket) => {
     });
 
     // 주사위 굴리기 요청 (클라이언트 시드 기반)
-    socket.on('requestRoll', (data) => {
+    socket.on('requestRoll', async (data) => {
         if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
@@ -1746,6 +2154,74 @@ io.on('connection', (socket) => {
         const isLastRoller = gameState.isGameActive && gameState.gamePlayers.length > 0 && 
                              !gameState.rolledUsers.includes(userName) && !isNotReady &&
                              (gameState.rolledUsers.length === gameState.gamePlayers.length - 1);
+        
+        const ruleInfo = parseRuleInfo(gameState.gameRules);
+        
+        // 마지막 사람이 굴렸을 때만 AI/룰 분석 수행
+        if (isLastRoller && gameState.isGameActive && gameState.gamePlayers.length > 0 && !isNotReady) {
+            if (openai) {
+                console.log(`[룰 분석 디버그] ${userName} 굴림 - isLastRoller: ${isLastRoller}, rolledUsers: ${gameState.rolledUsers.length}/${gameState.gamePlayers.length}, ruleType: ${ruleInfo.type}, openai: ${!!openai}`);
+            }
+            
+            // 모든 게임 참여자의 주사위 결과 수집 (현재 사용자 포함)
+            // 현재 사용자의 결과는 아직 history에 추가되지 않았으므로 직접 추가
+            const allGameRolls = gameState.history
+                .filter(h => 
+                    h.isGameActive === true && // 게임 진행 중인 주사위만
+                    gameState.gamePlayers.includes(h.user)
+                )
+                .map(h => ({ 
+                    user: h.user, 
+                    result: h.result
+                }));
+            
+            // 현재 사용자의 결과 추가 (아직 history에 저장되지 않았으므로)
+            allGameRolls.push({ user: userName, result: result });
+            
+            console.log(`[룰 분석] 수집된 주사위 결과: ${allGameRolls.map(r => `${r.user}:${r.result}`).join(', ')}`);
+            
+            // 첫 번째 굴림은 비교할 결과가 없으므로 GPT 호출 안 함
+            if (allGameRolls.length <= 1) {
+                console.log(`[룰 분석] 첫 번째 굴림이므로 분석 생략`);
+                return;
+            }
+            
+            const standardResult = analyzeStandardRule(ruleInfo, allGameRolls);
+            if (standardResult) {
+                applyRuleAnalysisResults(room, gameState, allGameRolls, standardResult.analyses);
+                storePendingAnalysisMessage(gameState, '룰 엔진', standardResult.caughtUsers, standardResult.reason);
+                console.log(`[룰 분석] 방 ${room.roomName} - 표준 룰 결과 대기 (caught: ${standardResult.caughtUsers.join(', ')})`);
+            }
+
+            if (!standardResult && (!openai || ruleInfo.type !== 'custom')) {
+                console.log(`[룰 분석] 방 ${room.roomName} - GPT 분석 생략 (커스텀 룰이 아니거나 GPT 비활성)`);
+            } else if (!standardResult) {
+                console.log(`[GPT 분석 시작] 방 ${room.roomName} - 커스텀 룰 분석`);
+                
+                Promise.race([
+                    analyzeAllDiceWithGPT(gameState.gameRules, allGameRolls),
+                    new Promise((resolve) => setTimeout(() => resolve({}), 2000)) // 2초 타임아웃
+                ]).then(gptAnalyses => {
+                    if (!gptAnalyses || Object.keys(gptAnalyses).length === 0) {
+                        console.log(`[GPT 분석] 결과 없음`);
+                        return;
+                    }
+                    
+                    console.log(`[GPT 분석 완료] 방 ${room.roomName} - ${Object.keys(gptAnalyses).length}개 결과 분석 완료`);
+                    applyRuleAnalysisResults(room, gameState, allGameRolls, gptAnalyses);
+                    const caughtUsers = allGameRolls
+                        .filter(roll => {
+                            const analysis = gptAnalyses[roll.user];
+                            return analysis && !analysis.isPromising;
+                        })
+                        .map(roll => roll.user);
+                    const reason = Object.values(gptAnalyses).find(a => a.reason)?.reason || '';
+                    storePendingAnalysisMessage(gameState, 'AI', caughtUsers, reason);
+                }).catch(error => {
+                    console.error(`[GPT 분석 오류] 방 ${room.roomName}:`, error.message);
+                });
+            }
+        }
         
         // 하이 게임 애니메이션 조건 확인
         let isHighGameAnimation = false;
@@ -1823,6 +2299,8 @@ io.on('connection', (socket) => {
             }
         }
         
+        const isGPTAnimation = false;
+        const gptReason = '';
         const now = new Date();
         const record = {
             user: userName,
@@ -1830,6 +2308,7 @@ io.on('connection', (socket) => {
             time: now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             date: now.toISOString().split('T')[0], // YYYY-MM-DD 형식으로 날짜 저장
             isGameActive: gameState.isGameActive, // 게임 진행 중일 때 굴린 주사위인지 플래그
+            gameId: gameState.isGameActive ? gameState.currentGameId : null, // 공식전 식별자
             seed: clientSeed, // 검증을 위해 시드 저장
             range: `${diceMin}~${diceMax}`,
             isNotReady: isNotReady, // 준비하지 않은 사람인지 플래그
@@ -1837,7 +2316,10 @@ io.on('connection', (socket) => {
             isLastRoller: isLastRoller, // 마지막 굴리는 사람인지 플래그
             isHighGameAnimation: isHighGameAnimation, // 하이 게임 애니메이션 플래그
             isLowGameAnimation: isLowGameAnimation, // 로우 게임 애니메이션 플래그
-            isNearGameAnimation: isNearGameAnimation // 니어 게임 애니메이션 플래그
+            isNearGameAnimation: isNearGameAnimation, // 니어 게임 애니메이션 플래그
+            isGPTAnimation: isGPTAnimation, // GPT 분석 기반 애니메이션 플래그
+            gptReason: gptReason, // GPT 분석 이유
+            isCaught: false // 걸린 사람 여부 (GPT 분석 후 업데이트됨)
         };
 
         // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람은 제외)
@@ -1846,6 +2328,12 @@ io.on('connection', (socket) => {
         
         // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장 (준비하지 않은 사람 제외)
         if ((isNotGameActive || isFirstRollInGame) && !isNotReady) {
+            if (isLastRoller && gameState.isGameActive) {
+                record.isPendingReveal = true;
+                gameState.pendingLastRollRecord = record;
+            } else {
+                record.isPendingReveal = false;
+            }
             gameState.history.push(record);
             
             // 오늘의 주사위 통계 업데이트 (모든 클라이언트에게 전송)
@@ -1878,7 +2366,9 @@ io.on('connection', (socket) => {
                     isLastRoller: isLastRoller,
                     isHighGameAnimation: isHighGameAnimation,
                     isLowGameAnimation: isLowGameAnimation,
-                    isNearGameAnimation: isNearGameAnimation
+                    isNearGameAnimation: isNearGameAnimation,
+                    isGPTAnimation: isGPTAnimation,
+                    gptReason: gptReason
                 };
                 break;
             }
@@ -1927,27 +2417,23 @@ io.on('connection', (socket) => {
                 
                 console.log(`방 ${room.roomName}: 모든 참여자가 주사위를 굴렸습니다!`);
                 
-                // 모든 참여자가 주사위를 굴렸으면 자동으로 게임 종료
+                // 모든 참여자가 주사위를 굴렸으면 자동으로 게임 종료 (애니메이션 완료 후)
                 gameState.isGameActive = false;
+                const pendingData = {
+                    gameId: gameState.currentGameId || null,
+                    players: [...gameState.gamePlayers]
+                };
+                gameState.pendingGameEndData = pendingData;
+                gameState.waitingForAnimationAck = true;
+
+                if (gameState.animationAckTimeout) {
+                    clearTimeout(gameState.animationAckTimeout);
+                }
+                gameState.animationAckTimeout = setTimeout(() => {
+                    finalizeGameEnd(room, gameState, pendingData);
+                }, 5000);
                 
-                // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
-                const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
-                const currentGameHistory = gameState.history.filter(record => {
-                    // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
-                    return record.isGameActive === true && currentGamePlayers.includes(record.user);
-                });
-                
-                gameState.gamePlayers = []; // 참여자 목록 초기화
-                gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
-                gameState.readyUsers = []; // 준비 상태 초기화
-                gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
-                io.to(room.roomId).emit('gameEnded', currentGameHistory);
-                io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
-                
-                // 방 목록 업데이트 (게임 상태 변경)
-                updateRoomsList();
-                
-                console.log(`방 ${room.roomName} 게임 자동 종료, 총`, currentGameHistory.length, '번 굴림');
+                console.log('방 ' + room.roomName + ' 게임 자동 종료 대기 (애니메이션), 총 ' + pendingData.players.length + '명 참여');
             }
         } else {
             console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax})`);
@@ -1986,6 +2472,85 @@ io.on('connection', (socket) => {
             return;
         }
         
+        const trimmedMessage = message.trim();
+        
+        // GPT 명령어 처리 (/gpt 또는 /ai로 시작하는 경우)
+        if (trimmedMessage.startsWith('/gpt ') || trimmedMessage.startsWith('/ai ')) {
+            const gptPrompt = trimmedMessage.replace(/^\/gpt |^\/ai /, '').trim();
+            
+            if (!gptPrompt) {
+                socket.emit('chatError', 'GPT에게 물어볼 내용을 입력해주세요! (예: /gpt 안녕하세요)');
+                return;
+            }
+            
+            if (!openai) {
+                socket.emit('chatError', 'GPT 기능이 설정되지 않았습니다. OPENAI_API_KEY를 확인해주세요.');
+                return;
+            }
+            
+            // 사용자 메시지 먼저 전송
+            const userMessage = {
+                userName: user.name,
+                message: trimmedMessage,
+                time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                isHost: user.isHost,
+                deviceType: 'pc'
+            };
+            
+            gameState.chatHistory.push(userMessage);
+            if (gameState.chatHistory.length > 100) {
+                gameState.chatHistory.shift();
+            }
+            io.to(room.roomId).emit('newMessage', userMessage);
+            
+            // GPT 응답 대기 중 메시지
+            const loadingMessage = {
+                userName: 'GPT',
+                message: '🤔 생각 중...',
+                time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                isHost: false,
+                deviceType: 'pc',
+                isSystemMessage: true
+            };
+            io.to(room.roomId).emit('newMessage', loadingMessage);
+            
+            // GPT API 호출 (비동기)
+            callGPT(gptPrompt)
+                .then(gptResponse => {
+                    // 로딩 메시지 제거하고 실제 응답 전송
+                    const gptMessage = {
+                        userName: 'GPT',
+                        message: gptResponse,
+                        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                        isHost: false,
+                        deviceType: 'pc',
+                        isSystemMessage: true
+                    };
+                    
+                    gameState.chatHistory.push(gptMessage);
+                    if (gameState.chatHistory.length > 100) {
+                        gameState.chatHistory.shift();
+                    }
+                    io.to(room.roomId).emit('newMessage', gptMessage);
+                    console.log(`방 ${room.roomName} GPT 응답: ${gptResponse.substring(0, 50)}...`);
+                })
+                .catch(error => {
+                    const errorMessage = {
+                        userName: 'GPT',
+                        message: `❌ 오류가 발생했습니다: ${error.message}`,
+                        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                        isHost: false,
+                        deviceType: 'pc',
+                        isSystemMessage: true
+                    };
+                    io.to(room.roomId).emit('newMessage', errorMessage);
+                    console.error(`방 ${room.roomName} GPT 오류:`, error);
+                });
+            
+            return;
+        }
+        
+        // 일반 채팅 메시지 처리
         // User Agent로 디바이스 타입 확인
         const userAgent = socket.handshake.headers['user-agent'] || '';
         let deviceType = 'pc'; // 기본값은 PC
@@ -1997,7 +2562,7 @@ io.on('connection', (socket) => {
         
         const chatMessage = {
             userName: user.name,
-            message: message.trim(),
+            message: trimmedMessage,
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             isHost: user.isHost,
             deviceType: deviceType // 디바이스 타입 추가
@@ -2012,7 +2577,31 @@ io.on('connection', (socket) => {
         // 같은 방의 모든 클라이언트에게 채팅 메시지 전송
         io.to(room.roomId).emit('newMessage', chatMessage);
         
-        console.log(`방 ${room.roomName} 채팅: ${user.name}: ${message.trim()}`);
+        console.log(`방 ${room.roomName} 채팅: ${user.name}: ${trimmedMessage}`);
+    });
+
+    // 마지막 주사위 애니메이션 완료 알림
+    socket.on('lastRollAnimationFinished', (data = {}) => {
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            return;
+        }
+
+        if (!gameState.waitingForAnimationAck || !gameState.pendingGameEndData) {
+            return;
+        }
+
+        const pendingData = gameState.pendingGameEndData;
+        const ackGameId = data.gameId;
+        if (typeof ackGameId === 'number' && pendingData.gameId !== null && pendingData.gameId !== undefined) {
+            if (pendingData.gameId !== ackGameId) {
+                return;
+            }
+        }
+
+        releasePendingLastRollRecord(room, gameState);
+        finalizeGameEnd(room, gameState, pendingData);
     });
 
     // 연결 해제
@@ -2158,6 +2747,13 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('=================================');
     console.log(`🎲 주사위 게임 서버 시작!`);
     console.log(`포트: ${PORT}`);
+    if (openai) {
+        console.log('✅ GPT 기능 활성화됨 (채팅, 룰 제안, 주사위 분석)');
+    } else {
+        console.log('⚠️  GPT 기능 비활성화됨 (OPENAI_API_KEY가 설정되지 않았습니다)');
+        console.log('   .env 파일에 OPENAI_API_KEY=your-api-key 추가하거나');
+        console.log('   환경 변수로 설정해주세요.');
+    }
     console.log('=================================');
     
     // 방 유지 시간에 따른 자동 방 삭제 체크 (1분마다 확인)

@@ -974,6 +974,122 @@
             color: #1976d2;
             margin-bottom: 10px;
         }
+        
+        .rule-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .rule-option-card {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 12px;
+            padding: 12px;
+            border: 2px solid #d6d9f5;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .rule-option-card input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            margin-top: 4px;
+        }
+
+        .rule-option-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .rule-option-card input[type="radio"]:checked + div {
+            color: #000;
+        }
+
+        .rule-option-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .rule-option-desc {
+            font-size: 13px;
+            color: #555;
+        }
+
+        .near-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .near-input-wrapper input {
+            width: 100px;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        .rule-option-card textarea {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            resize: vertical;
+        }
+
+        .rule-gpt-button {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .rule-gpt-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .rule-gpt-hint {
+            display: block;
+            margin-top: 4px;
+            color: #666;
+            font-size: 11px;
+        }
+
+        .rule-summary {
+            background: #e8ecff;
+            border: 1px dashed #667eea;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            color: #3a3f63;
+        }
+
+        .rule-summary-card {
+            margin-bottom: 12px;
+        }
+
+        .rule-summary-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4c51bf;
+            margin-bottom: 6px;
+        }
+
+        .rule-editor-panel {
+            display: none;
+            margin-top: 12px;
+        }
 
         .dice-range-inputs {
             display: grid;
@@ -1381,19 +1497,54 @@
             <!-- 2. 게임 룰 섹션 -->
             <div class="game-rules-section" id="gameRulesSection" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
                 <div class="dice-settings-title">📋 게임 룰</div>
-                <div class="input-group">
-                    <textarea 
-                        id="gameRulesInput" 
-                        placeholder="게임 룰을 입력하세요. (하이,로우,니어 등 다양하게 적으시면 됩니다.) "
-                        maxlength="500"
-                        rows="3"
-                        disabled
-                    ></textarea>
+                <div class="rule-summary-card">
+                    <div class="rule-summary-title">현재 적용된 룰</div>
+                    <div id="selectedRuleSummary" class="rule-summary">선택된 룰이 없습니다.</div>
                 </div>
-                <button onclick="updateGameRules()" id="gameRulesSaveButton" style="width: auto; padding: 12px 20px;" disabled>저장</button>
-                <div style="margin-top: 8px; font-size: 12px; color: #999;">
-                    게임 시작 전에만 수정 가능합니다
+                <div id="ruleEditorPanel" class="rule-editor-panel">
+                    <div class="rule-options" id="ruleOptionsContainer">
+                        <label class="rule-option-card">
+                            <input type="radio" name="ruleType" value="high" />
+                            <div>
+                                <div class="rule-option-title">1. 하이</div>
+                                <div class="rule-option-desc">가장 낮은 사람이 걸립니다.</div>
+                            </div>
+                        </label>
+                        <label class="rule-option-card">
+                            <input type="radio" name="ruleType" value="low" />
+                            <div>
+                                <div class="rule-option-title">2. 로우</div>
+                                <div class="rule-option-desc">가장 높은 사람이 걸립니다.</div>
+                            </div>
+                        </label>
+                        <label class="rule-option-card">
+                            <input type="radio" name="ruleType" value="near" />
+                            <div>
+                                <div class="rule-option-title">3. 니어 N</div>
+                                <div class="rule-option-desc">설정한 숫자에 가장 근접한 사람이 걸립니다.</div>
+                                <div class="near-input-wrapper">
+                                    <span>N</span>
+                                    <input type="number" id="nearTargetInput" min="1" max="9999" placeholder="예: 50" />
+                                </div>
+                            </div>
+                        </label>
+                        <label class="rule-option-card">
+                            <input type="radio" name="ruleType" value="custom" />
+                            <div>
+                                <div class="rule-option-title">4. 기타</div>
+                                <div class="rule-option-desc">텍스트로 자유롭게 룰을 작성하세요.</div>
+                                <textarea id="customRuleText" rows="3" maxlength="300" placeholder="예: 짝수만 나오면 미션 수행"></textarea>
+                                <button type="button" id="gptRuleButton" class="rule-gpt-button">GPT에게 설명 부탁하기</button>
+                                <small class="rule-gpt-hint">GPT가 짧은 룰 문장을 제안합니다.</small>
+                            </div>
+                        </label>
+                    </div>
+                    <button onclick="updateGameRules()" id="gameRulesSaveButton" style="width: auto; padding: 12px 20px;" disabled>저장</button>
+                    <div style="margin-top: 8px; font-size: 12px; color: #999;">
+                        게임 시작 전에만 수정 가능합니다
+                    </div>
                 </div>
+                <textarea id="gameRulesInput" style="display:none;"></textarea>
             </div>
 
 
@@ -1876,6 +2027,11 @@
         let isReady = false; // 내 준비 상태
         let currentSuggestions = []; // 현재 자동완성 제안 목록
         let selectedSuggestionIndex = -1; // 선택된 제안 인덱스
+        let ruleSelectionInitialized = false;
+        let isRequestingRuleSuggestion = false;
+        let currentGameId = null; // 진행 중인 공식전 ID
+        let lastCompletedGameId = null; // 마지막으로 종료된 공식전 ID
+        let lastAnimationAckGameId = null;
 
         // 기기 식별 정보 생성 함수
         function getDeviceId() {
@@ -2687,11 +2843,15 @@
             myDiceSettings = data.diceSettings || { max: 100 };
             isGameActive = data.isGameActive;
             isOrderActive = data.isOrderActive;
+            currentGameId = data.currentGameId ?? (data.gameState ? data.gameState.currentGameId : null);
+            lastCompletedGameId = data.lastCompletedGameId ?? (data.gameState ? data.gameState.lastCompletedGameId : null);
             
-            // 게임 기록 제목 설정
+            // 게임 기록 제목 설정 (기록의 isGameActive 상태 확인)
             const historyTitle = document.getElementById('historyTitle');
             if (historyTitle) {
-                historyTitle.textContent = isGameActive ? '📋 게임' : '📋 연습';
+                // 기록 중에 게임 진행 중인 기록이 있는지 확인
+                const hasGameRecords = historyData.some(record => record.isGameActive === true);
+                historyTitle.textContent = (isGameActive || hasGameRecords) ? '📋 게임 기록' : '📋 연습 기록';
             }
             
             // 비공개 방 비밀번호 표시
@@ -3790,7 +3950,13 @@
         // 게임 룰 업데이트
         function updateGameRules() {
             const rulesInput = document.getElementById('gameRulesInput');
+            if (!rulesInput) return;
+            syncRuleTextToHiddenField();
             const rules = rulesInput.value.trim();
+            if (!rules) {
+                alert('룰을 먼저 선택하거나 입력해주세요.');
+                return;
+            }
 
             socket.emit('updateGameRules', {
                 rules: rules
@@ -3799,11 +3965,19 @@
 
         // 게임 룰 UI 업데이트 (게임 시작 상태에 따라 편집 가능 여부 결정)
         function updateGameRulesUI() {
-            const rulesInput = document.getElementById('gameRulesInput');
             const rulesSaveButton = document.getElementById('gameRulesSaveButton');
+            const ruleRadios = document.querySelectorAll('.rule-option-card input[type="radio"]');
+            const nearInput = document.getElementById('nearTargetInput');
+            const customRuleText = document.getElementById('customRuleText');
+            const gptRuleButton = document.getElementById('gptRuleButton');
+            const ruleEditorPanel = document.getElementById('ruleEditorPanel');
             
-            if (!rulesInput || !rulesSaveButton) {
+            if (!rulesSaveButton || ruleRadios.length === 0) {
                 return; // 요소가 없으면 종료
+            }
+            
+            if (ruleEditorPanel) {
+                ruleEditorPanel.style.display = isHost ? 'block' : 'none';
             }
             
             // 저장 버튼은 호스트만 보이게
@@ -3818,16 +3992,24 @@
             // 방에 입장하지 않은 경우를 대비해 isHost도 확인
             const canEdit = isHost && (isGameActive === false || isGameActive === undefined || !isGameActive);
             
-            if (canEdit) {
-                rulesInput.disabled = false;
-                rulesSaveButton.disabled = false;
-                rulesInput.style.cursor = 'text';
-                rulesInput.style.backgroundColor = '#ffffff';
-            } else {
-                rulesInput.disabled = true;
-                rulesSaveButton.disabled = true;
-                rulesInput.style.cursor = 'not-allowed';
-                rulesInput.style.backgroundColor = '#f5f5f5';
+            const hasValidRule = !!composeRuleTextFromUI();
+            rulesSaveButton.disabled = !canEdit || !hasValidRule;
+            ruleRadios.forEach(radio => {
+                radio.disabled = !canEdit;
+                radio.parentElement.classList.toggle('locked', !canEdit);
+            });
+
+            const selectedType = getSelectedRuleType();
+            if (nearInput) {
+                nearInput.disabled = !canEdit || selectedType !== 'near';
+            }
+
+            if (customRuleText) {
+                customRuleText.disabled = !canEdit || selectedType !== 'custom';
+            }
+
+            if (gptRuleButton) {
+                gptRuleButton.disabled = !canEdit || selectedType !== 'custom' || !customRuleText.value.trim() || isRequestingRuleSuggestion;
             }
             
             console.log('게임 룰 UI 업데이트:', { isHost, isGameActive, canEdit });
@@ -3835,11 +4017,190 @@
 
         // 게임 룰 업데이트 수신
         socket.on('gameRulesUpdated', (rules) => {
-            document.getElementById('gameRulesInput').value = rules || '';
+            const hiddenRulesInput = document.getElementById('gameRulesInput');
+            if (hiddenRulesInput) {
+                hiddenRulesInput.value = rules || '';
+            }
+            applyRuleSelectionFromText(rules || '');
+            updateRuleSummary(rules || '선택된 룰이 없습니다.');
             console.log('게임 룰이 업데이트되었습니다:', rules);
             // UI 업데이트
             updateGameRulesUI();
         });
+
+        socket.on('ruleSuggestion', (payload) => {
+            isRequestingRuleSuggestion = false;
+            const gptButton = document.getElementById('gptRuleButton');
+            if (gptButton) {
+                gptButton.textContent = 'GPT에게 설명 부탁하기';
+            }
+            if (payload?.error) {
+                alert(payload.error);
+                updateGameRulesUI();
+                return;
+            }
+
+            const suggestion = (payload?.suggestion || '').trim();
+            if (!suggestion) {
+                alert('GPT가 유효한 제안을 제공하지 못했습니다.');
+                updateGameRulesUI();
+                return;
+            }
+
+            const customRadio = document.querySelector('input[name="ruleType"][value="custom"]');
+            const customRuleText = document.getElementById('customRuleText');
+            if (customRadio) {
+                customRadio.checked = true;
+            }
+            if (customRuleText) {
+                customRuleText.value = suggestion;
+            }
+            handleRuleSelectionChange();
+        });
+
+        function setupRuleSelectionEvents() {
+            if (ruleSelectionInitialized) return;
+            ruleSelectionInitialized = true;
+            const radios = document.querySelectorAll('input[name="ruleType"]');
+            radios.forEach(radio => {
+                radio.addEventListener('change', handleRuleSelectionChange);
+            });
+
+            const nearInput = document.getElementById('nearTargetInput');
+            if (nearInput) {
+                nearInput.addEventListener('input', () => {
+                    const nearRadio = document.querySelector('input[name="ruleType"][value="near"]');
+                    if (nearRadio && nearRadio.checked) {
+                        handleRuleSelectionChange();
+                    }
+                });
+            }
+
+            const customRuleText = document.getElementById('customRuleText');
+            if (customRuleText) {
+                customRuleText.addEventListener('input', () => {
+                    if (document.querySelector('input[name="ruleType"][value="custom"]')?.checked) {
+                        handleRuleSelectionChange();
+                    }
+                    updateGameRulesUI();
+                });
+            }
+
+            const gptButton = document.getElementById('gptRuleButton');
+            if (gptButton) {
+                gptButton.addEventListener('click', requestGptRuleSuggestion);
+            }
+
+            handleRuleSelectionChange();
+        }
+
+        function requestGptRuleSuggestion() {
+            if (isRequestingRuleSuggestion) return;
+            const customRuleText = document.getElementById('customRuleText');
+            if (!customRuleText) return;
+            const seed = customRuleText.value.trim();
+            if (!seed) {
+                alert('GPT에게 전달할 간단한 설명을 입력해주세요.');
+                return;
+            }
+
+            isRequestingRuleSuggestion = true;
+            const gptButton = document.getElementById('gptRuleButton');
+            if (gptButton) {
+                gptButton.textContent = 'GPT가 작성 중...';
+            }
+            socket.emit('requestRuleSuggestion', { seed });
+            updateGameRulesUI();
+        }
+
+        function getSelectedRuleType() {
+            const selected = document.querySelector('input[name="ruleType"]:checked');
+            return selected ? selected.value : null;
+        }
+
+        function composeRuleTextFromUI() {
+            const type = getSelectedRuleType();
+            const nearInput = document.getElementById('nearTargetInput');
+            const customRuleText = document.getElementById('customRuleText');
+
+            switch (type) {
+                case 'high':
+                    return '하이 - 가장 낮은 사람이 걸립니다.';
+                case 'low':
+                    return '로우 - 가장 높은 사람이 걸립니다.';
+                case 'near':
+                    if (!nearInput) return '';
+                    const nearValue = parseInt(nearInput.value, 10);
+                    if (Number.isNaN(nearValue)) return '';
+                    return `니어 ${nearValue} - ${nearValue}에 가장 가까운 사람이 걸립니다.`;
+                case 'custom':
+                    return customRuleText ? customRuleText.value.trim() : '';
+                default:
+                    return '';
+            }
+        }
+
+        function syncRuleTextToHiddenField() {
+            const hidden = document.getElementById('gameRulesInput');
+            if (!hidden) return;
+            hidden.value = composeRuleTextFromUI();
+        }
+
+        function handleRuleSelectionChange() {
+            syncRuleTextToHiddenField();
+            const nextRuleText = document.getElementById('gameRulesInput')?.value || '';
+            updateRuleSummary(nextRuleText || '선택된 룰이 없습니다.');
+            updateGameRulesUI();
+        }
+
+        function updateRuleSummary(text) {
+            const summary = document.getElementById('selectedRuleSummary');
+            if (!summary) return;
+            summary.textContent = text || '선택된 룰이 없습니다.';
+        }
+
+        function applyRuleSelectionFromText(rulesText) {
+            const trimmed = (rulesText || '').trim();
+            const radios = {
+                high: document.querySelector('input[name="ruleType"][value="high"]'),
+                low: document.querySelector('input[name="ruleType"][value="low"]'),
+                near: document.querySelector('input[name="ruleType"][value="near"]'),
+                custom: document.querySelector('input[name="ruleType"][value="custom"]')
+            };
+            const customRuleText = document.getElementById('customRuleText');
+            const nearInput = document.getElementById('nearTargetInput');
+
+            if (!trimmed) {
+                Object.values(radios).forEach(radio => {
+                    if (radio) radio.checked = false;
+                });
+                updateRuleSummary('선택된 룰이 없습니다.');
+                return;
+            }
+
+            if (trimmed.startsWith('하이') && radios.high) {
+                radios.high.checked = true;
+            } else if (trimmed.startsWith('로우') && radios.low) {
+                radios.low.checked = true;
+            } else if (trimmed.toLowerCase().includes('니어') && radios.near) {
+                radios.near.checked = true;
+                if (nearInput) {
+                    const match = trimmed.match(/니어\s*(\d+)/i);
+                    if (match) {
+                        nearInput.value = match[1];
+                    }
+                }
+            } else if (radios.custom) {
+                radios.custom.checked = true;
+                if (customRuleText) {
+                    customRuleText.value = trimmed;
+                }
+            }
+
+            handleRuleSelectionChange();
+        }
+
+        document.addEventListener('DOMContentLoaded', setupRuleSelectionEvents);
 
         socket.on('rulesError', (message) => {
             alert(message);
@@ -3873,6 +4234,9 @@
 
         socket.on('gameStarted', (data) => {
             isGameActive = true;
+            currentGameId = data.currentGameId ?? currentGameId;
+            lastCompletedGameId = null;
+            lastAnimationAckGameId = null;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
             // historyData는 초기화하지 않음 (통계를 위해 누적 기록 유지)
@@ -3976,8 +4340,34 @@
             alert(message);
         });
 
-        socket.on('gameEnded', (currentGameHistory) => {
+        // 기록 업데이트 수신 (걸린 사람 정보 포함)
+        socket.on('historyUpdated', (updatedHistory) => {
+            // 기록 데이터 업데이트
+            updatedHistory.forEach(updatedRecord => {
+                const existingIndex = historyData.findIndex(r => 
+                    r.user === updatedRecord.user && 
+                    r.result === updatedRecord.result && 
+                    r.time === updatedRecord.time &&
+                    r.isGameActive === updatedRecord.isGameActive
+                );
+                if (existingIndex !== -1) {
+                    // 기존 기록 업데이트 (isCaught 정보 포함)
+                    historyData[existingIndex] = { ...historyData[existingIndex], ...updatedRecord };
+                }
+            });
+            renderHistory();
+        });
+        
+        socket.on('gameEnded', (payload) => {
+            const isArrayPayload = Array.isArray(payload);
+            const endedGameId = !isArrayPayload && payload ? (payload.gameId ?? currentGameId) : currentGameId;
+            const currentGameHistory = isArrayPayload ? payload : (payload && payload.records ? payload.records : []);
+
             isGameActive = false;
+            if (endedGameId !== undefined && endedGameId !== null) {
+                lastCompletedGameId = endedGameId;
+            }
+            lastAnimationAckGameId = null;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
             
@@ -3987,8 +4377,12 @@
             // historyData는 누적 기록을 유지하므로 업데이트하지 않음
             // currentGameHistory는 현재 게임의 기록만 포함됨
             
-            // 게임 기록 제목 변경 (연습경기로)
-            document.getElementById('historyTitle').textContent = '📋 연습';
+            // 게임 기록 제목 업데이트 (기록의 isGameActive 상태 확인)
+            const historyTitle = document.getElementById('historyTitle');
+            if (historyTitle) {
+                const hasGameRecords = historyData.some(record => record.gameId || record.isGameActive === true);
+                historyTitle.textContent = hasGameRecords ? '📋 게임 기록' : '📋 연습 기록';
+            }
             
             // 굴린 인원 업데이트
             updateRolledUsersCount();
@@ -4029,6 +4423,17 @@
             return Date.now().toString() + Math.random().toString(36).substring(2);
         }
 
+        function notifyLastRollAnimationComplete(gameId) {
+            if (gameId === null || gameId === undefined) {
+                return;
+            }
+            if (lastAnimationAckGameId === gameId) {
+                return;
+            }
+            lastAnimationAckGameId = gameId;
+            socket.emit('lastRollAnimationFinished', { gameId });
+        }
+
         // 주사위 굴리기
         let diceAnimationInterval = null;
 
@@ -4042,17 +4447,39 @@
         socket.on('diceRolled', (record) => {
             // 준비하지 않은 사람인지 확인
             const isNotReady = record.isNotReady === true;
+            if (typeof record.gameId === 'number') {
+                currentGameId = record.gameId;
+            }
+            const lastRollGameId = typeof record.gameId === 'number' ? record.gameId : currentGameId;
             
             // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람 제외)
             const isFirstRollInGame = isGameActive && !rolledUsersInGame.includes(record.user) && !isNotReady;
             const isNotGameActive = !isGameActive;
             const shouldSaveToHistory = (isNotGameActive || isFirstRollInGame) && !isNotReady;
             const isLastRoller = record.isLastRoller === true;
+            let lastRollHandled = false;
+
+            const ensureHistoryRecord = () => {
+                if (!shouldSaveToHistory || isNotReady) {
+                    return false;
+                }
+                const exists = historyData.some(r => 
+                    r.user === record.user &&
+                    r.result === record.result &&
+                    r.time === record.time &&
+                    (r.gameId ?? null) === (record.gameId ?? null)
+                );
+                if (!exists) {
+                    historyData.push(record);
+                    return true;
+                }
+                return false;
+            };
             
             // 마지막 굴리는 사람은 애니메이션 완료 후 기록에 저장 (애니메이션 중에는 저장하지 않음)
             // 다른 사람들은 즉시 기록에 저장
-            if (shouldSaveToHistory && !(isLastRoller && isGameActive)) {
-                historyData.push(record);
+            if (!(isLastRoller && isGameActive)) {
+                ensureHistoryRecord();
             }
             
             // 게임 진행 중이고 해당 사용자가 처음 굴렸다면 목록에 추가 (준비하지 않은 사람 제외)
@@ -4115,17 +4542,27 @@
                         // 주사위 결과를 오른쪽 컨테이너에 추가
                         const diceResultSpan = document.createElement('span');
                         diceResultSpan.setAttribute('data-dice-result', 'true');
-                        // 준비하지 않은 사람이거나 기록에 저장되지 않는 경우 숫자만 표시
-                        const isNotReady = record.isNotReady === true;
-                        
                         const finalResult = record.result;
-                        const diceIcon = (shouldSaveToHistory && !isNotReady) ? '🎲 ' : '';
                         
-                        // 애니메이션은 본게임에서 최초 1회만 재생 (기록에 저장되는 경우에만)
-                        const shouldAnimate = shouldSaveToHistory && !isNotReady;
+                        // 애니메이션 조건 확인
+                        const isHighGameAnimation = record.isHighGameAnimation === true;
+                        const isLowGameAnimation = record.isLowGameAnimation === true;
+                        const isNearGameAnimation = record.isNearGameAnimation === true;
+                        const isGPTAnimation = record.isGPTAnimation === true;
+                        const isTestAnimation = finalResult >= 1001 && finalResult <= 1006;
+                        
+                        // 아이콘 표시 조건: 기록에 저장되거나 특별 애니메이션이 있는 경우
+                        const shouldShowIcon = (shouldSaveToHistory && !isNotReady) || 
+                                              (isGPTAnimation || isHighGameAnimation || isLowGameAnimation || isNearGameAnimation);
+                        const diceIcon = shouldShowIcon ? '🎲 ' : '';
+                        
+                        // 애니메이션은 본게임에서 최초 1회만 재생하거나, 특별 애니메이션 조건 만족 시 재생
+                        // GPT 애니메이션이 있으면 게임 진행 중이어도 애니메이션 실행
+                        const shouldAnimate = (shouldSaveToHistory && !isNotReady) || 
+                                             (isGameActive && !isNotReady && (isGPTAnimation || isHighGameAnimation || isLowGameAnimation || isNearGameAnimation));
                         
                         // 초기 스타일 설정
-                        if (shouldSaveToHistory && !isNotReady) {
+                        if (shouldShowIcon) {
                             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
                             diceResultSpan.textContent = diceIcon;
                         } else {
@@ -4136,13 +4573,9 @@
                         }
                         resultContainer.appendChild(diceResultSpan);
                         
-                        // 애니메이션은 마지막 굴리는 사람 또는 하이/로우/니어 게임 조건 만족 시 재생 (테스트용 1001~1006은 예외)
-                        const isLastRoller = record.isLastRoller === true;
-                        const isHighGameAnimation = record.isHighGameAnimation === true;
-                        const isLowGameAnimation = record.isLowGameAnimation === true;
-                        const isNearGameAnimation = record.isNearGameAnimation === true;
-                        const isTestAnimation = finalResult >= 1001 && finalResult <= 1006;                        
-                        if (shouldAnimate && (isLastRoller || isHighGameAnimation || isLowGameAnimation || isNearGameAnimation || isTestAnimation)) {
+                        // 애니메이션 재생 조건
+                        const shouldRunAnimation = shouldAnimate && (isLastRoller || isHighGameAnimation || isLowGameAnimation || isNearGameAnimation || isGPTAnimation || isTestAnimation);
+                        if (shouldRunAnimation) {
                             // 애니메이션 완료 콜백 함수
                             const onAnimationComplete = () => {
                                 // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
@@ -4150,10 +4583,14 @@
                                 window.lastRollerAnimationCompleteTime = Date.now();
                                 
                                 // 애니메이션 완료 후 기록에 저장
-                                if (shouldSaveToHistory && !isNotReady) {
-                                    historyData.push(record);
+                                const added = ensureHistoryRecord();
+                                if (added) {
                                     updateRolledUsersCount();
-                                    renderHistory();
+                                }
+                                renderHistory();
+                                if (isLastRoller) {
+                                    notifyLastRollAnimationComplete(lastRollGameId);
+                                    lastRollHandled = true;
                                 }
                             };
                             
@@ -4168,9 +4605,27 @@
                         } else {
                             // 애니메이션 없이 바로 최종 숫자 표시
                             diceResultSpan.textContent = diceIcon + finalResult;
+                            if (isLastRoller) {
+                                const added = ensureHistoryRecord();
+                                if (added) {
+                                    updateRolledUsersCount();
+                                }
+                                renderHistory();
+                                notifyLastRollAnimationComplete(lastRollGameId);
+                                lastRollHandled = true;
+                            }
                         }
                     }
                 }
+            }
+
+            if (isLastRoller && !lastRollHandled) {
+                const added = ensureHistoryRecord();
+                if (added) {
+                    updateRolledUsersCount();
+                }
+                renderHistory();
+                notifyLastRollAnimationComplete(lastRollGameId);
             }
             
             if (record.user === currentUser) {
@@ -4187,6 +4642,39 @@
             }
             
             renderHistory();
+        });
+        
+        // GPT 분석 결과 업데이트 (주사위 결과는 이미 표시된 후 GPT 분석이 완료되면 호출됨)
+        socket.on('diceRolledUpdate', (updatedRecord) => {
+            // 해당 사용자의 주사위 결과를 찾아서 GPT 애니메이션 정보 업데이트
+            const chatMessages = document.getElementById('chatMessages');
+            const diceCommandMessages = Array.from(chatMessages.children).filter(div => 
+                div.getAttribute('data-dice-command') === 'true' && 
+                div.getAttribute('data-user-name') === updatedRecord.user
+            );
+            
+            if (diceCommandMessages.length > 0) {
+                const lastDiceCommandMsg = diceCommandMessages[diceCommandMessages.length - 1];
+                const resultContainer = lastDiceCommandMsg.querySelector('span[data-dice-result-container="true"]');
+                if (resultContainer) {
+                    const existingResult = resultContainer.querySelector('span[data-dice-result]');
+                    if (existingResult && updatedRecord.isGPTAnimation) {
+                        // GPT 애니메이션이 활성화되면 아이콘 추가 및 애니메이션 재생
+                        const currentText = existingResult.textContent;
+                        if (!currentText.includes('🎲')) {
+                            existingResult.textContent = '🎲 ' + currentText;
+                        }
+                        existingResult.setAttribute('data-gpt-animation', 'true');
+                        existingResult.setAttribute('data-gpt-reason', updatedRecord.gptReason || '');
+                        
+                        // GPT 애니메이션 재생 (간단한 효과)
+                        existingResult.style.animation = 'none';
+                        setTimeout(() => {
+                            existingResult.style.animation = 'pulse 0.5s ease-in-out 3';
+                        }, 10);
+                    }
+                }
+            }
         });
 
         // 진행 상황 업데이트
@@ -4714,51 +5202,15 @@
                 const isAllRolledMessage = chatMessage.message.includes('모든 참여자가 주사위를 굴렸습니다');
                 
                 if (isAllRolledMessage) {
-                    // 메시지 div는 먼저 추가하되 내용은 비워둠
-                    messageDiv.style.display = 'none'; // 먼저 숨김
+                    // 서버에서 보낸 메시지를 그대로 표시 (중복 방지)
+                    const titleDiv = document.createElement('div');
+                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                    titleDiv.textContent = chatMessage.message; // 서버에서 보낸 메시지 그대로 사용
+                    messageDiv.appendChild(titleDiv);
                     chatMessages.appendChild(messageDiv);
                     
-                    // 애니메이션 완료 후 3초 뒤에 메시지 표시
-                    const showMessage = () => {
-                        const titleDiv = document.createElement('div');
-                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
-                        titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
-                        messageDiv.appendChild(titleDiv);
-                        messageDiv.style.display = 'block'; // 표시
-                        if (forceScroll || isScrolledToBottom) {
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                        }
-                    };
-                    
-                    const checkAndShow = () => {
-                        if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
-                            const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
-                            if (elapsed >= 1500) {
-                                showMessage();
-                                return true;
-                            }
-                        }
-                        return false;
-                    };
-                    
-                    // 즉시 확인 (이미 3초가 지났을 수 있음)
-                    if (!checkAndShow()) {
-                        // 아직 시간이 안 지났으면 대기
-                        const waitInterval = setInterval(() => {
-                            if (checkAndShow()) {
-                                clearInterval(waitInterval);
-                            }
-                        }, 100);
-                        
-                        // 최대 10초 대기 후 강제 표시
-                        setTimeout(() => {
-                            clearInterval(waitInterval);
-                            if (!messageDiv.querySelector('div')) {
-                                showMessage();
-                            }
-                        }, 10000);
-                    } else {
-                        showMessage();
+                    if (forceScroll || isScrolledToBottom) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
                     }
                     
                     return; // 여기서 종료하여 아래 코드 실행 방지
@@ -4992,7 +5444,7 @@
         }
 
         // 굴린 인원 업데이트
-        function updateRolledUsersCount() {
+        function updateRolledUsersCount(displayCount = null) {
             const rolledUsersCountElement = document.getElementById('rolledUsersCount');
             if (!rolledUsersCountElement) return;
             
@@ -5001,8 +5453,12 @@
                 // 게임 진행 중일 때는 게임 중 굴린 사용자 수 표시
                 count = rolledUsersInGame.length;
             } else {
-                // 게임 진행 중이 아닐 때는 전체 기록 수 표시
-                count = historyData.length;
+                if (typeof displayCount === 'number') {
+                    count = displayCount;
+                } else {
+                    // 게임 진행 중이 아닐 때는 전체 기록 수 표시
+                    count = historyData.length;
+                }
             }
             
             rolledUsersCountElement.textContent = count;
@@ -5012,41 +5468,57 @@
         function renderHistory() {
             const historyList = document.getElementById('historyList');
             
-            // 게임 진행 중일 때는 현재 게임의 기록만 필터링해서 표시
-            let displayData = historyData;
-            if (isGameActive && gamePlayers.length > 0) {
-                // 현재 게임의 참여자가 굴린 기록만 필터링
-                displayData = historyData.filter(record => {
-                    // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 표시
-                    return record.isGameActive === true && gamePlayers.includes(record.user);
-                });
+            // 게임 기록 제목 업데이트 (기록의 isGameActive 상태 확인)
+            const historyTitle = document.getElementById('historyTitle');
+            if (historyTitle) {
+                const hasOfficialRecords = historyData.some(record => typeof record.gameId === 'number' && record.gameId !== null);
+                const shouldShowOfficial = (isGameActive && currentGameId !== null) || (!isGameActive && lastCompletedGameId !== null);
+                historyTitle.textContent = shouldShowOfficial && hasOfficialRecords ? '📋 게임 기록' : '📋 연습 기록';
             }
             
-            if (displayData.length === 0) {
+            const targetGameId = isGameActive ? currentGameId : lastCompletedGameId;
+            let displayData;
+            if (targetGameId !== null && targetGameId !== undefined) {
+                displayData = historyData.filter(record => record.gameId === targetGameId);
+            } else if (!isGameActive) {
+                // 연습 기록만 표시 (gameId가 없는 기록)
+                displayData = historyData.filter(record => record.gameId === null || record.gameId === undefined);
+            } else {
+                // 예외적으로 gameId 정보가 없을 때는 기존 로직 유지
+                displayData = historyData;
+            }
+            
+            const filteredData = displayData.filter(record => record.isPendingReveal !== true);
+
+            if (filteredData.length === 0) {
                 historyList.innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
-                updateRolledUsersCount();
+                updateRolledUsersCount(0);
                 return;
             }
             
-            const sortedData = sortHistoryData(displayData, currentSortMode);
+            const sortedData = sortHistoryData(filteredData, currentSortMode);
             
             historyList.innerHTML = '';
             
             sortedData.forEach(record => {
                 const item = document.createElement('div');
                 item.className = 'history-item';
+                
+                // 걸린 사람은 특별한 아이콘 표시 (꽃 아이콘)
+                const icon = record.isCaught ? '🌸' : '🎲';
+                
                 item.innerHTML = `
                     <div>
                         <div class="history-user">${record.user}</div>
                         <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
                         <div class="history-time">${record.time}</div>
                     </div>
-                    <div class="history-result">🎲 ${record.result}</div>
+                    <div class="history-result">${icon} ${record.result}</div>
                 `;
                 historyList.appendChild(item);
             });
             
-            updateRolledUsersCount();
+            updateRolledUsersCount(sortedData.length);
         }
     </script>
 </body>
