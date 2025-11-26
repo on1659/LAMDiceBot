@@ -583,6 +583,7 @@ io.on('connection', (socket) => {
             createdAt: room.createdAt, // 방 생성 시간 추가
             expiryHours: validExpiryHours, // 방 유지 시간 추가
             blockIPPerUser: validBlockIPPerUser, // IP 차단 옵션 추가
+            gameRules: gameState.gameRules, // 게임 룰 추가
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             gameState: {
                 ...gameState,

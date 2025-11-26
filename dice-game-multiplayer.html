@@ -1066,7 +1066,21 @@
             <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-18)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-26)</span>
+
+<b>📋 게임 룰 선택 라디오 버튼 기능 추가</b>
+• 방 생성 후 게임 섹션에서 방장만 게임 룰을 선택할 수 있도록 라디오 버튼 추가
+• 하이: 낮은 사람이 걸림
+• 로우: 높은 사람이 걸림
+• 니어: N에 가까운 사람 걸리기 (숫자 입력 필드 포함)
+• 기타: 직접 룰 적기 (텍스트 영역 포함)
+• 니어/기타 선택 시 입력이 없으면 저장 버튼 비활성화
+• 방장만 라디오 버튼 표시, 참여자는 선택된 룰만 표시
+• 방 생성 시 복잡한 설정 제거로 사용자 경험 개선
+
+---
+
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-18)</span>
 
 <b>📊 대기실 통계 기능 추가</b>
 • 대기실 우상단에 오늘의 주사위 굴린 횟수와 평균값 표시
@@ -1381,6 +1395,40 @@
             <!-- 2. 게임 룰 섹션 -->
             <div class="game-rules-section" id="gameRulesSection" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
                 <div class="dice-settings-title">📋 게임 룰</div>
+                
+                <!-- 방장 전용: 게임 룰 선택 라디오 버튼 -->
+                <div id="gameRulesRadioSection" style="display: none; margin-bottom: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #667eea; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="radio" name="gameRule" value="high" id="gameRuleHigh" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                            <span style="font-weight: 500;">하이 - 낮은 사람이 걸림</span>
+                        </label>
+                        <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #667eea; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="radio" name="gameRule" value="low" id="gameRuleLow" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                            <span style="font-weight: 500;">로우 - 높은 사람이 걸림</span>
+                        </label>
+                        <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #667eea; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="radio" name="gameRule" value="near" id="gameRuleNear" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                            <span style="font-weight: 500;">니어 - N에 가까운 사람 걸리기</span>
+                        </label>
+                        <div id="gameNearNumberContainer" style="display: none; margin-left: 30px; margin-top: 5px;">
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <input type="number" id="gameNearNumberInput" placeholder="숫자 입력" min="1" max="100000" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                            </div>
+                        </div>
+                        <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #667eea; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <input type="radio" name="gameRule" value="custom" id="gameRuleCustom" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                            <span style="font-weight: 500;">기타 - 직접 룰 적기</span>
+                        </label>
+                        <div id="gameCustomRuleContainer" style="display: none; margin-left: 30px; margin-top: 5px;">
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <textarea id="gameCustomRuleInput" placeholder="게임 룰을 직접 입력하세요" maxlength="500" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 선택된 룰 표시 (모든 사용자에게 표시) -->
                 <div class="input-group">
                     <textarea 
                         id="gameRulesInput" 
@@ -1390,7 +1438,7 @@
                         disabled
                     ></textarea>
                 </div>
-                <button onclick="updateGameRules()" id="gameRulesSaveButton" style="width: auto; padding: 12px 20px;" disabled>저장</button>
+                <button onclick="updateGameRules()" id="gameRulesSaveButton" style="width: auto; padding: 12px 20px; display: none;" disabled>저장</button>
                 <div style="margin-top: 8px; font-size: 12px; color: #999;">
                     게임 시작 전에만 수정 가능합니다
                 </div>
@@ -2444,6 +2492,120 @@
             }, 100);
         }
         
+        // 게임 섹션의 게임 룰 라디오 버튼 이벤트 리스너
+        document.addEventListener('DOMContentLoaded', () => {
+            // 게임 섹션의 게임 룰 라디오 버튼
+            const gameRuleRadios = document.querySelectorAll('input[name="gameRule"]');
+            gameRuleRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const nearContainer = document.getElementById('gameNearNumberContainer');
+                    const customContainer = document.getElementById('gameCustomRuleContainer');
+                    
+                    if (this.value === 'near') {
+                        nearContainer.style.display = 'block';
+                        customContainer.style.display = 'none';
+                        document.getElementById('gameCustomRuleInput').value = '';
+                        updateGameRuleFromRadio();
+                        updateGameRulesSaveButtonState();
+                    } else if (this.value === 'custom') {
+                        nearContainer.style.display = 'none';
+                        customContainer.style.display = 'block';
+                        document.getElementById('gameNearNumberInput').value = '';
+                        updateGameRuleFromRadio();
+                        updateGameRulesSaveButtonState();
+                    } else {
+                        nearContainer.style.display = 'none';
+                        customContainer.style.display = 'none';
+                        document.getElementById('gameNearNumberInput').value = '';
+                        document.getElementById('gameCustomRuleInput').value = '';
+                        updateGameRuleFromRadio();
+                        updateGameRulesSaveButtonState();
+                    }
+                });
+            });
+            
+            // 니어 숫자 입력 이벤트
+            const gameNearNumberInput = document.getElementById('gameNearNumberInput');
+            if (gameNearNumberInput) {
+                gameNearNumberInput.addEventListener('input', function() {
+                    updateGameRuleFromRadio();
+                    updateGameRulesSaveButtonState();
+                });
+            }
+            
+            // 기타 룰 입력 이벤트
+            const gameCustomRuleInput = document.getElementById('gameCustomRuleInput');
+            if (gameCustomRuleInput) {
+                gameCustomRuleInput.addEventListener('input', function() {
+                    updateGameRuleFromRadio();
+                    updateGameRulesSaveButtonState();
+                });
+            }
+        });
+        
+        // 저장 버튼 활성화/비활성화 상태 확인
+        function updateGameRulesSaveButtonState() {
+            const rulesSaveButton = document.getElementById('gameRulesSaveButton');
+            if (!rulesSaveButton) return;
+            
+            const selectedRule = document.querySelector('input[name="gameRule"]:checked');
+            
+            // 라디오 버튼이 선택되지 않았으면 비활성화
+            if (!selectedRule) {
+                rulesSaveButton.disabled = true;
+                return;
+            }
+            
+            // 니어 선택 시 숫자 입력 확인
+            if (selectedRule.value === 'near') {
+                const nearNumber = document.getElementById('gameNearNumberInput').value.trim();
+                rulesSaveButton.disabled = !nearNumber || nearNumber === '';
+                return;
+            }
+            
+            // 기타 선택 시 텍스트 입력 확인
+            if (selectedRule.value === 'custom') {
+                const customRule = document.getElementById('gameCustomRuleInput').value.trim();
+                rulesSaveButton.disabled = !customRule || customRule === '';
+                return;
+            }
+            
+            // 하이/로우는 항상 활성화
+            rulesSaveButton.disabled = false;
+        }
+        
+        // 게임 섹션에서 라디오 버튼 선택에 따라 룰 텍스트 업데이트
+        function updateGameRuleFromRadio() {
+            const selectedRule = document.querySelector('input[name="gameRule"]:checked');
+            if (!selectedRule) {
+                updateGameRulesSaveButtonState();
+                return;
+            }
+            
+            const rulesInput = document.getElementById('gameRulesInput');
+            if (!rulesInput) return;
+            
+            let ruleText = '';
+            
+            if (selectedRule.value === 'high') {
+                ruleText = '하이 - 낮은 사람이 걸림';
+            } else if (selectedRule.value === 'low') {
+                ruleText = '로우 - 높은 사람이 걸림';
+            } else if (selectedRule.value === 'near') {
+                const nearNumber = document.getElementById('gameNearNumberInput').value.trim();
+                if (nearNumber) {
+                    ruleText = `니어 ${nearNumber} - ${nearNumber}에 가까운 사람 걸리기`;
+                } else {
+                    ruleText = '니어 - N에 가까운 사람 걸리기';
+                }
+            } else if (selectedRule.value === 'custom') {
+                ruleText = document.getElementById('gameCustomRuleInput').value.trim();
+            }
+            
+            rulesInput.value = ruleText;
+            updateGameRulesSaveButtonState();
+        }
+        
         // 비공개 방 체크박스 이벤트
         document.addEventListener('DOMContentLoaded', () => {
             const privateCheckbox = document.getElementById('createRoomPrivateCheckbox');
@@ -2528,7 +2690,7 @@
             const ipBlockCheckbox = document.getElementById('createRoomIPBlockCheckbox');
             const blockIPPerUser = ipBlockCheckbox ? ipBlockCheckbox.checked : false;
             
-            // 방 생성 (주사위 범위와 게임 룰은 방 생성 후 설정)
+            // 방 생성 (게임 룰은 방 생성 후 설정)
             socket.emit('createRoom', { 
                 userName: hostName,
                 roomName: roomName,
@@ -3789,8 +3951,39 @@
 
         // 게임 룰 업데이트
         function updateGameRules() {
-            const rulesInput = document.getElementById('gameRulesInput');
-            const rules = rulesInput.value.trim();
+            // 라디오 버튼에서 선택된 룰 사용
+            const selectedRule = document.querySelector('input[name="gameRule"]:checked');
+            let rules = '';
+            
+            if (selectedRule) {
+                if (selectedRule.value === 'high') {
+                    rules = '하이 - 낮은 사람이 걸림';
+                } else if (selectedRule.value === 'low') {
+                    rules = '로우 - 높은 사람이 걸림';
+                } else if (selectedRule.value === 'near') {
+                    const nearNumber = document.getElementById('gameNearNumberInput').value.trim();
+                    if (!nearNumber || nearNumber === '') {
+                        alert('⚠️ 니어 룰을 선택한 경우 숫자를 입력해주세요!');
+                        document.getElementById('gameNearNumberInput').focus();
+                        return;
+                    }
+                    rules = `니어 ${nearNumber} - ${nearNumber}에 가까운 사람 걸리기`;
+                } else if (selectedRule.value === 'custom') {
+                    rules = document.getElementById('gameCustomRuleInput').value.trim();
+                    if (!rules || rules === '') {
+                        alert('⚠️ 기타 룰을 선택한 경우 룰을 입력해주세요!');
+                        document.getElementById('gameCustomRuleInput').focus();
+                        return;
+                    }
+                }
+            } else {
+                // 라디오 버튼이 선택되지 않았으면 텍스트 영역의 값 사용
+                const rulesInput = document.getElementById('gameRulesInput');
+                rules = rulesInput.value.trim();
+            }
+            
+            // 룰 텍스트 영역도 업데이트
+            document.getElementById('gameRulesInput').value = rules;
 
             socket.emit('updateGameRules', {
                 rules: rules
@@ -3801,9 +3994,21 @@
         function updateGameRulesUI() {
             const rulesInput = document.getElementById('gameRulesInput');
             const rulesSaveButton = document.getElementById('gameRulesSaveButton');
+            const rulesRadioSection = document.getElementById('gameRulesRadioSection');
             
             if (!rulesInput || !rulesSaveButton) {
                 return; // 요소가 없으면 종료
+            }
+            
+            // 호스트이고 게임이 시작되지 않았을 때만 라디오 버튼 섹션 표시
+            const canEdit = isHost && (isGameActive === false || isGameActive === undefined || !isGameActive);
+            
+            if (rulesRadioSection) {
+                if (canEdit) {
+                    rulesRadioSection.style.display = 'block';
+                } else {
+                    rulesRadioSection.style.display = 'none';
+                }
             }
             
             // 저장 버튼은 호스트만 보이게
@@ -3816,13 +4021,16 @@
             // 호스트이고 게임이 시작되지 않았을 때만 편집 가능
             // isGameActive가 undefined일 수 있으므로 명시적으로 체크
             // 방에 입장하지 않은 경우를 대비해 isHost도 확인
-            const canEdit = isHost && (isGameActive === false || isGameActive === undefined || !isGameActive);
-            
             if (canEdit) {
                 rulesInput.disabled = false;
-                rulesSaveButton.disabled = false;
                 rulesInput.style.cursor = 'text';
                 rulesInput.style.backgroundColor = '#ffffff';
+                
+                // 룰 텍스트를 파싱해서 라디오 버튼 선택
+                parseGameRulesToRadio();
+                
+                // 저장 버튼 상태 업데이트
+                updateGameRulesSaveButtonState();
             } else {
                 rulesInput.disabled = true;
                 rulesSaveButton.disabled = true;
@@ -3832,12 +4040,75 @@
             
             console.log('게임 룰 UI 업데이트:', { isHost, isGameActive, canEdit });
         }
+        
+        // 룰 텍스트를 파싱해서 라디오 버튼 선택
+        function parseGameRulesToRadio() {
+            const rulesInput = document.getElementById('gameRulesInput');
+            if (!rulesInput) return;
+            
+            const rulesText = rulesInput.value.trim();
+            
+            // 모든 라디오 버튼 해제
+            document.querySelectorAll('input[name="gameRule"]').forEach(radio => {
+                radio.checked = false;
+            });
+            
+            // 컨테이너 숨기기
+            document.getElementById('gameNearNumberContainer').style.display = 'none';
+            document.getElementById('gameCustomRuleContainer').style.display = 'none';
+            document.getElementById('gameNearNumberInput').value = '';
+            document.getElementById('gameCustomRuleInput').value = '';
+            
+            if (!rulesText) {
+                return; // 룰이 없으면 아무것도 선택하지 않음
+            }
+            
+            // 하이 패턴 확인
+            if (rulesText.includes('하이') && rulesText.includes('낮은')) {
+                document.getElementById('gameRuleHigh').checked = true;
+                updateGameRulesSaveButtonState();
+                return;
+            }
+            
+            // 로우 패턴 확인
+            if (rulesText.includes('로우') && rulesText.includes('높은')) {
+                document.getElementById('gameRuleLow').checked = true;
+                updateGameRulesSaveButtonState();
+                return;
+            }
+            
+            // 니어 패턴 확인 (니어 숫자 형식)
+            const nearMatch = rulesText.match(/니어\s*(\d+)/);
+            if (nearMatch) {
+                document.getElementById('gameRuleNear').checked = true;
+                document.getElementById('gameNearNumberInput').value = nearMatch[1];
+                document.getElementById('gameNearNumberContainer').style.display = 'block';
+                updateGameRulesSaveButtonState();
+                return;
+            }
+            
+            // 니어 패턴 확인 (니어만 있는 경우)
+            if (rulesText.includes('니어')) {
+                document.getElementById('gameRuleNear').checked = true;
+                document.getElementById('gameNearNumberContainer').style.display = 'block';
+                updateGameRulesSaveButtonState();
+                return;
+            }
+            
+            // 위 패턴에 해당하지 않으면 기타로 처리
+            document.getElementById('gameRuleCustom').checked = true;
+            document.getElementById('gameCustomRuleInput').value = rulesText;
+            document.getElementById('gameCustomRuleContainer').style.display = 'block';
+            
+            // 저장 버튼 상태 업데이트
+            updateGameRulesSaveButtonState();
+        }
 
         // 게임 룰 업데이트 수신
         socket.on('gameRulesUpdated', (rules) => {
             document.getElementById('gameRulesInput').value = rules || '';
             console.log('게임 룰이 업데이트되었습니다:', rules);
-            // UI 업데이트
+            // UI 업데이트 (라디오 버튼도 업데이트)
             updateGameRulesUI();
         });
 
