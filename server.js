@@ -564,9 +564,18 @@ io.on('connection', (socket) => {
         gameState.userOrders[userName.trim()] = '';
         
         // 방 생성 시 호스트도 자동으로 준비 상태 추가
-        if (!gameState.isGameActive && !gameState.readyUsers.includes(userName.trim())) {
-            gameState.readyUsers.push(userName.trim());
+        const trimmedUserName = userName.trim();
+        // readyUsers 배열이 없으면 초기화
+        if (!gameState.readyUsers) {
+            gameState.readyUsers = [];
         }
+        if (!gameState.isGameActive && !gameState.readyUsers.includes(trimmedUserName)) {
+            gameState.readyUsers.push(trimmedUserName);
+            console.log(`방 생성: 호스트 ${trimmedUserName}을(를) 준비 상태로 추가. 현재 준비 인원:`, gameState.readyUsers);
+        }
+        
+        // 디버깅: readyUsers 확인
+        console.log(`방 생성 완료 - readyUsers:`, gameState.readyUsers, `호스트: ${trimmedUserName}`);
         
         socket.join(roomId);
         
@@ -574,9 +583,9 @@ io.on('connection', (socket) => {
         socket.emit('roomCreated', {
             roomId,
             roomName: finalRoomName,
-            userName: userName.trim(), // 호스트 이름 추가
-            readyUsers: gameState.readyUsers,
-            isReady: true, // 방 생성 시 자동으로 준비 상태
+            userName: trimmedUserName, // 호스트 이름 추가
+            readyUsers: gameState.readyUsers || [], // 준비 목록 전송
+            isReady: gameState.readyUsers.includes(trimmedUserName), // 호스트가 준비 목록에 있는지 확인
             isPrivate: isPrivateRoom,
             password: isPrivateRoom ? roomPassword : '', // 비공개 방일 때만 비밀번호 전달
             gameType: validGameType, // 게임 타입 전달
@@ -1415,6 +1424,68 @@ io.on('connection', (socket) => {
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
         console.log(`방 ${room.roomName}: ${userName} ${isReady ? '준비 취소' : '준비 완료'} (준비 인원: ${gameState.readyUsers.length}명)`);
+    });
+
+    // 호스트가 다른 사용자를 준비 상태로 설정
+    socket.on('setUserReady', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('permissionError', 'Host만 다른 사용자의 준비 상태를 변경할 수 있습니다!');
+            return;
+        }
+        
+        // 게임 진행 중이면 준비 상태 변경 불가
+        if (gameState.isGameActive) {
+            socket.emit('readyError', '게임이 진행 중일 때는 준비 상태를 변경할 수 없습니다!');
+            return;
+        }
+        
+        const { userName, isReady } = data;
+        
+        // 입력값 검증
+        if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
+            socket.emit('readyError', '올바른 사용자 이름을 입력해주세요!');
+            return;
+        }
+        
+        // 사용자가 방에 있는지 확인
+        const targetUser = gameState.users.find(u => u.name === userName.trim());
+        if (!targetUser) {
+            socket.emit('readyError', '해당 사용자를 찾을 수 없습니다!');
+            return;
+        }
+        
+        const trimmedUserName = userName.trim();
+        const currentlyReady = gameState.readyUsers.includes(trimmedUserName);
+        
+        if (isReady && !currentlyReady) {
+            // 준비 상태로 설정
+            gameState.readyUsers.push(trimmedUserName);
+        } else if (!isReady && currentlyReady) {
+            // 준비 취소
+            gameState.readyUsers = gameState.readyUsers.filter(name => name !== trimmedUserName);
+        }
+        
+        // 같은 방의 모든 클라이언트에게 준비 목록 업데이트
+        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+        
+        // 대상 사용자에게도 준비 상태 변경 알림
+        const targetSocket = io.sockets.sockets.get(targetUser.id);
+        if (targetSocket) {
+            targetSocket.emit('readyStateChanged', { isReady: isReady });
+        }
+        
+        console.log(`방 ${room.roomName}: 호스트가 ${trimmedUserName}을(를) ${isReady ? '준비 상태로' : '준비 취소로'} 설정 (준비 인원: ${gameState.readyUsers.length}명)`);
     });
 
     // 자주 쓰는 메뉴 목록 가져오기

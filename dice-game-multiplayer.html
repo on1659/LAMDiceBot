@@ -1447,7 +1447,12 @@
 
             <!-- 접속자 리스트 -->
             <div class="users-section">
-                <div class="users-title">👥 접속자 (<span id="userCount">0</span>명)</div>
+                <div class="users-title">
+                    👥 접속자 (<span id="userCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: #667eea; font-weight: normal; margin-left: 10px;">
+                        💡 드래그로 준비 시킬 수 있습니다.
+                    </span>
+                </div>
                 <div class="users-list" id="usersList">
                     <div style="color: #999; text-align: center; padding: 10px; width: 100%;">접속자가 없습니다</div>
                 </div>
@@ -2932,6 +2937,9 @@
                 document.getElementById('readySection').style.display = 'none';
             }
             
+            // 호스트 UI 업데이트 (드래그 안내 멘트 포함)
+            updateHostUI();
+            
             // 게임 상태 반영
             if (data.gameState) {
                 historyData = data.gameState.history || [];
@@ -3160,6 +3168,8 @@
         
         // 호스트 UI 업데이트 함수
         function updateHostUI() {
+            const dragHint = document.getElementById('dragHint');
+            
             if (isHost) {
                 // 호스트 배지 표시
                 const hostBadge = document.getElementById('hostBadge');
@@ -3177,6 +3187,19 @@
                 const editRoomNameButton = document.getElementById('editRoomNameButton');
                 if (editRoomNameButton) {
                     editRoomNameButton.style.display = 'inline-block';
+                }
+                
+                // 드래그 안내 멘트 표시 (게임 진행 중이 아닐 때)
+                if (dragHint) {
+                    if (!isGameActive) {
+                        dragHint.style.display = 'inline';
+                        console.log('드래그 안내 멘트 표시 (호스트, 게임 비활성)');
+                    } else {
+                        dragHint.style.display = 'none';
+                        console.log('드래그 안내 멘트 숨김 (게임 활성)');
+                    }
+                } else {
+                    console.log('dragHint 요소를 찾을 수 없습니다');
                 }
                 
                 // 주문받기 버튼은 더 이상 사용하지 않음
@@ -3200,6 +3223,11 @@
                 const editRoomNameButton = document.getElementById('editRoomNameButton');
                 if (editRoomNameButton) {
                     editRoomNameButton.style.display = 'none';
+                }
+                
+                // 드래그 안내 멘트 숨김
+                if (dragHint) {
+                    dragHint.style.display = 'none';
                 }
                 
                 // 게임 룰 저장 버튼 숨김
@@ -4273,6 +4301,9 @@
             // 게임 종료 시 준비 섹션 다시 표시
             document.getElementById('readySection').style.display = 'block';
             
+            // 호스트 UI 업데이트 (드래그 안내 멘트 포함)
+            updateHostUI();
+            
             document.getElementById('gameStatus').textContent = '게임 종료됨';
             document.getElementById('gameStatus').classList.remove('playing');
             document.getElementById('gameStatus').classList.add('waiting');
@@ -4554,8 +4585,43 @@
                 }
                 
                 userTag.textContent = content;
+                
+                // 호스트만 드래그 가능하게 설정 (게임 진행 중이 아닐 때)
+                if (isHost && !isGameActive) {
+                    userTag.draggable = true;
+                    userTag.style.cursor = 'grab';
+                    userTag.setAttribute('data-user-name', user.name);
+                    
+                    // 드래그 시작
+                    userTag.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', user.name);
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('source', 'users'); // 접속자 목록에서 드래그하는 것 표시
+                        userTag.style.opacity = '0.5';
+                    });
+                    
+                    // 드래그 종료
+                    userTag.addEventListener('dragend', (e) => {
+                        userTag.style.opacity = '1';
+                    });
+                } else {
+                    userTag.draggable = false;
+                    userTag.style.cursor = 'default';
+                }
+                
                 usersList.appendChild(userTag);
             });
+            
+            // 드래그 안내 멘트 업데이트
+            const dragHint = document.getElementById('dragHint');
+            if (dragHint) {
+                if (isHost && !isGameActive) {
+                    dragHint.style.display = 'inline';
+                    console.log('드래그 안내 멘트 표시 (updateUsers에서)');
+                } else {
+                    dragHint.style.display = 'none';
+                }
+            }
         }
         
         // 준비 상태 토글
@@ -4571,8 +4637,17 @@
         
         // 준비 목록 업데이트
         socket.on('readyUsersUpdated', (users) => {
-            readyUsers = users;
+            readyUsers = users || [];
             renderReadyUsers();
+            console.log('준비한 사람 목록 업데이트:', readyUsers);
+            
+            // 준비 섹션 표시 (게임 진행 중이 아닐 때)
+            if (!isGameActive) {
+                const readySection = document.getElementById('readySection');
+                if (readySection) {
+                    readySection.style.display = 'block';
+                }
+            }
         });
         
         // 준비 에러 처리
@@ -4585,10 +4660,18 @@
             const readyUsersList = document.getElementById('readyUsersList');
             const readyCount = document.getElementById('readyCount');
             
+            if (!readyUsersList || !readyCount) return;
+            
             readyCount.textContent = readyUsers.length;
+            
+            console.log('준비한 사람 목록 렌더링:', readyUsers);
             
             if (readyUsers.length === 0) {
                 readyUsersList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>';
+                // 드래그 앤 드롭 설정 (빈 상태일 때도)
+                if (isHost && !isGameActive) {
+                    setupDragAndDrop();
+                }
                 return;
             }
             
@@ -4610,8 +4693,54 @@
                 }
                 
                 userTag.textContent = content;
+                
+                // 호스트만 드래그 가능하게 설정 (게임 진행 중이 아닐 때)
+                if (isHost && !isGameActive) {
+                    userTag.draggable = true;
+                    userTag.style.cursor = 'grab';
+                    userTag.setAttribute('data-user-name', userName);
+                    
+                    // 드래그 시작
+                    userTag.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', userName);
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('source', 'ready'); // 준비 목록에서 드래그하는 것 표시
+                        userTag.style.opacity = '0.5';
+                        // 전역 변수에 드래그 중인 사용자 저장
+                        window.draggedReadyUser = userName;
+                    });
+                    
+                    // 드래그 종료
+                    userTag.addEventListener('dragend', (e) => {
+                        userTag.style.opacity = '1';
+                        // 드롭이 준비 섹션 밖에서 일어났는지 확인
+                        // dragend 이벤트는 드롭 후에 발생하므로, 드롭 위치를 확인할 수 없음
+                        // 대신 전역 드롭 플래그를 사용
+                        if (window.draggedReadyUser && !window.droppedInReadySection) {
+                            // 준비 섹션 밖에서 드롭됨 - 준비 취소
+                            if (isHost && !isGameActive) {
+                                socket.emit('setUserReady', {
+                                    userName: window.draggedReadyUser,
+                                    isReady: false
+                                });
+                            }
+                        }
+                        // 초기화
+                        window.draggedReadyUser = null;
+                        window.droppedInReadySection = false;
+                    });
+                } else {
+                    userTag.draggable = false;
+                    userTag.style.cursor = 'default';
+                }
+                
                 readyUsersList.appendChild(userTag);
             });
+            
+            // 드래그 앤 드롭 설정
+            if (isHost && !isGameActive) {
+                setupDragAndDrop();
+            }
         }
         
         // 준비 버튼 업데이트
@@ -4623,6 +4752,110 @@
             } else {
                 readyButton.textContent = '준비';
                 readyButton.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            }
+        }
+        
+        // 드래그 앤 드롭 이벤트 리스너 설정 (호스트만) - 준비 섹션을 드롭 존으로
+        function setupDragAndDrop() {
+            const readyUsersList = document.getElementById('readyUsersList');
+            const readySection = document.getElementById('readySection');
+            
+            if (!readyUsersList || !readySection) return;
+            
+            // 기존 이벤트 리스너가 있으면 제거하지 않고 추가만 함 (중복 방지)
+            if (readyUsersList.hasAttribute('data-drag-setup')) {
+                return;
+            }
+            readyUsersList.setAttribute('data-drag-setup', 'true');
+            
+            // 드롭 존 설정 (접속자 목록에서 드래그하는 경우)
+            readyUsersList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const source = e.dataTransfer.getData('source');
+                // 접속자 목록에서 드래그하는 경우만 허용
+                if (source === 'users' && isHost && !isGameActive) {
+                    e.dataTransfer.dropEffect = 'move';
+                    readyUsersList.style.backgroundColor = '#e8f5e9';
+                    readyUsersList.style.border = '2px dashed #28a745';
+                }
+            });
+            
+            readyUsersList.addEventListener('dragleave', (e) => {
+                readyUsersList.style.backgroundColor = '';
+                readyUsersList.style.border = '';
+            });
+            
+            readyUsersList.addEventListener('drop', (e) => {
+                e.preventDefault();
+                readyUsersList.style.backgroundColor = '';
+                readyUsersList.style.border = '';
+                
+                // 준비 섹션 내부에서 드롭됨을 표시
+                window.droppedInReadySection = true;
+                
+                if (!isHost || isGameActive) {
+                    return;
+                }
+                
+                const userName = e.dataTransfer.getData('text/plain');
+                const source = e.dataTransfer.getData('source');
+                
+                // 접속자 목록에서 드래그한 경우만 처리
+                if (source === 'users' && userName) {
+                    // 이미 준비 상태인지 확인
+                    const isAlreadyReady = readyUsers.includes(userName);
+                    
+                    if (!isAlreadyReady) {
+                        // 서버에 준비 상태 설정 요청
+                        socket.emit('setUserReady', {
+                            userName: userName,
+                            isReady: true
+                        });
+                    }
+                }
+            });
+            
+            // 준비 섹션 전체에 드롭 이벤트 리스너 추가 (준비 목록에서 드래그한 경우 섹션 내부에서 드롭되면 취소하지 않음)
+            readySection.addEventListener('drop', (e) => {
+                // 준비 섹션 내부에서 드롭됨을 표시
+                window.droppedInReadySection = true;
+            });
+            
+            // 전역 드롭 이벤트 리스너 (준비 섹션 밖에서 드롭되면 취소)
+            if (!document.hasAttribute('data-global-drop-setup')) {
+                document.setAttribute('data-global-drop-setup', 'true');
+                
+                document.addEventListener('dragover', (e) => {
+                    const source = e.dataTransfer.getData('source');
+                    // 준비 목록에서 드래그하는 경우
+                    if (source === 'ready' && isHost && !isGameActive) {
+                        // 준비 섹션 밖에 있는지 확인
+                        const readySection = document.getElementById('readySection');
+                        if (readySection && !readySection.contains(e.target)) {
+                            e.dataTransfer.dropEffect = 'move';
+                            // 시각적 피드백 (선택사항)
+                        }
+                    }
+                });
+                
+                document.addEventListener('drop', (e) => {
+                    const source = e.dataTransfer.getData('source');
+                    const userName = e.dataTransfer.getData('text/plain');
+                    
+                    // 준비 목록에서 드래그한 경우
+                    if (source === 'ready' && userName && isHost && !isGameActive) {
+                        const readySection = document.getElementById('readySection');
+                        // 준비 섹션 밖에서 드롭된 경우
+                        if (!readySection || !readySection.contains(e.target)) {
+                            e.preventDefault();
+                            // 준비 취소
+                            socket.emit('setUserReady', {
+                                userName: userName,
+                                isReady: false
+                            });
+                        }
+                    }
+                });
             }
         }
         
