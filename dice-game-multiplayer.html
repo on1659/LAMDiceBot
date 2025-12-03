@@ -2866,6 +2866,20 @@
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'grid';
+                
+                // 호스트 컨트롤 표시 후 주문받기 버튼 상태 확인
+                setTimeout(() => {
+                    if (!isOrderActive && !isGameActive) {
+                        const startOrderBtn = document.getElementById('startOrderButton');
+                        const endOrderBtn = document.getElementById('endOrderButton');
+                        if (startOrderBtn) {
+                            startOrderBtn.style.display = 'block';
+                        }
+                        if (endOrderBtn) {
+                            endOrderBtn.style.display = 'none';
+                        }
+                    }
+                }, 100);
             }
             
             // 게임 룰 불러오기
@@ -3032,6 +3046,8 @@
                 document.getElementById('myOrderInput').disabled = false;
                 document.getElementById('orderSaveButton').disabled = false;
                 document.getElementById('gameStatus').textContent = '주문받기 진행 중!';
+                document.getElementById('gameStatus').classList.remove('waiting');
+                document.getElementById('gameStatus').classList.remove('playing');
                 document.getElementById('gameStatus').classList.add('ordering');
                 
                 if (isHost) {
@@ -3042,14 +3058,56 @@
                 // 주문 목록과 주문하지 않은 사람 목록 표시
                 renderOrders();
                 renderNotOrderedUsers();
-            } else if (isHost && !isGameActive) {
-                // 게임이 비활성화되고 주문받기도 비활성화된 상태에서 Host에게 주문받기 시작 버튼 표시
-                document.getElementById('startOrderButton').style.display = 'block';
-                document.getElementById('endOrderButton').style.display = 'none';
+            } else {
+                // 주문받기가 비활성화된 상태
+                document.getElementById('ordersSection').classList.remove('active');
+                document.getElementById('myOrderInput').disabled = true;
+                document.getElementById('orderSaveButton').disabled = true;
+                
+                if (!isGameActive) {
+                    document.getElementById('gameStatus').textContent = '게임 대기 중...';
+                    document.getElementById('gameStatus').classList.remove('ordering');
+                    document.getElementById('gameStatus').classList.remove('playing');
+                    document.getElementById('gameStatus').classList.add('waiting');
+                }
+                
+                if (isHost && !isGameActive) {
+                    // 게임이 비활성화되고 주문받기도 비활성화된 상태에서 Host에게 주문받기 시작 버튼 표시
+                    const startOrderBtn = document.getElementById('startOrderButton');
+                    const endOrderBtn = document.getElementById('endOrderButton');
+                    if (startOrderBtn) {
+                        startOrderBtn.style.display = 'block';
+                    }
+                    if (endOrderBtn) {
+                        endOrderBtn.style.display = 'none';
+                    }
+                } else if (isHost) {
+                    // 게임 진행 중이면 주문받기 버튼 숨김
+                    const startOrderBtn = document.getElementById('startOrderButton');
+                    const endOrderBtn = document.getElementById('endOrderButton');
+                    if (startOrderBtn) {
+                        startOrderBtn.style.display = 'none';
+                    }
+                    if (endOrderBtn) {
+                        endOrderBtn.style.display = 'none';
+                    }
+                }
                 
                 // 주문받기가 종료되어도 주문 목록은 표시
                 renderOrders();
                 renderNotOrderedUsers();
+            }
+            
+            // 호스트이고 게임이 진행 중이 아니고 주문받기도 비활성화된 경우 주문받기 시작 버튼 강제 표시
+            if (isHost && !isGameActive && !isOrderActive) {
+                setTimeout(() => {
+                    const startOrderBtn = document.getElementById('startOrderButton');
+                    const hostControls = document.getElementById('hostControls');
+                    if (startOrderBtn && hostControls && hostControls.style.display !== 'none') {
+                        startOrderBtn.style.display = 'block';
+                        console.log('주문받기 시작 버튼 표시:', isHost, isGameActive, isOrderActive);
+                    }
+                }, 200);
             }
         }
         
