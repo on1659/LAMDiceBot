@@ -78,6 +78,7 @@ function createRoomGameState() {
         history: [],
         rolledUsers: [], // 이번 게임에서 주사위를 굴린 사용자 목록
         gamePlayers: [], // 게임 시작 시 참여자 목록 (게임 중 입장한 사람 제외)
+        everPlayedUsers: [], // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
         readyUsers: [], // 준비한 사용자 목록 (게임 시작 전 준비한 사람들)
         userDiceSettings: {}, // 사용자별 주사위 설정 {userName: {max}} (최소값은 항상 1)
         userOrders: {}, // 사용자별 주문 내역 {userName: "주문 내용"}
@@ -411,6 +412,7 @@ io.on('connection', (socket) => {
             gameRules: gameState.gameRules,
             frequentMenus: gameState.frequentMenus,
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
+            everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             gameState: {
                 ...gameState,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
@@ -585,6 +587,7 @@ io.on('connection', (socket) => {
             blockIPPerUser: validBlockIPPerUser, // IP 차단 옵션 추가
             gameRules: gameState.gameRules, // 게임 룰 추가
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
+            everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             gameState: {
                 ...gameState,
                 hasRolled: () => false,
@@ -721,6 +724,7 @@ io.on('connection', (socket) => {
                 gameRules: gameState.gameRules,
                 frequentMenus: gameState.frequentMenus,
                 chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
+                everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
                 gameState: {
                     ...gameState,
                     hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -859,6 +863,7 @@ io.on('connection', (socket) => {
             gameRules: gameState.gameRules,
             frequentMenus: gameState.frequentMenus,
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
+            everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             gameState: {
                 ...gameState,
                 hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -1602,6 +1607,13 @@ io.on('connection', (socket) => {
             socket.emit('gameError', '참여자가 없습니다. 최소 1명 이상 준비해야 게임을 시작할 수 있습니다.');
             return;
         }
+        
+        // 게임 참여자들을 누적 참여자 목록에 추가 (중복 제거)
+        gameState.gamePlayers.forEach(player => {
+            if (!gameState.everPlayedUsers.includes(player)) {
+                gameState.everPlayedUsers.push(player);
+            }
+        });
         
         gameState.isGameActive = true;
         // history는 초기화하지 않음 (통계를 위해 누적 기록 유지)

@@ -2805,13 +2805,15 @@
         
         // 게임 화면 초기화
         function initializeGameScreen(data) {
-            // 방 입장 시 게임 참여 이력 초기화
-            everPlayedUsers = [];
-            
-            // 기존 게임 상태가 있다면 참여자 목록 복원
-            if (data.gameState && data.gameState.gamePlayers) {
-                everPlayedUsers = [...data.gameState.gamePlayers];
+            // 서버에서 받은 누적 참여자 목록 복원
+            if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
+                everPlayedUsers = [...data.everPlayedUsers];
+            } else if (data.gameState && data.gameState.everPlayedUsers && Array.isArray(data.gameState.everPlayedUsers)) {
+                everPlayedUsers = [...data.gameState.everPlayedUsers];
+            } else {
+                everPlayedUsers = [];
             }
+            
             hasRolledInCurrentGame = data.hasRolled;
             myDiceSettings = data.diceSettings || { max: 100 };
             isGameActive = data.isGameActive;
@@ -2922,15 +2924,6 @@
                 ordersData = data.gameState.userOrders || {};
                 usersList = data.gameState.users || [];
                 gamePlayers = data.gameState.gamePlayers || []; // 게임 참여자 목록 저장
-                
-                // 방 입장 시 이미 진행 중인 게임이 있다면 참여자들을 everPlayedUsers에 추가
-                if (data.gameState.gamePlayers && data.gameState.gamePlayers.length > 0) {
-                    data.gameState.gamePlayers.forEach(player => {
-                        if (!everPlayedUsers.includes(player)) {
-                            everPlayedUsers.push(player);
-                        }
-                    });
-                }
                 
                 // 게임 진행 중일 때 rolledUsers 복원
                 if (isGameActive && data.gameState.rolledUsers) {
