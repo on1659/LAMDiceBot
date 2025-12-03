@@ -1936,7 +1936,7 @@ io.on('connection', (socket) => {
                 msg.diceResult = {
                     result: result,
                     range: record.range,
-                    isNotReㅈady: isNotReady,
+                    isNotReady: isNotReady,
                     deviceType: deviceType,
                     isLastRoller: isLastRoller,
                     isHighGameAnimation: isHighGameAnimation,

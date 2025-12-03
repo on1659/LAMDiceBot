@@ -1066,7 +1066,25 @@
             <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-26)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-12-04)</span>
+
+<b>🗑️ 사다리타기 게임 제거</b>
+• 사다리타기 게임 기능 완전 제거
+• 주사위 게임만 지원하도록 단순화
+
+<b>🐛 하이/로우 게임 애니메이션 중복 저장 버그 수정</b>
+• 하이/로우/니어 애니메이션이 실행될 때 기록이 두 번 저장되던 문제 해결
+• 애니메이션 완료 후에만 기록 저장하도록 수정
+
+<b>📊 연습 기록과 게임 기록 관리 개선</b>
+• 게임 시작 시 이전 게임 기록 모두 삭제
+• 게임 종료 후 게임 기록 유지 (연습으로 바뀌지 않음)
+• 게임 종료 후 연습 기록 추가 방지
+• 연습 기록은 최초 방 입장 시나 게임 데이터 삭제 후에만 표시
+
+---
+
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-11-26)</span>
 
 <b>📋 게임 룰 선택 라디오 버튼 기능 추가</b>
 • 방 생성 후 게임 섹션에서 방장만 게임 룰을 선택할 수 있도록 라디오 버튼 추가
@@ -4118,8 +4136,9 @@
             isGameActive = true;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
-            // historyData는 초기화하지 않음 (통계를 위해 누적 기록 유지)
-            // 현재 게임의 기록만 표시하려면 renderHistory에서 gamePlayers로 필터링
+            
+            // 게임 시작 시 모든 게임 기록 삭제 (이전 게임 기록 포함)
+            historyData = historyData.filter(record => record.isGameActive === false);
             
             // 게임 참여자 목록 업데이트
             gamePlayers = data.players || [];
@@ -4230,8 +4249,8 @@
             // historyData는 누적 기록을 유지하므로 업데이트하지 않음
             // currentGameHistory는 현재 게임의 기록만 포함됨
             
-            // 게임 기록 제목 변경 (연습경기로)
-            document.getElementById('historyTitle').textContent = '📋 연습';
+            // 게임 기록 제목은 그대로 유지 (게임 기록으로 계속 표시)
+            document.getElementById('historyTitle').textContent = '📋 게임';
             
             // 굴린 인원 업데이트
             updateRolledUsersCount();
@@ -4292,12 +4311,20 @@
             // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람 제외)
             const isFirstRollInGame = isGameActive && !rolledUsersInGame.includes(record.user) && !isNotReady;
             const isNotGameActive = !isGameActive;
-            const shouldSaveToHistory = (isNotGameActive || isFirstRollInGame) && !isNotReady;
-            const isLastRoller = record.isLastRoller === true;
             
-            // 마지막 굴리는 사람은 애니메이션 완료 후 기록에 저장 (애니메이션 중에는 저장하지 않음)
+            // 게임 종료 후에는 연습 기록을 추가하지 않음
+            // 연습 기록은 최초 방 입장 시나 게임 데이터 삭제 후에만 추가 가능
+            const hasGameEndedBefore = historyData.some(r => r.isGameActive === true);
+            const shouldSaveToHistory = (isNotGameActive || isFirstRollInGame) && !isNotReady && !(isNotGameActive && hasGameEndedBefore);
+            const isLastRoller = record.isLastRoller === true;
+            const isHighGameAnimation = record.isHighGameAnimation === true;
+            const isLowGameAnimation = record.isLowGameAnimation === true;
+            const isNearGameAnimation = record.isNearGameAnimation === true;
+            const hasSpecialAnimation = isHighGameAnimation || isLowGameAnimation || isNearGameAnimation;
+            
+            // 마지막 굴리는 사람 또는 하이/로우/니어 애니메이션이 있는 사람은 애니메이션 완료 후 기록에 저장 (애니메이션 중에는 저장하지 않음)
             // 다른 사람들은 즉시 기록에 저장
-            if (shouldSaveToHistory && !(isLastRoller && isGameActive)) {
+            if (shouldSaveToHistory && !((isLastRoller || hasSpecialAnimation) && isGameActive)) {
                 historyData.push(record);
             }
             
@@ -4367,8 +4394,18 @@
                         const finalResult = record.result;
                         const diceIcon = (shouldSaveToHistory && !isNotReady) ? '🎲 ' : '';
                         
+                        // 애니메이션 플래그 확인
+                        const isLastRoller = record.isLastRoller === true;
+                        const isHighGameAnimation = record.isHighGameAnimation === true;
+                        const isLowGameAnimation = record.isLowGameAnimation === true;
+                        const isNearGameAnimation = record.isNearGameAnimation === true;
+                        const hasSpecialAnimation = isHighGameAnimation || isLowGameAnimation || isNearGameAnimation;
+                        const isTestAnimation = finalResult >= 1001 && finalResult <= 1006;
+                        
                         // 애니메이션은 본게임에서 최초 1회만 재생 (기록에 저장되는 경우에만)
-                        const shouldAnimate = shouldSaveToHistory && !isNotReady;
+                        // 하이/로우/니어 애니메이션이 있는 경우에도 애니메이션을 재생해야 하므로
+                        // shouldSaveToHistory가 false여도 애니메이션 플래그가 있으면 재생
+                        const shouldAnimate = (shouldSaveToHistory && !isNotReady) || (hasSpecialAnimation && !isNotReady && isGameActive);
                         
                         // 초기 스타일 설정
                         if (shouldSaveToHistory && !isNotReady) {
@@ -4383,12 +4420,7 @@
                         resultContainer.appendChild(diceResultSpan);
                         
                         // 애니메이션은 마지막 굴리는 사람 또는 하이/로우/니어 게임 조건 만족 시 재생 (테스트용 1001~1006은 예외)
-                        const isLastRoller = record.isLastRoller === true;
-                        const isHighGameAnimation = record.isHighGameAnimation === true;
-                        const isLowGameAnimation = record.isLowGameAnimation === true;
-                        const isNearGameAnimation = record.isNearGameAnimation === true;
-                        const isTestAnimation = finalResult >= 1001 && finalResult <= 1006;                        
-                        if (shouldAnimate && (isLastRoller || isHighGameAnimation || isLowGameAnimation || isNearGameAnimation || isTestAnimation)) {
+                        if (shouldAnimate && (isLastRoller || hasSpecialAnimation || isTestAnimation)) {
                             // 애니메이션 완료 콜백 함수
                             const onAnimationComplete = () => {
                                 // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
@@ -5463,11 +5495,26 @@
             // 게임 진행 중일 때는 현재 게임의 기록만 필터링해서 표시
             let displayData = historyData;
             if (isGameActive && gamePlayers.length > 0) {
-                // 현재 게임의 참여자가 굴린 기록만 필터링
+                // 현재 게임의 참여자가 굴린 기록만 필터링 (연습 기록 제외)
                 displayData = historyData.filter(record => {
                     // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 표시
+                    // isGameActive === false인 연습 기록은 제외
                     return record.isGameActive === true && gamePlayers.includes(record.user);
                 });
+            } else if (!isGameActive) {
+                // 게임 진행 중이 아닐 때
+                const hasGameEndedBefore = historyData.some(r => r.isGameActive === true);
+                if (hasGameEndedBefore) {
+                    // 게임이 한 번이라도 종료된 적이 있으면 게임 기록만 표시 (연습 기록 제외)
+                    displayData = historyData.filter(record => {
+                        return record.isGameActive === true;
+                    });
+                } else {
+                    // 게임이 한 번도 시작되지 않았거나, 게임 데이터가 삭제된 경우에만 연습 기록 표시
+                    displayData = historyData.filter(record => {
+                        return record.isGameActive === false;
+                    });
+                }
             }
             
             if (displayData.length === 0) {
