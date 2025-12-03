@@ -111,15 +111,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
 });
 
-// 사다리타기 게임 라우트
-app.get('/ladder', (req, res) => {
-    // 캐시 방지 헤더 설정
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.sendFile(path.join(__dirname, 'ladder-game-multiplayer.html'));
-});
-
 // 시드 기반 랜덤 생성 함수
 function seededRandom(seed, min, max) {
     // 시드를 해시화하여 난수 생성
@@ -466,8 +457,8 @@ io.on('connection', (socket) => {
             roomPassword = password.trim();
         }
         
-        // 게임 타입 검증
-        const validGameType = gameType === 'ladder' ? 'ladder' : 'dice'; // 기본값은 'dice'
+        // 게임 타입 검증 (기본값은 'dice')
+        const validGameType = 'dice';
         
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1923,7 +1914,7 @@ io.on('connection', (socket) => {
             // 오늘의 주사위 통계 업데이트 (모든 클라이언트에게 전송)
             // 전역 저장소는 방 삭제 시에만 저장하므로 여기서는 방의 기록만 집계
             const stats = getTodayDiceStats();
-            io.emit('todayDiceStats', stats);
+            io.emit('todayDiceStats', stats)
         }
         
         // rolledUsers 배열에 사용자 추가 (중복 체크, 준비하지 않은 사람은 제외)
@@ -1945,7 +1936,7 @@ io.on('connection', (socket) => {
                 msg.diceResult = {
                     result: result,
                     range: record.range,
-                    isNotReady: isNotReady,
+                    isNotReㅈady: isNotReady,
                     deviceType: deviceType,
                     isLastRoller: isLastRoller,
                     isHighGameAnimation: isHighGameAnimation,
