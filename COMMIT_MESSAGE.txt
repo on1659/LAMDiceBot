@@ -1,3 +1,65 @@
+feat: 애드센스 승인을 위한 정책 페이지 및 콘텐츠 페이지 추가
+
+## 주요 변경사항
+
+### 1. 헤더 및 푸터 추가
+- 페이지 상단에 네비게이션 헤더 추가
+  * "다양한 주사위 규칙", "확률 분석 및 팁", "사이트 소개" 링크 포함
+- 페이지 하단에 푸터 추가
+  * "개인정보 처리방침", "이용 약관", "문의하기" 링크 포함
+
+### 2. 정책 페이지 생성
+- `privacy-policy.html`: 개인정보 처리방침 (간소화된 버전)
+- `terms-of-service.html`: 이용 약관
+- `contact.html`: 문의하기 (FAQ 포함)
+
+### 3. 콘텐츠 페이지 생성 (각 500단어 이상)
+- `dice-rules-guide.html`: 다양한 주사위 규칙 가이드
+- `probability-analysis.html`: 확률 분석 및 전략 팁
+- `about-us.html`: 사이트 소개 (공정성 보장, 신뢰도 강조)
+
+### 4. 새로고침 시 참여자 정보 복원 개선
+- 서버에 `everPlayedUsers` 필드 추가 (누적 참여자 목록)
+- 게임 시작 시 `gamePlayers`를 `everPlayedUsers`에 누적 저장
+- 클라이언트에서 서버의 `everPlayedUsers` 복원하여 새로고침 후에도 정보 유지
+
+## 기술적 변경사항
+
+### 서버 측 (server.js)
+- `createRoomGameState()`에 `everPlayedUsers: []` 필드 추가
+- `startGame` 이벤트에서 게임 시작 시 `gamePlayers`를 `everPlayedUsers`에 누적 추가
+- `roomCreated`, `roomJoined`, `currentRoomInfo` 이벤트에 `everPlayedUsers` 전송
+
+### 클라이언트 측 (dice-game-multiplayer.html)
+- 헤더 네비게이션 추가 (게임 섹션 상단)
+- 푸터 추가 (게임 섹션 하단)
+- `initializeGameScreen`에서 서버의 `everPlayedUsers` 복원
+- 중복 로직 제거 (서버에서 이미 누적 관리)
+
+### 정책 페이지 (privacy-policy.html)
+- 실제 서비스에 맞게 간소화
+- 세션 종료 시 삭제 관련 내용 제거
+- 개인정보 보호책임자 및 안전성 확보 조치 항목 제거
+- 간단한 문의 안내로 대체
+
+## UX 개선
+- 애드센스 승인 요구사항 충족
+- 사용자가 정책 및 콘텐츠 페이지에 쉽게 접근 가능
+- 새로고침 후에도 참여자 정보가 정확하게 표시됨
+
+## 수정된 파일
+- server.js
+- dice-game-multiplayer.html
+- privacy-policy.html (신규)
+- terms-of-service.html (신규)
+- contact.html (신규)
+- dice-rules-guide.html (신규)
+- probability-analysis.html (신규)
+- about-us.html (신규)
+- COMMIT_MESSAGE.txt
+
+---
+
 fix: 사다리타기 게임 제거 및 기록 관리 개선
 
 ## 주요 변경사항

@@ -1928,7 +1928,7 @@ io.on('connection', (socket) => {
             const stats = getTodayDiceStats();
             io.emit('todayDiceStats', stats)
         }
-        
+            
         // rolledUsers 배열에 사용자 추가 (중복 체크, 준비하지 않은 사람은 제외)
         if (!gameState.rolledUsers.includes(userName) && !isNotReady) {
             gameState.rolledUsers.push(userName);
