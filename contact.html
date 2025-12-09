@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>문의하기 - LAMDice</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
             background: #f5f5f5;
@@ -49,6 +50,170 @@
             font-weight: bold;
             color: #667eea;
             margin-bottom: 10px;
+        }
+        .board-section {
+            margin-top: 40px;
+            border-top: 2px solid #667eea;
+            padding-top: 30px;
+        }
+        .board-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .board-form input, .board-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .board-form textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .board-form button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .board-form button:hover {
+            opacity: 0.9;
+        }
+        .board-form button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .suggestions-list {
+            margin-top: 20px;
+        }
+        .suggestion-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .suggestion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .suggestion-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        .suggestion-meta {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .suggestion-content {
+            color: #555;
+            margin: 15px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .suggestion-actions {
+            margin-top: 10px;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        .empty-message {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-style: italic;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .modal-content input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .modal-buttons .confirm-btn {
+            background: #dc3545;
+            color: white;
+        }
+        .modal-buttons .confirm-btn:hover {
+            background: #c82333;
+        }
+        .modal-buttons .cancel-btn {
+            background: #6c757d;
+            color: white;
+        }
+        .modal-buttons .cancel-btn:hover {
+            background: #5a6268;
         }
     </style>
 </head>
@@ -105,7 +270,211 @@
             <h3>개인정보 보호</h3>
             <p>문의 시 제공해주시는 개인정보는 문의 처리 목적으로만 사용되며, 처리 완료 후 즉시 파기됩니다.</p>
         </div>
+
+        <!-- 개선사항 게시판 -->
+        <div class="board-section">
+            <h2 style="color: #667eea; margin-bottom: 20px;">💡 개선사항 게시판</h2>
+            <p style="color: #666; margin-bottom: 20px;">서비스 개선을 위한 의견을 남겨주세요. 버그 신고, 기능 제안, 불편사항 등 자유롭게 작성해주세요.</p>
+            
+            <form class="board-form" autocomplete="off" onsubmit="event.preventDefault(); submitSuggestion();">
+                <input type="text" id="userNameInput" placeholder="이름 (필수)" maxlength="20" autocomplete="off" required>
+                <input type="text" id="suggestionTitle" placeholder="제목 (필수)" maxlength="100" autocomplete="off" required>
+                <input type="text" id="suggestionPassword" placeholder="삭제코드 (필수, 삭제 시 사용)" maxlength="50" autocomplete="off" required>
+                <textarea id="suggestionContent" placeholder="내용을 입력해주세요 (필수, 최대 2000자)" maxlength="2000" autocomplete="off" required></textarea>
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                <button type="submit" id="submitBtn">게시글 작성</button>
+            </form>
+
+            <div class="suggestions-list" id="suggestionsList">
+                <div class="empty-message">게시글을 불러오는 중...</div>
+            </div>
+        </div>
     </div>
+
+    <!-- 삭제코드 입력 모달 -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <form autocomplete="off" onsubmit="event.preventDefault(); confirmDelete();">
+                <h3>삭제코드 입력</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">게시글 작성 시 입력한 삭제코드 또는 관리자 비밀번호를 입력하세요.</p>
+                <input type="password" id="passwordInput" placeholder="삭제코드를 입력하세요" autocomplete="off" data-lpignore="true" data-form-type="other">
+                <div id="modalErrorMessage" class="error-message" style="display: none;"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="cancel-btn" onclick="closePasswordModal()">취소</button>
+                    <button type="submit" class="confirm-btn">확인</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentUserName = localStorage.getItem('suggestionUserName') || '';
+        let suggestions = [];
+        let pendingDeleteId = null; // 삭제 대기 중인 게시글 ID
+
+        // 이름 입력 필드에 저장된 이름 표시
+        if (currentUserName) {
+            document.getElementById('userNameInput').value = currentUserName;
+        }
+
+        // 이름 입력 시 저장
+        document.getElementById('userNameInput').addEventListener('input', (e) => {
+            currentUserName = e.target.value.trim();
+            if (currentUserName) {
+                localStorage.setItem('suggestionUserName', currentUserName);
+            }
+            // 이름이 변경되면 게시글 목록 다시 렌더링 (삭제 버튼 표시 업데이트)
+            renderSuggestions();
+        });
+
+        // 게시판 목록 수신
+        socket.on('suggestionsList', (data) => {
+            suggestions = data;
+            renderSuggestions();
+        });
+
+        // 에러 메시지 수신
+        socket.on('suggestionError', (message) => {
+            showError(message);
+        });
+
+        // 게시판 조회 요청
+        socket.on('connect', () => {
+            socket.emit('getSuggestions');
+        });
+
+        // 게시글 작성
+        function submitSuggestion() {
+            const userName = document.getElementById('userNameInput').value.trim();
+            const title = document.getElementById('suggestionTitle').value.trim();
+            const password = document.getElementById('suggestionPassword').value.trim();
+            const content = document.getElementById('suggestionContent').value.trim();
+
+            if (!userName || !title || !password || !content) {
+                showError('모든 필드를 입력해주세요.');
+                return;
+            }
+
+            currentUserName = userName;
+            socket.emit('createSuggestion', { userName, title, password, content });
+            
+            // 폼 초기화
+            document.getElementById('suggestionTitle').value = '';
+            document.getElementById('suggestionPassword').value = '';
+            document.getElementById('suggestionContent').value = '';
+            hideError();
+        }
+
+        // 게시글 삭제
+        function deleteSuggestion(id) {
+            pendingDeleteId = id;
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('modalErrorMessage').style.display = 'none';
+            document.getElementById('passwordModal').style.display = 'block';
+            document.getElementById('passwordInput').focus();
+        }
+
+        // 삭제코드 모달 닫기
+        function closePasswordModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+            pendingDeleteId = null;
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('modalErrorMessage').style.display = 'none';
+        }
+
+        // 삭제 확인
+        function confirmDelete() {
+            const password = document.getElementById('passwordInput').value;
+            
+            if (!password) {
+                const errorDiv = document.getElementById('modalErrorMessage');
+                errorDiv.textContent = '삭제코드를 입력해주세요.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (!pendingDeleteId) {
+                closePasswordModal();
+                return;
+            }
+
+            if (confirm('정말 삭제하시겠습니까?')) {
+                socket.emit('deleteSuggestion', { 
+                    id: pendingDeleteId, 
+                    password 
+                });
+                closePasswordModal();
+            }
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('passwordModal');
+            if (event.target === modal) {
+                closePasswordModal();
+            }
+        }
+
+        // Enter 키로 확인
+        document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                confirmDelete();
+            } else if (e.key === 'Escape') {
+                closePasswordModal();
+            }
+        });
+
+        // 게시글 목록 렌더링
+        function renderSuggestions() {
+            const container = document.getElementById('suggestionsList');
+            
+            if (suggestions.length === 0) {
+                container.innerHTML = '<div class="empty-message">아직 게시글이 없습니다. 첫 번째 게시글을 작성해보세요!</div>';
+                return;
+            }
+
+            container.innerHTML = suggestions.map(suggestion => `
+                <div class="suggestion-item">
+                    <div class="suggestion-header">
+                        <h3 class="suggestion-title">${escapeHtml(suggestion.title)}</h3>
+                        <button class="delete-btn" onclick="deleteSuggestion('${suggestion.id}')">삭제</button>
+                    </div>
+                    <div class="suggestion-meta">
+                        작성자: ${escapeHtml(suggestion.userName)} | ${suggestion.date} ${suggestion.time}
+                    </div>
+                    <div class="suggestion-content">${escapeHtml(suggestion.content).replace(/\n/g, '<br>')}</div>
+                </div>
+            `).join('');
+        }
+
+        // 에러 메시지 표시
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(hideError, 5000);
+        }
+
+        // 에러 메시지 숨김
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // HTML 이스케이프
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Enter 키로 제출 (Ctrl+Enter 또는 Shift+Enter)
+        document.getElementById('suggestionContent').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) {
+                submitSuggestion();
+            }
+        });
+    </script>
 </body>
 </html>
 

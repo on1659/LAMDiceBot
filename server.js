@@ -6,6 +6,16 @@ const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const fs = require('fs');
 
+// PostgreSQL 모듈 선택적 로드 (설치되어 있으면 사용)
+let Pool = null;
+try {
+    const pg = require('pg');
+    Pool = pg.Pool;
+} catch (error) {
+    console.log('ℹ️  pg 모듈이 설치되지 않았습니다. 파일 시스템을 사용합니다.');
+    console.log('   Postgres를 사용하려면: npm install pg');
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -31,6 +41,223 @@ app.use(limiter);
 
 // 메뉴 파일 경로
 const MENUS_FILE = path.join(__dirname, 'frequentMenus.json');
+
+// 게시판 파일 경로 (Postgres 사용 시 백업용)
+const BOARD_FILE = path.join(__dirname, 'suggestions.json');
+
+// PostgreSQL 연결 설정 (DATABASE_URL이 있고 Pool이 있을 때만)
+let pool = null;
+if (process.env.DATABASE_URL && Pool) {
+    try {
+        pool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+    } catch (error) {
+        console.error('Postgres 연결 오류:', error);
+        pool = null;
+    }
+}
+
+// 데이터베이스 연결 테스트 및 테이블 생성
+async function initDatabase() {
+    if (!pool) {
+        console.log('ℹ️  DATABASE_URL이 설정되지 않았습니다. 파일 시스템을 사용합니다.');
+        return;
+    }
+    
+    try {
+        // 테이블이 없으면 생성
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS suggestions (
+                id SERIAL PRIMARY KEY,
+                user_name VARCHAR(50) NOT NULL,
+                title VARCHAR(100) NOT NULL,
+                content TEXT NOT NULL,
+                password VARCHAR(100) NOT NULL,
+                date VARCHAR(10) NOT NULL,
+                time VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        // 인덱스 생성 (조회 성능 향상)
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_suggestions_created_at 
+            ON suggestions(created_at DESC)
+        `);
+        
+        console.log('✅ 데이터베이스 테이블 초기화 완료');
+    } catch (error) {
+        console.error('❌ 데이터베이스 초기화 오류:', error);
+        // Postgres가 없으면 파일 시스템으로 폴백
+        console.log('⚠️  Postgres 연결 실패, 파일 시스템 사용');
+    }
+}
+
+// 게시판 데이터 로드 (Postgres 우선, 실패 시 파일 시스템)
+async function loadSuggestions() {
+    try {
+        // Postgres에서 조회 시도
+        if (pool) {
+            const result = await pool.query(
+                'SELECT id::text, user_name, title, content, date, time, created_at FROM suggestions ORDER BY created_at DESC LIMIT 100'
+            );
+            return result.rows.map(row => ({
+                id: row.id,
+                userName: row.user_name,
+                title: row.title,
+                content: row.content,
+                date: row.date,
+                time: row.time,
+                createdAt: row.created_at.toISOString()
+            }));
+        }
+    } catch (error) {
+        console.error('Postgres 조회 오류, 파일 시스템으로 폴백:', error);
+    }
+    
+    // 파일 시스템 폴백
+    try {
+        if (fs.existsSync(BOARD_FILE)) {
+            const data = fs.readFileSync(BOARD_FILE, 'utf8');
+            const suggestions = JSON.parse(data);
+            // 비밀번호는 보안상 전송하지 않음 (조회용)
+            return suggestions.map(s => {
+                const { password, ...rest } = s;
+                return rest;
+            });
+        }
+    } catch (error) {
+        console.error('게시판 파일 읽기 오류:', error);
+    }
+    return [];
+}
+
+// 게시글 삭제용 조회 (비밀번호 포함)
+async function loadSuggestionsWithPassword() {
+    try {
+        // Postgres에서 조회 시도
+        if (pool) {
+            const result = await pool.query(
+                'SELECT id::text, password FROM suggestions WHERE id = $1',
+                [arguments[0]] // 첫 번째 인자가 id
+            );
+            if (result.rows.length > 0) {
+                return result.rows[0].password;
+            }
+            return null;
+        }
+    } catch (error) {
+        console.error('Postgres 비밀번호 조회 오류, 파일 시스템으로 폴백:', error);
+    }
+    
+    // 파일 시스템 폴백
+    try {
+        if (fs.existsSync(BOARD_FILE)) {
+            const data = fs.readFileSync(BOARD_FILE, 'utf8');
+            const suggestions = JSON.parse(data);
+            const suggestion = suggestions.find(s => s.id === arguments[0]);
+            return suggestion ? suggestion.password : null;
+        }
+    } catch (error) {
+        console.error('게시판 파일 읽기 오류:', error);
+    }
+    return null;
+}
+
+// 게시판 데이터 저장 (Postgres 우선, 실패 시 파일 시스템)
+async function saveSuggestion(suggestion) {
+    try {
+        // Postgres에 저장 시도
+        if (pool) {
+            const result = await pool.query(
+                'INSERT INTO suggestions (user_name, title, content, password, date, time) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id::text',
+                [suggestion.userName, suggestion.title, suggestion.content, suggestion.password, suggestion.date, suggestion.time]
+            );
+            suggestion.id = result.rows[0].id;
+            return true;
+        }
+    } catch (error) {
+        console.error('Postgres 저장 오류, 파일 시스템으로 폴백:', error);
+    }
+    
+    // 파일 시스템 폴백
+    try {
+        const suggestions = await loadSuggestions();
+        suggestions.unshift(suggestion);
+        if (suggestions.length > 100) {
+            suggestions.splice(100);
+        }
+        fs.writeFileSync(BOARD_FILE, JSON.stringify(suggestions, null, 2), 'utf8');
+        return true;
+    } catch (error) {
+        console.error('게시판 파일 쓰기 오류:', error);
+        return false;
+    }
+}
+
+// 게시글 삭제 (Postgres 우선, 실패 시 파일 시스템)
+async function deleteSuggestion(id, password) {
+    try {
+        // Postgres에서 삭제 시도
+        if (pool) {
+            // 게시글 조회
+            const checkResult = await pool.query(
+                'SELECT password FROM suggestions WHERE id = $1',
+                [id]
+            );
+            
+            if (checkResult.rows.length === 0) {
+                return { success: false, error: '게시글을 찾을 수 없습니다.' };
+            }
+            
+            const suggestionPassword = checkResult.rows[0].password;
+            const adminPassword = process.env.ADMIN_PASSWORD || '0000';
+            
+            // 게시글 삭제코드 또는 관리자 비밀번호 확인
+            if (password !== suggestionPassword && password !== adminPassword) {
+                return { success: false, error: '삭제코드가 일치하지 않습니다.' };
+            }
+            
+            await pool.query('DELETE FROM suggestions WHERE id = $1', [id]);
+            return { success: true };
+        }
+    } catch (error) {
+        console.error('Postgres 삭제 오류, 파일 시스템으로 폴백:', error);
+    }
+    
+    // 파일 시스템 폴백
+    try {
+        // 파일에서 전체 데이터 읽기 (비밀번호 포함)
+        if (fs.existsSync(BOARD_FILE)) {
+            const data = fs.readFileSync(BOARD_FILE, 'utf8');
+            const suggestions = JSON.parse(data);
+            const index = suggestions.findIndex(s => s.id === id);
+            
+            if (index === -1) {
+                return { success: false, error: '게시글을 찾을 수 없습니다.' };
+            }
+            
+            const suggestionPassword = suggestions[index].password;
+            const adminPassword = process.env.ADMIN_PASSWORD || '0000';
+            
+            // 게시글 삭제코드 또는 관리자 비밀번호 확인
+            if (password !== suggestionPassword && password !== adminPassword) {
+                return { success: false, error: '삭제코드가 일치하지 않습니다.' };
+            }
+            
+            suggestions.splice(index, 1);
+            fs.writeFileSync(BOARD_FILE, JSON.stringify(suggestions, null, 2), 'utf8');
+            return { success: true };
+        } else {
+            return { success: false, error: '게시글을 찾을 수 없습니다.' };
+        }
+    } catch (error) {
+        console.error('게시판 파일 삭제 오류:', error);
+        return { success: false, error: '게시글 삭제 중 오류가 발생했습니다.' };
+    }
+}
 
 // 자주 쓰는 메뉴 목록 로드
 function loadFrequentMenus() {
@@ -2227,13 +2454,133 @@ io.on('connection', (socket) => {
             }, waitTime);
         }
     });
+
+    // 게시판 조회
+    socket.on('getSuggestions', async () => {
+        try {
+            const suggestions = await loadSuggestions();
+            console.log(`게시판 조회: ${suggestions.length}개 게시글 로드됨`);
+            socket.emit('suggestionsList', suggestions);
+        } catch (error) {
+            console.error('게시판 조회 오류:', error);
+            socket.emit('suggestionsList', []);
+        }
+    });
+
+    // 게시글 작성
+    socket.on('createSuggestion', async (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { userName, title, password, content } = data;
+        
+        if (!userName || !title || !password || !content) {
+            socket.emit('suggestionError', '모든 필드를 입력해주세요.');
+            return;
+        }
+
+        if (title.trim().length === 0 || content.trim().length === 0 || password.trim().length === 0) {
+            socket.emit('suggestionError', '제목, 비밀번호, 내용을 모두 입력해주세요.');
+            return;
+        }
+
+        if (title.length > 100) {
+            socket.emit('suggestionError', '제목은 100자 이하로 입력해주세요.');
+            return;
+        }
+
+        if (content.length > 2000) {
+            socket.emit('suggestionError', '내용은 2000자 이하로 입력해주세요.');
+            return;
+        }
+
+        if (password.length > 50) {
+            socket.emit('suggestionError', '삭제코드는 50자 이하로 입력해주세요.');
+            return;
+        }
+
+        const newSuggestion = {
+            id: Date.now().toString(), // 파일 시스템 폴백용
+            userName: userName.trim(),
+            title: title.trim(),
+            password: password.trim(), // 삭제코드 저장
+            content: content.trim(),
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+            createdAt: new Date().toISOString()
+        };
+
+        try {
+            const saved = await saveSuggestion(newSuggestion);
+            if (saved) {
+                // 모든 클라이언트에게 업데이트된 게시판 목록 전송
+                const suggestions = await loadSuggestions();
+                io.emit('suggestionsList', suggestions);
+                const dbType = process.env.DATABASE_URL ? 'Postgres' : '파일 시스템';
+                console.log(`게시글 작성 및 저장 완료: ${userName} - ${title} (${dbType})`);
+            } else {
+                socket.emit('suggestionError', '게시글 저장 중 오류가 발생했습니다!');
+                console.error('게시글 저장 실패:', userName, title);
+            }
+        } catch (error) {
+            socket.emit('suggestionError', '게시글 저장 중 오류가 발생했습니다!');
+            console.error('게시글 저장 오류:', error);
+        }
+    });
+
+    // 게시글 삭제
+    socket.on('deleteSuggestion', async (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { id, password } = data;
+        
+        if (!id) {
+            socket.emit('suggestionError', '게시글 ID가 필요합니다.');
+            return;
+        }
+
+        if (!password) {
+            socket.emit('suggestionError', '삭제코드를 입력해주세요.');
+            return;
+        }
+
+        try {
+            const result = await deleteSuggestion(id, password);
+            
+            if (result.success) {
+                // 모든 클라이언트에게 업데이트된 게시판 목록 전송
+                const suggestions = await loadSuggestions();
+                io.emit('suggestionsList', suggestions);
+                const dbType = process.env.DATABASE_URL ? 'Postgres' : '파일 시스템';
+                console.log(`게시글 삭제 및 저장 완료: ${id} (${dbType})`);
+            } else {
+                socket.emit('suggestionError', result.error || '게시글 삭제 중 오류가 발생했습니다!');
+            }
+        } catch (error) {
+            socket.emit('suggestionError', '게시글 삭제 중 오류가 발생했습니다!');
+            console.error('게시글 삭제 오류:', error);
+        }
+    });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log('=================================');
-    console.log(`🎲 주사위 게임 서버 시작!`);
-    console.log(`포트: ${PORT}`);
-    console.log('=================================');
+// 서버 시작
+async function startServer() {
+    // 데이터베이스 초기화
+    await initDatabase();
+    
+    server.listen(PORT, '0.0.0.0', async () => {
+        console.log('=================================');
+        console.log(`🎲 주사위 게임 서버 시작!`);
+        console.log(`포트: ${PORT}`);
+        console.log('=================================');
+        
+        // 서버 시작 시 게시판 데이터 로드 확인
+        try {
+            const suggestions = await loadSuggestions();
+            const dbType = process.env.DATABASE_URL ? 'Postgres' : '파일 시스템';
+            console.log(`📋 게시판 데이터 로드 완료: ${suggestions.length}개 게시글 (${dbType})`);
+        } catch (error) {
+            console.error('게시판 데이터 로드 오류:', error);
+        }
     
     // 방 유지 시간에 따른 자동 방 삭제 체크 (1분마다 확인)
     setInterval(() => {
@@ -2299,4 +2646,11 @@ server.listen(PORT, '0.0.0.0', () => {
             }
         });
     }, 60000); // 1분마다 체크
+    });
+}
+
+// 서버 시작
+startServer().catch(error => {
+    console.error('서버 시작 오류:', error);
+    process.exit(1);
 });
