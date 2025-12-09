@@ -2573,6 +2573,14 @@ async function startServer() {
         console.log(`포트: ${PORT}`);
         console.log('=================================');
         
+        // 환경변수 확인
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        if (adminPassword) {
+            console.log(`🔐 관리자 비밀번호 설정됨: ${adminPassword.substring(0, 2)}${'*'.repeat(Math.max(0, adminPassword.length - 2))}`);
+        } else {
+            console.log(`⚠️  ADMIN_PASSWORD 환경변수가 설정되지 않음. 기본값 "0000" 사용`);
+        }
+        
         // 서버 시작 시 게시판 데이터 로드 확인
         try {
             const suggestions = await loadSuggestions();
