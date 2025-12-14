@@ -279,7 +279,7 @@
             <form class="board-form" autocomplete="off" onsubmit="event.preventDefault(); submitSuggestion();">
                 <input type="text" id="userNameInput" placeholder="이름 (필수)" maxlength="20" autocomplete="off" required>
                 <input type="text" id="suggestionTitle" placeholder="제목 (필수)" maxlength="100" autocomplete="off" required>
-                <input type="text" id="suggestionPassword" placeholder="삭제코드 (필수, 삭제 시 사용)" maxlength="50" autocomplete="off" required>
+                <input type="text" id="suggestionPassword" placeholder="삭제 코드 (필수, 삭제 시 사용, 숫자만 입력 가능합니다.)" maxlength="50" autocomplete="off" required>
                 <textarea id="suggestionContent" placeholder="내용을 입력해주세요 (필수, 최대 2000자)" maxlength="2000" autocomplete="off" required></textarea>
                 <div id="errorMessage" class="error-message" style="display: none;"></div>
                 <button type="submit" id="submitBtn">게시글 작성</button>
@@ -326,6 +326,20 @@
             }
             // 이름이 변경되면 게시글 목록 다시 렌더링 (삭제 버튼 표시 업데이트)
             renderSuggestions();
+        });
+
+        // 삭제코드 필드: 숫자만 입력 가능
+        document.getElementById('suggestionPassword').addEventListener('input', (e) => {
+            // 숫자가 아닌 문자 제거
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+
+        // 삭제코드 필드: 붙여넣기 시에도 숫자만 허용
+        document.getElementById('suggestionPassword').addEventListener('paste', (e) => {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const numbersOnly = paste.replace(/[^0-9]/g, '');
+            e.target.value = numbersOnly;
         });
 
         // 게시판 목록 수신

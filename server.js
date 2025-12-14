@@ -39,6 +39,9 @@ const limiter = rateLimit({
 // 모든 요청에 rate limiting 적용
 app.use(limiter);
 
+// JSON 파싱 미들웨어
+app.use(express.json());
+
 // 메뉴 파일 경로
 const MENUS_FILE = path.join(__dirname, 'frequentMenus.json');
 
@@ -337,6 +340,211 @@ app.get('/', (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
+});
+
+// GPT API를 통한 커스텀 룰 당첨자 판단
+app.post('/api/calculate-custom-winner', async (req, res) => {
+    try {
+        const { gameRules, gameHistory } = req.body;
+        
+        if (!gameRules || !gameHistory || !Array.isArray(gameHistory) || gameHistory.length === 0) {
+            return res.status(400).json({ error: '게임 룰과 기록이 필요합니다.' });
+        }
+        
+        // OpenAI API 키 확인
+        const openaiApiKey = process.env.OPENAI_API_KEY;
+        if (!openaiApiKey) {
+            return res.status(500).json({ error: 'OpenAI API 키가 설정되지 않았습니다.' });
+        }
+        
+        // 게임 기록을 최소 형식으로 변환 (토큰 절약)
+        const historyText = gameHistory.map(r => `${r.user}:${r.result}`).join(',');
+        
+        // GPT 프롬프트 작성 (극한 최적화 - 최소 토큰)
+        const prompt = `룰:"${gameRules}" 결과:${historyText} 적용 JSON:{"winners":[],"reason":""}`;
+
+        // 로그: 요청 시작
+        const requestStartTime = Date.now();
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🤖 GPT API 요청 시작');
+        console.log(`📋 게임 룰: "${gameRules}"`);
+        console.log(`🎲 주사위 결과: ${gameHistory.map(r => `${r.user}(${r.result})`).join(', ')}`);
+        console.log(`👥 참여자 수: ${gameHistory.length}명`);
+        console.log(`📝 프롬프트 길이: ${prompt.length}자`);
+        console.log(`📄 입력 프롬프트:`);
+        console.log(prompt);
+
+        // 모델 우선순위: gpt-5-nano 시도, 실패 시 gpt-4o-mini로 폴백
+        // 참고: gpt-5-nano가 정확한 모델명 (gpt-5.1-nano는 존재하지 않음)
+        const models = ['gpt-5-nano', 'gpt-4o-mini'];
+        let lastError = null;
+        
+        for (const model of models) {
+            try {
+                console.log(`\n🔄 ${model} 모델 시도 중...`);
+                
+                // OpenAI API 호출
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${openaiApiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0,
+                        max_tokens: 50,
+                        response_format: { type: "json_object" }
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    lastError = errorData;
+                    const responseTime = Date.now() - requestStartTime;
+                    
+                    // 모델을 찾을 수 없는 경우 다음 모델로 시도
+                    if (errorData.error?.code === 'model_not_found' || 
+                        errorData.error?.message?.includes('model') ||
+                        errorData.error?.message?.includes('not found')) {
+                        console.log(`❌ ${model} 모델을 찾을 수 없습니다. (${responseTime}ms)`);
+                        console.log(`   → 다음 모델로 시도합니다.`);
+                        continue; // 다음 모델로 시도
+                    }
+                    
+                    // 다른 오류인 경우 즉시 반환
+                    console.error(`❌ OpenAI API 오류 (${model}):`, errorData.error?.message || errorData.error?.code);
+                    console.error(`   응답 시간: ${responseTime}ms`);
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+                    
+                    return res.status(500).json({ 
+                        error: 'GPT API 호출에 실패했습니다.', 
+                        details: errorData.error?.message,
+                        model: model
+                    });
+                }
+                
+                // 성공한 경우
+                const data = await response.json();
+                const gptResponse = data.choices[0]?.message?.content || '';
+                const responseTime = Date.now() - requestStartTime;
+                const usage = data.usage || {};
+                
+                // 모델별 가격 (1M 토큰당)
+                const pricing = {
+                    'gpt-5-nano': { input: 0.05, output: 0.40 },
+                    'gpt-4o-mini': { input: 0.15, output: 0.60 },
+                    'gpt-4o': { input: 2.50, output: 10.00 }
+                };
+                
+                const modelPricing = pricing[model] || pricing['gpt-4o-mini'];
+                const inputTokens = usage.prompt_tokens || 0;
+                const outputTokens = usage.completion_tokens || 0;
+                const totalTokens = usage.total_tokens || 0;
+                
+                // 비용 계산 (달러)
+                const inputCost = (inputTokens / 1000000) * modelPricing.input;
+                const outputCost = (outputTokens / 1000000) * modelPricing.output;
+                const totalCost = inputCost + outputCost;
+                
+                // 로그: 성공 정보
+                console.log(`✅ ${model} 모델 사용 성공`);
+                console.log(`⏱️  응답 시간: ${responseTime}ms`);
+                console.log(`💰 토큰 사용량:`);
+                console.log(`   - 입력: ${inputTokens.toLocaleString()} 토큰`);
+                console.log(`   - 출력: ${outputTokens.toLocaleString()} 토큰`);
+                console.log(`   - 총합: ${totalTokens.toLocaleString()} 토큰`);
+                console.log(`💵 예상 비용:`);
+                console.log(`   - 입력: $${inputCost.toFixed(6)}`);
+                console.log(`   - 출력: $${outputCost.toFixed(6)}`);
+                console.log(`   - 총합: $${totalCost.toFixed(6)} (약 ${(totalCost * 1000).toFixed(3)}원)`);
+                
+                // JSON 응답 파싱
+                let result;
+                try {
+                    result = JSON.parse(gptResponse);
+                } catch (error) {
+                    // JSON 파싱 실패 시 텍스트 파싱 시도 (폴백)
+                    const winnerMatch = gptResponse.match(/당첨자[:\s]+(.+?)(?:\n|이유|$)/i);
+                    const reasonMatch = gptResponse.match(/이유[:\s]+(.+?)(?:\n|$)/i);
+                    
+                    const winners = winnerMatch ? winnerMatch[1].trim().split(',').map(w => w.trim()) : [];
+                    const reason = reasonMatch ? reasonMatch[1].trim() : 'GPT가 판단한 결과';
+                    
+                    result = { winners, reason };
+                }
+                
+                // winners 배열 정리 (이름만 추출)
+                let winners = [];
+                if (Array.isArray(result.winners)) {
+                    // "이름:숫자" 형식인 경우 이름만 추출
+                    winners = result.winners.map(w => {
+                        if (typeof w === 'string') {
+                            // "요더:42" 형식이면 "요더"만 추출
+                            const match = w.match(/^([^:]+)/);
+                            return match ? match[1].trim() : w.trim();
+                        }
+                        // 객체인 경우 name 필드 사용
+                        return w.name || w;
+                    });
+                } else if (result.winner) {
+                    // 단일 당첨자
+                    if (typeof result.winner === 'string') {
+                        const match = result.winner.match(/^([^:]+)/);
+                        winners = [match ? match[1].trim() : result.winner.trim()];
+                    } else {
+                        winners = [result.winner.name || result.winner];
+                    }
+                }
+                
+                const reason = result.reason || result.이유 || 'GPT가 판단한 결과';
+                
+                // 로그: 결과 정보
+                console.log(`🏆 당첨자: ${winners.length > 0 ? winners.join(', ') : '없음'}`);
+                console.log(`💡 이유: ${reason.substring(0, 100)}${reason.length > 100 ? '...' : ''}`);
+                console.log(`📊 응답 길이: ${gptResponse.length}자`);
+                console.log(`📄 응답 내용:`);
+                console.log(gptResponse);
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+                
+                return res.json({
+                    success: true,
+                    winners: winners,
+                    reason: reason,
+                    rawResponse: gptResponse,
+                    model: model
+                });
+            } catch (error) {
+                const responseTime = Date.now() - requestStartTime;
+                console.error(`❌ ${model} 모델 호출 중 예외 발생:`, error.message);
+                console.error(`   응답 시간: ${responseTime}ms`);
+                lastError = error;
+                continue; // 다음 모델로 시도
+            }
+        }
+        
+        // 모든 모델 실패
+        const totalTime = Date.now() - requestStartTime;
+        console.error(`❌ 모든 GPT 모델 호출 실패`);
+        console.error(`   총 시도 시간: ${totalTime}ms`);
+        console.error(`   마지막 오류: ${lastError?.error?.message || lastError?.message || '알 수 없는 오류'}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        
+        return res.status(500).json({ 
+            error: '모든 GPT 모델 호출에 실패했습니다.', 
+            details: lastError?.error?.message || lastError?.message 
+        });
+        
+    } catch (error) {
+        console.error('GPT API 호출 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
 });
 
 // 시드 기반 랜덤 생성 함수
@@ -1972,7 +2180,7 @@ io.on('connection', (socket) => {
     });
 
     // 주사위 굴리기 요청 (클라이언트 시드 기반)
-    socket.on('requestRoll', (data) => {
+    socket.on('requestRoll', async (data) => {
         if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
@@ -2210,13 +2418,207 @@ io.on('connection', (socket) => {
                     totalPlayers: gameState.gamePlayers.length
                 });
                 
+                // 게임 종료 시 현재 게임의 기록만 필터링 (GPT API 호출 전에 먼저 정의)
+                const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
+                const currentGameHistory = gameState.history.filter(record => {
+                    // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
+                    return record.isGameActive === true && currentGamePlayers.includes(record.user);
+                });
+                
+                // 커스텀 룰인 경우 서버에서 GPT API 호출 (한 번만)
+                // [임시 비활성화] GPT 룰 판단 기능 잠깐 막음
+                let winnerInfo = null;
+                /*
+                const gameRules = gameState.gameRules || '';
+                const rulesLower = gameRules.toLowerCase();
+                const isHigh = rulesLower.includes('하이') && rulesLower.includes('낮은');
+                const isLow = rulesLower.includes('로우') && rulesLower.includes('높은');
+                const isNear = /니어\s*\(?\s*(\d+)\s*\)?/.test(gameRules);
+                const isCustom = gameRules && !isHigh && !isLow && !isNear;
+                
+                if (isCustom && currentGameHistory.length > 0) {
+                    try {
+                        const openaiApiKey = process.env.OPENAI_API_KEY;
+                        if (openaiApiKey) {
+                            // 게임 기록을 명확한 형식으로 변환
+                            const historyText = currentGameHistory.map(r => `${r.user}: ${r.result}`).join('\n');
+                            
+                            // 프롬프트 작성 (명확하고 정확하게)
+                            const prompt = `주사위 게임 당첨자 판단
+
+게임 룰: "${gameRules}"
+
+주사위 결과:
+${historyText}
+
+지침:
+1. 게임 룰 "${gameRules}"을 정확히 따르세요.
+2. 주사위 결과를 비교하여 룰에 맞는 당첨자를 결정하세요.
+3. 룰을 재해석하거나 추가하지 마세요.
+4. 이유는 룰의 원문을 그대로 인용하세요.
+
+JSON 형식으로 응답:
+{
+  "winners": ["이름1", "이름2"],
+  "reason": "룰 원문을 그대로 인용한 설명"
+}`;
+                            
+                            // 로그: 서버에서 GPT API 호출 시작
+                            const requestStartTime = Date.now();
+                            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                            console.log('🤖 서버 GPT API 요청 시작');
+                            console.log(`📋 게임 룰: "${gameRules}"`);
+                            console.log(`🎲 주사위 결과: ${currentGameHistory.map(r => `${r.user}(${r.result})`).join(', ')}`);
+                            console.log(`👥 참여자 수: ${currentGameHistory.length}명`);
+                            console.log(`📝 프롬프트 길이: ${prompt.length}자`);
+                            console.log(`📄 입력 프롬프트:`);
+                            console.log(prompt);
+                            
+                            // 모델 우선순위
+                            const models = ['gpt-5-nano', 'gpt-4o-mini'];
+                            
+                            for (const model of models) {
+                                try {
+                                    console.log(`\n🔄 ${model} 모델 시도 중...`);
+                                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${openaiApiKey}`
+                                        },
+                                        body: JSON.stringify({
+                                            model: model,
+                                            messages: [
+                                                {
+                                                    role: 'system',
+                                                    content: '당신은 주사위 게임의 공정한 심판입니다. 주어진 게임 룰을 정확히 따르고, 룰을 재해석하거나 추가하지 않습니다.'
+                                                },
+                                                {
+                                                    role: 'user',
+                                                    content: prompt
+                                                }
+                                            ],
+                                            temperature: 0.1,
+                                            max_tokens: 100,
+                                            response_format: { type: "json_object" }
+                                        })
+                                    });
+                                    
+                                    if (response.ok) {
+                                        const data = await response.json();
+                                        const gptResponse = data.choices[0]?.message?.content || '';
+                                        const responseTime = Date.now() - requestStartTime;
+                                        const usage = data.usage || {};
+                                        
+                                        // 모델별 가격
+                                        const pricing = {
+                                            'gpt-5-nano': { input: 0.05, output: 0.40 },
+                                            'gpt-4o-mini': { input: 0.15, output: 0.60 }
+                                        };
+                                        const modelPricing = pricing[model] || pricing['gpt-4o-mini'];
+                                        const inputTokens = usage.prompt_tokens || 0;
+                                        const outputTokens = usage.completion_tokens || 0;
+                                        const totalTokens = usage.total_tokens || 0;
+                                        const inputCost = (inputTokens / 1000000) * modelPricing.input;
+                                        const outputCost = (outputTokens / 1000000) * modelPricing.output;
+                                        const totalCost = inputCost + outputCost;
+                                        
+                                        // 로그: 성공 정보
+                                        console.log(`✅ ${model} 모델 사용 성공`);
+                                        console.log(`⏱️  응답 시간: ${responseTime}ms`);
+                                        console.log(`💰 토큰 사용량:`);
+                                        console.log(`   - 입력: ${inputTokens.toLocaleString()} 토큰`);
+                                        console.log(`   - 출력: ${outputTokens.toLocaleString()} 토큰`);
+                                        console.log(`   - 총합: ${totalTokens.toLocaleString()} 토큰`);
+                                        console.log(`💵 예상 비용:`);
+                                        console.log(`   - 입력: $${inputCost.toFixed(6)}`);
+                                        console.log(`   - 출력: $${outputCost.toFixed(6)}`);
+                                        console.log(`   - 총합: $${totalCost.toFixed(6)} (약 ${(totalCost * 1000).toFixed(3)}원)`);
+                                        
+                                        try {
+                                            const result = JSON.parse(gptResponse);
+                                            let winners = [];
+                                            if (Array.isArray(result.winners)) {
+                                                winners = result.winners.map(w => {
+                                                    if (typeof w === 'string') {
+                                                        const match = w.match(/^([^:]+)/);
+                                                        return match ? match[1].trim() : w.trim();
+                                                    }
+                                                    return w.name || w;
+                                                });
+                                            } else if (result.winner) {
+                                                if (typeof result.winner === 'string') {
+                                                    const match = result.winner.match(/^([^:]+)/);
+                                                    winners = [match ? match[1].trim() : result.winner.trim()];
+                                                } else {
+                                                    winners = [result.winner.name || result.winner];
+                                                }
+                                            }
+                                            
+                                            winnerInfo = {
+                                                winners: winners,
+                                                reason: result.reason || result.이유 || 'GPT가 판단한 결과',
+                                                model: model
+                                            };
+                                            
+                                            // 로그: 결과 정보
+                                            console.log(`🏆 당첨자: ${winners.length > 0 ? winners.join(', ') : '없음'}`);
+                                            console.log(`💡 이유: ${winnerInfo.reason.substring(0, 100)}${winnerInfo.reason.length > 100 ? '...' : ''}`);
+                                            console.log(`📊 응답 길이: ${gptResponse.length}자`);
+                                            console.log(`📄 응답 내용:`);
+                                            console.log(gptResponse);
+                                            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+                                            
+                                            break; // 성공하면 루프 종료
+                                        } catch (parseError) {
+                                            console.error('GPT 응답 파싱 오류:', parseError);
+                                        }
+                                    } else {
+                                        const errorData = await response.json().catch(() => ({}));
+                                        const responseTime = Date.now() - requestStartTime;
+                                        
+                                        if (errorData.error?.code === 'model_not_found' || 
+                                            errorData.error?.message?.includes('model') ||
+                                            errorData.error?.message?.includes('not found')) {
+                                            console.log(`❌ ${model} 모델을 찾을 수 없습니다. (${responseTime}ms)`);
+                                            if (model === models[models.length - 1]) {
+                                                console.log(`   → 모든 모델 시도 실패`);
+                                                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+                                            } else {
+                                                console.log(`   → 다음 모델로 시도합니다.`);
+                                            }
+                                        } else {
+                                            console.error(`❌ OpenAI API 오류 (${model}):`, errorData.error?.message || errorData.error?.code);
+                                            console.error(`   응답 시간: ${responseTime}ms`);
+                                            if (model === models[models.length - 1]) {
+                                                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+                                            }
+                                        }
+                                    }
+                                } catch (error) {
+                                    const responseTime = Date.now() - requestStartTime;
+                                    console.error(`❌ ${model} 모델 호출 중 예외 발생:`, error.message);
+                                    console.error(`   응답 시간: ${responseTime}ms`);
+                                    if (model === models[models.length - 1]) {
+                                        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('서버 GPT API 호출 중 오류:', error);
+                    }
+                }
+                */
+                
                 // 채팅에 시스템 메시지 전송
                 const allRolledMessage = {
                     userName: '시스템',
                     message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
                     time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
                     isHost: false,
-                    isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
+                    isSystemMessage: true, // 시스템 메시지 표시를 위한 플래그
+                    winnerInfo: winnerInfo // GPT 판단 결과 포함
                 };
                 
                 // 채팅 기록에 저장
@@ -2231,13 +2633,6 @@ io.on('connection', (socket) => {
                 
                 // 모든 참여자가 주사위를 굴렸으면 자동으로 게임 종료
                 gameState.isGameActive = false;
-                
-                // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
-                const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
-                const currentGameHistory = gameState.history.filter(record => {
-                    // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
-                    return record.isGameActive === true && currentGamePlayers.includes(record.user);
-                });
                 
                 gameState.gamePlayers = []; // 참여자 목록 초기화
                 gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
