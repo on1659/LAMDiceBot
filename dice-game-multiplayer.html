@@ -1076,7 +1076,20 @@
             <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-12-09)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-12-21)</span>
+
+<b>🚫 호스트의 불성실 참여자 제외 기능 추가</b>
+• 호스트가 접속자 목록에서 사용자를 더블 클릭하여 게임에서 제외할 수 있는 기능 추가
+• 게임 진행 중 주사위를 굴리지 않은 사람만 제외 가능 (이미 굴린 사람은 보호)
+• 제외된 사용자는 즉시 로비로 이동하며 시스템 메시지로 공지
+
+<b>🔄 자동 게임 종료 로직 개선</b>
+• 게임 진행 중 참여자가 제외되거나 방을 나갔을 때, 남은 인원이 모두 주사위를 굴린 상태라면 즉시 게임 종료 처리
+• 불필요한 대기 시간 없이 원활한 게임 진행 지원
+
+---
+
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-12-09)</span>
 
 <b>💬 개선사항 게시판 기능 추가</b>
 • 문의하기 페이지에 게시판 추가 (게시글 작성, 조회, 삭제)
@@ -3470,6 +3483,11 @@
             refreshRooms();
         });
 
+        socket.on('kicked', (message) => {
+            alert(message);
+            location.reload(); // 강퇴당하면 페이지를 새로고침하여 로비로 이동
+        });
+
         // 주문리스트 보기
         function showOrderList() {
             if (!isOrderActive) {
@@ -4640,6 +4658,17 @@
                 
                 userTag.textContent = content;
                 
+                // 호스트가 다른 사용자를 더블 클릭하면 강퇴 (게임 중 굴리지 않은 사람 제외 기능)
+                if (isHost && user.name !== currentUser) {
+                    userTag.style.cursor = 'pointer';
+                    userTag.title = '더블 클릭하여 게임에서 제외';
+                    userTag.addEventListener('dblclick', () => {
+                        if (confirm(`${user.name}님을 게임에서 제외하시겠습니까?`)) {
+                            socket.emit('kickPlayer', user.name);
+                        }
+                    });
+                }
+                
                 // 호스트만 드래그 가능하게 설정 (게임 진행 중이 아닐 때)
                 if (isHost && !isGameActive) {
                     userTag.draggable = true;
@@ -5251,6 +5280,9 @@
             // 시스템 메시지인지 확인
             const isSystemMessage = chatMessage.isSystemMessage || chatMessage.userName === '시스템';
             
+            // AI 메시지인지 확인
+            const isAI = chatMessage.isAI || chatMessage.userName === 'Gemini AI';
+            
             // /주사위 또는 /테스트 명령어인지 확인
             const isDiceCommand = chatMessage.message.startsWith('/주사위') || chatMessage.message.startsWith('/테스트');
             
@@ -5342,6 +5374,42 @@
                 return;
             }
             
+            // AI 메시지 처리
+            if (isAI) {
+                messageDiv.style.cssText = 'margin: 10px 0; padding: 12px; background: #f0f4f8; border-radius: 12px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+                
+                const headerDiv = document.createElement('div');
+                headerDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 6px;';
+                
+                const aiIcon = document.createElement('span');
+                aiIcon.textContent = '✨';
+                aiIcon.style.marginRight = '6px';
+                
+                const userNameSpan = document.createElement('span');
+                userNameSpan.style.cssText = 'font-weight: 600; color: #4285f4;';
+                userNameSpan.textContent = chatMessage.userName;
+                
+                headerDiv.appendChild(aiIcon);
+                headerDiv.appendChild(userNameSpan);
+                messageDiv.appendChild(headerDiv);
+                
+                const messageSpan = document.createElement('span');
+                messageSpan.style.cssText = 'color: #333; line-height: 1.5; white-space: pre-wrap; word-break: break-all;';
+                messageSpan.textContent = chatMessage.message;
+                messageDiv.appendChild(messageSpan);
+                
+                const timeSpan = document.createElement('div');
+                timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 6px; text-align: right;';
+                timeSpan.textContent = chatMessage.time;
+                messageDiv.appendChild(timeSpan);
+                
+                chatMessages.appendChild(messageDiv);
+                if (forceScroll || isScrolledToBottom) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+                return;
+            }
+
             // 일반 메시지는 왼쪽 정렬
             messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: white; border-radius: 6px; border-left: 3px solid #667eea;';
             

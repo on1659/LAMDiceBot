@@ -5,6 +5,7 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const fs = require('fs');
+const geminiService = require('./gemini-utils');
 
 // PostgreSQL 모듈 선택적 로드 (설치되어 있으면 사용)
 let Pool = null;
@@ -508,7 +509,7 @@ io.on('connection', (socket) => {
             average: parseFloat(average)
         };
     };
-
+///////////////
     // 방 목록 조회
     socket.on('getRooms', () => {
         if (!checkRateLimit()) return;
@@ -1120,6 +1121,12 @@ io.on('connection', (socket) => {
         // 사용자 목록에서 제거
         gameState.users = gameState.users.filter(u => u.id !== socket.id);
         
+        // 추가 리스트 정리 (준비 중인 사용자, 게임 참여 중인 사용자)
+        if (socket.userName) {
+            gameState.readyUsers = gameState.readyUsers.filter(name => name !== socket.userName);
+            gameState.gamePlayers = gameState.gamePlayers.filter(name => name !== socket.userName);
+        }
+
         // 호스트가 나가는 경우
         if (socket.isHost) {
             // 남은 사용자가 있으면 새 호스트 지정
@@ -1242,6 +1249,11 @@ io.on('connection', (socket) => {
             }
         }
         
+        // 게임 진행 중인 경우 종료 조건 체크
+        if (rooms[roomId] && gameState.isGameActive) {
+            checkAndEndGame(gameState, room);
+        }
+
         socket.leave(roomId);
         socket.currentRoomId = null;
         socket.userName = null;
@@ -1253,6 +1265,78 @@ io.on('connection', (socket) => {
         if (!checkRateLimit()) return;
         await leaveRoom(socket);
         socket.emit('roomLeft');
+    });
+
+    // 강퇴 기능 (호스트 전용)
+    socket.on('kickPlayer', async (targetName) => {
+        if (!checkRateLimit()) return;
+
+        const room = getCurrentRoom();
+        const gameState = getCurrentRoomGameState();
+        if (!room || !gameState) return;
+
+        // 호스트 권한 확인
+        const currentUser = gameState.users.find(u => u.id === socket.id);
+        if (!currentUser || !currentUser.isHost) {
+            socket.emit('permissionError', '호스트만 강퇴 기능을 사용할 수 있습니다.');
+            return;
+        }
+
+        const targetUser = gameState.users.find(u => u.name === targetName);
+        if (!targetUser) {
+            socket.emit('gameError', '해당 사용자를 찾을 수 없습니다.');
+            return;
+        }
+
+        if (targetUser.isHost) {
+            socket.emit('gameError', '호스트는 강퇴할 수 없습니다.');
+            return;
+        }
+
+        // 게임 진행 중인 경우, 이미 굴린 사람은 강퇴 불가 (사용자 요청: 굴리지 않은 사람만)
+        if (gameState.isGameActive) {
+            if (gameState.rolledUsers.includes(targetName)) {
+                socket.emit('gameError', '이미 주사위를 굴린 사용자는 게임 도중 제외할 수 없습니다.');
+                return;
+            }
+        }
+
+        const targetSocketId = targetUser.id;
+        const socketsInRoom = await io.in(room.roomId).fetchSockets();
+        const targetSocket = socketsInRoom.find(s => s.id === targetSocketId);
+
+        // 시스템 메시지 알림
+        const kickMessage = {
+            userName: '시스템',
+            message: `${targetName}님이 호스트에 의해 게임에서 제외되었습니다.`,
+            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+            isHost: false,
+            isSystemMessage: true
+        };
+        gameState.chatHistory.push(kickMessage);
+        io.to(room.roomId).emit('newMessage', kickMessage);
+
+        // 추가 리스트 정리 (준비 중인 사용자, 게임 참여 중인 사용자)
+        gameState.readyUsers = gameState.readyUsers.filter(name => name !== targetName);
+        gameState.gamePlayers = gameState.gamePlayers.filter(name => name !== targetName);
+
+        if (targetSocket) {
+            targetSocket.emit('kicked', '호스트에 의해 방에서 제외되었습니다.');
+            await leaveRoom(targetSocket);
+        } else {
+            // 소켓이 없는 경우 (비정상 상태) 직접 제거 로직 수행
+            gameState.users = gameState.users.filter(u => u.name !== targetName);
+            io.to(room.roomId).emit('updateUsers', gameState.users);
+            io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            updateRoomsList();
+        }
+
+        // 게임 제외 후 종료 조건 체크
+        if (gameState.isGameActive) {
+            checkAndEndGame(gameState, room);
+        }
+
+        console.log(`방 ${room.roomName}에서 ${targetName} 강퇴됨`);
     });
 
     // 방 목록 업데이트 (모든 클라이언트에게)
@@ -1313,6 +1397,71 @@ io.on('connection', (socket) => {
         
         console.log(`방 제목 변경: ${room.roomId} -> ${roomName.trim()}`);
     });
+
+    // 모든 참여자가 주사위를 굴렸는지 확인하고 게임 종료 처리
+    function checkAndEndGame(gameState, room) {
+        if (!gameState.isGameActive || gameState.gamePlayers.length === 0) return;
+
+        // 모두 굴렸는지 확인
+        if (gameState.rolledUsers.length === gameState.gamePlayers.length && !gameState.allPlayersRolledMessageSent) {
+            gameState.allPlayersRolledMessageSent = true; // 플래그 설정하여 중복 전송 방지
+            
+            io.to(room.roomId).emit('allPlayersRolled', {
+                message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
+                totalPlayers: gameState.gamePlayers.length
+            });
+            
+            // 채팅에 시스템 메시지 전송
+            const allRolledMessage = {
+                userName: '시스템',
+                message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
+                time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                isHost: false,
+                isSystemMessage: true
+            };
+            
+            gameState.chatHistory.push(allRolledMessage);
+            if (gameState.chatHistory.length > 100) {
+                gameState.chatHistory.shift();
+            }
+            
+            io.to(room.roomId).emit('newMessage', allRolledMessage);
+            
+            console.log(`방 ${room.roomName}: 모든 참여자가 주사위를 굴렸습니다!`);
+            
+            // 모든 참여자가 주사위를 굴렸으면 자동으로 게임 종료
+            gameState.isGameActive = false;
+            
+            // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
+            const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
+            const currentGameHistory = gameState.history.filter(record => {
+                return record.isGameActive === true && currentGamePlayers.includes(record.user);
+            });
+            
+            gameState.gamePlayers = []; // 참여자 목록 초기화
+            gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
+            gameState.readyUsers = []; // 준비 상태 초기화
+            gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+            io.to(room.roomId).emit('gameEnded', currentGameHistory);
+            io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            
+            // 방 목록 업데이트 (게임 상태 변경)
+            updateRoomsList();
+            
+            console.log(`방 ${room.roomName} 게임 자동 종료, 총`, currentGameHistory.length, '번 굴림');
+        } else if (gameState.isGameActive) {
+            // 아직 모두 굴리지 않은 경우 진행 상황 업데이트
+            const notRolledYet = gameState.gamePlayers.filter(
+                player => !gameState.rolledUsers.includes(player)
+            );
+            
+            io.to(room.roomId).emit('rollProgress', {
+                rolled: gameState.rolledUsers.length,
+                total: gameState.gamePlayers.length,
+                notRolledYet: notRolledYet
+            });
+        }
+    }
 
     // 사용자 로그인 (하위 호환성 유지, 하지만 이제는 사용하지 않음)
     socket.on('login', (data) => {
@@ -2188,76 +2337,17 @@ io.on('connection', (socket) => {
         
         // 게임 진행 중이면 아직 굴리지 않은 사람 목록 계산 및 전송
         if (gameState.isGameActive && gameState.gamePlayers.length > 0) {
-            const notRolledYet = gameState.gamePlayers.filter(
-                player => !gameState.rolledUsers.includes(player)
-            );
-            
-            // 진행 상황 업데이트
-            io.to(room.roomId).emit('rollProgress', {
-                rolled: gameState.rolledUsers.length,
-                total: gameState.gamePlayers.length,
-                notRolledYet: notRolledYet
-            });
-            
             console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
             
-            // 모두 굴렸는지 확인 (메시지가 아직 전송되지 않았을 때만)
-            if (gameState.rolledUsers.length === gameState.gamePlayers.length && !gameState.allPlayersRolledMessageSent) {
-                gameState.allPlayersRolledMessageSent = true; // 플래그 설정하여 중복 전송 방지
-                
-                io.to(room.roomId).emit('allPlayersRolled', {
-                    message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
-                    totalPlayers: gameState.gamePlayers.length
-                });
-                
-                // 채팅에 시스템 메시지 전송
-                const allRolledMessage = {
-                    userName: '시스템',
-                    message: '🎉 모든 참여자가 주사위를 굴렸습니다!',
-                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
-                    isHost: false,
-                    isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
-                };
-                
-                // 채팅 기록에 저장
-                gameState.chatHistory.push(allRolledMessage);
-                if (gameState.chatHistory.length > 100) {
-                    gameState.chatHistory.shift();
-                }
-                
-                io.to(room.roomId).emit('newMessage', allRolledMessage);
-                
-                console.log(`방 ${room.roomName}: 모든 참여자가 주사위를 굴렸습니다!`);
-                
-                // 모든 참여자가 주사위를 굴렸으면 자동으로 게임 종료
-                gameState.isGameActive = false;
-                
-                // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
-                const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
-                const currentGameHistory = gameState.history.filter(record => {
-                    // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
-                    return record.isGameActive === true && currentGamePlayers.includes(record.user);
-                });
-                
-                gameState.gamePlayers = []; // 참여자 목록 초기화
-                gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
-                gameState.readyUsers = []; // 준비 상태 초기화
-                gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
-                io.to(room.roomId).emit('gameEnded', currentGameHistory);
-                io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
-                
-                // 방 목록 업데이트 (게임 상태 변경)
-                updateRoomsList();
-                
-                console.log(`방 ${room.roomName} 게임 자동 종료, 총`, currentGameHistory.length, '번 굴림');
-            }
+            // 게임 진행 상황 체크 및 자동 종료 처리
+            checkAndEndGame(gameState, room);
         } else {
             console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax})`);
         }
     });
 
     // 채팅 메시지 전송
-    socket.on('sendMessage', (data) => {
+    socket.on('sendMessage', async (data) => {
         if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
@@ -2315,6 +2405,44 @@ io.on('connection', (socket) => {
         io.to(room.roomId).emit('newMessage', chatMessage);
         
         console.log(`방 ${room.roomName} 채팅: ${user.name}: ${message.trim()}`);
+
+        // Gemini AI 명령어 처리 (/gemini 질문)
+        const trimmedMsg = message.trim();
+        if (trimmedMsg.startsWith('/gemini ')) {
+            const prompt = trimmedMsg.substring(8).trim();
+            if (prompt) {
+                try {
+                    // AI가 생각 중임을 알림 (선택 사항)
+                    // io.to(room.roomId).emit('newMessage', {
+                    //     userName: 'Gemini AI',
+                    //     message: '... 입력 중 ...',
+                    //     time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    //     isAI: true
+                    // });
+
+                    const response = await geminiService.generateResponse(prompt);
+                    
+                    const geminiChatMessage = {
+                        userName: 'Gemini AI',
+                        message: response,
+                        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                        isHost: false,
+                        isAI: true // AI 메시지임을 표시
+                    };
+                    
+                    // 채팅 기록에 저장
+                    gameState.chatHistory.push(geminiChatMessage);
+                    if (gameState.chatHistory.length > 100) {
+                        gameState.chatHistory.shift();
+                    }
+                    
+                    // 모든 클라이언트에게 AI 응답 전송
+                    io.to(room.roomId).emit('newMessage', geminiChatMessage);
+                } catch (error) {
+                    console.error('Gemini API 채팅 처리 오류:', error);
+                }
+            }
+        }
     });
 
     // 연결 해제
@@ -2558,6 +2686,23 @@ io.on('connection', (socket) => {
         } catch (error) {
             socket.emit('suggestionError', '게시글 삭제 중 오류가 발생했습니다!');
             console.error('게시글 삭제 오류:', error);
+        }
+    });
+
+    // Gemini AI 채팅
+    socket.on('geminiChat', async (data) => {
+        const { prompt } = data;
+        if (!prompt || prompt.trim().length === 0) {
+            socket.emit('geminiResponse', { error: '메시지를 입력해주세요.' });
+            return;
+        }
+
+        try {
+            const response = await geminiService.generateResponse(prompt);
+            socket.emit('geminiResponse', { text: response });
+        } catch (error) {
+            console.error('Gemini API 오류:', error);
+            socket.emit('geminiResponse', { error: 'AI 응답을 가져오는 중 오류가 발생했습니다.' });
         }
     });
 });
