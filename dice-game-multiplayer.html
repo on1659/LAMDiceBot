@@ -61,6 +61,12 @@
             max-width: 800px;
         }
         
+        /* 방 입장 시 헤더와 푸터 숨기기 */
+        body.game-active header,
+        body.game-active footer {
+            display: none;
+        }
+        
         .chat-history-wrapper {
             margin-top: 20px;
         }
@@ -1086,6 +1092,26 @@
 <b>🔄 자동 게임 종료 로직 개선</b>
 • 게임 진행 중 참여자가 제외되거나 방을 나갔을 때, 남은 인원이 모두 주사위를 굴린 상태라면 즉시 게임 종료 처리
 • 불필요한 대기 시간 없이 원활한 게임 진행 지원
+
+---
+
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2025-12-14)</span>
+
+<b>🎯 당첨자 자동 표시 기능</b>
+• 하이/로우/니어 룰일 때 모든 주사위 굴림 완료 시 당첨자 자동 표시
+• 당첨자 이름과 숫자를 함께 표시
+
+<b>🎨 UI 개선</b>
+• 방 입장 시 헤더 및 푸터 자동 숨김 (게임에 집중)
+• 방을 나가면 헤더/푸터 다시 표시
+
+<b>💬 개선사항 게시판 개선</b>
+• 삭제코드 필드에 숫자만 입력 가능하도록 제한
+• 붙여넣기 시에도 숫자만 허용
+
+<b>📊 GPT API 로그 개선</b>
+• 토큰 사용량 및 예상 비용 표시
+• 입력 프롬프트 및 응답 내용 전체 로그 출력
 
 ---
 
@@ -5308,17 +5334,185 @@
                     messageDiv.style.display = 'none'; // 먼저 숨김
                     chatMessages.appendChild(messageDiv);
                     
+                    // 당첨자 계산 함수 (서버에서 받은 winnerInfo 우선 사용)
+                    const calculateWinner = async () => {
+                        // 서버에서 받은 winnerInfo가 있으면 사용 (커스텀 룰인 경우)
+                        if (chatMessage.winnerInfo && chatMessage.winnerInfo.winners) {
+                            const rulesInput = document.getElementById('gameRulesInput');
+                            const gameRules = rulesInput ? rulesInput.value.trim() : '';
+                            const currentGameHistory = historyData.filter(record => record.isGameActive === true);
+                            
+                            const winners = chatMessage.winnerInfo.winners;
+                            const winnerRecords = currentGameHistory.filter(record => 
+                                winners.includes(record.user)
+                            );
+                            
+                            if (winners.length === 1) {
+                                const winnerRecord = winnerRecords[0];
+                                return { 
+                                    type: '커스텀', 
+                                    winner: winners[0],
+                                    winnerResult: winnerRecord ? winnerRecord.result : null,
+                                    gameRules: gameRules,
+                                    reason: chatMessage.winnerInfo.reason,
+                                    isCustom: true
+                                };
+                            } else {
+                                const winnersWithResults = winners.map(winnerName => {
+                                    const record = winnerRecords.find(r => r.user === winnerName);
+                                    return {
+                                        name: winnerName,
+                                        result: record ? record.result : null
+                                    };
+                                });
+                                
+                                return { 
+                                    type: '커스텀', 
+                                    winners: winners,
+                                    winnersWithResults: winnersWithResults,
+                                    gameRules: gameRules,
+                                    reason: chatMessage.winnerInfo.reason,
+                                    isTie: true,
+                                    isCustom: true
+                                };
+                            }
+                        }
+                        
+                        // 서버에서 winnerInfo가 없으면 클라이언트에서 계산 (하이/로우/니어)
+                        const rulesInput = document.getElementById('gameRulesInput');
+                        if (!rulesInput) return null;
+                        
+                        const gameRules = rulesInput.value.trim();
+                        if (!gameRules) return null;
+                        
+                        // 현재 게임의 기록만 필터링 (게임 진행 중인 기록)
+                        const currentGameHistory = historyData.filter(record => record.isGameActive === true);
+                        if (currentGameHistory.length === 0) return null;
+                        
+                        const rulesLower = gameRules.toLowerCase();
+                        
+                        // 하이 룰: 낮은 사람이 걸림
+                        if (rulesLower.includes('하이') && rulesLower.includes('낮은')) {
+                            const minResult = Math.min(...currentGameHistory.map(r => r.result));
+                            const winners = currentGameHistory.filter(r => r.result === minResult);
+                            if (winners.length === 1) {
+                                return { type: '하이', winner: winners[0].user, result: minResult };
+                            } else if (winners.length > 1) {
+                                return { type: '하이', winners: winners.map(w => w.user), result: minResult, isTie: true };
+                            }
+                        }
+                        
+                        // 로우 룰: 높은 사람이 걸림
+                        if (rulesLower.includes('로우') && rulesLower.includes('높은')) {
+                            const maxResult = Math.max(...currentGameHistory.map(r => r.result));
+                            const winners = currentGameHistory.filter(r => r.result === maxResult);
+                            if (winners.length === 1) {
+                                return { type: '로우', winner: winners[0].user, result: maxResult };
+                            } else if (winners.length > 1) {
+                                return { type: '로우', winners: winners.map(w => w.user), result: maxResult, isTie: true };
+                            }
+                        }
+                        
+                        // 니어 룰: 특정 숫자에 가까운 사람이 걸림
+                        const nearMatch = gameRules.match(/니어\s*\(?\s*(\d+)\s*\)?/);
+                        if (nearMatch) {
+                            const targetNumber = parseInt(nearMatch[1]);
+                            let minDiff = Infinity;
+                            let winners = [];
+                            
+                            currentGameHistory.forEach(record => {
+                                const diff = Math.abs(record.result - targetNumber);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    winners = [record];
+                                } else if (diff === minDiff) {
+                                    winners.push(record);
+                                }
+                            });
+                            
+                            if (winners.length === 1) {
+                                return { type: '니어', winner: winners[0].user, result: winners[0].result, target: targetNumber };
+                            } else if (winners.length > 1) {
+                                return { type: '니어', winners: winners.map(w => w.user), result: winners[0].result, target: targetNumber, isTie: true };
+                            }
+                        }
+                        
+                        return null;
+                    };
+                    
                     // 애니메이션 완료 후 3초 뒤에 메시지 표시
-                    const showMessage = () => {
+                    const showMessage = async () => {
                         const titleDiv = document.createElement('div');
                         titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
                         titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
                         messageDiv.appendChild(titleDiv);
+                        
+                        // 당첨자 정보 표시 (비동기 처리)
+                        const winnerInfo = await calculateWinner();
+                        if (winnerInfo) {
+                            const winnerDiv = document.createElement('div');
+                            winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: #ffd700; margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                            
+                            if (winnerInfo.error) {
+                                // 에러 메시지 표시
+                                winnerDiv.style.color = '#ff6b6b';
+                                winnerDiv.textContent = `⚠️ ${winnerInfo.error}`;
+                            } else if (winnerInfo.isCustom) {
+                                // 커스텀 룰 (GPT 판단)
+                                // 게임 룰 가져오기
+                                const rulesInput = document.getElementById('gameRulesInput');
+                                const gameRulesText = rulesInput ? rulesInput.value.trim() : '';
+                                
+                                // 두 번째 줄: 룰 (GPT 판단)
+                                const ruleDiv = document.createElement('div');
+                                ruleDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: #ffd700; margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                                ruleDiv.textContent = `${winnerInfo.gameRules || gameRulesText} (GPT 판단)`;
+                                messageDiv.appendChild(ruleDiv);
+                                
+                                // 세 번째 줄: 당첨자 이름과 숫자
+                                winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: #ffd700; margin-top: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                                if (winnerInfo.isTie) {
+                                    // 여러 명인 경우
+                                    const winnerText = winnerInfo.winnersWithResults
+                                        .map(w => `${w.name} (${w.result})`)
+                                        .join(', ');
+                                    winnerDiv.textContent = `당첨 : ${winnerText}`;
+                                } else {
+                                    // 한 명인 경우
+                                    winnerDiv.textContent = `당첨 : ${winnerInfo.winner} (${winnerInfo.winnerResult})`;
+                                }
+                            } else if (winnerInfo.isTie) {
+                                if (winnerInfo.type === '하이') {
+                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, 동점)`;
+                                } else if (winnerInfo.type === '로우') {
+                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, 동점)`;
+                                } else if (winnerInfo.type === '니어') {
+                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winners.join(', ')} (${winnerInfo.result}, ${winnerInfo.target}에 가장 가까움, 동점)`;
+                                }
+                            } else {
+                                if (winnerInfo.type === '하이') {
+                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winner} (${winnerInfo.result})`;
+                                } else if (winnerInfo.type === '로우') {
+                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winner} (${winnerInfo.result})`;
+                                } else if (winnerInfo.type === '니어') {
+                                    winnerDiv.textContent = `🏆 당첨: ${winnerInfo.winner} (${winnerInfo.result}, ${winnerInfo.target}에 가장 가까움)`;
+                                }
+                            }
+                            
+                            messageDiv.appendChild(winnerDiv);
+                        }
+                        
                         messageDiv.style.display = 'block'; // 표시
                         if (forceScroll || isScrolledToBottom) {
                             chatMessages.scrollTop = chatMessages.scrollHeight;
                         }
                     };
+                    
+                    // 중복 호출 방지 플래그
+                    if (messageDiv.dataset.messageShown === 'true') {
+                        return; // 이미 표시됨
+                    }
+                    messageDiv.dataset.messageShown = 'true';
                     
                     const checkAndShow = () => {
                         if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
