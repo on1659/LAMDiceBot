@@ -316,7 +316,11 @@ function createRoomGameState() {
         gameRules: '', // 게임 룰 (호스트만 설정, 게임 시작 후 수정 불가)
         frequentMenus: loadFrequentMenus(), // 자주 쓰는 메뉴 목록
         allPlayersRolledMessageSent: false, // 모든 참여자가 주사위를 굴렸다는 메시지 전송 여부
-        chatHistory: [] // 채팅 기록 (최대 100개)
+        chatHistory: [], // 채팅 기록 (최대 100개)
+        // 룰렛 게임 관련
+        rouletteHistory: [], // 룰렛 게임 기록
+        isRouletteSpinning: false, // 룰렛 회전 중 여부
+        userColors: {} // 사용자별 선택한 색상 {userName: colorIndex}
     };
 }
 
@@ -341,6 +345,14 @@ app.get('/', (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
+});
+
+// 룰렛 게임 페이지 라우트
+app.get('/roulette', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(__dirname, 'roulette-game-multiplayer.html'));
 });
 
 // GPT API를 통한 커스텀 룰 당첨자 판단
@@ -895,8 +907,8 @@ io.on('connection', (socket) => {
             roomPassword = password.trim();
         }
         
-        // 게임 타입 검증 (기본값은 'dice')
-        const validGameType = 'dice';
+        // 게임 타입 검증 (dice 또는 roulette, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette'].includes(gameType) ? gameType : 'dice';
         
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1024,6 +1036,7 @@ io.on('connection', (socket) => {
             gameRules: gameState.gameRules, // 게임 룰 추가
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
+            userColors: gameState.userColors || {}, // 사용자 색상 정보
             gameState: {
                 ...gameState,
                 hasRolled: () => false,
@@ -1161,6 +1174,7 @@ io.on('connection', (socket) => {
                 frequentMenus: gameState.frequentMenus,
                 chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
                 everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
+                userColors: gameState.userColors || {}, // 사용자 색상 정보
                 gameState: {
                     ...gameState,
                     hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -1300,6 +1314,7 @@ io.on('connection', (socket) => {
             frequentMenus: gameState.frequentMenus,
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
+            userColors: gameState.userColors || {}, // 사용자 색상 정보
             gameState: {
                 ...gameState,
                 hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -1699,7 +1714,7 @@ io.on('connection', (socket) => {
         if (isHost && gameState.users.some(user => user.isHost === true)) {
             socket.emit('loginError', '이미 호스트가 있습니다! 일반 사용자로 입장해주세요.');
             return;
-        }
+        }   
 
         const user = {
             id: socket.id,
@@ -2288,6 +2303,261 @@ io.on('connection', (socket) => {
         
         console.log(`방 ${room.roomName} 게임 종료, 총`, gameState.history.length, '번 굴림');
     });
+
+    // ========== 룰렛 게임 이벤트 핸들러 ==========
+    
+    // 룰렛 게임 시작 (방장만 가능)
+    socket.on('startRoulette', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // 룰렛 게임 방인지 확인
+        if (room.gameType !== 'roulette') {
+            socket.emit('rouletteError', '룰렛 게임 방이 아닙니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('rouletteError', '방장만 룰렛을 시작할 수 있습니다!');
+            return;
+        }
+        
+        // 이미 회전 중인지 확인
+        if (gameState.isRouletteSpinning) {
+            socket.emit('rouletteError', '이미 룰렛이 회전 중입니다!');
+            return;
+        }
+        
+        // 준비한 사람이 2명 이상인지 확인
+        if (!gameState.readyUsers || gameState.readyUsers.length < 2) {
+            socket.emit('rouletteError', '최소 2명 이상이 준비해야 시작할 수 있습니다!');
+            return;
+        }
+        
+        // 룰렛 회전 시작
+        gameState.isRouletteSpinning = true;
+        gameState.isGameActive = true;
+        
+        // 참여자 목록 저장
+        const participants = [...gameState.readyUsers];
+        gameState.gamePlayers = participants;
+        
+        // 당첨자 랜덤 선택 (서버에서 결정)
+        const winnerIndex = Math.floor(Math.random() * participants.length);
+        const winner = participants[winnerIndex];
+        
+        // 애니메이션 파라미터 생성 (모든 클라이언트가 동일한 애니메이션을 재생하도록)
+        const spinDuration = 5000 + Math.random() * 2000; // 5~7초 회전
+        const totalRotation = 1800 + Math.random() * 1080; // 5~8바퀴 회전 (1800 = 5바퀴, 2880 = 8바퀴)
+        
+        // 클라이언트가 직접 각도 계산하도록 winnerIndex와 totalRotation만 전달
+        // 서버는 당첨자와 회전량만 결정
+        const segmentAngle = 360 / participants.length;
+        
+        // 클라이언트에서 계산할 값들을 서버에서도 계산해서 로그 출력
+        const winnerCenterAngle = (winnerIndex + 0.5) * segmentAngle;
+        const neededRotation = 360 - winnerCenterAngle;
+        const fullRotations = Math.floor(totalRotation / 360);
+        const finalAngle = fullRotations * 360 + neededRotation;
+        
+        console.log(`\n========== 룰렛 시작 ==========`);
+        console.log(`참가자 (${participants.length}명): ${participants.join(', ')}`);
+        console.log(`당첨자: ${winner} (index: ${winnerIndex})`);
+        console.log(`segmentAngle: ${segmentAngle.toFixed(2)}°`);
+        console.log(`winnerCenterAngle: ${winnerCenterAngle.toFixed(2)}° (당첨자 중앙)`);
+        console.log(`neededRotation: ${neededRotation.toFixed(2)}° (= 360 - ${winnerCenterAngle.toFixed(2)})`);
+        console.log(`fullRotations: ${fullRotations}바퀴`);
+        console.log(`finalAngle: ${finalAngle.toFixed(2)}° (= ${fullRotations} * 360 + ${neededRotation.toFixed(2)})`);
+        console.log(`검증 - 화살표 위치: ${(360 - (finalAngle % 360)).toFixed(2)}° → 당첨자 중앙(${winnerCenterAngle.toFixed(2)}°)과 일치해야 함`);
+        console.log(`================================\n`);
+        
+        // 게임 기록 생성
+        const record = {
+            round: gameState.rouletteHistory.length + 1,
+            participants: participants,
+            winner: winner,
+            timestamp: new Date().toISOString(),
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        };
+        
+        // 기록 저장
+        gameState.rouletteHistory.push(record);
+        
+        // 모든 클라이언트에게 룰렛 시작 이벤트 전송
+        // finalAngle은 클라이언트가 직접 계산
+        io.to(room.roomId).emit('rouletteStarted', {
+            participants: participants,
+            spinDuration: spinDuration,
+            totalRotation: totalRotation,
+            winnerIndex: winnerIndex,
+            winner: winner,
+            record: record
+        });
+        
+        // 채팅에 시스템 메시지 추가
+        const startMessage = {
+            userName: '시스템',
+            message: `🎰 룰렛 게임 시작! 참가자: ${participants.join(', ')}`,
+            timestamp: new Date().toISOString(),
+            isSystem: true
+        };
+        gameState.chatHistory.push(startMessage);
+        if (gameState.chatHistory.length > 100) {
+            gameState.chatHistory = gameState.chatHistory.slice(-100);
+        }
+        io.to(room.roomId).emit('newMessage', startMessage);
+        
+        // 방 목록 업데이트
+        updateRoomsList();
+        
+        console.log(`방 ${room.roomName} 룰렛 시작 - 참가자: ${participants.join(', ')}, 당첨자: ${winner}`);
+    });
+    
+    // 룰렛 결과 처리 (애니메이션 완료 후 호출)
+    socket.on('rouletteResult', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) return;
+        
+        // Host만 결과 처리 가능 (중복 방지)
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) return;
+        
+        if (!gameState.isRouletteSpinning) return;
+        
+        gameState.isRouletteSpinning = false;
+        
+        const { winner } = data;
+        
+        // 채팅에 결과 메시지 추가
+        const resultMessage = {
+            userName: '시스템',
+            message: `🎊🎉 축하합니다! ${winner}님이 당첨되었습니다! 🎉🎊`,
+            timestamp: new Date().toISOString(),
+            isSystem: true,
+            isRouletteWinner: true
+        };
+        gameState.chatHistory.push(resultMessage);
+        if (gameState.chatHistory.length > 100) {
+            gameState.chatHistory = gameState.chatHistory.slice(-100);
+        }
+        io.to(room.roomId).emit('newMessage', resultMessage);
+        
+        // 룰렛 결과 이벤트 전송
+        io.to(room.roomId).emit('rouletteEnded', {
+            winner: winner
+        });
+        
+        console.log(`방 ${room.roomName} 룰렛 결과 - 당첨자: ${winner}`);
+    });
+    
+    // 룰렛 게임 종료 (초기화면으로 돌아가기)
+    socket.on('endRoulette', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('rouletteError', '방장만 게임을 종료할 수 있습니다!');
+            return;
+        }
+        
+        // 게임 상태 초기화
+        gameState.isGameActive = false;
+        gameState.isRouletteSpinning = false;
+        gameState.gamePlayers = [];
+        gameState.readyUsers = [];
+        
+        // 모든 클라이언트에게 게임 종료 이벤트 전송
+        io.to(room.roomId).emit('rouletteGameEnded', {
+            rouletteHistory: gameState.rouletteHistory
+        });
+        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+        
+        // 방 목록 업데이트
+        updateRoomsList();
+        
+        console.log(`방 ${room.roomName} 룰렛 게임 종료`);
+    });
+    
+    // 룰렛 색상 선택
+    socket.on('selectRouletteColor', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // 룰렛 게임 방인지 확인
+        if (room.gameType !== 'roulette') {
+            socket.emit('colorSelectError', '룰렛 게임 방이 아닙니다!');
+            return;
+        }
+        
+        const { colorIndex } = data;
+        const userName = socket.userName;
+        
+        if (!userName) {
+            socket.emit('colorSelectError', '사용자 정보를 찾을 수 없습니다!');
+            return;
+        }
+        
+        // 색상 인덱스 유효성 검사 (0~15)
+        if (typeof colorIndex !== 'number' || colorIndex < 0 || colorIndex > 15) {
+            socket.emit('colorSelectError', '유효하지 않은 색상입니다!');
+            return;
+        }
+        
+        // 다른 사용자가 이미 사용 중인 색상인지 확인
+        const usedColors = Object.entries(gameState.userColors);
+        for (const [user, color] of usedColors) {
+            if (user !== userName && color === colorIndex) {
+                socket.emit('colorSelectError', `이 색상은 ${user}님이 사용 중입니다!`);
+                return;
+            }
+        }
+        
+        // 색상 저장
+        gameState.userColors[userName] = colorIndex;
+        
+        // 모든 클라이언트에게 색상 업데이트 전송
+        io.to(room.roomId).emit('userColorsUpdated', gameState.userColors);
+        
+        console.log(`방 ${room.roomName}: ${userName}이(가) 색상 ${colorIndex} 선택`);
+    });
+    
+    // 사용자 색상 정보 요청
+    socket.on('getUserColors', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        if (!gameState) return;
+        
+        socket.emit('userColorsUpdated', gameState.userColors || {});
+    });
+
+    // ========== 룰렛 게임 이벤트 핸들러 끝 ==========
 
     // 이전 게임 데이터 삭제
     socket.on('clearGameData', () => {

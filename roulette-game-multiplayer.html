@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>LAM Roulette 🎰</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8e99a4 0%, #7a8b99 50%, #6b7c8a 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: 20px auto;
+        }
+        
+        body.lobby-active .container {
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        body.game-active .container {
+            margin-left: calc((100vw - 1140px) / 2 + 160px);
+            margin-right: auto;
+            max-width: 800px;
+        }
+        
+        body.game-active header,
+        body.game-active footer {
+            display: none;
+        }
+
+        h1 {
+            text-align: center;
+            color: #7c4dff;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .lobby-section, .game-section, .create-room-section {
+            display: none;
+        }
+
+        .lobby-section.active, .game-section.active, .create-room-section.active {
+            display: block;
+        }
+        
+        .rooms-list {
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+        }
+        
+        .room-item {
+            background: white;
+            border: 2px solid #7c4dff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .room-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(233, 30, 99, 0.3);
+        }
+        
+        .room-item.active {
+            background: #fce4ec;
+            border-color: #7c4dff;
+        }
+        
+        .room-item.my-room {
+            background: #fff3cd;
+            border-color: #ffc107;
+            border-width: 3px;
+        }
+        
+        .my-room-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        
+        .room-info {
+            flex: 1;
+        }
+        
+        .room-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #7c4dff;
+            margin-bottom: 5px;
+        }
+        
+        .room-details {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .room-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        
+        .room-status.playing {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .room-status.waiting {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .room-action {
+            margin-left: 15px;
+        }
+        
+        .room-action button {
+            width: auto;
+            padding: 10px 20px;
+        }
+        
+        .create-room-section {
+            background: #f8f9fa;
+            border: 2px solid #7c4dff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(233, 30, 99, 0.3);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: #7c4dff;
+            outline: none;
+        }
+
+        .connection-status {
+            text-align: center;
+            padding: 5px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .connection-status.connected {
+            color: #28a745;
+        }
+
+        .connection-status.disconnected {
+            color: #dc3545;
+        }
+
+        /* 룰렛 컨테이너 */
+        .roulette-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .roulette-wrapper {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            margin: 20px auto;
+        }
+
+        /* 룰렛 판 */
+        .roulette-wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.2);
+            border: 8px solid #333;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* 룰렛 중앙 */
+        .roulette-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #333 0%, #666 100%);
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        /* 화살표 (12시 방향 고정) */
+        .roulette-pointer {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 35px solid #ff1744;
+            z-index: 20;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+
+        /* 룰렛 세그먼트 */
+        .roulette-segment {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            top: 0;
+            right: 0;
+            transform-origin: bottom left;
+            overflow: hidden;
+        }
+
+        .segment-content {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            bottom: 0;
+            left: 0;
+            transform-origin: bottom left;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-top: 20px;
+        }
+
+        .segment-text {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%) rotate(90deg);
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            white-space: nowrap;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 준비 섹션 */
+        .ready-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #7c4dff;
+        }
+
+        .users-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .user-tag {
+            background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 게임 기록 */
+        .history-section {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            width: 320px;
+            max-height: calc(100vh - 40px);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .history-section.visible {
+            display: block;
+        }
+
+        .history-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #7c4dff;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #7c4dff;
+        }
+
+        .history-round {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .history-participants {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .history-winner {
+            font-size: 16px;
+            font-weight: bold;
+            color: #7c4dff;
+        }
+
+        /* 채팅 섹션 */
+        .chat-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            border: 2px solid #7c4dff;
+        }
+
+        .chat-messages {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .chat-message.system {
+            margin-bottom: 10px;
+            padding: 12px;
+            background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+
+        .chat-message.winner {
+            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+            color: #333;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 15px;
+            animation: celebrate 0.5s ease-in-out infinite alternate;
+            border-radius: 8px;
+        }
+
+        @keyframes celebrate {
+            from { transform: scale(1); }
+            to { transform: scale(1.02); }
+        }
+
+        /* 접속자 목록 */
+        .users-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #7c4dff;
+        }
+
+        .users-title {
+            font-weight: bold;
+            color: #7c4dff;
+            margin-bottom: 10px;
+        }
+
+        /* 방 정보 헤더 */
+        .room-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .room-title {
+            font-size: 24px;
+            color: #7c4dff;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .host-badge {
+            display: none;
+            background: #ffc107;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        /* 호스트 컨트롤 */
+        .host-controls {
+            display: none;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe082 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #ffc107;
+        }
+
+        .start-button {
+            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+            font-size: 20px;
+            padding: 15px 30px;
+        }
+
+        .start-button:disabled {
+            background: #ccc;
+        }
+
+        .end-button {
+            background: linear-gradient(135deg, #f44336 0%, #ff5722 100%);
+        }
+
+        /* 결과 오버레이 */
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .result-overlay.visible {
+            display: flex;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            animation: popup 0.5s ease-out;
+        }
+
+        @keyframes popup {
+            from {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        .result-title {
+            font-size: 24px;
+            color: #7c4dff;
+            margin-bottom: 20px;
+        }
+
+        .result-winner {
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .result-message {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        /* 게임 타입 아이콘 */
+        .game-type-icon {
+            font-size: 16px;
+            margin-right: 5px;
+        }
+
+        /* 방 폭파 카운트다운 */
+        .room-expiry-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 1200px) {
+            body.game-active .container {
+                margin-left: auto;
+                margin-right: auto;
+            }
+            
+            .history-section {
+                position: static;
+                width: 100%;
+                max-height: none;
+                margin-top: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .roulette-wrapper {
+                width: 280px;
+                height: 280px;
+            }
+        }
+    </style>
+</head>
+<body class="lobby-active">
+    <div class="container">
+        <!-- 로비 섹션 -->
+        <section class="lobby-section active" id="lobbySection">
+            <h1>🎰 LAM Roulette</h1>
+            <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
+            
+            <!-- 이름 입력 -->
+            <div style="background: #fce4ec; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <label style="font-weight: bold; color: #7c4dff; display: block; margin-bottom: 8px;">👤 내 이름</label>
+                <input type="text" id="globalUserNameInput" placeholder="이름을 입력하세요" maxlength="20">
+            </div>
+            
+            <!-- 방 만들기 버튼 -->
+            <button onclick="showCreateRoomSection()" style="margin-bottom: 20px;">🎰 새 룰렛 방 만들기</button>
+            
+            <!-- 방 목록 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="color: #7c4dff;">🎲 방 목록</h3>
+                <button onclick="refreshRooms()" style="width: auto; padding: 8px 15px; font-size: 14px;">🔄 새로고침</button>
+            </div>
+            <div class="rooms-list" id="roomsList">
+                <div style="color: #999; text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
+            </div>
+            
+            <!-- 주사위 게임 링크 -->
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="/dice-game-multiplayer.html" style="color: #667eea; text-decoration: none;">🎲 주사위 게임으로 이동</a>
+            </div>
+        </section>
+
+        <!-- 방 생성 섹션 -->
+        <section class="create-room-section" id="createRoomSection">
+            <h2 style="color: #7c4dff; margin-bottom: 20px;">🎰 새 룰렛 방 만들기</h2>
+            <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">호스트 이름</label>
+                <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름" maxlength="20">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">방 제목</label>
+                <input type="text" id="createRoomNameInput" placeholder="방 제목을 입력하세요" maxlength="30">
+            </div>
+            
+            <!-- 비공개 방 설정 -->
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: auto; margin: 0;">
+                    <span style="font-weight: bold; color: #333;">🔒 비공개 방</span>
+                </label>
+                <div id="createRoomPasswordContainer" style="display: none; margin-top: 10px;">
+                    <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 (4~20자)" maxlength="20">
+                </div>
+            </div>
+            
+            <!-- 방 유지 시간 -->
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px;">⏰ 방 유지 시간</label>
+                <div style="display: flex; gap: 15px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="radio" name="roomExpiryTime" value="1" style="width: auto; margin: 0;">
+                        <span>1시간</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="radio" name="roomExpiryTime" value="3" checked style="width: auto; margin: 0;">
+                        <span>3시간</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="radio" name="roomExpiryTime" value="6" style="width: auto; margin: 0;">
+                        <span>6시간</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="goBackToLobby()" style="background: #6c757d; flex: 1;">← 취소</button>
+                <button onclick="finalizeRoomCreation()" style="flex: 2;">🎰 방 만들기</button>
+            </div>
+        </section>
+
+        <!-- 게임 섹션 -->
+        <section class="game-section" id="gameSection">
+            <!-- 방 정보 헤더 -->
+            <div class="room-header">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <span class="room-title" id="roomTitle">룰렛 방</span>
+                    <span class="host-badge" id="hostBadge">👑 호스트</span>
+                </div>
+                <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #6c757d; margin-top: 10px;">🚪 나가기</button>
+            </div>
+
+            <!-- 방 폭파 카운트다운 -->
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
+                <div style="color: #856404; font-weight: bold; font-size: 14px;">
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: #d9534f;">--:--:--</span>
+                </div>
+            </div>
+
+            <!-- 접속자 목록 -->
+            <div class="users-section" id="usersSection">
+                <div class="users-title">
+                    👥 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: #7c4dff; margin-left: 10px; font-weight: normal;">💡 드래그하여 준비시키기</span>
+                </div>
+                <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- 준비 섹션 -->
+            <div class="ready-section" id="readySection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">준비</button>
+                </div>
+                <div class="users-list" id="readyUsersList">
+                    <div style="color: #999; text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 호스트 컨트롤 -->
+            <div class="host-controls" id="hostControls">
+                <div style="text-align: center; margin-bottom: 10px; color: #856404; font-weight: bold;">
+                    👑 호스트 전용
+                </div>
+                <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled>
+                    🎰 룰렛 시작 (최소 2명 준비 필요)
+                </button>
+            </div>
+
+            <!-- 룰렛 컨테이너 (항상 표시) -->
+            <div class="roulette-container" id="rouletteContainer" style="display: flex;">
+                <div class="roulette-wrapper">
+                    <div class="roulette-pointer"></div>
+                    <div class="roulette-wheel" id="rouletteWheel"></div>
+                    <div class="roulette-center">🎰</div>
+                </div>
+            </div>
+
+            <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
+            <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
+                <button class="end-button" onclick="endRouletteGame()">🏁 게임 종료</button>
+            </div>
+
+            <!-- 채팅 섹션 -->
+            <div class="chat-section">
+                <div style="font-weight: bold; color: #7c4dff; margin-bottom: 10px;">💬 채팅</div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
+                    <button onclick="sendMessage()" style="width: auto; padding: 10px 20px;">전송</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 기록 섹션 -->
+    <div class="history-section" id="historySection">
+        <div class="history-title">📜 게임 기록</div>
+        <div id="historyList"></div>
+    </div>
+
+    <!-- 결과 오버레이 -->
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-card">
+            <div class="result-title">🎊 당첨자 발표 🎊</div>
+            <div class="result-winner" id="resultWinner"></div>
+            <div class="result-message">축하합니다! 🎉</div>
+            <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px;">확인</button>
+        </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 -->
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+            <h3 style="color: #7c4dff; margin-bottom: 15px;">🔒 비공개 방</h3>
+            <p style="margin-bottom: 15px; color: #666;">비밀번호를 입력하세요</p>
+            <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closePasswordModal()" style="background: #6c757d; flex: 1;">취소</button>
+                <button onclick="submitPassword()" style="flex: 1;">입장</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // 소켓 연결
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000
+        });
+
+        // 상태 변수
+        let currentRoomId = null;
+        let currentUser = '';
+        let isHost = false;
+        let isReady = false;
+        let readyUsers = [];
+        let roomsList = [];
+        let selectedRoomId = null;
+        let rouletteHistory = [];
+        let isSpinning = false;
+        let roomExpiryInterval = null;
+        let pendingRoomId = null;
+        
+        // 파스텔톤 색상 목록
+        const PASTEL_COLORS = [
+            { index: 0, hex: '#FFB3BA', name: '파스텔 핑크' },
+            { index: 1, hex: '#BAFFC9', name: '파스텔 민트' },
+            { index: 2, hex: '#BAE1FF', name: '파스텔 블루' },
+            { index: 3, hex: '#FFFFBA', name: '파스텔 옐로우' },
+            { index: 4, hex: '#FFD9BA', name: '파스텔 피치' },
+            { index: 5, hex: '#E2BAFF', name: '파스텔 라벤더' },
+            { index: 6, hex: '#BAFFED', name: '파스텔 아쿠아' },
+            { index: 7, hex: '#FFC9DE', name: '파스텔 로즈' },
+            { index: 8, hex: '#C9FFE5', name: '파스텔 스프링그린' },
+            { index: 9, hex: '#D4BAFF', name: '파스텔 퍼플' },
+            { index: 10, hex: '#FFEEBA', name: '파스텔 크림' },
+            { index: 11, hex: '#BAFFD4', name: '파스텔 시폼' },
+            { index: 12, hex: '#FFCCCC', name: '파스텔 코랄' },
+            { index: 13, hex: '#CCE5FF', name: '파스텔 스카이' },
+            { index: 14, hex: '#E5FFCC', name: '파스텔 라임' },
+            { index: 15, hex: '#FFCCE5', name: '파스텔 체리' }
+        ];
+        let pendingUserName = null;
+
+        // 디바이스 ID 생성/가져오기
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('rouletteDeviceId');
+            if (!deviceId) {
+                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('rouletteDeviceId', deviceId);
+            }
+            return deviceId;
+        }
+
+        // 방 생성 섹션 표시
+        function showCreateRoomSection() {
+            const globalName = document.getElementById('globalUserNameInput').value.trim();
+            
+            document.getElementById('lobbySection').classList.remove('active');
+            document.getElementById('createRoomSection').classList.add('active');
+            
+            // 호스트 이름 자동 설정
+            const hostNameInput = document.getElementById('createRoomHostNameInput');
+            if (globalName) {
+                hostNameInput.value = globalName;
+                document.getElementById('createRoomNameInput').value = globalName + '님의 Roulette';
+            }
+        }
+
+        // 로비로 돌아가기
+        function goBackToLobby() {
+            document.getElementById('createRoomSection').classList.remove('active');
+            document.getElementById('lobbySection').classList.add('active');
+        }
+
+        // 방 생성
+        function finalizeRoomCreation() {
+            const hostName = document.getElementById('createRoomHostNameInput').value.trim();
+            const roomName = document.getElementById('createRoomNameInput').value.trim();
+            const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
+            const password = document.getElementById('createRoomPasswordInput').value.trim();
+            const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
+            const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
+
+            if (!hostName) {
+                alert('호스트 이름을 입력해주세요!');
+                return;
+            }
+
+            if (!roomName) {
+                alert('방 제목을 입력해주세요!');
+                return;
+            }
+
+            if (isPrivate && (!password || password.length < 4)) {
+                alert('비공개 방은 4자 이상의 비밀번호가 필요합니다!');
+                return;
+            }
+
+            // 이름 저장
+            localStorage.setItem('rouletteUserName', hostName);
+
+            socket.emit('createRoom', {
+                userName: hostName,
+                roomName: roomName,
+                isPrivate: isPrivate,
+                password: isPrivate ? password : '',
+                gameType: 'roulette',
+                expiryHours: expiryHours,
+                blockIPPerUser: false,
+                deviceId: getDeviceId()
+            });
+        }
+
+        // 방 목록 새로고침
+        function refreshRooms() {
+            socket.emit('getRooms');
+        }
+
+        // 방 목록 렌더링
+        function renderRoomsList() {
+            const roomsListEl = document.getElementById('roomsList');
+            
+            // 룰렛 방만 필터링
+            const rouletteRooms = roomsList.filter(room => room.gameType === 'roulette');
+            
+            if (rouletteRooms.length === 0) {
+                roomsListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">생성된 룰렛 방이 없습니다</div>';
+                return;
+            }
+
+            roomsListEl.innerHTML = '';
+
+            rouletteRooms.forEach(room => {
+                const roomItem = document.createElement('div');
+                const isMyRoom = room.roomId === currentRoomId;
+                let className = 'room-item';
+                if (isMyRoom) className += ' my-room';
+                else if (room.roomId === selectedRoomId) className += ' active';
+                roomItem.className = className;
+
+                let statusClass = 'waiting';
+                let statusText = '대기 중';
+                if (room.isGameActive) {
+                    statusClass = 'playing';
+                    statusText = '게임 진행 중';
+                }
+
+                const roomNameHtml = isMyRoom 
+                    ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
+                    : room.roomName;
+
+                const privateBadge = room.isPrivate 
+                    ? '<span style="color: #ff6b6b; font-weight: bold; margin-left: 5px;">🔒</span>' 
+                    : '';
+
+                const buttonText = isMyRoom ? '재입장' : '입장';
+
+                roomItem.innerHTML = `
+                    <div class="room-info">
+                        <div class="room-name"><span class="game-type-icon">🎰</span>${roomNameHtml}${privateBadge}</div>
+                        <div class="room-details">호스트: ${room.hostName} | 인원: ${room.playerCount}명</div>
+                        <span class="room-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="room-action">
+                        <button onclick="joinRoomDirectly('${room.roomId}')">${buttonText}</button>
+                    </div>
+                `;
+
+                roomsListEl.appendChild(roomItem);
+            });
+        }
+
+        // 방 입장
+        function joinRoomDirectly(roomId) {
+            const userName = document.getElementById('globalUserNameInput').value.trim();
+            
+            if (!userName) {
+                alert('이름을 입력해주세요!');
+                document.getElementById('globalUserNameInput').focus();
+                return;
+            }
+
+            const room = roomsList.find(r => r.roomId === roomId);
+            if (room && room.isPrivate) {
+                pendingRoomId = roomId;
+                pendingUserName = userName;
+                document.getElementById('passwordModal').style.display = 'flex';
+                document.getElementById('roomPasswordInput').focus();
+            } else {
+                socket.emit('joinRoom', {
+                    roomId: roomId,
+                    userName: userName,
+                    isHost: false,
+                    password: '',
+                    deviceId: getDeviceId()
+                });
+            }
+
+            localStorage.setItem('rouletteUserName', userName);
+        }
+
+        // 비밀번호 모달 닫기
+        function closePasswordModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+            document.getElementById('roomPasswordInput').value = '';
+            pendingRoomId = null;
+            pendingUserName = null;
+        }
+
+        // 비밀번호 제출
+        function submitPassword() {
+            const password = document.getElementById('roomPasswordInput').value;
+            
+            if (pendingRoomId && pendingUserName) {
+                socket.emit('joinRoom', {
+                    roomId: pendingRoomId,
+                    userName: pendingUserName,
+                    isHost: false,
+                    password: password,
+                    deviceId: getDeviceId()
+                });
+            }
+            
+            closePasswordModal();
+        }
+
+        // 방 나가기
+        function leaveRoom() {
+            if (confirm('방을 나가시겠습니까?')) {
+                socket.emit('leaveRoom');
+            }
+        }
+
+        // 준비 토글
+        function toggleReady() {
+            socket.emit('toggleReady');
+        }
+
+        // 준비 버튼 업데이트
+        function updateReadyButton() {
+            const btn = document.getElementById('readyButton');
+            if (isReady) {
+                btn.textContent = '준비 취소';
+                btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            } else {
+                btn.textContent = '준비';
+                btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            }
+        }
+
+        // 준비 목록 렌더링
+        function renderReadyUsers() {
+            const readyUsersList = document.getElementById('readyUsersList');
+            const readyCount = document.getElementById('readyCount');
+            
+            if (!readyUsersList || !readyCount) return;
+            
+            readyCount.textContent = readyUsers.length;
+            
+            if (readyUsers.length === 0) {
+                readyUsersList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px; width: 100%;" data-empty-ready>아직 준비한 사람이 없습니다</div>';
+            } else {
+                readyUsersList.innerHTML = '';
+                readyUsers.forEach(userName => {
+                    const tag = document.createElement('span');
+                    tag.className = 'user-tag';
+                    tag.textContent = userName;
+                    
+                    // 호스트이고 게임 진행 중이 아닐 때 드래그 가능 (준비 취소용)
+                    if (isHost && !isSpinning) {
+                        tag.draggable = true;
+                        tag.style.cursor = 'grab';
+                        tag.setAttribute('data-user-name', userName);
+                        
+                        tag.addEventListener('dragstart', (e) => {
+                            e.dataTransfer.setData('text/plain', userName);
+                            e.dataTransfer.setData('source', 'ready');
+                            tag.style.opacity = '0.5';
+                        });
+                        
+                        tag.addEventListener('dragend', (e) => {
+                            tag.style.opacity = '1';
+                            // 준비 섹션 밖으로 드롭하면 준비 취소
+                            const readySection = document.getElementById('readySection');
+                            const rect = readySection.getBoundingClientRect();
+                            if (e.clientX < rect.left || e.clientX > rect.right || 
+                                e.clientY < rect.top || e.clientY > rect.bottom) {
+                                socket.emit('setUserReady', {
+                                    userName: userName,
+                                    isReady: false
+                                });
+                            }
+                        });
+                    }
+                    
+                    readyUsersList.appendChild(tag);
+                });
+            }
+
+            // 시작 버튼 상태 업데이트
+            updateStartButton();
+            
+            // 준비한 사람들로 돌림판 미리보기 업데이트
+            if (!isSpinning) {
+                updateRoulettePreview();
+            }
+        }
+        
+        
+        // 돌림판 미리보기 업데이트
+        function updateRoulettePreview() {
+            if (readyUsers.length >= 1) {
+                createRouletteWheel(readyUsers);
+            } else {
+                // 준비한 사람이 없으면 빈 상태 표시
+                const wheel = document.getElementById('rouletteWheel');
+                wheel.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #999; font-size: 14px; text-align: center;">준비한 사람이<br>없습니다</div>';
+            }
+        }
+
+        // 시작 버튼 상태 업데이트
+        function updateStartButton() {
+            const btn = document.getElementById('startRouletteButton');
+            if (btn && isHost) {
+                if (readyUsers.length >= 2 && !isSpinning) {
+                    btn.disabled = false;
+                    btn.textContent = '🎰 룰렛 시작!';
+                } else {
+                    btn.disabled = true;
+                    btn.textContent = `🎰 룰렛 시작 (${readyUsers.length}/2명 준비)`;
+                }
+            }
+        }
+
+        // 룰렛 시작
+        function startRoulette() {
+            if (readyUsers.length < 2) {
+                alert('최소 2명이 준비해야 시작할 수 있습니다!');
+                return;
+            }
+            socket.emit('startRoulette');
+        }
+
+        // 룰렛 휠 생성
+        function createRouletteWheel(participants) {
+            const wheel = document.getElementById('rouletteWheel');
+            wheel.innerHTML = '';
+            
+            // 휠 회전 상태 초기화 (중요: 이전 게임의 회전이 남아있으면 안됨)
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            
+            // 파스텔톤 색상 배열 - 순서대로 자동 배정
+            const colorHexList = PASTEL_COLORS.map(c => c.hex);
+            const participantColors = participants.map((name, idx) => colorHexList[idx % 16]);
+            
+            // conic-gradient로 파이 차트 배경 생성 (0도 = 12시 방향에서 시작)
+            const segmentAngle = 360 / participants.length;
+            let gradientParts = [];
+            participants.forEach((name, idx) => {
+                const startAngle = idx * segmentAngle;
+                const endAngle = (idx + 1) * segmentAngle;
+                gradientParts.push(`${participantColors[idx]} ${startAngle}deg ${endAngle}deg`);
+            });
+            wheel.style.background = `conic-gradient(from 0deg, ${gradientParts.join(', ')})`;
+            wheel.style.border = '4px solid #222';
+            
+            // 구분선과 이름 추가
+            participants.forEach((name, index) => {
+                // 중앙에서 바깥으로 나가는 구분선 (검은색)
+                const divider = document.createElement('div');
+                divider.style.cssText = `
+                    position: absolute;
+                    left: 50%;
+                    top: 50%;
+                    width: 3px;
+                    height: 50%;
+                    background: #222;
+                    transform-origin: 0 0;
+                    transform: rotate(${index * segmentAngle}deg) translateY(-100%);
+                    box-shadow: 0 0 3px rgba(0,0,0,0.5);
+                    z-index: 5;
+                `;
+                wheel.appendChild(divider);
+                
+                // 이름 텍스트 오버레이 (파이 조각 정중앙에 위치, 항상 수평으로 표시)
+                const textOverlay = document.createElement('div');
+                // 파이 조각의 정중앙 계산
+                const angleToCenter = index * segmentAngle + segmentAngle / 2;
+                const angleRad = (angleToCenter - 90) * Math.PI / 180; // -90도는 12시 방향 기준
+                const textRadius = 95; // 중앙에서 텍스트까지의 거리
+                const textX = Math.cos(angleRad) * textRadius;
+                const textY = Math.sin(angleRad) * textRadius;
+                textOverlay.style.cssText = `
+                    position: absolute;
+                    left: calc(50% + ${textX}px);
+                    top: calc(50% + ${textY}px);
+                    transform: translate(-50%, -50%);
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #333;
+                    text-shadow: 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 0 2px 0 #fff, 0 -2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff;
+                    white-space: nowrap;
+                    text-align: center;
+                    z-index: 6;
+                    letter-spacing: 1px;
+                `;
+                textOverlay.textContent = name.length > 6 ? name.substring(0, 6) + '..' : name;
+                wheel.appendChild(textOverlay);
+            });
+        }
+
+        // 룰렛 애니메이션
+        function spinRoulette(finalAngle, duration, callback) {
+            const wheel = document.getElementById('rouletteWheel');
+            
+            wheel.style.transition = `transform ${duration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+            wheel.style.transform = `rotate(${finalAngle}deg)`;
+            
+            setTimeout(() => {
+                if (callback) callback();
+            }, duration);
+        }
+
+        // 접속자 목록 업데이트
+        // 현재 접속자 목록 저장
+        let currentUsers = [];
+        
+        function updateUsers(users) {
+            currentUsers = users;
+            const usersList = document.getElementById('usersList');
+            const usersCount = document.getElementById('usersCount');
+            
+            if (!usersList || !usersCount) return;
+            
+            usersCount.textContent = users.length;
+            usersList.innerHTML = '';
+            
+            users.forEach(user => {
+                const tag = document.createElement('span');
+                tag.className = 'user-tag';
+                tag.textContent = user.name + (user.isHost ? ' 👑' : '');
+                if (user.name === currentUser) {
+                    tag.style.background = 'linear-gradient(135deg, #ffc107 0%, #ff8c00 100%)';
+                    tag.style.color = '#333';
+                }
+                
+                // 호스트이고 게임 진행 중이 아닐 때 드래그 가능
+                if (isHost && !isSpinning) {
+                    tag.draggable = true;
+                    tag.style.cursor = 'grab';
+                    tag.setAttribute('data-user-name', user.name);
+                    
+                    tag.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', user.name);
+                        e.dataTransfer.setData('source', 'users');
+                        tag.style.opacity = '0.5';
+                    });
+                    
+                    tag.addEventListener('dragend', (e) => {
+                        tag.style.opacity = '1';
+                    });
+                }
+                
+                usersList.appendChild(tag);
+            });
+            
+            // 드래그 앤 드롭 설정
+            if (isHost && !isSpinning) {
+                setupDragAndDrop();
+            }
+        }
+        
+        // 드래그 앤 드롭 설정
+        function setupDragAndDrop() {
+            const readyUsersList = document.getElementById('readyUsersList');
+            const readySection = document.getElementById('readySection');
+            
+            if (!readyUsersList || !readySection) return;
+            
+            // 드롭 영역 설정 (준비 목록)
+            readyUsersList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                readyUsersList.style.backgroundColor = 'rgba(124, 77, 255, 0.1)';
+                readyUsersList.style.border = '2px dashed #7c4dff';
+            });
+            
+            readyUsersList.addEventListener('dragleave', (e) => {
+                readyUsersList.style.backgroundColor = '';
+                readyUsersList.style.border = '';
+            });
+            
+            readyUsersList.addEventListener('drop', (e) => {
+                e.preventDefault();
+                readyUsersList.style.backgroundColor = '';
+                readyUsersList.style.border = '';
+                
+                if (!isHost || isSpinning) return;
+                
+                const userName = e.dataTransfer.getData('text/plain');
+                const source = e.dataTransfer.getData('source');
+                
+                // 접속자 목록에서 드래그한 경우만 처리
+                if (source === 'users' && userName) {
+                    // 이미 준비 상태인지 확인
+                    if (!readyUsers.includes(userName)) {
+                        socket.emit('setUserReady', {
+                            userName: userName,
+                            isReady: true
+                        });
+                    }
+                }
+            });
+        }
+
+        // 채팅 메시지 추가
+        // 디바이스 아이콘 가져오기
+        function getDeviceIcon(deviceType) {
+            if (!deviceType) return '';
+            if (deviceType === 'iOS') return '🍎';
+            if (deviceType === 'Android') return '📱';
+            if (deviceType === 'PC') return '💻';
+            return '';
+        }
+        
+        function addChatMessage(data) {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+            
+            // 첫 메시지면 빈 상태 메시지 제거
+            const emptyMsg = chatMessages.querySelector('[data-empty-message]');
+            if (emptyMsg) {
+                emptyMsg.remove();
+            }
+            
+            // 스크롤이 맨 아래에 있는지 확인
+            const isScrolledToBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 10;
+            
+            const msgDiv = document.createElement('div');
+            
+            // 시스템 메시지 처리
+            if (data.isSystem || data.userName === '시스템') {
+                msgDiv.className = 'chat-message system';
+                if (data.isRouletteWinner) {
+                    msgDiv.classList.add('winner');
+                }
+                msgDiv.textContent = data.message;
+                chatMessages.appendChild(msgDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                return;
+            }
+            
+            // 일반 메시지 스타일
+            const isMe = data.userName === currentUser;
+            msgDiv.style.cssText = `margin-bottom: 10px; padding: 10px; background: ${isMe ? '#e8f5e9' : 'white'}; border-radius: 8px; border-left: 3px solid ${isMe ? '#4caf50' : '#7c4dff'};`;
+            
+            // 사용자 이름 (방장 왕관 + 디바이스 아이콘 + 이름 + (나))
+            const userNameSpan = document.createElement('span');
+            userNameSpan.style.cssText = `font-weight: 600; color: ${isMe ? '#2e7d32' : '#7c4dff'}; margin-right: 8px;`;
+            
+            let userNameText = '';
+            if (data.isHost) userNameText += '👑 ';
+            if (data.deviceType) {
+                userNameText += getDeviceIcon(data.deviceType) + ' ';
+            }
+            userNameText += data.userName;
+            if (isMe) userNameText += ' (나)';
+            userNameSpan.textContent = userNameText;
+            
+            // 메시지 내용
+            const messageSpan = document.createElement('span');
+            messageSpan.style.color = '#333';
+            messageSpan.textContent = data.message;
+            
+            // 시간
+            const timeSpan = document.createElement('div');
+            timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+            timeSpan.textContent = data.time || new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            msgDiv.appendChild(userNameSpan);
+            msgDiv.appendChild(messageSpan);
+            msgDiv.appendChild(timeSpan);
+            
+            chatMessages.appendChild(msgDiv);
+            
+            // 스크롤이 맨 아래에 있었으면 스크롤
+            if (isScrolledToBottom) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+
+        // 메시지 전송
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (message) {
+                socket.emit('sendMessage', { message: message });
+                input.value = '';
+            }
+        }
+
+        // 채팅 엔터키 처리
+        function handleChatKeypress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // 기록 렌더링
+        function renderHistory() {
+            const historyList = document.getElementById('historyList');
+            if (!historyList) return;
+            
+            if (rouletteHistory.length === 0) {
+                historyList.innerHTML = '<div style="color: #999; text-align: center;">아직 기록이 없습니다</div>';
+                return;
+            }
+            
+            historyList.innerHTML = '';
+            
+            rouletteHistory.slice().reverse().forEach(record => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <div class="history-round">${record.round}라운드 (${record.time})</div>
+                    <div class="history-participants">참가자: ${record.participants.join(', ')}</div>
+                    <div class="history-winner">🎊 당첨: ${record.winner}</div>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+
+        // 게임 종료
+        function endRouletteGame() {
+            socket.emit('endRoulette');
+        }
+
+        // 결과 오버레이 닫기
+        function closeResultOverlay() {
+            document.getElementById('resultOverlay').classList.remove('visible');
+        }
+
+        // 방 폭파 카운트다운
+        function startRoomExpiryCountdown(createdAt, expiryHours) {
+            if (roomExpiryInterval) {
+                clearInterval(roomExpiryInterval);
+            }
+            
+            const expirySection = document.getElementById('roomExpirySection');
+            const countdownElement = document.getElementById('roomExpiryCountdown');
+            
+            if (!expirySection || !countdownElement) return;
+            
+            expirySection.style.display = 'block';
+            
+            function updateCountdown() {
+                const now = new Date();
+                const createdAtDate = new Date(createdAt);
+                const expiryTime = createdAtDate.getTime() + (expiryHours * 60 * 60 * 1000);
+                const remaining = expiryTime - now.getTime();
+                
+                if (remaining <= 0) {
+                    countdownElement.textContent = '00:00:00';
+                    if (roomExpiryInterval) {
+                        clearInterval(roomExpiryInterval);
+                    }
+                    return;
+                }
+                
+                const hours = Math.floor(remaining / (1000 * 60 * 60));
+                const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                
+                countdownElement.textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+            
+            updateCountdown();
+            roomExpiryInterval = setInterval(updateCountdown, 1000);
+        }
+
+        // 게임 화면 초기화
+        function initializeGameScreen(data) {
+            document.getElementById('roomTitle').textContent = data.roomName || '룰렛 방';
+            
+            if (data.createdAt && data.expiryHours) {
+                startRoomExpiryCountdown(data.createdAt, data.expiryHours);
+            }
+            
+            // 호스트 UI 설정
+            if (isHost) {
+                document.getElementById('hostBadge').style.display = 'inline-block';
+                document.getElementById('hostControls').style.display = 'block';
+                const dragHint = document.getElementById('dragHint');
+                if (dragHint) dragHint.style.display = 'inline';
+            } else {
+                document.getElementById('hostBadge').style.display = 'none';
+                document.getElementById('hostControls').style.display = 'none';
+                const dragHint = document.getElementById('dragHint');
+                if (dragHint) dragHint.style.display = 'none';
+            }
+            
+            // 기록 섹션 표시
+            document.getElementById('historySection').classList.add('visible');
+            
+            // 채팅 기록 로드
+            if (data.chatHistory) {
+                document.getElementById('chatMessages').innerHTML = '';
+                data.chatHistory.forEach(msg => addChatMessage(msg));
+            }
+            
+            // 룰렛 기록 로드
+            if (data.gameState && data.gameState.rouletteHistory) {
+                rouletteHistory = data.gameState.rouletteHistory;
+                renderHistory();
+            }
+            
+            // 준비 상태 복원
+            if (data.readyUsers) {
+                readyUsers = data.readyUsers;
+                isReady = readyUsers.includes(currentUser);
+                renderReadyUsers();
+                updateReadyButton();
+            }
+            
+            // 돌림판 미리보기 초기화
+            updateRoulettePreview();
+        }
+
+        // === 소켓 이벤트 핸들러 ===
+        
+        socket.on('connect', () => {
+            document.getElementById('connectionStatus').textContent = '● 연결됨';
+            document.getElementById('connectionStatus').className = 'connection-status connected';
+            
+            const createRoomStatus = document.getElementById('createRoomConnectionStatus');
+            if (createRoomStatus) {
+                createRoomStatus.textContent = '● 연결됨';
+                createRoomStatus.className = 'connection-status connected';
+            }
+            
+            if (document.getElementById('lobbySection').classList.contains('active')) {
+                refreshRooms();
+            }
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connectionStatus').textContent = '● 연결 끊김';
+            document.getElementById('connectionStatus').className = 'connection-status disconnected';
+        });
+
+        socket.on('roomsList', (rooms) => {
+            roomsList = rooms;
+            renderRoomsList();
+        });
+
+        socket.on('roomsListUpdated', (rooms) => {
+            roomsList = rooms;
+            renderRoomsList();
+        });
+
+        socket.on('roomCreated', (data) => {
+            currentRoomId = data.roomId;
+            currentUser = document.getElementById('createRoomHostNameInput').value.trim();
+            isHost = true;
+            isReady = data.isReady || false;
+            readyUsers = data.readyUsers || [];
+
+            document.getElementById('lobbySection').classList.remove('active');
+            document.getElementById('createRoomSection').classList.remove('active');
+            document.getElementById('gameSection').classList.add('active');
+            
+            document.body.classList.remove('lobby-active');
+            document.body.classList.add('game-active');
+
+            initializeGameScreen(data);
+            renderReadyUsers();
+            updateReadyButton();
+        });
+
+        socket.on('roomJoined', (data) => {
+            currentRoomId = data.roomId;
+            currentUser = document.getElementById('globalUserNameInput').value.trim();
+            isHost = data.isHost;
+            isReady = data.isReady || false;
+            readyUsers = data.readyUsers || [];
+
+            document.getElementById('lobbySection').classList.remove('active');
+            document.getElementById('gameSection').classList.add('active');
+            
+            document.body.classList.remove('lobby-active');
+            document.body.classList.add('game-active');
+
+            initializeGameScreen(data);
+            renderReadyUsers();
+            updateReadyButton();
+        });
+
+        socket.on('roomError', (message) => {
+            alert(message);
+        });
+
+        socket.on('rouletteError', (message) => {
+            alert(message);
+        });
+
+        socket.on('updateUsers', (users) => {
+            updateUsers(users);
+        });
+
+        socket.on('readyStateChanged', (data) => {
+            isReady = data.isReady;
+            updateReadyButton();
+        });
+
+        socket.on('readyUsersUpdated', (users) => {
+            readyUsers = users || [];
+            renderReadyUsers();
+            
+            // 본인의 준비 상태 확인
+            isReady = readyUsers.includes(currentUser);
+            updateReadyButton();
+        });
+
+        socket.on('newMessage', (data) => {
+            addChatMessage(data);
+        });
+
+        socket.on('rouletteStarted', (data) => {
+            isSpinning = true;
+            
+            // UI 상태 변경 (돌림판은 이미 보이는 상태)
+            document.getElementById('readySection').style.display = 'none';
+            document.getElementById('hostControls').style.display = 'none';
+            
+            // 룰렛 휠 생성
+            createRouletteWheel(data.participants);
+            
+            // 클라이언트에서 직접 각도 계산
+            // conic-gradient(from 0deg): index N은 N*segmentAngle ~ (N+1)*segmentAngle
+            // index N의 중앙: (N + 0.5) * segmentAngle
+            // 
+            // rotate(X deg) 후 화살표가 가리키는 위치 = (360 - X) mod 360
+            // 당첨자 중앙이 화살표에 오려면: X = 360 - winnerCenterAngle
+            // totalRotation은 360의 배수가 아니므로, 전체 바퀴 수만 사용
+            const segmentAngle = 360 / data.participants.length;
+            const winnerCenterAngle = (data.winnerIndex + 0.5) * segmentAngle;
+            const neededRotation = 360 - winnerCenterAngle;
+            const fullRotations = Math.floor(data.totalRotation / 360);
+            const finalAngle = fullRotations * 360 + neededRotation;
+            
+            console.log('룰렛: participants=' + data.participants.length + ', winnerIndex=' + data.winnerIndex + ', winner=' + data.winner + ', neededRotation=' + neededRotation + ', finalAngle=' + finalAngle);
+            
+            // 강제 리플로우 후 애니메이션 시작
+            const wheel = document.getElementById('rouletteWheel');
+            wheel.offsetHeight; // 강제 리플로우
+            
+            setTimeout(() => {
+                spinRoulette(finalAngle, data.spinDuration, () => {
+                    isSpinning = false;
+                    
+                    // 호스트만 결과 이벤트 전송
+                    if (isHost) {
+                        socket.emit('rouletteResult', { winner: data.winner });
+                    }
+                    
+                    // 결과 오버레이 표시
+                    document.getElementById('resultWinner').textContent = data.winner;
+                    document.getElementById('resultOverlay').classList.add('visible');
+                    
+                    // 기록 추가
+                    rouletteHistory.push(data.record);
+                    renderHistory();
+                    
+                    // 호스트에게 종료 버튼 표시
+                    if (isHost) {
+                        document.getElementById('endGameSection').style.display = 'block';
+                    }
+                });
+            }, 50); // 50ms 지연으로 리플로우 보장
+        });
+
+        socket.on('rouletteEnded', (data) => {
+            // 결과 처리 완료
+        });
+
+        socket.on('rouletteGameEnded', (data) => {
+            isSpinning = false;
+            
+            // UI 초기화 (돌림판은 계속 표시)
+            document.getElementById('rouletteContainer').style.display = 'flex';
+            document.getElementById('readySection').style.display = 'block';
+            document.getElementById('endGameSection').style.display = 'none';
+            
+            // 룰렛 휠 초기화
+            const wheel = document.getElementById('rouletteWheel');
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            
+            // 호스트 컨트롤 표시
+            if (isHost) {
+                document.getElementById('hostControls').style.display = 'block';
+            }
+            
+            // 준비 상태 초기화
+            readyUsers = [];
+            isReady = false;
+            renderReadyUsers();
+            updateReadyButton();
+            updateStartButton();
+        });
+
+        socket.on('roomDeleted', (data) => {
+            alert(data.message || '방이 삭제되었습니다.');
+            
+            if (roomExpiryInterval) {
+                clearInterval(roomExpiryInterval);
+            }
+            
+            document.getElementById('gameSection').classList.remove('active');
+            document.getElementById('lobbySection').classList.add('active');
+            document.getElementById('historySection').classList.remove('visible');
+            
+            document.body.classList.remove('game-active');
+            document.body.classList.add('lobby-active');
+            
+            currentRoomId = null;
+            currentUser = '';
+            isHost = false;
+            rouletteHistory = [];
+            refreshRooms();
+        });
+
+        socket.on('leftRoom', () => {
+            if (roomExpiryInterval) {
+                clearInterval(roomExpiryInterval);
+            }
+            
+            document.getElementById('gameSection').classList.remove('active');
+            document.getElementById('lobbySection').classList.add('active');
+            document.getElementById('historySection').classList.remove('visible');
+            
+            document.body.classList.remove('game-active');
+            document.body.classList.add('lobby-active');
+            
+            currentRoomId = null;
+            isHost = false;
+            rouletteHistory = [];
+            refreshRooms();
+        });
+
+        socket.on('hostChanged', (data) => {
+            if (data.newHostId === socket.id) {
+                isHost = true;
+                document.getElementById('hostBadge').style.display = 'inline-block';
+                document.getElementById('hostControls').style.display = 'block';
+                updateStartButton();
+                alert('당신이 새로운 호스트가 되었습니다!');
+            }
+        });
+        
+        // 비공개 방 체크박스 이벤트
+        document.addEventListener('DOMContentLoaded', () => {
+            const privateCheckbox = document.getElementById('createRoomPrivateCheckbox');
+            const passwordContainer = document.getElementById('createRoomPasswordContainer');
+            
+            if (privateCheckbox && passwordContainer) {
+                privateCheckbox.addEventListener('change', function() {
+                    passwordContainer.style.display = this.checked ? 'block' : 'none';
+                    if (!this.checked) {
+                        document.getElementById('createRoomPasswordInput').value = '';
+                    }
+                });
+            }
+            
+            // 저장된 이름 불러오기
+            const savedName = localStorage.getItem('rouletteUserName');
+            if (savedName) {
+                document.getElementById('globalUserNameInput').value = savedName;
+            }
+            
+            // URL 파라미터로 방 생성/입장 요청이 왔는지 확인
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // 방 생성 요청
+            if (urlParams.get('createRoom') === 'true') {
+                const pendingRoom = localStorage.getItem('pendingRouletteRoom');
+                if (pendingRoom) {
+                    const roomData = JSON.parse(pendingRoom);
+                    localStorage.removeItem('pendingRouletteRoom');
+                    
+                    // 소켓 연결 후 방 생성
+                    socket.on('connect', function onConnect() {
+                        socket.off('connect', onConnect); // 한 번만 실행
+                        
+                        socket.emit('createRoom', {
+                            userName: roomData.userName,
+                            roomName: roomData.roomName,
+                            isPrivate: roomData.isPrivate,
+                            password: roomData.password,
+                            gameType: 'roulette',
+                            expiryHours: roomData.expiryHours,
+                            blockIPPerUser: roomData.blockIPPerUser,
+                            deviceId: getDeviceId()
+                        });
+                    });
+                    
+                    // URL에서 파라미터 제거
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+            
+            // 방 입장 요청
+            if (urlParams.get('joinRoom') === 'true') {
+                const pendingJoin = localStorage.getItem('pendingRouletteJoin');
+                if (pendingJoin) {
+                    const joinData = JSON.parse(pendingJoin);
+                    localStorage.removeItem('pendingRouletteJoin');
+                    
+                    // 이름 설정
+                    document.getElementById('globalUserNameInput').value = joinData.userName;
+                    
+                    // 소켓 연결 후 방 입장
+                    socket.on('connect', function onJoinConnect() {
+                        socket.off('connect', onJoinConnect); // 한 번만 실행
+                        
+                        if (joinData.isPrivate) {
+                            // 비공개 방이면 비밀번호 모달 표시
+                            pendingRoomId = joinData.roomId;
+                            pendingUserName = joinData.userName;
+                            document.getElementById('passwordModal').style.display = 'flex';
+                            document.getElementById('roomPasswordInput').focus();
+                        } else {
+                            // 공개 방이면 바로 입장
+                            socket.emit('joinRoom', {
+                                roomId: joinData.roomId,
+                                userName: joinData.userName,
+                                isHost: false,
+                                password: '',
+                                deviceId: getDeviceId()
+                            });
+                        }
+                    });
+                    
+                    // URL에서 파라미터 제거
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
