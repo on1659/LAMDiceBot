@@ -2547,6 +2547,18 @@ io.on('connection', (socket) => {
         if (gameState.isGameActive && gameState.gamePlayers.length > 0) {
             console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax}) - (${gameState.rolledUsers.length}/${gameState.gamePlayers.length}명 완료)`);
             
+            // 아직 굴리지 않은 사람 목록 계산
+            const notRolledYet = gameState.gamePlayers.filter(
+                player => !gameState.rolledUsers.includes(player)
+            );
+            
+            // 진행 상황 업데이트 전송
+            io.to(room.roomId).emit('rollProgress', {
+                rolled: gameState.rolledUsers.length,
+                total: gameState.gamePlayers.length,
+                notRolledYet: notRolledYet
+            });
+            
             // 모두 굴렸는지 확인 (메시지가 아직 전송되지 않았을 때만)
             if (gameState.rolledUsers.length === gameState.gamePlayers.length && !gameState.allPlayersRolledMessageSent) {
                 gameState.allPlayersRolledMessageSent = true; // 플래그 설정하여 중복 전송 방지
