@@ -1,2 +1,6 @@
 /node_modules
 /no
+
+# 테스트 폴더
+/AutoTest/node_modules
+/AutoTest/*.log

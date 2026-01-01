@@ -1,0 +1,17 @@
+{
+  "name": "roulette-test-bot",
+  "version": "1.0.0",
+  "description": "LAMDice 룰렛 UI 및 동기화 테스트 봇",
+  "main": "test-bot.js",
+  "scripts": {
+    "test": "node test-bot.js",
+    "test:local": "node test-bot.js --url http://localhost:3000",
+    "test:prod": "node test-bot.js --url https://lamdicebot-production.up.railway.app",
+    "ui": "node ui-test.js",
+    "ui:headless": "node ui-test.js --headless"
+  },
+  "dependencies": {
+    "puppeteer": "^21.6.0",
+    "socket.io-client": "^4.7.2"
+  }
+}

@@ -1669,6 +1669,59 @@
                 spinRoulette(finalAngle, data.spinDuration, () => {
                     isSpinning = false;
                     
+                    // ========== 🧪 CSS 애니메이션 검증 로그 ==========
+                    const wheelAfter = document.getElementById('rouletteWheel');
+                    const computedTransform = window.getComputedStyle(wheelAfter).transform;
+                    
+                    // matrix에서 실제 각도 추출
+                    let actualAngle = null;
+                    if (computedTransform && computedTransform !== 'none') {
+                        const matrixMatch = computedTransform.match(/matrix\(([^)]+)\)/);
+                        if (matrixMatch) {
+                            const values = matrixMatch[1].split(',').map(v => parseFloat(v.trim()));
+                            actualAngle = Math.atan2(values[1], values[0]) * (180 / Math.PI);
+                            if (actualAngle < 0) actualAngle += 360;
+                        }
+                    }
+                    
+                    const expectedAngle = finalAngle % 360;
+                    const diff = actualAngle !== null ? Math.abs(actualAngle - expectedAngle) : null;
+                    const diffAdjusted = diff !== null ? Math.min(diff, 360 - diff) : null;
+                    const isAccurate = diffAdjusted !== null && diffAdjusted <= 1;
+                    
+                    // 화살표가 가리키는 세그먼트 검증
+                    const arrowPointsTo = (360 - (finalAngle % 360) + 360) % 360;
+                    const winnerStart = data.winnerIndex * segmentAngle;
+                    const winnerEnd = (data.winnerIndex + 1) * segmentAngle;
+                    const isInWinnerSegment = arrowPointsTo >= winnerStart && arrowPointsTo < winnerEnd;
+                    
+                    console.log('%c========== 🎰 룰렛 CSS 검증 ==========', 'font-size: 14px; font-weight: bold; color: #7c4dff;');
+                    console.log('참가자:', data.participants);
+                    console.log('당첨자:', data.winner, '(index:', data.winnerIndex + ')');
+                    console.log('세그먼트 각도:', segmentAngle.toFixed(2) + '°');
+                    console.log('당첨자 세그먼트 범위:', winnerStart.toFixed(2) + '° ~ ' + winnerEnd.toFixed(2) + '°');
+                    console.log('---');
+                    console.log('목표 회전 (전체):', finalAngle.toFixed(2) + '°');
+                    console.log('목표 회전 (mod 360):', expectedAngle.toFixed(2) + '°');
+                    console.log('실제 CSS 각도:', actualAngle !== null ? actualAngle.toFixed(2) + '°' : 'N/A');
+                    console.log('오차:', diffAdjusted !== null ? diffAdjusted.toFixed(2) + '°' : 'N/A');
+                    console.log('---');
+                    console.log('화살표 가리키는 위치:', arrowPointsTo.toFixed(2) + '°');
+                    console.log('당첨자 세그먼트 안에 있음?', isInWinnerSegment ? '✅ YES' : '❌ NO');
+                    console.log('---');
+                    console.log('style.transform:', wheelAfter.style.transform);
+                    console.log('computed transform:', computedTransform);
+                    
+                    if (isAccurate && isInWinnerSegment) {
+                        console.log('%c✅ 테스트 통과: CSS 애니메이션 정확!', 'color: green; font-weight: bold; font-size: 16px;');
+                    } else if (isInWinnerSegment) {
+                        console.log('%c⚠️ 부분 통과: 세그먼트는 맞지만 각도 오차 있음', 'color: orange; font-weight: bold; font-size: 16px;');
+                    } else {
+                        console.log('%c❌ 테스트 실패: 화살표가 다른 세그먼트를 가리킴!', 'color: red; font-weight: bold; font-size: 16px;');
+                    }
+                    console.log('%c==========================================', 'font-size: 14px; font-weight: bold; color: #7c4dff;');
+                    // ========== 검증 로그 끝 ==========
+                    
                     // 호스트만 결과 이벤트 전송
                     if (isHost) {
                         socket.emit('rouletteResult', { winner: data.winner });

@@ -1714,7 +1714,7 @@ io.on('connection', (socket) => {
         if (isHost && gameState.users.some(user => user.isHost === true)) {
             socket.emit('loginError', '이미 호스트가 있습니다! 일반 사용자로 입장해주세요.');
             return;
-        }   
+        }   m
 
         const user = {
             id: socket.id,
