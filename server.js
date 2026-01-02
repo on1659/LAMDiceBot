@@ -288,6 +288,95 @@ function saveFrequentMenus(menus) {
     }
 }
 
+// ========== 팀 배정 알고리즘 함수 ==========
+
+// 팀 배정 제약 조건 검증
+function validateTeamRestrictions(teams, restrictions) {
+    for (const restriction of restrictions) {
+        // 같은 팀에 있는지 확인
+        for (const team of teams) {
+            const membersInTeam = restriction.filter(member => team.members.includes(member));
+            if (membersInTeam.length >= 2) {
+                // 제약 조건 위반: 같은 팀에 2명 이상 있음
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// 팀 배정 실행
+function assignTeams(players, teamConfig, restrictions) {
+    const maxAttempts = 10000;
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        // 플레이어 목록 복사 및 셔플
+        const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+        
+        // 팀별로 배정
+        const teams = [];
+        let playerIndex = 0;
+        let isValidAssignment = true;
+        
+        for (const config of teamConfig) {
+            const team = {
+                name: config.name,
+                members: [],
+                requiredPlayers: config.requiredPlayers || []
+            };
+            
+            // 필수 플레이어 먼저 배정
+            for (const requiredPlayer of team.requiredPlayers) {
+                if (shuffledPlayers.includes(requiredPlayer)) {
+                    team.members.push(requiredPlayer);
+                    // shuffledPlayers에서 제거
+                    const idx = shuffledPlayers.indexOf(requiredPlayer);
+                    if (idx !== -1) {
+                        shuffledPlayers.splice(idx, 1);
+                    }
+                }
+            }
+            
+            // 나머지 인원 채우기
+            while (team.members.length < config.size && playerIndex < shuffledPlayers.length) {
+                // 이미 배정된 플레이어는 건너뛰기
+                if (!team.members.includes(shuffledPlayers[playerIndex])) {
+                    team.members.push(shuffledPlayers[playerIndex]);
+                }
+                playerIndex++;
+            }
+            
+            teams.push(team);
+        }
+        
+        // 남은 플레이어가 있으면 마지막 팀에 배정
+        while (playerIndex < shuffledPlayers.length) {
+            if (teams.length > 0) {
+                teams[teams.length - 1].members.push(shuffledPlayers[playerIndex]);
+            }
+            playerIndex++;
+        }
+        
+        // 제약 조건 검증
+        if (validateTeamRestrictions(teams, restrictions)) {
+            return {
+                success: true,
+                teams: teams,
+                attempts: attempt + 1
+            };
+        }
+    }
+    
+    // 최대 시도 횟수 초과
+    return {
+        success: false,
+        error: `${maxAttempts}회 시도 후에도 제약 조건을 만족하는 팀 배정을 찾지 못했습니다. 제약 조건을 완화해주세요.`,
+        attempts: maxAttempts
+    };
+}
+
+// ========== 팀 배정 알고리즘 함수 끝 ==========
+
 // 방 관리 시스템
 const rooms = {}; // { roomId: { hostId, hostName, roomName, gameState, ... } }
 
@@ -320,7 +409,13 @@ function createRoomGameState() {
         // 룰렛 게임 관련
         rouletteHistory: [], // 룰렛 게임 기록
         isRouletteSpinning: false, // 룰렛 회전 중 여부
-        userColors: {} // 사용자별 선택한 색상 {userName: colorIndex}
+        userColors: {}, // 사용자별 선택한 색상 {userName: colorIndex}
+        // 팀 배정 게임 관련
+        teamPlayers: [], // 팀 배정 플레이어 목록
+        teamConfig: [], // 팀 구성 설정 [{name: '1팀', size: 3, requiredPlayers: []}, ...]
+        teamRestrictions: [], // 같은 팀 금지 제약 조건 [[player1, player2], ...]
+        teamRestrictionGroups: [], // 제약 조건 그룹 [{members: [player1, player2, ...]}, ...]
+        teamResult: null // 팀 배정 결과
     };
 }
 
@@ -353,6 +448,14 @@ app.get('/roulette', (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'roulette-game-multiplayer.html'));
+});
+
+// 팀 배정 게임 페이지 라우트
+app.get('/team', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(__dirname, 'team-game-multiplayer.html'));
 });
 
 // GPT API를 통한 커스텀 룰 당첨자 판단
@@ -875,9 +978,17 @@ io.on('connection', (socket) => {
 
     // 방 생성
     socket.on('createRoom', async (data) => {
-        if (!checkRateLimit()) return;
+        console.log(`\n========== [TEAM DEBUG] createRoom 시작 ==========`);
+        console.log(`[TEAM DEBUG] socket.id: ${socket.id}`);
+        console.log(`[TEAM DEBUG] 받은 데이터:`, JSON.stringify(data));
+        
+        if (!checkRateLimit()) {
+            console.log(`[TEAM DEBUG] Rate limit 초과로 중단`);
+            return;
+        }
         
         const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser } = data;
+        console.log(`[TEAM DEBUG] gameType: ${gameType}, userName: ${userName}, roomName: ${roomName}`);
         
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -907,8 +1018,8 @@ io.on('connection', (socket) => {
             roomPassword = password.trim();
         }
         
-        // 게임 타입 검증 (dice 또는 roulette, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette'].includes(gameType) ? gameType : 'dice';
+        // 게임 타입 검증 (dice, roulette, team 중 하나, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette', 'team'].includes(gameType) ? gameType : 'dice';
         
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1018,7 +1129,17 @@ io.on('connection', (socket) => {
         // 디버깅: readyUsers 확인
         console.log(`방 생성 완료 - readyUsers:`, gameState.readyUsers, `호스트: ${trimmedUserName}`);
         
+        // 팀 배정 게임인 경우 기본 팀 구성 설정
+        if (validGameType === 'team') {
+            gameState.teamConfig = [
+                { name: 'A팀', size: 2, requiredPlayers: [] },
+                { name: 'B팀', size: 2, requiredPlayers: [] }
+            ];
+        }
+        
         socket.join(roomId);
+        
+        console.log(`[TEAM DEBUG] roomCreated 이벤트 emit 시작 - roomId: ${roomId}, gameType: ${validGameType}`);
         
         // 방 생성 성공 알림
         socket.emit('roomCreated', {
@@ -1037,6 +1158,11 @@ io.on('connection', (socket) => {
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             userColors: gameState.userColors || {}, // 사용자 색상 정보
+            // 팀 배정 게임 관련 데이터
+            teamConfig: gameState.teamConfig || [],
+            teamPlayers: gameState.teamPlayers || [],
+            teamRestrictions: gameState.teamRestrictions || [],
+            teamRestrictionGroups: gameState.teamRestrictionGroups || [],
             gameState: {
                 ...gameState,
                 hasRolled: () => false,
@@ -1045,7 +1171,9 @@ io.on('connection', (socket) => {
             }
         });
         
+        console.log(`[TEAM DEBUG] roomCreated 이벤트 emit 완료`);
         console.log(`방 생성: ${finalRoomName} (${roomId}) by ${userName.trim()}`);
+        console.log(`========== [TEAM DEBUG] createRoom 완료 ==========\n`);
         
         // 같은 방의 다른 사용자들에게 업데이트
         io.to(roomId).emit('updateUsers', gameState.users);
@@ -1058,9 +1186,17 @@ io.on('connection', (socket) => {
 
     // 방 입장
     socket.on('joinRoom', async (data) => {
-        if (!checkRateLimit()) return;
+        console.log(`\n========== [TEAM DEBUG] joinRoom 시작 ==========`);
+        console.log(`[TEAM DEBUG] socket.id: ${socket.id}`);
+        console.log(`[TEAM DEBUG] 받은 데이터:`, JSON.stringify(data));
+        
+        if (!checkRateLimit()) {
+            console.log(`[TEAM DEBUG] Rate limit 초과로 중단`);
+            return;
+        }
         
         const { roomId, userName, isHost, password, deviceId } = data;
+        console.log(`[TEAM DEBUG] roomId: ${roomId}, userName: ${userName}`);
         
         if (!roomId || !userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 정보를 입력해주세요!');
@@ -1149,6 +1285,8 @@ io.on('connection', (socket) => {
             const hasRolled = gameState.rolledUsers.includes(userName.trim());
             const myResult = gameState.history.find(r => r.user === userName.trim());
             
+            console.log(`[TEAM DEBUG] roomJoined 이벤트 emit (재연결) - roomId: ${roomId}, userName: ${userName.trim()}`);
+            
             // 입장 성공 응답
             socket.emit('roomJoined', {
                 roomId,
@@ -1175,6 +1313,12 @@ io.on('connection', (socket) => {
                 chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
                 everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
                 userColors: gameState.userColors || {}, // 사용자 색상 정보
+                // 팀 배정 게임 관련 데이터
+                teamPlayers: gameState.teamPlayers || [],
+                teamConfig: gameState.teamConfig || [],
+                teamRestrictions: gameState.teamRestrictions || [],
+                teamRestrictionGroups: gameState.teamRestrictionGroups || [],
+                teamResult: gameState.teamResult || null,
                 gameState: {
                     ...gameState,
                     hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -1289,6 +1433,9 @@ io.on('connection', (socket) => {
         const hasRolled = gameState.rolledUsers.includes(userName.trim());
         const myResult = gameState.history.find(r => r.user === userName.trim());
         
+        console.log(`[TEAM DEBUG] roomJoined 이벤트 emit (신규입장) - roomId: ${roomId}, userName: ${userName.trim()}, isHost: ${finalIsHost}`);
+        console.log(`========== [TEAM DEBUG] joinRoom 완료 ==========\n`);
+        
         // 입장 성공 응답
             socket.emit('roomJoined', {
                 roomId,
@@ -1315,6 +1462,12 @@ io.on('connection', (socket) => {
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             userColors: gameState.userColors || {}, // 사용자 색상 정보
+            // 팀 배정 게임 관련 데이터
+            teamPlayers: gameState.teamPlayers || [],
+            teamConfig: gameState.teamConfig || [],
+            teamRestrictions: gameState.teamRestrictions || [],
+            teamRestrictionGroups: gameState.teamRestrictionGroups || [],
+            teamResult: gameState.teamResult || null,
             gameState: {
                 ...gameState,
                 hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
@@ -2559,6 +2712,269 @@ io.on('connection', (socket) => {
 
     // ========== 룰렛 게임 이벤트 핸들러 끝 ==========
 
+    // ========== 팀 배정 게임 이벤트 핸들러 ==========
+    
+    // 팀 플레이어 목록 업데이트 (호스트만)
+    socket.on('updateTeamPlayers', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // 팀 배정 게임 방인지 확인
+        if (room.gameType !== 'team') {
+            socket.emit('teamError', '팀 배정 게임 방이 아닙니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('teamError', '방장만 플레이어 목록을 수정할 수 있습니다!');
+            return;
+        }
+        
+        const { players } = data;
+        
+        // 입력값 검증
+        if (!Array.isArray(players)) {
+            socket.emit('teamError', '올바른 플레이어 목록이 아닙니다!');
+            return;
+        }
+        
+        // 플레이어 목록 저장 (최대 50명)
+        gameState.teamPlayers = players.slice(0, 50).map(p => p.trim()).filter(p => p.length > 0);
+        
+        // 모든 클라이언트에게 업데이트 전송
+        io.to(room.roomId).emit('teamPlayersUpdated', gameState.teamPlayers);
+        
+        console.log(`방 ${room.roomName} 팀 플레이어 업데이트: ${gameState.teamPlayers.length}명`);
+    });
+    
+    // 팀 구성 설정 업데이트 (호스트만)
+    socket.on('updateTeamConfig', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        if (room.gameType !== 'team') {
+            socket.emit('teamError', '팀 배정 게임 방이 아닙니다!');
+            return;
+        }
+        
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('teamError', '방장만 팀 구성을 수정할 수 있습니다!');
+            return;
+        }
+        
+        // 클라이언트에서 config 또는 teamConfig 필드로 보낼 수 있음
+        const teamConfig = data.config || data.teamConfig;
+        
+        if (!Array.isArray(teamConfig)) {
+            socket.emit('teamError', '올바른 팀 구성이 아닙니다!');
+            return;
+        }
+        
+        // 팀 구성 저장 (최대 20팀) - 클라이언트에서 count 또는 size 둘 다 지원
+        gameState.teamConfig = teamConfig.slice(0, 20).map(config => ({
+            name: (config.name || '').trim().substring(0, 20),
+            size: Math.max(1, Math.min(50, parseInt(config.size || config.count) || 1)),
+            requiredPlayers: Array.isArray(config.requiredPlayers) ? config.requiredPlayers : []
+        }));
+        
+        io.to(room.roomId).emit('teamConfigUpdated', gameState.teamConfig);
+        
+        console.log(`방 ${room.roomName} 팀 구성 업데이트: ${gameState.teamConfig.length}팀`);
+    });
+    
+    // 같은 팀 금지 제약 조건 업데이트 (호스트만)
+    socket.on('updateTeamRestrictions', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        if (room.gameType !== 'team') {
+            socket.emit('teamError', '팀 배정 게임 방이 아닙니다!');
+            return;
+        }
+        
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('teamError', '방장만 제약 조건을 수정할 수 있습니다!');
+            return;
+        }
+        
+        const { restrictions, restrictionGroups } = data;
+        
+        if (!Array.isArray(restrictions)) {
+            socket.emit('teamError', '올바른 제약 조건이 아닙니다!');
+            return;
+        }
+        
+        // 제약 조건 저장 (최대 50개)
+        gameState.teamRestrictions = restrictions.slice(0, 50).filter(r => Array.isArray(r) && r.length >= 2);
+        
+        // 제약 조건 그룹 저장 (최대 20개)
+        if (Array.isArray(restrictionGroups)) {
+            gameState.teamRestrictionGroups = restrictionGroups.slice(0, 20).map(g => ({
+                members: Array.isArray(g.members) ? g.members : []
+            }));
+        }
+        
+        // 개별 제약 조건과 그룹 정보 함께 전송
+        io.to(room.roomId).emit('teamRestrictionsUpdated', gameState.teamRestrictions);
+        io.to(room.roomId).emit('teamRestrictionGroupsUpdated', {
+            restrictions: gameState.teamRestrictions,
+            restrictionGroups: gameState.teamRestrictionGroups || []
+        });
+        
+        console.log(`방 ${room.roomName} 팀 제약 조건 업데이트: ${gameState.teamRestrictions.length}개, 그룹: ${(gameState.teamRestrictionGroups || []).length}개`);
+    });
+    
+    // 팀 배정 실행 (호스트만)
+    socket.on('assignTeams', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        if (room.gameType !== 'team') {
+            socket.emit('teamError', '팀 배정 게임 방이 아닙니다!');
+            return;
+        }
+        
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('teamError', '방장만 팀 배정을 실행할 수 있습니다!');
+            return;
+        }
+        
+        // 플레이어 목록 확인
+        if (!gameState.teamPlayers || gameState.teamPlayers.length < 2) {
+            socket.emit('teamError', '최소 2명 이상의 플레이어가 필요합니다!');
+            return;
+        }
+        
+        // 팀 구성 확인
+        if (!gameState.teamConfig || gameState.teamConfig.length < 2) {
+            socket.emit('teamError', '최소 2개 이상의 팀이 필요합니다!');
+            return;
+        }
+        
+        // 팀 배정 실행
+        const result = assignTeams(
+            gameState.teamPlayers,
+            gameState.teamConfig,
+            gameState.teamRestrictions || []
+        );
+        
+        if (result.success) {
+            gameState.teamResult = result;
+            
+            // 모든 클라이언트에게 결과 전송
+            io.to(room.roomId).emit('teamAssigned', {
+                success: true,
+                teams: result.teams,
+                attempts: result.attempts,
+                message: `${result.attempts}번 시도 후 성공`
+            });
+            
+            // 채팅에 시스템 메시지 추가
+            const teamResultMessage = {
+                userName: '시스템',
+                message: `\ud83c\udf89 팀 배정 완료! (${result.attempts}회 시도)\n` + 
+                         result.teams.map(t => `${t.name}: ${t.members.join(', ')}`).join('\n'),
+                time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                isHost: false,
+                isSystemMessage: true
+            };
+            gameState.chatHistory.push(teamResultMessage);
+            if (gameState.chatHistory.length > 100) {
+                gameState.chatHistory.shift();
+            }
+            io.to(room.roomId).emit('newMessage', teamResultMessage);
+            
+            console.log(`방 ${room.roomName} 팀 배정 성공 - ${result.attempts}회 시도`);
+        } else {
+            io.to(room.roomId).emit('teamAssigned', {
+                success: false,
+                error: result.error,
+                attempts: result.attempts
+            });
+            
+            console.log(`방 ${room.roomName} 팀 배정 실패 - ${result.error}`);
+        }
+    });
+    
+    // 팀 배정 결과 초기화 (호스트만)
+    socket.on('resetTeamResult', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        if (room.gameType !== 'team') {
+            socket.emit('teamError', '팀 배정 게임 방이 아닙니다!');
+            return;
+        }
+        
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('teamError', '방장만 결과를 초기화할 수 있습니다!');
+            return;
+        }
+        
+        gameState.teamResult = null;
+        
+        io.to(room.roomId).emit('teamResultReset');
+        
+        console.log(`방 ${room.roomName} 팀 배정 결과 초기화`);
+    });
+    
+    // 팀 게임 상태 요청 (재연결 시)
+    socket.on('getTeamGameState', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) return;
+        
+        if (room.gameType !== 'team') return;
+        
+        socket.emit('teamGameState', {
+            teamPlayers: gameState.teamPlayers || [],
+            teamConfig: gameState.teamConfig || [],
+            teamRestrictions: gameState.teamRestrictions || [],
+            teamRestrictionGroups: gameState.teamRestrictionGroups || [],
+            teamResult: gameState.teamResult
+        });
+    });
+    
+    // ========== 팀 배정 게임 이벤트 핸들러 끝 ==========
+
     // 이전 게임 데이터 삭제
     socket.on('clearGameData', () => {
         if (!checkRateLimit()) return;
@@ -2985,6 +3401,11 @@ io.on('connection', (socket) => {
 
     // 연결 해제
     socket.on('disconnect', async (reason) => {
+        console.log(`\n========== [TEAM DEBUG] disconnect 시작 ==========`);
+        console.log(`[TEAM DEBUG] socket.id: ${socket.id}`);
+        console.log(`[TEAM DEBUG] 이유: ${reason}`);
+        console.log(`[TEAM DEBUG] 방: ${socket.currentRoomId}`);
+        console.log(`[TEAM DEBUG] 사용자: ${socket.userName}`);
         console.log(`사용자 연결 해제: ${socket.id}, 이유: ${reason}, 방: ${socket.currentRoomId}, 사용자: ${socket.userName}`);
         
         // 'transport close'는 페이지 리다이렉트나 새로고침으로 인한 경우
