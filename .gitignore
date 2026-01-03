@@ -1,6 +1,10 @@
 /node_modules
 /no
 
+# IDE 설정 폴더
+.cursor/
+.vscode/
+
 # 테스트 폴더
 /AutoTest/node_modules
 /AutoTest/*.log
