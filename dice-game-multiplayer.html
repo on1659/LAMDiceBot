@@ -1428,20 +1428,25 @@
             <!-- 게임 타입 선택 -->
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
                 <label style="display: block; margin-bottom: 10px; font-weight: 500;">🎮 게임 타입</label>
-                <div style="display: flex; gap: 15px;">
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; padding: 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
                         <input type="radio" name="gameType" value="dice" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🎲</span>
                         <span style="font-weight: 600;">주사위</span>
                     </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; padding: 15px; background: white; border-radius: 8px; border: 2px solid #e91e63;">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #e91e63;">
                         <input type="radio" name="gameType" value="roulette" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🎰</span>
                         <span style="font-weight: 600;">룰렛</span>
                     </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #9c27b0;">
+                        <input type="radio" name="gameType" value="team" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">👥</span>
+                        <span style="font-weight: 600;">팀 배정</span>
+                    </label>
                 </div>
                 <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                    룰렛을 선택하면 룰렛 전용 페이지로 이동합니다.
+                    룰렛/팀 배정을 선택하면 전용 페이지로 이동합니다.
                 </div>
             </div>
             
@@ -2522,6 +2527,18 @@
                 return;
             }
             
+            // 팀 배정 방이면 팀 페이지로 이동
+            if (room && room.gameType === 'team') {
+                localStorage.setItem('teamUserName', userName);
+                localStorage.setItem('pendingTeamJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate
+                }));
+                window.location.href = '/team-game-multiplayer.html?joinRoom=true';
+                return;
+            }
+            
             // 비공개 방인지 체크
             if (room && room.isPrivate) {
                 // 비공개 방이면 비밀번호 입력 모달 표시
@@ -2813,6 +2830,22 @@
                     blockIPPerUser: blockIPPerUser
                 }));
                 window.location.href = '/roulette-game-multiplayer.html?createRoom=true';
+                return;
+            }
+            
+            // 팀 배정 게임이면 팀 페이지로 이동
+            if (gameType === 'team') {
+                // 이름을 저장하고 팀 페이지로 이동
+                localStorage.setItem('teamUserName', hostName);
+                localStorage.setItem('pendingTeamRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser
+                }));
+                window.location.href = '/team-game-multiplayer.html?createRoom=true';
                 return;
             }
             

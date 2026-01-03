@@ -907,8 +907,8 @@ io.on('connection', (socket) => {
             roomPassword = password.trim();
         }
         
-        // 게임 타입 검증 (dice 또는 roulette, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette'].includes(gameType) ? gameType : 'dice';
+        // 게임 타입 검증 (dice, roulette, team 허용, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette', 'team'].includes(gameType) ? gameType : 'dice';
         
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -3332,7 +3332,7 @@ async function startServer() {
     });
 }
 
-// 서버 시작
+// 서버 시작    
 startServer().catch(error => {
     console.error('서버 시작 오류:', error);
     process.exit(1);
