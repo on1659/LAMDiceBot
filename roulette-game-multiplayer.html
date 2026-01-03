@@ -334,19 +334,31 @@
         }
 
         .users-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            min-height: 40px;
+            min-height: 50px;
         }
 
         .user-tag {
-            background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
-            color: white;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-tag.host {
+            background: #667eea;
+            color: white;
         }
 
         /* 게임 기록 */
@@ -448,17 +460,16 @@
 
         /* 접속자 목록 */
         .users-section {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
             margin-bottom: 20px;
-            border: 2px solid #7c4dff;
         }
 
         .users-title {
-            font-weight: bold;
-            color: #7c4dff;
-            margin-bottom: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
         }
 
         /* 방 정보 헤더 */
@@ -637,6 +648,209 @@
     <style>
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        
+        /* 주문받기 섹션 스타일 */
+        .orders-section {
+            margin-bottom: 20px;
+            display: none;
+        }
+        .orders-section.active {
+            display: block;
+        }
+        .my-order-box {
+            background: #fff9e6;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .my-order-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .order-input-group {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: start;
+        }
+        .order-input-wrapper {
+            position: relative;
+        }
+        .order-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .order-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #ffc107;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .order-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .order-item-left {
+            flex: 1;
+        }
+
+        .order-user {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 4px;
+        }
+
+        .order-text {
+            color: #666;
+            font-size: 20px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .order-text.empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .order-count {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin-left: 15px;
+        }
+        .menu-manager {
+            background: #f8f9fa;
+            border: 2px solid #7c4dff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .menu-manager.active {
+            display: block;
+        }
+        .menu-manager-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .menu-manager-input {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .menu-list {
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .menu-tag {
+            display: inline-block;
+            background: #7c4dff;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            margin: 4px;
+            cursor: pointer;
+        }
+        .menu-tag .delete-btn {
+            margin-left: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .sort-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .sort-button {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            color: #666;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .sort-button.active {
+            background: #7c4dff;
+            color: white;
+            border-color: #7c4dff;
+        }
+        .not-ordered-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #ddd;
+        }
+
+        .not-rolled-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 12px;
+        }
+
+        .not-rolled-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .not-rolled-tag {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        
+        .spectator-orders-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .game-status {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .game-status.waiting {
+            background: #e9ecef;
+            color: #495057;
+        }
+        .game-status.ordering {
+            background: #fff9e6;
+            color: #856404;
+        }
+        .game-status.playing {
+            background: #d4edda;
+            color: #155724;
+        }
     </style>
 
     <div class="container">
@@ -759,13 +973,89 @@
             </div>
 
             <!-- 호스트 컨트롤 -->
-            <div class="host-controls" id="hostControls">
-                <div style="text-align: center; margin-bottom: 10px; color: #856404; font-weight: bold;">
-                    👑 호스트 전용
-                </div>
-                <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled>
+            <div class="host-controls" id="hostControls" style="display: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled style="grid-column: 1 / -1;">
                     🎰 룰렛 시작 (최소 2명 준비 필요)
                 </button>
+                <button onclick="startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">주문받기 시작</button>
+                <button onclick="endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">주문받기 종료</button>
+            </div>
+
+            <!-- 주문받기 섹션 -->
+            <div class="orders-section" id="ordersSection">
+                <div class="history-title-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="font-weight: bold; color: #7c4dff; font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button onclick="showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, #7c4dff 0%, #b388ff 100%);">📋 주문리스트 보기</button>
+                        <div class="sort-buttons">
+                            <button class="sort-button active" id="sortOrderAscBtn" onclick="sortOrders('asc')">가나다순</button>
+                            <button class="sort-button" id="sortOrderDescBtn" onclick="sortOrders('desc')">가나다 역순</button>
+                            <button class="sort-button" id="sortOrderCountBtn" onclick="sortOrders('count')">주문 많은 순</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 주문하지 않은 사람 목록 -->
+                <div class="not-ordered-section" id="notOrderedSection" style="display: none;">
+                    <div class="not-rolled-title" style="margin-top: 15px;">⏳ 주문하지 않은 사람</div>
+                    <div class="not-rolled-list" id="notOrderedList">
+                        <!-- 주문하지 않은 사람 목록 -->
+                    </div>
+                </div>
+
+                <!-- 내 주문 입력 -->
+                <div class="my-order-box">
+                    <div class="my-order-title">
+                        <span>📝</span>
+                        <span>내 주문</span>
+                        <button onclick="toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: #f8f9fa; color: #7c4dff; border: 1px solid #7c4dff;">메뉴 관리</button>
+                    </div>
+                    
+                    <!-- 자주 쓰는 메뉴 관리 -->
+                    <div class="menu-manager" id="menuManager">
+                        <div class="menu-manager-title">
+                            <span>📋 자주 쓰는 메뉴</span>
+                            <button onclick="toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px;">닫기</button>
+                        </div>
+                        <div class="menu-manager-input">
+                            <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
+                            <button onclick="addMenu()" style="width: auto; padding: 12px 20px; height: fit-content;">추가</button>
+                        </div>
+                        <div class="menu-list" id="menuList"></div>
+                    </div>
+                    
+                    <div class="order-input-group">
+                        <div class="order-input-wrapper" style="position: relative;">
+                            <div class="autocomplete-suggestion" id="autocompleteSuggestion" style="position: absolute; top: 0; left: 0; right: 0; padding: 12px; color: #999; pointer-events: none; white-space: nowrap; overflow: hidden; z-index: 1; display: none;"></div>
+                            <input 
+                                type="text"
+                                id="myOrderInput" 
+                                placeholder="주문할 내용을 입력하세요 (예: 오초, 오고)"
+                                maxlength="100"
+                                disabled
+                                style="position: relative; z-index: 2; background: transparent;"
+                            />
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #7c4dff; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.2);"></div>
+                        </div>
+                        <button onclick="updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content;" disabled>저장</button>
+                    </div>
+                </div>
+
+                <!-- 전체 주문 목록 -->
+                <div class="order-list" id="orderList">
+                    <div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                </div>
+                
+                <!-- 관전자 주문 목록 -->
+                <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
+                    <div class="users-title" style="margin-bottom: 15px; color: #999; font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                    <div class="order-list" id="spectatorOrderList"></div>
+                </div>
+            </div>
+            
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus" style="padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; background: #e9ecef; color: #495057;">
+                대기 중...
             </div>
 
             <!-- 룰렛 컨테이너 (항상 표시) -->
@@ -844,6 +1134,9 @@
         let isSpinning = false;
         let roomExpiryInterval = null;
         let pendingRoomId = null;
+        let isOrderActive = false;
+        let ordersData = {};
+        let everPlayedUsers = []; // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
         
         // 파스텔톤 색상 목록
         const PASTEL_COLORS = [
@@ -1262,13 +1555,17 @@
             usersList.innerHTML = '';
             
             users.forEach(user => {
-                const tag = document.createElement('span');
-                tag.className = 'user-tag';
-                tag.textContent = user.name + (user.isHost ? ' 👑' : '');
-                if (user.name === currentUser) {
-                    tag.style.background = 'linear-gradient(135deg, #ffc107 0%, #ff8c00 100%)';
-                    tag.style.color = '#333';
+                const tag = document.createElement('div');
+                tag.className = 'user-tag' + (user.isHost ? ' host' : '');
+                
+                let content = user.name;
+                if (user.isHost) {
+                    content += ' 👑';
                 }
+                if (user.name === currentUser) {
+                    content += ' (나)';
+                }
+                tag.textContent = content;
                 
                 // 호스트이고 게임 진행 중이 아닐 때 드래그 가능
                 if (isHost && !isSpinning) {
@@ -1513,17 +1810,76 @@
                 startRoomExpiryCountdown(data.createdAt, data.expiryHours);
             }
             
+            // 사용자 목록 초기화
+            if (data.gameState && data.gameState.users) {
+                currentUsers = data.gameState.users;
+            }
+            
+            // 누적 참여자 목록 복원
+            if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
+                everPlayedUsers = [...data.everPlayedUsers];
+            } else if (data.gameState && data.gameState.everPlayedUsers && Array.isArray(data.gameState.everPlayedUsers)) {
+                everPlayedUsers = [...data.gameState.everPlayedUsers];
+            } else {
+                everPlayedUsers = [];
+            }
+            
+            // 주문받기 상태 초기화
+            isOrderActive = data.isOrderActive || false;
+            ordersData = data.userOrders || {};
+            
+            // 내 주문 불러오기
+            const myOrderInput = document.getElementById('myOrderInput');
+            if (myOrderInput && data.myOrder) {
+                myOrderInput.value = data.myOrder;
+            }
+            
             // 호스트 UI 설정
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'block';
                 const dragHint = document.getElementById('dragHint');
                 if (dragHint) dragHint.style.display = 'inline';
+                
+                // 주문받기 버튼 상태
+                if (isOrderActive) {
+                    document.getElementById('startOrderButton').style.display = 'none';
+                    document.getElementById('endOrderButton').style.display = 'block';
+                } else {
+                    document.getElementById('startOrderButton').style.display = 'block';
+                    document.getElementById('endOrderButton').style.display = 'none';
+                }
             } else {
                 document.getElementById('hostBadge').style.display = 'none';
                 document.getElementById('hostControls').style.display = 'none';
                 const dragHint = document.getElementById('dragHint');
                 if (dragHint) dragHint.style.display = 'none';
+            }
+            
+            // 주문받기 섹션 표시
+            if (isOrderActive) {
+                document.getElementById('ordersSection').style.display = 'block';
+                document.getElementById('myOrderInput').disabled = false;
+                document.getElementById('orderSaveButton').disabled = false;
+            } else {
+                // 주문이 있으면 섹션은 보여주되 입력은 비활성화
+                if (Object.keys(ordersData).length > 0) {
+                    document.getElementById('ordersSection').style.display = 'block';
+                }
+                document.getElementById('myOrderInput').disabled = true;
+                document.getElementById('orderSaveButton').disabled = true;
+            }
+            
+            renderOrders();
+            renderNotOrderedUsers();
+            
+            // 자주 쓰는 메뉴 불러오기
+            if (data.frequentMenus !== undefined) {
+                frequentMenus = data.frequentMenus;
+                renderMenuList();
+            } else {
+                // 서버에서 가져오기
+                socket.emit('getFrequentMenus');
             }
             
             // 기록 섹션 표시
@@ -1587,7 +1943,8 @@
 
         socket.on('roomCreated', (data) => {
             currentRoomId = data.roomId;
-            currentUser = document.getElementById('createRoomHostNameInput').value.trim();
+            const hostInput = document.getElementById('createRoomHostNameInput');
+            currentUser = (hostInput && hostInput.value.trim()) || data.userName || '';
             isHost = true;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
@@ -1612,7 +1969,9 @@
             document.getElementById('loadingScreen').style.display = 'none';
             
             currentRoomId = data.roomId;
-            currentUser = document.getElementById('globalUserNameInput').value.trim();
+            // 입력란에서 이름 가져오기, 없으면 서버 데이터 사용
+            const globalInput = document.getElementById('globalUserNameInput');
+            currentUser = (globalInput && globalInput.value.trim()) || data.userName || '';
             isHost = data.isHost;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
@@ -1648,8 +2007,91 @@
             alert(message);
         });
 
+        // ========== 주문받기 이벤트 ==========
+        socket.on('orderStarted', () => {
+            isOrderActive = true;
+            document.getElementById('ordersSection').style.display = 'block';
+            document.getElementById('ordersSection').classList.add('active');
+            document.getElementById('myOrderInput').disabled = false;
+            document.getElementById('orderSaveButton').disabled = false;
+            
+            // 게임 상태 표시
+            const gameStatus = document.getElementById('gameStatus');
+            if (gameStatus) {
+                gameStatus.textContent = '주문받기 진행 중!';
+                gameStatus.className = 'game-status ordering';
+            }
+            
+            if (isHost) {
+                document.getElementById('startOrderButton').style.display = 'none';
+                document.getElementById('endOrderButton').style.display = 'block';
+            }
+            
+            // 자동완성 기능 활성화
+            setupAutocomplete();
+            
+            renderOrders();
+            renderNotOrderedUsers();
+            console.log('주문받기가 시작되었습니다!');
+        });
+
+        socket.on('orderEnded', () => {
+            isOrderActive = false;
+            document.getElementById('myOrderInput').disabled = true;
+            document.getElementById('orderSaveButton').disabled = true;
+            
+            // 게임 상태 표시
+            const gameStatus = document.getElementById('gameStatus');
+            if (gameStatus) {
+                gameStatus.textContent = '대기 중...';
+                gameStatus.className = 'game-status waiting';
+            }
+            
+            if (isHost) {
+                document.getElementById('startOrderButton').style.display = 'block';
+                document.getElementById('endOrderButton').style.display = 'none';
+            }
+            
+            // 주문 섹션은 유지하되 입력만 비활성화
+            renderOrders();
+            renderNotOrderedUsers();
+            console.log('주문받기가 종료되었습니다!');
+        });
+
+        socket.on('orderUpdated', (data) => {
+            console.log('주문이 업데이트되었습니다:', data.order);
+            
+            // 시각적 피드백
+            const orderInput = document.getElementById('myOrderInput');
+            if (orderInput) {
+                const originalBg = orderInput.style.backgroundColor;
+                orderInput.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    orderInput.style.backgroundColor = originalBg || '';
+                }, 500);
+            }
+            
+            renderOrders();
+            renderNotOrderedUsers();
+        });
+
+        socket.on('orderError', (message) => {
+            alert(message);
+        });
+
+        socket.on('updateOrders', (orders) => {
+            ordersData = orders;
+            renderOrders();
+            renderNotOrderedUsers();
+        });
+
         socket.on('updateUsers', (users) => {
+            currentUsers = users;
             updateUsers(users);
+            // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 업데이트
+            if (isOrderActive) {
+                renderNotOrderedUsers();
+            }
         });
 
         socket.on('readyStateChanged', (data) => {
@@ -1673,9 +2115,16 @@
         socket.on('rouletteStarted', (data) => {
             isSpinning = true;
             
+            // 서버에서 받은 누적 참여자 목록으로 업데이트
+            if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
+                everPlayedUsers = [...data.everPlayedUsers];
+            }
+            
             // UI 상태 변경 (돌림판은 이미 보이는 상태)
             document.getElementById('readySection').style.display = 'none';
-            document.getElementById('hostControls').style.display = 'none';
+            // 룰렛 시작 버튼만 비활성화 (주문받기 버튼은 유지)
+            document.getElementById('startRouletteButton').disabled = true;
+            document.getElementById('startRouletteButton').textContent = '🎰 룰렛 진행 중...';
             
             // 룰렛 휠 생성
             createRouletteWheel(data.participants);
@@ -1773,6 +2222,9 @@
                     if (isHost) {
                         document.getElementById('endGameSection').style.display = 'block';
                     }
+                    
+                    // 룰렛 시작 버튼 다시 활성화
+                    updateStartButton();
                 });
             }, 50); // 50ms 지연으로 리플로우 보장
         });
@@ -1943,6 +2395,685 @@
                 }
             }
         });
+
+        // ========== 주문받기 함수 ==========
+        let orderSortMode = 'asc';
+        let frequentMenus = []; // 서버에서 받아오는 메뉴 목록
+        let currentSuggestions = [];
+        let selectedSuggestionIndex = -1;
+        
+        // 서버에서 메뉴 목록 업데이트 수신
+        socket.on('frequentMenusUpdated', (menus) => {
+            frequentMenus = menus;
+            renderMenuList();
+        });
+        
+        // 자동완성 제안 찾기
+        function findAutocompleteSuggestions(text) {
+            if (!text || text.trim() === '') {
+                return [];
+            }
+            
+            const lowerText = text.toLowerCase();
+            const suggestions = [];
+            
+            // 메뉴 목록에서 일치하는 모든 항목 찾기
+            for (const menu of frequentMenus) {
+                if (menu.toLowerCase().startsWith(lowerText)) {
+                    // 이미 완전히 입력한 경우는 제안하지 않음
+                    if (menu.toLowerCase() !== lowerText) {
+                        suggestions.push(menu);
+                    }
+                }
+            }
+            
+            return suggestions;
+        }
+        
+        // 자동완성 제안 업데이트
+        function updateAutocompleteSuggestion() {
+            const orderInput = document.getElementById('myOrderInput');
+            const suggestionDiv = document.getElementById('autocompleteSuggestion');
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            const text = orderInput.value;
+            
+            currentSuggestions = findAutocompleteSuggestions(text);
+            selectedSuggestionIndex = -1;
+            
+            if (currentSuggestions.length > 0) {
+                // 첫 번째 제안을 회색 텍스트로 표시
+                const firstSuggestion = currentSuggestions[0];
+                const remainingText = firstSuggestion.substring(text.length);
+                suggestionDiv.textContent = text + remainingText;
+                suggestionDiv.style.display = 'block';
+                
+                // 여러 개의 제안이 있으면 드롭다운 표시
+                if (currentSuggestions.length > 1) {
+                    renderAutocompleteDropdown();
+                    dropdownDiv.style.display = 'block';
+                } else {
+                    dropdownDiv.style.display = 'none';
+                }
+            } else {
+                suggestionDiv.style.display = 'none';
+                dropdownDiv.style.display = 'none';
+            }
+        }
+        
+        // 자동완성 드롭다운 렌더링
+        function renderAutocompleteDropdown() {
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            const orderInput = document.getElementById('myOrderInput');
+            const text = orderInput.value;
+            
+            dropdownDiv.innerHTML = '';
+            
+            currentSuggestions.forEach((menu, index) => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
+                
+                // 입력 텍스트와 일치하는 부분은 굵게
+                const matchedPart = menu.substring(0, text.length);
+                const remainingPart = menu.substring(text.length);
+                item.innerHTML = `<strong>${matchedPart}</strong>${remainingPart}`;
+                
+                item.onmouseover = () => {
+                    selectedSuggestionIndex = index;
+                    highlightDropdownItem(index);
+                };
+                
+                item.onclick = () => {
+                    applySuggestion(menu);
+                };
+                
+                dropdownDiv.appendChild(item);
+            });
+        }
+        
+        // 드롭다운 항목 하이라이트
+        function highlightDropdownItem(index) {
+            const items = document.querySelectorAll('.autocomplete-item');
+            items.forEach((item, i) => {
+                item.style.backgroundColor = i === index ? '#e3f2fd' : 'white';
+            });
+        }
+        
+        // 제안 적용
+        function applySuggestion(menu) {
+            const orderInput = document.getElementById('myOrderInput');
+            orderInput.value = menu;
+            currentSuggestions = [];
+            selectedSuggestionIndex = -1;
+            document.getElementById('autocompleteSuggestion').style.display = 'none';
+            document.getElementById('autocompleteDropdown').style.display = 'none';
+            orderInput.focus();
+        }
+        
+        // 자동완성 설정
+        let autocompleteInitialized = false;
+        
+        function setupAutocomplete() {
+            if (autocompleteInitialized) return; // 중복 호출 방지
+            autocompleteInitialized = true;
+            
+            const orderInput = document.getElementById('myOrderInput');
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            
+            orderInput.addEventListener('input', () => {
+                updateAutocompleteSuggestion();
+            });
+            
+            orderInput.addEventListener('keydown', (e) => {
+                // Enter 키 처리
+                if (e.key === 'Enter') {
+                    // 자동완성 드롭다운이 열려있으면 자동완성 적용
+                    if (currentSuggestions.length > 0) {
+                        e.preventDefault();
+                        const menuToApply = selectedSuggestionIndex >= 0 
+                            ? currentSuggestions[selectedSuggestionIndex] 
+                            : currentSuggestions[0];
+                        applySuggestion(menuToApply);
+                        return;
+                    }
+                    // 드롭다운이 없으면 주문 저장
+                    e.preventDefault();
+                    updateMyOrder();
+                    return;
+                }
+                
+                // Tab 키로 자동완성 적용
+                if (e.key === 'Tab' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    if (selectedSuggestionIndex >= 0) {
+                        applySuggestion(currentSuggestions[selectedSuggestionIndex]);
+                    } else {
+                        applySuggestion(currentSuggestions[0]);
+                    }
+                    return;
+                }
+                
+                // 위/아래 방향키로 드롭다운 탐색
+                if (e.key === 'ArrowDown' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, currentSuggestions.length - 1);
+                    highlightDropdownItem(selectedSuggestionIndex);
+                }
+                
+                if (e.key === 'ArrowUp' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, 0);
+                    highlightDropdownItem(selectedSuggestionIndex);
+                }
+                
+                // ESC로 드롭다운 닫기
+                if (e.key === 'Escape') {
+                    document.getElementById('autocompleteSuggestion').style.display = 'none';
+                    dropdownDiv.style.display = 'none';
+                    currentSuggestions = [];
+                    selectedSuggestionIndex = -1;
+                }
+            });
+            
+            // 포커스 벗어나면 드롭다운 숨기기
+            orderInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    dropdownDiv.style.display = 'none';
+                }, 200);
+            });
+        }
+
+        function startOrder() {
+            socket.emit('startOrder');
+        }
+
+        function endOrder() {
+            socket.emit('endOrder');
+        }
+
+        function updateMyOrder() {
+            const orderInput = document.getElementById('myOrderInput');
+            const order = orderInput.value.trim();
+
+            // currentUser가 없으면 다른 방법으로 찾기
+            let userName = currentUser;
+            if (!userName) {
+                const globalInput = document.getElementById('globalUserNameInput');
+                if (globalInput && globalInput.value.trim()) {
+                    userName = globalInput.value.trim();
+                }
+            }
+            if (!userName) {
+                const hostInput = document.getElementById('createRoomHostNameInput');
+                if (hostInput && hostInput.value.trim()) {
+                    userName = hostInput.value.trim();
+                }
+            }
+
+            if (!userName) {
+                alert('사용자 이름을 확인할 수 없습니다. 새로고침 후 다시 시도해주세요.');
+                return;
+            }
+
+            currentUser = userName;
+
+            socket.emit('updateOrder', {
+                userName: userName,
+                order: order
+            });
+        }
+
+        function renderOrders() {
+            const orderList = document.getElementById('orderList');
+            const spectatorOrdersSection = document.getElementById('spectatorOrdersSection');
+            const spectatorOrderList = document.getElementById('spectatorOrderList');
+            
+            if (!orderList) return;
+
+            const entries = Object.entries(ordersData).filter(([name, order]) => order && order.trim() !== '');
+
+            if (entries.length === 0) {
+                orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
+                if (spectatorOrdersSection) spectatorOrdersSection.style.display = 'none';
+                renderNotOrderedUsers();
+                return;
+            }
+
+            // 게임 참여자와 관전자로 분리
+            const playerOrders = {};
+            const spectatorOrders = {};
+            
+            entries.forEach(([name, order]) => {
+                if (everPlayedUsers.includes(name)) {
+                    playerOrders[name] = order;
+                } else {
+                    spectatorOrders[name] = order;
+                }
+            });
+            
+            // 게임 참여자 주문 목록 렌더링
+            orderList.innerHTML = '';
+            
+            if (Object.keys(playerOrders).length > 0) {
+                const groupedPlayerOrders = groupOrdersByMenu(playerOrders, orderSortMode);
+                
+                groupedPlayerOrders.forEach(group => {
+                    const item = document.createElement('div');
+                    item.className = 'order-item';
+                    
+                    const leftDiv = document.createElement('div');
+                    leftDiv.className = 'order-item-left';
+                    
+                    // 사용자 목록 생성 (내 주문이면 맨 앞에)
+                    const sortedUsers = [...group.users].sort((a, b) => {
+                        if (a === currentUser) return -1;
+                        if (b === currentUser) return 1;
+                        return 0;
+                    });
+                    
+                    const userNames = sortedUsers.map(name => {
+                        let displayName = name;
+                        if (name === currentUser) {
+                            displayName += ' (나)';
+                        }
+                        return displayName;
+                    }).join(', ');
+                    
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'order-user';
+                    userDiv.textContent = userNames;
+                    
+                    const orderDiv = document.createElement('div');
+                    orderDiv.className = 'order-text';
+                    orderDiv.textContent = group.menu;
+                    
+                    leftDiv.appendChild(userDiv);
+                    leftDiv.appendChild(orderDiv);
+                    
+                    const countDiv = document.createElement('div');
+                    countDiv.className = 'order-count';
+                    countDiv.textContent = group.users.length;
+                    
+                    item.appendChild(leftDiv);
+                    item.appendChild(countDiv);
+                    orderList.appendChild(item);
+                });
+            } else {
+                orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">게임 참여자 주문이 없습니다</div>';
+            }
+            
+            // 관전자 주문 목록 렌더링
+            if (spectatorOrdersSection && spectatorOrderList) {
+                if (Object.keys(spectatorOrders).length > 0) {
+                    spectatorOrdersSection.style.display = 'block';
+                    spectatorOrderList.innerHTML = '';
+                    
+                    const groupedSpectatorOrders = groupOrdersByMenu(spectatorOrders, orderSortMode);
+                    
+                    groupedSpectatorOrders.forEach(group => {
+                        const item = document.createElement('div');
+                        item.className = 'order-item';
+                        item.style.opacity = '0.7'; // 관전자는 약간 투명하게
+                        
+                        const leftDiv = document.createElement('div');
+                        leftDiv.className = 'order-item-left';
+                        
+                        // 사용자 목록 생성 (내 주문이면 맨 앞에)
+                        const sortedUsers = [...group.users].sort((a, b) => {
+                            if (a === currentUser) return -1;
+                            if (b === currentUser) return 1;
+                            return 0;
+                        });
+                        
+                        const userNames = sortedUsers.map(name => {
+                            let displayName = name;
+                            if (name === currentUser) {
+                                displayName += ' (나)';
+                            }
+                            return displayName;
+                        }).join(', ');
+                        
+                        const userDiv = document.createElement('div');
+                        userDiv.className = 'order-user';
+                        userDiv.textContent = userNames;
+                        
+                        const orderDiv = document.createElement('div');
+                        orderDiv.className = 'order-text';
+                        orderDiv.textContent = group.menu;
+                        
+                        leftDiv.appendChild(userDiv);
+                        leftDiv.appendChild(orderDiv);
+                        
+                        const countDiv = document.createElement('div');
+                        countDiv.className = 'order-count';
+                        countDiv.textContent = group.users.length;
+                        
+                        item.appendChild(leftDiv);
+                        item.appendChild(countDiv);
+                        spectatorOrderList.appendChild(item);
+                    });
+                } else {
+                    spectatorOrdersSection.style.display = 'none';
+                }
+            }
+            
+            // 주문하지 않은 사람 목록 표시
+            renderNotOrderedUsers();
+        }
+        
+        // 메뉴별로 그룹화하는 함수
+        function groupOrdersByMenu(orders, sortMode) {
+            const grouped = {};
+            
+            Object.entries(orders).forEach(([name, order]) => {
+                if (!order || order.trim() === '') return;
+                if (!grouped[order]) {
+                    grouped[order] = [];
+                }
+                grouped[order].push(name);
+            });
+            
+            let result = Object.entries(grouped).map(([menu, users]) => ({
+                menu: menu,
+                users: users
+            }));
+            
+            // 정렬
+            if (sortMode === 'asc') {
+                result.sort((a, b) => a.menu.localeCompare(b.menu, 'ko'));
+            } else if (sortMode === 'desc') {
+                result.sort((a, b) => b.menu.localeCompare(a.menu, 'ko'));
+            } else if (sortMode === 'count') {
+                result.sort((a, b) => b.users.length - a.users.length);
+            }
+            
+            return result;
+        }
+
+        function renderNotOrderedUsers() {
+            const notOrderedSection = document.getElementById('notOrderedSection');
+            const notOrderedList = document.getElementById('notOrderedList');
+            
+            if (!notOrderedSection || !notOrderedList) return;
+            
+            // 주문한 사람 목록
+            const orderedUsers = Object.entries(ordersData)
+                .filter(([name, order]) => order && order.trim() !== '')
+                .map(([name]) => name);
+            
+            // 주문하지 않은 사람 목록 (접속자 중에서 주문하지 않은 사람)
+            const notOrderedUsers = currentUsers
+                .map(user => user.name)
+                .filter(name => !orderedUsers.includes(name));
+            
+            if (notOrderedUsers.length === 0) {
+                notOrderedSection.style.display = 'none';
+                return;
+            }
+            
+            // 주문하지 않은 사람이 있으면 항상 표시
+            notOrderedSection.style.display = 'block';
+            notOrderedList.innerHTML = '';
+            
+            // 가나다순으로 정렬
+            const sortedNotOrderedUsers = [...notOrderedUsers].sort((a, b) => a.localeCompare(b, 'ko'));
+            sortedNotOrderedUsers.forEach(name => {
+                const tag = document.createElement('div');
+                tag.className = 'not-rolled-tag';
+                tag.textContent = name + (name === currentUser ? ' (나)' : '');
+                notOrderedList.appendChild(tag);
+            });
+        }
+
+        function sortOrders(mode) {
+            orderSortMode = mode;
+            
+            // 버튼 스타일 업데이트
+            document.getElementById('sortOrderAscBtn').classList.toggle('active', mode === 'asc');
+            document.getElementById('sortOrderDescBtn').classList.toggle('active', mode === 'desc');
+            document.getElementById('sortOrderCountBtn').classList.toggle('active', mode === 'count');
+            
+            renderOrders();
+        }
+
+        function showOrderList() {
+            // 현재 주문리스트 수집
+            let orderListText = '';
+            
+            const entries = Object.entries(ordersData).filter(([name, order]) => order && order.trim() !== '');
+            
+            // 게임 참여자와 관전자로 분리
+            const playerOrders = {};
+            const spectatorOrders = {};
+            
+            entries.forEach(([name, order]) => {
+                if (everPlayedUsers.includes(name)) {
+                    playerOrders[name] = order;
+                } else {
+                    spectatorOrders[name] = order;
+                }
+            });
+            
+            // 게임 참여자 주문 표시
+            orderListText += '=== 게임 참여자 주문 ===\n';
+            const playerEntries = Object.entries(playerOrders);
+            if (playerEntries.length > 0) {
+                const playerGrouped = {};
+                playerEntries.forEach(([name, order]) => {
+                    if (!playerGrouped[order]) {
+                        playerGrouped[order] = [];
+                    }
+                    playerGrouped[order].push(name);
+                });
+                
+                const sortedPlayerGroups = Object.entries(playerGrouped).sort((a, b) => b[1].length - a[1].length);
+                sortedPlayerGroups.forEach(([menu, users]) => {
+                    const sortedUsers = [...users].sort((a, b) => a.localeCompare(b, 'ko'));
+                    const userNames = sortedUsers.join(', ');
+                    orderListText += `${userNames} : ${menu}\n`;
+                });
+                orderListText += `\n총 ${sortedPlayerGroups.length}개 메뉴\n`;
+            } else {
+                orderListText += '게임 참여자 주문이 없습니다.\n';
+            }
+            
+            // 관전자 주문 표시
+            const spectatorEntries = Object.entries(spectatorOrders);
+            if (spectatorEntries.length > 0) {
+                orderListText += '\n=== 관전자 주문 ===\n';
+                const spectatorGrouped = {};
+                spectatorEntries.forEach(([name, order]) => {
+                    if (!spectatorGrouped[order]) {
+                        spectatorGrouped[order] = [];
+                    }
+                    spectatorGrouped[order].push(name);
+                });
+                
+                const sortedSpectatorGroups = Object.entries(spectatorGrouped).sort((a, b) => b[1].length - a[1].length);
+                sortedSpectatorGroups.forEach(([menu, users]) => {
+                    const sortedUsers = [...users].sort((a, b) => a.localeCompare(b, 'ko'));
+                    const userNames = sortedUsers.join(', ');
+                    orderListText += `${userNames} : ${menu}\n`;
+                });
+                orderListText += `\n총 ${sortedSpectatorGroups.length}개 메뉴\n`;
+            }
+            
+            orderListText += `\n총 주문한 사람: ${entries.length}명`;
+            
+            // 커스텀 모달로 표시
+            showOrderListModal(orderListText);
+        }
+        
+        // 주문리스트 모달 표시
+        function showOrderListModal(content) {
+            // 기존 모달이 있으면 제거
+            const existingModal = document.getElementById('orderListModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // 모달 오버레이 생성
+            const modalOverlay = document.createElement('div');
+            modalOverlay.id = 'orderListModal';
+            modalOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
+            
+            // 모달 컨텐츠 생성
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                max-width: 90vw;
+                max-height: 90vh;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                display: inline-block;
+                overflow-y: auto;
+            `;
+            
+            // 제목
+            const title = document.createElement('div');
+            title.textContent = '=== 현재 주문리스트 ===';
+            title.style.cssText = `
+                font-size: 20px;
+                font-weight: bold;
+                color: #7c4dff;
+                margin-bottom: 20px;
+                text-align: center;
+            `;
+            
+            // 내용 영역
+            const contentDiv = document.createElement('div');
+            contentDiv.style.cssText = `
+                font-size: 16px;
+                line-height: 1.8;
+                color: #333;
+                white-space: pre-wrap;
+                word-break: break-word;
+                margin-bottom: 20px;
+            `;
+            contentDiv.textContent = content;
+            
+            // 닫기 버튼
+            const closeButton = document.createElement('button');
+            closeButton.textContent = '확인';
+            closeButton.style.cssText = `
+                padding: 12px 30px;
+                background: linear-gradient(135deg, #7c4dff 0%, #b388ff 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                width: 100%;
+            `;
+            closeButton.onclick = () => {
+                modalOverlay.remove();
+            };
+            
+            // ESC 키로 닫기
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    modalOverlay.remove();
+                    document.removeEventListener('keydown', handleEsc);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+            
+            // 오버레이 클릭 시 닫기
+            modalOverlay.onclick = (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.remove();
+                    document.removeEventListener('keydown', handleEsc);
+                }
+            };
+            
+            modalContent.appendChild(title);
+            modalContent.appendChild(contentDiv);
+            modalContent.appendChild(closeButton);
+            modalOverlay.appendChild(modalContent);
+            document.body.appendChild(modalOverlay);
+        }
+
+        // 메뉴 관리
+        function toggleMenuManager() {
+            const manager = document.getElementById('menuManager');
+            manager.classList.toggle('active');
+            if (manager.classList.contains('active')) {
+                renderMenuList();
+            }
+        }
+
+        function addMenu() {
+            const input = document.getElementById('menuInput');
+            const menu = input.value.trim();
+            
+            if (!menu) {
+                alert('메뉴 이름을 입력해주세요.');
+                return;
+            }
+            
+            // 서버에 메뉴 추가 요청
+            socket.emit('addFrequentMenu', menu);
+            input.value = '';
+        }
+
+        function removeMenu(menu) {
+            // 서버에 메뉴 삭제 요청
+            socket.emit('deleteFrequentMenu', menu);
+        }
+        
+        // 메뉴 에러 수신
+        socket.on('menuError', (message) => {
+            alert(message);
+        });
+
+        function selectMenu(menu) {
+            const orderInput = document.getElementById('myOrderInput');
+            if (orderInput) {
+                orderInput.value = menu;
+                orderInput.focus();
+            }
+        }
+
+        function renderMenuList() {
+            const container = document.getElementById('menuList');
+            if (!container) return;
+            
+            if (frequentMenus.length === 0) {
+                container.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            frequentMenus.forEach(menu => {
+                const tag = document.createElement('span');
+                tag.className = 'menu-tag';
+                tag.innerHTML = `${menu}<span class="delete-btn" onclick="deleteMenu('${menu}')">×</span>`;
+                tag.onclick = function(e) {
+                    if (!e.target.classList.contains('delete-btn')) {
+                        selectMenu(menu);
+                    }
+                };
+                container.appendChild(tag);
+            });
+        }
+        
+        // deleteMenu 함수 (removeMenu 래퍼)
+        function deleteMenu(menu) {
+            removeMenu(menu);
+        }
     </script>
 </body>
 </html>

@@ -347,7 +347,26 @@ async function runTests() {
         }
         
     } catch (err) {
-        log.error(`테스트 에러: ${err.message}`);
+        // 연결 실패 감지
+        if (err.message.includes('xhr poll error') || 
+            err.message.includes('connect_error') || 
+            err.message.includes('ECONNREFUSED') ||
+            err.message.includes('timeout')) {
+            console.log('\n' + '='.repeat(50));
+            console.log('\x1b[31m%s\x1b[0m', '❌ 서버 연결 실패!');
+            console.log('='.repeat(50));
+            console.log('\x1b[33m%s\x1b[0m', `\n⚠️  서버가 실행 중인지 확인하세요!`);
+            console.log(`\n📌 해결 방법:`);
+            console.log(`   1. 다른 터미널에서 서버 실행:`);
+            console.log(`      cd D:\\Work\\coin\\LAMDiceBot`);
+            console.log(`      node server.js`);
+            console.log(`\n   2. 서버 시작 메시지 확인 후 테스트 재실행`);
+            console.log(`\n   서버 URL: ${CONFIG.serverUrl}`);
+            console.log('='.repeat(50) + '\n');
+            log.error(`서버 연결 실패: ${CONFIG.serverUrl}`);
+        } else {
+            log.error(`테스트 에러: ${err.message}`);
+        }
     } finally {
         // 연결 종료
         for (const client of clients) {

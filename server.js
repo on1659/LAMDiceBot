@@ -2350,6 +2350,13 @@ io.on('connection', (socket) => {
         const participants = [...gameState.readyUsers];
         gameState.gamePlayers = participants;
         
+        // 게임 참여자들을 누적 참여자 목록에 추가 (중복 제거)
+        participants.forEach(player => {
+            if (!gameState.everPlayedUsers.includes(player)) {
+                gameState.everPlayedUsers.push(player);
+            }
+        });
+        
         // 당첨자 랜덤 선택 (서버에서 결정)
         const winnerIndex = Math.floor(Math.random() * participants.length);
         const winner = participants[winnerIndex];
@@ -2400,7 +2407,8 @@ io.on('connection', (socket) => {
             totalRotation: totalRotation,
             winnerIndex: winnerIndex,
             winner: winner,
-            record: record
+            record: record,
+            everPlayedUsers: gameState.everPlayedUsers // 누적 참여자 목록 전송
         });
         
         // 채팅에 시스템 메시지 추가
