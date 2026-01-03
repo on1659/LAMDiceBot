@@ -623,6 +623,22 @@
     </style>
 </head>
 <body class="lobby-active">
+    <!-- 로딩 화면 -->
+    <div id="loadingScreen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center;">
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🎰</div>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
+            <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
+            <div style="margin-top: 30px;">
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    </style>
+
     <div class="container">
         <!-- 로비 섹션 -->
         <section class="lobby-section active" id="lobbySection">
@@ -1589,6 +1605,12 @@
         });
 
         socket.on('roomJoined', (data) => {
+            // 성공 시 에러 플래그 제거
+            sessionStorage.removeItem('rouletteFromDice');
+            
+            // 로딩 화면 숨기기
+            document.getElementById('loadingScreen').style.display = 'none';
+            
             currentRoomId = data.roomId;
             currentUser = document.getElementById('globalUserNameInput').value.trim();
             isHost = data.isHost;
@@ -1607,6 +1629,18 @@
         });
 
         socket.on('roomError', (message) => {
+            // 다른 페이지에서 온 경우 주사위 메인으로 돌아감
+            const fromDice = sessionStorage.getItem('rouletteFromDice');
+            if (fromDice === 'true') {
+                sessionStorage.removeItem('rouletteFromDice');
+                alert(message);
+                window.location.href = '/dice-game-multiplayer.html';
+                return;
+            }
+            
+            // 로딩 화면 숨기고 로비 보여주기
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('lobbySection').style.display = 'block';
             alert(message);
         });
 
@@ -1871,6 +1905,13 @@
                 if (pendingJoin) {
                     const joinData = JSON.parse(pendingJoin);
                     localStorage.removeItem('pendingRouletteJoin');
+                    
+                    // 에러 시 돌아갈 플래그 저장
+                    sessionStorage.setItem('rouletteFromDice', 'true');
+                    
+                    // 로딩 화면 표시
+                    document.getElementById('loadingScreen').style.display = 'flex';
+                    document.getElementById('lobbySection').style.display = 'none';
                     
                     // 이름 설정
                     document.getElementById('globalUserNameInput').value = joinData.userName;

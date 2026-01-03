@@ -493,6 +493,22 @@
     </style>
 </head>
 <body>
+    <!-- 로딩 화면 -->
+    <div id="loadingScreen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); z-index: 9999; flex-direction: column; justify-content: center; align-items: center;">
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">👥</div>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
+            <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
+            <div style="margin-top: 30px;">
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    </style>
+
     <div class="container">
         <div class="header">
             <div class="header-left">
@@ -572,7 +588,7 @@
                     <h3>1️⃣ 플레이어 설정 <span id="player-count-badge">(총 0명)</span></h3>
                     <div id="players-list"></div>
                     <div class="player-input">
-                        <input type="text" id="player-name-input" placeholder="플레이어 이름 (예: 이더,페이커,립,구마유시 등등)">
+                        <input type="text" id="player-name-input" placeholder="플레이어 이름 (예: 이더,페이커,Lip,구마유시 등등)">
                         <button type="button" id="add-player-btn" class="btn btn-primary">플레이어 추가</button>
                     </div>
                     <p class="player-input-guide">💡 쉼표(,)로 구분하여 여러 명을 한 번에 추가할 수 있습니다</p>
@@ -1441,6 +1457,13 @@
                     // URL에서 joinRoom 파라미터 제거
                     window.history.replaceState({}, document.title, window.location.pathname);
                     
+                    // 에러 시 돌아갈 플래그 저장
+                    sessionStorage.setItem('teamFromDice', 'true');
+                    
+                    // 로딩 화면 표시
+                    document.getElementById('loadingScreen').style.display = 'flex';
+                    landingSection.style.display = 'none';
+                    
                     // 닉네임 입력란에 값 설정
                     if (nicknameInput) nicknameInput.value = joinData.userName;
                     
@@ -1449,7 +1472,9 @@
                     if (joinData.isPrivate) {
                         password = prompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:');
                         if (password === null) {
-                            // 취소시 랜딩 페이지로
+                            // 취소시 주사위 메인으로
+                            sessionStorage.removeItem('teamFromDice');
+                            window.location.href = '/dice-game-multiplayer.html';
                             return;
                         }
                     }
@@ -1554,6 +1579,13 @@
         socket.on('roomJoined', (data) => {
             debugLog('📥 roomJoined 이벤트 수신!');
             debugLog('roomId: ' + data.roomId + ', isHost: ' + data.isHost);
+            
+            // 성공 시 에러 플래그 제거
+            sessionStorage.removeItem('teamFromDice');
+            
+            // 로딩 화면 숨기기
+            document.getElementById('loadingScreen').style.display = 'none';
+            
             currentRoomId = data.roomId;
             isHost = data.isHost;
             saveRoomState(); // 상태 저장
@@ -1603,13 +1635,26 @@
 
         socket.on('roomError', (message) => {
             debugLog('❌ roomError: ' + message);
+            
+            // 다른 페이지에서 온 경우 주사위 메인으로 돌아감
+            const fromDice = sessionStorage.getItem('teamFromDice');
+            if (fromDice === 'true') {
+                sessionStorage.removeItem('teamFromDice');
+                alert(message);
+                window.location.href = '/dice-game-multiplayer.html';
+                return;
+            }
+            
+            // 로딩 화면 숨기고 로비 보여주기
+            document.getElementById('loadingScreen').style.display = 'none';
+            landingSection.style.display = 'block';
+            alert(message);
+            
             // 방이 없다는 오류면 상태 초기화
-            if (message.includes('찾을 수 없') || message.includes('존재하지 않')) {
+            if (message.includes('찾을 수 없') || message.includes('존재하지 않') || message.includes('중복')) {
                 clearRoomState();
-                landingSection.style.display = 'block';
                 sessionSection.style.display = 'none';
             }
-            alert(message);
         });
 
         socket.on('updateUsers', (users) => {

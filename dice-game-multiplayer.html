@@ -1082,7 +1082,23 @@
             <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
                 <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-01)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-03)</span>
+
+<b>👥 팀 배정 게임 모드 추가</b>
+• 방 생성 시 주사위/룰렛/팀 배정 게임 선택 가능
+• 참가자들을 여러 팀으로 랜덤 배정
+• 팀 구성 및 제한 설정 가능
+• 방 목록에서 게임 타입별 아이콘 표시 (🎲/🎰/👥)
+
+<b>✨ UI/UX 개선</b>
+• 룰렛/팀 배정 입장 시 로딩 화면 추가
+• 방 나가기/삭제 시 주사위 메인으로 자동 이동
+• 입장 실패 시 주사위 메인으로 자동 복귀
+• 빈 화면 대신 애니메이션 로딩 화면 표시
+
+---
+
+<b style="color: #667eea;">📅 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-01)</span>
 
 <b>🎰 룰렛 게임 모드 추가</b>
 • 방 생성 시 주사위/룰렛 게임 선택 가능
@@ -2431,10 +2447,18 @@
                     : '';
                 
                 // 게임 타입 태그 표시
-                const isRoulette = room.gameType === 'roulette';
-                const gameTypeIcon = isRoulette ? '🎰' : '🎲';
-                const gameTypeLabel = isRoulette ? '룰렛' : '주사위';
-                const gameTypeColor = isRoulette ? '#7c4dff' : '#667eea';
+                let gameTypeIcon = '🎲';
+                let gameTypeLabel = '주사위';
+                let gameTypeColor = '#667eea';
+                if (room.gameType === 'roulette') {
+                    gameTypeIcon = '🎰';
+                    gameTypeLabel = '룰렛';
+                    gameTypeColor = '#7c4dff';
+                } else if (room.gameType === 'team') {
+                    gameTypeIcon = '👥';
+                    gameTypeLabel = '팀 배정';
+                    gameTypeColor = '#10b981';
+                }
                 const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
                 
                 // 남은 시간 표시
