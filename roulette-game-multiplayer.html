@@ -1780,36 +1780,28 @@
                 clearInterval(roomExpiryInterval);
             }
             
-            document.getElementById('gameSection').classList.remove('active');
-            document.getElementById('lobbySection').classList.add('active');
-            document.getElementById('historySection').classList.remove('visible');
-            
-            document.body.classList.remove('game-active');
-            document.body.classList.add('lobby-active');
-            
-            currentRoomId = null;
-            currentUser = '';
-            isHost = false;
-            rouletteHistory = [];
-            refreshRooms();
+            // 주사위 메인 화면으로 이동
+            window.location.href = '/dice-game-multiplayer.html';
         });
 
+        // 방 나가기 완료 (서버에서 roomLeft emit)
+        socket.on('roomLeft', () => {
+            if (roomExpiryInterval) {
+                clearInterval(roomExpiryInterval);
+            }
+            
+            // 주사위 메인 화면으로 이동
+            window.location.href = '/dice-game-multiplayer.html';
+        });
+
+        // 레거시 이벤트 호환성 유지
         socket.on('leftRoom', () => {
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
             
-            document.getElementById('gameSection').classList.remove('active');
-            document.getElementById('lobbySection').classList.add('active');
-            document.getElementById('historySection').classList.remove('visible');
-            
-            document.body.classList.remove('game-active');
-            document.body.classList.add('lobby-active');
-            
-            currentRoomId = null;
-            isHost = false;
-            rouletteHistory = [];
-            refreshRooms();
+            // 주사위 메인 화면으로 이동
+            window.location.href = '/dice-game-multiplayer.html';
         });
 
         socket.on('hostChanged', (data) => {
