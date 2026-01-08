@@ -4506,54 +4506,94 @@
         });
 
         socket.on('gameEnded', (currentGameHistory) => {
-            isGameActive = false;
-            hasRolledInCurrentGame = false;
-            rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
+            // 애니메이션 완료를 기다리는 함수
+            const processGameEnd = () => {
+                isGameActive = false;
+                hasRolledInCurrentGame = false;
+                rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
+                
+                // 애니메이션 완료 플래그 초기화 (게임 종료 시)
+                window.lastRollerAnimationComplete = false;
+                window.lastRollerAnimationCompleteTime = null;
+                // historyData는 누적 기록을 유지하므로 업데이트하지 않음
+                // currentGameHistory는 현재 게임의 기록만 포함됨
+                
+                // 게임 기록 제목은 그대로 유지 (게임 기록으로 계속 표시)
+                document.getElementById('historyTitle').textContent = '📋 게임';
+                
+                // 굴린 인원 업데이트
+                updateRolledUsersCount();
+                
+                // 게임 종료 시 준비 상태 초기화
+                isReady = false;
+                readyUsers = [];
+                renderReadyUsers();
+                updateReadyButton();
+                
+                // 게임 종료 시 준비 섹션 다시 표시
+                document.getElementById('readySection').style.display = 'block';
+                
+                // 호스트 UI 업데이트 (드래그 안내 멘트 포함)
+                updateHostUI();
+                
+                document.getElementById('gameStatus').textContent = '게임 종료됨';
+                document.getElementById('gameStatus').classList.remove('playing');
+                document.getElementById('gameStatus').classList.add('waiting');
+                document.getElementById('startButton').style.display = 'block';
+                document.getElementById('endButton').style.display = 'none';
+                // 주사위 굴리기 버튼은 제거됨
+                document.getElementById('progressSection').style.display = 'none';
+                document.getElementById('notRolledSection').style.display = 'none';
+                
+                // 주문받기 시작 버튼 표시 (Host만)
+                if (isHost) {
+                    document.getElementById('startOrderButton').style.display = 'block';
+                }
+                
+                // 게임 종료 시 룰 수정 가능하도록 UI 업데이트 (호스트만)
+                updateGameRulesUI();
+                
+                renderHistory();
+                
+                // 주사위 UI가 제거되어 결과는 게임 기록에서만 확인 가능
+            };
             
-            // 애니메이션 완료 플래그 초기화 (게임 종료 시)
-            window.lastRollerAnimationComplete = false;
-            window.lastRollerAnimationCompleteTime = null;
-            // historyData는 누적 기록을 유지하므로 업데이트하지 않음
-            // currentGameHistory는 현재 게임의 기록만 포함됨
+            // 마지막 굴리는 사람의 애니메이션이 완료될 때까지 기다림
+            const checkAnimationComplete = () => {
+                // 애니메이션이 완료되었거나, 애니메이션이 필요 없는 경우 즉시 처리
+                if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
+                    const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
+                    // 애니메이션 완료 후 최소 0.3초 대기 (애니메이션 효과를 볼 수 있도록)
+                    if (elapsed >= 300) {
+                        processGameEnd();
+                        return true;
+                    }
+                } else if (!window.lastRollerAnimationComplete) {
+                    // 애니메이션이 필요 없는 경우 (마지막 굴리는 사람이 아니거나 애니메이션이 없는 경우)
+                    // 짧은 시간 대기 후 처리 (다른 클라이언트의 애니메이션을 고려)
+                    setTimeout(() => {
+                        processGameEnd();
+                    }, 500);
+                    return true;
+                }
+                return false;
+            };
             
-            // 게임 기록 제목은 그대로 유지 (게임 기록으로 계속 표시)
-            document.getElementById('historyTitle').textContent = '📋 게임';
-            
-            // 굴린 인원 업데이트
-            updateRolledUsersCount();
-            
-            // 게임 종료 시 준비 상태 초기화
-            isReady = false;
-            readyUsers = [];
-            renderReadyUsers();
-            updateReadyButton();
-            
-            // 게임 종료 시 준비 섹션 다시 표시
-            document.getElementById('readySection').style.display = 'block';
-            
-            // 호스트 UI 업데이트 (드래그 안내 멘트 포함)
-            updateHostUI();
-            
-            document.getElementById('gameStatus').textContent = '게임 종료됨';
-            document.getElementById('gameStatus').classList.remove('playing');
-            document.getElementById('gameStatus').classList.add('waiting');
-            document.getElementById('startButton').style.display = 'block';
-            document.getElementById('endButton').style.display = 'none';
-            // 주사위 굴리기 버튼은 제거됨
-            document.getElementById('progressSection').style.display = 'none';
-            document.getElementById('notRolledSection').style.display = 'none';
-            
-            // 주문받기 시작 버튼 표시 (Host만)
-            if (isHost) {
-                document.getElementById('startOrderButton').style.display = 'block';
+            // 즉시 확인
+            if (!checkAnimationComplete()) {
+                // 애니메이션이 진행 중이면 완료될 때까지 대기
+                const waitInterval = setInterval(() => {
+                    if (checkAnimationComplete()) {
+                        clearInterval(waitInterval);
+                    }
+                }, 50); // 50ms마다 확인
+                
+                // 최대 5초 대기 (타임아웃 방지)
+                setTimeout(() => {
+                    clearInterval(waitInterval);
+                    processGameEnd();
+                }, 5000);
             }
-            
-            // 게임 종료 시 룰 수정 가능하도록 UI 업데이트 (호스트만)
-            updateGameRulesUI();
-            
-            renderHistory();
-            
-            // 주사위 UI가 제거되어 결과는 게임 기록에서만 확인 가능
         });
 
         // 클라이언트 시드 생성

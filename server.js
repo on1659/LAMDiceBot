@@ -2053,31 +2053,45 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 사용자가 방에 있는지 확인
-        const targetUser = gameState.users.find(u => u.name === userName.trim());
-        if (!targetUser) {
-            socket.emit('readyError', '해당 사용자를 찾을 수 없습니다!');
-            return;
-        }
-        
         const trimmedUserName = userName.trim();
         const currentlyReady = gameState.readyUsers.includes(trimmedUserName);
         
         if (isReady && !currentlyReady) {
-            // 준비 상태로 설정
+            // 준비 상태로 설정 - 방에 있는지 확인 필요
+            const targetUser = gameState.users.find(u => u.name === trimmedUserName);
+            if (!targetUser) {
+                socket.emit('readyError', '해당 사용자를 찾을 수 없습니다!');
+                return;
+            }
             gameState.readyUsers.push(trimmedUserName);
+            
+            // 같은 방의 모든 클라이언트에게 준비 목록 업데이트
+            io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            
+            // 대상 사용자에게도 준비 상태 변경 알림
+            const targetSocket = io.sockets.sockets.get(targetUser.id);
+            if (targetSocket) {
+                targetSocket.emit('readyStateChanged', { isReady: isReady });
+            }
         } else if (!isReady && currentlyReady) {
-            // 준비 취소
+            // 준비 취소 - 방에 없어도 제거 가능
             gameState.readyUsers = gameState.readyUsers.filter(name => name !== trimmedUserName);
-        }
-        
-        // 같은 방의 모든 클라이언트에게 준비 목록 업데이트
-        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
-        
-        // 대상 사용자에게도 준비 상태 변경 알림
-        const targetSocket = io.sockets.sockets.get(targetUser.id);
-        if (targetSocket) {
-            targetSocket.emit('readyStateChanged', { isReady: isReady });
+            
+            // 같은 방의 모든 클라이언트에게 준비 목록 업데이트
+            io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            
+            // 대상 사용자가 방에 있으면 알림 전송
+            const targetUser = gameState.users.find(u => u.name === trimmedUserName);
+            if (targetUser) {
+                const targetSocket = io.sockets.sockets.get(targetUser.id);
+                if (targetSocket) {
+                    targetSocket.emit('readyStateChanged', { isReady: isReady });
+                }
+            }
+        } else {
+            // 상태 변경이 없는 경우 (이미 준비 상태이거나 이미 준비 취소 상태)
+            // 같은 방의 모든 클라이언트에게 준비 목록 업데이트 (동기화를 위해)
+            io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         }
         
         console.log(`방 ${room.roomName}: 호스트가 ${trimmedUserName}을(를) ${isReady ? '준비 상태로' : '준비 취소로'} 설정 (준비 인원: ${gameState.readyUsers.length}명)`);
@@ -2706,8 +2720,27 @@ io.on('connection', (socket) => {
                 
                 if (currentRolls.length > 0) {
                     const minRoll = Math.min(...currentRolls);
-                    // 현재 결과가 최저값보다 작으면 애니메이션 (지금까지 결과 중 제일 작은 게 나왔을 때)
-                    isHighGameAnimation = result < minRoll;
+                    // 기존 조건: 현재 결과가 최저값보다 작으면 애니메이션 (지금까지 결과 중 제일 작은 게 나왔을 때)
+                    if (result < minRoll) {
+                        isHighGameAnimation = true;
+                    } else {
+                        // 추가 조건: 두번째로 큰 값 또는 세번째로 큰 값일 때 확률적으로 애니메이션
+                        const sortedRolls = [...currentRolls].sort((a, b) => b - a); // 내림차순 정렬
+                        const uniqueSortedRolls = [...new Set(sortedRolls)]; // 중복 제거
+                        
+                        if (uniqueSortedRolls.length >= 2) {
+                            const secondLargest = uniqueSortedRolls[1]; // 두번째로 큰 값
+                            const thirdLargest = uniqueSortedRolls.length >= 3 ? uniqueSortedRolls[2] : null; // 세번째로 큰 값
+                            
+                            if (result === secondLargest) {
+                                // 두번째로 큰 값일 때 10% 확률
+                                isHighGameAnimation = Math.random() < 0.1;
+                            } else if (thirdLargest !== null && result === thirdLargest) {
+                                // 세번째로 큰 값일 때 5% 확률
+                                isHighGameAnimation = Math.random() < 0.05;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2727,8 +2760,27 @@ io.on('connection', (socket) => {
                 
                 if (currentRolls.length > 0) {
                     const maxRoll = Math.max(...currentRolls);
-                    // 현재 결과가 최고값보다 크면 애니메이션 (지금까지 결과 중 제일 큰 게 나왔을 때)
-                    isLowGameAnimation = result > maxRoll;
+                    // 기존 조건: 현재 결과가 최고값보다 크면 애니메이션 (지금까지 결과 중 제일 큰 게 나왔을 때)
+                    if (result > maxRoll) {
+                        isLowGameAnimation = true;
+                    } else {
+                        // 추가 조건: 두번째로 큰 값 또는 세번째로 큰 값일 때 확률적으로 애니메이션
+                        const sortedRolls = [...currentRolls].sort((a, b) => b - a); // 내림차순 정렬
+                        const uniqueSortedRolls = [...new Set(sortedRolls)]; // 중복 제거
+                        
+                        if (uniqueSortedRolls.length >= 2) {
+                            const secondLargest = uniqueSortedRolls[1]; // 두번째로 큰 값
+                            const thirdLargest = uniqueSortedRolls.length >= 3 ? uniqueSortedRolls[2] : null; // 세번째로 큰 값
+                            
+                            if (result === secondLargest) {
+                                // 두번째로 큰 값일 때 10% 확률
+                                isLowGameAnimation = Math.random() < 0.1;
+                            } else if (thirdLargest !== null && result === thirdLargest) {
+                                // 세번째로 큰 값일 때 5% 확률
+                                isLowGameAnimation = Math.random() < 0.05;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2753,11 +2805,30 @@ io.on('connection', (socket) => {
                     // 현재 결과와 타겟 숫자와의 거리
                     const currentDistance = Math.abs(result - targetNumber);
                     
-                    // 지금까지 나온 주사위 중 타겟 숫자와 가장 가까운 거리
-                    const minDistance = Math.min(...currentRolls.map(r => Math.abs(r - targetNumber)));
+                    // 지금까지 나온 주사위 중 타겟 숫자와의 거리들을 계산
+                    const distances = currentRolls.map(r => Math.abs(r - targetNumber));
+                    const minDistance = Math.min(...distances);
                     
-                    // 현재 결과가 가장 가까우면 애니메이션
-                    isNearGameAnimation = currentDistance < minDistance;
+                    // 기존 조건: 현재 결과가 가장 가까우면 애니메이션
+                    if (currentDistance < minDistance) {
+                        isNearGameAnimation = true;
+                    } else {
+                        // 추가 조건: 두번째로 가까운 값 또는 세번째로 가까운 값일 때 확률적으로 애니메이션
+                        const uniqueDistances = [...new Set(distances)].sort((a, b) => a - b); // 오름차순 정렬, 중복 제거
+                        
+                        if (uniqueDistances.length >= 2) {
+                            const secondClosestDistance = uniqueDistances[1]; // 두번째로 가까운 거리
+                            const thirdClosestDistance = uniqueDistances.length >= 3 ? uniqueDistances[2] : null; // 세번째로 가까운 거리
+                            
+                            if (currentDistance === secondClosestDistance) {
+                                // 두번째로 가까운 값일 때 10% 확률
+                                isNearGameAnimation = Math.random() < 0.1;
+                            } else if (thirdClosestDistance !== null && currentDistance === thirdClosestDistance) {
+                                // 세번째로 가까운 값일 때 5% 확률
+                                isNearGameAnimation = Math.random() < 0.05;
+                            }
+                        }
+                    }
                 } else {
                     // 첫 번째 굴림인 경우 현재 결과가 타겟과 가까우면 애니메이션
                     const currentDistance = Math.abs(result - targetNumber);
