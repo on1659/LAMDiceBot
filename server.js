@@ -2386,14 +2386,18 @@ io.on('connection', (socket) => {
         console.log(`검증 - 화살표 위치: ${(360 - (finalAngle % 360)).toFixed(2)}° → 당첨자 중앙(${winnerCenterAngle.toFixed(2)}°)과 일치해야 함`);
         console.log(`================================\n`);
         
-        // 게임 기록 생성
+        // 게임 기록 생성 (한국 시간 기준)
+        const now = new Date();
+        // 한국 시간으로 변환 (UTC+9)
+        const koreaOffset = 9 * 60; // 한국은 UTC+9 (분 단위)
+        const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
         const record = {
             round: gameState.rouletteHistory.length + 1,
             participants: participants,
             winner: winner,
-            timestamp: new Date().toISOString(),
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+            timestamp: koreaTime.toISOString(),
+            date: koreaTime.toISOString().split('T')[0],
+            time: now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' })
         };
         
         // 기록 저장
@@ -2411,11 +2415,11 @@ io.on('connection', (socket) => {
             everPlayedUsers: gameState.everPlayedUsers // 누적 참여자 목록 전송
         });
         
-        // 채팅에 시스템 메시지 추가
+        // 채팅에 시스템 메시지 추가 (한국 시간 - 위에서 선언한 now와 koreaTime 재사용)
         const startMessage = {
             userName: '시스템',
             message: `🎰 룰렛 게임 시작! 참가자: ${participants.join(', ')}`,
-            timestamp: new Date().toISOString(),
+            timestamp: koreaTime.toISOString(),
             isSystem: true
         };
         gameState.chatHistory.push(startMessage);
@@ -2448,11 +2452,14 @@ io.on('connection', (socket) => {
         
         const { winner } = data;
         
-        // 채팅에 결과 메시지 추가
+        // 채팅에 결과 메시지 추가 (한국 시간)
+        const nowResult = new Date();
+        const koreaOffsetResult = 9 * 60; // 한국은 UTC+9 (분 단위)
+        const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
         const resultMessage = {
             userName: '시스템',
             message: `🎊🎉 축하합니다! ${winner}님이 당첨되었습니다! 🎉🎊`,
-            timestamp: new Date().toISOString(),
+            timestamp: koreaTimeResult.toISOString(),
             isSystem: true,
             isRouletteWinner: true
         };
