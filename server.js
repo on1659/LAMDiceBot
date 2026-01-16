@@ -3016,7 +3016,8 @@ io.on('connection', (socket) => {
             message: message.trim(),
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             isHost: user.isHost,
-            deviceType: deviceType // 디바이스 타입 추가
+            deviceType: deviceType, // 디바이스 타입 추가
+            reactions: {} // 이모티콘 반응 {emoji: [userName1, userName2, ...]}
         };
         
         // 채팅 기록에 저장 (최대 100개)
@@ -3067,6 +3068,80 @@ io.on('connection', (socket) => {
                 }
             }
         }
+    });
+
+    // 채팅 이모티콘 추가/제거
+    socket.on('toggleReaction', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        const { messageIndex, emoji } = data;
+        
+        // 입력값 검증
+        if (typeof messageIndex !== 'number' || !emoji || typeof emoji !== 'string') {
+            socket.emit('chatError', '올바른 이모티콘 정보를 입력해주세요!');
+            return;
+        }
+        
+        // 사용자 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) {
+            socket.emit('chatError', '사용자를 찾을 수 없습니다!');
+            return;
+        }
+        
+        // 채팅 기록에서 메시지 찾기 (인덱스로 직접 접근)
+        if (messageIndex < 0 || messageIndex >= gameState.chatHistory.length) {
+            socket.emit('chatError', '메시지를 찾을 수 없습니다!');
+            return;
+        }
+        
+        const chatMessage = gameState.chatHistory[messageIndex];
+        
+        // reactions 필드 초기화 (없으면)
+        if (!chatMessage.reactions) {
+            chatMessage.reactions = {};
+        }
+        
+        // reactions 필드 초기화 (없으면)
+        if (!chatMessage.reactions) {
+            chatMessage.reactions = {};
+        }
+        
+        // 이모티콘 반응 배열 초기화 (없으면)
+        if (!chatMessage.reactions[emoji]) {
+            chatMessage.reactions[emoji] = [];
+        }
+        
+        // 사용자가 이미 이 이모티콘을 눌렀는지 확인
+        const userIndex = chatMessage.reactions[emoji].indexOf(user.name);
+        
+        if (userIndex === -1) {
+            // 이모티콘 추가
+            chatMessage.reactions[emoji].push(user.name);
+        } else {
+            // 이모티콘 제거
+            chatMessage.reactions[emoji].splice(userIndex, 1);
+            
+            // 반응이 없으면 이모티콘 키 제거
+            if (chatMessage.reactions[emoji].length === 0) {
+                delete chatMessage.reactions[emoji];
+            }
+        }
+        
+        // 모든 클라이언트에게 업데이트된 메시지 전송
+        io.to(room.roomId).emit('messageReactionUpdated', {
+            messageIndex: messageIndex,
+            message: chatMessage
+        });
+        
+        console.log(`방 ${room.roomName} 이모티콘 반응: ${user.name}이(가) ${emoji} ${userIndex === -1 ? '추가' : '제거'}`);
     });
 
     // 연결 해제
