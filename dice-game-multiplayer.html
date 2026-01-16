@@ -4423,6 +4423,15 @@
             window.lastRollerAnimationComplete = false;
             window.lastRollerAnimationCompleteTime = null;
             
+            // 결과창 표시 플래그 초기화 (새 게임 시작 시)
+            window.allRolledMessageShown = false;
+            
+            // 대기 interval 정리
+            if (window.allRolledWaitInterval) {
+                clearInterval(window.allRolledWaitInterval);
+                window.allRolledWaitInterval = null;
+            }
+            
             // 게임 기록 제목 변경
             document.getElementById('historyTitle').textContent = '📋 게임';
             
@@ -4515,6 +4524,15 @@
                 // 애니메이션 완료 플래그 초기화 (게임 종료 시)
                 window.lastRollerAnimationComplete = false;
                 window.lastRollerAnimationCompleteTime = null;
+                
+                // 결과창 표시 플래그 초기화 (다음 게임을 위해)
+                window.allRolledMessageShown = false;
+                
+                // 대기 interval 정리
+                if (window.allRolledWaitInterval) {
+                    clearInterval(window.allRolledWaitInterval);
+                    window.allRolledWaitInterval = null;
+                }
                 // historyData는 누적 기록을 유지하므로 업데이트하지 않음
                 // currentGameHistory는 현재 게임의 기록만 포함됨
                 
@@ -5515,6 +5533,24 @@
                 const isAllRolledMessage = chatMessage.message.includes('모든 참여자가 주사위를 굴렸습니다');
                 
                 if (isAllRolledMessage) {
+                    // 전역 플래그로 중복 호출 방지
+                    if (window.allRolledMessageShown) {
+                        return; // 이미 표시됨
+                    }
+                    
+                    // 이미 채팅에 결과창이 있는지 확인
+                    const existingResultMessage = Array.from(chatMessages.children).find(child => {
+                        const titleDiv = child.querySelector('div');
+                        return titleDiv && titleDiv.textContent.includes('주사위 다 굴렸습니다');
+                    });
+                    
+                    if (existingResultMessage) {
+                        return; // 이미 결과창이 있음
+                    }
+                    
+                    // 전역 플래그 설정
+                    window.allRolledMessageShown = true;
+                    
                     // 메시지 div는 먼저 추가하되 내용은 비워둠
                     messageDiv.style.display = 'none'; // 먼저 숨김
                     chatMessages.appendChild(messageDiv);
@@ -5627,6 +5663,16 @@
                     
                     // 애니메이션 완료 후 3초 뒤에 메시지 표시
                     const showMessage = async () => {
+                        // 중복 호출 방지 - 이미 메시지가 표시되었는지 확인
+                        if (messageDiv.querySelector('div') && messageDiv.style.display !== 'none') {
+                            return; // 이미 표시됨
+                        }
+                        
+                        // 전역 플래그 다시 확인
+                        if (window.allRolledMessageShown && messageDiv.querySelector('div')) {
+                            return; // 이미 표시됨
+                        }
+                        
                         const titleDiv = document.createElement('div');
                         titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
                         titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
@@ -5693,16 +5739,26 @@
                         }
                     };
                     
-                    // 중복 호출 방지 플래그
-                    if (messageDiv.dataset.messageShown === 'true') {
-                        return; // 이미 표시됨
+                    // 전역 waitInterval 관리 (중복 생성 방지)
+                    if (!window.allRolledWaitInterval) {
+                        window.allRolledWaitInterval = null;
                     }
-                    messageDiv.dataset.messageShown = 'true';
+                    
+                    // 기존 interval이 있으면 정리
+                    if (window.allRolledWaitInterval) {
+                        clearInterval(window.allRolledWaitInterval);
+                        window.allRolledWaitInterval = null;
+                    }
                     
                     const checkAndShow = () => {
+                        // 이미 표시되었는지 확인
+                        if (messageDiv.querySelector('div') && messageDiv.style.display !== 'none') {
+                            return true; // 이미 표시됨
+                        }
+                        
                         if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
                             const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
-                            if (elapsed >= 1500) {
+                            if (elapsed >= 300) {
                                 showMessage();
                                 return true;
                             }
@@ -5710,22 +5766,29 @@
                         return false;
                     };
                     
-                    // 즉시 확인 (이미 3초가 지났을 수 있음)
+                    // 즉시 확인 (이미 시간이 지났을 수 있음)
                     if (!checkAndShow()) {
                         // 아직 시간이 안 지났으면 대기
-                        const waitInterval = setInterval(() => {
+                        window.allRolledWaitInterval = setInterval(() => {
                             if (checkAndShow()) {
-                                clearInterval(waitInterval);
+                                if (window.allRolledWaitInterval) {
+                                    clearInterval(window.allRolledWaitInterval);
+                                    window.allRolledWaitInterval = null;
+                                }
                             }
-                        }, 100);
+                        }, 50);
                         
-                        // 최대 10초 대기 후 강제 표시
+                        // 최대 5초 대기 후 강제 표시
                         setTimeout(() => {
-                            clearInterval(waitInterval);
-                            if (!messageDiv.querySelector('div')) {
+                            if (window.allRolledWaitInterval) {
+                                clearInterval(window.allRolledWaitInterval);
+                                window.allRolledWaitInterval = null;
+                            }
+                            // 이미 표시되지 않았을 때만 표시
+                            if (!messageDiv.querySelector('div') || messageDiv.style.display === 'none') {
                                 showMessage();
                             }
-                        }, 10000);
+                        }, 5000);
                     } else {
                         showMessage();
                     }
