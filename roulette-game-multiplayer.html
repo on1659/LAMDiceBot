@@ -1695,13 +1695,157 @@
             messageSpan.textContent = data.message;
             
             // 시간
-            const timeSpan = document.createElement('div');
-            timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+            const timeSpan = document.createElement('span');
+            timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-left: 8px;';
             timeSpan.textContent = data.time || new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             
             msgDiv.appendChild(userNameSpan);
             msgDiv.appendChild(messageSpan);
-            msgDiv.appendChild(timeSpan);
+            msgDiv.appendChild(document.createElement('br'));
+            
+            // 타임스탬프와 이모티콘을 같은 줄에 표시하기 위한 컨테이너
+            const timeReactionsContainer = document.createElement('span');
+            timeReactionsContainer.className = 'time-reactions-container';
+            timeReactionsContainer.style.cssText = 'display: inline-flex; align-items: center; gap: 6px;';
+            
+            timeReactionsContainer.appendChild(timeSpan);
+            
+            // 반응이 있는 이모티콘 표시 영역 (항상 표시)
+            const activeReactionsDiv = document.createElement('span');
+            activeReactionsDiv.className = 'active-reactions';
+            activeReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px;';
+            
+            // 호버 시 나타나는 이모티콘 버튼들 (기본 숨김)
+            const hoverReactionsDiv = document.createElement('span');
+            hoverReactionsDiv.className = 'hover-reactions';
+            hoverReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
+            
+            // 기본 이모티콘 버튼들 (하트, 따봉, 슬퍼요)
+            const defaultEmojis = ['❤️', '👍', '😢'];
+            
+            // reactions 필드 초기화
+            if (!data.reactions) {
+                data.reactions = {};
+            }
+            
+            // 메시지 인덱스 설정 (채팅 기록에서 찾기)
+            const chatHistory = window.rouletteChatHistory || [];
+            let messageIndex = chatHistory.findIndex(msg => 
+                msg.userName === data.userName && 
+                msg.message === data.message && 
+                msg.time === data.time
+            );
+            
+            if (messageIndex === -1) {
+                messageIndex = chatHistory.length;
+                chatHistory.push(data);
+            } else {
+                chatHistory[messageIndex] = data;
+            }
+            window.rouletteChatHistory = chatHistory;
+            
+            msgDiv.dataset.messageIndex = messageIndex;
+            
+            // 반응이 있는 이모티콘 표시
+            if (data.reactions && Object.keys(data.reactions).length > 0) {
+                Object.entries(data.reactions).forEach(([emoji, users]) => {
+                    if (users.length > 0 && defaultEmojis.includes(emoji)) {
+                        const reactionBtn = document.createElement('button');
+                        reactionBtn.className = 'reaction-button active';
+                        
+                        const hasReacted = users.includes(currentUser);
+                        
+                        reactionBtn.style.cssText = `
+                            height: 20px;
+                            border-radius: 10px;
+                            background: ${hasReacted ? '#333' : '#555'};
+                            border: none;
+                            color: #ffffff !important;
+                            font-size: 12px;
+                            cursor: pointer;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 0 6px;
+                            gap: 4px;
+                            transition: all 0.2s;
+                            vertical-align: middle;
+                            line-height: 1;
+                        `;
+                        
+                        const emojiSpan = document.createElement('span');
+                        emojiSpan.textContent = emoji;
+                        emojiSpan.style.cssText = 'font-size: 12px; line-height: 1;';
+                        
+                        const countSpan = document.createElement('span');
+                        countSpan.textContent = users.length;
+                        countSpan.style.cssText = 'font-size: 12px; color: #ffffff !important; font-weight: 600; line-height: 1; display: inline-block;';
+                        
+                        reactionBtn.appendChild(emojiSpan);
+                        reactionBtn.appendChild(countSpan);
+                        reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                        
+                        reactionBtn.onclick = () => {
+                            socket.emit('toggleReaction', { messageIndex, emoji });
+                        };
+                        
+                        activeReactionsDiv.appendChild(reactionBtn);
+                    }
+                });
+            }
+            
+            // 호버 시 나타나는 이모티콘 버튼들
+            defaultEmojis.forEach(emoji => {
+                // 이미 반응이 있는 이모티콘은 호버 버튼에 표시하지 않음
+                const hasReaction = data.reactions && 
+                                  data.reactions[emoji] && 
+                                  data.reactions[emoji].length > 0;
+                if (hasReaction) return;
+                
+                const reactionBtn = document.createElement('button');
+                reactionBtn.className = 'reaction-button hover';
+                
+                reactionBtn.style.cssText = `
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 50%;
+                    background: #000;
+                    border: 1px solid #333;
+                    color: white;
+                    font-size: 10px;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    transition: all 0.2s;
+                    vertical-align: middle;
+                `;
+                
+                reactionBtn.textContent = emoji;
+                reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                
+                reactionBtn.onclick = () => {
+                    socket.emit('toggleReaction', { messageIndex, emoji });
+                };
+                
+                hoverReactionsDiv.appendChild(reactionBtn);
+            });
+            
+            timeReactionsContainer.appendChild(activeReactionsDiv);
+            timeReactionsContainer.appendChild(hoverReactionsDiv);
+            
+            msgDiv.appendChild(timeReactionsContainer);
+            
+            // 메시지에 마우스를 올리면 호버 이모티콘 표시
+            msgDiv.onmouseenter = () => {
+                hoverReactionsDiv.style.opacity = '0.7';
+                hoverReactionsDiv.style.pointerEvents = 'auto';
+            };
+            msgDiv.onmouseleave = () => {
+                hoverReactionsDiv.style.opacity = '0';
+                hoverReactionsDiv.style.pointerEvents = 'none';
+            };
             
             chatMessages.appendChild(msgDiv);
             
@@ -1888,6 +2032,7 @@
             // 채팅 기록 로드
             if (data.chatHistory) {
                 document.getElementById('chatMessages').innerHTML = '';
+                window.rouletteChatHistory = [];
                 data.chatHistory.forEach(msg => addChatMessage(msg));
             }
             
@@ -2110,6 +2255,162 @@
 
         socket.on('newMessage', (data) => {
             addChatMessage(data);
+        });
+        
+        // 이모티콘 반응 업데이트
+        socket.on('messageReactionUpdated', (data) => {
+            const { messageIndex, message } = data;
+            
+            // 클라이언트 채팅 기록 업데이트
+            const chatHistory = window.rouletteChatHistory || [];
+            if (chatHistory[messageIndex]) {
+                chatHistory[messageIndex].reactions = message.reactions || {};
+            }
+            window.rouletteChatHistory = chatHistory;
+            
+            // 해당 메시지 DOM 요소 찾기
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = Array.from(chatMessages.children).find(div => 
+                div.dataset.messageIndex === messageIndex.toString()
+            );
+            
+            if (messageDiv) {
+                // 타임스탬프와 이모티콘 컨테이너 찾기 또는 생성
+                let timeReactionsContainer = messageDiv.querySelector('.time-reactions-container');
+                
+                if (!timeReactionsContainer) {
+                    // 기존 구조가 없으면 새로 생성
+                    const timeSpan = messageDiv.querySelector('span[style*="font-size: 11px"]');
+                    if (timeSpan) {
+                        timeReactionsContainer = document.createElement('span');
+                        timeReactionsContainer.className = 'time-reactions-container';
+                        timeReactionsContainer.style.cssText = 'display: inline-flex; align-items: center; gap: 6px;';
+                        
+                        // 타임스탬프를 컨테이너로 이동
+                        timeSpan.parentNode.insertBefore(timeReactionsContainer, timeSpan);
+                        timeReactionsContainer.appendChild(timeSpan);
+                    } else {
+                        return; // 타임스탬프를 찾을 수 없으면 종료
+                    }
+                }
+                
+                // 기존 반응 영역 제거
+                const oldActiveReactions = timeReactionsContainer.querySelector('.active-reactions');
+                const oldHoverReactions = timeReactionsContainer.querySelector('.hover-reactions');
+                if (oldActiveReactions) oldActiveReactions.remove();
+                if (oldHoverReactions) oldHoverReactions.remove();
+                
+                // 반응이 있는 이모티콘 표시 영역 (항상 표시)
+                const activeReactionsDiv = document.createElement('span');
+                activeReactionsDiv.className = 'active-reactions';
+                activeReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px;';
+                
+                // 호버 시 나타나는 이모티콘 버튼들 (기본 숨김)
+                const hoverReactionsDiv = document.createElement('span');
+                hoverReactionsDiv.className = 'hover-reactions';
+                hoverReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
+                
+                const defaultEmojis = ['❤️', '👍', '😢'];
+                
+                // 반응이 있는 이모티콘 표시
+                if (message.reactions && Object.keys(message.reactions).length > 0) {
+                    Object.entries(message.reactions).forEach(([emoji, users]) => {
+                        if (users.length > 0 && defaultEmojis.includes(emoji)) {
+                            const reactionBtn = document.createElement('button');
+                            reactionBtn.className = 'reaction-button active';
+                            
+                            const hasReacted = users.includes(currentUser);
+                            
+                            reactionBtn.style.cssText = `
+                                height: 20px;
+                                border-radius: 10px;
+                                background: ${hasReacted ? '#333' : '#555'};
+                                border: none;
+                                color: #ffffff !important;
+                                font-size: 12px;
+                                cursor: pointer;
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 6px;
+                                gap: 4px;
+                                transition: all 0.2s;
+                                vertical-align: middle;
+                                line-height: 1;
+                            `;
+                            
+                            const emojiSpan = document.createElement('span');
+                            emojiSpan.textContent = emoji;
+                            emojiSpan.style.cssText = 'font-size: 12px; line-height: 1;';
+                            
+                            const countSpan = document.createElement('span');
+                            countSpan.textContent = users.length;
+                            countSpan.style.cssText = 'font-size: 12px; color: #ffffff !important; font-weight: 600; line-height: 1; display: inline-block;';
+                            
+                            reactionBtn.appendChild(emojiSpan);
+                            reactionBtn.appendChild(countSpan);
+                            reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                            
+                            reactionBtn.onclick = () => {
+                                socket.emit('toggleReaction', { messageIndex, emoji });
+                            };
+                            
+                            activeReactionsDiv.appendChild(reactionBtn);
+                        }
+                    });
+                }
+                
+                // 호버 시 나타나는 이모티콘 버튼들
+                defaultEmojis.forEach(emoji => {
+                    // 이미 반응이 있는 이모티콘은 호버 버튼에 표시하지 않음
+                    const hasReaction = message.reactions && 
+                                      message.reactions[emoji] && 
+                                      message.reactions[emoji].length > 0;
+                    if (hasReaction) return;
+                    
+                    const reactionBtn = document.createElement('button');
+                    reactionBtn.className = 'reaction-button hover';
+                    
+                    reactionBtn.style.cssText = `
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #000;
+                        border: 1px solid #333;
+                        color: white;
+                        font-size: 10px;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 0;
+                        transition: all 0.2s;
+                        vertical-align: middle;
+                    `;
+                    
+                    reactionBtn.textContent = emoji;
+                    reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                    
+                    reactionBtn.onclick = () => {
+                        socket.emit('toggleReaction', { messageIndex, emoji });
+                    };
+                    
+                    hoverReactionsDiv.appendChild(reactionBtn);
+                });
+                
+                timeReactionsContainer.appendChild(activeReactionsDiv);
+                timeReactionsContainer.appendChild(hoverReactionsDiv);
+                
+                // 메시지에 마우스를 올리면 호버 이모티콘 표시
+                messageDiv.onmouseenter = () => {
+                    hoverReactionsDiv.style.opacity = '0.7';
+                    hoverReactionsDiv.style.pointerEvents = 'auto';
+                };
+                messageDiv.onmouseleave = () => {
+                    hoverReactionsDiv.style.opacity = '0';
+                    hoverReactionsDiv.style.pointerEvents = 'none';
+                };
+            }
         });
 
         socket.on('rouletteStarted', (data) => {
