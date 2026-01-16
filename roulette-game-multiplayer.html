@@ -1122,6 +1122,98 @@
             reconnectionDelay: 1000
         });
 
+        // 이모티콘 설정 (JSON 파일에서 로드)
+        let emojiConfig = {
+            '❤️': '좋아요',
+            '👍': '따봉',
+            '😢': '슬퍼요'
+        };
+        
+        // 이모티콘 설정 파일 로드
+        async function loadEmojiConfig() {
+            try {
+                const response = await fetch('emoji-config.json');
+                if (response.ok) {
+                    const config = await response.json();
+                    emojiConfig = config;
+                    console.log('이모티콘 설정 로드 완료:', emojiConfig);
+                    
+                    // 기존 채팅 메시지들의 이모티콘 버튼 업데이트
+                    updateExistingChatEmojis();
+                } else {
+                    console.warn('이모티콘 설정 파일을 찾을 수 없습니다. 기본 설정을 사용합니다.');
+                }
+            } catch (error) {
+                console.warn('이모티콘 설정 파일 로드 실패:', error, '기본 설정을 사용합니다.');
+            }
+        }
+        
+        // 기존 채팅 메시지들의 이모티콘 버튼 업데이트
+        function updateExistingChatEmojis() {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+            
+            // 모든 채팅 메시지의 호버 이모티콘 버튼 업데이트
+            const messageDivs = chatMessages.querySelectorAll('.chat-message-wrapper');
+            messageDivs.forEach(messageDiv => {
+                const timeReactionsContainer = messageDiv.querySelector('.time-reactions-container');
+                if (!timeReactionsContainer) return;
+                
+                const hoverReactionsDiv = timeReactionsContainer.querySelector('.hover-reactions');
+                if (hoverReactionsDiv) {
+                    // 기존 호버 버튼 제거
+                    hoverReactionsDiv.innerHTML = '';
+                    
+                    // 새로운 이모티콘 버튼 추가
+                    const defaultEmojis = Object.keys(emojiConfig);
+                    const messageIndex = parseInt(messageDiv.dataset.messageIndex);
+                    const chatMessage = window.rouletteChatHistory && window.rouletteChatHistory[messageIndex];
+                    
+                    if (!chatMessage) return;
+                    
+                    defaultEmojis.forEach(emoji => {
+                        // 이미 반응이 있는 이모티콘은 호버 버튼에 표시하지 않음
+                        const hasReaction = chatMessage.reactions && 
+                                          chatMessage.reactions[emoji] && 
+                                          chatMessage.reactions[emoji].length > 0;
+                        if (hasReaction) return;
+                        
+                        const reactionBtn = document.createElement('button');
+                        reactionBtn.className = 'reaction-button hover';
+                        
+                        reactionBtn.style.cssText = `
+                            width: 16px;
+                            height: 16px;
+                            border-radius: 50%;
+                            background: #000;
+                            border: 1px solid #333;
+                            color: white;
+                            font-size: 10px;
+                            cursor: pointer;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 0;
+                            transition: all 0.2s;
+                            vertical-align: middle;
+                        `;
+                        
+                        reactionBtn.textContent = emoji;
+                        reactionBtn.title = emojiConfig[emoji] || emoji;
+                        
+                        reactionBtn.onclick = () => {
+                            socket.emit('toggleReaction', { messageIndex, emoji });
+                        };
+                        
+                        hoverReactionsDiv.appendChild(reactionBtn);
+                    });
+                }
+            });
+        }
+        
+        // 페이지 로드 시 이모티콘 설정 로드
+        loadEmojiConfig();
+
         // 상태 변수
         let currentRoomId = null;
         let currentUser = '';
@@ -1720,8 +1812,8 @@
             hoverReactionsDiv.className = 'hover-reactions';
             hoverReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
             
-            // 기본 이모티콘 버튼들 (하트, 따봉, 슬퍼요)
-            const defaultEmojis = ['❤️', '👍', '😢'];
+            // 이모티콘 설정 (전역 변수에서 가져오기)
+            const defaultEmojis = Object.keys(emojiConfig);
             
             // reactions 필드 초기화
             if (!data.reactions) {
@@ -1783,7 +1875,7 @@
                         
                         reactionBtn.appendChild(emojiSpan);
                         reactionBtn.appendChild(countSpan);
-                        reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                        reactionBtn.title = emojiConfig[emoji] || emoji;
                         
                         reactionBtn.onclick = () => {
                             socket.emit('toggleReaction', { messageIndex, emoji });
@@ -1823,7 +1915,7 @@
                 `;
                 
                 reactionBtn.textContent = emoji;
-                reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                reactionBtn.title = emojiConfig[emoji] || emoji;
                 
                 reactionBtn.onclick = () => {
                     socket.emit('toggleReaction', { messageIndex, emoji });
@@ -2310,7 +2402,8 @@
                 hoverReactionsDiv.className = 'hover-reactions';
                 hoverReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
                 
-                const defaultEmojis = ['❤️', '👍', '😢'];
+                // 이모티콘 설정 (전역 변수에서 가져오기)
+                const defaultEmojis = Object.keys(emojiConfig);
                 
                 // 반응이 있는 이모티콘 표시
                 if (message.reactions && Object.keys(message.reactions).length > 0) {
@@ -2349,7 +2442,7 @@
                             
                             reactionBtn.appendChild(emojiSpan);
                             reactionBtn.appendChild(countSpan);
-                            reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                            reactionBtn.title = emojiConfig[emoji] || emoji;
                             
                             reactionBtn.onclick = () => {
                                 socket.emit('toggleReaction', { messageIndex, emoji });
@@ -2389,7 +2482,7 @@
                     `;
                     
                     reactionBtn.textContent = emoji;
-                    reactionBtn.title = emoji === '❤️' ? '좋아요' : emoji === '👍' ? '따봉' : '슬퍼요';
+                    reactionBtn.title = emojiConfig[emoji] || emoji;
                     
                     reactionBtn.onclick = () => {
                         socket.emit('toggleReaction', { messageIndex, emoji });
