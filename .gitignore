@@ -8,3 +8,8 @@
 # 테스트 폴더
 /AutoTest/node_modules
 /AutoTest/*.log
+
+# 환경 변수 파일
+.env
+.env.local
+.env.*.local

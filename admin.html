@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지 - LAMDice</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+        }
+        .server-list {
+            margin-top: 20px;
+        }
+        .server-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .server-info {
+            flex: 1;
+        }
+        .server-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .server-details {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .server-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s;
+        }
+        .btn-enter {
+            background: #667eea;
+            color: white;
+        }
+        .btn-enter:hover {
+            background: #5568d3;
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .password-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            background: #fff3cd;
+            color: #856404;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .bulk-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .bulk-actions input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .bulk-actions label {
+            cursor: pointer;
+            font-weight: 500;
+            margin-left: 5px;
+        }
+        .btn-bulk {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s;
+        }
+        .btn-bulk-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-bulk-delete:hover {
+            background: #c82333;
+        }
+        .btn-bulk-delete:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .server-card {
+            position: relative;
+        }
+        .server-checkbox {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .server-info {
+            margin-left: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>관리자 페이지</h1>
+        <div id="error-message" style="display: none;" class="error"></div>
+        <div id="loading" class="loading">서버 목록을 불러오는 중...</div>
+        <div id="bulk-actions" class="bulk-actions" style="display: none;">
+            <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+            <label for="select-all">전체 선택</label>
+            <button class="btn-bulk btn-bulk-delete" id="delete-selected" onclick="deleteSelected()" disabled>선택 삭제</button>
+            <button class="btn-bulk btn-bulk-delete" onclick="deleteAll()">모두 삭제</button>
+        </div>
+        <div id="server-list" class="server-list" style="display: none;"></div>
+    </div>
+    
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        let servers = []; // 서버 목록 저장
+        
+        if (!token) {
+            window.location.href = '/about-us.html';
+        }
+        
+        // 서버 목록 불러오기
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/admin/servers?token=' + token);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    if (data.message === '인증이 만료되었습니다.' || data.message === '인증에 실패했습니다.') {
+                        alert('인증이 만료되었습니다. 다시 인증해주세요.');
+                        window.location.href = '/about-us.html';
+                        return;
+                    }
+                    showError(data.message || '서버 목록을 불러오는데 실패했습니다.');
+                    return;
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                servers = data.servers || [];
+                renderServers(servers);
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                showError('서버 목록을 불러오는 중 오류가 발생했습니다.');
+                console.error('Error loading servers:', error);
+            }
+        }
+        
+        function renderServers(serverList) {
+            const serverListDiv = document.getElementById('server-list');
+            const bulkActionsDiv = document.getElementById('bulk-actions');
+            
+            if (serverList.length === 0) {
+                serverListDiv.innerHTML = '<div class="empty-state">등록된 서버가 없습니다.</div>';
+                serverListDiv.style.display = 'block';
+                bulkActionsDiv.style.display = 'none';
+                return;
+            }
+            
+            bulkActionsDiv.style.display = 'flex';
+            
+            let html = '';
+            serverList.forEach(server => {
+                const statusClass = server.isActive ? 'status-active' : 'status-inactive';
+                const statusText = server.isActive ? '활성' : '비활성';
+                const passwordBadge = server.hasPassword ? '<span class="password-badge">🔒 비공개</span>' : '<span class="password-badge">공개</span>';
+                
+                html += `
+                    <div class="server-card">
+                        <input type="checkbox" class="server-checkbox" id="server-${server.id}" onchange="updateDeleteButton()">
+                        <div class="server-info">
+                            <div class="server-name">
+                                ${server.name}
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                                ${passwordBadge}
+                            </div>
+                            <div class="server-details">
+                                ID: ${server.id} | 멤버: ${server.memberCount}명 | 생성일: ${new Date(server.createdAt).toLocaleString('ko-KR')}
+                                ${server.description ? '<br>설명: ' + server.description : ''}
+                            </div>
+                        </div>
+                        <div class="server-actions">
+                            <button class="btn btn-enter" onclick="enterServer(${server.id})">입장</button>
+                            <button class="btn btn-delete" onclick="deleteServer(${server.id}, '${server.name.replace(/'/g, "\\'")}')">삭제</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            serverListDiv.innerHTML = html;
+            serverListDiv.style.display = 'block';
+            updateDeleteButton();
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('select-all');
+            const checkboxes = document.querySelectorAll('.server-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            updateDeleteButton();
+        }
+        
+        function updateDeleteButton() {
+            const checkboxes = document.querySelectorAll('.server-checkbox');
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const deleteButton = document.getElementById('delete-selected');
+            deleteButton.disabled = checkedCount === 0;
+            
+            // 전체 선택 체크박스 상태 업데이트
+            const selectAll = document.getElementById('select-all');
+            if (checkboxes.length === 0) {
+                selectAll.checked = false;
+            } else {
+                selectAll.checked = checkedCount === checkboxes.length;
+            }
+        }
+        
+        async function deleteSelected() {
+            const checkboxes = document.querySelectorAll('.server-checkbox:checked');
+            if (checkboxes.length === 0) {
+                return;
+            }
+            
+            const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('server-', '')));
+            const selectedNames = selectedIds.map(id => {
+                const server = servers.find(s => s.id === id);
+                return server ? server.name : `ID: ${id}`;
+            });
+            
+            if (!confirm(`정말로 ${selectedIds.length}개의 서버를 삭제하시겠습니까?\n\n삭제할 서버:\n${selectedNames.join('\n')}\n\n이 작업은 되돌릴 수 없습니다.`)) {
+                return;
+            }
+            
+            try {
+                let successCount = 0;
+                let failCount = 0;
+                
+                for (const serverId of selectedIds) {
+                    try {
+                        const response = await fetch('/api/admin/servers/' + serverId, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ token: token })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (!data.success) {
+                            if (data.message === '인증이 만료되었습니다.' || data.message === '인증에 실패했습니다.') {
+                                alert('인증이 만료되었습니다. 다시 인증해주세요.');
+                                window.location.href = '/about-us.html';
+                                return;
+                            }
+                            failCount++;
+                        } else {
+                            successCount++;
+                        }
+                    } catch (error) {
+                        failCount++;
+                        console.error(`Error deleting server ${serverId}:`, error);
+                    }
+                }
+                
+                if (successCount > 0) {
+                    alert(`${successCount}개의 서버가 삭제되었습니다.${failCount > 0 ? `\n${failCount}개의 서버 삭제에 실패했습니다.` : ''}`);
+                    loadServers(); // 목록 새로고침
+                } else {
+                    alert('서버 삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                alert('서버 삭제 중 오류가 발생했습니다.');
+                console.error('Error deleting servers:', error);
+            }
+        }
+        
+        async function deleteAll() {
+            if (servers.length === 0) {
+                return;
+            }
+            
+            const serverNames = servers.map(s => s.name).join('\n');
+            
+            if (!confirm(`정말로 모든 서버(${servers.length}개)를 삭제하시겠습니까?\n\n삭제할 서버:\n${serverNames}\n\n이 작업은 되돌릴 수 없습니다.`)) {
+                return;
+            }
+            
+            // 전체 선택 후 삭제
+            const checkboxes = document.querySelectorAll('.server-checkbox');
+            checkboxes.forEach(cb => cb.checked = true);
+            await deleteSelected();
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function enterServer(serverId) {
+            window.location.href = `/dice-game-multiplayer.html?serverId=${serverId}`;
+        }
+        
+        async function deleteServer(serverId, serverName) {
+            if (!confirm(`정말로 "${serverName}" 서버를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/servers/' + serverId, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    if (data.message === '인증이 만료되었습니다.' || data.message === '인증에 실패했습니다.') {
+                        alert('인증이 만료되었습니다. 다시 인증해주세요.');
+                        window.location.href = '/about-us.html';
+                        return;
+                    }
+                    alert(data.message || '서버 삭제에 실패했습니다.');
+                    return;
+                }
+                
+                alert('서버가 삭제되었습니다.');
+                loadServers(); // 목록 새로고침
+            } catch (error) {
+                alert('서버 삭제 중 오류가 발생했습니다.');
+                console.error('Error deleting server:', error);
+            }
+        }
+        
+        // 페이지 로드 시 서버 목록 불러오기
+        loadServers();
+    </script>
+</body>
+</html>

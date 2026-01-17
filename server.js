@@ -1,3 +1,12 @@
+// .env 파일 로드 (개발 환경)
+if (process.env.NODE_ENV !== 'production') {
+    try {
+        require('dotenv').config();
+    } catch (error) {
+        // dotenv가 없어도 계속 진행
+    }
+}
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -53,10 +62,21 @@ const BOARD_FILE = path.join(__dirname, 'suggestions.json');
 let pool = null;
 if (process.env.DATABASE_URL && Pool) {
     try {
-        pool = new Pool({
-            connectionString: process.env.DATABASE_URL,
-            ssl: { rejectUnauthorized: false }
-        });
+        // DATABASE_URL에서 호스트 추출하여 로컬인지 확인
+        const dbUrl = process.env.DATABASE_URL;
+        const isLocalhost = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+        
+        // 로컬 PostgreSQL은 SSL 불필요, 클라우드 서비스는 SSL 필요
+        const poolConfig = {
+            connectionString: dbUrl
+        };
+        
+        if (!isLocalhost) {
+            // 클라우드 서비스 (Railway, Supabase 등)는 SSL 사용
+            poolConfig.ssl = { rejectUnauthorized: false };
+        }
+        
+        pool = new Pool(poolConfig);
     } catch (error) {
         console.error('Postgres 연결 오류:', error);
         pool = null;
@@ -71,7 +91,7 @@ async function initDatabase() {
     }
     
     try {
-        // 테이블이 없으면 생성
+        // 기존 게시판 테이블
         await pool.query(`
             CREATE TABLE IF NOT EXISTS suggestions (
                 id SERIAL PRIMARY KEY,
@@ -85,16 +105,111 @@ async function initDatabase() {
             )
         `);
         
-        // 인덱스 생성 (조회 성능 향상)
         await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_suggestions_created_at 
             ON suggestions(created_at DESC)
         `);
         
-        console.log('✅ 데이터베이스 테이블 초기화 완료');
+        // 서버 개념 도입을 위한 테이블들
+        // 1. 서버 테이블
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS servers (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                description TEXT,
+                host_id VARCHAR(255) NOT NULL,
+                host_name VARCHAR(50) NOT NULL,
+                password VARCHAR(20) DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active BOOLEAN DEFAULT true
+            )
+        `);
+        
+        // 2. 사용자-서버 관계 테이블 (멤버십)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS server_members (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                user_name VARCHAR(50) NOT NULL,
+                socket_id VARCHAR(255),
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(server_id, user_name)
+            )
+        `);
+        
+        // 3. 서버별 게임 기록 테이블
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS server_game_records (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                user_name VARCHAR(50) NOT NULL,
+                result INTEGER NOT NULL,
+                game_rules VARCHAR(200),
+                game_type VARCHAR(20) NOT NULL,
+                is_winner BOOLEAN DEFAULT false,
+                game_session_id VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                range_min INTEGER DEFAULT 1,
+                range_max INTEGER DEFAULT 100
+            )
+        `);
+        
+        // 4. 게임 세션 테이블
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS game_sessions (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                session_id VARCHAR(100) UNIQUE NOT NULL,
+                game_type VARCHAR(20) NOT NULL,
+                game_rules VARCHAR(200),
+                winner_name VARCHAR(50),
+                winner_result INTEGER,
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ended_at TIMESTAMP,
+                participant_count INTEGER DEFAULT 0
+            )
+        `);
+        
+        // 인덱스 생성
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_servers_host_id ON servers(host_id)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_servers_created_at ON servers(created_at DESC)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_server_members_server_id ON server_members(server_id)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_server_members_user_name ON server_members(user_name)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_records_server_id ON server_game_records(server_id)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_records_user_name ON server_game_records(user_name)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_records_session_id ON server_game_records(game_session_id)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_records_created_at ON server_game_records(created_at DESC)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_sessions_server_id ON game_sessions(server_id)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_sessions_session_id ON game_sessions(session_id)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_sessions_started_at ON game_sessions(started_at DESC)
+        `);
+        
+        console.log('✅ 데이터베이스 테이블 초기화 완료 (서버 시스템 포함)');
     } catch (error) {
         console.error('❌ 데이터베이스 초기화 오류:', error);
-        // Postgres가 없으면 파일 시스템으로 폴백
         console.log('⚠️  Postgres 연결 실패, 파일 시스템 사용');
     }
 }
@@ -217,10 +332,10 @@ async function deleteSuggestion(id, password) {
             }
             
             const suggestionPassword = checkResult.rows[0].password;
-            const adminPassword = process.env.ADMIN_PASSWORD || '0000';
+            const adminPassword = process.env.ADMIN_PASSWORD;
             
             // 게시글 삭제코드 또는 관리자 비밀번호 확인
-            if (password !== suggestionPassword && password !== adminPassword) {
+            if (password !== suggestionPassword && (!adminPassword || password !== adminPassword)) {
                 return { success: false, error: '삭제코드가 일치하지 않습니다.' };
             }
             
@@ -244,10 +359,10 @@ async function deleteSuggestion(id, password) {
             }
             
             const suggestionPassword = suggestions[index].password;
-            const adminPassword = process.env.ADMIN_PASSWORD || '0000';
+            const adminPassword = process.env.ADMIN_PASSWORD;
             
             // 게시글 삭제코드 또는 관리자 비밀번호 확인
-            if (password !== suggestionPassword && password !== adminPassword) {
+            if (password !== suggestionPassword && (!adminPassword || password !== adminPassword)) {
                 return { success: false, error: '삭제코드가 일치하지 않습니다.' };
             }
             
@@ -339,6 +454,13 @@ app.use(express.static(__dirname, {
     }
 }));
 
+// 리액트 앱 서빙 (개발 환경)
+if (process.env.NODE_ENV !== 'production') {
+    app.get('/react', (req, res) => {
+        res.sendFile(path.join(__dirname, 'src', 'index.html'));
+    });
+}
+
 app.get('/', (req, res) => {
     // 캐시 방지 헤더 설정
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -353,6 +475,181 @@ app.get('/roulette', (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'roulette-game-multiplayer.html'));
+});
+
+// 관리자 인증 토큰 저장 (메모리)
+const adminTokens = new Map(); // token -> { expiresAt: timestamp }
+
+// 관리자 토큰 생성 및 검증
+function generateAdminToken() {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + (60 * 60 * 1000); // 1시간
+    adminTokens.set(token, { expiresAt });
+    return token;
+}
+
+function verifyAdminToken(token) {
+    if (!token) return false;
+    const tokenData = adminTokens.get(token);
+    if (!tokenData) return false;
+    if (Date.now() > tokenData.expiresAt) {
+        adminTokens.delete(token);
+        return false;
+    }
+    return true;
+}
+
+// 만료된 토큰 정리 (10분마다)
+setInterval(() => {
+    const now = Date.now();
+    for (const [token, data] of adminTokens.entries()) {
+        if (now > data.expiresAt) {
+            adminTokens.delete(token);
+        }
+    }
+}, 10 * 60 * 1000);
+
+// 관리자 인증 API
+app.post('/api/admin/verify', (req, res) => {
+    const { password } = req.body;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    
+    if (!adminPassword) {
+        return res.status(500).json({
+            success: false,
+            message: '관리자 패스워드가 설정되지 않았습니다.'
+        });
+    }
+    
+    if (!password || password !== adminPassword) {
+        return res.status(401).json({
+            success: false,
+            message: '인증에 실패했습니다.'
+        });
+    }
+    
+    const token = generateAdminToken();
+    res.json({
+        success: true,
+        token: token
+    });
+});
+
+// 관리자 서버 목록 조회 API
+app.get('/api/admin/servers', async (req, res) => {
+    const token = req.query.token;
+    
+    if (!verifyAdminToken(token)) {
+        return res.status(401).json({
+            success: false,
+            message: '인증이 만료되었습니다.'
+        });
+    }
+    
+    if (!pool) {
+        return res.status(500).json({
+            success: false,
+            message: '데이터베이스가 연결되지 않았습니다.'
+        });
+    }
+    
+    try {
+        // 모든 서버 조회 (비활성 포함)
+        const result = await pool.query(
+            `SELECT s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at, s.is_active,
+                    COUNT(DISTINCT sm.id) as member_count
+             FROM servers s
+             LEFT JOIN server_members sm ON s.id = sm.server_id
+             GROUP BY s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at, s.is_active
+             ORDER BY s.created_at DESC`
+        );
+        
+        const servers = result.rows.map(row => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            hostId: row.host_id,
+            hostName: row.host_name,
+            memberCount: parseInt(row.member_count) || 0,
+            createdAt: row.created_at,
+            isActive: row.is_active,
+            hasPassword: row.password && row.password.trim().length > 0
+        }));
+        
+        res.json({
+            success: true,
+            servers: servers
+        });
+    } catch (error) {
+        console.error('관리자 서버 목록 조회 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '서버 목록을 조회하는 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+// 관리자 서버 삭제 API
+app.delete('/api/admin/servers/:id', async (req, res) => {
+    const token = req.body.token;
+    const serverId = parseInt(req.params.id);
+    
+    if (!verifyAdminToken(token)) {
+        return res.status(401).json({
+            success: false,
+            message: '인증이 만료되었습니다.'
+        });
+    }
+    
+    if (!pool) {
+        return res.status(500).json({
+            success: false,
+            message: '데이터베이스가 연결되지 않았습니다.'
+        });
+    }
+    
+    if (isNaN(serverId)) {
+        return res.status(400).json({
+            success: false,
+            message: '올바른 서버 ID가 아닙니다.'
+        });
+    }
+    
+    try {
+        // 서버 존재 확인
+        const checkResult = await pool.query('SELECT id, name FROM servers WHERE id = $1', [serverId]);
+        
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '서버를 찾을 수 없습니다.'
+            });
+        }
+        
+        // 서버 삭제 (CASCADE로 관련 데이터도 자동 삭제)
+        await pool.query('DELETE FROM servers WHERE id = $1', [serverId]);
+        
+        console.log(`관리자 서버 삭제: ${checkResult.rows[0].name} (ID: ${serverId})`);
+        
+        res.json({
+            success: true,
+            message: '서버가 삭제되었습니다.'
+        });
+    } catch (error) {
+        console.error('관리자 서버 삭제 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '서버 삭제 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+// 관리자 페이지 라우트
+app.get('/admin.html', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // GPT API를 통한 커스텀 룰 당첨자 판단
@@ -731,10 +1028,35 @@ io.on('connection', (socket) => {
     };
 ///////////////
     // 방 목록 조회
-    socket.on('getRooms', () => {
+    socket.on('getRooms', (data) => {
         if (!checkRateLimit()) return;
         
-        const roomsList = Object.entries(rooms).map(([roomId, room]) => ({
+        const serverId = data?.serverId || socket.currentServerId || null;
+        
+        console.log(`[방 목록 조회] Socket ${socket.id}, 요청 serverId: ${data?.serverId}, socket.currentServerId: ${socket.currentServerId}, 최종 serverId: ${serverId}`);
+        console.log(`[방 목록 조회] 전체 방 개수: ${Object.keys(rooms).length}`);
+        
+        // 서버 ID로 필터링
+        let filteredRooms = Object.entries(rooms);
+        if (serverId) {
+            // 서버 ID가 있으면 해당 서버의 방만 표시
+            filteredRooms = filteredRooms.filter(([roomId, room]) => {
+                const match = room.serverId === parseInt(serverId);
+                console.log(`[방 목록 조회] 방 ${roomId} (${room.roomName}): serverId=${room.serverId}, 요청 serverId=${serverId}, 매칭=${match}`);
+                return match;
+            });
+        } else {
+            // 서버 ID가 없으면 서버 ID가 없는 방만 표시
+            filteredRooms = filteredRooms.filter(([roomId, room]) => {
+                const match = !room.serverId;
+                console.log(`[방 목록 조회] 방 ${roomId} (${room.roomName}): serverId=${room.serverId}, 매칭=${match}`);
+                return match;
+            });
+        }
+        
+        console.log(`[방 목록 조회] 필터링 후 방 개수: ${filteredRooms.length}`);
+        
+        const roomsList = filteredRooms.map(([roomId, room]) => ({
             roomId,
             roomName: room.roomName,
             hostName: room.hostName,
@@ -744,7 +1066,8 @@ io.on('connection', (socket) => {
             isPrivate: room.isPrivate || false,
             gameType: room.gameType || 'dice', // 게임 타입 추가 (기본값: dice)
             createdAt: room.createdAt, // 방 생성 시간 추가
-            expiryHours: room.expiryHours || 1 // 방 유지 시간 추가 (기본값: 1시간)
+            expiryHours: room.expiryHours || 1, // 방 유지 시간 추가 (기본값: 1시간)
+            serverId: room.serverId || null // 서버 ID 추가
             // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
@@ -965,6 +1288,11 @@ io.on('connection', (socket) => {
         const roomId = generateRoomId();
         const finalRoomName = roomName.trim();
         
+        // 서버 ID 가져오기 (소켓에 저장된 값 사용)
+        const serverId = socket.currentServerId ? parseInt(socket.currentServerId) : null;
+        
+        console.log(`[방 생성] Socket ${socket.id}, socket.currentServerId: ${socket.currentServerId}, 최종 serverId: ${serverId}`);
+        
         rooms[roomId] = {
             roomId,
             hostId: socket.id,
@@ -975,9 +1303,12 @@ io.on('connection', (socket) => {
             gameType: validGameType, // 게임 타입 추가
             expiryHours: validExpiryHours, // 방 유지 시간 추가 (시간 단위)
             blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
+            serverId: serverId, // 서버 ID 추가
             gameState: createRoomGameState(),
             createdAt: new Date()
         };
+        
+        console.log(`[방 생성 완료] 방 ${roomId} (${finalRoomName}), serverId: ${serverId}`);
         
         // 방 입장
         socket.currentRoomId = roomId;
@@ -1572,7 +1903,10 @@ io.on('connection', (socket) => {
             isGameActive: room.gameState.isGameActive,
             isOrderActive: room.gameState.isOrderActive,
             isPrivate: room.isPrivate || false,
-            gameType: room.gameType || 'dice' // 게임 타입 추가
+            gameType: room.gameType || 'dice', // 게임 타입 추가
+            createdAt: room.createdAt,
+            expiryHours: room.expiryHours || 1, // 기본값 1시간
+            serverId: room.serverId || null // 서버 ID 추가
             // 비밀번호는 보안상 목록에 포함하지 않음
         }));
         
@@ -1622,7 +1956,7 @@ io.on('connection', (socket) => {
     });
 
     // 모든 참여자가 주사위를 굴렸는지 확인하고 게임 종료 처리
-    function checkAndEndGame(gameState, room) {
+    async function checkAndEndGame(gameState, room) {
         if (!gameState.isGameActive || gameState.gamePlayers.length === 0) return;
 
         // 모두 굴렸는지 확인
@@ -1670,6 +2004,35 @@ io.on('connection', (socket) => {
             gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
             gameState.readyUsers = []; // 준비 상태 초기화
             gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+            
+            // 서버 기록 저장 (서버 개념이 활성화된 경우)
+            // 방 객체에서 서버 ID를 직접 가져오거나, 소켓에서 가져오기
+            let serverId = room.serverId;
+            if (!serverId) {
+                const socketsInRoom = await io.in(room.roomId).fetchSockets();
+                for (const s of socketsInRoom) {
+                    if (s.currentServerId) {
+                        serverId = s.currentServerId;
+                        break;
+                    }
+                }
+            }
+            
+            if (serverId) {
+                // 당첨자 계산 (간단한 버전, 클라이언트에서 계산한 결과를 받아서 저장하는 것이 더 정확함)
+                let winnerInfo = null;
+                if (gameState.gameRules) {
+                    winnerInfo = calculateWinnerFromHistory(currentGameHistory, gameState.gameRules);
+                }
+                
+                await saveGameRecordsToServer(
+                    serverId,
+                    currentGameHistory,
+                    gameState.gameRules,
+                    room.gameType || 'dice',
+                    winnerInfo
+                );
+            }
             
             console.log(`[서버] 방 ${room.roomName} gameEnded 이벤트 전송 - currentGameHistory:`, currentGameHistory.length, '개');
             io.to(room.roomId).emit('gameEnded', currentGameHistory);
@@ -2286,7 +2649,7 @@ io.on('connection', (socket) => {
     });
 
     // 게임 종료
-    socket.on('endGame', () => {
+    socket.on('endGame', async () => {
         if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
@@ -2321,6 +2684,25 @@ io.on('connection', (socket) => {
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.readyUsers = []; // 준비 상태 초기화
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+        
+        // 서버 기록 저장 (서버 개념이 활성화된 경우)
+        // 방 객체에서 서버 ID를 직접 가져오기
+        const serverId = room.serverId;
+        if (serverId) {
+            // 당첨자 계산
+            let winnerInfo = null;
+            if (gameState.gameRules) {
+                winnerInfo = calculateWinnerFromHistory(currentGameHistory, gameState.gameRules);
+            }
+            
+            await saveGameRecordsToServer(
+                serverId,
+                currentGameHistory,
+                gameState.gameRules,
+                room.gameType || 'dice',
+                winnerInfo
+            );
+        }
         
         console.log(`[서버] 방 ${room.roomName} gameEnded 이벤트 전송 - currentGameHistory:`, currentGameHistory.length, '개');
         io.to(room.roomId).emit('gameEnded', currentGameHistory);
@@ -3420,7 +3802,389 @@ io.on('connection', (socket) => {
             socket.emit('geminiResponse', { error: 'AI 응답을 가져오는 중 오류가 발생했습니다.' });
         }
     });
+
+    // ========== 서버 관리 시스템 (Phase 2) ==========
+    
+    // 서버 ID 설정 (클라이언트에서 서버 ID를 알려줄 때)
+    socket.on('setServerId', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { serverId } = data || {};
+        if (serverId) {
+            socket.currentServerId = parseInt(serverId);
+            console.log(`[서버 ID 설정] Socket ${socket.id} -> Server ${serverId}`);
+        } else {
+            console.log(`[서버 ID 설정 실패] Socket ${socket.id}, data:`, data);
+        }
+    });
+    
+    // 서버 생성
+    socket.on('createServer', async (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { serverName, description, password } = data;
+        // 이름은 게임 화면에서 설정하므로 서버 생성 시에는 필요 없음
+        
+        if (!serverName || serverName.trim().length === 0) {
+            socket.emit('serverError', '서버 이름을 입력해주세요.');
+            return;
+        }
+        
+        if (serverName.length > 100) {
+            socket.emit('serverError', '서버 이름은 100자 이하로 입력해주세요.');
+            return;
+        }
+        
+        // 패스워드가 입력된 경우에만 길이 검증
+        if (password && password.trim().length > 0) {
+            if (password.length < 4 || password.length > 20) {
+                socket.emit('serverError', '패스워드는 4자 이상 20자 이하여야 합니다.');
+                return;
+            }
+        }
+        
+        // 패스워드가 없으면 공개 서버 (빈 문자열 또는 null)
+        const finalPassword = password && password.trim().length > 0 ? password.trim() : '';
+        
+        try {
+            if (pool) {
+                // 서버 이름 중복 체크 (활성 서버만)
+                const duplicateCheck = await pool.query(
+                    'SELECT id, name FROM servers WHERE LOWER(name) = LOWER($1) AND is_active = true',
+                    [serverName.trim()]
+                );
+                
+                if (duplicateCheck.rows.length > 0) {
+                    socket.emit('serverError', '이미 존재하는 서버 이름입니다. 다른 이름을 사용해주세요.');
+                    console.log(`서버 이름 중복 시도: ${serverName} (이미 존재하는 서버 ID: ${duplicateCheck.rows[0].id})`);
+                    return;
+                }
+                
+                // 서버 생성 시 이름은 필요 없음 (게임 화면에서 설정)
+                const result = await pool.query(
+                    'INSERT INTO servers (name, description, host_id, host_name, password) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, description, host_id, host_name, created_at',
+                    [serverName.trim(), description?.trim() || null, socket.id, 'Unknown', finalPassword]
+                );
+                const server = result.rows[0];
+                
+                // 호스트를 멤버로 추가 (이름은 게임 화면에서 설정되므로 'Unknown' 사용)
+                await pool.query(
+                    'INSERT INTO server_members (server_id, user_name, socket_id) VALUES ($1, $2, $3) ON CONFLICT (server_id, user_name) DO UPDATE SET socket_id = $3, last_seen = CURRENT_TIMESTAMP',
+                    [server.id, 'Unknown', socket.id]
+                );
+                
+                socket.emit('serverCreated', {
+                    id: server.id,
+                    name: server.name,
+                    description: server.description,
+                    hostName: server.host_name,
+                    createdAt: server.created_at
+                });
+                
+                // 모든 클라이언트에게 서버 목록 업데이트 전송
+                const servers = await getServersList();
+                io.emit('serversList', servers);
+                
+                console.log(`서버 생성: ${serverName} (ID: ${server.id}, Socket ID: ${socket.id})`);
+            } else {
+                socket.emit('serverError', '데이터베이스가 연결되지 않았습니다.');
+            }
+        } catch (error) {
+            console.error('서버 생성 오류:', error);
+            socket.emit('serverError', '서버 생성 중 오류가 발생했습니다.');
+        }
+    });
+    
+    // 서버 목록 조회
+    socket.on('getServers', async () => {
+        try {
+            const servers = await getServersList();
+            console.log(`📋 서버 목록 조회: ${servers.length}개 서버 발견`);
+            socket.emit('serversList', servers);
+        } catch (error) {
+            console.error('서버 목록 조회 오류:', error);
+            socket.emit('serversList', []);
+        }
+    });
+    
+    // 서버 입장
+    socket.on('joinServer', async (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { serverId, password } = data;
+        // 이름은 게임 화면에서 설정하므로 여기서는 'Unknown' 사용
+        const userName = 'Unknown';
+        
+        if (!serverId) {
+            socket.emit('serverError', '서버 ID가 필요합니다.');
+            return;
+        }
+        
+        try {
+            if (pool) {
+                // 서버 존재 확인 및 패스워드 검증
+                const serverResult = await pool.query(
+                    'SELECT id, name, description, host_id, host_name, password FROM servers WHERE id = $1 AND is_active = true',
+                    [serverId]
+                );
+                
+                if (serverResult.rows.length === 0) {
+                    socket.emit('serverError', '서버를 찾을 수 없습니다.');
+                    return;
+                }
+                
+                const server = serverResult.rows[0];
+                
+                // 패스워드가 있는 경우에만 검증
+                const serverPassword = server.password || '';
+                const inputPassword = password || '';
+                
+                if (serverPassword.length > 0) {
+                    // 패스워드가 있는 서버인 경우
+                    if (inputPassword.trim().length === 0) {
+                        socket.emit('serverError', '이 서버는 패스워드가 필요합니다.');
+                        return;
+                    }
+                    if (serverPassword !== inputPassword.trim()) {
+                        socket.emit('serverError', '패스워드가 일치하지 않습니다.');
+                        return;
+                    }
+                } else {
+                    // 공개 서버인 경우 (패스워드 없음)
+                    // 패스워드 입력 없이 바로 입장 가능
+                }
+                
+                // 멤버 추가 또는 업데이트
+                await pool.query(
+                    'INSERT INTO server_members (server_id, user_name, socket_id) VALUES ($1, $2, $3) ON CONFLICT (server_id, user_name) DO UPDATE SET socket_id = $3, last_seen = CURRENT_TIMESTAMP',
+                    [serverId, userName, socket.id]
+                );
+                
+                // 현재 서버 ID 저장
+                socket.currentServerId = serverId;
+                
+                socket.emit('serverJoined', {
+                    id: server.id,
+                    name: server.name,
+                    description: server.description,
+                    hostName: server.host_name
+                });
+                
+                console.log(`서버 입장: ${userName} → ${server.name} (ID: ${serverId})`);
+            } else {
+                socket.emit('serverError', '데이터베이스가 연결되지 않았습니다.');
+            }
+        } catch (error) {
+            console.error('서버 입장 오류:', error);
+            socket.emit('serverError', '서버 입장 중 오류가 발생했습니다.');
+        }
+    });
+    
+    // 서버별 기록 조회
+    socket.on('getServerRecords', async (data) => {
+        if (!checkRateLimit()) return;
+        
+        const { serverId, limit = 100 } = data;
+        
+        if (!serverId) {
+            socket.emit('serverError', '서버 ID가 필요합니다.');
+            return;
+        }
+        
+        try {
+            if (pool) {
+                const result = await pool.query(
+                    `SELECT id, user_name, result, game_rules, game_type, is_winner, 
+                            game_session_id, created_at, range_min, range_max
+                     FROM server_game_records 
+                     WHERE server_id = $1 
+                     ORDER BY created_at DESC 
+                     LIMIT $2`,
+                    [serverId, limit]
+                );
+                
+                socket.emit('serverRecords', result.rows.map(row => ({
+                    id: row.id,
+                    userName: row.user_name,
+                    result: row.result,
+                    gameRules: row.game_rules,
+                    gameType: row.game_type,
+                    isWinner: row.is_winner,
+                    gameSessionId: row.game_session_id,
+                    createdAt: row.created_at,
+                    rangeMin: row.range_min,
+                    rangeMax: row.range_max
+                })));
+            } else {
+                socket.emit('serverRecords', []);
+            }
+        } catch (error) {
+            console.error('서버 기록 조회 오류:', error);
+            socket.emit('serverRecords', []);
+        }
+    });
 });
+
+// 서버 목록 조회 함수
+async function getServersList() {
+    if (!pool) {
+        console.log('⚠️  데이터베이스 풀이 없습니다. 서버 목록을 반환할 수 없습니다.');
+        return [];
+    }
+    
+    try {
+        const result = await pool.query(
+            `SELECT s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at,
+                    COUNT(DISTINCT sm.id) as member_count
+             FROM servers s
+             LEFT JOIN server_members sm ON s.id = sm.server_id
+             WHERE s.is_active = true
+             GROUP BY s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at
+             ORDER BY s.created_at DESC`
+        );
+        
+        console.log(`📊 데이터베이스에서 ${result.rows.length}개 서버 조회됨`);
+        
+        const servers = result.rows.map(row => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            hostId: row.host_id,
+            hostName: row.host_name,
+            memberCount: parseInt(row.member_count) || 0,
+            createdAt: row.created_at,
+            hasPassword: row.password && row.password.trim().length > 0 // 패스워드 존재 여부
+        }));
+        
+        return servers;
+    } catch (error) {
+        console.error('❌ 서버 목록 조회 오류:', error);
+        return [];
+    }
+}
+
+// 당첨자 계산 함수 (서버 측)
+function calculateWinnerFromHistory(history, gameRules) {
+    if (!history || history.length === 0 || !gameRules) {
+        return null;
+    }
+    
+    const rulesLower = gameRules.toLowerCase();
+    
+    // 하이 게임: 낮은 사람이 걸림
+    if (rulesLower.includes('하이') && rulesLower.includes('낮은')) {
+        const minResult = Math.min(...history.map(r => r.result));
+        const winners = history.filter(r => r.result === minResult);
+        if (winners.length === 1) {
+            return { winner: winners[0].user, result: winners[0].result };
+        } else {
+            return { winners: winners.map(w => w.user), result: winners[0].result, isTie: true };
+        }
+    }
+    
+    // 로우 게임: 높은 사람이 걸림
+    if (rulesLower.includes('로우') && rulesLower.includes('높은')) {
+        const maxResult = Math.max(...history.map(r => r.result));
+        const winners = history.filter(r => r.result === maxResult);
+        if (winners.length === 1) {
+            return { winner: winners[0].user, result: winners[0].result };
+        } else {
+            return { winners: winners.map(w => w.user), result: winners[0].result, isTie: true };
+        }
+    }
+    
+    // 니어 게임: N에 가까운 사람
+    const nearMatch = gameRules.match(/니어.*?(\d+)/i);
+    if (nearMatch) {
+        const targetNumber = parseInt(nearMatch[1]);
+        let minDiff = Infinity;
+        let winners = [];
+        
+        history.forEach(record => {
+            const diff = Math.abs(record.result - targetNumber);
+            if (diff < minDiff) {
+                minDiff = diff;
+                winners = [record];
+            } else if (diff === minDiff) {
+                winners.push(record);
+            }
+        });
+        
+        if (winners.length === 1) {
+            return { winner: winners[0].user, result: winners[0].result, target: targetNumber };
+        } else {
+            return { winners: winners.map(w => w.user), result: winners[0].result, target: targetNumber, isTie: true };
+        }
+    }
+    
+    return null;
+}
+
+// 게임 기록을 서버에 저장하는 함수
+async function saveGameRecordsToServer(serverId, currentGameHistory, gameRules, gameType, winnerInfo) {
+    if (!pool || !serverId) {
+        return null;
+    }
+    
+    try {
+        // 게임 세션 ID 생성
+        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        
+        // 게임 세션 저장
+        const sessionResult = await pool.query(
+            `INSERT INTO game_sessions (server_id, session_id, game_type, game_rules, winner_name, winner_result, participant_count, ended_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+             RETURNING id`,
+            [
+                serverId,
+                sessionId,
+                gameType || 'dice',
+                gameRules || null,
+                winnerInfo?.winner || winnerInfo?.winners?.[0] || null,
+                winnerInfo?.result || null,
+                currentGameHistory.length,
+            ]
+        );
+        
+        // 각 게임 기록 저장
+        const records = currentGameHistory.map(record => ({
+            serverId,
+            userName: record.user,
+            result: record.result,
+            gameRules: gameRules || null,
+            gameType: gameType || 'dice',
+            isWinner: (winnerInfo?.winner === record.user) || (winnerInfo?.winners?.includes(record.user)) || false,
+            gameSessionId: sessionId,
+            rangeMin: record.range?.split('~')[0] ? parseInt(record.range.split('~')[0]) : 1,
+            rangeMax: record.range?.split('~')[1] ? parseInt(record.range.split('~')[1]) : 100
+        }));
+        
+        if (records.length > 0) {
+            const values = records.map((_, i) => {
+                const idx = i * 9;
+                return `($${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, $${idx + 8}, $${idx + 9})`;
+            }).join(', ');
+            
+            const params = records.flatMap(r => [
+                r.serverId, r.userName, r.result, r.gameRules, r.gameType,
+                r.isWinner, r.gameSessionId, r.rangeMin, r.rangeMax
+            ]);
+            
+            await pool.query(
+                `INSERT INTO server_game_records 
+                 (server_id, user_name, result, game_rules, game_type, is_winner, game_session_id, range_min, range_max)
+                 VALUES ${values}`,
+                params
+            );
+        }
+        
+        console.log(`서버 기록 저장 완료: 서버 ID ${serverId}, 세션 ${sessionId}, 기록 ${records.length}개`);
+        return sessionId;
+    } catch (error) {
+        console.error('서버 기록 저장 오류:', error);
+        return null;
+    }
+}
 
 // 서버 시작
 async function startServer() {
@@ -3499,7 +4263,8 @@ async function startServer() {
                         isPrivate: r.isPrivate || false,
                         gameType: r.gameType || 'dice',
                         createdAt: r.createdAt,
-                        expiryHours: r.expiryHours || 1 // 기본값 1시간
+                        expiryHours: r.expiryHours || 1, // 기본값 1시간
+                        serverId: r.serverId || null // 서버 ID 추가
                     }));
                     io.emit('roomsListUpdated', roomsList);
                 }

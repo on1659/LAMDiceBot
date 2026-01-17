@@ -186,9 +186,81 @@
             </ul>
         </div>
 
-        <h2>감사의 말</h2>
+        <h2>감사의 말<span id="admin-trigger" style="position: absolute; width: 50px; height: 50px; background: transparent; cursor: pointer; margin-left: 10px;"></span></h2>
         <p>LAMDice를 이용해주시는 모든 사용자분들께 깊은 감사를 드립니다. 여러분의 지원과 피드백이 우리가 더 나은 서비스를 제공할 수 있는 원동력입니다. 앞으로도 공정하고 즐거운 게임 경험을 제공하기 위해 최선을 다하겠습니다.</p>
         <p>함께 즐거운 게임을 만들어가요! 🎲</p>
+        
+        <!-- 관리자 인증 모달 -->
+        <div id="admin-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; width: 90%;">
+                <h3 style="margin-top: 0;">관리자 인증</h3>
+                <input type="password" id="admin-password-input" placeholder="관리자 패스워드를 입력하세요" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="closeAdminModal()" style="padding: 10px 20px; background: #ccc; border: none; border-radius: 5px; cursor: pointer;">취소</button>
+                    <button onclick="checkAdminPassword()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">확인</button>
+                </div>
+                <p id="admin-error" style="color: red; margin: 10px 0 0 0; display: none;"></p>
+            </div>
+        </div>
+        
+        <script>
+            document.getElementById('admin-trigger').addEventListener('click', function() {
+                document.getElementById('admin-modal').style.display = 'flex';
+                document.getElementById('admin-password-input').focus();
+            });
+            
+            function closeAdminModal() {
+                document.getElementById('admin-modal').style.display = 'none';
+                document.getElementById('admin-password-input').value = '';
+                document.getElementById('admin-error').style.display = 'none';
+            }
+            
+            function checkAdminPassword() {
+                const password = document.getElementById('admin-password-input').value;
+                if (!password) {
+                    document.getElementById('admin-error').textContent = '패스워드를 입력해주세요.';
+                    document.getElementById('admin-error').style.display = 'block';
+                    return;
+                }
+                
+                // 서버에 인증 요청
+                fetch('/api/admin/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password: password })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 인증 성공 시 관리자 페이지로 이동
+                        window.location.href = '/admin.html?token=' + data.token;
+                    } else {
+                        document.getElementById('admin-error').textContent = data.message || '인증에 실패했습니다.';
+                        document.getElementById('admin-error').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('admin-error').textContent = '오류가 발생했습니다.';
+                    document.getElementById('admin-error').style.display = 'block';
+                });
+            }
+            
+            // Enter 키로 확인
+            document.getElementById('admin-password-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkAdminPassword();
+                }
+            });
+            
+            // ESC 키로 모달 닫기
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && document.getElementById('admin-modal').style.display === 'flex') {
+                    closeAdminModal();
+                }
+            });
+        </script>
     </div>
 </body>
 </html>

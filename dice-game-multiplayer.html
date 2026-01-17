@@ -2236,6 +2236,14 @@
         let roomExpiryInterval = null; // 방 폭파 카운트다운 인터벌
         let roomListRefreshInterval = null; // 방 목록 새로고침 인터벌
         
+        // 서버 ID 읽기 (URL 파라미터 또는 localStorage)
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentServerId = urlParams.get('serverId') || localStorage.getItem('currentServerId');
+        if (currentServerId) {
+            localStorage.setItem('currentServerId', currentServerId);
+            console.log('서버 ID:', currentServerId);
+        }
+        
         // 연결 상태 모니터링 및 초기화
         socket.on('connect', () => {
             document.getElementById('connectionStatus').textContent = '● 연결됨';
@@ -2245,6 +2253,14 @@
             if (createRoomConnectionStatus) {
                 createRoomConnectionStatus.textContent = '● 연결됨';
                 createRoomConnectionStatus.className = 'connection-status connected';
+            }
+            
+            // 서버 ID가 있으면 서버에 알리기
+            if (currentServerId) {
+                console.log('[클라이언트] setServerId 전송:', currentServerId);
+                socket.emit('setServerId', { serverId: currentServerId });
+            } else {
+                console.log('[클라이언트] currentServerId가 없습니다.');
             }
             
             // 방 목록 요청 및 초기 body 클래스 설정
@@ -2268,12 +2284,43 @@
 
         // 방 목록 업데이트
         socket.on('roomsList', (rooms) => {
-            roomsList = rooms;
+            console.log('[클라이언트] 방 목록 수신:', rooms);
+            console.log('[클라이언트] currentServerId:', currentServerId);
+            
+            // 서버 ID가 있으면 해당 서버의 방만 필터링
+            if (currentServerId) {
+                roomsList = rooms.filter(room => {
+                    // 서버 ID가 없는 방은 표시하지 않음 (기존 방식 호환)
+                    const match = room.serverId === parseInt(currentServerId);
+                    console.log(`[클라이언트] 방 ${room.roomName}: room.serverId=${room.serverId}, currentServerId=${currentServerId}, 매칭=${match}`);
+                    return match;
+                });
+            } else {
+                // 서버 ID가 없으면 서버 ID가 없는 방만 표시 (기존 방식)
+                roomsList = rooms.filter(room => !room.serverId);
+            }
+            
+            console.log('[클라이언트] 필터링 후 방 개수:', roomsList.length);
             renderRoomsList();
         });
         
         socket.on('roomsListUpdated', (rooms) => {
-            roomsList = rooms;
+            console.log('[클라이언트] roomsListUpdated 수신:', rooms);
+            console.log('[클라이언트] currentServerId:', currentServerId);
+            
+            // 서버 ID가 있으면 해당 서버의 방만 필터링
+            if (currentServerId) {
+                roomsList = rooms.filter(room => {
+                    const match = room.serverId === parseInt(currentServerId);
+                    console.log(`[클라이언트] 방 ${room.roomName}: room.serverId=${room.serverId}, currentServerId=${currentServerId}, 매칭=${match}`);
+                    return match;
+                });
+            } else {
+                // 서버 ID가 없으면 서버 ID가 없는 방만 표시 (기존 방식)
+                roomsList = rooms.filter(room => !room.serverId);
+            }
+            
+            console.log('[클라이언트] 필터링 후 방 개수:', roomsList.length);
             renderRoomsList();
         });
         
@@ -2504,7 +2551,15 @@
         
         // 방 목록 새로고침
         function refreshRooms() {
-            socket.emit('getRooms');
+            console.log('[클라이언트] refreshRooms 호출, currentServerId:', currentServerId);
+            // 서버 ID가 있으면 서버 ID와 함께 요청
+            if (currentServerId) {
+                console.log('[클라이언트] getRooms 요청 (serverId 포함):', currentServerId);
+                socket.emit('getRooms', { serverId: currentServerId });
+            } else {
+                console.log('[클라이언트] getRooms 요청 (serverId 없음)');
+                socket.emit('getRooms');
+            }
             refreshTodayDiceStats();
         }
         
@@ -2772,6 +2827,11 @@
             }
             
             // 방 생성 (게임 룰은 방 생성 후 설정)
+            console.log('[클라이언트] 방 생성 요청:', {
+                userName: hostName,
+                roomName: roomName,
+                currentServerId: currentServerId
+            });
             socket.emit('createRoom', { 
                 userName: hostName,
                 roomName: roomName,
