@@ -11,7 +11,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test-bot": "node dice-test-bot.js"
+    "test-bot": "node dice-test-bot.js",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

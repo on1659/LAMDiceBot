@@ -442,32 +442,64 @@ function createRoomGameState() {
 // 게임 상태 (하위 호환성을 위해 유지, 실제로는 각 방의 gameState 사용)
 let gameState = createRoomGameState();
 
-// 정적 파일 제공 (캐시 방지 설정)
-app.use(express.static(__dirname, {
-    setHeaders: (res, path) => {
-        // HTML 파일은 캐시하지 않음
-        if (path.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
+// 프로덕션 환경: Vite 빌드 결과물 서빙
+if (process.env.NODE_ENV === 'production') {
+    // dist 폴더의 정적 파일 서빙 (JS, CSS, 이미지 등)
+    app.use(express.static(path.join(__dirname, 'dist'), {
+        setHeaders: (res, filePath) => {
+            // HTML 파일은 캐시하지 않음
+            if (filePath.endsWith('.html')) {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+            }
         }
-    }
-}));
-
-// 리액트 앱 서빙 (개발 환경)
-if (process.env.NODE_ENV !== 'production') {
+    }));
+    
+    // 기존 HTML 파일들도 서빙 (게임 페이지 등)
+    app.use(express.static(__dirname, {
+        setHeaders: (res, filePath) => {
+            if (filePath.endsWith('.html')) {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+            }
+        }
+    }));
+    
+    // React 앱 진입점 (루트 경로만)
+    app.get('/', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    });
+} else {
+    // 개발 환경: 기존 정적 파일 서빙
+    app.use(express.static(__dirname, {
+        setHeaders: (res, filePath) => {
+            // HTML 파일은 캐시하지 않음
+            if (filePath.endsWith('.html')) {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+            }
+        }
+    }));
+    
+    // 리액트 앱 서빙 (개발 환경)
     app.get('/react', (req, res) => {
         res.sendFile(path.join(__dirname, 'src', 'index.html'));
     });
+    
+    // 개발 환경에서는 기존 HTML 파일 서빙
+    app.get('/', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
+    });
 }
-
-app.get('/', (req, res) => {
-    // 캐시 방지 헤더 설정
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.sendFile(path.join(__dirname, 'dice-game-multiplayer.html'));
-});
 
 // 룰렛 게임 페이지 라우트
 app.get('/roulette', (req, res) => {
