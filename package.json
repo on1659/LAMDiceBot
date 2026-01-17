@@ -4,7 +4,7 @@
   "description": "멀티플레이어 주사위 게임",
   "main": "server.js",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.19.0"
   },
   "scripts": {
     "start": "node server.js",
