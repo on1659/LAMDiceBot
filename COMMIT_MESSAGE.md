@@ -1,71 +1,93 @@
 # Git Commit Message
 
 ```
-fix: 마지막 사람 당첨 시 결과 계산 오류 수정 및 테스트 봇 파일 정리
+feat: 순위 애니메이션 기능 추가 및 테스트 봇 개선
 
 ## 주요 변경사항
 
-### 1. 마지막 사람 당첨 시 결과 계산 오류 수정
-- **문제**: 마지막 사람이 당첨될 때 간헐적으로 결과가 다르게 나오는 문제
-- **원인**: `calculateWinner` 함수가 로컬 `historyData`를 사용하여 마지막 사람의 기록이 반영되기 전에 계산됨
-- **해결**: `gameEnded` 이벤트에서 받은 `currentGameHistory`를 우선 사용하도록 수정
-  - `window.currentGameHistoryFromServer` 전역 변수에 서버에서 받은 기록 저장
-  - `calculateWinner` 함수에서 서버 기록 우선 사용, 없을 때만 로컬 기록 사용
-  - `gameEnded` 이벤트가 발생할 때까지 최대 3초 대기하여 기록 수신 보장
-  - 디버깅 로그 추가로 문제 추적 가능하도록 개선
+### 1. 순위 애니메이션 기능 추가
+- **새로 유력이 된 사람의 애니메이션**
+  - 새로 유력이 된 사람이 위에서 내려오는 애니메이션 추가
+  - `slideDownFromTop` CSS 애니메이션 적용 (0.6초)
+  - 진행 중인 애니메이션이 있으면 자동 취소하고 새로운 애니메이션 재생
+  - 기존 항목은 그대로 유지하고 새로 유력이 된 항목만 애니메이션 적용
+  - `requestAnimationFrame`을 사용하여 DOM 업데이트 후 애니메이션 시작 보장
 
-### 2. 게임 종료 후 자동 재시작 기능 개선
-- **봇 자동 준비 상태 설정**
-  - 게임 종료 후 모든 봇이 자동으로 준비 상태가 되도록 수정
-  - `gameEnded` 이벤트에서 1초 후 자동으로 `toggleReady` 이벤트 전송
-  - 호스트 봇이 모든 봇이 준비되면 즉시 게임 시작하도록 개선
-  - `readyUsersUpdated` 이벤트로 준비 상태 실시간 확인
+- **"현재유력" → "유력" 텍스트 변경**
+  - 배지 텍스트를 "현재유력"에서 "유력"으로 변경
+  - 주석 및 변수명도 일관성 있게 수정
 
-### 3. 테스트 봇 파일 정리
-- **다이스 관련 파일 → `AutoTest/dice/`**
-  - `dice-test-bot.js` 이동
-  - `test-bot.bat` 이동 및 경로 수정
-  - `test-bot.sh` 이동 및 경로 수정
-  - `README-BOT.md` 이동
-  - `TEST-GUIDE.md` 이동
+- **"아직 기록이 없습니다" 메시지 수정**
+  - 기록이 있을 때 불필요하게 표시되던 문제 수정
+  - `displayData.length === 0`일 때만 표시하도록 개선
 
-- **룰렛 관련 파일 → `AutoTest/roulette/`**
-  - `test-bot.js` 이동 및 로그 파일 경로 수정 (`path.join(__dirname, 'test-results.log')`)
-  - `ui-test.js` 이동 및 로그 파일/스크린샷 경로 수정
+### 2. 테스트 봇 개선
+- **반복 횟수 설정 기능 추가**
+  - `--games` 파라미터로 게임 반복 횟수 설정 가능
+  - 설정한 횟수만큼 게임 진행 후 자동 종료
+  - 기본값: 무제한 (null)
+
+- **명령줄 파라미터 지원**
+  - `--url`: 서버 URL 지정 (기본값: http://localhost:3000)
+  - `--count`: 봇 개수 지정 (기본값: 4)
+  - `--games`: 게임 반복 횟수 지정 (기본값: 무제한)
+  - `--help`: 도움말 표시
+
+- **재시작 대기 시간 조정**
+  - 재시작 대기 시간을 10초로 변경 (애니메이션 완료 대기)
+  - `BOT_CONFIG.restartDelay`를 10000ms로 설정
+
+- **난수 생성 방식 개선**
+  - 봇의 `clientSeed` 생성 방식을 일반 클라이언트와 동일하게 수정
+  - `Date.now().toString() + Math.random().toString(36).substring(2)` 사용
+  - 서버의 seeded random 함수와 일관성 유지
+
+### 3. 게임 종료 메시지 표시 개선
+- **allPlayersRolled 이벤트 직접 처리**
+  - `allPlayersRolled` 이벤트를 받으면 직접 `displayChatMessage` 호출
+  - 게임 종료 메시지가 확실하게 표시되도록 개선
+  - 중복 방지 로직 유지
 
 ## 기술적 변경사항
 
 ### 클라이언트 측 (dice-game-multiplayer.html)
-- `gameEnded` 이벤트 핸들러에서 `window.currentGameHistoryFromServer` 저장
-- `calculateWinner` 함수에서 서버 기록 우선 사용 로직 추가
-- `showMessage` 함수에서 `gameEnded` 이벤트 대기 로직 추가 (최대 3초)
-- 디버깅 로그 추가 (`console.log`)
+- **애니메이션 로직**
+  - `previousTopPlayerKeys`로 이전 유력 상태 추적
+  - `currentAnimatingItem`으로 진행 중인 애니메이션 관리
+  - `newTopPlayerKeys`로 새로 유력이 된 사람 식별
+  - DOM 요소를 재사용하여 성능 최적화
 
-### 테스트 봇 (dice-test-bot.js)
-- `gameEnded` 이벤트 핸들러에서 자동 준비 상태 설정 로직 추가
-- `readyUsersUpdated` 이벤트 핸들러 추가
-- 모든 봇이 준비되면 즉시 게임 시작하도록 개선
-- `restartTimeout` 관리로 중복 재시작 방지
+- **CSS 애니메이션**
+  - `@keyframes slideDownFromTop`: 위에서 내려오는 애니메이션
+  - `@keyframes slideDownToBottom`: 아래로 내려가는 애니메이션 (취소용)
+  - `animating-from-top`, `animating-to-bottom` 클래스로 제어
 
-### 파일 구조 개선
-- 다이스 테스트 봇: `AutoTest/dice/` 디렉토리로 이동
-- 룰렛 테스트 봇: `AutoTest/roulette/` 디렉토리로 이동
-- 모든 경로 참조 수정 (`path.join(__dirname, ...)` 사용)
+- **텍스트 변경**
+  - 모든 "현재유력" 텍스트를 "유력"으로 변경
+  - 배지 HTML, 주석, 변수명 일관성 유지
+
+### 테스트 봇 (AutoTest/dice/dice-test-bot.js)
+- **CLI 파라미터 파싱**
+  - `parseArgs()` 함수로 명령줄 인자 처리
+  - `minimist` 라이브러리 사용 (선택사항)
+
+- **게임 반복 제어**
+  - `gameCount`로 게임 진행 횟수 추적
+  - `maxGames`에 도달하면 `global.stopAllBots()` 호출
+
+- **난수 생성 동기화**
+  - 클라이언트와 동일한 `clientSeed` 생성 방식 사용
+  - 서버의 seeded random 함수와 일관성 유지
 
 ## 버그 수정
-- 마지막 사람이 당첨될 때 결과가 다르게 나오는 문제 해결
-- 게임 종료 후 봇이 자동으로 재시작하지 않던 문제 해결
-- 테스트 봇 파일이 루트에 흩어져 있던 문제 해결
+- "아직 기록이 없습니다" 메시지가 불필요하게 표시되던 문제 해결
+- 게임 종료 메시지가 봇 테스트에서 표시되지 않던 문제 해결
+- 봇과 직접 플레이 시 결과가 다르게 나오던 문제 해결 (clientSeed 동기화)
 
 ## 수정된 파일
 - dice-game-multiplayer.html
-- dice-test-bot.js → AutoTest/dice/dice-test-bot.js
-- test-bot.bat → AutoTest/dice/test-bot.bat
-- test-bot.sh → AutoTest/dice/test-bot.sh
-- README-BOT.md → AutoTest/dice/README-BOT.md
-- TEST-GUIDE.md → AutoTest/dice/TEST-GUIDE.md
-- AutoTest/test-bot.js → AutoTest/roulette/test-bot.js
-- AutoTest/ui-test.js → AutoTest/roulette/ui-test.js
+- AutoTest/dice/dice-test-bot.js
+- update-log.txt
 ```
 
 ---

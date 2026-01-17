@@ -18,5 +18,5 @@ echo ""
 echo "🚀 테스트 봇 시작..."
 echo ""
 
-# 봇 실행
-node dice-test-bot.js
+# 봇 실행 (파라미터 전달)
+node dice-test-bot.js "$@"

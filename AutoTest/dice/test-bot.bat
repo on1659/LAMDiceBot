@@ -20,7 +20,7 @@ echo.
 echo 🚀 테스트 봇 시작...
 echo.
 
-REM 봇 실행
-node dice-test-bot.js
+REM 봇 실행 (파라미터 전달)
+node dice-test-bot.js %*
 
 pause

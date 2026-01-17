@@ -10,25 +10,56 @@ npm install socket.io-client
 
 ## 사용법
 
+### 명령줄 파라미터 사용 (권장)
+
+```bash
+# 기본 사용 (5명, localhost:3000, 무한 반복)
+node dice-test-bot.js
+
+# 서버 URL 지정
+node dice-test-bot.js --url http://localhost:3000
+
+# 봇 개수 지정
+node dice-test-bot.js --count 3
+
+# 반복 횟수 지정
+node dice-test-bot.js --games 10
+
+# 모든 옵션 함께 사용
+node dice-test-bot.js --url http://localhost:3000 --count 5 --games 20
+```
+
 ### Windows
 ```bash
 test-bot.bat
+# 또는 파라미터와 함께
+test-bot.bat --count 3 --games 10
 ```
 
 ### Linux/Mac
 ```bash
 chmod +x test-bot.sh
 ./test-bot.sh
+# 또는 파라미터와 함께
+./test-bot.sh --count 3 --games 10
 ```
 
 ### 직접 실행
 ```bash
 node dice-test-bot.js
+# 또는 파라미터와 함께
+node dice-test-bot.js --url http://localhost:3000 --count 5 --games 10
 ```
+
+### 파라미터 옵션
+- `--url <URL>`: 서버 URL (기본값: http://localhost:3000)
+- `--count <숫자>`: 봇 개수 (기본값: 5)
+- `--games <숫자>`: 반복 횟수 (기본값: 무한)
+- `--help, -h`: 도움말 표시
 
 ## 설정
 
-`dice-test-bot.js` 파일의 `BOT_CONFIG` 객체에서 설정을 변경할 수 있습니다:
+명령줄 파라미터를 사용하지 않으면 `dice-test-bot.js` 파일의 `BOT_CONFIG` 객체에서 설정을 변경할 수 있습니다:
 
 ```javascript
 const BOT_CONFIG = {

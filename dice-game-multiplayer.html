@@ -923,6 +923,41 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+        }
+        
+        .history-item.animating-from-top {
+            animation: slideDownFromTop 0.6s ease-out forwards;
+            z-index: 10;
+        }
+        
+        .history-item.animating-to-bottom {
+            animation: slideDownToBottom 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideDownFromTop {
+            0% {
+                transform: translateY(-200px);
+                opacity: 0;
+            }
+            30% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideDownToBottom {
+            0% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100px);
+                opacity: 0.3;
+            }
         }
 
         .history-item:last-child {
@@ -932,6 +967,30 @@
         .history-user {
             font-weight: 600;
             color: #667eea;
+        }
+
+        .top-player-badge {
+            display: inline-block;
+            background: #dc3545;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+            line-height: 1.4;
+            letter-spacing: 0.3px;
+        }
+
+        .winner-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+            line-height: 1.4;
+            letter-spacing: 0.3px;
         }
 
         .history-result {
@@ -4232,6 +4291,7 @@
             isGameActive = true;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
+            window.winnerInfoShown = false; // 당첨자 정보 표시 플래그 초기화
             
             // 게임 시작 시 서버에서 받은 게임 기록 초기화
             window.currentGameHistoryFromServer = null;
@@ -4257,6 +4317,7 @@
             
             // 결과창 표시 플래그 초기화 (새 게임 시작 시)
             window.allRolledMessageShown = false;
+            window.winnerInfoShown = false; // 당첨자 정보 표시 플래그 초기화
             
             // 대기 interval 정리
             if (window.allRolledWaitInterval) {
@@ -4347,8 +4408,11 @@
         });
 
         socket.on('gameEnded', (currentGameHistory) => {
+            console.log('[클라이언트] gameEnded 이벤트 수신 - currentGameHistory:', currentGameHistory?.length, '개');
+            console.log('[클라이언트] gameEnded 상세:', currentGameHistory?.map(r => ({ user: r.user, result: r.result, time: r.time })));
             // 서버에서 받은 게임 기록을 전역 변수에 저장 (당첨자 계산 시 사용)
             window.currentGameHistoryFromServer = currentGameHistory;
+            console.log('[클라이언트] window.currentGameHistoryFromServer 저장 완료:', window.currentGameHistoryFromServer?.length, '개');
             
             // 애니메이션 완료를 기다리는 함수
             const processGameEnd = () => {
@@ -4635,6 +4699,7 @@
 
         // 모두 완료 알림
         socket.on('allPlayersRolled', (data) => {
+            console.log('[allPlayersRolled] 이벤트 수신:', data);
             // 팝업 제거 - 방장이 게임종료 버튼을 눌렀을 때만 팝업 표시
             document.getElementById('progressBar').style.background = 'linear-gradient(90deg, #28a745 0%, #20c997 100%)';
         });
@@ -4744,12 +4809,16 @@
                         e.dataTransfer.setData('text/plain', user.name);
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('source', 'users'); // 접속자 목록에서 드래그하는 것 표시
+                        // 전역 변수에 source 저장 (dragover에서 확인하기 위해)
+                        window.currentDragSource = 'users';
                         userTag.style.opacity = '0.5';
                     });
                     
                     // 드래그 종료
                     userTag.addEventListener('dragend', (e) => {
                         userTag.style.opacity = '1';
+                        // 전역 변수 초기화
+                        window.currentDragSource = null;
                     });
                 } else {
                     userTag.draggable = false;
@@ -4852,6 +4921,8 @@
                         e.dataTransfer.setData('text/plain', userName);
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('source', 'ready'); // 준비 목록에서 드래그하는 것 표시
+                        // 전역 변수에 source 저장 (dragover에서 확인하기 위해)
+                        window.currentDragSource = 'ready';
                         userTag.style.opacity = '0.5';
                         // 전역 변수에 드래그 중인 사용자 저장
                         window.draggedReadyUser = userName;
@@ -4875,6 +4946,7 @@
                         // 초기화
                         window.draggedReadyUser = null;
                         window.droppedInReadySection = false;
+                        window.currentDragSource = null;
                     });
                 } else {
                     userTag.draggable = false;
@@ -4918,12 +4990,17 @@
             // 드롭 존 설정 (접속자 목록에서 드래그하는 경우)
             readyUsersList.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                const source = e.dataTransfer.getData('source');
-                // 접속자 목록에서 드래그하는 경우만 허용
+                // 전역 변수에서 source 확인 (dragover에서는 getData가 작동하지 않음)
+                const source = window.currentDragSource;
+                // 접속자 목록에서 드래그하는 경우만 허용 (게임 진행 중이 아닐 때)
                 if (source === 'users' && isHost && !isGameActive) {
                     e.dataTransfer.dropEffect = 'move';
                     readyUsersList.style.backgroundColor = '#e8f5e9';
                     readyUsersList.style.border = '2px dashed #28a745';
+                } else {
+                    e.dataTransfer.dropEffect = 'none';
+                    readyUsersList.style.backgroundColor = '';
+                    readyUsersList.style.border = '';
                 }
             });
             
@@ -4973,8 +5050,10 @@
                 document.setAttribute('data-global-drop-setup', 'true');
                 
                 document.addEventListener('dragover', (e) => {
-                    const source = e.dataTransfer.getData('source');
-                    // 준비 목록에서 드래그하는 경우
+                    e.preventDefault();
+                    // 전역 변수에서 source 확인 (dragover에서는 getData가 작동하지 않음)
+                    const source = window.currentDragSource;
+                    // 준비 목록에서 드래그하는 경우 (게임 진행 중이 아닐 때)
                     if (source === 'ready' && isHost && !isGameActive) {
                         // 준비 섹션 밖에 있는지 확인
                         const readySection = document.getElementById('readySection');
@@ -5367,9 +5446,16 @@
                 // 모든 참여자가 주사위를 굴렸다는 메시지인지 확인
                 const isAllRolledMessage = chatMessage.message.includes('모든 참여자가 주사위를 굴렸습니다');
                 
+                console.log('[displayChatMessage] 시스템 메시지 확인:', {
+                    message: chatMessage.message,
+                    isAllRolledMessage: isAllRolledMessage,
+                    allRolledMessageShown: window.allRolledMessageShown
+                });
+                
                 if (isAllRolledMessage) {
                     // 전역 플래그로 중복 호출 방지
                     if (window.allRolledMessageShown) {
+                        console.log('[displayChatMessage] 이미 표시됨 - allRolledMessageShown:', window.allRolledMessageShown);
                         return; // 이미 표시됨
                     }
                     
@@ -5392,33 +5478,44 @@
                     
                     // 당첨자 계산 함수 (서버에서 받은 winnerInfo 우선 사용)
                     const calculateWinner = async () => {
+                        console.log('[calculateWinner] 시작 - currentGameHistoryFromServer:', window.currentGameHistoryFromServer?.length, 'historyData:', historyData.length);
+                        
                         // 서버에서 받은 게임 기록 사용 (마지막 사람의 기록이 포함되도록)
                         let currentGameHistory = window.currentGameHistoryFromServer || [];
+                        console.log('[calculateWinner] 초기 currentGameHistory:', currentGameHistory.length);
                         
-                        // 서버에서 받은 기록이 없으면 로컬 historyData 사용 (하위 호환성)
-                        // gameEnded 이벤트가 아직 발생하지 않았을 수 있으므로 historyData도 확인
+                        // 서버에서 받은 기록이 없으면 gameEnded 이벤트를 기다림
                         if (currentGameHistory.length === 0) {
-                            // historyData에서 isGameActive === true인 기록만 필터링
-                            // 마지막 사람의 기록도 포함되도록 최신 기록까지 모두 포함
-                            currentGameHistory = historyData.filter(record => record.isGameActive === true);
-                            
-                            // 만약 historyData에도 기록이 없거나 부족하면 잠시 대기 후 다시 시도
-                            if (currentGameHistory.length === 0) {
-                                // gameEnded 이벤트가 발생할 때까지 잠시 대기 (최대 1초)
+                            console.log('[calculateWinner] currentGameHistory가 비어있음, gameEnded 이벤트 대기 시작');
+                            // gameEnded 이벤트가 발생할 때까지 최대 2초 대기
+                            let waitCount = 0;
+                            while (waitCount < 20 && currentGameHistory.length === 0) {
                                 await new Promise(resolve => setTimeout(resolve, 100));
-                                currentGameHistory = window.currentGameHistoryFromServer || 
-                                                    historyData.filter(record => record.isGameActive === true);
+                                currentGameHistory = window.currentGameHistoryFromServer || [];
+                                waitCount++;
+                                if (waitCount % 5 === 0) {
+                                    console.log('[calculateWinner] 대기 중...', waitCount, '회, currentGameHistory:', currentGameHistory.length);
+                                }
+                            }
+                            
+                            // 여전히 없으면 로컬 historyData 사용 (하위 호환성)
+                            if (currentGameHistory.length === 0) {
+                                console.log('[calculateWinner] 여전히 비어있음, 로컬 historyData 사용');
+                                currentGameHistory = historyData.filter(record => record.isGameActive === true);
+                                console.log('[calculateWinner] 로컬 historyData 필터링 결과:', currentGameHistory.length);
                             }
                         }
                         
-                        console.log('[calculateWinner] currentGameHistory:', currentGameHistory);
+                        console.log('[calculateWinner] 최종 currentGameHistory:', currentGameHistory.length, '데이터:', currentGameHistory);
                         if (currentGameHistory.length === 0) {
                             console.log('[calculateWinner] 기록이 없습니다.');
                             return null;
                         }
                         
                         // 서버에서 받은 winnerInfo가 있으면 사용 (커스텀 룰인 경우)
+                        console.log('[calculateWinner] chatMessage.winnerInfo 확인:', chatMessage.winnerInfo);
                         if (chatMessage.winnerInfo && chatMessage.winnerInfo.winners) {
+                            console.log('[calculateWinner] 서버 winnerInfo 사용:', chatMessage.winnerInfo.winners);
                             const rulesInput = document.getElementById('gameRulesInput');
                             const gameRules = rulesInput ? rulesInput.value.trim() : '';
                             
@@ -5459,54 +5556,70 @@
                         }
                         
                         // 서버에서 winnerInfo가 없으면 클라이언트에서 계산 (하이/로우/니어)
+                        console.log('[calculateWinner] 서버 winnerInfo 없음, 클라이언트에서 계산 시작');
                         const rulesInput = document.getElementById('gameRulesInput');
+                        console.log('[calculateWinner] rulesInput 존재 여부:', !!rulesInput);
                         if (!rulesInput) {
-                            console.log('[calculateWinner] rulesInput이 없습니다.');
+                            console.log('[calculateWinner] ❌ rulesInput이 없습니다.');
                             return null;
                         }
                         
                         const gameRules = rulesInput.value.trim();
-                        console.log('[calculateWinner] gameRules:', gameRules);
+                        console.log('[calculateWinner] gameRules 값:', gameRules, '길이:', gameRules.length);
                         if (!gameRules) {
-                            console.log('[calculateWinner] gameRules가 비어있습니다.');
+                            console.log('[calculateWinner] ❌ gameRules가 비어있습니다.');
                             return null;
                         }
                         
                         const rulesLower = gameRules.toLowerCase();
-                        console.log('[calculateWinner] rulesLower:', rulesLower, 'includes 하이:', rulesLower.includes('하이'), 'includes 낮은:', rulesLower.includes('낮은'));
+                        console.log('[calculateWinner] rulesLower:', rulesLower);
+                        console.log('[calculateWinner] 룰 체크 - 하이:', rulesLower.includes('하이'), '낮은:', rulesLower.includes('낮은'), '로우:', rulesLower.includes('로우'), '높은:', rulesLower.includes('높은'), '니어:', rulesLower.includes('니어'));
                         
                         // 하이 룰: 낮은 사람이 걸림
                         if (rulesLower.includes('하이') && rulesLower.includes('낮은')) {
+                            console.log('[calculateWinner] ✅ 하이 룰 매칭');
                             const minResult = Math.min(...currentGameHistory.map(r => r.result));
                             const winners = currentGameHistory.filter(r => r.result === minResult);
-                            console.log('[calculateWinner] 하이 룰 - minResult:', minResult, 'winners:', winners);
+                            console.log('[calculateWinner] 하이 룰 - minResult:', minResult, 'winners 개수:', winners.length, 'winners:', winners.map(w => w.user));
                             if (winners.length >= 1) {
                                 if (winners.length === 1) {
+                                    console.log('[calculateWinner] ✅ 하이 룰 당첨자 반환:', winners[0].user);
                                     return { type: '하이', winner: winners[0].user, result: minResult };
                                 } else {
+                                    console.log('[calculateWinner] ✅ 하이 룰 동점 당첨자 반환:', winners.map(w => w.user));
                                     return { type: '하이', winners: winners.map(w => w.user), result: minResult, isTie: true };
                                 }
+                            } else {
+                                console.log('[calculateWinner] ❌ 하이 룰 - winners가 없음');
                             }
                         }
                         
                         // 로우 룰: 높은 사람이 걸림
                         if (rulesLower.includes('로우') && rulesLower.includes('높은')) {
+                            console.log('[calculateWinner] ✅ 로우 룰 매칭');
                             const maxResult = Math.max(...currentGameHistory.map(r => r.result));
                             const winners = currentGameHistory.filter(r => r.result === maxResult);
-                            console.log('[calculateWinner] 로우 룰 - maxResult:', maxResult, 'winners:', winners);
+                            console.log('[calculateWinner] 로우 룰 - maxResult:', maxResult, 'winners 개수:', winners.length, 'winners:', winners.map(w => w.user));
                             if (winners.length >= 1) {
                                 if (winners.length === 1) {
+                                    console.log('[calculateWinner] ✅ 로우 룰 당첨자 반환:', winners[0].user);
                                     return { type: '로우', winner: winners[0].user, result: maxResult };
                                 } else {
+                                    console.log('[calculateWinner] ✅ 로우 룰 동점 당첨자 반환:', winners.map(w => w.user));
                                     return { type: '로우', winners: winners.map(w => w.user), result: maxResult, isTie: true };
                                 }
+                            } else {
+                                console.log('[calculateWinner] ❌ 로우 룰 - winners가 없음');
                             }
                         }
                         
                         // 니어 룰: 특정 숫자에 가까운 사람이 걸림
                         const nearMatch = gameRules.match(/니어\s*\(?\s*(\d+)\s*\)?/);
+                        console.log('[calculateWinner] 니어 룰 체크 - nearMatch:', nearMatch);
                         if (nearMatch) {
+                            console.log('[calculateWinner] ✅ 니어 룰 매칭');
                             const targetNumber = parseInt(nearMatch[1]);
+                            console.log('[calculateWinner] 니어 룰 - targetNumber:', targetNumber);
                             let minDiff = Infinity;
                             let winners = [];
                             
@@ -5520,16 +5633,21 @@
                                 }
                             });
                             
+                            console.log('[calculateWinner] 니어 룰 - minDiff:', minDiff, 'winners 개수:', winners.length, 'winners:', winners.map(w => w.user));
                             if (winners.length >= 1) {
                                 if (winners.length === 1) {
+                                    console.log('[calculateWinner] ✅ 니어 룰 당첨자 반환:', winners[0].user);
                                     return { type: '니어', winner: winners[0].user, result: winners[0].result, target: targetNumber };
                                 } else {
+                                    console.log('[calculateWinner] ✅ 니어 룰 동점 당첨자 반환:', winners.map(w => w.user));
                                     return { type: '니어', winners: winners.map(w => w.user), result: winners[0].result, target: targetNumber, isTie: true };
                                 }
+                            } else {
+                                console.log('[calculateWinner] ❌ 니어 룰 - winners가 없음');
                             }
                         }
                         
-                        console.log('[calculateWinner] 룰 매칭 실패 - rulesLower:', rulesLower, 'currentGameHistory:', currentGameHistory);
+                        console.log('[calculateWinner] ❌ 룰 매칭 실패 - rulesLower:', rulesLower, 'currentGameHistory 길이:', currentGameHistory.length);
                         return null;
                     };
                     
@@ -5551,26 +5669,28 @@
                         messageDiv.appendChild(titleDiv);
                         
                         // gameEnded 이벤트가 발생할 때까지 최대 3초 대기 (서버에서 currentGameHistory를 받기 위해)
+                        console.log('[showMessage] 당첨자 계산 시작');
                         let retryCount = 0;
                         let winnerInfo = null;
                         while (retryCount < 30 && !winnerInfo) {
-                            // gameEnded 이벤트가 발생했는지 확인
-                            if (!window.currentGameHistoryFromServer && retryCount < 30) {
-                                await new Promise(resolve => setTimeout(resolve, 100));
-                                retryCount++;
-                                continue;
-                            }
-                            
+                            console.log('[showMessage] calculateWinner 호출 시도', retryCount + 1, '회');
+                            // calculateWinner 함수 내부에서 currentGameHistoryFromServer를 기다리므로 바로 호출
                             winnerInfo = await calculateWinner();
-                            console.log('[showMessage] calculateWinner 결과:', winnerInfo, 'retryCount:', retryCount, 'currentGameHistoryFromServer:', window.currentGameHistoryFromServer?.length);
+                            console.log('[showMessage] calculateWinner 결과:', winnerInfo ? '성공' : 'null', 'retryCount:', retryCount, 'currentGameHistoryFromServer:', window.currentGameHistoryFromServer?.length);
                             
                             if (!winnerInfo) {
                                 // winnerInfo가 null이면 잠시 대기 후 재시도
+                                console.log('[showMessage] winnerInfo가 null, 100ms 대기 후 재시도');
                                 await new Promise(resolve => setTimeout(resolve, 100));
                                 retryCount++;
                             } else {
+                                console.log('[showMessage] ✅ winnerInfo 획득 성공:', winnerInfo);
                                 break;
                             }
+                        }
+                        
+                        if (!winnerInfo) {
+                            console.log('[showMessage] ❌ 최종적으로 winnerInfo를 얻지 못함, retryCount:', retryCount);
                         }
                         
                         // 당첨자 정보 표시 (비동기 처리)
@@ -5626,6 +5746,10 @@
                             }
                             
                             messageDiv.appendChild(winnerDiv);
+                            
+                            // 당첨자 정보가 표시되면 히스토리 업데이트 (배지 변경)
+                            window.winnerInfoShown = true;
+                            renderHistory();
                         } else {
                             // 당첨자 정보를 계산할 수 없는 경우
                             console.log('[showMessage] 당첨자 정보를 계산할 수 없습니다.');
@@ -6019,6 +6143,11 @@
         
         // 새 메시지 수신
         socket.on('newMessage', (chatMessage) => {
+            console.log('[newMessage] 이벤트 수신:', {
+                userName: chatMessage.userName,
+                message: chatMessage.message,
+                isSystemMessage: chatMessage.isSystemMessage
+            });
             displayChatMessage(chatMessage);
         });
         
@@ -6184,6 +6313,11 @@
 
         function updateHostCheckbox(users) {
             const hostCheckbox = document.getElementById('hostCheckbox');
+            if (!hostCheckbox) {
+                console.log('[updateHostCheckbox] hostCheckbox 요소를 찾을 수 없습니다.');
+                return; // 요소가 없으면 종료
+            }
+            
             const hasHost = users.some(user => user.isHost === true);
             
             if (hasHost) {
@@ -6242,47 +6376,56 @@
             
             const sorted = [...data];
             
-            // 게임 진행 중일 때만 유력한 사람 상단 표시 (정렬 전에 찾기)
+            // 게임 진행 중이거나 게임 기록을 표시할 때 유력한 사람 상단 표시 (정렬 전에 찾기)
             let topPlayerKeys = new Set(); // 유력한 사람들의 고유 키 (동점일 수 있음)
-            if (isGameActive && gamePlayers.length > 0 && sorted.length > 0) {
+            
+            // 게임 진행 중이거나, 게임 기록(isGameActive === true)을 표시할 때만 적용
+            const isDisplayingGameRecords = sorted.some(r => r.isGameActive === true);
+            if ((isGameActive || isDisplayingGameRecords) && sorted.length > 0) {
                 const rulesInput = document.getElementById('gameRulesInput');
                 const gameRules = rulesInput ? rulesInput.value.trim().toLowerCase() : '';
                 
-                // 하이 룰: 가장 낮은 사람이 유력
-                if (gameRules.includes('하이') && gameRules.includes('낮은')) {
-                    const minResult = Math.min(...sorted.map(r => r.result));
-                    sorted.forEach(r => {
-                        if (r.result === minResult) {
-                            topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                        }
-                    });
-                }
-                // 로우 룰: 가장 높은 사람이 유력
-                else if (gameRules.includes('로우') && gameRules.includes('높은')) {
-                    const maxResult = Math.max(...sorted.map(r => r.result));
-                    sorted.forEach(r => {
-                        if (r.result === maxResult) {
-                            topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                        }
-                    });
-                }
-                // 니어 룰: 타겟 숫자에 가장 가까운 사람이 유력
-                else if (gameRules.includes('니어')) {
-                    const nearMatch = gameRules.match(/니어\s*(\d+)/);
-                    if (nearMatch) {
-                        const targetNumber = parseInt(nearMatch[1]);
-                        let minDiff = Infinity;
-                        sorted.forEach(record => {
-                            const diff = Math.abs(record.result - targetNumber);
-                            if (diff < minDiff) {
-                                minDiff = diff;
-                            }
-                        });
-                        sorted.forEach(r => {
-                            if (Math.abs(r.result - targetNumber) === minDiff) {
+                // 게임 기록만 필터링 (연습 기록 제외)
+                const gameRecords = sorted.filter(r => r.isGameActive === true);
+                if (gameRecords.length === 0) {
+                    // 게임 기록이 없으면 유력한 사람 찾기 건너뛰기
+                } else {
+                    // 하이 룰: 가장 낮은 사람이 유력
+                    if (gameRules.includes('하이') && gameRules.includes('낮은')) {
+                        const minResult = Math.min(...gameRecords.map(r => r.result));
+                        gameRecords.forEach(r => {
+                            if (r.result === minResult) {
                                 topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
                             }
                         });
+                    }
+                    // 로우 룰: 가장 높은 사람이 유력
+                    else if (gameRules.includes('로우') && gameRules.includes('높은')) {
+                        const maxResult = Math.max(...gameRecords.map(r => r.result));
+                        gameRecords.forEach(r => {
+                            if (r.result === maxResult) {
+                                topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                            }
+                        });
+                    }
+                    // 니어 룰: 타겟 숫자에 가장 가까운 사람이 유력
+                    else if (gameRules.includes('니어')) {
+                        const nearMatch = gameRules.match(/니어\s*(\d+)/);
+                        if (nearMatch) {
+                            const targetNumber = parseInt(nearMatch[1]);
+                            let minDiff = Infinity;
+                            gameRecords.forEach(record => {
+                                const diff = Math.abs(record.result - targetNumber);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                }
+                            });
+                            gameRecords.forEach(r => {
+                                if (Math.abs(r.result - targetNumber) === minDiff) {
+                                    topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                                }
+                            });
+                        }
                     }
                 }
             }
@@ -6354,6 +6497,11 @@
             rolledUsersCountElement.textContent = count;
         }
 
+        // 이전 유력 상태 추적 (애니메이션용)
+        let previousTopPlayerKeys = new Set();
+        let currentAnimationTimeout = null;
+        let currentAnimatingItem = null;
+        
         // 히스토리 렌더링
         function renderHistory() {
             const historyList = document.getElementById('historyList');
@@ -6383,29 +6531,301 @@
                 }
             }
             
+            // "아직 기록이 없습니다" 메시지 제거
+            const emptyMessage = historyList.querySelector('.empty-history');
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+            
             if (displayData.length === 0) {
-                historyList.innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
+                if (historyList.children.length === 0) {
+                    historyList.innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
+                }
                 updateRolledUsersCount();
+                previousTopPlayerKeys.clear();
                 return;
             }
             
             const sortedData = sortHistoryData(displayData, currentSortMode);
             
-            historyList.innerHTML = '';
+            // 배지 표시용: 게임 진행 중이면 "유력", 게임 종료 후면 "당첨"
+            const topPlayerKeys = new Set(); // 유력 (게임 진행 중)
+            const winnerKeys = new Set(); // 당첨 (게임 종료 후)
             
-            sortedData.forEach(record => {
-                const item = document.createElement('div');
-                item.className = 'history-item';
-                item.innerHTML = `
-                    <div>
-                        <div class="history-user">${record.user}</div>
-                        <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
-                        <div class="history-time">${record.time}</div>
-                    </div>
-                    <div class="history-result">🎲 ${record.result}</div>
-                `;
-                historyList.appendChild(item);
+            const isDisplayingGameRecords = displayData.some(r => r.isGameActive === true);
+            const gameRecords = displayData.filter(r => r.isGameActive === true);
+            
+            if (gameRecords.length > 0) {
+                const rulesInput = document.getElementById('gameRulesInput');
+                const gameRules = rulesInput ? rulesInput.value.trim().toLowerCase() : '';
+                
+                if (gameRules) {
+                    // 게임 진행 중이면 "유력" 배지
+                    if (isGameActive) {
+                        if (gameRules.includes('하이') && gameRules.includes('낮은')) {
+                            const minResult = Math.min(...gameRecords.map(r => r.result));
+                            gameRecords.forEach(r => {
+                                if (r.result === minResult) {
+                                    topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                                }
+                            });
+                        } else if (gameRules.includes('로우') && gameRules.includes('높은')) {
+                            const maxResult = Math.max(...gameRecords.map(r => r.result));
+                            gameRecords.forEach(r => {
+                                if (r.result === maxResult) {
+                                    topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                                }
+                            });
+                        } else if (gameRules.includes('니어')) {
+                            const nearMatch = gameRules.match(/니어\s*(\d+)/);
+                            if (nearMatch) {
+                                const targetNumber = parseInt(nearMatch[1]);
+                                let minDiff = Infinity;
+                                gameRecords.forEach(record => {
+                                    const diff = Math.abs(record.result - targetNumber);
+                                    if (diff < minDiff) {
+                                        minDiff = diff;
+                                    }
+                                });
+                                gameRecords.forEach(r => {
+                                    if (Math.abs(r.result - targetNumber) === minDiff) {
+                                        topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                                    }
+                                });
+                            }
+                        }
+                    } 
+                    // 게임 종료 후이고 당첨자 정보가 채팅에 표시되었으면 "당첨" 배지
+                    else if (!isGameActive && isDisplayingGameRecords && window.winnerInfoShown) {
+                        if (gameRules.includes('하이') && gameRules.includes('낮은')) {
+                            const minResult = Math.min(...gameRecords.map(r => r.result));
+                            gameRecords.forEach(r => {
+                                if (r.result === minResult) {
+                                    winnerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                                }
+                            });
+                        } else if (gameRules.includes('로우') && gameRules.includes('높은')) {
+                            const maxResult = Math.max(...gameRecords.map(r => r.result));
+                            gameRecords.forEach(r => {
+                                if (r.result === maxResult) {
+                                    winnerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                                }
+                            });
+                        } else if (gameRules.includes('니어')) {
+                            const nearMatch = gameRules.match(/니어\s*(\d+)/);
+                            if (nearMatch) {
+                                const targetNumber = parseInt(nearMatch[1]);
+                                let minDiff = Infinity;
+                                gameRecords.forEach(record => {
+                                    const diff = Math.abs(record.result - targetNumber);
+                                    if (diff < minDiff) {
+                                        minDiff = diff;
+                                    }
+                                });
+                                gameRecords.forEach(r => {
+                                    if (Math.abs(r.result - targetNumber) === minDiff) {
+                                        winnerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 새로운 유력 찾기 (이전에 없었던 것)
+            const newTopPlayerKeys = new Set();
+            topPlayerKeys.forEach(key => {
+                if (!previousTopPlayerKeys.has(key)) {
+                    newTopPlayerKeys.add(key);
+                }
             });
+            
+            // 진행 중인 애니메이션이 있고 새로운 유력이 생기면 취소
+            if (currentAnimatingItem && newTopPlayerKeys.size > 0) {
+                // 기존 애니메이션 취소 및 아래로 이동
+                if (currentAnimationTimeout) {
+                    clearTimeout(currentAnimationTimeout);
+                    currentAnimationTimeout = null;
+                }
+                currentAnimatingItem.classList.remove('animating-from-top');
+                currentAnimatingItem.classList.add('animating-to-bottom');
+                setTimeout(() => {
+                    if (currentAnimatingItem && currentAnimatingItem.parentNode) {
+                        // 아래로 이동 (리스트 끝으로)
+                        historyList.appendChild(currentAnimatingItem);
+                        currentAnimatingItem.classList.remove('animating-to-bottom');
+                    }
+                    currentAnimatingItem = null;
+                }, 300);
+            }
+            
+            // 기존 DOM 요소 매핑 (recordKey -> element)
+            const existingItems = new Map();
+            Array.from(historyList.children).forEach(child => {
+                if (child.dataset.recordKey) {
+                    existingItems.set(child.dataset.recordKey, child);
+                }
+            });
+            
+            // 새로 추가되거나 업데이트가 필요한 항목 찾기
+            const itemsToAdd = [];
+            const itemsToUpdate = [];
+            const itemsToRemove = new Set(existingItems.keys());
+            
+            sortedData.forEach((record, index) => {
+                const recordKey = `${record.user}-${record.result}-${record.time}`;
+                const isTopPlayer = topPlayerKeys.has(recordKey);
+                const isWinner = winnerKeys.has(recordKey);
+                const isNewTopPlayer = newTopPlayerKeys.has(recordKey);
+                
+                itemsToRemove.delete(recordKey);
+                
+                const existingItem = existingItems.get(recordKey);
+                if (existingItem) {
+                    // 기존 항목 업데이트 (배지만 변경)
+                    let badgeHtml = '';
+                    if (isWinner) {
+                        badgeHtml = '<span class="winner-badge">당첨</span>';
+                    } else if (isTopPlayer) {
+                        badgeHtml = '<span class="top-player-badge">유력</span>';
+                    }
+                    
+                    const userDiv = existingItem.querySelector('.history-user');
+                    const badgeContainer = userDiv?.parentElement;
+                    if (badgeContainer) {
+                        // 기존 배지 제거
+                        const oldBadge = badgeContainer.querySelector('.top-player-badge, .winner-badge');
+                        if (oldBadge) {
+                            oldBadge.remove();
+                        }
+                        // 새 배지 추가
+                        if (badgeHtml) {
+                            badgeContainer.insertAdjacentHTML('beforeend', badgeHtml);
+                        }
+                    }
+                    
+                    itemsToUpdate.push({ item: existingItem, isNewTopPlayer, recordKey, record });
+                } else {
+                    // 새 항목 생성
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    item.dataset.recordKey = recordKey;
+                    
+                    if (isTopPlayer || isWinner) {
+                        item.style.position = 'relative';
+                    }
+                    
+                    let badgeHtml = '';
+                    if (isWinner) {
+                        badgeHtml = '<span class="winner-badge">당첨</span>';
+                    } else if (isTopPlayer) {
+                        badgeHtml = '<span class="top-player-badge">유력</span>';
+                    }
+                    
+                    item.innerHTML = `
+                        <div style="display: flex; align-items: flex-start; gap: 8px;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="history-user">${record.user}</div>
+                                    ${badgeHtml}
+                                </div>
+                                <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
+                                <div class="history-time">${record.time}</div>
+                            </div>
+                            <div class="history-result">🎲 ${record.result}</div>
+                        </div>
+                    `;
+                    
+                    itemsToAdd.push({ item, isNewTopPlayer, recordKey, record, index });
+                }
+            });
+            
+            // 제거할 항목 삭제
+            itemsToRemove.forEach(key => {
+                const item = existingItems.get(key);
+                if (item && item.parentNode) {
+                    item.remove();
+                }
+            });
+            
+            // 새로 유력이 된 항목 찾기 (애니메이션용)
+            const newTopPlayerItem = itemsToAdd.find(i => i.isNewTopPlayer) || itemsToUpdate.find(i => i.isNewTopPlayer);
+            
+            // 새 항목 추가 (애니메이션 대상 제외)
+            itemsToAdd.forEach(({ item, index, isNewTopPlayer }) => {
+                // 애니메이션 대상은 나중에 처리
+                if (isNewTopPlayer && isGameActive) {
+                    return;
+                }
+                
+                // 정렬된 위치에 삽입
+                const insertBefore = Array.from(historyList.children).find((child, i) => {
+                    const childKey = child.dataset.recordKey;
+                    if (!childKey) return false;
+                    const childIndex = sortedData.findIndex(r => `${r.user}-${r.result}-${r.time}` === childKey);
+                    return childIndex > index;
+                });
+                
+                if (insertBefore) {
+                    historyList.insertBefore(item, insertBefore);
+                } else {
+                    historyList.appendChild(item);
+                }
+            });
+            
+            // 새로 유력이 된 항목만 애니메이션 적용
+            if (newTopPlayerItem && isGameActive) {
+                const animatingItem = newTopPlayerItem.item;
+                
+                // 먼저 맨 위에 추가 (위에서 시작)
+                if (historyList.firstChild) {
+                    historyList.insertBefore(animatingItem, historyList.firstChild);
+                } else {
+                    historyList.appendChild(animatingItem);
+                }
+                
+                // 강제 리플로우
+                void animatingItem.offsetHeight;
+                
+                // requestAnimationFrame을 사용하여 애니메이션 시작
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        // 애니메이션 시작 (위에서 내려오는 애니메이션)
+                        animatingItem.classList.add('animating-from-top');
+                        currentAnimatingItem = animatingItem;
+                        
+                        // 애니메이션 완료 후 클래스 제거
+                        currentAnimationTimeout = setTimeout(() => {
+                            animatingItem.classList.remove('animating-from-top');
+                            currentAnimatingItem = null;
+                            currentAnimationTimeout = null;
+                        }, 600);
+                    });
+                });
+            }
+            
+            // 기존 항목 재정렬 (애니메이션 중인 항목 제외)
+            sortedData.forEach((record, index) => {
+                const recordKey = `${record.user}-${record.result}-${record.time}`;
+                const item = existingItems.get(recordKey) || Array.from(historyList.children).find(child => child.dataset.recordKey === recordKey);
+                
+                // 애니메이션 중인 항목은 재정렬하지 않음
+                if (item && item !== currentAnimatingItem) {
+                    const currentIndex = Array.from(historyList.children).indexOf(item);
+                    if (currentIndex !== -1 && currentIndex !== index) {
+                        const targetChild = historyList.children[index];
+                        if (targetChild && targetChild !== item && targetChild !== currentAnimatingItem) {
+                            historyList.insertBefore(item, targetChild);
+                        } else if (!targetChild && item !== currentAnimatingItem) {
+                            historyList.appendChild(item);
+                        }
+                    }
+                }
+            });
+            
+            // 이전 상태 업데이트
+            previousTopPlayerKeys = new Set(topPlayerKeys);
             
             updateRolledUsersCount();
         }

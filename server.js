@@ -1657,21 +1657,28 @@ io.on('connection', (socket) => {
             
             // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
             const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
+            console.log(`[서버] 방 ${room.roomName} 게임 종료 시작 - gamePlayers:`, currentGamePlayers, 'history 길이:', gameState.history.length);
+            
             const currentGameHistory = gameState.history.filter(record => {
                 return record.isGameActive === true && currentGamePlayers.includes(record.user);
             });
+            
+            console.log(`[서버] 방 ${room.roomName} currentGameHistory 필터링 결과:`, currentGameHistory.length, '개');
+            console.log(`[서버] 방 ${room.roomName} currentGameHistory 상세:`, currentGameHistory.map(r => ({ user: r.user, result: r.result, time: r.time })));
             
             gameState.gamePlayers = []; // 참여자 목록 초기화
             gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
             gameState.readyUsers = []; // 준비 상태 초기화
             gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+            
+            console.log(`[서버] 방 ${room.roomName} gameEnded 이벤트 전송 - currentGameHistory:`, currentGameHistory.length, '개');
             io.to(room.roomId).emit('gameEnded', currentGameHistory);
             io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
             
             // 방 목록 업데이트 (게임 상태 변경)
             updateRoomsList();
             
-            console.log(`방 ${room.roomName} 게임 자동 종료, 총`, currentGameHistory.length, '번 굴림');
+            console.log(`[서버] 방 ${room.roomName} 게임 자동 종료 완료, 총`, currentGameHistory.length, '번 굴림');
         } else if (gameState.isGameActive) {
             // 아직 모두 굴리지 않은 경우 진행 상황 업데이트
             const notRolledYet = gameState.gamePlayers.filter(
@@ -2300,22 +2307,29 @@ io.on('connection', (socket) => {
         
         // 게임 종료 시 현재 게임의 기록만 필터링해서 전송 (게임 참여자가 굴린 기록만)
         const currentGamePlayers = [...gameState.gamePlayers]; // 참여자 목록 백업
+        console.log(`[서버] 방 ${room.roomName} endGame 이벤트 - gamePlayers:`, currentGamePlayers, 'history 길이:', gameState.history.length);
+        
         const currentGameHistory = gameState.history.filter(record => {
             // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
             return record.isGameActive === true && currentGamePlayers.includes(record.user);
         });
         
+        console.log(`[서버] 방 ${room.roomName} currentGameHistory 필터링 결과:`, currentGameHistory.length, '개');
+        console.log(`[서버] 방 ${room.roomName} currentGameHistory 상세:`, currentGameHistory.map(r => ({ user: r.user, result: r.result, time: r.time })));
+        
         gameState.gamePlayers = []; // 참여자 목록 초기화
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.readyUsers = []; // 준비 상태 초기화
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+        
+        console.log(`[서버] 방 ${room.roomName} gameEnded 이벤트 전송 - currentGameHistory:`, currentGameHistory.length, '개');
         io.to(room.roomId).emit('gameEnded', currentGameHistory);
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
         // 방 목록 업데이트 (게임 상태 변경)
         updateRoomsList();
         
-        console.log(`방 ${room.roomName} 게임 종료, 총`, gameState.history.length, '번 굴림');
+        console.log(`[서버] 방 ${room.roomName} 게임 종료 완료, 총`, currentGameHistory.length, '번 굴림');
     });
 
     // ========== 룰렛 게임 이벤트 핸들러 ==========
