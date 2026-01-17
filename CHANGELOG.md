@@ -1,5 +1,73 @@
 # 업데이트 내역
 
+## 📅 2026-01-10 업데이트 (마지막 사람 당첨 시 결과 계산 오류 수정 및 테스트 봇 파일 정리)
+
+### 주요 변경사항
+
+#### 1. 마지막 사람 당첨 시 결과 계산 오류 수정
+- **문제**: 마지막 사람이 당첨될 때 간헐적으로 결과가 다르게 나오는 문제
+- **원인**: `calculateWinner` 함수가 로컬 `historyData`를 사용하여 마지막 사람의 기록이 반영되기 전에 계산됨
+- **해결**: `gameEnded` 이벤트에서 받은 `currentGameHistory`를 우선 사용하도록 수정
+  - `window.currentGameHistoryFromServer` 전역 변수에 서버에서 받은 기록 저장
+  - `calculateWinner` 함수에서 서버 기록 우선 사용, 없을 때만 로컬 기록 사용
+  - `gameEnded` 이벤트가 발생할 때까지 최대 3초 대기하여 기록 수신 보장
+  - 디버깅 로그 추가로 문제 추적 가능하도록 개선
+
+#### 2. 게임 종료 후 자동 재시작 기능 개선
+- **봇 자동 준비 상태 설정**
+  - 게임 종료 후 모든 봇이 자동으로 준비 상태가 되도록 수정
+  - `gameEnded` 이벤트에서 1초 후 자동으로 `toggleReady` 이벤트 전송
+  - 호스트 봇이 모든 봇이 준비되면 즉시 게임 시작하도록 개선
+  - `readyUsersUpdated` 이벤트로 준비 상태 실시간 확인
+
+#### 3. 테스트 봇 파일 정리
+- **다이스 관련 파일 → `AutoTest/dice/`**
+  - `dice-test-bot.js` 이동
+  - `test-bot.bat` 이동 및 경로 수정
+  - `test-bot.sh` 이동 및 경로 수정
+  - `README-BOT.md` 이동
+  - `TEST-GUIDE.md` 이동
+
+- **룰렛 관련 파일 → `AutoTest/roulette/`**
+  - `test-bot.js` 이동 및 로그 파일 경로 수정 (`path.join(__dirname, 'test-results.log')`)
+  - `ui-test.js` 이동 및 로그 파일/스크린샷 경로 수정
+
+### 기술적 변경사항
+
+#### 클라이언트 측 (dice-game-multiplayer.html)
+- `gameEnded` 이벤트 핸들러에서 `window.currentGameHistoryFromServer` 저장
+- `calculateWinner` 함수에서 서버 기록 우선 사용 로직 추가
+- `showMessage` 함수에서 `gameEnded` 이벤트 대기 로직 추가 (최대 3초)
+- 디버깅 로그 추가 (`console.log`)
+
+#### 테스트 봇 (dice-test-bot.js)
+- `gameEnded` 이벤트 핸들러에서 자동 준비 상태 설정 로직 추가
+- `readyUsersUpdated` 이벤트 핸들러 추가
+- 모든 봇이 준비되면 즉시 게임 시작하도록 개선
+- `restartTimeout` 관리로 중복 재시작 방지
+
+#### 파일 구조 개선
+- 다이스 테스트 봇: `AutoTest/dice/` 디렉토리로 이동
+- 룰렛 테스트 봇: `AutoTest/roulette/` 디렉토리로 이동
+- 모든 경로 참조 수정 (`path.join(__dirname, ...)` 사용)
+
+### 버그 수정
+- 마지막 사람이 당첨될 때 결과가 다르게 나오는 문제 해결
+- 게임 종료 후 봇이 자동으로 재시작하지 않던 문제 해결
+- 테스트 봇 파일이 루트에 흩어져 있던 문제 해결
+
+### 수정된 파일
+- dice-game-multiplayer.html
+- dice-test-bot.js → AutoTest/dice/dice-test-bot.js
+- test-bot.bat → AutoTest/dice/test-bot.bat
+- test-bot.sh → AutoTest/dice/test-bot.sh
+- README-BOT.md → AutoTest/dice/README-BOT.md
+- TEST-GUIDE.md → AutoTest/dice/TEST-GUIDE.md
+- AutoTest/test-bot.js → AutoTest/roulette/test-bot.js
+- AutoTest/ui-test.js → AutoTest/roulette/ui-test.js
+
+---
+
 ## 📅 2026-01-10 업데이트 (이모티콘 설정 시스템 개선)
 
 ### 주요 변경사항

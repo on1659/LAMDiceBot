@@ -4233,6 +4233,9 @@
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
             
+            // 게임 시작 시 서버에서 받은 게임 기록 초기화
+            window.currentGameHistoryFromServer = null;
+            
             // 게임 시작 시 모든 게임 기록 삭제 (이전 게임 기록 포함)
             historyData = historyData.filter(record => record.isGameActive === false);
             
@@ -4344,6 +4347,9 @@
         });
 
         socket.on('gameEnded', (currentGameHistory) => {
+            // 서버에서 받은 게임 기록을 전역 변수에 저장 (당첨자 계산 시 사용)
+            window.currentGameHistoryFromServer = currentGameHistory;
+            
             // 애니메이션 완료를 기다리는 함수
             const processGameEnd = () => {
                 isGameActive = false;
@@ -5386,11 +5392,35 @@
                     
                     // 당첨자 계산 함수 (서버에서 받은 winnerInfo 우선 사용)
                     const calculateWinner = async () => {
+                        // 서버에서 받은 게임 기록 사용 (마지막 사람의 기록이 포함되도록)
+                        let currentGameHistory = window.currentGameHistoryFromServer || [];
+                        
+                        // 서버에서 받은 기록이 없으면 로컬 historyData 사용 (하위 호환성)
+                        // gameEnded 이벤트가 아직 발생하지 않았을 수 있으므로 historyData도 확인
+                        if (currentGameHistory.length === 0) {
+                            // historyData에서 isGameActive === true인 기록만 필터링
+                            // 마지막 사람의 기록도 포함되도록 최신 기록까지 모두 포함
+                            currentGameHistory = historyData.filter(record => record.isGameActive === true);
+                            
+                            // 만약 historyData에도 기록이 없거나 부족하면 잠시 대기 후 다시 시도
+                            if (currentGameHistory.length === 0) {
+                                // gameEnded 이벤트가 발생할 때까지 잠시 대기 (최대 1초)
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                currentGameHistory = window.currentGameHistoryFromServer || 
+                                                    historyData.filter(record => record.isGameActive === true);
+                            }
+                        }
+                        
+                        console.log('[calculateWinner] currentGameHistory:', currentGameHistory);
+                        if (currentGameHistory.length === 0) {
+                            console.log('[calculateWinner] 기록이 없습니다.');
+                            return null;
+                        }
+                        
                         // 서버에서 받은 winnerInfo가 있으면 사용 (커스텀 룰인 경우)
                         if (chatMessage.winnerInfo && chatMessage.winnerInfo.winners) {
                             const rulesInput = document.getElementById('gameRulesInput');
                             const gameRules = rulesInput ? rulesInput.value.trim() : '';
-                            const currentGameHistory = historyData.filter(record => record.isGameActive === true);
                             
                             const winners = chatMessage.winnerInfo.winners;
                             const winnerRecords = currentGameHistory.filter(record => 
@@ -5430,25 +5460,32 @@
                         
                         // 서버에서 winnerInfo가 없으면 클라이언트에서 계산 (하이/로우/니어)
                         const rulesInput = document.getElementById('gameRulesInput');
-                        if (!rulesInput) return null;
+                        if (!rulesInput) {
+                            console.log('[calculateWinner] rulesInput이 없습니다.');
+                            return null;
+                        }
                         
                         const gameRules = rulesInput.value.trim();
-                        if (!gameRules) return null;
-                        
-                        // 현재 게임의 기록만 필터링 (게임 진행 중인 기록)
-                        const currentGameHistory = historyData.filter(record => record.isGameActive === true);
-                        if (currentGameHistory.length === 0) return null;
+                        console.log('[calculateWinner] gameRules:', gameRules);
+                        if (!gameRules) {
+                            console.log('[calculateWinner] gameRules가 비어있습니다.');
+                            return null;
+                        }
                         
                         const rulesLower = gameRules.toLowerCase();
+                        console.log('[calculateWinner] rulesLower:', rulesLower, 'includes 하이:', rulesLower.includes('하이'), 'includes 낮은:', rulesLower.includes('낮은'));
                         
                         // 하이 룰: 낮은 사람이 걸림
                         if (rulesLower.includes('하이') && rulesLower.includes('낮은')) {
                             const minResult = Math.min(...currentGameHistory.map(r => r.result));
                             const winners = currentGameHistory.filter(r => r.result === minResult);
-                            if (winners.length === 1) {
-                                return { type: '하이', winner: winners[0].user, result: minResult };
-                            } else if (winners.length > 1) {
-                                return { type: '하이', winners: winners.map(w => w.user), result: minResult, isTie: true };
+                            console.log('[calculateWinner] 하이 룰 - minResult:', minResult, 'winners:', winners);
+                            if (winners.length >= 1) {
+                                if (winners.length === 1) {
+                                    return { type: '하이', winner: winners[0].user, result: minResult };
+                                } else {
+                                    return { type: '하이', winners: winners.map(w => w.user), result: minResult, isTie: true };
+                                }
                             }
                         }
                         
@@ -5456,10 +5493,13 @@
                         if (rulesLower.includes('로우') && rulesLower.includes('높은')) {
                             const maxResult = Math.max(...currentGameHistory.map(r => r.result));
                             const winners = currentGameHistory.filter(r => r.result === maxResult);
-                            if (winners.length === 1) {
-                                return { type: '로우', winner: winners[0].user, result: maxResult };
-                            } else if (winners.length > 1) {
-                                return { type: '로우', winners: winners.map(w => w.user), result: maxResult, isTie: true };
+                            console.log('[calculateWinner] 로우 룰 - maxResult:', maxResult, 'winners:', winners);
+                            if (winners.length >= 1) {
+                                if (winners.length === 1) {
+                                    return { type: '로우', winner: winners[0].user, result: maxResult };
+                                } else {
+                                    return { type: '로우', winners: winners.map(w => w.user), result: maxResult, isTie: true };
+                                }
                             }
                         }
                         
@@ -5480,13 +5520,16 @@
                                 }
                             });
                             
-                            if (winners.length === 1) {
-                                return { type: '니어', winner: winners[0].user, result: winners[0].result, target: targetNumber };
-                            } else if (winners.length > 1) {
-                                return { type: '니어', winners: winners.map(w => w.user), result: winners[0].result, target: targetNumber, isTie: true };
+                            if (winners.length >= 1) {
+                                if (winners.length === 1) {
+                                    return { type: '니어', winner: winners[0].user, result: winners[0].result, target: targetNumber };
+                                } else {
+                                    return { type: '니어', winners: winners.map(w => w.user), result: winners[0].result, target: targetNumber, isTie: true };
+                                }
                             }
                         }
                         
+                        console.log('[calculateWinner] 룰 매칭 실패 - rulesLower:', rulesLower, 'currentGameHistory:', currentGameHistory);
                         return null;
                     };
                     
@@ -5507,9 +5550,32 @@
                         titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
                         messageDiv.appendChild(titleDiv);
                         
+                        // gameEnded 이벤트가 발생할 때까지 최대 3초 대기 (서버에서 currentGameHistory를 받기 위해)
+                        let retryCount = 0;
+                        let winnerInfo = null;
+                        while (retryCount < 30 && !winnerInfo) {
+                            // gameEnded 이벤트가 발생했는지 확인
+                            if (!window.currentGameHistoryFromServer && retryCount < 30) {
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                retryCount++;
+                                continue;
+                            }
+                            
+                            winnerInfo = await calculateWinner();
+                            console.log('[showMessage] calculateWinner 결과:', winnerInfo, 'retryCount:', retryCount, 'currentGameHistoryFromServer:', window.currentGameHistoryFromServer?.length);
+                            
+                            if (!winnerInfo) {
+                                // winnerInfo가 null이면 잠시 대기 후 재시도
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                retryCount++;
+                            } else {
+                                break;
+                            }
+                        }
+                        
                         // 당첨자 정보 표시 (비동기 처리)
-                        const winnerInfo = await calculateWinner();
                         if (winnerInfo) {
+                            console.log('[showMessage] 당첨자 정보 표시:', winnerInfo);
                             const winnerDiv = document.createElement('div');
                             winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: #ffd700; margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
                             
@@ -5560,6 +5626,23 @@
                             }
                             
                             messageDiv.appendChild(winnerDiv);
+                        } else {
+                            // 당첨자 정보를 계산할 수 없는 경우
+                            console.log('[showMessage] 당첨자 정보를 계산할 수 없습니다.');
+                            const currentHistory = window.currentGameHistoryFromServer || historyData.filter(r => r.isGameActive === true);
+                            const rulesInput = document.getElementById('gameRulesInput');
+                            const gameRules = rulesInput ? rulesInput.value.trim() : '';
+                            console.log('[showMessage] 디버그 정보:', {
+                                currentHistoryLength: currentHistory.length,
+                                currentHistory: currentHistory,
+                                gameRules: gameRules,
+                                rulesInputExists: !!rulesInput
+                            });
+                            
+                            const errorDiv = document.createElement('div');
+                            errorDiv.style.cssText = 'font-size: 14px; color: #ff6b6b; margin-top: 8px;';
+                            errorDiv.textContent = '⚠️ 당첨자 정보를 계산할 수 없습니다. (기록: ' + currentHistory.length + '개, 룰: ' + (gameRules || '없음') + ')';
+                            messageDiv.appendChild(errorDiv);
                         }
                         
                         messageDiv.style.display = 'block'; // 표시

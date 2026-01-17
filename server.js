@@ -3027,6 +3027,8 @@ io.on('connection', (socket) => {
         }
         
         // 같은 방의 모든 클라이언트에게 채팅 메시지 전송
+        console.log(`[채팅 전송] 방 ${room.roomName} (ID: ${room.roomId}) - ${user.name}: ${message.trim()}`);
+        console.log(`[채팅 전송] 방 ${room.roomId}에 연결된 소켓 수: ${io.sockets.adapter.rooms.get(room.roomId)?.size || 0}`);
         io.to(room.roomId).emit('newMessage', chatMessage);
         
         console.log(`방 ${room.roomName} 채팅: ${user.name}: ${message.trim()}`);
