@@ -204,8 +204,19 @@
         // 서버 목록 불러오기
         async function loadServers() {
             try {
+                console.log('[관리자 페이지] 서버 목록 조회 시작, token:', token);
                 const response = await fetch('/api/admin/servers?token=' + token);
+                
+                console.log('[관리자 페이지] 응답 상태:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[관리자 페이지] HTTP 오류:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
                 const data = await response.json();
+                console.log('[관리자 페이지] 응답 데이터:', data);
                 
                 if (!data.success) {
                     if (data.message === '인증이 만료되었습니다.' || data.message === '인증에 실패했습니다.') {
@@ -219,11 +230,13 @@
                 
                 document.getElementById('loading').style.display = 'none';
                 servers = data.servers || [];
+                console.log('[관리자 페이지] 서버 개수:', servers.length);
                 renderServers(servers);
             } catch (error) {
                 document.getElementById('loading').style.display = 'none';
-                showError('서버 목록을 불러오는 중 오류가 발생했습니다.');
-                console.error('Error loading servers:', error);
+                const errorMessage = error.message || '서버 목록을 불러오는 중 오류가 발생했습니다.';
+                console.error('[관리자 페이지] 오류 상세:', error);
+                showError(errorMessage);
             }
         }
         

@@ -14,7 +14,14 @@ function App() {
 
   useEffect(() => {
     // Socket.IO 연결
-    const newSocket = io('http://localhost:3000', {
+    // 개발 환경: localhost:3000, 프로덕션: 같은 도메인
+    const socketUrl = import.meta.env.DEV 
+      ? 'http://localhost:3000' 
+      : window.location.origin;
+    
+    console.log('🔌 Socket.IO 연결 시도:', socketUrl);
+    
+    const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,

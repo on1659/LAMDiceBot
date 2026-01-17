@@ -37,6 +37,9 @@ const io = socketIo(server, {
 
 const PORT = process.env.PORT || 3000;
 
+// Railway/프록시 환경을 위한 trust proxy 설정
+app.set('trust proxy', true);
+
 // Rate Limiting 설정 - HTTP 요청 제한
 const limiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1분
@@ -442,32 +445,31 @@ function createRoomGameState() {
 // 게임 상태 (하위 호환성을 위해 유지, 실제로는 각 방의 gameState 사용)
 let gameState = createRoomGameState();
 
-// 프로덕션 환경: Vite 빌드 결과물 서빙
+// 정적 파일 제공 (프로덕션과 개발 환경 모두)
+// dist 폴더의 정적 파일 서빙 (React 앱의 JS, CSS, 이미지 등)
+app.use(express.static(path.join(__dirname, 'dist'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
+
+// 기존 HTML 파일들도 서빙 (게임 페이지, 관리자 페이지 등)
+app.use(express.static(__dirname, {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
+
+// 프로덕션 환경: React 앱 진입점 (루트 경로만)
 if (process.env.NODE_ENV === 'production') {
-    // dist 폴더의 정적 파일 서빙 (JS, CSS, 이미지 등)
-    app.use(express.static(path.join(__dirname, 'dist'), {
-        setHeaders: (res, filePath) => {
-            // HTML 파일은 캐시하지 않음
-            if (filePath.endsWith('.html')) {
-                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-                res.setHeader('Pragma', 'no-cache');
-                res.setHeader('Expires', '0');
-            }
-        }
-    }));
-    
-    // 기존 HTML 파일들도 서빙 (게임 페이지 등)
-    app.use(express.static(__dirname, {
-        setHeaders: (res, filePath) => {
-            if (filePath.endsWith('.html')) {
-                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-                res.setHeader('Pragma', 'no-cache');
-                res.setHeader('Expires', '0');
-            }
-        }
-    }));
-    
-    // React 앱 진입점 (루트 경로만)
     app.get('/', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
@@ -579,6 +581,7 @@ app.get('/api/admin/servers', async (req, res) => {
     }
     
     if (!pool) {
+        console.error('[관리자 API] 데이터베이스 풀이 없습니다.');
         return res.status(500).json({
             success: false,
             message: '데이터베이스가 연결되지 않았습니다.'
@@ -586,6 +589,8 @@ app.get('/api/admin/servers', async (req, res) => {
     }
     
     try {
+        console.log('[관리자 API] 서버 목록 조회 시작');
+        
         // 모든 서버 조회 (비활성 포함)
         const result = await pool.query(
             `SELECT s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at, s.is_active,
@@ -595,6 +600,8 @@ app.get('/api/admin/servers', async (req, res) => {
              GROUP BY s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at, s.is_active
              ORDER BY s.created_at DESC`
         );
+        
+        console.log(`[관리자 API] 데이터베이스에서 ${result.rows.length}개 서버 조회됨`);
         
         const servers = result.rows.map(row => ({
             id: row.id,
@@ -613,10 +620,10 @@ app.get('/api/admin/servers', async (req, res) => {
             servers: servers
         });
     } catch (error) {
-        console.error('관리자 서버 목록 조회 오류:', error);
+        console.error('[관리자 API] 서버 목록 조회 오류:', error);
         res.status(500).json({
             success: false,
-            message: '서버 목록을 조회하는 중 오류가 발생했습니다.'
+            message: '서버 목록을 조회하는 중 오류가 발생했습니다: ' + error.message
         });
     }
 });
