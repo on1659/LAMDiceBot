@@ -40,16 +40,38 @@ function ServerList({ servers, onJoinServer, currentUserName, searchQuery = '' }
     });
   }, [servers, searchQuery]);
 
-  const handleJoinClick = async (serverId, hasPassword, isApproved) => {
+  const handleJoinClick = async (serverId, hasPassword, isApproved, hostName) => {
+    // 호스트인지 확인 (현재 사용자 이름과 서버 호스트 이름 비교)
+    const isHost = hostName && currentUserName && hostName === currentUserName;
+    
     if (hasPassword) {
-      // 비밀방인 경우 승인 여부 확인
-      if (isApproved) {
-        // 이미 승인된 경우 비밀번호 입력 없이 바로 입장
+      // 비밀방인 경우
+      if (isHost) {
+        // 호스트는 비밀번호 입력 없이 바로 입장
+        onJoinServer(serverId, '');
+      } else if (isApproved) {
+        // 이미 승인된 멤버는 비밀번호 입력 없이 바로 입장
         onJoinServer(serverId, '');
       } else {
-        // 승인되지 않은 경우 비밀번호 입력 모달 표시
-        setPasswordModal(serverId);
-        setPasswordInput('');
+        // 승인되지 않은 경우, 실시간으로 승인 여부 다시 확인
+        try {
+          const response = await fetch(`/api/server/${serverId}/check-member?userName=${encodeURIComponent(currentUserName)}`);
+          const data = await response.json();
+          
+          if (data.success && data.isApproved) {
+            // 실시간 확인 결과 승인된 경우 바로 입장
+            onJoinServer(serverId, '');
+          } else {
+            // 승인되지 않은 경우 비밀번호 입력 모달 표시
+            setPasswordModal(serverId);
+            setPasswordInput('');
+          }
+        } catch (error) {
+          console.error('승인 여부 확인 오류:', error);
+          // 오류 발생 시 비밀번호 입력 모달 표시
+          setPasswordModal(serverId);
+          setPasswordInput('');
+        }
       }
     } else {
       // 공개 서버는 바로 입장
@@ -197,7 +219,7 @@ function ServerList({ servers, onJoinServer, currentUserName, searchQuery = '' }
                 <span>👥 {server.memberCount}명</span>
               </div>
               <button
-                onClick={() => handleJoinClick(server.id, server.hasPassword, server.isApproved)}
+                onClick={() => handleJoinClick(server.id, server.hasPassword, server.isApproved, server.hostName)}
                 className="btn-join"
               >
                 입장하기
