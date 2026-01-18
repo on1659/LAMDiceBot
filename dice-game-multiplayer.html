@@ -1098,21 +1098,29 @@
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
-            <div id="todayDiceStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
-                <div>오늘의 주사위 횟수: <strong id="todayDiceCount">0</strong>회</div>
-                <div>평균값: <strong id="todayDiceAverage">0</strong></div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                <div id="hostManagementButton" style="display: none;">
+                    <button id="hostManagementButtonElement" onclick="showServerMembers()" style="padding: 10px 20px; font-size: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; position: relative;">
+                        👥 서버 인원 관리
+                    </button>
+                </div>
+                <div id="currentServerNameDisplay" style="font-size: 12px; color: #999; font-weight: 400; margin-bottom: 4px;">
+                    <!-- 서버 이름이 여기에 표시됩니다 -->
+                </div>
+                <div id="currentUserNameDisplay" style="font-size: 14px; color: #666; font-weight: 500;">
+                    <!-- 사용자 이름이 여기에 표시됩니다 -->
+                </div>
             </div>
         </div>
 
         <!-- 대기실 섹션 -->
         <div class="lobby-section active" id="lobbySection">
+            <div style="margin-bottom: 15px;">
+                <button onclick="goToServerList()" style="width: 100%; padding: 12px 20px; font-size: 16px; background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); font-weight: 600;">← 서버 목록으로 돌아가기</button>
+            </div>
             <div class="create-room-button-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">방 만들기</h2>
-                <button onclick="showCreateRoomPage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-bottom: 15px;">방 생성하기</button>
-                <div class="input-group" style="margin: 0;">
-                    <label for="globalUserNameInput">이름</label>
-                    <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
-            </div>
+                <button onclick="showCreateRoomPage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">방 생성하기</button>
             </div>
             
             <div class="join-room-section">
@@ -1170,23 +1178,51 @@
                 </div>
             </div>
             
-            <!-- 호스트 이름 입력 (방 생성 시에만 사용) -->
-            <div class="input-group" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <label for="createRoomHostNameInput">호스트 이름</label>
-                <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름 입력" maxlength="20" />
-            </div>
-            
             <!-- 공개/비공개 설정 -->
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                    <label for="createRoomPrivateCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">비공개 방</label>
+                <label style="display: block; margin-bottom: 15px; font-weight: 500;">방 공개 설정</label>
+                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomType" value="public" id="createRoomPublicRadio" checked style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>공개방 (누구나 입장 가능)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomType" value="private" id="createRoomPrivateRadio" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>비공개방 (입장코드 필요)</span>
+                    </label>
                 </div>
-                <div id="createRoomPasswordContainer" style="display: none;">
-                    <div class="input-group" style="margin-bottom: 0;">
-                        <label for="createRoomPasswordInput">비밀번호</label>
-                        <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 입력 (4~20자)" maxlength="20" />
-                    </div>
+                
+                <!-- 입장코드 입력 (비공개방일 때만 활성화) -->
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label for="createRoomPasswordInput">입장코드 (숫자 4자리 이상)</label>
+                    <input 
+                        type="text" 
+                        id="createRoomPasswordInput" 
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="비공개방 선택 시 입력 (숫자만 입력 가능)" 
+                        maxlength="10"
+                        disabled
+                    />
+                    <small style="color: #666; font-size: 0.85em; margin-top: 5px; display: block;">
+                        비공개방을 선택하면 입장코드를 입력해야 합니다. 공개방은 입장코드 없이 누구나 입장할 수 있습니다.
+                    </small>
+                </div>
+                
+                <!-- 호스트 코드 입력 -->
+                <div class="input-group" style="margin-bottom: 0;">
+                    <label for="createRoomHostCodeInput">호스트 코드 (숫자 4자리 이상)</label>
+                    <input 
+                        type="text" 
+                        id="createRoomHostCodeInput" 
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="호스트 승인 페이지 접근용 코드 (선택사항)" 
+                        maxlength="10"
+                    />
+                    <small style="color: #666; font-size: 0.85em; margin-top: 5px; display: block;">
+                        호스트 코드를 입력하면 서버 인원 관리 페이지 접근 시 이 코드가 필요합니다.
+                    </small>
                 </div>
             </div>
             
@@ -1516,7 +1552,328 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <style>
+        /* 서버 인원 관리 버튼 애니메이션 */
+        @keyframes buttonPulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+            }
+        }
+        
+        .host-management-button-pending {
+            animation: buttonPulse 2s infinite;
+        }
+        
+        .host-management-button-pending::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 12px;
+            height: 12px;
+            background: #ff4444;
+            border-radius: 50%;
+            border: 2px solid white;
+            animation: buttonPulse 1s infinite;
+        }
+        
+        /* 커스텀 Alert 모달 */
+        .custom-alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .custom-alert-overlay.show {
+            display: flex;
+        }
+        
+        .custom-alert-modal {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        .custom-confirm-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .custom-confirm-overlay.show {
+            display: flex;
+        }
+        
+        .custom-confirm-modal {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .custom-modal-title {
+            margin: 0 0 15px 0;
+            font-size: 1.3em;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .custom-modal-message {
+            margin-bottom: 25px;
+            font-size: 1em;
+            color: #666;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+        
+        .custom-modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .custom-modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            min-width: 80px;
+        }
+        
+        .custom-modal-actions button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .custom-modal-actions .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .custom-modal-actions .btn-cancel:hover {
+            background: #5a6268;
+            box-shadow: 0 5px 20px rgba(108, 117, 125, 0.4);
+        }
+        
+        .custom-modal-actions .btn-confirm {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .custom-modal-actions .btn-confirm:hover {
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .custom-prompt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .custom-prompt-overlay.show {
+            display: flex;
+        }
+        
+        .custom-prompt-modal {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        .custom-prompt-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        
+        .custom-prompt-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
     <script>
+        // 커스텀 Prompt 함수
+        function customPrompt(message, defaultValue = '', title = '입력') {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'custom-prompt-overlay';
+                const inputId = 'customPromptInput_' + Date.now();
+                overlay.innerHTML = `
+                    <div class="custom-prompt-modal" onclick="event.stopPropagation()">
+                        ${title ? `<h3 class="custom-modal-title">${title}</h3>` : ''}
+                        <div class="custom-modal-message">${message}</div>
+                        <input type="text" id="${inputId}" class="custom-prompt-input" value="${defaultValue}" placeholder="입력하세요">
+                        <div class="custom-modal-actions">
+                            <button class="btn-cancel">취소</button>
+                            <button class="btn-confirm">확인</button>
+                        </div>
+                    </div>
+                `;
+                overlay.onclick = (e) => {
+                    if (e.target === overlay) {
+                        overlay.remove();
+                        resolve(null);
+                    }
+                };
+                document.body.appendChild(overlay);
+                setTimeout(() => {
+                    overlay.classList.add('show');
+                    const input = document.getElementById(inputId);
+                    input.focus();
+                    input.select();
+                    
+                    const confirmBtn = overlay.querySelector('.btn-confirm');
+                    confirmBtn.onclick = () => {
+                        const value = input.value;
+                        overlay.remove();
+                        resolve(value);
+                    };
+                    
+                    const cancelBtn = overlay.querySelector('.btn-cancel');
+                    cancelBtn.onclick = () => {
+                        overlay.remove();
+                        resolve(null);
+                    };
+                    
+                    input.onkeydown = (e) => {
+                        if (e.key === 'Enter') {
+                            confirmBtn.click();
+                        } else if (e.key === 'Escape') {
+                            cancelBtn.click();
+                        }
+                    };
+                }, 10);
+            });
+        }
+        
+        // 커스텀 Alert 함수
+        function customAlert(message, title = '알림') {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'custom-alert-overlay';
+                overlay.innerHTML = `
+                    <div class="custom-alert-modal" onclick="event.stopPropagation()">
+                        ${title ? `<h3 class="custom-modal-title">${title}</h3>` : ''}
+                        <div class="custom-modal-message">${message}</div>
+                        <div class="custom-modal-actions">
+                            <button class="btn-confirm" onclick="this.closest('.custom-alert-overlay').remove(); arguments[0].stopPropagation();">확인</button>
+                        </div>
+                    </div>
+                `;
+                overlay.onclick = () => {
+                    overlay.remove();
+                    resolve();
+                };
+                document.body.appendChild(overlay);
+                setTimeout(() => overlay.classList.add('show'), 10);
+            });
+        }
+        
+        // 커스텀 Confirm 함수
+        function customConfirm(message, title = '확인') {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'custom-confirm-overlay';
+                overlay.innerHTML = `
+                    <div class="custom-confirm-modal" onclick="event.stopPropagation()">
+                        ${title ? `<h3 class="custom-modal-title">${title}</h3>` : ''}
+                        <div class="custom-modal-message">${message}</div>
+                        <div class="custom-modal-actions">
+                            <button class="btn-cancel" onclick="this.closest('.custom-confirm-overlay').remove(); arguments[0].stopPropagation();">취소</button>
+                            <button class="btn-confirm" onclick="this.closest('.custom-confirm-overlay').remove(); arguments[0].stopPropagation(); window.__customConfirmResult = true;">확인</button>
+                        </div>
+                    </div>
+                `;
+                overlay.onclick = (e) => {
+                    if (e.target === overlay) {
+                        overlay.remove();
+                        resolve(false);
+                    }
+                };
+                document.body.appendChild(overlay);
+                setTimeout(() => {
+                    overlay.classList.add('show');
+                    const confirmBtn = overlay.querySelector('.btn-confirm');
+                    confirmBtn.onclick = () => {
+                        overlay.remove();
+                        resolve(true);
+                    };
+                    const cancelBtn = overlay.querySelector('.btn-cancel');
+                    cancelBtn.onclick = () => {
+                        overlay.remove();
+                        resolve(false);
+                    };
+                }, 10);
+            });
+        }
+        
+        // 기존 alert, confirm, prompt를 커스텀 함수로 교체
+        window.alert = customAlert;
+        window.confirm = customConfirm;
+        window.prompt = customPrompt;
+        
         const socket = io();
         
         // 이모티콘 설정 (JSON 파일에서 로드)
@@ -1898,6 +2255,7 @@
         let isGameActive = false;
         let isOrderActive = false;
         let diceMax = 100;
+        let pendingCountInterval = null; // 승인 대기 인원 수 확인 인터벌
         let myDiceSettings = { max: 100 };
         let hasRolledInCurrentGame = false;
         let rolledUsersInGame = []; // 게임 중 굴린 사용자 목록 추적
@@ -2242,6 +2600,28 @@
         if (currentServerId) {
             localStorage.setItem('currentServerId', currentServerId);
             console.log('서버 ID:', currentServerId);
+            
+            // 호스트 여부 확인 및 버튼 표시
+            const isServerHost = localStorage.getItem(`server_${currentServerId}_isHost`) === 'true';
+            const hostManagementButton = document.getElementById('hostManagementButton');
+            if (hostManagementButton) {
+                if (isServerHost) {
+                    hostManagementButton.style.display = 'block';
+                    console.log('호스트 관리 버튼 표시 (서버 호스트)');
+                    // 승인 대기 인원 수 확인 시작
+                    startPendingCountCheck();
+                } else {
+                    hostManagementButton.style.display = 'none';
+                    console.log('호스트 관리 버튼 숨김 (서버 호스트 아님)');
+                    // 승인 대기 인원 수 확인 중지
+                    stopPendingCountCheck();
+                }
+            }
+            
+            // 사용자 이름 표시 업데이트
+            updateUserNameDisplay();
+            // 서버 이름 표시 업데이트
+            updateServerNameDisplay();
         }
         
         // 연결 상태 모니터링 및 초기화
@@ -2253,6 +2633,21 @@
             if (createRoomConnectionStatus) {
                 createRoomConnectionStatus.textContent = '● 연결됨';
                 createRoomConnectionStatus.className = 'connection-status connected';
+            }
+            
+            // 연결 시 호스트 버튼 상태 재확인
+            if (currentServerId) {
+                const isServerHost = localStorage.getItem(`server_${currentServerId}_isHost`) === 'true';
+                const hostManagementButton = document.getElementById('hostManagementButton');
+                if (hostManagementButton) {
+                    if (isServerHost) {
+                        hostManagementButton.style.display = 'block';
+                        startPendingCountCheck();
+                    } else {
+                        hostManagementButton.style.display = 'none';
+                        stopPendingCountCheck();
+                    }
+                }
             }
             
             // 서버 ID가 있으면 서버에 알리기
@@ -2267,8 +2662,23 @@
             if (document.getElementById('lobbySection').classList.contains('active')) {
                 document.body.classList.add('lobby-active');
                 refreshRooms();
-                refreshTodayDiceStats();
             }
+        });
+        
+        // 서버에서 내쫓김 알림
+        socket.on('serverRejected', (data) => {
+            console.log('서버에서 내쫓김:', data);
+            alert(`서버에서 내쫓겼습니다.\n\n서버: ${data.serverName || '알 수 없음'}`);
+            // 서버 목록으로 돌아가기
+            window.location.href = '/';
+        });
+        
+        // 서버 승인 알림
+        socket.on('serverApproved', (data) => {
+            console.log('서버 입장 승인:', data);
+            alert(`서버 입장이 승인되었습니다!\n\n서버: ${data.serverName || '알 수 없음'}`);
+            // 페이지 새로고침하여 게임 화면 접근 가능하도록
+            window.location.reload();
         });
 
         socket.on('disconnect', () => {
@@ -2467,17 +2877,15 @@
         }
         
         // 방 바로 입장
-        function joinRoomDirectly(roomId) {
+        async function joinRoomDirectly(roomId) {
             selectedRoomId = roomId;
             
-            const globalNameInput = document.getElementById('globalUserNameInput');
-            const userName = globalNameInput ? globalNameInput.value.trim() : '';
+            // localStorage에서 이름 가져오기
+            const userName = localStorage.getItem('userName') || '';
             
             if (userName === '') {
-                alert('⚠️ 이름을 입력해야 입장할 수 있습니다.');
-                if (globalNameInput) {
-                    globalNameInput.focus();
-                }
+                await customAlert('⚠️ 이름이 설정되지 않았습니다. 서버 목록에서 이름을 먼저 입력해주세요!');
+                window.location.href = '/';
                 return;
             }
             
@@ -2510,7 +2918,31 @@
             
             // 비공개 방인지 체크
             if (room && room.isPrivate) {
-                // 비공개 방이면 비밀번호 입력 모달 표시
+                // 비공개 방인 경우, 먼저 서버에서 승인 여부 확인
+                const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
+                if (serverId) {
+                    try {
+                        const response = await fetch(`/api/server/${serverId}/check-member?userName=${encodeURIComponent(userName)}`);
+                        const data = await response.json();
+                        
+                        // 이미 승인된 멤버인 경우 비밀번호 입력 없이 바로 입장
+                        if (data.success && data.isApproved) {
+                            socket.emit('joinRoom', {
+                                roomId: roomId,
+                                userName: userName,
+                                isHost: false,
+                                password: '',
+                                deviceId: getDeviceId()
+                            });
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('승인 여부 확인 오류:', error);
+                        // 오류 발생 시 기존 로직대로 비밀번호 입력 요청
+                    }
+                }
+                
+                // 승인되지 않았거나 확인 실패한 경우 비밀번호 입력 모달 표시
                 showPasswordModal(roomId, userName);
             } else {
                 // 공개 방이면 바로 입장
@@ -2525,8 +2957,8 @@
         }
         
         // 비밀번호 입력 모달 표시
-        function showPasswordModal(roomId, userName) {
-            const password = prompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:');
+        async function showPasswordModal(roomId, userName) {
+            const password = await customPrompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:', '', '비밀번호 입력');
             
             if (password === null) {
                 // 취소
@@ -2534,7 +2966,7 @@
             }
             
             if (password === '') {
-                alert('⚠️ 비밀번호를 입력해주세요!');
+                await customAlert('⚠️ 비밀번호를 입력해주세요!');
                 showPasswordModal(roomId, userName); // 다시 모달 표시
                 return;
             }
@@ -2549,6 +2981,113 @@
             });
         }
         
+        // 서버 이름 가져오기
+        async function fetchServerName(serverId) {
+            if (!serverId) return null;
+            
+            try {
+                // 먼저 localStorage에서 확인
+                const cachedName = localStorage.getItem(`server_${serverId}_name`);
+                if (cachedName) {
+                    return cachedName;
+                }
+                
+                // API로 서버 정보 가져오기
+                const response = await fetch(`/api/server/${serverId}/info`);
+                const data = await response.json();
+                
+                if (data.success && data.server) {
+                    const serverName = data.server.name;
+                    // localStorage에 캐시
+                    localStorage.setItem(`server_${serverId}_name`, serverName);
+                    return serverName;
+                }
+            } catch (error) {
+                console.error('서버 이름 가져오기 오류:', error);
+            }
+            
+            return null;
+        }
+        
+        // 서버 이름 표시 업데이트
+        async function updateServerNameDisplay() {
+            const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
+            const serverNameDisplay = document.getElementById('currentServerNameDisplay');
+            
+            if (serverNameDisplay && serverId) {
+                const serverName = await fetchServerName(serverId);
+                if (serverName) {
+                    serverNameDisplay.textContent = `🏠 ${serverName}`;
+                    serverNameDisplay.style.display = 'block';
+                } else {
+                    serverNameDisplay.style.display = 'none';
+                }
+            }
+        }
+        
+        // 사용자 이름 표시 업데이트
+        function updateUserNameDisplay() {
+            const userName = localStorage.getItem('userName') || currentUser || '';
+            const userNameDisplay = document.getElementById('currentUserNameDisplay');
+            if (userNameDisplay && userName) {
+                userNameDisplay.textContent = `👤 ${userName}`;
+            }
+        }
+        
+        // 승인 대기 인원 수 확인
+        async function checkPendingCount() {
+            const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
+            const userName = localStorage.getItem('userName') || currentUser;
+            
+            if (!serverId || !userName) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/server/${serverId}/pending-count?userName=${encodeURIComponent(userName)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateHostManagementButton(data.pendingCount || 0);
+                }
+            } catch (error) {
+                console.error('승인 대기 인원 수 확인 오류:', error);
+            }
+        }
+        
+        // 서버 인원 관리 버튼 업데이트
+        function updateHostManagementButton(pendingCount) {
+            const button = document.getElementById('hostManagementButtonElement');
+            if (!button) return;
+            
+            // 버튼 텍스트 업데이트
+            if (pendingCount > 0) {
+                button.innerHTML = `👥 서버 인원 관리 (${pendingCount})`;
+                button.classList.add('host-management-button-pending');
+            } else {
+                button.innerHTML = '👥 서버 인원 관리';
+                button.classList.remove('host-management-button-pending');
+            }
+        }
+        
+        // 승인 대기 인원 수 확인 시작
+        function startPendingCountCheck() {
+            // 기존 인터벌 정리
+            stopPendingCountCheck();
+            // 즉시 한 번 확인
+            checkPendingCount();
+            // 5초마다 확인
+            pendingCountInterval = setInterval(checkPendingCount, 5000);
+        }
+        
+        // 승인 대기 인원 수 확인 중지
+        function stopPendingCountCheck() {
+            if (pendingCountInterval) {
+                clearInterval(pendingCountInterval);
+                pendingCountInterval = null;
+            }
+        }
+        
         // 방 목록 새로고침
         function refreshRooms() {
             console.log('[클라이언트] refreshRooms 호출, currentServerId:', currentServerId);
@@ -2560,19 +3099,34 @@
                 console.log('[클라이언트] getRooms 요청 (serverId 없음)');
                 socket.emit('getRooms');
             }
-            refreshTodayDiceStats();
         }
         
-        // 오늘의 주사위 통계 새로고침
-        function refreshTodayDiceStats() {
-            socket.emit('getTodayDiceStats');
+        // 서버 인원 관리 페이지 표시
+        async function showServerMembers() {
+            const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
+            const userName = localStorage.getItem('userName') || currentUser;
+            
+            if (!serverId || !userName) {
+                await customAlert('서버 정보를 불러올 수 없습니다.');
+                return;
+            }
+            
+            // 호스트 코드 입력 (선택사항) - 커스텀 모달 사용
+            const hostCode = await customPrompt('호스트 코드를 입력하세요 (방 생성 시 입력한 호스트 코드):\n\n입력하지 않으면 호스트 이름으로만 접근합니다.', '', '호스트 코드 입력');
+            
+            // 취소를 누르면 null이 반환되므로 빈 문자열로 처리
+            if (hostCode === null) {
+                return; // 취소하면 아무것도 하지 않음
+            }
+            
+            // 호스트 코드를 sessionStorage에 저장 (URL에 노출되지 않도록)
+            if (hostCode) {
+                sessionStorage.setItem(`hostCode_${serverId}`, hostCode);
+            }
+            
+            // 새 창으로 서버 인원 관리 페이지 열기 (호스트 코드는 URL에 포함하지 않음)
+            window.open(`/server-members.html?serverId=${serverId}&userName=${encodeURIComponent(userName)}`, '_blank', 'width=800,height=600');
         }
-        
-        // 오늘의 주사위 통계 수신
-        socket.on('todayDiceStats', (stats) => {
-            document.getElementById('todayDiceCount').textContent = stats.count || 0;
-            document.getElementById('todayDiceAverage').textContent = stats.average || 0;
-        });
         
         // 방 생성 페이지로 이동
         function showCreateRoomPage() {
@@ -2581,24 +3135,30 @@
             
             // 기본값 설정
             document.getElementById('createRoomNameInput').value = '';
-            document.getElementById('createRoomHostNameInput').value = '';
-            document.getElementById('createRoomPrivateCheckbox').checked = false;
+            document.getElementById('createRoomPublicRadio').checked = true;
+            document.getElementById('createRoomPrivateRadio').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
-            document.getElementById('createRoomPasswordContainer').style.display = 'none';
+            document.getElementById('createRoomPasswordInput').disabled = true;
+            document.getElementById('createRoomHostCodeInput').value = '';
             document.getElementById('createRoomIPBlockCheckbox').checked = false; // IP 차단 옵션 기본값: 체크 안 함
             
-            // 전역 이름 입력값을 가져와서 호스트 이름 입력칸에 기본값으로 설정 (있으면)
-            const globalNameInput = document.getElementById('globalUserNameInput');
-            if (globalNameInput && globalNameInput.value.trim()) {
-                const hostName = globalNameInput.value.trim();
-                document.getElementById('createRoomHostNameInput').value = hostName;
-                // 방 제목 자동 생성
-                document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
+            // 입장코드 입력 필드 상태 업데이트
+            const passwordInput = document.getElementById('createRoomPasswordInput');
+            if (passwordInput) {
+                passwordInput.disabled = true;
+                passwordInput.required = false;
             }
             
-            // 호스트 이름 입력창에 포커스
+            // localStorage에서 이름 가져오기
+            const savedUserName = localStorage.getItem('userName');
+            if (savedUserName) {
+                // 방 제목 자동 생성
+                document.getElementById('createRoomNameInput').value = `${savedUserName}님의 Dice`;
+            }
+            
+            // 방 제목 입력창에 포커스
             setTimeout(() => {
-                document.getElementById('createRoomHostNameInput').focus();
+                document.getElementById('createRoomNameInput').focus();
             }, 100);
         }
         
@@ -2716,19 +3276,57 @@
             updateGameRulesSaveButtonState();
         }
         
-        // 비공개 방 체크박스 이벤트
+        // 공개/비공개 방 라디오 버튼 이벤트
         document.addEventListener('DOMContentLoaded', () => {
-            const privateCheckbox = document.getElementById('createRoomPrivateCheckbox');
-            const passwordContainer = document.getElementById('createRoomPasswordContainer');
+            const publicRadio = document.getElementById('createRoomPublicRadio');
+            const privateRadio = document.getElementById('createRoomPrivateRadio');
+            const passwordInput = document.getElementById('createRoomPasswordInput');
             
-            if (privateCheckbox && passwordContainer) {
-                privateCheckbox.addEventListener('change', function() {
-                    if (this.checked) {
-                        passwordContainer.style.display = 'block';
-                        document.getElementById('createRoomPasswordInput').focus();
+            function updatePasswordInputState() {
+                if (privateRadio && privateRadio.checked) {
+                    // 비공개방 선택 시 입장코드 활성화
+                    passwordInput.disabled = false;
+                    passwordInput.required = true;
+                    passwordInput.focus();
+                } else {
+                    // 공개방 선택 시 입장코드 비활성화
+                    passwordInput.disabled = true;
+                    passwordInput.required = false;
+                    passwordInput.value = '';
+                }
+            }
+            
+            if (publicRadio && privateRadio && passwordInput) {
+                publicRadio.addEventListener('change', updatePasswordInputState);
+                privateRadio.addEventListener('change', updatePasswordInputState);
+                
+                // 초기 상태 설정
+                updatePasswordInputState();
+            }
+            
+            // 입장코드 숫자만 입력 가능
+            if (passwordInput) {
+                passwordInput.addEventListener('input', function(e) {
+                    const value = e.target.value;
+                    if (value === '' || /^\d+$/.test(value)) {
+                        // 숫자만 허용
                     } else {
-                        passwordContainer.style.display = 'none';
-                        document.getElementById('createRoomPasswordInput').value = '';
+                        // 숫자가 아닌 문자 제거
+                        e.target.value = value.replace(/[^\d]/g, '');
+                    }
+                });
+            }
+            
+            // 호스트 코드 숫자만 입력 가능
+            const hostCodeInput = document.getElementById('createRoomHostCodeInput');
+            if (hostCodeInput) {
+                hostCodeInput.addEventListener('input', function(e) {
+                    const value = e.target.value;
+                    if (value === '' || /^\d+$/.test(value)) {
+                        // 숫자만 허용
+                    } else {
+                        // 숫자가 아닌 문자 제거
+                        e.target.value = value.replace(/[^\d]/g, '');
                     }
                 });
             }
@@ -2746,10 +3344,10 @@
         
         // 방 생성 최종 확인 및 생성
         function finalizeRoomCreation() {
-            const hostNameInput = document.getElementById('createRoomHostNameInput');
             const roomNameInput = document.getElementById('createRoomNameInput');
             
-            const hostName = hostNameInput.value.trim();
+            // localStorage에서 이름 가져오기
+            const hostName = localStorage.getItem('userName') || '';
             const roomName = roomNameInput.value.trim();
             
             if (roomName === '') {
@@ -2759,25 +3357,62 @@
             }
             
             if (hostName === '') {
-                alert('⚠️ 호스트 이름을 입력해주세요!');
-                hostNameInput.focus();
+                alert('⚠️ 이름이 설정되지 않았습니다. 서버 목록에서 이름을 먼저 입력해주세요!');
+                window.location.href = '/';
                 return;
             }
             
-            // 비공개 방 설정 확인
-            const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
+            // 공개/비공개 방 설정 확인
+            const roomTypeRadio = document.querySelector('input[name="roomType"]:checked');
+            const isPrivate = roomTypeRadio && roomTypeRadio.value === 'private';
             const password = document.getElementById('createRoomPasswordInput').value.trim();
+            const hostCode = document.getElementById('createRoomHostCodeInput').value.trim();
             
             if (isPrivate) {
                 if (password === '') {
-                    alert('⚠️ 비공개 방은 비밀번호를 입력해주세요!');
+                    alert('⚠️ 비공개 방은 입장코드를 입력해주세요!');
                     document.getElementById('createRoomPasswordInput').focus();
                     return;
                 }
                 
-                if (password.length < 4 || password.length > 20) {
-                    alert('⚠️ 비밀번호는 4자 이상 20자 이하여야 합니다!');
+                // 숫자만 허용
+                if (!/^\d+$/.test(password)) {
+                    alert('⚠️ 입장코드는 숫자만 입력 가능합니다!');
                     document.getElementById('createRoomPasswordInput').focus();
+                    return;
+                }
+                
+                if (password.length < 4) {
+                    alert('⚠️ 입장코드는 4자리 이상이어야 합니다!');
+                    document.getElementById('createRoomPasswordInput').focus();
+                    return;
+                }
+                
+                if (password.length > 10) {
+                    alert('⚠️ 입장코드는 10자리 이하여야 합니다!');
+                    document.getElementById('createRoomPasswordInput').focus();
+                    return;
+                }
+            }
+            
+            // 호스트 코드 검증 (입력된 경우에만)
+            if (hostCode.length > 0) {
+                // 숫자만 허용
+                if (!/^\d+$/.test(hostCode)) {
+                    alert('⚠️ 호스트 코드는 숫자만 입력 가능합니다!');
+                    document.getElementById('createRoomHostCodeInput').focus();
+                    return;
+                }
+                
+                if (hostCode.length < 4) {
+                    alert('⚠️ 호스트 코드는 4자리 이상이어야 합니다!');
+                    document.getElementById('createRoomHostCodeInput').focus();
+                    return;
+                }
+                
+                if (hostCode.length > 10) {
+                    alert('⚠️ 호스트 코드는 10자리 이하여야 합니다!');
+                    document.getElementById('createRoomHostCodeInput').focus();
                     return;
                 }
             }
@@ -2837,6 +3472,7 @@
                 roomName: roomName,
                 isPrivate: isPrivate,
                 password: isPrivate ? password : '',
+                hostCode: hostCode || '', // 호스트 코드 (선택사항)
                 gameType: 'dice', // 게임 타입 (주사위 게임)
                 expiryHours: expiryHours, // 방 유지 시간 (시간 단위)
                 blockIPPerUser: blockIPPerUser // IP당 하나의 아이디만 입장 허용
@@ -2850,12 +3486,12 @@
                 return;
             }
             
-            const globalNameInput = document.getElementById('globalUserNameInput');
-            const userName = globalNameInput.value.trim();
+            // localStorage에서 이름 가져오기
+            const userName = localStorage.getItem('userName') || '';
             
             if (userName === '') {
-                alert('⚠️ 이름을 입력해야 입장할 수 있습니다.');
-                globalNameInput.focus();
+                alert('⚠️ 이름이 설정되지 않았습니다. 서버 목록에서 이름을 먼저 입력해주세요!');
+                window.location.href = '/';
                 return;
             }
             
@@ -2876,50 +3512,14 @@
             }
         }
         
-        // 전역 이름 입력창 초기화 (localStorage에서 불러오기)
-        document.addEventListener('DOMContentLoaded', () => {
-            const globalNameInput = document.getElementById('globalUserNameInput');
-            if (globalNameInput) {
-                // localStorage에서 이름 불러오기
-                const savedName = localStorage.getItem('diceGameUserName');
-                if (savedName) {
-                    globalNameInput.value = savedName;
-                }
-                
-                // 이름이 변경될 때마다 localStorage에 저장
-                globalNameInput.addEventListener('input', () => {
-                    const userName = globalNameInput.value.trim();
-                    if (userName) {
-                        localStorage.setItem('diceGameUserName', userName);
-                    }
-                });
-            }
-            
-            // 호스트 이름 입력창에서 방 제목 자동 업데이트
-            const hostNameInput = document.getElementById('createRoomHostNameInput');
-            const roomNameInput = document.getElementById('createRoomNameInput');
-            if (hostNameInput && roomNameInput) {
-                let isUpdating = false;
-                hostNameInput.addEventListener('input', () => {
-                    if (isUpdating) return;
-                    const hostName = hostNameInput.value.trim();
-                    // 방 제목이 기본 형식이거나 비어있을 때만 자동 업데이트
-                    const currentRoomName = roomNameInput.value.trim();
-                    if (!currentRoomName || currentRoomName.endsWith('님의 Dice')) {
-                        isUpdating = true;
-                        roomNameInput.value = hostName ? `${hostName}님의 Dice` : '';
-                        isUpdating = false;
-                    }
-                });
-            }
-        });
+        // 방 제목 자동 업데이트는 제거 (localStorage 이름 사용)
+        // showCreateRoomPage 함수에서 초기값 설정
         
         // 방 생성 성공
         socket.on('roomCreated', (data) => {
             currentRoomId = data.roomId;
-            // 방 생성 시 입력한 호스트 이름 사용
-            const hostNameInput = document.getElementById('createRoomHostNameInput');
-            currentUser = hostNameInput ? hostNameInput.value.trim() : data.userName;
+            // localStorage에서 이름 가져오기
+            currentUser = localStorage.getItem('userName') || data.userName;
             isHost = true;
             
             document.getElementById('lobbySection').classList.remove('active');
@@ -2939,8 +3539,8 @@
         // 방 입장 성공
         socket.on('roomJoined', (data) => {
             currentRoomId = data.roomId;
-            const globalNameInput = document.getElementById('globalUserNameInput');
-            currentUser = globalNameInput ? globalNameInput.value.trim() : data.userName; // 전역 이름 사용
+            // localStorage에서 이름 가져오기
+            currentUser = localStorage.getItem('userName') || data.userName;
             isHost = data.isHost;
             
             document.getElementById('lobbySection').classList.remove('active');
@@ -3021,6 +3621,19 @@
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'grid';
+                
+                // 호스트인 경우 서버 인원 관리 버튼 표시 (서버 호스트인 경우에만)
+                const isServerHost = localStorage.getItem(`server_${currentServerId}_isHost`) === 'true';
+                const hostManagementButton = document.getElementById('hostManagementButton');
+                if (hostManagementButton) {
+                    if (isServerHost) {
+                        hostManagementButton.style.display = 'block';
+                        startPendingCountCheck();
+                    } else {
+                        hostManagementButton.style.display = 'none';
+                        stopPendingCountCheck();
+                    }
+                }
                 
                 // 호스트 컨트롤 표시 후 주문받기 버튼 상태 확인
                 setTimeout(() => {
@@ -3342,6 +3955,19 @@
         function updateHostUI() {
             const dragHint = document.getElementById('dragHint');
             
+            // 서버 인원 관리 버튼은 서버 호스트인 경우에만 표시 (방 호스트와 무관)
+            const isServerHost = currentServerId ? localStorage.getItem(`server_${currentServerId}_isHost`) === 'true' : false;
+            const hostManagementButton = document.getElementById('hostManagementButton');
+            if (hostManagementButton) {
+                if (isServerHost) {
+                    hostManagementButton.style.display = 'block';
+                    startPendingCountCheck();
+                } else {
+                    hostManagementButton.style.display = 'none';
+                    stopPendingCountCheck();
+                }
+            }
+            
             if (isHost) {
                 // 호스트 배지 표시
                 const hostBadge = document.getElementById('hostBadge');
@@ -3384,6 +4010,9 @@
                 if (hostBadge) {
                     hostBadge.style.display = 'none';
                 }
+                
+                // 사용자 이름 표시 업데이트
+                updateUserNameDisplay();
                 
                 // 호스트 전용 컨트롤 숨김
                 const hostControls = document.getElementById('hostControls');
@@ -3581,6 +4210,21 @@
             } else {
             socket.disconnect();
             location.reload();
+            }
+        }
+        
+        // 서버 목록으로 이동
+        function goToServerList() {
+            // 방에 있으면 먼저 나가기
+            if (currentRoomId) {
+                socket.emit('leaveRoom');
+                socket.once('roomLeft', () => {
+                    socket.disconnect();
+                    window.location.href = '/';
+                });
+            } else {
+                socket.disconnect();
+                window.location.href = '/';
             }
         }
         

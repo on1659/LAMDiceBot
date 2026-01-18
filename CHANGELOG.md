@@ -1,5 +1,71 @@
 # 업데이트 내역
 
+## 📅 2026-01-10 업데이트 (서버 관리 보안 강화 및 서버 정보 표시 기능 추가)
+
+### 주요 변경사항
+
+#### 1. 서버 관리 보안 강화
+- **호스트 코드 URL 노출 제거**
+  - 호스트 코드를 URL 파라미터에서 제거하고 sessionStorage에 저장하도록 변경
+  - 서버 인원 관리 페이지 접근 시 호스트 코드를 URL에 노출하지 않음
+  - `dice-game-multiplayer.html`에서 호스트 코드를 sessionStorage에 저장 후 새 창 열기
+
+- **API 보안 강화**
+  - 서버 인원 관리 API를 GET에서 POST로 변경 (`/api/server/:serverId/members`)
+  - 호스트 코드를 요청 body에 포함하여 URL에 노출되지 않도록 개선
+  - `server-members.html`에서 POST 요청으로 변경
+
+- **호스트 검증 로직 강화**
+  - 호스트 이름과 호스트 코드를 함께 검증하도록 개선
+  - 호스트 코드가 설정된 경우, 호스트 이름과 호스트 코드가 모두 일치해야만 접근 가능
+  - serverId만 변경해서는 다른 서버에 접근할 수 없도록 보안 강화
+  - `server.js`의 `/api/server/:serverId/members` 및 `/api/server/:serverId/members/:userName/approve` API에서 검증 로직 개선
+
+#### 2. 서버 정보 표시 기능 추가
+- **게임 화면에 현재 서버 이름 표시**
+  - 게임 화면 헤더 우측 상단에 현재 접속한 서버 이름 표시
+  - 서버 이름은 사용자 이름 위에 표시 (🏠 아이콘 포함)
+  - 서버 이름 표시 영역 추가 (`currentServerNameDisplay`)
+
+- **서버 정보 조회 API 추가**
+  - `/api/server/:serverId/info` 엔드포인트 추가
+  - 서버 ID로 서버 이름, 설명, 호스트 이름 등 조회 가능
+  - `server.js`에 새로운 API 엔드포인트 추가
+
+- **성능 최적화**
+  - 서버 이름을 localStorage에 캐시하여 재요청 최소화
+  - `fetchServerName()` 함수로 서버 이름 가져오기 및 캐싱
+  - `updateServerNameDisplay()` 함수로 서버 이름 표시 업데이트
+
+### 기술적 변경사항
+
+#### 클라이언트 측 (dice-game-multiplayer.html)
+- `showServerMembers()` 함수에서 호스트 코드를 sessionStorage에 저장
+- `updateServerNameDisplay()` 함수 추가: 서버 이름 표시 업데이트
+- `fetchServerName()` 함수 추가: 서버 이름 가져오기 및 캐싱
+- 헤더에 서버 이름 표시 영역 추가 (`currentServerNameDisplay`)
+- 페이지 로드 시 서버 이름 자동 표시
+
+#### 서버 인원 관리 페이지 (server-members.html)
+- 호스트 코드를 URL 파라미터에서 제거
+- sessionStorage에서 호스트 코드 가져오기
+- POST 요청으로 API 호출 변경
+- `requestHostCode()` 함수 추가: 호스트 코드 입력 모달
+- `handleAction()`, `handleKick()` 함수에서 호스트 코드 확인 로직 추가
+
+#### 서버 측 (server.js)
+- `/api/server/:serverId/info` API 엔드포인트 추가
+- `/api/server/:serverId/members` API를 GET에서 POST로 변경
+- 호스트 검증 로직 강화: 호스트 이름과 호스트 코드 동시 검증
+- `/api/server/:serverId/members/:userName/approve` API의 호스트 검증 로직 개선
+
+### 변경된 파일
+- `dice-game-multiplayer.html`: 호스트 코드 sessionStorage 저장, 서버 이름 표시 기능 추가
+- `server-members.html`: 호스트 코드 URL 파라미터 제거, POST 요청으로 변경
+- `server.js`: 서버 정보 조회 API 추가, 호스트 검증 로직 강화
+
+---
+
 ## 📅 2026-01-10 업데이트 (마지막 사람 당첨 시 결과 계산 오류 수정 및 테스트 봇 파일 정리)
 
 ### 주요 변경사항

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서버 인원 관리 - LAMDiceBot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .loading, .error {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        .members-section {
+            margin-bottom: 30px;
+        }
+
+        .members-section h2 {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .members-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .member-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+
+        .member-item.pending {
+            border-color: #ffc107;
+            background: #fff9e6;
+        }
+
+        .member-item.approved {
+            border-color: #28a745;
+            background: #f0f9f4;
+        }
+
+        .member-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .member-name {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .member-status {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .member-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .btn-approve:hover {
+            box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .btn-reject:hover {
+            box-shadow: 0 5px 20px rgba(220, 53, 69, 0.4);
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👥 서버 인원 관리</h1>
+        <div id="loading" class="loading">로딩 중...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="content" style="display: none;">
+            <div id="pendingSection" class="members-section"></div>
+            <div id="approvedSection" class="members-section"></div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const serverId = urlParams.get('serverId');
+        const userName = urlParams.get('userName');
+        
+        // 호스트 코드는 sessionStorage에서 가져오거나 입력받기
+        let hostCode = '';
+        
+        // sessionStorage에서 호스트 코드 확인 (부모 창에서 저장한 경우)
+        if (serverId) {
+            hostCode = sessionStorage.getItem(`hostCode_${serverId}`) || '';
+        }
+
+        if (!serverId || !userName) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = '서버 ID 또는 사용자 이름이 없습니다.';
+        } else {
+            // 호스트 코드가 없으면 입력받기
+            if (!hostCode) {
+                requestHostCode();
+            } else {
+                fetchMembers();
+                // 5초마다 새로고침
+                setInterval(fetchMembers, 5000);
+            }
+        }
+        
+        async function requestHostCode() {
+            const input = await new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+                const modal = document.createElement('div');
+                modal.style.cssText = 'background: white; border-radius: 20px; padding: 30px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);';
+                const inputId = 'hostCodeInput_' + Date.now();
+                modal.innerHTML = `
+                    <h3 style="margin: 0 0 15px 0; font-size: 1.3em; color: #333;">호스트 코드 입력</h3>
+                    <div style="margin-bottom: 25px; font-size: 1em; color: #666; line-height: 1.6;">
+                        호스트 코드를 입력하세요 (방 생성 시 입력한 호스트 코드):
+                    </div>
+                    <input type="text" id="${inputId}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; margin-bottom: 20px; box-sizing: border-box;" placeholder="호스트 코드 입력" autofocus>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button class="btn-cancel" style="padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: #6c757d; color: white; min-width: 80px;">취소</button>
+                        <button class="btn-confirm" style="padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-width: 80px;">확인</button>
+                    </div>
+                `;
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+                
+                const input = document.getElementById(inputId);
+                const confirmBtn = modal.querySelector('.btn-confirm');
+                const cancelBtn = modal.querySelector('.btn-cancel');
+                
+                const cleanup = () => {
+                    document.body.removeChild(overlay);
+                };
+                
+                confirmBtn.onclick = () => {
+                    const value = input.value.trim();
+                    cleanup();
+                    resolve(value);
+                };
+                
+                cancelBtn.onclick = () => {
+                    cleanup();
+                    resolve(null);
+                };
+                
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        confirmBtn.click();
+                    } else if (e.key === 'Escape') {
+                        cancelBtn.click();
+                    }
+                };
+            });
+            
+            if (input === null) {
+                // 취소하면 페이지 닫기
+                window.close();
+                return;
+            }
+            
+            hostCode = input;
+            if (serverId) {
+                sessionStorage.setItem(`hostCode_${serverId}`, hostCode);
+            }
+            
+            fetchMembers();
+            // 5초마다 새로고침
+            setInterval(fetchMembers, 5000);
+        }
+
+        async function fetchMembers() {
+            try {
+                // 호스트 코드를 POST 요청 body에 포함
+                const response = await fetch(`/api/server/${serverId}/members`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userName: userName,
+                        hostCode: hostCode || ''
+                    })
+                });
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.success) {
+                    document.getElementById('error').style.display = 'none';
+                    document.getElementById('content').style.display = 'block';
+                    renderMembers(data.members || []);
+                } else {
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = data.message || '멤버 목록을 불러올 수 없습니다.';
+                    document.getElementById('content').style.display = 'none';
+                }
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = '멤버 목록을 불러오는 중 오류가 발생했습니다.';
+                document.getElementById('content').style.display = 'none';
+                console.error('멤버 목록 조회 오류:', err);
+            }
+        }
+
+        function renderMembers(members) {
+            const pendingMembers = members.filter(m => !m.isApproved);
+            const approvedMembers = members.filter(m => m.isApproved);
+
+            // 승인 대기 목록
+            const pendingSection = document.getElementById('pendingSection');
+            if (pendingMembers.length > 0) {
+                pendingSection.innerHTML = `
+                    <h2>승인 대기 (${pendingMembers.length}명)</h2>
+                    <div class="members-list">
+                        ${pendingMembers.map(member => `
+                            <div class="member-item pending">
+                                <div class="member-info">
+                                    <span class="member-name">${member.userName}</span>
+                                    <span class="member-status">승인 대기</span>
+                                </div>
+                                <div class="member-actions">
+                                    <button class="btn-approve" onclick="handleAction('${member.userName}', 'approve')">승인</button>
+                                    <button class="btn-reject" onclick="handleAction('${member.userName}', 'reject')">거절</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                pendingSection.innerHTML = '';
+            }
+
+            // 승인된 멤버 목록
+            const approvedSection = document.getElementById('approvedSection');
+            approvedSection.innerHTML = `
+                <h2>서버 멤버 (${approvedMembers.length}명)</h2>
+                <div class="members-list">
+                    ${approvedMembers.length === 0 ? 
+                        '<div class="empty-message">승인된 멤버가 없습니다.</div>' :
+                        approvedMembers.map(member => `
+                            <div class="member-item approved">
+                                <div class="member-info">
+                                    <span class="member-name">${member.userName}</span>
+                                    <span class="member-status">승인됨</span>
+                                </div>
+                                ${member.userName !== userName ? `
+                                    <button class="btn-reject" onclick="handleKick('${member.userName}')">강퇴</button>
+                                ` : ''}
+                            </div>
+                        `).join('')
+                    }
+                </div>
+            `;
+        }
+
+        async function handleAction(targetUserName, action) {
+            try {
+                const response = await fetch(`/api/server/${serverId}/members/${encodeURIComponent(targetUserName)}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userName: userName,
+                        hostCode: hostCode || '',
+                        action: action
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 멤버 목록 새로고침
+                    fetchMembers();
+                } else {
+                    alert(data.message || '처리 중 오류가 발생했습니다.');
+                }
+            } catch (err) {
+                alert('처리 중 오류가 발생했습니다.');
+                console.error('승인/거절 오류:', err);
+            }
+        }
+
+        async function handleKick(targetUserName) {
+            // 강퇴 확인
+            if (!confirm(`"${targetUserName}"님을 서버에서 강퇴시겠습니까?`)) {
+                return;
+            }
+            
+            try {
+                // 호스트 코드가 없으면 다시 요청
+                if (!hostCode && serverId) {
+                    const storedCode = sessionStorage.getItem(`hostCode_${serverId}`);
+                    if (storedCode) {
+                        hostCode = storedCode;
+                    } else {
+                        await requestHostCode();
+                        if (!hostCode) {
+                            return;
+                        }
+                    }
+                }
+                
+                const response = await fetch(`/api/server/${serverId}/members/${encodeURIComponent(targetUserName)}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userName: userName,
+                        hostCode: hostCode || '',
+                        action: 'reject'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 멤버 목록 새로고침
+                    fetchMembers();
+                } else {
+                    alert(data.message || '처리 중 오류가 발생했습니다.');
+                }
+            } catch (err) {
+                alert('처리 중 오류가 발생했습니다.');
+                console.error('내쫓기 오류:', err);
+            }
+        }
+    </script>
+</body>
+</html>

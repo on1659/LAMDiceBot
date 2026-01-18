@@ -1,9 +1,25 @@
 .app {
   min-height: 100vh;
-  padding: 20px;
+  padding: 0;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.app > header {
+  flex-shrink: 0;
+}
+
+.app > .main-container {
+  flex: 1;
+  margin: 20px auto;
+  padding: 20px;
+}
+
+.app > footer {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.1);
+  margin-top: auto;
 }
 
 .login-container {

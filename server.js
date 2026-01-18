@@ -123,11 +123,23 @@ async function initDatabase() {
                 host_id VARCHAR(255) NOT NULL,
                 host_name VARCHAR(50) NOT NULL,
                 password VARCHAR(20) DEFAULT '',
+                host_code VARCHAR(10) DEFAULT '', -- 호스트 코드 (서버 인원 관리 페이지 접근용)
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_active BOOLEAN DEFAULT true
             )
         `);
+        
+        // host_code 컬럼이 없으면 추가 (기존 데이터베이스 마이그레이션)
+        try {
+            await pool.query(`
+                ALTER TABLE servers 
+                ADD COLUMN IF NOT EXISTS host_code VARCHAR(10) DEFAULT ''
+            `);
+        } catch (error) {
+            // 컬럼이 이미 존재하거나 다른 오류인 경우 무시
+            console.log('host_code 컬럼 확인:', error.message);
+        }
         
         // 2. 사용자-서버 관계 테이블 (멤버십)
         await pool.query(`
@@ -138,9 +150,23 @@ async function initDatabase() {
                 socket_id VARCHAR(255),
                 joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_approved BOOLEAN DEFAULT true, -- 승인 상태 (공개방은 자동 승인, 비공개방은 호스트 승인 필요)
                 UNIQUE(server_id, user_name)
             )
         `);
+        
+        // is_approved 컬럼이 없으면 추가 (기존 데이터베이스 마이그레이션)
+        try {
+            await pool.query(`
+                ALTER TABLE server_members 
+                ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT true
+            `);
+        } catch (error) {
+            // 컬럼이 이미 있으면 무시
+            if (!error.message.includes('duplicate column')) {
+                console.log('is_approved 컬럼 추가 시도:', error.message);
+            }
+        }
         
         // 3. 서버별 게임 기록 테이블
         await pool.query(`
@@ -628,6 +654,359 @@ app.get('/api/admin/servers', async (req, res) => {
     }
 });
 
+// 승인 대기 인원 수 조회 API
+app.get('/api/server/:serverId/pending-count', async (req, res) => {
+    const serverId = parseInt(req.params.serverId);
+    const userName = req.query.userName;
+    
+    if (!pool) {
+        return res.status(500).json({
+            success: false,
+            message: '데이터베이스가 연결되지 않았습니다.'
+        });
+    }
+    
+    try {
+        // 서버 존재 확인
+        const serverResult = await pool.query(
+            'SELECT id, host_name FROM servers WHERE id = $1 AND is_active = true',
+            [serverId]
+        );
+        
+        if (serverResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '서버를 찾을 수 없습니다.'
+            });
+        }
+        
+        const server = serverResult.rows[0];
+        
+        // 호스트인지 확인
+        const isHost = server.host_name === userName;
+        if (!isHost) {
+            return res.status(403).json({
+                success: false,
+                message: '호스트만 접근할 수 있습니다.'
+            });
+        }
+        
+        // 승인 대기 인원 수 조회
+        const pendingResult = await pool.query(
+            'SELECT COUNT(*) as count FROM server_members WHERE server_id = $1 AND is_approved = false',
+            [serverId]
+        );
+        
+        const pendingCount = parseInt(pendingResult.rows[0].count) || 0;
+        
+        res.json({
+            success: true,
+            pendingCount: pendingCount
+        });
+    } catch (error) {
+        console.error('[승인 대기 인원 수 API] 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '승인 대기 인원 수를 확인하는 중 오류가 발생했습니다: ' + error.message
+        });
+    }
+});
+
+// 서버 정보 조회 API
+app.get('/api/server/:serverId/info', async (req, res) => {
+    const serverId = parseInt(req.params.serverId);
+    
+    if (!pool) {
+        return res.status(500).json({
+            success: false,
+            message: '데이터베이스가 연결되지 않았습니다.'
+        });
+    }
+    
+    try {
+        const serverResult = await pool.query(
+            'SELECT id, name, description, host_name, created_at FROM servers WHERE id = $1 AND is_active = true',
+            [serverId]
+        );
+        
+        if (serverResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '서버를 찾을 수 없습니다.'
+            });
+        }
+        
+        const server = serverResult.rows[0];
+        
+        res.json({
+            success: true,
+            server: {
+                id: server.id,
+                name: server.name,
+                description: server.description,
+                hostName: server.host_name,
+                createdAt: server.created_at
+            }
+        });
+    } catch (error) {
+        console.error('[서버 정보 조회 API] 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '서버 정보를 조회하는 중 오류가 발생했습니다: ' + error.message
+        });
+    }
+});
+
+// 멤버 상태 확인 API (입장코드 입력 전 확인용)
+app.get('/api/server/:serverId/check-member', async (req, res) => {
+    const serverId = parseInt(req.params.serverId);
+    const userName = req.query.userName;
+    
+    if (!pool) {
+        return res.status(500).json({
+            success: false,
+            message: '데이터베이스가 연결되지 않았습니다.'
+        });
+    }
+    
+    try {
+        // 서버 존재 확인
+        const serverResult = await pool.query(
+            'SELECT id FROM servers WHERE id = $1 AND is_active = true',
+            [serverId]
+        );
+        
+        if (serverResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '서버를 찾을 수 없습니다.'
+            });
+        }
+        
+        // 멤버 상태 확인
+        const memberResult = await pool.query(
+            'SELECT is_approved FROM server_members WHERE server_id = $1 AND user_name = $2',
+            [serverId, userName]
+        );
+        
+        const isMember = memberResult.rows.length > 0;
+        const isApproved = isMember && memberResult.rows[0].is_approved === true;
+        const isPending = isMember && memberResult.rows[0].is_approved === false;
+        
+        res.json({
+            success: true,
+            isMember: isMember,
+            isApproved: isApproved,
+            isPending: isPending
+        });
+    } catch (error) {
+        console.error('[멤버 상태 확인 API] 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '멤버 상태를 확인하는 중 오류가 발생했습니다: ' + error.message
+        });
+    }
+});
+
+// 호스트 서버 멤버 목록 조회 API (승인 대기 포함)
+app.post('/api/server/:serverId/members', async (req, res) => {
+    const serverId = parseInt(req.params.serverId);
+    const { userName, hostCode } = req.body; // 호스트 이름과 호스트 코드를 body에서 받음
+    
+    if (!pool) {
+        return res.status(500).json({
+            success: false,
+            message: '데이터베이스가 연결되지 않았습니다.'
+        });
+    }
+    
+    try {
+        // 서버 정보 조회
+        const serverResult = await pool.query(
+            'SELECT id, host_name, host_code FROM servers WHERE id = $1 AND is_active = true',
+            [serverId]
+        );
+        
+        if (serverResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '서버를 찾을 수 없습니다.'
+            });
+        }
+        
+        const server = serverResult.rows[0];
+        
+        // 호스트 확인: 호스트 이름과 호스트 코드를 함께 검증
+        const isHost = server.host_name === userName;
+        const hasHostCode = server.host_code && server.host_code.length > 0;
+        const providedHostCode = hostCode || '';
+        const hasValidHostCode = hasHostCode && providedHostCode === server.host_code;
+        
+        // 호스트 코드가 설정되어 있는 경우, 호스트 이름과 호스트 코드가 모두 일치해야 함
+        if (hasHostCode) {
+            if (!isHost || !hasValidHostCode) {
+                return res.status(403).json({
+                    success: false,
+                    message: '호스트 이름과 호스트 코드가 일치하지 않습니다.'
+                });
+            }
+        } else {
+            // 호스트 코드가 없는 경우 호스트 이름으로만 확인
+            if (!isHost) {
+                return res.status(403).json({
+                    success: false,
+                    message: '호스트만 접근할 수 있습니다.'
+                });
+            }
+        }
+        
+        // 멤버 목록 조회 (승인 여부 포함)
+        const membersResult = await pool.query(
+            `SELECT user_name, socket_id, joined_at, last_seen, is_approved
+             FROM server_members
+             WHERE server_id = $1
+             ORDER BY joined_at DESC`,
+            [serverId]
+        );
+        
+        const members = membersResult.rows.map(row => ({
+            userName: row.user_name,
+            socketId: row.socket_id,
+            joinedAt: row.joined_at,
+            lastSeen: row.last_seen,
+            isApproved: row.is_approved
+        }));
+        
+        res.json({
+            success: true,
+            members: members
+        });
+    } catch (error) {
+        console.error('[호스트 API] 멤버 목록 조회 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '멤버 목록을 조회하는 중 오류가 발생했습니다: ' + error.message
+        });
+    }
+});
+
+// 호스트 멤버 승인/거절 API
+app.post('/api/server/:serverId/members/:userName/approve', async (req, res) => {
+    const serverId = parseInt(req.params.serverId);
+    const targetUserName = req.params.userName;
+    const { userName, hostCode, action } = req.body; // action: 'approve' or 'reject'
+    
+    if (!pool) {
+        return res.status(500).json({
+            success: false,
+            message: '데이터베이스가 연결되지 않았습니다.'
+        });
+    }
+    
+    try {
+        // 서버 정보 조회
+        const serverResult = await pool.query(
+            'SELECT id, host_name, host_code FROM servers WHERE id = $1 AND is_active = true',
+            [serverId]
+        );
+        
+        if (serverResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '서버를 찾을 수 없습니다.'
+            });
+        }
+        
+        const server = serverResult.rows[0];
+        
+        // 호스트 확인: 호스트 이름과 호스트 코드를 함께 검증
+        const isHost = server.host_name === userName;
+        const hasHostCode = server.host_code && server.host_code.length > 0;
+        const providedHostCode = hostCode || '';
+        const hasValidHostCode = hasHostCode && providedHostCode === server.host_code;
+        
+        // 호스트 코드가 설정되어 있는 경우, 호스트 이름과 호스트 코드가 모두 일치해야 함
+        if (hasHostCode) {
+            if (!isHost || !hasValidHostCode) {
+                return res.status(403).json({
+                    success: false,
+                    message: '호스트 이름과 호스트 코드가 일치하지 않습니다.'
+                });
+            }
+        } else {
+            // 호스트 코드가 없는 경우 호스트 이름으로만 확인
+            if (!isHost) {
+                return res.status(403).json({
+                    success: false,
+                    message: '호스트만 접근할 수 있습니다.'
+                });
+            }
+        }
+        
+        if (action === 'approve') {
+            // 승인
+            await pool.query(
+                'UPDATE server_members SET is_approved = true WHERE server_id = $1 AND user_name = $2',
+                [serverId, targetUserName]
+            );
+            
+            // 승인된 사용자에게 알림 전송 (Socket.IO)
+            const memberResult = await pool.query(
+                'SELECT socket_id FROM server_members WHERE server_id = $1 AND user_name = $2',
+                [serverId, targetUserName]
+            );
+            
+            if (memberResult.rows.length > 0 && memberResult.rows[0].socket_id) {
+                io.to(memberResult.rows[0].socket_id).emit('serverApproved', {
+                    serverId: serverId,
+                    serverName: server.name
+                });
+            }
+            
+            res.json({
+                success: true,
+                message: '승인되었습니다.'
+            });
+        } else if (action === 'reject') {
+            // 거절 (멤버 삭제 전에 socket_id 가져오기)
+            const memberToReject = await pool.query(
+                'SELECT socket_id FROM server_members WHERE server_id = $1 AND user_name = $2',
+                [serverId, targetUserName]
+            );
+            
+            // 멤버 삭제
+            await pool.query(
+                'DELETE FROM server_members WHERE server_id = $1 AND user_name = $2',
+                [serverId, targetUserName]
+            );
+            
+            // 거절된 사용자에게 알림 전송 (Socket.IO)
+            if (memberToReject.rows.length > 0 && memberToReject.rows[0].socket_id) {
+                io.to(memberToReject.rows[0].socket_id).emit('serverRejected', {
+                    serverId: serverId,
+                    serverName: server.name
+                });
+            }
+            
+            res.json({
+                success: true,
+                message: '거절되었습니다.'
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: '잘못된 액션입니다.'
+            });
+        }
+    } catch (error) {
+        console.error('[호스트 API] 멤버 승인/거절 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '처리 중 오류가 발생했습니다: ' + error.message
+        });
+    }
+});
+
 // 관리자 서버 삭제 API
 app.delete('/api/admin/servers/:id', async (req, res) => {
     const token = req.body.token;
@@ -689,6 +1068,14 @@ app.get('/admin.html', (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// 서버 인원 관리 페이지 라우트
+app.get('/server-members.html', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(__dirname, 'server-members.html'));
 });
 
 // GPT API를 통한 커스텀 룰 당첨자 판단
@@ -1239,7 +1626,7 @@ io.on('connection', (socket) => {
     socket.on('createRoom', async (data) => {
         if (!checkRateLimit()) return;
         
-        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser } = data;
+        const { userName, roomName, isPrivate, password, hostCode, gameType, expiryHours, blockIPPerUser } = data;
         
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -1331,6 +1718,26 @@ io.on('connection', (socket) => {
         const serverId = socket.currentServerId ? parseInt(socket.currentServerId) : null;
         
         console.log(`[방 생성] Socket ${socket.id}, socket.currentServerId: ${socket.currentServerId}, 최종 serverId: ${serverId}`);
+        
+        // 호스트 코드 검증 및 서버에 저장 (입력된 경우에만)
+        if (hostCode && typeof hostCode === 'string' && hostCode.trim().length > 0) {
+            const trimmedHostCode = hostCode.trim();
+            // 숫자만 허용
+            if (/^\d+$/.test(trimmedHostCode) && trimmedHostCode.length >= 4 && trimmedHostCode.length <= 10) {
+                // 서버에 호스트 코드 저장
+                if (pool && serverId) {
+                    try {
+                        await pool.query(
+                            'UPDATE servers SET host_code = $1 WHERE id = $2',
+                            [trimmedHostCode, serverId]
+                        );
+                        console.log(`[호스트 코드 저장] 서버 ${serverId}에 호스트 코드 저장: ${trimmedHostCode}`);
+                    } catch (error) {
+                        console.error('호스트 코드 저장 오류:', error);
+                    }
+                }
+            }
+        }
         
         rooms[roomId] = {
             roomId,
@@ -3861,8 +4268,9 @@ io.on('connection', (socket) => {
     socket.on('createServer', async (data) => {
         if (!checkRateLimit()) return;
         
-        const { serverName, description, password } = data;
-        // 이름은 게임 화면에서 설정하므로 서버 생성 시에는 필요 없음
+        const { serverName, description, password, hostCode, userName } = data;
+        // userName이 없으면 socket.userName 사용, 둘 다 없으면 'Unknown'
+        const hostName = userName || socket.userName || 'Unknown';
         
         if (!serverName || serverName.trim().length === 0) {
             socket.emit('serverError', '서버 이름을 입력해주세요.');
@@ -3874,15 +4282,26 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 패스워드가 입력된 경우에만 길이 검증
+        // 입장코드가 입력된 경우에만 검증 (숫자만, 4자리 이상)
         if (password && password.trim().length > 0) {
-            if (password.length < 4 || password.length > 20) {
-                socket.emit('serverError', '패스워드는 4자 이상 20자 이하여야 합니다.');
+            const trimmedPassword = password.trim();
+            // 숫자만 허용
+            if (!/^\d+$/.test(trimmedPassword)) {
+                socket.emit('serverError', '입장코드는 숫자만 입력 가능합니다.');
+                return;
+            }
+            // 4자리 이상 10자리 이하
+            if (trimmedPassword.length < 4) {
+                socket.emit('serverError', '입장코드는 4자리 이상이어야 합니다.');
+                return;
+            }
+            if (trimmedPassword.length > 10) {
+                socket.emit('serverError', '입장코드는 10자리 이하여야 합니다.');
                 return;
             }
         }
         
-        // 패스워드가 없으면 공개 서버 (빈 문자열 또는 null)
+        // 입장코드가 없으면 공개 서버 (빈 문자열 또는 null)
         const finalPassword = password && password.trim().length > 0 ? password.trim() : '';
         
         try {
@@ -3899,17 +4318,27 @@ io.on('connection', (socket) => {
                     return;
                 }
                 
-                // 서버 생성 시 이름은 필요 없음 (게임 화면에서 설정)
+                // 호스트 코드 검증 및 저장 (입력된 경우에만)
+                let validHostCode = '';
+                if (hostCode && typeof hostCode === 'string' && hostCode.trim().length > 0) {
+                    const trimmedHostCode = hostCode.trim();
+                    // 숫자만 허용
+                    if (/^\d+$/.test(trimmedHostCode) && trimmedHostCode.length >= 4 && trimmedHostCode.length <= 10) {
+                        validHostCode = trimmedHostCode;
+                    }
+                }
+                
+                // 서버 생성 시 호스트 이름 및 호스트 코드 저장
                 const result = await pool.query(
-                    'INSERT INTO servers (name, description, host_id, host_name, password) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, description, host_id, host_name, created_at',
-                    [serverName.trim(), description?.trim() || null, socket.id, 'Unknown', finalPassword]
+                    'INSERT INTO servers (name, description, host_id, host_name, password, host_code) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, description, host_id, host_name, created_at',
+                    [serverName.trim(), description?.trim() || null, socket.id, hostName, finalPassword, validHostCode]
                 );
                 const server = result.rows[0];
                 
-                // 호스트를 멤버로 추가 (이름은 게임 화면에서 설정되므로 'Unknown' 사용)
+                // 호스트를 멤버로 추가 (호스트는 항상 승인됨)
                 await pool.query(
-                    'INSERT INTO server_members (server_id, user_name, socket_id) VALUES ($1, $2, $3) ON CONFLICT (server_id, user_name) DO UPDATE SET socket_id = $3, last_seen = CURRENT_TIMESTAMP',
-                    [server.id, 'Unknown', socket.id]
+                    'INSERT INTO server_members (server_id, user_name, socket_id, is_approved) VALUES ($1, $2, $3, true) ON CONFLICT (server_id, user_name) DO UPDATE SET socket_id = $3, last_seen = CURRENT_TIMESTAMP, is_approved = true',
+                    [server.id, hostName, socket.id]
                 );
                 
                 socket.emit('serverCreated', {
@@ -3917,11 +4346,15 @@ io.on('connection', (socket) => {
                     name: server.name,
                     description: server.description,
                     hostName: server.host_name,
-                    createdAt: server.created_at
+                    createdAt: server.created_at,
+                    isApproved: true, // 호스트는 항상 승인됨
+                    isHost: true
                 });
                 
                 // 모든 클라이언트에게 서버 목록 업데이트 전송
-                const servers = await getServersList();
+                // 각 클라이언트의 userName을 알 수 없으므로 빈 문자열로 전송
+                // 클라이언트에서 정렬 처리
+                const servers = await getServersList('');
                 io.emit('serversList', servers);
                 
                 console.log(`서버 생성: ${serverName} (ID: ${server.id}, Socket ID: ${socket.id})`);
@@ -3937,7 +4370,8 @@ io.on('connection', (socket) => {
     // 서버 목록 조회
     socket.on('getServers', async () => {
         try {
-            const servers = await getServersList();
+            const userName = socket.userName || '';
+            const servers = await getServersList(userName);
             console.log(`📋 서버 목록 조회: ${servers.length}개 서버 발견`);
             socket.emit('serversList', servers);
         } catch (error) {
@@ -3950,9 +4384,9 @@ io.on('connection', (socket) => {
     socket.on('joinServer', async (data) => {
         if (!checkRateLimit()) return;
         
-        const { serverId, password } = data;
-        // 이름은 게임 화면에서 설정하므로 여기서는 'Unknown' 사용
-        const userName = 'Unknown';
+        const { serverId, password, userName: requestUserName } = data;
+        // userName이 전달되면 사용, 없으면 socket.userName 사용, 둘 다 없으면 'Unknown'
+        const userName = requestUserName || socket.userName || 'Unknown';
         
         if (!serverId) {
             socket.emit('serverError', '서버 ID가 필요합니다.');
@@ -3973,43 +4407,125 @@ io.on('connection', (socket) => {
                 }
                 
                 const server = serverResult.rows[0];
+                const isHost = server.host_id === socket.id || server.host_name === userName;
                 
-                // 패스워드가 있는 경우에만 검증
+                // 기존 멤버인지 확인 (비밀번호 검증 전에 확인)
+                const existingMemberResult = await pool.query(
+                    'SELECT is_approved FROM server_members WHERE server_id = $1 AND user_name = $2',
+                    [serverId, userName]
+                );
+                
+                const isExistingMember = existingMemberResult.rows.length > 0;
+                const wasPending = isExistingMember && existingMemberResult.rows[0].is_approved === false;
+                const wasApproved = isExistingMember && existingMemberResult.rows[0].is_approved === true;
+                
+                // 입장코드가 있는 경우에만 검증 (승인된 멤버나 호스트는 제외)
                 const serverPassword = server.password || '';
                 const inputPassword = password || '';
+                const isPrivateServer = serverPassword.length > 0;
                 
-                if (serverPassword.length > 0) {
-                    // 패스워드가 있는 서버인 경우
+                // 이미 승인된 멤버나 호스트는 비밀번호 검증 생략
+                if (isPrivateServer && !wasApproved && !isHost) {
+                    // 비공개 서버인 경우 입장코드 검증
                     if (inputPassword.trim().length === 0) {
-                        socket.emit('serverError', '이 서버는 패스워드가 필요합니다.');
+                        socket.emit('serverError', '이 서버는 입장코드가 필요합니다.');
+                        return;
+                    }
+                    // 숫자만 허용
+                    if (!/^\d+$/.test(inputPassword.trim())) {
+                        socket.emit('serverError', '입장코드는 숫자만 입력 가능합니다.');
                         return;
                     }
                     if (serverPassword !== inputPassword.trim()) {
-                        socket.emit('serverError', '패스워드가 일치하지 않습니다.');
+                        socket.emit('serverError', '입장코드가 일치하지 않습니다.');
                         return;
                     }
-                } else {
-                    // 공개 서버인 경우 (패스워드 없음)
-                    // 패스워드 입력 없이 바로 입장 가능
+                }
+                
+                // 이미 승인된 멤버인 경우 바로 입장
+                if (wasApproved || isHost) {
+                    // socket_id만 업데이트
+                    await pool.query(
+                        `UPDATE server_members SET socket_id = $1, last_seen = CURRENT_TIMESTAMP 
+                         WHERE server_id = $2 AND user_name = $3`,
+                        [socket.id, serverId, userName]
+                    );
+                    
+                    // 현재 서버 ID 저장
+                    socket.currentServerId = serverId;
+                    
+                    socket.emit('serverJoined', {
+                        id: server.id,
+                        name: server.name,
+                        description: server.description,
+                        hostName: server.host_name,
+                        isApproved: true,
+                        isHost: isHost,
+                        wasApproved: true // 이미 승인되어 있었음을 표시
+                    });
+                    console.log(`서버 입장 (이미 승인됨): ${userName} → ${server.name} (ID: ${serverId})`);
+                    return;
                 }
                 
                 // 멤버 추가 또는 업데이트
+                // 호스트는 항상 승인됨, 비공개 서버이고 호스트가 아니면 승인 대기 상태로 저장
+                const shouldApprove = isHost ? true : (!isPrivateServer);
                 await pool.query(
-                    'INSERT INTO server_members (server_id, user_name, socket_id) VALUES ($1, $2, $3) ON CONFLICT (server_id, user_name) DO UPDATE SET socket_id = $3, last_seen = CURRENT_TIMESTAMP',
-                    [serverId, userName, socket.id]
+                    `INSERT INTO server_members (server_id, user_name, socket_id, is_approved) 
+                     VALUES ($1, $2, $3, $4) 
+                     ON CONFLICT (server_id, user_name) 
+                     DO UPDATE SET socket_id = $3, last_seen = CURRENT_TIMESTAMP, is_approved = CASE WHEN $5 THEN true ELSE COALESCE(server_members.is_approved, $4) END`,
+                    [serverId, userName, socket.id, shouldApprove, isHost]
                 );
                 
                 // 현재 서버 ID 저장
                 socket.currentServerId = serverId;
                 
+                // 승인 여부 확인 (호스트는 항상 승인됨)
+                const memberResult = await pool.query(
+                    'SELECT is_approved FROM server_members WHERE server_id = $1 AND user_name = $2',
+                    [serverId, userName]
+                );
+                const isApproved = isHost ? true : (memberResult.rows.length > 0 && memberResult.rows[0].is_approved === true);
+                
+                // 이미 승인 대기 중이었던 경우 - 철회 처리
+                if (wasPending && !isApproved) {
+                    // 이미 대기 중이면 멤버 삭제 (철회)
+                    await pool.query(
+                        'DELETE FROM server_members WHERE server_id = $1 AND user_name = $2',
+                        [serverId, userName]
+                    );
+                    
+                    socket.emit('serverJoined', {
+                        id: server.id,
+                        name: server.name,
+                        description: server.description,
+                        hostName: server.host_name,
+                        isApproved: false,
+                        isHost: isHost,
+                        wasPending: true, // 이미 대기 중이었음을 표시
+                        withdrawn: true // 철회됨을 표시
+                    });
+                    console.log(`서버 입장 신청 철회: ${userName} → ${server.name} (ID: ${serverId})`);
+                    return;
+                }
+                
                 socket.emit('serverJoined', {
                     id: server.id,
                     name: server.name,
                     description: server.description,
-                    hostName: server.host_name
+                    hostName: server.host_name,
+                    isApproved: isApproved,
+                    isHost: isHost
                 });
                 
-                console.log(`서버 입장: ${userName} → ${server.name} (ID: ${serverId})`);
+                console.log(`서버 입장: ${userName} → ${server.name} (ID: ${serverId}), 승인: ${isApproved}, 호스트: ${isHost}`);
+                
+                // 모든 클라이언트에게 서버 목록 업데이트 전송
+                // 각 클라이언트의 userName을 알 수 없으므로 빈 문자열로 전송
+                // 클라이언트에서 정렬 처리
+                const servers = await getServersList('');
+                io.emit('serversList', servers);
             } else {
                 socket.emit('serverError', '데이터베이스가 연결되지 않았습니다.');
             }
@@ -4065,7 +4581,7 @@ io.on('connection', (socket) => {
 });
 
 // 서버 목록 조회 함수
-async function getServersList() {
+async function getServersList(userName = '') {
     if (!pool) {
         console.log('⚠️  데이터베이스 풀이 없습니다. 서버 목록을 반환할 수 없습니다.');
         return [];
@@ -4074,12 +4590,14 @@ async function getServersList() {
     try {
         const result = await pool.query(
             `SELECT s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at,
-                    COUNT(DISTINCT sm.id) as member_count
+                    COUNT(DISTINCT sm.id) as member_count,
+                    BOOL_OR(CASE WHEN sm.user_name = $1 THEN sm.is_approved ELSE NULL END) as is_approved
              FROM servers s
              LEFT JOIN server_members sm ON s.id = sm.server_id
              WHERE s.is_active = true
              GROUP BY s.id, s.name, s.description, s.host_id, s.host_name, s.password, s.created_at
-             ORDER BY s.created_at DESC`
+             ORDER BY s.created_at DESC`,
+            [userName]
         );
         
         console.log(`📊 데이터베이스에서 ${result.rows.length}개 서버 조회됨`);
@@ -4092,7 +4610,8 @@ async function getServersList() {
             hostName: row.host_name,
             memberCount: parseInt(row.member_count) || 0,
             createdAt: row.created_at,
-            hasPassword: row.password && row.password.trim().length > 0 // 패스워드 존재 여부
+            hasPassword: row.password && row.password.trim().length > 0, // 패스워드 존재 여부
+            isApproved: row.is_approved === true // 사용자가 승인된 멤버인지 여부
         }));
         
         return servers;

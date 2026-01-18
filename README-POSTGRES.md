@@ -13,7 +13,7 @@
 프로젝트 루트에 `.env` 파일 생성:
 
 ```env
-DATABASE_URL=postgresql://postgres:password@host:port/railway
+DATABASE_URL=postgresql://postgres:0142@host:port/railway
 ```
 
 ### 3. 서버 실행

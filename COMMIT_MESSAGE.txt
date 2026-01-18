@@ -465,6 +465,26 @@ fix: 사다리타기 게임 제거 및 기록 관리 개선
 
 ---
 
+[2026-01-10] 서버 관리 보안 강화 및 서버 정보 표시 기능 추가
+
+🔒 보안 강화
+- 호스트 코드 URL 노출 제거 (sessionStorage 사용)
+- 서버 인원 관리 API를 GET → POST로 변경
+- 호스트 이름 + 호스트 코드 동시 검증으로 무단 접근 방지
+- serverId 변경만으로는 접근 불가하도록 보안 강화
+
+🏠 서버 정보 표시
+- 게임 화면 헤더에 현재 서버 이름 표시
+- 서버 정보 조회 API 추가 (/api/server/:serverId/info)
+- 서버 이름 localStorage 캐싱으로 성능 최적화
+
+변경 파일:
+- dice-game-multiplayer.html: 호스트 코드 sessionStorage 저장, 서버 이름 표시 기능 추가
+- server-members.html: 호스트 코드 URL 파라미터 제거, POST 요청으로 변경
+- server.js: 서버 정보 조회 API 추가, 호스트 검증 로직 강화
+
+---
+
 feat: 게임 룰 선택 라디오 버튼 기능 추가
 
 ## 주요 변경사항
@@ -748,3 +768,23 @@ feat: 대기실 통계 기능 추가 및 게임 자동 종료 개선
 - dice-game-multiplayer.html
 - CHANGELOG.md
 - COMMIT_MESSAGE.txt
+
+---
+
+[2026-01-10] 서버 관리 보안 강화 및 서버 정보 표시 기능 추가
+
+🔒 보안 강화
+- 호스트 코드 URL 노출 제거 (sessionStorage 사용)
+- 서버 인원 관리 API를 GET → POST로 변경
+- 호스트 이름 + 호스트 코드 동시 검증으로 무단 접근 방지
+- serverId 변경만으로는 접근 불가하도록 보안 강화
+
+🏠 서버 정보 표시
+- 게임 화면 헤더에 현재 서버 이름 표시
+- 서버 정보 조회 API 추가 (/api/server/:serverId/info)
+- 서버 이름 localStorage 캐싱으로 성능 최적화
+
+변경 파일:
+- dice-game-multiplayer.html: 호스트 코드 sessionStorage 저장, 서버 이름 표시 기능 추가
+- server-members.html: 호스트 코드 URL 파라미터 제거, POST 요청으로 변경
+- server.js: 서버 정보 조회 API 추가, 호스트 검증 로직 강화
