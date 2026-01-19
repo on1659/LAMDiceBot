@@ -934,6 +934,30 @@
             color: #667eea;
         }
 
+        .top-player-badge {
+            display: inline-flex;
+            align-items: center;
+            background: #ff6b6b;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
+        .winner-badge {
+            display: inline-flex;
+            align-items: center;
+            background: #28a745;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
         .history-result {
             font-size: 24px;
             font-weight: bold;
@@ -1456,9 +1480,85 @@
         </div>
     </div>
 
+    <!-- 디버그 로그 섹션 -->
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+            </div>
+        </div>
+        <div id="debugLogContent" style="line-height: 1.4;"></div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        
+        // 디버그 로그 함수 (localhost:3000에서만 활성화)
+        const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
+        let debugLogEnabled = isLocalhost;
+        const MAX_LOG_LINES = 100;
+        
+        // localhost:3000이 아니면 디버그 로그 섹션 숨기기
+        if (!isLocalhost) {
+            const debugLogSection = document.getElementById('debugLogSection');
+            if (debugLogSection) {
+                debugLogSection.style.display = 'none';
+            }
+        }
+        
+        function addDebugLog(message, type = 'info') {
+            if (!debugLogEnabled) return;
+            
+            const logSection = document.getElementById('debugLogSection');
+            const logContent = document.getElementById('debugLogContent');
+            
+            if (!logSection || !logContent) return;
+            
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+            const colors = {
+                'info': '#0f0',
+                'warn': '#ff0',
+                'error': '#f00',
+                'animation': '#0ff',
+                'gameEnd': '#ff0'
+            };
+            const color = colors[type] || '#0f0';
+            
+            const logLine = document.createElement('div');
+            logLine.style.color = color;
+            logLine.style.marginBottom = '2px';
+            logLine.innerHTML = `[${timestamp}] ${message}`;
+            
+            logContent.appendChild(logLine);
+            
+            // 최대 로그 라인 수 제한
+            while (logContent.children.length > MAX_LOG_LINES) {
+                logContent.removeChild(logContent.firstChild);
+            }
+            
+            // 자동 스크롤
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // 로그 섹션 표시
+            logSection.style.display = 'block';
+        }
+        
+        function clearDebugLog() {
+            const logContent = document.getElementById('debugLogContent');
+            if (logContent) {
+                logContent.innerHTML = '';
+            }
+        }
+        
+        function toggleDebugLog() {
+            const logSection = document.getElementById('debugLogSection');
+            if (logSection) {
+                logSection.style.display = logSection.style.display === 'none' ? 'block' : 'none';
+            }
+        }
         
         // 이모티콘 설정 (JSON 파일에서 로드)
         let emojiConfig = {
@@ -1579,6 +1679,37 @@
         
         // 주사위 연출 효과 함수들
         const diceAnimationEffects = {
+            // 0. 마지막 사람용 고정 시간 애니메이션 (3.5초 고정: 3초 애니메이션 + 0.5초 대기)
+            fixedDuration: function(diceResultSpan, diceIcon, finalResult, onComplete) {
+                const ANIMATION_DURATION = 3000; // 3초 애니메이션
+                const WAIT_AFTER_ANIMATION = 500; // 애니메이션 완료 후 0.5초 대기
+                const TOTAL_DURATION = ANIMATION_DURATION + WAIT_AFTER_ANIMATION; // 총 3.5초
+                
+                const startTime = Date.now();
+                let currentNum = 1;
+                const maxNum = Math.min(finalResult, 100);
+                
+                const interval = setInterval(() => {
+                    const elapsed = Date.now() - startTime;
+                    
+                    if (elapsed < ANIMATION_DURATION) {
+                        // 애니메이션 단계: 진행률에 따라 숫자 업데이트
+                        const progress = elapsed / ANIMATION_DURATION;
+                        currentNum = Math.floor(1 + (maxNum - 1) * progress);
+                        diceResultSpan.textContent = diceIcon + currentNum;
+                    } else {
+                        // 대기 단계: 최종 결과 표시
+                        diceResultSpan.textContent = diceIcon + finalResult;
+                        
+                        // 정확히 3.5초 후 완료
+                        if (elapsed >= TOTAL_DURATION) {
+                            clearInterval(interval);
+                            onComplete();
+                        }
+                    }
+                }, 16); // 약 60fps
+            },
+            
             // 1. 카운트업 애니메이션
             countUp: function(diceResultSpan, diceIcon, finalResult, onComplete) {
                 let currentNum = 1;
@@ -4229,12 +4360,23 @@
         }
 
         socket.on('gameStarted', (data) => {
+            addDebugLog('🎮 게임 시작 이벤트 수신', 'info');
+            clearDebugLog(); // 새 게임 시작 시 로그 초기화
+            
             isGameActive = true;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
             
             // 게임 시작 시 서버에서 받은 게임 기록 초기화
             window.currentGameHistoryFromServer = null;
+            
+            // 게임 시작 시 이전 당첨자 정보 초기화
+            window.gameWinners = null;
+            
+            // 애니메이션 완료 플래그 초기화
+            window.lastRollerAnimationComplete = false;
+            window.lastRollerAnimationCompleteTime = null;
+            addDebugLog('🔄 애니메이션 완료 플래그 초기화', 'info');
             
             // 게임 시작 시 모든 게임 기록 삭제 (이전 게임 기록 포함)
             historyData = historyData.filter(record => record.isGameActive === false);
@@ -4350,8 +4492,65 @@
             // 서버에서 받은 게임 기록을 전역 변수에 저장 (당첨자 계산 시 사용)
             window.currentGameHistoryFromServer = currentGameHistory;
             
+            // 당첨자 계산 및 저장
+            const calculateAndStoreWinner = async () => {
+                const rulesInput = document.getElementById('gameRulesInput');
+                if (!rulesInput) return;
+                
+                const gameRules = rulesInput.value.trim();
+                if (!gameRules) return;
+                
+                const rulesLower = gameRules.toLowerCase();
+                let winners = [];
+                
+                // 하이 룰: 낮은 사람이 걸림
+                if (rulesLower.includes('하이') && rulesLower.includes('낮은')) {
+                    const minResult = Math.min(...currentGameHistory.map(r => r.result));
+                    const winnerRecords = currentGameHistory.filter(r => r.result === minResult);
+                    winners = winnerRecords.map(r => r.user);
+                }
+                // 로우 룰: 높은 사람이 걸림
+                else if (rulesLower.includes('로우') && rulesLower.includes('높은')) {
+                    const maxResult = Math.max(...currentGameHistory.map(r => r.result));
+                    const winnerRecords = currentGameHistory.filter(r => r.result === maxResult);
+                    winners = winnerRecords.map(r => r.user);
+                }
+                // 니어 룰: 특정 숫자에 가까운 사람이 걸림
+                else if (rulesLower.includes('니어')) {
+                    const nearMatch = gameRules.match(/니어\s*\(?\s*(\d+)\s*\)?/);
+                    if (nearMatch) {
+                        const targetNumber = parseInt(nearMatch[1]);
+                        let minDiff = Infinity;
+                        let winnerRecords = [];
+                        
+                        currentGameHistory.forEach(record => {
+                            const diff = Math.abs(record.result - targetNumber);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                winnerRecords = [record];
+                            } else if (diff === minDiff) {
+                                winnerRecords.push(record);
+                            }
+                        });
+                        
+                        winners = winnerRecords.map(r => r.user);
+                    }
+                }
+                
+                // 당첨자 정보 저장
+                if (winners.length > 0) {
+                    window.gameWinners = winners;
+                }
+            };
+            
+            // 당첨자 계산
+            calculateAndStoreWinner();
+            
             // 애니메이션 완료를 기다리는 함수
             const processGameEnd = () => {
+                addDebugLog('🎯 processGameEnd 호출됨', 'gameEnd');
+                addDebugLog(`📊 애니메이션 상태: complete=${window.lastRollerAnimationComplete}, time=${window.lastRollerAnimationCompleteTime ? new Date(window.lastRollerAnimationCompleteTime).toLocaleTimeString() : 'null'}`, 'gameEnd');
+                
                 isGameActive = false;
                 hasRolledInCurrentGame = false;
                 rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
@@ -4359,6 +4558,7 @@
                 // 애니메이션 완료 플래그 초기화 (게임 종료 시)
                 window.lastRollerAnimationComplete = false;
                 window.lastRollerAnimationCompleteTime = null;
+                addDebugLog('🔄 애니메이션 완료 플래그 초기화', 'gameEnd');
                 
                 // 결과창 표시 플래그 초기화 (다음 게임을 위해)
                 window.allRolledMessageShown = false;
@@ -4412,41 +4612,75 @@
             };
             
             // 마지막 굴리는 사람의 애니메이션이 완료될 때까지 기다림
+            addDebugLog('🎮 gameEnded 이벤트 수신', 'gameEnd');
+            addDebugLog(`📊 currentGameHistory 길이: ${currentGameHistory.length}`, 'gameEnd');
+            
             const checkAnimationComplete = () => {
+                const hasComplete = window.lastRollerAnimationComplete;
+                const completeTime = window.lastRollerAnimationCompleteTime;
+                const now = Date.now();
+                
+                addDebugLog(`🔍 애니메이션 상태 체크: complete=${hasComplete}, time=${completeTime ? new Date(completeTime).toLocaleTimeString() : 'null'}`, 'animation');
+                
                 // 애니메이션이 완료되었거나, 애니메이션이 필요 없는 경우 즉시 처리
-                if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
-                    const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
-                    // 애니메이션 완료 후 최소 0.3초 대기 (애니메이션 효과를 볼 수 있도록)
-                    if (elapsed >= 300) {
-                        processGameEnd();
-                        return true;
-                    }
-                } else if (!window.lastRollerAnimationComplete) {
-                    // 애니메이션이 필요 없는 경우 (마지막 굴리는 사람이 아니거나 애니메이션이 없는 경우)
-                    // 짧은 시간 대기 후 처리 (다른 클라이언트의 애니메이션을 고려)
-                    setTimeout(() => {
-                        processGameEnd();
-                    }, 500);
+                if (hasComplete && completeTime) {
+                    // 마지막 사람의 경우 고정 시간 애니메이션을 사용하므로
+                    // 애니메이션 완료 시간에는 이미 0.5초 대기 시간이 포함되어 있음
+                    // 따라서 즉시 처리 가능
+                    addDebugLog(`✅ 애니메이션 완료 조건 만족 (고정 시간 애니메이션) - processGameEnd 호출`, 'gameEnd');
+                    processGameEnd();
                     return true;
+                } else {
+                    addDebugLog('⏳ 애니메이션이 아직 완료되지 않음', 'animation');
                 }
+                // 애니메이션이 아직 완료되지 않았으면 대기
                 return false;
             };
             
-            // 즉시 확인
-            if (!checkAnimationComplete()) {
+            // 애니메이션 완료를 기다리는 함수
+            const waitForAnimation = () => {
+                addDebugLog('🚀 waitForAnimation 시작', 'gameEnd');
+                
+                // 즉시 확인
+                if (checkAnimationComplete()) {
+                    addDebugLog('✅ 즉시 완료 처리', 'gameEnd');
+                    return;
+                }
+                
+                let checkCount = 0;
                 // 애니메이션이 진행 중이면 완료될 때까지 대기
                 const waitInterval = setInterval(() => {
+                    checkCount++;
+                    if (checkCount % 20 === 0) { // 1초마다 로그 (50ms * 20 = 1000ms)
+                        addDebugLog(`🔄 애니메이션 대기 중... (${checkCount * 50}ms 경과)`, 'animation');
+                    }
                     if (checkAnimationComplete()) {
+                        addDebugLog(`✅ 애니메이션 완료 확인 - interval 정리 (총 ${checkCount}회 체크)`, 'gameEnd');
                         clearInterval(waitInterval);
                     }
                 }, 50); // 50ms마다 확인
                 
-                // 최대 5초 대기 (타임아웃 방지)
+                // 최대 10초 대기 (사람이 많을 때를 고려하여 타임아웃 증가)
                 setTimeout(() => {
+                    addDebugLog('⏰ 타임아웃 발생 (10초 경과)', 'warn');
                     clearInterval(waitInterval);
-                    processGameEnd();
-                }, 5000);
-            }
+                    // 타임아웃이 발생해도 애니메이션이 완료되지 않았으면 강제로 처리
+                    // 하지만 최소한의 대기 시간은 확보
+                    if (!window.lastRollerAnimationComplete) {
+                        addDebugLog('⚠️ 애니메이션이 아직 시작되지 않음 - 추가 1초 대기', 'warn');
+                        // 애니메이션이 아직 시작되지 않았을 수 있으므로 추가 대기
+                        setTimeout(() => {
+                            addDebugLog('⚠️ 강제 processGameEnd 호출 (타임아웃)', 'error');
+                            processGameEnd();
+                        }, 1000);
+                    } else {
+                        addDebugLog('⚠️ 강제 processGameEnd 호출 (타임아웃, 애니메이션 완료됨)', 'warn');
+                        processGameEnd();
+                    }
+                }, 10000);
+            };
+            
+            waitForAnimation();
         });
 
         // 클라이언트 시드 생성
@@ -4581,11 +4815,29 @@
                         
                         // 애니메이션은 마지막 굴리는 사람 또는 하이/로우/니어 게임 조건 만족 시 재생 (테스트용 1001~1006은 예외)
                         if (shouldAnimate && (isLastRoller || hasSpecialAnimation || isTestAnimation)) {
+                            // 마지막 사람의 애니메이션이 시작되면 이전 완료 플래그 리셋
+                            if (isLastRoller) {
+                                addDebugLog(`🔄 마지막 사람 애니메이션 시작 - 이전 완료 플래그 리셋`, 'animation');
+                                window.lastRollerAnimationComplete = false;
+                                window.lastRollerAnimationCompleteTime = null;
+                            }
+                            
+                            addDebugLog(`🎬 애니메이션 시작: user=${record.user}, result=${finalResult}, isLastRoller=${isLastRoller}`, 'animation');
+                            
                             // 애니메이션 완료 콜백 함수
                             const onAnimationComplete = () => {
+                                const completeTime = Date.now();
+                                addDebugLog(`✅ 애니메이션 완료: user=${record.user}, isLastRoller=${isLastRoller}, time=${new Date(completeTime).toLocaleTimeString()}`, 'animation');
+                                
                                 // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
-                                window.lastRollerAnimationComplete = true;
-                                window.lastRollerAnimationCompleteTime = Date.now();
+                                // 마지막 사람인 경우에만 플래그 설정 (중요!)
+                                if (isLastRoller) {
+                                    window.lastRollerAnimationComplete = true;
+                                    window.lastRollerAnimationCompleteTime = completeTime;
+                                    addDebugLog(`📝 lastRollerAnimationComplete 설정: true (마지막 사람), time=${completeTime}`, 'animation');
+                                } else {
+                                    addDebugLog(`ℹ️ 마지막 사람이 아니므로 플래그 설정 안 함`, 'animation');
+                                }
                                 
                                 // 애니메이션 완료 후 기록에 저장
                                 if (shouldSaveToHistory && !isNotReady) {
@@ -4601,8 +4853,14 @@
                                 animationIndex = finalResult - 1001; // 1001→0, 1002→1, ..., 1006→5
                             }
                             
-                            // 랜덤으로 연출 효과 선택하여 재생 (또는 테스트용 특정 효과)
-                            playRandomDiceAnimation(diceResultSpan, diceIcon, finalResult, onAnimationComplete, animationIndex);
+                            // 마지막 사람의 경우 고정 시간 애니메이션 사용
+                            if (isLastRoller) {
+                                addDebugLog(`⏱️ 마지막 사람 - 고정 시간 애니메이션 사용 (3초)`, 'animation');
+                                diceAnimationEffects.fixedDuration(diceResultSpan, diceIcon, finalResult, onAnimationComplete);
+                            } else {
+                                // 랜덤으로 연출 효과 선택하여 재생 (또는 테스트용 특정 효과)
+                                playRandomDiceAnimation(diceResultSpan, diceIcon, finalResult, onAnimationComplete, animationIndex);
+                            }
                         } else {
                             // 애니메이션 없이 바로 최종 숫자 표시
                             diceResultSpan.textContent = diceIcon + finalResult;
@@ -5367,6 +5625,11 @@
                 // 모든 참여자가 주사위를 굴렸다는 메시지인지 확인
                 const isAllRolledMessage = chatMessage.message.includes('모든 참여자가 주사위를 굴렸습니다');
                 
+                // 커스텀 룰의 경우 채팅 메시지에서 당첨자 정보 저장
+                if (chatMessage.winnerInfo && chatMessage.winnerInfo.winners) {
+                    window.gameWinners = chatMessage.winnerInfo.winners;
+                }
+                
                 if (isAllRolledMessage) {
                     // 전역 플래그로 중복 호출 방지
                     if (window.allRolledMessageShown) {
@@ -5662,33 +5925,62 @@
                         window.allRolledWaitInterval = null;
                     }
                     
+                    addDebugLog('💬 채팅 메시지 표시 로직 시작: "모든 참여자가 주사위를 굴렸습니다"', 'info');
+                    addDebugLog(`📊 현재 애니메이션 상태: complete=${window.lastRollerAnimationComplete}, time=${window.lastRollerAnimationCompleteTime ? new Date(window.lastRollerAnimationCompleteTime).toLocaleTimeString() : 'null'}`, 'info');
+                    
                     const checkAndShow = () => {
                         // 이미 표시되었는지 확인
                         if (messageDiv.querySelector('div') && messageDiv.style.display !== 'none') {
+                            addDebugLog('✅ 메시지 이미 표시됨', 'info');
                             return true; // 이미 표시됨
                         }
                         
+                        // 애니메이션이 완료되었는지 확인
+                        // 마지막 사람의 애니메이션이 완료되어야 함
+                        // 마지막 사람은 고정 시간 애니메이션을 사용하므로 완료 시 즉시 표시 가능
                         if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
-                            const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
-                            if (elapsed >= 300) {
-                                showMessage();
-                                return true;
-                            }
+                            addDebugLog('✅ 메시지 표시 조건 만족 (고정 시간 애니메이션 완료) - showMessage 호출', 'info');
+                            showMessage();
+                            return true;
+                        } else {
+                            addDebugLog('⏳ 마지막 사람의 애니메이션이 아직 완료되지 않음 - 대기 중', 'animation');
                         }
+                        // 애니메이션이 아직 완료되지 않았으면 대기
                         return false;
                     };
                     
                     // 즉시 확인 (이미 시간이 지났을 수 있음)
                     if (!checkAndShow()) {
+                        addDebugLog('🔄 메시지 표시 대기 시작', 'info');
+                        let checkCount = 0;
                         // 아직 시간이 안 지났으면 대기
                         window.allRolledWaitInterval = setInterval(() => {
+                            checkCount++;
+                            if (checkCount % 20 === 0) { // 1초마다 로그
+                                addDebugLog(`🔄 메시지 표시 대기 중... (${checkCount * 50}ms 경과)`, 'info');
+                            }
                             if (checkAndShow()) {
+                                addDebugLog(`✅ 메시지 표시 완료 - interval 정리 (총 ${checkCount}회 체크)`, 'info');
                                 if (window.allRolledWaitInterval) {
                                     clearInterval(window.allRolledWaitInterval);
                                     window.allRolledWaitInterval = null;
                                 }
                             }
                         }, 50);
+                        
+                        // 최대 10초 대기 (사람이 많을 때를 고려하여 타임아웃 증가)
+                        setTimeout(() => {
+                            addDebugLog('⏰ 메시지 표시 타임아웃 (10초 경과)', 'warn');
+                            if (window.allRolledWaitInterval) {
+                                clearInterval(window.allRolledWaitInterval);
+                                window.allRolledWaitInterval = null;
+                            }
+                            // 타임아웃이 발생해도 메시지 표시 (애니메이션 완료 여부와 관계없이)
+                            if (!messageDiv.querySelector('div') || messageDiv.style.display === 'none') {
+                                addDebugLog('⚠️ 타임아웃으로 인한 강제 메시지 표시', 'warn');
+                                showMessage();
+                            }
+                        }, 10000);
                         
                         // 최대 5초 대기 후 강제 표시
                         setTimeout(() => {
@@ -5827,10 +6119,132 @@
                     rightContentSpan.appendChild(diceResultSpan);
                 }
                 
+                // 타임스탬프와 이모티콘을 같은 줄에 표시하기 위한 컨테이너
+                const timeReactionsContainer = document.createElement('span');
+                timeReactionsContainer.className = 'time-reactions-container';
+                timeReactionsContainer.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;';
+                
                 const timeSpan = document.createElement('span');
-                timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+                timeSpan.style.cssText = 'font-size: 11px; color: #999;';
                 timeSpan.textContent = chatMessage.time;
-                messageDiv.appendChild(timeSpan);
+                
+                timeReactionsContainer.appendChild(timeSpan);
+                
+                // 반응이 있는 이모티콘 표시 영역 (항상 표시)
+                const activeReactionsDiv = document.createElement('span');
+                activeReactionsDiv.className = 'active-reactions';
+                activeReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px;';
+                
+                // 호버 시 나타나는 이모티콘 버튼들 (기본 숨김)
+                const hoverReactionsDiv = document.createElement('span');
+                hoverReactionsDiv.className = 'hover-reactions';
+                hoverReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
+                
+                // 이모티콘 설정 (전역 변수에서 가져오기)
+                const defaultEmojis = Object.keys(emojiConfig);
+                
+                // 반응이 있는 이모티콘 표시
+                if (chatMessage.reactions && Object.keys(chatMessage.reactions).length > 0) {
+                    Object.entries(chatMessage.reactions).forEach(([emoji, users]) => {
+                        if (users.length > 0 && defaultEmojis.includes(emoji)) {
+                            const reactionBtn = document.createElement('button');
+                            reactionBtn.className = 'reaction-button active';
+                            
+                            const hasReacted = users.includes(currentUser);
+                            
+                            reactionBtn.style.cssText = `
+                                height: 20px;
+                                border-radius: 10px;
+                                background: ${hasReacted ? '#333' : '#555'};
+                                border: none;
+                                color: #ffffff !important;
+                                font-size: 12px;
+                                cursor: pointer;
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 6px;
+                                gap: 4px;
+                                transition: all 0.2s;
+                                vertical-align: middle;
+                                line-height: 1;
+                            `;
+                            
+                            const emojiSpan = document.createElement('span');
+                            emojiSpan.textContent = emoji;
+                            emojiSpan.style.cssText = 'font-size: 12px; line-height: 1;';
+                            
+                            const countSpan = document.createElement('span');
+                            countSpan.textContent = users.length;
+                            countSpan.style.cssText = 'font-size: 12px; color: #ffffff !important; font-weight: 600; line-height: 1; display: inline-block;';
+                            
+                            reactionBtn.appendChild(emojiSpan);
+                            reactionBtn.appendChild(countSpan);
+                            reactionBtn.title = emojiConfig[emoji] || emoji;
+                            
+                            reactionBtn.onclick = () => {
+                                const messageIndex = parseInt(messageDiv.dataset.messageIndex);
+                                socket.emit('toggleReaction', { messageIndex, emoji });
+                            };
+                            
+                            activeReactionsDiv.appendChild(reactionBtn);
+                        }
+                    });
+                }
+                
+                // 호버 시 나타나는 이모티콘 버튼들
+                defaultEmojis.forEach(emoji => {
+                    // 이미 반응이 있는 이모티콘은 호버 버튼에 표시하지 않음
+                    const hasReaction = chatMessage.reactions && 
+                                      chatMessage.reactions[emoji] && 
+                                      chatMessage.reactions[emoji].length > 0;
+                    if (hasReaction) return;
+                    
+                    const reactionBtn = document.createElement('button');
+                    reactionBtn.className = 'reaction-button hover';
+                    
+                    reactionBtn.style.cssText = `
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #000;
+                        border: 1px solid #333;
+                        color: white;
+                        font-size: 10px;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 0;
+                        transition: all 0.2s;
+                        vertical-align: middle;
+                    `;
+                    
+                    reactionBtn.textContent = emoji;
+                    reactionBtn.title = emojiConfig[emoji] || emoji;
+                    
+                    reactionBtn.onclick = () => {
+                        const messageIndex = parseInt(messageDiv.dataset.messageIndex);
+                        socket.emit('toggleReaction', { messageIndex, emoji });
+                    };
+                    
+                    hoverReactionsDiv.appendChild(reactionBtn);
+                });
+                
+                timeReactionsContainer.appendChild(activeReactionsDiv);
+                timeReactionsContainer.appendChild(hoverReactionsDiv);
+                
+                messageDiv.appendChild(timeReactionsContainer);
+                
+                // 메시지에 마우스를 올리면 호버 이모티콘 표시
+                messageDiv.onmouseenter = () => {
+                    hoverReactionsDiv.style.opacity = '0.7';
+                    hoverReactionsDiv.style.pointerEvents = 'auto';
+                };
+                messageDiv.onmouseleave = () => {
+                    hoverReactionsDiv.style.opacity = '0';
+                    hoverReactionsDiv.style.pointerEvents = 'none';
+                };
             } else {
                 // 일반 메시지는 왼쪽 정렬
                 const userNameSpan = document.createElement('span');
@@ -6184,6 +6598,12 @@
 
         function updateHostCheckbox(users) {
             const hostCheckbox = document.getElementById('hostCheckbox');
+            
+            // hostCheckbox 요소가 없으면 함수 종료 (로비 화면이 아닐 수 있음)
+            if (!hostCheckbox) {
+                return;
+            }
+            
             const hasHost = users.some(user => user.isHost === true);
             
             if (hasHost) {
@@ -6238,12 +6658,14 @@
 
         // 히스토리 정렬 함수
         function sortHistoryData(data, mode) {
-            if (data.length === 0) return [];
+            if (data.length === 0) return { sorted: [], topPlayerKeys: new Set() };
             
             const sorted = [...data];
             
-            // 게임 진행 중일 때만 유력한 사람 상단 표시 (정렬 전에 찾기)
+            // 게임 진행 중일 때 유력한 사람, 게임 종료 후 당첨자 상단 표시 (정렬 전에 찾기)
             let topPlayerKeys = new Set(); // 유력한 사람들의 고유 키 (동점일 수 있음)
+            
+            // 게임 진행 중: 유력한 사람 찾기
             if (isGameActive && gamePlayers.length > 0 && sorted.length > 0) {
                 const rulesInput = document.getElementById('gameRulesInput');
                 const gameRules = rulesInput ? rulesInput.value.trim().toLowerCase() : '';
@@ -6287,6 +6709,15 @@
                 }
             }
             
+            // 게임 종료 후: 당첨자도 상단으로 올리기
+            if (!isGameActive && window.gameWinners && window.gameWinners.length > 0 && sorted.length > 0) {
+                sorted.forEach(r => {
+                    if (window.gameWinners.includes(r.user)) {
+                        topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                    }
+                });
+            }
+            
             // 정렬 수행
             if (mode === 'asc') {
                 sorted.sort((a, b) => a.result - b.result);
@@ -6315,7 +6746,7 @@
                 }
             }
             
-            return sorted;
+            return { sorted, topPlayerKeys };
         }
 
         // 정렬 버튼 클릭
@@ -6389,16 +6820,29 @@
                 return;
             }
             
-            const sortedData = sortHistoryData(displayData, currentSortMode);
+            const { sorted: sortedData, topPlayerKeys } = sortHistoryData(displayData, currentSortMode);
             
             historyList.innerHTML = '';
             
             sortedData.forEach(record => {
+                const recordKey = `${record.user}-${record.result}-${record.time}`;
+                const isTopPlayer = topPlayerKeys.has(recordKey);
+                
+                // 게임이 종료된 상태이고 당첨자가 있으면 당첨 배지 표시, 아니면 유력 배지 표시
+                let badgeHtml = '';
+                if (!isGameActive && window.gameWinners && window.gameWinners.includes(record.user)) {
+                    // 게임 종료 후 당첨자에게는 초록색 "당첨" 배지
+                    badgeHtml = '<span class="winner-badge">당첨</span>';
+                } else if (isTopPlayer && isGameActive) {
+                    // 게임 진행 중 유력한 후보에게는 빨간색 "유력" 배지
+                    badgeHtml = '<span class="top-player-badge">유력</span>';
+                }
+                
                 const item = document.createElement('div');
                 item.className = 'history-item';
                 item.innerHTML = `
                     <div>
-                        <div class="history-user">${record.user}</div>
+                        <div class="history-user">${record.user}${badgeHtml}</div>
                         <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
                         <div class="history-time">${record.time}</div>
                     </div>
