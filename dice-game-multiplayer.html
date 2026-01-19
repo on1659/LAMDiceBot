@@ -910,6 +910,8 @@
             max-height: calc(100vh - 200px);
             overflow-y: auto;
             background: #f8f9fa;
+            position: relative;
+            z-index: 1;
             border-radius: 8px;
             padding: 15px;
         }
@@ -923,10 +925,101 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
+            overflow: hidden;
         }
 
         .history-item:last-child {
             margin-bottom: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .history-item.top-player-new {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .history-item.winner-glow {
+            position: relative;
+            background: linear-gradient(135deg, #fff9e6 0%, #ffffff 50%, #fff9e6 100%);
+            border-left: 4px solid #28a745;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+            animation: winnerPulse 2s ease-in-out infinite;
+            transform: scale(1);
+        }
+
+        @keyframes winnerPulse {
+            0%, 100% {
+                box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35), 0 0 40px rgba(255, 215, 0, 0.25);
+                transform: scale(1.02);
+            }
+        }
+
+        .history-item.winner-glow::before {
+            content: '✨';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 20px;
+            animation: sparkle 1.5s ease-in-out infinite;
+            z-index: 1;
+            filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.8));
+        }
+
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0.6;
+                transform: scale(0.8) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2) rotate(180deg);
+            }
+        }
+
+        .history-item.winner-glow::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 6px;
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(255, 255, 255, 0.3) 50%,
+                transparent 70%
+            );
+            background-size: 200% 200%;
+            animation: shimmer 3s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .history-item.winner-glow > * {
+            position: relative;
+            z-index: 1;
         }
 
         .history-user {
@@ -1974,6 +2067,8 @@
         let hasRolledInCurrentGame = false;
         let rolledUsersInGame = []; // 게임 중 굴린 사용자 목록 추적
         let historyData = [];
+        let lastTopPlayerKeys = new Set(); // 이전 렌더링에서 유력했던 사람들 추적
+        let lastWinnerKeys = new Set(); // 이전 렌더링에서 당첨자였던 사람들 추적
         let currentSortMode = 'time'; // 기본값을 시간순으로 변경
         let ordersData = {};
         let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순), 'count' (주문 많은 순)
@@ -4372,6 +4467,12 @@
             
             // 게임 시작 시 이전 당첨자 정보 초기화
             window.gameWinners = null;
+            
+            // 게임 시작 시 이전 유력한 사람 목록 초기화
+            lastTopPlayerKeys = new Set();
+            
+            // 게임 시작 시 이전 당첨자 목록 초기화
+            lastWinnerKeys = new Set();
             
             // 애니메이션 완료 플래그 초기화
             window.lastRollerAnimationComplete = false;
@@ -6827,6 +6928,7 @@
             sortedData.forEach(record => {
                 const recordKey = `${record.user}-${record.result}-${record.time}`;
                 const isTopPlayer = topPlayerKeys.has(recordKey);
+                const isNewTopPlayer = isTopPlayer && isGameActive && !lastTopPlayerKeys.has(recordKey);
                 
                 // 게임이 종료된 상태이고 당첨자가 있으면 당첨 배지 표시, 아니면 유력 배지 표시
                 let badgeHtml = '';
@@ -6840,6 +6942,23 @@
                 
                 const item = document.createElement('div');
                 item.className = 'history-item';
+                
+                // 새로 유력해진 사람에게 애니메이션 적용
+                if (isNewTopPlayer) {
+                    item.classList.add('top-player-new');
+                }
+                
+                // 당첨자 체크 및 외곽선 애니메이션 적용
+                const isWinner = !isGameActive && window.gameWinners && window.gameWinners.includes(record.user);
+                const isNewWinner = isWinner && !lastWinnerKeys.has(recordKey);
+                
+                if (isNewWinner) {
+                    item.classList.add('winner-glow');
+                } else if (isWinner) {
+                    // 이미 당첨자였던 경우에도 계속 애니메이션 유지
+                    item.classList.add('winner-glow');
+                }
+                
                 item.innerHTML = `
                     <div>
                         <div class="history-user">${record.user}${badgeHtml}</div>
@@ -6850,6 +6969,23 @@
                 `;
                 historyList.appendChild(item);
             });
+            
+            // 현재 유력한 사람들을 저장 (다음 렌더링에서 비교용)
+            lastTopPlayerKeys = new Set(topPlayerKeys);
+            
+            // 현재 당첨자들을 저장 (다음 렌더링에서 비교용)
+            if (!isGameActive && window.gameWinners && window.gameWinners.length > 0) {
+                const currentWinnerKeys = new Set();
+                sortedData.forEach(record => {
+                    const recordKey = `${record.user}-${record.result}-${record.time}`;
+                    if (window.gameWinners.includes(record.user)) {
+                        currentWinnerKeys.add(recordKey);
+                    }
+                });
+                lastWinnerKeys = currentWinnerKeys;
+            } else {
+                lastWinnerKeys = new Set();
+            }
             
             updateRolledUsersCount();
         }
