@@ -877,7 +877,7 @@ io.on('connection', (socket) => {
     socket.on('createRoom', async (data) => {
         if (!checkRateLimit()) return;
         
-        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser } = data;
+        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser, turboAnimation } = data;
         
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -965,6 +965,9 @@ io.on('connection', (socket) => {
         const roomId = generateRoomId();
         const finalRoomName = roomName.trim();
         
+        // 터보 애니메이션 옵션 검증 (기본값: true)
+        const validTurboAnimation = turboAnimation !== false;
+        
         rooms[roomId] = {
             roomId,
             hostId: socket.id,
@@ -975,6 +978,7 @@ io.on('connection', (socket) => {
             gameType: validGameType, // 게임 타입 추가
             expiryHours: validExpiryHours, // 방 유지 시간 추가 (시간 단위)
             blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
+            turboAnimation: validTurboAnimation, // 터보 애니메이션 (다양한 마무리 효과)
             gameState: createRoomGameState(),
             createdAt: new Date()
         };
@@ -1033,6 +1037,7 @@ io.on('connection', (socket) => {
             createdAt: room.createdAt, // 방 생성 시간 추가
             expiryHours: validExpiryHours, // 방 유지 시간 추가
             blockIPPerUser: validBlockIPPerUser, // IP 차단 옵션 추가
+            turboAnimation: validTurboAnimation, // 터보 애니메이션 옵션 추가
             gameRules: gameState.gameRules, // 게임 룰 추가
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
@@ -1168,6 +1173,7 @@ io.on('connection', (socket) => {
                 createdAt: room.createdAt, // 방 생성 시간 추가
                 expiryHours: room.expiryHours || 1, // 방 유지 시간 추가
                 blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
+                turboAnimation: room.turboAnimation !== false, // 터보 애니메이션 옵션 추가
                 diceSettings: gameState.userDiceSettings[userName.trim()],
                 myOrder: gameState.userOrders[userName.trim()] || '',
                 gameRules: gameState.gameRules,
@@ -1308,6 +1314,7 @@ io.on('connection', (socket) => {
             createdAt: room.createdAt, // 방 생성 시간 추가
             expiryHours: room.expiryHours || 3, // 방 유지 시간 추가
             blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
+            turboAnimation: room.turboAnimation !== false, // 터보 애니메이션 옵션 추가
             diceSettings: gameState.userDiceSettings[userName.trim()],
             myOrder: gameState.userOrders[userName.trim()] || '',
             gameRules: gameState.gameRules,
@@ -2320,6 +2327,41 @@ io.on('connection', (socket) => {
 
     // ========== 룰렛 게임 이벤트 핸들러 ==========
     
+    // 터보 애니메이션 설정 변경 (호스트만 가능)
+    socket.on('updateTurboAnimation', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const roomId = socket.currentRoomId;
+        if (!roomId || !rooms[roomId]) {
+            socket.emit('roomError', '방을 찾을 수 없습니다.');
+            return;
+        }
+        
+        const room = rooms[roomId];
+        
+        // 호스트만 변경 가능
+        if (socket.id !== room.hostId) {
+            socket.emit('roomError', '호스트만 설정을 변경할 수 있습니다.');
+            return;
+        }
+        
+        // 게임 진행 중에는 변경 불가
+        if (room.gameState && room.gameState.isGameActive) {
+            socket.emit('roomError', '게임 진행 중에는 설정을 변경할 수 없습니다.');
+            return;
+        }
+        
+        // 설정 변경
+        room.turboAnimation = data.turboAnimation === true;
+        
+        console.log(`🚀 터보 애니메이션 설정 변경: ${room.turboAnimation} (방: ${room.roomName})`);
+        
+        // 모든 클라이언트에게 업데이트 전송
+        io.to(roomId).emit('turboAnimationUpdated', {
+            turboAnimation: room.turboAnimation
+        });
+    });
+    
     // 룰렛 게임 시작 (방장만 가능)
     socket.on('startRoulette', () => {
         if (!checkRateLimit()) return;
@@ -2417,6 +2459,52 @@ io.on('connection', (socket) => {
         // 기록 저장
         gameState.rouletteHistory.push(record);
         
+        // ========== 룰렛 마무리 효과 결정 (서버에서 결정하여 모든 클라이언트 동기화) ==========
+        // ========== 룰렛 마무리 효과 결정 ==========
+        // turboAnimation 옵션에 따라 효과 결정
+        let effectType, effectParams;
+        
+        if (room.turboAnimation === false) {
+            // 터보 애니메이션 비활성화: 항상 일반 모드
+            effectType = 'normal';
+            effectParams = {};
+            console.log(`🎰 룰렛 효과 결정: ${effectType} (터보 애니메이션 비활성화)`);
+        } else {
+            // 터보 애니메이션 활성화: 다양한 효과 적용
+            // 효과 타입: normal(30%), bounce(25%), shake(25%), slowCrawl(20%)
+            const effectRoll = Math.random();
+            
+            if (effectRoll < 0.30) {
+                // 일반 모드: 스무스하게 감속
+                effectType = 'normal';
+                effectParams = {};
+            } else if (effectRoll < 0.55) {
+                // 바운스 모드: 살짝 지나갔다가 탄성으로 돌아옴
+                effectType = 'bounce';
+                effectParams = {
+                    overshootDeg: 8 + Math.random() * 12, // 8~20도 지나감
+                    bounceDuration: 400 + Math.random() * 200 // 400~600ms 바운스
+                };
+            } else if (effectRoll < 0.80) {
+                // 떨림 모드: 마지막에 앞뒤로 흔들리다가 멈춤
+                effectType = 'shake';
+                effectParams = {
+                    shakeCount: 2 + Math.floor(Math.random() * 2), // 2~3번 흔들림
+                    shakeAmplitudes: [6 + Math.random() * 4, 3 + Math.random() * 2, 1 + Math.random()], // 점점 줄어드는 흔들림
+                    shakeDuration: 150 + Math.random() * 100 // 각 흔들림 150~250ms
+                };
+            } else {
+                // 느린 크롤 모드: 마지막에 극도로 느려지며 한 칸씩 넘어가는 느낌
+                effectType = 'slowCrawl';
+                effectParams = {
+                    crawlDistance: 30 + Math.random() * 60, // 마지막 30~90도를 천천히
+                    crawlDuration: 1500 + Math.random() * 1000 // 1.5~2.5초 동안 천천히
+                };
+            }
+            
+            console.log(`🎰 룰렛 효과 결정: ${effectType}`, effectParams);
+        }
+        
         // 모든 클라이언트에게 룰렛 시작 이벤트 전송
         // finalAngle은 클라이언트가 직접 계산
         io.to(room.roomId).emit('rouletteStarted', {
@@ -2426,7 +2514,9 @@ io.on('connection', (socket) => {
             winnerIndex: winnerIndex,
             winner: winner,
             record: record,
-            everPlayedUsers: gameState.everPlayedUsers // 누적 참여자 목록 전송
+            everPlayedUsers: gameState.everPlayedUsers, // 누적 참여자 목록 전송
+            effectType: effectType, // 마무리 효과 타입
+            effectParams: effectParams // 효과 파라미터
         });
         
         // 채팅에 시스템 메시지 추가 (한국 시간 - 위에서 선언한 now와 koreaTime 재사용)

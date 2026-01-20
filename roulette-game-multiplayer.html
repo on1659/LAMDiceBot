@@ -909,6 +909,17 @@
                 </div>
             </div>
             
+            <!-- 터보 애니메이션 설정 -->
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="createRoomTurboCheckbox" style="width: auto; margin: 0;" checked>
+                    <span style="font-weight: bold; color: #333;">🚀 터보 애니메이션</span>
+                </label>
+                <div style="font-size: 12px; color: #666; margin-top: 5px; margin-left: 26px;">
+                    활성화 시 룰렛 마무리에 다양한 효과 적용 (바운스, 떨림, 느린크롤)
+                </div>
+            </div>
+            
             <!-- 방 유지 시간 -->
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px;">⏰ 방 유지 시간</label>
@@ -938,9 +949,10 @@
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 -->
             <div class="room-header">
-                <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <span class="room-title" id="roomTitle">룰렛 방</span>
                     <span class="host-badge" id="hostBadge">👑 호스트</span>
+                    <span id="turboBadge" class="turbo-badge" style="display: none; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🚀 터보</span>
                 </div>
                 <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #6c757d; margin-top: 10px;">🚪 나가기</button>
             </div>
@@ -1067,6 +1079,15 @@
                 </div>
             </div>
 
+            <!-- 터보 애니메이션 설정 (호스트 전용) -->
+            <div id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(124, 77, 255, 0.1); border-radius: 8px;">
+                <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="turboToggle" style="width: auto; margin: 0;" onchange="toggleTurboAnimation()">
+                    <span style="font-weight: bold; color: #7c4dff;">🚀 터보 애니메이션</span>
+                </label>
+                <div style="font-size: 11px; color: #666; margin-top: 5px;">다양한 마무리 효과</div>
+            </div>
+            
             <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
             <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
                 <button class="end-button" onclick="endRouletteGame()">🏁 게임 종료</button>
@@ -1307,6 +1328,7 @@
         let isReady = false;
         let readyUsers = [];
         let roomsList = [];
+        let turboAnimation = true; // 터보 애니메이션 옵션 (기본값: 활성화)
         let selectedRoomId = null;
         let rouletteHistory = [];
         let isSpinning = false;
@@ -1378,6 +1400,7 @@
             const roomName = document.getElementById('createRoomNameInput').value.trim();
             const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
             const password = document.getElementById('createRoomPasswordInput').value.trim();
+            const turboAnimation = document.getElementById('createRoomTurboCheckbox').checked;
             const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
             const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
 
@@ -1407,7 +1430,8 @@
                 gameType: 'roulette',
                 expiryHours: expiryHours,
                 blockIPPerUser: false,
-                deviceId: getDeviceId()
+                deviceId: getDeviceId(),
+                turboAnimation: turboAnimation
             });
         }
 
@@ -1711,69 +1735,183 @@
         }
 
         // 룰렛 애니메이션
-        function spinRoulette(finalAngle, duration, callback) {
+        // effectType: 서버에서 결정한 마무리 효과 타입 (normal, bounce, shake, slowCrawl)
+        // effectParams: 효과별 파라미터 (서버에서 결정)
+        function spinRoulette(finalAngle, duration, effectType, effectParams, callback) {
             const wheel = document.getElementById('rouletteWheel');
             
             // 기존 transitionend 이벤트 리스너 제거 (중복 방지)
             if (wheel._rouletteTransitionHandler) {
                 wheel.removeEventListener('transitionend', wheel._rouletteTransitionHandler);
-                if (wheel._rouletteTransitionTimeout) {
-                    clearTimeout(wheel._rouletteTransitionTimeout);
-                }
+            }
+            if (wheel._rouletteTransitionTimeout) {
+                clearTimeout(wheel._rouletteTransitionTimeout);
+            }
+            if (wheel._rouletteShakeInterval) {
+                clearInterval(wheel._rouletteShakeInterval);
             }
             
             let callbackCalled = false;
             const animationStartTime = Date.now();
             
-            // transitionend 이벤트로 애니메이션 완료 정확히 감지
-            const transitionHandler = (e) => {
-                // transform 속성의 transition만 처리
-                if (e.propertyName === 'transform' && !callbackCalled) {
-                    // 실제 경과 시간 확인 (너무 빨리 발생하면 무시)
-                    const elapsed = Date.now() - animationStartTime;
-                    const minDuration = duration * 0.5; // 최소 50% 이상 경과해야 함 (너무 엄격하지 않게)
-                    
-                    if (elapsed < minDuration) {
-                        console.log(`⚠️ transitionend가 너무 빨리 발생했습니다 (${elapsed}ms < ${minDuration}ms). 무시합니다.`);
-                        return;
-                    }
-                    
-                    callbackCalled = true;
-                    wheel.removeEventListener('transitionend', transitionHandler);
+            // 콜백 호출 헬퍼 함수
+            const finishAnimation = (mode) => {
+                if (callbackCalled) return;
+                callbackCalled = true;
+                const elapsed = Date.now() - animationStartTime;
+                console.log(`✅ 룰렛 애니메이션 완료 - ${mode} (경과 시간: ${elapsed}ms)`);
+                if (wheel._rouletteTransitionHandler) {
+                    wheel.removeEventListener('transitionend', wheel._rouletteTransitionHandler);
                     wheel._rouletteTransitionHandler = null;
-                    if (wheel._rouletteTransitionTimeout) {
-                        clearTimeout(wheel._rouletteTransitionTimeout);
-                        wheel._rouletteTransitionTimeout = null;
-                    }
-                    console.log(`✅ 룰렛 애니메이션 완료 (경과 시간: ${elapsed}ms, 목표: ${duration}ms)`);
-                    if (callback) callback();
                 }
+                if (wheel._rouletteTransitionTimeout) {
+                    clearTimeout(wheel._rouletteTransitionTimeout);
+                    wheel._rouletteTransitionTimeout = null;
+                }
+                if (wheel._rouletteShakeInterval) {
+                    clearInterval(wheel._rouletteShakeInterval);
+                    wheel._rouletteShakeInterval = null;
+                }
+                if (callback) callback();
             };
             
-            wheel._rouletteTransitionHandler = transitionHandler;
-            wheel.addEventListener('transitionend', transitionHandler);
+            addDebugLog(`🎰 룰렛 효과: ${effectType}`, 'animation');
+            console.log(`🎰 룰렛 효과: ${effectType}`, effectParams);
             
-            // 안전장치: 최대 대기 시간 (duration + 1000ms 여유)
+            // 메인 회전 (모든 효과 공통) - 최종 위치 근처까지 회전
+            const mainDuration = duration * 0.75; // 전체 시간의 75%를 메인 회전에 사용
+            const effectDuration = duration * 0.25; // 나머지 25%를 마무리 효과에 사용
+            
+            // 효과별 마무리 각도 조정
+            let preEffectAngle = finalAngle;
+            if (effectType === 'bounce') {
+                preEffectAngle = finalAngle + (effectParams.overshootDeg || 15); // 바운스: 살짝 지나감
+            } else if (effectType === 'shake') {
+                preEffectAngle = finalAngle; // 떨림: 정확한 위치에서 흔들림
+            } else if (effectType === 'slowCrawl') {
+                preEffectAngle = finalAngle - (effectParams.crawlDistance || 45); // 느린 크롤: 조금 전에서 시작
+            }
+            
+            // 메인 회전 시작
+            wheel.style.transition = `transform ${mainDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+            wheel.offsetHeight;
+            wheel.style.transform = `rotate(${preEffectAngle}deg)`;
+            
+            // 메인 회전 완료 후 마무리 효과
+            setTimeout(() => {
+                if (callbackCalled) return;
+                
+                switch (effectType) {
+                    case 'bounce':
+                        // 🔄 바운스 효과: 지나갔다가 탄성으로 돌아옴
+                        addDebugLog('🔄 바운스 효과 발동!', 'animation');
+                        const bounceDuration = effectParams.bounceDuration || 500;
+                        
+                        const bounceHandler = (e) => {
+                            if (e.propertyName === 'transform') {
+                                finishAnimation('바운스');
+                            }
+                        };
+                        wheel._rouletteTransitionHandler = bounceHandler;
+                        wheel.addEventListener('transitionend', bounceHandler);
+                        
+                        // 탄성 있게 돌아오기 (ease-out-back 느낌)
+                        wheel.style.transition = `transform ${bounceDuration}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+                        wheel.offsetHeight;
+                        wheel.style.transform = `rotate(${finalAngle}deg)`;
+                        break;
+                        
+                    case 'shake':
+                        // 📳 떨림 효과: 앞뒤로 흔들리다가 멈춤
+                        addDebugLog('📳 떨림 효과 발동!', 'animation');
+                        const shakeCount = effectParams.shakeCount || 3;
+                        const shakeAmplitudes = effectParams.shakeAmplitudes || [5, 3, 1];
+                        const shakeDuration = effectParams.shakeDuration || 150;
+                        
+                        let shakeIndex = 0;
+                        let direction = 1;
+                        
+                        const doShake = () => {
+                            if (callbackCalled) return;
+                            
+                            const amplitude = shakeAmplitudes[Math.floor(shakeIndex / 2)] || 1;
+                            const targetAngle = finalAngle + (amplitude * direction);
+                            
+                            wheel.style.transition = `transform ${shakeDuration}ms ease-out`;
+                            wheel.offsetHeight;
+                            wheel.style.transform = `rotate(${targetAngle}deg)`;
+                            
+                            direction *= -1;
+                            shakeIndex++;
+                            
+                            if (shakeIndex >= shakeCount * 2) {
+                                // 마지막: 정확한 위치로
+                                setTimeout(() => {
+                                    if (callbackCalled) return;
+                                    wheel.style.transition = `transform ${shakeDuration}ms ease-out`;
+                                    wheel.offsetHeight;
+                                    wheel.style.transform = `rotate(${finalAngle}deg)`;
+                                    setTimeout(() => finishAnimation('떨림'), shakeDuration);
+                                }, shakeDuration);
+                            } else {
+                                setTimeout(doShake, shakeDuration);
+                            }
+                        };
+                        
+                        doShake();
+                        break;
+                        
+                    case 'slowCrawl':
+                        // 🐌 느린 크롤 효과: 극도로 느리게 마지막 구간 이동
+                        addDebugLog('🐌 느린 크롤 효과 발동!', 'animation');
+                        const crawlDuration = effectParams.crawlDuration || 2000;
+                        
+                        const crawlHandler = (e) => {
+                            if (e.propertyName === 'transform') {
+                                finishAnimation('느린 크롤');
+                            }
+                        };
+                        wheel._rouletteTransitionHandler = crawlHandler;
+                        wheel.addEventListener('transitionend', crawlHandler);
+                        
+                        // 극도로 느리게 (ease-out으로 점점 더 느려짐)
+                        wheel.style.transition = `transform ${crawlDuration}ms cubic-bezier(0.1, 0.9, 0.2, 1)`;
+                        wheel.offsetHeight;
+                        wheel.style.transform = `rotate(${finalAngle}deg)`;
+                        break;
+                        
+                    default:
+                        // 🎯 일반 모드: 이미 메인 회전에서 최종 위치에 도달
+                        addDebugLog('🎯 일반 모드 완료', 'animation');
+                        finishAnimation('일반');
+                        break;
+                }
+            }, mainDuration);
+            
+            // 안전장치: 전체 시간 + 여유
+            const totalTimeout = effectType === 'shake' ? duration + 3000 : duration + 2000;
             wheel._rouletteTransitionTimeout = setTimeout(() => {
                 if (!callbackCalled) {
-                    const elapsed = Date.now() - animationStartTime;
-                    console.warn(`⚠️ transitionend 이벤트가 발생하지 않아 timeout으로 콜백 호출 (경과 시간: ${elapsed}ms, 목표: ${duration}ms)`);
-                    callbackCalled = true;
-                    wheel.removeEventListener('transitionend', transitionHandler);
-                    wheel._rouletteTransitionHandler = null;
-                    wheel._rouletteTransitionTimeout = null;
-                    if (callback) callback();
+                    console.warn(`⚠️ 안전장치 timeout 발동 (${effectType})`);
+                    finishAnimation('안전장치');
                 }
-            }, duration + 1000);
+            }, totalTimeout);
+        }
+        
+        // 이전 버전 호환을 위한 래퍼 (useSpurt 파라미터 지원)
+        function spinRouletteCompat(finalAngle, duration, useSpurtOrEffectType, effectParamsOrCallback, callbackOrUndefined) {
+            // 새 API: spinRoulette(finalAngle, duration, effectType, effectParams, callback)
+            // 구 API: spinRoulette(finalAngle, duration, useSpurt, callback)
             
-            // transition 설정 후 transform 적용
-            wheel.style.transition = `transform ${duration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
-            
-            // 강제 리플로우
-            wheel.offsetHeight;
-            
-            // transform 적용
-            wheel.style.transform = `rotate(${finalAngle}deg)`;
+            if (typeof useSpurtOrEffectType === 'string') {
+                // 새 API
+                spinRoulette(finalAngle, duration, useSpurtOrEffectType, effectParamsOrCallback, callbackOrUndefined);
+            } else {
+                // 구 API (useSpurt boolean)
+                const effectType = useSpurtOrEffectType ? 'bounce' : 'normal';
+                const effectParams = {};
+                spinRoulette(finalAngle, duration, effectType, effectParams, effectParamsOrCallback);
+            }
         }
 
         // 접속자 목록 업데이트
@@ -2181,7 +2319,8 @@
             rouletteResultShown = false;
             
             setTimeout(() => {
-                spinRoulette(finalAngle, data.spinDuration, () => {
+                // 서버에서 결정한 효과를 사용 (동일한 애니메이션 재현)
+                spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
                     addDebugLog('✅ 다시보기 애니메이션 완료', 'animation');
                     
                     isSpinning = false;
@@ -2201,6 +2340,28 @@
                     if (isHost) {
                         document.getElementById('endGameSection').style.display = 'block';
                     }
+                    
+                    // 다시보기에서 채팅 메시지 표시
+                    const winnerMessage = {
+                        userName: '시스템',
+                        message: `🎊🎉 축하합니다! ${data.winner}님이 당첨되었습니다! 🎉🎊`,
+                        timestamp: new Date().toISOString(),
+                        isSystem: true,
+                        isRouletteWinner: true
+                    };
+                    addChatMessage(winnerMessage);
+                    
+                    // 다시보기에서 기록 업데이트
+                    if (data.record) {
+                        // 중복 방지: 이미 같은 라운드가 있는지 확인
+                        const existingRecord = rouletteHistory.find(r => r.round === data.record.round);
+                        if (!existingRecord) {
+                            rouletteHistory.push(data.record);
+                            renderHistory();
+                        }
+                    }
+                    
+                    addDebugLog(`📢 다시보기 채팅 및 기록 표시 완료`, 'info');
                     
                     // 놓친 데이터 초기화
                     missedRouletteData = null;
@@ -2251,6 +2412,42 @@
             updateCountdown();
             roomExpiryInterval = setInterval(updateCountdown, 1000);
         }
+        
+        // 터보 애니메이션 배지 업데이트
+        function updateTurboAnimationBadge() {
+            const badge = document.getElementById('turboBadge');
+            if (badge) {
+                badge.style.display = turboAnimation ? 'inline-block' : 'none';
+            }
+        }
+        
+        // 터보 애니메이션 설정 UI 업데이트
+        function updateTurboSettingUI() {
+            const section = document.getElementById('turboSettingSection');
+            const toggle = document.getElementById('turboToggle');
+            
+            if (section) {
+                // 호스트만 표시
+                section.style.display = isHost ? 'block' : 'none';
+            }
+            
+            if (toggle) {
+                toggle.checked = turboAnimation;
+            }
+        }
+        
+        // 터보 애니메이션 토글
+        function toggleTurboAnimation() {
+            if (!isHost) {
+                alert('호스트만 설정을 변경할 수 있습니다.');
+                return;
+            }
+            
+            const toggle = document.getElementById('turboToggle');
+            const newValue = toggle.checked;
+            
+            socket.emit('updateTurboAnimation', { turboAnimation: newValue });
+        }
 
         // 게임 화면 초기화
         function initializeGameScreen(data) {
@@ -2259,6 +2456,11 @@
             if (data.createdAt && data.expiryHours) {
                 startRoomExpiryCountdown(data.createdAt, data.expiryHours);
             }
+            
+            // 터보 애니메이션 옵션 저장
+            turboAnimation = data.turboAnimation !== false;
+            updateTurboAnimationBadge();
+            updateTurboSettingUI();
             
             // 사용자 목록 초기화
             if (data.gameState && data.gameState.users) {
@@ -2560,11 +2762,20 @@
         });
 
         socket.on('newMessage', (data) => {
-            // 룰렛 당첨 메시지이고 화면이 숨겨져 있으면 표시하지 않음 (다시보기에서 확인 가능)
-            if (data.isRouletteWinner && document.visibilityState !== 'visible') {
-                addDebugLog(`🔇 룰렛 당첨 메시지 숨김 (화면 NOT visible) - winner: ${data.message}`, 'visibility');
-                console.log('⚠️ 화면이 숨겨져 있어 룰렛 당첨 메시지를 표시하지 않습니다.');
-                return;
+            // 룰렛 당첨 메시지 처리
+            if (data.isRouletteWinner) {
+                // 화면이 숨겨져 있으면 표시하지 않음 (다시보기에서 확인 가능)
+                if (document.visibilityState !== 'visible') {
+                    addDebugLog(`🔇 룰렛 당첨 메시지 숨김 (화면 NOT visible) - winner: ${data.message}`, 'visibility');
+                    console.log('⚠️ 화면이 숨겨져 있어 룰렛 당첨 메시지를 표시하지 않습니다.');
+                    return;
+                }
+                // 다시보기 데이터가 있으면 표시하지 않음 (다시보기 완료 후 표시)
+                if (missedRouletteData) {
+                    addDebugLog(`🔇 룰렛 당첨 메시지 숨김 (다시보기 대기중) - winner: ${data.message}`, 'visibility');
+                    console.log('⚠️ 다시보기 대기중이라 룰렛 당첨 메시지를 표시하지 않습니다.');
+                    return;
+                }
             }
             addChatMessage(data);
         });
@@ -2817,9 +3028,9 @@
                 const wasSpinning = isSpinning;
                 const animationStartTime = Date.now();
                 rouletteResultShown = false; // 결과 표시 플래그 초기화
-                addDebugLog(`🎬 spinRoulette 호출 시작 - wasSpinning: ${wasSpinning}, rouletteResultShown: ${rouletteResultShown}`, 'animation');
+                addDebugLog(`🎬 spinRoulette 호출 시작 - wasSpinning: ${wasSpinning}, rouletteResultShown: ${rouletteResultShown}, effectType: ${data.effectType}`, 'animation');
                 
-                spinRoulette(finalAngle, data.spinDuration, () => {
+                spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
                     addDebugLog(`🔄 spinRoulette 콜백 실행 - rouletteResultShown: ${rouletteResultShown}, wasSpinning: ${wasSpinning}`, 'animation');
                     
                     // 중복 호출 방지
@@ -2974,6 +3185,14 @@
 
         socket.on('rouletteEnded', (data) => {
             // 결과 처리 완료
+        });
+        
+        // 터보 애니메이션 설정 업데이트
+        socket.on('turboAnimationUpdated', (data) => {
+            turboAnimation = data.turboAnimation;
+            updateTurboAnimationBadge();
+            updateTurboSettingUI();
+            addDebugLog(`🚀 터보 애니메이션 ${turboAnimation ? '활성화' : '비활성화'}됨`, 'info');
         });
 
         socket.on('rouletteGameEnded', (data) => {
