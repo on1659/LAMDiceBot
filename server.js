@@ -3260,7 +3260,7 @@ io.on('connection', (socket) => {
                                 todayGameRecords.forEach(record => {
                                     // 중복 체크 (이미 저장된 기록인지 확인)
                                     const alreadyExists = todayDiceRecords.some(r => 
-                                        r.user === record.user && 
+                                        r.user === record.user &&   
                                         r.result === record.result && 
                                         r.time === record.time &&
                                         r.date === record.date

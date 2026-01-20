@@ -1072,6 +1072,16 @@
                 <button class="end-button" onclick="endRouletteGame()">🏁 게임 종료</button>
             </div>
 
+            <!-- 다시보기 버튼 (화면 숨김 상태에서 룰렛이 진행된 경우 표시) -->
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                <div style="color: white; margin-bottom: 12px; font-size: 14px;">
+                    🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다
+                </div>
+                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
+                    🔄 다시보기
+                </button>
+            </div>
+
             <!-- 채팅 섹션 -->
             <div class="chat-section">
                 <div style="font-weight: bold; color: #7c4dff; margin-bottom: 10px;">💬 채팅</div>
@@ -1113,8 +1123,84 @@
         </div>
     </div>
 
+    <!-- 디버그 로그 섹션 -->
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🎰 룰렛 디버그 로그</div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+            </div>
+        </div>
+        <div id="debugLogContent" style="line-height: 1.4;"></div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // 디버그 로그 함수 (localhost:3000에서만 활성화)
+        const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
+        let debugLogEnabled = isLocalhost;
+        const MAX_LOG_LINES = 100;
+        
+        // localhost:3000이 아니면 디버그 로그 섹션 숨기기
+        if (!isLocalhost) {
+            const debugLogSection = document.getElementById('debugLogSection');
+            if (debugLogSection) {
+                debugLogSection.style.display = 'none';
+            }
+        }
+        
+        function addDebugLog(message, type = 'info') {
+            if (!debugLogEnabled) return;
+            
+            const logSection = document.getElementById('debugLogSection');
+            const logContent = document.getElementById('debugLogContent');
+            
+            if (!logSection || !logContent) return;
+            
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+            const colors = {
+                'info': '#0f0',
+                'warn': '#ff0',
+                'error': '#f00',
+                'animation': '#0ff',
+                'gameEnd': '#f0f',
+                'visibility': '#ffa500'
+            };
+            const color = colors[type] || colors['info'];
+            
+            const logLine = document.createElement('div');
+            logLine.innerHTML = `<span style="color: #888;">[${timestamp}]</span> <span style="color: ${color};">${message}</span>`;
+            logContent.appendChild(logLine);
+            
+            // 최대 줄 수 제한
+            while (logContent.children.length > MAX_LOG_LINES) {
+                logContent.removeChild(logContent.firstChild);
+            }
+            
+            // 자동 스크롤
+            logSection.scrollTop = logSection.scrollHeight;
+            
+            // localhost일 때만 자동으로 보이기
+            if (isLocalhost && logSection.style.display === 'none') {
+                logSection.style.display = 'block';
+            }
+        }
+        
+        function clearDebugLog() {
+            const logContent = document.getElementById('debugLogContent');
+            if (logContent) {
+                logContent.innerHTML = '';
+            }
+        }
+        
+        function toggleDebugLog() {
+            const logSection = document.getElementById('debugLogSection');
+            if (logSection) {
+                logSection.style.display = logSection.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+        
         // 소켓 연결
         const socket = io({
             reconnection: true,
@@ -1227,6 +1313,10 @@
         let roomExpiryInterval = null;
         let pendingRoomId = null;
         let isOrderActive = false;
+        let pendingRouletteData = null; // 포커스를 기다리는 룰렛 데이터
+        let rouletteFocusHandler = null; // 포커스 이벤트 핸들러 (중복 방지용)
+        let rouletteResultShown = false; // 결과 오버레이 표시 여부 (중복 방지)
+        let missedRouletteData = null; // 화면 숨김 상태에서 놓친 룰렛 데이터 (다시보기용)
         let ordersData = {};
         let everPlayedUsers = []; // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
         
@@ -1624,12 +1714,66 @@
         function spinRoulette(finalAngle, duration, callback) {
             const wheel = document.getElementById('rouletteWheel');
             
-            wheel.style.transition = `transform ${duration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
-            wheel.style.transform = `rotate(${finalAngle}deg)`;
+            // 기존 transitionend 이벤트 리스너 제거 (중복 방지)
+            if (wheel._rouletteTransitionHandler) {
+                wheel.removeEventListener('transitionend', wheel._rouletteTransitionHandler);
+                if (wheel._rouletteTransitionTimeout) {
+                    clearTimeout(wheel._rouletteTransitionTimeout);
+                }
+            }
             
-            setTimeout(() => {
-                if (callback) callback();
-            }, duration);
+            let callbackCalled = false;
+            const animationStartTime = Date.now();
+            
+            // transitionend 이벤트로 애니메이션 완료 정확히 감지
+            const transitionHandler = (e) => {
+                // transform 속성의 transition만 처리
+                if (e.propertyName === 'transform' && !callbackCalled) {
+                    // 실제 경과 시간 확인 (너무 빨리 발생하면 무시)
+                    const elapsed = Date.now() - animationStartTime;
+                    const minDuration = duration * 0.5; // 최소 50% 이상 경과해야 함 (너무 엄격하지 않게)
+                    
+                    if (elapsed < minDuration) {
+                        console.log(`⚠️ transitionend가 너무 빨리 발생했습니다 (${elapsed}ms < ${minDuration}ms). 무시합니다.`);
+                        return;
+                    }
+                    
+                    callbackCalled = true;
+                    wheel.removeEventListener('transitionend', transitionHandler);
+                    wheel._rouletteTransitionHandler = null;
+                    if (wheel._rouletteTransitionTimeout) {
+                        clearTimeout(wheel._rouletteTransitionTimeout);
+                        wheel._rouletteTransitionTimeout = null;
+                    }
+                    console.log(`✅ 룰렛 애니메이션 완료 (경과 시간: ${elapsed}ms, 목표: ${duration}ms)`);
+                    if (callback) callback();
+                }
+            };
+            
+            wheel._rouletteTransitionHandler = transitionHandler;
+            wheel.addEventListener('transitionend', transitionHandler);
+            
+            // 안전장치: 최대 대기 시간 (duration + 1000ms 여유)
+            wheel._rouletteTransitionTimeout = setTimeout(() => {
+                if (!callbackCalled) {
+                    const elapsed = Date.now() - animationStartTime;
+                    console.warn(`⚠️ transitionend 이벤트가 발생하지 않아 timeout으로 콜백 호출 (경과 시간: ${elapsed}ms, 목표: ${duration}ms)`);
+                    callbackCalled = true;
+                    wheel.removeEventListener('transitionend', transitionHandler);
+                    wheel._rouletteTransitionHandler = null;
+                    wheel._rouletteTransitionTimeout = null;
+                    if (callback) callback();
+                }
+            }, duration + 1000);
+            
+            // transition 설정 후 transform 적용
+            wheel.style.transition = `transform ${duration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+            
+            // 강제 리플로우
+            wheel.offsetHeight;
+            
+            // transform 적용
+            wheel.style.transform = `rotate(${finalAngle}deg)`;
         }
 
         // 접속자 목록 업데이트
@@ -1993,6 +2137,76 @@
         function endRouletteGame() {
             socket.emit('endRoulette');
         }
+        
+        // 놓친 룰렛 다시보기
+        function replayRoulette() {
+            if (!missedRouletteData) {
+                addDebugLog('⚠️ 다시보기 데이터가 없습니다', 'warn');
+                console.log('⚠️ 다시보기 데이터가 없습니다.');
+                return;
+            }
+            
+            addDebugLog(`🔄 다시보기 시작 - winner: ${missedRouletteData.winner}`, 'info');
+            
+            // 다시보기 섹션 숨기기
+            document.getElementById('replaySection').style.display = 'none';
+            
+            // 다시보기 모드로 룰렛 재생 (결과 이벤트는 전송하지 않음)
+            const data = missedRouletteData;
+            
+            // UI 상태 변경
+            document.getElementById('readySection').style.display = 'none';
+            document.getElementById('startRouletteButton').disabled = true;
+            document.getElementById('startRouletteButton').textContent = '🎬 다시보기 중...';
+            
+            // 룰렛 휠 생성
+            createRouletteWheel(data.participants);
+            
+            // 각도 계산
+            const segmentAngle = 360 / data.participants.length;
+            const winnerCenterAngle = (data.winnerIndex + 0.5) * segmentAngle;
+            const neededRotation = 360 - winnerCenterAngle;
+            const fullRotations = Math.floor(data.totalRotation / 360);
+            const finalAngle = fullRotations * 360 + neededRotation;
+            
+            addDebugLog(`🎯 다시보기 각도 계산: finalAngle=${finalAngle}`, 'animation');
+            
+            // 강제 리플로우 후 애니메이션 시작
+            const wheel = document.getElementById('rouletteWheel');
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            wheel.offsetHeight; // 강제 리플로우
+            
+            isSpinning = true;
+            rouletteResultShown = false;
+            
+            setTimeout(() => {
+                spinRoulette(finalAngle, data.spinDuration, () => {
+                    addDebugLog('✅ 다시보기 애니메이션 완료', 'animation');
+                    
+                    isSpinning = false;
+                    rouletteResultShown = true;
+                    
+                    // 결과 오버레이 표시
+                    document.getElementById('resultWinner').textContent = data.winner;
+                    document.getElementById('resultOverlay').classList.add('visible');
+                    addDebugLog(`🎊 다시보기 결과 표시 - winner: ${data.winner}`, 'gameEnd');
+                    
+                    // UI 복원
+                    document.getElementById('readySection').style.display = 'block';
+                    document.getElementById('startRouletteButton').disabled = false;
+                    document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                    
+                    // 호스트에게 종료 버튼 표시
+                    if (isHost) {
+                        document.getElementById('endGameSection').style.display = 'block';
+                    }
+                    
+                    // 놓친 데이터 초기화
+                    missedRouletteData = null;
+                });
+            }, 50);
+        }
 
         // 결과 오버레이 닫기
         function closeResultOverlay() {
@@ -2346,6 +2560,12 @@
         });
 
         socket.on('newMessage', (data) => {
+            // 룰렛 당첨 메시지이고 화면이 숨겨져 있으면 표시하지 않음 (다시보기에서 확인 가능)
+            if (data.isRouletteWinner && document.visibilityState !== 'visible') {
+                addDebugLog(`🔇 룰렛 당첨 메시지 숨김 (화면 NOT visible) - winner: ${data.message}`, 'visibility');
+                console.log('⚠️ 화면이 숨겨져 있어 룰렛 당첨 메시지를 표시하지 않습니다.');
+                return;
+            }
             addChatMessage(data);
         });
         
@@ -2506,8 +2726,35 @@
             }
         });
 
-        socket.on('rouletteStarted', (data) => {
+        // 룰렛 실제 시작 함수 (화면 표시 확인 후 호출)
+        function actuallyStartRoulette(data) {
+            addDebugLog(`🎰 actuallyStartRoulette 호출 - isHost: ${isHost}, visibilityState: ${document.visibilityState}`, 'info');
+            
+            // 현재 화면을 보고 있는지 확인 (최소화 또는 탭 숨김 체크) - 모든 클라이언트에서 체크
+            if (document.visibilityState !== 'visible') {
+                addDebugLog('⚠️ 화면이 보이지 않음 - 룰렛 무시', 'visibility');
+                console.log('⚠️ 화면이 보이지 않습니다. 룰렛을 무시합니다.');
+                // 무시하고 결과 화면도 표시하지 않음
+                rouletteResultShown = true;
+                isSpinning = false;
+                pendingRouletteData = null;
+                
+                // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
+                document.getElementById('resultOverlay').classList.remove('visible');
+                addDebugLog('🔒 resultOverlay 숨김 처리', 'visibility');
+                
+                // UI 초기화
+                document.getElementById('readySection').style.display = 'block';
+                document.getElementById('startRouletteButton').disabled = false;
+                document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                return;
+            }
+            
+            addDebugLog('✅ 화면이 보임 - 룰렛 시작 진행', 'info');
             isSpinning = true;
+            pendingRouletteData = null; // 대기 데이터 초기화
+            rouletteResultShown = false; // 결과 표시 플래그 초기화
+            addDebugLog(`📊 상태 설정: isSpinning=${isSpinning}, rouletteResultShown=${rouletteResultShown}`, 'info');
             
             // 서버에서 받은 누적 참여자 목록으로 업데이트
             if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
@@ -2543,8 +2790,65 @@
             wheel.offsetHeight; // 강제 리플로우
             
             setTimeout(() => {
-                spinRoulette(finalAngle, data.spinDuration, () => {
+                addDebugLog(`⏰ setTimeout 콜백 - isHost: ${isHost}, visibilityState: ${document.visibilityState}`, 'animation');
+                
+                // 화면이 보이는지 다시 한 번 확인 (애니메이션 시작 직전) - 모든 클라이언트에서 체크
+                if (document.visibilityState !== 'visible') {
+                    addDebugLog('⚠️ setTimeout 안에서 화면 NOT visible - 룰렛 무시', 'visibility');
+                    console.log('⚠️ 애니메이션 시작 직전 화면이 보이지 않습니다. 룰렛을 무시합니다.');
+                    // 무시하고 결과 화면도 표시하지 않음
+                    rouletteResultShown = true;
                     isSpinning = false;
+                    pendingRouletteData = null;
+                    addDebugLog(`📊 상태 설정: rouletteResultShown=${rouletteResultShown}, isSpinning=${isSpinning}`, 'visibility');
+                    
+                    // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
+                    document.getElementById('resultOverlay').classList.remove('visible');
+                    addDebugLog('🔒 resultOverlay 숨김 처리', 'visibility');
+                    
+                    // UI 초기화
+                    document.getElementById('readySection').style.display = 'block';
+                    document.getElementById('startRouletteButton').disabled = false;
+                    document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                    return;
+                }
+                
+                // 애니메이션 시작 전 상태 확인
+                const wasSpinning = isSpinning;
+                const animationStartTime = Date.now();
+                rouletteResultShown = false; // 결과 표시 플래그 초기화
+                addDebugLog(`🎬 spinRoulette 호출 시작 - wasSpinning: ${wasSpinning}, rouletteResultShown: ${rouletteResultShown}`, 'animation');
+                
+                spinRoulette(finalAngle, data.spinDuration, () => {
+                    addDebugLog(`🔄 spinRoulette 콜백 실행 - rouletteResultShown: ${rouletteResultShown}, wasSpinning: ${wasSpinning}`, 'animation');
+                    
+                    // 중복 호출 방지
+                    if (rouletteResultShown) {
+                        addDebugLog('⚠️ 결과 이미 표시됨 - 중복 방지로 return', 'warn');
+                        console.log('⚠️ 결과가 이미 표시되었습니다. 중복 표시를 방지합니다.');
+                        return;
+                    }
+                    
+                    // 애니메이션이 실제로 시작되었는지 확인
+                    if (!wasSpinning) {
+                        addDebugLog('⚠️ wasSpinning=false - 애니메이션 시작 안 됨, return', 'warn');
+                        console.log('⚠️ 애니메이션이 시작되지 않았습니다. 결과를 표시하지 않습니다.');
+                        return;
+                    }
+                    
+                    // 애니메이션 최소 시간 확인 (너무 빨리 완료되면 실제 애니메이션이 아닐 수 있음)
+                    const elapsed = Date.now() - animationStartTime;
+                    const minDuration = data.spinDuration * 0.7; // 최소 70% 이상 경과해야 함 (너무 엄격하지 않게)
+                    addDebugLog(`⏱️ 애니메이션 시간 체크 - elapsed: ${elapsed}ms, minDuration: ${minDuration}ms`, 'animation');
+                    if (elapsed < minDuration) {
+                        addDebugLog(`⚠️ 애니메이션 너무 빨리 완료 (${elapsed}ms < ${minDuration}ms) - return`, 'warn');
+                        console.log(`⚠️ 애니메이션이 너무 빨리 완료되었습니다 (${elapsed}ms < ${minDuration}ms). 결과를 표시하지 않습니다.`);
+                        return;
+                    }
+                    
+                    addDebugLog('✅ 모든 체크 통과 - 결과 표시 진행', 'info');
+                    isSpinning = false;
+                    rouletteResultShown = true; // 결과 표시 플래그 설정
                     
                     // ========== 🧪 CSS 애니메이션 검증 로그 ==========
                     const wheelAfter = document.getElementById('rouletteWheel');
@@ -2599,12 +2903,14 @@
                     console.log('%c==========================================', 'font-size: 14px; font-weight: bold; color: #7c4dff;');
                     // ========== 검증 로그 끝 ==========
                     
-                    // 호스트만 결과 이벤트 전송
+                    // 호스트만 결과 이벤트 전송 (애니메이션이 실제로 완료된 경우에만)
                     if (isHost) {
+                        addDebugLog(`📤 rouletteResult emit - winner: ${data.winner}`, 'info');
                         socket.emit('rouletteResult', { winner: data.winner });
                     }
                     
-                    // 결과 오버레이 표시
+                    // 결과 오버레이 표시 (애니메이션이 실제로 완료된 경우에만, 중복 방지)
+                    addDebugLog(`🎊 결과 오버레이 표시 - winner: ${data.winner}`, 'gameEnd');
                     document.getElementById('resultWinner').textContent = data.winner;
                     document.getElementById('resultOverlay').classList.add('visible');
                     
@@ -2621,6 +2927,49 @@
                     updateStartButton();
                 });
             }, 50); // 50ms 지연으로 리플로우 보장
+        }
+        
+        socket.on('rouletteStarted', (data) => {
+            addDebugLog(`📨 rouletteStarted 이벤트 수신 - isHost: ${isHost}, visibilityState: ${document.visibilityState}`, 'info');
+            addDebugLog(`📊 data: winner=${data.winner}, participants=${data.participants?.length}명`, 'info');
+            
+            // 다시보기 섹션 숨기기 (새 룰렛 시작 시)
+            document.getElementById('replaySection').style.display = 'none';
+            
+            // 모든 클라이언트에서 화면 표시 확인 (호스트/비호스트 모두)
+            if (document.visibilityState === 'visible') {
+                addDebugLog('✅ 화면 visible → actuallyStartRoulette 호출', 'info');
+                // 화면이 보이면 즉시 시작
+                missedRouletteData = null; // 놓친 데이터 초기화
+                actuallyStartRoulette(data);
+            } else {
+                addDebugLog('⚠️ 화면 NOT visible → 룰렛 무시, 다시보기 데이터 저장', 'visibility');
+                // 화면이 보이지 않으면 무시 (대기하지 않음)
+                console.log('⚠️ 화면이 보이지 않아 룰렛을 무시합니다. 다시보기로 확인할 수 있습니다.');
+                
+                // 놓친 룰렛 데이터 저장 (다시보기용)
+                missedRouletteData = data;
+                addDebugLog(`📦 missedRouletteData 저장 - winner: ${data.winner}`, 'visibility');
+                
+                // 룰렛 결과 무시 플래그 설정
+                rouletteResultShown = true; // 결과 화면이 뜨지 않도록 설정
+                isSpinning = false;
+                pendingRouletteData = null; // 대기 데이터 없음
+                addDebugLog(`📊 상태 설정: rouletteResultShown=${rouletteResultShown}, isSpinning=${isSpinning}`, 'visibility');
+                
+                // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
+                document.getElementById('resultOverlay').classList.remove('visible');
+                addDebugLog('🔒 resultOverlay 숨김 처리', 'visibility');
+                
+                // 다시보기 섹션 표시
+                document.getElementById('replaySection').style.display = 'block';
+                addDebugLog('🎬 다시보기 섹션 표시', 'visibility');
+                
+                // UI 초기화 - 다시 시작할 수 있도록
+                document.getElementById('readySection').style.display = 'block';
+                document.getElementById('startRouletteButton').disabled = false;
+                document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+            }
         });
 
         socket.on('rouletteEnded', (data) => {
@@ -2629,6 +2978,14 @@
 
         socket.on('rouletteGameEnded', (data) => {
             isSpinning = false;
+            rouletteResultShown = false; // 결과 표시 플래그 초기화
+            missedRouletteData = null; // 놓친 데이터 초기화
+            
+            // 결과 오버레이 숨기기
+            document.getElementById('resultOverlay').classList.remove('visible');
+            
+            // 다시보기 섹션 숨기기
+            document.getElementById('replaySection').style.display = 'none';
             
             // UI 초기화 (돌림판은 계속 표시)
             document.getElementById('rouletteContainer').style.display = 'flex';
