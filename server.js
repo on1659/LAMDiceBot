@@ -3162,6 +3162,41 @@ io.on('connection', (socket) => {
 
     // ========== 룰렛 게임 이벤트 핸들러 ==========
     
+    // 터보 애니메이션 설정 변경 (호스트만 가능)
+    socket.on('updateTurboAnimation', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const roomId = socket.currentRoomId;
+        if (!roomId || !rooms[roomId]) {
+            socket.emit('roomError', '방을 찾을 수 없습니다.');
+            return;
+        }
+        
+        const room = rooms[roomId];
+        
+        // 호스트만 변경 가능
+        if (socket.id !== room.hostId) {
+            socket.emit('roomError', '호스트만 설정을 변경할 수 있습니다.');
+            return;
+        }
+        
+        // 게임 진행 중에는 변경 불가
+        if (room.gameState && room.gameState.isGameActive) {
+            socket.emit('roomError', '게임 진행 중에는 설정을 변경할 수 없습니다.');
+            return;
+        }
+        
+        // 설정 변경
+        room.turboAnimation = data.turboAnimation === true;
+        
+        console.log(`🚀 터보 애니메이션 설정 변경: ${room.turboAnimation} (방: ${room.roomName})`);
+        
+        // 모든 클라이언트에게 업데이트 전송
+        io.to(roomId).emit('turboAnimationUpdated', {
+            turboAnimation: room.turboAnimation
+        });
+    });
+    
     // 룰렛 게임 시작 (방장만 가능)
     socket.on('startRoulette', () => {
         if (!checkRateLimit()) return;
