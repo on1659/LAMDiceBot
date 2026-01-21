@@ -18,6 +18,8 @@ const CONFIG = {
     serverUrl: 'http://localhost:3000',
     clientCount: 3,
     testRounds: 10,
+    startDelay: 0, // 입장 후 대기 시간 (초)
+    delay: 0, // 라운드 사이 추가 대기 시간 (초)
     logFile: path.join(__dirname, 'test-results.log')
 };
 
@@ -27,6 +29,8 @@ for (let i = 0; i < args.length; i++) {
     if (args[i] === '--url' && args[i + 1]) CONFIG.serverUrl = args[i + 1];
     if (args[i] === '--clients' && args[i + 1]) CONFIG.clientCount = parseInt(args[i + 1]);
     if (args[i] === '--rounds' && args[i + 1]) CONFIG.testRounds = parseInt(args[i + 1]);
+    if (args[i] === '--start-delay' && args[i + 1]) CONFIG.startDelay = parseInt(args[i + 1]);
+    if (args[i] === '--delay' && args[i + 1]) CONFIG.delay = parseInt(args[i + 1]);
 }
 
 // ========== 로그 ==========
@@ -226,7 +230,14 @@ async function runTests() {
     console.log('\n🎰 LAMDice 룰렛 자동 테스트\n');
     console.log(`서버: ${CONFIG.serverUrl}`);
     console.log(`클라이언트: ${CONFIG.clientCount}명`);
-    console.log(`테스트 라운드: ${CONFIG.testRounds}회\n`);
+    console.log(`테스트 라운드: ${CONFIG.testRounds}회`);
+    if (CONFIG.startDelay > 0) {
+        console.log(`시작 딜레이: ${CONFIG.startDelay}초`);
+    }
+    if (CONFIG.delay > 0) {
+        console.log(`라운드 딜레이: ${CONFIG.delay}초`);
+    }
+    console.log('');
     
     log.info('='.repeat(50));
     log.info('테스트 시작');
@@ -261,6 +272,13 @@ async function runTests() {
         
         // 대기
         await new Promise(r => setTimeout(r, 500));
+        
+        // 시작 딜레이 (입장 후 대기)
+        if (CONFIG.startDelay > 0) {
+            log.info(`⏳ 시작 딜레이: ${CONFIG.startDelay}초 대기 중...`);
+            await new Promise(r => setTimeout(r, CONFIG.startDelay * 1000));
+            log.info('✅ 시작 딜레이 완료');
+        }
         
         // 테스트 라운드 실행
         for (let round = 1; round <= CONFIG.testRounds; round++) {
@@ -321,14 +339,21 @@ async function runTests() {
                 log.info(`애니메이션 대기: ${(waitTime / 1000).toFixed(1)}초`);
                 await new Promise(r => setTimeout(r, waitTime));
                 
-                // 게임 종료 및 재준비
+                // 추가 딜레이 (사용자가 결과를 볼 시간)
+                if (CONFIG.delay > 0) {
+                    log.info(`추가 대기: ${CONFIG.delay}초`);
+                    await new Promise(r => setTimeout(r, CONFIG.delay * 1000));
+                }
+                
+                // 게임 종료
+                host.endRoulette();
+                await new Promise(r => setTimeout(r, 500));
+                
+                // 다음 라운드가 있으면 재준비
                 if (round < CONFIG.testRounds) {
-                    host.endRoulette();
-                    await new Promise(r => setTimeout(r, 500));
-                    
-                    // 모두 준비
-                    for (const client of clients) {
-                        await client.toggleReady();
+                    // 호스트 제외 모두 준비 (호스트는 시작 버튼만 가짐)
+                    for (let i = 1; i < clients.length; i++) {
+                        await clients[i].toggleReady();
                     }
                     await new Promise(r => setTimeout(r, 300));
                 }
@@ -341,8 +366,9 @@ async function runTests() {
                 await new Promise(r => setTimeout(r, 1000));
                 host.endRoulette();
                 await new Promise(r => setTimeout(r, 500));
-                for (const client of clients) {
-                    try { await client.toggleReady(); } catch (e) {}
+                // 호스트 제외 모두 준비
+                for (let i = 1; i < clients.length; i++) {
+                    try { await clients[i].toggleReady(); } catch (e) {}
                 }
             }
         }

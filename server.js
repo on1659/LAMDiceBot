@@ -2553,8 +2553,13 @@ io.on('connection', (socket) => {
         if (!gameState.isRouletteSpinning) return;
         
         gameState.isRouletteSpinning = false;
+        gameState.isGameActive = false; // 결과 발표 후 게임 비활성화 → 준비 상태 변경 가능
+        gameState.readyUsers = []; // 준비 목록 초기화
         
         const { winner } = data;
+        
+        // 준비 목록 초기화 전송
+        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
         // 채팅에 결과 메시지 추가 (한국 시간)
         const nowResult = new Date();

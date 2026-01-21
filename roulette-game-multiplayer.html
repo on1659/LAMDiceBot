@@ -1338,8 +1338,8 @@
         let pendingRouletteData = null; // 포커스를 기다리는 룰렛 데이터
         let rouletteFocusHandler = null; // 포커스 이벤트 핸들러 (중복 방지용)
         let rouletteResultShown = false; // 결과 오버레이 표시 여부 (중복 방지)
-        let missedRouletteData = null; // 화면 숨김 상태에서 놓친 룰렛 데이터 (다시보기용)
-        let ordersData = {};
+        let lastRouletteData = null; // 마지막 룰렛 데이터 (다시보기용 - 모든 사람 사용 가능)
+        let missedRoulette = false; // 룰렛을 놓쳤는지 여부 (화면 숨김 상태였는지)
         let everPlayedUsers = []; // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
         
         // 파스텔톤 색상 목록
@@ -2276,24 +2276,24 @@
             socket.emit('endRoulette');
         }
         
-        // 놓친 룰렛 다시보기
+        // 룰렛 다시보기 (모든 사람 사용 가능)
         function replayRoulette() {
-            if (!missedRouletteData) {
+            if (!lastRouletteData) {
                 addDebugLog('⚠️ 다시보기 데이터가 없습니다', 'warn');
                 console.log('⚠️ 다시보기 데이터가 없습니다.');
                 return;
             }
             
-            addDebugLog(`🔄 다시보기 시작 - winner: ${missedRouletteData.winner}`, 'info');
+            addDebugLog(`🔄 다시보기 시작 - winner: ${lastRouletteData.winner}, missedRoulette: ${missedRoulette}`, 'info');
             
             // 다시보기 섹션 숨기기
             document.getElementById('replaySection').style.display = 'none';
             
             // 다시보기 모드로 룰렛 재생 (결과 이벤트는 전송하지 않음)
-            const data = missedRouletteData;
+            const data = lastRouletteData;
+            const wasMissed = missedRoulette; // 놓친 상태였는지 저장
             
-            // UI 상태 변경
-            document.getElementById('readySection').style.display = 'none';
+            // UI 상태 변경 (준비 섹션은 유지)
             document.getElementById('startRouletteButton').disabled = true;
             document.getElementById('startRouletteButton').textContent = '🎬 다시보기 중...';
             
@@ -2341,32 +2341,52 @@
                         document.getElementById('endGameSection').style.display = 'block';
                     }
                     
-                    // 다시보기에서 채팅 메시지 표시
-                    const winnerMessage = {
-                        userName: '시스템',
-                        message: `🎊🎉 축하합니다! ${data.winner}님이 당첨되었습니다! 🎉🎊`,
-                        timestamp: new Date().toISOString(),
-                        isSystem: true,
-                        isRouletteWinner: true
-                    };
-                    addChatMessage(winnerMessage);
-                    
-                    // 다시보기에서 기록 업데이트
-                    if (data.record) {
-                        // 중복 방지: 이미 같은 라운드가 있는지 확인
-                        const existingRecord = rouletteHistory.find(r => r.round === data.record.round);
-                        if (!existingRecord) {
-                            rouletteHistory.push(data.record);
-                            renderHistory();
+                    // 놓친 경우에만 채팅 메시지와 기록 추가 (이미 본 경우는 이미 표시됨)
+                    if (wasMissed) {
+                        // 다시보기에서 채팅 메시지 표시
+                        const winnerMessage = {
+                            userName: '시스템',
+                            message: `🎊🎉 축하합니다! ${data.winner}님이 당첨되었습니다! 🎉🎊`,
+                            timestamp: new Date().toISOString(),
+                            isSystem: true,
+                            isRouletteWinner: true
+                        };
+                        addChatMessage(winnerMessage);
+                        
+                        // 다시보기에서 기록 업데이트
+                        if (data.record) {
+                            // 중복 방지: 이미 같은 라운드가 있는지 확인
+                            const existingRecord = rouletteHistory.find(r => r.round === data.record.round);
+                            if (!existingRecord) {
+                                rouletteHistory.push(data.record);
+                                renderHistory();
+                            }
                         }
+                        
+                        addDebugLog(`📢 다시보기 채팅 및 기록 표시 완료 (놓친 룰렛)`, 'info');
+                    } else {
+                        addDebugLog(`📢 다시보기 완료 (이미 본 룰렛)`, 'info');
                     }
                     
-                    addDebugLog(`📢 다시보기 채팅 및 기록 표시 완료`, 'info');
+                    // 놓친 상태 초기화
+                    missedRoulette = false;
                     
-                    // 놓친 데이터 초기화
-                    missedRouletteData = null;
+                    // 다시보기 버튼 다시 표시
+                    showReplayButton();
                 });
             }, 50);
+        }
+        
+        // 다시보기 버튼 표시 함수
+        function showReplayButton() {
+            if (lastRouletteData) {
+                const replaySection = document.getElementById('replaySection');
+                const replayMessage = replaySection.querySelector('div');
+                if (replayMessage) {
+                    replayMessage.textContent = '🎬 마지막 룰렛 다시보기';
+                }
+                replaySection.style.display = 'block';
+            }
         }
 
         // 결과 오버레이 닫기
@@ -2660,6 +2680,11 @@
             alert(message);
         });
 
+        socket.on('readyError', (message) => {
+            alert(message);
+            addDebugLog(`❌ 준비 에러: ${message}`, 'error');
+        });
+
         // ========== 주문받기 이벤트 ==========
         socket.on('orderStarted', () => {
             isOrderActive = true;
@@ -2770,8 +2795,8 @@
                     console.log('⚠️ 화면이 숨겨져 있어 룰렛 당첨 메시지를 표시하지 않습니다.');
                     return;
                 }
-                // 다시보기 데이터가 있으면 표시하지 않음 (다시보기 완료 후 표시)
-                if (missedRouletteData) {
+                // 룰렛을 놓친 상태면 표시하지 않음 (다시보기 완료 후 표시)
+                if (missedRoulette) {
                     addDebugLog(`🔇 룰렛 당첨 메시지 숨김 (다시보기 대기중) - winner: ${data.message}`, 'visibility');
                     console.log('⚠️ 다시보기 대기중이라 룰렛 당첨 메시지를 표시하지 않습니다.');
                     return;
@@ -2972,8 +2997,7 @@
                 everPlayedUsers = [...data.everPlayedUsers];
             }
             
-            // UI 상태 변경 (돌림판은 이미 보이는 상태)
-            document.getElementById('readySection').style.display = 'none';
+            // UI 상태 변경 (돌림판과 준비 섹션은 계속 표시)
             // 룰렛 시작 버튼만 비활성화 (주문받기 버튼은 유지)
             document.getElementById('startRouletteButton').disabled = true;
             document.getElementById('startRouletteButton').textContent = '🎰 룰렛 진행 중...';
@@ -3134,6 +3158,9 @@
                         document.getElementById('endGameSection').style.display = 'block';
                     }
                     
+                    // 다시보기 버튼 표시 (모든 사람 사용 가능)
+                    showReplayButton();
+                    
                     // 룰렛 시작 버튼 다시 활성화
                     updateStartButton();
                 });
@@ -3141,26 +3168,34 @@
         }
         
         socket.on('rouletteStarted', (data) => {
-            addDebugLog(`📨 rouletteStarted 이벤트 수신 - isHost: ${isHost}, visibilityState: ${document.visibilityState}`, 'info');
+            const hasFocus = document.hasFocus();
+            const isVisible = document.visibilityState === 'visible';
+            const isActuallyVisible = isVisible && hasFocus; // 둘 다 충족해야 실제로 보이는 것
+            
+            addDebugLog(`📨 rouletteStarted 이벤트 수신 - isHost: ${isHost}, visible: ${isVisible}, hasFocus: ${hasFocus}`, 'info');
             addDebugLog(`📊 data: winner=${data.winner}, participants=${data.participants?.length}명`, 'info');
+            
+            // 마지막 룰렛 데이터 저장 (모든 사람 다시보기 가능)
+            lastRouletteData = data;
             
             // 다시보기 섹션 숨기기 (새 룰렛 시작 시)
             document.getElementById('replaySection').style.display = 'none';
             
             // 모든 클라이언트에서 화면 표시 확인 (호스트/비호스트 모두)
-            if (document.visibilityState === 'visible') {
-                addDebugLog('✅ 화면 visible → actuallyStartRoulette 호출', 'info');
+            // visibilityState가 visible이고 창이 포커스를 가지고 있어야 실제로 보이는 것
+            if (isActuallyVisible) {
+                addDebugLog('✅ 화면 visible + 포커스 있음 → actuallyStartRoulette 호출', 'info');
                 // 화면이 보이면 즉시 시작
-                missedRouletteData = null; // 놓친 데이터 초기화
+                missedRoulette = false;
                 actuallyStartRoulette(data);
             } else {
-                addDebugLog('⚠️ 화면 NOT visible → 룰렛 무시, 다시보기 데이터 저장', 'visibility');
+                addDebugLog(`⚠️ 화면 NOT visible (visible=${isVisible}, focus=${hasFocus}) → 룰렛 무시, 다시보기 데이터 저장`, 'visibility');
                 // 화면이 보이지 않으면 무시 (대기하지 않음)
                 console.log('⚠️ 화면이 보이지 않아 룰렛을 무시합니다. 다시보기로 확인할 수 있습니다.');
                 
-                // 놓친 룰렛 데이터 저장 (다시보기용)
-                missedRouletteData = data;
-                addDebugLog(`📦 missedRouletteData 저장 - winner: ${data.winner}`, 'visibility');
+                // 놓친 상태 표시
+                missedRoulette = true;
+                addDebugLog(`📦 missedRoulette = true, lastRouletteData 저장 - winner: ${data.winner}`, 'visibility');
                 
                 // 룰렛 결과 무시 플래그 설정
                 rouletteResultShown = true; // 결과 화면이 뜨지 않도록 설정
@@ -3172,9 +3207,14 @@
                 document.getElementById('resultOverlay').classList.remove('visible');
                 addDebugLog('🔒 resultOverlay 숨김 처리', 'visibility');
                 
-                // 다시보기 섹션 표시
-                document.getElementById('replaySection').style.display = 'block';
-                addDebugLog('🎬 다시보기 섹션 표시', 'visibility');
+                // 다시보기 섹션 표시 (놓친 경우 메시지)
+                const replaySection = document.getElementById('replaySection');
+                const replayMessage = replaySection.querySelector('div');
+                if (replayMessage) {
+                    replayMessage.textContent = '🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다';
+                }
+                replaySection.style.display = 'block';
+                addDebugLog('🎬 다시보기 섹션 표시 (놓친 경우)', 'visibility');
                 
                 // UI 초기화 - 다시 시작할 수 있도록
                 document.getElementById('readySection').style.display = 'block';
@@ -3184,7 +3224,9 @@
         });
 
         socket.on('rouletteEnded', (data) => {
-            // 결과 처리 완료
+            // 결과 처리 완료 - 준비 상태 초기화
+            isReady = false;
+            updateReadyButton();
         });
         
         // 터보 애니메이션 설정 업데이트
@@ -3198,7 +3240,9 @@
         socket.on('rouletteGameEnded', (data) => {
             isSpinning = false;
             rouletteResultShown = false; // 결과 표시 플래그 초기화
-            missedRouletteData = null; // 놓친 데이터 초기화
+            missedRoulette = false; // 놓친 상태 초기화
+            lastRouletteData = null; // 마지막 룰렛 데이터 초기화 (게임 종료 시)
+            isReady = false; // 준비 상태 초기화
             
             // 결과 오버레이 숨기기
             document.getElementById('resultOverlay').classList.remove('visible');
@@ -3210,6 +3254,9 @@
             document.getElementById('rouletteContainer').style.display = 'flex';
             document.getElementById('readySection').style.display = 'block';
             document.getElementById('endGameSection').style.display = 'none';
+            
+            // 준비 버튼 상태 초기화
+            updateReadyButton();
             
             // 룰렛 휠 초기화
             const wheel = document.getElementById('rouletteWheel');
