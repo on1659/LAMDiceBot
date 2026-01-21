@@ -659,6 +659,14 @@
         
         debugLog('🚀 스크립트 시작됨');
 
+        // 서버 ID 읽기 (URL 파라미터 또는 localStorage)
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentServerId = urlParams.get('serverId') || localStorage.getItem('currentServerId');
+        if (currentServerId) {
+            localStorage.setItem('currentServerId', currentServerId);
+            console.log('[팀] 서버 ID:', currentServerId);
+        }
+
         // 상태 변수 (localStorage에서 복원)
         let currentRoomId = sessionStorage.getItem('teamCurrentRoomId') || null;
         let isHost = sessionStorage.getItem('teamIsHost') === 'true';
@@ -1397,10 +1405,17 @@
         socket.on('connect', () => {
             debugLog('🟢 서버 연결됨!');
             debugLog('socket.id: ' + socket.id);
-            socket.emit('getRooms');
+            
+            // 서버 ID가 있으면 서버에 알리기
+            if (currentServerId) {
+                console.log('[팀] setServerId 전송:', currentServerId);
+                socket.emit('setServerId', { serverId: currentServerId });
+                // 응답 대기 후 방 목록 요청 (serverIdSet 이벤트에서 처리)
+            } else {
+                socket.emit('getRooms');
+            }
             
             // URL에 createRoom=true가 있고 pendingTeamRoom이 있으면 방 자동 생성
-            const urlParams = new URLSearchParams(window.location.search);
             const shouldCreateRoom = urlParams.get('createRoom') === 'true';
             const pendingRoomData = localStorage.getItem('pendingTeamRoom');
             
@@ -1524,13 +1539,38 @@
             debugLog('🔴 연결 끊김: ' + reason);
             // 재연결을 위해 상태 유지 (바로 랜딩으로 돌아가지 않음)
         });
+        
+        // 서버 ID 설정 완료 응답
+        socket.on('serverIdSet', (data) => {
+            console.log('[팀] serverIdSet 응답:', data);
+            if (data.success) {
+                socket.emit('getRooms', { serverId: currentServerId });
+            }
+        });
 
         socket.on('roomsList', (rooms) => {
-            updateRoomList(rooms);
+            console.log('[팀] 방 목록 수신:', rooms.length, '개');
+            // 서버 ID가 있으면 해당 서버의 방만 필터링
+            let filteredRooms = rooms;
+            if (currentServerId) {
+                filteredRooms = rooms.filter(room => room.serverId === parseInt(currentServerId));
+                console.log('[팀] 필터링 후:', filteredRooms.length, '개');
+            } else {
+                filteredRooms = rooms.filter(room => !room.serverId);
+            }
+            updateRoomList(filteredRooms);
         });
 
         socket.on('roomsListUpdated', (rooms) => {
-            updateRoomList(rooms);
+            console.log('[팀] 방 목록 업데이트:', rooms.length, '개');
+            let filteredRooms = rooms;
+            if (currentServerId) {
+                filteredRooms = rooms.filter(room => room.serverId === parseInt(currentServerId));
+                console.log('[팀] 필터링 후:', filteredRooms.length, '개');
+            } else {
+                filteredRooms = rooms.filter(room => !room.serverId);
+            }
+            updateRoomList(filteredRooms);
         });
 
         socket.on('roomCreated', (data) => {
