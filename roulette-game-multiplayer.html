@@ -1329,6 +1329,14 @@
         let readyUsers = [];
         let roomsList = [];
         let turboAnimation = true; // 터보 애니메이션 옵션 (기본값: 활성화)
+        
+        // 서버 ID 읽기 (URL 파라미터 또는 localStorage)
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentServerId = urlParams.get('serverId') || localStorage.getItem('currentServerId');
+        if (currentServerId) {
+            localStorage.setItem('currentServerId', currentServerId);
+            console.log('[룰렛] 서버 ID:', currentServerId);
+        }
         let selectedRoomId = null;
         let rouletteHistory = [];
         let isSpinning = false;
@@ -1437,7 +1445,13 @@
 
         // 방 목록 새로고침
         function refreshRooms() {
-            socket.emit('getRooms');
+            if (currentServerId) {
+                console.log('[룰렛] getRooms 요청 (serverId 포함):', currentServerId);
+                socket.emit('getRooms', { serverId: currentServerId });
+            } else {
+                console.log('[룰렛] getRooms 요청 (serverId 없음)');
+                socket.emit('getRooms');
+            }
         }
 
         // 방 목록 렌더링
@@ -2594,8 +2608,27 @@
                 createRoomStatus.className = 'connection-status connected';
             }
             
-            if (document.getElementById('lobbySection').classList.contains('active')) {
-                refreshRooms();
+            // 서버 ID가 있으면 서버에 알리기
+            if (currentServerId) {
+                console.log('[룰렛] setServerId 전송:', currentServerId);
+                socket.emit('setServerId', { serverId: currentServerId });
+                // 응답 대기 후 방 목록 요청 (serverIdSet 이벤트에서 처리)
+            } else {
+                // 서버 ID 없으면 바로 방 목록 요청
+                if (document.getElementById('lobbySection').classList.contains('active')) {
+                    refreshRooms();
+                }
+            }
+        });
+        
+        // 서버 ID 설정 완료 응답
+        socket.on('serverIdSet', (data) => {
+            console.log('[룰렛] serverIdSet 응답:', data);
+            if (data.success) {
+                // 방 목록 요청
+                if (document.getElementById('lobbySection').classList.contains('active')) {
+                    refreshRooms();
+                }
             }
         });
 
@@ -2605,12 +2638,27 @@
         });
 
         socket.on('roomsList', (rooms) => {
-            roomsList = rooms;
+            console.log('[룰렛] 방 목록 수신:', rooms.length, '개');
+            // 서버 ID가 있으면 해당 서버의 방만 필터링
+            if (currentServerId) {
+                roomsList = rooms.filter(room => room.serverId === parseInt(currentServerId));
+                console.log('[룰렛] 필터링 후:', roomsList.length, '개');
+            } else {
+                // 서버 ID가 없으면 서버 ID가 없는 방만 표시
+                roomsList = rooms.filter(room => !room.serverId);
+            }
             renderRoomsList();
         });
 
         socket.on('roomsListUpdated', (rooms) => {
-            roomsList = rooms;
+            console.log('[룰렛] 방 목록 업데이트:', rooms.length, '개');
+            // 서버 ID가 있으면 해당 서버의 방만 필터링
+            if (currentServerId) {
+                roomsList = rooms.filter(room => room.serverId === parseInt(currentServerId));
+                console.log('[룰렛] 필터링 후:', roomsList.length, '개');
+            } else {
+                roomsList = rooms.filter(room => !room.serverId);
+            }
             renderRoomsList();
         });
 
