@@ -909,6 +909,17 @@
                 </div>
             </div>
             
+            <!-- 터보 애니메이션 설정 -->
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="createRoomTurboCheckbox" style="width: auto; margin: 0;" checked>
+                    <span style="font-weight: bold; color: #333;">🚀 터보 애니메이션</span>
+                </label>
+                <div style="font-size: 12px; color: #666; margin-top: 5px; margin-left: 26px;">
+                    활성화 시 룰렛 마무리에 다양한 효과 적용 (바운스, 떨림, 느린크롤)
+                </div>
+            </div>
+            
             <!-- 방 유지 시간 -->
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px;">⏰ 방 유지 시간</label>
@@ -938,9 +949,10 @@
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 -->
             <div class="room-header">
-                <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <span class="room-title" id="roomTitle">룰렛 방</span>
                     <span class="host-badge" id="hostBadge">👑 호스트</span>
+                    <span id="turboBadge" class="turbo-badge" style="display: none; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🚀 터보</span>
                 </div>
                 <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #6c757d; margin-top: 10px;">🚪 나가기</button>
             </div>
@@ -1067,9 +1079,28 @@
                 </div>
             </div>
 
+            <!-- 터보 애니메이션 설정 (호스트 전용) -->
+            <div id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(124, 77, 255, 0.1); border-radius: 8px;">
+                <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="turboToggle" style="width: auto; margin: 0;" onchange="toggleTurboAnimation()">
+                    <span style="font-weight: bold; color: #7c4dff;">🚀 터보 애니메이션</span>
+                </label>
+                <div style="font-size: 11px; color: #666; margin-top: 5px;">다양한 마무리 효과</div>
+            </div>
+            
             <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
             <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
                 <button class="end-button" onclick="endRouletteGame()">🏁 게임 종료</button>
+            </div>
+
+            <!-- 다시보기 버튼 (화면 숨김 상태에서 룰렛이 진행된 경우 표시) -->
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                <div style="color: white; margin-bottom: 12px; font-size: 14px;">
+                    🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다
+                </div>
+                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
+                    🔄 다시보기
+                </button>
             </div>
 
             <!-- 채팅 섹션 -->
@@ -1113,8 +1144,84 @@
         </div>
     </div>
 
+    <!-- 디버그 로그 섹션 -->
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🎰 룰렛 디버그 로그</div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+            </div>
+        </div>
+        <div id="debugLogContent" style="line-height: 1.4;"></div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // 디버그 로그 함수 (localhost:3000에서만 활성화)
+        const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
+        let debugLogEnabled = isLocalhost;
+        const MAX_LOG_LINES = 100;
+        
+        // localhost:3000이 아니면 디버그 로그 섹션 숨기기
+        if (!isLocalhost) {
+            const debugLogSection = document.getElementById('debugLogSection');
+            if (debugLogSection) {
+                debugLogSection.style.display = 'none';
+            }
+        }
+        
+        function addDebugLog(message, type = 'info') {
+            if (!debugLogEnabled) return;
+            
+            const logSection = document.getElementById('debugLogSection');
+            const logContent = document.getElementById('debugLogContent');
+            
+            if (!logSection || !logContent) return;
+            
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+            const colors = {
+                'info': '#0f0',
+                'warn': '#ff0',
+                'error': '#f00',
+                'animation': '#0ff',
+                'gameEnd': '#f0f',
+                'visibility': '#ffa500'
+            };
+            const color = colors[type] || colors['info'];
+            
+            const logLine = document.createElement('div');
+            logLine.innerHTML = `<span style="color: #888;">[${timestamp}]</span> <span style="color: ${color};">${message}</span>`;
+            logContent.appendChild(logLine);
+            
+            // 최대 줄 수 제한
+            while (logContent.children.length > MAX_LOG_LINES) {
+                logContent.removeChild(logContent.firstChild);
+            }
+            
+            // 자동 스크롤
+            logSection.scrollTop = logSection.scrollHeight;
+            
+            // localhost일 때만 자동으로 보이기
+            if (isLocalhost && logSection.style.display === 'none') {
+                logSection.style.display = 'block';
+            }
+        }
+        
+        function clearDebugLog() {
+            const logContent = document.getElementById('debugLogContent');
+            if (logContent) {
+                logContent.innerHTML = '';
+            }
+        }
+        
+        function toggleDebugLog() {
+            const logSection = document.getElementById('debugLogSection');
+            if (logSection) {
+                logSection.style.display = logSection.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+        
         // 소켓 연결
         const socket = io({
             reconnection: true,
@@ -1221,13 +1328,18 @@
         let isReady = false;
         let readyUsers = [];
         let roomsList = [];
+        let turboAnimation = true; // 터보 애니메이션 옵션 (기본값: 활성화)
         let selectedRoomId = null;
         let rouletteHistory = [];
         let isSpinning = false;
         let roomExpiryInterval = null;
         let pendingRoomId = null;
         let isOrderActive = false;
-        let ordersData = {};
+        let pendingRouletteData = null; // 포커스를 기다리는 룰렛 데이터
+        let rouletteFocusHandler = null; // 포커스 이벤트 핸들러 (중복 방지용)
+        let rouletteResultShown = false; // 결과 오버레이 표시 여부 (중복 방지)
+        let lastRouletteData = null; // 마지막 룰렛 데이터 (다시보기용 - 모든 사람 사용 가능)
+        let missedRoulette = false; // 룰렛을 놓쳤는지 여부 (화면 숨김 상태였는지)
         let everPlayedUsers = []; // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
         
         // 파스텔톤 색상 목록
@@ -1288,6 +1400,7 @@
             const roomName = document.getElementById('createRoomNameInput').value.trim();
             const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
             const password = document.getElementById('createRoomPasswordInput').value.trim();
+            const turboAnimation = document.getElementById('createRoomTurboCheckbox').checked;
             const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
             const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
 
@@ -1317,7 +1430,8 @@
                 gameType: 'roulette',
                 expiryHours: expiryHours,
                 blockIPPerUser: false,
-                deviceId: getDeviceId()
+                deviceId: getDeviceId(),
+                turboAnimation: turboAnimation
             });
         }
 
@@ -1621,15 +1735,183 @@
         }
 
         // 룰렛 애니메이션
-        function spinRoulette(finalAngle, duration, callback) {
+        // effectType: 서버에서 결정한 마무리 효과 타입 (normal, bounce, shake, slowCrawl)
+        // effectParams: 효과별 파라미터 (서버에서 결정)
+        function spinRoulette(finalAngle, duration, effectType, effectParams, callback) {
             const wheel = document.getElementById('rouletteWheel');
             
-            wheel.style.transition = `transform ${duration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
-            wheel.style.transform = `rotate(${finalAngle}deg)`;
+            // 기존 transitionend 이벤트 리스너 제거 (중복 방지)
+            if (wheel._rouletteTransitionHandler) {
+                wheel.removeEventListener('transitionend', wheel._rouletteTransitionHandler);
+            }
+            if (wheel._rouletteTransitionTimeout) {
+                clearTimeout(wheel._rouletteTransitionTimeout);
+            }
+            if (wheel._rouletteShakeInterval) {
+                clearInterval(wheel._rouletteShakeInterval);
+            }
             
-            setTimeout(() => {
+            let callbackCalled = false;
+            const animationStartTime = Date.now();
+            
+            // 콜백 호출 헬퍼 함수
+            const finishAnimation = (mode) => {
+                if (callbackCalled) return;
+                callbackCalled = true;
+                const elapsed = Date.now() - animationStartTime;
+                console.log(`✅ 룰렛 애니메이션 완료 - ${mode} (경과 시간: ${elapsed}ms)`);
+                if (wheel._rouletteTransitionHandler) {
+                    wheel.removeEventListener('transitionend', wheel._rouletteTransitionHandler);
+                    wheel._rouletteTransitionHandler = null;
+                }
+                if (wheel._rouletteTransitionTimeout) {
+                    clearTimeout(wheel._rouletteTransitionTimeout);
+                    wheel._rouletteTransitionTimeout = null;
+                }
+                if (wheel._rouletteShakeInterval) {
+                    clearInterval(wheel._rouletteShakeInterval);
+                    wheel._rouletteShakeInterval = null;
+                }
                 if (callback) callback();
-            }, duration);
+            };
+            
+            addDebugLog(`🎰 룰렛 효과: ${effectType}`, 'animation');
+            console.log(`🎰 룰렛 효과: ${effectType}`, effectParams);
+            
+            // 메인 회전 (모든 효과 공통) - 최종 위치 근처까지 회전
+            const mainDuration = duration * 0.75; // 전체 시간의 75%를 메인 회전에 사용
+            const effectDuration = duration * 0.25; // 나머지 25%를 마무리 효과에 사용
+            
+            // 효과별 마무리 각도 조정
+            let preEffectAngle = finalAngle;
+            if (effectType === 'bounce') {
+                preEffectAngle = finalAngle + (effectParams.overshootDeg || 15); // 바운스: 살짝 지나감
+            } else if (effectType === 'shake') {
+                preEffectAngle = finalAngle; // 떨림: 정확한 위치에서 흔들림
+            } else if (effectType === 'slowCrawl') {
+                preEffectAngle = finalAngle - (effectParams.crawlDistance || 45); // 느린 크롤: 조금 전에서 시작
+            }
+            
+            // 메인 회전 시작
+            wheel.style.transition = `transform ${mainDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+            wheel.offsetHeight;
+            wheel.style.transform = `rotate(${preEffectAngle}deg)`;
+            
+            // 메인 회전 완료 후 마무리 효과
+            setTimeout(() => {
+                if (callbackCalled) return;
+                
+                switch (effectType) {
+                    case 'bounce':
+                        // 🔄 바운스 효과: 지나갔다가 탄성으로 돌아옴
+                        addDebugLog('🔄 바운스 효과 발동!', 'animation');
+                        const bounceDuration = effectParams.bounceDuration || 500;
+                        
+                        const bounceHandler = (e) => {
+                            if (e.propertyName === 'transform') {
+                                finishAnimation('바운스');
+                            }
+                        };
+                        wheel._rouletteTransitionHandler = bounceHandler;
+                        wheel.addEventListener('transitionend', bounceHandler);
+                        
+                        // 탄성 있게 돌아오기 (ease-out-back 느낌)
+                        wheel.style.transition = `transform ${bounceDuration}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+                        wheel.offsetHeight;
+                        wheel.style.transform = `rotate(${finalAngle}deg)`;
+                        break;
+                        
+                    case 'shake':
+                        // 📳 떨림 효과: 앞뒤로 흔들리다가 멈춤
+                        addDebugLog('📳 떨림 효과 발동!', 'animation');
+                        const shakeCount = effectParams.shakeCount || 3;
+                        const shakeAmplitudes = effectParams.shakeAmplitudes || [5, 3, 1];
+                        const shakeDuration = effectParams.shakeDuration || 150;
+                        
+                        let shakeIndex = 0;
+                        let direction = 1;
+                        
+                        const doShake = () => {
+                            if (callbackCalled) return;
+                            
+                            const amplitude = shakeAmplitudes[Math.floor(shakeIndex / 2)] || 1;
+                            const targetAngle = finalAngle + (amplitude * direction);
+                            
+                            wheel.style.transition = `transform ${shakeDuration}ms ease-out`;
+                            wheel.offsetHeight;
+                            wheel.style.transform = `rotate(${targetAngle}deg)`;
+                            
+                            direction *= -1;
+                            shakeIndex++;
+                            
+                            if (shakeIndex >= shakeCount * 2) {
+                                // 마지막: 정확한 위치로
+                                setTimeout(() => {
+                                    if (callbackCalled) return;
+                                    wheel.style.transition = `transform ${shakeDuration}ms ease-out`;
+                                    wheel.offsetHeight;
+                                    wheel.style.transform = `rotate(${finalAngle}deg)`;
+                                    setTimeout(() => finishAnimation('떨림'), shakeDuration);
+                                }, shakeDuration);
+                            } else {
+                                setTimeout(doShake, shakeDuration);
+                            }
+                        };
+                        
+                        doShake();
+                        break;
+                        
+                    case 'slowCrawl':
+                        // 🐌 느린 크롤 효과: 극도로 느리게 마지막 구간 이동
+                        addDebugLog('🐌 느린 크롤 효과 발동!', 'animation');
+                        const crawlDuration = effectParams.crawlDuration || 2000;
+                        
+                        const crawlHandler = (e) => {
+                            if (e.propertyName === 'transform') {
+                                finishAnimation('느린 크롤');
+                            }
+                        };
+                        wheel._rouletteTransitionHandler = crawlHandler;
+                        wheel.addEventListener('transitionend', crawlHandler);
+                        
+                        // 극도로 느리게 (ease-out으로 점점 더 느려짐)
+                        wheel.style.transition = `transform ${crawlDuration}ms cubic-bezier(0.1, 0.9, 0.2, 1)`;
+                        wheel.offsetHeight;
+                        wheel.style.transform = `rotate(${finalAngle}deg)`;
+                        break;
+                        
+                    default:
+                        // 🎯 일반 모드: 이미 메인 회전에서 최종 위치에 도달
+                        addDebugLog('🎯 일반 모드 완료', 'animation');
+                        finishAnimation('일반');
+                        break;
+                }
+            }, mainDuration);
+            
+            // 안전장치: 전체 시간 + 여유
+            const totalTimeout = effectType === 'shake' ? duration + 3000 : duration + 2000;
+            wheel._rouletteTransitionTimeout = setTimeout(() => {
+                if (!callbackCalled) {
+                    console.warn(`⚠️ 안전장치 timeout 발동 (${effectType})`);
+                    finishAnimation('안전장치');
+                }
+            }, totalTimeout);
+        }
+        
+        // 이전 버전 호환을 위한 래퍼 (useSpurt 파라미터 지원)
+        function spinRouletteCompat(finalAngle, duration, useSpurtOrEffectType, effectParamsOrCallback, callbackOrUndefined) {
+            // 새 API: spinRoulette(finalAngle, duration, effectType, effectParams, callback)
+            // 구 API: spinRoulette(finalAngle, duration, useSpurt, callback)
+            
+            if (typeof useSpurtOrEffectType === 'string') {
+                // 새 API
+                spinRoulette(finalAngle, duration, useSpurtOrEffectType, effectParamsOrCallback, callbackOrUndefined);
+            } else {
+                // 구 API (useSpurt boolean)
+                const effectType = useSpurtOrEffectType ? 'bounce' : 'normal';
+                const effectParams = {};
+                spinRoulette(finalAngle, duration, effectType, effectParams, effectParamsOrCallback);
+            }
         }
 
         // 접속자 목록 업데이트
@@ -1993,6 +2275,119 @@
         function endRouletteGame() {
             socket.emit('endRoulette');
         }
+        
+        // 룰렛 다시보기 (모든 사람 사용 가능)
+        function replayRoulette() {
+            if (!lastRouletteData) {
+                addDebugLog('⚠️ 다시보기 데이터가 없습니다', 'warn');
+                console.log('⚠️ 다시보기 데이터가 없습니다.');
+                return;
+            }
+            
+            addDebugLog(`🔄 다시보기 시작 - winner: ${lastRouletteData.winner}, missedRoulette: ${missedRoulette}`, 'info');
+            
+            // 다시보기 섹션 숨기기
+            document.getElementById('replaySection').style.display = 'none';
+            
+            // 다시보기 모드로 룰렛 재생 (결과 이벤트는 전송하지 않음)
+            const data = lastRouletteData;
+            const wasMissed = missedRoulette; // 놓친 상태였는지 저장
+            
+            // UI 상태 변경 (준비 섹션은 유지)
+            document.getElementById('startRouletteButton').disabled = true;
+            document.getElementById('startRouletteButton').textContent = '🎬 다시보기 중...';
+            
+            // 룰렛 휠 생성
+            createRouletteWheel(data.participants);
+            
+            // 각도 계산
+            const segmentAngle = 360 / data.participants.length;
+            const winnerCenterAngle = (data.winnerIndex + 0.5) * segmentAngle;
+            const neededRotation = 360 - winnerCenterAngle;
+            const fullRotations = Math.floor(data.totalRotation / 360);
+            const finalAngle = fullRotations * 360 + neededRotation;
+            
+            addDebugLog(`🎯 다시보기 각도 계산: finalAngle=${finalAngle}`, 'animation');
+            
+            // 강제 리플로우 후 애니메이션 시작
+            const wheel = document.getElementById('rouletteWheel');
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            wheel.offsetHeight; // 강제 리플로우
+            
+            isSpinning = true;
+            rouletteResultShown = false;
+            
+            setTimeout(() => {
+                // 서버에서 결정한 효과를 사용 (동일한 애니메이션 재현)
+                spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
+                    addDebugLog('✅ 다시보기 애니메이션 완료', 'animation');
+                    
+                    isSpinning = false;
+                    rouletteResultShown = true;
+                    
+                    // 결과 오버레이 표시
+                    document.getElementById('resultWinner').textContent = data.winner;
+                    document.getElementById('resultOverlay').classList.add('visible');
+                    addDebugLog(`🎊 다시보기 결과 표시 - winner: ${data.winner}`, 'gameEnd');
+                    
+                    // UI 복원
+                    document.getElementById('readySection').style.display = 'block';
+                    document.getElementById('startRouletteButton').disabled = false;
+                    document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                    
+                    // 호스트에게 종료 버튼 표시
+                    if (isHost) {
+                        document.getElementById('endGameSection').style.display = 'block';
+                    }
+                    
+                    // 놓친 경우에만 채팅 메시지와 기록 추가 (이미 본 경우는 이미 표시됨)
+                    if (wasMissed) {
+                        // 다시보기에서 채팅 메시지 표시
+                        const winnerMessage = {
+                            userName: '시스템',
+                            message: `🎊🎉 축하합니다! ${data.winner}님이 당첨되었습니다! 🎉🎊`,
+                            timestamp: new Date().toISOString(),
+                            isSystem: true,
+                            isRouletteWinner: true
+                        };
+                        addChatMessage(winnerMessage);
+                        
+                        // 다시보기에서 기록 업데이트
+                        if (data.record) {
+                            // 중복 방지: 이미 같은 라운드가 있는지 확인
+                            const existingRecord = rouletteHistory.find(r => r.round === data.record.round);
+                            if (!existingRecord) {
+                                rouletteHistory.push(data.record);
+                                renderHistory();
+                            }
+                        }
+                        
+                        addDebugLog(`📢 다시보기 채팅 및 기록 표시 완료 (놓친 룰렛)`, 'info');
+                    } else {
+                        addDebugLog(`📢 다시보기 완료 (이미 본 룰렛)`, 'info');
+                    }
+                    
+                    // 놓친 상태 초기화
+                    missedRoulette = false;
+                    
+                    // 다시보기 버튼 다시 표시
+                    showReplayButton();
+                });
+            }, 50);
+        }
+        
+        // 다시보기 버튼 표시 함수
+        function showReplayButton() {
+            if (lastRouletteData) {
+                const replaySection = document.getElementById('replaySection');
+                const replayMessage = replaySection.querySelector('div');
+                if (replayMessage) {
+                    replayMessage.textContent = '🎬 마지막 룰렛 다시보기';
+                }
+                replaySection.style.display = 'block';
+            }
+        }
 
         // 결과 오버레이 닫기
         function closeResultOverlay() {
@@ -2037,6 +2432,42 @@
             updateCountdown();
             roomExpiryInterval = setInterval(updateCountdown, 1000);
         }
+        
+        // 터보 애니메이션 배지 업데이트
+        function updateTurboAnimationBadge() {
+            const badge = document.getElementById('turboBadge');
+            if (badge) {
+                badge.style.display = turboAnimation ? 'inline-block' : 'none';
+            }
+        }
+        
+        // 터보 애니메이션 설정 UI 업데이트
+        function updateTurboSettingUI() {
+            const section = document.getElementById('turboSettingSection');
+            const toggle = document.getElementById('turboToggle');
+            
+            if (section) {
+                // 호스트만 표시
+                section.style.display = isHost ? 'block' : 'none';
+            }
+            
+            if (toggle) {
+                toggle.checked = turboAnimation;
+            }
+        }
+        
+        // 터보 애니메이션 토글
+        function toggleTurboAnimation() {
+            if (!isHost) {
+                alert('호스트만 설정을 변경할 수 있습니다.');
+                return;
+            }
+            
+            const toggle = document.getElementById('turboToggle');
+            const newValue = toggle.checked;
+            
+            socket.emit('updateTurboAnimation', { turboAnimation: newValue });
+        }
 
         // 게임 화면 초기화
         function initializeGameScreen(data) {
@@ -2045,6 +2476,11 @@
             if (data.createdAt && data.expiryHours) {
                 startRoomExpiryCountdown(data.createdAt, data.expiryHours);
             }
+            
+            // 터보 애니메이션 옵션 저장
+            turboAnimation = data.turboAnimation !== false;
+            updateTurboAnimationBadge();
+            updateTurboSettingUI();
             
             // 사용자 목록 초기화
             if (data.gameState && data.gameState.users) {
@@ -2244,6 +2680,11 @@
             alert(message);
         });
 
+        socket.on('readyError', (message) => {
+            alert(message);
+            addDebugLog(`❌ 준비 에러: ${message}`, 'error');
+        });
+
         // ========== 주문받기 이벤트 ==========
         socket.on('orderStarted', () => {
             isOrderActive = true;
@@ -2346,6 +2787,21 @@
         });
 
         socket.on('newMessage', (data) => {
+            // 룰렛 당첨 메시지 처리
+            if (data.isRouletteWinner) {
+                // 화면이 숨겨져 있으면 표시하지 않음 (다시보기에서 확인 가능)
+                if (document.visibilityState !== 'visible') {
+                    addDebugLog(`🔇 룰렛 당첨 메시지 숨김 (화면 NOT visible) - winner: ${data.message}`, 'visibility');
+                    console.log('⚠️ 화면이 숨겨져 있어 룰렛 당첨 메시지를 표시하지 않습니다.');
+                    return;
+                }
+                // 룰렛을 놓친 상태면 표시하지 않음 (다시보기 완료 후 표시)
+                if (missedRoulette) {
+                    addDebugLog(`🔇 룰렛 당첨 메시지 숨김 (다시보기 대기중) - winner: ${data.message}`, 'visibility');
+                    console.log('⚠️ 다시보기 대기중이라 룰렛 당첨 메시지를 표시하지 않습니다.');
+                    return;
+                }
+            }
             addChatMessage(data);
         });
         
@@ -2506,16 +2962,42 @@
             }
         });
 
-        socket.on('rouletteStarted', (data) => {
+        // 룰렛 실제 시작 함수 (화면 표시 확인 후 호출)
+        function actuallyStartRoulette(data) {
+            addDebugLog(`🎰 actuallyStartRoulette 호출 - isHost: ${isHost}, visibilityState: ${document.visibilityState}`, 'info');
+            
+            // 현재 화면을 보고 있는지 확인 (최소화 또는 탭 숨김 체크) - 모든 클라이언트에서 체크
+            if (document.visibilityState !== 'visible') {
+                addDebugLog('⚠️ 화면이 보이지 않음 - 룰렛 무시', 'visibility');
+                console.log('⚠️ 화면이 보이지 않습니다. 룰렛을 무시합니다.');
+                // 무시하고 결과 화면도 표시하지 않음
+                rouletteResultShown = true;
+                isSpinning = false;
+                pendingRouletteData = null;
+                
+                // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
+                document.getElementById('resultOverlay').classList.remove('visible');
+                addDebugLog('🔒 resultOverlay 숨김 처리', 'visibility');
+                
+                // UI 초기화
+                document.getElementById('readySection').style.display = 'block';
+                document.getElementById('startRouletteButton').disabled = false;
+                document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                return;
+            }
+            
+            addDebugLog('✅ 화면이 보임 - 룰렛 시작 진행', 'info');
             isSpinning = true;
+            pendingRouletteData = null; // 대기 데이터 초기화
+            rouletteResultShown = false; // 결과 표시 플래그 초기화
+            addDebugLog(`📊 상태 설정: isSpinning=${isSpinning}, rouletteResultShown=${rouletteResultShown}`, 'info');
             
             // 서버에서 받은 누적 참여자 목록으로 업데이트
             if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
                 everPlayedUsers = [...data.everPlayedUsers];
             }
             
-            // UI 상태 변경 (돌림판은 이미 보이는 상태)
-            document.getElementById('readySection').style.display = 'none';
+            // UI 상태 변경 (돌림판과 준비 섹션은 계속 표시)
             // 룰렛 시작 버튼만 비활성화 (주문받기 버튼은 유지)
             document.getElementById('startRouletteButton').disabled = true;
             document.getElementById('startRouletteButton').textContent = '🎰 룰렛 진행 중...';
@@ -2543,8 +3025,65 @@
             wheel.offsetHeight; // 강제 리플로우
             
             setTimeout(() => {
-                spinRoulette(finalAngle, data.spinDuration, () => {
+                addDebugLog(`⏰ setTimeout 콜백 - isHost: ${isHost}, visibilityState: ${document.visibilityState}`, 'animation');
+                
+                // 화면이 보이는지 다시 한 번 확인 (애니메이션 시작 직전) - 모든 클라이언트에서 체크
+                if (document.visibilityState !== 'visible') {
+                    addDebugLog('⚠️ setTimeout 안에서 화면 NOT visible - 룰렛 무시', 'visibility');
+                    console.log('⚠️ 애니메이션 시작 직전 화면이 보이지 않습니다. 룰렛을 무시합니다.');
+                    // 무시하고 결과 화면도 표시하지 않음
+                    rouletteResultShown = true;
                     isSpinning = false;
+                    pendingRouletteData = null;
+                    addDebugLog(`📊 상태 설정: rouletteResultShown=${rouletteResultShown}, isSpinning=${isSpinning}`, 'visibility');
+                    
+                    // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
+                    document.getElementById('resultOverlay').classList.remove('visible');
+                    addDebugLog('🔒 resultOverlay 숨김 처리', 'visibility');
+                    
+                    // UI 초기화
+                    document.getElementById('readySection').style.display = 'block';
+                    document.getElementById('startRouletteButton').disabled = false;
+                    document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+                    return;
+                }
+                
+                // 애니메이션 시작 전 상태 확인
+                const wasSpinning = isSpinning;
+                const animationStartTime = Date.now();
+                rouletteResultShown = false; // 결과 표시 플래그 초기화
+                addDebugLog(`🎬 spinRoulette 호출 시작 - wasSpinning: ${wasSpinning}, rouletteResultShown: ${rouletteResultShown}, effectType: ${data.effectType}`, 'animation');
+                
+                spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
+                    addDebugLog(`🔄 spinRoulette 콜백 실행 - rouletteResultShown: ${rouletteResultShown}, wasSpinning: ${wasSpinning}`, 'animation');
+                    
+                    // 중복 호출 방지
+                    if (rouletteResultShown) {
+                        addDebugLog('⚠️ 결과 이미 표시됨 - 중복 방지로 return', 'warn');
+                        console.log('⚠️ 결과가 이미 표시되었습니다. 중복 표시를 방지합니다.');
+                        return;
+                    }
+                    
+                    // 애니메이션이 실제로 시작되었는지 확인
+                    if (!wasSpinning) {
+                        addDebugLog('⚠️ wasSpinning=false - 애니메이션 시작 안 됨, return', 'warn');
+                        console.log('⚠️ 애니메이션이 시작되지 않았습니다. 결과를 표시하지 않습니다.');
+                        return;
+                    }
+                    
+                    // 애니메이션 최소 시간 확인 (너무 빨리 완료되면 실제 애니메이션이 아닐 수 있음)
+                    const elapsed = Date.now() - animationStartTime;
+                    const minDuration = data.spinDuration * 0.7; // 최소 70% 이상 경과해야 함 (너무 엄격하지 않게)
+                    addDebugLog(`⏱️ 애니메이션 시간 체크 - elapsed: ${elapsed}ms, minDuration: ${minDuration}ms`, 'animation');
+                    if (elapsed < minDuration) {
+                        addDebugLog(`⚠️ 애니메이션 너무 빨리 완료 (${elapsed}ms < ${minDuration}ms) - return`, 'warn');
+                        console.log(`⚠️ 애니메이션이 너무 빨리 완료되었습니다 (${elapsed}ms < ${minDuration}ms). 결과를 표시하지 않습니다.`);
+                        return;
+                    }
+                    
+                    addDebugLog('✅ 모든 체크 통과 - 결과 표시 진행', 'info');
+                    isSpinning = false;
+                    rouletteResultShown = true; // 결과 표시 플래그 설정
                     
                     // ========== 🧪 CSS 애니메이션 검증 로그 ==========
                     const wheelAfter = document.getElementById('rouletteWheel');
@@ -2599,12 +3138,14 @@
                     console.log('%c==========================================', 'font-size: 14px; font-weight: bold; color: #7c4dff;');
                     // ========== 검증 로그 끝 ==========
                     
-                    // 호스트만 결과 이벤트 전송
+                    // 호스트만 결과 이벤트 전송 (애니메이션이 실제로 완료된 경우에만)
                     if (isHost) {
+                        addDebugLog(`📤 rouletteResult emit - winner: ${data.winner}`, 'info');
                         socket.emit('rouletteResult', { winner: data.winner });
                     }
                     
-                    // 결과 오버레이 표시
+                    // 결과 오버레이 표시 (애니메이션이 실제로 완료된 경우에만, 중복 방지)
+                    addDebugLog(`🎊 결과 오버레이 표시 - winner: ${data.winner}`, 'gameEnd');
                     document.getElementById('resultWinner').textContent = data.winner;
                     document.getElementById('resultOverlay').classList.add('visible');
                     
@@ -2617,23 +3158,105 @@
                         document.getElementById('endGameSection').style.display = 'block';
                     }
                     
+                    // 다시보기 버튼 표시 (모든 사람 사용 가능)
+                    showReplayButton();
+                    
                     // 룰렛 시작 버튼 다시 활성화
                     updateStartButton();
                 });
             }, 50); // 50ms 지연으로 리플로우 보장
+        }
+        
+        socket.on('rouletteStarted', (data) => {
+            const hasFocus = document.hasFocus();
+            const isVisible = document.visibilityState === 'visible';
+            const isActuallyVisible = isVisible && hasFocus; // 둘 다 충족해야 실제로 보이는 것
+            
+            addDebugLog(`📨 rouletteStarted 이벤트 수신 - isHost: ${isHost}, visible: ${isVisible}, hasFocus: ${hasFocus}`, 'info');
+            addDebugLog(`📊 data: winner=${data.winner}, participants=${data.participants?.length}명`, 'info');
+            
+            // 마지막 룰렛 데이터 저장 (모든 사람 다시보기 가능)
+            lastRouletteData = data;
+            
+            // 다시보기 섹션 숨기기 (새 룰렛 시작 시)
+            document.getElementById('replaySection').style.display = 'none';
+            
+            // 모든 클라이언트에서 화면 표시 확인 (호스트/비호스트 모두)
+            // visibilityState가 visible이고 창이 포커스를 가지고 있어야 실제로 보이는 것
+            if (isActuallyVisible) {
+                addDebugLog('✅ 화면 visible + 포커스 있음 → actuallyStartRoulette 호출', 'info');
+                // 화면이 보이면 즉시 시작
+                missedRoulette = false;
+                actuallyStartRoulette(data);
+            } else {
+                addDebugLog(`⚠️ 화면 NOT visible (visible=${isVisible}, focus=${hasFocus}) → 룰렛 무시, 다시보기 데이터 저장`, 'visibility');
+                // 화면이 보이지 않으면 무시 (대기하지 않음)
+                console.log('⚠️ 화면이 보이지 않아 룰렛을 무시합니다. 다시보기로 확인할 수 있습니다.');
+                
+                // 놓친 상태 표시
+                missedRoulette = true;
+                addDebugLog(`📦 missedRoulette = true, lastRouletteData 저장 - winner: ${data.winner}`, 'visibility');
+                
+                // 룰렛 결과 무시 플래그 설정
+                rouletteResultShown = true; // 결과 화면이 뜨지 않도록 설정
+                isSpinning = false;
+                pendingRouletteData = null; // 대기 데이터 없음
+                addDebugLog(`📊 상태 설정: rouletteResultShown=${rouletteResultShown}, isSpinning=${isSpinning}`, 'visibility');
+                
+                // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
+                document.getElementById('resultOverlay').classList.remove('visible');
+                addDebugLog('🔒 resultOverlay 숨김 처리', 'visibility');
+                
+                // 다시보기 섹션 표시 (놓친 경우 메시지)
+                const replaySection = document.getElementById('replaySection');
+                const replayMessage = replaySection.querySelector('div');
+                if (replayMessage) {
+                    replayMessage.textContent = '🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다';
+                }
+                replaySection.style.display = 'block';
+                addDebugLog('🎬 다시보기 섹션 표시 (놓친 경우)', 'visibility');
+                
+                // UI 초기화 - 다시 시작할 수 있도록
+                document.getElementById('readySection').style.display = 'block';
+                document.getElementById('startRouletteButton').disabled = false;
+                document.getElementById('startRouletteButton').textContent = '🎰 룰렛 시작';
+            }
         });
 
         socket.on('rouletteEnded', (data) => {
-            // 결과 처리 완료
+            // 결과 처리 완료 - 준비 상태 초기화
+            isReady = false;
+            updateReadyButton();
+        });
+        
+        // 터보 애니메이션 설정 업데이트
+        socket.on('turboAnimationUpdated', (data) => {
+            turboAnimation = data.turboAnimation;
+            updateTurboAnimationBadge();
+            updateTurboSettingUI();
+            addDebugLog(`🚀 터보 애니메이션 ${turboAnimation ? '활성화' : '비활성화'}됨`, 'info');
         });
 
         socket.on('rouletteGameEnded', (data) => {
             isSpinning = false;
+            rouletteResultShown = false; // 결과 표시 플래그 초기화
+            missedRoulette = false; // 놓친 상태 초기화
+            lastRouletteData = null; // 마지막 룰렛 데이터 초기화 (게임 종료 시)
+            isReady = false; // 준비 상태 초기화
+            
+            // 결과 오버레이 숨기기
+            document.getElementById('resultOverlay').classList.remove('visible');
+            
+            // 다시보기 섹션 숨기기
+            document.getElementById('replaySection').style.display = 'none';
             
             // UI 초기화 (돌림판은 계속 표시)
             document.getElementById('rouletteContainer').style.display = 'flex';
             document.getElementById('readySection').style.display = 'block';
             document.getElementById('endGameSection').style.display = 'none';
+            
+            // 준비 버튼 상태 초기화
+            updateReadyButton();
             
             // 룰렛 휠 초기화
             const wheel = document.getElementById('rouletteWheel');

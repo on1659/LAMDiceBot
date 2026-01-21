@@ -1,90 +1,149 @@
-feat: 순위 애니메이션 기능 추가 및 테스트 봇 개선
+fix: 주사위 채팅 이모티콘, 유력/당첨 태그 표시 및 애니메이션 타이밍 문제 수정
 
 ## 주요 변경사항
 
-### 1. 순위 애니메이션 기능 추가
-- **새로 유력이 된 사람의 애니메이션**
-  - 새로 유력이 된 사람이 위에서 내려오는 애니메이션 추가
-  - `slideDownFromTop` CSS 애니메이션 적용 (0.6초)
-  - 진행 중인 애니메이션이 있으면 자동 취소하고 새로운 애니메이션 재생
-  - 기존 항목은 그대로 유지하고 새로 유력이 된 항목만 애니메이션 적용
-  - `requestAnimationFrame`을 사용하여 DOM 업데이트 후 애니메이션 시작 보장
+### 1. 주사위를 굴린 채팅에서 이모티콘 표시 문제 수정
+- **문제**: `/주사위` 명령어로 주사위를 굴린 채팅 메시지에 이모티콘 반응 UI가 표시되지 않음
+- **해결**: 주사위 명령어 메시지에도 일반 메시지와 동일하게 이모티콘 반응 UI 추가
+  - 타임스탬프 옆에 이모티콘 버튼 표시
+  - 호버 시 이모티콘 버튼 표시/숨김 로직 적용
 
-- **"현재유력" → "유력" 텍스트 변경**
-  - 배지 텍스트를 "현재유력"에서 "유력"으로 변경
-  - 주석 및 변수명도 일관성 있게 수정
+### 2. 우측 주사위 리스트에서 유력 태그 표시 문제 수정
+- **문제**: 유력한 후보가 상단으로 이동하지만 "유력" 태그가 표시되지 않음
+- **해결**: `sortHistoryData` 함수가 `topPlayerKeys`를 반환하도록 수정
+  - `renderHistory` 함수에서 유력한 후보에 빨간색 "유력" 배지 표시
+  - 게임 진행 중일 때만 유력 태그 표시
 
-- **"아직 기록이 없습니다" 메시지 수정**
-  - 기록이 있을 때 불필요하게 표시되던 문제 수정
-  - `displayData.length === 0`일 때만 표시하도록 개선
+### 3. 게임 종료 후 당첨자 태그 표시 문제 수정
+- **문제**: 게임 종료 후 당첨자에 "당첨" 태그가 표시되지 않음
+- **해결**: 게임 종료 시 당첨자 계산 및 저장 로직 추가
+  - `gameEnded` 이벤트에서 하이/로우/니어 룰의 당첨자 계산
+  - 채팅 메시지의 `winnerInfo`에서 커스텀 룰 당첨자도 저장
+  - `renderHistory` 함수에서 당첨자에 초록색 "당첨" 배지 표시
+  - 게임 종료 후 당첨자도 상단으로 올라가도록 개선
 
-### 2. 테스트 봇 개선
-- **반복 횟수 설정 기능 추가**
-  - `--games` 파라미터로 게임 반복 횟수 설정 가능
-  - 설정한 횟수만큼 게임 진행 후 자동 종료
-  - 기본값: 무제한 (null)
+### 4. updateHostCheckbox null 에러 수정
+- **문제**: 게임 화면에서 `updateHostCheckbox` 함수 호출 시 null 에러 발생
+- **해결**: `hostCheckbox` 요소가 없을 때 함수를 조기 종료하도록 null 체크 추가
 
-- **명령줄 파라미터 지원**
-  - `--url`: 서버 URL 지정 (기본값: http://localhost:3000)
-  - `--count`: 봇 개수 지정 (기본값: 4)
-  - `--games`: 게임 반복 횟수 지정 (기본값: 무제한)
-  - `--help`: 도움말 표시
+### 5. 마지막 사람의 애니메이션 완료 전 게임 종료 문제 수정
+- **문제**: 마지막 사람의 애니메이션이 끝나기 전에 게임이 종료됨
+- **원인**: 이전 사람의 애니메이션 완료 시간을 기준으로 게임 종료 체크
+- **해결**: 마지막 사람의 애니메이션을 정확히 추적하도록 개선
+  - 마지막 사람의 애니메이션 시작 시 이전 완료 플래그 리셋
+  - 마지막 사람의 애니메이션 완료 시에만 플래그 설정
+  - 마지막 사람이 아닌 경우 플래그 설정 안 함
 
-- **재시작 대기 시간 조정**
-  - 재시작 대기 시간을 10초로 변경 (애니메이션 완료 대기)
-  - `BOT_CONFIG.restartDelay`를 10000ms로 설정
+### 6. 마지막 사람의 애니메이션을 고정 시간으로 변경
+- **문제**: 애니메이션 시간이 가변적이어서 게임 종료 타이밍 예측 불가
+- **해결**: 마지막 사람의 애니메이션을 고정 시간(3.5초)으로 변경
+  - `fixedDuration` 애니메이션 함수 추가 (3초 애니메이션 + 0.5초 대기)
+  - 마지막 사람은 항상 고정 시간 애니메이션 사용
+  - 게임 종료 타이밍 예측 가능하도록 개선
 
-- **난수 생성 방식 개선**
-  - 봇의 `clientSeed` 생성 방식을 일반 클라이언트와 동일하게 수정
-  - `Date.now().toString() + Math.random().toString(36).substring(2)` 사용
-  - 서버의 seeded random 함수와 일관성 유지
-
-### 3. 게임 종료 메시지 표시 개선
-- **allPlayersRolled 이벤트 직접 처리**
-  - `allPlayersRolled` 이벤트를 받으면 직접 `displayChatMessage` 호출
-  - 게임 종료 메시지가 확실하게 표시되도록 개선
-  - 중복 방지 로직 유지
+### 7. 디버그 로그 시스템 추가
+- **HTML 로그 뷰 추가**
+  - 화면 우측 하단에 고정된 로그 패널
+  - 실시간으로 애니메이션 상태, 게임 종료 타이밍 등 상세 로그 표시
+  - 로그 타입별 색상 구분 (정보/경고/에러/애니메이션/게임종료)
+  - 최대 100줄 유지 후 자동 삭제
+  - "지우기", "숨기기" 버튼 제공
 
 ## 기술적 변경사항
 
 ### 클라이언트 측 (dice-game-multiplayer.html)
-- **애니메이션 로직**
-  - `previousTopPlayerKeys`로 이전 유력 상태 추적
-  - `currentAnimatingItem`으로 진행 중인 애니메이션 관리
-  - `newTopPlayerKeys`로 새로 유력이 된 사람 식별
-  - DOM 요소를 재사용하여 성능 최적화
+- 주사위 명령어 메시지에 이모티콘 반응 UI 추가
+- `sortHistoryData` 함수 수정: `topPlayerKeys` 반환하도록 변경
+- `renderHistory` 함수 수정: 유력/당첨 태그 표시 로직 추가
+- `gameEnded` 이벤트 핸들러: 당첨자 계산 및 저장 로직 추가
+- `updateHostCheckbox` 함수: null 체크 추가
+- 마지막 사람의 애니메이션 추적 로직 개선
+- `fixedDuration` 고정 시간 애니메이션 함수 추가
+- 디버그 로그 시스템 추가 (`addDebugLog` 함수)
 
-- **CSS 애니메이션**
-  - `@keyframes slideDownFromTop`: 위에서 내려오는 애니메이션
-  - `@keyframes slideDownToBottom`: 아래로 내려가는 애니메이션 (취소용)
-  - `animating-from-top`, `animating-to-bottom` 클래스로 제어
-
-- **텍스트 변경**
-  - 모든 "현재유력" 텍스트를 "유력"으로 변경
-  - 배지 HTML, 주석, 변수명 일관성 유지
-
-### 테스트 봇 (AutoTest/dice/dice-test-bot.js)
-- **CLI 파라미터 파싱**
-  - `parseArgs()` 함수로 명령줄 인자 처리
-  - `minimist` 라이브러리 사용 (선택사항)
-
-- **게임 반복 제어**
-  - `gameCount`로 게임 진행 횟수 추적
-  - `maxGames`에 도달하면 `global.stopAllBots()` 호출
-
-- **난수 생성 동기화**
-  - 클라이언트와 동일한 `clientSeed` 생성 방식 사용
-  - 서버의 seeded random 함수와 일관성 유지
+### CSS 스타일 추가
+- `.top-player-badge`: 빨간색 "유력" 배지 스타일
+- `.winner-badge`: 초록색 "당첨" 배지 스타일
+- `.debug-log-section`: 디버그 로그 패널 스타일
 
 ## 버그 수정
-- "아직 기록이 없습니다" 메시지가 불필요하게 표시되던 문제 해결
-- 게임 종료 메시지가 봇 테스트에서 표시되지 않던 문제 해결
-- 봇과 직접 플레이 시 결과가 다르게 나오던 문제 해결 (clientSeed 동기화)
+- 주사위를 굴린 채팅에서 이모티콘이 표시되지 않던 문제 해결
+- 우측 주사위 리스트에서 유력 태그가 표시되지 않던 문제 해결
+- 게임 종료 후 당첨자 태그가 표시되지 않던 문제 해결
+- updateHostCheckbox null 에러 해결
+- 마지막 사람의 애니메이션이 끝나기 전에 게임이 종료되던 문제 해결
+- 게임 종료 타이밍 예측 불가 문제 해결 (고정 시간 애니메이션)
 
 ## 수정된 파일
 - dice-game-multiplayer.html
-- AutoTest/dice/dice-test-bot.js
-- update-log.txt
+
+---
+
+fix: 마지막 사람 당첨 시 결과 계산 오류 수정 및 테스트 봇 파일 정리
+
+## 주요 변경사항
+
+### 1. 마지막 사람 당첨 시 결과 계산 오류 수정
+- **문제**: 마지막 사람이 당첨될 때 간헐적으로 결과가 다르게 나오는 문제
+- **원인**: `calculateWinner` 함수가 로컬 `historyData`를 사용하여 마지막 사람의 기록이 반영되기 전에 계산됨
+- **해결**: `gameEnded` 이벤트에서 받은 `currentGameHistory`를 우선 사용하도록 수정
+  - `window.currentGameHistoryFromServer` 전역 변수에 서버에서 받은 기록 저장
+  - `calculateWinner` 함수에서 서버 기록 우선 사용, 없을 때만 로컬 기록 사용
+  - `gameEnded` 이벤트가 발생할 때까지 최대 3초 대기하여 기록 수신 보장
+  - 디버깅 로그 추가로 문제 추적 가능하도록 개선
+
+### 2. 게임 종료 후 자동 재시작 기능 개선
+- **봇 자동 준비 상태 설정**
+  - 게임 종료 후 모든 봇이 자동으로 준비 상태가 되도록 수정
+  - `gameEnded` 이벤트에서 1초 후 자동으로 `toggleReady` 이벤트 전송
+  - 호스트 봇이 모든 봇이 준비되면 즉시 게임 시작하도록 개선
+  - `readyUsersUpdated` 이벤트로 준비 상태 실시간 확인
+
+### 3. 테스트 봇 파일 정리
+- **다이스 관련 파일 → `AutoTest/dice/`**
+  - `dice-test-bot.js` 이동
+  - `test-bot.bat` 이동 및 경로 수정
+  - `test-bot.sh` 이동 및 경로 수정
+  - `README-BOT.md` 이동
+  - `TEST-GUIDE.md` 이동
+
+- **룰렛 관련 파일 → `AutoTest/roulette/`**
+  - `test-bot.js` 이동 및 로그 파일 경로 수정 (`path.join(__dirname, 'test-results.log')`)
+  - `ui-test.js` 이동 및 로그 파일/스크린샷 경로 수정
+
+## 기술적 변경사항
+
+### 클라이언트 측 (dice-game-multiplayer.html)
+- `gameEnded` 이벤트 핸들러에서 `window.currentGameHistoryFromServer` 저장
+- `calculateWinner` 함수에서 서버 기록 우선 사용 로직 추가
+- `showMessage` 함수에서 `gameEnded` 이벤트 대기 로직 추가 (최대 3초)
+- 디버깅 로그 추가 (`console.log`)
+
+### 테스트 봇 (dice-test-bot.js)
+- `gameEnded` 이벤트 핸들러에서 자동 준비 상태 설정 로직 추가
+- `readyUsersUpdated` 이벤트 핸들러 추가
+- 모든 봇이 준비되면 즉시 게임 시작하도록 개선
+- `restartTimeout` 관리로 중복 재시작 방지
+
+### 파일 구조 개선
+- 다이스 테스트 봇: `AutoTest/dice/` 디렉토리로 이동
+- 룰렛 테스트 봇: `AutoTest/roulette/` 디렉토리로 이동
+- 모든 경로 참조 수정 (`path.join(__dirname, ...)` 사용)
+
+## 버그 수정
+- 마지막 사람이 당첨될 때 결과가 다르게 나오는 문제 해결
+- 게임 종료 후 봇이 자동으로 재시작하지 않던 문제 해결
+- 테스트 봇 파일이 루트에 흩어져 있던 문제 해결
+
+## 수정된 파일
+- dice-game-multiplayer.html
+- dice-test-bot.js → AutoTest/dice/dice-test-bot.js
+- test-bot.bat → AutoTest/dice/test-bot.bat
+- test-bot.sh → AutoTest/dice/test-bot.sh
+- README-BOT.md → AutoTest/dice/README-BOT.md
+- TEST-GUIDE.md → AutoTest/dice/TEST-GUIDE.md
+- AutoTest/test-bot.js → AutoTest/roulette/test-bot.js
+- AutoTest/ui-test.js → AutoTest/roulette/ui-test.js
 
 ---
 
@@ -465,26 +524,6 @@ fix: 사다리타기 게임 제거 및 기록 관리 개선
 
 ---
 
-[2026-01-10] 서버 관리 보안 강화 및 서버 정보 표시 기능 추가
-
-🔒 보안 강화
-- 호스트 코드 URL 노출 제거 (sessionStorage 사용)
-- 서버 인원 관리 API를 GET → POST로 변경
-- 호스트 이름 + 호스트 코드 동시 검증으로 무단 접근 방지
-- serverId 변경만으로는 접근 불가하도록 보안 강화
-
-🏠 서버 정보 표시
-- 게임 화면 헤더에 현재 서버 이름 표시
-- 서버 정보 조회 API 추가 (/api/server/:serverId/info)
-- 서버 이름 localStorage 캐싱으로 성능 최적화
-
-변경 파일:
-- dice-game-multiplayer.html: 호스트 코드 sessionStorage 저장, 서버 이름 표시 기능 추가
-- server-members.html: 호스트 코드 URL 파라미터 제거, POST 요청으로 변경
-- server.js: 서버 정보 조회 API 추가, 호스트 검증 로직 강화
-
----
-
 feat: 게임 룰 선택 라디오 버튼 기능 추가
 
 ## 주요 변경사항
@@ -768,23 +807,3 @@ feat: 대기실 통계 기능 추가 및 게임 자동 종료 개선
 - dice-game-multiplayer.html
 - CHANGELOG.md
 - COMMIT_MESSAGE.txt
-
----
-
-[2026-01-10] 서버 관리 보안 강화 및 서버 정보 표시 기능 추가
-
-🔒 보안 강화
-- 호스트 코드 URL 노출 제거 (sessionStorage 사용)
-- 서버 인원 관리 API를 GET → POST로 변경
-- 호스트 이름 + 호스트 코드 동시 검증으로 무단 접근 방지
-- serverId 변경만으로는 접근 불가하도록 보안 강화
-
-🏠 서버 정보 표시
-- 게임 화면 헤더에 현재 서버 이름 표시
-- 서버 정보 조회 API 추가 (/api/server/:serverId/info)
-- 서버 이름 localStorage 캐싱으로 성능 최적화
-
-변경 파일:
-- dice-game-multiplayer.html: 호스트 코드 sessionStorage 저장, 서버 이름 표시 기능 추가
-- server-members.html: 호스트 코드 URL 파라미터 제거, POST 요청으로 변경
-- server.js: 서버 정보 조회 API 추가, 호스트 검증 로직 강화

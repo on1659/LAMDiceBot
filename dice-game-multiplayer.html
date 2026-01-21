@@ -910,6 +910,8 @@
             max-height: calc(100vh - 200px);
             overflow-y: auto;
             background: #f8f9fa;
+            position: relative;
+            z-index: 1;
             border-radius: 8px;
             padding: 15px;
         }
@@ -923,45 +925,121 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-        }
-        
-        .history-item.animating-from-top {
-            animation: slideDownFromTop 0.6s ease-out forwards;
-            z-index: 10;
-        }
-        
-        .history-item.animating-to-bottom {
-            animation: slideDownToBottom 0.3s ease-out forwards;
-        }
-        
-        @keyframes slideDownFromTop {
-            0% {
-                transform: translateY(-200px);
-                opacity: 0;
-            }
-            30% {
-                opacity: 0.5;
-            }
-            100% {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        @keyframes slideDownToBottom {
-            0% {
-                transform: translateY(0);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(100px);
-                opacity: 0.3;
-            }
+            position: relative;
+            overflow: hidden;
         }
 
         .history-item:last-child {
             margin-bottom: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .history-item.top-player-new {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .history-item.winner-glow {
+            position: relative;
+            background: linear-gradient(135deg, #fff9e6 0%, #ffffff 50%, #fff9e6 100%);
+            border-left: 4px solid #28a745;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+            animation: winnerPulse 2s ease-in-out infinite;
+            transform: scale(1);
+        }
+
+        @keyframes winnerPulse {
+            0%, 100% {
+                box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35), 0 0 40px rgba(255, 215, 0, 0.25);
+                transform: scale(1.02);
+            }
+        }
+
+        .history-item.winner-glow::before {
+            content: '✨';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 20px;
+            animation: sparkle 1.5s ease-in-out infinite;
+            z-index: 1;
+            filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.8));
+        }
+
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0.6;
+                transform: scale(0.8) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2) rotate(180deg);
+            }
+        }
+
+        .history-item.winner-glow::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 6px;
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(255, 255, 255, 0.3) 50%,
+                transparent 70%
+            );
+            background-size: 200% 200%;
+            animation: shimmer 3s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .history-item.winner-glow > * {
+            position: relative;
+            z-index: 1;
         }
 
         .history-user {
@@ -970,27 +1048,27 @@
         }
 
         .top-player-badge {
-            display: inline-block;
-            background: #dc3545;
+            display: inline-flex;
+            align-items: center;
+            background: #ff6b6b;
             color: white;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 10px;
-            line-height: 1.4;
-            letter-spacing: 0.3px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
         }
 
         .winner-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             background: #28a745;
             color: white;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 10px;
-            line-height: 1.4;
-            letter-spacing: 0.3px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
         }
 
         .history-result {
@@ -1098,29 +1176,21 @@
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                <div id="hostManagementButton" style="display: none;">
-                    <button id="hostManagementButtonElement" onclick="showServerMembers()" style="padding: 10px 20px; font-size: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; position: relative;">
-                        👥 서버 인원 관리
-                    </button>
-                </div>
-                <div id="currentServerNameDisplay" style="font-size: 12px; color: #999; font-weight: 400; margin-bottom: 4px;">
-                    <!-- 서버 이름이 여기에 표시됩니다 -->
-                </div>
-                <div id="currentUserNameDisplay" style="font-size: 14px; color: #666; font-weight: 500;">
-                    <!-- 사용자 이름이 여기에 표시됩니다 -->
-                </div>
+            <div id="todayDiceStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
+                <div>오늘의 주사위 횟수: <strong id="todayDiceCount">0</strong>회</div>
+                <div>평균값: <strong id="todayDiceAverage">0</strong></div>
             </div>
         </div>
 
         <!-- 대기실 섹션 -->
         <div class="lobby-section active" id="lobbySection">
-            <div style="margin-bottom: 15px;">
-                <button onclick="goToServerList()" style="width: 100%; padding: 12px 20px; font-size: 16px; background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); font-weight: 600;">← 서버 목록으로 돌아가기</button>
-            </div>
             <div class="create-room-button-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">방 만들기</h2>
-                <button onclick="showCreateRoomPage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">방 생성하기</button>
+                <button onclick="showCreateRoomPage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-bottom: 15px;">방 생성하기</button>
+                <div class="input-group" style="margin: 0;">
+                    <label for="globalUserNameInput">이름</label>
+                    <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
+            </div>
             </div>
             
             <div class="join-room-section">
@@ -1178,51 +1248,23 @@
                 </div>
             </div>
             
+            <!-- 호스트 이름 입력 (방 생성 시에만 사용) -->
+            <div class="input-group" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <label for="createRoomHostNameInput">호스트 이름</label>
+                <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름 입력" maxlength="20" />
+            </div>
+            
             <!-- 공개/비공개 설정 -->
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <label style="display: block; margin-bottom: 15px; font-weight: 500;">방 공개 설정</label>
-                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomType" value="public" id="createRoomPublicRadio" checked style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>공개방 (누구나 입장 가능)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomType" value="private" id="createRoomPrivateRadio" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>비공개방 (입장코드 필요)</span>
-                    </label>
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                    <label for="createRoomPrivateCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">비공개 방</label>
                 </div>
-                
-                <!-- 입장코드 입력 (비공개방일 때만 활성화) -->
-                <div class="input-group" style="margin-bottom: 15px;">
-                    <label for="createRoomPasswordInput">입장코드 (숫자 4자리 이상)</label>
-                    <input 
-                        type="text" 
-                        id="createRoomPasswordInput" 
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="비공개방 선택 시 입력 (숫자만 입력 가능)" 
-                        maxlength="10"
-                        disabled
-                    />
-                    <small style="color: #666; font-size: 0.85em; margin-top: 5px; display: block;">
-                        비공개방을 선택하면 입장코드를 입력해야 합니다. 공개방은 입장코드 없이 누구나 입장할 수 있습니다.
-                    </small>
-                </div>
-                
-                <!-- 호스트 코드 입력 -->
-                <div class="input-group" style="margin-bottom: 0;">
-                    <label for="createRoomHostCodeInput">호스트 코드 (숫자 4자리 이상)</label>
-                    <input 
-                        type="text" 
-                        id="createRoomHostCodeInput" 
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="호스트 승인 페이지 접근용 코드 (선택사항)" 
-                        maxlength="10"
-                    />
-                    <small style="color: #666; font-size: 0.85em; margin-top: 5px; display: block;">
-                        호스트 코드를 입력하면 서버 인원 관리 페이지 접근 시 이 코드가 필요합니다.
-                    </small>
+                <div id="createRoomPasswordContainer" style="display: none;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="createRoomPasswordInput">비밀번호</label>
+                        <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 입력 (4~20자)" maxlength="20" />
+                    </div>
                 </div>
             </div>
             
@@ -1551,330 +1593,85 @@
         </div>
     </div>
 
+    <!-- 디버그 로그 섹션 -->
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+            </div>
+        </div>
+        <div id="debugLogContent" style="line-height: 1.4;"></div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
-    <style>
-        /* 서버 인원 관리 버튼 애니메이션 */
-        @keyframes buttonPulse {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
-            }
-        }
-        
-        .host-management-button-pending {
-            animation: buttonPulse 2s infinite;
-        }
-        
-        .host-management-button-pending::after {
-            content: '';
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            width: 12px;
-            height: 12px;
-            background: #ff4444;
-            border-radius: 50%;
-            border: 2px solid white;
-            animation: buttonPulse 1s infinite;
-        }
-        
-        /* 커스텀 Alert 모달 */
-        .custom-alert-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            animation: fadeIn 0.2s ease-out;
-        }
-        
-        .custom-alert-overlay.show {
-            display: flex;
-        }
-        
-        .custom-alert-modal {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        .custom-confirm-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            animation: fadeIn 0.2s ease-out;
-        }
-        
-        .custom-confirm-overlay.show {
-            display: flex;
-        }
-        
-        .custom-confirm-modal {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .custom-modal-title {
-            margin: 0 0 15px 0;
-            font-size: 1.3em;
-            color: #333;
-            font-weight: 600;
-        }
-        
-        .custom-modal-message {
-            margin-bottom: 25px;
-            font-size: 1em;
-            color: #666;
-            line-height: 1.6;
-            white-space: pre-line;
-        }
-        
-        .custom-modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        
-        .custom-modal-actions button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            min-width: 80px;
-        }
-        
-        .custom-modal-actions button:hover {
-            transform: translateY(-2px);
-        }
-        
-        .custom-modal-actions .btn-cancel {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .custom-modal-actions .btn-cancel:hover {
-            background: #5a6268;
-            box-shadow: 0 5px 20px rgba(108, 117, 125, 0.4);
-        }
-        
-        .custom-modal-actions .btn-confirm {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .custom-modal-actions .btn-confirm:hover {
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .custom-prompt-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            animation: fadeIn 0.2s ease-out;
-        }
-        
-        .custom-prompt-overlay.show {
-            display: flex;
-        }
-        
-        .custom-prompt-modal {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        .custom-prompt-input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 16px;
-            margin-bottom: 20px;
-            box-sizing: border-box;
-        }
-        
-        .custom-prompt-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-    </style>
     <script>
-        // 커스텀 Prompt 함수
-        function customPrompt(message, defaultValue = '', title = '입력') {
-            return new Promise((resolve) => {
-                const overlay = document.createElement('div');
-                overlay.className = 'custom-prompt-overlay';
-                const inputId = 'customPromptInput_' + Date.now();
-                overlay.innerHTML = `
-                    <div class="custom-prompt-modal" onclick="event.stopPropagation()">
-                        ${title ? `<h3 class="custom-modal-title">${title}</h3>` : ''}
-                        <div class="custom-modal-message">${message}</div>
-                        <input type="text" id="${inputId}" class="custom-prompt-input" value="${defaultValue}" placeholder="입력하세요">
-                        <div class="custom-modal-actions">
-                            <button class="btn-cancel">취소</button>
-                            <button class="btn-confirm">확인</button>
-                        </div>
-                    </div>
-                `;
-                overlay.onclick = (e) => {
-                    if (e.target === overlay) {
-                        overlay.remove();
-                        resolve(null);
-                    }
-                };
-                document.body.appendChild(overlay);
-                setTimeout(() => {
-                    overlay.classList.add('show');
-                    const input = document.getElementById(inputId);
-                    input.focus();
-                    input.select();
-                    
-                    const confirmBtn = overlay.querySelector('.btn-confirm');
-                    confirmBtn.onclick = () => {
-                        const value = input.value;
-                        overlay.remove();
-                        resolve(value);
-                    };
-                    
-                    const cancelBtn = overlay.querySelector('.btn-cancel');
-                    cancelBtn.onclick = () => {
-                        overlay.remove();
-                        resolve(null);
-                    };
-                    
-                    input.onkeydown = (e) => {
-                        if (e.key === 'Enter') {
-                            confirmBtn.click();
-                        } else if (e.key === 'Escape') {
-                            cancelBtn.click();
-                        }
-                    };
-                }, 10);
-            });
-        }
-        
-        // 커스텀 Alert 함수
-        function customAlert(message, title = '알림') {
-            return new Promise((resolve) => {
-                const overlay = document.createElement('div');
-                overlay.className = 'custom-alert-overlay';
-                overlay.innerHTML = `
-                    <div class="custom-alert-modal" onclick="event.stopPropagation()">
-                        ${title ? `<h3 class="custom-modal-title">${title}</h3>` : ''}
-                        <div class="custom-modal-message">${message}</div>
-                        <div class="custom-modal-actions">
-                            <button class="btn-confirm" onclick="this.closest('.custom-alert-overlay').remove(); arguments[0].stopPropagation();">확인</button>
-                        </div>
-                    </div>
-                `;
-                overlay.onclick = () => {
-                    overlay.remove();
-                    resolve();
-                };
-                document.body.appendChild(overlay);
-                setTimeout(() => overlay.classList.add('show'), 10);
-            });
-        }
-        
-        // 커스텀 Confirm 함수
-        function customConfirm(message, title = '확인') {
-            return new Promise((resolve) => {
-                const overlay = document.createElement('div');
-                overlay.className = 'custom-confirm-overlay';
-                overlay.innerHTML = `
-                    <div class="custom-confirm-modal" onclick="event.stopPropagation()">
-                        ${title ? `<h3 class="custom-modal-title">${title}</h3>` : ''}
-                        <div class="custom-modal-message">${message}</div>
-                        <div class="custom-modal-actions">
-                            <button class="btn-cancel" onclick="this.closest('.custom-confirm-overlay').remove(); arguments[0].stopPropagation();">취소</button>
-                            <button class="btn-confirm" onclick="this.closest('.custom-confirm-overlay').remove(); arguments[0].stopPropagation(); window.__customConfirmResult = true;">확인</button>
-                        </div>
-                    </div>
-                `;
-                overlay.onclick = (e) => {
-                    if (e.target === overlay) {
-                        overlay.remove();
-                        resolve(false);
-                    }
-                };
-                document.body.appendChild(overlay);
-                setTimeout(() => {
-                    overlay.classList.add('show');
-                    const confirmBtn = overlay.querySelector('.btn-confirm');
-                    confirmBtn.onclick = () => {
-                        overlay.remove();
-                        resolve(true);
-                    };
-                    const cancelBtn = overlay.querySelector('.btn-cancel');
-                    cancelBtn.onclick = () => {
-                        overlay.remove();
-                        resolve(false);
-                    };
-                }, 10);
-            });
-        }
-        
-        // 기존 alert, confirm, prompt를 커스텀 함수로 교체
-        window.alert = customAlert;
-        window.confirm = customConfirm;
-        window.prompt = customPrompt;
-        
         const socket = io();
+        
+        // 디버그 로그 함수 (localhost:3000에서만 활성화)
+        const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
+        let debugLogEnabled = isLocalhost;
+        const MAX_LOG_LINES = 100;
+        
+        // localhost:3000이 아니면 디버그 로그 섹션 숨기기
+        if (!isLocalhost) {
+            const debugLogSection = document.getElementById('debugLogSection');
+            if (debugLogSection) {
+                debugLogSection.style.display = 'none';
+            }
+        }
+        
+        function addDebugLog(message, type = 'info') {
+            if (!debugLogEnabled) return;
+            
+            const logSection = document.getElementById('debugLogSection');
+            const logContent = document.getElementById('debugLogContent');
+            
+            if (!logSection || !logContent) return;
+            
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+            const colors = {
+                'info': '#0f0',
+                'warn': '#ff0',
+                'error': '#f00',
+                'animation': '#0ff',
+                'gameEnd': '#ff0'
+            };
+            const color = colors[type] || '#0f0';
+            
+            const logLine = document.createElement('div');
+            logLine.style.color = color;
+            logLine.style.marginBottom = '2px';
+            logLine.innerHTML = `[${timestamp}] ${message}`;
+            
+            logContent.appendChild(logLine);
+            
+            // 최대 로그 라인 수 제한
+            while (logContent.children.length > MAX_LOG_LINES) {
+                logContent.removeChild(logContent.firstChild);
+            }
+            
+            // 자동 스크롤
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // 로그 섹션 표시
+            logSection.style.display = 'block';
+        }
+        
+        function clearDebugLog() {
+            const logContent = document.getElementById('debugLogContent');
+            if (logContent) {
+                logContent.innerHTML = '';
+            }
+        }
+        
+        function toggleDebugLog() {
+            const logSection = document.getElementById('debugLogSection');
+            if (logSection) {
+                logSection.style.display = logSection.style.display === 'none' ? 'block' : 'none';
+            }
+        }
         
         // 이모티콘 설정 (JSON 파일에서 로드)
         let emojiConfig = {
@@ -1995,6 +1792,37 @@
         
         // 주사위 연출 효과 함수들
         const diceAnimationEffects = {
+            // 0. 마지막 사람용 고정 시간 애니메이션 (3.5초 고정: 3초 애니메이션 + 0.5초 대기)
+            fixedDuration: function(diceResultSpan, diceIcon, finalResult, onComplete) {
+                const ANIMATION_DURATION = 3000; // 3초 애니메이션
+                const WAIT_AFTER_ANIMATION = 500; // 애니메이션 완료 후 0.5초 대기
+                const TOTAL_DURATION = ANIMATION_DURATION + WAIT_AFTER_ANIMATION; // 총 3.5초
+                
+                const startTime = Date.now();
+                let currentNum = 1;
+                const maxNum = Math.min(finalResult, 100);
+                
+                const interval = setInterval(() => {
+                    const elapsed = Date.now() - startTime;
+                    
+                    if (elapsed < ANIMATION_DURATION) {
+                        // 애니메이션 단계: 진행률에 따라 숫자 업데이트
+                        const progress = elapsed / ANIMATION_DURATION;
+                        currentNum = Math.floor(1 + (maxNum - 1) * progress);
+                        diceResultSpan.textContent = diceIcon + currentNum;
+                    } else {
+                        // 대기 단계: 최종 결과 표시
+                        diceResultSpan.textContent = diceIcon + finalResult;
+                        
+                        // 정확히 3.5초 후 완료
+                        if (elapsed >= TOTAL_DURATION) {
+                            clearInterval(interval);
+                            onComplete();
+                        }
+                    }
+                }, 16); // 약 60fps
+            },
+            
             // 1. 카운트업 애니메이션
             countUp: function(diceResultSpan, diceIcon, finalResult, onComplete) {
                 let currentNum = 1;
@@ -2255,11 +2083,12 @@
         let isGameActive = false;
         let isOrderActive = false;
         let diceMax = 100;
-        let pendingCountInterval = null; // 승인 대기 인원 수 확인 인터벌
         let myDiceSettings = { max: 100 };
         let hasRolledInCurrentGame = false;
         let rolledUsersInGame = []; // 게임 중 굴린 사용자 목록 추적
         let historyData = [];
+        let lastTopPlayerKeys = new Set(); // 이전 렌더링에서 유력했던 사람들 추적
+        let lastWinnerKeys = new Set(); // 이전 렌더링에서 당첨자였던 사람들 추적
         let currentSortMode = 'time'; // 기본값을 시간순으로 변경
         let ordersData = {};
         let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순), 'count' (주문 많은 순)
@@ -2319,7 +2148,7 @@
             const menu = menuInput.value.trim();
             
             if (menu === '') {
-                alert('메뉴명을 입력해주세요!');
+                showCustomAlert('메뉴명을 입력해주세요!', 'warning');
                 return;
             }
             
@@ -2349,7 +2178,7 @@
         
         // 메뉴 에러 처리
         socket.on('menuError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
         
         // 메뉴 목록 렌더링
@@ -2594,36 +2423,6 @@
         let roomExpiryInterval = null; // 방 폭파 카운트다운 인터벌
         let roomListRefreshInterval = null; // 방 목록 새로고침 인터벌
         
-        // 서버 ID 읽기 (URL 파라미터 또는 localStorage)
-        const urlParams = new URLSearchParams(window.location.search);
-        let currentServerId = urlParams.get('serverId') || localStorage.getItem('currentServerId');
-        if (currentServerId) {
-            localStorage.setItem('currentServerId', currentServerId);
-            console.log('서버 ID:', currentServerId);
-            
-            // 호스트 여부 확인 및 버튼 표시
-            const isServerHost = localStorage.getItem(`server_${currentServerId}_isHost`) === 'true';
-            const hostManagementButton = document.getElementById('hostManagementButton');
-            if (hostManagementButton) {
-                if (isServerHost) {
-                    hostManagementButton.style.display = 'block';
-                    console.log('호스트 관리 버튼 표시 (서버 호스트)');
-                    // 승인 대기 인원 수 확인 시작
-                    startPendingCountCheck();
-                } else {
-                    hostManagementButton.style.display = 'none';
-                    console.log('호스트 관리 버튼 숨김 (서버 호스트 아님)');
-                    // 승인 대기 인원 수 확인 중지
-                    stopPendingCountCheck();
-                }
-            }
-            
-            // 사용자 이름 표시 업데이트
-            updateUserNameDisplay();
-            // 서버 이름 표시 업데이트
-            updateServerNameDisplay();
-        }
-        
         // 연결 상태 모니터링 및 초기화
         socket.on('connect', () => {
             document.getElementById('connectionStatus').textContent = '● 연결됨';
@@ -2635,50 +2434,12 @@
                 createRoomConnectionStatus.className = 'connection-status connected';
             }
             
-            // 연결 시 호스트 버튼 상태 재확인
-            if (currentServerId) {
-                const isServerHost = localStorage.getItem(`server_${currentServerId}_isHost`) === 'true';
-                const hostManagementButton = document.getElementById('hostManagementButton');
-                if (hostManagementButton) {
-                    if (isServerHost) {
-                        hostManagementButton.style.display = 'block';
-                        startPendingCountCheck();
-                    } else {
-                        hostManagementButton.style.display = 'none';
-                        stopPendingCountCheck();
-                    }
-                }
-            }
-            
-            // 서버 ID가 있으면 서버에 알리기
-            if (currentServerId) {
-                console.log('[클라이언트] setServerId 전송:', currentServerId);
-                socket.emit('setServerId', { serverId: currentServerId });
-            } else {
-                console.log('[클라이언트] currentServerId가 없습니다.');
-            }
-            
             // 방 목록 요청 및 초기 body 클래스 설정
             if (document.getElementById('lobbySection').classList.contains('active')) {
                 document.body.classList.add('lobby-active');
                 refreshRooms();
+                refreshTodayDiceStats();
             }
-        });
-        
-        // 서버에서 내쫓김 알림
-        socket.on('serverRejected', (data) => {
-            console.log('서버에서 내쫓김:', data);
-            alert(`서버에서 내쫓겼습니다.\n\n서버: ${data.serverName || '알 수 없음'}`);
-            // 서버 목록으로 돌아가기
-            window.location.href = '/';
-        });
-        
-        // 서버 승인 알림
-        socket.on('serverApproved', (data) => {
-            console.log('서버 입장 승인:', data);
-            alert(`서버 입장이 승인되었습니다!\n\n서버: ${data.serverName || '알 수 없음'}`);
-            // 페이지 새로고침하여 게임 화면 접근 가능하도록
-            window.location.reload();
         });
 
         socket.on('disconnect', () => {
@@ -2694,43 +2455,12 @@
 
         // 방 목록 업데이트
         socket.on('roomsList', (rooms) => {
-            console.log('[클라이언트] 방 목록 수신:', rooms);
-            console.log('[클라이언트] currentServerId:', currentServerId);
-            
-            // 서버 ID가 있으면 해당 서버의 방만 필터링
-            if (currentServerId) {
-                roomsList = rooms.filter(room => {
-                    // 서버 ID가 없는 방은 표시하지 않음 (기존 방식 호환)
-                    const match = room.serverId === parseInt(currentServerId);
-                    console.log(`[클라이언트] 방 ${room.roomName}: room.serverId=${room.serverId}, currentServerId=${currentServerId}, 매칭=${match}`);
-                    return match;
-                });
-            } else {
-                // 서버 ID가 없으면 서버 ID가 없는 방만 표시 (기존 방식)
-                roomsList = rooms.filter(room => !room.serverId);
-            }
-            
-            console.log('[클라이언트] 필터링 후 방 개수:', roomsList.length);
+            roomsList = rooms;
             renderRoomsList();
         });
         
         socket.on('roomsListUpdated', (rooms) => {
-            console.log('[클라이언트] roomsListUpdated 수신:', rooms);
-            console.log('[클라이언트] currentServerId:', currentServerId);
-            
-            // 서버 ID가 있으면 해당 서버의 방만 필터링
-            if (currentServerId) {
-                roomsList = rooms.filter(room => {
-                    const match = room.serverId === parseInt(currentServerId);
-                    console.log(`[클라이언트] 방 ${room.roomName}: room.serverId=${room.serverId}, currentServerId=${currentServerId}, 매칭=${match}`);
-                    return match;
-                });
-            } else {
-                // 서버 ID가 없으면 서버 ID가 없는 방만 표시 (기존 방식)
-                roomsList = rooms.filter(room => !room.serverId);
-            }
-            
-            console.log('[클라이언트] 필터링 후 방 개수:', roomsList.length);
+            roomsList = rooms;
             renderRoomsList();
         });
         
@@ -2877,15 +2607,17 @@
         }
         
         // 방 바로 입장
-        async function joinRoomDirectly(roomId) {
+        function joinRoomDirectly(roomId) {
             selectedRoomId = roomId;
             
-            // localStorage에서 이름 가져오기
-            const userName = localStorage.getItem('userName') || '';
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const userName = globalNameInput ? globalNameInput.value.trim() : '';
             
             if (userName === '') {
-                await customAlert('⚠️ 이름이 설정되지 않았습니다. 서버 목록에서 이름을 먼저 입력해주세요!');
-                window.location.href = '/';
+                showCustomAlert('이름을 입력해야 입장할 수 있습니다.', 'warning');
+                if (globalNameInput) {
+                    globalNameInput.focus();
+                }
                 return;
             }
             
@@ -2918,31 +2650,7 @@
             
             // 비공개 방인지 체크
             if (room && room.isPrivate) {
-                // 비공개 방인 경우, 먼저 서버에서 승인 여부 확인
-                const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
-                if (serverId) {
-                    try {
-                        const response = await fetch(`/api/server/${serverId}/check-member?userName=${encodeURIComponent(userName)}`);
-                        const data = await response.json();
-                        
-                        // 이미 승인된 멤버인 경우 비밀번호 입력 없이 바로 입장
-                        if (data.success && data.isApproved) {
-                            socket.emit('joinRoom', {
-                                roomId: roomId,
-                                userName: userName,
-                                isHost: false,
-                                password: '',
-                                deviceId: getDeviceId()
-                            });
-                            return;
-                        }
-                    } catch (error) {
-                        console.error('승인 여부 확인 오류:', error);
-                        // 오류 발생 시 기존 로직대로 비밀번호 입력 요청
-                    }
-                }
-                
-                // 승인되지 않았거나 확인 실패한 경우 비밀번호 입력 모달 표시
+                // 비공개 방이면 비밀번호 입력 모달 표시
                 showPasswordModal(roomId, userName);
             } else {
                 // 공개 방이면 바로 입장
@@ -2957,8 +2665,8 @@
         }
         
         // 비밀번호 입력 모달 표시
-        async function showPasswordModal(roomId, userName) {
-            const password = await customPrompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:', '', '비밀번호 입력');
+        function showPasswordModal(roomId, userName) {
+            const password = prompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:');
             
             if (password === null) {
                 // 취소
@@ -2966,7 +2674,7 @@
             }
             
             if (password === '') {
-                await customAlert('⚠️ 비밀번호를 입력해주세요!');
+                showCustomAlert('비밀번호를 입력해주세요!', 'warning');
                 showPasswordModal(roomId, userName); // 다시 모달 표시
                 return;
             }
@@ -2981,151 +2689,339 @@
             });
         }
         
-        // 서버 이름 가져오기
-        async function fetchServerName(serverId) {
-            if (!serverId) return null;
-            
-            try {
-                // 먼저 localStorage에서 확인
-                const cachedName = localStorage.getItem(`server_${serverId}_name`);
-                if (cachedName) {
-                    return cachedName;
-                }
-                
-                // API로 서버 정보 가져오기
-                const response = await fetch(`/api/server/${serverId}/info`);
-                const data = await response.json();
-                
-                if (data.success && data.server) {
-                    const serverName = data.server.name;
-                    // localStorage에 캐시
-                    localStorage.setItem(`server_${serverId}_name`, serverName);
-                    return serverName;
-                }
-            } catch (error) {
-                console.error('서버 이름 가져오기 오류:', error);
-            }
-            
-            return null;
-        }
-        
-        // 서버 이름 표시 업데이트
-        async function updateServerNameDisplay() {
-            const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
-            const serverNameDisplay = document.getElementById('currentServerNameDisplay');
-            
-            if (serverNameDisplay && serverId) {
-                const serverName = await fetchServerName(serverId);
-                if (serverName) {
-                    serverNameDisplay.textContent = `🏠 ${serverName}`;
-                    serverNameDisplay.style.display = 'block';
-                } else {
-                    serverNameDisplay.style.display = 'none';
-                }
-            }
-        }
-        
-        // 사용자 이름 표시 업데이트
-        function updateUserNameDisplay() {
-            const userName = localStorage.getItem('userName') || currentUser || '';
-            const userNameDisplay = document.getElementById('currentUserNameDisplay');
-            if (userNameDisplay && userName) {
-                userNameDisplay.textContent = `👤 ${userName}`;
-            }
-        }
-        
-        // 승인 대기 인원 수 확인
-        async function checkPendingCount() {
-            const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
-            const userName = localStorage.getItem('userName') || currentUser;
-            
-            if (!serverId || !userName) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/server/${serverId}/pending-count?userName=${encodeURIComponent(userName)}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    updateHostManagementButton(data.pendingCount || 0);
-                }
-            } catch (error) {
-                console.error('승인 대기 인원 수 확인 오류:', error);
-            }
-        }
-        
-        // 서버 인원 관리 버튼 업데이트
-        function updateHostManagementButton(pendingCount) {
-            const button = document.getElementById('hostManagementButtonElement');
-            if (!button) return;
-            
-            // 버튼 텍스트 업데이트
-            if (pendingCount > 0) {
-                button.innerHTML = `👥 서버 인원 관리 (${pendingCount})`;
-                button.classList.add('host-management-button-pending');
-            } else {
-                button.innerHTML = '👥 서버 인원 관리';
-                button.classList.remove('host-management-button-pending');
-            }
-        }
-        
-        // 승인 대기 인원 수 확인 시작
-        function startPendingCountCheck() {
-            // 기존 인터벌 정리
-            stopPendingCountCheck();
-            // 즉시 한 번 확인
-            checkPendingCount();
-            // 5초마다 확인
-            pendingCountInterval = setInterval(checkPendingCount, 5000);
-        }
-        
-        // 승인 대기 인원 수 확인 중지
-        function stopPendingCountCheck() {
-            if (pendingCountInterval) {
-                clearInterval(pendingCountInterval);
-                pendingCountInterval = null;
-            }
-        }
-        
         // 방 목록 새로고침
         function refreshRooms() {
-            console.log('[클라이언트] refreshRooms 호출, currentServerId:', currentServerId);
-            // 서버 ID가 있으면 서버 ID와 함께 요청
-            if (currentServerId) {
-                console.log('[클라이언트] getRooms 요청 (serverId 포함):', currentServerId);
-                socket.emit('getRooms', { serverId: currentServerId });
-            } else {
-                console.log('[클라이언트] getRooms 요청 (serverId 없음)');
-                socket.emit('getRooms');
-            }
+            socket.emit('getRooms');
+            refreshTodayDiceStats();
         }
         
-        // 서버 인원 관리 페이지 표시
-        async function showServerMembers() {
-            const serverId = currentServerId || new URLSearchParams(window.location.search).get('serverId');
-            const userName = localStorage.getItem('userName') || currentUser;
-            
-            if (!serverId || !userName) {
-                await customAlert('서버 정보를 불러올 수 없습니다.');
-                return;
+        // 오늘의 주사위 통계 새로고침
+        function refreshTodayDiceStats() {
+            socket.emit('getTodayDiceStats');
+        }
+        
+        // 오늘의 주사위 통계 수신
+        socket.on('todayDiceStats', (stats) => {
+            document.getElementById('todayDiceCount').textContent = stats.count || 0;
+            document.getElementById('todayDiceAverage').textContent = stats.average || 0;
+        });
+        
+        // 커스텀 얼럿 함수
+        function showCustomAlert(message, type = 'info') {
+            // 기존 얼럿이 있으면 제거
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) {
+                existingAlert.remove();
             }
             
-            // 호스트 코드 입력 (선택사항) - 커스텀 모달 사용
-            const hostCode = await customPrompt('호스트 코드를 입력하세요 (방 생성 시 입력한 호스트 코드):\n\n입력하지 않으면 호스트 이름으로만 접근합니다.', '', '호스트 코드 입력');
-            
-            // 취소를 누르면 null이 반환되므로 빈 문자열로 처리
-            if (hostCode === null) {
-                return; // 취소하면 아무것도 하지 않음
+            // 타입에 따른 색상 설정
+            let bgColor, borderColor, icon;
+            switch(type) {
+                case 'error':
+                    bgColor = '#fee';
+                    borderColor = '#f66';
+                    icon = '⚠️';
+                    break;
+                case 'warning':
+                    bgColor = '#fff9e6';
+                    borderColor = '#ffa500';
+                    icon = '⚠️';
+                    break;
+                case 'success':
+                    bgColor = '#e8f5e9';
+                    borderColor = '#4caf50';
+                    icon = '✅';
+                    break;
+                default:
+                    bgColor = '#e3f2fd';
+                    borderColor = '#2196f3';
+                    icon = 'ℹ️';
             }
             
-            // 호스트 코드를 sessionStorage에 저장 (URL에 노출되지 않도록)
-            if (hostCode) {
-                sessionStorage.setItem(`hostCode_${serverId}`, hostCode);
-            }
+            // 얼럿 오버레이 생성
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.4);
+                z-index: 10001;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                animation: fadeIn 0.2s ease-out;
+            `;
             
-            // 새 창으로 서버 인원 관리 페이지 열기 (호스트 코드는 URL에 포함하지 않음)
-            window.open(`/server-members.html?serverId=${serverId}&userName=${encodeURIComponent(userName)}`, '_blank', 'width=800,height=600');
+            // 얼럿 컨텐츠 생성
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `
+                background: white;
+                border-radius: 16px;
+                padding: 25px 30px;
+                max-width: 500px;
+                width: 90vw;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                border: 2px solid ${borderColor};
+                animation: slideDown 0.3s ease-out;
+            `;
+            
+            // 아이콘과 메시지
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                font-size: 16px;
+                line-height: 1.6;
+                color: #333;
+                white-space: pre-wrap;
+                word-break: break-word;
+                text-align: center;
+                margin-bottom: 20px;
+            `;
+            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+            
+            // 확인 버튼
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `
+                padding: 10px 30px;
+                background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                width: 100%;
+                transition: transform 0.1s, box-shadow 0.1s;
+            `;
+            confirmButton.onmouseenter = () => {
+                confirmButton.style.transform = 'scale(1.02)';
+                confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            };
+            confirmButton.onmouseleave = () => {
+                confirmButton.style.transform = 'scale(1)';
+                confirmButton.style.boxShadow = 'none';
+            };
+            confirmButton.onclick = () => {
+                alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                setTimeout(() => alertOverlay.remove(), 200);
+            };
+            
+            // ESC 키로 닫기
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        alertOverlay.remove();
+                        document.removeEventListener('keydown', handleEsc);
+                    }, 200);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+            
+            // 오버레이 클릭 시 닫기
+            alertOverlay.onclick = (e) => {
+                if (e.target === alertOverlay) {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        alertOverlay.remove();
+                        document.removeEventListener('keydown', handleEsc);
+                    }, 200);
+                }
+            };
+            
+            alertContent.appendChild(messageDiv);
+            alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent);
+            document.body.appendChild(alertOverlay);
+            
+            // 포커스 설정
+            confirmButton.focus();
+        }
+        
+        // 커스텀 Confirm 함수 (Promise 반환)
+        function showCustomConfirm(message, type = 'warning') {
+            return new Promise((resolve) => {
+                // 기존 confirm이 있으면 제거
+                const existingConfirm = document.getElementById('customConfirm');
+                if (existingConfirm) {
+                    existingConfirm.remove();
+                }
+                
+                // 타입에 따른 색상 설정
+                let bgColor, borderColor, icon;
+                switch(type) {
+                    case 'error':
+                        bgColor = '#fee';
+                        borderColor = '#f66';
+                        icon = '⚠️';
+                        break;
+                    case 'warning':
+                        bgColor = '#fff9e6';
+                        borderColor = '#ffa500';
+                        icon = '⚠️';
+                        break;
+                    case 'success':
+                        bgColor = '#e8f5e9';
+                        borderColor = '#4caf50';
+                        icon = '✅';
+                        break;
+                    default:
+                        bgColor = '#e3f2fd';
+                        borderColor = '#2196f3';
+                        icon = 'ℹ️';
+                }
+                
+                // Confirm 오버레이 생성
+                const confirmOverlay = document.createElement('div');
+                confirmOverlay.id = 'customConfirm';
+                confirmOverlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.4);
+                    z-index: 10002;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+                
+                // Confirm 컨텐츠 생성
+                const confirmContent = document.createElement('div');
+                confirmContent.style.cssText = `
+                    background: white;
+                    border-radius: 16px;
+                    padding: 25px 30px;
+                    max-width: 500px;
+                    width: 90vw;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid ${borderColor};
+                    animation: slideDown 0.3s ease-out;
+                `;
+                
+                // 아이콘과 메시지
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 16px;
+                    line-height: 1.6;
+                    color: #333;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    text-align: center;
+                    margin-bottom: 25px;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+                
+                // 버튼 컨테이너
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `
+                    display: flex;
+                    gap: 10px;
+                    justify-content: center;
+                `;
+                
+                // 취소 버튼
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 10px 25px;
+                    background: #f5f5f5;
+                    color: #666;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                    flex: 1;
+                `;
+                cancelButton.onmouseenter = () => {
+                    cancelButton.style.transform = 'scale(1.02)';
+                    cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                };
+                cancelButton.onmouseleave = () => {
+                    cancelButton.style.transform = 'scale(1)';
+                    cancelButton.style.boxShadow = 'none';
+                };
+                cancelButton.onclick = () => {
+                    confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        confirmOverlay.remove();
+                        resolve(false);
+                    }, 200);
+                };
+                
+                // 확인 버튼
+                const confirmButton = document.createElement('button');
+                confirmButton.textContent = '확인';
+                confirmButton.style.cssText = `
+                    padding: 10px 25px;
+                    background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                    flex: 1;
+                `;
+                confirmButton.onmouseenter = () => {
+                    confirmButton.style.transform = 'scale(1.02)';
+                    confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                };
+                confirmButton.onmouseleave = () => {
+                    confirmButton.style.transform = 'scale(1)';
+                    confirmButton.style.boxShadow = 'none';
+                };
+                confirmButton.onclick = () => {
+                    confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        confirmOverlay.remove();
+                        resolve(true);
+                    }, 200);
+                };
+                
+                // ESC 키로 닫기 (취소로 처리)
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => {
+                            confirmOverlay.remove();
+                            document.removeEventListener('keydown', handleEsc);
+                            resolve(false);
+                        }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+                
+                // 오버레이 클릭 시 닫기 (취소로 처리)
+                confirmOverlay.onclick = (e) => {
+                    if (e.target === confirmOverlay) {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => {
+                            confirmOverlay.remove();
+                            document.removeEventListener('keydown', handleEsc);
+                            resolve(false);
+                        }, 200);
+                    }
+                };
+                
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(confirmButton);
+                confirmContent.appendChild(messageDiv);
+                confirmContent.appendChild(buttonContainer);
+                confirmOverlay.appendChild(confirmContent);
+                document.body.appendChild(confirmOverlay);
+                
+                // 포커스 설정
+                cancelButton.focus();
+            });
         }
         
         // 방 생성 페이지로 이동
@@ -3135,30 +3031,24 @@
             
             // 기본값 설정
             document.getElementById('createRoomNameInput').value = '';
-            document.getElementById('createRoomPublicRadio').checked = true;
-            document.getElementById('createRoomPrivateRadio').checked = false;
+            document.getElementById('createRoomHostNameInput').value = '';
+            document.getElementById('createRoomPrivateCheckbox').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
-            document.getElementById('createRoomPasswordInput').disabled = true;
-            document.getElementById('createRoomHostCodeInput').value = '';
+            document.getElementById('createRoomPasswordContainer').style.display = 'none';
             document.getElementById('createRoomIPBlockCheckbox').checked = false; // IP 차단 옵션 기본값: 체크 안 함
             
-            // 입장코드 입력 필드 상태 업데이트
-            const passwordInput = document.getElementById('createRoomPasswordInput');
-            if (passwordInput) {
-                passwordInput.disabled = true;
-                passwordInput.required = false;
-            }
-            
-            // localStorage에서 이름 가져오기
-            const savedUserName = localStorage.getItem('userName');
-            if (savedUserName) {
+            // 전역 이름 입력값을 가져와서 호스트 이름 입력칸에 기본값으로 설정 (있으면)
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            if (globalNameInput && globalNameInput.value.trim()) {
+                const hostName = globalNameInput.value.trim();
+                document.getElementById('createRoomHostNameInput').value = hostName;
                 // 방 제목 자동 생성
-                document.getElementById('createRoomNameInput').value = `${savedUserName}님의 Dice`;
+                document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
             }
             
-            // 방 제목 입력창에 포커스
+            // 호스트 이름 입력창에 포커스
             setTimeout(() => {
-                document.getElementById('createRoomNameInput').focus();
+                document.getElementById('createRoomHostNameInput').focus();
             }, 100);
         }
         
@@ -3276,57 +3166,19 @@
             updateGameRulesSaveButtonState();
         }
         
-        // 공개/비공개 방 라디오 버튼 이벤트
+        // 비공개 방 체크박스 이벤트
         document.addEventListener('DOMContentLoaded', () => {
-            const publicRadio = document.getElementById('createRoomPublicRadio');
-            const privateRadio = document.getElementById('createRoomPrivateRadio');
-            const passwordInput = document.getElementById('createRoomPasswordInput');
+            const privateCheckbox = document.getElementById('createRoomPrivateCheckbox');
+            const passwordContainer = document.getElementById('createRoomPasswordContainer');
             
-            function updatePasswordInputState() {
-                if (privateRadio && privateRadio.checked) {
-                    // 비공개방 선택 시 입장코드 활성화
-                    passwordInput.disabled = false;
-                    passwordInput.required = true;
-                    passwordInput.focus();
-                } else {
-                    // 공개방 선택 시 입장코드 비활성화
-                    passwordInput.disabled = true;
-                    passwordInput.required = false;
-                    passwordInput.value = '';
-                }
-            }
-            
-            if (publicRadio && privateRadio && passwordInput) {
-                publicRadio.addEventListener('change', updatePasswordInputState);
-                privateRadio.addEventListener('change', updatePasswordInputState);
-                
-                // 초기 상태 설정
-                updatePasswordInputState();
-            }
-            
-            // 입장코드 숫자만 입력 가능
-            if (passwordInput) {
-                passwordInput.addEventListener('input', function(e) {
-                    const value = e.target.value;
-                    if (value === '' || /^\d+$/.test(value)) {
-                        // 숫자만 허용
+            if (privateCheckbox && passwordContainer) {
+                privateCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        passwordContainer.style.display = 'block';
+                        document.getElementById('createRoomPasswordInput').focus();
                     } else {
-                        // 숫자가 아닌 문자 제거
-                        e.target.value = value.replace(/[^\d]/g, '');
-                    }
-                });
-            }
-            
-            // 호스트 코드 숫자만 입력 가능
-            const hostCodeInput = document.getElementById('createRoomHostCodeInput');
-            if (hostCodeInput) {
-                hostCodeInput.addEventListener('input', function(e) {
-                    const value = e.target.value;
-                    if (value === '' || /^\d+$/.test(value)) {
-                        // 숫자만 허용
-                    } else {
-                        // 숫자가 아닌 문자 제거
-                        e.target.value = value.replace(/[^\d]/g, '');
+                        passwordContainer.style.display = 'none';
+                        document.getElementById('createRoomPasswordInput').value = '';
                     }
                 });
             }
@@ -3344,75 +3196,38 @@
         
         // 방 생성 최종 확인 및 생성
         function finalizeRoomCreation() {
+            const hostNameInput = document.getElementById('createRoomHostNameInput');
             const roomNameInput = document.getElementById('createRoomNameInput');
             
-            // localStorage에서 이름 가져오기
-            const hostName = localStorage.getItem('userName') || '';
+            const hostName = hostNameInput.value.trim();
             const roomName = roomNameInput.value.trim();
             
             if (roomName === '') {
-                alert('⚠️ 방 제목을 입력해주세요!');
+                showCustomAlert('방 제목을 입력해주세요!', 'warning');
                 roomNameInput.focus();
                 return;
             }
             
             if (hostName === '') {
-                alert('⚠️ 이름이 설정되지 않았습니다. 서버 목록에서 이름을 먼저 입력해주세요!');
-                window.location.href = '/';
+                showCustomAlert('호스트 이름을 입력해주세요!', 'warning');
+                hostNameInput.focus();
                 return;
             }
             
-            // 공개/비공개 방 설정 확인
-            const roomTypeRadio = document.querySelector('input[name="roomType"]:checked');
-            const isPrivate = roomTypeRadio && roomTypeRadio.value === 'private';
+            // 비공개 방 설정 확인
+            const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
             const password = document.getElementById('createRoomPasswordInput').value.trim();
-            const hostCode = document.getElementById('createRoomHostCodeInput').value.trim();
             
             if (isPrivate) {
                 if (password === '') {
-                    alert('⚠️ 비공개 방은 입장코드를 입력해주세요!');
+                    showCustomAlert('비공개 방은 비밀번호를 입력해주세요!', 'warning');
                     document.getElementById('createRoomPasswordInput').focus();
                     return;
                 }
                 
-                // 숫자만 허용
-                if (!/^\d+$/.test(password)) {
-                    alert('⚠️ 입장코드는 숫자만 입력 가능합니다!');
+                if (password.length < 4 || password.length > 20) {
+                    showCustomAlert('비밀번호는 4자 이상 20자 이하여야 합니다!', 'warning');
                     document.getElementById('createRoomPasswordInput').focus();
-                    return;
-                }
-                
-                if (password.length < 4) {
-                    alert('⚠️ 입장코드는 4자리 이상이어야 합니다!');
-                    document.getElementById('createRoomPasswordInput').focus();
-                    return;
-                }
-                
-                if (password.length > 10) {
-                    alert('⚠️ 입장코드는 10자리 이하여야 합니다!');
-                    document.getElementById('createRoomPasswordInput').focus();
-                    return;
-                }
-            }
-            
-            // 호스트 코드 검증 (입력된 경우에만)
-            if (hostCode.length > 0) {
-                // 숫자만 허용
-                if (!/^\d+$/.test(hostCode)) {
-                    alert('⚠️ 호스트 코드는 숫자만 입력 가능합니다!');
-                    document.getElementById('createRoomHostCodeInput').focus();
-                    return;
-                }
-                
-                if (hostCode.length < 4) {
-                    alert('⚠️ 호스트 코드는 4자리 이상이어야 합니다!');
-                    document.getElementById('createRoomHostCodeInput').focus();
-                    return;
-                }
-                
-                if (hostCode.length > 10) {
-                    alert('⚠️ 호스트 코드는 10자리 이하여야 합니다!');
-                    document.getElementById('createRoomHostCodeInput').focus();
                     return;
                 }
             }
@@ -3462,17 +3277,11 @@
             }
             
             // 방 생성 (게임 룰은 방 생성 후 설정)
-            console.log('[클라이언트] 방 생성 요청:', {
-                userName: hostName,
-                roomName: roomName,
-                currentServerId: currentServerId
-            });
             socket.emit('createRoom', { 
                 userName: hostName,
                 roomName: roomName,
                 isPrivate: isPrivate,
                 password: isPrivate ? password : '',
-                hostCode: hostCode || '', // 호스트 코드 (선택사항)
                 gameType: 'dice', // 게임 타입 (주사위 게임)
                 expiryHours: expiryHours, // 방 유지 시간 (시간 단위)
                 blockIPPerUser: blockIPPerUser // IP당 하나의 아이디만 입장 허용
@@ -3482,16 +3291,16 @@
         // 방 입장
         function joinSelectedRoom() {
             if (!selectedRoomId) {
-                alert('방을 선택해주세요!');
+                showCustomAlert('방을 선택해주세요!', 'warning');
                 return;
             }
             
-            // localStorage에서 이름 가져오기
-            const userName = localStorage.getItem('userName') || '';
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const userName = globalNameInput.value.trim();
             
             if (userName === '') {
-                alert('⚠️ 이름이 설정되지 않았습니다. 서버 목록에서 이름을 먼저 입력해주세요!');
-                window.location.href = '/';
+                showCustomAlert('이름을 입력해야 입장할 수 있습니다.', 'warning');
+                globalNameInput.focus();
                 return;
             }
             
@@ -3512,14 +3321,50 @@
             }
         }
         
-        // 방 제목 자동 업데이트는 제거 (localStorage 이름 사용)
-        // showCreateRoomPage 함수에서 초기값 설정
+        // 전역 이름 입력창 초기화 (localStorage에서 불러오기)
+        document.addEventListener('DOMContentLoaded', () => {
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            if (globalNameInput) {
+                // localStorage에서 이름 불러오기
+                const savedName = localStorage.getItem('diceGameUserName');
+                if (savedName) {
+                    globalNameInput.value = savedName;
+                }
+                
+                // 이름이 변경될 때마다 localStorage에 저장
+                globalNameInput.addEventListener('input', () => {
+                    const userName = globalNameInput.value.trim();
+                    if (userName) {
+                        localStorage.setItem('diceGameUserName', userName);
+                    }
+                });
+            }
+            
+            // 호스트 이름 입력창에서 방 제목 자동 업데이트
+            const hostNameInput = document.getElementById('createRoomHostNameInput');
+            const roomNameInput = document.getElementById('createRoomNameInput');
+            if (hostNameInput && roomNameInput) {
+                let isUpdating = false;
+                hostNameInput.addEventListener('input', () => {
+                    if (isUpdating) return;
+                    const hostName = hostNameInput.value.trim();
+                    // 방 제목이 기본 형식이거나 비어있을 때만 자동 업데이트
+                    const currentRoomName = roomNameInput.value.trim();
+                    if (!currentRoomName || currentRoomName.endsWith('님의 Dice')) {
+                        isUpdating = true;
+                        roomNameInput.value = hostName ? `${hostName}님의 Dice` : '';
+                        isUpdating = false;
+                    }
+                });
+            }
+        });
         
         // 방 생성 성공
         socket.on('roomCreated', (data) => {
             currentRoomId = data.roomId;
-            // localStorage에서 이름 가져오기
-            currentUser = localStorage.getItem('userName') || data.userName;
+            // 방 생성 시 입력한 호스트 이름 사용
+            const hostNameInput = document.getElementById('createRoomHostNameInput');
+            currentUser = hostNameInput ? hostNameInput.value.trim() : data.userName;
             isHost = true;
             
             document.getElementById('lobbySection').classList.remove('active');
@@ -3539,8 +3384,8 @@
         // 방 입장 성공
         socket.on('roomJoined', (data) => {
             currentRoomId = data.roomId;
-            // localStorage에서 이름 가져오기
-            currentUser = localStorage.getItem('userName') || data.userName;
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            currentUser = globalNameInput ? globalNameInput.value.trim() : data.userName; // 전역 이름 사용
             isHost = data.isHost;
             
             document.getElementById('lobbySection').classList.remove('active');
@@ -3621,19 +3466,6 @@
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'grid';
-                
-                // 호스트인 경우 서버 인원 관리 버튼 표시 (서버 호스트인 경우에만)
-                const isServerHost = localStorage.getItem(`server_${currentServerId}_isHost`) === 'true';
-                const hostManagementButton = document.getElementById('hostManagementButton');
-                if (hostManagementButton) {
-                    if (isServerHost) {
-                        hostManagementButton.style.display = 'block';
-                        startPendingCountCheck();
-                    } else {
-                        hostManagementButton.style.display = 'none';
-                        stopPendingCountCheck();
-                    }
-                }
                 
                 // 호스트 컨트롤 표시 후 주문받기 버튼 상태 확인
                 setTimeout(() => {
@@ -3878,12 +3710,12 @@
         
         // 방 에러 처리
         socket.on('roomError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
         
         // 방 삭제 알림 (모든 사용자가 나감)
         socket.on('roomDeleted', (data) => {
-            alert(data.message || data.reason || '방이 삭제되었습니다.');
+            showCustomAlert(data.message || data.reason || '방이 삭제되었습니다.', 'info');
             
             // 카운트다운 중지
             if (roomExpiryInterval) {
@@ -3955,19 +3787,6 @@
         function updateHostUI() {
             const dragHint = document.getElementById('dragHint');
             
-            // 서버 인원 관리 버튼은 서버 호스트인 경우에만 표시 (방 호스트와 무관)
-            const isServerHost = currentServerId ? localStorage.getItem(`server_${currentServerId}_isHost`) === 'true' : false;
-            const hostManagementButton = document.getElementById('hostManagementButton');
-            if (hostManagementButton) {
-                if (isServerHost) {
-                    hostManagementButton.style.display = 'block';
-                    startPendingCountCheck();
-                } else {
-                    hostManagementButton.style.display = 'none';
-                    stopPendingCountCheck();
-                }
-            }
-            
             if (isHost) {
                 // 호스트 배지 표시
                 const hostBadge = document.getElementById('hostBadge');
@@ -4011,9 +3830,6 @@
                     hostBadge.style.display = 'none';
                 }
                 
-                // 사용자 이름 표시 업데이트
-                updateUserNameDisplay();
-                
                 // 호스트 전용 컨트롤 숨김
                 const hostControls = document.getElementById('hostControls');
                 if (hostControls) {
@@ -4038,7 +3854,7 @@
         
         // 호스트 권한 전달 알림
         socket.on('hostTransferred', (data) => {
-            alert(data.message || '호스트 권한이 전달되었습니다.');
+            showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
             isHost = true;
             // 호스트 전용 UI 업데이트
             updateHostUI();
@@ -4077,7 +3893,7 @@
             const newName = document.getElementById('roomNameInput').value.trim();
             
             if (newName === '') {
-                alert('방 제목을 입력해주세요!');
+                showCustomAlert('방 제목을 입력해주세요!', 'warning');
                 return;
             }
 
@@ -4199,7 +4015,7 @@
 
         // 로그인 에러
         socket.on('loginError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
             logout();
         });
 
@@ -4210,21 +4026,6 @@
             } else {
             socket.disconnect();
             location.reload();
-            }
-        }
-        
-        // 서버 목록으로 이동
-        function goToServerList() {
-            // 방에 있으면 먼저 나가기
-            if (currentRoomId) {
-                socket.emit('leaveRoom');
-                socket.once('roomLeft', () => {
-                    socket.disconnect();
-                    window.location.href = '/';
-                });
-            } else {
-                socket.disconnect();
-                window.location.href = '/';
             }
         }
         
@@ -4247,14 +4048,14 @@
         });
 
         socket.on('kicked', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
             location.reload(); // 강퇴당하면 페이지를 새로고침하여 로비로 이동
         });
 
         // 주문리스트 보기
         function showOrderList() {
             if (!isOrderActive) {
-                alert('주문받기가 진행 중일 때만 주문리스트를 볼 수 있습니다!');
+                showCustomAlert('주문받기가 진행 중일 때만 주문리스트를 볼 수 있습니다!', 'warning');
                 return;
             }
             
@@ -4516,7 +4317,7 @@
             renderOrders();
             renderNotOrderedUsers();
             
-            alert('주문받기가 종료되었습니다!');
+            showCustomAlert('주문받기가 종료되었습니다!', 'info');
         });
 
         // 주문 업데이트
@@ -4525,7 +4326,7 @@
             const order = orderInput.value.trim();
             
             if (!currentUser) {
-                alert('사용자 이름을 확인할 수 없습니다. 다시 로그인해주세요.');
+                showCustomAlert('사용자 이름을 확인할 수 없습니다. 다시 로그인해주세요.', 'error');
                 return;
             }
 
@@ -4556,7 +4357,7 @@
         });
 
         socket.on('orderError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         // 주문 목록 업데이트
@@ -4795,7 +4596,7 @@
         // 주사위 설정 업데이트 (더 이상 사용하지 않음, 명령어로 대체)
 
         socket.on('settingsError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         // 게임 룰 업데이트
@@ -4812,7 +4613,7 @@
                 } else if (selectedRule.value === 'near') {
                     const nearNumber = document.getElementById('gameNearNumberInput').value.trim();
                     if (!nearNumber || nearNumber === '') {
-                        alert('⚠️ 니어 룰을 선택한 경우 숫자를 입력해주세요!');
+                        showCustomAlert('니어 룰을 선택한 경우 숫자를 입력해주세요!', 'warning');
                         document.getElementById('gameNearNumberInput').focus();
                         return;
                     }
@@ -4820,7 +4621,7 @@
                 } else if (selectedRule.value === 'custom') {
                     rules = document.getElementById('gameCustomRuleInput').value.trim();
                     if (!rules || rules === '') {
-                        alert('⚠️ 기타 룰을 선택한 경우 룰을 입력해주세요!');
+                        showCustomAlert('기타 룰을 선택한 경우 룰을 입력해주세요!', 'warning');
                         document.getElementById('gameCustomRuleInput').focus();
                         return;
                     }
@@ -4962,15 +4763,15 @@
         });
 
         socket.on('rulesError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
         
         socket.on('rulesSaved', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
         
         socket.on('gameError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         // 게임 시작
@@ -4992,13 +4793,29 @@
         }
 
         socket.on('gameStarted', (data) => {
+            addDebugLog('🎮 게임 시작 이벤트 수신', 'info');
+            clearDebugLog(); // 새 게임 시작 시 로그 초기화
+            
             isGameActive = true;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
-            window.winnerInfoShown = false; // 당첨자 정보 표시 플래그 초기화
             
             // 게임 시작 시 서버에서 받은 게임 기록 초기화
             window.currentGameHistoryFromServer = null;
+            
+            // 게임 시작 시 이전 당첨자 정보 초기화
+            window.gameWinners = null;
+            
+            // 게임 시작 시 이전 유력한 사람 목록 초기화
+            lastTopPlayerKeys = new Set();
+            
+            // 게임 시작 시 이전 당첨자 목록 초기화
+            lastWinnerKeys = new Set();
+            
+            // 애니메이션 완료 플래그 초기화
+            window.lastRollerAnimationComplete = false;
+            window.lastRollerAnimationCompleteTime = null;
+            addDebugLog('🔄 애니메이션 완료 플래그 초기화', 'info');
             
             // 게임 시작 시 모든 게임 기록 삭제 (이전 게임 기록 포함)
             historyData = historyData.filter(record => record.isGameActive === false);
@@ -5021,7 +4838,6 @@
             
             // 결과창 표시 플래그 초기화 (새 게임 시작 시)
             window.allRolledMessageShown = false;
-            window.winnerInfoShown = false; // 당첨자 정보 표시 플래그 초기화
             
             // 대기 interval 정리
             if (window.allRolledWaitInterval) {
@@ -5080,12 +4896,20 @@
 
         // 게임 종료
         function endGame() {
+            // 게임 종료 버튼을 눌렀을 때는 애니메이션 완료를 기다리지 않고 즉시 종료
+            // 애니메이션 완료 플래그를 강제로 설정하여 대기 중인 체크가 통과하도록 함
+            if (window.lastRollerAnimationComplete === false) {
+                window.lastRollerAnimationComplete = true;
+                window.lastRollerAnimationCompleteTime = Date.now();
+                addDebugLog('🔴 게임 종료 버튼 클릭 - 애니메이션 완료 플래그 강제 설정', 'gameEnd');
+            }
             socket.emit('endGame');
         }
 
         // 이전 게임 데이터 삭제
-        function clearGameData() {
-            if (!confirm('정말로 이전 게임 데이터를 모두 삭제하시겠습니까?\n(게임 기록, 주문 내역, 게임 룰이 모두 삭제됩니다)')) {
+        async function clearGameData() {
+            const result = await showCustomConfirm('정말로 이전 게임 데이터를 모두 삭제하시겠습니까?\n(게임 기록, 주문 내역, 게임 룰이 모두 삭제됩니다)', 'warning');
+            if (!result) {
                 return;
             }
             
@@ -5103,23 +4927,77 @@
             // 게임 룰 초기화
             document.getElementById('gameRulesInput').value = '';
             
-            alert('이전 게임 데이터가 모두 삭제되었습니다!');
+            showCustomAlert('이전 게임 데이터가 모두 삭제되었습니다!', 'success');
         });
 
         // 게임 데이터 삭제 에러
         socket.on('clearDataError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         socket.on('gameEnded', (currentGameHistory) => {
-            console.log('[클라이언트] gameEnded 이벤트 수신 - currentGameHistory:', currentGameHistory?.length, '개');
-            console.log('[클라이언트] gameEnded 상세:', currentGameHistory?.map(r => ({ user: r.user, result: r.result, time: r.time })));
             // 서버에서 받은 게임 기록을 전역 변수에 저장 (당첨자 계산 시 사용)
             window.currentGameHistoryFromServer = currentGameHistory;
-            console.log('[클라이언트] window.currentGameHistoryFromServer 저장 완료:', window.currentGameHistoryFromServer?.length, '개');
+            
+            // 당첨자 계산 및 저장
+            const calculateAndStoreWinner = async () => {
+                const rulesInput = document.getElementById('gameRulesInput');
+                if (!rulesInput) return;
+                
+                const gameRules = rulesInput.value.trim();
+                if (!gameRules) return;
+                
+                const rulesLower = gameRules.toLowerCase();
+                let winners = [];
+                
+                // 하이 룰: 낮은 사람이 걸림
+                if (rulesLower.includes('하이') && rulesLower.includes('낮은')) {
+                    const minResult = Math.min(...currentGameHistory.map(r => r.result));
+                    const winnerRecords = currentGameHistory.filter(r => r.result === minResult);
+                    winners = winnerRecords.map(r => r.user);
+                }
+                // 로우 룰: 높은 사람이 걸림
+                else if (rulesLower.includes('로우') && rulesLower.includes('높은')) {
+                    const maxResult = Math.max(...currentGameHistory.map(r => r.result));
+                    const winnerRecords = currentGameHistory.filter(r => r.result === maxResult);
+                    winners = winnerRecords.map(r => r.user);
+                }
+                // 니어 룰: 특정 숫자에 가까운 사람이 걸림
+                else if (rulesLower.includes('니어')) {
+                    const nearMatch = gameRules.match(/니어\s*\(?\s*(\d+)\s*\)?/);
+                    if (nearMatch) {
+                        const targetNumber = parseInt(nearMatch[1]);
+                        let minDiff = Infinity;
+                        let winnerRecords = [];
+                        
+                        currentGameHistory.forEach(record => {
+                            const diff = Math.abs(record.result - targetNumber);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                winnerRecords = [record];
+                            } else if (diff === minDiff) {
+                                winnerRecords.push(record);
+                            }
+                        });
+                        
+                        winners = winnerRecords.map(r => r.user);
+                    }
+                }
+                
+                // 당첨자 정보 저장
+                if (winners.length > 0) {
+                    window.gameWinners = winners;
+                }
+            };
+            
+            // 당첨자 계산
+            calculateAndStoreWinner();
             
             // 애니메이션 완료를 기다리는 함수
             const processGameEnd = () => {
+                addDebugLog('🎯 processGameEnd 호출됨', 'gameEnd');
+                addDebugLog(`📊 애니메이션 상태: complete=${window.lastRollerAnimationComplete}, time=${window.lastRollerAnimationCompleteTime ? new Date(window.lastRollerAnimationCompleteTime).toLocaleTimeString() : 'null'}`, 'gameEnd');
+                
                 isGameActive = false;
                 hasRolledInCurrentGame = false;
                 rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
@@ -5127,6 +5005,7 @@
                 // 애니메이션 완료 플래그 초기화 (게임 종료 시)
                 window.lastRollerAnimationComplete = false;
                 window.lastRollerAnimationCompleteTime = null;
+                addDebugLog('🔄 애니메이션 완료 플래그 초기화', 'gameEnd');
                 
                 // 결과창 표시 플래그 초기화 (다음 게임을 위해)
                 window.allRolledMessageShown = false;
@@ -5180,41 +5059,75 @@
             };
             
             // 마지막 굴리는 사람의 애니메이션이 완료될 때까지 기다림
+            addDebugLog('🎮 gameEnded 이벤트 수신', 'gameEnd');
+            addDebugLog(`📊 currentGameHistory 길이: ${currentGameHistory.length}`, 'gameEnd');
+            
             const checkAnimationComplete = () => {
+                const hasComplete = window.lastRollerAnimationComplete;
+                const completeTime = window.lastRollerAnimationCompleteTime;
+                const now = Date.now();
+                
+                addDebugLog(`🔍 애니메이션 상태 체크: complete=${hasComplete}, time=${completeTime ? new Date(completeTime).toLocaleTimeString() : 'null'}`, 'animation');
+                
                 // 애니메이션이 완료되었거나, 애니메이션이 필요 없는 경우 즉시 처리
-                if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
-                    const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
-                    // 애니메이션 완료 후 최소 0.3초 대기 (애니메이션 효과를 볼 수 있도록)
-                    if (elapsed >= 300) {
-                        processGameEnd();
-                        return true;
-                    }
-                } else if (!window.lastRollerAnimationComplete) {
-                    // 애니메이션이 필요 없는 경우 (마지막 굴리는 사람이 아니거나 애니메이션이 없는 경우)
-                    // 짧은 시간 대기 후 처리 (다른 클라이언트의 애니메이션을 고려)
-                    setTimeout(() => {
-                        processGameEnd();
-                    }, 500);
+                if (hasComplete && completeTime) {
+                    // 마지막 사람의 경우 고정 시간 애니메이션을 사용하므로
+                    // 애니메이션 완료 시간에는 이미 0.5초 대기 시간이 포함되어 있음
+                    // 따라서 즉시 처리 가능
+                    addDebugLog(`✅ 애니메이션 완료 조건 만족 (고정 시간 애니메이션) - processGameEnd 호출`, 'gameEnd');
+                    processGameEnd();
                     return true;
+                } else {
+                    addDebugLog('⏳ 애니메이션이 아직 완료되지 않음', 'animation');
                 }
+                // 애니메이션이 아직 완료되지 않았으면 대기
                 return false;
             };
             
-            // 즉시 확인
-            if (!checkAnimationComplete()) {
+            // 애니메이션 완료를 기다리는 함수
+            const waitForAnimation = () => {
+                addDebugLog('🚀 waitForAnimation 시작', 'gameEnd');
+                
+                // 즉시 확인
+                if (checkAnimationComplete()) {
+                    addDebugLog('✅ 즉시 완료 처리', 'gameEnd');
+                    return;
+                }
+                
+                let checkCount = 0;
                 // 애니메이션이 진행 중이면 완료될 때까지 대기
                 const waitInterval = setInterval(() => {
+                    checkCount++;
+                    if (checkCount % 20 === 0) { // 1초마다 로그 (50ms * 20 = 1000ms)
+                        addDebugLog(`🔄 애니메이션 대기 중... (${checkCount * 50}ms 경과)`, 'animation');
+                    }
                     if (checkAnimationComplete()) {
+                        addDebugLog(`✅ 애니메이션 완료 확인 - interval 정리 (총 ${checkCount}회 체크)`, 'gameEnd');
                         clearInterval(waitInterval);
                     }
                 }, 50); // 50ms마다 확인
                 
-                // 최대 5초 대기 (타임아웃 방지)
+                // 최대 5초 대기 (게임 종료 버튼을 눌렀을 때 빠르게 처리)
                 setTimeout(() => {
+                    addDebugLog('⏰ 타임아웃 발생 (5초 경과)', 'warn');
                     clearInterval(waitInterval);
-                    processGameEnd();
+                    // 타임아웃이 발생해도 애니메이션이 완료되지 않았으면 강제로 처리
+                    // 하지만 최소한의 대기 시간은 확보
+                    if (!window.lastRollerAnimationComplete) {
+                        addDebugLog('⚠️ 애니메이션이 아직 시작되지 않음 - 추가 0.5초 대기', 'warn');
+                        // 애니메이션이 아직 시작되지 않았을 수 있으므로 추가 대기
+                        setTimeout(() => {
+                            addDebugLog('⚠️ 강제 processGameEnd 호출 (타임아웃)', 'error');
+                            processGameEnd();
+                        }, 500);
+                    } else {
+                        addDebugLog('⚠️ 강제 processGameEnd 호출 (타임아웃, 애니메이션 완료됨)', 'warn');
+                        processGameEnd();
+                    }
                 }, 5000);
-            }
+            };
+            
+            waitForAnimation();
         });
 
         // 클라이언트 시드 생성
@@ -5228,7 +5141,7 @@
         // rollDice 함수는 더 이상 사용하지 않음 (명령어로 대체)
         function rollDice() {
             // 주사위 굴리기는 /주사위 명령어로만 가능
-            alert('주사위 굴리기는 /주사위 명령어를 사용해주세요!\n예: /주사위 100');
+            showCustomAlert('주사위 굴리기는 /주사위 명령어를 사용해주세요!\n예: /주사위 100', 'info');
         }
 
         // 주사위 결과 수신
@@ -5349,11 +5262,29 @@
                         
                         // 애니메이션은 마지막 굴리는 사람 또는 하이/로우/니어 게임 조건 만족 시 재생 (테스트용 1001~1006은 예외)
                         if (shouldAnimate && (isLastRoller || hasSpecialAnimation || isTestAnimation)) {
+                            // 마지막 사람의 애니메이션이 시작되면 이전 완료 플래그 리셋
+                            if (isLastRoller) {
+                                addDebugLog(`🔄 마지막 사람 애니메이션 시작 - 이전 완료 플래그 리셋`, 'animation');
+                                window.lastRollerAnimationComplete = false;
+                                window.lastRollerAnimationCompleteTime = null;
+                            }
+                            
+                            addDebugLog(`🎬 애니메이션 시작: user=${record.user}, result=${finalResult}, isLastRoller=${isLastRoller}`, 'animation');
+                            
                             // 애니메이션 완료 콜백 함수
                             const onAnimationComplete = () => {
+                                const completeTime = Date.now();
+                                addDebugLog(`✅ 애니메이션 완료: user=${record.user}, isLastRoller=${isLastRoller}, time=${new Date(completeTime).toLocaleTimeString()}`, 'animation');
+                                
                                 // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
-                                window.lastRollerAnimationComplete = true;
-                                window.lastRollerAnimationCompleteTime = Date.now();
+                                // 마지막 사람인 경우에만 플래그 설정 (중요!)
+                                if (isLastRoller) {
+                                    window.lastRollerAnimationComplete = true;
+                                    window.lastRollerAnimationCompleteTime = completeTime;
+                                    addDebugLog(`📝 lastRollerAnimationComplete 설정: true (마지막 사람), time=${completeTime}`, 'animation');
+                                } else {
+                                    addDebugLog(`ℹ️ 마지막 사람이 아니므로 플래그 설정 안 함`, 'animation');
+                                }
                                 
                                 // 애니메이션 완료 후 기록에 저장
                                 if (shouldSaveToHistory && !isNotReady) {
@@ -5369,8 +5300,14 @@
                                 animationIndex = finalResult - 1001; // 1001→0, 1002→1, ..., 1006→5
                             }
                             
-                            // 랜덤으로 연출 효과 선택하여 재생 (또는 테스트용 특정 효과)
-                            playRandomDiceAnimation(diceResultSpan, diceIcon, finalResult, onAnimationComplete, animationIndex);
+                            // 마지막 사람의 경우 고정 시간 애니메이션 사용
+                            if (isLastRoller) {
+                                addDebugLog(`⏱️ 마지막 사람 - 고정 시간 애니메이션 사용 (3초)`, 'animation');
+                                diceAnimationEffects.fixedDuration(diceResultSpan, diceIcon, finalResult, onAnimationComplete);
+                            } else {
+                                // 랜덤으로 연출 효과 선택하여 재생 (또는 테스트용 특정 효과)
+                                playRandomDiceAnimation(diceResultSpan, diceIcon, finalResult, onAnimationComplete, animationIndex);
+                            }
                         } else {
                             // 애니메이션 없이 바로 최종 숫자 표시
                             diceResultSpan.textContent = diceIcon + finalResult;
@@ -5403,14 +5340,13 @@
 
         // 모두 완료 알림
         socket.on('allPlayersRolled', (data) => {
-            console.log('[allPlayersRolled] 이벤트 수신:', data);
             // 팝업 제거 - 방장이 게임종료 버튼을 눌렀을 때만 팝업 표시
             document.getElementById('progressBar').style.background = 'linear-gradient(90deg, #28a745 0%, #20c997 100%)';
         });
 
         // 주사위 굴리기 에러
         socket.on('rollError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
             
             if (diceAnimationInterval) {
                 clearInterval(diceAnimationInterval);
@@ -5420,20 +5356,20 @@
 
         // 에러 처리
         socket.on('connectionError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
             setTimeout(() => location.reload(), 2000);
         });
 
         socket.on('rateLimitError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         socket.on('permissionError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         socket.on('rangeError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         // 사용자 목록 업데이트
@@ -5445,7 +5381,7 @@
                 isHost = myUser.isHost;
                 if (isHost && !wasHost && lastHostStatus !== isHost) {
                     // 호스트 권한이 전달되었을 때
-                    alert('호스트 권한이 전달되었습니다.');
+                    showCustomAlert('호스트 권한이 전달되었습니다.', 'success');
                     updateHostUI();
                 } else if (!isHost && wasHost) {
                     // 호스트 권한이 제거되었을 때
@@ -5496,9 +5432,11 @@
                     userTag.style.cursor = 'pointer';
                     userTag.title = '더블 클릭하여 게임에서 제외';
                     userTag.addEventListener('dblclick', () => {
-                        if (confirm(`${user.name}님을 게임에서 제외하시겠습니까?`)) {
-                            socket.emit('kickPlayer', user.name);
-                        }
+                        showCustomConfirm(`${user.name}님을 게임에서 제외하시겠습니까?`, 'warning').then(result => {
+                            if (result) {
+                                socket.emit('kickPlayer', user.name);
+                            }
+                        });
                     });
                 }
                 
@@ -5513,16 +5451,12 @@
                         e.dataTransfer.setData('text/plain', user.name);
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('source', 'users'); // 접속자 목록에서 드래그하는 것 표시
-                        // 전역 변수에 source 저장 (dragover에서 확인하기 위해)
-                        window.currentDragSource = 'users';
                         userTag.style.opacity = '0.5';
                     });
                     
                     // 드래그 종료
                     userTag.addEventListener('dragend', (e) => {
                         userTag.style.opacity = '1';
-                        // 전역 변수 초기화
-                        window.currentDragSource = null;
                     });
                 } else {
                     userTag.draggable = false;
@@ -5572,7 +5506,7 @@
         
         // 준비 에러 처리
         socket.on('readyError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
         
         // 준비한 사람 목록 렌더링
@@ -5625,8 +5559,6 @@
                         e.dataTransfer.setData('text/plain', userName);
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('source', 'ready'); // 준비 목록에서 드래그하는 것 표시
-                        // 전역 변수에 source 저장 (dragover에서 확인하기 위해)
-                        window.currentDragSource = 'ready';
                         userTag.style.opacity = '0.5';
                         // 전역 변수에 드래그 중인 사용자 저장
                         window.draggedReadyUser = userName;
@@ -5650,7 +5582,6 @@
                         // 초기화
                         window.draggedReadyUser = null;
                         window.droppedInReadySection = false;
-                        window.currentDragSource = null;
                     });
                 } else {
                     userTag.draggable = false;
@@ -5694,17 +5625,12 @@
             // 드롭 존 설정 (접속자 목록에서 드래그하는 경우)
             readyUsersList.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                // 전역 변수에서 source 확인 (dragover에서는 getData가 작동하지 않음)
-                const source = window.currentDragSource;
-                // 접속자 목록에서 드래그하는 경우만 허용 (게임 진행 중이 아닐 때)
+                const source = e.dataTransfer.getData('source');
+                // 접속자 목록에서 드래그하는 경우만 허용
                 if (source === 'users' && isHost && !isGameActive) {
                     e.dataTransfer.dropEffect = 'move';
                     readyUsersList.style.backgroundColor = '#e8f5e9';
                     readyUsersList.style.border = '2px dashed #28a745';
-                } else {
-                    e.dataTransfer.dropEffect = 'none';
-                    readyUsersList.style.backgroundColor = '';
-                    readyUsersList.style.border = '';
                 }
             });
             
@@ -5754,10 +5680,8 @@
                 document.setAttribute('data-global-drop-setup', 'true');
                 
                 document.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    // 전역 변수에서 source 확인 (dragover에서는 getData가 작동하지 않음)
-                    const source = window.currentDragSource;
-                    // 준비 목록에서 드래그하는 경우 (게임 진행 중이 아닐 때)
+                    const source = e.dataTransfer.getData('source');
+                    // 준비 목록에서 드래그하는 경우
                     if (source === 'ready' && isHost && !isGameActive) {
                         // 준비 섹션 밖에 있는지 확인
                         const readySection = document.getElementById('readySection');
@@ -5834,13 +5758,13 @@
         function handleTestCommand(command) {
             const parts = command.trim().split(/\s+/);
             if (parts.length < 2) {
-                alert('사용법: /테스트 [애니메이션번호]\n예: /테스트 1001, /테스트 1002, /테스트 1003');
+                showCustomAlert('사용법: /테스트 [애니메이션번호]\n예: /테스트 1001, /테스트 1002, /테스트 1003', 'info');
                 return;
             }
             
             const animationNum = parseInt(parts[1]);
             if (isNaN(animationNum) || (animationNum < 1001 || animationNum > 1003)) {
-                alert('애니메이션 번호는 1001, 1002, 1003 중 하나여야 합니다.');
+                showCustomAlert('애니메이션 번호는 1001, 1002, 1003 중 하나여야 합니다.', 'warning');
                 return;
             }
             
@@ -5925,12 +5849,12 @@
             
             // 범위 검증
             if (maxValue < 1) {
-                alert('올바른 숫자를 입력해주세요! (1 이상)');
+                showCustomAlert('올바른 숫자를 입력해주세요! (1 이상)', 'warning');
                 return;
             }
             
             if (maxValue > 100000) {
-                alert('최대값은 100000까지 가능합니다!');
+                showCustomAlert('최대값은 100000까지 가능합니다!', 'warning');
                 return;
             }
             
@@ -6150,16 +6074,14 @@
                 // 모든 참여자가 주사위를 굴렸다는 메시지인지 확인
                 const isAllRolledMessage = chatMessage.message.includes('모든 참여자가 주사위를 굴렸습니다');
                 
-                console.log('[displayChatMessage] 시스템 메시지 확인:', {
-                    message: chatMessage.message,
-                    isAllRolledMessage: isAllRolledMessage,
-                    allRolledMessageShown: window.allRolledMessageShown
-                });
+                // 커스텀 룰의 경우 채팅 메시지에서 당첨자 정보 저장
+                if (chatMessage.winnerInfo && chatMessage.winnerInfo.winners) {
+                    window.gameWinners = chatMessage.winnerInfo.winners;
+                }
                 
                 if (isAllRolledMessage) {
                     // 전역 플래그로 중복 호출 방지
                     if (window.allRolledMessageShown) {
-                        console.log('[displayChatMessage] 이미 표시됨 - allRolledMessageShown:', window.allRolledMessageShown);
                         return; // 이미 표시됨
                     }
                     
@@ -6182,44 +6104,33 @@
                     
                     // 당첨자 계산 함수 (서버에서 받은 winnerInfo 우선 사용)
                     const calculateWinner = async () => {
-                        console.log('[calculateWinner] 시작 - currentGameHistoryFromServer:', window.currentGameHistoryFromServer?.length, 'historyData:', historyData.length);
-                        
                         // 서버에서 받은 게임 기록 사용 (마지막 사람의 기록이 포함되도록)
                         let currentGameHistory = window.currentGameHistoryFromServer || [];
-                        console.log('[calculateWinner] 초기 currentGameHistory:', currentGameHistory.length);
                         
-                        // 서버에서 받은 기록이 없으면 gameEnded 이벤트를 기다림
+                        // 서버에서 받은 기록이 없으면 로컬 historyData 사용 (하위 호환성)
+                        // gameEnded 이벤트가 아직 발생하지 않았을 수 있으므로 historyData도 확인
                         if (currentGameHistory.length === 0) {
-                            console.log('[calculateWinner] currentGameHistory가 비어있음, gameEnded 이벤트 대기 시작');
-                            // gameEnded 이벤트가 발생할 때까지 최대 2초 대기
-                            let waitCount = 0;
-                            while (waitCount < 20 && currentGameHistory.length === 0) {
-                                await new Promise(resolve => setTimeout(resolve, 100));
-                                currentGameHistory = window.currentGameHistoryFromServer || [];
-                                waitCount++;
-                                if (waitCount % 5 === 0) {
-                                    console.log('[calculateWinner] 대기 중...', waitCount, '회, currentGameHistory:', currentGameHistory.length);
-                                }
-                            }
+                            // historyData에서 isGameActive === true인 기록만 필터링
+                            // 마지막 사람의 기록도 포함되도록 최신 기록까지 모두 포함
+                            currentGameHistory = historyData.filter(record => record.isGameActive === true);
                             
-                            // 여전히 없으면 로컬 historyData 사용 (하위 호환성)
+                            // 만약 historyData에도 기록이 없거나 부족하면 잠시 대기 후 다시 시도
                             if (currentGameHistory.length === 0) {
-                                console.log('[calculateWinner] 여전히 비어있음, 로컬 historyData 사용');
-                                currentGameHistory = historyData.filter(record => record.isGameActive === true);
-                                console.log('[calculateWinner] 로컬 historyData 필터링 결과:', currentGameHistory.length);
+                                // gameEnded 이벤트가 발생할 때까지 잠시 대기 (최대 1초)
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                currentGameHistory = window.currentGameHistoryFromServer || 
+                                                    historyData.filter(record => record.isGameActive === true);
                             }
                         }
                         
-                        console.log('[calculateWinner] 최종 currentGameHistory:', currentGameHistory.length, '데이터:', currentGameHistory);
+                        console.log('[calculateWinner] currentGameHistory:', currentGameHistory);
                         if (currentGameHistory.length === 0) {
                             console.log('[calculateWinner] 기록이 없습니다.');
                             return null;
                         }
                         
                         // 서버에서 받은 winnerInfo가 있으면 사용 (커스텀 룰인 경우)
-                        console.log('[calculateWinner] chatMessage.winnerInfo 확인:', chatMessage.winnerInfo);
                         if (chatMessage.winnerInfo && chatMessage.winnerInfo.winners) {
-                            console.log('[calculateWinner] 서버 winnerInfo 사용:', chatMessage.winnerInfo.winners);
                             const rulesInput = document.getElementById('gameRulesInput');
                             const gameRules = rulesInput ? rulesInput.value.trim() : '';
                             
@@ -6260,70 +6171,54 @@
                         }
                         
                         // 서버에서 winnerInfo가 없으면 클라이언트에서 계산 (하이/로우/니어)
-                        console.log('[calculateWinner] 서버 winnerInfo 없음, 클라이언트에서 계산 시작');
                         const rulesInput = document.getElementById('gameRulesInput');
-                        console.log('[calculateWinner] rulesInput 존재 여부:', !!rulesInput);
                         if (!rulesInput) {
-                            console.log('[calculateWinner] ❌ rulesInput이 없습니다.');
+                            console.log('[calculateWinner] rulesInput이 없습니다.');
                             return null;
                         }
                         
                         const gameRules = rulesInput.value.trim();
-                        console.log('[calculateWinner] gameRules 값:', gameRules, '길이:', gameRules.length);
+                        console.log('[calculateWinner] gameRules:', gameRules);
                         if (!gameRules) {
-                            console.log('[calculateWinner] ❌ gameRules가 비어있습니다.');
+                            console.log('[calculateWinner] gameRules가 비어있습니다.');
                             return null;
                         }
                         
                         const rulesLower = gameRules.toLowerCase();
-                        console.log('[calculateWinner] rulesLower:', rulesLower);
-                        console.log('[calculateWinner] 룰 체크 - 하이:', rulesLower.includes('하이'), '낮은:', rulesLower.includes('낮은'), '로우:', rulesLower.includes('로우'), '높은:', rulesLower.includes('높은'), '니어:', rulesLower.includes('니어'));
+                        console.log('[calculateWinner] rulesLower:', rulesLower, 'includes 하이:', rulesLower.includes('하이'), 'includes 낮은:', rulesLower.includes('낮은'));
                         
                         // 하이 룰: 낮은 사람이 걸림
                         if (rulesLower.includes('하이') && rulesLower.includes('낮은')) {
-                            console.log('[calculateWinner] ✅ 하이 룰 매칭');
                             const minResult = Math.min(...currentGameHistory.map(r => r.result));
                             const winners = currentGameHistory.filter(r => r.result === minResult);
-                            console.log('[calculateWinner] 하이 룰 - minResult:', minResult, 'winners 개수:', winners.length, 'winners:', winners.map(w => w.user));
+                            console.log('[calculateWinner] 하이 룰 - minResult:', minResult, 'winners:', winners);
                             if (winners.length >= 1) {
                                 if (winners.length === 1) {
-                                    console.log('[calculateWinner] ✅ 하이 룰 당첨자 반환:', winners[0].user);
                                     return { type: '하이', winner: winners[0].user, result: minResult };
                                 } else {
-                                    console.log('[calculateWinner] ✅ 하이 룰 동점 당첨자 반환:', winners.map(w => w.user));
                                     return { type: '하이', winners: winners.map(w => w.user), result: minResult, isTie: true };
                                 }
-                            } else {
-                                console.log('[calculateWinner] ❌ 하이 룰 - winners가 없음');
                             }
                         }
                         
                         // 로우 룰: 높은 사람이 걸림
                         if (rulesLower.includes('로우') && rulesLower.includes('높은')) {
-                            console.log('[calculateWinner] ✅ 로우 룰 매칭');
                             const maxResult = Math.max(...currentGameHistory.map(r => r.result));
                             const winners = currentGameHistory.filter(r => r.result === maxResult);
-                            console.log('[calculateWinner] 로우 룰 - maxResult:', maxResult, 'winners 개수:', winners.length, 'winners:', winners.map(w => w.user));
+                            console.log('[calculateWinner] 로우 룰 - maxResult:', maxResult, 'winners:', winners);
                             if (winners.length >= 1) {
                                 if (winners.length === 1) {
-                                    console.log('[calculateWinner] ✅ 로우 룰 당첨자 반환:', winners[0].user);
                                     return { type: '로우', winner: winners[0].user, result: maxResult };
                                 } else {
-                                    console.log('[calculateWinner] ✅ 로우 룰 동점 당첨자 반환:', winners.map(w => w.user));
                                     return { type: '로우', winners: winners.map(w => w.user), result: maxResult, isTie: true };
                                 }
-                            } else {
-                                console.log('[calculateWinner] ❌ 로우 룰 - winners가 없음');
                             }
                         }
                         
                         // 니어 룰: 특정 숫자에 가까운 사람이 걸림
                         const nearMatch = gameRules.match(/니어\s*\(?\s*(\d+)\s*\)?/);
-                        console.log('[calculateWinner] 니어 룰 체크 - nearMatch:', nearMatch);
                         if (nearMatch) {
-                            console.log('[calculateWinner] ✅ 니어 룰 매칭');
                             const targetNumber = parseInt(nearMatch[1]);
-                            console.log('[calculateWinner] 니어 룰 - targetNumber:', targetNumber);
                             let minDiff = Infinity;
                             let winners = [];
                             
@@ -6337,21 +6232,16 @@
                                 }
                             });
                             
-                            console.log('[calculateWinner] 니어 룰 - minDiff:', minDiff, 'winners 개수:', winners.length, 'winners:', winners.map(w => w.user));
                             if (winners.length >= 1) {
                                 if (winners.length === 1) {
-                                    console.log('[calculateWinner] ✅ 니어 룰 당첨자 반환:', winners[0].user);
                                     return { type: '니어', winner: winners[0].user, result: winners[0].result, target: targetNumber };
                                 } else {
-                                    console.log('[calculateWinner] ✅ 니어 룰 동점 당첨자 반환:', winners.map(w => w.user));
                                     return { type: '니어', winners: winners.map(w => w.user), result: winners[0].result, target: targetNumber, isTie: true };
                                 }
-                            } else {
-                                console.log('[calculateWinner] ❌ 니어 룰 - winners가 없음');
                             }
                         }
                         
-                        console.log('[calculateWinner] ❌ 룰 매칭 실패 - rulesLower:', rulesLower, 'currentGameHistory 길이:', currentGameHistory.length);
+                        console.log('[calculateWinner] 룰 매칭 실패 - rulesLower:', rulesLower, 'currentGameHistory:', currentGameHistory);
                         return null;
                     };
                     
@@ -6373,28 +6263,26 @@
                         messageDiv.appendChild(titleDiv);
                         
                         // gameEnded 이벤트가 발생할 때까지 최대 3초 대기 (서버에서 currentGameHistory를 받기 위해)
-                        console.log('[showMessage] 당첨자 계산 시작');
                         let retryCount = 0;
                         let winnerInfo = null;
                         while (retryCount < 30 && !winnerInfo) {
-                            console.log('[showMessage] calculateWinner 호출 시도', retryCount + 1, '회');
-                            // calculateWinner 함수 내부에서 currentGameHistoryFromServer를 기다리므로 바로 호출
+                            // gameEnded 이벤트가 발생했는지 확인
+                            if (!window.currentGameHistoryFromServer && retryCount < 30) {
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                retryCount++;
+                                continue;
+                            }
+                            
                             winnerInfo = await calculateWinner();
-                            console.log('[showMessage] calculateWinner 결과:', winnerInfo ? '성공' : 'null', 'retryCount:', retryCount, 'currentGameHistoryFromServer:', window.currentGameHistoryFromServer?.length);
+                            console.log('[showMessage] calculateWinner 결과:', winnerInfo, 'retryCount:', retryCount, 'currentGameHistoryFromServer:', window.currentGameHistoryFromServer?.length);
                             
                             if (!winnerInfo) {
                                 // winnerInfo가 null이면 잠시 대기 후 재시도
-                                console.log('[showMessage] winnerInfo가 null, 100ms 대기 후 재시도');
                                 await new Promise(resolve => setTimeout(resolve, 100));
                                 retryCount++;
                             } else {
-                                console.log('[showMessage] ✅ winnerInfo 획득 성공:', winnerInfo);
                                 break;
                             }
-                        }
-                        
-                        if (!winnerInfo) {
-                            console.log('[showMessage] ❌ 최종적으로 winnerInfo를 얻지 못함, retryCount:', retryCount);
                         }
                         
                         // 당첨자 정보 표시 (비동기 처리)
@@ -6450,10 +6338,6 @@
                             }
                             
                             messageDiv.appendChild(winnerDiv);
-                            
-                            // 당첨자 정보가 표시되면 히스토리 업데이트 (배지 변경)
-                            window.winnerInfoShown = true;
-                            renderHistory();
                         } else {
                             // 당첨자 정보를 계산할 수 없는 경우
                             console.log('[showMessage] 당첨자 정보를 계산할 수 없습니다.');
@@ -6490,33 +6374,62 @@
                         window.allRolledWaitInterval = null;
                     }
                     
+                    addDebugLog('💬 채팅 메시지 표시 로직 시작: "모든 참여자가 주사위를 굴렸습니다"', 'info');
+                    addDebugLog(`📊 현재 애니메이션 상태: complete=${window.lastRollerAnimationComplete}, time=${window.lastRollerAnimationCompleteTime ? new Date(window.lastRollerAnimationCompleteTime).toLocaleTimeString() : 'null'}`, 'info');
+                    
                     const checkAndShow = () => {
                         // 이미 표시되었는지 확인
                         if (messageDiv.querySelector('div') && messageDiv.style.display !== 'none') {
+                            addDebugLog('✅ 메시지 이미 표시됨', 'info');
                             return true; // 이미 표시됨
                         }
                         
+                        // 애니메이션이 완료되었는지 확인
+                        // 마지막 사람의 애니메이션이 완료되어야 함
+                        // 마지막 사람은 고정 시간 애니메이션을 사용하므로 완료 시 즉시 표시 가능
                         if (window.lastRollerAnimationComplete && window.lastRollerAnimationCompleteTime) {
-                            const elapsed = Date.now() - window.lastRollerAnimationCompleteTime;
-                            if (elapsed >= 300) {
-                                showMessage();
-                                return true;
-                            }
+                            addDebugLog('✅ 메시지 표시 조건 만족 (고정 시간 애니메이션 완료) - showMessage 호출', 'info');
+                            showMessage();
+                            return true;
+                        } else {
+                            addDebugLog('⏳ 마지막 사람의 애니메이션이 아직 완료되지 않음 - 대기 중', 'animation');
                         }
+                        // 애니메이션이 아직 완료되지 않았으면 대기
                         return false;
                     };
                     
                     // 즉시 확인 (이미 시간이 지났을 수 있음)
                     if (!checkAndShow()) {
+                        addDebugLog('🔄 메시지 표시 대기 시작', 'info');
+                        let checkCount = 0;
                         // 아직 시간이 안 지났으면 대기
                         window.allRolledWaitInterval = setInterval(() => {
+                            checkCount++;
+                            if (checkCount % 20 === 0) { // 1초마다 로그
+                                addDebugLog(`🔄 메시지 표시 대기 중... (${checkCount * 50}ms 경과)`, 'info');
+                            }
                             if (checkAndShow()) {
+                                addDebugLog(`✅ 메시지 표시 완료 - interval 정리 (총 ${checkCount}회 체크)`, 'info');
                                 if (window.allRolledWaitInterval) {
                                     clearInterval(window.allRolledWaitInterval);
                                     window.allRolledWaitInterval = null;
                                 }
                             }
                         }, 50);
+                        
+                        // 최대 10초 대기 (사람이 많을 때를 고려하여 타임아웃 증가)
+                        setTimeout(() => {
+                            addDebugLog('⏰ 메시지 표시 타임아웃 (10초 경과)', 'warn');
+                            if (window.allRolledWaitInterval) {
+                                clearInterval(window.allRolledWaitInterval);
+                                window.allRolledWaitInterval = null;
+                            }
+                            // 타임아웃이 발생해도 메시지 표시 (애니메이션 완료 여부와 관계없이)
+                            if (!messageDiv.querySelector('div') || messageDiv.style.display === 'none') {
+                                addDebugLog('⚠️ 타임아웃으로 인한 강제 메시지 표시', 'warn');
+                                showMessage();
+                            }
+                        }, 10000);
                         
                         // 최대 5초 대기 후 강제 표시
                         setTimeout(() => {
@@ -6655,10 +6568,132 @@
                     rightContentSpan.appendChild(diceResultSpan);
                 }
                 
+                // 타임스탬프와 이모티콘을 같은 줄에 표시하기 위한 컨테이너
+                const timeReactionsContainer = document.createElement('span');
+                timeReactionsContainer.className = 'time-reactions-container';
+                timeReactionsContainer.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;';
+                
                 const timeSpan = document.createElement('span');
-                timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+                timeSpan.style.cssText = 'font-size: 11px; color: #999;';
                 timeSpan.textContent = chatMessage.time;
-                messageDiv.appendChild(timeSpan);
+                
+                timeReactionsContainer.appendChild(timeSpan);
+                
+                // 반응이 있는 이모티콘 표시 영역 (항상 표시)
+                const activeReactionsDiv = document.createElement('span');
+                activeReactionsDiv.className = 'active-reactions';
+                activeReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px;';
+                
+                // 호버 시 나타나는 이모티콘 버튼들 (기본 숨김)
+                const hoverReactionsDiv = document.createElement('span');
+                hoverReactionsDiv.className = 'hover-reactions';
+                hoverReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
+                
+                // 이모티콘 설정 (전역 변수에서 가져오기)
+                const defaultEmojis = Object.keys(emojiConfig);
+                
+                // 반응이 있는 이모티콘 표시
+                if (chatMessage.reactions && Object.keys(chatMessage.reactions).length > 0) {
+                    Object.entries(chatMessage.reactions).forEach(([emoji, users]) => {
+                        if (users.length > 0 && defaultEmojis.includes(emoji)) {
+                            const reactionBtn = document.createElement('button');
+                            reactionBtn.className = 'reaction-button active';
+                            
+                            const hasReacted = users.includes(currentUser);
+                            
+                            reactionBtn.style.cssText = `
+                                height: 20px;
+                                border-radius: 10px;
+                                background: ${hasReacted ? '#333' : '#555'};
+                                border: none;
+                                color: #ffffff !important;
+                                font-size: 12px;
+                                cursor: pointer;
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 6px;
+                                gap: 4px;
+                                transition: all 0.2s;
+                                vertical-align: middle;
+                                line-height: 1;
+                            `;
+                            
+                            const emojiSpan = document.createElement('span');
+                            emojiSpan.textContent = emoji;
+                            emojiSpan.style.cssText = 'font-size: 12px; line-height: 1;';
+                            
+                            const countSpan = document.createElement('span');
+                            countSpan.textContent = users.length;
+                            countSpan.style.cssText = 'font-size: 12px; color: #ffffff !important; font-weight: 600; line-height: 1; display: inline-block;';
+                            
+                            reactionBtn.appendChild(emojiSpan);
+                            reactionBtn.appendChild(countSpan);
+                            reactionBtn.title = emojiConfig[emoji] || emoji;
+                            
+                            reactionBtn.onclick = () => {
+                                const messageIndex = parseInt(messageDiv.dataset.messageIndex);
+                                socket.emit('toggleReaction', { messageIndex, emoji });
+                            };
+                            
+                            activeReactionsDiv.appendChild(reactionBtn);
+                        }
+                    });
+                }
+                
+                // 호버 시 나타나는 이모티콘 버튼들
+                defaultEmojis.forEach(emoji => {
+                    // 이미 반응이 있는 이모티콘은 호버 버튼에 표시하지 않음
+                    const hasReaction = chatMessage.reactions && 
+                                      chatMessage.reactions[emoji] && 
+                                      chatMessage.reactions[emoji].length > 0;
+                    if (hasReaction) return;
+                    
+                    const reactionBtn = document.createElement('button');
+                    reactionBtn.className = 'reaction-button hover';
+                    
+                    reactionBtn.style.cssText = `
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #000;
+                        border: 1px solid #333;
+                        color: white;
+                        font-size: 10px;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 0;
+                        transition: all 0.2s;
+                        vertical-align: middle;
+                    `;
+                    
+                    reactionBtn.textContent = emoji;
+                    reactionBtn.title = emojiConfig[emoji] || emoji;
+                    
+                    reactionBtn.onclick = () => {
+                        const messageIndex = parseInt(messageDiv.dataset.messageIndex);
+                        socket.emit('toggleReaction', { messageIndex, emoji });
+                    };
+                    
+                    hoverReactionsDiv.appendChild(reactionBtn);
+                });
+                
+                timeReactionsContainer.appendChild(activeReactionsDiv);
+                timeReactionsContainer.appendChild(hoverReactionsDiv);
+                
+                messageDiv.appendChild(timeReactionsContainer);
+                
+                // 메시지에 마우스를 올리면 호버 이모티콘 표시
+                messageDiv.onmouseenter = () => {
+                    hoverReactionsDiv.style.opacity = '0.7';
+                    hoverReactionsDiv.style.pointerEvents = 'auto';
+                };
+                messageDiv.onmouseleave = () => {
+                    hoverReactionsDiv.style.opacity = '0';
+                    hoverReactionsDiv.style.pointerEvents = 'none';
+                };
             } else {
                 // 일반 메시지는 왼쪽 정렬
                 const userNameSpan = document.createElement('span');
@@ -6847,11 +6882,6 @@
         
         // 새 메시지 수신
         socket.on('newMessage', (chatMessage) => {
-            console.log('[newMessage] 이벤트 수신:', {
-                userName: chatMessage.userName,
-                message: chatMessage.message,
-                isSystemMessage: chatMessage.isSystemMessage
-            });
             displayChatMessage(chatMessage);
         });
         
@@ -7012,14 +7042,15 @@
         
         // 채팅 에러 처리
         socket.on('chatError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'info');
         });
 
         function updateHostCheckbox(users) {
             const hostCheckbox = document.getElementById('hostCheckbox');
+            
+            // hostCheckbox 요소가 없으면 함수 종료 (로비 화면이 아닐 수 있음)
             if (!hostCheckbox) {
-                console.log('[updateHostCheckbox] hostCheckbox 요소를 찾을 수 없습니다.');
-                return; // 요소가 없으면 종료
+                return;
             }
             
             const hasHost = users.some(user => user.isHost === true);
@@ -7076,62 +7107,64 @@
 
         // 히스토리 정렬 함수
         function sortHistoryData(data, mode) {
-            if (data.length === 0) return [];
+            if (data.length === 0) return { sorted: [], topPlayerKeys: new Set() };
             
             const sorted = [...data];
             
-            // 게임 진행 중이거나 게임 기록을 표시할 때 유력한 사람 상단 표시 (정렬 전에 찾기)
+            // 게임 진행 중일 때 유력한 사람, 게임 종료 후 당첨자 상단 표시 (정렬 전에 찾기)
             let topPlayerKeys = new Set(); // 유력한 사람들의 고유 키 (동점일 수 있음)
             
-            // 게임 진행 중이거나, 게임 기록(isGameActive === true)을 표시할 때만 적용
-            const isDisplayingGameRecords = sorted.some(r => r.isGameActive === true);
-            if ((isGameActive || isDisplayingGameRecords) && sorted.length > 0) {
+            // 게임 진행 중: 유력한 사람 찾기
+            if (isGameActive && gamePlayers.length > 0 && sorted.length > 0) {
                 const rulesInput = document.getElementById('gameRulesInput');
                 const gameRules = rulesInput ? rulesInput.value.trim().toLowerCase() : '';
                 
-                // 게임 기록만 필터링 (연습 기록 제외)
-                const gameRecords = sorted.filter(r => r.isGameActive === true);
-                if (gameRecords.length === 0) {
-                    // 게임 기록이 없으면 유력한 사람 찾기 건너뛰기
-                } else {
-                    // 하이 룰: 가장 낮은 사람이 유력
-                    if (gameRules.includes('하이') && gameRules.includes('낮은')) {
-                        const minResult = Math.min(...gameRecords.map(r => r.result));
-                        gameRecords.forEach(r => {
-                            if (r.result === minResult) {
-                                topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                            }
-                        });
-                    }
-                    // 로우 룰: 가장 높은 사람이 유력
-                    else if (gameRules.includes('로우') && gameRules.includes('높은')) {
-                        const maxResult = Math.max(...gameRecords.map(r => r.result));
-                        gameRecords.forEach(r => {
-                            if (r.result === maxResult) {
-                                topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                            }
-                        });
-                    }
-                    // 니어 룰: 타겟 숫자에 가장 가까운 사람이 유력
-                    else if (gameRules.includes('니어')) {
-                        const nearMatch = gameRules.match(/니어\s*(\d+)/);
-                        if (nearMatch) {
-                            const targetNumber = parseInt(nearMatch[1]);
-                            let minDiff = Infinity;
-                            gameRecords.forEach(record => {
-                                const diff = Math.abs(record.result - targetNumber);
-                                if (diff < minDiff) {
-                                    minDiff = diff;
-                                }
-                            });
-                            gameRecords.forEach(r => {
-                                if (Math.abs(r.result - targetNumber) === minDiff) {
-                                    topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                                }
-                            });
+                // 하이 룰: 가장 낮은 사람이 유력
+                if (gameRules.includes('하이') && gameRules.includes('낮은')) {
+                    const minResult = Math.min(...sorted.map(r => r.result));
+                    sorted.forEach(r => {
+                        if (r.result === minResult) {
+                            topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
                         }
+                    });
+                }
+                // 로우 룰: 가장 높은 사람이 유력
+                else if (gameRules.includes('로우') && gameRules.includes('높은')) {
+                    const maxResult = Math.max(...sorted.map(r => r.result));
+                    sorted.forEach(r => {
+                        if (r.result === maxResult) {
+                            topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                        }
+                    });
+                }
+                // 니어 룰: 타겟 숫자에 가장 가까운 사람이 유력
+                else if (gameRules.includes('니어')) {
+                    const nearMatch = gameRules.match(/니어\s*(\d+)/);
+                    if (nearMatch) {
+                        const targetNumber = parseInt(nearMatch[1]);
+                        let minDiff = Infinity;
+                        sorted.forEach(record => {
+                            const diff = Math.abs(record.result - targetNumber);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                            }
+                        });
+                        sorted.forEach(r => {
+                            if (Math.abs(r.result - targetNumber) === minDiff) {
+                                topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                            }
+                        });
                     }
                 }
+            }
+            
+            // 게임 종료 후: 당첨자도 상단으로 올리기
+            if (!isGameActive && window.gameWinners && window.gameWinners.length > 0 && sorted.length > 0) {
+                sorted.forEach(r => {
+                    if (window.gameWinners.includes(r.user)) {
+                        topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
+                    }
+                });
             }
             
             // 정렬 수행
@@ -7162,7 +7195,7 @@
                 }
             }
             
-            return sorted;
+            return { sorted, topPlayerKeys };
         }
 
         // 정렬 버튼 클릭
@@ -7201,11 +7234,6 @@
             rolledUsersCountElement.textContent = count;
         }
 
-        // 이전 유력 상태 추적 (애니메이션용)
-        let previousTopPlayerKeys = new Set();
-        let currentAnimationTimeout = null;
-        let currentAnimatingItem = null;
-        
         // 히스토리 렌더링
         function renderHistory() {
             const historyList = document.getElementById('historyList');
@@ -7235,301 +7263,77 @@
                 }
             }
             
-            // "아직 기록이 없습니다" 메시지 제거
-            const emptyMessage = historyList.querySelector('.empty-history');
-            if (emptyMessage) {
-                emptyMessage.remove();
-            }
-            
             if (displayData.length === 0) {
-                if (historyList.children.length === 0) {
-                    historyList.innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
-                }
+                historyList.innerHTML = '<div class="empty-history">아직 기록이 없습니다</div>';
                 updateRolledUsersCount();
-                previousTopPlayerKeys.clear();
                 return;
             }
             
-            const sortedData = sortHistoryData(displayData, currentSortMode);
+            const { sorted: sortedData, topPlayerKeys } = sortHistoryData(displayData, currentSortMode);
             
-            // 배지 표시용: 게임 진행 중이면 "유력", 게임 종료 후면 "당첨"
-            const topPlayerKeys = new Set(); // 유력 (게임 진행 중)
-            const winnerKeys = new Set(); // 당첨 (게임 종료 후)
+            historyList.innerHTML = '';
             
-            const isDisplayingGameRecords = displayData.some(r => r.isGameActive === true);
-            const gameRecords = displayData.filter(r => r.isGameActive === true);
-            
-            if (gameRecords.length > 0) {
-                const rulesInput = document.getElementById('gameRulesInput');
-                const gameRules = rulesInput ? rulesInput.value.trim().toLowerCase() : '';
-                
-                if (gameRules) {
-                    // 게임 진행 중이면 "유력" 배지
-                    if (isGameActive) {
-                        if (gameRules.includes('하이') && gameRules.includes('낮은')) {
-                            const minResult = Math.min(...gameRecords.map(r => r.result));
-                            gameRecords.forEach(r => {
-                                if (r.result === minResult) {
-                                    topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                                }
-                            });
-                        } else if (gameRules.includes('로우') && gameRules.includes('높은')) {
-                            const maxResult = Math.max(...gameRecords.map(r => r.result));
-                            gameRecords.forEach(r => {
-                                if (r.result === maxResult) {
-                                    topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                                }
-                            });
-                        } else if (gameRules.includes('니어')) {
-                            const nearMatch = gameRules.match(/니어\s*(\d+)/);
-                            if (nearMatch) {
-                                const targetNumber = parseInt(nearMatch[1]);
-                                let minDiff = Infinity;
-                                gameRecords.forEach(record => {
-                                    const diff = Math.abs(record.result - targetNumber);
-                                    if (diff < minDiff) {
-                                        minDiff = diff;
-                                    }
-                                });
-                                gameRecords.forEach(r => {
-                                    if (Math.abs(r.result - targetNumber) === minDiff) {
-                                        topPlayerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                                    }
-                                });
-                            }
-                        }
-                    } 
-                    // 게임 종료 후이고 당첨자 정보가 채팅에 표시되었으면 "당첨" 배지
-                    else if (!isGameActive && isDisplayingGameRecords && window.winnerInfoShown) {
-                        if (gameRules.includes('하이') && gameRules.includes('낮은')) {
-                            const minResult = Math.min(...gameRecords.map(r => r.result));
-                            gameRecords.forEach(r => {
-                                if (r.result === minResult) {
-                                    winnerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                                }
-                            });
-                        } else if (gameRules.includes('로우') && gameRules.includes('높은')) {
-                            const maxResult = Math.max(...gameRecords.map(r => r.result));
-                            gameRecords.forEach(r => {
-                                if (r.result === maxResult) {
-                                    winnerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                                }
-                            });
-                        } else if (gameRules.includes('니어')) {
-                            const nearMatch = gameRules.match(/니어\s*(\d+)/);
-                            if (nearMatch) {
-                                const targetNumber = parseInt(nearMatch[1]);
-                                let minDiff = Infinity;
-                                gameRecords.forEach(record => {
-                                    const diff = Math.abs(record.result - targetNumber);
-                                    if (diff < minDiff) {
-                                        minDiff = diff;
-                                    }
-                                });
-                                gameRecords.forEach(r => {
-                                    if (Math.abs(r.result - targetNumber) === minDiff) {
-                                        winnerKeys.add(`${r.user}-${r.result}-${r.time}`);
-                                    }
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // 새로운 유력 찾기 (이전에 없었던 것)
-            const newTopPlayerKeys = new Set();
-            topPlayerKeys.forEach(key => {
-                if (!previousTopPlayerKeys.has(key)) {
-                    newTopPlayerKeys.add(key);
-                }
-            });
-            
-            // 진행 중인 애니메이션이 있고 새로운 유력이 생기면 취소
-            if (currentAnimatingItem && newTopPlayerKeys.size > 0) {
-                // 기존 애니메이션 취소 및 아래로 이동
-                if (currentAnimationTimeout) {
-                    clearTimeout(currentAnimationTimeout);
-                    currentAnimationTimeout = null;
-                }
-                currentAnimatingItem.classList.remove('animating-from-top');
-                currentAnimatingItem.classList.add('animating-to-bottom');
-                setTimeout(() => {
-                    if (currentAnimatingItem && currentAnimatingItem.parentNode) {
-                        // 아래로 이동 (리스트 끝으로)
-                        historyList.appendChild(currentAnimatingItem);
-                        currentAnimatingItem.classList.remove('animating-to-bottom');
-                    }
-                    currentAnimatingItem = null;
-                }, 300);
-            }
-            
-            // 기존 DOM 요소 매핑 (recordKey -> element)
-            const existingItems = new Map();
-            Array.from(historyList.children).forEach(child => {
-                if (child.dataset.recordKey) {
-                    existingItems.set(child.dataset.recordKey, child);
-                }
-            });
-            
-            // 새로 추가되거나 업데이트가 필요한 항목 찾기
-            const itemsToAdd = [];
-            const itemsToUpdate = [];
-            const itemsToRemove = new Set(existingItems.keys());
-            
-            sortedData.forEach((record, index) => {
+            sortedData.forEach(record => {
                 const recordKey = `${record.user}-${record.result}-${record.time}`;
                 const isTopPlayer = topPlayerKeys.has(recordKey);
-                const isWinner = winnerKeys.has(recordKey);
-                const isNewTopPlayer = newTopPlayerKeys.has(recordKey);
+                const isNewTopPlayer = isTopPlayer && isGameActive && !lastTopPlayerKeys.has(recordKey);
                 
-                itemsToRemove.delete(recordKey);
-                
-                const existingItem = existingItems.get(recordKey);
-                if (existingItem) {
-                    // 기존 항목 업데이트 (배지만 변경)
-                    let badgeHtml = '';
-                    if (isWinner) {
-                        badgeHtml = '<span class="winner-badge">당첨</span>';
-                    } else if (isTopPlayer) {
-                        badgeHtml = '<span class="top-player-badge">유력</span>';
-                    }
-                    
-                    const userDiv = existingItem.querySelector('.history-user');
-                    const badgeContainer = userDiv?.parentElement;
-                    if (badgeContainer) {
-                        // 기존 배지 제거
-                        const oldBadge = badgeContainer.querySelector('.top-player-badge, .winner-badge');
-                        if (oldBadge) {
-                            oldBadge.remove();
-                        }
-                        // 새 배지 추가
-                        if (badgeHtml) {
-                            badgeContainer.insertAdjacentHTML('beforeend', badgeHtml);
-                        }
-                    }
-                    
-                    itemsToUpdate.push({ item: existingItem, isNewTopPlayer, recordKey, record });
-                } else {
-                    // 새 항목 생성
-                    const item = document.createElement('div');
-                    item.className = 'history-item';
-                    item.dataset.recordKey = recordKey;
-                    
-                    if (isTopPlayer || isWinner) {
-                        item.style.position = 'relative';
-                    }
-                    
-                    let badgeHtml = '';
-                    if (isWinner) {
-                        badgeHtml = '<span class="winner-badge">당첨</span>';
-                    } else if (isTopPlayer) {
-                        badgeHtml = '<span class="top-player-badge">유력</span>';
-                    }
-                    
-                    item.innerHTML = `
-                        <div style="display: flex; align-items: flex-start; gap: 8px;">
-                            <div style="flex: 1;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div class="history-user">${record.user}</div>
-                                    ${badgeHtml}
-                                </div>
-                                <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
-                                <div class="history-time">${record.time}</div>
-                            </div>
-                            <div class="history-result">🎲 ${record.result}</div>
-                        </div>
-                    `;
-                    
-                    itemsToAdd.push({ item, isNewTopPlayer, recordKey, record, index });
+                // 게임이 종료된 상태이고 당첨자가 있으면 당첨 배지 표시, 아니면 유력 배지 표시
+                let badgeHtml = '';
+                if (!isGameActive && window.gameWinners && window.gameWinners.includes(record.user)) {
+                    // 게임 종료 후 당첨자에게는 초록색 "당첨" 배지
+                    badgeHtml = '<span class="winner-badge">당첨</span>';
+                } else if (isTopPlayer && isGameActive) {
+                    // 게임 진행 중 유력한 후보에게는 빨간색 "유력" 배지
+                    badgeHtml = '<span class="top-player-badge">유력</span>';
                 }
+                
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                
+                // 새로 유력해진 사람에게 애니메이션 적용
+                if (isNewTopPlayer) {
+                    item.classList.add('top-player-new');
+                }
+                
+                // 당첨자 체크 및 외곽선 애니메이션 적용
+                const isWinner = !isGameActive && window.gameWinners && window.gameWinners.includes(record.user);
+                const isNewWinner = isWinner && !lastWinnerKeys.has(recordKey);
+                
+                if (isNewWinner) {
+                    item.classList.add('winner-glow');
+                } else if (isWinner) {
+                    // 이미 당첨자였던 경우에도 계속 애니메이션 유지
+                    item.classList.add('winner-glow');
+                }
+                
+                item.innerHTML = `
+                    <div>
+                        <div class="history-user">${record.user}${badgeHtml}</div>
+                        <div class="history-range">${record.range ? (record.range.includes('~') ? record.range.split('~')[1] : record.range) : '100'}</div>
+                        <div class="history-time">${record.time}</div>
+                    </div>
+                    <div class="history-result">🎲 ${record.result}</div>
+                `;
+                historyList.appendChild(item);
             });
             
-            // 제거할 항목 삭제
-            itemsToRemove.forEach(key => {
-                const item = existingItems.get(key);
-                if (item && item.parentNode) {
-                    item.remove();
-                }
-            });
+            // 현재 유력한 사람들을 저장 (다음 렌더링에서 비교용)
+            lastTopPlayerKeys = new Set(topPlayerKeys);
             
-            // 새로 유력이 된 항목 찾기 (애니메이션용)
-            const newTopPlayerItem = itemsToAdd.find(i => i.isNewTopPlayer) || itemsToUpdate.find(i => i.isNewTopPlayer);
-            
-            // 새 항목 추가 (애니메이션 대상 제외)
-            itemsToAdd.forEach(({ item, index, isNewTopPlayer }) => {
-                // 애니메이션 대상은 나중에 처리
-                if (isNewTopPlayer && isGameActive) {
-                    return;
-                }
-                
-                // 정렬된 위치에 삽입
-                const insertBefore = Array.from(historyList.children).find((child, i) => {
-                    const childKey = child.dataset.recordKey;
-                    if (!childKey) return false;
-                    const childIndex = sortedData.findIndex(r => `${r.user}-${r.result}-${r.time}` === childKey);
-                    return childIndex > index;
+            // 현재 당첨자들을 저장 (다음 렌더링에서 비교용)
+            if (!isGameActive && window.gameWinners && window.gameWinners.length > 0) {
+                const currentWinnerKeys = new Set();
+                sortedData.forEach(record => {
+                    const recordKey = `${record.user}-${record.result}-${record.time}`;
+                    if (window.gameWinners.includes(record.user)) {
+                        currentWinnerKeys.add(recordKey);
+                    }
                 });
-                
-                if (insertBefore) {
-                    historyList.insertBefore(item, insertBefore);
-                } else {
-                    historyList.appendChild(item);
-                }
-            });
-            
-            // 새로 유력이 된 항목만 애니메이션 적용
-            if (newTopPlayerItem && isGameActive) {
-                const animatingItem = newTopPlayerItem.item;
-                
-                // 먼저 맨 위에 추가 (위에서 시작)
-                if (historyList.firstChild) {
-                    historyList.insertBefore(animatingItem, historyList.firstChild);
-                } else {
-                    historyList.appendChild(animatingItem);
-                }
-                
-                // 강제 리플로우
-                void animatingItem.offsetHeight;
-                
-                // requestAnimationFrame을 사용하여 애니메이션 시작
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        // 애니메이션 시작 (위에서 내려오는 애니메이션)
-                        animatingItem.classList.add('animating-from-top');
-                        currentAnimatingItem = animatingItem;
-                        
-                        // 애니메이션 완료 후 클래스 제거
-                        currentAnimationTimeout = setTimeout(() => {
-                            animatingItem.classList.remove('animating-from-top');
-                            currentAnimatingItem = null;
-                            currentAnimationTimeout = null;
-                        }, 600);
-                    });
-                });
+                lastWinnerKeys = currentWinnerKeys;
+            } else {
+                lastWinnerKeys = new Set();
             }
-            
-            // 기존 항목 재정렬 (애니메이션 중인 항목 제외)
-            sortedData.forEach((record, index) => {
-                const recordKey = `${record.user}-${record.result}-${record.time}`;
-                const item = existingItems.get(recordKey) || Array.from(historyList.children).find(child => child.dataset.recordKey === recordKey);
-                
-                // 애니메이션 중인 항목은 재정렬하지 않음
-                if (item && item !== currentAnimatingItem) {
-                    const currentIndex = Array.from(historyList.children).indexOf(item);
-                    if (currentIndex !== -1 && currentIndex !== index) {
-                        const targetChild = historyList.children[index];
-                        if (targetChild && targetChild !== item && targetChild !== currentAnimatingItem) {
-                            historyList.insertBefore(item, targetChild);
-                        } else if (!targetChild && item !== currentAnimatingItem) {
-                            historyList.appendChild(item);
-                        }
-                    }
-                }
-            });
-            
-            // 이전 상태 업데이트
-            previousTopPlayerKeys = new Set(topPlayerKeys);
             
             updateRolledUsersCount();
         }
