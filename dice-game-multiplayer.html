@@ -2654,14 +2654,26 @@
             if (currentServerId) {
                 console.log('[클라이언트] setServerId 전송:', currentServerId);
                 socket.emit('setServerId', { serverId: currentServerId });
+                // 서버 ID 설정 완료 응답 대기 후 방 목록 요청
             } else {
                 console.log('[클라이언트] currentServerId가 없습니다.');
+                // 서버 ID 없으면 바로 방 목록 요청
+                if (document.getElementById('lobbySection').classList.contains('active')) {
+                    document.body.classList.add('lobby-active');
+                    refreshRooms();
+                }
             }
-            
-            // 방 목록 요청 및 초기 body 클래스 설정
-            if (document.getElementById('lobbySection').classList.contains('active')) {
-                document.body.classList.add('lobby-active');
-                refreshRooms();
+        });
+        
+        // 서버 ID 설정 완료 응답
+        socket.on('serverIdSet', (data) => {
+            console.log('[클라이언트] serverIdSet 응답:', data);
+            if (data.success) {
+                // 방 목록 요청
+                if (document.getElementById('lobbySection').classList.contains('active')) {
+                    document.body.classList.add('lobby-active');
+                    refreshRooms();
+                }
             }
         });
         

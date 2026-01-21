@@ -4294,8 +4294,11 @@ io.on('connection', (socket) => {
         if (serverId) {
             socket.currentServerId = parseInt(serverId);
             console.log(`[서버 ID 설정] Socket ${socket.id} -> Server ${serverId}`);
+            // 설정 완료 응답
+            socket.emit('serverIdSet', { serverId: socket.currentServerId, success: true });
         } else {
             console.log(`[서버 ID 설정 실패] Socket ${socket.id}, data:`, data);
+            socket.emit('serverIdSet', { success: false });
         }
     });
     
