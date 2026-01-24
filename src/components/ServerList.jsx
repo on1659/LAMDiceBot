@@ -1,49 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ServerList.css';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
 
-function ServerList({ servers, onJoinServer, currentUserName, searchQuery = '' }) {
+/**
+ * 서버 목록 컴포넌트 (HTML과 동일한 세로 리스트 레이아웃)
+ */
+function ServerList({ servers, onJoinServer, currentUserName }) {
   const [passwordModal, setPasswordModal] = useState(null);
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
 
-  // 검색어로 서버 필터링 및 정렬
-  const filteredServers = React.useMemo(() => {
-    let filtered = servers;
-    
-    // 검색어 필터링
-    if (searchQuery.trim()) {
-      const query = searchQuery.trim().toLowerCase();
-      filtered = servers.filter(server => 
-        server.name.toLowerCase().includes(query) ||
-        (server.description && server.description.toLowerCase().includes(query))
-      );
-    }
-    
-    // 정렬: 1) 내가 들어갈 수 있는 비밀방, 2) 공개방, 3) 입장 불가능한 비밀방
-    return filtered.sort((a, b) => {
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/2e61173e-7c84-4554-8cd7-f422943235e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H',location:'ServerList.jsx:17',message:'server list render',data:{serverCount:Array.isArray(servers)?servers.length:null,hasUserName:!!currentUserName},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [servers, currentUserName]);
+
+  // 정렬: 1) 내가 들어갈 수 있는 비밀방, 2) 공개방, 3) 입장 불가능한 비밀방
+  const sortedServers = React.useMemo(() => {
+    return [...servers].sort((a, b) => {
       // 1순위: 내가 들어갈 수 있는 비밀방 (hasPassword && isApproved)
       const aCanEnter = a.hasPassword && a.isApproved;
       const bCanEnter = b.hasPassword && b.isApproved;
       if (aCanEnter && !bCanEnter) return -1;
       if (!aCanEnter && bCanEnter) return 1;
-      
+
       // 2순위: 공개방 (hasPassword가 false)
       if (!a.hasPassword && b.hasPassword) return -1;
       if (a.hasPassword && !b.hasPassword) return 1;
-      
+
       // 3순위: 입장 불가능한 비밀방 (hasPassword && !isApproved)
       // 같은 그룹 내에서는 생성일 기준 내림차순
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-  }, [servers, searchQuery]);
+  }, [servers]);
 
   const handleJoinClick = async (serverId, hasPassword, isApproved, hostName) => {
     // 호스트인지 확인 (현재 사용자 이름과 서버 호스트 이름 비교)
     const isHost = hostName && currentUserName && hostName === currentUserName;
-    
+
     if (hasPassword) {
       // 비밀방인 경우
       if (isHost) {
@@ -57,7 +54,7 @@ function ServerList({ servers, onJoinServer, currentUserName, searchQuery = '' }
         try {
           const response = await fetch(`/api/server/${serverId}/check-member?userName=${encodeURIComponent(currentUserName)}`);
           const data = await response.json();
-          
+
           if (data.success && data.isApproved) {
             // 실시간 확인 결과 승인된 경우 바로 입장
             onJoinServer(serverId, '');
@@ -103,12 +100,12 @@ function ServerList({ servers, onJoinServer, currentUserName, searchQuery = '' }
       });
       return;
     }
-    
+
     // 입장코드 입력 후 멤버 상태 확인
     try {
       const response = await fetch(`/api/server/${passwordModal}/check-member?userName=${encodeURIComponent(currentUserName)}`);
       const data = await response.json();
-      
+
       if (data.success && data.isMember) {
         // 이미 멤버인 경우
         if (data.isPending) {
@@ -136,7 +133,7 @@ function ServerList({ servers, onJoinServer, currentUserName, searchQuery = '' }
           return;
         }
       }
-      
+
       // 신청 대기 중이 아니거나 멤버가 아닌 경우 일반 확인 모달 표시
       setConfirmModal({
         title: '입장 신청',
@@ -175,58 +172,57 @@ function ServerList({ servers, onJoinServer, currentUserName, searchQuery = '' }
     setPasswordInput('');
   };
 
+  // 게임 상태 텍스트 및 클래스
+  const getStatusInfo = (server) => {
+    if (server.isOrdering) return { text: '주문 중', className: 'ordering' };
+    if (server.isPlaying) return { text: '게임 중', className: 'playing' };
+    return { text: '대기 중', className: 'waiting' };
+  };
+
   if (servers.length === 0) {
     return (
-      <div className="server-list-empty">
-        <p>생성된 서버가 없습니다.</p>
-        <p>서버를 생성하여 시작하세요!</p>
-      </div>
-    );
-  }
-
-  if (filteredServers.length === 0) {
-    return (
-      <div className="server-list-empty">
-        <p>검색 결과가 없습니다.</p>
-        <p>다른 검색어를 입력해보세요.</p>
+      <div className="rooms-list">
+        <div className="empty-rooms">생성된 방이 없습니다</div>
       </div>
     );
   }
 
   return (
     <>
-      <div className="server-list">
-        {filteredServers.map((server) => (
-          <div key={server.id} className="server-card">
-            <div className="server-card-header">
-              <h3>{server.name}</h3>
-              <div className="server-badges">
-                {server.hasPassword && (
-                  <span className="password-badge" title="입장코드 필요">🔒</span>
-                )}
+      <div className="rooms-list">
+        {sortedServers.map((server) => {
+          const isMyRoom = server.hostName === currentUserName;
+          const statusInfo = getStatusInfo(server);
+
+          return (
+            <div
+              key={server.id}
+              className={`room-item ${isMyRoom ? 'my-room' : ''}`}
+            >
+              <div className="room-info">
+                <div className="room-name">
+                  {server.name}
+                  {isMyRoom && <span className="my-room-badge">내 방</span>}
+                  {server.hasPassword && <span className="lock-icon">🔒</span>}
+                </div>
+                <div className="room-details">
+                  👤 생성자: {server.hostName} | 👥 {server.memberCount}명
+                </div>
+                <span className={`room-status ${statusInfo.className}`}>
+                  {statusInfo.text}
+                </span>
+              </div>
+              <div className="room-action">
+                <button
+                  onClick={() => handleJoinClick(server.id, server.hasPassword, server.isApproved, server.hostName)}
+                  className="btn-join"
+                >
+                  입장하기
+                </button>
               </div>
             </div>
-            {server.description && (
-              <p className="server-description">{server.description}</p>
-            )}
-            {server.hostName && (
-              <p style={{ fontSize: '0.9em', color: '#666', marginTop: '8px', marginBottom: '8px' }}>
-                👤 생성자: {server.hostName}
-              </p>
-            )}
-            <div className="server-card-footer">
-              <div className="server-info">
-                <span>👥 {server.memberCount}명</span>
-              </div>
-              <button
-                onClick={() => handleJoinClick(server.id, server.hasPassword, server.isApproved, server.hostName)}
-                className="btn-join"
-              >
-                입장하기
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {passwordModal && (

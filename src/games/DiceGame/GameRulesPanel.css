@@ -1,0 +1,188 @@
+/* 게임 룰 섹션 (HTML과 동일) */
+.game-rules-section {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 2px solid #667eea;
+}
+
+.dice-settings-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+/* 라디오 버튼 섹션 (호스트 전용) */
+.game-rules-radio-section {
+  margin-bottom: 15px;
+}
+
+.rules-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rule-option {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rule-option:hover {
+  background: #f0f0ff;
+}
+
+.rule-option.selected {
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-color: #667eea;
+}
+
+.rule-option input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.rule-option span {
+  font-weight: 500;
+  color: #333;
+}
+
+/* 니어 숫자 입력 */
+.near-number-container {
+  margin-left: 30px;
+  margin-top: 5px;
+}
+
+.near-number-container input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.near-number-container input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+/* 기타 룰 텍스트 입력 */
+.custom-rule-container {
+  margin-left: 30px;
+  margin-top: 5px;
+}
+
+.custom-rule-container textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.custom-rule-container textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+/* 선택된 룰 표시 (모든 유저) */
+.selected-rule-display {
+  margin-bottom: 15px;
+}
+
+.selected-rule-display textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  background: #f5f5f5;
+  color: #333;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.selected-rule-display textarea:disabled {
+  cursor: not-allowed;
+}
+
+/* 저장 버튼 */
+.save-rules-btn {
+  width: auto;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-rules-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.save-rules-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 힌트 텍스트 */
+.rules-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .game-rules-section {
+    padding: 12px;
+  }
+
+  .rule-option {
+    padding: 8px;
+  }
+
+  .rule-option input[type="radio"] {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rule-option span {
+    font-size: 14px;
+  }
+
+  .near-number-container,
+  .custom-rule-container {
+    margin-left: 20px;
+  }
+
+  .selected-rule-display textarea {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .save-rules-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+}

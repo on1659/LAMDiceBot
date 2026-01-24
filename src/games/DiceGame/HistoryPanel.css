@@ -1,0 +1,194 @@
+/* 기록 섹션 (우측 고정) - HTML과 동일 */
+.history-section {
+  position: fixed;
+  top: 20px;
+  width: 320px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+  /* 컨테이너 오른쪽 끝 위치: (100vw - 1140px) / 2 + 160px + 800px + 20px */
+  left: calc((100vw - 1140px) / 2 + 160px + 800px + 20px);
+  right: auto;
+}
+
+.history-section.visible {
+  display: block;
+}
+
+.history-title-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.history-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.sort-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.sort-button {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #666;
+  font-weight: 500;
+}
+
+.sort-button:hover {
+  background: #e9ecef;
+}
+
+.sort-button.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty-history {
+  text-align: center;
+  color: #999;
+  padding: 30px 15px;
+  font-size: 14px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.history-item:hover {
+  background: #e9ecef;
+}
+
+.history-item.my-history {
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-color: #667eea;
+}
+
+.history-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.history-user {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.winner-badge {
+  background: #28a745;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.loser-badge {
+  background: #dc3545;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.history-range {
+  font-size: 11px;
+  color: #999;
+}
+
+.history-result {
+  font-size: 24px;
+  font-weight: 700;
+  color: #667eea;
+  min-width: 50px;
+  text-align: center;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #999;
+  min-width: 50px;
+  text-align: right;
+}
+
+.rolled-users-info {
+  text-align: right;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+  color: #666;
+  font-size: 14px;
+}
+
+.rolled-users-count {
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .history-section {
+    position: relative;
+    top: auto;
+    left: auto !important;
+    right: auto;
+    width: 100%;
+    max-width: 95vw;
+    margin: 20px auto;
+    max-height: 400px;
+  }
+
+  .history-section.visible {
+    display: block;
+  }
+}
+
+/* 태블릿 (1140px 미만에서 겹침 방지) */
+@media (max-width: 1200px) {
+  .history-section {
+    position: relative;
+    top: auto;
+    left: auto !important;
+    right: auto;
+    width: 100%;
+    max-width: 800px;
+    margin: 20px auto;
+    max-height: 400px;
+  }
+}

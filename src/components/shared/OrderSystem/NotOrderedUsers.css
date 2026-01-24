@@ -1,0 +1,138 @@
+.not-ordered-users-container {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.not-ordered-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.not-ordered-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.not-ordered-count-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.not-ordered-count-badge.warning {
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  color: white;
+}
+
+.not-ordered-count-badge.success {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+/* 빈 상태 (모두 주문 완료) */
+.not-ordered-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #28a745;
+}
+
+.success-icon {
+  font-size: 64px;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.not-ordered-empty p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* 미주문자 목록 */
+.not-ordered-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.not-ordered-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.not-ordered-user:hover {
+  background: #ffe8a1;
+  transform: translateX(5px);
+  animation: none;
+}
+
+.user-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.user-name {
+  flex: 1;
+  font-size: 14px;
+  color: #856404;
+  font-weight: 600;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .not-ordered-users-container {
+    padding: 15px;
+  }
+
+  .not-ordered-header h3 {
+    font-size: 16px;
+  }
+
+  .not-ordered-count-badge {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .success-icon {
+    font-size: 48px;
+  }
+
+  .not-ordered-empty p {
+    font-size: 14px;
+  }
+
+  .not-ordered-user {
+    padding: 10px 12px;
+  }
+
+  .user-name {
+    font-size: 13px;
+  }
+}

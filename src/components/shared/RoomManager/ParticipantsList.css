@@ -1,0 +1,229 @@
+.participants-list-container {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.participants-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.participants-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.participants-count-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 빈 상태 */
+.participants-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.participants-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* 참가자 목록 */
+.participants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.participant-item {
+  background: #f8f9fa;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.participant-item:hover {
+  background: #f0f2f5;
+  border-color: #e0e0e0;
+}
+
+.participant-item.current-user {
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-color: #667eea;
+}
+
+.participant-item.host {
+  background: linear-gradient(135deg, #ffc10715 0%, #ff980015 100%);
+  border-color: #ffc107;
+}
+
+.participant-item.current-user.host {
+  background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+  border-color: #667eea;
+}
+
+.participant-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+}
+
+.participant-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.participant-crown {
+  font-size: 20px;
+}
+
+.participant-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.you-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #667eea;
+  color: white;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.participant-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ready-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.expand-icon {
+  font-size: 12px;
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+/* 액션 버튼 영역 */
+.participant-actions {
+  padding: 12px 15px;
+  background: rgba(220, 53, 69, 0.05);
+  border-top: 1px solid #fdd;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 100px;
+  }
+}
+
+.kick-btn {
+  width: 100%;
+  padding: 10px 15px;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kick-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+.kick-btn:active {
+  transform: translateY(0);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .participants-list-container {
+    padding: 15px;
+  }
+
+  .participants-header h3 {
+    font-size: 16px;
+  }
+
+  .participants-count-badge {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .participant-main {
+    padding: 10px 12px;
+  }
+
+  .participant-crown {
+    font-size: 18px;
+  }
+
+  .participant-name {
+    font-size: 14px;
+  }
+
+  .you-badge {
+    padding: 3px 7px;
+    font-size: 10px;
+  }
+
+  .ready-badge {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .kick-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}

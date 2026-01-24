@@ -1,0 +1,182 @@
+/* 채팅 메시지 기본 스타일 */
+.chat-message {
+  margin-bottom: 10px;
+  padding: 8px;
+  background: white;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+/* 시스템 메시지 */
+.chat-message.system {
+  margin: 20px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  border: none;
+}
+
+.system-message-content {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* AI 메시지 */
+.chat-message.ai {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border: none;
+  color: white;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ai-icon {
+  font-size: 16px;
+}
+
+.ai-name {
+  font-weight: 600;
+  color: #fff;
+}
+
+.ai-content {
+  color: white;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 주사위 명령어 메시지 */
+.chat-message.dice-command {
+  display: flex;
+  flex-direction: column;
+}
+
+.dice-command-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.dice-command-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dice-message {
+  color: #333;
+}
+
+.dice-result {
+  font-weight: 600;
+  color: #333;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* 사용자 이름 */
+.user-name {
+  font-weight: 600;
+  color: #667eea;
+  margin-right: 8px;
+}
+
+.user-name.me {
+  color: #764ba2;
+}
+
+/* 메시지 내용 */
+.message-content {
+  color: #333;
+}
+
+/* 메시지 푸터 */
+.message-footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.message-time {
+  font-size: 11px;
+  color: #999;
+}
+
+/* 이모티콘 반응 컨테이너 */
+.reactions-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.active-reactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hover-reactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 반응 버튼 */
+.reaction-button {
+  height: 20px;
+  border-radius: 10px;
+  background: #555;
+  border: none;
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  gap: 4px;
+  transition: all 0.2s;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.reaction-button.reacted {
+  background: #333;
+}
+
+.reaction-button.hover {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #000;
+  border: 1px solid #333;
+  padding: 0;
+  font-size: 10px;
+}
+
+.reaction-button:hover {
+  transform: scale(1.1);
+}
+
+.reaction-emoji {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.reaction-count {
+  font-size: 12px;
+  color: #ffffff;
+  font-weight: 600;
+  line-height: 1;
+}

@@ -1,0 +1,161 @@
+.order-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.order-input-wrapper {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.order-input {
+  flex: 1;
+  padding: 12px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.order-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.order-input:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.order-submit-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.order-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.order-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.order-submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 자동완성 드롭다운 */
+.order-suggestions {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 60px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.order-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.order-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.order-suggestion-item:hover,
+.order-suggestion-item.selected {
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+}
+
+.suggestion-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.suggestion-text {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+
+/* 스크롤바 스타일 */
+.order-suggestions::-webkit-scrollbar {
+  width: 8px;
+}
+
+.order-suggestions::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.order-suggestions::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 4px;
+}
+
+.order-suggestions::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .order-input {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .order-submit-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+
+  .order-suggestions {
+    max-height: 150px;
+  }
+
+  .order-suggestion-item {
+    padding: 10px 12px;
+  }
+
+  .suggestion-text {
+    font-size: 13px;
+  }
+}

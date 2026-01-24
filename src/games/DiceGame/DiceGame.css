@@ -1,0 +1,553 @@
+/* 메인 컨테이너 (HTML과 동일한 레이아웃) */
+.dice-game-container {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 40px;
+  max-width: 800px;
+  width: 100%;
+  margin: 20px auto;
+  /* 게임 활성화 시 좌측으로 이동 (기록 패널 공간 확보) */
+  margin-left: calc((100vw - 1140px) / 2 + 160px);
+  margin-right: auto;
+}
+
+/* 사용자 정보 섹션 */
+.user-info-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 2px solid #667eea;
+}
+
+.user-info-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.current-user-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.host-badge {
+  background: #ffc107;
+  color: #333;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.user-info-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connection-status {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.connection-status.connected {
+  color: #28a745;
+}
+
+.connection-status.disconnected {
+  color: #dc3545;
+}
+
+/* 재접속 알림 (HTML과 동일) */
+.reconnect-notice {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reconnect-notice strong {
+  font-size: 16px;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.reconnect-notice p {
+  font-size: 14px;
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* 방 폭파 카운트다운 (HTML과 동일) */
+.room-expiry-section {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.room-expiry-section span {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* 게임 룰 섹션 */
+.game-rules-section {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 2px solid #667eea;
+}
+
+/* 접속자 섹션 */
+.users-section {
+  margin-bottom: 20px;
+}
+
+.users-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drag-hint {
+  font-size: 12px;
+  color: #667eea;
+  font-weight: normal;
+}
+
+.users-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.empty-users {
+  color: #999;
+  text-align: center;
+  padding: 10px;
+  width: 100%;
+}
+
+.user-tag {
+  background: white;
+  border: 2px solid #667eea;
+  color: #667eea;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.user-tag.me {
+  background: #667eea;
+  color: white;
+}
+
+.user-tag.host {
+  background: #ffc107;
+  color: #333;
+  border-color: #ffc107;
+}
+
+/* 호스트 컨트롤 (HTML과 동일한 레이아웃) */
+.host-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.btn-start,
+.btn-end,
+.btn-clear {
+  width: 100%;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.btn-start {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.btn-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+}
+
+.btn-end {
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  color: #333;
+}
+
+.btn-end:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 193, 7, 0.4);
+}
+
+.btn-clear {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.btn-clear:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+/* 주문받기 버튼 (HTML과 동일) */
+.btn-order,
+.btn-order-end {
+  width: 100%;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-order.order-button {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+}
+
+.btn-order.order-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(23, 162, 184, 0.4);
+}
+
+.btn-order-end.order-button {
+  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+  color: white;
+}
+
+.btn-order-end.order-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(108, 117, 125, 0.4);
+}
+
+/* 게임 상태 표시 (HTML과 동일한 색상) */
+.game-status {
+  padding: 15px 20px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 20px;
+  transition: all 0.3s;
+}
+
+.game-status.waiting {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffc107;
+}
+
+.game-status.playing {
+  background: #d4edda;
+  color: #155724;
+  border: 2px solid #28a745;
+}
+
+.game-status.ordering {
+  background: #fff9e6;
+  color: #856404;
+  border: 2px solid #ffc107;
+}
+
+/* 진행 상황 */
+.progress-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  border: 2px solid #667eea;
+  margin-bottom: 20px;
+}
+
+.progress-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.progress-bar-container {
+  background: #e9ecef;
+  border-radius: 15px;
+  height: 30px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  height: 100%;
+  border-radius: 15px;
+  transition: width 0.5s ease;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+}
+
+/* 주사위 굴리지 않은 사람 */
+.not-rolled-section {
+  background: #fff3cd;
+  padding: 15px;
+  border-radius: 8px;
+  border: 2px solid #ffc107;
+  margin-bottom: 20px;
+}
+
+.not-rolled-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #856404;
+  margin-bottom: 10px;
+}
+
+.not-rolled-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.not-rolled-user {
+  background: white;
+  border: 1px solid #ffc107;
+  color: #856404;
+  padding: 4px 10px;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* 주사위 굴리기 버튼 */
+.dice-roll-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  padding: 30px;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.btn-roll {
+  padding: 20px 50px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 15px;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-roll:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 12px 28px rgba(102, 126, 234, 0.5);
+}
+
+.btn-roll:active:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-roll:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+  box-shadow: none;
+}
+
+.dice-range-info {
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+}
+
+/* 현재 게임 결과 */
+.current-results-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  border: 2px solid #667eea;
+  margin-bottom: 20px;
+}
+
+.results-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.result-item {
+  display: grid;
+  grid-template-columns: 60px 1fr 80px;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 20px;
+  background: white;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.result-item:hover {
+  background: #e9ecef;
+  transform: translateX(5px);
+}
+
+.result-item.my-result {
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-color: #667eea;
+}
+
+.result-item.first-place {
+  background: linear-gradient(135deg, #ffc10715 0%, #ff980015 100%);
+  border-color: #ffc107;
+}
+
+.result-rank {
+  font-size: 18px;
+  font-weight: 700;
+  color: #667eea;
+  text-align: center;
+}
+
+.result-user {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 채팅 섹션 */
+.chat-section {
+  margin-bottom: 20px;
+}
+
+.chat-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+/* 로그아웃 버튼 */
+.logout-button {
+  width: 100%;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+/* 태블릿 반응형 (1200px 이하에서 단일 컬럼) */
+@media (max-width: 1200px) {
+  .dice-game-container {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 95vw;
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .dice-game-container {
+    padding: 20px;
+    margin: 10px auto;
+    max-width: 95vw;
+  }
+
+  .user-info-section {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .host-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-roll {
+    padding: 15px 35px;
+    font-size: 20px;
+  }
+
+  .result-item {
+    grid-template-columns: 50px 1fr 70px;
+    padding: 12px 15px;
+  }
+
+  .result-rank {
+    font-size: 16px;
+  }
+
+  .result-user {
+    font-size: 14px;
+  }
+}

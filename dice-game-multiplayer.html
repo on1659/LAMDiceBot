@@ -5294,7 +5294,9 @@
                 const lastDiceCommandMsg = diceCommandMessages[diceCommandMessages.length - 1];
                 
                 // 이름 앞에 디바이스 아이콘 추가 (항상 표시)
-                const userNameSpan = lastDiceCommandMsg.querySelector('span[data-user-name-display="' + record.user + '"]');
+                // CSS.escape를 사용하여 특수문자 이스케이프 처리
+                const escapedUserName = CSS.escape(record.user);
+                const userNameSpan = lastDiceCommandMsg.querySelector('span[data-user-name-display="' + escapedUserName + '"]');
                 if (userNameSpan && record.deviceType) {
                     const deviceIcon = getDeviceIcon(record.deviceType);
                     const currentText = userNameSpan.textContent;
@@ -6667,10 +6669,129 @@
                     rightContentSpan.appendChild(diceResultSpan);
                 }
                 
+                // 타임스탬프와 이모티콘을 같은 줄에 표시하기 위한 컨테이너
+                const timeReactionsContainer = document.createElement('span');
+                timeReactionsContainer.className = 'time-reactions-container';
+                timeReactionsContainer.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;';
+
                 const timeSpan = document.createElement('span');
-                timeSpan.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+                timeSpan.style.cssText = 'font-size: 11px; color: #999;';
                 timeSpan.textContent = chatMessage.time;
-                messageDiv.appendChild(timeSpan);
+                timeReactionsContainer.appendChild(timeSpan);
+
+                // 반응이 있는 이모티콘 표시 영역
+                const activeReactionsDiv = document.createElement('span');
+                activeReactionsDiv.className = 'active-reactions';
+                activeReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px;';
+
+                // 호버 시 나타나는 이모티콘 버튼들
+                const hoverReactionsDiv = document.createElement('span');
+                hoverReactionsDiv.className = 'hover-reactions';
+                hoverReactionsDiv.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
+
+                const defaultEmojis = Object.keys(emojiConfig);
+
+                // 반응이 있는 이모티콘 표시
+                if (chatMessage.reactions && Object.keys(chatMessage.reactions).length > 0) {
+                    Object.entries(chatMessage.reactions).forEach(([emoji, users]) => {
+                        if (users.length > 0 && defaultEmojis.includes(emoji)) {
+                            const reactionBtn = document.createElement('button');
+                            reactionBtn.className = 'reaction-button active';
+
+                            const hasReacted = users.includes(currentUser);
+
+                            reactionBtn.style.cssText = `
+                                height: 20px;
+                                border-radius: 10px;
+                                background: ${hasReacted ? '#333' : '#555'};
+                                border: none;
+                                color: #ffffff !important;
+                                font-size: 12px;
+                                cursor: pointer;
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 6px;
+                                gap: 4px;
+                                transition: all 0.2s;
+                                vertical-align: middle;
+                                line-height: 1;
+                            `;
+
+                            const emojiSpan = document.createElement('span');
+                            emojiSpan.textContent = emoji;
+                            emojiSpan.style.cssText = 'font-size: 12px; line-height: 1;';
+
+                            const countSpan = document.createElement('span');
+                            countSpan.textContent = users.length;
+                            countSpan.style.cssText = 'font-size: 12px; color: #ffffff !important; font-weight: 600; line-height: 1; display: inline-block;';
+
+                            reactionBtn.appendChild(emojiSpan);
+                            reactionBtn.appendChild(countSpan);
+                            reactionBtn.title = emojiConfig[emoji] || emoji;
+
+                            reactionBtn.onclick = () => {
+                                const messageIndex = parseInt(messageDiv.dataset.messageIndex);
+                                socket.emit('toggleReaction', { messageIndex, emoji });
+                            };
+
+                            activeReactionsDiv.appendChild(reactionBtn);
+                        }
+                    });
+                }
+
+                // 호버 시 나타나는 이모티콘 버튼들
+                defaultEmojis.forEach(emoji => {
+                    const hasReaction = chatMessage.reactions &&
+                                      chatMessage.reactions[emoji] &&
+                                      chatMessage.reactions[emoji].length > 0;
+                    if (hasReaction) return;
+
+                    const reactionBtn = document.createElement('button');
+                    reactionBtn.className = 'reaction-button hover';
+
+                    reactionBtn.style.cssText = `
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #000;
+                        border: 1px solid #333;
+                        color: white;
+                        font-size: 10px;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 0;
+                        transition: all 0.2s;
+                        vertical-align: middle;
+                    `;
+
+                    reactionBtn.textContent = emoji;
+                    reactionBtn.title = emojiConfig[emoji] || emoji;
+
+                    reactionBtn.onclick = () => {
+                        const messageIndex = parseInt(messageDiv.dataset.messageIndex);
+                        socket.emit('toggleReaction', { messageIndex, emoji });
+                    };
+
+                    hoverReactionsDiv.appendChild(reactionBtn);
+                });
+
+                timeReactionsContainer.appendChild(activeReactionsDiv);
+                timeReactionsContainer.appendChild(hoverReactionsDiv);
+
+                messageDiv.appendChild(timeReactionsContainer);
+
+                // 메시지에 마우스를 올리면 호버 이모티콘 표시
+                messageDiv.onmouseenter = () => {
+                    hoverReactionsDiv.style.opacity = '0.7';
+                    hoverReactionsDiv.style.pointerEvents = 'auto';
+                };
+                messageDiv.onmouseleave = () => {
+                    hoverReactionsDiv.style.opacity = '0';
+                    hoverReactionsDiv.style.pointerEvents = 'none';
+                };
             } else {
                 // 일반 메시지는 왼쪽 정렬
                 const userNameSpan = document.createElement('span');

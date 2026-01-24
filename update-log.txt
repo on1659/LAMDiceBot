@@ -1,4 +1,59 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-21)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-23)</span>
+
+<b>🔗 서버 시스템 통합 및 동기화</b>
+• 서버 생성 후 게임 화면에서 서버 ID 기반 방 목록 필터링 구현
+• setServerId 이벤트에 serverIdSet 응답 추가로 방 목록 타이밍 이슈 해결
+• 룰렛 게임(roulette-game-multiplayer.html)에 서버 ID 관련 코드 추가
+  - URL 파라미터 또는 localStorage에서 currentServerId 읽기
+  - 소켓 연결 시 setServerId 전송 및 serverIdSet 응답 대기
+  - getRooms 요청 시 serverId 파라미터 포함
+  - roomsList/roomsListUpdated 이벤트에서 serverId 기반 필터링
+• 팀 배정 게임(team-game-multiplayer.html)에 동일한 서버 ID 동기화 로직 추가
+• 서버에서 생성한 방이 해당 서버의 게임 화면에만 표시되도록 개선
+• 서버 ID가 없는 경우 기존 동작 유지 (서버 ID 없는 방만 표시)
+
+<b>🔄 브랜치 머지 완료 (main ↔ new_server)</b>
+• main 브랜치의 터보 애니메이션 기능 추가
+  - updateTurboAnimation 소켓 이벤트 핸들러 구현
+  - 호스트가 게임 중 실시간으로 터보 모드 온/오프 가능
+  - 모든 클라이언트에 turboAnimationUpdated 이벤트로 동기화
+• main 브랜치의 룰렛 개선사항 반영
+  - 룰렛 다시보기 기능 (missedRoulette 감지)
+  - 룰렛 게임 상태 관리 개선 (준비 상태 자동 초기화)
+  - roulette-game-multiplayer.html UI 개선 (653줄 추가)
+• new_server 브랜치의 서버 관리 기능 완전 유지
+  - 서버 생성/입장/관리 API (createServer, getServers, joinServer)
+  - 관리자 API 9개 (인증, 서버 목록, 서버 삭제 등)
+  - 멤버 승인/거절 API (approve/reject)
+  - 게임 기록 저장 함수 (saveGameRecordsToServer)
+  - 당첨자 계산 함수 (calculateWinnerFromHistory)
+• 양쪽 브랜치의 모든 기능이 하나로 통합됨 (42개 소켓 이벤트, 9개 REST API)
+
+<b>🐛 버그 수정</b>
+• CSS.escape를 사용하여 사용자 이름의 특수문자 이스케이프 처리
+  - dice-game-multiplayer.html의 querySelector에서 특수문자 포함 사용자명 처리
+  - CSS 선택자 안전성 향상
+• 방 목록이 서버 ID 설정 전에 요청되어 빈 목록이 표시되던 문제 해결
+  - setServerId 전송 후 serverIdSet 응답을 받은 후에만 getRooms 요청
+  - 비동기 타이밍 이슈 해결
+• 룰렛/팀 게임에서 서버에서 생성한 방이 목록에 표시되지 않던 문제 해결
+  - 서버 ID 관련 코드가 누락되어 있던 문제
+  - 모든 게임 모드에서 일관된 서버 ID 동기화 로직 적용
+
+<b>💬 이모티콘 반응 시스템 개선</b>
+• 타임스탬프와 이모티콘 버튼을 같은 줄에 인라인으로 표시
+  - time-reactions-container로 타임스탬프와 반응 영역 통합
+  - display: inline-flex로 깔끔한 레이아웃
+• 호버 시 이모티콘 버튼이 투명하게 표시되는 UX 개선
+  - hover-reactions 영역에 opacity: 0 → 0.7 전환
+  - pointer-events로 호버 시에만 클릭 가능
+• 반응이 있는 이모티콘은 항상 표시, 없는 이모티콘은 호버 시에만 표시
+  - active-reactions: 반응이 있는 이모티콘 (항상 표시)
+  - hover-reactions: 반응이 없는 이모티콘 (호버 시 표시)
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-21)</span>
 
 <b>🔧 룰렛 게임 상태 관리 개선</b>
 • 게임 중에도 준비 섹션이 유지되어 현재 상태 확인 가능
@@ -14,6 +69,8 @@
 • --start-delay: 모든 클라이언트 입장 후 대기 시간 (초)
 • --delay: 각 라운드 사이 추가 대기 시간 (초)
 • 예시: run-test.bat --start-delay 5 --delay 3 --rounds 5
+
+---
 
 <b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-11)</span>
 
@@ -54,7 +111,9 @@
   - 다이스 관련: AutoTest/dice/ 디렉토리로 이동
   - 룰렛 관련: AutoTest/roulette/ 디렉토리로 이동
 
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-10)</span>
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-10)</span>
 
 <b>⚙️ 이모티콘 설정 시스템 개선</b>
 • 이모티콘 설정을 JSON 파일(emoji-config.json)로 분리

@@ -1,0 +1,166 @@
+.order-list-container {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.order-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.order-list-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.order-count-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 빈 상태 */
+.order-list-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.order-list-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* 주문 그룹 */
+.order-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.order-group {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 15px;
+  transition: all 0.2s ease;
+}
+
+.order-group:hover {
+  background: #f0f2f5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.order-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.menu-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-icon {
+  font-size: 20px;
+}
+
+.menu-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.group-count {
+  display: inline-block;
+  padding: 4px 10px;
+  background: white;
+  border: 2px solid #667eea;
+  color: #667eea;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 주문자 목록 */
+.order-users {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-user {
+  display: inline-block;
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #555;
+  transition: all 0.15s ease;
+}
+
+.order-user:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.order-user.current-user {
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-color: #667eea;
+  color: #667eea;
+  font-weight: 600;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .order-list-container {
+    padding: 15px;
+  }
+
+  .order-list-header h3 {
+    font-size: 16px;
+  }
+
+  .order-count-badge {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .order-group {
+    padding: 12px;
+  }
+
+  .menu-name {
+    font-size: 15px;
+  }
+
+  .order-user {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}

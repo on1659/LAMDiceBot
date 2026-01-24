@@ -1,0 +1,177 @@
+.game-room-page {
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow-x: hidden;
+}
+
+/* 헤더 네비게이션 (HTML과 동일) */
+.game-header {
+  background: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e7e7e7;
+}
+
+.game-header nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.game-header h1 {
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.game-header h1 a {
+  text-decoration: none;
+  color: #333;
+}
+
+.game-header h1 a:hover {
+  color: #667eea;
+}
+
+.game-header .nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.game-header .nav-links a {
+  text-decoration: none;
+  color: #007bff;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+.game-header .nav-links a:hover {
+  color: #0056b3;
+}
+
+/* 모바일 헤더 */
+@media (max-width: 768px) {
+  .game-header nav {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .game-header .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .game-header .nav-links a {
+    font-size: 13px;
+  }
+}
+
+/* 로딩 상태 */
+.game-room-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top: 5px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.game-room-loading p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+}
+
+/* 임시 플레이스홀더 (개발 중) */
+.game-placeholder,
+.game-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.game-placeholder h2,
+.game-error h2 {
+  margin: 0 0 20px 0;
+  font-size: 48px;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.game-placeholder p,
+.game-error p {
+  margin: 0 0 30px 0;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.game-placeholder button,
+.game-error button {
+  padding: 15px 30px;
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.game-placeholder button:hover,
+.game-error button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.game-placeholder button:active,
+.game-error button:active {
+  transform: translateY(0);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .game-placeholder h2,
+  .game-error h2 {
+    font-size: 36px;
+  }
+
+  .game-placeholder p,
+  .game-error p {
+    font-size: 16px;
+  }
+
+  .game-placeholder button,
+  .game-error button {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+}

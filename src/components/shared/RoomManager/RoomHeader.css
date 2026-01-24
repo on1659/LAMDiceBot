@@ -1,0 +1,157 @@
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 25px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  margin-bottom: 20px;
+}
+
+.room-header-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.room-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.room-name {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.host-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.room-info {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.room-host,
+.room-participants {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.info-icon {
+  font-size: 18px;
+}
+
+.info-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+}
+
+.leave-room-btn {
+  padding: 12px 24px;
+  background: rgba(220, 53, 69, 0.9);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+
+.leave-room-btn:hover {
+  background: rgba(200, 35, 51, 1);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+.leave-room-btn:active {
+  transform: translateY(0);
+}
+
+/* 태블릿 반응형 */
+@media (max-width: 1024px) {
+  .room-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .leave-room-btn {
+    width: 100%;
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .room-header {
+    padding: 15px 18px;
+  }
+
+  .room-name {
+    font-size: 20px;
+  }
+
+  .host-badge {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  .room-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .room-host,
+  .room-participants {
+    padding: 6px 10px;
+  }
+
+  .info-icon {
+    font-size: 16px;
+  }
+
+  .info-label {
+    font-size: 12px;
+  }
+
+  .info-value {
+    font-size: 13px;
+  }
+
+  .leave-room-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}

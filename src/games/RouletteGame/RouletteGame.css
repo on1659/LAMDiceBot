@@ -1,0 +1,488 @@
+.roulette-game-container {
+  width: 100%;
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.roulette-game-main {
+  display: flex;
+  gap: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.roulette-left-column {
+  flex: 1;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.roulette-history-panel {
+  width: 280px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.roulette-history-panel h3 {
+  margin: 0 0 10px 0;
+  color: #7c4dff;
+}
+
+.roulette-empty {
+  width: 100%;
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px dashed #ccc;
+}
+
+.users-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 15px;
+  border: 2px solid #7c4dff;
+}
+
+.users-section h3 {
+  margin: 0 0 12px 0;
+  color: #7c4dff;
+  font-size: 16px;
+}
+
+.ready-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 15px;
+  border: 2px solid #7c4dff;
+}
+
+@media (max-width: 1100px) {
+  .roulette-game-main {
+    flex-direction: column;
+  }
+
+  .roulette-history-panel {
+    width: 100%;
+    position: static;
+  }
+}
+
+.roulette-game-header {
+  margin-bottom: 20px;
+}
+
+.roulette-game-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* 좌측: 게임 영역 */
+.roulette-game-left {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.roulette-game-tabs {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 15px 20px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.tab-btn:hover {
+  background: #e9ecef;
+}
+
+.tab-btn.active {
+  color: #667eea;
+  background: white;
+  border-bottom-color: #667eea;
+}
+
+.roulette-game-tab-content {
+  padding: 30px;
+  min-height: 600px;
+}
+
+/* 게임 탭 */
+.game-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.game-controls {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.btn-primary,
+.btn-danger,
+.btn-turbo {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+.btn-turbo {
+  background: #6c757d;
+}
+
+.btn-turbo.active {
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  animation: pulse-turbo 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-turbo {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+  }
+}
+
+.btn-turbo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(108, 117, 125, 0.4);
+}
+
+.game-status {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+}
+
+.status-active,
+.status-inactive {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-active {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-inactive {
+  background: #6c757d;
+  color: white;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+  }
+}
+
+.winner-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  border-radius: 20px;
+}
+
+.winner-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+}
+
+.winner-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+}
+
+/* 룰렛 휠 섹션 */
+.roulette-wheel-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 30px;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-radius: 12px;
+}
+
+.btn-spin {
+  padding: 18px 45px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 15px;
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-spin:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 12px 28px rgba(102, 126, 234, 0.5);
+}
+
+.btn-spin:active:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-spin:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* 참가자 섹션 */
+.participants-section {
+  background: white;
+  border-radius: 12px;
+}
+
+.participants-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.participant-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  background: #f8f9fa;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.participant-card:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+}
+
+.participant-card.winner {
+  background: linear-gradient(135deg, #ffc10715 0%, #ff980015 100%);
+  border-color: #ffc107;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+}
+
+.participant-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.participant-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 히스토리 탭 */
+.history-tab {
+  background: white;
+  border-radius: 12px;
+}
+
+.history-tab h3 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 60px 1fr 100px;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background: #e9ecef;
+  transform: translateX(5px);
+}
+
+.history-index {
+  font-size: 16px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.history-winner {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.history-time {
+  font-size: 13px;
+  color: #666;
+  text-align: right;
+}
+
+/* 빈 상태 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* 채팅 탭 */
+.chat-tab {
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 우측: 준비/주문 시스템 */
+.roulette-game-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 태블릿 반응형 */
+@media (max-width: 1024px) {
+  .roulette-game-content {
+    grid-template-columns: 1fr;
+  }
+
+  .roulette-game-right {
+    order: -1;
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .roulette-game-container {
+    padding: 15px;
+  }
+
+  .roulette-game-tab-content {
+    padding: 20px;
+    min-height: 400px;
+  }
+
+  .tab-btn {
+    padding: 12px 15px;
+    font-size: 14px;
+  }
+
+  .btn-spin {
+    padding: 15px 35px;
+    font-size: 20px;
+  }
+
+  .participants-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
+
+  .participant-card {
+    padding: 10px 12px;
+  }
+
+  .participant-color {
+    width: 20px;
+    height: 20px;
+  }
+
+  .participant-name {
+    font-size: 13px;
+  }
+}

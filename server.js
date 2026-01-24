@@ -515,9 +515,12 @@ if (process.env.NODE_ENV === 'production') {
         }
     }));
     
-    // 리액트 앱 서빙 (개발 환경)
+    // 리액트 앱 서빙 (개발 환경 - 빌드된 파일 사용)
     app.get('/react', (req, res) => {
-        res.sendFile(path.join(__dirname, 'src', 'index.html'));
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     });
     
     // 개발 환경에서는 기존 HTML 파일 서빙

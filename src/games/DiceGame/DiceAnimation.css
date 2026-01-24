@@ -1,0 +1,182 @@
+.dice-animation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation-duration: 0.6s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.17, 0.67, 0.12, 0.99);
+}
+
+.dice-value {
+  font-size: 28px;
+  font-weight: 900;
+  color: #667eea;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 1. Fade 애니메이션 */
+.dice-animation.fade {
+  animation-name: diceAnimationFade;
+}
+
+@keyframes diceAnimationFade {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 2. Slide 애니메이션 */
+.dice-animation.slide {
+  animation-name: diceAnimationSlide;
+}
+
+@keyframes diceAnimationSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 3. Bounce 애니메이션 */
+.dice-animation.bounce {
+  animation-name: diceAnimationBounce;
+  animation-duration: 0.8s;
+}
+
+@keyframes diceAnimationBounce {
+  0% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(10px) scale(1.1);
+  }
+  70% {
+    transform: translateY(-5px) scale(0.95);
+  }
+  85% {
+    transform: translateY(2px) scale(1.02);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 4. Rotate 애니메이션 */
+.dice-animation.rotate {
+  animation-name: diceAnimationRotate;
+  animation-duration: 0.7s;
+}
+
+@keyframes diceAnimationRotate {
+  from {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+/* 5. Flip 애니메이션 */
+.dice-animation.flip {
+  animation-name: diceAnimationFlip;
+  animation-duration: 0.7s;
+}
+
+@keyframes diceAnimationFlip {
+  from {
+    opacity: 0;
+    transform: rotateY(180deg) scale(0.8);
+  }
+  50% {
+    transform: rotateY(90deg) scale(1.1);
+  }
+  to {
+    opacity: 1;
+    transform: rotateY(0deg) scale(1);
+  }
+}
+
+/* 6. Zoom 애니메이션 */
+.dice-animation.zoom {
+  animation-name: diceAnimationZoom;
+  animation-duration: 0.6s;
+}
+
+@keyframes diceAnimationZoom {
+  0% {
+    opacity: 0;
+    transform: scale(3);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 7. Shake 애니메이션 */
+.dice-animation.shake {
+  animation-name: diceAnimationShake;
+  animation-duration: 0.8s;
+}
+
+@keyframes diceAnimationShake {
+  0% {
+    opacity: 0;
+    transform: translateX(0) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(-10px) rotate(-5deg);
+  }
+  20% {
+    transform: translateX(10px) rotate(5deg);
+  }
+  30% {
+    transform: translateX(-10px) rotate(-5deg);
+  }
+  40% {
+    transform: translateX(10px) rotate(5deg);
+  }
+  50% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  60% {
+    transform: translateX(5px) rotate(2deg);
+  }
+  70% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  80% {
+    transform: translateX(5px) rotate(2deg);
+  }
+  90% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .dice-value {
+    font-size: 24px;
+  }
+}
