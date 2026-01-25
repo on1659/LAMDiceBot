@@ -943,6 +943,53 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // localhost 체크
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1' ||
+                           window.location.hostname === '';
+        
+        // 디버그 로그 설정
+        let debugLogEnabled = isLocalhost;
+        
+        // 디버그 로그 함수 (먼저 정의)
+        const MAX_LOG_LINES = 100;
+        function addDebugLog(message, type = 'info') {
+            if (!debugLogEnabled) return;
+            
+            const logSection = document.getElementById('debugLogSection');
+            const logContent = document.getElementById('debugLogContent');
+            
+            if (!logSection || !logContent) return;
+            
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+            const colors = {
+                'info': '#0f0',
+                'warn': '#ff0',
+                'error': '#f00',
+                'race': '#0ff',
+                'selection': '#ff0',
+                'rerace': '#f0f'
+            };
+            const color = colors[type] || '#0f0';
+            
+            const logLine = document.createElement('div');
+            logLine.style.color = color;
+            logLine.style.marginBottom = '2px';
+            logLine.innerHTML = `[${timestamp}] ${message}`;
+            logContent.appendChild(logLine);
+            
+            // 최대 로그 라인 수 제한
+            while (logContent.children.length > MAX_LOG_LINES) {
+                logContent.removeChild(logContent.firstChild);
+            }
+            
+            // 자동 스크롤
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // 로그 섹션 표시
+            logSection.style.display = 'block';
+        }
+        
         // 상태 변수
         let currentRoomId = null;
         let currentUser = '';
@@ -969,19 +1016,47 @@
         // 디버그 로그 초기화
         addDebugLog('경마 게임 초기화', 'info');
         
-        // 전체 탈것 목록 (10개)
-        const ALL_VEHICLES = [
-            { id: 'car', name: '자동차', emoji: '🚗', bgType: 'highway' },
-            { id: 'rocket', name: '로켓', emoji: '🚀', bgType: 'space' },
-            { id: 'bird', name: '새', emoji: '🐦', bgType: 'sky' },
-            { id: 'boat', name: '보트', emoji: '🚤', bgType: 'sea' },
-            { id: 'bicycle', name: '자전거', emoji: '🚴', bgType: 'dirt' },
-            { id: 'rabbit', name: '토끼', emoji: '🐇', bgType: 'carrot' },
-            { id: 'turtle', name: '거북이', emoji: '🐢', bgType: 'beach' },
-            { id: 'eagle', name: '독수리', emoji: '🦅', bgType: 'mountain' },
-            { id: 'scooter', name: '킥보드', emoji: '🛴', bgType: 'park' },
-            { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'city' }
-        ];
+        // 탈것 테마 데이터 (JSON에서 로드)
+        let vehicleThemes = {};
+        let ALL_VEHICLES = [];
+        
+        // JSON 파일 로드
+        async function loadVehicleThemes() {
+            try {
+                const response = await fetch('assets/vehicle-themes.json');
+                const data = await response.json();
+                vehicleThemes = data.vehicleThemes;
+                
+                // ALL_VEHICLES 배열 생성
+                ALL_VEHICLES = Object.values(vehicleThemes).map(theme => ({
+                    id: theme.id,
+                    name: theme.name,
+                    emoji: theme.emoji,
+                    bgType: theme.theme
+                }));
+                
+                addDebugLog(`탈것 테마 데이터 로드 완료: ${ALL_VEHICLES.length}개`, 'info');
+                console.log('ALL_VEHICLES 로드 완료:', ALL_VEHICLES);
+            } catch (error) {
+                addDebugLog(`테마 데이터 로드 실패: ${error.message}`, 'error');
+                // 기본값으로 폴백
+                ALL_VEHICLES = [
+                    { id: 'car', name: '자동차', emoji: '🚗', bgType: 'expressway' },
+                    { id: 'rocket', name: '로켓', emoji: '🚀', bgType: 'sky' },
+                    { id: 'bird', name: '새', emoji: '🐦', bgType: 'sky' },
+                    { id: 'boat', name: '보트', emoji: '🚤', bgType: 'ocean' },
+                    { id: 'bicycle', name: '자전거', emoji: '🚴', bgType: 'road' },
+                    { id: 'rabbit', name: '토끼', emoji: '🐇', bgType: 'forest' },
+                    { id: 'turtle', name: '거북이', emoji: '🐢', bgType: 'forest' },
+                    { id: 'eagle', name: '독수리', emoji: '🦅', bgType: 'sky' },
+                    { id: 'scooter', name: '킥보드', emoji: '🛴', bgType: 'road' },
+                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky' }
+                ];
+            }
+        }
+        
+        // 페이지 로드 시 테마 데이터 로드
+        loadVehicleThemes();
         let ordersData = {};
         let frequentMenus = [];
         let currentUsers = [];
@@ -1296,7 +1371,10 @@
                     top: ${rank * totalLaneHeight}px;
                     width: 100%;
                     height: ${laneHeight}px;
-                    background: ${vehicleBg.bg};
+                    background-image: ${vehicleBg.bg};
+                    background-size: ${vehicleBg.bgSize || 'cover'};
+                    background-repeat: ${vehicleBg.bgRepeat || 'no-repeat'};
+                    background-position: ${vehicleBg.bgPosition || 'center'};
                     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
                 `;
                 
@@ -1408,7 +1486,17 @@
             const grid = document.getElementById('horseSelectionGrid');
             const info = document.getElementById('horseSelectionInfo');
             
-            if (!grid) return;
+            console.log('[renderHorseSelection] 시작', {
+                grid: !!grid,
+                availableHorses: availableHorses.length,
+                ALL_VEHICLES: ALL_VEHICLES.length,
+                selectedVehicleTypes: selectedVehicleTypes
+            });
+            
+            if (!grid) {
+                console.error('[renderHorseSelection] grid 요소를 찾을 수 없음');
+                return;
+            }
             
             grid.innerHTML = '';
             
@@ -1417,7 +1505,30 @@
             
             if (availableHorses.length === 0) {
                 info.textContent = '탈것 목록을 불러오는 중...';
+                console.warn('[renderHorseSelection] availableHorses가 비어있음');
                 return;
+            }
+            
+            // ALL_VEHICLES가 아직 로드되지 않았으면 폴백 데이터 사용
+            if (ALL_VEHICLES.length === 0) {
+                console.warn('[renderHorseSelection] ALL_VEHICLES가 비어있음, 폴백 데이터 사용');
+                // 폴백 데이터 설정
+                ALL_VEHICLES = [
+                    { id: 'car', name: '자동차', emoji: '🚗', bgType: 'expressway' },
+                    { id: 'rocket', name: '로켓', emoji: '🚀', bgType: 'sky' },
+                    { id: 'bird', name: '새', emoji: '🐦', bgType: 'sky' },
+                    { id: 'boat', name: '보트', emoji: '🚤', bgType: 'ocean' },
+                    { id: 'bicycle', name: '자전거', emoji: '🚴', bgType: 'road' },
+                    { id: 'rabbit', name: '토끼', emoji: '🐇', bgType: 'forest' },
+                    { id: 'turtle', name: '거북이', emoji: '🐢', bgType: 'forest' },
+                    { id: 'eagle', name: '독수리', emoji: '🦅', bgType: 'sky' },
+                    { id: 'scooter', name: '킥보드', emoji: '🛴', bgType: 'road' },
+                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky' }
+                ];
+                // 비동기로 로드 시도 (나중에 업데이트됨)
+                loadVehicleThemes().catch(err => {
+                    console.error('[renderHorseSelection] 테마 로드 실패:', err);
+                });
             }
 
             availableHorses.forEach((horseIndex, index) => {
@@ -1512,6 +1623,11 @@
                 };
                 
                 grid.appendChild(button);
+            });
+            
+            console.log('[renderHorseSelection] 완료', {
+                생성된_버튼_수: grid.children.length,
+                availableHorses: availableHorses.length
             });
 
             // 선택 정보 업데이트
@@ -1609,7 +1725,10 @@
                     top: ${rank * totalLaneHeight}px;
                     width: 100%;
                     height: ${laneHeight}px;
-                    background: ${vehicleBg.bg};
+                    background-image: ${vehicleBg.bg};
+                    background-size: ${vehicleBg.bgSize || 'cover'};
+                    background-repeat: ${vehicleBg.bgRepeat || 'no-repeat'};
+                    background-position: ${vehicleBg.bgPosition || 'center'};
                     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
                 `;
                 
@@ -1977,19 +2096,42 @@
         
         // 탈것별 배경 생성 함수
         function getVehicleBackground(vehicleId) {
-            const bgMap = {
-                'car': { bg: 'linear-gradient(0deg, #333 0%, #333 30%, #555 30%, #555 70%, #87CEEB 70%, #87CEEB 100%)', textColor: '#fff', extra: 'road' },
-                'rocket': { bg: 'linear-gradient(0deg, #0a0a2e 0%, #1a1a4e 50%, #2a2a6e 100%)', textColor: '#fff', extra: 'stars' },
-                'bird': { bg: 'linear-gradient(0deg, #5dade2 0%, #85c1e9 50%, #aed6f1 100%)', textColor: '#333', extra: 'clouds' },
-                'boat': { bg: 'linear-gradient(0deg, #1a5276 0%, #2980b9 50%, #5dade2 100%)', textColor: '#fff', extra: 'waves' },
-                'bicycle': { bg: 'linear-gradient(0deg, #784212 0%, #784212 40%, #27ae60 40%, #27ae60 100%)', textColor: '#fff', extra: '' },
-                'rabbit': { bg: 'linear-gradient(0deg, #784212 0%, #784212 30%, #2ecc71 30%, #2ecc71 100%)', textColor: '#fff', extra: 'carrots' },
-                'turtle': { bg: 'linear-gradient(0deg, #f5cba7 0%, #f5cba7 50%, #5dade2 50%, #5dade2 100%)', textColor: '#333', extra: '' },
-                'eagle': { bg: 'linear-gradient(0deg, #566573 0%, #85929e 30%, #aeb6bf 60%, #d5dbdb 100%)', textColor: '#333', extra: 'mountains' },
-                'scooter': { bg: 'linear-gradient(0deg, #616a6b 0%, #616a6b 35%, #82e0aa 35%, #82e0aa 100%)', textColor: '#fff', extra: '' },
-                'helicopter': { bg: 'linear-gradient(0deg, #2c3e50 0%, #34495e 30%, #5dade2 60%, #85c1e9 100%)', textColor: '#fff', extra: 'buildings' }
+            // JSON에서 테마 데이터 가져오기
+            const theme = vehicleThemes[vehicleId];
+            
+            if (theme) {
+                // 배경 이미지 사용
+                return {
+                    bg: `url('${theme.backgroundImage}')`,
+                    bgSize: 'cover',
+                    bgRepeat: 'no-repeat',
+                    bgPosition: 'center',
+                    textColor: getTextColorByTheme(theme.theme),
+                    theme: theme.theme,
+                    backgroundImage: theme.backgroundImage
+                };
+            }
+            
+            // 폴백: 기본값
+            return {
+                bg: 'linear-gradient(0deg, #333 0%, #333 30%, #555 30%, #555 70%, #87CEEB 70%, #87CEEB 100%)',
+                textColor: '#fff',
+                theme: 'expressway',
+                backgroundImage: 'assets/backgrounds/expressway.png'
             };
-            return bgMap[vehicleId] || bgMap['car'];
+        }
+        
+        // 테마에 따른 텍스트 색상 결정
+        function getTextColorByTheme(theme) {
+            const themeColors = {
+                'forest': '#fff',
+                'sky': '#333',
+                'expressway': '#fff',
+                'ocean': '#fff',
+                'road': '#fff',
+                'beach': '#333'
+            };
+            return themeColors[theme] || '#fff';
         }
         
         // 경주 결과 표시
@@ -2494,7 +2636,7 @@
             }
         });
         
-        socket.on('horseSelectionReady', (data) => {
+        socket.on('horseSelectionReady', async (data) => {
             availableHorses = data.availableHorses || [];
             userHorseBets = data.userHorseBets || {};
             horseRaceMode = data.horseRaceMode || 'first';
@@ -2514,14 +2656,38 @@
             }
             
             // 말 선택 섹션 표시
-            document.getElementById('horseSelectionSection').classList.add('active');
+            const horseSelectionSection = document.getElementById('horseSelectionSection');
+            if (horseSelectionSection) {
+                horseSelectionSection.classList.add('active');
+                console.log('[horseSelectionReady] 섹션 활성화됨');
+            } else {
+                console.error('[horseSelectionReady] horseSelectionSection 요소를 찾을 수 없음');
+            }
             
             // 재경주인 경우 호스트 컨트롤 표시
-            if (isRerace && isHost) {
+            if (isReraceActive && isHost) {
                 document.getElementById('hostControls').style.display = 'block';
             }
             
-            renderHorseSelection();
+            // ALL_VEHICLES가 로드되지 않았으면 먼저 로드
+            if (ALL_VEHICLES.length === 0) {
+                addDebugLog('ALL_VEHICLES가 비어있음, 로드 시작...', 'warn');
+                await loadVehicleThemes();
+                addDebugLog(`로드 완료: ${ALL_VEHICLES.length}개`, 'info');
+            }
+            
+            console.log('[horseSelectionReady] renderHorseSelection 호출 전:', {
+                availableHorses: availableHorses.length,
+                ALL_VEHICLES: ALL_VEHICLES.length,
+                selectedVehicleTypes: selectedVehicleTypes,
+                userHorseBets: Object.keys(userHorseBets).length,
+                currentUser: currentUser
+            });
+            
+            // 약간의 지연 후 렌더링 (DOM 업데이트 대기)
+            setTimeout(() => {
+                renderHorseSelection();
+            }, 100);
             
             // 재경주인 경우 호스트에게 재경주 버튼 표시 준비
             if (isReraceActive && isHost) {
@@ -2875,55 +3041,12 @@
     </div>
 
     <script>
-        // 디버그 로그 함수 (localhost:3000에서만 활성화)
-        const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
-        let debugLogEnabled = isLocalhost;
-        const MAX_LOG_LINES = 100;
-        
-        // localhost:3000이 아니면 디버그 로그 섹션 숨기기
+        // localhost가 아니면 디버그 로그 섹션 숨기기
         if (!isLocalhost) {
             const debugLogSection = document.getElementById('debugLogSection');
             if (debugLogSection) {
                 debugLogSection.style.display = 'none';
             }
-        }
-        
-        function addDebugLog(message, type = 'info') {
-            if (!debugLogEnabled) return;
-            
-            const logSection = document.getElementById('debugLogSection');
-            const logContent = document.getElementById('debugLogContent');
-            
-            if (!logSection || !logContent) return;
-            
-            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
-            const colors = {
-                'info': '#0f0',
-                'warn': '#ff0',
-                'error': '#f00',
-                'race': '#0ff',
-                'selection': '#ff0',
-                'rerace': '#f0f'
-            };
-            const color = colors[type] || '#0f0';
-            
-            const logLine = document.createElement('div');
-            logLine.style.color = color;
-            logLine.style.marginBottom = '2px';
-            logLine.innerHTML = `[${timestamp}] ${message}`;
-            
-            logContent.appendChild(logLine);
-            
-            // 최대 로그 라인 수 제한
-            while (logContent.children.length > MAX_LOG_LINES) {
-                logContent.removeChild(logContent.firstChild);
-            }
-            
-            // 자동 스크롤
-            logContent.scrollTop = logContent.scrollHeight;
-            
-            // 로그 섹션 표시
-            logSection.style.display = 'block';
         }
         
         function clearDebugLog() {

@@ -1,0 +1,74 @@
+{
+  "vehicleThemes": {
+    "car": {
+      "id": "car",
+      "name": "자동차",
+      "emoji": "🚗",
+      "theme": "expressway",
+      "backgroundImage": "assets/backgrounds/expressway.png"
+    },
+    "rocket": {
+      "id": "rocket",
+      "name": "로켓",
+      "emoji": "🚀",
+      "theme": "sky",
+      "backgroundImage": "assets/backgrounds/sky.png"
+    },
+    "bird": {
+      "id": "bird",
+      "name": "새",
+      "emoji": "🐦",
+      "theme": "sky",
+      "backgroundImage": "assets/backgrounds/sky.png"
+    },
+    "boat": {
+      "id": "boat",
+      "name": "보트",
+      "emoji": "🚤",
+      "theme": "ocean",
+      "backgroundImage": "assets/backgrounds/ocean.png"
+    },
+    "bicycle": {
+      "id": "bicycle",
+      "name": "자전거",
+      "emoji": "🚴",
+      "theme": "road",
+      "backgroundImage": "assets/backgrounds/road.png"
+    },
+    "rabbit": {
+      "id": "rabbit",
+      "name": "토끼",
+      "emoji": "🐇",
+      "theme": "forest",
+      "backgroundImage": "assets/backgrounds/forest.png"
+    },
+    "turtle": {
+      "id": "turtle",
+      "name": "거북이",
+      "emoji": "🐢",
+      "theme": "forest",
+      "backgroundImage": "assets/backgrounds/forest.png"
+    },
+    "eagle": {
+      "id": "eagle",
+      "name": "독수리",
+      "emoji": "🦅",
+      "theme": "sky",
+      "backgroundImage": "assets/backgrounds/sky.png"
+    },
+    "scooter": {
+      "id": "scooter",
+      "name": "킥보드",
+      "emoji": "🛴",
+      "theme": "road",
+      "backgroundImage": "assets/backgrounds/road.png"
+    },
+    "helicopter": {
+      "id": "helicopter",
+      "name": "헬리콥터",
+      "emoji": "🚁",
+      "theme": "sky",
+      "backgroundImage": "assets/backgrounds/sky.png"
+    }
+  }
+}
