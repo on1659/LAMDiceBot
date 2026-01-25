@@ -320,7 +320,17 @@ function createRoomGameState() {
         // 룰렛 게임 관련
         rouletteHistory: [], // 룰렛 게임 기록
         isRouletteSpinning: false, // 룰렛 회전 중 여부
-        userColors: {} // 사용자별 선택한 색상 {userName: colorIndex}
+        userColors: {}, // 사용자별 선택한 색상 {userName: colorIndex}
+        // 경마 게임 관련
+        horseRaceHistory: [], // 경마 게임 기록
+        isHorseRaceActive: false, // 경주 진행 중 여부
+        isReraceReady: false, // 재경주 준비 상태 (동점일 때 호스트가 재경주 준비 버튼을 눌러야 함)
+        availableHorses: [], // 사용 가능한 말 목록 (4~6마리)
+        userHorseBets: {}, // 사용자별 선택한 말 {userName: horseIndex}
+        horseRankings: [], // 말 순위 (경주 완료 후)
+        horseRaceMode: 'first', // 게임 룰: 'first' (1등 찾기) 또는 'last' (꼴등 찾기)
+        currentRoundPlayers: [], // 현재 라운드 참여자 (재경주 시 사용)
+        raceRound: 1 // 현재 경주 라운드 번호
     };
 }
 
@@ -907,8 +917,8 @@ io.on('connection', (socket) => {
             roomPassword = password.trim();
         }
         
-        // 게임 타입 검증 (dice, roulette, team 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'team'].includes(gameType) ? gameType : 'dice';
+        // 게임 타입 검증 (dice, roulette, team, horse-race 허용, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette', 'team', 'horse-race'].includes(gameType) ? gameType : 'dice';
         
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1025,7 +1035,7 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         
         // 방 생성 성공 알림
-        socket.emit('roomCreated', {
+        const roomCreatedData = {
             roomId,
             roomName: finalRoomName,
             userName: trimmedUserName, // 호스트 이름 추가
@@ -1048,7 +1058,45 @@ io.on('connection', (socket) => {
                 myResult: null,
                 frequentMenus: gameState.frequentMenus
             }
-        });
+        };
+        // #region agent log
+        fs.appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:1037',message:'emitting roomCreated',data:{roomId:roomCreatedData.roomId,gameType:roomCreatedData.gameType,readyUsersCount:roomCreatedData.readyUsers.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n');
+        // #endregion
+        socket.emit('roomCreated', roomCreatedData);
+        
+        // 경마 게임인 경우 방 생성 시 말 선택 UI 표시 (호스트 1명만 있어도 표시)
+        if (validGameType === 'horse-race' && !gameState.isHorseRaceActive) {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1066',message:'roomCreated horse flow',data:{roomId:roomId,gameType:validGameType,isHorseRaceActive:gameState.isHorseRaceActive,playersCount:gameState.users.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+            // #endregion
+            const players = gameState.users.map(u => u.name);
+            if (players.length >= 1) {
+                // 말 수 결정 (최소 2명이 필요하지만 일단 말 수는 결정)
+                let horseCount = 4; // 기본값
+                if (players.length >= 2) {
+                    if (players.length <= 4) {
+                        horseCount = players.length; // 1:1 매칭
+                    } else {
+                        horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                    }
+                }
+                gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+                
+                // 호스트에게 말 선택 UI 표시
+                socket.emit('horseSelectionReady', {
+                    availableHorses: gameState.availableHorses,
+                    participants: players,
+                    players: players, // 하위 호환성
+                    userHorseBets: { ...gameState.userHorseBets },
+                    horseRaceMode: gameState.horseRaceMode || 'first',
+                    raceRound: gameState.raceRound || 1,
+                    selectedVehicleTypes: gameState.selectedVehicleTypes || null
+                });
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1082',message:'roomCreated horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+                // #endregion
+            }
+        }
         
         console.log(`방 생성: ${finalRoomName} (${roomId}) by ${userName.trim()}`);
         
@@ -1169,7 +1217,13 @@ io.on('connection', (socket) => {
                 isReady: gameState.readyUsers.includes(userName.trim()),
                 isPrivate: room.isPrivate,
                 password: room.isPrivate ? room.password : '',
-                gameType: room.gameType || 'dice',
+                gameType: (() => {
+                    const gameType = room.gameType || 'dice';
+                    // #region agent log
+                    fs.appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:1181',message:'roomJoined gameType',data:{roomId:room.roomId,roomGameType:room.gameType,returnedGameType:gameType,userName:userName.trim()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n');
+                    // #endregion
+                    return gameType;
+                })(),
                 createdAt: room.createdAt, // 방 생성 시간 추가
                 expiryHours: room.expiryHours || 1, // 방 유지 시간 추가
                 blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
@@ -1185,9 +1239,50 @@ io.on('connection', (socket) => {
                     ...gameState,
                     hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
                     myResult: myResult,
-                    frequentMenus: gameState.frequentMenus
+                    frequentMenus: gameState.frequentMenus,
+                    // 경마 게임 상태 포함
+                    availableHorses: gameState.availableHorses || [],
+                    userHorseBets: gameState.userHorseBets || {},
+                    horseRaceMode: gameState.horseRaceMode || 'first',
+                    currentRoundPlayers: gameState.currentRoundPlayers || [],
+                    raceRound: gameState.raceRound || 1,
+                    isHorseRaceActive: gameState.isHorseRaceActive || false
                 }
             });
+            
+            // 경마 게임인 경우 방 입장 시 말 선택 UI 표시
+            if (room.gameType === 'horse-race' && !gameState.isHorseRaceActive) {
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1235',message:'roomJoined horse flow',data:{roomId:roomId,gameType:room.gameType,isHorseRaceActive:gameState.isHorseRaceActive,playersCount:gameState.users.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+                // #endregion
+                const players = gameState.users.map(u => u.name);
+                if (players.length >= 1) {
+                    // 말 수 결정 (이미 있으면 유지)
+                    if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
+                        let horseCount;
+                        if (players.length <= 4) {
+                            horseCount = players.length; // 1:1 매칭
+                        } else {
+                            horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                        }
+                        gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+                    }
+                    
+                    // 모든 클라이언트에게 말 선택 UI 표시 (늦게 들어온 사용자 포함)
+                    io.to(roomId).emit('horseSelectionReady', {
+                        availableHorses: gameState.availableHorses,
+                        participants: players,
+                        players: players, // 하위 호환성
+                        userHorseBets: { ...gameState.userHorseBets },
+                        horseRaceMode: gameState.horseRaceMode || 'first',
+                        raceRound: gameState.raceRound || 1,
+                        selectedVehicleTypes: gameState.selectedVehicleTypes || null
+                    });
+                    // #region agent log
+                    fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1249',message:'roomJoined horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+                    // #endregion
+                }
+            }
             
             // 같은 방의 다른 사용자들에게 업데이트
             io.to(roomId).emit('updateUsers', gameState.users);
@@ -1977,6 +2072,16 @@ io.on('connection', (socket) => {
         // 룰 저장
         gameState.gameRules = rules.trim();
         
+        // 경마 게임인 경우 horseRaceMode도 업데이트
+        if (room.gameType === 'horse-race') {
+            const rulesLower = rules.trim().toLowerCase();
+            if (rulesLower.includes('1등') || rulesLower.includes('first')) {
+                gameState.horseRaceMode = 'first';
+            } else if (rulesLower.includes('꼴등') || rulesLower.includes('last')) {
+                gameState.horseRaceMode = 'last';
+            }
+        }
+        
         // 같은 방의 모든 클라이언트에게 업데이트된 룰 전송
         io.to(room.roomId).emit('gameRulesUpdated', gameState.gameRules);
         // 호스트에게 저장 성공 메시지 전송
@@ -2683,6 +2788,644 @@ io.on('connection', (socket) => {
 
     // ========== 룰렛 게임 이벤트 핸들러 끝 ==========
 
+    // ========== 경마 게임 이벤트 핸들러 ==========
+    
+    // 경마 게임 시작 (방장만 가능)
+    socket.on('startHorseRace', () => {
+        // #region agent log
+        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2708',message:'startHorseRace received',data:{socketId:socket.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})+'\n');
+        // #endregion
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        // #region agent log
+        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2712',message:'room check',data:{hasGameState:!!gameState,hasRoom:!!room,gameType:room?.gameType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H5'})+'\n');
+        // #endregion
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // 경마 게임 방인지 확인
+        // #region agent log
+        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2719',message:'gameType validation',data:{roomGameType:room.gameType,expected:'horse-race',match:room.gameType==='horse-race'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H5'})+'\n');
+        // #endregion
+        if (room.gameType !== 'horse-race') {
+            socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('horseRaceError', '방장만 경마를 시작할 수 있습니다!');
+            return;
+        }
+        
+        // 이미 경주 진행 중인지 확인
+        if (gameState.isHorseRaceActive) {
+            socket.emit('horseRaceError', '이미 경주가 진행 중입니다!');
+            return;
+        }
+        
+        // 방에 입장한 모든 사용자가 참여자
+        const players = gameState.currentRoundPlayers.length > 0 
+            ? gameState.currentRoundPlayers 
+            : gameState.users.map(u => u.name);
+        
+        // #region agent log
+        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2756',message:'players check',data:{currentRoundPlayersCount:gameState.currentRoundPlayers.length,usersCount:gameState.users.length,playersCount:players?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n');
+        // #endregion
+        if (!players || players.length < 2) {
+            socket.emit('horseRaceError', '최소 2명 이상이 필요합니다!');
+            return;
+        }
+        
+        // 모든 사람이 말을 선택했는지 확인
+        const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
+        // #region agent log
+        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2827',message:'startHorseRace allSelected check',data:{playersCount:players.length,allSelected:allSelected,userHorseBets:gameState.userHorseBets},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n');
+        // #endregion
+        if (!allSelected) {
+            socket.emit('horseRaceError', '모든 사람이 말을 선택해야 시작할 수 있습니다!');
+            return;
+        }
+        
+        // 경주 시작
+        gameState.isHorseRaceActive = true;
+        gameState.isGameActive = true;
+        
+        // 전체 탈것 목록
+        const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+        
+        // 탈것 타입이 설정되어 있지 않으면 랜덤 선택
+        if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+            // 랜덤으로 탈것 선택 (플레이어 수에 맞게)
+            const count = Math.min(Math.max(players.length, 2), 5);
+            const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+            gameState.selectedVehicleTypes = shuffled.slice(0, count);
+        }
+        
+        // 말 수는 이미 결정되어 있음 (selectHorse에서 결정됨)
+        if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
+            gameState.availableHorses = Array.from({ length: gameState.selectedVehicleTypes.length }, (_, i) => i);
+        }
+        
+        // 게임 참여자들을 누적 참여자 목록에 추가
+        players.forEach(player => {
+            if (!gameState.everPlayedUsers.includes(player)) {
+                gameState.everPlayedUsers.push(player);
+            }
+        });
+        
+        // 경주 결과 계산
+        const rankings = calculateHorseRaceResult(gameState.availableHorses.length);
+        
+        // 순위별 말 인덱스 배열 생성 (클라이언트 애니메이션용)
+        const horseRankings = rankings.map(r => r.horseIndex);
+        const speeds = rankings.map(r => r.finishTime);
+        
+        // 결과 저장
+        gameState.horseRankings = horseRankings;
+        
+        // 룰에 맞는 사람 확인
+        const winners = getWinnersByRule(gameState, rankings);
+        
+        // 모든 클라이언트에게 경주 시작 및 결과 전송 (애니메이션 시작)
+        io.to(room.roomId).emit('horseRaceStarted', {
+            availableHorses: gameState.availableHorses,
+            players: players,
+            raceRound: gameState.raceRound,
+            horseRaceMode: gameState.horseRaceMode || 'first',
+            everPlayedUsers: gameState.everPlayedUsers,
+            rankings: rankings, // 전체 순위 정보
+            horseRankings: horseRankings, // 순위별 말 인덱스 배열
+            speeds: speeds, // 각 말의 도착 시간
+            winners: winners, // 당첨자 정보
+            userHorseBets: { ...gameState.userHorseBets }, // 각 사용자의 말 선택 정보
+            selectedVehicleTypes: gameState.selectedVehicleTypes || null
+        });
+        
+        console.log(`방 ${room.roomName} 경마 시작 - 말 수: ${gameState.availableHorses.length}, 참가자: ${players.length}명, 라운드: ${gameState.raceRound}`);
+    });
+    
+    // 말 선택 (베팅)
+    socket.on('selectHorse', (data) => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // 경마 게임 방인지 확인
+        if (room.gameType !== 'horse-race') {
+            socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
+            return;
+        }
+        
+        // 사용자 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) {
+            socket.emit('horseRaceError', '사용자 정보를 찾을 수 없습니다!');
+            return;
+        }
+        const userName = user.name;
+        
+        // 경주 진행 중이 아닐 때는 방에 입장한 모든 사용자가 참여자
+        // 경주 진행 중일 때는 현재 라운드 참여자만
+        const players = gameState.isHorseRaceActive && gameState.currentRoundPlayers.length > 0
+            ? gameState.currentRoundPlayers 
+            : gameState.users.map(u => u.name);
+        
+        if (!players.includes(userName)) {
+            socket.emit('horseRaceError', '이번 라운드에 참여하지 않았습니다!');
+            return;
+        }
+        
+        // 경주 진행 중이 아닐 때는 말 선택만 저장 (경주 시작 대기)
+        if (!gameState.isHorseRaceActive) {
+            // 말 수가 아직 결정되지 않았으면 결정
+            if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
+                let horseCount;
+                if (players.length <= 4) {
+                    horseCount = players.length; // 1:1 매칭
+                } else {
+                    horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                }
+                gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+                
+                // 모든 클라이언트에게 말 선택 UI 표시
+                io.to(room.roomId).emit('horseSelectionReady', {
+                    availableHorses: gameState.availableHorses,
+                    participants: players,
+                    players: players, // 하위 호환성
+                    userHorseBets: { ...gameState.userHorseBets },
+                    horseRaceMode: gameState.horseRaceMode || 'first',
+                    raceRound: gameState.raceRound || 1,
+                    selectedVehicleTypes: gameState.selectedVehicleTypes || null
+                });
+            }
+        }
+        
+        const { horseIndex } = data;
+        
+        // 말 인덱스 유효성 검사
+        if (typeof horseIndex !== 'number' || !gameState.availableHorses.includes(horseIndex)) {
+            socket.emit('horseRaceError', '유효하지 않은 말입니다!');
+            return;
+        }
+        
+        // 이미 선택한 탈것인지 확인
+        const previousSelection = gameState.userHorseBets[userName];
+        
+        // 같은 탈것을 다시 선택하면 취소
+        if (previousSelection === horseIndex) {
+            delete gameState.userHorseBets[userName];
+            console.log(`방 ${room.roomName}: ${userName}이(가) 말 ${horseIndex} 선택 취소`);
+        } else {
+            // 다른 탈것을 선택하는 경우
+            // 중복 선택 검증: 말 수 >= 사람 수인 경우 같은 말 중복 선택 불가
+            // (단, 내가 이미 선택한 것은 제외하고 검증)
+            const selectedHorses = Object.entries(gameState.userHorseBets)
+                .filter(([name, _]) => name !== userName) // 내 선택 제외
+                .map(([_, horseIdx]) => horseIdx);
+            
+            if (gameState.availableHorses.length >= players.length) {
+                if (selectedHorses.includes(horseIndex)) {
+                    socket.emit('horseRaceError', '이미 선택된 말입니다!');
+                    return;
+                }
+            }
+            
+            // 말 선택 저장 (또는 재선택)
+            gameState.userHorseBets[userName] = horseIndex;
+            console.log(`방 ${room.roomId}: ${userName}이(가) 말 ${horseIndex} ${previousSelection !== undefined ? '재선택' : '선택'}`);
+        }
+        
+        // 선택 현황 실시간 업데이트 (모든 클라이언트에 전송)
+        io.to(room.roomId).emit('horseSelectionUpdated', {
+            userHorseBets: { ...gameState.userHorseBets }
+        });
+        
+        console.log(`방 ${room.roomName}: ${userName}이(가) 말 ${horseIndex} 선택`);
+        
+        // 모든 참가자가 선택했는지 확인
+        const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
+        // #region agent log
+        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2967',message:'selectHorse allSelected check',data:{playersCount:players.length,allSelected:allSelected,userHorseBets:gameState.userHorseBets},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})+'\n');
+        // #endregion
+        
+        // 경주 진행 중이 아닐 때는 말 선택만 저장하고 게임 시작 대기
+        if (!gameState.isHorseRaceActive) {
+            // 모든 사람이 선택했는지 확인하여 호스트에게 알림
+            if (allSelected) {
+                // 호스트에게 게임 시작 가능 알림
+                const host = gameState.users.find(u => u.isHost);
+                if (host) {
+                    io.to(host.id).emit('allHorsesSelected', {
+                        userHorseBets: { ...gameState.userHorseBets },
+                        players: players
+                    });
+                }
+            }
+            return; // 경주 진행 중이 아니면 여기서 종료
+        }
+        
+        // 경주 진행 중일 때만 경주 결과 계산
+        if (allSelected) {
+            // 경주 결과 계산
+            const rankings = calculateHorseRaceResult(gameState.availableHorses.length);
+            
+            // 룰에 맞는 사람 확인
+            const winners = getWinnersByRule(gameState, rankings);
+            
+            // 경주 기록 저장
+            const raceRecord = {
+                round: gameState.raceRound,
+                players: players,
+                userHorseBets: { ...gameState.userHorseBets },
+                rankings: rankings,
+                winners: winners,
+                mode: gameState.horseRaceMode,
+                timestamp: new Date().toISOString()
+            };
+            
+            gameState.horseRaceHistory.push(raceRecord);
+            if (gameState.horseRaceHistory.length > 100) {
+                gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-100);
+            }
+            
+            // 경주 종료: 결과 전송 직후 상태를 false로 설정
+            gameState.isHorseRaceActive = false;
+            
+            // 모든 클라이언트에게 경주 결과 전송
+            io.to(room.roomId).emit('horseRaceResult', {
+                rankings: rankings,
+                userHorseBets: { ...gameState.userHorseBets },
+                winners: winners,
+                raceRound: gameState.raceRound,
+                horseRaceMode: gameState.horseRaceMode,
+                record: raceRecord
+            });
+            
+            console.log(`방 ${room.roomName} 경주 완료 - 라운드 ${gameState.raceRound}, 당첨자: ${winners.join(', ')}`);
+            
+            // 당첨자 수에 따라 분기
+            if (winners.length === 1) {
+                // 게임 종료
+                gameState.isGameActive = false;
+                gameState.userHorseBets = {};
+                gameState.currentRoundPlayers = [];
+                gameState.raceRound = 1;
+                
+                // 채팅에 최종 당첨자 메시지 추가
+                const nowResult = new Date();
+                const koreaOffsetResult = 9 * 60;
+                const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
+                const resultMessage = {
+                    userName: '시스템',
+                    message: `🎊🎉 축하합니다! ${winners[0]}님이 최종 당첨되었습니다! 🎉🎊`,
+                    timestamp: koreaTimeResult.toISOString(),
+                    isSystem: true,
+                    isHorseRaceWinner: true
+                };
+                gameState.chatHistory.push(resultMessage);
+                if (gameState.chatHistory.length > 100) {
+                    gameState.chatHistory = gameState.chatHistory.slice(-100);
+                }
+                io.to(room.roomId).emit('newMessage', resultMessage);
+                
+                // 게임 종료 이벤트 전송
+                io.to(room.roomId).emit('horseRaceEnded', {
+                    horseRaceHistory: gameState.horseRaceHistory,
+                    finalWinner: winners[0]
+                });
+                io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+                
+                console.log(`방 ${room.roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`);
+            } else {
+                // 재경주 필요 (2명 이상 동점)
+                // 재경주 준비 상태로 설정 (호스트가 재경주 준비 버튼을 눌러야 함)
+                gameState.raceRound++;
+                gameState.currentRoundPlayers = [...winners]; // 당첨자들만 다음 라운드 참여
+                gameState.userHorseBets = {}; // 베팅 초기화
+                gameState.isReraceReady = true; // 재경주 준비 상태
+                // isHorseRaceActive는 이미 위에서 false로 설정됨
+                
+                // 채팅에 재경주 필요 메시지 추가
+                const nowResult = new Date();
+                const koreaOffsetResult = 9 * 60;
+                const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
+                const reraceMessage = {
+                    userName: '시스템',
+                    message: `🔄 재경주가 필요합니다! ${winners.join(', ')}님들끼리 ${gameState.raceRound}라운드를 진행합니다!`,
+                    timestamp: koreaTimeResult.toISOString(),
+                    isSystem: true
+                };
+                gameState.chatHistory.push(reraceMessage);
+                if (gameState.chatHistory.length > 100) {
+                    gameState.chatHistory = gameState.chatHistory.slice(-100);
+                }
+                io.to(room.roomId).emit('newMessage', reraceMessage);
+                
+                // 재경주 준비 상태 전송 (호스트에게 재경주 준비 버튼 표시)
+                io.to(room.roomId).emit('reraceReady', {
+                    winners: winners,
+                    raceRound: gameState.raceRound
+                });
+                
+                console.log(`방 ${room.roomName} 재경주 필요 - 라운드 ${gameState.raceRound}, 참가자: ${winners.join(', ')}`);
+            }
+        }
+    });
+    
+    // 경주 결과 계산 함수
+    function calculateHorseRaceResult(horseCount) {
+        const rankings = [];
+        const finishTimes = [];
+        const speeds = [];
+        
+        // 각 말의 도착 시간과 속도 랜덤 생성 (서버에서 결정)
+        for (let i = 0; i < horseCount; i++) {
+            // 도착 시간: 5~10초 사이 랜덤
+            const finishTime = 5000 + Math.random() * 5000;
+            // 속도: 0.8~1.5 사이 랜덤
+            const speed = 0.8 + Math.random() * 0.7;
+            
+            finishTimes.push(finishTime);
+            speeds.push(speed);
+        }
+        
+        // 순위 결정 (도착 시간이 빠른 순)
+        const sortedIndices = finishTimes
+            .map((time, index) => ({ time, index }))
+            .sort((a, b) => a.time - b.time)
+            .map(item => item.index);
+        
+        // 순위 배열 생성
+        for (let rank = 0; rank < horseCount; rank++) {
+            const horseIndex = sortedIndices[rank];
+            rankings.push({
+                horseIndex: horseIndex,
+                rank: rank + 1,
+                finishTime: Math.round(finishTimes[horseIndex]),
+                speed: parseFloat(speeds[horseIndex].toFixed(2))
+            });
+        }
+        
+        return rankings;
+    }
+    
+    // 룰에 맞는 당첨자 확인 함수
+    function getWinnersByRule(gameState, rankings) {
+        const mode = gameState.horseRaceMode || 'first';
+        const userHorseBets = gameState.userHorseBets;
+        const players = gameState.currentRoundPlayers.length > 0 
+            ? gameState.currentRoundPlayers 
+            : gameState.readyUsers;
+        
+        let targetRank;
+        if (mode === 'first') {
+            targetRank = 1; // 1등 찾기
+        } else {
+            targetRank = rankings.length; // 꼴등 찾기
+        }
+        
+        // 해당 순위의 말 찾기
+        const targetHorse = rankings.find(r => r.rank === targetRank);
+        if (!targetHorse) return [];
+        
+        // 해당 말을 선택한 사람들 찾기
+        const winners = players.filter(player => 
+            userHorseBets[player] === targetHorse.horseIndex
+        );
+        
+        return winners;
+    }
+    
+    // 경마 게임 종료 (초기화면으로 돌아가기)
+    // 재경주 준비 버튼 클릭 (호스트가 재경주 준비 버튼을 눌렀을 때)
+    socket.on('requestReraceReady', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('horseRaceError', '방장만 재경주 준비를 시작할 수 있습니다!');
+            return;
+        }
+        
+        // 경주가 진행 중이면 안됨
+        if (gameState.isHorseRaceActive) {
+            socket.emit('horseRaceError', '경주가 진행 중입니다!');
+            return;
+        }
+        
+        // 재경주 대상자 확인
+        const players = gameState.currentRoundPlayers;
+        if (!players || players.length < 2) {
+            socket.emit('horseRaceError', '재경주 대상자가 없습니다!');
+            return;
+        }
+        
+        // 재경주 준비 상태 확인: isReraceReady가 true이거나, currentRoundPlayers가 있고 경주가 종료된 상태
+        const canRerace = gameState.isReraceReady || 
+                         (players.length > 0 && 
+                          players.length < gameState.users.length && 
+                          !gameState.isHorseRaceActive);
+        
+        if (!canRerace) {
+            console.log(`[재경주 준비] 상태 확인 실패:`, {
+                isReraceReady: gameState.isReraceReady,
+                currentRoundPlayers: players.length,
+                totalUsers: gameState.users.length,
+                isHorseRaceActive: gameState.isHorseRaceActive
+            });
+            socket.emit('horseRaceError', '재경주 준비 상태가 아닙니다!');
+            return;
+        }
+        
+        console.log(`[재경주 준비] 재경주 준비 시작:`, {
+            players: players,
+            isReraceReady: gameState.isReraceReady
+        });
+        
+        // 말 수 결정 (재경주인 경우 동점자 수에 맞게 조정)
+        let horseCount;
+        if (players.length <= 4) {
+            horseCount = players.length; // 1:1 매칭
+        } else {
+            horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+        }
+        
+        gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+        gameState.userHorseBets = {}; // 베팅 초기화
+        gameState.isReraceReady = false; // 재경주 준비 상태 해제
+        
+        // 모든 클라이언트에게 말 선택 UI 표시 (재경주 대상자만)
+        io.to(room.roomId).emit('horseSelectionReady', {
+            availableHorses: gameState.availableHorses,
+            participants: players,
+            players: players, // 하위 호환성
+            userHorseBets: {},
+            horseRaceMode: gameState.horseRaceMode || 'first',
+            raceRound: gameState.raceRound,
+            isRerace: true,
+            selectedVehicleTypes: gameState.selectedVehicleTypes || null
+        });
+        
+        console.log(`방 ${room.roomName} 재경주 준비 완료 - 라운드 ${gameState.raceRound}, 참가자: ${players.join(', ')}`);
+    });
+    
+    // 재경주 시작 버튼 클릭 (모든 재경주 대상자가 탈것을 선택한 후)
+    socket.on('startRerace', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('horseRaceError', '방장만 재경주를 시작할 수 있습니다!');
+            return;
+        }
+        
+        // 경주가 종료된 상태인지 확인
+        if (gameState.isHorseRaceActive) {
+            socket.emit('horseRaceError', '경주가 진행 중입니다!');
+            return;
+        }
+        
+        // 재경주 대상자 확인
+        const players = gameState.currentRoundPlayers;
+        if (!players || players.length < 2) {
+            socket.emit('horseRaceError', '재경주 대상자가 없습니다!');
+            return;
+        }
+        
+        // 모든 재경주 대상자가 탈것을 선택했는지 확인
+        const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
+        if (!allSelected) {
+            socket.emit('horseRaceError', '모든 재경주 대상자가 탈것을 선택해야 합니다!');
+            return;
+        }
+        
+        // 재경주 시작 (기존 startHorseRace 로직과 동일)
+        gameState.isHorseRaceActive = true;
+        gameState.isGameActive = true;
+        
+        // 전체 탈것 목록
+        const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+        
+        // 탈것 타입이 설정되어 있지 않으면 랜덤 선택
+        if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+            gameState.selectedVehicleTypes = [];
+            for (let i = 0; i < gameState.availableHorses.length; i++) {
+                const randomVehicleId = ALL_VEHICLE_IDS[Math.floor(Math.random() * ALL_VEHICLE_IDS.length)];
+                gameState.selectedVehicleTypes.push(randomVehicleId);
+            }
+        }
+        
+        // 경주 결과 계산
+        const rankings = calculateHorseRaceResult(gameState.availableHorses.length);
+        
+        // 속도 계산
+        const speeds = rankings.map(() => 0.8 + Math.random() * 0.7);
+        
+        // 경주 시작 이벤트 전송
+        io.to(room.roomId).emit('horseRaceStarted', {
+            horseRankings: rankings,
+            speeds: speeds,
+            userHorseBets: { ...gameState.userHorseBets },
+            selectedVehicleTypes: gameState.selectedVehicleTypes,
+            raceRound: gameState.raceRound,
+            horseRaceMode: gameState.horseRaceMode || 'first'
+        });
+        
+        console.log(`방 ${room.roomName} 재경주 시작 - 라운드 ${gameState.raceRound}, 참가자: ${players.join(', ')}`);
+    });
+    
+    socket.on('endHorseRace', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('horseRaceError', '방장만 게임을 종료할 수 있습니다!');
+            return;
+        }
+        
+        // 게임 상태 초기화
+        gameState.isGameActive = false;
+        gameState.isHorseRaceActive = false;
+        gameState.isReraceReady = false; // 재경주 준비 상태도 초기화
+        gameState.gamePlayers = [];
+        gameState.readyUsers = [];
+        gameState.userHorseBets = {};
+        gameState.currentRoundPlayers = [];
+        gameState.raceRound = 1;
+        
+        // 모든 클라이언트에게 게임 종료 이벤트 전송
+        io.to(room.roomId).emit('horseRaceEnded', {
+            horseRaceHistory: gameState.horseRaceHistory
+        });
+        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+        
+        // 게임 종료 후 말 선택 UI 다시 표시 (방에 입장한 사람이 2명 이상이면)
+        const players = gameState.users.map(u => u.name);
+        if (players.length >= 2) {
+            // 말 수 결정
+            let horseCount;
+            if (players.length <= 4) {
+                horseCount = players.length; // 1:1 매칭
+            } else {
+                horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+            }
+            gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+            
+            // 모든 클라이언트에게 말 선택 UI 표시
+            io.to(room.roomId).emit('horseSelectionReady', {
+                availableHorses: gameState.availableHorses,
+                participants: players,
+                players: players, // 하위 호환성
+                userHorseBets: {}, // 초기화
+                horseRaceMode: gameState.horseRaceMode || 'first',
+                raceRound: gameState.raceRound || 1,
+                selectedVehicleTypes: gameState.selectedVehicleTypes || null
+            });
+        }
+        
+        // 방 목록 업데이트
+        updateRoomsList();
+        
+        console.log(`방 ${room.roomName} 경마 게임 종료`);
+    });
+    
+    // ========== 경마 게임 이벤트 핸들러 끝 ==========
+
     // 이전 게임 데이터 삭제
     socket.on('clearGameData', () => {
         if (!checkRateLimit()) return;
@@ -3128,8 +3871,97 @@ io.on('connection', (socket) => {
         
         console.log(`방 ${room.roomName} 채팅: ${user.name}: ${message.trim()}`);
 
-        // Gemini AI 명령어 처리 (/gemini 질문)
+        // 탈것 명령어 처리 (localhost에서만, 호스트만)
         const trimmedMsg = message.trim();
+        const isLocalhost = socket.handshake.headers.host?.includes('localhost') || socket.handshake.headers.host?.includes('127.0.0.1');
+        
+        if (isLocalhost && user.isHost && room.gameType === 'horse-race') {
+            // 전체 탈것 목록
+            const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+            const VEHICLE_NAMES = {
+                'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
+                'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터',
+                '자동차': 'car', '로켓': 'rocket', '새': 'bird', '보트': 'boat', '자전거': 'bicycle',
+                '토끼': 'rabbit', '거북이': 'turtle', '독수리': 'eagle', '킥보드': 'scooter', '헬리콥터': 'helicopter'
+            };
+            
+            if (trimmedMsg === '/탈것리스트') {
+                const currentVehicles = gameState.selectedVehicleTypes || ALL_VEHICLE_IDS.slice(0, 5);
+                const vehicleList = currentVehicles.map((id, i) => `${i + 1}. ${VEHICLE_NAMES[id] || id}`).join('\n');
+                const allList = ALL_VEHICLE_IDS.map(id => VEHICLE_NAMES[id]).join(', ');
+                
+                const systemMsg = {
+                    userName: '🎮 시스템',
+                    message: `현재 탈것: \n${vehicleList}\n\n사용 가능한 탈것: ${allList}\n\n변경: /탈것 [개수] [탈것1] [탈것2] ...\n예: /탈것 3 토끼 독수리 헬리콥터`,
+                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    isSystem: true
+                };
+                socket.emit('newMessage', systemMsg);
+                return;
+            }
+            
+            if (trimmedMsg.startsWith('/탈것 ')) {
+                const parts = trimmedMsg.substring(4).trim().split(/\s+/);
+                const count = parseInt(parts[0]);
+                
+                if (isNaN(count) || count < 2 || count > 5) {
+                    socket.emit('newMessage', {
+                        userName: '🎮 시스템',
+                        message: '탈것 개수는 2~5 사이여야 합니다.',
+                        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                        isSystem: true
+                    });
+                    return;
+                }
+                
+                const vehicleNames = parts.slice(1);
+                if (vehicleNames.length !== count) {
+                    socket.emit('newMessage', {
+                        userName: '🎮 시스템',
+                        message: `탈것을 ${count}개 입력해주세요. (현재 ${vehicleNames.length}개)`,
+                        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                        isSystem: true
+                    });
+                    return;
+                }
+                
+                const vehicleIds = [];
+                for (const name of vehicleNames) {
+                    const id = VEHICLE_NAMES[name] || (ALL_VEHICLE_IDS.includes(name) ? name : null);
+                    if (!id) {
+                        socket.emit('newMessage', {
+                            userName: '🎮 시스템',
+                            message: `'${name}'은(는) 유효한 탈것이 아닙니다.`,
+                            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                            isSystem: true
+                        });
+                        return;
+                    }
+                    vehicleIds.push(id);
+                }
+                
+                // 탈것 설정 저장
+                gameState.selectedVehicleTypes = vehicleIds;
+                gameState.availableHorses = vehicleIds.map((_, i) => i);
+                
+                // 모든 클라이언트에게 알림
+                io.to(room.roomId).emit('vehicleTypesUpdated', {
+                    vehicleTypes: vehicleIds,
+                    availableHorses: gameState.availableHorses
+                });
+                
+                const vehicleListStr = vehicleIds.map(id => VEHICLE_NAMES[id]).join(', ');
+                io.to(room.roomId).emit('newMessage', {
+                    userName: '🎮 시스템',
+                    message: `탈것이 변경되었습니다: ${vehicleListStr}`,
+                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    isSystem: true
+                });
+                return;
+            }
+        }
+
+        // Gemini AI 명령어 처리 (/gemini 질문)
         if (trimmedMsg.startsWith('/gemini ')) {
             const prompt = trimmedMsg.substring(8).trim();
             if (prompt) {

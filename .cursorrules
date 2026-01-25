@@ -1,0 +1,730 @@
+# LAMDiceBot Project Rules
+
+## 1. Core Principles
+
+### No Over-Explanation
+Skip unnecessary preambles like "This code does...". Report only core code and changes concisely.
+
+### Senior Standards
+Maintain 10+ years senior programmer-level code quality:
+- **Clean Code**: Clear variable names, functions do one thing
+- **DRY**: Eliminate duplicate code, extract common logic
+- **Readability**: Comments explain "why", code expresses "what"
+- **Performance**: Prevent unnecessary operations, avoid memory leaks
+
+### Context Awareness
+Ignore hardcoded paths. Always auto-detect project root based on pwd.
+```javascript
+// ❌ NEVER: Hardcoded absolute paths
+const configPath = 'D:/Work/coin/LAMDiceBot/config/dice-config.json';
+
+// ✅ REQUIRED: Relative paths
+const configPath = './config/dice-config.json';
+```
+
+## 2. Documentation Workflow
+
+### Project Plan First
+Create or update `docs/project_plan.md` before starting work.
+
+**Required sequence:**
+1. Before work → Update plan document
+2. During work → Reflect progress immediately
+3. After work → Record completion status
+
+### Append-Only Updates (CRITICAL!)
+When updating plan documents, **NEVER delete existing content**. Always append new content.
+
+**Required:**
+- ❌ Forbidden: Delete content or rewrite
+- ✅ Required: Keep existing + append new
+- Preserve history with date/time
+
+**Correct:**
+```markdown
+# Project Plan
+
+## [2025-01-25 09:00 KST] Initial development
+- Server Socket events
+- Client UI
+
+## [2025-01-25 14:00 KST] Add roulette  ← Append!
+- Roulette component
+```
+
+**Wrong:**
+```markdown
+# Project Plan
+
+## [2025-01-25 14:00 KST] Add roulette  ← ❌ Deleted history!
+```
+
+### Scannability
+Use bullet points and tables. Keep minimal core content.
+
+### Update Cycle
+Reflect progress immediately after file creation/modification.
+
+## 3. Project Overview
+
+Real-time multiplayer gaming platform.
+
+**Core Values:**
+- 100% Fairness: Server-side RNG prevents manipulation
+- Component Reusability: Maximize React common components
+- Externalize Configuration: Manage game rules/probabilities via JSON
+
+**Tech Stack:**
+- Node.js 14+
+- Express.js
+- Socket.IO (real-time WebSocket)
+- React (client)
+- Railway deployment
+
+## 4. File Structure
+```
+LAMDiceBot/
+├── server/
+│   ├── server.js              # Express + Socket.IO server
+│   ├── config/                # Server configuration
+│   └── utils/                 # Server utilities
+├── client/
+│   └── src/
+│       ├── components/
+│       │   ├── common/        # Common components (MUST REUSE!)
+│       │   │   ├── Chat.jsx
+│       │   │   ├── UserList.jsx
+│       │   │   └── GameStatus.jsx
+│       │   ├── games/         # Game-specific components
+│       │   │   ├── Dice/
+│       │   │   └── Roulette/
+│       │   └── layout/
+│       ├── hooks/             # Custom hooks
+│       │   ├── useSocket.js
+│       │   └── useGameState.js
+│       ├── config/            # Client configuration
+│       └── utils/
+├── config/                    # Game configuration JSON
+│   ├── dice-config.json
+│   └── roulette-config.json
+├── docs/                      # Documentation
+└── .cursor/commands/          # Frequently used commands
+```
+
+## 5. Coding Conventions
+
+### JavaScript/React Naming
+```javascript
+// Variables: camelCase
+const userName = 'Alice';
+const gameState = { isStarted: false };
+
+// Constants: UPPER_SNAKE_CASE
+const MAX_CONNECTIONS = 50;
+const PORT = 3000;
+
+// Functions: Start with verb
+function handleRollDice() { ... }
+function validateInput() { ... }
+
+// Components: PascalCase
+function DiceGame() { ... }
+function UserList() { ... }
+
+// Hooks: Start with 'use'
+function useSocket() { ... }
+function useGameState() { ... }
+
+// Socket events: camelCase
+socket.on('rollDice', ...)
+socket.emit('diceResult', ...)
+```
+
+### File Naming
+
+- Components: PascalCase.jsx (Chat.jsx, UserList.jsx)
+- Hooks: camelCase.js (useSocket.js, useGameState.js)
+- Utils: camelCase.js (configLoader.js, timeUtils.js)
+- Config: kebab-case.json (dice-config.json, roulette-config.json)
+
+### Comment Rules
+
+All comments MUST be in Korean:
+```javascript
+// ❌ Bad: English comments
+// Process user input
+function processInput(data) { ... }
+
+// ✅ Good: Korean comments
+// 사용자 입력 처리
+function processInput(data) { ... }
+```
+
+## 6. Core Development Principles (MUST FOLLOW!)
+
+### 1. Maximize Component Reusability (TOP PRIORITY!)
+
+Always extract common functionality into reusable components.
+```jsx
+// ❌ FORBIDDEN: Create separate chat per game
+function DiceChat() { ... }
+function RouletteChat() { ... }
+
+// ✅ REQUIRED: Reuse common components
+import Chat from '../../common/Chat';
+
+<Chat socket={socket} roomId="dice-room" />
+<Chat socket={socket} roomId="roulette-room" />
+```
+
+**Common components list (always reuse):**
+- `Chat.jsx` - Chat
+- `UserList.jsx` - User list
+- `GameStatus.jsx` - Game status
+- `useSocket.js` - Socket connection management
+- `useGameState.js` - Game state management
+
+### 2. Externalize Configuration (JSON REQUIRED!)
+
+Separate all settings like probabilities and game rules into JSON files.
+```javascript
+// ❌ FORBIDDEN: Hardcoding
+const MAX_DICE_VALUE = 6;
+const WIN_PROBABILITY = 0.05;
+
+// ✅ REQUIRED: Load from JSON
+const config = await loadGameConfig('dice');
+const maxValue = config.rules.maxValue;
+const winProb = config.probabilities.win;
+```
+
+**Config JSON Structure:**
+```json
+{
+  "gameName": "게임 이름",
+  "rules": {
+    "minValue": 1,
+    "maxValue": 6,
+    "maxPlayers": 50
+  },
+  "probabilities": {
+    "criticalSuccess": 0.05,
+    "criticalFailure": 0.05
+  },
+  "messages": {
+    "welcome": "환영 메시지",
+    "gameStart": "게임 시작 메시지",
+    "gameEnd": "게임 종료 메시지"
+  },
+  "ui": {
+    "theme": "dark",
+    "animationDuration": 1000,
+    "showHistory": true
+  }
+}
+```
+
+**Probability setting rules:**
+- All probabilities: 0.0 ~ 1.0 values
+- Not percentages (5% → 0.05)
+- Probability sum must be ≤ 1.0
+
+### 3. Server-Side RNG (ABSOLUTELY REQUIRED!)
+
+For fairness, always generate random numbers only on the server.
+```javascript
+// ❌ ABSOLUTELY FORBIDDEN: Client-side RNG (can be manipulated!)
+const result = Math.floor(Math.random() * 6) + 1;
+
+// ✅ REQUIRED: Server-side only (cannot be manipulated)
+const crypto = require('crypto');
+const result = crypto.randomInt(1, 7);
+```
+
+### 4. Input Validation (ALWAYS REQUIRED!)
+
+Validate input in all Socket events and APIs.
+```javascript
+socket.on('rollDice', (data) => {
+    // ✅ REQUIRED: Input validation
+    if (!data || !data.userId) {
+        console.error('[rollDice] Missing required data:', socket.id);
+        return socket.emit('error', { message: 'Missing required data' });
+    }
+    
+    if (data.maxValue < 1 || data.maxValue > 10000) {
+        console.error('[rollDice] Range error:', data.maxValue);
+        return socket.emit('error', { message: 'Range error' });
+    }
+    
+    // Prevent XSS
+    if (typeof data.userId !== 'string') {
+        return socket.emit('error', { message: 'Invalid type' });
+    }
+    
+    // ... Process logic
+});
+```
+
+### 5. Error Handling (try-catch REQUIRED!)
+
+Handle errors with try-catch in all async functions.
+```javascript
+socket.on('someEvent', async (data) => {
+    try {
+        // Process logic
+        console.log('[someEvent] Start processing:', socket.id, data);
+        const result = await processData(data);
+        
+        socket.emit('success', result);
+        
+    } catch (error) {
+        console.error('[someEvent] Error:', error);
+        socket.emit('error', { 
+            message: 'Server error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+```
+
+### 6. Korean Time Zone (UTC+9)
+
+Always use UTC+9 (Korean Time).
+```javascript
+const moment = require('moment-timezone');
+
+// ✅ REQUIRED: Korean time
+function getKoreanTime() {
+  return moment().tz('Asia/Seoul');
+}
+
+function formatKoreanTime(date, format = 'YYYY-MM-DD HH:mm:ss') {
+  return moment(date).tz('Asia/Seoul').format(format);
+}
+
+function getLogTimestamp() {
+  return getKoreanTime().format('YYYY-MM-DD HH:mm:ss') + ' KST';
+}
+
+// Usage
+console.log(`[${getLogTimestamp()}] Event occurred`);
+```
+
+**Apply to:**
+- Server logs
+- Database timestamps
+- update-log.txt dates
+- Git commit message dates
+- UI displayed times
+- Console logs
+
+## 7. Socket.IO Patterns
+
+### Event Naming
+
+- Client → Server: Imperative (rollDice, spinRoulette, sendChat)
+- Server → Client: State transfer (diceResult, rouletteResult, chatMessage)
+- Always camelCase
+
+### New Socket Event Template
+```javascript
+// Server (server.js)
+socket.on('eventName', (data) => {
+    // 1. Input validation
+    if (!data || !data.requiredField) {
+        console.error(`[eventName] Missing required data:`, socket.id);
+        return socket.emit('error', { message: 'Missing required data' });
+    }
+    
+    try {
+        // 2. Process logic
+        console.log(`[eventName] Processing:`, socket.id, data);
+        
+        // 3. Send result
+        io.emit('resultEventName', { 
+            success: true,
+            data: resultData,
+            timestamp: getKoreanTime().toISOString()
+        });
+        
+    } catch (error) {
+        console.error(`[eventName] Error:`, error);
+        socket.emit('error', { message: 'Server error' });
+    }
+});
+
+// Client (HTML/JSX)
+function handleEvent() {
+    const data = { requiredField: value };
+    
+    console.log('[eventName] Sending:', data);
+    socket.emit('eventName', data);
+}
+
+socket.on('resultEventName', (data) => {
+    console.log('[resultEventName] Received:', data);
+    
+    if (data.success) {
+        // Update UI
+    }
+});
+```
+
+### Common Events (Reuse across all games)
+```javascript
+// Chat (reuse)
+socket.on('sendChat', (data) => { ... });
+socket.emit('chatMessage', { ... });
+
+// User join/leave (reuse)
+socket.on('userJoined', (data) => { ... });
+socket.on('userLeft', (data) => { ... });
+
+// Game-specific events
+socket.on('rollDice', (data) => { ... });      // Dice only
+socket.on('spinRoulette', (data) => { ... });  // Roulette only
+```
+
+## 8. React Component Design Pattern
+
+### New Game Component Template
+```jsx
+import React, { useState, useEffect } from 'react';
+import Chat from '../../common/Chat';
+import UserList from '../../common/UserList';
+import GameStatus from '../../common/GameStatus';
+import { useSocket } from '../../../hooks/useSocket';
+import { loadGameConfig } from '../../../utils/configLoader';
+
+function {GameName}() {
+  const [config, setConfig] = useState(null);
+  const [gameState, setGameState] = useState({
+    isStarted: false,
+    participants: []
+  });
+  
+  const { socket, isConnected } = useSocket(process.env.REACT_APP_SERVER_URL);
+  
+  // Load config
+  useEffect(() => {
+    loadGameConfig('{game-name}').then(setConfig);
+  }, []);
+  
+  // Socket event listeners
+  useEffect(() => {
+    if (!socket) return;
+    
+    socket.on('gameStarted', (data) => {
+      console.log('[{GameName}] Game started:', data);
+      setGameState(prev => ({ ...prev, isStarted: true }));
+    });
+    
+    socket.on('gameEnded', (data) => {
+      console.log('[{GameName}] Game ended:', data);
+      setGameState(prev => ({ ...prev, isStarted: false }));
+    });
+    
+    return () => {
+      socket.off('gameStarted');
+      socket.off('gameEnded');
+    };
+  }, [socket]);
+  
+  const handleStartGame = () => {
+    socket.emit('start{GameName}', { /* parameters */ });
+  };
+  
+  if (!config) return <div>Loading...</div>;
+  
+  return (
+    <div className="game-container">
+      <h1>{config.gameName}</h1>
+      
+      <GameStatus 
+        isStarted={gameState.isStarted}
+        participants={gameState.participants}
+      />
+      
+      <div className="game-board">
+        {/* Game-specific UI */}
+        <button onClick={handleStartGame}>Start Game</button>
+      </div>
+      
+      <div className="sidebar">
+        <UserList socket={socket} />
+        <Chat socket={socket} roomId="{game-name}-room" />
+      </div>
+    </div>
+  );
+}
+
+export default {GameName};
+```
+
+## 9. Config File Writing Rules
+
+### Structure
+
+All game configuration JSON must follow this structure:
+```json
+{
+  "gameName": "Game Name",
+  "rules": {
+    // Game rules, ranges, limits
+  },
+  "probabilities": {
+    // Probability settings (0.0 ~ 1.0)
+  },
+  "messages": {
+    // UI messages (in Korean)
+  },
+  "ui": {
+    // UI settings
+  }
+}
+```
+
+### Validation Function (REQUIRED)
+```javascript
+function validateGameConfig(config) {
+  const errors = [];
+  
+  // 1. Check required fields
+  if (!config.gameName) errors.push('gameName is missing');
+  if (!config.rules) errors.push('rules is missing');
+  
+  // 2. Validate rules
+  if (config.rules) {
+    if (config.rules.minValue >= config.rules.maxValue) {
+      errors.push('minValue must be less than maxValue');
+    }
+    if (config.rules.maxPlayers <= 0) {
+      errors.push('maxPlayers must be greater than 0');
+    }
+  }
+  
+  // 3. Validate probabilities
+  if (config.probabilities) {
+    let totalProb = 0;
+    for (const [key, value] of Object.entries(config.probabilities)) {
+      if (value < 0 || value > 1.0) {
+        errors.push(`Probability ${key} must be between 0.0~1.0: ${value}`);
+      }
+      totalProb += value;
+    }
+    if (totalProb > 1.0) {
+      errors.push(`Probability sum exceeds 1.0: ${totalProb.toFixed(2)}`);
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors: errors
+  };
+}
+```
+
+## 10. Git Commit and Update Log
+
+### Commit Message Format
+```
+[type] Brief description (in Korean)
+
+Detailed description (optional)
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation change
+- style: Code formatting
+- refactor: Refactoring
+- perf: Performance improvement
+- security: Security enhancement
+```
+
+### update-log.txt Update (REQUIRED)
+
+When writing commit messages, **ALWAYS** update update-log.txt simultaneously.
+
+**Include (player-facing):**
+✅ New features
+✅ Bug fixes
+✅ UI/UX improvements
+✅ Game rule changes
+✅ Noticeable performance improvements
+
+**Exclude (developer/internal):**
+❌ Code refactoring
+❌ Internal logic changes
+❌ Animation detail numbers (10%, 50%, etc.)
+❌ Bot, automation script work
+❌ Test code additions
+❌ Dev environment setup
+❌ Dependency updates
+❌ Comment additions/modifications
+
+**Decision criteria:**
+"Should players know about this change?"
+- YES → Add to update-log.txt
+- NO → Commit message only
+
+**update-log.txt format:**
+```markdown
+## [YYYY-MM-DD] (UTC+9)
+- Player-important changes only
+```
+
+### Example
+
+**Commit message:**
+```
+feat: Add dice roll animation
+
+- A animation 10% probability
+- B animation 50% probability
+- C animation 40% probability
+- Animation duration 1000ms
+- Improve auto-test bot
+```
+
+**update-log.txt:**
+```
+## [2025-01-25] (UTC+9)
+- Added dice roll animation
+```
+
+## 11. Documentation Update Rules
+
+When modifying:
+- server.js → Check impact on security guide
+- Deployment changes → Update Railway deployment guide
+- New features → Update README usage section
+- Major version updates → Create vX.X_update.md
+- New settings → Add setting description to config/README.md
+
+## 12. Security (Auto-apply)
+
+### Rate Limiting
+Auto-apply to all new endpoints
+
+### Input Validation Template
+```javascript
+function validateInput(data) {
+  if (!data) return false;
+  
+  // Type check
+  if (typeof data.field !== 'string') return false;
+  
+  // Range check
+  if (data.value < MIN || data.value > MAX) return false;
+  
+  // Prevent XSS (if needed)
+  const sanitized = escapeHtml(data.text);
+  
+  return true;
+}
+```
+
+## 13. Memory Management
+
+- Cleanup work in 'disconnect' event
+- Clear interval/timeout
+- Prevent infinite data accumulation in global state
+- Include clear deletion logic when using Map/Set
+
+## 14. Deployment (Railway)
+
+- Be careful when changing package.json "start" script
+- Use environment variables: process.env.PORT
+- Add to .env.example when adding new environment variables
+- Document deployment impact
+- Confirm config folder is included in deployment
+
+## 15. Absolute Prohibitions
+
+❌ **NEVER do the following:**
+
+1. **Generate random numbers on client** (can be manipulated)
+2. **Hardcode Config values in code**
+3. **Skip input validation**
+4. **Skip error handling in async functions**
+5. **Skip input validation in Socket events**
+6. **Use var keyword** (use const, let)
+7. **Abuse global variables**
+8. **Duplicate chat/userlist components**
+9. **Split server.js into multiple files**
+10. **Externalize CSS/JS from HTML**
+
+## 16. Task Priority
+
+Consider in this order when working:
+
+1. **Security** (input validation, rate limiting)
+2. **Error handling** (try-catch, error responses)
+3. **Logging** (debugging ease)
+4. **User feedback** (notifications, status display)
+5. **Code readability** (comments, clear names)
+
+## 17. New Feature Checklist
+
+- [ ] Confirm common component reuse
+- [ ] Create and validate Config JSON (probability sum ≤ 1.0)
+- [ ] Add server Socket event (include input validation)
+- [ ] Add client emit/on handlers
+- [ ] Add try-catch error handling
+- [ ] Add console logs (bidirectional)
+- [ ] Use Korean time (UTC+9)
+- [ ] Update README
+- [ ] Update update-log.txt (player-facing only)
+- [ ] Complete local testing
+- [ ] Complete multiplayer testing
+
+## 18. Troubleshooting Quick Reference
+
+### Socket Connection Failure
+```javascript
+console.log('Socket connection status:', socket.connected);
+console.log('Server URL:', process.env.REACT_APP_SERVER_URL);
+```
+
+### Events Not Working
+- Check console logs on both server/client sides
+- Check event name typos (case-sensitive)
+- Verify socket.on listener is registered
+
+### Config File Load Failure
+```bash
+# Check config file path
+ls config/dice-config.json
+
+# Validate JSON syntax (use Cursor Command)
+/validate-config
+```
+
+### Probability Sum Error
+```javascript
+const total = Object.values(config.probabilities).reduce((a, b) => a + b, 0);
+console.log('Probability sum:', total); // Must be ≤ 1.0
+```
+
+## 19. Cursor Commands
+
+Project has these Commands (`/` input):
+
+- `/add-new-game` - Add new game
+- `/add-socket-event` - Add Socket event
+- `/commit-with-log` - Commit + update-log update
+- `/validate-config` - Validate Config JSON
+
+## 20. Additional Resources
+
+- `README.md` - Project introduction
+- `Railway배포완벽가이드.md` - Deployment guide
+- `보안가이드.md` - Security policy
+- `docs/DEVELOPMENT_GUIDE.md` - Detailed development guide
+- `docs/QUICK_START.md` - Quick start guide
+
+---
+
+**These rules are automatically referenced by Cursor and applied to all work.**
