@@ -1317,9 +1317,15 @@
                         <span style="font-size: 24px; margin-right: 8px;">👥</span>
                         <span style="font-weight: 600;">팀 배정</span>
                     </label>
+                    <label style="display: flex; align-items: center; cursor: not-allowed; flex: 1; min-width: 120px; padding: 15px; background: #f5f5f5; border-radius: 8px; border: 2px solid #8b4513; opacity: 0.6;">
+                        <input type="radio" name="gameType" value="horse-race" disabled style="width: 20px; height: 20px; margin-right: 10px; cursor: not-allowed;" />
+                        <span style="font-size: 24px; margin-right: 8px;">❓</span>
+                        <span style="font-weight: 600;">출시예정</span> <!--🐎--->
+                    </label>
+                                   
                 </div>
                 <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                    룰렛/팀 배정을 선택하면 전용 페이지로 이동합니다.
+                    룰렛/팀배정를 선택하면 전용 페이지로 이동합니다.
                 </div>
             </div>
             
@@ -2543,6 +2549,10 @@
                     gameTypeIcon = '👥';
                     gameTypeLabel = '팀 배정';
                     gameTypeColor = '#10b981';
+                } else if (room.gameType === 'horse-race') {
+                    gameTypeIcon = '🐎';
+                    gameTypeLabel = '경마';
+                    gameTypeColor = '#8b4513';
                 }
                 const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
                 
@@ -2645,6 +2655,18 @@
                     isPrivate: room.isPrivate
                 }));
                 window.location.href = '/team-game-multiplayer.html?joinRoom=true';
+                return;
+            }
+            
+            // 경마 방이면 경마 페이지로 이동
+            if (room && room.gameType === 'horse-race') {
+                localStorage.setItem('horseRaceUserName', userName);
+                localStorage.setItem('pendingHorseRaceJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate
+                }));
+                window.location.href = '/horse-race-multiplayer.html?joinRoom=true';
                 return;
             }
             
@@ -3276,6 +3298,22 @@
                 return;
             }
             
+            // 경마 게임이면 경마 페이지로 이동
+            if (gameType === 'horse-race') {
+                // 이름을 저장하고 경마 페이지로 이동
+                localStorage.setItem('horseRaceUserName', hostName);
+                localStorage.setItem('pendingHorseRaceRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser
+                }));
+                window.location.href = '/horse-race-multiplayer.html?createRoom=true';
+                return;
+            }
+            
             // 방 생성 (게임 룰은 방 생성 후 설정)
             socket.emit('createRoom', { 
                 userName: hostName,
@@ -3306,6 +3344,43 @@
             
             // 방 정보 확인 (비공개 방인지 체크)
             const room = roomsList.find(r => r.roomId === selectedRoomId);
+            
+            // 룰렛 방이면 룰렛 페이지로 이동
+            if (room && room.gameType === 'roulette') {
+                localStorage.setItem('rouletteUserName', userName);
+                localStorage.setItem('pendingRouletteJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate
+                }));
+                window.location.href = '/roulette-game-multiplayer.html?joinRoom=true';
+                return;
+            }
+            
+            // 팀 배정 방이면 팀 페이지로 이동
+            if (room && room.gameType === 'team') {
+                localStorage.setItem('teamUserName', userName);
+                localStorage.setItem('pendingTeamJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate
+                }));
+                window.location.href = '/team-game-multiplayer.html?joinRoom=true';
+                return;
+            }
+            
+            // 경마 방이면 경마 페이지로 이동
+            if (room && room.gameType === 'horse-race') {
+                localStorage.setItem('horseRaceUserName', userName);
+                localStorage.setItem('pendingHorseRaceJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate
+                }));
+                window.location.href = '/horse-race-multiplayer.html?joinRoom=true';
+                return;
+            }
+            
             if (room && room.isPrivate) {
                 // 비공개 방이면 비밀번호 입력 모달 표시
                 showPasswordModal(selectedRoomId, userName);
