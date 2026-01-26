@@ -359,21 +359,33 @@
 
         /* 준비 섹션 */
         .ready-section {
-            background: #f8f9fa;
+            background: #f5e6d3;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
             border: 2px solid #8b4513;
         }
+        
+        /* 준비 버튼 hover 효과 */
+        #readyButton:hover {
+            background: linear-gradient(135deg, #a0522d 0%, #8b4513 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3);
+        }
 
         .users-list {
-            background: #f8f9fa;
+            background: #faf5ef;
             border-radius: 8px;
             padding: 12px;
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             min-height: 50px;
+        }
+        
+        /* 준비 섹션 내부 리스트도 갈색톤 */
+        .ready-section .users-list {
+            background: #faf5ef;
         }
 
         .user-tag {
@@ -642,11 +654,21 @@
 
         /* 게임 모드 선택 */
         .game-mode-section {
-            background: #f8f9fa;
+            background: #f5e6d3;
             border: 2px solid #8b4513;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 20px;
+        }
+        
+        .game-mode-section label:hover {
+            background: #faf5ef;
+            transform: translateX(2px);
+        }
+        
+        .game-mode-section label input[type="radio"]:checked + span {
+            color: #8b4513;
+            font-weight: 600;
         }
 
         @media (max-width: 1200px) {
@@ -814,7 +836,7 @@
             <div class="ready-section" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
-                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: #000; font-weight: 600;">준비</button>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); color: #fff; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s;">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList">
                     <div style="color: #999; text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
@@ -822,19 +844,26 @@
             </div>
 
             <!-- 게임 모드 선택 (호스트 전용) -->
-            <div class="game-mode-section" id="gameModeSection" style="display: none;">
-                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 10px;">🎮 게임 모드</label>
-                <div style="display: flex; gap: 15px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="horseRaceMode" value="first" checked style="width: auto; margin: 0;">
-                        <span>1등 찾기</span>
+            <div class="game-mode-section" id="gameModeSection" style="display: none; background: #f5e6d3; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #8b4513;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 20px; margin-right: 8px;">📋</span>
+                    <label style="font-weight: bold; color: #333; margin: 0;">게임 모드</label>
+                </div>
+                
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #8b4513; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <input type="radio" name="horseRaceMode" value="first" id="horseRaceModeFirst" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-weight: 500;">1등 찾기</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="horseRaceMode" value="last" style="width: auto; margin: 0;">
-                        <span>꼴등 찾기</span>
+                    <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #8b4513; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <input type="radio" name="horseRaceMode" value="last" id="horseRaceModeLast" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-weight: 500;">꼴등 찾기</span>
                     </label>
                 </div>
-                <button onclick="updateGameMode()" style="width: auto; padding: 8px 15px; font-size: 14px; margin-top: 10px; color: #000; font-weight: 600;">모드 변경</button>
+                
+                <button onclick="updateGameMode()" id="gameModeSaveButton" style="width: 100%; padding: 10px; font-size: 14px; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); color: white; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 8px;">저장</button>
+                
+                <div style="font-size: 12px; color: #666; text-align: center;">게임 시작 전에만 수정 가능합니다</div>
             </div>
 
             <!-- 탈것 선택 섹션 -->
@@ -1268,12 +1297,14 @@
             const btn = document.getElementById('readyButton');
             if (isReady) {
                 btn.textContent = '준비 취소';
-                btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
-                btn.style.color = '#000';
+                // 준비 취소 버튼: 부드러운 갈색톤 (눈에 편한 색상)
+                btn.style.background = 'linear-gradient(135deg, #a0522d 0%, #8b4513 100%)';
+                btn.style.color = '#fff';
             } else {
                 btn.textContent = '준비';
-                btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
-                btn.style.color = '#000';
+                // 준비 버튼: 밝은 갈색톤
+                btn.style.background = 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)';
+                btn.style.color = '#fff';
             }
         }
 
@@ -1347,21 +1378,52 @@
             const track = document.getElementById('raceTrack');
             const trackContainer = document.getElementById('raceTrackContainer');
             
-            if (!track || !trackContainer) return;
+            if (!track || !trackContainer) {
+                console.warn('[renderTrackForSelection] track 또는 trackContainer를 찾을 수 없음');
+                return;
+            }
             
             trackContainer.style.display = 'block';
             track.innerHTML = '';
             
             const trackWidth = trackContainer.offsetWidth || 700;
             const horseCount = availableHorses.length;
+            
+            if (horseCount === 0) {
+                console.warn('[renderTrackForSelection] availableHorses가 비어있음');
+                return;
+            }
+            
             const wallHeight = 6;
             const laneHeight = Math.min(75, Math.floor((350 - wallHeight * (horseCount - 1)) / horseCount));
             const totalLaneHeight = laneHeight + wallHeight;
             
+            console.log('[renderTrackForSelection] 시작:', {
+                horseCount,
+                selectedVehicleTypes: selectedVehicleTypes,
+                ALL_VEHICLES: ALL_VEHICLES.length,
+                vehicleThemes: Object.keys(vehicleThemes).length
+            });
+            
             availableHorses.forEach((horseIndex, rank) => {
-                const vehicleId = selectedVehicleTypes ? selectedVehicleTypes[horseIndex] : ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id;
+                // selectedVehicleTypes가 있으면 사용, 없으면 ALL_VEHICLES에서 가져오기
+                // 말 선택 화면에서는 availableHorses 순서대로 표시하므로 horseIndex를 그대로 사용
+                const vehicleId = selectedVehicleTypes && selectedVehicleTypes[horseIndex] 
+                    ? selectedVehicleTypes[horseIndex] 
+                    : (ALL_VEHICLES.length > 0 ? ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id : 'car');
+                
+                console.log(`[renderTrackForSelection] 말 ${horseIndex} (rank ${rank}): vehicleId=${vehicleId}`);
+                
                 const vehicleBg = getVehicleBackground(vehicleId);
                 const vehicle = ALL_VEHICLES.find(v => v.id === vehicleId) || ALL_VEHICLES[0];
+                
+                console.log(`[renderTrackForSelection] 말 ${horseIndex} (rank ${rank}):`, {
+                    vehicleId: vehicleId,
+                    bg: vehicleBg.bg,
+                    bgSize: vehicleBg.bgSize,
+                    backgroundImage: vehicleBg.backgroundImage,
+                    vehicleThemes_loaded: Object.keys(vehicleThemes).length > 0
+                });
                 
                 // 레인 생성
                 const lane = document.createElement('div');
@@ -1490,7 +1552,8 @@
                 grid: !!grid,
                 availableHorses: availableHorses.length,
                 ALL_VEHICLES: ALL_VEHICLES.length,
-                selectedVehicleTypes: selectedVehicleTypes
+                selectedVehicleTypes: selectedVehicleTypes,
+                vehicleThemes_loaded: Object.keys(vehicleThemes).length
             });
             
             if (!grid) {
@@ -1500,8 +1563,25 @@
             
             grid.innerHTML = '';
             
-            // 트랙 표시
-            renderTrackForSelection();
+            // 트랙 표시 (배경 이미지 포함)
+            // selectedVehicleTypes가 설정되어 있어야 배경이 제대로 표시됨
+            console.log('[renderHorseSelection] renderTrackForSelection 호출 전:', {
+                selectedVehicleTypes: selectedVehicleTypes,
+                availableHorses: availableHorses.length,
+                vehicleThemes_loaded: Object.keys(vehicleThemes).length > 0
+            });
+            
+            // vehicleThemes가 로드되지 않았으면 로드 대기
+            if (Object.keys(vehicleThemes).length === 0) {
+                console.warn('[renderHorseSelection] vehicleThemes가 로드되지 않음, 로드 대기...');
+                loadVehicleThemes().then(() => {
+                    renderTrackForSelection();
+                }).catch(() => {
+                    renderTrackForSelection(); // 폴백으로 렌더링
+                });
+            } else {
+                renderTrackForSelection();
+            }
             
             if (availableHorses.length === 0) {
                 info.textContent = '탈것 목록을 불러오는 중...';
@@ -1712,17 +1792,37 @@
             const horseElements = [];
             let maxDuration = 0;
             
-            horseRankings.forEach((horseIndex, rank) => {
-                // 탈것 타입 가져오기 (selectedVehicleTypes가 있으면 사용, 없으면 랜덤)
-                const vehicleId = selectedVehicleTypes ? selectedVehicleTypes[horseIndex] : ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id;
+            // 선택 화면에서 본 원래 순서 유지 (availableHorses 순서)
+            // horseRankings는 순위 순서이므로, 원래 말 인덱스 순서로 매핑
+            const originalHorseOrder = availableHorses.length > 0 ? availableHorses : 
+                                      (horseRankings.length > 0 ? [...new Set(horseRankings)].sort((a, b) => a - b) : []);
+            
+            console.log('[startRaceAnimation] 시작:', {
+                horseRankings: horseRankings,
+                selectedVehicleTypes: selectedVehicleTypes,
+                availableHorses: availableHorses
+            });
+            
+            // 말 선택 화면과 동일한 순서로 레인 배치 (availableHorses 순서)
+            availableHorses.forEach((horseIndex, laneIndex) => {
+                // 탈것 타입 가져오기: 선택 화면에서 본 원래 순서대로
+                const vehicleId = selectedVehicleTypes && selectedVehicleTypes[horseIndex] 
+                    ? selectedVehicleTypes[horseIndex] 
+                    : (ALL_VEHICLES.length > 0 ? ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id : 'car');
+                
+                // 해당 말의 순위 찾기 (horseRankings에서 horseIndex의 위치)
+                const rank = horseRankings.indexOf(horseIndex);
+                
+                console.log(`[startRaceAnimation] laneIndex ${laneIndex}: horseIndex=${horseIndex}, vehicleId=${vehicleId}, rank=${rank} (${rank === 0 ? '1등' : rank === 1 ? '2등' : rank === 2 ? '3등' : rank + 1 + '등'})`);
+                
                 const vehicleBg = getVehicleBackground(vehicleId);
                 
-                // 레인 생성
+                // 레인 생성 (laneIndex로 위치 결정 - 말 선택 화면과 동일)
                 const lane = document.createElement('div');
                 lane.style.cssText = `
                     position: absolute;
                     left: 0;
-                    top: ${rank * totalLaneHeight}px;
+                    top: ${laneIndex * totalLaneHeight}px;
                     width: 100%;
                     height: ${laneHeight}px;
                     background-image: ${vehicleBg.bg};
@@ -1733,12 +1833,12 @@
                 `;
                 
                 // 레인 아래 벽 생성 (마지막 레인 제외)
-                if (rank < horseCount - 1) {
+                if (laneIndex < horseCount - 1) {
                     const wall = document.createElement('div');
                     wall.style.cssText = `
                         position: absolute;
                         left: 0;
-                        top: ${rank * totalLaneHeight + laneHeight}px;
+                        top: ${laneIndex * totalLaneHeight + laneHeight}px;
                         width: 100%;
                         height: ${wallHeight}px;
                         background: linear-gradient(180deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
@@ -1796,14 +1896,14 @@
                 horse.style.cssText = `
                     position: absolute;
                     left: 10px;
-                    top: ${rank * totalLaneHeight + 10}px;
+                    top: ${laneIndex * totalLaneHeight + 10}px;
                     width: 80px;
                     height: ${laneHeight - 10}px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    z-index: ${100 - rank};
+                    z-index: ${100 - laneIndex};
                 `;
                 
                 // 선택한 모든 사용자 이름 표시 (중복 선택 가능)
@@ -2740,9 +2840,28 @@
                 userHorseBets = data.userHorseBets;
             }
             
-            // 탈것 타입 업데이트
-            if (data.selectedVehicleTypes) {
+            // 탈것 타입 비교 (게임 시작 전 vs 게임 시작 후)
+            const beforeSelectedVehicleTypes = selectedVehicleTypes;
+            console.log('[경주 시작] selectedVehicleTypes 비교:', {
+                이전: beforeSelectedVehicleTypes,
+                서버에서_받은_값: data.selectedVehicleTypes,
+                horseRankings: data.horseRankings,
+                availableHorses: availableHorses
+            });
+            
+            // 탈것 타입 업데이트 (서버에서 전달된 것 사용, 없으면 기존 값 유지)
+            if (data.selectedVehicleTypes && data.selectedVehicleTypes.length > 0) {
+                // 서버에서 받은 값과 기존 값이 다르면 경고
+                if (JSON.stringify(selectedVehicleTypes) !== JSON.stringify(data.selectedVehicleTypes)) {
+                    console.warn('[경주 시작] ⚠️ selectedVehicleTypes가 변경됨!', {
+                        이전: selectedVehicleTypes,
+                        새로운: data.selectedVehicleTypes
+                    });
+                }
                 selectedVehicleTypes = data.selectedVehicleTypes;
+                console.log('[경주 시작] selectedVehicleTypes 업데이트:', selectedVehicleTypes);
+            } else {
+                console.warn('[경주 시작] selectedVehicleTypes가 전달되지 않음. 기존 값 유지:', selectedVehicleTypes);
             }
             
             // 말 선택 섹션 숨기기

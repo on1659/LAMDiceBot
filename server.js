@@ -1082,6 +1082,17 @@ io.on('connection', (socket) => {
                 }
                 gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
                 
+                // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정 (방 생성 시)
+                if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+                    const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+                    gameState.selectedVehicleTypes = [];
+                    const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+                    for (let i = 0; i < horseCount; i++) {
+                        gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+                    }
+                    console.log(`[방 생성] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
+                }
+                
                 // 호스트에게 말 선택 UI 표시
                 socket.emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
@@ -1090,7 +1101,7 @@ io.on('connection', (socket) => {
                     userHorseBets: { ...gameState.userHorseBets },
                     horseRaceMode: gameState.horseRaceMode || 'first',
                     raceRound: gameState.raceRound || 1,
-                    selectedVehicleTypes: gameState.selectedVehicleTypes || null
+                    selectedVehicleTypes: gameState.selectedVehicleTypes
                 });
                 // #region agent log
                 fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1082',message:'roomCreated horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
@@ -1268,6 +1279,17 @@ io.on('connection', (socket) => {
                         gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
                     }
                     
+                    // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정 (방 입장 시)
+                    if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+                        const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+                        gameState.selectedVehicleTypes = [];
+                        const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+                        for (let i = 0; i < gameState.availableHorses.length; i++) {
+                            gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+                        }
+                        console.log(`[방 입장] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
+                    }
+                    
                     // 모든 클라이언트에게 말 선택 UI 표시 (늦게 들어온 사용자 포함)
                     io.to(roomId).emit('horseSelectionReady', {
                         availableHorses: gameState.availableHorses,
@@ -1276,7 +1298,7 @@ io.on('connection', (socket) => {
                         userHorseBets: { ...gameState.userHorseBets },
                         horseRaceMode: gameState.horseRaceMode || 'first',
                         raceRound: gameState.raceRound || 1,
-                        selectedVehicleTypes: gameState.selectedVehicleTypes || null
+                        selectedVehicleTypes: gameState.selectedVehicleTypes
                     });
                     // #region agent log
                     fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1249',message:'roomJoined horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
@@ -2856,15 +2878,20 @@ io.on('connection', (socket) => {
         gameState.isHorseRaceActive = true;
         gameState.isGameActive = true;
         
-        // 전체 탈것 목록
-        const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
-        
-        // 탈것 타입이 설정되어 있지 않으면 랜덤 선택
+        // 탈것 타입은 이미 말 선택 UI가 표시될 때 설정되었으므로 절대 다시 설정하지 않음
+        // 사용자가 선택 화면에서 본 탈것과 동일하게 유지되어야 함
         if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
-            // 랜덤으로 탈것 선택 (플레이어 수에 맞게)
-            const count = Math.min(Math.max(players.length, 2), 5);
+            console.warn(`[경마 시작] selectedVehicleTypes가 설정되지 않음. 말 선택 UI에서 설정되어야 함.`);
+            const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+            const horseCount = gameState.availableHorses.length;
+            gameState.selectedVehicleTypes = [];
+            // 예외 상황: 랜덤으로 설정
             const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
-            gameState.selectedVehicleTypes = shuffled.slice(0, count);
+            for (let i = 0; i < horseCount; i++) {
+                gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+            }
+        } else {
+            console.log(`[경마 시작] selectedVehicleTypes 유지:`, gameState.selectedVehicleTypes);
         }
         
         // 말 수는 이미 결정되어 있음 (selectHorse에서 결정됨)
@@ -2957,6 +2984,17 @@ io.on('connection', (socket) => {
                     horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
                 }
                 gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+                
+                // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정
+                if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+                    const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+                    gameState.selectedVehicleTypes = [];
+                    // 랜덤으로 섞어서 말 수만큼 선택
+                    const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+                    for (let i = 0; i < horseCount; i++) {
+                        gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+                    }
+                }
                 
                 // 모든 클라이언트에게 말 선택 UI 표시
                 io.to(room.roomId).emit('horseSelectionReady', {
@@ -3273,6 +3311,15 @@ io.on('connection', (socket) => {
         gameState.userHorseBets = {}; // 베팅 초기화
         gameState.isReraceReady = false; // 재경주 준비 상태 해제
         
+        // 재경주 시 탈것 타입 새로 랜덤으로 설정
+        const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+        gameState.selectedVehicleTypes = [];
+        const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < horseCount; i++) {
+            gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+        }
+        console.log(`[재경주 준비] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
+        
         // 모든 클라이언트에게 말 선택 UI 표시 (재경주 대상자만)
         io.to(room.roomId).emit('horseSelectionReady', {
             availableHorses: gameState.availableHorses,
@@ -3282,7 +3329,7 @@ io.on('connection', (socket) => {
             horseRaceMode: gameState.horseRaceMode || 'first',
             raceRound: gameState.raceRound,
             isRerace: true,
-            selectedVehicleTypes: gameState.selectedVehicleTypes || null
+            selectedVehicleTypes: gameState.selectedVehicleTypes
         });
         
         console.log(`방 ${room.roomName} 재경주 준비 완료 - 라운드 ${gameState.raceRound}, 참가자: ${players.join(', ')}`);
@@ -3330,16 +3377,21 @@ io.on('connection', (socket) => {
         gameState.isHorseRaceActive = true;
         gameState.isGameActive = true;
         
+        // 재경주 시에도 기존 탈것 타입 유지 (사용자가 선택한 탈것과 동일하게)
         // 전체 탈것 목록
         const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
         
-        // 탈것 타입이 설정되어 있지 않으면 랜덤 선택
+        // 탈것 타입이 설정되어 있지 않으면 랜덤으로 할당
         if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+            console.warn(`[재경주 시작] selectedVehicleTypes가 설정되지 않음.`);
             gameState.selectedVehicleTypes = [];
+            // 랜덤으로 섞어서 말 수만큼 선택
+            const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
             for (let i = 0; i < gameState.availableHorses.length; i++) {
-                const randomVehicleId = ALL_VEHICLE_IDS[Math.floor(Math.random() * ALL_VEHICLE_IDS.length)];
-                gameState.selectedVehicleTypes.push(randomVehicleId);
+                gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
             }
+        } else {
+            console.log(`[재경주 시작] selectedVehicleTypes 유지:`, gameState.selectedVehicleTypes);
         }
         
         // 경주 결과 계산
@@ -3406,6 +3458,15 @@ io.on('connection', (socket) => {
             }
             gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
             
+            // 게임 종료 후 탈것 타입 새로 랜덤으로 설정
+            const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+            gameState.selectedVehicleTypes = [];
+            const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < horseCount; i++) {
+                gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+            }
+            console.log(`[경마 종료] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
+            
             // 모든 클라이언트에게 말 선택 UI 표시
             io.to(room.roomId).emit('horseSelectionReady', {
                 availableHorses: gameState.availableHorses,
@@ -3414,7 +3475,7 @@ io.on('connection', (socket) => {
                 userHorseBets: {}, // 초기화
                 horseRaceMode: gameState.horseRaceMode || 'first',
                 raceRound: gameState.raceRound || 1,
-                selectedVehicleTypes: gameState.selectedVehicleTypes || null
+                selectedVehicleTypes: gameState.selectedVehicleTypes
             });
         }
         
