@@ -236,9 +236,15 @@
             width: 100%;
             height: 400px;
             margin: 20px 0;
-            overflow: hidden;
+            overflow: visible;
             border-radius: 12px;
             background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 50%, #7CB342 100%);
+            position: relative;
+        }
+        
+        /* 순위 표시 이펙트 */
+        .finish-effect {
+            z-index: 10000 !important;
         }
 
         .race-track {
@@ -312,6 +318,189 @@
         
         .horse.racing .vehicle-sprite .frame1 { animation: frame1Anim 0.15s steps(1) infinite; }
         .horse.racing .vehicle-sprite .frame2 { animation: frame2Anim 0.15s steps(1) infinite; }
+        
+        /* ===== 기믹 이펙트 스타일 ===== */
+        
+        /* 스프린트 불꽃 이펙트 */
+        .gimmick-effect-sprint {
+            position: absolute;
+            left: -35px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 30px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .flame {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 25px solid #ff6600;
+            filter: blur(1px);
+            animation: flameFlicker 0.1s ease-in-out infinite alternate;
+        }
+        
+        .flame:nth-child(1) { left: 0; animation-delay: 0s; border-bottom-color: #ff4400; }
+        .flame:nth-child(2) { left: 10px; animation-delay: 0.05s; border-bottom-color: #ff6600; }
+        .flame:nth-child(3) { left: 20px; animation-delay: 0.1s; border-bottom-color: #ffaa00; }
+        
+        .flame-core {
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            width: 30px;
+            height: 20px;
+            background: radial-gradient(ellipse at right, #fff 0%, #ffff00 20%, #ff6600 50%, transparent 70%);
+            filter: blur(2px);
+            animation: flamePulse 0.15s ease-in-out infinite alternate;
+        }
+        
+        @keyframes flameFlicker {
+            0% { transform: scaleY(0.8) rotate(-5deg); opacity: 0.8; }
+            100% { transform: scaleY(1.2) rotate(5deg); opacity: 1; }
+        }
+        
+        @keyframes flamePulse {
+            0% { transform: scaleX(0.8); opacity: 0.9; }
+            100% { transform: scaleX(1.2); opacity: 1; }
+        }
+        
+        /* 속도선 이펙트 */
+        .speed-lines {
+            position: absolute;
+            left: -50px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .speed-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,100,50,0.8) 50%, rgba(255,200,100,0.5) 100%);
+            animation: speedLineMove 0.2s linear infinite;
+        }
+        
+        .speed-line:nth-child(1) { top: 5px; width: 30px; animation-delay: 0s; }
+        .speed-line:nth-child(2) { top: 12px; width: 40px; animation-delay: 0.05s; }
+        .speed-line:nth-child(3) { top: 19px; width: 35px; animation-delay: 0.1s; }
+        .speed-line:nth-child(4) { top: 26px; width: 45px; animation-delay: 0.15s; }
+        .speed-line:nth-child(5) { top: 33px; width: 25px; animation-delay: 0.08s; }
+        
+        @keyframes speedLineMove {
+            0% { opacity: 0; transform: translateX(10px); }
+            50% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-20px); }
+        }
+        
+        /* 멈춤 브레이크 연기 이펙트 */
+        .gimmick-effect-stop {
+            position: absolute;
+            left: -20px;
+            bottom: -5px;
+            width: 50px;
+            height: 30px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .brake-smoke {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: radial-gradient(circle, rgba(100,100,100,0.6) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: smokeRise 0.5s ease-out infinite;
+        }
+        
+        .brake-smoke:nth-child(1) { left: 0; animation-delay: 0s; }
+        .brake-smoke:nth-child(2) { left: 15px; animation-delay: 0.1s; }
+        .brake-smoke:nth-child(3) { left: 30px; animation-delay: 0.2s; }
+        
+        @keyframes smokeRise {
+            0% { transform: translateY(0) scale(0.5); opacity: 0.8; }
+            100% { transform: translateY(-20px) scale(1.5); opacity: 0; }
+        }
+        
+        /* 느림 피로 이펙트 (땀방울) */
+        .gimmick-effect-slow {
+            position: absolute;
+            right: -5px;
+            top: -10px;
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        .sweat-drop {
+            position: absolute;
+            width: 6px;
+            height: 10px;
+            background: linear-gradient(to bottom, rgba(100,200,255,0.8) 0%, rgba(50,150,255,0.6) 100%);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: sweatFall 0.6s ease-in infinite;
+        }
+        
+        .sweat-drop:nth-child(1) { left: 0; animation-delay: 0s; }
+        .sweat-drop:nth-child(2) { left: 10px; animation-delay: 0.3s; }
+        
+        @keyframes sweatFall {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(15px); opacity: 0; }
+        }
+        
+        /* 미끄러짐 먼지 이펙트 */
+        .gimmick-effect-slip {
+            position: absolute;
+            right: -25px;
+            bottom: 0;
+            width: 40px;
+            height: 25px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .dust-cloud {
+            position: absolute;
+            width: 20px;
+            height: 15px;
+            background: radial-gradient(ellipse, rgba(180,140,100,0.7) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: dustBurst 0.3s ease-out infinite;
+        }
+        
+        .dust-cloud:nth-child(1) { left: 0; bottom: 0; animation-delay: 0s; }
+        .dust-cloud:nth-child(2) { left: 15px; bottom: 5px; animation-delay: 0.1s; }
+        
+        @keyframes dustBurst {
+            0% { transform: scale(0.5) translateX(0); opacity: 0.8; }
+            100% { transform: scale(1.5) translateX(15px); opacity: 0; }
+        }
+        
+        /* 지그재그 어지러움 이펙트 */
+        .gimmick-effect-wobble {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            pointer-events: none;
+            z-index: 2;
+            animation: wobbleStars 0.3s ease-in-out infinite;
+        }
+        
+        @keyframes wobbleStars {
+            0%, 100% { transform: translateX(-50%) rotate(-10deg); }
+            50% { transform: translateX(-50%) rotate(10deg); }
+        }
         
         /* 결과 오버레이 visible 상태 */
         .result-overlay.visible {
@@ -419,9 +608,11 @@
             padding: 20px;
             overflow-y: auto;
             display: none;
+            z-index: 100;
         }
 
-        .history-section.visible {
+        .history-section.visible,
+        body.game-active .history-section {
             display: block;
         }
 
@@ -607,6 +798,34 @@
                 transform: scale(1);
                 opacity: 1;
             }
+        }
+        
+        /* 도착 애니메이션 */
+        @keyframes finishBounce {
+            0% { transform: scale(0) translateY(20px); opacity: 0; }
+            50% { transform: scale(1.3) translateY(-10px); opacity: 1; }
+            70% { transform: scale(0.9) translateY(0); }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        
+        @keyframes finishGlow {
+            0%, 100% { text-shadow: 0 0 10px gold, 0 0 20px gold, 2px 2px 4px rgba(0,0,0,0.5); }
+            50% { text-shadow: 0 0 20px gold, 0 0 40px gold, 0 0 60px gold, 2px 2px 4px rgba(0,0,0,0.5); }
+        }
+        
+        @keyframes finishFade {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes sparkleRing {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        
+        @keyframes confettiFall {
+            0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(80px) rotate(720deg); }
         }
 
         .result-title {
@@ -890,17 +1109,50 @@
             <div class="orders-section" id="ordersSection" style="display: none; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="font-weight: bold; color: #8b4513; font-size: 16px; margin: 0;">🍔 주문받기</div>
-                    <button onclick="showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); color: #000; font-weight: 600;">📋 주문리스트 보기</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); color: #000; font-weight: 600;">📋 주문리스트</button>
+                        <button onclick="sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: #d2b48c; color: #333; border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: #d2b48c; color: #333; border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                    </div>
+                </div>
+                
+                <!-- 주문하지 않은 사람 목록 -->
+                <div id="notOrderedSection" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff5e6; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #ff6b6b; margin-bottom: 8px; font-size: 13px;">⏳ 주문하지 않은 사람</div>
+                    <div id="notOrderedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
                 
                 <!-- 내 주문 입력 -->
                 <div style="background: #fff9e6; border: 2px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <div style="font-size: 16px; font-weight: 600; color: #856404; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                        <span>📝</span>
-                        <span>내 주문</span>
+                    <div style="font-size: 16px; font-weight: 600; color: #856404; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>📝</span>
+                            <span>내 주문</span>
+                        </div>
+                        <button onclick="toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: #f8f9fa; color: #8b4513; border: 1px solid #8b4513; border-radius: 4px; cursor: pointer;">메뉴 관리</button>
                     </div>
+                    
+                    <!-- 자주 쓰는 메뉴 관리 -->
+                    <div id="menuManager" style="display: none; background: #f8f9fa; border: 2px solid #8b4513; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-weight: bold; color: #8b4513;">📋 자주 쓰는 메뉴</span>
+                            <button onclick="toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" id="newMenuInput" placeholder="새 메뉴 입력" maxlength="50" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <button onclick="addMenu()" style="padding: 8px 16px; background: #8b4513; color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
+                        </div>
+                        <div id="menuList" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto;">
+                            <div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>
+                        </div>
+                    </div>
+                    
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
-                        <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled style="margin: 0;">
+                        <div style="position: relative;">
+                            <div id="autocompleteSuggestion" style="position: absolute; top: 0; left: 0; right: 0; padding: 10px 12px; color: #999; pointer-events: none; font-size: 14px; display: none;"></div>
+                            <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled style="margin: 0; background: transparent; position: relative;">
+                            <div id="autocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #8b4513; border-radius: 8px; margin-top: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
+                        </div>
                         <button onclick="updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: #000; font-weight: 600;" disabled>저장</button>
                     </div>
                 </div>
@@ -944,6 +1196,12 @@
     <div class="history-section" id="historySection">
         <div class="history-title">📜 게임 기록</div>
         <div id="historyList"></div>
+        
+        <!-- 실시간 순위 패널 (게임 기록 하단) -->
+        <div id="liveRankingPanel" style="display: none; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px;">
+            <div style="font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; font-size: 14px;">🏃 실시간 순위</div>
+            <div id="liveRankingList"></div>
+        </div>
     </div>
 
     <!-- 결과 오버레이 -->
@@ -1041,6 +1299,9 @@
         let raceRound = 1;
         let selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
         let isReraceActive = false; // 재경주 활성 상태 (경주 후 동점일 때만 true)
+        let frequentMenus = []; // 자주 쓰는 메뉴 목록
+        let currentSuggestions = []; // 현재 자동완성 제안 목록
+        let selectedSuggestionIndex = -1; // 선택된 제안 인덱스
         
         // 디버그 로그 초기화
         addDebugLog('경마 게임 초기화', 'info');
@@ -1079,7 +1340,8 @@
                     { id: 'turtle', name: '거북이', emoji: '🐢', bgType: 'forest' },
                     { id: 'eagle', name: '독수리', emoji: '🦅', bgType: 'sky' },
                     { id: 'scooter', name: '킥보드', emoji: '🛴', bgType: 'road' },
-                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky' }
+                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky' },
+                    { id: 'horse', name: '말', emoji: '🐎', bgType: 'forest' }
                 ];
             }
         }
@@ -1087,7 +1349,6 @@
         // 페이지 로드 시 테마 데이터 로드
         loadVehicleThemes();
         let ordersData = {};
-        let frequentMenus = [];
         let currentUsers = [];
 
         // 디바이스 ID 생성/가져오기
@@ -1517,16 +1778,6 @@
                     .filter(([_, h]) => h === horseIndex)
                     .map(([name, _]) => name);
                 
-                if (selectedUsers.length > 0) {
-                    // 여러 명이 선택한 경우 모두 표시
-                    selectedUsers.forEach((userName, idx) => {
-                        const nameLabel = document.createElement('div');
-                        nameLabel.style.cssText = `font-size: 11px; font-weight: bold; color: ${vehicleBg.textColor}; white-space: nowrap; text-align: center; margin-bottom: ${idx === selectedUsers.length - 1 ? '2px' : '1px'}; background: rgba(0,0,0,0.5); padding: 1px 4px; border-radius: 3px;`;
-                        nameLabel.textContent = userName;
-                        horse.appendChild(nameLabel);
-                    });
-                }
-                
                 // 탈것 스프라이트
                 const vehicleContent = document.createElement('div');
                 vehicleContent.className = 'vehicle-sprite';
@@ -1540,6 +1791,39 @@
                 vehicleContent.appendChild(frame1);
                 horse.appendChild(vehicleContent);
                 track.appendChild(horse);
+                
+                // 이름 라벨을 레인 왼쪽에 표시
+                if (selectedUsers.length > 0) {
+                    const namesContainer = document.createElement('div');
+                    namesContainer.className = 'names-container';
+                    namesContainer.style.cssText = `
+                        position: absolute;
+                        top: ${rank * totalLaneHeight + 5}px;
+                        left: 5px;
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 2px;
+                        z-index: 200;
+                        max-width: 200px;
+                    `;
+                    
+                    selectedUsers.forEach(userName => {
+                        const nameTag = document.createElement('span');
+                        nameTag.style.cssText = `
+                            background: rgba(0,0,0,0.7);
+                            color: #fff;
+                            padding: 1px 4px;
+                            border-radius: 3px;
+                            font-size: 10px;
+                            font-weight: bold;
+                            white-space: nowrap;
+                        `;
+                        nameTag.textContent = userName;
+                        namesContainer.appendChild(nameTag);
+                    });
+                    
+                    track.appendChild(namesContainer);
+                }
             });
         }
         
@@ -1603,7 +1887,8 @@
                     { id: 'turtle', name: '거북이', emoji: '🐢', bgType: 'forest' },
                     { id: 'eagle', name: '독수리', emoji: '🦅', bgType: 'sky' },
                     { id: 'scooter', name: '킥보드', emoji: '🛴', bgType: 'road' },
-                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky' }
+                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky' },
+                    { id: 'horse', name: '말', emoji: '🐎', bgType: 'forest' }
                 ];
                 // 비동기로 로드 시도 (나중에 업데이트됨)
                 loadVehicleThemes().catch(err => {
@@ -1761,23 +2046,31 @@
             info.textContent = infoText;
         }
 
-        // 경주 애니메이션 시작
-        function startRaceAnimation(horseRankings, speeds) {
+        // 경주 애니메이션 시작 (서버에서 받은 기믹 데이터 사용)
+        function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete) {
+            // 이전 경주의 순위 이펙트 정리
+            clearFinishEffects();
+            
             const track = document.getElementById('raceTrack');
             const trackContainer = document.getElementById('raceTrackContainer');
             
             if (!track || !trackContainer) {
                 console.error('트랙 컨테이너를 찾을 수 없습니다');
+                if (onComplete) onComplete();
                 return 5000;
             }
             
             if (!horseRankings || horseRankings.length === 0) {
                 console.error('말 순위 정보가 없습니다', horseRankings);
+                if (onComplete) onComplete();
                 return 5000;
             }
             
             trackContainer.style.display = 'block';
             track.innerHTML = '';
+            
+            // 이전 도착 이펙트 제거
+            document.querySelectorAll('.finish-effect').forEach(el => el.remove());
             
             const trackWidth = trackContainer.offsetWidth || 700;
             const finishLine = trackWidth - 100;
@@ -1911,16 +2204,6 @@
                     .filter(([_, h]) => h === horseIndex)
                     .map(([name, _]) => name);
                 
-                if (selectedUsers.length > 0) {
-                    // 여러 명이 선택한 경우 모두 표시
-                    selectedUsers.forEach((userName, idx) => {
-                        const nameLabel = document.createElement('div');
-                        nameLabel.style.cssText = `font-size: 11px; font-weight: bold; color: ${vehicleBg.textColor}; white-space: nowrap; text-align: center; margin-bottom: ${idx === selectedUsers.length - 1 ? '2px' : '1px'}; background: rgba(0,0,0,0.5); padding: 1px 4px; border-radius: 3px;`;
-                        nameLabel.textContent = userName;
-                        horse.appendChild(nameLabel);
-                    });
-                }
-                
                 // 탈것 스프라이트 (2프레임 애니메이션)
                 const vehicleContent = document.createElement('div');
                 vehicleContent.className = 'vehicle-sprite';
@@ -1941,29 +2224,617 @@
                 horse.appendChild(vehicleContent);
                 track.appendChild(horse);
                 
+                // 트랙 좌상단에 남은 거리 표시 라벨 추가
+                const distanceLabel = document.createElement('div');
+                distanceLabel.className = 'distance-label';
+                distanceLabel.id = `distance_${horseIndex}`;
+                distanceLabel.style.cssText = `
+                    position: absolute;
+                    top: ${laneIndex * totalLaneHeight + 2}px;
+                    left: 5px;
+                    background: rgba(0,0,0,0.8);
+                    color: #fff;
+                    padding: 3px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    z-index: 200;
+                    min-width: 60px;
+                    text-align: center;
+                `;
+                distanceLabel.textContent = '100%';
+                track.appendChild(distanceLabel);
+                
+                // 이름 라벨을 레인 왼쪽 상단에 표시 (distanceLabel 위)
+                if (selectedUsers.length > 0) {
+                    const namesContainer = document.createElement('div');
+                    namesContainer.className = 'names-container';
+                    namesContainer.style.cssText = `
+                        position: absolute;
+                        top: ${laneIndex * totalLaneHeight + 2}px;
+                        left: 70px;
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 2px;
+                        z-index: 200;
+                        max-width: 250px;
+                    `;
+                    
+                    selectedUsers.forEach(userName => {
+                        const nameTag = document.createElement('span');
+                        nameTag.style.cssText = `
+                            background: rgba(0,0,0,0.7);
+                            color: #fff;
+                            padding: 1px 4px;
+                            border-radius: 3px;
+                            font-size: 10px;
+                            font-weight: bold;
+                            white-space: nowrap;
+                        `;
+                        nameTag.textContent = userName;
+                        namesContainer.appendChild(nameTag);
+                    });
+                    
+                    track.appendChild(namesContainer);
+                }
+                
                 const duration = speeds[rank] || 5000;
                 maxDuration = Math.max(maxDuration, duration);
-                horseElements.push({ horse, vehicleContent, frames: [frame1, frame2], rank, duration });
+                horseElements.push({ horse, vehicleContent, frames: [frame1, frame2], rank, duration, distanceLabel });
+            });
+            
+            // 실시간 순위 패널 표시
+            const liveRankingPanel = document.getElementById('liveRankingPanel');
+            const liveRankingList = document.getElementById('liveRankingList');
+            if (liveRankingPanel) {
+                liveRankingPanel.style.display = 'block';
+            }
+            
+            // 탈것 정보 맵 생성 (horseIndex -> vehicleInfo)
+            const vehicleInfoMap = {};
+            availableHorses.forEach((horseIndex) => {
+                const vehicleId = selectedVehicleTypes && selectedVehicleTypes[horseIndex] 
+                    ? selectedVehicleTypes[horseIndex] 
+                    : (ALL_VEHICLES.length > 0 ? ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id : 'car');
+                const vehicle = ALL_VEHICLES.find(v => v.id === vehicleId) || { name: '탈것', emoji: '🏃' };
+                const bettingUsers = Object.entries(userHorseBets)
+                    .filter(([_, h]) => h === horseIndex)
+                    .map(([name, _]) => name);
+                vehicleInfoMap[horseIndex] = { vehicleId, vehicle, bettingUsers };
+            });
+            
+            // 실시간 순위 업데이트 함수
+            const startPosition = 10; // 시작 위치
+            const totalDistance = finishLine - startPosition; // 전체 거리
+            
+            // 도착 순서 추적 객체
+            const finishOrderMap = {};
+            
+            function updateLiveRanking(horseStatesRef) {
+                const positions = [];
+                horseElements.forEach(({ horse, rank, distanceLabel }) => {
+                    const actualHorseIndex = parseInt(horse.id.replace('horse_', ''));
+                    const currentLeft = parseFloat(horse.style.left) || startPosition;
+                    const progress = Math.min(100, Math.max(0, ((currentLeft - startPosition) / totalDistance) * 100));
+                    const remaining = Math.max(0, 100 - progress);
+                    
+                    // 도착 순서 가져오기 (horseStates에서)
+                    let finishOrder = -1;
+                    let isFinished = false;
+                    if (horseStatesRef) {
+                        const state = horseStatesRef.find(s => s.horseIndex === actualHorseIndex);
+                        if (state && state.finished) {
+                            isFinished = true;
+                            finishOrder = state.finishOrder;
+                            finishOrderMap[actualHorseIndex] = finishOrder;
+                        }
+                    }
+                    // 이미 기록된 도착 순서 사용
+                    if (finishOrderMap[actualHorseIndex] !== undefined) {
+                        isFinished = true;
+                        finishOrder = finishOrderMap[actualHorseIndex];
+                    }
+                    
+                    positions.push({ horseIndex: actualHorseIndex, position: currentLeft, progress, remaining, distanceLabel, isFinished, finishOrder });
+                    
+                    // 각 탈것 위에 남은 거리 표시 업데이트
+                    if (distanceLabel) {
+                        if (remaining <= 0) {
+                            distanceLabel.textContent = '🏁';
+                            distanceLabel.style.background = 'rgba(74, 222, 128, 0.9)';
+                            distanceLabel.style.color = '#000';
+                        } else if (remaining < 30) {
+                            distanceLabel.textContent = `${Math.round(remaining)}%`;
+                            distanceLabel.style.background = 'rgba(251, 191, 36, 0.9)';
+                            distanceLabel.style.color = '#000';
+                        } else {
+                            distanceLabel.textContent = `${Math.round(remaining)}%`;
+                            distanceLabel.style.background = 'rgba(0, 0, 0, 0.75)';
+                            distanceLabel.style.color = '#fff';
+                        }
+                    }
+                });
+                
+                // 정렬: 도착한 말은 도착 순서대로, 나머지는 위치 순
+                positions.sort((a, b) => {
+                    // 둘 다 도착한 경우 도착 순서로
+                    if (a.isFinished && b.isFinished) {
+                        return a.finishOrder - b.finishOrder;
+                    }
+                    // 하나만 도착한 경우 도착한 쪽이 앞
+                    if (a.isFinished) return -1;
+                    if (b.isFinished) return 1;
+                    // 둘 다 미도착시 위치 순
+                    return b.position - a.position;
+                });
+                
+                // 각 탈것에 현재 순위 표시 추가
+                positions.forEach((pos, idx) => {
+                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
+                    if (pos.distanceLabel) {
+                        const currentText = pos.distanceLabel.textContent;
+                        if (!currentText.includes('🏁')) {
+                            pos.distanceLabel.textContent = `${medal} ${currentText}`;
+                        }
+                    }
+                });
+                
+                // 순위 표시 업데이트
+                if (liveRankingList) {
+                    let html = '';
+                    positions.forEach((pos, idx) => {
+                        const info = vehicleInfoMap[pos.horseIndex];
+                        if (info) {
+                            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
+                            const users = info.bettingUsers.length > 0 ? info.bettingUsers.join(',') : '-';
+                            const remainingText = pos.remaining <= 0 ? '🏁' : `${Math.round(pos.remaining)}%`;
+                            const progressColor = pos.remaining <= 0 ? '#4ade80' : pos.remaining < 30 ? '#fbbf24' : '#94a3b8';
+                            html += `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0; ${idx === 0 ? 'color: #ffd700; font-weight: bold;' : ''}">
+                                <span style="width: 20px; font-size: 12px;">${medal}</span>
+                                <span style="font-size: 14px;">${info.vehicle.emoji}</span>
+                                <span style="flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${users}</span>
+                                <span style="font-size: 10px; color: ${progressColor}; min-width: 32px; text-align: right;">${remainingText}</span>
+                            </div>`;
+                        }
+                    });
+                    liveRankingList.innerHTML = html;
+                }
+            }
+            
+            // 실시간 순위 업데이트 인터벌
+            let rankingInterval = null;
+            let animationInterval = null;
+            
+            // 각 탈것의 애니메이션 상태 (서버에서 받은 기믹 데이터 사용)
+            const horseStates = horseElements.map(({ horse, frames, duration, rank }) => {
+                const horseIndex = parseInt(horse.id.replace('horse_', ''));
+                
+                // 서버에서 받은 기믹 데이터 사용 (없으면 빈 배열)
+                const serverGimmickList = serverGimmicks && serverGimmicks[horseIndex] ? serverGimmicks[horseIndex] : [];
+                const gimmicks = serverGimmickList.map(g => ({
+                    progressTrigger: g.progressTrigger,
+                    type: g.type,
+                    duration: g.duration,
+                    speedMultiplier: g.speedMultiplier,
+                    triggered: false,
+                    active: false,
+                    endTime: 0
+                }));
+                
+                // 기본 속도 계산 (duration 기반)
+                const baseSpeed = totalDistance / duration;
+                
+                // 초기 속도 변화를 위한 시드 (horseIndex 기반으로 일관성 유지)
+                const initialSpeedFactor = 0.8 + ((horseIndex * 1234567) % 100) / 250; // 0.8 ~ 1.2
+                
+                return {
+                    horse,
+                    frames,
+                    duration,
+                    rank,
+                    horseIndex,
+                    currentPos: startPosition,
+                    baseSpeed,
+                    currentSpeed: baseSpeed * initialSpeedFactor,
+                    targetSpeed: baseSpeed,
+                    finished: false,
+                    gimmicks,
+                    wobblePhase: 0,
+                    lastSpeedChange: 0,
+                    speedChangeSeed: horseIndex * 9876 // 속도 변화 시드
+                };
             });
             
             // 모든 탈것 동시에 애니메이션 시작
             setTimeout(() => {
-                horseElements.forEach(({ horse, frames, duration }) => {
-                    horse.style.transition = `left ${duration}ms linear`;
-                    horse.style.left = `${finishLine}px`;
+                const startTime = Date.now();
+                const frameInterval = 16; // ~60fps
+                let finishOrderCounter = 0; // 도착 순서 카운터
+                
+                // JavaScript 기반 애니메이션 루프
+                animationInterval = setInterval(() => {
+                    const elapsed = Date.now() - startTime;
+                    let allFinished = true;
                     
-                    // 도착 후 애니메이션 멈춤
-                    setTimeout(() => {
-                        horse.classList.remove('racing');
-                        frames.forEach((frame, idx) => {
-                            frame.style.animation = 'none';
-                            frame.style.opacity = idx === 0 ? '1' : '0';
+                    horseStates.forEach(state => {
+                        if (state.finished) return;
+                        allFinished = false;
+                        
+                        const progress = (state.currentPos - startPosition) / totalDistance;
+                        
+                        // 기믹 체크
+                        state.gimmicks.forEach(gimmick => {
+                            // 기믹 트리거 체크
+                            if (!gimmick.triggered && progress >= gimmick.progressTrigger) {
+                                gimmick.triggered = true;
+                                gimmick.active = true;
+                                gimmick.endTime = elapsed + gimmick.duration;
+                                
+                                // 기믹 시작 효과 및 이펙트 추가
+                                if (gimmick.type === 'stop') {
+                                    state.horse.style.filter = 'brightness(0.7)';
+                                    // 브레이크 연기 이펙트
+                                    const stopEffect = document.createElement('div');
+                                    stopEffect.className = 'gimmick-effect-stop';
+                                    stopEffect.innerHTML = '<div class="brake-smoke"></div><div class="brake-smoke"></div><div class="brake-smoke"></div>';
+                                    state.horse.appendChild(stopEffect);
+                                    gimmick.effectElement = stopEffect;
+                                } else if (gimmick.type === 'sprint') {
+                                    state.horse.style.filter = 'brightness(1.3) saturate(1.5)';
+                                    // 불꽃 + 속도선 이펙트
+                                    const sprintEffect = document.createElement('div');
+                                    sprintEffect.className = 'gimmick-effect-sprint';
+                                    sprintEffect.innerHTML = `
+                                        <div class="flame-core"></div>
+                                        <div class="flame"></div>
+                                        <div class="flame"></div>
+                                        <div class="flame"></div>
+                                    `;
+                                    state.horse.appendChild(sprintEffect);
+                                    // 속도선 추가
+                                    const speedLines = document.createElement('div');
+                                    speedLines.className = 'speed-lines';
+                                    speedLines.innerHTML = '<div class="speed-line"></div><div class="speed-line"></div><div class="speed-line"></div><div class="speed-line"></div><div class="speed-line"></div>';
+                                    state.horse.appendChild(speedLines);
+                                    gimmick.effectElement = sprintEffect;
+                                    gimmick.speedLinesElement = speedLines;
+                                } else if (gimmick.type === 'slip') {
+                                    state.horse.style.filter = 'hue-rotate(20deg)';
+                                    // 미끄러짐 먼지 이펙트
+                                    const slipEffect = document.createElement('div');
+                                    slipEffect.className = 'gimmick-effect-slip';
+                                    slipEffect.innerHTML = '<div class="dust-cloud"></div><div class="dust-cloud"></div>';
+                                    state.horse.appendChild(slipEffect);
+                                    gimmick.effectElement = slipEffect;
+                                } else if (gimmick.type === 'slow') {
+                                    state.horse.style.filter = 'brightness(0.9) grayscale(0.3)';
+                                    // 피로 땀방울 이펙트
+                                    const slowEffect = document.createElement('div');
+                                    slowEffect.className = 'gimmick-effect-slow';
+                                    slowEffect.innerHTML = '<div class="sweat-drop"></div><div class="sweat-drop"></div>';
+                                    state.horse.appendChild(slowEffect);
+                                    gimmick.effectElement = slowEffect;
+                                } else if (gimmick.type === 'wobble') {
+                                    state.wobblePhase = 0;
+                                    // 어지러움 별 이펙트
+                                    const wobbleEffect = document.createElement('div');
+                                    wobbleEffect.className = 'gimmick-effect-wobble';
+                                    wobbleEffect.textContent = '💫';
+                                    state.horse.appendChild(wobbleEffect);
+                                    gimmick.effectElement = wobbleEffect;
+                                }
+                            }
+                            
+                            // 기믹 종료 체크
+                            if (gimmick.active && elapsed >= gimmick.endTime) {
+                                gimmick.active = false;
+                                state.horse.style.filter = '';
+                                // 이펙트 요소 제거
+                                if (gimmick.effectElement && gimmick.effectElement.parentNode) {
+                                    gimmick.effectElement.remove();
+                                    gimmick.effectElement = null;
+                                }
+                                if (gimmick.speedLinesElement && gimmick.speedLinesElement.parentNode) {
+                                    gimmick.speedLinesElement.remove();
+                                    gimmick.speedLinesElement = null;
+                                }
+                            }
                         });
-                    }, duration);
-                });
+                        
+                        // 활성화된 기믹에 따른 속도 계산
+                        let speedMultiplier = 1;
+                        let hasActiveGimmick = false;
+                        state.gimmicks.forEach(gimmick => {
+                            if (gimmick.active) {
+                                hasActiveGimmick = true;
+                                speedMultiplier = gimmick.speedMultiplier;
+                                
+                                // 지그재그 효과
+                                if (gimmick.type === 'wobble') {
+                                    state.wobblePhase += 0.3;
+                                    const wobbleOffset = Math.sin(state.wobblePhase) * 3;
+                                    state.horse.style.transform = `translateY(${wobbleOffset}px)`;
+                                }
+                            }
+                        });
+                        
+                        // 지그재그가 아닐 때 transform 리셋
+                        if (!state.gimmicks.some(g => g.active && g.type === 'wobble')) {
+                            state.horse.style.transform = '';
+                        }
+                        
+                        // 자연스러운 속도 변화 (기믹이 없을 때) - 시드 기반으로 동기화
+                        if (!hasActiveGimmick) {
+                            // 시드 기반 의사 난수 생성 (elapsed 시간과 horseIndex 기반)
+                            const seedValue = (state.speedChangeSeed + Math.floor(elapsed / 500)) * 9301 + 49297;
+                            const pseudoRandom = ((seedValue % 233280) / 233280);
+                            
+                            // 주기적으로 목표 속도 변경 (가속/감속) - 500ms 간격
+                            const changeInterval = 500;
+                            const currentInterval = Math.floor(elapsed / changeInterval);
+                            const lastInterval = Math.floor(state.lastSpeedChange / changeInterval);
+                            
+                            if (currentInterval > lastInterval) {
+                                state.lastSpeedChange = elapsed;
+                                // 시드 기반 속도 변화 (0.7 ~ 1.3 범위)
+                                const speedSeed = (state.speedChangeSeed + currentInterval) * 16807 % 2147483647;
+                                const speedFactor = 0.7 + (speedSeed % 600) / 1000;
+                                state.targetSpeed = state.baseSpeed * speedFactor;
+                            }
+                            
+                            // 현재 속도를 목표 속도로 부드럽게 전환
+                            const speedDiff = state.targetSpeed - state.currentSpeed;
+                            state.currentSpeed += speedDiff * 0.05;
+                            speedMultiplier = state.currentSpeed / state.baseSpeed;
+                        }
+                        
+                        // 위치 업데이트
+                        const movement = state.baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000;
+                        state.currentPos = Math.max(startPosition, state.currentPos + movement);
+                        
+                        // 결승선 도착 체크
+                        if (state.currentPos >= finishLine && !state.finished) {
+                            state.currentPos = finishLine;
+                            state.finished = true;
+                            state.finishOrder = finishOrderCounter++;
+                            state.horse.style.filter = '';
+                            state.horse.style.transform = '';
+                            
+                            // 도착 애니메이션 표시
+                            showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
+                        }
+                        
+                        // DOM 업데이트
+                        state.horse.style.left = `${state.currentPos}px`;
+                    });
+                    
+                    // 모두 완주 시 애니메이션 종료
+                    if (allFinished) {
+                        clearInterval(animationInterval);
+                        animationInterval = null;
+                        
+                        // 실제 도착 순서 수집
+                        const actualFinishOrder = horseStates
+                            .filter(s => s.finished)
+                            .sort((a, b) => a.finishOrder - b.finishOrder)
+                            .map(s => s.horseIndex);
+                        
+                        // 전역 변수에 저장
+                        window.lastActualFinishOrder = actualFinishOrder;
+                        
+                        // 모든 말 도착 후 처리
+                        setTimeout(() => {
+                            if (rankingInterval) {
+                                clearInterval(rankingInterval);
+                                rankingInterval = null;
+                            }
+                            // 최종 순위 한 번 더 업데이트
+                            updateLiveRanking(horseStates);
+                            // 잠시 후 패널 숨기기 및 콜백 호출
+                            setTimeout(() => {
+                                if (liveRankingPanel) {
+                                    liveRankingPanel.style.display = 'none';
+                                }
+                                // 완료 콜백 호출
+                                if (onComplete) {
+                                    onComplete(actualFinishOrder);
+                                }
+                            }, 1500);
+                        }, 500);
+                    }
+                }, frameInterval);
+                
+                // 실시간 순위 업데이트 시작 (100ms 간격)
+                rankingInterval = setInterval(() => updateLiveRanking(horseStates), 100);
+                updateLiveRanking(horseStates); // 즉시 첫 업데이트
             }, 500);
             
-            return maxDuration;
+            return maxDuration + 1000;
+        }
+        
+        // 순위 이펙트 오버레이 관리
+        let finishEffectsOverlay = null;
+        const finishEffectElements = new Map(); // horseIndex -> effectElement
+        
+        function getOrCreateFinishEffectsOverlay() {
+            if (!finishEffectsOverlay) {
+                finishEffectsOverlay = document.createElement('div');
+                finishEffectsOverlay.id = 'finishEffectsOverlay';
+                finishEffectsOverlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    pointer-events: none;
+                    z-index: 99999;
+                `;
+                document.body.appendChild(finishEffectsOverlay);
+            }
+            return finishEffectsOverlay;
+        }
+        
+        function clearFinishEffects() {
+            if (finishEffectsOverlay) {
+                finishEffectsOverlay.remove();
+                finishEffectsOverlay = null;
+            }
+            finishEffectElements.clear();
+        }
+        
+        // 도착 애니메이션 표시
+        function showFinishAnimation(horseElement, finishOrder, horseIndex) {
+            // 도착 순위 텍스트
+            const rankTexts = ['🥇 1등!', '🥈 2등!', '🥉 3등!', '4등', '5등', '6등'];
+            const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32', '#666', '#666', '#666'];
+            
+            const overlay = getOrCreateFinishEffectsOverlay();
+            const horseRect = horseElement.getBoundingClientRect();
+            
+            // 기존 이펙트 제거
+            const existingEffect = finishEffectElements.get(horseIndex);
+            if (existingEffect) existingEffect.remove();
+            
+            // 도착 이펙트 생성
+            const effectContainer = document.createElement('div');
+            effectContainer.className = 'finish-effect';
+            effectContainer.dataset.horseIndex = horseIndex;
+            // 4등 이상은 더 오른쪽으로 배치
+            const offsetX = finishOrder >= 3 ? 50 : 10;
+            effectContainer.style.cssText = `
+                position: fixed;
+                left: ${horseRect.right + offsetX}px;
+                top: ${horseRect.top + horseRect.height / 2 - 15}px;
+                pointer-events: none;
+                white-space: nowrap;
+            `;
+            
+            if (finishOrder === 0) {
+                // 1등 도착 - 화려한 효과
+                effectContainer.innerHTML = `
+                    <div style="position: relative;">
+                        <div class="finish-rank" style="
+                            font-size: 28px;
+                            font-weight: bold;
+                            color: ${rankColors[finishOrder]};
+                            text-shadow: 0 0 10px ${rankColors[finishOrder]}, 0 0 20px ${rankColors[finishOrder]}, 2px 2px 4px rgba(0,0,0,0.5);
+                            animation: finishBounce 0.5s ease-out, finishGlow 1s ease-in-out infinite;
+                            white-space: nowrap;
+                        ">${rankTexts[finishOrder]}</div>
+                        <div class="confetti-container" style="position: absolute; top: -30px; left: -20px; width: 80px; height: 60px; overflow: visible;">
+                            ${createConfetti()}
+                        </div>
+                        <div class="sparkle-ring" style="
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            width: 80px;
+                            height: 80px;
+                            border: 3px solid ${rankColors[finishOrder]};
+                            border-radius: 50%;
+                            animation: sparkleRing 0.8s ease-out forwards;
+                            opacity: 0;
+                        "></div>
+                    </div>
+                `;
+            } else if (finishOrder <= 2) {
+                // 2등, 3등 - 간단한 효과
+                effectContainer.innerHTML = `
+                    <div class="finish-rank" style="
+                        font-size: 22px;
+                        font-weight: bold;
+                        color: ${rankColors[finishOrder]};
+                        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                        animation: finishBounce 0.5s ease-out;
+                        white-space: nowrap;
+                    ">${rankTexts[finishOrder]}</div>
+                `;
+            } else {
+                // 4등 이하 - 단순 텍스트
+                effectContainer.innerHTML = `
+                    <div class="finish-rank" style="
+                        font-size: 16px;
+                        color: ${rankColors[finishOrder] || '#666'};
+                        animation: finishFade 0.5s ease-out;
+                        white-space: nowrap;
+                    ">${rankTexts[finishOrder] || (finishOrder + 1) + '등'}</div>
+                `;
+            }
+            
+            overlay.appendChild(effectContainer);
+            finishEffectElements.set(horseIndex, effectContainer);
+            
+            // 1등일 경우 추가 축하 효과 (계속 유지)
+            if (finishOrder === 0) {
+                // 탈것 빛나는 효과 유지
+                horseElement.style.filter = 'drop-shadow(0 0 15px gold) brightness(1.2)';
+                horseElement.style.transform = 'scale(1.1)';
+            }
+            
+            // 컨페티와 반짝임 링은 애니메이션 후 제거 (순위 텍스트는 유지)
+            setTimeout(() => {
+                const confetti = effectContainer.querySelector('.confetti-container');
+                const sparkle = effectContainer.querySelector('.sparkle-ring');
+                if (confetti) confetti.remove();
+                if (sparkle) sparkle.remove();
+                
+                // 1등 글로우 애니메이션 멈추고 고정
+                const rankText = effectContainer.querySelector('.finish-rank');
+                if (rankText && finishOrder === 0) {
+                    rankText.style.animation = 'none';
+                    rankText.style.textShadow = '0 0 15px gold, 0 0 25px gold, 2px 2px 4px rgba(0,0,0,0.5)';
+                }
+            }, 2000);
+            
+            // 스크롤/리사이즈 시 위치 업데이트
+            const updatePosition = () => {
+                const newRect = horseElement.getBoundingClientRect();
+                effectContainer.style.left = `${newRect.right + offsetX}px`;
+                effectContainer.style.top = `${newRect.top + newRect.height / 2 - 15}px`;
+            };
+            
+            // 위치 업데이트를 위한 인터벌 (경주 중에만)
+            const positionInterval = setInterval(() => {
+                if (!effectContainer.parentNode) {
+                    clearInterval(positionInterval);
+                    return;
+                }
+                updatePosition();
+            }, 100);
+        }
+        
+        // 축하 컨페티 생성
+        function createConfetti() {
+            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+            let confettiHtml = '';
+            
+            for (let i = 0; i < 20; i++) {
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const left = Math.random() * 80 - 10;
+                const delay = Math.random() * 0.3;
+                const rotation = Math.random() * 360;
+                const size = 4 + Math.random() * 4;
+                const duration = 1 + Math.random() * 0.5;
+                
+                confettiHtml += `
+                    <div style="
+                        position: absolute;
+                        left: ${left}px;
+                        top: 0;
+                        width: ${size}px;
+                        height: ${size}px;
+                        background: ${color};
+                        transform: rotate(${rotation}deg);
+                        animation: confettiFall ${duration}s ease-out ${delay}s forwards;
+                        opacity: 0;
+                        border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+                    "></div>
+                `;
+            }
+            
+            return confettiHtml;
         }
         
         // 탈것별 SVG 생성 함수
@@ -2165,28 +3036,110 @@
                         <line x1="25" y1="35" x2="22" y2="42" stroke="#333" stroke-width="2"/>
                     </svg>`
                 },
-                'helicopter': { // 헬리콥터 - 프로펠러 회전
+                'helicopter': { // 헬리콥터 - 프로펠러 회전 (좌우반전)
                     frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
-                        <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
-                        <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
-                        <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
-                        <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
-                        <line x1="15" y1="10" x2="45" y2="10" stroke="#333" stroke-width="2"/>
-                        <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
-                        <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
-                        <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                        <g transform="translate(60, 0) scale(-1, 1)">
+                            <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
+                            <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
+                            <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
+                            <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
+                            <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
+                            <line x1="15" y1="10" x2="45" y2="10" stroke="#333" stroke-width="2"/>
+                            <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
+                            <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
+                            <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                        </g>
                     </svg>`,
                     frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
-                        <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
-                        <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
-                        <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
-                        <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
-                        <line x1="20" y1="8" x2="40" y2="12" stroke="#333" stroke-width="2"/>
-                        <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
-                        <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
-                        <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                        <g transform="translate(60, 0) scale(-1, 1)">
+                            <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
+                            <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
+                            <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
+                            <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
+                            <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
+                            <line x1="20" y1="8" x2="40" y2="12" stroke="#333" stroke-width="2"/>
+                            <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
+                            <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
+                            <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                        </g>
+                    </svg>`
+                },
+                'horse': { // 말 - 달리는 애니메이션 (더 정교한 형태)
+                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                        <!-- 뒷다리 (오른쪽 뒤 - 들림) -->
+                        <path d="M38,28 L40,32 L38,34 L36,34 Z" fill="#654321"/>
+                        <ellipse cx="37" cy="34" rx="2" ry="2.5" fill="#2C1810"/>
+                        <!-- 뒷다리 (왼쪽 뒤 - 땅) -->
+                        <path d="M32,28 L34,38 L32,40 L30,40 Z" fill="#654321"/>
+                        <ellipse cx="31" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                        <!-- 몸통 -->
+                        <ellipse cx="28" cy="26" rx="12" ry="7" fill="#8B4513"/>
+                        <!-- 목 -->
+                        <path d="M16,26 Q20,18 24,20 Q26,22 28,26" fill="#8B4513"/>
+                        <!-- 앞다리 (오른쪽 앞 - 땅) -->
+                        <path d="M22,26 L20,38 L18,40 L22,40 Z" fill="#654321"/>
+                        <ellipse cx="19" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                        <!-- 앞다리 (왼쪽 앞 - 들림) -->
+                        <path d="M18,26 L16,32 L14,34 L18,34 Z" fill="#654321"/>
+                        <ellipse cx="15" cy="34" rx="2" ry="2.5" fill="#2C1810"/>
+                        <!-- 머리 -->
+                        <ellipse cx="46" cy="18" rx="8" ry="7" fill="#8B4513"/>
+                        <ellipse cx="48" cy="16" rx="5" ry="4" fill="#A0522D"/>
+                        <!-- 귀 (왼쪽) -->
+                        <path d="M40,12 Q42,6 44,10 Q42,8 40,12" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                        <!-- 귀 (오른쪽) -->
+                        <path d="M43,12 Q45,6 47,10 Q45,8 43,12" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                        <!-- 눈 -->
+                        <circle cx="48" cy="17" r="1.8" fill="white"/>
+                        <circle cx="48" cy="17" r="1.2" fill="black"/>
+                        <!-- 코 -->
+                        <ellipse cx="53" cy="19" rx="2.5" ry="2" fill="#654321"/>
+                        <ellipse cx="54" cy="19" rx="1" ry="0.8" fill="#2C1810"/>
+                        <!-- 갈기 (더 풍성하게) -->
+                        <path d="M20,20 Q22,14 24,16 Q26,14 28,18 Q26,16 24,20" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                        <path d="M22,18 Q24,12 26,14 Q28,12 30,16 Q28,14 26,18" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                        <path d="M24,16 Q26,10 28,12 Q30,10 32,14 Q30,12 28,16" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                        <!-- 꼬리 (더 자연스럽게) -->
+                        <path d="M16,26 Q12,22 8,18 Q4,14 2,10" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
+                        <path d="M14,24 Q10,20 6,16 Q2,12 0,8" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
+                    </svg>`,
+                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                        <!-- 뒷다리 (오른쪽 뒤 - 땅) -->
+                        <path d="M38,28 L40,38 L38,40 L36,40 Z" fill="#654321"/>
+                        <ellipse cx="37" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                        <!-- 뒷다리 (왼쪽 뒤 - 들림) -->
+                        <path d="M32,28 L34,32 L32,34 L30,34 Z" fill="#654321"/>
+                        <ellipse cx="31" cy="34" rx="2" ry="2.5" fill="#2C1810"/>
+                        <!-- 몸통 -->
+                        <ellipse cx="28" cy="24" rx="12" ry="7" fill="#8B4513"/>
+                        <!-- 목 -->
+                        <path d="M16,24 Q20,16 24,18 Q26,20 28,24" fill="#8B4513"/>
+                        <!-- 앞다리 (오른쪽 앞 - 들림) -->
+                        <path d="M22,24 L20,30 L18,32 L22,32 Z" fill="#654321"/>
+                        <ellipse cx="19" cy="32" rx="2" ry="2.5" fill="#2C1810"/>
+                        <!-- 앞다리 (왼쪽 앞 - 땅) -->
+                        <path d="M18,24 L16,38 L14,40 L18,40 Z" fill="#654321"/>
+                        <ellipse cx="15" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                        <!-- 머리 -->
+                        <ellipse cx="46" cy="16" rx="8" ry="7" fill="#8B4513"/>
+                        <ellipse cx="48" cy="14" rx="5" ry="4" fill="#A0522D"/>
+                        <!-- 귀 (왼쪽) -->
+                        <path d="M40,10 Q42,4 44,8 Q42,6 40,10" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                        <!-- 귀 (오른쪽) -->
+                        <path d="M43,10 Q45,4 47,8 Q45,6 43,10" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                        <!-- 눈 -->
+                        <circle cx="48" cy="15" r="1.8" fill="white"/>
+                        <circle cx="48" cy="15" r="1.2" fill="black"/>
+                        <!-- 코 -->
+                        <ellipse cx="53" cy="17" rx="2.5" ry="2" fill="#654321"/>
+                        <ellipse cx="54" cy="17" rx="1" ry="0.8" fill="#2C1810"/>
+                        <!-- 갈기 (더 풍성하게) -->
+                        <path d="M20,18 Q22,12 24,14 Q26,12 28,16 Q26,14 24,18" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                        <path d="M22,16 Q24,10 26,12 Q28,10 30,14 Q28,12 26,16" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                        <path d="M24,14 Q26,8 28,10 Q30,8 32,12 Q30,10 28,14" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                        <!-- 꼬리 (더 자연스럽게) -->
+                        <path d="M16,24 Q12,20 8,16 Q4,12 2,8" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
+                        <path d="M14,22 Q10,18 6,14 Q2,10 0,6" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
                     </svg>`
                 }
             };
@@ -2244,17 +3197,109 @@
             
             addDebugLog(`경주 결과: 당첨자 ${winners.length}명 (${winners.join(', ')})`, 'race');
             
+            // 탈것 정보 가져오기 헬퍼 함수
+            function getVehicleInfo(horseIndex) {
+                const vehicleId = selectedVehicleTypes ? selectedVehicleTypes[horseIndex] : null;
+                if (vehicleId && ALL_VEHICLES.length > 0) {
+                    const vehicle = ALL_VEHICLES.find(v => v.id === vehicleId);
+                    if (vehicle) return { ...vehicle, vehicleId };
+                }
+                // 기본값
+                return { id: 'horse', name: '말', emoji: '🐎', vehicleId: 'horse' };
+            }
+            
+            // 해당 말에 베팅한 모든 사용자 찾기
+            function getBettingUsers(horseIndex) {
+                const users = [];
+                Object.entries(userHorseBets).forEach(([userName, betHorse]) => {
+                    if (betHorse === horseIndex) {
+                        users.push(userName);
+                    }
+                });
+                return users;
+            }
+            
+            // SVG 그림 가져오기 (크기 조절 가능)
+            function getVehicleSVGForResult(vehicleId, size = 60) {
+                const svgs = getVehicleSVG(vehicleId);
+                // frame1 SVG에서 width/height 조절
+                let svg = svgs.frame1;
+                svg = svg.replace(/width="60"/g, `width="${size}"`);
+                svg = svg.replace(/height="45"/g, `height="${Math.round(size * 0.75)}"`);
+                return svg;
+            }
+            
             // 결과 오버레이 표시
             const rankingsDiv = document.getElementById('resultRankings');
             if (rankingsDiv) {
-                let rankingsHtml = '<div style="font-size: 16px; font-weight: bold; margin-bottom: 15px;">🏁 순위</div>';
+                let rankingsHtml = '<div style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: center;">🏁 순위 발표 🏁</div>';
                 
                 horseRankings.forEach((horseIndex, index) => {
-                    const userName = Object.entries(userHorseBets).find(([_, h]) => h === horseIndex)?.[0] || `말 ${horseIndex + 1}`;
-                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}등`;
-                    const isWinner = winners.includes(userName);
-                    const style = isWinner ? 'color: #8b4513; font-weight: bold;' : '';
-                    rankingsHtml += `<div style="font-size: 14px; margin: 5px 0; ${style}">${medal} ${userName}${isWinner ? ' ⭐' : ''}</div>`;
+                    const vehicle = getVehicleInfo(horseIndex);
+                    const bettingUsers = getBettingUsers(horseIndex);
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+                    const rankNum = index + 1;
+                    
+                    // 1등은 크게 표시
+                    if (index === 0) {
+                        rankingsHtml += `
+                            <div style="background: linear-gradient(135deg, #ffd700 0%, #ffec8b 100%); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(255,215,0,0.4);">
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                    <span style="font-size: 28px;">${medal}</span>
+                                    <span style="font-size: 26px; font-weight: bold; color: #8b4513;">${rankNum}등</span>
+                                    <div style="transform: scale(1.3); margin: 0 5px;">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 60)}</div>
+                                    <span style="font-size: 22px; font-weight: bold; color: #8b4513;">${vehicle.name}</span>
+                                </div>
+                                <div style="font-size: 20px; color: #5a3d1e; text-align: center; margin-top: 12px; font-weight: 600;">
+                                    ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                </div>
+                            </div>
+                        `;
+                    } else if (index === 1) {
+                        // 2등
+                        rankingsHtml += `
+                            <div style="background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 22px;">${medal}</span>
+                                    <span style="font-size: 18px; font-weight: bold; color: #4a4a4a;">${rankNum}등</span>
+                                    <div style="transform: scale(0.9);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 50)}</div>
+                                    <span style="font-size: 16px; font-weight: bold; color: #4a4a4a;">${vehicle.name}</span>
+                                </div>
+                                <div style="font-size: 14px; color: #666; margin-top: 5px; padding-left: 15px;">
+                                    - ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                </div>
+                            </div>
+                        `;
+                    } else if (index === 2) {
+                        // 3등
+                        rankingsHtml += `
+                            <div style="background: linear-gradient(135deg, #cd7f32 0%, #daa06d 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 22px;">${medal}</span>
+                                    <span style="font-size: 18px; font-weight: bold; color: #4a3728;">${rankNum}등</span>
+                                    <div style="transform: scale(0.9);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 50)}</div>
+                                    <span style="font-size: 16px; font-weight: bold; color: #4a3728;">${vehicle.name}</span>
+                                </div>
+                                <div style="font-size: 14px; color: #5a4a3a; margin-top: 5px; padding-left: 15px;">
+                                    - ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // 4등 이하
+                        rankingsHtml += `
+                            <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 16px; font-weight: bold; color: #666;">${rankNum}등</span>
+                                    <div style="transform: scale(0.7);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 45)}</div>
+                                    <span style="font-size: 14px; font-weight: bold; color: #666;">${vehicle.name}</span>
+                                </div>
+                                <div style="font-size: 13px; color: #888; margin-top: 4px; padding-left: 15px;">
+                                    - ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                </div>
+                            </div>
+                        `;
+                    }
                 });
                 
                 rankingsDiv.innerHTML = rankingsHtml;
@@ -2262,27 +3307,61 @@
             
             // 당첨자 표시
             const winnerDiv = document.getElementById('resultWinner');
+            const messageDiv = document.getElementById('resultMessage');
+            
             if (winnerDiv) {
                 const modeText = gameMode === 'first' ? '1등' : '꼴등';
                 if (winners.length === 0) {
-                    winnerDiv.textContent = '당첨자 없음';
+                    // 당첨자가 없을 때: 베팅한 사람들 중 가장 높은 순위 찾기
+                    let bestRank = -1;
+                    let bestBetters = [];
+                    let bestHorseIndex = -1;
+                    
+                    // userHorseBets에서 각 베팅자의 순위 확인
+                    if (userHorseBets && horseRankings.length > 0) {
+                        Object.entries(userHorseBets).forEach(([username, horseIndex]) => {
+                            const rank = horseRankings.indexOf(horseIndex);
+                            if (rank !== -1) {
+                                if (bestRank === -1 || rank < bestRank) {
+                                    bestRank = rank;
+                                    bestBetters = [username];
+                                    bestHorseIndex = horseIndex;
+                                } else if (rank === bestRank) {
+                                    bestBetters.push(username);
+                                }
+                            }
+                        });
+                    }
+                    
+                    if (bestBetters.length > 0 && bestRank >= 0) {
+                        const vehicleInfo = getVehicleInfo(bestHorseIndex);
+                        const rankText = bestRank + 1;
+                        winnerDiv.innerHTML = `🏅 ${bestBetters.join(', ')} 🏅`;
+                        if (messageDiv) {
+                            messageDiv.textContent = `${rankText}등 ${vehicleInfo.name}에 베팅! 가장 높은 순위!`;
+                        }
+                    } else {
+                        winnerDiv.textContent = '베팅자 없음';
+                        if (messageDiv) {
+                            messageDiv.textContent = '아무도 베팅하지 않았습니다.';
+                        }
+                    }
                 } else if (winners.length === 1) {
                     winnerDiv.textContent = `🎊 ${winners[0]} 🎊`;
+                    if (messageDiv) {
+                        messageDiv.textContent = '축하합니다! 🎉';
+                    }
                 } else {
                     winnerDiv.textContent = winners.join(', ');
+                    if (messageDiv) {
+                        messageDiv.textContent = '동점! 재경주를 진행해야 합니다.';
+                    }
                 }
             }
             
-            // 메시지 표시
-            const messageDiv = document.getElementById('resultMessage');
-            if (messageDiv) {
-                if (winners.length >= 2) {
-                    messageDiv.textContent = '동점! 재경주를 진행해야 합니다.';
-                } else if (winners.length === 1) {
-                    messageDiv.textContent = '축하합니다! 🎉';
-                } else {
-                    messageDiv.textContent = '당첨자가 없습니다.';
-                }
+            // 순위 이펙트 숨기기
+            if (finishEffectsOverlay) {
+                finishEffectsOverlay.style.display = 'none';
             }
             
             document.getElementById('resultOverlay').classList.add('visible');
@@ -2393,48 +3472,303 @@
             
             historyList.innerHTML = '';
             
-            horseRaceHistory.slice().reverse().forEach(record => {
+            // 탈것 정보 가져오기 헬퍼 함수
+            function getVehicleInfoForHistory(vehicleId) {
+                if (vehicleId && ALL_VEHICLES.length > 0) {
+                    const vehicle = ALL_VEHICLES.find(v => v.id === vehicleId);
+                    if (vehicle) return vehicle;
+                }
+                return { id: 'horse', name: '말', emoji: '🐎' };
+            }
+            
+            // SVG 가져오기 (작은 크기)
+            function getSmallVehicleSVG(vehicleId) {
+                const svgs = getVehicleSVG(vehicleId);
+                let svg = svgs.frame1;
+                svg = svg.replace(/width="60"/g, 'width="30"');
+                svg = svg.replace(/height="45"/g, 'height="22"');
+                return svg;
+            }
+            
+            // 해당 말에 베팅한 모든 사용자 찾기
+            function getBettingUsersFromRecord(record, horseIndex) {
+                const users = [];
+                if (record.userHorseBets) {
+                    Object.entries(record.userHorseBets).forEach(([userName, betHorse]) => {
+                        if (betHorse === horseIndex) {
+                            users.push(userName);
+                        }
+                    });
+                }
+                return users;
+            }
+            
+            horseRaceHistory.slice().reverse().forEach((record, idx) => {
                 const item = document.createElement('div');
                 item.className = 'history-item';
+                item.style.cssText = 'background: #fff9f0; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #f0e0c0;';
                 
-                const winners = record.horseRankings[0] === record.userHorseBets[currentUser] ? [currentUser] : [];
-                const winnerText = winners.length > 0 ? `🎊 당첨: ${winners.join(', ')}` : '';
+                // 시간 포맷
+                const time = record.timestamp ? new Date(record.timestamp).toLocaleString('ko-KR', { 
+                    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                }) : '';
+                
+                // 순위별 결과 생성
+                let rankingsHtml = '';
+                if (record.rankings && record.rankings.length > 0) {
+                    record.rankings.slice(0, 3).forEach((horseIndex, rank) => {
+                        const vehicleId = record.selectedVehicleTypes ? record.selectedVehicleTypes[horseIndex] : 'horse';
+                        const vehicle = getVehicleInfoForHistory(vehicleId);
+                        const bettingUsers = getBettingUsersFromRecord(record, horseIndex);
+                        const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉';
+                        const bgColor = rank === 0 ? '#fff8dc' : rank === 1 ? '#f5f5f5' : '#faebd7';
+                        
+                        rankingsHtml += `
+                            <div style="display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: ${bgColor}; border-radius: 4px; margin-bottom: 4px;">
+                                <span style="font-size: 14px;">${medal}</span>
+                                <span style="font-size: 12px; font-weight: bold;">${rank + 1}등</span>
+                                <div style="transform: scale(0.6); margin: -5px;">${getSmallVehicleSVG(vehicleId)}</div>
+                                <span style="font-size: 11px; color: #666;">${vehicle.name}</span>
+                                <span style="font-size: 11px; color: #8b4513; margin-left: auto;">${bettingUsers.length > 0 ? bettingUsers.join(', ') : '-'}</span>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // 최종 당첨자 또는 가장 높은 순위 베팅자
+                let winnersText = '';
+                if (record.winners && record.winners.length > 0) {
+                    winnersText = `🎊 당첨: ${record.winners.join(', ')}`;
+                } else if (record.userHorseBets && record.rankings && record.rankings.length > 0) {
+                    // 당첨자 없을 때: 가장 높은 순위 베팅자 찾기
+                    let bestRank = -1;
+                    let bestBetters = [];
+                    Object.entries(record.userHorseBets).forEach(([username, horseIndex]) => {
+                        const rank = record.rankings.indexOf(horseIndex);
+                        if (rank !== -1) {
+                            if (bestRank === -1 || rank < bestRank) {
+                                bestRank = rank;
+                                bestBetters = [username];
+                            } else if (rank === bestRank) {
+                                bestBetters.push(username);
+                            }
+                        }
+                    });
+                    if (bestBetters.length > 0 && bestRank >= 0) {
+                        winnersText = `🏅 ${bestRank + 1}등 순위: ${bestBetters.join(', ')}`;
+                    }
+                }
                 
                 item.innerHTML = `
-                    <div class="history-round">${record.round}라운드 (${record.time})</div>
-                    <div class="history-participants">참가자: ${record.participants.join(', ')}</div>
-                    <div class="history-winner">${winnerText || '당첨 없음'}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight: bold; color: #8b4513; font-size: 14px;">${record.round}라운드</div>
+                        <div style="font-size: 11px; color: #999;">${time}</div>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        ${rankingsHtml}
+                    </div>
+                    ${winnersText ? `<div style="font-size: 13px; color: #d4a574; font-weight: bold; text-align: center; padding: 5px; background: #fff5e6; border-radius: 4px;">${winnersText}</div>` : ''}
+                    <button onclick="playReplay(${record.id})" style="width: 100%; margin-top: 8px; padding: 8px; font-size: 12px; background: linear-gradient(135deg, #8b4513 0%, #d2691e 100%); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        🎬 다시보기
+                    </button>
                 `;
                 historyList.appendChild(item);
             });
         }
+        
+        // 다시보기 기능
+        function playReplay(recordId) {
+            const record = horseRaceHistory.find(r => r.id === recordId);
+            if (!record) {
+                alert('기록을 찾을 수 없습니다.');
+                return;
+            }
+            
+            // 다시보기용 데이터 설정
+            const replayData = {
+                rankings: record.rankings,
+                userHorseBets: record.userHorseBets,
+                selectedVehicleTypes: record.selectedVehicleTypes,
+                availableHorses: record.availableHorses || record.rankings.map((_, i) => i),
+                isReplay: true,
+                replayRound: record.round
+            };
+            
+            // 트랙 표시 및 애니메이션 재생
+            addDebugLog(`다시보기 시작: ${record.round}라운드`, 'replay');
+            
+            // 말 선택 섹션 숨기기
+            const horseSelectionSection = document.getElementById('horseSelectionSection');
+            if (horseSelectionSection) {
+                horseSelectionSection.classList.remove('active');
+            }
+            
+            // 결과 오버레이 숨기기
+            const resultOverlay = document.getElementById('resultOverlay');
+            if (resultOverlay) {
+                resultOverlay.classList.remove('visible');
+            }
+            
+            // 다시보기용 selectedVehicleTypes 임시 설정
+            const originalSelectedVehicleTypes = selectedVehicleTypes;
+            const originalUserHorseBets = userHorseBets;
+            const originalAvailableHorses = availableHorses;
+            
+            selectedVehicleTypes = record.selectedVehicleTypes;
+            userHorseBets = record.userHorseBets;
+            availableHorses = record.availableHorses || record.rankings.map((_, i) => i);
+            
+            // 경주 애니메이션 시작
+            isRaceActive = true;
+            
+            // 저장된 속도 데이터 사용 (없으면 순위 기반 생성)
+            let replaySpeeds;
+            if (record.speeds && Array.isArray(record.speeds)) {
+                replaySpeeds = record.speeds;
+            } else {
+                // 순위 기반 속도 생성 (동일한 시드 기반)
+                replaySpeeds = record.rankings.map((horseIndex, rank) => {
+                    const seedValue = (record.id + horseIndex) * 9301 + 49297;
+                    const pseudoRandom = ((seedValue % 233280) / 233280);
+                    return 3000 + rank * 500 + pseudoRandom * 200;
+                });
+            }
+            
+            // 저장된 기믹 데이터 사용 (서버와 동일한 경주 재현)
+            const replayGimmicks = record.gimmicks || null;
+            
+            // 애니메이션 시작 - 콜백으로 종료 처리
+            startRaceAnimation(record.rankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+                isRaceActive = false;
+                
+                // 다시보기 결과 표시 (실제 도착 순서 사용)
+                showRaceResult({
+                    winners: record.winners,
+                    horseRankings: actualFinishOrder || record.rankings,
+                    horseRaceMode: record.mode
+                });
+                
+                // 원래 상태 복원
+                setTimeout(() => {
+                    selectedVehicleTypes = originalSelectedVehicleTypes;
+                    userHorseBets = originalUserHorseBets;
+                    availableHorses = originalAvailableHorses;
+                }, 100);
+            });
+        }
 
+        // 채팅 기록 (이모티콘 추적용)
+        let clientChatHistory = [];
+        
+        // 이모티콘 설정
+        const emojiConfig = {
+            '❤️': '좋아요',
+            '👍': '따봉',
+            '😢': '슬퍼요'
+        };
+        
         // 채팅 메시지 추가
         function addChatMessage(data) {
             const chatMessages = document.getElementById('chatMessages');
             if (!chatMessages) return;
             
+            // 첫 메시지면 빈 상태 메시지 제거
+            if (chatMessages.children.length === 1 && chatMessages.textContent.includes('메시지가 없습니다')) {
+                chatMessages.innerHTML = '';
+            }
+            
+            // 클라이언트 채팅 기록에 추가
+            const messageIndex = clientChatHistory.length;
+            clientChatHistory.push({
+                ...data,
+                reactions: data.reactions || {}
+            });
+            
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'chat-message';
+            messageDiv.className = 'chat-message-wrapper';
+            messageDiv.dataset.messageIndex = messageIndex;
             
-            if (data.isSystem) {
-                messageDiv.classList.add('system');
+            const isSystemMessage = data.isSystem || data.userName === '시스템';
+            const isMyMessage = data.userName === currentUser;
+            const time = new Date(data.timestamp || Date.now()).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+            
+            if (isSystemMessage) {
+                messageDiv.style.cssText = 'margin: 10px 0; padding: 12px; background: linear-gradient(135deg, #8b4513 0%, #d2691e 100%); border-radius: 10px; text-align: center; color: white;';
+                messageDiv.innerHTML = `<div>${data.message}</div>`;
+            } else {
+                const bgColor = isMyMessage ? '#fff5e6' : 'white';
+                const borderColor = isMyMessage ? '#ffc107' : '#e0e0e0';
+                
+                messageDiv.style.cssText = `margin: 8px 0; padding: 12px; background: ${bgColor}; border-radius: 10px; border: 1px solid ${borderColor}; position: relative;`;
+                
+                // 리액션 HTML 생성
+                const reactions = data.reactions || {};
+                let reactionsHtml = '';
+                Object.entries(reactions).forEach(([emoji, users]) => {
+                    if (users && users.length > 0) {
+                        const isMyReaction = users.includes(currentUser);
+                        reactionsHtml += `<span onclick="toggleReaction(${messageIndex}, '${emoji}')" style="cursor: pointer; padding: 4px 8px; border-radius: 12px; font-size: 13px; background: ${isMyReaction ? '#fff5e6' : '#f0f0f0'}; border: 1px solid ${isMyReaction ? '#ffc107' : '#ddd'}; display: inline-flex; align-items: center; gap: 3px;">${emoji}<span style="font-size: 11px; color: #666;">${users.length}</span></span>`;
+                    }
+                });
+                
+                messageDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="font-weight: bold; color: ${isMyMessage ? '#8b4513' : '#333'}; font-size: 13px;">${data.userName}</div>
+                        <div style="font-size: 11px; color: #999;">${time}</div>
+                    </div>
+                    <div style="margin: 8px 0; line-height: 1.5;">${data.message}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                        <div class="reactions-container" style="display: flex; gap: 5px; flex-wrap: wrap;">${reactionsHtml}</div>
+                        <div class="hover-reactions" style="display: flex; gap: 3px; opacity: 0.6;">
+                            ${Object.keys(emojiConfig).map(emoji => 
+                                `<span onclick="toggleReaction(${messageIndex}, '${emoji}')" style="cursor: pointer; font-size: 16px; transition: transform 0.2s;" onmouseenter="this.style.transform='scale(1.3)'" onmouseleave="this.style.transform='scale(1)'">${emoji}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
             }
-            if (data.isHorseRaceWinner) {
-                messageDiv.classList.add('winner');
-            }
-            
-            const time = new Date(data.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-            
-            messageDiv.innerHTML = `
-                <div style="font-weight: bold; margin-bottom: 5px;">${data.userName}</div>
-                <div>${data.message}</div>
-                <div style="font-size: 11px; color: #999; margin-top: 5px;">${time}</div>
-            `;
             
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
+        
+        // 리액션 토글
+        function toggleReaction(messageIndex, emoji) {
+            const chatMessage = clientChatHistory[messageIndex];
+            if (!chatMessage) return;
+            
+            socket.emit('toggleReaction', {
+                messageIndex: messageIndex,
+                emoji: emoji
+            });
+        }
+        
+        // 리액션 업데이트 수신
+        socket.on('messageReactionUpdated', (data) => {
+            const { messageIndex, message } = data;
+            const reactions = message.reactions || {};
+            
+            if (clientChatHistory[messageIndex]) {
+                clientChatHistory[messageIndex].reactions = reactions;
+            }
+            
+            // UI 업데이트
+            const messageDiv = document.querySelector(`.chat-message-wrapper[data-message-index="${messageIndex}"]`);
+            if (!messageDiv) return;
+            
+            const reactionsContainer = messageDiv.querySelector('.reactions-container');
+            if (!reactionsContainer) return;
+            
+            let reactionsHtml = '';
+            Object.entries(reactions).forEach(([emoji, users]) => {
+                if (users && users.length > 0) {
+                    const isMyReaction = users.includes(currentUser);
+                    reactionsHtml += `<span onclick="toggleReaction(${messageIndex}, '${emoji}')" style="cursor: pointer; padding: 4px 8px; border-radius: 12px; font-size: 13px; background: ${isMyReaction ? '#fff5e6' : '#f0f0f0'}; border: 1px solid ${isMyReaction ? '#ffc107' : '#ddd'}; display: inline-flex; align-items: center; gap: 3px;">${emoji}<span style="font-size: 11px; color: #666;">${users.length}</span></span>`;
+                }
+            });
+            
+            reactionsContainer.innerHTML = reactionsHtml;
+        });
 
         // 메시지 전송
         function sendMessage() {
@@ -2457,6 +3791,8 @@
         // 결과 오버레이 닫기
         function closeResultOverlay() {
             document.getElementById('resultOverlay').classList.remove('visible');
+            // 순위 이펙트 완전히 제거
+            clearFinishEffects();
         }
 
         // 방 폭파 카운트다운
@@ -2521,8 +3857,9 @@
             }
             
             // 주문받기 상태 초기화
-            isOrderActive = data.isOrderActive || false;
-            ordersData = data.userOrders || {};
+            // 경마 게임 주문 상태 복원
+            isOrderActive = (data.gameState && data.gameState.isHorseOrderActive) || false;
+            ordersData = (data.gameState && data.gameState.userHorseOrders) || {};
             
             // 호스트 UI 설정
             if (isHost) {
@@ -2549,6 +3886,10 @@
                 document.getElementById('ordersSection').style.display = 'block';
                 document.getElementById('myOrderInput').disabled = false;
                 document.getElementById('orderSaveButton').disabled = false;
+                // 내 주문 복원
+                if (ordersData[currentUser]) {
+                    document.getElementById('myOrderInput').value = ordersData[currentUser];
+                }
             } else {
                 if (Object.keys(ordersData).length > 0) {
                     document.getElementById('ordersSection').style.display = 'block';
@@ -2556,6 +3897,18 @@
                 document.getElementById('myOrderInput').disabled = true;
                 document.getElementById('orderSaveButton').disabled = true;
             }
+            
+            // 주문 목록 렌더링
+            renderOrders();
+            
+            // 자주 쓰는 메뉴 로드
+            if (data.gameState && data.gameState.horseFrequentMenus) {
+                frequentMenus = data.gameState.horseFrequentMenus;
+                renderMenuList();
+            }
+            
+            // 자동완성 초기화
+            setupAutocomplete();
             
             // 기록 섹션 표시
             document.getElementById('historySection').classList.add('visible');
@@ -2643,6 +3996,30 @@
             isHost = true;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
+            
+            // 경마 게임 상태 초기화 (gameState에서 가져오기)
+            if (data.gameState) {
+                if (data.gameState.selectedVehicleTypes) {
+                    selectedVehicleTypes = data.gameState.selectedVehicleTypes;
+                    console.log('[roomCreated] selectedVehicleTypes 설정:', selectedVehicleTypes);
+                }
+                if (data.gameState.availableHorses) {
+                    availableHorses = data.gameState.availableHorses;
+                }
+                if (data.gameState.userHorseBets) {
+                    userHorseBets = data.gameState.userHorseBets;
+                }
+                if (data.gameState.horseRaceMode) {
+                    horseRaceMode = data.gameState.horseRaceMode;
+                }
+                if (data.gameState.raceRound) {
+                    raceRound = data.gameState.raceRound;
+                }
+                if (data.gameState.horseRaceHistory) {
+                    horseRaceHistory = data.gameState.horseRaceHistory;
+                    renderHistory();
+                }
+            }
 
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('createRoomSection').classList.remove('active');
@@ -2669,6 +4046,30 @@
             isHost = data.isHost;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
+            
+            // 경마 게임 상태 초기화 (gameState에서 가져오기)
+            if (data.gameState) {
+                if (data.gameState.selectedVehicleTypes) {
+                    selectedVehicleTypes = data.gameState.selectedVehicleTypes;
+                    console.log('[roomJoined] selectedVehicleTypes 설정:', selectedVehicleTypes);
+                }
+                if (data.gameState.availableHorses) {
+                    availableHorses = data.gameState.availableHorses;
+                }
+                if (data.gameState.userHorseBets) {
+                    userHorseBets = data.gameState.userHorseBets;
+                }
+                if (data.gameState.horseRaceMode) {
+                    horseRaceMode = data.gameState.horseRaceMode;
+                }
+                if (data.gameState.raceRound) {
+                    raceRound = data.gameState.raceRound;
+                }
+                if (data.gameState.horseRaceHistory) {
+                    horseRaceHistory = data.gameState.horseRaceHistory;
+                    renderHistory();
+                }
+            }
 
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
@@ -2679,6 +4080,9 @@
             initializeGameScreen(data);
             renderReadyUsers();
             updateReadyButton();
+            
+            // 기록 섹션 표시
+            document.getElementById('historySection').classList.add('visible');
             
             // 경마 게임인 경우 말 선택 UI가 표시될 때까지 잠시 대기 후 다시 확인
             if (data.gameType === 'horse-race') {
@@ -2867,8 +4271,24 @@
             // 말 선택 섹션 숨기기
             document.getElementById('horseSelectionSection').classList.remove('active');
             
-            // 경주 트랙 표시
-            const maxTime = startRaceAnimation(data.horseRankings, data.speeds);
+            // 현재 진행 중인 경주 기록 저장
+            const currentRaceRecord = data.record;
+            
+            // 경주 트랙 표시 (서버에서 받은 기믹 데이터 전달) - 콜백으로 종료 처리
+            startRaceAnimation(data.horseRankings, data.speeds, data.gimmicks, (actualFinishOrder) => {
+                // 경주 종료 후에 기록 추가 (실제 도착 순서 반영)
+                if (currentRaceRecord && actualFinishOrder) {
+                    currentRaceRecord.rankings = actualFinishOrder;
+                    horseRaceHistory.push(currentRaceRecord);
+                    renderHistory();
+                }
+                // 실제 도착 순서로 결과 표시
+                const resultData = { ...data };
+                if (actualFinishOrder) {
+                    resultData.horseRankings = actualFinishOrder;
+                }
+                showRaceResult(resultData);
+            });
             
             // 게임 상태 업데이트
             const gameStatus = document.getElementById('gameStatus');
@@ -2878,17 +4298,6 @@
                 gameStatus.style.background = '#d4edda';
                 gameStatus.style.color = '#155724';
             }
-            
-            // 기록 추가
-            if (data.record) {
-                horseRaceHistory.push(data.record);
-                renderHistory();
-            }
-            
-            // 경주 종료 후 결과 표시 (가장 느린 말 도착 + 1초 후)
-            setTimeout(() => {
-                showRaceResult(data);
-            }, maxTime + 1500);
         });
 
         // 경주 종료 이벤트 (서버에서 직접 보내는 경우)
@@ -2896,6 +4305,12 @@
             // userHorseBets 업데이트 (서버에서 보낸 경우)
             if (data.userHorseBets) {
                 userHorseBets = data.userHorseBets;
+            }
+            
+            // 게임 기록 업데이트
+            if (data.horseRaceHistory) {
+                horseRaceHistory = data.horseRaceHistory;
+                renderHistory();
             }
             
             showRaceResult(data);
@@ -2932,7 +4347,7 @@
         });
 
         // 주문받기 이벤트
-        socket.on('orderStarted', () => {
+        socket.on('horseOrderStarted', () => {
             isOrderActive = true;
             document.getElementById('ordersSection').style.display = 'block';
             document.getElementById('myOrderInput').disabled = false;
@@ -2950,7 +4365,7 @@
             }
         });
 
-        socket.on('orderEnded', () => {
+        socket.on('horseOrderEnded', () => {
             isOrderActive = false;
             document.getElementById('myOrderInput').disabled = true;
             document.getElementById('orderSaveButton').disabled = true;
@@ -2967,29 +4382,35 @@
             }
         });
 
-        socket.on('orderUpdated', (data) => {
-            ordersData[data.userName] = data.order;
-            renderOrders();
+        socket.on('horseOrderUpdated', (data) => {
+            document.getElementById('myOrderInput').value = data.order;
         });
 
-        socket.on('updateOrders', (orders) => {
+        socket.on('updateHorseOrders', (orders) => {
             ordersData = orders;
             renderOrders();
         });
 
         // 주문받기 함수
         function startOrder() {
-            socket.emit('startOrder');
+            socket.emit('startHorseOrder');
         }
 
         function endOrder() {
-            socket.emit('endOrder');
+            socket.emit('endHorseOrder');
         }
 
         function updateMyOrder() {
             const orderInput = document.getElementById('myOrderInput');
             const order = orderInput.value.trim();
-            socket.emit('updateOrder', { order: order });
+            socket.emit('updateHorseOrder', { userName: currentUser, order: order });
+        }
+        
+        let currentOrderSortMode = 'asc';
+        
+        function sortOrders(mode) {
+            currentOrderSortMode = mode;
+            renderOrders();
         }
 
         function renderOrders() {
@@ -2998,13 +4419,25 @@
             
             if (Object.keys(ordersData).length === 0) {
                 orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
+                renderNotOrderedUsers();
                 return;
             }
             
+            // 정렬
+            let sortedOrders = Object.entries(ordersData).filter(([_, order]) => order && order.trim());
+            
+            if (currentOrderSortMode === 'asc') {
+                sortedOrders.sort((a, b) => a[0].localeCompare(b[0], 'ko'));
+            } else if (currentOrderSortMode === 'count') {
+                const orderCounts = {};
+                sortedOrders.forEach(([_, order]) => {
+                    orderCounts[order] = (orderCounts[order] || 0) + 1;
+                });
+                sortedOrders.sort((a, b) => (orderCounts[b[1]] || 0) - (orderCounts[a[1]] || 0));
+            }
+            
             orderList.innerHTML = '';
-            Object.entries(ordersData).forEach(([userName, order]) => {
-                if (!order) return;
-                
+            sortedOrders.forEach(([userName, order]) => {
                 const orderItem = document.createElement('div');
                 orderItem.style.cssText = 'background: white; padding: 12px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #ffc107;';
                 orderItem.innerHTML = `
@@ -3013,11 +4446,359 @@
                 `;
                 orderList.appendChild(orderItem);
             });
+            
+            renderNotOrderedUsers();
+        }
+        
+        function renderNotOrderedUsers() {
+            const notOrderedSection = document.getElementById('notOrderedSection');
+            const notOrderedList = document.getElementById('notOrderedList');
+            if (!notOrderedSection || !notOrderedList) return;
+            
+            // 접속자 중 주문하지 않은 사람 찾기
+            const usersWithoutOrder = usersList.filter(u => !ordersData[u.name] || ordersData[u.name].trim() === '');
+            
+            if (usersWithoutOrder.length === 0 || !isOrderActive) {
+                notOrderedSection.style.display = 'none';
+                return;
+            }
+            
+            notOrderedSection.style.display = 'block';
+            notOrderedList.innerHTML = usersWithoutOrder.map(u => 
+                `<span style="background: #ffe0e0; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${u.name}</span>`
+            ).join(' ');
         }
 
         function showOrderList() {
-            // 주문 리스트는 이미 표시되어 있음
-            alert('주문 리스트는 아래에 표시되어 있습니다.');
+            // 주문 요약 커스텀 알림창 표시
+            const orderCounts = {};
+            Object.values(ordersData).forEach(order => {
+                if (order && order.trim()) {
+                    orderCounts[order.trim()] = (orderCounts[order.trim()] || 0) + 1;
+                }
+            });
+            
+            if (Object.keys(orderCounts).length === 0) {
+                showCustomAlert('아직 주문이 없습니다.', 'info');
+                return;
+            }
+            
+            // 주문 많은 순으로 정렬
+            const sortedOrders = Object.entries(orderCounts).sort((a, b) => b[1] - a[1]);
+            
+            let listHtml = '<div style="text-align: left; max-height: 300px; overflow-y: auto;">';
+            sortedOrders.forEach(([order, count]) => {
+                listHtml += `<div style="padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;"><span>${order}</span><strong>${count}개</strong></div>`;
+            });
+            listHtml += `</div><div style="margin-top: 15px; text-align: center; font-weight: bold; color: #8b4513;">총 ${Object.values(ordersData).filter(o => o && o.trim()).length}명 주문</div>`;
+            
+            showCustomAlert(listHtml, 'info', '📋 주문 리스트 요약');
+        }
+        
+        // 메뉴 관리 토글
+        function toggleMenuManager() {
+            const menuManager = document.getElementById('menuManager');
+            if (menuManager.style.display === 'none') {
+                menuManager.style.display = 'block';
+                renderMenuList();
+            } else {
+                menuManager.style.display = 'none';
+            }
+        }
+        
+        // 메뉴 목록 렌더링
+        function renderMenuList() {
+            const menuList = document.getElementById('menuList');
+            
+            if (frequentMenus.length === 0) {
+                menuList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>';
+                return;
+            }
+            
+            menuList.innerHTML = '';
+            frequentMenus.forEach(menu => {
+                const tag = document.createElement('span');
+                tag.style.cssText = 'display: inline-flex; align-items: center; gap: 5px; background: #8b4513; color: white; padding: 5px 10px; border-radius: 15px; font-size: 13px;';
+                tag.innerHTML = `${menu}<span onclick="deleteMenu('${menu}')" style="cursor: pointer; color: #ffcccc; font-weight: bold;">×</span>`;
+                menuList.appendChild(tag);
+            });
+        }
+        
+        // 메뉴 추가
+        function addMenu() {
+            const input = document.getElementById('newMenuInput');
+            const menu = input.value.trim();
+            
+            if (!menu) {
+                showCustomAlert('메뉴 이름을 입력해주세요.', 'warning');
+                return;
+            }
+            
+            if (frequentMenus.includes(menu)) {
+                showCustomAlert('이미 등록된 메뉴입니다.', 'warning');
+                return;
+            }
+            
+            socket.emit('addHorseMenu', { menu });
+            input.value = '';
+        }
+        
+        // 메뉴 삭제
+        function deleteMenu(menu) {
+            showConfirmDialog(`"${menu}" 메뉴를 삭제하시겠습니까?`, () => {
+                socket.emit('deleteHorseMenu', { menu });
+            });
+        }
+        
+        // 서버에서 메뉴 목록 업데이트 수신
+        socket.on('horseMenusUpdated', (menus) => {
+            frequentMenus = menus;
+            renderMenuList();
+        });
+        
+        // 자동완성 제안 찾기
+        function findAutocompleteSuggestions(text) {
+            if (!text || text.trim() === '') {
+                return [];
+            }
+            
+            const lowerText = text.toLowerCase();
+            const suggestions = [];
+            
+            for (const menu of frequentMenus) {
+                if (menu.toLowerCase().startsWith(lowerText)) {
+                    if (menu.toLowerCase() !== lowerText) {
+                        suggestions.push(menu);
+                    }
+                }
+            }
+            
+            return suggestions;
+        }
+        
+        // 자동완성 제안 업데이트
+        function updateAutocompleteSuggestion() {
+            const orderInput = document.getElementById('myOrderInput');
+            const suggestionDiv = document.getElementById('autocompleteSuggestion');
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            const text = orderInput.value;
+            
+            currentSuggestions = findAutocompleteSuggestions(text);
+            selectedSuggestionIndex = -1;
+            
+            if (currentSuggestions.length > 0) {
+                const firstSuggestion = currentSuggestions[0];
+                const remainingText = firstSuggestion.substring(text.length);
+                suggestionDiv.textContent = text + remainingText;
+                suggestionDiv.style.display = 'block';
+                
+                if (currentSuggestions.length > 1) {
+                    renderAutocompleteDropdown();
+                    dropdownDiv.style.display = 'block';
+                } else {
+                    dropdownDiv.style.display = 'none';
+                }
+            } else {
+                suggestionDiv.textContent = '';
+                suggestionDiv.style.display = 'none';
+                dropdownDiv.style.display = 'none';
+            }
+        }
+        
+        // 자동완성 드롭다운 렌더링
+        function renderAutocompleteDropdown() {
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            const orderInput = document.getElementById('myOrderInput');
+            const text = orderInput.value;
+            
+            dropdownDiv.innerHTML = '';
+            
+            currentSuggestions.forEach((menu, index) => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;' + (index === selectedSuggestionIndex ? 'background-color: #fff5e6;' : '');
+                
+                const prefix = document.createElement('strong');
+                prefix.textContent = menu.substring(0, text.length);
+                const suffix = document.createElement('span');
+                suffix.textContent = menu.substring(text.length);
+                
+                item.appendChild(prefix);
+                item.appendChild(suffix);
+                
+                item.addEventListener('click', () => {
+                    applySuggestion(menu);
+                });
+                
+                item.addEventListener('mouseenter', () => {
+                    item.style.backgroundColor = '#fff5e6';
+                });
+                item.addEventListener('mouseleave', () => {
+                    if (index !== selectedSuggestionIndex) {
+                        item.style.backgroundColor = '';
+                    }
+                });
+                
+                dropdownDiv.appendChild(item);
+            });
+        }
+        
+        // 자동완성 적용
+        function applySuggestion(menu) {
+            const orderInput = document.getElementById('myOrderInput');
+            orderInput.value = menu;
+            currentSuggestions = [];
+            selectedSuggestionIndex = -1;
+            document.getElementById('autocompleteSuggestion').style.display = 'none';
+            document.getElementById('autocompleteDropdown').style.display = 'none';
+            orderInput.focus();
+        }
+        
+        // 선택된 제안에 맞게 회색 텍스트 업데이트
+        function updateSuggestionDisplay() {
+            const suggestionDiv = document.getElementById('autocompleteSuggestion');
+            const orderInput = document.getElementById('myOrderInput');
+            const text = orderInput.value;
+            
+            if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
+                const selectedMenu = currentSuggestions[selectedSuggestionIndex];
+                const remainingText = selectedMenu.substring(text.length);
+                suggestionDiv.textContent = text + remainingText;
+                suggestionDiv.style.display = 'block';
+            } else if (currentSuggestions.length > 0) {
+                const firstMenu = currentSuggestions[0];
+                const remainingText = firstMenu.substring(text.length);
+                suggestionDiv.textContent = text + remainingText;
+                suggestionDiv.style.display = 'block';
+            }
+        }
+        
+        // 자동완성 설정
+        function setupAutocomplete() {
+            const orderInput = document.getElementById('myOrderInput');
+            const dropdownDiv = document.getElementById('autocompleteDropdown');
+            
+            if (!orderInput) return;
+            
+            orderInput.addEventListener('input', () => {
+                updateAutocompleteSuggestion();
+            });
+            
+            orderInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (currentSuggestions.length > 0) {
+                        e.preventDefault();
+                        const menuToApply = selectedSuggestionIndex >= 0 
+                            ? currentSuggestions[selectedSuggestionIndex] 
+                            : currentSuggestions[0];
+                        applySuggestion(menuToApply);
+                        return;
+                    }
+                    e.preventDefault();
+                    updateMyOrder();
+                    return;
+                }
+                
+                if (e.key === 'Tab' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    const menuToApply = selectedSuggestionIndex >= 0 
+                        ? currentSuggestions[selectedSuggestionIndex] 
+                        : currentSuggestions[0];
+                    applySuggestion(menuToApply);
+                    return;
+                }
+                
+                if (e.key === 'ArrowDown' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+                    renderAutocompleteDropdown();
+                    updateSuggestionDisplay();
+                    return;
+                }
+                
+                if (e.key === 'ArrowUp' && currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    selectedSuggestionIndex = selectedSuggestionIndex <= 0 
+                        ? currentSuggestions.length - 1 
+                        : selectedSuggestionIndex - 1;
+                    renderAutocompleteDropdown();
+                    updateSuggestionDisplay();
+                    return;
+                }
+                
+                if (e.key === 'Escape') {
+                    currentSuggestions = [];
+                    selectedSuggestionIndex = -1;
+                    dropdownDiv.style.display = 'none';
+                    document.getElementById('autocompleteSuggestion').style.display = 'none';
+                    return;
+                }
+            });
+            
+            orderInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    document.getElementById('autocompleteDropdown').style.display = 'none';
+                    document.getElementById('autocompleteSuggestion').style.display = 'none';
+                }, 200);
+            });
+            
+            orderInput.addEventListener('focus', () => {
+                updateAutocompleteSuggestion();
+            });
+        }
+        
+        // 커스텀 알림창
+        function showCustomAlert(message, type = 'info', title = '') {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+            
+            const colors = {
+                info: '#8b4513',
+                warning: '#ffc107',
+                error: '#dc3545',
+                success: '#28a745'
+            };
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border-top: 4px solid ${colors[type] || colors.info};`;
+            
+            modal.innerHTML = `
+                ${title ? `<div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: ${colors[type] || colors.info};">${title}</div>` : ''}
+                <div style="margin-bottom: 20px; line-height: 1.6;">${message}</div>
+                <button onclick="this.closest('div[style*=\"position: fixed\"]').remove()" style="width: 100%; padding: 12px; background: ${colors[type] || colors.info}; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.remove();
+            });
+        }
+        
+        // 확인 다이얼로그
+        function showConfirmDialog(message, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);';
+            
+            modal.innerHTML = `
+                <div style="margin-bottom: 20px; line-height: 1.6; text-align: center;">${message}</div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="confirmCancel" style="flex: 1; padding: 12px; background: #e9ecef; color: #333; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">취소</button>
+                    <button id="confirmOk" style="flex: 1; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
+                </div>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            modal.querySelector('#confirmCancel').addEventListener('click', () => overlay.remove());
+            modal.querySelector('#confirmOk').addEventListener('click', () => {
+                overlay.remove();
+                if (onConfirm) onConfirm();
+            });
         }
 
         // 게임 종료

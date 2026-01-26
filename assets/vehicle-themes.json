@@ -69,6 +69,13 @@
       "emoji": "🚁",
       "theme": "sky",
       "backgroundImage": "assets/backgrounds/sky.png"
+    },
+    "horse": {
+      "id": "horse",
+      "name": "말",
+      "emoji": "🐎",
+      "theme": "forest",
+      "backgroundImage": "assets/backgrounds/forest.png"
     }
   }
 }
