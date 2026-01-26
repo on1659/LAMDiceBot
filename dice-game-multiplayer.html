@@ -1235,7 +1235,8 @@
                 <div class="input-group" style="margin: 0;">
                     <label for="globalUserNameInput">이름</label>
                     <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
-            </div>
+                    <div id="userNameError" style="color: #dc3545; font-size: 12px; margin-top: 5px; display: none;"></div>
+                </div>
             </div>
             
             <div class="join-room-section">
@@ -1291,12 +1292,6 @@
                     <label for="createRoomNameInput">방 제목</label>
                     <input type="text" id="createRoomNameInput" placeholder="방 제목 입력" maxlength="30" />
                 </div>
-            </div>
-            
-            <!-- 호스트 이름 입력 (방 생성 시에만 사용) -->
-            <div class="input-group" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <label for="createRoomHostNameInput">호스트 이름</label>
-                <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름 입력" maxlength="20" />
             </div>
             
             <!-- 공개/비공개 설정 -->
@@ -1659,6 +1654,15 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        
+        // 아이디 유효성 검사 함수 (한글, 영문 소문자, 숫자, _, - 허용)
+        function validateUserId(userId) {
+            if (!userId || typeof userId !== 'string') return false;
+            // 허용 문자: 한글(완성형+자모음), 영문 소문자, 숫자, 언더바(_), 하이픈(-)
+            // 공백 및 특수문자(!, @, #, *, (, ) 등) 금지
+            const pattern = /^[가-힣ㄱ-ㅎㅏ-ㅣa-z0-9_-]+$/;
+            return pattern.test(userId);
+        }
         
         // 디버그 로그 함수 (localhost:3000에서만 활성화)
         const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
@@ -2676,6 +2680,15 @@
                 return;
             }
             
+            // 유효성 검사
+            if (!validateUserId(userName)) {
+                showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
+                if (globalNameInput) {
+                    globalNameInput.focus();
+                }
+                return;
+            }
+            
             // 방 정보 확인
             const room = roomsList.find(r => r.roomId === roomId);
             
@@ -3093,29 +3106,42 @@
         
         // 방 생성 페이지로 이동
         function showCreateRoomPage() {
+            // 전역 이름 입력값 검증 (방 생성 전 필수 입력)
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const hostName = globalNameInput ? globalNameInput.value.trim() : '';
+            
+            if (hostName === '') {
+                showCustomAlert('이름을 먼저 입력해주세요!', 'warning');
+                if (globalNameInput) {
+                    globalNameInput.focus();
+                }
+                return;
+            }
+            
+            // 유효성 검사
+            if (!validateUserId(hostName)) {
+                showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
+                if (globalNameInput) {
+                    globalNameInput.focus();
+                }
+                return;
+            }
+            
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('createRoomSection').classList.add('active');
             
             // 기본값 설정
-            document.getElementById('createRoomNameInput').value = '';
-            document.getElementById('createRoomHostNameInput').value = '';
             document.getElementById('createRoomPrivateCheckbox').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
             document.getElementById('createRoomPasswordContainer').style.display = 'none';
             document.getElementById('createRoomIPBlockCheckbox').checked = false; // IP 차단 옵션 기본값: 체크 안 함
             
-            // 전역 이름 입력값을 가져와서 호스트 이름 입력칸에 기본값으로 설정 (있으면)
-            const globalNameInput = document.getElementById('globalUserNameInput');
-            if (globalNameInput && globalNameInput.value.trim()) {
-                const hostName = globalNameInput.value.trim();
-                document.getElementById('createRoomHostNameInput').value = hostName;
-                // 방 제목 자동 생성
-                document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
-            }
+            // 방 제목 자동 생성 (전역 이름 사용)
+            document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
             
-            // 호스트 이름 입력창에 포커스
+            // 방 제목 입력창에 포커스
             setTimeout(() => {
-                document.getElementById('createRoomHostNameInput').focus();
+                document.getElementById('createRoomNameInput').focus();
             }, 100);
         }
         
@@ -3311,21 +3337,34 @@
         
         // 방 생성 최종 확인 및 생성
         function finalizeRoomCreation() {
-            const hostNameInput = document.getElementById('createRoomHostNameInput');
+            const globalNameInput = document.getElementById('globalUserNameInput');
             const roomNameInput = document.getElementById('createRoomNameInput');
             
-            const hostName = hostNameInput.value.trim();
+            const hostName = globalNameInput ? globalNameInput.value.trim() : '';
             const roomName = roomNameInput.value.trim();
+            
+            if (hostName === '') {
+                showCustomAlert('이름을 먼저 입력해주세요! 대기실로 돌아가서 이름을 입력하세요.', 'warning');
+                goBackToLobby();
+                if (globalNameInput) {
+                    globalNameInput.focus();
+                }
+                return;
+            }
+            
+            // 유효성 검사
+            if (!validateUserId(hostName)) {
+                showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
+                goBackToLobby();
+                if (globalNameInput) {
+                    globalNameInput.focus();
+                }
+                return;
+            }
             
             if (roomName === '') {
                 showCustomAlert('방 제목을 입력해주세요!', 'warning');
                 roomNameInput.focus();
-                return;
-            }
-            
-            if (hostName === '') {
-                showCustomAlert('호스트 이름을 입력해주세요!', 'warning');
-                hostNameInput.focus();
                 return;
             }
             
@@ -3508,6 +3547,8 @@
         // 전역 이름 입력창 초기화 (localStorage에서 불러오기)
         document.addEventListener('DOMContentLoaded', () => {
             const globalNameInput = document.getElementById('globalUserNameInput');
+            const userNameError = document.getElementById('userNameError');
+            
             if (globalNameInput) {
                 // localStorage에서 이름 불러오기
                 const savedName = localStorage.getItem('diceGameUserName');
@@ -3515,24 +3556,59 @@
                     globalNameInput.value = savedName;
                 }
                 
-                // 이름이 변경될 때마다 localStorage에 저장
+                // 이름이 변경될 때마다 유효성 검사 및 localStorage에 저장
                 globalNameInput.addEventListener('input', () => {
                     const userName = globalNameInput.value.trim();
-                    if (userName) {
-                        localStorage.setItem('diceGameUserName', userName);
+                    
+                    // 유효성 검사
+                    if (userName && !validateUserId(userName)) {
+                        if (userNameError) {
+                            userNameError.textContent = '한글, 영문 소문자, 숫자, _, -만 사용 가능합니다. (공백/특수문자 불가)';
+                            userNameError.style.display = 'block';
+                        }
+                        globalNameInput.style.borderColor = '#dc3545';
+                    } else {
+                        if (userNameError) {
+                            userNameError.style.display = 'none';
+                        }
+                        globalNameInput.style.borderColor = '';
+                        
+                        // 유효한 이름만 localStorage에 저장
+                        if (userName) {
+                            localStorage.setItem('diceGameUserName', userName);
+                        }
+                    }
+                });
+                
+                // 포커스 아웃 시 유효하지 않은 문자 자동 제거 (사용자 편의)
+                globalNameInput.addEventListener('blur', () => {
+                    const userName = globalNameInput.value.trim();
+                    if (userName && !validateUserId(userName)) {
+                        // 유효하지 않은 문자 제거 (한글+자모음, 영문 소문자, 숫자, _, - 유지)
+                        const cleaned = userName.toLowerCase().replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-z0-9_-]/g, '');
+                        globalNameInput.value = cleaned;
+                        if (cleaned) {
+                            localStorage.setItem('diceGameUserName', cleaned);
+                        }
+                        if (userNameError) {
+                            userNameError.style.display = 'none';
+                        }
+                        globalNameInput.style.borderColor = '';
                     }
                 });
             }
             
-            // 호스트 이름 입력창에서 방 제목 자동 업데이트
-            const hostNameInput = document.getElementById('createRoomHostNameInput');
+            // 방 제목 입력창에서 이름 기반 자동 업데이트
             const roomNameInput = document.getElementById('createRoomNameInput');
-            if (hostNameInput && roomNameInput) {
+            if (globalNameInput && roomNameInput) {
                 let isUpdating = false;
-                hostNameInput.addEventListener('input', () => {
+                globalNameInput.addEventListener('input', () => {
                     if (isUpdating) return;
-                    const hostName = hostNameInput.value.trim();
-                    // 방 제목이 기본 형식이거나 비어있을 때만 자동 업데이트
+                    const hostName = globalNameInput.value.trim();
+                    // 방 제목이 기본 형식이거나 비어있을 때만 자동 업데이트 (방 생성 페이지가 열려있을 때만)
+                    const createRoomSection = document.getElementById('createRoomSection');
+                    if (!createRoomSection || !createRoomSection.classList.contains('active')) return;
+                    
                     const currentRoomName = roomNameInput.value.trim();
                     if (!currentRoomName || currentRoomName.endsWith('님의 Dice')) {
                         isUpdating = true;
@@ -3546,9 +3622,9 @@
         // 방 생성 성공
         socket.on('roomCreated', (data) => {
             currentRoomId = data.roomId;
-            // 방 생성 시 입력한 호스트 이름 사용
-            const hostNameInput = document.getElementById('createRoomHostNameInput');
-            currentUser = hostNameInput ? hostNameInput.value.trim() : data.userName;
+            // 방 생성 시 입력한 이름 사용 (globalUserNameInput)
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            currentUser = globalNameInput ? globalNameInput.value.trim() : data.userName;
             isHost = true;
             
             document.getElementById('lobbySection').classList.remove('active');
@@ -3568,9 +3644,21 @@
         // 방 입장 성공
         socket.on('roomJoined', (data) => {
             currentRoomId = data.roomId;
-            const globalNameInput = document.getElementById('globalUserNameInput');
-            currentUser = globalNameInput ? globalNameInput.value.trim() : data.userName; // 전역 이름 사용
+            // 서버에서 전달받은 이름 사용 (중복 시 _1, _2 등이 붙을 수 있음)
+            currentUser = data.userName;
             isHost = data.isHost;
+            
+            // 이름이 변경되었으면 알림 표시 및 로컬 저장소 업데이트
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const originalName = globalNameInput ? globalNameInput.value.trim() : '';
+            if (originalName && originalName !== data.userName) {
+                showCustomAlert(`중복된 이름이 있어 "${data.userName}"(으)로 입장합니다.`, 'info');
+                // 로컬 저장소에도 변경된 이름 저장
+                localStorage.setItem('diceGameUserName', data.userName);
+                if (globalNameInput) {
+                    globalNameInput.value = data.userName;
+                }
+            }
             
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');

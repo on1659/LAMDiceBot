@@ -299,6 +299,36 @@ function generateRoomId() {
     return crypto.randomBytes(4).toString('hex');
 }
 
+// 고유 사용자 이름 생성 (중복 시 _1, _2, ... 접미사 추가)
+function generateUniqueUserName(baseName, existingNames) {
+    // 기본 이름이 존재하지 않으면 그대로 반환
+    if (!existingNames.includes(baseName)) {
+        return baseName;
+    }
+    
+    // _숫자 접미사가 이미 있는 경우 기본 이름 추출
+    const basePattern = /^(.+?)(?:_(\d+))?$/;
+    const match = baseName.match(basePattern);
+    const cleanBaseName = match ? match[1] : baseName;
+    
+    // 같은 기본 이름을 가진 모든 사용자 찾기 (cleanBaseName, cleanBaseName_1, cleanBaseName_2, ...)
+    let maxSuffix = 0;
+    existingNames.forEach(name => {
+        if (name === cleanBaseName) {
+            maxSuffix = Math.max(maxSuffix, 0);
+        } else if (name.startsWith(cleanBaseName + '_')) {
+            const suffix = name.substring(cleanBaseName.length + 1);
+            const num = parseInt(suffix, 10);
+            if (!isNaN(num)) {
+                maxSuffix = Math.max(maxSuffix, num);
+            }
+        }
+    });
+    
+    // 새 이름 생성
+    return `${cleanBaseName}_${maxSuffix + 1}`;
+}
+
 // 방의 기본 게임 상태 생성
 function createRoomGameState() {
     return {
@@ -1173,7 +1203,8 @@ io.on('connection', (socket) => {
         }
         
         // 같은 이름의 사용자가 이미 있는지 확인
-        const existingUser = gameState.users.find(u => u.name === userName.trim());
+        let finalUserName = userName.trim();
+        const existingUser = gameState.users.find(u => u.name === finalUserName);
         
         // 중복 이름 체크 (재연결이 아닌 경우)
         if (existingUser) {
@@ -1183,147 +1214,151 @@ io.on('connection', (socket) => {
             // 같은 이름을 가진 사용자가 이미 연결되어 있는지 확인
             // socket.userName 또는 socket.id로 확인
             const connectedUserWithSameName = socketsInRoom.find(s => 
-                (s.userName === userName.trim() || s.id === existingUser.id) && s.connected
+                (s.userName === finalUserName || s.id === existingUser.id) && s.connected
             );
             
-            // 기존 사용자의 소켓이 아직 연결되어 있으면 중복 이름으로 거부
+            // 기존 사용자의 소켓이 아직 연결되어 있으면 새 이름 생성 (이더 → 이더_1)
             if (connectedUserWithSameName) {
-                socket.emit('roomError', '이미 사용 중인 이름입니다!');
+                const existingNames = gameState.users.map(u => u.name);
+                finalUserName = generateUniqueUserName(finalUserName, existingNames);
+                console.log(`[중복 이름] ${userName.trim()} → ${finalUserName} (방: ${roomId})`);
+                // 새 이름으로 계속 진행 (아래 새 사용자 추가 로직으로 이동)
+            } else {
+                // 기존 사용자의 소켓이 연결되지 않았으면 재연결로 간주
+                existingUser.id = socket.id;
+                const user = existingUser;
+                console.log(`사용자 ${userName.trim()}이(가) 방 ${roomId}에 재연결했습니다.`);
+                
+                // 새 방 입장
+                socket.currentRoomId = roomId;
+                socket.userName = userName.trim();
+                socket.isHost = user.isHost;
+                
+                // 호스트 ID도 업데이트
+                if (user.isHost) {
+                    room.hostId = socket.id;
+                }
+                
+                socket.join(roomId);
+                
+                // 재접속 시 이미 굴렸는지 확인
+                const hasRolled = gameState.rolledUsers.includes(userName.trim());
+                const myResult = gameState.history.find(r => r.user === userName.trim());
+                
+                // 입장 성공 응답
+                socket.emit('roomJoined', {
+                    roomId,
+                    roomName: room.roomName,
+                    userName: userName.trim(),
+                    isHost: user.isHost,
+                    hasRolled: hasRolled,
+                    myResult: myResult,
+                    isGameActive: gameState.isGameActive,
+                    isOrderActive: gameState.isOrderActive,
+                    isGamePlayer: gameState.gamePlayers.includes(userName.trim()),
+                    readyUsers: gameState.readyUsers,
+                    isReady: gameState.readyUsers.includes(userName.trim()),
+                    isPrivate: room.isPrivate,
+                    password: room.isPrivate ? room.password : '',
+                    gameType: (() => {
+                        const gameType = room.gameType || 'dice';
+                        // #region agent log
+                        fs.appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:1181',message:'roomJoined gameType',data:{roomId:room.roomId,roomGameType:room.gameType,returnedGameType:gameType,userName:userName.trim()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n');
+                        // #endregion
+                        return gameType;
+                    })(),
+                    createdAt: room.createdAt, // 방 생성 시간 추가
+                    expiryHours: room.expiryHours || 1, // 방 유지 시간 추가
+                    blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
+                    turboAnimation: room.turboAnimation !== false, // 터보 애니메이션 옵션 추가
+                    diceSettings: gameState.userDiceSettings[userName.trim()],
+                    myOrder: gameState.userOrders[userName.trim()] || '',
+                    gameRules: gameState.gameRules,
+                    frequentMenus: gameState.frequentMenus,
+                    chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
+                    everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
+                    userColors: gameState.userColors || {}, // 사용자 색상 정보
+                    gameState: {
+                        ...gameState,
+                        hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
+                        myResult: myResult,
+                        frequentMenus: gameState.frequentMenus,
+                        // 경마 게임 상태 포함
+                        availableHorses: gameState.availableHorses || [],
+                        userHorseBets: gameState.userHorseBets || {},
+                        horseRaceMode: gameState.horseRaceMode || 'first',
+                        currentRoundPlayers: gameState.currentRoundPlayers || [],
+                        raceRound: gameState.raceRound || 1,
+                        isHorseRaceActive: gameState.isHorseRaceActive || false
+                    }
+                });
+                
+                // 경마 게임인 경우 방 입장 시 말 선택 UI 표시
+                if (room.gameType === 'horse-race' && !gameState.isHorseRaceActive) {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1235',message:'roomJoined horse flow',data:{roomId:roomId,gameType:room.gameType,isHorseRaceActive:gameState.isHorseRaceActive,playersCount:gameState.users.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+                    // #endregion
+                    const players = gameState.users.map(u => u.name);
+                    if (players.length >= 1) {
+                        // 말 수 결정 (이미 있으면 유지)
+                        if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
+                            let horseCount;
+                            if (players.length <= 4) {
+                                horseCount = players.length; // 1:1 매칭
+                            } else {
+                                horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                            }
+                            gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+                        }
+                        
+                        // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정 (방 입장 시)
+                        if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+                            const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
+                            gameState.selectedVehicleTypes = [];
+                            const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+                            for (let i = 0; i < gameState.availableHorses.length; i++) {
+                                gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+                            }
+                            console.log(`[방 입장] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
+                        }
+                        
+                        // 모든 클라이언트에게 말 선택 UI 표시 (늦게 들어온 사용자 포함)
+                        io.to(roomId).emit('horseSelectionReady', {
+                            availableHorses: gameState.availableHorses,
+                            participants: players,
+                            players: players, // 하위 호환성
+                            userHorseBets: { ...gameState.userHorseBets },
+                            horseRaceMode: gameState.horseRaceMode || 'first',
+                            raceRound: gameState.raceRound || 1,
+                            selectedVehicleTypes: gameState.selectedVehicleTypes
+                        });
+                        // #region agent log
+                        fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1249',message:'roomJoined horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+                        // #endregion
+                    }
+                }
+                
+                // 같은 방의 다른 사용자들에게 업데이트
+                io.to(roomId).emit('updateUsers', gameState.users);
+                io.to(roomId).emit('updateOrders', gameState.userOrders);
+                io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+                
+                console.log(`${userName.trim()}이(가) 방 ${room.roomName} (${roomId})에 재연결`);
                 return;
             }
-            
-            // 기존 사용자의 소켓이 연결되지 않았으면 재연결로 간주
-            existingUser.id = socket.id;
-            const user = existingUser;
-            console.log(`사용자 ${userName.trim()}이(가) 방 ${roomId}에 재연결했습니다.`);
-            
-            // 새 방 입장
-            socket.currentRoomId = roomId;
-            socket.userName = userName.trim();
-            socket.isHost = user.isHost;
-            
-            // 호스트 ID도 업데이트
-            if (user.isHost) {
-                room.hostId = socket.id;
-            }
-            
-            socket.join(roomId);
-            
-            // 재접속 시 이미 굴렸는지 확인
-            const hasRolled = gameState.rolledUsers.includes(userName.trim());
-            const myResult = gameState.history.find(r => r.user === userName.trim());
-            
-            // 입장 성공 응답
-            socket.emit('roomJoined', {
-                roomId,
-                roomName: room.roomName,
-                userName: userName.trim(),
-                isHost: user.isHost,
-                hasRolled: hasRolled,
-                myResult: myResult,
-                isGameActive: gameState.isGameActive,
-                isOrderActive: gameState.isOrderActive,
-                isGamePlayer: gameState.gamePlayers.includes(userName.trim()),
-                readyUsers: gameState.readyUsers,
-                isReady: gameState.readyUsers.includes(userName.trim()),
-                isPrivate: room.isPrivate,
-                password: room.isPrivate ? room.password : '',
-                gameType: (() => {
-                    const gameType = room.gameType || 'dice';
-                    // #region agent log
-                    fs.appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:1181',message:'roomJoined gameType',data:{roomId:room.roomId,roomGameType:room.gameType,returnedGameType:gameType,userName:userName.trim()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n');
-                    // #endregion
-                    return gameType;
-                })(),
-                createdAt: room.createdAt, // 방 생성 시간 추가
-                expiryHours: room.expiryHours || 1, // 방 유지 시간 추가
-                blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
-                turboAnimation: room.turboAnimation !== false, // 터보 애니메이션 옵션 추가
-                diceSettings: gameState.userDiceSettings[userName.trim()],
-                myOrder: gameState.userOrders[userName.trim()] || '',
-                gameRules: gameState.gameRules,
-                frequentMenus: gameState.frequentMenus,
-                chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
-                everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
-                userColors: gameState.userColors || {}, // 사용자 색상 정보
-                gameState: {
-                    ...gameState,
-                    hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
-                    myResult: myResult,
-                    frequentMenus: gameState.frequentMenus,
-                    // 경마 게임 상태 포함
-                    availableHorses: gameState.availableHorses || [],
-                    userHorseBets: gameState.userHorseBets || {},
-                    horseRaceMode: gameState.horseRaceMode || 'first',
-                    currentRoundPlayers: gameState.currentRoundPlayers || [],
-                    raceRound: gameState.raceRound || 1,
-                    isHorseRaceActive: gameState.isHorseRaceActive || false
-                }
-            });
-            
-            // 경마 게임인 경우 방 입장 시 말 선택 UI 표시
-            if (room.gameType === 'horse-race' && !gameState.isHorseRaceActive) {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1235',message:'roomJoined horse flow',data:{roomId:roomId,gameType:room.gameType,isHorseRaceActive:gameState.isHorseRaceActive,playersCount:gameState.users.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-                // #endregion
-                const players = gameState.users.map(u => u.name);
-                if (players.length >= 1) {
-                    // 말 수 결정 (이미 있으면 유지)
-                    if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
-                        let horseCount;
-                        if (players.length <= 4) {
-                            horseCount = players.length; // 1:1 매칭
-                        } else {
-                            horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
-                        }
-                        gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
-                    }
-                    
-                    // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정 (방 입장 시)
-                    if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
-                        const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter'];
-                        gameState.selectedVehicleTypes = [];
-                        const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
-                        for (let i = 0; i < gameState.availableHorses.length; i++) {
-                            gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
-                        }
-                        console.log(`[방 입장] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
-                    }
-                    
-                    // 모든 클라이언트에게 말 선택 UI 표시 (늦게 들어온 사용자 포함)
-                    io.to(roomId).emit('horseSelectionReady', {
-                        availableHorses: gameState.availableHorses,
-                        participants: players,
-                        players: players, // 하위 호환성
-                        userHorseBets: { ...gameState.userHorseBets },
-                        horseRaceMode: gameState.horseRaceMode || 'first',
-                        raceRound: gameState.raceRound || 1,
-                        selectedVehicleTypes: gameState.selectedVehicleTypes
-                    });
-                    // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1249',message:'roomJoined horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-                    // #endregion
-                }
-            }
-            
-            // 같은 방의 다른 사용자들에게 업데이트
-            io.to(roomId).emit('updateUsers', gameState.users);
-            io.to(roomId).emit('updateOrders', gameState.userOrders);
-            io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
-            
-            console.log(`${userName.trim()}이(가) 방 ${room.roomName} (${roomId})에 재연결`);
-            return;
         }
         
         // 새 사용자 추가 전 중복 이름 체크 (실제 연결된 socket 확인)
         const socketsInRoom = await io.in(roomId).fetchSockets();
         const alreadyConnectedWithSameName = socketsInRoom.find(s => 
-            s.userName === userName.trim() && s.connected
+            s.userName === finalUserName && s.connected
         );
         
+        // 중복 이름이 있으면 새 이름 생성
         if (alreadyConnectedWithSameName) {
-            socket.emit('roomError', '이미 사용 중인 이름입니다!');
-            return;
+            const existingNames = gameState.users.map(u => u.name);
+            finalUserName = generateUniqueUserName(finalUserName, existingNames);
+            console.log(`[중복 이름 재확인] ${userName.trim()} → ${finalUserName} (방: ${roomId})`);
         }
         
         // IP 차단 옵션이 활성화된 경우에만 같은 IP에서 이미 입장한 사용자가 있는지 확인
@@ -1373,10 +1408,10 @@ io.on('connection', (socket) => {
             socket.deviceId = deviceId || null;
         }
         
-        // 새 사용자 추가
+        // 새 사용자 추가 (중복 시 변경된 이름 사용)
         const user = {
             id: socket.id,
-            name: userName.trim(),
+            name: finalUserName,
             isHost: finalIsHost,
             joinTime: new Date()
         };
@@ -1384,45 +1419,45 @@ io.on('connection', (socket) => {
         
         // 새 방 입장
         socket.currentRoomId = roomId;
-        socket.userName = userName.trim();
+        socket.userName = finalUserName;
         socket.isHost = user.isHost;
         
         // 호스트 ID와 이름 업데이트
         if (user.isHost) {
             room.hostId = socket.id;
-            room.hostName = userName.trim();
+            room.hostName = finalUserName;
         }
         
-        if (!gameState.userDiceSettings[userName.trim()]) {
-            gameState.userDiceSettings[userName.trim()] = { max: 100 };
+        if (!gameState.userDiceSettings[finalUserName]) {
+            gameState.userDiceSettings[finalUserName] = { max: 100 };
         }
         
-        if (!gameState.userOrders[userName.trim()]) {
-            gameState.userOrders[userName.trim()] = '';
+        if (!gameState.userOrders[finalUserName]) {
+            gameState.userOrders[finalUserName] = '';
         }
         
         // 방 입장 시 자동으로 준비 상태 추가 (게임 진행 중이 아닐 때만)
-        if (!gameState.isGameActive && !gameState.readyUsers.includes(userName.trim())) {
-            gameState.readyUsers.push(userName.trim());
+        if (!gameState.isGameActive && !gameState.readyUsers.includes(finalUserName)) {
+            gameState.readyUsers.push(finalUserName);
         }
         
         socket.join(roomId);
         
         // 재접속 시 이미 굴렸는지 확인
-        const hasRolled = gameState.rolledUsers.includes(userName.trim());
-        const myResult = gameState.history.find(r => r.user === userName.trim());
+        const hasRolled = gameState.rolledUsers.includes(finalUserName);
+        const myResult = gameState.history.find(r => r.user === finalUserName);
         
-        // 입장 성공 응답
-            socket.emit('roomJoined', {
-                roomId,
-                roomName: room.roomName,
-                userName: userName.trim(),
-                isHost: finalIsHost,
+        // 입장 성공 응답 (중복 시 변경된 이름 전달)
+        socket.emit('roomJoined', {
+            roomId,
+            roomName: room.roomName,
+            userName: finalUserName, // 중복 시 변경된 이름 전달
+            isHost: finalIsHost,
             hasRolled: hasRolled,
             myResult: myResult,
             isGameActive: gameState.isGameActive,
             isOrderActive: gameState.isOrderActive,
-            isGamePlayer: gameState.gamePlayers.includes(userName.trim()),
+            isGamePlayer: gameState.gamePlayers.includes(finalUserName),
             readyUsers: gameState.readyUsers,
             isReady: true, // 방 입장 시 자동으로 준비 상태
             isPrivate: room.isPrivate,
@@ -1432,8 +1467,8 @@ io.on('connection', (socket) => {
             expiryHours: room.expiryHours || 3, // 방 유지 시간 추가
             blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
             turboAnimation: room.turboAnimation !== false, // 터보 애니메이션 옵션 추가
-            diceSettings: gameState.userDiceSettings[userName.trim()],
-            myOrder: gameState.userOrders[userName.trim()] || '',
+            diceSettings: gameState.userDiceSettings[finalUserName],
+            myOrder: gameState.userOrders[finalUserName] || '',
             gameRules: gameState.gameRules,
             frequentMenus: gameState.frequentMenus,
             chatHistory: gameState.chatHistory || [], // 채팅 기록 전송
@@ -1441,7 +1476,7 @@ io.on('connection', (socket) => {
             userColors: gameState.userColors || {}, // 사용자 색상 정보
             gameState: {
                 ...gameState,
-                hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
+                hasRolled: () => gameState.rolledUsers.includes(finalUserName),
                 myResult: myResult,
                 frequentMenus: gameState.frequentMenus
             }
@@ -1452,7 +1487,7 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('updateOrders', gameState.userOrders);
         io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
         
-        console.log(`${userName}이(가) 방 ${room.roomName} (${roomId})에 입장 (자동 준비)`);
+        console.log(`${finalUserName}이(가) 방 ${room.roomName} (${roomId})에 입장 (자동 준비)`);
     });
 
     // 방 나가기
