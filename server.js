@@ -1783,6 +1783,86 @@ io.on('connection', (socket) => {
         console.log(`방 ${room.roomName}에서 ${targetName} 강퇴됨`);
     });
 
+    // 호스트 전환
+    socket.on('transferHost', async (targetName) => {
+        if (!checkRateLimit()) return;
+
+        const room = getCurrentRoom();
+        const gameState = getCurrentRoomGameState();
+        if (!room || !gameState) return;
+
+        // 호스트 권한 확인
+        const currentUser = gameState.users.find(u => u.id === socket.id);
+        if (!currentUser || !currentUser.isHost) {
+            socket.emit('permissionError', '호스트만 호스트 전환 기능을 사용할 수 있습니다.');
+            return;
+        }
+
+        const targetUser = gameState.users.find(u => u.name === targetName);
+        if (!targetUser) {
+            socket.emit('gameError', '해당 사용자를 찾을 수 없습니다.');
+            return;
+        }
+
+        if (targetUser.isHost) {
+            socket.emit('gameError', '이미 호스트입니다.');
+            return;
+        }
+
+        // 호스트 전환
+        const oldHost = currentUser;
+        oldHost.isHost = false;
+        targetUser.isHost = true;
+
+        // 소켓 업데이트
+        const socketsInRoom = await io.in(room.roomId).fetchSockets();
+        const oldHostSocket = socketsInRoom.find(s => s.id === oldHost.id);
+        const newHostSocket = socketsInRoom.find(s => s.id === targetUser.id);
+
+        if (oldHostSocket) {
+            oldHostSocket.isHost = false;
+        }
+        if (newHostSocket) {
+            newHostSocket.isHost = true;
+        }
+
+        // 방 정보 업데이트
+        room.hostId = targetUser.id;
+        room.hostName = targetUser.name;
+
+        // 새 호스트에게 호스트 권한 알림
+        if (newHostSocket) {
+            newHostSocket.emit('hostTransferred', { 
+                message: '호스트 권한이 전달되었습니다.',
+                roomName: room.roomName
+            });
+        }
+
+        // 모든 사용자에게 업데이트 전송
+        io.to(room.roomId).emit('updateUsers', gameState.users);
+        io.to(room.roomId).emit('hostChanged', {
+            newHostId: targetUser.id,
+            newHostName: targetUser.name,
+            message: `${oldHost.name}님이 ${targetUser.name}님에게 호스트 권한을 전달했습니다.`
+        });
+
+        // 시스템 메시지 알림
+        const transferMessage = {
+            userName: '시스템',
+            message: `${oldHost.name}님이 ${targetUser.name}님에게 호스트 권한을 전달했습니다.`,
+            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+            isHost: false,
+            isSystemMessage: true
+        };
+        gameState.chatHistory.push(transferMessage);
+        io.to(room.roomId).emit('newMessage', transferMessage);
+
+        // 방 목록 업데이트
+        updateRoomsList();
+
+        console.log(`방 ${room.roomName}에서 호스트 전환: ${oldHost.name} -> ${targetUser.name}`);
+    });
+
     // 방 목록 업데이트 (모든 클라이언트에게)
     function updateRoomsList() {
         const roomsList = Object.entries(rooms).map(([roomId, room]) => ({

@@ -1222,6 +1222,516 @@
             }
         }
         
+        // 커스텀 얼럿 함수
+        function showCustomAlert(message, type = 'info') {
+            // 기존 얼럿이 있으면 제거
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+            
+            // 타입에 따른 색상 설정
+            let bgColor, borderColor, icon;
+            switch(type) {
+                case 'error':
+                    bgColor = '#fee';
+                    borderColor = '#f66';
+                    icon = '⚠️';
+                    break;
+                case 'warning':
+                    bgColor = '#fff9e6';
+                    borderColor = '#ffa500';
+                    icon = '⚠️';
+                    break;
+                case 'success':
+                    bgColor = '#e8f5e9';
+                    borderColor = '#4caf50';
+                    icon = '✅';
+                    break;
+                default:
+                    bgColor = '#e3f2fd';
+                    borderColor = '#2196f3';
+                    icon = 'ℹ️';
+            }
+            
+            // 얼럿 오버레이 생성
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.4);
+                z-index: 10001;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                animation: fadeIn 0.2s ease-out;
+            `;
+            
+            // 얼럿 컨텐츠 생성
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `
+                background: white;
+                border-radius: 16px;
+                padding: 25px 30px;
+                max-width: 500px;
+                width: 90vw;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                border: 2px solid ${borderColor};
+                animation: slideDown 0.3s ease-out;
+            `;
+            
+            // 아이콘과 메시지
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                font-size: 16px;
+                line-height: 1.6;
+                color: #333;
+                white-space: pre-wrap;
+                word-break: break-word;
+                text-align: center;
+                margin-bottom: 20px;
+            `;
+            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+            
+            // 확인 버튼
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `
+                padding: 10px 30px;
+                background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                width: 100%;
+                transition: transform 0.1s, box-shadow 0.1s;
+            `;
+            confirmButton.onmouseenter = () => {
+                confirmButton.style.transform = 'scale(1.02)';
+                confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            };
+            confirmButton.onmouseleave = () => {
+                confirmButton.style.transform = 'scale(1)';
+                confirmButton.style.boxShadow = 'none';
+            };
+            confirmButton.onclick = () => {
+                alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                setTimeout(() => alertOverlay.remove(), 200);
+            };
+            
+            // ESC 키로 닫기
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        alertOverlay.remove();
+                        document.removeEventListener('keydown', handleEsc);
+                    }, 200);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+            
+            // 오버레이 클릭 시 닫기
+            alertOverlay.onclick = (e) => {
+                if (e.target === alertOverlay) {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        alertOverlay.remove();
+                        document.removeEventListener('keydown', handleEsc);
+                    }, 200);
+                }
+            };
+            
+            alertContent.appendChild(messageDiv);
+            alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent);
+            document.body.appendChild(alertOverlay);
+            
+            // 포커스 설정
+            confirmButton.focus();
+        }
+        
+        // 커스텀 확인 다이얼로그
+        function showCustomConfirm(message, type = 'warning') {
+            return new Promise((resolve) => {
+                // 기존 confirm이 있으면 제거
+                const existingConfirm = document.getElementById('customConfirm');
+                if (existingConfirm) {
+                    existingConfirm.remove();
+                }
+                
+                // 타입에 따른 색상 설정
+                let bgColor, borderColor, icon;
+                switch(type) {
+                    case 'error':
+                        bgColor = '#fee';
+                        borderColor = '#f66';
+                        icon = '⚠️';
+                        break;
+                    case 'warning':
+                        bgColor = '#fff9e6';
+                        borderColor = '#ffa500';
+                        icon = '⚠️';
+                        break;
+                    case 'success':
+                        bgColor = '#e8f5e9';
+                        borderColor = '#4caf50';
+                        icon = '✅';
+                        break;
+                    default:
+                        bgColor = '#e3f2fd';
+                        borderColor = '#2196f3';
+                        icon = 'ℹ️';
+                }
+                
+                // Confirm 오버레이 생성
+                const confirmOverlay = document.createElement('div');
+                confirmOverlay.id = 'customConfirm';
+                confirmOverlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.4);
+                    z-index: 10002;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+                
+                // Confirm 컨텐츠 생성
+                const confirmContent = document.createElement('div');
+                confirmContent.style.cssText = `
+                    background: white;
+                    border-radius: 16px;
+                    padding: 25px 30px;
+                    max-width: 500px;
+                    width: 90vw;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid ${borderColor};
+                    animation: slideDown 0.3s ease-out;
+                `;
+                
+                // 아이콘과 메시지
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 16px;
+                    line-height: 1.6;
+                    color: #333;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    text-align: center;
+                    margin-bottom: 25px;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+                
+                // 버튼 컨테이너
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `
+                    display: flex;
+                    gap: 10px;
+                    justify-content: center;
+                `;
+                
+                // 취소 버튼
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 10px 25px;
+                    background: #f5f5f5;
+                    color: #666;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                    flex: 1;
+                `;
+                cancelButton.onmouseenter = () => {
+                    cancelButton.style.transform = 'scale(1.02)';
+                    cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                };
+                cancelButton.onmouseleave = () => {
+                    cancelButton.style.transform = 'scale(1)';
+                    cancelButton.style.boxShadow = 'none';
+                };
+                cancelButton.onclick = () => {
+                    confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        confirmOverlay.remove();
+                        resolve(false);
+                    }, 200);
+                };
+                
+                // 확인 버튼
+                const confirmButton = document.createElement('button');
+                confirmButton.textContent = '확인';
+                confirmButton.style.cssText = `
+                    padding: 10px 25px;
+                    background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                    flex: 1;
+                `;
+                confirmButton.onmouseenter = () => {
+                    confirmButton.style.transform = 'scale(1.02)';
+                    confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                };
+                confirmButton.onmouseleave = () => {
+                    confirmButton.style.transform = 'scale(1)';
+                    confirmButton.style.boxShadow = 'none';
+                };
+                confirmButton.onclick = () => {
+                    confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        confirmOverlay.remove();
+                        resolve(true);
+                    }, 200);
+                };
+                
+                // ESC 키로 닫기 (취소로 처리)
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => {
+                            confirmOverlay.remove();
+                            document.removeEventListener('keydown', handleEsc);
+                            resolve(false);
+                        }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+                
+                // 오버레이 클릭 시 닫기 (취소로 처리)
+                confirmOverlay.onclick = (e) => {
+                    if (e.target === confirmOverlay) {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => {
+                            confirmOverlay.remove();
+                            document.removeEventListener('keydown', handleEsc);
+                            resolve(false);
+                        }, 200);
+                    }
+                };
+                
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(confirmButton);
+                confirmContent.appendChild(messageDiv);
+                confirmContent.appendChild(buttonContainer);
+                confirmOverlay.appendChild(confirmContent);
+                document.body.appendChild(confirmOverlay);
+                
+                // 포커스 설정
+                cancelButton.focus();
+            });
+        }
+        
+        // 플레이어 액션 선택 다이얼로그 (호스트임명, 제외시키기, 취소)
+        function showPlayerActionDialog(playerName) {
+            return new Promise((resolve) => {
+                // 기존 다이얼로그가 있으면 제거
+                const existingDialog = document.getElementById('playerActionDialog');
+                if (existingDialog) {
+                    existingDialog.remove();
+                }
+                
+                // 다이얼로그 오버레이 생성
+                const dialogOverlay = document.createElement('div');
+                dialogOverlay.id = 'playerActionDialog';
+                dialogOverlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.4);
+                    z-index: 10002;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+                
+                // 다이얼로그 컨텐츠 생성
+                const dialogContent = document.createElement('div');
+                dialogContent.style.cssText = `
+                    background: white;
+                    border-radius: 16px;
+                    padding: 25px 30px;
+                    max-width: 500px;
+                    width: 90vw;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid #ffa500;
+                    animation: slideDown 0.3s ease-out;
+                `;
+                
+                // 메시지
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 18px;
+                    line-height: 1.6;
+                    color: #333;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    text-align: center;
+                    margin-bottom: 25px;
+                    font-weight: 600;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
+                
+                // 버튼 컨테이너
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                `;
+                
+                // 호스트임명 버튼
+                const hostButton = document.createElement('button');
+                hostButton.textContent = '호스트임명';
+                hostButton.style.cssText = `
+                    padding: 12px 25px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                `;
+                hostButton.onmouseenter = () => {
+                    hostButton.style.transform = 'scale(1.02)';
+                    hostButton.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                };
+                hostButton.onmouseleave = () => {
+                    hostButton.style.transform = 'scale(1)';
+                    hostButton.style.boxShadow = 'none';
+                };
+                hostButton.onclick = () => {
+                    dialogOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        dialogOverlay.remove();
+                        document.removeEventListener('keydown', handleEsc);
+                        resolve('host');
+                    }, 200);
+                };
+                
+                // 제외시키기 버튼
+                const kickButton = document.createElement('button');
+                kickButton.textContent = '제외시키기';
+                kickButton.style.cssText = `
+                    padding: 12px 25px;
+                    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                `;
+                kickButton.onmouseenter = () => {
+                    kickButton.style.transform = 'scale(1.02)';
+                    kickButton.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)';
+                };
+                kickButton.onmouseleave = () => {
+                    kickButton.style.transform = 'scale(1)';
+                    kickButton.style.boxShadow = 'none';
+                };
+                kickButton.onclick = () => {
+                    dialogOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        dialogOverlay.remove();
+                        document.removeEventListener('keydown', handleEsc);
+                        resolve('kick');
+                    }, 200);
+                };
+                
+                // 취소 버튼
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 12px 25px;
+                    background: #f5f5f5;
+                    color: #666;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                `;
+                cancelButton.onmouseenter = () => {
+                    cancelButton.style.transform = 'scale(1.02)';
+                    cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                };
+                cancelButton.onmouseleave = () => {
+                    cancelButton.style.transform = 'scale(1)';
+                    cancelButton.style.boxShadow = 'none';
+                };
+                cancelButton.onclick = () => {
+                    dialogOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => {
+                        dialogOverlay.remove();
+                        document.removeEventListener('keydown', handleEsc);
+                        resolve('cancel');
+                    }, 200);
+                };
+                
+                // ESC 키로 닫기 (취소로 처리)
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        dialogOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => {
+                            dialogOverlay.remove();
+                            document.removeEventListener('keydown', handleEsc);
+                            resolve('cancel');
+                        }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+                
+                // 오버레이 클릭 시 닫기 (취소로 처리)
+                dialogOverlay.onclick = (e) => {
+                    if (e.target === dialogOverlay) {
+                        dialogOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => {
+                            dialogOverlay.remove();
+                            document.removeEventListener('keydown', handleEsc);
+                            resolve('cancel');
+                        }, 200);
+                    }
+                };
+                
+                buttonContainer.appendChild(hostButton);
+                buttonContainer.appendChild(kickButton);
+                buttonContainer.appendChild(cancelButton);
+                dialogContent.appendChild(messageDiv);
+                dialogContent.appendChild(buttonContainer);
+                dialogOverlay.appendChild(dialogContent);
+                document.body.appendChild(dialogOverlay);
+                
+                // 포커스 설정
+                hostButton.focus();
+            });
+        }
+        
         // 소켓 연결
         const socket = io({
             reconnection: true,
@@ -1941,10 +2451,62 @@
                 }
                 tag.textContent = content;
                 
+                // 호스트가 다른 사용자를 클릭하면 액션 선택 다이얼로그 표시
+                if (isHost && user.name !== currentUser) {
+                    tag.style.cursor = 'pointer';
+                    tag.title = '클릭하여 호스트임명 또는 제외';
+                    
+                    // 클릭 이벤트 (드래그와 구분하기 위해 mousedown 사용)
+                    let isDragging = false;
+                    let mouseDownTime = 0;
+                    let mouseDownPos = { x: 0, y: 0 };
+                    
+                    tag.addEventListener('mousedown', (e) => {
+                        isDragging = false;
+                        mouseDownTime = Date.now();
+                        mouseDownPos = { x: e.clientX, y: e.clientY };
+                    });
+                    
+                    tag.addEventListener('mousemove', (e) => {
+                        if (mouseDownTime > 0) {
+                            const dx = Math.abs(e.clientX - mouseDownPos.x);
+                            const dy = Math.abs(e.clientY - mouseDownPos.y);
+                            if (dx > 5 || dy > 5) {
+                                isDragging = true;
+                            }
+                        }
+                    });
+                    
+                    tag.addEventListener('click', (e) => {
+                        // 드래그가 아닌 경우에만 다이얼로그 표시
+                        if (!isDragging && Date.now() - mouseDownTime < 300) {
+                            e.stopPropagation();
+                            showPlayerActionDialog(user.name).then(action => {
+                                if (action === 'host') {
+                                    // 호스트임명
+                                    socket.emit('transferHost', user.name);
+                                } else if (action === 'kick') {
+                                    // 제외시키기
+                                    showCustomConfirm(`${user.name}님을 게임에서 제외하시겠습니까?`, 'warning').then(result => {
+                                        if (result) {
+                                            socket.emit('kickPlayer', user.name);
+                                        }
+                                    });
+                                }
+                                // 'cancel'인 경우 아무것도 하지 않음
+                            });
+                        }
+                        isDragging = false;
+                        mouseDownTime = 0;
+                    });
+                }
+                
                 // 호스트이고 게임 진행 중이 아닐 때 드래그 가능
                 if (isHost && !isSpinning) {
                     tag.draggable = true;
-                    tag.style.cursor = 'grab';
+                    if (user.name !== currentUser) {
+                        tag.style.cursor = 'grab';
+                    }
                     tag.setAttribute('data-user-name', user.name);
                     
                     tag.addEventListener('dragstart', (e) => {
@@ -2765,6 +3327,38 @@
 
         socket.on('updateUsers', (users) => {
             currentUsers = users;
+            
+            // 호스트 상태 확인 및 업데이트
+            const myUser = users.find(u => u.name === currentUser);
+            if (myUser && myUser.isHost !== isHost) {
+                const wasHost = isHost;
+                isHost = myUser.isHost;
+                if (isHost && !wasHost) {
+                    // 호스트 권한이 전달되었을 때
+                    document.getElementById('hostBadge').style.display = 'inline-block';
+                    document.getElementById('hostControls').style.display = 'block';
+                    updateStartButton();
+                    
+                    // 주문받기 버튼 상태 업데이트
+                    if (isOrderActive) {
+                        document.getElementById('startOrderButton').style.display = 'none';
+                        document.getElementById('endOrderButton').style.display = 'block';
+                    } else {
+                        document.getElementById('startOrderButton').style.display = 'block';
+                        document.getElementById('endOrderButton').style.display = 'none';
+                    }
+                } else if (!isHost && wasHost) {
+                    // 호스트 권한이 제거되었을 때
+                    document.getElementById('hostBadge').style.display = 'none';
+                    document.getElementById('hostControls').style.display = 'none';
+                    updateStartButton();
+                    
+                    // 주문받기 버튼 숨김
+                    document.getElementById('startOrderButton').style.display = 'none';
+                    document.getElementById('endOrderButton').style.display = 'none';
+                }
+            }
+            
             updateUsers(users);
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 업데이트
             if (isOrderActive) {
@@ -3307,14 +3901,28 @@
             window.location.href = '/dice-game-multiplayer.html';
         });
 
-        socket.on('hostChanged', (data) => {
-            if (data.newHostId === socket.id) {
-                isHost = true;
-                document.getElementById('hostBadge').style.display = 'inline-block';
-                document.getElementById('hostControls').style.display = 'block';
-                updateStartButton();
-                alert('당신이 새로운 호스트가 되었습니다!');
+        // 호스트 권한 전달 알림
+        socket.on('hostTransferred', (data) => {
+            showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
+            isHost = true;
+            document.getElementById('hostBadge').style.display = 'inline-block';
+            document.getElementById('hostControls').style.display = 'block';
+            updateStartButton();
+            
+            // 주문받기 버튼 상태 업데이트
+            if (isOrderActive) {
+                document.getElementById('startOrderButton').style.display = 'none';
+                document.getElementById('endOrderButton').style.display = 'block';
+            } else {
+                document.getElementById('startOrderButton').style.display = 'block';
+                document.getElementById('endOrderButton').style.display = 'none';
             }
+        });
+        
+        // 호스트 변경 알림
+        socket.on('hostChanged', (data) => {
+            // updateUsers 이벤트를 통해 호스트 상태 확인
+            console.log('호스트 변경 알림:', data.message);
         });
         
         // 비공개 방 체크박스 이벤트
