@@ -364,7 +364,7 @@ function createRoomGameState() {
         // 경마 주문하기 관련
         isHorseOrderActive: false, // 주문받기 활성화 상태
         userHorseOrders: {}, // 사용자별 주문 {userName: order}
-        horseFrequentMenus: [] // 자주 쓰는 메뉴 목록
+        horseFrequentMenus: loadFrequentMenus() // 자주 쓰는 메뉴 목록 (주사위와 공유)
     };
 }
 
@@ -3209,6 +3209,23 @@ io.on('connection', (socket) => {
         console.log(`방 ${room.roomName}: ${trimmedUserName}의 경마 주문 저장 성공: ${order.trim() || '(삭제됨)'}`);
     });
     
+    // 경마 자주 쓰는 메뉴 불러오기
+    socket.on('getHorseFrequentMenus', () => {
+        const gameState = getCurrentRoomGameState();
+        if (!gameState) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // 메뉴 목록 초기화 (없으면 파일에서 로드)
+        if (!gameState.horseFrequentMenus || gameState.horseFrequentMenus.length === 0) {
+            gameState.horseFrequentMenus = loadFrequentMenus();
+        }
+        
+        socket.emit('horseFrequentMenusLoaded', gameState.horseFrequentMenus);
+        console.log(`[경마] 메뉴 목록 전송: ${gameState.horseFrequentMenus.length}개`);
+    });
+    
     // 경마 메뉴 추가
     socket.on('addHorseMenu', (data) => {
         if (!checkRateLimit()) return;
@@ -3234,6 +3251,8 @@ io.on('connection', (socket) => {
         // 중복 체크
         if (!gameState.horseFrequentMenus.includes(trimmedMenu)) {
             gameState.horseFrequentMenus.push(trimmedMenu);
+            // 파일에 저장 (주사위와 공유)
+            saveFrequentMenus(gameState.horseFrequentMenus);
             io.to(room.roomId).emit('horseMenusUpdated', gameState.horseFrequentMenus);
             console.log(`방 ${room.roomName}: 메뉴 추가 - ${trimmedMenu}`);
         }
@@ -3261,6 +3280,8 @@ io.on('connection', (socket) => {
         const index = gameState.horseFrequentMenus.indexOf(menu.trim());
         if (index > -1) {
             gameState.horseFrequentMenus.splice(index, 1);
+            // 파일에 저장 (주사위와 공유)
+            saveFrequentMenus(gameState.horseFrequentMenus);
             io.to(room.roomId).emit('horseMenusUpdated', gameState.horseFrequentMenus);
             console.log(`방 ${room.roomName}: 메뉴 삭제 - ${menu.trim()}`);
         }

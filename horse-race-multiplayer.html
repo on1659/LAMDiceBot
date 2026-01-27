@@ -19,7 +19,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #8e99a4 0%, #7a8b99 50%, #6b7c8a 100%);
             min-height: 100vh;
             margin: 0;
@@ -594,6 +594,228 @@
             background: #8b4513;
             color: white;
         }
+        
+        /* 주문받기 섹션 스타일 */
+        .orders-section {
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .orders-section.active {
+            display: block;
+        }
+
+        .my-order-box {
+            background: #fff9e6;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .my-order-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .order-input-group {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            position: relative;
+        }
+
+        .order-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .autocomplete-suggestion {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            color: #999;
+            pointer-events: none;
+            font-family: inherit;
+            font-size: 16px;
+            line-height: 1.5;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            z-index: 1;
+        }
+
+        #myOrderInput {
+            position: relative;
+            z-index: 2;
+            background-color: transparent;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #8b4513;
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        .autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: #fff9e6;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-manager {
+            display: none;
+            background: #f8f9fa;
+            border: 2px solid #8b4513;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .menu-manager.active {
+            display: block;
+        }
+
+        .menu-manager-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #8b4513;
+        }
+
+        .menu-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: white;
+            border: 1px solid #ddd;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .menu-item .delete-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            margin-left: 5px;
+        }
+
+        .order-list-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .order-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .order-item-name {
+            font-weight: 600;
+            color: #8b4513;
+            min-width: 80px;
+        }
+
+        .order-item-menu {
+            flex: 1;
+            color: #333;
+        }
+
+        .sort-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .sort-button {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #e9ecef;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sort-button:hover {
+            background: #dee2e6;
+        }
+
+        .sort-button.active {
+            background: #8b4513;
+            color: white;
+        }
+
+        .not-ordered-section {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #fff5e6;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .not-ordered-title {
+            font-weight: bold;
+            color: #ff6b6b;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .not-ordered-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .not-ordered-item {
+            background: #ffe6e6;
+            color: #cc0000;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 500;
+        }
 
         /* 게임 기록 */
         .history-section {
@@ -784,9 +1006,25 @@
         .result-card {
             background: white;
             border-radius: 20px;
-            padding: 40px;
+            padding: 30px;
             text-align: center;
             animation: popup 0.5s ease-out;
+            max-width: 90vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            margin: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .result-card {
+                padding: 20px 15px;
+                max-height: 80vh;
+                font-size: 14px;
+            }
+            
+            .result-card .result-title {
+                font-size: 20px;
+            }
         }
 
         @keyframes popup {
@@ -1948,8 +2186,15 @@
                     mySelectedHorse = horseIndex;
                 }
                 
-                // 탈것 버튼 내용 생성
-                let content = `<div style="font-size: 48px;">${vehicle.emoji}</div>`;
+                // 탈것 버튼 내용 생성 (SVG 사용 - 경주와 동일하게)
+                const svgData = getVehicleSVG(vehicleId);
+                let vehicleDisplay = '';
+                if (svgData && svgData.frame1) {
+                    vehicleDisplay = `<div style="width: 60px; height: 45px; margin: 0 auto;">${svgData.frame1}</div>`;
+                } else {
+                    vehicleDisplay = `<div style="font-size: 48px;">${vehicle.emoji}</div>`;
+                }
+                let content = vehicleDisplay;
                 content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}</div>`;
                 
                 // 선택한 사람 정보 표시
@@ -3901,11 +4146,14 @@
             // 주문 목록 렌더링
             renderOrders();
             
-            // 자주 쓰는 메뉴 로드
-            if (data.gameState && data.gameState.horseFrequentMenus) {
+            // 자주 쓰는 메뉴 로드 (항상 서버에서 가져오기)
+            if (data.gameState && data.gameState.horseFrequentMenus && data.gameState.horseFrequentMenus.length > 0) {
                 frequentMenus = data.gameState.horseFrequentMenus;
                 renderMenuList();
+                console.log('[초기화] gameState에서 메뉴 로드됨:', frequentMenus.length, '개');
             }
+            // 항상 서버에서도 메뉴 요청 (최신 상태 유지)
+            loadFrequentMenus();
             
             // 자동완성 초기화
             setupAutocomplete();
@@ -4204,7 +4452,21 @@
             userHorseBets = data.userHorseBets || {};
             
             if (data.userName === currentUser) {
+                const previousSelection = mySelectedHorse;
                 mySelectedHorse = data.horseIndex;
+                
+                // 탈것 선택 시 자동으로 준비 상태로 변경
+                if (data.horseIndex !== null && data.horseIndex !== undefined) {
+                    // 탈것을 선택했고, 아직 준비 안됐으면 준비
+                    if (!isReady) {
+                        toggleReady();
+                    }
+                } else {
+                    // 탈것 선택 취소했고, 준비 상태면 준비 취소
+                    if (isReady) {
+                        toggleReady();
+                    }
+                }
             }
             
             renderHorseSelection();
@@ -4413,38 +4675,81 @@
             renderOrders();
         }
 
+        // 주문을 메뉴별로 그룹화
+        function groupOrdersByMenu(data, mode) {
+            const entries = Object.entries(data).filter(([name, order]) => order && order.trim() !== '');
+            
+            // 메뉴별로 그룹화
+            const grouped = {};
+            entries.forEach(([userName, order]) => {
+                const menuKey = order.trim().toLowerCase();
+                if (!grouped[menuKey]) {
+                    grouped[menuKey] = {
+                        menu: order.trim(),
+                        users: []
+                    };
+                }
+                grouped[menuKey].users.push(userName);
+            });
+            
+            // 정렬 모드에 따라 정렬
+            const sortedGroups = Object.values(grouped).sort((a, b) => {
+                if (mode === 'count') {
+                    return b.users.length - a.users.length;
+                } else if (mode === 'desc') {
+                    return b.menu.localeCompare(a.menu, 'ko');
+                } else {
+                    return a.menu.localeCompare(b.menu, 'ko');
+                }
+            });
+            
+            return sortedGroups;
+        }
+        
         function renderOrders() {
             const orderList = document.getElementById('orderList');
             if (!orderList) return;
             
-            if (Object.keys(ordersData).length === 0) {
+            const entries = Object.entries(ordersData).filter(([name, order]) => order && order.trim() !== '');
+            
+            if (entries.length === 0) {
                 orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
                 renderNotOrderedUsers();
                 return;
             }
             
-            // 정렬
-            let sortedOrders = Object.entries(ordersData).filter(([_, order]) => order && order.trim());
-            
-            if (currentOrderSortMode === 'asc') {
-                sortedOrders.sort((a, b) => a[0].localeCompare(b[0], 'ko'));
-            } else if (currentOrderSortMode === 'count') {
-                const orderCounts = {};
-                sortedOrders.forEach(([_, order]) => {
-                    orderCounts[order] = (orderCounts[order] || 0) + 1;
-                });
-                sortedOrders.sort((a, b) => (orderCounts[b[1]] || 0) - (orderCounts[a[1]] || 0));
-            }
+            // 메뉴별로 그룹화
+            const groupedOrders = groupOrdersByMenu(ordersData, currentOrderSortMode);
             
             orderList.innerHTML = '';
-            sortedOrders.forEach(([userName, order]) => {
-                const orderItem = document.createElement('div');
-                orderItem.style.cssText = 'background: white; padding: 12px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #ffc107;';
-                orderItem.innerHTML = `
-                    <div style="font-weight: bold; margin-bottom: 5px;">${userName}</div>
-                    <div>${order}</div>
+            groupedOrders.forEach(group => {
+                const item = document.createElement('div');
+                item.className = 'order-item';
+                item.style.cssText = 'background: white; padding: 12px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #ffc107; display: flex; justify-content: space-between; align-items: center;';
+                
+                // 사용자 목록 (내 주문이면 맨 앞에)
+                const sortedUsers = [...group.users].sort((a, b) => {
+                    if (a === currentUser) return -1;
+                    if (b === currentUser) return 1;
+                    return 0;
+                });
+                
+                const userNames = sortedUsers.map(name => {
+                    let displayName = name;
+                    if (name === currentUser) {
+                        displayName += ' (나)';
+                    }
+                    return displayName;
+                }).join(', ');
+                
+                item.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="color: #333; font-size: 20px; font-weight: 600; margin-bottom: 4px;">${group.menu}</div>
+                        <div style="font-weight: 600; color: #856404; font-size: 13px;">${userNames}</div>
+                    </div>
+                    <div style="font-size: 48px; font-weight: bold; color: #8b4513; margin-left: 15px;">${group.users.length}</div>
                 `;
-                orderList.appendChild(orderItem);
+                orderList.appendChild(item);
             });
             
             renderNotOrderedUsers();
@@ -4554,6 +4859,19 @@
         socket.on('horseMenusUpdated', (menus) => {
             frequentMenus = menus;
             renderMenuList();
+        });
+        
+        // 서버에서 자주 쓰는 메뉴 불러오기
+        function loadFrequentMenus() {
+            console.log('[자동완성] 서버에 메뉴 요청');
+            socket.emit('getHorseFrequentMenus');
+        }
+        
+        // 서버에서 메뉴 목록 수신 (초기 로드)
+        socket.on('horseFrequentMenusLoaded', (menus) => {
+            frequentMenus = menus;
+            renderMenuList();
+            console.log('[자동완성] 메뉴 로드됨:', frequentMenus.length, '개');
         });
         
         // 자동완성 제안 찾기
@@ -4677,9 +4995,15 @@
             const orderInput = document.getElementById('myOrderInput');
             const dropdownDiv = document.getElementById('autocompleteDropdown');
             
-            if (!orderInput) return;
+            if (!orderInput) {
+                console.log('[자동완성] myOrderInput 요소를 찾을 수 없음');
+                return;
+            }
+            
+            console.log('[자동완성] 설정 완료, 현재 메뉴:', frequentMenus.length, '개');
             
             orderInput.addEventListener('input', () => {
+                console.log('[자동완성] 입력:', orderInput.value, '메뉴 수:', frequentMenus.length);
                 updateAutocompleteSuggestion();
             });
             
@@ -4749,6 +5073,7 @@
         // 커스텀 알림창
         function showCustomAlert(message, type = 'info', title = '') {
             const overlay = document.createElement('div');
+            overlay.className = 'custom-alert-overlay';
             overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
             
             const colors = {
@@ -4761,12 +5086,26 @@
             const modal = document.createElement('div');
             modal.style.cssText = `background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border-top: 4px solid ${colors[type] || colors.info};`;
             
-            modal.innerHTML = `
-                ${title ? `<div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: ${colors[type] || colors.info};">${title}</div>` : ''}
-                <div style="margin-bottom: 20px; line-height: 1.6;">${message}</div>
-                <button onclick="this.closest('div[style*=\"position: fixed\"]').remove()" style="width: 100%; padding: 12px; background: ${colors[type] || colors.info}; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
-            `;
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = '확인';
+            confirmBtn.style.cssText = `width: 100%; padding: 12px; background: ${colors[type] || colors.info}; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;`;
+            confirmBtn.addEventListener('click', () => overlay.remove());
             
+            const contentDiv = document.createElement('div');
+            if (title) {
+                const titleDiv = document.createElement('div');
+                titleDiv.style.cssText = `font-size: 18px; font-weight: bold; margin-bottom: 15px; color: ${colors[type] || colors.info};`;
+                titleDiv.textContent = title;
+                contentDiv.appendChild(titleDiv);
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = 'margin-bottom: 20px; line-height: 1.6;';
+            messageDiv.innerHTML = message;
+            contentDiv.appendChild(messageDiv);
+            
+            modal.appendChild(contentDiv);
+            modal.appendChild(confirmBtn);
             overlay.appendChild(modal);
             document.body.appendChild(overlay);
             
