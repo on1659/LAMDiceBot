@@ -3887,6 +3887,35 @@ io.on('connection', (socket) => {
         console.log(`방 ${room.roomName} 경마 게임 종료`);
     });
     
+    // 경마 게임 데이터 삭제
+    socket.on('clearHorseRaceData', () => {
+        if (!checkRateLimit()) return;
+        
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+        
+        // Host 권한 확인
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('horseRaceError', '방장만 데이터를 삭제할 수 있습니다!');
+            return;
+        }
+        
+        // 경마 게임 데이터 초기화
+        gameState.horseRaceHistory = [];
+        gameState.userHorseOrders = {};
+        gameState.isHorseOrderActive = false;
+        
+        // 모든 클라이언트에게 알림
+        io.to(room.roomId).emit('horseRaceDataCleared');
+        
+        console.log(`방 ${room.roomName} 경마 게임 데이터 삭제됨`);
+    });
+    
     // ========== 경마 게임 이벤트 핸들러 끝 ==========
 
     // 이전 게임 데이터 삭제

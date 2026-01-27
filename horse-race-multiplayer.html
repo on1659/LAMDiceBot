@@ -19,7 +19,7 @@
         }
 
         body {
-            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #8e99a4 0%, #7a8b99 50%, #6b7c8a 100%);
             min-height: 100vh;
             margin: 0;
@@ -60,6 +60,7 @@
             color: #8b4513;
             margin-bottom: 30px;
             font-size: 2.5em;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .lobby-section, .game-section, .create-room-section {
@@ -181,6 +182,7 @@
             border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             transition: transform 0.2s, box-shadow 0.2s;
             width: 100%;
             margin-top: 10px;
@@ -206,6 +208,7 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin-bottom: 10px;
             transition: border-color 0.2s;
         }
@@ -553,6 +556,7 @@
             border-radius: 8px;
             margin-bottom: 20px;
             border: 2px solid #8b4513;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         /* 준비 버튼 hover 효과 */
@@ -582,6 +586,7 @@
             border: 2px solid #8b4513;
             color: #8b4513;
             padding: 6px 12px;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             border-radius: 20px;
             font-size: 14px;
             font-weight: 600;
@@ -599,6 +604,7 @@
         .orders-section {
             margin-bottom: 20px;
             display: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .orders-section.active {
@@ -827,6 +833,7 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 20px;
             overflow-y: auto;
             display: none;
@@ -843,6 +850,7 @@
             font-weight: bold;
             color: #8b4513;
             margin-bottom: 15px;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             text-align: center;
         }
 
@@ -879,6 +887,7 @@
             padding: 15px;
             margin-top: 20px;
             border: 2px solid #8b4513;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .chat-messages {
@@ -888,6 +897,7 @@
             padding: 10px;
             background: white;
             border-radius: 8px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .chat-message.system {
@@ -928,6 +938,7 @@
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 2px solid #8b4513;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         /* 방 정보 헤더 */
@@ -943,6 +954,7 @@
             color: #8b4513;
             font-weight: bold;
             margin-bottom: 5px;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .host-badge {
@@ -964,6 +976,7 @@
             border-radius: 8px;
             margin-bottom: 20px;
             border: 2px solid #ffc107;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .start-button {
@@ -980,9 +993,11 @@
         }
 
         .end-button {
-            background: linear-gradient(135deg, #f44336 0%, #ff5722 100%);
-            color: #000;
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+            color: #fff;
             font-weight: 600;
+            font-size: 16px;
+            padding: 15px 30px;
         }
 
         /* 결과 오버레이 */
@@ -1012,6 +1027,7 @@
             max-width: 90vw;
             max-height: 85vh;
             overflow-y: auto;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 20px;
         }
         
@@ -1070,6 +1086,7 @@
             font-size: 24px;
             color: #8b4513;
             margin-bottom: 20px;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .result-winner {
@@ -1336,11 +1353,14 @@
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
-                <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled>
-                    🐎 경마 시작 (최소 2명 준비 필요)
-                </button>
-                <button onclick="startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: #000; font-weight: 600;">주문받기 시작</button>
-                <button onclick="endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: #000; font-weight: 600;">주문받기 종료</button>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled style="flex: 1;">
+                        게임 시작
+                    </button>
+                    <button onclick="startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: #fff; font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
+                    <button onclick="endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%); color: #fff; font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                </div>
+                <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%); color: #fff; font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
             </div>
 
             <!-- 주문받기 섹션 -->
@@ -1414,13 +1434,13 @@
             </div>
 
             <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
-            <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
+            <div id="endGameSection" style="display: none; text-align: center; margin-top: 40px;">
                 <button class="end-button" onclick="endHorseRaceGame()">🏁 게임 종료</button>
             </div>
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: #8b4513; margin-bottom: 10px;">💬 채팅</div>
+                <div style="font-weight: bold; color: #8b4513; margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -1436,8 +1456,8 @@
         <div id="historyList"></div>
         
         <!-- 실시간 순위 패널 (게임 기록 하단) -->
-        <div id="liveRankingPanel" style="display: none; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px;">
-            <div style="font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; font-size: 14px;">🏃 실시간 순위</div>
+        <div id="liveRankingPanel" style="display: none; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; font-size: 14px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🏃 실시간 순위</div>
             <div id="liveRankingList"></div>
         </div>
     </div>
@@ -2318,7 +2338,7 @@
             document.querySelectorAll('.finish-effect').forEach(el => el.remove());
             
             const trackWidth = trackContainer.offsetWidth || 700;
-            const finishLine = trackWidth - 100;
+            const finishLine = trackWidth - 60; // 도착 지점을 더 오른쪽으로
             const horseCount = horseRankings.length;
             const wallHeight = 6; // 벽 높이
             const laneHeight = Math.min(75, Math.floor((350 - wallHeight * (horseCount - 1)) / horseCount));
@@ -5144,6 +5164,22 @@
         function endHorseRaceGame() {
             socket.emit('endHorseRace', {});
         }
+        
+        // 이전 게임 데이터 삭제
+        function clearHorseRaceData() {
+            showConfirmDialog('이전 게임 데이터를 삭제하시겠습니까?\n(기록, 주문 내역 등이 초기화됩니다)', () => {
+                socket.emit('clearHorseRaceData');
+            });
+        }
+        
+        // 데이터 삭제 완료 수신
+        socket.on('horseRaceDataCleared', () => {
+            horseRaceHistory = [];
+            ordersData = {};
+            renderHistory();
+            renderOrders();
+            showCustomAlert('이전 게임 데이터가 삭제되었습니다.', 'success', '✅ 삭제 완료');
+        });
 
         // 게임 모드 업데이트 수신
         socket.on('horseRaceModeUpdated', (mode) => {
