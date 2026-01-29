@@ -53,6 +53,8 @@
         if (enabled === false) return;
         if (!hasSoundFocus()) return;
         loadConfig().then(function (cfg) {
+            // 재생 시점에 다시 포커스 체크 (fetch 중 탭 전환 대응)
+            if (!hasSoundFocus()) return;
             var path = cfg[key];
             if (!path) return;
             var src = path.charAt(0) === '/' ? path : '/' + path;
