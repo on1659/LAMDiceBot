@@ -3911,7 +3911,7 @@ io.on('connection', (socket) => {
     });
     
     socket.on('endHorseRace', () => {
-        if (!checkRate저런Limit()) return;
+        if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();

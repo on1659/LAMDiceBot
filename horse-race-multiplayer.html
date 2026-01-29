@@ -233,6 +233,27 @@
             color: #dc3545;
         }
 
+        .connection-sound-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .connection-sound-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+            cursor: pointer;
+        }
+        .connection-sound-row input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
         /* 경주 트랙 컨테이너 */
         .race-track-container {
             position: relative;
@@ -1224,7 +1245,10 @@
         <!-- 로비 섹션 -->
         <section class="lobby-section active" id="lobbySection">
             <h1>🐎 LAM Horse Race</h1>
-            <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
+            <div class="connection-sound-row">
+                <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
+                <label><input type="checkbox" id="soundCheckbox"> 🔊 사운드</label>
+            </div>
             
             <!-- 이름 입력 -->
             <div style="background: #f5e6d3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -1253,7 +1277,10 @@
         <!-- 방 생성 섹션 -->
         <section class="create-room-section" id="createRoomSection">
             <h2 style="color: #8b4513; margin-bottom: 20px;">🐎 새 경마 방 만들기</h2>
-            <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
+            <div class="connection-sound-row">
+                <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
+                <label><input type="checkbox" id="createRoomSoundCheckbox"> 🔊 사운드</label>
+            </div>
             
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">호스트 이름</label>
@@ -5335,6 +5362,26 @@
                     }
                 });
             }
+            
+            // 사운드 체크박스 (기본 끔, localStorage와 양쪽 체크박스 동기화)
+            const HORSE_SOUND_KEY = 'horseSoundEnabled';
+            function getHorseSoundEnabled() { return localStorage.getItem(HORSE_SOUND_KEY) === 'true'; }
+            function setHorseSoundCheckboxes() {
+                const v = getHorseSoundEnabled();
+                const c1 = document.getElementById('soundCheckbox');
+                const c2 = document.getElementById('createRoomSoundCheckbox');
+                if (c1) c1.checked = v;
+                if (c2) c2.checked = v;
+            }
+            setHorseSoundCheckboxes();
+            function onHorseSoundChange(checked) {
+                localStorage.setItem(HORSE_SOUND_KEY, checked ? 'true' : 'false');
+                setHorseSoundCheckboxes();
+            }
+            const hsc1 = document.getElementById('soundCheckbox');
+            const hsc2 = document.getElementById('createRoomSoundCheckbox');
+            if (hsc1) hsc1.addEventListener('change', () => onHorseSoundChange(hsc1.checked));
+            if (hsc2) hsc2.addEventListener('change', () => onHorseSoundChange(hsc2.checked));
             
             // 저장된 이름 불러오기
             const savedName = localStorage.getItem('horseRaceUserName');

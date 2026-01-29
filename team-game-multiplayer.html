@@ -50,6 +50,30 @@
             text-align: right;
         }
 
+        .connection-sound-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .connection-sound-row .connection-status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .connection-sound-row .connection-status.connected { color: #28a745; background: transparent; }
+        .connection-sound-row .connection-status.disconnected { color: #dc3545; background: transparent; }
+        .connection-sound-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+            cursor: pointer;
+        }
+        .connection-sound-row input[type="checkbox"] { width: auto; margin: 0; }
+
         .stats {
             font-size: 14px;
             color: #666;
@@ -515,6 +539,10 @@
                 <h1>🎲 팀 랜덤 배정</h1>
             </div>
             <div class="header-right">
+                <div class="connection-sound-row">
+                    <span class="connection-status connected" id="teamConnectionStatus">● 연결됨</span>
+                    <label><input type="checkbox" id="teamSoundCheckbox"> 🔊 사운드</label>
+                </div>
                 <div class="stats">
                     <div>활성 방: <span id="active-room-count">0</span>개</div>
                 </div>
@@ -1395,6 +1423,8 @@
 
         // 소켓 이벤트 핸들러
         socket.on('connect', () => {
+            const el = document.getElementById('teamConnectionStatus');
+            if (el) { el.textContent = '● 연결됨'; el.className = 'connection-status connected'; }
             debugLog('🟢 서버 연결됨!');
             debugLog('socket.id: ' + socket.id);
             socket.emit('getRooms');
@@ -1521,6 +1551,8 @@
         });
 
         socket.on('disconnect', (reason) => {
+            const el = document.getElementById('teamConnectionStatus');
+            if (el) { el.textContent = '● 연결 끊김'; el.className = 'connection-status disconnected'; }
             debugLog('🔴 연결 끊김: ' + reason);
             // 재연결을 위해 상태 유지 (바로 랜딩으로 돌아가지 않음)
         });
@@ -1713,6 +1745,21 @@
 
         socket.on('newMessage', (data) => {
             // 채팅 메시지 (필요시 구현)
+        });
+
+        // 사운드 체크박스 (기본 끔, localStorage)
+        const TEAM_SOUND_KEY = 'teamSoundEnabled';
+        function getTeamSoundEnabled() { return localStorage.getItem(TEAM_SOUND_KEY) === 'true'; }
+        function setTeamSoundCheckbox() {
+            const c = document.getElementById('teamSoundCheckbox');
+            if (c) c.checked = getTeamSoundEnabled();
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            setTeamSoundCheckbox();
+            const tc = document.getElementById('teamSoundCheckbox');
+            if (tc) tc.addEventListener('change', () => {
+                localStorage.setItem(TEAM_SOUND_KEY, tc.checked ? 'true' : 'false');
+            });
         });
     </script>
 </body>

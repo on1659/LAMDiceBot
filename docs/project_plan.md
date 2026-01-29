@@ -2,6 +2,39 @@
 
 ## Recent Updates
 
+### 2026-01-29: 사운드 on/off 체크박스 (기본 끔)
+
+#### 작업 내용
+- 주사위/룰렛/팀배정/경마 네 게임 모두 "연결됨" 옆에 **🔊 사운드** 체크박스 추가
+- **기본값: 체크 해제(사운드 끔)**. 체크했을 때만 사운드 재생
+- 룰렛: `getRouletteSoundEnabled()`로 체크 시에만 `RouletteSound` 재생
+- 설정은 `localStorage`에 게임별 키 저장 (rouletteSoundEnabled, diceSoundEnabled, horseSoundEnabled, teamSoundEnabled)
+- 팀배정: 기존에 연결 상태 표시가 없어 헤더 우측에 "● 연결됨" + 사운드 체크박스 추가, connect/disconnect 시 텍스트 갱신
+
+#### 수정 파일
+- `roulette-game-multiplayer.html`: connection-sound-row, 체크박스 2곳, getRouletteSoundEnabled/동기화, RouletteSound 재생 시 조건
+- `dice-game-multiplayer.html`: connection-sound-row, 체크박스 2곳, localStorage 동기화
+- `horse-race-multiplayer.html`: connection-sound-row, 체크박스 2곳, localStorage 동기화
+- `team-game-multiplayer.html`: 헤더에 연결 상태 + 사운드 체크박스, connect/disconnect UI, localStorage
+
+---
+
+### 2026-01-29: 룰렛 게임 사운드 추가
+
+#### 작업 내용
+- 룰렛 게임에 Web Audio API 기반 사운드 추가 (외부 오디오 파일 불필요)
+- **스핀 사운드**: 휠이 돌아가는 동안 120ms 간격 짧은 톤(90Hz)으로 틱 소리 재생
+- **멈출 때 럼블**: 메인 회전이 끝나고 마무리 효과(bounce/shake/slowCrawl) 진입 시 짧은 저음(65Hz) 재생
+- **당첨 사운드**: 결과 오버레이 표시 시 당첨자(`data.winner === currentUser`)에게만 팡파레(C5→E5→G5→C6) 재생
+- 다시보기 시에도 동일한 스핀/멈춤/당첨 사운드 적용
+- `RouletteSound` 객체로 `playSpin`, `stopSpin`, `playStopRumble`, `playWinner` 제공
+- 사용자 제스처: "룰렛 시작" 클릭 시 `ensureContext()` 호출로 오디오 컨텍스트 활성화
+
+#### 수정 파일
+- `roulette-game-multiplayer.html`: RouletteSound 추가, spinRoulette/콜백/다시보기에서 사운드 연동
+
+---
+
 ### 2026-01-29: 자동 검증 에이전트 구현 완료
 
 #### 작업 내용

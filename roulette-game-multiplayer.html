@@ -225,6 +225,27 @@
             color: #dc3545;
         }
 
+        .connection-sound-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .connection-sound-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+            cursor: pointer;
+        }
+        .connection-sound-row input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
         /* 룰렛 컨테이너 */
         .roulette-container {
             display: flex;
@@ -857,7 +878,10 @@
         <!-- 로비 섹션 -->
         <section class="lobby-section active" id="lobbySection">
             <h1>🎰 LAM Roulette</h1>
-            <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
+            <div class="connection-sound-row">
+                <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
+                <label><input type="checkbox" id="soundCheckbox"> 🔊 사운드</label>
+            </div>
             
             <!-- 이름 입력 -->
             <div style="background: #fce4ec; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -886,7 +910,10 @@
         <!-- 방 생성 섹션 -->
         <section class="create-room-section" id="createRoomSection">
             <h2 style="color: #7c4dff; margin-bottom: 20px;">🎰 새 룰렛 방 만들기</h2>
-            <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
+            <div class="connection-sound-row">
+                <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
+                <label><input type="checkbox" id="createRoomSoundCheckbox"> 🔊 사운드</label>
+            </div>
             
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">호스트 이름</label>
@@ -1873,6 +1900,93 @@
         ];
         let pendingUserName = null;
 
+        // 룰렛 사운드 설정 (체크 시에만 재생, 기본 끔)
+        const ROULETTE_SOUND_KEY = 'rouletteSoundEnabled';
+        function getRouletteSoundEnabled() {
+            return localStorage.getItem(ROULETTE_SOUND_KEY) === 'true';
+        }
+        function setRouletteSoundCheckboxes() {
+            const v = getRouletteSoundEnabled();
+            const c1 = document.getElementById('soundCheckbox');
+            const c2 = document.getElementById('createRoomSoundCheckbox');
+            if (c1) c1.checked = v;
+            if (c2) c2.checked = v;
+        }
+
+        // 룰렛 사운드 (Web Audio API - 외부 파일 불필요)
+        const RouletteSound = {
+            audioCtx: null,
+            spinIntervalId: null,
+            spinGain: null,
+            init() {
+                if (this.audioCtx) return this.audioCtx;
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                return this.audioCtx;
+            },
+            ensureContext() {
+                if (!this.audioCtx) this.init();
+                if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+            },
+            playSpin() {
+                if (!getRouletteSoundEnabled()) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                this.stopSpin();
+                const tick = () => {
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 90;
+                    gain.gain.setValueAtTime(0.08, this.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.06);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(this.audioCtx.currentTime);
+                    osc.stop(this.audioCtx.currentTime + 0.06);
+                };
+                tick();
+                this.spinIntervalId = setInterval(tick, 120);
+            },
+            stopSpin() {
+                if (this.spinIntervalId) {
+                    clearInterval(this.spinIntervalId);
+                    this.spinIntervalId = null;
+                }
+            },
+            playStopRumble() {
+                if (!getRouletteSoundEnabled()) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 65;
+                gain.gain.setValueAtTime(0.2, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.18);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(this.audioCtx.currentTime);
+                osc.stop(this.audioCtx.currentTime + 0.18);
+            },
+            playWinner() {
+                if (!getRouletteSoundEnabled()) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                const gain = this.audioCtx.createGain();
+                gain.gain.setValueAtTime(0.25, this.audioCtx.currentTime);
+                gain.connect(this.audioCtx.destination);
+                notes.forEach((freq, i) => {
+                    const osc = this.audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    osc.connect(gain);
+                    osc.start(this.audioCtx.currentTime + i * 0.12);
+                    osc.stop(this.audioCtx.currentTime + i * 0.12 + 0.25);
+                });
+            }
+        };
+
         // 디바이스 ID 생성/가져오기
         function getDeviceId() {
             let deviceId = localStorage.getItem('rouletteDeviceId');
@@ -2172,6 +2286,7 @@
                 alert('최소 2명이 준비해야 시작할 수 있습니다!');
                 return;
             }
+            RouletteSound.ensureContext();
             socket.emit('startRoulette');
         }
 
@@ -2249,6 +2364,7 @@
         // effectParams: 효과별 파라미터 (서버에서 결정)
         function spinRoulette(finalAngle, duration, effectType, effectParams, callback) {
             const wheel = document.getElementById('rouletteWheel');
+            RouletteSound.playSpin();
             
             // 기존 transitionend 이벤트 리스너 제거 (중복 방지)
             if (wheel._rouletteTransitionHandler) {
@@ -2268,6 +2384,7 @@
             const finishAnimation = (mode) => {
                 if (callbackCalled) return;
                 callbackCalled = true;
+                RouletteSound.stopSpin();
                 const elapsed = Date.now() - animationStartTime;
                 console.log(`✅ 룰렛 애니메이션 완료 - ${mode} (경과 시간: ${elapsed}ms)`);
                 if (wheel._rouletteTransitionHandler) {
@@ -2307,9 +2424,11 @@
             wheel.offsetHeight;
             wheel.style.transform = `rotate(${preEffectAngle}deg)`;
             
-            // 메인 회전 완료 후 마무리 효과
+            // 메인 회전 완료 후 마무리 효과 (스핀 소리 멈추고 멈출 때 럼블)
             setTimeout(() => {
                 if (callbackCalled) return;
+                RouletteSound.stopSpin();
+                RouletteSound.playStopRumble();
                 
                 switch (effectType) {
                     case 'bounce':
@@ -2891,6 +3010,7 @@
                     // 결과 오버레이 표시
                     document.getElementById('resultWinner').textContent = data.winner;
                     document.getElementById('resultOverlay').classList.add('visible');
+                    if (data.winner === currentUser) RouletteSound.playWinner();
                     addDebugLog(`🎊 다시보기 결과 표시 - winner: ${data.winner}`, 'gameEnd');
                     
                     // UI 복원
@@ -3742,6 +3862,7 @@
                     addDebugLog(`🎊 결과 오버레이 표시 - winner: ${data.winner}`, 'gameEnd');
                     document.getElementById('resultWinner').textContent = data.winner;
                     document.getElementById('resultOverlay').classList.add('visible');
+                    if (data.winner === currentUser) RouletteSound.playWinner();
                     
                     // 기록 추가
                     rouletteHistory.push(data.record);
@@ -3938,6 +4059,17 @@
                     }
                 });
             }
+            
+            // 사운드 체크박스: 기본 끔, localStorage와 양쪽 체크박스 동기화
+            setRouletteSoundCheckboxes();
+            function onSoundCheckboxChange(checked) {
+                localStorage.setItem(ROULETTE_SOUND_KEY, checked ? 'true' : 'false');
+                setRouletteSoundCheckboxes();
+            }
+            const soundCb = document.getElementById('soundCheckbox');
+            const createRoomSoundCb = document.getElementById('createRoomSoundCheckbox');
+            if (soundCb) soundCb.addEventListener('change', () => onSoundCheckboxChange(soundCb.checked));
+            if (createRoomSoundCb) createRoomSoundCb.addEventListener('change', () => onSoundCheckboxChange(createRoomSoundCb.checked));
             
             // 저장된 이름 불러오기
             const savedName = localStorage.getItem('rouletteUserName');

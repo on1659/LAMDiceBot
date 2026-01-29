@@ -372,6 +372,24 @@
             color: white;
         }
 
+        .connection-sound-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .connection-sound-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+            cursor: pointer;
+        }
+        .connection-sound-row input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
         .game-status {
             text-align: center;
             padding: 15px;
@@ -1282,7 +1300,10 @@
                 <div style="display: inline-flex; align-items: center; gap: 10px;">
                     <span style="font-size: 24px;">🎲</span>
                     <span style="font-size: 20px; font-weight: 600; color: #667eea;">LAM Dice :)</span>
-                    <span class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</span>
+                    <span class="connection-sound-row">
+                        <span class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</span>
+                        <label><input type="checkbox" id="createRoomSoundCheckbox"> 🔊 사운드</label>
+                    </span>
                 </div>
             </div>
             
@@ -1382,7 +1403,10 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span id="roomStatusIcons" style="display: flex; align-items: center; gap: 5px;"></span>
-                    <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
+                    <span class="connection-sound-row">
+                        <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
+                        <label><input type="checkbox" id="soundCheckbox"> 🔊 사운드</label>
+                    </span>
                     <span id="roomPasswordDisplay" style="font-size: 12px; color: #667eea; font-weight: 500; display: none;"></span>
                 </div>
             </div>
@@ -2223,6 +2247,28 @@
                     }
                 });
             }
+        });
+        
+        // 사운드 체크박스 (기본 끔, localStorage 동기화)
+        const DICE_SOUND_KEY = 'diceSoundEnabled';
+        function getDiceSoundEnabled() { return localStorage.getItem(DICE_SOUND_KEY) === 'true'; }
+        function setDiceSoundCheckboxes() {
+            const v = getDiceSoundEnabled();
+            const c1 = document.getElementById('soundCheckbox');
+            const c2 = document.getElementById('createRoomSoundCheckbox');
+            if (c1) c1.checked = v;
+            if (c2) c2.checked = v;
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            setDiceSoundCheckboxes();
+            function onSoundChange(checked) {
+                localStorage.setItem(DICE_SOUND_KEY, checked ? 'true' : 'false');
+                setDiceSoundCheckboxes();
+            }
+            const sc1 = document.getElementById('soundCheckbox');
+            const sc2 = document.getElementById('createRoomSoundCheckbox');
+            if (sc1) sc1.addEventListener('change', () => onSoundChange(sc1.checked));
+            if (sc2) sc2.addEventListener('change', () => onSoundChange(sc2.checked));
         });
         
         // 메뉴 삭제
