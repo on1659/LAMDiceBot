@@ -1277,10 +1277,7 @@
         <!-- 방 생성 섹션 -->
         <section class="create-room-section" id="createRoomSection">
             <h2 style="color: #8b4513; margin-bottom: 20px;">🐎 새 경마 방 만들기</h2>
-            <div class="connection-sound-row">
-                <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
-                <label><input type="checkbox" id="createRoomSoundCheckbox"> 🔊 사운드</label>
-            </div>
+            <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
             
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">호스트 이름</label>
@@ -1335,6 +1332,7 @@
                 <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <span class="room-title" id="roomTitle">경마 방</span>
                     <span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; cursor: pointer; margin: 0;"><input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드</label>
                 </div>
                 <div style="text-align: center; margin-top: 10px;">
                     <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #6c757d; color: #000; font-weight: 600; border: none; border-radius: 8px; cursor: pointer;">🚪 나가기</button>
@@ -1537,6 +1535,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         // localhost 체크
         const isLocalhost = window.location.hostname === 'localhost' || 
@@ -1610,6 +1609,23 @@
         let frequentMenus = []; // 자주 쓰는 메뉴 목록
         let currentSuggestions = []; // 현재 자동완성 제안 목록
         let selectedSuggestionIndex = -1; // 선택된 제안 인덱스
+        
+        // 경마 사운드 (socket/roomJoined에서도 접근 가능하도록 전역 스코프)
+        const HORSE_SOUND_KEY = 'horseSoundEnabled';
+        function getHorseSoundEnabled() { return localStorage.getItem(HORSE_SOUND_KEY) === 'true'; }
+        function setHorseSoundCheckboxes() {
+            const v = getHorseSoundEnabled();
+            const c1 = document.getElementById('soundCheckbox');
+            const c2 = document.getElementById('createRoomSoundCheckbox');
+            const c3 = document.getElementById('gameSectionSoundCheckbox');
+            if (c1) c1.checked = v;
+            if (c2) c2.checked = v;
+            if (c3) c3.checked = v;
+        }
+        function onHorseSoundChange(checked) {
+            localStorage.setItem(HORSE_SOUND_KEY, checked ? 'true' : 'false');
+            setHorseSoundCheckboxes();
+        }
         
         // 디버그 로그 초기화
         addDebugLog('경마 게임 초기화', 'info');
@@ -4479,6 +4495,10 @@
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
 
+            setHorseSoundCheckboxes();
+            if (window.SoundManager && typeof window.SoundManager.ensureContext === 'function') {
+                window.SoundManager.ensureContext();
+            }
             initializeGameScreen(data);
             renderReadyUsers();
             updateReadyButton();
@@ -5363,25 +5383,14 @@
                 });
             }
             
-            // 사운드 체크박스 (기본 끔, localStorage와 양쪽 체크박스 동기화)
-            const HORSE_SOUND_KEY = 'horseSoundEnabled';
-            function getHorseSoundEnabled() { return localStorage.getItem(HORSE_SOUND_KEY) === 'true'; }
-            function setHorseSoundCheckboxes() {
-                const v = getHorseSoundEnabled();
-                const c1 = document.getElementById('soundCheckbox');
-                const c2 = document.getElementById('createRoomSoundCheckbox');
-                if (c1) c1.checked = v;
-                if (c2) c2.checked = v;
-            }
+            // 사운드 체크박스 (기본 끔, localStorage와 로비/게임 섹션 체크박스 동기화)
             setHorseSoundCheckboxes();
-            function onHorseSoundChange(checked) {
-                localStorage.setItem(HORSE_SOUND_KEY, checked ? 'true' : 'false');
-                setHorseSoundCheckboxes();
-            }
             const hsc1 = document.getElementById('soundCheckbox');
             const hsc2 = document.getElementById('createRoomSoundCheckbox');
+            const hsc3 = document.getElementById('gameSectionSoundCheckbox');
             if (hsc1) hsc1.addEventListener('change', () => onHorseSoundChange(hsc1.checked));
             if (hsc2) hsc2.addEventListener('change', () => onHorseSoundChange(hsc2.checked));
+            if (hsc3) hsc3.addEventListener('change', () => onHorseSoundChange(hsc3.checked));
             
             // 저장된 이름 불러오기
             const savedName = localStorage.getItem('horseRaceUserName');

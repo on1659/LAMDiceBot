@@ -741,6 +741,38 @@ Project has these Commands (`/` input):
 - 해당 게임의 테스트 봇 실행
 - 다중 클라이언트 동작 확인
 
+## 22. 사운드 추가 규칙 (REQUIRED!)
+
+사운드를 추가·수정할 때 **반드시** 아래 테이블(설정)을 사용한다.
+
+### 사운드 설정 테이블
+- **설정 파일**: `assets/sounds/sound-config.json`
+- **폴더 구조**: `assets/sounds/` 하위에 게임 타입별 폴더
+  - `assets/sounds/dice/`
+  - `assets/sounds/roulette/`
+  - `assets/sounds/horse-race/`
+  - `assets/sounds/common/` (버튼 등 공통 사운드)
+
+### 키 규칙
+- **키 형식**: `{gameType}_{effectName}` (예: `dice_roll`, `roulette_spin`, `roulette_stop`, `roulette_winner`, `common_button`)
+- **값**: 해당 사운드 파일 경로 (예: `assets/sounds/dice/roll.mp3`)
+
+### JSON 예시
+```json
+{
+  "dice_roll": "assets/sounds/dice/roll.mp3",
+  "roulette_spin": "assets/sounds/roulette/spin.mp3",
+  "roulette_stop": "assets/sounds/roulette/stop.mp3",
+  "roulette_winner": "assets/sounds/roulette/winner.mp3",
+  "common_button": "assets/sounds/common/button.mp3"
+}
+```
+
+### 적용 규칙
+- 새 사운드 추가 시: `sound-config.json`에 키·경로 등록 후, 클라이언트에서 이 테이블을 로드해 재생
+- 하드코딩 금지: 사운드 경로를 코드에 직접 넣지 말고, 항상 위 JSON 테이블을 참조
+- 상세 계획: `docs/맨_다이스_사운드_계획.md` 또는 `docs/LAM_DICE_SOUND_PLAN.md` 참고
+
 ---
 
 **These rules are automatically referenced by Cursor and applied to all work.**

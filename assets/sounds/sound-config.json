@@ -1,0 +1,7 @@
+{
+  "dice_roll": "assets/sounds/dice/roll.mp3",
+  "roulette_spin": "assets/sounds/roulette/spin.mp3",
+  "roulette_stop": "assets/sounds/roulette/stop.mp3",
+  "roulette_winner": "assets/sounds/roulette/winner.mp3",
+  "common_button": "assets/sounds/common/button_click.mp3"
+}

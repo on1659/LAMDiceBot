@@ -1,14 +1,19 @@
-feat: 호스트 전환 기능 추가 및 UI 업데이트 개선
+feat: 사운드 시스템 추가 (주사위/룰렛/경마)
 
-- 플레이어 이름 클릭 시 호스트임명/제외시키기/취소 선택 다이얼로그 추가
-- 서버에 transferHost 이벤트 핸들러 추가
-- 호스트 전환 시 주문받기 버튼 등 모든 호스트 기능 자동 활성화
-- updateUsers 이벤트 핸들러에서 호스트 상태 변경 시 항상 UI 업데이트
-- 주사위/룰렛 게임 모두 적용
-- 호스트 전환 시 시스템 메시지로 공지
+- assets/sounds/ 폴더 구조 및 sound-config.json 설정 추가
+- 공통 사운드 유틸 sound-manager.js 추가 (playSound, ensureContext, hasSoundFocus)
+- 주사위: dice_roll 사운드 재생 연동
+- 룰렛: 경계선 지날 때마다 틱 사운드 (requestAnimationFrame 기반)
+- 룰렛: 멈출 때 럼블, 당첨 시 팡파레 (Web Audio API)
+- 경마: 게임 섹션 사운드 체크박스 추가, sound-manager.js 로드
+- 로비/게임 화면에 사운드 체크박스 추가 (방 생성 화면에서는 제거)
+- 백그라운드 탭에서 트리거된 사운드는 재생 안 함 (visible + hasFocus 조건)
 
 변경 파일:
-- dice-game-multiplayer.html: 플레이어 액션 다이얼로그 추가, 더블 클릭 → 단일 클릭 변경, updateHostUI에 주문받기 버튼 업데이트 로직 추가
-- roulette-game-multiplayer.html: 플레이어 액션 다이얼로그 추가, 클릭 이벤트 추가, showCustomAlert/Confirm 함수 추가, 호스트 전환 시 주문받기 버튼 업데이트
-- server.js: transferHost 이벤트 핸들러 추가
-- update-log.txt: 호스트 전환 기능 추가 내역 기록
+- assets/sounds/sound-config.json: 게임별 사운드 키-경로 설정
+- assets/sounds/sound-manager.js: JSON 로드, playSound, ensureContext, hasSoundFocus
+- dice-game-multiplayer.html: 방 생성 사운드 체크박스 제거, SoundManager 연동
+- roulette-game-multiplayer.html: 게임 섹션 체크박스 추가, RouletteSound 경계선 틱 방식으로 변경
+- horse-race-multiplayer.html: 게임 섹션 체크박스 추가, 사운드 함수 전역 스코프로 이동
+- docs/맨_다이스_사운드_계획.md: 사운드 시스템 문서
+- update-log.txt: 사운드 시스템 추가 내역 기록

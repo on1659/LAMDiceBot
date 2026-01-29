@@ -1,4 +1,16 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-28)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-29)</span>
+
+<b>🔊 사운드 시스템 추가</b>
+• 주사위/룰렛/경마 게임에 효과음 지원 (sound-config.json 기반)
+• 룰렛: 포인터가 경계선 지날 때마다 틱 소리 재생 (requestAnimationFrame 기반)
+• 룰렛: 멈출 때 럼블, 당첨 시 팡파레 재생
+• 로비/게임 화면에 사운드 체크박스 추가 (방 생성 화면에서는 제거)
+• 기본값: 사운드 끔. 체크 시 사운드 재생
+• 백그라운드 탭에서는 사운드 재생 안 함 (포커스 시에만 재생)
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-28)</span>
 
 <b>👑 호스트 전환 기능 추가</b>
 • 호스트가 플레이어 이름을 클릭하면 액션 선택 다이얼로그 표시

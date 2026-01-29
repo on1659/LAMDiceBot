@@ -1239,9 +1239,9 @@
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
-            <div id="todayDiceStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
-                <div>오늘의 주사위 횟수: <strong id="todayDiceCount">0</strong>회</div>
-                <div>평균값: <strong id="todayDiceAverage">0</strong></div>
+            <div id="visitorStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
+                <div>오늘 방문자 수: <strong id="todayVisitorCount">0</strong>명</div>
+                <div>누적 방문자 수: <strong id="totalVisitorCount">0</strong>명</div>
             </div>
         </div>
 
@@ -1300,10 +1300,7 @@
                 <div style="display: inline-flex; align-items: center; gap: 10px;">
                     <span style="font-size: 24px;">🎲</span>
                     <span style="font-size: 20px; font-weight: 600; color: #667eea;">LAM Dice :)</span>
-                    <span class="connection-sound-row">
-                        <span class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</span>
-                        <label><input type="checkbox" id="createRoomSoundCheckbox"> 🔊 사운드</label>
-                    </span>
+                    <span class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</span>
                 </div>
             </div>
             
@@ -1676,6 +1673,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
         
@@ -2539,7 +2537,7 @@
             if (document.getElementById('lobbySection').classList.contains('active')) {
                 document.body.classList.add('lobby-active');
                 refreshRooms();
-                refreshTodayDiceStats();
+                refreshVisitorStats();
             }
         });
 
@@ -2818,18 +2816,18 @@
         // 방 목록 새로고침
         function refreshRooms() {
             socket.emit('getRooms');
-            refreshTodayDiceStats();
+            refreshVisitorStats();
         }
         
-        // 오늘의 주사위 통계 새로고침
-        function refreshTodayDiceStats() {
-            socket.emit('getTodayDiceStats');
+        // 방문자 통계 새로고침
+        function refreshVisitorStats() {
+            socket.emit('getVisitorStats');
         }
         
-        // 오늘의 주사위 통계 수신
-        socket.on('todayDiceStats', (stats) => {
-            document.getElementById('todayDiceCount').textContent = stats.count || 0;
-            document.getElementById('todayDiceAverage').textContent = stats.average || 0;
+        // 방문자 통계 수신
+        socket.on('visitorStats', (stats) => {
+            document.getElementById('todayVisitorCount').textContent = stats.todayVisitors ?? 0;
+            document.getElementById('totalVisitorCount').textContent = stats.totalVisitors ?? 0;
         });
         
         // 커스텀 얼럿 함수
@@ -5671,6 +5669,7 @@
 
         // 주사위 결과 수신
         socket.on('diceRolled', (record) => {
+            if (window.SoundManager) SoundManager.playSound('dice_roll', getDiceSoundEnabled());
             // 준비하지 않은 사람인지 확인
             const isNotReady = record.isNotReady === true;
             
@@ -7878,7 +7877,8 @@
         <div style="margin-top: 10px;">
             <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">개인정보 처리방침</a> |
             <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">이용 약관</a> |
-            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">문의하기</a>
+            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">문의하기</a> |
+            <a href="statistics.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">📊 통계</a>
         </div>
     </footer>
 </body>

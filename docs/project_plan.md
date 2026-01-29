@@ -2,6 +2,24 @@
 
 ## Recent Updates
 
+### 2026-01-29: 맨 다이스 사운드 계획 구현 완료 (LAM Dice Sound Plan)
+
+#### 작업 내용
+- **폴더/설정**: `assets/sounds/` 하위 common, dice, roulette, horse-race 폴더 및 `sound-config.json` 초안 (키: dice_roll, roulette_*, common_button 등)
+- **공통 유틸**: `assets/sounds/sound-manager.js` — JSON 로드·캐시, `playSound(key, enabled)`, `ensureContext()`
+- **방 생성 섹션**: dice/roulette/horse-race 세 파일에서 방 만들기 화면의 사운드 체크박스 제거 (연결됨 표시만 유지)
+- **주사위**: `dice_roll` 재생 연동, `getDiceSoundEnabled()`로 제어
+- **룰렛**: 게임 섹션에 사운드 체크박스 추가, 참가자 `ensureContext()` 호출, JSON 경로 또는 Web Audio fallback
+- **경마**: 게임 섹션에 사운드 체크박스 추가, `getHorseSoundEnabled()`·`setHorseSoundCheckboxes()` 전역 스코프로 이동(socket/roomJoined에서 접근 가능), sound-manager.js 로드 및 roomJoined 시 `ensureContext()` 호출
+- **문서**: `docs/맨_다이스_사운드_계획.md` — 폴더 구조, sound-config 스키마, 키 규칙, 옵션 노출 위치, 게임별 localStorage 키 정리
+
+#### 수정/추가 파일
+- `assets/sounds/sound-config.json`, `assets/sounds/sound-manager.js`
+- `dice-game-multiplayer.html`, `roulette-game-multiplayer.html`, `horse-race-multiplayer.html` (방 생성 사운드 제거, 게임 섹션 체크박스, SoundManager 연동)
+- `docs/맨_다이스_사운드_계획.md`
+
+---
+
 ### 2026-01-29: 사운드 on/off 체크박스 (기본 끔)
 
 #### 작업 내용

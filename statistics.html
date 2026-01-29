@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서비스 통계 - LAMDice</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .section {
+            margin: 24px 0;
+        }
+        .section h2 {
+            color: #333;
+            font-size: 1.2em;
+            margin-bottom: 12px;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .stat-card .label { color: #666; font-size: 0.9em; }
+        .stat-card .value { font-size: 1.5em; font-weight: 700; color: #333; }
+        .game-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .game-table th, .game-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .game-table th { background: #f8f9fa; color: #555; font-weight: 600; }
+        .game-name { font-weight: 500; }
+        .recent-table { font-size: 0.9em; }
+        .recent-table td { padding: 8px 10px; }
+        .loading { color: #666; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="dice-game-multiplayer.html" class="back-link">← 메인으로 돌아가기</a>
+        <h1>📊 서비스 통계</h1>
+        <p style="color: #666; margin-bottom: 24px;">사이트 방문 및 게임 이용 통계입니다. (게임에 참여한 기준으로 집계됩니다)</p>
+
+        <div class="section">
+            <h2>👥 방문자 통계</h2>
+            <div id="visitorStats" class="stat-grid">
+                <div class="stat-card">
+                    <div class="label">오늘 방문자 수</div>
+                    <div class="value" id="todayVisitors">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">누적 방문자 수</div>
+                    <div class="value" id="totalVisitors">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🎮 게임별 통계</h2>
+            <div id="gameStatsWrap">
+                <p class="loading" id="gameStatsLoading">불러오는 중...</p>
+                <table class="game-table" id="gameStatsTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>게임</th>
+                            <th>플레이 횟수</th>
+                            <th>총 참여 인원</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gameStatsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🕐 최근 게임 기록 (최대 50건)</h2>
+            <div id="recentWrap">
+                <p class="loading" id="recentLoading">불러오는 중...</p>
+                <table class="game-table recent-table" id="recentTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>게임</th>
+                            <th>참여 인원</th>
+                            <th>플레이 시각</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer style="text-align: center; padding: 24px 0; font-size: 0.9em; color: #555;">
+        <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">개인정보 처리방침</a> |
+        <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">이용 약관</a> |
+        <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">문의하기</a>
+    </footer>
+
+    <script>
+        const gameNames = { 'dice': '🎲 주사위', 'roulette': '🎰 룰렛', 'horse-race': '🐎 경마', 'team': '👥 팀 배정' };
+        fetch('/api/statistics')
+            .then(res => res.ok ? res.json() : Promise.reject(new Error('통계를 불러올 수 없습니다.')))
+            .then(data => {
+                document.getElementById('todayVisitors').textContent = data.todayVisitors ?? 0;
+                document.getElementById('totalVisitors').textContent = data.totalVisitors ?? 0;
+
+                const gs = data.gameStats || {};
+                const tbody = document.getElementById('gameStatsBody');
+                tbody.innerHTML = '';
+                ['dice', 'roulette', 'horse-race', 'team'].forEach(key => {
+                    const s = gs[key] || { count: 0, totalParticipants: 0 };
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = '<td class="game-name">' + (gameNames[key] || key) + '</td><td>' + (s.count || 0) + '회</td><td>' + (s.totalParticipants || 0) + '명</td>';
+                    tbody.appendChild(tr);
+                });
+                document.getElementById('gameStatsLoading').style.display = 'none';
+                document.getElementById('gameStatsTable').style.display = 'table';
+
+                const recent = data.recentPlays || [];
+                const rbody = document.getElementById('recentBody');
+                rbody.innerHTML = '';
+                recent.forEach(row => {
+                    const tr = document.createElement('tr');
+                    const at = row.playedAt ? new Date(row.playedAt).toLocaleString('ko-KR') : '-';
+                    tr.innerHTML = '<td>' + (gameNames[row.gameType] || row.gameType) + '</td><td>' + (row.participantCount || 0) + '명</td><td>' + at + '</td>';
+                    rbody.appendChild(tr);
+                });
+                document.getElementById('recentLoading').style.display = 'none';
+                document.getElementById('recentTable').style.display = recent.length ? 'table' : 'none';
+            })
+            .catch(err => {
+                document.getElementById('todayVisitors').textContent = '-';
+                document.getElementById('totalVisitors').textContent = '-';
+                document.getElementById('gameStatsLoading').textContent = '통계를 불러오지 못했습니다.';
+                document.getElementById('gameStatsLoading').className = 'error';
+                document.getElementById('recentLoading').textContent = '통계를 불러오지 못했습니다.';
+                document.getElementById('recentLoading').className = 'error';
+            });
+    </script>
+</body>
+</html>

@@ -91,6 +91,40 @@ async function initDatabase() {
             ON suggestions(created_at DESC)
         `);
         
+        // 방문자 통계 테이블 (오늘 방문자 수, 누적 방문자 수)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS visitor_total (
+                id INT PRIMARY KEY DEFAULT 1,
+                total_participations INT NOT NULL DEFAULT 0
+            )
+        `);
+        await pool.query(`
+            INSERT INTO visitor_total (id, total_participations) VALUES (1, 0)
+            ON CONFLICT (id) DO NOTHING
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS visitor_today (
+                event_date DATE NOT NULL,
+                ip VARCHAR(45) NOT NULL,
+                PRIMARY KEY (event_date, ip)
+            )
+        `);
+        
+        // 게임 기록 테이블 (어떤 게임, 몇 명이 참여했는지)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS game_records (
+                id SERIAL PRIMARY KEY,
+                game_type VARCHAR(20) NOT NULL,
+                participant_count INT NOT NULL,
+                played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_game_records_played_at ON game_records(played_at DESC)
+        `);
+        
+        await loadVisitorStatsFromDB();
+        
         console.log('✅ 데이터베이스 테이블 초기화 완료');
     } catch (error) {
         console.error('❌ 데이터베이스 초기화 오류:', error);
@@ -291,8 +325,88 @@ function saveFrequentMenus(menus) {
 // 방 관리 시스템
 const rooms = {}; // { roomId: { hostId, hostName, roomName, gameState, ... } }
 
-// 오늘의 주사위 기록 저장소 (방이 삭제되어도 유지)
-const todayDiceRecords = []; // { user, result, date, isGameActive, time, range, ... }
+// 방문자 통계 (오늘 방문자 수, 누적 방문자 수)
+const VISITOR_STATS_FILE = path.join(__dirname, 'visitor-stats.json');
+let visitorTodayDate = '';
+let visitorTodayIPs = new Set();
+let visitorTotalCount = 0;
+
+function loadVisitorStats() {
+    if (pool) return; // DB 사용 시 initDatabase()에서 loadVisitorStatsFromDB() 호출
+    try {
+        const data = fs.readFileSync(VISITOR_STATS_FILE, 'utf8');
+        const parsed = JSON.parse(data);
+        if (typeof parsed.totalConnections === 'number') visitorTotalCount = parsed.totalConnections;
+    } catch (e) {
+        // 파일 없거나 오류 시 무시
+    }
+}
+
+async function loadVisitorStatsFromDB() {
+    if (!pool) return;
+    try {
+        const totalRes = await pool.query('SELECT total_participations FROM visitor_total WHERE id = 1');
+        if (totalRes.rows[0]) visitorTotalCount = parseInt(totalRes.rows[0].total_participations, 10) || 0;
+        const today = new Date().toISOString().split('T')[0];
+        visitorTodayDate = today;
+        visitorTodayIPs = new Set();
+        const todayRes = await pool.query('SELECT ip FROM visitor_today WHERE event_date = $1::date', [today]);
+        todayRes.rows.forEach(row => visitorTodayIPs.add(row.ip));
+    } catch (e) {
+        console.warn('방문자 통계 DB 로드 실패:', e.message);
+    }
+}
+function saveVisitorStats() {
+    try {
+        fs.writeFileSync(VISITOR_STATS_FILE, JSON.stringify({ totalConnections: visitorTotalCount }, null, 0), 'utf8');
+    } catch (e) {
+        console.warn('방문자 통계 저장 실패:', e.message);
+    }
+}
+function getVisitorStats() {
+    const today = new Date().toISOString().split('T')[0];
+    if (visitorTodayDate !== today) {
+        visitorTodayDate = today;
+        visitorTodayIPs = new Set();
+    }
+    return { todayVisitors: visitorTodayIPs.size, totalVisitors: visitorTotalCount };
+}
+function recordVisitor(ip) {
+    const today = new Date().toISOString().split('T')[0];
+    if (visitorTodayDate !== today) {
+        visitorTodayDate = today;
+        visitorTodayIPs = new Set();
+    }
+    visitorTodayIPs.add(ip);
+    visitorTotalCount++;
+    if (pool) {
+        pool.query(
+            'INSERT INTO visitor_today (event_date, ip) VALUES ($1::date, $2) ON CONFLICT (event_date, ip) DO NOTHING',
+            [today, ip]
+        ).catch(e => console.warn('visitor_today insert:', e.message));
+        pool.query('UPDATE visitor_total SET total_participations = total_participations + 1 WHERE id = 1')
+            .catch(e => console.warn('visitor_total update:', e.message));
+    } else {
+        saveVisitorStats();
+    }
+    return getVisitorStats();
+}
+// 게임 참여 시 소켓 ID로 방문자 기록 (참여자만 집계)
+function recordParticipantVisitor(io, socketId) {
+    const sock = io.sockets.sockets.get(socketId);
+    if (sock && sock.clientIP) recordVisitor(sock.clientIP);
+}
+
+// 게임 기록 저장 (DB만, 통계용: 어떤 게임 / 몇 명)
+function recordGamePlay(gameType, participantCount) {
+    if (!pool || !gameType || participantCount < 1) return;
+    pool.query(
+        'INSERT INTO game_records (game_type, participant_count) VALUES ($1, $2)',
+        [String(gameType), Math.max(1, participantCount)]
+    ).catch(e => console.warn('game_records insert:', e.message));
+}
+
+loadVisitorStats();
 
 // 방 ID 생성
 function generateRoomId() {
@@ -397,6 +511,48 @@ app.get('/roulette', (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'roulette-game-multiplayer.html'));
+});
+
+// 통계 API (방문자 + 게임 기록)
+app.get('/api/statistics', async (req, res) => {
+    try {
+        const visitorStats = getVisitorStats();
+        let gameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } };
+        let recentPlays = [];
+        if (pool) {
+            const summary = await pool.query(`
+                SELECT game_type, COUNT(*) AS play_count, COALESCE(SUM(participant_count), 0)::bigint AS total_participants
+                FROM game_records
+                GROUP BY game_type
+            `);
+            summary.rows.forEach(row => {
+                const key = row.game_type || 'dice';
+                if (!gameStats[key]) gameStats[key] = { count: 0, totalParticipants: 0 };
+                gameStats[key].count = parseInt(row.play_count, 10) || 0;
+                gameStats[key].totalParticipants = parseInt(row.total_participants, 10) || 0;
+            });
+            const recent = await pool.query(`
+                SELECT game_type, participant_count, played_at
+                FROM game_records
+                ORDER BY played_at DESC
+                LIMIT 50
+            `);
+            recentPlays = recent.rows.map(row => ({
+                gameType: row.game_type,
+                participantCount: row.participant_count,
+                playedAt: row.played_at ? new Date(row.played_at).toISOString() : null
+            }));
+        }
+        res.json({
+            todayVisitors: visitorStats.todayVisitors,
+            totalVisitors: visitorStats.totalVisitors,
+            gameStats,
+            recentPlays
+        });
+    } catch (e) {
+        console.error('통계 API 오류:', e);
+        res.status(500).json({ error: '통계를 불러올 수 없습니다.' });
+    }
 });
 
 // GPT API를 통한 커스텀 룰 당첨자 판단
@@ -727,53 +883,6 @@ io.on('connection', (socket) => {
         return normalized;
     };
 
-    // 오늘의 주사위 통계 계산 (공식전만 포함)
-    const getTodayDiceStats = () => {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
-        let totalCount = 0;
-        let totalNormalizedSum = 0; // 정규화된 값의 합
-        
-        // 1. 전역 저장소의 기록 확인 (방이 삭제되어도 유지되는 기록)
-        const globalRecords = todayDiceRecords.filter(record => {
-            return record.date === today && record.isGameActive === true;
-        });
-        
-        totalCount += globalRecords.length;
-        globalRecords.forEach(record => {
-            if (typeof record.result === 'number') {
-                const normalized = normalizeTo100(record.result, record.range);
-                totalNormalizedSum += normalized;
-            }
-        });
-        
-        // 2. 현재 존재하는 모든 방의 게임 기록을 순회
-        Object.values(rooms).forEach(room => {
-            const gameState = room.gameState;
-            if (gameState && gameState.history) {
-                // 오늘 날짜의 기록 중 공식전(게임 진행 중)만 필터링
-                const todayRecords = gameState.history.filter(record => {
-                    // date 필드가 있고, 게임 진행 중일 때 굴린 주사위만 포함
-                    return record.date === today && record.isGameActive === true;
-                });
-                
-                totalCount += todayRecords.length;
-                todayRecords.forEach(record => {
-                    if (typeof record.result === 'number') {
-                        const normalized = normalizeTo100(record.result, record.range);
-                        totalNormalizedSum += normalized;
-                    }
-                });
-            }
-        });
-        
-        const average = totalCount > 0 ? (totalNormalizedSum / totalCount).toFixed(2) : 0;
-        
-        return {
-            count: totalCount,
-            average: parseFloat(average)
-        };
-    };
-///////////////
     // 방 목록 조회
     socket.on('getRooms', () => {
         if (!checkRateLimit()) return;
@@ -795,12 +904,12 @@ io.on('connection', (socket) => {
         socket.emit('roomsList', roomsList);
     });
 
-    // 오늘의 주사위 통계 조회
-    socket.on('getTodayDiceStats', () => {
+    // 방문자 통계 조회
+    socket.on('getVisitorStats', () => {
         if (!checkRateLimit()) return;
         
-        const stats = getTodayDiceStats();
-        socket.emit('todayDiceStats', stats);
+        const stats = getVisitorStats();
+        socket.emit('visitorStats', stats);
     });
 
     // 현재 방 정보 조회 (리다이렉트 후 방 정보 복구용)
@@ -1609,25 +1718,6 @@ io.on('connection', (socket) => {
             } else {
                 // 남은 사용자가 없으면 방 삭제
                 // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
-                const today = new Date().toISOString().split('T')[0];
-                if (gameState && gameState.history) {
-                    const todayGameRecords = gameState.history.filter(record => {
-                        return record.date === today && record.isGameActive === true;
-                    });
-                    todayGameRecords.forEach(record => {
-                        // 중복 체크 (이미 저장된 기록인지 확인)
-                        const alreadyExists = todayDiceRecords.some(r => 
-                            r.user === record.user && 
-                            r.result === record.result && 
-                            r.time === record.time &&
-                            r.date === record.date
-                        );
-                        if (!alreadyExists) {
-                            todayDiceRecords.push(record);
-                        }
-                    });
-                }
-                
                 io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
                 
                 // 모든 사용자 연결 해제
@@ -1655,26 +1745,6 @@ io.on('connection', (socket) => {
             
             // 남은 사용자가 없으면 방 삭제
             if (gameState.users.length === 0) {
-                // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
-                const today = new Date().toISOString().split('T')[0];
-                if (gameState && gameState.history) {
-                    const todayGameRecords = gameState.history.filter(record => {
-                        return record.date === today && record.isGameActive === true;
-                    });
-                    todayGameRecords.forEach(record => {
-                        // 중복 체크 (이미 저장된 기록인지 확인)
-                        const alreadyExists = todayDiceRecords.some(r => 
-                            r.user === record.user && 
-                            r.result === record.result && 
-                            r.time === record.time &&
-                            r.date === record.date
-                        );
-                        if (!alreadyExists) {
-                            todayDiceRecords.push(record);
-                        }
-                    });
-                }
-                
                 // 호스트 소켓 찾기
                 const socketsInRoom = await io.in(roomId).fetchSockets();
                 socketsInRoom.forEach(s => {
@@ -2477,7 +2547,7 @@ io.on('connection', (socket) => {
         // 입력값 검증
         if (!menu || typeof menu !== 'string') {
             socket.emit('menuError', '올바른 메뉴명을 입력해주세요!');
-            return;
+            return;ㄹㅍ
         }
         
         // 메뉴 삭제
@@ -2552,6 +2622,8 @@ io.on('connection', (socket) => {
             players: gameState.gamePlayers,
             totalPlayers: gameState.gamePlayers.length
         });
+        
+        recordGamePlay(room.gameType || 'dice', gameState.gamePlayers.length);
         
         // 게임 시작 시 채팅에 게임 시작 메시지와 룰 전송
         const gameStartMessage = {
@@ -2822,6 +2894,11 @@ io.on('connection', (socket) => {
             effectType: effectType, // 마무리 효과 타입
             effectParams: effectParams // 효과 파라미터
         });
+        
+        // 룰렛 참여자 방문자 통계 기록
+        gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
+        io.emit('visitorStats', getVisitorStats());
+        recordGamePlay('roulette', participants.length);
         
         // 채팅에 시스템 메시지 추가 (한국 시간 - 위에서 선언한 now와 koreaTime 재사용)
         const startMessage = {
@@ -3171,6 +3248,11 @@ io.on('connection', (socket) => {
             selectedVehicleTypes: gameState.selectedVehicleTypes || null,
             record: raceRecord // 경주 기록 (다시보기용)
         });
+        
+        // 경마 참여자 방문자 통계 기록
+        gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
+        io.emit('visitorStats', getVisitorStats());
+        recordGamePlay('horse-race', players.length);
         
         // 경주 결과 전송 후 상태를 false로 설정 (애니메이션은 클라이언트에서만 진행)
         // 재경주 준비를 위해 경주가 종료된 것으로 간주
@@ -3903,6 +3985,11 @@ io.on('connection', (socket) => {
             record: raceRecord
         });
         
+        // 재경주 참여자 방문자 통계 기록
+        gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
+        io.emit('visitorStats', getVisitorStats());
+        recordGamePlay('horse-race', players.length);
+        
         // 재경주 결과 전송 후 상태를 false로 설정 (애니메이션은 클라이언트에서만 진행)
         // 재경주가 연속으로 발생할 수 있으므로 경주 종료 상태로 설정
         gameState.isHorseRaceActive = false;
@@ -4282,11 +4369,6 @@ io.on('connection', (socket) => {
         // 게임이 진행 중이 아니거나, 게임 진행 중이지만 최초 굴리기인 경우에만 기록에 저장 (준비하지 않은 사람 제외)
         if ((isNotGameActive || isFirstRollInGame) && !isNotReady) {
             gameState.history.push(record);
-            
-            // 오늘의 주사위 통계 업데이트 (모든 클라이언트에게 전송)
-            // 전역 저장소는 방 삭제 시에만 저장하므로 여기서는 방의 기록만 집계
-            const stats = getTodayDiceStats();
-            io.emit('todayDiceStats', stats)
         }
             
         // rolledUsers 배열에 사용자 추가 (중복 체크, 준비하지 않은 사람은 제외)
@@ -4296,6 +4378,12 @@ io.on('connection', (socket) => {
         
         // 같은 방의 모든 클라이언트에게 주사위 결과 전송
         io.to(room.roomId).emit('diceRolled', record);
+        
+        // 게임 참여 시에만 방문자 통계 기록 (준비한 사람이 굴린 경우)
+        if (!isNotReady) {
+            recordVisitor(socket.clientIP);
+            io.emit('visitorStats', getVisitorStats());
+        }
         
         // 주사위 결과를 채팅 기록에 연결 (채팅 기록에서 /주사위 명령어 메시지를 찾아 결과 추가)
         // 가장 최근 채팅 메시지 중 해당 사용자의 /주사위 메시지를 찾아서 결과 추가
@@ -4729,26 +4817,6 @@ io.on('connection', (socket) => {
                             updateRoomsList();
                         } else {
                             // 모든 사용자가 나감 - 방 삭제
-                            // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
-                            const today = new Date().toISOString().split('T')[0];
-                            if (gameState && gameState.history) {
-                                const todayGameRecords = gameState.history.filter(record => {
-                                    return record.date === today && record.isGameActive === true;
-                                });
-                                todayGameRecords.forEach(record => {
-                                    // 중복 체크 (이미 저장된 기록인지 확인)
-                                    const alreadyExists = todayDiceRecords.some(r => 
-                                        r.user === record.user && 
-                                        r.result === record.result && 
-                                        r.time === record.time &&
-                                        r.date === record.date
-                                    );
-                                    if (!alreadyExists) {
-                                        todayDiceRecords.push(record);
-                                    }
-                                });
-                            }
-                            
                             io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
                             delete rooms[roomId];
                             updateRoomsList();
@@ -4760,26 +4828,6 @@ io.on('connection', (socket) => {
                         
                         if (gameState.users.length === 0) {
                             // 모든 사용자가 나감 - 방 삭제
-                            // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
-                            const today = new Date().toISOString().split('T')[0];
-                            if (gameState && gameState.history) {
-                                const todayGameRecords = gameState.history.filter(record => {
-                                    return record.date === today && record.isGameActive === true;
-                                });
-                                todayGameRecords.forEach(record => {
-                                    // 중복 체크 (이미 저장된 기록인지 확인)
-                                    const alreadyExists = todayDiceRecords.some(r => 
-                                        r.user === record.user &&   
-                                        r.result === record.result && 
-                                        r.time === record.time &&
-                                        r.date === record.date
-                                    );
-                                    if (!alreadyExists) {
-                                        todayDiceRecords.push(record);
-                                    }
-                                });
-                            }
-                            
                             io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
                             delete rooms[roomId];
                             updateRoomsList();
@@ -4952,26 +5000,6 @@ async function startServer() {
                 if (elapsed >= expiryHoursInMs) {
                     const hasUsers = room.gameState.users.length > 0;
                     console.log(`방 ${roomId} (${room.roomName})이 ${room.expiryHours}시간 경과로 자동 삭제됩니다. (사용자 수: ${room.gameState.users.length})`);
-                    
-                    // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장
-                    const gameState = room.gameState;
-                    if (gameState && gameState.history) {
-                        const todayGameRecords = gameState.history.filter(record => {
-                            return record.date === today && record.isGameActive === true;
-                        });
-                        todayGameRecords.forEach(record => {
-                            // 중복 체크 (이미 저장된 기록인지 확인)
-                            const alreadyExists = todayDiceRecords.some(r => 
-                                r.user === record.user && 
-                                r.result === record.result && 
-                                r.time === record.time &&
-                                r.date === record.date
-                            );
-                            if (!alreadyExists) {
-                                todayDiceRecords.push(record);
-                            }
-                        });
-                    }
                     
                     // 방에 사용자가 있을 때만 삭제 알림 전송
                     if (hasUsers) {

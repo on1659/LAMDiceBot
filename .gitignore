@@ -8,3 +8,6 @@
 # 테스트 폴더
 /AutoTest/node_modules
 /AutoTest/*.log
+
+# 방문자 통계 (로컬/서버별 누적)
+visitor-stats.json
