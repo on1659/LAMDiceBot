@@ -84,8 +84,12 @@
                     <div class="value" id="todayVisitors">-</div>
                 </div>
                 <div class="stat-card">
-                    <div class="label">누적 방문자 수</div>
-                    <div class="value" id="totalVisitors">-</div>
+                    <div class="label">오늘 플레이 횟수</div>
+                    <div class="value" id="todayPlays">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">총 플레이 횟수</div>
+                    <div class="value" id="totalPlays">-</div>
                 </div>
             </div>
         </div>
@@ -137,7 +141,8 @@
             .then(res => res.ok ? res.json() : Promise.reject(new Error('통계를 불러올 수 없습니다.')))
             .then(data => {
                 document.getElementById('todayVisitors').textContent = data.todayVisitors ?? 0;
-                document.getElementById('totalVisitors').textContent = data.totalVisitors ?? 0;
+                document.getElementById('todayPlays').textContent = data.todayPlays ?? 0;
+                document.getElementById('totalPlays').textContent = data.totalPlays ?? 0;
 
                 const gs = data.gameStats || {};
                 const tbody = document.getElementById('gameStatsBody');
@@ -165,7 +170,8 @@
             })
             .catch(err => {
                 document.getElementById('todayVisitors').textContent = '-';
-                document.getElementById('totalVisitors').textContent = '-';
+                document.getElementById('todayPlays').textContent = '-';
+                document.getElementById('totalPlays').textContent = '-';
                 document.getElementById('gameStatsLoading').textContent = '통계를 불러오지 못했습니다.';
                 document.getElementById('gameStatsLoading').className = 'error';
                 document.getElementById('recentLoading').textContent = '통계를 불러오지 못했습니다.';

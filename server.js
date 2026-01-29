@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -50,12 +51,14 @@ const MENUS_FILE = path.join(__dirname, 'frequentMenus.json');
 const BOARD_FILE = path.join(__dirname, 'suggestions.json');
 
 // PostgreSQL 연결 설정 (DATABASE_URL이 있고 Pool이 있을 때만)
+// 로컬(localhost)은 SSL 미지원이므로 SSL 비활성화, 원격은 SSL 사용
 let pool = null;
 if (process.env.DATABASE_URL && Pool) {
     try {
+        const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
         pool = new Pool({
             connectionString: process.env.DATABASE_URL,
-            ssl: { rejectUnauthorized: false }
+            ssl: isLocal ? false : { rejectUnauthorized: false }
         });
     } catch (error) {
         console.error('Postgres 연결 오류:', error);
@@ -124,12 +127,15 @@ async function initDatabase() {
         `);
         
         await loadVisitorStatsFromDB();
+        await loadPlayStatsFromDB();
         
         console.log('✅ 데이터베이스 테이블 초기화 완료');
     } catch (error) {
-        console.error('❌ 데이터베이스 초기화 오류:', error);
-        // Postgres가 없으면 파일 시스템으로 폴백
+        console.error('❌ 데이터베이스 초기화 오류:', error.message || error);
         console.log('⚠️  Postgres 연결 실패, 파일 시스템 사용');
+        pool = null; // 이후 모든 DB 호출이 파일 시스템으로 폴백
+        loadVisitorStats(); // 파일 기반 방문자 통계 로드
+        loadPlayStats(); // 파일 기반 플레이 통계 로드
     }
 }
 
@@ -325,11 +331,18 @@ function saveFrequentMenus(menus) {
 // 방 관리 시스템
 const rooms = {}; // { roomId: { hostId, hostName, roomName, gameState, ... } }
 
-// 방문자 통계 (오늘 방문자 수, 누적 방문자 수)
+// 방문자 통계 (오늘 방문자 수 = 고유 참여자 수)
 const VISITOR_STATS_FILE = path.join(__dirname, 'visitor-stats.json');
 let visitorTodayDate = '';
 let visitorTodayIPs = new Set();
+let visitorTodayParticipantIds = new Set(); // 오늘 방문자 수 = 고유 소켓(참여자) 수 (같은 IP 여러 명 반영)
 let visitorTotalCount = 0;
+
+// 플레이 통계 (오늘 플레이 횟수, 총 플레이 횟수 = 게임 1회당 1)
+const PLAY_STATS_FILE = path.join(__dirname, 'play-stats.json');
+let playTodayDate = '';
+let playTodayCount = 0;
+let playTotalCount = 0;
 
 function loadVisitorStats() {
     if (pool) return; // DB 사용 시 initDatabase()에서 loadVisitorStatsFromDB() 호출
@@ -363,21 +376,66 @@ function saveVisitorStats() {
         console.warn('방문자 통계 저장 실패:', e.message);
     }
 }
+
+function loadPlayStats() {
+    if (pool) return; // DB 사용 시 initDatabase()에서 loadPlayStatsFromDB() 호출
+    try {
+        const data = fs.readFileSync(PLAY_STATS_FILE, 'utf8');
+        const parsed = JSON.parse(data);
+        playTodayDate = parsed.date || '';
+        playTodayCount = typeof parsed.todayPlays === 'number' ? parsed.todayPlays : 0;
+        playTotalCount = typeof parsed.totalPlays === 'number' ? parsed.totalPlays : 0;
+    } catch (e) { /* 파일 없거나 오류 시 무시 */ }
+}
+
+async function loadPlayStatsFromDB() {
+    if (!pool) return;
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const totalRes = await pool.query('SELECT COUNT(*) AS cnt FROM game_records');
+        const todayRes = await pool.query('SELECT COUNT(*) AS cnt FROM game_records WHERE played_at::date = $1::date', [today]);
+        playTotalCount = parseInt(totalRes.rows[0]?.cnt, 10) || 0;
+        playTodayCount = parseInt(todayRes.rows[0]?.cnt, 10) || 0;
+        playTodayDate = today;
+    } catch (e) {
+        console.warn('플레이 통계 DB 로드 실패:', e.message);
+    }
+}
+
+function savePlayStats() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        fs.writeFileSync(PLAY_STATS_FILE, JSON.stringify({ date: today, todayPlays: playTodayCount, totalPlays: playTotalCount }, null, 0), 'utf8');
+    } catch (e) {
+        console.warn('플레이 통계 저장 실패:', e.message);
+    }
+}
+
 function getVisitorStats() {
     const today = new Date().toISOString().split('T')[0];
     if (visitorTodayDate !== today) {
         visitorTodayDate = today;
         visitorTodayIPs = new Set();
+        visitorTodayParticipantIds = new Set();
     }
-    return { todayVisitors: visitorTodayIPs.size, totalVisitors: visitorTotalCount };
+    // 같은 IP 여러 명(로컬 봇 등)도 인원으로 반영: 참여자 ID 집계가 있으면 그걸 쓰고, 없으면(재시작 직후) IP 기준
+    const todayVisitors = visitorTodayParticipantIds.size > 0 ? visitorTodayParticipantIds.size : visitorTodayIPs.size;
+    // 플레이 횟수: 오늘/총 게임 플레이 수 (게임 1회 = 1)
+    if (playTodayDate !== today) {
+        playTodayDate = today;
+        playTodayCount = 0;
+    }
+    return { todayVisitors, todayPlays: playTodayCount, totalPlays: playTotalCount };
 }
-function recordVisitor(ip) {
+function recordVisitor(ip, source, participantId) {
     const today = new Date().toISOString().split('T')[0];
     if (visitorTodayDate !== today) {
         visitorTodayDate = today;
         visitorTodayIPs = new Set();
+        visitorTodayParticipantIds = new Set();
     }
     visitorTodayIPs.add(ip);
+    if (participantId != null && participantId !== '') visitorTodayParticipantIds.add(participantId);
     visitorTotalCount++;
     if (pool) {
         pool.query(
@@ -394,19 +452,31 @@ function recordVisitor(ip) {
 // 게임 참여 시 소켓 ID로 방문자 기록 (참여자만 집계)
 function recordParticipantVisitor(io, socketId) {
     const sock = io.sockets.sockets.get(socketId);
-    if (sock && sock.clientIP) recordVisitor(sock.clientIP);
+    if (sock && sock.clientIP) recordVisitor(sock.clientIP, 'gameStart', sock.id);
 }
 
-// 게임 기록 저장 (DB만, 통계용: 어떤 게임 / 몇 명)
+// 게임 기록 저장 (오늘/총 플레이 횟수 집계 + DB 또는 파일)
 function recordGamePlay(gameType, participantCount) {
-    if (!pool || !gameType || participantCount < 1) return;
-    pool.query(
-        'INSERT INTO game_records (game_type, participant_count) VALUES ($1, $2)',
-        [String(gameType), Math.max(1, participantCount)]
-    ).catch(e => console.warn('game_records insert:', e.message));
+    if (!gameType || participantCount < 1) return;
+    const today = new Date().toISOString().split('T')[0];
+    if (playTodayDate !== today) {
+        playTodayDate = today;
+        playTodayCount = 0;
+    }
+    playTodayCount++;
+    playTotalCount++;
+    if (pool) {
+        pool.query(
+            'INSERT INTO game_records (game_type, participant_count) VALUES ($1, $2)',
+            [String(gameType), Math.max(1, participantCount)]
+        ).catch(e => console.warn('game_records insert:', e.message));
+    } else {
+        savePlayStats();
+    }
 }
 
 loadVisitorStats();
+loadPlayStats();
 
 // 방 ID 생성
 function generateRoomId() {
@@ -472,7 +542,7 @@ function createRoomGameState() {
         availableHorses: [], // 사용 가능한 말 목록 (4~6마리)
         userHorseBets: {}, // 사용자별 선택한 말 {userName: horseIndex}
         horseRankings: [], // 말 순위 (경주 완료 후)
-        horseRaceMode: 'first', // 게임 룰: 'first' (1등 찾기) 또는 'last' (꼴등 찾기)
+        horseRaceMode: 'last', // 게임 룰: 무조건 꼴등 찾기
         currentRoundPlayers: [], // 현재 라운드 참여자 (재경주 시 사용)
         raceRound: 1, // 현재 경주 라운드 번호
         // 경마 주문하기 관련
@@ -545,7 +615,8 @@ app.get('/api/statistics', async (req, res) => {
         }
         res.json({
             todayVisitors: visitorStats.todayVisitors,
-            totalVisitors: visitorStats.totalVisitors,
+            todayPlays: visitorStats.todayPlays,
+            totalPlays: visitorStats.totalPlays,
             gameStats,
             recentPlays
         });
@@ -1177,6 +1248,10 @@ io.on('connection', (socket) => {
         
         socket.join(roomId);
         
+        // 방 생성 시 호스트 방문자 통계 기록 (오늘 방문자 = 방에 들어온 사람)
+        recordVisitor(socket.clientIP, 'createRoom', socket.id);
+        io.emit('visitorStats', getVisitorStats());
+        
         // 경마 게임인 경우 roomCreated 이벤트 전에 selectedVehicleTypes 미리 설정
         if (validGameType === 'horse-race' && !gameState.isHorseRaceActive) {
             const players = gameState.users.map(u => u.name);
@@ -1224,7 +1299,7 @@ io.on('connection', (socket) => {
                 // 경마 게임 상태 포함
                 availableHorses: gameState.availableHorses || [],
                 userHorseBets: gameState.userHorseBets || {},
-                horseRaceMode: gameState.horseRaceMode || 'first',
+                horseRaceMode: gameState.horseRaceMode || 'last',
                 currentRoundPlayers: gameState.currentRoundPlayers || [],
                 raceRound: gameState.raceRound || 1,
                 isHorseRaceActive: gameState.isHorseRaceActive || false,
@@ -1235,16 +1310,10 @@ io.on('connection', (socket) => {
                 horseFrequentMenus: gameState.horseFrequentMenus || []
             }
         };
-        // #region agent log
-        fs.appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:1037',message:'emitting roomCreated',data:{roomId:roomCreatedData.roomId,gameType:roomCreatedData.gameType,readyUsersCount:roomCreatedData.readyUsers.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n');
-        // #endregion
         socket.emit('roomCreated', roomCreatedData);
         
         // 경마 게임인 경우 방 생성 시 말 선택 UI 표시 (호스트 1명만 있어도 표시)
         if (validGameType === 'horse-race' && !gameState.isHorseRaceActive) {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1066',message:'roomCreated horse flow',data:{roomId:roomId,gameType:validGameType,isHorseRaceActive:gameState.isHorseRaceActive,playersCount:gameState.users.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-            // #endregion
             const players = gameState.users.map(u => u.name);
             if (players.length >= 1 && gameState.availableHorses && gameState.availableHorses.length > 0) {
                 // 호스트에게 말 선택 UI 표시
@@ -1253,13 +1322,10 @@ io.on('connection', (socket) => {
                     participants: players,
                     players: players, // 하위 호환성
                     userHorseBets: { ...gameState.userHorseBets },
-                    horseRaceMode: gameState.horseRaceMode || 'first',
+                    horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes
                 });
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1082',message:'roomCreated horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-                // #endregion
             }
         }
         
@@ -1384,13 +1450,7 @@ io.on('connection', (socket) => {
                     isReady: gameState.readyUsers.includes(userName.trim()),
                     isPrivate: room.isPrivate,
                     password: room.isPrivate ? room.password : '',
-                    gameType: (() => {
-                        const gameType = room.gameType || 'dice';
-                        // #region agent log
-                        fs.appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:1181',message:'roomJoined gameType',data:{roomId:room.roomId,roomGameType:room.gameType,returnedGameType:gameType,userName:userName.trim()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n');
-                        // #endregion
-                        return gameType;
-                    })(),
+                    gameType: room.gameType || 'dice',
                     createdAt: room.createdAt, // 방 생성 시간 추가
                     expiryHours: room.expiryHours || 1, // 방 유지 시간 추가
                     blockIPPerUser: room.blockIPPerUser || false, // IP 차단 옵션 추가
@@ -1410,7 +1470,7 @@ io.on('connection', (socket) => {
                         // 경마 게임 상태 포함
                         availableHorses: gameState.availableHorses || [],
                         userHorseBets: gameState.userHorseBets || {},
-                        horseRaceMode: gameState.horseRaceMode || 'first',
+                        horseRaceMode: gameState.horseRaceMode || 'last',
                         currentRoundPlayers: gameState.currentRoundPlayers || [],
                         raceRound: gameState.raceRound || 1,
                         isHorseRaceActive: gameState.isHorseRaceActive || false,
@@ -1424,9 +1484,6 @@ io.on('connection', (socket) => {
                 
                 // 경마 게임인 경우 방 입장 시 말 선택 UI 표시
                 if (room.gameType === 'horse-race' && !gameState.isHorseRaceActive) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1235',message:'roomJoined horse flow',data:{roomId:roomId,gameType:room.gameType,isHorseRaceActive:gameState.isHorseRaceActive,playersCount:gameState.users.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-                    // #endregion
                     const players = gameState.users.map(u => u.name);
                     if (players.length >= 1) {
                         // 말 수 결정 (이미 있으면 유지, 4~6마리 랜덤)
@@ -1452,13 +1509,10 @@ io.on('connection', (socket) => {
                             participants: players,
                             players: players, // 하위 호환성
                             userHorseBets: { ...gameState.userHorseBets },
-                            horseRaceMode: gameState.horseRaceMode || 'first',
+                            horseRaceMode: gameState.horseRaceMode || 'last',
                             raceRound: gameState.raceRound || 1,
                             selectedVehicleTypes: gameState.selectedVehicleTypes
                         });
-                        // #region agent log
-                        fetch('http://127.0.0.1:7243/ingest/435174d2-919c-4e69-a99a-32ba6506af56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:1249',message:'roomJoined horseSelectionReady emitted',data:{roomId:roomId,availableHorsesCount:gameState.availableHorses.length,playersCount:players.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-                        // #endregion
                     }
                 }
                 
@@ -1567,6 +1621,10 @@ io.on('connection', (socket) => {
         
         socket.join(roomId);
         
+        // 방 입장 시 방문자 통계 기록 (오늘 방문자 = 방에 들어온 사람)
+        recordVisitor(socket.clientIP, 'joinRoom', socket.id);
+        io.emit('visitorStats', getVisitorStats());
+        
         // 재접속 시 이미 굴렸는지 확인
         const hasRolled = gameState.rolledUsers.includes(finalUserName);
         const myResult = gameState.history.find(r => r.user === finalUserName);
@@ -1606,7 +1664,7 @@ io.on('connection', (socket) => {
                 // 경마 게임 상태 포함 (새 사용자 입장 시에도 필요)
                 availableHorses: gameState.availableHorses || [],
                 userHorseBets: gameState.userHorseBets || {},
-                horseRaceMode: gameState.horseRaceMode || 'first',
+                horseRaceMode: gameState.horseRaceMode || 'last',
                 currentRoundPlayers: gameState.currentRoundPlayers || [],
                 raceRound: gameState.raceRound || 1,
                 isHorseRaceActive: gameState.isHorseRaceActive || false,
@@ -1645,7 +1703,7 @@ io.on('connection', (socket) => {
                     participants: players,
                     players: players,
                     userHorseBets: { ...gameState.userHorseBets },
-                    horseRaceMode: gameState.horseRaceMode || 'first',
+                    horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes
                 });
@@ -2551,7 +2609,7 @@ io.on('connection', (socket) => {
         }
         
         // 메뉴 삭제
-        const beforeLength = gameState.frequentMenus.length;
+        const beforeLength = gamㄹeState.frequentMenus.length;
         gameState.frequentMenus = gameState.frequentMenus.filter(m => m !== menu);
         
         if (gameState.frequentMenus.length === beforeLength) {
@@ -3068,25 +3126,16 @@ io.on('connection', (socket) => {
     
     // 경마 게임 시작 (방장만 가능)
     socket.on('startHorseRace', () => {
-        // #region agent log
-        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2708',message:'startHorseRace received',data:{socketId:socket.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})+'\n');
-        // #endregion
         if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
-        // #region agent log
-        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2712',message:'room check',data:{hasGameState:!!gameState,hasRoom:!!room,gameType:room?.gameType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H5'})+'\n');
-        // #endregion
         if (!gameState || !room) {
             socket.emit('roomError', '방에 입장하지 않았습니다!');
             return;
         }
         
         // 경마 게임 방인지 확인
-        // #region agent log
-        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2719',message:'gameType validation',data:{roomGameType:room.gameType,expected:'horse-race',match:room.gameType==='horse-race'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H5'})+'\n');
-        // #endregion
         if (room.gameType !== 'horse-race') {
             socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
             return;
@@ -3110,9 +3159,6 @@ io.on('connection', (socket) => {
             ? gameState.currentRoundPlayers 
             : gameState.users.map(u => u.name);
         
-        // #region agent log
-        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2756',message:'players check',data:{currentRoundPlayersCount:gameState.currentRoundPlayers.length,usersCount:gameState.users.length,playersCount:players?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n');
-        // #endregion
         if (!players || players.length < 2) {
             socket.emit('horseRaceError', '최소 2명 이상이 필요합니다!');
             return;
@@ -3120,9 +3166,6 @@ io.on('connection', (socket) => {
         
         // 모든 사람이 말을 선택했는지 확인
         const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
-        // #region agent log
-        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2827',message:'startHorseRace allSelected check',data:{playersCount:players.length,allSelected:allSelected,userHorseBets:gameState.userHorseBets},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n');
-        // #endregion
         if (!allSelected) {
             socket.emit('horseRaceError', '모든 사람이 말을 선택해야 시작할 수 있습니다!');
             return;
@@ -3237,7 +3280,7 @@ io.on('connection', (socket) => {
             availableHorses: gameState.availableHorses,
             players: players,
             raceRound: gameState.raceRound,
-            horseRaceMode: gameState.horseRaceMode || 'first',
+            horseRaceMode: gameState.horseRaceMode || 'last',
             everPlayedUsers: gameState.everPlayedUsers,
             rankings: rankings, // 전체 순위 정보
             horseRankings: horseRankings, // 순위별 말 인덱스 배열
@@ -3515,7 +3558,7 @@ io.on('connection', (socket) => {
                     participants: players,
                     players: players, // 하위 호환성
                     userHorseBets: { ...gameState.userHorseBets },
-                    horseRaceMode: gameState.horseRaceMode || 'first',
+                    horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes || null
                 });
@@ -3566,9 +3609,6 @@ io.on('connection', (socket) => {
         
         // 모든 참가자가 선택했는지 확인
         const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
-        // #region agent log
-        require('fs').appendFileSync('d:\\Work\\LAMDiceBot\\.cursor\\debug.log', JSON.stringify({location:'server.js:2967',message:'selectHorse allSelected check',data:{playersCount:players.length,allSelected:allSelected,userHorseBets:gameState.userHorseBets},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})+'\n');
-        // #endregion
         
         // 경주 진행 중이 아닐 때는 말 선택만 저장하고 게임 시작 대기
         if (!gameState.isHorseRaceActive) {
@@ -3736,7 +3776,7 @@ io.on('connection', (socket) => {
     
     // 룰에 맞는 당첨자 확인 함수
     function getWinnersByRule(gameState, rankings) {
-        const mode = gameState.horseRaceMode || 'first';
+        const mode = gameState.horseRaceMode || 'last';
         const userHorseBets = gameState.userHorseBets;
         const players = gameState.currentRoundPlayers.length > 0 
             ? gameState.currentRoundPlayers 
@@ -3837,7 +3877,7 @@ io.on('connection', (socket) => {
             participants: players,
             players: players, // 하위 호환성
             userHorseBets: {},
-            horseRaceMode: gameState.horseRaceMode || 'first',
+            horseRaceMode: gameState.horseRaceMode || 'last',
             raceRound: gameState.raceRound,
             isRerace: true,
             selectedVehicleTypes: gameState.selectedVehicleTypes
@@ -3980,7 +4020,7 @@ io.on('connection', (socket) => {
             userHorseBets: { ...gameState.userHorseBets },
             selectedVehicleTypes: gameState.selectedVehicleTypes,
             raceRound: gameState.raceRound,
-            horseRaceMode: gameState.horseRaceMode || 'first',
+            horseRaceMode: gameState.horseRaceMode || 'last',
             winners: winners,
             record: raceRecord
         });
@@ -4052,7 +4092,7 @@ io.on('connection', (socket) => {
                 participants: players,
                 players: players, // 하위 호환성
                 userHorseBets: {}, // 초기화
-                horseRaceMode: gameState.horseRaceMode || 'first',
+                horseRaceMode: gameState.horseRaceMode || 'last',
                 raceRound: gameState.raceRound || 1,
                 selectedVehicleTypes: gameState.selectedVehicleTypes
             });
@@ -4381,7 +4421,7 @@ io.on('connection', (socket) => {
         
         // 게임 참여 시에만 방문자 통계 기록 (준비한 사람이 굴린 경우)
         if (!isNotReady) {
-            recordVisitor(socket.clientIP);
+            recordVisitor(socket.clientIP, 'diceRoll', socket.id);
             io.emit('visitorStats', getVisitorStats());
         }
         
@@ -4543,9 +4583,8 @@ io.on('connection', (socket) => {
 
         // 탈것 명령어 처리 (localhost에서만, 호스트만)
         const trimmedMsg = message.trim();
-        const isLocalhost = socket.handshake.headers.host?.includes('localhost') || socket.handshake.headers.host?.includes('127.0.0.1');
         
-        if (isLocalhost && user.isHost && room.gameType === 'horse-race') {
+        if (user.isHost && room.gameType === 'horse-race') {
             // 전체 탈것 목록
             const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse'];
             const VEHICLE_NAMES = {

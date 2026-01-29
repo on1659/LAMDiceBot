@@ -1241,7 +1241,8 @@
             <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
             <div id="visitorStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
                 <div>오늘 방문자 수: <strong id="todayVisitorCount">0</strong>명</div>
-                <div>누적 방문자 수: <strong id="totalVisitorCount">0</strong>명</div>
+                <div>오늘 플레이 횟수: <strong id="todayPlayCount">0</strong>회</div>
+                <div>총 플레이 횟수: <strong id="totalPlayCount">0</strong>회</div>
             </div>
         </div>
 
@@ -1696,6 +1697,14 @@
             const debugLogSection = document.getElementById('debugLogSection');
             if (debugLogSection) {
                 debugLogSection.style.display = 'none';
+            }
+        }
+        
+        // 로컬에서는 방 제목 기본값을 "test"로 설정
+        if (isLocalhost) {
+            const roomNameInput = document.getElementById('createRoomNameInput');
+            if (roomNameInput) {
+                roomNameInput.value = 'test';
             }
         }
         
@@ -2824,10 +2833,11 @@
             socket.emit('getVisitorStats');
         }
         
-        // 방문자 통계 수신
+        // 방문자/플레이 통계 수신
         socket.on('visitorStats', (stats) => {
             document.getElementById('todayVisitorCount').textContent = stats.todayVisitors ?? 0;
-            document.getElementById('totalVisitorCount').textContent = stats.totalVisitors ?? 0;
+            document.getElementById('todayPlayCount').textContent = stats.todayPlays ?? 0;
+            document.getElementById('totalPlayCount').textContent = stats.totalPlays ?? 0;
         });
         
         // 커스텀 얼럿 함수
@@ -3372,8 +3382,12 @@
             document.getElementById('createRoomPasswordContainer').style.display = 'none';
             document.getElementById('createRoomIPBlockCheckbox').checked = false; // IP 차단 옵션 기본값: 체크 안 함
             
-            // 방 제목 자동 생성 (전역 이름 사용)
-            document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
+            // 방 제목 자동 생성 (로컬에서는 "test", 그 외에는 전역 이름 사용)
+            if (isLocalhost) {
+                document.getElementById('createRoomNameInput').value = 'test';
+            } else {
+                document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
+            }
             
             // 방 제목 입력창에 포커스
             setTimeout(() => {
@@ -3840,6 +3854,9 @@
                 let isUpdating = false;
                 globalNameInput.addEventListener('input', () => {
                     if (isUpdating) return;
+                    // 로컬에서는 자동 업데이트 안 함
+                    if (isLocalhost) return;
+                    
                     const hostName = globalNameInput.value.trim();
                     // 방 제목이 기본 형식이거나 비어있을 때만 자동 업데이트 (방 생성 페이지가 열려있을 때만)
                     const createRoomSection = document.getElementById('createRoomSection');
@@ -5669,7 +5686,7 @@
 
         // 주사위 결과 수신
         socket.on('diceRolled', (record) => {
-            if (window.SoundManager) SoundManager.playSound('dice_roll', getDiceSoundEnabled());
+            // 사운드는 rollDiceWithRange에서 명령어 입력 즉시 재생됨
             // 준비하지 않은 사람인지 확인
             const isNotReady = record.isNotReady === true;
             
@@ -6402,6 +6419,9 @@
                 clearInterval(diceAnimationInterval);
                 diceAnimationInterval = null;
             }
+
+            // 명령어 입력 즉시 사운드 재생 (서버 응답 전)
+            if (window.SoundManager) SoundManager.playSound('dice_roll', getDiceSoundEnabled());
 
             const clientSeed = generateClientSeed();
             socket.emit('requestRoll', { 

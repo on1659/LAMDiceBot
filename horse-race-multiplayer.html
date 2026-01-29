@@ -254,7 +254,7 @@
             margin: 0;
         }
 
-        /* 경주 트랙 컨테이너 */
+        /* 경주 트랙 컨테이너 - 스크롤은 유지, 스크롤바만 숨김 */
         .race-track-container {
             position: relative;
             width: 100%;
@@ -262,9 +262,13 @@
             margin: 20px 0;
             overflow-x: auto;
             overflow-y: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
             border-radius: 12px;
             background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 50%, #7CB342 100%);
-            position: relative;
+        }
+        .race-track-container::-webkit-scrollbar {
+            display: none;
         }
         
         /* 순위 표시 이펙트 */
@@ -1121,6 +1125,24 @@
             100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
         }
         
+        /* 꼴등 사망 애니메이션 */
+        @keyframes soulRise {
+            0% { transform: translateY(0); opacity: 0.8; }
+            100% { transform: translateY(-100px); opacity: 0; }
+        }
+        
+        @keyframes tombstoneDrop {
+            0% { transform: translateY(-150px); opacity: 0; }
+            60% { transform: translateY(10px); opacity: 1; }
+            80% { transform: translateY(-5px); }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes deathFade {
+            0% { opacity: 1; filter: grayscale(0); }
+            100% { opacity: 0; filter: grayscale(100%); visibility: hidden; }
+        }
+        
         @keyframes confettiFall {
             0% { opacity: 1; transform: translateY(0) rotate(0deg); }
             100% { opacity: 0; transform: translateY(80px) rotate(720deg); }
@@ -1144,6 +1166,20 @@
             font-size: 18px;
             color: #666;
             margin-bottom: 30px;
+        }
+
+        /* 순위 발표 1·2·3등 블록 애니메이션 */
+        @keyframes resultRankBounce {
+            0% { transform: scale(0.95); opacity: 0.9; }
+            50% { transform: scale(1.02); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .result-rank-1 { animation: resultRankBounce 0.6s ease-out, resultRankPulse 2s ease-in-out 0.6s infinite; }
+        .result-rank-2 { animation: resultRankBounce 0.5s ease-out 0.1s both; }
+        .result-rank-3 { animation: resultRankBounce 0.5s ease-out 0.2s both; }
+        @keyframes resultRankPulse {
+            0%, 100% { box-shadow: 0 4px 15px rgba(255,215,0,0.4); }
+            50% { box-shadow: 0 6px 25px rgba(255,215,0,0.6); }
         }
 
         /* 방 폭파 카운트다운 */
@@ -1365,28 +1401,7 @@
                 </div>
             </div>
 
-            <!-- 게임 모드 선택 (호스트 전용) -->
-            <div class="game-mode-section" id="gameModeSection" style="display: none; background: #f5e6d3; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #8b4513;">
-                <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                    <span style="font-size: 20px; margin-right: 8px;">📋</span>
-                    <label style="font-weight: bold; color: #333; margin: 0;">게임 모드</label>
-                </div>
-                
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #8b4513; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                        <input type="radio" name="horseRaceMode" value="first" id="horseRaceModeFirst" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-weight: 500;">1등 찾기</span>
-                    </label>
-                    <label style="display: flex; align-items: center; padding: 10px; background: white; border: 2px solid #8b4513; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                        <input type="radio" name="horseRaceMode" value="last" id="horseRaceModeLast" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-weight: 500;">꼴등 찾기</span>
-                    </label>
-                </div>
-                
-                <button onclick="updateGameMode()" id="gameModeSaveButton" style="width: 100%; padding: 10px; font-size: 14px; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); color: white; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 8px;">저장</button>
-                
-                <div style="font-size: 12px; color: #666; text-align: center;">게임 시작 전에만 수정 가능합니다</div>
-            </div>
+            <!-- 게임 모드: 무조건 꼴등 찾기 (모드 선택 제거) -->
 
             <!-- 탈것 선택 섹션 -->
             <div class="horse-selection-section" id="horseSelectionSection">
@@ -1542,6 +1557,14 @@
                            window.location.hostname === '127.0.0.1' ||
                            window.location.hostname === '';
         
+        // 로컬에서는 방 제목 기본값을 "test"로 설정
+        if (isLocalhost) {
+            const roomNameInput = document.getElementById('createRoomNameInput');
+            if (roomNameInput) {
+                roomNameInput.value = 'test';
+            }
+        }
+        
         // 디버그 로그 설정
         let debugLogEnabled = isLocalhost;
         
@@ -1601,7 +1624,7 @@
         let availableHorses = [];
         let userHorseBets = {};
         let mySelectedHorse = null;
-        let horseRaceMode = 'first';
+        let horseRaceMode = 'last'; // 무조건 꼴등 찾기
         let currentRoundPlayers = [];
         let raceRound = 1;
         let selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
@@ -1703,7 +1726,12 @@
             const hostNameInput = document.getElementById('createRoomHostNameInput');
             if (globalName) {
                 hostNameInput.value = globalName;
-                document.getElementById('createRoomNameInput').value = globalName + '님의 Horse Race';
+                // 로컬에서는 "test", 그 외에는 자동 생성
+                if (isLocalhost) {
+                    document.getElementById('createRoomNameInput').value = 'test';
+                } else {
+                    document.getElementById('createRoomNameInput').value = globalName + '님의 Horse Race';
+                }
             }
         }
 
@@ -1938,14 +1966,9 @@
             socket.emit('startHorseRace');
         }
 
-        // 게임 모드 업데이트
+        // 게임 모드: 무조건 꼴등 찾기 (모드 선택 제거)
         function updateGameMode() {
-            const modeRadio = document.querySelector('input[name="horseRaceMode"]:checked');
-            const mode = modeRadio ? modeRadio.value : 'first';
-            
-            socket.emit('updateGameRules', {
-                horseRaceMode: mode
-            });
+            socket.emit('updateGameRules', { horseRaceMode: 'last' });
         }
 
         // 말 선택
@@ -2427,8 +2450,8 @@
             const trackWidth = trackContainer.offsetWidth || 700;
             const finishLine = trackWidth * 2 - 60; // 도착 지점을 현재 거리의 약 2배로 설정
             
-            // 트랙의 너비를 finishLine까지 확장하여 말들이 화면 밖으로 나갈 수 있도록 함
-            track.style.width = `${finishLine + 100}px`; // 여유 공간 추가
+            // 트랙의 너비: 도착 지점은 그대로, 결승선 뒤 여유만 최소화해 스크롤 양 줄임
+            track.style.width = `${finishLine + 30}px`; // 결승선 뒤 여유만 소량
             
             const horseCount = horseRankings.length;
             const wallHeight = 6; // 벽 높이
@@ -2593,36 +2616,14 @@
                 horse.appendChild(vehicleContent);
                 track.appendChild(horse);
                 
-                // 트랙 좌상단에 남은 거리 표시 라벨 추가
-                const distanceLabel = document.createElement('div');
-                distanceLabel.className = 'distance-label';
-                distanceLabel.id = `distance_${horseIndex}`;
-                distanceLabel.style.cssText = `
-                    position: absolute;
-                    top: ${laneIndex * totalLaneHeight + 2}px;
-                    left: 5px;
-                    background: rgba(0,0,0,0.8);
-                    color: #fff;
-                    padding: 3px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    font-weight: bold;
-                    white-space: nowrap;
-                    z-index: 200;
-                    min-width: 60px;
-                    text-align: center;
-                `;
-                distanceLabel.textContent = '100%';
-                track.appendChild(distanceLabel);
-                
-                // 이름 라벨을 레인 왼쪽 상단에 표시 (distanceLabel 위)
+                // 이름 라벨을 레인 왼쪽 상단에 표시
                 if (selectedUsers.length > 0) {
                     const namesContainer = document.createElement('div');
                     namesContainer.className = 'names-container';
                     namesContainer.style.cssText = `
                         position: absolute;
                         top: ${laneIndex * totalLaneHeight + 2}px;
-                        left: 70px;
+                        left: 5px;
                         display: flex;
                         flex-wrap: wrap;
                         gap: 2px;
@@ -2650,7 +2651,7 @@
                 
                 const duration = speeds[rank] || 5000;
                 maxDuration = Math.max(maxDuration, duration);
-                horseElements.push({ horse, vehicleContent, frames: [frame1, frame2], rank, duration, distanceLabel, lane });
+                horseElements.push({ horse, vehicleContent, frames: [frame1, frame2], rank, duration, lane });
             });
             
             // 실시간 순위 패널 표시
@@ -2683,7 +2684,7 @@
             
             function updateLiveRanking(horseStatesRef) {
                 const positions = [];
-                horseElements.forEach(({ horse, rank, distanceLabel }) => {
+                horseElements.forEach(({ horse, rank }) => {
                     const actualHorseIndex = parseInt(horse.id.replace('horse_', ''));
                     const currentLeft = parseFloat(horse.style.left) || startPosition;
                     const progress = Math.min(100, Math.max(0, ((currentLeft - startPosition) / totalDistance) * 100));
@@ -2706,24 +2707,7 @@
                         finishOrder = finishOrderMap[actualHorseIndex];
                     }
                     
-                    positions.push({ horseIndex: actualHorseIndex, position: currentLeft, progress, remaining, distanceLabel, isFinished, finishOrder });
-                    
-                    // 각 탈것 위에 남은 거리 표시 업데이트
-                    if (distanceLabel) {
-                        if (remaining <= 0) {
-                            distanceLabel.textContent = '🏁';
-                            distanceLabel.style.background = 'rgba(74, 222, 128, 0.9)';
-                            distanceLabel.style.color = '#000';
-                        } else if (remaining < 30) {
-                            distanceLabel.textContent = `${Math.round(remaining)}%`;
-                            distanceLabel.style.background = 'rgba(251, 191, 36, 0.9)';
-                            distanceLabel.style.color = '#000';
-                        } else {
-                            distanceLabel.textContent = `${Math.round(remaining)}%`;
-                            distanceLabel.style.background = 'rgba(0, 0, 0, 0.75)';
-                            distanceLabel.style.color = '#fff';
-                        }
-                    }
+                    positions.push({ horseIndex: actualHorseIndex, position: currentLeft, progress, remaining, isFinished, finishOrder });
                 });
                 
                 // 정렬: 도착한 말은 도착 순서대로, 나머지는 위치 순
@@ -2737,17 +2721,6 @@
                     if (b.isFinished) return 1;
                     // 둘 다 미도착시 위치 순
                     return b.position - a.position;
-                });
-                
-                // 각 탈것에 현재 순위 표시 추가
-                positions.forEach((pos, idx) => {
-                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
-                    if (pos.distanceLabel) {
-                        const currentText = pos.distanceLabel.textContent;
-                        if (!currentText.includes('🏁')) {
-                            pos.distanceLabel.textContent = `${medal} ${currentText}`;
-                        }
-                    }
                 });
                 
                 // 순위 표시 업데이트
@@ -2775,6 +2748,8 @@
             // 실시간 순위 업데이트 인터벌
             let rankingInterval = null;
             let animationInterval = null;
+            let currentScrollOffset = 0; // 현재 스크롤 오프셋
+            let scrollStarted = false; // 스크롤 시작 여부
             
             // 각 탈것의 애니메이션 상태 (서버에서 받은 기믹 데이터 사용)
             const horseStates = horseElements.map(({ horse, frames, duration, rank, lane }) => {
@@ -2816,6 +2791,10 @@
                     speedChangeSeed: horseIndex * 9876 // 속도 변화 시드
                 };
             });
+            
+            // 가장 빠른 말의 속도 계산 (스크롤 속도 기준)
+            const fastestSpeed = Math.max(...horseStates.map(s => s.baseSpeed));
+            const scrollSpeed = fastestSpeed; // 스크롤 속도 = 가장 빠른 말의 속도
             
             // 모든 탈것 동시에 애니메이션 시작
             setTimeout(() => {
@@ -2977,86 +2956,117 @@
                             // 도착 애니메이션 표시
                             showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
                         }
-                        
-                        // 결승선 오프셋 (거의 도착 직전에 결승선이 보임)
-                        const finishLineDisplayOffset = 250;
-                        
-                        // 말의 화면상 위치 계산
-                        // 1. centerPosition 도달 전: 실제 위치로 이동
-                        // 2. centerPosition ~ (finishLine - finishLineDisplayOffset): centerPosition에 고정
-                        // 3. (finishLine - finishLineDisplayOffset) 이후: 결승선까지 이동
-                        let horseDisplayPos;
-                        const scrollReleasePoint = finishLine - finishLineDisplayOffset;
-                        
-                        if (state.currentPos < centerPosition) {
-                            // 아직 중앙에 도달하지 않음 - 실제 위치
-                            horseDisplayPos = state.currentPos;
-                        } else if (state.currentPos < scrollReleasePoint) {
-                            // 중앙에서 고정
-                            horseDisplayPos = centerPosition;
-                        } else {
-                            // 결승선 근처 - 결승선까지 이동
-                            horseDisplayPos = centerPosition + (state.currentPos - scrollReleasePoint);
+                    });
+                    
+                    // === 일정 속도 스크롤링 ===
+                    // 리더(1등) 말 찾기 (순위 표시용)
+                    const leaderState = horseStates.reduce((leader, state) => 
+                        state.currentPos > leader.currentPos ? state : leader, horseStates[0]);
+                    const leaderPos = leaderState.currentPos;
+                    
+                    // 스크롤 설정
+                    const finishLineDisplayOffset = 250;
+                    const scrollReleasePoint = finishLine - finishLineDisplayOffset;
+                    const maxScrollLimit = -(scrollReleasePoint - centerPosition);
+                    
+                    // 스크롤 시작 조건: 아무 말이든 centerPosition에 도달
+                    if (!scrollStarted && leaderPos >= centerPosition) {
+                        scrollStarted = true;
+                    }
+                    
+                    // 일정한 속도로 스크롤 (멈추지 않음)
+                    if (scrollStarted && currentScrollOffset > maxScrollLimit) {
+                        // baseSpeed는 px/ms 단위이므로 frameInterval(ms)을 곱함
+                        currentScrollOffset -= scrollSpeed * frameInterval;
+                        // 최대 스크롤 제한
+                        if (currentScrollOffset < maxScrollLimit) {
+                            currentScrollOffset = maxScrollLimit;
+                        }
+                    }
+                    
+                    const bgScrollOffset = currentScrollOffset;
+                    
+                    // 모든 말의 화면 위치 및 배경 업데이트 (스크롤 오프셋 기준)
+                    const cullEdge = -50; // 이 값보다 왼쪽이면 끝에 살짝 보이게 (컬링 대신 클램프, 음수일수록 덜 보임)
+                    horseStates.forEach(state => {
+                        // 화면 위치 = 실제 위치 + 스크롤 오프셋
+                        let horseDisplayPos = state.currentPos + bgScrollOffset;
+                        // 뒤처진 말은 완전히 숨기지 않고, 왼쪽 끝에서 살짝이라도 보이게
+                        if (horseDisplayPos < cullEdge) {
+                            horseDisplayPos = cullEdge;
                         }
                         state.horse.style.left = `${horseDisplayPos}px`;
+                        state.horse.style.visibility = 'visible';
                         
-                        // 배경 스크롤 및 결승선 업데이트 (말이 가운데에 도달했을 때부터 스크롤 시작)
+                        // 배경 스크롤 - 모든 레인에서 리더 기준으로 동일하게
                         if (state.lane) {
-                            if (state.currentPos >= centerPosition) {
-                                // 배경 스크롤은 scrollReleasePoint까지만
-                                const effectivePos = Math.min(state.currentPos, scrollReleasePoint);
-                                const bgScrollOffset = -(effectivePos - centerPosition);
-                                state.lane.style.backgroundPosition = `${bgScrollOffset}px center`;
-                                
-                                // 결승선도 배경과 함께 스크롤
-                                if (state.lane.finishLineElement) {
-                                    state.lane.finishLineElement.style.left = `${finishLine + bgScrollOffset}px`;
-                                }
-                            } else {
-                                // 가운데에 도달하기 전에는 배경 스크롤 없음
-                                state.lane.style.backgroundPosition = '0 center';
-                                
-                                // 결승선은 원래 위치
-                                if (state.lane.finishLineElement) {
-                                    state.lane.finishLineElement.style.left = `${finishLine}px`;
-                                }
+                            state.lane.style.backgroundPosition = `${bgScrollOffset}px center`;
+                            
+                            // 결승선도 리더 기준으로 스크롤
+                            if (state.lane.finishLineElement) {
+                                state.lane.finishLineElement.style.left = `${finishLine + bgScrollOffset}px`;
                             }
                         }
                     });
                     
-                    // 모두 완주 시 애니메이션 종료
-                    if (allFinished) {
+                    // 꼴등-1이 완주하면 종료 (말이 2마리 이상일 때만)
+                    const totalHorses = horseStates.length;
+                    const finishedCount = horseStates.filter(s => s.finished).length;
+                    const almostAllFinished = totalHorses >= 2 && finishedCount >= totalHorses - 1;
+                    
+                    if (almostAllFinished) {
                         clearInterval(animationInterval);
                         animationInterval = null;
                         
-                        // 실제 도착 순서 수집
+                        // 꼴등(아직 완주 못한 말) 찾기
+                        const lastPlaceState = horseStates.find(s => !s.finished);
+                        
+                        // 실제 도착 순서 수집 (완주한 말들만)
                         const actualFinishOrder = horseStates
                             .filter(s => s.finished)
                             .sort((a, b) => a.finishOrder - b.finishOrder)
                             .map(s => s.horseIndex);
                         
+                        // 꼴등을 마지막에 추가
+                        if (lastPlaceState) {
+                            actualFinishOrder.push(lastPlaceState.horseIndex);
+                        }
+                        
                         // 전역 변수에 저장
                         window.lastActualFinishOrder = actualFinishOrder;
                         
-                        // 모든 말 도착 후 처리
-                        setTimeout(() => {
-                            if (rankingInterval) {
-                                clearInterval(rankingInterval);
-                                rankingInterval = null;
-                            }
-                            // 최종 순위 한 번 더 업데이트
-                            updateLiveRanking(horseStates);
-                            // 잠시 후 패널 숨기기 및 콜백 호출
+                        // 꼴등 사망 애니메이션 실행 후 게임 종료
+                        const finishGame = () => {
                             setTimeout(() => {
-                                if (liveRankingPanel) {
-                                    liveRankingPanel.style.display = 'none';
+                                if (rankingInterval) {
+                                    clearInterval(rankingInterval);
+                                    rankingInterval = null;
                                 }
-                                // 완료 콜백 호출
-                                if (onComplete) {
-                                    onComplete(actualFinishOrder);
-                                }
-                            }, 1500);
-                        }, 500);
+                                // 최종 순위 한 번 더 업데이트
+                                updateLiveRanking(horseStates);
+                                // 잠시 후 패널 숨기기 및 콜백 호출
+                                setTimeout(() => {
+                                    if (liveRankingPanel) {
+                                        liveRankingPanel.style.display = 'none';
+                                    }
+                                    // 완료 콜백 호출
+                                    if (onComplete) {
+                                        onComplete(actualFinishOrder);
+                                    }
+                                }, 1500);
+                            }, 500);
+                        };
+                        
+                        // 꼴등이 있으면 사망 애니메이션, 없으면 바로 종료
+                        if (lastPlaceState) {
+                            // 꼴등에게 finished 상태 부여 (순위 계산용)
+                            lastPlaceState.finished = true;
+                            lastPlaceState.finishOrder = finishOrderCounter;
+                            
+                            showDeathAnimation(lastPlaceState.horse, lastPlaceState.horseIndex, finishOrderCounter, finishGame);
+                        } else {
+                            finishGame();
+                        }
                     }
                 }, frameInterval);
                 
@@ -3098,35 +3108,35 @@
             finishEffectElements.clear();
         }
         
-        // 도착 애니메이션 표시
+        // 도착 애니메이션 표시 (비석처럼 트랙 안쪽에 그려서 스크롤과 함께 유지)
         function showFinishAnimation(horseElement, finishOrder, horseIndex) {
-            // 도착 순위 텍스트
+            const track = document.getElementById('raceTrack');
+            if (!track) return;
+            
             const rankTexts = ['🥇 1등!', '🥈 2등!', '🥉 3등!', '4등', '5등', '6등'];
             const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32', '#666', '#666', '#666'];
             
-            const overlay = getOrCreateFinishEffectsOverlay();
-            const horseRect = horseElement.getBoundingClientRect();
-            
-            // 기존 이펙트 제거
             const existingEffect = finishEffectElements.get(horseIndex);
             if (existingEffect) existingEffect.remove();
             
-            // 도착 이펙트 생성
+            // 등수 라벨을 말 왼쪽에 배치해 1·2·3등이 화면에 보이게 (오브젝트 살짝 가려도 됨)
+            const labelWidth = finishOrder <= 2 ? 90 : 60;
+            const leftPx = Math.max(5, horseElement.offsetLeft - labelWidth);
+            const topPx = horseElement.offsetTop + (horseElement.offsetHeight / 2) - 15;
+            
             const effectContainer = document.createElement('div');
-            effectContainer.className = 'finish-effect';
+            effectContainer.className = 'finish-effect rank-in-track';
             effectContainer.dataset.horseIndex = horseIndex;
-            // 4등 이상은 더 오른쪽으로 배치
-            const offsetX = finishOrder >= 3 ? 50 : 10;
             effectContainer.style.cssText = `
-                position: fixed;
-                left: ${horseRect.right + offsetX}px;
-                top: ${horseRect.top + horseRect.height / 2 - 15}px;
+                position: absolute;
+                left: ${leftPx}px;
+                top: ${topPx}px;
                 pointer-events: none;
                 white-space: nowrap;
+                z-index: 150;
             `;
             
             if (finishOrder === 0) {
-                // 1등 도착 - 화려한 효과
                 effectContainer.innerHTML = `
                     <div style="position: relative;">
                         <div class="finish-rank" style="
@@ -3155,7 +3165,6 @@
                     </div>
                 `;
             } else if (finishOrder <= 2) {
-                // 2등, 3등 - 간단한 효과
                 effectContainer.innerHTML = `
                     <div class="finish-rank" style="
                         font-size: 22px;
@@ -3167,7 +3176,6 @@
                     ">${rankTexts[finishOrder]}</div>
                 `;
             } else {
-                // 4등 이하 - 단순 텍스트
                 effectContainer.innerHTML = `
                     <div class="finish-rank" style="
                         font-size: 16px;
@@ -3178,46 +3186,107 @@
                 `;
             }
             
-            overlay.appendChild(effectContainer);
+            track.appendChild(effectContainer);
             finishEffectElements.set(horseIndex, effectContainer);
             
-            // 1등일 경우 추가 축하 효과 (계속 유지)
             if (finishOrder === 0) {
-                // 탈것 빛나는 효과 유지
                 horseElement.style.filter = 'drop-shadow(0 0 15px gold) brightness(1.2)';
                 horseElement.style.transform = 'scale(1.1)';
             }
             
-            // 컨페티와 반짝임 링은 애니메이션 후 제거 (순위 텍스트는 유지)
             setTimeout(() => {
                 const confetti = effectContainer.querySelector('.confetti-container');
                 const sparkle = effectContainer.querySelector('.sparkle-ring');
                 if (confetti) confetti.remove();
                 if (sparkle) sparkle.remove();
-                
-                // 1등 글로우 애니메이션 멈추고 고정
                 const rankText = effectContainer.querySelector('.finish-rank');
                 if (rankText && finishOrder === 0) {
                     rankText.style.animation = 'none';
                     rankText.style.textShadow = '0 0 15px gold, 0 0 25px gold, 2px 2px 4px rgba(0,0,0,0.5)';
                 }
             }, 2000);
+        }
+        
+        // 꼴등 사망 애니메이션 (시체 페이드 아웃 + 영혼만 오버레이, 비석은 트랙 안쪽에 그려서 스크롤과 함께 유지)
+        function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
+            const track = document.getElementById('raceTrack');
+            const overlay = getOrCreateFinishEffectsOverlay();
+            const horseRect = horseElement.getBoundingClientRect();
             
-            // 스크롤/리사이즈 시 위치 업데이트
-            const updatePosition = () => {
-                const newRect = horseElement.getBoundingClientRect();
-                effectContainer.style.left = `${newRect.right + offsetX}px`;
-                effectContainer.style.top = `${newRect.top + newRect.height / 2 - 15}px`;
-            };
+            // 기존 오버레이 이펙트만 제거 (비석은 트랙에 있으므로 여기서 제거 대상 아님)
+            const existingEffect = finishEffectElements.get(horseIndex);
+            if (existingEffect) existingEffect.remove();
             
-            // 위치 업데이트를 위한 인터벌 (경주 중에만)
-            const positionInterval = setInterval(() => {
-                if (!effectContainer.parentNode) {
-                    clearInterval(positionInterval);
-                    return;
-                }
-                updatePosition();
-            }, 100);
+            // 탈것 페이드 아웃 후 완전히 사라짐
+            horseElement.style.animation = 'deathFade 2s ease-out forwards';
+            
+            // 영혼만 오버레이에 표시 (위로 올라가며 사라짐)
+            const soulContainer = document.createElement('div');
+            soulContainer.className = 'death-effect soul-only';
+            soulContainer.dataset.horseIndex = horseIndex;
+            soulContainer.style.cssText = `
+                position: fixed;
+                left: ${horseRect.left + horseRect.width / 2 - 15}px;
+                top: ${horseRect.top + horseRect.height / 2 - 15}px;
+                width: 30px;
+                height: 40px;
+                pointer-events: none;
+                z-index: 10000;
+            `;
+            const soul = document.createElement('div');
+            soul.innerHTML = '👻';
+            soul.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 30px;
+                animation: soulRise 3s ease-out forwards;
+                text-shadow: 0 0 10px rgba(255,255,255,0.8);
+            `;
+            soulContainer.appendChild(soul);
+            overlay.appendChild(soulContainer);
+            finishEffectElements.set(horseIndex, soulContainer);
+            setTimeout(() => {
+                if (soulContainer.parentNode) soulContainer.remove();
+                finishEffectElements.delete(horseIndex);
+            }, 3500);
+            
+            // 비석은 트랙 안쪽에 추가 (기존 오브젝트처럼 스크롤·레이아웃에 포함)
+            if (track) {
+                const leftPx = horseElement.offsetLeft + (horseElement.offsetWidth / 2) - 25;
+                const topPx = horseElement.offsetTop + (horseElement.offsetHeight / 2) - 40;
+                const tombstoneWrap = document.createElement('div');
+                tombstoneWrap.className = 'tombstone-in-track';
+                tombstoneWrap.dataset.horseIndex = horseIndex;
+                tombstoneWrap.style.cssText = `
+                    position: absolute;
+                    left: ${leftPx}px;
+                    top: ${topPx}px;
+                    width: 50px;
+                    height: 80px;
+                    pointer-events: none;
+                    z-index: 150;
+                `;
+                tombstoneWrap.innerHTML = `
+                    <div style="
+                        position: absolute;
+                        top: 15px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        font-size: 35px;
+                        text-align: center;
+                        animation: tombstoneDrop 1.6s ease-out 1s forwards;
+                        opacity: 0;
+                        filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
+                    ">🪦<span style="display:block;font-size:12px;font-weight:bold;color:#444;">${finishRank + 1}등</span></div>
+                `;
+                track.appendChild(tombstoneWrap);
+            }
+            
+            setTimeout(() => {
+                if (onComplete) onComplete();
+            }, 4000);
         }
         
         // 축하 컨페티 생성
@@ -3608,7 +3677,7 @@
             
             const winners = data.winners || [];
             const horseRankings = data.horseRankings || [];
-            const gameMode = data.horseRaceMode || 'first';
+            const gameMode = data.horseRaceMode || 'last';
             
             addDebugLog(`경주 결과: 당첨자 ${winners.length}명 (${winners.join(', ')})`, 'race');
             
@@ -3649,16 +3718,21 @@
             if (rankingsDiv) {
                 let rankingsHtml = '<div style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: center;">🏁 순위 발표 🏁</div>';
                 
+                const lastIndex = horseRankings.length - 1;
                 horseRankings.forEach((horseIndex, index) => {
                     const vehicle = getVehicleInfo(horseIndex);
                     const bettingUsers = getBettingUsers(horseIndex);
                     const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
                     const rankNum = index + 1;
+                    const isLast = index === lastIndex;
+                    const usersHtml = bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음';
+                    const usersDisplay = isLast && bettingUsers.length > 0
+                        ? bettingUsers.map(u => `<strong>${u}</strong>`).join(', ')
+                        : usersHtml;
                     
-                    // 1등은 크게 표시
                     if (index === 0) {
                         rankingsHtml += `
-                            <div style="background: linear-gradient(135deg, #ffd700 0%, #ffec8b 100%); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(255,215,0,0.4);">
+                            <div class="result-rank-1" style="background: linear-gradient(135deg, #ffd700 0%, #ffec8b 100%); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(255,215,0,0.4);">
                                 <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
                                     <span style="font-size: 28px;">${medal}</span>
                                     <span style="font-size: 26px; font-weight: bold; color: #8b4513;">${rankNum}등</span>
@@ -3666,14 +3740,13 @@
                                     <span style="font-size: 22px; font-weight: bold; color: #8b4513;">${vehicle.name}</span>
                                 </div>
                                 <div style="font-size: 20px; color: #5a3d1e; text-align: center; margin-top: 12px; font-weight: 600;">
-                                    ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                    ${usersDisplay}
                                 </div>
                             </div>
                         `;
                     } else if (index === 1) {
-                        // 2등
                         rankingsHtml += `
-                            <div style="background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                            <div class="result-rank-2" style="background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="font-size: 22px;">${medal}</span>
                                     <span style="font-size: 18px; font-weight: bold; color: #4a4a4a;">${rankNum}등</span>
@@ -3681,14 +3754,13 @@
                                     <span style="font-size: 16px; font-weight: bold; color: #4a4a4a;">${vehicle.name}</span>
                                 </div>
                                 <div style="font-size: 14px; color: #666; margin-top: 5px; padding-left: 15px;">
-                                    - ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                    - ${usersDisplay}
                                 </div>
                             </div>
                         `;
                     } else if (index === 2) {
-                        // 3등
                         rankingsHtml += `
-                            <div style="background: linear-gradient(135deg, #cd7f32 0%, #daa06d 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                            <div class="result-rank-3" style="background: linear-gradient(135deg, #cd7f32 0%, #daa06d 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="font-size: 22px;">${medal}</span>
                                     <span style="font-size: 18px; font-weight: bold; color: #4a3728;">${rankNum}등</span>
@@ -3696,21 +3768,20 @@
                                     <span style="font-size: 16px; font-weight: bold; color: #4a3728;">${vehicle.name}</span>
                                 </div>
                                 <div style="font-size: 14px; color: #5a4a3a; margin-top: 5px; padding-left: 15px;">
-                                    - ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                    - ${usersDisplay}
                                 </div>
                             </div>
                         `;
                     } else {
-                        // 4등 이하
                         rankingsHtml += `
-                            <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                            <div style="background: #f5f5f5; padding: 6px 8px; border-radius: 6px; margin-bottom: 4px;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 16px; font-weight: bold; color: #666;">${rankNum}등</span>
-                                    <div style="transform: scale(0.7);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 45)}</div>
-                                    <span style="font-size: 14px; font-weight: bold; color: #666;">${vehicle.name}</span>
+                                    <span style="font-size: 14px; font-weight: bold; color: #666;">${rankNum}등</span>
+                                    <div style="transform: scale(0.65);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 45)}</div>
+                                    <span style="font-size: 13px; font-weight: bold; color: #666;">${vehicle.name}</span>
                                 </div>
-                                <div style="font-size: 13px; color: #888; margin-top: 4px; padding-left: 15px;">
-                                    - ${bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음'}
+                                <div style="font-size: 12px; color: #888; margin-top: 2px; padding-left: 12px;">
+                                    - ${usersDisplay}
                                 </div>
                             </div>
                         `;
@@ -3725,7 +3796,7 @@
             const messageDiv = document.getElementById('resultMessage');
             
             if (winnerDiv) {
-                const modeText = gameMode === 'first' ? '1등' : '꼴등';
+                const modeText = '꼴등'; // 무조건 꼴등 찾기
                 if (winners.length === 0) {
                     // 당첨자가 없을 때: 베팅한 사람들 중 가장 높은 순위 찾기
                     let bestRank = -1;
@@ -3764,7 +3835,7 @@
                 } else if (winners.length === 1) {
                     winnerDiv.textContent = `🎊 ${winners[0]} 🎊`;
                     if (messageDiv) {
-                        messageDiv.textContent = '축하합니다! 🎉';
+                        messageDiv.textContent = '';
                     }
                 } else {
                     winnerDiv.textContent = winners.join(', ');
@@ -4203,11 +4274,10 @@
             }
         }
 
-        // 결과 오버레이 닫기
+        // 결과 오버레이 닫기 (비석은 다음 경주 시작 전까지 유지)
         function closeResultOverlay() {
             document.getElementById('resultOverlay').classList.remove('visible');
-            // 순위 이펙트 완전히 제거
-            clearFinishEffects();
+            // 순위 이펙트는 제거하지 않음 → 비석이 남음. 새 경주 시작 시 clearFinishEffects()로 정리됨
         }
 
         // 방 폭파 카운트다운
@@ -4280,7 +4350,6 @@
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'block';
-                document.getElementById('gameModeSection').style.display = 'block';
                 
                 // 주문받기 버튼 상태
                 if (isOrderActive) {
@@ -4293,7 +4362,6 @@
             } else {
                 document.getElementById('hostBadge').style.display = 'none';
                 document.getElementById('hostControls').style.display = 'none';
-                document.getElementById('gameModeSection').style.display = 'none';
             }
             
             // 주문받기 섹션 표시
@@ -4359,7 +4427,7 @@
                 if (gameState.availableHorses && gameState.availableHorses.length > 0 && !gameState.isHorseRaceActive) {
                     availableHorses = gameState.availableHorses;
                     userHorseBets = gameState.userHorseBets || {};
-                    horseRaceMode = gameState.horseRaceMode || 'first';
+                    horseRaceMode = gameState.horseRaceMode || 'last';
                     currentRoundPlayers = gameState.currentRoundPlayers || gameState.users?.map(u => u.name) || [];
                     raceRound = gameState.raceRound || 1;
                     
@@ -4565,7 +4633,7 @@
         socket.on('horseSelectionReady', async (data) => {
             availableHorses = data.availableHorses || [];
             userHorseBets = data.userHorseBets || {};
-            horseRaceMode = data.horseRaceMode || 'first';
+            horseRaceMode = data.horseRaceMode || 'last';
             currentRoundPlayers = data.participants || data.players || [];
             raceRound = data.raceRound || 1;
             selectedVehicleTypes = data.selectedVehicleTypes || null;
@@ -4933,6 +5001,12 @@
             const notOrderedSection = document.getElementById('notOrderedSection');
             const notOrderedList = document.getElementById('notOrderedList');
             if (!notOrderedSection || !notOrderedList) return;
+            
+            // usersList가 배열인지 확인
+            if (!Array.isArray(usersList)) {
+                notOrderedSection.style.display = 'none';
+                return;
+            }
             
             // 접속자 중 주문하지 않은 사람 찾기
             const usersWithoutOrder = usersList.filter(u => !ordersData[u.name] || ordersData[u.name].trim() === '');
@@ -5335,13 +5409,9 @@
             showCustomAlert('이전 게임 데이터가 삭제되었습니다.', 'success', '✅ 삭제 완료');
         });
 
-        // 게임 모드 업데이트 수신
+        // 게임 모드 업데이트 수신 (무조건 꼴등 찾기)
         socket.on('horseRaceModeUpdated', (mode) => {
-            horseRaceMode = mode;
-            const modeRadio = document.querySelector(`input[name="horseRaceMode"][value="${mode}"]`);
-            if (modeRadio) {
-                modeRadio.checked = true;
-            }
+            horseRaceMode = mode || 'last';
         });
         
         // 탈것 타입 업데이트 수신

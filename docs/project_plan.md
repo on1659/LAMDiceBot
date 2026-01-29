@@ -2,6 +2,31 @@
 
 ## Recent Updates
 
+### 2026-01-29: 경마 등수·결과 UI 개선
+
+#### 작업 내용
+- **등수 표시를 비석처럼 트랙 내부에**: 도착 시 1~6등 라벨을 오버레이가 아닌 `#raceTrack` 자식으로 추가. `position: absolute` + `offsetLeft/offsetTop` 기준으로 배치해 스크롤과 함께 유지.
+- **순위 발표 UI**: 1·2·3등 블록에 `resultRankBounce`·`resultRankPulse` 애니메이션 적용. 4·5등 블록은 `padding`·`margin-bottom`·폰트 축소로 여백 축소.
+- **"축하합니다! 🎉"** 문구 제거(당첨자 1명일 때 메시지 영역 비움).
+- **꼴등 유저 강조**: 순위 발표에서 꼴등(마지막 순위) 탈것에 베팅한 유저 이름을 `<strong>`으로 표시.
+
+#### 수정 파일
+- `horse-race-multiplayer.html`: showFinishAnimation 트랙 내부 렌더링, 순위 발표 HTML/CSS(애니·여백·꼴등 볼드), messageDiv 비움
+
+---
+
+### 2026-01-29: 경마 트랙 퍼센트(남은 거리) 라벨 제거
+
+#### 작업 내용
+- 경마 레이스 화면에서 각 레인 좌측에 표시되던 **남은 거리 퍼센트**(82%, 56% 등) 라벨 제거
+- `distanceLabel` 생성·추가·업데이트·순위 메달 표시 로직 전부 제거
+- 이름 라벨 위치를 `left: 70px` → `left: 5px`로 변경하여 레인 왼쪽 정렬 유지
+
+#### 수정 파일
+- `horse-race-multiplayer.html`: distanceLabel 관련 코드 제거, namesContainer left 조정
+
+---
+
 ### 2026-01-29: 맨 다이스 사운드 계획 구현 완료 (LAM Dice Sound Plan)
 
 #### 작업 내용

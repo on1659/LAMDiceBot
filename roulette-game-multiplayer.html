@@ -1196,6 +1196,14 @@
             }
         }
         
+        // 로컬에서는 방 제목 기본값을 "test"로 설정
+        if (isLocalhost) {
+            const roomNameInput = document.getElementById('createRoomNameInput');
+            if (roomNameInput) {
+                roomNameInput.value = 'test';
+            }
+        }
+        
         function addDebugLog(message, type = 'info') {
             if (!debugLogEnabled) return;
             
@@ -2038,7 +2046,12 @@
             const hostNameInput = document.getElementById('createRoomHostNameInput');
             if (globalName) {
                 hostNameInput.value = globalName;
-                document.getElementById('createRoomNameInput').value = globalName + '님의 Roulette';
+                // 로컬에서는 "test", 그 외에는 자동 생성
+                if (isLocalhost) {
+                    document.getElementById('createRoomNameInput').value = 'test';
+                } else {
+                    document.getElementById('createRoomNameInput').value = globalName + '님의 Roulette';
+                }
             }
         }
 
