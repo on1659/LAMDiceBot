@@ -3172,6 +3172,12 @@ io.on('connection', (socket) => {
             record: raceRecord // 경주 기록 (다시보기용)
         });
         
+        // 경주 결과 전송 후 상태를 false로 설정 (애니메이션은 클라이언트에서만 진행)
+        // 재경주 준비를 위해 경주가 종료된 것으로 간주
+        // 실제 경주 종료 처리는 selectHorse 핸들러에서 모든 참가자가 선택했을 때 처리됨
+        // 하지만 재경주가 필요한 경우 사용자가 다시 선택할 필요가 없으므로 여기서 false로 설정
+        gameState.isHorseRaceActive = false;
+        
         console.log(`방 ${room.roomName} 경마 시작 - 말 수: ${gameState.availableHorses.length}, 참가자: ${players.length}명, 라운드: ${gameState.raceRound}`);
     });
     
@@ -3897,11 +3903,15 @@ io.on('connection', (socket) => {
             record: raceRecord
         });
         
+        // 재경주 결과 전송 후 상태를 false로 설정 (애니메이션은 클라이언트에서만 진행)
+        // 재경주가 연속으로 발생할 수 있으므로 경주 종료 상태로 설정
+        gameState.isHorseRaceActive = false;
+        
         console.log(`방 ${room.roomName} 재경주 시작 - 라운드 ${gameState.raceRound}, 참가자: ${players.join(', ')}`);
     });
     
     socket.on('endHorseRace', () => {
-        if (!checkRateLimit()) return;
+        if (!checkRate저런Limit()) return;
         
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();

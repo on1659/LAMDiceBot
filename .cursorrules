@@ -725,6 +725,22 @@ Project has these Commands (`/` input):
 - `docs/DEVELOPMENT_GUIDE.md` - Detailed development guide
 - `docs/QUICK_START.md` - Quick start guide
 
+## 21. 자동 검증 (REQUIRED!)
+
+모든 기능 구현 후 반드시 다음 검증 단계를 수행:
+
+### 단계 1: 코드 품질 검증
+- ReadLints 도구로 수정한 파일의 린트 에러 확인
+- 에러가 있으면 즉시 수정
+
+### 단계 2: 기능 로직 검증 (서버 코드 변경 시)
+- 서버 실행 가능 여부 확인: `node server.js`
+- 변경된 Socket 이벤트가 정상 동작하는지 로그 확인
+
+### 단계 3: E2E 테스트 (UI/게임 기능 변경 시)
+- 해당 게임의 테스트 봇 실행
+- 다중 클라이언트 동작 확인
+
 ---
 
 **These rules are automatically referenced by Cursor and applied to all work.**
