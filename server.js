@@ -2852,7 +2852,7 @@ io.on('connection', (socket) => {
         const winner = participants[winnerIndex];
         
         // 애니메이션 파라미터 생성 (모든 클라이언트가 동일한 애니메이션을 재생하도록)
-        const spinDuration = 5000 + Math.random() * 2000; // 5~7초 회전
+        const spinDuration = 10000 + Math.random() * 4000; // 10~14초 회전
         const totalRotation = 1800 + Math.random() * 1080; // 5~8바퀴 회전 (1800 = 5바퀴, 2880 = 8바퀴)
         
         // 클라이언트가 직접 각도 계산하도록 winnerIndex와 totalRotation만 전달

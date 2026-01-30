@@ -1,4 +1,8 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-29)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-30)</span>
+
+<b>🎡 룰렛 휠 애니메이션 조정</b>
+• 룰렛 휠 회전 시간 연장
+• 회전·감속·멈춤 구간 감속 느낌 개선
 
 <b>🔊 사운드 시스템 추가</b>
 • 주사위/룰렛/경마 게임에 효과음 지원 (sound-config.json 기반)

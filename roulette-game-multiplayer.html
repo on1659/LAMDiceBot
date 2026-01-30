@@ -2464,7 +2464,7 @@
             }
             
             // 메인 회전 시작 (경계선 지날 때마다 틱 사운드)
-            wheel.style.transition = `transform ${mainDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+            wheel.style.transition = `transform ${mainDuration}ms cubic-bezier(0.12, 0.75, 0.05, 1.0)`;
             wheel.offsetHeight;
             wheel.style.transform = `rotate(${preEffectAngle}deg)`;
             RouletteSound.startBoundaryTicks(wheel, mainDuration, animationStartTime);
@@ -2489,8 +2489,8 @@
                         wheel._rouletteTransitionHandler = bounceHandler;
                         wheel.addEventListener('transitionend', bounceHandler);
                         
-                        // 탄성 있게 돌아오기 (ease-out-back 느낌)
-                        wheel.style.transition = `transform ${bounceDuration}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+                        // 탄성 있게 돌아오기 (천천히 감속하며 복귀)
+                        wheel.style.transition = `transform ${bounceDuration}ms cubic-bezier(0.25, 1.2, 0.3, 1)`;
                         wheel.offsetHeight;
                         wheel.style.transform = `rotate(${finalAngle}deg)`;
                         break;
@@ -2548,8 +2548,8 @@
                         wheel._rouletteTransitionHandler = crawlHandler;
                         wheel.addEventListener('transitionend', crawlHandler);
                         
-                        // 극도로 느리게 (ease-out으로 점점 더 느려짐)
-                        wheel.style.transition = `transform ${crawlDuration}ms cubic-bezier(0.1, 0.9, 0.2, 1)`;
+                        // 극도로 느리게 (끝으로 갈수록 더 천천히 감속)
+                        wheel.style.transition = `transform ${crawlDuration}ms cubic-bezier(0.05, 0.85, 0.08, 1)`;
                         wheel.offsetHeight;
                         wheel.style.transform = `rotate(${finalAngle}deg)`;
                         break;
