@@ -343,6 +343,9 @@ const PLAY_STATS_FILE = path.join(__dirname, 'play-stats.json');
 let playTodayDate = '';
 let playTodayCount = 0;
 let playTotalCount = 0;
+// 게임별 통계 (DB 없을 때 파일로 저장/로드, API에서 반환)
+const DEFAULT_GAME_STATS = () => ({ dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } });
+let gameStatsByType = DEFAULT_GAME_STATS();
 
 function loadVisitorStats() {
     if (pool) return; // DB 사용 시 initDatabase()에서 loadVisitorStatsFromDB() 호출
@@ -385,6 +388,14 @@ function loadPlayStats() {
         playTodayDate = parsed.date || '';
         playTodayCount = typeof parsed.todayPlays === 'number' ? parsed.todayPlays : 0;
         playTotalCount = typeof parsed.totalPlays === 'number' ? parsed.totalPlays : 0;
+        if (parsed.gameStats && typeof parsed.gameStats === 'object') {
+            const def = DEFAULT_GAME_STATS();
+            Object.keys(def).forEach(k => {
+                if (parsed.gameStats[k] && typeof parsed.gameStats[k].count === 'number' && typeof parsed.gameStats[k].totalParticipants === 'number') {
+                    gameStatsByType[k] = { count: parsed.gameStats[k].count, totalParticipants: parsed.gameStats[k].totalParticipants };
+                }
+            });
+        }
     } catch (e) { /* 파일 없거나 오류 시 무시 */ }
 }
 
@@ -405,7 +416,7 @@ async function loadPlayStatsFromDB() {
 function savePlayStats() {
     try {
         const today = new Date().toISOString().split('T')[0];
-        fs.writeFileSync(PLAY_STATS_FILE, JSON.stringify({ date: today, todayPlays: playTodayCount, totalPlays: playTotalCount }, null, 0), 'utf8');
+        fs.writeFileSync(PLAY_STATS_FILE, JSON.stringify({ date: today, todayPlays: playTodayCount, totalPlays: playTotalCount, gameStats: gameStatsByType }, null, 0), 'utf8');
     } catch (e) {
         console.warn('플레이 통계 저장 실패:', e.message);
     }
@@ -458,6 +469,7 @@ function recordParticipantVisitor(io, socketId) {
 // 게임 기록 저장 (오늘/총 플레이 횟수 집계 + DB 또는 파일)
 function recordGamePlay(gameType, participantCount) {
     if (!gameType || participantCount < 1) return;
+    const key = String(gameType);
     const today = new Date().toISOString().split('T')[0];
     if (playTodayDate !== today) {
         playTodayDate = today;
@@ -468,9 +480,12 @@ function recordGamePlay(gameType, participantCount) {
     if (pool) {
         pool.query(
             'INSERT INTO game_records (game_type, participant_count) VALUES ($1, $2)',
-            [String(gameType), Math.max(1, participantCount)]
+            [key, Math.max(1, participantCount)]
         ).catch(e => console.warn('game_records insert:', e.message));
     } else {
+        if (!gameStatsByType[key]) gameStatsByType[key] = { count: 0, totalParticipants: 0 };
+        gameStatsByType[key].count += 1;
+        gameStatsByType[key].totalParticipants += Math.max(1, participantCount);
         savePlayStats();
     }
 }
@@ -587,7 +602,8 @@ app.get('/roulette', (req, res) => {
 app.get('/api/statistics', async (req, res) => {
     try {
         const visitorStats = getVisitorStats();
-        let gameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } };
+        const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } };
+        let gameStats = { ...defaultGameStats };
         let recentPlays = [];
         if (pool) {
             const summary = await pool.query(`
@@ -612,6 +628,10 @@ app.get('/api/statistics', async (req, res) => {
                 participantCount: row.participant_count,
                 playedAt: row.played_at ? new Date(row.played_at).toISOString() : null
             }));
+        } else {
+            Object.keys(defaultGameStats).forEach(k => {
+                if (gameStatsByType[k]) gameStats[k] = { count: gameStatsByType[k].count, totalParticipants: gameStatsByType[k].totalParticipants };
+            });
         }
         res.json({
             todayVisitors: visitorStats.todayVisitors,
@@ -4567,18 +4587,32 @@ io.on('connection', (socket) => {
             deviceType: deviceType, // 디바이스 타입 추가
             reactions: {} // 이모티콘 반응 {emoji: [userName1, userName2, ...]}
         };
-        
+
+        // /주사위 명령어 처리 (dice 게임 제외 - dice는 자체 애니메이션 사용)
+        if (message.trim().startsWith('/주사위') && room.gameType !== 'dice') {
+            const parts = message.trim().split(/\s+/);
+            let maxValue = 100;
+            if (parts.length >= 2) {
+                const parsed = parseInt(parts[1]);
+                if (!isNaN(parsed) && parsed >= 1 && parsed <= 100000) {
+                    maxValue = parsed;
+                }
+            }
+            const result = Math.floor(Math.random() * maxValue) + 1;
+            chatMessage.diceResult = { result: result, range: `1~${maxValue}` };
+        }
+
         // 채팅 기록에 저장 (최대 100개)
         gameState.chatHistory.push(chatMessage);
         if (gameState.chatHistory.length > 100) {
             gameState.chatHistory.shift(); // 가장 오래된 메시지 제거
         }
-        
+
         // 같은 방의 모든 클라이언트에게 채팅 메시지 전송
         console.log(`[채팅 전송] 방 ${room.roomName} (ID: ${room.roomId}) - ${user.name}: ${message.trim()}`);
         console.log(`[채팅 전송] 방 ${room.roomId}에 연결된 소켓 수: ${io.sockets.adapter.rooms.get(room.roomId)?.size || 0}`);
         io.to(room.roomId).emit('newMessage', chatMessage);
-        
+
         console.log(`방 ${room.roomName} 채팅: ${user.name}: ${message.trim()}`);
 
         // 탈것 명령어 처리 (localhost에서만, 호스트만)

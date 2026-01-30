@@ -939,7 +939,7 @@
         }
 
         .chat-messages {
-            max-height: 200px;
+            max-height: 480px;
             overflow-y: auto;
             margin-bottom: 10px;
             padding: 10px;
@@ -1550,6 +1550,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/chat-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         // localhost 체크
@@ -4143,135 +4144,26 @@
             });
         }
 
-        // 채팅 기록 (이모티콘 추적용)
-        let clientChatHistory = [];
-        
-        // 이모티콘 설정
-        const emojiConfig = {
-            '❤️': '좋아요',
-            '👍': '따봉',
-            '😢': '슬퍼요'
-        };
-        
-        // 채팅 메시지 추가
-        function addChatMessage(data) {
-            const chatMessages = document.getElementById('chatMessages');
-            if (!chatMessages) return;
-            
-            // 첫 메시지면 빈 상태 메시지 제거
-            if (chatMessages.children.length === 1 && chatMessages.textContent.includes('메시지가 없습니다')) {
-                chatMessages.innerHTML = '';
-            }
-            
-            // 클라이언트 채팅 기록에 추가
-            const messageIndex = clientChatHistory.length;
-            clientChatHistory.push({
-                ...data,
-                reactions: data.reactions || {}
+        // 채팅 모듈 초기화 (roomCreated/roomJoined 후 호출)
+        let chatModuleInitialized = false;
+        function initChatModule() {
+            if (chatModuleInitialized) return;
+            chatModuleInitialized = true;
+            ChatModule.init(socket, currentUser, {
+                systemGradient: 'linear-gradient(135deg, #8b4513 0%, #d2691e 100%)',
+                themeColor: '#333',
+                myColor: '#8b4513',
+                myBgColor: '#fff5e6',
+                myBorderColor: '#ffc107'
             });
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'chat-message-wrapper';
-            messageDiv.dataset.messageIndex = messageIndex;
-            
-            const isSystemMessage = data.isSystem || data.userName === '시스템';
-            const isMyMessage = data.userName === currentUser;
-            const time = new Date(data.timestamp || Date.now()).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-            
-            if (isSystemMessage) {
-                messageDiv.style.cssText = 'margin: 10px 0; padding: 12px; background: linear-gradient(135deg, #8b4513 0%, #d2691e 100%); border-radius: 10px; text-align: center; color: white;';
-                messageDiv.innerHTML = `<div>${data.message}</div>`;
-            } else {
-                const bgColor = isMyMessage ? '#fff5e6' : 'white';
-                const borderColor = isMyMessage ? '#ffc107' : '#e0e0e0';
-                
-                messageDiv.style.cssText = `margin: 8px 0; padding: 12px; background: ${bgColor}; border-radius: 10px; border: 1px solid ${borderColor}; position: relative;`;
-                
-                // 리액션 HTML 생성
-                const reactions = data.reactions || {};
-                let reactionsHtml = '';
-                Object.entries(reactions).forEach(([emoji, users]) => {
-                    if (users && users.length > 0) {
-                        const isMyReaction = users.includes(currentUser);
-                        reactionsHtml += `<span onclick="toggleReaction(${messageIndex}, '${emoji}')" style="cursor: pointer; padding: 4px 8px; border-radius: 12px; font-size: 13px; background: ${isMyReaction ? '#fff5e6' : '#f0f0f0'}; border: 1px solid ${isMyReaction ? '#ffc107' : '#ddd'}; display: inline-flex; align-items: center; gap: 3px;">${emoji}<span style="font-size: 11px; color: #666;">${users.length}</span></span>`;
-                    }
-                });
-                
-                messageDiv.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="font-weight: bold; color: ${isMyMessage ? '#8b4513' : '#333'}; font-size: 13px;">${data.userName}</div>
-                        <div style="font-size: 11px; color: #999;">${time}</div>
-                    </div>
-                    <div style="margin: 8px 0; line-height: 1.5;">${data.message}</div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                        <div class="reactions-container" style="display: flex; gap: 5px; flex-wrap: wrap;">${reactionsHtml}</div>
-                        <div class="hover-reactions" style="display: flex; gap: 3px; opacity: 0.6;">
-                            ${Object.keys(emojiConfig).map(emoji => 
-                                `<span onclick="toggleReaction(${messageIndex}, '${emoji}')" style="cursor: pointer; font-size: 16px; transition: transform 0.2s;" onmouseenter="this.style.transform='scale(1.3)'" onmouseleave="this.style.transform='scale(1)'">${emoji}</span>`
-                            ).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-            
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-        
-        // 리액션 토글
+
+        // 글로벌 함수 (HTML onclick에서 호출)
+        function sendMessage() { ChatModule.sendMessage(); }
+        function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
+        function addChatMessage(data) { ChatModule.displayChatMessage(data); }
         function toggleReaction(messageIndex, emoji) {
-            const chatMessage = clientChatHistory[messageIndex];
-            if (!chatMessage) return;
-            
-            socket.emit('toggleReaction', {
-                messageIndex: messageIndex,
-                emoji: emoji
-            });
-        }
-        
-        // 리액션 업데이트 수신
-        socket.on('messageReactionUpdated', (data) => {
-            const { messageIndex, message } = data;
-            const reactions = message.reactions || {};
-            
-            if (clientChatHistory[messageIndex]) {
-                clientChatHistory[messageIndex].reactions = reactions;
-            }
-            
-            // UI 업데이트
-            const messageDiv = document.querySelector(`.chat-message-wrapper[data-message-index="${messageIndex}"]`);
-            if (!messageDiv) return;
-            
-            const reactionsContainer = messageDiv.querySelector('.reactions-container');
-            if (!reactionsContainer) return;
-            
-            let reactionsHtml = '';
-            Object.entries(reactions).forEach(([emoji, users]) => {
-                if (users && users.length > 0) {
-                    const isMyReaction = users.includes(currentUser);
-                    reactionsHtml += `<span onclick="toggleReaction(${messageIndex}, '${emoji}')" style="cursor: pointer; padding: 4px 8px; border-radius: 12px; font-size: 13px; background: ${isMyReaction ? '#fff5e6' : '#f0f0f0'}; border: 1px solid ${isMyReaction ? '#ffc107' : '#ddd'}; display: inline-flex; align-items: center; gap: 3px;">${emoji}<span style="font-size: 11px; color: #666;">${users.length}</span></span>`;
-                }
-            });
-            
-            reactionsContainer.innerHTML = reactionsHtml;
-        });
-
-        // 메시지 전송
-        function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const message = input.value.trim();
-            
-            if (message) {
-                socket.emit('sendMessage', { message: message });
-                input.value = '';
-            }
-        }
-
-        // 채팅 엔터키 처리
-        function handleChatKeypress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
+            socket.emit('toggleReaction', { messageIndex, emoji });
         }
 
         // 결과 오버레이 닫기 (비석은 다음 경주 시작 전까지 유지)
@@ -4479,6 +4371,7 @@
             currentRoomId = data.roomId;
             const hostInput = document.getElementById('createRoomHostNameInput');
             currentUser = (hostInput && hostInput.value.trim()) || data.userName || '';
+            initChatModule();
             isHost = true;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
@@ -4529,6 +4422,7 @@
             currentRoomId = data.roomId;
             const globalInput = document.getElementById('globalUserNameInput');
             currentUser = (globalInput && globalInput.value.trim()) || data.userName || '';
+            initChatModule();
             isHost = data.isHost;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
@@ -4845,10 +4739,7 @@
             updateUsers(users);
         });
 
-        // 채팅 메시지 수신
-        socket.on('newMessage', (data) => {
-            addChatMessage(data);
-        });
+        // 채팅은 ChatModule에서 처리 (initChatModule에서 바인딩)
 
         // 주문받기 이벤트
         socket.on('horseOrderStarted', () => {
