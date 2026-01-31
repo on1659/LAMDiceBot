@@ -15,3 +15,7 @@ visitor-stats.json
 # 환경변수 (비밀번호 등)
 .env
 .env.local
+
+# Windows 예약 이름 (nul, con 등)
+nul
+con

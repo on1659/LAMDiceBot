@@ -5,6 +5,7 @@
 (function (global) {
     var configCache = null;
     var configUrl = '/assets/sounds/sound-config.json';
+    var activeLoops = {};
 
     /**
      * sound-config.json 로드 및 캐시 (최초 1회)
@@ -53,7 +54,6 @@
         if (enabled === false) return;
         if (!hasSoundFocus()) return;
         loadConfig().then(function (cfg) {
-            // 재생 시점에 다시 포커스 체크 (fetch 중 탭 전환 대응)
             if (!hasSoundFocus()) return;
             var path = cfg[key];
             if (!path) return;
@@ -63,10 +63,72 @@
         });
     }
 
+    /**
+     * 키로 루프 사운드 재생. 이미 같은 키가 재생 중이면 무시.
+     * @param {string} key - gameType_effectName
+     * @param {boolean} [enabled=true] - 재생 여부 게이트
+     * @param {number} [volume=1.0] - 볼륨 (0.0 ~ 1.0)
+     */
+    function playLoop(key, enabled, volume) {
+        if (enabled === false) return;
+        if (!hasSoundFocus()) return;
+        if (activeLoops[key]) return;
+        loadConfig().then(function (cfg) {
+            if (!hasSoundFocus()) return;
+            if (activeLoops[key]) return;
+            var path = cfg[key];
+            if (!path) return;
+            var src = path.charAt(0) === '/' ? path : '/' + path;
+            var audio = new Audio(src);
+            audio.loop = true;
+            audio.volume = typeof volume === 'number' ? volume : 1.0;
+            audio.play().catch(function () {});
+            activeLoops[key] = audio;
+        });
+    }
+
+    /**
+     * 특정 루프 정지
+     * @param {string} key
+     */
+    function stopLoop(key) {
+        var audio = activeLoops[key];
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+            delete activeLoops[key];
+        }
+    }
+
+    /**
+     * 모든 루프 정지
+     */
+    function stopAll() {
+        Object.keys(activeLoops).forEach(function (key) {
+            stopLoop(key);
+        });
+    }
+
+    /**
+     * 루프 볼륨 조절
+     * @param {string} key
+     * @param {number} volume - 0.0 ~ 1.0
+     */
+    function setVolume(key, volume) {
+        var audio = activeLoops[key];
+        if (audio) {
+            audio.volume = volume;
+        }
+    }
+
     global.SoundManager = {
         loadConfig: loadConfig,
         ensureContext: ensureContext,
         playSound: playSound,
+        playLoop: playLoop,
+        stopLoop: stopLoop,
+        stopAll: stopAll,
+        setVolume: setVolume,
         hasSoundFocus: hasSoundFocus
     };
 })(typeof window !== 'undefined' ? window : this);

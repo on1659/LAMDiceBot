@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)"
+    ],
+    "additionalDirectories": [
+      "d:\\Work\\LAMDiceBot\\.claude",
+      "d:\\Work\\LAMDiceBot\\docs"
+    ]
+  }
+}

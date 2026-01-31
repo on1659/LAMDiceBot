@@ -1,19 +1,5 @@
-feat: 사운드 시스템 추가 (주사위/룰렛/경마)
+refactor: 채팅 공통 모듈 분리 및 사운드·문서 정리
 
-- assets/sounds/ 폴더 구조 및 sound-config.json 설정 추가
-- 공통 사운드 유틸 sound-manager.js 추가 (playSound, ensureContext, hasSoundFocus)
-- 주사위: dice_roll 사운드 재생 연동
-- 룰렛: 경계선 지날 때마다 틱 사운드 (requestAnimationFrame 기반)
-- 룰렛: 멈출 때 럼블, 당첨 시 팡파레 (Web Audio API)
-- 경마: 게임 섹션 사운드 체크박스 추가, sound-manager.js 로드
-- 로비/게임 화면에 사운드 체크박스 추가 (방 생성 화면에서는 제거)
-- 백그라운드 탭에서 트리거된 사운드는 재생 안 함 (visible + hasFocus 조건)
-
-변경 파일:
-- assets/sounds/sound-config.json: 게임별 사운드 키-경로 설정
-- assets/sounds/sound-manager.js: JSON 로드, playSound, ensureContext, hasSoundFocus
-- dice-game-multiplayer.html: 방 생성 사운드 체크박스 제거, SoundManager 연동
-- roulette-game-multiplayer.html: 게임 섹션 체크박스 추가, RouletteSound 경계선 틱 방식으로 변경
-- horse-race-multiplayer.html: 게임 섹션 체크박스 추가, 사운드 함수 전역 스코프로 이동
-- docs/맨_다이스_사운드_계획.md: 사운드 시스템 문서
-- update-log.txt: 사운드 시스템 추가 내역 기록
+- 채팅 기능 chat-shared.js로 통합, /주사위 명령·게임별 통계 저장 추가
+- 사운드 설정·경로 정리, 에셋 백업·팀 사운드 폴더 추가
+- 문서 정리(구 경마/사운드 계획 삭제, feature-proposals·system·order/ready 공유 모듈 추가)

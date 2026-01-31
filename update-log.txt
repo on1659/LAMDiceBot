@@ -1,4 +1,13 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-30)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-31)</span>
+
+<b>🔧 채팅·사운드·문서 정리</b>
+• 채팅: 공통 모듈(chat-shared) 통합, /주사위 명령·게임별 통계 저장
+• 사운드: 설정 정리, 신규 효과음·폴더 추가
+• 문서: 구 계획서 정리, 기능 제안·시스템 문서·공유 모듈(order/ready) 반영
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-01-30)</span>
 
 <b>🎡 룰렛 휠 애니메이션 조정</b>
 • 룰렛 휠 회전 시간 연장

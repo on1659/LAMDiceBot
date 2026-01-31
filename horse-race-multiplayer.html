@@ -287,6 +287,13 @@
             animation: finishLinePulse 1.5s ease-in-out infinite;
         }
 
+        @keyframes countPop {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            70% { transform: scale(0.95); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         @keyframes finishLinePulse {
             0%, 100% {
                 opacity: 1;
@@ -729,16 +736,17 @@
         .autocomplete-item {
             padding: 10px 12px;
             cursor: pointer;
-            border-bottom: 1px solid #eee;
-        }
-
-        .autocomplete-item:hover,
-        .autocomplete-item.selected {
-            background: #fff9e6;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
         }
 
         .autocomplete-item:last-child {
             border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #fff9e6;
         }
 
         .menu-manager {
@@ -797,24 +805,47 @@
         }
 
         .order-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
+            background: white;
+            padding: 12px;
             margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #d2b48c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .order-item-name {
+        .order-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .order-item-left {
+            flex: 1;
+        }
+
+        .order-user {
             font-weight: 600;
             color: #8b4513;
-            min-width: 80px;
+            margin-bottom: 4px;
         }
 
-        .order-item-menu {
-            flex: 1;
-            color: #333;
+        .order-text {
+            color: #666;
+            font-size: 20px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .order-text.empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .order-count {
+            font-size: 48px;
+            font-weight: bold;
+            color: #8b4513;
+            margin-left: 15px;
         }
 
         .sort-buttons {
@@ -1386,6 +1417,9 @@
             <div class="users-section" id="usersSection">
                 <div class="users-title">
                     👥 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: #8b4513; font-weight: normal; margin-left: 10px;">
+                        💡 드래그로 준비 시킬 수 있습니다.
+                    </span>
                 </div>
                 <div class="users-list" id="usersList"></div>
             </div>
@@ -1420,20 +1454,20 @@
                     <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled style="flex: 1;">
                         게임 시작
                     </button>
-                    <button onclick="startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: #fff; font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
-                    <button onclick="endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%); color: #fff; font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: #fff; font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%); color: #fff; font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
                 <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%); color: #fff; font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
             </div>
 
             <!-- 주문받기 섹션 -->
-            <div class="orders-section" id="ordersSection" style="display: none; margin-bottom: 20px;">
+            <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="font-weight: bold; color: #8b4513; font-size: 16px; margin: 0;">🍔 주문받기</div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); color: #000; font-weight: 600;">📋 주문리스트</button>
-                        <button onclick="sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: #d2b48c; color: #333; border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
-                        <button onclick="sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: #d2b48c; color: #333; border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); color: #000; font-weight: 600;">📋 주문리스트</button>
+                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: #d2b48c; color: #333; border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: #d2b48c; color: #333; border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
                     </div>
                 </div>
                 
@@ -1450,37 +1484,42 @@
                             <span>📝</span>
                             <span>내 주문</span>
                         </div>
-                        <button onclick="toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: #f8f9fa; color: #8b4513; border: 1px solid #8b4513; border-radius: 4px; cursor: pointer;">메뉴 관리</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: #f8f9fa; color: #8b4513; border: 1px solid #8b4513; border-radius: 4px; cursor: pointer;">메뉴 관리</button>
                     </div>
                     
                     <!-- 자주 쓰는 메뉴 관리 -->
                     <div id="menuManager" style="display: none; background: #f8f9fa; border: 2px solid #8b4513; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <span style="font-weight: bold; color: #8b4513;">📋 자주 쓰는 메뉴</span>
-                            <button onclick="toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
                         </div>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <input type="text" id="newMenuInput" placeholder="새 메뉴 입력" maxlength="50" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <button onclick="addMenu()" style="padding: 8px 16px; background: #8b4513; color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
+                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: #8b4513; color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
                         </div>
                         <div id="menuList" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto;">
                             <div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
-                        <div style="position: relative;">
-                            <div id="autocompleteSuggestion" style="position: absolute; top: 0; left: 0; right: 0; padding: 10px 12px; color: #999; pointer-events: none; font-size: 14px; display: none;"></div>
-                            <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled style="margin: 0; background: transparent; position: relative;">
-                            <div id="autocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #8b4513; border-radius: 8px; margin-top: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
+                    <div class="order-input-group">
+                        <div class="order-input-wrapper">
+                            <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
+                            <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled>
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
                         </div>
-                        <button onclick="updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: #000; font-weight: 600;" disabled>저장</button>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: #000; font-weight: 600;" disabled>저장</button>
                     </div>
                 </div>
 
                 <!-- 전체 주문 목록 -->
                 <div id="orderList" style="background: #f8f9fa; border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
                     <div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                </div>
+                <!-- 관전자 주문 -->
+                <div id="spectatorOrdersSection" style="display: none; margin-top: 10px;">
+                    <div style="font-size: 13px; color: #999; margin-bottom: 5px;">관전자 주문</div>
+                    <div id="spectatorOrderList" style="background: #f8f9fa; border-radius: 8px; padding: 12px;"></div>
                 </div>
             </div>
             
@@ -1551,6 +1590,8 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/chat-shared.js"></script>
+    <script src="/ready-shared.js"></script>
+    <script src="/order-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         // localhost 체크
@@ -1630,10 +1671,6 @@
         let raceRound = 1;
         let selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
         let isReraceActive = false; // 재경주 활성 상태 (경주 후 동점일 때만 true)
-        let frequentMenus = []; // 자주 쓰는 메뉴 목록
-        let currentSuggestions = []; // 현재 자동완성 제안 목록
-        let selectedSuggestionIndex = -1; // 선택된 제안 인덱스
-        
         // 경마 사운드 (socket/roomJoined에서도 접근 가능하도록 전역 스코프)
         const HORSE_SOUND_KEY = 'horseSoundEnabled';
         function getHorseSoundEnabled() { return localStorage.getItem(HORSE_SOUND_KEY) === 'true'; }
@@ -1901,50 +1938,15 @@
             }
         }
 
-        // 준비 토글
+        // 준비 함수 (ReadyModule 위임)
         function toggleReady() {
-            socket.emit('toggleReady');
+            ReadyModule.toggleReady();
         }
-
-        // 준비 버튼 업데이트
         function updateReadyButton() {
-            const btn = document.getElementById('readyButton');
-            if (isReady) {
-                btn.textContent = '준비 취소';
-                // 준비 취소 버튼: 부드러운 갈색톤 (눈에 편한 색상)
-                btn.style.background = 'linear-gradient(135deg, #a0522d 0%, #8b4513 100%)';
-                btn.style.color = '#fff';
-            } else {
-                btn.textContent = '준비';
-                // 준비 버튼: 밝은 갈색톤
-                btn.style.background = 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)';
-                btn.style.color = '#fff';
-            }
+            ReadyModule.updateReadyButton();
         }
-
-        // 준비 목록 렌더링
         function renderReadyUsers() {
-            const readyUsersList = document.getElementById('readyUsersList');
-            const readyCount = document.getElementById('readyCount');
-            
-            if (!readyUsersList || !readyCount) return;
-            
-            readyCount.textContent = readyUsers.length;
-            
-            if (readyUsers.length === 0) {
-                readyUsersList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px; width: 100%;" data-empty-ready>아직 준비한 사람이 없습니다</div>';
-            } else {
-                readyUsersList.innerHTML = '';
-                readyUsers.forEach(userName => {
-                    const tag = document.createElement('span');
-                    tag.className = 'user-tag';
-                    tag.textContent = userName;
-                    readyUsersList.appendChild(tag);
-                });
-            }
-
-            // 시작 버튼 상태 업데이트
-            updateStartButton();
+            ReadyModule.renderReadyUsers();
         }
         
         // 시작 버튼 상태 업데이트
@@ -3109,103 +3111,51 @@
             finishEffectElements.clear();
         }
         
-        // 도착 애니메이션 표시 (비석처럼 트랙 안쪽에 그려서 스크롤과 함께 유지)
+        // 도착 애니메이션 표시 (텍스트 스타일, 말 내부 왼쪽에 표시)
         function showFinishAnimation(horseElement, finishOrder, horseIndex) {
-            const track = document.getElementById('raceTrack');
-            if (!track) return;
-            
             const rankTexts = ['🥇 1등!', '🥈 2등!', '🥉 3등!', '4등', '5등', '6등'];
-            const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32', '#666', '#666', '#666'];
-            
+            const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32', '#888', '#888', '#888'];
+
             const existingEffect = finishEffectElements.get(horseIndex);
             if (existingEffect) existingEffect.remove();
-            
-            // 등수 라벨을 말 왼쪽에 배치해 1·2·3등이 화면에 보이게 (오브젝트 살짝 가려도 됨)
-            const labelWidth = finishOrder <= 2 ? 90 : 60;
-            const leftPx = Math.max(5, horseElement.offsetLeft - labelWidth);
-            const topPx = horseElement.offsetTop + (horseElement.offsetHeight / 2) - 15;
-            
-            const effectContainer = document.createElement('div');
-            effectContainer.className = 'finish-effect rank-in-track';
-            effectContainer.dataset.horseIndex = horseIndex;
-            effectContainer.style.cssText = `
+
+            // 말 요소 안에 자식으로 삽입 (overflow visible로 왼쪽에 표시)
+            horseElement.style.overflow = 'visible';
+
+            const label = document.createElement('div');
+            label.className = 'finish-effect';
+            label.dataset.horseIndex = horseIndex;
+
+            const fontSize = finishOrder === 0 ? '20px' : finishOrder <= 2 ? '17px' : '14px';
+
+            label.style.cssText = `
                 position: absolute;
-                left: ${leftPx}px;
-                top: ${topPx}px;
+                left: -75px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: ${fontSize};
+                font-weight: 900;
+                color: ${rankColors[finishOrder] || '#888'};
+                text-shadow:
+                    -2px -2px 0 #000, 2px -2px 0 #000,
+                    -2px 2px 0 #000, 2px 2px 0 #000,
+                    0 0 8px rgba(0,0,0,0.8);
                 pointer-events: none;
+                z-index: -1;
                 white-space: nowrap;
-                z-index: 150;
+                animation: tombstoneDrop 0.5s ease-out forwards;
+                opacity: 0;
             `;
-            
-            if (finishOrder === 0) {
-                effectContainer.innerHTML = `
-                    <div style="position: relative;">
-                        <div class="finish-rank" style="
-                            font-size: 28px;
-                            font-weight: bold;
-                            color: ${rankColors[finishOrder]};
-                            text-shadow: 0 0 10px ${rankColors[finishOrder]}, 0 0 20px ${rankColors[finishOrder]}, 2px 2px 4px rgba(0,0,0,0.5);
-                            animation: finishBounce 0.5s ease-out, finishGlow 1s ease-in-out infinite;
-                            white-space: nowrap;
-                        ">${rankTexts[finishOrder]}</div>
-                        <div class="confetti-container" style="position: absolute; top: -30px; left: -20px; width: 80px; height: 60px; overflow: visible;">
-                            ${createConfetti()}
-                        </div>
-                        <div class="sparkle-ring" style="
-                            position: absolute;
-                            top: 50%;
-                            left: 50%;
-                            transform: translate(-50%, -50%);
-                            width: 80px;
-                            height: 80px;
-                            border: 3px solid ${rankColors[finishOrder]};
-                            border-radius: 50%;
-                            animation: sparkleRing 0.8s ease-out forwards;
-                            opacity: 0;
-                        "></div>
-                    </div>
-                `;
-            } else if (finishOrder <= 2) {
-                effectContainer.innerHTML = `
-                    <div class="finish-rank" style="
-                        font-size: 22px;
-                        font-weight: bold;
-                        color: ${rankColors[finishOrder]};
-                        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                        animation: finishBounce 0.5s ease-out;
-                        white-space: nowrap;
-                    ">${rankTexts[finishOrder]}</div>
-                `;
-            } else {
-                effectContainer.innerHTML = `
-                    <div class="finish-rank" style="
-                        font-size: 16px;
-                        color: ${rankColors[finishOrder] || '#666'};
-                        animation: finishFade 0.5s ease-out;
-                        white-space: nowrap;
-                    ">${rankTexts[finishOrder] || (finishOrder + 1) + '등'}</div>
-                `;
-            }
-            
-            track.appendChild(effectContainer);
-            finishEffectElements.set(horseIndex, effectContainer);
-            
+            label.textContent = rankTexts[finishOrder] || `${finishOrder + 1}등`;
+
+            horseElement.appendChild(label);
+            finishEffectElements.set(horseIndex, label);
+
+            // 1등 특별 효과
             if (finishOrder === 0) {
                 horseElement.style.filter = 'drop-shadow(0 0 15px gold) brightness(1.2)';
                 horseElement.style.transform = 'scale(1.1)';
             }
-            
-            setTimeout(() => {
-                const confetti = effectContainer.querySelector('.confetti-container');
-                const sparkle = effectContainer.querySelector('.sparkle-ring');
-                if (confetti) confetti.remove();
-                if (sparkle) sparkle.remove();
-                const rankText = effectContainer.querySelector('.finish-rank');
-                if (rankText && finishOrder === 0) {
-                    rankText.style.animation = 'none';
-                    rankText.style.textShadow = '0 0 15px gold, 0 0 25px gold, 2px 2px 4px rgba(0,0,0,0.5)';
-                }
-            }, 2000);
         }
         
         // 꼴등 사망 애니메이션 (시체 페이드 아웃 + 영혼만 오버레이, 비석은 트랙 안쪽에 그려서 스크롤과 함께 유지)
@@ -3889,6 +3839,56 @@
             socket.emit('requestReraceReady');
         }
         
+        // 3-2-1 카운트다운 표시 (경마맵 영역 안에)
+        function showCountdown() {
+            // 레이스 트랙 컨테이너 표시
+            const trackContainer = document.getElementById('raceTrackContainer');
+            if (trackContainer) {
+                trackContainer.style.display = 'block';
+            }
+
+            // 기존 오버레이 제거
+            const existing = document.getElementById('countdownOverlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'countdownOverlay';
+            overlay.style.cssText = `
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.75); z-index: 100;
+                display: flex; justify-content: center; align-items: center;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            `;
+
+            // raceTrackContainer에 relative 설정 후 내부에 오버레이 추가
+            if (trackContainer) {
+                trackContainer.style.position = 'relative';
+                trackContainer.appendChild(overlay);
+            } else {
+                document.body.appendChild(overlay);
+            }
+
+            const nums = ['3', '2', '1', 'START!'];
+            const colors = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'];
+            let idx = 0;
+
+            function showNext() {
+                if (idx >= nums.length) {
+                    overlay.remove();
+                    return;
+                }
+                overlay.innerHTML = `<div style="
+                    font-size: ${nums[idx] === 'START!' ? '60px' : '90px'};
+                    font-weight: 900; color: ${colors[idx]};
+                    text-shadow: 0 0 30px ${colors[idx]}, 0 0 60px ${colors[idx]}40;
+                    animation: countPop 0.8s ease-out;
+                ">${nums[idx]}</div>`;
+                idx++;
+                setTimeout(showNext, 1000);
+            }
+            showNext();
+        }
+
         // 재경주 시작 요청
         function startRerace() {
             addDebugLog('재경주 시작 요청', 'rerace');
@@ -3930,19 +3930,72 @@
             currentUsers = users;
             const usersList = document.getElementById('usersList');
             const usersCount = document.getElementById('usersCount');
-            
+
             if (!usersList || !usersCount) return;
-            
+
             usersCount.textContent = users.length;
             usersList.innerHTML = '';
-            
+
+            // 드래그 힌트 표시
+            const dragHint = document.getElementById('dragHint');
+            if (dragHint) {
+                dragHint.style.display = (isHost && !isRaceActive) ? 'inline' : 'none';
+            }
+
             users.forEach(user => {
                 const tag = document.createElement('span');
                 tag.className = 'user-tag';
                 if (user.isHost) {
                     tag.classList.add('host');
                 }
-                tag.textContent = user.name;
+
+                let content = user.name;
+                if (user.isHost) {
+                    content += ' 👑';
+                }
+                if (user.name === currentUser) {
+                    content += ' (나)';
+                }
+                tag.textContent = content;
+
+                // 호스트가 다른 사용자를 클릭하면 액션 선택 다이얼로그 표시
+                if (isHost && user.name !== currentUser) {
+                    tag.style.cursor = 'pointer';
+                    tag.title = '클릭하여 호스트임명 또는 제외';
+                    tag.addEventListener('click', () => {
+                        showPlayerActionDialog(user.name).then(action => {
+                            if (action === 'host') {
+                                socket.emit('transferHost', user.name);
+                            } else if (action === 'kick') {
+                                showConfirmDialog(`${user.name}님을 게임에서 제외하시겠습니까?`, () => {
+                                    socket.emit('kickPlayer', user.name);
+                                });
+                            }
+                        });
+                    });
+                }
+
+                // 호스트만 드래그 가능 (게임 비활성 시)
+                if (isHost && !isRaceActive) {
+                    tag.draggable = true;
+                    tag.style.cursor = 'grab';
+                    tag.setAttribute('data-user-name', user.name);
+
+                    tag.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', user.name);
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('source', 'users');
+                        tag.style.opacity = '0.5';
+                    });
+
+                    tag.addEventListener('dragend', (e) => {
+                        tag.style.opacity = '1';
+                    });
+                } else {
+                    tag.draggable = false;
+                    tag.style.cursor = 'default';
+                }
+
                 usersList.appendChild(tag);
             });
         }
@@ -4161,6 +4214,39 @@
         // 글로벌 함수 (HTML onclick에서 호출)
         function sendMessage() { ChatModule.sendMessage(); }
         function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
+
+        let readyModuleInitialized = false;
+        function initReadyModule() {
+            if (readyModuleInitialized) return;
+            readyModuleInitialized = true;
+            ReadyModule.init(socket, currentUser, {
+                isHost: isHost,
+                isGameActive: () => isRaceActive,
+                onReadyChanged: (users) => {
+                    readyUsers = users;
+                },
+                onRenderComplete: (users) => {
+                    updateStartButton();
+                },
+                onError: (message) => alert(message),
+                readyStyle: { background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)', color: '#fff' },
+                readyCancelStyle: { background: 'linear-gradient(135deg, #a0522d 0%, #8b4513 100%)', color: '#fff' }
+            });
+        }
+
+        function initOrderModule() {
+            OrderModule.init(socket, currentUser, {
+                isHost: () => isHost,
+                isGameActive: () => isRaceActive,
+                getEverPlayedUsers: () => everPlayedUsers,
+                getUsersList: () => currentUsers,
+                showCustomAlert: (msg, type) => showCustomAlert ? showCustomAlert(msg, type) : alert(msg),
+                onOrderStarted: () => { isOrderActive = true; },
+                onOrderEnded: () => { isOrderActive = false; },
+                onOrdersUpdated: (data) => { ordersData = data; },
+            });
+        }
+
         function addChatMessage(data) { ChatModule.displayChatMessage(data); }
         function toggleReaction(messageIndex, emoji) {
             socket.emit('toggleReaction', { messageIndex, emoji });
@@ -4234,15 +4320,16 @@
             }
             
             // 주문받기 상태 초기화
-            // 경마 게임 주문 상태 복원
-            isOrderActive = (data.gameState && data.gameState.isHorseOrderActive) || false;
-            ordersData = (data.gameState && data.gameState.userHorseOrders) || {};
-            
+            isOrderActive = (data.gameState && data.gameState.isOrderActive) || false;
+            OrderModule.setIsOrderActive(isOrderActive);
+            ordersData = (data.gameState && data.gameState.userOrders) || {};
+            OrderModule.setOrdersData(ordersData);
+
             // 호스트 UI 설정
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'block';
-                
+
                 // 주문받기 버튼 상태
                 if (isOrderActive) {
                     document.getElementById('startOrderButton').style.display = 'none';
@@ -4255,38 +4342,46 @@
                 document.getElementById('hostBadge').style.display = 'none';
                 document.getElementById('hostControls').style.display = 'none';
             }
-            
-            // 주문받기 섹션 표시
+
+            // 주문받기 상태 반영 (CSS: .orders-section { display:none }, .orders-section.active { display:block })
             if (isOrderActive) {
-                document.getElementById('ordersSection').style.display = 'block';
+                document.getElementById('ordersSection').classList.add('active');
                 document.getElementById('myOrderInput').disabled = false;
                 document.getElementById('orderSaveButton').disabled = false;
-                // 내 주문 복원
-                if (ordersData[currentUser]) {
-                    document.getElementById('myOrderInput').value = ordersData[currentUser];
+
+                if (isHost) {
+                    document.getElementById('startOrderButton').style.display = 'none';
+                    document.getElementById('endOrderButton').style.display = 'block';
                 }
+
+                OrderModule.renderOrders();
+                OrderModule.renderNotOrderedUsers();
             } else {
-                if (Object.keys(ordersData).length > 0) {
-                    document.getElementById('ordersSection').style.display = 'block';
-                }
+                document.getElementById('ordersSection').classList.remove('active');
                 document.getElementById('myOrderInput').disabled = true;
                 document.getElementById('orderSaveButton').disabled = true;
+
+                if (!isRaceActive) {
+                    document.getElementById('gameStatus').textContent = '대기 중...';
+                    document.getElementById('gameStatus').classList.remove('ordering');
+                    document.getElementById('gameStatus').classList.add('waiting');
+                }
+
+                if (isHost && !isRaceActive) {
+                    const startOrderBtn = document.getElementById('startOrderButton');
+                    const endOrderBtn = document.getElementById('endOrderButton');
+                    if (startOrderBtn) startOrderBtn.style.display = 'block';
+                    if (endOrderBtn) endOrderBtn.style.display = 'none';
+                } else if (isHost) {
+                    const startOrderBtn = document.getElementById('startOrderButton');
+                    const endOrderBtn = document.getElementById('endOrderButton');
+                    if (startOrderBtn) startOrderBtn.style.display = 'none';
+                    if (endOrderBtn) endOrderBtn.style.display = 'none';
+                }
+
+                OrderModule.renderOrders();
+                OrderModule.renderNotOrderedUsers();
             }
-            
-            // 주문 목록 렌더링
-            renderOrders();
-            
-            // 자주 쓰는 메뉴 로드 (항상 서버에서 가져오기)
-            if (data.gameState && data.gameState.horseFrequentMenus && data.gameState.horseFrequentMenus.length > 0) {
-                frequentMenus = data.gameState.horseFrequentMenus;
-                renderMenuList();
-                console.log('[초기화] gameState에서 메뉴 로드됨:', frequentMenus.length, '개');
-            }
-            // 항상 서버에서도 메뉴 요청 (최신 상태 유지)
-            loadFrequentMenus();
-            
-            // 자동완성 초기화
-            setupAutocomplete();
             
             // 기록 섹션 표시
             document.getElementById('historySection').classList.add('visible');
@@ -4307,8 +4402,7 @@
             if (data.readyUsers) {
                 readyUsers = data.readyUsers;
                 isReady = readyUsers.includes(currentUser);
-                renderReadyUsers();
-                updateReadyButton();
+                ReadyModule.setReadyUsers(readyUsers);
             }
             
             // 경마 게임 상태 복원 및 말 선택 UI 표시
@@ -4375,7 +4469,9 @@
             isHost = true;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
-            
+            initReadyModule();
+            initOrderModule();
+
             // 경마 게임 상태 초기화 (gameState에서 가져오기)
             if (data.gameState) {
                 if (data.gameState.selectedVehicleTypes) {
@@ -4403,13 +4499,12 @@
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('createRoomSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
-            
+
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
 
             initializeGameScreen(data);
-            renderReadyUsers();
-            updateReadyButton();
+            ReadyModule.setReadyUsers(readyUsers);
         });
 
         socket.on('roomJoined', (data) => {
@@ -4426,7 +4521,9 @@
             isHost = data.isHost;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
-            
+            initReadyModule();
+            initOrderModule();
+
             // 경마 게임 상태 초기화 (gameState에서 가져오기)
             if (data.gameState) {
                 if (data.gameState.selectedVehicleTypes) {
@@ -4462,9 +4559,8 @@
                 window.SoundManager.ensureContext();
             }
             initializeGameScreen(data);
-            renderReadyUsers();
-            updateReadyButton();
-            
+            ReadyModule.setReadyUsers(readyUsers);
+
             // 기록 섹션 표시
             document.getElementById('historySection').classList.add('visible');
             
@@ -4501,9 +4597,7 @@
             alert(message);
         });
 
-        socket.on('readyError', (message) => {
-            alert(message);
-        });
+        // readyError는 ReadyModule에서 처리
 
         // 말 선택 준비 이벤트
         // 재경주 준비 이벤트 (동점일 때 호스트에게 재경주 준비 버튼 표시)
@@ -4630,10 +4724,31 @@
             }
         });
 
+        // 카운트다운 이벤트
+        socket.on('horseRaceCountdown', (data) => {
+            addDebugLog(`카운트다운 시작: ${data.duration}초, 라운드 ${data.raceRound}`, 'race');
+            if (window.SoundManager) SoundManager.playSound('horse-race_countdown', getHorseSoundEnabled());
+            showCountdown();
+        });
+
         // 경주 시작 이벤트
         socket.on('horseRaceStarted', (data) => {
             isRaceActive = true;
             isReraceActive = false; // 경주 시작 시 재경주 상태 초기화
+
+            // 사운드: 출발 총소리 → 발굽/관객 루프
+            if (window.SoundManager) {
+                SoundManager.playSound('horse-race_gunshot', getHorseSoundEnabled());
+                setTimeout(() => {
+                    SoundManager.playLoop('horse-race_crowd', getHorseSoundEnabled(), 0.3);
+                    SoundManager.playLoop('horse-race_bgm', getHorseSoundEnabled(), 0.3);
+                }, 500);
+            }
+
+            // everPlayedUsers 업데이트
+            if (data.everPlayedUsers) {
+                everPlayedUsers = [...data.everPlayedUsers];
+            }
             
             addDebugLog(`경주 시작: 라운드 ${data.raceRound || raceRound}, ${data.horseRankings?.length || 0}마리`, 'race');
             
@@ -4674,6 +4789,11 @@
             
             // 경주 트랙 표시 (서버에서 받은 기믹 데이터 전달) - 콜백으로 종료 처리
             startRaceAnimation(data.horseRankings, data.speeds, data.gimmicks, (actualFinishOrder) => {
+                // 사운드: 루프 정지 → 결승 팡파레
+                if (window.SoundManager) {
+                    SoundManager.stopLoop('horse-race_crowd');
+                    SoundManager.playSound('horse-race_finish', getHorseSoundEnabled());
+                }
                 // 경주 종료 후에 기록 추가 (실제 도착 순서 반영)
                 if (currentRaceRecord && actualFinishOrder) {
                     currentRaceRecord.rankings = actualFinishOrder;
@@ -4700,6 +4820,11 @@
 
         // 경주 종료 이벤트 (서버에서 직접 보내는 경우)
         socket.on('horseRaceEnded', (data) => {
+            // 사운드: 루프 정지 + 결과 효과음
+            if (window.SoundManager) {
+                SoundManager.stopAll();
+                SoundManager.playSound('horse-race_result', getHorseSoundEnabled());
+            }
             // userHorseBets 업데이트 (서버에서 보낸 경우)
             if (data.userHorseBets) {
                 userHorseBets = data.userHorseBets;
@@ -4720,494 +4845,28 @@
         });
 
         // 준비 상태 변경
-        socket.on('readyStateChanged', (data) => {
-            isReady = data.isReady;
-            updateReadyButton();
-        });
-
-        // 준비 목록 업데이트
-        socket.on('readyUsersUpdated', (users) => {
-            readyUsers = users || [];
-            renderReadyUsers();
-            
-            isReady = readyUsers.includes(currentUser);
-            updateReadyButton();
-        });
+        // readyStateChanged, readyUsersUpdated는 ReadyModule에서 처리 (initReadyModule에서 바인딩)
 
         // 사용자 목록 업데이트
         socket.on('updateUsers', (users) => {
+            if (window.SoundManager) SoundManager.playSound('common_notification', getHorseSoundEnabled());
             updateUsers(users);
+        });
+
+        // 강퇴당했을 때
+        socket.on('kicked', (message) => {
+            showCustomAlert(message, 'info');
+            location.reload();
+        });
+
+        // 호스트 변경 알림
+        socket.on('hostChanged', (data) => {
+            console.log('호스트 변경 알림:', data.message);
         });
 
         // 채팅은 ChatModule에서 처리 (initChatModule에서 바인딩)
 
-        // 주문받기 이벤트
-        socket.on('horseOrderStarted', () => {
-            isOrderActive = true;
-            document.getElementById('ordersSection').style.display = 'block';
-            document.getElementById('myOrderInput').disabled = false;
-            document.getElementById('orderSaveButton').disabled = false;
-            
-            const gameStatus = document.getElementById('gameStatus');
-            if (gameStatus) {
-                gameStatus.textContent = '주문받기 진행 중!';
-                gameStatus.className = 'game-status playing';
-            }
-            
-            if (isHost) {
-                document.getElementById('startOrderButton').style.display = 'none';
-                document.getElementById('endOrderButton').style.display = 'block';
-            }
-        });
-
-        socket.on('horseOrderEnded', () => {
-            isOrderActive = false;
-            document.getElementById('myOrderInput').disabled = true;
-            document.getElementById('orderSaveButton').disabled = true;
-            
-            const gameStatus = document.getElementById('gameStatus');
-            if (gameStatus) {
-                gameStatus.textContent = '대기 중...';
-                gameStatus.className = 'game-status waiting';
-            }
-            
-            if (isHost) {
-                document.getElementById('startOrderButton').style.display = 'block';
-                document.getElementById('endOrderButton').style.display = 'none';
-            }
-        });
-
-        socket.on('horseOrderUpdated', (data) => {
-            document.getElementById('myOrderInput').value = data.order;
-        });
-
-        socket.on('updateHorseOrders', (orders) => {
-            ordersData = orders;
-            renderOrders();
-        });
-
-        // 주문받기 함수
-        function startOrder() {
-            socket.emit('startHorseOrder');
-        }
-
-        function endOrder() {
-            socket.emit('endHorseOrder');
-        }
-
-        function updateMyOrder() {
-            const orderInput = document.getElementById('myOrderInput');
-            const order = orderInput.value.trim();
-            socket.emit('updateHorseOrder', { userName: currentUser, order: order });
-        }
-        
-        let currentOrderSortMode = 'asc';
-        
-        function sortOrders(mode) {
-            currentOrderSortMode = mode;
-            renderOrders();
-        }
-
-        // 주문을 메뉴별로 그룹화
-        function groupOrdersByMenu(data, mode) {
-            const entries = Object.entries(data).filter(([name, order]) => order && order.trim() !== '');
-            
-            // 메뉴별로 그룹화
-            const grouped = {};
-            entries.forEach(([userName, order]) => {
-                const menuKey = order.trim().toLowerCase();
-                if (!grouped[menuKey]) {
-                    grouped[menuKey] = {
-                        menu: order.trim(),
-                        users: []
-                    };
-                }
-                grouped[menuKey].users.push(userName);
-            });
-            
-            // 정렬 모드에 따라 정렬
-            const sortedGroups = Object.values(grouped).sort((a, b) => {
-                if (mode === 'count') {
-                    return b.users.length - a.users.length;
-                } else if (mode === 'desc') {
-                    return b.menu.localeCompare(a.menu, 'ko');
-                } else {
-                    return a.menu.localeCompare(b.menu, 'ko');
-                }
-            });
-            
-            return sortedGroups;
-        }
-        
-        function renderOrders() {
-            const orderList = document.getElementById('orderList');
-            if (!orderList) return;
-            
-            const entries = Object.entries(ordersData).filter(([name, order]) => order && order.trim() !== '');
-            
-            if (entries.length === 0) {
-                orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
-                renderNotOrderedUsers();
-                return;
-            }
-            
-            // 메뉴별로 그룹화
-            const groupedOrders = groupOrdersByMenu(ordersData, currentOrderSortMode);
-            
-            orderList.innerHTML = '';
-            groupedOrders.forEach(group => {
-                const item = document.createElement('div');
-                item.className = 'order-item';
-                item.style.cssText = 'background: white; padding: 12px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #ffc107; display: flex; justify-content: space-between; align-items: center;';
-                
-                // 사용자 목록 (내 주문이면 맨 앞에)
-                const sortedUsers = [...group.users].sort((a, b) => {
-                    if (a === currentUser) return -1;
-                    if (b === currentUser) return 1;
-                    return 0;
-                });
-                
-                const userNames = sortedUsers.map(name => {
-                    let displayName = name;
-                    if (name === currentUser) {
-                        displayName += ' (나)';
-                    }
-                    return displayName;
-                }).join(', ');
-                
-                item.innerHTML = `
-                    <div style="flex: 1;">
-                        <div style="color: #333; font-size: 20px; font-weight: 600; margin-bottom: 4px;">${group.menu}</div>
-                        <div style="font-weight: 600; color: #856404; font-size: 13px;">${userNames}</div>
-                    </div>
-                    <div style="font-size: 48px; font-weight: bold; color: #8b4513; margin-left: 15px;">${group.users.length}</div>
-                `;
-                orderList.appendChild(item);
-            });
-            
-            renderNotOrderedUsers();
-        }
-        
-        function renderNotOrderedUsers() {
-            const notOrderedSection = document.getElementById('notOrderedSection');
-            const notOrderedList = document.getElementById('notOrderedList');
-            if (!notOrderedSection || !notOrderedList) return;
-            
-            // usersList가 배열인지 확인
-            if (!Array.isArray(usersList)) {
-                notOrderedSection.style.display = 'none';
-                return;
-            }
-            
-            // 접속자 중 주문하지 않은 사람 찾기
-            const usersWithoutOrder = usersList.filter(u => !ordersData[u.name] || ordersData[u.name].trim() === '');
-            
-            if (usersWithoutOrder.length === 0 || !isOrderActive) {
-                notOrderedSection.style.display = 'none';
-                return;
-            }
-            
-            notOrderedSection.style.display = 'block';
-            notOrderedList.innerHTML = usersWithoutOrder.map(u => 
-                `<span style="background: #ffe0e0; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${u.name}</span>`
-            ).join(' ');
-        }
-
-        function showOrderList() {
-            // 주문 요약 커스텀 알림창 표시
-            const orderCounts = {};
-            Object.values(ordersData).forEach(order => {
-                if (order && order.trim()) {
-                    orderCounts[order.trim()] = (orderCounts[order.trim()] || 0) + 1;
-                }
-            });
-            
-            if (Object.keys(orderCounts).length === 0) {
-                showCustomAlert('아직 주문이 없습니다.', 'info');
-                return;
-            }
-            
-            // 주문 많은 순으로 정렬
-            const sortedOrders = Object.entries(orderCounts).sort((a, b) => b[1] - a[1]);
-            
-            let listHtml = '<div style="text-align: left; max-height: 300px; overflow-y: auto;">';
-            sortedOrders.forEach(([order, count]) => {
-                listHtml += `<div style="padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;"><span>${order}</span><strong>${count}개</strong></div>`;
-            });
-            listHtml += `</div><div style="margin-top: 15px; text-align: center; font-weight: bold; color: #8b4513;">총 ${Object.values(ordersData).filter(o => o && o.trim()).length}명 주문</div>`;
-            
-            showCustomAlert(listHtml, 'info', '📋 주문 리스트 요약');
-        }
-        
-        // 메뉴 관리 토글
-        function toggleMenuManager() {
-            const menuManager = document.getElementById('menuManager');
-            if (menuManager.style.display === 'none') {
-                menuManager.style.display = 'block';
-                renderMenuList();
-            } else {
-                menuManager.style.display = 'none';
-            }
-        }
-        
-        // 메뉴 목록 렌더링
-        function renderMenuList() {
-            const menuList = document.getElementById('menuList');
-            
-            if (frequentMenus.length === 0) {
-                menuList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>';
-                return;
-            }
-            
-            menuList.innerHTML = '';
-            frequentMenus.forEach(menu => {
-                const tag = document.createElement('span');
-                tag.style.cssText = 'display: inline-flex; align-items: center; gap: 5px; background: #8b4513; color: white; padding: 5px 10px; border-radius: 15px; font-size: 13px;';
-                tag.innerHTML = `${menu}<span onclick="deleteMenu('${menu}')" style="cursor: pointer; color: #ffcccc; font-weight: bold;">×</span>`;
-                menuList.appendChild(tag);
-            });
-        }
-        
-        // 메뉴 추가
-        function addMenu() {
-            const input = document.getElementById('newMenuInput');
-            const menu = input.value.trim();
-            
-            if (!menu) {
-                showCustomAlert('메뉴 이름을 입력해주세요.', 'warning');
-                return;
-            }
-            
-            if (frequentMenus.includes(menu)) {
-                showCustomAlert('이미 등록된 메뉴입니다.', 'warning');
-                return;
-            }
-            
-            socket.emit('addHorseMenu', { menu });
-            input.value = '';
-        }
-        
-        // 메뉴 삭제
-        function deleteMenu(menu) {
-            showConfirmDialog(`"${menu}" 메뉴를 삭제하시겠습니까?`, () => {
-                socket.emit('deleteHorseMenu', { menu });
-            });
-        }
-        
-        // 서버에서 메뉴 목록 업데이트 수신
-        socket.on('horseMenusUpdated', (menus) => {
-            frequentMenus = menus;
-            renderMenuList();
-        });
-        
-        // 서버에서 자주 쓰는 메뉴 불러오기
-        function loadFrequentMenus() {
-            console.log('[자동완성] 서버에 메뉴 요청');
-            socket.emit('getHorseFrequentMenus');
-        }
-        
-        // 서버에서 메뉴 목록 수신 (초기 로드)
-        socket.on('horseFrequentMenusLoaded', (menus) => {
-            frequentMenus = menus;
-            renderMenuList();
-            console.log('[자동완성] 메뉴 로드됨:', frequentMenus.length, '개');
-        });
-        
-        // 자동완성 제안 찾기
-        function findAutocompleteSuggestions(text) {
-            if (!text || text.trim() === '') {
-                return [];
-            }
-            
-            const lowerText = text.toLowerCase();
-            const suggestions = [];
-            
-            for (const menu of frequentMenus) {
-                if (menu.toLowerCase().startsWith(lowerText)) {
-                    if (menu.toLowerCase() !== lowerText) {
-                        suggestions.push(menu);
-                    }
-                }
-            }
-            
-            return suggestions;
-        }
-        
-        // 자동완성 제안 업데이트
-        function updateAutocompleteSuggestion() {
-            const orderInput = document.getElementById('myOrderInput');
-            const suggestionDiv = document.getElementById('autocompleteSuggestion');
-            const dropdownDiv = document.getElementById('autocompleteDropdown');
-            const text = orderInput.value;
-            
-            currentSuggestions = findAutocompleteSuggestions(text);
-            selectedSuggestionIndex = -1;
-            
-            if (currentSuggestions.length > 0) {
-                const firstSuggestion = currentSuggestions[0];
-                const remainingText = firstSuggestion.substring(text.length);
-                suggestionDiv.textContent = text + remainingText;
-                suggestionDiv.style.display = 'block';
-                
-                if (currentSuggestions.length > 1) {
-                    renderAutocompleteDropdown();
-                    dropdownDiv.style.display = 'block';
-                } else {
-                    dropdownDiv.style.display = 'none';
-                }
-            } else {
-                suggestionDiv.textContent = '';
-                suggestionDiv.style.display = 'none';
-                dropdownDiv.style.display = 'none';
-            }
-        }
-        
-        // 자동완성 드롭다운 렌더링
-        function renderAutocompleteDropdown() {
-            const dropdownDiv = document.getElementById('autocompleteDropdown');
-            const orderInput = document.getElementById('myOrderInput');
-            const text = orderInput.value;
-            
-            dropdownDiv.innerHTML = '';
-            
-            currentSuggestions.forEach((menu, index) => {
-                const item = document.createElement('div');
-                item.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;' + (index === selectedSuggestionIndex ? 'background-color: #fff5e6;' : '');
-                
-                const prefix = document.createElement('strong');
-                prefix.textContent = menu.substring(0, text.length);
-                const suffix = document.createElement('span');
-                suffix.textContent = menu.substring(text.length);
-                
-                item.appendChild(prefix);
-                item.appendChild(suffix);
-                
-                item.addEventListener('click', () => {
-                    applySuggestion(menu);
-                });
-                
-                item.addEventListener('mouseenter', () => {
-                    item.style.backgroundColor = '#fff5e6';
-                });
-                item.addEventListener('mouseleave', () => {
-                    if (index !== selectedSuggestionIndex) {
-                        item.style.backgroundColor = '';
-                    }
-                });
-                
-                dropdownDiv.appendChild(item);
-            });
-        }
-        
-        // 자동완성 적용
-        function applySuggestion(menu) {
-            const orderInput = document.getElementById('myOrderInput');
-            orderInput.value = menu;
-            currentSuggestions = [];
-            selectedSuggestionIndex = -1;
-            document.getElementById('autocompleteSuggestion').style.display = 'none';
-            document.getElementById('autocompleteDropdown').style.display = 'none';
-            orderInput.focus();
-        }
-        
-        // 선택된 제안에 맞게 회색 텍스트 업데이트
-        function updateSuggestionDisplay() {
-            const suggestionDiv = document.getElementById('autocompleteSuggestion');
-            const orderInput = document.getElementById('myOrderInput');
-            const text = orderInput.value;
-            
-            if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
-                const selectedMenu = currentSuggestions[selectedSuggestionIndex];
-                const remainingText = selectedMenu.substring(text.length);
-                suggestionDiv.textContent = text + remainingText;
-                suggestionDiv.style.display = 'block';
-            } else if (currentSuggestions.length > 0) {
-                const firstMenu = currentSuggestions[0];
-                const remainingText = firstMenu.substring(text.length);
-                suggestionDiv.textContent = text + remainingText;
-                suggestionDiv.style.display = 'block';
-            }
-        }
-        
-        // 자동완성 설정
-        function setupAutocomplete() {
-            const orderInput = document.getElementById('myOrderInput');
-            const dropdownDiv = document.getElementById('autocompleteDropdown');
-            
-            if (!orderInput) {
-                console.log('[자동완성] myOrderInput 요소를 찾을 수 없음');
-                return;
-            }
-            
-            console.log('[자동완성] 설정 완료, 현재 메뉴:', frequentMenus.length, '개');
-            
-            orderInput.addEventListener('input', () => {
-                console.log('[자동완성] 입력:', orderInput.value, '메뉴 수:', frequentMenus.length);
-                updateAutocompleteSuggestion();
-            });
-            
-            orderInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    if (currentSuggestions.length > 0) {
-                        e.preventDefault();
-                        const menuToApply = selectedSuggestionIndex >= 0 
-                            ? currentSuggestions[selectedSuggestionIndex] 
-                            : currentSuggestions[0];
-                        applySuggestion(menuToApply);
-                        return;
-                    }
-                    e.preventDefault();
-                    updateMyOrder();
-                    return;
-                }
-                
-                if (e.key === 'Tab' && currentSuggestions.length > 0) {
-                    e.preventDefault();
-                    const menuToApply = selectedSuggestionIndex >= 0 
-                        ? currentSuggestions[selectedSuggestionIndex] 
-                        : currentSuggestions[0];
-                    applySuggestion(menuToApply);
-                    return;
-                }
-                
-                if (e.key === 'ArrowDown' && currentSuggestions.length > 0) {
-                    e.preventDefault();
-                    selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
-                    renderAutocompleteDropdown();
-                    updateSuggestionDisplay();
-                    return;
-                }
-                
-                if (e.key === 'ArrowUp' && currentSuggestions.length > 0) {
-                    e.preventDefault();
-                    selectedSuggestionIndex = selectedSuggestionIndex <= 0 
-                        ? currentSuggestions.length - 1 
-                        : selectedSuggestionIndex - 1;
-                    renderAutocompleteDropdown();
-                    updateSuggestionDisplay();
-                    return;
-                }
-                
-                if (e.key === 'Escape') {
-                    currentSuggestions = [];
-                    selectedSuggestionIndex = -1;
-                    dropdownDiv.style.display = 'none';
-                    document.getElementById('autocompleteSuggestion').style.display = 'none';
-                    return;
-                }
-            });
-            
-            orderInput.addEventListener('blur', () => {
-                setTimeout(() => {
-                    document.getElementById('autocompleteDropdown').style.display = 'none';
-                    document.getElementById('autocompleteSuggestion').style.display = 'none';
-                }, 200);
-            });
-            
-            orderInput.addEventListener('focus', () => {
-                updateAutocompleteSuggestion();
-            });
-        }
+        // 주문받기 이벤트/함수는 OrderModule에서 처리
         
         // 커스텀 알림창
         function showCustomAlert(message, type = 'info', title = '') {
@@ -5279,6 +4938,61 @@
             });
         }
 
+        // 플레이어 액션 선택 다이얼로그 (호스트임명, 제외시키기, 취소)
+        function showPlayerActionDialog(playerName) {
+            return new Promise((resolve) => {
+                const existingDialog = document.getElementById('playerActionDialog');
+                if (existingDialog) existingDialog.remove();
+
+                const dialogOverlay = document.createElement('div');
+                dialogOverlay.id = 'playerActionDialog';
+                dialogOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 10002; display: flex; justify-content: center; align-items: center;';
+
+                const dialogContent = document.createElement('div');
+                dialogContent.style.cssText = 'background: white; border-radius: 16px; padding: 25px 30px; max-width: 500px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid #8b4513;';
+
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = 'font-size: 18px; line-height: 1.6; color: #333; text-align: center; margin-bottom: 25px; font-weight: 600;';
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
+
+                function createBtn(text, bg, resolveValue) {
+                    const btn = document.createElement('button');
+                    btn.textContent = text;
+                    btn.style.cssText = `padding: 12px 25px; background: ${bg}; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;`;
+                    btn.onclick = () => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(resolveValue); };
+                    return btn;
+                }
+
+                const hostButton = createBtn('호스트임명', 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 'host');
+                const kickButton = createBtn('제외시키기', 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)', 'kick');
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = 'padding: 12px 25px; background: #f5f5f5; color: #666; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;';
+                cancelButton.onclick = () => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); };
+
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); }
+                };
+                document.addEventListener('keydown', handleEsc);
+
+                dialogOverlay.onclick = (e) => {
+                    if (e.target === dialogOverlay) { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); }
+                };
+
+                buttonContainer.appendChild(hostButton);
+                buttonContainer.appendChild(kickButton);
+                buttonContainer.appendChild(cancelButton);
+                dialogContent.appendChild(messageDiv);
+                dialogContent.appendChild(buttonContainer);
+                dialogOverlay.appendChild(dialogContent);
+                document.body.appendChild(dialogOverlay);
+                hostButton.focus();
+            });
+        }
+
         // 게임 종료
         function endHorseRaceGame() {
             socket.emit('endHorseRace', {});
@@ -5295,8 +5009,11 @@
         socket.on('horseRaceDataCleared', () => {
             horseRaceHistory = [];
             ordersData = {};
+            isOrderActive = false;
+            OrderModule.setOrdersData(ordersData);
+            OrderModule.setIsOrderActive(false);
             renderHistory();
-            renderOrders();
+            OrderModule.renderOrders();
             showCustomAlert('이전 게임 데이터가 삭제되었습니다.', 'success', '✅ 삭제 완료');
         });
 

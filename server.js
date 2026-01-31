@@ -560,10 +560,7 @@ function createRoomGameState() {
         horseRaceMode: 'last', // 게임 룰: 무조건 꼴등 찾기
         currentRoundPlayers: [], // 현재 라운드 참여자 (재경주 시 사용)
         raceRound: 1, // 현재 경주 라운드 번호
-        // 경마 주문하기 관련
-        isHorseOrderActive: false, // 주문받기 활성화 상태
-        userHorseOrders: {}, // 사용자별 주문 {userName: order}
-        horseFrequentMenus: loadFrequentMenus() // 자주 쓰는 메뉴 목록 (주사위와 공유)
+        // 경마 주문하기는 공용 isOrderActive/userOrders/frequentMenus 사용
     };
 }
 
@@ -1325,9 +1322,9 @@ io.on('connection', (socket) => {
                 isHorseRaceActive: gameState.isHorseRaceActive || false,
                 selectedVehicleTypes: gameState.selectedVehicleTypes || null,
                 horseRaceHistory: gameState.horseRaceHistory || [],
-                isHorseOrderActive: gameState.isHorseOrderActive || false,
-                userHorseOrders: gameState.userHorseOrders || {},
-                horseFrequentMenus: gameState.horseFrequentMenus || []
+                isOrderActive: gameState.isOrderActive || false,
+                userOrders: gameState.userOrders || {},
+                frequentMenus: gameState.frequentMenus || []
             }
         };
         socket.emit('roomCreated', roomCreatedData);
@@ -1496,9 +1493,9 @@ io.on('connection', (socket) => {
                         isHorseRaceActive: gameState.isHorseRaceActive || false,
                         selectedVehicleTypes: gameState.selectedVehicleTypes || null,
                         horseRaceHistory: gameState.horseRaceHistory || [],
-                        isHorseOrderActive: gameState.isHorseOrderActive || false,
-                        userHorseOrders: gameState.userHorseOrders || {},
-                        horseFrequentMenus: gameState.horseFrequentMenus || []
+                        isOrderActive: gameState.isOrderActive || false,
+                        userOrders: gameState.userOrders || {},
+                        frequentMenus: gameState.frequentMenus || []
                     }
                 });
                 
@@ -1690,9 +1687,9 @@ io.on('connection', (socket) => {
                 isHorseRaceActive: gameState.isHorseRaceActive || false,
                 selectedVehicleTypes: gameState.selectedVehicleTypes || null,
                 horseRaceHistory: gameState.horseRaceHistory || [],
-                isHorseOrderActive: gameState.isHorseOrderActive || false,
-                userHorseOrders: gameState.userHorseOrders || {},
-                horseFrequentMenus: gameState.horseFrequentMenus || []
+                isOrderActive: gameState.isOrderActive || false,
+                userOrders: gameState.userOrders || {},
+                frequentMenus: gameState.frequentMenus || []
             }
         });
         
@@ -2674,9 +2671,9 @@ io.on('connection', (socket) => {
         // 게임 시작 시 준비한 사용자들을 참여자 목록으로 설정
         gameState.gamePlayers = [...gameState.readyUsers];
         
-        // 참여자가 0명이면 게임 시작 불가
-        if (gameState.gamePlayers.length === 0) {
-            socket.emit('gameError', '참여자가 없습니다. 최소 1명 이상 준비해야 게임을 시작할 수 있습니다.');
+        // 참여자가 2명 미만이면 게임 시작 불가
+        if (gameState.gamePlayers.length < 2) {
+            socket.emit('gameError', '최소 2명 이상 준비해야 게임을 시작할 수 있습니다.');
             return;
         }
         
@@ -3174,10 +3171,10 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 방에 입장한 모든 사용자가 참여자
-        const players = gameState.currentRoundPlayers.length > 0 
-            ? gameState.currentRoundPlayers 
-            : gameState.users.map(u => u.name);
+        // 준비한 사용자가 참여자 (재경주 시 기존 참여자 유지)
+        const players = gameState.currentRoundPlayers.length > 0
+            ? gameState.currentRoundPlayers
+            : [...gameState.readyUsers];
         
         if (!players || players.length < 2) {
             socket.emit('horseRaceError', '최소 2명 이상이 필요합니다!');
@@ -3295,227 +3292,44 @@ io.on('connection', (socket) => {
             gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-100);
         }
         
-        // 모든 클라이언트에게 경주 시작 및 결과 전송 (애니메이션 시작)
-        io.to(room.roomId).emit('horseRaceStarted', {
+        // 카운트다운 이벤트 전송 (3-2-1-START)
+        io.to(room.roomId).emit('horseRaceCountdown', {
+            duration: 4, // 3-2-1-START = 4초
+            raceRound: gameState.raceRound
+        });
+
+        // 카운트다운 후 경주 데이터 전송 (4초 대기)
+        const roomId = room.roomId;
+        const roomName = room.roomName;
+        const raceData = {
             availableHorses: gameState.availableHorses,
             players: players,
             raceRound: gameState.raceRound,
             horseRaceMode: gameState.horseRaceMode || 'last',
             everPlayedUsers: gameState.everPlayedUsers,
-            rankings: rankings, // 전체 순위 정보
-            horseRankings: horseRankings, // 순위별 말 인덱스 배열
-            speeds: speeds, // 각 말의 도착 시간
-            gimmicks: gimmicksData, // 기믹 데이터 (서버에서 생성)
-            winners: winners, // 당첨자 정보
-            userHorseBets: { ...gameState.userHorseBets }, // 각 사용자의 말 선택 정보
+            rankings: rankings,
+            horseRankings: horseRankings,
+            speeds: speeds,
+            gimmicks: gimmicksData,
+            winners: winners,
+            userHorseBets: { ...gameState.userHorseBets },
             selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-            record: raceRecord // 경주 기록 (다시보기용)
-        });
-        
-        // 경마 참여자 방문자 통계 기록
-        gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
-        io.emit('visitorStats', getVisitorStats());
-        recordGamePlay('horse-race', players.length);
-        
-        // 경주 결과 전송 후 상태를 false로 설정 (애니메이션은 클라이언트에서만 진행)
-        // 재경주 준비를 위해 경주가 종료된 것으로 간주
-        // 실제 경주 종료 처리는 selectHorse 핸들러에서 모든 참가자가 선택했을 때 처리됨
-        // 하지만 재경주가 필요한 경우 사용자가 다시 선택할 필요가 없으므로 여기서 false로 설정
-        gameState.isHorseRaceActive = false;
-        
-        console.log(`방 ${room.roomName} 경마 시작 - 말 수: ${gameState.availableHorses.length}, 참가자: ${players.length}명, 라운드: ${gameState.raceRound}`);
-    });
-    
-    // 경마 주문받기 시작
-    socket.on('startHorseOrder', () => {
-        if (!checkRateLimit()) return;
-        
-        const gameState = getCurrentRoomGameState();
-        const room = getCurrentRoom();
-        if (!gameState || !room) {
-            socket.emit('roomError', '방에 입장하지 않았습니다!');
-            return;
-        }
-        
-        // 경마 게임 방인지 확인
-        if (room.gameType !== 'horse-race') {
-            socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
-            return;
-        }
-        
-        // Host 권한 확인
-        const user = gameState.users.find(u => u.id === socket.id);
-        if (!user || !user.isHost) {
-            socket.emit('permissionError', 'Host만 주문받기를 시작할 수 있습니다!');
-            return;
-        }
-        
-        gameState.isHorseOrderActive = true;
-        // 주문받기 시작 시 기존 주문 초기화
-        gameState.userHorseOrders = {};
-        gameState.users.forEach(u => {
-            gameState.userHorseOrders[u.name] = '';
-        });
-        
-        io.to(room.roomId).emit('horseOrderStarted');
-        io.to(room.roomId).emit('updateHorseOrders', gameState.userHorseOrders);
-        console.log(`방 ${room.roomName}에서 경마 주문받기 시작`);
-    });
-    
-    // 경마 주문받기 종료
-    socket.on('endHorseOrder', () => {
-        if (!checkRateLimit()) return;
-        
-        const gameState = getCurrentRoomGameState();
-        const room = getCurrentRoom();
-        if (!gameState || !room) {
-            socket.emit('roomError', '방에 입장하지 않았습니다!');
-            return;
-        }
-        
-        // 경마 게임 방인지 확인
-        if (room.gameType !== 'horse-race') {
-            socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
-            return;
-        }
-        
-        // Host 권한 확인
-        const user = gameState.users.find(u => u.id === socket.id);
-        if (!user || !user.isHost) {
-            socket.emit('permissionError', 'Host만 주문받기를 종료할 수 있습니다!');
-            return;
-        }
-        
-        gameState.isHorseOrderActive = false;
-        io.to(room.roomId).emit('horseOrderEnded');
-        console.log(`방 ${room.roomName}에서 경마 주문받기 종료`);
-    });
-    
-    // 경마 주문 업데이트
-    socket.on('updateHorseOrder', (data) => {
-        if (!checkRateLimit()) return;
-        
-        const gameState = getCurrentRoomGameState();
-        const room = getCurrentRoom();
-        if (!gameState || !room) {
-            socket.emit('roomError', '방에 입장하지 않았습니다!');
-            return;
-        }
-        
-        // 경마 게임 방인지 확인
-        if (room.gameType !== 'horse-race') {
-            socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
-            return;
-        }
-        
-        const { userName, order } = data;
-        
-        // 주문받기 활성화 확인
-        if (!gameState.isHorseOrderActive) {
-            socket.emit('horseOrderError', '주문받기가 시작되지 않았습니다!');
-            return;
-        }
-        
-        // 사용자 검증
-        const user = gameState.users.find(u => u.id === socket.id);
-        if (!user) {
-            socket.emit('horseOrderError', '사용자 정보를 찾을 수 없습니다!');
-            return;
-        }
-        
-        // 이름 검증 (본인 주문만 가능)
-        const trimmedUserName = userName.trim();
-        if (user.name !== trimmedUserName) {
-            socket.emit('horseOrderError', '본인의 주문만 수정할 수 있습니다!');
-            return;
-        }
-        
-        // 주문 저장
-        gameState.userHorseOrders[trimmedUserName] = order.trim();
-        
-        // 같은 방의 모든 클라이언트에게 업데이트된 주문 목록 전송
-        io.to(room.roomId).emit('updateHorseOrders', gameState.userHorseOrders);
-        
-        socket.emit('horseOrderUpdated', { order: order.trim() });
-        console.log(`방 ${room.roomName}: ${trimmedUserName}의 경마 주문 저장 성공: ${order.trim() || '(삭제됨)'}`);
-    });
-    
-    // 경마 자주 쓰는 메뉴 불러오기
-    socket.on('getHorseFrequentMenus', () => {
-        const gameState = getCurrentRoomGameState();
-        if (!gameState) {
-            socket.emit('roomError', '방에 입장하지 않았습니다!');
-            return;
-        }
-        
-        // 메뉴 목록 초기화 (없으면 파일에서 로드)
-        if (!gameState.horseFrequentMenus || gameState.horseFrequentMenus.length === 0) {
-            gameState.horseFrequentMenus = loadFrequentMenus();
-        }
-        
-        socket.emit('horseFrequentMenusLoaded', gameState.horseFrequentMenus);
-        console.log(`[경마] 메뉴 목록 전송: ${gameState.horseFrequentMenus.length}개`);
-    });
-    
-    // 경마 메뉴 추가
-    socket.on('addHorseMenu', (data) => {
-        if (!checkRateLimit()) return;
-        
-        const gameState = getCurrentRoomGameState();
-        const room = getCurrentRoom();
-        if (!gameState || !room) {
-            socket.emit('roomError', '방에 입장하지 않았습니다!');
-            return;
-        }
-        
-        const { menu } = data;
-        if (!menu || typeof menu !== 'string') return;
-        
-        const trimmedMenu = menu.trim();
-        if (trimmedMenu.length === 0 || trimmedMenu.length > 50) return;
-        
-        // 메뉴 목록 초기화
-        if (!gameState.horseFrequentMenus) {
-            gameState.horseFrequentMenus = [];
-        }
-        
-        // 중복 체크
-        if (!gameState.horseFrequentMenus.includes(trimmedMenu)) {
-            gameState.horseFrequentMenus.push(trimmedMenu);
-            // 파일에 저장 (주사위와 공유)
-            saveFrequentMenus(gameState.horseFrequentMenus);
-            io.to(room.roomId).emit('horseMenusUpdated', gameState.horseFrequentMenus);
-            console.log(`방 ${room.roomName}: 메뉴 추가 - ${trimmedMenu}`);
-        }
-    });
-    
-    // 경마 메뉴 삭제
-    socket.on('deleteHorseMenu', (data) => {
-        if (!checkRateLimit()) return;
-        
-        const gameState = getCurrentRoomGameState();
-        const room = getCurrentRoom();
-        if (!gameState || !room) {
-            socket.emit('roomError', '방에 입장하지 않았습니다!');
-            return;
-        }
-        
-        const { menu } = data;
-        if (!menu || typeof menu !== 'string') return;
-        
-        if (!gameState.horseFrequentMenus) {
-            gameState.horseFrequentMenus = [];
-            return;
-        }
-        
-        const index = gameState.horseFrequentMenus.indexOf(menu.trim());
-        if (index > -1) {
-            gameState.horseFrequentMenus.splice(index, 1);
-            // 파일에 저장 (주사위와 공유)
-            saveFrequentMenus(gameState.horseFrequentMenus);
-            io.to(room.roomId).emit('horseMenusUpdated', gameState.horseFrequentMenus);
-            console.log(`방 ${room.roomName}: 메뉴 삭제 - ${menu.trim()}`);
-        }
+            record: raceRecord
+        };
+
+        setTimeout(() => {
+            io.to(roomId).emit('horseRaceStarted', raceData);
+
+            // 경마 참여자 방문자 통계 기록
+            gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
+            io.emit('visitorStats', getVisitorStats());
+            recordGamePlay('horse-race', players.length);
+
+            // 경주 결과 전송 후 상태를 false로 설정
+            gameState.isHorseRaceActive = false;
+
+            console.log(`방 ${roomName} 경마 시작 - 말 수: ${gameState.availableHorses.length}, 참가자: ${players.length}명, 라운드: ${gameState.raceRound}`);
+        }, 4000);
     });
     
     // 말 선택 (베팅)
@@ -3545,8 +3359,9 @@ io.on('connection', (socket) => {
         
         // 경주 진행 중이 아닐 때는 방에 입장한 모든 사용자가 참여자
         // 경주 진행 중일 때는 현재 라운드 참여자만
-        const players = gameState.isHorseRaceActive && gameState.currentRoundPlayers.length > 0
-            ? gameState.currentRoundPlayers 
+        // 재경주 대상자가 있으면 항상 사용 (isHorseRaceActive와 무관)
+        const players = gameState.currentRoundPlayers.length > 0
+            ? gameState.currentRoundPlayers
             : gameState.users.map(u => u.name);
         
         if (!players.includes(userName)) {
@@ -3853,13 +3668,8 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 재경주 준비 상태 확인: isReraceReady가 true이거나, currentRoundPlayers가 있고 경주가 종료된 상태
-        const canRerace = gameState.isReraceReady || 
-                         (players.length > 0 && 
-                          players.length < gameState.users.length && 
-                          !gameState.isHorseRaceActive);
-        
-        if (!canRerace) {
+        // 재경주 준비 상태 확인 (전원 동점도 커버)
+        if (!gameState.isReraceReady) {
             console.log(`[재경주 준비] 상태 확인 실패:`, {
                 isReraceReady: gameState.isReraceReady,
                 currentRoundPlayers: players.length,
@@ -4032,8 +3842,15 @@ io.on('connection', (socket) => {
             gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-100);
         }
         
-        // 경주 시작 이벤트 전송
-        io.to(room.roomId).emit('horseRaceStarted', {
+        // 카운트다운 이벤트 전송 (3-2-1-START)
+        io.to(room.roomId).emit('horseRaceCountdown', {
+            duration: 4,
+            raceRound: gameState.raceRound
+        });
+
+        const roomId = room.roomId;
+        const roomName = room.roomName;
+        const raceData = {
             horseRankings: horseRankings,
             speeds: speeds,
             gimmicks: gimmicksData,
@@ -4043,18 +3860,20 @@ io.on('connection', (socket) => {
             horseRaceMode: gameState.horseRaceMode || 'last',
             winners: winners,
             record: raceRecord
-        });
-        
-        // 재경주 참여자 방문자 통계 기록
-        gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
-        io.emit('visitorStats', getVisitorStats());
-        recordGamePlay('horse-race', players.length);
-        
-        // 재경주 결과 전송 후 상태를 false로 설정 (애니메이션은 클라이언트에서만 진행)
-        // 재경주가 연속으로 발생할 수 있으므로 경주 종료 상태로 설정
-        gameState.isHorseRaceActive = false;
-        
-        console.log(`방 ${room.roomName} 재경주 시작 - 라운드 ${gameState.raceRound}, 참가자: ${players.join(', ')}`);
+        };
+
+        setTimeout(() => {
+            io.to(roomId).emit('horseRaceStarted', raceData);
+
+            // 재경주 참여자 방문자 통계 기록
+            gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
+            io.emit('visitorStats', getVisitorStats());
+            recordGamePlay('horse-race', players.length);
+
+            gameState.isHorseRaceActive = false;
+
+            console.log(`방 ${roomName} 재경주 시작 - 라운드 ${gameState.raceRound}, 참가자: ${players.join(', ')}`);
+        }, 4000);
     });
     
     socket.on('endHorseRace', () => {
@@ -4144,8 +3963,8 @@ io.on('connection', (socket) => {
         
         // 경마 게임 데이터 초기화
         gameState.horseRaceHistory = [];
-        gameState.userHorseOrders = {};
-        gameState.isHorseOrderActive = false;
+        gameState.userOrders = {};
+        gameState.isOrderActive = false;
         
         // 모든 클라이언트에게 알림
         io.to(room.roomId).emit('horseRaceDataCleared');

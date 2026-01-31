@@ -667,6 +667,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         // 디버그 로그 함수
         function debugLog(msg) {
@@ -1690,6 +1691,7 @@
         });
 
         socket.on('updateUsers', (users) => {
+            if (window.SoundManager) SoundManager.playSound('common_notification', getTeamSoundEnabled());
             currentUsers = users;
             updateParticipants();
             

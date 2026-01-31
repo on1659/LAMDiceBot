@@ -554,6 +554,12 @@
             border-top: 2px dashed #ddd;
         }
 
+        .not-ordered-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #ddd;
+        }
+
         .not-rolled-title {
             font-size: 16px;
             font-weight: 600;
@@ -566,17 +572,6 @@
             flex-wrap: wrap;
             gap: 8px;
             min-height: 40px;
-        }
-
-        .not-rolled-tag {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            color: #856404;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
@@ -1518,8 +1513,8 @@
             <div class="host-controls" id="hostControls" style="display: none;">
                 <button onclick="startGame()" id="startButton">게임 시작</button>
                 <button onclick="endGame()" id="endButton" style="display: none;">게임 종료</button>
-                <button onclick="startOrder()" id="startOrderButton" class="order-button" style="display: none;">주문받기 시작</button>
-                <button onclick="endOrder()" id="endOrderButton" class="order-button" style="display: none;">주문받기 종료</button>
+                <button onclick="OrderModule.startOrder()" id="startOrderButton" class="order-button" style="display: none;">주문받기 시작</button>
+                <button onclick="OrderModule.endOrder()" id="endOrderButton" class="order-button" style="display: none;">주문받기 종료</button>
                 <button onclick="clearGameData()" id="clearDataButton" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">이전 게임 데이터 삭제</button>
             </div>
 
@@ -1528,11 +1523,11 @@
                 <div class="history-title-wrapper">
                     <div class="users-title">🍔 주문받기</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="showOrderList()" id="showOrderListButton" class="order-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 16px; font-size: 14px;">📋 주문리스트 보기</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" class="order-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 16px; font-size: 14px;">📋 주문리스트 보기</button>
                         <div class="sort-buttons">
-                            <button class="sort-button active" id="sortOrderAscBtn" onclick="sortOrders('asc')">가나다순</button>
-                            <button class="sort-button" id="sortOrderDescBtn" onclick="sortOrders('desc')">가나다 역순</button>
-                            <button class="sort-button" id="sortOrderCountBtn" onclick="sortOrders('count')">주문 많은 순</button>
+                            <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
+                            <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
+                            <button class="sort-button" id="sortOrderCountBtn" onclick="OrderModule.sortOrders('count')">주문 많은 순</button>
                         </div>
                     </div>
                 </div>
@@ -1550,18 +1545,18 @@
                     <div class="my-order-title">
                         <span>📝</span>
                         <span>내 주문</span>
-                        <button onclick="toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: #f8f9fa; color: #667eea; border: 1px solid #667eea;">메뉴 관리</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: #f8f9fa; color: #667eea; border: 1px solid #667eea;">메뉴 관리</button>
                     </div>
                     
                     <!-- 자주 쓰는 메뉴 관리 -->
                     <div class="menu-manager" id="menuManager">
                         <div class="menu-manager-title">
                             <span>📋 자주 쓰는 메뉴</span>
-                            <button onclick="toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px;">닫기</button>
                         </div>
                         <div class="menu-manager-input">
                             <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
-                            <button onclick="addMenu()" style="width: auto; padding: 12px 20px; height: fit-content;">추가</button>
+                            <button onclick="OrderModule.addMenu()" style="width: auto; padding: 12px 20px; height: fit-content;">추가</button>
                         </div>
                         <div class="menu-list" id="menuList">
                             <!-- 메뉴 목록이 여기에 표시됩니다 -->
@@ -1580,7 +1575,7 @@
                             />
                             <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
                         </div>
-                        <button onclick="updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content;" disabled>저장</button>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content;" disabled>저장</button>
                     </div>
                 </div>
 
@@ -1675,6 +1670,8 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/chat-shared.js"></script>
+    <script src="/ready-shared.js"></script>
+    <script src="/order-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
@@ -1780,6 +1777,17 @@
                     return false;
                 },
                 onDiceRoll: (min, max) => rollDiceWithRange(min, max)
+            });
+
+            OrderModule.init(socket, currentUser, {
+                isHost: () => isHost,
+                isGameActive: () => isGameActive,
+                getEverPlayedUsers: () => everPlayedUsers,
+                getUsersList: () => usersList,
+                showCustomAlert: showCustomAlert,
+                onOrderStarted: () => { isOrderActive = true; },
+                onOrderEnded: () => { isOrderActive = false; },
+                onOrdersUpdated: (data) => { ordersData = data; },
             });
         }
         
@@ -2100,6 +2108,7 @@
         let isHost = false;
         let isGameActive = false;
         let isOrderActive = false;
+        let ordersData = {};
         let diceMax = 100;
         let myDiceSettings = { max: 100 };
         let hasRolledInCurrentGame = false;
@@ -2108,16 +2117,11 @@
         let lastTopPlayerKeys = new Set(); // 이전 렌더링에서 유력했던 사람들 추적
         let lastWinnerKeys = new Set(); // 이전 렌더링에서 당첨자였던 사람들 추적
         let currentSortMode = 'time'; // 기본값을 시간순으로 변경
-        let ordersData = {};
-        let currentOrderSortMode = 'asc'; // 주문 정렬 모드: 'asc' (가나다순), 'desc' (가나다 역순), 'count' (주문 많은 순)
         let usersList = []; // 접속자 목록
         let gamePlayers = []; // 게임에 참여한 사람 목록
         let everPlayedUsers = []; // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
-        let frequentMenus = []; // 자주 쓰는 메뉴 목록
         let readyUsers = []; // 준비한 사용자 목록
         let isReady = false; // 내 준비 상태
-        let currentSuggestions = []; // 현재 자동완성 제안 목록
-        let selectedSuggestionIndex = -1; // 선택된 제안 인덱스
         // clientChatHistory는 ChatModule 내부 히스토리 참조 (하위 호환성)
         Object.defineProperty(window, 'clientChatHistory', {
             get: () => ChatModule.getChatHistory()
@@ -2146,51 +2150,6 @@
             return hash.toString();
         }
         
-        // 서버에서 자주 쓰는 메뉴 불러오기
-        function loadFrequentMenus() {
-            socket.emit('getFrequentMenus');
-        }
-        
-        // 서버에서 메뉴 목록 업데이트 수신
-        socket.on('frequentMenusUpdated', (menus) => {
-            frequentMenus = menus;
-            renderMenuList();
-        });
-        
-        // 메뉴 관리 UI 토글
-        function toggleMenuManager() {
-            const menuManager = document.getElementById('menuManager');
-            menuManager.classList.toggle('active');
-        }
-        
-        // 메뉴 추가
-        function addMenu() {
-            const menuInput = document.getElementById('menuInput');
-            const menu = menuInput.value.trim();
-            
-            if (menu === '') {
-                showCustomAlert('메뉴명을 입력해주세요!', 'warning');
-                return;
-            }
-            
-            // 서버에 메뉴 추가 요청
-            socket.emit('addFrequentMenu', { menu: menu });
-            menuInput.value = '';
-        }
-        
-        // 메뉴 입력 필드에서 Enter 키로 추가
-        document.addEventListener('DOMContentLoaded', () => {
-            const menuInput = document.getElementById('menuInput');
-            if (menuInput) {
-                menuInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addMenu();
-                    }
-                });
-            }
-        });
-        
         // 사운드 체크박스 (기본 끔, localStorage 동기화)
         const DICE_SOUND_KEY = 'diceSoundEnabled';
         function getDiceSoundEnabled() { return localStorage.getItem(DICE_SOUND_KEY) === 'true'; }
@@ -2213,46 +2172,17 @@
             if (sc2) sc2.addEventListener('change', () => onSoundChange(sc2.checked));
         });
         
-        // 메뉴 삭제
-        function deleteMenu(menu) {
-            // 서버에 메뉴 삭제 요청
-            socket.emit('deleteFrequentMenu', { menu: menu });
-        }
-        
-        // 메뉴 에러 처리
-        socket.on('menuError', (message) => {
-            showCustomAlert(message, 'info');
-        });
-        
-        // 메뉴 목록 렌더링
-        function renderMenuList() {
-            const menuList = document.getElementById('menuList');
-            
-            if (frequentMenus.length === 0) {
-                menuList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>';
-                return;
-            }
-            
-            menuList.innerHTML = '';
-            frequentMenus.forEach(menu => {
-                const tag = document.createElement('span');
-                tag.className = 'menu-tag';
-                tag.innerHTML = `${menu}<span class="delete-btn" onclick="deleteMenu('${menu}')">×</span>`;
-                menuList.appendChild(tag);
-            });
-        }
-        
         // 채팅 입력창용 자동완성 제안 찾기
         function findChatAutocompleteSuggestions(text) {
             if (!text || text.trim() === '') {
                 return [];
             }
-            
+
             const trimmedText = text.trim();
-            
+
             // /, /ㅈ, /주, /주ㅅ, /주사, /주사ㅇ, /주사우 등으로 시작하면 /주사위 제안
             // 한글 자모 입력을 고려한 패턴 매칭
-            if (trimmedText === '/' || 
+            if (trimmedText === '/' ||
                 trimmedText === '/ㅈ' ||
                 trimmedText.startsWith('/주') ||
                 trimmedText.startsWith('/주사')) {
@@ -2261,202 +2191,8 @@
                     return ['/주사위'];
                 }
             }
-            
+
             return [];
-        }
-        
-        // 자동완성 제안 찾기 (모든 일치 항목)
-        function findAutocompleteSuggestions(text) {
-            if (!text || text.trim() === '') {
-                return [];
-            }
-            
-            const lowerText = text.toLowerCase();
-            const suggestions = [];
-            
-            // 메뉴 목록에서 일치하는 모든 항목 찾기
-            for (const menu of frequentMenus) {
-                if (menu.toLowerCase().startsWith(lowerText)) {
-                    // 이미 완전히 입력한 경우는 제안하지 않음
-                    if (menu.toLowerCase() !== lowerText) {
-                        suggestions.push(menu);
-                    }
-                }
-            }
-            
-            return suggestions;
-        }
-        
-        // 자동완성 제안 업데이트
-        function updateAutocompleteSuggestion() {
-            const orderInput = document.getElementById('myOrderInput');
-            const suggestionDiv = document.getElementById('autocompleteSuggestion');
-            const dropdownDiv = document.getElementById('autocompleteDropdown');
-            const text = orderInput.value;
-            
-            currentSuggestions = findAutocompleteSuggestions(text);
-            selectedSuggestionIndex = -1;
-            
-            if (currentSuggestions.length > 0) {
-                // 첫 번째 제안을 회색 텍스트로 표시
-                const firstSuggestion = currentSuggestions[0];
-                const remainingText = firstSuggestion.substring(text.length);
-                suggestionDiv.textContent = text + remainingText;
-                suggestionDiv.style.display = 'block';
-                
-                // 여러 개의 제안이 있으면 드롭다운 표시
-                if (currentSuggestions.length > 1) {
-                    renderAutocompleteDropdown();
-                    dropdownDiv.style.display = 'block';
-                } else {
-                    dropdownDiv.style.display = 'none';
-                }
-            } else {
-                suggestionDiv.textContent = '';
-                suggestionDiv.style.display = 'none';
-                dropdownDiv.style.display = 'none';
-            }
-        }
-        
-        // 자동완성 드롭다운 렌더링
-        function renderAutocompleteDropdown() {
-            const dropdownDiv = document.getElementById('autocompleteDropdown');
-            const orderInput = document.getElementById('myOrderInput');
-            const text = orderInput.value;
-            
-            dropdownDiv.innerHTML = '';
-            
-            currentSuggestions.forEach((menu, index) => {
-                const item = document.createElement('div');
-                item.className = 'autocomplete-item' + (index === selectedSuggestionIndex ? ' selected' : '');
-                item.textContent = menu;
-                
-                // 입력된 부분 강조
-                const prefix = document.createElement('strong');
-                prefix.textContent = menu.substring(0, text.length);
-                const suffix = document.createElement('span');
-                suffix.textContent = menu.substring(text.length);
-                
-                item.innerHTML = '';
-                item.appendChild(prefix);
-                item.appendChild(suffix);
-                
-                item.addEventListener('click', () => {
-                    applySuggestion(menu);
-                });
-                
-                dropdownDiv.appendChild(item);
-            });
-        }
-        
-        // 제안 적용
-        function applySuggestion(menu) {
-            const orderInput = document.getElementById('myOrderInput');
-            orderInput.value = menu;
-            currentSuggestions = [];
-            selectedSuggestionIndex = -1;
-            document.getElementById('autocompleteSuggestion').style.display = 'none';
-            document.getElementById('autocompleteDropdown').style.display = 'none';
-            orderInput.focus();
-        }
-        
-        // Tab 키로 자동완성 적용
-        function setupAutocomplete() {
-            const orderInput = document.getElementById('myOrderInput');
-            const dropdownDiv = document.getElementById('autocompleteDropdown');
-            
-            orderInput.addEventListener('input', () => {
-                updateAutocompleteSuggestion();
-            });
-            
-            orderInput.addEventListener('keydown', (e) => {
-                // Enter 키 처리
-                if (e.key === 'Enter') {
-                    // 자동완성 드롭다운이 열려있으면 자동완성 적용
-                    if (currentSuggestions.length > 0) {
-                        e.preventDefault();
-                        const menuToApply = selectedSuggestionIndex >= 0 
-                            ? currentSuggestions[selectedSuggestionIndex] 
-                            : currentSuggestions[0];
-                        applySuggestion(menuToApply);
-                        return;
-                    }
-                    // 드롭다운이 없으면 주문 저장
-                    e.preventDefault();
-                    updateMyOrder();
-                    return;
-                }
-                
-                // Tab으로 자동완성 적용
-                if (e.key === 'Tab' && currentSuggestions.length > 0) {
-                    e.preventDefault();
-                    const menuToApply = selectedSuggestionIndex >= 0 
-                        ? currentSuggestions[selectedSuggestionIndex] 
-                        : currentSuggestions[0];
-                    applySuggestion(menuToApply);
-                    return;
-                }
-                
-                // 방향키로 제안 선택
-                if (e.key === 'ArrowDown' && currentSuggestions.length > 0) {
-                    e.preventDefault();
-                    selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
-                    renderAutocompleteDropdown();
-                    updateSuggestionDisplay();
-                    return;
-                }
-                
-                if (e.key === 'ArrowUp' && currentSuggestions.length > 0) {
-                    e.preventDefault();
-                    selectedSuggestionIndex = selectedSuggestionIndex <= 0 
-                        ? currentSuggestions.length - 1 
-                        : selectedSuggestionIndex - 1;
-                    renderAutocompleteDropdown();
-                    updateSuggestionDisplay();
-                    return;
-                }
-                
-                // Escape로 드롭다운 닫기
-                if (e.key === 'Escape') {
-                    currentSuggestions = [];
-                    selectedSuggestionIndex = -1;
-                    dropdownDiv.style.display = 'none';
-                    document.getElementById('autocompleteSuggestion').style.display = 'none';
-                    return;
-                }
-            });
-            
-            // 포커스 잃을 때 제안 숨기기
-            orderInput.addEventListener('blur', () => {
-                setTimeout(() => {
-                    document.getElementById('autocompleteSuggestion').style.display = 'none';
-                    dropdownDiv.style.display = 'none';
-                }, 200);
-            });
-            
-            // 포커스 받을 때 제안 업데이트
-            orderInput.addEventListener('focus', () => {
-                updateAutocompleteSuggestion();
-            });
-        }
-        
-        // 선택된 제안에 맞게 회색 텍스트 업데이트
-        function updateSuggestionDisplay() {
-            const suggestionDiv = document.getElementById('autocompleteSuggestion');
-            const orderInput = document.getElementById('myOrderInput');
-            const text = orderInput.value;
-            
-            if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
-                const selectedMenu = currentSuggestions[selectedSuggestionIndex];
-                const remainingText = selectedMenu.substring(text.length);
-                suggestionDiv.textContent = text + remainingText;
-                suggestionDiv.style.display = 'block';
-            } else if (currentSuggestions.length > 0) {
-                const firstMenu = currentSuggestions[0];
-                const remainingText = firstMenu.substring(text.length);
-                suggestionDiv.textContent = text + remainingText;
-                suggestionDiv.style.display = 'block';
-            }
         }
 
         // 페이지 로드 시 초기화
@@ -3878,7 +3614,8 @@
             myDiceSettings = data.diceSettings || { max: 100 };
             isGameActive = data.isGameActive;
             isOrderActive = data.isOrderActive;
-            
+            OrderModule.setIsOrderActive(isOrderActive);
+
             // 게임 기록 제목 설정
             const historyTitle = document.getElementById('historyTitle');
             if (historyTitle) {
@@ -3952,9 +3689,9 @@
             // 자주 쓰는 메뉴 불러오기
             if (data.frequentMenus !== undefined) {
                 frequentMenus = data.frequentMenus;
-                renderMenuList();
+                OrderModule.renderMenuList();
             } else {
-                loadFrequentMenus();
+                OrderModule.loadFrequentMenus();
             }
             
             // 준비 상태 초기화
@@ -3982,6 +3719,7 @@
             if (data.gameState) {
                 historyData = data.gameState.history || [];
                 ordersData = data.gameState.userOrders || {};
+                OrderModule.setOrdersData(ordersData);
                 usersList = data.gameState.users || [];
                 gamePlayers = data.gameState.gamePlayers || []; // 게임 참여자 목록 저장
                 
@@ -3993,7 +3731,7 @@
                 }
                 
                 renderHistory();
-                renderOrders();
+                OrderModule.renderOrders();
                 updateUsers(usersList);
                 
                 // 진행 상황 업데이트
@@ -4014,7 +3752,7 @@
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 표시
             if (isOrderActive) {
                 setTimeout(() => {
-                    renderNotOrderedUsers();
+                    OrderModule.renderNotOrderedUsers();
                 }, 100);
             }
             
@@ -4115,8 +3853,8 @@
                 }
                 
                 // 주문 목록과 주문하지 않은 사람 목록 표시
-                renderOrders();
-                renderNotOrderedUsers();
+                OrderModule.renderOrders();
+                OrderModule.renderNotOrderedUsers();
             } else {
                 // 주문받기가 비활성화된 상태
                 document.getElementById('ordersSection').classList.remove('active');
@@ -4153,8 +3891,8 @@
                 }
                 
                 // 주문받기가 종료되어도 주문 목록은 표시
-                renderOrders();
-                renderNotOrderedUsers();
+                OrderModule.renderOrders();
+                OrderModule.renderNotOrderedUsers();
             }
             
             // 호스트이고 게임이 진행 중이 아니고 주문받기도 비활성화된 경우 주문받기 시작 버튼 강제 표시
@@ -4392,7 +4130,8 @@
             myDiceSettings = data.diceSettings;
             isGameActive = data.isGameActive;
             isOrderActive = data.isOrderActive;
-            
+            OrderModule.setIsOrderActive(isOrderActive);
+
             document.getElementById('loginSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
             document.getElementById('currentUser').textContent = currentUser;
@@ -4413,10 +4152,10 @@
             // 자주 쓰는 메뉴 불러오기 (서버에서 전달받은 데이터 사용)
             if (data.frequentMenus !== undefined) {
                 frequentMenus = data.frequentMenus;
-                renderMenuList();
+                OrderModule.renderMenuList();
             } else {
                 // 서버에서 가져오기
-                loadFrequentMenus();
+                OrderModule.loadFrequentMenus();
             }
             
             // 게임 룰 UI 업데이트 (초기화 후 반드시 호출)
@@ -4427,7 +4166,7 @@
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 표시
             if (isOrderActive) {
                 setTimeout(() => {
-                    renderNotOrderedUsers();
+                    OrderModule.renderNotOrderedUsers();
                 }, 100);
             }
 
@@ -4477,16 +4216,16 @@
                 }
                 
                 // 주문 목록과 주문하지 않은 사람 목록 표시
-                renderOrders();
-                renderNotOrderedUsers();
+                OrderModule.renderOrders();
+                OrderModule.renderNotOrderedUsers();
             } else if (isHost && !isGameActive) {
                 // 게임이 비활성화되고 주문받기도 비활성화된 상태에서 Host에게 주문받기 시작 버튼 표시
                 document.getElementById('startOrderButton').style.display = 'block';
                 document.getElementById('endOrderButton').style.display = 'none';
                 
                 // 주문받기가 종료되어도 주문 목록은 표시
-                renderOrders();
-                renderNotOrderedUsers();
+                OrderModule.renderOrders();
+                OrderModule.renderNotOrderedUsers();
             }
         });
 
@@ -4529,545 +4268,6 @@
             location.reload(); // 강퇴당하면 페이지를 새로고침하여 로비로 이동
         });
 
-        // 주문리스트 보기
-        function showOrderList() {
-            if (!isOrderActive) {
-                showCustomAlert('주문받기가 진행 중일 때만 주문리스트를 볼 수 있습니다!', 'warning');
-                return;
-            }
-            
-            // 현재 주문리스트 수집
-            let orderListText = '';
-            
-            // 게임 참여자와 관전자로 분리
-            const playerOrders = {};
-            const spectatorOrders = {};
-            
-            Object.entries(ordersData).forEach(([name, order]) => {
-                if (order && order.trim() !== '') {
-                    if (everPlayedUsers.includes(name)) {
-                        playerOrders[name] = order;
-                    } else {
-                        spectatorOrders[name] = order;
-                    }
-                }
-            });
-            
-            // 게임 참여자 주문 목록
-            const groupedPlayerOrders = groupOrdersByMenu(playerOrders, 'asc');
-            
-            if (groupedPlayerOrders.length > 0) {
-                orderListText += '=== 게임 참여자 주문 ===\n';
-                groupedPlayerOrders.forEach((group) => {
-                    const sortedUsers = [...group.users].sort((a, b) => {
-                        return a.localeCompare(b, 'ko');
-                    });
-                    
-                    const userNames = sortedUsers.join(',');
-                    
-                    if (group.users.length > 1) {
-                        orderListText += `${userNames} : ${group.menu} (${group.users.length}명)\n`;
-                    } else {
-                        orderListText += `${userNames} : ${group.menu}\n`;
-                    }
-                });
-                orderListText += `\n총 ${groupedPlayerOrders.length}개 메뉴\n`;
-            }
-            
-            // 관전자 주문 목록
-            const groupedSpectatorOrders = groupOrdersByMenu(spectatorOrders, 'asc');
-            
-            if (groupedSpectatorOrders.length > 0) {
-                if (groupedPlayerOrders.length > 0) {
-                    orderListText += '\n';
-                }
-                orderListText += '=== 관전자 주문 ===\n';
-                groupedSpectatorOrders.forEach((group) => {
-                    const sortedUsers = [...group.users].sort((a, b) => {
-                        return a.localeCompare(b, 'ko');
-                    });
-                    
-                    const userNames = sortedUsers.join(',');
-                    
-                    if (group.users.length > 1) {
-                        orderListText += `${userNames} : ${group.menu} (${group.users.length}명)\n`;
-                    } else {
-                        orderListText += `${userNames} : ${group.menu}\n`;
-                    }
-                });
-                orderListText += `\n총 ${groupedSpectatorOrders.length}개 메뉴\n`;
-            }
-            
-            // 주문이 없을 때
-            if (groupedPlayerOrders.length === 0 && groupedSpectatorOrders.length === 0) {
-                orderListText += '아직 주문이 없습니다.\n';
-            }
-            
-            // 주문하지 않은 사람 목록
-            const allUsers = usersList.map(u => u.name);
-            const allOrderedUsers = [...groupedPlayerOrders.flatMap(group => group.users), ...groupedSpectatorOrders.flatMap(group => group.users)];
-            const notOrderedUsers = allUsers.filter(user => !allOrderedUsers.includes(user));
-            
-            // 총 주문한 사람 숫자 표시
-            if (allOrderedUsers.length > 0) {
-                orderListText += `\n총 주문한 사람: ${allOrderedUsers.length}명\n`;
-            }
-            
-            if (notOrderedUsers.length > 0) {
-                orderListText += `\n주문하지 않은 사람 (${notOrderedUsers.length}명):\n`;
-                notOrderedUsers.forEach((user, index) => {
-                    orderListText += `${index + 1}. ${user}\n`;
-                });
-            }
-            
-            // 커스텀 모달로 표시
-            showOrderListModal(orderListText);
-        }
-        
-        // 주문리스트 모달 표시
-        function showOrderListModal(content) {
-            // 기존 모달이 있으면 제거
-            const existingModal = document.getElementById('orderListModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-            
-            // 모달 오버레이 생성
-            const modalOverlay = document.createElement('div');
-            modalOverlay.id = 'orderListModal';
-            modalOverlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 10000;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            `;
-            
-            // 모달 컨텐츠 생성 (내용에 맞게 자동 크기 조절)
-            const modalContent = document.createElement('div');
-            modalContent.style.cssText = `
-                background: white;
-                border-radius: 20px;
-                padding: 30px;
-                max-width: 90vw;
-                max-height: 90vh;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                display: inline-block;
-            `;
-            
-            // 제목
-            const title = document.createElement('div');
-            title.textContent = '=== 현재 주문리스트 ===';
-            title.style.cssText = `
-                font-size: 20px;
-                font-weight: bold;
-                color: #667eea;
-                margin-bottom: 20px;
-                text-align: center;
-            `;
-            
-            // 내용 영역
-            const contentDiv = document.createElement('div');
-            contentDiv.style.cssText = `
-                font-size: 16px;
-                line-height: 1.8;
-                color: #333;
-                white-space: pre-wrap;
-                word-break: break-word;
-                margin-bottom: 20px;
-            `;
-            contentDiv.textContent = content;
-            
-            // 닫기 버튼
-            const closeButton = document.createElement('button');
-            closeButton.textContent = '확인';
-            closeButton.style.cssText = `
-                padding: 12px 30px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                width: 100%;
-            `;
-            closeButton.onclick = () => {
-                modalOverlay.remove();
-            };
-            
-            // ESC 키로 닫기
-            const handleEsc = (e) => {
-                if (e.key === 'Escape') {
-                    modalOverlay.remove();
-                    document.removeEventListener('keydown', handleEsc);
-                }
-            };
-            document.addEventListener('keydown', handleEsc);
-            
-            // 오버레이 클릭 시 닫기
-            modalOverlay.onclick = (e) => {
-                if (e.target === modalOverlay) {
-                    modalOverlay.remove();
-                    document.removeEventListener('keydown', handleEsc);
-                }
-            };
-            
-            modalContent.appendChild(title);
-            modalContent.appendChild(contentDiv);
-            modalContent.appendChild(closeButton);
-            modalOverlay.appendChild(modalContent);
-            document.body.appendChild(modalOverlay);
-        }
-
-        // 주문받기 시작
-        function startOrder() {
-            socket.emit('startOrder');
-        }
-        
-        // 주문받기 종료
-        function endOrder() {
-            socket.emit('endOrder');
-        }
-        
-        socket.on('orderStarted', () => {
-            isOrderActive = true;
-            document.getElementById('ordersSection').classList.add('active');
-            document.getElementById('ordersSection').style.display = 'block';
-            const orderInput = document.getElementById('myOrderInput');
-            orderInput.disabled = false;
-            orderInput.value = '';
-            document.getElementById('orderSaveButton').disabled = false;
-            document.getElementById('gameStatus').textContent = '주문받기 진행 중!';
-            document.getElementById('gameStatus').classList.remove('waiting');
-            document.getElementById('gameStatus').classList.add('ordering');
-            
-            // 자동완성 기능 활성화
-            setupAutocomplete();
-            
-            // 주문리스트 보기 버튼은 항상 표시
-            document.getElementById('showOrderListButton').style.display = 'block';
-            
-            if (isHost) {
-                document.getElementById('startOrderButton').style.display = 'none';
-                document.getElementById('endOrderButton').style.display = 'block';
-            }
-            
-            // 주문 목록과 주문하지 않은 사람 목록 표시
-            renderOrders();
-            renderNotOrderedUsers();
-            
-            console.log('주문받기가 시작되었습니다!');
-        });
-        
-        socket.on('orderEnded', () => {
-            isOrderActive = false;
-            document.getElementById('myOrderInput').disabled = true;
-            document.getElementById('orderSaveButton').disabled = true;
-            document.getElementById('gameStatus').textContent = '게임 대기 중...';
-            document.getElementById('gameStatus').classList.remove('ordering');
-            document.getElementById('gameStatus').classList.add('waiting');
-            
-            // 주문받기 섹션은 유지하되 입력만 비활성화 (주문 목록은 계속 표시)
-            // document.getElementById('ordersSection').style.display = 'block';
-            
-            if (isHost) {
-                document.getElementById('startButton').style.display = 'block';
-                document.getElementById('endButton').style.display = 'none';
-                // 게임이 비활성화된 상태면 주문받기 시작 버튼 표시
-                if (!isGameActive) {
-                    document.getElementById('startOrderButton').style.display = 'block';
-                } else {
-                    document.getElementById('startOrderButton').style.display = 'none';
-                }
-                document.getElementById('endOrderButton').style.display = 'none';
-                // 주문리스트 보기 버튼은 계속 표시
-                document.getElementById('showOrderListButton').style.display = 'block';
-            }
-            
-            // 주문 목록과 주문하지 않은 사람 목록은 계속 표시
-            renderOrders();
-            renderNotOrderedUsers();
-            
-            showCustomAlert('주문받기가 종료되었습니다!', 'info');
-        });
-
-        // 주문 업데이트
-        function updateMyOrder() {
-            const orderInput = document.getElementById('myOrderInput');
-            const order = orderInput.value.trim();
-            
-            if (!currentUser) {
-                showCustomAlert('사용자 이름을 확인할 수 없습니다. 다시 로그인해주세요.', 'error');
-                return;
-            }
-
-            console.log('주문 전송:', { userName: currentUser, order: order });
-            socket.emit('updateOrder', {
-                userName: currentUser,
-                order: order
-            });
-        }
-
-        socket.on('orderUpdated', (data) => {
-            console.log('주문이 업데이트되었습니다:', data.order);
-            
-            // 주문 저장 성공 피드백
-            const orderInput = document.getElementById('myOrderInput');
-            if (orderInput) {
-                // 시각적 피드백 (배경색 변경)
-                const originalBg = orderInput.style.backgroundColor;
-                orderInput.style.backgroundColor = '#d4edda';
-                setTimeout(() => {
-                    orderInput.style.backgroundColor = originalBg || '';
-                }, 500);
-            }
-            
-            // 주문 목록 항상 업데이트
-            renderOrders();
-            renderNotOrderedUsers();
-        });
-
-        socket.on('orderError', (message) => {
-            showCustomAlert(message, 'info');
-        });
-
-        // 주문 목록 업데이트
-        socket.on('updateOrders', (orders) => {
-            ordersData = orders;
-            // 주문 목록 항상 업데이트 (주문받기 상태와 관계없이)
-            renderOrders();
-            renderNotOrderedUsers();
-        });
-
-        // 주문 목록을 메뉴별로 그룹화하고 정렬
-        function groupOrdersByMenu(data, mode) {
-            const entries = Object.entries(data).filter(([name, order]) => order && order.trim() !== '');
-            
-            // 메뉴별로 그룹화
-            const grouped = {};
-            entries.forEach(([userName, order]) => {
-                const menuKey = order.trim().toLowerCase(); // 대소문자 구분 없이 그룹화
-                if (!grouped[menuKey]) {
-                    grouped[menuKey] = {
-                        menu: order.trim(),
-                        users: []
-                    };
-                }
-                grouped[menuKey].users.push(userName);
-            });
-            
-            // 정렬 모드에 따라 정렬
-            const sortedGroups = Object.values(grouped).sort((a, b) => {
-                if (mode === 'count') {
-                    // 주문 많은 순 (인원수 기준 내림차순)
-                    return b.users.length - a.users.length;
-                } else if (mode === 'desc') {
-                    return b.menu.localeCompare(a.menu, 'ko'); // 역순
-                } else {
-                    return a.menu.localeCompare(b.menu, 'ko'); // 가나다순
-                }
-            });
-            
-            return sortedGroups;
-        }
-
-        // 주문 정렬 버튼 클릭
-        function sortOrders(mode) {
-            currentOrderSortMode = mode;
-            
-            document.querySelectorAll('#ordersSection .sort-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            if (mode === 'asc') {
-                document.getElementById('sortOrderAscBtn').classList.add('active');
-            } else if (mode === 'desc') {
-                document.getElementById('sortOrderDescBtn').classList.add('active');
-            } else if (mode === 'count') {
-                document.getElementById('sortOrderCountBtn').classList.add('active');
-            }
-            
-            renderOrders();
-        }
-
-        // 주문 목록 렌더링 (그룹화된 형태)
-        function renderOrders() {
-            const orderList = document.getElementById('orderList');
-            const spectatorOrdersSection = document.getElementById('spectatorOrdersSection');
-            const spectatorOrderList = document.getElementById('spectatorOrderList');
-            const notOrderedSection = document.getElementById('notOrderedSection');
-            const notOrderedList = document.getElementById('notOrderedList');
-            
-            const entries = Object.entries(ordersData).filter(([name, order]) => order && order.trim() !== '');
-            
-            if (entries.length === 0) {
-                orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>';
-                spectatorOrdersSection.style.display = 'none';
-                // 주문하지 않은 사람 목록 표시
-                renderNotOrderedUsers();
-                return;
-            }
-            
-            // 게임 참여자와 관전자로 분리
-            const playerOrders = {};
-            const spectatorOrders = {};
-            
-            entries.forEach(([name, order]) => {
-                if (everPlayedUsers.includes(name)) {
-                    playerOrders[name] = order;
-                } else {
-                    spectatorOrders[name] = order;
-                }
-            });
-            
-            // 게임 참여자 주문 목록 렌더링
-            orderList.innerHTML = '';
-            
-            if (Object.keys(playerOrders).length > 0) {
-                const groupedPlayerOrders = groupOrdersByMenu(playerOrders, currentOrderSortMode);
-                
-                groupedPlayerOrders.forEach(group => {
-                    const item = document.createElement('div');
-                    item.className = 'order-item';
-                    
-                    const leftDiv = document.createElement('div');
-                    leftDiv.className = 'order-item-left';
-                    
-                    // 사용자 목록 생성 (내 주문이면 맨 앞에)
-                    const sortedUsers = [...group.users].sort((a, b) => {
-                        if (a === currentUser) return -1;
-                        if (b === currentUser) return 1;
-                        return 0;
-                    });
-                    
-                    const userNames = sortedUsers.map(name => {
-                        let displayName = name;
-                        if (name === currentUser) {
-                            displayName += ' (나)';
-                        }
-                        return displayName;
-                    }).join(', ');
-                    
-                    const userDiv = document.createElement('div');
-                    userDiv.className = 'order-user';
-                    userDiv.textContent = userNames;
-                    
-                    const orderDiv = document.createElement('div');
-                    orderDiv.className = 'order-text';
-                    orderDiv.textContent = group.menu;
-                    
-                    leftDiv.appendChild(userDiv);
-                    leftDiv.appendChild(orderDiv);
-                    
-                    const countDiv = document.createElement('div');
-                    countDiv.className = 'order-count';
-                    countDiv.textContent = group.users.length;
-                    
-                    item.appendChild(leftDiv);
-                    item.appendChild(countDiv);
-                    orderList.appendChild(item);
-                });
-            } else {
-                orderList.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">게임 참여자 주문이 없습니다</div>';
-            }
-            
-            // 관전자 주문 목록 렌더링
-            if (Object.keys(spectatorOrders).length > 0) {
-                spectatorOrdersSection.style.display = 'block';
-                spectatorOrderList.innerHTML = '';
-                
-                const groupedSpectatorOrders = groupOrdersByMenu(spectatorOrders, currentOrderSortMode);
-                
-                groupedSpectatorOrders.forEach(group => {
-                    const item = document.createElement('div');
-                    item.className = 'order-item';
-                    item.style.opacity = '0.7'; // 관전자는 약간 투명하게
-                    
-                    const leftDiv = document.createElement('div');
-                    leftDiv.className = 'order-item-left';
-                    
-                    // 사용자 목록 생성 (내 주문이면 맨 앞에)
-                    const sortedUsers = [...group.users].sort((a, b) => {
-                        if (a === currentUser) return -1;
-                        if (b === currentUser) return 1;
-                        return 0;
-                    });
-                    
-                    const userNames = sortedUsers.map(name => {
-                        let displayName = name;
-                        if (name === currentUser) {
-                            displayName += ' (나)';
-                        }
-                        return displayName;
-                    }).join(', ');
-                    
-                    const userDiv = document.createElement('div');
-                    userDiv.className = 'order-user';
-                    userDiv.textContent = userNames;
-                    
-                    const orderDiv = document.createElement('div');
-                    orderDiv.className = 'order-text';
-                    orderDiv.textContent = group.menu;
-                    
-                    leftDiv.appendChild(userDiv);
-                    leftDiv.appendChild(orderDiv);
-                    
-                    const countDiv = document.createElement('div');
-                    countDiv.className = 'order-count';
-                    countDiv.textContent = group.users.length;
-                    
-                    item.appendChild(leftDiv);
-                    item.appendChild(countDiv);
-                    spectatorOrderList.appendChild(item);
-                });
-            } else {
-                spectatorOrdersSection.style.display = 'none';
-            }
-            
-            // 주문하지 않은 사람 목록 표시
-            renderNotOrderedUsers();
-        }
-
-        // 주문하지 않은 사람 목록 렌더링
-        function renderNotOrderedUsers() {
-            const notOrderedSection = document.getElementById('notOrderedSection');
-            const notOrderedList = document.getElementById('notOrderedList');
-            
-            // 주문받기 상태와 관계없이 주문하지 않은 사람 목록 표시
-            // 주문한 사람 목록
-            const orderedUsers = Object.entries(ordersData)
-                .filter(([name, order]) => order && order.trim() !== '')
-                .map(([name]) => name);
-            
-            // 주문하지 않은 사람 목록 (접속자 중에서 주문하지 않은 사람)
-            const notOrderedUsers = usersList
-                .map(user => user.name)
-                .filter(name => !orderedUsers.includes(name));
-            
-            if (notOrderedUsers.length === 0) {
-                notOrderedSection.style.display = 'none';
-                return;
-            }
-            
-            // 주문하지 않은 사람이 있으면 항상 표시
-            notOrderedSection.style.display = 'block';
-            notOrderedList.innerHTML = '';
-            
-            // 가나다순으로 정렬
-            const sortedNotOrderedUsers = [...notOrderedUsers].sort((a, b) => a.localeCompare(b, 'ko'));
-            sortedNotOrderedUsers.forEach(name => {
-                const tag = document.createElement('div');
-                tag.className = 'not-rolled-tag';
-                tag.textContent = name + (name === currentUser ? ' (나)' : '');
-                notOrderedList.appendChild(tag);
-            });
-        }
 
         // 내 주사위 설정 업데이트
         // 주사위 설정 업데이트 (더 이상 사용하지 않음, 명령어로 대체)
@@ -5276,6 +4476,7 @@
             isGameActive = true;
             hasRolledInCurrentGame = false;
             rolledUsersInGame = []; // 게임 시작 시 굴린 사용자 목록 초기화
+            if (window.SoundManager) SoundManager.playLoop('dice_bgm', getDiceSoundEnabled(), 0.3);
             
             // 게임 시작 시 서버에서 받은 게임 기록 초기화
             window.currentGameHistoryFromServer = null;
@@ -5397,9 +4598,12 @@
         socket.on('gameDataCleared', () => {
             historyData = [];
             ordersData = {};
-            
+            isOrderActive = false;
+            OrderModule.setOrdersData(ordersData);
+            OrderModule.setIsOrderActive(false);
+
             renderHistory();
-            renderOrders();
+            OrderModule.renderOrders();
             
             // 게임 룰 초기화
             document.getElementById('gameRulesInput').value = '';
@@ -5464,6 +4668,7 @@
                 // 당첨자 정보 저장
                 if (winners.length > 0) {
                     window.gameWinners = winners;
+                    if (window.SoundManager) SoundManager.playSound('dice_win', getDiceSoundEnabled());
                 }
             };
             
@@ -5478,6 +4683,7 @@
                 isGameActive = false;
                 hasRolledInCurrentGame = false;
                 rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
+                if (window.SoundManager) SoundManager.stopLoop('dice_bgm');
                 
                 // 애니메이션 완료 플래그 초기화 (게임 종료 시)
                 window.lastRollerAnimationComplete = false;
@@ -5752,6 +4958,7 @@
                             // 애니메이션 완료 콜백 함수
                             const onAnimationComplete = () => {
                                 const completeTime = Date.now();
+                                if (window.SoundManager) SoundManager.playSound('dice_result', getDiceSoundEnabled());
                                 addDebugLog(`✅ 애니메이션 완료: user=${record.user}, isLastRoller=${isLastRoller}, time=${new Date(completeTime).toLocaleTimeString()}`, 'animation');
                                 
                                 // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
@@ -5852,6 +5059,7 @@
 
         // 사용자 목록 업데이트
         socket.on('updateUsers', (users) => {
+            if (window.SoundManager) SoundManager.playSound('common_notification', getDiceSoundEnabled());
             // 호스트 상태 확인 및 업데이트
             const myUser = users.find(u => u.name === currentUser);
             if (myUser && myUser.isHost !== isHost) {
@@ -5873,7 +5081,7 @@
             updateHostCheckbox(users);
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 업데이트
             if (isOrderActive) {
-                renderNotOrderedUsers();
+                OrderModule.renderNotOrderedUsers();
             }
         });
 
@@ -6163,8 +5371,8 @@
             });
             
             // 전역 드롭 이벤트 리스너 (준비 섹션 밖에서 드롭되면 취소)
-            if (!document.hasAttribute('data-global-drop-setup')) {
-                document.setAttribute('data-global-drop-setup', 'true');
+            if (!document.documentElement.hasAttribute('data-global-drop-setup')) {
+                document.documentElement.setAttribute('data-global-drop-setup', 'true');
                 
                 document.addEventListener('dragover', (e) => {
                     const source = e.dataTransfer.getData('source');

@@ -1,7 +1,21 @@
 {
   "dice_roll": "assets/sounds/dice/roll.mp3",
+  "dice_result": "assets/sounds/dice/result.mp3",
+  "dice_win": "assets/sounds/dice/win.mp3",
   "roulette_spin": "assets/sounds/roulette/spin.mp3",
   "roulette_stop": "assets/sounds/roulette/stop.mp3",
   "roulette_winner": "assets/sounds/roulette/winner.mp3",
-  "common_button": "assets/sounds/common/button_click.mp3"
+  "horse-race_countdown": "assets/sounds/horse-race/countdown.mp3",
+  "horse-race_gunshot": "assets/sounds/horse-race/gunshot.mp3",
+
+  "horse-race_crowd": "assets/sounds/horse-race/crowd.mp3",
+  "horse-race_finish": "assets/sounds/horse-race/finish.mp3",
+  "horse-race_result": "assets/sounds/horse-race/result.mp3",
+  "common_button": "assets/sounds/common/button_click.mp3",
+  "common_countdown": "assets/sounds/common/countdown.mp3",
+  "common_notification": "assets/sounds/common/notification.mp3",
+  "dice_bgm": "assets/sounds/dice/bgm.mp3",
+  "roulette_bgm": "assets/sounds/roulette/bgm.mp3",
+  "horse-race_bgm": "assets/sounds/horse-race/bgm.mp3",
+  "team_bgm": "assets/sounds/team/bgm.mp3"
 }
