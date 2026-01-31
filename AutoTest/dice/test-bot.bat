@@ -4,9 +4,10 @@ echo 🤖 주사위 게임 테스트 봇 실행 스크립트
 echo ==================================
 echo.
 
-REM 서버가 실행 중인지 확인
+REM 서버가 실행 중인지 확인 (.env PORT 미설정 시 3000)
+if not defined PORT set PORT=3000
 echo 📡 서버 연결 확인 중...
-curl -s http://localhost:3000 >nul 2>&1
+curl -s http://localhost:%PORT% >nul 2>&1
 if %errorlevel% equ 0 (
     echo ✅ 서버가 실행 중입니다.
 ) else (

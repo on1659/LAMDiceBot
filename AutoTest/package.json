@@ -5,7 +5,7 @@
   "main": "test-bot.js",
   "scripts": {
     "test": "node test-bot.js",
-    "test:local": "node test-bot.js --url http://localhost:3000",
+    "test:local": "node roulette/test-bot.js",
     "test:prod": "node test-bot.js --url https://lamdicebot-production.up.railway.app",
     "ui": "node ui-test.js",
     "ui:headless": "node ui-test.js --headless",

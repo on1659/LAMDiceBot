@@ -2,6 +2,10 @@
 chcp 65001 > nul
 title LAMDice AutoTest
 
+:: .env PORT 반영 (미설정 시 3000)
+if not defined PORT set PORT=3000
+set LOCAL_URL=http://localhost:%PORT%
+
 :: 인자가 있으면 직접 실행 모드
 if not "%1"=="" goto args_mode
 
@@ -11,7 +15,7 @@ echo ========================================
 echo   🎰 LAMDice 자동 테스트
 echo ========================================
 echo.
-echo [1] 룰렛 로컬 테스트 (localhost:3000)
+echo [1] 룰렛 로컬 테스트 (localhost:%PORT%)
 echo [2] 룰렛 프로덕션 테스트
 echo [3] 다이스 로컬 테스트
 echo [4] 다이스 프로덕션 테스트
@@ -41,7 +45,7 @@ goto end
 echo.
 echo 🚀 룰렛 로컬 서버 테스트 시작...
 echo.
-node roulette/test-bot.js --url http://localhost:3000
+node roulette/test-bot.js --url %LOCAL_URL%
 pause
 goto end
 
@@ -57,7 +61,7 @@ goto end
 echo.
 echo 🚀 다이스 로컬 서버 테스트 시작...
 echo.
-node dice/dice-test-bot.js --url http://localhost:3000
+node dice/dice-test-bot.js --url %LOCAL_URL%
 pause
 goto end
 
@@ -76,14 +80,14 @@ set /p clients="클라이언트 수 (기본 3): "
 set /p rounds="테스트 라운드 (기본 10): "
 set /p startdelay="시작 딜레이 초 (기본 0): "
 set /p delay="라운드 딜레이 초 (기본 0): "
-set /p url="서버 URL (기본 localhost:3000): "
+set /p url="서버 URL (기본 localhost:%PORT%): "
 
 if "%game%"=="" set game=roulette
 if "%clients%"=="" set clients=3
 if "%rounds%"=="" set rounds=10
 if "%startdelay%"=="" set startdelay=0
 if "%delay%"=="" set delay=0
-if "%url%"=="" set url=http://localhost:3000
+if "%url%"=="" set url=%LOCAL_URL%
 
 echo.
 echo 🚀 커스텀 테스트 시작...
@@ -110,7 +114,7 @@ set clients=3
 set rounds=10
 set startdelay=0
 set delay=0
-set url=http://localhost:3000
+set url=%LOCAL_URL%
 
 :: 인자 파싱
 :parse_args

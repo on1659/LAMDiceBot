@@ -1685,12 +1685,12 @@
             return pattern.test(userId);
         }
         
-        // 디버그 로그 함수 (localhost:3000에서만 활성화)
-        const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
+        // 디버그 로그 함수 (localhost 등 로컬에서만 활성화, 포트 무관)
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
         let debugLogEnabled = isLocalhost;
         const MAX_LOG_LINES = 100;
         
-        // localhost:3000이 아니면 디버그 로그 섹션 숨기기
+        // 로컬이 아니면 디버그 로그 섹션 숨기기
         if (!isLocalhost) {
             const debugLogSection = document.getElementById('debugLogSection');
             if (debugLogSection) {
@@ -2107,6 +2107,9 @@
         let currentUser = '';
         let isHost = false;
         let isGameActive = false;
+        let gameGeneration = 0; // 게임 세대 카운터 (게임 간 애니메이션 플래그 충돌 방지)
+        let gameEndWaitInterval = null; // 게임 종료 대기 인터벌 (전역 관리)
+        let gameEndWaitTimeout = null; // 게임 종료 대기 타임아웃 (전역 관리)
         let isOrderActive = false;
         let ordersData = {};
         let diceMax = 100;
@@ -4470,8 +4473,29 @@
         }
 
         socket.on('gameStarted', (data) => {
-            addDebugLog('🎮 게임 시작 이벤트 수신', 'info');
+            // 가장 먼저 세대 증가 (이전 게임의 processGameEnd가 현재 게임에 영향 주지 않도록)
+            gameGeneration++;
+            const thisGeneration = gameGeneration;
+            console.log('🎮 [DEBUG] gameStarted 이벤트 수신! 새 세대:', thisGeneration, data);
+            
+            // 이전 게임의 대기 중인 인터벌/타임아웃 즉시 정리
+            if (gameEndWaitInterval) {
+                clearInterval(gameEndWaitInterval);
+                gameEndWaitInterval = null;
+                console.log('🧹 [DEBUG] 이전 게임 인터벌 정리됨');
+            }
+            if (gameEndWaitTimeout) {
+                clearTimeout(gameEndWaitTimeout);
+                gameEndWaitTimeout = null;
+                console.log('🧹 [DEBUG] 이전 게임 타임아웃 정리됨');
+            }
+            
+            // 이전 게임 상태 저장 (로그 초기화 전)
+            const prevIsGameActive = isGameActive;
+            
             clearDebugLog(); // 새 게임 시작 시 로그 초기화
+            
+            addDebugLog(`🎮 게임 시작: 세대=${thisGeneration}, 이전isGameActive=${prevIsGameActive}`, 'info');
             
             isGameActive = true;
             hasRolledInCurrentGame = false;
@@ -4489,12 +4513,13 @@
             
             // 게임 시작 시 이전 당첨자 목록 초기화
             lastWinnerKeys = new Set();
-            
+
             // 애니메이션 완료 플래그 초기화
             window.lastRollerAnimationComplete = false;
             window.lastRollerAnimationCompleteTime = null;
+            window._lastRollerAnimationStarted = false;
             addDebugLog('🔄 애니메이션 완료 플래그 초기화', 'info');
-            
+
             // 게임 시작 시 모든 게임 기록 삭제 (이전 게임 기록 포함)
             historyData = historyData.filter(record => record.isGameActive === false);
             
@@ -4513,9 +4538,24 @@
             // 애니메이션 완료 플래그 초기화 (게임 재시작 시 이전 값이 남아있지 않도록)
             window.lastRollerAnimationComplete = false;
             window.lastRollerAnimationCompleteTime = null;
+            window._lastRollerAnimationStarted = false;
             
             // 결과창 표시 플래그 초기화 (새 게임 시작 시)
             window.allRolledMessageShown = false;
+            
+            // 이전 게임의 결과창 DOM 삭제 (두 번째 게임에서 결과창이 표시되도록)
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                const oldResultBanners = Array.from(chatMessages.children).filter(child => {
+                    const titleDiv = child.querySelector('div');
+                    return titleDiv && (
+                        titleDiv.textContent.includes('주사위 다 굴렸습니다') ||
+                        titleDiv.textContent.includes('게임시작')
+                    );
+                });
+                oldResultBanners.forEach(banner => banner.remove());
+                console.log(`🧹 [DEBUG] 이전 결과창 ${oldResultBanners.length}개 삭제됨`);
+            }
             
             // 대기 interval 정리
             if (window.allRolledWaitInterval) {
@@ -4617,6 +4657,12 @@
         });
 
         socket.on('gameEnded', (currentGameHistory) => {
+            console.log('🏁 [DEBUG] gameEnded 이벤트 수신!', 'records:', currentGameHistory?.length, 'gen:', gameGeneration, 'active:', isGameActive);
+            
+            // 디버그: gameEnded 이벤트 수신 로그
+            addDebugLog(`🏁 gameEnded 수신: 기록=${currentGameHistory?.length || 0}개, 세대=${gameGeneration}, isGameActive=${isGameActive}`, 'gameEnd');
+            addDebugLog(`🔍 현재 플래그: lastRollerAnimationComplete=${window.lastRollerAnimationComplete}, _lastRollerAnimationStarted=${window._lastRollerAnimationStarted}`, 'gameEnd');
+            
             // 서버에서 받은 게임 기록을 전역 변수에 저장 (당첨자 계산 시 사용)
             window.currentGameHistoryFromServer = currentGameHistory;
             
@@ -4675,19 +4721,29 @@
             // 당첨자 계산
             calculateAndStoreWinner();
             
+            // 이 gameEnded 이벤트가 발생한 시점의 게임 세대를 캡처
+            const thisGameGeneration = gameGeneration;
+
             // 애니메이션 완료를 기다리는 함수
             const processGameEnd = () => {
-                addDebugLog('🎯 processGameEnd 호출됨', 'gameEnd');
+                addDebugLog(`🎯 processGameEnd 호출됨 (세대: ${thisGameGeneration}, 현재: ${gameGeneration})`, 'gameEnd');
                 addDebugLog(`📊 애니메이션 상태: complete=${window.lastRollerAnimationComplete}, time=${window.lastRollerAnimationCompleteTime ? new Date(window.lastRollerAnimationCompleteTime).toLocaleTimeString() : 'null'}`, 'gameEnd');
-                
+
+                // 이미 새 게임이 시작된 경우 UI 리셋을 건너뜀 (플래그 충돌 방지)
+                if (thisGameGeneration !== gameGeneration) {
+                    addDebugLog(`⚠️ 이미 새 게임(세대 ${gameGeneration})이 시작됨 - processGameEnd 건너뜀 (세대 ${thisGameGeneration})`, 'gameEnd');
+                    return;
+                }
+
                 isGameActive = false;
                 hasRolledInCurrentGame = false;
                 rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
                 if (window.SoundManager) SoundManager.stopLoop('dice_bgm');
-                
+
                 // 애니메이션 완료 플래그 초기화 (게임 종료 시)
                 window.lastRollerAnimationComplete = false;
                 window.lastRollerAnimationCompleteTime = null;
+                window._lastRollerAnimationStarted = false;
                 addDebugLog('🔄 애니메이션 완료 플래그 초기화', 'gameEnd');
                 
                 // 결과창 표시 플래그 초기화 (다음 게임을 위해)
@@ -4770,43 +4826,113 @@
             // 애니메이션 완료를 기다리는 함수
             const waitForAnimation = () => {
                 addDebugLog('🚀 waitForAnimation 시작', 'gameEnd');
-                
+
+                // 이미 processGameEnd가 호출되었는지 추적
+                let gameEndProcessed = false;
+                const safeProcessGameEnd = () => {
+                    if (gameEndProcessed) {
+                        addDebugLog('⚠️ processGameEnd 중복 호출 방지됨', 'gameEnd');
+                        return;
+                    }
+                    gameEndProcessed = true;
+                    processGameEnd();
+                };
+
+                // 즉시 확인용 래퍼
+                const checkAndProcess = () => {
+                    const hasComplete = window.lastRollerAnimationComplete;
+                    const completeTime = window.lastRollerAnimationCompleteTime;
+                    addDebugLog(`🔍 애니메이션 상태 체크: complete=${hasComplete}, time=${completeTime ? new Date(completeTime).toLocaleTimeString() : 'null'}`, 'animation');
+                    if (hasComplete && completeTime) {
+                        addDebugLog(`✅ 애니메이션 완료 조건 만족 - safeProcessGameEnd 호출`, 'gameEnd');
+                        safeProcessGameEnd();
+                        return true;
+                    }
+                    addDebugLog('⏳ 애니메이션이 아직 완료되지 않음', 'animation');
+                    return false;
+                };
+
                 // 즉시 확인
-                if (checkAnimationComplete()) {
+                if (checkAndProcess()) {
                     addDebugLog('✅ 즉시 완료 처리', 'gameEnd');
                     return;
                 }
-                
+
                 let checkCount = 0;
-                // 애니메이션이 진행 중이면 완료될 때까지 대기
-                const waitInterval = setInterval(() => {
+
+                // 이전 인터벌/타임아웃 정리
+                if (gameEndWaitInterval) {
+                    clearInterval(gameEndWaitInterval);
+                    gameEndWaitInterval = null;
+                }
+                if (gameEndWaitTimeout) {
+                    clearTimeout(gameEndWaitTimeout);
+                    gameEndWaitTimeout = null;
+                }
+
+                // 애니메이션이 진행 중이면 완료될 때까지 대기 (전역 변수에 저장)
+                gameEndWaitInterval = setInterval(() => {
+                    // 세대가 변경되었으면 더 이상 체크하지 않음
+                    if (thisGameGeneration !== gameGeneration) {
+                        addDebugLog(`⚠️ 세대 변경 감지 (${thisGameGeneration} → ${gameGeneration}) - 대기 중단`, 'gameEnd');
+                        clearInterval(gameEndWaitInterval);
+                        gameEndWaitInterval = null;
+                        if (gameEndWaitTimeout) {
+                            clearTimeout(gameEndWaitTimeout);
+                            gameEndWaitTimeout = null;
+                        }
+                        return;
+                    }
+
                     checkCount++;
                     if (checkCount % 20 === 0) { // 1초마다 로그 (50ms * 20 = 1000ms)
                         addDebugLog(`🔄 애니메이션 대기 중... (${checkCount * 50}ms 경과)`, 'animation');
                     }
-                    if (checkAnimationComplete()) {
-                        addDebugLog(`✅ 애니메이션 완료 확인 - interval 정리 (총 ${checkCount}회 체크)`, 'gameEnd');
-                        clearInterval(waitInterval);
+                    if (checkAndProcess()) {
+                        addDebugLog(`✅ 애니메이션 완료 확인 - interval/timeout 정리 (총 ${checkCount}회 체크)`, 'gameEnd');
+                        clearInterval(gameEndWaitInterval);
+                        gameEndWaitInterval = null;
+                        if (gameEndWaitTimeout) {
+                            clearTimeout(gameEndWaitTimeout);
+                            gameEndWaitTimeout = null;
+                        }
                     }
                 }, 50); // 50ms마다 확인
-                
-                // 최대 5초 대기 (게임 종료 버튼을 눌렀을 때 빠르게 처리)
-                setTimeout(() => {
+
+                // 최대 5초 대기 (게임 종료 버튼을 눌렀을 때 빠르게 처리, 전역 변수에 저장)
+                gameEndWaitTimeout = setTimeout(() => {
+                    // 세대가 변경되었으면 강제 종료하지 않음
+                    if (thisGameGeneration !== gameGeneration) {
+                        addDebugLog(`⚠️ 세대 변경으로 타임아웃 무시 (${thisGameGeneration} → ${gameGeneration})`, 'gameEnd');
+                        if (gameEndWaitInterval) {
+                            clearInterval(gameEndWaitInterval);
+                            gameEndWaitInterval = null;
+                        }
+                        gameEndWaitTimeout = null;
+                        return;
+                    }
+
                     addDebugLog('⏰ 타임아웃 발생 (5초 경과)', 'warn');
-                    clearInterval(waitInterval);
-                    // 타임아웃이 발생해도 애니메이션이 완료되지 않았으면 강제로 처리
-                    // 하지만 최소한의 대기 시간은 확보
+                    if (gameEndWaitInterval) {
+                        clearInterval(gameEndWaitInterval);
+                        gameEndWaitInterval = null;
+                    }
                     if (!window.lastRollerAnimationComplete) {
                         addDebugLog('⚠️ 애니메이션이 아직 시작되지 않음 - 추가 0.5초 대기', 'warn');
-                        // 애니메이션이 아직 시작되지 않았을 수 있으므로 추가 대기
                         setTimeout(() => {
-                            addDebugLog('⚠️ 강제 processGameEnd 호출 (타임아웃)', 'error');
-                            processGameEnd();
+                            // 추가 대기 후에도 세대 체크
+                            if (thisGameGeneration !== gameGeneration) {
+                                addDebugLog(`⚠️ 세대 변경으로 강제 종료 취소 (${thisGameGeneration} → ${gameGeneration})`, 'gameEnd');
+                                return;
+                            }
+                            addDebugLog('⚠️ 강제 safeProcessGameEnd 호출 (타임아웃)', 'error');
+                            safeProcessGameEnd();
                         }, 500);
                     } else {
-                        addDebugLog('⚠️ 강제 processGameEnd 호출 (타임아웃, 애니메이션 완료됨)', 'warn');
-                        processGameEnd();
+                        addDebugLog('⚠️ 강제 safeProcessGameEnd 호출 (타임아웃, 애니메이션 완료됨)', 'warn');
+                        safeProcessGameEnd();
                     }
+                    gameEndWaitTimeout = null;
                 }, 5000);
             };
             
@@ -4829,6 +4955,12 @@
 
         // 주사위 결과 수신
         socket.on('diceRolled', (record) => {
+            // 디버그: diceRolled 이벤트 수신 로그 (마지막 사람만)
+            if (record.isLastRoller) {
+                console.log('🎲 [DEBUG] 마지막 사람 diceRolled:', record.user, record.result);
+            }
+            addDebugLog(`📥 diceRolled 수신: user=${record.user}, result=${record.result}, isLastRoller=${record.isLastRoller}, 세대=${gameGeneration}`, 'dice');
+            
             // 사운드는 rollDiceWithRange에서 명령어 입력 즉시 재생됨
             // 준비하지 않은 사람인지 확인
             const isNotReady = record.isNotReady === true;
@@ -4836,6 +4968,9 @@
             // 게임 진행 중이면 최초 1회만 기록에 저장 (준비하지 않은 사람 제외)
             const isFirstRollInGame = isGameActive && !rolledUsersInGame.includes(record.user) && !isNotReady;
             const isNotGameActive = !isGameActive;
+            
+            // 디버그: 상태 로그
+            addDebugLog(`📊 상태: isGameActive=${isGameActive}, isFirstRollInGame=${isFirstRollInGame}, rolledUsersInGame=[${rolledUsersInGame.join(',')}]`, 'dice');
             
             // 게임 종료 후에는 연습 기록을 추가하지 않음
             // 연습 기록은 최초 방 입장 시나 게임 데이터 삭제 후에만 추가 가능
@@ -4868,11 +5003,15 @@
             
             // /주사위 명령어 메시지를 찾아서 주사위 결과 추가 및 이름 앞에 디바이스 아이콘 추가
             const chatMessages = document.getElementById('chatMessages');
-            const diceCommandMessages = Array.from(chatMessages.children).filter(div => 
-                div.getAttribute('data-dice-command') === 'true' && 
+            const diceCommandMessages = Array.from(chatMessages.children).filter(div =>
+                div.getAttribute('data-dice-command') === 'true' &&
                 div.getAttribute('data-user-name') === record.user
             );
-            
+
+            if (isLastRoller) {
+                addDebugLog(`🎯 마지막 사람 diceRolled: user=${record.user}, diceCommandMessages=${diceCommandMessages.length}, shouldSaveToHistory=${shouldSaveToHistory}, isGameActive=${isGameActive}`, 'animation');
+            }
+
             // 주사위 결과는 항상 표시하되, 기록에 저장되는 경우에만 아이콘 표시
             if (diceCommandMessages.length > 0) {
                 // 마지막 /주사위 메시지를 찾아서 결과 추가
@@ -4932,6 +5071,11 @@
                         // shouldSaveToHistory가 false여도 애니메이션 플래그가 있으면 재생
                         const shouldAnimate = (shouldSaveToHistory && !isNotReady) || (hasSpecialAnimation && !isNotReady && isGameActive);
                         
+                        // 디버그: 애니메이션 조건 로그
+                        if (isLastRoller) {
+                            addDebugLog(`🔍 애니메이션 조건: shouldAnimate=${shouldAnimate}, shouldSaveToHistory=${shouldSaveToHistory}, isGameActive=${isGameActive}`, 'animation');
+                        }
+                        
                         // 초기 스타일 설정
                         if (shouldSaveToHistory && !isNotReady) {
                             diceResultSpan.style.cssText = 'font-weight: 600; color: #333;';
@@ -4951,6 +5095,7 @@
                                 addDebugLog(`🔄 마지막 사람 애니메이션 시작 - 이전 완료 플래그 리셋`, 'animation');
                                 window.lastRollerAnimationComplete = false;
                                 window.lastRollerAnimationCompleteTime = null;
+                                window._lastRollerAnimationStarted = true;
                             }
                             
                             addDebugLog(`🎬 애니메이션 시작: user=${record.user}, result=${finalResult}, isLastRoller=${isLastRoller}`, 'animation');
@@ -4995,25 +5140,36 @@
                             }
                         } else {
                             // 애니메이션 없이 바로 최종 숫자 표시
+                            if (isLastRoller) {
+                                addDebugLog(`⚠️ 마지막 사람이지만 애니메이션 조건 불만족 - 즉시 숫자 표시`, 'warn');
+                            }
                             diceResultSpan.textContent = diceIcon + finalResult;
                         }
                     }
                 }
             }
             
+            // 안전장치: 마지막 사람인데 애니메이션이 시작되지 않은 경우 (DOM 미발견, 기존 결과 존재 등)
+            // lastRollerAnimationComplete 플래그를 즉시 설정하여 게임 종료가 진행되도록 함
+            if (isLastRoller && isGameActive && !window.lastRollerAnimationComplete && !window._lastRollerAnimationStarted) {
+                addDebugLog(`⚠️ 안전장치 발동: isGameActive=${isGameActive}, lastRollerAnimationComplete=${window.lastRollerAnimationComplete}, _started=${window._lastRollerAnimationStarted}`, 'warn');
+                window.lastRollerAnimationComplete = true;
+                window.lastRollerAnimationCompleteTime = Date.now();
+            }
+
             if (record.user === currentUser) {
                 // 주사위는 자유롭게 굴릴 수 있음 (hasRolledInCurrentGame 사용 안함)
-                
+
                 if (diceAnimationInterval) {
                     clearInterval(diceAnimationInterval);
                     diceAnimationInterval = null;
                 }
 
                 // 주사위 UI가 제거되어 결과는 게임 기록에서만 확인 가능
-                
+
                 // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             }
-            
+
             renderHistory();
         });
 
@@ -5712,20 +5868,14 @@
                 }
                 
                 if (isAllRolledMessage) {
-                    // 전역 플래그로 중복 호출 방지
+                    // 전역 플래그로 중복 호출 방지 (gameStarted에서 초기화됨)
                     if (window.allRolledMessageShown) {
+                        console.log('⚠️ [DEBUG] allRolledMessageShown=true, 결과창 표시 건너뜀');
                         return; // 이미 표시됨
                     }
                     
-                    // 이미 채팅에 결과창이 있는지 확인
-                    const existingResultMessage = Array.from(chatMessages.children).find(child => {
-                        const titleDiv = child.querySelector('div');
-                        return titleDiv && titleDiv.textContent.includes('주사위 다 굴렸습니다');
-                    });
-                    
-                    if (existingResultMessage) {
-                        return; // 이미 결과창이 있음
-                    }
+                    // DOM 체크 제거 - gameStarted에서 이전 결과창을 삭제하므로 불필요
+                    // 플래그만으로 중복 방지
                     
                     // 전역 플래그 설정
                     window.allRolledMessageShown = true;

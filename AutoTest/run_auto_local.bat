@@ -1,8 +1,9 @@
 @echo off
 chcp 65001 > nul
 
-REM ========== 설정 ==========
-set TEST_URL=http://localhost:3000
+REM ========== 설정 (.env PORT 미설정 시 3000) ==========
+if not defined PORT set PORT=3000
+set TEST_URL=http://localhost:%PORT%
 set CLIENT_COUNT=4
 set TEST_COUNT=5
 

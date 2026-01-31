@@ -1,8 +1,10 @@
 const io = require('socket.io-client');
+const path = require('path');
+const { BASE_URL } = require(path.join(__dirname, '..', '..', 'config.js'));
 
 // 봇 설정
 const BOT_CONFIG = {
-    serverUrl: 'http://localhost:3000', // 서버 URL
+    serverUrl: BASE_URL, // 서버 URL (.env의 PORT 적용)
     botCount: 16, // 생성할 봇 개수
     botNamePrefix: '봇', // 봇 이름 접두사
     roomName: '테스트 방', // 테스트할 방 이름

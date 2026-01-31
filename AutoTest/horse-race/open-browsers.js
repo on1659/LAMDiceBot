@@ -6,9 +6,11 @@
  */
 
 const { chromium } = require('playwright');
+const path = require('path');
+const { BASE_URL } = require(path.join(__dirname, '..', '..', 'config.js'));
 
 const CONFIG = {
-    serverUrl: 'http://localhost:3000',
+    serverUrl: BASE_URL,
     roomName: 'test',
     browserCount: 7
 };

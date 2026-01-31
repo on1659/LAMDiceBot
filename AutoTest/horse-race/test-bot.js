@@ -12,9 +12,10 @@
 
 const { io } = require('socket.io-client');
 const path = require('path');
+const { BASE_URL } = require(path.join(__dirname, '..', '..', 'config.js'));
 
 const CONFIG = {
-    serverUrl: 'http://localhost:3000',
+    serverUrl: BASE_URL,
     botCount: 5,
     roomName: `경마봇방_${Date.now()}`,
     targetRoomName: null, // 기존 방 이름 (지정 시 방 생성 안 함)

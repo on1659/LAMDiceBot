@@ -59,7 +59,7 @@
             if (!path) return;
             var src = path.charAt(0) === '/' ? path : '/' + path;
             var audio = new Audio(src);
-            audio.play().catch(function () {});
+            audio.play().catch(function (e) { console.warn('[SoundManager] playSound failed:', key, e.message); });
         });
     }
 
@@ -82,7 +82,7 @@
             var audio = new Audio(src);
             audio.loop = true;
             audio.volume = typeof volume === 'number' ? volume : 1.0;
-            audio.play().catch(function () {});
+            audio.play().catch(function (e) { console.warn('[SoundManager] playLoop failed:', key, e.message); });
             activeLoops[key] = audio;
         });
     }

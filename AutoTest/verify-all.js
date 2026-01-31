@@ -12,10 +12,11 @@ const path = require('path');
 const { io } = require('socket.io-client');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const { PORT, BASE_URL } = require(path.join(PROJECT_ROOT, 'config.js'));
 const SERVER_SCRIPT = path.join(PROJECT_ROOT, 'server.js');
 const SERVER_START_TIMEOUT_MS = 8000;
 const SOCKET_CONNECT_TIMEOUT_MS = 5000;
-const DEFAULT_URL = 'http://localhost:3000';
+const DEFAULT_URL = BASE_URL;
 
 const results = {
   codeQuality: { passed: false, message: '' },
@@ -71,7 +72,7 @@ function runServerAndSocketTest() {
     serverProcess = spawn(process.execPath, [SERVER_SCRIPT], {
       cwd: PROJECT_ROOT,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PORT: process.env.PORT || '3000' },
+      env: { ...process.env, PORT: String(PORT) },
       shell: isWindows,
     });
 
@@ -107,7 +108,7 @@ function runServerAndSocketTest() {
     // 서버가 listening 될 때까지 대기 (stdout에 "listening" 또는 포트 메시지)
     const checkListening = () => {
       const out = (stdout + stderr).toLowerCase();
-      if (out.includes('listening') || out.includes('3000') || out.includes('port')) {
+      if (out.includes('listening') || out.includes(String(PORT)) || out.includes('port')) {
         results.serverStart = { passed: true, message: '서버 기동 성공' };
         log('2. 서버 기동: 통과');
         trySocketConnect(killServer, fail, resolve);

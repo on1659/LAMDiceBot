@@ -7,7 +7,7 @@ class GeminiService {
     constructor() {
         this.apiKey = process.env.GOOGLE_API_KEY;
         if (!this.apiKey) {
-            console.error('Warning: GOOGLE_API_KEY is not set in environment variables.');
+            console.warn('ℹ️  GOOGLE_API_KEY가 없습니다. .env에 설정하면 Gemini AI 기능을 사용할 수 있습니다.');
         }
         this.genAI = new GoogleGenerativeAI(this.apiKey);
         // Use gemini-2.0-flash which is available for this API key

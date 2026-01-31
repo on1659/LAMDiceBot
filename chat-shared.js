@@ -25,20 +25,32 @@ const ChatModule = (function () {
         }
     }
 
-    // 이모지 설정 로드
+    // 이모지 설정 로드 (API = JSON+DB 병합, 실패 시 JSON 파일)
     async function loadEmojiConfig() {
+        try {
+            const response = await fetch('/api/emoji-config');
+            if (response.ok) {
+                const config = await response.json();
+                if (config && typeof config === 'object') {
+                    emojiConfig = config;
+                    console.log('이모티콘 설정 로드 완료 (API):', emojiConfig);
+                    updateExistingChatEmojis();
+                    return;
+                }
+            }
+        } catch (e) { /* API 실패 시 파일로 폴백 */ }
         try {
             const response = await fetch('emoji-config.json');
             if (response.ok) {
                 const config = await response.json();
                 emojiConfig = config;
-                console.log('이모티콘 설정 로드 완료:', emojiConfig);
+                console.log('이모티콘 설정 로드 완료 (파일):', emojiConfig);
                 updateExistingChatEmojis();
             } else {
                 console.warn('이모티콘 설정 파일을 찾을 수 없습니다. 기본 설정을 사용합니다.');
             }
         } catch (error) {
-            console.warn('이모티콘 설정 파일 로드 실패:', error, '기본 설정을 사용합니다.');
+            console.warn('이모티콘 설정 로드 실패:', error, '기본 설정을 사용합니다.');
         }
     }
 
@@ -60,6 +72,14 @@ const ChatModule = (function () {
                     const btn = createHoverReactionButton(emoji, msgIdx);
                     hoverReactions.appendChild(btn);
                 });
+                const addBtn = document.createElement('button');
+                addBtn.type = 'button';
+                addBtn.className = 'reaction-button hover add-emoji-btn';
+                addBtn.textContent = '+';
+                addBtn.title = '이모지 등록';
+                addBtn.style.cssText = 'width:16px;height:16px;border-radius:50%;background:#667eea;border:1px solid #5568d3;color:white;font-size:14px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;';
+                addBtn.onclick = (e) => { e.stopPropagation(); showAddEmojiModal(); };
+                hoverReactions.appendChild(addBtn);
             }
         });
     }
@@ -129,6 +149,74 @@ const ChatModule = (function () {
         return reactionBtn;
     }
 
+    // 이모지 등록 모달 표시 (API로 DB 저장)
+    function showAddEmojiModal() {
+        const overlay = document.createElement('div');
+        overlay.id = 'addEmojiModalOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:#fff;border-radius:12px;padding:20px;min-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.2);';
+        modal.innerHTML = `
+            <div style="font-weight:600;margin-bottom:12px;">이모지 등록</div>
+            <div style="margin-bottom:10px;">
+                <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">이모지 (1개)</label>
+                <input type="text" id="addEmojiInput" maxlength="8" placeholder="예: 😀" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;" />
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">설명 (선택)</label>
+                <input type="text" id="addEmojiLabel" placeholder="예: 웃음" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;" />
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" id="addEmojiCancel" style="padding:8px 14px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;">취소</button>
+                <button type="button" id="addEmojiSubmit" style="padding:8px 14px;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer;">등록</button>
+            </div>
+            <div id="addEmojiError" style="font-size:12px;color:#c00;margin-top:8px;display:none;"></div>
+        `;
+        overlay.appendChild(modal);
+
+        function close() {
+            overlay.remove();
+        }
+
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        modal.querySelector('#addEmojiCancel').addEventListener('click', close);
+
+        modal.querySelector('#addEmojiSubmit').addEventListener('click', async () => {
+            const emojiInput = document.getElementById('addEmojiInput');
+            const labelInput = document.getElementById('addEmojiLabel');
+            const errEl = document.getElementById('addEmojiError');
+            const emoji_key = (emojiInput.value || '').trim();
+            if (!emoji_key) {
+                errEl.textContent = '이모지를 입력해 주세요.';
+                errEl.style.display = 'block';
+                return;
+            }
+            errEl.style.display = 'none';
+            try {
+                const res = await fetch('/api/emoji-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emoji_key, label: (labelInput.value || '').trim() || emoji_key })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    errEl.textContent = data.error || '등록에 실패했습니다.';
+                    errEl.style.display = 'block';
+                    return;
+                }
+                emojiConfig = data;
+                updateExistingChatEmojis();
+                close();
+            } catch (e) {
+                errEl.textContent = '네트워크 오류입니다.';
+                errEl.style.display = 'block';
+            }
+        });
+
+        document.body.appendChild(overlay);
+        document.getElementById('addEmojiInput').focus();
+    }
+
     // 반응 영역 (active + hover) 생성
     function createReactionsArea(reactions, messageIndex) {
         const defaultEmojis = Object.keys(emojiConfig);
@@ -156,6 +244,31 @@ const ChatModule = (function () {
             if (hasReaction) return;
             hoverReactionsDiv.appendChild(createHoverReactionButton(emoji, messageIndex));
         });
+
+        // 이모지 등록 + 버튼
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'reaction-button hover add-emoji-btn';
+        addBtn.textContent = '+';
+        addBtn.title = '이모지 등록';
+        addBtn.style.cssText = `
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            border: 1px solid #5568d3;
+            color: white;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: all 0.2s;
+            vertical-align: middle;
+        `;
+        addBtn.onclick = (e) => { e.stopPropagation(); showAddEmojiModal(); };
+        hoverReactionsDiv.appendChild(addBtn);
 
         return { activeReactionsDiv, hoverReactionsDiv };
     }
@@ -384,13 +497,13 @@ const ChatModule = (function () {
 
         // /주사위 명령어 처리
         if (message.startsWith('/주사위')) {
+            // 서버로 채팅 메시지 먼저 전송 (newMessage가 diceRolled보다 먼저 도착해야 UI에 결과 추가 가능)
+            _socket.emit('sendMessage', { message: message });
+            chatInput.value = '';
             if (_options.onDiceRoll) {
                 // dice 게임: 클라이언트 애니메이션 사용
                 handleDiceCommand(message);
             }
-            // 서버로 전송 (non-dice 게임은 서버가 diceResult 추가)
-            _socket.emit('sendMessage', { message: message });
-            chatInput.value = '';
             scrollToBottom();
             return;
         }

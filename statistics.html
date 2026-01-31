@@ -112,9 +112,26 @@
         </div>
 
         <div class="section">
+            <h2>📋 메뉴 자동완성 / 이모지</h2>
+            <div id="menuEmojiStats" class="stat-grid">
+                <div class="stat-card">
+                    <div class="label">메뉴 자동완성</div>
+                    <div class="value" id="frequentMenusTotal">-</div>
+                    <div class="label" style="font-size: 0.8em; margin-top: 4px;" id="frequentMenusDetail">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">이모지</div>
+                    <div class="value" id="emojiTotal">-</div>
+                    <div class="label" style="font-size: 0.8em; margin-top: 4px;" id="emojiDetail">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
             <h2>🕐 최근 게임 기록 (최대 50건)</h2>
             <div id="recentWrap">
                 <p class="loading" id="recentLoading">불러오는 중...</p>
+                <p id="recentEmpty" style="display: none; color: #666;">최근 게임 기록이 없습니다.</p>
                 <table class="game-table recent-table" id="recentTable" style="display: none;">
                     <thead>
                         <tr>
@@ -156,7 +173,7 @@
                 document.getElementById('gameStatsLoading').style.display = 'none';
                 document.getElementById('gameStatsTable').style.display = 'table';
 
-                const recent = data.recentPlays || [];
+                const recent = Array.isArray(data.recentPlays) ? data.recentPlays : [];
                 const rbody = document.getElementById('recentBody');
                 rbody.innerHTML = '';
                 recent.forEach(row => {
@@ -166,7 +183,16 @@
                     rbody.appendChild(tr);
                 });
                 document.getElementById('recentLoading').style.display = 'none';
+                document.getElementById('recentEmpty').style.display = recent.length ? 'none' : 'block';
                 document.getElementById('recentTable').style.display = recent.length ? 'table' : 'none';
+
+                const fm = data.frequentMenus || { total: 0, baseCount: 0, serverCount: 0 };
+                document.getElementById('frequentMenusTotal').textContent = fm.total + '개';
+                document.getElementById('frequentMenusDetail').textContent = '기본 ' + (fm.baseCount || 0) + '개' + (fm.serverCount > 0 ? ' + 서버 추가 ' + fm.serverCount + '개' : '');
+
+                const em = data.emoji || { total: 0, baseCount: 0, serverCount: 0 };
+                document.getElementById('emojiTotal').textContent = em.total + '개';
+                document.getElementById('emojiDetail').textContent = '기본 ' + (em.baseCount || 0) + '개' + (em.serverCount > 0 ? ' + 서버 추가 ' + em.serverCount + '개' : '');
             })
             .catch(err => {
                 document.getElementById('todayVisitors').textContent = '-';

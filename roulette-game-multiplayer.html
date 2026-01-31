@@ -1232,12 +1232,12 @@
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>
     <script>
-        // 디버그 로그 함수 (localhost:3000에서만 활성화)
-        const isLocalhost = window.location.hostname === 'localhost' && window.location.port === '3000';
+        // 디버그 로그 함수 (localhost 등 로컬에서만 활성화, 포트 무관)
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
         let debugLogEnabled = isLocalhost;
         const MAX_LOG_LINES = 100;
         
-        // localhost:3000이 아니면 디버그 로그 섹션 숨기기
+        // 로컬이 아니면 디버그 로그 섹션 숨기기
         if (!isLocalhost) {
             const debugLogSection = document.getElementById('debugLogSection');
             if (debugLogSection) {

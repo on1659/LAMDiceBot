@@ -17,10 +17,11 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const { BASE_URL } = require(path.join(__dirname, '..', '..', 'config.js'));
 
 // ========== 설정 ==========
 const CONFIG = {
-    serverUrl: 'http://localhost:3000',
+    serverUrl: BASE_URL,
     testRounds: 5,
     headless: false,
     slowMo: 0,  // 디버깅용 딜레이 (ms)

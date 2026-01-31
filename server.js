@@ -1,4 +1,4 @@
-require('dotenv').config();
+const { PORT } = require('./config');
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -27,25 +27,32 @@ const io = socketIo(server, {
     pingInterval: 25000
 });
 
-const PORT = process.env.PORT || 3000;
-
 // Rate Limiting 설정 - HTTP 요청 제한
+const RATE_WINDOW_MS = 1 * 60 * 1000; // 1분
+const RATE_MAX = 100;
 const limiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1분
-    max: 100, // 1분에 최대 100 요청
+    windowMs: RATE_WINDOW_MS,
+    max: RATE_MAX,
     message: '너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.',
     standardHeaders: true,
     legacyHeaders: false,
 });
-
+console.log('ℹ️  Rate Limiting 설정 완료:', RATE_WINDOW_MS, 'ms 윈도우,', RATE_MAX, '회/분');
 // 모든 요청에 rate limiting 적용
 app.use(limiter);
 
 // JSON 파싱 미들웨어
 app.use(express.json());
 
+// 서버 식별자 (추후 멀티 서버 시 서버별 데이터 분리용, 기본값 'default')
+function getServerId() {
+    return process.env.SERVER_ID || 'default';
+}
+
 // 메뉴 파일 경로
 const MENUS_FILE = path.join(__dirname, 'frequentMenus.json');
+// 이모지 설정 파일 경로 (공통 기본값)
+const EMOJI_CONFIG_FILE = path.join(__dirname, 'emoji-config.json');
 
 // 게시판 파일 경로 (Postgres 사용 시 백업용)
 const BOARD_FILE = path.join(__dirname, 'suggestions.json');
@@ -126,13 +133,42 @@ async function initDatabase() {
             CREATE INDEX IF NOT EXISTS idx_game_records_played_at ON game_records(played_at DESC)
         `);
         
+        // 자주 쓰는 메뉴 (서버별 추가분, JSON = 공통 기본)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS frequent_menus (
+                id SERIAL PRIMARY KEY,
+                server_id VARCHAR(50) NOT NULL DEFAULT 'default',
+                menu_text VARCHAR(200) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(server_id, menu_text)
+            )
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_frequent_menus_server ON frequent_menus(server_id)
+        `);
+        
+        // 이모지 설정 (서버별 추가분, JSON = 공통 기본)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS emoji_config (
+                id SERIAL PRIMARY KEY,
+                server_id VARCHAR(50) NOT NULL DEFAULT 'default',
+                emoji_key VARCHAR(20) NOT NULL,
+                label VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(server_id, emoji_key)
+            )
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_emoji_config_server ON emoji_config(server_id)
+        `);
+        
         await loadVisitorStatsFromDB();
         await loadPlayStatsFromDB();
         
         console.log('✅ 데이터베이스 테이블 초기화 완료');
     } catch (error) {
-        console.error('❌ 데이터베이스 초기화 오류:', error.message || error);
-        console.log('⚠️  Postgres 연결 실패 — 방문자/플레이 통계는 DB 연결 시에만 유지됩니다.');
+        const msg = error && (error.message || String(error));
+        console.warn('⚠️  Postgres 연결 실패 — 파일 시스템으로 진행합니다.', msg.includes('ECONNREFUSED') ? '(로컬에 DB 없음 또는 DATABASE_URL 확인)' : msg);
         pool = null;
     }
 }
@@ -301,21 +337,38 @@ async function deleteSuggestion(id, password) {
     }
 }
 
-// 자주 쓰는 메뉴 목록 로드
+// 자주 쓰는 메뉴 목록 로드 (JSON 파일만, 모든 서버 공통)
 function loadFrequentMenus() {
     try {
         if (fs.existsSync(MENUS_FILE)) {
             const data = fs.readFileSync(MENUS_FILE, 'utf8');
-            return JSON.parse(data);
+            const parsed = JSON.parse(data);
+            return Array.isArray(parsed) ? parsed : [];
         }
     } catch (error) {
         console.error('메뉴 파일 읽기 오류:', error);
     }
-    // 기본 메뉴 목록
     return ['오초', '오고', '하늘보리', '트레비', '핫식스', '500', '콘', '오쿠', '헛개', '제콜', '펩제', '제사', '비타병', '아제'];
 }
 
-// 자주 쓰는 메뉴 목록 저장
+// JSON(공통) + DB(서버별) 합친 메뉴 목록 반환
+async function getMergedFrequentMenus(serverId) {
+    const base = loadFrequentMenus();
+    if (!pool || !serverId) return base;
+    try {
+        const res = await pool.query(
+            'SELECT menu_text FROM frequent_menus WHERE server_id = $1 ORDER BY id',
+            [serverId]
+        );
+        const fromDb = (res.rows || []).map(r => r.menu_text).filter(m => !base.includes(m));
+        return [...base, ...fromDb];
+    } catch (e) {
+        console.warn('frequent_menus 조회:', e.message);
+        return base;
+    }
+}
+
+// 자주 쓰는 메뉴 목록 저장 (파일만, DB 없을 때 전체 목록 덮어쓰기)
 function saveFrequentMenus(menus) {
     try {
         fs.writeFileSync(MENUS_FILE, JSON.stringify(menus, null, 2), 'utf8');
@@ -323,6 +376,40 @@ function saveFrequentMenus(menus) {
     } catch (error) {
         console.error('메뉴 파일 쓰기 오류:', error);
         return false;
+    }
+}
+
+// 이모지 설정 로드 (JSON 파일만, 모든 서버 공통)
+function loadEmojiConfigBase() {
+    try {
+        if (fs.existsSync(EMOJI_CONFIG_FILE)) {
+            const data = fs.readFileSync(EMOJI_CONFIG_FILE, 'utf8');
+            const parsed = JSON.parse(data);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        }
+    } catch (error) {
+        console.error('이모지 설정 파일 읽기 오류:', error);
+    }
+    return { '❤️': '좋아요', '👍': '따봉', '😢': '슬퍼요', '🎉': '축하해요', '🔥': '핫해요' };
+}
+
+// JSON(공통) + DB(서버별) 합친 이모지 설정 반환 (키: 이모지, 값: 라벨)
+async function getMergedEmojiConfig(serverId) {
+    const base = loadEmojiConfigBase();
+    if (!pool || !serverId) return base;
+    try {
+        const res = await pool.query(
+            'SELECT emoji_key, label FROM emoji_config WHERE server_id = $1 ORDER BY id',
+            [serverId]
+        );
+        const merged = { ...base };
+        (res.rows || []).forEach(row => {
+            if (row.emoji_key) merged[row.emoji_key] = row.label || row.emoji_key;
+        });
+        return merged;
+    } catch (e) {
+        console.warn('emoji_config 조회:', e.message);
+        return base;
     }
 }
 
@@ -342,6 +429,9 @@ let playTotalCount = 0;
 // 게임별 통계 (DB 없을 때는 메모리만, API에서 반환)
 const DEFAULT_GAME_STATS = () => ({ dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } });
 let gameStatsByType = DEFAULT_GAME_STATS();
+// 최근 게임 기록 (DB 없을 때 메모리, 최대 50건)
+const RECENT_PLAYS_MAX = 50;
+let recentPlaysList = [];
 
 function loadVisitorStats() {
     // DB 사용 시 initDatabase()에서 loadVisitorStatsFromDB() 호출. 파일 폴백 없음.
@@ -442,6 +532,8 @@ function recordGamePlay(gameType, participantCount) {
         if (!gameStatsByType[key]) gameStatsByType[key] = { count: 0, totalParticipants: 0 };
         gameStatsByType[key].count += 1;
         gameStatsByType[key].totalParticipants += Math.max(1, participantCount);
+        recentPlaysList.unshift({ gameType: key, participantCount: Math.max(1, participantCount), playedAt: new Date().toISOString() });
+        recentPlaysList = recentPlaysList.slice(0, RECENT_PLAYS_MAX);
     }
 }
 
@@ -547,6 +639,41 @@ app.get('/roulette', (req, res) => {
     res.sendFile(path.join(__dirname, 'roulette-game-multiplayer.html'));
 });
 
+// 이모지 설정 API (JSON 공통 + DB 서버별 병합)
+app.get('/api/emoji-config', async (req, res) => {
+    try {
+        const serverId = getServerId();
+        const config = await getMergedEmojiConfig(serverId);
+        res.json(config);
+    } catch (e) {
+        console.error('이모지 설정 API 오류:', e);
+        res.status(500).json(loadEmojiConfigBase());
+    }
+});
+
+// 이모지 추가 (서버별 DB에만 저장)
+app.post('/api/emoji-config', async (req, res) => {
+    try {
+        const { emoji_key: emojiKey, label } = req.body || {};
+        if (!emojiKey || typeof emojiKey !== 'string' || emojiKey.trim().length === 0) {
+            return res.status(400).json({ error: 'emoji_key가 필요합니다.' });
+        }
+        const serverId = getServerId();
+        if (!pool) {
+            return res.status(503).json({ error: 'DB가 연결되지 않아 서버별 이모지를 추가할 수 없습니다.' });
+        }
+        await pool.query(
+            'INSERT INTO emoji_config (server_id, emoji_key, label) VALUES ($1, $2, $3) ON CONFLICT (server_id, emoji_key) DO UPDATE SET label = EXCLUDED.label',
+            [serverId, emojiKey.trim(), (label && String(label).trim()) || emojiKey.trim()]
+        );
+        const config = await getMergedEmojiConfig(serverId);
+        res.json(config);
+    } catch (e) {
+        console.error('이모지 추가 오류:', e);
+        res.status(500).json({ error: '이모지 추가 중 오류가 발생했습니다.' });
+    }
+});
+
 // 통계 API (방문자 + 게임 기록)
 app.get('/api/statistics', async (req, res) => {
     try {
@@ -555,39 +682,82 @@ app.get('/api/statistics', async (req, res) => {
         let gameStats = { ...defaultGameStats };
         let recentPlays = [];
         if (pool) {
-            const summary = await pool.query(`
-                SELECT game_type, COUNT(*) AS play_count, COALESCE(SUM(participant_count), 0)::bigint AS total_participants
-                FROM game_records
-                GROUP BY game_type
-            `);
-            summary.rows.forEach(row => {
-                const key = row.game_type || 'dice';
-                if (!gameStats[key]) gameStats[key] = { count: 0, totalParticipants: 0 };
-                gameStats[key].count = parseInt(row.play_count, 10) || 0;
-                gameStats[key].totalParticipants = parseInt(row.total_participants, 10) || 0;
-            });
-            const recent = await pool.query(`
-                SELECT game_type, participant_count, played_at
-                FROM game_records
-                ORDER BY played_at DESC
-                LIMIT 50
-            `);
-            recentPlays = recent.rows.map(row => ({
-                gameType: row.game_type,
-                participantCount: row.participant_count,
-                playedAt: row.played_at ? new Date(row.played_at).toISOString() : null
-            }));
+            try {
+                const summary = await pool.query(`
+                    SELECT game_type, COUNT(*) AS play_count, COALESCE(SUM(participant_count), 0)::bigint AS total_participants
+                    FROM game_records
+                    GROUP BY game_type
+                `);
+                summary.rows.forEach(row => {
+                    const key = row.game_type || 'dice';
+                    if (!gameStats[key]) gameStats[key] = { count: 0, totalParticipants: 0 };
+                    gameStats[key].count = parseInt(row.play_count, 10) || 0;
+                    gameStats[key].totalParticipants = parseInt(row.total_participants, 10) || 0;
+                });
+                try {
+                    const recent = await pool.query(`
+                        SELECT game_type, participant_count, played_at
+                        FROM game_records
+                        ORDER BY played_at DESC NULLS LAST
+                        LIMIT 50
+                    `);
+                    recentPlays = (recent.rows || []).map(row => ({
+                        gameType: row.game_type,
+                        participantCount: row.participant_count,
+                        playedAt: row.played_at ? new Date(row.played_at).toISOString() : null
+                    }));
+                } catch (recentErr) {
+                    const fallback = await pool.query(`
+                        SELECT id, game_type, participant_count
+                        FROM game_records
+                        ORDER BY id DESC
+                        LIMIT 50
+                    `);
+                    recentPlays = (fallback.rows || []).map(row => ({
+                        gameType: row.game_type,
+                        participantCount: row.participant_count,
+                        playedAt: null
+                    }));
+                }
+            } catch (dbErr) {
+                console.warn('통계 DB 조회:', dbErr.message);
+                recentPlays = [];
+            }
         } else {
             Object.keys(defaultGameStats).forEach(k => {
                 if (gameStatsByType[k]) gameStats[k] = { count: gameStatsByType[k].count, totalParticipants: gameStatsByType[k].totalParticipants };
             });
+            recentPlays = recentPlaysList.map(p => ({ gameType: p.gameType, participantCount: p.participantCount, playedAt: p.playedAt || null }));
         }
+
+        const serverId = getServerId();
+        const frequentMenusBase = loadFrequentMenus();
+        const mergedMenus = await getMergedFrequentMenus(serverId);
+        let frequentMenusServerCount = 0;
+        if (pool) {
+            try {
+                const r = await pool.query('SELECT COUNT(*) AS cnt FROM frequent_menus WHERE server_id = $1', [serverId]);
+                frequentMenusServerCount = parseInt(r.rows[0]?.cnt, 10) || 0;
+            } catch (_) {}
+        }
+        const emojiBase = loadEmojiConfigBase();
+        const mergedEmoji = await getMergedEmojiConfig(serverId);
+        let emojiServerCount = 0;
+        if (pool) {
+            try {
+                const r = await pool.query('SELECT COUNT(*) AS cnt FROM emoji_config WHERE server_id = $1', [serverId]);
+                emojiServerCount = parseInt(r.rows[0]?.cnt, 10) || 0;
+            } catch (_) {}
+        }
+
         res.json({
             todayVisitors: visitorStats.todayVisitors,
             todayPlays: visitorStats.todayPlays,
             totalPlays: visitorStats.totalPlays,
             gameStats,
-            recentPlays
+            recentPlays,
+            frequentMenus: { total: mergedMenus.length, baseCount: frequentMenusBase.length, serverCount: frequentMenusServerCount },
+            emoji: { total: Object.keys(mergedEmoji).length, baseCount: Object.keys(emojiBase).length, serverCount: emojiServerCount }
         });
     } catch (e) {
         console.error('통계 API 오류:', e);
@@ -1161,6 +1331,7 @@ io.on('connection', (socket) => {
         // 터보 애니메이션 옵션 검증 (기본값: true)
         const validTurboAnimation = turboAnimation !== false;
         
+        const gameStateNew = createRoomGameState();
         rooms[roomId] = {
             roomId,
             hostId: socket.id,
@@ -1172,17 +1343,18 @@ io.on('connection', (socket) => {
             expiryHours: validExpiryHours, // 방 유지 시간 추가 (시간 단위)
             blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
             turboAnimation: validTurboAnimation, // 터보 애니메이션 (다양한 마무리 효과)
-            gameState: createRoomGameState(),
+            gameState: gameStateNew,
             createdAt: new Date()
         };
+        
+        const room = rooms[roomId];
+        const gameState = room.gameState;
+        gameState.frequentMenus = await getMergedFrequentMenus(getServerId());
         
         // 방 입장
         socket.currentRoomId = roomId;
         socket.userName = userName.trim();
         socket.isHost = true;
-        
-        const room = rooms[roomId];
-        const gameState = room.gameState;
         
         const user = {
             id: socket.id,
@@ -2517,7 +2689,7 @@ io.on('connection', (socket) => {
     });
 
     // 자주 쓰는 메뉴 추가
-    socket.on('addFrequentMenu', (data) => {
+    socket.on('addFrequentMenu', async (data) => {
         if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
@@ -2543,23 +2715,34 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 메뉴 추가
-        gameState.frequentMenus.push(menuTrimmed);
-        
-        // 파일에 저장
-        if (saveFrequentMenus(gameState.frequentMenus)) {
-            // 같은 방의 모든 클라이언트에게 업데이트된 메뉴 목록 전송
-            io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
-            console.log(`방 ${room.roomName} 메뉴 추가:`, menuTrimmed);
+        const serverId = getServerId();
+        if (pool) {
+            try {
+                await pool.query(
+                    'INSERT INTO frequent_menus (server_id, menu_text) VALUES ($1, $2) ON CONFLICT (server_id, menu_text) DO NOTHING',
+                    [serverId, menuTrimmed]
+                );
+                gameState.frequentMenus.push(menuTrimmed);
+                io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
+                console.log(`방 ${room.roomName} 메뉴 추가:`, menuTrimmed);
+            } catch (e) {
+                console.warn('frequent_menus insert:', e.message);
+                socket.emit('menuError', '메뉴 저장 중 오류가 발생했습니다!');
+            }
         } else {
-            socket.emit('menuError', '메뉴 저장 중 오류가 발생했습니다!');
-            // 추가한 메뉴 롤백
-            gameState.frequentMenus = gameState.frequentMenus.filter(m => m !== menuTrimmed);
+            gameState.frequentMenus.push(menuTrimmed);
+            if (saveFrequentMenus(gameState.frequentMenus)) {
+                io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
+                console.log(`방 ${room.roomName} 메뉴 추가:`, menuTrimmed);
+            } else {
+                socket.emit('menuError', '메뉴 저장 중 오류가 발생했습니다!');
+                gameState.frequentMenus = gameState.frequentMenus.filter(m => m !== menuTrimmed);
+            }
         }
     });
 
     // 자주 쓰는 메뉴 삭제
-    socket.on('deleteFrequentMenu', (data) => {
+    socket.on('deleteFrequentMenu', async (data) => {
         if (!checkRateLimit()) return;
         
         const gameState = getCurrentRoomGameState();
@@ -2574,11 +2757,10 @@ io.on('connection', (socket) => {
         // 입력값 검증
         if (!menu || typeof menu !== 'string') {
             socket.emit('menuError', '올바른 메뉴명을 입력해주세요!');
-            return;ㄹㅍ
+            return;
         }
         
-        // 메뉴 삭제
-        const beforeLength = gamㄹeState.frequentMenus.length;
+        const beforeLength = gameState.frequentMenus.length;
         gameState.frequentMenus = gameState.frequentMenus.filter(m => m !== menu);
         
         if (gameState.frequentMenus.length === beforeLength) {
@@ -2586,15 +2768,25 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // 파일에 저장
-        if (saveFrequentMenus(gameState.frequentMenus)) {
-            // 같은 방의 모든 클라이언트에게 업데이트된 메뉴 목록 전송
-            io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
-            console.log(`방 ${room.roomName} 메뉴 삭제:`, menu);
+        const serverId = getServerId();
+        if (pool) {
+            try {
+                await pool.query('DELETE FROM frequent_menus WHERE server_id = $1 AND menu_text = $2', [serverId, menu]);
+                io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
+                console.log(`방 ${room.roomName} 메뉴 삭제:`, menu);
+            } catch (e) {
+                console.warn('frequent_menus delete:', e.message);
+                gameState.frequentMenus = await getMergedFrequentMenus(serverId);
+                io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
+            }
         } else {
-            socket.emit('menuError', '메뉴 저장 중 오류가 발생했습니다!');
-            // 삭제한 메뉴 롤백 (파일 읽기로 복구)
-            gameState.frequentMenus = loadFrequentMenus();
+            if (saveFrequentMenus(gameState.frequentMenus)) {
+                io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
+                console.log(`방 ${room.roomName} 메뉴 삭제:`, menu);
+            } else {
+                socket.emit('menuError', '메뉴 저장 중 오류가 발생했습니다!');
+                gameState.frequentMenus = loadFrequentMenus();
+            }
         }
     });
 
@@ -2638,7 +2830,12 @@ io.on('connection', (socket) => {
         
         gameState.isGameActive = true;
         // history는 초기화하지 않음 (통계를 위해 누적 기록 유지)
-        // 현재 게임의 기록만 표시하려면 gamePlayers로 필터링
+        // 대신 이전 게임의 기록을 isGameActive: false로 표시하여 현재 게임과 구분
+        gameState.history.forEach(record => {
+            if (record.isGameActive === true) {
+                record.isGameActive = false; // 이전 게임 기록 비활성화
+            }
+        });
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
         
@@ -4813,49 +5010,48 @@ io.on('connection', (socket) => {
 async function startServer() {
     // 데이터베이스 초기화
     await initDatabase();
-    
-    server.listen(PORT, '0.0.0.0', async () => {
-        console.log('=================================');
-        console.log(`🎲 주사위 게임 서버 시작!`);
-        console.log(`포트: ${PORT}`);
-        console.log('=================================');
-        
-        // 서버 시작 시 게시판 데이터 로드 확인
-        try {
-            const suggestions = await loadSuggestions();
-            const dbType = process.env.DATABASE_URL ? 'Postgres' : '파일 시스템';
-            console.log(`📋 게시판 데이터 로드 완료: ${suggestions.length}개 게시글 (${dbType})`);
-        } catch (error) {
-            console.error('게시판 데이터 로드 오류:', error);
-        }
-    
+
+    await new Promise((resolve, reject) => {
+        server.once('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.error(`\n❌ 포트 ${PORT}가 이미 사용 중입니다. 이전 서버가 떠 있거나 다른 프로그램이 사용 중일 수 있습니다.`);
+                console.error(`   해결: 터미널에서 실행 후 다시 시도 → npx kill-port ${PORT}\n`);
+            }
+            reject(err);
+        });
+        server.listen(PORT, '0.0.0.0', () => resolve());
+    });
+
+    console.log('=================================');
+    console.log(`🎲 주사위 게임 서버 시작!`);
+    console.log(`포트: ${PORT}`);
+    console.log('=================================');
+
+    try {
+        const suggestions = await loadSuggestions();
+        const dbType = process.env.DATABASE_URL ? 'Postgres' : '파일 시스템';
+        console.log(`📋 게시판 데이터 로드 완료: ${suggestions.length}개 게시글 (${dbType})`);
+    } catch (error) {
+        console.error('게시판 데이터 로드 오류:', error);
+    }
+
     // 방 유지 시간에 따른 자동 방 삭제 체크 (1분마다 확인)
     setInterval(() => {
         const now = new Date();
-        const today = now.toISOString().split('T')[0]; // YYYY-MM-DD 형식
-        
         Object.keys(rooms).forEach(roomId => {
             const room = rooms[roomId];
             if (room && room.createdAt && room.expiryHours) {
                 const createdAt = new Date(room.createdAt);
                 const elapsed = now - createdAt;
-                const expiryHoursInMs = room.expiryHours * 60 * 60 * 1000; // 저장된 유지 시간을 밀리초로 변환
-                
+                const expiryHoursInMs = room.expiryHours * 60 * 60 * 1000;
                 if (elapsed >= expiryHoursInMs) {
                     const hasUsers = room.gameState.users.length > 0;
-                    console.log(`방 ${roomId} (${room.roomName})이 ${room.expiryHours}시간 경과로 자동 삭제됩니다. (사용자 수: ${room.gameState.users.length})`);
-                    
-                    // 방에 사용자가 있을 때만 삭제 알림 전송
                     if (hasUsers) {
                         io.to(roomId).emit('roomDeleted', {
                             reason: `방이 ${room.expiryHours}시간 경과로 자동 삭제되었습니다.`
                         });
                     }
-                    
-                    // 방 삭제
                     delete rooms[roomId];
-                    
-                    // 모든 클라이언트에게 방 목록 업데이트
                     const roomsList = Object.entries(rooms).map(([id, r]) => ({
                         roomId: id,
                         roomName: r.roomName,
@@ -4866,18 +5062,30 @@ async function startServer() {
                         isPrivate: r.isPrivate || false,
                         gameType: r.gameType || 'dice',
                         createdAt: r.createdAt,
-                        expiryHours: r.expiryHours || 1 // 기본값 1시간
+                        expiryHours: r.expiryHours || 1
                     }));
                     io.emit('roomsListUpdated', roomsList);
                 }
             }
         });
-    }, 60000); // 1분마다 체크
-    });
+    }, 60000);
 }
 
-// 서버 시작    
-startServer().catch(error => {
-    console.error('서버 시작 오류:', error);
+// 종료 시그널 처리 (디버거 중지/터미널 Ctrl+C 시 서버 정상 종료)
+function shutdown(signal) {
+    console.log(`\n${signal} 수신, 서버 종료 중...`);
+    server.close(() => {
+        console.log('서버 종료 완료.');
+        if (pool) pool.end().catch(() => {}).finally(() => process.exit(0));
+        else process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 5000); // 5초 후 강제 종료
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+// 서버 시작
+startServer().catch((error) => {
+    if (error.code !== 'EADDRINUSE') console.error('서버 시작 오류:', error);
     process.exit(1);
 });
