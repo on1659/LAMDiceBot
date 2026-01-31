@@ -132,10 +132,8 @@ async function initDatabase() {
         console.log('✅ 데이터베이스 테이블 초기화 완료');
     } catch (error) {
         console.error('❌ 데이터베이스 초기화 오류:', error.message || error);
-        console.log('⚠️  Postgres 연결 실패, 파일 시스템 사용');
-        pool = null; // 이후 모든 DB 호출이 파일 시스템으로 폴백
-        loadVisitorStats(); // 파일 기반 방문자 통계 로드
-        loadPlayStats(); // 파일 기반 플레이 통계 로드
+        console.log('⚠️  Postgres 연결 실패 — 방문자/플레이 통계는 DB 연결 시에만 유지됩니다.');
+        pool = null;
     }
 }
 
@@ -331,31 +329,22 @@ function saveFrequentMenus(menus) {
 // 방 관리 시스템
 const rooms = {}; // { roomId: { hostId, hostName, roomName, gameState, ... } }
 
-// 방문자 통계 (오늘 방문자 수 = 고유 참여자 수)
-const VISITOR_STATS_FILE = path.join(__dirname, 'visitor-stats.json');
+// 방문자 통계 (오늘 방문자 수 = 고유 참여자 수) — DB 전용
 let visitorTodayDate = '';
 let visitorTodayIPs = new Set();
 let visitorTodayParticipantIds = new Set(); // 오늘 방문자 수 = 고유 소켓(참여자) 수 (같은 IP 여러 명 반영)
 let visitorTotalCount = 0;
 
-// 플레이 통계 (오늘 플레이 횟수, 총 플레이 횟수 = 게임 1회당 1)
-const PLAY_STATS_FILE = path.join(__dirname, 'play-stats.json');
+// 플레이 통계 (오늘 플레이 횟수, 총 플레이 횟수 = 게임 1회당 1) — DB 전용
 let playTodayDate = '';
 let playTodayCount = 0;
 let playTotalCount = 0;
-// 게임별 통계 (DB 없을 때 파일로 저장/로드, API에서 반환)
+// 게임별 통계 (DB 없을 때는 메모리만, API에서 반환)
 const DEFAULT_GAME_STATS = () => ({ dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } });
 let gameStatsByType = DEFAULT_GAME_STATS();
 
 function loadVisitorStats() {
-    if (pool) return; // DB 사용 시 initDatabase()에서 loadVisitorStatsFromDB() 호출
-    try {
-        const data = fs.readFileSync(VISITOR_STATS_FILE, 'utf8');
-        const parsed = JSON.parse(data);
-        if (typeof parsed.totalConnections === 'number') visitorTotalCount = parsed.totalConnections;
-    } catch (e) {
-        // 파일 없거나 오류 시 무시
-    }
+    // DB 사용 시 initDatabase()에서 loadVisitorStatsFromDB() 호출. 파일 폴백 없음.
 }
 
 async function loadVisitorStatsFromDB() {
@@ -372,31 +361,9 @@ async function loadVisitorStatsFromDB() {
         console.warn('방문자 통계 DB 로드 실패:', e.message);
     }
 }
-function saveVisitorStats() {
-    try {
-        fs.writeFileSync(VISITOR_STATS_FILE, JSON.stringify({ totalConnections: visitorTotalCount }, null, 0), 'utf8');
-    } catch (e) {
-        console.warn('방문자 통계 저장 실패:', e.message);
-    }
-}
 
 function loadPlayStats() {
-    if (pool) return; // DB 사용 시 initDatabase()에서 loadPlayStatsFromDB() 호출
-    try {
-        const data = fs.readFileSync(PLAY_STATS_FILE, 'utf8');
-        const parsed = JSON.parse(data);
-        playTodayDate = parsed.date || '';
-        playTodayCount = typeof parsed.todayPlays === 'number' ? parsed.todayPlays : 0;
-        playTotalCount = typeof parsed.totalPlays === 'number' ? parsed.totalPlays : 0;
-        if (parsed.gameStats && typeof parsed.gameStats === 'object') {
-            const def = DEFAULT_GAME_STATS();
-            Object.keys(def).forEach(k => {
-                if (parsed.gameStats[k] && typeof parsed.gameStats[k].count === 'number' && typeof parsed.gameStats[k].totalParticipants === 'number') {
-                    gameStatsByType[k] = { count: parsed.gameStats[k].count, totalParticipants: parsed.gameStats[k].totalParticipants };
-                }
-            });
-        }
-    } catch (e) { /* 파일 없거나 오류 시 무시 */ }
+    // DB 사용 시 initDatabase()에서 loadPlayStatsFromDB() 호출. 파일 폴백 없음.
 }
 
 async function loadPlayStatsFromDB() {
@@ -410,15 +377,6 @@ async function loadPlayStatsFromDB() {
         playTodayDate = today;
     } catch (e) {
         console.warn('플레이 통계 DB 로드 실패:', e.message);
-    }
-}
-
-function savePlayStats() {
-    try {
-        const today = new Date().toISOString().split('T')[0];
-        fs.writeFileSync(PLAY_STATS_FILE, JSON.stringify({ date: today, todayPlays: playTodayCount, totalPlays: playTotalCount, gameStats: gameStatsByType }, null, 0), 'utf8');
-    } catch (e) {
-        console.warn('플레이 통계 저장 실패:', e.message);
     }
 }
 
@@ -455,8 +413,6 @@ function recordVisitor(ip, source, participantId) {
         ).catch(e => console.warn('visitor_today insert:', e.message));
         pool.query('UPDATE visitor_total SET total_participations = total_participations + 1 WHERE id = 1')
             .catch(e => console.warn('visitor_total update:', e.message));
-    } else {
-        saveVisitorStats();
     }
     return getVisitorStats();
 }
@@ -486,12 +442,8 @@ function recordGamePlay(gameType, participantCount) {
         if (!gameStatsByType[key]) gameStatsByType[key] = { count: 0, totalParticipants: 0 };
         gameStatsByType[key].count += 1;
         gameStatsByType[key].totalParticipants += Math.max(1, participantCount);
-        savePlayStats();
     }
 }
-
-loadVisitorStats();
-loadPlayStats();
 
 // 방 ID 생성
 function generateRoomId() {

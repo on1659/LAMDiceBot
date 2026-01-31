@@ -1,5 +1,4 @@
-refactor: 채팅 공통 모듈 분리 및 사운드·문서 정리
+refactor: 방문자/플레이 통계 DB 전용 저장으로 변경
 
-- 채팅 기능 chat-shared.js로 통합, /주사위 명령·게임별 통계 저장 추가
-- 사운드 설정·경로 정리, 에셋 백업·팀 사운드 폴더 추가
-- 문서 정리(구 경마/사운드 계획 삭제, feature-proposals·system·order/ready 공유 모듈 추가)
+- visitor-stats.json, play-stats.json 파일 폴백 제거
+- Postgres 연결 시에만 통계 유지 (재배포 후에도 리셋되지 않음)
