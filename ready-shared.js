@@ -127,12 +127,14 @@ const ReadyModule = (function () {
         sorted.forEach((userName) => {
             const tag = document.createElement('div');
             tag.className = 'user-tag';
-            tag.style.background = '#d4edda';
-            tag.style.borderColor = '#28a745';
-            tag.style.color = '#155724';
+
+            const isMe = userName === _currentUser;
+            if (isMe) {
+                tag.classList.add('me');
+            }
 
             let content = userName;
-            if (userName === _currentUser) {
+            if (isMe) {
                 content += ' (나)';
             }
             tag.textContent = content;

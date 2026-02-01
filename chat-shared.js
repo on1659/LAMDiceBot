@@ -521,7 +521,11 @@ const ChatModule = (function () {
 
             const msgText = document.createElement('div');
             msgText.style.cssText = 'color: white; white-space: pre-wrap; word-break: break-word;';
-            msgText.textContent = chatMessage.message;
+            if (chatMessage.isHtml) {
+                msgText.innerHTML = chatMessage.message;
+            } else {
+                msgText.textContent = chatMessage.message;
+            }
             messageDiv.appendChild(msgText);
 
             chatMessages.appendChild(messageDiv);

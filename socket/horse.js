@@ -97,14 +97,7 @@ module.exports = (socket, io, ctx) => {
             }
         });
 
-        // 경주 결과 계산
-        const rankings = calculateHorseRaceResult(gameState.availableHorses.length);
-
-        // 순위별 말 인덱스 배열 생성 (클라이언트 애니메이션용)
-        const horseRankings = rankings.map(r => r.horseIndex);
-        const speeds = rankings.map(r => r.finishTime);
-
-        // 기믹 데이터 생성 (서버에서 생성하여 모든 클라이언트에 동일하게 전달)
+        // 기믹 데이터 먼저 생성 (순위 계산에 필요)
         const gimmicksData = {};
         gameState.availableHorses.forEach(horseIndex => {
             const gimmickCount = 2 + Math.floor(Math.random() * 3); // 2~4개
@@ -140,6 +133,15 @@ module.exports = (socket, io, ctx) => {
             }
             gimmicksData[horseIndex] = gimmicks;
         });
+
+        // 경주 결과 계산 (기믹 반영 시뮬레이션)
+        const forcePhotoFinish = gameState.forcePhotoFinish || false;
+        gameState.forcePhotoFinish = false; // 사용 후 리셋
+        const rankings = calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish);
+
+        // 순위별 말 인덱스 배열 생성 (클라이언트 애니메이션용)
+        const horseRankings = rankings.map(r => r.horseIndex);
+        const speeds = rankings.map(r => r.finishTime);
 
         // 결과 저장
         gameState.horseRankings = horseRankings;
@@ -432,8 +434,8 @@ module.exports = (socket, io, ctx) => {
 
         // 경주 진행 중일 때만 경주 결과 계산
         if (allSelected) {
-            // 경주 결과 계산
-            const rankings = calculateHorseRaceResult(gameState.availableHorses.length);
+            // 경주 결과 계산 (기믹 없는 auto-ready용)
+            const rankings = calculateHorseRaceResult(gameState.availableHorses.length, {});
 
             // 룰에 맞는 사람 확인
             const winners = getWinnersByRule(gameState, rankings, players);
@@ -682,39 +684,119 @@ module.exports = (socket, io, ctx) => {
 
     // ========== Helper Functions ==========
 
-    // 경주 결과 계산 함수
-    function calculateHorseRaceResult(horseCount) {
-        const rankings = [];
-        const finishTimes = [];
-        const speeds = [];
+    // 경주 결과 계산 함수 (기믹 반영 시뮬레이션)
+    function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish) {
+        // 클라이언트와 동일한 상수
+        const startPosition = 10;
+        const finishLine = 3000;
+        const totalDistance = finishLine - startPosition;
+        const frameInterval = 16; // ~60fps
 
-        // 각 말의 도착 시간과 속도 랜덤 생성 (서버에서 결정)
+        // 각 말의 기본 도착 시간 랜덤 생성
+        const baseDurations = [];
         for (let i = 0; i < horseCount; i++) {
-            // 도착 시간: 5~10초 사이 랜덤
-            const finishTime = 5000 + Math.random() * 5000;
-            // 속도: 0.8~1.5 사이 랜덤
-            const speed = 0.8 + Math.random() * 0.7;
-
-            finishTimes.push(finishTime);
-            speeds.push(speed);
+            baseDurations.push(5000 + Math.random() * 5000);
         }
 
-        // 순위 결정 (도착 시간이 빠른 순)
-        const sortedIndices = finishTimes
-            .map((time, index) => ({ time, index }))
-            .sort((a, b) => a.time - b.time)
-            .map(item => item.index);
+        // 접전 강제: 1등과 2등의 도착 시간을 거의 동일하게 조정
+        if (forcePhotoFinish && horseCount >= 2) {
+            baseDurations.sort((a, b) => a - b);
+            // 2등을 1등과 1~2% 차이로 설정
+            const fastest = baseDurations[0];
+            baseDurations[1] = fastest + fastest * (0.01 + Math.random() * 0.01);
+            console.log(`[슬로모션] 접전 강제! 1등=${Math.round(fastest)}ms, 2등=${Math.round(baseDurations[1])}ms`);
+        }
 
-        // 순위 배열 생성
-        for (let rank = 0; rank < horseCount; rank++) {
-            const horseIndex = sortedIndices[rank];
-            rankings.push({
-                horseIndex: horseIndex,
-                rank: rank + 1,
-                finishTime: Math.round(finishTimes[horseIndex]),
-                speed: parseFloat(speeds[horseIndex].toFixed(2))
+        // 기믹 반영 시뮬레이션으로 실제 도착 시간 계산
+        const simResults = [];
+        for (let i = 0; i < horseCount; i++) {
+            const duration = baseDurations[i];
+            const baseSpeed = totalDistance / duration;
+            const initialSpeedFactor = 0.8 + ((i * 1234567) % 100) / 250;
+            const speedChangeSeed = i * 9876;
+
+            // 기믹 상태 초기화
+            const gimmicks = (gimmicksData[i] || []).map(g => ({
+                progressTrigger: g.progressTrigger,
+                type: g.type,
+                duration: g.duration,
+                speedMultiplier: g.speedMultiplier,
+                triggered: false,
+                active: false,
+                endTime: 0
+            }));
+
+            let currentPos = startPosition;
+            let currentSpeed = baseSpeed * initialSpeedFactor;
+            let targetSpeed = baseSpeed;
+            let lastSpeedChange = 0;
+            let elapsed = 0;
+
+            // 프레임 단위 시뮬레이션
+            while (currentPos < finishLine && elapsed < 60000) {
+                elapsed += frameInterval;
+                const progress = (currentPos - startPosition) / totalDistance;
+
+                // 기믹 트리거 체크
+                gimmicks.forEach(gimmick => {
+                    if (!gimmick.triggered && progress >= gimmick.progressTrigger) {
+                        gimmick.triggered = true;
+                        gimmick.active = true;
+                        gimmick.endTime = elapsed + gimmick.duration;
+                    }
+                    if (gimmick.active && elapsed >= gimmick.endTime) {
+                        gimmick.active = false;
+                    }
+                });
+
+                // 속도 계산
+                let speedMultiplier = 1;
+                let hasActiveGimmick = false;
+                gimmicks.forEach(gimmick => {
+                    if (gimmick.active) {
+                        hasActiveGimmick = true;
+                        speedMultiplier = gimmick.speedMultiplier;
+                    }
+                });
+
+                if (!hasActiveGimmick) {
+                    const changeInterval = 500;
+                    const currentInterval = Math.floor(elapsed / changeInterval);
+                    const lastInterval = Math.floor(lastSpeedChange / changeInterval);
+
+                    if (currentInterval > lastInterval) {
+                        lastSpeedChange = elapsed;
+                        const seedVal = (speedChangeSeed + currentInterval) * 16807 % 2147483647;
+                        const speedFactor = 0.7 + (seedVal % 600) / 1000;
+                        targetSpeed = baseSpeed * speedFactor;
+                    }
+
+                    const speedDiff = targetSpeed - currentSpeed;
+                    currentSpeed += speedDiff * 0.05;
+                    speedMultiplier = currentSpeed / baseSpeed;
+                }
+
+                // 위치 업데이트 (클라이언트와 동일한 공식)
+                const movement = baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000;
+                currentPos = Math.max(startPosition, currentPos + movement);
+            }
+
+            simResults.push({
+                horseIndex: i,
+                simFinishTime: elapsed,
+                baseDuration: Math.round(baseDurations[i])
             });
         }
+
+        // 시뮬레이션 결과로 순위 결정
+        simResults.sort((a, b) => a.simFinishTime - b.simFinishTime);
+
+        const rankings = simResults.map((result, rank) => ({
+            horseIndex: result.horseIndex,
+            rank: rank + 1,
+            finishTime: result.baseDuration,
+            speed: parseFloat((0.8 + Math.random() * 0.7).toFixed(2))
+        }));
 
         return rankings;
     }

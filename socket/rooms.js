@@ -71,14 +71,14 @@ module.exports = (socket, io, ctx) => {
                 if (!s.connected) return false; // 연결되지 않은 소켓 제외
                 if (s.userName === userName) return false; // 같은 이름은 재연결로 간주
 
-                // IP가 같은 경우
+                // IP가 같고 deviceId도 같은 경우만 동일 사용자로 판단
+                // (같은 공유기를 쓰는 다른 기기는 deviceId가 다르므로 허용)
                 if (s.clientIP === socket.clientIP) {
-                    // deviceId가 있으면 deviceId도 확인
                     if (deviceId && s.deviceId) {
                         return s.deviceId === deviceId;
                     }
-                    // deviceId가 없으면 IP만 확인
-                    return true;
+                    // deviceId가 없으면 IP만으로는 차단하지 않음
+                    return false;
                 }
                 return false;
             });
@@ -201,14 +201,12 @@ module.exports = (socket, io, ctx) => {
                 if (s.id === socket.id) return false; // 자기 자신 제외
                 if (!s.connected) return false; // 연결되지 않은 소켓 제외
 
-                // IP가 같은 경우
+                // IP가 같고 deviceId도 같은 경우만 동일 사용자로 판단
                 if (s.clientIP === socket.clientIP) {
-                    // deviceId가 있으면 deviceId도 확인
                     if (deviceId && s.deviceId) {
                         return s.deviceId === deviceId;
                     }
-                    // deviceId가 없으면 IP만 확인
-                    return true;
+                    return false;
                 }
                 return false;
             });
@@ -598,14 +596,12 @@ module.exports = (socket, io, ctx) => {
                 if (s.id === socket.id) return false; // 자기 자신 제외
                 if (!s.connected) return false; // 연결되지 않은 소켓 제외
 
-                // IP가 같은 경우
+                // IP가 같고 deviceId도 같은 경우만 동일 사용자로 판단
                 if (s.clientIP === socket.clientIP) {
-                    // deviceId가 있으면 deviceId도 확인
                     if (deviceId && s.deviceId) {
                         return s.deviceId === deviceId;
                     }
-                    // deviceId가 없으면 IP만 확인
-                    return true;
+                    return false;
                 }
                 return false;
             });

@@ -110,6 +110,18 @@ module.exports = (socket, io, ctx) => {
                 return;
             }
 
+            if (trimmedMsg === '/슬로모션') {
+                gameState.forcePhotoFinish = true;
+                const systemMsg = {
+                    userName: '🎮 시스템',
+                    message: '🎬 다음 경주에서 접전 슬로모션이 발동됩니다!',
+                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    isSystem: true
+                };
+                io.to(room.roomId).emit('newMessage', systemMsg);
+                return;
+            }
+
             if (trimmedMsg.startsWith('/탈것 ')) {
                 const parts = trimmedMsg.substring(4).trim().split(/\s+/);
                 const count = parseInt(parts[0]);

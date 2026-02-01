@@ -651,6 +651,11 @@
         }
 
         .user-tag.host {
+            background: white;
+            color: #8b4513;
+        }
+
+        .user-tag.me {
             background: #8b4513;
             color: white;
         }
@@ -1162,6 +1167,11 @@
             100% { transform: translateY(-100px); opacity: 0; }
         }
         
+        @keyframes arrowBounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-5px); }
+        }
+
         @keyframes tombstoneDrop {
             0% { transform: translateY(-150px); opacity: 0; }
             60% { transform: translateY(10px); opacity: 1; }
@@ -2080,10 +2090,12 @@
                 const frame1 = document.createElement('div');
                 frame1.className = 'frame1';
                 const vehicleSVGs = getVehicleSVG(vehicleId);
-                frame1.innerHTML = vehicleSVGs.frame1;
-                
+                const idleData = vehicleSVGs.idle || vehicleSVGs;
+                frame1.innerHTML = idleData.frame1 || vehicleSVGs.frame1;
+
                 vehicleContent.appendChild(frame1);
                 horse.appendChild(vehicleContent);
+                horse.dataset.vehicleId = vehicleId;
                 track.appendChild(horse);
                 
                 // 이름 라벨을 레인 왼쪽에 표시
@@ -2459,17 +2471,41 @@
                 const frame2 = document.createElement('div');
                 frame2.className = 'frame2';
                 
-                // 탈것별 SVG 생성
+                // 탈것별 SVG 생성 (idle 상태로 시작)
                 const vehicleSVGs = getVehicleSVG(vehicleId);
-                frame1.innerHTML = vehicleSVGs.frame1;
-                frame2.innerHTML = vehicleSVGs.frame2;
-                
+                const idleData = vehicleSVGs.idle || vehicleSVGs;
+                frame1.innerHTML = idleData.frame1 || vehicleSVGs.frame1;
+                frame2.innerHTML = (idleData.frame2 || vehicleSVGs.frame2) || '';
+
                 vehicleContent.appendChild(frame1);
                 vehicleContent.appendChild(frame2);
-                
+
                 horse.appendChild(vehicleContent);
+                horse.dataset.vehicleId = vehicleId;
+
+                // 내가 선택한 탈것 위에 화살표 표시
+                if (userHorseBets[currentUser] === horseIndex) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'my-horse-arrow';
+                    arrow.innerHTML = '▼';
+                    arrow.style.cssText = `
+                        position: absolute;
+                        top: -18px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        font-size: 16px;
+                        color: #e94560;
+                        text-shadow: 0 0 4px rgba(233,69,96,0.6);
+                        animation: arrowBounce 0.8s ease-in-out infinite;
+                        pointer-events: none;
+                        z-index: 300;
+                    `;
+                    horse.style.overflow = 'visible';
+                    horse.appendChild(arrow);
+                }
+
                 track.appendChild(horse);
-                
+
                 // 이름 라벨을 레인 왼쪽 상단에 표시
                 if (selectedUsers.length > 0) {
                     const namesContainer = document.createElement('div');
@@ -2540,8 +2576,10 @@
                 const positions = [];
                 horseElements.forEach(({ horse, rank }) => {
                     const actualHorseIndex = parseInt(horse.id.replace('horse_', ''));
-                    const currentLeft = parseFloat(horse.style.left) || startPosition;
-                    const progress = Math.min(100, Math.max(0, ((currentLeft - startPosition) / totalDistance) * 100));
+                    // 실제 위치(currentPos)를 사용 (화면 표시 위치가 아닌 진행 위치)
+                    const state = horseStatesRef ? horseStatesRef.find(s => s.horseIndex === actualHorseIndex) : null;
+                    const actualPos = state ? state.currentPos : (parseFloat(horse.style.left) || startPosition);
+                    const progress = Math.min(100, Math.max(0, ((actualPos - startPosition) / totalDistance) * 100));
                     const remaining = Math.max(0, 100 - progress);
                     
                     // 도착 순서 가져오기 (horseStates에서)
@@ -2655,18 +2693,81 @@
                 const startTime = Date.now();
                 const frameInterval = 16; // ~60fps
                 let finishOrderCounter = 0; // 도착 순서 카운터
+                let slowMotionFactor = 1; // 1 = 정상속도, 0.25 = 슬로우모션
+                let slowMotionActive = false;
+                let slowMotionTriggered = false; // 한번만 트리거
+
+                // 테스트용: 콘솔에서 forceSlowMotion() 호출로 강제 발동
+                window.forceSlowMotion = function() {
+                    slowMotionTriggered = true;
+                    slowMotionActive = true;
+                    slowMotionFactor = 0.25;
+                    track.style.transition = 'filter 0.3s';
+                    track.style.filter = 'contrast(1.1) saturate(1.3)';
+                    console.log('[슬로우모션] 강제 발동!');
+                };
                 
+                // 레이스 시작: idle → run 상태 전환
+                horseStates.forEach(state => {
+                    if (state.horse && state.horse.dataset.vehicleId) {
+                        setVehicleState(state.horse, state.horse.dataset.vehicleId, 'run');
+                    }
+                });
+
                 // JavaScript 기반 애니메이션 루프
                 animationInterval = setInterval(() => {
                     const elapsed = Date.now() - startTime;
                     let allFinished = true;
                     
+                    // 슬로우모션 체크: 1등이 결승선 근처(90%)에 도달하면 무조건 발동
+                    if (!slowMotionTriggered) {
+                        const rank1 = horseStates.find(s => s.rank === 0);
+                        if (rank1 && !rank1.finished) {
+                            const leaderProgress = (rank1.currentPos - startPosition) / totalDistance;
+                            if (leaderProgress >= 0.90) {
+                                slowMotionTriggered = true;
+                                slowMotionActive = true;
+                                slowMotionFactor = 0.25;
+                                // 비네팅(가장자리 어둡게) + 필터 효과
+                                let vignette = document.getElementById('slowmoVignette');
+                                if (!vignette) {
+                                    vignette = document.createElement('div');
+                                    vignette.id = 'slowmoVignette';
+                                    vignette.style.cssText = `
+                                        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                                        pointer-events: none; z-index: 9999;
+                                        box-shadow: inset 0 0 60px 30px rgba(0,0,0,0.5);
+                                        border-radius: inherit;
+                                        transition: opacity 0.5s;
+                                    `;
+                                    track.parentElement.style.position = 'relative';
+                                    track.parentElement.appendChild(vignette);
+                                }
+                                vignette.style.opacity = '1';
+                                track.style.transition = 'filter 0.3s';
+                                track.style.filter = 'contrast(1.1) saturate(1.3)';
+                            }
+                        }
+                    }
+
+                    // 슬로우모션 해제: 1등이 결승선 통과하면 즉시 해제
+                    if (slowMotionActive && horseStates.some(s => s.finished)) {
+                        slowMotionActive = false;
+                        slowMotionFactor = 1;
+                        track.style.filter = '';
+                        const vignette = document.getElementById('slowmoVignette');
+                        if (vignette) {
+                            vignette.style.opacity = '0';
+                            setTimeout(() => vignette.remove(), 500);
+                        }
+                    }
+
                     horseStates.forEach(state => {
                         if (state.finished) return;
                         allFinished = false;
-                        
+
                         const progress = (state.currentPos - startPosition) / totalDistance;
-                        
+
                         // 기믹 체크
                         state.gimmicks.forEach(gimmick => {
                             // 기믹 트리거 체크
@@ -2796,7 +2897,7 @@
                         // 위치 업데이트
                         // 말이 가운데에 도달하기 전까지는 정상적으로 앞으로 이동
                         // 가운데에 도달한 후부터는 배경 스크롤과 함께 화면 밖으로 나감
-                        const movement = state.baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000;
+                        const movement = state.baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000 * slowMotionFactor;
                         state.currentPos = Math.max(startPosition, state.currentPos + movement);
                         
                         // 결승선 도착 체크
@@ -2832,7 +2933,7 @@
                     // 일정한 속도로 스크롤 (멈추지 않음)
                     if (scrollStarted && currentScrollOffset > maxScrollLimit) {
                         // baseSpeed는 px/ms 단위이므로 frameInterval(ms)을 곱함
-                        currentScrollOffset -= scrollSpeed * frameInterval;
+                        currentScrollOffset -= scrollSpeed * frameInterval * slowMotionFactor;
                         // 최대 스크롤 제한
                         if (currentScrollOffset < maxScrollLimit) {
                             currentScrollOffset = maxScrollLimit;
@@ -3112,6 +3213,18 @@
         }
         
         // 탈것별 SVG 생성 함수
+        // 탈것 상태 전환 헬퍼
+        function setVehicleState(horseElement, vehicleId, state) {
+            const svgData = getVehicleSVG(vehicleId);
+            const stateData = svgData[state] || svgData.run || svgData;
+            const sprite = horseElement.querySelector('.vehicle-sprite');
+            if (!sprite) return;
+            const f1 = sprite.querySelector('.frame1');
+            const f2 = sprite.querySelector('.frame2');
+            if (f1) f1.innerHTML = stateData.frame1;
+            if (f2 && stateData.frame2) f2.innerHTML = stateData.frame2;
+        }
+
         function getVehicleSVG(vehicleId) {
             const svgMap = {
                 'car': { // 자동차 - 바퀴 회전
@@ -4070,9 +4183,11 @@
         function showRaceResult(data, isReplay = false) {
             // 다시보기가 아닌 경우 중복 호출 방지
             if (!isReplay && raceResultShown) {
+                console.warn('[showRaceResult] 중복 호출 차단!', new Error().stack);
                 addDebugLog('⚠️ showRaceResult 중복 호출 무시', 'system');
                 return;
             }
+            console.log('[showRaceResult] 호출됨', { isReplay, raceResultShown, stack: new Error().stack });
             if (!isReplay) raceResultShown = true;
 
             isRaceActive = false;
@@ -4084,15 +4199,28 @@
 
             addDebugLog(`경주 결과: 당첨자 ${winners.length}명 (${winners.join(', ')})`, 'race');
 
-            // 채팅에 게임 종료 시스템 메시지 추가
+            // 채팅에 LOSER 카드 표시 (결과 오버레이와 동일한 디자인)
             if (ChatModule && typeof ChatModule.displayChatMessage === 'function') {
-                let resultMessage = '🏁 경주가 종료되었습니다!';
-                if (winners.length > 0) {
-                    resultMessage += `\n🎉 당첨자: ${winners.join(', ')}`;
-                }
+                const chatLoserVehicle = getVehicleInfo(loserHorseIndex);
+                const loserNames = loserBettingUsers.length > 0 ? loserBettingUsers.join(', ') : '없음';
+                const chatLoserSvg = getVehicleSVGForResult ? getVehicleSVGForResult(chatLoserVehicle.vehicleId || chatLoserVehicle.id, 45) : '';
+                const chatResultHtml = `
+                    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 14px; border-radius: 14px; border: 2px solid #e94560; position: relative; overflow: hidden; margin: 4px 0;">
+                        <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #e94560; color: #fff; padding: 2px 14px; border-radius: 0 0 8px 8px; font-size: 10px; font-weight: bold; letter-spacing: 1px;">LOSER</div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px;">
+                            <span style="font-size: 24px;">💀</span>
+                            <span style="font-size: 20px; font-weight: bold; color: #e94560;">${loserIndex + 1}등</span>
+                            <div style="transform: scale(1); filter: grayscale(60%);">${chatLoserSvg}</div>
+                            <span style="font-size: 16px; font-weight: bold; color: #eee;">${chatLoserVehicle.name}</span>
+                        </div>
+                        <div style="font-size: 14px; color: #e94560; text-align: center; margin-top: 8px; font-weight: 700;">
+                            🎉 ${loserNames} 🎉
+                        </div>
+                    </div>`;
                 ChatModule.displayChatMessage({
-                    message: resultMessage,
+                    message: chatResultHtml,
                     isSystemMessage: true,
+                    isHtml: true,
                     time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
                 }, true);
             }
@@ -4129,25 +4257,26 @@
                 return svg;
             }
             
+            // 꼴등 베팅자 계산 (자동준비 판단 + 채팅 표시용)
+            let loserIndex = horseRankings.length - 1;
+            let loserHorseIndex = horseRankings[loserIndex];
+            let loserBettingUsers = getBettingUsers(loserHorseIndex);
+
+            // 꼴등부터 역순으로 올라가며 베팅자가 있는 순위 찾기
+            for (let i = horseRankings.length - 1; i >= 0; i--) {
+                const users = getBettingUsers(horseRankings[i]);
+                if (users.length > 0) {
+                    loserIndex = i;
+                    loserHorseIndex = horseRankings[i];
+                    loserBettingUsers = users;
+                    break;
+                }
+            }
+            const loserVehicle = getVehicleInfo(loserHorseIndex);
+
             // 결과 오버레이 표시
             const rankingsDiv = document.getElementById('resultRankings');
             if (rankingsDiv) {
-                // 베팅한 사람이 있는 가장 낮은 순위 찾기 (꼴등에 가장 가까운 베팅자)
-                let loserIndex = horseRankings.length - 1;
-                let loserHorseIndex = horseRankings[loserIndex];
-                let loserBettingUsers = getBettingUsers(loserHorseIndex);
-
-                // 꼴등부터 역순으로 올라가며 베팅자가 있는 순위 찾기
-                for (let i = horseRankings.length - 1; i >= 0; i--) {
-                    const users = getBettingUsers(horseRankings[i]);
-                    if (users.length > 0) {
-                        loserIndex = i;
-                        loserHorseIndex = horseRankings[i];
-                        loserBettingUsers = users;
-                        break;
-                    }
-                }
-                const loserVehicle = getVehicleInfo(loserHorseIndex);
 
                 // 꼴등 멘트 랜덤
                 const loserComments = [
@@ -4258,6 +4387,7 @@
                 finishEffectsOverlay.style.display = 'none';
             }
             
+            console.log('[resultOverlay] visible 추가', { isReplay, stack: new Error().stack });
             document.getElementById('resultOverlay').classList.add('visible');
             
             // 게임 상태 업데이트
@@ -4285,14 +4415,14 @@
             
             // 경주 트랙은 유지 (게임 종료 시까지)
 
-            // 꼴등 베팅 당첨자가 2명 이상이면 자동 준비
-            if (winners.length >= 2) {
+            // LOSER(꼴등 베팅자)가 2명 이상이면 자동 준비
+            if (loserBettingUsers && loserBettingUsers.length >= 2) {
                 setTimeout(() => {
                     if (!isReady) {
                         toggleReady();
-                        addDebugLog(`꼴등 당첨자 ${winners.length}명 → 자동 준비`, 'system');
+                        addDebugLog(`LOSER ${loserBettingUsers.length}명 → 자동 준비`, 'system');
                     }
-                }, 3000); // 결과 확인 후 3초 뒤 자동 준비
+                }, 3000);
             }
         }
         
@@ -4368,6 +4498,9 @@
                 tag.className = 'user-tag';
                 if (user.isHost) {
                     tag.classList.add('host');
+                }
+                if (user.name === currentUser) {
+                    tag.classList.add('me');
                 }
 
                 let content = user.name;
@@ -5152,8 +5285,14 @@
             if (data.userName === currentUser) {
                 const previousSelection = mySelectedHorse;
                 mySelectedHorse = data.horseIndex;
-                
-                // 탈것 선택/취소 (자동 준비는 경주 결과에서 처리)
+
+                // 탈것 선택 시 자동 준비
+                if (mySelectedHorse !== null && !isReady) {
+                    toggleReady();
+                } else if (mySelectedHorse === null && isReady) {
+                    // 선택 취소 시 준비 해제
+                    toggleReady();
+                }
             }
             
             renderHorseSelection();
