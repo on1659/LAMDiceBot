@@ -9,6 +9,9 @@
 /AutoTest/node_modules
 /AutoTest/*.log
 
+# 백업파일
+.bak
+
 # 방문자 통계 (로컬/서버별 누적)
 visitor-stats.json
 

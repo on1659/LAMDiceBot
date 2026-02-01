@@ -3234,49 +3234,8 @@
             document.body.classList.add('lobby-active');
         }
         
-        // localhost에서 경마 버튼 활성화
+        // 경마 버튼은 HTML에서 이미 활성화 상태 (별도 처리 불필요)
         function checkAndEnableHorseRace() {
-            const isLocalhost = window.location.hostname === 'localhost' || 
-                               window.location.hostname === '127.0.0.1' ||
-                               window.location.hostname === '';
-            
-            const horseRaceLabel = document.getElementById('horseRaceLabel');
-            const horseRaceRadio = document.getElementById('horseRaceRadio');
-            const gameTypeInfo = document.getElementById('gameTypeInfo');
-            
-            if (horseRaceLabel && horseRaceRadio) {
-                if (isLocalhost) {
-                    // localhost에서는 활성화
-                    horseRaceLabel.style.cursor = 'pointer';
-                    horseRaceLabel.style.background = 'white';
-                    horseRaceLabel.style.opacity = '1';
-                    horseRaceRadio.disabled = false;
-                    horseRaceRadio.style.cursor = 'pointer';
-                    // 아이콘과 텍스트 변경
-                    const iconSpan = horseRaceLabel.querySelector('span[style*="font-size: 24px"]');
-                    const textSpan = horseRaceLabel.querySelector('span[style*="font-weight: 600"]');
-                    if (iconSpan) iconSpan.textContent = '🐎';
-                    if (textSpan) textSpan.textContent = '경마';
-                    // 안내 문구 업데이트
-                    if (gameTypeInfo) {
-                        gameTypeInfo.textContent = '룰렛/팀배정/경마를 선택하면 전용 페이지로 이동합니다.';
-                    }
-                    // label의 기본 동작이 작동하도록 보장
-                    // disabled 해제 후에도 label-input 연결이 유지되도록 함
-                    // 다른 게임 타입들과 동일하게 작동 (별도 이벤트 리스너 불필요)
-                } else {
-                    // 프로덕션에서는 비활성화 유지
-                    horseRaceLabel.style.cursor = 'not-allowed';
-                    horseRaceLabel.style.background = '#f5f5f5';
-                    horseRaceLabel.style.opacity = '0.6';
-                    horseRaceRadio.disabled = true;
-                    horseRaceRadio.style.cursor = 'not-allowed';
-                    // 안내 문구 유지
-                    if (gameTypeInfo) {
-                        gameTypeInfo.textContent = '룰렛/팀배정를 선택하면 전용 페이지로 이동합니다.';
-                    }
-                }
-            }
         }
         
         // 방 생성 최종 확인 및 생성
