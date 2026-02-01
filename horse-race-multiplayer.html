@@ -2599,7 +2599,7 @@
                         finishOrder = finishOrderMap[actualHorseIndex];
                     }
                     
-                    positions.push({ horseIndex: actualHorseIndex, position: currentLeft, progress, remaining, isFinished, finishOrder });
+                    positions.push({ horseIndex: actualHorseIndex, position: actualPos, progress, remaining, isFinished, finishOrder });
                 });
                 
                 // 정렬: 도착한 말은 도착 순서대로, 나머지는 위치 순
@@ -5319,6 +5319,15 @@
         let missedAtCountdown = false;
         socket.on('horseRaceCountdown', (data) => {
             addDebugLog(`카운트다운 시작: ${data.duration}초`, 'race');
+
+            // 모바일 사용자에게 경고 메시지 표시
+            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                ChatModule.displayChatMessage({
+                    userName: '시스템',
+                    message: '📱 모바일 환경에서는 경마 화면이 원활하지 않을 수 있습니다. PC 환경을 권장합니다!',
+                    isSystem: true
+                });
+            }
 
             // 카운트다운 시점에 visibility 체크 (룰렛과 동일: visibilityState + hasFocus)
             const hasFocus = document.hasFocus();

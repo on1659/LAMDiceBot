@@ -2,6 +2,23 @@ const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('.
 
 // ALL_VEHICLE_IDS constant
 const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse'];
+const VEHICLE_NAMES = {
+    'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
+    'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말'
+};
+
+// 한글 받침 유무에 따른 조사 처리
+function getPostPosition(word, type) {
+    const lastChar = word.charCodeAt(word.length - 1);
+    if (lastChar < 0xAC00 || lastChar > 0xD7A3) return '';
+    const hasBatchim = (lastChar - 0xAC00) % 28 !== 0;
+    const cases = {
+        '은는': hasBatchim ? '은' : '는',
+        '이가': hasBatchim ? '이' : '가',
+        '을를': hasBatchim ? '을' : '를'
+    };
+    return cases[type] || '';
+}
 
 /**
  * Horse race game event handlers
@@ -225,12 +242,17 @@ module.exports = (socket, io, ctx) => {
                     gameState.isGameActive = false;
                     gameState.userHorseBets = {};
 
+                    // 꼴등 탈것 이름 가져오기
+                    const lastHorseIndex = rankings[rankings.length - 1].horseIndex;
+                    const lastVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[lastHorseIndex] ? gameState.selectedVehicleTypes[lastHorseIndex] : 'horse';
+                    const lastVehicleName = VEHICLE_NAMES[lastVehicleId] || lastVehicleId;
+
                     const now = new Date();
                     const koreaOffset = 9 * 60;
                     const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
                     const resultMessage = {
                         userName: '시스템',
-                        message: `🎊🎉 축하합니다! ${winners[0]}님이 최종 당첨되었습니다! 🎉🎊`,
+                        message: `🎊🎉 축하합니다! ${winners[0]}님이 고르신 ${lastVehicleName}${getPostPosition(lastVehicleName, '이가')} 제일 순위가 낮습니다! 🎉🎊`,
                         timestamp: koreaTime.toISOString(),
                         isSystem: true,
                         isHorseRaceWinner: true
@@ -253,6 +275,7 @@ module.exports = (socket, io, ctx) => {
                         // 당첨자 없음 → 가장 높은 순위에 베팅한 사람들 자동 준비
                         let bestRank = -1;
                         let bestBetters = [];
+                        let bestHorseIndex = -1;
                         const horseRankings = rankings.map(r => r.horseIndex);
                         Object.entries(raceData.userHorseBets).forEach(([username, horseIndex]) => {
                             const rank = horseRankings.indexOf(horseIndex);
@@ -260,18 +283,20 @@ module.exports = (socket, io, ctx) => {
                                 if (bestRank === -1 || rank < bestRank) {
                                     bestRank = rank;
                                     bestBetters = [username];
+                                    bestHorseIndex = horseIndex;
                                 } else if (rank === bestRank) {
                                     bestBetters.push(username);
                                 }
                             }
                         });
                         autoReadyPlayers = bestBetters;
-                        const rankText = bestRank >= 0 ? `${bestRank + 1}등` : '';
+                        const bestVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[bestHorseIndex] ? gameState.selectedVehicleTypes[bestHorseIndex] : 'horse';
+                        const bestVehicleName = VEHICLE_NAMES[bestVehicleId] || bestVehicleId;
                         systemMsg = autoReadyPlayers.length > 0
-                            ? `꼴등 당첨자 없음! ${rankText} 베팅 ${autoReadyPlayers.join(', ')}님 자동 준비 완료!`
+                            ? `${autoReadyPlayers.join(', ')}님이 고르신 ${bestVehicleName}${getPostPosition(bestVehicleName, '이가')} 가장 순위가 낮습니다! 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`
                             : '당첨자가 없습니다.';
                     } else {
-                        systemMsg = `🎊 동점! ${winners.join(', ')}님 모두 당첨! 자동 준비 완료되었습니다.`;
+                        systemMsg = `동점!! ${winners.join(', ')}님 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`;
                     }
 
                     const now = new Date();
@@ -480,13 +505,18 @@ module.exports = (socket, io, ctx) => {
                 gameState.isGameActive = false;
                 gameState.userHorseBets = {};
 
+                // 꼴등 탈것 이름 가져오기
+                const lastHorseIndex2 = rankings[rankings.length - 1].horseIndex;
+                const lastVehicleId2 = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[lastHorseIndex2] ? gameState.selectedVehicleTypes[lastHorseIndex2] : 'horse';
+                const lastVehicleName2 = VEHICLE_NAMES[lastVehicleId2] || lastVehicleId2;
+
                 // 채팅에 최종 당첨자 메시지 추가
                 const nowResult = new Date();
                 const koreaOffsetResult = 9 * 60;
                 const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
                 const resultMessage = {
                     userName: '시스템',
-                    message: `🎊🎉 축하합니다! ${winners[0]}님이 최종 당첨되었습니다! 🎉🎊`,
+                    message: `🎊🎉 축하합니다! ${winners[0]}님이 고르신 ${lastVehicleName2}${getPostPosition(lastVehicleName2, '이가')} 제일 순위가 낮습니다! 🎉🎊`,
                     timestamp: koreaTimeResult.toISOString(),
                     isSystem: true,
                     isHorseRaceWinner: true
@@ -516,7 +546,7 @@ module.exports = (socket, io, ctx) => {
                 const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
                 const resultMessage = {
                     userName: '시스템',
-                    message: `🎊 동점! ${winners.join(', ')}님 모두 당첨! 자동 준비 완료되었습니다.`,
+                    message: `동점!! ${winners.join(', ')}님 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`,
                     timestamp: koreaTimeResult.toISOString(),
                     isSystem: true,
                     isHorseRaceWinner: true
