@@ -1844,13 +1844,19 @@
                         }
                     }
                     return true;
-                }
+                },
+                getRoomUsers: () => users
             });
         }
 
         // 글로벌 함수 (HTML onclick에서 호출)
         function sendMessage() { ChatModule.sendMessage(); }
         function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
+        function uploadImage() {
+            ChatModule.showImageUploadModal((imageData, caption) => {
+                socket.emit('sendImage', { imageData, caption });
+            });
+        }
 
         let readyModuleInitialized = false;
         function initReadyModule() {
@@ -3031,8 +3037,9 @@
                 document.getElementById('chatMessages').innerHTML = '';
                 window.rouletteChatHistory = [];
                 data.chatHistory.forEach(msg => addChatMessage(msg));
+                ChatModule.recalculatePins();
             }
-            
+
             // 룰렛 기록 로드
             if (data.gameState && data.gameState.rouletteHistory) {
                 rouletteHistory = data.gameState.rouletteHistory;
@@ -3159,6 +3166,7 @@
 
         socket.on('updateUsers', (users) => {
             if (window.SoundManager) SoundManager.playSound('common_notification', getRouletteSoundEnabled());
+            ChatModule.updateConnectedUsers(users);
             currentUsers = users;
 
             // 호스트 상태 확인 및 업데이트

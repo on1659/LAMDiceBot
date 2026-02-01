@@ -1446,6 +1446,11 @@
                 <div id="horseSelectionInfo" style="text-align: center; margin-top: 15px; color: #666; font-size: 14px;">
                     탈것을 선택해주세요
                 </div>
+                <!-- 탈것 선택 안한 사람 -->
+                <div id="notSelectedVehicleSection" style="display: none; margin-top: 10px; padding: 10px; background: #fff5e6; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #ff6b6b; margin-bottom: 8px; font-size: 13px;">⏳ 선택 안한 사람</div>
+                    <div id="notSelectedVehicleList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
             </div>
 
             <!-- 호스트 컨트롤 -->
@@ -1535,9 +1540,22 @@
                 </div>
             </div>
 
-            <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
-            <div id="endGameSection" style="display: none; text-align: center; margin-top: 40px;">
+            <!-- 다시보기 + 게임 종료 버튼 (결과 후 표시) -->
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
+                <button id="mainReplayButton" onclick="playLastReplay()" style="width: 100%; padding: 12px; font-size: 15px; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
+            </div>
+            <div id="endGameSection" style="display: none; text-align: center; margin-top: 10px;">
                 <button class="end-button" onclick="endHorseRaceGame()">🏁 게임 종료</button>
+            </div>
+
+            <!-- 다시보기 버튼 (화면 숨김 상태에서 경주가 진행된 경우 표시) -->
+            <div id="horseReplaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #8b4513 0%, #d2691e 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);">
+                <div style="color: white; margin-bottom: 12px; font-size: 14px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                    🎬 화면을 보지 않는 동안 경주가 진행되었습니다
+                </div>
+                <button onclick="replayMissedRace()" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                    🔄 다시보기
+                </button>
             </div>
 
             <!-- 채팅 섹션 -->
@@ -1569,8 +1587,6 @@
         <div class="result-card">
             <div class="result-title">🎊 순위 발표 🎊</div>
             <div id="resultRankings" style="margin-bottom: 20px;"></div>
-            <div class="result-winner" id="resultWinner"></div>
-            <div class="result-message" id="resultMessage"></div>
             <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: #000; font-weight: 600;">확인</button>
         </div>
     </div>
@@ -1627,7 +1643,6 @@
                 'error': '#f00',
                 'race': '#0ff',
                 'selection': '#ff0',
-                'rerace': '#f0f'
             };
             const color = colors[type] || '#0f0';
             
@@ -1667,10 +1682,11 @@
         let userHorseBets = {};
         let mySelectedHorse = null;
         let horseRaceMode = 'last'; // 무조건 꼴등 찾기
-        let currentRoundPlayers = [];
-        let raceRound = 1;
         let selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
-        let isReraceActive = false; // 재경주 활성 상태 (경주 후 동점일 때만 true)
+        let missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상태였는지)
+        let lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
+        let isReplayActive = false; // 다시보기 진행 중 여부
+        let raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
         // 경마 사운드 (socket/roomJoined에서도 접근 가능하도록 전역 스코프)
         const HORSE_SOUND_KEY = 'horseSoundEnabled';
         function getHorseSoundEnabled() { return localStorage.getItem(HORSE_SOUND_KEY) === 'true'; }
@@ -2025,85 +2041,13 @@
                 
                 console.log(`[renderTrackForSelection] 말 ${horseIndex} (rank ${rank}): vehicleId=${vehicleId}`);
                 
-                const vehicleBg = getVehicleBackground(vehicleId);
                 const vehicle = ALL_VEHICLES.find(v => v.id === vehicleId) || ALL_VEHICLES[0];
-                
-                console.log(`[renderTrackForSelection] 말 ${horseIndex} (rank ${rank}):`, {
-                    vehicleId: vehicleId,
-                    bg: vehicleBg.bg,
-                    bgSize: vehicleBg.bgSize,
-                    backgroundImage: vehicleBg.backgroundImage,
-                    vehicleThemes_loaded: Object.keys(vehicleThemes).length > 0
-                });
-                
-                // 레인 생성
-                const lane = document.createElement('div');
-                lane.style.cssText = `
-                    position: absolute;
-                    left: 0;
-                    top: ${rank * totalLaneHeight}px;
-                    width: 100%;
-                    height: ${laneHeight}px;
-                    background-image: ${vehicleBg.bg};
-                    background-size: cover;
-                    background-repeat: no-repeat;
-                    background-position: center;
-                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-                `;
-                
-                // 배경 효과 추가 (startRaceAnimation과 동일)
-                if (vehicleBg.extra === 'road') {
-                    lane.innerHTML += `<div style="position: absolute; top: 50%; left: 0; width: 100%; height: 3px; background: repeating-linear-gradient(90deg, #fff 0px, #fff 20px, transparent 20px, transparent 40px);"></div>`;
-                }
-                if (vehicleBg.extra === 'stars') {
-                    for (let i = 0; i < 20; i++) {
-                        const size = 1 + Math.random() * 2;
-                        lane.innerHTML += `<div style="position: absolute; width: ${size}px; height: ${size}px; background: white; border-radius: 50%; left: ${Math.random() * 100}%; top: ${Math.random() * 100}%; opacity: ${0.5 + Math.random() * 0.5};"></div>`;
-                    }
-                }
-                if (vehicleBg.extra === 'waves') {
-                    lane.innerHTML += `<div style="position: absolute; bottom: 20%; left: 0; width: 100%; height: 4px; background: repeating-linear-gradient(90deg, transparent, transparent 15px, rgba(255,255,255,0.4) 15px, rgba(255,255,255,0.4) 30px);"></div>`;
-                    lane.innerHTML += `<div style="position: absolute; bottom: 40%; left: 10px; width: 100%; height: 3px; background: repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(255,255,255,0.3) 20px, rgba(255,255,255,0.3) 35px);"></div>`;
-                }
-                if (vehicleBg.extra === 'clouds') {
-                    for (let i = 0; i < 4; i++) {
-                        const w = 25 + Math.random() * 20;
-                        lane.innerHTML += `<div style="position: absolute; width: ${w}px; height: ${w*0.5}px; background: rgba(255,255,255,0.7); border-radius: ${w/2}px; left: ${Math.random() * 85}%; top: ${10 + Math.random() * 50}%;"></div>`;
-                    }
-                }
-                if (vehicleBg.extra === 'carrots') {
-                    for (let i = 0; i < 6; i++) {
-                        lane.innerHTML += `<div style="position: absolute; font-size: 14px; left: ${10 + Math.random() * 80}%; top: ${40 + Math.random() * 50}%;">🥕</div>`;
-                    }
-                }
-                if (vehicleBg.extra === 'mountains') {
-                    lane.innerHTML += `<svg style="position: absolute; bottom: 30%; left: 0; width: 100%; height: 40%;" viewBox="0 0 100 40" preserveAspectRatio="none"><polygon points="0,40 15,15 30,40" fill="#7f8c8d"/><polygon points="20,40 40,10 60,40" fill="#95a5a6"/><polygon points="50,40 70,20 90,40" fill="#7f8c8d"/><polygon points="70,40 85,25 100,40" fill="#95a5a6"/></svg>`;
-                }
-                if (vehicleBg.extra === 'buildings') {
-                    lane.innerHTML += `<svg style="position: absolute; bottom: 0; left: 0; width: 100%; height: 35%;" viewBox="0 0 100 35" preserveAspectRatio="none"><rect x="0" y="10" width="8" height="25" fill="#1a252f"/><rect x="10" y="5" width="10" height="30" fill="#2c3e50"/><rect x="22" y="15" width="6" height="20" fill="#1a252f"/><rect x="30" y="8" width="12" height="27" fill="#34495e"/><rect x="45" y="12" width="8" height="23" fill="#2c3e50"/><rect x="55" y="3" width="10" height="32" fill="#1a252f"/><rect x="67" y="18" width="7" height="17" fill="#34495e"/><rect x="76" y="10" width="12" height="25" fill="#2c3e50"/><rect x="90" y="15" width="10" height="20" fill="#1a252f"/></svg>`;
-                }
-                
+
+                const { lane, vehicleBg } = createLane({ vehicleId, topPx: rank * totalLaneHeight, laneHeight, isRacing: false });
                 track.appendChild(lane);
-                
-                // 레인 아래 벽 생성
+
                 if (rank < horseCount - 1) {
-                    const wall = document.createElement('div');
-                    wall.style.cssText = `
-                        position: absolute;
-                        left: 0;
-                        top: ${rank * totalLaneHeight + laneHeight}px;
-                        width: 100%;
-                        height: ${wallHeight}px;
-                        background: linear-gradient(180deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
-                        box-shadow: 
-                            0 2px 4px rgba(0,0,0,0.3),
-                            inset 0 1px 2px rgba(255,255,255,0.1),
-                            inset 0 -1px 2px rgba(0,0,0,0.2);
-                        border-top: 1px solid rgba(255,255,255,0.2);
-                        border-bottom: 1px solid rgba(0,0,0,0.3);
-                        z-index: 10;
-                    `;
-                    track.appendChild(wall);
+                    track.appendChild(createWall({ topPx: rank * totalLaneHeight + laneHeight, wallHeight }));
                 }
                 
                 // 탈것 표시 (시작 위치)
@@ -2264,9 +2208,8 @@
                 
                 // 중복 선택 가능 여부: 탈것 수 < 사람 수일 때만 중복 선택 가능
                 // 참가자 수 계산 (currentUsers가 가장 정확 - updateUsers로 항상 최신 상태)
-                const totalPlayers = currentUsers.length > 0 ? currentUsers.length : 
-                                    (currentRoundPlayers.length > 0 ? currentRoundPlayers.length : 
-                                    (readyUsers.length > 0 ? readyUsers.length : 1));
+                const totalPlayers = currentUsers.length > 0 ? currentUsers.length :
+                                    (readyUsers.length > 0 ? readyUsers.length : 1);
                 const canDuplicate = availableHorses.length < totalPlayers;
                 
                 // 디버깅용 로그
@@ -2275,7 +2218,6 @@
                         availableHorses: availableHorses.length,
                         totalPlayers,
                         canDuplicate,
-                        currentRoundPlayers: currentRoundPlayers.length,
                         currentUsers: currentUsers.length,
                         readyUsers: readyUsers.length,
                         isHost: isHost,
@@ -2320,20 +2262,7 @@
                 
                 button.innerHTML = content;
                 
-                // 재경주인 경우 재경주 대상자가 아니면 선택 불가
-                if (isReraceActive && !currentRoundPlayers.includes(currentUser)) {
-                    button.disabled = true;
-                    button.style.opacity = '0.5';
-                    button.style.cursor = 'not-allowed';
-                }
-                
                 button.onclick = () => {
-                    // 재경주인 경우 재경주 대상자가 아니면 선택 불가
-                    if (isReraceActive && !currentRoundPlayers.includes(currentUser)) {
-                        alert('재경주 준비 대상이 아닙니다!');
-                        return;
-                    }
-                    
                     // 비활성화된 버튼은 선택 불가
                     if (button.disabled) {
                         console.log(`[말 선택] ${vehicle.name}은(는) 선택할 수 없습니다 (이미 다른 사람이 선택함)`);
@@ -2354,53 +2283,42 @@
 
             // 선택 정보 업데이트
             const selectedCount = Object.keys(userHorseBets).length;
-            // 재경주인 경우 재경주 대상자 수를 기준으로 계산
-            const totalPlayers = isReraceActive ? currentRoundPlayers.length : 
-                               (currentUsers.length > 0 ? currentUsers.length : 
-                               (currentRoundPlayers.length > 0 ? currentRoundPlayers.length : 
-                               (readyUsers.length > 0 ? readyUsers.length : 1)));
-            
+            const totalPlayers = currentUsers.length > 0 ? currentUsers.length :
+                               (readyUsers.length > 0 ? readyUsers.length : 1);
+
             // 선택한 사람 목록 생성
             const selectedUsers = Object.keys(userHorseBets);
-            
-            // 재경주 버튼 업데이트 (재경주인 경우)
-            if (isReraceActive && isHost) {
-                updateReraceButton();
+
+            let infoText = `${selectedCount}/${totalPlayers}명이 탈것을 선택했습니다.`;
+
+            if (selectedCount > 0) {
+                infoText += ` (${selectedUsers.join(', ')})`;
             }
-            
-            let infoText = '';
-            
-            // 재경주인 경우
-            if (isReraceActive) {
-                const reraceSelectedCount = currentRoundPlayers.filter(p => userHorseBets[p] !== undefined).length;
-                infoText = `재경주: ${reraceSelectedCount}/${totalPlayers}명이 탈것을 선택했습니다.`;
-                
-                if (reraceSelectedCount > 0) {
-                    const reraceSelectedUsers = currentRoundPlayers.filter(p => userHorseBets[p] !== undefined);
-                    infoText += ` (${reraceSelectedUsers.join(', ')})`;
-                }
-                
-                if (reraceSelectedCount === totalPlayers) {
-                    infoText = `✅ 모든 재경주 대상자가 탈것을 선택했습니다. 호스트가 재경주 버튼을 눌러주세요!`;
-                } else {
-                    // 재경주 대상자가 아닌 사람에게 메시지 표시
-                    if (!currentRoundPlayers.includes(currentUser)) {
-                        infoText = `재경주 준비 대상이 아닙니다. (재경주 대상자: ${currentRoundPlayers.join(', ')})`;
-                    }
-                }
-            } else {
-                infoText = `${selectedCount}/${totalPlayers}명이 탈것을 선택했습니다.`;
-                
-                if (selectedCount > 0) {
-                    infoText += ` (${selectedUsers.join(', ')})`;
-                }
-                
-                if (selectedCount === totalPlayers) {
-                    infoText = `✅ 모든 참가자가 탈것을 선택했습니다. 경주가 곧 시작됩니다!`;
-                }
+
+            if (selectedCount === totalPlayers) {
+                infoText = `✅ 모든 참가자가 탈것을 선택했습니다. 경주가 곧 시작됩니다!`;
             }
             
             info.textContent = infoText;
+
+            // 탈것 선택 안한 사람 표시
+            const notSelectedSection = document.getElementById('notSelectedVehicleSection');
+            const notSelectedList = document.getElementById('notSelectedVehicleList');
+            if (notSelectedSection && notSelectedList) {
+                const notSelectedUsers = readyUsers.filter(name => !selectedUsers.includes(name));
+                if (notSelectedUsers.length > 0 && readyUsers.length > 0) {
+                    notSelectedSection.style.display = 'block';
+                    notSelectedList.innerHTML = '';
+                    notSelectedUsers.sort((a, b) => a.localeCompare(b, 'ko')).forEach(name => {
+                        const tag = document.createElement('div');
+                        tag.className = 'not-rolled-tag';
+                        tag.textContent = name + (name === currentUser ? ' (나)' : '');
+                        notSelectedList.appendChild(tag);
+                    });
+                } else {
+                    notSelectedSection.style.display = 'none';
+                }
+            }
         }
 
         // 경주 애니메이션 시작 (서버에서 받은 기믹 데이터 사용)
@@ -2490,80 +2408,12 @@
                 
                 console.log(`[startRaceAnimation] laneIndex ${laneIndex}: horseIndex=${horseIndex}, vehicleId=${vehicleId}, rank=${rank} (${rank === 0 ? '1등' : rank === 1 ? '2등' : rank === 2 ? '3등' : rank + 1 + '등'})`);
                 
-                const vehicleBg = getVehicleBackground(vehicleId);
-                
-                // 레인 생성 (laneIndex로 위치 결정 - 말 선택 화면과 동일)
-                // 레인 생성 (laneIndex로 위치 결정 - 말 선택 화면과 동일)
-                const lane = document.createElement('div');
-                lane.style.cssText = `
-                    position: absolute;
-                    left: 0;
-                    top: ${laneIndex * totalLaneHeight}px;
-                    width: 100%;
-                    height: ${laneHeight}px;
-                    background-image: ${vehicleBg.bg};
-                    background-size: ${trackWidth}px 100%;
-                    background-repeat: repeat-x;
-                    background-position: 0 center;
-                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-                `;
-                
-                // 레인 아래 벽 생성 (마지막 레인 제외)
+                const { lane, vehicleBg } = createLane({ vehicleId, topPx: laneIndex * totalLaneHeight, laneHeight, isRacing: true });
+
                 if (laneIndex < horseCount - 1) {
-                    const wall = document.createElement('div');
-                    wall.style.cssText = `
-                        position: absolute;
-                        left: 0;
-                        top: ${laneIndex * totalLaneHeight + laneHeight}px;
-                        width: 100%;
-                        height: ${wallHeight}px;
-                        background: linear-gradient(180deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
-                        box-shadow: 
-                            0 2px 4px rgba(0,0,0,0.3),
-                            inset 0 1px 2px rgba(255,255,255,0.1),
-                            inset 0 -1px 2px rgba(0,0,0,0.2);
-                        border-top: 1px solid rgba(255,255,255,0.2);
-                        border-bottom: 1px solid rgba(0,0,0,0.3);
-                        z-index: 10;
-                    `;
-                    track.appendChild(wall);
+                    track.appendChild(createWall({ topPx: laneIndex * totalLaneHeight + laneHeight, wallHeight }));
                 }
-                
-                // 배경 효과 추가
-                if (vehicleBg.extra === 'road') {
-                    // 도로 차선 (점선)
-                    lane.innerHTML += `<div style="position: absolute; top: 50%; left: 0; width: 100%; height: 3px; background: repeating-linear-gradient(90deg, #fff 0px, #fff 20px, transparent 20px, transparent 40px);"></div>`;
-                }
-                if (vehicleBg.extra === 'stars') {
-                    for (let i = 0; i < 20; i++) {
-                        const size = 1 + Math.random() * 2;
-                        lane.innerHTML += `<div style="position: absolute; width: ${size}px; height: ${size}px; background: white; border-radius: 50%; left: ${Math.random() * 100}%; top: ${Math.random() * 100}%; opacity: ${0.5 + Math.random() * 0.5};"></div>`;
-                    }
-                }
-                if (vehicleBg.extra === 'waves') {
-                    lane.innerHTML += `<div style="position: absolute; bottom: 20%; left: 0; width: 100%; height: 4px; background: repeating-linear-gradient(90deg, transparent, transparent 15px, rgba(255,255,255,0.4) 15px, rgba(255,255,255,0.4) 30px);"></div>`;
-                    lane.innerHTML += `<div style="position: absolute; bottom: 40%; left: 10px; width: 100%; height: 3px; background: repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(255,255,255,0.3) 20px, rgba(255,255,255,0.3) 35px);"></div>`;
-                }
-                if (vehicleBg.extra === 'clouds') {
-                    for (let i = 0; i < 4; i++) {
-                        const w = 25 + Math.random() * 20;
-                        lane.innerHTML += `<div style="position: absolute; width: ${w}px; height: ${w*0.5}px; background: rgba(255,255,255,0.7); border-radius: ${w/2}px; left: ${Math.random() * 85}%; top: ${10 + Math.random() * 50}%;"></div>`;
-                    }
-                }
-                if (vehicleBg.extra === 'carrots') {
-                    for (let i = 0; i < 6; i++) {
-                        lane.innerHTML += `<div style="position: absolute; font-size: 14px; left: ${10 + Math.random() * 80}%; top: ${40 + Math.random() * 50}%;">🥕</div>`;
-                    }
-                }
-                if (vehicleBg.extra === 'mountains') {
-                    // 산 실루엣
-                    lane.innerHTML += `<svg style="position: absolute; bottom: 30%; left: 0; width: 100%; height: 40%;" viewBox="0 0 100 40" preserveAspectRatio="none"><polygon points="0,40 15,15 30,40" fill="#7f8c8d"/><polygon points="20,40 40,10 60,40" fill="#95a5a6"/><polygon points="50,40 70,20 90,40" fill="#7f8c8d"/><polygon points="70,40 85,25 100,40" fill="#95a5a6"/></svg>`;
-                }
-                if (vehicleBg.extra === 'buildings') {
-                    // 도시 건물 실루엣
-                    lane.innerHTML += `<svg style="position: absolute; bottom: 0; left: 0; width: 100%; height: 35%;" viewBox="0 0 100 35" preserveAspectRatio="none"><rect x="0" y="10" width="8" height="25" fill="#1a252f"/><rect x="10" y="5" width="10" height="30" fill="#2c3e50"/><rect x="22" y="15" width="6" height="20" fill="#1a252f"/><rect x="30" y="8" width="12" height="27" fill="#34495e"/><rect x="45" y="12" width="8" height="23" fill="#2c3e50"/><rect x="55" y="3" width="10" height="32" fill="#1a252f"/><rect x="67" y="18" width="7" height="17" fill="#34495e"/><rect x="76" y="10" width="12" height="25" fill="#2c3e50"/><rect x="90" y="15" width="10" height="20" fill="#1a252f"/></svg>`;
-                }
-                
+
                 // 각 레인별 결승선 추가 (배경과 함께 스크롤됨)
                 const laneFinishLine = document.createElement('div');
                 laneFinishLine.className = 'finish-line';
@@ -2953,10 +2803,11 @@
                         if (state.currentPos >= finishLine && !state.finished) {
                             state.currentPos = finishLine;
                             state.finished = true;
-                            state.finishOrder = finishOrderCounter++;
+                            state.finishOrder = state.rank; // 서버 순위 사용 (클라이언트 타이밍 차이 방지)
+                            finishOrderCounter = Math.max(finishOrderCounter, state.rank + 1);
                             state.horse.style.filter = '';
                             state.horse.style.transform = '';
-                            
+
                             // 도착 애니메이션 표시
                             showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
                         }
@@ -3057,17 +2908,17 @@
                                     if (onComplete) {
                                         onComplete(actualFinishOrder);
                                     }
-                                }, 1500);
-                            }, 500);
+                                }, 600);
+                            }, 200);
                         };
                         
                         // 꼴등이 있으면 사망 애니메이션, 없으면 바로 종료
                         if (lastPlaceState) {
-                            // 꼴등에게 finished 상태 부여 (순위 계산용)
+                            // 꼴등에게 finished 상태 부여 (항상 마지막 순위)
                             lastPlaceState.finished = true;
-                            lastPlaceState.finishOrder = finishOrderCounter;
-                            
-                            showDeathAnimation(lastPlaceState.horse, lastPlaceState.horseIndex, finishOrderCounter, finishGame);
+                            lastPlaceState.finishOrder = totalHorses - 1;
+
+                            showDeathAnimation(lastPlaceState.horse, lastPlaceState.horseIndex, totalHorses - 1, finishGame);
                         } else {
                             finishGame();
                         }
@@ -3138,7 +2989,7 @@
                 font-weight: 900;
                 color: ${rankColors[finishOrder] || '#888'};
                 pointer-events: none;
-                z-index: -1;
+                z-index: 10;
                 white-space: nowrap;
                 animation: tombstoneDrop 0.5s ease-out forwards;
                 opacity: 0;
@@ -4102,6 +3953,79 @@
             return objects[objectId] || '';
         }
 
+        // 레인 생성 공통 함수
+        function createLane({ vehicleId, topPx, laneHeight, isRacing }) {
+            const vehicleBg = getVehicleBackground(vehicleId);
+            const lane = document.createElement('div');
+            lane.style.cssText = `
+                position: absolute;
+                left: 0;
+                top: ${topPx}px;
+                width: 100%;
+                height: ${laneHeight}px;
+                background-image: ${vehicleBg.bg};
+                background-size: cover;
+                background-repeat: ${isRacing ? 'repeat-x' : 'no-repeat'};
+                background-position: ${isRacing ? '0 center' : 'center'};
+                box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            `;
+
+            // 배경 효과 추가
+            if (vehicleBg.extra === 'road') {
+                lane.innerHTML += `<div style="position: absolute; top: 50%; left: 0; width: 100%; height: 3px; background: repeating-linear-gradient(90deg, #fff 0px, #fff 20px, transparent 20px, transparent 40px);"></div>`;
+            }
+            if (vehicleBg.extra === 'stars') {
+                for (let i = 0; i < 20; i++) {
+                    const size = 1 + Math.random() * 2;
+                    lane.innerHTML += `<div style="position: absolute; width: ${size}px; height: ${size}px; background: white; border-radius: 50%; left: ${Math.random() * 100}%; top: ${Math.random() * 100}%; opacity: ${0.5 + Math.random() * 0.5};"></div>`;
+                }
+            }
+            if (vehicleBg.extra === 'waves') {
+                lane.innerHTML += `<div style="position: absolute; bottom: 20%; left: 0; width: 100%; height: 4px; background: repeating-linear-gradient(90deg, transparent, transparent 15px, rgba(255,255,255,0.4) 15px, rgba(255,255,255,0.4) 30px);"></div>`;
+                lane.innerHTML += `<div style="position: absolute; bottom: 40%; left: 10px; width: 100%; height: 3px; background: repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(255,255,255,0.3) 20px, rgba(255,255,255,0.3) 35px);"></div>`;
+            }
+            if (vehicleBg.extra === 'clouds') {
+                for (let i = 0; i < 4; i++) {
+                    const w = 25 + Math.random() * 20;
+                    lane.innerHTML += `<div style="position: absolute; width: ${w}px; height: ${w*0.5}px; background: rgba(255,255,255,0.7); border-radius: ${w/2}px; left: ${Math.random() * 85}%; top: ${10 + Math.random() * 50}%;"></div>`;
+                }
+            }
+            if (vehicleBg.extra === 'carrots') {
+                for (let i = 0; i < 6; i++) {
+                    lane.innerHTML += `<div style="position: absolute; font-size: 14px; left: ${10 + Math.random() * 80}%; top: ${40 + Math.random() * 50}%;">🥕</div>`;
+                }
+            }
+            if (vehicleBg.extra === 'mountains') {
+                lane.innerHTML += `<svg style="position: absolute; bottom: 30%; left: 0; width: 100%; height: 40%;" viewBox="0 0 100 40" preserveAspectRatio="none"><polygon points="0,40 15,15 30,40" fill="#7f8c8d"/><polygon points="20,40 40,10 60,40" fill="#95a5a6"/><polygon points="50,40 70,20 90,40" fill="#7f8c8d"/><polygon points="70,40 85,25 100,40" fill="#95a5a6"/></svg>`;
+            }
+            if (vehicleBg.extra === 'buildings') {
+                lane.innerHTML += `<svg style="position: absolute; bottom: 0; left: 0; width: 100%; height: 35%;" viewBox="0 0 100 35" preserveAspectRatio="none"><rect x="0" y="10" width="8" height="25" fill="#1a252f"/><rect x="10" y="5" width="10" height="30" fill="#2c3e50"/><rect x="22" y="15" width="6" height="20" fill="#1a252f"/><rect x="30" y="8" width="12" height="27" fill="#34495e"/><rect x="45" y="12" width="8" height="23" fill="#2c3e50"/><rect x="55" y="3" width="10" height="32" fill="#1a252f"/><rect x="67" y="18" width="7" height="17" fill="#34495e"/><rect x="76" y="10" width="12" height="25" fill="#2c3e50"/><rect x="90" y="15" width="10" height="20" fill="#1a252f"/></svg>`;
+            }
+
+            return { lane, vehicleBg };
+        }
+
+        // 벽 생성 공통 함수
+        function createWall({ topPx, wallHeight }) {
+            const wall = document.createElement('div');
+            wall.style.cssText = `
+                position: absolute;
+                left: 0;
+                top: ${topPx}px;
+                width: 100%;
+                height: ${wallHeight}px;
+                background: linear-gradient(180deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+                box-shadow:
+                    0 2px 4px rgba(0,0,0,0.3),
+                    inset 0 1px 2px rgba(255,255,255,0.1),
+                    inset 0 -1px 2px rgba(0,0,0,0.2);
+                border-top: 1px solid rgba(255,255,255,0.2);
+                border-bottom: 1px solid rgba(0,0,0,0.3);
+                z-index: 10;
+            `;
+            return wall;
+        }
+
         // 탈것별 배경 생성 함수
         function getVehicleBackground(vehicleId) {
             // JSON에서 테마 데이터 가져오기
@@ -4143,14 +4067,35 @@
         }
         
         // 경주 결과 표시
-        function showRaceResult(data) {
+        function showRaceResult(data, isReplay = false) {
+            // 다시보기가 아닌 경우 중복 호출 방지
+            if (!isReplay && raceResultShown) {
+                addDebugLog('⚠️ showRaceResult 중복 호출 무시', 'system');
+                return;
+            }
+            if (!isReplay) raceResultShown = true;
+
             isRaceActive = false;
-            
+            updateStartButton(); // 게임 종료 시 버튼 상태 업데이트
+
             const winners = data.winners || [];
             const horseRankings = data.horseRankings || [];
             const gameMode = data.horseRaceMode || 'last';
-            
+
             addDebugLog(`경주 결과: 당첨자 ${winners.length}명 (${winners.join(', ')})`, 'race');
+
+            // 채팅에 게임 종료 시스템 메시지 추가
+            if (ChatModule && typeof ChatModule.displayChatMessage === 'function') {
+                let resultMessage = '🏁 경주가 종료되었습니다!';
+                if (winners.length > 0) {
+                    resultMessage += `\n🎉 당첨자: ${winners.join(', ')}`;
+                }
+                ChatModule.displayChatMessage({
+                    message: resultMessage,
+                    isSystemMessage: true,
+                    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                }, true);
+            }
             
             // 탈것 정보 가져오기 헬퍼 함수
             function getVehicleInfo(horseIndex) {
@@ -4187,133 +4132,125 @@
             // 결과 오버레이 표시
             const rankingsDiv = document.getElementById('resultRankings');
             if (rankingsDiv) {
-                let rankingsHtml = '<div style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: center;">🏁 순위 발표 🏁</div>';
-                
-                const lastIndex = horseRankings.length - 1;
+                // 베팅한 사람이 있는 가장 낮은 순위 찾기 (꼴등에 가장 가까운 베팅자)
+                let loserIndex = horseRankings.length - 1;
+                let loserHorseIndex = horseRankings[loserIndex];
+                let loserBettingUsers = getBettingUsers(loserHorseIndex);
+
+                // 꼴등부터 역순으로 올라가며 베팅자가 있는 순위 찾기
+                for (let i = horseRankings.length - 1; i >= 0; i--) {
+                    const users = getBettingUsers(horseRankings[i]);
+                    if (users.length > 0) {
+                        loserIndex = i;
+                        loserHorseIndex = horseRankings[i];
+                        loserBettingUsers = users;
+                        break;
+                    }
+                }
+                const loserVehicle = getVehicleInfo(loserHorseIndex);
+
+                // 꼴등 멘트 랜덤
+                const loserComments = [
+                    '축하합니다! 영광의 꼴등!',
+                    '꼴등의 영광을 안고 갑니다!',
+                    '꼴찌는 아름답다...',
+                    '느림의 미학! 꼴등 축하!',
+                    '꼴등이야말로 진정한 주인공!',
+                    '마지막까지 최선을 다한 꼴등!',
+                ];
+                const loserComment = loserComments[Math.floor(Math.random() * loserComments.length)];
+
+                // 1등~꼴등 전체 순위
+                let rankingsHtml = '';
                 horseRankings.forEach((horseIndex, index) => {
                     const vehicle = getVehicleInfo(horseIndex);
                     const bettingUsers = getBettingUsers(horseIndex);
-                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
                     const rankNum = index + 1;
-                    const isLast = index === lastIndex;
+                    const isLast = index === loserIndex;
                     const usersHtml = bettingUsers.length > 0 ? bettingUsers.join(', ') : '베팅 없음';
-                    const usersDisplay = isLast && bettingUsers.length > 0
-                        ? bettingUsers.map(u => `<strong>${u}</strong>`).join(', ')
-                        : usersHtml;
-                    
+
                     if (index === 0) {
                         rankingsHtml += `
-                            <div class="result-rank-1" style="background: linear-gradient(135deg, #ffd700 0%, #ffec8b 100%); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(255,215,0,0.4);">
-                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                                    <span style="font-size: 28px;">${medal}</span>
-                                    <span style="font-size: 26px; font-weight: bold; color: #8b4513;">${rankNum}등</span>
-                                    <div style="transform: scale(1.3); margin: 0 5px;">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 60)}</div>
-                                    <span style="font-size: 22px; font-weight: bold; color: #8b4513;">${vehicle.name}</span>
-                                </div>
-                                <div style="font-size: 20px; color: #5a3d1e; text-align: center; margin-top: 12px; font-weight: 600;">
-                                    ${usersDisplay}
+                            <div class="result-rank-1" style="background: linear-gradient(135deg, #fff8dc 0%, #ffeaa7 100%); padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid #f1c40f;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 22px;">🥇</span>
+                                    <span style="font-size: 18px; font-weight: bold; color: #8b6914;">${rankNum}등</span>
+                                    <div style="transform: scale(0.9);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 45)}</div>
+                                    <span style="font-size: 15px; font-weight: bold; color: #8b6914;">${vehicle.name}</span>
+                                    <span style="font-size: 12px; color: #a08030; margin-left: auto;">${usersHtml}</span>
                                 </div>
                             </div>
                         `;
                     } else if (index === 1) {
                         rankingsHtml += `
-                            <div class="result-rank-2" style="background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                            <div class="result-rank-2" style="background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #bdc3c7;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 22px;">${medal}</span>
-                                    <span style="font-size: 18px; font-weight: bold; color: #4a4a4a;">${rankNum}등</span>
-                                    <div style="transform: scale(0.9);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 50)}</div>
-                                    <span style="font-size: 16px; font-weight: bold; color: #4a4a4a;">${vehicle.name}</span>
-                                </div>
-                                <div style="font-size: 14px; color: #666; margin-top: 5px; padding-left: 15px;">
-                                    - ${usersDisplay}
+                                    <span style="font-size: 18px;">🥈</span>
+                                    <span style="font-size: 16px; font-weight: bold; color: #555;">${rankNum}등</span>
+                                    <div style="transform: scale(0.8);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
+                                    <span style="font-size: 14px; font-weight: bold; color: #555;">${vehicle.name}</span>
+                                    <span style="font-size: 12px; color: #888; margin-left: auto;">${usersHtml}</span>
                                 </div>
                             </div>
                         `;
                     } else if (index === 2) {
                         rankingsHtml += `
-                            <div class="result-rank-3" style="background: linear-gradient(135deg, #cd7f32 0%, #daa06d 100%); padding: 12px; border-radius: 10px; margin-bottom: 10px;">
+                            <div class="result-rank-3" style="background: linear-gradient(135deg, #fae5d3 0%, #f0d5b8 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #cd7f32;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 22px;">${medal}</span>
-                                    <span style="font-size: 18px; font-weight: bold; color: #4a3728;">${rankNum}등</span>
-                                    <div style="transform: scale(0.9);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 50)}</div>
-                                    <span style="font-size: 16px; font-weight: bold; color: #4a3728;">${vehicle.name}</span>
+                                    <span style="font-size: 18px;">🥉</span>
+                                    <span style="font-size: 16px; font-weight: bold; color: #8b5e3c;">${rankNum}등</span>
+                                    <div style="transform: scale(0.8);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
+                                    <span style="font-size: 14px; font-weight: bold; color: #8b5e3c;">${vehicle.name}</span>
+                                    <span style="font-size: 12px; color: #a07050; margin-left: auto;">${usersHtml}</span>
                                 </div>
-                                <div style="font-size: 14px; color: #5a4a3a; margin-top: 5px; padding-left: 15px;">
-                                    - ${usersDisplay}
+                            </div>
+                        `;
+                    } else if (isLast) {
+                        rankingsHtml += `
+                            <div style="background: linear-gradient(135deg, #2d1f3d 0%, #1a1a2e 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #e94560;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 16px;">💀</span>
+                                    <span style="font-size: 15px; font-weight: bold; color: #e94560;">${rankNum}등</span>
+                                    <div style="transform: scale(0.7); filter: grayscale(50%);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
+                                    <span style="font-size: 13px; font-weight: bold; color: #e94560;">${vehicle.name}</span>
+                                    <span style="font-size: 12px; color: #e94560; margin-left: auto; font-weight: 600;">${usersHtml}</span>
                                 </div>
                             </div>
                         `;
                     } else {
                         rankingsHtml += `
-                            <div style="background: #f5f5f5; padding: 6px 8px; border-radius: 6px; margin-bottom: 4px;">
+                            <div style="background: #fafafa; padding: 8px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 4px solid #ddd;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 14px; font-weight: bold; color: #666;">${rankNum}등</span>
-                                    <div style="transform: scale(0.65);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 45)}</div>
-                                    <span style="font-size: 13px; font-weight: bold; color: #666;">${vehicle.name}</span>
-                                </div>
-                                <div style="font-size: 12px; color: #888; margin-top: 2px; padding-left: 12px;">
-                                    - ${usersDisplay}
+                                    <span style="font-size: 13px; font-weight: bold; color: #999; min-width: 28px;">${rankNum}등</span>
+                                    <div style="transform: scale(0.65);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 38)}</div>
+                                    <span style="font-size: 13px; color: #777;">${vehicle.name}</span>
+                                    <span style="font-size: 11px; color: #aaa; margin-left: auto;">${usersHtml}</span>
                                 </div>
                             </div>
                         `;
                     }
                 });
-                
+
+                // 꼴등 하이라이트 (하단)
+                rankingsHtml += `
+                    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 18px; border-radius: 16px; margin-top: 16px; box-shadow: 0 6px 25px rgba(0,0,0,0.3); border: 2px solid #e94560; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #e94560; color: #fff; padding: 3px 16px; border-radius: 0 0 10px 10px; font-size: 11px; font-weight: bold; letter-spacing: 1px;">LOSER</div>
+                        <div style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 13px; color: #e94560; font-weight: 600;">${loserComment}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+                            <span style="font-size: 32px;">💀</span>
+                            <span style="font-size: 24px; font-weight: bold; color: #e94560;">${loserIndex + 1}등</span>
+                            <div style="transform: scale(1.2); filter: grayscale(60%);">${getVehicleSVGForResult(loserVehicle.vehicleId || loserVehicle.id, 55)}</div>
+                            <span style="font-size: 20px; font-weight: bold; color: #eee;">${loserVehicle.name}</span>
+                        </div>
+                        <div style="font-size: 16px; color: #e94560; text-align: center; margin-top: 10px; font-weight: 700;">
+                            🎉 ${loserBettingUsers.join(', ')} 🎉
+                        </div>
+                    </div>
+                `;
+
                 rankingsDiv.innerHTML = rankingsHtml;
-            }
-            
-            // 당첨자 표시
-            const winnerDiv = document.getElementById('resultWinner');
-            const messageDiv = document.getElementById('resultMessage');
-            
-            if (winnerDiv) {
-                const modeText = '꼴등'; // 무조건 꼴등 찾기
-                if (winners.length === 0) {
-                    // 당첨자가 없을 때: 베팅한 사람들 중 가장 높은 순위 찾기
-                    let bestRank = -1;
-                    let bestBetters = [];
-                    let bestHorseIndex = -1;
-                    
-                    // userHorseBets에서 각 베팅자의 순위 확인
-                    if (userHorseBets && horseRankings.length > 0) {
-                        Object.entries(userHorseBets).forEach(([username, horseIndex]) => {
-                            const rank = horseRankings.indexOf(horseIndex);
-                            if (rank !== -1) {
-                                if (bestRank === -1 || rank < bestRank) {
-                                    bestRank = rank;
-                                    bestBetters = [username];
-                                    bestHorseIndex = horseIndex;
-                                } else if (rank === bestRank) {
-                                    bestBetters.push(username);
-                                }
-                            }
-                        });
-                    }
-                    
-                    if (bestBetters.length > 0 && bestRank >= 0) {
-                        const vehicleInfo = getVehicleInfo(bestHorseIndex);
-                        const rankText = bestRank + 1;
-                        winnerDiv.innerHTML = `🏅 ${bestBetters.join(', ')} 🏅`;
-                        if (messageDiv) {
-                            messageDiv.textContent = `${rankText}등 ${vehicleInfo.name}에 베팅! 가장 높은 순위!`;
-                        }
-                    } else {
-                        winnerDiv.textContent = '베팅자 없음';
-                        if (messageDiv) {
-                            messageDiv.textContent = '아무도 베팅하지 않았습니다.';
-                        }
-                    }
-                } else if (winners.length === 1) {
-                    winnerDiv.textContent = `🎊 ${winners[0]} 🎊`;
-                    if (messageDiv) {
-                        messageDiv.textContent = '';
-                    }
-                } else {
-                    winnerDiv.textContent = winners.join(', ');
-                    if (messageDiv) {
-                        messageDiv.textContent = '동점! 재경주를 진행해야 합니다.';
-                    }
-                }
             }
             
             // 순위 이펙트 숨기기
@@ -4331,32 +4268,32 @@
                 gameStatus.style.color = '#495057';
             }
             
+            // 다시보기 버튼 표시 (모든 사용자)
+            document.getElementById('replaySection').style.display = 'block';
+            const replayBtn = document.getElementById('mainReplayButton');
+            if (replayBtn) {
+                replayBtn.disabled = false;
+                replayBtn.textContent = '🎬 다시보기';
+                replayBtn.style.opacity = '1';
+                replayBtn.style.cursor = 'pointer';
+            }
+
             // 호스트에게 종료 버튼 표시
             if (isHost) {
                 document.getElementById('endGameSection').style.display = 'block';
-                
-                // 동점일 때만 재경주 준비 버튼 표시
-                if (winners.length >= 2) {
-                    const endSection = document.getElementById('endGameSection');
-                    endSection.innerHTML = `
-                        <button class="end-button" onclick="requestReraceReady()" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%); margin-bottom: 10px;">🔄 재경주 준비</button>
-                        <button class="end-button" onclick="endHorseRaceGame()">🏁 게임 종료</button>
-                    `;
-                } else {
-                    const endSection = document.getElementById('endGameSection');
-                    endSection.innerHTML = `
-                        <button class="end-button" onclick="endHorseRaceGame()">🏁 게임 종료</button>
-                    `;
-                }
             }
             
             // 경주 트랙은 유지 (게임 종료 시까지)
-        }
-        
-        // 재경주 준비 요청
-        function requestReraceReady() {
-            addDebugLog('재경주 준비 요청', 'rerace');
-            socket.emit('requestReraceReady');
+
+            // 꼴등 베팅 당첨자가 2명 이상이면 자동 준비
+            if (winners.length >= 2) {
+                setTimeout(() => {
+                    if (!isReady) {
+                        toggleReady();
+                        addDebugLog(`꼴등 당첨자 ${winners.length}명 → 자동 준비`, 'system');
+                    }
+                }, 3000); // 결과 확인 후 3초 뒤 자동 준비
+            }
         }
         
         // 3-2-1 카운트다운 표시 (경마맵 영역 안에)
@@ -4407,42 +4344,6 @@
                 setTimeout(showNext, 1000);
             }
             showNext();
-        }
-
-        // 재경주 시작 요청
-        function startRerace() {
-            addDebugLog('재경주 시작 요청', 'rerace');
-            socket.emit('startRerace');
-        }
-        
-        // 재경주 버튼 업데이트 (호스트 전용)
-        function updateReraceButton() {
-            if (!isHost) return;
-            
-            if (!isReraceActive) return;
-            
-            // 모든 재경주 대상자가 탈것을 선택했는지 확인
-            const allSelected = currentRoundPlayers.every(player => userHorseBets[player] !== undefined);
-            const selectedCount = currentRoundPlayers.filter(p => userHorseBets[p] !== undefined).length;
-            
-            addDebugLog(`재경주 버튼 업데이트: ${selectedCount}/${currentRoundPlayers.length}명 선택, 모두 선택: ${allSelected}`, 'rerace');
-            
-            // 호스트 컨트롤 섹션에 재경주 버튼 표시
-            const hostControls = document.getElementById('hostControls');
-            if (hostControls) {
-                const startButton = document.getElementById('startHorseRaceButton');
-                if (startButton) {
-                    if (allSelected) {
-                        startButton.textContent = '🔄 재경주';
-                        startButton.disabled = false;
-                        startButton.onclick = startRerace;
-                    } else {
-                        startButton.textContent = `🔄 재경주 (${selectedCount}/${currentRoundPlayers.length}명 선택)`;
-                        startButton.disabled = true;
-                        startButton.onclick = null;
-                    }
-                }
-            }
         }
 
         // 사용자 목록 렌더링
@@ -4576,12 +4477,14 @@
                 // 순위별 결과 생성
                 let rankingsHtml = '';
                 if (record.rankings && record.rankings.length > 0) {
-                    record.rankings.slice(0, 3).forEach((horseIndex, rank) => {
+                    record.rankings.forEach((horseIndex, rank) => {
                         const vehicleId = record.selectedVehicleTypes ? record.selectedVehicleTypes[horseIndex] : 'horse';
                         const vehicle = getVehicleInfoForHistory(vehicleId);
                         const bettingUsers = getBettingUsersFromRecord(record, horseIndex);
-                        const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉';
-                        const bgColor = rank === 0 ? '#fff8dc' : rank === 1 ? '#f5f5f5' : '#faebd7';
+                        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
+                        const medal = medals[rank] || `${rank + 1}`;
+                        const bgColors = ['#fff8dc', '#f5f5f5', '#faebd7', '#f0f0f0', '#f0f0f0', '#f0f0f0'];
+                        const bgColor = bgColors[rank] || '#f0f0f0';
                         
                         rankingsHtml += `
                             <div style="display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: ${bgColor}; border-radius: 4px; margin-bottom: 4px;">
@@ -4628,93 +4531,169 @@
                         ${rankingsHtml}
                     </div>
                     ${winnersText ? `<div style="font-size: 13px; color: #d4a574; font-weight: bold; text-align: center; padding: 5px; background: #fff5e6; border-radius: 4px;">${winnersText}</div>` : ''}
-                    <button onclick="playReplay(${record.id})" style="width: 100%; margin-top: 8px; padding: 8px; font-size: 12px; background: linear-gradient(135deg, #8b4513 0%, #d2691e 100%); color: white; border: none; border-radius: 6px; cursor: pointer;">
-                        🎬 다시보기
-                    </button>
                 `;
                 historyList.appendChild(item);
             });
         }
         
+        // 마지막 경주 다시보기 (메인 다시보기 버튼)
+        function playLastReplay() {
+            if (horseRaceHistory.length === 0) {
+                alert('기록을 찾을 수 없습니다.');
+                return;
+            }
+            const record = horseRaceHistory[horseRaceHistory.length - 1];
+            playReplay(record);
+        }
+
         // 다시보기 기능
-        function playReplay(recordId) {
-            const record = horseRaceHistory.find(r => r.id === recordId);
+        function playReplay(record) {
             if (!record) {
                 alert('기록을 찾을 수 없습니다.');
                 return;
             }
-            
-            // 다시보기용 데이터 설정
-            const replayData = {
-                rankings: record.rankings,
-                userHorseBets: record.userHorseBets,
-                selectedVehicleTypes: record.selectedVehicleTypes,
-                availableHorses: record.availableHorses || record.rankings.map((_, i) => i),
-                isReplay: true,
-                replayRound: record.round
-            };
-            
-            // 트랙 표시 및 애니메이션 재생
+
+            // 다시보기 중 버튼 클릭 방지
+            const replayBtn = document.getElementById('mainReplayButton');
+            if (replayBtn) {
+                replayBtn.disabled = true;
+                replayBtn.textContent = '🎬 다시보기 중...';
+                replayBtn.style.opacity = '0.6';
+                replayBtn.style.cursor = 'not-allowed';
+            }
+
             addDebugLog(`다시보기 시작: ${record.round}라운드`, 'replay');
-            
+
             // 말 선택 섹션 숨기기
             const horseSelectionSection = document.getElementById('horseSelectionSection');
             if (horseSelectionSection) {
                 horseSelectionSection.classList.remove('active');
             }
-            
+
             // 결과 오버레이 숨기기
             const resultOverlay = document.getElementById('resultOverlay');
             if (resultOverlay) {
                 resultOverlay.classList.remove('visible');
             }
-            
-            // 다시보기용 selectedVehicleTypes 임시 설정
+
+            // 다시보기용 상태 임시 설정
             const originalSelectedVehicleTypes = selectedVehicleTypes;
             const originalUserHorseBets = userHorseBets;
             const originalAvailableHorses = availableHorses;
-            
+
             selectedVehicleTypes = record.selectedVehicleTypes;
             userHorseBets = record.userHorseBets;
             availableHorses = record.availableHorses || record.rankings.map((_, i) => i);
-            
-            // 경주 애니메이션 시작
+
             isRaceActive = true;
-            
+
             // 저장된 속도 데이터 사용 (없으면 순위 기반 생성)
             let replaySpeeds;
             if (record.speeds && Array.isArray(record.speeds)) {
                 replaySpeeds = record.speeds;
             } else {
-                // 순위 기반 속도 생성 (동일한 시드 기반)
                 replaySpeeds = record.rankings.map((horseIndex, rank) => {
                     const seedValue = (record.id + horseIndex) * 9301 + 49297;
                     const pseudoRandom = ((seedValue % 233280) / 233280);
                     return 3000 + rank * 500 + pseudoRandom * 200;
                 });
             }
-            
-            // 저장된 기믹 데이터 사용 (서버와 동일한 경주 재현)
+
             const replayGimmicks = record.gimmicks || null;
-            
-            // 애니메이션 시작 - 콜백으로 종료 처리
-            startRaceAnimation(record.rankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
-                isRaceActive = false;
-                
-                // 다시보기 결과 표시 (실제 도착 순서 사용)
-                showRaceResult({
-                    winners: record.winners,
-                    horseRankings: actualFinishOrder || record.rankings,
-                    horseRaceMode: record.mode
+
+            // 3-2-1 카운트다운 후 애니메이션 시작
+            isReplayActive = true;
+            showCountdown();
+            setTimeout(() => {
+                startRaceAnimation(record.rankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+                    isRaceActive = false;
+                    isReplayActive = false;
+
+                    showRaceResult({
+                        winners: record.winners,
+                        horseRankings: record.rankings,
+                        horseRaceMode: record.mode
+                    }, true);
+
+                    // 원래 상태 복원
+                    setTimeout(() => {
+                        selectedVehicleTypes = originalSelectedVehicleTypes;
+                        userHorseBets = originalUserHorseBets;
+                        availableHorses = originalAvailableHorses;
+
+                        // 다시보기 버튼 다시 활성화
+                        if (replayBtn) {
+                            replayBtn.disabled = false;
+                            replayBtn.textContent = '🎬 다시보기';
+                            replayBtn.style.opacity = '1';
+                            replayBtn.style.cursor = 'pointer';
+                        }
+                    }, 100);
                 });
-                
-                // 원래 상태 복원
-                setTimeout(() => {
-                    selectedVehicleTypes = originalSelectedVehicleTypes;
-                    userHorseBets = originalUserHorseBets;
-                    availableHorses = originalAvailableHorses;
-                }, 100);
-            });
+            }, 4000); // 카운트다운 3-2-1-START = 4초
+        }
+
+        // 놓친 경주 다시보기 (화면을 보지 않았을 때)
+        function replayMissedRace() {
+            if (!lastHorseRaceData) {
+                alert('다시보기 데이터가 없습니다.');
+                return;
+            }
+
+            addDebugLog('🔄 놓친 경주 다시보기 시작', 'replay');
+
+            // 다시보기 섹션 숨기기
+            document.getElementById('horseReplaySection').style.display = 'none';
+            missedHorseRace = false;
+
+            // 결과 오버레이 숨기기
+            const resultOverlay = document.getElementById('resultOverlay');
+            if (resultOverlay) {
+                resultOverlay.classList.remove('visible');
+            }
+
+            // 말 선택 섹션 숨기기
+            const horseSelectionSection = document.getElementById('horseSelectionSection');
+            if (horseSelectionSection) {
+                horseSelectionSection.classList.remove('active');
+            }
+
+            // 데이터 임시 설정
+            const data = lastHorseRaceData;
+            const originalSelectedVehicleTypes = selectedVehicleTypes;
+            const originalUserHorseBets = userHorseBets;
+            const originalAvailableHorses = availableHorses;
+
+            selectedVehicleTypes = data.selectedVehicleTypes;
+            userHorseBets = data.userHorseBets || {};
+            availableHorses = data.availableHorses || data.horseRankings.map((_, i) => i);
+
+            isRaceActive = true;
+
+            let replaySpeeds = data.speeds || data.horseRankings.map((_, rank) => 3000 + rank * 500);
+            const replayGimmicks = data.gimmicks || null;
+
+            // 3-2-1 카운트다운 후 애니메이션 시작
+            isReplayActive = true;
+            showCountdown();
+            setTimeout(() => {
+                startRaceAnimation(data.horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+                    isRaceActive = false;
+                    isReplayActive = false;
+
+                    showRaceResult({
+                        winners: data.winners || [],
+                        horseRankings: actualFinishOrder || data.horseRankings,
+                        horseRaceMode: data.horseRaceMode || 'last'
+                    }, true);
+
+                    setTimeout(() => {
+                        selectedVehicleTypes = originalSelectedVehicleTypes;
+                        userHorseBets = originalUserHorseBets;
+                        availableHorses = originalAvailableHorses;
+                    }, 100);
+                });
+            }, 4000);
         }
 
         // 채팅 모듈 초기화 (roomCreated/roomJoined 후 호출)
@@ -4727,13 +4706,19 @@
                 themeColor: '#333',
                 myColor: '#8b4513',
                 myBgColor: '#fff5e6',
-                myBorderColor: '#ffc107'
+                myBorderColor: '#ffc107',
+                getRoomUsers: () => users
             });
         }
 
         // 글로벌 함수 (HTML onclick에서 호출)
         function sendMessage() { ChatModule.sendMessage(); }
         function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
+        function uploadImage() {
+            ChatModule.showImageUploadModal((imageData, caption) => {
+                socket.emit('sendImage', { imageData, caption });
+            });
+        }
 
         let readyModuleInitialized = false;
         function initReadyModule() {
@@ -4910,8 +4895,9 @@
             if (data.chatHistory) {
                 document.getElementById('chatMessages').innerHTML = '';
                 data.chatHistory.forEach(msg => addChatMessage(msg));
+                ChatModule.recalculatePins();
             }
-            
+
             // 경마 기록 로드
             if (data.gameState && data.gameState.horseRaceHistory) {
                 horseRaceHistory = data.gameState.horseRaceHistory;
@@ -4934,8 +4920,6 @@
                     availableHorses = gameState.availableHorses;
                     userHorseBets = gameState.userHorseBets || {};
                     horseRaceMode = gameState.horseRaceMode || 'last';
-                    currentRoundPlayers = gameState.currentRoundPlayers || gameState.users?.map(u => u.name) || [];
-                    raceRound = gameState.raceRound || 1;
                     
                     mySelectedHorse = userHorseBets[currentUser] !== undefined ? userHorseBets[currentUser] : null;
                     
@@ -5007,9 +4991,6 @@
                 if (data.gameState.horseRaceMode) {
                     horseRaceMode = data.gameState.horseRaceMode;
                 }
-                if (data.gameState.raceRound) {
-                    raceRound = data.gameState.raceRound;
-                }
                 if (data.gameState.horseRaceHistory) {
                     horseRaceHistory = data.gameState.horseRaceHistory;
                     renderHistory();
@@ -5058,9 +5039,6 @@
                 }
                 if (data.gameState.horseRaceMode) {
                     horseRaceMode = data.gameState.horseRaceMode;
-                }
-                if (data.gameState.raceRound) {
-                    raceRound = data.gameState.raceRound;
                 }
                 if (data.gameState.horseRaceHistory) {
                     horseRaceHistory = data.gameState.horseRaceHistory;
@@ -5120,38 +5098,17 @@
         // readyError는 ReadyModule에서 처리
 
         // 말 선택 준비 이벤트
-        // 재경주 준비 이벤트 (동점일 때 호스트에게 재경주 준비 버튼 표시)
-        socket.on('reraceReady', (data) => {
-            const winners = data.winners || [];
-            const raceRound = data.raceRound || 1;
-            
-            addDebugLog(`재경주 준비 필요: ${winners.length}명 동점 (${winners.join(', ')})`, 'rerace');
-            
-            // 호스트에게 재경주 준비 버튼 표시
-            if (isHost) {
-                document.getElementById('endGameSection').style.display = 'block';
-                const endSection = document.getElementById('endGameSection');
-                endSection.innerHTML = `
-                    <button class="end-button" onclick="requestReraceReady()" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%); margin-bottom: 10px;">🔄 재경주 준비</button>
-                    <button class="end-button" onclick="endHorseRaceGame()">🏁 게임 종료</button>
-                `;
-            }
-        });
-        
         socket.on('horseSelectionReady', async (data) => {
             availableHorses = data.availableHorses || [];
             userHorseBets = data.userHorseBets || {};
             horseRaceMode = data.horseRaceMode || 'last';
-            currentRoundPlayers = data.participants || data.players || [];
-            raceRound = data.raceRound || 1;
             selectedVehicleTypes = data.selectedVehicleTypes || null;
-            isReraceActive = data.isRerace || false; // 재경주 상태 저장
             
-            addDebugLog(`말 선택 준비: ${availableHorses.length}마리, 참가자 ${currentRoundPlayers.length}명, 재경주: ${isReraceActive}`, 'selection');
+            addDebugLog(`말 선택 준비: ${availableHorses.length}마리`, 'selection');
             
             mySelectedHorse = userHorseBets[currentUser] !== undefined ? userHorseBets[currentUser] : null;
             
-            // 재경주 시 결과 오버레이 숨기기
+            // 결과 오버레이 숨기기
             const resultOverlay = document.getElementById('resultOverlay');
             if (resultOverlay) {
                 resultOverlay.classList.remove('visible');
@@ -5164,11 +5121,6 @@
                 console.log('[horseSelectionReady] 섹션 활성화됨');
             } else {
                 console.error('[horseSelectionReady] horseSelectionSection 요소를 찾을 수 없음');
-            }
-            
-            // 재경주인 경우 호스트 컨트롤 표시
-            if (isReraceActive && isHost) {
-                document.getElementById('hostControls').style.display = 'block';
             }
             
             // ALL_VEHICLES가 로드되지 않았으면 먼저 로드
@@ -5191,10 +5143,6 @@
                 renderHorseSelection();
             }, 100);
             
-            // 재경주인 경우 호스트에게 재경주 버튼 표시 준비
-            if (isReraceActive && isHost) {
-                updateReraceButton();
-            }
         });
 
         // 말 선택 완료 이벤트
@@ -5205,18 +5153,7 @@
                 const previousSelection = mySelectedHorse;
                 mySelectedHorse = data.horseIndex;
                 
-                // 탈것 선택 시 자동으로 준비 상태로 변경
-                if (data.horseIndex !== null && data.horseIndex !== undefined) {
-                    // 탈것을 선택했고, 아직 준비 안됐으면 준비
-                    if (!isReady) {
-                        toggleReady();
-                    }
-                } else {
-                    // 탈것 선택 취소했고, 준비 상태면 준비 취소
-                    if (isReady) {
-                        toggleReady();
-                    }
-                }
+                // 탈것 선택/취소 (자동 준비는 경주 결과에서 처리)
             }
             
             renderHorseSelection();
@@ -5237,24 +5174,74 @@
             }
             
             renderHorseSelection();
-            
-            // 재경주 버튼 업데이트 (재경주인 경우)
-            if (isReraceActive && isHost) {
-                updateReraceButton();
-            }
         });
 
-        // 카운트다운 이벤트
+        // 카운트다운 이벤트 (3,2,1 - 이미 게임 시작)
+        let missedAtCountdown = false;
         socket.on('horseRaceCountdown', (data) => {
-            addDebugLog(`카운트다운 시작: ${data.duration}초, 라운드 ${data.raceRound}`, 'race');
+            addDebugLog(`카운트다운 시작: ${data.duration}초`, 'race');
+
+            // 카운트다운 시점에 visibility 체크 (룰렛과 동일: visibilityState + hasFocus)
+            const hasFocus = document.hasFocus();
+            const isVisible = document.visibilityState === 'visible';
+            missedAtCountdown = !(isVisible && hasFocus);
+
+            if (missedAtCountdown) {
+                addDebugLog(`⚠️ 카운트다운 시 화면 NOT visible → 경주 놓침 처리 예정`, 'visibility');
+            }
+
             if (window.SoundManager) SoundManager.playSound('horse-race_countdown', getHorseSoundEnabled());
+            // 다시보기/게임종료 섹션 숨기기
+            document.getElementById('replaySection').style.display = 'none';
+            document.getElementById('endGameSection').style.display = 'none';
             showCountdown();
         });
 
         // 경주 시작 이벤트
         socket.on('horseRaceStarted', (data) => {
+            // 카운트다운 시점 + 현재 visibility 체크 (룰렛과 동일)
+            const hasFocus = document.hasFocus();
+            const isVisible = document.visibilityState === 'visible';
+            const isActuallyVisible = (isVisible && hasFocus) && !missedAtCountdown;
+
+            addDebugLog(`📨 horseRaceStarted 이벤트 수신 - visible: ${isVisible}, hasFocus: ${hasFocus}, missedAtCountdown: ${missedAtCountdown}`, 'info');
+
+            // 마지막 경주 데이터 저장 (다시보기용)
+            lastHorseRaceData = data;
+
+            // 다시보기 섹션 숨기기 (새 경주 시작 시)
+            document.getElementById('horseReplaySection').style.display = 'none';
+
+            // 카운트다운 때 화면을 보고 있지 않았으면 경주 무시
+            if (!isActuallyVisible) {
+                addDebugLog(`⚠️ 카운트다운 시 화면 NOT visible → 경주 무시, 다시보기 데이터 저장`, 'visibility');
+
+                missedHorseRace = true;
+                missedAtCountdown = false; // 리셋
+                isRaceActive = false;
+
+                // 다시보기 섹션 표시
+                document.getElementById('horseReplaySection').style.display = 'block';
+                addDebugLog('🎬 다시보기 섹션 표시 (경주 놓침)', 'visibility');
+
+                return;
+            }
+            missedAtCountdown = false; // 리셋
+
+            // 화면을 보고 있으면 정상적으로 경주 시작
+            missedHorseRace = false;
+            raceResultShown = false; // 새 경주 시작 시 결과 표시 플래그 리셋
             isRaceActive = true;
-            isReraceActive = false; // 경주 시작 시 재경주 상태 초기화
+            updateStartButton(); // 게임 시작 시 버튼 상태 업데이트
+
+            // 채팅에 게임 시작 시스템 메시지 추가
+            if (ChatModule && typeof ChatModule.displayChatMessage === 'function') {
+                ChatModule.displayChatMessage({
+                    message: `🏁 경주가 시작되었습니다!`,
+                    isSystemMessage: true,
+                    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                }, true);
+            }
 
             // 사운드: 출발 총소리 → 발굽/관객 루프
             if (window.SoundManager) {
@@ -5269,8 +5256,8 @@
             if (data.everPlayedUsers) {
                 everPlayedUsers = [...data.everPlayedUsers];
             }
-            
-            addDebugLog(`경주 시작: 라운드 ${data.raceRound || raceRound}, ${data.horseRankings?.length || 0}마리`, 'race');
+
+            addDebugLog(`경주 시작: ${data.horseRankings?.length || 0}마리`, 'race');
             
             // 사용자 베팅 정보 업데이트 (경주 애니메이션에서 사용)
             if (data.userHorseBets) {
@@ -5314,18 +5301,13 @@
                     SoundManager.stopLoop('horse-race_crowd');
                     SoundManager.playSound('horse-race_finish', getHorseSoundEnabled());
                 }
-                // 경주 종료 후에 기록 추가 (실제 도착 순서 반영)
-                if (currentRaceRecord && actualFinishOrder) {
-                    currentRaceRecord.rankings = actualFinishOrder;
+                // 경주 종료 후에 기록 추가 (서버 순위 기준)
+                if (currentRaceRecord) {
                     horseRaceHistory.push(currentRaceRecord);
                     renderHistory();
                 }
-                // 실제 도착 순서로 결과 표시
-                const resultData = { ...data };
-                if (actualFinishOrder) {
-                    resultData.horseRankings = actualFinishOrder;
-                }
-                showRaceResult(resultData);
+                // 서버 순위 기준으로 결과 표시 (기믹에 의한 애니메이션 순서 차이 무시)
+                showRaceResult(data);
             });
             
             // 게임 상태 업데이트
@@ -5338,30 +5320,48 @@
             }
         });
 
-        // 경주 종료 이벤트 (서버에서 직접 보내는 경우)
+        // 경주 종료 이벤트 (라운드 결과 후 서버에서 보내는 경우)
         socket.on('horseRaceEnded', (data) => {
-            // 사운드: 루프 정지 + 결과 효과음
-            if (window.SoundManager) {
-                SoundManager.stopAll();
-                SoundManager.playSound('horse-race_result', getHorseSoundEnabled());
-            }
-            // userHorseBets 업데이트 (서버에서 보낸 경우)
-            if (data.userHorseBets) {
-                userHorseBets = data.userHorseBets;
-            }
-            
             // 게임 기록 업데이트
             if (data.horseRaceHistory) {
                 horseRaceHistory = data.horseRaceHistory;
                 renderHistory();
             }
-            
-            showRaceResult(data);
-            
-            // 준비 상태 초기화
+
+            // 준비 상태 초기화 (readyStateChanged로 다시 설정됨)
             isReady = false;
             mySelectedHorse = null;
             updateReadyButton();
+        });
+
+        // 게임 완전 리셋 이벤트 (호스트가 게임 종료 버튼을 누른 경우)
+        socket.on('horseRaceGameReset', (data) => {
+            if (window.SoundManager) {
+                SoundManager.stopAll();
+            }
+
+            // 게임 기록 업데이트
+            if (data.horseRaceHistory) {
+                horseRaceHistory = data.horseRaceHistory;
+                renderHistory();
+            }
+
+            // 결과 오버레이 숨기기
+            const resultOverlay = document.getElementById('resultOverlay');
+            if (resultOverlay) {
+                resultOverlay.classList.remove('visible');
+            }
+
+            // 다시보기/게임종료 섹션 숨기기
+            document.getElementById('replaySection').style.display = 'none';
+            document.getElementById('endGameSection').style.display = 'none';
+
+            // 상태 초기화
+            isReady = false;
+            isRaceActive = false;
+            mySelectedHorse = null;
+            updateReadyButton();
+            updateStartButton();
         });
 
         // 준비 상태 변경
@@ -5370,6 +5370,7 @@
         // 사용자 목록 업데이트
         socket.on('updateUsers', (users) => {
             if (window.SoundManager) SoundManager.playSound('common_notification', getHorseSoundEnabled());
+            ChatModule.updateConnectedUsers(users);
             updateUsers(users);
         });
 
@@ -5530,10 +5531,22 @@
             horseRaceHistory = [];
             ordersData = {};
             isOrderActive = false;
+            lastHorseRaceData = null;
             OrderModule.setOrdersData(ordersData);
             OrderModule.setIsOrderActive(false);
             renderHistory();
             OrderModule.renderOrders();
+
+            // 다시보기 섹션 숨기기
+            const replaySection = document.getElementById('replaySection');
+            if (replaySection) replaySection.style.display = 'none';
+            const missedReplaySection = document.getElementById('missedReplaySection');
+            if (missedReplaySection) missedReplaySection.style.display = 'none';
+
+            // 결과 오버레이 숨기기
+            const resultOverlay = document.getElementById('resultOverlay');
+            if (resultOverlay) resultOverlay.classList.remove('visible');
+
             showCustomAlert('이전 게임 데이터가 삭제되었습니다.', 'success', '✅ 삭제 완료');
         });
 
