@@ -1,0 +1,82 @@
+{
+  "pixelsPerMeter": 10,
+  "trackPresets": {
+    "short":  { "meters": 300, "speedRange": [85, 95] },
+    "medium": { "meters": 500, "speedRange": [85, 95] },
+    "long":   { "meters": 700, "speedRange": [85, 95] }
+  },
+  "slowMotion": {
+    "leader": {
+      "triggerDistanceM": 10,
+      "factor": 0.2
+    },
+    "loser": {
+      "triggerDistanceM": 10,
+      "factor": 0.1,
+      "gapThresholdM": 15
+    }
+  },
+  "gimmicks": {
+    "countByTrack": {
+      "short":  { "min": 3, "max": 5 },
+      "medium": { "min": 3, "max": 5 },
+      "long":   { "min": 5, "max": 8 }
+    },
+    "progressTriggerRange": [0.10, 0.85],
+    "types": {
+      "stop": {
+        "probability": 0.15,
+        "durationRange": [300, 800],
+        "speedMultiplier": 0
+      },
+      "slow": {
+        "probability": 0.13,
+        "durationRange": [400, 1000],
+        "speedMultiplierRange": [0.2, 0.5]
+      },
+      "sprint": {
+        "probability": 0.15,
+        "durationRange": [300, 700],
+        "speedMultiplierRange": [1.8, 3.0]
+      },
+      "slip": {
+        "probability": 0.10,
+        "durationRange": [200, 500],
+        "speedMultiplierRange": [-0.3, -0.7]
+      },
+      "wobble": {
+        "probability": 0.07,
+        "durationRange": [500, 1000],
+        "speedMultiplierRange": [0.7, 1.0]
+      },
+      "obstacle": {
+        "probability": 0.12,
+        "durationRange": [1000, 3000],
+        "speedMultiplier": 0
+      },
+      "item_boost": {
+        "probability": 0.10,
+        "durationRange": [2000, 3000],
+        "speedMultiplierRange": [2.5, 4.0]
+      },
+      "item_trap": {
+        "probability": 0.10,
+        "durationRange": [1000, 2000],
+        "speedMultiplier": 0.1
+      },
+      "reverse": {
+        "probability": 0.08,
+        "durationRange": [2000, 3000],
+        "speedMultiplierRange": [-1.5, -2.0],
+        "chainGimmick": {
+          "type": "reverse_boost",
+          "durationRange": [1500, 2500],
+          "speedMultiplierRange": [2.0, 3.0]
+        }
+      }
+    }
+  },
+  "photoFinish": {
+    "gapPercent": [0.01, 0.02]
+  }
+}

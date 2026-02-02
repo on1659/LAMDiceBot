@@ -36,7 +36,7 @@ const ChatModule = (function () {
     async function loadEmojiConfig() {
         // 기본 이모지 키 목록 로드 (emoji-config.json)
         try {
-            const baseResp = await fetch('emoji-config.json');
+            const baseResp = await fetch('config/emoji-config.json');
             if (baseResp.ok) {
                 const baseConfig = await baseResp.json();
                 if (baseConfig && typeof baseConfig === 'object') {
@@ -62,7 +62,7 @@ const ChatModule = (function () {
             }
         } catch (e) { /* API 실패 시 파일로 폴백 */ }
         try {
-            const response = await fetch('emoji-config.json');
+            const response = await fetch('config/emoji-config.json');
             if (response.ok) {
                 const config = await response.json();
                 emojiConfig = config;
@@ -513,7 +513,11 @@ const ChatModule = (function () {
         if (isSystemMessage) {
             addToHistory(chatMessage); // 서버와 인덱스 동기화
             const gradientColor = _options.systemGradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            messageDiv.style.cssText = `margin: 20px 0; padding: 16px; background: ${gradientColor}; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);`;
+            if (chatMessage.noBackground) {
+                messageDiv.style.cssText = 'margin: 4px 0; padding: 0; text-align: left;';
+            } else {
+                messageDiv.style.cssText = `margin: 20px 0; padding: 16px; background: ${gradientColor}; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);`;
+            }
 
             if (chatMessage.isRouletteWinner) {
                 messageDiv.classList.add('winner');
@@ -885,15 +889,25 @@ const ChatModule = (function () {
         const cancelBtn = document.getElementById('clipboardImageCancelBtn');
         const captionInput = document.getElementById('clipboardImageCaptionInput');
 
-        sendBtn.addEventListener('click', () => {
+        function doSend() {
             _socket.emit('sendImage', { imageData, caption: captionInput.value.trim() });
             overlay.remove();
-        });
+            document.removeEventListener('keydown', handleKey);
+        }
+        function doCancel() {
+            overlay.remove();
+            document.removeEventListener('keydown', handleKey);
+        }
+        function handleKey(e) {
+            if (e.key === 'Enter') { e.preventDefault(); doSend(); }
+            else if (e.key === 'Escape') { doCancel(); }
+        }
 
-        cancelBtn.addEventListener('click', () => overlay.remove());
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.remove();
-        });
+        sendBtn.addEventListener('click', doSend);
+        cancelBtn.addEventListener('click', doCancel);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) doCancel(); });
+        document.addEventListener('keydown', handleKey);
+        captionInput.focus();
     }
 
     // 이미지 업로드 모달

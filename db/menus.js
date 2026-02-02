@@ -4,7 +4,7 @@ const path = require('path');
 const { getPool } = require('./pool');
 
 const MENUS_FILE = path.join(__dirname, '..', 'frequentMenus.json');
-const EMOJI_CONFIG_FILE = path.join(__dirname, '..', 'emoji-config.json');
+const EMOJI_CONFIG_FILE = path.join(__dirname, '..', 'config', 'emoji-config.json');
 
 function loadFrequentMenus() {
     try {

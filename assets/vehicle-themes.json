@@ -11,8 +11,8 @@
       "id": "rocket",
       "name": "로켓",
       "emoji": "🚀",
-      "theme": "sky",
-      "backgroundImage": "assets/backgrounds/sky.png"
+      "theme": "space",
+      "backgroundImage": "assets/backgrounds/space.png"
     },
     "bird": {
       "id": "bird",

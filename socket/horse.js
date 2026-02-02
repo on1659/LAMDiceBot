@@ -34,6 +34,21 @@ module.exports = (socket, io, ctx) => {
 
     // ========== 경마 게임 이벤트 핸들러 ==========
 
+    // 트랙 길이 설정 (방장만 가능)
+    socket.on('setTrackLength', (data) => {
+        if (!checkRateLimit()) return;
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) return;
+        if (room.host !== socket.username) return;
+        const validOptions = ['short', 'medium', 'long'];
+        const option = (data && validOptions.includes(data.trackLength)) ? data.trackLength : 'short';
+        gameState.trackLength = option;
+        const preset = TRACK_PRESETS[option];
+        io.to(room.roomId).emit('trackLengthChanged', { trackLength: option, trackDistanceMeters: preset.meters });
+        console.log(`[경마] 방 ${room.roomName} 트랙 길이 설정: ${option} (${preset.meters}m)`);
+    });
+
     // 경마 게임 시작 (방장만 가능)
     socket.on('startHorseRace', () => {
         if (!checkRateLimit()) return;
@@ -82,6 +97,7 @@ module.exports = (socket, io, ctx) => {
         // 경주 시작
         gameState.isHorseRaceActive = true;
         gameState.isGameActive = true;
+        gameState.raceRound = (gameState.raceRound || 0) + 1;
 
         // 준비 리스트 초기화 (게임 시작 후 비워야 함)
         gameState.readyUsers = [];
@@ -115,38 +131,56 @@ module.exports = (socket, io, ctx) => {
         });
 
         // 기믹 데이터 먼저 생성 (순위 계산에 필요)
+        const trackLenForGimmick = gameState.trackLength || 'short';
         const gimmicksData = {};
+        const gConf = horseConfig.gimmicks || {};
+        const gCountConf = (gConf.countByTrack || {})[trackLenForGimmick] || { min: 3, max: 5 };
+        const [trigMin, trigMax] = gConf.progressTriggerRange || [0.10, 0.85];
+        const gTypes = gConf.types || {};
+
+        // probability 기반 누적 테이블 빌드
+        const gTypeEntries = Object.entries(gTypes);
+        let cumProb = 0;
+        const gTypeLookup = gTypeEntries.map(([name, conf]) => {
+            cumProb += conf.probability || 0;
+            return { name, conf, cumProb };
+        });
+
         gameState.availableHorses.forEach(horseIndex => {
-            const gimmickCount = 2 + Math.floor(Math.random() * 3); // 2~4개
+            const gimmickCount = gCountConf.min + Math.floor(Math.random() * (gCountConf.max - gCountConf.min + 1));
             const gimmicks = [];
             for (let i = 0; i < gimmickCount; i++) {
-                const progressTrigger = 0.15 + Math.random() * 0.65; // 15%~80% 구간
-                const gimmickType = Math.random();
-                let type, duration, speedMultiplier;
+                const progressTrigger = trigMin + Math.random() * (trigMax - trigMin);
+                const roll = Math.random() * cumProb;
+                const entry = gTypeLookup.find(e => roll < e.cumProb) || gTypeLookup[gTypeLookup.length - 1];
+                const tc = entry.conf;
+                const type = entry.name;
 
-                if (gimmickType < 0.25) {
-                    type = 'stop';
-                    duration = 300 + Math.random() * 500;
-                    speedMultiplier = 0;
-                } else if (gimmickType < 0.45) {
-                    type = 'slow';
-                    duration = 400 + Math.random() * 600;
-                    speedMultiplier = 0.2 + Math.random() * 0.3;
-                } else if (gimmickType < 0.7) {
-                    type = 'sprint';
-                    duration = 300 + Math.random() * 400;
-                    speedMultiplier = 1.8 + Math.random() * 1.2;
-                } else if (gimmickType < 0.85) {
-                    type = 'slip';
-                    duration = 200 + Math.random() * 300;
-                    speedMultiplier = -0.3 - Math.random() * 0.4;
+                const [durMin, durMax] = tc.durationRange || [500, 1000];
+                const duration = durMin + Math.random() * (durMax - durMin);
+
+                let speedMultiplier;
+                if (tc.speedMultiplierRange) {
+                    const [smMin, smMax] = tc.speedMultiplierRange;
+                    speedMultiplier = smMin + Math.random() * (smMax - smMin);
                 } else {
-                    type = 'wobble';
-                    duration = 500 + Math.random() * 500;
-                    speedMultiplier = 0.7 + Math.random() * 0.3;
+                    speedMultiplier = tc.speedMultiplier ?? 1;
                 }
 
-                gimmicks.push({ progressTrigger, type, duration, speedMultiplier });
+                const gimmick = { progressTrigger, type, duration, speedMultiplier };
+
+                if (tc.chainGimmick) {
+                    const cc = tc.chainGimmick;
+                    const [cdMin, cdMax] = cc.durationRange || [1500, 2500];
+                    const [csMin, csMax] = cc.speedMultiplierRange || [2.0, 3.0];
+                    gimmick.nextGimmick = {
+                        type: cc.type,
+                        duration: cdMin + Math.random() * (cdMax - cdMin),
+                        speedMultiplier: csMin + Math.random() * (csMax - csMin)
+                    };
+                }
+
+                gimmicks.push(gimmick);
             }
             gimmicksData[horseIndex] = gimmicks;
         });
@@ -154,7 +188,13 @@ module.exports = (socket, io, ctx) => {
         // 경주 결과 계산 (기믹 반영 시뮬레이션)
         const forcePhotoFinish = gameState.forcePhotoFinish || false;
         gameState.forcePhotoFinish = false; // 사용 후 리셋
-        const rankings = calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish);
+        const trackLengthOption = gameState.trackLength || 'short';
+        const rankings = calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption);
+
+        // 트랙 정보 계산
+        const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.short;
+        const trackDistanceMeters = trackPreset.meters;
+        const trackFinishLine = trackDistanceMeters * PIXELS_PER_METER;
 
         // 순위별 말 인덱스 배열 생성 (클라이언트 애니메이션용)
         const horseRankings = rankings.map(r => r.horseIndex);
@@ -179,6 +219,7 @@ module.exports = (socket, io, ctx) => {
             mode: gameState.horseRaceMode,
             selectedVehicleTypes: gameState.selectedVehicleTypes ? [...gameState.selectedVehicleTypes] : null,
             availableHorses: [...gameState.availableHorses],
+            trackDistanceMeters: trackDistanceMeters,
             timestamp: new Date().toISOString()
         };
 
@@ -210,7 +251,10 @@ module.exports = (socket, io, ctx) => {
             winners: winners,
             userHorseBets: { ...gameState.userHorseBets },
             selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-            record: raceRecord
+            trackDistanceMeters: trackDistanceMeters,
+            trackFinishLine: trackFinishLine,
+            record: raceRecord,
+            slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } }
         };
 
         gameState.horseRaceCountdownTimeout = setTimeout(() => {
@@ -705,7 +749,9 @@ module.exports = (socket, io, ctx) => {
                 userHorseBets: {},
                 horseRaceMode: gameState.horseRaceMode || 'last',
                 raceRound: gameState.raceRound || 1,
-                selectedVehicleTypes: gameState.selectedVehicleTypes
+                selectedVehicleTypes: gameState.selectedVehicleTypes,
+                trackLength: gameState.trackLength || 'short',
+                trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.short).meters
             });
         }
 
@@ -714,26 +760,53 @@ module.exports = (socket, io, ctx) => {
 
     // ========== Helper Functions ==========
 
+    // 거리 시스템 상수
+    // 설정 파일 로드
+    const path = require('path');
+    const horseConfig = JSON.parse(require('fs').readFileSync(path.join(__dirname, '..', 'config', 'horse', 'race.json'), 'utf8'));
+    const PIXELS_PER_METER = horseConfig.pixelsPerMeter || 10;
+
+    // speedRange(km/h) → durationRange(ms) 변환
+    function buildTrackPresets(config) {
+        const presets = {};
+        for (const [key, val] of Object.entries(config.trackPresets)) {
+            const meters = val.meters;
+            const [minSpeed, maxSpeed] = val.speedRange; // km/h
+            // 빠른 속도 → 짧은 시간, 느린 속도 → 긴 시간
+            const minDuration = Math.round((meters / (maxSpeed / 3.6)) * 1000);
+            const maxDuration = Math.round((meters / (minSpeed / 3.6)) * 1000);
+            presets[key] = { meters, durationRange: [minDuration, maxDuration] };
+        }
+        return presets;
+    }
+    const TRACK_PRESETS = buildTrackPresets(horseConfig);
+
     // 경주 결과 계산 함수 (기믹 반영 시뮬레이션)
-    function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish) {
+    function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption) {
+        // 트랙 길이 설정
+        const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.short;
+        const trackDistanceMeters = preset.meters;
+        const [minDuration, maxDuration] = preset.durationRange;
+
         // 클라이언트와 동일한 상수
         const startPosition = 10;
-        const finishLine = 3000;
+        const finishLine = trackDistanceMeters * PIXELS_PER_METER;
         const totalDistance = finishLine - startPosition;
         const frameInterval = 16; // ~60fps
 
         // 각 말의 기본 도착 시간 랜덤 생성
         const baseDurations = [];
         for (let i = 0; i < horseCount; i++) {
-            baseDurations.push(5000 + Math.random() * 5000);
+            baseDurations.push(minDuration + Math.random() * (maxDuration - minDuration));
         }
 
         // 접전 강제: 1등과 2등의 도착 시간을 거의 동일하게 조정
         if (forcePhotoFinish && horseCount >= 2) {
             baseDurations.sort((a, b) => a - b);
-            // 2등을 1등과 1~2% 차이로 설정
+            const pfConf = horseConfig.photoFinish || { gapPercent: [0.01, 0.02] };
+            const [pfMin, pfMax] = pfConf.gapPercent;
             const fastest = baseDurations[0];
-            baseDurations[1] = fastest + fastest * (0.01 + Math.random() * 0.01);
+            baseDurations[1] = fastest + fastest * (pfMin + Math.random() * (pfMax - pfMin));
             console.log(`[슬로모션] 접전 강제! 1등=${Math.round(fastest)}ms, 2등=${Math.round(baseDurations[1])}ms`);
         }
 
@@ -751,6 +824,7 @@ module.exports = (socket, io, ctx) => {
                 type: g.type,
                 duration: g.duration,
                 speedMultiplier: g.speedMultiplier,
+                nextGimmick: g.nextGimmick || null,
                 triggered: false,
                 active: false,
                 endTime: 0
@@ -776,6 +850,20 @@ module.exports = (socket, io, ctx) => {
                     }
                     if (gimmick.active && elapsed >= gimmick.endTime) {
                         gimmick.active = false;
+                        // 연쇄 기믹 활성화
+                        if (gimmick.nextGimmick && !gimmick.chainTriggered) {
+                            gimmick.chainTriggered = true;
+                            gimmicks.push({
+                                progressTrigger: 0,
+                                type: gimmick.nextGimmick.type,
+                                duration: gimmick.nextGimmick.duration,
+                                speedMultiplier: gimmick.nextGimmick.speedMultiplier,
+                                nextGimmick: null,
+                                triggered: true,
+                                active: true,
+                                endTime: elapsed + gimmick.nextGimmick.duration
+                            });
+                        }
                     }
                 });
 
