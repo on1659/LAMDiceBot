@@ -374,6 +374,11 @@
             50%, 100% { opacity: 1; }
         }
         
+        /* 대기 상태: 느린 2프레임 교차 (발구르기) */
+        .horse.idle .vehicle-sprite .frame1 { animation: frame1Anim 0.6s steps(1) infinite; }
+        .horse.idle .vehicle-sprite .frame2 { animation: frame2Anim 0.6s steps(1) infinite; }
+
+        /* 달리는 상태: 빠른 2프레임 교차 */
         .horse.racing .vehicle-sprite .frame1 { animation: frame1Anim 0.15s steps(1) infinite; }
         .horse.racing .vehicle-sprite .frame2 { animation: frame2Anim 0.15s steps(1) infinite; }
         
@@ -2062,7 +2067,7 @@
                 
                 // 탈것 표시 (시작 위치)
                 const horse = document.createElement('div');
-                horse.className = 'horse';
+                horse.className = 'horse idle';
                 horse.id = `horse_preview_${horseIndex}`;
                 horse.style.cssText = `
                     position: absolute;
@@ -2085,15 +2090,18 @@
                 // 탈것 스프라이트
                 const vehicleContent = document.createElement('div');
                 vehicleContent.className = 'vehicle-sprite';
-                vehicleContent.style.animation = 'none'; // 애니메이션 없음
-                
+
                 const frame1 = document.createElement('div');
                 frame1.className = 'frame1';
+                const frame2 = document.createElement('div');
+                frame2.className = 'frame2';
                 const vehicleSVGs = getVehicleSVG(vehicleId);
                 const idleData = vehicleSVGs.idle || vehicleSVGs;
                 frame1.innerHTML = idleData.frame1 || vehicleSVGs.frame1;
+                frame2.innerHTML = (idleData.frame2 || vehicleSVGs.frame2) || '';
 
                 vehicleContent.appendChild(frame1);
+                vehicleContent.appendChild(frame2);
                 horse.appendChild(vehicleContent);
                 horse.dataset.vehicleId = vehicleId;
                 track.appendChild(horse);
@@ -2442,7 +2450,7 @@
                 track.appendChild(lane);
                 
                 const horse = document.createElement('div');
-                horse.className = 'horse racing';
+                horse.className = 'horse idle';
                 horse.id = `horse_${horseIndex}`;
                 horse.style.cssText = `
                     position: absolute;
@@ -2696,6 +2704,8 @@
                 let slowMotionFactor = 1; // 1 = 정상속도, 0.25 = 슬로우모션
                 let slowMotionActive = false;
                 let slowMotionTriggered = false; // 한번만 트리거
+                let loserSlowMotionTriggered = false; // 꼴등 결정 슬로우모션
+                let loserSlowMotionActive = false;
 
                 // 테스트용: 콘솔에서 forceSlowMotion() 호출로 강제 발동
                 window.forceSlowMotion = function() {
@@ -2710,6 +2720,8 @@
                 // 레이스 시작: idle → run 상태 전환
                 horseStates.forEach(state => {
                     if (state.horse && state.horse.dataset.vehicleId) {
+                        state.horse.classList.remove('idle');
+                        state.horse.classList.add('racing');
                         setVehicleState(state.horse, state.horse.dataset.vehicleId, 'run');
                     }
                 });
@@ -2759,6 +2771,63 @@
                         if (vignette) {
                             vignette.style.opacity = '0';
                             setTimeout(() => vignette.remove(), 500);
+                        }
+                    }
+
+                    // 꼴등 결정 슬로우모션: 베팅된 말 중 뒤에서 두 번째가 결승선 근처에 오면 발동
+                    if (!loserSlowMotionTriggered && !slowMotionActive) {
+                        const bettedHorseIndices = [...new Set(Object.values(userHorseBets))];
+                        const bettedByRank = bettedHorseIndices
+                            .map(hi => horseStates.find(s => s.horseIndex === hi))
+                            .filter(Boolean)
+                            .sort((a, b) => a.rank - b.rank);
+                        const secondLastBetted = bettedByRank.length >= 2 ? bettedByRank[bettedByRank.length - 2] : null;
+
+                        // 1등(rank===0)과 겹치면 발동하지 않음
+                        if (secondLastBetted && secondLastBetted.rank !== 0 && !secondLastBetted.finished) {
+                            const slProgress = (secondLastBetted.currentPos - startPosition) / totalDistance;
+                            if (slProgress >= 0.95) {
+                                loserSlowMotionTriggered = true;
+                                loserSlowMotionActive = true;
+                                slowMotionFactor = 0.25;
+                                let vignette = document.getElementById('slowmoVignette');
+                                if (!vignette) {
+                                    vignette = document.createElement('div');
+                                    vignette.id = 'slowmoVignette';
+                                    vignette.style.cssText = `
+                                        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                                        pointer-events: none; z-index: 9999;
+                                        box-shadow: inset 0 0 60px 30px rgba(233,69,96,0.4);
+                                        border-radius: inherit;
+                                        transition: opacity 0.5s;
+                                    `;
+                                    track.parentElement.style.position = 'relative';
+                                    track.parentElement.appendChild(vignette);
+                                }
+                                vignette.style.opacity = '1';
+                                track.style.transition = 'filter 0.3s';
+                                track.style.filter = 'contrast(1.1) saturate(1.3)';
+                            }
+                        }
+                    }
+
+                    // 꼴등 슬로우모션 해제: 해당 말이 결승선 통과하면
+                    if (loserSlowMotionActive) {
+                        const bettedHorseIndices2 = [...new Set(Object.values(userHorseBets))];
+                        const bettedByRank2 = bettedHorseIndices2
+                            .map(hi => horseStates.find(s => s.horseIndex === hi))
+                            .filter(Boolean)
+                            .sort((a, b) => a.rank - b.rank);
+                        const secondLastBetted2 = bettedByRank2.length >= 2 ? bettedByRank2[bettedByRank2.length - 2] : null;
+                        if (!secondLastBetted2 || secondLastBetted2.finished) {
+                            loserSlowMotionActive = false;
+                            slowMotionFactor = 1;
+                            track.style.filter = '';
+                            const vignette = document.getElementById('slowmoVignette');
+                            if (vignette) {
+                                vignette.style.opacity = '0';
+                                setTimeout(() => vignette.remove(), 500);
+                            }
                         }
                     }
 
@@ -2909,6 +2978,20 @@
                             state.horse.style.filter = '';
                             state.horse.style.transform = '';
 
+                            // finish 상태 SVG로 전환 (감속 걷기)
+                            const vid = state.horse.dataset.vehicleId;
+                            if (vid) {
+                                setVehicleState(state.horse, vid, 'finish');
+                                // 프레임 애니메이션 속도 감속 (0.15s → 0.4s)
+                                const sprite = state.horse.querySelector('.vehicle-sprite');
+                                if (sprite) {
+                                    const f1 = sprite.querySelector('.frame1');
+                                    const f2 = sprite.querySelector('.frame2');
+                                    if (f1) f1.style.animationDuration = '0.4s';
+                                    if (f2) f2.style.animationDuration = '0.4s';
+                                }
+                            }
+
                             // 도착 애니메이션 표시
                             showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
                         }
@@ -2973,7 +3056,18 @@
                     if (almostAllFinished) {
                         clearInterval(animationInterval);
                         animationInterval = null;
-                        
+
+                        // 슬로우모션 강제 해제
+                        slowMotionFactor = 1;
+                        slowMotionActive = false;
+                        loserSlowMotionActive = false;
+                        track.style.filter = '';
+                        const vignetteCleanup = document.getElementById('slowmoVignette');
+                        if (vignetteCleanup) {
+                            vignetteCleanup.style.opacity = '0';
+                            setTimeout(() => vignetteCleanup.remove(), 500);
+                        }
+
                         // 꼴등(아직 완주 못한 말) 찾기
                         const lastPlaceState = horseStates.find(s => !s.finished);
                         
@@ -3100,8 +3194,10 @@
             horseElement.appendChild(label);
             finishEffectElements.set(horseIndex, label);
 
-            // 1등 특별 효과
+            // 1등 특별 효과: victory SVG + 금빛 효과
             if (finishOrder === 0) {
+                const vid = horseElement.dataset.vehicleId;
+                if (vid) setVehicleState(horseElement, vid, 'victory');
                 horseElement.style.filter = 'drop-shadow(0 0 15px gold) brightness(1.2)';
                 horseElement.style.transform = 'scale(1.1)';
             }
@@ -3117,6 +3213,12 @@
             const existingEffect = finishEffectElements.get(horseIndex);
             if (existingEffect) existingEffect.remove();
             
+            // dead 상태 SVG로 전환 (비석 + 유령)
+            const vid = horseElement.dataset.vehicleId;
+            if (vid) setVehicleState(horseElement, vid, 'dead');
+            // 프레임 애니메이션 중지
+            horseElement.classList.remove('racing');
+
             // 탈것 페이드 아웃 후 완전히 사라짐
             horseElement.style.animation = 'deathFade 2s ease-out forwards';
             
@@ -4199,32 +4301,6 @@
 
             addDebugLog(`경주 결과: 당첨자 ${winners.length}명 (${winners.join(', ')})`, 'race');
 
-            // 채팅에 LOSER 카드 표시 (결과 오버레이와 동일한 디자인)
-            if (ChatModule && typeof ChatModule.displayChatMessage === 'function') {
-                const chatLoserVehicle = getVehicleInfo(loserHorseIndex);
-                const loserNames = loserBettingUsers.length > 0 ? loserBettingUsers.join(', ') : '없음';
-                const chatLoserSvg = getVehicleSVGForResult ? getVehicleSVGForResult(chatLoserVehicle.vehicleId || chatLoserVehicle.id, 45) : '';
-                const chatResultHtml = `
-                    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 14px; border-radius: 14px; border: 2px solid #e94560; position: relative; overflow: hidden; margin: 4px 0;">
-                        <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #e94560; color: #fff; padding: 2px 14px; border-radius: 0 0 8px 8px; font-size: 10px; font-weight: bold; letter-spacing: 1px;">LOSER</div>
-                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px;">
-                            <span style="font-size: 24px;">💀</span>
-                            <span style="font-size: 20px; font-weight: bold; color: #e94560;">${loserIndex + 1}등</span>
-                            <div style="transform: scale(1); filter: grayscale(60%);">${chatLoserSvg}</div>
-                            <span style="font-size: 16px; font-weight: bold; color: #eee;">${chatLoserVehicle.name}</span>
-                        </div>
-                        <div style="font-size: 14px; color: #e94560; text-align: center; margin-top: 8px; font-weight: 700;">
-                            🎉 ${loserNames} 🎉
-                        </div>
-                    </div>`;
-                ChatModule.displayChatMessage({
-                    message: chatResultHtml,
-                    isSystemMessage: true,
-                    isHtml: true,
-                    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-                }, true);
-            }
-            
             // 탈것 정보 가져오기 헬퍼 함수
             function getVehicleInfo(horseIndex) {
                 const vehicleId = selectedVehicleTypes ? selectedVehicleTypes[horseIndex] : null;
@@ -4273,6 +4349,32 @@
                 }
             }
             const loserVehicle = getVehicleInfo(loserHorseIndex);
+
+            // 채팅에 LOSER 카드 표시 (결과 오버레이와 동일한 디자인)
+            if (ChatModule && typeof ChatModule.displayChatMessage === 'function') {
+                const chatLoserVehicle = getVehicleInfo(loserHorseIndex);
+                const loserNames = loserBettingUsers.length > 0 ? loserBettingUsers.join(', ') : '없음';
+                const chatLoserSvg = getVehicleSVGForResult ? getVehicleSVGForResult(chatLoserVehicle.vehicleId || chatLoserVehicle.id, 45) : '';
+                const chatResultHtml = `
+                    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 14px; border-radius: 14px; border: 2px solid #e94560; position: relative; overflow: hidden; margin: 4px 0;">
+                        <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #e94560; color: #fff; padding: 2px 14px; border-radius: 0 0 8px 8px; font-size: 10px; font-weight: bold; letter-spacing: 1px;">LOSER</div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px;">
+                            <span style="font-size: 24px;">💀</span>
+                            <span style="font-size: 20px; font-weight: bold; color: #e94560;">${loserIndex + 1}등</span>
+                            <div style="transform: scale(1); filter: grayscale(60%);">${chatLoserSvg}</div>
+                            <span style="font-size: 16px; font-weight: bold; color: #eee;">${chatLoserVehicle.name}</span>
+                        </div>
+                        <div style="font-size: 14px; color: #e94560; text-align: center; margin-top: 8px; font-weight: 700;">
+                            🎉 ${loserNames} 🎉
+                        </div>
+                    </div>`;
+                ChatModule.displayChatMessage({
+                    message: chatResultHtml,
+                    isSystemMessage: true,
+                    isHtml: true,
+                    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                }, true);
+            }
 
             // 결과 오버레이 표시
             const rankingsDiv = document.getElementById('resultRankings');

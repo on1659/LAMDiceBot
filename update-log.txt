@@ -1,4 +1,18 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-01)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-02)</span>
+
+<b>🐎 경마 게임 업데이트</b>
+• 대기 상태 말 발구르기 애니메이션 추가
+• 꼴등 결정 슬로우모션 연출 추가
+• 결승 후 감속 걷기 / 1등 victory / 꼴등 dead 연출 추가
+
+<b>🔧 서버 안정성 개선</b>
+• DB 연결 테스트 및 상태 로그 추가
+• DB 미연결 시 파일(stats.json) 기반 통계 저장 fallback 추가
+• Railway 프록시 환경 IP 인식 개선 (trust proxy)
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-01)</span>
 
 <b>🐎 경마 게임 오픈!</b>
 • 방 생성 시 경마 게임 선택 가능 (주사위/룰렛/팀배정/경마)

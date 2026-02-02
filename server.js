@@ -13,6 +13,7 @@ const { setupSocketHandlers } = require('./socket/index');
 
 // Express & HTTP 서버 생성
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = socketIo(server, {
     maxHttpBufferSize: 6e6,
@@ -39,9 +40,6 @@ app.use(express.json());
 // 방 관리 시스템
 const rooms = {};
 
-// DB 초기화
-initPool();
-
 // HTTP 라우트 설정
 setupRoutes(app);
 
@@ -50,6 +48,7 @@ setupSocketHandlers(io, rooms);
 
 // 서버 시작
 async function startServer() {
+    await initPool();
     await initDatabase();
 
     await new Promise((resolve, reject) => {

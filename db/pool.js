@@ -10,7 +10,7 @@ try {
 
 let pool = null;
 
-function initPool() {
+async function initPool() {
     if (process.env.DATABASE_URL && Pool) {
         try {
             const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
@@ -18,10 +18,17 @@ function initPool() {
                 connectionString: process.env.DATABASE_URL,
                 ssl: isLocal ? false : { rejectUnauthorized: false }
             });
+            // 실제 연결 테스트
+            await pool.query('SELECT 1');
+            console.log('✅ PostgreSQL 연결 성공');
         } catch (error) {
-            console.error('Postgres 연결 오류:', error);
+            console.error('❌ PostgreSQL 연결 실패:', error.message);
+            console.error('   → 통계 데이터는 파일(stats.json)에 저장됩니다.');
             pool = null;
         }
+    } else {
+        if (!process.env.DATABASE_URL) console.log('ℹ️  DATABASE_URL 미설정 → 파일 기반 통계 저장');
+        if (!Pool) console.log('ℹ️  pg 모듈 없음 → 파일 기반 통계 저장');
     }
 }
 

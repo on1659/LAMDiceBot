@@ -1,5 +1,34 @@
 // 방문자/플레이 통계
 const { getPool } = require('./pool');
+const fs = require('fs');
+const path = require('path');
+
+const STATS_FILE = path.join(__dirname, '..', 'stats.json');
+
+function loadStatsFromFile() {
+    try {
+        if (fs.existsSync(STATS_FILE)) {
+            return JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.warn('stats.json 로드 실패:', e.message);
+    }
+    return null;
+}
+
+function saveStatsToFile() {
+    try {
+        const data = {
+            visitorTotalCount,
+            playTotalCount,
+            gameStatsByType,
+            recentPlaysList
+        };
+        fs.writeFileSync(STATS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+        console.warn('stats.json 저장 실패:', e.message);
+    }
+}
 
 // 방문자 통계
 let visitorTodayDate = '';
@@ -18,7 +47,15 @@ let recentPlaysList = [];
 
 async function loadVisitorStatsFromDB() {
     const pool = getPool();
-    if (!pool) return;
+    if (!pool) {
+        // DB 없으면 파일에서 로드
+        const saved = loadStatsFromFile();
+        if (saved) {
+            visitorTotalCount = saved.visitorTotalCount || 0;
+            console.log(`ℹ️  파일에서 방문자 통계 로드: 총 ${visitorTotalCount}`);
+        }
+        return;
+    }
     try {
         const totalRes = await pool.query('SELECT total_participations FROM visitor_total WHERE id = 1');
         if (totalRes.rows[0]) visitorTotalCount = parseInt(totalRes.rows[0].total_participations, 10) || 0;
@@ -34,7 +71,17 @@ async function loadVisitorStatsFromDB() {
 
 async function loadPlayStatsFromDB() {
     const pool = getPool();
-    if (!pool) return;
+    if (!pool) {
+        // DB 없으면 파일에서 로드
+        const saved = loadStatsFromFile();
+        if (saved) {
+            playTotalCount = saved.playTotalCount || 0;
+            gameStatsByType = saved.gameStatsByType || DEFAULT_GAME_STATS();
+            recentPlaysList = saved.recentPlaysList || [];
+            console.log(`ℹ️  파일에서 플레이 통계 로드: 총 ${playTotalCount}회`);
+        }
+        return;
+    }
     try {
         const today = new Date().toISOString().split('T')[0];
         const totalRes = await pool.query('SELECT COUNT(*) AS cnt FROM game_records');
@@ -73,6 +120,9 @@ function recordVisitor(ip, source, participantId) {
     visitorTodayIPs.add(ip);
     if (participantId != null && participantId !== '') visitorTodayParticipantIds.add(participantId);
     visitorTotalCount++;
+    if (!pool) {
+        saveStatsToFile();
+    }
     if (pool) {
         pool.query(
             'INSERT INTO visitor_today (event_date, ip) VALUES ($1::date, $2) ON CONFLICT (event_date, ip) DO NOTHING',
@@ -111,6 +161,7 @@ function recordGamePlay(gameType, participantCount) {
         gameStatsByType[key].totalParticipants += Math.max(1, participantCount);
         recentPlaysList.unshift({ gameType: key, participantCount: Math.max(1, participantCount), playedAt: new Date().toISOString() });
         recentPlaysList = recentPlaysList.slice(0, RECENT_PLAYS_MAX);
+        saveStatsToFile();
     }
 }
 
