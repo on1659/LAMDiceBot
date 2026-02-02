@@ -11,7 +11,7 @@
   "horse-race_crowd": "assets/sounds/horse-race/crowd.mp3",
   "horse-race_finish": "assets/sounds/horse-race/finish.mp3",
   "horse-race_result": "assets/sounds/horse-race/result.mp3",
-  "common_button": "assets/sounds/common/button_click.mp3",
+  "common_button": "assets/sounds/common/button_click.wav",
   "common_countdown": "assets/sounds/common/countdown.mp3",
   "common_notification": "assets/sounds/common/notification.mp3",
   "dice_bgm": "assets/sounds/dice/bgm.mp3",
@@ -19,3 +19,4 @@
   "horse-race_bgm": "assets/sounds/horse-race/bgm.mp3",
   "team_bgm": "assets/sounds/team/bgm.mp3"
 }
+
