@@ -3552,11 +3552,12 @@
                             .map(s => s.horseIndex);
 
                         // 미완주 말들을 현재 위치순으로 정렬 후 순서대로 추가
+                        const baseFinishOrder = actualFinishOrder.length;
                         unfinishedStates
                             .sort((a, b) => b.currentPos - a.currentPos) // 앞에 있는 순
                             .forEach((s, idx) => {
                                 s.finished = true;
-                                s.finishOrder = actualFinishOrder.length + idx;
+                                s.finishOrder = baseFinishOrder + idx;
                                 actualFinishOrder.push(s.horseIndex);
                             });
 

@@ -1,5 +1,12 @@
 <b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
 
+<b>🐎 경마 버그 수정</b>
+• 미완주 말 비석에 잘못된 순위(7등 등)가 표시되던 문제 수정
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
+
 <b>🐎 경마 개선</b>
 • 놓친 경주 다시보기 시 결과가 미리 보이던 문제 수정
 • 방장이 트랙 길이를 변경하면 다른 참가자에게 즉시 반영
