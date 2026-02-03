@@ -1,4 +1,20 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-04)</span>
+
+<b>🔊 사운드 시스템</b>
+• 경마/미팅용 사운드 설정 및 매니저 개선 (sound-config, sound-manager)
+• 사운드 관련 문서 및 노트 정리 (SOUND-NOTES.md)
+
+<b>🐎 경마 / 채팅</b>
+• 경마 설정(race.json) 및 소켓 로직 조정
+• 채팅 소켓 처리 개선 (socket/chat.js)
+
+<b>📋 문서·커맨드</b>
+• 미팅·사운드 관련 Claude 커맨드 추가 (meeting, meetsound, sound 등)
+• 미팅 문서 폴더 및 PDCA 스냅샷 정리
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
 
 <b>🐎 경마 버그 수정</b>
 • 게임 시작 시 방장 외 참가자가 다시보기로 가던 문제 수정
