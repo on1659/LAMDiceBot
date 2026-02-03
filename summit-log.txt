@@ -1,4 +1,26 @@
 ========================================
+📋 Summit Log - 2026-02-03 (3)
+========================================
+
+## 변경 파일
+- horse-race-multiplayer.html: 놓친 경주 다시보기 스포일러 방지, 트랙 길이 변경 즉시 반영
+
+## 상세 변경 내역
+
+### 놓친 경주 다시보기 결과 스포일러 방지
+- 원인: 서버가 12초 타이머로 결과 채팅 메시지(isHorseRaceWinner)를 전송, 화면 안 봐도 도착
+- 수정: pendingRaceResultMessages 큐 추가
+- ChatModule.init에 messageFilter 옵션 추가: missedHorseRace && isHorseRaceWinner 메시지 보관
+- replayMissedRace() onComplete에서 보관 메시지 표시
+- horseSelectionReady에서 다시보기 안 하고 넘어간 경우 보관 메시지 즉시 표시
+
+### 트랙 길이 변경 즉시 반영
+- trackLengthChanged 이벤트에서 renderHorseSelection() 호출 추가
+- 방장이 트랙 길이 바꾸면 비호스트 유저 UI 즉시 갱신
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-03 (2)
 ========================================
 

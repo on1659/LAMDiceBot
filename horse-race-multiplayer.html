@@ -1737,6 +1737,7 @@
         let mySelectedHorse = null;
         let horseRaceMode = 'last'; // 무조건 꼴등 찾기
         let currentTrackLength = 'medium'; // 트랙 길이 옵션
+        let pendingRaceResultMessages = []; // 놓친 경주 결과 메시지 보관 큐
         let currentTrackDistanceMeters = 500; // 트랙 거리(m)
         let trackPresetsFromServer = { short: 500, medium: 700, long: 1000 }; // 서버에서 받은 프리셋
         let selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
@@ -5407,6 +5408,12 @@
                         horseRaceMode: data.horseRaceMode || 'last'
                     }, true);
 
+                    // 보관된 결과 채팅 메시지 표시
+                    pendingRaceResultMessages.forEach(msg => {
+                        ChatModule.displayChatMessage(msg);
+                    });
+                    pendingRaceResultMessages = [];
+
                     setTimeout(() => {
                         selectedVehicleTypes = originalSelectedVehicleTypes;
                         userHorseBets = originalUserHorseBets;
@@ -5427,7 +5434,15 @@
                 myColor: '#8b4513',
                 myBgColor: '#fff5e6',
                 myBorderColor: '#ffc107',
-                getRoomUsers: () => users
+                getRoomUsers: () => users,
+                messageFilter: (data) => {
+                    // 놓친 경주 상태에서 결과 메시지는 보관 (스포일러 방지)
+                    if (missedHorseRace && data.isHorseRaceWinner) {
+                        pendingRaceResultMessages.push(data);
+                        return false;
+                    }
+                    return true;
+                }
             });
         }
 
@@ -5826,6 +5841,13 @@
             popularVehicles = data.popularVehicles || [];
             vehicleStatsData = data.vehicleStats || [];
             if (data.trackPresets) trackPresetsFromServer = data.trackPresets;
+            // 다시보기 안 하고 넘어간 경우 보관 메시지 즉시 표시
+            if (pendingRaceResultMessages.length > 0) {
+                pendingRaceResultMessages.forEach(msg => {
+                    ChatModule.displayChatMessage(msg);
+                });
+                pendingRaceResultMessages = [];
+            }
             currentTrackLength = data.trackLength || 'medium';
             currentTrackDistanceMeters = data.trackDistanceMeters || 500;
             
@@ -5893,6 +5915,8 @@
             if (trackLengthInfo) {
                 trackLengthInfo.textContent = `${currentTrackDistanceMeters}m`;
             }
+            // 말 선택 UI 재렌더링 (트랙 표시 갱신)
+            renderHorseSelection();
         });
 
         // 말 선택 완료 이벤트
