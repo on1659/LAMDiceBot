@@ -2299,6 +2299,23 @@
                 });
             }
 
+            // 추천 탈것 계산: 현재 배팅 가능한 탈것 중 1등 비율이 가장 낮은 것 (승률 평준화)
+            let recommendedVehicleId = null;
+            if (vehicleStatsData.length > 0) {
+                let lowestWinRate = Infinity;
+                availableHorses.forEach(hi => {
+                    const vid = selectedVehicleTypes ? selectedVehicleTypes[hi] : ALL_VEHICLES[hi % ALL_VEHICLES.length].id;
+                    const st = vehicleStatsData.find(s => s.vehicle_id === vid);
+                    if (st && st.appearance_count >= 5) {
+                        const winRate = st.rank_1 / st.appearance_count;
+                        if (winRate < lowestWinRate) {
+                            lowestWinRate = winRate;
+                            recommendedVehicleId = vid;
+                        }
+                    }
+                });
+            }
+
             availableHorses.forEach((horseIndex, index) => {
                 const button = document.createElement('button');
                 button.className = 'horse-selection-button';
@@ -2368,21 +2385,9 @@
                 const isPopular = popularVehicles.includes(vehicleId);
                 content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${isPopular ? ' <span style="font-size: 10px; background: #ff6b35; color: #fff; padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : ''}</div>`;
 
-                // 탈것 통계 표시
-                const vStat = vehicleStatsData.find(s => s.vehicle_id === vehicleId);
-                if (vStat && vStat.appearance_count > 0) {
-                    const total = vStat.appearance_count;
-                    const winPct = Math.round((vStat.rank_1 / total) * 100);
-                    // 꼴등 = rank_4 + rank_5 + rank_6 (말 수에 따라 다르므로 마지막 순위들 합산)
-                    const lastPct = Math.round(((vStat.rank_4 + vStat.rank_5 + vStat.rank_6) / total) * 100);
-                    const winColor = winPct >= 30 ? '#2ecc71' : '#888';
-                    const lastColor = lastPct >= 30 ? '#e74c3c' : '#888';
-                    content += `<div style="font-size: 11px; margin-top: 3px; color: #888;">` +
-                        `<span style="color:${winColor};">1등 ${winPct}%</span> | <span style="color:${lastColor};">꼴등 ${lastPct}%</span>` +
-                        `</div>` +
-                        `<div style="font-size: 10px; color: #aaa;">${total}회 등장</div>`;
-                } else {
-                    content += `<div style="font-size: 10px; margin-top: 3px; color: #bbb;">기록 없음</div>`;
+                // 추천 뱃지 표시 (1등 비율이 가장 낮은 탈것 = 승률 평준화 목적)
+                if (vehicleId === recommendedVehicleId) {
+                    content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: #e74c3c; color: #fff; padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
                 }
 
                 // 선택한 사람 정보 표시

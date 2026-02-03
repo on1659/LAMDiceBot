@@ -1,5 +1,13 @@
 <b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
 
+<b>🐎 경마 탈것 추천 시스템</b>
+• 말 선택 화면에서 승률이 낮은 탈것에 "추천!" 뱃지가 표시됩니다
+• 기존 상세 통계 표시를 간결한 추천 뱃지로 변경
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
+
 <b>🐎 경마 버그 수정</b>
 • 미완주 말 비석에 잘못된 순위(7등 등)가 표시되던 문제 수정
 
