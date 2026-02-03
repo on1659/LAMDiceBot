@@ -1,68 +1,28 @@
 <b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-04)</span>
 
-<b>🐎 경마 멀티플레이어 / 소켓</b>
-• horse-race-multiplayer.html, socket/horse.js, socket/rooms.js 수정 반영
-• 경마 방·소켓 로직 및 UI 개선
-
----
-
-<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-04)</span>
-
-<b>🔊 사운드 시스템</b>
-• 경마/미팅용 사운드 설정 및 매니저 개선 (sound-config, sound-manager)
-• 사운드 관련 문서 및 노트 정리 (SOUND-NOTES.md)
-
-<b>🐎 경마 / 채팅</b>
-• 경마 설정(race.json) 및 소켓 로직 조정
-• 채팅 소켓 처리 개선 (socket/chat.js)
-
-<b>📋 문서·커맨드</b>
-• 미팅·사운드 관련 Claude 커맨드 추가 (meeting, meetsound, sound 등)
-• 미팅 문서 폴더 및 PDCA 스냅샷 정리
-
----
-
-<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
-
 <b>🐎 경마 버그 수정</b>
 • 게임 시작 시 방장 외 참가자가 다시보기로 가던 문제 수정
 • 방장의 트랙 변경이 즉시 반영되지 않던 문제 수정
 • 꼴등 동점 시 자동준비가 되지 않던 문제 수정
 • 경기결과 패널에서 라운드 중복/삭제되던 문제 수정
-
----
-
-<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
+• 놓친 경주 다시보기 시 결과가 미리 보이던 문제 수정
+• 방장이 트랙 길이를 변경하면 다른 참가자에게 즉시 반영
+• 미완주 말 비석에 잘못된 순위(7등 등)가 표시되던 문제 수정
 
 <b>🐎 경마 기믹 밸런스 조정</b>
 • 부스트/스프린트 기믹의 가속 효과가 완화되었습니다
 • 장애물/역주행 기믹의 지속시간이 줄어들었습니다
 • 같은 종류의 기믹이 연속으로 발동되지 않도록 개선
+• 경마 카메라 무빙수정
 
----
+<b>🔊 사운드 시스템</b>
+• 경마/미팅용 사운드 설정 및 매니저 개선 (sound-config, sound-manager)
+• 사운드 관련 문서 및 노트 정리 (SOUND-NOTES.md)
+• 루프 사운드(playLoop/stopLoop) 비동기 경쟁 조건 수정 — stopLoop 호출 후 비동기로 끝난 playLoop가 다시 재생되던 현상 방지 (pendingStops 처리)
 
-<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
-
-<b>🐎 경마 탈것 추천 시스템</b>
-• 말 선택 화면에서 승률이 낮은 탈것에 "추천!" 뱃지가 표시됩니다
-• 기존 상세 통계 표시를 간결한 추천 뱃지로 변경
-
----
 
 <b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
 
-<b>🐎 경마 버그 수정</b>
-• 미완주 말 비석에 잘못된 순위(7등 등)가 표시되던 문제 수정
-
----
-
-<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
-
-<b>🐎 경마 개선</b>
-• 놓친 경주 다시보기 시 결과가 미리 보이던 문제 수정
-• 방장이 트랙 길이를 변경하면 다른 참가자에게 즉시 반영
-
----
 
 <b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
 

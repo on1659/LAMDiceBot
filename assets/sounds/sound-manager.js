@@ -6,6 +6,7 @@
     var configCache = null;
     var configUrl = '/assets/sounds/sound-config.json';
     var activeLoops = {};
+    var pendingStops = {}; // 취소 예정 키 관리 (비동기 playLoop 대응)
     var masterVolumeGetter = null; // 게임별 마스터 볼륨 getter 함수
     var loopBaseVolumes = {}; // 각 루프의 원래 볼륨 저장
     var isMuted = false; // 탭 포커스 음소거 상태
@@ -97,7 +98,16 @@
         var master = getMasterVolume();
         if (master === 0) return;
         if (activeLoops[key]) return;
+
+        // 새로 재생 시작하면 취소 예정 해제
+        delete pendingStops[key];
+
         loadConfig().then(function (cfg) {
+            // 취소 예정이면 재생하지 않음 (stopLoop이 먼저 호출된 경우)
+            if (pendingStops[key]) {
+                delete pendingStops[key];
+                return;
+            }
             if (!hasSoundFocus()) return;
             if (activeLoops[key]) return;
             var path = cfg[key];
@@ -118,11 +128,15 @@
      * @param {string} key
      */
     function stopLoop(key) {
+        // 취소 예정 플래그 설정 (비동기 playLoop 대응)
+        pendingStops[key] = true;
+
         var audio = activeLoops[key];
         if (audio) {
             audio.pause();
             audio.currentTime = 0;
             delete activeLoops[key];
+            delete pendingStops[key]; // 이미 종료했으면 플래그 해제
         }
     }
 
