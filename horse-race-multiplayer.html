@@ -677,6 +677,23 @@
             border-color: #999;
         }
 
+        .horse-selection-button.taken {
+            position: relative;
+        }
+
+        .horse-selection-button.taken::after {
+            content: '선택됨';
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #666;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
         /* 준비 섹션 */
         .ready-section {
             background: #f5e6d3;
@@ -1918,6 +1935,8 @@
         let availableHorses = [];
         let userHorseBets = {};
         let selectedUsersFromServer = [];  // 선택 완료자 목록 (서버에서 전송)
+        let selectedHorseIndices = [];  // 선택된 말 인덱스 목록 (서버에서 전송)
+        let canSelectDuplicate = false;  // 중복 선택 가능 여부 (사람수 > 말수)
         let mySelectedHorse = null;
         let horseRaceMode = 'last'; // 무조건 꼴등 찾기
         let currentTrackLength = 'medium'; // 트랙 길이 옵션
@@ -2652,13 +2671,21 @@
                     });
                 }
 
-                // 타인 선택 여부를 알 수 없으므로 비활성화하지 않음
-                // 서버에서 중복 선택 시 에러 처리 ("이미 선택된 말입니다!" 반환)
-                button.disabled = false;
-                
+                // 중복 선택 불가능할 때 (사람수 <= 말수) 이미 선택된 말 비활성화
+                const isSelectedByOther = selectedHorseIndices.includes(horseIndex) && !isMyHorse;
+                if (!canSelectDuplicate && isSelectedByOther) {
+                    button.disabled = true;
+                    button.classList.add('taken');
+                } else {
+                    button.disabled = false;
+                    button.classList.remove('taken');
+                }
+
                 if (isMyHorse) {
                     button.classList.add('selected');
                     mySelectedHorse = horseIndex;
+                } else {
+                    button.classList.remove('selected');
                 }
                 
                 // 탈것 버튼 내용 생성 (SVG idle 애니메이션 - 4프레임)
@@ -3335,6 +3362,27 @@
             let loserCameraTarget = null;
             let cameraModeBefore = null;
 
+            // 랜덤 카메라 컷어웨이 관련 변수
+            let leaderFocusStartTime = null;           // 1등 카메라 고정 시작 시간
+            let isRandomCutaway = false;               // 랜덤 컷어웨이 중인지
+            let randomCutawayStartTime = null;         // 컷어웨이 시작 시간
+            let randomCutawayTarget = null;            // 컷어웨이 대상 말 상태
+            let cutawayDisabled = false;               // 50m 진입 시 완전 비활성화 플래그
+
+            // 컷어웨이 상수
+            const LEADER_FOCUS_DURATION = 3000;        // 1등 고정 시간 (3초)
+            const CUTAWAY_DURATION = 3000;             // 컷어웨이 지속 시간 (3초)
+            const FINISH_LOCK_DISTANCE_M = 50;         // 결승선 강제 복귀 거리 (50m)
+
+            // 랜덤 컷어웨이 타겟 선택 함수
+            function selectRandomCutawayTarget(horseStates, leaderIndex) {
+                const candidates = horseStates.filter(s =>
+                    s.horseIndex !== leaderIndex && !s.finished
+                );
+                if (candidates.length === 0) return null;
+                return candidates[Math.floor(Math.random() * candidates.length)];
+            }
+
             // 카메라 버튼 UI 동기화 함수 (루프 내에서도 호출)
             const cameraSwitchBtn = document.getElementById('cameraSwitchBtn');
             function updateCameraBtnUI() {
@@ -3345,6 +3393,9 @@
                 } else if (cameraMode === '_loser' || panningToLoser) {
                     cameraSwitchBtn.textContent = '📷 꼴등 추적중';
                     cameraSwitchBtn.style.background = 'rgba(233,69,96,0.4)';
+                } else if (isRandomCutaway) {
+                    cameraSwitchBtn.textContent = '📷 다른말 구경중';
+                    cameraSwitchBtn.style.background = 'rgba(100,200,255,0.4)';
                 } else {
                     cameraSwitchBtn.textContent = '📷 시스템 카메라';
                     cameraSwitchBtn.style.background = 'rgba(0,0,0,0.6)';
@@ -3466,6 +3517,13 @@
                 }
                 document.removeEventListener('visibilitychange', onVisChange);
                 document.addEventListener('visibilitychange', onVisChange);
+
+                // 랜덤 카메라 컷어웨이 변수 초기화
+                leaderFocusStartTime = null;
+                isRandomCutaway = false;
+                randomCutawayStartTime = null;
+                randomCutawayTarget = null;
+                cutawayDisabled = false;
 
                 // JavaScript 기반 애니메이션 루프
                 animationInterval = setInterval(() => {
@@ -3955,9 +4013,72 @@
                             }
                             if (loserCameraTarget) cameraTarget = loserCameraTarget;
                         } else if (cameraMode === 'myHorse') {
+                            // 내 말 추적 - 랜덤 컷어웨이 적용 안함
                             const myIdx = userHorseBets[currentUser];
                             const myState = horseStates.find(s => s.horseIndex === myIdx);
                             if (myState) cameraTarget = myState;
+                        } else {
+                            // leader 모드 - 랜덤 컷어웨이 로직
+                            const now = Date.now();
+                            const leaderRemainingM = (finishLine - leaderState.currentPos) / PIXELS_PER_METER;
+
+                            // 결승선 50m 전이면 컷어웨이 완전 비활성화
+                            if (leaderRemainingM <= FINISH_LOCK_DISTANCE_M) {
+                                if (isRandomCutaway) {
+                                    isRandomCutaway = false;
+                                    randomCutawayTarget = null;
+                                }
+                                cutawayDisabled = true;
+                                leaderFocusStartTime = null;
+                                cameraTarget = leaderState;
+                            }
+                            // 컷어웨이가 비활성화되지 않았을 때만 처리
+                            else if (!cutawayDisabled) {
+                                // 컷어웨이 중일 때
+                                if (isRandomCutaway && randomCutawayTarget) {
+                                    // 3초 지났으면 1등으로 복귀
+                                    if (now - randomCutawayStartTime >= CUTAWAY_DURATION) {
+                                        isRandomCutaway = false;
+                                        randomCutawayTarget = null;
+                                        leaderFocusStartTime = now;
+                                        cameraTarget = leaderState;
+                                    } else {
+                                        // 컷어웨이 대상이 완주했으면 새 타겟 선택 또는 1등 복귀
+                                        if (randomCutawayTarget.finished) {
+                                            randomCutawayTarget = selectRandomCutawayTarget(horseStates, leaderState.horseIndex);
+                                            if (!randomCutawayTarget) {
+                                                isRandomCutaway = false;
+                                                leaderFocusStartTime = now;
+                                                cameraTarget = leaderState;
+                                            } else {
+                                                cameraTarget = randomCutawayTarget;
+                                            }
+                                        } else {
+                                            cameraTarget = randomCutawayTarget;
+                                        }
+                                    }
+                                }
+                                // 1등 고정 중일 때
+                                else {
+                                    if (leaderFocusStartTime === null) {
+                                        leaderFocusStartTime = now;
+                                    }
+                                    // 3초 이상 1등 고정 시 랜덤 컷어웨이 시작
+                                    if (now - leaderFocusStartTime >= LEADER_FOCUS_DURATION) {
+                                        const target = selectRandomCutawayTarget(horseStates, leaderState.horseIndex);
+                                        if (target) {
+                                            isRandomCutaway = true;
+                                            randomCutawayStartTime = now;
+                                            randomCutawayTarget = target;
+                                            cameraTarget = target;
+                                        } else {
+                                            leaderFocusStartTime = now;
+                                        }
+                                    } else {
+                                        cameraTarget = leaderState;
+                                    }
+                                }
+                            }
                         }
                         const cameraPos = cameraTarget.currentPos;
 
@@ -6696,6 +6817,8 @@
             availableHorses = data.availableHorses || [];
             userHorseBets = data.userHorseBets || {};
             selectedUsersFromServer = data.selectedUsers || [];  // 선택 완료자 목록
+            selectedHorseIndices = data.selectedHorseIndices || [];  // 선택된 말 인덱스 목록
+            canSelectDuplicate = data.canSelectDuplicate || false;  // 중복 선택 가능 여부
             horseRaceMode = data.horseRaceMode || 'last';
             selectedVehicleTypes = data.selectedVehicleTypes || null;
             popularVehicles = data.popularVehicles || [];
@@ -6807,8 +6930,12 @@
             // 선택 완료자 목록 저장 (어떤 탈것인지는 모름, 이름만)
             selectedUsersFromServer = data.selectedUsers || [];
 
+            // 선택된 말 인덱스 목록과 중복 선택 가능 여부 저장
+            selectedHorseIndices = data.selectedHorseIndices || [];
+            canSelectDuplicate = data.canSelectDuplicate || false;
+
             const selectedCount = selectedUsersFromServer.length;
-            addDebugLog(`말 선택 업데이트: ${selectedCount}명 선택`, 'selection');
+            addDebugLog(`말 선택 업데이트: ${selectedCount}명 선택, 중복가능: ${canSelectDuplicate}`, 'selection');
 
             // 내 선택 상태 확인 (선택 취소 시 undefined가 될 수 있음)
             if (userHorseBets[currentUser] !== undefined) {

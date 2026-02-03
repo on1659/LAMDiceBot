@@ -739,17 +739,40 @@ module.exports = (socket, io, ctx) => {
                     console.log(`[새 사용자 입장] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
                 }
 
+                // 선택된 말 인덱스 목록과 중복 선택 가능 여부 계산
+                const selectedHorseIndices = Object.values(gameState.userHorseBets);
+                const canSelectDuplicate = gameState.availableHorses.length < players.length;
+
                 // 새로 입장한 사용자에게 말 선택 UI 표시
                 socket.emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
                     participants: players,
                     players: players,
-                    userHorseBets: { ...gameState.userHorseBets },
+                    userHorseBets: {},  // 새 사용자는 본인 선택 없음
+                    selectedUsers: Object.keys(gameState.userHorseBets),
+                    selectedHorseIndices: selectedHorseIndices,
+                    canSelectDuplicate: canSelectDuplicate,
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes
                 });
-                console.log(`[새 사용자 입장] ${finalUserName}에게 horseSelectionReady 전송, selectedVehicleTypes:`, gameState.selectedVehicleTypes);
+                console.log(`[새 사용자 입장] ${finalUserName}에게 horseSelectionReady 전송, canSelectDuplicate: ${canSelectDuplicate}`);
+
+                // 기존 사용자들에게 canSelectDuplicate 업데이트 (사람수 변경됨)
+                gameState.users.forEach(u => {
+                    if (u.id !== socket.id) {
+                        const myBets = {};
+                        if (gameState.userHorseBets[u.name] !== undefined) {
+                            myBets[u.name] = gameState.userHorseBets[u.name];
+                        }
+                        io.to(u.id).emit('horseSelectionUpdated', {
+                            userHorseBets: myBets,
+                            selectedUsers: Object.keys(gameState.userHorseBets),
+                            selectedHorseIndices: selectedHorseIndices,
+                            canSelectDuplicate: canSelectDuplicate
+                        });
+                    }
+                });
             }
         }
 
@@ -866,6 +889,28 @@ module.exports = (socket, io, ctx) => {
         // 게임 진행 중인 경우 종료 조건 체크
         if (rooms[roomId] && gameState.isGameActive) {
             checkAndEndGame(gameState, room);
+        }
+
+        // 경마 게임에서 사용자 퇴장 시 선택 상태 업데이트 (canSelectDuplicate 갱신)
+        if (rooms[roomId] && room.gameType === 'horse-race' && !gameState.isHorseRaceActive) {
+            const players = gameState.users.map(u => u.name);
+            if (players.length > 0 && gameState.availableHorses && gameState.availableHorses.length > 0) {
+                const selectedHorseIndices = Object.values(gameState.userHorseBets);
+                const canSelectDuplicate = gameState.availableHorses.length < players.length;
+
+                gameState.users.forEach(u => {
+                    const myBets = {};
+                    if (gameState.userHorseBets[u.name] !== undefined) {
+                        myBets[u.name] = gameState.userHorseBets[u.name];
+                    }
+                    io.to(u.id).emit('horseSelectionUpdated', {
+                        userHorseBets: myBets,
+                        selectedUsers: Object.keys(gameState.userHorseBets),
+                        selectedHorseIndices: selectedHorseIndices,
+                        canSelectDuplicate: canSelectDuplicate
+                    });
+                });
+            }
         }
 
         socket.leave(roomId);
