@@ -153,12 +153,20 @@ module.exports = (socket, io, ctx) => {
         gameState.availableHorses.forEach(horseIndex => {
             const gimmickCount = gCountConf.min + Math.floor(Math.random() * (gCountConf.max - gCountConf.min + 1));
             const gimmicks = [];
+            let lastCategory = null;
             for (let i = 0; i < gimmickCount; i++) {
                 const progressTrigger = trigMin + Math.random() * (trigMax - trigMin);
-                const roll = Math.random() * cumProb;
-                const entry = gTypeLookup.find(e => roll < e.cumProb) || gTypeLookup[gTypeLookup.length - 1];
-                const tc = entry.conf;
-                const type = entry.name;
+
+                // 같은 category 연속 방지 (최대 3회 재뽑기)
+                let entry, tc, type;
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    const roll = Math.random() * cumProb;
+                    entry = gTypeLookup.find(e => roll < e.cumProb) || gTypeLookup[gTypeLookup.length - 1];
+                    tc = entry.conf;
+                    type = entry.name;
+                    if (tc.category !== lastCategory) break;
+                }
+                lastCategory = tc.category || null;
 
                 const [durMin, durMax] = tc.durationRange || [500, 1000];
                 const duration = durMin + Math.random() * (durMax - durMin);
