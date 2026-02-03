@@ -1,0 +1,36 @@
+========================================
+📋 Summit Log - 2026-02-03
+========================================
+
+## 변경 파일
+- db/init.js: vehicle_stats 테이블 CREATE TABLE 추가
+- db/vehicle-stats.js (신규): 탈것 통계 CRUD 모듈 (DB + 파일 fallback)
+- socket/horse.js: 경기 종료 시 통계 저장 호출, horseSelectionReady에 인기말 데이터 추가
+- horse-race-multiplayer.html: popularVehicles 변수 추가, 말 선택 버튼에 "인기" 뱃지 표시
+- config/horse/race.json: 기믹 설정 조정
+- update-log.txt: 업데이트 내역 추가
+
+## 상세 변경 내역
+
+### [탈것 통계 DB 저장 시스템]
+- vehicle_stats 테이블: server_id, vehicle_id, appearance_count, pick_count, rank_1~rank_6
+- UPSERT 방식으로 경기마다 집계 누적
+- PostgreSQL 사용 불가 시 config/vehicle-stats.json 파일 fallback
+- db/menus.js의 DB+파일 병행 패턴 참고하여 동일 구조 적용
+
+### [경기 종료 시 저장]
+- socket/horse.js 2개 코드 경로에 recordVehicleRaceResult() 호출 추가
+  - 메인 경주 경로 (타이머 기반 결과 처리)
+  - 자동 준비 경주 경로 (allSelected 기반)
+- rankings, selectedVehicleTypes, userHorseBets 데이터로 각 탈것의 등장/순위/선택 집계
+
+### [인기말 표시]
+- horseSelectionReady 이벤트 3곳에 popularVehicles 배열 추가 전송
+- getPopularVehicles(): pick_rate(선택률) 상위 2개, 최소 등장 5회 이상 조건
+- 클라이언트: 말 선택 버튼에 주황색 "인기" 뱃지 표시
+
+### [BGM 변경]
+- assets/sounds/horse-race/back_bgm.mp3 삭제
+- assets/sounds/horse-race/bgm.mp3 변경
+
+========================================

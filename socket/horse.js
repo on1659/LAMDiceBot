@@ -1,4 +1,6 @@
 const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('../db/stats');
+const { recordVehicleRaceResult, getVehicleStats, getPopularVehicles } = require('../db/vehicle-stats');
+const { getServerId } = require('../routes/api');
 
 // ALL_VEHICLE_IDS constant
 const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse'];
@@ -229,6 +231,15 @@ module.exports = (socket, io, ctx) => {
             gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-100);
         }
 
+        // 탈것 통계 저장
+        recordVehicleRaceResult(
+            getServerId(),
+            rankings,
+            gameState.selectedVehicleTypes || [],
+            gameState.userHorseBets,
+            gameState.availableHorses
+        ).catch(e => console.warn('탈것 통계 저장 실패:', e.message));
+
         // 카운트다운 이벤트 전송 (3-2-1-START)
         io.to(room.roomId).emit('horseRaceCountdown', {
             duration: 4, // 3-2-1-START = 4초
@@ -427,15 +438,29 @@ module.exports = (socket, io, ctx) => {
                     }
                 }
 
-                // 모든 클라이언트에게 말 선택 UI 표시
-                io.to(room.roomId).emit('horseSelectionReady', {
-                    availableHorses: gameState.availableHorses,
-                    participants: players,
-                    players: players, // 하위 호환성
-                    userHorseBets: { ...gameState.userHorseBets },
-                    horseRaceMode: gameState.horseRaceMode || 'last',
-                    raceRound: gameState.raceRound || 1,
-                    selectedVehicleTypes: gameState.selectedVehicleTypes || null
+                // 모든 클라이언트에게 말 선택 UI 표시 (인기말 정보 포함)
+                getPopularVehicles(getServerId()).then(popularVehicles => {
+                    io.to(room.roomId).emit('horseSelectionReady', {
+                        availableHorses: gameState.availableHorses,
+                        participants: players,
+                        players: players, // 하위 호환성
+                        userHorseBets: { ...gameState.userHorseBets },
+                        horseRaceMode: gameState.horseRaceMode || 'last',
+                        raceRound: gameState.raceRound || 1,
+                        selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+                        popularVehicles: popularVehicles
+                    });
+                }).catch(() => {
+                    io.to(room.roomId).emit('horseSelectionReady', {
+                        availableHorses: gameState.availableHorses,
+                        participants: players,
+                        players: players,
+                        userHorseBets: { ...gameState.userHorseBets },
+                        horseRaceMode: gameState.horseRaceMode || 'last',
+                        raceRound: gameState.raceRound || 1,
+                        selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+                        popularVehicles: []
+                    });
                 });
             }
         }
@@ -527,6 +552,15 @@ module.exports = (socket, io, ctx) => {
             if (gameState.horseRaceHistory.length > 100) {
                 gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-100);
             }
+
+            // 탈것 통계 저장
+            recordVehicleRaceResult(
+                getServerId(),
+                rankings,
+                gameState.selectedVehicleTypes || [],
+                gameState.userHorseBets,
+                gameState.availableHorses
+            ).catch(e => console.warn('탈것 통계 저장 실패:', e.message));
 
             // 경주 종료: 결과 전송 직후 상태를 false로 설정
             gameState.isHorseRaceActive = false;
@@ -683,15 +717,29 @@ module.exports = (socket, io, ctx) => {
             }
             console.log(`[경마 종료] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
 
-            // 모든 클라이언트에게 말 선택 UI 표시
-            io.to(room.roomId).emit('horseSelectionReady', {
-                availableHorses: gameState.availableHorses,
-                participants: players,
-                players: players, // 하위 호환성
-                userHorseBets: {}, // 초기화
-                horseRaceMode: gameState.horseRaceMode || 'last',
-                raceRound: gameState.raceRound || 1,
-                selectedVehicleTypes: gameState.selectedVehicleTypes
+            // 모든 클라이언트에게 말 선택 UI 표시 (인기말 정보 포함)
+            getPopularVehicles(getServerId()).then(popularVehicles => {
+                io.to(room.roomId).emit('horseSelectionReady', {
+                    availableHorses: gameState.availableHorses,
+                    participants: players,
+                    players: players,
+                    userHorseBets: {},
+                    horseRaceMode: gameState.horseRaceMode || 'last',
+                    raceRound: gameState.raceRound || 1,
+                    selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    popularVehicles: popularVehicles
+                });
+            }).catch(() => {
+                io.to(room.roomId).emit('horseSelectionReady', {
+                    availableHorses: gameState.availableHorses,
+                    participants: players,
+                    players: players,
+                    userHorseBets: {},
+                    horseRaceMode: gameState.horseRaceMode || 'last',
+                    raceRound: gameState.raceRound || 1,
+                    selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    popularVehicles: []
+                });
             });
         }
 
@@ -742,16 +790,32 @@ module.exports = (socket, io, ctx) => {
 
         // 맵 선택 화면으로 복귀
         if (players.length >= 2) {
-            io.to(room.roomId).emit('horseSelectionReady', {
-                availableHorses: gameState.availableHorses,
-                participants: players,
-                players: players,
-                userHorseBets: {},
-                horseRaceMode: gameState.horseRaceMode || 'last',
-                raceRound: gameState.raceRound || 1,
-                selectedVehicleTypes: gameState.selectedVehicleTypes,
-                trackLength: gameState.trackLength || 'short',
-                trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.short).meters
+            getPopularVehicles(getServerId()).then(popularVehicles => {
+                io.to(room.roomId).emit('horseSelectionReady', {
+                    availableHorses: gameState.availableHorses,
+                    participants: players,
+                    players: players,
+                    userHorseBets: {},
+                    horseRaceMode: gameState.horseRaceMode || 'last',
+                    raceRound: gameState.raceRound || 1,
+                    selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    trackLength: gameState.trackLength || 'short',
+                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.short).meters,
+                    popularVehicles: popularVehicles
+                });
+            }).catch(() => {
+                io.to(room.roomId).emit('horseSelectionReady', {
+                    availableHorses: gameState.availableHorses,
+                    participants: players,
+                    players: players,
+                    userHorseBets: {},
+                    horseRaceMode: gameState.horseRaceMode || 'last',
+                    raceRound: gameState.raceRound || 1,
+                    selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    trackLength: gameState.trackLength || 'short',
+                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.short).meters,
+                    popularVehicles: []
+                });
             });
         }
 

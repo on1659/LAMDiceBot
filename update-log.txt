@@ -1,4 +1,12 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-02)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
+
+<b>🐎 경마 탈것 통계 시스템</b>
+• 경마 종료 후 각 탈것의 등장/순위/선택 통계가 자동으로 기록됩니다
+• 말 선택 화면에서 유저들이 많이 선택한 탈것에 "인기" 뱃지가 표시됩니다
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-02)</span>
 
 <b>🐎 경마 게임 업데이트</b>
 • 대기 상태 말 발구르기 애니메이션 추가

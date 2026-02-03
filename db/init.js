@@ -85,6 +85,26 @@ async function initDatabase() {
             CREATE INDEX IF NOT EXISTS idx_emoji_config_server ON emoji_config(server_id)
         `);
 
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS vehicle_stats (
+                id SERIAL PRIMARY KEY,
+                server_id VARCHAR(50) NOT NULL DEFAULT 'default',
+                vehicle_id VARCHAR(20) NOT NULL,
+                appearance_count INT NOT NULL DEFAULT 0,
+                pick_count INT NOT NULL DEFAULT 0,
+                rank_1 INT NOT NULL DEFAULT 0,
+                rank_2 INT NOT NULL DEFAULT 0,
+                rank_3 INT NOT NULL DEFAULT 0,
+                rank_4 INT NOT NULL DEFAULT 0,
+                rank_5 INT NOT NULL DEFAULT 0,
+                rank_6 INT NOT NULL DEFAULT 0,
+                UNIQUE(server_id, vehicle_id)
+            )
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_vehicle_stats_server ON vehicle_stats(server_id)
+        `);
+
         await loadVisitorStatsFromDB();
         await loadPlayStatsFromDB();
 
