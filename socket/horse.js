@@ -1,5 +1,5 @@
 const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('../db/stats');
-const { recordVehicleRaceResult, getVehicleStats, getPopularVehicles } = require('../db/vehicle-stats');
+const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
 const { getServerId } = require('../routes/api');
 
 // ALL_VEHICLE_IDS constant
@@ -47,7 +47,9 @@ module.exports = (socket, io, ctx) => {
         const option = (data && validOptions.includes(data.trackLength)) ? data.trackLength : 'short';
         gameState.trackLength = option;
         const preset = TRACK_PRESETS[option];
-        io.to(room.roomId).emit('trackLengthChanged', { trackLength: option, trackDistanceMeters: preset.meters });
+        const trackPresetsInfo = {};
+        for (const [k, v] of Object.entries(TRACK_PRESETS)) trackPresetsInfo[k] = v.meters;
+        io.to(room.roomId).emit('trackLengthChanged', { trackLength: option, trackDistanceMeters: preset.meters, trackPresets: trackPresetsInfo });
         console.log(`[경마] 방 ${room.roomName} 트랙 길이 설정: ${option} (${preset.meters}m)`);
     });
 
@@ -133,7 +135,7 @@ module.exports = (socket, io, ctx) => {
         });
 
         // 기믹 데이터 먼저 생성 (순위 계산에 필요)
-        const trackLenForGimmick = gameState.trackLength || 'short';
+        const trackLenForGimmick = gameState.trackLength || 'medium';
         const gimmicksData = {};
         const gConf = horseConfig.gimmicks || {};
         const gCountConf = (gConf.countByTrack || {})[trackLenForGimmick] || { min: 3, max: 5 };
@@ -190,11 +192,11 @@ module.exports = (socket, io, ctx) => {
         // 경주 결과 계산 (기믹 반영 시뮬레이션)
         const forcePhotoFinish = gameState.forcePhotoFinish || false;
         gameState.forcePhotoFinish = false; // 사용 후 리셋
-        const trackLengthOption = gameState.trackLength || 'short';
+        const trackLengthOption = gameState.trackLength || 'medium';
         const rankings = calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption);
 
         // 트랙 정보 계산
-        const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.short;
+        const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = trackPreset.meters;
         const trackFinishLine = trackDistanceMeters * PIXELS_PER_METER;
 
@@ -438,8 +440,11 @@ module.exports = (socket, io, ctx) => {
                     }
                 }
 
-                // 모든 클라이언트에게 말 선택 UI 표시 (인기말 정보 포함)
-                getPopularVehicles(getServerId()).then(popularVehicles => {
+                // 모든 클라이언트에게 말 선택 UI 표시 (통계+인기말 정보 포함)
+                getVehicleStats(getServerId()).then(stats => {
+                    const popularVehicles = stats.filter(s => s.appearance_count >= 5).sort((a, b) => b.pick_rate - a.pick_rate).slice(0, 2).map(s => s.vehicle_id);
+                    const tpInfo = {};
+                    for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
                     io.to(room.roomId).emit('horseSelectionReady', {
                         availableHorses: gameState.availableHorses,
                         participants: players,
@@ -448,9 +453,13 @@ module.exports = (socket, io, ctx) => {
                         horseRaceMode: gameState.horseRaceMode || 'last',
                         raceRound: gameState.raceRound || 1,
                         selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-                        popularVehicles: popularVehicles
+                        popularVehicles: popularVehicles,
+                        vehicleStats: stats,
+                        trackPresets: tpInfo
                     });
                 }).catch(() => {
+                    const tpInfo = {};
+                    for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
                     io.to(room.roomId).emit('horseSelectionReady', {
                         availableHorses: gameState.availableHorses,
                         participants: players,
@@ -459,7 +468,9 @@ module.exports = (socket, io, ctx) => {
                         horseRaceMode: gameState.horseRaceMode || 'last',
                         raceRound: gameState.raceRound || 1,
                         selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-                        popularVehicles: []
+                        popularVehicles: [],
+                        vehicleStats: [],
+                        trackPresets: tpInfo
                     });
                 });
             }
@@ -717,8 +728,9 @@ module.exports = (socket, io, ctx) => {
             }
             console.log(`[경마 종료] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
 
-            // 모든 클라이언트에게 말 선택 UI 표시 (인기말 정보 포함)
-            getPopularVehicles(getServerId()).then(popularVehicles => {
+            // 모든 클라이언트에게 말 선택 UI 표시 (통계+인기말 정보 포함)
+            getVehicleStats(getServerId()).then(stats => {
+                const popularVehicles = stats.filter(s => s.appearance_count >= 5).sort((a, b) => b.pick_rate - a.pick_rate).slice(0, 2).map(s => s.vehicle_id);
                 io.to(room.roomId).emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
                     participants: players,
@@ -727,7 +739,8 @@ module.exports = (socket, io, ctx) => {
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
-                    popularVehicles: popularVehicles
+                    popularVehicles: popularVehicles,
+                    vehicleStats: stats
                 });
             }).catch(() => {
                 io.to(room.roomId).emit('horseSelectionReady', {
@@ -738,7 +751,8 @@ module.exports = (socket, io, ctx) => {
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
-                    popularVehicles: []
+                    popularVehicles: [],
+                    vehicleStats: []
                 });
             });
         }
@@ -790,7 +804,8 @@ module.exports = (socket, io, ctx) => {
 
         // 맵 선택 화면으로 복귀
         if (players.length >= 2) {
-            getPopularVehicles(getServerId()).then(popularVehicles => {
+            getVehicleStats(getServerId()).then(stats => {
+                const popularVehicles = stats.filter(s => s.appearance_count >= 5).sort((a, b) => b.pick_rate - a.pick_rate).slice(0, 2).map(s => s.vehicle_id);
                 io.to(room.roomId).emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
                     participants: players,
@@ -799,9 +814,10 @@ module.exports = (socket, io, ctx) => {
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
-                    trackLength: gameState.trackLength || 'short',
-                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.short).meters,
-                    popularVehicles: popularVehicles
+                    trackLength: gameState.trackLength || 'medium',
+                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.medium).meters,
+                    popularVehicles: popularVehicles,
+                    vehicleStats: stats
                 });
             }).catch(() => {
                 io.to(room.roomId).emit('horseSelectionReady', {
@@ -812,9 +828,10 @@ module.exports = (socket, io, ctx) => {
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
-                    trackLength: gameState.trackLength || 'short',
-                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.short).meters,
-                    popularVehicles: []
+                    trackLength: gameState.trackLength || 'medium',
+                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.medium).meters,
+                    popularVehicles: [],
+                    vehicleStats: []
                 });
             });
         }
@@ -848,7 +865,7 @@ module.exports = (socket, io, ctx) => {
     // 경주 결과 계산 함수 (기믹 반영 시뮬레이션)
     function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption) {
         // 트랙 길이 설정
-        const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.short;
+        const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = preset.meters;
         const [minDuration, maxDuration] = preset.durationRange;
 

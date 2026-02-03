@@ -1,9 +1,9 @@
 {
   "pixelsPerMeter": 10,
   "trackPresets": {
-    "short":  { "meters": 300, "speedRange": [85, 95] },
-    "medium": { "meters": 500, "speedRange": [85, 95] },
-    "long":   { "meters": 700, "speedRange": [85, 95] }
+    "short":  { "meters": 500, "speedRange": [85, 95] },
+    "medium": { "meters": 700, "speedRange": [85, 95] },
+    "long":   { "meters": 1000, "speedRange": [85, 95] }
   },
   "slowMotion": {
     "leader": {

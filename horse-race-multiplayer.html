@@ -1736,10 +1736,12 @@
         let userHorseBets = {};
         let mySelectedHorse = null;
         let horseRaceMode = 'last'; // 무조건 꼴등 찾기
-        let currentTrackLength = 'short'; // 트랙 길이 옵션
-        let currentTrackDistanceMeters = 300; // 트랙 거리(m)
+        let currentTrackLength = 'medium'; // 트랙 길이 옵션
+        let currentTrackDistanceMeters = 500; // 트랙 거리(m)
+        let trackPresetsFromServer = { short: 500, medium: 700, long: 1000 }; // 서버에서 받은 프리셋
         let selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
         let popularVehicles = []; // 인기말 vehicle_id 목록
+        let vehicleStatsData = []; // 탈것별 통계 데이터
         let missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상태였는지)
         let lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
         let isReplayActive = false; // 다시보기 진행 중 여부
@@ -2215,21 +2217,17 @@
             }
             if (isHost) {
                 const trackColors = { short: '#4ade80', medium: '#60a5fa', long: '#fbbf24' };
-                trackLengthContainer.innerHTML = `
-                    <span style="font-size: 12px; color: #ccc;">트랙:</span>
-                    <button class="track-length-btn" data-length="short"
-                        style="padding: 4px 10px; border-radius: 12px; border: 1px solid #555; background: ${currentTrackLength === 'short' ? trackColors.short : '#333'}; color: ${currentTrackLength === 'short' ? '#000' : '#ccc'}; cursor: pointer; font-size: 11px; font-weight: bold;">
-                        짧게 (300m)
-                    </button>
-                    <button class="track-length-btn" data-length="medium"
-                        style="padding: 4px 10px; border-radius: 12px; border: 1px solid #555; background: ${currentTrackLength === 'medium' ? trackColors.medium : '#333'}; color: ${currentTrackLength === 'medium' ? '#000' : '#ccc'}; cursor: pointer; font-size: 11px; font-weight: bold;">
-                        보통 (500m)
-                    </button>
-                    <button class="track-length-btn" data-length="long"
-                        style="padding: 4px 10px; border-radius: 12px; border: 1px solid #555; background: ${currentTrackLength === 'long' ? trackColors.long : '#333'}; color: ${currentTrackLength === 'long' ? '#000' : '#ccc'}; cursor: pointer; font-size: 11px; font-weight: bold;">
-                        길게 (700m)
-                    </button>
-                `;
+                const trackLabels = { short: '짧게', medium: '보통', long: '길게' };
+                const presets = trackPresetsFromServer;
+                let btnsHtml = '<span style="font-size: 12px; color: #ccc;">트랙:</span>';
+                for (const key of ['short', 'medium', 'long']) {
+                    const isActive = currentTrackLength === key;
+                    btnsHtml += `<button class="track-length-btn" data-length="${key}"
+                        style="padding: 4px 10px; border-radius: 12px; border: 1px solid #555; background: ${isActive ? trackColors[key] : '#333'}; color: ${isActive ? '#000' : '#ccc'}; cursor: pointer; font-size: 11px; font-weight: bold;">
+                        ${trackLabels[key]} (${presets[key]}m)
+                    </button>`;
+                }
+                trackLengthContainer.innerHTML = btnsHtml;
                 trackLengthContainer.querySelectorAll('.track-length-btn').forEach(btn => {
                     btn.onclick = () => {
                         // 즉시 선택 피드백
@@ -2247,7 +2245,7 @@
                 });
                 trackLengthContainer.style.display = 'flex';
             } else {
-                trackLengthContainer.innerHTML = `<span style="font-size: 12px; color: #888;">트랙: <span id="trackLengthInfo">${currentTrackDistanceMeters}m</span></span>`;
+                trackLengthContainer.innerHTML = `<span style="display: inline-block; padding: 6px 16px; border-radius: 12px; background: linear-gradient(135deg, #1e293b, #334155); border: 1px solid #475569; font-size: 14px; font-weight: bold; color: #e2e8f0; letter-spacing: 1px;">🏁 <span id="trackLengthInfo" style="color: #60a5fa;">${currentTrackDistanceMeters}m</span></span>`;
                 trackLengthContainer.style.display = 'flex';
             }
 
@@ -2368,7 +2366,24 @@
                 let content = vehicleDisplay;
                 const isPopular = popularVehicles.includes(vehicleId);
                 content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${isPopular ? ' <span style="font-size: 10px; background: #ff6b35; color: #fff; padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : ''}</div>`;
-                
+
+                // 탈것 통계 표시
+                const vStat = vehicleStatsData.find(s => s.vehicle_id === vehicleId);
+                if (vStat && vStat.appearance_count > 0) {
+                    const total = vStat.appearance_count;
+                    const winPct = Math.round((vStat.rank_1 / total) * 100);
+                    // 꼴등 = rank_4 + rank_5 + rank_6 (말 수에 따라 다르므로 마지막 순위들 합산)
+                    const lastPct = Math.round(((vStat.rank_4 + vStat.rank_5 + vStat.rank_6) / total) * 100);
+                    const winColor = winPct >= 30 ? '#2ecc71' : '#888';
+                    const lastColor = lastPct >= 30 ? '#e74c3c' : '#888';
+                    content += `<div style="font-size: 11px; margin-top: 3px; color: #888;">` +
+                        `<span style="color:${winColor};">1등 ${winPct}%</span> | <span style="color:${lastColor};">꼴등 ${lastPct}%</span>` +
+                        `</div>` +
+                        `<div style="font-size: 10px; color: #aaa;">${total}회 등장</div>`;
+                } else {
+                    content += `<div style="font-size: 10px; margin-top: 3px; color: #bbb;">기록 없음</div>`;
+                }
+
                 // 선택한 사람 정보 표시
                 if (selectedBy) {
                     if (selectedBy === currentUser) {
@@ -2514,7 +2529,7 @@
             // 컨테이너 너비 (스크롤 영역의 뷰포트 크기)
             const trackWidth = trackContainer.offsetWidth || 700;
             // 서버에서 받은 트랙 거리(m) 기반 finishLine, 없으면 기존 방식
-            const trackDistanceMeters = (trackOptions && trackOptions.trackDistanceMeters) || 300;
+            const trackDistanceMeters = (trackOptions && trackOptions.trackDistanceMeters) || 500;
             const finishLine = trackDistanceMeters * PIXELS_PER_METER;
             
             // 트랙의 너비: 도착 지점은 그대로, 결승선 뒤 여유만 최소화해 스크롤 양 줄임
@@ -5334,7 +5349,7 @@
                             replayBtn.style.cursor = 'pointer';
                         }
                     }, 100);
-                }, { trackDistanceMeters: record.trackDistanceMeters || 300 });
+                }, { trackDistanceMeters: record.trackDistanceMeters || 500 });
             }, 4000); // 카운트다운 3-2-1-START = 4초
         }
 
@@ -5397,7 +5412,7 @@
                         userHorseBets = originalUserHorseBets;
                         availableHorses = originalAvailableHorses;
                     }, 100);
-                }, { trackDistanceMeters: data.trackDistanceMeters || 300 });
+                }, { trackDistanceMeters: data.trackDistanceMeters || 500 });
             }, 4000);
         }
 
@@ -5809,8 +5824,10 @@
             horseRaceMode = data.horseRaceMode || 'last';
             selectedVehicleTypes = data.selectedVehicleTypes || null;
             popularVehicles = data.popularVehicles || [];
-            currentTrackLength = data.trackLength || 'short';
-            currentTrackDistanceMeters = data.trackDistanceMeters || 300;
+            vehicleStatsData = data.vehicleStats || [];
+            if (data.trackPresets) trackPresetsFromServer = data.trackPresets;
+            currentTrackLength = data.trackLength || 'medium';
+            currentTrackDistanceMeters = data.trackDistanceMeters || 500;
             
             addDebugLog(`말 선택 준비: ${availableHorses.length}마리`, 'selection');
             
@@ -5855,11 +5872,21 @@
 
         // 트랙 길이 변경 이벤트
         socket.on('trackLengthChanged', (data) => {
-            currentTrackLength = data.trackLength || 'short';
-            currentTrackDistanceMeters = data.trackDistanceMeters || 300;
+            currentTrackLength = data.trackLength || 'medium';
+            currentTrackDistanceMeters = data.trackDistanceMeters || 500;
+            if (data.trackPresets) trackPresetsFromServer = data.trackPresets;
             // 버튼 상태 업데이트
+            const tColors = { short: '#4ade80', medium: '#60a5fa', long: '#fbbf24' };
             document.querySelectorAll('.track-length-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.length === currentTrackLength);
+                const key = btn.dataset.length;
+                const isActive = key === currentTrackLength;
+                btn.style.background = isActive ? tColors[key] : '#333';
+                btn.style.color = isActive ? '#000' : '#ccc';
+                btn.style.boxShadow = isActive ? `0 0 8px ${tColors[key]}80` : 'none';
+                if (trackPresetsFromServer[key]) {
+                    const labels = { short: '짧게', medium: '보통', long: '길게' };
+                    btn.textContent = `${labels[key]} (${trackPresetsFromServer[key]}m)`;
+                }
             });
             // 트랙 길이 표시 업데이트
             const trackLengthInfo = document.getElementById('trackLengthInfo');
@@ -6047,7 +6074,7 @@
                 }
                 // 서버 순위 기준으로 결과 표시 (기믹에 의한 애니메이션 순서 차이 무시)
                 showRaceResult(data);
-            }, { trackDistanceMeters: data.trackDistanceMeters || 300 });
+            }, { trackDistanceMeters: data.trackDistanceMeters || 500 });
             
             // 게임 상태 업데이트
             const gameStatus = document.getElementById('gameStatus');
