@@ -1,4 +1,33 @@
 ========================================
+📋 Summit Log - 2026-02-03 (7)
+========================================
+
+## 변경 파일
+- horse-race-multiplayer.html: 4가지 버그 수정
+
+## 상세 변경 내역
+
+### 버그 1: 다시보기 규칙 완화 (라인 1748, 5984-6010, 6018-6030)
+- 원인: 카운트다운 시점에 한 번만 체크하고 고정 → 잠깐 나갔다가 돌아와도 다시보기로 처리됨
+- 수정: 카운트다운 중 visibilitychange + focus 리스너 등록
+- countdownVisibilityHandler로 탭 복귀 시 missedAtCountdown = false 복구
+- 조건 완화: `!missedAtCountdown || (isVisible && hasFocus)` (한번이라도 봤거나 출발 시점에 보면 OK)
+
+### 버그 2: 트랙 변경 즉시 반영 (라인 2235-2252)
+- 원인: 버튼 클릭 시 UI만 변경하고 currentTrackLength 변수 미갱신
+- 수정: 클릭 시 즉시 currentTrackLength, currentTrackDistanceMeters 갱신 + renderTrackForSelection() 호출
+
+### 버그 3: 꼴등 자동준비 미작동 (라인 6152-6157)
+- 원인: horseRaceEnded에서 isReady = false 강제 초기화 → 서버의 readyStateChanged와 충돌
+- 수정: isReady 직접 초기화 제거, mySelectedHorse만 초기화 → 서버 이벤트에 위임
+
+### 버그 4: 경기결과 패널 오류 (라인 6128-6132)
+- 원인: 클라이언트가 horseRaceHistory.push() + 서버가 horseRaceEnded로 덮어쓰기 → 호스트 중복, 라운드 번호 오류
+- 수정: 클라이언트 직접 push 제거, 서버 데이터(horseRaceEnded)만 사용
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-03 (6)
 ========================================
 

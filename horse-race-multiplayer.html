@@ -1745,6 +1745,7 @@
         let vehicleStatsData = []; // 탈것별 통계 데이터
         let missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상태였는지)
         let lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
+        let countdownVisibilityHandler = null; // 카운트다운 중 탭 복귀 감지 리스너
         let isReplayActive = false; // 다시보기 진행 중 여부
         let raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
         // 경마 사운드 (socket/roomJoined에서도 접근 가능하도록 전역 스코프)
@@ -2231,6 +2232,10 @@
                 trackLengthContainer.innerHTML = btnsHtml;
                 trackLengthContainer.querySelectorAll('.track-length-btn').forEach(btn => {
                     btn.onclick = () => {
+                        // 즉시 변수 갱신 (낙관적 업데이트)
+                        currentTrackLength = btn.dataset.length;
+                        currentTrackDistanceMeters = trackPresetsFromServer[btn.dataset.length] || 500;
+
                         // 즉시 선택 피드백
                         trackLengthContainer.querySelectorAll('.track-length-btn').forEach(b => {
                             b.style.background = '#333';
@@ -2242,6 +2247,9 @@
                         btn.style.color = '#000';
                         btn.style.boxShadow = '0 0 8px ' + (colors[btn.dataset.length] || '#4ade80') + '80';
                         socket.emit('setTrackLength', { trackLength: btn.dataset.length });
+
+                        // 트랙 미리보기 즉시 갱신
+                        renderTrackForSelection();
                     };
                 });
                 trackLengthContainer.style.display = 'flex';
@@ -5976,14 +5984,30 @@
                 });
             }
 
-            // 카운트다운 시점에 visibility 체크 (룰렛과 동일: visibilityState + hasFocus)
+            // 카운트다운 시점에 visibility 체크 (한번이라도 보면 OK)
             const hasFocus = document.hasFocus();
             const isVisible = document.visibilityState === 'visible';
+
+            // 초기 상태 설정: 현재 보고 있으면 false, 아니면 true
             missedAtCountdown = !(isVisible && hasFocus);
 
             if (missedAtCountdown) {
-                addDebugLog(`⚠️ 카운트다운 시 화면 NOT visible → 경주 놓침 처리 예정`, 'visibility');
+                addDebugLog(`⚠️ 카운트다운 시 화면 NOT visible → 복귀 대기`, 'visibility');
             }
+
+            // 카운트다운 중 탭 복귀 감지 (기존 리스너 정리)
+            if (countdownVisibilityHandler) {
+                document.removeEventListener('visibilitychange', countdownVisibilityHandler);
+                document.removeEventListener('focus', countdownVisibilityHandler);
+            }
+            countdownVisibilityHandler = () => {
+                if (document.visibilityState === 'visible' && document.hasFocus()) {
+                    missedAtCountdown = false;
+                    addDebugLog('✅ 카운트다운 중 탭 복귀 → 경주 놓침 해제', 'visibility');
+                }
+            };
+            document.addEventListener('visibilitychange', countdownVisibilityHandler);
+            document.addEventListener('focus', countdownVisibilityHandler);
 
             if (window.SoundManager) SoundManager.playSound('horse-race_countdown', getHorseSoundEnabled());
             // 다시보기/게임종료 섹션 숨기기
@@ -5994,10 +6018,17 @@
 
         // 경주 시작 이벤트
         socket.on('horseRaceStarted', (data) => {
-            // 카운트다운 시점 + 현재 visibility 체크 (룰렛과 동일)
+            // 카운트다운 중 복귀 감지 리스너 정리
+            if (countdownVisibilityHandler) {
+                document.removeEventListener('visibilitychange', countdownVisibilityHandler);
+                document.removeEventListener('focus', countdownVisibilityHandler);
+                countdownVisibilityHandler = null;
+            }
+
+            // 조건 완화: 카운트다운 한번이라도 봤거나 OR 출발 시점에 보고 있으면 OK
             const hasFocus = document.hasFocus();
             const isVisible = document.visibilityState === 'visible';
-            const isActuallyVisible = (isVisible && hasFocus) && !missedAtCountdown;
+            const isActuallyVisible = !missedAtCountdown || (isVisible && hasFocus);
 
             addDebugLog(`📨 horseRaceStarted 이벤트 수신 - visible: ${isVisible}, hasFocus: ${hasFocus}, missedAtCountdown: ${missedAtCountdown}`, 'info');
 
@@ -6097,11 +6128,8 @@
                     SoundManager.stopLoop('horse-race_crowd');
                     SoundManager.playSound('horse-race_finish', getHorseSoundEnabled());
                 }
-                // 경주 종료 후에 기록 추가 (서버 순위 기준)
-                if (currentRaceRecord) {
-                    horseRaceHistory.push(currentRaceRecord);
-                    renderHistory();
-                }
+                // 경주 기록은 서버가 horseRaceEnded 이벤트로 전송 (중복 방지)
+                // 클라이언트 직접 push 제거 - 호스트 중복 및 라운드 번호 오류 해결
                 // 서버 순위 기준으로 결과 표시 (기믹에 의한 애니메이션 순서 차이 무시)
                 showRaceResult(data);
             }, { trackDistanceMeters: data.trackDistanceMeters || 500 });
@@ -6124,10 +6152,9 @@
                 renderHistory();
             }
 
-            // 준비 상태 초기화 (readyStateChanged로 다시 설정됨)
-            isReady = false;
+            // 말 선택만 초기화 (준비 상태는 서버의 readyUsersUpdated 이벤트가 처리)
             mySelectedHorse = null;
-            updateReadyButton();
+            // isReady 직접 초기화 제거 - 자동준비 대상자는 서버가 설정함
         });
 
         // 게임 완전 리셋 이벤트 (호스트가 게임 종료 버튼을 누른 경우)
