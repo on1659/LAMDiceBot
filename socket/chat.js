@@ -122,6 +122,99 @@ module.exports = (socket, io, ctx) => {
                 return;
             }
 
+            // 날씨 명령어 처리
+            if (trimmedMsg === '/날씨' || trimmedMsg === '/날씨 ') {
+                // 현재 날씨 확률 표시
+                const weatherProbs = {
+                    sunny: '☀️ 맑음: 25%',
+                    rain: '🌧️ 비: 25%',
+                    wind: '💨 바람: 25%',
+                    fog: '🌫️ 안개: 25%'
+                };
+                const forcedWeather = gameState.forcedWeather;
+                let message = '📊 날씨 확률:\n' + Object.values(weatherProbs).join('\n');
+                if (forcedWeather) {
+                    const weatherEmojis = { sunny: '☀️ 맑음', rain: '🌧️ 비', wind: '💨 바람', fog: '🌫️ 안개' };
+                    message += `\n\n⚠️ 강제 날씨: ${weatherEmojis[forcedWeather] || forcedWeather}`;
+                }
+                message += '\n\n사용법: /날씨 [맑음|비|바람|안개|랜덤]';
+                socket.emit('newMessage', {
+                    userName: '🌤️ 날씨',
+                    message: message,
+                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    isSystem: true
+                });
+                return;
+            }
+
+            if (trimmedMsg.startsWith('/날씨 ')) {
+                const weatherArg = trimmedMsg.substring(4).trim();
+                const weatherMap = {
+                    '맑음': 'sunny', 'sunny': 'sunny', '☀️': 'sunny',
+                    '비': 'rain', 'rain': 'rain', '🌧️': 'rain',
+                    '바람': 'wind', 'wind': 'wind', '💨': 'wind',
+                    '안개': 'fog', 'fog': 'fog', '🌫️': 'fog',
+                    '랜덤': null, 'random': null, '초기화': null
+                };
+                const weatherEmojis = { sunny: '☀️ 맑음', rain: '🌧️ 비', wind: '💨 바람', fog: '🌫️ 안개' };
+
+                if (!(weatherArg in weatherMap) && weatherArg !== '') {
+                    socket.emit('newMessage', {
+                        userName: '🌤️ 날씨',
+                        message: `'${weatherArg}'은(는) 유효한 날씨가 아닙니다.\n사용 가능: 맑음, 비, 바람, 안개, 랜덤`,
+                        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                        isSystem: true
+                    });
+                    return;
+                }
+
+                const forcedWeather = weatherMap[weatherArg];
+                gameState.forcedWeather = forcedWeather;
+
+                const message = forcedWeather
+                    ? `🎯 다음 경주 날씨가 ${weatherEmojis[forcedWeather]}(으)로 고정됩니다!`
+                    : '🎲 날씨가 랜덤으로 초기화되었습니다!';
+
+                io.to(room.roomId).emit('newMessage', {
+                    userName: '🌤️ 날씨',
+                    message: message,
+                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    isSystem: true
+                });
+                return;
+            }
+
+            if (trimmedMsg === '/날씨탈것') {
+                // 탈것별 날씨 보정값 표시
+                const weatherConfig = require('../config/horse/race.json').weather || {};
+                const modifiers = weatherConfig.vehicleModifiers || {};
+                const VEHICLE_EMOJI = {
+                    'rabbit': '🐰', 'turtle': '🐢', 'bird': '🐦', 'boat': '🚤', 'bicycle': '🚲',
+                    'rocket': '🚀', 'car': '🚗', 'eagle': '🦅', 'scooter': '🛴', 'helicopter': '🚁', 'horse': '🐴'
+                };
+
+                const formatMod = (val) => {
+                    if (val === 1) return '±0%';
+                    const pct = Math.round((val - 1) * 100);
+                    return pct > 0 ? `+${pct}%` : `${pct}%`;
+                };
+
+                let msg = '🌤️ 탈것별 날씨 보정:\n';
+                for (const [vehicle, mods] of Object.entries(modifiers)) {
+                    const emoji = VEHICLE_EMOJI[vehicle] || '🎠';
+                    const name = VEHICLE_NAMES[vehicle] || vehicle;
+                    msg += `${emoji} ${name}: ☀️${formatMod(mods.sunny)} 🌧️${formatMod(mods.rain)} 💨${formatMod(mods.wind)} 🌫️${formatMod(mods.fog)}\n`;
+                }
+
+                socket.emit('newMessage', {
+                    userName: '🌤️ 날씨',
+                    message: msg.trim(),
+                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    isSystem: true
+                });
+                return;
+            }
+
             if (trimmedMsg.startsWith('/탈것 ')) {
                 const parts = trimmedMsg.substring(4).trim().split(/\s+/);
                 const count = parseInt(parts[0]);

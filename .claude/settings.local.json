@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\n경마 다시보기 스포일러 방지 및 트랙 길이 즉시 반영\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "additionalDirectories": [
       "d:\\Work\\LAMDiceBot\\.claude",

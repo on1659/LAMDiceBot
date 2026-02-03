@@ -39,8 +39,8 @@
       "sprint": {
         "category": "boost",
         "probability": 0.15,
-        "durationRange": [300, 700],
-        "speedMultiplierRange": [1.2, 1.5]
+        "durationRange": [400, 800],
+        "speedMultiplierRange": [1.4, 1.7]
       },
       "slip": {
         "category": "reverse",
@@ -62,9 +62,9 @@
       },
       "item_boost": {
         "category": "boost",
-        "probability": 0.10,
-        "durationRange": [2000, 3000],
-        "speedMultiplierRange": [1.3, 1.6]
+        "probability": 0.08,
+        "durationRange": [800, 1200],
+        "speedMultiplierRange": [1.2, 1.4]
       },
       "item_trap": {
         "category": "stop",
@@ -80,13 +80,40 @@
         "chainGimmick": {
           "type": "reverse_boost",
           "category": "boost",
-          "durationRange": [1500, 2500],
-          "speedMultiplierRange": [1.5, 2.0]
+          "durationRange": [2000, 3000],
+          "speedMultiplierRange": [1.8, 2.5]
         }
       }
     }
   },
   "photoFinish": {
     "gapPercent": [0.01, 0.02]
+  },
+  "weather": {
+    "schedule": {
+      "changePoints": [0.3, 0.5, 0.7],
+      "changeProbability": 0
+    },
+    "types": ["sunny", "rain", "wind", "fog"],
+    "defaultProbabilities": {
+      "sunny": 1.0,
+      "rain": 0,
+      "wind": 0,
+      "fog": 0
+    },
+    "vehicleModifiers": {
+      "rabbit":     { "sunny": 1.00, "rain": 0.90, "wind": 1.00, "fog": 0.95 },
+      "turtle":     { "sunny": 1.00, "rain": 1.12, "wind": 0.95, "fog": 1.00 },
+      "bird":       { "sunny": 1.00, "rain": 0.92, "wind": 1.15, "fog": 0.90 },
+      "boat":       { "sunny": 1.00, "rain": 1.15, "wind": 1.08, "fog": 0.95 },
+      "bicycle":    { "sunny": 1.00, "rain": 0.90, "wind": 0.92, "fog": 0.95 },
+      "rocket":     { "sunny": 1.00, "rain": 1.00, "wind": 1.00, "fog": 1.05 },
+      "car":        { "sunny": 1.00, "rain": 0.95, "wind": 1.00, "fog": 0.92 },
+      "eagle":      { "sunny": 1.00, "rain": 0.90, "wind": 1.15, "fog": 0.90 },
+      "scooter":    { "sunny": 1.00, "rain": 0.88, "wind": 0.95, "fog": 0.95 },
+      "helicopter": { "sunny": 1.00, "rain": 0.95, "wind": 0.90, "fog": 0.85 },
+      "horse":      { "sunny": 1.00, "rain": 0.95, "wind": 1.00, "fog": 0.95 }
+    },
+    "fogHidesGimmickWarning": true
   }
 }

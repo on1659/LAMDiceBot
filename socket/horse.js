@@ -153,20 +153,28 @@ module.exports = (socket, io, ctx) => {
         gameState.availableHorses.forEach(horseIndex => {
             const gimmickCount = gCountConf.min + Math.floor(Math.random() * (gCountConf.max - gCountConf.min + 1));
             const gimmicks = [];
-            let lastCategory = null;
+            let lastTwoCategories = [null, null]; // 최근 2개 카테고리 추적 (A-B-A 패턴 방지)
+            const minGap = 0.08; // 기믹 간 최소 8% progress 간격
             for (let i = 0; i < gimmickCount; i++) {
-                const progressTrigger = trigMin + Math.random() * (trigMax - trigMin);
+                // 기믹 간 최소 간격 보장
+                let progressTrigger;
+                let gapAttempts = 0;
+                do {
+                    progressTrigger = trigMin + Math.random() * (trigMax - trigMin);
+                    gapAttempts++;
+                } while (gapAttempts < 10 && gimmicks.some(g => Math.abs(g.progressTrigger - progressTrigger) < minGap));
 
-                // 같은 category 연속 방지 (최대 3회 재뽑기)
+                // 같은 category 연속 방지 (최대 5회 재뽑기, 최근 2개 체크)
                 let entry, tc, type;
-                for (let attempt = 0; attempt < 3; attempt++) {
+                for (let attempt = 0; attempt < 5; attempt++) {
                     const roll = Math.random() * cumProb;
                     entry = gTypeLookup.find(e => roll < e.cumProb) || gTypeLookup[gTypeLookup.length - 1];
                     tc = entry.conf;
                     type = entry.name;
-                    if (tc.category !== lastCategory) break;
+                    if (!lastTwoCategories.includes(tc.category)) break;
                 }
-                lastCategory = tc.category || null;
+                lastTwoCategories.shift();
+                lastTwoCategories.push(tc.category || null);
 
                 const [durMin, durMax] = tc.durationRange || [500, 1000];
                 const duration = durMin + Math.random() * (durMax - durMin);
@@ -197,11 +205,18 @@ module.exports = (socket, io, ctx) => {
             gimmicksData[horseIndex] = gimmicks;
         });
 
-        // 경주 결과 계산 (기믹 반영 시뮬레이션)
+        // 날씨 스케줄 생성
+        const forcedWeather = gameState.forcedWeather || null;
+        const weatherSchedule = generateWeatherSchedule(forcedWeather);
+        gameState.currentWeatherSchedule = weatherSchedule;
+        console.log(`[경마] 날씨 스케줄:`, weatherSchedule.map(w => `${Math.round(w.progress*100)}%=${w.weather}`).join(' → '));
+
+        // 경주 결과 계산 (기믹 + 날씨 반영 시뮬레이션)
         const forcePhotoFinish = gameState.forcePhotoFinish || false;
         gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
-        const rankings = calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption);
+        const vehicleTypes = gameState.selectedVehicleTypes || [];
+        const rankings = calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -227,6 +242,7 @@ module.exports = (socket, io, ctx) => {
             rankings: horseRankings, // 순위별 말 인덱스 배열
             speeds: speeds, // 속도 데이터 추가
             gimmicks: gimmicksData, // 기믹 데이터 추가
+            weatherSchedule: weatherSchedule, // 날씨 스케줄 추가
             winners: winners,
             mode: gameState.horseRaceMode,
             selectedVehicleTypes: gameState.selectedVehicleTypes ? [...gameState.selectedVehicleTypes] : null,
@@ -269,13 +285,15 @@ module.exports = (socket, io, ctx) => {
             horseRankings: horseRankings,
             speeds: speeds,
             gimmicks: gimmicksData,
+            weatherSchedule: weatherSchedule, // 날씨 스케줄 추가
             winners: winners,
             userHorseBets: { ...gameState.userHorseBets },
             selectedVehicleTypes: gameState.selectedVehicleTypes || null,
             trackDistanceMeters: trackDistanceMeters,
             trackFinishLine: trackFinishLine,
             record: raceRecord,
-            slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } }
+            slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } },
+            weatherConfig: weatherConfig.vehicleModifiers || {} // 탈것별 날씨 보정값 (클라이언트 표시용)
         };
 
         gameState.horseRaceCountdownTimeout = setTimeout(() => {
@@ -297,110 +315,134 @@ module.exports = (socket, io, ctx) => {
 
             console.log(`방 ${roomName} 경마 시작 - 말 수: ${gameState.availableHorses.length}, 참가자: ${players.length}명, 라운드: ${gameState.raceRound}`);
 
-            // 경주 결과 처리 (애니메이션 완료 후 상태 업데이트)
-            // 클라이언트 애니메이션이 ~10초이므로 12초 후 처리
-            gameState.horseRaceResultTimeout = setTimeout(() => {
-                if (!gameState.isGameActive) return; // 이미 게임 종료됨
-
-                if (winners.length === 1) {
-                    // 단독 당첨 → 게임 종료
-                    gameState.isGameActive = false;
-                    gameState.userHorseBets = {};
-
-                    // 꼴등 탈것 이름 가져오기
-                    const lastHorseIndex = rankings[rankings.length - 1].horseIndex;
-                    const lastVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[lastHorseIndex] ? gameState.selectedVehicleTypes[lastHorseIndex] : 'horse';
-                    const lastVehicleName = VEHICLE_NAMES[lastVehicleId] || lastVehicleId;
-
-                    const now = new Date();
-                    const koreaOffset = 9 * 60;
-                    const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
-                    const resultMessage = {
-                        userName: '시스템',
-                        message: `🎊🎉 축하합니다! ${winners[0]}님이 고르신 ${lastVehicleName}${getPostPosition(lastVehicleName, '이가')} 제일 순위가 낮습니다! 🎉🎊`,
-                        timestamp: koreaTime.toISOString(),
-                        isSystem: true,
-                        isHorseRaceWinner: true
-                    };
-                    gameState.chatHistory.push(resultMessage);
-                    if (gameState.chatHistory.length > 100) gameState.chatHistory = gameState.chatHistory.slice(-100);
-                    io.to(roomId).emit('newMessage', resultMessage);
-                    io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
-                    io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
-                    console.log(`방 ${roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`);
-                } else {
-                    // 동점 또는 당첨자 없음 → 자동 준비
-                    gameState.isGameActive = false;
-                    gameState.userHorseBets = {};
-
-                    let autoReadyPlayers = winners;
-                    let systemMsg;
-
-                    if (winners.length === 0) {
-                        // 당첨자 없음 → 가장 높은 순위에 베팅한 사람들 자동 준비
-                        let bestRank = -1;
-                        let bestBetters = [];
-                        let bestHorseIndex = -1;
-                        const horseRankings = rankings.map(r => r.horseIndex);
-                        Object.entries(raceData.userHorseBets).forEach(([username, horseIndex]) => {
-                            const rank = horseRankings.indexOf(horseIndex);
-                            if (rank !== -1) {
-                                if (bestRank === -1 || rank < bestRank) {
-                                    bestRank = rank;
-                                    bestBetters = [username];
-                                    bestHorseIndex = horseIndex;
-                                } else if (rank === bestRank) {
-                                    bestBetters.push(username);
-                                }
-                            }
-                        });
-                        autoReadyPlayers = bestBetters;
-                        const bestVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[bestHorseIndex] ? gameState.selectedVehicleTypes[bestHorseIndex] : 'horse';
-                        const bestVehicleName = VEHICLE_NAMES[bestVehicleId] || bestVehicleId;
-                        systemMsg = autoReadyPlayers.length > 0
-                            ? `${autoReadyPlayers.join(', ')}님이 고르신 ${bestVehicleName}${getPostPosition(bestVehicleName, '이가')} 가장 순위가 낮습니다! 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`
-                            : '당첨자가 없습니다.';
-                    } else {
-                        systemMsg = `동점!! ${winners.join(', ')}님 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`;
-                    }
-
-                    const now = new Date();
-                    const koreaOffset = 9 * 60;
-                    const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
-                    const resultMessage = {
-                        userName: '시스템',
-                        message: systemMsg,
-                        timestamp: koreaTime.toISOString(),
-                        isSystem: true,
-                        isHorseRaceWinner: true
-                    };
-                    gameState.chatHistory.push(resultMessage);
-                    if (gameState.chatHistory.length > 100) gameState.chatHistory = gameState.chatHistory.slice(-100);
-                    io.to(roomId).emit('newMessage', resultMessage);
-
-                    io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, tieWinners: autoReadyPlayers });
-
-                    // 자동 준비 설정
-                    gameState.readyUsers = [];
-                    autoReadyPlayers.forEach(player => {
-                        if (!gameState.readyUsers.includes(player)) {
-                            gameState.readyUsers.push(player);
-                        }
-                    });
-                    io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
-
-                    // 개별 클라이언트에게 준비 상태 알림
-                    autoReadyPlayers.forEach(player => {
-                        const playerUser = gameState.users.find(u => u.name === player);
-                        if (playerUser) {
-                            io.to(playerUser.id).emit('readyStateChanged', { isReady: true });
-                        }
-                    });
-
-                    console.log(`방 ${roomName} 경마 라운드 종료 - 자동 준비: ${autoReadyPlayers.join(', ')}`);
-                }
-            }, 12000); // 애니메이션 완료 대기
+            // 결과 데이터를 gameState에 저장 (클라이언트 애니메이션 완료 후 사용)
+            gameState.pendingRaceResult = {
+                winners: winners,
+                rankings: rankings,
+                raceData: raceData,
+                roomId: roomId,
+                roomName: roomName
+            };
+            console.log(`[경마] 결과 데이터 저장 완료 - 클라이언트 애니메이션 완료 대기`);
         }, 4000);
+    });
+
+    // 경주 애니메이션 완료 (클라이언트에서 전송)
+    socket.on('raceAnimationComplete', () => {
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) return;
+
+        // 중복 처리 방지 (이미 처리된 경우)
+        if (!gameState.pendingRaceResult) {
+            console.log(`[경마] 이미 처리된 결과 또는 데이터 없음`);
+            return;
+        }
+
+        const { winners, rankings, raceData, roomId, roomName } = gameState.pendingRaceResult;
+        gameState.pendingRaceResult = null; // 처리 후 삭제
+
+        console.log(`[경마] 클라이언트 애니메이션 완료 신호 수신 - 결과 처리 시작`);
+
+        if (!gameState.isGameActive) return; // 이미 게임 종료됨
+
+        if (winners.length === 1) {
+            // 단독 당첨 → 게임 종료
+            gameState.isGameActive = false;
+            gameState.userHorseBets = {};
+
+            // 꼴등 탈것 이름 가져오기
+            const lastHorseIndex = rankings[rankings.length - 1].horseIndex;
+            const lastVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[lastHorseIndex] ? gameState.selectedVehicleTypes[lastHorseIndex] : 'horse';
+            const lastVehicleName = VEHICLE_NAMES[lastVehicleId] || lastVehicleId;
+
+            const now = new Date();
+            const koreaOffset = 9 * 60;
+            const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
+            const resultMessage = {
+                userName: '시스템',
+                message: `🎊🎉 축하합니다! ${winners[0]}님이 고르신 ${lastVehicleName}${getPostPosition(lastVehicleName, '이가')} 제일 순위가 낮습니다! 🎉🎊`,
+                timestamp: koreaTime.toISOString(),
+                isSystem: true,
+                isHorseRaceWinner: true
+            };
+            gameState.chatHistory.push(resultMessage);
+            if (gameState.chatHistory.length > 100) gameState.chatHistory = gameState.chatHistory.slice(-100);
+            io.to(roomId).emit('newMessage', resultMessage);
+            io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
+            io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            console.log(`방 ${roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`);
+        } else {
+            // 동점 또는 당첨자 없음 → 자동 준비
+            gameState.isGameActive = false;
+            gameState.userHorseBets = {};
+
+            let autoReadyPlayers = winners;
+            let systemMsg;
+
+            if (winners.length === 0) {
+                // 당첨자 없음 → 가장 높은 순위에 베팅한 사람들 자동 준비
+                let bestRank = -1;
+                let bestBetters = [];
+                let bestHorseIndex = -1;
+                const horseRankings = rankings.map(r => r.horseIndex);
+                Object.entries(raceData.userHorseBets).forEach(([username, horseIndex]) => {
+                    const rank = horseRankings.indexOf(horseIndex);
+                    if (rank !== -1) {
+                        if (bestRank === -1 || rank < bestRank) {
+                            bestRank = rank;
+                            bestBetters = [username];
+                            bestHorseIndex = horseIndex;
+                        } else if (rank === bestRank) {
+                            bestBetters.push(username);
+                        }
+                    }
+                });
+                autoReadyPlayers = bestBetters;
+                const bestVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[bestHorseIndex] ? gameState.selectedVehicleTypes[bestHorseIndex] : 'horse';
+                const bestVehicleName = VEHICLE_NAMES[bestVehicleId] || bestVehicleId;
+                systemMsg = autoReadyPlayers.length > 0
+                    ? `${autoReadyPlayers.join(', ')}님이 고르신 ${bestVehicleName}${getPostPosition(bestVehicleName, '이가')} 가장 순위가 낮습니다! 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`
+                    : '당첨자가 없습니다.';
+            } else {
+                systemMsg = `동점!! ${winners.join(', ')}님 편하게 한 판 더 하시라고 자동준비 해 드렸어요~`;
+            }
+
+            const now = new Date();
+            const koreaOffset = 9 * 60;
+            const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
+            const resultMessage = {
+                userName: '시스템',
+                message: systemMsg,
+                timestamp: koreaTime.toISOString(),
+                isSystem: true,
+                isHorseRaceWinner: true
+            };
+            gameState.chatHistory.push(resultMessage);
+            if (gameState.chatHistory.length > 100) gameState.chatHistory = gameState.chatHistory.slice(-100);
+            io.to(roomId).emit('newMessage', resultMessage);
+
+            io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, tieWinners: autoReadyPlayers });
+
+            // 자동 준비 설정
+            gameState.readyUsers = [];
+            autoReadyPlayers.forEach(player => {
+                if (!gameState.readyUsers.includes(player)) {
+                    gameState.readyUsers.push(player);
+                }
+            });
+            io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+            // 개별 클라이언트에게 준비 상태 알림
+            autoReadyPlayers.forEach(player => {
+                const playerUser = gameState.users.find(u => u.name === player);
+                if (playerUser) {
+                    io.to(playerUser.id).emit('readyStateChanged', { isReady: true });
+                }
+            });
+
+            console.log(`방 ${roomName} 경마 라운드 종료 - 자동 준비: ${autoReadyPlayers.join(', ')}`);
+        }
     });
 
     // 말 선택 (베팅)
@@ -448,37 +490,53 @@ module.exports = (socket, io, ctx) => {
                     }
                 }
 
-                // 모든 클라이언트에게 말 선택 UI 표시 (통계+인기말 정보 포함)
+                // 각 클라이언트에게 말 선택 UI 표시 (본인 선택만 + 선택 완료자 목록)
                 getVehicleStats(getServerId()).then(stats => {
                     const popularVehicles = stats.filter(s => s.appearance_count >= 5).sort((a, b) => b.pick_rate - a.pick_rate).slice(0, 2).map(s => s.vehicle_id);
                     const tpInfo = {};
                     for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
-                    io.to(room.roomId).emit('horseSelectionReady', {
-                        availableHorses: gameState.availableHorses,
-                        participants: players,
-                        players: players, // 하위 호환성
-                        userHorseBets: { ...gameState.userHorseBets },
-                        horseRaceMode: gameState.horseRaceMode || 'last',
-                        raceRound: gameState.raceRound || 1,
-                        selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-                        popularVehicles: popularVehicles,
-                        vehicleStats: stats,
-                        trackPresets: tpInfo
+                    const selectedUsersList = Object.keys(gameState.userHorseBets);
+                    gameState.users.forEach(u => {
+                        const myBets = {};
+                        if (gameState.userHorseBets[u.name] !== undefined) {
+                            myBets[u.name] = gameState.userHorseBets[u.name];
+                        }
+                        io.to(u.id).emit('horseSelectionReady', {
+                            availableHorses: gameState.availableHorses,
+                            participants: players,
+                            players: players, // 하위 호환성
+                            userHorseBets: myBets,  // 본인 선택만
+                            selectedUsers: selectedUsersList,  // 선택 완료자 목록
+                            horseRaceMode: gameState.horseRaceMode || 'last',
+                            raceRound: gameState.raceRound || 1,
+                            selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+                            popularVehicles: popularVehicles,
+                            vehicleStats: stats,
+                            trackPresets: tpInfo
+                        });
                     });
                 }).catch(() => {
                     const tpInfo = {};
                     for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
-                    io.to(room.roomId).emit('horseSelectionReady', {
-                        availableHorses: gameState.availableHorses,
-                        participants: players,
-                        players: players,
-                        userHorseBets: { ...gameState.userHorseBets },
-                        horseRaceMode: gameState.horseRaceMode || 'last',
-                        raceRound: gameState.raceRound || 1,
-                        selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-                        popularVehicles: [],
-                        vehicleStats: [],
-                        trackPresets: tpInfo
+                    const selectedUsersList = Object.keys(gameState.userHorseBets);
+                    gameState.users.forEach(u => {
+                        const myBets = {};
+                        if (gameState.userHorseBets[u.name] !== undefined) {
+                            myBets[u.name] = gameState.userHorseBets[u.name];
+                        }
+                        io.to(u.id).emit('horseSelectionReady', {
+                            availableHorses: gameState.availableHorses,
+                            participants: players,
+                            players: players,
+                            userHorseBets: myBets,  // 본인 선택만
+                            selectedUsers: selectedUsersList,  // 선택 완료자 목록
+                            horseRaceMode: gameState.horseRaceMode || 'last',
+                            raceRound: gameState.raceRound || 1,
+                            selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+                            popularVehicles: [],
+                            vehicleStats: [],
+                            trackPresets: tpInfo
+                        });
                     });
                 });
             }
@@ -519,9 +577,18 @@ module.exports = (socket, io, ctx) => {
             console.log(`방 ${room.roomId}: ${userName}이(가) 말 ${horseIndex} ${previousSelection !== undefined ? '재선택' : '선택'}`);
         }
 
-        // 선택 현황 실시간 업데이트 (모든 클라이언트에 전송)
-        io.to(room.roomId).emit('horseSelectionUpdated', {
-            userHorseBets: { ...gameState.userHorseBets }
+        // 선택 현황 실시간 업데이트 (각 클라이언트에게 본인 선택만 + 선택 완료자 목록 전송)
+        const selectedUsersList = Object.keys(gameState.userHorseBets);
+        gameState.users.forEach(u => {
+            const myBets = {};
+            // 본인 선택만 포함
+            if (gameState.userHorseBets[u.name] !== undefined) {
+                myBets[u.name] = gameState.userHorseBets[u.name];
+            }
+            io.to(u.id).emit('horseSelectionUpdated', {
+                userHorseBets: myBets,  // 본인 선택만
+                selectedUsers: selectedUsersList  // 선택 완료자 이름 목록 (어떤 탈것인지는 모름)
+            });
         });
 
         console.log(`방 ${room.roomName}: ${userName}이(가) 말 ${horseIndex} 선택`);
@@ -643,7 +710,7 @@ module.exports = (socket, io, ctx) => {
                 const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
                 const resultMessage = {
                     userName: '시스템',
-                    message: `동점!! ${winners.join(', ')}님 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`,
+                    message: `동점!! ${winners.join(', ')}님 편하게 한 판 더 하시라고 자동준비 해 드렸어요~`,
                     timestamp: koreaTimeResult.toISOString(),
                     isSystem: true,
                     isHorseRaceWinner: true
@@ -744,6 +811,7 @@ module.exports = (socket, io, ctx) => {
                     participants: players,
                     players: players,
                     userHorseBets: {},
+                    selectedUsers: [],  // 게임 종료 후 초기화
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
@@ -756,6 +824,7 @@ module.exports = (socket, io, ctx) => {
                     participants: players,
                     players: players,
                     userHorseBets: {},
+                    selectedUsers: [],  // 게임 종료 후 초기화
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
@@ -819,6 +888,7 @@ module.exports = (socket, io, ctx) => {
                     participants: players,
                     players: players,
                     userHorseBets: {},
+                    selectedUsers: [],  // 데이터 삭제 후 초기화
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
@@ -833,6 +903,7 @@ module.exports = (socket, io, ctx) => {
                     participants: players,
                     players: players,
                     userHorseBets: {},
+                    selectedUsers: [],  // 데이터 삭제 후 초기화
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
@@ -870,8 +941,79 @@ module.exports = (socket, io, ctx) => {
     }
     const TRACK_PRESETS = buildTrackPresets(horseConfig);
 
-    // 경주 결과 계산 함수 (기믹 반영 시뮬레이션)
-    function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption) {
+    // ========== 날씨 시스템 ==========
+    const weatherConfig = horseConfig.weather || {};
+
+    // 날씨 스케줄 생성 (레이스 시작 전 호출)
+    function generateWeatherSchedule(forcedWeather = null) {
+        const schedule = [];
+        const types = weatherConfig.types || ['sunny', 'rain', 'wind', 'fog'];
+        const probs = weatherConfig.defaultProbabilities || { sunny: 0.25, rain: 0.25, wind: 0.25, fog: 0.25 };
+        const changePoints = weatherConfig.schedule?.changePoints || [0.3, 0.5, 0.7];
+        const changeProb = weatherConfig.schedule?.changeProbability || 0.4;
+
+        // 초기 날씨 선택
+        let currentWeather = forcedWeather || selectWeatherByProbability(types, probs);
+        schedule.push({ progress: 0, weather: currentWeather });
+
+        // 강제 날씨가 설정되면 변경 없이 유지
+        if (forcedWeather) {
+            return schedule;
+        }
+
+        // 각 changePoint에서 확률적으로 날씨 변경
+        changePoints.forEach(point => {
+            if (Math.random() < changeProb) {
+                // 현재 날씨와 다른 날씨 선택
+                let newWeather;
+                let attempts = 0;
+                do {
+                    newWeather = selectWeatherByProbability(types, probs);
+                    attempts++;
+                } while (newWeather === currentWeather && attempts < 5);
+
+                currentWeather = newWeather;
+                schedule.push({ progress: point, weather: currentWeather });
+            }
+        });
+
+        return schedule;
+    }
+
+    // 확률에 따라 날씨 선택
+    function selectWeatherByProbability(types, probs) {
+        const roll = Math.random();
+        let cumulative = 0;
+        for (const type of types) {
+            cumulative += probs[type] || 0.25;
+            if (roll < cumulative) return type;
+        }
+        return types[0] || 'sunny';
+    }
+
+    // 현재 진행률의 날씨 반환
+    function getCurrentWeather(schedule, progress) {
+        let current = schedule[0]?.weather || 'sunny';
+        for (const entry of schedule) {
+            if (progress >= entry.progress) {
+                current = entry.weather;
+            } else {
+                break;
+            }
+        }
+        return current;
+    }
+
+    // 탈것의 날씨 보정값 반환
+    function getVehicleWeatherModifier(vehicleType, weather) {
+        const modifiers = weatherConfig.vehicleModifiers || {};
+        const vehicleMods = modifiers[vehicleType];
+        if (!vehicleMods) return 1.0;
+        return vehicleMods[weather] || 1.0;
+    }
+
+    // 경주 결과 계산 함수 (기믹 + 날씨 반영 시뮬레이션)
+    function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = []) {
         // 트랙 길이 설정
         const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = preset.meters;
@@ -981,6 +1123,13 @@ module.exports = (socket, io, ctx) => {
                     const speedDiff = targetSpeed - currentSpeed;
                     currentSpeed += speedDiff * 0.05;
                     speedMultiplier = currentSpeed / baseSpeed;
+                }
+
+                // 날씨 보정 적용
+                if (weatherSchedule.length > 0 && vehicleTypes[i]) {
+                    const currentWeather = getCurrentWeather(weatherSchedule, progress);
+                    const weatherMod = getVehicleWeatherModifier(vehicleTypes[i], currentWeather);
+                    speedMultiplier *= weatherMod;
                 }
 
                 // 위치 업데이트 (클라이언트와 동일한 공식)

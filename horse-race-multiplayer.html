@@ -253,17 +253,56 @@
             margin-bottom: 10px;
             flex-wrap: wrap;
         }
-        .connection-sound-row label {
+
+        /* 볼륨 컨트롤 스타일 */
+        .volume-control {
             display: flex;
             align-items: center;
             gap: 6px;
             font-size: 12px;
             color: #555;
+        }
+        .volume-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .volume-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .volume-slider {
+            width: 60px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ddd;
+            border-radius: 2px;
+            outline: none;
             cursor: pointer;
         }
-        .connection-sound-row input[type="checkbox"] {
-            width: auto;
-            margin: 0;
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        .volume-slider.muted {
+            opacity: 0.5;
         }
 
         /* 경주 트랙 컨테이너 - 스크롤은 유지, 스크롤바만 숨김 */
@@ -405,7 +444,12 @@
         /* 달리는 상태: 빠른 2프레임 교차 */
         .horse.racing .vehicle-sprite .frame1 { animation: frame1Anim 0.15s steps(1) infinite; }
         .horse.racing .vehicle-sprite .frame2 { animation: frame2Anim 0.15s steps(1) infinite; }
-        
+
+        /* 쉬는 상태: 매우 느린 호흡 애니메이션 */
+        .horse.rest .vehicle-sprite .frame1 { animation: frame1Anim 1.5s steps(1) infinite; }
+        .horse.rest .vehicle-sprite .frame2 { animation: frame2Anim 1.5s steps(1) infinite; }
+        .horse.rest { opacity: 0.7; filter: grayscale(30%); }
+
         /* ===== 기믹 이펙트 스타일 ===== */
         
         /* 스프린트 불꽃 이펙트 */
@@ -1328,6 +1372,139 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        /* ========== 날씨 효과 CSS ========== */
+        .weather-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 500;
+            transition: opacity 0.8s ease;
+        }
+
+        /* 비 효과 */
+        .weather-rain {
+            background: linear-gradient(transparent 0%, rgba(100, 150, 200, 0.1) 100%);
+        }
+        .weather-rain::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 40'%3E%3Cline x1='10' y1='0' x2='10' y2='15' stroke='%2387CEEB' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-size: 20px 40px;
+            animation: rainFall 0.4s linear infinite;
+            opacity: 0.6;
+        }
+        @keyframes rainFall {
+            0% { background-position: 0 0; }
+            100% { background-position: 10px 40px; }
+        }
+
+        /* 바람 효과 */
+        .weather-wind::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,5 50,10 T100,10' fill='none' stroke='rgba(200,200,200,0.3)' stroke-width='2'/%3E%3C/svg%3E");
+            background-size: 100px 20px;
+            animation: windBlow 0.8s linear infinite;
+            opacity: 0.5;
+        }
+        @keyframes windBlow {
+            0% { background-position: 0 0; }
+            100% { background-position: 100px 0; }
+        }
+
+        /* 안개 효과 */
+        .weather-fog {
+            background: linear-gradient(90deg,
+                rgba(255,255,255,0.25) 0%,
+                rgba(255,255,255,0.35) 30%,
+                rgba(255,255,255,0.25) 60%,
+                rgba(255,255,255,0.35) 100%);
+            animation: fogMove 4s ease-in-out infinite;
+        }
+        @keyframes fogMove {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 0.9; }
+        }
+
+        /* 날씨 배너 */
+        .weather-banner {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            z-index: 600;
+            animation: bannerFadeIn 0.3s ease;
+            white-space: nowrap;
+        }
+        @keyframes bannerFadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* 날씨 토스트 메시지 */
+        .weather-toast {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffd700;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 601;
+            animation: toastSlide 3s ease forwards;
+            white-space: nowrap;
+        }
+        @keyframes toastSlide {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-5px); }
+        }
+
+        /* 버프/디버프 삼각형 */
+        .weather-indicator {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 200;
+            animation: indicatorPulse 2s ease-out forwards;
+            text-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
+        .weather-buff {
+            color: #3B82F6;
+        }
+        .weather-nerf {
+            color: #EF4444;
+        }
+        @keyframes indicatorPulse {
+            0% { opacity: 0; transform: translateX(-50%) scale(1.5); }
+            20% { opacity: 1; transform: translateX(-50%) scale(1); }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
     </style>
 </head>
 <body class="lobby-active">
@@ -1353,7 +1530,10 @@
             <h1>🐎 LAM Horse Race</h1>
             <div class="connection-sound-row">
                 <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
-                <label><input type="checkbox" id="soundCheckbox"> 🔊 사운드</label>
+                <div class="volume-control" id="volumeControl">
+                    <button class="volume-btn" id="volumeBtn" title="음소거 토글">🔇</button>
+                    <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
+                </div>
             </div>
             
             <!-- 이름 입력 -->
@@ -1438,7 +1618,10 @@
                 <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <span class="room-title" id="roomTitle">경마 방</span>
                     <span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; cursor: pointer; margin: 0;"><input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드</label>
+                    <div class="volume-control" id="gameSectionVolumeControl">
+                        <button class="volume-btn" id="gameSectionVolumeBtn" title="음소거 토글">🔇</button>
+                        <input type="range" class="volume-slider muted" id="gameSectionVolumeSlider" min="0" max="100" value="50">
+                    </div>
                 </div>
                 <div style="text-align: center; margin-top: 10px;">
                     <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #6c757d; color: #000; font-weight: 600; border: none; border-radius: 8px; cursor: pointer;">🚪 나가기</button>
@@ -1734,6 +1917,7 @@
         let everPlayedUsers = [];
         let availableHorses = [];
         let userHorseBets = {};
+        let selectedUsersFromServer = [];  // 선택 완료자 목록 (서버에서 전송)
         let mySelectedHorse = null;
         let horseRaceMode = 'last'; // 무조건 꼴등 찾기
         let currentTrackLength = 'medium'; // 트랙 길이 옵션
@@ -1748,23 +1932,86 @@
         let countdownVisibilityHandler = null; // 카운트다운 중 탭 복귀 감지 리스너
         let isReplayActive = false; // 다시보기 진행 중 여부
         let raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
-        // 경마 사운드 (socket/roomJoined에서도 접근 가능하도록 전역 스코프)
+        // 경마 사운드 볼륨 관리
         const HORSE_SOUND_KEY = 'horseSoundEnabled';
-        function getHorseSoundEnabled() { return localStorage.getItem(HORSE_SOUND_KEY) === 'true'; }
-        function setHorseSoundCheckboxes() {
-            const v = getHorseSoundEnabled();
-            const c1 = document.getElementById('soundCheckbox');
-            const c2 = document.getElementById('createRoomSoundCheckbox');
-            const c3 = document.getElementById('gameSectionSoundCheckbox');
-            if (c1) c1.checked = v;
-            if (c2) c2.checked = v;
-            if (c3) c3.checked = v;
+        const HORSE_VOLUME_KEY = 'horseSoundVolume';
+        let horseMasterVolume = 0; // 0 = 음소거 (기본)
+        let horseStoredVolume = 0.5; // 음소거 해제 시 복원할 볼륨 (기본 50%)
+
+        function getHorseSoundEnabled() {
+            return horseMasterVolume > 0;
         }
+
+        function getHorseMasterVolume() {
+            return horseMasterVolume;
+        }
+
+        function initVolumeFromStorage() {
+            const storedMuted = localStorage.getItem(HORSE_SOUND_KEY);
+            const storedVolume = localStorage.getItem(HORSE_VOLUME_KEY);
+            horseStoredVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
+            const isEnabled = storedMuted === 'true';
+            horseMasterVolume = isEnabled ? horseStoredVolume : 0;
+        }
+
+        function updateVolumeUI() {
+            const isMuted = horseMasterVolume === 0;
+            const volumePercent = Math.round(horseStoredVolume * 100);
+
+            // 로비 볼륨 컨트롤
+            const btn1 = document.getElementById('volumeBtn');
+            const slider1 = document.getElementById('volumeSlider');
+            if (btn1) btn1.textContent = isMuted ? '🔇' : (horseMasterVolume < 0.5 ? '🔈' : '🔊');
+            if (slider1) {
+                slider1.value = volumePercent;
+                slider1.classList.toggle('muted', isMuted);
+            }
+
+            // 게임 섹션 볼륨 컨트롤
+            const btn2 = document.getElementById('gameSectionVolumeBtn');
+            const slider2 = document.getElementById('gameSectionVolumeSlider');
+            if (btn2) btn2.textContent = isMuted ? '🔇' : (horseMasterVolume < 0.5 ? '🔈' : '🔊');
+            if (slider2) {
+                slider2.value = volumePercent;
+                slider2.classList.toggle('muted', isMuted);
+            }
+        }
+
+        function toggleMute() {
+            if (horseMasterVolume > 0) {
+                horseMasterVolume = 0;
+                localStorage.setItem(HORSE_SOUND_KEY, 'false');
+            } else {
+                horseMasterVolume = horseStoredVolume;
+                localStorage.setItem(HORSE_SOUND_KEY, 'true');
+            }
+            updateVolumeUI();
+            applyMasterVolumeToAll();
+        }
+
+        function setMasterVolume(volumePercent) {
+            const vol = volumePercent / 100;
+            horseStoredVolume = vol;
+            horseMasterVolume = vol;
+            localStorage.setItem(HORSE_VOLUME_KEY, vol.toString());
+            localStorage.setItem(HORSE_SOUND_KEY, vol > 0 ? 'true' : 'false');
+            updateVolumeUI();
+            applyMasterVolumeToAll();
+        }
+
+        function applyMasterVolumeToAll() {
+            if (!window.SoundManager) return;
+            SoundManager.applyMasterVolume();
+        }
+
+        // 기존 호환성 유지
+        function setHorseSoundCheckboxes() { updateVolumeUI(); }
         function onHorseSoundChange(checked) {
+            horseMasterVolume = checked ? horseStoredVolume : 0;
             localStorage.setItem(HORSE_SOUND_KEY, checked ? 'true' : 'false');
-            setHorseSoundCheckboxes();
+            updateVolumeUI();
         }
-        
+
         // 디버그 로그 초기화
         addDebugLog('경마 게임 초기화', 'info');
         
@@ -2143,7 +2390,7 @@
                 const frame2 = document.createElement('div');
                 frame2.className = 'frame2';
                 const vehicleSVGs = getVehicleSVG(vehicleId);
-                const idleData = vehicleSVGs.idle || vehicleSVGs;
+                const idleData = vehicleSVGs.idle || vehicleSVGs.run || vehicleSVGs;
                 frame1.innerHTML = idleData.frame1 || vehicleSVGs.frame1;
                 frame2.innerHTML = (idleData.frame2 || vehicleSVGs.frame2) || '';
 
@@ -2151,8 +2398,30 @@
                 vehicleContent.appendChild(frame2);
                 horse.appendChild(vehicleContent);
                 horse.dataset.vehicleId = vehicleId;
+
+                // 내가 선택한 탈것 위에 화살표 표시
+                if (userHorseBets[currentUser] === horseIndex) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'my-horse-arrow';
+                    arrow.innerHTML = '▼';
+                    arrow.style.cssText = `
+                        position: absolute;
+                        top: -18px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        font-size: 16px;
+                        color: #ffd700;
+                        text-shadow: 0 0 6px rgba(255,215,0,0.8);
+                        animation: arrowBounce 0.8s ease-in-out infinite;
+                        pointer-events: none;
+                        z-index: 300;
+                    `;
+                    horse.style.overflow = 'visible';
+                    horse.appendChild(arrow);
+                }
+
                 track.appendChild(horse);
-                
+
                 // 이름 라벨을 레인 왼쪽에 표시
                 if (selectedUsers.length > 0) {
                     const namesContainer = document.createElement('div');
@@ -2163,27 +2432,57 @@
                         left: 5px;
                         display: flex;
                         flex-wrap: wrap;
-                        gap: 2px;
+                        gap: 3px;
                         z-index: 200;
-                        max-width: 200px;
+                        max-width: 250px;
                     `;
-                    
-                    selectedUsers.forEach(userName => {
+
+                    // 내 이름이 먼저 오도록 정렬
+                    const sortedUsers = [...selectedUsers].sort((a, b) => {
+                        if (a === currentUser) return -1;
+                        if (b === currentUser) return 1;
+                        return 0;
+                    });
+
+                    sortedUsers.forEach(userName => {
                         const nameTag = document.createElement('span');
-                        nameTag.style.cssText = `
-                            background: rgba(0,0,0,0.6);
-                            color: #fff;
-                            padding: 0px 3px;
-                            border-radius: 2px;
-                            font-size: 8px;
-                            line-height: 14px;
-                            font-weight: bold;
-                            white-space: nowrap;
-                        `;
-                        nameTag.textContent = userName;
+                        const isMe = userName === currentUser;
+
+                        if (isMe) {
+                            // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
+                            nameTag.style.cssText = `
+                                background: linear-gradient(135deg, #ffd700, #ffaa00);
+                                color: #000;
+                                padding: 2px 6px;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                line-height: 16px;
+                                font-weight: bold;
+                                white-space: nowrap;
+                                border: 2px solid #fff;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);
+                                text-shadow: 0 1px 1px rgba(255,255,255,0.5);
+                            `;
+                            nameTag.textContent = '⭐ ' + userName;
+                        } else {
+                            // 다른 사용자: 개선된 가독성
+                            nameTag.style.cssText = `
+                                background: rgba(0,0,0,0.75);
+                                color: #fff;
+                                padding: 2px 5px;
+                                border-radius: 3px;
+                                font-size: 10px;
+                                line-height: 15px;
+                                font-weight: bold;
+                                white-space: nowrap;
+                                border: 1px solid rgba(255,255,255,0.3);
+                                text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+                            `;
+                            nameTag.textContent = userName;
+                        }
                         namesContainer.appendChild(nameTag);
                     });
-                    
+
                     track.appendChild(namesContainer);
                 }
             });
@@ -2333,41 +2632,29 @@
                 const vehicleId = selectedVehicleTypes ? selectedVehicleTypes[horseIndex] : ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id;
                 const vehicle = ALL_VEHICLES.find(v => v.id === vehicleId) || ALL_VEHICLES[0];
                 
-                // 이미 선택된 탈것인지 확인
-                const isTaken = Object.values(userHorseBets).includes(horseIndex);
+                // 내 선택 여부만 확인 (타인 선택 정보는 서버에서 숨김)
                 const isMyHorse = userHorseBets[currentUser] === horseIndex;
-                
-                // 선택한 사람 찾기
-                const selectedBy = Object.entries(userHorseBets).find(([_, h]) => h === horseIndex)?.[0];
-                
-                // 중복 선택 가능 여부: 탈것 수 < 사람 수일 때만 중복 선택 가능
-                // 참가자 수 계산 (currentUsers가 가장 정확 - updateUsers로 항상 최신 상태)
+
+                // 참가자 수 계산
                 const totalPlayers = currentUsers.length > 0 ? currentUsers.length :
                                     (readyUsers.length > 0 ? readyUsers.length : 1);
-                const canDuplicate = availableHorses.length < totalPlayers;
-                
+
                 // 디버깅용 로그
                 if (index === 0) {
                     console.log('[말 선택]', {
                         availableHorses: availableHorses.length,
                         totalPlayers,
-                        canDuplicate,
                         currentUsers: currentUsers.length,
                         readyUsers: readyUsers.length,
                         isHost: isHost,
-                        currentUser: currentUser
+                        currentUser: currentUser,
+                        selectedUsersFromServer: selectedUsersFromServer.length
                     });
                 }
-                
-                // 중복 선택이 불가능하고 이미 선택된 탈것이면 비활성화
-                // (단, 내가 선택한 것은 비활성화하지 않음)
-                // 중복 선택이 가능하면(isTaken이어도) 비활성화하지 않음
-                if (!canDuplicate && isTaken && !isMyHorse) {
-                    button.disabled = true;
-                } else if (canDuplicate && isTaken && !isMyHorse) {
-                    // 중복 선택 가능하지만 이미 선택된 경우, 비활성화하지 않음 (선택 가능)
-                    button.disabled = false;
-                }
+
+                // 타인 선택 여부를 알 수 없으므로 비활성화하지 않음
+                // 서버에서 중복 선택 시 에러 처리 ("이미 선택된 말입니다!" 반환)
+                button.disabled = false;
                 
                 if (isMyHorse) {
                     button.classList.add('selected');
@@ -2376,14 +2663,15 @@
                 
                 // 탈것 버튼 내용 생성 (SVG idle 애니메이션 - 4프레임)
                 const svgData = getVehicleSVG(vehicleId);
+                const idleData = svgData.idle || svgData.run || svgData;
                 let vehicleDisplay = '';
-                if (svgData && svgData.frame1) {
+                if (idleData && idleData.frame1) {
                     const uid = `idle_${horseIndex}`;
                     // 4프레임: frame1(원위치) → frame2(살짝위) → frame1(원위치) → frame2(살짝아래)
                     vehicleDisplay = `<div style="width: 60px; height: 45px; margin: 0 auto; position: relative;">
                         <div id="${uid}_wrap" style="position:absolute;inset:0;transition:transform 0.3s ease-in-out;">
-                            <div id="${uid}_f1" style="position:absolute;inset:0;">${svgData.frame1}</div>
-                            <div id="${uid}_f2" style="position:absolute;inset:0;opacity:0;">${svgData.frame2 || svgData.frame1}</div>
+                            <div id="${uid}_f1" style="position:absolute;inset:0;">${idleData.frame1}</div>
+                            <div id="${uid}_f2" style="position:absolute;inset:0;opacity:0;">${idleData.frame2 || idleData.frame1}</div>
                         </div>
                     </div>`;
                 } else {
@@ -2398,14 +2686,11 @@
                     content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: #e74c3c; color: #fff; padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
                 }
 
-                // 선택한 사람 정보 표시
-                if (selectedBy) {
-                    if (selectedBy === currentUser) {
-                        content += `<div style="font-size: 12px; margin-top: 5px; color: #8b4513; font-weight: bold;">✓ 내가 선택</div>`;
-                    } else {
-                        content += `<div style="font-size: 12px; margin-top: 5px; color: #dc3545; font-weight: bold;">${selectedBy} 선택</div>`;
-                    }
+                // 내 선택만 표시 (타인 선택은 숨김 - 카운트다운 후 공개)
+                if (isMyHorse) {
+                    content += `<div style="font-size: 12px; margin-top: 5px; color: #8b4513; font-weight: bold;">✓ 내가 선택</div>`;
                 }
+                // 타인 선택은 탈것 버튼에 표시하지 않음 (유추 방지)
                 
                 button.innerHTML = content;
                 
@@ -2428,25 +2713,8 @@
                 availableHorses: availableHorses.length
             });
 
-            // 선택 정보 업데이트
-            const selectedCount = Object.keys(userHorseBets).length;
-            const totalPlayers = currentUsers.length > 0 ? currentUsers.length :
-                               (readyUsers.length > 0 ? readyUsers.length : 1);
-
-            // 선택한 사람 목록 생성
-            const selectedUsers = Object.keys(userHorseBets);
-
-            let infoText = `${selectedCount}/${totalPlayers}명이 탈것을 선택했습니다.`;
-
-            if (selectedCount > 0) {
-                infoText += ` (${selectedUsers.join(', ')})`;
-            }
-
-            if (selectedCount === totalPlayers) {
-                infoText = `✅ 모든 참가자가 탈것을 선택했습니다. 경주가 곧 시작됩니다!`;
-            }
-            
-            info.textContent = infoText;
+            // 선택 정보는 "탈것 선택 안한 사람" 섹션에서 표시 (주사위 게임과 동일한 방식)
+            info.innerHTML = '';
 
             // idle 애니메이션 (4프레임 사이클: f1↑ → f2→ → f1↓ → f2→)
             if (window._idleAnimInterval) clearInterval(window._idleAnimInterval);
@@ -2469,11 +2737,11 @@
                 idleFrame++;
             }, 300);
 
-            // 탈것 선택 안한 사람 표시
+            // 탈것 선택 안한 사람 표시 (주사위 게임의 "주사위 안 굴린 사람"과 동일한 방식)
             const notSelectedSection = document.getElementById('notSelectedVehicleSection');
             const notSelectedList = document.getElementById('notSelectedVehicleList');
             if (notSelectedSection && notSelectedList) {
-                const notSelectedUsers = readyUsers.filter(name => !selectedUsers.includes(name));
+                const notSelectedUsers = readyUsers.filter(name => !selectedUsersFromServer.includes(name));
                 if (notSelectedUsers.length > 0 && readyUsers.length > 0) {
                     notSelectedSection.style.display = 'block';
                     notSelectedList.innerHTML = '';
@@ -2545,7 +2813,140 @@
             // 서버에서 받은 트랙 거리(m) 기반 finishLine, 없으면 기존 방식
             const trackDistanceMeters = (trackOptions && trackOptions.trackDistanceMeters) || 500;
             const finishLine = trackDistanceMeters * PIXELS_PER_METER;
-            
+
+            // ========== 날씨 시스템 초기화 ==========
+            const weatherSchedule = (trackOptions && trackOptions.weatherSchedule) || [];
+            const weatherConfig = (trackOptions && trackOptions.weatherConfig) || {};
+            let currentWeather = weatherSchedule.length > 0 ? weatherSchedule[0].weather : 'sunny';
+            let lastWeatherChangeIndex = 0;
+
+            // 날씨 오버레이 생성
+            const weatherOverlay = document.createElement('div');
+            weatherOverlay.className = 'weather-overlay';
+            weatherOverlay.id = 'weatherOverlay';
+            trackContainer.style.position = 'relative';
+            trackContainer.appendChild(weatherOverlay);
+
+            // 날씨 배너 생성
+            const weatherBanner = document.createElement('div');
+            weatherBanner.className = 'weather-banner';
+            weatherBanner.id = 'weatherBanner';
+            const weatherEmojis = { sunny: '☀️', rain: '🌧️', wind: '💨', fog: '🌫️' };
+            const weatherNames = { sunny: '맑음', rain: '비', wind: '바람', fog: '안개' };
+            weatherBanner.textContent = `${weatherEmojis[currentWeather]} ${weatherNames[currentWeather]}`;
+            // sunny일 때는 배너 숨김
+            if (currentWeather === 'sunny') {
+                weatherBanner.style.display = 'none';
+            }
+            trackContainer.appendChild(weatherBanner);
+
+            // 날씨 토스트 코멘트 (클라이언트 독립적 - 서버 동기화 X)
+            const weatherComments = {
+                rain: [
+                    "🌧️ 비가 내리기 시작합니다!",
+                    "🚤 보트가 신나하네요!",
+                    "🐰 토끼가 비를 싫어합니다...",
+                    "🚲 자전거 조심! 미끄러워요!",
+                    "🐢 거북이에겐 좋은 날씨네요~"
+                ],
+                wind: [
+                    "💨 바람이 불기 시작합니다!",
+                    "🦅 독수리가 날개를 펼칩니다!",
+                    "🚁 헬리콥터가 흔들리고 있어요!",
+                    "🚲 자전거가 힘들어합니다..."
+                ],
+                fog: [
+                    "🌫️ 안개가 끼기 시작합니다!",
+                    "👀 앞이 안 보여요!",
+                    "🚀 로켓은 안개 따위...",
+                    "🐦 새들이 방향을 잃었어요!"
+                ],
+                sunny: [
+                    "☀️ 날씨가 맑아졌습니다!",
+                    "🐰 토끼가 기뻐합니다!",
+                    "☀️ 달리기 좋은 날씨네요!"
+                ]
+            };
+
+            // 날씨 효과 적용 함수
+            function applyWeatherEffect(weather) {
+                weatherOverlay.className = 'weather-overlay';
+                if (weather === 'rain') {
+                    weatherOverlay.classList.add('weather-rain');
+                } else if (weather === 'wind') {
+                    weatherOverlay.classList.add('weather-wind');
+                } else if (weather === 'fog') {
+                    weatherOverlay.classList.add('weather-fog');
+                }
+                // sunny는 효과 없음 (기본)
+            }
+
+            // 날씨 토스트 표시 함수
+            function showWeatherToast(weather) {
+                // sunny일 때는 토스트 표시 안 함
+                if (weather === 'sunny') return;
+                const comments = weatherComments[weather] || [];
+                if (comments.length === 0) return;
+                const randomComment = comments[Math.floor(Math.random() * comments.length)];
+
+                const toast = document.createElement('div');
+                toast.className = 'weather-toast';
+                toast.textContent = randomComment;
+                trackContainer.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+
+            // 버프/디버프 표시 함수
+            function showWeatherIndicators(horseStates, weather) {
+                // sunny일 때는 인디케이터 표시 안 함
+                if (weather === 'sunny') return;
+                const vehicleModifiers = weatherConfig.vehicleModifiers || {};
+
+                horseStates.forEach(state => {
+                    // 기존 indicator 제거
+                    const oldIndicator = state.horse.querySelector('.weather-indicator');
+                    if (oldIndicator) oldIndicator.remove();
+
+                    const vehicleId = selectedVehicleTypes && selectedVehicleTypes[state.horseIndex];
+                    if (!vehicleId) return;
+
+                    const mods = vehicleModifiers[vehicleId];
+                    if (!mods) return;
+
+                    const modifier = mods[weather] || 1;
+                    const buffThreshold = 1.08; // +8% 이상이면 버프
+                    const nerfThreshold = 0.92; // -8% 이하면 디버프
+
+                    if (modifier >= buffThreshold) {
+                        const indicator = document.createElement('div');
+                        indicator.className = 'weather-indicator weather-buff';
+                        indicator.textContent = '▲';
+                        state.horse.appendChild(indicator);
+                    } else if (modifier <= nerfThreshold) {
+                        const indicator = document.createElement('div');
+                        indicator.className = 'weather-indicator weather-nerf';
+                        indicator.textContent = '▼';
+                        state.horse.appendChild(indicator);
+                    }
+                });
+            }
+
+            // 현재 날씨 가져오기 함수
+            function getCurrentWeatherFromSchedule(progress) {
+                let weather = 'sunny';
+                for (let i = 0; i < weatherSchedule.length; i++) {
+                    if (progress >= weatherSchedule[i].progress) {
+                        weather = weatherSchedule[i].weather;
+                    } else {
+                        break;
+                    }
+                }
+                return weather;
+            }
+
+            // 초기 날씨 효과 적용
+            applyWeatherEffect(currentWeather);
+
             // 트랙의 너비: 도착 지점은 그대로, 결승선 뒤 여유만 최소화해 스크롤 양 줄임
             track.style.width = `${finishLine + 30}px`; // 결승선 뒤 여유만 소량
             
@@ -2648,9 +3049,9 @@
                 const frame2 = document.createElement('div');
                 frame2.className = 'frame2';
                 
-                // 탈것별 SVG 생성 (idle 상태로 시작)
+                // 탈것별 SVG 생성 (idle 상태로 시작, 없으면 run)
                 const vehicleSVGs = getVehicleSVG(vehicleId);
-                const idleData = vehicleSVGs.idle || vehicleSVGs;
+                const idleData = vehicleSVGs.idle || vehicleSVGs.run || vehicleSVGs;
                 frame1.innerHTML = idleData.frame1 || vehicleSVGs.frame1;
                 frame2.innerHTML = (idleData.frame2 || vehicleSVGs.frame2) || '';
 
@@ -2660,26 +3061,26 @@
                 horse.appendChild(vehicleContent);
                 horse.dataset.vehicleId = vehicleId;
 
-                // 내가 선택한 탈것 위에 화살표 표시
-                if (userHorseBets[currentUser] === horseIndex) {
-                    const arrow = document.createElement('div');
-                    arrow.className = 'my-horse-arrow';
-                    arrow.innerHTML = '▼';
-                    arrow.style.cssText = `
-                        position: absolute;
-                        top: -18px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        font-size: 16px;
-                        color: #e94560;
-                        text-shadow: 0 0 4px rgba(233,69,96,0.6);
-                        animation: arrowBounce 0.8s ease-in-out infinite;
-                        pointer-events: none;
-                        z-index: 300;
-                    `;
-                    horse.style.overflow = 'visible';
-                    horse.appendChild(arrow);
-                }
+                // 모든 말에 화살표 생성 (카메라 타겟에 따라 동적으로 표시)
+                const arrow = document.createElement('div');
+                arrow.className = 'camera-target-arrow';
+                arrow.dataset.horseIndex = horseIndex;
+                arrow.innerHTML = '▼';
+                arrow.style.cssText = `
+                    position: absolute;
+                    top: -18px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    font-size: 16px;
+                    color: #e94560;
+                    text-shadow: 0 0 4px rgba(233,69,96,0.6);
+                    animation: arrowBounce 0.8s ease-in-out infinite;
+                    pointer-events: none;
+                    z-index: 300;
+                    display: none;
+                `;
+                horse.style.overflow = 'visible';
+                horse.appendChild(arrow);
 
                 track.appendChild(horse);
 
@@ -2693,27 +3094,57 @@
                         left: 3px;
                         display: flex;
                         flex-wrap: wrap;
-                        gap: 1px;
+                        gap: 3px;
                         z-index: 200;
-                        max-width: 180px;
+                        max-width: 250px;
                     `;
-                    
-                    selectedUsers.forEach(userName => {
+
+                    // 내 이름이 먼저 오도록 정렬
+                    const sortedUsers = [...selectedUsers].sort((a, b) => {
+                        if (a === currentUser) return -1;
+                        if (b === currentUser) return 1;
+                        return 0;
+                    });
+
+                    sortedUsers.forEach(userName => {
                         const nameTag = document.createElement('span');
-                        nameTag.style.cssText = `
-                            background: rgba(0,0,0,0.6);
-                            color: #fff;
-                            padding: 0px 3px;
-                            border-radius: 2px;
-                            font-size: 8px;
-                            line-height: 14px;
-                            font-weight: bold;
-                            white-space: nowrap;
-                        `;
-                        nameTag.textContent = userName;
+                        const isMe = userName === currentUser;
+
+                        if (isMe) {
+                            // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
+                            nameTag.style.cssText = `
+                                background: linear-gradient(135deg, #ffd700, #ffaa00);
+                                color: #000;
+                                padding: 2px 6px;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                line-height: 16px;
+                                font-weight: bold;
+                                white-space: nowrap;
+                                border: 2px solid #fff;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);
+                                text-shadow: 0 1px 1px rgba(255,255,255,0.5);
+                            `;
+                            nameTag.textContent = '⭐ ' + userName;
+                        } else {
+                            // 다른 사용자: 개선된 가독성
+                            nameTag.style.cssText = `
+                                background: rgba(0,0,0,0.75);
+                                color: #fff;
+                                padding: 2px 5px;
+                                border-radius: 3px;
+                                font-size: 10px;
+                                line-height: 15px;
+                                font-weight: bold;
+                                white-space: nowrap;
+                                border: 1px solid rgba(255,255,255,0.3);
+                                text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+                            `;
+                            nameTag.textContent = userName;
+                        }
                         namesContainer.appendChild(nameTag);
                     });
-                    
+
                     track.appendChild(namesContainer);
                 }
                 
@@ -3073,6 +3504,38 @@
                                 vignette.style.opacity = '1';
                                 track.style.transition = 'filter 0.3s';
                                 track.style.filter = 'contrast(1.1) saturate(1.3)';
+                                // 슬로우모션 환호성 (기존 crowd보다 크게)
+                                if (window.SoundManager) {
+                                    SoundManager.playLoop('horse-race_slowmo_cheer', getHorseSoundEnabled(), 0.9);
+                                }
+                            }
+                        }
+                    }
+
+                    // ========== 날씨 변화 체크 (1등 진행도 기준) ==========
+                    if (weatherSchedule.length > 0) {
+                        const leaderState = horseStates.reduce((a, b) =>
+                            (a && !a.finished && a.currentPos > b.currentPos) ? a : b, null);
+                        if (leaderState && !leaderState.finished) {
+                            const raceProgress = (leaderState.currentPos - startPosition) / totalDistance;
+                            const newWeather = getCurrentWeatherFromSchedule(raceProgress);
+
+                            if (newWeather !== currentWeather) {
+                                currentWeather = newWeather;
+                                // sunny일 때는 배너/토스트/인디케이터 숨김
+                                if (currentWeather === 'sunny') {
+                                    weatherBanner.style.display = 'none';
+                                } else {
+                                    // 배너 업데이트
+                                    weatherBanner.style.display = '';
+                                    weatherBanner.textContent = `${weatherEmojis[currentWeather]} ${weatherNames[currentWeather]}`;
+                                    // 토스트 메시지 표시 (클라이언트 독립)
+                                    showWeatherToast(currentWeather);
+                                    // 버프/디버프 삼각형 표시
+                                    showWeatherIndicators(horseStates, currentWeather);
+                                }
+                                // 오버레이 효과 업데이트 (sunny면 효과 없음)
+                                applyWeatherEffect(currentWeather);
                             }
                         }
                     }
@@ -3086,6 +3549,22 @@
                         if (vignette) {
                             vignette.style.opacity = '0';
                             setTimeout(() => vignette.remove(), 500);
+                        }
+                        // 슬로우모션 환호성 페이드아웃 + 골인 환호 재생
+                        if (window.SoundManager) {
+                            // 골인 환호 (단발)
+                            SoundManager.playSound('horse-race_cheer_burst', getHorseSoundEnabled(), 1.0);
+                            // 슬로우모션 환호 페이드아웃 (1초)
+                            let slowmoVol = 0.9;
+                            const fadeSlowmo = setInterval(() => {
+                                slowmoVol -= 0.15;
+                                if (slowmoVol <= 0) {
+                                    SoundManager.stopLoop('horse-race_slowmo_cheer');
+                                    clearInterval(fadeSlowmo);
+                                } else {
+                                    SoundManager.setVolume('horse-race_slowmo_cheer', slowmoVol);
+                                }
+                            }, 150);
                         }
                     }
 
@@ -3128,6 +3607,10 @@
                                 vignette.style.opacity = '1';
                                 track.style.transition = 'filter 0.3s';
                                 track.style.filter = 'contrast(1.1) saturate(1.3)';
+                                // 꼴등 슬로우모션 환호성 (이미 재생 중이면 무시됨)
+                                if (window.SoundManager) {
+                                    SoundManager.playLoop('horse-race_slowmo_cheer', getHorseSoundEnabled(), 0.9);
+                                }
                             }
                         }
                     }
@@ -3157,6 +3640,10 @@
                                 vignette.style.opacity = '0';
                                 setTimeout(() => vignette.remove(), 500);
                             }
+                            // 꼴등 슬로우모션 환호성 정지
+                            if (window.SoundManager) {
+                                SoundManager.stopLoop('horse-race_slowmo_cheer');
+                            }
                         }
                     }
 
@@ -3177,6 +3664,10 @@
                                 // 기믹 시작 효과 및 이펙트 추가
                                 if (gimmick.type === 'stop') {
                                     state.horse.style.filter = 'brightness(0.7)';
+                                    // 쉬는 애니메이션으로 전환
+                                    state.horse.classList.remove('racing');
+                                    state.horse.classList.add('rest');
+                                    setVehicleState(state.horse, state.horse.dataset.vehicleId, 'rest');
                                     // 브레이크 연기 이펙트
                                     const stopEffect = document.createElement('div');
                                     stopEffect.className = 'gimmick-effect-stop';
@@ -3227,8 +3718,11 @@
                                     state.horse.appendChild(wobbleEffect);
                                     gimmick.effectElement = wobbleEffect;
                                 } else if (gimmick.type === 'obstacle') {
-                                    // 장애물 — 점프 애니메이션
+                                    // 장애물 — 쉬는 애니메이션 + 점프
                                     state.horse.style.filter = 'brightness(0.6)';
+                                    state.horse.classList.remove('racing');
+                                    state.horse.classList.add('rest');
+                                    setVehicleState(state.horse, state.horse.dataset.vehicleId, 'rest');
                                     state.horse.style.animation = 'obstacleJump 0.5s ease-in-out infinite';
                                     const obstacleEffect = document.createElement('div');
                                     obstacleEffect.className = 'gimmick-effect-obstacle';
@@ -3291,6 +3785,12 @@
                                 state.horse.style.animation = '';
                                 if (gimmick.type === 'reverse') {
                                     state.horse.style.transform = '';
+                                }
+                                // stop/obstacle 기믹 종료 시 다시 달리기 상태로
+                                if (gimmick.type === 'stop' || gimmick.type === 'obstacle') {
+                                    state.horse.classList.remove('rest');
+                                    state.horse.classList.add('racing');
+                                    setVehicleState(state.horse, state.horse.dataset.vehicleId, 'run');
                                 }
                                 // 이펙트 요소 제거
                                 if (gimmick.effectElement && gimmick.effectElement.parentNode) {
@@ -3461,6 +3961,25 @@
                         }
                         const cameraPos = cameraTarget.currentPos;
 
+                        // 카메라 타겟에 화살표 표시 (다른 화살표는 숨김, 내 베팅 말이면 노란색)
+                        const myBetIndex = userHorseBets[currentUser];
+                        track.querySelectorAll('.camera-target-arrow').forEach(arrow => {
+                            const idx = parseInt(arrow.dataset.horseIndex);
+                            if (idx === cameraTarget.horseIndex) {
+                                arrow.style.display = 'block';
+                                // 내 베팅 말이면 노란색, 아니면 빨간색
+                                if (idx === myBetIndex) {
+                                    arrow.style.color = '#ffd700';
+                                    arrow.style.textShadow = '0 0 6px rgba(255,215,0,0.8)';
+                                } else {
+                                    arrow.style.color = '#e94560';
+                                    arrow.style.textShadow = '0 0 4px rgba(233,69,96,0.6)';
+                                }
+                            } else {
+                                arrow.style.display = 'none';
+                            }
+                        });
+
                         let targetOffset = 0;
                         if (cameraPos > centerPosition) {
                             targetOffset = -(cameraPos - centerPosition);
@@ -3554,6 +4073,24 @@
                             vignetteCleanup.style.opacity = '0';
                             setTimeout(() => vignetteCleanup.remove(), 500);
                         }
+                        // 슬로우모션 환호성 정지
+                        if (window.SoundManager) {
+                            SoundManager.stopLoop('horse-race_slowmo_cheer');
+                        }
+
+                        // 날씨 요소 정리
+                        const weatherOverlayCleanup = document.getElementById('weatherOverlay');
+                        const weatherBannerCleanup = document.getElementById('weatherBanner');
+                        if (weatherOverlayCleanup) {
+                            weatherOverlayCleanup.style.opacity = '0';
+                            setTimeout(() => weatherOverlayCleanup.remove(), 800);
+                        }
+                        if (weatherBannerCleanup) {
+                            weatherBannerCleanup.style.opacity = '0';
+                            setTimeout(() => weatherBannerCleanup.remove(), 800);
+                        }
+                        // 버프/디버프 인디케이터 제거
+                        document.querySelectorAll('.weather-indicator').forEach(el => el.remove());
 
                         // 미완주 말들 전부 찾기 (비석 대상)
                         const unfinishedStates = horseStates.filter(s => !s.finished);
@@ -3724,6 +4261,11 @@
             // 프레임 애니메이션 중지
             horseElement.classList.remove('racing');
 
+            // BGM 정지 - 비석(사망) 애니메이션 시작 시
+            if (window.SoundManager) {
+                SoundManager.stopLoop('horse-race_bgm');
+            }
+
             // 탈것 페이드 아웃 후 완전히 사라짐
             horseElement.style.animation = 'deathFade 2s ease-out forwards';
             
@@ -3835,228 +4377,464 @@
         function getVehicleSVG(vehicleId) {
             const svgMap = {
                 'car': { // 자동차 - 바퀴 회전
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <rect x="10" y="15" width="40" height="15" rx="3" fill="#e74c3c"/>
-                        <rect x="18" y="8" width="22" height="12" rx="2" fill="#e74c3c"/>
-                        <rect x="20" y="10" width="8" height="8" fill="#87CEEB"/>
-                        <rect x="30" y="10" width="8" height="8" fill="#87CEEB"/>
-                        <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#666"/>
-                        <line x1="18" y1="29" x2="18" y2="35" stroke="#999" stroke-width="1"/>
-                        <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#666"/>
-                        <line x1="42" y1="29" x2="42" y2="35" stroke="#999" stroke-width="1"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <rect x="10" y="15" width="40" height="15" rx="3" fill="#e74c3c"/>
-                        <rect x="18" y="8" width="22" height="12" rx="2" fill="#e74c3c"/>
-                        <rect x="20" y="10" width="8" height="8" fill="#87CEEB"/>
-                        <rect x="30" y="10" width="8" height="8" fill="#87CEEB"/>
-                        <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#666"/>
-                        <line x1="15" y1="32" x2="21" y2="32" stroke="#999" stroke-width="1"/>
-                        <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#666"/>
-                        <line x1="39" y1="32" x2="45" y2="32" stroke="#999" stroke-width="1"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <rect x="10" y="15" width="40" height="15" rx="3" fill="#e74c3c"/>
+                            <rect x="18" y="8" width="22" height="12" rx="2" fill="#e74c3c"/>
+                            <rect x="20" y="10" width="8" height="8" fill="#87CEEB"/>
+                            <rect x="30" y="10" width="8" height="8" fill="#87CEEB"/>
+                            <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#666"/>
+                            <line x1="18" y1="29" x2="18" y2="35" stroke="#999" stroke-width="1"/>
+                            <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#666"/>
+                            <line x1="42" y1="29" x2="42" y2="35" stroke="#999" stroke-width="1"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <rect x="10" y="15" width="40" height="15" rx="3" fill="#e74c3c"/>
+                            <rect x="18" y="8" width="22" height="12" rx="2" fill="#e74c3c"/>
+                            <rect x="20" y="10" width="8" height="8" fill="#87CEEB"/>
+                            <rect x="30" y="10" width="8" height="8" fill="#87CEEB"/>
+                            <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#666"/>
+                            <line x1="15" y1="32" x2="21" y2="32" stroke="#999" stroke-width="1"/>
+                            <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#666"/>
+                            <line x1="39" y1="32" x2="45" y2="32" stroke="#999" stroke-width="1"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <rect x="10" y="15" width="40" height="15" rx="3" fill="#a93226"/>
+                            <rect x="18" y="8" width="22" height="12" rx="2" fill="#a93226"/>
+                            <rect x="20" y="10" width="8" height="8" fill="#5a8fa8"/>
+                            <rect x="30" y="10" width="8" height="8" fill="#5a8fa8"/>
+                            <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#555"/>
+                            <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#555"/>
+                            <text x="24" y="8" font-size="8" fill="#fff">z</text>
+                            <text x="28" y="5" font-size="6" fill="#fff">z</text>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <rect x="10" y="15" width="40" height="15" rx="3" fill="#a93226"/>
+                            <rect x="18" y="8" width="22" height="12" rx="2" fill="#a93226"/>
+                            <rect x="20" y="10" width="8" height="8" fill="#5a8fa8"/>
+                            <rect x="30" y="10" width="8" height="8" fill="#5a8fa8"/>
+                            <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#555"/>
+                            <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#555"/>
+                            <text x="26" y="6" font-size="8" fill="#fff">z</text>
+                            <text x="30" y="3" font-size="6" fill="#fff">z</text>
+                        </svg>`
+                    }
                 },
                 'rocket': { // 로켓 - 불꽃 깜빡임
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="35" cy="22" rx="18" ry="10" fill="#3498db"/>
-                        <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
-                        <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
-                        <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
-                        <polygon points="8,22 2,18 2,26" fill="#f39c12"/>
-                        <polygon points="2,22 -3,20 -3,24" fill="#e67e22"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="35" cy="22" rx="18" ry="10" fill="#3498db"/>
-                        <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
-                        <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
-                        <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
-                        <polygon points="8,22 0,16 0,28" fill="#f1c40f"/>
-                        <polygon points="0,22 -5,19 -5,25" fill="#f39c12"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="35" cy="22" rx="18" ry="10" fill="#3498db"/>
+                            <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
+                            <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
+                            <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
+                            <polygon points="8,22 2,18 2,26" fill="#f39c12"/>
+                            <polygon points="2,22 -3,20 -3,24" fill="#e67e22"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="35" cy="22" rx="18" ry="10" fill="#3498db"/>
+                            <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
+                            <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
+                            <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
+                            <polygon points="8,22 0,16 0,28" fill="#f1c40f"/>
+                            <polygon points="0,22 -5,19 -5,25" fill="#f39c12"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="35" cy="28" rx="18" ry="10" fill="#2980b9"/>
+                            <polygon points="53,28 60,21 60,35" fill="#c0392b"/>
+                            <circle cx="50" cy="28" r="4" fill="#5a8fa8"/>
+                            <rect x="8" y="24" width="10" height="8" fill="#c0392b"/>
+                            <rect x="20" y="38" width="8" height="4" fill="#7f8c8d"/>
+                            <rect x="38" y="38" width="8" height="4" fill="#7f8c8d"/>
+                            <text x="24" y="20" font-size="8" fill="#fff">z</text>
+                            <text x="28" y="16" font-size="6" fill="#fff">z</text>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="35" cy="28" rx="18" ry="10" fill="#2980b9"/>
+                            <polygon points="53,28 60,21 60,35" fill="#c0392b"/>
+                            <circle cx="50" cy="28" r="4" fill="#5a8fa8"/>
+                            <rect x="8" y="24" width="10" height="8" fill="#c0392b"/>
+                            <rect x="20" y="38" width="8" height="4" fill="#7f8c8d"/>
+                            <rect x="38" y="38" width="8" height="4" fill="#7f8c8d"/>
+                            <text x="26" y="18" font-size="8" fill="#fff">z</text>
+                            <text x="30" y="14" font-size="6" fill="#fff">z</text>
+                        </svg>`
+                    }
                 },
                 'bird': { // 새 - 날개 펄럭임
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="25" rx="15" ry="8" fill="#9b59b6"/>
-                        <circle cx="48" cy="22" r="7" fill="#9b59b6"/>
-                        <polygon points="55,22 62,20 62,24" fill="#f39c12"/>
-                        <circle cx="52" cy="20" r="2" fill="black"/>
-                        <path d="M25,25 Q15,10 30,18" fill="#8e44ad"/>
-                        <path d="M35,25 Q25,8 40,16" fill="#8e44ad"/>
-                        <polygon points="12,28 8,32 15,30" fill="#9b59b6"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="25" rx="15" ry="8" fill="#9b59b6"/>
-                        <circle cx="48" cy="22" r="7" fill="#9b59b6"/>
-                        <polygon points="55,22 62,20 62,24" fill="#f39c12"/>
-                        <circle cx="52" cy="20" r="2" fill="black"/>
-                        <path d="M25,25 Q15,35 30,30" fill="#8e44ad"/>
-                        <path d="M35,25 Q25,38 40,32" fill="#8e44ad"/>
-                        <polygon points="12,28 8,32 15,30" fill="#9b59b6"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="25" rx="15" ry="8" fill="#9b59b6"/>
+                            <circle cx="48" cy="22" r="7" fill="#9b59b6"/>
+                            <polygon points="55,22 62,20 62,24" fill="#f39c12"/>
+                            <circle cx="52" cy="20" r="2" fill="black"/>
+                            <path d="M25,25 Q15,10 30,18" fill="#8e44ad"/>
+                            <path d="M35,25 Q25,8 40,16" fill="#8e44ad"/>
+                            <polygon points="12,28 8,32 15,30" fill="#9b59b6"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="25" rx="15" ry="8" fill="#9b59b6"/>
+                            <circle cx="48" cy="22" r="7" fill="#9b59b6"/>
+                            <polygon points="55,22 62,20 62,24" fill="#f39c12"/>
+                            <circle cx="52" cy="20" r="2" fill="black"/>
+                            <path d="M25,25 Q15,35 30,30" fill="#8e44ad"/>
+                            <path d="M35,25 Q25,38 40,32" fill="#8e44ad"/>
+                            <polygon points="12,28 8,32 15,30" fill="#9b59b6"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="32" rx="15" ry="8" fill="#8e44ad"/>
+                            <circle cx="48" cy="28" r="7" fill="#8e44ad"/>
+                            <polygon points="55,28 62,26 62,30" fill="#d68910"/>
+                            <ellipse cx="52" cy="26" rx="2" ry="1" fill="black"/>
+                            <path d="M22,30 Q18,28 16,32" fill="#7d3c98"/>
+                            <path d="M38,30 Q42,28 44,32" fill="#7d3c98"/>
+                            <ellipse cx="20" cy="38" rx="4" ry="2" fill="#d68910"/>
+                            <ellipse cx="40" cy="38" rx="4" ry="2" fill="#d68910"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="33" rx="15" ry="8" fill="#8e44ad"/>
+                            <circle cx="48" cy="29" r="7" fill="#8e44ad"/>
+                            <polygon points="55,29 62,27 62,31" fill="#d68910"/>
+                            <ellipse cx="52" cy="27" rx="2" ry="1" fill="black"/>
+                            <path d="M22,31 Q18,29 16,33" fill="#7d3c98"/>
+                            <path d="M38,31 Q42,29 44,33" fill="#7d3c98"/>
+                            <ellipse cx="20" cy="39" rx="4" ry="2" fill="#d68910"/>
+                            <ellipse cx="40" cy="39" rx="4" ry="2" fill="#d68910"/>
+                        </svg>`
+                    }
                 },
                 'boat': { // 보트 - 물결 효과
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <path d="M5,30 Q15,28 25,30 Q35,32 45,30 Q55,28 60,30" fill="none" stroke="#3498db" stroke-width="3"/>
-                        <polygon points="10,28 50,28 45,20 15,20" fill="#e74c3c"/>
-                        <rect x="28" y="10" width="4" height="12" fill="#8b4513"/>
-                        <polygon points="32,8 32,18 50,14" fill="white"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <path d="M5,30 Q15,32 25,30 Q35,28 45,30 Q55,32 60,30" fill="none" stroke="#3498db" stroke-width="3"/>
-                        <polygon points="10,28 50,28 45,20 15,20" fill="#e74c3c"/>
-                        <rect x="28" y="10" width="4" height="12" fill="#8b4513"/>
-                        <polygon points="32,8 32,18 50,14" fill="white"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <path d="M5,30 Q15,28 25,30 Q35,32 45,30 Q55,28 60,30" fill="none" stroke="#3498db" stroke-width="3"/>
+                            <polygon points="10,28 50,28 45,20 15,20" fill="#e74c3c"/>
+                            <rect x="28" y="10" width="4" height="12" fill="#8b4513"/>
+                            <polygon points="32,8 32,18 50,14" fill="white"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <path d="M5,30 Q15,32 25,30 Q35,28 45,30 Q55,32 60,30" fill="none" stroke="#3498db" stroke-width="3"/>
+                            <polygon points="10,28 50,28 45,20 15,20" fill="#e74c3c"/>
+                            <rect x="28" y="10" width="4" height="12" fill="#8b4513"/>
+                            <polygon points="32,8 32,18 50,14" fill="white"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <path d="M5,32 Q15,32 25,32 Q35,32 45,32 Q55,32 60,32" fill="none" stroke="#2980b9" stroke-width="3"/>
+                            <polygon points="10,30 50,30 45,22 15,22" fill="#a93226"/>
+                            <rect x="28" y="14" width="4" height="10" fill="#6d4c41"/>
+                            <polygon points="32,14 32,20 38,18" fill="#bdc3c7"/>
+                            <circle cx="48" cy="26" r="3" fill="#7f8c8d"/>
+                            <text x="20" y="18" font-size="8" fill="#fff">z</text>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <path d="M5,32 Q15,32 25,32 Q35,32 45,32 Q55,32 60,32" fill="none" stroke="#2980b9" stroke-width="3"/>
+                            <polygon points="10,30 50,30 45,22 15,22" fill="#a93226"/>
+                            <rect x="28" y="14" width="4" height="10" fill="#6d4c41"/>
+                            <polygon points="32,14 32,20 38,18" fill="#bdc3c7"/>
+                            <circle cx="48" cy="26" r="3" fill="#7f8c8d"/>
+                            <text x="22" y="16" font-size="8" fill="#fff">z</text>
+                        </svg>`
+                    }
                 },
                 'bicycle': { // 자전거 - 페달 회전
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <circle cx="12" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
-                        <circle cx="48" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
-                        <line x1="12" y1="30" x2="30" y2="30" stroke="#666" stroke-width="2"/>
-                        <line x1="30" y1="30" x2="48" y2="30" stroke="#666" stroke-width="2"/>
-                        <line x1="30" y1="30" x2="35" y2="15" stroke="#666" stroke-width="2"/>
-                        <circle cx="35" cy="13" r="4" fill="#f39c12"/>
-                        <circle cx="30" cy="30" r="3" fill="#333"/>
-                        <line x1="30" y1="30" x2="33" y2="35" stroke="#333" stroke-width="2"/>
-                        <line x1="30" y1="30" x2="27" y2="25" stroke="#333" stroke-width="2"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <circle cx="12" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
-                        <circle cx="48" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
-                        <line x1="12" y1="30" x2="30" y2="30" stroke="#666" stroke-width="2"/>
-                        <line x1="30" y1="30" x2="48" y2="30" stroke="#666" stroke-width="2"/>
-                        <line x1="30" y1="30" x2="35" y2="15" stroke="#666" stroke-width="2"/>
-                        <circle cx="35" cy="13" r="4" fill="#f39c12"/>
-                        <circle cx="30" cy="30" r="3" fill="#333"/>
-                        <line x1="30" y1="30" x2="27" y2="35" stroke="#333" stroke-width="2"/>
-                        <line x1="30" y1="30" x2="33" y2="25" stroke="#333" stroke-width="2"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="12" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
+                            <circle cx="48" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
+                            <line x1="12" y1="30" x2="30" y2="30" stroke="#666" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="48" y2="30" stroke="#666" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="35" y2="15" stroke="#666" stroke-width="2"/>
+                            <circle cx="35" cy="13" r="4" fill="#f39c12"/>
+                            <circle cx="30" cy="30" r="3" fill="#333"/>
+                            <line x1="30" y1="30" x2="33" y2="35" stroke="#333" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="27" y2="25" stroke="#333" stroke-width="2"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="12" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
+                            <circle cx="48" cy="30" r="8" fill="none" stroke="#333" stroke-width="2"/>
+                            <line x1="12" y1="30" x2="30" y2="30" stroke="#666" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="48" y2="30" stroke="#666" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="35" y2="15" stroke="#666" stroke-width="2"/>
+                            <circle cx="35" cy="13" r="4" fill="#f39c12"/>
+                            <circle cx="30" cy="30" r="3" fill="#333"/>
+                            <line x1="30" y1="30" x2="27" y2="35" stroke="#333" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="33" y2="25" stroke="#333" stroke-width="2"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="15" cy="35" r="8" fill="none" stroke="#555" stroke-width="2"/>
+                            <circle cx="45" cy="32" r="8" fill="none" stroke="#555" stroke-width="2"/>
+                            <line x1="15" y1="35" x2="30" y2="30" stroke="#555" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="45" y2="32" stroke="#555" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="38" y2="18" stroke="#555" stroke-width="2"/>
+                            <rect x="36" y="15" width="8" height="4" rx="1" fill="#555"/>
+                            <circle cx="30" cy="30" r="3" fill="#444"/>
+                            <line x1="30" y1="30" x2="30" y2="36" stroke="#444" stroke-width="2"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="15" cy="35" r="8" fill="none" stroke="#555" stroke-width="2"/>
+                            <circle cx="45" cy="32" r="8" fill="none" stroke="#555" stroke-width="2"/>
+                            <line x1="15" y1="35" x2="30" y2="30" stroke="#555" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="45" y2="32" stroke="#555" stroke-width="2"/>
+                            <line x1="30" y1="30" x2="38" y2="18" stroke="#555" stroke-width="2"/>
+                            <rect x="36" y="15" width="8" height="4" rx="1" fill="#555"/>
+                            <circle cx="30" cy="30" r="3" fill="#444"/>
+                            <line x1="30" y1="30" x2="30" y2="36" stroke="#444" stroke-width="2"/>
+                        </svg>`
+                    }
                 },
                 'rabbit': { // 토끼 - 깡충깡충
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="28" rx="14" ry="10" fill="#f5f5dc"/>
-                        <circle cx="45" cy="22" r="8" fill="#f5f5dc"/>
-                        <ellipse cx="40" cy="8" rx="3" ry="10" fill="#f5f5dc"/>
-                        <ellipse cx="48" cy="10" rx="3" ry="9" fill="#f5f5dc"/>
-                        <ellipse cx="40" cy="10" rx="2" ry="6" fill="#ffb6c1"/>
-                        <ellipse cx="48" cy="12" rx="2" ry="5" fill="#ffb6c1"/>
-                        <circle cx="50" cy="20" r="2" fill="black"/>
-                        <circle cx="47" cy="26" r="2" fill="#ffb6c1"/>
-                        <ellipse cx="18" cy="32" rx="5" ry="4" fill="#f5f5dc"/>
-                        <ellipse cx="25" cy="35" rx="4" ry="3" fill="#f5f5dc"/>
-                        <circle cx="14" cy="30" r="4" fill="#f5f5dc"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="24" rx="14" ry="10" fill="#f5f5dc"/>
-                        <circle cx="45" cy="18" r="8" fill="#f5f5dc"/>
-                        <ellipse cx="40" cy="4" rx="3" ry="10" fill="#f5f5dc"/>
-                        <ellipse cx="48" cy="6" rx="3" ry="9" fill="#f5f5dc"/>
-                        <ellipse cx="40" cy="6" rx="2" ry="6" fill="#ffb6c1"/>
-                        <ellipse cx="48" cy="8" rx="2" ry="5" fill="#ffb6c1"/>
-                        <circle cx="50" cy="16" r="2" fill="black"/>
-                        <circle cx="47" cy="22" r="2" fill="#ffb6c1"/>
-                        <ellipse cx="20" cy="38" rx="5" ry="4" fill="#f5f5dc"/>
-                        <ellipse cx="28" cy="40" rx="4" ry="3" fill="#f5f5dc"/>
-                        <circle cx="14" cy="35" r="4" fill="#f5f5dc"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="28" rx="14" ry="10" fill="#f5f5dc"/>
+                            <circle cx="45" cy="22" r="8" fill="#f5f5dc"/>
+                            <ellipse cx="40" cy="8" rx="3" ry="10" fill="#f5f5dc"/>
+                            <ellipse cx="48" cy="10" rx="3" ry="9" fill="#f5f5dc"/>
+                            <ellipse cx="40" cy="10" rx="2" ry="6" fill="#ffb6c1"/>
+                            <ellipse cx="48" cy="12" rx="2" ry="5" fill="#ffb6c1"/>
+                            <circle cx="50" cy="20" r="2" fill="black"/>
+                            <circle cx="47" cy="26" r="2" fill="#ffb6c1"/>
+                            <ellipse cx="18" cy="32" rx="5" ry="4" fill="#f5f5dc"/>
+                            <ellipse cx="25" cy="35" rx="4" ry="3" fill="#f5f5dc"/>
+                            <circle cx="14" cy="30" r="4" fill="#f5f5dc"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="24" rx="14" ry="10" fill="#f5f5dc"/>
+                            <circle cx="45" cy="18" r="8" fill="#f5f5dc"/>
+                            <ellipse cx="40" cy="4" rx="3" ry="10" fill="#f5f5dc"/>
+                            <ellipse cx="48" cy="6" rx="3" ry="9" fill="#f5f5dc"/>
+                            <ellipse cx="40" cy="6" rx="2" ry="6" fill="#ffb6c1"/>
+                            <ellipse cx="48" cy="8" rx="2" ry="5" fill="#ffb6c1"/>
+                            <circle cx="50" cy="16" r="2" fill="black"/>
+                            <circle cx="47" cy="22" r="2" fill="#ffb6c1"/>
+                            <ellipse cx="20" cy="38" rx="5" ry="4" fill="#f5f5dc"/>
+                            <ellipse cx="28" cy="40" rx="4" ry="3" fill="#f5f5dc"/>
+                            <circle cx="14" cy="35" r="4" fill="#f5f5dc"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="32" rx="16" ry="8" fill="#ddd8c4"/>
+                            <circle cx="46" cy="28" r="7" fill="#ddd8c4"/>
+                            <ellipse cx="42" cy="18" rx="3" ry="8" fill="#ddd8c4"/>
+                            <ellipse cx="48" cy="20" rx="3" ry="7" fill="#ddd8c4"/>
+                            <ellipse cx="42" cy="20" rx="2" ry="5" fill="#e8b4b8"/>
+                            <ellipse cx="48" cy="22" rx="2" ry="4" fill="#e8b4b8"/>
+                            <ellipse cx="50" cy="27" rx="2" ry="1" fill="black"/>
+                            <circle cx="47" cy="32" r="2" fill="#e8b4b8"/>
+                            <ellipse cx="18" cy="36" rx="5" ry="3" fill="#ddd8c4"/>
+                            <ellipse cx="26" cy="38" rx="4" ry="2" fill="#ddd8c4"/>
+                            <circle cx="12" cy="34" r="4" fill="#ddd8c4"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="33" rx="16" ry="8" fill="#ddd8c4"/>
+                            <circle cx="46" cy="29" r="7" fill="#ddd8c4"/>
+                            <ellipse cx="42" cy="19" rx="3" ry="8" fill="#ddd8c4"/>
+                            <ellipse cx="48" cy="21" rx="3" ry="7" fill="#ddd8c4"/>
+                            <ellipse cx="42" cy="21" rx="2" ry="5" fill="#e8b4b8"/>
+                            <ellipse cx="48" cy="23" rx="2" ry="4" fill="#e8b4b8"/>
+                            <ellipse cx="50" cy="28" rx="2" ry="1" fill="black"/>
+                            <circle cx="47" cy="33" r="2" fill="#e8b4b8"/>
+                            <ellipse cx="18" cy="37" rx="5" ry="3" fill="#ddd8c4"/>
+                            <ellipse cx="26" cy="39" rx="4" ry="2" fill="#ddd8c4"/>
+                            <circle cx="12" cy="35" r="4" fill="#ddd8c4"/>
+                        </svg>`
+                    }
                 },
                 'turtle': { // 거북이 - 느릿느릿
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="28" rx="18" ry="12" fill="#228B22"/>
-                        <path d="M15,20 Q30,10 45,20" fill="#006400"/>
-                        <ellipse cx="50" cy="28" rx="6" ry="5" fill="#8FBC8F"/>
-                        <circle cx="54" cy="26" r="2" fill="black"/>
-                        <ellipse cx="18" cy="36" rx="4" ry="3" fill="#8FBC8F"/>
-                        <ellipse cx="42" cy="36" rx="4" ry="3" fill="#8FBC8F"/>
-                        <ellipse cx="20" cy="24" rx="3" ry="2" fill="#8FBC8F"/>
-                        <ellipse cx="40" cy="24" rx="3" ry="2" fill="#8FBC8F"/>
-                        <circle cx="10" cy="30" r="3" fill="#8FBC8F"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="28" rx="18" ry="12" fill="#228B22"/>
-                        <path d="M15,20 Q30,10 45,20" fill="#006400"/>
-                        <ellipse cx="52" cy="28" rx="6" ry="5" fill="#8FBC8F"/>
-                        <circle cx="56" cy="26" r="2" fill="black"/>
-                        <ellipse cx="16" cy="38" rx="4" ry="3" fill="#8FBC8F"/>
-                        <ellipse cx="40" cy="38" rx="4" ry="3" fill="#8FBC8F"/>
-                        <ellipse cx="22" cy="22" rx="3" ry="2" fill="#8FBC8F"/>
-                        <ellipse cx="42" cy="22" rx="3" ry="2" fill="#8FBC8F"/>
-                        <circle cx="8" cy="32" r="3" fill="#8FBC8F"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="28" rx="18" ry="12" fill="#228B22"/>
+                            <path d="M15,20 Q30,10 45,20" fill="#006400"/>
+                            <ellipse cx="50" cy="28" rx="6" ry="5" fill="#8FBC8F"/>
+                            <circle cx="54" cy="26" r="2" fill="black"/>
+                            <ellipse cx="18" cy="36" rx="4" ry="3" fill="#8FBC8F"/>
+                            <ellipse cx="42" cy="36" rx="4" ry="3" fill="#8FBC8F"/>
+                            <ellipse cx="20" cy="24" rx="3" ry="2" fill="#8FBC8F"/>
+                            <ellipse cx="40" cy="24" rx="3" ry="2" fill="#8FBC8F"/>
+                            <circle cx="10" cy="30" r="3" fill="#8FBC8F"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="28" rx="18" ry="12" fill="#228B22"/>
+                            <path d="M15,20 Q30,10 45,20" fill="#006400"/>
+                            <ellipse cx="52" cy="28" rx="6" ry="5" fill="#8FBC8F"/>
+                            <circle cx="56" cy="26" r="2" fill="black"/>
+                            <ellipse cx="16" cy="38" rx="4" ry="3" fill="#8FBC8F"/>
+                            <ellipse cx="40" cy="38" rx="4" ry="3" fill="#8FBC8F"/>
+                            <ellipse cx="22" cy="22" rx="3" ry="2" fill="#8FBC8F"/>
+                            <ellipse cx="42" cy="22" rx="3" ry="2" fill="#8FBC8F"/>
+                            <circle cx="8" cy="32" r="3" fill="#8FBC8F"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="30" rx="18" ry="12" fill="#1e7b1e"/>
+                            <path d="M15,22 Q30,12 45,22" fill="#005500"/>
+                            <ellipse cx="46" cy="32" rx="4" ry="3" fill="#7aa87a"/>
+                            <circle cx="10" cy="32" r="2" fill="#7aa87a"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="31" rx="18" ry="12" fill="#1e7b1e"/>
+                            <path d="M15,23 Q30,13 45,23" fill="#005500"/>
+                            <ellipse cx="46" cy="33" rx="4" ry="3" fill="#7aa87a"/>
+                            <circle cx="10" cy="33" r="2" fill="#7aa87a"/>
+                        </svg>`
+                    }
                 },
                 'eagle': { // 독수리 - 날개 펄럭임
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="25" rx="12" ry="7" fill="#8B4513"/>
-                        <circle cx="48" cy="22" r="7" fill="#8B4513"/>
-                        <polygon points="55,22 63,20 63,24" fill="#FFD700"/>
-                        <polygon points="55,22 63,22 58,25" fill="#DAA520"/>
-                        <circle cx="52" cy="19" r="2" fill="black"/>
-                        <path d="M22,25 Q5,8 28,18" fill="#654321"/>
-                        <path d="M35,25 Q55,5 40,18" fill="#654321"/>
-                        <polygon points="15,28 10,32 18,30" fill="#8B4513"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <ellipse cx="30" cy="25" rx="12" ry="7" fill="#8B4513"/>
-                        <circle cx="48" cy="22" r="7" fill="#8B4513"/>
-                        <polygon points="55,22 63,20 63,24" fill="#FFD700"/>
-                        <polygon points="55,22 63,22 58,25" fill="#DAA520"/>
-                        <circle cx="52" cy="19" r="2" fill="black"/>
-                        <path d="M22,25 Q5,38 28,32" fill="#654321"/>
-                        <path d="M35,25 Q55,40 40,32" fill="#654321"/>
-                        <polygon points="15,28 10,32 18,30" fill="#8B4513"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="25" rx="12" ry="7" fill="#8B4513"/>
+                            <circle cx="48" cy="22" r="7" fill="#8B4513"/>
+                            <polygon points="55,22 63,20 63,24" fill="#FFD700"/>
+                            <polygon points="55,22 63,22 58,25" fill="#DAA520"/>
+                            <circle cx="52" cy="19" r="2" fill="black"/>
+                            <path d="M22,25 Q5,8 28,18" fill="#654321"/>
+                            <path d="M35,25 Q55,5 40,18" fill="#654321"/>
+                            <polygon points="15,28 10,32 18,30" fill="#8B4513"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="25" rx="12" ry="7" fill="#8B4513"/>
+                            <circle cx="48" cy="22" r="7" fill="#8B4513"/>
+                            <polygon points="55,22 63,20 63,24" fill="#FFD700"/>
+                            <polygon points="55,22 63,22 58,25" fill="#DAA520"/>
+                            <circle cx="52" cy="19" r="2" fill="black"/>
+                            <path d="M22,25 Q5,38 28,32" fill="#654321"/>
+                            <path d="M35,25 Q55,40 40,32" fill="#654321"/>
+                            <polygon points="15,28 10,32 18,30" fill="#8B4513"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="32" rx="12" ry="7" fill="#7a3d10"/>
+                            <circle cx="46" cy="28" r="7" fill="#7a3d10"/>
+                            <polygon points="53,28 60,26 60,30" fill="#d4a017"/>
+                            <polygon points="53,28 60,28 56,31" fill="#b8860b"/>
+                            <ellipse cx="50" cy="26" rx="2" ry="1" fill="black"/>
+                            <path d="M22,30 Q18,28 16,32" fill="#5a3520"/>
+                            <path d="M38,30 Q42,28 44,32" fill="#5a3520"/>
+                            <ellipse cx="22" cy="38" rx="4" ry="2" fill="#d4a017"/>
+                            <ellipse cx="38" cy="38" rx="4" ry="2" fill="#d4a017"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <ellipse cx="30" cy="33" rx="12" ry="7" fill="#7a3d10"/>
+                            <circle cx="46" cy="29" r="7" fill="#7a3d10"/>
+                            <polygon points="53,29 60,27 60,31" fill="#d4a017"/>
+                            <polygon points="53,29 60,29 56,32" fill="#b8860b"/>
+                            <ellipse cx="50" cy="27" rx="2" ry="1" fill="black"/>
+                            <path d="M22,31 Q18,29 16,33" fill="#5a3520"/>
+                            <path d="M38,31 Q42,29 44,33" fill="#5a3520"/>
+                            <ellipse cx="22" cy="39" rx="4" ry="2" fill="#d4a017"/>
+                            <ellipse cx="38" cy="39" rx="4" ry="2" fill="#d4a017"/>
+                        </svg>`
+                    }
                 },
                 'scooter': { // 킥보드 - 바퀴 회전 (오른쪽 방향)
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <circle cx="12" cy="35" r="6" fill="#333"/>
-                        <circle cx="48" cy="35" r="6" fill="#333"/>
-                        <line x1="48" y1="35" x2="48" y2="15" stroke="#666" stroke-width="3"/>
-                        <line x1="12" y1="35" x2="48" y2="35" stroke="#333" stroke-width="2"/>
-                        <rect x="42" y="12" width="10" height="4" rx="2" fill="#666"/>
-                        <circle cx="25" cy="20" r="5" fill="#3498db"/>
-                        <line x1="25" y1="25" x2="25" y2="35" stroke="#333" stroke-width="2"/>
-                        <line x1="25" y1="35" x2="22" y2="42" stroke="#333" stroke-width="2"/>
-                        <line x1="25" y1="35" x2="28" y2="42" stroke="#333" stroke-width="2"/>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <circle cx="12" cy="35" r="6" fill="#333"/>
-                        <circle cx="48" cy="35" r="6" fill="#333"/>
-                        <line x1="48" y1="35" x2="48" y2="15" stroke="#666" stroke-width="3"/>
-                        <line x1="12" y1="35" x2="48" y2="35" stroke="#333" stroke-width="2"/>
-                        <rect x="42" y="12" width="10" height="4" rx="2" fill="#666"/>
-                        <circle cx="25" cy="20" r="5" fill="#3498db"/>
-                        <line x1="25" y1="25" x2="25" y2="35" stroke="#333" stroke-width="2"/>
-                        <line x1="25" y1="35" x2="28" y2="42" stroke="#333" stroke-width="2"/>
-                        <line x1="25" y1="35" x2="22" y2="42" stroke="#333" stroke-width="2"/>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="12" cy="35" r="6" fill="#333"/>
+                            <circle cx="48" cy="35" r="6" fill="#333"/>
+                            <line x1="48" y1="35" x2="48" y2="15" stroke="#666" stroke-width="3"/>
+                            <line x1="12" y1="35" x2="48" y2="35" stroke="#333" stroke-width="2"/>
+                            <rect x="42" y="12" width="10" height="4" rx="2" fill="#666"/>
+                            <circle cx="25" cy="20" r="5" fill="#3498db"/>
+                            <line x1="25" y1="25" x2="25" y2="35" stroke="#333" stroke-width="2"/>
+                            <line x1="25" y1="35" x2="22" y2="42" stroke="#333" stroke-width="2"/>
+                            <line x1="25" y1="35" x2="28" y2="42" stroke="#333" stroke-width="2"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="12" cy="35" r="6" fill="#333"/>
+                            <circle cx="48" cy="35" r="6" fill="#333"/>
+                            <line x1="48" y1="35" x2="48" y2="15" stroke="#666" stroke-width="3"/>
+                            <line x1="12" y1="35" x2="48" y2="35" stroke="#333" stroke-width="2"/>
+                            <rect x="42" y="12" width="10" height="4" rx="2" fill="#666"/>
+                            <circle cx="25" cy="20" r="5" fill="#3498db"/>
+                            <line x1="25" y1="25" x2="25" y2="35" stroke="#333" stroke-width="2"/>
+                            <line x1="25" y1="35" x2="28" y2="42" stroke="#333" stroke-width="2"/>
+                            <line x1="25" y1="35" x2="22" y2="42" stroke="#333" stroke-width="2"/>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="15" cy="38" r="6" fill="#444"/>
+                            <circle cx="45" cy="38" r="6" fill="#444"/>
+                            <line x1="45" y1="38" x2="40" y2="20" stroke="#555" stroke-width="3"/>
+                            <line x1="15" y1="38" x2="45" y2="38" stroke="#444" stroke-width="2"/>
+                            <rect x="35" y="17" width="8" height="4" rx="2" fill="#555"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <circle cx="15" cy="38" r="6" fill="#444"/>
+                            <circle cx="45" cy="38" r="6" fill="#444"/>
+                            <line x1="45" y1="38" x2="40" y2="20" stroke="#555" stroke-width="3"/>
+                            <line x1="15" y1="38" x2="45" y2="38" stroke="#444" stroke-width="2"/>
+                            <rect x="35" y="17" width="8" height="4" rx="2" fill="#555"/>
+                        </svg>`
+                    }
                 },
                 'helicopter': { // 헬리콥터 - 프로펠러 회전 (좌우반전)
-                    frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <g transform="translate(60, 0) scale(-1, 1)">
-                            <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
-                            <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
-                            <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
-                            <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
-                            <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
-                            <line x1="15" y1="10" x2="45" y2="10" stroke="#333" stroke-width="2"/>
-                            <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
-                            <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
-                            <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
-                        </g>
-                    </svg>`,
-                    frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
-                        <g transform="translate(60, 0) scale(-1, 1)">
-                            <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
-                            <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
-                            <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
-                            <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
-                            <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
-                            <line x1="20" y1="8" x2="40" y2="12" stroke="#333" stroke-width="2"/>
-                            <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
-                            <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
-                            <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
-                        </g>
-                    </svg>`
+                    run: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <g transform="translate(60, 0) scale(-1, 1)">
+                                <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
+                                <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
+                                <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
+                                <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
+                                <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
+                                <line x1="15" y1="10" x2="45" y2="10" stroke="#333" stroke-width="2"/>
+                                <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
+                                <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
+                                <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                            </g>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <g transform="translate(60, 0) scale(-1, 1)">
+                                <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
+                                <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
+                                <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
+                                <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
+                                <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
+                                <line x1="20" y1="8" x2="40" y2="12" stroke="#333" stroke-width="2"/>
+                                <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
+                                <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
+                                <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                            </g>
+                        </svg>`
+                    },
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <g transform="translate(60, 0) scale(-1, 1)">
+                                <ellipse cx="30" cy="28" rx="18" ry="10" fill="#a93226"/>
+                                <rect x="45" y="25" width="15" height="4" fill="#922b21"/>
+                                <polygon points="58,23 62,27 58,31" fill="#922b21"/>
+                                <circle cx="40" cy="25" r="5" fill="#5a8fa8"/>
+                                <line x1="30" y1="18" x2="30" y2="14" stroke="#444" stroke-width="2"/>
+                                <line x1="22" y1="14" x2="38" y2="14" stroke="#444" stroke-width="2"/>
+                                <line x1="25" y1="38" x2="25" y2="42" stroke="#444" stroke-width="2"/>
+                                <line x1="35" y1="38" x2="35" y2="42" stroke="#444" stroke-width="2"/>
+                                <line x1="20" y1="42" x2="40" y2="42" stroke="#444" stroke-width="2"/>
+                            </g>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <g transform="translate(60, 0) scale(-1, 1)">
+                                <ellipse cx="30" cy="28" rx="18" ry="10" fill="#a93226"/>
+                                <rect x="45" y="25" width="15" height="4" fill="#922b21"/>
+                                <polygon points="58,23 62,27 58,31" fill="#922b21"/>
+                                <circle cx="40" cy="25" r="5" fill="#5a8fa8"/>
+                                <line x1="30" y1="18" x2="30" y2="14" stroke="#444" stroke-width="2"/>
+                                <line x1="22" y1="14" x2="38" y2="14" stroke="#444" stroke-width="2"/>
+                                <line x1="25" y1="38" x2="25" y2="42" stroke="#444" stroke-width="2"/>
+                                <line x1="35" y1="38" x2="35" y2="42" stroke="#444" stroke-width="2"/>
+                                <line x1="20" y1="42" x2="40" y2="42" stroke="#444" stroke-width="2"/>
+                            </g>
+                        </svg>`
+                    }
                 },
                 'horse': { // 말 - 상태별 애니메이션
                     // === 대기 모션 (idle) - 제자리에서 발구르기, 머리 위아래 ===
@@ -4130,6 +4908,61 @@
                             <!-- 꼬리 (살짝 흔들림) -->
                             <path d="M16,27 Q13,29 11,33 Q9,37 8,40" fill="none" stroke="#654321" stroke-width="1.5"/>
                             <path d="M16,28 Q14,30 12,34 Q10,38 10,42" fill="none" stroke="#654321" stroke-width="1.2"/>
+                        </svg>`
+                    },
+                    // === 쉬는 모션 (rest) - 앉아서 쉬기 ===
+                    rest: {
+                        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <!-- 뒷다리 (접힌 상태) -->
+                            <ellipse cx="32" cy="36" rx="6" ry="4" fill="#654321"/>
+                            <ellipse cx="26" cy="38" rx="5" ry="3" fill="#654321"/>
+                            <!-- 몸통 (낮게) -->
+                            <ellipse cx="28" cy="32" rx="14" ry="8" fill="#7a3d10"/>
+                            <!-- 목 (낮게) -->
+                            <path d="M16,32 Q22,26 28,28 Q32,30 34,32" fill="#7a3d10"/>
+                            <!-- 앞다리 (접힌 상태) -->
+                            <ellipse cx="20" cy="38" rx="5" ry="3" fill="#5a3520"/>
+                            <ellipse cx="14" cy="36" rx="4" ry="3" fill="#5a3520"/>
+                            <!-- 머리 (낮게, 눈 감은 상태) -->
+                            <ellipse cx="42" cy="24" rx="8" ry="7" fill="#7a3d10"/>
+                            <ellipse cx="44" cy="22" rx="5" ry="4" fill="#8b5a2b"/>
+                            <!-- 귀 (늘어진) -->
+                            <path d="M36,18 Q37,14 39,16" fill="#5a3520"/>
+                            <path d="M39,18 Q40,14 42,16" fill="#5a3520"/>
+                            <!-- 눈 (감은 상태) -->
+                            <path d="M44,22 Q46,21 48,22" stroke="black" stroke-width="1.5" fill="none"/>
+                            <!-- 코 -->
+                            <ellipse cx="49" cy="25" rx="2.5" ry="2" fill="#5a3520"/>
+                            <!-- 갈기 (늘어진) -->
+                            <path d="M22,26 Q24,22 26,24" fill="#5a3520"/>
+                            <!-- 꼬리 (늘어진) -->
+                            <path d="M16,32 Q12,34 10,38 Q8,40 8,42" fill="none" stroke="#5a3520" stroke-width="1.5"/>
+                        </svg>`,
+                        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                            <!-- 뒷다리 (접힌 상태) -->
+                            <ellipse cx="32" cy="37" rx="6" ry="4" fill="#654321"/>
+                            <ellipse cx="26" cy="39" rx="5" ry="3" fill="#654321"/>
+                            <!-- 몸통 (낮게, 호흡) -->
+                            <ellipse cx="28" cy="33" rx="14" ry="7" fill="#7a3d10"/>
+                            <!-- 목 (낮게) -->
+                            <path d="M16,33 Q22,27 28,29 Q32,31 34,33" fill="#7a3d10"/>
+                            <!-- 앞다리 (접힌 상태) -->
+                            <ellipse cx="20" cy="39" rx="5" ry="3" fill="#5a3520"/>
+                            <ellipse cx="14" cy="37" rx="4" ry="3" fill="#5a3520"/>
+                            <!-- 머리 (낮게, 눈 감은 상태) -->
+                            <ellipse cx="42" cy="25" rx="8" ry="7" fill="#7a3d10"/>
+                            <ellipse cx="44" cy="23" rx="5" ry="4" fill="#8b5a2b"/>
+                            <!-- 귀 (늘어진) -->
+                            <path d="M36,19 Q37,15 39,17" fill="#5a3520"/>
+                            <path d="M39,19 Q40,15 42,17" fill="#5a3520"/>
+                            <!-- 눈 (감은 상태) -->
+                            <path d="M44,23 Q46,22 48,23" stroke="black" stroke-width="1.5" fill="none"/>
+                            <!-- 코 -->
+                            <ellipse cx="49" cy="26" rx="2.5" ry="2" fill="#5a3520"/>
+                            <!-- 갈기 (늘어진) -->
+                            <path d="M22,27 Q24,23 26,25" fill="#5a3520"/>
+                            <!-- 꼬리 (늘어진) -->
+                            <path d="M16,33 Q12,35 10,39 Q8,41 8,43" fill="none" stroke="#5a3520" stroke-width="1.5"/>
                         </svg>`
                     },
                     // === 달리기 모션 (run) - 기존 유지 ===
@@ -4831,8 +5664,9 @@
             // SVG 그림 가져오기 (크기 조절 가능)
             function getVehicleSVGForResult(vehicleId, size = 60) {
                 const svgs = getVehicleSVG(vehicleId);
-                // frame1 SVG에서 width/height 조절
-                let svg = svgs.frame1;
+                // frame1 SVG에서 width/height 조절 (run 또는 idle 상태 사용)
+                const stateData = svgs.run || svgs.idle || svgs;
+                let svg = stateData.frame1 || svgs.frame1;
                 svg = svg.replace(/width="60"/g, `width="${size}"`);
                 svg = svg.replace(/height="45"/g, `height="${Math.round(size * 0.75)}"`);
                 return svg;
@@ -5180,7 +6014,8 @@
             // SVG 가져오기 (작은 크기)
             function getSmallVehicleSVG(vehicleId) {
                 const svgs = getVehicleSVG(vehicleId);
-                let svg = svgs.frame1;
+                const stateData = svgs.run || svgs.idle || svgs;
+                let svg = stateData.frame1 || svgs.frame1;
                 svg = svg.replace(/width="60"/g, 'width="30"');
                 svg = svg.replace(/height="45"/g, 'height="22"');
                 return svg;
@@ -5288,6 +6123,11 @@
                 return;
             }
 
+            // 기존 사운드 정리
+            if (window.SoundManager) {
+                SoundManager.stopAll();
+            }
+
             // 다시보기 중 버튼 클릭 방지
             const replayBtn = document.getElementById('mainReplayButton');
             if (replayBtn) {
@@ -5373,6 +6213,11 @@
             if (!lastHorseRaceData) {
                 alert('다시보기 데이터가 없습니다.');
                 return;
+            }
+
+            // 기존 사운드 정리
+            if (window.SoundManager) {
+                SoundManager.stopAll();
             }
 
             addDebugLog('🔄 놓친 경주 다시보기 시작', 'replay');
@@ -5850,6 +6695,7 @@
         socket.on('horseSelectionReady', async (data) => {
             availableHorses = data.availableHorses || [];
             userHorseBets = data.userHorseBets || {};
+            selectedUsersFromServer = data.selectedUsers || [];  // 선택 완료자 목록
             horseRaceMode = data.horseRaceMode || 'last';
             selectedVehicleTypes = data.selectedVehicleTypes || null;
             popularVehicles = data.popularVehicles || [];
@@ -5955,18 +6801,22 @@
 
         // 말 선택 현황 업데이트 이벤트 (다른 사용자 선택 시)
         socket.on('horseSelectionUpdated', (data) => {
+            // 본인 선택만 저장 (서버에서 본인 것만 전송됨)
             userHorseBets = data.userHorseBets || {};
-            
-            const selectedCount = Object.keys(userHorseBets).length;
+
+            // 선택 완료자 목록 저장 (어떤 탈것인지는 모름, 이름만)
+            selectedUsersFromServer = data.selectedUsers || [];
+
+            const selectedCount = selectedUsersFromServer.length;
             addDebugLog(`말 선택 업데이트: ${selectedCount}명 선택`, 'selection');
-            
+
             // 내 선택 상태 확인 (선택 취소 시 undefined가 될 수 있음)
             if (userHorseBets[currentUser] !== undefined) {
                 mySelectedHorse = userHorseBets[currentUser];
             } else {
                 mySelectedHorse = null; // 선택 취소
             }
-            
+
             renderHorseSelection();
         });
 
@@ -5984,12 +6834,11 @@
                 });
             }
 
-            // 카운트다운 시점에 visibility 체크 (한번이라도 보면 OK)
-            const hasFocus = document.hasFocus();
+            // 카운트다운 시점에 visibility 체크 (탭이 보이면 OK)
             const isVisible = document.visibilityState === 'visible';
 
-            // 초기 상태 설정: 현재 보고 있으면 false, 아니면 true
-            missedAtCountdown = !(isVisible && hasFocus);
+            // 초기 상태 설정: 탭이 보이면 false, 숨겨져 있으면 true
+            missedAtCountdown = !isVisible;
 
             if (missedAtCountdown) {
                 addDebugLog(`⚠️ 카운트다운 시 화면 NOT visible → 복귀 대기`, 'visibility');
@@ -5998,18 +6847,20 @@
             // 카운트다운 중 탭 복귀 감지 (기존 리스너 정리)
             if (countdownVisibilityHandler) {
                 document.removeEventListener('visibilitychange', countdownVisibilityHandler);
-                document.removeEventListener('focus', countdownVisibilityHandler);
             }
             countdownVisibilityHandler = () => {
-                if (document.visibilityState === 'visible' && document.hasFocus()) {
+                if (document.visibilityState === 'visible') {
                     missedAtCountdown = false;
                     addDebugLog('✅ 카운트다운 중 탭 복귀 → 경주 놓침 해제', 'visibility');
                 }
             };
             document.addEventListener('visibilitychange', countdownVisibilityHandler);
-            document.addEventListener('focus', countdownVisibilityHandler);
 
-            if (window.SoundManager) SoundManager.playSound('horse-race_countdown', getHorseSoundEnabled());
+            // 사운드: 카운트다운 + 관중 웅성거림 시작 (저볼륨)
+            if (window.SoundManager) {
+                SoundManager.playSound('horse-race_countdown', getHorseSoundEnabled());
+                SoundManager.playLoop('horse-race_crowd', getHorseSoundEnabled(), 0.2);
+            }
             // 다시보기/게임종료 섹션 숨기기
             document.getElementById('replaySection').style.display = 'none';
             document.getElementById('endGameSection').style.display = 'none';
@@ -6026,11 +6877,10 @@
             }
 
             // 조건 완화: 카운트다운 한번이라도 봤거나 OR 출발 시점에 보고 있으면 OK
-            const hasFocus = document.hasFocus();
             const isVisible = document.visibilityState === 'visible';
-            const isActuallyVisible = !missedAtCountdown || (isVisible && hasFocus);
+            const isActuallyVisible = !missedAtCountdown || isVisible;
 
-            addDebugLog(`📨 horseRaceStarted 이벤트 수신 - visible: ${isVisible}, hasFocus: ${hasFocus}, missedAtCountdown: ${missedAtCountdown}`, 'info');
+            addDebugLog(`📨 horseRaceStarted 이벤트 수신 - visible: ${isVisible}, missedAtCountdown: ${missedAtCountdown}`, 'info');
 
             // 마지막 경주 데이터 저장 (다시보기용)
             lastHorseRaceData = data;
@@ -6046,6 +6896,11 @@
                 missedHorseRace = true;
                 missedAtCountdown = false; // 리셋
                 isRaceActive = false;
+
+                // 사운드 정지 (카운트다운에서 시작된 관중 소리)
+                if (window.SoundManager) {
+                    SoundManager.stopLoop('horse-race_crowd');
+                }
 
                 // 다시보기 섹션 표시
                 document.getElementById('horseReplaySection').style.display = 'block';
@@ -6070,13 +6925,18 @@
                 }, true);
             }
 
-            // 사운드: 출발 총소리 → 발굽/관객 루프
+            // 사운드: 출발 총소리 → 관중 볼륨 업 + BGM 시작
             if (window.SoundManager) {
                 SoundManager.playSound('horse-race_gunshot', getHorseSoundEnabled());
+                // 관중 볼륨 업 (0.2 → 0.7) + BGM 시작
                 setTimeout(() => {
-                    SoundManager.playLoop('horse-race_crowd', getHorseSoundEnabled(), 0.3);
+                    SoundManager.setVolume('horse-race_crowd', 0.7);
                     SoundManager.playLoop('horse-race_bgm', getHorseSoundEnabled(), 0.3);
-                }, 500);
+                }, 300);
+                // 레이스 중 관중 볼륨 안정화 (0.7 → 0.5)
+                setTimeout(() => {
+                    SoundManager.setVolume('horse-race_crowd', 0.5);
+                }, 2000);
             }
 
             // everPlayedUsers 업데이트
@@ -6123,16 +6983,44 @@
 
             // 경주 트랙 표시 (서버에서 받은 기믹 데이터 전달) - 콜백으로 종료 처리
             startRaceAnimation(data.horseRankings, data.speeds, data.gimmicks, (actualFinishOrder) => {
-                // 사운드: 루프 정지 → 결승 팡파레
+                // 사운드: 골인! 관중 최고조 → 환호 → 페이드아웃
                 if (window.SoundManager) {
-                    SoundManager.stopLoop('horse-race_crowd');
+                    // 슬로우모션 환호성 정지 (아직 재생 중이면)
+                    SoundManager.stopLoop('horse-race_slowmo_cheer');
+                    // 관중 환호 최고조 (1.0)
+                    SoundManager.setVolume('horse-race_crowd', 1.0);
+                    // BGM 정지
+                    SoundManager.stopLoop('horse-race_bgm');
+                    // 팡파레/환호 재생
                     SoundManager.playSound('horse-race_finish', getHorseSoundEnabled());
+                    SoundManager.playSound('horse-race_cheer_burst', getHorseSoundEnabled(), 0.8);
+                    // 3초 후 관중 페이드아웃
+                    setTimeout(() => {
+                        let vol = 1.0;
+                        const fadeInterval = setInterval(() => {
+                            vol -= 0.1;
+                            if (vol <= 0) {
+                                SoundManager.stopLoop('horse-race_crowd');
+                                clearInterval(fadeInterval);
+                            } else {
+                                SoundManager.setVolume('horse-race_crowd', vol);
+                            }
+                        }, 200);
+                    }, 3000);
                 }
                 // 경주 기록은 서버가 horseRaceEnded 이벤트로 전송 (중복 방지)
                 // 클라이언트 직접 push 제거 - 호스트 중복 및 라운드 번호 오류 해결
                 // 서버 순위 기준으로 결과 표시 (기믹에 의한 애니메이션 순서 차이 무시)
                 showRaceResult(data);
-            }, { trackDistanceMeters: data.trackDistanceMeters || 500 });
+
+                // 서버에 애니메이션 완료 알림 (서버가 결과 메시지 전송)
+                socket.emit('raceAnimationComplete');
+                console.log('[경마] 애니메이션 완료 → 서버에 알림 전송');
+            }, {
+                trackDistanceMeters: data.trackDistanceMeters || 500,
+                weatherSchedule: data.weatherSchedule || [],
+                weatherConfig: data.weatherConfig || {}
+            });
             
             // 게임 상태 업데이트
             const gameStatus = document.getElementById('gameStatus');
@@ -6422,14 +7310,45 @@
                 });
             }
             
-            // 사운드 체크박스 (기본 끔, localStorage와 로비/게임 섹션 체크박스 동기화)
-            setHorseSoundCheckboxes();
-            const hsc1 = document.getElementById('soundCheckbox');
-            const hsc2 = document.getElementById('createRoomSoundCheckbox');
-            const hsc3 = document.getElementById('gameSectionSoundCheckbox');
-            if (hsc1) hsc1.addEventListener('change', () => onHorseSoundChange(hsc1.checked));
-            if (hsc2) hsc2.addEventListener('change', () => onHorseSoundChange(hsc2.checked));
-            if (hsc3) hsc3.addEventListener('change', () => onHorseSoundChange(hsc3.checked));
+            // 볼륨 컨트롤 초기화 (기본 음소거, 볼륨 50%)
+            initVolumeFromStorage();
+            updateVolumeUI();
+
+            // SoundManager에 마스터 볼륨 getter 등록
+            if (window.SoundManager) {
+                SoundManager.setMasterVolumeGetter(getHorseMasterVolume);
+            }
+
+            // 탭 포커스 잃으면 소리 음소거, 복귀하면 다시 재생
+            document.addEventListener('visibilitychange', function() {
+                if (window.SoundManager) {
+                    if (document.hidden) {
+                        SoundManager.muteAll();
+                    } else {
+                        SoundManager.unmuteAll();
+                    }
+                }
+            });
+            window.addEventListener('blur', function() {
+                if (window.SoundManager) SoundManager.muteAll();
+            });
+            window.addEventListener('focus', function() {
+                if (window.SoundManager && document.visibilityState === 'visible') {
+                    SoundManager.unmuteAll();
+                }
+            });
+
+            // 로비 볼륨 컨트롤 이벤트
+            const volBtn1 = document.getElementById('volumeBtn');
+            const volSlider1 = document.getElementById('volumeSlider');
+            if (volBtn1) volBtn1.addEventListener('click', toggleMute);
+            if (volSlider1) volSlider1.addEventListener('input', (e) => setMasterVolume(e.target.value));
+
+            // 게임 섹션 볼륨 컨트롤 이벤트
+            const volBtn2 = document.getElementById('gameSectionVolumeBtn');
+            const volSlider2 = document.getElementById('gameSectionVolumeSlider');
+            if (volBtn2) volBtn2.addEventListener('click', toggleMute);
+            if (volSlider2) volSlider2.addEventListener('input', (e) => setMasterVolume(e.target.value));
             
             // 저장된 이름 불러오기
             const savedName = localStorage.getItem('horseRaceUserName');
