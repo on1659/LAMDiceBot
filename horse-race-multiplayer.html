@@ -2811,6 +2811,18 @@
         function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, trackOptions) {
             // idle 애니메이션 정리
             if (window._idleAnimInterval) { clearInterval(window._idleAnimInterval); window._idleAnimInterval = null; }
+
+            // 🔧 기존 경주 인터벌 정리 (중복 호출 방지)
+            if (window._raceAnimInterval) {
+                clearInterval(window._raceAnimInterval);
+                window._raceAnimInterval = null;
+                console.log('[경주] 기존 animationInterval 정리됨');
+            }
+            if (window._raceRankingInterval) {
+                clearInterval(window._raceRankingInterval);
+                window._raceRankingInterval = null;
+                console.log('[경주] 기존 rankingInterval 정리됨');
+            }
             // 이전 경주의 순위 이펙트 정리
             clearFinishEffects();
             
@@ -3526,7 +3538,7 @@
                 cutawayDisabled = false;
 
                 // JavaScript 기반 애니메이션 루프
-                animationInterval = setInterval(() => {
+                animationInterval = window._raceAnimInterval = setInterval(() => {
                     if (pausedAt > 0) return; // 일시정지 중
                     const now = Date.now();
                     const deltaTime = Math.min(now - lastFrameTime, 50);
@@ -4180,6 +4192,7 @@
                     if (shouldEndRace) {
                         clearInterval(animationInterval);
                         animationInterval = null;
+                        window._raceAnimInterval = null;
                         document.removeEventListener('visibilitychange', onVisChange);
 
                         // 슬로우모션 강제 해제
@@ -4241,6 +4254,7 @@
                                 if (rankingInterval) {
                                     clearInterval(rankingInterval);
                                     rankingInterval = null;
+                                    window._raceRankingInterval = null;
                                 }
                                 // 최종 순위 한 번 더 업데이트
                                 updateLiveRanking(horseStates);
@@ -4284,7 +4298,7 @@
                 }, 16);
                 
                 // 실시간 순위 업데이트 시작 (100ms 간격)
-                rankingInterval = setInterval(() => updateLiveRanking(horseStates), 100);
+                rankingInterval = window._raceRankingInterval = setInterval(() => updateLiveRanking(horseStates), 100);
                 updateLiveRanking(horseStates); // 즉시 첫 업데이트
             }, 500);
             
@@ -6226,7 +6240,9 @@
                 historyList.appendChild(item);
             });
         }
-        
+
+        // (시크바 다시보기 제거됨 - 단순 재생만 사용)
+
         // 마지막 경주 다시보기 (메인 다시보기 버튼)
         function playLastReplay() {
             if (horseRaceHistory.length === 0) {
@@ -6237,19 +6253,15 @@
             playReplay(record);
         }
 
-        // 다시보기 기능
+        // 다시보기 기능 (단순 재생, 시크바 없음)
         function playReplay(record) {
             if (!record) {
                 alert('기록을 찾을 수 없습니다.');
                 return;
             }
 
-            // 기존 사운드 정리
-            if (window.SoundManager) {
-                SoundManager.stopAll();
-            }
+            if (window.SoundManager) SoundManager.stopAll();
 
-            // 다시보기 중 버튼 클릭 방지
             const replayBtn = document.getElementById('mainReplayButton');
             if (replayBtn) {
                 replayBtn.disabled = true;
@@ -6258,75 +6270,54 @@
                 replayBtn.style.cursor = 'not-allowed';
             }
 
-            addDebugLog(`다시보기 시작: ${record.round}라운드`, 'replay');
-
-            // 말 선택 섹션 숨기기
             const horseSelectionSection = document.getElementById('horseSelectionSection');
-            if (horseSelectionSection) {
-                horseSelectionSection.classList.remove('active');
-            }
+            if (horseSelectionSection) horseSelectionSection.classList.remove('active');
 
-            // 결과 오버레이 숨기기
             const resultOverlay = document.getElementById('resultOverlay');
-            if (resultOverlay) {
-                resultOverlay.classList.remove('visible');
-            }
+            if (resultOverlay) resultOverlay.classList.remove('visible');
 
-            // 다시보기용 상태 임시 설정
             const originalSelectedVehicleTypes = selectedVehicleTypes;
             const originalUserHorseBets = userHorseBets;
             const originalAvailableHorses = availableHorses;
 
             selectedVehicleTypes = record.selectedVehicleTypes;
-            userHorseBets = record.userHorseBets;
+            userHorseBets = record.userHorseBets || {};
             availableHorses = record.availableHorses || record.rankings.map((_, i) => i);
 
             isRaceActive = true;
+            isReplayActive = true;
 
-            // 저장된 속도 데이터 사용 (없으면 순위 기반 생성)
-            let replaySpeeds;
-            if (record.speeds && Array.isArray(record.speeds)) {
-                replaySpeeds = record.speeds;
-            } else {
-                replaySpeeds = record.rankings.map((horseIndex, rank) => {
-                    const seedValue = (record.id + horseIndex) * 9301 + 49297;
-                    const pseudoRandom = ((seedValue % 233280) / 233280);
-                    return 3000 + rank * 500 + pseudoRandom * 200;
-                });
-            }
-
+            const horseRankings = record.rankings || [];
+            const replaySpeeds = record.speeds || horseRankings.map((_, rank) => 3000 + rank * 500);
             const replayGimmicks = record.gimmicks || null;
 
-            // 3-2-1 카운트다운 후 애니메이션 시작
-            isReplayActive = true;
             showCountdown();
             setTimeout(() => {
-                startRaceAnimation(record.rankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+                startRaceAnimation(horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
                     isRaceActive = false;
                     isReplayActive = false;
 
                     showRaceResult({
-                        winners: record.winners,
-                        horseRankings: record.rankings,
-                        horseRaceMode: record.mode
+                        winners: record.winners || [],
+                        horseRankings: actualFinishOrder || horseRankings,
+                        horseRaceMode: record.horseRaceMode || 'last'
                     }, true);
 
-                    // 원래 상태 복원
-                    setTimeout(() => {
-                        selectedVehicleTypes = originalSelectedVehicleTypes;
-                        userHorseBets = originalUserHorseBets;
-                        availableHorses = originalAvailableHorses;
+                    pendingRaceResultMessages.forEach(msg => ChatModule.displayChatMessage(msg));
+                    pendingRaceResultMessages = [];
 
-                        // 다시보기 버튼 다시 활성화
-                        if (replayBtn) {
-                            replayBtn.disabled = false;
-                            replayBtn.textContent = '🎬 다시보기';
-                            replayBtn.style.opacity = '1';
-                            replayBtn.style.cursor = 'pointer';
-                        }
-                    }, 100);
-                }, { trackDistanceMeters: record.trackDistanceMeters || 500 });
-            }, 4000); // 카운트다운 3-2-1-START = 4초
+                    selectedVehicleTypes = originalSelectedVehicleTypes;
+                    userHorseBets = originalUserHorseBets;
+                    availableHorses = originalAvailableHorses;
+
+                    if (replayBtn) {
+                        replayBtn.disabled = false;
+                        replayBtn.textContent = '🎬 다시보기';
+                        replayBtn.style.opacity = '1';
+                        replayBtn.style.cursor = 'pointer';
+                    }
+                });
+            }, 0);
         }
 
         // 놓친 경주 다시보기 (화면을 보지 않았을 때)
@@ -6814,6 +6805,12 @@
 
         // 말 선택 준비 이벤트
         socket.on('horseSelectionReady', async (data) => {
+            // 🔧 경주 중이면 무시 (트랙 초기화 방지)
+            if (isRaceActive) {
+                console.log('[horseSelectionReady] 경주 중이므로 무시');
+                return;
+            }
+
             availableHorses = data.availableHorses || [];
             userHorseBets = data.userHorseBets || {};
             selectedUsersFromServer = data.selectedUsers || [];  // 선택 완료자 목록
@@ -6924,6 +6921,12 @@
 
         // 말 선택 현황 업데이트 이벤트 (다른 사용자 선택 시)
         socket.on('horseSelectionUpdated', (data) => {
+            // 🔧 경주 중이면 무시 (트랙 초기화 방지)
+            if (isRaceActive) {
+                console.log('[horseSelectionUpdated] 경주 중이므로 무시');
+                return;
+            }
+
             // 본인 선택만 저장 (서버에서 본인 것만 전송됨)
             userHorseBets = data.userHorseBets || {};
 
@@ -7174,6 +7177,18 @@
 
         // 게임 완전 리셋 이벤트 (호스트가 게임 종료 버튼을 누른 경우)
         socket.on('horseRaceGameReset', (data) => {
+            // 🔧 경주 인터벌 정리 (경주 중 리셋 시 화면 깨짐 방지)
+            if (window._raceAnimInterval) {
+                clearInterval(window._raceAnimInterval);
+                window._raceAnimInterval = null;
+                console.log('[horseRaceGameReset] animationInterval 정리됨');
+            }
+            if (window._raceRankingInterval) {
+                clearInterval(window._raceRankingInterval);
+                window._raceRankingInterval = null;
+                console.log('[horseRaceGameReset] rankingInterval 정리됨');
+            }
+
             if (window.SoundManager) {
                 SoundManager.stopAll();
             }

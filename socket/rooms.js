@@ -801,6 +801,11 @@ module.exports = (socket, io, ctx) => {
         if (socket.userName) {
             gameState.readyUsers = gameState.readyUsers.filter(name => name !== socket.userName);
             gameState.gamePlayers = gameState.gamePlayers.filter(name => name !== socket.userName);
+
+            // 🔧 퇴장한 사용자의 말 선택 정보 삭제
+            if (gameState.userHorseBets && gameState.userHorseBets[socket.userName]) {
+                delete gameState.userHorseBets[socket.userName];
+            }
         }
 
         // 호스트가 나가는 경우
