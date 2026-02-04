@@ -266,10 +266,14 @@ module.exports = (socket, io, ctx) => {
             gameState.availableHorses
         ).catch(e => console.warn('탈것 통계 저장 실패:', e.message));
 
-        // 카운트다운 이벤트 전송 (3-2-1-START)
+        // 카운트다운 이벤트 전송 (3-2-1-START) + 모든 선택 공개
         io.to(room.roomId).emit('horseRaceCountdown', {
             duration: 4, // 3-2-1-START = 4초
-            raceRound: gameState.raceRound
+            raceRound: gameState.raceRound,
+            // 경기 시작 시 모든 선택 공개
+            userHorseBets: { ...gameState.userHorseBets },
+            selectedUsers: Object.keys(gameState.userHorseBets),
+            selectedHorseIndices: Object.values(gameState.userHorseBets)
         });
 
         // 카운트다운 후 경주 데이터 전송 (4초 대기)
@@ -500,17 +504,21 @@ module.exports = (socket, io, ctx) => {
                     const canSelectDuplicate = gameState.availableHorses.length < players.length;
                     gameState.users.forEach(u => {
                         const myBets = {};
+                        const mySelectedUsers = [];
+                        const mySelectedHorses = [];
                         if (gameState.userHorseBets[u.name] !== undefined) {
                             myBets[u.name] = gameState.userHorseBets[u.name];
+                            mySelectedUsers.push(u.name);
+                            mySelectedHorses.push(gameState.userHorseBets[u.name]);
                         }
                         io.to(u.id).emit('horseSelectionReady', {
                             availableHorses: gameState.availableHorses,
                             participants: players,
                             players: players, // 하위 호환성
-                            userHorseBets: myBets,  // 본인 선택만
-                            selectedUsers: selectedUsersList,  // 선택 완료자 목록
-                            selectedHorseIndices: selectedHorseIndices,  // 선택된 말 인덱스 목록
-                            canSelectDuplicate: canSelectDuplicate,  // 중복 선택 가능 여부
+                            userHorseBets: myBets,  // 본인 선택만 (뭘 선택했는지 숨김)
+                            selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
+                            selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
+                            canSelectDuplicate: canSelectDuplicate,
                             horseRaceMode: gameState.horseRaceMode || 'last',
                             raceRound: gameState.raceRound || 1,
                             selectedVehicleTypes: gameState.selectedVehicleTypes || null,
@@ -522,8 +530,6 @@ module.exports = (socket, io, ctx) => {
                 }).catch(() => {
                     const tpInfo = {};
                     for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
-                    const selectedUsersList = Object.keys(gameState.userHorseBets);
-                    const selectedHorseIndices = Object.values(gameState.userHorseBets);
                     const canSelectDuplicate = gameState.availableHorses.length < players.length;
                     gameState.users.forEach(u => {
                         const myBets = {};
@@ -534,10 +540,10 @@ module.exports = (socket, io, ctx) => {
                             availableHorses: gameState.availableHorses,
                             participants: players,
                             players: players,
-                            userHorseBets: myBets,  // 본인 선택만
-                            selectedUsers: selectedUsersList,  // 선택 완료자 목록
-                            selectedHorseIndices: selectedHorseIndices,  // 선택된 말 인덱스 목록
-                            canSelectDuplicate: canSelectDuplicate,  // 중복 선택 가능 여부
+                            userHorseBets: myBets,  // 본인 선택만 (뭘 선택했는지 숨김)
+                            selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
+                            selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
+                            canSelectDuplicate: canSelectDuplicate,
                             horseRaceMode: gameState.horseRaceMode || 'last',
                             raceRound: gameState.raceRound || 1,
                             selectedVehicleTypes: gameState.selectedVehicleTypes || null,
@@ -585,22 +591,34 @@ module.exports = (socket, io, ctx) => {
             console.log(`방 ${room.roomId}: ${userName}이(가) 말 ${horseIndex} ${previousSelection !== undefined ? '재선택' : '선택'}`);
         }
 
-        // 선택 현황 실시간 업데이트 (각 클라이언트에게 본인 선택만 + 선택 완료자 목록 전송)
-        const selectedUsersList = Object.keys(gameState.userHorseBets);
-        const selectedHorseIndices = Object.values(gameState.userHorseBets);
+        // 선택 현황 업데이트 (본인에게만 확인 전송, 다른 사람 선택은 경기 시작 시 공개)
         const canSelectDuplicate = gameState.availableHorses.length < players.length;
+        const allSelectedUsers = Object.keys(gameState.userHorseBets);  // 전체 선택자 목록
+
+        // 본인에게 선택 확인 전송 (본인이 뭘 선택했는지)
+        const myBets = {};
+        myBets[userName] = horseIndex;
+        socket.emit('horseSelectionUpdated', {
+            userHorseBets: myBets,  // 본인 선택만
+            selectedUsers: allSelectedUsers,  // 전체 선택자 (누가 선택했는지는 공개)
+            selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
+            canSelectDuplicate: canSelectDuplicate
+        });
+
+        // 다른 사람들에게 선택자 목록 업데이트 (누가 선택했는지만, 뭘 선택했는지는 숨김)
         gameState.users.forEach(u => {
-            const myBets = {};
-            // 본인 선택만 포함
-            if (gameState.userHorseBets[u.name] !== undefined) {
-                myBets[u.name] = gameState.userHorseBets[u.name];
+            if (u.id !== socket.id) {
+                const theirBets = {};
+                if (gameState.userHorseBets[u.name] !== undefined) {
+                    theirBets[u.name] = gameState.userHorseBets[u.name];
+                }
+                io.to(u.id).emit('horseSelectionUpdated', {
+                    userHorseBets: theirBets,  // 그 사람 본인 선택만
+                    selectedUsers: allSelectedUsers,  // 전체 선택자 (누가 선택했는지는 공개)
+                    selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
+                    canSelectDuplicate: canSelectDuplicate
+                });
             }
-            io.to(u.id).emit('horseSelectionUpdated', {
-                userHorseBets: myBets,  // 본인 선택만
-                selectedUsers: selectedUsersList,  // 선택 완료자 이름 목록 (어떤 탈것인지는 모름)
-                selectedHorseIndices: selectedHorseIndices,  // 선택된 말 인덱스 목록
-                canSelectDuplicate: canSelectDuplicate  // 중복 선택 가능 여부
-            });
         });
 
         console.log(`방 ${room.roomName}: ${userName}이(가) 말 ${horseIndex} 선택`);
@@ -612,11 +630,12 @@ module.exports = (socket, io, ctx) => {
         if (!gameState.isHorseRaceActive) {
             // 모든 사람이 선택했는지 확인하여 호스트에게 알림
             if (allSelected) {
-                // 호스트에게 게임 시작 가능 알림
+                // 호스트에게 게임 시작 가능 알림 (선택 내역은 숨김, 카운트다운 때 공개)
                 const host = gameState.users.find(u => u.isHost);
                 if (host) {
                     io.to(host.id).emit('allHorsesSelected', {
-                        userHorseBets: { ...gameState.userHorseBets },
+                        userHorseBets: {},  // 선택 내역은 숨김 (3-2-1 카운트다운 때 공개)
+                        selectedCount: Object.keys(gameState.userHorseBets).length,  // 선택한 인원 수만
                         players: players
                     });
                 }

@@ -696,6 +696,7 @@
 
         /* 준비 섹션 */
         .ready-section {
+            display: none; /* 초기에 숨김, JS에서 조건부 표시 */
             background: #f5e6d3;
             padding: 15px;
             border-radius: 8px;
@@ -2536,14 +2537,14 @@
                 grid.parentElement.insertBefore(trackLengthContainer, grid);
             }
             if (isHost) {
-                const trackColors = { short: '#4ade80', medium: '#60a5fa', long: '#fbbf24' };
+                const activeColor = '#fbbf24'; // 모든 트랙 버튼 노란색 통일
                 const trackLabels = { short: '짧게', medium: '보통', long: '길게' };
                 const presets = trackPresetsFromServer;
                 let btnsHtml = '<span style="font-size: 12px; color: #ccc;">트랙:</span>';
                 for (const key of ['short', 'medium', 'long']) {
                     const isActive = currentTrackLength === key;
                     btnsHtml += `<button class="track-length-btn" data-length="${key}"
-                        style="padding: 4px 10px; border-radius: 12px; border: 1px solid #555; background: ${isActive ? trackColors[key] : '#333'}; color: ${isActive ? '#000' : '#ccc'}; cursor: pointer; font-size: 11px; font-weight: bold;">
+                        style="padding: 4px 10px; border-radius: 12px; border: 1px solid #555; background: ${isActive ? activeColor : '#333'}; color: ${isActive ? '#000' : '#ccc'}; cursor: pointer; font-size: 11px; font-weight: bold;">
                         ${trackLabels[key]} (${presets[key]}m)
                     </button>`;
                 }
@@ -2560,10 +2561,10 @@
                             b.style.color = '#ccc';
                             b.style.boxShadow = 'none';
                         });
-                        const colors = { short: '#4ade80', medium: '#60a5fa', long: '#fbbf24' };
-                        btn.style.background = colors[btn.dataset.length] || '#4ade80';
+                        const activeColor = '#fbbf24'; // 노란색 통일
+                        btn.style.background = activeColor;
                         btn.style.color = '#000';
-                        btn.style.boxShadow = '0 0 8px ' + (colors[btn.dataset.length] || '#4ade80') + '80';
+                        btn.style.boxShadow = '0 0 8px ' + activeColor + '80';
                         socket.emit('setTrackLength', { trackLength: btn.dataset.length });
 
                         // 트랙 미리보기 즉시 갱신
@@ -6572,7 +6573,16 @@
                 document.getElementById('myOrderInput').disabled = true;
                 document.getElementById('orderSaveButton').disabled = true;
 
-                if (!isRaceActive) {
+                // 서버에서 받은 게임 진행 상태 확인
+                const serverIsRaceActive = (data.gameState && data.gameState.isHorseRaceActive) || data.isGameActive;
+                if (serverIsRaceActive) {
+                    isRaceActive = true; // 클라이언트 상태도 동기화
+                    document.getElementById('gameStatus').textContent = '게임 진행 중';
+                    document.getElementById('gameStatus').classList.remove('waiting', 'ordering');
+                    document.getElementById('gameStatus').classList.add('playing');
+                    document.getElementById('gameStatus').style.background = '#fff3cd';
+                    document.getElementById('gameStatus').style.color = '#856404';
+                } else if (!isRaceActive) {
                     document.getElementById('gameStatus').textContent = '대기 중...';
                     document.getElementById('gameStatus').classList.remove('ordering');
                     document.getElementById('gameStatus').classList.add('waiting');
@@ -6679,6 +6689,10 @@
             isHost = true;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
+            // 게임 진행 상태를 먼저 동기화 (initReadyModule 전에 필요)
+            if ((data.gameState && data.gameState.isHorseRaceActive) || data.isGameActive) {
+                isRaceActive = true;
+            }
             initReadyModule();
             initOrderModule();
 
@@ -6692,7 +6706,15 @@
                     availableHorses = data.gameState.availableHorses;
                 }
                 if (data.gameState.userHorseBets) {
-                    userHorseBets = data.gameState.userHorseBets;
+                    // 경기 중이면 전체 표시, 아니면 본인 선택만
+                    if (data.gameState.isHorseRaceActive || isRaceActive) {
+                        userHorseBets = data.gameState.userHorseBets;
+                    } else {
+                        userHorseBets = {};
+                        if (data.gameState.userHorseBets[currentUser] !== undefined) {
+                            userHorseBets[currentUser] = data.gameState.userHorseBets[currentUser];
+                        }
+                    }
                 }
                 if (data.gameState.horseRaceMode) {
                     horseRaceMode = data.gameState.horseRaceMode;
@@ -6728,6 +6750,10 @@
             isHost = data.isHost;
             isReady = data.isReady || false;
             readyUsers = data.readyUsers || [];
+            // 게임 진행 상태를 먼저 동기화 (initReadyModule 전에 필요)
+            if ((data.gameState && data.gameState.isHorseRaceActive) || data.isGameActive) {
+                isRaceActive = true;
+            }
             initReadyModule();
             initOrderModule();
 
@@ -6741,7 +6767,15 @@
                     availableHorses = data.gameState.availableHorses;
                 }
                 if (data.gameState.userHorseBets) {
-                    userHorseBets = data.gameState.userHorseBets;
+                    // 경기 중이면 전체 표시, 아니면 본인 선택만
+                    if (data.gameState.isHorseRaceActive || isRaceActive) {
+                        userHorseBets = data.gameState.userHorseBets;
+                    } else {
+                        userHorseBets = {};
+                        if (data.gameState.userHorseBets[currentUser] !== undefined) {
+                            userHorseBets[currentUser] = data.gameState.userHorseBets[currentUser];
+                        }
+                    }
                 }
                 if (data.gameState.horseRaceMode) {
                     horseRaceMode = data.gameState.horseRaceMode;
@@ -6750,11 +6784,17 @@
                     horseRaceHistory = data.gameState.horseRaceHistory;
                     renderHistory();
                 }
+                if (data.gameState.trackLength) {
+                    currentTrackLength = data.gameState.trackLength;
+                    // trackLength에 따라 미터 값 설정
+                    const trackMeters = { short: 500, medium: 700, long: 1000 };
+                    currentTrackDistanceMeters = trackMeters[currentTrackLength] || 700;
+                }
             }
 
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
-            
+
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
 
@@ -6878,13 +6918,13 @@
             currentTrackDistanceMeters = data.trackDistanceMeters || 500;
             if (data.trackPresets) trackPresetsFromServer = data.trackPresets;
             // 버튼 상태 업데이트
-            const tColors = { short: '#4ade80', medium: '#60a5fa', long: '#fbbf24' };
+            const activeColor = '#fbbf24'; // 노란색 통일
             document.querySelectorAll('.track-length-btn').forEach(btn => {
                 const key = btn.dataset.length;
                 const isActive = key === currentTrackLength;
-                btn.style.background = isActive ? tColors[key] : '#333';
+                btn.style.background = isActive ? activeColor : '#333';
                 btn.style.color = isActive ? '#000' : '#ccc';
-                btn.style.boxShadow = isActive ? `0 0 8px ${tColors[key]}80` : 'none';
+                btn.style.boxShadow = isActive ? `0 0 8px ${activeColor}80` : 'none';
                 if (trackPresetsFromServer[key]) {
                     const labels = { short: '짧게', medium: '보통', long: '길게' };
                     btn.textContent = `${labels[key]} (${trackPresetsFromServer[key]}m)`;
@@ -6954,6 +6994,13 @@
         let missedAtCountdown = false;
         socket.on('horseRaceCountdown', (data) => {
             addDebugLog(`카운트다운 시작: ${data.duration}초`, 'race');
+
+            // 카운트다운 시작 시 모든 선택 공개
+            if (data.userHorseBets) {
+                userHorseBets = data.userHorseBets;
+                renderHorseSelection(); // UI 업데이트 (모든 선택 표시)
+                addDebugLog(`선택 공개: ${JSON.stringify(data.userHorseBets)}`, 'selection');
+            }
 
             // 모바일 사용자에게 경고 메시지 표시
             if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {

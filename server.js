@@ -23,7 +23,7 @@ const io = socketIo(server, {
 
 // Rate Limiting 설정
 const RATE_WINDOW_MS = 1 * 60 * 1000;
-const RATE_MAX = 100;
+const RATE_MAX = 300;
 const limiter = rateLimit({
     windowMs: RATE_WINDOW_MS,
     max: RATE_MAX,

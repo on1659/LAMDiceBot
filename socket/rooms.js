@@ -342,20 +342,34 @@ module.exports = (socket, io, ctx) => {
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             userColors: gameState.userColors || {}, // 사용자 색상 정보
             gameState: {
-                ...gameState,
-                hasRolled: () => false,
-                myResult: null,
-                frequentMenus: gameState.frequentMenus,
-                // 경마 게임 상태 포함
+                // 순환 참조 방지를 위해 필요한 속성만 명시적으로 전송
+                users: gameState.users.map(u => ({ id: u.id, name: u.name, isHost: u.isHost })),
+                isGameActive: gameState.isGameActive || false,
+                isOrderActive: gameState.isOrderActive || false,
+                history: gameState.history || [],
+                rolledUsers: gameState.rolledUsers || [],
+                gamePlayers: gameState.gamePlayers || [],
+                everPlayedUsers: gameState.everPlayedUsers || [],
+                readyUsers: gameState.readyUsers || [],
+                userOrders: gameState.userOrders || {},
+                gameRules: gameState.gameRules || '',
+                frequentMenus: gameState.frequentMenus || [],
+                userColors: gameState.userColors || {},
+                // 경마 게임 상태
                 availableHorses: gameState.availableHorses || [],
-                userHorseBets: gameState.userHorseBets || {},
+                // 방 생성 시 호스트 본인 선택만 (일관성)
+                userHorseBets: gameState.userHorseBets[userName.trim()] !== undefined
+                    ? { [userName.trim()]: gameState.userHorseBets[userName.trim()] }
+                    : {},
                 horseRaceMode: gameState.horseRaceMode || 'last',
                 isHorseRaceActive: gameState.isHorseRaceActive || false,
                 selectedVehicleTypes: gameState.selectedVehicleTypes || null,
                 horseRaceHistory: gameState.horseRaceHistory || [],
-                isOrderActive: gameState.isOrderActive || false,
-                userOrders: gameState.userOrders || {},
-                frequentMenus: gameState.frequentMenus || []
+                horseRankings: gameState.horseRankings || [],
+                trackLength: gameState.trackLength || 'medium',
+                // 추가 정보
+                hasRolled: false,
+                myResult: null
             }
         };
         socket.emit('roomCreated', roomCreatedData);
@@ -364,15 +378,27 @@ module.exports = (socket, io, ctx) => {
         if (validGameType === 'horse-race' && !gameState.isHorseRaceActive) {
             const players = gameState.users.map(u => u.name);
             if (players.length >= 1 && gameState.availableHorses && gameState.availableHorses.length > 0) {
-                // 호스트에게 말 선택 UI 표시
+                // 호스트에게 말 선택 UI 표시 (본인 선택만)
+                const hostBets = {};
+                if (gameState.userHorseBets[userName.trim()] !== undefined) {
+                    hostBets[userName.trim()] = gameState.userHorseBets[userName.trim()];
+                }
+                const canSelectDuplicate = gameState.availableHorses.length < players.length;
+                const trackMeters = { short: 500, medium: 700, long: 1000 };
+                const currentTrackLen = gameState.trackLength || 'medium';
                 socket.emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
                     participants: players,
                     players: players, // 하위 호환성
-                    userHorseBets: { ...gameState.userHorseBets },
+                    userHorseBets: hostBets,  // 본인 선택만 (뭘 선택했는지 숨김)
+                    selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
+                    selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
+                    canSelectDuplicate: canSelectDuplicate,
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
-                    selectedVehicleTypes: gameState.selectedVehicleTypes
+                    selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    trackLength: currentTrackLen,
+                    trackDistanceMeters: trackMeters[currentTrackLen] || 700
                 });
             }
         }
@@ -511,20 +537,36 @@ module.exports = (socket, io, ctx) => {
                     everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
                     userColors: gameState.userColors || {}, // 사용자 색상 정보
                     gameState: {
-                        ...gameState,
-                        hasRolled: () => gameState.rolledUsers.includes(userName.trim()),
-                        myResult: myResult,
-                        frequentMenus: gameState.frequentMenus,
-                        // 경마 게임 상태 포함
+                        // 순환 참조 방지를 위해 필요한 속성만 명시적으로 전송
+                        users: gameState.users.map(u => ({ id: u.id, name: u.name, isHost: u.isHost })),
+                        isGameActive: gameState.isGameActive || false,
+                        isOrderActive: gameState.isOrderActive || false,
+                        history: gameState.history || [],
+                        rolledUsers: gameState.rolledUsers || [],
+                        gamePlayers: gameState.gamePlayers || [],
+                        everPlayedUsers: gameState.everPlayedUsers || [],
+                        readyUsers: gameState.readyUsers || [],
+                        userOrders: gameState.userOrders || {},
+                        gameRules: gameState.gameRules || '',
+                        frequentMenus: gameState.frequentMenus || [],
+                        userColors: gameState.userColors || {},
+                        // 경마 게임 상태
                         availableHorses: gameState.availableHorses || [],
-                        userHorseBets: gameState.userHorseBets || {},
+                        // 경기 중이면 전체 공개, 아니면 본인 선택만
+                        userHorseBets: gameState.isHorseRaceActive
+                            ? (gameState.userHorseBets || {})
+                            : (gameState.userHorseBets[userName.trim()] !== undefined
+                                ? { [userName.trim()]: gameState.userHorseBets[userName.trim()] }
+                                : {}),
                         horseRaceMode: gameState.horseRaceMode || 'last',
                         isHorseRaceActive: gameState.isHorseRaceActive || false,
                         selectedVehicleTypes: gameState.selectedVehicleTypes || null,
                         horseRaceHistory: gameState.horseRaceHistory || [],
-                        isOrderActive: gameState.isOrderActive || false,
-                        userOrders: gameState.userOrders || {},
-                        frequentMenus: gameState.frequentMenus || []
+                        horseRankings: gameState.horseRankings || [],
+                        trackLength: gameState.trackLength || 'medium',
+                        // 추가 정보
+                        hasRolled: gameState.rolledUsers.includes(userName.trim()),
+                        myResult: myResult
                     }
                 });
 
@@ -549,15 +591,27 @@ module.exports = (socket, io, ctx) => {
                             console.log(`[방 입장] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
                         }
 
-                        // 모든 클라이언트에게 말 선택 UI 표시 (늦게 들어온 사용자 포함)
-                        io.to(roomId).emit('horseSelectionReady', {
+                        // 재접속한 사용자에게만 말 선택 UI 표시 (본인 선택만)
+                        const canSelectDuplicate = gameState.availableHorses.length < players.length;
+                        const myHorseBets = {};
+                        if (gameState.userHorseBets[userName.trim()] !== undefined) {
+                            myHorseBets[userName.trim()] = gameState.userHorseBets[userName.trim()];
+                        }
+                        const trackMeters = { short: 500, medium: 700, long: 1000 };
+                        const currentTrackLen = gameState.trackLength || 'medium';
+                        socket.emit('horseSelectionReady', {
                             availableHorses: gameState.availableHorses,
                             participants: players,
                             players: players, // 하위 호환성
-                            userHorseBets: { ...gameState.userHorseBets },
+                            userHorseBets: myHorseBets,  // 본인 선택만 (뭘 선택했는지 숨김)
+                            selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
+                            selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김 (3-2-1 때 공개)
+                            canSelectDuplicate: canSelectDuplicate,
                             horseRaceMode: gameState.horseRaceMode || 'last',
                             raceRound: gameState.raceRound || 1,
-                            selectedVehicleTypes: gameState.selectedVehicleTypes
+                            selectedVehicleTypes: gameState.selectedVehicleTypes,
+                            trackLength: currentTrackLen,
+                            trackDistanceMeters: trackMeters[currentTrackLen] || 700
                         });
                     }
                 }
@@ -701,20 +755,36 @@ module.exports = (socket, io, ctx) => {
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             userColors: gameState.userColors || {}, // 사용자 색상 정보
             gameState: {
-                ...gameState,
-                hasRolled: () => gameState.rolledUsers.includes(finalUserName),
-                myResult: myResult,
-                frequentMenus: gameState.frequentMenus,
-                // 경마 게임 상태 포함 (새 사용자 입장 시에도 필요)
+                // 순환 참조 방지를 위해 필요한 속성만 명시적으로 전송
+                users: gameState.users.map(u => ({ id: u.id, name: u.name, isHost: u.isHost })),
+                isGameActive: gameState.isGameActive || false,
+                isOrderActive: gameState.isOrderActive || false,
+                history: gameState.history || [],
+                rolledUsers: gameState.rolledUsers || [],
+                gamePlayers: gameState.gamePlayers || [],
+                everPlayedUsers: gameState.everPlayedUsers || [],
+                readyUsers: gameState.readyUsers || [],
+                userOrders: gameState.userOrders || {},
+                gameRules: gameState.gameRules || '',
+                frequentMenus: gameState.frequentMenus || [],
+                userColors: gameState.userColors || {},
+                // 경마 게임 상태
                 availableHorses: gameState.availableHorses || [],
-                userHorseBets: gameState.userHorseBets || {},
+                // 경기 중이면 전체 공개, 아니면 본인 선택만
+                userHorseBets: gameState.isHorseRaceActive
+                    ? (gameState.userHorseBets || {})
+                    : (gameState.userHorseBets[finalUserName] !== undefined
+                        ? { [finalUserName]: gameState.userHorseBets[finalUserName] }
+                        : {}),
                 horseRaceMode: gameState.horseRaceMode || 'last',
                 isHorseRaceActive: gameState.isHorseRaceActive || false,
                 selectedVehicleTypes: gameState.selectedVehicleTypes || null,
                 horseRaceHistory: gameState.horseRaceHistory || [],
-                isOrderActive: gameState.isOrderActive || false,
-                userOrders: gameState.userOrders || {},
-                frequentMenus: gameState.frequentMenus || []
+                horseRankings: gameState.horseRankings || [],
+                trackLength: gameState.trackLength || 'medium',
+                // 추가 정보
+                hasRolled: gameState.rolledUsers.includes(finalUserName),
+                myResult: myResult
             }
         });
 
@@ -744,17 +814,22 @@ module.exports = (socket, io, ctx) => {
                 const canSelectDuplicate = gameState.availableHorses.length < players.length;
 
                 // 새로 입장한 사용자에게 말 선택 UI 표시
+                // 트랙 프리셋 (horse.js와 동일)
+                const trackMeters = { short: 500, medium: 700, long: 1000 };
+                const currentTrackLen = gameState.trackLength || 'medium';
                 socket.emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
                     participants: players,
                     players: players,
                     userHorseBets: {},  // 새 사용자는 본인 선택 없음
-                    selectedUsers: Object.keys(gameState.userHorseBets),
-                    selectedHorseIndices: selectedHorseIndices,
+                    selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
+                    selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
                     canSelectDuplicate: canSelectDuplicate,
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
-                    selectedVehicleTypes: gameState.selectedVehicleTypes
+                    selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    trackLength: currentTrackLen,
+                    trackDistanceMeters: trackMeters[currentTrackLen] || 700
                 });
                 console.log(`[새 사용자 입장] ${finalUserName}에게 horseSelectionReady 전송, canSelectDuplicate: ${canSelectDuplicate}`);
 
@@ -767,8 +842,8 @@ module.exports = (socket, io, ctx) => {
                         }
                         io.to(u.id).emit('horseSelectionUpdated', {
                             userHorseBets: myBets,
-                            selectedUsers: Object.keys(gameState.userHorseBets),
-                            selectedHorseIndices: selectedHorseIndices,
+                            selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
+                            selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
                             canSelectDuplicate: canSelectDuplicate
                         });
                     }
@@ -900,7 +975,6 @@ module.exports = (socket, io, ctx) => {
         if (rooms[roomId] && room.gameType === 'horse-race' && !gameState.isHorseRaceActive) {
             const players = gameState.users.map(u => u.name);
             if (players.length > 0 && gameState.availableHorses && gameState.availableHorses.length > 0) {
-                const selectedHorseIndices = Object.values(gameState.userHorseBets);
                 const canSelectDuplicate = gameState.availableHorses.length < players.length;
 
                 gameState.users.forEach(u => {
@@ -910,8 +984,8 @@ module.exports = (socket, io, ctx) => {
                     }
                     io.to(u.id).emit('horseSelectionUpdated', {
                         userHorseBets: myBets,
-                        selectedUsers: Object.keys(gameState.userHorseBets),
-                        selectedHorseIndices: selectedHorseIndices,
+                        selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
+                        selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
                         canSelectDuplicate: canSelectDuplicate
                     });
                 });
