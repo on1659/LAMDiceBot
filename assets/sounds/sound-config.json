@@ -18,9 +18,10 @@
   "roulette_bgm": "assets/sounds/roulette/bgm.mp3",
   "horse-race_bgm": "assets/sounds/horse-race/bgm.mp3",
   "horse-race_slowmo_cheer": "assets/sounds/horse-race/slowmo.mp3",
-  "horse-race_cheer_burst": "assets/sounds/horse-race/crowd.mp3",
+  "horse-race_cheer_burst": "assets/sounds/horse-race/cheer_burst.mp3",
   "team_bgm": "assets/sounds/team/bgm.mp3"
 }
+
 
 
 
