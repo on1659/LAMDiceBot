@@ -837,14 +837,14 @@ function renderHorseSelection() {
         if (idleData && idleData.frame1) {
             const uid = `idle_${horseIndex}`;
             // 4프레임: frame1(원위치) → frame2(살짝위) → frame1(원위치) → frame2(살짝아래)
-            vehicleDisplay = `<div style="width: 60px; height: 45px; margin: 0 auto; position: relative;">
+            vehicleDisplay = `<div class="vehicle-display" style="width: 60px; height: 45px; margin: 0 auto; position: relative;">
                 <div id="${uid}_wrap" style="position:absolute;inset:0;transition:transform 0.3s ease-in-out;">
                     <div id="${uid}_f1" style="position:absolute;inset:0;">${idleData.frame1}</div>
                     <div id="${uid}_f2" style="position:absolute;inset:0;opacity:0;">${idleData.frame2 || idleData.frame1}</div>
                 </div>
             </div>`;
         } else {
-            vehicleDisplay = `<div style="font-size: 48px;">${vehicle.emoji}</div>`;
+            vehicleDisplay = `<div class="vehicle-display" style="font-size: 48px;">${vehicle.emoji}</div>`;
         }
         let content = vehicleDisplay;
         const isPopular = popularVehicles.includes(vehicleId);
@@ -876,7 +876,60 @@ function renderHorseSelection() {
         
         grid.appendChild(button);
     });
-    
+
+    // 랜덤 선택 버튼 추가
+    const randomButton = document.createElement('button');
+    randomButton.className = 'horse-selection-button random-select';
+    randomButton.id = 'randomSelectButton';
+
+    // 탈것 6개 이상이면 직사각형 (가로로 꽉 차게)
+    if (availableHorses.length >= 6) {
+        randomButton.style.gridColumn = '1 / -1';  // 전체 가로 차지
+        randomButton.style.height = '60px';
+    }
+
+    // 이미 랜덤 선택했는지 확인
+    const isRandomSelected = mySelectedHorse !== null && window._isRandomSelection;
+    if (isRandomSelected) {
+        randomButton.classList.add('selected');
+    }
+
+    // 6개 이상이면 가로 레이아웃, 아니면 세로 레이아웃
+    if (availableHorses.length >= 6) {
+        randomButton.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
+                <span style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">🎲</span>
+                <span style="font-size:14px;font-weight:bold;color:#e94560;">랜덤 선택!!</span>
+            </div>
+        `;
+    } else {
+        randomButton.innerHTML = `
+            <div class="vehicle-card-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;">
+                <div style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">🎲</div>
+                <div class="vehicle-name" style="font-size:12px;">랜덤!</div>
+                <div class="vehicle-stats" style="font-size:9px;color:#888;">뭘 골랐는지 몰라요</div>
+            </div>
+        `;
+    }
+
+    randomButton.onclick = () => {
+        if (!readyUsers.includes(currentUser)) {
+            showToast('먼저 준비를 해주세요!');
+            return;
+        }
+        // 현재 선택한 말 제외하고 랜덤 선택
+        const choices = availableHorses.filter(h => h !== mySelectedHorse);
+        if (choices.length === 0) {
+            showToast('선택할 수 있는 탈것이 없습니다!');
+            return;
+        }
+        const randomIndex = choices[Math.floor(Math.random() * choices.length)];
+        selectHorse(randomIndex);
+    };
+
+    // 랜덤 버튼을 맨 앞에 추가
+    grid.insertBefore(randomButton, grid.firstChild);
+
     console.log('[renderHorseSelection] 완료', {
         생성된_버튼_수: grid.children.length,
         availableHorses: availableHorses.length
@@ -905,6 +958,21 @@ function renderHorseSelection() {
         });
         idleFrame++;
     }, 300);
+
+    // 선택된 탈것 랜덤 춤 애니메이션 (1~2초마다)
+    if (window._selectedDanceTimeout) clearTimeout(window._selectedDanceTimeout);
+    function triggerRandomDance() {
+        const selectedButtons = document.querySelectorAll('.horse-selection-button.selected .vehicle-display');
+        selectedButtons.forEach(el => {
+            el.classList.remove('dancing');
+            void el.offsetWidth; // reflow 트리거
+            el.classList.add('dancing');
+            setTimeout(() => el.classList.remove('dancing'), 600);
+        });
+        // 다음 춤은 1~2초 후 랜덤
+        window._selectedDanceTimeout = setTimeout(triggerRandomDance, 1000 + Math.random() * 1000);
+    }
+    window._selectedDanceTimeout = setTimeout(triggerRandomDance, 1000 + Math.random() * 1000);
 
     // 탈것 선택 안한 사람 표시 (주사위 게임의 "주사위 안 굴린 사람"과 동일한 방식)
     const notSelectedSection = document.getElementById('notSelectedVehicleSection');
@@ -1266,6 +1334,19 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         `;
         horse.style.overflow = 'visible';
         horse.appendChild(arrow);
+
+        // 점프 기능 - 내 탈것 클릭 시 점프 애니메이션
+        const isMyHorse = userHorseBets[currentUser] === horseIndex;
+        if (isMyHorse) {
+            horse.style.cursor = 'pointer';
+            horse.addEventListener('click', () => {
+                if (!isRaceActive) return;  // 경주 중일 때만
+                if (horse.classList.contains('jumping')) return;  // 점프 중 방지
+
+                horse.classList.add('jumping');
+                setTimeout(() => horse.classList.remove('jumping'), 400);
+            });
+        }
 
         track.appendChild(horse);
 
@@ -5397,10 +5478,47 @@ socket.on('horseSelectionUpdated', (data) => {
     // 내 선택 상태 확인 (선택 취소 시 undefined가 될 수 있음)
     if (userHorseBets[currentUser] !== undefined) {
         mySelectedHorse = userHorseBets[currentUser];
+        window._isRandomSelection = false;  // 일반 선택 시 랜덤 상태 초기화
     } else {
         mySelectedHorse = null; // 선택 취소
     }
 
+    renderHorseSelection();
+});
+
+// 랜덤 선택 완료 이벤트 (본인도 뭘 골랐는지 모름)
+socket.on('randomHorseSelected', (data) => {
+    // 랜덤 선택 상태 저장
+    window._isRandomSelection = true;
+    mySelectedHorse = -999; // 특수 값으로 "랜덤 선택됨" 표시
+
+    // 선택 완료자 목록 업데이트
+    selectedUsersFromServer = data.selectedUsers || [];
+    canSelectDuplicate = data.canSelectDuplicate || false;
+
+    addDebugLog(`랜덤 선택 완료 (어떤 탈것인지 비밀!)`, 'selection');
+    renderHorseSelection();
+});
+
+// 준비 취소 시 말 선택 취소 이벤트
+socket.on('horseSelectionCancelled', (data) => {
+    const { userName } = data;
+
+    // 해당 사용자의 선택 제거
+    if (userHorseBets[userName] !== undefined) {
+        delete userHorseBets[userName];
+    }
+
+    // 본인이면 내 선택도 초기화
+    if (userName === currentUser) {
+        mySelectedHorse = null;
+        window._isRandomSelection = false;  // 랜덤 선택 상태도 초기화
+    }
+
+    // 선택 완료자 목록에서 제거
+    selectedUsersFromServer = selectedUsersFromServer.filter(name => name !== userName);
+
+    addDebugLog(`${userName} 준비 취소로 말 선택 취소`, 'selection');
     renderHorseSelection();
 });
 

@@ -102,6 +102,7 @@ module.exports = (socket, io, ctx) => {
         gameState.isHorseRaceActive = true;
         gameState.isGameActive = true;
         gameState.raceRound = (gameState.raceRound || 0) + 1;
+        console.log(`[디버그] 경주 시작 - raceRound: ${gameState.raceRound}, horseRaceMode: ${gameState.horseRaceMode}`);
 
         // 준비 리스트 초기화 (게임 시작 후 비워야 함)
         gameState.readyUsers = [];
@@ -231,6 +232,7 @@ module.exports = (socket, io, ctx) => {
         gameState.horseRankings = horseRankings;
 
         // 룰에 맞는 사람 확인
+        console.log(`[디버그] 당첨자 계산 전 - horseRaceMode: ${gameState.horseRaceMode}`);
         const winners = getWinnersByRule(gameState, rankings, players);
 
         // 경주 기록 생성
@@ -474,13 +476,23 @@ module.exports = (socket, io, ctx) => {
         }
         const userName = user.name;
 
+        // 준비 상태 확인 (준비 안 하면 말 선택 불가)
+        if (!gameState.readyUsers.includes(userName)) {
+            socket.emit('horseRaceError', '먼저 준비를 해주세요!');
+            return;
+        }
+
         // 방에 입장한 모든 사용자가 참여 가능
         const players = gameState.users.map(u => u.name);
 
+        const { horseIndex } = data;
+
         // 경주 진행 중이 아닐 때는 말 선택만 저장 (경주 시작 대기)
+        // 말 수가 아직 결정되지 않았으면 먼저 결정
+        let needsInitialization = false;
         if (!gameState.isHorseRaceActive) {
-            // 말 수가 아직 결정되지 않았으면 결정 (4~6마리 랜덤)
             if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
+                needsInitialization = true;
                 let horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
                 gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
 
@@ -493,70 +505,8 @@ module.exports = (socket, io, ctx) => {
                         gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
                     }
                 }
-
-                // 각 클라이언트에게 말 선택 UI 표시 (본인 선택만 + 선택 완료자 목록)
-                getVehicleStats(getServerId()).then(stats => {
-                    const popularVehicles = stats.filter(s => s.appearance_count >= 5).sort((a, b) => b.pick_rate - a.pick_rate).slice(0, 2).map(s => s.vehicle_id);
-                    const tpInfo = {};
-                    for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
-                    const selectedUsersList = Object.keys(gameState.userHorseBets);
-                    const selectedHorseIndices = Object.values(gameState.userHorseBets);
-                    const canSelectDuplicate = gameState.availableHorses.length < players.length;
-                    gameState.users.forEach(u => {
-                        const myBets = {};
-                        const mySelectedUsers = [];
-                        const mySelectedHorses = [];
-                        if (gameState.userHorseBets[u.name] !== undefined) {
-                            myBets[u.name] = gameState.userHorseBets[u.name];
-                            mySelectedUsers.push(u.name);
-                            mySelectedHorses.push(gameState.userHorseBets[u.name]);
-                        }
-                        io.to(u.id).emit('horseSelectionReady', {
-                            availableHorses: gameState.availableHorses,
-                            participants: players,
-                            players: players, // 하위 호환성
-                            userHorseBets: myBets,  // 본인 선택만 (뭘 선택했는지 숨김)
-                            selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
-                            selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
-                            canSelectDuplicate: canSelectDuplicate,
-                            horseRaceMode: gameState.horseRaceMode || 'last',
-                            raceRound: gameState.raceRound || 1,
-                            selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-                            popularVehicles: popularVehicles,
-                            vehicleStats: stats,
-                            trackPresets: tpInfo
-                        });
-                    });
-                }).catch(() => {
-                    const tpInfo = {};
-                    for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
-                    const canSelectDuplicate = gameState.availableHorses.length < players.length;
-                    gameState.users.forEach(u => {
-                        const myBets = {};
-                        if (gameState.userHorseBets[u.name] !== undefined) {
-                            myBets[u.name] = gameState.userHorseBets[u.name];
-                        }
-                        io.to(u.id).emit('horseSelectionReady', {
-                            availableHorses: gameState.availableHorses,
-                            participants: players,
-                            players: players,
-                            userHorseBets: myBets,  // 본인 선택만 (뭘 선택했는지 숨김)
-                            selectedUsers: Object.keys(gameState.userHorseBets),  // 전체 선택자 (누가 선택했는지는 공개)
-                            selectedHorseIndices: [],  // 어떤 말 선택했는지는 숨김
-                            canSelectDuplicate: canSelectDuplicate,
-                            horseRaceMode: gameState.horseRaceMode || 'last',
-                            raceRound: gameState.raceRound || 1,
-                            selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-                            popularVehicles: [],
-                            vehicleStats: [],
-                            trackPresets: tpInfo
-                        });
-                    });
-                });
             }
         }
-
-        const { horseIndex } = data;
 
         // 말 인덱스 유효성 검사
         if (typeof horseIndex !== 'number' || !gameState.availableHorses.includes(horseIndex)) {
@@ -622,6 +572,62 @@ module.exports = (socket, io, ctx) => {
         });
 
         console.log(`방 ${room.roomName}: ${userName}이(가) 말 ${horseIndex} 선택`);
+
+        // 첫 선택으로 초기화된 경우, 선택 UI 표시 (선택 포함된 상태로)
+        if (needsInitialization) {
+            getVehicleStats(getServerId()).then(stats => {
+                const popularVehicles = stats.filter(s => s.appearance_count >= 5).sort((a, b) => b.pick_rate - a.pick_rate).slice(0, 2).map(s => s.vehicle_id);
+                const tpInfo = {};
+                for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
+                const canSelectDup = gameState.availableHorses.length < players.length;
+                gameState.users.forEach(u => {
+                    const myBets = {};
+                    if (gameState.userHorseBets[u.name] !== undefined) {
+                        myBets[u.name] = gameState.userHorseBets[u.name];
+                    }
+                    io.to(u.id).emit('horseSelectionReady', {
+                        availableHorses: gameState.availableHorses,
+                        participants: players,
+                        players: players,
+                        userHorseBets: myBets,
+                        selectedUsers: Object.keys(gameState.userHorseBets),
+                        selectedHorseIndices: [],
+                        canSelectDuplicate: canSelectDup,
+                        horseRaceMode: gameState.horseRaceMode || 'last',
+                        raceRound: gameState.raceRound || 1,
+                        selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+                        popularVehicles: popularVehicles,
+                        vehicleStats: stats,
+                        trackPresets: tpInfo
+                    });
+                });
+            }).catch(() => {
+                const tpInfo = {};
+                for (const [k, v] of Object.entries(TRACK_PRESETS)) tpInfo[k] = v.meters;
+                const canSelectDup = gameState.availableHorses.length < players.length;
+                gameState.users.forEach(u => {
+                    const myBets = {};
+                    if (gameState.userHorseBets[u.name] !== undefined) {
+                        myBets[u.name] = gameState.userHorseBets[u.name];
+                    }
+                    io.to(u.id).emit('horseSelectionReady', {
+                        availableHorses: gameState.availableHorses,
+                        participants: players,
+                        players: players,
+                        userHorseBets: myBets,
+                        selectedUsers: Object.keys(gameState.userHorseBets),
+                        selectedHorseIndices: [],
+                        canSelectDuplicate: canSelectDup,
+                        horseRaceMode: gameState.horseRaceMode || 'last',
+                        raceRound: gameState.raceRound || 1,
+                        selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+                        popularVehicles: [],
+                        vehicleStats: [],
+                        trackPresets: tpInfo
+                    });
+                });
+            });
+        }
 
         // 모든 참가자가 선택했는지 확인
         const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
@@ -776,6 +782,93 @@ module.exports = (socket, io, ctx) => {
                 });
 
                 console.log(`방 ${room.roomName} 경마 게임 종료 - 동점 당첨자: ${winners.join(', ')}, 자동 준비 설정`);
+            }
+        }
+    });
+
+    // 랜덤 말 선택 (본인도 뭘 골랐는지 모름)
+    socket.on('selectRandomHorse', () => {
+        if (!checkRateLimit()) return;
+
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+
+        if (room.gameType !== 'horse-race') {
+            socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
+            return;
+        }
+
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) {
+            socket.emit('horseRaceError', '사용자 정보를 찾을 수 없습니다!');
+            return;
+        }
+        const userName = user.name;
+
+        // 준비 상태 확인
+        if (!gameState.readyUsers.includes(userName)) {
+            socket.emit('horseRaceError', '먼저 준비를 해주세요!');
+            return;
+        }
+
+        // 경주 진행 중이면 선택 불가
+        if (gameState.isHorseRaceActive) {
+            socket.emit('horseRaceError', '경주 진행 중에는 변경할 수 없습니다!');
+            return;
+        }
+
+        // 랜덤으로 말 선택
+        const availableForRandom = gameState.availableHorses || [];
+        if (availableForRandom.length === 0) {
+            socket.emit('horseRaceError', '선택 가능한 탈것이 없습니다!');
+            return;
+        }
+
+        const randomIndex = availableForRandom[Math.floor(Math.random() * availableForRandom.length)];
+        gameState.userHorseBets[userName] = randomIndex;
+
+        const players = gameState.users.map(u => u.name);
+        const allSelectedUsers = Object.keys(gameState.userHorseBets);
+        const canSelectDuplicate = gameState.availableHorses.length < players.length;
+
+        // 본인에게: 랜덤 선택됨 (어떤 말인지는 숨김)
+        socket.emit('randomHorseSelected', {
+            selectedUsers: allSelectedUsers,
+            canSelectDuplicate: canSelectDuplicate
+        });
+
+        // 다른 사람들에게: 선택자 목록만 업데이트
+        gameState.users.forEach(u => {
+            if (u.id !== socket.id) {
+                const theirBets = {};
+                if (gameState.userHorseBets[u.name] !== undefined) {
+                    theirBets[u.name] = gameState.userHorseBets[u.name];
+                }
+                io.to(u.id).emit('horseSelectionUpdated', {
+                    userHorseBets: theirBets,
+                    selectedUsers: allSelectedUsers,
+                    selectedHorseIndices: [],
+                    canSelectDuplicate: canSelectDuplicate
+                });
+            }
+        });
+
+        console.log(`방 ${room.roomName}: ${userName}이(가) 랜덤으로 말 선택 (본인 모름)`);
+
+        // 모든 참가자가 선택했는지 확인
+        const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
+        if (allSelected) {
+            const host = gameState.users.find(u => u.isHost);
+            if (host) {
+                io.to(host.id).emit('allHorsesSelected', {
+                    userHorseBets: {},
+                    selectedCount: Object.keys(gameState.userHorseBets).length,
+                    players: players
+                });
             }
         }
     });
@@ -1328,6 +1421,7 @@ module.exports = (socket, io, ctx) => {
         } else {
             targetRank = rankings.length; // 꼴등 찾기
         }
+        console.log(`[디버그] getWinnersByRule - mode: ${mode}, targetRank: ${targetRank}, rankings.length: ${rankings.length}`);
 
         // 해당 순위의 말 찾기
         const targetHorse = rankings.find(r => r.rank === targetRank);

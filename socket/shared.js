@@ -267,6 +267,12 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             // 준비 취소
             gameState.readyUsers = gameState.readyUsers.filter(name => name !== userName);
             socket.emit('readyStateChanged', { isReady: false });
+
+            // 경마 게임: 준비 취소 시 말 선택도 취소
+            if (room.gameType === 'horse-race' && gameState.userHorseBets) {
+                delete gameState.userHorseBets[userName];
+                io.to(room.roomId).emit('horseSelectionCancelled', { userName });
+            }
         } else {
             // 준비
             gameState.readyUsers.push(userName);
