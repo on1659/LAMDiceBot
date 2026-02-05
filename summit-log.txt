@@ -1,4 +1,41 @@
 ========================================
+📋 Summit Log - 2026-02-05 (2)
+========================================
+
+## 변경 파일
+- horse-race-multiplayer.html: 다시보기 카운트다운/트랙옵션 추가, 슬로우모션 해제 조건 수정
+- socket/rooms.js: 트랙 프리셋 하드코딩 제거, config 파일에서 로드
+- config/horse/race.json: short 트랙 500m → 100m 변경
+
+## 상세 변경 내역
+
+### [다시보기 기능 수정] (horse-race-multiplayer.html)
+- 문제 1: 다시보기 시 3-2-1-START 카운트다운 없이 바로 출발
+- 수정: setTimeout 딜레이 0ms → 4000ms 변경 (line 6602)
+- 문제 2: 다시보기 시 trackDistanceMeters 미전달 → 500m 기본값 사용 → 속도 불일치
+- 수정: startRaceAnimation에 trackOptions 파라미터 추가 (line 6599-6602)
+  - trackDistanceMeters, weatherSchedule, weatherConfig 전달
+
+### [슬로우모션 해제 조건 수정] (horse-race-multiplayer.html)
+- 문제: 꼴등 슬로우모션이 결승선 닿아도 안 끝나는 경우 있음
+- 기존: loserCameraTarget.finished (왼쪽 끝 통과 시)
+- 수정: loserCameraTarget.finishJudged (오른쪽 끝 터치 시)
+
+### [트랙 프리셋 하드코딩 제거] (socket/rooms.js)
+- 문제: rooms.js가 `{ short: 500, medium: 700, long: 1000 }` 하드코딩
+- config/horse/race.json은 short: 100m인데 클라이언트에 500m 전송됨
+- 수정:
+  - 파일 상단에 config 로드 추가
+  - trackMetersFromConfig 전역 변수로 프리셋 저장
+  - 3곳(line 396, 610, 829)에서 하드코딩 → trackMetersFromConfig 사용
+  - horseSelectionReady 이벤트에 trackPresets 필드 추가
+
+### [클라이언트 하드코딩 제거] (horse-race-multiplayer.html)
+- line 7072: 하드코딩된 trackMeters → trackPresetsFromServer 사용
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-05
 ========================================
 

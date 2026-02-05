@@ -3715,9 +3715,9 @@
                         }
                     }
 
-                    // 꼴등 슬로우모션 해제: secondLastBetted(카메라 대상)가 결승선 통과하면
+                    // 꼴등 슬로우모션 해제: secondLastBetted(카메라 대상)가 결승선에 닿으면 (finishJudged)
                     if (loserSlowMotionActive) {
-                        const loserFinished = !loserCameraTarget || loserCameraTarget.finished;
+                        const loserFinished = !loserCameraTarget || loserCameraTarget.finishJudged;
                         if (loserFinished) {
                             loserSlowMotionActive = false;
                             slowMotionFactor = 1;
@@ -4284,13 +4284,16 @@
                             .sort((a, b) => a.finishOrder - b.finishOrder)
                             .map(s => s.horseIndex);
 
-                        // 미완주 말들을 현재 위치순으로 정렬 후 순서대로 추가
+                        // 미완주 말들을 서버 순위(rank) 기준으로 정렬 후 순서대로 추가
                         const baseFinishOrder = actualFinishOrder.length;
+                        console.log(`[DEBUG-TOMBSTONE] baseFinishOrder=${baseFinishOrder}, unfinishedStates.length=${unfinishedStates.length}`);
+                        console.log(`[DEBUG-TOMBSTONE] unfinishedStates:`, unfinishedStates.map(s => ({horseIndex: s.horseIndex, rank: s.rank, currentPos: s.currentPos.toFixed(0)})));
                         unfinishedStates
-                            .sort((a, b) => b.currentPos - a.currentPos) // 앞에 있는 순
+                            .sort((a, b) => a.rank - b.rank) // 서버 순위(rank) 기준
                             .forEach((s, idx) => {
                                 s.finished = true;
                                 s.finishOrder = baseFinishOrder + idx;
+                                console.log(`[DEBUG-TOMBSTONE] horse ${s.horseIndex}: finishOrder=${s.finishOrder} (${s.finishOrder+1}등)`);
                                 actualFinishOrder.push(s.horseIndex);
                             });
 
@@ -6592,8 +6595,12 @@
                         replayBtn.style.opacity = '1';
                         replayBtn.style.cursor = 'pointer';
                     }
+                }, {
+                    trackDistanceMeters: record.trackDistanceMeters || 500,
+                    weatherSchedule: record.weatherSchedule || [],
+                    weatherConfig: window._weatherConfig || {}
                 });
-            }, 0);
+            }, 4000);
         }
 
         // 놓친 경주 다시보기 (화면을 보지 않았을 때)
@@ -7061,9 +7068,8 @@
                 }
                 if (data.gameState.trackLength) {
                     currentTrackLength = data.gameState.trackLength;
-                    // trackLength에 따라 미터 값 설정
-                    const trackMeters = { short: 500, medium: 700, long: 1000 };
-                    currentTrackDistanceMeters = trackMeters[currentTrackLength] || 700;
+                    // trackLength에 따라 미터 값 설정 (서버 프리셋 사용)
+                    currentTrackDistanceMeters = trackPresetsFromServer[currentTrackLength] || 700;
                 }
             }
 

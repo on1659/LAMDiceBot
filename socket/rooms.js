@@ -2,6 +2,15 @@ const { generateRoomId, generateUniqueUserName, createRoomGameState } = require(
 const { getMergedFrequentMenus } = require('../db/menus');
 const { getVisitorStats, recordVisitor } = require('../db/stats');
 const { getServerId } = require('../routes/api');
+const path = require('path');
+const fs = require('fs');
+
+// 경마 트랙 프리셋 로드 (config에서 읽기)
+const horseRaceConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'horse', 'race.json'), 'utf8'));
+const trackMetersFromConfig = {};
+for (const [k, v] of Object.entries(horseRaceConfig.trackPresets)) {
+    trackMetersFromConfig[k] = v.meters;
+}
 
 /**
  * 방 관리 소켓 이벤트 핸들러
@@ -384,7 +393,7 @@ module.exports = (socket, io, ctx) => {
                     hostBets[userName.trim()] = gameState.userHorseBets[userName.trim()];
                 }
                 const canSelectDuplicate = gameState.availableHorses.length < players.length;
-                const trackMeters = { short: 500, medium: 700, long: 1000 };
+                const trackMeters = trackMetersFromConfig;
                 const currentTrackLen = gameState.trackLength || 'medium';
                 socket.emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
@@ -398,7 +407,8 @@ module.exports = (socket, io, ctx) => {
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
                     trackLength: currentTrackLen,
-                    trackDistanceMeters: trackMeters[currentTrackLen] || 700
+                    trackDistanceMeters: trackMeters[currentTrackLen] || 700,
+                    trackPresets: trackMeters
                 });
             }
         }
@@ -597,7 +607,7 @@ module.exports = (socket, io, ctx) => {
                         if (gameState.userHorseBets[userName.trim()] !== undefined) {
                             myHorseBets[userName.trim()] = gameState.userHorseBets[userName.trim()];
                         }
-                        const trackMeters = { short: 500, medium: 700, long: 1000 };
+                        const trackMeters = trackMetersFromConfig;
                         const currentTrackLen = gameState.trackLength || 'medium';
                         socket.emit('horseSelectionReady', {
                             availableHorses: gameState.availableHorses,
@@ -611,7 +621,8 @@ module.exports = (socket, io, ctx) => {
                             raceRound: gameState.raceRound || 1,
                             selectedVehicleTypes: gameState.selectedVehicleTypes,
                             trackLength: currentTrackLen,
-                            trackDistanceMeters: trackMeters[currentTrackLen] || 700
+                            trackDistanceMeters: trackMeters[currentTrackLen] || 700,
+                            trackPresets: trackMeters
                         });
                     }
                 }
@@ -815,7 +826,7 @@ module.exports = (socket, io, ctx) => {
 
                 // 새로 입장한 사용자에게 말 선택 UI 표시
                 // 트랙 프리셋 (horse.js와 동일)
-                const trackMeters = { short: 500, medium: 700, long: 1000 };
+                const trackMeters = trackMetersFromConfig;
                 const currentTrackLen = gameState.trackLength || 'medium';
                 socket.emit('horseSelectionReady', {
                     availableHorses: gameState.availableHorses,
@@ -829,7 +840,8 @@ module.exports = (socket, io, ctx) => {
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
                     trackLength: currentTrackLen,
-                    trackDistanceMeters: trackMeters[currentTrackLen] || 700
+                    trackDistanceMeters: trackMeters[currentTrackLen] || 700,
+                    trackPresets: trackMeters
                 });
                 console.log(`[새 사용자 입장] ${finalUserName}에게 horseSelectionReady 전송, canSelectDuplicate: ${canSelectDuplicate}`);
 
