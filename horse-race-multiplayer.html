@@ -1795,9 +1795,13 @@
                 </div>
             </div>
 
-            <!-- 다시보기 + 게임 종료 버튼 (결과 후 표시) -->
+            <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
-                <button id="mainReplayButton" onclick="playLastReplay()" style="width: 100%; padding: 12px; font-size: 15px; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="mainReplayButton" onclick="playLastReplay()" style="flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
+                    <!-- GIF 기능 숨김 (CORS 이슈) -->
+                    <button id="gifSaveButton" onclick="showGifOptionsModal()" style="display: none; flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">📹 GIF 저장</button>
+                </div>
             </div>
             <div id="endGameSection" style="display: none; text-align: center; margin-top: 10px;">
                 <button class="end-button" onclick="endHorseRaceGame()">🏁 게임 종료</button>
@@ -1864,6 +1868,7 @@
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
+    <!-- <script src="/gif-recorder.js"></script> GIF 기능 비활성화 -->
     <script>
         // localhost 체크
         const isLocalhost = window.location.hostname === 'localhost' || 
@@ -1952,6 +1957,13 @@
         let countdownVisibilityHandler = null; // 카운트다운 중 탭 복귀 감지 리스너
         let isReplayActive = false; // 다시보기 진행 중 여부
         let raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
+
+        // GIF 녹화 관련 변수
+        let isGifRecordingMode = false; // GIF 녹화 모드 (다시보기 중 녹화)
+        let gifCaptureInterval = null; // 프레임 캡처 인터벌
+        let currentGifMode = 'highlight'; // 녹화 모드 (full/highlight)
+        let currentGifQuality = 'medium'; // 녹화 품질
+
         // 경마 사운드 볼륨 관리
         const HORSE_SOUND_KEY = 'horseSoundEnabled';
         const HORSE_VOLUME_KEY = 'horseSoundVolume';
@@ -2856,6 +2868,9 @@
             const trackDistanceMeters = (trackOptions && trackOptions.trackDistanceMeters) || 500;
             const finishLine = trackDistanceMeters * PIXELS_PER_METER;
 
+            // GIF 녹화용 전역 참조
+            window._currentFinishLine = finishLine;
+
             // ========== 날씨 시스템 초기화 ==========
             const weatherSchedule = (trackOptions && trackOptions.weatherSchedule) || [];
             const weatherConfig = (trackOptions && trackOptions.weatherConfig) || {};
@@ -3486,7 +3501,10 @@
                     visualWidth // 탈것별 시각적 너비
                 };
             });
-            
+
+            // GIF 녹화용 전역 참조
+            window._currentHorseStates = horseStates;
+
             // 모든 탈것 동시에 애니메이션 시작
             setTimeout(() => {
                 let startTime = Date.now();
@@ -6274,6 +6292,233 @@
 
         // (시크바 다시보기 제거됨 - 단순 재생만 사용)
 
+        // ========== GIF 녹화 관련 함수 ==========
+
+        // GIF 옵션 모달 표시
+        function showGifOptionsModal() {
+            if (horseRaceHistory.length === 0) {
+                alert('기록을 찾을 수 없습니다.');
+                return;
+            }
+            if (window.GifRecorder) {
+                GifRecorder.showOptionsModal();
+            } else {
+                alert('GIF 녹화 모듈을 불러오지 못했습니다.');
+            }
+        }
+
+        // GIF 녹화용 다시보기 시작 (GifRecorder에서 콜백으로 호출)
+        function startGifRecordingReplay(mode, quality) {
+            console.log('[GIF] startGifRecordingReplay called - mode:', mode, 'quality:', quality);
+            if (horseRaceHistory.length === 0) {
+                console.error('[GIF] No race history');
+                return;
+            }
+
+            const record = horseRaceHistory[horseRaceHistory.length - 1];
+            console.log('[GIF] Using record:', record);
+
+            isGifRecordingMode = true;
+            currentGifMode = mode;
+            currentGifQuality = quality;
+
+            // 사운드 비활성화 (GIF 녹화 중)
+            const originalSoundEnabled = getHorseSoundEnabled();
+            if (originalSoundEnabled) {
+                toggleMute(); // 음소거
+            }
+
+            // GifRecorder 녹화 시작
+            if (window.GifRecorder) {
+                const startResult = GifRecorder.startRecording(mode, quality);
+                console.log('[GIF] GifRecorder.startRecording result:', startResult);
+            } else {
+                console.error('[GIF] GifRecorder not available!');
+            }
+
+            // 다시보기 실행 (녹화 모드)
+            console.log('[GIF] Starting playReplayForGif');
+            playReplayForGif(record, () => {
+                console.log('[GIF] playReplayForGif callback - stopping recording');
+                // 녹화 종료
+                if (window.GifRecorder) {
+                    GifRecorder.stopRecording();
+                } else {
+                    console.error('[GIF] GifRecorder not available in callback!');
+                }
+                isGifRecordingMode = false;
+
+                // 사운드 복원
+                if (originalSoundEnabled) {
+                    toggleMute(); // 음소거 해제
+                }
+            });
+        }
+
+        // GIF 녹화용 다시보기 (프레임 캡처 포함)
+        function playReplayForGif(record, onComplete) {
+            if (!record) return;
+
+            // 기존 인터벌 정리
+            if (gifCaptureInterval) {
+                clearInterval(gifCaptureInterval);
+                gifCaptureInterval = null;
+            }
+
+            // UI 버튼 상태 변경
+            const replayBtn = document.getElementById('mainReplayButton');
+            const gifBtn = document.getElementById('gifSaveButton');
+            if (replayBtn) {
+                replayBtn.disabled = true;
+                replayBtn.style.opacity = '0.6';
+            }
+            if (gifBtn) {
+                gifBtn.disabled = true;
+                gifBtn.textContent = '⏺️ 녹화 중...';
+                gifBtn.style.opacity = '0.6';
+            }
+
+            const horseSelectionSection = document.getElementById('horseSelectionSection');
+            if (horseSelectionSection) horseSelectionSection.classList.remove('active');
+
+            const resultOverlay = document.getElementById('resultOverlay');
+            if (resultOverlay) resultOverlay.classList.remove('visible');
+
+            // 원래 상태 저장
+            const originalSelectedVehicleTypes = selectedVehicleTypes;
+            const originalUserHorseBets = userHorseBets;
+            const originalAvailableHorses = availableHorses;
+
+            selectedVehicleTypes = record.selectedVehicleTypes;
+            userHorseBets = record.userHorseBets || {};
+            availableHorses = record.availableHorses || record.rankings.map((_, i) => i);
+
+            isRaceActive = true;
+            isReplayActive = true;
+
+            const horseRankings = record.rankings || [];
+            const replaySpeeds = record.speeds || horseRankings.map((_, rank) => 3000 + rank * 500);
+            const replayGimmicks = record.gimmicks || null;
+
+            // 프레임 캡처 인터벌 시작 함수 (트랙 렌더링 후 호출)
+            // fps는 gif-recorder.js QUALITY_PRESETS와 일치해야 함
+            const fpsMap = { low: 5, medium: 6, high: 8 };
+            const fps = fpsMap[currentGifQuality] || 6;
+            const captureDelay = Math.round(1000 / fps);
+
+            let frameAttemptCount = 0;
+            function startFrameCapture() {
+                console.log('[GIF] startFrameCapture called, delay:', captureDelay, 'isGifRecordingMode:', isGifRecordingMode);
+                gifCaptureInterval = setInterval(() => {
+                    frameAttemptCount++;
+                    console.log('[GIF] Frame attempt #' + frameAttemptCount);
+
+                    if (isGifRecordingMode && window.GifRecorder) {
+                        GifRecorder.captureFrame().then(result => {
+                            if (result) {
+                                console.log('[GIF] Frame #' + frameAttemptCount + ' captured successfully');
+                            } else {
+                                console.log('[GIF] Frame #' + frameAttemptCount + ' capture returned false');
+                            }
+                        }).catch(e => {
+                            console.error('[GIF] Frame capture error:', e);
+                        });
+
+                        // 하이라이트 모드면 조건 체크
+                        if (currentGifMode === 'highlight') {
+                            GifRecorder.checkHighlightTrigger(window._currentHorseStates);
+                        }
+                    } else {
+                        console.log('[GIF] Frame #' + frameAttemptCount + ' Skipped - isGifRecordingMode:', isGifRecordingMode, 'GifRecorder:', !!window.GifRecorder);
+                    }
+                }, captureDelay);
+            }
+
+            // 카운트다운 없이 바로 시작 (GIF 녹화 시)
+            // 트랙 렌더링 후 프레임 캡처 시작 (500ms 딜레이)
+            setTimeout(startFrameCapture, 500);
+
+            startRaceAnimation(horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+                console.log('[GIF] Race animation complete, frame attempts:', frameAttemptCount);
+                isRaceActive = false;
+                isReplayActive = false;
+
+                // 프레임 캡처 인터벌 정리
+                if (gifCaptureInterval) {
+                    console.log('[GIF] Clearing frame capture interval');
+                    clearInterval(gifCaptureInterval);
+                    gifCaptureInterval = null;
+                }
+
+                // 원래 상태 복원
+                selectedVehicleTypes = originalSelectedVehicleTypes;
+                userHorseBets = originalUserHorseBets;
+                availableHorses = originalAvailableHorses;
+
+                // UI 복원
+                if (replayBtn) {
+                    replayBtn.disabled = false;
+                    replayBtn.textContent = '🎬 다시보기';
+                    replayBtn.style.opacity = '1';
+                    replayBtn.style.cursor = 'pointer';
+                }
+                if (gifBtn) {
+                    gifBtn.disabled = false;
+                    gifBtn.textContent = '📹 GIF 저장';
+                    gifBtn.style.opacity = '1';
+                }
+
+                if (onComplete) onComplete();
+            });
+        }
+
+        // 하이라이트 조건 체크 함수 (배팅 말 중 뒤에서 두번째가 결승선 근처 도달 시)
+        function checkHorseRaceHighlightCondition(horseStates) {
+            if (!horseStates || horseStates.length === 0) return false;
+
+            // 디버그: 현재 말들의 위치 확인 (10프레임마다)
+            if (Math.random() < 0.1) {
+                const finishLine = window._currentFinishLine || 5000;
+                const positions = horseStates.map(s => s.currentPos || 0);
+                console.log('[Highlight Debug] finishLine:', finishLine, 'positions:', positions.join(', '));
+            }
+
+            // 배팅된 말 목록
+            const bettedHorseIndices = Object.keys(userHorseBets).map(Number);
+            if (bettedHorseIndices.length < 2) {
+                // 배팅 말이 2마리 미만이면 전체 경주의 마지막 2마리 사용
+                const sortedAll = [...horseStates].sort((a, b) => b.currentPos - a.currentPos);
+                const secondLast = sortedAll[sortedAll.length - 2];
+                const finishLine = window._currentFinishLine || 5000;
+                const triggerPos = finishLine - 100;
+                if (secondLast && secondLast.currentPos >= triggerPos) {
+                    console.log('[Highlight] TRIGGERED! secondLast.currentPos:', secondLast.currentPos, '>=', triggerPos);
+                    return true;
+                }
+                return false;
+            }
+
+            // 배팅 말들만 필터링
+            const bettedHorseStates = horseStates.filter(s => bettedHorseIndices.includes(s.horseIndex));
+            if (bettedHorseStates.length < 2) return false;
+
+            // 진행도순 정렬 (앞선 말이 앞에)
+            const sortedByProgress = [...bettedHorseStates].sort((a, b) => b.currentPos - a.currentPos);
+
+            // 뒤에서 두 번째 (배팅 말 중 꼴찌 바로 앞)
+            const secondLastBetted = sortedByProgress[sortedByProgress.length - 2];
+
+            // 결승선 10m 전 도달 시 트리거
+            const finishLine = window._currentFinishLine || 5000;
+            if (secondLastBetted && secondLastBetted.currentPos >= finishLine - 100) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // ========== GIF 녹화 관련 함수 끝 ==========
+
         // 마지막 경주 다시보기 (메인 다시보기 버튼)
         function playLastReplay() {
             if (horseRaceHistory.length === 0) {
@@ -7532,6 +7777,27 @@
             // 볼륨 컨트롤 초기화 (기본 음소거, 볼륨 50%)
             initVolumeFromStorage();
             updateVolumeUI();
+
+            // GifRecorder 초기화 (async 함수이므로 IIFE로 await)
+            if (window.GifRecorder) {
+                (async () => {
+                    await GifRecorder.init({
+                        targetElement: '#raceTrackContainer',
+                        filenamePrefix: 'horse-race',
+                        getHighlightCondition: checkHorseRaceHighlightCondition,
+                        onStartRequested: startGifRecordingReplay,
+                        onRecordingEnd: (blob) => {
+                            console.log('[HorseRace] GIF recording completed');
+                            isGifRecordingMode = false;
+                            if (gifCaptureInterval) {
+                                clearInterval(gifCaptureInterval);
+                                gifCaptureInterval = null;
+                            }
+                        }
+                    });
+                    console.log('[GifRecorder] Initialized successfully');
+                })();
+            }
 
             // SoundManager에 마스터 볼륨 getter 등록
             if (window.SoundManager) {
