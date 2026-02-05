@@ -22,3 +22,24 @@ visitor-stats.json
 # Windows 예약 이름 (nul, con 등)
 nul
 con
+
+# AI 도구 설정
+.claude/commands/
+.claude/settings.local.json
+.cursorrules
+
+# AI 생성 문서
+docs/.bkit-memory.json
+docs/.pdca-snapshots/
+docs/.pdca-status.json
+docs/CURSOR_*.md
+docs/meeting/
+
+# 임시/로그 파일
+cd
+claude
+server.log
+server_modified.js
+COMMIT_MESSAGE.md
+COMMIT_MESSAGE.txt
+summit-log.txt

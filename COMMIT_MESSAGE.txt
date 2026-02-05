@@ -1,4 +1,0 @@
-refactor: 방문자/플레이 통계 DB 전용 저장으로 변경
-
-- visitor-stats.json, play-stats.json 파일 폴백 제거
-- Postgres 연결 시에만 통계 유지 (재배포 후에도 리셋되지 않음)
