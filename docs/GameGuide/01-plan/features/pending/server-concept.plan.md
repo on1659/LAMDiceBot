@@ -1,6 +1,117 @@
-# Server 개념 도입 - 모듈 구조 유지 전체 재설계
+# Server 개념 도입 + 프로젝트 구조 재정리
 
-> new_server 브랜치의 Server 개념을 main에 도입하되, 모듈 구조 유지
+> new_server 브랜치의 Server 개념 도입 + 전체 폴더 구조 개선
+
+---
+
+## Part 1: 폴더 구조 재정리
+
+### 현재 문제점
+
+| 문제 | 현황 | 영향 |
+|------|------|------|
+| HTML 파일 산재 | 11개 모두 루트에 위치 | 관리 어려움 |
+| CSS/JS 미분리 | horse-race만 분리됨 | 파일 크기 비대 (dice: 322KB) |
+| 백업 파일 | .bak, server_modified.js | 불필요한 용량 |
+| 임시 파일 | cd, claude (빈 파일) | 정리 필요 |
+
+### 새로운 폴더 구조
+
+```
+LAMDiceBot/
+├── server.js                    # 메인 진입점 (유지)
+├── package.json
+├── .env
+│
+├── src/                         # [신규] 서버 소스
+│   ├── socket/                  # 기존 socket/ 이동
+│   │   ├── index.js
+│   │   ├── rooms.js
+│   │   ├── shared.js
+│   │   ├── dice.js
+│   │   ├── horse.js
+│   │   ├── roulette.js
+│   │   ├── chat.js
+│   │   ├── board.js
+│   │   └── server.js            # [신규] Server 소켓
+│   ├── routes/                  # 기존 routes/ 이동
+│   │   ├── api.js
+│   │   └── server.js            # [신규] Server API
+│   ├── db/                      # 기존 db/ 이동
+│   │   ├── pool.js
+│   │   ├── init.js
+│   │   ├── stats.js
+│   │   ├── menus.js
+│   │   └── servers.js           # [신규] Server DB
+│   └── utils/                   # 기존 utils/ 이동
+│       ├── crypto.js
+│       ├── room-helpers.js
+│       └── auth.js              # [신규] 관리자 토큰
+│
+├── public/                      # [신규] 정적 파일
+│   ├── pages/                   # HTML 파일들
+│   │   ├── dice-game-multiplayer.html
+│   │   ├── horse-race-multiplayer.html
+│   │   ├── roulette-game-multiplayer.html
+│   │   ├── team-game-multiplayer.html
+│   │   ├── statistics.html
+│   │   ├── admin.html           # [신규]
+│   │   └── server-members.html  # [신규]
+│   ├── info/                    # 정보 페이지
+│   │   ├── about-us.html
+│   │   ├── contact.html
+│   │   ├── privacy-policy.html
+│   │   ├── terms-of-service.html
+│   │   ├── dice-rules-guide.html
+│   │   └── probability-analysis.html
+│   ├── css/                     # 모든 CSS
+│   │   ├── common.css           # [신규] 공통 스타일
+│   │   ├── dice.css             # [신규] dice에서 분리
+│   │   ├── horse-race.css       # 기존
+│   │   ├── roulette.css         # [신규] roulette에서 분리
+│   │   └── team.css             # [신규] team에서 분리
+│   ├── js/                      # 모든 JS
+│   │   ├── common.js            # [신규] 공통 로직
+│   │   ├── dice.js              # [신규] dice에서 분리
+│   │   ├── horse-race.js        # 기존
+│   │   ├── roulette.js          # [신규] roulette에서 분리
+│   │   └── team.js              # [신규] team에서 분리
+│   └── assets/                  # 기존 assets/ 이동
+│       ├── sounds/
+│       ├── backgrounds/
+│       ├── horses/
+│       └── vehicle-themes.json
+│
+├── shared/                      # 공유 모듈
+│   ├── chat-shared.js
+│   ├── order-shared.js
+│   ├── ready-shared.js
+│   └── gif-recorder.js
+│
+├── config/                      # 설정 (기존 유지)
+│   ├── emoji-config.json
+│   └── horse/
+│
+├── tests/                       # 테스트 통합
+│   ├── test-browser.js
+│   ├── test-file-separation.js
+│   └── test-ranking.js
+│
+└── docs/                        # 문서 (기존 유지)
+```
+
+### 삭제 대상 파일
+
+| 파일 | 이유 |
+|------|------|
+| `horse-race-multiplayer.html.bak` | 백업 완료, 불필요 |
+| `server_modified.js` | 미사용 백업 |
+| `cd`, `claude` | 빈 임시 파일 |
+| `COMMIT_MESSAGE.txt` | 불필요 |
+
+---
+
+## Part 2: Server 개념 도입
 
 ---
 
@@ -127,43 +238,76 @@ CREATE TABLE server_game_records (
 
 ---
 
-## 구현 순서
+## 통합 구현 순서
 
-### Phase 1: 기반
-1. `utils/auth.js` 생성 - 관리자 토큰 생성/검증
-2. `db/init.js` 수정 - 새 테이블 생성 SQL 추가
-3. `db/servers.js` 생성 - Server DB 함수
+### Phase 0: 폴더 구조 재정리 (먼저)
+1. `src/` 폴더 생성 후 socket/, routes/, db/, utils/ 이동
+2. `public/` 폴더 생성 후 assets/, css/, js/ 이동
+3. `public/pages/`, `public/info/` 폴더 생성 후 HTML 이동
+4. `shared/` 폴더 생성 후 *-shared.js 파일 이동
+5. `tests/` 폴더 생성 후 test-*.js 파일 이동
+6. 백업/임시 파일 삭제
+7. `server.js` 경로 참조 업데이트
+8. 서버 재시작 및 동작 확인
+
+### Phase 1: Server 기반
+9. `src/utils/auth.js` 생성 - 관리자 토큰 생성/검증
+10. `src/db/init.js` 수정 - 새 테이블 생성 SQL 추가
+11. `src/db/servers.js` 생성 - Server DB 함수
 
 ### Phase 2: Socket 이벤트
-4. `socket/server.js` 생성 - Server 소켓 핸들러
-5. `socket/index.js` 수정 - 핸들러 등록
+12. `src/socket/server.js` 생성 - Server 소켓 핸들러
+13. `src/socket/index.js` 수정 - 핸들러 등록
 
 ### Phase 3: HTTP API
-6. `routes/server.js` 생성 - Server HTTP API
-7. `routes/api.js` 수정 - 라우트 등록
+14. `src/routes/server.js` 생성 - Server HTTP API
+15. `src/routes/api.js` 수정 - 라우트 등록
 
 ### Phase 4: UI 페이지
-8. `admin.html` 생성 - 관리자 페이지
-9. `server-members.html` 생성 - 멤버 관리 페이지
+16. `public/pages/admin.html` 생성 - 관리자 페이지
+17. `public/pages/server-members.html` 생성 - 멤버 관리 페이지
 
 ### Phase 5: 게임 연동
-10. 기존 게임 모듈에서 서버 기록 저장 로직 추가
+18. 기존 게임 모듈에서 서버 기록 저장 로직 추가
+
+### Phase 6: CSS/JS 분리 (선택)
+19. dice-game-multiplayer.html에서 CSS/JS 분리
+20. roulette-game-multiplayer.html에서 CSS/JS 분리
+21. team-game-multiplayer.html에서 CSS/JS 분리
 
 ---
 
 ## 수정 대상 파일 (Critical Files)
 
+### 폴더 재정리 관련
+| 작업 | 대상 |
+|------|------|
+| 이동 | `socket/` → `src/socket/` |
+| 이동 | `routes/` → `src/routes/` |
+| 이동 | `db/` → `src/db/` |
+| 이동 | `utils/` → `src/utils/` |
+| 이동 | `assets/` → `public/assets/` |
+| 이동 | `css/` → `public/css/` |
+| 이동 | `js/` → `public/js/` |
+| 이동 | `*.html` (게임) → `public/pages/` |
+| 이동 | `*.html` (정보) → `public/info/` |
+| 이동 | `*-shared.js` → `shared/` |
+| 이동 | `test-*.js` → `tests/` |
+| 수정 | `server.js` - 경로 참조 업데이트 |
+| 삭제 | `.bak`, `server_modified.js`, `cd`, `claude` |
+
+### Server 기능 관련
 | 파일 | 작업 | 중요도 |
 |------|------|--------|
-| `db/init.js` | 새 테이블 SQL 추가 | 높음 |
-| `socket/index.js` | server 핸들러 등록 | 높음 |
-| `routes/api.js` | server 라우트 통합 | 높음 |
-| `utils/auth.js` | 신규 생성 | 중간 |
-| `db/servers.js` | 신규 생성 | 높음 |
-| `socket/server.js` | 신규 생성 | 높음 |
-| `routes/server.js` | 신규 생성 | 높음 |
-| `admin.html` | 신규 생성 | 중간 |
-| `server-members.html` | 신규 생성 | 중간 |
+| `src/db/init.js` | 새 테이블 SQL 추가 | 높음 |
+| `src/socket/index.js` | server 핸들러 등록 | 높음 |
+| `src/routes/api.js` | server 라우트 통합 | 높음 |
+| `src/utils/auth.js` | 신규 생성 | 중간 |
+| `src/db/servers.js` | 신규 생성 | 높음 |
+| `src/socket/server.js` | 신규 생성 | 높음 |
+| `src/routes/server.js` | 신규 생성 | 높음 |
+| `public/pages/admin.html` | 신규 생성 | 중간 |
+| `public/pages/server-members.html` | 신규 생성 | 중간 |
 
 ---
 
@@ -182,6 +326,14 @@ ADMIN_PASSWORD=your_admin_password
 
 ## 검증 체크리스트
 
+### Phase 0: 폴더 재정리 검증
+- [ ] `node server.js` 정상 시작
+- [ ] 모든 게임 페이지 접속 가능
+- [ ] 정적 파일 (CSS/JS/assets) 로드 확인
+- [ ] Socket.IO 연결 정상
+- [ ] 기존 게임 기능 전체 동작
+
+### Server 기능 검증
 - [ ] DB 테이블 생성 확인
 - [ ] 서버 생성/목록/삭제 동작
 - [ ] 서버 입장 (공개/비공개)
