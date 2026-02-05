@@ -1,1 +1,0 @@
-horse.bat --count 10 --room-name test
