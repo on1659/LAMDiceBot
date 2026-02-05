@@ -2051,7 +2051,8 @@
                     id: theme.id,
                     name: theme.name,
                     emoji: theme.emoji,
-                    bgType: theme.theme
+                    bgType: theme.theme,
+                    visualWidth: theme.visualWidth || 60 // SVG 내 실제 시각적 너비
                 }));
                 
                 addDebugLog(`탈것 테마 데이터 로드 완료: ${ALL_VEHICLES.length}개`, 'info');
@@ -2060,17 +2061,17 @@
                 addDebugLog(`테마 데이터 로드 실패: ${error.message}`, 'error');
                 // 기본값으로 폴백
                 ALL_VEHICLES = [
-                    { id: 'car', name: '자동차', emoji: '🚗', bgType: 'expressway' },
-                    { id: 'rocket', name: '로켓', emoji: '🚀', bgType: 'sky' },
-                    { id: 'bird', name: '새', emoji: '🐦', bgType: 'sky' },
-                    { id: 'boat', name: '보트', emoji: '🚤', bgType: 'ocean' },
-                    { id: 'bicycle', name: '자전거', emoji: '🚴', bgType: 'road' },
-                    { id: 'rabbit', name: '토끼', emoji: '🐇', bgType: 'forest' },
-                    { id: 'turtle', name: '거북이', emoji: '🐢', bgType: 'forest' },
-                    { id: 'eagle', name: '독수리', emoji: '🦅', bgType: 'sky' },
-                    { id: 'scooter', name: '킥보드', emoji: '🛴', bgType: 'road' },
-                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky' },
-                    { id: 'horse', name: '말', emoji: '🐎', bgType: 'forest' }
+                    { id: 'car', name: '자동차', emoji: '🚗', bgType: 'expressway', visualWidth: 50 },
+                    { id: 'rocket', name: '로켓', emoji: '🚀', bgType: 'sky', visualWidth: 60 },
+                    { id: 'bird', name: '새', emoji: '🐦', bgType: 'sky', visualWidth: 60 },
+                    { id: 'boat', name: '보트', emoji: '🚤', bgType: 'ocean', visualWidth: 50 },
+                    { id: 'bicycle', name: '자전거', emoji: '🚴', bgType: 'road', visualWidth: 56 },
+                    { id: 'rabbit', name: '토끼', emoji: '🐇', bgType: 'forest', visualWidth: 53 },
+                    { id: 'turtle', name: '거북이', emoji: '🐢', bgType: 'forest', visualWidth: 58 },
+                    { id: 'eagle', name: '독수리', emoji: '🦅', bgType: 'sky', visualWidth: 60 },
+                    { id: 'scooter', name: '킥보드', emoji: '🛴', bgType: 'road', visualWidth: 54 },
+                    { id: 'helicopter', name: '헬리콥터', emoji: '🚁', bgType: 'sky', visualWidth: 48 },
+                    { id: 'horse', name: '말', emoji: '🐎', bgType: 'forest', visualWidth: 56 }
                 ];
             }
         }
@@ -2808,6 +2809,7 @@
 
         // 거리 시스템 상수
         const PIXELS_PER_METER = 10;
+        // 탈것별 시각적 너비는 ALL_VEHICLES[].visualWidth 참조 (JSON에서 로드)
 
         function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, trackOptions) {
             // idle 애니메이션 정리
@@ -3436,7 +3438,14 @@
             // 각 탈것의 애니메이션 상태 (서버에서 받은 기믹 데이터 사용)
             const horseStates = horseElements.map(({ horse, frames, duration, rank, lane }) => {
                 const horseIndex = parseInt(horse.id.replace('horse_', ''));
-                
+
+                // 탈것별 시각적 너비 가져오기
+                const vehicleId = selectedVehicleTypes && selectedVehicleTypes[horseIndex]
+                    ? selectedVehicleTypes[horseIndex]
+                    : (ALL_VEHICLES.length > 0 ? ALL_VEHICLES[horseIndex % ALL_VEHICLES.length].id : 'car');
+                const vehicleData = ALL_VEHICLES.find(v => v.id === vehicleId);
+                const visualWidth = vehicleData ? vehicleData.visualWidth : 60;
+
                 // 서버에서 받은 기믹 데이터 사용 (없으면 빈 배열)
                 const serverGimmickList = serverGimmicks && serverGimmicks[horseIndex] ? serverGimmicks[horseIndex] : [];
                 const gimmicks = serverGimmickList.map(g => ({
@@ -3449,13 +3458,13 @@
                     active: false,
                     endTime: 0
                 }));
-                
+
                 // 기본 속도 계산 (duration 기반)
                 const baseSpeed = totalDistance / duration;
-                
+
                 // 초기 속도 변화를 위한 시드 (horseIndex 기반으로 일관성 유지)
                 const initialSpeedFactor = 0.8 + ((horseIndex * 1234567) % 100) / 250; // 0.8 ~ 1.2
-                
+
                 return {
                     horse,
                     frames,
@@ -3467,12 +3476,14 @@
                     baseSpeed,
                     currentSpeed: baseSpeed * initialSpeedFactor,
                     targetSpeed: baseSpeed,
-                    finished: false,
+                    finishJudged: false, // 도착 판정 완료 (오른쪽 끝이 결승선 통과)
+                    finished: false, // 완전 정지 (왼쪽 끝이 결승선 통과)
                     gimmicks,
                     wobblePhase: 0,
                     lastSpeedChange: 0,
                     speedChangeSeed: horseIndex * 9876, // 속도 변화 시드
-                    simElapsed: 0 // 서버와 동기화용 고정 16ms 스텝 elapsed
+                    simElapsed: 0, // 서버와 동기화용 고정 16ms 스텝 elapsed
+                    visualWidth // 탈것별 시각적 너비
                 };
             });
             
@@ -3499,7 +3510,7 @@
                     track.style.filter = 'contrast(1.1) saturate(1.3)';
                     console.log('[슬로우모션] 강제 발동!');
                 };
-                
+
                 // 레이스 시작: idle → run 상태 전환
                 horseStates.forEach(state => {
                     if (state.horse && state.horse.dataset.vehicleId) {
@@ -3550,7 +3561,7 @@
                     // 슬로우모션 체크: 1등이 결승선 30m 전에 도달하면 무조건 발동
                     if (!slowMotionTriggered) {
                         const rank1 = horseStates.find(s => s.rank === 0);
-                        if (rank1 && !rank1.finished) {
+                        if (rank1 && !rank1.finishJudged) {
                             const remainingPx = finishLine - rank1.currentPos;
                             const remainingM = remainingPx / PIXELS_PER_METER;
                             if (remainingM <= smConf.leader.triggerDistanceM) {
@@ -3611,8 +3622,8 @@
                         }
                     }
 
-                    // 슬로우모션 해제: 1등이 결승선 통과하면 즉시 해제
-                    if (slowMotionActive && horseStates.some(s => s.finished)) {
+                    // 슬로우모션 해제: 1등이 결승선 도착 판정(오른쪽 끝 통과)하면 즉시 해제
+                    if (slowMotionActive && horseStates.some(s => s.finishJudged)) {
                         slowMotionActive = false;
                         slowMotionFactor = 1;
                         track.style.filter = '';
@@ -3938,22 +3949,59 @@
                             speedMultiplier = state.currentSpeed / state.baseSpeed;
                         }
                         
-                        // 위치 업데이트
-                        // 말이 가운데에 도달하기 전까지는 정상적으로 앞으로 이동
-                        // 가운데에 도달한 후부터는 배경 스크롤과 함께 화면 밖으로 나감
-                        const movement = state.baseSpeed * speedMultiplier * deltaTime * slowMotionFactor;
-                        state.currentPos = Math.max(startPosition, state.currentPos + movement);
-                        
-                        // 결승선 도착 체크
-                        if (state.currentPos >= finishLine && !state.finished) {
-                            state.currentPos = finishLine;
-                            state.finished = true;
-                            state.finishOrder = state.rank; // 서버 순위 사용 (클라이언트 타이밍 차이 방지)
+                        // 위치 업데이트 (완전 정지 전까지)
+                        // 서버에서 슬로우모션 포함 순위 계산 → 순위 동기화 불필요
+                        if (!state.finished) {
+                            let movement;
+                            if (state.finishJudged) {
+                                // 도착 판정 후 감속 이동 (왼쪽 끝이 결승선을 넘을 때까지)
+                                const finishSpeedFactor = 0.35; // 35% 속도로 감속
+                                movement = state.baseSpeed * finishSpeedFactor * deltaTime * slowMotionFactor;
+                            } else {
+                                movement = state.baseSpeed * speedMultiplier * deltaTime * slowMotionFactor;
+                            }
+                            state.currentPos = Math.max(startPosition, state.currentPos + movement);
+                        }
+
+                        // 결승선 도착 체크 (탈것의 오른쪽 끝 = currentPos + visualWidth가 결승선에 닿으면 도착 판정)
+                        const horseRightEdge = state.currentPos + state.visualWidth;
+
+                        // 1단계: 오른쪽 끝이 결승선에 닿으면 "도착 판정" (순위 확정)
+                        // 서버에서 슬로우모션 포함 순위 계산 → 대기 로직 불필요
+                        if (horseRightEdge >= finishLine && !state.finishJudged) {
+                            // 도착 판정 완료 (순위 확정, 아직 이동은 계속)
+                            state.finishJudged = true;
+                            state.finishOrder = state.rank; // 서버 순위 사용
                             finishOrderCounter = Math.max(finishOrderCounter, state.rank + 1);
+                            console.log(`[DEBUG] 말 ${state.horseIndex} 도착 판정! pos=${state.currentPos.toFixed(0)}, 결승선=${finishLine}`);
+
+                            // 도착 애니메이션 표시 (순위 뱃지)
+                            showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
+
+                            // 1등 결승 후 → 0.5초 유지 후 꼴등으로 부드럽게 패닝
+                            if (state.rank === 0) {
+                                setTimeout(() => {
+                                    const unfinished = horseStates.filter(s => !s.finishJudged)
+                                        .sort((a, b) => a.currentPos - b.currentPos);
+                                    if (unfinished.length > 0) {
+                                        panningToLoser = true;
+                                        panStartTime = Date.now();
+                                        panStartOffset = currentScrollOffset;
+                                        loserCameraTarget = unfinished[0];
+                                        panTargetOffset = loserCameraTarget.currentPos - trackWidth * 0.3;
+                                    }
+                                }, PAN_DELAY);
+                            }
+                        }
+
+                        // 2단계: 왼쪽 끝(currentPos)이 결승선을 넘으면 "완전 정지"
+                        if (state.finishJudged && state.currentPos >= finishLine && !state.finished) {
+                            state.finished = true;
                             state.horse.style.filter = '';
                             state.horse.style.transform = '';
+                            console.log(`[DEBUG] 말 ${state.horseIndex} 완전 정지! pos=${state.currentPos.toFixed(0)}`);
 
-                            // finish 상태 SVG로 전환 (감속 걷기)
+                            // finish 상태 SVG로 전환 (감속 걷기 → 정지)
                             const vid = state.horse.dataset.vehicleId;
                             if (vid) {
                                 setVehicleState(state.horse, vid, 'finish');
@@ -3965,24 +4013,6 @@
                                     if (f1) f1.style.animationDuration = '0.4s';
                                     if (f2) f2.style.animationDuration = '0.4s';
                                 }
-                            }
-
-                            // 도착 애니메이션 표시
-                            showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
-
-                            // 1등 결승 후 → 0.5초 유지 후 꼴등으로 부드럽게 패닝
-                            if (state.rank === 0) {
-                                setTimeout(() => {
-                                    const unfinished = horseStates.filter(s => !s.finished)
-                                        .sort((a, b) => a.currentPos - b.currentPos);
-                                    if (unfinished.length > 0) {
-                                        panningToLoser = true;
-                                        panStartTime = Date.now();
-                                        panStartOffset = currentScrollOffset;
-                                        loserCameraTarget = unfinished[0];
-                                        panTargetOffset = loserCameraTarget.currentPos - trackWidth * 0.3;
-                                    }
-                                }, PAN_DELAY);
                             }
                         }
                     });

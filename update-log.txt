@@ -1,4 +1,23 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-04)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-05)</span>
+
+<b>🐎 경마 시뮬레이션 동기화 개선</b>
+• 서버-클라이언트 간 경주 시뮬레이션 정확도 대폭 향상
+• 꼴등 슬로우모션 연출 타이밍 개선
+• 순위 판정 정확도 향상
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-05)</span>
+
+<b>🐎 경마 버그 수정</b>
+• 새로고침 시 다른 유저의 선택이 보이던 문제 수정
+• 방장이 트랙 변경 후 입장한 유저에게 최신 트랙 정보가 전달되지 않던 문제 수정
+
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-04)</span>
+
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-03)</span>
 
 <b>🐎 경마 다시보기</b>
 • 게임 결과 다시보기에서 이동바·빨리/느리게 보기 컨트롤 제거 (단순 재생만 지원)

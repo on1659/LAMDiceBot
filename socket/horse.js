@@ -1043,7 +1043,7 @@ module.exports = (socket, io, ctx) => {
         return vehicleMods[weather] || 1.0;
     }
 
-    // 경주 결과 계산 함수 (기믹 + 날씨 반영 시뮬레이션)
+    // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
     function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = []) {
         // 트랙 길이 설정
         const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -1055,6 +1055,22 @@ module.exports = (socket, io, ctx) => {
         const finishLine = trackDistanceMeters * PIXELS_PER_METER;
         const totalDistance = finishLine - startPosition;
         const frameInterval = 16; // ~60fps
+
+        // 슬로우모션 설정 (클라이언트와 동일)
+        const smConf = horseConfig.slowMotion || {
+            leader: { triggerDistanceM: 15, factor: 0.4 },
+            loser: { triggerDistanceM: 10, factor: 0.4 }
+        };
+
+        // visualWidth 맵 (클라이언트와 동일)
+        const VISUAL_WIDTHS = {
+            'car': 50, 'rocket': 60, 'bird': 60, 'boat': 50, 'bicycle': 56,
+            'rabbit': 53, 'turtle': 58, 'eagle': 60, 'kickboard': 54,
+            'helicopter': 48, 'horse': 56
+        };
+        function getVisualWidth(vehicleId) {
+            return VISUAL_WIDTHS[vehicleId] || 60;
+        }
 
         // 각 말의 기본 도착 시간 랜덤 생성
         const baseDurations = [];
@@ -1069,11 +1085,11 @@ module.exports = (socket, io, ctx) => {
             const [pfMin, pfMax] = pfConf.gapPercent;
             const fastest = baseDurations[0];
             baseDurations[1] = fastest + fastest * (pfMin + Math.random() * (pfMax - pfMin));
-            console.log(`[슬로모션] 접전 강제! 1등=${Math.round(fastest)}ms, 2등=${Math.round(baseDurations[1])}ms`);
+            console.log(`[서버시뮬] 접전 강제! 1등=${Math.round(fastest)}ms, 2등=${Math.round(baseDurations[1])}ms`);
         }
 
-        // 기믹 반영 시뮬레이션으로 실제 도착 시간 계산
-        const simResults = [];
+        // 모든 말의 상태 초기화 (동시 시뮬레이션용)
+        const horseStates = [];
         for (let i = 0; i < horseCount; i++) {
             const duration = baseDurations[i];
             const baseSpeed = totalDistance / duration;
@@ -1092,19 +1108,110 @@ module.exports = (socket, io, ctx) => {
                 endTime: 0
             }));
 
-            let currentPos = startPosition;
-            let currentSpeed = baseSpeed * initialSpeedFactor;
-            let targetSpeed = baseSpeed;
-            let lastSpeedChange = 0;
-            let elapsed = 0;
+            // 탈것별 visualWidth
+            const vehicleId = vehicleTypes[i] || 'horse';
+            const visualWidth = getVisualWidth(vehicleId);
 
-            // 프레임 단위 시뮬레이션
-            while (currentPos < finishLine && elapsed < 60000) {
-                elapsed += frameInterval;
-                const progress = (currentPos - startPosition) / totalDistance;
+            horseStates.push({
+                horseIndex: i,
+                currentPos: startPosition,
+                baseSpeed,
+                currentSpeed: baseSpeed * initialSpeedFactor,
+                targetSpeed: baseSpeed,
+                lastSpeedChange: 0,
+                speedChangeSeed,
+                gimmicks,
+                finished: false,
+                finishJudged: false,  // 오른쪽 끝 기준 도착 판정 (클라이언트와 동일)
+                finishTime: 0,
+                finishJudgedTime: 0,
+                baseDuration: Math.round(baseDurations[i]),
+                visualWidth
+            });
+        }
+
+        // 슬로우모션 상태 (Leader + Loser)
+        let slowMotionFactor = 1;
+        let slowMotionTriggered = false;      // Leader 슬로우모션 발동 여부
+        let slowMotionActive = false;         // Leader 슬로우모션 활성 상태
+        let loserSlowMotionTriggered = false; // Loser 슬로우모션 발동 여부
+        let loserSlowMotionActive = false;    // Loser 슬로우모션 활성 상태
+        let loserCameraTargetIndex = -1;      // Loser 카메라 타겟
+        let elapsed = 0;
+
+        // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
+        while (elapsed < 60000) {
+            elapsed += frameInterval;
+
+            // 모든 말이 도착했는지 확인
+            const allFinished = horseStates.every(s => s.finished);
+            if (allFinished) break;
+
+            // 1등(가장 앞선 말) 찾기 - finishJudged 기준 (클라이언트와 동일)
+            const unfinishedJudged = horseStates.filter(s => !s.finishJudged);
+            const leader = unfinishedJudged.length > 0
+                ? unfinishedJudged.reduce((a, b) => a.currentPos > b.currentPos ? a : b)
+                : null;
+
+            // Leader 슬로우모션 발동: 1등의 오른쪽 끝이 결승선 15m 이내면 발동
+            if (!slowMotionTriggered && leader) {
+                const leaderRightEdge = leader.currentPos + leader.visualWidth;
+                const remainingPx = finishLine - leaderRightEdge;
+                const remainingM = remainingPx / PIXELS_PER_METER;
+                if (remainingM <= smConf.leader.triggerDistanceM) {
+                    slowMotionTriggered = true;
+                    slowMotionActive = true;
+                    slowMotionFactor = smConf.leader.factor;
+                    console.log(`[서버시뮬] Leader 슬로우모션 발동! 남은거리=${remainingM.toFixed(1)}m, factor=${slowMotionFactor}`);
+                }
+            }
+
+            // Leader 슬로우모션 해제: 1등이 finishJudged 되면 (클라이언트와 동일)
+            if (slowMotionActive && horseStates.some(s => s.finishJudged)) {
+                slowMotionActive = false;
+                slowMotionFactor = 1;
+                console.log(`[서버시뮬] Leader 슬로우모션 해제!`);
+            }
+
+            // Loser 슬로우모션 발동: Leader 슬로우모션 해제 후, 꼴등 직전 말이 결승선 10m 이내
+            if (!loserSlowMotionTriggered && !slowMotionActive && smConf.loser) {
+                const unfinished = horseStates
+                    .filter(s => !s.finished)
+                    .sort((a, b) => a.currentPos - b.currentPos);  // 느린 순
+
+                if (unfinished.length >= 2) {
+                    const lastHorse = unfinished[0];        // 꼴등
+                    const secondLastHorse = unfinished[1];  // 꼴등 직전
+
+                    const slRemainingM = (finishLine - secondLastHorse.currentPos) / PIXELS_PER_METER;
+                    if (slRemainingM <= smConf.loser.triggerDistanceM) {
+                        loserSlowMotionTriggered = true;
+                        loserSlowMotionActive = true;
+                        slowMotionFactor = smConf.loser.factor;
+                        loserCameraTargetIndex = secondLastHorse.horseIndex;
+                        console.log(`[서버시뮬] Loser 슬로우모션 발동! target=말${loserCameraTargetIndex}, 남은거리=${slRemainingM.toFixed(1)}m`);
+                    }
+                }
+            }
+
+            // Loser 슬로우모션 해제: 카메라 타겟이 finished 되면
+            if (loserSlowMotionActive) {
+                const target = horseStates.find(s => s.horseIndex === loserCameraTargetIndex);
+                if (!target || target.finished) {
+                    loserSlowMotionActive = false;
+                    slowMotionFactor = 1;
+                    console.log(`[서버시뮬] Loser 슬로우모션 해제!`);
+                }
+            }
+
+            // 각 말 업데이트
+            horseStates.forEach(state => {
+                if (state.finished) return;
+
+                const progress = (state.currentPos - startPosition) / totalDistance;
 
                 // 기믹 트리거 체크
-                gimmicks.forEach(gimmick => {
+                state.gimmicks.forEach(gimmick => {
                     if (!gimmick.triggered && progress >= gimmick.progressTrigger) {
                         gimmick.triggered = true;
                         gimmick.active = true;
@@ -1115,7 +1222,7 @@ module.exports = (socket, io, ctx) => {
                         // 연쇄 기믹 활성화
                         if (gimmick.nextGimmick && !gimmick.chainTriggered) {
                             gimmick.chainTriggered = true;
-                            gimmicks.push({
+                            state.gimmicks.push({
                                 progressTrigger: 0,
                                 type: gimmick.nextGimmick.type,
                                 duration: gimmick.nextGimmick.duration,
@@ -1132,7 +1239,7 @@ module.exports = (socket, io, ctx) => {
                 // 속도 계산
                 let speedMultiplier = 1;
                 let hasActiveGimmick = false;
-                gimmicks.forEach(gimmick => {
+                state.gimmicks.forEach(gimmick => {
                     if (gimmick.active) {
                         hasActiveGimmick = true;
                         speedMultiplier = gimmick.speedMultiplier;
@@ -1142,41 +1249,61 @@ module.exports = (socket, io, ctx) => {
                 if (!hasActiveGimmick) {
                     const changeInterval = 500;
                     const currentInterval = Math.floor(elapsed / changeInterval);
-                    const lastInterval = Math.floor(lastSpeedChange / changeInterval);
+                    const lastInterval = Math.floor(state.lastSpeedChange / changeInterval);
 
                     if (currentInterval > lastInterval) {
-                        lastSpeedChange = elapsed;
-                        const seedVal = (speedChangeSeed + currentInterval) * 16807 % 2147483647;
+                        state.lastSpeedChange = elapsed;
+                        const seedVal = (state.speedChangeSeed + currentInterval) * 16807 % 2147483647;
                         const speedFactor = 0.7 + (seedVal % 600) / 1000;
-                        targetSpeed = baseSpeed * speedFactor;
+                        state.targetSpeed = state.baseSpeed * speedFactor;
                     }
 
-                    const speedDiff = targetSpeed - currentSpeed;
-                    currentSpeed += speedDiff * 0.05;
-                    speedMultiplier = currentSpeed / baseSpeed;
+                    const speedDiff = state.targetSpeed - state.currentSpeed;
+                    state.currentSpeed += speedDiff * 0.05;
+                    speedMultiplier = state.currentSpeed / state.baseSpeed;
                 }
 
                 // 날씨 보정 적용
-                if (weatherSchedule.length > 0 && vehicleTypes[i]) {
+                if (weatherSchedule.length > 0 && vehicleTypes[state.horseIndex]) {
                     const currentWeather = getCurrentWeather(weatherSchedule, progress);
-                    const weatherMod = getVehicleWeatherModifier(vehicleTypes[i], currentWeather);
+                    const weatherMod = getVehicleWeatherModifier(vehicleTypes[state.horseIndex], currentWeather);
                     speedMultiplier *= weatherMod;
                 }
 
-                // 위치 업데이트 (클라이언트와 동일한 공식)
-                const movement = baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000;
-                currentPos = Math.max(startPosition, currentPos + movement);
-            }
+                // 위치 업데이트 (슬로우모션 팩터 적용!)
+                // finishJudged 후 감속 이동 (클라이언트와 동일)
+                let movement;
+                if (state.finishJudged) {
+                    const finishSpeedFactor = 0.35;
+                    movement = state.baseSpeed * finishSpeedFactor * (frameInterval / 1000) * 1000 * slowMotionFactor;
+                } else {
+                    movement = state.baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000 * slowMotionFactor;
+                }
+                state.currentPos = Math.max(startPosition, state.currentPos + movement);
 
-            simResults.push({
-                horseIndex: i,
-                simFinishTime: elapsed,
-                baseDuration: Math.round(baseDurations[i])
+                // 1단계: 오른쪽 끝 기준 도착 판정 (finishJudged) - 순위 확정
+                const horseRightEdge = state.currentPos + state.visualWidth;
+                if (horseRightEdge >= finishLine && !state.finishJudged) {
+                    state.finishJudged = true;
+                    state.finishJudgedTime = elapsed;
+                }
+
+                // 2단계: 왼쪽 끝 기준 완전 정지 (finished)
+                if (state.finishJudged && state.currentPos >= finishLine && !state.finished) {
+                    state.finished = true;
+                    state.finishTime = elapsed;
+                }
             });
         }
 
-        // 시뮬레이션 결과로 순위 결정
-        simResults.sort((a, b) => a.simFinishTime - b.simFinishTime);
+        // 시뮬레이션 결과로 순위 결정 (finishJudgedTime 기준 - 클라이언트와 동일)
+        const simResults = horseStates.map(s => ({
+            horseIndex: s.horseIndex,
+            simFinishJudgedTime: s.finishJudgedTime || 60000,
+            simFinishTime: s.finishTime || 60000,
+            baseDuration: s.baseDuration
+        }));
+        simResults.sort((a, b) => a.simFinishJudgedTime - b.simFinishJudgedTime);
 
         const rankings = simResults.map((result, rank) => ({
             horseIndex: result.horseIndex,
@@ -1185,6 +1312,7 @@ module.exports = (socket, io, ctx) => {
             speed: parseFloat((0.8 + Math.random() * 0.7).toFixed(2))
         }));
 
+        console.log(`[서버시뮬] 순위 결정 완료:`, rankings.map(r => `${r.rank}등=말${r.horseIndex}`).join(', '));
         return rankings;
     }
 
