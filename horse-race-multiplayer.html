@@ -3715,9 +3715,14 @@
                         }
                     }
 
-                    // 꼴등 슬로우모션 해제: secondLastBetted(카메라 대상)가 결승선에 닿으면 (finishJudged)
+                    // 꼴등 슬로우모션 해제: 베팅된 말 중 아무나 결승선에 닿으면 해제
                     if (loserSlowMotionActive) {
-                        const loserFinished = !loserCameraTarget || loserCameraTarget.finishJudged;
+                        const bettedIndicesForCheck = [...new Set(Object.values(userHorseBets))];
+                        const anyBettedFinished = bettedIndicesForCheck.some(hi => {
+                            const state = horseStates.find(s => s.horseIndex === hi);
+                            return state && state.finishJudged;
+                        });
+                        const loserFinished = !loserCameraTarget || anyBettedFinished;
                         if (loserFinished) {
                             loserSlowMotionActive = false;
                             slowMotionFactor = 1;
@@ -4275,12 +4280,12 @@
                         // 버프/디버프 인디케이터 제거
                         document.querySelectorAll('.weather-indicator').forEach(el => el.remove());
 
-                        // 미완주 말들 전부 찾기 (비석 대상)
-                        const unfinishedStates = horseStates.filter(s => !s.finished);
+                        // 미완주 말들 전부 찾기 (비석 대상) - 결승선에 닿지 않은 말만
+                        const unfinishedStates = horseStates.filter(s => !s.finishJudged);
 
-                        // 실제 도착 순서 수집 (완주한 말들만)
+                        // 실제 도착 순서 수집 (결승선에 닿은 말들만)
                         const actualFinishOrder = horseStates
-                            .filter(s => s.finished)
+                            .filter(s => s.finishJudged)
                             .sort((a, b) => a.finishOrder - b.finishOrder)
                             .map(s => s.horseIndex);
 
