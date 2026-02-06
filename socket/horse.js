@@ -522,27 +522,14 @@ module.exports = (socket, io, ctx) => {
             delete gameState.userHorseBets[userName];
             console.log(`방 ${room.roomName}: ${userName}이(가) 말 ${horseIndex} 선택 취소`);
         } else {
-            // 다른 탈것을 선택하는 경우
-            // 중복 선택 검증: 말 수 >= 사람 수인 경우 같은 말 중복 선택 불가
-            // (단, 내가 이미 선택한 것은 제외하고 검증)
-            const selectedHorses = Object.entries(gameState.userHorseBets)
-                .filter(([name, _]) => name !== userName) // 내 선택 제외
-                .map(([_, horseIdx]) => horseIdx);
-
-            if (gameState.availableHorses.length >= players.length) {
-                if (selectedHorses.includes(horseIndex)) {
-                    socket.emit('horseRaceError', '이미 선택된 말입니다!');
-                    return;
-                }
-            }
-
+            // 다른 탈것을 선택하는 경우 (항상 중복 선택 허용)
             // 말 선택 저장 (또는 재선택)
             gameState.userHorseBets[userName] = horseIndex;
             console.log(`방 ${room.roomId}: ${userName}이(가) 말 ${horseIndex} ${previousSelection !== undefined ? '재선택' : '선택'}`);
         }
 
         // 선택 현황 업데이트 (본인에게만 확인 전송, 다른 사람 선택은 경기 시작 시 공개)
-        const canSelectDuplicate = gameState.availableHorses.length < players.length;
+        const canSelectDuplicate = true;  // 항상 중복 선택 허용
         const allSelectedUsers = Object.keys(gameState.userHorseBets);  // 전체 선택자 목록
 
         // 본인에게 선택 확인 전송 (본인이 뭘 선택했는지)
@@ -833,7 +820,7 @@ module.exports = (socket, io, ctx) => {
 
         const players = gameState.users.map(u => u.name);
         const allSelectedUsers = Object.keys(gameState.userHorseBets);
-        const canSelectDuplicate = gameState.availableHorses.length < players.length;
+        const canSelectDuplicate = true;  // 항상 중복 선택 허용
 
         // 본인에게: 랜덤 선택됨 (어떤 말인지는 숨김)
         socket.emit('randomHorseSelected', {

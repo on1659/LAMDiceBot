@@ -813,16 +813,6 @@ function renderHorseSelection() {
             });
         }
 
-        // 중복 선택 불가능할 때 (사람수 <= 말수) 이미 선택된 말 비활성화
-        const isSelectedByOther = selectedHorseIndices.includes(horseIndex) && !isMyHorse;
-        if (!canSelectDuplicate && isSelectedByOther) {
-            button.disabled = true;
-            button.classList.add('taken');
-        } else {
-            button.disabled = false;
-            button.classList.remove('taken');
-        }
-
         if (isMyHorse) {
             button.classList.add('selected');
             mySelectedHorse = horseIndex;
@@ -907,7 +897,6 @@ function renderHorseSelection() {
             <div class="vehicle-card-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;">
                 <div style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">🎲</div>
                 <div class="vehicle-name" style="font-size:12px;">랜덤!</div>
-                <div class="vehicle-stats" style="font-size:9px;color:#888;">뭘 골랐는지 몰라요</div>
             </div>
         `;
     }

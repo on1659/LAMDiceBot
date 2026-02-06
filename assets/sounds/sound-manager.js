@@ -65,15 +65,15 @@
     }
 
     /**
-     * 키로 사운드 재생. enabled가 false면 스킵. 탭이 포커스가 아니면 스킵(백그라운드 무시).
+     * 키로 사운드 재생. 탭이 포커스가 아니면 스킵(백그라운드 무시).
+     * enabled가 false거나 마스터볼륨이 0이면 볼륨 0으로 재생 (음소거 해제 시 즉시 들리도록)
      * @param {string} key - gameType_effectName (예: dice_roll, roulette_spin)
      * @param {boolean} [enabled=true] - 재생 여부 게이트
      */
     function playSound(key, enabled, volume) {
-        if (enabled === false) return;
         if (!hasSoundFocus()) return;
         var master = getMasterVolume();
-        if (master === 0) return;
+        var isMuted = (enabled === false || master === 0);
         loadConfig().then(function (cfg) {
             if (!hasSoundFocus()) return;
             var path = cfg[key];
@@ -81,26 +81,26 @@
             var src = path.charAt(0) === '/' ? path : '/' + path;
             var audio = new Audio(src);
             var baseVol = typeof volume === 'number' ? volume : 1.0;
-            audio.volume = baseVol * getMasterVolume();
+            audio.volume = isMuted ? 0 : baseVol * getMasterVolume();
             audio.play().catch(function (e) { console.warn('[SoundManager] playSound failed:', key, e.message); });
         });
     }
 
     /**
      * 키로 루프 사운드 재생. 이미 같은 키가 재생 중이면 무시.
+     * enabled가 false거나 마스터볼륨이 0이면 볼륨 0으로 재생 (음소거 해제 시 즉시 들리도록)
      * @param {string} key - gameType_effectName
      * @param {boolean} [enabled=true] - 재생 여부 게이트
      * @param {number} [volume=1.0] - 볼륨 (0.0 ~ 1.0)
      */
     function playLoop(key, enabled, volume) {
-        if (enabled === false) return;
         if (!hasSoundFocus()) return;
-        var master = getMasterVolume();
-        if (master === 0) return;
         if (activeLoops[key]) return;
 
         // 새로 재생 시작하면 취소 예정 해제
         delete pendingStops[key];
+
+        var loopMuted = (enabled === false || getMasterVolume() === 0);
 
         loadConfig().then(function (cfg) {
             // 취소 예정이면 재생하지 않음 (stopLoop이 먼저 호출된 경우)
@@ -117,7 +117,7 @@
             audio.loop = true;
             var baseVol = typeof volume === 'number' ? volume : 1.0;
             loopBaseVolumes[key] = baseVol;
-            audio.volume = baseVol * getMasterVolume();
+            audio.volume = loopMuted ? 0 : baseVol * getMasterVolume();
             audio.play().catch(function (e) { console.warn('[SoundManager] playLoop failed:', key, e.message); });
             activeLoops[key] = audio;
         });

@@ -389,6 +389,56 @@
             width: auto;
             margin: 0;
         }
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+        }
+        .volume-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            width: auto;
+        }
+        .volume-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .volume-slider {
+            width: 60px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ddd;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        .volume-slider.muted {
+            opacity: 0.5;
+        }
 
         .game-status {
             text-align: center;
@@ -1417,7 +1467,10 @@
                     <span id="roomStatusIcons" style="display: flex; align-items: center; gap: 5px;"></span>
                     <span class="connection-sound-row">
                         <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
-                        <label><input type="checkbox" id="soundCheckbox"> 🔊 사운드</label>
+                        <div class="volume-control" id="volumeControl">
+                            <button class="volume-btn" id="volumeBtn" title="음소거 토글">🔇</button>
+                            <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
+                        </div>
                     </span>
                     <span id="roomPasswordDisplay" style="font-size: 12px; color: #667eea; font-weight: 500; display: none;"></span>
                 </div>
@@ -2173,26 +2226,66 @@
             return hash.toString();
         }
         
-        // 사운드 체크박스 (기본 끔, localStorage 동기화)
+        // 주사위 사운드 볼륨 관리 (경마와 동일한 패턴)
         const DICE_SOUND_KEY = 'diceSoundEnabled';
-        function getDiceSoundEnabled() { return localStorage.getItem(DICE_SOUND_KEY) === 'true'; }
-        function setDiceSoundCheckboxes() {
-            const v = getDiceSoundEnabled();
-            const c1 = document.getElementById('soundCheckbox');
-            const c2 = document.getElementById('createRoomSoundCheckbox');
-            if (c1) c1.checked = v;
-            if (c2) c2.checked = v;
+        const DICE_VOLUME_KEY = 'diceSoundVolume';
+        var diceMasterVolume = 0; // 0 = 음소거 (기본)
+        var diceStoredVolume = 0.5; // 음소거 해제 시 복원할 볼륨 (기본 50%)
+
+        function getDiceSoundEnabled() { return diceMasterVolume > 0; }
+        function getDiceMasterVolume() { return diceMasterVolume; }
+
+        function initDiceVolumeFromStorage() {
+            const storedMuted = localStorage.getItem(DICE_SOUND_KEY);
+            const storedVolume = localStorage.getItem(DICE_VOLUME_KEY);
+            diceStoredVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
+            const isEnabled = storedMuted === 'true';
+            diceMasterVolume = isEnabled ? diceStoredVolume : 0;
         }
-        document.addEventListener('DOMContentLoaded', () => {
-            setDiceSoundCheckboxes();
-            function onSoundChange(checked) {
-                localStorage.setItem(DICE_SOUND_KEY, checked ? 'true' : 'false');
-                setDiceSoundCheckboxes();
+
+        function updateDiceVolumeUI() {
+            const isMuted = diceMasterVolume === 0;
+            const volumePercent = Math.round(diceStoredVolume * 100);
+            const btn = document.getElementById('volumeBtn');
+            const slider = document.getElementById('volumeSlider');
+            if (btn) btn.textContent = isMuted ? '🔇' : (diceMasterVolume < 0.5 ? '🔈' : '🔊');
+            if (slider) {
+                slider.value = volumePercent;
+                slider.classList.toggle('muted', isMuted);
             }
-            const sc1 = document.getElementById('soundCheckbox');
-            const sc2 = document.getElementById('createRoomSoundCheckbox');
-            if (sc1) sc1.addEventListener('change', () => onSoundChange(sc1.checked));
-            if (sc2) sc2.addEventListener('change', () => onSoundChange(sc2.checked));
+        }
+
+        function toggleDiceMute() {
+            if (diceMasterVolume > 0) {
+                diceMasterVolume = 0;
+                localStorage.setItem(DICE_SOUND_KEY, 'false');
+            } else {
+                diceMasterVolume = diceStoredVolume;
+                localStorage.setItem(DICE_SOUND_KEY, 'true');
+            }
+            updateDiceVolumeUI();
+            if (window.SoundManager) SoundManager.applyMasterVolume();
+        }
+
+        function setDiceMasterVolume(volumePercent) {
+            const vol = volumePercent / 100;
+            diceStoredVolume = vol;
+            diceMasterVolume = vol;
+            localStorage.setItem(DICE_VOLUME_KEY, vol.toString());
+            localStorage.setItem(DICE_SOUND_KEY, vol > 0 ? 'true' : 'false');
+            updateDiceVolumeUI();
+            if (window.SoundManager) SoundManager.applyMasterVolume();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initDiceVolumeFromStorage();
+            updateDiceVolumeUI();
+            const btn = document.getElementById('volumeBtn');
+            const slider = document.getElementById('volumeSlider');
+            if (btn) btn.addEventListener('click', toggleDiceMute);
+            if (slider) slider.addEventListener('input', () => setDiceMasterVolume(parseInt(slider.value)));
+            // SoundManager에 마스터 볼륨 getter 등록
+            if (window.SoundManager) SoundManager.setMasterVolumeGetter(getDiceMasterVolume);
         });
         
         // 채팅 입력창용 자동완성 제안 찾기

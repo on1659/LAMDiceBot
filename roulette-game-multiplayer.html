@@ -245,6 +245,56 @@
             width: auto;
             margin: 0;
         }
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+        }
+        .volume-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            width: auto;
+        }
+        .volume-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .volume-slider {
+            width: 60px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ddd;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #7c4dff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #7c4dff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        .volume-slider.muted {
+            opacity: 0.5;
+        }
 
         /* 룰렛 컨테이너 */
         .roulette-container {
@@ -926,7 +976,10 @@
             <h1>🎰 LAM Roulette</h1>
             <div class="connection-sound-row">
                 <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
-                <label><input type="checkbox" id="soundCheckbox"> 🔊 사운드</label>
+                <div class="volume-control" id="volumeControl">
+                    <button class="volume-btn" id="volumeBtn" title="음소거 토글">🔇</button>
+                    <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
+                </div>
             </div>
             
             <!-- 이름 입력 -->
@@ -1940,22 +1993,56 @@
         ];
         let pendingUserName = null;
 
-        // 룰렛 사운드 설정 (체크 시에만 재생, 기본 끔)
+        // 룰렛 사운드 볼륨 관리 (경마와 동일한 패턴)
         const ROULETTE_SOUND_KEY = 'rouletteSoundEnabled';
-        function getRouletteSoundEnabled() {
-            return localStorage.getItem(ROULETTE_SOUND_KEY) === 'true';
-        }
-        function setRouletteSoundCheckboxes() {
-            const v = getRouletteSoundEnabled();
-            const c1 = document.getElementById('soundCheckbox');
-            const c2 = document.getElementById('createRoomSoundCheckbox');
-            const c3 = document.getElementById('gameSectionSoundCheckbox');
-            if (c1) c1.checked = v;
-            if (c2) c2.checked = v;
-            if (c3) c3.checked = v;
+        const ROULETTE_VOLUME_KEY = 'rouletteSoundVolume';
+        var rouletteMasterVolume = 0; // 0 = 음소거 (기본)
+        var rouletteStoredVolume = 0.5; // 음소거 해제 시 복원할 볼륨 (기본 50%)
+
+        function getRouletteSoundEnabled() { return rouletteMasterVolume > 0; }
+        function getRouletteMasterVolume() { return rouletteMasterVolume; }
+
+        function initRouletteVolumeFromStorage() {
+            const storedMuted = localStorage.getItem(ROULETTE_SOUND_KEY);
+            const storedVolume = localStorage.getItem(ROULETTE_VOLUME_KEY);
+            rouletteStoredVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
+            const isEnabled = storedMuted === 'true';
+            rouletteMasterVolume = isEnabled ? rouletteStoredVolume : 0;
         }
 
-        // 룰렛 사운드 (Web Audio API - 외부 파일 불필요)
+        function updateRouletteVolumeUI() {
+            const isMuted = rouletteMasterVolume === 0;
+            const volumePercent = Math.round(rouletteStoredVolume * 100);
+            const btn = document.getElementById('volumeBtn');
+            const slider = document.getElementById('volumeSlider');
+            if (btn) btn.textContent = isMuted ? '🔇' : (rouletteMasterVolume < 0.5 ? '🔈' : '🔊');
+            if (slider) {
+                slider.value = volumePercent;
+                slider.classList.toggle('muted', isMuted);
+            }
+        }
+
+        function toggleRouletteMute() {
+            if (rouletteMasterVolume > 0) {
+                rouletteMasterVolume = 0;
+                localStorage.setItem(ROULETTE_SOUND_KEY, 'false');
+            } else {
+                rouletteMasterVolume = rouletteStoredVolume;
+                localStorage.setItem(ROULETTE_SOUND_KEY, 'true');
+            }
+            updateRouletteVolumeUI();
+        }
+
+        function setRouletteMasterVolume(volumePercent) {
+            const vol = volumePercent / 100;
+            rouletteStoredVolume = vol;
+            rouletteMasterVolume = vol;
+            localStorage.setItem(ROULETTE_VOLUME_KEY, vol.toString());
+            localStorage.setItem(ROULETTE_SOUND_KEY, vol > 0 ? 'true' : 'false');
+            updateRouletteVolumeUI();
+        }
+
+        // 룰렛 사운드 (Web Audio API - 외부 파일 불필요, 마스터 볼륨 적용)
         const RouletteSound = {
             audioCtx: null,
             spinRafId: null,
@@ -1969,15 +2056,15 @@
                 if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
             },
             playTick() {
-                if (!getRouletteSoundEnabled()) return;
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
                 this.ensureContext();
                 if (!this.audioCtx) return;
+                const vol = getRouletteMasterVolume();
                 const osc = this.audioCtx.createOscillator();
                 const gain = this.audioCtx.createGain();
                 osc.type = 'sine';
                 osc.frequency.value = 90;
-                gain.gain.setValueAtTime(0.08, this.audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.08 * vol, this.audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.06);
                 osc.connect(gain);
                 gain.connect(this.audioCtx.destination);
@@ -1985,7 +2072,6 @@
                 osc.stop(this.audioCtx.currentTime + 0.06);
             },
             startBoundaryTicks(wheel, mainDuration, animationStartTime) {
-                if (!getRouletteSoundEnabled()) return;
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
                 this.stopSpin();
                 const segmentCount = parseInt(wheel.dataset.segmentCount, 10) || 3;
@@ -2024,15 +2110,15 @@
                 }
             },
             playStopRumble() {
-                if (!getRouletteSoundEnabled()) return;
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
                 this.ensureContext();
                 if (!this.audioCtx) return;
+                const vol = getRouletteMasterVolume();
                 const osc = this.audioCtx.createOscillator();
                 const gain = this.audioCtx.createGain();
                 osc.type = 'sine';
                 osc.frequency.value = 65;
-                gain.gain.setValueAtTime(0.2, this.audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.2 * vol, this.audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.18);
                 osc.connect(gain);
                 gain.connect(this.audioCtx.destination);
@@ -2040,13 +2126,13 @@
                 osc.stop(this.audioCtx.currentTime + 0.18);
             },
             playWinner() {
-                if (!getRouletteSoundEnabled()) return;
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
                 this.ensureContext();
                 if (!this.audioCtx) return;
+                const vol = getRouletteMasterVolume();
                 const notes = [523.25, 659.25, 783.99, 1046.50];
                 const gain = this.audioCtx.createGain();
-                gain.gain.setValueAtTime(0.25, this.audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.25 * vol, this.audioCtx.currentTime);
                 gain.connect(this.audioCtx.destination);
                 notes.forEach((freq, i) => {
                     const osc = this.audioCtx.createOscillator();
@@ -3596,18 +3682,13 @@
                 });
             }
             
-            // 사운드 체크박스: 기본 끔, localStorage와 양쪽 체크박스 동기화
-            setRouletteSoundCheckboxes();
-            function onSoundCheckboxChange(checked) {
-                localStorage.setItem(ROULETTE_SOUND_KEY, checked ? 'true' : 'false');
-                setRouletteSoundCheckboxes();
-            }
-            const soundCb = document.getElementById('soundCheckbox');
-            const createRoomSoundCb = document.getElementById('createRoomSoundCheckbox');
-            const gameSectionSoundCb = document.getElementById('gameSectionSoundCheckbox');
-            if (soundCb) soundCb.addEventListener('change', () => onSoundCheckboxChange(soundCb.checked));
-            if (createRoomSoundCb) createRoomSoundCb.addEventListener('change', () => onSoundCheckboxChange(createRoomSoundCb.checked));
-            if (gameSectionSoundCb) gameSectionSoundCb.addEventListener('change', () => onSoundCheckboxChange(gameSectionSoundCb.checked));
+            // 볼륨 컨트롤 초기화
+            initRouletteVolumeFromStorage();
+            updateRouletteVolumeUI();
+            const volumeBtn = document.getElementById('volumeBtn');
+            const volumeSlider = document.getElementById('volumeSlider');
+            if (volumeBtn) volumeBtn.addEventListener('click', toggleRouletteMute);
+            if (volumeSlider) volumeSlider.addEventListener('input', () => setRouletteMasterVolume(parseInt(volumeSlider.value)));
             
             // 저장된 이름 불러오기
             const savedName = localStorage.getItem('rouletteUserName');

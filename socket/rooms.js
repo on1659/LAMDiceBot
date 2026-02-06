@@ -392,7 +392,7 @@ module.exports = (socket, io, ctx) => {
                 if (gameState.userHorseBets[userName.trim()] !== undefined) {
                     hostBets[userName.trim()] = gameState.userHorseBets[userName.trim()];
                 }
-                const canSelectDuplicate = gameState.availableHorses.length < players.length;
+                const canSelectDuplicate = true;  // 항상 중복 선택 허용
                 const trackMeters = trackMetersFromConfig;
                 const currentTrackLen = gameState.trackLength || 'medium';
                 socket.emit('horseSelectionReady', {
@@ -602,7 +602,7 @@ module.exports = (socket, io, ctx) => {
                         }
 
                         // 재접속한 사용자에게만 말 선택 UI 표시 (본인 선택만)
-                        const canSelectDuplicate = gameState.availableHorses.length < players.length;
+                        const canSelectDuplicate = true;  // 항상 중복 선택 허용
                         const myHorseBets = {};
                         if (gameState.userHorseBets[userName.trim()] !== undefined) {
                             myHorseBets[userName.trim()] = gameState.userHorseBets[userName.trim()];
@@ -822,7 +822,7 @@ module.exports = (socket, io, ctx) => {
 
                 // 선택된 말 인덱스 목록과 중복 선택 가능 여부 계산
                 const selectedHorseIndices = Object.values(gameState.userHorseBets);
-                const canSelectDuplicate = gameState.availableHorses.length < players.length;
+                const canSelectDuplicate = true;  // 항상 중복 선택 허용
 
                 // 새로 입장한 사용자에게 말 선택 UI 표시
                 // 트랙 프리셋 (horse.js와 동일)
@@ -987,7 +987,7 @@ module.exports = (socket, io, ctx) => {
         if (rooms[roomId] && room.gameType === 'horse-race' && !gameState.isHorseRaceActive) {
             const players = gameState.users.map(u => u.name);
             if (players.length > 0 && gameState.availableHorses && gameState.availableHorses.length > 0) {
-                const canSelectDuplicate = gameState.availableHorses.length < players.length;
+                const canSelectDuplicate = true;  // 항상 중복 선택 허용
 
                 gameState.users.forEach(u => {
                     const myBets = {};
