@@ -33,7 +33,6 @@ docs/.bkit-memory.json
 docs/.pdca-snapshots/
 docs/.pdca-status.json
 docs/CURSOR_*.md
-docs/meeting/
 
 # 임시/로그 파일
 cd
