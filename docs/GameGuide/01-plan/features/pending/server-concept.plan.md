@@ -183,9 +183,10 @@ CREATE TABLE server_members (
     id SERIAL PRIMARY KEY,
     server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
     user_name VARCHAR(50) NOT NULL,
-    socket_id VARCHAR(255),
+    -- socket_id 제거: 재접속마다 변경되는 임시 데이터이므로 인메모리 매핑으로 처리
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_approved BOOLEAN DEFAULT true,
+    last_seen_at TIMESTAMP,  -- 마지막 접속 시간 (활동 추적용)
     UNIQUE(server_id, user_name)
 );
 CREATE INDEX idx_server_members_server_id ON server_members(server_id);
@@ -627,6 +628,96 @@ npm install passport passport-google-oauth20 express-session connect-pg-simple
 | 권장 시점 | Phase 5 이후 | 현재 | 별도 프로젝트 |
 
 **권장**: 현재는 **옵션 B** 로 진행, 필요 시 **옵션 A** 추가
+
+---
+
+## DBA 전문가 검증: 테이블별 server_id 필요 여부 (2026-02-07)
+
+> DB 전문가 + 서버 프로그래머 전문가 에이전트 2명이 분석한 결과
+
+### 판정 결과 요약
+
+| 테이블 | 현재 server_id | 필요 여부 | 판단 근거 |
+|--------|:---:|:---:|------|
+| `suggestions` | X | **불필요** | 문의/건의는 플랫폼 전체 대상. 특정 서버 종속 아님 |
+| `visitor_total` | X | **불필요** | 싱글턴 패턴. 플랫폼 전체 누적 방문자 수 |
+| `visitor_today` | X | **불필요** | IP 기반 일별 방문 추적. 서버 개념과 무관 |
+| `game_records` | X | **추가 필요** | 어느 서버에서 플레이했는지 기록 필요 |
+| `frequent_menus` | O | **유지** | 서버별 커스텀 메뉴 (올바름) |
+| `emoji_config` | O | **유지** | 서버별 이모지 설정 (올바름) |
+| `vehicle_stats` | O | **유지** | 서버별 탈것 통계 (올바름) |
+
+### 상세 분석
+
+#### suggestions (문의하기) → server_id **불필요**
+- 사용자가 플랫폼에 건의/문의하는 게시판
+- 특정 게임 서버와 무관한 전역(Global) 기능
+- 서버 호스트가 아닌 플랫폼 관리자에게 전달되는 내용
+- **결론: 현재 상태 유지. server_id 추가하지 않음.**
+
+#### visitor_total / visitor_today → server_id **불필요**
+- 플랫폼 전체 트래픽 측정 목적
+- 서버별 방문자는 `server_members` 테이블로 충분히 추적 가능
+- visitor_today는 IP 기반이라 서버 구분 없이 유니크 방문자 집계
+- **결론: 현재 상태 유지.**
+
+#### game_records → server_id **추가 필요**
+- 현재: `game_type` + `participant_count`만 기록
+- 서버 도입 후 "어떤 서버에서 플레이했는지" 추적 필요
+- 서버별 통계 페이지에서 활용
+- 기존 데이터는 `server_id = NULL` (서버 도입 이전)로 유지
+
+**마이그레이션 SQL:**
+```sql
+ALTER TABLE game_records
+ADD COLUMN server_id INTEGER REFERENCES servers(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_game_records_server_id ON game_records(server_id);
+
+-- 기존 데이터는 NULL (서버 도입 이전 기록)
+-- 새 기록만 server_id 포함
+```
+
+#### frequent_menus / emoji_config / vehicle_stats → server_id **유지**
+- 이미 올바르게 구현됨
+- 서버별 커스텀 설정을 지원하는 핵심 테이블
+- `DEFAULT 'default'`로 서버 미설정 시에도 동작
+
+### VARCHAR server_id ↔ INTEGER servers.id 호환 전략
+
+현재 기존 3개 테이블(`frequent_menus`, `emoji_config`, `vehicle_stats`)은 `server_id VARCHAR(50) DEFAULT 'default'`을 사용하지만, 신규 `servers.id`는 `SERIAL (INTEGER)`.
+
+**전략: VARCHAR server_id를 INTEGER로 변환하지 않음**
+1. 기존 `'default'` 값은 서버 미지정 상태를 의미
+2. 서버 도입 후에는 `servers.id`의 TEXT 변환 값을 사용 (예: `'1'`, `'2'`, `'3'`)
+3. FK 제약조건 대신 애플리케이션 레벨에서 유효성 검증
+4. 기존 데이터 마이그레이션 불필요
+
+**장기 대안:**
+- `server_id_int INTEGER REFERENCES servers(id)` 컬럼 추가
+- 점진적으로 VARCHAR → INTEGER 전환
+
+### 추가 DB 개선 권고
+
+| 이슈 | 현재 | 권고 | 우선도 |
+|------|------|------|:------:|
+| suggestions 비밀번호 평문 | `password VARCHAR(100)` | bcrypt 해싱 적용 | 높음 |
+| suggestions date/time 중복 | `date VARCHAR(10)`, `time VARCHAR(20)` | `created_at` TIMESTAMP으로 충분하나 호환성 위해 유지 | 낮음 |
+| server_members socket_id | `socket_id VARCHAR(255)` | **제거** - 임시 데이터는 인메모리로 | 높음 |
+| server_members last_seen_at | 없음 | **추가** - 활동 추적용 | 중간 |
+| DB Pool 설정 미비 | Pool 기본값 (max=10) | `max: 20, idleTimeoutMillis: 30000` 명시 | 중간 |
+
+---
+
+## 폴더 구조 변경 관련 권고 (2026-02-07)
+
+> ⚠️ Phase 0 (폴더 구조 재정리)과 서버 개념 도입을 **별도 브랜치에서 분리 진행** 권고
+
+**이유:**
+- 전체 폴더를 `src/`로 이동하면 모든 `require()` 경로가 깨짐
+- Railway 배포 경로도 모두 변경 필요
+- 서버 개념 도입과 폴더 구조 변경을 동시에 하면 롤백이 복잡해짐
+- **권장**: Phase 1-5 (서버 개념)을 현재 폴더 구조에서 먼저 구현 → Phase 0은 별도 작업으로
 
 ---
 
