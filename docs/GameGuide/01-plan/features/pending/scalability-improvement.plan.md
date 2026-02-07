@@ -171,15 +171,26 @@ server.js
 
 ### TOP 5 병목 지점 (심각도 순)
 
-#### 1. 글로벌 브로드캐스트 폭풍 (CRITICAL)
+#### 1A. 글로벌 브로드캐스트 폭풍 (CRITICAL)
 ```
-위치: socket/index.js - updateRoomsList(), io.fetchSockets()
-문제: 방 목록 갱신 시 전체 접속자에게 브로드캐스트
+위치: socket/index.js - updateRoomsList()
+문제: 방 목록 갱신 시 io.emit()으로 전체 접속자에게 브로드캐스트 (방 안 사용자 포함)
      방 입장/퇴장/생성 등 빈번한 이벤트마다 실행
-     io.fetchSockets()는 모든 소켓 순회 → O(n) 비용
 영향: 50명+에서 눈에 띄는 지연
-수정: 디바운싱 (500ms 간격) + 로비 사용자에게만 전송
+수정: 디바운싱 (200ms leading+trailing) + 로비 사용자에게만 전송
 복잡도: Easy (1일)
+```
+
+> ~~io.fetchSockets()는 index.js가 아니라~~ `socket/rooms.js`에 위치 (11곳)
+
+#### 1B. fetchSockets 전체 순회 (CRITICAL)
+```
+위치: socket/rooms.js (line 77, 208, 659)
+문제: IP 차단 기능에서 io.fetchSockets() 글로벌 순회 O(n)
+     blockIPPerUser false인 방에서는 호출 안 함
+영향: IP 차단 활성화된 방에서 입장 시 전체 소켓 순회
+수정: 인메모리 Map으로 IP→socketId 매핑 관리
+복잡도: Medium (1-2일)
 ```
 
 #### 2. 경마 시뮬레이션 CPU 블로킹 (CRITICAL)
@@ -189,7 +200,7 @@ server.js
      실행 중 이벤트 루프 완전 차단
 영향: 동시 2개 방에서 경마 시작 시 서로 블로킹
 수정: Worker Thread 분리 또는 setImmediate() 분할
-복잡도: Medium (2-3일)
+복잡도: ~~Medium (2-3일)~~ setImmediate 분할: Easy (0.5일) / Worker Thread: Medium (2-3일)
 ```
 
 #### 3. Base64 이미지 메모리 폭발 (HIGH)
@@ -209,6 +220,8 @@ server.js
 영향: 100명+에서 전체 성능 저하
 수정: PM2 cluster mode → Socket.io Redis adapter
 복잡도: Hard (1주+)
+전제: PM2 cluster 모드는 Redis adapter 없이 도입 불가 (rooms 인메모리, Socket.IO adapter, 게임 상태가 프로세스 간 미공유)
+순서: Redis adapter 도입 (Hard 1주+) → PM2 cluster (Easy 0.5일)
 → 이 문서의 Phase 1 (Redis)로 해결 가능
 ```
 

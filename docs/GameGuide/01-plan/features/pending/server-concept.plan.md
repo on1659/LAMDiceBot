@@ -208,6 +208,9 @@ CREATE TABLE server_game_records (
 CREATE INDEX idx_game_records_server_id ON server_game_records(server_id);
 CREATE INDEX idx_game_records_user_name ON server_game_records(user_name);
 CREATE INDEX idx_game_records_created_at ON server_game_records(created_at);
+
+-- [DBA 추가] 복합 인덱스 (서버별 사용자 전적 조회 최적화)
+CREATE INDEX idx_game_records_server_user ON server_game_records(server_id, user_name);
 ```
 
 ---
@@ -368,7 +371,7 @@ npm install bcrypt
 | 비밀번호 평문 저장 | 서버 개발자 | `password VARCHAR(20)` | `password_hash VARCHAR(255)` + bcrypt |
 | 롤백 계획 없음 | 시스템 개발자 | 미정의 | Phase 0에 롤백 절차 추가 |
 | HTML 내부 링크 깨짐 | UI 개발자 | 상대 경로 사용 | 절대 경로로 변경 |
-| Rate Limiting 없음 | 서버 개발자 | 미적용 | express-rate-limit 적용 |
+| ~~Rate Limiting 없음~~ Rate Limiting 신규 API 추가 | 서버 개발자 | ~~미적용~~ 기존 server.js (300req/min) + socket/index.js (50req/10s) 적용됨 | 신규 Server API에만 추가 적용 |
 
 ### 🟡 권장 개선 사항
 
@@ -431,38 +434,38 @@ DROP TABLE IF EXISTS server_game_records;
 DROP TABLE IF EXISTS server_members;
 DROP TABLE IF EXISTS servers;
 # 파일 삭제
-rm src/utils/auth.js
-rm src/db/servers.js
-git checkout src/db/init.js
+rm utils/auth.js
+rm db/servers.js
+git checkout db/init.js
 ```
 
 #### Phase 2 롤백
 ```bash
 # 실행 조건: Socket 핸들러 에러 시
-rm src/socket/server.js
-git checkout src/socket/index.js
+rm socket/server.js
+git checkout socket/index.js
 ```
 
 #### Phase 3 롤백
 ```bash
 # 실행 조건: API 라우트 에러 시
-rm src/routes/server.js
-git checkout src/routes/api.js
+rm routes/server.js
+git checkout routes/api.js
 ```
 
 #### Phase 4 롤백
 ```bash
 # 실행 조건: UI 페이지 문제 시
-rm public/pages/admin.html
-rm public/pages/server-members.html
+rm admin.html
+rm server-members.html
 ```
 
 #### Phase 5 롤백
 ```bash
 # 실행 조건: 게임 연동 문제 시
-git checkout src/socket/dice.js
-git checkout src/socket/horse.js
-git checkout src/socket/roulette.js
+git checkout socket/dice.js
+git checkout socket/horse.js
+git checkout socket/roulette.js
 ```
 
 ### Rate Limiting 설정
@@ -713,6 +716,9 @@ ALTER TABLE game_records
 ADD COLUMN server_id INTEGER REFERENCES servers(id) ON DELETE SET NULL;
 
 CREATE INDEX idx_game_records_server_id ON game_records(server_id);
+
+-- [DBA 추가] game_type 인덱스 (statistics API GROUP BY 최적화)
+CREATE INDEX idx_game_records_game_type ON game_records(game_type);
 
 -- 기존 데이터는 NULL (서버 도입 이전 기록)
 -- 새 기록만 server_id 포함
