@@ -291,15 +291,14 @@ input[type="text"]:focus, input[type="password"]:focus {
     opacity: 0.5;
 }
 
-/* 경주 트랙 컨테이너 - 스크롤은 유지, 스크롤바만 숨김 */
+/* 경주 트랙 컨테이너 - transform 기반 카메라, 터치 드래그 차단 */
 .race-track-container {
     position: relative;
     width: 100%;
     height: 400px;
     margin: 20px 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
+    overflow: hidden;
+    touch-action: pan-y;
     -ms-overflow-style: none;
     border-radius: 12px;
     background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 50%, #7CB342 100%);
@@ -1359,9 +1358,17 @@ body.game-active .history-section {
 
 @media (max-width: 768px) {
     .container {
-        padding: 20px;
-        margin: 10px;
-        border-radius: 15px;
+        padding: 15px;
+        margin: 5px;
+        border-radius: 12px;
+    }
+
+    /* [필수1] 게임 활성 시 컨테이너 모바일 대응 */
+    body.game-active .container {
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 100%;
+        padding: 10px;
     }
 
     h1 {
@@ -1370,10 +1377,40 @@ body.game-active .history-section {
 
     .race-track-container {
         height: 300px;
+        margin: 10px 0;
+        border-radius: 8px;
     }
 
+    /* [필수2] 히스토리 패널 모바일 대응 */
+    .history-section {
+        position: static !important;
+        width: 100% !important;
+        max-height: 200px;
+        z-index: auto;
+        margin-top: 10px;
+    }
+
+    /* [권장7] 미니맵 모바일 숨김 */
+    #raceMinimap {
+        display: none !important;
+    }
+
+    /* [권장8] 카메라 버튼 터치 타겟 확대 */
+    #cameraSwitchBtn {
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 14px !important;
+        padding: 8px 12px !important;
+    }
+
+    /* [권장9] 선택 그리드 모바일 최적화 */
     .horse-selection-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .horse-selection-button {
+        padding: 12px;
+        font-size: 36px;
     }
 }
 

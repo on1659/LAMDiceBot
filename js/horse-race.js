@@ -491,9 +491,12 @@ function renderTrackForSelection() {
     }
     
     const wallHeight = 6;
-    const laneHeight = Math.min(75, Math.floor((350 - wallHeight * (horseCount - 1)) / horseCount));
+    // [모바일대응] 트랙 높이 동적 계산 (350 하드코딩 → 실제 높이)
+    const trackContainerEl = document.getElementById('raceTrackContainer');
+    const availableTrackHeight = (trackContainerEl ? trackContainerEl.offsetHeight : 400) - 50; // 상단 여백
+    const laneHeight = Math.min(75, Math.floor((availableTrackHeight - wallHeight * (horseCount - 1)) / horseCount));
     const totalLaneHeight = laneHeight + wallHeight;
-    
+
     console.log('[renderTrackForSelection] 시작:', {
         horseCount,
         selectedVehicleTypes: selectedVehicleTypes,
@@ -990,17 +993,18 @@ function getEndButtonWidth() {
     return endButton ? endButton.offsetWidth : 200;
 }
 
-// 자동 스크롤 업데이트 함수
+// 자동 스크롤 업데이트 함수 — [필수5] transform 기반으로 전환 (모바일 터치 드래그 방지 + GPU 가속)
 function updateTrackScroll(trackContainer, leaderPosition, centerPosition) {
     if (!trackContainer) return;
-    
-    // 말이 중앙을 넘어가면 스크롤 시작
+    const track = trackContainer.querySelector('.race-track');
+    if (!track) return;
+
+    // 말이 중앙을 넘어가면 카메라 이동
     if (leaderPosition > centerPosition) {
         const scrollAmount = leaderPosition - centerPosition;
-        trackContainer.scrollLeft = scrollAmount;
+        track.style.transform = `translateX(-${scrollAmount}px)`;
     } else {
-        // 말이 중앙에 도달하기 전에는 스크롤하지 않음
-        trackContainer.scrollLeft = 0;
+        track.style.transform = 'translateX(0)';
     }
 }
 
@@ -1189,12 +1193,15 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     // 초기 날씨 효과 적용
     applyWeatherEffect(currentWeather);
 
-    // 트랙의 너비: 도착 지점은 그대로, 결승선 뒤 여유만 최소화해 스크롤 양 줄임
-    track.style.width = `${finishLine + 30}px`; // 결승선 뒤 여유만 소량
-    
+    // [필수6] 트랙 끝 버퍼 확대 → 결승선 가시성 확보
+    const viewportBuffer = Math.max(trackContainer.offsetWidth / 2, 200);
+    track.style.width = `${finishLine + viewportBuffer}px`;
+
     const horseCount = horseRankings.length;
     const wallHeight = 6; // 벽 높이
-    const laneHeight = Math.min(75, Math.floor((350 - wallHeight * (horseCount - 1)) / horseCount));
+    // [필수3] 레인 높이 동적 계산 (350 하드코딩 → 실제 트랙 높이)
+    const availableTrackHeight = (trackContainer.offsetHeight || 400) - 50;
+    const laneHeight = Math.min(75, Math.floor((availableTrackHeight - wallHeight * (horseCount - 1)) / horseCount));
     const totalLaneHeight = laneHeight + wallHeight; // 레인 + 벽 높이
     
     console.log('경주 시작:', { horseRankings, speeds, trackWidth, finishLine, trackDistanceMeters });
