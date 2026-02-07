@@ -635,17 +635,57 @@ npm install passport passport-google-oauth20 express-session connect-pg-simple
 
 > DB 전문가 + 서버 프로그래머 전문가 에이전트 2명이 분석한 결과
 
+### 전체 DB 구조도 (기존 7개 + 신규 3개)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    전역 테이블 (server_id 불필요)                  │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ suggestions  │  │ visitor_total│  │    visitor_today      │   │
+│  │ (문의/건의)   │  │ (누적방문자) │  │ (일별 IP 추적)       │   │
+│  │ - 평문 PW ⚠️ │  │ - 싱글턴    │  │ - PK(date, ip)       │   │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│              서버 종속 테이블 (server_id 필요)                     │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    servers (신규)                          │   │
+│  │  PK: id (SERIAL)                                          │   │
+│  │  name, host_id, host_name, password_hash, host_code       │   │
+│  └──────────┬──────────────────┬────────────────┬───────────┘   │
+│             │ FK (INTEGER)     │ FK (INTEGER)   │ FK (INTEGER)  │
+│             ▼                  ▼                ▼               │
+│  ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐      │
+│  │server_members│  │server_game_records│  │ game_records │      │
+│  │   (신규)     │  │     (신규)        │  │  (기존+수정) │      │
+│  │ - user_name  │  │ - user_name      │  │ + server_id  │      │
+│  │ - is_approved│  │ - result         │  │   (NULL허용) │      │
+│  │ - last_seen  │  │ - is_winner      │  │              │      │
+│  └──────────────┘  └──────────────────┘  └──────────────┘      │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │frequent_menus│  │ emoji_config │  │    vehicle_stats     │   │
+│  │  (기존 유지)  │  │ (기존 유지)  │  │    (기존 유지)       │   │
+│  │ VARCHAR(50)  │  │ VARCHAR(50)  │  │    VARCHAR(50)       │   │
+│  │ ='default'   │  │ ='default'   │  │    ='default'        │   │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ### 판정 결과 요약
 
-| 테이블 | 현재 server_id | 필요 여부 | 판단 근거 |
-|--------|:---:|:---:|------|
-| `suggestions` | X | **불필요** | 문의/건의는 플랫폼 전체 대상. 특정 서버 종속 아님 |
-| `visitor_total` | X | **불필요** | 싱글턴 패턴. 플랫폼 전체 누적 방문자 수 |
-| `visitor_today` | X | **불필요** | IP 기반 일별 방문 추적. 서버 개념과 무관 |
-| `game_records` | X | **추가 필요** | 어느 서버에서 플레이했는지 기록 필요 |
-| `frequent_menus` | O | **유지** | 서버별 커스텀 메뉴 (올바름) |
-| `emoji_config` | O | **유지** | 서버별 이모지 설정 (올바름) |
-| `vehicle_stats` | O | **유지** | 서버별 탈것 통계 (올바름) |
+| 테이블 | 현재 server_id | 필요 여부 | 판단 근거 | 비고 |
+|--------|:---:|:---:|------|------|
+| `suggestions` | X | **불필요** | 문의/건의는 플랫폼 전체 대상 | 전역 기능 |
+| `visitor_total` | X | **불필요** | 싱글턴 패턴. 플랫폼 전체 누적 | 전역 통계 |
+| `visitor_today` | X | **불필요** | IP 기반 일별 추적. 서버와 무관 | 전역 통계 |
+| `game_records` | X | **추가 필요** | 어느 서버에서 플레이했는지 기록 | NULL=서버 도입 이전 |
+| `frequent_menus` | O | **유지** | 서버별 커스텀 메뉴 | VARCHAR→TEXT 변환 |
+| `emoji_config` | O | **유지** | 서버별 이모지 설정 | VARCHAR→TEXT 변환 |
+| `vehicle_stats` | O | **유지** | 서버별 탈것 통계 | VARCHAR→TEXT 변환 |
 
 ### 상세 분석
 
@@ -657,14 +697,14 @@ npm install passport passport-google-oauth20 express-session connect-pg-simple
 
 #### visitor_total / visitor_today → server_id **불필요**
 - 플랫폼 전체 트래픽 측정 목적
-- 서버별 방문자는 `server_members` 테이블로 충분히 추적 가능
+- 서버별 방문자는 `server_members` 테이블의 `last_seen_at`으로 추적 가능
 - visitor_today는 IP 기반이라 서버 구분 없이 유니크 방문자 집계
 - **결론: 현재 상태 유지.**
 
 #### game_records → server_id **추가 필요**
 - 현재: `game_type` + `participant_count`만 기록
 - 서버 도입 후 "어떤 서버에서 플레이했는지" 추적 필요
-- 서버별 통계 페이지에서 활용
+- 서버별 통계 페이지 (statistics.html)에서 필터링 활용
 - 기존 데이터는 `server_id = NULL` (서버 도입 이전)로 유지
 
 **마이그레이션 SQL:**
@@ -678,10 +718,45 @@ CREATE INDEX idx_game_records_server_id ON game_records(server_id);
 -- 새 기록만 server_id 포함
 ```
 
+**영향 받는 코드:**
+| 파일 | 변경 내용 |
+|------|----------|
+| `db/stats.js` (line 142) | `recordGamePlay(gameType, count)` → `recordGamePlay(gameType, count, serverId)` |
+| `db/stats.js` (line 154) | INSERT 쿼리에 `server_id` 컬럼 추가 |
+| `socket/dice.js` | `recordGamePlay('dice', n)` 호출부에 serverId 전달 |
+| `socket/horse.js` | `recordGamePlay('horse-race', n)` 호출부에 serverId 전달 |
+| `socket/roulette.js` | `recordGamePlay('roulette', n)` 호출부에 serverId 전달 |
+| `routes/api.js` (line 100) | 통계 API에서 server_id 필터 쿼리 옵션 추가 |
+
 #### frequent_menus / emoji_config / vehicle_stats → server_id **유지**
 - 이미 올바르게 구현됨
 - 서버별 커스텀 설정을 지원하는 핵심 테이블
 - `DEFAULT 'default'`로 서버 미설정 시에도 동작
+
+### game_records vs server_game_records 역할 정리
+
+> ⚠️ 두 테이블은 목적이 다르므로 **중복이 아님**
+
+| 항목 | `game_records` (기존) | `server_game_records` (신규) |
+|------|:---:|:---:|
+| **목적** | 플랫폼 전체 게임 통계 | 서버 내 개인별 상세 기록 |
+| **기록 단위** | 게임 1판당 1행 | 참가자 1명당 1행 |
+| **저장 내용** | game_type, 참가자 수 | user_name, result, is_winner |
+| **활용처** | statistics.html 전체 통계 | 서버 멤버 랭킹/전적 |
+| **server_id** | NULL 허용 (이전 데이터) | NOT NULL (FK CASCADE) |
+| **예시** | "주사위 게임 3명 플레이" | "홍길동: 주사위 85점, 승리" |
+
+```
+예시 시나리오: 서버#1에서 주사위 게임 3명 플레이
+
+game_records: 1행 삽입
+  → { game_type: 'dice', participant_count: 3, server_id: 1 }
+
+server_game_records: 3행 삽입
+  → { server_id: 1, user_name: '홍길동', result: 85, is_winner: true }
+  → { server_id: 1, user_name: '김영희', result: 42, is_winner: false }
+  → { server_id: 1, user_name: '이철수', result: 67, is_winner: false }
+```
 
 ### VARCHAR server_id ↔ INTEGER servers.id 호환 전략
 
@@ -693,19 +768,108 @@ CREATE INDEX idx_game_records_server_id ON game_records(server_id);
 3. FK 제약조건 대신 애플리케이션 레벨에서 유효성 검증
 4. 기존 데이터 마이그레이션 불필요
 
-**장기 대안:**
-- `server_id_int INTEGER REFERENCES servers(id)` 컬럼 추가
-- 점진적으로 VARCHAR → INTEGER 전환
+**코드 레벨 처리:**
+```javascript
+// db/menus.js - getMergedFrequentMenus() 예시
+function getMergedFrequentMenus(serverId) {
+    // serverId가 INTEGER(1, 2, 3)로 들어와도 VARCHAR로 변환
+    const sid = String(serverId || 'default');
+    // ...
+}
+```
 
-### 추가 DB 개선 권고
+**영향 받는 코드:**
+| 파일 | 현재 getServerId() | 변경 필요 |
+|------|----------|----------|
+| `routes/api.js` (line 7) | `process.env.SERVER_ID \|\| 'default'` | 소켓 컨텍스트에서 서버 ID 전달받도록 수정 |
+| `db/menus.js` | `getMergedFrequentMenus(serverId)` | serverId를 String()으로 캐스팅 보장 |
+| `db/menus.js` | `getMergedEmojiConfig(serverId)` | 동일 |
+| `db/vehicle-stats.js` | `recordVehicleRaceResult(serverId, ...)` | 동일 |
 
-| 이슈 | 현재 | 권고 | 우선도 |
-|------|------|------|:------:|
-| suggestions 비밀번호 평문 | `password VARCHAR(100)` | bcrypt 해싱 적용 | 높음 |
-| suggestions date/time 중복 | `date VARCHAR(10)`, `time VARCHAR(20)` | `created_at` TIMESTAMP으로 충분하나 호환성 위해 유지 | 낮음 |
-| server_members socket_id | `socket_id VARCHAR(255)` | **제거** - 임시 데이터는 인메모리로 | 높음 |
-| server_members last_seen_at | 없음 | **추가** - 활동 추적용 | 중간 |
-| DB Pool 설정 미비 | Pool 기본값 (max=10) | `max: 20, idleTimeoutMillis: 30000` 명시 | 중간 |
+**장기 대안 (Phase 후반):**
+```sql
+-- 기존 테이블에 INTEGER FK 컬럼 추가
+ALTER TABLE frequent_menus ADD COLUMN server_id_int INTEGER REFERENCES servers(id);
+ALTER TABLE emoji_config ADD COLUMN server_id_int INTEGER REFERENCES servers(id);
+ALTER TABLE vehicle_stats ADD COLUMN server_id_int INTEGER REFERENCES servers(id);
+
+-- 데이터 마이그레이션
+UPDATE frequent_menus SET server_id_int = server_id::INTEGER
+WHERE server_id != 'default' AND server_id ~ '^\d+$';
+
+-- 검증 후 VARCHAR 컬럼 제거
+```
+
+### DB 개선 권고 상세
+
+#### 🔴 높음: suggestions 비밀번호 평문 저장
+
+**현재 문제:**
+```javascript
+// db/suggestions.js (lines 107-119)
+// 비밀번호 비교가 평문 대 평문으로 이루어짐
+const result = await pool.query(
+    'SELECT password FROM suggestions WHERE id = $1', [id]
+);
+if (result.rows[0].password !== password) { ... }
+```
+
+**수정안:**
+```javascript
+// npm install bcrypt 필요
+const bcrypt = require('bcrypt');
+
+// 저장 시
+const hashedPassword = await bcrypt.hash(password, 10);
+
+// 검증 시
+const isMatch = await bcrypt.compare(password, storedHash);
+```
+
+**영향 파일:** `db/suggestions.js` (saveSuggestion, deleteSuggestion 함수)
+
+#### 🔴 높음: server_members socket_id 제거
+
+**이유:** Socket ID는 재접속마다 변경됨. DB에 저장하면 항상 stale data.
+
+**대안: 인메모리 매핑**
+```javascript
+// socket/server.js에서 관리
+const onlineMembers = new Map(); // Map<serverId, Map<userName, socketId>>
+
+// 접속 시
+onlineMembers.get(serverId)?.set(userName, socket.id);
+
+// 퇴장 시
+onlineMembers.get(serverId)?.delete(userName);
+```
+
+#### 🟡 중간: server_members last_seen_at 추가
+
+**목적:** 서버 멤버의 마지막 활동 시간 추적
+```sql
+-- 접속 시 업데이트
+UPDATE server_members SET last_seen_at = NOW()
+WHERE server_id = $1 AND user_name = $2;
+```
+
+**활용:** 비활성 멤버 표시, "최근 접속" 정렬, 자동 정리
+
+#### 🟡 중간: DB Pool 설정 최적화
+
+> 상세 분석은 `scalability-improvement.plan.md`의 "병목 5" 참조
+
+**현재:** `db/pool.js` (line 17) - Pool 기본값 사용 (max=10)
+**수정:**
+```javascript
+pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: isLocal ? false : { rejectUnauthorized: false },
+    max: 20,                    // 최대 연결 수
+    idleTimeoutMillis: 30000,   // 유휴 연결 30초 후 해제
+    connectionTimeoutMillis: 5000  // 연결 시도 5초 타임아웃
+});
+```
 
 ---
 
@@ -718,6 +882,24 @@ CREATE INDEX idx_game_records_server_id ON game_records(server_id);
 - Railway 배포 경로도 모두 변경 필요
 - 서버 개념 도입과 폴더 구조 변경을 동시에 하면 롤백이 복잡해짐
 - **권장**: Phase 1-5 (서버 개념)을 현재 폴더 구조에서 먼저 구현 → Phase 0은 별도 작업으로
+
+### 서버 개념 도입 시 신규/수정 파일 (현재 폴더 구조 기준)
+
+| 파일 | 작업 | Phase | 설명 |
+|------|:----:|:-----:|------|
+| `db/init.js` | 수정 | 1 | 3개 신규 테이블 CREATE + game_records ALTER |
+| `db/servers.js` | **신규** | 1 | Server CRUD 함수 |
+| `db/stats.js` | 수정 | 1 | recordGamePlay에 serverId 추가 |
+| `utils/auth.js` | **신규** | 1 | 관리자 토큰 생성/검증 |
+| `socket/server.js` | **신규** | 2 | Server 소켓 이벤트 핸들러 |
+| `socket/index.js` | 수정 | 2 | server 핸들러 등록 |
+| `routes/server.js` | **신규** | 3 | Server HTTP API |
+| `routes/api.js` | 수정 | 3 | server 라우트 통합 + 통계 필터 |
+| `admin.html` | **신규** | 4 | 관리자 페이지 |
+| `server-members.html` | **신규** | 4 | 멤버 관리 페이지 |
+| `socket/dice.js` | 수정 | 5 | 게임 완료 시 server_game_records 저장 |
+| `socket/horse.js` | 수정 | 5 | 동일 |
+| `socket/roulette.js` | 수정 | 5 | 동일 |
 
 ---
 
