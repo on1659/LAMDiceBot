@@ -1053,6 +1053,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     
     // 컨테이너 너비 (스크롤 영역의 뷰포트 크기)
     const trackWidth = trackContainer.offsetWidth || 700;
+    console.log('[모바일디버그] trackWidth:', trackWidth, 'container:', trackContainer.offsetWidth, 'window:', window.innerWidth);
     // 서버에서 받은 트랙 거리(m) 기반 finishLine, 없으면 기존 방식
     const trackDistanceMeters = (trackOptions && trackOptions.trackDistanceMeters) || 500;
     const finishLine = trackDistanceMeters * PIXELS_PER_METER;
