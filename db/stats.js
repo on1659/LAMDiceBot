@@ -139,7 +139,7 @@ function recordParticipantVisitor(io, socketId) {
     if (sock && sock.clientIP) recordVisitor(sock.clientIP, 'gameStart', sock.id);
 }
 
-function recordGamePlay(gameType, participantCount) {
+function recordGamePlay(gameType, participantCount, serverId) {
     const pool = getPool();
     if (!gameType || participantCount < 1) return;
     const key = String(gameType);
@@ -152,8 +152,8 @@ function recordGamePlay(gameType, participantCount) {
     playTotalCount++;
     if (pool) {
         pool.query(
-            'INSERT INTO game_records (game_type, participant_count) VALUES ($1, $2)',
-            [key, Math.max(1, participantCount)]
+            'INSERT INTO game_records (game_type, participant_count, server_id) VALUES ($1, $2, $3)',
+            [key, Math.max(1, participantCount), serverId || null]
         ).catch(e => console.warn('game_records insert:', e.message));
     } else {
         if (!gameStatsByType[key]) gameStatsByType[key] = { count: 0, totalParticipants: 0 };

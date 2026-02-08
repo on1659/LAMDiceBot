@@ -165,7 +165,7 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
 
         gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
         io.emit('visitorStats', getVisitorStats());
-        recordGamePlay('roulette', participants.length);
+        recordGamePlay('roulette', participants.length, room.serverId || null);
 
         const startMessage = {
             userName: '시스템',

@@ -59,7 +59,7 @@ module.exports = (socket, io, ctx) => {
             totalPlayers: gameState.gamePlayers.length
         });
 
-        recordGamePlay(room.gameType || 'dice', gameState.gamePlayers.length);
+        recordGamePlay(room.gameType || 'dice', gameState.gamePlayers.length, room.serverId || null);
 
         // 게임 시작 시 채팅에 게임 시작 메시지와 룰 전송
         const gameStartMessage = {

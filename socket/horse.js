@@ -314,7 +314,7 @@ module.exports = (socket, io, ctx) => {
             // 경마 참여자 방문자 통계 기록
             gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
             io.emit('visitorStats', getVisitorStats());
-            recordGamePlay('horse-race', players.length);
+            recordGamePlay('horse-race', players.length, room.serverId || null);
 
             // 경주 결과 전송 후 상태를 false로 설정
             gameState.isHorseRaceActive = false;

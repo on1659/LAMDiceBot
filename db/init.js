@@ -58,6 +58,65 @@ async function initDatabase() {
             CREATE INDEX IF NOT EXISTS idx_game_records_played_at ON game_records(played_at DESC)
         `);
 
+        // ─── 서버 시스템 테이블 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS servers (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                description TEXT,
+                host_id VARCHAR(255) NOT NULL,
+                host_name VARCHAR(50) NOT NULL,
+                password_hash VARCHAR(255) DEFAULT '',
+                host_code VARCHAR(10) DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active BOOLEAN DEFAULT true
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_servers_host_id ON servers(host_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_servers_is_active ON servers(is_active)`);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS server_members (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+                user_name VARCHAR(50) NOT NULL,
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_approved BOOLEAN DEFAULT true,
+                last_seen_at TIMESTAMP,
+                UNIQUE(server_id, user_name)
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_server_members_server_id ON server_members(server_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_server_members_user_name ON server_members(user_name)`);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS server_game_records (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+                user_name VARCHAR(50) NOT NULL,
+                result INTEGER NOT NULL,
+                game_type VARCHAR(20) NOT NULL,
+                is_winner BOOLEAN DEFAULT false,
+                game_session_id VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_server_id ON server_game_records(server_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_user_name ON server_game_records(user_name)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_created_at ON server_game_records(created_at)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_server_user ON server_game_records(server_id, user_name)`);
+
+        // game_records에 server_id 컬럼 추가 (기존 데이터는 NULL)
+        await pool.query(`
+            DO $$ BEGIN
+                ALTER TABLE game_records ADD COLUMN server_id INTEGER REFERENCES servers(id) ON DELETE SET NULL;
+            EXCEPTION WHEN duplicate_column THEN NULL;
+            END $$
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_records_server_id ON game_records(server_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_records_game_type ON game_records(game_type)`);
+
+        // ─── 기존 테이블 ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS frequent_menus (
                 id SERIAL PRIMARY KEY,

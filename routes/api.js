@@ -9,6 +9,10 @@ function getServerId() {
 }
 
 function setupRoutes(app) {
+    // Server API 라우트 등록
+    const serverRouter = require('./server');
+    app.use('/api', serverRouter);
+
     // 정적 파일 제공 (캐시 방지 설정)
     app.use(require('express').static(path.join(__dirname, '..'), {
         setHeaders: (res, filePath) => {

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서버 멤버 관리 - LAMDice</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+
+        .server-header { background: #f0f0ff; padding: 20px; border-radius: 8px; margin-bottom: 24px; }
+        .server-header h2 { margin: 0 0 8px 0; color: #333; }
+        .server-header p { margin: 0; color: #666; }
+
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #666; }
+        .tab.active { border-bottom-color: #667eea; color: #667eea; font-weight: bold; }
+        .tab:hover { color: #667eea; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .member-card { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; background: #f8f9fa; }
+        .member-info { flex: 1; }
+        .member-name { font-weight: bold; font-size: 1.05em; }
+        .member-meta { font-size: 0.85em; color: #888; margin-top: 2px; }
+        .member-actions { display: flex; gap: 8px; }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; color: white; margin-left: 8px; }
+        .badge-online { background: #28a745; }
+        .badge-offline { background: #999; }
+        .badge-host { background: #667eea; }
+        .badge-pending { background: #ffc107; color: #333; }
+
+        .btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
+        .btn-approve { background: #28a745; color: white; }
+        .btn-approve:hover { background: #218838; }
+        .btn-reject { background: #dc3545; color: white; }
+        .btn-reject:hover { background: #c82333; }
+        .btn-kick { background: #6c757d; color: white; }
+        .btn-kick:hover { background: #5a6268; }
+
+        .record-table { width: 100%; border-collapse: collapse; }
+        .record-table th, .record-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+        .record-table th { background: #f8f9fa; color: #555; font-weight: 600; }
+        .record-table tr:hover { background: #f0f0ff; }
+        .winner { color: #28a745; font-weight: bold; }
+
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+        .error-state { text-align: center; padding: 40px; color: #dc3545; }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+        .pagination button { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; }
+        .pagination button.active { background: #667eea; color: white; border-color: #667eea; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">&larr; 메인으로</a>
+
+        <div class="server-header" id="serverHeader">
+            <h2 id="serverName">로딩 중...</h2>
+            <p id="serverDesc"></p>
+            <div style="font-size: 0.9em; color: #888; margin-top: 8px;">
+                호스트: <span id="serverHost">-</span> | 생성: <span id="serverDate">-</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="members" onclick="switchTab('members')">멤버 목록</div>
+            <div class="tab" data-tab="records" onclick="switchTab('records')">게임 기록</div>
+        </div>
+
+        <div class="tab-content active" id="tab-members">
+            <div id="memberList"><div class="empty-state">로딩 중...</div></div>
+        </div>
+
+        <div class="tab-content" id="tab-records">
+            <div id="recordList"><div class="empty-state">로딩 중...</div></div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const serverId = params.get('id');
+        let currentPage = 0;
+        const PAGE_SIZE = 30;
+
+        if (!serverId) {
+            document.querySelector('.container').innerHTML = '<div class="error-state">서버 ID가 필요합니다. <a href="/">메인으로</a></div>';
+        } else {
+            loadServerInfo();
+            loadMembers();
+        }
+
+        async function loadServerInfo() {
+            try {
+                const res = await fetch(`/api/server/${serverId}/info`);
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                document.getElementById('serverName').textContent = data.name;
+                document.getElementById('serverDesc').textContent = data.description || '';
+                document.getElementById('serverHost').textContent = data.hostName;
+                document.getElementById('serverDate').textContent = new Date(data.createdAt).toLocaleDateString('ko-KR');
+                document.title = `${data.name} - 멤버 관리`;
+            } catch (e) {
+                document.getElementById('serverName').textContent = '서버를 찾을 수 없습니다';
+            }
+        }
+
+        async function loadMembers() {
+            try {
+                const res = await fetch(`/api/server/${serverId}/members`);
+                if (!res.ok) throw new Error();
+                const members = await res.json();
+
+                if (members.length === 0) {
+                    document.getElementById('memberList').innerHTML = '<div class="empty-state">멤버가 없습니다.</div>';
+                    return;
+                }
+
+                document.getElementById('memberList').innerHTML = members.map(m => {
+                    const statusBadge = m.isOnline
+                        ? '<span class="badge badge-online">온라인</span>'
+                        : '<span class="badge badge-offline">오프라인</span>';
+                    const approvalBadge = !m.is_approved ? '<span class="badge badge-pending">승인 대기</span>' : '';
+                    const lastSeen = m.last_seen_at ? timeAgo(new Date(m.last_seen_at)) : '기록 없음';
+
+                    return `
+                        <div class="member-card">
+                            <div class="member-info">
+                                <div class="member-name">${escapeHtml(m.user_name)} ${statusBadge} ${approvalBadge}</div>
+                                <div class="member-meta">가입: ${new Date(m.joined_at).toLocaleDateString('ko-KR')} | 마지막 접속: ${lastSeen}</div>
+                            </div>
+                            <div class="member-actions">
+                                ${!m.is_approved ? `<button class="btn btn-approve" onclick="approveMember('${escapeHtml(m.user_name)}', true)">승인</button>` : ''}
+                                ${!m.is_approved ? `<button class="btn btn-reject" onclick="approveMember('${escapeHtml(m.user_name)}', false)">거절</button>` : ''}
+                                <button class="btn btn-kick" onclick="kickMember('${escapeHtml(m.user_name)}')">강퇴</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                document.getElementById('memberList').innerHTML = '<div class="error-state">멤버 목록 로드 실패</div>';
+            }
+        }
+
+        async function approveMember(userName, isApproved) {
+            try {
+                const res = await fetch(`/api/server/${serverId}/members/${encodeURIComponent(userName)}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isApproved, hostId: getDeviceId() })
+                });
+                if (res.ok) loadMembers();
+                else {
+                    const data = await res.json();
+                    alert(data.error || '작업 실패');
+                }
+            } catch (e) { alert('서버 연결 오류'); }
+        }
+
+        async function kickMember(userName) {
+            if (!confirm(`"${userName}"을(를) 강퇴하시겠습니까?`)) return;
+            try {
+                const res = await fetch(`/api/server/${serverId}/members/${encodeURIComponent(userName)}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hostId: getDeviceId() })
+                });
+                if (res.ok) loadMembers();
+                else {
+                    const data = await res.json();
+                    alert(data.error || '강퇴 실패');
+                }
+            } catch (e) { alert('서버 연결 오류'); }
+        }
+
+        async function loadRecords(page = 0) {
+            currentPage = page;
+            try {
+                const res = await fetch(`/api/server/${serverId}/records?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                if (data.records.length === 0) {
+                    document.getElementById('recordList').innerHTML = '<div class="empty-state">게임 기록이 없습니다.</div>';
+                    document.getElementById('pagination').innerHTML = '';
+                    return;
+                }
+
+                document.getElementById('recordList').innerHTML = `
+                    <table class="record-table">
+                        <thead><tr><th>플레이어</th><th>게임</th><th>결과</th><th>승리</th><th>날짜</th></tr></thead>
+                        <tbody>
+                            ${data.records.map(r => `
+                                <tr>
+                                    <td>${escapeHtml(r.user_name)}</td>
+                                    <td>${escapeHtml(r.game_type)}</td>
+                                    <td>${r.result}</td>
+                                    <td>${r.is_winner ? '<span class="winner">승리</span>' : '-'}</td>
+                                    <td>${new Date(r.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                const totalPages = Math.ceil(data.total / PAGE_SIZE);
+                let pagHtml = '';
+                if (totalPages > 1) {
+                    pagHtml += `<button ${page === 0 ? 'disabled' : ''} onclick="loadRecords(${page - 1})">&laquo;</button>`;
+                    for (let i = 0; i < totalPages && i < 10; i++) {
+                        pagHtml += `<button class="${i === page ? 'active' : ''}" onclick="loadRecords(${i})">${i + 1}</button>`;
+                    }
+                    pagHtml += `<button ${page >= totalPages - 1 ? 'disabled' : ''} onclick="loadRecords(${page + 1})">&raquo;</button>`;
+                }
+                document.getElementById('pagination').innerHTML = pagHtml;
+            } catch (e) {
+                document.getElementById('recordList').innerHTML = '<div class="error-state">기록 로드 실패</div>';
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
+            if (tab === 'records') loadRecords(0);
+        }
+
+        function getDeviceId() {
+            let id = localStorage.getItem('deviceId');
+            if (!id) { id = 'dev_' + Math.random().toString(36).substr(2, 12); localStorage.setItem('deviceId', id); }
+            return id;
+        }
+
+        function timeAgo(date) {
+            const diff = Date.now() - date.getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return '방금 전';
+            if (mins < 60) return `${mins}분 전`;
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return `${hours}시간 전`;
+            const days = Math.floor(hours / 24);
+            return `${days}일 전`;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+    </script>
+</body>
+</html>

@@ -7,6 +7,7 @@ const registerRouletteHandlers = require('./roulette');
 const registerHorseHandlers = require('./horse');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
+const { registerServerHandlers } = require('./server');
 
 function setupSocketHandlers(io, rooms) {
     // 방 목록 브로드캐스트 디바운싱 (200ms leading + trailing)
@@ -139,6 +140,7 @@ function setupSocketHandlers(io, rooms) {
         registerHorseHandlers(socket, io, ctx);
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);
+        registerServerHandlers(socket, io, ctx);
     });
 }
 
