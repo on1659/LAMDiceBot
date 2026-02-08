@@ -1443,9 +1443,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     // 실시간 순위 업데이트 함수
     const startPosition = 10; // 시작 위치
     const totalDistance = finishLine - startPosition; // 전체 거리
-    // 모바일: 카메라 타겟을 화면 왼쪽 30%에 위치 → 오른쪽에 70% 시야 확보 (결승선 가시성)
+    // 모바일: 카메라 타겟을 화면 왼쪽 20%에 위치 → 오른쪽에 80% 시야 확보 (결승선 우측 배치)
     // PC: 기존대로 50% 중앙
-    const centerPosition = trackWidth < 500 ? trackWidth * 0.3 : trackWidth / 2;
+    const centerPosition = trackWidth < 500 ? trackWidth * 0.2 : trackWidth / 2;
     
     // 도착 순서 추적 객체
     const finishOrderMap = {};
