@@ -1,0 +1,419 @@
+/* ============================================
+   Pastel Forest Theme - Team Game
+   Activated by body.pastel-ui class
+   Based on Chess project design system
+   ============================================ */
+
+/* ---- Animations ---- */
+@keyframes pastelFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pastelPopIn {
+    0% { opacity: 0; transform: scale(0.92); }
+    100% { opacity: 1; transform: scale(1); }
+}
+@keyframes pastelBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+/* ============ BASE ============ */
+body.pastel-ui {
+    font-family: 'Jua', sans-serif !important;
+    background: linear-gradient(135deg, #f5f0e8 0%, #e8f5e9 100%) !important;
+    padding: 16px !important;
+}
+
+/* ============ CONTAINER → Transparent ============ */
+body.pastel-ui .container {
+    max-width: 640px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* ============ HEADER CARD ============ */
+body.pastel-ui .header {
+    background: white;
+    border-radius: 20px;
+    padding: 14px 20px !important;
+    padding-bottom: 14px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 4px 12px rgba(93,78,55,0.08);
+    border-bottom: none !important;
+}
+body.pastel-ui .header-left h1 {
+    color: #5d4e37 !important;
+    font-size: 1.5rem !important;
+}
+body.pastel-ui .stats { color: #8d7b68 !important; font-size: 13px !important; }
+body.pastel-ui .connection-sound-row .connection-status.connected { color: #66bb6a !important; }
+body.pastel-ui .connection-sound-row .connection-status.disconnected { color: #ef9a9a !important; }
+body.pastel-ui .connection-sound-row label { color: #8d7b68 !important; }
+
+/* ============ LANDING ============ */
+
+/* Cards base */
+body.pastel-ui .room-section {
+    background: white !important;
+    border-radius: 20px !important;
+    padding: 24px !important;
+    margin-bottom: 12px !important;
+    box-shadow: 0 4px 12px rgba(93,78,55,0.08);
+    animation: pastelFadeIn 0.4s ease-out both;
+}
+
+/* Merge nickname + room-create into one visual card */
+body.pastel-ui #landing-section > .room-section:nth-child(1) {
+    margin-bottom: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    padding-bottom: 10px !important;
+    animation-delay: 0s;
+}
+body.pastel-ui #landing-section > .room-section:nth-child(2) {
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+    padding-top: 10px !important;
+    border-top: 1px dashed #e0d8cc;
+    animation-delay: 0.05s;
+}
+body.pastel-ui #landing-section > .room-section:nth-child(3) {
+    animation-delay: 0.1s;
+}
+body.pastel-ui .room-section h2 {
+    color: #5d4e37 !important;
+    font-size: 1.2rem !important;
+}
+body.pastel-ui .nickname-guide {
+    color: #b8a99a !important;
+    font-family: 'Gaegu', cursive !important;
+    font-size: 14px !important;
+    font-style: normal !important;
+}
+
+/* ============ FORMS ============ */
+body.pastel-ui .form-group label {
+    color: #8d7b68 !important;
+    font-size: 13px !important;
+}
+body.pastel-ui .form-group input,
+body.pastel-ui .player-input input,
+body.pastel-ui .team-config-input input {
+    border: 2px solid #e0d8cc !important;
+    border-radius: 12px !important;
+    background: #faf8f5 !important;
+    color: #5d4e37 !important;
+    font-family: 'Jua', sans-serif !important;
+}
+body.pastel-ui .form-group input:focus,
+body.pastel-ui .player-input input:focus,
+body.pastel-ui .team-config-input input:focus {
+    border-color: #a8d5ba !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(168,213,186,0.25);
+}
+
+/* ============ BUTTONS ============ */
+body.pastel-ui .btn {
+    font-family: 'Jua', sans-serif !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(93,78,55,0.1);
+    transition: all 0.2s ease-out !important;
+}
+body.pastel-ui .btn:hover:not(:disabled) {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 16px rgba(93,78,55,0.12) !important;
+}
+body.pastel-ui .btn:active:not(:disabled) {
+    transform: scale(0.97) !important;
+    box-shadow: 0 2px 6px rgba(93,78,55,0.1) !important;
+}
+body.pastel-ui .btn-primary {
+    background: #a8d5ba !important;
+    color: #2d4a35 !important;
+}
+body.pastel-ui .btn-primary:hover:not(:disabled) {
+    background: #8ec9a3 !important;
+}
+body.pastel-ui .btn-success {
+    background: linear-gradient(135deg, #a8d5ba 0%, #7ec8a0 100%) !important;
+    color: #1b3d24 !important;
+    font-size: 18px !important;
+}
+body.pastel-ui .btn-success:hover:not(:disabled) {
+    background: linear-gradient(135deg, #8ec9a3 0%, #6abb8e 100%) !important;
+}
+body.pastel-ui .btn-danger {
+    background: #fce4ec !important;
+    color: #c62828 !important;
+    box-shadow: none !important;
+}
+body.pastel-ui .btn-danger:hover:not(:disabled) {
+    background: #f8bbd0 !important;
+}
+body.pastel-ui .btn-secondary {
+    background: #e8e0d4 !important;
+    color: #5d4e37 !important;
+}
+body.pastel-ui .btn-secondary:hover:not(:disabled) {
+    background: #ddd4c6 !important;
+}
+body.pastel-ui .btn-large {
+    padding: 16px !important;
+    border-radius: 16px !important;
+}
+
+/* ============ ROOM LIST ============ */
+body.pastel-ui .room-list-header h2 { color: #5d4e37 !important; }
+body.pastel-ui .room-item {
+    background: white !important;
+    border: 2px solid #e8e0d4 !important;
+    border-radius: 16px !important;
+    transition: all 0.2s ease-out;
+}
+body.pastel-ui .room-item:hover {
+    border-color: #a8d5ba;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(93,78,55,0.1);
+}
+body.pastel-ui .room-info h4 { color: #5d4e37 !important; }
+body.pastel-ui .room-info p { color: #8d7b68 !important; }
+body.pastel-ui .empty-message {
+    color: #b8a99a !important;
+    font-family: 'Gaegu', cursive !important;
+    font-style: normal !important;
+}
+
+/* ============ OTHER GAMES ============ */
+body.pastel-ui .other-games {
+    border-top-color: #e8e0d4 !important;
+    padding: 20px 0 0 !important;
+}
+body.pastel-ui .other-games a {
+    color: #8d7b68 !important;
+    background: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(93,78,55,0.08);
+    display: inline-block;
+    margin: 4px 6px !important;
+    transition: all 0.2s ease-out;
+    text-decoration: none !important;
+}
+body.pastel-ui .other-games a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(93,78,55,0.12);
+    color: #5d4e37 !important;
+    text-decoration: none !important;
+}
+
+/* ============ SESSION INFO ============ */
+body.pastel-ui .session-info {
+    background: white !important;
+    border-radius: 20px !important;
+    padding: 16px 20px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 4px 12px rgba(93,78,55,0.08);
+}
+body.pastel-ui .session-header h3 { color: #5d4e37 !important; }
+body.pastel-ui .session-header h3 span,
+body.pastel-ui .session-header p { color: #8d7b68 !important; }
+body.pastel-ui .role-badge.host {
+    background: #a8d5ba !important;
+    color: #1b3d24 !important;
+}
+body.pastel-ui .role-badge.viewer {
+    background: #d1c4e9 !important;
+    color: #4a3d6b !important;
+}
+
+/* ============ PARTICIPANTS ============ */
+body.pastel-ui .participants-section {
+    background: #faf8f5 !important;
+    border: 2px solid #a8d5ba !important;
+    border-radius: 16px !important;
+}
+body.pastel-ui .participants-section h4 { color: #5d4e37 !important; }
+body.pastel-ui .participant-badge {
+    background: #e8f5e9 !important;
+    border: 1px solid #a8d5ba !important;
+    color: #2d4a35 !important;
+    border-radius: 20px !important;
+}
+
+/* ============ TAB NAVIGATION ============ */
+#pastel-tabs {
+    display: none;
+}
+body.pastel-ui #pastel-tabs {
+    display: flex !important;
+    background: white;
+    border-radius: 16px;
+    padding: 4px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(93,78,55,0.08);
+    gap: 4px;
+}
+.pastel-tab {
+    flex: 1;
+    padding: 10px 6px;
+    border: none;
+    background: transparent;
+    font-family: 'Jua', sans-serif;
+    font-size: 14px;
+    color: #8d7b68;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease-out;
+}
+.pastel-tab:hover {
+    background: #f5f0e8;
+}
+.pastel-tab.active {
+    background: #a8d5ba !important;
+    color: #1b3d24 !important;
+    box-shadow: 0 2px 8px rgba(168,213,186,0.4);
+}
+
+/* ============ CONTROL PANELS ============ */
+body.pastel-ui .control-panel {
+    background: white !important;
+    border-radius: 20px !important;
+    padding: 20px !important;
+    margin-bottom: 12px !important;
+    box-shadow: 0 4px 12px rgba(93,78,55,0.08);
+}
+body.pastel-ui .control-panel h3 {
+    color: #5d4e37 !important;
+    font-size: 1.1rem !important;
+}
+body.pastel-ui .control-panel h3 span { color: #66bb6a !important; }
+body.pastel-ui .player-input-guide {
+    color: #b8a99a !important;
+    font-family: 'Gaegu', cursive !important;
+    font-style: normal !important;
+}
+
+/* Items */
+body.pastel-ui .player-item,
+body.pastel-ui .team-item,
+body.pastel-ui .restriction-item {
+    background: #faf8f5 !important;
+    border: 2px solid #e8e0d4 !important;
+    border-radius: 12px !important;
+}
+body.pastel-ui .player-item strong,
+body.pastel-ui .team-item strong,
+body.pastel-ui .restriction-item strong {
+    color: #5d4e37 !important;
+}
+
+/* Checkbox area */
+body.pastel-ui .checkbox-area {
+    border: 2px solid #e8e0d4 !important;
+    border-radius: 12px !important;
+    background: #faf8f5 !important;
+}
+body.pastel-ui .checkbox-area label:hover {
+    background: #e8f5e9 !important;
+    border-radius: 6px;
+}
+
+/* ============ RESULT SECTION ============ */
+body.pastel-ui #result-section {
+    background: white !important;
+    border-radius: 20px !important;
+    padding: 24px !important;
+    box-shadow: 0 4px 12px rgba(93,78,55,0.08);
+    animation: pastelPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+body.pastel-ui #result-section h3 { color: #5d4e37 !important; }
+body.pastel-ui #result-message {
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9) !important;
+    color: #1b5e20 !important;
+    border-radius: 12px !important;
+}
+body.pastel-ui #result-message.error {
+    background: linear-gradient(135deg, #fce4ec, #f8bbd0) !important;
+    color: #880e4f !important;
+}
+
+/* Each team: different pastel accent */
+body.pastel-ui .result-team {
+    border-radius: 16px !important;
+    border-width: 3px !important;
+    animation: pastelFadeIn 0.3s ease-out both;
+}
+body.pastel-ui .result-team:nth-child(1) { border-color: #a8d5ba !important; animation-delay: 0s; }
+body.pastel-ui .result-team:nth-child(2) { border-color: #f8bbd0 !important; animation-delay: 0.06s; }
+body.pastel-ui .result-team:nth-child(3) { border-color: #d1c4e9 !important; animation-delay: 0.12s; }
+body.pastel-ui .result-team:nth-child(4) { border-color: #ffccbc !important; animation-delay: 0.18s; }
+body.pastel-ui .result-team:nth-child(5) { border-color: #b3e5fc !important; animation-delay: 0.24s; }
+body.pastel-ui .result-team:nth-child(6) { border-color: #fff9c4 !important; animation-delay: 0.30s; }
+
+body.pastel-ui .result-team:nth-child(1) h4 { color: #2d6b3f !important; }
+body.pastel-ui .result-team:nth-child(2) h4 { color: #ad1457 !important; }
+body.pastel-ui .result-team:nth-child(3) h4 { color: #5e35b1 !important; }
+body.pastel-ui .result-team:nth-child(4) h4 { color: #d84315 !important; }
+body.pastel-ui .result-team:nth-child(5) h4 { color: #0277bd !important; }
+body.pastel-ui .result-team:nth-child(6) h4 { color: #9e9d24 !important; }
+
+body.pastel-ui .result-team h4 { font-size: 1.2rem !important; }
+body.pastel-ui .result-team li {
+    background: #faf8f5 !important;
+    border-radius: 8px !important;
+    color: #5d4e37 !important;
+}
+
+/* ============ LOADING SCREEN ============ */
+body.pastel-ui #loadingScreen {
+    background: linear-gradient(135deg, #a8d5ba 0%, #7ec8a0 100%) !important;
+}
+
+/* ============ TOGGLE BUTTON (always visible) ============ */
+.ui-toggle-btn {
+    padding: 4px 10px;
+    border: 2px solid #ddd;
+    border-radius: 16px;
+    background: #f5f5f5;
+    color: #888;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
+    white-space: nowrap;
+    font-family: -apple-system, sans-serif;
+    line-height: 1.4;
+}
+.ui-toggle-btn:hover { border-color: #bbb; background: #eee; }
+.ui-toggle-btn.active {
+    border-color: #a8d5ba;
+    background: #e8f5e9;
+    color: #2d4a35;
+    font-family: 'Jua', sans-serif;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 768px) {
+    body.pastel-ui { padding: 10px !important; }
+    body.pastel-ui .header { border-radius: 16px; padding: 12px 14px !important; }
+    body.pastel-ui .room-section,
+    body.pastel-ui .control-panel,
+    body.pastel-ui .session-info,
+    body.pastel-ui #result-section {
+        border-radius: 16px !important;
+        padding: 16px !important;
+    }
+    body.pastel-ui #landing-section > .room-section:nth-child(1) {
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+    body.pastel-ui #landing-section > .room-section:nth-child(2) {
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+    }
+    .pastel-tab { font-size: 13px; padding: 8px 4px; }
+}

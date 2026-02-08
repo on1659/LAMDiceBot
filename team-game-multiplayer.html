@@ -515,6 +515,10 @@
             }
         }
     </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/team-pastel.css">
 </head>
 <body>
     <!-- 로딩 화면 -->
@@ -542,6 +546,7 @@
                 <div class="connection-sound-row">
                     <span class="connection-status connected" id="teamConnectionStatus">● 연결됨</span>
                     <label><input type="checkbox" id="teamSoundCheckbox"> 🔊 사운드</label>
+                    <button type="button" id="ui-toggle-btn" class="ui-toggle-btn">🎨 OFF</button>
                 </div>
                 <div class="stats">
                     <div>활성 방: <span id="active-room-count">0</span>개</div>
@@ -611,8 +616,15 @@
 
             <!-- 호스트 컨트롤 -->
             <div id="host-controls">
+                <!-- Pastel UI Tab Navigation -->
+                <div id="pastel-tabs">
+                    <button type="button" class="pastel-tab active" data-panel="panel-players">👥 플레이어</button>
+                    <button type="button" class="pastel-tab" data-panel="panel-teams">⚙️ 팀 구성</button>
+                    <button type="button" class="pastel-tab" data-panel="panel-restrictions">🚫 제약조건</button>
+                </div>
+
                 <!-- 1. 플레이어 설정 -->
-                <div class="control-panel">
+                <div id="panel-players" class="control-panel">
                     <h3>1️⃣ 플레이어 설정 <span id="player-count-badge">(총 0명)</span></h3>
                     <div id="players-list"></div>
                     <div class="player-input">
@@ -623,7 +635,7 @@
             </div>
 
                 <!-- 2. 팀 구성 설정 -->
-                <div class="control-panel">
+                <div id="panel-teams" class="control-panel">
                     <h3>2️⃣ 팀 구성 설정 <span id="team-assignment-badge">(0/0)</span></h3>
                     <div id="team-config-list"></div>
                     <div class="team-config-input">
@@ -639,7 +651,7 @@
             </div>
 
                 <!-- 3. 같은 팀 금지 설정 -->
-                <div class="control-panel">
+                <div id="panel-restrictions" class="control-panel">
                     <h3>3️⃣ 같은 팀 금지 설정</h3>
                     <div id="restrictions-list"></div>
                     <div style="margin-top: 10px;">
@@ -1763,6 +1775,54 @@
                 localStorage.setItem(TEAM_SOUND_KEY, tc.checked ? 'true' : 'false');
             });
         });
+
+        // === Pastel Forest UI Toggle ===
+        (function() {
+            const UI_KEY = 'teamPastelUI';
+            const toggleBtn = document.getElementById('ui-toggle-btn');
+            const tabsEl = document.getElementById('pastel-tabs');
+            let pastelOn = localStorage.getItem(UI_KEY) === 'true';
+            let activeTab = 'panel-players';
+            const panelIds = ['panel-players', 'panel-teams', 'panel-restrictions'];
+
+            function setPastel(on) {
+                pastelOn = on;
+                localStorage.setItem(UI_KEY, on ? 'true' : 'false');
+                document.body.classList.toggle('pastel-ui', on);
+                toggleBtn.textContent = on ? '🎨 ON' : '🎨 OFF';
+                toggleBtn.classList.toggle('active', on);
+
+                if (on) {
+                    switchTab(activeTab);
+                } else {
+                    panelIds.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.style.display = '';
+                    });
+                }
+            }
+
+            function switchTab(panelId) {
+                activeTab = panelId;
+                tabsEl.querySelectorAll('.pastel-tab').forEach(t => {
+                    t.classList.toggle('active', t.dataset.panel === panelId);
+                });
+                panelIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = (pastelOn && id !== panelId) ? 'none' : '';
+                });
+            }
+
+            toggleBtn.addEventListener('click', () => setPastel(!pastelOn));
+
+            tabsEl.querySelectorAll('.pastel-tab').forEach(t => {
+                t.addEventListener('click', () => {
+                    if (pastelOn) switchTab(t.dataset.panel);
+                });
+            });
+
+            setPastel(pastelOn);
+        })();
     </script>
 </body>
 </html>
