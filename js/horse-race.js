@@ -995,20 +995,6 @@ function getEndButtonWidth() {
     return endButton ? endButton.offsetWidth : 200;
 }
 
-// 자동 스크롤 업데이트 함수 — [필수5] transform 기반으로 전환 (모바일 터치 드래그 방지 + GPU 가속)
-function updateTrackScroll(trackContainer, leaderPosition, centerPosition) {
-    if (!trackContainer) return;
-    const track = trackContainer.querySelector('.race-track');
-    if (!track) return;
-
-    // 말이 중앙을 넘어가면 카메라 이동
-    if (leaderPosition > centerPosition) {
-        const scrollAmount = leaderPosition - centerPosition;
-        track.style.transform = `translateX(-${scrollAmount}px)`;
-    } else {
-        track.style.transform = 'translateX(0)';
-    }
-}
 
 // 거리 시스템 상수
 var PIXELS_PER_METER = 10;
@@ -1057,7 +1043,6 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     
     // 컨테이너 너비 (스크롤 영역의 뷰포트 크기)
     const trackWidth = trackContainer.offsetWidth || 700;
-    console.log('[모바일디버그] trackWidth:', trackWidth, 'container:', trackContainer.offsetWidth, 'window:', window.innerWidth);
     // 서버에서 받은 트랙 거리(m) 기반 finishLine, 없으면 기존 방식
     const trackDistanceMeters = (trackOptions && trackOptions.trackDistanceMeters) || 500;
     const finishLine = trackDistanceMeters * PIXELS_PER_METER;
@@ -1599,7 +1584,6 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     let panStartTime = 0;
     let panStartOffset = 0;
     let panTargetOffset = 0;
-    const PAN_DELAY = 500;
     const PAN_DURATION = 2500;
     let loserCameraTarget = null;
     let cameraModeBefore = null;
@@ -1613,40 +1597,107 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
     // 컷어웨이 상수
     const LEADER_FOCUS_DURATION = 3000;        // 1등 고정 시간 (3초)
-    const CUTAWAY_DURATION = 3000;             // 컷어웨이 지속 시간 (3초)
+    const CUTAWAY_DURATION_DEFAULT = 3000;     // 기본 컷어웨이 시간 (3초)
+    const CUTAWAY_DURATION_CLOSE = 1500;       // 접전 시 컷어웨이 (1.5초)
+    const CUTAWAY_DURATION_RUNAWAY = 4000;     // 단독 질주 시 컷어웨이 (4초)
     const FINISH_LOCK_DISTANCE_M = 50;         // 결승선 강제 복귀 거리 (50m)
 
-    // 랜덤 컷어웨이 타겟 선택 함수
+    // 경기 상황 분석 → 컷어웨이 시간 결정
+    function getCutawayDuration(horseStates, finishLine) {
+        const sorted = [...horseStates].filter(s => !s.finished)
+            .sort((a, b) => b.currentPos - a.currentPos);
+        if (sorted.length < 2) return CUTAWAY_DURATION_DEFAULT;
+        const gap1st2nd = sorted[0].currentPos - sorted[1].currentPos;
+        const progress = sorted[0].currentPos / finishLine;
+        // 접전: 1-2등 격차 100px 미만이고 진행률 30% 이상
+        if (gap1st2nd < 100 && progress > 0.3) return CUTAWAY_DURATION_CLOSE;
+        // 단독 질주: 1등이 300px 이상 앞서감
+        if (gap1st2nd > 300) return CUTAWAY_DURATION_RUNAWAY;
+        return CUTAWAY_DURATION_DEFAULT;
+    }
+
+    // 가중치 기반 컷어웨이 타겟 선택 (순위 높을수록 자주 보여줌)
     function selectRandomCutawayTarget(horseStates, leaderIndex) {
         const candidates = horseStates.filter(s =>
             s.horseIndex !== leaderIndex && !s.finished
         );
         if (candidates.length === 0) return null;
-        return candidates[Math.floor(Math.random() * candidates.length)];
+        // 순위별 가중치 (2위=30, 3위=25, 4위=20, 하위=15)
+        const sorted = [...candidates].sort((a, b) => b.currentPos - a.currentPos);
+        const weights = [30, 25, 20, 15, 10];
+        let totalWeight = 0;
+        const weightedCandidates = sorted.map((c, i) => {
+            const w = weights[Math.min(i, weights.length - 1)];
+            totalWeight += w;
+            return { state: c, weight: w };
+        });
+        let roll = Math.random() * totalWeight;
+        for (const wc of weightedCandidates) {
+            roll -= wc.weight;
+            if (roll <= 0) return wc.state;
+        }
+        return sorted[0];
+    }
+
+    // 카메라 모드 오버레이 표시 함수
+    let cameraModeOverlay = null;
+    let cameraModeOverlayTimer = null;
+    function showCameraModeOverlay(text, color) {
+        const trackContainer = document.getElementById('raceTrackContainer');
+        if (!trackContainer) return;
+        if (!cameraModeOverlay) {
+            cameraModeOverlay = document.createElement('div');
+            cameraModeOverlay.style.cssText = `
+                position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+                padding: 4px 14px; border-radius: 12px; font-size: 12px;
+                font-family: 'Jua', sans-serif; color: #fff; pointer-events: none;
+                z-index: 50; transition: opacity 0.5s; opacity: 0;
+            `;
+            trackContainer.style.position = 'relative';
+            trackContainer.appendChild(cameraModeOverlay);
+        }
+        cameraModeOverlay.textContent = text;
+        cameraModeOverlay.style.background = color;
+        cameraModeOverlay.style.opacity = '1';
+        if (cameraModeOverlayTimer) clearTimeout(cameraModeOverlayTimer);
+        cameraModeOverlayTimer = setTimeout(() => {
+            if (cameraModeOverlay) cameraModeOverlay.style.opacity = '0';
+        }, 2000);
     }
 
     // 카메라 버튼 UI 동기화 함수 (루프 내에서도 호출)
     const cameraSwitchBtn = document.getElementById('cameraSwitchBtn');
+    let prevCameraMode = null;
     function updateCameraBtnUI() {
         if (!cameraSwitchBtn) return;
+        let label, bg;
         if (cameraMode === 'myHorse') {
-            cameraSwitchBtn.textContent = '📷 내 말 보는중';
-            cameraSwitchBtn.style.background = 'rgba(255,215,0,0.3)';
+            label = '📷 내 말 보는중';
+            bg = 'rgba(255,215,0,0.3)';
         } else if (cameraMode === '_loser' || panningToLoser) {
-            cameraSwitchBtn.textContent = '📷 꼴등 추적중';
-            cameraSwitchBtn.style.background = 'rgba(233,69,96,0.4)';
+            label = '📷 꼴등 추적중';
+            bg = 'rgba(233,69,96,0.4)';
         } else if (isRandomCutaway) {
-            cameraSwitchBtn.textContent = '📷 다른말 구경중';
-            cameraSwitchBtn.style.background = 'rgba(100,200,255,0.4)';
+            label = '📷 다른말 구경중';
+            bg = 'rgba(100,200,255,0.4)';
         } else {
-            cameraSwitchBtn.textContent = '📷 시스템 카메라';
-            cameraSwitchBtn.style.background = 'rgba(0,0,0,0.6)';
+            label = '📷 시스템 카메라';
+            bg = 'rgba(0,0,0,0.6)';
         }
+        cameraSwitchBtn.textContent = label;
+        cameraSwitchBtn.style.background = bg;
+        // 모드 변경 시 오버레이 표시
+        const currentMode = cameraMode + (isRandomCutaway ? '_cutaway' : '') + (panningToLoser ? '_panning' : '');
+        if (prevCameraMode !== null && prevCameraMode !== currentMode) {
+            showCameraModeOverlay(label.replace('📷 ', ''), bg);
+        }
+        prevCameraMode = currentMode;
     }
     if (cameraSwitchBtn) {
         if (userHorseBets[currentUser] !== undefined) {
             cameraSwitchBtn.style.display = 'block';
             cameraSwitchBtn.textContent = '📷 시스템 카메라';
+            cameraSwitchBtn.style.transition = 'transform 0.15s ease';
             cameraSwitchBtn.onclick = () => {
                 panningToLoser = false;
                 if (cameraMode === '_loser') {
@@ -1655,6 +1706,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     loserCameraTarget = null;
                 }
                 cameraMode = cameraMode === 'leader' ? 'myHorse' : 'leader';
+                // 바운스 효과
+                cameraSwitchBtn.style.transform = 'scale(1.1)';
+                setTimeout(() => { cameraSwitchBtn.style.transform = 'scale(1)'; }, 150);
                 updateCameraBtnUI();
             };
         } else {
@@ -1729,6 +1783,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         let slowMotionTriggered = false; // 한번만 트리거
         let loserSlowMotionTriggered = false; // 꼴등 결정 슬로우모션
         let loserSlowMotionActive = false;
+        let leaderCheerFadeInterval = null; // 리더 슬로우 환호 페이드아웃 interval ID
         // loserCameraTarget, cameraModeBefore, 패닝 변수는 상위 스코프에서 선언됨
 
         // 테스트용: 콘솔에서 forceSlowMotion() 호출로 강제 발동
@@ -1857,22 +1912,23 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 slowMotionActive = false;
                 slowMotionFactor = 1;
                 track.style.filter = '';
+                // vignette는 remove하지 않고 숨김만 (꼴등 슬로우모션이 재사용)
                 const vignette = document.getElementById('slowmoVignette');
                 if (vignette) {
                     vignette.style.opacity = '0';
-                    setTimeout(() => vignette.remove(), 500);
                 }
                 // 슬로우모션 환호성 페이드아웃 + 골인 환호 재생
                 if (window.SoundManager) {
                     // 골인 환호 (단발)
                     SoundManager.playSound('horse-race_cheer_burst', getHorseSoundEnabled(), 1.0);
-                    // 슬로우모션 환호 페이드아웃 (1초)
+                    // 슬로우모션 환호 페이드아웃 (1초) — interval ID 보관 (꼴등 슬로우 시 취소용)
                     let slowmoVol = 0.9;
-                    const fadeSlowmo = setInterval(() => {
+                    leaderCheerFadeInterval = setInterval(() => {
                         slowmoVol -= 0.15;
                         if (slowmoVol <= 0) {
                             SoundManager.stopLoop('horse-race_slowmo_cheer');
-                            clearInterval(fadeSlowmo);
+                            clearInterval(leaderCheerFadeInterval);
+                            leaderCheerFadeInterval = null;
                         } else {
                             SoundManager.setVolume('horse-race_slowmo_cheer', slowmoVol);
                         }
@@ -1881,7 +1937,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             }
 
             // 꼴등 결정 슬로우모션: 베팅된 말 중 꼴등과 직전 말이 접전 중일 때 발동
-            if (!loserSlowMotionTriggered && !slowMotionActive) {
+            // (1등 슬로우모션과 독립적으로 체크 — 1등 슬로우 중에도 조건 감지)
+            if (!loserSlowMotionTriggered) {
                 const bettedHorseIndices = [...new Set(Object.values(userHorseBets))];
                 const bettedByRank = bettedHorseIndices
                     .map(hi => horseStates.find(s => s.horseIndex === hi))
@@ -1891,13 +1948,24 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 const secondLastBetted = bettedByRank.length >= 2 ? bettedByRank[1] : null; // 꼴등 직전
 
                 if (lastBetted && secondLastBetted && !lastBetted.finished && !secondLastBetted.finished) {
-                    // 두 말의 거리 차이 (m)
-                    const gapM = Math.abs(secondLastBetted.currentPos - lastBetted.currentPos) / PIXELS_PER_METER;
                     const slRemainingM = (finishLine - secondLastBetted.currentPos) / PIXELS_PER_METER;
-                    // 결승선 근처일 때 발동 (거리 무관)
+                    // 결승선 근처일 때 발동
                     if (slRemainingM <= smConf.loser.triggerDistanceM) {
                         loserSlowMotionTriggered = true;
                         loserSlowMotionActive = true;
+                        // 1등 슬로우모션 활성 중이면 해제 후 꼴등으로 전환
+                        if (slowMotionActive) {
+                            slowMotionActive = false;
+                        }
+                        // 리더 환호 페이드아웃이 진행 중이면 취소 (꼴등 사운드를 죽이지 않도록)
+                        if (leaderCheerFadeInterval) {
+                            clearInterval(leaderCheerFadeInterval);
+                            leaderCheerFadeInterval = null;
+                            // 볼륨 복원 (꼴등 환호가 이어서 사용)
+                            if (window.SoundManager) {
+                                SoundManager.setVolume('horse-race_slowmo_cheer', 0.9);
+                            }
+                        }
                         slowMotionFactor = smConf.loser.factor;
                         loserCameraTarget = secondLastBetted; // 결승선에 가까운 말(들어가는 애)에 카메라
                         cameraModeBefore = cameraMode;
@@ -1916,6 +1984,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             track.parentElement.style.position = 'relative';
                             track.parentElement.appendChild(vignette);
                         }
+                        // 리더 비네트(검정)→꼴등(빨강) 색상 전환 (기존 DOM 재사용 시)
+                        vignette.style.boxShadow = 'inset 0 0 60px 30px rgba(233,69,96,0.4)';
                         vignette.style.opacity = '1';
                         track.style.transition = 'filter 0.3s';
                         track.style.filter = 'contrast(1.1) saturate(1.3)';
@@ -2213,10 +2283,12 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     // 도착 애니메이션 표시 (순위 뱃지)
                     showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
 
-                    // 1등 결승 후 → 0.5초 유지 후 꼴등으로 부드럽게 패닝
+                    // 1등 결승 후 → 0.8초 유지 후 베팅된 말 중 꼴등으로 부드럽게 패닝
                     if (state.rank === 0) {
                         setTimeout(() => {
-                            const unfinished = horseStates.filter(s => !s.finishJudged)
+                            const bettedIndices = [...new Set(Object.values(userHorseBets))];
+                            const unfinished = horseStates
+                                .filter(s => !s.finishJudged && bettedIndices.includes(s.horseIndex))
                                 .sort((a, b) => a.currentPos - b.currentPos);
                             if (unfinished.length > 0) {
                                 panningToLoser = true;
@@ -2225,7 +2297,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                                 loserCameraTarget = unfinished[0];
                                 panTargetOffset = loserCameraTarget.currentPos - trackWidth * 0.3;
                             }
-                        }, PAN_DELAY);
+                        }, 800);
                     }
                 }
 
@@ -2284,13 +2356,26 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             } else {
                 let cameraTarget = leaderState;
                 if (cameraMode === '_loser') {
-                    // 매 프레임 실제 꼴등 재계산
-                    const unfinishedNow = horseStates.filter(s => !s.finished)
+                    // 매 프레임 베팅된 말 중 꼴등 재계산
+                    const bettedIndicesForLoser = [...new Set(Object.values(userHorseBets))];
+                    const unfinishedNow = horseStates
+                        .filter(s => !s.finished && bettedIndicesForLoser.includes(s.horseIndex))
                         .sort((a, b) => a.currentPos - b.currentPos);
                     if (unfinishedNow.length > 0) {
                         loserCameraTarget = unfinishedNow[0];
                     }
-                    if (loserCameraTarget) cameraTarget = loserCameraTarget;
+                    // 꼴등 후보 2마리 접전(80px 이내) → 중간점 추적 (둘 다 화면에)
+                    if (unfinishedNow.length >= 2 && loserCameraTarget) {
+                        const gap = unfinishedNow[1].currentPos - unfinishedNow[0].currentPos;
+                        if (gap < 80) {
+                            const midPos = (unfinishedNow[0].currentPos + unfinishedNow[1].currentPos) / 2;
+                            cameraTarget = { currentPos: midPos, horseIndex: loserCameraTarget.horseIndex };
+                        } else {
+                            cameraTarget = loserCameraTarget;
+                        }
+                    } else if (loserCameraTarget) {
+                        cameraTarget = loserCameraTarget;
+                    }
                 } else if (cameraMode === 'myHorse') {
                     // 내 말 추적 - 랜덤 컷어웨이 적용 안함
                     const myIdx = userHorseBets[currentUser];
@@ -2315,8 +2400,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     else if (!cutawayDisabled) {
                         // 컷어웨이 중일 때
                         if (isRandomCutaway && randomCutawayTarget) {
-                            // 3초 지났으면 1등으로 복귀
-                            if (now - randomCutawayStartTime >= CUTAWAY_DURATION) {
+                            // 상황별 컷어웨이 시간 경과 시 1등으로 복귀
+                            const currentCutawayDuration = getCutawayDuration(horseStates, finishLine);
+                            if (now - randomCutawayStartTime >= currentCutawayDuration) {
                                 isRandomCutaway = false;
                                 randomCutawayTarget = null;
                                 leaderFocusStartTime = now;
@@ -2387,8 +2473,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         targetOffset = maxScrollLimit;
                     }
                 }
-                // 부드러운 카메라 이동 (lerp)
-                const lerpSpeed = 0.08;
+                // 부드러운 카메라 이동 (적응형 lerp — 거리 멀수록 빠르게 추격)
+                const camDistance = Math.abs(targetOffset - currentScrollOffset);
+                const lerpSpeed = camDistance < 50 ? 0.05 : camDistance < 200 ? 0.10 : camDistance < 500 ? 0.20 : 0.35;
                 currentScrollOffset += (targetOffset - currentScrollOffset) * lerpSpeed;
             }
             
