@@ -72,6 +72,11 @@ async function initDatabase() {
                 is_active BOOLEAN DEFAULT true
             )
         `);
+        // 기존 테이블에 누락된 컬럼 보정 (CREATE TABLE IF NOT EXISTS는 기존 테이블 미수정)
+        await pool.query(`DO $$ BEGIN ALTER TABLE servers ADD COLUMN password_hash VARCHAR(255) DEFAULT ''; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+        await pool.query(`DO $$ BEGIN ALTER TABLE servers ADD COLUMN host_code VARCHAR(10) DEFAULT ''; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+        await pool.query(`DO $$ BEGIN ALTER TABLE servers ADD COLUMN is_active BOOLEAN DEFAULT true; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_servers_host_id ON servers(host_id)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_servers_is_active ON servers(is_active)`);
 
