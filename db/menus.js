@@ -36,9 +36,9 @@ async function getMergedFrequentMenus(serverId) {
     }
 }
 
-function saveFrequentMenus(menus) {
+async function saveFrequentMenus(menus) {
     try {
-        fs.writeFileSync(MENUS_FILE, JSON.stringify(menus, null, 2), 'utf8');
+        await fs.promises.writeFile(MENUS_FILE, JSON.stringify(menus, null, 2), 'utf8');
         return true;
     } catch (error) {
         console.error('메뉴 파일 쓰기 오류:', error);

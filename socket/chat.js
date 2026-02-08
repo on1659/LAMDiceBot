@@ -442,11 +442,11 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 이미지 크기 검증 (5MB 제한)
+        // 이미지 크기 검증 (4MB 제한 - Base64 인코딩 시 ~5.3MB → maxHttpBufferSize 6MB 이내)
         const sizeInBytes = (imageData.length * 3) / 4;
-        const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+        const MAX_SIZE = 4 * 1024 * 1024; // 4MB
         if (sizeInBytes > MAX_SIZE) {
-            socket.emit('chatError', '이미지 크기가 5MB를 초과합니다!');
+            socket.emit('chatError', '이미지 크기가 4MB를 초과합니다!');
             return;
         }
 
@@ -478,13 +478,13 @@ module.exports = (socket, io, ctx) => {
             imageData: imageData
         };
 
-        // 채팅 기록에 저장 (최대 100개)
-        gameState.chatHistory.push(imageMessage);
+        // 채팅 기록에 저장 (최대 100개, 이미지 데이터 미포함으로 메모리 절약)
+        gameState.chatHistory.push({ ...imageMessage, imageData: null });
         if (gameState.chatHistory.length > 100) {
             gameState.chatHistory.shift();
         }
 
-        // 같은 방의 모든 클라이언트에게 이미지 메시지 전송
+        // 같은 방의 모든 클라이언트에게 이미지 메시지 전송 (실시간 수신자는 원본 포함)
         io.to(room.roomId).emit('newMessage', imageMessage);
         console.log(`[이미지 전송] 방 ${room.roomName} - ${user.name} (크기: ${(sizeInBytes / 1024).toFixed(1)}KB)`);
 

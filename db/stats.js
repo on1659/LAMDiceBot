@@ -16,7 +16,7 @@ function loadStatsFromFile() {
     return null;
 }
 
-function saveStatsToFile() {
+async function saveStatsToFile() {
     try {
         const data = {
             visitorTotalCount,
@@ -24,7 +24,7 @@ function saveStatsToFile() {
             gameStatsByType,
             recentPlaysList
         };
-        fs.writeFileSync(STATS_FILE, JSON.stringify(data, null, 2), 'utf8');
+        await fs.promises.writeFile(STATS_FILE, JSON.stringify(data, null, 2), 'utf8');
     } catch (e) {
         console.warn('stats.json 저장 실패:', e.message);
     }

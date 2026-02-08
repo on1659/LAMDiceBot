@@ -18,9 +18,9 @@ function loadStatsFromFile() {
     return {};
 }
 
-function saveStatsToFile(stats) {
+async function saveStatsToFile(stats) {
     try {
-        fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2), 'utf8');
+        await fs.promises.writeFile(STATS_FILE, JSON.stringify(stats, null, 2), 'utf8');
     } catch (error) {
         console.error('탈것 통계 파일 쓰기 오류:', error);
     }

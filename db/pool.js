@@ -16,7 +16,10 @@ async function initPool() {
             const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
             pool = new Pool({
                 connectionString: process.env.DATABASE_URL,
-                ssl: isLocal ? false : { rejectUnauthorized: false }
+                ssl: isLocal ? false : { rejectUnauthorized: false },
+                max: parseInt(process.env.DB_POOL_MAX) || (isLocal ? 10 : 15),
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 5000
             });
             // 실제 연결 테스트
             await pool.query('SELECT 1');

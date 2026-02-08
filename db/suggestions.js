@@ -92,7 +92,7 @@ async function saveSuggestion(suggestion) {
         if (suggestions.length > 100) {
             suggestions.splice(100);
         }
-        fs.writeFileSync(BOARD_FILE, JSON.stringify(suggestions, null, 2), 'utf8');
+        await fs.promises.writeFile(BOARD_FILE, JSON.stringify(suggestions, null, 2), 'utf8');
         return true;
     } catch (error) {
         console.error('게시판 파일 쓰기 오류:', error);
@@ -145,7 +145,7 @@ async function deleteSuggestion(id, password) {
             }
 
             suggestions.splice(index, 1);
-            fs.writeFileSync(BOARD_FILE, JSON.stringify(suggestions, null, 2), 'utf8');
+            await fs.promises.writeFile(BOARD_FILE, JSON.stringify(suggestions, null, 2), 'utf8');
             return { success: true };
         } else {
             return { success: false, error: '게시글을 찾을 수 없습니다.' };

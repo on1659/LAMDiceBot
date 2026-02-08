@@ -54,7 +54,7 @@ module.exports = (socket, io, ctx) => {
     });
 
     // 경마 게임 시작 (방장만 가능)
-    socket.on('startHorseRace', () => {
+    socket.on('startHorseRace', async () => {
         if (!checkRateLimit()) return;
 
         const gameState = getCurrentRoomGameState();
@@ -217,7 +217,7 @@ module.exports = (socket, io, ctx) => {
         gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
         const vehicleTypes = gameState.selectedVehicleTypes || [];
-        const rankings = calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule);
+        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -1124,7 +1124,7 @@ module.exports = (socket, io, ctx) => {
     }
 
     // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
-    function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = []) {
+    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = []) {
         // 트랙 길이 설정
         const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = preset.meters;
@@ -1220,8 +1220,15 @@ module.exports = (socket, io, ctx) => {
         let elapsed = 0;
 
         // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
+        let frameCount = 0;
         while (elapsed < 60000) {
             elapsed += frameInterval;
+            frameCount++;
+
+            // 매 100프레임마다 이벤트 루프에 양보 (CPU 블로킹 방지)
+            if (frameCount % 100 === 0) {
+                await new Promise(resolve => setImmediate(resolve));
+            }
 
             // 모든 말이 도착했는지 확인
             const allFinished = horseStates.every(s => s.finished);

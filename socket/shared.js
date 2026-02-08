@@ -415,7 +415,7 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             }
         } else {
             gameState.frequentMenus.push(menuTrimmed);
-            if (saveFrequentMenus(gameState.frequentMenus)) {
+            if (await saveFrequentMenus(gameState.frequentMenus)) {
                 io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
                 console.log(`방 ${room.roomName} 메뉴 추가:`, menuTrimmed);
             } else {
@@ -464,7 +464,7 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
                 io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
             }
         } else {
-            if (saveFrequentMenus(gameState.frequentMenus)) {
+            if (await saveFrequentMenus(gameState.frequentMenus)) {
                 io.to(room.roomId).emit('frequentMenusUpdated', gameState.frequentMenus);
                 console.log(`방 ${room.roomName} 메뉴 삭제:`, menu);
             } else {

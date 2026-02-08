@@ -9,6 +9,36 @@ const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
 
 function setupSocketHandlers(io, rooms) {
+    // 방 목록 브로드캐스트 디바운싱 (200ms leading + trailing)
+    let updateTimer = null;
+    let lastUpdateTime = 0;
+    const DEBOUNCE_MS = 200;
+
+    const updateRoomsList = () => {
+        const now = Date.now();
+        const buildRoomsList = () => Object.entries(rooms).map(([roomId, room]) => ({
+            roomId, roomName: room.roomName, hostName: room.hostName,
+            playerCount: room.gameState.users.length,
+            isGameActive: room.gameState.isGameActive,
+            isOrderActive: room.gameState.isOrderActive,
+            isPrivate: room.isPrivate || false,
+            gameType: room.gameType || 'dice'
+        }));
+
+        // leading edge: 첫 호출 즉시 실행
+        if (now - lastUpdateTime >= DEBOUNCE_MS) {
+            lastUpdateTime = now;
+            io.emit('roomsListUpdated', buildRoomsList());
+        }
+
+        // trailing edge: 연속 호출 시 마지막 상태 보장
+        clearTimeout(updateTimer);
+        updateTimer = setTimeout(() => {
+            lastUpdateTime = Date.now();
+            io.emit('roomsListUpdated', buildRoomsList());
+        }, DEBOUNCE_MS);
+    };
+
     io.on('connection', (socket) => {
         console.log('새 사용자 연결:', socket.id);
 
@@ -82,21 +112,6 @@ function setupSocketHandlers(io, rooms) {
             if (isNaN(min) || isNaN(max) || min >= max) return result;
             const normalized = ((result - min) / (max - min)) * 99 + 1;
             return normalized;
-        };
-
-        // 방 목록 업데이트
-        const updateRoomsList = () => {
-            const roomsList = Object.entries(rooms).map(([roomId, room]) => ({
-                roomId,
-                roomName: room.roomName,
-                hostName: room.hostName,
-                playerCount: room.gameState.users.length,
-                isGameActive: room.gameState.isGameActive,
-                isOrderActive: room.gameState.isOrderActive,
-                isPrivate: room.isPrivate || false,
-                gameType: room.gameType || 'dice'
-            }));
-            io.emit('roomsListUpdated', roomsList);
         };
 
         // 공유 컨텍스트
