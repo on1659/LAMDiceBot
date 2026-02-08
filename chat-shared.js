@@ -18,6 +18,56 @@ const ChatModule = (function () {
     let _messageReactionTimestamps = {}; // 메시지별 마지막 반응 타임스탬프
     let _connectedUsers = []; // 접속한 사용자 목록
     let _mentionAutocompleteActive = false; // 멘션 자동완성 활성 상태
+
+    const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB
+
+    // 이미지 자동 압축 (4MB 초과 시 리사이즈+품질 조절)
+    function compressImage(file) {
+        return new Promise((resolve, reject) => {
+            // 4MB 이하면 그대로 읽기
+            if (file.size <= MAX_IMAGE_BYTES) {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+                return;
+            }
+
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+
+                // 큰 이미지는 최대 1920px로 리사이즈
+                const maxDim = 1920;
+                if (width > maxDim || height > maxDim) {
+                    const ratio = Math.min(maxDim / width, maxDim / height);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+                // 품질 낮춰가며 4MB 이내로
+                let quality = 0.85;
+                let result = canvas.toDataURL('image/jpeg', quality);
+                while (result.length * 0.75 > MAX_IMAGE_BYTES && quality > 0.3) {
+                    quality -= 0.1;
+                    result = canvas.toDataURL('image/jpeg', quality);
+                }
+                resolve(result);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('이미지 로드 실패'));
+            };
+            img.src = url;
+        });
+    }
     let _originalTitle = document.title; // 원래 페이지 타이틀
     let _titleFlashInterval = null; // 타이틀 깜박임 타이머
     let _baseEmojiKeys = []; // 기본 이모지 키 목록 (삭제 불가)
@@ -921,7 +971,7 @@ const ChatModule = (function () {
             <h3 style="margin: 0 0 15px 0; color: #333;">이미지 전송</h3>
             <div style="margin-bottom: 15px;">
                 <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" style="display: block; width: 100%; padding: 10px; border: 2px dashed #ccc; border-radius: 6px; cursor: pointer;" />
-                <div style="font-size: 12px; color: #999; margin-top: 6px;">최대 4MB, PNG/JPG/GIF/WEBP 형식</div>
+                <div style="font-size: 12px; color: #999; margin-top: 6px;">PNG/JPG/GIF/WEBP 형식 (큰 이미지는 자동 압축)</div>
             </div>
             <div id="imagePreviewContainer" style="display: none; margin-bottom: 15px;">
                 <img id="imagePreview" style="max-width: 100%; max-height: 300px; border-radius: 8px; display: block;" />
@@ -949,25 +999,29 @@ const ChatModule = (function () {
 
         let imageData = null;
 
-        fileInput.addEventListener('change', (e) => {
+        fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            if (file.size > 4 * 1024 * 1024) {
-                errorDiv.textContent = '이미지 크기가 4MB를 초과합니다!';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                imageData = e.target.result;
+            try {
+                sendBtn.disabled = true;
+                errorDiv.style.display = 'none';
+                if (file.size > MAX_IMAGE_BYTES) {
+                    errorDiv.textContent = '이미지를 압축하는 중...';
+                    errorDiv.style.color = '#666';
+                    errorDiv.style.display = 'block';
+                }
+                imageData = await compressImage(file);
                 preview.src = imageData;
                 previewContainer.style.display = 'block';
                 sendBtn.disabled = false;
                 errorDiv.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
+                errorDiv.style.color = '#c00';
+            } catch (err) {
+                errorDiv.textContent = '이미지 처리 중 오류가 발생했습니다.';
+                errorDiv.style.color = '#c00';
+                errorDiv.style.display = 'block';
+            }
         });
 
         sendBtn.addEventListener('click', () => {
@@ -1338,19 +1392,13 @@ const ChatModule = (function () {
                     e.preventDefault();
                     const file = item.getAsFile();
 
-                    if (file.size > 4 * 1024 * 1024) {
-                        if (typeof showCustomAlert === 'function') {
-                            showCustomAlert('이미지 크기가 4MB를 초과합니다!', 'warning');
-                        }
-                        return;
-                    }
-
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const imageData = e.target.result;
+                    compressImage(file).then((imageData) => {
                         showClipboardImageModal(imageData);
-                    };
-                    reader.readAsDataURL(file);
+                    }).catch(() => {
+                        if (typeof showCustomAlert === 'function') {
+                            showCustomAlert('이미지 처리 중 오류가 발생했습니다.', 'warning');
+                        }
+                    });
                     break;
                 }
             }
