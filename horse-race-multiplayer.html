@@ -257,11 +257,12 @@
                 대기 중...
             </div>
 
-            <!-- 경주 트랙 컨테이너 -->
-            <div class="race-track-container" id="raceTrackContainer" style="display: none; position: relative;">
-                <!-- 카메라 전환 버튼 (트랙 좌하단) -->
-                <button id="cameraSwitchBtn" style="display: none; position: absolute; top: 6px; right: 6px; z-index: 110; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: #fff; font-size: 10px; cursor: pointer; font-family: 'Jua', sans-serif; backdrop-filter: blur(4px);">📷 시스템 카메라</button>
-                <div class="race-track" id="raceTrack">
+            <!-- 경주 트랙 래퍼 (카메라 버튼 + 트랙) -->
+            <div id="raceTrackWrapper" style="position: relative; display: none;">
+                <!-- 카메라 전환 버튼 (트랙 바깥 우상단) -->
+                <button id="cameraSwitchBtn" style="display: none; position: absolute; top: -32px; right: 0; z-index: 10; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: #fff; font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;">📷 시스템 카메라</button>
+                <div class="race-track-container" id="raceTrackContainer" style="position: relative;">
+                    <div class="race-track" id="raceTrack">
                     <!-- 말들이 여기에 동적으로 생성됨 -->
                 </div>
                 <!-- 미니맵 -->
@@ -276,6 +277,7 @@
                     <div id="minimapDots" style="position: relative; width: 100%; min-height: 14px; margin-top: 2px;">
                         <!-- 말 아이콘 범례 -->
                     </div>
+                </div>
                 </div>
             </div>
 

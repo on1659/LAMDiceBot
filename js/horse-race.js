@@ -480,6 +480,8 @@ function renderTrackForSelection() {
     }
     
     trackContainer.style.display = 'block';
+    const wrapper = document.getElementById('raceTrackWrapper');
+    if (wrapper) wrapper.style.display = 'block';
     track.innerHTML = '';
     
     const trackWidth = trackContainer.offsetWidth || 700;
@@ -1046,6 +1048,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     }
     
     trackContainer.style.display = 'block';
+    const wrapper = document.getElementById('raceTrackWrapper');
+    if (wrapper) wrapper.style.display = 'block';
     track.innerHTML = '';
     
     // 이전 도착 이펙트 제거
@@ -4269,6 +4273,8 @@ function showCountdown() {
     const trackContainer = document.getElementById('raceTrackContainer');
     if (trackContainer) {
         trackContainer.style.display = 'block';
+        const wrapper = document.getElementById('raceTrackWrapper');
+        if (wrapper) wrapper.style.display = 'block';
     }
 
     // 기존 오버레이 제거
@@ -5982,6 +5988,8 @@ socket.on('horseRaceDataCleared', () => {
     // 트랙 숨기기 + 이펙트 정리
     const trackContainer = document.getElementById('trackContainer');
     if (trackContainer) trackContainer.style.display = 'none';
+    const trackWrapper = document.getElementById('raceTrackWrapper');
+    if (trackWrapper) trackWrapper.style.display = 'none';
     clearFinishEffects();
 
     showCustomAlert('이전 게임 데이터가 삭제되었습니다.', 'success', '✅ 삭제 완료');
