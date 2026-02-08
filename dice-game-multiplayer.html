@@ -1426,6 +1426,31 @@
                     룰렛/팀배정/경마를 선택하면 전용 페이지로 이동합니다.
                 </div>
                 <script>
+                    // 게임 타입 선택 시 시각적 강조
+                    (function() {
+                        const colorMap = { dice: '#667eea', roulette: '#e91e63', team: '#9c27b0', 'horse-race': '#8b4513' };
+                        function updateGameTypeStyle() {
+                            document.querySelectorAll('input[name="gameType"]').forEach(radio => {
+                                const label = radio.closest('label');
+                                const color = colorMap[radio.value] || '#667eea';
+                                if (radio.checked) {
+                                    label.style.background = color;
+                                    label.style.color = '#fff';
+                                    label.style.borderColor = color;
+                                    label.style.boxShadow = `0 4px 12px ${color}44`;
+                                    label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '#fff');
+                                } else {
+                                    label.style.background = 'white';
+                                    label.style.color = '';
+                                    label.style.borderColor = color;
+                                    label.style.boxShadow = 'none';
+                                    label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '');
+                                }
+                            });
+                        }
+                        document.querySelectorAll('input[name="gameType"]').forEach(r => r.addEventListener('change', updateGameTypeStyle));
+                        updateGameTypeStyle();
+                    })();
                     // 경마 NEW 배지 + 툴팁: 2026-02-08 이후 숨김
                     (function() {
                         const hideDate = new Date('2026-02-08T00:00:00+09:00');
