@@ -2258,9 +2258,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 state.currentPos > leader.currentPos ? state : leader, horseStates[0]);
             const leaderPos = leaderState.currentPos;
             
-            // 스크롤 설정 — 결승선이 항상 화면 안에 보이도록 뷰포트 반응형
-            // 결승선 화면위치 = offset + centerPosition → 오른쪽 여백 100px 보장
-            const finishLineDisplayOffset = Math.min(250, Math.max(0, centerPosition - 100));
+            // 스크롤 설정 — 결승선 화면위치 = offset + centerPosition
+            // 모바일(400px): 250 + 80 = 330px (우측 82%), PC(800px): 250 + 400 = 650px (우측 81%)
+            const finishLineDisplayOffset = 250;
             const scrollReleasePoint = finishLine - finishLineDisplayOffset;
             const maxScrollLimit = -(scrollReleasePoint - centerPosition);
 
