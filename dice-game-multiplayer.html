@@ -1757,13 +1757,27 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/server-select-shared.js"></script>
     <script src="/chat-shared.js"></script>
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
-        
+        let currentServerId = null;
+
+        // 서버 선택 UI 초기화
+        ServerSelectModule.init(socket, (selection) => {
+            currentServerId = selection.serverId;
+            if (selection.serverName) {
+                document.title = `${selection.serverName} - LAM Dice :)`;
+            }
+            document.getElementById('lobbySection').classList.add('active');
+        });
+        // 페이지 로드 시 서버 선택 표시 (로비 숨김 상태에서)
+        document.getElementById('lobbySection').classList.remove('active');
+        ServerSelectModule.show();
+
         // 아이디 유효성 검사 함수 (한글, 영문 소문자, 숫자, _, - 허용)
         function validateUserId(userId) {
             if (!userId || typeof userId !== 'string') return false;
@@ -2554,31 +2568,34 @@
                 localStorage.setItem('pendingRouletteJoin', JSON.stringify({
                     roomId: roomId,
                     userName: userName,
-                    isPrivate: room.isPrivate
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId
                 }));
                 window.location.href = '/roulette-game-multiplayer.html?joinRoom=true';
                 return;
             }
-            
+
             // 팀 배정 방이면 팀 페이지로 이동
             if (room && room.gameType === 'team') {
                 localStorage.setItem('teamUserName', userName);
                 localStorage.setItem('pendingTeamJoin', JSON.stringify({
                     roomId: roomId,
                     userName: userName,
-                    isPrivate: room.isPrivate
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId
                 }));
                 window.location.href = '/team-game-multiplayer.html?joinRoom=true';
                 return;
             }
-            
+
             // 경마 방이면 경마 페이지로 이동
             if (room && room.gameType === 'horse-race') {
                 localStorage.setItem('horseRaceUserName', userName);
                 localStorage.setItem('pendingHorseRaceJoin', JSON.stringify({
                     roomId: roomId,
                     userName: userName,
-                    isPrivate: room.isPrivate
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId
                 }));
                 window.location.href = '/horse-race-multiplayer.html?joinRoom=true';
                 return;
@@ -3436,12 +3453,13 @@
                     isPrivate: isPrivate,
                     password: isPrivate ? password : '',
                     expiryHours: expiryHours,
-                    blockIPPerUser: blockIPPerUser
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId
                 }));
                 window.location.href = '/roulette-game-multiplayer.html?createRoom=true';
                 return;
             }
-            
+
             // 팀 배정 게임이면 팀 페이지로 이동
             if (gameType === 'team') {
                 // 이름을 저장하고 팀 페이지로 이동
@@ -3452,12 +3470,13 @@
                     isPrivate: isPrivate,
                     password: isPrivate ? password : '',
                     expiryHours: expiryHours,
-                    blockIPPerUser: blockIPPerUser
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId
                 }));
                 window.location.href = '/team-game-multiplayer.html?createRoom=true';
                 return;
             }
-            
+
             // 경마 게임이면 경마 페이지로 이동
             if (gameType === 'horse-race') {
                 // 이름을 저장하고 경마 페이지로 이동
@@ -3468,21 +3487,23 @@
                     isPrivate: isPrivate,
                     password: isPrivate ? password : '',
                     expiryHours: expiryHours,
-                    blockIPPerUser: blockIPPerUser
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId
                 }));
                 window.location.href = '/horse-race-multiplayer.html?createRoom=true';
                 return;
             }
             
             // 방 생성 (게임 룰은 방 생성 후 설정)
-            socket.emit('createRoom', { 
+            socket.emit('createRoom', {
                 userName: hostName,
                 roomName: roomName,
                 isPrivate: isPrivate,
                 password: isPrivate ? password : '',
                 gameType: 'dice', // 게임 타입 (주사위 게임)
                 expiryHours: expiryHours, // 방 유지 시간 (시간 단위)
-                blockIPPerUser: blockIPPerUser // IP당 하나의 아이디만 입장 허용
+                blockIPPerUser: blockIPPerUser, // IP당 하나의 아이디만 입장 허용
+                serverId: currentServerId // 서버 소속
             });
         }
         

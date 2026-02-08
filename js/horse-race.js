@@ -237,6 +237,27 @@ var socket = io({
     reconnectionAttempts: 10,
     reconnectionDelay: 1000
 });
+var currentServerId = null;
+
+// 서버 선택 UI (dice 페이지에서 넘어온 경우 스킵)
+(function() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
+    if (fromDice) {
+        var pending = localStorage.getItem('pendingHorseRaceRoom') || localStorage.getItem('pendingHorseRaceJoin');
+        if (pending) {
+            try { currentServerId = JSON.parse(pending).serverId || null; } catch(e) {}
+        }
+    } else {
+        ServerSelectModule.init(socket, function(selection) {
+            currentServerId = selection.serverId;
+            if (selection.serverName) document.title = selection.serverName + ' - Horse Race';
+            document.getElementById('lobbySection').classList.add('active');
+        });
+        document.getElementById('lobbySection').classList.remove('active');
+        ServerSelectModule.show();
+    }
+})();
 
 // 방 생성 섹션 표시
 function showCreateRoomSection() {
@@ -299,7 +320,8 @@ function finalizeRoomCreation() {
         gameType: 'horse-race',
         expiryHours: expiryHours,
         blockIPPerUser: false,
-        deviceId: getDeviceId()
+        deviceId: getDeviceId(),
+        serverId: currentServerId
     });
 }
 
@@ -6214,7 +6236,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     gameType: 'horse-race',
                     expiryHours: roomData.expiryHours,
                     blockIPPerUser: roomData.blockIPPerUser,
-                    deviceId: getDeviceId()
+                    deviceId: getDeviceId(),
+                    serverId: roomData.serverId || currentServerId
                 });
             });
             

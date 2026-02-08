@@ -23,7 +23,8 @@ function setupSocketHandlers(io, rooms) {
             isGameActive: room.gameState.isGameActive,
             isOrderActive: room.gameState.isOrderActive,
             isPrivate: room.isPrivate || false,
-            gameType: room.gameType || 'dice'
+            gameType: room.gameType || 'dice',
+            serverId: room.serverId || null
         }));
 
         // leading edge: 첫 호출 즉시 실행

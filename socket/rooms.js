@@ -160,7 +160,7 @@ module.exports = (socket, io, ctx) => {
     socket.on('createRoom', async (data) => {
         if (!checkRateLimit()) return;
 
-        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser, turboAnimation } = data;
+        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser, turboAnimation, serverId } = data;
 
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -261,6 +261,7 @@ module.exports = (socket, io, ctx) => {
             expiryHours: validExpiryHours, // 방 유지 시간 추가 (시간 단위)
             blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
             turboAnimation: validTurboAnimation, // 터보 애니메이션 (다양한 마무리 효과)
+            serverId: serverId ? parseInt(serverId) : null, // 서버 소속
             gameState: gameStateNew,
             createdAt: new Date()
         };

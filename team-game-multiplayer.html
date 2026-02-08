@@ -679,6 +679,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/server-select-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         // 디버그 로그 함수
@@ -697,7 +698,28 @@
             timeout: 30000,
             forceNew: false
         });
-        
+        let currentServerId = null;
+
+        // 서버 선택 UI (dice 페이지에서 넘어온 경우 스킵)
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
+            if (fromDice) {
+                const pending = localStorage.getItem('pendingTeamRoom') || localStorage.getItem('pendingTeamJoin');
+                if (pending) {
+                    try { currentServerId = JSON.parse(pending).serverId || null; } catch(e) {}
+                }
+            } else {
+                ServerSelectModule.init(socket, (selection) => {
+                    currentServerId = selection.serverId;
+                    if (selection.serverName) document.title = `${selection.serverName} - Team`;
+                    document.getElementById('landing-section').style.display = '';
+                });
+                document.getElementById('landing-section').style.display = 'none';
+                ServerSelectModule.show();
+            }
+        })();
+
         debugLog('🚀 스크립트 시작됨');
 
         // 상태 변수 (localStorage에서 복원)
@@ -852,7 +874,8 @@
                 gameType: 'team',
                 expiryHours: 3,
                 blockIPPerUser: false,
-                deviceId: getDeviceId()
+                deviceId: getDeviceId(),
+                serverId: currentServerId
             });
             
             debugLog('✅ createRoom emit 완료!');
@@ -1474,7 +1497,8 @@
                         gameType: 'team',
                         expiryHours: roomData.expiryHours || 3,
                         blockIPPerUser: roomData.blockIPPerUser || false,
-                        deviceId: getDeviceId()
+                        deviceId: getDeviceId(),
+                        serverId: roomData.serverId || currentServerId
                     });
                     
                     debugLog('✅ 방 생성 요청 완료!');
