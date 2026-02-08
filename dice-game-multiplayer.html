@@ -1395,23 +1395,12 @@
                 </div>
             </div>
             
-            <!-- IP 차단 설정 -->
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <div style="display: flex; align-items: center;">
-                    <input type="checkbox" id="createRoomIPBlockCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                    <label for="createRoomIPBlockCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">🔒 IP당 하나의 아이디만 입장 허용</label>
-                </div>
-                <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                    체크 시 같은 IP에서 여러 아이디로 입장할 수 없습니다.
-                </div>
-            </div>
-            
             <!-- 게임 타입 선택 -->
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
                 <label style="display: block; margin-bottom: 10px; font-weight: 500;">🎮 게임 타입</label>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                     <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
-                        <input type="radio" name="gameType" value="dice" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <input type="radio" name="gameType" value="dice" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🎲</span>
                         <span style="font-weight: 600;">주사위</span>
                     </label>
@@ -1426,7 +1415,7 @@
                         <span style="font-weight: 600;">팀 배정</span>
                     </label>
                     <label id="horseRaceLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #8b4513; position: relative;">
-                        <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🐎</span>
                         <span style="font-weight: 600;">경마</span>
                         <span id="horseRaceNewBadge" style="position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
@@ -3167,7 +3156,7 @@
             document.getElementById('createRoomPrivateCheckbox').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
             document.getElementById('createRoomPasswordContainer').style.display = 'none';
-            document.getElementById('createRoomIPBlockCheckbox').checked = false; // IP 차단 옵션 기본값: 체크 안 함
+            // IP 차단 옵션 UI 제거됨 (blockIPPerUser는 항상 false)
             
             // 방 제목 자동 생성 (로컬에서는 "test", 그 외에는 전역 이름 사용)
             if (isLocalhost) {
