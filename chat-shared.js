@@ -921,7 +921,7 @@ const ChatModule = (function () {
             <h3 style="margin: 0 0 15px 0; color: #333;">이미지 전송</h3>
             <div style="margin-bottom: 15px;">
                 <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" style="display: block; width: 100%; padding: 10px; border: 2px dashed #ccc; border-radius: 6px; cursor: pointer;" />
-                <div style="font-size: 12px; color: #999; margin-top: 6px;">최대 5MB, PNG/JPG/GIF/WEBP 형식</div>
+                <div style="font-size: 12px; color: #999; margin-top: 6px;">최대 4MB, PNG/JPG/GIF/WEBP 형식</div>
             </div>
             <div id="imagePreviewContainer" style="display: none; margin-bottom: 15px;">
                 <img id="imagePreview" style="max-width: 100%; max-height: 300px; border-radius: 8px; display: block;" />
@@ -953,8 +953,8 @@ const ChatModule = (function () {
             const file = e.target.files[0];
             if (!file) return;
 
-            if (file.size > 5 * 1024 * 1024) {
-                errorDiv.textContent = '이미지 크기가 5MB를 초과합니다!';
+            if (file.size > 4 * 1024 * 1024) {
+                errorDiv.textContent = '이미지 크기가 4MB를 초과합니다!';
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -1338,9 +1338,9 @@ const ChatModule = (function () {
                     e.preventDefault();
                     const file = item.getAsFile();
 
-                    if (file.size > 5 * 1024 * 1024) {
+                    if (file.size > 4 * 1024 * 1024) {
                         if (typeof showCustomAlert === 'function') {
-                            showCustomAlert('이미지 크기가 5MB를 초과합니다!', 'warning');
+                            showCustomAlert('이미지 크기가 4MB를 초과합니다!', 'warning');
                         }
                         return;
                     }
