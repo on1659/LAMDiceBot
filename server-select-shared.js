@@ -94,7 +94,7 @@ const ServerSelectModule = (function () {
                 #serverSelectOverlay {
                     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    z-index: 10000; display: flex; align-items: center; justify-content: center;
+                    z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
                     animation: ssFadeIn 0.3s ease;
                 }
                 @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -109,16 +109,20 @@ const ServerSelectModule = (function () {
                 .ss-header h1 { font-size: 1.6em; color: #333; margin: 0 0 6px 0; }
                 .ss-header p { color: #888; font-size: 0.95em; margin: 0; }
 
-                /* 로그인 버튼 */
+                /* 상단 바 */
+                .ss-top-bar { display: flex; align-items: center; gap: 8px; }
                 .ss-login-btn {
-                    display: inline-flex; align-items: center; gap: 6px;
-                    padding: 8px 16px; border: 2px solid #e8ecff; border-radius: 20px;
-                    background: #f8f9ff; cursor: pointer; font-size: 0.9em; color: #667eea;
-                    font-weight: 600; transition: all 0.2s; margin-top: 10px;
+                    padding: 6px 14px; border: none; border-radius: 16px;
+                    background: rgba(255,255,255,0.2); cursor: pointer;
+                    font-size: 0.85em; color: white; font-weight: 500; transition: background 0.2s;
                 }
-                .ss-login-btn:hover { background: #eef0ff; border-color: #667eea; }
-                .ss-login-btn.logged-in { background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
-                .ss-login-btn.logged-in:hover { background: #dcedc8; border-color: #a5d6a7; }
+                .ss-login-btn:hover { background: rgba(255,255,255,0.3); }
+                .ss-logout-btn {
+                    padding: 4px 10px; border: none; border-radius: 12px;
+                    background: transparent; cursor: pointer;
+                    font-size: 0.75em; color: rgba(255,255,255,0.6); transition: color 0.2s;
+                }
+                .ss-logout-btn:hover { color: rgba(255,255,255,0.9); }
                 @keyframes ssShake {
                     0%, 100% { transform: translateX(0); }
                     25% { transform: translateX(-6px); }
@@ -264,15 +268,18 @@ const ServerSelectModule = (function () {
                 }
             </style>
 
+            <div class="ss-top-bar">
+                <button class="ss-login-btn ${savedName ? 'logged-in' : ''}" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">
+                    ${savedName ? '👤 ' + escapeStr(savedName) : '🔑 로그인'}
+                </button>
+                ${savedName ? '<button class="ss-logout-btn" id="ss-logout-btn" onclick="ServerSelectModule.logout()">로그아웃</button>' : ''}
+            </div>
+
             <div class="ss-container">
                 <div class="ss-header">
                     <h1>🎮 서버 선택</h1>
                     <p>서버에 참여하거나 자유롭게 플레이하세요</p>
                 </div>
-
-                <button class="ss-login-btn ${savedName ? 'logged-in' : ''}" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">
-                    ${savedName ? '👤 ' + escapeStr(savedName) : '🔑 로그인'}
-                </button>
 
                 <button class="ss-free-btn" onclick="ServerSelectModule.selectFree()">
                     🎲 서버 없이 자유 플레이
@@ -331,6 +338,34 @@ const ServerSelectModule = (function () {
             btn.className = 'ss-login-btn';
             btn.innerHTML = '🔑 로그인';
         }
+        // 로그아웃 버튼 토글
+        const existingLogout = document.getElementById('ss-logout-btn');
+        if (name && !existingLogout) {
+            const topBar = btn.parentElement;
+            if (topBar) {
+                const lb = document.createElement('button');
+                lb.className = 'ss-logout-btn';
+                lb.id = 'ss-logout-btn';
+                lb.textContent = '로그아웃';
+                lb.onclick = () => ServerSelectModule.logout();
+                topBar.appendChild(lb);
+            }
+        } else if (!name && existingLogout) {
+            existingLogout.remove();
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('userName');
+        localStorage.removeItem('diceUserName');
+        localStorage.removeItem('horseRaceUserName');
+        localStorage.removeItem('rouletteUserName');
+        localStorage.removeItem('teamUserName');
+        const globalInput = document.getElementById('globalUserNameInput');
+        if (globalInput) globalInput.value = '';
+        const nicknameInput = document.getElementById('nickname-input');
+        if (nicknameInput) nicknameInput.value = '';
+        _updateLoginBtn(null);
     }
 
     function showLoginModal() {
@@ -704,6 +739,7 @@ const ServerSelectModule = (function () {
         show,
         hide,
         showLoginModal,
+        logout,
         onSearch,
         selectFree,
         selectServer,
