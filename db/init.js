@@ -115,6 +115,30 @@ async function initDatabase() {
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_created_at ON server_game_records(created_at)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_server_user ON server_game_records(server_id, user_name)`);
 
+        // server_game_records 추가 컬럼 (범위, 룰)
+        await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN range_min INTEGER; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+        await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN range_max INTEGER; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+        await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN game_rules TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+
+        // ─── 게임 세션 테이블 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS game_sessions (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+                session_id VARCHAR(100) UNIQUE NOT NULL,
+                game_type VARCHAR(20) NOT NULL,
+                game_rules TEXT,
+                winner_name VARCHAR(50),
+                winner_result INTEGER,
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ended_at TIMESTAMP,
+                participant_count INTEGER DEFAULT 0
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_sessions_server_id ON game_sessions(server_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_sessions_session_id ON game_sessions(session_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_game_sessions_game_type ON game_sessions(game_type)`);
+
         // game_records에 server_id 컬럼 추가 (기존 데이터는 NULL)
         await pool.query(`
             DO $$ BEGIN

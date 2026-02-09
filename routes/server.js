@@ -7,7 +7,7 @@ const {
     getMembers, updateMemberApproval, removeMember, checkMember,
     getServerRecords, comparePassword
 } = require('../db/servers');
-const { getOnlineMembers } = require('../socket/server');
+const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 
 // Rate Limiting (Server API 전용)
 let rateLimit;
@@ -142,6 +142,24 @@ router.post('/server/:id/members/:name/approve', async (req, res) => {
 
         const success = await updateMemberApproval(serverId, userName, isApproved);
         if (!success) return res.status(404).json({ error: '멤버를 찾을 수 없습니다.' });
+
+        // 실시간 알림: 대상 유저 소켓에 승인/거절 이벤트 emit
+        const io = req.app.get('io');
+        if (io) {
+            const targetSocketId = getSocketIdByUser(serverId, userName);
+            const eventName = isApproved ? 'serverApproved' : 'serverRejected';
+            const payload = { serverId, serverName: server.name };
+            if (targetSocketId) {
+                io.to(targetSocketId).emit(eventName, payload);
+            }
+            // 서버 룸 전체에 멤버 변경 알림
+            io.to(`server:${serverId}`).emit('memberUpdated', {
+                type: isApproved ? 'approved' : 'rejected',
+                userName,
+                serverId
+            });
+        }
+
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: '멤버 상태 변경 실패' });
@@ -161,8 +179,25 @@ router.delete('/server/:id/members/:name', async (req, res) => {
             return res.status(403).json({ error: '서버 호스트만 멤버를 강퇴할 수 있습니다.' });
         }
 
+        // 강퇴 전 소켓 ID 확보 (멤버 삭제 후엔 찾을 수 없으므로)
+        const io = req.app.get('io');
+        const targetSocketId = io ? getSocketIdByUser(serverId, userName) : null;
+
         const success = await removeMember(serverId, userName);
         if (!success) return res.status(404).json({ error: '멤버를 찾을 수 없습니다.' });
+
+        // 실시간 알림: 대상 유저 소켓에 강퇴 이벤트 emit
+        if (io) {
+            if (targetSocketId) {
+                io.to(targetSocketId).emit('serverKicked', { serverId, serverName: server.name });
+            }
+            io.to(`server:${serverId}`).emit('memberUpdated', {
+                type: 'kicked',
+                userName,
+                serverId
+            });
+        }
+
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: '멤버 강퇴 실패' });

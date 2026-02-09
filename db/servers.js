@@ -237,9 +237,34 @@ async function getServerRecords(serverId, { limit = 50, offset = 0, gameType } =
     };
 }
 
+// ─── Game Sessions ───
+
+function generateSessionId(gameType, serverId) {
+    return `${gameType}_${serverId || 0}_${Date.now()}`;
+}
+
+async function recordGameSession({ serverId, sessionId, gameType, gameRules, winnerName, winnerResult, participantCount }) {
+    const pool = getPool();
+    if (!pool || !serverId) return null;
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO game_sessions (server_id, session_id, game_type, game_rules, winner_name, winner_result, participant_count, ended_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+             RETURNING id, session_id`,
+            [serverId, sessionId, gameType, gameRules || '', winnerName || null, winnerResult || null, participantCount || 0]
+        );
+        return result.rows[0];
+    } catch (e) {
+        console.warn('game_sessions insert:', e.message);
+        return null;
+    }
+}
+
 module.exports = {
     createServer, getServers, getServerById, deleteServer,
     joinServer, getMembers, updateMemberApproval, removeMember, checkMember, updateLastSeen,
     recordServerGame, getServerRecords,
+    recordGameSession, generateSessionId,
     comparePassword
 };

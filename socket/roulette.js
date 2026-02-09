@@ -1,5 +1,6 @@
 // 룰렛 게임 이벤트 핸들러
 const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('../db/stats');
+const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 
 module.exports = function registerRouletteHandlers(socket, io, ctx) {
     // 터보 애니메이션 설정 변경 (호스트만 가능)
@@ -199,9 +200,26 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
 
         gameState.isRouletteSpinning = false;
         gameState.isGameActive = false;
-        gameState.readyUsers = [];
 
         const { winner } = data;
+        const participants = [...(gameState.gamePlayers || [])];
+
+        // 서버 게임 기록 저장
+        if (room.serverId && participants.length > 0) {
+            const sessionId = generateSessionId('roulette', room.serverId);
+            recordGameSession({
+                serverId: room.serverId,
+                sessionId,
+                gameType: 'roulette',
+                winnerName: winner,
+                participantCount: participants.length
+            });
+            participants.forEach(name => {
+                recordServerGame(room.serverId, name, 0, 'roulette', name === winner, sessionId);
+            });
+        }
+
+        gameState.readyUsers = [];
 
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
 

@@ -192,4 +192,9 @@ function getOnlineMembers(serverId) {
     return serverOnline ? Array.from(serverOnline.keys()) : [];
 }
 
-module.exports = { registerServerHandlers, getOnlineMembers };
+function getSocketIdByUser(serverId, userName) {
+    const serverOnline = onlineMembers.get(Number(serverId));
+    return serverOnline ? serverOnline.get(userName) : null;
+}
+
+module.exports = { registerServerHandlers, getOnlineMembers, getSocketIdByUser };

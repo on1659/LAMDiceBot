@@ -1,5 +1,6 @@
 const { seededRandom } = require('../utils/crypto');
 const { getVisitorStats, recordVisitor, recordGamePlay } = require('../db/stats');
+const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 
 module.exports = (socket, io, ctx) => {
     // 게임 시작
@@ -123,6 +124,21 @@ module.exports = (socket, io, ctx) => {
             // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
             return record.isGameActive === true && currentGamePlayers.includes(record.user);
         });
+
+        // 서버 게임 기록 저장
+        if (room.serverId && currentGameHistory.length > 0) {
+            const sessionId = generateSessionId('dice', room.serverId);
+            recordGameSession({
+                serverId: room.serverId,
+                sessionId,
+                gameType: 'dice',
+                gameRules: gameState.gameRules,
+                participantCount: currentGamePlayers.length
+            });
+            currentGameHistory.forEach(r => {
+                recordServerGame(room.serverId, r.user, r.result, 'dice', false, sessionId);
+            });
+        }
 
         gameState.gamePlayers = []; // 참여자 목록 초기화
         gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
@@ -502,6 +518,21 @@ module.exports = (socket, io, ctx) => {
                     // 게임 진행 중일 때 굴린 주사위이고, 현재 게임 참여자인 경우만 포함
                     return record.isGameActive === true && currentGamePlayers.includes(record.user);
                 });
+
+                // 서버 게임 기록 저장
+                if (room.serverId && currentGameHistory.length > 0) {
+                    const sessionId = generateSessionId('dice', room.serverId);
+                    recordGameSession({
+                        serverId: room.serverId,
+                        sessionId,
+                        gameType: 'dice',
+                        gameRules: gameState.gameRules,
+                        participantCount: currentGamePlayers.length
+                    });
+                    currentGameHistory.forEach(r => {
+                        recordServerGame(room.serverId, r.user, r.result, 'dice', false, sessionId);
+                    });
+                }
 
                 gameState.gamePlayers = []; // 참여자 목록 초기화
                 gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
