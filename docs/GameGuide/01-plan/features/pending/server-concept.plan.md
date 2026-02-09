@@ -955,3 +955,143 @@ pool = new Pool({
 - [ ] 멤버 관리 페이지 동작
 - [ ] 기존 게임 기능 유지
 - [ ] 서버별 게임 기록 저장
+
+---
+
+## 현재 구현 상태 (2026-02-09, feature/quick-win-scalability 브랜치)
+
+> Phase 1~5 중 **Phase 1~3 + Phase 5(부분)** 완료. 폴더 구조 변경(Phase 0)은 미적용.
+
+### 완료된 항목
+
+| Phase | 파일 | 상태 | 비고 |
+|:-----:|------|:----:|------|
+| 1 | `db/init.js` | **완료** | servers, server_members, server_game_records 테이블 + ALTER 보정 |
+| 1 | `db/servers.js` | **완료** | Server CRUD + Member 관리 + bcrypt 해시 + 게임 기록 |
+| 2 | `socket/server.js` | **완료** | 소켓 이벤트 핸들러 + 온라인 멤버 추적 (인메모리 Map) |
+| 2 | `socket/index.js` | **완료** | server 핸들러 등록 + buildRoomsList에 serverId 포함 |
+| 3 | `routes/server.js` | **완료** | HTTP API (admin + public + host-only) + rate limiting |
+| 5 | `socket/rooms.js` | **완료** | 방 생성 시 serverId 연동 |
+| - | `server-select-shared.js` | **완료** | 서버 선택 UI (vanilla JS 모달) + 뒤로가기 처리 |
+| - | 4개 게임 HTML | **완료** | ServerSelectModule 통합 + onBack 콜백 |
+| - | `game_records` | **완료** | server_id 컬럼 ALTER 추가 |
+
+### 미완료 항목 (new_server 브랜치 대비)
+
+| # | 기능 | 백엔드 | 프론트 UI | 설명 |
+|---|------|:------:|:---------:|------|
+| 1 | **서버 검색/필터** | 불필요 | **미구현** | 서버 많아지면 필수 |
+| 2 | **로그인(이름입력) UI** | 불필요 | **미구현** | 서버 선택 전 이름 설정 |
+| 3 | **멤버 목록 보기 UI** | API 있음 | **미구현** | 온라인/오프라인 상태 표시 |
+| 4 | **멤버 승인/거절 UI** | API 있음 | **미구현** | 호스트 전용 |
+| 5 | **멤버 강퇴 UI** | API 있음 | **미구현** | 호스트 전용 |
+| 6 | **실시간 승인/거절 알림** | **미구현** | **미구현** | socket 이벤트 필요 |
+| 7 | **게임 세션 추적** | **미구현** | 불필요 | game_sessions 테이블 |
+
+---
+
+## 남은 기능 포팅 계획 (2026-02-09)
+
+### Phase A: 서버 선택 화면 개선
+
+**수정 파일**: `server-select-shared.js`
+
+#### A-1. 이름 입력(로그인) 영역
+- `.ss-header` 아래에 이름 입력 + 저장 버튼 추가
+- `_getUserName()`으로 초기값 채움
+- 저장 시 localStorage `userName` + 게임별 키(`diceUserName` 등) 동기화
+- 이름 없으면 서버 입장/자유플레이 차단 → 입력란 하이라이트
+
+#### A-2. 서버 검색
+- 서버 목록 위에 검색 input (`#ss-search-input`)
+- `_allServers` 변수에 전체 서버 목록 캐시
+- `renderServerList()`에서 검색어로 필터 (이름 + 설명 + 호스트명, 대소문자 무시)
+- input 이벤트로 실시간 필터링
+
+---
+
+### Phase B: 멤버 관리 UI
+
+서버 입장 후 로비에서 접근 가능한 멤버 관리 패널.
+
+#### B-1. 멤버 목록 + 온라인 상태 표시
+- 로비에 "멤버 목록" 버튼 추가
+- 클릭 시 모달 표시 (`server-select-shared.js`에 `showMembersModal()` 추가)
+- `GET /server/:id/members` API 호출 → 멤버 목록 렌더
+- 온라인: 초록 점 / 오프라인: 회색 점
+- 5초마다 자동 갱신 (setInterval)
+
+**수정 파일**:
+- `server-select-shared.js` — 멤버 관리 모달 UI + CSS
+- 각 게임 HTML (dice, roulette, horse, team) — 로비에 "멤버 목록" 버튼
+
+#### B-2. 호스트 전용: 승인/거절/강퇴
+- 호스트인 경우 각 멤버 옆에 버튼 표시
+  - 미승인 멤버: [승인] [거절]
+  - 승인된 멤버: [강퇴] (자기 자신 제외)
+- `POST /server/:id/members/:name/approve` (body: `{ isApproved, hostId }`)
+- `DELETE /server/:id/members/:name` (body: `{ hostId }`)
+
+#### B-3. 실시간 승인/거절 알림 (socket 이벤트 신규)
+- 서버: 승인/거절 API 처리 후 해당 유저 소켓에 이벤트 emit
+  - `serverApproved` → `{ serverId, serverName }`
+  - `serverRejected` → `{ serverId, serverName }`
+- 클라이언트: 알림 수신 시 toast/alert 표시
+
+**수정 파일**:
+- `socket/server.js` — `serverApproved`/`serverRejected` emit 추가
+- `routes/server.js` — approve 엔드포인트에서 io 접근하여 소켓 emit
+
+---
+
+### Phase C: 게임 세션 추적
+
+#### C-1. game_sessions 테이블 추가
+
+```sql
+CREATE TABLE IF NOT EXISTS game_sessions (
+    id SERIAL PRIMARY KEY,
+    server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+    session_id VARCHAR(100) UNIQUE NOT NULL,
+    game_type VARCHAR(20) NOT NULL,
+    game_rules VARCHAR(200),
+    winner_name VARCHAR(50),
+    winner_result INTEGER,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP,
+    participant_count INTEGER DEFAULT 0
+);
+```
+
+#### C-2. 게임 종료 시 세션 기록
+- 기존 `recordServerGame()` 호출 전에 `game_sessions` INSERT
+- session_id: `${gameType}_${serverId}_${Date.now()}`
+- 각 참가자 기록에 session_id 연결
+
+#### C-3. server_game_records 컬럼 추가
+- `range_min`, `range_max`, `game_rules` 컬럼 (ALTER TABLE 패턴)
+
+**수정 파일**:
+- `db/init.js` — game_sessions CREATE + ALTER TABLE
+- `db/servers.js` — `recordGameSession()` 함수 추가
+- `socket/dice.js` — 게임 종료 시 세션 기록 호출
+- `socket/roulette.js` — 게임 종료 시 세션 기록 호출
+
+---
+
+### 구현 순서
+
+1. **Phase A** (서버 선택 화면) — `server-select-shared.js` 하나. 독립적.
+2. **Phase B** (멤버 관리) — UI + socket 이벤트. Phase A 완료 후.
+3. **Phase C** (게임 세션) — DB + 게임 로직. 독립적, Phase B와 병행 가능.
+
+### 검증 체크리스트
+
+- [ ] 서버 검색: 이름/설명/호스트명으로 필터링 동작
+- [ ] 이름 입력: 저장 후 서버 입장 시 프롬프트 미표시
+- [ ] 멤버 목록: 온라인/오프라인 상태 정확히 표시
+- [ ] 승인/거절: 호스트가 멤버 승인 → 해당 유저에 실시간 알림
+- [ ] 강퇴: 멤버 제거 후 목록 갱신
+- [ ] 게임 세션: 게임 종료 후 DB에 세션 + 개별 기록 저장
+- [ ] 뒤로가기/페이지 전환 정상 유지
+- [ ] 4개 게임 페이지 모두 정상 동작
