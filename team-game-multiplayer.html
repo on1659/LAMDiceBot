@@ -556,6 +556,11 @@
 
         <!-- 랜딩 섹션 -->
         <div id="landing-section" class="section">
+            <!-- 서버 정보 바 (서버 선택 시 표시) -->
+            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid #667eea; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+                <span id="serverInfoName" style="font-weight: bold; color: #667eea;"></span>
+                <button onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+            </div>
             <!-- 닉네임 입력 -->
             <div class="room-section">
                 <h2>닉네임 입력</h2>
@@ -713,6 +718,14 @@
                 ServerSelectModule.init(socket, (selection) => {
                     currentServerId = selection.serverId;
                     if (selection.serverName) document.title = `${selection.serverName} - Team`;
+                    // 서버 정보 바 표시
+                    const infoBar = document.getElementById('serverInfoBar');
+                    if (selection.serverId && selection.serverName) {
+                        document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
+                        infoBar.style.display = 'flex';
+                    } else {
+                        infoBar.style.display = 'none';
+                    }
                     document.getElementById('landing-section').style.display = '';
                 }, () => {
                     document.getElementById('landing-section').style.display = 'none';

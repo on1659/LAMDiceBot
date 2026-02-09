@@ -982,12 +982,18 @@
                 </div>
             </div>
             
+            <!-- 서버 정보 바 (서버 선택 시 표시) -->
+            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(124,77,255,0.1), rgba(156,39,176,0.1)); border: 1px solid #7c4dff; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+                <span id="serverInfoName" style="font-weight: bold; color: #7c4dff;"></span>
+                <button onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #7c4dff; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+            </div>
+
             <!-- 이름 입력 -->
             <div style="background: #fce4ec; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                 <label style="font-weight: bold; color: #7c4dff; display: block; margin-bottom: 8px;">👤 내 이름</label>
                 <input type="text" id="globalUserNameInput" placeholder="이름을 입력하세요" maxlength="20">
             </div>
-            
+
             <!-- 방 만들기 버튼 -->
             <button onclick="showCreateRoomSection()" style="margin-bottom: 20px;">🎰 새 룰렛 방 만들기</button>
             
@@ -1891,6 +1897,14 @@
                 ServerSelectModule.init(socket, (selection) => {
                     currentServerId = selection.serverId;
                     if (selection.serverName) document.title = `${selection.serverName} - LAM Roulette`;
+                    // 서버 정보 바 표시
+                    const infoBar = document.getElementById('serverInfoBar');
+                    if (selection.serverId && selection.serverName) {
+                        document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
+                        infoBar.style.display = 'flex';
+                    } else {
+                        infoBar.style.display = 'none';
+                    }
                     document.getElementById('lobbySection').classList.add('active');
                 }, () => {
                     document.getElementById('lobbySection').classList.remove('active');

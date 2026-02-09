@@ -252,6 +252,14 @@ var currentServerId = null;
         ServerSelectModule.init(socket, function(selection) {
             currentServerId = selection.serverId;
             if (selection.serverName) document.title = selection.serverName + ' - Horse Race';
+            // 서버 정보 바 표시
+            var infoBar = document.getElementById('serverInfoBar');
+            if (selection.serverId && selection.serverName) {
+                document.getElementById('serverInfoName').textContent = '\uD83D\uDDA5\uFE0F ' + selection.serverName;
+                infoBar.style.display = 'flex';
+            } else {
+                infoBar.style.display = 'none';
+            }
             document.getElementById('lobbySection').classList.add('active');
         }, function() {
             document.getElementById('lobbySection').classList.remove('active');

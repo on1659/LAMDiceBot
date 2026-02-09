@@ -1297,6 +1297,11 @@
 
         <!-- 대기실 섹션 -->
         <div class="lobby-section active" id="lobbySection">
+            <!-- 서버 정보 바 (서버 선택 시 표시) -->
+            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid #667eea; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+                <span id="serverInfoName" style="font-weight: bold; color: #667eea;"></span>
+                <button onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+            </div>
             <div class="create-room-button-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">방 만들기</h2>
                 <button onclick="showCreateRoomPage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-bottom: 15px;">방 생성하기</button>
@@ -1771,6 +1776,14 @@
             currentServerId = selection.serverId;
             if (selection.serverName) {
                 document.title = `${selection.serverName} - LAM Dice :)`;
+            }
+            // 서버 정보 바 표시
+            const infoBar = document.getElementById('serverInfoBar');
+            if (selection.serverId && selection.serverName) {
+                document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
+                infoBar.style.display = 'flex';
+            } else {
+                infoBar.style.display = 'none';
             }
             document.getElementById('lobbySection').classList.add('active');
         }, () => {

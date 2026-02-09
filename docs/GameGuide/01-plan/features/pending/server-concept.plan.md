@@ -960,37 +960,36 @@ pool = new Pool({
 
 ## 현재 구현 상태 (2026-02-09, feature/quick-win-scalability 브랜치)
 
-> Phase 1~5 중 **Phase 1~3 + Phase 5(부분)** 완료. 폴더 구조 변경(Phase 0)은 미적용.
+> Phase 1~5 + 포팅 Phase A~C **전체 완료**. 폴더 구조 변경(Phase 0)만 미적용.
 
 ### 완료된 항목
 
 | Phase | 파일 | 상태 | 비고 |
 |:-----:|------|:----:|------|
-| 1 | `db/init.js` | **완료** | servers, server_members, server_game_records 테이블 + ALTER 보정 |
-| 1 | `db/servers.js` | **완료** | Server CRUD + Member 관리 + bcrypt 해시 + 게임 기록 |
-| 2 | `socket/server.js` | **완료** | 소켓 이벤트 핸들러 + 온라인 멤버 추적 (인메모리 Map) |
+| 1 | `db/init.js` | **완료** | servers, server_members, server_game_records, game_sessions 테이블 + ALTER 보정 |
+| 1 | `db/servers.js` | **완료** | Server CRUD + Member 관리 + bcrypt 해시 + 게임 기록 + 세션 기록 |
+| 2 | `socket/server.js` | **완료** | 소켓 이벤트 핸들러 + 온라인 멤버 추적 + getSocketIdByUser |
 | 2 | `socket/index.js` | **완료** | server 핸들러 등록 + buildRoomsList에 serverId 포함 |
-| 3 | `routes/server.js` | **완료** | HTTP API (admin + public + host-only) + rate limiting |
+| 3 | `routes/server.js` | **완료** | HTTP API + 실시간 소켓 알림 (승인/거절/강퇴 시 emit) |
 | 5 | `socket/rooms.js` | **완료** | 방 생성 시 serverId 연동 |
-| - | `server-select-shared.js` | **완료** | 서버 선택 UI (vanilla JS 모달) + 뒤로가기 처리 |
-| - | 4개 게임 HTML | **완료** | ServerSelectModule 통합 + onBack 콜백 |
+| - | `server-select-shared.js` | **완료** | 서버 선택 UI + 검색 + 로그인 + 멤버 관리 모달 + 뒤로가기 |
+| - | 4개 게임 HTML | **완료** | ServerSelectModule 통합 + onBack + 서버 정보 바 + 멤버 목록 버튼 |
 | - | `game_records` | **완료** | server_id 컬럼 ALTER 추가 |
+| A | `server-select-shared.js` | **완료** | 서버 검색/필터 + 이름 입력(로그인) UI |
+| B | `server-select-shared.js` | **완료** | 멤버 목록 모달 + 온라인 상태 + 승인/거절/강퇴 UI |
+| B | `routes/server.js` + `socket/server.js` | **완료** | 실시간 승인/거절/강퇴 소켓 알림 |
+| C | `db/init.js` + `db/servers.js` | **완료** | game_sessions 테이블 + recordGameSession() |
+| C | `socket/dice.js` + `socket/roulette.js` | **완료** | 게임 종료 시 세션 + 개별 기록 DB 저장 |
 
-### 미완료 항목 (new_server 브랜치 대비)
+### 미완료 항목
 
-| # | 기능 | 백엔드 | 프론트 UI | 설명 |
-|---|------|:------:|:---------:|------|
-| 1 | **서버 검색/필터** | 불필요 | **미구현** | 서버 많아지면 필수 |
-| 2 | **로그인(이름입력) UI** | 불필요 | **미구현** | 서버 선택 전 이름 설정 |
-| 3 | **멤버 목록 보기 UI** | API 있음 | **미구현** | 온라인/오프라인 상태 표시 |
-| 4 | **멤버 승인/거절 UI** | API 있음 | **미구현** | 호스트 전용 |
-| 5 | **멤버 강퇴 UI** | API 있음 | **미구현** | 호스트 전용 |
-| 6 | **실시간 승인/거절 알림** | **미구현** | **미구현** | socket 이벤트 필요 |
-| 7 | **게임 세션 추적** | **미구현** | 불필요 | game_sessions 테이블 |
+| # | 기능 | 상태 | 설명 |
+|---|------|:----:|------|
+| - | 없음 | - | new_server 대비 모든 기능 포팅 완료 |
 
 ---
 
-## 남은 기능 포팅 계획 (2026-02-09)
+## 기능 포팅 계획 (2026-02-09) — **전체 완료**
 
 ### Phase A: 서버 선택 화면 개선
 
@@ -1087,11 +1086,11 @@ CREATE TABLE IF NOT EXISTS game_sessions (
 
 ### 검증 체크리스트
 
-- [ ] 서버 검색: 이름/설명/호스트명으로 필터링 동작
-- [ ] 이름 입력: 저장 후 서버 입장 시 프롬프트 미표시
-- [ ] 멤버 목록: 온라인/오프라인 상태 정확히 표시
-- [ ] 승인/거절: 호스트가 멤버 승인 → 해당 유저에 실시간 알림
-- [ ] 강퇴: 멤버 제거 후 목록 갱신
-- [ ] 게임 세션: 게임 종료 후 DB에 세션 + 개별 기록 저장
-- [ ] 뒤로가기/페이지 전환 정상 유지
-- [ ] 4개 게임 페이지 모두 정상 동작
+- [x] 서버 검색: 이름/설명/호스트명으로 필터링 동작 (구현 완료)
+- [x] 이름 입력: 저장 후 서버 입장 시 프롬프트 미표시 (구현 완료)
+- [x] 멤버 목록: 온라인/오프라인 상태 정확히 표시 (구현 완료)
+- [x] 승인/거절: 호스트가 멤버 승인 → 해당 유저에 실시간 알림 (구현 완료)
+- [x] 강퇴: 멤버 제거 후 목록 갱신 (구현 완료)
+- [x] 게임 세션: 게임 종료 후 DB에 세션 + 개별 기록 저장 (구현 완료)
+- [ ] 뒤로가기/페이지 전환 정상 유지 (수동 테스트 필요)
+- [ ] 4개 게임 페이지 모두 정상 동작 (수동 테스트 필요)
