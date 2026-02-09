@@ -714,6 +714,8 @@
                     currentServerId = selection.serverId;
                     if (selection.serverName) document.title = `${selection.serverName} - Team`;
                     document.getElementById('landing-section').style.display = '';
+                }, () => {
+                    document.getElementById('landing-section').style.display = 'none';
                 });
                 document.getElementById('landing-section').style.display = 'none';
                 ServerSelectModule.show();

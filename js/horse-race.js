@@ -253,6 +253,8 @@ var currentServerId = null;
             currentServerId = selection.serverId;
             if (selection.serverName) document.title = selection.serverName + ' - Horse Race';
             document.getElementById('lobbySection').classList.add('active');
+        }, function() {
+            document.getElementById('lobbySection').classList.remove('active');
         });
         document.getElementById('lobbySection').classList.remove('active');
         ServerSelectModule.show();

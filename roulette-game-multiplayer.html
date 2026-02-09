@@ -1892,6 +1892,8 @@
                     currentServerId = selection.serverId;
                     if (selection.serverName) document.title = `${selection.serverName} - LAM Roulette`;
                     document.getElementById('lobbySection').classList.add('active');
+                }, () => {
+                    document.getElementById('lobbySection').classList.remove('active');
                 });
                 document.getElementById('lobbySection').classList.remove('active');
                 ServerSelectModule.show();

@@ -1773,6 +1773,8 @@
                 document.title = `${selection.serverName} - LAM Dice :)`;
             }
             document.getElementById('lobbySection').classList.add('active');
+        }, () => {
+            document.getElementById('lobbySection').classList.remove('active');
         });
         // 페이지 로드 시 서버 선택 표시 (로비 숨김 상태에서)
         document.getElementById('lobbySection').classList.remove('active');

@@ -4,9 +4,20 @@ const ServerSelectModule = (function () {
     let _onSelect = null;
     let _overlay = null;
 
-    function init(socket, onSelect) {
+    let _onBack = null;
+
+    function init(socket, onSelect, onBack) {
         _socket = socket;
         _onSelect = onSelect;
+        _onBack = onBack || null;
+
+        // 뒤로가기 시 서버 선택 화면으로 복귀
+        window.addEventListener('popstate', (e) => {
+            if (e.state && e.state.ssPage === 'serverSelect') {
+                if (_onBack) _onBack();
+                show();
+            }
+        });
 
         // 소켓 이벤트 리스너
         _socket.on('serversList', (servers) => {
@@ -28,6 +39,7 @@ const ServerSelectModule = (function () {
 
         _socket.on('serverJoined', (data) => {
             hide();
+            history.pushState({ ssPage: 'lobby' }, '');
             if (_onSelect) _onSelect({ serverId: data.id, serverName: data.name });
         });
 
@@ -172,6 +184,8 @@ const ServerSelectModule = (function () {
         `;
 
         document.body.appendChild(_overlay);
+        // 현재 history 상태를 서버선택으로 마킹 (뒤로가기 시 복귀용)
+        history.replaceState({ ssPage: 'serverSelect' }, '');
         _socket.emit('getServers');
     }
 
@@ -210,6 +224,7 @@ const ServerSelectModule = (function () {
 
     function selectFree() {
         hide();
+        history.pushState({ ssPage: 'lobby' }, '');
         if (_onSelect) _onSelect({ serverId: null, serverName: null });
     }
 
