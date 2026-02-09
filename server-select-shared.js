@@ -17,7 +17,7 @@ const ServerSelectModule = (function () {
 
         // 뒤로가기 시 서버 선택 화면으로 복귀
         window.addEventListener('popstate', (e) => {
-            if (e.state && e.state.ssPage === 'serverSelect') {
+            if (!e.state || e.state.ssPage === 'serverSelect') {
                 if (_onBack) _onBack();
                 show();
             }
@@ -326,7 +326,7 @@ const ServerSelectModule = (function () {
 
                 <div class="ss-divider">또는 서버 참여</div>
 
-                <div class="ss-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="ss-section-title" style="display:flex;align-items:center;justify-content:space-between;white-space:nowrap;">
                     서버 목록
                     <button onclick="ServerSelectModule.refreshServers()" style="background:none;border:none;cursor:pointer;font-size:0.7em;padding:0;color:#aaa;">🔄</button>
                 </div>
@@ -709,8 +709,8 @@ const ServerSelectModule = (function () {
                     <textarea id="ss-create-desc" placeholder="서버 설명 (선택)"></textarea>
                 </div>
                 <div class="ss-input-group">
-                    <label>비밀번호 (비공개 서버)</label>
-                    <input type="password" id="ss-create-pw" placeholder="비워두면 공개 서버" maxlength="20" />
+                    <label>비밀번호 *</label>
+                    <input type="password" id="ss-create-pw" placeholder="서버 비밀번호 (필수)" maxlength="20" />
                 </div>
                 <div class="ss-error" id="ss-create-error"></div>
                 <div style="display:flex;gap:10px;margin-top:16px;">
@@ -736,6 +736,11 @@ const ServerSelectModule = (function () {
 
         if (!name) {
             errEl.textContent = '서버 이름을 입력하세요.';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (!password) {
+            errEl.textContent = '비밀번호를 입력하세요.';
             errEl.style.display = 'block';
             return;
         }
