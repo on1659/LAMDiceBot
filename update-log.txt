@@ -1,5 +1,9 @@
 <b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-08)</span>
 
+<b>기타</b>
+• 정식 링크가 추가되었습니다.
+  https://lamdice.com/
+
 <b>📷 카메라 시스템 대폭 개선</b>
 • 경주 카메라가 더 자연스럽게 이동 (거리에 따라 속도 자동 조절)
 • 1등 추적 중 다른 말도 자동으로 보여주는 컷어웨이 기능 추가
