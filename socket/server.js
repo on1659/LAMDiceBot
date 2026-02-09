@@ -38,8 +38,7 @@ function registerServerHandlers(socket, io, ctx) {
             socket.emit('serverCreated', {
                 id: result.server.id,
                 name: result.server.name,
-                hostName: result.server.host_name,
-                hostCode: result.server.host_code
+                hostName: result.server.host_name
             });
 
             // 전체에게 서버 목록 갱신 알림
@@ -52,10 +51,11 @@ function registerServerHandlers(socket, io, ctx) {
     });
 
     // 서버 목록 요청
-    socket.on('getServers', async () => {
+    socket.on('getServers', async (data) => {
         if (!checkRateLimit()) return;
         try {
-            const servers = await getServers();
+            const userName = (data && data.userName) || socket.serverUserName || null;
+            const servers = await getServers({ userName });
             socket.emit('serversList', servers);
         } catch (e) {
             console.error('서버 목록 오류:', e.message);

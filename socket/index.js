@@ -15,29 +15,61 @@ function setupSocketHandlers(io, rooms) {
     let lastUpdateTime = 0;
     const DEBOUNCE_MS = 200;
 
+    const PUBLIC_ROOMS_LIMIT = 10;
+
+    const buildRoomsList = () => Object.entries(rooms).map(([roomId, room]) => ({
+        roomId, roomName: room.roomName, hostName: room.hostName,
+        playerCount: room.gameState.users.length,
+        isGameActive: room.gameState.isGameActive,
+        isOrderActive: room.gameState.isOrderActive,
+        isPrivate: room.isPrivate || false,
+        gameType: room.gameType || 'dice',
+        serverId: room.serverId || null
+    }));
+
+    const filterRoomsForSocket = (allRooms, socket) => {
+        const userServerId = socket.serverId || null;
+        const filtered = [];
+        let publicCount = 0;
+
+        for (const room of allRooms) {
+            if (room.isPrivate) {
+                // 비공개방: 같은 서버 멤버만 볼 수 있음
+                if (userServerId && room.serverId === userServerId) {
+                    filtered.push(room);
+                }
+            } else {
+                // 공개방: 최대 PUBLIC_ROOMS_LIMIT개
+                if (publicCount < PUBLIC_ROOMS_LIMIT) {
+                    filtered.push(room);
+                    publicCount++;
+                }
+            }
+        }
+        return filtered;
+    };
+
+    const broadcastFilteredRooms = () => {
+        const allRooms = buildRoomsList();
+        for (const [, socket] of io.of('/').sockets) {
+            socket.emit('roomsListUpdated', filterRoomsForSocket(allRooms, socket));
+        }
+    };
+
     const updateRoomsList = () => {
         const now = Date.now();
-        const buildRoomsList = () => Object.entries(rooms).map(([roomId, room]) => ({
-            roomId, roomName: room.roomName, hostName: room.hostName,
-            playerCount: room.gameState.users.length,
-            isGameActive: room.gameState.isGameActive,
-            isOrderActive: room.gameState.isOrderActive,
-            isPrivate: room.isPrivate || false,
-            gameType: room.gameType || 'dice',
-            serverId: room.serverId || null
-        }));
 
         // leading edge: 첫 호출 즉시 실행
         if (now - lastUpdateTime >= DEBOUNCE_MS) {
             lastUpdateTime = now;
-            io.emit('roomsListUpdated', buildRoomsList());
+            broadcastFilteredRooms();
         }
 
         // trailing edge: 연속 호출 시 마지막 상태 보장
         clearTimeout(updateTimer);
         updateTimer = setTimeout(() => {
             lastUpdateTime = Date.now();
-            io.emit('roomsListUpdated', buildRoomsList());
+            broadcastFilteredRooms();
         }, DEBOUNCE_MS);
     };
 

@@ -22,10 +22,13 @@ module.exports = (socket, io, ctx) => {
     const { checkRateLimit, getCurrentRoom, getCurrentRoomGameState, updateRoomsList, rooms } = ctx;
 
     // 방 목록 조회
+    const PUBLIC_ROOMS_LIMIT = 10;
+
     socket.on('getRooms', () => {
         if (!checkRateLimit()) return;
 
-        const roomsList = Object.entries(rooms).map(([roomId, room]) => ({
+        const userServerId = socket.serverId || null;
+        const allRooms = Object.entries(rooms).map(([roomId, room]) => ({
             roomId,
             roomName: room.roomName,
             hostName: room.hostName,
@@ -33,13 +36,29 @@ module.exports = (socket, io, ctx) => {
             isGameActive: room.gameState.isGameActive,
             isOrderActive: room.gameState.isOrderActive,
             isPrivate: room.isPrivate || false,
-            gameType: room.gameType || 'dice', // 게임 타입 추가 (기본값: dice)
-            createdAt: room.createdAt, // 방 생성 시간 추가
-            expiryHours: room.expiryHours || 1 // 방 유지 시간 추가 (기본값: 1시간)
-            // 비밀번호는 보안상 목록에 포함하지 않음
+            gameType: room.gameType || 'dice',
+            serverId: room.serverId || null,
+            createdAt: room.createdAt,
+            expiryHours: room.expiryHours || 1
         }));
 
-        socket.emit('roomsList', roomsList);
+        // 비공개방: 같은 서버 멤버만 / 공개방: 최대 10개
+        const filtered = [];
+        let publicCount = 0;
+        for (const room of allRooms) {
+            if (room.isPrivate) {
+                if (userServerId && room.serverId === userServerId) {
+                    filtered.push(room);
+                }
+            } else {
+                if (publicCount < PUBLIC_ROOMS_LIMIT) {
+                    filtered.push(room);
+                    publicCount++;
+                }
+            }
+        }
+
+        socket.emit('roomsList', filtered);
     });
 
     // 현재 방 정보 조회 (리다이렉트 후 방 정보 복구용)

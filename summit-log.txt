@@ -1,4 +1,62 @@
 ========================================
+📋 Summit Log - 2026-02-10 (로그인 시스템 + 방 필터링 + 서버 정렬)
+========================================
+
+## 변경 파일
+- db/auth.js: [신규] 유저 인증 함수 (register, login, bcrypt 해싱)
+- db/init.js: users 테이블 추가 (name, pin_hash, is_admin)
+- db/servers.js: host_code 제거, getServers에 userName 파라미터 추가 (is_member 정렬)
+- routes/server.js: /api/auth/register, /api/auth/login 엔드포인트 추가
+- server-select-shared.js: 로그인/회원가입 모달 분리, _authModal 공통화, 토스트 알림, 새로고침
+- socket/index.js: 방 목록 필터링 (비공개방 서버멤버만, 공개방 10개 제한)
+- socket/rooms.js: getRooms 이벤트에 동일 필터 적용
+- socket/server.js: getServers에 userName 전달, hostCode 응답 제거
+
+## 상세 변경 내역
+
+### [유저 인증 시스템] (db/auth.js, db/init.js, routes/server.js)
+- users 테이블: name(UNIQUE), pin_hash, is_admin, last_login_at
+- register(): 이름 중복 체크 + PIN 4~6자리 검증 + bcrypt 해싱
+- login(): 이름으로 조회 + PIN 비교 + last_login_at 업데이트
+- POST /api/auth/register, POST /api/auth/login 엔드포인트
+
+### [로그인/회원가입 UI 분리] (server-select-shared.js)
+- _authModal(): 공통 모달 헬퍼 (title, confirmText, apiUrl, onSuccess)
+- showLoginModal(): 로그인 전용 모달
+- showRegisterModal(): 회원가입 전용 모달
+- 상단바: 비로그인시 [로그인][회원가입], 로그인시 [👤이름][로그아웃]
+- _updateLoginBtn(): 회원가입/로그아웃 버튼 동적 토글
+- _isLoggedIn(): localStorage.userAuth 체크
+- _showToast(): 성공 알림 팝업 (2초 자동 사라짐)
+- 로그인/로그아웃/새로고침 시 getServers + getRooms 동시 갱신
+
+### [방 목록 필터링] (socket/index.js, socket/rooms.js)
+- filterRoomsForSocket(): 소켓별 필터링 함수
+- 비공개방(isPrivate): socket.serverId === room.serverId인 경우만 표시
+- 공개방: PUBLIC_ROOMS_LIMIT(10)개 제한
+- broadcastFilteredRooms(): io.emit 대신 소켓별 개별 emit
+- getRooms 이벤트에도 동일 필터 적용
+
+### [서버 목록 정렬] (db/servers.js, socket/server.js)
+- getServers({ userName }): userName이 있으면 is_member 여부 조회
+- ORDER BY is_member DESC: 가입한 서버 상단 정렬
+- getServers 소켓에서 socket.serverUserName 또는 data.userName 전달
+- 클라이언트: _emitGetServers() 헬퍼로 userName 포함 emit
+
+### [host_code 제거]
+- db/servers.js: generateHostCode(), crypto import 제거
+- createServer SQL에서 host_code 컬럼 제거
+- socket/server.js: serverCreated 응답에서 hostCode 제거
+- server-select-shared.js: 호스트코드 알림 팝업 제거
+
+### [localStorage 키 동기화 수정]
+- _saveName(): diceGameUserName, createRoomHostNameInput 추가
+- logout(): diceGameUserName 제거 추가
+- _getUserName(): diceGameUserName 폴백 체인 추가
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-09 (로그인 UI 외부 배치 + 로그아웃)
 ========================================
 

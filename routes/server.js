@@ -7,6 +7,7 @@ const {
     getMembers, updateMemberApproval, removeMember, checkMember,
     getServerRecords, comparePassword
 } = require('../db/servers');
+const { register: authRegister, login: authLogin } = require('../db/auth');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 
 // Rate Limiting (Server API 전용)
@@ -55,6 +56,30 @@ router.post('/admin/verify', (req, res) => {
         return res.status(401).json({ error: '비밀번호가 일치하지 않습니다.' });
     }
     res.json({ token });
+});
+
+// ─── 유저 인증 API ───
+
+router.post('/auth/register', async (req, res) => {
+    try {
+        const { name, pin } = req.body || {};
+        const result = await authRegister(name, pin);
+        if (result.error) return res.status(400).json({ error: result.error });
+        res.json({ user: result.user });
+    } catch (e) {
+        res.status(500).json({ error: '회원가입 실패' });
+    }
+});
+
+router.post('/auth/login', async (req, res) => {
+    try {
+        const { name, pin } = req.body || {};
+        const result = await authLogin(name, pin);
+        if (result.error) return res.status(401).json({ error: result.error });
+        res.json({ user: result.user });
+    } catch (e) {
+        res.status(500).json({ error: '로그인 실패' });
+    }
 });
 
 // 전체 서버 목록 (관리자)

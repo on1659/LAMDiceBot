@@ -197,6 +197,19 @@ async function initDatabase() {
             CREATE INDEX IF NOT EXISTS idx_vehicle_stats_server ON vehicle_stats(server_id)
         `);
 
+        // ─── 유저 인증 테이블 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(50) UNIQUE NOT NULL,
+                pin_hash VARCHAR(255) NOT NULL,
+                is_admin BOOLEAN DEFAULT false,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login_at TIMESTAMP
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_name ON users(name)`);
+
         await loadVisitorStatsFromDB();
         await loadPlayStatsFromDB();
 

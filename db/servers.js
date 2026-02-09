@@ -1,7 +1,5 @@
 // Server CRUD 함수
 const { getPool } = require('./pool');
-const crypto = require('crypto');
-
 // bcrypt는 선택적 (없으면 평문 저장 경고)
 let bcrypt = null;
 try {
@@ -31,10 +29,6 @@ async function comparePassword(password, hash) {
     return password === hash;
 }
 
-function generateHostCode() {
-    return crypto.randomBytes(4).toString('hex').toUpperCase(); // 8자리 16진수
-}
-
 // ─── Server CRUD ───
 
 async function createServer({ name, description, hostId, hostName, password }) {
@@ -42,13 +36,12 @@ async function createServer({ name, description, hostId, hostName, password }) {
     if (!pool) return { error: 'DB 미연결' };
 
     const passwordHash = await hashPassword(password);
-    const hostCode = generateHostCode();
 
     const result = await pool.query(
-        `INSERT INTO servers (name, description, host_id, host_name, password_hash, host_code)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, name, host_name, host_code, created_at`,
-        [name, description || '', hostId, hostName, passwordHash, hostCode]
+        `INSERT INTO servers (name, description, host_id, host_name, password_hash)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, name, host_name, created_at`,
+        [name, description || '', hostId, hostName, passwordHash]
     );
 
     // 호스트를 멤버로 자동 등록
@@ -62,21 +55,35 @@ async function createServer({ name, description, hostId, hostName, password }) {
     return { server };
 }
 
-async function getServers({ activeOnly = true } = {}) {
+async function getServers({ activeOnly = true, userName = null } = {}) {
     const pool = getPool();
     if (!pool) return [];
 
-    const query = activeOnly
-        ? `SELECT s.id, s.name, s.description, s.host_name, s.created_at,
-           (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count,
-           CASE WHEN s.password_hash != '' THEN true ELSE false END AS is_private
-           FROM servers s WHERE s.is_active = true ORDER BY s.created_at DESC`
-        : `SELECT s.id, s.name, s.description, s.host_name, s.created_at, s.is_active,
-           (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count
-           FROM servers s ORDER BY s.created_at DESC`;
+    if (activeOnly) {
+        // userName이 있으면 가입 여부(is_member) 포함 + 가입한 서버 상단 정렬
+        const query = userName
+            ? `SELECT s.id, s.name, s.description, s.host_name, s.created_at,
+               (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count,
+               CASE WHEN s.password_hash != '' THEN true ELSE false END AS is_private,
+               EXISTS(SELECT 1 FROM server_members sm WHERE sm.server_id = s.id AND sm.user_name = $1 AND sm.is_approved = true) AS is_member
+               FROM servers s WHERE s.is_active = true
+               ORDER BY is_member DESC, s.created_at DESC`
+            : `SELECT s.id, s.name, s.description, s.host_name, s.created_at,
+               (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count,
+               CASE WHEN s.password_hash != '' THEN true ELSE false END AS is_private,
+               false AS is_member
+               FROM servers s WHERE s.is_active = true ORDER BY s.created_at DESC`;
 
-    const result = await pool.query(query);
-    return result.rows;
+        const result = userName ? await pool.query(query, [userName]) : await pool.query(query);
+        return result.rows;
+    } else {
+        const result = await pool.query(
+            `SELECT s.id, s.name, s.description, s.host_name, s.created_at, s.is_active,
+             (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count
+             FROM servers s ORDER BY s.created_at DESC`
+        );
+        return result.rows;
+    }
 }
 
 async function getServerById(serverId) {
@@ -84,7 +91,7 @@ async function getServerById(serverId) {
     if (!pool) return null;
 
     const result = await pool.query(
-        `SELECT id, name, description, host_id, host_name, password_hash, host_code, created_at, is_active
+        `SELECT id, name, description, host_id, host_name, password_hash, created_at, is_active
          FROM servers WHERE id = $1`,
         [serverId]
     );

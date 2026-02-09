@@ -40,14 +40,14 @@ app.use(express.json());
 // 방 관리 시스템
 const rooms = {};
 
-// HTTP 라우트 설정 (io를 app에 저장하여 라우트에서 접근 가능)
+// HTTP 라우트 설정 (io 를 app에 저장하여 라우트에서 접근 가능)
 app.set('io', io);
 setupRoutes(app);
 
 // WebSocket 핸들러 설정
 setupSocketHandlers(io, rooms);
 
-// 서버 시작
+// 서버 시작    
 async function startServer() {
     await initPool();
     await initDatabase();

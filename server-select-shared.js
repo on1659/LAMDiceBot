@@ -30,13 +30,6 @@ const ServerSelectModule = (function () {
         _socket.on('serverCreated', (data) => {
             closeCreateModal();
             _selectServer(data.id, data.name);
-            if (data.hostCode) {
-                setTimeout(() => {
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert(`서버 호스트 코드: ${data.hostCode}\n기기 변경 시 필요하니 메모해두세요!`, 'info');
-                    }
-                }, 500);
-            }
         });
 
         _socket.on('serverJoined', (data) => {
@@ -112,9 +105,10 @@ const ServerSelectModule = (function () {
                 /* 상단 바 */
                 .ss-top-bar { display: flex; align-items: center; gap: 8px; }
                 .ss-login-btn {
-                    padding: 6px 14px; border: none; border-radius: 16px;
+                    padding: 8px 20px; border: none; border-radius: 16px;
                     background: rgba(255,255,255,0.2); cursor: pointer;
                     font-size: 0.85em; color: white; font-weight: 500; transition: background 0.2s;
+                    white-space: nowrap;
                 }
                 .ss-login-btn:hover { background: rgba(255,255,255,0.3); }
                 .ss-logout-btn {
@@ -272,7 +266,9 @@ const ServerSelectModule = (function () {
                 <button class="ss-login-btn ${savedName ? 'logged-in' : ''}" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">
                     ${savedName ? '👤 ' + escapeStr(savedName) : '🔑 로그인'}
                 </button>
-                ${savedName ? '<button class="ss-logout-btn" id="ss-logout-btn" onclick="ServerSelectModule.logout()">로그아웃</button>' : ''}
+                ${savedName
+                    ? '<button class="ss-logout-btn" id="ss-logout-btn" onclick="ServerSelectModule.logout()">로그아웃</button>'
+                    : '<button class="ss-logout-btn" id="ss-register-top-btn" onclick="ServerSelectModule.showRegisterModal()">회원가입</button>'}
             </div>
 
             <div class="ss-container">
@@ -287,7 +283,10 @@ const ServerSelectModule = (function () {
 
                 <div class="ss-divider">또는 서버 참여</div>
 
-                <div class="ss-section-title">서버 목록</div>
+                <div class="ss-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+                    서버 목록
+                    <button onclick="ServerSelectModule.refreshServers()" style="background:none;border:none;cursor:pointer;font-size:0.7em;padding:0;color:#aaa;">🔄</button>
+                </div>
                 <div class="ss-search-wrap">
                     <input type="text" id="ss-search-input" placeholder="서버 검색..." oninput="ServerSelectModule.onSearch()" />
                 </div>
@@ -302,7 +301,7 @@ const ServerSelectModule = (function () {
 
         document.body.appendChild(_overlay);
         history.replaceState({ ssPage: 'serverSelect' }, '');
-        _socket.emit('getServers');
+        _emitGetServers();
     }
 
     function hide() {
@@ -318,6 +317,7 @@ const ServerSelectModule = (function () {
         if (!name) return;
         localStorage.setItem('userName', name);
         localStorage.setItem('diceUserName', name);
+        localStorage.setItem('diceGameUserName', name);
         localStorage.setItem('horseRaceUserName', name);
         localStorage.setItem('rouletteUserName', name);
         localStorage.setItem('teamUserName', name);
@@ -325,12 +325,17 @@ const ServerSelectModule = (function () {
         if (globalInput) globalInput.value = name;
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) nicknameInput.value = name;
+        const hostInput = document.getElementById('createRoomHostNameInput');
+        if (hostInput) hostInput.value = name;
         _updateLoginBtn(name);
     }
 
     function _updateLoginBtn(name) {
         const btn = document.getElementById('ss-login-btn');
         if (!btn) return;
+        const topBar = btn.parentElement;
+        if (!topBar) return;
+
         if (name) {
             btn.className = 'ss-login-btn logged-in';
             btn.innerHTML = '👤 ' + escapeStr(name);
@@ -338,11 +343,15 @@ const ServerSelectModule = (function () {
             btn.className = 'ss-login-btn';
             btn.innerHTML = '🔑 로그인';
         }
-        // 로그아웃 버튼 토글
+
+        // 로그아웃/회원가입 버튼 토글
         const existingLogout = document.getElementById('ss-logout-btn');
-        if (name && !existingLogout) {
-            const topBar = btn.parentElement;
-            if (topBar) {
+        const existingRegister = document.getElementById('ss-register-top-btn');
+
+        if (name) {
+            // 로그인 상태: 회원가입 숨기고 로그아웃 표시
+            if (existingRegister) existingRegister.remove();
+            if (!existingLogout) {
                 const lb = document.createElement('button');
                 lb.className = 'ss-logout-btn';
                 lb.id = 'ss-logout-btn';
@@ -350,14 +359,25 @@ const ServerSelectModule = (function () {
                 lb.onclick = () => ServerSelectModule.logout();
                 topBar.appendChild(lb);
             }
-        } else if (!name && existingLogout) {
-            existingLogout.remove();
+        } else {
+            // 비로그인 상태: 로그아웃 숨기고 회원가입 표시
+            if (existingLogout) existingLogout.remove();
+            if (!existingRegister) {
+                const rb = document.createElement('button');
+                rb.className = 'ss-logout-btn';
+                rb.id = 'ss-register-top-btn';
+                rb.textContent = '회원가입';
+                rb.onclick = () => ServerSelectModule.showRegisterModal();
+                topBar.appendChild(rb);
+            }
         }
     }
 
     function logout() {
+        localStorage.removeItem('userAuth');
         localStorage.removeItem('userName');
         localStorage.removeItem('diceUserName');
+        localStorage.removeItem('diceGameUserName');
         localStorage.removeItem('horseRaceUserName');
         localStorage.removeItem('rouletteUserName');
         localStorage.removeItem('teamUserName');
@@ -366,42 +386,90 @@ const ServerSelectModule = (function () {
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) nicknameInput.value = '';
         _updateLoginBtn(null);
+        // 로그아웃 후 서버+방 목록 갱신 (게스트 기준)
+        if (_socket) {
+            _emitGetServers();
+            _socket.emit('getRooms');
+        }
     }
 
-    function showLoginModal() {
-        const current = _getUserName() || '';
+    function _authModal({ title, confirmText, apiUrl, onSuccess }) {
         const modal = document.createElement('div');
         modal.className = 'ss-pw-modal';
         modal.id = 'ss-login-modal';
         modal.innerHTML = `
             <div class="ss-pw-box">
-                <h3>👤 이름 입력</h3>
-                <input type="text" id="ss-login-input" placeholder="사용할 이름을 입력하세요" maxlength="20" value="${escapeStr(current)}" />
+                <h3>${title}</h3>
+                <input type="text" id="ss-login-input" placeholder="이름" maxlength="20" />
+                <input type="password" id="ss-pin-input" placeholder="암호코드 (4~6자리 숫자)" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="margin-top:8px;" />
+                <p id="ss-login-error" style="color:#dc3545;font-size:0.8em;margin:6px 0 0;display:none;"></p>
                 <div class="ss-pw-btns">
                     <button class="ss-pw-cancel" onclick="document.getElementById('ss-login-modal').remove()">취소</button>
-                    <button class="ss-pw-confirm" id="ss-login-confirm">저장</button>
+                    <button class="ss-pw-confirm" id="ss-login-confirm">${confirmText}</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
-        const input = document.getElementById('ss-login-input');
-        input.focus();
-        input.select();
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); });
-        document.getElementById('ss-login-confirm').addEventListener('click', doSave);
+        const nameInput = document.getElementById('ss-login-input');
+        const pinInput = document.getElementById('ss-pin-input');
+        const errorEl = document.getElementById('ss-login-error');
+        nameInput.focus();
 
-        function doSave() {
-            const name = input.value.trim();
-            if (!name) { input.style.borderColor = '#dc3545'; return; }
-            modal.remove();
-            _saveName(name);
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
         }
+
+        async function doSubmit() {
+            const name = nameInput.value.trim();
+            const pin = pinInput.value.trim();
+            if (!name) { nameInput.style.borderColor = '#dc3545'; return; }
+            if (!/^\d{4,6}$/.test(pin)) { pinInput.style.borderColor = '#dc3545'; showError('암호코드는 4~6자리 숫자'); return; }
+            try {
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, pin })
+                });
+                const result = await res.json();
+                if (!res.ok) { showError(result.error); return; }
+                localStorage.setItem('userAuth', JSON.stringify(result.user));
+                modal.remove();
+                _saveName(name);
+                _showToast(title.includes('회원') ? '회원가입 성공!' : '로그인 성공!');
+                // 로그인 후 서버+방 목록 갱신
+                if (_socket) {
+                    _emitGetServers();
+                    _socket.emit('getRooms');
+                }
+                if (onSuccess) onSuccess(name);
+            } catch (e) {
+                showError('서버 연결 실패');
+            }
+        }
+
+        pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSubmit(); });
+        nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') pinInput.focus(); });
+        document.getElementById('ss-login-confirm').addEventListener('click', doSubmit);
+        return modal;
+    }
+
+    function showLoginModal() {
+        _authModal({ title: '🔑 로그인', confirmText: '로그인', apiUrl: '/api/auth/login' });
+    }
+
+    function showRegisterModal() {
+        _authModal({ title: '📝 회원가입', confirmText: '가입하기', apiUrl: '/api/auth/register' });
+    }
+
+    function _isLoggedIn() {
+        return !!localStorage.getItem('userAuth');
     }
 
     function _requireName() {
         const name = _getUserName();
-        if (name) return name;
-        // 이름 없으면 로그인 버튼 흔들림 + 모달
+        if (name && _isLoggedIn()) return name;
+        // 로그인 안 됐으면 버튼 흔들림
         const btn = document.getElementById('ss-login-btn');
         if (btn) {
             btn.style.animation = 'ssShake 0.4s ease';
@@ -410,38 +478,17 @@ const ServerSelectModule = (function () {
         return null;
     }
 
-    // 이름 입력 후 콜백 실행 (서버 입장/자유플레이에서 사용)
+    // 로그인 후 콜백 실행 (서버 입장/자유플레이에서 사용)
     function _requireNameThen(callback) {
         const name = _getUserName();
-        if (name) { callback(name); return; }
-        // 이름 없으면 모달로 입력 받고 콜백 실행
-        const modal = document.createElement('div');
-        modal.className = 'ss-pw-modal';
-        modal.id = 'ss-login-modal';
-        modal.innerHTML = `
-            <div class="ss-pw-box">
-                <h3>👤 이름을 입력해주세요</h3>
-                <p style="font-size:0.85em;color:#888;margin:0 0 12px 0;">서버에 입장하려면 이름이 필요합니다</p>
-                <input type="text" id="ss-login-input" placeholder="이름" maxlength="20" />
-                <div class="ss-pw-btns">
-                    <button class="ss-pw-cancel" onclick="document.getElementById('ss-login-modal').remove()">취소</button>
-                    <button class="ss-pw-confirm" id="ss-login-confirm">확인</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        const input = document.getElementById('ss-login-input');
-        input.focus();
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doConfirm(); });
-        document.getElementById('ss-login-confirm').addEventListener('click', doConfirm);
-
-        function doConfirm() {
-            const name = input.value.trim();
-            if (!name) { input.style.borderColor = '#dc3545'; return; }
-            modal.remove();
-            _saveName(name);
-            callback(name);
-        }
+        if (name && _isLoggedIn()) { callback(name); return; }
+        // 로그인 모달 띄우고 성공 시 콜백
+        _authModal({
+            title: '🔑 로그인이 필요합니다',
+            confirmText: '로그인',
+            apiUrl: '/api/auth/login',
+            onSuccess: callback
+        });
     }
 
     // ─── 검색 ───
@@ -719,7 +766,8 @@ const ServerSelectModule = (function () {
         if (nameInput && nameInput.value.trim()) return nameInput.value.trim();
         // localStorage
         const stored = localStorage.getItem('userName')
-            || localStorage.getItem('diceUserName') || localStorage.getItem('horseRaceUserName')
+            || localStorage.getItem('diceUserName') || localStorage.getItem('diceGameUserName')
+            || localStorage.getItem('horseRaceUserName')
             || localStorage.getItem('rouletteUserName') || localStorage.getItem('teamUserName');
         if (stored) return stored;
         return null;
@@ -734,12 +782,36 @@ const ServerSelectModule = (function () {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
     }
 
+    function _showToast(msg) {
+        const toast = document.createElement('div');
+        toast.textContent = msg;
+        Object.assign(toast.style, {
+            position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.8)', color: '#fff', padding: '10px 24px',
+            borderRadius: '8px', fontSize: '0.9em', zIndex: '99999',
+            transition: 'opacity 0.3s'
+        });
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);
+    }
+
+    function _emitGetServers() {
+        if (_socket) _socket.emit('getServers', { userName: _getUserName() });
+    }
+
+    function refreshServers() {
+        _emitGetServers();
+        if (_socket) _socket.emit('getRooms');
+    }
+
     return {
         init,
         show,
         hide,
         showLoginModal,
+        showRegisterModal,
         logout,
+        refreshServers,
         onSearch,
         selectFree,
         selectServer,
