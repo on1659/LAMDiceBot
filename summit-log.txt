@@ -1,4 +1,68 @@
 ========================================
+📋 Summit Log - 2026-02-09 (서버 기능 전체 포팅 + 로그인 UI 개선)
+========================================
+
+## 변경 파일
+- server-select-shared.js: 로그인 UI 모달 방식 전환 + 멤버 관리 모달 + 서버 검색 + fetch URL 버그 수정
+- socket/server.js: getSocketIdByUser() 함수 추가
+- socket/dice.js: 게임 종료 시 세션 기록 호출 (수동/자동 2곳)
+- socket/roulette.js: 룰렛 결과 처리 시 세션 기록 호출
+- routes/server.js: 승인/거절/강퇴 시 실시간 소켓 알림 emit
+- server.js: app.set('io', io) 추가 (routes에서 io 접근용)
+- db/init.js: game_sessions 테이블 + server_game_records ALTER TABLE
+- db/servers.js: recordGameSession(), generateSessionId() 추가
+- dice-game-multiplayer.html: 서버 정보 바 + 멤버 목록 버튼
+- roulette-game-multiplayer.html: 서버 정보 바 + 멤버 목록 버튼
+- horse-race-multiplayer.html: 서버 정보 바 + 멤버 목록 버튼
+- js/horse-race.js: onSelect 콜백에 서버 정보 바 표시
+- team-game-multiplayer.html: 서버 정보 바 + 멤버 목록 버튼
+- docs/GameGuide/01-plan/features/pending/server-concept.plan.md: 구현 상태 전체 완료 업데이트
+- update-log.txt: 업데이트 로그 추가
+- summit-log.txt: 서밋 로그 추가
+
+## 상세 변경 내역
+
+### [로그인 UI 모달 방식 전환] (server-select-shared.js)
+- 기존: 서버 선택 화면에 이름 입력란이 항상 노출 (ss-login-area)
+- 변경: 헤더 아래 로그인 버튼만 표시 (이름 있으면 "👤 이름", 없으면 "🔑 로그인")
+- showLoginModal(): 클릭 시 이름 입력 모달 표시
+- _requireNameThen(callback): 이름 없으면 모달로 입력 받고 콜백 실행
+- selectFree(), _selectServer(), showPasswordModal(), doCreate() 모두 _requireNameThen 패턴으로 변경
+- _saveName(): localStorage 5개 키 동기화 + 페이지 내 input 반영 + 로그인 버튼 갱신
+- showNamePrompt() 유틸 함수 제거 (_requireNameThen으로 대체)
+
+### [멤버 관리 모달] (server-select-shared.js)
+- showMembersModal(): 멤버 목록 모달 + 5초 자동 갱신
+- _fetchMembers(): GET /api/server/:id/members 호출
+- _renderMembers(): 온라인/오프라인 점 + HOST/대기중 뱃지 + 승인/거절/강퇴 버튼
+- approveMember(), kickMember(): POST/DELETE API 호출
+
+### [fetch URL 버그 수정] (server-select-shared.js)
+- _fetchMembers, approveMember, kickMember 3곳 /server/ → /api/server/ 수정
+- m.is_online → m.isOnline 프로퍼티명 수정 (API 응답 camelCase 매칭)
+
+### [실시간 소켓 알림] (routes/server.js + socket/server.js)
+- routes/server.js: approve 엔드포인트에서 req.app.get('io')로 io 접근
+- serverApproved/serverRejected: 대상 유저 소켓에 직접 emit
+- serverKicked: 강퇴 전 소켓ID 확보 → 삭제 후 emit
+- memberUpdated: 서버 룸 전체에 브로드캐스트
+- socket/server.js: getSocketIdByUser() export 추가
+
+### [게임 세션 추적] (db/init.js + db/servers.js + socket/dice.js + socket/roulette.js)
+- game_sessions 테이블: server_id, session_id, game_type, game_rules, winner, participant_count
+- server_game_records: range_min, range_max, game_rules 컬럼 ALTER TABLE 추가
+- generateSessionId(): ${gameType}_${serverId}_${Date.now()}
+- recordGameSession(): game_sessions INSERT
+- socket/dice.js: endGame + 자동종료 2곳에서 세션 + 개별 기록 저장
+- socket/roulette.js: rouletteResult에서 세션 + 개별 기록 저장
+
+### [게임 로비 서버 정보 바] (4개 게임 HTML + js/horse-race.js)
+- 서버 입장 시 로비 상단에 서버명 + 멤버 목록 버튼 표시
+- 게임별 테마 색상 적용 (#667eea/dice, #7c4dff/roulette, #8b4513/horse, #667eea/team)
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-09 (카메라 시스템 정밀 개선)
 ========================================
 
