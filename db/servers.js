@@ -14,15 +14,21 @@ const SALT_ROUNDS = 10;
 
 async function hashPassword(password) {
     if (!password) return '';
-    if (bcrypt) return bcrypt.hash(password, SALT_ROUNDS);
-    return password; // bcrypt 없으면 평문
+    if (bcrypt) {
+        try { return await bcrypt.hash(password, SALT_ROUNDS); }
+        catch (e) { console.warn('⚠️  bcrypt.hash 실패, 평문 저장:', e.message); }
+    }
+    return password;
 }
 
 async function comparePassword(password, hash) {
     if (!password && !hash) return true;
     if (!password || !hash) return false;
-    if (bcrypt) return bcrypt.compare(password, hash);
-    return password === hash; // bcrypt 없으면 평문 비교
+    if (bcrypt) {
+        try { return await bcrypt.compare(password, hash); }
+        catch (e) { console.warn('⚠️  bcrypt.compare 실패, 평문 비교:', e.message); }
+    }
+    return password === hash;
 }
 
 function generateHostCode() {

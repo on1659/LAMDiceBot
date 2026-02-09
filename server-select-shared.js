@@ -351,18 +351,23 @@ const ServerSelectModule = (function () {
             const name = input.value.trim();
             if (!name) return;
             modal.remove();
-            // 글로벌 이름 입력란에도 반영
+            // 각 페이지 이름 입력란에 반영
             const globalInput = document.getElementById('globalUserNameInput');
             if (globalInput) globalInput.value = name;
+            const nicknameInput = document.getElementById('nickname-input');
+            if (nicknameInput) nicknameInput.value = name;
             callback(name);
         }
     }
 
     function _getUserName() {
-        const globalInput = document.getElementById('globalUserNameInput');
-        if (globalInput && globalInput.value.trim()) return globalInput.value.trim();
+        // 각 페이지별 이름 입력 필드 탐색
+        const nameInput = document.getElementById('globalUserNameInput')
+            || document.getElementById('nickname-input');
+        if (nameInput && nameInput.value.trim()) return nameInput.value.trim();
         // localStorage에서 복원
-        const stored = localStorage.getItem('diceUserName') || localStorage.getItem('horseRaceUserName') || localStorage.getItem('rouletteUserName');
+        const stored = localStorage.getItem('diceUserName') || localStorage.getItem('horseRaceUserName')
+            || localStorage.getItem('rouletteUserName') || localStorage.getItem('teamUserName');
         if (stored) return stored;
         return null;
     }

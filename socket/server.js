@@ -95,6 +95,10 @@ function registerServerHandlers(socket, io, ctx) {
             socket.join(`server:${serverId}`);
 
             const server = await getServerById(serverId);
+            if (!server) {
+                socket.emit('serverError', '서버 정보를 찾을 수 없습니다.');
+                return;
+            }
             socket.emit('serverJoined', {
                 id: server.id,
                 name: server.name,

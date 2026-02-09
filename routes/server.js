@@ -35,6 +35,16 @@ function adminAuth(req, res, next) {
     next();
 }
 
+// :id 파라미터 유효성 검증 미들웨어
+router.param('id', (req, res, next, val) => {
+    const id = parseInt(val);
+    if (isNaN(id) || id <= 0) {
+        return res.status(400).json({ error: '유효하지 않은 서버 ID입니다.' });
+    }
+    req.serverId = id;
+    next();
+});
+
 // ─── 관리자 API ───
 
 // 관리자 인증
@@ -60,7 +70,7 @@ router.get('/admin/servers', adminAuth, async (req, res) => {
 // 서버 삭제 (관리자)
 router.delete('/admin/servers/:id', adminAuth, async (req, res) => {
     try {
-        const success = await deleteServer(parseInt(req.params.id));
+        const success = await deleteServer(req.serverId);
         if (!success) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
         res.json({ success: true });
     } catch (e) {
@@ -73,7 +83,7 @@ router.delete('/admin/servers/:id', adminAuth, async (req, res) => {
 // 서버 정보
 router.get('/server/:id/info', async (req, res) => {
     try {
-        const server = await getServerById(parseInt(req.params.id));
+        const server = await getServerById(req.serverId);
         if (!server) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
         res.json({
             id: server.id,
@@ -93,7 +103,7 @@ router.get('/server/:id/check-member', async (req, res) => {
     try {
         const { userName } = req.query;
         if (!userName) return res.status(400).json({ error: 'userName 필요' });
-        const member = await checkMember(parseInt(req.params.id), userName);
+        const member = await checkMember(req.serverId, userName);
         res.json({ isMember: !!member, isApproved: member?.is_approved || false });
     } catch (e) {
         res.status(500).json({ error: '멤버 확인 실패' });
@@ -103,7 +113,7 @@ router.get('/server/:id/check-member', async (req, res) => {
 // 멤버 목록
 router.get('/server/:id/members', async (req, res) => {
     try {
-        const serverId = parseInt(req.params.id);
+        const serverId = req.serverId;
         const members = await getMembers(serverId);
         const online = getOnlineMembers(serverId);
         const membersWithStatus = members.map(m => ({
@@ -119,7 +129,7 @@ router.get('/server/:id/members', async (req, res) => {
 // 멤버 승인/거절 (호스트 전용)
 router.post('/server/:id/members/:name/approve', async (req, res) => {
     try {
-        const serverId = parseInt(req.params.id);
+        const serverId = req.serverId;
         const userName = req.params.name;
         const { isApproved, hostId } = req.body || {};
 
@@ -141,7 +151,7 @@ router.post('/server/:id/members/:name/approve', async (req, res) => {
 // 멤버 강퇴 (호스트 전용)
 router.delete('/server/:id/members/:name', async (req, res) => {
     try {
-        const serverId = parseInt(req.params.id);
+        const serverId = req.serverId;
         const userName = req.params.name;
         const { hostId } = req.body || {};
 
@@ -162,7 +172,7 @@ router.delete('/server/:id/members/:name', async (req, res) => {
 // 게임 기록 조회
 router.get('/server/:id/records', async (req, res) => {
     try {
-        const serverId = parseInt(req.params.id);
+        const serverId = req.serverId;
         const limit = Math.min(parseInt(req.query.limit) || 50, 100);
         const offset = parseInt(req.query.offset) || 0;
         const gameType = req.query.gameType;
