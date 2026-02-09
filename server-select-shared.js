@@ -7,6 +7,8 @@ const ServerSelectModule = (function () {
     let _allServers = []; // 검색 필터용 캐시
     let _currentServer = null; // 현재 입장한 서버 정보
     let _membersInterval = null; // 멤버 목록 자동 갱신
+    let _isJoining = false; // 서버 입장 중 디바운스 플래그
+    let _joiningTimeout = null; // 입장 타임아웃
 
     function init(socket, onSelect, onBack) {
         _socket = socket;
@@ -33,6 +35,8 @@ const ServerSelectModule = (function () {
         });
 
         _socket.on('serverJoined', (data) => {
+            _clearJoining();
+            _showToast(`${data.name} 입장!`);
             hide();
             _currentServer = { id: data.id, name: data.name, hostName: data.hostName };
             history.pushState({ ssPage: 'lobby' }, '');
@@ -40,8 +44,9 @@ const ServerSelectModule = (function () {
         });
 
         _socket.on('serverError', (msg) => {
-            const errEl = document.getElementById('ss-error');
-            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+            _clearJoining();
+            // 입장 관련 에러 → 에러 모달
+            _showErrorModal(msg);
             const createErr = document.getElementById('ss-create-error');
             if (createErr) { createErr.textContent = msg; createErr.style.display = 'block'; }
         });
@@ -259,6 +264,44 @@ const ServerSelectModule = (function () {
                 .ss-members-close {
                     margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
                     background: #eee; color: #666; font-size: 0.95em; cursor: pointer; width: 100%;
+                }
+
+                /* 입장 로딩 오버레이 */
+                .ss-joining-overlay {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.6); z-index: 10002;
+                    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+                }
+                .ss-spinner {
+                    width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
+                    border-top-color: #fff; border-radius: 50%;
+                    animation: ssSpin 0.8s linear infinite;
+                }
+                @keyframes ssSpin { to { transform: rotate(360deg); } }
+                .ss-joining-text { color: #fff; font-size: 1em; }
+                .ss-joining-cancel {
+                    margin-top: 8px; padding: 8px 24px; border: 1px solid rgba(255,255,255,0.4);
+                    border-radius: 10px; background: transparent; color: rgba(255,255,255,0.8);
+                    font-size: 0.85em; cursor: pointer;
+                }
+                .ss-joining-cancel:hover { background: rgba(255,255,255,0.1); }
+
+                /* 에러 모달 */
+                .ss-error-modal {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.5); z-index: 10003;
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .ss-error-box {
+                    background: white; border-radius: 20px; padding: 30px; width: 320px;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
+                    animation: ssShake 0.4s ease;
+                }
+                .ss-error-box h3 { margin: 0 0 12px 0; color: #dc3545; }
+                .ss-error-box p { color: #555; font-size: 0.95em; margin: 0 0 20px 0; }
+                .ss-error-box button {
+                    padding: 12px 40px; border: none; border-radius: 10px;
+                    background: #667eea; color: white; font-size: 0.95em; cursor: pointer;
                 }
             </style>
 
@@ -557,9 +600,57 @@ const ServerSelectModule = (function () {
     }
 
     function _selectServer(id, name) {
+        if (_isJoining) return; // 디바운스
         _requireNameThen((userName) => {
+            _isJoining = true;
+            _showJoiningOverlay(name);
             _socket.emit('joinServer', { serverId: id, userName });
+            _joiningTimeout = setTimeout(() => {
+                _clearJoining();
+                _showErrorModal('서버 응답 시간이 초과되었습니다. 다시 시도해주세요.');
+            }, 10000);
         });
+    }
+
+    function _showJoiningOverlay(serverName) {
+        _removeJoiningOverlay();
+        const ov = document.createElement('div');
+        ov.className = 'ss-joining-overlay';
+        ov.id = 'ss-joining-overlay';
+        ov.innerHTML = `
+            <div class="ss-spinner"></div>
+            <div class="ss-joining-text">${escapeStr(serverName)} 입장 중...</div>
+            <button class="ss-joining-cancel" onclick="ServerSelectModule.cancelJoining()">취소</button>
+        `;
+        document.body.appendChild(ov);
+    }
+
+    function _removeJoiningOverlay() {
+        const ov = document.getElementById('ss-joining-overlay');
+        if (ov) ov.remove();
+    }
+
+    function _clearJoining() {
+        _isJoining = false;
+        if (_joiningTimeout) { clearTimeout(_joiningTimeout); _joiningTimeout = null; }
+        _removeJoiningOverlay();
+    }
+
+    function cancelJoining() {
+        _clearJoining();
+    }
+
+    function _showErrorModal(msg) {
+        const modal = document.createElement('div');
+        modal.className = 'ss-error-modal';
+        modal.innerHTML = `
+            <div class="ss-error-box">
+                <h3>입장 실패</h3>
+                <p>${escapeStr(msg)}</p>
+                <button onclick="this.closest('.ss-error-modal').remove()">확인</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
     }
 
     function showPasswordModal(serverId, serverName) {
@@ -587,8 +678,15 @@ const ServerSelectModule = (function () {
             function confirmPw() {
                 const password = pwInput.value;
                 if (!password) return;
+                if (_isJoining) return;
                 modal.remove();
+                _isJoining = true;
+                _showJoiningOverlay(serverName);
                 _socket.emit('joinServer', { serverId, userName, password });
+                _joiningTimeout = setTimeout(() => {
+                    _clearJoining();
+                    _showErrorModal('서버 응답 시간이 초과되었습니다. 다시 시도해주세요.');
+                }, 10000);
             }
         });
     }
@@ -822,6 +920,7 @@ const ServerSelectModule = (function () {
         closeMembersModal,
         approveMember,
         kickMember,
+        cancelJoining,
         getCurrentServer
     };
 })();
