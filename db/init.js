@@ -91,6 +91,10 @@ async function initDatabase() {
                 UNIQUE(server_id, user_name)
             )
         `);
+        // server_members 누락 컬럼 보정
+        await pool.query(`DO $$ BEGIN ALTER TABLE server_members ADD COLUMN is_approved BOOLEAN DEFAULT true; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+        await pool.query(`DO $$ BEGIN ALTER TABLE server_members ADD COLUMN last_seen_at TIMESTAMP; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_server_members_server_id ON server_members(server_id)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_server_members_user_name ON server_members(user_name)`);
 
