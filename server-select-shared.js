@@ -555,7 +555,7 @@ const ServerSelectModule = (function () {
 
     function _fetchMembers() {
         if (!_currentServer) return;
-        fetch(`/server/${_currentServer.id}/members`)
+        fetch(`/api/server/${_currentServer.id}/members`)
             .then(r => r.json())
             .then(members => _renderMembers(members))
             .catch(() => {});
@@ -575,7 +575,7 @@ const ServerSelectModule = (function () {
         const hostId = _socket ? (_socket.id || '') : '';
 
         listEl.innerHTML = members.map(m => {
-            const isOnline = m.is_online;
+            const isOnline = m.isOnline;
             const dotClass = isOnline ? 'online' : 'offline';
             const isMe = m.user_name === myName;
             const isMemberHost = _currentServer && m.user_name === _currentServer.hostName;
@@ -609,7 +609,7 @@ const ServerSelectModule = (function () {
     function approveMember(userName, isApproved) {
         if (!_currentServer) return;
         const hostId = _socket ? (_socket.id || '') : '';
-        fetch(`/server/${_currentServer.id}/members/${encodeURIComponent(userName)}/approve`, {
+        fetch(`/api/server/${_currentServer.id}/members/${encodeURIComponent(userName)}/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ isApproved, hostId })
@@ -620,7 +620,7 @@ const ServerSelectModule = (function () {
         if (!_currentServer) return;
         if (!confirm(`"${userName}" 님을 강퇴하시겠습니까?`)) return;
         const hostId = _socket ? (_socket.id || '') : '';
-        fetch(`/server/${_currentServer.id}/members/${encodeURIComponent(userName)}`, {
+        fetch(`/api/server/${_currentServer.id}/members/${encodeURIComponent(userName)}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hostId })
