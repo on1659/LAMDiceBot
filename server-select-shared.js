@@ -303,6 +303,47 @@ const ServerSelectModule = (function () {
                     padding: 12px 40px; border: none; border-radius: 10px;
                     background: #667eea; color: white; font-size: 0.95em; cursor: pointer;
                 }
+
+                /* 내 서버 관리 모달 */
+                .ss-myserver-modal {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
+                    align-items: center; justify-content: center;
+                }
+                .ss-myserver-box {
+                    background: white; border-radius: 20px; padding: 28px; width: 420px;
+                    max-width: 90%; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                    display: flex; flex-direction: column;
+                }
+                .ss-myserver-box h3 { margin: 0 0 16px 0; color: #333; text-align: center; }
+                .ss-myserver-list { flex: 1; overflow-y: auto; max-height: 400px; }
+                .ss-myserver-item {
+                    padding: 12px; border-radius: 12px; margin-bottom: 8px;
+                    background: #f8f9fa; border: 1px solid #eee;
+                }
+                .ss-myserver-item-header {
+                    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+                }
+                .ss-myserver-item-name { font-weight: 600; color: #333; font-size: 0.95em; }
+                .ss-myserver-item-meta { font-size: 0.8em; color: #999; }
+                .ss-myserver-item-actions { display: flex; gap: 6px; margin-top: 8px; }
+                .ss-myserver-item-actions button {
+                    padding: 6px 12px; border: none; border-radius: 8px;
+                    font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
+                }
+                .ss-myserver-item-actions button:hover { opacity: 0.8; }
+                .ss-btn-members { background: #667eea; color: white; }
+                .ss-btn-delete { background: #dc3545; color: white; }
+                .ss-myserver-close {
+                    margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
+                    background: #eee; color: #666; font-size: 0.95em; cursor: pointer; width: 100%;
+                }
+                .ss-manage-btn {
+                    width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 14px;
+                    background: white; color: #667eea; font-size: 0.95em; font-weight: 600;
+                    cursor: pointer; transition: all 0.2s; margin-top: 8px;
+                }
+                .ss-manage-btn:hover { background: #f0f0ff; }
             </style>
 
             <div class="ss-top-bar">
@@ -339,6 +380,7 @@ const ServerSelectModule = (function () {
                 <div class="ss-error" id="ss-error"></div>
 
                 <button class="ss-create-btn" onclick="ServerSelectModule.showCreateModal()">+ 새 서버 만들기</button>
+                <button class="ss-manage-btn" onclick="ServerSelectModule.showMyServersModal()">내 서버 관리</button>
             </div>
         `;
 
@@ -757,6 +799,105 @@ const ServerSelectModule = (function () {
         _socket.emit('createServer', { name, description, hostName, password });
     }
 
+    // ─── 내 서버 관리 모달 ───
+
+    function showMyServersModal() {
+        const name = _requireName();
+        if (!name) return;
+
+        const modal = document.createElement('div');
+        modal.className = 'ss-myserver-modal';
+        modal.id = 'ss-myserver-modal';
+        modal.innerHTML = `
+            <div class="ss-myserver-box">
+                <h3>내 서버 관리</h3>
+                <div class="ss-myserver-list" id="ss-myserver-list">
+                    <div class="ss-loading">불러오는 중...</div>
+                </div>
+                <button class="ss-myserver-close" onclick="ServerSelectModule.closeMyServersModal()">닫기</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        _fetchMyServers();
+    }
+
+    function closeMyServersModal() {
+        const modal = document.getElementById('ss-myserver-modal');
+        if (modal) modal.remove();
+    }
+
+    async function _fetchMyServers() {
+        const name = _getUserName();
+        if (!name) return;
+        try {
+            const res = await fetch(`/api/my-servers?userName=${encodeURIComponent(name)}`);
+            const servers = await res.json();
+            _renderMyServers(servers);
+        } catch (e) {}
+    }
+
+    function _renderMyServers(servers) {
+        const listEl = document.getElementById('ss-myserver-list');
+        if (!listEl) return;
+
+        if (!servers || servers.length === 0) {
+            listEl.innerHTML = '<div class="ss-empty">만든 서버가 없습니다</div>';
+            return;
+        }
+
+        listEl.innerHTML = servers.map(s => `
+            <div class="ss-myserver-item" id="ss-ms-${s.id}">
+                <div class="ss-myserver-item-header">
+                    <span class="ss-myserver-item-name">${escapeStr(s.name)}</span>
+                    <span class="ss-myserver-item-meta">${s.member_count || 0}명</span>
+                </div>
+                <div class="ss-myserver-item-actions">
+                    <button class="ss-btn-members" onclick="ServerSelectModule.showServerMembersManage(${s.id}, '${escapeStr(s.name)}')">멤버 관리</button>
+                    <button class="ss-btn-delete" onclick="ServerSelectModule.deleteMyServer(${s.id}, '${escapeStr(s.name)}')">서버 삭제</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function showServerMembersManage(serverId, serverName) {
+        closeMyServersModal();
+        // _currentServer 임시 설정 후 멤버 모달 열기
+        const prevServer = _currentServer;
+        const userName = _getUserName();
+        _currentServer = { id: serverId, name: serverName, hostName: userName };
+        showMembersModal();
+        // 멤버 모달 닫힐 때 복원
+        const checkClose = setInterval(() => {
+            if (!document.getElementById('ss-members-modal')) {
+                clearInterval(checkClose);
+                _currentServer = prevServer;
+                showMyServersModal(); // 다시 내 서버 관리 모달 열기
+            }
+        }, 300);
+    }
+
+    async function deleteMyServer(serverId, serverName) {
+        if (!confirm(`"${serverName}" 서버를 정말 삭제하시겠습니까?\n모든 멤버와 기록이 삭제됩니다.`)) return;
+        const userName = _getUserName();
+        try {
+            const res = await fetch(`/api/my-servers/${serverId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userName })
+            });
+            const result = await res.json();
+            if (!res.ok) { _showToast(result.error || '삭제 실패'); return; }
+            _showToast(`${serverName} 서버가 삭제되었습니다.`);
+            // 목록 갱신
+            const item = document.getElementById(`ss-ms-${serverId}`);
+            if (item) item.remove();
+            _emitGetServers();
+            if (_socket) _socket.emit('getRooms');
+        } catch (e) {
+            _showToast('서버 삭제 실패');
+        }
+    }
+
     // ─── 멤버 관리 모달 ───
 
     function showMembersModal() {
@@ -926,6 +1067,10 @@ const ServerSelectModule = (function () {
         approveMember,
         kickMember,
         cancelJoining,
+        showMyServersModal,
+        closeMyServersModal,
+        showServerMembersManage,
+        deleteMyServer,
         getCurrentServer
     };
 })();

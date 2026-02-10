@@ -1,4 +1,33 @@
 ========================================
+📋 Summit Log - 2026-02-10 (서버 참여 제한 + 내 서버 관리)
+========================================
+
+## 변경 파일
+- db/servers.js: getMyServers(), getUserJoinedCount() 추가, joinServer 5개 제한
+- routes/server.js: GET /api/my-servers, DELETE /api/my-servers/:id 추가
+- server-select-shared.js: 내 서버 관리 모달 UI (목록/멤버관리/삭제)
+
+## 상세 변경 내역
+
+### [서버 참여 5개 제한]
+- getUserJoinedCount(userName): approved 멤버 수 카운트
+- joinServer(): 기존 멤버 재입장은 제한 없음, 신규 가입만 5개 체크
+- 초과 시 에러: "서버는 최대 5개까지 참여할 수 있습니다."
+
+### [내 서버 관리 API]
+- GET /api/my-servers?userName= → host_name으로 필터링된 서버 목록
+- DELETE /api/my-servers/:id → host_name 검증 후 삭제 + serverDeleted 소켓 이벤트
+
+### [내 서버 관리 UI]
+- showMyServersModal(): 로그인 필수, fetch로 내 서버 목록 로드
+- 서버별: 멤버 수 표시, [멤버 관리] [서버 삭제] 버튼
+- showServerMembersManage(): 기존 showMembersModal 재사용 (임시 _currentServer 설정)
+- deleteMyServer(): confirm 확인 → DELETE API → 토스트 + 서버목록 갱신
+- CSS: .ss-myserver-modal, .ss-myserver-box, .ss-manage-btn
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-10 (서버 입장 UX 개선)
 ========================================
 

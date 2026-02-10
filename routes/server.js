@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { generateAdminToken, verifyAdminToken } = require('../utils/auth');
 const {
-    getServers, getServerById, deleteServer,
+    getServers, getServerById, deleteServer, getMyServers,
     getMembers, updateMemberApproval, removeMember, checkMember,
     getServerRecords, comparePassword
 } = require('../db/servers');
@@ -97,6 +97,43 @@ router.delete('/admin/servers/:id', adminAuth, async (req, res) => {
     try {
         const success = await deleteServer(req.serverId);
         if (!success) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: '서버 삭제 실패' });
+    }
+});
+
+// ─── 내 서버 관리 API ───
+
+// 내가 만든 서버 목록
+router.get('/my-servers', async (req, res) => {
+    try {
+        const { userName } = req.query;
+        if (!userName) return res.status(400).json({ error: 'userName 필요' });
+        const servers = await getMyServers(userName);
+        res.json(servers);
+    } catch (e) {
+        res.status(500).json({ error: '내 서버 목록 조회 실패' });
+    }
+});
+
+// 호스트가 자기 서버 삭제
+router.delete('/my-servers/:id', async (req, res) => {
+    try {
+        const server = await getServerById(req.serverId);
+        if (!server) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
+        const { userName } = req.body || {};
+        if (server.host_name !== userName) {
+            return res.status(403).json({ error: '서버 호스트만 삭제할 수 있습니다.' });
+        }
+        const success = await deleteServer(req.serverId);
+        if (!success) return res.status(500).json({ error: '삭제 실패' });
+
+        // 서버 룸 전체에 삭제 알림
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`server:${req.serverId}`).emit('serverDeleted', { serverId: req.serverId, serverName: server.name });
+        }
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: '서버 삭제 실패' });

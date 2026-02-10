@@ -106,6 +106,28 @@ async function deleteServer(serverId) {
     return result.rowCount > 0;
 }
 
+async function getMyServers(userName) {
+    const pool = getPool();
+    if (!pool) return [];
+    const result = await pool.query(
+        `SELECT s.id, s.name, s.description, s.host_name, s.created_at, s.is_active,
+         (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count
+         FROM servers s WHERE s.host_name = $1 ORDER BY s.created_at DESC`,
+        [userName]
+    );
+    return result.rows;
+}
+
+async function getUserJoinedCount(userName) {
+    const pool = getPool();
+    if (!pool) return 0;
+    const result = await pool.query(
+        'SELECT COUNT(*) AS cnt FROM server_members WHERE user_name = $1 AND is_approved = true',
+        [userName]
+    );
+    return parseInt(result.rows[0].cnt, 10);
+}
+
 // ─── Member 관리 ───
 
 async function joinServer(serverId, userName, password) {
@@ -129,6 +151,7 @@ async function joinServer(serverId, userName, password) {
     );
 
     if (existing.rows.length > 0) {
+        // 기존 멤버는 제한 없이 재입장
         // last_seen 업데이트
         await pool.query(
             'UPDATE server_members SET last_seen_at = NOW() WHERE server_id = $1 AND user_name = $2',
@@ -136,6 +159,10 @@ async function joinServer(serverId, userName, password) {
         );
         return { member: existing.rows[0], alreadyMember: true };
     }
+
+    // 참여 서버 5개 제한
+    const joinedCount = await getUserJoinedCount(userName);
+    if (joinedCount >= 5) return { error: '서버는 최대 5개까지 참여할 수 있습니다.' };
 
     // 새 멤버 등록
     const result = await pool.query(
@@ -269,7 +296,7 @@ async function recordGameSession({ serverId, sessionId, gameType, gameRules, win
 }
 
 module.exports = {
-    createServer, getServers, getServerById, deleteServer,
+    createServer, getServers, getServerById, deleteServer, getMyServers, getUserJoinedCount,
     joinServer, getMembers, updateMemberApproval, removeMember, checkMember, updateLastSeen,
     recordServerGame, getServerRecords,
     recordGameSession, generateSessionId,
