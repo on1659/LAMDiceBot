@@ -1,14 +1,15 @@
 // 관리자 인증 유틸리티
 const crypto = require('crypto');
 
+const ADMIN_ID = process.env.ADMIN_ID || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '0000';
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
 
 // 활성 토큰 저장 (인메모리)
 const activeTokens = new Map();
 
-function generateAdminToken(password) {
-    if (password !== ADMIN_PASSWORD) return null;
+function generateAdminToken(id, password) {
+    if (id !== ADMIN_ID || password !== ADMIN_PASSWORD) return null;
     const token = crypto.randomBytes(32).toString('hex');
     activeTokens.set(token, Date.now() + TOKEN_EXPIRY_MS);
     return token;

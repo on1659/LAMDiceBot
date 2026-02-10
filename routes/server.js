@@ -50,10 +50,10 @@ router.param('id', (req, res, next, val) => {
 
 // 관리자 인증
 router.post('/admin/verify', (req, res) => {
-    const { password } = req.body || {};
-    const token = generateAdminToken(password);
+    const { id, password } = req.body || {};
+    const token = generateAdminToken(id, password);
     if (!token) {
-        return res.status(401).json({ error: '비밀번호가 일치하지 않습니다.' });
+        return res.status(401).json({ error: '아이디 또는 비밀번호가 일치하지 않습니다.' });
     }
     res.json({ token });
 });
@@ -100,6 +100,40 @@ router.delete('/admin/servers/:id', adminAuth, async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: '서버 삭제 실패' });
+    }
+});
+
+// 유저 목록 (관리자)
+router.get('/admin/users', adminAuth, async (req, res) => {
+    try {
+        const { getPool } = require('../db/pool');
+        const pool = getPool();
+        if (!pool) return res.status(503).json({ error: 'DB 미연결' });
+        const result = await pool.query('SELECT id, name, is_admin, created_at, last_login_at FROM users ORDER BY id ASC');
+        res.json(result.rows);
+    } catch (e) {
+        res.status(500).json({ error: '유저 목록 조회 실패' });
+    }
+});
+
+// 유저 삭제 (관리자)
+router.delete('/admin/users/:id', adminAuth, async (req, res) => {
+    try {
+        const { getPool } = require('../db/pool');
+        const pool = getPool();
+        if (!pool) return res.status(503).json({ error: 'DB 미연결' });
+        const userId = parseInt(req.params.id);
+        if (isNaN(userId) || userId <= 0) return res.status(400).json({ error: '유효하지 않은 유저 ID' });
+        // 유저의 서버 멤버십도 삭제
+        const user = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+        if (user.rows.length > 0) {
+            await pool.query('DELETE FROM server_members WHERE user_name = $1', [user.rows[0].name]);
+        }
+        const result = await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: '유저를 찾을 수 없습니다.' });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: '유저 삭제 실패' });
     }
 });
 
