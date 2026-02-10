@@ -252,13 +252,17 @@ var currentServerId = null;
         ServerSelectModule.init(socket, function(selection) {
             currentServerId = selection.serverId;
             if (selection.serverName) document.title = selection.serverName + ' - Horse Race';
-            // 서버 정보 바 표시
+            // 서버 정보 바 표시 (항상 표시 - 서버 목록 복귀 버튼 포함)
             var infoBar = document.getElementById('serverInfoBar');
+            infoBar.style.display = 'flex';
+            var membersBtn = document.getElementById('serverMembersBtn');
             if (selection.serverId && selection.serverName) {
                 document.getElementById('serverInfoName').textContent = '\uD83D\uDDA5\uFE0F ' + selection.serverName;
-                infoBar.style.display = 'flex';
+                document.getElementById('serverInfoName').style.display = '';
+                if (membersBtn) membersBtn.style.display = '';
             } else {
-                infoBar.style.display = 'none';
+                document.getElementById('serverInfoName').style.display = 'none';
+                if (membersBtn) membersBtn.style.display = 'none';
             }
             document.getElementById('lobbySection').classList.add('active');
         }, function() {

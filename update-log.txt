@@ -1,4 +1,13 @@
-<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-10)</span>
+<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-11)</span>
+
+<b>🎯 UX 개선</b>
+• 로그인 후 이름 자동 적용 - 방 만들기/로비에서 이름 입력 불필요
+• 게임 로비에서 "← 서버 목록" 버튼 추가 - 서버 선택 화면으로 바로 복귀 가능
+• 자유 플레이 모드에서도 서버 목록으로 돌아가기 가능
+
+---
+
+<b style="color: #667eea;">🎮 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-10)</span>
 
 <b>🔑 로그인 시스템 도입</b>
 • 이름 + 암호코드(4~6자리 숫자)로 회원가입/로그인

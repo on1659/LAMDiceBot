@@ -560,17 +560,13 @@
         <div id="landing-section" class="section">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
             <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid #667eea; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+                <button onclick="ServerSelectModule.show()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: #667eea;"></span>
-                <button onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
             </div>
-            <!-- 닉네임 입력 -->
-            <div class="room-section">
-                <h2>닉네임 입력</h2>
-                <div class="form-group">
-                    <label for="nickname-input">닉네임</label>
-                    <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요" maxlength="20">
-            </div>
-                <p class="nickname-guide">💡 닉네임을 입력한 후 방을 생성하거나 입장할 수 있습니다.</p>
+            <!-- 닉네임 입력 (로그인 시 자동 설정) -->
+            <div style="display: none;">
+                <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요" maxlength="20">
             </div>
             
             <!-- 방 만들기 -->
@@ -720,13 +716,17 @@
                 ServerSelectModule.init(socket, (selection) => {
                     currentServerId = selection.serverId;
                     if (selection.serverName) document.title = `${selection.serverName} - Team`;
-                    // 서버 정보 바 표시
+                    // 서버 정보 바 표시 (항상 표시 - 서버 목록 복귀 버튼 포함)
                     const infoBar = document.getElementById('serverInfoBar');
+                    infoBar.style.display = 'flex';
+                    const membersBtn = document.getElementById('serverMembersBtn');
                     if (selection.serverId && selection.serverName) {
                         document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
-                        infoBar.style.display = 'flex';
+                        document.getElementById('serverInfoName').style.display = '';
+                        if (membersBtn) membersBtn.style.display = '';
                     } else {
-                        infoBar.style.display = 'none';
+                        document.getElementById('serverInfoName').style.display = 'none';
+                        if (membersBtn) membersBtn.style.display = 'none';
                     }
                     document.getElementById('landing-section').style.display = '';
                 }, () => {

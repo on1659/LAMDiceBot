@@ -1,4 +1,34 @@
 ========================================
+📋 Summit Log - 2026-02-11 (이름 입력 숨기기 + 서버 목록 복귀 버튼)
+========================================
+
+## 변경 파일
+- dice-game-multiplayer.html: 로비 이름 입력 숨김 + serverInfoBar에 서버 목록 복귀 버튼 추가
+- horse-race-multiplayer.html: 로비/방 생성 이름 입력 숨김 + serverInfoBar에 서버 목록 복귀 버튼 추가
+- roulette-game-multiplayer.html: 로비/방 생성 이름 입력 숨김 + serverInfoBar에 서버 목록 복귀 버튼 추가
+- team-game-multiplayer.html: 닉네임 입력 숨김 + serverInfoBar에 서버 목록 복귀 버튼 추가
+- js/horse-race.js: ServerSelectModule onSelect 콜백 수정 (infoBar 항상 표시)
+
+## 상세 변경 내역
+
+### 이름 입력 필드 숨기기
+- 로그인 시 _saveName()이 이미 모든 입력 필드에 값을 설정하므로 사용자가 직접 입력할 필요 없음
+- dice: globalUserNameInput의 input-group에 display:none 추가
+- horse-race: globalUserNameInput 섹션 숨김 + createRoomHostNameInput 섹션 숨김
+- roulette: globalUserNameInput 섹션 숨김 + createRoomHostNameInput 섹션 숨김
+- team: nickname-input 섹션 숨김
+- input 엘리먼트는 DOM에 유지 (기존 코드에서 읽기 때문)
+
+### 서버 목록 복귀 버튼
+- 4개 게임의 serverInfoBar에 "← 서버 목록" 버튼 추가 (ServerSelectModule.show() 호출)
+- serverInfoBar를 항상 display:flex로 표시 (자유 플레이에서도 복귀 가능)
+- 자유 플레이 모드: serverInfoName, serverMembersBtn 숨김 (서버 관련 UI 불필요)
+- 서버 모드: serverInfoName, serverMembersBtn 표시
+- 멤버 버튼에 id="serverMembersBtn" 추가하여 JS에서 제어 가능
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-11 (서버 이름 중복체크 + 새로고침 버튼 + 멤버 모달 CSS 수정)
 ========================================
 

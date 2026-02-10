@@ -986,13 +986,13 @@
             
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
             <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(124,77,255,0.1), rgba(156,39,176,0.1)); border: 1px solid #7c4dff; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+                <button onclick="ServerSelectModule.show()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: #7c4dff;"></span>
-                <button onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #7c4dff; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #7c4dff; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
             </div>
 
-            <!-- 이름 입력 -->
-            <div style="background: #fce4ec; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <label style="font-weight: bold; color: #7c4dff; display: block; margin-bottom: 8px;">👤 내 이름</label>
+            <!-- 이름 입력 (로그인 시 자동 설정) -->
+            <div style="display: none;">
                 <input type="text" id="globalUserNameInput" placeholder="이름을 입력하세요" maxlength="20">
             </div>
 
@@ -1019,11 +1019,10 @@
             <h2 style="color: #7c4dff; margin-bottom: 20px;">🎰 새 룰렛 방 만들기</h2>
             <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
             
-            <div style="margin-bottom: 15px;">
-                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">호스트 이름</label>
+            <div style="display: none;">
                 <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름" maxlength="20">
             </div>
-            
+
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">방 제목</label>
                 <input type="text" id="createRoomNameInput" placeholder="방 제목을 입력하세요" maxlength="30">
@@ -1899,13 +1898,17 @@
                 ServerSelectModule.init(socket, (selection) => {
                     currentServerId = selection.serverId;
                     if (selection.serverName) document.title = `${selection.serverName} - LAM Roulette`;
-                    // 서버 정보 바 표시
+                    // 서버 정보 바 표시 (항상 표시 - 서버 목록 복귀 버튼 포함)
                     const infoBar = document.getElementById('serverInfoBar');
+                    infoBar.style.display = 'flex';
+                    const membersBtn = document.getElementById('serverMembersBtn');
                     if (selection.serverId && selection.serverName) {
                         document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
-                        infoBar.style.display = 'flex';
+                        document.getElementById('serverInfoName').style.display = '';
+                        if (membersBtn) membersBtn.style.display = '';
                     } else {
-                        infoBar.style.display = 'none';
+                        document.getElementById('serverInfoName').style.display = 'none';
+                        if (membersBtn) membersBtn.style.display = 'none';
                     }
                     document.getElementById('lobbySection').classList.add('active');
                 }, () => {
