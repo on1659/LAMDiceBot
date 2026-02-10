@@ -1,8 +1,8 @@
 // 관리자 인증 유틸리티
 const crypto = require('crypto');
 
-const ADMIN_ID = process.env.ADMIN_ID || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '0000';
+const ADMIN_ID = process.env.ADMIN_ID;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
 
 // 활성 토큰 저장 (인메모리)

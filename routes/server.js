@@ -74,6 +74,13 @@ router.post('/auth/register', async (req, res) => {
 router.post('/auth/login', async (req, res) => {
     try {
         const { name, pin } = req.body || {};
+
+        // 관리자 인증 체크
+        const adminToken = generateAdminToken(name, pin);
+        if (adminToken) {
+            return res.json({ user: { name, isAdmin: true }, adminToken });
+        }
+
         const result = await authLogin(name, pin);
         if (result.error) return res.status(401).json({ error: result.error });
         res.json({ user: result.user });

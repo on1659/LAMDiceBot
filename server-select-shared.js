@@ -518,6 +518,13 @@ const ServerSelectModule = (function () {
                 });
                 const result = await res.json();
                 if (!res.ok) { showError(result.error); return; }
+                // 관리자 계정이면 관리자 페이지로 이동
+                if (result.adminToken) {
+                    sessionStorage.setItem('adminToken', result.adminToken);
+                    modal.remove();
+                    window.location.href = '/admin';
+                    return;
+                }
                 localStorage.setItem('userAuth', JSON.stringify(result.user));
                 modal.remove();
                 _saveName(name);
