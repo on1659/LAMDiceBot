@@ -210,6 +210,20 @@ async function initDatabase() {
         `);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_name ON users(name)`);
 
+        // ─── 주문 통계 테이블 (랭킹용) ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS order_stats (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL DEFAULT 0,
+                user_name VARCHAR(50) NOT NULL,
+                menu_text VARCHAR(100) NOT NULL,
+                order_count INTEGER DEFAULT 1,
+                UNIQUE(server_id, user_name, menu_text)
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_stats_server ON order_stats(server_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_stats_user ON order_stats(server_id, user_name)`);
+
         await loadVisitorStatsFromDB();
         await loadPlayStatsFromDB();
 

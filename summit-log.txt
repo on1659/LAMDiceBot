@@ -1,4 +1,70 @@
 ========================================
+📋 Summit Log - 2026-02-11 (서버별 랭킹 시스템)
+========================================
+
+## 변경 파일
+- db/init.js: order_stats 테이블 CREATE 추가
+- db/ranking.js (신규): 랭킹 쿼리 함수 + 주문 기록 UPSERT
+- ranking-shared.js (신규): 풀스크린 랭킹 UI 오버레이 모듈
+- socket/rooms.js: room.isPrivateServer 캐시 설정
+- socket/dice.js: 비공개서버 주사위 승자 판별 (determineDiceWinner)
+- socket/horse.js: 비공개서버 경마 결과 DB 기록 (server_game_records + game_sessions)
+- socket/shared.js: 비공개서버 주문 시 order_stats UPSERT
+- routes/server.js: GET /api/ranking/:serverId, /api/ranking/free 엔드포인트
+- dice-game-multiplayer.html: 랭킹 버튼 + script + RankingModule.init
+- horse-race-multiplayer.html: 랭킹 버튼 + script
+- js/horse-race.js: RankingModule.init 호출 추가
+- roulette-game-multiplayer.html: 랭킹 버튼 + script + RankingModule.init
+- team-game-multiplayer.html: 랭킹 버튼 + script + RankingModule.init
+
+## 상세 변경 내역
+
+### DB 스키마
+- order_stats 테이블 신규 (server_id NOT NULL DEFAULT 0, UNIQUE(server_id, user_name, menu_text))
+- server_id=0은 자유 플레이 (NULL-safe UPSERT 보장)
+
+### 공개/비공개 서버 분기 저장
+- room.isPrivateServer: 방 생성 시 1회 DB 조회 후 캐시 (getServerById → password_hash 확인)
+- 공개서버: 기존 동작 그대로 유지 (주사위 is_winner=false, 경마 기록 없음)
+- 비공개서버만 추가 기록:
+  - 주사위: determineDiceWinner()로 승자 판별 → is_winner=true
+  - 경마: recordServerGame() + recordGameSession() 호출 추가 (2곳: raceAnimationComplete, selectHorse)
+  - 주문: order_stats UPSERT (recordOrder 함수)
+
+### 주사위 승자 판별 로직
+- gameRules에서 "낮/작/최소/로우/low" → lowest wins
+- 그 외 → highest wins (기본)
+- 동점 시 먼저 굴린 사람 우선 (배열 순서)
+
+### 랭킹 쿼리 (db/ranking.js)
+- getOverallRanking: CTE 기반 단일 쿼리 (games, wins, win_rate)
+- getGameRanking: 게임타입별 승수/참여수
+- getHorseRaceStats: vehicle_stats에서 인기말/꼴등말
+- getOrderRanking: 최다 주문자, 인기 메뉴
+- getMyTopOrders: 개인 TOP 3 메뉴
+- getFullRanking: 전체 데이터 조합 (serverType 포함)
+
+### 랭킹 API
+- GET /api/ranking/free (자유 플레이, 먼저 등록)
+- GET /api/ranking/:serverId(\\d+) (정규식으로 숫자만 매칭 → 충돌 방지)
+- 응답에 serverType: "public"|"private" 포함
+- 비공개서버만 orders 필드 포함 (공개서버는 null)
+
+### 랭킹 UI (ranking-shared.js)
+- RankingModule IIFE 패턴 (ServerSelectModule과 동일)
+- 10초 TTL 인메모리 캐시 + invalidateCache()
+- 풀스크린 오버레이 (fixed, inset:0, z-index:9999)
+- serverType에 따라 탭 동적 구성 (공개: 4탭, 비공개: 5탭)
+- 메달 이모지 (1등🥇, 2등🥈, 3등🥉)
+
+### 로비 버튼
+- 4개 게임 HTML에 "🏆 랭킹" 버튼 추가
+- ranking-shared.js script 태그 추가
+- ServerSelectModule.init 콜백에서 RankingModule.init 호출
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-11 (서버 참여코드 도입)
 ========================================
 

@@ -1306,6 +1306,7 @@
             <div class="create-room-button-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                 <h2 style="margin-bottom: 15px; color: #667eea;">방 만들기</h2>
                 <button onclick="showCreateRoomPage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-bottom: 15px;">방 생성하기</button>
+                <button onclick="RankingModule.show()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); margin-bottom: 15px; font-weight: 600;">🏆 랭킹</button>
                 <div class="input-group" style="margin: 0; display: none;">
                     <label for="globalUserNameInput">이름</label>
                     <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
@@ -1767,6 +1768,7 @@
     <script src="/chat-shared.js"></script>
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>
+    <script src="/ranking-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
@@ -1791,6 +1793,7 @@
                 if (membersBtn) membersBtn.style.display = 'none';
             }
             document.getElementById('lobbySection').classList.add('active');
+            RankingModule.init(selection.serverId, document.getElementById('globalUserNameInput')?.value || '');
         }, () => {
             document.getElementById('lobbySection').classList.remove('active');
         });

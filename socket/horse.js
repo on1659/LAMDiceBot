@@ -1,5 +1,6 @@
 const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('../db/stats');
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
+const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
 
 // ALL_VEHICLE_IDS constant
@@ -352,6 +353,29 @@ module.exports = (socket, io, ctx) => {
 
         if (!gameState.isGameActive) return; // 이미 게임 종료됨
 
+        // 비공개서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
+        if (room.isPrivateServer && room.serverId && raceData.userHorseBets) {
+            const sessionId = generateSessionId('horse', room.serverId);
+            const horseRankMap = {};
+            rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
+            const winnerName = winners.length === 1 ? winners[0] : (winners[0] || null);
+            const bettors = Object.entries(raceData.userHorseBets);
+
+            bettors.forEach(([userName, horseIndex]) => {
+                const rank = horseRankMap[horseIndex] || 0;
+                const isWinner = winners.includes(userName);
+                recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId);
+            });
+            recordGameSession({
+                serverId: room.serverId,
+                sessionId,
+                gameType: 'horse',
+                gameRules: gameState.horseRaceMode || 'last',
+                winnerName: winnerName,
+                participantCount: bettors.length
+            });
+        }
+
         if (winners.length === 1) {
             // 단독 당첨 → 게임 종료
             gameState.isGameActive = false;
@@ -686,6 +710,29 @@ module.exports = (socket, io, ctx) => {
             });
 
             console.log(`방 ${room.roomName} 경주 완료 - 라운드 ${gameState.raceRound}, 당첨자: ${winners.join(', ')}`);
+
+            // 비공개서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
+            if (room.isPrivateServer && room.serverId) {
+                const sessionId = generateSessionId('horse', room.serverId);
+                const horseRankMap = {};
+                rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
+                const winnerName = winners.length === 1 ? winners[0] : (winners[0] || null);
+                const bettors = Object.entries(gameState.userHorseBets);
+
+                bettors.forEach(([uName, horseIndex]) => {
+                    const rank = horseRankMap[horseIndex] || 0;
+                    const isWin = winners.includes(uName);
+                    recordServerGame(room.serverId, uName, rank, 'horse', isWin, sessionId);
+                });
+                recordGameSession({
+                    serverId: room.serverId,
+                    sessionId,
+                    gameType: 'horse',
+                    gameRules: gameState.horseRaceMode || 'last',
+                    winnerName: winnerName,
+                    participantCount: bettors.length
+                });
+            }
 
             // 당첨자 수에 따라 분기
             if (winners.length === 1) {

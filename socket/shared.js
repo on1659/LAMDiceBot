@@ -4,6 +4,7 @@
 const { getPool } = require('../db/pool');
 const { loadFrequentMenus, getMergedFrequentMenus, saveFrequentMenus } = require('../db/menus');
 const { getServerId } = require('../routes/api');
+const { recordOrder } = require('../db/ranking');
 const { createRoomGameState } = require('../utils/room-helpers');
 
 // updateRange용 레거시 전역 gameState
@@ -118,7 +119,13 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         }
 
         // 주문 저장 (userName은 이미 trimmedUserName으로 검증됨)
-        gameState.userOrders[trimmedUserName] = order.trim();
+        const trimmedOrder = order.trim();
+        gameState.userOrders[trimmedUserName] = trimmedOrder;
+
+        // 비공개서버: 주문 통계 DB 기록
+        if (room.isPrivateServer && room.serverId && trimmedOrder) {
+            recordOrder(room.serverId, trimmedUserName, trimmedOrder);
+        }
 
         // 같은 방의 모든 클라이언트에게 업데이트된 주문 목록 전송
         io.to(room.roomId).emit('updateOrders', gameState.userOrders);

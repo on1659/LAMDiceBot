@@ -265,6 +265,7 @@ var currentServerId = null;
                 if (membersBtn) membersBtn.style.display = 'none';
             }
             document.getElementById('lobbySection').classList.add('active');
+            RankingModule.init(selection.serverId, document.getElementById('globalUserNameInput')?.value || '');
         }, function() {
             document.getElementById('lobbySection').classList.remove('active');
         });

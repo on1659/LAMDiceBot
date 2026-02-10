@@ -128,15 +128,19 @@ module.exports = (socket, io, ctx) => {
         // 서버 게임 기록 저장
         if (room.serverId && currentGameHistory.length > 0) {
             const sessionId = generateSessionId('dice', room.serverId);
+            // 비공개서버: 승자 판별하여 is_winner 정확히 기록
+            const winnerName = room.isPrivateServer ? determineDiceWinner(currentGameHistory, gameState.gameRules) : null;
             recordGameSession({
                 serverId: room.serverId,
                 sessionId,
                 gameType: 'dice',
                 gameRules: gameState.gameRules,
+                winnerName: winnerName,
                 participantCount: currentGamePlayers.length
             });
             currentGameHistory.forEach(r => {
-                recordServerGame(room.serverId, r.user, r.result, 'dice', false, sessionId);
+                const isWinner = room.isPrivateServer ? (r.user === winnerName) : false;
+                recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId);
             });
         }
 
@@ -522,15 +526,19 @@ module.exports = (socket, io, ctx) => {
                 // 서버 게임 기록 저장
                 if (room.serverId && currentGameHistory.length > 0) {
                     const sessionId = generateSessionId('dice', room.serverId);
+                    // 비공개서버: 승자 판별하여 is_winner 정확히 기록
+                    const winnerName = room.isPrivateServer ? determineDiceWinner(currentGameHistory, gameState.gameRules) : null;
                     recordGameSession({
                         serverId: room.serverId,
                         sessionId,
                         gameType: 'dice',
                         gameRules: gameState.gameRules,
+                        winnerName: winnerName,
                         participantCount: currentGamePlayers.length
                     });
                     currentGameHistory.forEach(r => {
-                        recordServerGame(room.serverId, r.user, r.result, 'dice', false, sessionId);
+                        const isWinner = room.isPrivateServer ? (r.user === winnerName) : false;
+                        recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId);
                     });
                 }
 
@@ -551,3 +559,16 @@ module.exports = (socket, io, ctx) => {
         }
     });
 };
+
+// 주사위 승자 판별 (비공개서버 랭킹용)
+function determineDiceWinner(gameHistory, gameRules) {
+    if (!gameHistory || gameHistory.length === 0) return null;
+    const isLowWins = /낮|작|최소|로우|low/i.test(gameRules || '');
+    let winner = gameHistory[0];
+    for (const entry of gameHistory) {
+        if (isLowWins ? entry.result < winner.result : entry.result > winner.result) {
+            winner = entry;
+        }
+    }
+    return winner.user;
+}

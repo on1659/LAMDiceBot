@@ -9,6 +9,7 @@ const {
 } = require('../db/servers');
 const { register: authRegister, login: authLogin } = require('../db/auth');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
+const { getFullRanking } = require('../db/ranking');
 
 // Rate Limiting (Server API 전용)
 let rateLimit;
@@ -304,6 +305,38 @@ router.delete('/server/:id/members/:name', async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: '멤버 강퇴 실패' });
+    }
+});
+
+// ─── 랭킹 API ───
+
+// 자유 플레이 랭킹 (free를 먼저 등록하여 :serverId와 충돌 방지)
+router.get('/ranking/free', async (req, res) => {
+    try {
+        const userName = req.query.userName || null;
+        const ranking = await getFullRanking(null, userName, false);
+        res.json(ranking);
+    } catch (e) {
+        res.status(500).json({ error: '랭킹 조회 실패' });
+    }
+});
+
+// 서버별 랭킹 (숫자만 매칭)
+router.get('/ranking/:serverId(\\d+)', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        }
+        const server = await getServerById(serverId);
+        if (!server) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
+
+        const isPrivate = !!(server.password_hash && server.password_hash !== '');
+        const userName = req.query.userName || null;
+        const ranking = await getFullRanking(serverId, userName, isPrivate);
+        res.json(ranking);
+    } catch (e) {
+        res.status(500).json({ error: '랭킹 조회 실패' });
     }
 });
 

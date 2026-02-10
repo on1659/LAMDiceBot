@@ -998,6 +998,7 @@
 
             <!-- 방 만들기 버튼 -->
             <button onclick="showCreateRoomSection()" style="margin-bottom: 20px;">🎰 새 룰렛 방 만들기</button>
+            <button onclick="RankingModule.show()" style="margin-bottom: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; font-weight: 600; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%;">🏆 랭킹</button>
             
             <!-- 방 목록 -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -1292,6 +1293,7 @@
     <script src="/chat-shared.js"></script>
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>
+    <script src="/ranking-shared.js"></script>
     <script>
         // 디버그 로그 함수 (localhost 등 로컬에서만 활성화, 포트 무관)
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
@@ -1911,6 +1913,7 @@
                         if (membersBtn) membersBtn.style.display = 'none';
                     }
                     document.getElementById('lobbySection').classList.add('active');
+                    RankingModule.init(selection.serverId, document.getElementById('globalUserNameInput')?.value || '');
                 }, () => {
                     document.getElementById('lobbySection').classList.remove('active');
                 });

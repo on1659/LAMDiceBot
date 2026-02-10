@@ -2,6 +2,7 @@ const { generateRoomId, generateUniqueUserName, createRoomGameState } = require(
 const { getMergedFrequentMenus } = require('../db/menus');
 const { getVisitorStats, recordVisitor } = require('../db/stats');
 const { getServerId } = require('../routes/api');
+const { getServerById } = require('../db/servers');
 const path = require('path');
 const fs = require('fs');
 
@@ -281,12 +282,21 @@ module.exports = (socket, io, ctx) => {
             blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
             turboAnimation: validTurboAnimation, // 터보 애니메이션 (다양한 마무리 효과)
             serverId: serverId ? (parseInt(serverId) || null) : null, // 서버 소속
+            isPrivateServer: false, // 비공개서버 여부 (아래에서 DB 조회 후 설정)
             gameState: gameStateNew,
             createdAt: new Date()
         };
 
         const room = rooms[roomId];
         const gameState = room.gameState;
+
+        // 비공개서버 여부 캐시 (방 생명주기 동안 불변)
+        if (room.serverId) {
+            getServerById(room.serverId).then(server => {
+                room.isPrivateServer = !!(server && server.password_hash && server.password_hash !== '');
+            }).catch(() => {});
+        }
+
         gameState.frequentMenus = await getMergedFrequentMenus(getServerId());
 
         // 방 입장
