@@ -15,6 +15,120 @@ const ServerSelectModule = (function () {
         _onSelect = onSelect;
         _onBack = onBack || null;
 
+        // 모달 CSS를 head에 주입 (오버레이 제거 후에도 유지)
+        if (!document.getElementById('ss-modal-styles')) {
+            const style = document.createElement('style');
+            style.id = 'ss-modal-styles';
+            style.textContent = `
+                .ss-members-modal, .ss-myserver-modal, .ss-error-modal, .ss-joining-overlay, .ss-pw-modal {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
+                    align-items: center; justify-content: center;
+                }
+                .ss-joining-overlay { background: rgba(0,0,0,0.6); z-index: 10002; flex-direction: column; gap: 16px; }
+                .ss-error-modal { z-index: 10003; }
+                .ss-members-box, .ss-myserver-box {
+                    background: white; border-radius: 20px; padding: 28px; width: 400px;
+                    max-width: 90%; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                    display: flex; flex-direction: column;
+                }
+                .ss-members-box h3, .ss-myserver-box h3 { margin: 0 0 16px 0; color: #333; text-align: center; }
+                .ss-members-list, .ss-myserver-list { flex: 1; overflow-y: auto; max-height: 400px; }
+                .ss-member-item {
+                    display: flex; align-items: center; padding: 10px 12px; border-radius: 10px;
+                    margin-bottom: 6px; background: #f8f9fa; gap: 10px;
+                }
+                .ss-member-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+                .ss-member-dot.online { background: #28a745; }
+                .ss-member-dot.offline { background: #ccc; }
+                .ss-member-name { flex: 1; font-size: 0.95em; color: #333; }
+                .ss-member-name .host-badge {
+                    font-size: 0.75em; background: #667eea; color: white; padding: 1px 6px;
+                    border-radius: 6px; margin-left: 6px;
+                }
+                .ss-member-name .pending-badge {
+                    font-size: 0.75em; background: #ffc107; color: #333; padding: 1px 6px;
+                    border-radius: 6px; margin-left: 6px;
+                }
+                .ss-member-actions { display: flex; gap: 4px; }
+                .ss-member-actions button {
+                    padding: 4px 10px; border: none; border-radius: 6px; font-size: 0.8em;
+                    cursor: pointer; transition: opacity 0.2s;
+                }
+                .ss-member-actions button:hover { opacity: 0.8; }
+                .ss-btn-approve { background: #28a745; color: white; }
+                .ss-btn-reject { background: #dc3545; color: white; }
+                .ss-btn-kick { background: #ff6b6b; color: white; }
+                .ss-members-close, .ss-myserver-close {
+                    margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
+                    background: #eee; color: #666; font-size: 0.95em; cursor: pointer; width: 100%;
+                }
+                .ss-error-box {
+                    background: white; border-radius: 20px; padding: 30px; width: 320px;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
+                }
+                .ss-error-box h3 { margin: 0 0 12px 0; color: #dc3545; }
+                .ss-error-box p { color: #555; font-size: 0.95em; margin: 0 0 20px 0; }
+                .ss-error-box button {
+                    padding: 12px 40px; border: none; border-radius: 10px;
+                    background: #667eea; color: white; font-size: 0.95em; cursor: pointer;
+                }
+                .ss-pw-box {
+                    background: white; border-radius: 20px; padding: 30px; width: 340px;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
+                }
+                .ss-pw-box h3 { margin: 0 0 16px 0; color: #333; }
+                .ss-pw-box input {
+                    width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px;
+                    font-size: 16px; text-align: center; box-sizing: border-box; margin-bottom: 12px;
+                }
+                .ss-pw-box input:focus { border-color: #667eea; outline: none; }
+                .ss-pw-btns { display: flex; gap: 10px; }
+                .ss-pw-btns button {
+                    flex: 1; padding: 12px; border: none; border-radius: 10px;
+                    font-size: 0.95em; cursor: pointer;
+                }
+                .ss-pw-cancel { background: #eee; color: #666; }
+                .ss-pw-confirm { background: #667eea; color: white; }
+                .ss-spinner {
+                    width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
+                    border-top-color: #fff; border-radius: 50%;
+                    animation: ssSpin 0.8s linear infinite;
+                }
+                @keyframes ssSpin { to { transform: rotate(360deg); } }
+                .ss-joining-text { color: #fff; font-size: 1em; }
+                .ss-joining-cancel {
+                    margin-top: 8px; padding: 8px 24px; border: 1px solid rgba(255,255,255,0.4);
+                    border-radius: 10px; background: transparent; color: rgba(255,255,255,0.8);
+                    font-size: 0.85em; cursor: pointer;
+                }
+                .ss-joining-cancel:hover { background: rgba(255,255,255,0.1); }
+                .ss-myserver-item {
+                    padding: 12px; border-radius: 12px; margin-bottom: 8px;
+                    background: #f8f9fa; border: 1px solid #eee;
+                }
+                .ss-myserver-item-header {
+                    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+                }
+                .ss-myserver-item-name { font-weight: 600; color: #333; font-size: 0.95em; }
+                .ss-myserver-item-meta { font-size: 0.8em; color: #999; }
+                .ss-myserver-item-actions { display: flex; gap: 6px; margin-top: 8px; }
+                .ss-myserver-item-actions button {
+                    padding: 6px 12px; border: none; border-radius: 8px;
+                    font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
+                }
+                .ss-myserver-item-actions button:hover { opacity: 0.8; }
+                .ss-btn-members { background: #667eea; color: white; }
+                .ss-btn-delete { background: #dc3545; color: white; }
+                @keyframes ssShake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-6px); }
+                    75% { transform: translateX(6px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         // 뒤로가기 시 서버 선택 화면으로 복귀
         window.addEventListener('popstate', (e) => {
             if (!e.state || e.state.ssPage === 'serverSelect') {
@@ -122,11 +236,6 @@ const ServerSelectModule = (function () {
                     font-size: 0.75em; color: rgba(255,255,255,0.6); transition: color 0.2s;
                 }
                 .ss-logout-btn:hover { color: rgba(255,255,255,0.9); }
-                @keyframes ssShake {
-                    0%, 100% { transform: translateX(0); }
-                    25% { transform: translateX(-6px); }
-                    75% { transform: translateX(6px); }
-                }
 
                 .ss-free-btn {
                     width: 100%; padding: 16px; border: 2px dashed #ccc; border-radius: 14px;
@@ -139,6 +248,15 @@ const ServerSelectModule = (function () {
                 .ss-divider::before, .ss-divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
 
                 .ss-section-title { font-size: 0.9em; font-weight: 600; color: #555; margin-bottom: 12px; }
+                .ss-refresh-btn {
+                    background: #f0f0ff; border: 1.5px solid #ddd; border-radius: 8px;
+                    cursor: pointer; padding: 4px 10px; font-size: 0.85em; color: #667eea;
+                    transition: all 0.2s; display: flex; align-items: center; gap: 4px;
+                }
+                .ss-refresh-btn:hover { background: #e0e0ff; border-color: #667eea; }
+                .ss-refresh-btn:active { transform: scale(0.95); }
+                .ss-refresh-btn .ss-spin { display: inline-block; transition: transform 0.3s; }
+                .ss-refresh-btn:active .ss-spin { transform: rotate(180deg); }
 
                 /* 검색 입력 */
                 .ss-search-wrap { margin-bottom: 12px; }
@@ -177,30 +295,6 @@ const ServerSelectModule = (function () {
                 .ss-loading { text-align: center; padding: 30px; color: #999; }
                 .ss-error { color: #dc3545; font-size: 0.85em; margin-top: 8px; display: none; text-align: center; }
 
-                /* 공용 모달 */
-                .ss-pw-modal {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
-                    align-items: center; justify-content: center;
-                }
-                .ss-pw-box {
-                    background: white; border-radius: 20px; padding: 30px; width: 340px;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
-                }
-                .ss-pw-box h3 { margin: 0 0 16px 0; color: #333; }
-                .ss-pw-box input {
-                    width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px;
-                    font-size: 16px; text-align: center; box-sizing: border-box; margin-bottom: 12px;
-                }
-                .ss-pw-box input:focus { border-color: #667eea; outline: none; }
-                .ss-pw-btns { display: flex; gap: 10px; }
-                .ss-pw-btns button {
-                    flex: 1; padding: 12px; border: none; border-radius: 10px;
-                    font-size: 0.95em; cursor: pointer;
-                }
-                .ss-pw-cancel { background: #eee; color: #666; }
-                .ss-pw-confirm { background: #667eea; color: white; }
-
                 /* 서버 생성 모달 */
                 .ss-create-modal {
                     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -221,123 +315,6 @@ const ServerSelectModule = (function () {
                 .ss-input-group input:focus, .ss-input-group textarea:focus { border-color: #667eea; outline: none; }
                 .ss-input-group textarea { resize: none; height: 60px; }
 
-                /* 멤버 관리 모달 */
-                .ss-members-modal {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
-                    align-items: center; justify-content: center;
-                }
-                .ss-members-box {
-                    background: white; border-radius: 20px; padding: 28px; width: 400px;
-                    max-width: 90%; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                    display: flex; flex-direction: column;
-                }
-                .ss-members-box h3 { margin: 0 0 16px 0; color: #333; text-align: center; }
-                .ss-members-list { flex: 1; overflow-y: auto; max-height: 400px; }
-                .ss-member-item {
-                    display: flex; align-items: center; padding: 10px 12px; border-radius: 10px;
-                    margin-bottom: 6px; background: #f8f9fa; gap: 10px;
-                }
-                .ss-member-dot {
-                    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-                }
-                .ss-member-dot.online { background: #28a745; }
-                .ss-member-dot.offline { background: #ccc; }
-                .ss-member-name { flex: 1; font-size: 0.95em; color: #333; }
-                .ss-member-name .host-badge {
-                    font-size: 0.75em; background: #667eea; color: white; padding: 1px 6px;
-                    border-radius: 6px; margin-left: 6px;
-                }
-                .ss-member-name .pending-badge {
-                    font-size: 0.75em; background: #ffc107; color: #333; padding: 1px 6px;
-                    border-radius: 6px; margin-left: 6px;
-                }
-                .ss-member-actions { display: flex; gap: 4px; }
-                .ss-member-actions button {
-                    padding: 4px 10px; border: none; border-radius: 6px; font-size: 0.8em;
-                    cursor: pointer; transition: opacity 0.2s;
-                }
-                .ss-member-actions button:hover { opacity: 0.8; }
-                .ss-btn-approve { background: #28a745; color: white; }
-                .ss-btn-reject { background: #dc3545; color: white; }
-                .ss-btn-kick { background: #ff6b6b; color: white; }
-                .ss-members-close {
-                    margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
-                    background: #eee; color: #666; font-size: 0.95em; cursor: pointer; width: 100%;
-                }
-
-                /* 입장 로딩 오버레이 */
-                .ss-joining-overlay {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.6); z-index: 10002;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-                }
-                .ss-spinner {
-                    width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
-                    border-top-color: #fff; border-radius: 50%;
-                    animation: ssSpin 0.8s linear infinite;
-                }
-                @keyframes ssSpin { to { transform: rotate(360deg); } }
-                .ss-joining-text { color: #fff; font-size: 1em; }
-                .ss-joining-cancel {
-                    margin-top: 8px; padding: 8px 24px; border: 1px solid rgba(255,255,255,0.4);
-                    border-radius: 10px; background: transparent; color: rgba(255,255,255,0.8);
-                    font-size: 0.85em; cursor: pointer;
-                }
-                .ss-joining-cancel:hover { background: rgba(255,255,255,0.1); }
-
-                /* 에러 모달 */
-                .ss-error-modal {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.5); z-index: 10003;
-                    display: flex; align-items: center; justify-content: center;
-                }
-                .ss-error-box {
-                    background: white; border-radius: 20px; padding: 30px; width: 320px;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
-                    animation: ssShake 0.4s ease;
-                }
-                .ss-error-box h3 { margin: 0 0 12px 0; color: #dc3545; }
-                .ss-error-box p { color: #555; font-size: 0.95em; margin: 0 0 20px 0; }
-                .ss-error-box button {
-                    padding: 12px 40px; border: none; border-radius: 10px;
-                    background: #667eea; color: white; font-size: 0.95em; cursor: pointer;
-                }
-
-                /* 내 서버 관리 모달 */
-                .ss-myserver-modal {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
-                    align-items: center; justify-content: center;
-                }
-                .ss-myserver-box {
-                    background: white; border-radius: 20px; padding: 28px; width: 420px;
-                    max-width: 90%; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                    display: flex; flex-direction: column;
-                }
-                .ss-myserver-box h3 { margin: 0 0 16px 0; color: #333; text-align: center; }
-                .ss-myserver-list { flex: 1; overflow-y: auto; max-height: 400px; }
-                .ss-myserver-item {
-                    padding: 12px; border-radius: 12px; margin-bottom: 8px;
-                    background: #f8f9fa; border: 1px solid #eee;
-                }
-                .ss-myserver-item-header {
-                    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
-                }
-                .ss-myserver-item-name { font-weight: 600; color: #333; font-size: 0.95em; }
-                .ss-myserver-item-meta { font-size: 0.8em; color: #999; }
-                .ss-myserver-item-actions { display: flex; gap: 6px; margin-top: 8px; }
-                .ss-myserver-item-actions button {
-                    padding: 6px 12px; border: none; border-radius: 8px;
-                    font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
-                }
-                .ss-myserver-item-actions button:hover { opacity: 0.8; }
-                .ss-btn-members { background: #667eea; color: white; }
-                .ss-btn-delete { background: #dc3545; color: white; }
-                .ss-myserver-close {
-                    margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
-                    background: #eee; color: #666; font-size: 0.95em; cursor: pointer; width: 100%;
-                }
                 .ss-manage-btn {
                     width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 14px;
                     background: white; color: #667eea; font-size: 0.95em; font-weight: 600;
@@ -367,9 +344,9 @@ const ServerSelectModule = (function () {
 
                 <div class="ss-divider">또는 서버 참여</div>
 
-                <div class="ss-section-title" style="display:flex;align-items:center;justify-content:space-between;white-space:nowrap;">
+                <div class="ss-section-title" style="display:flex;align-items:center;justify-content:space-between;">
                     서버 목록
-                    <button onclick="ServerSelectModule.refreshServers()" style="background:none;border:none;cursor:pointer;font-size:0.7em;padding:0;color:#aaa;">🔄</button>
+                    <button class="ss-refresh-btn" onclick="ServerSelectModule.refreshServers()"><span class="ss-spin">↻</span> 새로고침</button>
                 </div>
                 <div class="ss-search-wrap">
                     <input type="text" id="ss-search-input" placeholder="서버 검색..." oninput="ServerSelectModule.onSearch()" />

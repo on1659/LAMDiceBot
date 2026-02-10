@@ -35,6 +35,10 @@ async function createServer({ name, description, hostId, hostName, password }) {
     const pool = getPool();
     if (!pool) return { error: 'DB 미연결' };
 
+    // 서버 이름 중복 체크
+    const existing = await pool.query('SELECT id FROM servers WHERE name = $1', [name]);
+    if (existing.rows.length > 0) return { error: '이미 같은 이름의 서버가 있습니다.' };
+
     const passwordHash = await hashPassword(password);
 
     const result = await pool.query(
