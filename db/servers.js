@@ -5,7 +5,7 @@ let bcrypt = null;
 try {
     bcrypt = require('bcrypt');
 } catch (e) {
-    console.warn('⚠️  bcrypt 미설치. 서버 비밀번호가 평문 저장됩니다. npm install bcrypt');
+    console.warn('⚠️  bcrypt 미설치. 서버 참여코드가 평문 저장됩니다. npm install bcrypt');
 }
 
 const SALT_ROUNDS = 10;
@@ -142,26 +142,25 @@ async function joinServer(serverId, userName, password) {
     if (!server) return { error: '서버를 찾을 수 없습니다.' };
     if (!server.is_active) return { error: '비활성화된 서버입니다.' };
 
-    // 비밀번호 확인
-    if (server.password_hash) {
-        const match = await comparePassword(password, server.password_hash);
-        if (!match) return { error: '비밀번호가 일치하지 않습니다.' };
-    }
-
-    // 이미 멤버인지 확인
+    // 이미 멤버인지 먼저 확인 (멤버면 참여코드 없이 바로 입장)
     const existing = await pool.query(
         'SELECT id, is_approved FROM server_members WHERE server_id = $1 AND user_name = $2',
         [serverId, userName]
     );
 
     if (existing.rows.length > 0) {
-        // 기존 멤버는 제한 없이 재입장
-        // last_seen 업데이트
+        // 기존 멤버는 참여코드 없이 재입장
         await pool.query(
             'UPDATE server_members SET last_seen_at = NOW() WHERE server_id = $1 AND user_name = $2',
             [serverId, userName]
         );
         return { member: existing.rows[0], alreadyMember: true };
+    }
+
+    // 새 가입: 참여코드 확인
+    if (server.password_hash) {
+        const match = await comparePassword(password, server.password_hash);
+        if (!match) return { error: '참여코드가 일치하지 않습니다.' };
     }
 
     // 참여 서버 5개 제한

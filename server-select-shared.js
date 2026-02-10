@@ -596,7 +596,7 @@ const ServerSelectModule = (function () {
             const initial = s.name.charAt(0).toUpperCase();
             const privateBadge = s.is_private ? '<span class="ss-server-badge private">🔒</span>' : '';
             return `
-                <div class="ss-server-card" onclick="ServerSelectModule.selectServer(${s.id}, '${escapeStr(s.name)}', ${!!s.is_private})">
+                <div class="ss-server-card" onclick="ServerSelectModule.selectServer(${s.id}, '${escapeStr(s.name)}', ${!!s.is_private}, ${!!s.is_member})">
                     <div class="ss-server-icon" style="background: ${color}15; color: ${color};">${initial}</div>
                     <div class="ss-server-info">
                         <div class="ss-server-name">${escapeStr(s.name)} ${privateBadge}</div>
@@ -617,8 +617,8 @@ const ServerSelectModule = (function () {
         });
     }
 
-    function selectServer(id, name, isPrivate) {
-        if (isPrivate) {
+    function selectServer(id, name, isPrivate, isMember) {
+        if (isPrivate && !isMember) {
             showPasswordModal(id, name);
         } else {
             _selectServer(id, name);
@@ -686,7 +686,7 @@ const ServerSelectModule = (function () {
             modal.innerHTML = `
                 <div class="ss-pw-box">
                     <h3>🔒 ${escapeStr(serverName)}</h3>
-                    <input type="password" id="ss-pw-input" placeholder="비밀번호 입력" maxlength="20" />
+                    <input type="password" id="ss-pw-input" placeholder="참여코드 입력" maxlength="20" />
                     <div class="ss-error" id="ss-pw-error"></div>
                     <div class="ss-pw-btns">
                         <button class="ss-pw-cancel" onclick="this.closest('.ss-pw-modal').remove()">취소</button>
@@ -735,8 +735,8 @@ const ServerSelectModule = (function () {
                     <textarea id="ss-create-desc" placeholder="서버 설명 (선택)"></textarea>
                 </div>
                 <div class="ss-input-group">
-                    <label>비밀번호 *</label>
-                    <input type="password" id="ss-create-pw" placeholder="서버 비밀번호 (필수)" maxlength="20" />
+                    <label>참여코드 *</label>
+                    <input type="text" id="ss-create-pw" placeholder="서버 참여코드 (필수)" maxlength="20" />
                 </div>
                 <div class="ss-error" id="ss-create-error"></div>
                 <div style="display:flex;gap:10px;margin-top:16px;">
@@ -766,7 +766,7 @@ const ServerSelectModule = (function () {
             return;
         }
         if (!password) {
-            errEl.textContent = '비밀번호를 입력하세요.';
+            errEl.textContent = '참여코드를 입력하세요.';
             errEl.style.display = 'block';
             return;
         }
