@@ -1856,59 +1856,11 @@
             }
         });
 
-        // 세션 복원: 다른 게임에서 돌아온 경우 또는 새로고침 시 로비 유지
-        const _returnData = sessionStorage.getItem('returnToLobby') || sessionStorage.getItem('diceSession');
-        if (_returnData) {
-            sessionStorage.removeItem('returnToLobby');
-            // 서버 선택 오버레이 숨기고 로비 표시
-            document.body.classList.remove('server-select-active');
-            ServerSelectModule.hide();
-            let _restoredServerName = null;
-            try {
-                const rd = JSON.parse(_returnData);
-                currentServerId = rd.serverId || null;
-                currentServerName = rd.serverName || null;
-                _restoredServerName = rd.serverName || null;
-            } catch(e) {}
-            // 소켓에 서버 ID 설정 (방 목록 필터링 + 입장 검증용)
-            if (currentServerId) {
-                socket.emit('setServerId', { serverId: currentServerId });
-            }
-            // 서버 정보 바 표시
-            const infoBar = document.getElementById('serverInfoBar');
-            infoBar.style.display = 'flex';
-            const membersBtn = document.getElementById('serverMembersBtn');
-            const userName = localStorage.getItem('userName') || '';
-            if (currentServerId) {
-                if (_restoredServerName) {
-                    document.getElementById('serverInfoName').textContent = `🖥️ ${_restoredServerName}`;
-                    document.getElementById('serverInfoName').style.display = '';
-                    document.title = `${_restoredServerName} - LAM Dice :)`;
-                }
-                if (membersBtn) membersBtn.style.display = '';
-            } else {
-                document.getElementById('serverInfoName').style.display = 'none';
-                if (membersBtn) membersBtn.style.display = 'none';
-            }
-            const userNameSpan = document.getElementById('serverInfoUserName');
-            if (userName && userNameSpan) {
-                userNameSpan.textContent = `👤 ${userName}`;
-                userNameSpan.style.display = '';
-            }
-            const globalInput = document.getElementById('globalUserNameInput');
-            if (globalInput && userName && !globalInput.value) globalInput.value = userName;
-            document.getElementById('lobbySection').classList.add('active');
-            RankingModule.init(currentServerId, userName || '');
-            PageHistoryManager.replacePage('lobby');
-            // 방 목록 로드
-            socket.emit('getRooms');
-            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId });
-        } else {
-            // 페이지 로드 시 서버 선택 표시 (로비 숨김 상태에서)
-            document.body.classList.add('server-select-active');
-            document.getElementById('lobbySection').classList.remove('active');
-            ServerSelectModule.show();
-        }
+        // 페이지 로드/새로고침 시 항상 서버 선택 화면 표시 (로비 복원 안 함)
+        sessionStorage.removeItem('returnToLobby');
+        document.body.classList.add('server-select-active');
+        document.getElementById('lobbySection').classList.remove('active');
+        ServerSelectModule.show();
 
         // 아이디 유효성 검사 함수 (한글, 영문 소문자, 숫자, _, - 허용)
         function validateUserId(userId) {
