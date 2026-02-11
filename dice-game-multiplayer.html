@@ -382,6 +382,18 @@
             align-items: center;
             gap: 10px;
         }
+        #headerServerNameDisplay {
+            flex-shrink: 0;
+            min-width: 80px;
+            padding: 6px 12px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            border: 1px solid #667eea;
+            display: inline-block !important;
+            font-size: 13px !important;
+            color: #667eea !important;
+            visibility: visible !important;
+        }
         .connection-sound-row label {
             display: flex;
             align-items: center;
@@ -1484,11 +1496,12 @@
         <!-- 게임 섹션 -->
         <div class="game-section" id="gameSection">
             <div class="user-info">
+                <span id="headerServerNameDisplay" style="font-size: 13px; color: #667eea; font-weight: 600; white-space: nowrap; flex-shrink: 0;" title="현재 서버">🖥️ 서버</span>
                 <div>
                     <span class="user-name" id="currentUser"></span>
                     <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
                     <span id="roomStatusIcons" style="display: flex; align-items: center; gap: 5px;"></span>
                     <span class="connection-sound-row">
                         <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
@@ -1507,11 +1520,12 @@
                 <p id="reconnectMessage"></p>
             </div>
 
-            <!-- 1. 방 제목 -->
+            <!-- 1. 방 제목 + 서버명 -->
             <div class="room-info-section" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: #667eea; margin-bottom: 10px;">
+                <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: #667eea; margin-bottom: 6px;">
                     <span id="roomNameText">방 제목</span>
                 </div>
+                <div id="currentServerNameDisplay" style="font-size: 14px; color: #666; font-weight: 500;">🖥️ 서버</div>
                 <div id="roomNameEditSection" style="display: none;">
                     <div class="input-group" style="margin-bottom: 10px;">
                         <input type="text" id="roomNameInput" placeholder="방 제목 입력" maxlength="30" />
@@ -1815,6 +1829,7 @@
             if (globalInput && userName && !globalInput.value) globalInput.value = userName;
             document.getElementById('lobbySection').classList.add('active');
             RankingModule.init(selection.serverId, userName || document.getElementById('globalUserNameInput')?.value || '');
+            if (typeof refreshRooms === 'function') refreshRooms();
         }, () => {
             document.body.classList.add('server-select-active');
             document.getElementById('lobbySection').classList.remove('active');
@@ -1881,14 +1896,6 @@
             const debugLogSection = document.getElementById('debugLogSection');
             if (debugLogSection) {
                 debugLogSection.style.display = 'none';
-            }
-        }
-        
-        // 로컬에서는 방 제목 기본값을 "test"로 설정
-        if (isLocalhost) {
-            const roomNameInput = document.getElementById('createRoomNameInput');
-            if (roomNameInput) {
-                roomNameInput.value = 'test';
             }
         }
         
@@ -2531,10 +2538,9 @@
                     statusText = '주문받기 중';
                 }
                 
-                const serverTag = room.serverName ? `<span style="color: #667eea; font-weight: 600; margin-right: 4px;">[${room.serverName}]</span>` : '';
                 const roomNameHtml = isMyRoom
-                    ? `${serverTag}${room.roomName}<span class="my-room-badge">참여 중</span>`
-                    : `${serverTag}${room.roomName}`;
+                    ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
+                    : room.roomName;
                 
                 // 비공개 방 표시
                 const privateBadge = room.isPrivate 
@@ -3271,19 +3277,12 @@
             document.getElementById('createRoomPrivateCheckbox').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
             document.getElementById('createRoomPasswordContainer').style.display = 'none';
-            // IP 차단 옵션 UI 제거됨 (blockIPPerUser는 항상 false)
-            
-            // 방 제목 자동 생성 (로컬에서는 "test", 그 외에는 전역 이름 사용)
-            if (isLocalhost) {
-                document.getElementById('createRoomNameInput').value = 'test';
-            } else {
-                document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
+            // 방 제목 기본값 (로컬: test, 그 외: 이름님의 Dice)
+            const createRoomNameInput = document.getElementById('createRoomNameInput');
+            if (createRoomNameInput) {
+                createRoomNameInput.value = isLocalhost ? 'test' : (hostName ? `${hostName}님의 Dice` : '');
+                setTimeout(() => createRoomNameInput.focus(), 100);
             }
-            
-            // 방 제목 입력창에 포커스
-            setTimeout(() => {
-                document.getElementById('createRoomNameInput').focus();
-            }, 100);
         }
         
         // 게임 섹션의 게임 룰 라디오 버튼 이벤트 리스너
@@ -3434,32 +3433,26 @@
         function finalizeRoomCreation() {
             const globalNameInput = document.getElementById('globalUserNameInput');
             const roomNameInput = document.getElementById('createRoomNameInput');
-            
             const hostName = globalNameInput ? globalNameInput.value.trim() : '';
-            const roomName = roomNameInput.value.trim();
+            const roomName = roomNameInput ? roomNameInput.value.trim() : '';
             
             if (hostName === '') {
                 showCustomAlert('이름을 먼저 입력해주세요! 대기실로 돌아가서 이름을 입력하세요.', 'warning');
                 goBackToLobby();
-                if (globalNameInput) {
-                    globalNameInput.focus();
-                }
+                if (globalNameInput) globalNameInput.focus();
                 return;
             }
             
-            // 유효성 검사
             if (!validateUserId(hostName)) {
                 showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
                 goBackToLobby();
-                if (globalNameInput) {
-                    globalNameInput.focus();
-                }
+                if (globalNameInput) globalNameInput.focus();
                 return;
             }
             
             if (roomName === '') {
                 showCustomAlert('방 제목을 입력해주세요!', 'warning');
-                roomNameInput.focus();
+                if (roomNameInput) roomNameInput.focus();
                 return;
             }
             
@@ -3511,7 +3504,6 @@
             
             // 룰렛 게임이면 룰렛 페이지로 이동
             if (gameType === 'roulette') {
-                // 이름을 저장하고 룰렛 페이지로 이동
                 localStorage.setItem('rouletteUserName', hostName);
                 localStorage.setItem('pendingRouletteRoom', JSON.stringify({
                     userName: hostName,
@@ -3529,7 +3521,6 @@
 
             // 경마 게임이면 경마 페이지로 이동
             if (gameType === 'horse-race') {
-                // 이름을 저장하고 경마 페이지로 이동
                 localStorage.setItem('horseRaceUserName', hostName);
                 localStorage.setItem('pendingHorseRaceRoom', JSON.stringify({
                     userName: hostName,
@@ -3545,7 +3536,7 @@
                 return;
             }
             
-            // 방 생성 (게임 룰은 방 생성 후 설정)
+            // 방 생성 (방 제목은 클라이언트 입력)
             socket.emit('createRoom', {
                 userName: hostName,
                 roomName: roomName,
@@ -3675,28 +3666,6 @@
                 });
             }
             
-            // 방 제목 입력창에서 이름 기반 자동 업데이트
-            const roomNameInput = document.getElementById('createRoomNameInput');
-            if (globalNameInput && roomNameInput) {
-                let isUpdating = false;
-                globalNameInput.addEventListener('input', () => {
-                    if (isUpdating) return;
-                    // 로컬에서는 자동 업데이트 안 함
-                    if (isLocalhost) return;
-                    
-                    const hostName = globalNameInput.value.trim();
-                    // 방 제목이 기본 형식이거나 비어있을 때만 자동 업데이트 (방 생성 페이지가 열려있을 때만)
-                    const createRoomSection = document.getElementById('createRoomSection');
-                    if (!createRoomSection || !createRoomSection.classList.contains('active')) return;
-                    
-                    const currentRoomName = roomNameInput.value.trim();
-                    if (!currentRoomName || currentRoomName.endsWith('님의 Dice')) {
-                        isUpdating = true;
-                        roomNameInput.value = hostName ? `${hostName}님의 Dice` : '';
-                        isUpdating = false;
-                    }
-                });
-            }
         });
         
         // 방 생성 성공
@@ -3805,9 +3774,15 @@
                 roomStatusIcons.style.display = 'none';
             }
             
-            // 방 제목 표시 (서버 이름 포함)
-            const _serverTag = currentServerName ? `[${currentServerName}] ` : '';
-            document.getElementById('roomNameText').textContent = _serverTag + (data.roomName || '방');
+            // 방 제목 표시 (태그 없이 방 제목만)
+            document.getElementById('roomNameText').textContent = data.roomName || '방';
+            // 서버명 표시 (상단 바 맨 왼쪽 + 방 제목 아래)
+            const _serverName = (data && data.serverName) || currentServerName || '';
+            const serverLabel = _serverName ? `🖥️ ${_serverName}` : '🖥️ 자유방';
+            const serverNameEl = document.getElementById('currentServerNameDisplay');
+            if (serverNameEl) { serverNameEl.textContent = serverLabel; serverNameEl.style.display = ''; }
+            const headerServerEl = document.getElementById('headerServerNameDisplay');
+            if (headerServerEl) { headerServerEl.textContent = serverLabel; headerServerEl.style.display = 'inline-block'; headerServerEl.style.visibility = 'visible'; }
             
             // 호스트면 방 제목 변경 버튼 표시
             if (isHost) {
@@ -4253,8 +4228,7 @@
         
         // 방 제목 업데이트
         socket.on('roomNameUpdated', (roomName) => {
-            const sTag = currentServerName ? `[${currentServerName}] ` : '';
-            document.getElementById('roomNameText').textContent = sTag + roomName;
+            document.getElementById('roomNameText').textContent = roomName;
             cancelRoomNameEdit();
         });
         

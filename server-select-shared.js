@@ -389,7 +389,7 @@ const ServerSelectModule = (function () {
                 </div>
 
                 <button class="ss-free-btn" onclick="ServerSelectModule.selectFree()">
-                    🎲 자유 플레이
+                    🎲 자유 플레이 (기존 방식) 🎲
                 </button>
 
                 <div class="ss-divider">또는 서버 참여</div>

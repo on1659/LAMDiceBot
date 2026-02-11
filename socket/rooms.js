@@ -365,6 +365,8 @@ module.exports = (socket, io, ctx) => {
         const roomCreatedData = {
             roomId,
             roomName: finalRoomName,
+            serverId: room.serverId || null,
+            serverName: room.serverName || null,
             userName: trimmedUserName, // 호스트 이름 추가
             readyUsers: gameState.readyUsers || [], // 준비 목록 전송
             isReady: gameState.readyUsers.includes(trimmedUserName), // 호스트가 준비 목록에 있는지 확인
@@ -560,6 +562,8 @@ module.exports = (socket, io, ctx) => {
                 socket.emit('roomJoined', {
                     roomId,
                     roomName: room.roomName,
+                    serverId: room.serverId || null,
+                    serverName: room.serverName || null,
                     userName: userName.trim(),
                     isHost: user.isHost,
                     hasRolled: hasRolled,
@@ -779,6 +783,8 @@ module.exports = (socket, io, ctx) => {
         socket.emit('roomJoined', {
             roomId,
             roomName: room.roomName,
+            serverId: room.serverId || null,
+            serverName: room.serverName || null,
             userName: finalUserName, // 중복 시 변경된 이름 전달
             isHost: finalIsHost,
             hasRolled: hasRolled,
