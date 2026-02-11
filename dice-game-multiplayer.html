@@ -68,8 +68,6 @@
         }
 
         /* 서버 선택 오버레이 표시 중 본문 숨기기 */
-        body.server-select-active header,
-        body.server-select-active footer,
         body.server-select-active .container {
             display: none;
         }
@@ -1296,6 +1294,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
             <div id="visitorStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
+                <div style="font-size:11px;color:#999;margin-bottom:2px;">전체 서버 통합</div>
                 <div>오늘 방문자 수: <strong id="todayVisitorCount">0</strong>명</div>
                 <div>오늘 플레이 횟수: <strong id="todayPlayCount">0</strong>회</div>
                 <div>총 플레이 횟수: <strong id="totalPlayCount">0</strong>회</div>
@@ -1861,6 +1860,9 @@
         const _returnData = sessionStorage.getItem('returnToLobby') || sessionStorage.getItem('diceSession');
         if (_returnData) {
             sessionStorage.removeItem('returnToLobby');
+            // 서버 선택 오버레이 숨기고 로비 표시
+            document.body.classList.remove('server-select-active');
+            ServerSelectModule.hide();
             let _restoredServerName = null;
             try {
                 const rd = JSON.parse(_returnData);
@@ -3851,8 +3853,9 @@
                 roomStatusIcons.style.display = 'none';
             }
             
-            // 방 제목 표시
-            document.getElementById('roomNameText').textContent = data.roomName || '방';
+            // 방 제목 표시 (서버 이름 포함)
+            const _serverTag = currentServerName ? `[${currentServerName}] ` : '';
+            document.getElementById('roomNameText').textContent = _serverTag + (data.roomName || '방');
             
             // 호스트면 방 제목 변경 버튼 표시
             if (isHost) {
@@ -4298,7 +4301,8 @@
         
         // 방 제목 업데이트
         socket.on('roomNameUpdated', (roomName) => {
-            document.getElementById('roomNameText').textContent = roomName;
+            const sTag = currentServerName ? `[${currentServerName}] ` : '';
+            document.getElementById('roomNameText').textContent = sTag + roomName;
             cancelRoomNameEdit();
         });
         
@@ -7189,8 +7193,7 @@
         <div style="margin-top: 10px;">
             <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">개인정보 처리방침</a> |
             <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">이용 약관</a> |
-            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">문의하기</a> |
-            <a href="statistics.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">📊 통계</a>
+            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">문의하기</a>
         </div>
     </footer>
 </body>

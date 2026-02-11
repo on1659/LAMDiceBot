@@ -1,4 +1,59 @@
 ========================================
+📋 Summit Log - 2026-02-12 (회원가입 개선 + 세션 복원 + UI 수정)
+========================================
+
+## 변경 파일 (4개)
+- server-select-shared.js: 회원가입 암호코드 확인, _showConfirm 커스텀 모달, footer 링크, 통계 링크, pendingCount 빨간점
+- dice-game-multiplayer.html: 세션 복원 시 오버레이 숨김, server-select-active CSS 수정, 방 제목에 서버이름 태그, 통계 링크 제거, 전체서버통합 라벨
+- ranking-shared.js: PC max-width를 헤더/탭 제거하고 콘텐츠만 640px
+- socket/server.js: serverJoined에 pendingCount 포함 (호스트용), server.js 오타 제거
+
+## 상세 변경 내역
+
+### 1. 회원가입 암호코드 확인
+- server-select-shared.js: _authModal에 isRegister 파라미터 추가
+- 회원가입 시 "암호코드 확인" 입력 필드 추가 (ss-pin-confirm)
+- 두 값 불일치 시 "암호코드가 일치하지 않습니다" 에러
+- Enter 키 흐름: 이름→암호코드→암호코드 확인→제출
+- doSubmit → doApiCall 분리: 확인 모달 후 API 호출
+
+### 2. 커스텀 확인 모달 (_showConfirm)
+- 브라우저 confirm() 대신 커스텀 오버레이 모달
+- "비밀번호 찾기 기능이 없습니다" 경고 + 취소/가입하기 버튼
+- 배경 클릭으로 닫기 지원
+
+### 3. 서버 선택 footer 링크
+- 서버 선택 오버레이 하단에 Copyright + 개인정보/이용약관/문의하기/통계 링크
+- 보라색 배경에 맞는 흰색 반투명 스타일
+- 기존 footer에서 통계 링크 제거 (서버 선택에서만 접근)
+
+### 4. 세션 복원 + 서버 선택 오버레이 처리
+- diceSession 복원 시 document.body.classList.remove('server-select-active') 추가
+- ServerSelectModule.hide() 호출로 오버레이 제거
+- body.server-select-active CSS에서 header/footer 숨김 제거 (container만 숨김)
+
+### 5. 방 제목에 서버 이름 태그
+- joinRoom 콜백에서 [서버이름] + 방제목 형태로 표시
+- roomNameUpdated 이벤트에서도 서버이름 태그 유지
+
+### 6. 랭킹 PC 레이아웃 수정
+- 헤더/탭의 max-width 제거 (전체 너비)
+- 콘텐츠만 max-width: 640px로 중앙 정렬
+
+### 7. 대기 멤버 빨간점 (serverJoined)
+- socket/server.js: 호스트 입장 시 getMembers로 미승인 멤버 수 조회
+- serverJoined 이벤트에 pendingCount 포함
+- server-select-shared.js: pendingCount > 0이면 300ms 후 _showMembersDot() 호출
+
+### 8. 전체 서버 통합 라벨
+- 방문자/플레이 횟수 위에 "전체 서버 통합" 작은 회색 텍스트 추가
+
+### 9. server.js 오타 수정
+- line 36: 'ㅛ' 한글 오타 제거
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-12 (서버 방 격리 + 랭킹/서버 버그 수정)
 ========================================
 

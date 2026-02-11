@@ -146,12 +146,22 @@ function registerServerHandlers(socket, io, ctx) {
             // Socket.IO 룸 조인 (서버 단위 알림용)
             socket.join(`server:${serverId}`);
 
+            // 호스트면 대기 멤버 수 포함
+            let pendingCount = 0;
+            if (server.host_name === userName) {
+                try {
+                    const pr = await require('../db/servers').getMembers(serverId);
+                    pendingCount = pr.filter(m => !m.is_approved).length;
+                } catch (e) {}
+            }
+
             socket.emit('serverJoined', {
                 id: server.id,
                 name: server.name,
                 hostName: server.host_name,
                 description: server.description,
-                alreadyMember: result.alreadyMember || false
+                alreadyMember: result.alreadyMember || false,
+                pendingCount
             });
 
             // 서버 내 멤버에게 접속 알림

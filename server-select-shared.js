@@ -45,6 +45,10 @@ const ServerSelectModule = (function () {
             _currentServer = { id: data.id, name: data.name, hostName: data.hostName };
             PageHistoryManager.pushPage('lobby');
             if (_onSelect) _onSelect({ serverId: data.id, serverName: data.name, hostName: data.hostName });
+            // 대기 멤버가 있으면 빨간점 표시 (약간 딜레이 - DOM 렌더링 대기)
+            if (data.pendingCount > 0) {
+                setTimeout(() => _showMembersDot(), 300);
+            }
         });
 
         _socket.on('serverJoinRequested', () => {
@@ -394,6 +398,14 @@ const ServerSelectModule = (function () {
                     ${loggedIn ? _serverSectionHTML() : _loginPromptHTML()}
                 </div>
             </div>
+
+            <div style="text-align:center;padding:16px 0 20px;font-size:0.8em;color:rgba(255,255,255,0.5);">
+                <p style="margin:0 0 6px;">Copyright &copy; 2025 LAMDice. All rights reserved.</p>
+                <a href="privacy-policy.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">개인정보 처리방침</a> |
+                <a href="terms-of-service.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">이용 약관</a> |
+                <a href="contact.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">문의하기</a> |
+                <a href="statistics.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">📊 통계</a>
+            </div>
         `;
 
         document.body.appendChild(_overlay);
@@ -529,7 +541,10 @@ const ServerSelectModule = (function () {
         }
     }
 
-    function _authModal({ title, confirmText, apiUrl, onSuccess }) {
+    function _authModal({ title, confirmText, apiUrl, onSuccess, isRegister }) {
+        const confirmPinHTML = isRegister
+            ? `<input type="password" id="ss-pin-confirm" placeholder="암호코드 확인" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="margin-top:8px;" />`
+            : '';
         const modal = document.createElement('div');
         modal.className = 'ss-pw-modal';
         modal.id = 'ss-login-modal';
@@ -538,6 +553,7 @@ const ServerSelectModule = (function () {
                 <h3>${title}</h3>
                 <input type="text" id="ss-login-input" placeholder="이름" maxlength="20" />
                 <input type="password" id="ss-pin-input" placeholder="암호코드 (4~6자리 숫자)" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="margin-top:8px;" />
+                ${confirmPinHTML}
                 <p id="ss-login-error" style="color:#dc3545;font-size:0.8em;margin:6px 0 0;display:none;"></p>
                 <div class="ss-pw-btns">
                     <button class="ss-pw-cancel" onclick="document.getElementById('ss-login-modal').remove()">취소</button>
@@ -548,6 +564,7 @@ const ServerSelectModule = (function () {
         document.body.appendChild(modal);
         const nameInput = document.getElementById('ss-login-input');
         const pinInput = document.getElementById('ss-pin-input');
+        const pinConfirm = document.getElementById('ss-pin-confirm');
         const errorEl = document.getElementById('ss-login-error');
         nameInput.focus();
 
@@ -556,11 +573,7 @@ const ServerSelectModule = (function () {
             errorEl.style.display = 'block';
         }
 
-        async function doSubmit() {
-            const name = nameInput.value.trim();
-            const pin = pinInput.value.trim();
-            if (!name) { nameInput.style.borderColor = '#dc3545'; return; }
-            if (!/^\d{4,6}$/.test(pin)) { pinInput.style.borderColor = '#dc3545'; showError('암호코드는 4~6자리 숫자'); return; }
+        async function doApiCall(name, pin) {
             try {
                 const res = await fetch(apiUrl, {
                     method: 'POST',
@@ -589,7 +602,26 @@ const ServerSelectModule = (function () {
             }
         }
 
-        pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSubmit(); });
+        async function doSubmit() {
+            const name = nameInput.value.trim();
+            const pin = pinInput.value.trim();
+            if (!name) { nameInput.style.borderColor = '#dc3545'; return; }
+            if (!/^\d{4,6}$/.test(pin)) { pinInput.style.borderColor = '#dc3545'; showError('암호코드는 4~6자리 숫자'); return; }
+            if (isRegister && pinConfirm) {
+                const pinC = pinConfirm.value.trim();
+                if (pin !== pinC) { pinConfirm.style.borderColor = '#dc3545'; showError('암호코드가 일치하지 않습니다.'); return; }
+                _showConfirm('비밀번호 찾기 기능이 없습니다.\n암호코드를 신중하게 확인해주세요.', () => doApiCall(name, pin));
+                return;
+            }
+            doApiCall(name, pin);
+        }
+
+        if (isRegister && pinConfirm) {
+            pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') pinConfirm.focus(); });
+            pinConfirm.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSubmit(); });
+        } else {
+            pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSubmit(); });
+        }
         nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') pinInput.focus(); });
         document.getElementById('ss-login-confirm').addEventListener('click', doSubmit);
         return modal;
@@ -600,7 +632,7 @@ const ServerSelectModule = (function () {
     }
 
     function showRegisterModal() {
-        _authModal({ title: '📝 회원가입', confirmText: '가입하기', apiUrl: '/api/auth/register' });
+        _authModal({ title: '📝 회원가입', confirmText: '가입하기', apiUrl: '/api/auth/register', isRegister: true });
     }
 
     function _isLoggedIn() {
@@ -1160,6 +1192,34 @@ const ServerSelectModule = (function () {
     function escapeStr(str) {
         if (!str) return '';
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    }
+
+    function _showConfirm(msg, onConfirm) {
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: '100000'
+        });
+        const box = document.createElement('div');
+        Object.assign(box.style, {
+            background: '#fff', borderRadius: '14px', padding: '24px',
+            maxWidth: '320px', width: '85%', textAlign: 'center',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)'
+        });
+        box.innerHTML = `
+            <p style="font-size:1.5em;margin:0 0 8px;">⚠️</p>
+            <p style="font-size:0.9em;color:#333;margin:0 0 20px;white-space:pre-line;line-height:1.5;">${msg}</p>
+            <div style="display:flex;gap:10px;">
+                <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid #ddd;background:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>
+                <button id="ss-confirm-ok" style="flex:1;padding:10px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:600;">가입하기</button>
+            </div>
+        `;
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        document.getElementById('ss-confirm-cancel').onclick = () => overlay.remove();
+        document.getElementById('ss-confirm-ok').onclick = () => { overlay.remove(); onConfirm(); };
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     }
 
     function _showToast(msg) {

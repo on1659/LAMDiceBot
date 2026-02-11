@@ -84,13 +84,11 @@ const RankingModule = (function () {
         }
         #ranking-overlay.rk-visible { opacity: 1; }
         @media (min-width: 768px) {
-            #ranking-overlay {
-                max-width: 520px;
+            .rk-content {
+                max-width: 640px;
                 margin-left: auto;
                 margin-right: auto;
-                border-left: 1px solid rgba(102,126,234,0.3);
-                border-right: 1px solid rgba(102,126,234,0.3);
-                box-shadow: 0 0 60px rgba(0,0,0,0.5);
+                width: 100%;
             }
         }
 
