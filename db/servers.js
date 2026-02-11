@@ -69,7 +69,9 @@ async function getServers({ activeOnly = true, userName = null } = {}) {
             ? `SELECT s.id, s.name, s.description, s.host_name, s.created_at,
                (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count,
                CASE WHEN s.password_hash != '' THEN true ELSE false END AS is_private,
-               EXISTS(SELECT 1 FROM server_members sm WHERE sm.server_id = s.id AND sm.user_name = $1 AND sm.is_approved = true) AS is_member
+               (s.host_name = $1 OR EXISTS(SELECT 1 FROM server_members sm WHERE sm.server_id = s.id AND sm.user_name = $1 AND sm.is_approved = true)) AS is_member,
+               EXISTS(SELECT 1 FROM server_members sm WHERE sm.server_id = s.id AND sm.user_name = $1 AND sm.is_approved = false) AS is_pending,
+               CASE WHEN s.host_name = $1 THEN (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = false) ELSE 0 END AS pending_count
                FROM servers s WHERE s.is_active = true
                ORDER BY is_member DESC, s.created_at DESC`
             : `SELECT s.id, s.name, s.description, s.host_name, s.created_at,
@@ -115,7 +117,8 @@ async function getMyServers(userName) {
     if (!pool) return [];
     const result = await pool.query(
         `SELECT s.id, s.name, s.description, s.host_name, s.created_at, s.is_active,
-         (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count
+         (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count,
+         (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = false) AS pending_count
          FROM servers s WHERE s.host_name = $1 ORDER BY s.created_at DESC`,
         [userName]
     );
@@ -167,14 +170,14 @@ async function joinServer(serverId, userName, password) {
     const joinedCount = await getUserJoinedCount(userName);
     if (joinedCount >= 5) return { error: '서버는 최대 5개까지 참여할 수 있습니다.' };
 
-    // 새 멤버 등록
+    // 새 멤버 등록 (미승인 상태 → 호스트 승인 필요)
     const result = await pool.query(
         `INSERT INTO server_members (server_id, user_name, is_approved, last_seen_at)
-         VALUES ($1, $2, true, NOW()) RETURNING id, is_approved`,
+         VALUES ($1, $2, false, NOW()) RETURNING id, is_approved`,
         [serverId, userName]
     );
 
-    return { member: result.rows[0] };
+    return { member: result.rows[0], isNewRequest: true };
 }
 
 async function getMembers(serverId) {

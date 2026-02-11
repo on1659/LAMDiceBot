@@ -155,7 +155,7 @@
     </footer>
 
     <script>
-        const gameNames = { 'dice': '🎲 주사위', 'roulette': '🎰 룰렛', 'horse-race': '🐎 경마', 'team': '👥 팀 배정' };
+        const gameNames = { 'dice': '🎲 주사위', 'roulette': '🎰 룰렛', 'horse-race': '🐎 경마' };
         fetch('/api/statistics')
             .then(res => res.ok ? res.json() : Promise.reject(new Error('통계를 불러올 수 없습니다.')))
             .then(data => {

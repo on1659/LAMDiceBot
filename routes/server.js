@@ -111,6 +111,27 @@ router.delete('/admin/servers/:id', adminAuth, async (req, res) => {
     }
 });
 
+// 서버 일괄 삭제 (관리자)
+router.post('/admin/servers/bulk-delete', adminAuth, async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: '삭제할 서버 ID 목록이 필요합니다.' });
+        }
+        let deleted = 0;
+        for (const id of ids) {
+            const numId = parseInt(id);
+            if (!isNaN(numId) && numId > 0) {
+                const success = await deleteServer(numId);
+                if (success) deleted++;
+            }
+        }
+        res.json({ success: true, deleted });
+    } catch (e) {
+        res.status(500).json({ error: '일괄 삭제 실패' });
+    }
+});
+
 // 유저 목록 (관리자)
 router.get('/admin/users', adminAuth, async (req, res) => {
     try {
@@ -235,12 +256,12 @@ router.post('/server/:id/members/:name/approve', async (req, res) => {
     try {
         const serverId = req.serverId;
         const userName = req.params.name;
-        const { isApproved, hostId } = req.body || {};
+        const { isApproved, hostName } = req.body || {};
 
         // 호스트 확인
         const server = await getServerById(serverId);
         if (!server) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
-        if (server.host_id !== hostId) {
+        if (server.host_name !== hostName) {
             return res.status(403).json({ error: '서버 호스트만 멤버를 관리할 수 있습니다.' });
         }
 
@@ -275,11 +296,11 @@ router.delete('/server/:id/members/:name', async (req, res) => {
     try {
         const serverId = req.serverId;
         const userName = req.params.name;
-        const { hostId } = req.body || {};
+        const { hostName } = req.body || {};
 
         const server = await getServerById(serverId);
         if (!server) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
-        if (server.host_id !== hostId) {
+        if (server.host_name !== hostName) {
             return res.status(403).json({ error: '서버 호스트만 멤버를 강퇴할 수 있습니다.' });
         }
 

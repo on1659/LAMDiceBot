@@ -39,24 +39,17 @@ module.exports = (socket, io, ctx) => {
             isPrivate: room.isPrivate || false,
             gameType: room.gameType || 'dice',
             serverId: room.serverId || null,
+            serverName: room.serverName || null,
             createdAt: room.createdAt,
             expiryHours: room.expiryHours || 1
         }));
 
-        // 비공개방: 같은 서버 멤버만 / 공개방: 최대 10개
+        // 같은 서버(또는 자유플레이) 방만 표시
         const filtered = [];
-        let publicCount = 0;
         for (const room of allRooms) {
-            if (room.isPrivate) {
-                if (userServerId && room.serverId === userServerId) {
-                    filtered.push(room);
-                }
-            } else {
-                if (publicCount < PUBLIC_ROOMS_LIMIT) {
-                    filtered.push(room);
-                    publicCount++;
-                }
-            }
+            // 서버가 다르면 표시하지 않음
+            if ((userServerId || null) !== (room.serverId || null)) continue;
+            filtered.push(room);
         }
 
         socket.emit('roomsList', filtered);
@@ -180,7 +173,7 @@ module.exports = (socket, io, ctx) => {
     socket.on('createRoom', async (data) => {
         if (!checkRateLimit()) return;
 
-        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser, turboAnimation, serverId } = data;
+        const { userName, roomName, isPrivate, password, gameType, expiryHours, blockIPPerUser, turboAnimation, serverId, serverName } = data;
 
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             socket.emit('roomError', '올바른 호스트 이름을 입력해주세요!');
@@ -210,8 +203,8 @@ module.exports = (socket, io, ctx) => {
             roomPassword = password.trim();
         }
 
-        // 게임 타입 검증 (dice, roulette, team, horse-race 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'team', 'horse-race'].includes(gameType) ? gameType : 'dice';
+        // 게임 타입 검증 (dice, roulette, horse-race 허용, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette', 'horse-race'].includes(gameType) ? gameType : 'dice';
 
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -282,6 +275,7 @@ module.exports = (socket, io, ctx) => {
             blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
             turboAnimation: validTurboAnimation, // 터보 애니메이션 (다양한 마무리 효과)
             serverId: serverId ? (parseInt(serverId) || null) : null, // 서버 소속
+            serverName: serverName || null, // 서버 이름
             isPrivateServer: false, // 비공개서버 여부 (아래에서 DB 조회 후 설정)
             gameState: gameStateNew,
             createdAt: new Date()
@@ -289,6 +283,11 @@ module.exports = (socket, io, ctx) => {
 
         const room = rooms[roomId];
         const gameState = room.gameState;
+
+        // 소켓에 서버 ID 설정
+        if (room.serverId) {
+            socket.serverId = room.serverId;
+        }
 
         // 비공개서버 여부 캐시 (방 생명주기 동안 불변)
         if (room.serverId) {
@@ -472,6 +471,14 @@ module.exports = (socket, io, ctx) => {
 
         const room = rooms[roomId];
         const gameState = room.gameState;
+
+        // 서버 격리: 다른 서버의 방에는 입장 불가
+        const userServerId = socket.serverId || null;
+        const roomServerId = room.serverId || null;
+        if (userServerId !== roomServerId) {
+            socket.emit('roomError', '다른 서버의 방에는 입장할 수 없습니다.');
+            return;
+        }
 
         // 비공개 방 비밀번호 확인
         if (room.isPrivate) {

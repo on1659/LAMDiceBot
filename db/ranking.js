@@ -189,8 +189,8 @@ async function getFullRanking(serverId, userName, isPrivate) {
         roulette
     };
 
-    // 비공개서버만 주문 랭킹 포함
-    if (isPrivate) {
+    // 서버가 있으면 주문 랭킹 포함
+    if (serverId) {
         result.orders = {
             ...(await getOrderRanking(serverId)),
             myTopMenus: userName ? await getMyTopOrders(serverId, userName) : []

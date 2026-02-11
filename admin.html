@@ -40,6 +40,12 @@
         .btn-danger:hover { background: #c82333; }
         .btn-info { padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
         .btn-info:hover { background: #5a6fd6; }
+        .bulk-bar { display: none; align-items: center; gap: 12px; padding: 10px 16px; background: #fff3f3; border: 1px solid #f5c6cb; border-radius: 8px; margin-bottom: 12px; }
+        .bulk-bar .count { font-weight: bold; color: #dc3545; }
+        .bulk-bar .btn-danger { padding: 8px 16px; }
+        .bulk-bar .btn-cancel { padding: 8px 16px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; font-size: 0.85em; color: #666; }
+        .bulk-bar .btn-cancel:hover { background: #f5f5f5; }
+        table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #667eea; }
         .empty-state { text-align: center; padding: 40px; color: #999; }
         .error-msg { color: #dc3545; margin-top: 8px; font-size: 0.9em; }
         .logout-btn { float: right; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; background: white; color: #666; cursor: pointer; font-size: 0.85em; }
@@ -68,6 +74,11 @@
 
             <div class="section">
                 <h2>서버 관리 <button class="refresh-btn" onclick="loadServers()">새로고침</button></h2>
+                <div class="bulk-bar" id="bulkBar">
+                    <span><span class="count" id="selectedCount">0</span>개 선택됨</span>
+                    <button class="btn-danger" onclick="bulkDeleteServers()">선택 삭제</button>
+                    <button class="btn-cancel" onclick="clearSelection()">취소</button>
+                </div>
                 <div id="serverList"><div class="empty-state">로딩 중...</div></div>
             </div>
 
@@ -148,9 +159,10 @@
                 }
                 document.getElementById('serverList').innerHTML = `
                     <table>
-                        <thead><tr><th>ID</th><th>이름</th><th>호스트</th><th>멤버</th><th>상태</th><th>생성일</th><th>관리</th></tr></thead>
+                        <thead><tr><th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th><th>ID</th><th>이름</th><th>호스트</th><th>멤버</th><th>상태</th><th>생성일</th><th>관리</th></tr></thead>
                         <tbody>${servers.map(s => `
                             <tr>
+                                <td><input type="checkbox" class="server-check" value="${s.id}" onchange="updateBulkBar()"></td>
                                 <td>${s.id}</td>
                                 <td>${esc(s.name)}</td>
                                 <td>${esc(s.host_name)}</td>
@@ -164,7 +176,48 @@
                             </tr>`).join('')}
                         </tbody>
                     </table>`;
+                clearSelection();
             } catch (e) {}
+        }
+
+        function toggleSelectAll(el) {
+            document.querySelectorAll('.server-check').forEach(cb => cb.checked = el.checked);
+            updateBulkBar();
+        }
+
+        function updateBulkBar() {
+            const checked = document.querySelectorAll('.server-check:checked');
+            const bar = document.getElementById('bulkBar');
+            document.getElementById('selectedCount').textContent = checked.length;
+            bar.style.display = checked.length > 0 ? 'flex' : 'none';
+            const all = document.querySelectorAll('.server-check');
+            const selectAll = document.getElementById('selectAll');
+            if (selectAll) selectAll.checked = all.length > 0 && checked.length === all.length;
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.server-check').forEach(cb => cb.checked = false);
+            const selectAll = document.getElementById('selectAll');
+            if (selectAll) selectAll.checked = false;
+            document.getElementById('bulkBar').style.display = 'none';
+        }
+
+        async function bulkDeleteServers() {
+            const ids = [...document.querySelectorAll('.server-check:checked')].map(cb => parseInt(cb.value));
+            if (ids.length === 0) return;
+            if (!confirm(`선택한 ${ids.length}개 서버를 삭제하시겠습니까?`)) return;
+            try {
+                const res = await fetch('/api/admin/servers/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+                    body: JSON.stringify({ ids })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(`${data.deleted}개 서버가 삭제되었습니다.`);
+                    loadServers();
+                } else alert('일괄 삭제 실패');
+            } catch (e) { alert('일괄 삭제 실패'); }
         }
 
         async function deleteServer(id, name) {

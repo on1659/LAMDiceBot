@@ -1,4 +1,74 @@
 ========================================
+📋 Summit Log - 2026-02-12 (서버 방 격리 + 랭킹/서버 버그 수정)
+========================================
+
+## 변경 파일 (20개)
+- ranking-shared.js: 주문 탭 조건 수정, getGameTabKeys 동적 체크, PC max-width 520px
+- db/ranking.js: isPrivate → serverId 기반 주문 데이터 포함 조건
+- db/servers.js: is_member 쿼리에 host_name 포함
+- server-select-shared.js: 기본 필터에 host_name 체크 추가
+- dice-game-multiplayer.html: currentServerName 변수, 세션 복원 시 serverName/setServerId, pending 데이터에 serverName 추가(6곳), 방 목록 서버 태그, createRoom에 serverName
+- js/horse-race.js: currentServerName 변수, pending 데이터에서 serverName 추출, setServerId emit, createRoom에 serverName(2곳)
+- roulette-game-multiplayer.html: currentServerName 변수, pending 데이터에서 serverName 추출, setServerId emit, createRoom에 serverName(2곳)
+- socket/rooms.js: 방 데이터에 serverName 추가, getRooms 서버ID 필터링, joinRoom 서버ID 체크, createRoom에서 socket.serverId 자동 설정
+- socket/server.js: createServer 유효성 검사(이름 2~20자, 설명 100자, 참여코드 4~20자 영숫자), joinServer 승인제 분기(미승인→serverJoinRequested, 승인→serverJoined)
+- admin.html: 체크박스 일괄 삭제 기능, FOUC 수정
+- chat-shared.js: 사소한 수정
+- db/stats.js: 사소한 수정
+- horse-race-multiplayer.html: 사소한 수정
+- routes/api.js: 사소한 수정
+- routes/server.js: 서버 생성 유효성 추가
+- socket/dice.js: 사소한 수정
+- socket/horse.js: 사소한 수정
+- statistics.html: 사소한 수정
+- css/team-pastel.css: 삭제 (팀 게임 제거)
+- team-game-multiplayer.html: 삭제 (팀 게임 제거)
+
+## 상세 변경 내역
+
+### 1. 서버 방 격리 (Server Room Isolation)
+- socket/rooms.js: getRooms에서 userServerId와 room.serverId 비교, 불일치 시 필터링
+- socket/rooms.js: joinRoom에서 serverId 불일치 시 '다른 서버의 방에는 입장할 수 없습니다' 에러
+- socket/rooms.js: createRoom에서 room.serverName 저장, socket.serverId 자동 설정
+- null === null 매칭으로 자유 플레이 사용자끼리만 방 공유
+
+### 2. 서버 이름 방 목록 표시
+- dice-game-multiplayer.html: 방 목록 렌더링에 [서버이름] 태그 추가 (보라색)
+
+### 3. 서버 이름 새로고침 복원
+- dice: sessionStorage의 diceSession에서 serverName 복원, currentServerName 변수
+- horse/roulette: localStorage의 pending 데이터에서 serverName 복원
+- 모든 pending 데이터(6곳)에 serverName 추가
+
+### 4. setServerId 동기화
+- dice: 세션 복원 시 socket.emit('setServerId') 호출
+- horse/roulette: pending 데이터 파싱 후 socket.emit('setServerId') 호출
+- 페이지 이동 시 새 소켓에 serverId가 설정되어 방 격리 정상 동작
+
+### 5. 랭킹 수정
+- ranking-shared.js line 505: data.serverType === 'private' → data.orders 존재 여부
+- getGameTabKeys(): _cache.orders 존재 시에만 'orders' 탭 추가
+- PC 레이아웃: @media (min-width: 768px) max-width: 520px, margin: auto
+
+### 6. 서버 목록 호스트 표시 수정
+- db/servers.js: is_member 쿼리에 s.host_name = $1 OR EXISTS(...) 추가
+- server-select-shared.js: 기본 필터에 s.host_name === myName fallback
+
+### 7. 서버 생성 유효성 검사 (서버 사이드)
+- socket/server.js: 이름 2~20자 한글/영문/숫자/공백/-/_ 허용
+- socket/server.js: 설명 0~100자
+- socket/server.js: 참여코드 4~20자 영숫자만 (선택사항)
+
+### 8. 참여신청 승인제
+- socket/server.js: joinServer에서 신규→serverJoinRequested, 미승인 재접속→serverJoinRequested, 승인 멤버→serverJoined
+
+### 9. 팀 게임 제거
+- team-game-multiplayer.html: 전체 삭제 (1872줄)
+- css/team-pastel.css: 전체 삭제 (419줄)
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-11 (서버 선택 디자인 복원 + 기능 유지)
 ========================================
 

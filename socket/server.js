@@ -21,7 +21,37 @@ function registerServerHandlers(socket, io, ctx) {
             socket.emit('serverError', '서버 이름과 호스트 이름은 필수입니다.');
             return;
         }
-        if (name.length > 100 || hostName.length > 50) {
+
+        // 서버 이름 유효성 검사: 2~20자, 한글/영문/숫자/공백/-/_ 만 허용
+        const nameTrimmed = name.trim();
+        if (nameTrimmed.length < 2 || nameTrimmed.length > 20) {
+            socket.emit('serverError', '서버 이름은 2~20자로 입력하세요.');
+            return;
+        }
+        if (!/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9\s_-]+$/.test(nameTrimmed)) {
+            socket.emit('serverError', '서버 이름에 특수문자를 사용할 수 없습니다.');
+            return;
+        }
+
+        // 설명 유효성 검사: 0~100자
+        if (description && description.length > 100) {
+            socket.emit('serverError', '서버 설명은 100자 이내로 입력하세요.');
+            return;
+        }
+
+        // 참여코드 유효성 검사: 선택사항, 입력 시 4~20자 영문/숫자만
+        if (password) {
+            if (password.length < 4 || password.length > 20) {
+                socket.emit('serverError', '참여코드는 4~20자로 입력하세요.');
+                return;
+            }
+            if (!/^[a-zA-Z0-9]+$/.test(password)) {
+                socket.emit('serverError', '참여코드는 영문과 숫자만 사용할 수 있습니다.');
+                return;
+            }
+        }
+
+        if (hostName.length > 50) {
             socket.emit('serverError', '이름이 너무 깁니다.');
             return;
         }
@@ -80,7 +110,30 @@ function registerServerHandlers(socket, io, ctx) {
                 return;
             }
 
-            // 소켓에 서버 정보 저장
+            const server = await getServerById(serverId);
+            if (!server) {
+                socket.emit('serverError', '서버 정보를 찾을 수 없습니다.');
+                return;
+            }
+
+            // 새 가입 신청 (미승인) → 입장시키지 않고 신청 완료 알림
+            if (result.isNewRequest || (result.alreadyMember && result.member && !result.member.is_approved)) {
+                socket.emit('serverJoinRequested', {
+                    id: server.id,
+                    name: server.name,
+                    hostName: server.host_name
+                });
+
+                // 호스트에게 실시간 알림
+                io.to(`server:${serverId}`).emit('memberUpdated', {
+                    type: 'joinRequest',
+                    userName,
+                    serverId
+                });
+                return;
+            }
+
+            // 승인된 멤버 → 정상 입장
             socket.serverId = serverId;
             socket.serverUserName = userName;
 
@@ -93,11 +146,6 @@ function registerServerHandlers(socket, io, ctx) {
             // Socket.IO 룸 조인 (서버 단위 알림용)
             socket.join(`server:${serverId}`);
 
-            const server = await getServerById(serverId);
-            if (!server) {
-                socket.emit('serverError', '서버 정보를 찾을 수 없습니다.');
-                return;
-            }
             socket.emit('serverJoined', {
                 id: server.id,
                 name: server.name,

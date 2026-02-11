@@ -353,8 +353,8 @@ module.exports = (socket, io, ctx) => {
 
         if (!gameState.isGameActive) return; // 이미 게임 종료됨
 
-        // 비공개서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
-        if (room.isPrivateServer && room.serverId && raceData.userHorseBets) {
+        // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
+        if (room.serverId && raceData.userHorseBets) {
             const sessionId = generateSessionId('horse', room.serverId);
             const horseRankMap = {};
             rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
@@ -711,8 +711,8 @@ module.exports = (socket, io, ctx) => {
 
             console.log(`방 ${room.roomName} 경주 완료 - 라운드 ${gameState.raceRound}, 당첨자: ${winners.join(', ')}`);
 
-            // 비공개서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
-            if (room.isPrivateServer && room.serverId) {
+            // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
+            if (room.serverId) {
                 const sessionId = generateSessionId('horse', room.serverId);
                 const horseRankMap = {};
                 rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });

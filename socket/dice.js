@@ -129,7 +129,7 @@ module.exports = (socket, io, ctx) => {
         if (room.serverId && currentGameHistory.length > 0) {
             const sessionId = generateSessionId('dice', room.serverId);
             // 비공개서버: 등수 판별하여 game_rank + is_winner 기록
-            const diceRanks = room.isPrivateServer ? determineDiceRanks(currentGameHistory, gameState.gameRules) : {};
+            const diceRanks = determineDiceRanks(currentGameHistory, gameState.gameRules);
             const winnerName = diceRanks ? Object.keys(diceRanks).find(u => diceRanks[u] === 1) || null : null;
             recordGameSession({
                 serverId: room.serverId,
@@ -529,7 +529,7 @@ module.exports = (socket, io, ctx) => {
                 if (room.serverId && currentGameHistory.length > 0) {
                     const sessionId = generateSessionId('dice', room.serverId);
                     // 비공개서버: 등수 판별하여 game_rank + is_winner 기록
-                    const diceRanks = room.isPrivateServer ? determineDiceRanks(currentGameHistory, gameState.gameRules) : {};
+                    const diceRanks = determineDiceRanks(currentGameHistory, gameState.gameRules);
                     const winnerName = diceRanks ? Object.keys(diceRanks).find(u => diceRanks[u] === 1) || null : null;
                     recordGameSession({
                         serverId: room.serverId,

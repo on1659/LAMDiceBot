@@ -40,7 +40,7 @@ let visitorTotalCount = 0;
 let playTodayDate = '';
 let playTodayCount = 0;
 let playTotalCount = 0;
-const DEFAULT_GAME_STATS = () => ({ dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } });
+const DEFAULT_GAME_STATS = () => ({ dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 } });
 let gameStatsByType = DEFAULT_GAME_STATS();
 const RECENT_PLAYS_MAX = 50;
 let recentPlaysList = [];

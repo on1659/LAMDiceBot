@@ -23,14 +23,6 @@ const ServerSelectModule = (function () {
             document.head.appendChild(style);
         }
 
-        // 뒤로가기
-        window.addEventListener('popstate', (e) => {
-            if (!e.state || e.state.ssPage === 'serverSelect') {
-                if (_onBack) _onBack();
-                show();
-            }
-        });
-
         // 소켓 이벤트
         _socket.on('serversList', (servers) => {
             _allServers = servers || [];
@@ -51,8 +43,13 @@ const ServerSelectModule = (function () {
             _showToast(`${data.name} 입장!`);
             hide();
             _currentServer = { id: data.id, name: data.name, hostName: data.hostName };
-            history.pushState({ ssPage: 'lobby' }, '');
+            PageHistoryManager.pushPage('lobby');
             if (_onSelect) _onSelect({ serverId: data.id, serverName: data.name, hostName: data.hostName });
+        });
+
+        _socket.on('serverJoinRequested', () => {
+            _clearJoining();
+            _showToast('참여 신청이 완료되었습니다. 호스트의 승인을 기다려주세요.');
         });
 
         _socket.on('serverError', (msg) => {
@@ -85,6 +82,13 @@ const ServerSelectModule = (function () {
                 alert(`"${data.serverName}" 서버에서 강퇴되었습니다.`);
             }
             show();
+        });
+
+        // 멤버 변경 알림 → 참여신청 시 멤버 버튼에 빨간점
+        _socket.on('memberUpdated', (data) => {
+            if (data.type === 'joinRequest') {
+                _showMembersDot();
+            }
         });
     }
 
@@ -161,15 +165,22 @@ const ServerSelectModule = (function () {
         }
         .ss-login-prompt-btn:hover { background: #5a6fd6; }
 
-        /* ── 서버 섹션 (로그인 시) ── */
+        /* ── 서버 섹션 ── */
         .ss-section-title { font-size: 0.9em; font-weight: 600; color: #555; margin-bottom: 12px; }
-        .ss-search-wrap { margin-bottom: 12px; }
+        .ss-search-wrap { display: flex; gap: 8px; margin-bottom: 12px; }
         .ss-search-wrap input {
-            width: 100%; padding: 10px 14px 10px 36px; border: 2px solid #eee; border-radius: 12px;
+            flex: 1; min-width: 0; padding: 10px 14px 10px 36px; border: 2px solid #eee; border-radius: 12px;
             font-size: 14px; box-sizing: border-box; transition: border-color 0.2s;
             background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") 12px center no-repeat;
         }
         .ss-search-wrap input:focus { border-color: #667eea; outline: none; }
+        .ss-search-btn {
+            padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px;
+            background: #fff; color: #888; font-size: 11px;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+            flex-shrink: 0; line-height: 1; min-width: 0; max-width: 50px;
+        }
+        .ss-search-btn:hover { background: #f0f0f0; color: #555; }
 
         .ss-server-list { display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto; margin-bottom: 20px; }
         .ss-server-card {
@@ -186,6 +197,9 @@ const ServerSelectModule = (function () {
         .ss-server-meta { font-size: 0.8em; color: #999; margin-top: 2px; }
         .ss-server-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 8px; background: #f0f0f0; color: #888; margin-left: 8px; }
         .ss-server-badge.private { background: #fff3cd; color: #856404; }
+        .ss-server-badge.pending { background: #dc3545; color: white; animation: ssPulse 1.5s ease-in-out infinite; }
+        .ss-server-badge.waiting { background: #fd7e14; color: white; }
+        .ss-card-pending { opacity: 0.7; border-style: dashed; }
 
         .ss-create-btn {
             width: 100%; padding: 14px; border: none; border-radius: 14px;
@@ -311,8 +325,14 @@ const ServerSelectModule = (function () {
             font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
         }
         .ss-myserver-item-actions button:hover { opacity: 0.8; }
-        .ss-btn-members { background: #667eea; color: white; }
+        .ss-btn-members { background: #667eea; color: white; position: relative; }
         .ss-btn-delete { background: #dc3545; color: white; }
+        .ss-pending-dot {
+            display: inline-block; width: 8px; height: 8px; background: #dc3545;
+            border-radius: 50%; margin-left: 4px; vertical-align: middle;
+            animation: ssPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes ssPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* 서버 생성 모달 */
         .ss-create-modal {
@@ -377,7 +397,7 @@ const ServerSelectModule = (function () {
         `;
 
         document.body.appendChild(_overlay);
-        history.replaceState({ ssPage: 'serverSelect' }, '');
+        PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
     }
 
@@ -385,7 +405,8 @@ const ServerSelectModule = (function () {
         return `
             <div class="ss-section-title">서버 목록</div>
             <div class="ss-search-wrap">
-                <input type="text" id="ss-search-input" placeholder="서버 검색..." oninput="ServerSelectModule.onSearch()" />
+                <input type="text" id="ss-search-input" placeholder="서버 검색..." onkeydown="if(event.key==='Enter')ServerSelectModule.onSearch()" />
+                <button class="ss-search-btn" onclick="ServerSelectModule.onSearch()">검색</button>
             </div>
             <div class="ss-server-list" id="ss-server-list">
                 <div class="ss-loading">불러오는 중...</div>
@@ -407,6 +428,7 @@ const ServerSelectModule = (function () {
         `;
     }
 
+
     function hide() {
         if (_overlay) {
             _overlay.style.animation = 'ssFadeIn 0.2s ease reverse';
@@ -423,7 +445,6 @@ const ServerSelectModule = (function () {
         localStorage.setItem('diceGameUserName', name);
         localStorage.setItem('horseRaceUserName', name);
         localStorage.setItem('rouletteUserName', name);
-        localStorage.setItem('teamUserName', name);
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) globalInput.value = name;
         const nicknameInput = document.getElementById('nickname-input');
@@ -439,10 +460,14 @@ const ServerSelectModule = (function () {
         const topBar = btn.parentElement;
         if (!topBar) return;
 
-        if (name) {
+        const loggedIn = _isLoggedIn();
+
+        if (loggedIn && name) {
+            // 실제 로그인 상태: 이름 + 로그아웃
             btn.className = 'ss-login-btn logged-in';
             btn.innerHTML = '👤 ' + escapeStr(name);
         } else {
+            // 비로그인 (자유 플레이 포함): 로그인 버튼
             btn.className = 'ss-login-btn';
             btn.innerHTML = '🔑 로그인';
         }
@@ -450,7 +475,7 @@ const ServerSelectModule = (function () {
         const existingLogout = document.getElementById('ss-logout-btn');
         const existingRegister = document.getElementById('ss-register-top-btn');
 
-        if (name) {
+        if (loggedIn && name) {
             if (existingRegister) existingRegister.remove();
             if (!existingLogout) {
                 const lb = document.createElement('button');
@@ -494,7 +519,6 @@ const ServerSelectModule = (function () {
         localStorage.removeItem('diceGameUserName');
         localStorage.removeItem('horseRaceUserName');
         localStorage.removeItem('rouletteUserName');
-        localStorage.removeItem('teamUserName');
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) globalInput.value = '';
         const nicknameInput = document.getElementById('nickname-input');
@@ -620,17 +644,22 @@ const ServerSelectModule = (function () {
 
         let filtered = servers || [];
         if (query) {
+            // 검색 시: 전체 서버에서 필터
             filtered = filtered.filter(s =>
                 (s.name || '').toLowerCase().includes(query) ||
                 (s.description || '').toLowerCase().includes(query) ||
                 (s.host_name || '').toLowerCase().includes(query)
             );
+        } else {
+            // 기본: 가입한 서버 + 신청 대기중 + 내가 호스트인 서버 표시
+            const myName = _getUserName();
+            filtered = filtered.filter(s => s.is_member || s.is_pending || s.host_name === myName);
         }
 
         if (filtered.length === 0) {
             listEl.innerHTML = query
                 ? '<div class="ss-empty">검색 결과가 없습니다</div>'
-                : '<div class="ss-empty">아직 서버가 없어요<br>새 서버를 만들어보세요!</div>';
+                : '<div class="ss-empty">참여 중인 서버가 없어요<br>검색하거나 새 서버를 만들어보세요!</div>';
             return;
         }
 
@@ -639,11 +668,14 @@ const ServerSelectModule = (function () {
             const color = colors[i % colors.length];
             const initial = s.name.charAt(0).toUpperCase();
             const privateBadge = s.is_private ? '<span class="ss-server-badge private">🔒</span>' : '';
+            const statusBadge = s.is_member ? '' : s.is_pending ? '<span class="ss-server-badge waiting">승인 대기중</span>' : '<span class="ss-server-badge">참여 가능</span>';
+            const pending = parseInt(s.pending_count, 10) || 0;
+            const pendingBadge = pending > 0 ? `<span class="ss-server-badge pending">${pending}명 대기</span>` : '';
             return `
-                <div class="ss-server-card" onclick="ServerSelectModule.selectServer(${s.id}, '${escapeStr(s.name)}', ${!!s.is_private}, ${!!s.is_member})">
+                <div class="ss-server-card${s.is_pending ? ' ss-card-pending' : ''}" onclick="ServerSelectModule.selectServer(${s.id}, '${escapeStr(s.name)}', ${!!s.is_private}, ${!!s.is_member}, ${!!s.is_pending})">
                     <div class="ss-server-icon" style="background: ${color}15; color: ${color};">${initial}</div>
                     <div class="ss-server-info">
-                        <div class="ss-server-name">${escapeStr(s.name)} ${privateBadge}</div>
+                        <div class="ss-server-name">${escapeStr(s.name)} ${privateBadge}${statusBadge}${pendingBadge}</div>
                         <div class="ss-server-meta">${escapeStr(s.host_name)} · ${s.member_count || 0}명</div>
                     </div>
                 </div>
@@ -654,27 +686,18 @@ const ServerSelectModule = (function () {
     // ─── 서버 선택/입장 ───
 
     function selectFree() {
-        const name = _getUserName();
-        if (name) {
-            // 이름 있으면 바로 입장
-            _saveName(name);
-            hide();
-            history.pushState({ ssPage: 'lobby' }, '');
-            if (_onSelect) _onSelect({ serverId: null, serverName: null });
-        } else {
-            // 이름 없으면 간단한 닉네임 입력 모달
-            _showNameModal();
-        }
+        _showNameModal();
     }
 
     function _showNameModal() {
+        const existingName = _getUserName() || '';
         const modal = document.createElement('div');
         modal.className = 'ss-name-modal';
         modal.id = 'ss-name-modal';
         modal.innerHTML = `
             <div class="ss-name-box">
                 <h3>🎲 자유 플레이</h3>
-                <input type="text" id="ss-name-input" placeholder="닉네임 입력" maxlength="20" />
+                <input type="text" id="ss-name-input" placeholder="닉네임 입력" maxlength="20" value="${escapeStr(existingName)}" />
                 <div class="ss-name-btns">
                     <button class="ss-name-cancel" onclick="document.getElementById('ss-name-modal').remove()">취소</button>
                     <button class="ss-name-confirm" id="ss-name-confirm">시작!</button>
@@ -684,6 +707,7 @@ const ServerSelectModule = (function () {
         document.body.appendChild(modal);
         const nameInput = document.getElementById('ss-name-input');
         nameInput.focus();
+        nameInput.select();
 
         function doStart() {
             const name = nameInput.value.trim();
@@ -691,7 +715,7 @@ const ServerSelectModule = (function () {
             modal.remove();
             _saveName(name);
             hide();
-            history.pushState({ ssPage: 'lobby' }, '');
+            PageHistoryManager.pushPage('lobby');
             if (_onSelect) _onSelect({ serverId: null, serverName: null });
         }
 
@@ -699,7 +723,11 @@ const ServerSelectModule = (function () {
         document.getElementById('ss-name-confirm').addEventListener('click', doStart);
     }
 
-    function selectServer(id, name, isPrivate, isMember) {
+    function selectServer(id, name, isPrivate, isMember, isPending) {
+        if (isPending) {
+            _showToast('호스트의 승인을 기다리고 있습니다.');
+            return;
+        }
         if (isPrivate && !isMember) {
             showPasswordModal(id, name);
         } else {
@@ -810,15 +838,15 @@ const ServerSelectModule = (function () {
                 <h3>🏠 새 서버 만들기</h3>
                 <div class="ss-input-group">
                     <label>서버 이름 *</label>
-                    <input type="text" id="ss-create-name" placeholder="서버 이름" maxlength="100" />
+                    <input type="text" id="ss-create-name" placeholder="2~20자, 한글/영문/숫자" maxlength="20" />
                 </div>
                 <div class="ss-input-group">
                     <label>설명</label>
-                    <textarea id="ss-create-desc" placeholder="서버 설명 (선택)"></textarea>
+                    <textarea id="ss-create-desc" placeholder="서버 설명 (선택, 100자 이내)" maxlength="100"></textarea>
                 </div>
                 <div class="ss-input-group">
-                    <label>참여코드 *</label>
-                    <input type="text" id="ss-create-pw" placeholder="서버 참여코드 (필수)" maxlength="20" />
+                    <label>참여코드 (선택)</label>
+                    <input type="text" id="ss-create-pw" placeholder="비워두면 공개 서버 (4~20자, 영문/숫자)" maxlength="20" />
                 </div>
                 <div class="ss-error" id="ss-create-error"></div>
                 <div style="display:flex;gap:10px;margin-top:16px;">
@@ -839,30 +867,53 @@ const ServerSelectModule = (function () {
     function doCreate() {
         const name = document.getElementById('ss-create-name').value.trim();
         const description = document.getElementById('ss-create-desc').value.trim();
-        const password = document.getElementById('ss-create-pw').value;
+        const password = document.getElementById('ss-create-pw').value.trim();
         const errEl = document.getElementById('ss-create-error');
+        errEl.style.display = 'none';
 
-        if (!name) {
-            errEl.textContent = '서버 이름을 입력하세요.';
+        // 서버 이름 검증: 2~20자, 한글/영문/숫자/공백/-/_
+        if (!name || name.length < 2 || name.length > 20) {
+            errEl.textContent = '서버 이름은 2~20자로 입력하세요.';
             errEl.style.display = 'block';
             return;
         }
-        if (!password) {
-            errEl.textContent = '참여코드를 입력하세요.';
+        if (!/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9\s_-]+$/.test(name)) {
+            errEl.textContent = '서버 이름에 특수문자를 사용할 수 없습니다.';
             errEl.style.display = 'block';
             return;
+        }
+
+        // 설명 검증: 0~100자
+        if (description.length > 100) {
+            errEl.textContent = '서버 설명은 100자 이내로 입력하세요.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        // 참여코드 검증: 선택사항, 입력 시 4~20자 영문/숫자만
+        if (password) {
+            if (password.length < 4 || password.length > 20) {
+                errEl.textContent = '참여코드는 4~20자로 입력하세요.';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (!/^[a-zA-Z0-9]+$/.test(password)) {
+                errEl.textContent = '참여코드는 영문과 숫자만 사용할 수 있습니다.';
+                errEl.style.display = 'block';
+                return;
+            }
         }
 
         const hostName = _getUserName();
         if (!hostName) {
             closeCreateModal();
             _requireNameThen((n) => {
-                _socket.emit('createServer', { name, description, hostName: n, password });
+                _socket.emit('createServer', { name, description, hostName: n, password: password || '' });
             });
             return;
         }
 
-        _socket.emit('createServer', { name, description, hostName, password });
+        _socket.emit('createServer', { name, description, hostName, password: password || '' });
     }
 
     // ─── 내 서버 관리 모달 ───
@@ -911,18 +962,22 @@ const ServerSelectModule = (function () {
             return;
         }
 
-        listEl.innerHTML = servers.map(s => `
+        listEl.innerHTML = servers.map(s => {
+            const pending = parseInt(s.pending_count, 10) || 0;
+            const pendingDot = pending > 0 ? `<span class="ss-pending-dot"></span>` : '';
+            const pendingLabel = pending > 0 ? ` (${pending})` : '';
+            return `
             <div class="ss-myserver-item" id="ss-ms-${s.id}">
                 <div class="ss-myserver-item-header">
                     <span class="ss-myserver-item-name">${escapeStr(s.name)}</span>
                     <span class="ss-myserver-item-meta">${s.member_count || 0}명</span>
                 </div>
                 <div class="ss-myserver-item-actions">
-                    <button class="ss-btn-members" onclick="ServerSelectModule.showServerMembersManage(${s.id}, '${escapeStr(s.name)}')">멤버 관리</button>
+                    <button class="ss-btn-members" onclick="ServerSelectModule.showServerMembersManage(${s.id}, '${escapeStr(s.name)}')">멤버 관리${pendingLabel}${pendingDot}</button>
                     <button class="ss-btn-delete" onclick="ServerSelectModule.deleteMyServer(${s.id}, '${escapeStr(s.name)}')">서버 삭제</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
     function showServerMembersManage(serverId, serverName) {
@@ -965,6 +1020,7 @@ const ServerSelectModule = (function () {
 
     function showMembersModal() {
         if (!_currentServer) return;
+        _hideMembersDot();
 
         const modal = document.createElement('div');
         modal.className = 'ss-members-modal';
@@ -1046,7 +1102,7 @@ const ServerSelectModule = (function () {
         fetch(`/api/server/${_currentServer.id}/members/${encodeURIComponent(userName)}/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isApproved })
+            body: JSON.stringify({ isApproved, hostName: _getUserName() })
         }).then(() => _fetchMembers()).catch(() => {});
     }
 
@@ -1056,20 +1112,43 @@ const ServerSelectModule = (function () {
         fetch(`/api/server/${_currentServer.id}/members/${encodeURIComponent(userName)}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
+            body: JSON.stringify({ hostName: _getUserName() })
         }).then(() => _fetchMembers()).catch(() => {});
     }
 
     // ─── 유틸 ───
 
+    function _showMembersDot() {
+        const btn = document.getElementById('serverMembersBtn');
+        if (!btn) return;
+        if (btn.querySelector('.ss-members-dot')) return;
+        const dot = document.createElement('span');
+        dot.className = 'ss-members-dot';
+        dot.style.cssText = 'display:inline-block;width:8px;height:8px;background:#dc3545;border-radius:50%;margin-left:5px;vertical-align:middle;animation:ssPulse 1.5s ease-in-out infinite;';
+        btn.appendChild(dot);
+    }
+
+    function _hideMembersDot() {
+        const dot = document.querySelector('.ss-members-dot');
+        if (dot) dot.remove();
+    }
+
     function _getUserName() {
+        // 로그인 상태면 userAuth의 원래 이름 우선 (방 중복 처리로 변형된 이름 방지)
+        const auth = localStorage.getItem('userAuth');
+        if (auth) {
+            try {
+                const user = JSON.parse(auth);
+                if (user && user.name) return user.name;
+            } catch (e) {}
+        }
         const nameInput = document.getElementById('globalUserNameInput')
             || document.getElementById('nickname-input');
         if (nameInput && nameInput.value.trim()) return nameInput.value.trim();
         const stored = localStorage.getItem('userName')
             || localStorage.getItem('diceUserName') || localStorage.getItem('diceGameUserName')
             || localStorage.getItem('horseRaceUserName')
-            || localStorage.getItem('rouletteUserName') || localStorage.getItem('teamUserName');
+            || localStorage.getItem('rouletteUserName');
         if (stored) return stored;
         return null;
     }

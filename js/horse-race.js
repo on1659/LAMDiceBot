@@ -238,15 +238,34 @@ var socket = io({
     reconnectionDelay: 1000
 });
 var currentServerId = null;
+var currentServerName = null;
 
 // 서버 선택 UI (dice 페이지에서 넘어온 경우 스킵)
 (function() {
     var urlParams = new URLSearchParams(window.location.search);
     var fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
+    if (!fromDice) {
+        // 직접 URL 접속 시 메인 페이지로 리다이렉트
+        window.location.replace('/dice-game-multiplayer.html');
+        return;
+    }
     if (fromDice) {
         var pending = localStorage.getItem('pendingHorseRaceRoom') || localStorage.getItem('pendingHorseRaceJoin');
         if (pending) {
-            try { currentServerId = JSON.parse(pending).serverId || null; } catch(e) {}
+            try {
+                var pd = JSON.parse(pending);
+                currentServerId = pd.serverId || null;
+                currentServerName = pd.serverName || null;
+                if (currentServerId) {
+                    socket.emit('setServerId', { serverId: currentServerId });
+                    if (pd.serverName) {
+                        document.getElementById('serverInfoName').textContent = '\uD83D\uDDA5\uFE0F ' + pd.serverName;
+                        document.getElementById('serverInfoName').style.display = '';
+                        document.getElementById('serverInfoBar').style.display = 'flex';
+                        document.title = pd.serverName + ' - Horse Race';
+                    }
+                }
+            } catch(e) {}
         }
     } else {
         ServerSelectModule.init(socket, function(selection) {
@@ -269,6 +288,40 @@ var currentServerId = null;
         }, function() {
             document.getElementById('lobbySection').classList.remove('active');
         });
+        // 히스토리 매니저 초기화
+        PageHistoryManager.init({
+            onServerSelect: function () {
+                document.getElementById('lobbySection').classList.remove('active');
+                document.getElementById('createRoomSection').classList.remove('active');
+                document.getElementById('gameSection').classList.remove('active');
+                document.body.classList.remove('game-active');
+                document.body.classList.add('lobby-active');
+                ServerSelectModule.show();
+            },
+            onLobby: function () {
+                document.getElementById('createRoomSection').classList.remove('active');
+                document.getElementById('gameSection').classList.remove('active');
+                document.getElementById('lobbySection').classList.add('active');
+                document.body.classList.remove('game-active');
+                document.body.classList.add('lobby-active');
+            },
+            onLeaveRoom: function () {
+                if (currentRoomId) {
+                    socket.emit('leaveRoom');
+                }
+            },
+            onHideRanking: function () {
+                RankingModule.forceHide();
+            },
+            getCurrentPage: function () {
+                if (document.getElementById('ranking-overlay')) return 'ranking';
+                if (document.getElementById('gameSection').classList.contains('active')) return 'gameRoom';
+                if (document.getElementById('createRoomSection').classList.contains('active')) return 'createRoom';
+                if (document.getElementById('serverSelectOverlay')) return 'serverSelect';
+                return 'lobby';
+            }
+        });
+
         document.getElementById('lobbySection').classList.remove('active');
         ServerSelectModule.show();
     }
@@ -280,7 +333,8 @@ function showCreateRoomSection() {
     
     document.getElementById('lobbySection').classList.remove('active');
     document.getElementById('createRoomSection').classList.add('active');
-    
+    PageHistoryManager.pushPage('createRoom');
+
     // 호스트 이름 자동 설정
     const hostNameInput = document.getElementById('createRoomHostNameInput');
     if (globalName) {
@@ -296,8 +350,7 @@ function showCreateRoomSection() {
 
 // 로비로 돌아가기
 function goBackToLobby() {
-    document.getElementById('createRoomSection').classList.remove('active');
-    document.getElementById('lobbySection').classList.add('active');
+    history.back();
 }
 
 // 방 생성
@@ -336,7 +389,8 @@ function finalizeRoomCreation() {
         expiryHours: expiryHours,
         blockIPPerUser: false,
         deviceId: getDeviceId(),
-        serverId: currentServerId
+        serverId: currentServerId,
+        serverName: currentServerName
     });
 }
 
@@ -5357,6 +5411,7 @@ socket.on('roomCreated', (data) => {
 
     document.body.classList.remove('lobby-active');
     document.body.classList.add('game-active');
+    PageHistoryManager.pushPage('gameRoom');
 
     initializeGameScreen(data);
     ReadyModule.setReadyUsers(readyUsers);
@@ -5422,6 +5477,7 @@ socket.on('roomJoined', (data) => {
 
     document.body.classList.remove('lobby-active');
     document.body.classList.add('game-active');
+    PageHistoryManager.pushPage('gameRoom');
 
     setHorseSoundCheckboxes();
     if (window.SoundManager && typeof window.SoundManager.ensureContext === 'function') {
@@ -6138,7 +6194,8 @@ socket.on('roomLeft', () => {
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }
-    window.location.href = '/dice-game-multiplayer.html';
+    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+    window.location.replace('/dice-game-multiplayer.html');
 });
 
 socket.on('roomDeleted', (data) => {
@@ -6146,7 +6203,8 @@ socket.on('roomDeleted', (data) => {
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }
-    window.location.href = '/dice-game-multiplayer.html';
+    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+    window.location.replace('/dice-game-multiplayer.html');
 });
 
 // 비공개 방 체크박스 이벤트
@@ -6252,10 +6310,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     expiryHours: roomData.expiryHours,
                     blockIPPerUser: roomData.blockIPPerUser,
                     deviceId: getDeviceId(),
-                    serverId: roomData.serverId || currentServerId
+                    serverId: roomData.serverId || currentServerId,
+                    serverName: roomData.serverName || currentServerName
                 });
             });
-            
+
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }

@@ -1,6 +1,6 @@
 /**
  * chat-shared.js - 게임 채팅 공통 모듈
- * 모든 게임(dice, horse-race, roulette, team)에서 공유하는 채팅 기능
+ * 모든 게임(dice, horse-race, roulette)에서 공유하는 채팅 기능
  */
 
 const ChatModule = (function () {

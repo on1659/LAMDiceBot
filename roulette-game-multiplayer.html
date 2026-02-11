@@ -974,7 +974,7 @@
 
     <div class="container">
         <!-- 로비 섹션 -->
-        <section class="lobby-section active" id="lobbySection">
+        <section class="lobby-section" id="lobbySection">
             <h1>🎰 LAM Roulette</h1>
             <div class="connection-sound-row">
                 <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
@@ -1288,6 +1288,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/page-history-shared.js"></script>
     <script src="/server-select-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/chat-shared.js"></script>
@@ -1884,16 +1885,35 @@
             reconnectionDelay: 1000
         });
         let currentServerId = null;
+        let currentServerName = null;
 
         // 서버 선택 UI (dice 페이지에서 넘어온 경우 스킵)
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
+            if (!fromDice) {
+                // 직접 URL 접속 시 메인 페이지로 리다이렉트
+                window.location.replace('/dice-game-multiplayer.html');
+                return;
+            }
             if (fromDice) {
-                // dice에서 넘어온 경우 pending 데이터에서 serverId 추출
+                // dice에서 넘어온 경우 pending 데이터에서 serverId/serverName 추출
                 const pending = localStorage.getItem('pendingRouletteRoom') || localStorage.getItem('pendingRouletteJoin');
                 if (pending) {
-                    try { currentServerId = JSON.parse(pending).serverId || null; } catch(e) {}
+                    try {
+                        const pd = JSON.parse(pending);
+                        currentServerId = pd.serverId || null;
+                        currentServerName = pd.serverName || null;
+                        if (currentServerId) {
+                            socket.emit('setServerId', { serverId: currentServerId });
+                            if (pd.serverName) {
+                                document.getElementById('serverInfoName').textContent = `🖥️ ${pd.serverName}`;
+                                document.getElementById('serverInfoName').style.display = '';
+                                document.getElementById('serverInfoBar').style.display = 'flex';
+                                document.title = `${pd.serverName} - LAM Roulette`;
+                            }
+                        }
+                    } catch(e) {}
                 }
             } else {
                 // 직접 접속 시 서버 선택 UI 표시
@@ -1917,6 +1937,40 @@
                 }, () => {
                     document.getElementById('lobbySection').classList.remove('active');
                 });
+                // 히스토리 매니저 초기화
+                PageHistoryManager.init({
+                    onServerSelect: function () {
+                        document.getElementById('lobbySection').classList.remove('active');
+                        document.getElementById('createRoomSection').classList.remove('active');
+                        document.getElementById('gameSection').classList.remove('active');
+                        document.body.classList.remove('game-active');
+                        document.body.classList.add('lobby-active');
+                        ServerSelectModule.show();
+                    },
+                    onLobby: function () {
+                        document.getElementById('createRoomSection').classList.remove('active');
+                        document.getElementById('gameSection').classList.remove('active');
+                        document.getElementById('lobbySection').classList.add('active');
+                        document.body.classList.remove('game-active');
+                        document.body.classList.add('lobby-active');
+                    },
+                    onLeaveRoom: function () {
+                        if (currentRoomId) {
+                            socket.emit('leaveRoom');
+                        }
+                    },
+                    onHideRanking: function () {
+                        RankingModule.forceHide();
+                    },
+                    getCurrentPage: function () {
+                        if (document.getElementById('ranking-overlay')) return 'ranking';
+                        if (document.getElementById('gameSection').classList.contains('active')) return 'gameRoom';
+                        if (document.getElementById('createRoomSection').classList.contains('active')) return 'createRoom';
+                        if (document.getElementById('serverSelectOverlay')) return 'serverSelect';
+                        return 'lobby';
+                    }
+                });
+
                 document.getElementById('lobbySection').classList.remove('active');
                 ServerSelectModule.show();
             }
@@ -2206,9 +2260,10 @@
         // 방 생성 섹션 표시
         function showCreateRoomSection() {
             const globalName = document.getElementById('globalUserNameInput').value.trim();
-            
+
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('createRoomSection').classList.add('active');
+            PageHistoryManager.pushPage('createRoom');
             
             // 호스트 이름 자동 설정
             const hostNameInput = document.getElementById('createRoomHostNameInput');
@@ -2225,8 +2280,7 @@
 
         // 로비로 돌아가기
         function goBackToLobby() {
-            document.getElementById('createRoomSection').classList.remove('active');
-            document.getElementById('lobbySection').classList.add('active');
+            history.back();
         }
 
         // 방 생성
@@ -2267,7 +2321,8 @@
                 blockIPPerUser: false,
                 deviceId: getDeviceId(),
                 turboAnimation: turboAnimation,
-                serverId: currentServerId
+                serverId: currentServerId,
+                serverName: currentServerName
             });
         }
 
@@ -3241,6 +3296,7 @@
 
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
+            PageHistoryManager.pushPage('gameRoom');
 
             initializeGameScreen(data);
             ReadyModule.setReadyUsers(readyUsers);
@@ -3269,6 +3325,7 @@
 
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
+            PageHistoryManager.pushPage('gameRoom');
 
             setRouletteSoundCheckboxes();
             initializeGameScreen(data);
@@ -3664,13 +3721,11 @@
 
         socket.on('roomDeleted', (data) => {
             alert(data.message || '방이 삭제되었습니다.');
-            
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
-            
-            // 주사위 메인 화면으로 이동
-            window.location.href = '/dice-game-multiplayer.html';
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            window.location.replace('/dice-game-multiplayer.html');
         });
 
         // 방 나가기 완료 (서버에서 roomLeft emit)
@@ -3678,9 +3733,8 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
-            
-            // 주사위 메인 화면으로 이동
-            window.location.href = '/dice-game-multiplayer.html';
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            window.location.replace('/dice-game-multiplayer.html');
         });
 
         // 레거시 이벤트 호환성 유지
@@ -3688,9 +3742,8 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
-            
-            // 주사위 메인 화면으로 이동
-            window.location.href = '/dice-game-multiplayer.html';
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            window.location.replace('/dice-game-multiplayer.html');
         });
 
         // 호스트 권한 전달 알림
@@ -3768,10 +3821,11 @@
                             expiryHours: roomData.expiryHours,
                             blockIPPerUser: roomData.blockIPPerUser,
                             deviceId: getDeviceId(),
-                            serverId: roomData.serverId || currentServerId
+                            serverId: roomData.serverId || currentServerId,
+                            serverName: roomData.serverName || currentServerName
                         });
                     });
-                    
+
                     // URL에서 파라미터 제거
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }

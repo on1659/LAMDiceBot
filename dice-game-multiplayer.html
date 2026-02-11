@@ -66,6 +66,13 @@
         body.game-active footer {
             display: none;
         }
+
+        /* 서버 선택 오버레이 표시 중 본문 숨기기 */
+        body.server-select-active header,
+        body.server-select-active footer,
+        body.server-select-active .container {
+            display: none;
+        }
         
         .chat-history-wrapper {
             margin-top: 20px;
@@ -1296,11 +1303,12 @@
         </div>
 
         <!-- 대기실 섹션 -->
-        <div class="lobby-section active" id="lobbySection">
+        <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
             <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid #667eea; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
                 <button onclick="ServerSelectModule.show()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: #667eea;"></span>
+                <span id="serverInfoUserName" style="font-weight: 600; color: #764ba2; display: none;">👤 </span>
                 <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
             </div>
             <div class="create-room-button-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
@@ -1416,11 +1424,6 @@
                         <span style="font-size: 24px; margin-right: 8px;">🎰</span>
                         <span style="font-weight: 600;">룰렛</span>
                     </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #9c27b0;">
-                        <input type="radio" name="gameType" value="team" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">👥</span>
-                        <span style="font-weight: 600;">팀 배정</span>
-                    </label>
                     <label id="horseRaceLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #8b4513; position: relative;">
                         <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🐎</span>
@@ -1430,12 +1433,12 @@
                                    
                 </div>
                 <div id="gameTypeInfo" style="margin-top: 8px; font-size: 12px; color: #666;">
-                    룰렛/팀배정/경마를 선택하면 전용 페이지로 이동합니다.
+                    룰렛/경마를 선택하면 전용 페이지로 이동합니다.
                 </div>
                 <script>
                     // 게임 타입 선택 시 시각적 강조 (은은한 틴트)
                     (function() {
-                        const colorMap = { dice: '#667eea', roulette: '#e91e63', team: '#9c27b0', 'horse-race': '#8b4513' };
+                        const colorMap = { dice: '#667eea', roulette: '#e91e63', 'horse-race': '#8b4513' };
                         function updateGameTypeStyle() {
                             document.querySelectorAll('input[name="gameType"]').forEach(radio => {
                                 const label = radio.closest('label');
@@ -1764,6 +1767,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/page-history-shared.js"></script>
     <script src="/server-select-shared.js"></script>
     <script src="/chat-shared.js"></script>
     <script src="/ready-shared.js"></script>
@@ -1773,10 +1777,19 @@
     <script>
         const socket = io();
         let currentServerId = null;
+        let currentServerName = null;
 
         // 서버 선택 UI 초기화
         ServerSelectModule.init(socket, (selection) => {
+            document.body.classList.remove('server-select-active');
             currentServerId = selection.serverId;
+            currentServerName = selection.serverName || null;
+            // 세션에 서버 선택 저장 (새로고침 시 로비 유지)
+            sessionStorage.setItem('diceSession', JSON.stringify({
+                serverId: selection.serverId,
+                serverName: selection.serverName,
+                hostName: selection.hostName
+            }));
             if (selection.serverName) {
                 document.title = `${selection.serverName} - LAM Dice :)`;
             }
@@ -1784,6 +1797,8 @@
             const infoBar = document.getElementById('serverInfoBar');
             infoBar.style.display = 'flex';
             const membersBtn = document.getElementById('serverMembersBtn');
+            const userNameSpan = document.getElementById('serverInfoUserName');
+            const userName = localStorage.getItem('userName') || '';
             if (selection.serverId && selection.serverName) {
                 document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
                 document.getElementById('serverInfoName').style.display = '';
@@ -1792,14 +1807,106 @@
                 document.getElementById('serverInfoName').style.display = 'none';
                 if (membersBtn) membersBtn.style.display = 'none';
             }
+            if (userName && userNameSpan) {
+                userNameSpan.textContent = `👤 ${userName}`;
+                userNameSpan.style.display = '';
+            }
+            // globalUserNameInput에 이름 동기화
+            const globalInput = document.getElementById('globalUserNameInput');
+            if (globalInput && userName && !globalInput.value) globalInput.value = userName;
             document.getElementById('lobbySection').classList.add('active');
-            RankingModule.init(selection.serverId, document.getElementById('globalUserNameInput')?.value || '');
+            RankingModule.init(selection.serverId, userName || document.getElementById('globalUserNameInput')?.value || '');
         }, () => {
+            document.body.classList.add('server-select-active');
             document.getElementById('lobbySection').classList.remove('active');
+            sessionStorage.removeItem('diceSession');
         });
-        // 페이지 로드 시 서버 선택 표시 (로비 숨김 상태에서)
-        document.getElementById('lobbySection').classList.remove('active');
-        ServerSelectModule.show();
+        // 히스토리 매니저 초기화
+        PageHistoryManager.init({
+            onServerSelect: function () {
+                sessionStorage.removeItem('diceSession');
+                document.body.classList.add('server-select-active');
+                document.getElementById('lobbySection').classList.remove('active');
+                document.getElementById('createRoomSection').classList.remove('active');
+                document.getElementById('gameSection').classList.remove('active');
+                document.body.classList.remove('game-active');
+                document.body.classList.add('lobby-active');
+                ServerSelectModule.show();
+            },
+            onLobby: function () {
+                document.getElementById('createRoomSection').classList.remove('active');
+                document.getElementById('gameSection').classList.remove('active');
+                document.getElementById('lobbySection').classList.add('active');
+                document.body.classList.remove('game-active');
+                document.body.classList.add('lobby-active');
+            },
+            onLeaveRoom: function () {
+                if (currentRoomId) {
+                    socket.emit('leaveRoom');
+                }
+            },
+            onHideRanking: function () {
+                RankingModule.forceHide();
+            },
+            getCurrentPage: function () {
+                if (document.getElementById('ranking-overlay')) return 'ranking';
+                if (document.getElementById('gameSection').classList.contains('active')) return 'gameRoom';
+                if (document.getElementById('createRoomSection').classList.contains('active')) return 'createRoom';
+                if (document.getElementById('serverSelectOverlay')) return 'serverSelect';
+                return 'lobby';
+            }
+        });
+
+        // 세션 복원: 다른 게임에서 돌아온 경우 또는 새로고침 시 로비 유지
+        const _returnData = sessionStorage.getItem('returnToLobby') || sessionStorage.getItem('diceSession');
+        if (_returnData) {
+            sessionStorage.removeItem('returnToLobby');
+            let _restoredServerName = null;
+            try {
+                const rd = JSON.parse(_returnData);
+                currentServerId = rd.serverId || null;
+                currentServerName = rd.serverName || null;
+                _restoredServerName = rd.serverName || null;
+            } catch(e) {}
+            // 소켓에 서버 ID 설정 (방 목록 필터링 + 입장 검증용)
+            if (currentServerId) {
+                socket.emit('setServerId', { serverId: currentServerId });
+            }
+            // 서버 정보 바 표시
+            const infoBar = document.getElementById('serverInfoBar');
+            infoBar.style.display = 'flex';
+            const membersBtn = document.getElementById('serverMembersBtn');
+            const userName = localStorage.getItem('userName') || '';
+            if (currentServerId) {
+                if (_restoredServerName) {
+                    document.getElementById('serverInfoName').textContent = `🖥️ ${_restoredServerName}`;
+                    document.getElementById('serverInfoName').style.display = '';
+                    document.title = `${_restoredServerName} - LAM Dice :)`;
+                }
+                if (membersBtn) membersBtn.style.display = '';
+            } else {
+                document.getElementById('serverInfoName').style.display = 'none';
+                if (membersBtn) membersBtn.style.display = 'none';
+            }
+            const userNameSpan = document.getElementById('serverInfoUserName');
+            if (userName && userNameSpan) {
+                userNameSpan.textContent = `👤 ${userName}`;
+                userNameSpan.style.display = '';
+            }
+            const globalInput = document.getElementById('globalUserNameInput');
+            if (globalInput && userName && !globalInput.value) globalInput.value = userName;
+            document.getElementById('lobbySection').classList.add('active');
+            RankingModule.init(currentServerId, userName || '');
+            PageHistoryManager.replacePage('lobby');
+            // 방 목록 로드
+            socket.emit('getRooms');
+            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId });
+        } else {
+            // 페이지 로드 시 서버 선택 표시 (로비 숨김 상태에서)
+            document.body.classList.add('server-select-active');
+            document.getElementById('lobbySection').classList.remove('active');
+            ServerSelectModule.show();
+        }
 
         // 아이디 유효성 검사 함수 (한글, 영문 소문자, 숫자, _, - 허용)
         function validateUserId(userId) {
@@ -2470,9 +2577,10 @@
                     statusText = '주문받기 중';
                 }
                 
-                const roomNameHtml = isMyRoom 
-                    ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
-                    : room.roomName;
+                const serverTag = room.serverName ? `<span style="color: #667eea; font-weight: 600; margin-right: 4px;">[${room.serverName}]</span>` : '';
+                const roomNameHtml = isMyRoom
+                    ? `${serverTag}${room.roomName}<span class="my-room-badge">참여 중</span>`
+                    : `${serverTag}${room.roomName}`;
                 
                 // 비공개 방 표시
                 const privateBadge = room.isPrivate 
@@ -2487,10 +2595,6 @@
                     gameTypeIcon = '🎰';
                     gameTypeLabel = '룰렛';
                     gameTypeColor = '#7c4dff';
-                } else if (room.gameType === 'team') {
-                    gameTypeIcon = '👥';
-                    gameTypeLabel = '팀 배정';
-                    gameTypeColor = '#10b981';
                 } else if (room.gameType === 'horse-race') {
                     gameTypeIcon = '🐎';
                     gameTypeLabel = '경마';
@@ -2592,22 +2696,10 @@
                     roomId: roomId,
                     userName: userName,
                     isPrivate: room.isPrivate,
-                    serverId: currentServerId
+                    serverId: currentServerId,
+                    serverName: currentServerName
                 }));
                 window.location.href = '/roulette-game-multiplayer.html?joinRoom=true';
-                return;
-            }
-
-            // 팀 배정 방이면 팀 페이지로 이동
-            if (room && room.gameType === 'team') {
-                localStorage.setItem('teamUserName', userName);
-                localStorage.setItem('pendingTeamJoin', JSON.stringify({
-                    roomId: roomId,
-                    userName: userName,
-                    isPrivate: room.isPrivate,
-                    serverId: currentServerId
-                }));
-                window.location.href = '/team-game-multiplayer.html?joinRoom=true';
                 return;
             }
 
@@ -2618,7 +2710,8 @@
                     roomId: roomId,
                     userName: userName,
                     isPrivate: room.isPrivate,
-                    serverId: currentServerId
+                    serverId: currentServerId,
+                    serverName: currentServerName
                 }));
                 window.location.href = '/horse-race-multiplayer.html?joinRoom=true';
                 return;
@@ -3218,7 +3311,8 @@
             
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('createRoomSection').classList.add('active');
-            
+            PageHistoryManager.pushPage('createRoom');
+
             // 기본값 설정
             document.getElementById('createRoomPrivateCheckbox').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
@@ -3375,12 +3469,7 @@
         
         // 대기실로 돌아가기
         function goBackToLobby() {
-            document.getElementById('createRoomSection').classList.remove('active');
-            document.getElementById('lobbySection').classList.add('active');
-            
-            // body 클래스 변경
-            document.body.classList.remove('game-active');
-            document.body.classList.add('lobby-active');
+            history.back();
         }
         
         // 경마 버튼은 HTML에서 이미 활성화 상태 (별도 처리 불필요)
@@ -3477,26 +3566,10 @@
                     password: isPrivate ? password : '',
                     expiryHours: expiryHours,
                     blockIPPerUser: blockIPPerUser,
-                    serverId: currentServerId
+                    serverId: currentServerId,
+                    serverName: currentServerName
                 }));
                 window.location.href = '/roulette-game-multiplayer.html?createRoom=true';
-                return;
-            }
-
-            // 팀 배정 게임이면 팀 페이지로 이동
-            if (gameType === 'team') {
-                // 이름을 저장하고 팀 페이지로 이동
-                localStorage.setItem('teamUserName', hostName);
-                localStorage.setItem('pendingTeamRoom', JSON.stringify({
-                    userName: hostName,
-                    roomName: roomName,
-                    isPrivate: isPrivate,
-                    password: isPrivate ? password : '',
-                    expiryHours: expiryHours,
-                    blockIPPerUser: blockIPPerUser,
-                    serverId: currentServerId
-                }));
-                window.location.href = '/team-game-multiplayer.html?createRoom=true';
                 return;
             }
 
@@ -3511,7 +3584,8 @@
                     password: isPrivate ? password : '',
                     expiryHours: expiryHours,
                     blockIPPerUser: blockIPPerUser,
-                    serverId: currentServerId
+                    serverId: currentServerId,
+                    serverName: currentServerName
                 }));
                 window.location.href = '/horse-race-multiplayer.html?createRoom=true';
                 return;
@@ -3526,7 +3600,8 @@
                 gameType: 'dice', // 게임 타입 (주사위 게임)
                 expiryHours: expiryHours, // 방 유지 시간 (시간 단위)
                 blockIPPerUser: blockIPPerUser, // IP당 하나의 아이디만 입장 허용
-                serverId: currentServerId // 서버 소속
+                serverId: currentServerId, // 서버 소속
+                serverName: currentServerName // 서버 이름
             });
         }
         
@@ -3555,21 +3630,11 @@
                 localStorage.setItem('pendingRouletteJoin', JSON.stringify({
                     roomId: selectedRoomId,
                     userName: userName,
-                    isPrivate: room.isPrivate
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
                 }));
                 window.location.href = '/roulette-game-multiplayer.html?joinRoom=true';
-                return;
-            }
-            
-            // 팀 배정 방이면 팀 페이지로 이동
-            if (room && room.gameType === 'team') {
-                localStorage.setItem('teamUserName', userName);
-                localStorage.setItem('pendingTeamJoin', JSON.stringify({
-                    roomId: selectedRoomId,
-                    userName: userName,
-                    isPrivate: room.isPrivate
-                }));
-                window.location.href = '/team-game-multiplayer.html?joinRoom=true';
                 return;
             }
             
@@ -3579,7 +3644,9 @@
                 localStorage.setItem('pendingHorseRaceJoin', JSON.stringify({
                     roomId: selectedRoomId,
                     userName: userName,
-                    isPrivate: room.isPrivate
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
                 }));
                 window.location.href = '/horse-race-multiplayer.html?joinRoom=true';
                 return;
@@ -3690,17 +3757,18 @@
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('createRoomSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
-            
+
             // body 클래스 변경
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
-            
+            PageHistoryManager.pushPage('gameRoom');
+
             // 게임 기록 섹션 표시
             document.querySelector('.history-section').classList.add('visible');
-            
+
             initializeGameScreen(data);
         });
-        
+
         // 방 입장 성공
         socket.on('roomJoined', (data) => {
             currentRoomId = data.roomId;
@@ -3723,17 +3791,18 @@
             
             document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
-            
+
             // body 클래스 변경
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
-            
+            PageHistoryManager.pushPage('gameRoom');
+
             // 게임 기록 섹션 표시
             document.querySelector('.history-section').classList.add('visible');
-            
+
             initializeGameScreen(data);
         });
-        
+
         // 게임 화면 초기화
         function initializeGameScreen(data) {
             // 서버에서 받은 누적 참여자 목록 복원
@@ -4063,11 +4132,12 @@
             
             document.getElementById('gameSection').classList.remove('active');
             document.getElementById('lobbySection').classList.add('active');
-            
+
             // body 클래스 변경
             document.body.classList.remove('game-active');
             document.body.classList.add('lobby-active');
-            
+            PageHistoryManager.replacePage('lobby');
+
             currentRoomId = null;
             currentUser = '';
             isHost = false;
@@ -4387,17 +4457,18 @@
         socket.on('roomLeft', () => {
             // 게임 기록 섹션 숨김
             document.querySelector('.history-section').classList.remove('visible');
-            
+
             // body 클래스 변경
             document.body.classList.remove('game-active');
             document.body.classList.add('lobby-active');
-            
+
             currentRoomId = null;
             currentUser = '';
             isHost = false;
             document.getElementById('gameSection').classList.remove('active');
             document.getElementById('lobbySection').classList.add('active');
-            
+            PageHistoryManager.replacePage('lobby');
+
             refreshRooms();
         });
 

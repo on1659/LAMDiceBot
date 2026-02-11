@@ -48,11 +48,24 @@ const RankingModule = (function () {
         if (_overlay) { _overlay.remove(); _overlay = null; }
         _currentMainTab = 'overall';
         _currentGameTab = 'dice';
+        if (typeof PageHistoryManager !== 'undefined') PageHistoryManager.pushPage('ranking');
         createOverlay();
         fetchAndRender();
     }
 
     function hide() {
+        if (_overlay) {
+            _overlay.style.opacity = '0';
+            setTimeout(() => { if (_overlay) { _overlay.remove(); _overlay = null; } }, 250);
+        }
+        // UI 버튼으로 닫을 때 히스토리도 되돌리기
+        if (history.state && history.state.page === 'ranking') {
+            history.back();
+        }
+    }
+
+    // popstate 핸들러에서 호출 (history.back 없이 DOM만 정리)
+    function forceHide() {
         if (_overlay) {
             _overlay.style.opacity = '0';
             setTimeout(() => { if (_overlay) { _overlay.remove(); _overlay = null; } }, 250);
@@ -70,6 +83,16 @@ const RankingModule = (function () {
             opacity: 0; transition: opacity 0.25s ease;
         }
         #ranking-overlay.rk-visible { opacity: 1; }
+        @media (min-width: 768px) {
+            #ranking-overlay {
+                max-width: 520px;
+                margin-left: auto;
+                margin-right: auto;
+                border-left: 1px solid rgba(102,126,234,0.3);
+                border-right: 1px solid rgba(102,126,234,0.3);
+                box-shadow: 0 0 60px rgba(0,0,0,0.5);
+            }
+        }
 
         /* ── 헤더 ── */
         .rk-header {
@@ -489,7 +512,7 @@ const RankingModule = (function () {
             { label: '🐎 경마', key: 'horse', color: '#e67e22' },
             { label: '🎰 룰렛', key: 'roulette', color: '#7c4dff' }
         ];
-        if (data.serverType === 'private') {
+        if (data.orders) {
             gameTabs.push({ label: '🍜 주문', key: 'orders', color: '#e91e63' });
         }
         gameTabs.forEach((t, i) => {
@@ -646,7 +669,7 @@ const RankingModule = (function () {
 
     function getGameTabKeys() {
         const keys = ['dice', 'horse', 'roulette'];
-        if (_cache && _cache.serverType === 'private') keys.push('orders');
+        if (_cache && _cache.orders) keys.push('orders');
         return keys;
     }
 
@@ -737,5 +760,5 @@ const RankingModule = (function () {
         }, { passive: true });
     }
 
-    return { init, show, hide, invalidateCache };
+    return { init, show, hide, forceHide, invalidateCache };
 })();

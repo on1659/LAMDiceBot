@@ -112,7 +112,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, team: { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {
