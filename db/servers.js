@@ -234,14 +234,14 @@ async function updateLastSeen(serverId, userName) {
 
 // ─── Server Game Records ───
 
-async function recordServerGame(serverId, userName, result, gameType, isWinner, gameSessionId) {
+async function recordServerGame(serverId, userName, result, gameType, isWinner, gameSessionId, gameRank) {
     const pool = getPool();
     if (!pool) return;
 
     await pool.query(
-        `INSERT INTO server_game_records (server_id, user_name, result, game_type, is_winner, game_session_id)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [serverId, userName, result, gameType, isWinner, gameSessionId]
+        `INSERT INTO server_game_records (server_id, user_name, result, game_type, is_winner, game_session_id, game_rank)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [serverId, userName, result, gameType, isWinner, gameSessionId, gameRank || null]
     ).catch(e => console.warn('server_game_records insert:', e.message));
 }
 

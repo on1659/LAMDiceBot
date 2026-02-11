@@ -1,4 +1,65 @@
 ========================================
+📋 Summit Log - 2026-02-11 (랭킹 고도화 + 서버 목록 자동갱신)
+========================================
+
+## 변경 파일
+- db/init.js: server_game_records에 game_rank 컬럼 추가
+- db/ranking.js: 종합 랭킹에 avgRank 추가, 경마 탈것 등수 분포 테이블 쿼리
+- db/servers.js: recordServerGame()에 gameRank 파라미터 추가
+- socket/dice.js: determineDiceWinner→determineDiceRanks 리팩토링 (등수 판별, 동점 처리)
+- socket/horse.js: recordServerGame에 rank 전달
+- socket/server.js: io.emit('serversList')→io.emit('serversUpdated') 변경
+- server-select-shared.js: serversUpdated 이벤트 핸들러 추가, 새로고침 버튼 제거
+- ranking-shared.js: UI 전면 개편 (인라인 스타일→CSS 클래스, 탭, 탈것 테이블, 페이드 애니메이션)
+- 4개 게임 HTML: 랭킹 버튼 스타일 변경 (핑크 그라데이션→게임별 아웃라인)
+
+## 상세 변경 내역
+
+### DB 스키마 변경
+- server_game_records에 game_rank INTEGER 컬럼 추가 (ALTER TABLE, duplicate_column 예외 처리)
+
+### 주사위 등수 판별 시스템 (socket/dice.js)
+- determineDiceWinner() 삭제 → determineDiceRanks() 신규
+- 전체 참가자 등수를 판별 (단순 승자 1명 → 전체 순위)
+- 동점자 동일 등수 처리 (i > 0 && sorted[i].result !== sorted[i-1].result → rank = i + 1)
+- gameRules에서 낮/작/최소/로우/low → 오름차순, 그 외 → 내림차순
+- 2곳(수동 endGame + 자동 endGame)에 동일 적용
+
+### 종합 랭킹 평균 등수 추가 (db/ranking.js)
+- getOverallRanking CTE에 AVG(game_rank) + COUNT(game_rank <= 3) 추가
+- avgRank 배열: 평균 등수 오름차순 정렬, TOP3 횟수 포함
+- fallback: avgRank: [] 추가
+
+### 경마 탈것 등수 분포 (db/ranking.js)
+- 기존: popularHorse/worstHorse (1등/6등 최다 탈것 1마리씩)
+- 변경: vehicles 배열 (전체 탈것의 1~6등 분포 테이블)
+- 쿼리: rank_1~rank_6 전부 SELECT, ORDER BY rank_1 DESC
+- UI: ranking-shared.js에 rk-vehicle-table HTML 테이블 렌더링
+
+### 서버 목록 자동 갱신 (socket/server.js + server-select-shared.js)
+- socket/server.js: 서버 생성 시 io.emit('serversUpdated') (기존: io.emit('serversList', servers))
+- 이유: 각 클라이언트가 자기 userName으로 재조회해야 is_member 정렬이 정확함
+- server-select-shared.js: 'serversUpdated' 이벤트에서 _emitGetServers() 호출
+- 새로고침 버튼 CSS(.ss-refresh-btn) + HTML 제거
+
+### 랭킹 UI 개편 (ranking-shared.js)
+- 인라인 스타일 → <style> 블록 + CSS 클래스 방식으로 전환
+- 오버레이 페이드인 애니메이션 (opacity 0→1, .rk-visible)
+- hide() 시 페이드아웃 + 200ms 후 DOM 제거
+- 탭 바: .rk-tab 클래스, active 시 #667eea 배경 + 글로우 그림자
+- 카드: .rk-card (border-radius: 14px, 미세 그림자)
+- 행: .rk-row (호버 효과, 메달 이모지 1~3등)
+- 경마: rk-vehicle-table (1등 금색/6등 빨간색 강조)
+- 로딩: 스피너 애니메이션 (rk-spinner, rkSpin)
+
+### 랭킹 버튼 디자인 통일 (4개 게임 HTML)
+- 기존: background: linear-gradient(#f093fb, #f5576c), 🏆 아이콘
+- 변경: background: white, border: 2px solid [게임색상], 아이콘 제거
+- 주사위/팀: #667eea, 경마: #8b4513, 룰렛: #7c4dff
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-11 (서버별 랭킹 시스템)
 ========================================
 

@@ -364,7 +364,7 @@ module.exports = (socket, io, ctx) => {
             bettors.forEach(([userName, horseIndex]) => {
                 const rank = horseRankMap[horseIndex] || 0;
                 const isWinner = winners.includes(userName);
-                recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId);
+                recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId, rank);
             });
             recordGameSession({
                 serverId: room.serverId,
@@ -722,7 +722,7 @@ module.exports = (socket, io, ctx) => {
                 bettors.forEach(([uName, horseIndex]) => {
                     const rank = horseRankMap[horseIndex] || 0;
                     const isWin = winners.includes(uName);
-                    recordServerGame(room.serverId, uName, rank, 'horse', isWin, sessionId);
+                    recordServerGame(room.serverId, uName, rank, 'horse', isWin, sessionId, rank);
                 });
                 recordGameSession({
                     serverId: room.serverId,

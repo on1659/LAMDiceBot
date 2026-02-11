@@ -115,10 +115,11 @@ async function initDatabase() {
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_created_at ON server_game_records(created_at)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_sgr_server_user ON server_game_records(server_id, user_name)`);
 
-        // server_game_records 추가 컬럼 (범위, 룰)
+        // server_game_records 추가 컬럼 (범위, 룰, 등수)
         await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN range_min INTEGER; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
         await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN range_max INTEGER; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
         await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN game_rules TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+        await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN game_rank INTEGER; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
 
         // ─── 게임 세션 테이블 ───
         await pool.query(`

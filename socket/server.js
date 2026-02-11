@@ -41,9 +41,8 @@ function registerServerHandlers(socket, io, ctx) {
                 hostName: result.server.host_name
             });
 
-            // 전체에게 서버 목록 갱신 알림
-            const servers = await getServers();
-            io.emit('serversList', servers);
+            // 전체에게 서버 목록 갱신 알림 (각 클라이언트가 자기 userName으로 재조회)
+            io.emit('serversUpdated');
         } catch (e) {
             console.error('서버 생성 오류:', e.message);
             socket.emit('serverError', '서버 생성 중 오류가 발생했습니다.');

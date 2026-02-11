@@ -20,7 +20,7 @@ async function recordOrder(serverId, userName, menuText) {
 
 async function getOverallRanking(serverId) {
     const pool = getPool();
-    if (!pool) return { mostPlayed: [], mostWins: [], winRate: [] };
+    if (!pool) return { mostPlayed: [], mostWins: [], winRate: [], avgRank: [] };
 
     const condition = serverId ? 'server_id = $1' : 'server_id IS NULL';
     const params = serverId ? [serverId] : [];
@@ -29,12 +29,14 @@ async function getOverallRanking(serverId) {
         WITH stats AS (
             SELECT user_name,
                 COUNT(*) AS games,
-                COUNT(*) FILTER (WHERE is_winner = true) AS wins
+                COUNT(*) FILTER (WHERE is_winner = true) AS wins,
+                ROUND(AVG(game_rank) FILTER (WHERE game_rank IS NOT NULL), 1) AS avg_rank,
+                COUNT(*) FILTER (WHERE game_rank IS NOT NULL AND game_rank <= 3) AS top3_count
             FROM server_game_records
             WHERE ${condition}
             GROUP BY user_name
         )
-        SELECT user_name, games, wins,
+        SELECT user_name, games, wins, avg_rank, top3_count,
             CASE WHEN games > 0 THEN ROUND(wins::numeric / games * 100, 1) ELSE 0 END AS win_rate
         FROM stats
         ORDER BY games DESC
@@ -45,7 +47,9 @@ async function getOverallRanking(serverId) {
         mostPlayed: rows.slice(0, 10).map(r => ({ name: r.user_name, games: parseInt(r.games) })),
         mostWins: [...rows].sort((a, b) => b.wins - a.wins).slice(0, 10).map(r => ({ name: r.user_name, wins: parseInt(r.wins) })),
         winRate: rows.filter(r => parseInt(r.games) >= 5).sort((a, b) => parseFloat(b.win_rate) - parseFloat(a.win_rate)).slice(0, 10)
-            .map(r => ({ name: r.user_name, winRate: parseFloat(r.win_rate), games: parseInt(r.games), wins: parseInt(r.wins) }))
+            .map(r => ({ name: r.user_name, winRate: parseFloat(r.win_rate), games: parseInt(r.games), wins: parseInt(r.wins) })),
+        avgRank: rows.filter(r => r.avg_rank !== null).sort((a, b) => parseFloat(a.avg_rank) - parseFloat(b.avg_rank)).slice(0, 10)
+            .map(r => ({ name: r.user_name, avgRank: parseFloat(r.avg_rank), top3: parseInt(r.top3_count), games: parseInt(r.games) }))
     };
 }
 
@@ -81,39 +85,38 @@ async function getGameRanking(serverId, gameType) {
     };
 }
 
-// ─── 경마 특화 (인기말, 꼴등말) ───
+// ─── 경마 특화 (탈것 등수 분포) ───
 
 async function getHorseRaceStats(serverId) {
     const pool = getPool();
-    if (!pool) return { winners: [], popularHorse: null, worstHorse: null };
+    if (!pool) return { winners: [], vehicles: [] };
 
     // 기본 게임 랭킹
     const gameRanking = await getGameRanking(serverId, 'horse');
 
-    // vehicle_stats에서 인기말/꼴등말 (server_id는 VARCHAR)
+    // vehicle_stats에서 전체 탈것 등수 분포 (server_id는 VARCHAR)
     const serverIdStr = serverId ? String(serverId) : 'default';
     const vehicleResult = await pool.query(`
-        SELECT vehicle_id, pick_count, rank_1, rank_6
+        SELECT vehicle_id, appearance_count, pick_count,
+               rank_1, rank_2, rank_3, rank_4, rank_5, rank_6
         FROM vehicle_stats
-        WHERE server_id = $1 AND pick_count > 0
-        ORDER BY pick_count DESC
+        WHERE server_id = $1 AND appearance_count > 0
+        ORDER BY rank_1 DESC, appearance_count DESC
     `, [serverIdStr]);
 
-    let popularHorse = null;
-    let worstHorse = null;
-
-    if (vehicleResult.rows.length > 0) {
-        popularHorse = vehicleResult.rows[0].vehicle_id;
-        const sorted6 = [...vehicleResult.rows].sort((a, b) => b.rank_6 - a.rank_6);
-        if (sorted6.length > 0 && sorted6[0].rank_6 > 0) {
-            worstHorse = sorted6[0].vehicle_id;
-        }
-    }
+    const vehicles = vehicleResult.rows.map(r => ({
+        id: r.vehicle_id,
+        appearances: parseInt(r.appearance_count),
+        picks: parseInt(r.pick_count),
+        ranks: [
+            parseInt(r.rank_1), parseInt(r.rank_2), parseInt(r.rank_3),
+            parseInt(r.rank_4), parseInt(r.rank_5), parseInt(r.rank_6)
+        ]
+    }));
 
     return {
         winners: gameRanking.winners,
-        popularHorse,
-        worstHorse
+        vehicles
     };
 }
 

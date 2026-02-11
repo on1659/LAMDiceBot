@@ -143,6 +143,11 @@ const ServerSelectModule = (function () {
             renderServerList(_allServers);
         });
 
+        // 서버 목록 변경 알림 (다른 유저가 서버 생성/삭제 시) → 자기 userName으로 재조회
+        _socket.on('serversUpdated', () => {
+            _emitGetServers();
+        });
+
         _socket.on('serverCreated', (data) => {
             closeCreateModal();
             _selectServer(data.id, data.name);
@@ -248,16 +253,6 @@ const ServerSelectModule = (function () {
                 .ss-divider::before, .ss-divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
 
                 .ss-section-title { font-size: 0.9em; font-weight: 600; color: #555; margin-bottom: 12px; }
-                .ss-refresh-btn {
-                    background: #f0f0ff; border: 1.5px solid #ddd; border-radius: 8px;
-                    cursor: pointer; padding: 4px 10px; font-size: 0.85em; color: #667eea;
-                    transition: all 0.2s; display: flex; align-items: center; gap: 4px;
-                }
-                .ss-refresh-btn:hover { background: #e0e0ff; border-color: #667eea; }
-                .ss-refresh-btn:active { transform: scale(0.95); }
-                .ss-refresh-btn .ss-spin { display: inline-block; transition: transform 0.3s; }
-                .ss-refresh-btn:active .ss-spin { transform: rotate(180deg); }
-
                 /* 검색 입력 */
                 .ss-search-wrap { margin-bottom: 12px; }
                 .ss-search-wrap input {
@@ -344,10 +339,7 @@ const ServerSelectModule = (function () {
 
                 <div class="ss-divider">또는 서버 참여</div>
 
-                <div class="ss-section-title" style="display:flex;align-items:center;justify-content:space-between;">
-                    서버 목록
-                    <button class="ss-refresh-btn" onclick="ServerSelectModule.refreshServers()"><span class="ss-spin">↻</span> 새로고침</button>
-                </div>
+                <div class="ss-section-title">서버 목록</div>
                 <div class="ss-search-wrap">
                     <input type="text" id="ss-search-input" placeholder="서버 검색..." oninput="ServerSelectModule.onSearch()" />
                 </div>

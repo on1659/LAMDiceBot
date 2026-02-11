@@ -128,8 +128,9 @@ module.exports = (socket, io, ctx) => {
         // 서버 게임 기록 저장
         if (room.serverId && currentGameHistory.length > 0) {
             const sessionId = generateSessionId('dice', room.serverId);
-            // 비공개서버: 승자 판별하여 is_winner 정확히 기록
-            const winnerName = room.isPrivateServer ? determineDiceWinner(currentGameHistory, gameState.gameRules) : null;
+            // 비공개서버: 등수 판별하여 game_rank + is_winner 기록
+            const diceRanks = room.isPrivateServer ? determineDiceRanks(currentGameHistory, gameState.gameRules) : {};
+            const winnerName = diceRanks ? Object.keys(diceRanks).find(u => diceRanks[u] === 1) || null : null;
             recordGameSession({
                 serverId: room.serverId,
                 sessionId,
@@ -139,8 +140,9 @@ module.exports = (socket, io, ctx) => {
                 participantCount: currentGamePlayers.length
             });
             currentGameHistory.forEach(r => {
-                const isWinner = room.isPrivateServer ? (r.user === winnerName) : false;
-                recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId);
+                const rank = diceRanks[r.user] || null;
+                const isWinner = rank === 1;
+                recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId, rank);
             });
         }
 
@@ -526,8 +528,9 @@ module.exports = (socket, io, ctx) => {
                 // 서버 게임 기록 저장
                 if (room.serverId && currentGameHistory.length > 0) {
                     const sessionId = generateSessionId('dice', room.serverId);
-                    // 비공개서버: 승자 판별하여 is_winner 정확히 기록
-                    const winnerName = room.isPrivateServer ? determineDiceWinner(currentGameHistory, gameState.gameRules) : null;
+                    // 비공개서버: 등수 판별하여 game_rank + is_winner 기록
+                    const diceRanks = room.isPrivateServer ? determineDiceRanks(currentGameHistory, gameState.gameRules) : {};
+                    const winnerName = diceRanks ? Object.keys(diceRanks).find(u => diceRanks[u] === 1) || null : null;
                     recordGameSession({
                         serverId: room.serverId,
                         sessionId,
@@ -537,8 +540,9 @@ module.exports = (socket, io, ctx) => {
                         participantCount: currentGamePlayers.length
                     });
                     currentGameHistory.forEach(r => {
-                        const isWinner = room.isPrivateServer ? (r.user === winnerName) : false;
-                        recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId);
+                        const rank = diceRanks[r.user] || null;
+                        const isWinner = rank === 1;
+                        recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId, rank);
                     });
                 }
 
@@ -560,15 +564,18 @@ module.exports = (socket, io, ctx) => {
     });
 };
 
-// 주사위 승자 판별 (비공개서버 랭킹용)
-function determineDiceWinner(gameHistory, gameRules) {
-    if (!gameHistory || gameHistory.length === 0) return null;
+// 주사위 등수 판별 (비공개서버 랭킹용) - 동점은 같은 등수
+function determineDiceRanks(gameHistory, gameRules) {
+    if (!gameHistory || gameHistory.length === 0) return {};
     const isLowWins = /낮|작|최소|로우|low/i.test(gameRules || '');
-    let winner = gameHistory[0];
-    for (const entry of gameHistory) {
-        if (isLowWins ? entry.result < winner.result : entry.result > winner.result) {
-            winner = entry;
-        }
+    const sorted = [...gameHistory].sort((a, b) =>
+        isLowWins ? a.result - b.result : b.result - a.result
+    );
+    const ranks = {};
+    let rank = 1;
+    for (let i = 0; i < sorted.length; i++) {
+        if (i > 0 && sorted[i].result !== sorted[i - 1].result) rank = i + 1;
+        ranks[sorted[i].user] = rank;
     }
-    return winner.user;
+    return ranks;
 }
