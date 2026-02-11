@@ -1,135 +1,29 @@
-// 서버 선택 UI 공유 모듈
+// 서버 선택 UI 공유 모듈 - 모던/미니멀 디자인
 const ServerSelectModule = (function () {
     let _socket = null;
     let _onSelect = null;
     let _overlay = null;
     let _onBack = null;
-    let _allServers = []; // 검색 필터용 캐시
-    let _currentServer = null; // 현재 입장한 서버 정보
-    let _membersInterval = null; // 멤버 목록 자동 갱신
-    let _isJoining = false; // 서버 입장 중 디바운스 플래그
-    let _joiningTimeout = null; // 입장 타임아웃
+    let _allServers = [];
+    let _currentServer = null;
+    let _membersInterval = null;
+    let _isJoining = false;
+    let _joiningTimeout = null;
 
     function init(socket, onSelect, onBack) {
         _socket = socket;
         _onSelect = onSelect;
         _onBack = onBack || null;
 
-        // 모달 CSS를 head에 주입 (오버레이 제거 후에도 유지)
+        // 모달 CSS를 head에 주입
         if (!document.getElementById('ss-modal-styles')) {
             const style = document.createElement('style');
             style.id = 'ss-modal-styles';
-            style.textContent = `
-                .ss-members-modal, .ss-myserver-modal, .ss-error-modal, .ss-joining-overlay, .ss-pw-modal {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
-                    align-items: center; justify-content: center;
-                }
-                .ss-joining-overlay { background: rgba(0,0,0,0.6); z-index: 10002; flex-direction: column; gap: 16px; }
-                .ss-error-modal { z-index: 10003; }
-                .ss-members-box, .ss-myserver-box {
-                    background: white; border-radius: 20px; padding: 28px; width: 400px;
-                    max-width: 90%; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                    display: flex; flex-direction: column;
-                }
-                .ss-members-box h3, .ss-myserver-box h3 { margin: 0 0 16px 0; color: #333; text-align: center; }
-                .ss-members-list, .ss-myserver-list { flex: 1; overflow-y: auto; max-height: 400px; }
-                .ss-member-item {
-                    display: flex; align-items: center; padding: 10px 12px; border-radius: 10px;
-                    margin-bottom: 6px; background: #f8f9fa; gap: 10px;
-                }
-                .ss-member-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-                .ss-member-dot.online { background: #28a745; }
-                .ss-member-dot.offline { background: #ccc; }
-                .ss-member-name { flex: 1; font-size: 0.95em; color: #333; }
-                .ss-member-name .host-badge {
-                    font-size: 0.75em; background: #667eea; color: white; padding: 1px 6px;
-                    border-radius: 6px; margin-left: 6px;
-                }
-                .ss-member-name .pending-badge {
-                    font-size: 0.75em; background: #ffc107; color: #333; padding: 1px 6px;
-                    border-radius: 6px; margin-left: 6px;
-                }
-                .ss-member-actions { display: flex; gap: 4px; }
-                .ss-member-actions button {
-                    padding: 4px 10px; border: none; border-radius: 6px; font-size: 0.8em;
-                    cursor: pointer; transition: opacity 0.2s;
-                }
-                .ss-member-actions button:hover { opacity: 0.8; }
-                .ss-btn-approve { background: #28a745; color: white; }
-                .ss-btn-reject { background: #dc3545; color: white; }
-                .ss-btn-kick { background: #ff6b6b; color: white; }
-                .ss-members-close, .ss-myserver-close {
-                    margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
-                    background: #eee; color: #666; font-size: 0.95em; cursor: pointer; width: 100%;
-                }
-                .ss-error-box {
-                    background: white; border-radius: 20px; padding: 30px; width: 320px;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
-                }
-                .ss-error-box h3 { margin: 0 0 12px 0; color: #dc3545; }
-                .ss-error-box p { color: #555; font-size: 0.95em; margin: 0 0 20px 0; }
-                .ss-error-box button {
-                    padding: 12px 40px; border: none; border-radius: 10px;
-                    background: #667eea; color: white; font-size: 0.95em; cursor: pointer;
-                }
-                .ss-pw-box {
-                    background: white; border-radius: 20px; padding: 30px; width: 340px;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
-                }
-                .ss-pw-box h3 { margin: 0 0 16px 0; color: #333; }
-                .ss-pw-box input {
-                    width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px;
-                    font-size: 16px; text-align: center; box-sizing: border-box; margin-bottom: 12px;
-                }
-                .ss-pw-box input:focus { border-color: #667eea; outline: none; }
-                .ss-pw-btns { display: flex; gap: 10px; }
-                .ss-pw-btns button {
-                    flex: 1; padding: 12px; border: none; border-radius: 10px;
-                    font-size: 0.95em; cursor: pointer;
-                }
-                .ss-pw-cancel { background: #eee; color: #666; }
-                .ss-pw-confirm { background: #667eea; color: white; }
-                .ss-spinner {
-                    width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
-                    border-top-color: #fff; border-radius: 50%;
-                    animation: ssSpin 0.8s linear infinite;
-                }
-                @keyframes ssSpin { to { transform: rotate(360deg); } }
-                .ss-joining-text { color: #fff; font-size: 1em; }
-                .ss-joining-cancel {
-                    margin-top: 8px; padding: 8px 24px; border: 1px solid rgba(255,255,255,0.4);
-                    border-radius: 10px; background: transparent; color: rgba(255,255,255,0.8);
-                    font-size: 0.85em; cursor: pointer;
-                }
-                .ss-joining-cancel:hover { background: rgba(255,255,255,0.1); }
-                .ss-myserver-item {
-                    padding: 12px; border-radius: 12px; margin-bottom: 8px;
-                    background: #f8f9fa; border: 1px solid #eee;
-                }
-                .ss-myserver-item-header {
-                    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
-                }
-                .ss-myserver-item-name { font-weight: 600; color: #333; font-size: 0.95em; }
-                .ss-myserver-item-meta { font-size: 0.8em; color: #999; }
-                .ss-myserver-item-actions { display: flex; gap: 6px; margin-top: 8px; }
-                .ss-myserver-item-actions button {
-                    padding: 6px 12px; border: none; border-radius: 8px;
-                    font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
-                }
-                .ss-myserver-item-actions button:hover { opacity: 0.8; }
-                .ss-btn-members { background: #667eea; color: white; }
-                .ss-btn-delete { background: #dc3545; color: white; }
-                @keyframes ssShake {
-                    0%, 100% { transform: translateX(0); }
-                    25% { transform: translateX(-6px); }
-                    75% { transform: translateX(6px); }
-                }
-            `;
+            style.textContent = MODAL_CSS;
             document.head.appendChild(style);
         }
 
-        // 뒤로가기 시 서버 선택 화면으로 복귀
+        // 뒤로가기
         window.addEventListener('popstate', (e) => {
             if (!e.state || e.state.ssPage === 'serverSelect') {
                 if (_onBack) _onBack();
@@ -137,13 +31,12 @@ const ServerSelectModule = (function () {
             }
         });
 
-        // 소켓 이벤트 리스너
+        // 소켓 이벤트
         _socket.on('serversList', (servers) => {
             _allServers = servers || [];
             renderServerList(_allServers);
         });
 
-        // 서버 목록 변경 알림 (다른 유저가 서버 생성/삭제 시) → 자기 userName으로 재조회
         _socket.on('serversUpdated', () => {
             _emitGetServers();
         });
@@ -164,13 +57,11 @@ const ServerSelectModule = (function () {
 
         _socket.on('serverError', (msg) => {
             _clearJoining();
-            // 입장 관련 에러 → 에러 모달
             _showErrorModal(msg);
             const createErr = document.getElementById('ss-create-error');
             if (createErr) { createErr.textContent = msg; createErr.style.display = 'block'; }
         });
 
-        // 실시간 승인/거절 알림
         _socket.on('serverApproved', (data) => {
             if (typeof showCustomAlert === 'function') {
                 showCustomAlert(`"${data.serverName}" 서버 입장이 승인되었습니다!`, 'success');
@@ -193,169 +84,406 @@ const ServerSelectModule = (function () {
             } else {
                 alert(`"${data.serverName}" 서버에서 강퇴되었습니다.`);
             }
-            // 강퇴 시 서버 선택 화면으로 돌아가기
             show();
         });
     }
+
+    // ─── CSS ───
+
+    const MAIN_CSS = `
+        #serverSelectOverlay {
+            position: fixed; inset: 0; z-index: 10000;
+            background: #f8f9fb;
+            display: flex; flex-direction: column; align-items: center;
+            animation: ssFadeIn 0.3s ease;
+        }
+        @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes ssSlideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes ssShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        /* ── 상단 바 ── */
+        .ss-top-bar {
+            width: 100%; max-width: 480px; padding: 16px 20px;
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            box-sizing: border-box;
+        }
+        .ss-login-btn {
+            padding: 8px 18px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+            background: white; color: #4F46E5; font-size: 0.88em; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .ss-login-btn:hover { background: #EEF2FF; border-color: #c7d2fe; }
+        .ss-login-btn.logged-in {
+            background: #EEF2FF; border-color: #c7d2fe; color: #4F46E5;
+        }
+        .ss-logout-btn {
+            padding: 6px 12px; border: none; border-radius: 8px;
+            background: transparent; color: #94a3b8; font-size: 0.8em;
+            cursor: pointer; transition: color 0.2s;
+        }
+        .ss-logout-btn:hover { color: #64748b; }
+
+        /* ── 컨테이너 ── */
+        .ss-container {
+            width: 90%; max-width: 440px;
+            animation: ssSlideUp 0.35s ease;
+        }
+
+        /* ── 헤더 ── */
+        .ss-header {
+            text-align: center; margin-bottom: 28px;
+        }
+        .ss-header h1 {
+            font-family: 'Jua', sans-serif; font-size: 1.8em;
+            color: #1e293b; margin: 0 0 6px 0;
+        }
+        .ss-header p {
+            color: #94a3b8; font-size: 0.95em; margin: 0;
+        }
+
+        /* ── 자유 플레이 카드 ── */
+        .ss-free-card {
+            width: 100%; padding: 22px 20px; border: none; border-radius: 16px;
+            background: linear-gradient(135deg, #4F46E5 0%, #818CF8 100%);
+            color: white; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 4px 20px rgba(79,70,229,0.25);
+            margin-bottom: 28px; text-align: left;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .ss-free-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(79,70,229,0.35);
+        }
+        .ss-free-card:active { transform: scale(0.98); }
+        .ss-free-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            background: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5em; flex-shrink: 0;
+        }
+        .ss-free-text h3 { margin: 0 0 2px 0; font-size: 1.05em; font-weight: 600; }
+        .ss-free-text p { margin: 0; font-size: 0.85em; opacity: 0.8; }
+
+        /* ── 구분선 ── */
+        .ss-divider {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 20px; color: #cbd5e1; font-size: 0.85em;
+        }
+        .ss-divider::before, .ss-divider::after {
+            content: ''; flex: 1; height: 1px; background: #e2e8f0;
+        }
+
+        /* ── 로그인 필요 안내 ── */
+        .ss-login-prompt {
+            text-align: center; padding: 40px 20px;
+            background: white; border-radius: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        .ss-login-prompt-icon { font-size: 2.5em; margin-bottom: 12px; }
+        .ss-login-prompt h3 {
+            color: #1e293b; margin: 0 0 8px 0; font-size: 1.05em;
+        }
+        .ss-login-prompt p {
+            color: #94a3b8; font-size: 0.9em; margin: 0 0 20px 0;
+        }
+        .ss-login-prompt-btn {
+            padding: 12px 32px; border: none; border-radius: 12px;
+            background: #4F46E5; color: white; font-size: 0.95em;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .ss-login-prompt-btn:hover { background: #4338CA; }
+
+        /* ── 서버 섹션 (로그인 시) ── */
+        .ss-section-title {
+            font-size: 0.88em; font-weight: 600; color: #64748b;
+            margin-bottom: 10px; letter-spacing: 0.3px;
+        }
+        .ss-search-wrap { margin-bottom: 12px; }
+        .ss-search-wrap input {
+            width: 100%; padding: 11px 14px 11px 38px;
+            border: 1.5px solid #e2e8f0; border-radius: 12px;
+            font-size: 14px; box-sizing: border-box;
+            transition: border-color 0.2s; background-color: white;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+            background-position: 12px center; background-repeat: no-repeat;
+        }
+        .ss-search-wrap input:focus { border-color: #818CF8; outline: none; }
+
+        .ss-server-list {
+            display: flex; flex-direction: column; gap: 8px;
+            max-height: 280px; overflow-y: auto; margin-bottom: 16px;
+            padding-right: 4px;
+        }
+        .ss-server-list::-webkit-scrollbar { width: 4px; }
+        .ss-server-list::-webkit-scrollbar-thumb {
+            background: #e2e8f0; border-radius: 4px;
+        }
+
+        .ss-server-card {
+            display: flex; align-items: center; padding: 14px 16px; border-radius: 14px;
+            border: 1.5px solid #e2e8f0; cursor: pointer; transition: all 0.2s;
+            background: white;
+        }
+        .ss-server-card:hover {
+            border-color: #818CF8; transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79,70,229,0.08);
+        }
+        .ss-server-card:active { transform: scale(0.99); }
+        .ss-server-icon {
+            width: 42px; height: 42px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15em; font-weight: 700; margin-right: 14px; flex-shrink: 0;
+        }
+        .ss-server-info { flex: 1; min-width: 0; }
+        .ss-server-name {
+            font-weight: 600; color: #1e293b; font-size: 0.95em;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .ss-server-meta { font-size: 0.8em; color: #94a3b8; margin-top: 2px; }
+        .ss-server-badge {
+            font-size: 0.72em; padding: 2px 8px; border-radius: 6px;
+            background: #f1f5f9; color: #94a3b8; margin-left: 8px;
+        }
+        .ss-server-badge.private { background: #FEF3C7; color: #92400E; }
+
+        .ss-create-btn {
+            width: 100%; padding: 13px; border: none; border-radius: 12px;
+            background: #4F46E5; color: white; font-size: 0.95em; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .ss-create-btn:hover { background: #4338CA; }
+        .ss-create-btn:active { transform: scale(0.98); }
+
+        .ss-manage-btn {
+            width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 12px;
+            background: white; color: #64748b; font-size: 0.9em; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; margin-top: 8px;
+        }
+        .ss-manage-btn:hover { border-color: #818CF8; color: #4F46E5; background: #EEF2FF; }
+
+        .ss-empty { text-align: center; padding: 30px 20px; color: #94a3b8; font-size: 0.95em; }
+        .ss-loading { text-align: center; padding: 30px; color: #94a3b8; }
+        .ss-error { color: #ef4444; font-size: 0.85em; margin-top: 8px; display: none; text-align: center; }
+    `;
+
+    const MODAL_CSS = `
+        .ss-members-modal, .ss-myserver-modal, .ss-error-modal, .ss-joining-overlay, .ss-pw-modal, .ss-name-modal {
+            position: fixed; inset: 0; z-index: 10001; display: flex;
+            align-items: center; justify-content: center;
+            background: rgba(15,23,42,0.4); backdrop-filter: blur(4px);
+        }
+        .ss-joining-overlay { z-index: 10002; flex-direction: column; gap: 16px; }
+        .ss-error-modal { z-index: 10003; }
+
+        .ss-members-box, .ss-myserver-box {
+            background: white; border-radius: 20px; padding: 28px; width: 400px;
+            max-width: 90%; max-height: 80vh; box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+            display: flex; flex-direction: column;
+        }
+        .ss-members-box h3, .ss-myserver-box h3 {
+            margin: 0 0 16px 0; color: #1e293b; text-align: center;
+            font-family: 'Jua', sans-serif;
+        }
+        .ss-members-list, .ss-myserver-list { flex: 1; overflow-y: auto; max-height: 400px; }
+        .ss-member-item {
+            display: flex; align-items: center; padding: 10px 12px; border-radius: 10px;
+            margin-bottom: 6px; background: #f8fafc; gap: 10px;
+        }
+        .ss-member-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .ss-member-dot.online { background: #22c55e; }
+        .ss-member-dot.offline { background: #e2e8f0; }
+        .ss-member-name { flex: 1; font-size: 0.95em; color: #1e293b; }
+        .ss-member-name .host-badge {
+            font-size: 0.75em; background: #4F46E5; color: white; padding: 1px 6px;
+            border-radius: 6px; margin-left: 6px;
+        }
+        .ss-member-name .pending-badge {
+            font-size: 0.75em; background: #FEF3C7; color: #92400E; padding: 1px 6px;
+            border-radius: 6px; margin-left: 6px;
+        }
+        .ss-member-actions { display: flex; gap: 4px; }
+        .ss-member-actions button {
+            padding: 4px 10px; border: none; border-radius: 6px; font-size: 0.8em;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .ss-member-actions button:hover { opacity: 0.8; }
+        .ss-btn-approve { background: #22c55e; color: white; }
+        .ss-btn-reject { background: #ef4444; color: white; }
+        .ss-btn-kick { background: #ef4444; color: white; }
+        .ss-members-close, .ss-myserver-close {
+            margin-top: 14px; padding: 12px; border: none; border-radius: 12px;
+            background: #f1f5f9; color: #64748b; font-size: 0.95em; cursor: pointer; width: 100%;
+            transition: background 0.2s;
+        }
+        .ss-members-close:hover, .ss-myserver-close:hover { background: #e2e8f0; }
+
+        .ss-error-box {
+            background: white; border-radius: 20px; padding: 30px; width: 320px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12); text-align: center;
+        }
+        .ss-error-box h3 { margin: 0 0 12px 0; color: #ef4444; font-family: 'Jua', sans-serif; }
+        .ss-error-box p { color: #64748b; font-size: 0.95em; margin: 0 0 20px 0; }
+        .ss-error-box button {
+            padding: 12px 40px; border: none; border-radius: 12px;
+            background: #4F46E5; color: white; font-size: 0.95em; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .ss-error-box button:hover { background: #4338CA; }
+
+        .ss-pw-box, .ss-name-box {
+            background: white; border-radius: 20px; padding: 30px; width: 340px;
+            max-width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.12); text-align: center;
+        }
+        .ss-pw-box h3, .ss-name-box h3 {
+            margin: 0 0 16px 0; color: #1e293b; font-family: 'Jua', sans-serif;
+        }
+        .ss-pw-box input, .ss-name-box input {
+            width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 12px;
+            font-size: 16px; text-align: center; box-sizing: border-box; margin-bottom: 12px;
+            transition: border-color 0.2s;
+        }
+        .ss-pw-box input:focus, .ss-name-box input:focus { border-color: #818CF8; outline: none; }
+        .ss-pw-btns, .ss-name-btns { display: flex; gap: 10px; }
+        .ss-pw-btns button, .ss-name-btns button {
+            flex: 1; padding: 12px; border: none; border-radius: 12px;
+            font-size: 0.95em; cursor: pointer; transition: all 0.2s;
+        }
+        .ss-pw-cancel, .ss-name-cancel { background: #f1f5f9; color: #64748b; }
+        .ss-pw-cancel:hover, .ss-name-cancel:hover { background: #e2e8f0; }
+        .ss-pw-confirm, .ss-name-confirm { background: #4F46E5; color: white; }
+        .ss-pw-confirm:hover, .ss-name-confirm:hover { background: #4338CA; }
+
+        .ss-spinner {
+            width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%;
+            animation: ssSpin 0.8s linear infinite;
+        }
+        @keyframes ssSpin { to { transform: rotate(360deg); } }
+        .ss-joining-text { color: #fff; font-size: 1em; }
+        .ss-joining-cancel {
+            margin-top: 8px; padding: 8px 24px; border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 10px; background: transparent; color: rgba(255,255,255,0.8);
+            font-size: 0.85em; cursor: pointer;
+        }
+        .ss-joining-cancel:hover { background: rgba(255,255,255,0.1); }
+
+        .ss-myserver-item {
+            padding: 12px; border-radius: 12px; margin-bottom: 8px;
+            background: #f8fafc; border: 1px solid #e2e8f0;
+        }
+        .ss-myserver-item-header {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+        }
+        .ss-myserver-item-name { font-weight: 600; color: #1e293b; font-size: 0.95em; }
+        .ss-myserver-item-meta { font-size: 0.8em; color: #94a3b8; }
+        .ss-myserver-item-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .ss-myserver-item-actions button {
+            padding: 6px 12px; border: none; border-radius: 8px;
+            font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
+        }
+        .ss-myserver-item-actions button:hover { opacity: 0.8; }
+        .ss-btn-members { background: #4F46E5; color: white; }
+        .ss-btn-delete { background: #ef4444; color: white; }
+
+        /* 서버 생성 모달 */
+        .ss-create-modal {
+            position: fixed; inset: 0; z-index: 10001; display: flex;
+            align-items: center; justify-content: center;
+            background: rgba(15,23,42,0.4); backdrop-filter: blur(4px);
+        }
+        .ss-create-box {
+            background: white; border-radius: 20px; padding: 30px; width: 380px;
+            max-width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+        }
+        .ss-create-box h3 { margin: 0 0 20px 0; color: #1e293b; text-align: center; font-family: 'Jua', sans-serif; }
+        .ss-input-group { margin-bottom: 14px; }
+        .ss-input-group label { display: block; font-size: 0.85em; color: #64748b; margin-bottom: 4px; font-weight: 500; }
+        .ss-input-group input, .ss-input-group textarea {
+            width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 12px;
+            font-size: 14px; box-sizing: border-box; transition: border-color 0.2s;
+        }
+        .ss-input-group input:focus, .ss-input-group textarea:focus { border-color: #818CF8; outline: none; }
+        .ss-input-group textarea { resize: none; height: 60px; }
+    `;
+
+    // ─── show() ───
 
     function show() {
         if (_overlay) { _overlay.remove(); }
         _currentServer = null;
 
         const savedName = _getUserName() || '';
+        const loggedIn = _isLoggedIn();
 
         _overlay = document.createElement('div');
         _overlay.id = 'serverSelectOverlay';
         _overlay.innerHTML = `
-            <style>
-                #serverSelectOverlay {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-                    animation: ssFadeIn 0.3s ease;
-                }
-                @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes ssSlideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-                .ss-container {
-                    background: white; border-radius: 24px; padding: 36px 32px; max-width: 440px; width: 90%;
-                    max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                    animation: ssSlideUp 0.4s ease;
-                }
-                .ss-header { text-align: center; margin-bottom: 20px; }
-                .ss-header h1 { font-size: 1.6em; color: #333; margin: 0 0 6px 0; }
-                .ss-header p { color: #888; font-size: 0.95em; margin: 0; }
-
-                /* 상단 바 */
-                .ss-top-bar { display: flex; align-items: center; gap: 8px; }
-                .ss-login-btn {
-                    padding: 8px 20px; border: none; border-radius: 16px;
-                    background: rgba(255,255,255,0.2); cursor: pointer;
-                    font-size: 0.85em; color: white; font-weight: 500; transition: background 0.2s;
-                    white-space: nowrap;
-                }
-                .ss-login-btn:hover { background: rgba(255,255,255,0.3); }
-                .ss-logout-btn {
-                    padding: 4px 10px; border: none; border-radius: 12px;
-                    background: transparent; cursor: pointer;
-                    font-size: 0.75em; color: rgba(255,255,255,0.6); transition: color 0.2s;
-                }
-                .ss-logout-btn:hover { color: rgba(255,255,255,0.9); }
-
-                .ss-free-btn {
-                    width: 100%; padding: 16px; border: 2px dashed #ccc; border-radius: 14px;
-                    background: #fafafa; cursor: pointer; font-size: 1.05em; color: #666;
-                    transition: all 0.2s; margin-bottom: 20px; text-align: center;
-                }
-                .ss-free-btn:hover { border-color: #667eea; color: #667eea; background: #f0f0ff; }
-
-                .ss-divider { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: #ccc; font-size: 0.85em; }
-                .ss-divider::before, .ss-divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
-
-                .ss-section-title { font-size: 0.9em; font-weight: 600; color: #555; margin-bottom: 12px; }
-                /* 검색 입력 */
-                .ss-search-wrap { margin-bottom: 12px; }
-                .ss-search-wrap input {
-                    width: 100%; padding: 10px 14px 10px 36px; border: 2px solid #eee; border-radius: 12px;
-                    font-size: 14px; box-sizing: border-box; transition: border-color 0.2s;
-                    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") 12px center no-repeat;
-                }
-                .ss-search-wrap input:focus { border-color: #667eea; outline: none; }
-
-                .ss-server-list { display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto; margin-bottom: 20px; }
-                .ss-server-card {
-                    display: flex; align-items: center; padding: 14px 16px; border-radius: 14px;
-                    border: 2px solid #eee; cursor: pointer; transition: all 0.2s; background: white;
-                }
-                .ss-server-card:hover { border-color: #667eea; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.15); }
-                .ss-server-icon {
-                    width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center;
-                    justify-content: center; font-size: 1.4em; margin-right: 14px; flex-shrink: 0;
-                }
-                .ss-server-info { flex: 1; min-width: 0; }
-                .ss-server-name { font-weight: 600; color: #333; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .ss-server-meta { font-size: 0.8em; color: #999; margin-top: 2px; }
-                .ss-server-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 8px; background: #f0f0f0; color: #888; margin-left: 8px; }
-                .ss-server-badge.private { background: #fff3cd; color: #856404; }
-
-                .ss-create-btn {
-                    width: 100%; padding: 14px; border: none; border-radius: 14px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white; font-size: 1em; font-weight: 600; cursor: pointer;
-                    transition: all 0.2s; box-shadow: 0 4px 15px rgba(102,126,234,0.3);
-                }
-                .ss-create-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
-
-                .ss-empty { text-align: center; padding: 30px; color: #bbb; font-size: 0.95em; }
-                .ss-loading { text-align: center; padding: 30px; color: #999; }
-                .ss-error { color: #dc3545; font-size: 0.85em; margin-top: 8px; display: none; text-align: center; }
-
-                /* 서버 생성 모달 */
-                .ss-create-modal {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.5); z-index: 10001; display: flex;
-                    align-items: center; justify-content: center;
-                }
-                .ss-create-box {
-                    background: white; border-radius: 20px; padding: 30px; width: 380px;
-                    max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                }
-                .ss-create-box h3 { margin: 0 0 20px 0; color: #333; text-align: center; }
-                .ss-input-group { margin-bottom: 14px; }
-                .ss-input-group label { display: block; font-size: 0.85em; color: #555; margin-bottom: 4px; font-weight: 500; }
-                .ss-input-group input, .ss-input-group textarea {
-                    width: 100%; padding: 10px 12px; border: 2px solid #eee; border-radius: 10px;
-                    font-size: 14px; box-sizing: border-box; transition: border-color 0.2s;
-                }
-                .ss-input-group input:focus, .ss-input-group textarea:focus { border-color: #667eea; outline: none; }
-                .ss-input-group textarea { resize: none; height: 60px; }
-
-                .ss-manage-btn {
-                    width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 14px;
-                    background: white; color: #667eea; font-size: 0.95em; font-weight: 600;
-                    cursor: pointer; transition: all 0.2s; margin-top: 8px;
-                }
-                .ss-manage-btn:hover { background: #f0f0ff; }
-            </style>
+            <style>${MAIN_CSS}</style>
 
             <div class="ss-top-bar">
-                <button class="ss-login-btn ${savedName ? 'logged-in' : ''}" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">
-                    ${savedName ? '👤 ' + escapeStr(savedName) : '🔑 로그인'}
-                </button>
-                ${savedName
-                    ? '<button class="ss-logout-btn" id="ss-logout-btn" onclick="ServerSelectModule.logout()">로그아웃</button>'
-                    : '<button class="ss-logout-btn" id="ss-register-top-btn" onclick="ServerSelectModule.showRegisterModal()">회원가입</button>'}
+                ${loggedIn
+                    ? `<button class="ss-login-btn logged-in" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">👤 ${escapeStr(savedName)}</button>
+                       <button class="ss-logout-btn" id="ss-logout-btn" onclick="ServerSelectModule.logout()">로그아웃</button>`
+                    : `<button class="ss-login-btn" id="ss-login-btn" onclick="ServerSelectModule.showLoginModal()">로그인</button>
+                       <button class="ss-logout-btn" id="ss-register-top-btn" onclick="ServerSelectModule.showRegisterModal()">회원가입</button>`
+                }
             </div>
 
             <div class="ss-container">
                 <div class="ss-header">
-                    <h1>🎮 서버 선택</h1>
-                    <p>서버에 참여하거나 자유롭게 플레이하세요</p>
+                    <h1>🎮 LAM Dice</h1>
+                    <p>게임을 시작하세요</p>
                 </div>
 
-                <button class="ss-free-btn" onclick="ServerSelectModule.selectFree()">
-                    🎲 서버 없이 자유 플레이
+                <button class="ss-free-card" onclick="ServerSelectModule.selectFree()">
+                    <div class="ss-free-icon">🎲</div>
+                    <div class="ss-free-text">
+                        <h3>서버 없이 자유 플레이</h3>
+                        <p>이름만 입력하면 바로 시작</p>
+                    </div>
                 </button>
 
                 <div class="ss-divider">또는 서버 참여</div>
 
-                <div class="ss-section-title">서버 목록</div>
-                <div class="ss-search-wrap">
-                    <input type="text" id="ss-search-input" placeholder="서버 검색..." oninput="ServerSelectModule.onSearch()" />
+                <div id="ss-server-section">
+                    ${loggedIn ? _serverSectionHTML() : _loginPromptHTML()}
                 </div>
-                <div class="ss-server-list" id="ss-server-list">
-                    <div class="ss-loading">불러오는 중...</div>
-                </div>
-                <div class="ss-error" id="ss-error"></div>
-
-                <button class="ss-create-btn" onclick="ServerSelectModule.showCreateModal()">+ 새 서버 만들기</button>
-                <button class="ss-manage-btn" onclick="ServerSelectModule.showMyServersModal()">내 서버 관리</button>
             </div>
         `;
 
         document.body.appendChild(_overlay);
         history.replaceState({ ssPage: 'serverSelect' }, '');
-        _emitGetServers();
+        if (loggedIn) _emitGetServers();
+    }
+
+    function _serverSectionHTML() {
+        return `
+            <div class="ss-section-title">서버 목록</div>
+            <div class="ss-search-wrap">
+                <input type="text" id="ss-search-input" placeholder="서버 검색..." oninput="ServerSelectModule.onSearch()" />
+            </div>
+            <div class="ss-server-list" id="ss-server-list">
+                <div class="ss-loading">불러오는 중...</div>
+            </div>
+            <div class="ss-error" id="ss-error"></div>
+            <button class="ss-create-btn" onclick="ServerSelectModule.showCreateModal()">+ 새 서버 만들기</button>
+            <button class="ss-manage-btn" onclick="ServerSelectModule.showMyServersModal()">내 서버 관리</button>
+        `;
+    }
+
+    function _loginPromptHTML() {
+        return `
+            <div class="ss-login-prompt">
+                <div class="ss-login-prompt-icon">🔐</div>
+                <h3>로그인이 필요합니다</h3>
+                <p>서버에 참여하려면 먼저 로그인하세요</p>
+                <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showLoginModal()">로그인</button>
+            </div>
+        `;
     }
 
     function hide() {
@@ -395,15 +523,13 @@ const ServerSelectModule = (function () {
             btn.innerHTML = '👤 ' + escapeStr(name);
         } else {
             btn.className = 'ss-login-btn';
-            btn.innerHTML = '🔑 로그인';
+            btn.innerHTML = '로그인';
         }
 
-        // 로그아웃/회원가입 버튼 토글
         const existingLogout = document.getElementById('ss-logout-btn');
         const existingRegister = document.getElementById('ss-register-top-btn');
 
         if (name) {
-            // 로그인 상태: 회원가입 숨기고 로그아웃 표시
             if (existingRegister) existingRegister.remove();
             if (!existingLogout) {
                 const lb = document.createElement('button');
@@ -414,7 +540,6 @@ const ServerSelectModule = (function () {
                 topBar.appendChild(lb);
             }
         } else {
-            // 비로그인 상태: 로그아웃 숨기고 회원가입 표시
             if (existingLogout) existingLogout.remove();
             if (!existingRegister) {
                 const rb = document.createElement('button');
@@ -424,6 +549,20 @@ const ServerSelectModule = (function () {
                 rb.onclick = () => ServerSelectModule.showRegisterModal();
                 topBar.appendChild(rb);
             }
+        }
+
+        // 로그인 상태 변경 시 서버 섹션 업데이트
+        _updateServerSection();
+    }
+
+    function _updateServerSection() {
+        const section = document.getElementById('ss-server-section');
+        if (!section) return;
+        if (_isLoggedIn()) {
+            section.innerHTML = _serverSectionHTML();
+            _emitGetServers();
+        } else {
+            section.innerHTML = _loginPromptHTML();
         }
     }
 
@@ -440,9 +579,7 @@ const ServerSelectModule = (function () {
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) nicknameInput.value = '';
         _updateLoginBtn(null);
-        // 로그아웃 후 서버+방 목록 갱신 (게스트 기준)
         if (_socket) {
-            _emitGetServers();
             _socket.emit('getRooms');
         }
     }
@@ -456,7 +593,7 @@ const ServerSelectModule = (function () {
                 <h3>${title}</h3>
                 <input type="text" id="ss-login-input" placeholder="이름" maxlength="20" />
                 <input type="password" id="ss-pin-input" placeholder="암호코드 (4~6자리 숫자)" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="margin-top:8px;" />
-                <p id="ss-login-error" style="color:#dc3545;font-size:0.8em;margin:6px 0 0;display:none;"></p>
+                <p id="ss-login-error" style="color:#ef4444;font-size:0.8em;margin:6px 0 0;display:none;"></p>
                 <div class="ss-pw-btns">
                     <button class="ss-pw-cancel" onclick="document.getElementById('ss-login-modal').remove()">취소</button>
                     <button class="ss-pw-confirm" id="ss-login-confirm">${confirmText}</button>
@@ -477,8 +614,8 @@ const ServerSelectModule = (function () {
         async function doSubmit() {
             const name = nameInput.value.trim();
             const pin = pinInput.value.trim();
-            if (!name) { nameInput.style.borderColor = '#dc3545'; return; }
-            if (!/^\d{4,6}$/.test(pin)) { pinInput.style.borderColor = '#dc3545'; showError('암호코드는 4~6자리 숫자'); return; }
+            if (!name) { nameInput.style.borderColor = '#ef4444'; return; }
+            if (!/^\d{4,6}$/.test(pin)) { pinInput.style.borderColor = '#ef4444'; showError('암호코드는 4~6자리 숫자'); return; }
             try {
                 const res = await fetch(apiUrl, {
                     method: 'POST',
@@ -487,7 +624,6 @@ const ServerSelectModule = (function () {
                 });
                 const result = await res.json();
                 if (!res.ok) { showError(result.error); return; }
-                // 관리자 계정이면 관리자 페이지로 이동
                 if (result.adminToken) {
                     sessionStorage.setItem('adminToken', result.adminToken);
                     modal.remove();
@@ -498,7 +634,6 @@ const ServerSelectModule = (function () {
                 modal.remove();
                 _saveName(name);
                 _showToast(title.includes('회원') ? '회원가입 성공!' : '로그인 성공!');
-                // 로그인 후 서버+방 목록 갱신
                 if (_socket) {
                     _emitGetServers();
                     _socket.emit('getRooms');
@@ -530,7 +665,6 @@ const ServerSelectModule = (function () {
     function _requireName() {
         const name = _getUserName();
         if (name && _isLoggedIn()) return name;
-        // 로그인 안 됐으면 버튼 흔들림
         const btn = document.getElementById('ss-login-btn');
         if (btn) {
             btn.style.animation = 'ssShake 0.4s ease';
@@ -539,11 +673,9 @@ const ServerSelectModule = (function () {
         return null;
     }
 
-    // 로그인 후 콜백 실행 (서버 입장/자유플레이에서 사용)
     function _requireNameThen(callback) {
         const name = _getUserName();
         if (name && _isLoggedIn()) { callback(name); return; }
-        // 로그인 모달 띄우고 성공 시 콜백
         _authModal({
             title: '🔑 로그인이 필요합니다',
             confirmText: '로그인',
@@ -562,7 +694,6 @@ const ServerSelectModule = (function () {
         const listEl = document.getElementById('ss-server-list');
         if (!listEl) return;
 
-        // 검색 필터
         const searchInput = document.getElementById('ss-search-input');
         const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
@@ -582,14 +713,14 @@ const ServerSelectModule = (function () {
             return;
         }
 
-        const colors = ['#667eea', '#28a745', '#e83e8c', '#fd7e14', '#17a2b8', '#6f42c1'];
+        const colors = ['#4F46E5', '#059669', '#DB2777', '#EA580C', '#0891B2', '#7C3AED'];
         listEl.innerHTML = filtered.map((s, i) => {
             const color = colors[i % colors.length];
             const initial = s.name.charAt(0).toUpperCase();
             const privateBadge = s.is_private ? '<span class="ss-server-badge private">🔒</span>' : '';
             return `
                 <div class="ss-server-card" onclick="ServerSelectModule.selectServer(${s.id}, '${escapeStr(s.name)}', ${!!s.is_private}, ${!!s.is_member})">
-                    <div class="ss-server-icon" style="background: ${color}15; color: ${color};">${initial}</div>
+                    <div class="ss-server-icon" style="background: ${color}10; color: ${color};">${initial}</div>
                     <div class="ss-server-info">
                         <div class="ss-server-name">${escapeStr(s.name)} ${privateBadge}</div>
                         <div class="ss-server-meta">${escapeStr(s.host_name)} · ${s.member_count || 0}명</div>
@@ -602,11 +733,49 @@ const ServerSelectModule = (function () {
     // ─── 서버 선택/입장 ───
 
     function selectFree() {
-        _requireNameThen((name) => {
+        const name = _getUserName();
+        if (name) {
+            // 이름 있으면 바로 입장
+            _saveName(name);
             hide();
             history.pushState({ ssPage: 'lobby' }, '');
             if (_onSelect) _onSelect({ serverId: null, serverName: null });
-        });
+        } else {
+            // 이름 없으면 간단한 닉네임 입력 모달
+            _showNameModal();
+        }
+    }
+
+    function _showNameModal() {
+        const modal = document.createElement('div');
+        modal.className = 'ss-name-modal';
+        modal.id = 'ss-name-modal';
+        modal.innerHTML = `
+            <div class="ss-name-box">
+                <h3>🎲 자유 플레이</h3>
+                <input type="text" id="ss-name-input" placeholder="닉네임 입력" maxlength="20" />
+                <div class="ss-name-btns">
+                    <button class="ss-name-cancel" onclick="document.getElementById('ss-name-modal').remove()">취소</button>
+                    <button class="ss-name-confirm" id="ss-name-confirm">시작!</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const nameInput = document.getElementById('ss-name-input');
+        nameInput.focus();
+
+        function doStart() {
+            const name = nameInput.value.trim();
+            if (!name) { nameInput.style.borderColor = '#ef4444'; return; }
+            modal.remove();
+            _saveName(name);
+            hide();
+            history.pushState({ ssPage: 'lobby' }, '');
+            if (_onSelect) _onSelect({ serverId: null, serverName: null });
+        }
+
+        nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doStart(); });
+        document.getElementById('ss-name-confirm').addEventListener('click', doStart);
     }
 
     function selectServer(id, name, isPrivate, isMember) {
@@ -618,7 +787,7 @@ const ServerSelectModule = (function () {
     }
 
     function _selectServer(id, name) {
-        if (_isJoining) return; // 디바운스
+        if (_isJoining) return;
         _requireNameThen((userName) => {
             _isJoining = true;
             _showJoiningOverlay(name);
@@ -732,8 +901,8 @@ const ServerSelectModule = (function () {
                 </div>
                 <div class="ss-error" id="ss-create-error"></div>
                 <div style="display:flex;gap:10px;margin-top:16px;">
-                    <button class="ss-pw-cancel" style="flex:1;padding:12px;border:none;border-radius:10px;cursor:pointer;" onclick="ServerSelectModule.closeCreateModal()">취소</button>
-                    <button class="ss-pw-confirm" style="flex:1;padding:12px;border:none;border-radius:10px;cursor:pointer;" onclick="ServerSelectModule.doCreate()">만들기</button>
+                    <button class="ss-pw-cancel" style="flex:1;padding:12px;border:none;border-radius:12px;cursor:pointer;" onclick="ServerSelectModule.closeCreateModal()">취소</button>
+                    <button class="ss-pw-confirm" style="flex:1;padding:12px;border:none;border-radius:12px;cursor:pointer;" onclick="ServerSelectModule.doCreate()">만들기</button>
                 </div>
             </div>
         `;
@@ -837,17 +1006,15 @@ const ServerSelectModule = (function () {
 
     function showServerMembersManage(serverId, serverName) {
         closeMyServersModal();
-        // _currentServer 임시 설정 후 멤버 모달 열기
         const prevServer = _currentServer;
         const userName = _getUserName();
         _currentServer = { id: serverId, name: serverName, hostName: userName };
         showMembersModal();
-        // 멤버 모달 닫힐 때 복원
         const checkClose = setInterval(() => {
             if (!document.getElementById('ss-members-modal')) {
                 clearInterval(checkClose);
                 _currentServer = prevServer;
-                showMyServersModal(); // 다시 내 서버 관리 모달 열기
+                showMyServersModal();
             }
         }, 300);
     }
@@ -864,7 +1031,6 @@ const ServerSelectModule = (function () {
             const result = await res.json();
             if (!res.ok) { _showToast(result.error || '삭제 실패'); return; }
             _showToast(`${serverName} 서버가 삭제되었습니다.`);
-            // 목록 갱신
             const item = document.getElementById(`ss-ms-${serverId}`);
             if (item) item.remove();
             _emitGetServers();
@@ -922,11 +1088,9 @@ const ServerSelectModule = (function () {
 
         const myName = _getUserName();
         const isHost = _currentServer && _currentServer.hostName === myName;
-        const hostId = _socket ? (_socket.id || '') : '';
 
         listEl.innerHTML = members.map(m => {
-            const isOnline = m.isOnline;
-            const dotClass = isOnline ? 'online' : 'offline';
+            const dotClass = m.isOnline ? 'online' : 'offline';
             const isMe = m.user_name === myName;
             const isMemberHost = _currentServer && m.user_name === _currentServer.hostName;
 
@@ -958,33 +1122,29 @@ const ServerSelectModule = (function () {
 
     function approveMember(userName, isApproved) {
         if (!_currentServer) return;
-        const hostId = _socket ? (_socket.id || '') : '';
         fetch(`/api/server/${_currentServer.id}/members/${encodeURIComponent(userName)}/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isApproved, hostId })
+            body: JSON.stringify({ isApproved })
         }).then(() => _fetchMembers()).catch(() => {});
     }
 
     function kickMember(userName) {
         if (!_currentServer) return;
         if (!confirm(`"${userName}" 님을 강퇴하시겠습니까?`)) return;
-        const hostId = _socket ? (_socket.id || '') : '';
         fetch(`/api/server/${_currentServer.id}/members/${encodeURIComponent(userName)}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hostId })
+            body: JSON.stringify({})
         }).then(() => _fetchMembers()).catch(() => {});
     }
 
     // ─── 유틸 ───
 
     function _getUserName() {
-        // 각 페이지별 이름 입력 필드
         const nameInput = document.getElementById('globalUserNameInput')
             || document.getElementById('nickname-input');
         if (nameInput && nameInput.value.trim()) return nameInput.value.trim();
-        // localStorage
         const stored = localStorage.getItem('userName')
             || localStorage.getItem('diceUserName') || localStorage.getItem('diceGameUserName')
             || localStorage.getItem('horseRaceUserName')
@@ -1007,9 +1167,9 @@ const ServerSelectModule = (function () {
         toast.textContent = msg;
         Object.assign(toast.style, {
             position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(0,0,0,0.8)', color: '#fff', padding: '10px 24px',
-            borderRadius: '8px', fontSize: '0.9em', zIndex: '99999',
-            transition: 'opacity 0.3s'
+            background: '#1e293b', color: '#fff', padding: '10px 24px',
+            borderRadius: '10px', fontSize: '0.9em', zIndex: '99999',
+            transition: 'opacity 0.3s', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
         });
         document.body.appendChild(toast);
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);

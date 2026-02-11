@@ -1,4 +1,58 @@
 ========================================
+📋 Summit Log - 2026-02-11 (랭킹 색상 변경 + 서버 선택 화면 리뉴얼)
+========================================
+
+## 변경 파일
+- ranking-shared.js: 색상 팔레트 변경 (주황→블루/인디고), 14줄 변경
+- server-select-shared.js: 전면 리라이트 (296줄 삭제, 456줄 추가)
+
+## 상세 변경 내역
+
+### 랭킹 색상 변경 (ranking-shared.js)
+- 헤더 그라데이션: #FF6B6B→#FF8E53→#FFD93D → #667eea→#764ba2→#9B59B6 (코럴-오렌지 → 블루-퍼플)
+- 탭 active: #FF6B6B→#FF8E53 → #667eea→#764ba2
+- 탭 보더: rgba(255,107,107,...) → rgba(102,126,234,...)
+- 섹션 제목: #FF8E53 → #8B9CF7
+- 섹션 라인: rgba(255,142,83,0.3) → rgba(102,126,234,0.3)
+- 이유: 사용자 피드백 "주황색 너무 별로다"
+
+### 서버 선택 화면 전면 리뉴얼 (server-select-shared.js)
+
+#### 디자인 변경
+- 배경: #667eea→#764ba2 보라 그라데이션 → #f8f9fb 소프트 화이트 (단색)
+- 강조색: #667eea → #4F46E5 (인디고 600)
+- 카드: border-radius: 16px, border: 1.5px solid #e2e8f0, 미세 shadow
+- 모달 backdrop: rgba(15,23,42,0.4) + backdrop-filter: blur(4px)
+- 버튼: pill 형태 (border-radius: 12px), 플랫 디자인
+- 폰트: 제목에 'Jua' 웹폰트
+
+#### 자유 플레이 로직 변경
+- 기존: selectFree() → _requireNameThen() → 로그인 필요
+- 변경: selectFree() → 이름 있으면 바로 입장, 없으면 _showNameModal()
+- _showNameModal(): 이름만 입력하는 간단 모달 (로그인/암호코드 불필요)
+- localStorage에 'guestName'으로 저장하여 재사용
+
+#### 서버 목록 로그인 제한
+- 비로그인: 서버 목록 영역에 "로그인이 필요합니다" 메시지 + 로그인 버튼
+- 로그인: 서버 목록 + 검색 + 생성/관리 버튼 정상 표시
+- _serverSectionHTML(): 서버 목록 HTML 반환
+- _loginPromptHTML(): 로그인 유도 HTML 반환
+- _updateServerSection(): 로그인 상태 변경 시 동적 전환
+
+#### 모달 CSS 통일
+- 모든 모달 (서버 생성, 멤버 관리, 비밀번호, 내 서버 관리 등)
+- backdrop blur + 둥근 모서리(20px) + 모던 input/button 스타일
+- MAIN_CSS, MODAL_CSS 상수로 분리
+
+#### 유지 사항
+- ServerSelectModule IIFE 구조 유지
+- init/show/hide 인터페이스 유지
+- 모든 소켓 이벤트 핸들러 유지
+- 모든 모달 기능 유지
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-11 (랭킹 UI 다크 게임 테마 리디자인)
 ========================================
 

@@ -75,7 +75,7 @@ const RankingModule = (function () {
         .rk-header {
             display: flex; align-items: center; gap: 12px;
             padding: 18px 16px 14px;
-            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 50%, #FFD93D 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #9B59B6 100%);
             color: white; flex-shrink: 0;
             position: relative; overflow: hidden;
         }
@@ -119,22 +119,22 @@ const RankingModule = (function () {
             border-radius: 14px;
             font-family: 'Jua', sans-serif;
             font-size: 1em; cursor: pointer;
-            border: 2px solid rgba(255,107,107,0.2);
+            border: 2px solid rgba(102,126,234,0.2);
             background: rgba(255,255,255,0.04);
             color: rgba(255,255,255,0.5);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
         }
         .rk-tab.active {
-            background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white; border-color: transparent;
-            box-shadow: 0 4px 16px rgba(255,107,107,0.4);
+            box-shadow: 0 4px 16px rgba(102,126,234,0.4);
             transform: scale(1.03);
         }
         .rk-tab:not(.active):hover {
             background: rgba(255,255,255,0.08);
             color: rgba(255,255,255,0.7);
-            border-color: rgba(255,107,107,0.3);
+            border-color: rgba(102,126,234,0.3);
         }
         .rk-tab:active { transform: scale(0.97); }
 
@@ -180,13 +180,13 @@ const RankingModule = (function () {
         .rk-section:nth-child(4) { animation-delay: 0.15s; }
         .rk-section-title {
             font-family: 'Jua', sans-serif;
-            font-size: 0.95em; color: #FF8E53;
+            font-size: 0.95em; color: #8B9CF7;
             margin: 0 0 10px 4px;
             display: flex; align-items: center; gap: 8px;
         }
         .rk-section-title::after {
             content: ''; flex: 1; height: 1px;
-            background: linear-gradient(90deg, rgba(255,142,83,0.3), transparent);
+            background: linear-gradient(90deg, rgba(102,126,234,0.3), transparent);
         }
 
         /* ── 카드 ── */
