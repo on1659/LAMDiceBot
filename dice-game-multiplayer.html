@@ -241,6 +241,61 @@
             padding: 20px;
             margin-bottom: 20px;
         }
+
+        /* 업데이트 내역 섹션 */
+        .update-log-section {
+            background: linear-gradient(145deg, #fafbff 0%, #f0f2ff 100%);
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.12);
+        }
+        .update-log-section h2 {
+            margin-bottom: 16px;
+            color: #667eea;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .update-log-content {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 320px;
+            overflow-y: auto;
+            line-height: 1.85;
+            color: #374151;
+            font-size: 14px;
+            white-space: pre-wrap;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .update-log-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .update-log-content::-webkit-scrollbar-track {
+            background: #f1f3f5;
+            border-radius: 4px;
+        }
+        .update-log-content::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+        .update-log-content::-webkit-scrollbar-thumb:hover {
+            background: #5a6fd6;
+        }
+        .update-log-content b {
+            color: #1f2937;
+            font-weight: 700;
+        }
+        .update-log-content .update-log-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.25), transparent);
+            margin: 18px 0;
+            border: none;
+        }
         
         .room-name-input-section {
             background: #f8f9fa;
@@ -1356,11 +1411,9 @@
             </div>
             
             <!-- 업데이트 내역 -->
-            <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
-                <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
-                <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-업데이트 내역을 불러오는 중...
-                </div>
+            <div class="update-log-section">
+                <h2>📝 업데이트 내역</h2>
+                <div class="update-log-content" id="updateLogContent">업데이트 내역을 불러오는 중...</div>
             </div>
         </div>
 
@@ -2493,7 +2546,8 @@
                     return response.text();
                 })
                 .then(text => {
-                    updateLogContent.innerHTML = text;
+                    const html = text.replace(/(\r?\n)---(\r?\n)/g, '$1<hr class="update-log-divider">$2');
+                    updateLogContent.innerHTML = html;
                 })
                 .catch(error => {
                     console.error('업데이트 내역 로드 실패:', error);

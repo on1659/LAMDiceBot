@@ -690,8 +690,8 @@ const ServerSelectModule = (function () {
 
         if (filtered.length === 0) {
             listEl.innerHTML = query
-                ? '<div class="ss-empty">검색 결과가 없습니다</div>'
-                : '<div class="ss-empty">참여 중인 서버가 없어요<br>검색하거나 새 서버를 만들어보세요!</div>';
+                ? '<div class="ss-empty">검색 결과가 없어요</div>'
+                : '<div class="ss-empty">참여 중인 서버가 없어요<br>가입한 서버·가입하고 싶은 서버를 검색해보세요.</div>';
             return;
         }
 
@@ -700,7 +700,7 @@ const ServerSelectModule = (function () {
             const color = colors[i % colors.length];
             const initial = s.name.charAt(0).toUpperCase();
             const privateBadge = s.is_private ? '<span class="ss-server-badge private">🔒</span>' : '';
-            const statusBadge = s.is_member ? '' : s.is_pending ? '<span class="ss-server-badge waiting">승인 대기중</span>' : '<span class="ss-server-badge">참여 가능</span>';
+            const statusBadge = s.is_member ? '' : s.is_pending ? '<span class="ss-server-badge waiting">승인 대기 중</span>' : '<span class="ss-server-badge">참여 가능</span>';
             const pending = parseInt(s.pending_count, 10) || 0;
             const pendingBadge = pending > 0 ? `<span class="ss-server-badge pending">${pending}명 대기</span>` : '';
             return `
@@ -990,7 +990,7 @@ const ServerSelectModule = (function () {
         if (!listEl) return;
 
         if (!servers || servers.length === 0) {
-            listEl.innerHTML = '<div class="ss-empty">만든 서버가 없습니다</div>';
+            listEl.innerHTML = '<div class="ss-empty">만든 서버가 없어요</div>';
             return;
         }
 
@@ -1091,7 +1091,7 @@ const ServerSelectModule = (function () {
         if (!listEl) return;
 
         if (!members || members.length === 0) {
-            listEl.innerHTML = '<div class="ss-empty">멤버가 없습니다</div>';
+            listEl.innerHTML = '<div class="ss-empty">멤버가 없어요</div>';
             return;
         }
 
@@ -1105,7 +1105,7 @@ const ServerSelectModule = (function () {
 
             let badges = '';
             if (isMemberHost) badges += '<span class="host-badge">HOST</span>';
-            if (!m.is_approved) badges += '<span class="pending-badge">대기중</span>';
+            if (!m.is_approved) badges += '<span class="pending-badge">대기 중</span>';
 
             let actions = '';
             if (isHost && !isMe) {
