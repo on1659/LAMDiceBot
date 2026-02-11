@@ -1,4 +1,31 @@
 ========================================
+📋 Summit Log - 2026-02-11 (서버 선택 디자인 복원 + 기능 유지)
+========================================
+
+## 변경 파일
+- server-select-shared.js: 디자인 이전 스타일로 복원 (118줄 추가, 197줄 삭제)
+
+## 상세 변경 내역
+
+### 디자인 복원 (사용자 피드백: "이전 UI가 더 이쁘다")
+- 배경: #f8f9fb 소프트 화이트 → linear-gradient(#667eea, #764ba2) 보라 그라데이션 복원
+- 컨테이너: 흰색 카드 + box-shadow: 0 20px 60px rgba(0,0,0,0.3) 복원
+- 자유 플레이 버튼: 인디고 그라데이션 카드 → dashed border 버튼 복원
+- 로그인 버튼: 인디고 solid → rgba(255,255,255,0.2) 반투명 복원
+- 강조색: #4F46E5 → #667eea 복원
+- 모달: backdrop-filter blur 제거 → rgba(0,0,0,0.5) 복원
+- 서버 카드, 생성 버튼, 관리 버튼 등 모든 CSS 이전 스타일 복원
+
+### 유지된 새 기능
+- selectFree(): 이름만 있으면 바로 입장 (로그인 불필요)
+- _showNameModal(): 이름 입력 간단 모달
+- show()에서 _isLoggedIn() 체크하여 서버 목록 조건부 표시
+- _serverSectionHTML() / _loginPromptHTML() / _updateServerSection()
+- MAIN_CSS, MODAL_CSS 상수 분리 구조
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-11 (랭킹 색상 변경 + 서버 선택 화면 리뉴얼)
 ========================================
 
@@ -16,39 +43,10 @@
 - 섹션 라인: rgba(255,142,83,0.3) → rgba(102,126,234,0.3)
 - 이유: 사용자 피드백 "주황색 너무 별로다"
 
-### 서버 선택 화면 전면 리뉴얼 (server-select-shared.js)
-
-#### 디자인 변경
-- 배경: #667eea→#764ba2 보라 그라데이션 → #f8f9fb 소프트 화이트 (단색)
-- 강조색: #667eea → #4F46E5 (인디고 600)
-- 카드: border-radius: 16px, border: 1.5px solid #e2e8f0, 미세 shadow
-- 모달 backdrop: rgba(15,23,42,0.4) + backdrop-filter: blur(4px)
-- 버튼: pill 형태 (border-radius: 12px), 플랫 디자인
-- 폰트: 제목에 'Jua' 웹폰트
-
-#### 자유 플레이 로직 변경
-- 기존: selectFree() → _requireNameThen() → 로그인 필요
-- 변경: selectFree() → 이름 있으면 바로 입장, 없으면 _showNameModal()
-- _showNameModal(): 이름만 입력하는 간단 모달 (로그인/암호코드 불필요)
-- localStorage에 'guestName'으로 저장하여 재사용
-
-#### 서버 목록 로그인 제한
-- 비로그인: 서버 목록 영역에 "로그인이 필요합니다" 메시지 + 로그인 버튼
-- 로그인: 서버 목록 + 검색 + 생성/관리 버튼 정상 표시
-- _serverSectionHTML(): 서버 목록 HTML 반환
-- _loginPromptHTML(): 로그인 유도 HTML 반환
-- _updateServerSection(): 로그인 상태 변경 시 동적 전환
-
-#### 모달 CSS 통일
-- 모든 모달 (서버 생성, 멤버 관리, 비밀번호, 내 서버 관리 등)
-- backdrop blur + 둥근 모서리(20px) + 모던 input/button 스타일
-- MAIN_CSS, MODAL_CSS 상수로 분리
-
-#### 유지 사항
-- ServerSelectModule IIFE 구조 유지
-- init/show/hide 인터페이스 유지
-- 모든 소켓 이벤트 핸들러 유지
-- 모든 모달 기능 유지
+### 서버 선택 화면 전면 리뉴얼 (server-select-shared.js) — 이후 디자인 복원됨
+- 모던/미니멀 디자인 적용 (이후 보라색 그라데이션으로 복원)
+- 자유 플레이 로직 변경 (유지됨)
+- 서버 목록 로그인 제한 (유지됨)
 
 ========================================
 
