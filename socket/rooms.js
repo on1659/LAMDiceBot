@@ -523,19 +523,28 @@ module.exports = (socket, io, ctx) => {
             const socketsInRoom = await io.in(roomId).fetchSockets();
 
             // 같은 이름을 가진 사용자가 이미 연결되어 있는지 확인
-            // socket.userName 또는 socket.id로 확인
             const connectedUserWithSameName = socketsInRoom.find(s =>
                 (s.userName === finalUserName || s.id === existingUser.id) && s.connected
             );
 
+            // 같은 deviceId면 새로고침으로 인한 재연결 (구 소켓 connected 여부 무관)
+            const isSameDevice = connectedUserWithSameName && deviceId &&
+                connectedUserWithSameName.deviceId && connectedUserWithSameName.deviceId === deviceId;
+
+            if (isSameDevice) {
+                // 구 소켓 강제 종료 (disconnect 핸들러의 재연결 체크에서 새 소켓을 찾게 됨)
+                console.log(`[재연결] 같은 deviceId 감지 - 구 소켓 종료: ${connectedUserWithSameName.id} → ${socket.id} (${userName.trim()}, 방: ${roomId})`);
+                connectedUserWithSameName.disconnect(true);
+            }
+
             // 기존 사용자의 소켓이 아직 연결되어 있으면 새 이름 생성 (이더 → 이더_1)
-            if (connectedUserWithSameName) {
+            if (connectedUserWithSameName && !isSameDevice) {
                 const existingNames = gameState.users.map(u => u.name);
                 finalUserName = generateUniqueUserName(finalUserName, existingNames);
                 console.log(`[중복 이름] ${userName.trim()} → ${finalUserName} (방: ${roomId})`);
                 // 새 이름으로 계속 진행 (아래 새 사용자 추가 로직으로 이동)
             } else {
-                // 기존 사용자의 소켓이 연결되지 않았으면 재연결로 간주
+                // 기존 사용자의 소켓이 연결되지 않았거나 같은 기기면 재연결로 간주
                 existingUser.id = socket.id;
                 const user = existingUser;
                 console.log(`사용자 ${userName.trim()}이(가) 방 ${roomId}에 재연결했습니다.`);
@@ -544,6 +553,7 @@ module.exports = (socket, io, ctx) => {
                 socket.currentRoomId = roomId;
                 socket.userName = userName.trim();
                 socket.isHost = user.isHost;
+                socket.deviceId = deviceId || null;
 
                 // 호스트 ID도 업데이트
                 if (user.isHost) {
