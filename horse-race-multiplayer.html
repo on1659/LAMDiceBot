@@ -16,9 +16,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/css/horse-race.css">
 </head>
-<body class="lobby-active">
+<body>
     <!-- 로딩 화면 -->
-    <div id="loadingScreen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center;">
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: white;">
             <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🐎</div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
@@ -29,99 +29,10 @@
         </div>
     </div>
 
+    <!-- 이름 입력 (로그인 시 자동 설정, 숨김) -->
+    <input type="hidden" id="globalUserNameInput">
+
     <div class="container">
-        <!-- 로비 섹션 -->
-        <section class="lobby-section" id="lobbySection">
-            <h1>🐎 LAM Horse Race</h1>
-            <div class="connection-sound-row">
-                <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
-                <div class="volume-control" id="volumeControl">
-                    <button class="volume-btn" id="volumeBtn" title="음소거 토글">🔇</button>
-                    <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
-                </div>
-            </div>
-            
-            <!-- 서버 정보 바 (서버 선택 시 표시) -->
-            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(139,69,19,0.1), rgba(160,82,45,0.1)); border: 1px solid #8b4513; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
-                <button onclick="ServerSelectModule.show()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
-                <span id="serverInfoName" style="font-weight: bold; color: #8b4513;"></span>
-                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #8b4513; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
-            </div>
-
-            <!-- 이름 입력 (로그인 시 자동 설정) -->
-            <div style="display: none;">
-                <input type="text" id="globalUserNameInput" placeholder="이름을 입력하세요" maxlength="20">
-            </div>
-
-            <!-- 방 만들기 버튼 -->
-            <button onclick="showCreateRoomSection()" style="margin-bottom: 20px; color: #000; font-weight: 600;">🐎 새 경마 방 만들기</button>
-            <button onclick="RankingModule.show()" style="margin-bottom: 20px; background: white; border: 2px solid #8b4513; color: #8b4513; font-weight: 600; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%;">랭킹</button>
-            
-            <!-- 방 목록 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="color: #8b4513;">🐎 방 목록</h3>
-                <button onclick="refreshRooms()" style="width: auto; padding: 8px 15px; font-size: 14px; color: #000; font-weight: 600;">🔄 새로고침</button>
-            </div>
-            <div class="rooms-list" id="roomsList">
-                <div style="color: #999; text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
-            </div>
-            
-            <!-- 주사위 게임 링크 -->
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="/dice-game-multiplayer.html" style="color: #8b4513; text-decoration: none;">🎲 주사위 게임으로 이동</a>
-            </div>
-        </section>
-
-        <!-- 방 생성 섹션 -->
-        <section class="create-room-section" id="createRoomSection">
-            <h2 style="color: #8b4513; margin-bottom: 20px;">🐎 새 경마 방 만들기</h2>
-            <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
-            
-            <div style="display: none;">
-                <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름" maxlength="20">
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">방 제목</label>
-                <input type="text" id="createRoomNameInput" placeholder="방 제목을 입력하세요" maxlength="30">
-            </div>
-            
-            <!-- 비공개 방 설정 -->
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: auto; margin: 0;">
-                    <span style="font-weight: bold; color: #333;">🔒 비공개 방</span>
-                </label>
-                <div id="createRoomPasswordContainer" style="display: none; margin-top: 10px;">
-                    <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 (4~20자)" maxlength="20">
-                </div>
-            </div>
-            
-            <!-- 방 유지 시간 -->
-            <div style="margin-bottom: 15px;">
-                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px;">⏰ 방 유지 시간</label>
-                <div style="display: flex; gap: 15px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="roomExpiryTime" value="1" style="width: auto; margin: 0;">
-                        <span>1시간</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="roomExpiryTime" value="3" checked style="width: auto; margin: 0;">
-                        <span>3시간</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="roomExpiryTime" value="6" style="width: auto; margin: 0;">
-                        <span>6시간</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 10px;">
-                <button onclick="goBackToLobby()" style="background: #6c757d; flex: 1; color: #000; font-weight: 600;">← 취소</button>
-                <button onclick="finalizeRoomCreation()" style="flex: 2; color: #000; font-weight: 600;">🐎 방 만들기</button>
-            </div>
-        </section>
-
         <!-- 게임 섹션 -->
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 -->
@@ -360,7 +271,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/page-history-shared.js"></script>
-    <script src="/server-select-shared.js"></script>
     <script src="/chat-shared.js"></script>
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>

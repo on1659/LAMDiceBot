@@ -1,4 +1,174 @@
 ========================================
+📋 Summit Log - 2026-02-12 (deviceId→tabId 재연결 판별 수정)
+========================================
+
+## 변경 파일 (4개)
+- socket/rooms.js: deviceId 기반 → tabId(sessionStorage) 기반 재연결 판별로 변경
+- dice-game-multiplayer.html: tabId 생성 + 모든 joinRoom/createRoom에 tabId 전송
+- js/horse-race.js: tabId 생성 + 모든 joinRoom/createRoom에 tabId 전송
+- roulette-game-multiplayer.html: tabId 생성 + 모든 joinRoom/createRoom에 tabId 전송
+
+## 상세 변경 내역
+
+### 문제
+- deviceId는 localStorage → 같은 브라우저의 모든 탭이 동일 값 공유
+- 중복접속(_1) 기능이 동작하지 않음 (같은 deviceId → 재연결로 처리 → 구 소켓 강제 종료)
+- 다른 탭에서 접속하면 첫 번째 탭이 끊어지는 버그
+
+### 해결: sessionStorage 기반 tabId
+- sessionStorage는 탭별 격리 → 같은 탭 새로고침: 유지, 새 탭: 다른 값
+- 같은 탭 새로고침 → 같은 tabId → 재연결 (구 소켓 disconnect + 기존 유저 정보 인계)
+- 같은 브라우저 새 탭 → 다른 tabId → 중복접속 (_1 접미사)
+- 다른 브라우저 → 다른 tabId → 중복접속 (_1 접미사)
+
+### 서버 변경 (rooms.js)
+- joinRoom: `isSameDevice` → `isSameTab` (data.tabId vs connectedUserWithSameName.tabId)
+- createRoom/joinRoom/getCurrentRoom: socket.tabId = data.tabId 저장
+- 재연결 경로에서도 socket.tabId 저장
+
+### 클라이언트 변경 (3개 게임)
+- 페이지 로드 시 sessionStorage에 tabId 없으면 랜덤 생성
+- getTabId() 함수 추가
+- 모든 joinRoom/createRoom emit에 tabId: getTabId() 추가
+
+========================================
+
+========================================
+📋 Summit Log - 2026-02-12 (주사위 방 새로고침 재입장)
+========================================
+
+## 변경 파일 (1개)
+- dice-game-multiplayer.html: 주사위 방 새로고침 시 자동 재입장 (diceActiveRoom 키)
+
+## 상세 변경 내역
+
+### 주사위 방 새로고침 재입장
+- 기존: 주사위 방에서 새로고침하면 로비로 돌아감 (방에서 나가짐)
+- 수정: sessionStorage('diceActiveRoom')에 방 정보 저장 → 새로고침 시 자동 joinRoom
+- roomCreated/roomJoined: {roomId, userName, serverId, serverName} 저장
+- roomLeft/roomDeleted/roomError/kicked: removeItem
+- 서버 목록 버튼/PageHistoryManager.onServerSelect: removeItem
+- roomError 시 로비 복원 처리 (재입장 실패 시 빈 화면 방지)
+
+========================================
+
+========================================
+📋 Summit Log - 2026-02-12 (새로고침 재입장 중복 입장 버그 수정)
+========================================
+
+## 변경 파일 (1개)
+- socket/rooms.js: joinRoom 중복 이름 체크에 deviceId 기반 재연결 판별 추가
+
+## 상세 변경 내역
+
+### 새로고침 시 무한 중복 입장 버그 수정
+- 문제: 새로고침 시 구 소켓이 아직 connected 상태 → 서버가 "중복 이름"으로 판단
+  → "이더" → "이더_1" → "이더_1_1"... 무한 반복
+- 원인: joinRoom의 중복 이름 체크가 socket.connected만 확인
+  → 새로고침 시 구 소켓 disconnect 처리보다 새 소켓 joinRoom이 먼저 처리됨
+- 수정: 같은 deviceId면 구 소켓이 connected여도 재연결로 처리
+  1. connectedUserWithSameName.deviceId === deviceId 체크 추가
+  2. 같은 기기면 구 소켓 강제 disconnect(true) 후 재연결 경로로 분기
+  3. 재연결 경로에서 socket.deviceId 설정 추가 (다음 새로고침 대비)
+
+========================================
+
+========================================
+📋 Summit Log - 2026-02-12 (경마/룰렛 새로고침 재입장)
+========================================
+
+## 변경 파일 (2개)
+- js/horse-race.js: 새로고침 시 sessionStorage 기반 자동 재입장 로직 추가
+- roulette-game-multiplayer.html: 동일 패턴 적용 (rouletteActiveRoom 키)
+
+## 상세 변경 내역
+
+### 새로고침 재입장 (경마 + 룰렛)
+- 문제: 경마/룰렛 진입 시 URL 파라미터(createRoom/joinRoom)가 replaceState로 제거됨
+  → 새로고침하면 fromDice=false가 되어 /game으로 리다이렉트
+- 해결: sessionStorage에 방 정보 저장 후 새로고침 시 자동 재입장
+
+#### IIFE 흐름 변경
+1. URL 파라미터 확인 (fromDice)
+2. fromDice가 아니면 sessionStorage('horseRaceActiveRoom'/'rouletteActiveRoom') 확인
+3. 방 정보가 있으면 serverId 설정 + socket.emit('joinRoom') 으로 재입장
+4. 없으면 /game으로 리다이렉트
+
+#### sessionStorage 저장/삭제 위치
+- 저장: roomCreated, roomJoined 이벤트에서 {roomId, userName, serverId, serverName} 저장
+- 삭제: roomLeft, leftRoom, roomDeleted, roomError 이벤트에서 removeItem
+- 경마 키: 'horseRaceActiveRoom'
+- 룰렛 키: 'rouletteActiveRoom'
+
+#### 재입장 시 동작
+- currentServerId/currentServerName 복원
+- socket.emit('setServerId') 호출
+- document.title 설정
+- socket 연결 완료 후 joinRoom emit (isHost: false로 재입장)
+- JSON 파싱 실패 시 sessionStorage 정리 후 /game 리다이렉트
+
+========================================
+
+========================================
+📋 Summit Log - 2026-02-12 (경마/룰렛 로비 제거)
+========================================
+
+## 변경 파일 (4개)
+- horse-race-multiplayer.html: lobbySection, createRoomSection HTML 제거, loadingScreen 기본 display:flex, body class="lobby-active" 제거, server-select-shared.js 참조 제거, globalUserNameInput을 hidden input으로 변경
+- js/horse-race.js: showCreateRoomSection, goBackToLobby, finalizeRoomCreation, refreshRooms, renderRoomsList, joinRoomDirectly 함수 제거, ServerSelectModule.init else 블록 제거, roomsList/roomsListUpdated 소켓 이벤트 제거, socket.on('connect'/'disconnect') 핸들러 간소화, roomCreated/roomJoined에서 lobbySection 참조 제거, roomError에서 /game 리다이렉트로 통합, DOMContentLoaded auto-create/join에서 lobbySection.display 참조 제거, roomsList/selectedRoomId 전역 변수 제거
+- css/horse-race.css: body.lobby-active, .lobby-section, .create-room-section, .rooms-list, .room-item 등 로비 관련 CSS 전체 제거
+- roulette-game-multiplayer.html: 경마와 동일 패턴 적용 - lobbySection/createRoomSection HTML 제거, 로비 관련 CSS/JS 함수/소켓 이벤트 제거, ServerSelectModule 제거, loadingScreen 기본 표시
+
+## 상세 변경 내역
+
+### 경마/룰렛 로비 dead code 제거
+- 경마/룰렛 페이지는 항상 주사위 로비에서 ?createRoom=true 또는 ?joinRoom=true로만 진입
+- 직접 URL 접속 시 /game으로 리다이렉트되므로 자체 로비가 절대 표시되지 않음
+- 방 나가기/삭제 시에도 /game으로 리다이렉트하므로 로비 불필요
+- 로비 깜빡임 원인: 페이지 로드 시 lobby-active 클래스로 로비가 기본 표시 → 소켓 연결 후 방 생성까지 잠시 보임
+- 해결: 로비 자체를 제거하고 loadingScreen을 기본 표시(display:flex)로 변경
+
+### 제거된 코드량
+- horse-race-multiplayer.html: lobbySection ~40줄, createRoomSection ~48줄 HTML 제거
+- js/horse-race.js: ~200줄 로비 관련 함수/이벤트 제거
+- css/horse-race.css: ~100줄 로비 관련 스타일 제거
+- roulette-game-multiplayer.html: ~350줄 (HTML + 인라인 JS + CSS) 제거
+
+========================================
+
+========================================
+📋 Summit Log - 2026-02-12 (서버 선택 페이지 분리 + 랭킹 고도화)
+========================================
+
+## 변경 파일 (16개)
+- index.html: 서버 선택 전용 페이지 신규 생성 (header/footer + ServerSelectModule)
+- routes/api.js: GET / → index.html, GET /game → dice-game-multiplayer.html 라우트 추가
+- dice-game-multiplayer.html: ServerSelectModule.init 최소화(멤버모달용), server-select-active CSS 제거, 세션 복원 로직(diceSession/returnToLobby), 세션 없으면 / 리다이렉트, PageHistoryManager.onServerSelect → window.location.href='/', getCurrentPage에서 serverSelectOverlay 체크 제거
+- js/horse-race.js: 복귀 URL /dice-game-multiplayer.html → /game (4곳)
+- roulette-game-multiplayer.html: 복귀 URL /dice-game-multiplayer.html → /game (6곳)
+- horse-race-multiplayer.html: 주사위 게임 링크 /dice-game-multiplayer.html → /game
+- about-us.html, contact.html, dice-rules-guide.html, privacy-policy.html, probability-analysis.html, statistics.html, terms-of-service.html: 메인 돌아가기 링크 dice-game-multiplayer.html → /
+- db/ranking.js: 랭킹 동점자 규칙(같은 점수=같은 등수) + 종합 탭 서브탭(순위/참여)
+- ranking-shared.js: 동점자 등수 표시 UI + 종합 서브탭 UI + PC max-width 조정
+- routes/server.js: 서버 관련 버그 수정
+
+## 상세 변경 내역
+
+### 페이지 분리 (핵심)
+- 기존: / → dice-game-multiplayer.html (서버 선택 오버레이 + 로비 + 게임 모두 한 파일)
+- 변경: / → index.html (서버 선택만), /game → dice-game-multiplayer.html (로비+게임)
+- 서버 선택 완료 → sessionStorage에 diceSession 저장 → /game 이동
+- /game 직접 접속(세션 없음) → / 리다이렉트
+- 새로고침 → diceSession 존재하면 로비 유지
+- "← 서버 목록" 버튼 → diceSession 삭제 후 / 이동
+
+### 랭킹 고도화
+- db/ranking.js: 동점자 같은 등수 처리 로직 추가
+- ranking-shared.js: 종합 탭에 순위/참여 서브탭 UI
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-12 (회원가입 개선 + 세션 복원 + UI 수정)
 ========================================
 

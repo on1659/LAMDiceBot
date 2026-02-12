@@ -41,11 +41,6 @@
             margin: 20px auto;
         }
         
-        body.lobby-active .container {
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
         body.game-active .container {
             margin-left: calc((100vw - 1140px) / 2 + 160px);
             margin-right: auto;
@@ -64,113 +59,12 @@
             font-size: 2.5em;
         }
 
-        .lobby-section, .game-section, .create-room-section {
+        .game-section {
             display: none;
         }
 
-        .lobby-section.active, .game-section.active, .create-room-section.active {
+        .game-section.active {
             display: block;
-        }
-        
-        .rooms-list {
-            margin: 20px 0;
-            max-height: 400px;
-            overflow-y: auto;
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 15px;
-        }
-        
-        .room-item {
-            background: white;
-            border: 2px solid #7c4dff;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .room-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(233, 30, 99, 0.3);
-        }
-        
-        .room-item.active {
-            background: #fce4ec;
-            border-color: #7c4dff;
-        }
-        
-        .room-item.my-room {
-            background: #fff3cd;
-            border-color: #ffc107;
-            border-width: 3px;
-        }
-        
-        .my-room-badge {
-            display: inline-block;
-            background: #ffc107;
-            color: #333;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-        
-        .room-info {
-            flex: 1;
-        }
-        
-        .room-name {
-            font-size: 18px;
-            font-weight: 600;
-            color: #7c4dff;
-            margin-bottom: 5px;
-        }
-        
-        .room-details {
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .room-status {
-            font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-weight: 600;
-            margin-top: 5px;
-            display: inline-block;
-        }
-        
-        .room-status.playing {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .room-status.waiting {
-            background: #e0e0e0;
-            color: #666;
-        }
-        
-        .room-action {
-            margin-left: 15px;
-        }
-        
-        .room-action button {
-            width: auto;
-            padding: 10px 20px;
-        }
-        
-        .create-room-section {
-            background: #f8f9fa;
-            border: 2px solid #7c4dff;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
         }
 
         button {
@@ -707,9 +601,9 @@
         }
     </style>
 </head>
-<body class="lobby-active">
+<body>
     <!-- 로딩 화면 -->
-    <div id="loadingScreen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center;">
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: white;">
             <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🎰</div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
@@ -973,110 +867,10 @@
         }
     </style>
 
+    <!-- 이름 입력 (로그인 시 자동 설정, 숨김) -->
+    <input type="hidden" id="globalUserNameInput">
+
     <div class="container">
-        <!-- 로비 섹션 -->
-        <section class="lobby-section" id="lobbySection">
-            <h1>🎰 LAM Roulette</h1>
-            <div class="connection-sound-row">
-                <div class="connection-status connected" id="connectionStatus">● 연결됨</div>
-                <div class="volume-control" id="volumeControl">
-                    <button class="volume-btn" id="volumeBtn" title="음소거 토글">🔇</button>
-                    <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
-                </div>
-            </div>
-            
-            <!-- 서버 정보 바 (서버 선택 시 표시) -->
-            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(124,77,255,0.1), rgba(156,39,176,0.1)); border: 1px solid #7c4dff; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
-                <button onclick="ServerSelectModule.show()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
-                <span id="serverInfoName" style="font-weight: bold; color: #7c4dff;"></span>
-                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #7c4dff; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
-            </div>
-
-            <!-- 이름 입력 (로그인 시 자동 설정) -->
-            <div style="display: none;">
-                <input type="text" id="globalUserNameInput" placeholder="이름을 입력하세요" maxlength="20">
-            </div>
-
-            <!-- 방 만들기 버튼 -->
-            <button onclick="showCreateRoomSection()" style="margin-bottom: 20px;">🎰 새 룰렛 방 만들기</button>
-            <button onclick="RankingModule.show()" style="margin-bottom: 20px; background: white; border: 2px solid #7c4dff; color: #7c4dff; font-weight: 600; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%;">랭킹</button>
-            
-            <!-- 방 목록 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="color: #7c4dff;">🎲 방 목록</h3>
-                <button onclick="refreshRooms()" style="width: auto; padding: 8px 15px; font-size: 14px;">🔄 새로고침</button>
-            </div>
-            <div class="rooms-list" id="roomsList">
-                <div style="color: #999; text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
-            </div>
-            
-            <!-- 주사위 게임 링크 -->
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="/dice-game-multiplayer.html" style="color: #667eea; text-decoration: none;">🎲 주사위 게임으로 이동</a>
-            </div>
-        </section>
-
-        <!-- 방 생성 섹션 -->
-        <section class="create-room-section" id="createRoomSection">
-            <h2 style="color: #7c4dff; margin-bottom: 20px;">🎰 새 룰렛 방 만들기</h2>
-            <div class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</div>
-            
-            <div style="display: none;">
-                <input type="text" id="createRoomHostNameInput" placeholder="호스트 이름" maxlength="20">
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">방 제목</label>
-                <input type="text" id="createRoomNameInput" placeholder="방 제목을 입력하세요" maxlength="30">
-            </div>
-            
-            <!-- 비공개 방 설정 -->
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: auto; margin: 0;">
-                    <span style="font-weight: bold; color: #333;">🔒 비공개 방</span>
-                </label>
-                <div id="createRoomPasswordContainer" style="display: none; margin-top: 10px;">
-                    <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 (4~20자)" maxlength="20">
-                </div>
-            </div>
-            
-            <!-- 터보 애니메이션 설정 -->
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="createRoomTurboCheckbox" style="width: auto; margin: 0;" checked>
-                    <span style="font-weight: bold; color: #333;">🚀 터보 애니메이션</span>
-                </label>
-                <div style="font-size: 12px; color: #666; margin-top: 5px; margin-left: 26px;">
-                    활성화 시 룰렛 마무리에 다양한 효과 적용 (바운스, 떨림, 느린크롤)
-                </div>
-            </div>
-            
-            <!-- 방 유지 시간 -->
-            <div style="margin-bottom: 15px;">
-                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px;">⏰ 방 유지 시간</label>
-                <div style="display: flex; gap: 15px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="roomExpiryTime" value="1" style="width: auto; margin: 0;">
-                        <span>1시간</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="roomExpiryTime" value="3" checked style="width: auto; margin: 0;">
-                        <span>3시간</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="roomExpiryTime" value="6" style="width: auto; margin: 0;">
-                        <span>6시간</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 10px;">
-                <button onclick="goBackToLobby()" style="background: #6c757d; flex: 1;">← 취소</button>
-                <button onclick="finalizeRoomCreation()" style="flex: 2;">🎰 방 만들기</button>
-            </div>
-        </section>
-
         <!-- 게임 섹션 -->
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 -->
@@ -1290,7 +1084,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/page-history-shared.js"></script>
-    <script src="/server-select-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/chat-shared.js"></script>
     <script src="/ready-shared.js"></script>
@@ -1888,92 +1681,59 @@
         let currentServerId = null;
         let currentServerName = null;
 
-        // 서버 선택 UI (dice 페이지에서 넘어온 경우 스킵)
+        // 직접 URL 접속 차단 + 새로고침 시 재입장 지원
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
-            if (!fromDice) {
-                // 직접 URL 접속 시 메인 페이지로 리다이렉트
-                window.location.replace('/dice-game-multiplayer.html');
+
+            // 새로고침: sessionStorage에 방 정보가 있으면 재입장
+            const activeRoom = sessionStorage.getItem('rouletteActiveRoom');
+            if (!fromDice && activeRoom) {
+                try {
+                    const rd = JSON.parse(activeRoom);
+                    currentServerId = rd.serverId || null;
+                    currentServerName = rd.serverName || null;
+                    if (currentServerId) {
+                        socket.emit('setServerId', { serverId: currentServerId });
+                    }
+                    if (rd.serverName) {
+                        document.title = `${rd.serverName} - LAM Roulette`;
+                    }
+                    socket.on('connect', function onReconnect() {
+                        socket.off('connect', onReconnect);
+                        socket.emit('joinRoom', {
+                            roomId: rd.roomId,
+                            userName: rd.userName,
+                            isHost: false,
+                            password: '',
+                            deviceId: getDeviceId(),
+                            tabId: getTabId()
+                        });
+                    });
+                } catch(e) {
+                    sessionStorage.removeItem('rouletteActiveRoom');
+                    window.location.replace('/game');
+                }
                 return;
             }
-            if (fromDice) {
-                // dice에서 넘어온 경우 pending 데이터에서 serverId/serverName 추출
-                const pending = localStorage.getItem('pendingRouletteRoom') || localStorage.getItem('pendingRouletteJoin');
-                if (pending) {
-                    try {
-                        const pd = JSON.parse(pending);
-                        currentServerId = pd.serverId || null;
-                        currentServerName = pd.serverName || null;
-                        if (currentServerId) {
-                            socket.emit('setServerId', { serverId: currentServerId });
-                            if (pd.serverName) {
-                                document.getElementById('serverInfoName').textContent = `🖥️ ${pd.serverName}`;
-                                document.getElementById('serverInfoName').style.display = '';
-                                document.getElementById('serverInfoBar').style.display = 'flex';
-                                document.title = `${pd.serverName} - LAM Roulette`;
-                            }
-                        }
-                    } catch(e) {}
-                }
-            } else {
-                // 직접 접속 시 서버 선택 UI 표시
-                ServerSelectModule.init(socket, (selection) => {
-                    currentServerId = selection.serverId;
-                    if (selection.serverName) document.title = `${selection.serverName} - LAM Roulette`;
-                    // 서버 정보 바 표시 (항상 표시 - 서버 목록 복귀 버튼 포함)
-                    const infoBar = document.getElementById('serverInfoBar');
-                    infoBar.style.display = 'flex';
-                    const membersBtn = document.getElementById('serverMembersBtn');
-                    if (selection.serverId && selection.serverName) {
-                        document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
-                        document.getElementById('serverInfoName').style.display = '';
-                        if (membersBtn) membersBtn.style.display = '';
-                    } else {
-                        document.getElementById('serverInfoName').style.display = 'none';
-                        if (membersBtn) membersBtn.style.display = 'none';
-                    }
-                    document.getElementById('lobbySection').classList.add('active');
-                    RankingModule.init(selection.serverId, document.getElementById('globalUserNameInput')?.value || '');
-                }, () => {
-                    document.getElementById('lobbySection').classList.remove('active');
-                });
-                // 히스토리 매니저 초기화
-                PageHistoryManager.init({
-                    onServerSelect: function () {
-                        document.getElementById('lobbySection').classList.remove('active');
-                        document.getElementById('createRoomSection').classList.remove('active');
-                        document.getElementById('gameSection').classList.remove('active');
-                        document.body.classList.remove('game-active');
-                        document.body.classList.add('lobby-active');
-                        ServerSelectModule.show();
-                    },
-                    onLobby: function () {
-                        document.getElementById('createRoomSection').classList.remove('active');
-                        document.getElementById('gameSection').classList.remove('active');
-                        document.getElementById('lobbySection').classList.add('active');
-                        document.body.classList.remove('game-active');
-                        document.body.classList.add('lobby-active');
-                    },
-                    onLeaveRoom: function () {
-                        if (currentRoomId) {
-                            socket.emit('leaveRoom');
-                        }
-                    },
-                    onHideRanking: function () {
-                        RankingModule.forceHide();
-                    },
-                    getCurrentPage: function () {
-                        if (document.getElementById('ranking-overlay')) return 'ranking';
-                        if (document.getElementById('gameSection').classList.contains('active')) return 'gameRoom';
-                        if (document.getElementById('createRoomSection').classList.contains('active')) return 'createRoom';
-                        if (document.getElementById('serverSelectOverlay')) return 'serverSelect';
-                        return 'lobby';
-                    }
-                });
 
-                document.getElementById('lobbySection').classList.remove('active');
-                ServerSelectModule.show();
+            if (!fromDice) {
+                window.location.replace('/game');
+                return;
+            }
+            const pending = localStorage.getItem('pendingRouletteRoom') || localStorage.getItem('pendingRouletteJoin');
+            if (pending) {
+                try {
+                    const pd = JSON.parse(pending);
+                    currentServerId = pd.serverId || null;
+                    currentServerName = pd.serverName || null;
+                    if (currentServerId) {
+                        socket.emit('setServerId', { serverId: currentServerId });
+                        if (pd.serverName) {
+                            document.title = `${pd.serverName} - LAM Roulette`;
+                        }
+                    }
+                } catch(e) {}
             }
         })();
 
@@ -2054,15 +1814,19 @@
             });
         }
 
+        // 탭 세션 ID (새로고침: 유지, 새 탭: 새로 생성)
+        if (!sessionStorage.getItem('tabId')) {
+            sessionStorage.setItem('tabId', Math.random().toString(36).substr(2, 9) + Date.now());
+        }
+        function getTabId() { return sessionStorage.getItem('tabId'); }
+
         // 상태 변수
         let currentRoomId = null;
         let currentUser = '';
         let isHost = false;
         let isReady = false;
         let readyUsers = [];
-        let roomsList = [];
         let turboAnimation = true; // 터보 애니메이션 옵션 (기본값: 활성화)
-        let selectedRoomId = null;
         let rouletteHistory = [];
         let isSpinning = false;
         let roomExpiryInterval = null;
@@ -2258,162 +2022,6 @@
             return deviceId;
         }
 
-        // 방 생성 섹션 표시
-        function showCreateRoomSection() {
-            const globalName = document.getElementById('globalUserNameInput').value.trim();
-
-            document.getElementById('lobbySection').classList.remove('active');
-            document.getElementById('createRoomSection').classList.add('active');
-            PageHistoryManager.pushPage('createRoom');
-            
-            // 호스트 이름 자동 설정
-            const hostNameInput = document.getElementById('createRoomHostNameInput');
-            if (globalName) {
-                hostNameInput.value = globalName;
-                // 로컬에서는 "test", 그 외에는 자동 생성
-                if (isLocalhost) {
-                    document.getElementById('createRoomNameInput').value = 'test';
-                } else {
-                    document.getElementById('createRoomNameInput').value = globalName + '님의 Roulette';
-                }
-            }
-        }
-
-        // 로비로 돌아가기
-        function goBackToLobby() {
-            history.back();
-        }
-
-        // 방 생성
-        function finalizeRoomCreation() {
-            const hostName = document.getElementById('createRoomHostNameInput').value.trim();
-            const roomName = document.getElementById('createRoomNameInput').value.trim();
-            const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
-            const password = document.getElementById('createRoomPasswordInput').value.trim();
-            const turboAnimation = document.getElementById('createRoomTurboCheckbox').checked;
-            const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
-            const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
-
-            if (!hostName) {
-                alert('호스트 이름을 입력해주세요!');
-                return;
-            }
-
-            if (!roomName) {
-                alert('방 제목을 입력해주세요!');
-                return;
-            }
-
-            if (isPrivate && (!password || password.length < 4)) {
-                alert('비공개 방은 4자 이상의 비밀번호가 필요합니다!');
-                return;
-            }
-
-            // 이름 저장
-            localStorage.setItem('rouletteUserName', hostName);
-
-            socket.emit('createRoom', {
-                userName: hostName,
-                roomName: roomName,
-                isPrivate: isPrivate,
-                password: isPrivate ? password : '',
-                gameType: 'roulette',
-                expiryHours: expiryHours,
-                blockIPPerUser: false,
-                deviceId: getDeviceId(),
-                turboAnimation: turboAnimation,
-                serverId: currentServerId,
-                serverName: currentServerName
-            });
-        }
-
-        // 방 목록 새로고침
-        function refreshRooms() {
-            socket.emit('getRooms');
-        }
-
-        // 방 목록 렌더링
-        function renderRoomsList() {
-            const roomsListEl = document.getElementById('roomsList');
-            
-            // 룰렛 방만 필터링
-            const rouletteRooms = roomsList.filter(room => room.gameType === 'roulette');
-            
-            if (rouletteRooms.length === 0) {
-                roomsListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">생성된 룰렛 방이 없습니다</div>';
-                return;
-            }
-
-            roomsListEl.innerHTML = '';
-
-            rouletteRooms.forEach(room => {
-                const roomItem = document.createElement('div');
-                const isMyRoom = room.roomId === currentRoomId;
-                let className = 'room-item';
-                if (isMyRoom) className += ' my-room';
-                else if (room.roomId === selectedRoomId) className += ' active';
-                roomItem.className = className;
-
-                let statusClass = 'waiting';
-                let statusText = '대기 중';
-                if (room.isGameActive) {
-                    statusClass = 'playing';
-                    statusText = '게임 진행 중';
-                }
-
-                const roomNameHtml = isMyRoom 
-                    ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
-                    : room.roomName;
-
-                const privateBadge = room.isPrivate 
-                    ? '<span style="color: #ff6b6b; font-weight: bold; margin-left: 5px;">🔒</span>' 
-                    : '';
-
-                const buttonText = isMyRoom ? '재입장' : '입장';
-
-                roomItem.innerHTML = `
-                    <div class="room-info">
-                        <div class="room-name"><span class="game-type-icon">🎰</span>${roomNameHtml}${privateBadge}</div>
-                        <div class="room-details">호스트: ${room.hostName} | 인원: ${room.playerCount}명</div>
-                        <span class="room-status ${statusClass}">${statusText}</span>
-                    </div>
-                    <div class="room-action">
-                        <button onclick="joinRoomDirectly('${room.roomId}')">${buttonText}</button>
-                    </div>
-                `;
-
-                roomsListEl.appendChild(roomItem);
-            });
-        }
-
-        // 방 입장
-        function joinRoomDirectly(roomId) {
-            const userName = document.getElementById('globalUserNameInput').value.trim();
-            
-            if (!userName) {
-                alert('이름을 입력해주세요!');
-                document.getElementById('globalUserNameInput').focus();
-                return;
-            }
-
-            const room = roomsList.find(r => r.roomId === roomId);
-            if (room && room.isPrivate) {
-                pendingRoomId = roomId;
-                pendingUserName = userName;
-                document.getElementById('passwordModal').style.display = 'flex';
-                document.getElementById('roomPasswordInput').focus();
-            } else {
-                socket.emit('joinRoom', {
-                    roomId: roomId,
-                    userName: userName,
-                    isHost: false,
-                    password: '',
-                    deviceId: getDeviceId()
-                });
-            }
-
-            localStorage.setItem('rouletteUserName', userName);
-        }
 
         // 비밀번호 모달 닫기
         function closePasswordModal() {
@@ -2433,7 +2041,8 @@
                     userName: pendingUserName,
                     isHost: false,
                     password: password,
-                    deviceId: getDeviceId()
+                    deviceId: getDeviceId(),
+                    tabId: getTabId()
                 });
             }
             
@@ -3251,39 +2860,18 @@
         // === 소켓 이벤트 핸들러 ===
         
         socket.on('connect', () => {
-            document.getElementById('connectionStatus').textContent = '● 연결됨';
-            document.getElementById('connectionStatus').className = 'connection-status connected';
-            
-            const createRoomStatus = document.getElementById('createRoomConnectionStatus');
-            if (createRoomStatus) {
-                createRoomStatus.textContent = '● 연결됨';
-                createRoomStatus.className = 'connection-status connected';
-            }
-            
-            if (document.getElementById('lobbySection').classList.contains('active')) {
-                refreshRooms();
-            }
         });
 
         socket.on('disconnect', () => {
-            document.getElementById('connectionStatus').textContent = '● 연결 끊김';
-            document.getElementById('connectionStatus').className = 'connection-status disconnected';
-        });
-
-        socket.on('roomsList', (rooms) => {
-            roomsList = rooms;
-            renderRoomsList();
-        });
-
-        socket.on('roomsListUpdated', (rooms) => {
-            roomsList = rooms;
-            renderRoomsList();
         });
 
         socket.on('roomCreated', (data) => {
             currentRoomId = data.roomId;
-            const hostInput = document.getElementById('createRoomHostNameInput');
-            currentUser = (hostInput && hostInput.value.trim()) || data.userName || '';
+            currentUser = data.userName || '';
+            sessionStorage.setItem('rouletteActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
             initChatModule();
             isHost = true;
             isReady = data.isReady || false;
@@ -3291,29 +2879,25 @@
             initReadyModule();
             initOrderModule();
 
-            document.getElementById('lobbySection').classList.remove('active');
-            document.getElementById('createRoomSection').classList.remove('active');
+            document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('gameSection').classList.add('active');
-
-            document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
-            PageHistoryManager.pushPage('gameRoom');
 
             initializeGameScreen(data);
             ReadyModule.setReadyUsers(readyUsers);
         });
 
         socket.on('roomJoined', (data) => {
-            // 성공 시 에러 플래그 제거
             sessionStorage.removeItem('rouletteFromDice');
-            
-            // 로딩 화면 숨기기
             document.getElementById('loadingScreen').style.display = 'none';
-            
+
             currentRoomId = data.roomId;
-            // 입력란에서 이름 가져오기, 없으면 서버 데이터 사용
             const globalInput = document.getElementById('globalUserNameInput');
-            currentUser = (globalInput && globalInput.value.trim()) || data.userName || '';
+            currentUser = (globalInput && globalInput.value) || data.userName || '';
+            sessionStorage.setItem('rouletteActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
             initChatModule();
             isHost = data.isHost;
             isReady = data.isReady || false;
@@ -3321,12 +2905,8 @@
             initReadyModule();
             initOrderModule();
 
-            document.getElementById('lobbySection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
-
-            document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
-            PageHistoryManager.pushPage('gameRoom');
 
             setRouletteSoundCheckboxes();
             initializeGameScreen(data);
@@ -3334,19 +2914,10 @@
         });
 
         socket.on('roomError', (message) => {
-            // 다른 페이지에서 온 경우 주사위 메인으로 돌아감
-            const fromDice = sessionStorage.getItem('rouletteFromDice');
-            if (fromDice === 'true') {
-                sessionStorage.removeItem('rouletteFromDice');
-                alert(message);
-                window.location.href = '/dice-game-multiplayer.html';
-                return;
-            }
-            
-            // 로딩 화면 숨기고 로비 보여주기
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('lobbySection').style.display = 'block';
+            sessionStorage.removeItem('rouletteFromDice');
+            sessionStorage.removeItem('rouletteActiveRoom');
             alert(message);
+            window.location.href = '/game';
         });
 
         socket.on('rouletteError', (message) => {
@@ -3721,30 +3292,33 @@
         });
 
         socket.on('roomDeleted', (data) => {
+            sessionStorage.removeItem('rouletteActiveRoom');
             alert(data.message || '방이 삭제되었습니다.');
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/dice-game-multiplayer.html');
+            window.location.replace('/game');
         });
 
         // 방 나가기 완료 (서버에서 roomLeft emit)
         socket.on('roomLeft', () => {
+            sessionStorage.removeItem('rouletteActiveRoom');
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/dice-game-multiplayer.html');
+            window.location.replace('/game');
         });
 
         // 레거시 이벤트 호환성 유지
         socket.on('leftRoom', () => {
+            sessionStorage.removeItem('rouletteActiveRoom');
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/dice-game-multiplayer.html');
+            window.location.replace('/game');
         });
 
         // 호스트 권한 전달 알림
@@ -3773,18 +3347,6 @@
         
         // 비공개 방 체크박스 이벤트
         document.addEventListener('DOMContentLoaded', () => {
-            const privateCheckbox = document.getElementById('createRoomPrivateCheckbox');
-            const passwordContainer = document.getElementById('createRoomPasswordContainer');
-            
-            if (privateCheckbox && passwordContainer) {
-                privateCheckbox.addEventListener('change', function() {
-                    passwordContainer.style.display = this.checked ? 'block' : 'none';
-                    if (!this.checked) {
-                        document.getElementById('createRoomPasswordInput').value = '';
-                    }
-                });
-            }
-            
             // 볼륨 컨트롤 초기화
             initRouletteVolumeFromStorage();
             updateRouletteVolumeUI();
@@ -3823,7 +3385,8 @@
                             blockIPPerUser: roomData.blockIPPerUser,
                             deviceId: getDeviceId(),
                             serverId: roomData.serverId || currentServerId,
-                            serverName: roomData.serverName || currentServerName
+                            serverName: roomData.serverName || currentServerName,
+                            tabId: getTabId()
                         });
                     });
 
@@ -3841,10 +3404,6 @@
                     
                     // 에러 시 돌아갈 플래그 저장
                     sessionStorage.setItem('rouletteFromDice', 'true');
-                    
-                    // 로딩 화면 표시
-                    document.getElementById('loadingScreen').style.display = 'flex';
-                    document.getElementById('lobbySection').style.display = 'none';
                     
                     // 이름 설정
                     document.getElementById('globalUserNameInput').value = joinData.userName;
@@ -3866,7 +3425,8 @@
                                 userName: joinData.userName,
                                 isHost: false,
                                 password: '',
-                                deviceId: getDeviceId()
+                                deviceId: getDeviceId(),
+                                tabId: getTabId()
                             });
                         }
                     });

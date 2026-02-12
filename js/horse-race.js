@@ -52,14 +52,18 @@ function addDebugLog(message, type = 'info') {
     logSection.style.display = 'block';
 }
 
+// 탭 세션 ID (새로고침: 유지, 새 탭: 새로 생성)
+if (!sessionStorage.getItem('tabId')) {
+    sessionStorage.setItem('tabId', Math.random().toString(36).substr(2, 9) + Date.now());
+}
+function getTabId() { return sessionStorage.getItem('tabId'); }
+
 // 상태 변수
 var currentRoomId = null;
 var currentUser = '';
 var isHost = false;
 var isReady = false;
 var readyUsers = [];
-var roomsList = [];
-var selectedRoomId = null;
 var horseRaceHistory = [];
 var isRaceActive = false;
 var roomExpiryInterval = null;
@@ -240,247 +244,63 @@ var socket = io({
 var currentServerId = null;
 var currentServerName = null;
 
-// 서버 선택 UI (dice 페이지에서 넘어온 경우 스킵)
+// 직접 URL 접속 차단 + 새로고침 시 재입장 지원
 (function() {
     var urlParams = new URLSearchParams(window.location.search);
     var fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
-    if (!fromDice) {
-        // 직접 URL 접속 시 메인 페이지로 리다이렉트
-        window.location.replace('/dice-game-multiplayer.html');
+
+    // 새로고침: sessionStorage에 방 정보가 있으면 재입장
+    var activeRoom = sessionStorage.getItem('horseRaceActiveRoom');
+    if (!fromDice && activeRoom) {
+        try {
+            var rd = JSON.parse(activeRoom);
+            currentServerId = rd.serverId || null;
+            currentServerName = rd.serverName || null;
+            if (currentServerId) {
+                socket.emit('setServerId', { serverId: currentServerId });
+            }
+            if (rd.serverName) {
+                document.title = rd.serverName + ' - Horse Race';
+            }
+            // 소켓 연결 후 재입장
+            socket.on('connect', function onReconnect() {
+                socket.off('connect', onReconnect);
+                socket.emit('joinRoom', {
+                    roomId: rd.roomId,
+                    userName: rd.userName,
+                    isHost: false,
+                    password: '',
+                    deviceId: getDeviceId(),
+                    tabId: getTabId()
+                });
+            });
+        } catch(e) {
+            sessionStorage.removeItem('horseRaceActiveRoom');
+            window.location.replace('/game');
+        }
         return;
     }
-    if (fromDice) {
-        var pending = localStorage.getItem('pendingHorseRaceRoom') || localStorage.getItem('pendingHorseRaceJoin');
-        if (pending) {
-            try {
-                var pd = JSON.parse(pending);
-                currentServerId = pd.serverId || null;
-                currentServerName = pd.serverName || null;
-                if (currentServerId) {
-                    socket.emit('setServerId', { serverId: currentServerId });
-                    if (pd.serverName) {
-                        document.getElementById('serverInfoName').textContent = '\uD83D\uDDA5\uFE0F ' + pd.serverName;
-                        document.getElementById('serverInfoName').style.display = '';
-                        document.getElementById('serverInfoBar').style.display = 'flex';
-                        document.title = pd.serverName + ' - Horse Race';
-                    }
-                }
-            } catch(e) {}
-        }
-    } else {
-        ServerSelectModule.init(socket, function(selection) {
-            currentServerId = selection.serverId;
-            if (selection.serverName) document.title = selection.serverName + ' - Horse Race';
-            // 서버 정보 바 표시 (항상 표시 - 서버 목록 복귀 버튼 포함)
-            var infoBar = document.getElementById('serverInfoBar');
-            infoBar.style.display = 'flex';
-            var membersBtn = document.getElementById('serverMembersBtn');
-            if (selection.serverId && selection.serverName) {
-                document.getElementById('serverInfoName').textContent = '\uD83D\uDDA5\uFE0F ' + selection.serverName;
-                document.getElementById('serverInfoName').style.display = '';
-                if (membersBtn) membersBtn.style.display = '';
-            } else {
-                document.getElementById('serverInfoName').style.display = 'none';
-                if (membersBtn) membersBtn.style.display = 'none';
-            }
-            document.getElementById('lobbySection').classList.add('active');
-            RankingModule.init(selection.serverId, document.getElementById('globalUserNameInput')?.value || '');
-        }, function() {
-            document.getElementById('lobbySection').classList.remove('active');
-        });
-        // 히스토리 매니저 초기화
-        PageHistoryManager.init({
-            onServerSelect: function () {
-                document.getElementById('lobbySection').classList.remove('active');
-                document.getElementById('createRoomSection').classList.remove('active');
-                document.getElementById('gameSection').classList.remove('active');
-                document.body.classList.remove('game-active');
-                document.body.classList.add('lobby-active');
-                ServerSelectModule.show();
-            },
-            onLobby: function () {
-                document.getElementById('createRoomSection').classList.remove('active');
-                document.getElementById('gameSection').classList.remove('active');
-                document.getElementById('lobbySection').classList.add('active');
-                document.body.classList.remove('game-active');
-                document.body.classList.add('lobby-active');
-            },
-            onLeaveRoom: function () {
-                if (currentRoomId) {
-                    socket.emit('leaveRoom');
-                }
-            },
-            onHideRanking: function () {
-                RankingModule.forceHide();
-            },
-            getCurrentPage: function () {
-                if (document.getElementById('ranking-overlay')) return 'ranking';
-                if (document.getElementById('gameSection').classList.contains('active')) return 'gameRoom';
-                if (document.getElementById('createRoomSection').classList.contains('active')) return 'createRoom';
-                if (document.getElementById('serverSelectOverlay')) return 'serverSelect';
-                return 'lobby';
-            }
-        });
 
-        document.getElementById('lobbySection').classList.remove('active');
-        ServerSelectModule.show();
+    if (!fromDice) {
+        window.location.replace('/game');
+        return;
+    }
+    var pending = localStorage.getItem('pendingHorseRaceRoom') || localStorage.getItem('pendingHorseRaceJoin');
+    if (pending) {
+        try {
+            var pd = JSON.parse(pending);
+            currentServerId = pd.serverId || null;
+            currentServerName = pd.serverName || null;
+            if (currentServerId) {
+                socket.emit('setServerId', { serverId: currentServerId });
+                if (pd.serverName) {
+                    document.title = pd.serverName + ' - Horse Race';
+                }
+            }
+        } catch(e) {}
     }
 })();
 
-// 방 생성 섹션 표시
-function showCreateRoomSection() {
-    const globalName = document.getElementById('globalUserNameInput').value.trim();
-    
-    document.getElementById('lobbySection').classList.remove('active');
-    document.getElementById('createRoomSection').classList.add('active');
-    PageHistoryManager.pushPage('createRoom');
-
-    // 호스트 이름 자동 설정
-    const hostNameInput = document.getElementById('createRoomHostNameInput');
-    if (globalName) {
-        hostNameInput.value = globalName;
-        // 로컬에서는 "test", 그 외에는 자동 생성
-        if (isLocalhost) {
-            document.getElementById('createRoomNameInput').value = 'test';
-        } else {
-            document.getElementById('createRoomNameInput').value = globalName + '님의 Horse Race';
-        }
-    }
-}
-
-// 로비로 돌아가기
-function goBackToLobby() {
-    history.back();
-}
-
-// 방 생성
-function finalizeRoomCreation() {
-    const hostName = document.getElementById('createRoomHostNameInput').value.trim();
-    const roomName = document.getElementById('createRoomNameInput').value.trim();
-    const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
-    const password = document.getElementById('createRoomPasswordInput').value.trim();
-    const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
-    const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
-
-    if (!hostName) {
-        alert('호스트 이름을 입력해주세요!');
-        return;
-    }
-
-    if (!roomName) {
-        alert('방 제목을 입력해주세요!');
-        return;
-    }
-
-    if (isPrivate && (!password || password.length < 4)) {
-        alert('비공개 방은 4자 이상의 비밀번호가 필요합니다!');
-        return;
-    }
-
-    // 이름 저장
-    localStorage.setItem('horseRaceUserName', hostName);
-
-    socket.emit('createRoom', {
-        userName: hostName,
-        roomName: roomName,
-        isPrivate: isPrivate,
-        password: isPrivate ? password : '',
-        gameType: 'horse-race',
-        expiryHours: expiryHours,
-        blockIPPerUser: false,
-        deviceId: getDeviceId(),
-        serverId: currentServerId,
-        serverName: currentServerName
-    });
-}
-
-// 방 목록 새로고침
-function refreshRooms() {
-    socket.emit('getRooms');
-}
-
-// 방 목록 렌더링
-function renderRoomsList() {
-    const roomsListEl = document.getElementById('roomsList');
-    
-    // 경마 방만 필터링
-    const horseRaceRooms = roomsList.filter(room => room.gameType === 'horse-race');
-    
-    if (horseRaceRooms.length === 0) {
-        roomsListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">생성된 경마 방이 없습니다</div>';
-        return;
-    }
-
-    roomsListEl.innerHTML = '';
-
-    horseRaceRooms.forEach(room => {
-        const roomItem = document.createElement('div');
-        const isMyRoom = room.roomId === currentRoomId;
-        let className = 'room-item';
-        if (isMyRoom) className += ' my-room';
-        else if (room.roomId === selectedRoomId) className += ' active';
-        roomItem.className = className;
-
-        let statusClass = 'waiting';
-        let statusText = '대기 중';
-        if (room.isGameActive) {
-            statusClass = 'playing';
-            statusText = '게임 진행 중';
-        }
-
-        const roomNameHtml = isMyRoom 
-            ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
-            : room.roomName;
-
-        const privateBadge = room.isPrivate 
-            ? '<span style="color: #ff6b6b; font-weight: bold; margin-left: 5px;">🔒</span>' 
-            : '';
-
-        const buttonText = isMyRoom ? '재입장' : '입장';
-
-        roomItem.innerHTML = `
-            <div class="room-info">
-                <div class="room-name"><span style="font-size: 20px; margin-right: 5px;">🐎</span>${roomNameHtml}${privateBadge}</div>
-                <div class="room-details">호스트: ${room.hostName} | 인원: ${room.playerCount}명</div>
-                <span class="room-status ${statusClass}">${statusText}</span>
-            </div>
-            <div class="room-action">
-                <button onclick="joinRoomDirectly('${room.roomId}')" style="color: #000; font-weight: 600;">${buttonText}</button>
-            </div>
-        `;
-
-        roomsListEl.appendChild(roomItem);
-    });
-}
-
-// 방 입장
-function joinRoomDirectly(roomId) {
-    const userName = document.getElementById('globalUserNameInput').value.trim();
-    
-    if (!userName) {
-        alert('이름을 입력해주세요!');
-        document.getElementById('globalUserNameInput').focus();
-        return;
-    }
-
-    const room = roomsList.find(r => r.roomId === roomId);
-    if (room && room.isPrivate) {
-        pendingRoomId = roomId;
-        pendingUserName = userName;
-        document.getElementById('passwordModal').style.display = 'flex';
-        document.getElementById('roomPasswordInput').focus();
-    } else {
-        socket.emit('joinRoom', {
-            roomId: roomId,
-            userName: userName,
-            isHost: false,
-            password: '',
-            deviceId: getDeviceId()
-        });
-    }
-
-    localStorage.setItem('horseRaceUserName', userName);
-}
 
 // 비밀번호 모달 닫기
 function closePasswordModal() {
@@ -500,7 +320,8 @@ function submitPassword() {
             userName: pendingUserName,
             isHost: false,
             password: password,
-            deviceId: getDeviceId()
+            deviceId: getDeviceId(),
+            tabId: getTabId()
         });
     }
     
@@ -5332,39 +5153,19 @@ function initializeGameScreen(data) {
 // === 소켓 이벤트 핸들러 ===
 
 socket.on('connect', () => {
-    document.getElementById('connectionStatus').textContent = '● 연결됨';
-    document.getElementById('connectionStatus').className = 'connection-status connected';
-    
-    const createRoomStatus = document.getElementById('createRoomConnectionStatus');
-    if (createRoomStatus) {
-        createRoomStatus.textContent = '● 연결됨';
-        createRoomStatus.className = 'connection-status connected';
-    }
-    
-    if (document.getElementById('lobbySection').classList.contains('active')) {
-        refreshRooms();
-    }
 });
 
 socket.on('disconnect', () => {
-    document.getElementById('connectionStatus').textContent = '● 연결 끊김';
-    document.getElementById('connectionStatus').className = 'connection-status disconnected';
-});
-
-socket.on('roomsList', (rooms) => {
-    roomsList = rooms;
-    renderRoomsList();
-});
-
-socket.on('roomsListUpdated', (rooms) => {
-    roomsList = rooms;
-    renderRoomsList();
 });
 
 socket.on('roomCreated', (data) => {
     currentRoomId = data.roomId;
-    const hostInput = document.getElementById('createRoomHostNameInput');
-    currentUser = (hostInput && hostInput.value.trim()) || data.userName || '';
+    currentUser = data.userName || '';
+    // 새로고침 시 재입장을 위해 방 정보 저장
+    sessionStorage.setItem('horseRaceActiveRoom', JSON.stringify({
+        roomId: data.roomId, userName: currentUser,
+        serverId: currentServerId, serverName: currentServerName
+    }));
     initChatModule();
     isHost = true;
     isReady = data.isReady || false;
@@ -5405,28 +5206,26 @@ socket.on('roomCreated', (data) => {
         }
     }
 
-    document.getElementById('lobbySection').classList.remove('active');
-    document.getElementById('createRoomSection').classList.remove('active');
+    document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('gameSection').classList.add('active');
-
-    document.body.classList.remove('lobby-active');
     document.body.classList.add('game-active');
-    PageHistoryManager.pushPage('gameRoom');
 
     initializeGameScreen(data);
     ReadyModule.setReadyUsers(readyUsers);
 });
 
 socket.on('roomJoined', (data) => {
-    // 성공 시 에러 플래그 제거
     sessionStorage.removeItem('horseRaceFromDice');
-    
-    // 로딩 화면 숨기기
     document.getElementById('loadingScreen').style.display = 'none';
-    
+
     currentRoomId = data.roomId;
     const globalInput = document.getElementById('globalUserNameInput');
-    currentUser = (globalInput && globalInput.value.trim()) || data.userName || '';
+    currentUser = (globalInput && globalInput.value) || data.userName || '';
+    // 새로고침 시 재입장을 위해 방 정보 저장
+    sessionStorage.setItem('horseRaceActiveRoom', JSON.stringify({
+        roomId: data.roomId, userName: currentUser,
+        serverId: currentServerId, serverName: currentServerName
+    }));
     initChatModule();
     isHost = data.isHost;
     isReady = data.isReady || false;
@@ -5472,12 +5271,8 @@ socket.on('roomJoined', (data) => {
         }
     }
 
-    document.getElementById('lobbySection').classList.remove('active');
     document.getElementById('gameSection').classList.add('active');
-
-    document.body.classList.remove('lobby-active');
     document.body.classList.add('game-active');
-    PageHistoryManager.pushPage('gameRoom');
 
     setHorseSoundCheckboxes();
     if (window.SoundManager && typeof window.SoundManager.ensureContext === 'function') {
@@ -5502,19 +5297,10 @@ socket.on('roomJoined', (data) => {
 });
 
 socket.on('roomError', (message) => {
-    // 다른 페이지에서 온 경우 주사위 메인으로 돌아감
-    const fromDice = sessionStorage.getItem('horseRaceFromDice');
-    if (fromDice === 'true') {
-        sessionStorage.removeItem('horseRaceFromDice');
-        alert(message);
-        window.location.href = '/dice-game-multiplayer.html';
-        return;
-    }
-    
-    // 로딩 화면 숨기고 로비 보여주기
-    document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('lobbySection').style.display = 'block';
+    sessionStorage.removeItem('horseRaceFromDice');
+    sessionStorage.removeItem('horseRaceActiveRoom');
     alert(message);
+    window.location.href = '/game';
 });
 
 socket.on('horseRaceError', (message) => {
@@ -6191,20 +5977,22 @@ socket.on('vehicleTypesUpdated', (data) => {
 
 // 방 나가기
 socket.on('roomLeft', () => {
+    sessionStorage.removeItem('horseRaceActiveRoom');
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }
     sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-    window.location.replace('/dice-game-multiplayer.html');
+    window.location.replace('/game');
 });
 
 socket.on('roomDeleted', (data) => {
+    sessionStorage.removeItem('horseRaceActiveRoom');
     alert(data.message || '방이 삭제되었습니다.');
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }
     sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-    window.location.replace('/dice-game-multiplayer.html');
+    window.location.replace('/game');
 });
 
 // 비공개 방 체크박스 이벤트
@@ -6297,7 +6085,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pendingRoom) {
             const roomData = JSON.parse(pendingRoom);
             localStorage.removeItem('pendingHorseRaceRoom');
-            
+
             socket.on('connect', function onConnect() {
                 socket.off('connect', onConnect);
                 
@@ -6311,7 +6099,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     blockIPPerUser: roomData.blockIPPerUser,
                     deviceId: getDeviceId(),
                     serverId: roomData.serverId || currentServerId,
-                    serverName: roomData.serverName || currentServerName
+                    serverName: roomData.serverName || currentServerName,
+                    tabId: getTabId()
                 });
             });
 
@@ -6327,10 +6116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem('pendingHorseRaceJoin');
             
             sessionStorage.setItem('horseRaceFromDice', 'true');
-            
-            document.getElementById('loadingScreen').style.display = 'flex';
-            document.getElementById('lobbySection').style.display = 'none';
-            
+
             document.getElementById('globalUserNameInput').value = joinData.userName;
             
             socket.on('connect', function onJoinConnect() {
@@ -6347,7 +6133,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         userName: joinData.userName,
                         isHost: false,
                         password: '',
-                        deviceId: getDeviceId()
+                        deviceId: getDeviceId(),
+                        tabId: getTabId()
                     });
                 }
             });

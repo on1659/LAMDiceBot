@@ -17,6 +17,7 @@ const RankingModule = (function () {
     let _touchStartY = 0;
     let _pullStartY = 0;
     let _isPulling = false;
+    let _searchResult = null; // { found, userName, myRank } | null
 
     function init(serverId, userName) {
         _serverId = serverId;
@@ -49,6 +50,7 @@ const RankingModule = (function () {
         if (_overlay) { _overlay.remove(); _overlay = null; }
         _currentMainTab = 'overall';
         _currentGameTab = 'dice';
+        _searchResult = null;
         if (typeof PageHistoryManager !== 'undefined') PageHistoryManager.pushPage('ranking');
         createOverlay();
         fetchAndRender();
@@ -183,6 +185,45 @@ const RankingModule = (function () {
             transition: all 0.25s; white-space: nowrap;
         }
         .rk-game-chip:active { transform: scale(0.95); }
+
+        /* ── 검색 ── */
+        .rk-search-wrap {
+            display: flex; gap: 8px; padding: 10px 16px 12px;
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            flex-shrink: 0;
+        }
+        .rk-search-input {
+            flex: 1; padding: 10px 14px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.9);
+            font-size: 0.95em;
+        }
+        .rk-search-input::placeholder { color: rgba(255,255,255,0.4); }
+        .rk-search-btn {
+            padding: 10px 18px; border-radius: 12px; border: none;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; font-weight: 600; cursor: pointer;
+            white-space: nowrap;
+        }
+        .rk-search-btn:active { transform: scale(0.97); }
+        .rk-top10-label {
+            font-family: 'Jua', sans-serif; font-size: 1em;
+            color: #8B9CF7; margin: 0 0 8px 4px; padding: 0;
+        }
+        .rk-my-rank-card, .rk-search-result-card {
+            margin: 16px 0; padding: 14px 16px;
+            border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.06);
+        }
+        .rk-my-rank-title, .rk-search-result-title {
+            font-family: 'Jua', sans-serif; font-size: 0.95em;
+            color: #8B9CF7; margin-bottom: 8px;
+        }
+        .rk-my-rank-body, .rk-search-result-body {
+            color: rgba(255,255,255,0.85); font-size: 0.9em; line-height: 1.6;
+        }
 
         /* ── 콘텐츠 ── */
         .rk-content {
@@ -379,13 +420,50 @@ const RankingModule = (function () {
             <div class="rk-tabs" id="ranking-tabs"></div>
             <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
             <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
+            <div class="rk-search-wrap" id="ranking-search-wrap">
+                <input type="text" class="rk-search-input" id="ranking-search-input" placeholder="닉네임 검색" maxlength="32" autocomplete="off">
+                <button type="button" class="rk-search-btn" id="ranking-search-btn">검색</button>
+            </div>
             <div class="rk-content" id="ranking-content"></div>
         `;
 
         document.body.appendChild(_overlay);
         requestAnimationFrame(() => _overlay.classList.add('rk-visible'));
+        setupSearch();
         setupGestures();
         setupPullToRefresh();
+    }
+
+    function setupSearch() {
+        const wrap = document.getElementById('ranking-search-wrap');
+        const input = document.getElementById('ranking-search-input');
+        const btn = document.getElementById('ranking-search-btn');
+        if (!wrap || !input || !btn) return;
+        function doSearch() {
+            const q = (input.value || '').trim();
+            if (!q) return;
+            _searchResult = null;
+            const url = _serverId
+                ? `/api/ranking/${_serverId}/search?userName=${encodeURIComponent(q)}`
+                : `/api/ranking/free/search?userName=${encodeURIComponent(q)}`;
+            fetch(url).then(r => r.json()).then(data => {
+                _searchResult = data;
+                const content = document.getElementById('ranking-content');
+                if (content && _overlay) {
+                    if (_currentMainTab === 'overall') renderOverall(content);
+                    else renderGameContent(_currentGameTab);
+                }
+            }).catch(() => {
+                _searchResult = { found: false, userName: q };
+                const content = document.getElementById('ranking-content');
+                if (content && _overlay) {
+                    if (_currentMainTab === 'overall') renderOverall(content);
+                    else renderGameContent(_currentGameTab);
+                }
+            });
+        }
+        btn.addEventListener('click', doSearch);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
     }
 
     // ─── 탭 전환 ───
@@ -603,10 +681,10 @@ const RankingModule = (function () {
     function renderOverallRank(el) {
         const d = _cache.overall;
         if (!d.mostWins.length && !d.winRate.length && (!d.avgRank || !d.avgRank.length)) {
-            el.innerHTML = emptyMsg('아직 순위 기록이 없습니다.');
+            el.innerHTML = emptyMsg('아직 순위 기록이 없습니다.') + myRankBlock() + searchResultBlock();
             return;
         }
-        let html = '';
+        let html = top10Label();
         const winsRanks = assignDisplayRanks(d.mostWins, r => r.wins);
         html += section('승리 TOP', d.mostWins.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승`)));
         const rateRanks = assignDisplayRanks(d.winRate, r => r.winRate);
@@ -615,30 +693,34 @@ const RankingModule = (function () {
             const avgRanks = assignDisplayRanks(d.avgRank, r => r.avgRank);
             html += section('평균 등수 TOP', d.avgRank.map((r, i) => row(avgRanks[i], r.name, `${r.avgRank}등 (TOP3: ${r.top3}회)`)));
         }
+        html += myRankBlock() + searchResultBlock();
         el.innerHTML = html;
     }
 
     function renderOverallParticipant(el) {
         const d = _cache.overall;
         if (!d.mostPlayed.length) {
-            el.innerHTML = emptyMsg('아직 참여 기록이 없습니다.');
+            el.innerHTML = emptyMsg('아직 참여 기록이 없습니다.') + myRankBlock() + searchResultBlock();
             return;
         }
+        let html = top10Label();
         const ranks = assignDisplayRanks(d.mostPlayed, r => r.games);
-        const html = section('게임 참여 TOP', d.mostPlayed.map((r, i) => row(ranks[i], r.name, `${r.games}게임`)));
+        html += section('게임 참여 TOP', d.mostPlayed.map((r, i) => row(ranks[i], r.name, `${r.games}게임`)));
+        html += myRankBlock() + searchResultBlock();
         el.innerHTML = html;
     }
 
     function renderGame(el, d, label) {
         if (!d.winners.length) {
-            el.innerHTML = emptyMsg(`아직 ${label} 기록이 없습니다.`);
+            el.innerHTML = emptyMsg(`아직 ${label} 기록이 없습니다.`) + myRankBlock() + searchResultBlock();
             return;
         }
+        let html = top10Label();
         const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
         const playRanks = assignDisplayRanks(d.players, r => r.games);
-        let html = '';
         html += section(`${label} 승리 TOP`, d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
         html += section(`${label} 참여 TOP`, d.players.map((r, i) => row(playRanks[i], r.name, `${r.games}게임`)));
+        html += myRankBlock() + searchResultBlock();
         el.innerHTML = html;
     }
 
@@ -655,7 +737,7 @@ const RankingModule = (function () {
         }
 
         const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
-        let html = '';
+        let html = top10Label();
         html += section('경마 승리 TOP', d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
 
         if (d.vehicles && d.vehicles.length > 0) {
@@ -684,21 +766,28 @@ const RankingModule = (function () {
             tableHtml += '</tbody></table></div></div>';
             html += tableHtml;
         }
+        html += myRankBlock() + searchResultBlock();
         el.innerHTML = html;
     }
 
     function renderOrders(el) {
         const d = _cache.orders;
         if (!d) { el.innerHTML = emptyMsg('주문 데이터가 없습니다.'); return; }
+        if (!(d.myTopMenus && d.myTopMenus.length) && !(d.popularMenus && d.popularMenus.length)) {
+            el.innerHTML = emptyMsg('아직 주문 기록이 없습니다.') + myRankBlock() + searchResultBlock();
+            return;
+        }
         let html = '';
         if (d.myTopMenus && d.myTopMenus.length > 0) {
             const menuRanks = assignDisplayRanks(d.myTopMenus, r => r.count);
             html += section('내 TOP 메뉴', d.myTopMenus.map((r, i) => row(menuRanks[i], r.menu, `${r.count}회`)));
         }
-        const ordererRanks = assignDisplayRanks(d.topOrderers, r => r.orders);
-        const popularRanks = assignDisplayRanks(d.popularMenus, r => r.orders);
-        html += section('최다 주문자', d.topOrderers.map((r, i) => row(ordererRanks[i], r.name, `${r.orders}회`)));
-        html += section('인기 메뉴', d.popularMenus.map((r, i) => row(popularRanks[i], r.menu, `${r.orders}회`)));
+        if (d.popularMenus && d.popularMenus.length > 0) {
+            html += top10Label();
+            const popularRanks = assignDisplayRanks(d.popularMenus, r => r.orders);
+            html += section('인기 메뉴', d.popularMenus.map((r, i) => row(popularRanks[i], r.menu, `${r.orders}회`)));
+        }
+        html += myRankBlock() + searchResultBlock();
         el.innerHTML = html || emptyMsg('아직 주문 기록이 없습니다.');
     }
 
@@ -755,6 +844,55 @@ const RankingModule = (function () {
             <div class="rk-empty-icon">🎮</div>
             <div>${text}</div>
         </div>`;
+    }
+
+    function top10Label() {
+        return '<div class="rk-section-title rk-top10-label">1~10등까지 랭킹</div>';
+    }
+
+    function myRankBlock() {
+        if (!_cache.myRank || !_userName) return '';
+        const m = _cache.myRank;
+        const parts = [];
+        if (m.overall && m.overall.mostPlayed) parts.push(`참여 ${m.overall.mostPlayed.rank}등 (전체 ${m.overall.mostPlayed.total}명)`);
+        if (m.overall && m.overall.mostWins) parts.push(`승리 ${m.overall.mostWins.rank}등`);
+        if (m.overall && m.overall.winRate) parts.push(`승률 ${m.overall.winRate.rank}등`);
+        if (m.overall && m.overall.avgRank) parts.push(`평균등수 ${m.overall.avgRank.rank}등`);
+        if (parts.length === 0) return '';
+        return `
+            <div class="rk-section">
+                <div class="rk-my-rank-card">
+                    <div class="rk-my-rank-title">내 랭킹</div>
+                    <div class="rk-my-rank-body">${esc(parts.join(' · '))}</div>
+                </div>
+            </div>`;
+    }
+
+    function searchResultBlock() {
+        if (!_searchResult) return '';
+        const s = _searchResult;
+        if (!s.found || !s.myRank) {
+            return `
+            <div class="rk-section">
+                <div class="rk-search-result-card">
+                    <div class="rk-search-result-title">검색 결과</div>
+                    <div class="rk-search-result-body">"${esc(s.userName || '')}" 님의 랭킹 기록이 없습니다.</div>
+                </div>
+            </div>`;
+        }
+        const parts = [];
+        const m = s.myRank;
+        if (m.overall && m.overall.mostPlayed) parts.push(`참여 ${m.overall.mostPlayed.rank}등`);
+        if (m.overall && m.overall.mostWins) parts.push(`승리 ${m.overall.mostWins.rank}등`);
+        if (m.overall && m.overall.winRate) parts.push(`승률 ${m.overall.winRate.rank}등`);
+        if (m.overall && m.overall.avgRank) parts.push(`평균등수 ${m.overall.avgRank.rank}등`);
+        return `
+            <div class="rk-section">
+                <div class="rk-search-result-card">
+                    <div class="rk-search-result-title">검색 결과: ${esc(s.userName)}</div>
+                    <div class="rk-search-result-body">${esc(parts.join(' · ') || '기록 없음')}</div>
+                </div>
+            </div>`;
     }
 
     function esc(str) {

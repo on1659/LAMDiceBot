@@ -125,6 +125,7 @@ module.exports = (socket, io, ctx) => {
         socket.currentRoomId = roomId;
         socket.userName = userName;
         socket.isHost = user.isHost;
+        socket.tabId = data.tabId || null;
 
         // 호스트 ID도 업데이트
         if (user.isHost) {
@@ -250,6 +251,8 @@ module.exports = (socket, io, ctx) => {
             const { deviceId } = data;
             socket.deviceId = deviceId || null;
         }
+        // tabId 저장 (새로고침 재연결 판별용)
+        socket.tabId = data.tabId || null;
 
         // 이미 방에 있으면 나가기
         if (socket.currentRoomId) {
@@ -525,19 +528,30 @@ module.exports = (socket, io, ctx) => {
             const socketsInRoom = await io.in(roomId).fetchSockets();
 
             // 같은 이름을 가진 사용자가 이미 연결되어 있는지 확인
-            // socket.userName 또는 socket.id로 확인
             const connectedUserWithSameName = socketsInRoom.find(s =>
                 (s.userName === finalUserName || s.id === existingUser.id) && s.connected
             );
 
+            // 같은 tabId면 같은 탭의 새로고침 (구 소켓 connected 여부 무관)
+            // tabId는 sessionStorage 기반 → 같은 탭 새로고침: 유지, 새 탭: 다른 값
+            const tabId = data.tabId || null;
+            const isSameTab = connectedUserWithSameName && tabId &&
+                connectedUserWithSameName.tabId && connectedUserWithSameName.tabId === tabId;
+
+            if (isSameTab) {
+                // 구 소켓 강제 종료 (같은 탭의 새로고침이므로 안전)
+                console.log(`[재연결] 같은 tabId 감지 - 구 소켓 종료: ${connectedUserWithSameName.id} → ${socket.id} (${userName.trim()}, 방: ${roomId})`);
+                connectedUserWithSameName.disconnect(true);
+            }
+
             // 기존 사용자의 소켓이 아직 연결되어 있으면 새 이름 생성 (이더 → 이더_1)
-            if (connectedUserWithSameName) {
+            if (connectedUserWithSameName && !isSameTab) {
                 const existingNames = gameState.users.map(u => u.name);
                 finalUserName = generateUniqueUserName(finalUserName, existingNames);
                 console.log(`[중복 이름] ${userName.trim()} → ${finalUserName} (방: ${roomId})`);
                 // 새 이름으로 계속 진행 (아래 새 사용자 추가 로직으로 이동)
             } else {
-                // 기존 사용자의 소켓이 연결되지 않았으면 재연결로 간주
+                // 기존 사용자의 소켓이 연결되지 않았거나 같은 탭이면 재연결로 간주
                 existingUser.id = socket.id;
                 const user = existingUser;
                 console.log(`사용자 ${userName.trim()}이(가) 방 ${roomId}에 재연결했습니다.`);
@@ -546,6 +560,8 @@ module.exports = (socket, io, ctx) => {
                 socket.currentRoomId = roomId;
                 socket.userName = userName.trim();
                 socket.isHost = user.isHost;
+                socket.deviceId = deviceId || null;
+                socket.tabId = data.tabId || null;
 
                 // 호스트 ID도 업데이트
                 if (user.isHost) {
@@ -735,6 +751,8 @@ module.exports = (socket, io, ctx) => {
             // IP 차단 옵션이 비활성화되어 있어도 deviceId는 저장
             socket.deviceId = deviceId || null;
         }
+        // tabId 저장 (새로고침 재연결 판별용)
+        socket.tabId = data.tabId || null;
 
         // 새 사용자 추가 (중복 시 변경된 이름 사용)
         const user = {
