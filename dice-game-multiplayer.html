@@ -1368,7 +1368,7 @@
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
             <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid #667eea; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
-                <button onclick="sessionStorage.removeItem('diceSession'); window.location.href='/';" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
+                <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.href='/';" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: #667eea;"></span>
                 <span id="serverInfoUserName" style="font-weight: 600; color: #764ba2; display: none;">👤 </span>
                 <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
@@ -1847,6 +1847,7 @@
         PageHistoryManager.init({
             onServerSelect: function () {
                 sessionStorage.removeItem('diceSession');
+                sessionStorage.removeItem('diceActiveRoom');
                 window.location.href = '/';
             },
             onLobby: function () {
@@ -1913,6 +1914,28 @@
             document.getElementById('lobbySection').classList.add('active');
             RankingModule.init(currentServerId, userName || '');
             PageHistoryManager.replacePage('lobby');
+            // 방 안에서 새로고침한 경우 → 자동 재입장
+            const _activeRoom = sessionStorage.getItem('diceActiveRoom');
+            if (_activeRoom) {
+                try {
+                    const ar = JSON.parse(_activeRoom);
+                    // 로비 숨기고 로딩 표시
+                    document.getElementById('lobbySection').classList.remove('active');
+                    socket.on('connect', function _onReconnect() {
+                        socket.off('connect', _onReconnect);
+                        socket.emit('joinRoom', {
+                            roomId: ar.roomId,
+                            userName: ar.userName,
+                            isHost: false,
+                            password: '',
+                            deviceId: getDeviceId()
+                        });
+                    });
+                } catch(e) {
+                    sessionStorage.removeItem('diceActiveRoom');
+                }
+            }
+
             // 방 목록 로드
             socket.emit('getRooms');
             if (currentServerId) socket.emit('setServerId', { serverId: currentServerId });
@@ -3719,6 +3742,11 @@
             // 방 생성 시 입력한 이름 사용 (globalUserNameInput)
             const globalNameInput = document.getElementById('globalUserNameInput');
             currentUser = globalNameInput ? globalNameInput.value.trim() : data.userName;
+            // 새로고침 시 재입장을 위해 방 정보 저장
+            sessionStorage.setItem('diceActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
             initChatModule();
             isHost = true;
             
@@ -3742,6 +3770,11 @@
             currentRoomId = data.roomId;
             // 서버에서 전달받은 이름 사용 (중복 시 _1, _2 등이 붙을 수 있음)
             currentUser = data.userName;
+            // 새로고침 시 재입장을 위해 방 정보 저장
+            sessionStorage.setItem('diceActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
             initChatModule();
             isHost = data.isHost;
             
@@ -4092,11 +4125,20 @@
         
         // 방 에러 처리
         socket.on('roomError', (message) => {
+            sessionStorage.removeItem('diceActiveRoom');
+            // 재입장 실패 시 로비 복원
+            if (!document.getElementById('lobbySection').classList.contains('active') &&
+                !document.getElementById('gameSection').classList.contains('active')) {
+                document.getElementById('lobbySection').classList.add('active');
+                document.body.classList.add('lobby-active');
+                refreshRooms();
+            }
             showCustomAlert(message, 'info');
         });
         
         // 방 삭제 알림 (모든 사용자가 나감)
         socket.on('roomDeleted', (data) => {
+            sessionStorage.removeItem('diceActiveRoom');
             showCustomAlert(data.message || data.reason || '방이 삭제되었습니다.', 'info');
             
             // 카운트다운 중지
@@ -4430,6 +4472,7 @@
         
         // 방 나가기 완료
         socket.on('roomLeft', () => {
+            sessionStorage.removeItem('diceActiveRoom');
             // 게임 기록 섹션 숨김
             document.querySelector('.history-section').classList.remove('visible');
 
@@ -4448,6 +4491,7 @@
         });
 
         socket.on('kicked', (message) => {
+            sessionStorage.removeItem('diceActiveRoom');
             showCustomAlert(message, 'info');
             location.reload(); // 강퇴당하면 페이지를 새로고침하여 로비로 이동
         });
