@@ -1874,6 +1874,7 @@
 
         // 세션 복원: 다른 게임에서 돌아온 경우 또는 새로고침 시 로비 유지
         const _returnData = sessionStorage.getItem('returnToLobby') || sessionStorage.getItem('diceSession');
+        console.log('[RESTORE] _returnData:', _returnData, 'diceSession:', sessionStorage.getItem('diceSession'));
         if (_returnData) {
             sessionStorage.removeItem('returnToLobby');
             let _restoredServerName = null;
