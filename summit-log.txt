@@ -1,4 +1,40 @@
 ========================================
+📋 Summit Log - 2026-02-12 (경마/룰렛 새로고침 재입장)
+========================================
+
+## 변경 파일 (2개)
+- js/horse-race.js: 새로고침 시 sessionStorage 기반 자동 재입장 로직 추가
+- roulette-game-multiplayer.html: 동일 패턴 적용 (rouletteActiveRoom 키)
+
+## 상세 변경 내역
+
+### 새로고침 재입장 (경마 + 룰렛)
+- 문제: 경마/룰렛 진입 시 URL 파라미터(createRoom/joinRoom)가 replaceState로 제거됨
+  → 새로고침하면 fromDice=false가 되어 /game으로 리다이렉트
+- 해결: sessionStorage에 방 정보 저장 후 새로고침 시 자동 재입장
+
+#### IIFE 흐름 변경
+1. URL 파라미터 확인 (fromDice)
+2. fromDice가 아니면 sessionStorage('horseRaceActiveRoom'/'rouletteActiveRoom') 확인
+3. 방 정보가 있으면 serverId 설정 + socket.emit('joinRoom') 으로 재입장
+4. 없으면 /game으로 리다이렉트
+
+#### sessionStorage 저장/삭제 위치
+- 저장: roomCreated, roomJoined 이벤트에서 {roomId, userName, serverId, serverName} 저장
+- 삭제: roomLeft, leftRoom, roomDeleted, roomError 이벤트에서 removeItem
+- 경마 키: 'horseRaceActiveRoom'
+- 룰렛 키: 'rouletteActiveRoom'
+
+#### 재입장 시 동작
+- currentServerId/currentServerName 복원
+- socket.emit('setServerId') 호출
+- document.title 설정
+- socket 연결 완료 후 joinRoom emit (isHost: false로 재입장)
+- JSON 파싱 실패 시 sessionStorage 정리 후 /game 리다이렉트
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-12 (경마/룰렛 로비 제거)
 ========================================
 

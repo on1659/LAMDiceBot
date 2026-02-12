@@ -1680,10 +1680,41 @@
         let currentServerId = null;
         let currentServerName = null;
 
-        // 직접 URL 접속 차단 (항상 주사위 로비에서 진입)
+        // 직접 URL 접속 차단 + 새로고침 시 재입장 지원
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
+
+            // 새로고침: sessionStorage에 방 정보가 있으면 재입장
+            const activeRoom = sessionStorage.getItem('rouletteActiveRoom');
+            if (!fromDice && activeRoom) {
+                try {
+                    const rd = JSON.parse(activeRoom);
+                    currentServerId = rd.serverId || null;
+                    currentServerName = rd.serverName || null;
+                    if (currentServerId) {
+                        socket.emit('setServerId', { serverId: currentServerId });
+                    }
+                    if (rd.serverName) {
+                        document.title = `${rd.serverName} - LAM Roulette`;
+                    }
+                    socket.on('connect', function onReconnect() {
+                        socket.off('connect', onReconnect);
+                        socket.emit('joinRoom', {
+                            roomId: rd.roomId,
+                            userName: rd.userName,
+                            isHost: false,
+                            password: '',
+                            deviceId: getDeviceId()
+                        });
+                    });
+                } catch(e) {
+                    sessionStorage.removeItem('rouletteActiveRoom');
+                    window.location.replace('/game');
+                }
+                return;
+            }
+
             if (!fromDice) {
                 window.location.replace('/game');
                 return;
@@ -2828,6 +2859,10 @@
         socket.on('roomCreated', (data) => {
             currentRoomId = data.roomId;
             currentUser = data.userName || '';
+            sessionStorage.setItem('rouletteActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
             initChatModule();
             isHost = true;
             isReady = data.isReady || false;
@@ -2850,6 +2885,10 @@
             currentRoomId = data.roomId;
             const globalInput = document.getElementById('globalUserNameInput');
             currentUser = (globalInput && globalInput.value) || data.userName || '';
+            sessionStorage.setItem('rouletteActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
             initChatModule();
             isHost = data.isHost;
             isReady = data.isReady || false;
@@ -2867,6 +2906,7 @@
 
         socket.on('roomError', (message) => {
             sessionStorage.removeItem('rouletteFromDice');
+            sessionStorage.removeItem('rouletteActiveRoom');
             alert(message);
             window.location.href = '/game';
         });
@@ -3243,6 +3283,7 @@
         });
 
         socket.on('roomDeleted', (data) => {
+            sessionStorage.removeItem('rouletteActiveRoom');
             alert(data.message || '방이 삭제되었습니다.');
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
@@ -3253,6 +3294,7 @@
 
         // 방 나가기 완료 (서버에서 roomLeft emit)
         socket.on('roomLeft', () => {
+            sessionStorage.removeItem('rouletteActiveRoom');
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
@@ -3262,6 +3304,7 @@
 
         // 레거시 이벤트 호환성 유지
         socket.on('leftRoom', () => {
+            sessionStorage.removeItem('rouletteActiveRoom');
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }

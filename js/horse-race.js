@@ -238,10 +238,42 @@ var socket = io({
 var currentServerId = null;
 var currentServerName = null;
 
-// 직접 URL 접속 차단 (항상 주사위 로비에서 진입)
+// 직접 URL 접속 차단 + 새로고침 시 재입장 지원
 (function() {
     var urlParams = new URLSearchParams(window.location.search);
     var fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
+
+    // 새로고침: sessionStorage에 방 정보가 있으면 재입장
+    var activeRoom = sessionStorage.getItem('horseRaceActiveRoom');
+    if (!fromDice && activeRoom) {
+        try {
+            var rd = JSON.parse(activeRoom);
+            currentServerId = rd.serverId || null;
+            currentServerName = rd.serverName || null;
+            if (currentServerId) {
+                socket.emit('setServerId', { serverId: currentServerId });
+            }
+            if (rd.serverName) {
+                document.title = rd.serverName + ' - Horse Race';
+            }
+            // 소켓 연결 후 재입장
+            socket.on('connect', function onReconnect() {
+                socket.off('connect', onReconnect);
+                socket.emit('joinRoom', {
+                    roomId: rd.roomId,
+                    userName: rd.userName,
+                    isHost: false,
+                    password: '',
+                    deviceId: getDeviceId()
+                });
+            });
+        } catch(e) {
+            sessionStorage.removeItem('horseRaceActiveRoom');
+            window.location.replace('/game');
+        }
+        return;
+    }
+
     if (!fromDice) {
         window.location.replace('/game');
         return;
@@ -5121,6 +5153,11 @@ socket.on('disconnect', () => {
 socket.on('roomCreated', (data) => {
     currentRoomId = data.roomId;
     currentUser = data.userName || '';
+    // 새로고침 시 재입장을 위해 방 정보 저장
+    sessionStorage.setItem('horseRaceActiveRoom', JSON.stringify({
+        roomId: data.roomId, userName: currentUser,
+        serverId: currentServerId, serverName: currentServerName
+    }));
     initChatModule();
     isHost = true;
     isReady = data.isReady || false;
@@ -5170,15 +5207,17 @@ socket.on('roomCreated', (data) => {
 });
 
 socket.on('roomJoined', (data) => {
-    // 성공 시 에러 플래그 제거
     sessionStorage.removeItem('horseRaceFromDice');
-    
-    // 로딩 화면 숨기기
     document.getElementById('loadingScreen').style.display = 'none';
-    
+
     currentRoomId = data.roomId;
     const globalInput = document.getElementById('globalUserNameInput');
-    currentUser = (globalInput && globalInput.value.trim()) || data.userName || '';
+    currentUser = (globalInput && globalInput.value) || data.userName || '';
+    // 새로고침 시 재입장을 위해 방 정보 저장
+    sessionStorage.setItem('horseRaceActiveRoom', JSON.stringify({
+        roomId: data.roomId, userName: currentUser,
+        serverId: currentServerId, serverName: currentServerName
+    }));
     initChatModule();
     isHost = data.isHost;
     isReady = data.isReady || false;
@@ -5251,6 +5290,7 @@ socket.on('roomJoined', (data) => {
 
 socket.on('roomError', (message) => {
     sessionStorage.removeItem('horseRaceFromDice');
+    sessionStorage.removeItem('horseRaceActiveRoom');
     alert(message);
     window.location.href = '/game';
 });
@@ -5929,6 +5969,7 @@ socket.on('vehicleTypesUpdated', (data) => {
 
 // 방 나가기
 socket.on('roomLeft', () => {
+    sessionStorage.removeItem('horseRaceActiveRoom');
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }
@@ -5937,6 +5978,7 @@ socket.on('roomLeft', () => {
 });
 
 socket.on('roomDeleted', (data) => {
+    sessionStorage.removeItem('horseRaceActiveRoom');
     alert(data.message || '방이 삭제되었습니다.');
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
