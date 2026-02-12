@@ -10,6 +10,7 @@ const RankingModule = (function () {
     // 탭 상태
     let _currentMainTab = 'overall';
     let _currentGameTab = 'dice';
+    let _currentOverallSubTab = 'rank'; // 'rank' | 'participant'
 
     // 제스처 상태
     let _touchStartX = 0;
@@ -376,6 +377,7 @@ const RankingModule = (function () {
                 <span class="rk-header-title">🏆 랭킹</span>
             </div>
             <div class="rk-tabs" id="ranking-tabs"></div>
+            <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
             <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
             <div class="rk-content" id="ranking-content"></div>
         `;
@@ -393,16 +395,42 @@ const RankingModule = (function () {
         const tabs = _overlay.querySelectorAll('.rk-tab');
         tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === key));
 
+        const overallSubTabsEl = document.getElementById('ranking-overall-sub-tabs');
         const gameTabsEl = document.getElementById('ranking-game-tabs');
         if (key === 'games') {
+            if (overallSubTabsEl) overallSubTabsEl.style.display = 'none';
             gameTabsEl.style.display = 'flex';
             renderGameContent(_currentGameTab);
         } else {
             gameTabsEl.style.display = 'none';
+            if (overallSubTabsEl) overallSubTabsEl.style.display = 'flex';
             setContentWithTransition(document.getElementById('ranking-content'), () => {
                 renderOverall(document.getElementById('ranking-content'));
             });
         }
+    }
+
+    function switchOverallSubTab(key) {
+        _currentOverallSubTab = key;
+        const el = document.getElementById('ranking-overall-sub-tabs');
+        if (el) {
+            el.querySelectorAll('.rk-game-chip').forEach(c => {
+                const isActive = c.dataset.overallSub === key;
+                c.classList.toggle('active', isActive);
+                if (isActive && c.dataset.color) {
+                    c.style.background = c.dataset.color;
+                    c.style.borderColor = c.dataset.color;
+                    c.style.color = 'white';
+                } else {
+                    c.style.background = 'rgba(255,255,255,0.04)';
+                    c.style.borderColor = 'rgba(255,255,255,0.12)';
+                    c.style.color = 'rgba(255,255,255,0.45)';
+                }
+            });
+        }
+        setContentWithTransition(document.getElementById('ranking-content'), () => {
+            renderOverall(document.getElementById('ranking-content'));
+        });
     }
 
     function switchGameSubTab(key) {
@@ -502,9 +530,37 @@ const RankingModule = (function () {
             tabsEl.appendChild(btn);
         });
 
+        // 종합 서브탭 (순위 | 참여)
+        const overallSubTabsEl = document.getElementById('ranking-overall-sub-tabs');
+        if (overallSubTabsEl) {
+            overallSubTabsEl.innerHTML = '';
+            _currentOverallSubTab = 'rank';
+            const overallSubTabs = [
+                { label: '🏅 순위', key: 'rank', color: '#667eea' },
+                { label: '👥 참여', key: 'participant', color: '#27ae60' }
+            ];
+            overallSubTabs.forEach((t, i) => {
+                const chip = document.createElement('button');
+                chip.className = 'rk-game-chip';
+                chip.textContent = t.label;
+                chip.dataset.overallSub = t.key;
+                chip.dataset.color = t.color;
+                if (i === 0) {
+                    chip.classList.add('active');
+                    chip.style.background = t.color;
+                    chip.style.borderColor = t.color;
+                    chip.style.color = 'white';
+                }
+                chip.onclick = () => switchOverallSubTab(t.key);
+                overallSubTabsEl.appendChild(chip);
+            });
+            overallSubTabsEl.style.display = 'flex';
+        }
+
         // 게임 서브탭 생성
         const gameTabsEl = document.getElementById('ranking-game-tabs');
         gameTabsEl.innerHTML = '';
+        gameTabsEl.style.display = 'none';
         const gameTabs = [
             { label: '🎲 주사위', key: 'dice', color: '#667eea' },
             { label: '🐎 경마', key: 'horse', color: '#e67e22' },
@@ -536,18 +592,40 @@ const RankingModule = (function () {
     // ─── 렌더러 ───
 
     function renderOverall(el) {
+        const subTab = _currentOverallSubTab || 'rank';
+        if (subTab === 'participant') {
+            renderOverallParticipant(el);
+        } else {
+            renderOverallRank(el);
+        }
+    }
+
+    function renderOverallRank(el) {
         const d = _cache.overall;
-        if (!d.mostPlayed.length && !d.mostWins.length) {
-            el.innerHTML = emptyMsg('아직 게임 기록이 없습니다.');
+        if (!d.mostWins.length && !d.winRate.length && (!d.avgRank || !d.avgRank.length)) {
+            el.innerHTML = emptyMsg('아직 순위 기록이 없습니다.');
             return;
         }
         let html = '';
-        html += section('게임 참여 TOP', d.mostPlayed.map((r, i) => row(i + 1, r.name, `${r.games}게임`)));
-        html += section('승리 TOP', d.mostWins.map((r, i) => row(i + 1, r.name, `${r.wins}승`)));
-        html += section('승률 TOP (5게임+)', d.winRate.map((r, i) => row(i + 1, r.name, `${r.winRate}% (${r.wins}/${r.games})`)));
+        const winsRanks = assignDisplayRanks(d.mostWins, r => r.wins);
+        html += section('승리 TOP', d.mostWins.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승`)));
+        const rateRanks = assignDisplayRanks(d.winRate, r => r.winRate);
+        html += section('승률 TOP (5게임+)', d.winRate.map((r, i) => row(rateRanks[i], r.name, `${r.winRate}% (${r.wins}/${r.games})`)));
         if (d.avgRank && d.avgRank.length > 0) {
-            html += section('평균 등수 TOP', d.avgRank.map((r, i) => row(i + 1, r.name, `${r.avgRank}등 (TOP3: ${r.top3}회)`)));
+            const avgRanks = assignDisplayRanks(d.avgRank, r => r.avgRank);
+            html += section('평균 등수 TOP', d.avgRank.map((r, i) => row(avgRanks[i], r.name, `${r.avgRank}등 (TOP3: ${r.top3}회)`)));
         }
+        el.innerHTML = html;
+    }
+
+    function renderOverallParticipant(el) {
+        const d = _cache.overall;
+        if (!d.mostPlayed.length) {
+            el.innerHTML = emptyMsg('아직 참여 기록이 없습니다.');
+            return;
+        }
+        const ranks = assignDisplayRanks(d.mostPlayed, r => r.games);
+        const html = section('게임 참여 TOP', d.mostPlayed.map((r, i) => row(ranks[i], r.name, `${r.games}게임`)));
         el.innerHTML = html;
     }
 
@@ -556,9 +634,11 @@ const RankingModule = (function () {
             el.innerHTML = emptyMsg(`아직 ${label} 기록이 없습니다.`);
             return;
         }
+        const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
+        const playRanks = assignDisplayRanks(d.players, r => r.games);
         let html = '';
-        html += section(`${label} 승리 TOP`, d.winners.map((r, i) => row(i + 1, r.name, `${r.wins}승 / ${r.games}게임`)));
-        html += section(`${label} 참여 TOP`, d.players.map((r, i) => row(i + 1, r.name, `${r.games}게임`)));
+        html += section(`${label} 승리 TOP`, d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
+        html += section(`${label} 참여 TOP`, d.players.map((r, i) => row(playRanks[i], r.name, `${r.games}게임`)));
         el.innerHTML = html;
     }
 
@@ -574,8 +654,9 @@ const RankingModule = (function () {
             return;
         }
 
+        const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
         let html = '';
-        html += section('경마 승리 TOP', d.winners.map((r, i) => row(i + 1, r.name, `${r.wins}승 / ${r.games}게임`)));
+        html += section('경마 승리 TOP', d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
 
         if (d.vehicles && d.vehicles.length > 0) {
             let tableHtml = `
@@ -611,11 +692,29 @@ const RankingModule = (function () {
         if (!d) { el.innerHTML = emptyMsg('주문 데이터가 없습니다.'); return; }
         let html = '';
         if (d.myTopMenus && d.myTopMenus.length > 0) {
-            html += section('내 TOP 메뉴', d.myTopMenus.map((r, i) => row(i + 1, r.menu, `${r.count}회`)));
+            const menuRanks = assignDisplayRanks(d.myTopMenus, r => r.count);
+            html += section('내 TOP 메뉴', d.myTopMenus.map((r, i) => row(menuRanks[i], r.menu, `${r.count}회`)));
         }
-        html += section('최다 주문자', d.topOrderers.map((r, i) => row(i + 1, r.name, `${r.orders}회`)));
-        html += section('인기 메뉴', d.popularMenus.map((r, i) => row(i + 1, r.menu, `${r.orders}회`)));
+        const ordererRanks = assignDisplayRanks(d.topOrderers, r => r.orders);
+        const popularRanks = assignDisplayRanks(d.popularMenus, r => r.orders);
+        html += section('최다 주문자', d.topOrderers.map((r, i) => row(ordererRanks[i], r.name, `${r.orders}회`)));
+        html += section('인기 메뉴', d.popularMenus.map((r, i) => row(popularRanks[i], r.menu, `${r.orders}회`)));
         el.innerHTML = html || emptyMsg('아직 주문 기록이 없습니다.');
+    }
+
+    // ─── 동점자 표시 등수 (동점=같은 등수, 다음은 건너뛴 등수) ───
+    function assignDisplayRanks(items, getValue) {
+        if (!items || items.length === 0) return [];
+        const ranks = [1];
+        for (let i = 1; i < items.length; i++) {
+            const v = getValue(items[i]);
+            const prevV = getValue(items[i - 1]);
+            const same = (typeof v === 'number' && typeof prevV === 'number' && !Number.isInteger(v))
+                ? Math.abs(v - prevV) < 1e-6
+                : (v === prevV);
+            ranks.push(same ? ranks[i - 1] : i + 1);
+        }
+        return ranks;
     }
 
     // ─── 렌더 헬퍼 ───
@@ -685,8 +784,13 @@ const RankingModule = (function () {
             const dy = e.changedTouches[0].clientY - _touchStartY;
 
             if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                if (_currentMainTab === 'overall' && dx < 0) {
-                    switchMainTab('games');
+                if (_currentMainTab === 'overall') {
+                    if (dx < 0) {
+                        if (_currentOverallSubTab === 'rank') switchOverallSubTab('participant');
+                        else switchMainTab('games');
+                    } else if (dx > 0 && _currentOverallSubTab === 'participant') {
+                        switchOverallSubTab('rank');
+                    }
                 } else if (_currentMainTab === 'games' && dx > 0) {
                     // 게임별 첫 번째 서브탭에서 오른쪽 스와이프 → 종합으로
                     const keys = getGameTabKeys();
