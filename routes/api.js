@@ -28,6 +28,13 @@ function setupRoutes(app) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'index.html'));
+    });
+
+    app.get('/game', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.sendFile(path.join(__dirname, '..', 'dice-game-multiplayer.html'));
     });
 

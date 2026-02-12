@@ -246,7 +246,7 @@ var currentServerName = null;
     var fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
     if (!fromDice) {
         // 직접 URL 접속 시 메인 페이지로 리다이렉트
-        window.location.replace('/dice-game-multiplayer.html');
+        window.location.replace('/game');
         return;
     }
     if (fromDice) {
@@ -5507,7 +5507,7 @@ socket.on('roomError', (message) => {
     if (fromDice === 'true') {
         sessionStorage.removeItem('horseRaceFromDice');
         alert(message);
-        window.location.href = '/dice-game-multiplayer.html';
+        window.location.href = '/game';
         return;
     }
     
@@ -6195,7 +6195,7 @@ socket.on('roomLeft', () => {
         clearInterval(roomExpiryInterval);
     }
     sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-    window.location.replace('/dice-game-multiplayer.html');
+    window.location.replace('/game');
 });
 
 socket.on('roomDeleted', (data) => {
@@ -6204,7 +6204,7 @@ socket.on('roomDeleted', (data) => {
         clearInterval(roomExpiryInterval);
     }
     sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-    window.location.replace('/dice-game-multiplayer.html');
+    window.location.replace('/game');
 });
 
 // 비공개 방 체크박스 이벤트

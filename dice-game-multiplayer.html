@@ -12,6 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <style>
         * {
@@ -67,11 +68,6 @@
             display: none;
         }
 
-        /* 서버 선택 오버레이 표시 중 본문 숨기기 */
-        body.server-select-active .container {
-            display: none;
-        }
-        
         .chat-history-wrapper {
             margin-top: 20px;
         }
@@ -241,6 +237,61 @@
             padding: 20px;
             margin-bottom: 20px;
         }
+
+        /* 업데이트 내역 섹션 */
+        .update-log-section {
+            background: linear-gradient(145deg, #fafbff 0%, #f0f2ff 100%);
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.12);
+        }
+        .update-log-section h2 {
+            margin-bottom: 16px;
+            color: #667eea;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .update-log-content {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 320px;
+            overflow-y: auto;
+            line-height: 1.85;
+            color: #374151;
+            font-size: 14px;
+            white-space: pre-wrap;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .update-log-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .update-log-content::-webkit-scrollbar-track {
+            background: #f1f3f5;
+            border-radius: 4px;
+        }
+        .update-log-content::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+        .update-log-content::-webkit-scrollbar-thumb:hover {
+            background: #5a6fd6;
+        }
+        .update-log-content b {
+            color: #1f2937;
+            font-weight: 700;
+        }
+        .update-log-content .update-log-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.25), transparent);
+            margin: 18px 0;
+            border: none;
+        }
         
         .room-name-input-section {
             background: #f8f9fa;
@@ -381,6 +432,18 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
+        }
+        #headerServerNameDisplay {
+            flex-shrink: 0;
+            min-width: 80px;
+            padding: 6px 12px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            border: 1px solid #667eea;
+            display: inline-block !important;
+            font-size: 13px !important;
+            color: #667eea !important;
+            visibility: visible !important;
         }
         .connection-sound-row label {
             display: flex;
@@ -1305,7 +1368,7 @@
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
             <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid #667eea; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
-                <button onclick="ServerSelectModule.show()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
+                <button onclick="sessionStorage.removeItem('diceSession'); window.location.href='/';" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: #667eea;"></span>
                 <span id="serverInfoUserName" style="font-weight: 600; color: #764ba2; display: none;">👤 </span>
                 <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
@@ -1344,11 +1407,9 @@
             </div>
             
             <!-- 업데이트 내역 -->
-            <div class="update-log-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-top: 20px;">
-                <h2 style="margin-bottom: 15px; color: #667eea;">📝 업데이트 내역</h2>
-                <div class="update-log-content" id="updateLogContent" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.8; color: #333; font-size: 14px;">
-업데이트 내역을 불러오는 중...
-                </div>
+            <div class="update-log-section">
+                <h2>📝 업데이트 내역</h2>
+                <div class="update-log-content" id="updateLogContent">업데이트 내역을 불러오는 중...</div>
             </div>
         </div>
 
@@ -1484,11 +1545,12 @@
         <!-- 게임 섹션 -->
         <div class="game-section" id="gameSection">
             <div class="user-info">
+                <span id="headerServerNameDisplay" style="font-size: 13px; color: #667eea; font-weight: 600; white-space: nowrap; flex-shrink: 0;" title="현재 서버">🖥️ 서버</span>
                 <div>
                     <span class="user-name" id="currentUser"></span>
                     <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
                     <span id="roomStatusIcons" style="display: flex; align-items: center; gap: 5px;"></span>
                     <span class="connection-sound-row">
                         <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
@@ -1507,11 +1569,12 @@
                 <p id="reconnectMessage"></p>
             </div>
 
-            <!-- 1. 방 제목 -->
+            <!-- 1. 방 제목 + 서버명 -->
             <div class="room-info-section" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
-                <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: #667eea; margin-bottom: 10px;">
+                <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: #667eea; margin-bottom: 6px;">
                     <span id="roomNameText">방 제목</span>
                 </div>
+                <div id="currentServerNameDisplay" style="font-size: 14px; color: #666; font-weight: 500;">🖥️ 서버</div>
                 <div id="roomNameEditSection" style="display: none;">
                     <div class="input-group" style="margin-bottom: 10px;">
                         <input type="text" id="roomNameInput" placeholder="방 제목 입력" maxlength="30" />
@@ -1778,59 +1841,13 @@
         let currentServerId = null;
         let currentServerName = null;
 
-        // 서버 선택 UI 초기화
-        ServerSelectModule.init(socket, (selection) => {
-            document.body.classList.remove('server-select-active');
-            currentServerId = selection.serverId;
-            currentServerName = selection.serverName || null;
-            // 세션에 서버 선택 저장 (새로고침 시 로비 유지)
-            sessionStorage.setItem('diceSession', JSON.stringify({
-                serverId: selection.serverId,
-                serverName: selection.serverName,
-                hostName: selection.hostName
-            }));
-            if (selection.serverName) {
-                document.title = `${selection.serverName} - LAM Dice :)`;
-            }
-            // 서버 정보 바 표시 (항상 표시 - 서버 목록 복귀 버튼 포함)
-            const infoBar = document.getElementById('serverInfoBar');
-            infoBar.style.display = 'flex';
-            const membersBtn = document.getElementById('serverMembersBtn');
-            const userNameSpan = document.getElementById('serverInfoUserName');
-            const userName = localStorage.getItem('userName') || '';
-            if (selection.serverId && selection.serverName) {
-                document.getElementById('serverInfoName').textContent = `🖥️ ${selection.serverName}`;
-                document.getElementById('serverInfoName').style.display = '';
-                if (membersBtn) membersBtn.style.display = '';
-            } else {
-                document.getElementById('serverInfoName').style.display = 'none';
-                if (membersBtn) membersBtn.style.display = 'none';
-            }
-            if (userName && userNameSpan) {
-                userNameSpan.textContent = `👤 ${userName}`;
-                userNameSpan.style.display = '';
-            }
-            // globalUserNameInput에 이름 동기화
-            const globalInput = document.getElementById('globalUserNameInput');
-            if (globalInput && userName && !globalInput.value) globalInput.value = userName;
-            document.getElementById('lobbySection').classList.add('active');
-            RankingModule.init(selection.serverId, userName || document.getElementById('globalUserNameInput')?.value || '');
-        }, () => {
-            document.body.classList.add('server-select-active');
-            document.getElementById('lobbySection').classList.remove('active');
-            sessionStorage.removeItem('diceSession');
-        });
+        // 서버 선택 모듈 초기화 (멤버 모달용)
+        ServerSelectModule.init(socket, () => {}, () => {});
         // 히스토리 매니저 초기화
         PageHistoryManager.init({
             onServerSelect: function () {
                 sessionStorage.removeItem('diceSession');
-                document.body.classList.add('server-select-active');
-                document.getElementById('lobbySection').classList.remove('active');
-                document.getElementById('createRoomSection').classList.remove('active');
-                document.getElementById('gameSection').classList.remove('active');
-                document.body.classList.remove('game-active');
-                document.body.classList.add('lobby-active');
-                ServerSelectModule.show();
+                window.location.href = '/';
             },
             onLobby: function () {
                 document.getElementById('createRoomSection').classList.remove('active');
@@ -1851,16 +1868,59 @@
                 if (document.getElementById('ranking-overlay')) return 'ranking';
                 if (document.getElementById('gameSection').classList.contains('active')) return 'gameRoom';
                 if (document.getElementById('createRoomSection').classList.contains('active')) return 'createRoom';
-                if (document.getElementById('serverSelectOverlay')) return 'serverSelect';
                 return 'lobby';
             }
         });
 
-        // 페이지 로드/새로고침 시 항상 서버 선택 화면 표시 (로비 복원 안 함)
-        sessionStorage.removeItem('returnToLobby');
-        document.body.classList.add('server-select-active');
-        document.getElementById('lobbySection').classList.remove('active');
-        ServerSelectModule.show();
+        // 세션 복원: 다른 게임에서 돌아온 경우 또는 새로고침 시 로비 유지
+        const _returnData = sessionStorage.getItem('returnToLobby') || sessionStorage.getItem('diceSession');
+        if (_returnData) {
+            sessionStorage.removeItem('returnToLobby');
+            let _restoredServerName = null;
+            try {
+                const rd = JSON.parse(_returnData);
+                currentServerId = rd.serverId || null;
+                currentServerName = rd.serverName || null;
+                _restoredServerName = rd.serverName || null;
+            } catch(e) {}
+            // 소켓에 서버 ID 설정 (방 목록 필터링 + 입장 검증용)
+            if (currentServerId) {
+                socket.emit('setServerId', { serverId: currentServerId });
+            }
+            // 서버 정보 바 표시
+            const infoBar = document.getElementById('serverInfoBar');
+            infoBar.style.display = 'flex';
+            const membersBtn = document.getElementById('serverMembersBtn');
+            const userName = localStorage.getItem('userName') || '';
+            if (currentServerId) {
+                if (_restoredServerName) {
+                    document.getElementById('serverInfoName').textContent = `🖥️ ${_restoredServerName}`;
+                    document.getElementById('serverInfoName').style.display = '';
+                    document.title = `${_restoredServerName} - LAM Dice :)`;
+                }
+                if (membersBtn) membersBtn.style.display = '';
+            } else {
+                document.getElementById('serverInfoName').style.display = 'none';
+                if (membersBtn) membersBtn.style.display = 'none';
+            }
+            const userNameSpan = document.getElementById('serverInfoUserName');
+            if (userName && userNameSpan) {
+                userNameSpan.textContent = `👤 ${userName}`;
+                userNameSpan.style.display = '';
+            }
+            const globalInput = document.getElementById('globalUserNameInput');
+            if (globalInput && userName && !globalInput.value) globalInput.value = userName;
+            document.getElementById('lobbySection').classList.add('active');
+            RankingModule.init(currentServerId, userName || '');
+            PageHistoryManager.replacePage('lobby');
+            // 방 목록 로드
+            socket.emit('getRooms');
+            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId });
+        } else {
+            // 세션 없음 → 서버 선택 페이지로 리다이렉트
+            window.location.replace('/');
+            return;
+        }
 
         // 아이디 유효성 검사 함수 (한글, 영문 소문자, 숫자, _, - 허용)
         function validateUserId(userId) {
@@ -1881,14 +1941,6 @@
             const debugLogSection = document.getElementById('debugLogSection');
             if (debugLogSection) {
                 debugLogSection.style.display = 'none';
-            }
-        }
-        
-        // 로컬에서는 방 제목 기본값을 "test"로 설정
-        if (isLocalhost) {
-            const roomNameInput = document.getElementById('createRoomNameInput');
-            if (roomNameInput) {
-                roomNameInput.value = 'test';
             }
         }
         
@@ -2486,7 +2538,8 @@
                     return response.text();
                 })
                 .then(text => {
-                    updateLogContent.innerHTML = text;
+                    const html = text.replace(/(\r?\n)---(\r?\n)/g, '$1<hr class="update-log-divider">$2');
+                    updateLogContent.innerHTML = html;
                 })
                 .catch(error => {
                     console.error('업데이트 내역 로드 실패:', error);
@@ -2531,10 +2584,9 @@
                     statusText = '주문받기 중';
                 }
                 
-                const serverTag = room.serverName ? `<span style="color: #667eea; font-weight: 600; margin-right: 4px;">[${room.serverName}]</span>` : '';
                 const roomNameHtml = isMyRoom
-                    ? `${serverTag}${room.roomName}<span class="my-room-badge">참여 중</span>`
-                    : `${serverTag}${room.roomName}`;
+                    ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
+                    : room.roomName;
                 
                 // 비공개 방 표시
                 const privateBadge = room.isPrivate 
@@ -3271,19 +3323,12 @@
             document.getElementById('createRoomPrivateCheckbox').checked = false;
             document.getElementById('createRoomPasswordInput').value = '';
             document.getElementById('createRoomPasswordContainer').style.display = 'none';
-            // IP 차단 옵션 UI 제거됨 (blockIPPerUser는 항상 false)
-            
-            // 방 제목 자동 생성 (로컬에서는 "test", 그 외에는 전역 이름 사용)
-            if (isLocalhost) {
-                document.getElementById('createRoomNameInput').value = 'test';
-            } else {
-                document.getElementById('createRoomNameInput').value = `${hostName}님의 Dice`;
+            // 방 제목 기본값 (로컬: test, 그 외: 이름님의 Dice)
+            const createRoomNameInput = document.getElementById('createRoomNameInput');
+            if (createRoomNameInput) {
+                createRoomNameInput.value = isLocalhost ? 'test' : (hostName ? `${hostName}님의 Dice` : '');
+                setTimeout(() => createRoomNameInput.focus(), 100);
             }
-            
-            // 방 제목 입력창에 포커스
-            setTimeout(() => {
-                document.getElementById('createRoomNameInput').focus();
-            }, 100);
         }
         
         // 게임 섹션의 게임 룰 라디오 버튼 이벤트 리스너
@@ -3434,32 +3479,26 @@
         function finalizeRoomCreation() {
             const globalNameInput = document.getElementById('globalUserNameInput');
             const roomNameInput = document.getElementById('createRoomNameInput');
-            
             const hostName = globalNameInput ? globalNameInput.value.trim() : '';
-            const roomName = roomNameInput.value.trim();
+            const roomName = roomNameInput ? roomNameInput.value.trim() : '';
             
             if (hostName === '') {
                 showCustomAlert('이름을 먼저 입력해주세요! 대기실로 돌아가서 이름을 입력하세요.', 'warning');
                 goBackToLobby();
-                if (globalNameInput) {
-                    globalNameInput.focus();
-                }
+                if (globalNameInput) globalNameInput.focus();
                 return;
             }
             
-            // 유효성 검사
             if (!validateUserId(hostName)) {
                 showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
                 goBackToLobby();
-                if (globalNameInput) {
-                    globalNameInput.focus();
-                }
+                if (globalNameInput) globalNameInput.focus();
                 return;
             }
             
             if (roomName === '') {
                 showCustomAlert('방 제목을 입력해주세요!', 'warning');
-                roomNameInput.focus();
+                if (roomNameInput) roomNameInput.focus();
                 return;
             }
             
@@ -3511,7 +3550,6 @@
             
             // 룰렛 게임이면 룰렛 페이지로 이동
             if (gameType === 'roulette') {
-                // 이름을 저장하고 룰렛 페이지로 이동
                 localStorage.setItem('rouletteUserName', hostName);
                 localStorage.setItem('pendingRouletteRoom', JSON.stringify({
                     userName: hostName,
@@ -3529,7 +3567,6 @@
 
             // 경마 게임이면 경마 페이지로 이동
             if (gameType === 'horse-race') {
-                // 이름을 저장하고 경마 페이지로 이동
                 localStorage.setItem('horseRaceUserName', hostName);
                 localStorage.setItem('pendingHorseRaceRoom', JSON.stringify({
                     userName: hostName,
@@ -3545,7 +3582,7 @@
                 return;
             }
             
-            // 방 생성 (게임 룰은 방 생성 후 설정)
+            // 방 생성 (방 제목은 클라이언트 입력)
             socket.emit('createRoom', {
                 userName: hostName,
                 roomName: roomName,
@@ -3675,28 +3712,6 @@
                 });
             }
             
-            // 방 제목 입력창에서 이름 기반 자동 업데이트
-            const roomNameInput = document.getElementById('createRoomNameInput');
-            if (globalNameInput && roomNameInput) {
-                let isUpdating = false;
-                globalNameInput.addEventListener('input', () => {
-                    if (isUpdating) return;
-                    // 로컬에서는 자동 업데이트 안 함
-                    if (isLocalhost) return;
-                    
-                    const hostName = globalNameInput.value.trim();
-                    // 방 제목이 기본 형식이거나 비어있을 때만 자동 업데이트 (방 생성 페이지가 열려있을 때만)
-                    const createRoomSection = document.getElementById('createRoomSection');
-                    if (!createRoomSection || !createRoomSection.classList.contains('active')) return;
-                    
-                    const currentRoomName = roomNameInput.value.trim();
-                    if (!currentRoomName || currentRoomName.endsWith('님의 Dice')) {
-                        isUpdating = true;
-                        roomNameInput.value = hostName ? `${hostName}님의 Dice` : '';
-                        isUpdating = false;
-                    }
-                });
-            }
         });
         
         // 방 생성 성공
@@ -3805,9 +3820,15 @@
                 roomStatusIcons.style.display = 'none';
             }
             
-            // 방 제목 표시 (서버 이름 포함)
-            const _serverTag = currentServerName ? `[${currentServerName}] ` : '';
-            document.getElementById('roomNameText').textContent = _serverTag + (data.roomName || '방');
+            // 방 제목 표시 (태그 없이 방 제목만)
+            document.getElementById('roomNameText').textContent = data.roomName || '방';
+            // 서버명 표시 (상단 바 맨 왼쪽 + 방 제목 아래)
+            const _serverName = (data && data.serverName) || currentServerName || '';
+            const serverLabel = _serverName ? `🖥️ ${_serverName}` : '🖥️ 자유방';
+            const serverNameEl = document.getElementById('currentServerNameDisplay');
+            if (serverNameEl) { serverNameEl.textContent = serverLabel; serverNameEl.style.display = ''; }
+            const headerServerEl = document.getElementById('headerServerNameDisplay');
+            if (headerServerEl) { headerServerEl.textContent = serverLabel; headerServerEl.style.display = 'inline-block'; headerServerEl.style.visibility = 'visible'; }
             
             // 호스트면 방 제목 변경 버튼 표시
             if (isHost) {
@@ -4253,8 +4274,7 @@
         
         // 방 제목 업데이트
         socket.on('roomNameUpdated', (roomName) => {
-            const sTag = currentServerName ? `[${currentServerName}] ` : '';
-            document.getElementById('roomNameText').textContent = sTag + roomName;
+            document.getElementById('roomNameText').textContent = roomName;
             cancelRoomNameEdit();
         });
         

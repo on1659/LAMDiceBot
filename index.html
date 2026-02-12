@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>LAM Dice :)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        header {
+            background-color: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e7e7e7;
+        }
+        header nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header h1 { margin: 0; font-size: 1.5em; }
+        header a { text-decoration: none; }
+        .nav-links a { margin-left: 20px; color: #007bff; text-decoration: none; }
+        footer {
+            text-align: center;
+            padding: 20px 0;
+            font-size: 0.9em;
+            color: rgba(255,255,255,0.6);
+        }
+        footer a { color: rgba(255,255,255,0.7); text-decoration: none; margin: 0 8px; }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <h1><a href="/" style="color: #333;">LAMDice 주사위 게임</a></h1>
+            <div class="nav-links">
+                <a href="dice-rules-guide.html">다양한 주사위 규칙</a>
+                <a href="probability-analysis.html">확률 분석 및 팁</a>
+                <a href="about-us.html">사이트 소개</a>
+            </div>
+        </nav>
+    </header>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/page-history-shared.js"></script>
+    <script src="/server-select-shared.js"></script>
+    <script>
+        const socket = io();
+
+        ServerSelectModule.init(socket, (selection) => {
+            // 서버 선택 완료 → 세션에 저장 후 게임 페이지로 이동
+            sessionStorage.setItem('diceSession', JSON.stringify({
+                serverId: selection.serverId,
+                serverName: selection.serverName,
+                hostName: selection.hostName
+            }));
+            window.location.href = '/game';
+        });
+
+        // 서버 선택 표시
+        ServerSelectModule.show();
+    </script>
+
+    <footer>
+        <p>Copyright &copy; 2025 LAMDice. All rights reserved.</p>
+        <div style="margin-top: 8px;">
+            <a href="privacy-policy.html">개인정보 처리방침</a> |
+            <a href="terms-of-service.html">이용 약관</a> |
+            <a href="contact.html">문의하기</a> |
+            <a href="statistics.html">📊 통계</a>
+        </div>
+    </footer>
+</body>
+</html>

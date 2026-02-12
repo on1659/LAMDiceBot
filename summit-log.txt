@@ -1,4 +1,36 @@
 ========================================
+📋 Summit Log - 2026-02-12 (서버 선택 페이지 분리 + 랭킹 고도화)
+========================================
+
+## 변경 파일 (16개)
+- index.html: 서버 선택 전용 페이지 신규 생성 (header/footer + ServerSelectModule)
+- routes/api.js: GET / → index.html, GET /game → dice-game-multiplayer.html 라우트 추가
+- dice-game-multiplayer.html: ServerSelectModule.init 최소화(멤버모달용), server-select-active CSS 제거, 세션 복원 로직(diceSession/returnToLobby), 세션 없으면 / 리다이렉트, PageHistoryManager.onServerSelect → window.location.href='/', getCurrentPage에서 serverSelectOverlay 체크 제거
+- js/horse-race.js: 복귀 URL /dice-game-multiplayer.html → /game (4곳)
+- roulette-game-multiplayer.html: 복귀 URL /dice-game-multiplayer.html → /game (6곳)
+- horse-race-multiplayer.html: 주사위 게임 링크 /dice-game-multiplayer.html → /game
+- about-us.html, contact.html, dice-rules-guide.html, privacy-policy.html, probability-analysis.html, statistics.html, terms-of-service.html: 메인 돌아가기 링크 dice-game-multiplayer.html → /
+- db/ranking.js: 랭킹 동점자 규칙(같은 점수=같은 등수) + 종합 탭 서브탭(순위/참여)
+- ranking-shared.js: 동점자 등수 표시 UI + 종합 서브탭 UI + PC max-width 조정
+- routes/server.js: 서버 관련 버그 수정
+
+## 상세 변경 내역
+
+### 페이지 분리 (핵심)
+- 기존: / → dice-game-multiplayer.html (서버 선택 오버레이 + 로비 + 게임 모두 한 파일)
+- 변경: / → index.html (서버 선택만), /game → dice-game-multiplayer.html (로비+게임)
+- 서버 선택 완료 → sessionStorage에 diceSession 저장 → /game 이동
+- /game 직접 접속(세션 없음) → / 리다이렉트
+- 새로고침 → diceSession 존재하면 로비 유지
+- "← 서버 목록" 버튼 → diceSession 삭제 후 / 이동
+
+### 랭킹 고도화
+- db/ranking.js: 동점자 같은 등수 처리 로직 추가
+- ranking-shared.js: 종합 탭에 순위/참여 서브탭 UI
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-12 (회원가입 개선 + 세션 복원 + UI 수정)
 ========================================
 

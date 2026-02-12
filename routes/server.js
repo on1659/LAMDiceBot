@@ -9,7 +9,7 @@ const {
 } = require('../db/servers');
 const { register: authRegister, login: authLogin } = require('../db/auth');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
-const { getFullRanking } = require('../db/ranking');
+const { getFullRanking, getMyRank } = require('../db/ranking');
 
 // Rate Limiting (Server API 전용)
 let rateLimit;
@@ -342,6 +342,19 @@ router.get('/ranking/free', async (req, res) => {
     }
 });
 
+// 랭킹 검색 (닉네임으로 해당 유저 순위 조회)
+router.get('/ranking/free/search', async (req, res) => {
+    try {
+        const userName = (req.query.userName || req.query.q || '').trim();
+        if (!userName) return res.status(400).json({ error: '검색할 이름을 입력하세요.' });
+        const myRank = await getMyRank(null, userName);
+        const hasAny = myRank && Object.keys(myRank).some(k => myRank[k] && Object.keys(myRank[k]).length > 0);
+        res.json(hasAny ? { found: true, userName, myRank } : { found: false, userName });
+    } catch (e) {
+        res.status(500).json({ error: '랭킹 검색 실패' });
+    }
+});
+
 // 서버별 랭킹 (숫자만 매칭)
 router.get('/ranking/:serverId(\\d+)', async (req, res) => {
     try {
@@ -358,6 +371,23 @@ router.get('/ranking/:serverId(\\d+)', async (req, res) => {
         res.json(ranking);
     } catch (e) {
         res.status(500).json({ error: '랭킹 조회 실패' });
+    }
+});
+
+// 서버별 랭킹 검색 (닉네임으로 해당 유저 순위 조회)
+router.get('/ranking/:serverId(\\d+)/search', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        if (isNaN(serverId) || serverId <= 0) return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        const server = await getServerById(serverId);
+        if (!server) return res.status(404).json({ error: '서버를 찾을 수 없습니다.' });
+        const userName = (req.query.userName || req.query.q || '').trim();
+        if (!userName) return res.status(400).json({ error: '검색할 이름을 입력하세요.' });
+        const myRank = await getMyRank(serverId, userName);
+        const hasAny = myRank && Object.keys(myRank).some(k => myRank[k] && Object.keys(myRank[k]).length > 0);
+        res.json(hasAny ? { found: true, userName, myRank } : { found: false, userName });
+    } catch (e) {
+        res.status(500).json({ error: '랭킹 검색 실패' });
     }
 });
 

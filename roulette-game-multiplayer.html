@@ -1011,7 +1011,7 @@
             
             <!-- 주사위 게임 링크 -->
             <div style="text-align: center; margin-top: 20px;">
-                <a href="/dice-game-multiplayer.html" style="color: #667eea; text-decoration: none;">🎲 주사위 게임으로 이동</a>
+                <a href="/game" style="color: #667eea; text-decoration: none;">🎲 주사위 게임으로 이동</a>
             </div>
         </section>
 
@@ -1893,7 +1893,7 @@
             const fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
             if (!fromDice) {
                 // 직접 URL 접속 시 메인 페이지로 리다이렉트
-                window.location.replace('/dice-game-multiplayer.html');
+                window.location.replace('/game');
                 return;
             }
             if (fromDice) {
@@ -3338,7 +3338,7 @@
             if (fromDice === 'true') {
                 sessionStorage.removeItem('rouletteFromDice');
                 alert(message);
-                window.location.href = '/dice-game-multiplayer.html';
+                window.location.href = '/game';
                 return;
             }
             
@@ -3725,7 +3725,7 @@
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/dice-game-multiplayer.html');
+            window.location.replace('/game');
         });
 
         // 방 나가기 완료 (서버에서 roomLeft emit)
@@ -3734,7 +3734,7 @@
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/dice-game-multiplayer.html');
+            window.location.replace('/game');
         });
 
         // 레거시 이벤트 호환성 유지
@@ -3743,7 +3743,7 @@
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/dice-game-multiplayer.html');
+            window.location.replace('/game');
         });
 
         // 호스트 권한 전달 알림
