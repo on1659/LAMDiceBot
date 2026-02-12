@@ -1,4 +1,31 @@
 ========================================
+📋 Summit Log - 2026-02-12 (경마/룰렛 로비 제거)
+========================================
+
+## 변경 파일 (4개)
+- horse-race-multiplayer.html: lobbySection, createRoomSection HTML 제거, loadingScreen 기본 display:flex, body class="lobby-active" 제거, server-select-shared.js 참조 제거, globalUserNameInput을 hidden input으로 변경
+- js/horse-race.js: showCreateRoomSection, goBackToLobby, finalizeRoomCreation, refreshRooms, renderRoomsList, joinRoomDirectly 함수 제거, ServerSelectModule.init else 블록 제거, roomsList/roomsListUpdated 소켓 이벤트 제거, socket.on('connect'/'disconnect') 핸들러 간소화, roomCreated/roomJoined에서 lobbySection 참조 제거, roomError에서 /game 리다이렉트로 통합, DOMContentLoaded auto-create/join에서 lobbySection.display 참조 제거, roomsList/selectedRoomId 전역 변수 제거
+- css/horse-race.css: body.lobby-active, .lobby-section, .create-room-section, .rooms-list, .room-item 등 로비 관련 CSS 전체 제거
+- roulette-game-multiplayer.html: 경마와 동일 패턴 적용 - lobbySection/createRoomSection HTML 제거, 로비 관련 CSS/JS 함수/소켓 이벤트 제거, ServerSelectModule 제거, loadingScreen 기본 표시
+
+## 상세 변경 내역
+
+### 경마/룰렛 로비 dead code 제거
+- 경마/룰렛 페이지는 항상 주사위 로비에서 ?createRoom=true 또는 ?joinRoom=true로만 진입
+- 직접 URL 접속 시 /game으로 리다이렉트되므로 자체 로비가 절대 표시되지 않음
+- 방 나가기/삭제 시에도 /game으로 리다이렉트하므로 로비 불필요
+- 로비 깜빡임 원인: 페이지 로드 시 lobby-active 클래스로 로비가 기본 표시 → 소켓 연결 후 방 생성까지 잠시 보임
+- 해결: 로비 자체를 제거하고 loadingScreen을 기본 표시(display:flex)로 변경
+
+### 제거된 코드량
+- horse-race-multiplayer.html: lobbySection ~40줄, createRoomSection ~48줄 HTML 제거
+- js/horse-race.js: ~200줄 로비 관련 함수/이벤트 제거
+- css/horse-race.css: ~100줄 로비 관련 스타일 제거
+- roulette-game-multiplayer.html: ~350줄 (HTML + 인라인 JS + CSS) 제거
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-12 (서버 선택 페이지 분리 + 랭킹 고도화)
 ========================================
 
