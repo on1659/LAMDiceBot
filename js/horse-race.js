@@ -52,6 +52,12 @@ function addDebugLog(message, type = 'info') {
     logSection.style.display = 'block';
 }
 
+// 탭 세션 ID (새로고침: 유지, 새 탭: 새로 생성)
+if (!sessionStorage.getItem('tabId')) {
+    sessionStorage.setItem('tabId', Math.random().toString(36).substr(2, 9) + Date.now());
+}
+function getTabId() { return sessionStorage.getItem('tabId'); }
+
 // 상태 변수
 var currentRoomId = null;
 var currentUser = '';
@@ -264,7 +270,8 @@ var currentServerName = null;
                     userName: rd.userName,
                     isHost: false,
                     password: '',
-                    deviceId: getDeviceId()
+                    deviceId: getDeviceId(),
+                    tabId: getTabId()
                 });
             });
         } catch(e) {
@@ -313,7 +320,8 @@ function submitPassword() {
             userName: pendingUserName,
             isHost: false,
             password: password,
-            deviceId: getDeviceId()
+            deviceId: getDeviceId(),
+            tabId: getTabId()
         });
     }
     
@@ -6091,7 +6099,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     blockIPPerUser: roomData.blockIPPerUser,
                     deviceId: getDeviceId(),
                     serverId: roomData.serverId || currentServerId,
-                    serverName: roomData.serverName || currentServerName
+                    serverName: roomData.serverName || currentServerName,
+                    tabId: getTabId()
                 });
             });
 
@@ -6124,7 +6133,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         userName: joinData.userName,
                         isHost: false,
                         password: '',
-                        deviceId: getDeviceId()
+                        deviceId: getDeviceId(),
+                        tabId: getTabId()
                     });
                 }
             });

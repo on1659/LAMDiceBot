@@ -1,4 +1,39 @@
 ========================================
+📋 Summit Log - 2026-02-12 (deviceId→tabId 재연결 판별 수정)
+========================================
+
+## 변경 파일 (4개)
+- socket/rooms.js: deviceId 기반 → tabId(sessionStorage) 기반 재연결 판별로 변경
+- dice-game-multiplayer.html: tabId 생성 + 모든 joinRoom/createRoom에 tabId 전송
+- js/horse-race.js: tabId 생성 + 모든 joinRoom/createRoom에 tabId 전송
+- roulette-game-multiplayer.html: tabId 생성 + 모든 joinRoom/createRoom에 tabId 전송
+
+## 상세 변경 내역
+
+### 문제
+- deviceId는 localStorage → 같은 브라우저의 모든 탭이 동일 값 공유
+- 중복접속(_1) 기능이 동작하지 않음 (같은 deviceId → 재연결로 처리 → 구 소켓 강제 종료)
+- 다른 탭에서 접속하면 첫 번째 탭이 끊어지는 버그
+
+### 해결: sessionStorage 기반 tabId
+- sessionStorage는 탭별 격리 → 같은 탭 새로고침: 유지, 새 탭: 다른 값
+- 같은 탭 새로고침 → 같은 tabId → 재연결 (구 소켓 disconnect + 기존 유저 정보 인계)
+- 같은 브라우저 새 탭 → 다른 tabId → 중복접속 (_1 접미사)
+- 다른 브라우저 → 다른 tabId → 중복접속 (_1 접미사)
+
+### 서버 변경 (rooms.js)
+- joinRoom: `isSameDevice` → `isSameTab` (data.tabId vs connectedUserWithSameName.tabId)
+- createRoom/joinRoom/getCurrentRoom: socket.tabId = data.tabId 저장
+- 재연결 경로에서도 socket.tabId 저장
+
+### 클라이언트 변경 (3개 게임)
+- 페이지 로드 시 sessionStorage에 tabId 없으면 랜덤 생성
+- getTabId() 함수 추가
+- 모든 joinRoom/createRoom emit에 tabId: getTabId() 추가
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-12 (주사위 방 새로고침 재입장)
 ========================================
 

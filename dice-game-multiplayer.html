@@ -1841,6 +1841,12 @@
         let currentServerId = null;
         let currentServerName = null;
 
+        // 탭 세션 ID (새로고침: 유지, 새 탭: 새로 생성)
+        if (!sessionStorage.getItem('tabId')) {
+            sessionStorage.setItem('tabId', Math.random().toString(36).substr(2, 9) + Date.now());
+        }
+        function getTabId() { return sessionStorage.getItem('tabId'); }
+
         // 서버 선택 모듈 초기화 (멤버 모달용)
         ServerSelectModule.init(socket, () => {}, () => {});
         // 히스토리 매니저 초기화
@@ -1928,7 +1934,8 @@
                             userName: ar.userName,
                             isHost: false,
                             password: '',
-                            deviceId: getDeviceId()
+                            deviceId: getDeviceId(),
+                            tabId: getTabId()
                         });
                     });
                 } catch(e) {
@@ -2756,7 +2763,8 @@
                     userName: userName,
                     isHost: false,
                     password: '',
-                    deviceId: getDeviceId()
+                    deviceId: getDeviceId(),
+                    tabId: getTabId()
                 });
             }
         }
@@ -2782,7 +2790,8 @@
                 userName: userName,
                 isHost: false,
                 password: password,
-                deviceId: getDeviceId()
+                deviceId: getDeviceId(),
+                tabId: getTabId()
             });
         }
         
@@ -3614,7 +3623,8 @@
                 expiryHours: expiryHours, // 방 유지 시간 (시간 단위)
                 blockIPPerUser: blockIPPerUser, // IP당 하나의 아이디만 입장 허용
                 serverId: currentServerId, // 서버 소속
-                serverName: currentServerName // 서버 이름
+                serverName: currentServerName, // 서버 이름
+                tabId: getTabId()
             });
         }
         
@@ -3675,7 +3685,8 @@
                     userName: userName,
                     isHost: false,
                     password: '',
-                    deviceId: getDeviceId()
+                    deviceId: getDeviceId(),
+                    tabId: getTabId()
                 });
             }
         }
