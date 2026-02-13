@@ -2590,8 +2590,8 @@
             }
 
             // 게임 기록 로드
-            if (data.gameState && data.gameState.rouletteHistory) {
-                craneGameHistory = data.gameState.rouletteHistory;
+            if (data.gameState && data.gameState.craneGameHistory) {
+                craneGameHistory = data.gameState.craneGameHistory;
                 renderHistory();
             }
 
@@ -2780,7 +2780,7 @@
                     document.getElementById('resultWinner').textContent = data.winner;
                     document.getElementById('resultOverlay').classList.add('visible');
                     if (data.winner === currentUser) CraneSound.playWinner();
-                    if (window.SoundManager) SoundManager.stopLoop('roulette_bgm');
+                    if (window.SoundManager) SoundManager.stopLoop('crane-game_bgm');
 
                     addDebugLog(`🧸 결과 오버레이 표시 - winner: ${data.winner}`, 'gameEnd');
 
@@ -2797,7 +2797,7 @@
         }
 
         socket.on('craneGameStarted', (data) => {
-            if (window.SoundManager) SoundManager.playLoop('roulette_bgm', getCraneSoundEnabled(), 0.3);
+            if (window.SoundManager) SoundManager.playLoop('crane-game_bgm', getCraneSoundEnabled(), 0.3);
             const hasFocus = document.hasFocus();
             const isVisible = document.visibilityState === 'visible';
             const isActuallyVisible = isVisible && hasFocus;
@@ -2938,7 +2938,7 @@
                             roomName: roomData.roomName,
                             isPrivate: roomData.isPrivate,
                             password: roomData.password,
-                            gameType: 'craneGame',
+                            gameType: 'crane-game',
                             expiryHours: roomData.expiryHours,
                             blockIPPerUser: roomData.blockIPPerUser,
                             deviceId: getDeviceId(),
