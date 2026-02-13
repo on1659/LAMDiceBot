@@ -189,7 +189,7 @@ Phase 2: 수평 이동 (fake-out 0~2회 포함, 다른 인형 위에서 멈칫)
   ↓ horizontalDuration (2000~4000ms)
 Phase 3: 하강 (arm height 증가 + 집게 아래로)
   ↓ descendDuration (1000~2000ms)
-Phase 4: 잡기 (fingers.closed, 대상 인형에 .grabbed 효과)
+Phase 4: 잡기 (fingers.closed, 대상 인형에 .grabbed 효과, fake 효과가 랜덤으로 발생 (70%정도), 못잡을 확률도 추가, 관련해서  따로 시스템회의필요)
   ↓ grabPauseDuration (500~1000ms)
 Phase 5: 상승 (arm height 감소, 인형도 같이 올라감)
   ↓ liftDuration (1500~2500ms)
@@ -242,3 +242,4 @@ Phase 8: 결과 발표 (result overlay)
 5. **애니메이션**: 집게가 인형 위로 이동 → 하강 → 잡기 → 상승 → 결과 발표 확인
 6. **채팅 말풍선**: 게임 중 채팅 → 인형 위에 말풍선 표시 확인
 7. **DB 기록**: 게임 완료 후 `/api/statistics`에서 crane-game 통계 확인
+
