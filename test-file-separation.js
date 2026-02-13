@@ -73,7 +73,7 @@ function assertContains(text, substring, message) {
 // ==================== 테스트 케이스 ====================
 
 async function testHTMLLoad() {
-    const res = await httpGet(`${BASE_URL}/horse-race-multiplayer.html`);
+    const res = await httpGet(`${BASE_URL}/horse-race`);
     assertEqual(res.status, 200, 'HTML status');
     assertContains(res.data, '<!DOCTYPE html>', 'DOCTYPE');
     assertContains(res.data, '<link rel="stylesheet" href="/css/horse-race.css">', 'CSS link');
@@ -118,7 +118,7 @@ async function testSoundManager() {
 }
 
 async function testNoInlineScript() {
-    const res = await httpGet(`${BASE_URL}/horse-race-multiplayer.html`);
+    const res = await httpGet(`${BASE_URL}/horse-race`);
     // 인라인 스크립트가 없어야 함 (script 태그 안에 코드가 없어야 함)
     const scriptTags = res.data.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || [];
     const inlineScripts = scriptTags.filter(tag => {
@@ -132,7 +132,7 @@ async function testNoInlineScript() {
 }
 
 async function testNoInlineStyle() {
-    const res = await httpGet(`${BASE_URL}/horse-race-multiplayer.html`);
+    const res = await httpGet(`${BASE_URL}/horse-race`);
     // <style> 태그가 없어야 함
     const styleTags = res.data.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || [];
     assertEqual(styleTags.length, 0, `Found ${styleTags.length} style tags`);
@@ -155,7 +155,7 @@ async function testGlobalVariables() {
 }
 
 async function testHTMLStructure() {
-    const res = await httpGet(`${BASE_URL}/horse-race-multiplayer.html`);
+    const res = await httpGet(`${BASE_URL}/horse-race`);
     // 주요 HTML 요소 확인
     const elements = [
         'id="lobbySection"',
@@ -171,7 +171,7 @@ async function testHTMLStructure() {
 
 async function testContentType() {
     const tests = [
-        { url: '/horse-race-multiplayer.html', type: 'text/html' },
+        { url: '/horse-race', type: 'text/html' },
         { url: '/css/horse-race.css', type: 'text/css' },
         { url: '/js/horse-race.js', type: 'application/javascript' }
     ];
@@ -187,7 +187,7 @@ async function testContentType() {
 
 async function testFileSizes() {
     const expected = {
-        '/horse-race-multiplayer.html': { min: 10000, max: 50000 },  // ~370 lines
+        '/horse-race': { min: 10000, max: 50000 },  // ~370 lines
         '/css/horse-race.css': { min: 30000, max: 80000 },          // ~1514 lines
         '/js/horse-race.js': { min: 150000, max: 300000 }           // ~6071 lines
     };

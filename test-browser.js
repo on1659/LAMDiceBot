@@ -9,7 +9,7 @@
 const puppeteer = require('puppeteer');
 
 const BASE_URL = 'http://localhost:5173';
-const HORSE_RACE_URL = `${BASE_URL}/horse-race-multiplayer.html`;
+const HORSE_RACE_URL = `${BASE_URL}/horse-race`;
 
 // 색상 출력
 const colors = {
