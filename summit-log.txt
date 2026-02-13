@@ -1,4 +1,67 @@
 ========================================
+📋 Summit Log - 2026-02-14 (경마 React 리빌드 - horse-app)
+========================================
+
+## 변경 파일 (31개 신규 - horse-app/)
+
+### 프로젝트 구조
+- horse-app/package.json: React 19 + Vite 7 + Zustand 5 + Socket.IO + Tailwind CSS 4
+- horse-app/vite.config.ts: base '/horse-app/', proxy → localhost:3000
+- horse-app/tsconfig.json, tsconfig.app.json, tsconfig.node.json: TypeScript 설정
+- horse-app/eslint.config.js: ESLint 설정
+- horse-app/index.html: SPA 엔트리 포인트
+
+### 컴포넌트 (12개)
+- src/App.tsx: 메인 앱 (lobby↔game 페이즈 분기)
+- src/main.tsx: React 엔트리
+- src/components/GameLayout.tsx: 게임 페이즈별 레이아웃 라우팅
+- src/components/LobbyScreen.tsx: 방 생성/참가
+- src/components/RoomHeader.tsx: 방 헤더 (방명, 호스트 뱃지, 나가기)
+- src/components/UsersList.tsx: 접속자 목록
+- src/components/ReadySection.tsx: 준비 토글
+- src/components/HostControls.tsx: 방장 컨트롤 (시작, 종료, 데이터삭제)
+- src/components/GameStatus.tsx: 게임 상태 표시
+- src/components/VehicleSelection.tsx: 탈것 선택 그리드 + 코스 길이 선택
+- src/components/Countdown.tsx: 3-2-1-START 카운트다운 오버레이
+- src/components/RaceTrack.tsx: 레이스 트랙 + 미니맵 (requestAnimationFrame 기반)
+- src/components/RaceResult.tsx: 결과 화면 (순위, 승자, 다시보기, 기록)
+
+### 훅/스토어
+- src/hooks/useSocket.ts: Socket.IO 연결 관리
+- src/hooks/useSocketEvents.ts: 서버→클라이언트 이벤트 핸들러 등록
+- src/stores/gameStore.ts: Zustand 전역 상태 (게임 페이즈, 레이스 데이터, 유저 정보)
+
+### 타입 정의
+- src/types/game-state.ts: 트랙, 레이스, 기믹, 날씨, 슬로우모션 타입
+- src/types/socket-events.ts: 서버↔클라이언트 소켓 이벤트 타입
+- src/types/vehicle.ts: 탈것 ID, 이름 타입
+
+### 유틸리티
+- src/utils/raceSimulator.ts: 프레임 기반 레이스 시뮬레이션 엔진
+- src/utils/vehicleEmoji.ts: 탈것 이모지/배경색 매핑
+
+### 스타일
+- src/index.css: Tailwind CSS 4 + CSS 변수 기반 다크 테마
+
+## 상세 변경 내역
+
+### 아키텍처
+- 기존 바닐라 JS (horse-race-multiplayer.html + js/horse-race.js 6168줄) → React + TypeScript (21개 파일 2595줄)
+- 컴포넌트 분리: 12개 역할별 컴포넌트
+- Zustand 상태관리: 전역 변수 수십 개 → 단일 스토어
+- TypeScript: 서버↔클라이언트 이벤트 타입 안전성
+
+### 서버 코드 대조 검토 (3회차)
+- Bug fix 1차 (5개): horseRaceEnded 페이로드 불일치, result 페이즈 전환 누락, 기믹 데이터 mutation, Math.random() 렌더링 깜빡임, 슬로우모션 미해제
+- Bug fix 3차 (4개): horseRaceGameReset 페이로드 불일치 (서버는 horseRaceHistory만 전송), HorseSelectionReadyPayload optional 필드 처리, setRaceResult winners 미반영, horseSelectionReady fallback 처리
+
+### 주의사항
+- 기존 코드 (horse-race-multiplayer.html + js/horse-race.js + css/horse-race.css) 전혀 미수정
+- 서버 코드 (socket/horse.js) 변경 없음
+- horse-app/dist/ 빌드 결과물: 272KB JS + 25KB CSS
+- 아직 서버 라우팅 연결 안 됨 (기존 HTML이 계속 서빙 중)
+
+========================================
 📋 Summit Log - 2026-02-12 (deviceId→tabId 재연결 판별 수정)
 ========================================
 
