@@ -1,0 +1,2992 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <title>LAM Crane Game 🪄</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8e99a4 0%, #7a8b99 50%, #6b7c8a 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: 20px auto;
+        }
+
+        body.game-active .container {
+            margin-left: calc((100vw - 1140px) / 2 + 160px);
+            margin-right: auto;
+            max-width: 800px;
+        }
+
+        body.game-active header,
+        body.game-active footer {
+            display: none;
+        }
+
+        h1 {
+            text-align: center;
+            color: #9c27b0;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .game-section {
+            display: none;
+        }
+
+        .game-section.active {
+            display: block;
+        }
+
+        button {
+            background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(156, 39, 176, 0.3);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: #9c27b0;
+            outline: none;
+        }
+
+        .connection-status {
+            text-align: center;
+            padding: 5px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .connection-status.connected {
+            color: #28a745;
+        }
+
+        .connection-status.disconnected {
+            color: #dc3545;
+        }
+
+        .connection-sound-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .connection-sound-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+            cursor: pointer;
+        }
+        .connection-sound-row input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #555;
+        }
+        .volume-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            width: auto;
+        }
+        .volume-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .volume-slider {
+            width: 60px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ddd;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #9c27b0;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #9c27b0;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        .volume-slider.muted {
+            opacity: 0.5;
+        }
+
+        /* 크레인 머신 컨테이너 */
+        .crane-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .crane-machine {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 500px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            border: 4px solid #9c27b0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(156, 39, 176, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.3);
+            margin: 20px auto;
+        }
+
+        .crane-rail {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            height: 8px;
+            background: linear-gradient(90deg, #666, #999, #666);
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .crane-assembly {
+            position: absolute;
+            top: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 9;
+            transition: left 1s ease-in-out;
+        }
+
+        .crane-arm {
+            width: 6px;
+            height: 40px;
+            background: linear-gradient(180deg, #bbb, #888);
+            border-radius: 3px;
+            transition: height 0.8s ease-in-out;
+        }
+
+        .crane-fingers-wrapper {
+            display: flex;
+            gap: 12px;
+            transition: gap 0.4s ease-in-out;
+        }
+
+        .crane-finger {
+            width: 4px;
+            height: 30px;
+            background: linear-gradient(180deg, #999, #666);
+            border-radius: 0 0 3px 3px;
+            position: relative;
+        }
+
+        .crane-finger::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            width: 10px;
+            height: 10px;
+            background: #888;
+            border-radius: 50%;
+        }
+
+        .crane-finger:first-child::after {
+            right: -3px;
+        }
+
+        .crane-finger:last-child::after {
+            left: -3px;
+        }
+
+        .crane-glass {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 80px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 3px solid rgba(156, 39, 176, 0.5);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .dolls-grid {
+            position: absolute;
+            bottom: 85px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            z-index: 5;
+        }
+
+        .doll {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            animation: dollBounce 2s ease-in-out infinite;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+
+        .doll.grabbed {
+            opacity: 0.3;
+            transform: scale(0.8);
+        }
+
+        .speech-bubble {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            white-space: nowrap;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            animation: bubbleFadeIn 0.3s ease-out;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(255, 255, 255, 0.95);
+        }
+
+        .speech-bubble.fading {
+            animation: bubbleFadeOut 0.5s ease-out forwards;
+        }
+
+        .doll-body {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .doll-name {
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            margin-top: 3px;
+            max-width: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .prize-chute {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 80px;
+            background: linear-gradient(180deg, #2d1b4e, #1a0f2e);
+            border-top: 3px solid #9c27b0;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 6;
+            overflow: hidden;
+        }
+
+        .prize-chute::before {
+            content: '🎁';
+            font-size: 24px;
+            opacity: 0.3;
+        }
+
+        .prize-in-chute {
+            position: absolute;
+            font-size: 36px;
+            animation: prizeDropIn 0.5s ease-in forwards;
+        }
+
+        /* 준비 섹션 */
+        .ready-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #9c27b0;
+        }
+
+        .users-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 50px;
+        }
+
+        .user-tag {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-tag.host {
+            background: #667eea;
+            color: white;
+        }
+
+        /* 게임 기록 */
+        .history-section {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            width: 320px;
+            max-height: calc(100vh - 40px);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .history-section.visible {
+            display: block;
+        }
+
+        .history-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #9c27b0;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #9c27b0;
+        }
+
+        .history-round {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .history-participants {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .history-winner {
+            font-size: 16px;
+            font-weight: bold;
+            color: #9c27b0;
+        }
+
+        /* 채팅 섹션 */
+        .chat-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            border: 2px solid #9c27b0;
+        }
+
+        .chat-messages {
+            max-height: 480px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .chat-message.system {
+            margin-bottom: 10px;
+            padding: 12px;
+            background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+
+        .chat-message.winner {
+            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+            color: #333;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 15px;
+            animation: celebrate 0.5s ease-in-out infinite alternate;
+            border-radius: 8px;
+        }
+
+        @keyframes celebrate {
+            from { transform: scale(1); }
+            to { transform: scale(1.02); }
+        }
+
+        @keyframes dollBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes bubbleFadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        @keyframes bubbleFadeOut {
+            from { opacity: 1; transform: translateX(-50%) translateY(0); }
+            to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        @keyframes prizeDropIn {
+            0% { transform: translateY(-100px); opacity: 0; }
+            60% { transform: translateY(10px); opacity: 1; }
+            80% { transform: translateY(-5px); }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes resultPopup {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 접속자 목록 */
+        .users-section {
+            margin-bottom: 20px;
+        }
+
+        .users-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        /* 방 정보 헤더 */
+        .room-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .room-title {
+            font-size: 24px;
+            color: #9c27b0;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .host-badge {
+            display: none;
+            background: #ffc107;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        /* 호스트 컨트롤 */
+        .host-controls {
+            display: none;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe082 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #ffc107;
+        }
+
+        .start-button {
+            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+            font-size: 20px;
+            padding: 15px 30px;
+        }
+
+        .start-button:disabled {
+            background: #ccc;
+        }
+
+        .end-button {
+            background: linear-gradient(135deg, #f44336 0%, #ff5722 100%);
+        }
+
+        /* 결과 오버레이 */
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .result-overlay.visible {
+            display: flex;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            animation: resultPopup 0.5s ease-out;
+        }
+
+        @keyframes popup {
+            from {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        .result-title {
+            font-size: 24px;
+            color: #9c27b0;
+            margin-bottom: 20px;
+        }
+
+        .result-winner {
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .result-message {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        /* 게임 타입 아이콘 */
+        .game-type-icon {
+            font-size: 16px;
+            margin-right: 5px;
+        }
+
+        /* 방 폭파 카운트다운 */
+        .room-expiry-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 1200px) {
+            body.game-active .container {
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .history-section {
+                position: static;
+                width: 100%;
+                max-height: none;
+                margin-top: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .crane-machine {
+                height: 380px;
+            }
+
+            .doll-body {
+                width: 40px;
+                height: 40px;
+                font-size: 22px;
+            }
+
+            .doll-name {
+                font-size: 9px;
+                max-width: 45px;
+            }
+
+            .dolls-grid {
+                gap: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 로딩 화면 -->
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🪄</div>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
+            <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
+            <div style="margin-top: 30px;">
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+
+        /* 주문받기 섹션 스타일 */
+        .orders-section {
+            margin-bottom: 20px;
+            display: none;
+        }
+        .orders-section.active {
+            display: block;
+        }
+        .my-order-box {
+            background: #fff9e6;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .my-order-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .order-input-group {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: start;
+        }
+        .order-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .autocomplete-suggestion {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            color: #999;
+            pointer-events: none;
+            font-family: inherit;
+            font-size: 16px;
+            line-height: 1.5;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            z-index: 1;
+        }
+
+        #myOrderInput {
+            position: relative;
+            z-index: 2;
+            background-color: transparent;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #9c27b0;
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        .autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #f3e5f5;
+        }
+
+        .order-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .order-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #ffc107;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .order-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .order-item-left {
+            flex: 1;
+        }
+
+        .order-user {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 4px;
+        }
+
+        .order-text {
+            color: #666;
+            font-size: 20px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .order-text.empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .order-count {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin-left: 15px;
+        }
+        .menu-manager {
+            background: #f8f9fa;
+            border: 2px solid #9c27b0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .menu-manager.active {
+            display: block;
+        }
+        .menu-manager-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .menu-manager-input {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .menu-list {
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .menu-tag {
+            display: inline-block;
+            background: #9c27b0;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            margin: 4px;
+            cursor: pointer;
+        }
+        .menu-tag .delete-btn {
+            margin-left: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .sort-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .sort-button {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            color: #666;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .sort-button.active {
+            background: #9c27b0;
+            color: white;
+            border-color: #9c27b0;
+        }
+        .not-ordered-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #ddd;
+        }
+
+        .not-rolled-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 12px;
+        }
+
+        .not-rolled-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .spectator-orders-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .game-status {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .game-status.waiting {
+            background: #e9ecef;
+            color: #495057;
+        }
+        .game-status.ordering {
+            background: #fff9e6;
+            color: #856404;
+        }
+        .game-status.playing {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+
+    <!-- 이름 입력 (로그인 시 자동 설정, 숨김) -->
+    <input type="hidden" id="globalUserNameInput">
+
+    <div class="container">
+        <!-- 게임 섹션 -->
+        <section class="game-section" id="gameSection">
+            <!-- 방 정보 헤더 -->
+            <div class="room-header">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span class="room-title" id="roomTitle">인형뽑기 방</span>
+                    <span class="host-badge" id="hostBadge">👑 호스트</span>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; cursor: pointer; margin: 0;"><input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드</label>
+                </div>
+                <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #6c757d; margin-top: 10px;">🚪 나가기</button>
+            </div>
+
+            <!-- 방 폭파 카운트다운 -->
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
+                <div style="color: #856404; font-weight: bold; font-size: 14px;">
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: #d9534f;">--:--:--</span>
+                </div>
+            </div>
+
+            <!-- 접속자 목록 -->
+            <div class="users-section" id="usersSection">
+                <div class="users-title">
+                    👥 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: #9c27b0; margin-left: 10px; font-weight: normal;">💡 드래그하여 준비시키기</span>
+                </div>
+                <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- 준비 섹션 -->
+            <div class="ready-section" id="readySection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">준비</button>
+                </div>
+                <div class="users-list" id="readyUsersList">
+                    <div style="color: #999; text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 호스트 컨트롤 -->
+            <div class="host-controls" id="hostControls" style="display: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <button class="start-button" id="startCraneGameButton" onclick="startCraneGame()" disabled style="grid-column: 1 / -1;">
+                    🪄 인형뽑기 시작 (최소 2명 준비 필요)
+                </button>
+                <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">주문받기 시작</button>
+                <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">주문받기 종료</button>
+            </div>
+
+            <!-- 주문받기 섹션 -->
+            <div class="orders-section" id="ordersSection">
+                <div class="history-title-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="font-weight: bold; color: #9c27b0; font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, #9c27b0 0%, #ce93d8 100%);">📋 주문리스트 보기</button>
+                        <div class="sort-buttons">
+                            <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
+                            <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
+                            <button class="sort-button" id="sortOrderCountBtn" onclick="OrderModule.sortOrders('count')">주문 많은 순</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 주문하지 않은 사람 목록 -->
+                <div class="not-ordered-section" id="notOrderedSection" style="display: none;">
+                    <div class="not-rolled-title" style="margin-top: 15px;">⏳ 주문하지 않은 사람</div>
+                    <div class="not-rolled-list" id="notOrderedList"></div>
+                </div>
+
+                <!-- 내 주문 입력 -->
+                <div class="my-order-box">
+                    <div class="my-order-title">
+                        <span>📝</span>
+                        <span>내 주문</span>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: #f8f9fa; color: #9c27b0; border: 1px solid #9c27b0;">메뉴 관리</button>
+                    </div>
+
+                    <!-- 자주 쓰는 메뉴 관리 -->
+                    <div class="menu-manager" id="menuManager">
+                        <div class="menu-manager-title">
+                            <span>📋 자주 쓰는 메뉴</span>
+                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px;">닫기</button>
+                        </div>
+                        <div class="menu-manager-input">
+                            <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
+                            <button onclick="OrderModule.addMenu()" style="width: auto; padding: 12px 20px; height: fit-content;">추가</button>
+                        </div>
+                        <div class="menu-list" id="menuList"></div>
+                    </div>
+
+                    <div class="order-input-group">
+                        <div class="order-input-wrapper">
+                            <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
+                            <input
+                                type="text"
+                                id="myOrderInput"
+                                placeholder="주문할 내용을 입력하세요 (예: 오초, 오고)"
+                                maxlength="100"
+                                disabled
+                            />
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
+                        </div>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content;" disabled>저장</button>
+                    </div>
+                </div>
+
+                <!-- 전체 주문 목록 -->
+                <div class="order-list" id="orderList">
+                    <div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                </div>
+
+                <!-- 관전자 주문 목록 -->
+                <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
+                    <div class="users-title" style="margin-bottom: 15px; color: #999; font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                    <div class="order-list" id="spectatorOrderList"></div>
+                </div>
+            </div>
+
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus" style="padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; background: #e9ecef; color: #495057;">
+                대기 중...
+            </div>
+
+            <!-- 크레인 머신 컨테이너 (항상 표시) -->
+            <div class="crane-container" id="craneContainer" style="display: flex;">
+                <div class="crane-machine" id="craneMachine">
+                    <div class="crane-rail"></div>
+                    <div class="crane-assembly" id="craneAssembly">
+                        <div class="crane-arm" id="craneArm"></div>
+                        <div class="crane-fingers-wrapper" id="craneFingers">
+                            <div class="crane-finger"></div>
+                            <div class="crane-finger"></div>
+                        </div>
+                    </div>
+                    <div class="crane-glass"></div>
+                    <div class="dolls-grid" id="dollsGrid"></div>
+                    <div class="prize-chute" id="prizeChute"></div>
+                </div>
+            </div>
+
+            <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
+            <div id="endGameSection" style="display: none; text-align: center; margin-top: 20px;">
+                <button class="end-button" onclick="endCraneGameFull()">🏁 게임 종료</button>
+            </div>
+
+            <!-- 다시보기 버튼 -->
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);">
+                <div style="color: white; margin-bottom: 12px; font-size: 14px;">
+                    🎬 화면을 보지 않는 동안 인형뽑기가 진행되었습니다
+                </div>
+                <button onclick="replayCraneGame()" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
+                    🔄 다시보기
+                </button>
+            </div>
+
+            <!-- 채팅 섹션 -->
+            <div class="chat-section">
+                <div style="font-weight: bold; color: #9c27b0; margin-bottom: 10px;">💬 채팅</div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
+                    <button onclick="sendMessage()" style="width: auto; padding: 10px 20px;">전송</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 기록 섹션 -->
+    <div class="history-section" id="historySection">
+        <div class="history-title">📜 게임 기록</div>
+        <div id="historyList"></div>
+    </div>
+
+    <!-- 결과 오버레이 -->
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-card">
+            <div class="result-title">🧸 뽑기 성공! 🧸</div>
+            <div class="result-winner" id="resultWinner"></div>
+            <div class="result-winner-emoji" id="resultWinnerEmoji" style="font-size: 64px; margin-bottom: 10px;"></div>
+            <div class="result-message">축하합니다! 🎉</div>
+            <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px;">확인</button>
+        </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 -->
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+            <h3 style="color: #9c27b0; margin-bottom: 15px;">🔒 비공개 방</h3>
+            <p style="margin-bottom: 15px; color: #666;">비밀번호를 입력하세요</p>
+            <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closePasswordModal()" style="background: #6c757d; flex: 1;">취소</button>
+                <button onclick="submitPassword()" style="flex: 1;">입장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 디버그 로그 섹션 -->
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🪄 인형뽑기 디버그 로그</div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+            </div>
+        </div>
+        <div id="debugLogContent" style="line-height: 1.4;"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/page-history-shared.js"></script>
+    <script src="/assets/sounds/sound-manager.js"></script>
+    <script src="/chat-shared.js"></script>
+    <script src="/ready-shared.js"></script>
+    <script src="/order-shared.js"></script>
+    <script src="/ranking-shared.js"></script>
+    <script>
+        // 디버그 로그 함수 (localhost 등 로컬에서만 활성화, 포트 무관)
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
+        let debugLogEnabled = isLocalhost;
+        const MAX_LOG_LINES = 100;
+
+        // 로컬이 아니면 디버그 로그 섹션 숨기기
+        if (!isLocalhost) {
+            const debugLogSection = document.getElementById('debugLogSection');
+            if (debugLogSection) {
+                debugLogSection.style.display = 'none';
+            }
+        }
+
+        // 로컬에서는 방 제목 기본값을 "test"로 설정
+        if (isLocalhost) {
+            const roomNameInput = document.getElementById('createRoomNameInput');
+            if (roomNameInput) {
+                roomNameInput.value = 'test';
+            }
+        }
+
+        function addDebugLog(message, type = 'info') {
+            if (!debugLogEnabled) return;
+
+            const logSection = document.getElementById('debugLogSection');
+            const logContent = document.getElementById('debugLogContent');
+
+            if (!logSection || !logContent) return;
+
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+            const colors = {
+                'info': '#0f0',
+                'warn': '#ff0',
+                'error': '#f00',
+                'animation': '#0ff',
+                'gameEnd': '#f0f',
+                'visibility': '#ffa500'
+            };
+            const color = colors[type] || colors['info'];
+
+            const logLine = document.createElement('div');
+            logLine.innerHTML = `<span style="color: #888;">[${timestamp}]</span> <span style="color: ${color};">${message}</span>`;
+            logContent.appendChild(logLine);
+
+            // 최대 줄 수 제한
+            while (logContent.children.length > MAX_LOG_LINES) {
+                logContent.removeChild(logContent.firstChild);
+            }
+
+            // 자동 스크롤
+            logSection.scrollTop = logSection.scrollHeight;
+
+            // localhost일 때만 자동으로 보이기
+            if (isLocalhost && logSection.style.display === 'none') {
+                logSection.style.display = 'block';
+            }
+        }
+
+        function clearDebugLog() {
+            const logContent = document.getElementById('debugLogContent');
+            if (logContent) {
+                logContent.innerHTML = '';
+            }
+        }
+
+        function toggleDebugLog() {
+            const logSection = document.getElementById('debugLogSection');
+            if (logSection) {
+                logSection.style.display = logSection.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        // 커스텀 얼럿 함수
+        function showCustomAlert(message, type = 'info') {
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            let bgColor, borderColor, icon;
+            switch(type) {
+                case 'error':
+                    bgColor = '#fee';
+                    borderColor = '#f66';
+                    icon = '⚠️';
+                    break;
+                case 'warning':
+                    bgColor = '#fff9e6';
+                    borderColor = '#ffa500';
+                    icon = '⚠️';
+                    break;
+                case 'success':
+                    bgColor = '#e8f5e9';
+                    borderColor = '#4caf50';
+                    icon = '✅';
+                    break;
+                default:
+                    bgColor = '#e3f2fd';
+                    borderColor = '#2196f3';
+                    icon = 'ℹ️';
+            }
+
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.4); z-index: 10001;
+                display: flex; justify-content: center; align-items: center;
+                animation: fadeIn 0.2s ease-out;
+            `;
+
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `
+                background: white; border-radius: 16px; padding: 25px 30px;
+                max-width: 500px; width: 90vw;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                border: 2px solid ${borderColor};
+                animation: slideDown 0.3s ease-out;
+            `;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                font-size: 16px; line-height: 1.6; color: #333;
+                white-space: pre-wrap; word-break: break-word;
+                text-align: center; margin-bottom: 20px;
+            `;
+            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `
+                padding: 10px 30px;
+                background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                color: white; border: none; border-radius: 8px;
+                font-size: 16px; font-weight: 600; cursor: pointer;
+                width: 100%; transition: transform 0.1s, box-shadow 0.1s;
+            `;
+            confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+            confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+            confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
+
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+
+            alertOverlay.onclick = (e) => {
+                if (e.target === alertOverlay) {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+
+            alertContent.appendChild(messageDiv);
+            alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent);
+            document.body.appendChild(alertOverlay);
+            confirmButton.focus();
+        }
+
+        // 커스텀 확인 다이얼로그
+        function showCustomConfirm(message, type = 'warning') {
+            return new Promise((resolve) => {
+                const existingConfirm = document.getElementById('customConfirm');
+                if (existingConfirm) { existingConfirm.remove(); }
+
+                let bgColor, borderColor, icon;
+                switch(type) {
+                    case 'error': bgColor = '#fee'; borderColor = '#f66'; icon = '⚠️'; break;
+                    case 'warning': bgColor = '#fff9e6'; borderColor = '#ffa500'; icon = '⚠️'; break;
+                    case 'success': bgColor = '#e8f5e9'; borderColor = '#4caf50'; icon = '✅'; break;
+                    default: bgColor = '#e3f2fd'; borderColor = '#2196f3'; icon = 'ℹ️';
+                }
+
+                const confirmOverlay = document.createElement('div');
+                confirmOverlay.id = 'customConfirm';
+                confirmOverlay.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0, 0, 0, 0.4); z-index: 10002;
+                    display: flex; justify-content: center; align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+
+                const confirmContent = document.createElement('div');
+                confirmContent.style.cssText = `
+                    background: white; border-radius: 16px; padding: 25px 30px;
+                    max-width: 500px; width: 90vw;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid ${borderColor};
+                    animation: slideDown 0.3s ease-out;
+                `;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 16px; line-height: 1.6; color: #333;
+                    white-space: pre-wrap; word-break: break-word;
+                    text-align: center; margin-bottom: 25px;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `display: flex; gap: 10px; justify-content: center;`;
+
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 10px 25px; background: #f5f5f5; color: #666;
+                    border: 1px solid #ddd; border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                cancelButton.onmouseenter = () => { cancelButton.style.transform = 'scale(1.02)'; cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; };
+                cancelButton.onmouseleave = () => { cancelButton.style.transform = 'scale(1)'; cancelButton.style.boxShadow = 'none'; };
+                cancelButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(false); }, 200); };
+
+                const confirmButton = document.createElement('button');
+                confirmButton.textContent = '확인';
+                confirmButton.style.cssText = `
+                    padding: 10px 25px;
+                    background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                    color: white; border: none; border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+                confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+                confirmButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(true); }, 200); };
+
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+
+                confirmOverlay.onclick = (e) => {
+                    if (e.target === confirmOverlay) {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(confirmButton);
+                confirmContent.appendChild(messageDiv);
+                confirmContent.appendChild(buttonContainer);
+                confirmOverlay.appendChild(confirmContent);
+                document.body.appendChild(confirmOverlay);
+                cancelButton.focus();
+            });
+        }
+
+        // 플레이어 액션 선택 다이얼로그 (호스트임명, 제외시키기, 취소)
+        function showPlayerActionDialog(playerName) {
+            return new Promise((resolve) => {
+                const existingDialog = document.getElementById('playerActionDialog');
+                if (existingDialog) { existingDialog.remove(); }
+
+                const dialogOverlay = document.createElement('div');
+                dialogOverlay.id = 'playerActionDialog';
+                dialogOverlay.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0, 0, 0, 0.4); z-index: 10002;
+                    display: flex; justify-content: center; align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+
+                const dialogContent = document.createElement('div');
+                dialogContent.style.cssText = `
+                    background: white; border-radius: 16px; padding: 25px 30px;
+                    max-width: 500px; width: 90vw;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid #ffa500;
+                    animation: slideDown 0.3s ease-out;
+                `;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 18px; line-height: 1.6; color: #333;
+                    white-space: pre-wrap; word-break: break-word;
+                    text-align: center; margin-bottom: 25px; font-weight: 600;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `display: flex; flex-direction: column; gap: 12px;`;
+
+                const hostButton = document.createElement('button');
+                hostButton.textContent = '호스트임명';
+                hostButton.style.cssText = `
+                    padding: 12px 25px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white; border: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600; cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                `;
+                hostButton.onmouseenter = () => { hostButton.style.transform = 'scale(1.02)'; hostButton.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)'; };
+                hostButton.onmouseleave = () => { hostButton.style.transform = 'scale(1)'; hostButton.style.boxShadow = 'none'; };
+                hostButton.onclick = () => { dialogOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('host'); }, 200); };
+
+                const kickButton = document.createElement('button');
+                kickButton.textContent = '제외시키기';
+                kickButton.style.cssText = `
+                    padding: 12px 25px;
+                    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                    color: white; border: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600; cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                `;
+                kickButton.onmouseenter = () => { kickButton.style.transform = 'scale(1.02)'; kickButton.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)'; };
+                kickButton.onmouseleave = () => { kickButton.style.transform = 'scale(1)'; kickButton.style.boxShadow = 'none'; };
+                kickButton.onclick = () => { dialogOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('kick'); }, 200); };
+
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 12px 25px; background: #f5f5f5; color: #666;
+                    border: 1px solid #ddd; border-radius: 8px;
+                    font-size: 16px; font-weight: 600; cursor: pointer;
+                    transition: transform 0.1s, box-shadow 0.1s;
+                `;
+                cancelButton.onmouseenter = () => { cancelButton.style.transform = 'scale(1.02)'; cancelButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; };
+                cancelButton.onmouseleave = () => { cancelButton.style.transform = 'scale(1)'; cancelButton.style.boxShadow = 'none'; };
+                cancelButton.onclick = () => { dialogOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); }, 200); };
+
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        dialogOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+
+                dialogOverlay.onclick = (e) => {
+                    if (e.target === dialogOverlay) {
+                        dialogOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); }, 200);
+                    }
+                };
+
+                buttonContainer.appendChild(hostButton);
+                buttonContainer.appendChild(kickButton);
+                buttonContainer.appendChild(cancelButton);
+                dialogContent.appendChild(messageDiv);
+                dialogContent.appendChild(buttonContainer);
+                dialogOverlay.appendChild(dialogContent);
+                document.body.appendChild(dialogOverlay);
+                hostButton.focus();
+            });
+        }
+
+        // 소켓 연결
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000
+        });
+        let currentServerId = null;
+        let currentServerName = null;
+
+        // 직접 URL 접속 차단 + 새로고침 시 재입장 지원
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromDice = urlParams.get('createRoom') === 'true' || urlParams.get('joinRoom') === 'true';
+
+            // 새로고침: sessionStorage에 방 정보가 있으면 재입장
+            const activeRoom = sessionStorage.getItem('craneGameActiveRoom');
+            if (!fromDice && activeRoom) {
+                try {
+                    const rd = JSON.parse(activeRoom);
+                    currentServerId = rd.serverId || null;
+                    currentServerName = rd.serverName || null;
+                    if (currentServerId) {
+                        socket.emit('setServerId', { serverId: currentServerId });
+                    }
+                    if (rd.serverName) {
+                        document.title = `${rd.serverName} - LAM Crane Game`;
+                    }
+                    socket.on('connect', function onReconnect() {
+                        socket.off('connect', onReconnect);
+                        socket.emit('joinRoom', {
+                            roomId: rd.roomId,
+                            userName: rd.userName,
+                            isHost: false,
+                            password: '',
+                            deviceId: getDeviceId(),
+                            tabId: getTabId()
+                        });
+                    });
+                } catch(e) {
+                    sessionStorage.removeItem('craneGameActiveRoom');
+                    window.location.replace('/game');
+                }
+                return;
+            }
+
+            if (!fromDice) {
+                window.location.replace('/game');
+                return;
+            }
+            const pending = localStorage.getItem('pendingCraneGameRoom') || localStorage.getItem('pendingCraneGameJoin');
+            if (pending) {
+                try {
+                    const pd = JSON.parse(pending);
+                    currentServerId = pd.serverId || null;
+                    currentServerName = pd.serverName || null;
+                    if (currentServerId) {
+                        socket.emit('setServerId', { serverId: currentServerId });
+                        if (pd.serverName) {
+                            document.title = `${pd.serverName} - LAM Crane Game`;
+                        }
+                    }
+                } catch(e) {}
+            }
+        })();
+
+        // 채팅 모듈 초기화 (roomCreated/roomJoined 후 호출)
+        let chatModuleInitialized = false;
+        function initChatModule() {
+            if (chatModuleInitialized) return;
+            chatModuleInitialized = true;
+            ChatModule.init(socket, currentUser, {
+                themeColor: '#9c27b0',
+                myColor: '#2e7d32',
+                myBgColor: '#e8f5e9',
+                myBorderColor: '#4caf50',
+                messageFilter: (data) => {
+                    // 인형뽑기 당첨 메시지 스포일러 방지
+                    if (data.isCraneGameWinner) {
+                        if (document.visibilityState !== 'visible') {
+                            addDebugLog(`🔇 인형뽑기 당첨 메시지 숨김 (화면 NOT visible) - winner: ${data.message}`, 'visibility');
+                            return false;
+                        }
+                        if (missedCraneGame) {
+                            addDebugLog(`🔇 인형뽑기 당첨 메시지 숨김 (다시보기 대기중) - winner: ${data.message}`, 'visibility');
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                beforeDisplay: (data) => {
+                    // 말풍선 시스템: 채팅 메시지가 오면 해당 인형 위에 말풍선 표시
+                    if (data.userName && !data.isSystem && dollsRendered) {
+                        showSpeechBubble(data.userName, data.message);
+                    }
+                },
+                getRoomUsers: () => users
+            });
+        }
+
+        // 글로벌 함수 (HTML onclick에서 호출)
+        function sendMessage() { ChatModule.sendMessage(); }
+        function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
+        function uploadImage() {
+            ChatModule.showImageUploadModal((imageData, caption) => {
+                socket.emit('sendImage', { imageData, caption });
+            });
+        }
+
+        let readyModuleInitialized = false;
+        function initReadyModule() {
+            if (readyModuleInitialized) return;
+            readyModuleInitialized = true;
+            ReadyModule.init(socket, currentUser, {
+                isHost: isHost,
+                isGameActive: () => isAnimating,
+                beforeToggle: () => CraneSound.ensureContext(),
+                onReadyChanged: (users) => {
+                    readyUsers = users;
+                },
+                onRenderComplete: (users) => {
+                    updateStartButton();
+                    if (!isAnimating) {
+                        updateCranePreview();
+                    }
+                },
+                onError: (message) => {
+                    alert(message);
+                    addDebugLog(`❌ 준비 에러: ${message}`, 'error');
+                }
+            });
+        }
+
+        let orderModuleInitialized = false;
+        function initOrderModule() {
+            if (orderModuleInitialized) return;
+            orderModuleInitialized = true;
+            OrderModule.init(socket, currentUser, {
+                isHost: () => isHost,
+                isGameActive: () => isAnimating,
+                getEverPlayedUsers: () => everPlayedUsers,
+                getUsersList: () => currentUsers,
+                showCustomAlert: (msg, type) => alert(msg),
+                onOrderStarted: () => { isOrderActive = true; },
+                onOrderEnded: () => { isOrderActive = false; },
+                onOrdersUpdated: (data) => { ordersData = data; },
+            });
+        }
+
+        // 탭 세션 ID (새로고침: 유지, 새 탭: 새로 생성)
+        if (!sessionStorage.getItem('tabId')) {
+            sessionStorage.setItem('tabId', Math.random().toString(36).substr(2, 9) + Date.now());
+        }
+        function getTabId() { return sessionStorage.getItem('tabId'); }
+
+        // 상태 변수
+        let currentRoomId = null;
+        let currentUser = '';
+        let isHost = false;
+        let isReady = false;
+        let readyUsers = [];
+        let craneGameHistory = [];
+        let isAnimating = false;
+        let roomExpiryInterval = null;
+        let pendingRoomId = null;
+        let isOrderActive = false;
+        let pendingCraneGameData = null;
+        let craneGameFocusHandler = null;
+        let craneGameResultShown = false;
+        let lastCraneGameData = null;
+        let missedCraneGame = false;
+        let everPlayedUsers = [];
+        let dollsRendered = false;
+        let currentDollMap = {};
+        let pendingUserName = null;
+
+        // 인형 색상 및 이모지
+        const DOLL_COLORS = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+            '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+            '#BB8FCE', '#85C1E9', '#82E0AA', '#F8C471',
+            '#D7BDE2', '#AED6F1', '#A3E4D7', '#FAD7A0'
+        ];
+        const DOLL_EMOJIS = ['🧸', '🐻', '🐰', '🦊', '🐱', '🐶', '🐼', '🦁', '🐸', '🐧', '🦄', '🐹', '🐮', '🐷', '🐵', '🦋'];
+
+        // 사운드 볼륨 관리
+        const CRANE_SOUND_KEY = 'craneGameSoundEnabled';
+        const CRANE_VOLUME_KEY = 'craneGameSoundVolume';
+        var craneMasterVolume = 0;
+        var craneStoredVolume = 0.5;
+
+        function getCraneSoundEnabled() { return craneMasterVolume > 0; }
+        function getCraneMasterVolume() { return craneMasterVolume; }
+
+        function initCraneVolumeFromStorage() {
+            const storedMuted = localStorage.getItem(CRANE_SOUND_KEY);
+            const storedVolume = localStorage.getItem(CRANE_VOLUME_KEY);
+            craneStoredVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
+            const isEnabled = storedMuted === 'true';
+            craneMasterVolume = isEnabled ? craneStoredVolume : 0;
+        }
+
+        function updateCraneVolumeUI() {
+            const isMuted = craneMasterVolume === 0;
+            const volumePercent = Math.round(craneStoredVolume * 100);
+            const btn = document.getElementById('volumeBtn');
+            const slider = document.getElementById('volumeSlider');
+            if (btn) btn.textContent = isMuted ? '🔇' : (craneMasterVolume < 0.5 ? '🔈' : '🔊');
+            if (slider) {
+                slider.value = volumePercent;
+                slider.classList.toggle('muted', isMuted);
+            }
+        }
+
+        function toggleCraneMute() {
+            if (craneMasterVolume > 0) {
+                craneMasterVolume = 0;
+                localStorage.setItem(CRANE_SOUND_KEY, 'false');
+            } else {
+                craneMasterVolume = craneStoredVolume;
+                localStorage.setItem(CRANE_SOUND_KEY, 'true');
+            }
+            updateCraneVolumeUI();
+        }
+
+        function setCraneMasterVolume(volumePercent) {
+            const vol = volumePercent / 100;
+            craneStoredVolume = vol;
+            craneMasterVolume = vol;
+            localStorage.setItem(CRANE_VOLUME_KEY, vol.toString());
+            localStorage.setItem(CRANE_SOUND_KEY, vol > 0 ? 'true' : 'false');
+            updateCraneVolumeUI();
+        }
+
+        // 크레인 사운드 (Web Audio API)
+        const CraneSound = {
+            audioCtx: null,
+            init() {
+                if (this.audioCtx) return this.audioCtx;
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                return this.audioCtx;
+            },
+            ensureContext() {
+                if (!this.audioCtx) this.init();
+                if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+            },
+            playMotor() {
+                if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                const vol = getCraneMasterVolume();
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = 120;
+                gain.gain.setValueAtTime(0.06 * vol, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(this.audioCtx.currentTime);
+                osc.stop(this.audioCtx.currentTime + 0.15);
+            },
+            playGrab() {
+                if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                const vol = getCraneMasterVolume();
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = 200;
+                gain.gain.setValueAtTime(0.1 * vol, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(this.audioCtx.currentTime);
+                osc.stop(this.audioCtx.currentTime + 0.3);
+            },
+            playDrop() {
+                if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                const vol = getCraneMasterVolume();
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.15 * vol, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(this.audioCtx.currentTime);
+                osc.stop(this.audioCtx.currentTime + 0.3);
+            },
+            playWinner() {
+                if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                const vol = getCraneMasterVolume();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                const gain = this.audioCtx.createGain();
+                gain.gain.setValueAtTime(0.25 * vol, this.audioCtx.currentTime);
+                gain.connect(this.audioCtx.destination);
+                notes.forEach((freq, i) => {
+                    const osc = this.audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    osc.connect(gain);
+                    osc.start(this.audioCtx.currentTime + i * 0.12);
+                    osc.stop(this.audioCtx.currentTime + i * 0.12 + 0.25);
+                });
+            }
+        };
+
+        // 디바이스 ID 생성/가져오기
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('craneGameDeviceId');
+            if (!deviceId) {
+                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('craneGameDeviceId', deviceId);
+            }
+            return deviceId;
+        }
+
+        // 비밀번호 모달 닫기
+        function closePasswordModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+            document.getElementById('roomPasswordInput').value = '';
+            pendingRoomId = null;
+            pendingUserName = null;
+        }
+
+        // 비밀번호 제출
+        function submitPassword() {
+            const password = document.getElementById('roomPasswordInput').value;
+            if (pendingRoomId && pendingUserName) {
+                socket.emit('joinRoom', {
+                    roomId: pendingRoomId,
+                    userName: pendingUserName,
+                    isHost: false,
+                    password: password,
+                    deviceId: getDeviceId(),
+                    tabId: getTabId()
+                });
+            }
+            closePasswordModal();
+        }
+
+        // 방 나가기
+        function leaveRoom() {
+            if (confirm('방을 나가시겠습니까?')) {
+                socket.emit('leaveRoom');
+            }
+        }
+
+        // 준비 함수 (ReadyModule 위임)
+        function toggleReady() { ReadyModule.toggleReady(); }
+        function updateReadyButton() { ReadyModule.updateReadyButton(); }
+        function renderReadyUsers() { ReadyModule.renderReadyUsers(); }
+
+        // 크레인 머신 미리보기 업데이트
+        function updateCranePreview() {
+            if (readyUsers.length >= 1) {
+                renderDolls(readyUsers);
+            } else {
+                const grid = document.getElementById('dollsGrid');
+                grid.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; font-size: 14px;">준비한 사람이<br>없습니다</div>';
+                dollsRendered = false;
+            }
+        }
+
+        // 시작 버튼 상태 업데이트
+        function updateStartButton() {
+            const btn = document.getElementById('startCraneGameButton');
+            if (btn && isHost) {
+                if (readyUsers.length >= 2 && !isAnimating) {
+                    btn.disabled = false;
+                    btn.textContent = '🪄 인형뽑기 시작!';
+                } else {
+                    btn.disabled = true;
+                    btn.textContent = `🪄 인형뽑기 시작 (${readyUsers.length}/2명 준비)`;
+                }
+            }
+        }
+
+        // 인형뽑기 시작
+        function startCraneGame() {
+            if (readyUsers.length < 2) {
+                alert('최소 2명이 준비해야 시작할 수 있습니다!');
+                return;
+            }
+            CraneSound.ensureContext();
+            socket.emit('startCraneGame');
+        }
+
+        // 인형 렌더링
+        function renderDolls(participants) {
+            const grid = document.getElementById('dollsGrid');
+            grid.innerHTML = '';
+            currentDollMap = {};
+            dollsRendered = false;
+
+            participants.forEach((name, idx) => {
+                const doll = document.createElement('div');
+                doll.className = 'doll';
+                doll.setAttribute('data-player', name);
+                doll.style.animationDelay = `${idx * 0.2}s`;
+
+                const body = document.createElement('div');
+                body.className = 'doll-body';
+                body.style.background = DOLL_COLORS[idx % DOLL_COLORS.length];
+                body.textContent = DOLL_EMOJIS[idx % DOLL_EMOJIS.length];
+
+                const nameEl = document.createElement('div');
+                nameEl.className = 'doll-name';
+                nameEl.textContent = name.length > 6 ? name.substring(0, 6) + '..' : name;
+
+                doll.appendChild(body);
+                doll.appendChild(nameEl);
+                grid.appendChild(doll);
+
+                currentDollMap[name] = {
+                    element: doll,
+                    emoji: DOLL_EMOJIS[idx % DOLL_EMOJIS.length],
+                    color: DOLL_COLORS[idx % DOLL_COLORS.length],
+                    index: idx
+                };
+            });
+
+            dollsRendered = true;
+        }
+
+        // 말풍선 표시
+        function showSpeechBubble(userName, message) {
+            if (!currentDollMap[userName]) return;
+            const dollEl = currentDollMap[userName].element;
+            if (!dollEl) return;
+
+            // 기존 말풍선 제거
+            const existing = dollEl.querySelector('.speech-bubble');
+            if (existing) existing.remove();
+
+            const bubble = document.createElement('div');
+            bubble.className = 'speech-bubble';
+            bubble.textContent = message.length > 15 ? message.substring(0, 15) + '...' : message;
+            dollEl.appendChild(bubble);
+
+            // 4초 후 제거
+            setTimeout(() => {
+                bubble.classList.add('fading');
+                setTimeout(() => {
+                    if (bubble.parentNode) bubble.remove();
+                }, 500);
+            }, 3500);
+        }
+
+        // 크레인 애니메이션 실행
+        function playClawAnimation(data, callback) {
+            const { participants, winnerIndex, winner, animParams } = data;
+            const assembly = document.getElementById('craneAssembly');
+            const arm = document.getElementById('craneArm');
+            const fingers = document.getElementById('craneFingers');
+            const machine = document.getElementById('craneMachine');
+            const grid = document.getElementById('dollsGrid');
+            const chute = document.getElementById('prizeChute');
+
+            const params = animParams || {};
+            const clawMoveDelay = params.clawMoveDelay || 500;
+            const horizontalDuration = params.horizontalDuration || 1200;
+            const descendDuration = params.descendDuration || 800;
+            const grabPauseDuration = params.grabPauseDuration || 600;
+            const liftDuration = params.liftDuration || 800;
+            const dropDuration = params.dropDuration || 500;
+            const fakeOuts = params.fakeOuts || [];
+            const fakeOutPause = params.fakeOutPause || 400;
+
+            // Phase 0: Render dolls
+            renderDolls(participants);
+
+            // Reset crane position
+            assembly.style.transition = 'none';
+            assembly.style.left = '50%';
+            arm.style.transition = 'none';
+            arm.style.height = '40px';
+            fingers.style.transition = 'none';
+            fingers.style.gap = '12px';
+
+            // Force reflow
+            assembly.offsetHeight;
+
+            // Phase 1: Open fingers wide
+            setTimeout(() => {
+                fingers.style.transition = 'gap 0.4s ease-in-out';
+                fingers.style.gap = '20px';
+                CraneSound.playMotor();
+            }, 300);
+
+            // Phase 2: Move claw horizontally with fake-outs
+            setTimeout(() => {
+                const machineRect = machine.getBoundingClientRect();
+                const railLeft = 20;
+                const railRight = machineRect.width - 20;
+
+                // Get all doll positions
+                const dollElements = grid.querySelectorAll('.doll');
+                const dollPositions = [];
+                dollElements.forEach((d, i) => {
+                    const rect = d.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2 - machineRect.left;
+                    dollPositions.push(centerX);
+                });
+
+                const winnerX = dollPositions[winnerIndex] || (machineRect.width / 2);
+
+                // Execute fake-outs then move to winner
+                let totalFakeOutTime = 0;
+                const executeFakeOuts = (index) => {
+                    if (index >= fakeOuts.length) {
+                        // Finally move to winner
+                        assembly.style.transition = `left ${horizontalDuration}ms ease-in-out`;
+                        assembly.style.left = winnerX + 'px';
+                        CraneSound.playMotor();
+                        return;
+                    }
+
+                    const fakeTarget = fakeOuts[index];
+                    const fakeX = dollPositions[fakeTarget] || (machineRect.width * (fakeTarget + 0.5) / participants.length);
+                    const moveDuration = 600;
+
+                    assembly.style.transition = `left ${moveDuration}ms ease-in-out`;
+                    assembly.style.left = fakeX + 'px';
+                    CraneSound.playMotor();
+
+                    setTimeout(() => {
+                        executeFakeOuts(index + 1);
+                    }, moveDuration + fakeOutPause);
+
+                    totalFakeOutTime += moveDuration + fakeOutPause;
+                };
+
+                executeFakeOuts(0);
+
+                // Phase 3: Descend after horizontal movement completes
+                const totalHorizontalTime = (fakeOuts.length * (600 + fakeOutPause)) + horizontalDuration;
+
+                setTimeout(() => {
+                    // Phase 3: Descend
+                    arm.style.transition = `height ${descendDuration}ms ease-in-out`;
+                    const targetDoll = dollElements[winnerIndex];
+                    let targetHeight = 200;
+                    if (targetDoll) {
+                        const dollRect = targetDoll.getBoundingClientRect();
+                        const armTop = assembly.getBoundingClientRect().top + arm.offsetHeight;
+                        targetHeight = Math.max(80, dollRect.top - armTop + 20);
+                    }
+                    arm.style.height = targetHeight + 'px';
+                    CraneSound.playMotor();
+
+                    // Phase 4: Close fingers and grab
+                    setTimeout(() => {
+                        fingers.style.transition = 'gap 0.4s ease-in-out';
+                        fingers.style.gap = '2px';
+                        CraneSound.playGrab();
+
+                        if (targetDoll) {
+                            targetDoll.classList.add('grabbed');
+                        }
+
+                        // Phase 5: Lift up
+                        setTimeout(() => {
+                            arm.style.transition = `height ${liftDuration}ms ease-in-out`;
+                            arm.style.height = '40px';
+
+                            // Make grabbed doll follow
+                            if (targetDoll) {
+                                targetDoll.style.transition = `transform ${liftDuration}ms ease-in-out, opacity ${liftDuration}ms`;
+                                targetDoll.style.transform = 'translateY(-200px) scale(0.6)';
+                                targetDoll.style.opacity = '0';
+                            }
+
+                            // Phase 6: Move to center (prize chute)
+                            setTimeout(() => {
+                                const chuteRect = chute.getBoundingClientRect();
+                                const chuteX = chuteRect.left + chuteRect.width / 2 - machineRect.left;
+                                assembly.style.transition = 'left 800ms ease-in-out';
+                                assembly.style.left = chuteX + 'px';
+                                CraneSound.playMotor();
+
+                                // Phase 7: Open fingers and drop
+                                setTimeout(() => {
+                                    fingers.style.transition = 'gap 0.3s ease-in-out';
+                                    fingers.style.gap = '20px';
+                                    CraneSound.playDrop();
+
+                                    // Show prize in chute
+                                    const winnerEmoji = DOLL_EMOJIS[winnerIndex % DOLL_EMOJIS.length];
+                                    const prizeEl = document.createElement('div');
+                                    prizeEl.className = 'prize-in-chute';
+                                    prizeEl.textContent = winnerEmoji;
+                                    chute.appendChild(prizeEl);
+
+                                    // Phase 8: Show result
+                                    setTimeout(() => {
+                                        if (callback) callback();
+                                    }, dropDuration);
+                                }, 500);
+                            }, liftDuration);
+                        }, grabPauseDuration);
+                    }, descendDuration);
+                }, totalHorizontalTime);
+            }, clawMoveDelay);
+        }
+
+        // 접속자 목록 업데이트
+        let currentUsers = [];
+
+        function updateUsers(users) {
+            currentUsers = users;
+            const usersList = document.getElementById('usersList');
+            const usersCount = document.getElementById('usersCount');
+
+            if (!usersList || !usersCount) return;
+
+            usersCount.textContent = users.length;
+            usersList.innerHTML = '';
+
+            users.forEach(user => {
+                const tag = document.createElement('div');
+                tag.className = 'user-tag' + (user.isHost ? ' host' : '');
+
+                let content = user.name;
+                if (user.isHost) { content += ' 👑'; }
+                if (user.name === currentUser) { content += ' (나)'; }
+                tag.textContent = content;
+
+                // 호스트가 다른 사용자를 클릭하면 액션 선택 다이얼로그 표시
+                if (isHost && user.name !== currentUser) {
+                    tag.style.cursor = 'pointer';
+                    tag.title = '클릭하여 호스트임명 또는 제외';
+
+                    let isDragging = false;
+                    let mouseDownTime = 0;
+                    let mouseDownPos = { x: 0, y: 0 };
+
+                    tag.addEventListener('mousedown', (e) => { isDragging = false; mouseDownTime = Date.now(); mouseDownPos = { x: e.clientX, y: e.clientY }; });
+                    tag.addEventListener('mousemove', (e) => {
+                        if (mouseDownTime > 0) {
+                            const dx = Math.abs(e.clientX - mouseDownPos.x);
+                            const dy = Math.abs(e.clientY - mouseDownPos.y);
+                            if (dx > 5 || dy > 5) { isDragging = true; }
+                        }
+                    });
+                    tag.addEventListener('click', (e) => {
+                        if (!isDragging && Date.now() - mouseDownTime < 300) {
+                            e.stopPropagation();
+                            showPlayerActionDialog(user.name).then(action => {
+                                if (action === 'host') {
+                                    socket.emit('transferHost', user.name);
+                                } else if (action === 'kick') {
+                                    showCustomConfirm(`${user.name}님을 게임에서 제외하시겠습니까?`, 'warning').then(result => {
+                                        if (result) { socket.emit('kickPlayer', user.name); }
+                                    });
+                                }
+                            });
+                        }
+                        isDragging = false;
+                        mouseDownTime = 0;
+                    });
+                }
+
+                // 호스트이고 게임 진행 중이 아닐 때 드래그 가능
+                if (isHost && !isAnimating) {
+                    tag.draggable = true;
+                    if (user.name !== currentUser) { tag.style.cursor = 'grab'; }
+                    tag.setAttribute('data-user-name', user.name);
+                    tag.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', user.name); e.dataTransfer.setData('source', 'users'); tag.style.opacity = '0.5'; });
+                    tag.addEventListener('dragend', (e) => { tag.style.opacity = '1'; });
+                }
+
+                usersList.appendChild(tag);
+            });
+
+            // 드래그 앤 드롭 설정
+            if (isHost && !isAnimating) { setupDragAndDrop(); }
+        }
+
+        // 드래그 앤 드롭 설정
+        function setupDragAndDrop() {
+            const readyUsersList = document.getElementById('readyUsersList');
+            const readySection = document.getElementById('readySection');
+
+            if (!readyUsersList || !readySection) return;
+
+            readyUsersList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                readyUsersList.style.backgroundColor = 'rgba(156, 39, 176, 0.1)';
+                readyUsersList.style.border = '2px dashed #9c27b0';
+            });
+
+            readyUsersList.addEventListener('dragleave', (e) => {
+                readyUsersList.style.backgroundColor = '';
+                readyUsersList.style.border = '';
+            });
+
+            readyUsersList.addEventListener('drop', (e) => {
+                e.preventDefault();
+                readyUsersList.style.backgroundColor = '';
+                readyUsersList.style.border = '';
+
+                if (!isHost || isAnimating) return;
+
+                const userName = e.dataTransfer.getData('text/plain');
+                const source = e.dataTransfer.getData('source');
+
+                if (source === 'users' && userName) {
+                    if (!readyUsers.includes(userName)) {
+                        socket.emit('setUserReady', { userName: userName, isReady: true });
+                    }
+                }
+            });
+        }
+
+        // 채팅 메시지 추가
+        function getDeviceIcon(deviceType) {
+            if (!deviceType) return '';
+            if (deviceType === 'iOS') return '🍎';
+            if (deviceType === 'Android') return '📱';
+            if (deviceType === 'PC') return '💻';
+            return '';
+        }
+
+        function addChatMessage(data) {
+            ChatModule.displayChatMessage(data);
+        }
+
+        // 기록 렌더링
+        function renderHistory() {
+            const historyList = document.getElementById('historyList');
+            if (!historyList) return;
+
+            if (craneGameHistory.length === 0) {
+                historyList.innerHTML = '<div style="color: #999; text-align: center;">아직 기록이 없습니다</div>';
+                return;
+            }
+
+            historyList.innerHTML = '';
+
+            craneGameHistory.slice().reverse().forEach(record => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <div class="history-round">${record.round}라운드 (${record.time})</div>
+                    <div class="history-participants">참가자: ${record.participants.join(', ')}</div>
+                    <div class="history-winner">🧸 당첨: ${record.winner}</div>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+
+        // 게임 종료
+        function endCraneGameFull() {
+            socket.emit('endCraneGame');
+        }
+
+        // 다시보기
+        function replayCraneGame() {
+            if (!lastCraneGameData) {
+                addDebugLog('⚠️ 다시보기 데이터가 없습니다', 'warn');
+                return;
+            }
+
+            addDebugLog(`🔄 다시보기 시작 - winner: ${lastCraneGameData.winner}, missedCraneGame: ${missedCraneGame}`, 'info');
+
+            document.getElementById('replaySection').style.display = 'none';
+
+            const data = lastCraneGameData;
+            const wasMissed = missedCraneGame;
+
+            document.getElementById('startCraneGameButton').disabled = true;
+            document.getElementById('startCraneGameButton').textContent = '🎬 다시보기 중...';
+
+            // Reset crane machine
+            resetCraneMachine();
+
+            isAnimating = true;
+            craneGameResultShown = false;
+
+            setTimeout(() => {
+                playClawAnimation(data, () => {
+                    addDebugLog('✅ 다시보기 애니메이션 완료', 'animation');
+
+                    isAnimating = false;
+                    craneGameResultShown = true;
+
+                    // 결과 오버레이 표시
+                    const winnerEmoji = DOLL_EMOJIS[data.winnerIndex % DOLL_EMOJIS.length];
+                    document.getElementById('resultWinnerEmoji').textContent = winnerEmoji;
+                    document.getElementById('resultWinner').textContent = data.winner;
+                    document.getElementById('resultOverlay').classList.add('visible');
+                    if (data.winner === currentUser) CraneSound.playWinner();
+                    addDebugLog(`🧸 다시보기 결과 표시 - winner: ${data.winner}`, 'gameEnd');
+
+                    document.getElementById('readySection').style.display = 'block';
+                    document.getElementById('startCraneGameButton').disabled = false;
+                    document.getElementById('startCraneGameButton').textContent = '🪄 인형뽑기 시작';
+
+                    if (isHost) { document.getElementById('endGameSection').style.display = 'block'; }
+
+                    if (wasMissed) {
+                        const winnerMessage = {
+                            userName: '시스템',
+                            message: `🧸🎉 축하합니다! ${data.winner}님이 뽑혔습니다! 🎉🧸`,
+                            timestamp: new Date().toISOString(),
+                            isSystem: true,
+                            isCraneGameWinner: true
+                        };
+                        addChatMessage(winnerMessage);
+
+                        if (data.record) {
+                            const existingRecord = craneGameHistory.find(r => r.round === data.record.round);
+                            if (!existingRecord) {
+                                craneGameHistory.push(data.record);
+                                renderHistory();
+                            }
+                        }
+                        addDebugLog(`📢 다시보기 채팅 및 기록 표시 완료 (놓친 인형뽑기)`, 'info');
+                    } else {
+                        addDebugLog(`📢 다시보기 완료 (이미 본 인형뽑기)`, 'info');
+                    }
+
+                    missedCraneGame = false;
+                    showReplayButton();
+                });
+            }, 50);
+        }
+
+        // 크레인 머신 리셋
+        function resetCraneMachine() {
+            const assembly = document.getElementById('craneAssembly');
+            const arm = document.getElementById('craneArm');
+            const fingers = document.getElementById('craneFingers');
+            const chute = document.getElementById('prizeChute');
+
+            assembly.style.transition = 'none';
+            assembly.style.left = '50%';
+            arm.style.transition = 'none';
+            arm.style.height = '40px';
+            fingers.style.transition = 'none';
+            fingers.style.gap = '12px';
+
+            // Clear prize from chute
+            const prizes = chute.querySelectorAll('.prize-in-chute');
+            prizes.forEach(p => p.remove());
+
+            assembly.offsetHeight;
+        }
+
+        // 다시보기 버튼 표시 함수
+        function showReplayButton() {
+            if (lastCraneGameData) {
+                const replaySection = document.getElementById('replaySection');
+                const replayMessage = replaySection.querySelector('div');
+                if (replayMessage) { replayMessage.textContent = '🎬 마지막 인형뽑기 다시보기'; }
+                replaySection.style.display = 'block';
+            }
+        }
+
+        // 결과 오버레이 닫기
+        function closeResultOverlay() {
+            document.getElementById('resultOverlay').classList.remove('visible');
+        }
+
+        // 방 폭파 카운트다운
+        function startRoomExpiryCountdown(createdAt, expiryHours) {
+            if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
+
+            const expirySection = document.getElementById('roomExpirySection');
+            const countdownElement = document.getElementById('roomExpiryCountdown');
+
+            if (!expirySection || !countdownElement) return;
+
+            expirySection.style.display = 'block';
+
+            function updateCountdown() {
+                const now = new Date();
+                const createdAtDate = new Date(createdAt);
+                const expiryTime = createdAtDate.getTime() + (expiryHours * 60 * 60 * 1000);
+                const remaining = expiryTime - now.getTime();
+
+                if (remaining <= 0) {
+                    countdownElement.textContent = '00:00:00';
+                    if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
+                    return;
+                }
+
+                const hours = Math.floor(remaining / (1000 * 60 * 60));
+                const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+                countdownElement.textContent =
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            updateCountdown();
+            roomExpiryInterval = setInterval(updateCountdown, 1000);
+        }
+
+        // 게임 화면 초기화
+        function initializeGameScreen(data) {
+            document.getElementById('roomTitle').textContent = data.roomName || '인형뽑기 방';
+
+            if (data.createdAt && data.expiryHours) {
+                startRoomExpiryCountdown(data.createdAt, data.expiryHours);
+            }
+
+            // 사용자 목록 초기화
+            if (data.gameState && data.gameState.users) {
+                currentUsers = data.gameState.users;
+            }
+
+            // 누적 참여자 목록 복원
+            if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
+                everPlayedUsers = [...data.everPlayedUsers];
+            } else if (data.gameState && data.gameState.everPlayedUsers && Array.isArray(data.gameState.everPlayedUsers)) {
+                everPlayedUsers = [...data.gameState.everPlayedUsers];
+            } else {
+                everPlayedUsers = [];
+            }
+
+            // 주문받기 상태 초기화
+            isOrderActive = data.isOrderActive || false;
+            OrderModule.setIsOrderActive(isOrderActive);
+            ordersData = data.userOrders || {};
+            OrderModule.setOrdersData(ordersData);
+
+            // 내 주문 불러오기
+            const myOrderInput = document.getElementById('myOrderInput');
+            if (myOrderInput && data.myOrder) { myOrderInput.value = data.myOrder; }
+
+            // 호스트 UI 설정
+            if (isHost) {
+                document.getElementById('hostBadge').style.display = 'inline-block';
+                document.getElementById('hostControls').style.display = 'block';
+                const dragHint = document.getElementById('dragHint');
+                if (dragHint) dragHint.style.display = 'inline';
+
+                if (isOrderActive) {
+                    document.getElementById('startOrderButton').style.display = 'none';
+                    document.getElementById('endOrderButton').style.display = 'block';
+                } else {
+                    document.getElementById('startOrderButton').style.display = 'block';
+                    document.getElementById('endOrderButton').style.display = 'none';
+                }
+            } else {
+                document.getElementById('hostBadge').style.display = 'none';
+                document.getElementById('hostControls').style.display = 'none';
+                const dragHint = document.getElementById('dragHint');
+                if (dragHint) dragHint.style.display = 'none';
+            }
+
+            // 주문받기 섹션 표시
+            if (isOrderActive) {
+                document.getElementById('ordersSection').style.display = 'block';
+                document.getElementById('myOrderInput').disabled = false;
+                document.getElementById('orderSaveButton').disabled = false;
+            } else {
+                if (Object.keys(ordersData).length > 0) {
+                    document.getElementById('ordersSection').style.display = 'block';
+                }
+                document.getElementById('myOrderInput').disabled = true;
+                document.getElementById('orderSaveButton').disabled = true;
+            }
+
+            OrderModule.renderOrders();
+            OrderModule.renderNotOrderedUsers();
+
+            // 자주 쓰는 메뉴 불러오기
+            if (data.frequentMenus !== undefined) {
+                frequentMenus = data.frequentMenus;
+                OrderModule.renderMenuList();
+            } else {
+                socket.emit('getFrequentMenus');
+            }
+
+            // 기록 섹션 표시
+            document.getElementById('historySection').classList.add('visible');
+
+            // 채팅 기록 로드
+            if (data.chatHistory) {
+                document.getElementById('chatMessages').innerHTML = '';
+                data.chatHistory.forEach(msg => addChatMessage(msg));
+                ChatModule.recalculatePins();
+            }
+
+            // 게임 기록 로드
+            if (data.gameState && data.gameState.rouletteHistory) {
+                craneGameHistory = data.gameState.rouletteHistory;
+                renderHistory();
+            }
+
+            // 준비 상태 복원
+            if (data.readyUsers) {
+                readyUsers = data.readyUsers;
+                isReady = readyUsers.includes(currentUser);
+                ReadyModule.setReadyUsers(readyUsers);
+            }
+
+            // 크레인 미리보기 초기화
+            updateCranePreview();
+        }
+
+        // === 소켓 이벤트 핸들러 ===
+
+        socket.on('connect', () => {});
+        socket.on('disconnect', () => {});
+
+        socket.on('roomCreated', (data) => {
+            currentRoomId = data.roomId;
+            currentUser = data.userName || '';
+            sessionStorage.setItem('craneGameActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
+            initChatModule();
+            isHost = true;
+            isReady = data.isReady || false;
+            readyUsers = data.readyUsers || [];
+            initReadyModule();
+            initOrderModule();
+
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('gameSection').classList.add('active');
+            document.body.classList.add('game-active');
+
+            initializeGameScreen(data);
+            ReadyModule.setReadyUsers(readyUsers);
+        });
+
+        socket.on('roomJoined', (data) => {
+            sessionStorage.removeItem('craneGameFromDice');
+            document.getElementById('loadingScreen').style.display = 'none';
+
+            currentRoomId = data.roomId;
+            const globalInput = document.getElementById('globalUserNameInput');
+            currentUser = (globalInput && globalInput.value) || data.userName || '';
+            sessionStorage.setItem('craneGameActiveRoom', JSON.stringify({
+                roomId: data.roomId, userName: currentUser,
+                serverId: currentServerId, serverName: currentServerName
+            }));
+            initChatModule();
+            isHost = data.isHost;
+            isReady = data.isReady || false;
+            readyUsers = data.readyUsers || [];
+            initReadyModule();
+            initOrderModule();
+
+            document.getElementById('gameSection').classList.add('active');
+            document.body.classList.add('game-active');
+
+            initializeGameScreen(data);
+            ReadyModule.setReadyUsers(readyUsers);
+        });
+
+        socket.on('roomError', (message) => {
+            sessionStorage.removeItem('craneGameFromDice');
+            sessionStorage.removeItem('craneGameActiveRoom');
+            alert(message);
+            window.location.href = '/game';
+        });
+
+        socket.on('craneGameError', (message) => {
+            alert(message);
+        });
+
+        // 주문받기 이벤트 (OrderModule에서 처리)
+
+        socket.on('updateUsers', (users) => {
+            if (window.SoundManager) SoundManager.playSound('common_notification', getCraneSoundEnabled());
+            ChatModule.updateConnectedUsers(users);
+            currentUsers = users;
+
+            const myUser = users.find(u => u.name === currentUser);
+            if (myUser && myUser.isHost !== isHost) {
+                const wasHost = isHost;
+                isHost = myUser.isHost;
+                if (isHost && !wasHost) {
+                    document.getElementById('hostBadge').style.display = 'inline-block';
+                    document.getElementById('hostControls').style.display = 'block';
+                    updateStartButton();
+                    if (isOrderActive) {
+                        document.getElementById('startOrderButton').style.display = 'none';
+                        document.getElementById('endOrderButton').style.display = 'block';
+                    } else {
+                        document.getElementById('startOrderButton').style.display = 'block';
+                        document.getElementById('endOrderButton').style.display = 'none';
+                    }
+                } else if (!isHost && wasHost) {
+                    document.getElementById('hostBadge').style.display = 'none';
+                    document.getElementById('hostControls').style.display = 'none';
+                    updateStartButton();
+                    document.getElementById('startOrderButton').style.display = 'none';
+                    document.getElementById('endOrderButton').style.display = 'none';
+                }
+            }
+
+            updateUsers(users);
+            if (isOrderActive) { OrderModule.renderNotOrderedUsers(); }
+        });
+
+        // 인형뽑기 실제 시작 함수
+        function actuallyStartCraneGame(data) {
+            addDebugLog(`🪄 actuallyStartCraneGame 호출 - isHost: ${isHost}, visibilityState: ${document.visibilityState}`, 'info');
+
+            if (document.visibilityState !== 'visible') {
+                addDebugLog('⚠️ 화면이 보이지 않음 - 인형뽑기 무시', 'visibility');
+                craneGameResultShown = true;
+                isAnimating = false;
+                pendingCraneGameData = null;
+                document.getElementById('resultOverlay').classList.remove('visible');
+                document.getElementById('readySection').style.display = 'block';
+                document.getElementById('startCraneGameButton').disabled = false;
+                document.getElementById('startCraneGameButton').textContent = '🪄 인형뽑기 시작';
+                return;
+            }
+
+            addDebugLog('✅ 화면이 보임 - 인형뽑기 시작 진행', 'info');
+            isAnimating = true;
+            pendingCraneGameData = null;
+            craneGameResultShown = false;
+
+            if (data.everPlayedUsers && Array.isArray(data.everPlayedUsers)) {
+                everPlayedUsers = [...data.everPlayedUsers];
+            }
+
+            document.getElementById('startCraneGameButton').disabled = true;
+            document.getElementById('startCraneGameButton').textContent = '🪄 인형뽑기 진행 중...';
+
+            // Reset crane machine
+            resetCraneMachine();
+
+            const animationStartTime = Date.now();
+
+            setTimeout(() => {
+                if (document.visibilityState !== 'visible') {
+                    addDebugLog('⚠️ setTimeout 안에서 화면 NOT visible - 인형뽑기 무시', 'visibility');
+                    craneGameResultShown = true;
+                    isAnimating = false;
+                    pendingCraneGameData = null;
+                    document.getElementById('resultOverlay').classList.remove('visible');
+                    document.getElementById('readySection').style.display = 'block';
+                    document.getElementById('startCraneGameButton').disabled = false;
+                    document.getElementById('startCraneGameButton').textContent = '🪄 인형뽑기 시작';
+                    return;
+                }
+
+                const wasAnimating = isAnimating;
+                craneGameResultShown = false;
+
+                playClawAnimation(data, () => {
+                    if (craneGameResultShown) {
+                        addDebugLog('⚠️ 결과 이미 표시됨 - 중복 방지로 return', 'warn');
+                        return;
+                    }
+
+                    if (!wasAnimating) {
+                        addDebugLog('⚠️ wasAnimating=false - 애니메이션 시작 안 됨, return', 'warn');
+                        return;
+                    }
+
+                    addDebugLog('✅ 모든 체크 통과 - 결과 표시 진행', 'info');
+                    isAnimating = false;
+                    craneGameResultShown = true;
+
+                    // 호스트만 결과 이벤트 전송
+                    if (isHost) {
+                        addDebugLog(`📤 craneGameResult emit - winner: ${data.winner}`, 'info');
+                        socket.emit('craneGameResult', { winner: data.winner });
+                    }
+
+                    // 결과 오버레이 표시
+                    const winnerEmoji = DOLL_EMOJIS[data.winnerIndex % DOLL_EMOJIS.length];
+                    document.getElementById('resultWinnerEmoji').textContent = winnerEmoji;
+                    document.getElementById('resultWinner').textContent = data.winner;
+                    document.getElementById('resultOverlay').classList.add('visible');
+                    if (data.winner === currentUser) CraneSound.playWinner();
+                    if (window.SoundManager) SoundManager.stopLoop('roulette_bgm');
+
+                    addDebugLog(`🧸 결과 오버레이 표시 - winner: ${data.winner}`, 'gameEnd');
+
+                    // 기록 추가
+                    craneGameHistory.push(data.record);
+                    renderHistory();
+
+                    if (isHost) { document.getElementById('endGameSection').style.display = 'block'; }
+
+                    showReplayButton();
+                    updateStartButton();
+                });
+            }, 50);
+        }
+
+        socket.on('craneGameStarted', (data) => {
+            if (window.SoundManager) SoundManager.playLoop('roulette_bgm', getCraneSoundEnabled(), 0.3);
+            const hasFocus = document.hasFocus();
+            const isVisible = document.visibilityState === 'visible';
+            const isActuallyVisible = isVisible && hasFocus;
+
+            addDebugLog(`📨 craneGameStarted 이벤트 수신 - isHost: ${isHost}, visible: ${isVisible}, hasFocus: ${hasFocus}`, 'info');
+            addDebugLog(`📊 data: winner=${data.winner}, participants=${data.participants?.length}명`, 'info');
+
+            lastCraneGameData = data;
+            document.getElementById('replaySection').style.display = 'none';
+
+            if (isActuallyVisible) {
+                addDebugLog('✅ 화면 visible + 포커스 있음 → actuallyStartCraneGame 호출', 'info');
+                missedCraneGame = false;
+                actuallyStartCraneGame(data);
+            } else {
+                addDebugLog(`⚠️ 화면 NOT visible (visible=${isVisible}, focus=${hasFocus}) → 인형뽑기 무시, 다시보기 데이터 저장`, 'visibility');
+                missedCraneGame = true;
+                craneGameResultShown = true;
+                isAnimating = false;
+                pendingCraneGameData = null;
+                document.getElementById('resultOverlay').classList.remove('visible');
+
+                const replaySection = document.getElementById('replaySection');
+                const replayMessage = replaySection.querySelector('div');
+                if (replayMessage) { replayMessage.textContent = '🎬 화면을 보지 않는 동안 인형뽑기가 진행되었습니다'; }
+                replaySection.style.display = 'block';
+
+                document.getElementById('readySection').style.display = 'block';
+                document.getElementById('startCraneGameButton').disabled = false;
+                document.getElementById('startCraneGameButton').textContent = '🪄 인형뽑기 시작';
+            }
+        });
+
+        socket.on('craneGameEnded', (data) => {
+            isReady = false;
+            updateReadyButton();
+        });
+
+        socket.on('craneGameFullEnded', (data) => {
+            isAnimating = false;
+            craneGameResultShown = false;
+            missedCraneGame = false;
+            lastCraneGameData = null;
+            isReady = false;
+
+            document.getElementById('resultOverlay').classList.remove('visible');
+            document.getElementById('replaySection').style.display = 'none';
+
+            document.getElementById('craneContainer').style.display = 'flex';
+            document.getElementById('readySection').style.display = 'block';
+            document.getElementById('endGameSection').style.display = 'none';
+
+            updateReadyButton();
+            resetCraneMachine();
+
+            if (isHost) { document.getElementById('hostControls').style.display = 'block'; }
+
+            readyUsers = [];
+            isReady = false;
+            ReadyModule.setReadyUsers([]);
+            updateStartButton();
+            updateCranePreview();
+        });
+
+        socket.on('roomDeleted', (data) => {
+            sessionStorage.removeItem('craneGameActiveRoom');
+            alert(data.message || '방이 삭제되었습니다.');
+            if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            window.location.replace('/game');
+        });
+
+        socket.on('roomLeft', () => {
+            sessionStorage.removeItem('craneGameActiveRoom');
+            if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            window.location.replace('/game');
+        });
+
+        socket.on('leftRoom', () => {
+            sessionStorage.removeItem('craneGameActiveRoom');
+            if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            window.location.replace('/game');
+        });
+
+        socket.on('hostTransferred', (data) => {
+            showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
+            isHost = true;
+            document.getElementById('hostBadge').style.display = 'inline-block';
+            document.getElementById('hostControls').style.display = 'block';
+            updateStartButton();
+
+            if (isOrderActive) {
+                document.getElementById('startOrderButton').style.display = 'none';
+                document.getElementById('endOrderButton').style.display = 'block';
+            } else {
+                document.getElementById('startOrderButton').style.display = 'block';
+                document.getElementById('endOrderButton').style.display = 'none';
+            }
+        });
+
+        socket.on('hostChanged', (data) => {
+            console.log('호스트 변경 알림:', data.message);
+        });
+
+        // DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // 볼륨 컨트롤 초기화
+            initCraneVolumeFromStorage();
+            updateCraneVolumeUI();
+            const volumeBtn = document.getElementById('volumeBtn');
+            const volumeSlider = document.getElementById('volumeSlider');
+            if (volumeBtn) volumeBtn.addEventListener('click', toggleCraneMute);
+            if (volumeSlider) volumeSlider.addEventListener('input', () => setCraneMasterVolume(parseInt(volumeSlider.value)));
+
+            // 저장된 이름 불러오기
+            const savedName = localStorage.getItem('craneGameUserName');
+            if (savedName) {
+                document.getElementById('globalUserNameInput').value = savedName;
+            }
+
+            // URL 파라미터로 방 생성/입장 요청이 왔는지 확인
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // 방 생성 요청
+            if (urlParams.get('createRoom') === 'true') {
+                const pendingRoom = localStorage.getItem('pendingCraneGameRoom');
+                if (pendingRoom) {
+                    const roomData = JSON.parse(pendingRoom);
+                    localStorage.removeItem('pendingCraneGameRoom');
+
+                    socket.on('connect', function onConnect() {
+                        socket.off('connect', onConnect);
+
+                        socket.emit('createRoom', {
+                            userName: roomData.userName,
+                            roomName: roomData.roomName,
+                            isPrivate: roomData.isPrivate,
+                            password: roomData.password,
+                            gameType: 'craneGame',
+                            expiryHours: roomData.expiryHours,
+                            blockIPPerUser: roomData.blockIPPerUser,
+                            deviceId: getDeviceId(),
+                            serverId: roomData.serverId || currentServerId,
+                            serverName: roomData.serverName || currentServerName,
+                            tabId: getTabId()
+                        });
+                    });
+
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+
+            // 방 입장 요청
+            if (urlParams.get('joinRoom') === 'true') {
+                const pendingJoin = localStorage.getItem('pendingCraneGameJoin');
+                if (pendingJoin) {
+                    const joinData = JSON.parse(pendingJoin);
+                    localStorage.removeItem('pendingCraneGameJoin');
+
+                    sessionStorage.setItem('craneGameFromDice', 'true');
+
+                    document.getElementById('globalUserNameInput').value = joinData.userName;
+
+                    socket.on('connect', function onJoinConnect() {
+                        socket.off('connect', onJoinConnect);
+
+                        if (joinData.isPrivate) {
+                            pendingRoomId = joinData.roomId;
+                            pendingUserName = joinData.userName;
+                            document.getElementById('passwordModal').style.display = 'flex';
+                            document.getElementById('roomPasswordInput').focus();
+                        } else {
+                            socket.emit('joinRoom', {
+                                roomId: joinData.roomId,
+                                userName: joinData.userName,
+                                isHost: false,
+                                password: '',
+                                deviceId: getDeviceId(),
+                                tabId: getTabId()
+                            });
+                        }
+                    });
+
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

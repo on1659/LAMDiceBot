@@ -45,6 +45,23 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'roulette-game-multiplayer.html'));
     });
 
+    // 인형뽑기 게임
+    app.get('/crane-game', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'crane-game-multiplayer.html'));
+    });
+
+    // 경마 React 앱 (리빌드)
+    app.get('/horse-race', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'horse-app', 'dist', 'index.html'));
+    });
+    app.use('/horse-app', require('express').static(path.join(__dirname, '..', 'horse-app', 'dist')));
+
     app.get('/admin', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
@@ -119,7 +136,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {

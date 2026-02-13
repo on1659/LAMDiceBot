@@ -1488,17 +1488,23 @@
                         <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🐎</span>
                         <span style="font-weight: 600;">경마</span>
-                        <span id="horseRaceNewBadge" style="position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                                   
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #9c27b0; position: relative;">
+                        <input type="radio" name="gameType" value="crane-game" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🪄</span>
+                        <span style="font-weight: 600;">인형뽑기</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
+
                 </div>
                 <div id="gameTypeInfo" style="margin-top: 8px; font-size: 12px; color: #666;">
-                    룰렛/경마를 선택하면 전용 페이지로 이동합니다.
+                    룰렛/경마/인형뽑기를 선택하면 전용 페이지로 이동합니다.
                 </div>
                 <script>
                     // 게임 타입 선택 시 시각적 강조 (은은한 틴트)
                     (function() {
-                        const colorMap = { dice: '#667eea', roulette: '#e91e63', 'horse-race': '#8b4513' };
+                        const colorMap = { dice: '#667eea', roulette: '#e91e63', 'horse-race': '#8b4513', 'crane-game': '#9c27b0' };
                         function updateGameTypeStyle() {
                             document.querySelectorAll('input[name="gameType"]').forEach(radio => {
                                 const label = radio.closest('label');
@@ -2634,6 +2640,10 @@
                     gameTypeIcon = '🐎';
                     gameTypeLabel = '경마';
                     gameTypeColor = '#8b4513';
+                } else if (room.gameType === 'crane-game') {
+                    gameTypeIcon = '🪄';
+                    gameTypeLabel = '인형뽑기';
+                    gameTypeColor = '#9c27b0';
                 }
                 const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
                 
@@ -2751,7 +2761,21 @@
                 window.location.href = '/horse-race-multiplayer.html?joinRoom=true';
                 return;
             }
-            
+
+            // 인형뽑기 방이면 인형뽑기 페이지로 이동
+            if (room && room.gameType === 'crane-game') {
+                localStorage.setItem('craneGameUserName', userName);
+                localStorage.setItem('pendingCraneGameJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/crane-game-multiplayer.html?joinRoom=true';
+                return;
+            }
+
             // 비공개 방인지 체크
             if (room && room.isPrivate) {
                 // 비공개 방이면 비밀번호 입력 모달 표시
@@ -3612,6 +3636,23 @@
                 window.location.href = '/horse-race-multiplayer.html?createRoom=true';
                 return;
             }
+
+            // 인형뽑기 게임이면 인형뽑기 페이지로 이동
+            if (gameType === 'crane-game') {
+                localStorage.setItem('craneGameUserName', hostName);
+                localStorage.setItem('pendingCraneGameRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/crane-game-multiplayer.html?createRoom=true';
+                return;
+            }
             
             // 방 생성 (방 제목은 클라이언트 입력)
             socket.emit('createRoom', {
@@ -3674,7 +3715,21 @@
                 window.location.href = '/horse-race-multiplayer.html?joinRoom=true';
                 return;
             }
-            
+
+            // 인형뽑기 방이면 인형뽑기 페이지로 이동
+            if (room && room.gameType === 'crane-game') {
+                localStorage.setItem('craneGameUserName', userName);
+                localStorage.setItem('pendingCraneGameJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/crane-game-multiplayer.html?joinRoom=true';
+                return;
+            }
+
             if (room && room.isPrivate) {
                 // 비공개 방이면 비밀번호 입력 모달 표시
                 showPasswordModal(selectedRoomId, userName);

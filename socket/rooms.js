@@ -205,7 +205,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 게임 타입 검증 (dice, roulette, horse-race 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race'].includes(gameType) ? gameType : 'dice';
+        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game'].includes(gameType) ? gameType : 'dice';
 
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;

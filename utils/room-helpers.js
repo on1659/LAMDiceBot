@@ -57,6 +57,8 @@ function createRoomGameState() {
         userHorseBets: {},
         horseRankings: [],
         horseRaceMode: 'last',
+        craneGameHistory: [],
+        isCraneGameActive: false,
     };
 }
 

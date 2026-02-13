@@ -5,6 +5,7 @@ const registerSharedHandlers = require('./shared');
 const registerDiceHandlers = require('./dice');
 const registerRouletteHandlers = require('./roulette');
 const registerHorseHandlers = require('./horse');
+const registerCraneGameHandlers = require('./crane-game');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
 const { registerServerHandlers } = require('./server');
@@ -171,6 +172,7 @@ function setupSocketHandlers(io, rooms) {
         registerDiceHandlers(socket, io, ctx);
         registerRouletteHandlers(socket, io, ctx);
         registerHorseHandlers(socket, io, ctx);
+        registerCraneGameHandlers(socket, io, ctx);
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);
         registerServerHandlers(socket, io, ctx);
