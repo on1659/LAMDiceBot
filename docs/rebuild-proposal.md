@@ -1,8 +1,9 @@
 # LAMDiceBot 리빌드 제안서
 
-> 작성일: 2026-02-13  
-> 분석 브랜치: `feature/quick-win-scalability`  
-> 총 코드량: ~27,000줄 (서버 ~7,700 / 프론트 HTML ~15,200 / 공유 JS ~11,100)
+> 작성일: 2026-02-13 (최종 업데이트: 2026-02-13)
+> 분석 브랜치: `feature/quick-win-scalability` → `main` 머지 완료
+> 총 코드량: ~25,000줄 (서버 ~7,700 / 프론트 HTML ~13,300 / 공유 JS ~11,100)
+> 리빌드 진행: 경마 게임 React 전환 착수 (`feature/horse-rebuild`)
 
 ---
 
@@ -15,28 +16,29 @@
 | **주사위** | `socket/dice.js`, `dice-game-multiplayer.html` | 범위 설정(N~M), 굴리기, 높은/낮은 수 승리, 게임 규칙 변경, 결과 판정, 서버 기록 저장 |
 | **경마** | `socket/horse.js`, `js/horse-race.js`, `horse-race-multiplayer.html` | 11종 탈것, 트랙 길이(short/medium/long), 말 선택/랜덤 선택, 서버측 시뮬레이션, 클라이언트 애니메이션, 1등/꼴등 모드, 기믹 시스템, 탈것 통계, 사진판정 |
 | **룰렛** | `socket/roulette.js`, `roulette-game-multiplayer.html` | 색상 선택, 터보 애니메이션, 룰렛 스핀 결과, 사운드 |
-| **팀전** | `team-game-multiplayer.html` | 팀 기반 대전 |
+| ~~**팀전**~~ | ~~`team-game-multiplayer.html`~~ | ~~팀 기반 대전~~ — **삭제됨** |
 
-### 🏠 방 시스템 (`socket/rooms.js` — 1,394줄)
+### 🏠 방 시스템 (`socket/rooms.js` — 1,426줄)
 
 - 방 생성/참가/퇴장/삭제
 - 비밀번호 방 (비공개)
 - 방장 이전, 강퇴
 - 방 이름 변경
 - 방 만료 시간 (자동 삭제, 1분 주기 체크)
-- 로그인 (닉네임 + deviceId)
+- 로그인 (닉네임 + **tabId** — sessionStorage 기반, 탭별 고유)
 - 방 목록 실시간 브로드캐스트 (디바운싱 200ms)
 - 서버별 방 필터링 (비공개방은 같은 서버만 노출)
 - 공개방 최대 10개 제한
+- **새로고침 시 자동 재입장** (sessionStorage `diceActiveRoom` / `horseRaceActiveRoom`)
 
 ### 🖥️ 서버 시스템 (`socket/server.js`, `routes/server.js`, `db/servers.js`)
 
 - 서버 생성/조회/삭제
-- 서버 가입/탈퇴
-- 멤버 관리 (승인/거부/제거)
+- 서버 가입/탈퇴 (**참여코드** 방식으로 변경, 기존 비밀번호 → 참여코드)
+- 멤버 관리 (승인/거부/제거, 참여코드 입력 시 자동 입장)
 - 서버별 게임 기록
 - 온라인 멤버 추적
-- 호스트 코드, 비밀번호
+- 호스트 코드
 
 ### 💬 채팅 (`socket/chat.js`, `chat-shared.js` — 2,239줄)
 
@@ -62,6 +64,9 @@
 - 게임별 랭킹: 주사위/경마/룰렛 세부 통계
 - 서버별 랭킹 + 자유 랭킹
 - 주문 랭킹 (가장 많이 시킨 메뉴)
+- **등수 시스템 (동점자 처리), 탈것 분포 통계**
+- **다크 게임 테마 UI (2탭 구조 + 메달 뱃지 + 스와이프)**
+- **서버별 비공개 상세 기록 + 풀스크린 UI**
 
 ### 📊 통계 (`db/stats.js`, `statistics.html`)
 
@@ -90,7 +95,7 @@
 
 ### 🎵 사운드 시스템
 
-- 게임별 BGM, 효과음 (주사위/경마/룰렛/팀)
+- 게임별 BGM, 효과음 (주사위/경마/룰렛)
 - 사운드 매니저 (`assets/sounds/sound-manager.js`)
 - 사운드 설정 JSON
 
@@ -98,10 +103,11 @@
 
 - 확률 분석 페이지, 주사위 규칙 가이드
 - About/연락처/개인정보/이용약관 페이지
-- GIF 레코더 (Web Worker)
-- 서버 선택 UI (`server-select-shared.js`)
+- GIF 레코더 (Web Worker) — 현재 비활성
+- **서버 선택 페이지 분리** (`index.html` + `server-select-shared.js`)
 - 준비 시스템 (`ready-shared.js`)
 - AutoTest 봇 (Playwright/Socket.io 기반)
+- **경마/룰렛 로비 제거** (직접 게임 화면 진입)
 
 ---
 
@@ -133,7 +139,21 @@
 | **CSS 관리** | 인라인 스타일 + 개별 CSS 파일. 디자인 시스템 없음 |
 | **에러 처리** | try-catch 산발적. 통합 에러 핸들링 없음 |
 | **환경 설정** | `config.js` 최소화 (PORT만). 환경별 설정 관리 없음 |
-| **보안** | Rate limiting 있으나, 소켓 레벨 인증이 약함 (닉네임+deviceId만) |
+| **보안** | Rate limiting 있으나, 소켓 레벨 인증이 약함 (닉네임+tabId만) |
+
+---
+
+> **2026-02-13 업데이트**: 제안서 작성 이후 주요 변경사항
+>
+> | 변경 | 커밋 | 설명 |
+> |------|------|------|
+> | 팀 게임 삭제 | 8c309c8 | `team-game-multiplayer.html` + CSS 제거 |
+> | 재연결 방식 변경 | 7d0ace7 | deviceId → tabId(sessionStorage) 기반 |
+> | 로비 페이지 제거 | bfc21ef | 경마/룰렛 로비 dead code 정리 |
+> | 자동 재입장 | bd22ecb, b5e9361 | 새로고침 시 sessionStorage로 방 복원 |
+> | 서버 선택 분리 | efc189f | index.html 서버 선택 전용 페이지 |
+> | 참여코드 도입 | 2d6a9a0 | 서버 비밀번호 → 참여코드 + 자동입장 |
+> | 랭킹 고도화 | ebe8393+ | 등수/동점/탈것분포/서버별/스와이프 UI |
 
 ---
 
@@ -213,10 +233,9 @@
 ```
 ├── 주사위 게임 (가장 단순 → 먼저)
 ├── 룰렛 게임
-├── 경마 게임 (가장 복잡 — 시뮬레이션 + 애니메이션)
-│   ├── 서버: 레이스 시뮬레이션 엔진
-│   └── 클라이언트: Canvas/CSS 애니메이션
-└── 팀전 게임
+└── 경마 게임 (가장 복잡 — 시뮬레이션 + 애니메이션)
+    ├── 서버: 레이스 시뮬레이션 엔진
+    └── 클라이언트: DOM/CSS 애니메이션 (Canvas 아님)
 ```
 
 ### Phase 4: 부가 기능 (1.5주)
@@ -258,15 +277,18 @@
 - 1인 개발 시: **10~12주** (2.5~3개월)
 - 2인 개발 시: **6~8주** (1.5~2개월)  
 - 기존 기능을 100% 동일하게 재현하는 기준
-- 경마 게임 애니메이션이 전체 난이도의 핵심 (현재 `js/horse-race.js` 6,322줄)
+- 경마 게임 애니메이션이 전체 난이도의 핵심 (현재 `js/horse-race.js` ~7,000줄)
 
-### 대안: 점진적 마이그레이션
+### 채택: 점진적 마이그레이션 (게임별 React 전환)
 
-전면 리빌드 대신, 단계적으로:
+전면 리빌드 대신, **게임 단위로 React + TypeScript 전환**:
 
-1. TypeScript 도입 (기존 코드에 `.ts` 전환)
-2. 프론트만 React로 교체 (백엔드 소켓 API 유지)
+1. **경마 게임** React 전환 (`horse-app/` — 진행 중)
+   - 서버(Express + Socket.IO) 그대로 유지, 동일 소켓 이벤트 사용
+   - Vite + React + TypeScript + Zustand + Tailwind
+   - 기존 공유 모듈(chat/ready/order)은 React 훅으로 래핑
+2. 주사위 / 룰렛 순차 전환
 3. Prisma 도입 (기존 raw SQL → ORM)
 4. Redis 도입 (인메모리 → Redis)
 
-이 경우 **각 단계를 독립 배포** 가능하여 리스크 낮음. 총 기간은 비슷하지만 중간에 운영 가능.
+이 경우 **각 단계를 독립 배포** 가능하여 리스크 낮음. 기존 vanilla HTML은 폴백으로 유지.
