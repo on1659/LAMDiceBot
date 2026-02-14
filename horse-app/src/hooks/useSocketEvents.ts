@@ -50,12 +50,18 @@ export function useSocketEvents(socket: TypedSocket | null) {
   useEffect(() => {
     if (!socket) return;
 
-    // === Room Events ===
-    const onRoomJoined = (data: RoomJoinedPayload) => {
+    const applyRoomSnapshot = (data: RoomJoinedPayload) => {
       const users = data.users ?? data.gameState?.users ?? [];
       const chatMessages = normalizeChatHistory(
         data.chatHistory ?? data.gameState?.chatHistory,
       );
+      const currentUser = useGameStore.getState().currentUser;
+      const resolvedUserName = data.userName || currentUser || '';
+
+      if (data.userName && data.userName !== currentUser) {
+        useGameStore.setState({ currentUser: data.userName });
+        localStorage.setItem('horseRaceUserName', data.userName);
+      }
 
       useGameStore.setState({
         currentRoomId: data.roomId,
@@ -70,7 +76,7 @@ export function useSocketEvents(socket: TypedSocket | null) {
       });
 
       useGameStore.getState().setRoomRealtimeData({
-        readyUsers: data.gameState?.readyUsers ?? [],
+        readyUsers: data.gameState?.readyUsers ?? data.readyUsers ?? [],
         isOrderActive: !!data.gameState?.isOrderActive,
         userOrders: data.gameState?.userOrders ?? {},
         frequentMenus: data.gameState?.frequentMenus ?? [],
@@ -81,9 +87,18 @@ export function useSocketEvents(socket: TypedSocket | null) {
         'horseRaceActiveRoom',
         JSON.stringify({
           roomId: data.roomId,
-          userName: useGameStore.getState().currentUser,
+          userName: resolvedUserName,
         }),
       );
+    };
+
+    // === Room Events ===
+    const onRoomCreated = (data: RoomJoinedPayload) => {
+      applyRoomSnapshot(data);
+    };
+
+    const onRoomJoined = (data: RoomJoinedPayload) => {
+      applyRoomSnapshot(data);
     };
 
     const onUserJoined: ServerToClientEvents['userJoined'] = (data) => {
@@ -288,6 +303,7 @@ export function useSocketEvents(socket: TypedSocket | null) {
     };
 
     // Register all listeners
+    socket.on('roomCreated', onRoomCreated);
     socket.on('roomJoined', onRoomJoined);
     socket.on('userJoined', onUserJoined);
     socket.on('userLeft', onUserLeft);
@@ -318,6 +334,7 @@ export function useSocketEvents(socket: TypedSocket | null) {
     socket.on('messageReactionUpdated', onMessageReactionUpdated);
 
     return () => {
+      socket.off('roomCreated', onRoomCreated);
       socket.off('roomJoined', onRoomJoined);
       socket.off('userJoined', onUserJoined);
       socket.off('userLeft', onUserLeft);

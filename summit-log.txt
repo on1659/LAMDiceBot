@@ -1,4 +1,20 @@
 ﻿========================================
+🔷 Summit Log - 2026-02-14 (horse-app roomCreated 처리)
+========================================
+
+## 변경 파일
+- horse-app/src/types/socket-events.ts: roomCreated 이벤트 타입 추가
+- horse-app/src/hooks/useSocketEvents.ts: roomCreated도 roomJoined와 동일 처리
+- docs/meeting/2026-02-14-qa-horse-room-created.md: QA 기록
+
+## 핵심 변경
+- 방 생성 시 roomCreated 이벤트를 처리해 경마 React 앱이 즉시 방 화면으로 전환
+- 서버가 재명명한 userName도 로컬 상태/저장값에 반영
+
+## 검증
+- horse-app: npm run build (PASS, Vite 경고: non-module shared scripts)
+
+========================================
 🔷 Summit Log - 2026-02-14 (rooms.js 퇴장 정리)
 ========================================
 
@@ -1466,5 +1482,6 @@
 - assets/sounds/horse-race/bgm.mp3 변경
 
 ========================================
+
 
 

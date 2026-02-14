@@ -55,6 +55,7 @@ export interface RoomGameStatePayload {
 export interface RoomJoinedPayload {
   roomId: string;
   roomName: string;
+  userName?: string;
   users?: RoomUserPayload[];
   host?: string;
   isHost: boolean;
@@ -64,6 +65,8 @@ export interface RoomJoinedPayload {
   serverId?: string | null;
   serverName?: string | null;
   hasPassword?: boolean;
+  readyUsers?: string[];
+  isReady?: boolean;
   chatHistory?: ChatMessagePayload[];
   gameState?: RoomGameStatePayload;
 }
@@ -212,6 +215,7 @@ export interface ServerToClientEvents {
   vehicleTypesUpdated: (data: VehicleTypesUpdatedPayload) => void;
 
   // Room events
+  roomCreated: (data: RoomJoinedPayload) => void;
   roomJoined: (data: RoomJoinedPayload) => void;
   userJoined: (data: { users: RoomUserPayload[]; joinedUser: string }) => void;
   userLeft: (data: { users: RoomUserPayload[]; leftUser: string }) => void;
