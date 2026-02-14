@@ -9,6 +9,8 @@ import { VehicleSelection } from './VehicleSelection';
 import { Countdown } from './Countdown';
 import { RaceTrack } from './RaceTrack';
 import { RaceResult } from './RaceResult';
+import { OrderPanel } from './OrderPanel';
+import { ChatPanel } from './ChatPanel';
 
 interface Props {
   socket: TypedSocket;
@@ -60,6 +62,13 @@ export function GameLayout({ socket }: Props) {
 
         {gamePhase === 'result' && (
           <RaceResult socket={socket} />
+        )}
+
+        {(gamePhase === 'room' || gamePhase === 'selection' || gamePhase === 'result') && (
+          <>
+            <OrderPanel socket={socket} />
+            <ChatPanel socket={socket} />
+          </>
         )}
       </div>
     </div>

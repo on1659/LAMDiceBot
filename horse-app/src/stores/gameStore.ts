@@ -81,6 +81,15 @@ export interface GameStore {
   lastRaceData: GameStore['raceData'];
   isReplayActive: boolean;
 
+  // === Chat ===
+  chatMessages: Array<{
+    id?: string;
+    userName?: string;
+    message: string;
+    timestamp?: string | number;
+    type?: string;
+  }>;
+
   // === Actions ===
   setRoom: (roomId: string, userName: string, isHost: boolean) => void;
   leaveRoom: () => void;
@@ -118,6 +127,8 @@ export interface GameStore {
   }) => void;
   clearRaceData: () => void;
   setReplayActive: (active: boolean) => void;
+  setChatMessages: (messages: GameStore['chatMessages']) => void;
+  pushChatMessage: (message: GameStore['chatMessages'][number]) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -165,6 +176,9 @@ export const useGameStore = create<GameStore>((set) => ({
   lastRaceData: null,
   isReplayActive: false,
 
+  // Chat
+  chatMessages: [],
+
   // Actions
   setRoom: (roomId, userName, isHost) =>
     set({
@@ -184,6 +198,7 @@ export const useGameStore = create<GameStore>((set) => ({
       roomName: '',
       currentUsers: [],
       readyUsers: [],
+      isOrderActive: false,
       gamePhase: 'lobby',
       raceData: null,
       countdownData: null,
@@ -191,6 +206,7 @@ export const useGameStore = create<GameStore>((set) => ({
       userHorseBets: {},
       availableHorses: [],
       selectedVehicleTypes: null,
+      chatMessages: [],
     }),
 
   setGamePhase: (phase) => set({ gamePhase: phase }),
@@ -283,4 +299,11 @@ export const useGameStore = create<GameStore>((set) => ({
       isReplayActive: active,
       gamePhase: active ? 'replay' : 'result',
     }),
+
+  setChatMessages: (messages) => set({ chatMessages: messages || [] }),
+
+  pushChatMessage: (message) =>
+    set((state) => ({
+      chatMessages: [...state.chatMessages, message].slice(-100),
+    })),
 }));

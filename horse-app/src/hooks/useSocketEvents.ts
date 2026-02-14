@@ -22,6 +22,12 @@ export function useSocketEvents(socket: TypedSocket | null) {
         expiryTime?: string;
         serverId?: string;
         serverName?: string;
+        chatHistory?: unknown[];
+        gameState?: {
+          readyUsers?: string[];
+          isOrderActive?: boolean;
+          chatHistory?: unknown[];
+        };
       };
       useGameStore.setState({
         currentRoomId: d.roomId,
@@ -33,6 +39,9 @@ export function useSocketEvents(socket: TypedSocket | null) {
         expiryTime: d.expiryTime ?? null,
         serverId: d.serverId ?? null,
         serverName: d.serverName ?? null,
+        readyUsers: d.gameState?.readyUsers ?? [],
+        isOrderActive: !!d.gameState?.isOrderActive,
+        chatMessages: (d.chatHistory || d.gameState?.chatHistory || []) as import('../stores/gameStore').GameStore['chatMessages'],
       });
       // 세션 저장 (새로고침 재입장용)
       sessionStorage.setItem('horseRaceActiveRoom', JSON.stringify({
@@ -213,6 +222,39 @@ export function useSocketEvents(socket: TypedSocket | null) {
       console.warn('[Horse Race Error]', msg);
     };
 
+    // === Order / Chat ===
+    const onOrderStarted = () => {
+      useGameStore.setState({ isOrderActive: true });
+    };
+
+    const onOrderEnded = () => {
+      useGameStore.setState({ isOrderActive: false });
+    };
+
+    const onNewMessage = (data: unknown) => {
+      const msg = data as {
+        id?: string;
+        userName?: string;
+        username?: string;
+        user?: string;
+        message?: string;
+        text?: string;
+        timestamp?: string | number;
+        type?: string;
+      };
+
+      const text = msg.message || msg.text;
+      if (!text) return;
+
+      useGameStore.getState().pushChatMessage({
+        id: msg.id,
+        userName: msg.userName || msg.username || msg.user,
+        message: text,
+        timestamp: msg.timestamp,
+        type: msg.type,
+      });
+    };
+
     // Register all listeners
     socket.on('roomJoined', onRoomJoined as never);
     socket.on('userJoined', onUserJoined);
@@ -233,6 +275,9 @@ export function useSocketEvents(socket: TypedSocket | null) {
     socket.on('horseRaceDataCleared', onHorseRaceDataCleared);
     socket.on('horseSelectionCancelled', onHorseSelectionCancelled);
     socket.on('horseRaceError', onHorseRaceError);
+    socket.on('orderStarted', onOrderStarted as never);
+    socket.on('orderEnded', onOrderEnded as never);
+    socket.on('newMessage', onNewMessage as never);
 
     return () => {
       socket.off('roomJoined', onRoomJoined as never);
@@ -254,8 +299,11 @@ export function useSocketEvents(socket: TypedSocket | null) {
       socket.off('horseRaceDataCleared', onHorseRaceDataCleared);
       socket.off('horseSelectionCancelled', onHorseSelectionCancelled);
       socket.off('horseRaceError', onHorseRaceError);
+      socket.off('orderStarted', onOrderStarted as never);
+      socket.off('orderEnded', onOrderEnded as never);
+      socket.off('newMessage', onNewMessage as never);
     };
-  }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [socket]);
 }
 
 // Re-export type for convenience
