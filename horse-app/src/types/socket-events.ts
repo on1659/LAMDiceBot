@@ -8,7 +8,83 @@ import type {
   WeatherEvent,
 } from './game-state';
 
-// ====== Server → Client Events ======
+// ====== Shared Payloads ======
+
+export interface RoomUserPayload {
+  id: string;
+  name: string;
+  isHost: boolean;
+  deviceType?: string;
+}
+
+export type OrderMapPayload = Record<string, string>;
+
+export interface ChatMessagePayload {
+  id?: string;
+  userName?: string;
+  username?: string;
+  user?: string;
+  message?: string;
+  text?: string;
+  time?: string;
+  timestamp?: string | number;
+  type?: string;
+  isSystem?: boolean;
+  isSystemMessage?: boolean;
+  isAI?: boolean;
+  isImage?: boolean;
+  imageData?: string | null;
+  isHost?: boolean;
+  deviceType?: string;
+  mentions?: string[];
+  reactions?: Record<string, string[]>;
+  isHorseRaceWinner?: boolean;
+  isRouletteWinner?: boolean;
+  isCraneGameWinner?: boolean;
+}
+
+export interface RoomGameStatePayload {
+  users?: RoomUserPayload[];
+  isOrderActive?: boolean;
+  readyUsers?: string[];
+  userOrders?: OrderMapPayload;
+  frequentMenus?: string[];
+  chatHistory?: ChatMessagePayload[];
+}
+
+export interface RoomJoinedPayload {
+  roomId: string;
+  roomName: string;
+  users?: RoomUserPayload[];
+  host?: string;
+  isHost: boolean;
+  gameType: string;
+  maxExpiry?: number;
+  expiryTime?: string;
+  serverId?: string | null;
+  serverName?: string | null;
+  hasPassword?: boolean;
+  chatHistory?: ChatMessagePayload[];
+  gameState?: RoomGameStatePayload;
+}
+
+export interface MessageReactionUpdatedPayload {
+  messageIndex: number;
+  message: ChatMessagePayload;
+}
+
+export interface OrderUpdatedPayload {
+  order: string;
+}
+
+export interface VisitorStatsPayload {
+  todayVisitors?: number;
+  todayPlays?: number;
+  totalPlays?: number;
+  [key: string]: unknown;
+}
+
+// ====== Horse Race Payloads ======
 
 export interface HorseRaceCountdownPayload {
   duration: number;
@@ -42,7 +118,6 @@ export interface HorseRaceStartedPayload {
 export interface HorseSelectionReadyPayload {
   availableHorses: number[];
   selectedVehicleTypes: string[];
-  // 서버에서 일부 emit에만 포함됨 (selectHorse → 없음, clearData → 있음)
   trackLength?: TrackLength;
   trackDistanceMeters?: number;
   trackPresets?: Record<TrackLength, number>;
@@ -103,7 +178,6 @@ export interface HorseRaceEndedPayload {
 
 export interface HorseRaceGameResetPayload {
   horseRaceHistory: RaceRecord[];
-  // 서버는 readyUsers/everPlayedUsers를 보내지 않음
   readyUsers?: string[];
   everPlayedUsers?: string[];
 }
@@ -113,7 +187,9 @@ export interface HorseRaceModeUpdatedPayload {
 }
 
 export interface VehicleTypesUpdatedPayload {
-  selectedVehicleTypes: string[];
+  selectedVehicleTypes?: string[];
+  vehicleTypes?: string[];
+  availableHorses?: number[];
 }
 
 // ====== Aggregated Event Maps ======
@@ -136,44 +212,35 @@ export interface ServerToClientEvents {
   vehicleTypesUpdated: (data: VehicleTypesUpdatedPayload) => void;
 
   // Room events
-  roomJoined: (data: {
-    roomId: string;
-    roomName: string;
-    users: Array<{ id: string; name: string; isHost: boolean; deviceType?: string }>;
-    host: string;
-    isHost: boolean;
-    gameType: string;
-    maxExpiry?: number;
-    expiryTime?: string;
-    serverId?: string;
-    serverName?: string;
-    hasPassword?: boolean;
-  }) => void;
-  userJoined: (data: { users: Array<{ id: string; name: string; isHost: boolean; deviceType?: string }>; joinedUser: string }) => void;
-  userLeft: (data: { users: Array<{ id: string; name: string; isHost: boolean; deviceType?: string }>; leftUser: string }) => void;
+  roomJoined: (data: RoomJoinedPayload) => void;
+  userJoined: (data: { users: RoomUserPayload[]; joinedUser: string }) => void;
+  userLeft: (data: { users: RoomUserPayload[]; leftUser: string }) => void;
   roomError: (msg: string) => void;
-  hostChanged: (data: { newHost: string }) => void;
+  hostChanged: (data: { newHost?: string; newHostName?: string; newHostId?: string }) => void;
   roomNameChanged: (data: { newName: string }) => void;
+  roomNameUpdated: (newName: string) => void;
   roomDeleted: (data: { message: string }) => void;
+  updateUsers: (users: RoomUserPayload[]) => void;
 
   // Ready events
   readyUsersUpdated: (readyUsers: string[]) => void;
-  readyStateChanged: (data: { userName: string; isReady: boolean }) => void;
+  readyStateChanged: (data: { userName?: string; isReady: boolean }) => void;
   readyError: (msg: string) => void;
 
   // Order events
-  orderStarted: (data: unknown) => void;
-  orderEnded: (data: unknown) => void;
-  orderUpdated: (data: unknown) => void;
-  updateOrders: (data: unknown) => void;
-  frequentMenusUpdated: (data: unknown) => void;
+  orderStarted: () => void;
+  orderEnded: () => void;
+  orderUpdated: (data: OrderUpdatedPayload) => void;
+  updateOrders: (data: OrderMapPayload) => void;
+  frequentMenusUpdated: (data: string[]) => void;
 
   // Chat events
-  newMessage: (data: unknown) => void;
-  messageReactionUpdated: (data: unknown) => void;
+  newMessage: (data: ChatMessagePayload) => void;
+  messageReactionUpdated: (data: MessageReactionUpdatedPayload) => void;
+  chatError: (msg: string) => void;
 
   // Stats
-  visitorStats: (data: unknown) => void;
+  visitorStats: (data: VisitorStatsPayload) => void;
 }
 
 export interface ClientToServerEvents {
@@ -217,8 +284,10 @@ export interface ClientToServerEvents {
   // Order
   startOrder: () => void;
   endOrder: () => void;
-  updateOrder: (data: { order: string }) => void;
+  updateOrder: (data: { userName: string; order: string }) => void;
+  getFrequentMenus: () => void;
 
   // Chat
   sendMessage: (data: { message: string; roomId: string }) => void;
+  toggleReaction: (data: { messageIndex: number; emoji: string }) => void;
 }

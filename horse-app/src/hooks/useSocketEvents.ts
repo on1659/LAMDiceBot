@@ -1,66 +1,112 @@
 import { useEffect } from 'react';
-import type { TypedSocket } from './useSocket';
+import type { RaceRecord, TrackLength } from '../types/game-state';
+import type {
+  ChatMessagePayload,
+  HorseRaceEndedPayload,
+  HorseRaceGameResetPayload,
+  MessageReactionUpdatedPayload,
+  RoomJoinedPayload,
+  ServerToClientEvents,
+} from '../types/socket-events';
 import { useGameStore } from '../stores/gameStore';
+import type { TypedSocket } from './useSocket';
 
-/**
- * 서버→클라이언트 소켓 이벤트 핸들러 등록
- */
+function normalizeChatMessage(input: ChatMessagePayload): ChatMessagePayload | null {
+  const message = input.message ?? input.text ?? '';
+  const normalized: ChatMessagePayload = {
+    ...input,
+    userName: input.userName ?? input.username ?? input.user,
+    message,
+    timestamp: input.timestamp ?? input.time,
+    reactions: input.reactions ?? {},
+  };
+
+  const hasRenderableBody = Boolean(
+    normalized.message ||
+      normalized.isImage ||
+      normalized.isSystem ||
+      normalized.isSystemMessage ||
+      normalized.isAI ||
+      normalized.type ||
+      normalized.imageData,
+  );
+
+  if (!hasRenderableBody) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function normalizeChatHistory(history: ChatMessagePayload[] | undefined): ChatMessagePayload[] {
+  if (!history?.length) return [];
+  return history
+    .map((message) => normalizeChatMessage(message))
+    .filter((message): message is ChatMessagePayload => message !== null)
+    .slice(-100);
+}
+
 export function useSocketEvents(socket: TypedSocket | null) {
   useEffect(() => {
     if (!socket) return;
 
     // === Room Events ===
-    const onRoomJoined = (data: Parameters<typeof socket.on extends (event: 'roomJoined', fn: infer F) => unknown ? F : never>[0]) => {
-      const d = data as {
-        roomId: string;
-        roomName: string;
-        users: Array<{ id: string; name: string; isHost: boolean; deviceType?: string }>;
-        host: string;
-        isHost: boolean;
-        gameType: string;
-        maxExpiry?: number;
-        expiryTime?: string;
-        serverId?: string;
-        serverName?: string;
-        chatHistory?: unknown[];
-        gameState?: {
-          readyUsers?: string[];
-          isOrderActive?: boolean;
-          chatHistory?: unknown[];
-        };
-      };
+    const onRoomJoined = (data: RoomJoinedPayload) => {
+      const users = data.users ?? data.gameState?.users ?? [];
+      const chatMessages = normalizeChatHistory(
+        data.chatHistory ?? data.gameState?.chatHistory,
+      );
+
       useGameStore.setState({
-        currentRoomId: d.roomId,
-        roomName: d.roomName,
-        currentUsers: d.users,
-        isHost: d.isHost,
+        currentRoomId: data.roomId,
+        roomName: data.roomName,
+        currentUsers: users,
+        isHost: data.isHost,
         gamePhase: 'room',
-        maxExpiry: d.maxExpiry ?? null,
-        expiryTime: d.expiryTime ?? null,
-        serverId: d.serverId ?? null,
-        serverName: d.serverName ?? null,
-        readyUsers: d.gameState?.readyUsers ?? [],
-        isOrderActive: !!d.gameState?.isOrderActive,
-        chatMessages: (d.chatHistory || d.gameState?.chatHistory || []) as import('../stores/gameStore').GameStore['chatMessages'],
+        maxExpiry: data.maxExpiry ?? null,
+        expiryTime: data.expiryTime ?? null,
+        serverId: data.serverId ?? null,
+        serverName: data.serverName ?? null,
       });
-      // 세션 저장 (새로고침 재입장용)
-      sessionStorage.setItem('horseRaceActiveRoom', JSON.stringify({
-        roomId: d.roomId,
-        userName: useGameStore.getState().currentUser,
-      }));
+
+      useGameStore.getState().setRoomRealtimeData({
+        readyUsers: data.gameState?.readyUsers ?? [],
+        isOrderActive: !!data.gameState?.isOrderActive,
+        userOrders: data.gameState?.userOrders ?? {},
+        frequentMenus: data.gameState?.frequentMenus ?? [],
+        chatMessages,
+      });
+
+      sessionStorage.setItem(
+        'horseRaceActiveRoom',
+        JSON.stringify({
+          roomId: data.roomId,
+          userName: useGameStore.getState().currentUser,
+        }),
+      );
     };
 
-    const onUserJoined = (data: { users: Array<{ id: string; name: string; isHost: boolean; deviceType?: string }>; joinedUser: string }) => {
+    const onUserJoined: ServerToClientEvents['userJoined'] = (data) => {
       useGameStore.setState({ currentUsers: data.users });
     };
 
-    const onUserLeft = (data: { users: Array<{ id: string; name: string; isHost: boolean; deviceType?: string }>; leftUser: string }) => {
+    const onUserLeft: ServerToClientEvents['userLeft'] = (data) => {
       useGameStore.setState({ currentUsers: data.users });
     };
 
-    const onHostChanged = (data: { newHost: string }) => {
+    const onUpdateUsers: ServerToClientEvents['updateUsers'] = (users) => {
+      useGameStore.setState({ currentUsers: users });
+    };
+
+    const onHostChanged: ServerToClientEvents['hostChanged'] = (data) => {
       const state = useGameStore.getState();
-      useGameStore.setState({ isHost: data.newHost === state.currentUser });
+      const nextHostName = data.newHostName ?? data.newHost;
+      if (!nextHostName) return;
+      useGameStore.setState({ isHost: nextHostName === state.currentUser });
+    };
+
+    const onRoomNameUpdated: ServerToClientEvents['roomNameUpdated'] = (newName) => {
+      useGameStore.setState({ roomName: newName });
     };
 
     const onRoomDeleted = () => {
@@ -68,22 +114,21 @@ export function useSocketEvents(socket: TypedSocket | null) {
       sessionStorage.removeItem('horseRaceActiveRoom');
     };
 
-    const onRoomError = (msg: string) => {
+    const onRoomError: ServerToClientEvents['roomError'] = (msg) => {
       console.warn('[Room Error]', msg);
     };
 
     // === Ready Events ===
-    const onReadyUsersUpdated = (readyUsers: string[]) => {
+    const onReadyUsersUpdated: ServerToClientEvents['readyUsersUpdated'] = (readyUsers) => {
       useGameStore.setState({ readyUsers });
     };
 
     // === Horse Race Events ===
-    const onHorseSelectionReady = (data: Parameters<NonNullable<ServerToClientEvents['horseSelectionReady']>>[0]) => {
+    const onHorseSelectionReady: ServerToClientEvents['horseSelectionReady'] = (data) => {
       const state = useGameStore.getState();
       useGameStore.getState().setSelectionData({
         availableHorses: data.availableHorses,
         selectedVehicleTypes: data.selectedVehicleTypes,
-        // 서버에서 일부 emit에는 이 필드들이 없음 → 현재 값 유지
         trackLength: data.trackLength ?? state.currentTrackLength,
         trackDistanceMeters: data.trackDistanceMeters ?? state.currentTrackDistanceMeters,
         trackPresets: data.trackPresets ?? state.trackPresetsFromServer,
@@ -93,11 +138,11 @@ export function useSocketEvents(socket: TypedSocket | null) {
       });
     };
 
-    const onHorseSelectionUpdated = (data: { selectedUsers: string[]; selectedHorseIndices: number[]; allSelected: boolean }) => {
+    const onHorseSelectionUpdated: ServerToClientEvents['horseSelectionUpdated'] = (data) => {
       useGameStore.getState().updateSelection(data.selectedUsers, data.selectedHorseIndices);
     };
 
-    const onRandomHorseSelected = (data: { userName: string; horseIndex: number; selectedUsers: string[]; selectedHorseIndices: number[]; allSelected: boolean }) => {
+    const onRandomHorseSelected: ServerToClientEvents['randomHorseSelected'] = (data) => {
       const state = useGameStore.getState();
       if (data.userName === state.currentUser) {
         useGameStore.setState({ mySelectedHorse: data.horseIndex });
@@ -105,23 +150,19 @@ export function useSocketEvents(socket: TypedSocket | null) {
       state.updateSelection(data.selectedUsers, data.selectedHorseIndices);
     };
 
-    const onTrackLengthChanged = (data: { trackLength: 'short' | 'medium' | 'long'; trackDistanceMeters: number; trackPresets: Record<string, number> }) => {
+    const onTrackLengthChanged: ServerToClientEvents['trackLengthChanged'] = (data) => {
       useGameStore.getState().setTrackLength(
-        data.trackLength,
+        data.trackLength as TrackLength,
         data.trackDistanceMeters,
       );
-      if (data.trackPresets) {
-        useGameStore.setState({
-          trackPresetsFromServer: data.trackPresets as Record<'short' | 'medium' | 'long', number>,
-        });
-      }
+      useGameStore.setState({ trackPresetsFromServer: data.trackPresets });
     };
 
-    const onHorseRaceCountdown = (data: { duration: number; raceRound: number; userHorseBets: Record<string, number>; selectedUsers: string[]; selectedHorseIndices: number[] }) => {
+    const onHorseRaceCountdown: ServerToClientEvents['horseRaceCountdown'] = (data) => {
       useGameStore.getState().setCountdownData(data);
     };
 
-    const onHorseRaceStarted = (data: Parameters<NonNullable<ServerToClientEvents['horseRaceStarted']>>[0]) => {
+    const onHorseRaceStarted: ServerToClientEvents['horseRaceStarted'] = (data) => {
       useGameStore.getState().setRaceData({
         rankings: data.rankings,
         horseRankings: data.horseRankings,
@@ -140,7 +181,7 @@ export function useSocketEvents(socket: TypedSocket | null) {
       });
     };
 
-    const onHorseRaceResult = (data: Parameters<NonNullable<ServerToClientEvents['horseRaceResult']>>[0]) => {
+    const onHorseRaceResult: ServerToClientEvents['horseRaceResult'] = (data) => {
       useGameStore.getState().setRaceResult({
         winners: data.winners,
         horseRaceHistory: [data.raceRecord, ...useGameStore.getState().horseRaceHistory].slice(0, 100),
@@ -148,9 +189,7 @@ export function useSocketEvents(socket: TypedSocket | null) {
       });
     };
 
-    const onHorseRaceGameReset = (data: { horseRaceHistory?: unknown[]; readyUsers?: string[]; everPlayedUsers?: string[] }) => {
-      // 서버는 { horseRaceHistory } 만 전송 (readyUsers/everPlayedUsers 미포함)
-      // 직후에 horseSelectionReady가 오므로 selection 화면으로 전환됨
+    const onHorseRaceGameReset = (data: HorseRaceGameResetPayload) => {
       const state = useGameStore.getState();
       useGameStore.setState({
         gamePhase: 'room',
@@ -158,27 +197,19 @@ export function useSocketEvents(socket: TypedSocket | null) {
         countdownData: null,
         mySelectedHorse: null,
         userHorseBets: {},
-        horseRaceHistory: (data.horseRaceHistory as import('../types/game-state').RaceRecord[]) || state.horseRaceHistory,
+        horseRaceHistory: (data.horseRaceHistory as RaceRecord[]) || state.horseRaceHistory,
       });
     };
 
-    const onHorseRaceEnded = (data: {
-      horseRaceHistory: unknown[];
-      finalWinner?: string;
-      tieWinners?: string[];
-      message?: string;
-    }) => {
+    const onHorseRaceEnded = (data: HorseRaceEndedPayload) => {
       const state = useGameStore.getState();
-      const history = data.horseRaceHistory as import('../types/game-state').RaceRecord[];
+      const history = (data.horseRaceHistory as RaceRecord[]) || state.horseRaceHistory;
 
-      // 결과 페이즈가 아직 안 왔으면 → result 화면 표시
-      // (서버는 horseRaceResult 없이 바로 horseRaceEnded를 보내는 경우가 많음)
       if (state.gamePhase === 'racing' || state.gamePhase === 'countdown') {
         const winners = data.finalWinner
           ? [data.finalWinner]
           : data.tieWinners || [];
 
-        // raceData에 winners 업데이트
         if (state.raceData) {
           useGameStore.setState({
             raceData: { ...state.raceData, winners },
@@ -194,7 +225,6 @@ export function useSocketEvents(socket: TypedSocket | null) {
           });
         }
       } else {
-        // 이미 result 상태이거나 다른 상태 → room으로 전환
         useGameStore.setState({
           gamePhase: 'room',
           raceData: null,
@@ -218,93 +248,104 @@ export function useSocketEvents(socket: TypedSocket | null) {
       });
     };
 
-    const onHorseRaceError = (msg: string) => {
+    const onHorseRaceError: ServerToClientEvents['horseRaceError'] = (msg) => {
       console.warn('[Horse Race Error]', msg);
     };
 
     // === Order / Chat ===
-    const onOrderStarted = () => {
+    const onOrderStarted: ServerToClientEvents['orderStarted'] = () => {
       useGameStore.setState({ isOrderActive: true });
     };
 
-    const onOrderEnded = () => {
+    const onOrderEnded: ServerToClientEvents['orderEnded'] = () => {
       useGameStore.setState({ isOrderActive: false });
     };
 
-    const onNewMessage = (data: unknown) => {
-      const msg = data as {
-        id?: string;
-        userName?: string;
-        username?: string;
-        user?: string;
-        message?: string;
-        text?: string;
-        timestamp?: string | number;
-        type?: string;
-      };
+    const onUpdateOrders: ServerToClientEvents['updateOrders'] = (orders) => {
+      useGameStore.getState().setUserOrders(orders);
+    };
 
-      const text = msg.message || msg.text;
-      if (!text) return;
+    const onOrderUpdated: ServerToClientEvents['orderUpdated'] = (data) => {
+      const state = useGameStore.getState();
+      if (!state.currentUser) return;
+      state.upsertUserOrder(state.currentUser, data.order || '');
+    };
 
-      useGameStore.getState().pushChatMessage({
-        id: msg.id,
-        userName: msg.userName || msg.username || msg.user,
-        message: text,
-        timestamp: msg.timestamp,
-        type: msg.type,
-      });
+    const onFrequentMenusUpdated: ServerToClientEvents['frequentMenusUpdated'] = (menus) => {
+      useGameStore.getState().setFrequentMenus(menus);
+    };
+
+    const onNewMessage: ServerToClientEvents['newMessage'] = (data) => {
+      const normalized = normalizeChatMessage(data);
+      if (!normalized) return;
+      useGameStore.getState().pushChatMessage(normalized);
+    };
+
+    const onMessageReactionUpdated = (data: MessageReactionUpdatedPayload) => {
+      const normalized = normalizeChatMessage(data.message);
+      if (!normalized) return;
+      useGameStore.getState().updateChatMessageAt(data.messageIndex, normalized);
     };
 
     // Register all listeners
-    socket.on('roomJoined', onRoomJoined as never);
+    socket.on('roomJoined', onRoomJoined);
     socket.on('userJoined', onUserJoined);
     socket.on('userLeft', onUserLeft);
+    socket.on('updateUsers', onUpdateUsers);
     socket.on('hostChanged', onHostChanged);
+    socket.on('roomNameUpdated', onRoomNameUpdated);
     socket.on('roomDeleted', onRoomDeleted);
     socket.on('roomError', onRoomError);
     socket.on('readyUsersUpdated', onReadyUsersUpdated);
-    socket.on('horseSelectionReady', onHorseSelectionReady as never);
+    socket.on('horseSelectionReady', onHorseSelectionReady);
     socket.on('horseSelectionUpdated', onHorseSelectionUpdated);
     socket.on('randomHorseSelected', onRandomHorseSelected);
-    socket.on('trackLengthChanged', onTrackLengthChanged as never);
+    socket.on('trackLengthChanged', onTrackLengthChanged);
     socket.on('horseRaceCountdown', onHorseRaceCountdown);
-    socket.on('horseRaceStarted', onHorseRaceStarted as never);
-    socket.on('horseRaceResult', onHorseRaceResult as never);
-    socket.on('horseRaceGameReset', onHorseRaceGameReset as never);
-    socket.on('horseRaceEnded', onHorseRaceEnded as never);
+    socket.on('horseRaceStarted', onHorseRaceStarted);
+    socket.on('horseRaceResult', onHorseRaceResult);
+    socket.on('horseRaceGameReset', onHorseRaceGameReset);
+    socket.on('horseRaceEnded', onHorseRaceEnded);
     socket.on('horseRaceDataCleared', onHorseRaceDataCleared);
     socket.on('horseSelectionCancelled', onHorseSelectionCancelled);
     socket.on('horseRaceError', onHorseRaceError);
-    socket.on('orderStarted', onOrderStarted as never);
-    socket.on('orderEnded', onOrderEnded as never);
-    socket.on('newMessage', onNewMessage as never);
+    socket.on('orderStarted', onOrderStarted);
+    socket.on('orderEnded', onOrderEnded);
+    socket.on('updateOrders', onUpdateOrders);
+    socket.on('orderUpdated', onOrderUpdated);
+    socket.on('frequentMenusUpdated', onFrequentMenusUpdated);
+    socket.on('newMessage', onNewMessage);
+    socket.on('messageReactionUpdated', onMessageReactionUpdated);
 
     return () => {
-      socket.off('roomJoined', onRoomJoined as never);
+      socket.off('roomJoined', onRoomJoined);
       socket.off('userJoined', onUserJoined);
       socket.off('userLeft', onUserLeft);
+      socket.off('updateUsers', onUpdateUsers);
       socket.off('hostChanged', onHostChanged);
+      socket.off('roomNameUpdated', onRoomNameUpdated);
       socket.off('roomDeleted', onRoomDeleted);
       socket.off('roomError', onRoomError);
       socket.off('readyUsersUpdated', onReadyUsersUpdated);
-      socket.off('horseSelectionReady', onHorseSelectionReady as never);
+      socket.off('horseSelectionReady', onHorseSelectionReady);
       socket.off('horseSelectionUpdated', onHorseSelectionUpdated);
       socket.off('randomHorseSelected', onRandomHorseSelected);
-      socket.off('trackLengthChanged', onTrackLengthChanged as never);
+      socket.off('trackLengthChanged', onTrackLengthChanged);
       socket.off('horseRaceCountdown', onHorseRaceCountdown);
-      socket.off('horseRaceStarted', onHorseRaceStarted as never);
-      socket.off('horseRaceResult', onHorseRaceResult as never);
-      socket.off('horseRaceGameReset', onHorseRaceGameReset as never);
-      socket.off('horseRaceEnded', onHorseRaceEnded as never);
+      socket.off('horseRaceStarted', onHorseRaceStarted);
+      socket.off('horseRaceResult', onHorseRaceResult);
+      socket.off('horseRaceGameReset', onHorseRaceGameReset);
+      socket.off('horseRaceEnded', onHorseRaceEnded);
       socket.off('horseRaceDataCleared', onHorseRaceDataCleared);
       socket.off('horseSelectionCancelled', onHorseSelectionCancelled);
       socket.off('horseRaceError', onHorseRaceError);
-      socket.off('orderStarted', onOrderStarted as never);
-      socket.off('orderEnded', onOrderEnded as never);
-      socket.off('newMessage', onNewMessage as never);
+      socket.off('orderStarted', onOrderStarted);
+      socket.off('orderEnded', onOrderEnded);
+      socket.off('updateOrders', onUpdateOrders);
+      socket.off('orderUpdated', onOrderUpdated);
+      socket.off('frequentMenusUpdated', onFrequentMenusUpdated);
+      socket.off('newMessage', onNewMessage);
+      socket.off('messageReactionUpdated', onMessageReactionUpdated);
     };
   }, [socket]);
 }
-
-// Re-export type for convenience
-type ServerToClientEvents = import('../types/socket-events').ServerToClientEvents;

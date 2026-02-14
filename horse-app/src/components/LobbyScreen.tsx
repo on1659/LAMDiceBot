@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { useGameStore } from '../stores/gameStore';
+import { useEffect, useRef, useState } from 'react';
 import type { TypedSocket } from '../hooks/useSocket';
+import { useGameStore } from '../stores/gameStore';
+import { getDeviceTypeFromNavigator, getSearchParams } from '../utils/browser';
 
 interface Props {
   socket: TypedSocket;
@@ -11,26 +12,25 @@ export function LobbyScreen({ socket }: Props) {
   const [roomName, setRoomName] = useState('');
   const [joinRoomId, setJoinRoomId] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = getSearchParams();
     return params.get('joinRoom') === 'true' ? 'join' : 'create';
   });
   const didAutoJoinRef = useRef(false);
 
-  // 자동 재입장 + 주사위 화면에서 넘긴 pending 데이터 자동 처리
   useEffect(() => {
     const tabId = sessionStorage.getItem('tabId') || '';
 
-    // 1) 새로고침 재입장
+    // 1) Reconnect existing room session first.
     const saved = sessionStorage.getItem('horseRaceActiveRoom');
     if (saved) {
       try {
-        const { roomId, userName: savedName } = JSON.parse(saved);
-        if (roomId && savedName) {
-          useGameStore.setState({ currentUser: savedName });
+        const parsed = JSON.parse(saved) as { roomId?: string; userName?: string };
+        if (parsed.roomId && parsed.userName) {
+          useGameStore.setState({ currentUser: parsed.userName });
           socket.emit('joinRoom', {
-            roomId,
-            userName: savedName,
-            deviceType: getDeviceType(),
+            roomId: parsed.roomId,
+            userName: parsed.userName,
+            deviceType: getDeviceTypeFromNavigator(),
             tabId,
           });
           didAutoJoinRef.current = true;
@@ -40,17 +40,27 @@ export function LobbyScreen({ socket }: Props) {
       }
     }
 
-    // 2) /horse-race?createRoom=true 또는 ?joinRoom=true 자동 진입
+    // 2) Handle pending create/join payload from launcher route.
     const savedUserName = localStorage.getItem('horseRaceUserName') || '';
     if (!didAutoJoinRef.current) {
-      const params = new URLSearchParams(window.location.search);
+      const params = getSearchParams();
 
       if (params.get('createRoom') === 'true') {
         const raw = localStorage.getItem('pendingHorseRaceRoom');
         if (raw) {
           try {
-            const pending = JSON.parse(raw);
+            const pending = JSON.parse(raw) as {
+              userName?: string;
+              roomName?: string;
+              isPrivate?: boolean;
+              password?: string;
+              expiryHours?: number;
+              blockIPPerUser?: boolean;
+              serverId?: string | null;
+              serverName?: string | null;
+            };
             const hostName = pending.userName || savedUserName;
+
             if (hostName && pending.roomName) {
               setRoomName(pending.roomName);
               useGameStore.setState({ currentUser: hostName });
@@ -62,15 +72,15 @@ export function LobbyScreen({ socket }: Props) {
                 gameType: 'horse-race',
                 expiryHours: pending.expiryHours,
                 blockIPPerUser: !!pending.blockIPPerUser,
-                serverId: pending.serverId || null,
-                serverName: pending.serverName || null,
-                deviceType: getDeviceType(),
+                serverId: pending.serverId || undefined,
+                serverName: pending.serverName || undefined,
+                deviceType: getDeviceTypeFromNavigator(),
                 tabId,
               });
               didAutoJoinRef.current = true;
             }
           } catch {
-            // ignore malformed pending data
+            // Ignore malformed local payload.
           }
           localStorage.removeItem('pendingHorseRaceRoom');
         }
@@ -80,8 +90,15 @@ export function LobbyScreen({ socket }: Props) {
         const raw = localStorage.getItem('pendingHorseRaceJoin');
         if (raw) {
           try {
-            const pending = JSON.parse(raw);
+            const pending = JSON.parse(raw) as {
+              userName?: string;
+              roomId?: string;
+              password?: string;
+              serverId?: string | null;
+              serverName?: string | null;
+            };
             const joinName = pending.userName || savedUserName;
+
             if (joinName && pending.roomId) {
               setJoinRoomId(pending.roomId);
               useGameStore.setState({ currentUser: joinName });
@@ -89,15 +106,15 @@ export function LobbyScreen({ socket }: Props) {
                 roomId: pending.roomId,
                 userName: joinName,
                 password: pending.password || '',
-                serverId: pending.serverId || null,
-                serverName: pending.serverName || null,
-                deviceType: getDeviceType(),
+                serverId: pending.serverId || undefined,
+                serverName: pending.serverName || undefined,
+                deviceType: getDeviceTypeFromNavigator(),
                 tabId,
               });
               didAutoJoinRef.current = true;
             }
           } catch {
-            // ignore malformed pending data
+            // Ignore malformed local payload.
           }
           localStorage.removeItem('pendingHorseRaceJoin');
         }
@@ -109,6 +126,7 @@ export function LobbyScreen({ socket }: Props) {
 
   const handleCreate = () => {
     if (!userName.trim() || !roomName.trim()) return;
+
     const trimmedName = userName.trim();
     const tabId = sessionStorage.getItem('tabId') || '';
     localStorage.setItem('horseRaceUserName', trimmedName);
@@ -117,13 +135,14 @@ export function LobbyScreen({ socket }: Props) {
       roomName: roomName.trim(),
       userName: trimmedName,
       gameType: 'horse-race',
-      deviceType: getDeviceType(),
+      deviceType: getDeviceTypeFromNavigator(),
       tabId,
     });
   };
 
   const handleJoin = () => {
     if (!userName.trim() || !joinRoomId.trim()) return;
+
     const trimmedName = userName.trim();
     const tabId = sessionStorage.getItem('tabId') || '';
     localStorage.setItem('horseRaceUserName', trimmedName);
@@ -131,7 +150,7 @@ export function LobbyScreen({ socket }: Props) {
     socket.emit('joinRoom', {
       roomId: joinRoomId.trim(),
       userName: trimmedName,
-      deviceType: getDeviceType(),
+      deviceType: getDeviceTypeFromNavigator(),
       tabId,
     });
   };
@@ -140,14 +159,11 @@ export function LobbyScreen({ socket }: Props) {
     <div className="flex items-center justify-center h-full p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-2">🏇</div>
+          <div className="text-5xl mb-2">🐎</div>
           <h1 className="text-2xl font-bold">LAM 경마</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            React + TypeScript 리빌드
-          </p>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">React + TypeScript 리빌드</p>
         </div>
 
-        {/* 닉네임 입력 */}
         <div className="mb-4">
           <input
             type="text"
@@ -159,7 +175,6 @@ export function LobbyScreen({ socket }: Props) {
           />
         </div>
 
-        {/* 탭 전환 */}
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setMode('create')}
@@ -220,11 +235,4 @@ export function LobbyScreen({ socket }: Props) {
       </div>
     </div>
   );
-}
-
-function getDeviceType(): string {
-  const ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/.test(ua)) return 'ios';
-  if (/Android/.test(ua)) return 'android';
-  return 'pc';
 }

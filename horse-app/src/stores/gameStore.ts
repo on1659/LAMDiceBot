@@ -1,16 +1,25 @@
 import { create } from 'zustand';
-import type { TrackLength, RaceRecord, HorseRaceMode, WeatherEvent, SlowMotionConfig, GimmickData, RaceRanking } from '../types/game-state';
-import type { UserInfo } from '../types/game-state';
+import type {
+  GimmickData,
+  HorseRaceMode,
+  RaceRanking,
+  RaceRecord,
+  SlowMotionConfig,
+  TrackLength,
+  UserInfo,
+  WeatherEvent,
+} from '../types/game-state';
+import type { ChatMessagePayload, OrderMapPayload } from '../types/socket-events';
 
 export type GamePhase =
-  | 'loading'       // 초기 로딩
-  | 'lobby'         // 방 생성/참가 대기
-  | 'room'          // 방 입장 완료 (대기중)
-  | 'selection'     // 탈것 선택 중
-  | 'countdown'     // 카운트다운 (3-2-1-START)
-  | 'racing'        // 레이스 진행 중
-  | 'result'        // 결과 표시
-  | 'replay';       // 다시보기
+  | 'loading'
+  | 'lobby'
+  | 'room'
+  | 'selection'
+  | 'countdown'
+  | 'racing'
+  | 'result'
+  | 'replay';
 
 export interface GameStore {
   // === Connection ===
@@ -25,6 +34,8 @@ export interface GameStore {
   currentUsers: UserInfo[];
   readyUsers: string[];
   isOrderActive: boolean;
+  userOrders: OrderMapPayload;
+  frequentMenus: string[];
   gamePhase: GamePhase;
   maxExpiry: number | null;
   expiryTime: string | null;
@@ -82,13 +93,7 @@ export interface GameStore {
   isReplayActive: boolean;
 
   // === Chat ===
-  chatMessages: Array<{
-    id?: string;
-    userName?: string;
-    message: string;
-    timestamp?: string | number;
-    type?: string;
-  }>;
+  chatMessages: ChatMessagePayload[];
 
   // === Actions ===
   setRoom: (roomId: string, userName: string, isHost: boolean) => void;
@@ -98,6 +103,16 @@ export interface GameStore {
   setHost: (isHost: boolean) => void;
   updateReadyUsers: (readyUsers: string[]) => void;
   setOrderActive: (active: boolean) => void;
+  setUserOrders: (orders: OrderMapPayload) => void;
+  upsertUserOrder: (userName: string, order: string) => void;
+  setFrequentMenus: (menus: string[]) => void;
+  setRoomRealtimeData: (data: {
+    readyUsers?: string[];
+    isOrderActive?: boolean;
+    userOrders?: OrderMapPayload;
+    frequentMenus?: string[];
+    chatMessages?: ChatMessagePayload[];
+  }) => void;
 
   // Horse race actions
   setSelectionData: (data: {
@@ -127,8 +142,9 @@ export interface GameStore {
   }) => void;
   clearRaceData: () => void;
   setReplayActive: (active: boolean) => void;
-  setChatMessages: (messages: GameStore['chatMessages']) => void;
-  pushChatMessage: (message: GameStore['chatMessages'][number]) => void;
+  setChatMessages: (messages: ChatMessagePayload[]) => void;
+  pushChatMessage: (message: ChatMessagePayload) => void;
+  updateChatMessageAt: (index: number, message: ChatMessagePayload) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -144,6 +160,8 @@ export const useGameStore = create<GameStore>((set) => ({
   currentUsers: [],
   readyUsers: [],
   isOrderActive: false,
+  userOrders: {},
+  frequentMenus: [],
   gamePhase: 'loading',
   maxExpiry: null,
   expiryTime: null,
@@ -199,6 +217,8 @@ export const useGameStore = create<GameStore>((set) => ({
       currentUsers: [],
       readyUsers: [],
       isOrderActive: false,
+      userOrders: {},
+      frequentMenus: [],
       gamePhase: 'lobby',
       raceData: null,
       countdownData: null,
@@ -218,6 +238,24 @@ export const useGameStore = create<GameStore>((set) => ({
   updateReadyUsers: (readyUsers) => set({ readyUsers }),
 
   setOrderActive: (active) => set({ isOrderActive: active }),
+
+  setUserOrders: (orders) => set({ userOrders: { ...(orders || {}) } }),
+
+  upsertUserOrder: (userName, order) =>
+    set((state) => ({
+      userOrders: { ...state.userOrders, [userName]: order },
+    })),
+
+  setFrequentMenus: (menus) => set({ frequentMenus: [...(menus || [])] }),
+
+  setRoomRealtimeData: (data) =>
+    set((state) => ({
+      readyUsers: data.readyUsers ?? state.readyUsers,
+      isOrderActive: data.isOrderActive ?? state.isOrderActive,
+      userOrders: data.userOrders ?? state.userOrders,
+      frequentMenus: data.frequentMenus ?? state.frequentMenus,
+      chatMessages: (data.chatMessages ?? state.chatMessages).slice(-100),
+    })),
 
   setSelectionData: (data) =>
     set({
@@ -269,7 +307,6 @@ export const useGameStore = create<GameStore>((set) => ({
       gamePhase: 'result',
       horseRaceHistory: data.horseRaceHistory,
       everPlayedUsers: data.everPlayedUsers,
-      // raceData에 winners 반영 (결과 화면에서 사용)
       raceData: state.raceData
         ? { ...state.raceData, winners: data.winners }
         : state.raceData,
@@ -300,10 +337,24 @@ export const useGameStore = create<GameStore>((set) => ({
       gamePhase: active ? 'replay' : 'result',
     }),
 
-  setChatMessages: (messages) => set({ chatMessages: messages || [] }),
+  setChatMessages: (messages) =>
+    set({
+      chatMessages: [...(messages || [])].slice(-100),
+    }),
 
   pushChatMessage: (message) =>
     set((state) => ({
       chatMessages: [...state.chatMessages, message].slice(-100),
     })),
+
+  updateChatMessageAt: (index, message) =>
+    set((state) => {
+      if (index < 0 || index >= state.chatMessages.length) {
+        return state;
+      }
+
+      const next = [...state.chatMessages];
+      next[index] = message;
+      return { chatMessages: next };
+    }),
 }));

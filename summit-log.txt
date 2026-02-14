@@ -1,3 +1,30 @@
+﻿========================================
+🔷 Summit Log - 2026-02-14 (horse-app P1~P3)
+========================================
+
+## 변경 파일
+- horse-app/src/types/socket-events.ts: 소켓 payload 타입 정밀화
+- horse-app/src/stores/gameStore.ts: 주문/채팅 상태 분리 및 액션 추가
+- horse-app/src/hooks/useSocketEvents.ts: 이벤트 핸들러 정밀화 및 상태 동기화
+- horse-app/src/components/ChatPanel.tsx: 시스템/AI 라벨, 리액션 UI, 이미지 메시지 표시
+- horse-app/src/components/OrderPanel.tsx: 주문 목록/정렬/요약, 자주메뉴 연동
+- horse-app/src/components/RoomHeader.tsx: 랭킹 fallback 안정화, 사운드 토글 개선
+- horse-app/src/components/LobbyScreen.tsx: 브라우저 유틸 경유 접근으로 안정화
+- horse-app/src/utils/externalModules.ts: 안전한 window 접근/네비게이션 유틸
+- horse-app/src/utils/browser.ts: URLSearchParams/디바이스 유틸 신규
+- docs/meeting/2026-02-14-horse-rebuild-p1-p3-log.md: 진행 로그 기록
+
+## 핵심 변경
+- P1: 공통 상태 접근 패턴 통일, 소켓 이벤트 타입을 명확화해 unknown 제거
+- P2: 채팅 리액션/시스템 표기, 주문 목록·정렬·요약 및 자주메뉴 연동 추가
+- P2: 랭킹 모듈 실패 시 /statistics fallback 및 serverId/userName 전달
+- P3: 빌드/정적 검증 완료
+
+## 검증
+- horse-app: npm run build (PASS, Vite 경고: non-module shared scripts)
+- node -c routes/api.js (PASS)
+- node -c test-file-separation.js (PASS)
+
 ========================================
 📋 Summit Log - 2026-02-14 (경마 React 리빌드 - horse-app)
 ========================================
@@ -1423,3 +1450,4 @@
 - assets/sounds/horse-race/bgm.mp3 변경
 
 ========================================
+

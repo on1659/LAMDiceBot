@@ -1,9 +1,11 @@
-type RankingModuleType = {
+export type RankingModuleType = {
   init?: (serverId?: string | null, userName?: string) => void;
   show?: () => void;
+  hide?: () => void;
+  invalidateCache?: () => void;
 };
 
-type SoundManagerType = {
+export type SoundManagerType = {
   muteAll?: () => void;
   unmuteAll?: () => void;
 };
@@ -13,10 +15,28 @@ type AppWindow = Window & {
   SoundManager?: SoundManagerType;
 };
 
+function getAppWindow(): AppWindow | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window as AppWindow;
+}
+
 export function getRankingModule(): RankingModuleType | undefined {
-  return (window as AppWindow).RankingModule;
+  return getAppWindow()?.RankingModule;
 }
 
 export function getSoundManager(): SoundManagerType | undefined {
-  return (window as AppWindow).SoundManager;
+  return getAppWindow()?.SoundManager;
+}
+
+export function navigateTo(path: string): void {
+  const appWindow = getAppWindow();
+  if (!appWindow) return;
+  appWindow.location.href = path;
+}
+
+export function getLocationSearch(): string {
+  return getAppWindow()?.location.search ?? '';
 }

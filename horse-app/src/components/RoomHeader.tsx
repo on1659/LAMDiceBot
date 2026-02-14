@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useGameStore } from '../stores/gameStore';
 import type { TypedSocket } from '../hooks/useSocket';
-import { getRankingModule, getSoundManager } from '../utils/externalModules';
+import { useGameStore } from '../stores/gameStore';
+import { getRankingModule, getSoundManager, navigateTo } from '../utils/externalModules';
 
 interface Props {
   socket: TypedSocket;
@@ -14,7 +14,9 @@ export function RoomHeader({ socket, onOpenTutorial }: Props) {
   const currentUsers = useGameStore((s) => s.currentUsers);
   const currentUser = useGameStore((s) => s.currentUser);
   const serverId = useGameStore((s) => s.serverId);
-  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('horseRaceSoundEnabled') !== 'false');
+  const [soundEnabled, setSoundEnabled] = useState(
+    () => localStorage.getItem('horseRaceSoundEnabled') !== 'false',
+  );
 
   const handleLeave = () => {
     socket.emit('leaveRoom');
@@ -27,30 +29,39 @@ export function RoomHeader({ socket, onOpenTutorial }: Props) {
     setSoundEnabled(next);
     localStorage.setItem('horseRaceSoundEnabled', String(next));
 
-    const sm = getSoundManager();
-    if (sm) {
-      if (next) sm.unmuteAll?.();
-      else sm.muteAll?.();
+    const soundManager = getSoundManager();
+    if (!soundManager) return;
+
+    if (next) {
+      soundManager.unmuteAll?.();
+    } else {
+      soundManager.muteAll?.();
     }
   };
 
   const openRanking = () => {
     const ranking = getRankingModule();
-
     if (ranking?.show) {
-      ranking.init?.(serverId, currentUser || '');
-      ranking.show();
-      return;
+      try {
+        ranking.init?.(serverId, currentUser || '');
+        ranking.show();
+        return;
+      } catch (error) {
+        console.warn('[Ranking] Failed to open module, fallback to /statistics', error);
+      }
     }
 
-    // fallback
-    window.location.href = '/statistics';
+    const params = new URLSearchParams();
+    if (serverId) params.set('serverId', serverId);
+    if (currentUser) params.set('userName', currentUser);
+    const query = params.toString();
+    navigateTo(query ? `/statistics?${query}` : '/statistics');
   };
 
   return (
     <header className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--accent-primary)]/20">
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-lg">🏇</span>
+        <span className="text-lg">🐎</span>
         <h2 className="font-bold truncate">{roomName || '경마'}</h2>
         {isHost && (
           <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-[var(--warning)] text-black font-medium">
@@ -59,9 +70,7 @@ export function RoomHeader({ socket, onOpenTutorial }: Props) {
         )}
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-[var(--text-secondary)] mr-1">
-          {currentUsers.length}명
-        </span>
+        <span className="text-sm text-[var(--text-secondary)] mr-1">{currentUsers.length}명</span>
         <button
           onClick={onOpenTutorial}
           className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] text-[var(--text-primary)] hover:opacity-90 transition-colors"
