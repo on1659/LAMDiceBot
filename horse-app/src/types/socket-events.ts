@@ -191,7 +191,10 @@ export interface ClientToServerEvents {
     roomName: string;
     userName: string;
     gameType: string;
+    isPrivate?: boolean;
     password?: string;
+    expiryHours?: number;
+    blockIPPerUser?: boolean;
     serverId?: string;
     serverName?: string;
     deviceType?: string;
@@ -201,6 +204,8 @@ export interface ClientToServerEvents {
     roomId: string;
     userName: string;
     password?: string;
+    serverId?: string;
+    serverName?: string;
     deviceType?: string;
     tabId?: string;
   }) => void;

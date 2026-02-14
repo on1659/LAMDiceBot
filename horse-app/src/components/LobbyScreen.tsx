@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import type { TypedSocket } from '../hooks/useSocket';
 
@@ -7,18 +7,25 @@ interface Props {
 }
 
 export function LobbyScreen({ socket }: Props) {
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState(() => localStorage.getItem('horseRaceUserName') || '');
   const [roomName, setRoomName] = useState('');
   const [joinRoomId, setJoinRoomId] = useState('');
-  const [mode, setMode] = useState<'create' | 'join'>('create');
-  // 자동 재입장 시도
+  const [mode, setMode] = useState<'create' | 'join'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('joinRoom') === 'true' ? 'join' : 'create';
+  });
+  const didAutoJoinRef = useRef(false);
+
+  // 자동 재입장 + 주사위 화면에서 넘긴 pending 데이터 자동 처리
   useEffect(() => {
+    const tabId = sessionStorage.getItem('tabId') || '';
+
+    // 1) 새로고침 재입장
     const saved = sessionStorage.getItem('horseRaceActiveRoom');
     if (saved) {
       try {
         const { roomId, userName: savedName } = JSON.parse(saved);
         if (roomId && savedName) {
-          const tabId = sessionStorage.getItem('tabId') || '';
           useGameStore.setState({ currentUser: savedName });
           socket.emit('joinRoom', {
             roomId,
@@ -26,21 +33,89 @@ export function LobbyScreen({ socket }: Props) {
             deviceType: getDeviceType(),
             tabId,
           });
+          didAutoJoinRef.current = true;
         }
       } catch {
         sessionStorage.removeItem('horseRaceActiveRoom');
       }
     }
+
+    // 2) /horse-race?createRoom=true 또는 ?joinRoom=true 자동 진입
+    const savedUserName = localStorage.getItem('horseRaceUserName') || '';
+    if (!didAutoJoinRef.current) {
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.get('createRoom') === 'true') {
+        const raw = localStorage.getItem('pendingHorseRaceRoom');
+        if (raw) {
+          try {
+            const pending = JSON.parse(raw);
+            const hostName = pending.userName || savedUserName;
+            if (hostName && pending.roomName) {
+              setRoomName(pending.roomName);
+              useGameStore.setState({ currentUser: hostName });
+              socket.emit('createRoom', {
+                userName: hostName,
+                roomName: pending.roomName,
+                isPrivate: !!pending.isPrivate,
+                password: pending.password || '',
+                gameType: 'horse-race',
+                expiryHours: pending.expiryHours,
+                blockIPPerUser: !!pending.blockIPPerUser,
+                serverId: pending.serverId || null,
+                serverName: pending.serverName || null,
+                deviceType: getDeviceType(),
+                tabId,
+              });
+              didAutoJoinRef.current = true;
+            }
+          } catch {
+            // ignore malformed pending data
+          }
+          localStorage.removeItem('pendingHorseRaceRoom');
+        }
+      }
+
+      if (!didAutoJoinRef.current && params.get('joinRoom') === 'true') {
+        const raw = localStorage.getItem('pendingHorseRaceJoin');
+        if (raw) {
+          try {
+            const pending = JSON.parse(raw);
+            const joinName = pending.userName || savedUserName;
+            if (joinName && pending.roomId) {
+              setJoinRoomId(pending.roomId);
+              useGameStore.setState({ currentUser: joinName });
+              socket.emit('joinRoom', {
+                roomId: pending.roomId,
+                userName: joinName,
+                password: pending.password || '',
+                serverId: pending.serverId || null,
+                serverName: pending.serverName || null,
+                deviceType: getDeviceType(),
+                tabId,
+              });
+              didAutoJoinRef.current = true;
+            }
+          } catch {
+            // ignore malformed pending data
+          }
+          localStorage.removeItem('pendingHorseRaceJoin');
+        }
+      }
+    }
+
     useGameStore.setState({ gamePhase: 'lobby' });
   }, [socket]);
 
   const handleCreate = () => {
     if (!userName.trim() || !roomName.trim()) return;
+    const trimmedName = userName.trim();
     const tabId = sessionStorage.getItem('tabId') || '';
-    useGameStore.setState({ currentUser: userName.trim() });
+    localStorage.setItem('horseRaceUserName', trimmedName);
+    useGameStore.setState({ currentUser: trimmedName });
     socket.emit('createRoom', {
       roomName: roomName.trim(),
-      userName: userName.trim(),
+      userName: trimmedName,
       gameType: 'horse-race',
       deviceType: getDeviceType(),
       tabId,
@@ -49,11 +124,13 @@ export function LobbyScreen({ socket }: Props) {
 
   const handleJoin = () => {
     if (!userName.trim() || !joinRoomId.trim()) return;
+    const trimmedName = userName.trim();
     const tabId = sessionStorage.getItem('tabId') || '';
-    useGameStore.setState({ currentUser: userName.trim() });
+    localStorage.setItem('horseRaceUserName', trimmedName);
+    useGameStore.setState({ currentUser: trimmedName });
     socket.emit('joinRoom', {
       roomId: joinRoomId.trim(),
-      userName: userName.trim(),
+      userName: trimmedName,
       deviceType: getDeviceType(),
       tabId,
     });
