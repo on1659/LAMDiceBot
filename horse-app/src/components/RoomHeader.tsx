@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import type { TypedSocket } from '../hooks/useSocket';
+import { getRankingModule, getSoundManager } from '../utils/externalModules';
 
 interface Props {
   socket: TypedSocket;
@@ -26,7 +27,7 @@ export function RoomHeader({ socket, onOpenTutorial }: Props) {
     setSoundEnabled(next);
     localStorage.setItem('horseRaceSoundEnabled', String(next));
 
-    const sm = (window as Window & { SoundManager?: { muteAll?: () => void; unmuteAll?: () => void } }).SoundManager;
+    const sm = getSoundManager();
     if (sm) {
       if (next) sm.unmuteAll?.();
       else sm.muteAll?.();
@@ -34,12 +35,7 @@ export function RoomHeader({ socket, onOpenTutorial }: Props) {
   };
 
   const openRanking = () => {
-    const ranking = (window as Window & {
-      RankingModule?: {
-        init?: (serverId?: string | null, userName?: string) => void;
-        show?: () => void;
-      };
-    }).RankingModule;
+    const ranking = getRankingModule();
 
     if (ranking?.show) {
       ranking.init?.(serverId, currentUser || '');
