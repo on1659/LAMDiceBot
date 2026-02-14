@@ -1,4 +1,24 @@
-﻿========================================
+========================================
+🔷 Summit Log - 2026-02-14 (useSocket re-render + roomCreated isHost)
+========================================
+
+## 변경 파일
+- horse-app/src/hooks/useSocket.ts: useRef → useState로 변경하여 소켓 생성 후 re-render 보장
+- socket/rooms.js: roomCreated 페이로드에 isHost: true 추가
+
+## 핵심 변경
+- useSocket 훅이 useRef를 사용해 소켓 생성 후 컴포넌트가 re-render되지 않는 버그 수정
+  - 원인: useRef 변경은 React re-render를 트리거하지 않음
+  - 개발 모드에서는 StrictMode 이중 마운트로 우연히 동작했으나 프로덕션에서 실패
+  - useState로 변경하여 setSocket 호출 시 re-render 발생
+- roomCreated 이벤트에 isHost 필드 누락 → applyRoomSnapshot에서 isHost: undefined로 설정됨
+  - roomJoined는 isHost: true가 있었으나 roomCreated에는 없었음
+
+## 검증
+- horse-app: npm run build (PASS)
+- node -c socket/rooms.js (PASS)
+
+========================================
 🔷 Summit Log - 2026-02-14 (horse-app roomCreated 처리)
 ========================================
 

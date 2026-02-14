@@ -371,6 +371,7 @@ module.exports = (socket, io, ctx) => {
             serverId: room.serverId || null,
             serverName: room.serverName || null,
             userName: trimmedUserName, // 호스트 이름 추가
+            isHost: true, // 방 생성자는 항상 호스트
             readyUsers: gameState.readyUsers || [], // 준비 목록 전송
             isReady: gameState.readyUsers.includes(trimmedUserName), // 호스트가 준비 목록에 있는지 확인
             isPrivate: isPrivateRoom,
