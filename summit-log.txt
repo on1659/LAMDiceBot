@@ -1,4 +1,34 @@
 ========================================
+📋 Summit Log - 2026-02-15 (경마 레거시 복원 + React 보류)
+========================================
+
+## 변경 파일
+- routes/api.js: 경마 라우트를 레거시 HTML로 복원 (React 빌드 체크/static 미들웨어 제거)
+- .claudeignore: horse-app/ 추가 (AI 탐색 제외, 토큰 절약)
+- CLAUDE.md: 프로젝트 코딩 가이드라인 추가
+- docs/meeting/multi/2026-02-14-horse-rebuild-direction.md: 3인 팀 회의록
+
+## 상세 변경 내역
+
+### 경마 라우팅 레거시 복원
+- /horse-race → 항상 horse-race-multiplayer.html 반환
+- React 빌드 존재 여부 체크(fs.existsSync) 제거
+- /horse-app static 미들웨어 제거
+- horseAppDistDir, horseAppIndex 변수 제거
+- 사유: 3인 회의 결론 "실서버는 레거시 유지, React는 백그라운드에서 천천히 완성"
+
+### Claude 설정
+- .claudeignore에 horse-app/ 추가 → AI가 302KB 레거시 대체 React 코드를 불필요하게 탐색하지 않음
+
+### 회의록
+- 기획자/개발자/QA 3인 독립 분석 → 교차 검토 → 합의 도출
+- 채택: 사운드 이식, 테마 통일, JS 파일 분리, E2E 테스트
+- 기각: 서버 TS 전환 (29K LOC 리스크)
+- 보류: React SVG 포팅, iOS 검증, 주문 독립화
+
+========================================
+
+========================================
 🔷 Summit Log - 2026-02-14 (useSocket re-render + roomCreated isHost)
 ========================================
 

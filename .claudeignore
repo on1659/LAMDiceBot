@@ -7,4 +7,5 @@ package-lock.json
 docs/GameGuide/
 .cursor/
 AutoTest/
+horse-app/
 *.md*

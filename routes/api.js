@@ -54,20 +54,13 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'crane-game-multiplayer.html'));
     });
 
-    // 경마 React 앱 (리빌드)
-    const horseAppDistDir = path.join(__dirname, '..', 'horse-app', 'dist');
-    const horseAppIndex = path.join(horseAppDistDir, 'index.html');
+    // 경마 (레거시 HTML)
     const legacyHorseHtml = path.join(__dirname, '..', 'horse-race-multiplayer.html');
 
     app.get('/horse-race', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-
-        if (fs.existsSync(horseAppIndex)) {
-            return res.sendFile(horseAppIndex);
-        }
-
         return res.sendFile(legacyHorseHtml);
     });
 
@@ -76,8 +69,6 @@ function setupRoutes(app) {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
         return res.redirect(302, `/horse-race${query}`);
     });
-
-    app.use('/horse-app', require('express').static(horseAppDistDir));
 
     app.get('/admin', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

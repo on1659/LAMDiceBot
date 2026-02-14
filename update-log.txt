@@ -1,4 +1,11 @@
-﻿<b style="color: #667eea;">🐎 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-14)</span>
+﻿<b style="color: #667eea;">🐎 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-15)</span>
+
+<b>경마 안정성 개선</b>
+경마 게임 접속 안정성을 개선했습니다. 접속 시 로딩 화면에 멈추던 문제가 해결되었습니다.
+
+---
+
+<b style="color: #667eea;">🐎 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-14)</span>
 
 <b>경마 앱 안정화</b>
 채팅·주문·랭킹 패널의 상태 동기화와 복원 흐름을 개선해 재접속/이벤트 처리 안정성을 높였습니다.
