@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import type { TypedSocket } from '../hooks/useSocket';
 import { RoomHeader } from './RoomHeader';
@@ -11,6 +12,7 @@ import { RaceTrack } from './RaceTrack';
 import { RaceResult } from './RaceResult';
 import { OrderPanel } from './OrderPanel';
 import { ChatPanel } from './ChatPanel';
+import { TutorialOverlay } from './TutorialOverlay';
 
 interface Props {
   socket: TypedSocket;
@@ -18,16 +20,18 @@ interface Props {
 
 export function GameLayout({ socket }: Props) {
   const gamePhase = useGameStore((s) => s.gamePhase);
+  const [tutorialOpen, setTutorialOpen] = useState(() => localStorage.getItem('horseRaceTutorialSeen') !== 'v1');
 
   // Racing/replay: fullscreen-like layout (no header clutter)
   if (gamePhase === 'racing' || gamePhase === 'replay') {
     return (
       <div className="flex flex-col h-full overflow-hidden">
-        <RoomHeader socket={socket} />
+        <RoomHeader socket={socket} onOpenTutorial={() => setTutorialOpen(true)} />
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
           <GameStatus />
           <RaceTrack socket={socket} />
         </div>
+        <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
       </div>
     );
   }
@@ -36,19 +40,20 @@ export function GameLayout({ socket }: Props) {
   if (gamePhase === 'countdown') {
     return (
       <div className="flex flex-col h-full overflow-hidden">
-        <RoomHeader socket={socket} />
+        <RoomHeader socket={socket} onOpenTutorial={() => setTutorialOpen(true)} />
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <GameStatus />
           <UsersList />
         </div>
         <Countdown />
+        <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <RoomHeader socket={socket} />
+      <RoomHeader socket={socket} onOpenTutorial={() => setTutorialOpen(true)} />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <GameStatus />
@@ -71,6 +76,7 @@ export function GameLayout({ socket }: Props) {
           </>
         )}
       </div>
+      <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
     </div>
   );
 }

@@ -4,9 +4,10 @@ import type { TypedSocket } from '../hooks/useSocket';
 
 interface Props {
   socket: TypedSocket;
+  onOpenTutorial?: () => void;
 }
 
-export function RoomHeader({ socket }: Props) {
+export function RoomHeader({ socket, onOpenTutorial }: Props) {
   const roomName = useGameStore((s) => s.roomName);
   const isHost = useGameStore((s) => s.isHost);
   const currentUsers = useGameStore((s) => s.currentUsers);
@@ -65,6 +66,12 @@ export function RoomHeader({ socket }: Props) {
         <span className="text-sm text-[var(--text-secondary)] mr-1">
           {currentUsers.length}명
         </span>
+        <button
+          onClick={onOpenTutorial}
+          className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] text-[var(--text-primary)] hover:opacity-90 transition-colors"
+        >
+          도움말
+        </button>
         <button
           onClick={openRanking}
           className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--accent-primary)]/20 text-[var(--accent-secondary)] hover:bg-[var(--accent-primary)]/30 transition-colors"
