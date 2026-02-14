@@ -417,6 +417,63 @@ module.exports = (socket, io, ctx) => {
         };
         socket.emit('roomCreated', roomCreatedData);
 
+        // React 경마 앱 등: roomJoined만 구독하므로 생성자에게도 roomJoined 전송 (방 입장 화면 전환)
+        socket.emit('roomJoined', {
+            roomId,
+            roomName: room.roomName,
+            serverId: room.serverId || null,
+            serverName: room.serverName || null,
+            userName: trimmedUserName,
+            isHost: true,
+            hasRolled: false,
+            myResult: null,
+            isGameActive: gameState.isGameActive || false,
+            isOrderActive: gameState.isOrderActive || false,
+            isGamePlayer: false,
+            readyUsers: gameState.readyUsers || [],
+            isReady: true,
+            isPrivate: isPrivateRoom,
+            password: isPrivateRoom ? roomPassword : '',
+            gameType: validGameType,
+            createdAt: room.createdAt,
+            expiryHours: validExpiryHours,
+            blockIPPerUser: validBlockIPPerUser,
+            turboAnimation: validTurboAnimation,
+            diceSettings: gameState.userDiceSettings[trimmedUserName],
+            myOrder: gameState.userOrders[trimmedUserName] || '',
+            gameRules: gameState.gameRules || '',
+            frequentMenus: gameState.frequentMenus || [],
+            chatHistory: gameState.chatHistory || [],
+            everPlayedUsers: gameState.everPlayedUsers || [],
+            userColors: gameState.userColors || {},
+            gameState: {
+                users: gameState.users.map(u => ({ id: u.id, name: u.name, isHost: u.isHost })),
+                isGameActive: gameState.isGameActive || false,
+                isOrderActive: gameState.isOrderActive || false,
+                history: gameState.history || [],
+                rolledUsers: gameState.rolledUsers || [],
+                gamePlayers: gameState.gamePlayers || [],
+                everPlayedUsers: gameState.everPlayedUsers || [],
+                readyUsers: gameState.readyUsers || [],
+                userOrders: gameState.userOrders || {},
+                gameRules: gameState.gameRules || '',
+                frequentMenus: gameState.frequentMenus || [],
+                userColors: gameState.userColors || {},
+                availableHorses: gameState.availableHorses || [],
+                userHorseBets: gameState.userHorseBets[trimmedUserName] !== undefined
+                    ? { [trimmedUserName]: gameState.userHorseBets[trimmedUserName] }
+                    : {},
+                horseRaceMode: gameState.horseRaceMode || 'last',
+                isHorseRaceActive: gameState.isHorseRaceActive || false,
+                selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+                horseRaceHistory: gameState.horseRaceHistory || [],
+                horseRankings: gameState.horseRankings || [],
+                trackLength: gameState.trackLength || 'medium',
+                hasRolled: false,
+                myResult: null
+            }
+        });
+
         // 경마 게임인 경우 방 생성 시 말 선택 UI 표시 (호스트 1명만 있어도 표시)
         if (validGameType === 'horse-race' && !gameState.isHorseRaceActive) {
             const players = gameState.users.map(u => u.name);
