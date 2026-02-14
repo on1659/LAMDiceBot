@@ -72,26 +72,55 @@ function assertContains(text, substring, message) {
 
 // ==================== 테스트 케이스 ====================
 
+function isReactHorseApp(html) {
+    return html.includes('/horse-app/assets/') || html.includes('/src/main.tsx');
+}
+
 async function testHTMLLoad() {
     const res = await httpGet(`${BASE_URL}/horse-race`);
     assertEqual(res.status, 200, 'HTML status');
     assertContains(res.data, '<!DOCTYPE html>', 'DOCTYPE');
-    assertContains(res.data, '<link rel="stylesheet" href="/css/horse-race.css">', 'CSS link');
-    assertContains(res.data, '<script src="/js/horse-race.js">', 'JS link');
+
+    if (isReactHorseApp(res.data)) {
+        assertContains(res.data, '/horse-app/assets/', 'React bundle link');
+    } else {
+        assertContains(res.data, '<link rel="stylesheet" href="/css/horse-race.css">', 'Legacy CSS link');
+        assertContains(res.data, '<script src="/js/horse-race.js">', 'Legacy JS link');
+    }
 }
 
 async function testCSSLoad() {
+    const html = await httpGet(`${BASE_URL}/horse-race`);
+    if (isReactHorseApp(html.data)) {
+        const cssPathMatch = html.data.match(/href="(\/horse-app\/assets\/[^\"]+\.css)"/);
+        assert(cssPathMatch && cssPathMatch[1], 'React CSS bundle path not found');
+        const res = await httpGet(`${BASE_URL}${cssPathMatch[1]}`);
+        assertEqual(res.status, 200, 'React CSS bundle status');
+        assert(res.data.length > 1000, 'React CSS bundle too small');
+        return;
+    }
+
     const res = await httpGet(`${BASE_URL}/css/horse-race.css`);
-    assertEqual(res.status, 200, 'CSS status');
-    assert(res.data.length > 10000, 'CSS file too small');
+    assertEqual(res.status, 200, 'Legacy CSS status');
+    assert(res.data.length > 10000, 'Legacy CSS file too small');
     assertContains(res.data, '.race-track', 'race-track class');
     assertContains(res.data, '@keyframes', 'keyframes');
 }
 
 async function testJSLoad() {
+    const html = await httpGet(`${BASE_URL}/horse-race`);
+    if (isReactHorseApp(html.data)) {
+        const bundlePathMatch = html.data.match(/src="(\/horse-app\/assets\/[^\"]+\.js)"/);
+        assert(bundlePathMatch && bundlePathMatch[1], 'React JS bundle path not found');
+        const res = await httpGet(`${BASE_URL}${bundlePathMatch[1]}`);
+        assertEqual(res.status, 200, 'React JS bundle status');
+        assert(res.data.length > 10000, 'React bundle too small');
+        return;
+    }
+
     const res = await httpGet(`${BASE_URL}/js/horse-race.js`);
-    assertEqual(res.status, 200, 'JS status');
-    assert(res.data.length > 100000, 'JS file too small');
+    assertEqual(res.status, 200, 'Legacy JS status');
+    assert(res.data.length > 100000, 'Legacy JS file too small');
     assertContains(res.data, 'var socket', 'socket variable');
     assertContains(res.data, 'var currentRoomId', 'currentRoomId variable');
     assertContains(res.data, 'function startRaceAnimation', 'startRaceAnimation function');
@@ -139,8 +168,13 @@ async function testNoInlineStyle() {
 }
 
 async function testGlobalVariables() {
+    const html = await httpGet(`${BASE_URL}/horse-race`);
+    if (isReactHorseApp(html.data)) {
+        // React 앱은 전역 var 기반이 아님
+        return;
+    }
+
     const res = await httpGet(`${BASE_URL}/js/horse-race.js`);
-    // 전역 변수가 var로 선언되어야 함
     const globalVars = [
         'var isLocalhost',
         'var currentRoomId',
@@ -156,7 +190,12 @@ async function testGlobalVariables() {
 
 async function testHTMLStructure() {
     const res = await httpGet(`${BASE_URL}/horse-race`);
-    // 주요 HTML 요소 확인
+
+    if (isReactHorseApp(res.data)) {
+        assertContains(res.data, 'id="root"', 'React root element');
+        return;
+    }
+
     const elements = [
         'id="lobbySection"',
         'id="gameSection"',
@@ -170,11 +209,17 @@ async function testHTMLStructure() {
 }
 
 async function testContentType() {
-    const tests = [
-        { url: '/horse-race', type: 'text/html' },
-        { url: '/css/horse-race.css', type: 'text/css' },
-        { url: '/js/horse-race.js', type: 'application/javascript' }
-    ];
+    const html = await httpGet(`${BASE_URL}/horse-race`);
+    const htmlType = html.headers['content-type'] || '';
+    assert(htmlType.includes('text/html'), `/horse-race: expected text/html, got ${htmlType}`);
+
+    const tests = isReactHorseApp(html.data)
+        ? []
+        : [
+            { url: '/css/horse-race.css', type: 'text/css' },
+            { url: '/js/horse-race.js', type: 'application/javascript' }
+        ];
+
     for (const t of tests) {
         const res = await httpGet(`${BASE_URL}${t.url}`);
         const contentType = res.headers['content-type'] || '';
@@ -186,10 +231,18 @@ async function testContentType() {
 }
 
 async function testFileSizes() {
+    const html = await httpGet(`${BASE_URL}/horse-race`);
+
+    if (isReactHorseApp(html.data)) {
+        const len = html.data.length;
+        assert(len >= 300 && len <= 30000, `/horse-race (react): size ${len} out of range`);
+        return;
+    }
+
     const expected = {
-        '/horse-race': { min: 10000, max: 50000 },  // ~370 lines
-        '/css/horse-race.css': { min: 30000, max: 80000 },          // ~1514 lines
-        '/js/horse-race.js': { min: 150000, max: 300000 }           // ~6071 lines
+        '/horse-race': { min: 10000, max: 50000 },
+        '/css/horse-race.css': { min: 30000, max: 80000 },
+        '/js/horse-race.js': { min: 150000, max: 300000 }
     };
     for (const [path, size] of Object.entries(expected)) {
         const res = await httpGet(`${BASE_URL}${path}`);
