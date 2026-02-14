@@ -22,60 +22,40 @@ export function GameLayout({ socket }: Props) {
   const gamePhase = useGameStore((s) => s.gamePhase);
   const [tutorialOpen, setTutorialOpen] = useState(() => localStorage.getItem('horseRaceTutorialSeen') !== 'v1');
 
-  // Racing/replay: fullscreen-like layout (no header clutter)
-  if (gamePhase === 'racing' || gamePhase === 'replay') {
-    return (
-      <div className="flex flex-col h-full overflow-hidden">
-        <RoomHeader socket={socket} onOpenTutorial={() => setTutorialOpen(true)} />
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          <GameStatus />
-          <RaceTrack socket={socket} />
-        </div>
-        <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
-      </div>
-    );
-  }
-
-  // Countdown overlay on top of selection
-  if (gamePhase === 'countdown') {
-    return (
-      <div className="flex flex-col h-full overflow-hidden">
-        <RoomHeader socket={socket} onOpenTutorial={() => setTutorialOpen(true)} />
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <GameStatus />
-          <UsersList />
-        </div>
-        <Countdown />
-        <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
-      </div>
-    );
-  }
+  const isRacingView = gamePhase === 'racing' || gamePhase === 'replay';
+  const isCountdownView = gamePhase === 'countdown';
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <RoomHeader socket={socket} onOpenTutorial={() => setTutorialOpen(true)} />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className={`flex-1 overflow-y-auto space-y-4 ${isRacingView ? 'p-2' : 'p-4'}`}>
         <GameStatus />
-        <UsersList />
-        <ReadySection socket={socket} />
-        <HostControls socket={socket} />
 
-        {gamePhase === 'selection' && (
-          <VehicleSelection socket={socket} />
-        )}
-
-        {gamePhase === 'result' && (
-          <RaceResult socket={socket} />
-        )}
-
-        {(gamePhase === 'room' || gamePhase === 'selection' || gamePhase === 'result') && (
+        {isRacingView ? (
+          <RaceTrack socket={socket} />
+        ) : isCountdownView ? (
+          <UsersList />
+        ) : (
           <>
-            <OrderPanel socket={socket} />
-            <ChatPanel socket={socket} />
+            <UsersList />
+            <ReadySection socket={socket} />
+            <HostControls socket={socket} />
+
+            {gamePhase === 'selection' && <VehicleSelection socket={socket} />}
+            {gamePhase === 'result' && <RaceResult socket={socket} />}
+
+            {(gamePhase === 'room' || gamePhase === 'selection' || gamePhase === 'result') && (
+              <>
+                <OrderPanel socket={socket} />
+                <ChatPanel socket={socket} />
+              </>
+            )}
           </>
         )}
       </div>
+
+      {isCountdownView && <Countdown />}
       <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
     </div>
   );
