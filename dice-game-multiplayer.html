@@ -1890,15 +1890,18 @@
         if (_returnData) {
             sessionStorage.removeItem('returnToLobby');
             let _restoredServerName = null;
+            let _restoredHostName = null;
             try {
                 const rd = JSON.parse(_returnData);
                 currentServerId = rd.serverId || null;
                 currentServerName = rd.serverName || null;
                 _restoredServerName = rd.serverName || null;
+                _restoredHostName = rd.hostName || null;
             } catch(e) {}
             // 소켓에 서버 ID 설정 (방 목록 필터링 + 입장 검증용)
             if (currentServerId) {
                 socket.emit('setServerId', { serverId: currentServerId });
+                ServerSelectModule.setCurrentServer({ id: currentServerId, name: currentServerName, hostName: _restoredHostName || '' });
             }
             // 서버 정보 바 표시
             const infoBar = document.getElementById('serverInfoBar');

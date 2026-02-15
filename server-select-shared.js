@@ -1189,6 +1189,10 @@ const ServerSelectModule = (function () {
         return _currentServer;
     }
 
+    function setCurrentServer(server) {
+        _currentServer = server;
+    }
+
     function escapeStr(str) {
         if (!str) return '';
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
@@ -1267,6 +1271,7 @@ const ServerSelectModule = (function () {
         closeMyServersModal,
         showServerMembersManage,
         deleteMyServer,
-        getCurrentServer
+        getCurrentServer,
+        setCurrentServer
     };
 })();
