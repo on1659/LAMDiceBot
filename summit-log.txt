@@ -1,4 +1,39 @@
 ========================================
+📋 Summit Log - 2026-02-16 (docs 정리)
+========================================
+
+## 변경 파일
+- docs/GameGuide/01-plan/features/pending/server-concept.plan.md: 삭제 (applied로 이동)
+- docs/GameGuide/01-plan/features/applied/server-concept.plan.md: 추가 (pending에서 이동)
+
+## 상세 변경 내역
+
+### server-concept 문서 이동 (pending → applied)
+- Phase 1~5 + 포팅 Phase A~C **전체 완료** 확인
+  - db/servers.js, socket/server.js 존재 확인
+  - admin.html, server-members.html 존재 확인
+- 구현 완료된 기능이므로 applied 폴더로 이동
+
+### pending 폴더 최종 상태
+- race-finish-gap.plan.md: 경마 순위 간격 보장 (미적용)
+- scalability-improvement.plan.md: Redis/DB 확장성 개선 (Quick Win 일부 적용, Redis 미적용)
+
+### applied 폴더 최종 상태
+- deterministic-race.plan.md
+- mobile-race-viewport.plan.md
+- server-concept.plan.md (신규 추가)
+
+### 영향 범위
+- 내부 문서 정리만 진행
+- 코드 변경 없음
+- 유저 체감 변경사항 없음
+
+### 참고
+- dice/game-type 폴더의 DICE_GAME_ROLLBACK_GUIDE.md, project_plan.md는 이미 이전에 정리됨
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-15 (멤버 버튼 버그 수정)
 ========================================
 
