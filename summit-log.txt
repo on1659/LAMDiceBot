@@ -1,4 +1,43 @@
 ========================================
+📋 Summit Log - 2026-02-15 (Claude Code 설정 개선)
+========================================
+
+## 변경 파일
+- CLAUDE.md: 섹션 5~7 추가 (Record Before Talk, Context-First, Project-Specific Rules)
+- .claude/hooks/check-main-branch.sh: 신규 - main 브랜치 파일 수정 시 경고 hook
+- .claude/hooks/file-type-reminder.sh: 신규 - 파일 유형별 체크리스트 리마인더 hook
+- .claude/settings.local.json: hooks 설정 추가, 불필요 permissions 정리
+
+## 상세 변경 내역
+
+### CLAUDE.md 보강
+- 섹션 5 Record Before Talk: 중요 결정은 MEMORY.md에 먼저 기록하는 원칙
+- 섹션 6 Context-First Development: 코드 작성 전 관련 파일 읽기/패턴 검색/영향 범위 확인 의무화
+- 섹션 7 Project-Specific Rules: Socket/DB/HTML/horse-app별 상황-행동 매칭 테이블
+
+### Hooks 자동화 (3개)
+- PreToolUse(Write|Edit): main 브랜치에서 파일 수정 시 경고 (차단 아님)
+- PostToolUse(Write|Edit): socket/*.js, db/*.js, *.html, horse-app/src/* 수정 후 체크리스트
+- Stop: 세션 종료 시 MEMORY.md 기록 리마인더
+- jq 미설치 → node로 stdin JSON 파싱 구현
+
+### settings.local.json 정리
+- 삭제: 특정 커밋 메시지 중복 permission, npm create, WebFetch(raw.githubusercontent.com)
+- 유지: node:*, git commit:*, git diff:*, additionalDirectories
+
+### MEMORY.md 개선
+- File Path Map 추가 (Core, Socket, DB, Client, React App)
+- Common Patterns 추가 (게임/소켓/DB 추가 절차, API 응답 형식, 파라미터화 쿼리)
+- Debugging Tips, Environment Variables 추가
+
+### ClaudeDesktop/ 폴더 정리
+- 유용한 내용(API 응답 형식, 파라미터화 쿼리) MEMORY.md로 흡수
+- 실제 코드와 불일치하는 내용 버림 (IIFE, JSDoc, 이벤트 상수 등)
+- 폴더 삭제 (git 미추적이었으므로 커밋 영향 없음)
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-15 (경마 레거시 복원 + React 보류)
 ========================================
 
