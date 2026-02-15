@@ -5,9 +5,7 @@
 .cursor/
 .vscode/
 
-# 테스트 폴더
-/AutoTest/node_modules
-/AutoTest/*.log
+# 테스트 폴더 (런타임 산출물만 제외)
 
 # 백업파일
 .bak
@@ -42,4 +40,6 @@ server_modified.js
 COMMIT_MESSAGE.md
 COMMIT_MESSAGE.txt
 summit-log.txt
-AutoTest/
+AutoTest/node_modules/
+AutoTest/**/*.log
+AutoTest/**/*.png
