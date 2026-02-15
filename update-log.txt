@@ -1,4 +1,13 @@
-﻿<b style="color: #667eea;">🐎 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-15)</span>
+﻿<b style="color: #667eea;">🎮 최신 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-16)</span>
+
+<b>🏠 독립 로비 페이지</b>
+• 로비(방 목록/방 생성)가 별도 페이지로 분리되었습니다
+• 로비 로딩 속도가 빨라지고 게임별 페이지가 가벼워졌습니다
+• 모든 게임에서 "로비로 돌아가기" 경로가 통일되었습니다
+
+---
+
+<b style="color: #667eea;">🐎 이전 업데이트</b> <span style="color: #999; font-size: 12px; font-weight: normal;">(2026-02-15)</span>
 
 <b>경마 안정성 개선</b>
 경마 게임 접속 안정성을 개선했습니다. 접속 시 로딩 화면에 멈추던 문제가 해결되었습니다.

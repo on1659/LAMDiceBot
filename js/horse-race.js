@@ -276,13 +276,13 @@ var currentServerName = null;
             });
         } catch(e) {
             sessionStorage.removeItem('horseRaceActiveRoom');
-            window.location.replace('/game');
+            window.location.replace('/lobby');
         }
         return;
     }
 
     if (!fromDice) {
-        window.location.replace('/game');
+        window.location.replace('/lobby');
         return;
     }
     var pending = localStorage.getItem('pendingHorseRaceRoom') || localStorage.getItem('pendingHorseRaceJoin');
@@ -4169,7 +4169,7 @@ socket.on('roomError', (message) => {
     sessionStorage.removeItem('horseRaceFromDice');
     sessionStorage.removeItem('horseRaceActiveRoom');
     alert(message);
-    window.location.href = '/game';
+    window.location.href = '/lobby';
 });
 
 socket.on('horseRaceError', (message) => {
@@ -4851,7 +4851,7 @@ socket.on('roomLeft', () => {
         clearInterval(roomExpiryInterval);
     }
     sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-    window.location.replace('/game');
+    window.location.replace('/lobby');
 });
 
 socket.on('roomDeleted', (data) => {
@@ -4861,7 +4861,7 @@ socket.on('roomDeleted', (data) => {
         clearInterval(roomExpiryInterval);
     }
     sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-    window.location.replace('/game');
+    window.location.replace('/lobby');
 });
 
 // 비공개 방 체크박스 이벤트

@@ -1712,13 +1712,13 @@
                     });
                 } catch(e) {
                     sessionStorage.removeItem('rouletteActiveRoom');
-                    window.location.replace('/game');
+                    window.location.replace('/lobby');
                 }
                 return;
             }
 
             if (!fromDice) {
-                window.location.replace('/game');
+                window.location.replace('/lobby');
                 return;
             }
             const pending = localStorage.getItem('pendingRouletteRoom') || localStorage.getItem('pendingRouletteJoin');
@@ -2917,7 +2917,7 @@
             sessionStorage.removeItem('rouletteFromDice');
             sessionStorage.removeItem('rouletteActiveRoom');
             alert(message);
-            window.location.href = '/game';
+            window.location.href = '/lobby';
         });
 
         socket.on('rouletteError', (message) => {
@@ -3298,7 +3298,7 @@
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/game');
+            window.location.replace('/lobby');
         });
 
         // 방 나가기 완료 (서버에서 roomLeft emit)
@@ -3308,7 +3308,7 @@
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/game');
+            window.location.replace('/lobby');
         });
 
         // 레거시 이벤트 호환성 유지
@@ -3318,7 +3318,7 @@
                 clearInterval(roomExpiryInterval);
             }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/game');
+            window.location.replace('/lobby');
         });
 
         // 호스트 권한 전달 알림

@@ -1,4 +1,41 @@
 ========================================
+📋 Summit Log - 2026-02-16 (로비 분리)
+========================================
+
+## 변경 파일
+- lobby.html (신규): 독립 로비 페이지 (1,205줄) — dice HTML에서 로비 UI/JS 추출
+- dice-game-multiplayer.html: 로비 HTML/JS 제거 (-365줄), URL 파라미터 진입 패턴 적용
+- routes/api.js: /lobby 라우트 추가, /game → /lobby 리다이렉트, /dice 라우트 추가
+- index.html: 서버 선택 후 이동 경로 /game → /lobby
+- crane-game-multiplayer.html: /game → /lobby 경로 변경 (6곳)
+- roulette-game-multiplayer.html: /game → /lobby 경로 변경 (6곳)
+- js/horse-race.js: /game → /lobby 경로 변경 (5곳)
+- docs/meeting/multi/2026-02-15-lobby-separation.md (신규): 회의록
+
+## 상세 변경 내역
+
+### 로비 분리 (lobby.html)
+- dice-game-multiplayer.html에서 #lobbySection, #createRoomSection HTML 추출
+- 로비 JS 함수 추출: renderRoomsList, refreshRooms, joinRoomDirectly, finalizeRoomCreation, 비밀번호 모달 등
+- Socket.IO 연결 + 방 목록 이벤트 (getRooms, roomsList) 포함
+- 공유 모듈 로드 (ranking-shared.js, server-select-shared.js)
+
+### 라우팅 변경
+- /lobby → lobby.html (신규)
+- /game → /lobby (302 리다이렉트, 하위 호환)
+- /dice → dice-game-multiplayer.html (신규 경로)
+- 기존 /roulette, /horse-race, /crane-game 유지
+
+### 게임 페이지 경로 통일
+- 모든 게임 페이지의 "로비로 돌아가기" 경로를 /lobby로 통일
+- 영향: crane-game, roulette, horse-race, dice
+
+### 변경하지 않은 것
+- socket/rooms.js — 이미 게임 타입 무관한 공통 구조
+- socket/dice.js, socket/horse.js 등 — 게임 로직 변경 없음
+- ranking-shared.js, chat-shared.js 등 — 공유 모듈 변경 없음
+
+========================================
 📋 Summit Log - 2026-02-15 (멤버 버튼 버그 수정)
 ========================================
 

@@ -32,7 +32,17 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'index.html'));
     });
 
-    app.get('/game', (req, res) => {
+    app.get('/lobby', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'lobby.html'));
+    });
+
+    // 기존 /game → /lobby 리다이렉트 (호환용)
+    app.get('/game', (req, res) => res.redirect(302, '/lobby'));
+
+    app.get('/dice', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');

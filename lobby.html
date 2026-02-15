@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>LAM Dice :)</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: 20px auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .lobby-section, .create-room-section {
+            display: none;
+        }
+
+        .lobby-section.active, .create-room-section.active {
+            display: block;
+        }
+
+        .rooms-list {
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .room-item {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .room-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        /* 경마 버튼 툴팁 */
+        #horseRaceLabel {
+            position: relative;
+        }
+
+        #horseRaceLabel::after {
+            content: '이름 추천받아요~ 문의하기에 남겨주세요!';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            font-size: 12px;
+            white-space: nowrap;
+            border-radius: 6px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #horseRaceLabel::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 2px;
+            border: 6px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.85);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        #horseRaceLabel:hover::after,
+        #horseRaceLabel:hover::before {
+            opacity: 1;
+        }
+
+        .room-item.active {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .room-item.my-room {
+            background: #fff3cd;
+            border-color: #ffc107;
+            border-width: 3px;
+        }
+
+        .my-room-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .room-info {
+            flex: 1;
+        }
+
+        .room-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .room-details {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .room-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+            display: inline-block;
+        }
+
+        .room-status.playing {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .room-status.ordering {
+            background: #fff9e6;
+            color: #856404;
+        }
+
+        .room-status.waiting {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .room-action {
+            margin-left: 15px;
+        }
+
+        .room-action button {
+            width: auto;
+            padding: 10px 20px;
+        }
+
+        .create-room-section, .join-room-section {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* 업데이트 내역 섹션 */
+        .update-log-section {
+            background: linear-gradient(145deg, #fafbff 0%, #f0f2ff 100%);
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.12);
+        }
+        .update-log-section h2 {
+            margin-bottom: 16px;
+            color: #667eea;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .update-log-content {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 320px;
+            overflow-y: auto;
+            line-height: 1.85;
+            color: #374151;
+            font-size: 14px;
+            white-space: pre-wrap;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .update-log-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .update-log-content::-webkit-scrollbar-track {
+            background: #f1f3f5;
+            border-radius: 4px;
+        }
+        .update-log-content::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+        .update-log-content::-webkit-scrollbar-thumb:hover {
+            background: #5a6fd6;
+        }
+        .update-log-content b {
+            color: #1f2937;
+            font-weight: 700;
+        }
+        .update-log-content .update-log-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.25), transparent);
+            margin: 18px 0;
+            border: none;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input[type="text"], input[type="number"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .connection-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .connection-status.connected {
+            background: #28a745;
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: #dc3545;
+            color: white;
+        }
+
+        @keyframes newBadgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+                max-height: none;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .room-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .room-action {
+                margin-left: 0;
+                margin-top: 10px;
+                width: 100%;
+            }
+            .room-action button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header style="background-color: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e7e7e7;">
+        <nav style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
+            <h1 style="margin: 0; font-size: 1.5em;"><a href="/" style="text-decoration: none; color: #333;">LAMDice 주사위 게임</a></h1>
+            <div class="nav-links">
+                <a href="dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: #007bff;">다양한 주사위 규칙</a>
+                <a href="probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: #007bff;">확률 분석 및 팁</a>
+                <a href="about-us.html" style="margin-left: 20px; text-decoration: none; color: #007bff;">사이트 소개</a>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
+            <div id="visitorStats" style="text-align: right; color: #667eea; font-size: 14px; line-height: 1.6;">
+                <div style="font-size:11px;color:#999;margin-bottom:2px;">전체 서버 통합</div>
+                <div>오늘 방문자 수: <strong id="todayVisitorCount">0</strong>명</div>
+                <div>오늘 플레이 횟수: <strong id="todayPlayCount">0</strong>회</div>
+                <div>총 플레이 횟수: <strong id="totalPlayCount">0</strong>회</div>
+            </div>
+        </div>
+
+        <!-- 대기실 섹션 -->
+        <div class="lobby-section" id="lobbySection">
+            <!-- 서버 정보 바 (서버 선택 시 표시) -->
+            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid #667eea; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+                <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.href='/';" style="width: auto; padding: 6px 12px; font-size: 13px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
+                <span id="serverInfoName" style="font-weight: bold; color: #667eea;"></span>
+                <span id="serverInfoUserName" style="font-weight: 600; color: #764ba2; display: none;">👤 </span>
+                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+            </div>
+            <div class="create-room-button-section" style="background: #f8f9fa; border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="margin-bottom: 15px; color: #667eea;">방 만들기</h2>
+                <button onclick="showCreateRoomPage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-bottom: 15px;">방 생성하기</button>
+                <button onclick="RankingModule.show()" style="background: white; border: 2px solid #667eea; color: #667eea; margin-bottom: 15px; font-weight: 600;">랭킹</button>
+                <div class="input-group" style="margin: 0; display: none;">
+                    <label for="globalUserNameInput">이름</label>
+                    <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
+                    <div id="userNameError" style="color: #dc3545; font-size: 12px; margin-top: 5px; display: none;"></div>
+                </div>
+            </div>
+
+            <div class="join-room-section">
+                <h2 style="margin-bottom: 15px; color: #667eea;">방 목록</h2>
+                <button onclick="refreshRooms()" style="width: auto; padding: 8px 16px; margin-bottom: 15px; background: #6c757d;">새로고침</button>
+                <div class="rooms-list" id="roomsList">
+                    <div style="color: #999; text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
+                </div>
+
+                <!-- Google AdSense 광고: 반응형 박스 -->
+                <div style="margin: 20px 0; text-align: center;">
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-1608259764663412"
+                         data-ad-slot="YOUR_SLOT_ID"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                </div>
+
+            </div>
+
+            <!-- 업데이트 내역 -->
+            <div class="update-log-section">
+                <h2>📝 업데이트 내역</h2>
+                <div class="update-log-content" id="updateLogContent">업데이트 내역을 불러오는 중...</div>
+            </div>
+        </div>
+
+        <!-- 방 생성 페이지 -->
+        <div class="create-room-section" id="createRoomSection">
+            <div style="margin-bottom: 20px;">
+                <button onclick="goBackToLobby()" style="width: auto; padding: 10px 20px; margin-bottom: 15px; background: #6c757d;">← 대기실로 돌아가기</button>
+                <h2 style="margin-bottom: 20px; color: #667eea;">방 만들기</h2>
+            </div>
+
+            <!-- 로고 및 연결 상태 -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="display: inline-flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🎲</span>
+                    <span style="font-size: 20px; font-weight: 600; color: #667eea;">LAM Dice :)</span>
+                    <span class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</span>
+                </div>
+            </div>
+
+            <!-- 방 제목 입력 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <div class="input-group" style="margin-bottom: 0;">
+                    <label for="createRoomNameInput">방 제목</label>
+                    <input type="text" id="createRoomNameInput" placeholder="방 제목 입력" maxlength="30" />
+                </div>
+            </div>
+
+            <!-- 공개/비공개 설정 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                    <label for="createRoomPrivateCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">비공개 방</label>
+                </div>
+                <div id="createRoomPasswordContainer" style="display: none;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label for="createRoomPasswordInput">비밀번호</label>
+                        <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 입력 (4~20자)" maxlength="20" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- 방 유지 시간 설정 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 500;">⏰ 방 유지 시간</label>
+                <div style="display: flex; gap: 10px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomExpiryTime" value="1" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>1시간</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomExpiryTime" value="3" checked style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>3시간 (기본)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
+                        <input type="radio" name="roomExpiryTime" value="6" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
+                        <span>6시간</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 게임 타입 선택 -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #667eea;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 500;">🎮 게임 타입</label>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
+                        <input type="radio" name="gameType" value="dice" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🎲</span>
+                        <span style="font-weight: 600;">주사위</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #e91e63;">
+                        <input type="radio" name="gameType" value="roulette" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🎰</span>
+                        <span style="font-weight: 600;">룰렛</span>
+                    </label>
+                    <label id="horseRaceLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #8b4513; position: relative;">
+                        <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🐎</span>
+                        <span style="font-weight: 600;">경마</span>
+                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #9c27b0; position: relative;">
+                        <input type="radio" name="gameType" value="crane-game" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🪄</span>
+                        <span style="font-weight: 600;">인형뽑기</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
+
+                </div>
+                <div id="gameTypeInfo" style="margin-top: 8px; font-size: 12px; color: #666;">
+                    룰렛/경마/인형뽑기를 선택하면 전용 페이지로 이동합니다.
+                </div>
+                <script>
+                    // 게임 타입 선택 시 시각적 강조 (은은한 틴트)
+                    (function() {
+                        const colorMap = { dice: '#667eea', roulette: '#e91e63', 'horse-race': '#8b4513', 'crane-game': '#9c27b0' };
+                        function updateGameTypeStyle() {
+                            document.querySelectorAll('input[name="gameType"]').forEach(radio => {
+                                const label = radio.closest('label');
+                                const color = colorMap[radio.value] || '#667eea';
+                                if (radio.checked) {
+                                    label.style.background = `${color}12`;
+                                    label.style.color = '';
+                                    label.style.borderColor = color;
+                                    label.style.borderWidth = '2.5px';
+                                    label.style.boxShadow = `0 2px 8px ${color}20`;
+                                    label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '');
+                                } else {
+                                    label.style.background = 'white';
+                                    label.style.color = '';
+                                    label.style.borderColor = '#e0e0e0';
+                                    label.style.borderWidth = '1px';
+                                    label.style.boxShadow = 'none';
+                                    label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '');
+                                }
+                            });
+                        }
+                        document.querySelectorAll('input[name="gameType"]').forEach(r => r.addEventListener('change', updateGameTypeStyle));
+                        updateGameTypeStyle();
+                    })();
+                    // 경마 NEW 배지 + 툴팁: 2026-02-08 이후 숨김
+                    (function() {
+                        const hideDate = new Date('2026-02-08T00:00:00+09:00');
+                        if (new Date() > hideDate) {
+                            const badge = document.getElementById('horseRaceNewBadge');
+                            if (badge) badge.style.display = 'none';
+                            const style = document.createElement('style');
+                            style.textContent = '#horseRaceLabel::after, #horseRaceLabel::before { display: none !important; }';
+                            document.head.appendChild(style);
+                        }
+                    })();
+                </script>
+            </div>
+
+            <!-- 방 생성하기 버튼 (맨 아래) -->
+            <button onclick="finalizeRoomCreation()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-top: 30px; width: 100%;">방 생성하기</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/page-history-shared.js"></script>
+    <script src="/server-select-shared.js"></script>
+    <script src="/ranking-shared.js"></script>
+    <script>
+        const socket = io();
+        let currentServerId = null;
+        let currentServerName = null;
+        let currentRoomId = null;
+        let selectedRoomId = null;
+        let roomsList = [];
+        let roomListRefreshInterval = null;
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
+
+        // 탭 세션 ID (새로고침: 유지, 새 탭: 새로 생성)
+        if (!sessionStorage.getItem('tabId')) {
+            sessionStorage.setItem('tabId', Math.random().toString(36).substr(2, 9) + Date.now());
+        }
+        function getTabId() { return sessionStorage.getItem('tabId'); }
+
+        // 디바이스 ID
+        function getDeviceId() {
+            let id = localStorage.getItem('deviceId');
+            if (!id) {
+                id = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('deviceId', id);
+            }
+            return id;
+        }
+
+        // 아이디 유효성 검사 함수
+        function validateUserId(userId) {
+            if (!userId || typeof userId !== 'string') return false;
+            const pattern = /^[가-힣ㄱ-ㅎㅏ-ㅣa-z0-9_-]+$/;
+            return pattern.test(userId);
+        }
+
+        // 서버 선택 모듈 초기화
+        ServerSelectModule.init(socket, () => {}, () => {});
+        // 히스토리 매니저 초기화
+        PageHistoryManager.init({
+            onServerSelect: function () {
+                sessionStorage.removeItem('diceSession');
+                window.location.href = '/';
+            },
+            onLobby: function () {
+                document.getElementById('createRoomSection').classList.remove('active');
+                document.getElementById('lobbySection').classList.add('active');
+            },
+            onLeaveRoom: function () {},
+            onHideRanking: function () {
+                RankingModule.forceHide();
+            },
+            getCurrentPage: function () {
+                if (document.getElementById('ranking-overlay')) return 'ranking';
+                if (document.getElementById('createRoomSection').classList.contains('active')) return 'createRoom';
+                return 'lobby';
+            }
+        });
+
+        // 세션 복원: 다른 게임에서 돌아온 경우 또는 새로고침 시 로비 유지
+        const _returnData = sessionStorage.getItem('returnToLobby') || sessionStorage.getItem('diceSession');
+        if (_returnData) {
+            sessionStorage.removeItem('returnToLobby');
+            let _restoredServerName = null;
+            let _restoredHostName = null;
+            try {
+                const rd = JSON.parse(_returnData);
+                currentServerId = rd.serverId || null;
+                currentServerName = rd.serverName || null;
+                _restoredServerName = rd.serverName || null;
+                _restoredHostName = rd.hostName || null;
+            } catch(e) {}
+            // 소켓에 서버 ID 설정
+            if (currentServerId) {
+                socket.emit('setServerId', { serverId: currentServerId });
+                ServerSelectModule.setCurrentServer({ id: currentServerId, name: currentServerName, hostName: _restoredHostName || '' });
+            }
+            // 서버 정보 바 표시
+            const infoBar = document.getElementById('serverInfoBar');
+            infoBar.style.display = 'flex';
+            const membersBtn = document.getElementById('serverMembersBtn');
+            const userName = localStorage.getItem('userName') || '';
+            if (currentServerId) {
+                if (_restoredServerName) {
+                    document.getElementById('serverInfoName').textContent = `🖥️ ${_restoredServerName}`;
+                    document.getElementById('serverInfoName').style.display = '';
+                    document.title = `${_restoredServerName} - LAM Dice :)`;
+                }
+                if (membersBtn) membersBtn.style.display = '';
+            } else {
+                document.getElementById('serverInfoName').style.display = 'none';
+                if (membersBtn) membersBtn.style.display = 'none';
+            }
+            const userNameSpan = document.getElementById('serverInfoUserName');
+            if (userName && userNameSpan) {
+                userNameSpan.textContent = `👤 ${userName}`;
+                userNameSpan.style.display = '';
+            }
+            const globalInput = document.getElementById('globalUserNameInput');
+            if (globalInput && userName && !globalInput.value) globalInput.value = userName;
+            document.getElementById('lobbySection').classList.add('active');
+            RankingModule.init(currentServerId, userName || '');
+            PageHistoryManager.replacePage('lobby');
+
+            // 방 목록 로드
+            socket.emit('getRooms');
+            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId });
+        } else {
+            // 세션 없음 → 서버 선택 페이지로 리다이렉트
+            window.location.replace('/');
+        }
+
+        // 소켓 연결/해제
+        socket.on('connect', () => {
+            const createRoomConnectionStatus = document.getElementById('createRoomConnectionStatus');
+            if (createRoomConnectionStatus) {
+                createRoomConnectionStatus.textContent = '● 연결됨';
+                createRoomConnectionStatus.className = 'connection-status connected';
+            }
+
+            if (document.getElementById('lobbySection').classList.contains('active')) {
+                refreshRooms();
+                refreshVisitorStats();
+            }
+        });
+
+        socket.on('disconnect', () => {
+            const createRoomConnectionStatus = document.getElementById('createRoomConnectionStatus');
+            if (createRoomConnectionStatus) {
+                createRoomConnectionStatus.textContent = '● 연결 끊김';
+                createRoomConnectionStatus.className = 'connection-status disconnected';
+            }
+        });
+
+        // 방 목록 업데이트
+        socket.on('roomsList', (rooms) => {
+            roomsList = rooms;
+            renderRoomsList();
+        });
+
+        socket.on('roomsListUpdated', (rooms) => {
+            roomsList = rooms;
+            renderRoomsList();
+        });
+
+        // 방문자/플레이 통계 수신
+        socket.on('visitorStats', (stats) => {
+            document.getElementById('todayVisitorCount').textContent = stats.todayVisitors ?? 0;
+            document.getElementById('todayPlayCount').textContent = stats.todayPlays ?? 0;
+            document.getElementById('totalPlayCount').textContent = stats.totalPlays ?? 0;
+        });
+
+        // 업데이트 내역 파일 로드
+        function loadUpdateLog() {
+            const updateLogContent = document.getElementById('updateLogContent');
+            if (!updateLogContent) return;
+
+            fetch('update-log.txt')
+                .then(response => {
+                    if (!response.ok) throw new Error('업데이트 내역을 불러올 수 없습니다.');
+                    return response.text();
+                })
+                .then(text => {
+                    const html = text.replace(/(\r?\n)---(\r?\n)/g, '$1<hr class="update-log-divider">$2');
+                    updateLogContent.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('업데이트 내역 로드 실패:', error);
+                    updateLogContent.innerHTML = '업데이트 내역을 불러올 수 없습니다.';
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUpdateLog();
+        });
+
+        // 방 목록 렌더링
+        function renderRoomsList() {
+            const roomsListEl = document.getElementById('roomsList');
+
+            if (roomsList.length === 0) {
+                roomsListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">생성된 방이 없습니다</div>';
+                return;
+            }
+
+            roomsListEl.innerHTML = '';
+
+            roomsList.forEach(room => {
+                const roomItem = document.createElement('div');
+                const isMyRoom = room.roomId === currentRoomId;
+                let className = 'room-item';
+                if (isMyRoom) {
+                    className += ' my-room';
+                } else if (room.roomId === selectedRoomId) {
+                    className += ' active';
+                }
+                roomItem.className = className;
+
+                let statusClass = 'waiting';
+                let statusText = '대기 중';
+                if (room.isGameActive) {
+                    statusClass = 'playing';
+                    statusText = '게임 진행 중';
+                } else if (room.isOrderActive) {
+                    statusClass = 'ordering';
+                    statusText = '주문받기 중';
+                }
+
+                const roomNameHtml = isMyRoom
+                    ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
+                    : room.roomName;
+
+                const privateBadge = room.isPrivate
+                    ? '<span style="color: #ff6b6b; font-weight: bold; margin-left: 5px;">🔒 비공개</span>'
+                    : '';
+
+                let gameTypeIcon = '🎲';
+                let gameTypeLabel = '주사위';
+                let gameTypeColor = '#667eea';
+                if (room.gameType === 'roulette') {
+                    gameTypeIcon = '🎰';
+                    gameTypeLabel = '룰렛';
+                    gameTypeColor = '#7c4dff';
+                } else if (room.gameType === 'horse-race') {
+                    gameTypeIcon = '🐎';
+                    gameTypeLabel = '경마';
+                    gameTypeColor = '#8b4513';
+                } else if (room.gameType === 'crane-game') {
+                    gameTypeIcon = '🪄';
+                    gameTypeLabel = '인형뽑기';
+                    gameTypeColor = '#9c27b0';
+                }
+                const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
+
+                let remainingTimeText = '';
+                if (room.createdAt) {
+                    const createdAt = new Date(room.createdAt);
+                    const now = new Date();
+                    const expiryHours = room.expiryHours || 3;
+                    const expiryHoursInMs = expiryHours * 60 * 60 * 1000;
+                    const expiryTime = createdAt.getTime() + expiryHoursInMs;
+                    const remaining = expiryTime - now.getTime();
+
+                    if (remaining > 0) {
+                        const hours = Math.floor(remaining / (1000 * 60 * 60));
+                        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                        remainingTimeText = ` | 남은 시간: ${hours}시간 ${minutes}분`;
+                    } else {
+                        remainingTimeText = ` | <span style="color: #dc3545; font-weight: bold;">폭파 예정</span>`;
+                    }
+                }
+
+                const buttonText = isMyRoom ? '재입장' : '입장하기';
+
+                roomItem.innerHTML = `
+                    <div class="room-info">
+                        <div class="room-name">${roomNameHtml}${privateBadge}</div>
+                        <div class="room-details">
+                            호스트: ${room.hostName} | 인원: ${room.playerCount}명${remainingTimeText}
+                        </div>
+                        <span class="room-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        ${gameTypeBadge}
+                        <div class="room-action">
+                            <button onclick="joinRoomDirectly('${room.roomId}')">${buttonText}</button>
+                        </div>
+                    </div>
+                `;
+
+                roomsListEl.appendChild(roomItem);
+            });
+
+            // 로비 섹션이 활성화되어 있으면 주기적으로 방 목록 새로고침
+            const lobbySection = document.getElementById('lobbySection');
+            if (lobbySection && lobbySection.classList.contains('active')) {
+                if (roomListRefreshInterval) {
+                    clearInterval(roomListRefreshInterval);
+                }
+                roomListRefreshInterval = setInterval(() => {
+                    if (lobbySection.classList.contains('active')) {
+                        refreshRooms();
+                    } else {
+                        clearInterval(roomListRefreshInterval);
+                        roomListRefreshInterval = null;
+                    }
+                }, 30000);
+            }
+        }
+
+        // 방 바로 입장
+        function joinRoomDirectly(roomId) {
+            selectedRoomId = roomId;
+
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const userName = globalNameInput ? globalNameInput.value.trim() : '';
+
+            if (userName === '') {
+                showCustomAlert('이름을 입력해야 입장할 수 있습니다.', 'warning');
+                if (globalNameInput) globalNameInput.focus();
+                return;
+            }
+
+            if (!validateUserId(userName)) {
+                showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
+                if (globalNameInput) globalNameInput.focus();
+                return;
+            }
+
+            const room = roomsList.find(r => r.roomId === roomId);
+
+            // 룰렛 방이면 룰렛 페이지로 이동
+            if (room && room.gameType === 'roulette') {
+                localStorage.setItem('rouletteUserName', userName);
+                localStorage.setItem('pendingRouletteJoin', JSON.stringify({
+                    roomId: roomId, userName: userName, isPrivate: room.isPrivate,
+                    serverId: currentServerId, serverName: currentServerName
+                }));
+                window.location.href = '/roulette?joinRoom=true';
+                return;
+            }
+
+            // 경마 방이면 경마 페이지로 이동
+            if (room && room.gameType === 'horse-race') {
+                localStorage.setItem('horseRaceUserName', userName);
+                localStorage.setItem('pendingHorseRaceJoin', JSON.stringify({
+                    roomId: roomId, userName: userName, isPrivate: room.isPrivate,
+                    serverId: currentServerId, serverName: currentServerName
+                }));
+                window.location.href = '/horse-race?joinRoom=true';
+                return;
+            }
+
+            // 인형뽑기 방이면 인형뽑기 페이지로 이동
+            if (room && room.gameType === 'crane-game') {
+                localStorage.setItem('craneGameUserName', userName);
+                localStorage.setItem('pendingCraneGameJoin', JSON.stringify({
+                    roomId: roomId, userName: userName, isPrivate: room.isPrivate,
+                    serverId: currentServerId, serverName: currentServerName
+                }));
+                window.location.href = '/crane-game?joinRoom=true';
+                return;
+            }
+
+            // 주사위 방: 비공개 방이면 비밀번호, 아니면 바로 dice 페이지로
+            if (room && room.isPrivate) {
+                const password = prompt('🔒 비공개 방입니다.\n비밀번호를 입력해주세요:');
+                if (password === null) return;
+                if (password === '') {
+                    showCustomAlert('비밀번호를 입력해주세요!', 'warning');
+                    return;
+                }
+                // 비밀번호와 함께 주사위 페이지로 이동
+                localStorage.setItem('diceGameUserName', userName);
+                localStorage.setItem('pendingDiceJoin', JSON.stringify({
+                    roomId: roomId, userName: userName, isPrivate: true, password: password,
+                    serverId: currentServerId, serverName: currentServerName
+                }));
+                window.location.href = '/dice?joinRoom=true';
+            } else {
+                // 공개 주사위 방
+                localStorage.setItem('diceGameUserName', userName);
+                localStorage.setItem('pendingDiceJoin', JSON.stringify({
+                    roomId: roomId, userName: userName, isPrivate: false,
+                    serverId: currentServerId, serverName: currentServerName
+                }));
+                window.location.href = '/dice?joinRoom=true';
+            }
+        }
+
+        // 방 목록 새로고침
+        function refreshRooms() {
+            socket.emit('getRooms');
+            refreshVisitorStats();
+        }
+
+        // 방문자 통계 새로고침
+        function refreshVisitorStats() {
+            socket.emit('getVisitorStats');
+        }
+
+        // 커스텀 얼럿
+        function showCustomAlert(message, type = 'info') {
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) existingAlert.remove();
+
+            let bgColor, borderColor, icon;
+            switch(type) {
+                case 'error': bgColor = '#fee'; borderColor = '#f66'; icon = '⚠️'; break;
+                case 'warning': bgColor = '#fff9e6'; borderColor = '#ffa500'; icon = '⚠️'; break;
+                case 'success': bgColor = '#e8f5e9'; borderColor = '#4caf50'; icon = '✅'; break;
+                default: bgColor = '#e3f2fd'; borderColor = '#2196f3'; icon = 'ℹ️';
+            }
+
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:10001;display:flex;justify-content:center;align-items:center;animation:fadeIn 0.2s ease-out;`;
+
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `background:white;border-radius:16px;padding:25px 30px;max-width:500px;width:90vw;box-shadow:0 10px 40px rgba(0,0,0,0.2);border:2px solid ${borderColor};animation:slideDown 0.3s ease-out;`;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `font-size:16px;line-height:1.6;color:#333;white-space:pre-wrap;word-break:break-word;text-align:center;margin-bottom:20px;`;
+            messageDiv.innerHTML = `<span style="font-size:24px;margin-right:8px;">${icon}</span>${message}`;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `padding:10px 25px;background:linear-gradient(135deg,${borderColor} 0%,${borderColor}dd 100%);color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;`;
+            confirmButton.onclick = () => {
+                alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                setTimeout(() => alertOverlay.remove(), 200);
+            };
+
+            alertOverlay.onclick = (e) => { if (e.target === alertOverlay) confirmButton.click(); };
+            document.addEventListener('keydown', function _esc(e) {
+                if (e.key === 'Escape') { confirmButton.click(); document.removeEventListener('keydown', _esc); }
+            });
+
+            alertContent.appendChild(messageDiv);
+            alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent);
+            document.body.appendChild(alertOverlay);
+            confirmButton.focus();
+        }
+
+        // 방 생성 페이지 표시
+        function showCreateRoomPage() {
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const hostName = globalNameInput ? globalNameInput.value.trim() : '';
+
+            if (hostName === '') {
+                showCustomAlert('이름을 먼저 입력해주세요!', 'warning');
+                if (globalNameInput) globalNameInput.focus();
+                return;
+            }
+
+            if (!validateUserId(hostName)) {
+                showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
+                if (globalNameInput) globalNameInput.focus();
+                return;
+            }
+
+            document.getElementById('lobbySection').classList.remove('active');
+            document.getElementById('createRoomSection').classList.add('active');
+            PageHistoryManager.pushPage('createRoom');
+
+            document.getElementById('createRoomPrivateCheckbox').checked = false;
+            document.getElementById('createRoomPasswordInput').value = '';
+            document.getElementById('createRoomPasswordContainer').style.display = 'none';
+            const createRoomNameInput = document.getElementById('createRoomNameInput');
+            if (createRoomNameInput) {
+                createRoomNameInput.value = isLocalhost ? 'test' : (hostName ? `${hostName}님의 Dice` : '');
+                setTimeout(() => createRoomNameInput.focus(), 100);
+            }
+        }
+
+        function goBackToLobby() {
+            history.back();
+        }
+
+        // 방 생성 최종 확인 및 생성
+        function finalizeRoomCreation() {
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const roomNameInput = document.getElementById('createRoomNameInput');
+            const hostName = globalNameInput ? globalNameInput.value.trim() : '';
+            const roomName = roomNameInput ? roomNameInput.value.trim() : '';
+
+            if (hostName === '') {
+                showCustomAlert('이름을 먼저 입력해주세요! 대기실로 돌아가서 이름을 입력하세요.', 'warning');
+                goBackToLobby();
+                if (globalNameInput) globalNameInput.focus();
+                return;
+            }
+
+            if (!validateUserId(hostName)) {
+                showCustomAlert('한글, 영문 소문자, 숫자, _, -만 사용 가능합니다.', 'warning');
+                goBackToLobby();
+                if (globalNameInput) globalNameInput.focus();
+                return;
+            }
+
+            if (roomName === '') {
+                showCustomAlert('방 제목을 입력해주세요!', 'warning');
+                if (roomNameInput) roomNameInput.focus();
+                return;
+            }
+
+            const isPrivate = document.getElementById('createRoomPrivateCheckbox').checked;
+            const password = document.getElementById('createRoomPasswordInput').value.trim();
+
+            if (isPrivate) {
+                if (password === '') {
+                    showCustomAlert('비공개 방은 비밀번호를 입력해주세요!', 'warning');
+                    document.getElementById('createRoomPasswordInput').focus();
+                    return;
+                }
+                if (password.length < 4 || password.length > 20) {
+                    showCustomAlert('비밀번호는 4자 이상 20자 이하여야 합니다!', 'warning');
+                    document.getElementById('createRoomPasswordInput').focus();
+                    return;
+                }
+            }
+
+            const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
+            const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
+
+            const ipBlockCheckbox = document.getElementById('createRoomIPBlockCheckbox');
+            const blockIPPerUser = ipBlockCheckbox ? ipBlockCheckbox.checked : false;
+
+            let gameType = 'dice';
+            const gameTypeRadios = document.querySelectorAll('input[name="gameType"]');
+            const checkedRadio = Array.from(gameTypeRadios).find(r => r.checked);
+            if (checkedRadio) gameType = checkedRadio.value;
+
+            const roomData = {
+                userName: hostName,
+                roomName: roomName,
+                isPrivate: isPrivate,
+                password: isPrivate ? password : '',
+                expiryHours: expiryHours,
+                blockIPPerUser: blockIPPerUser,
+                serverId: currentServerId,
+                serverName: currentServerName
+            };
+
+            // 룰렛
+            if (gameType === 'roulette') {
+                localStorage.setItem('rouletteUserName', hostName);
+                localStorage.setItem('pendingRouletteRoom', JSON.stringify(roomData));
+                window.location.href = '/roulette?createRoom=true';
+                return;
+            }
+
+            // 경마
+            if (gameType === 'horse-race') {
+                localStorage.setItem('horseRaceUserName', hostName);
+                localStorage.setItem('pendingHorseRaceRoom', JSON.stringify(roomData));
+                window.location.href = '/horse-race?createRoom=true';
+                return;
+            }
+
+            // 인형뽑기
+            if (gameType === 'crane-game') {
+                localStorage.setItem('craneGameUserName', hostName);
+                localStorage.setItem('pendingCraneGameRoom', JSON.stringify(roomData));
+                window.location.href = '/crane-game?createRoom=true';
+                return;
+            }
+
+            // 주사위: 로비에서 직접 소켓 emit 대신 dice 페이지로 이동
+            localStorage.setItem('diceGameUserName', hostName);
+            localStorage.setItem('pendingDiceRoom', JSON.stringify({
+                ...roomData,
+                gameType: 'dice'
+            }));
+            window.location.href = '/dice?createRoom=true';
+        }
+
+        // 비공개 체크박스 토글
+        document.getElementById('createRoomPrivateCheckbox').addEventListener('change', function() {
+            document.getElementById('createRoomPasswordContainer').style.display = this.checked ? 'block' : 'none';
+        });
+
+        // 전역 이름 입력창 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            const globalNameInput = document.getElementById('globalUserNameInput');
+            const userNameError = document.getElementById('userNameError');
+
+            if (globalNameInput) {
+                const savedName = localStorage.getItem('diceGameUserName');
+                if (savedName) globalNameInput.value = savedName;
+
+                globalNameInput.addEventListener('input', () => {
+                    const userName = globalNameInput.value.trim();
+                    if (userName && !validateUserId(userName)) {
+                        if (userNameError) {
+                            userNameError.textContent = '한글, 영문 소문자, 숫자, _, -만 사용 가능합니다. (공백/특수문자 불가)';
+                            userNameError.style.display = 'block';
+                        }
+                        globalNameInput.style.borderColor = '#dc3545';
+                    } else {
+                        if (userNameError) userNameError.style.display = 'none';
+                        globalNameInput.style.borderColor = '';
+                        if (userName) localStorage.setItem('diceGameUserName', userName);
+                    }
+                });
+
+                globalNameInput.addEventListener('blur', () => {
+                    const userName = globalNameInput.value.trim();
+                    if (userName && !validateUserId(userName)) {
+                        const cleaned = userName.toLowerCase().replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-z0-9_-]/g, '');
+                        globalNameInput.value = cleaned;
+                        if (cleaned) localStorage.setItem('diceGameUserName', cleaned);
+                        if (userNameError) userNameError.style.display = 'none';
+                        globalNameInput.style.borderColor = '';
+                    }
+                });
+            }
+        });
+
+        // 에러 처리
+        socket.on('error', (data) => {
+            showCustomAlert(data.message || '오류가 발생했습니다.', 'error');
+        });
+    </script>
+    <hr>
+    <footer style="text-align: center; padding: 20px 0; font-size: 0.9em; color: #555;">
+        <p>Copyright © 2025 LAMDice. All rights reserved.</p>
+        <div style="margin-top: 10px;">
+            <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">개인정보 처리방침</a> |
+            <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">이용 약관</a> |
+            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: #007bff;">문의하기</a>
+        </div>
+    </footer>
+</body>
+</html>

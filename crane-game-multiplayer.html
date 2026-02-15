@@ -1635,13 +1635,13 @@
                     });
                 } catch(e) {
                     sessionStorage.removeItem('craneGameActiveRoom');
-                    window.location.replace('/game');
+                    window.location.replace('/lobby');
                 }
                 return;
             }
 
             if (!fromDice) {
-                window.location.replace('/game');
+                window.location.replace('/lobby');
                 return;
             }
             const pending = localStorage.getItem('pendingCraneGameRoom') || localStorage.getItem('pendingCraneGameJoin');
@@ -2662,7 +2662,7 @@
             sessionStorage.removeItem('craneGameFromDice');
             sessionStorage.removeItem('craneGameActiveRoom');
             alert(message);
-            window.location.href = '/game';
+            window.location.href = '/lobby';
         });
 
         socket.on('craneGameError', (message) => {
@@ -2867,21 +2867,21 @@
             alert(data.message || '방이 삭제되었습니다.');
             if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/game');
+            window.location.replace('/lobby');
         });
 
         socket.on('roomLeft', () => {
             sessionStorage.removeItem('craneGameActiveRoom');
             if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/game');
+            window.location.replace('/lobby');
         });
 
         socket.on('leftRoom', () => {
             sessionStorage.removeItem('craneGameActiveRoom');
             if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
-            window.location.replace('/game');
+            window.location.replace('/lobby');
         });
 
         socket.on('hostTransferred', (data) => {
