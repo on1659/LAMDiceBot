@@ -1,4 +1,45 @@
 ========================================
+📋 Summit Log - 2026-02-16 (docs 정리)
+========================================
+
+## 변경 파일
+- docs/GameGuide/game-type/dice/DICE_GAME_ROLLBACK_GUIDE.md: 삭제 (무의미한 롤백 가이드)
+- docs/GameGuide/game-type/dice/project_plan.md: 삭제 (오래된 히스토리 문서)
+- docs/01-plan/features/pending/server-concept.plan.md: 삭제 (applied로 이동)
+- docs/01-plan/features/applied/server-concept.plan.md: 추가 (pending에서 이동)
+
+## 상세 변경 내역
+
+### 무의미한 문서 삭제
+- DICE_GAME_ROLLBACK_GUIDE.md: 주사위 게임 롤백(제거) 가이드
+  - 주사위는 핵심 게임이므로 제거 계획 없음
+  - 롤백 가이드 자체가 무의미
+- project_plan.md: 2026-01-29까지의 히스토리 문서
+  - 완료된 기능들의 변경 히스토리만 남음
+  - DEVELOPMENT_GUIDE에 필요한 내용은 통합되어 있음
+
+### server-concept 문서 이동 (pending → applied)
+- Phase 1~5 + 포팅 Phase A~C **전체 완료** 확인
+  - db/servers.js, socket/server.js 존재 확인
+  - admin.html, server-members.html 존재 확인
+- 구현 완료된 기능이므로 applied 폴더로 이동
+
+### pending 폴더 최종 상태
+- race-finish-gap.plan.md: 경마 순위 간격 보장 (미적용)
+- scalability-improvement.plan.md: Redis/DB 확장성 개선 (Quick Win 일부 적용, Redis 미적용)
+
+### game-type 폴더 최종 상태
+- dice/: DEVELOPMENT_GUIDE, RULES만 유지
+- horse/: RESOURCES, DEVELOPMENT_GUIDE, GIMMICK_ANALYSIS 유지
+
+### 영향 범위
+- 내부 문서 정리만 진행
+- 코드 변경 없음
+- 유저 체감 변경사항 없음
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-16 (로비 분리)
 ========================================
 
