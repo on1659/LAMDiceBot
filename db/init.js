@@ -210,6 +210,7 @@ async function initDatabase() {
             )
         `);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_name ON users(name)`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS flags INTEGER DEFAULT 0`);
 
         // ─── 주문 통계 테이블 (랭킹용) ───
         await pool.query(`

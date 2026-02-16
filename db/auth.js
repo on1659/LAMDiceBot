@@ -72,4 +72,17 @@ async function login(name, pin) {
     return { user: { id: user.id, name: user.name, isAdmin: user.is_admin } };
 }
 
-module.exports = { register, login };
+async function getUserFlags(name) {
+    const pool = getPool();
+    if (!pool) return 0;
+    const result = await pool.query('SELECT flags FROM users WHERE name = $1', [name]);
+    return result.rows.length > 0 ? (result.rows[0].flags || 0) : 0;
+}
+
+async function setFlag(name, flagBit) {
+    const pool = getPool();
+    if (!pool) return;
+    await pool.query('UPDATE users SET flags = flags | $1 WHERE name = $2', [flagBit, name]);
+}
+
+module.exports = { register, login, getUserFlags, setFlag };

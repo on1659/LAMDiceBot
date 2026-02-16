@@ -944,12 +944,17 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         if (onComplete) onComplete();
         return 5000;
     }
-    
+
     trackContainer.style.display = 'block';
     const wrapper = document.getElementById('raceTrackWrapper');
     if (wrapper) wrapper.style.display = 'block';
     track.innerHTML = '';
-    
+
+    // 채팅 오버레이 활성화
+    if (typeof window.showRaceChatOverlay === 'function') {
+        window.showRaceChatOverlay();
+    }
+
     // 이전 도착 이펙트 제거
     document.querySelectorAll('.finish-effect').forEach(el => el.remove());
     
@@ -2534,6 +2539,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             }
                             const minimap = document.getElementById('raceMinimap');
                             if (minimap) minimap.style.display = 'none';
+                            // 채팅 오버레이 해제
+                            if (typeof window.hideRaceChatOverlay === 'function') {
+                                window.hideRaceChatOverlay();
+                            }
                             // 완료 콜백 호출
                             if (onComplete) {
                                 onComplete(actualFinishOrder);
@@ -5035,3 +5044,128 @@ function toggleDebugLog() {
         logSection.style.display = logSection.style.display === 'none' ? 'block' : 'none';
     }
 }
+
+// ========== 채팅 오버레이 (레이스 중 트랙 위 텍스트 표시) ==========
+(function() {
+    let observer = null;
+    const MAX_OVERLAY_MSGS = 6;
+
+    function getCurrentUser() {
+        return currentUser || '';
+    }
+
+    function parseMessage(node) {
+        if (!node || node.nodeType !== 1) return null;
+
+        // 시스템 메시지: .winner 클래스 또는 gradient 배경
+        const isWinner = node.classList && node.classList.contains('winner');
+        const style = node.getAttribute('style') || '';
+        const isSystem = isWinner || style.includes('gradient');
+
+        if (isSystem) {
+            // 시스템 메시지: 텍스트 추출 (HTML 태그 제거)
+            const text = node.textContent.trim();
+            if (!text) return null;
+            return { type: 'system', text: text };
+        }
+
+        // 일반 메시지: 첫번째 span = 이름, 두번째 span = 메시지
+        const spans = node.querySelectorAll('span');
+        if (spans.length < 2) return null;
+
+        // 이름 추출: "👑 🖥️ 이름 (나)" → "이름"만
+        const rawName = spans[0].textContent.trim();
+        // 아이콘 제거, (나) 제거, 이름만 추출
+        const name = rawName
+            .replace(/👑\s*/g, '')
+            .replace(/[🖥️📱💻🎮]\s*/g, '')
+            .replace(/\s*\(나\)\s*/g, '')
+            .trim();
+
+        // 내 메시지인지 판별
+        const isMe = rawName.includes('(나)') || name === getCurrentUser();
+
+        // 메시지 텍스트
+        const msg = spans[1].textContent.trim();
+
+        // 이모지 반응 (있으면 추출)
+        let reactions = '';
+        const reactionSpans = node.querySelectorAll('.emoji-count-btn');
+        if (reactionSpans.length > 0) {
+            const parts = [];
+            reactionSpans.forEach(function(btn) {
+                const emoji = btn.querySelector('.emoji-icon');
+                if (emoji) parts.push(emoji.textContent.trim());
+            });
+            if (parts.length > 0) reactions = ' ' + parts.join('');
+        }
+
+        return { type: 'user', name: name, msg: msg, isMe: isMe, reactions: reactions };
+    }
+
+    function addToOverlay(overlay, info) {
+        const div = document.createElement('div');
+        div.className = 'race-chat-msg';
+
+        if (info.type === 'system') {
+            div.classList.add('system');
+            div.textContent = '[SYSTEM] ' + info.text;
+        } else {
+            if (info.isMe) div.classList.add('me');
+            div.textContent = info.name + ' : ' + info.msg + info.reactions;
+        }
+
+        overlay.appendChild(div);
+        while (overlay.children.length > MAX_OVERLAY_MSGS) {
+            overlay.removeChild(overlay.firstChild);
+        }
+        overlay.scrollTop = overlay.scrollHeight;
+    }
+
+    window.showRaceChatOverlay = function() {
+        const overlay = document.getElementById('raceChatOverlay');
+        const chatMessages = document.getElementById('chatMessages');
+        if (!overlay || !chatMessages) return;
+
+        overlay.innerHTML = '';
+        overlay.style.display = 'block';
+
+        // 채팅 섹션: 메시지 목록 숨기고 입력바만 표시
+        const chatSection = document.querySelector('.chat-section');
+        if (chatSection) chatSection.classList.add('race-active');
+
+        // 기존 메시지 복제 (최근 N개만)
+        const existing = chatMessages.children;
+        const start = Math.max(0, existing.length - MAX_OVERLAY_MSGS);
+        for (let i = start; i < existing.length; i++) {
+            const info = parseMessage(existing[i]);
+            if (info) addToOverlay(overlay, info);
+        }
+
+        // 새 메시지 감시
+        observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                m.addedNodes.forEach(function(node) {
+                    const info = parseMessage(node);
+                    if (info) addToOverlay(overlay, info);
+                });
+            });
+        });
+        observer.observe(chatMessages, { childList: true });
+    };
+
+    window.hideRaceChatOverlay = function() {
+        const overlay = document.getElementById('raceChatOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+            overlay.innerHTML = '';
+        }
+        if (observer) {
+            observer.disconnect();
+            observer = null;
+        }
+        // 채팅 섹션 복원
+        const chatSection = document.querySelector('.chat-section');
+        if (chatSection) chatSection.classList.remove('race-active');
+    };
+})();

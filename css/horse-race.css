@@ -979,6 +979,43 @@ body.game-active .history-section {
     to { transform: scale(1.02); }
 }
 
+/* 레이스 중 채팅 오버레이 */
+#raceChatOverlay {
+    display: none;
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    width: 260px;
+    max-height: 120px;
+    z-index: 100;
+    overflow: hidden;
+    pointer-events: none;
+}
+#raceChatOverlay .race-chat-msg {
+    color: rgba(255,255,255,0.95);
+    padding: 1px 0;
+    margin-bottom: 1px;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+#raceChatOverlay .race-chat-msg.system {
+    color: #ffd700;
+    font-style: italic;
+}
+#raceChatOverlay .race-chat-msg.me {
+    color: #ffeb3b;
+}
+
+/* 레이스 중 채팅 섹션: 제목+메시지 숨기고 입력바만 표시 */
+.chat-section.race-active > div:first-child {
+    display: none;
+}
+.chat-section.race-active .chat-messages {
+    display: none;
+}
+
 /* 접속자 목록 */
 .users-section {
     margin-bottom: 20px;

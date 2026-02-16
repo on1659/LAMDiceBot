@@ -9,6 +9,7 @@ const registerCraneGameHandlers = require('./crane-game');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
 const { registerServerHandlers } = require('./server');
+const { getUserFlags, setFlag } = require('../db/auth');
 
 function setupSocketHandlers(io, rooms) {
     // 방 목록 브로드캐스트 디바운싱 (200ms leading + trailing)
@@ -176,6 +177,28 @@ function setupSocketHandlers(io, rooms) {
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);
         registerServerHandlers(socket, io, ctx);
+
+        // 가이드 시스템 (bit flags)
+        socket.on('getUserFlags', async (data, callback) => {
+            if (!ctx.checkRateLimit()) return;
+            if (typeof callback !== 'function') return;
+            try {
+                const flags = await getUserFlags(data.name);
+                callback({ flags });
+            } catch (e) {
+                callback({ flags: 0 });
+            }
+        });
+
+        socket.on('setGuideComplete', async (data) => {
+            if (!ctx.checkRateLimit()) return;
+            if (!data.name || !data.flagBit) return;
+            try {
+                await setFlag(data.name, data.flagBit);
+            } catch (e) {
+                // silent fail
+            }
+        });
     });
 }
 

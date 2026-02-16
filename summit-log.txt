@@ -1,4 +1,49 @@
 ========================================
+📋 Summit Log - 2026-02-16 (UX 개선)
+========================================
+
+## 변경 파일
+- dice-game-multiplayer.html: 주사위 버튼 추가, 44px 터치 최적화
+- roulette-game-multiplayer.html: 44px 터치 최적화
+- horse-race-multiplayer.html: 채팅 오버레이 div 추가
+- js/horse-race.js: 채팅 오버레이 모듈 (MutationObserver 기반)
+- css/horse-race.css: 오버레이 스타일, race-active 채팅 입력바 전용 모드
+- db/init.js: users 테이블 flags 컬럼 추가 (가이드 시스템 준비)
+- db/auth.js: getUserFlags(), setFlag() 함수 추가
+- socket/index.js: getUserFlags, setGuideComplete 소켓 이벤트 추가
+- update-log.md: 업데이트 내역 추가
+
+## 상세 변경 내역
+
+### 주사위 버튼 (dice-game-multiplayer.html)
+- 채팅 입력 grid: 1fr auto auto (입력창 | 🎲아이콘 | 전송)
+- 🎲 아이콘 클릭 → rollDiceButton() → chatInput에 /주사위 세팅 후 ChatModule.sendMessage()
+- 🎲 idle 애니메이션: 5초마다 60% 확률로 ⚀~⚅ 면이 돌아가는 효과 (8프레임, 0.64초)
+- 기존 rollDice() 함수 제거
+
+### 경마 채팅 오버레이 (js/horse-race.js + css/horse-race.css)
+- 접근 변경: DOM 이동 방식 → MutationObserver 기반 복제 방식
+  - 기존 chat-section은 항상 원래 위치 유지
+  - #raceChatOverlay에 chatMessages 변화를 감시해서 텍스트만 복제 표시
+- parseMessage(): 시스템/일반 메시지 구분, 이름에서 아이콘/(나) 제거
+- 오버레이 표시: 이름 : 메시지 형식, 내 메시지 노란색, 시스템 [SYSTEM] 금색
+- race-active 클래스: 레이스 중 채팅 제목+메시지 숨김, 입력바만 표시
+- showRaceChatOverlay/hideRaceChatOverlay를 window에 노출
+- startRaceAnimation 시작/onComplete에서 호출
+
+### 터치 44px (dice, roulette)
+- @media (max-width: 768px) 내에 button, select, input min-height/width 44px 추가
+- font-size: 16px (iOS 자동 줌 방지)
+
+### 가이드 시스템 (DB만 준비, UI 보류)
+- db/init.js: ALTER TABLE users ADD COLUMN IF NOT EXISTS flags INTEGER DEFAULT 0
+- db/auth.js: getUserFlags(name), setFlag(name, flagBit) 추가
+- socket/index.js: getUserFlags, setGuideComplete 소켓 이벤트 추가
+- 클라이언트 UI는 미구현 (UI 완성 후 화살표 가이드로 재구현 예정)
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-16 (docs 정리)
 ========================================
 

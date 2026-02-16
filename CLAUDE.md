@@ -94,6 +94,7 @@ Express + Socket.IO 기반 멀티플레이어 주사위/경마 게임 서버.
 | HTML 수정 | AdSense 스니펫 포함 확인 (admin.html 제외), API는 `/api/...` 상대 경로만 |
 | horse-app 소스 수정 | `cd horse-app && npm run build` 빌드 필요 |
 | 새 게임 추가 | `socket/[game].js` → `socket/index.js` 등록 → `routes/api.js` 라우트 → `index.html` 링크 |
+| 구현 요청 (impl 없이) | 파일 3개+ 또는 DB 변경 포함 → "impl 문서를 먼저 만들까요, 바로 구현할까요?" 확인 |
 
 ---
 

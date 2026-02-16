@@ -358,7 +358,9 @@ console.log(`[${timestamp}] 이벤트 발생`);
 - security: 보안 강화
 ```
 
-### update-log.txt 규칙
+### update-log 규칙
+
+- **수정**: `update-log.md` 만 수정. `update-log_old.md` 는 아카이브(표시 시 둘을 합쳐서 사용). 형식: `docs/update-log-format.md` (Markdown).
 
 **플레이어가 알아야 할 것만 기록**
 
@@ -387,9 +389,10 @@ feat: 주사위 굴림 애니메이션 추가
 - 테스트 자동화 개선
 ```
 
-**update-log.txt:**
-```
-## [2025-01-25] (UTC+9)
+**update-log.md** (형식은 `docs/update-log-format.md` 참고):
+```markdown
+## 🎮 최신 업데이트 (2025-01-25)
+**🎲 주사위 굴림 애니메이션 추가**
 - 주사위 굴림 애니메이션 추가
 ```
 
@@ -449,7 +452,7 @@ socket.on('diceResult', (data) => {
 - [ ] package.json의 start 스크립트 확인
 - [ ] 데이터베이스 마이그레이션 완료
 - [ ] README 업데이트
-- [ ] update-log.txt 업데이트
+- [ ] update-log.md 업데이트
 
 자세한 내용: `Railway배포완벽가이드.md` 참조
 
