@@ -64,17 +64,33 @@ Same pattern applied to horse readySection.
 
 ## 3. Connect horse volume to ControlBar
 
-**Root cause**: `js/horse-race.js` has independent `horseMasterVolume` system (lines 102-174) not connected to ControlBar slider.
+**Root cause**: `js/horse-race.js` has independent `horseMasterVolume` system (lines 100-177) not connected to ControlBar slider.
 
-### File: `horse-race-multiplayer.html` — ControlBar.init
+### File: `horse-race-multiplayer.html` — ControlBar.init (line ~69)
 
-Add `soundKey` and `volumeKey` to ControlBar.init call. (Horse has no existing localStorage keys, so new format is fine.)
+Add `soundKey` and `volumeKey`:
+```js
+// BEFORE:
+ControlBar.init({
+    gameKey: 'horse',
+    onLeave: function() { leaveRoom(); }
+});
+
+// AFTER:
+ControlBar.init({
+    gameKey: 'horse',
+    soundKey: 'horseSoundEnabled',
+    volumeKey: 'horseSoundVolume',
+    onLeave: function() { leaveRoom(); }
+});
+```
+(Uses existing localStorage key names `HORSE_SOUND_KEY`/`HORSE_VOLUME_KEY` from horse-race.js)
 
 ### File: `js/horse-race.js`
 
-**Remove** (lines ~102-174): `horseMasterVolume`, `horseStoredVolume` variables, `initHorseSoundFromStorage()`, `updateHorseSoundUI()`, `toggleHorseSound()`, `setHorseMasterVolume()`, `horseGameSoundCheckboxChanged()`.
+**Remove** (lines ~100-177): `HORSE_SOUND_KEY`, `HORSE_VOLUME_KEY`, `horseMasterVolume`, `horseStoredVolume` variables, plus functions: `initVolumeFromStorage()`, `updateVolumeUI()`, `toggleMute()`, `setMasterVolume()`, `applyMasterVolumeToAll()`, `setHorseSoundCheckboxes()`, `onHorseSoundChange()`.
 
-**Replace** getter functions:
+**Replace** getter functions (keep function names — called in 40+ places):
 ```js
 function getHorseSoundEnabled() {
     return ControlBar.getSoundEnabled();
@@ -85,7 +101,17 @@ function getHorseMasterVolume() {
 }
 ```
 
-**Remove** (line ~4918): `SoundManager.setMasterVolumeGetter(getHorseMasterVolume)` — ControlBar.init handles this.
+**Remove** (line ~4892-4893): `initVolumeFromStorage()` / `updateVolumeUI()` calls — ControlBar.init handles this.
+
+**Remove** (line ~4917-4919): `SoundManager.setMasterVolumeGetter(getHorseMasterVolume)` — ControlBar.init handles this.
+
+**Remove** (lines ~4940-4950): Volume button/slider event listeners (ControlBar already binds these to `#volumeBtn`/`#volumeSlider`).
+
+**Redirect** GIF recording mute calls (lines ~3429, 3454):
+```js
+// line 3429: toggleMute() → ControlBar.toggleMute()
+// line 3454: toggleMute() → ControlBar.toggleMute()
+```
 
 ---
 
