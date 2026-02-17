@@ -46,13 +46,13 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'roulette-game-multiplayer.html'));
     });
 
-    // 인형뽑기 게임
-    app.get('/crane-game', (req, res) => {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'crane-game-multiplayer.html'));
-    });
+    // 인형뽑기 게임 (비공개 처리)
+    // app.get('/crane-game', (req, res) => {
+    //     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    //     res.setHeader('Pragma', 'no-cache');
+    //     res.setHeader('Expires', '0');
+    //     res.sendFile(path.join(__dirname, '..', 'crane-game-multiplayer.html'));
+    // });
 
     // 경마 (레거시 HTML)
     const legacyHorseHtml = path.join(__dirname, '..', 'horse-race-multiplayer.html');

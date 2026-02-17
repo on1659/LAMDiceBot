@@ -1,4 +1,41 @@
 ========================================
+📋 Summit Log - 2026-02-17 (방장 위임 기능 추가)
+========================================
+
+## 변경 파일
+- socket/rooms.js: delegateHost 이벤트 핸들러 추가, roomNameUpdated 형식 변경
+- .gitignore: /prototype 폴더 추가
+
+## 상세 변경 내역
+
+### 방장 위임 기능 (socket/rooms.js)
+**delegateHost 이벤트 핸들러 추가 (라인 1333-1391)**:
+- 기능: 현재 방장이 다른 사용자에게 방장 권한 위임
+- 권한 검증:
+  - 호스트만 위임 가능 (socket.isHost 체크)
+  - 대상 사용자가 방에 있는지 확인
+  - 자기 자신에게 위임 불가
+- 호스트 변경 로직:
+  - room.hostId, room.hostSocketId 업데이트
+  - 기존 호스트 socket.isHost = false
+  - 새 호스트 socket.isHost = true
+- 이벤트 발송:
+  - io.to(room.roomId).emit('hostDelegated', { newHostSocketId, newHostName, oldHostSocketId })
+  - updateRoomsList() 호출하여 방 목록 갱신
+
+**roomNameUpdated 이벤트 형식 변경 (라인 1325)**:
+- 변경 전: `emit('roomNameUpdated', roomName.trim())`
+- 변경 후: `emit('roomNameUpdated', { roomName: roomName.trim() })`
+- 이유: 일관된 객체 형식으로 변경 (확장성 향상)
+
+### .gitignore
+- /prototype 폴더 추가: 프로토타입 개발용 파일 제외
+
+### 클라이언트 연동 필요사항
+- dice-game-multiplayer.html 등에서 'hostDelegated' 이벤트 수신 필요
+- UI: 방장 아이콘 업데이트, 위임 버튼 추가 등
+
+========================================
 📋 Summit Log - 2026-02-17 (게임 타입 색상 CSS 변수화)
 ========================================
 

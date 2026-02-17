@@ -1,5 +1,6 @@
 /node_modules
 /no
+/prototype
 
 # IDE 설정 폴더
 .cursor/

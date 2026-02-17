@@ -1322,12 +1322,73 @@ module.exports = (socket, io, ctx) => {
         room.roomName = roomName.trim();
 
         // 같은 방의 모든 사용자에게 업데이트
-        io.to(room.roomId).emit('roomNameUpdated', roomName.trim());
+        io.to(room.roomId).emit('roomNameUpdated', { roomName: roomName.trim() });
 
         // 방 목록 업데이트
         updateRoomsList();
 
         console.log(`방 제목 변경: ${room.roomId} -> ${roomName.trim()}`);
+    });
+
+    // 호스트 위임
+    socket.on('delegateHost', (data) => {
+        if (!checkRateLimit()) return;
+
+        const { targetSocketId } = data;
+        const room = getCurrentRoom();
+
+        if (!room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+
+        // 현재 호스트인지 확인
+        if (!socket.isHost || socket.id !== room.hostId) {
+            socket.emit('permissionError', '호스트만 권한을 위임할 수 있습니다!');
+            return;
+        }
+
+        // 대상 사용자가 방에 있는지 확인
+        const targetUser = room.users.find(u => u.socketId === targetSocketId);
+        if (!targetUser) {
+            socket.emit('roomError', '대상 사용자를 찾을 수 없습니다!');
+            return;
+        }
+
+        // 자기 자신에게 위임하는 경우
+        if (targetSocketId === socket.id) {
+            socket.emit('roomError', '자기 자신에게 위임할 수 없습니다!');
+            return;
+        }
+
+        // 호스트 변경
+        const oldHostId = room.hostId;
+        room.hostId = targetSocketId;
+        room.hostSocketId = targetSocketId;
+
+        // 소켓 isHost 플래그 업데이트
+        const oldHostSocket = io.sockets.sockets.get(oldHostId);
+        const newHostSocket = io.sockets.sockets.get(targetSocketId);
+
+        if (oldHostSocket) {
+            oldHostSocket.isHost = false;
+        }
+
+        if (newHostSocket) {
+            newHostSocket.isHost = true;
+        }
+
+        // 모든 사용자에게 호스트 변경 알림
+        io.to(room.roomId).emit('hostDelegated', {
+            newHostSocketId: targetSocketId,
+            newHostName: targetUser.name,
+            oldHostSocketId: oldHostId
+        });
+
+        // 방 목록 업데이트
+        updateRoomsList();
+
+        console.log(`호스트 위임: ${room.roomId} - ${socket.id} -> ${targetSocketId}`);
     });
 
     // 모든 참여자가 주사위를 굴렸는지 확인하고 게임 종료 처리
