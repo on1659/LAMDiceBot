@@ -1592,6 +1592,7 @@
                             <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
                         </div>
                     </span>
+                    <button onclick="logout()" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; background: var(--btn-neutral); color: var(--text-primary); white-space: nowrap;">🔄 로그아웃</button>
                     <span id="roomPasswordDisplay" style="font-size: 12px; color: var(--dice-500); font-weight: 500; display: none;"></span>
                 </div>
             </div>
@@ -2927,24 +2928,28 @@
             alertContent.style.cssText = `
                 background: var(--bg-white);
                 border-radius: 16px;
-                padding: 25px 30px;
-                max-width: 500px;
-                width: 90vw;
+                padding: 20px;
+                max-width: 450px;
+                width: calc(100vw - 40px);
                 box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
                 border: 2px solid ${borderColor};
                 animation: slideDown 0.3s ease-out;
+                box-sizing: border-box;
             `;
-            
+
             // 아이콘과 메시지
             const messageDiv = document.createElement('div');
             messageDiv.style.cssText = `
-                font-size: 16px;
+                font-size: 15px;
                 line-height: 1.6;
                 color: var(--text-primary);
                 white-space: pre-wrap;
-                word-break: break-word;
+                word-wrap: break-word;
+                word-break: keep-all;
+                overflow-wrap: break-word;
                 text-align: center;
                 margin-bottom: 20px;
+                max-width: 100%;
             `;
             messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
             
@@ -3063,24 +3068,28 @@
                 confirmContent.style.cssText = `
                     background: var(--bg-white);
                     border-radius: 16px;
-                    padding: 25px 30px;
-                    max-width: 500px;
-                    width: 90vw;
+                    padding: 20px;
+                    max-width: 450px;
+                    width: calc(100vw - 40px);
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
                     border: 2px solid ${borderColor};
                     animation: slideDown 0.3s ease-out;
+                    box-sizing: border-box;
                 `;
-                
+
                 // 아이콘과 메시지
                 const messageDiv = document.createElement('div');
                 messageDiv.style.cssText = `
-                    font-size: 16px;
+                    font-size: 15px;
                     line-height: 1.6;
                     color: var(--text-primary);
                     white-space: pre-wrap;
-                    word-break: break-word;
+                    word-wrap: break-word;
+                    word-break: keep-all;
+                    overflow-wrap: break-word;
                     text-align: center;
                     margin-bottom: 25px;
+                    max-width: 100%;
                 `;
                 messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
                 

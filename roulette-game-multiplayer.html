@@ -891,15 +891,34 @@
     <div class="container">
         <!-- 게임 섹션 -->
         <section class="game-section" id="gameSection">
-            <!-- 방 정보 헤더 -->
-            <div class="room-header">
-                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span class="room-title" id="roomTitle">룰렛 방</span>
-                    <span class="host-badge" id="hostBadge">👑 호스트</span>
+            <!-- 방 정보 헤더 (통합 컨트롤 바) -->
+            <div class="room-control-bar">
+                <!-- Left: Room Identity -->
+                <div class="control-bar-left">
+                    <span class="room-title" id="roomTitle" style="cursor: pointer;">
+                        <span id="roomNameDisplay">룰렛 방</span>
+                        <span class="edit-icon" style="display: none;">✏️</span>
+                    </span>
+                    <span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>
                     <span id="turboBadge" class="turbo-badge" style="display: none; background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🚀 터보</span>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; margin: 0;"><input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드</label>
+                    <span class="username-display" id="usernameDisplay" style="display: none;">플레이어</span>
                 </div>
-                <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: var(--btn-neutral); margin-top: 10px;">🚪 나가기</button>
+
+                <!-- Right: Actions -->
+                <div class="control-bar-right">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; margin: 0;">
+                        <input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드
+                    </label>
+                    <button onclick="toggleReady()" id="readyBtn" class="control-bar-btn" style="display: none;">
+                        ✅ 준비
+                    </button>
+                    <button onclick="logout()" id="logoutBtn" class="control-bar-btn">
+                        🔄 로그아웃
+                    </button>
+                    <button onclick="leaveRoom()" id="leaveBtn" class="control-bar-btn">
+                        🚪 나가기
+                    </button>
+                </div>
             </div>
 
             <!-- 방 폭파 카운트다운 -->
@@ -920,10 +939,7 @@
 
             <!-- 준비 섹션 -->
             <div class="ready-section" id="readySection">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
-                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">준비</button>
-                </div>
+                <div class="users-title" style="margin-bottom: 15px;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
                 <div class="users-list" id="readyUsersList">
                     <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
                 </div>
@@ -1108,6 +1124,136 @@
     <script src="/order-shared.js"></script>
     <script src="/ranking-shared.js"></script>
     <script>
+        // ============================================
+        // Room Control Bar Enhancement
+        // ============================================
+
+        // Room title editing
+        let isEditingRoomName = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const roomTitleElem = document.getElementById('roomTitle');
+            if (!roomTitleElem) return;
+
+            roomTitleElem.addEventListener('click', function() {
+                // Check if user is host
+                if (!window.isHost || isEditingRoomName) return;
+
+                isEditingRoomName = true;
+                const displaySpan = document.getElementById('roomNameDisplay');
+                const currentName = displaySpan.textContent;
+                const editIcon = this.querySelector('.edit-icon');
+
+                // Hide icon during edit
+                if (editIcon) editIcon.style.display = 'none';
+
+                // Create input
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentName;
+                input.maxLength = 30;
+                input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--roulette-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white);';
+
+                displaySpan.replaceWith(input);
+                input.focus();
+                input.select();
+
+                function finishEdit() {
+                    const newName = input.value.trim();
+                    const newDisplay = document.createElement('span');
+                    newDisplay.id = 'roomNameDisplay';
+                    newDisplay.textContent = newName || currentName;
+
+                    input.replaceWith(newDisplay);
+                    if (editIcon) editIcon.style.display = '';
+                    isEditingRoomName = false;
+
+                    if (newName && newName !== currentName && window.socket) {
+                        window.socket.emit('updateRoomName', { roomName: newName });
+                    }
+                }
+
+                input.addEventListener('blur', finishEdit);
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') finishEdit();
+                });
+            });
+        });
+
+        // Update room title on server broadcast
+        if (window.socket) {
+            window.socket.on('roomNameUpdated', (data) => {
+                const display = document.getElementById('roomNameDisplay');
+                if (display) display.textContent = data.roomName;
+            });
+        }
+
+        // Show/hide UI elements based on host status
+        function updateControlBarUI(isHostUser) {
+            const editIcon = document.querySelector('.edit-icon');
+            const hostBadge = document.getElementById('hostBadge');
+            const readyBtn = document.getElementById('readyBtn');
+            const usernameDisplay = document.getElementById('usernameDisplay');
+
+            if (editIcon) editIcon.style.display = isHostUser ? 'inline' : 'none';
+            if (hostBadge) hostBadge.style.display = isHostUser ? 'inline-block' : 'none';
+            if (readyBtn) readyBtn.style.display = 'inline-block';
+
+            // Show username if available
+            if (usernameDisplay && window.myUserName) {
+                usernameDisplay.textContent = window.myUserName;
+                usernameDisplay.style.display = 'inline-block';
+            }
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.')) {
+                if (window.socket) {
+                    window.socket.emit('leaveRoom');
+                    window.socket.disconnect();
+                }
+
+                // Clear session
+                sessionStorage.removeItem('rouletteActiveRoom');
+                sessionStorage.removeItem('userName');
+
+                // Redirect to main page
+                location.href = '/';
+            }
+        }
+
+        // Host delegation
+        function delegateHost(targetSocketId) {
+            if (!window.socket || !window.roomUsers) return;
+
+            const targetUser = window.roomUsers.find(u => u.socketId === targetSocketId);
+            if (!targetUser) return;
+
+            if (confirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`)) {
+                window.socket.emit('delegateHost', { targetSocketId });
+            }
+        }
+
+        // Listen for host delegation
+        if (window.socket) {
+            window.socket.on('hostDelegated', (data) => {
+                window.isHost = data.newHostSocketId === window.socket.id;
+                window.hostSocketId = data.newHostSocketId;
+
+                updateControlBarUI(window.isHost);
+
+                if (typeof renderUsersList === 'function' && window.roomUsers) {
+                    renderUsersList(window.roomUsers);
+                }
+
+                if (window.isHost) {
+                    alert('호스트 권한을 받았습니다!');
+                }
+            });
+        }
+
+        // ============================================
         // 디버그 로그 함수 (localhost 등 로컬에서만 활성화, 포트 무관)
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
         let debugLogEnabled = isLocalhost;
@@ -1234,24 +1380,28 @@
             alertContent.style.cssText = `
                 background: var(--bg-white);
                 border-radius: 16px;
-                padding: 25px 30px;
-                max-width: 500px;
-                width: 90vw;
+                padding: 20px;
+                max-width: 450px;
+                width: calc(100vw - 40px);
                 box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
                 border: 2px solid ${borderColor};
                 animation: slideDown 0.3s ease-out;
+                box-sizing: border-box;
             `;
-            
+
             // 아이콘과 메시지
             const messageDiv = document.createElement('div');
             messageDiv.style.cssText = `
-                font-size: 16px;
+                font-size: 15px;
                 line-height: 1.6;
                 color: var(--text-primary);
                 white-space: pre-wrap;
-                word-break: break-word;
+                word-wrap: break-word;
+                word-break: keep-all;
+                overflow-wrap: break-word;
                 text-align: center;
                 margin-bottom: 20px;
+                max-width: 100%;
             `;
             messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
             
@@ -1370,24 +1520,28 @@
                 confirmContent.style.cssText = `
                     background: var(--bg-white);
                     border-radius: 16px;
-                    padding: 25px 30px;
-                    max-width: 500px;
-                    width: 90vw;
+                    padding: 20px;
+                    max-width: 450px;
+                    width: calc(100vw - 40px);
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
                     border: 2px solid ${borderColor};
                     animation: slideDown 0.3s ease-out;
+                    box-sizing: border-box;
                 `;
-                
+
                 // 아이콘과 메시지
                 const messageDiv = document.createElement('div');
                 messageDiv.style.cssText = `
-                    font-size: 16px;
+                    font-size: 15px;
                     line-height: 1.6;
                     color: var(--text-primary);
                     white-space: pre-wrap;
-                    word-break: break-word;
+                    word-wrap: break-word;
+                    word-break: keep-all;
+                    overflow-wrap: break-word;
                     text-align: center;
                     margin-bottom: 25px;
+                    max-width: 100%;
                 `;
                 messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
                 

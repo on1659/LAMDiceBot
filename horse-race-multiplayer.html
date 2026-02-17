@@ -27,6 +27,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/css/horse-race.css">
+    <style>
+        /* Custom Popup Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
 </head>
 <body>
     <!-- 로딩 화면 -->
@@ -47,18 +62,33 @@
     <div class="container">
         <!-- 게임 섹션 -->
         <section class="game-section" id="gameSection">
-            <!-- 방 정보 헤더 -->
-            <div class="room-header">
-                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span class="room-title" id="roomTitle">경마 방</span>
+            <!-- 방 정보 헤더 (통합 컨트롤 바) -->
+            <div class="room-control-bar">
+                <!-- Left: Room Identity -->
+                <div class="control-bar-left">
+                    <span class="room-title" id="roomTitle" style="cursor: pointer;">
+                        <span id="roomNameDisplay">경마 방</span>
+                        <span class="edit-icon" style="display: none;">✏️</span>
+                    </span>
                     <span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>
+                    <span class="username-display" id="usernameDisplay" style="display: none;">플레이어</span>
+                </div>
+
+                <!-- Right: Actions -->
+                <div class="control-bar-right">
                     <div class="volume-control" id="gameSectionVolumeControl">
                         <button class="volume-btn" id="gameSectionVolumeBtn" title="음소거 토글">🔇</button>
                         <input type="range" class="volume-slider muted" id="gameSectionVolumeSlider" min="0" max="100" value="50">
                     </div>
-                </div>
-                <div style="text-align: center; margin-top: 10px;">
-                    <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: var(--btn-neutral); color: var(--text-primary); font-weight: 600; border: none; border-radius: 8px; cursor: pointer;">🚪 나가기</button>
+                    <button onclick="toggleReady()" id="readyBtn" class="control-bar-btn" style="display: none;">
+                        ✅ 준비
+                    </button>
+                    <button onclick="logout()" id="logoutBtn" class="control-bar-btn">
+                        🔄 로그아웃
+                    </button>
+                    <button onclick="leaveRoom()" id="leaveBtn" class="control-bar-btn">
+                        🚪 나가기
+                    </button>
                 </div>
             </div>
 
@@ -82,10 +112,7 @@
 
             <!-- 준비 섹션 -->
             <div class="ready-section" id="readySection">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
-                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: var(--horse-gradient); color: var(--bg-white); font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s;">준비</button>
-                </div>
+                <div class="users-title" style="margin-bottom: 15px;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
                 <div class="users-list" id="readyUsersList">
                     <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
                 </div>
@@ -293,6 +320,341 @@
     <!-- <script src="/gif-recorder.js"></script> GIF 기능 비활성화 -->
     <script src="/js/horse-race-sprites.js"></script>
     <script src="/js/horse-race.js"></script>
+
+    <script>
+        // ============================================
+        // Custom Popup Functions
+        // ============================================
+
+        // 커스텀 얼럿 함수
+        function showCustomAlert(message, type = 'info') {
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            let borderColor, icon;
+            switch(type) {
+                case 'error':
+                    borderColor = 'rgb(239, 68, 68)';
+                    icon = '⚠️';
+                    break;
+                case 'warning':
+                    borderColor = 'rgb(234, 179, 8)';
+                    icon = '⚠️';
+                    break;
+                case 'success':
+                    borderColor = 'rgb(34, 197, 94)';
+                    icon = '✅';
+                    break;
+                default:
+                    borderColor = 'rgb(147, 51, 234)';
+                    icon = 'ℹ️';
+            }
+
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.4); z-index: 10001;
+                display: flex; justify-content: center; align-items: center;
+                animation: fadeIn 0.2s ease-out;
+            `;
+
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `
+                background: white; border-radius: 16px; padding: 20px;
+                max-width: 450px; width: calc(100vw - 40px);
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                border: 2px solid ${borderColor};
+                animation: slideDown 0.3s ease-out;
+                box-sizing: border-box;
+            `;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+                white-space: pre-wrap; word-wrap: break-word;
+                word-break: keep-all; overflow-wrap: break-word;
+                text-align: center; margin-bottom: 20px;
+                max-width: 100%;
+            `;
+            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `
+                padding: 10px 30px;
+                background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                color: white; border: none; border-radius: 8px;
+                font-size: 16px; font-weight: 600; cursor: pointer;
+                width: 100%; transition: transform 0.1s, box-shadow 0.1s;
+            `;
+            confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+            confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+            confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
+
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+
+            alertOverlay.onclick = (e) => {
+                if (e.target === alertOverlay) {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+
+            alertContent.appendChild(messageDiv);
+            alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent);
+            document.body.appendChild(alertOverlay);
+            confirmButton.focus();
+        }
+
+        // 커스텀 확인 다이얼로그
+        function showCustomConfirm(message, type = 'warning') {
+            return new Promise((resolve) => {
+                const existingConfirm = document.getElementById('customConfirm');
+                if (existingConfirm) { existingConfirm.remove(); }
+
+                let borderColor, icon;
+                switch(type) {
+                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
+                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
+                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
+                    default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                }
+
+                const confirmOverlay = document.createElement('div');
+                confirmOverlay.id = 'customConfirm';
+                confirmOverlay.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0, 0, 0, 0.4); z-index: 10002;
+                    display: flex; justify-content: center; align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+
+                const confirmContent = document.createElement('div');
+                confirmContent.style.cssText = `
+                    background: white; border-radius: 16px; padding: 20px;
+                    max-width: 450px; width: calc(100vw - 40px);
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid ${borderColor};
+                    animation: slideDown 0.3s ease-out;
+                    box-sizing: border-box;
+                `;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+                    white-space: pre-wrap; word-wrap: break-word;
+                    word-break: keep-all; overflow-wrap: break-word;
+                    text-align: center; margin-bottom: 25px;
+                    max-width: 100%;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `display: flex; gap: 10px; justify-content: center;`;
+
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 10px 25px; background: rgb(243, 244, 246); color: rgb(107, 114, 128);
+                    border: 1px solid rgb(209, 213, 219); border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                cancelButton.onmouseenter = () => { cancelButton.style.transform = 'scale(1.02)'; };
+                cancelButton.onmouseleave = () => { cancelButton.style.transform = 'scale(1)'; };
+                cancelButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(false); }, 200); };
+
+                const confirmButton = document.createElement('button');
+                confirmButton.textContent = '확인';
+                confirmButton.style.cssText = `
+                    padding: 10px 25px; background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                    color: white; border: none; border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+                confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+                confirmButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(true); }, 200); };
+
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+
+                confirmOverlay.onclick = (e) => {
+                    if (e.target === confirmOverlay) {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(confirmButton);
+                confirmContent.appendChild(messageDiv);
+                confirmContent.appendChild(buttonContainer);
+                confirmOverlay.appendChild(confirmContent);
+                document.body.appendChild(confirmOverlay);
+                confirmButton.focus();
+            });
+        }
+
+        // ============================================
+        // Room Control Bar Enhancement
+        // ============================================
+
+        // Room title editing
+        let isEditingRoomName = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const roomTitleElem = document.getElementById('roomTitle');
+            if (!roomTitleElem) return;
+
+            roomTitleElem.addEventListener('click', function() {
+            // Check if user is host (check global isHost from horse-race.js or room data)
+            if (!window.isHost || isEditingRoomName) return;
+
+            isEditingRoomName = true;
+            const displaySpan = document.getElementById('roomNameDisplay');
+            const currentName = displaySpan.textContent;
+            const editIcon = this.querySelector('.edit-icon');
+
+            // Hide icon during edit
+            if (editIcon) editIcon.style.display = 'none';
+
+            // Create input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.maxLength = 30;
+            input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--horse-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white);';
+
+            displaySpan.replaceWith(input);
+            input.focus();
+            input.select();
+
+            function finishEdit() {
+                const newName = input.value.trim();
+                const newDisplay = document.createElement('span');
+                newDisplay.id = 'roomNameDisplay';
+                newDisplay.textContent = newName || currentName;
+
+                input.replaceWith(newDisplay);
+                if (editIcon) editIcon.style.display = '';
+                isEditingRoomName = false;
+
+                if (newName && newName !== currentName && window.socket) {
+                    window.socket.emit('updateRoomName', { roomName: newName });
+                }
+            }
+
+            input.addEventListener('blur', finishEdit);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') finishEdit();
+            });
+            });
+        });
+
+        // Update room title on server broadcast
+        if (window.socket) {
+            window.socket.on('roomNameUpdated', (data) => {
+                const display = document.getElementById('roomNameDisplay');
+                if (display) display.textContent = data.roomName;
+            });
+        }
+
+        // Show/hide UI elements based on host status
+        function updateControlBarUI(isHostUser) {
+            const editIcon = document.querySelector('.edit-icon');
+            const hostBadge = document.getElementById('hostBadge');
+            const readyBtn = document.getElementById('readyBtn');
+            const usernameDisplay = document.getElementById('usernameDisplay');
+
+            if (editIcon) editIcon.style.display = isHostUser ? 'inline' : 'none';
+            if (hostBadge) hostBadge.style.display = isHostUser ? 'inline-block' : 'none';
+            if (readyBtn) readyBtn.style.display = 'inline-block';
+
+            // Show username if available
+            if (usernameDisplay && window.myUserName) {
+                usernameDisplay.textContent = window.myUserName;
+                usernameDisplay.style.display = 'inline-block';
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            const confirmed = await showCustomConfirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.', 'warning');
+            if (confirmed) {
+                if (window.socket) {
+                    window.socket.emit('leaveRoom');
+                    window.socket.disconnect();
+                }
+
+                // Clear session
+                sessionStorage.removeItem('horseActiveRoom');
+                sessionStorage.removeItem('userName');
+
+                // Redirect to main page
+                location.href = '/';
+            }
+        }
+
+        // Host delegation (to be implemented in user list rendering)
+        async function delegateHost(targetSocketId) {
+            if (!window.socket || !window.roomUsers) return;
+
+            const targetUser = window.roomUsers.find(u => u.socketId === targetSocketId);
+            if (!targetUser) return;
+
+            const confirmed = await showCustomConfirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`, 'warning');
+            if (confirmed) {
+                window.socket.emit('delegateHost', { targetSocketId });
+            }
+        }
+
+        // Listen for host delegation
+        if (window.socket) {
+            window.socket.on('hostDelegated', (data) => {
+                window.isHost = data.newHostSocketId === window.socket.id;
+                window.hostSocketId = data.newHostSocketId;
+
+                updateControlBarUI(window.isHost);
+
+                // Refresh user list if available
+                if (typeof renderUsersList === 'function' && window.roomUsers) {
+                    renderUsersList(window.roomUsers);
+                }
+
+                if (window.isHost) {
+                    showCustomAlert('호스트 권한을 받았습니다!', 'success');
+                }
+            });
+        }
+
+        // Initialize control bar on page load
+        window.addEventListener('load', () => {
+            // This will be called after horse-race.js loads
+            if (window.socket) {
+                const originalRoomJoinedHandler = window.socket._callbacks?.$roomJoined;
+
+                window.socket.on('roomJoined', (data) => {
+                    setTimeout(() => {
+                        updateControlBarUI(window.isHost);
+                    }, 100);
+                });
+            }
+        });
+    </script>
 
     <!-- 디버그 로그 섹션 -->
     <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
