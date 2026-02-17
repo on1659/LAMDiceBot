@@ -207,6 +207,19 @@ module.exports = (socket, io, ctx) => {
             gimmicksData[horseIndex] = gimmicks;
         });
 
+        // 배팅 안 된 말: 즉시 정지 기믹으로 교체
+        const bettedHorseIndices = new Set(Object.values(gameState.userHorseBets));
+        gameState.availableHorses.forEach(horseIndex => {
+            if (!bettedHorseIndices.has(horseIndex)) {
+                gimmicksData[horseIndex] = [{
+                    progressTrigger: 0,
+                    type: 'unbetted_stop',
+                    duration: 999999,
+                    speedMultiplier: 0
+                }];
+            }
+        });
+
         // 날씨 스케줄 생성
         const forcedWeather = gameState.forcedWeather || null;
         const weatherSchedule = generateWeatherSchedule(forcedWeather);
@@ -218,7 +231,7 @@ module.exports = (socket, io, ctx) => {
         gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
         const vehicleTypes = gameState.selectedVehicleTypes || [];
-        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule);
+        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -1171,7 +1184,7 @@ module.exports = (socket, io, ctx) => {
     }
 
     // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
-    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = []) {
+    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}) {
         // 트랙 길이 설정
         const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = preset.meters;
@@ -1266,6 +1279,9 @@ module.exports = (socket, io, ctx) => {
         let loserCameraTargetIndex = -1;      // Loser 카메라 타겟
         let elapsed = 0;
 
+        // 배팅된 말 인덱스 (시뮬레이션 종료 조건 + Loser 슬로우모션 필터용)
+        const bettedIndices = new Set(Object.values(bettedHorsesMap || {}));
+
         // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
         let frameCount = 0;
         while (elapsed < 60000) {
@@ -1277,9 +1293,9 @@ module.exports = (socket, io, ctx) => {
                 await new Promise(resolve => setImmediate(resolve));
             }
 
-            // 모든 말이 도착했는지 확인
-            const allFinished = horseStates.every(s => s.finished);
-            if (allFinished) break;
+            // 배팅된 말이 모두 도착했는지 확인 (배팅 안 된 말은 멈춰있으므로 무시)
+            const allBettedFinished = horseStates.every(s => s.finished || (bettedIndices.size > 0 && !bettedIndices.has(s.horseIndex)));
+            if (allBettedFinished) break;
 
             // 1등(가장 앞선 말) 찾기 - finishJudged 기준 (클라이언트와 동일)
             const unfinishedJudged = horseStates.filter(s => !s.finishJudged);
@@ -1307,10 +1323,10 @@ module.exports = (socket, io, ctx) => {
                 console.log(`[서버시뮬] Leader 슬로우모션 해제!`);
             }
 
-            // Loser 슬로우모션 발동: Leader 슬로우모션 해제 후, 꼴등 직전 말이 결승선 10m 이내
+            // Loser 슬로우모션 발동: Leader 슬로우모션 해제 후, 배팅된 말 중 꼴등 직전이 결승선 10m 이내
             if (!loserSlowMotionTriggered && !slowMotionActive && smConf.loser) {
                 const unfinished = horseStates
-                    .filter(s => !s.finished)
+                    .filter(s => !s.finished && (bettedIndices.size === 0 || bettedIndices.has(s.horseIndex)))
                     .sort((a, b) => a.currentPos - b.currentPos);  // 느린 순
 
                 if (unfinished.length >= 2) {
@@ -1460,7 +1476,10 @@ module.exports = (socket, io, ctx) => {
         if (mode === 'first') {
             targetRank = 1; // 1등 찾기
         } else {
-            targetRank = rankings.length; // 꼴등 찾기
+            // 꼴등 찾기: 배팅된 말 중 가장 느린 말 (배팅 안 된 멈춘 말 제외)
+            const bettedHorseSet = new Set(Object.values(userHorseBets));
+            const bettedRankings = rankings.filter(r => bettedHorseSet.has(r.horseIndex));
+            targetRank = bettedRankings.length > 0 ? Math.max(...bettedRankings.map(r => r.rank)) : rankings.length;
         }
         console.log(`[디버그] getWinnersByRule - mode: ${mode}, targetRank: ${targetRank}, rankings.length: ${rankings.length}`);
 

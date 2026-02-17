@@ -1535,8 +1535,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
     // 가중치 기반 컷어웨이 타겟 선택 (순위 높을수록 자주 보여줌)
     function selectRandomCutawayTarget(horseStates, leaderIndex) {
+        const bettedSet = new Set(Object.values(userHorseBets));
         const candidates = horseStates.filter(s =>
-            s.horseIndex !== leaderIndex && !s.finished
+            s.horseIndex !== leaderIndex && !s.finished && (bettedSet.size === 0 || bettedSet.has(s.horseIndex))
         );
         if (candidates.length === 0) return null;
         // 순위별 가중치 (2위=30, 3위=25, 4위=20, 하위=15)
