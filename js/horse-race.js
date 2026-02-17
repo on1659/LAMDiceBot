@@ -488,7 +488,7 @@ function renderTrackForSelection() {
                 left: 50%;
                 transform: translateX(-50%);
                 font-size: 16px;
-                color: #ffd700;
+                color: var(--yellow-500);
                 text-shadow: 0 0 6px rgba(255,215,0,0.8);
                 animation: arrowBounce 0.8s ease-in-out infinite;
                 pointer-events: none;
@@ -529,15 +529,15 @@ function renderTrackForSelection() {
                 if (isMe) {
                     // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
                     nameTag.style.cssText = `
-                        background: linear-gradient(135deg, #ffd700, #ffaa00);
-                        color: #000;
+                        background: linear-gradient(135deg, var(--yellow-500), var(--yellow-600));
+                        color: var(--text-primary);
                         padding: 2px 6px;
                         border-radius: 4px;
                         font-size: 11px;
                         line-height: 16px;
                         font-weight: bold;
                         white-space: nowrap;
-                        border: 2px solid #fff;
+                        border: 2px solid var(--bg-white);
                         box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);
                         text-shadow: 0 1px 1px rgba(255,255,255,0.5);
                     `;
@@ -546,7 +546,7 @@ function renderTrackForSelection() {
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
                         background: rgba(0,0,0,0.75);
-                        color: #fff;
+                        color: var(--bg-white);
                         padding: 2px 5px;
                         border-radius: 3px;
                         font-size: 10px;
@@ -595,14 +595,14 @@ function renderHorseSelection() {
         grid.parentElement.insertBefore(trackLengthContainer, grid);
     }
     if (isHost) {
-        const activeColor = '#fbbf24'; // 모든 트랙 버튼 노란색 통일
+        const activeColor = 'var(--yellow-400)'; // 모든 트랙 버튼 노란색 통일
         const trackLabels = { short: '짧게', medium: '보통', long: '길게' };
         const presets = trackPresetsFromServer;
-        let btnsHtml = '<span style="font-size: 12px; color: #ccc;">트랙:</span>';
+        let btnsHtml = '<span style="font-size: 12px; color: var(--gray-300);">트랙:</span>';
         for (const key of ['short', 'medium', 'long']) {
             const isActive = currentTrackLength === key;
             btnsHtml += `<button class="track-length-btn" data-length="${key}"
-                style="padding: 4px 10px; border-radius: 12px; border: 1px solid #555; background: ${isActive ? activeColor : '#333'}; color: ${isActive ? '#000' : '#ccc'}; cursor: pointer; font-size: 11px; font-weight: bold;">
+                style="padding: 4px 10px; border-radius: 12px; border: 1px solid var(--gray-600); background: ${isActive ? activeColor : 'var(--gray-800)'}; color: ${isActive ? 'var(--gray-900)' : 'var(--gray-300)'}; cursor: pointer; font-size: 11px; font-weight: bold;">
                 ${trackLabels[key]} (${presets[key]}m)
             </button>`;
         }
@@ -615,13 +615,13 @@ function renderHorseSelection() {
 
                 // 즉시 선택 피드백
                 trackLengthContainer.querySelectorAll('.track-length-btn').forEach(b => {
-                    b.style.background = '#333';
-                    b.style.color = '#ccc';
+                    b.style.background = 'var(--gray-800)';
+                    b.style.color = 'var(--gray-300)';
                     b.style.boxShadow = 'none';
                 });
-                const activeColor = '#fbbf24'; // 노란색 통일
+                const activeColor = 'var(--yellow-400)'; // 노란색 통일
                 btn.style.background = activeColor;
-                btn.style.color = '#000';
+                btn.style.color = 'var(--gray-900)';
                 btn.style.boxShadow = '0 0 8px ' + activeColor + '80';
                 socket.emit('setTrackLength', { trackLength: btn.dataset.length });
 
@@ -631,7 +631,7 @@ function renderHorseSelection() {
         });
         trackLengthContainer.style.display = 'flex';
     } else {
-        trackLengthContainer.innerHTML = `<span style="display: inline-block; padding: 6px 16px; border-radius: 12px; background: linear-gradient(135deg, #1e293b, #334155); border: 1px solid #475569; font-size: 14px; font-weight: bold; color: #e2e8f0; letter-spacing: 1px;">🏁 <span id="trackLengthInfo" style="color: #60a5fa;">${currentTrackDistanceMeters}m</span></span>`;
+        trackLengthContainer.innerHTML = `<span style="display: inline-block; padding: 6px 16px; border-radius: 12px; background: linear-gradient(135deg, var(--slate-800), var(--slate-700)); border: 1px solid var(--slate-600); font-size: 14px; font-weight: bold; color: var(--slate-200); letter-spacing: 1px;">🏁 <span id="trackLengthInfo" style="color: var(--blue-400);">${currentTrackDistanceMeters}m</span></span>`;
         trackLengthContainer.style.display = 'flex';
     }
 
@@ -755,16 +755,16 @@ function renderHorseSelection() {
         }
         let content = vehicleDisplay;
         const isPopular = popularVehicles.includes(vehicleId);
-        content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${isPopular ? ' <span style="font-size: 10px; background: #ff6b35; color: #fff; padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : ''}</div>`;
+        content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${isPopular ? ' <span style="font-size: 10px; background: var(--red-400); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : ''}</div>`;
 
         // 추천 뱃지 표시 (1등 비율이 가장 낮은 탈것 = 승률 평준화 목적)
         if (vehicleId === recommendedVehicleId) {
-            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: #e74c3c; color: #fff; padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
+            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: var(--red-500); color: var(--bg-white); padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
         }
 
         // 내 선택만 표시 (타인 선택은 숨김 - 카운트다운 후 공개)
         if (isMyHorse) {
-            content += `<div style="font-size: 12px; margin-top: 5px; color: #8b4513; font-weight: bold;">✓ 내가 선택</div>`;
+            content += `<div style="font-size: 12px; margin-top: 5px; color: var(--horse-accent); font-weight: bold;">✓ 내가 선택</div>`;
         }
         // 타인 선택은 탈것 버튼에 표시하지 않음 (유추 방지)
         
@@ -806,7 +806,7 @@ function renderHorseSelection() {
         randomButton.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
                 <span style="font-size:24px;animation:diceWobble 2s ease-in-out infinite;">🎲</span>
-                <span style="font-size:14px;font-weight:bold;color:#e94560;">랜덤 선택!!</span>
+                <span style="font-size:14px;font-weight:bold;color:var(--red-400);">랜덤 선택!!</span>
             </div>
         `;
     } else {
@@ -1228,7 +1228,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             left: 50%;
             transform: translateX(-50%);
             font-size: 16px;
-            color: #e94560;
+            color: var(--red-400);
             text-shadow: 0 0 4px rgba(233,69,96,0.6);
             animation: arrowBounce 0.8s ease-in-out infinite;
             pointer-events: none;
@@ -1282,15 +1282,15 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 if (isMe) {
                     // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
                     nameTag.style.cssText = `
-                        background: linear-gradient(135deg, #ffd700, #ffaa00);
-                        color: #000;
+                        background: linear-gradient(135deg, var(--yellow-500), var(--yellow-600));
+                        color: var(--text-primary);
                         padding: 2px 6px;
                         border-radius: 4px;
                         font-size: 11px;
                         line-height: 16px;
                         font-weight: bold;
                         white-space: nowrap;
-                        border: 2px solid #fff;
+                        border: 2px solid var(--bg-white);
                         box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);
                         text-shadow: 0 1px 1px rgba(255,255,255,0.5);
                     `;
@@ -1299,7 +1299,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     // 다른 사용자: 개선된 가독성
                     nameTag.style.cssText = `
                         background: rgba(0,0,0,0.75);
-                        color: #fff;
+                        color: var(--bg-white);
                         padding: 2px 5px;
                         border-radius: 3px;
                         font-size: 10px;
@@ -1405,8 +1405,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
                     const users = info.bettingUsers.length > 0 ? info.bettingUsers.join(',') : '-';
                     const remainingText = pos.remaining <= 0 ? '🏁' : `${pos.remainingMeters}m`;
-                    const progressColor = pos.remaining <= 0 ? '#4ade80' : pos.remaining < 30 ? '#fbbf24' : '#94a3b8';
-                    html += `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0; ${idx === 0 ? 'color: #ffd700; font-weight: bold;' : ''}">
+                    const progressColor = pos.remaining <= 0 ? 'var(--green-400)' : pos.remaining < 30 ? 'var(--yellow-400)' : 'var(--gray-400)';
+                    html += `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0; ${idx === 0 ? 'color: var(--yellow-500); font-weight: bold;' : ''}">
                         <span style="width: 20px; font-size: 12px;">${medal}</span>
                         <span style="font-size: 14px;">${info.vehicle.emoji}</span>
                         <span style="flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${users}</span>
@@ -1465,7 +1465,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             markersHtml += `<div style="position: absolute; left: ${pct}%; transform: translateX(-50%); font-size: 7px; color: rgba(255,255,255,${isMajor ? '0.6' : '0.35'}); white-space: nowrap;">${remaining}m</div>`;
         });
         // 결승선 마커
-        ticksHtml += `<div style="position: absolute; right: 0; top: 0; width: 2px; height: 6px; background: #4ade80;"></div>`;
+        ticksHtml += `<div style="position: absolute; right: 0; top: 0; width: 2px; height: 6px; background: var(--green-400);"></div>`;
 
         minimapTrack.innerHTML = ticksHtml;
         minimapMarkers.innerHTML = markersHtml;
@@ -1483,8 +1483,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
             // 트랙 위의 점
             const isMyBet = userHorseBets[currentUser] === state.horseIndex;
-            const arrow = isMyBet ? `<div style="position: absolute; left: 50%; top: -8px; transform: translateX(-50%); font-size: 6px; color: #ffd700; line-height: 1;">▼</div>` : '';
-            minimapTrack.innerHTML += `<div style="position: absolute; left: ${leftPct}%; top: 50%; transform: translate(-50%, -50%) scaleX(-1); font-size: 10px; line-height: 1; z-index: ${isMyBet ? 100 : 10 + idx}; filter: ${isMyBet ? 'drop-shadow(0 0 3px #ffd700)' : 'none'};">${arrow}${emoji}</div>`;
+            const arrow = isMyBet ? `<div style="position: absolute; left: 50%; top: -8px; transform: translateX(-50%); font-size: 6px; color: var(--yellow-500); line-height: 1;">▼</div>` : '';
+            minimapTrack.innerHTML += `<div style="position: absolute; left: ${leftPct}%; top: 50%; transform: translate(-50%, -50%) scaleX(-1); font-size: 10px; line-height: 1; z-index: ${isMyBet ? 100 : 10 + idx}; filter: ${isMyBet ? 'drop-shadow(0 0 3px var(--yellow-500))' : 'none'};">${arrow}${emoji}</div>`;
         });
 
         minimapDots.style.display = 'none';
@@ -1567,7 +1567,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             cameraModeOverlay.style.cssText = `
                 position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
                 padding: 4px 14px; border-radius: 12px; font-size: 12px;
-                font-family: 'Jua', sans-serif; color: #fff; pointer-events: none;
+                font-family: 'Jua', sans-serif; color: var(--bg-white); pointer-events: none;
                 z-index: 50; transition: opacity 0.5s; opacity: 0;
             `;
             trackContainer.style.position = 'relative';
@@ -1734,7 +1734,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 // 재개 토스트
                 const toast = document.createElement('div');
                 toast.textContent = '▶ 경주 재개!';
-                toast.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; background: rgba(0,0,0,0.7); color: #4ade80; padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; pointer-events: none; transition: opacity 0.5s;';
+                toast.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; background: rgba(0,0,0,0.7); color: var(--green-400); padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; pointer-events: none; transition: opacity 0.5s;';
                 trackContainer.style.position = 'relative';
                 trackContainer.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; }, 800);
@@ -2419,7 +2419,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 if (!state.offscreenIndicator) {
                     const indicator = document.createElement('div');
                     indicator.className = 'offscreen-indicator';
-                    indicator.style.cssText = `position: absolute; left: 2px; top: 50%; transform: translateY(-50%); z-index: 100; display: none; font-size: 10px; color: #fbbf24; white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
+                    indicator.style.cssText = `position: absolute; left: 2px; top: 50%; transform: translateY(-50%); z-index: 100; display: none; font-size: 10px; color: var(--yellow-400); white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
                     state.lane.appendChild(indicator);
                     state.offscreenIndicator = indicator;
                 }
@@ -2733,7 +2733,7 @@ function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
             opacity: 0;
             filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
         `;
-        tombstoneWrap.innerHTML = `🪦<span style="display:block;font-size:12px;font-weight:bold;color:#444;">${finishRank + 1}등</span>`;
+        tombstoneWrap.innerHTML = `🪦<span style="display:block;font-size:12px;font-weight:bold;color:var(--gray-700);">${finishRank + 1}등</span>`;
         track.appendChild(tombstoneWrap);
     }
     
@@ -2977,13 +2977,13 @@ function showRaceResult(data, isReplay = false) {
         const loserNames = loserBettingUsers.length > 0 ? loserBettingUsers.join(', ') : '없음';
         const chatLoserSvg = getVehicleSVGForResult ? getVehicleSVGForResult(chatLoserVehicle.vehicleId || chatLoserVehicle.id, 45) : '';
         const chatResultHtml = `
-            <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 4px 8px; border-radius: 6px; border: 1.5px solid #e94560; position: relative; overflow: hidden; margin: 2px 0; display: inline-block;">
+            <div style="background: linear-gradient(135deg, var(--result-loser-dark) 0%, var(--result-loser-dark2) 100%); padding: 4px 8px; border-radius: 6px; border: 1.5px solid var(--result-loser-border); position: relative; overflow: hidden; margin: 2px 0; display: inline-block;">
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-size: 13px;">💀</span>
-                    <span style="font-size: 12px; font-weight: bold; color: #e94560;">${loserIndex + 1}등</span>
+                    <span style="font-size: 12px; font-weight: bold; color: var(--red-400);">${loserIndex + 1}등</span>
                     <div style="transform: scale(0.55); margin: -8px -4px; filter: grayscale(60%);">${chatLoserSvg}</div>
-                    <span style="font-size: 11px; font-weight: bold; color: #eee;">${chatLoserVehicle.name}</span>
-                    <span style="font-size: 11px; color: #e94560; margin-left: auto;">🎉 ${loserNames}</span>
+                    <span style="font-size: 11px; font-weight: bold; color: var(--gray-100);">${chatLoserVehicle.name}</span>
+                    <span style="font-size: 11px; color: var(--red-400); margin-left: auto;">🎉 ${loserNames}</span>
                 </div>
             </div>`;
         ChatModule.displayChatMessage({
@@ -3021,60 +3021,60 @@ function showRaceResult(data, isReplay = false) {
 
             if (index === 0) {
                 rankingsHtml += `
-                    <div class="result-rank-1" style="background: linear-gradient(135deg, #fff8dc 0%, #ffeaa7 100%); padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid #f1c40f;">
+                    <div class="result-rank-1" style="background: linear-gradient(135deg, var(--result-gold-light) 0%, var(--result-gold-dark) 100%); padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid var(--result-gold-border);">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 22px;">🥇</span>
-                            <span style="font-size: 18px; font-weight: bold; color: #8b6914;">${rankNum}등</span>
+                            <span style="font-size: 18px; font-weight: bold; color: var(--result-gold-text);">${rankNum}등</span>
                             <div style="transform: scale(0.9);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 45)}</div>
-                            <span style="font-size: 15px; font-weight: bold; color: #8b6914;">${vehicle.name}</span>
-                            <span style="font-size: 12px; color: #a08030; margin-left: auto;">${usersHtml}</span>
+                            <span style="font-size: 15px; font-weight: bold; color: var(--result-gold-text);">${vehicle.name}</span>
+                            <span style="font-size: 12px; color: var(--result-gold-subtext); margin-left: auto;">${usersHtml}</span>
                         </div>
                     </div>
                 `;
             } else if (index === 1) {
                 rankingsHtml += `
-                    <div class="result-rank-2" style="background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #bdc3c7;">
+                    <div class="result-rank-2" style="background: linear-gradient(135deg, var(--result-silver-light) 0%, var(--result-silver-dark) 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid var(--result-silver-border);">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 18px;">🥈</span>
-                            <span style="font-size: 16px; font-weight: bold; color: #555;">${rankNum}등</span>
+                            <span style="font-size: 16px; font-weight: bold; color: var(--text-secondary);">${rankNum}등</span>
                             <div style="transform: scale(0.8);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
-                            <span style="font-size: 14px; font-weight: bold; color: #555;">${vehicle.name}</span>
-                            <span style="font-size: 12px; color: #888; margin-left: auto;">${usersHtml}</span>
+                            <span style="font-size: 14px; font-weight: bold; color: var(--text-secondary);">${vehicle.name}</span>
+                            <span style="font-size: 12px; color: var(--gray-400); margin-left: auto;">${usersHtml}</span>
                         </div>
                     </div>
                 `;
             } else if (index === 2) {
                 rankingsHtml += `
-                    <div class="result-rank-3" style="background: linear-gradient(135deg, #fae5d3 0%, #f0d5b8 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #cd7f32;">
+                    <div class="result-rank-3" style="background: linear-gradient(135deg, var(--result-bronze-light) 0%, var(--result-bronze-dark) 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid var(--result-bronze-border);">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 18px;">🥉</span>
-                            <span style="font-size: 16px; font-weight: bold; color: #8b5e3c;">${rankNum}등</span>
+                            <span style="font-size: 16px; font-weight: bold; color: var(--result-bronze-text);">${rankNum}등</span>
                             <div style="transform: scale(0.8);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
-                            <span style="font-size: 14px; font-weight: bold; color: #8b5e3c;">${vehicle.name}</span>
-                            <span style="font-size: 12px; color: #a07050; margin-left: auto;">${usersHtml}</span>
+                            <span style="font-size: 14px; font-weight: bold; color: var(--result-bronze-text);">${vehicle.name}</span>
+                            <span style="font-size: 12px; color: var(--result-bronze-subtext); margin-left: auto;">${usersHtml}</span>
                         </div>
                     </div>
                 `;
             } else if (isLast) {
                 rankingsHtml += `
-                    <div style="background: linear-gradient(135deg, #2d1f3d 0%, #1a1a2e 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid #e94560;">
+                    <div style="background: linear-gradient(135deg, var(--result-loser-light) 0%, var(--result-loser-dark) 100%); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; border-left: 4px solid var(--result-loser-border);">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span style="font-size: 16px;">💀</span>
-                            <span style="font-size: 15px; font-weight: bold; color: #e94560;">${rankNum}등</span>
+                            <span style="font-size: 15px; font-weight: bold; color: var(--red-400);">${rankNum}등</span>
                             <div style="transform: scale(0.7); filter: grayscale(50%);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 40)}</div>
-                            <span style="font-size: 13px; font-weight: bold; color: #e94560;">${vehicle.name}</span>
-                            <span style="font-size: 12px; color: #e94560; margin-left: auto; font-weight: 600;">${usersHtml}</span>
+                            <span style="font-size: 13px; font-weight: bold; color: var(--red-400);">${vehicle.name}</span>
+                            <span style="font-size: 12px; color: var(--red-400); margin-left: auto; font-weight: 600;">${usersHtml}</span>
                         </div>
                     </div>
                 `;
             } else {
                 rankingsHtml += `
-                    <div style="background: #fafafa; padding: 8px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 4px solid #ddd;">
+                    <div style="background: var(--bg-primary); padding: 8px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 4px solid var(--gray-300);">
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 13px; font-weight: bold; color: #999; min-width: 28px;">${rankNum}등</span>
+                            <span style="font-size: 13px; font-weight: bold; color: var(--text-muted); min-width: 28px;">${rankNum}등</span>
                             <div style="transform: scale(0.65);">${getVehicleSVGForResult(vehicle.vehicleId || vehicle.id, 38)}</div>
-                            <span style="font-size: 13px; color: #777;">${vehicle.name}</span>
-                            <span style="font-size: 11px; color: #aaa; margin-left: auto;">${usersHtml}</span>
+                            <span style="font-size: 13px; color: var(--text-secondary);">${vehicle.name}</span>
+                            <span style="font-size: 11px; color: var(--gray-400); margin-left: auto;">${usersHtml}</span>
                         </div>
                     </div>
                 `;
@@ -3083,15 +3083,15 @@ function showRaceResult(data, isReplay = false) {
 
         // 꼴등 하이라이트 (하단)
         rankingsHtml += `
-            <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 10px 14px; border-radius: 10px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid #e94560; position: relative; overflow: hidden;">
-                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #e94560; color: #fff; padding: 2px 10px; border-radius: 0 0 6px 6px; font-size: 9px; font-weight: bold; letter-spacing: 1px;">LOSER</div>
+            <div style="background: linear-gradient(135deg, var(--result-loser-dark) 0%, var(--result-loser-dark2) 100%); padding: 10px 14px; border-radius: 10px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid var(--result-loser-border); position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: var(--result-loser-border); color: var(--bg-white); padding: 2px 10px; border-radius: 0 0 6px 6px; font-size: 9px; font-weight: bold; letter-spacing: 1px;">LOSER</div>
                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px;">
                     <span style="font-size: 20px;">💀</span>
-                    <span style="font-size: 16px; font-weight: bold; color: #e94560;">${loserIndex + 1}등</span>
+                    <span style="font-size: 16px; font-weight: bold; color: var(--red-400);">${loserIndex + 1}등</span>
                     <div style="transform: scale(0.8); filter: grayscale(60%);">${getVehicleSVGForResult(loserVehicle.vehicleId || loserVehicle.id, 38)}</div>
-                    <span style="font-size: 14px; font-weight: bold; color: #eee;">${loserVehicle.name}</span>
+                    <span style="font-size: 14px; font-weight: bold; color: var(--gray-100);">${loserVehicle.name}</span>
                 </div>
-                <div style="font-size: 13px; color: #e94560; text-align: center; margin-top: 4px; font-weight: 700;">
+                <div style="font-size: 13px; color: var(--red-400); text-align: center; margin-top: 4px; font-weight: 700;">
                     🎉 ${loserBettingUsers.join(', ')} 🎉
                 </div>
             </div>
@@ -3112,8 +3112,8 @@ function showRaceResult(data, isReplay = false) {
     const gameStatus = document.getElementById('gameStatus');
     if (gameStatus) {
         gameStatus.textContent = '경주 종료!';
-        gameStatus.style.background = '#e9ecef';
-        gameStatus.style.color = '#495057';
+        gameStatus.style.background = 'var(--gray-100)';
+        gameStatus.style.color = 'var(--gray-700)';
     }
     
     // 다시보기 버튼 표시 (모든 사용자)
@@ -3176,7 +3176,7 @@ function showCountdown() {
     }
 
     const nums = ['3', '2', '1', 'START!'];
-    const colors = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'];
+    const colors = ['var(--red-500)', 'var(--yellow-500)', 'var(--green-500)', 'var(--blue-500)'];
     let idx = 0;
 
     function showNext() {
@@ -3280,7 +3280,7 @@ function renderHistory() {
     if (!historyList) return;
     
     if (horseRaceHistory.length === 0) {
-        historyList.innerHTML = '<div style="color: #999; text-align: center;">아직 기록이 없습니다</div>';
+        historyList.innerHTML = '<div style="color: var(--text-muted); text-align: center;">아직 기록이 없습니다</div>';
         return;
     }
     
@@ -3321,7 +3321,7 @@ function renderHistory() {
     horseRaceHistory.slice().reverse().forEach((record, idx) => {
         const item = document.createElement('div');
         item.className = 'history-item';
-        item.style.cssText = 'background: #fff9f0; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #f0e0c0;';
+        item.style.cssText = 'background: var(--yellow-50); padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--yellow-200);';
         
         // 시간 포맷
         const time = record.timestamp ? new Date(record.timestamp).toLocaleString('ko-KR', { 
@@ -3337,16 +3337,16 @@ function renderHistory() {
                 const bettingUsers = getBettingUsersFromRecord(record, horseIndex);
                 const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
                 const medal = medals[rank] || `${rank + 1}`;
-                const bgColors = ['#fff8dc', '#f5f5f5', '#faebd7', '#f0f0f0', '#f0f0f0', '#f0f0f0'];
-                const bgColor = bgColors[rank] || '#f0f0f0';
+                const bgColors = ['var(--result-gold-light)', 'var(--result-silver-light)', 'var(--result-bronze-light)', 'var(--panel-secondary)', 'var(--panel-secondary)', 'var(--panel-secondary)'];
+                const bgColor = bgColors[rank] || 'var(--panel-secondary)';
                 
                 rankingsHtml += `
                     <div style="display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: ${bgColor}; border-radius: 4px; margin-bottom: 4px;">
                         <span style="font-size: 14px;">${medal}</span>
                         <span style="font-size: 12px; font-weight: bold;">${rank + 1}등</span>
                         <div style="transform: scale(0.6); margin: -5px;">${getSmallVehicleSVG(vehicleId)}</div>
-                        <span style="font-size: 11px; color: #666;">${vehicle.name}</span>
-                        <span style="font-size: 11px; color: #8b4513; margin-left: auto;">${bettingUsers.length > 0 ? bettingUsers.join(', ') : '-'}</span>
+                        <span style="font-size: 11px; color: var(--text-secondary);">${vehicle.name}</span>
+                        <span style="font-size: 11px; color: var(--horse-accent); margin-left: auto;">${bettingUsers.length > 0 ? bettingUsers.join(', ') : '-'}</span>
                     </div>
                 `;
             });
@@ -3378,13 +3378,13 @@ function renderHistory() {
         
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: bold; color: #8b4513; font-size: 14px;">${record.round || (horseRaceHistory.length - idx)}라운드</div>
-                <div style="font-size: 11px; color: #999;">${time}</div>
+                <div style="font-weight: bold; color: var(--horse-accent); font-size: 14px;">${record.round || (horseRaceHistory.length - idx)}라운드</div>
+                <div style="font-size: 11px; color: var(--text-muted);">${time}</div>
             </div>
             <div style="margin-bottom: 8px;">
                 ${rankingsHtml}
             </div>
-            ${winnersText ? `<div style="font-size: 13px; color: #d4a574; font-weight: bold; text-align: center; padding: 5px; background: #fff5e6; border-radius: 4px;">${winnersText}</div>` : ''}
+            ${winnersText ? `<div style="font-size: 13px; color: var(--horse-600); font-weight: bold; text-align: center; padding: 5px; background: var(--yellow-50); border-radius: 4px;">${winnersText}</div>` : ''}
         `;
         historyList.appendChild(item);
     });
@@ -3780,11 +3780,11 @@ function initChatModule() {
     if (chatModuleInitialized) return;
     chatModuleInitialized = true;
     ChatModule.init(socket, currentUser, {
-        systemGradient: 'linear-gradient(135deg, #8b4513 0%, #d2691e 100%)',
-        themeColor: '#333',
-        myColor: '#8b4513',
-        myBgColor: '#fff5e6',
-        myBorderColor: '#ffc107',
+        systemGradient: 'var(--horse-gradient)',
+        themeColor: 'var(--text-primary)',
+        myColor: 'var(--horse-accent)',
+        myBgColor: 'var(--horse-50)',
+        myBorderColor: 'var(--yellow-500)',
         getRoomUsers: () => users,
         messageFilter: (data) => {
             // 놓친 경주 상태에서 결과 메시지는 보관 (스포일러 방지)
@@ -3820,8 +3820,8 @@ function initReadyModule() {
             updateStartButton();
         },
         onError: (message) => alert(message),
-        readyStyle: { background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)', color: '#fff' },
-        readyCancelStyle: { background: 'linear-gradient(135deg, #a0522d 0%, #8b4513 100%)', color: '#fff' }
+        readyStyle: { background: 'var(--horse-gradient)', color: 'var(--bg-white)' },
+        readyCancelStyle: { background: 'linear-gradient(135deg, var(--horse-600) 0%, var(--horse-500) 100%)', color: 'var(--bg-white)' }
     });
 }
 
@@ -3959,8 +3959,8 @@ function initializeGameScreen(data) {
             document.getElementById('gameStatus').textContent = '게임 진행 중';
             document.getElementById('gameStatus').classList.remove('waiting', 'ordering');
             document.getElementById('gameStatus').classList.add('playing');
-            document.getElementById('gameStatus').style.background = '#fff3cd';
-            document.getElementById('gameStatus').style.color = '#856404';
+            document.getElementById('gameStatus').style.background = 'var(--yellow-100)';
+            document.getElementById('gameStatus').style.color = 'var(--yellow-900)';
         } else if (!isRaceActive) {
             document.getElementById('gameStatus').textContent = '대기 중...';
             document.getElementById('gameStatus').classList.remove('ordering');
@@ -4263,12 +4263,12 @@ socket.on('trackLengthChanged', (data) => {
     currentTrackDistanceMeters = data.trackDistanceMeters || 500;
     if (data.trackPresets) trackPresetsFromServer = data.trackPresets;
     // 버튼 상태 업데이트
-    const activeColor = '#fbbf24'; // 노란색 통일
+    const activeColor = 'var(--yellow-400)'; // 노란색 통일
     document.querySelectorAll('.track-length-btn').forEach(btn => {
         const key = btn.dataset.length;
         const isActive = key === currentTrackLength;
-        btn.style.background = isActive ? activeColor : '#333';
-        btn.style.color = isActive ? '#000' : '#ccc';
+        btn.style.background = isActive ? activeColor : 'var(--gray-800)';
+        btn.style.color = isActive ? 'var(--gray-900)' : 'var(--gray-300)';
         btn.style.boxShadow = isActive ? `0 0 8px ${activeColor}80` : 'none';
         if (trackPresetsFromServer[key]) {
             const labels = { short: '짧게', medium: '보통', long: '길게' };
@@ -4586,8 +4586,8 @@ socket.on('horseRaceStarted', (data) => {
     if (gameStatus) {
         gameStatus.textContent = '경주 진행 중!';
         gameStatus.className = 'game-status playing';
-        gameStatus.style.background = '#d4edda';
-        gameStatus.style.color = '#155724';
+        gameStatus.style.background = 'var(--green-50)';
+        gameStatus.style.color = 'var(--green-800)';
     }
 });
 
@@ -4678,14 +4678,14 @@ function showCustomAlert(message, type = 'info', title = '') {
     overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
     
     const colors = {
-        info: '#8b4513',
-        warning: '#ffc107',
-        error: '#dc3545',
-        success: '#28a745'
+        info: 'var(--horse-accent)',
+        warning: 'var(--yellow-500)',
+        error: 'var(--red-500)',
+        success: 'var(--green-500)'
     };
     
     const modal = document.createElement('div');
-    modal.style.cssText = `background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border-top: 4px solid ${colors[type] || colors.info};`;
+    modal.style.cssText = `background: var(--bg-white); padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border-top: 4px solid ${colors[type] || colors.info};`;
     
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = '확인';
@@ -4726,8 +4726,8 @@ function showConfirmDialog(message, onConfirm) {
     modal.innerHTML = `
         <div style="margin-bottom: 20px; line-height: 1.6; text-align: center;">${message}</div>
         <div style="display: flex; gap: 10px;">
-            <button id="confirmCancel" style="flex: 1; padding: 12px; background: #e9ecef; color: #333; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">취소</button>
-            <button id="confirmOk" style="flex: 1; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
+            <button id="confirmCancel" style="flex: 1; padding: 12px; background: var(--gray-100); color: var(--text-primary); border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">취소</button>
+            <button id="confirmOk" style="flex: 1; padding: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
         </div>
     `;
     
@@ -4752,10 +4752,10 @@ function showPlayerActionDialog(playerName) {
         dialogOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 10002; display: flex; justify-content: center; align-items: center;';
 
         const dialogContent = document.createElement('div');
-        dialogContent.style.cssText = 'background: white; border-radius: 16px; padding: 25px 30px; max-width: 500px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid #8b4513;';
+        dialogContent.style.cssText = 'background: var(--bg-white); border-radius: 16px; padding: 25px 30px; max-width: 500px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid var(--horse-accent);';
 
         const messageDiv = document.createElement('div');
-        messageDiv.style.cssText = 'font-size: 18px; line-height: 1.6; color: #333; text-align: center; margin-bottom: 25px; font-weight: 600;';
+        messageDiv.style.cssText = 'font-size: 18px; line-height: 1.6; color: var(--text-primary); text-align: center; margin-bottom: 25px; font-weight: 600;';
         messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${playerName}님에게 어떤 행동을 하시겠습니까?`;
 
         const buttonContainer = document.createElement('div');
@@ -4769,11 +4769,11 @@ function showPlayerActionDialog(playerName) {
             return btn;
         }
 
-        const hostButton = createBtn('호스트임명', 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 'host');
-        const kickButton = createBtn('제외시키기', 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)', 'kick');
+        const hostButton = createBtn('호스트임명', 'var(--brand-gradient)', 'host');
+        const kickButton = createBtn('제외시키기', 'linear-gradient(135deg, var(--red-300) 0%, var(--red-400) 100%)', 'kick');
         const cancelButton = document.createElement('button');
         cancelButton.textContent = '취소';
-        cancelButton.style.cssText = 'padding: 12px 25px; background: #f5f5f5; color: #666; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;';
+        cancelButton.style.cssText = 'padding: 12px 25px; background: var(--gray-100); color: var(--text-secondary); border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;';
         cancelButton.onclick = () => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); };
 
         const handleEsc = (e) => {

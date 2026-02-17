@@ -15,11 +15,12 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
-    <!-- FOUC Prevention: Always use light theme -->
+    <!-- FOUC Prevention: Apply theme immediately -->
     <script>
       (function() {
-        // Always use light mode regardless of system preference
-        document.documentElement.setAttribute('data-theme', 'light');
+        const theme = localStorage.getItem('theme') ||
+                      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>
 
@@ -86,7 +87,7 @@
 
         h1 {
             text-align: center;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             margin-bottom: 30px;
             font-size: 2.5em;
         }
@@ -110,7 +111,7 @@
         
         .room-item {
             background: var(--bg-white);
-            border: 2px solid var(--dice-500);
+            border: 2px solid var(--dice-accent);
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 10px;
@@ -140,7 +141,7 @@
             margin-bottom: 8px;
             padding: 8px 12px;
             background: rgba(0, 0, 0, 0.85);
-            color: var(--bg-white);
+            color: white;
             font-size: 12px;
             white-space: nowrap;
             border-radius: 6px;
@@ -172,13 +173,13 @@
         }
         
         .room-item.active {
-            background: var(--status-info-bg);
-            border-color: var(--purple-500);
+            background: var(--purple-50);
+            border-color: var(--dice-accent);
         }
         
         .room-item.my-room {
-            background: var(--status-warning-bg);
-            border-color: var(--host-badge-bg);
+            background: var(--yellow-100);
+            border-color: var(--yellow-500);
             border-width: 3px;
         }
         
@@ -200,7 +201,7 @@
         .room-name {
             font-size: 18px;
             font-weight: 600;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             margin-bottom: 5px;
         }
         
@@ -220,16 +221,16 @@
         
         .room-status.playing {
             background: var(--status-success-bg);
-            color: var(--status-success-text);
+            color: var(--green-900);
         }
         
         .room-status.ordering {
-            background: var(--panel-attention);
-            color: var(--status-warning-text);
+            background: var(--yellow-50);
+            color: var(--yellow-900);
         }
         
         .room-status.waiting {
-            background: var(--border-light);
+            background: var(--gray-200);
             color: var(--text-secondary);
         }
         
@@ -244,7 +245,7 @@
         
         .create-room-section, .join-room-section {
             background: var(--bg-primary);
-            border: 2px solid var(--dice-500);
+            border: 2px solid var(--dice-accent);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
@@ -261,7 +262,7 @@
         }
         .update-log-section h2 {
             margin-bottom: 16px;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             font-size: 1.25rem;
             font-weight: 700;
             display: flex;
@@ -283,11 +284,11 @@
             width: 8px;
         }
         .update-log-content::-webkit-scrollbar-track {
-            background: var(--bg-primary);
+            background: var(--gray-100);
             border-radius: 4px;
         }
         .update-log-content::-webkit-scrollbar-thumb {
-            background: var(--dice-500);
+            background: var(--dice-accent);
             border-radius: 4px;
         }
         .update-log-content::-webkit-scrollbar-thumb:hover {
@@ -299,7 +300,7 @@
             font-weight: 700;
         }
         .update-log-content h2 {
-            color: var(--dice-500);
+            color: var(--dice-accent);
             font-size: 1rem;
             font-weight: 700;
             margin: 1em 0 0.5em;
@@ -309,14 +310,14 @@
         .update-log-content p { margin: 0.25em 0; }
         .update-log-content .update-log-divider {
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(var(--dice-500-rgb), 0.25), transparent);
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.25), transparent);
             margin: 18px 0;
             border: none;
         }
         
         .room-name-input-section {
             background: var(--bg-primary);
-            border: 2px solid var(--dice-500);
+            border: 2px solid var(--dice-accent);
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
@@ -330,7 +331,7 @@
         .room-name-display {
             font-size: 16px;
             font-weight: 600;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             margin-bottom: 10px;
         }
 
@@ -348,7 +349,7 @@
         input[type="text"], input[type="number"], textarea {
             width: 100%;
             padding: 12px;
-            border: 2px solid var(--border-light);
+            border: 2px solid var(--gray-300);
             border-radius: 8px;
             font-size: 16px;
             transition: border-color 0.3s;
@@ -362,7 +363,7 @@
 
         input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
             outline: none;
-            border-color: var(--dice-500);
+            border-color: var(--dice-accent);
         }
 
         .checkbox-group {
@@ -380,7 +381,7 @@
 
         button {
             background: var(--dice-gradient);
-            color: var(--bg-white);
+            color: white;
             border: none;
             padding: 12px 30px;
             border-radius: 8px;
@@ -401,7 +402,7 @@
         }
 
         button:disabled {
-            background: var(--gray-400);
+            background: var(--gray-300);
             cursor: not-allowed;
             transform: none;
         }
@@ -418,7 +419,7 @@
 
         .user-name {
             font-weight: 600;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             font-size: 18px;
         }
 
@@ -441,12 +442,12 @@
 
         .connection-status.connected {
             background: var(--btn-ready);
-            color: var(--bg-white);
+            color: white;
         }
 
         .connection-status.disconnected {
             background: var(--btn-danger);
-            color: var(--bg-white);
+            color: white;
         }
 
         .connection-sound-row {
@@ -460,10 +461,10 @@
             padding: 6px 12px;
             background: rgba(102, 126, 234, 0.2);
             border-radius: 8px;
-            border: 1px solid var(--dice-500);
+            border: 1px solid var(--dice-accent);
             display: inline-block !important;
             font-size: 13px !important;
-            color: var(--dice-500) !important;
+            color: var(--dice-accent) !important;
             visibility: visible !important;
         }
         .connection-sound-row label {
@@ -503,7 +504,7 @@
             height: 4px;
             -webkit-appearance: none;
             appearance: none;
-            background: var(--border-light);
+            background: var(--gray-300);
             border-radius: 2px;
             outline: none;
             cursor: pointer;
@@ -513,14 +514,14 @@
             appearance: none;
             width: 12px;
             height: 12px;
-            background: var(--dice-500);
+            background: var(--dice-accent);
             border-radius: 50%;
             cursor: pointer;
         }
         .volume-slider::-moz-range-thumb {
             width: 12px;
             height: 12px;
-            background: var(--dice-500);
+            background: var(--dice-accent);
             border-radius: 50%;
             cursor: pointer;
             border: none;
@@ -539,18 +540,18 @@
         }
 
         .game-status.waiting {
-            background: var(--status-warning-bg);
-            color: var(--status-warning-text);
+            background: var(--yellow-100);
+            color: var(--yellow-900);
         }
 
         .game-status.playing {
             background: var(--status-success-bg);
-            color: var(--status-success-text);
+            color: var(--green-900);
         }
 
         .game-status.ordering {
-            background: var(--panel-attention);
-            color: var(--status-warning-text);
+            background: var(--yellow-50);
+            color: var(--yellow-900);
         }
 
         .host-controls {
@@ -573,14 +574,14 @@
             width: 150px;
             height: 150px;
             background: var(--bg-white);
-            border: 3px solid var(--dice-500);
+            border: 3px solid var(--dice-accent);
             border-radius: 15px;
             display: inline-flex;
             justify-content: center;
             align-items: center;
             font-size: 48px;
             font-weight: bold;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             margin: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             transition: transform 0.3s, opacity 0.3s;
@@ -647,7 +648,7 @@
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 20px;
-            border: 2px solid var(--dice-500);
+            border: 2px solid var(--dice-accent);
         }
 
         .progress-title {
@@ -659,7 +660,7 @@
         }
 
         .progress-bar-container {
-            background: var(--border-light);
+            background: var(--gray-200);
             height: 30px;
             border-radius: 15px;
             overflow: hidden;
@@ -667,14 +668,14 @@
         }
 
         .progress-bar {
-            background: linear-gradient(90deg, var(--dice-500) 0%, var(--dice-600) 100%);
+            background: linear-gradient(90deg, var(--dice-accent) 0%, var(--purple-600) 100%);
             height: 100%;
             width: 0%;
             transition: width 0.5s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--bg-white);
+            color: white;
             font-weight: 600;
             font-size: 14px;
         }
@@ -683,26 +684,26 @@
             text-align: center;
             font-size: 16px;
             font-weight: 600;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             margin-bottom: 20px;
         }
 
         .not-rolled-section {
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 2px dashed var(--border-light);
+            border-top: 2px dashed var(--gray-300);
         }
 
         .not-ordered-section {
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 2px dashed var(--border-light);
+            border-top: 2px dashed var(--gray-300);
         }
 
         .not-rolled-title {
             font-size: 16px;
             font-weight: 600;
-            color: var(--status-warning-text);
+            color: var(--yellow-900);
             margin-bottom: 12px;
         }
 
@@ -719,7 +720,7 @@
         }
 
         .empty-not-rolled {
-            color: var(--btn-ready);
+            color: var(--green-500);
             text-align: center;
             padding: 10px;
             font-weight: 600;
@@ -732,7 +733,7 @@
             color: var(--text-primary);
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 2px solid var(--dice-500);
+            border-bottom: 2px solid var(--dice-accent);
         }
 
         .users-list {
@@ -747,8 +748,8 @@
 
         .user-tag {
             background: var(--bg-white);
-            border: 2px solid var(--dice-500);
-            color: var(--dice-500);
+            border: 2px solid var(--dice-accent);
+            color: var(--dice-accent);
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 14px;
@@ -759,8 +760,8 @@
         }
 
         .user-tag.host {
-            background: var(--dice-500);
-            color: var(--bg-white);
+            background: var(--dice-accent);
+            color: white;
         }
 
         /* 주문받기 섹션 스타일 */
@@ -774,8 +775,8 @@
         }
 
         .my-order-box {
-            background: var(--panel-attention);
-            border: 2px solid var(--host-badge-bg);
+            background: var(--yellow-50);
+            border: 2px solid var(--yellow-500);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
@@ -784,7 +785,7 @@
         .my-order-title {
             font-size: 16px;
             font-weight: 600;
-            color: var(--status-warning-text);
+            color: var(--yellow-900);
             margin-bottom: 10px;
             display: flex;
             align-items: center;
@@ -831,7 +832,7 @@
             left: 0;
             right: 0;
             background: var(--bg-white);
-            border: 2px solid var(--dice-500);
+            border: 2px solid var(--dice-accent);
             border-radius: 8px;
             margin-top: 4px;
             max-height: 200px;
@@ -843,7 +844,7 @@
         .autocomplete-item {
             padding: 10px 12px;
             cursor: pointer;
-            border-bottom: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--gray-100);
             transition: background-color 0.2s;
         }
 
@@ -853,12 +854,12 @@
 
         .autocomplete-item:hover,
         .autocomplete-item.selected {
-            background-color: var(--status-info-bg);
+            background-color: var(--purple-50);
         }
 
         .menu-manager {
             background: var(--bg-primary);
-            border: 2px solid var(--dice-500);
+            border: 2px solid var(--dice-accent);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
@@ -896,8 +897,8 @@
 
         .menu-tag {
             display: inline-block;
-            background: var(--dice-500);
-            color: var(--bg-white);
+            background: var(--dice-accent);
+            color: white;
             padding: 4px 10px;
             border-radius: 15px;
             font-size: 14px;
@@ -928,7 +929,7 @@
             padding: 12px;
             margin-bottom: 8px;
             border-radius: 6px;
-            border-left: 3px solid var(--host-badge-bg);
+            border-left: 3px solid var(--yellow-500);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -944,7 +945,7 @@
 
         .order-user {
             font-weight: 600;
-            color: var(--status-warning-text);
+            color: var(--yellow-900);
             margin-bottom: 4px;
         }
 
@@ -963,7 +964,7 @@
         .order-count {
             font-size: 48px;
             font-weight: bold;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             margin-left: 15px;
         }
 
@@ -1071,7 +1072,7 @@
             align-items: center;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid var(--dice-500);
+            border-bottom: 2px solid var(--dice-accent);
         }
 
         .history-title {
@@ -1088,8 +1089,8 @@
 
         .sort-button {
             background: var(--bg-primary);
-            color: var(--dice-500);
-            border: 2px solid var(--dice-500);
+            color: var(--dice-accent);
+            border: 2px solid var(--dice-accent);
             padding: 6px 12px;
             border-radius: 6px;
             font-size: 14px;
@@ -1100,13 +1101,13 @@
         }
 
         .sort-button:hover {
-            background: var(--status-info-bg);
+            background: var(--purple-50);
             transform: none;
         }
 
         .sort-button.active {
-            background: var(--dice-500);
-            color: var(--bg-white);
+            background: var(--dice-accent);
+            color: white;
         }
 
         .history-list {
@@ -1124,7 +1125,7 @@
             padding: 12px;
             margin-bottom: 10px;
             border-radius: 6px;
-            border-left: 4px solid var(--dice-500);
+            border-left: 4px solid var(--dice-accent);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -1171,7 +1172,7 @@
 
         .history-item.winner-glow {
             position: relative;
-            background: linear-gradient(135deg, var(--panel-attention) 0%, var(--bg-white) 50%, var(--panel-attention) 100%);
+            background: linear-gradient(135deg, var(--yellow-50) 0%, var(--bg-white) 50%, var(--yellow-50) 100%);
             border-left: 4px solid var(--btn-ready);
             box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
             animation: winnerPulse 2s ease-in-out infinite;
@@ -1247,14 +1248,14 @@
 
         .history-user {
             font-weight: 600;
-            color: var(--dice-500);
+            color: var(--dice-accent);
         }
 
         .top-player-badge {
             display: inline-flex;
             align-items: center;
             background: var(--red-400);
-            color: var(--bg-white);
+            color: white;
             padding: 3px 10px;
             border-radius: 12px;
             font-size: 12px;
@@ -1266,7 +1267,7 @@
             display: inline-flex;
             align-items: center;
             background: var(--btn-ready);
-            color: var(--bg-white);
+            color: white;
             padding: 3px 10px;
             border-radius: 12px;
             font-size: 12px;
@@ -1287,7 +1288,7 @@
 
         .history-range {
             font-size: 12px;
-            color: var(--dice-500);
+            color: var(--dice-accent);
             font-weight: 600;
         }
 
@@ -1307,17 +1308,17 @@
         }
 
         .dice-settings {
-            background: var(--status-info-bg);
+            background: var(--purple-50);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            border: 2px solid var(--purple-500);
+            border: 2px solid var(--dice-accent);
         }
 
         .dice-settings-title {
             font-size: 16px;
             font-weight: 600;
-            color: var(--purple-600);
+            color: var(--dice-accent);
             margin-bottom: 10px;
         }
 
@@ -1329,8 +1330,8 @@
         }
 
         .reconnect-notice {
-            background: var(--status-warning-bg);
-            border: 2px solid var(--host-badge-bg);
+            background: var(--yellow-100);
+            border: 2px solid var(--yellow-500);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -1338,18 +1339,18 @@
         }
 
         .reconnect-notice strong {
-            color: var(--status-warning-text);
+            color: var(--yellow-900);
             font-size: 16px;
         }
 
         .reconnect-notice p {
-            color: var(--status-warning-text);
+            color: var(--yellow-900);
             margin-top: 8px;
             font-size: 14px;
         }
 
         .order-button {
-            background: linear-gradient(135deg, var(--host-badge-bg) 0%, var(--yellow-400) 100%);
+            background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%);
         }
 
         .order-button:hover {
@@ -1370,20 +1371,20 @@
     </style>
 </head>
 <body>
-    <header style="background-color: var(--bg-primary); padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
+    <header style="background-color: var(--bg-primary); padding: 15px 20px; border-bottom: 1px solid var(--gray-200);">
         <nav style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
             <h1 style="margin: 0; font-size: 1.5em;"><a href="/" style="text-decoration: none; color: var(--text-primary);">LAMDice 주사위 게임</a></h1>
             <div class="nav-links">
-                <a href="dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">다양한 주사위 규칙</a>
-                <a href="probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">확률 분석 및 팁</a>
-                <a href="about-us.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">사이트 소개</a>
+                <a href="dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: var(--dice-accent);">다양한 주사위 규칙</a>
+                <a href="probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: var(--dice-accent);">확률 분석 및 팁</a>
+                <a href="about-us.html" style="margin-left: 20px; text-decoration: none; color: var(--dice-accent);">사이트 소개</a>
             </div>
         </nav>
     </header>
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
-            <div id="visitorStats" style="text-align: right; color: var(--dice-500); font-size: 14px; line-height: 1.6;">
+            <div id="visitorStats" style="text-align: right; color: var(--dice-accent); font-size: 14px; line-height: 1.6;">
                 <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">전체 서버 통합</div>
                 <div>오늘 방문자 수: <strong id="todayVisitorCount">0</strong>명</div>
                 <div>오늘 플레이 횟수: <strong id="todayPlayCount">0</strong>회</div>
@@ -1394,25 +1395,25 @@
         <!-- 대기실 섹션 -->
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
-            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid var(--dice-500); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
-                <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.href='/';" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--btn-neutral); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
-                <span id="serverInfoName" style="font-weight: bold; color: var(--dice-500);"></span>
-                <span id="serverInfoUserName" style="font-weight: 600; color: var(--dice-600); display: none;">👤 </span>
-                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--dice-500); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid var(--dice-accent); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+                <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.href='/';" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--btn-neutral); color: white; border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
+                <span id="serverInfoName" style="font-weight: bold; color: var(--dice-accent);"></span>
+                <span id="serverInfoUserName" style="font-weight: 600; color: var(--purple-600); display: none;">👤 </span>
+                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--dice-accent); color: white; border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
             </div>
-            <div class="create-room-button-section" style="background: var(--bg-primary); border: 2px solid var(--dice-500); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                <h2 style="margin-bottom: 15px; color: var(--dice-500);">방 만들기</h2>
+            <div class="create-room-button-section" style="background: var(--bg-primary); border: 2px solid var(--dice-accent); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="margin-bottom: 15px; color: var(--dice-accent);">방 만들기</h2>
                 <button onclick="showCreateRoomPage()" style="background: var(--dice-gradient); margin-bottom: 15px;">방 생성하기</button>
-                <button onclick="RankingModule.show()" style="background: var(--bg-white); border: 2px solid var(--dice-500); color: var(--dice-500); margin-bottom: 15px; font-weight: 600;">랭킹</button>
+                <button onclick="RankingModule.show()" style="background: var(--bg-white); border: 2px solid var(--dice-accent); color: var(--dice-accent); margin-bottom: 15px; font-weight: 600;">랭킹</button>
                 <div class="input-group" style="margin: 0; display: none;">
                     <label for="globalUserNameInput">이름</label>
                     <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
-                    <div id="userNameError" style="color: var(--btn-danger); font-size: 12px; margin-top: 5px; display: none;"></div>
+                    <div id="userNameError" style="color: var(--red-500); font-size: 12px; margin-top: 5px; display: none;"></div>
                 </div>
             </div>
             
             <div class="join-room-section">
-                <h2 style="margin-bottom: 15px; color: var(--dice-500);">방 목록</h2>
+                <h2 style="margin-bottom: 15px; color: var(--dice-accent);">방 목록</h2>
                 <button onclick="refreshRooms()" style="width: auto; padding: 8px 16px; margin-bottom: 15px; background: var(--btn-neutral);">새로고침</button>
                 <div class="rooms-list" id="roomsList">
                     <div style="color: var(--text-muted); text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
@@ -1444,20 +1445,20 @@
         <div class="create-room-section" id="createRoomSection">
             <div style="margin-bottom: 20px;">
                 <button onclick="goBackToLobby()" style="width: auto; padding: 10px 20px; margin-bottom: 15px; background: var(--btn-neutral);">← 대기실로 돌아가기</button>
-                <h2 style="margin-bottom: 20px; color: var(--dice-500);">방 만들기</h2>
+                <h2 style="margin-bottom: 20px; color: var(--dice-accent);">방 만들기</h2>
             </div>
             
             <!-- 로고 및 연결 상태 -->
             <div style="text-align: center; margin-bottom: 30px;">
                 <div style="display: inline-flex; align-items: center; gap: 10px;">
                     <span style="font-size: 24px;">🎲</span>
-                    <span style="font-size: 20px; font-weight: 600; color: var(--dice-500);">LAM Dice :)</span>
+                    <span style="font-size: 20px; font-weight: 600; color: var(--dice-accent);">LAM Dice :)</span>
                     <span class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</span>
                 </div>
             </div>
             
             <!-- 방 제목 입력 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-accent);">
                 <div class="input-group" style="margin-bottom: 0;">
                     <label for="createRoomNameInput">방 제목</label>
                     <input type="text" id="createRoomNameInput" placeholder="방 제목 입력" maxlength="30" />
@@ -1465,7 +1466,7 @@
             </div>
             
             <!-- 공개/비공개 설정 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-accent);">
                 <div style="display: flex; align-items: center; margin-bottom: 15px;">
                     <input type="checkbox" id="createRoomPrivateCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                     <label for="createRoomPrivateCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">비공개 방</label>
@@ -1479,7 +1480,7 @@
             </div>
             
             <!-- 방 유지 시간 설정 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-accent);">
                 <label style="display: block; margin-bottom: 10px; font-weight: 500;">⏰ 방 유지 시간</label>
                 <div style="display: flex; gap: 10px;">
                     <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
@@ -1498,10 +1499,10 @@
             </div>
             
             <!-- 게임 타입 선택 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-accent);">
                 <label style="display: block; margin-bottom: 10px; font-weight: 500;">🎮 게임 타입</label>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--dice-500);">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--dice-accent);">
                         <input type="radio" name="gameType" value="dice" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🎲</span>
                         <span style="font-weight: 600;">주사위</span>
@@ -1511,17 +1512,17 @@
                         <span style="font-size: 24px; margin-right: 8px;">🎰</span>
                         <span style="font-weight: 600;">룰렛</span>
                     </label>
-                    <label id="horseRaceLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--game-type-horse); position: relative;">
+                    <label id="horseRaceLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--horse-500); position: relative;">
                         <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🐎</span>
                         <span style="font-weight: 600;">경마</span>
-                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--crane-accent); position: relative;">
+                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--crane-500); position: relative;">
                         <input type="radio" name="gameType" value="crane-game" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🪄</span>
                         <span style="font-weight: 600;">인형뽑기</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
 
                 </div>
@@ -1531,11 +1532,11 @@
                 <script>
                     // 게임 타입 선택 시 시각적 강조 (은은한 틴트)
                     (function() {
-                        const colorMap = { dice: 'var(--game-type-dice)', roulette: 'var(--game-type-roulette)', 'horse-race': 'var(--game-type-horse)', 'crane-game': 'var(--game-type-crane)' };
+                        const colorMap = { dice: '#667eea', roulette: '#e91e63', 'horse-race': '#8b4513', 'crane-game': '#9c27b0' };
                         function updateGameTypeStyle() {
                             document.querySelectorAll('input[name="gameType"]').forEach(radio => {
                                 const label = radio.closest('label');
-                                const color = colorMap[radio.value] || 'var(--dice-500)';
+                                const color = colorMap[radio.value] || '#667eea';
                                 if (radio.checked) {
                                     label.style.background = `${color}12`;
                                     label.style.color = '';
@@ -1544,9 +1545,9 @@
                                     label.style.boxShadow = `0 2px 8px ${color}20`;
                                     label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '');
                                 } else {
-                                    label.style.background = 'white';
+                                    label.style.background = 'var(--bg-white)';
                                     label.style.color = '';
-                                    label.style.borderColor = 'var(--border-light)';
+                                    label.style.borderColor = 'var(--gray-200)';
                                     label.style.borderWidth = '1px';
                                     label.style.boxShadow = 'none';
                                     label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '');
@@ -1578,7 +1579,7 @@
         <!-- 게임 섹션 -->
         <div class="game-section" id="gameSection">
             <div class="user-info">
-                <span id="headerServerNameDisplay" style="font-size: 13px; color: var(--dice-500); font-weight: 600; white-space: nowrap; flex-shrink: 0;" title="현재 서버">🖥️ 서버</span>
+                <span id="headerServerNameDisplay" style="font-size: 13px; color: var(--dice-accent); font-weight: 600; white-space: nowrap; flex-shrink: 0;" title="현재 서버">🖥️ 서버</span>
                 <div>
                     <span class="user-name" id="currentUser"></span>
                     <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
@@ -1592,7 +1593,7 @@
                             <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
                         </div>
                     </span>
-                    <span id="roomPasswordDisplay" style="font-size: 12px; color: var(--dice-500); font-weight: 500; display: none;"></span>
+                    <span id="roomPasswordDisplay" style="font-size: 12px; color: var(--dice-accent); font-weight: 500; display: none;"></span>
                 </div>
             </div>
             
@@ -1603,8 +1604,8 @@
             </div>
 
             <!-- 1. 방 제목 + 서버명 -->
-            <div class="room-info-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: var(--dice-500); margin-bottom: 6px;">
+            <div class="room-info-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-accent);">
+                <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: var(--dice-accent); margin-bottom: 6px;">
                     <span id="roomNameText">방 제목</span>
                 </div>
                 <div id="currentServerNameDisplay" style="font-size: 14px; color: var(--text-secondary); font-weight: 500;">🖥️ 서버</div>
@@ -1619,36 +1620,36 @@
             </div>
 
             <!-- 2. 게임 룰 섹션 -->
-            <div class="game-rules-section" id="gameRulesSection" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+            <div class="game-rules-section" id="gameRulesSection" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-accent);">
                 <div class="dice-settings-title">📋 게임 룰</div>
                 
                 <!-- 방장 전용: 게임 룰 선택 라디오 버튼 -->
                 <div id="gameRulesRadioSection" style="display: none; margin-bottom: 15px;">
                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-accent); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="high" id="gameRuleHigh" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                             <span style="font-weight: 500;">하이 - 낮은 사람이 걸림</span>
                         </label>
-                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-accent); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="low" id="gameRuleLow" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                             <span style="font-weight: 500;">로우 - 높은 사람이 걸림</span>
                         </label>
-                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-accent); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="near" id="gameRuleNear" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                             <span style="font-weight: 500;">니어 - N에 가까운 사람 걸리기</span>
                         </label>
                         <div id="gameNearNumberContainer" style="display: none; margin-left: 30px; margin-top: 5px;">
                             <div class="input-group" style="margin-bottom: 0;">
-                                <input type="number" id="gameNearNumberInput" placeholder="숫자 입력" min="1" max="100000" style="width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px;" />
+                                <input type="number" id="gameNearNumberInput" placeholder="숫자 입력" min="1" max="100000" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px;" />
                             </div>
                         </div>
-                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-accent); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                             <input type="radio" name="gameRule" value="custom" id="gameRuleCustom" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                             <span style="font-weight: 500;">기타 - 직접 룰 적기</span>
                         </label>
                         <div id="gameCustomRuleContainer" style="display: none; margin-left: 30px; margin-top: 5px;">
                             <div class="input-group" style="margin-bottom: 0;">
-                                <textarea id="gameCustomRuleInput" placeholder="게임 룰을 직접 입력하세요" maxlength="500" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; resize: vertical;"></textarea>
+                                <textarea id="gameCustomRuleInput" placeholder="게임 룰을 직접 입력하세요" maxlength="500" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px; resize: vertical;"></textarea>
                             </div>
                         </div>
                     </div>
@@ -1675,7 +1676,7 @@
             <div class="users-section">
                 <div class="users-title">
                     👥 접속자 (<span id="userCount">0</span>명)
-                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--dice-500); font-weight: normal; margin-left: 10px;">
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--dice-accent); font-weight: normal; margin-left: 10px;">
                         💡 드래그로 준비 시킬 수 있습니다.
                     </span>
                 </div>
@@ -1685,17 +1686,17 @@
             </div>
             
             <!-- 방 폭파까지 남은 시간 -->
-            <div class="room-expiry-section" id="roomExpirySection" style="display: none; background: var(--status-warning-bg); border: 2px solid var(--host-badge-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px; text-align: center;">
-                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--btn-danger);">--:--:--</span>
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none; background: var(--yellow-100); border: 2px solid var(--yellow-500); border-radius: 8px; padding: 12px; margin-bottom: 20px; text-align: center;">
+                <div style="color: var(--yellow-900); font-weight: bold; font-size: 14px;">
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
             
             <!-- 준비 상태 -->
-            <div class="ready-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500); display: none;" id="readySection">
+            <div class="ready-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-accent); display: none;" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
-                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList" style="min-height: 50px;">
                     <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
@@ -1738,14 +1739,14 @@
                     <div class="my-order-title">
                         <span>📝</span>
                         <span>내 주문</span>
-                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: var(--bg-primary); color: var(--dice-500); border: 1px solid var(--dice-500);">메뉴 관리</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: var(--bg-primary); color: var(--dice-accent); border: 1px solid var(--dice-accent);">메뉴 관리</button>
                     </div>
                     
                     <!-- 자주 쓰는 메뉴 관리 -->
                     <div class="menu-manager" id="menuManager">
                         <div class="menu-manager-title">
                             <span>📋 자주 쓰는 메뉴</span>
-                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: var(--bg-white); border: none; border-radius: 4px;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px;">닫기</button>
                         </div>
                         <div class="menu-manager-input">
                             <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
@@ -1778,7 +1779,7 @@
                 </div>
                 
                 <!-- 관전자 주문 목록 -->
-                <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-light);">
+                <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--gray-200);">
                     <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
                     <div class="order-list" id="spectatorOrderList">
                     </div>
@@ -1813,13 +1814,13 @@
             <div class="chat-history-wrapper">
                 <div class="chat-section">
                     <div class="users-title" style="margin-bottom: 10px;">💬 채팅 </div>
-                    <div class="chat-messages" id="chatMessages" style="background: var(--bg-primary); border-radius: 8px; padding: 15px; max-height: 480px; overflow-y: auto; margin-bottom: 10px; border: 2px solid var(--dice-500);">
+                    <div class="chat-messages" id="chatMessages" style="background: var(--bg-primary); border-radius: 8px; padding: 15px; max-height: 480px; overflow-y: auto; margin-bottom: 10px; border: 2px solid var(--dice-accent);">
                         <div style="color: var(--text-muted); text-align: center; padding: 10px;">채팅 메시지가 없습니다</div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;">
                         <div style="position: relative;">
                             <div class="autocomplete-suggestion" id="chatAutocompleteSuggestion" style="position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 10;"></div>
-                            <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." maxlength="200" style="padding: 10px; border: 2px solid var(--dice-500); border-radius: 8px; font-size: 14px; position: relative; background: transparent;" />
+                            <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." maxlength="200" style="padding: 10px; border: 2px solid var(--dice-accent); border-radius: 8px; font-size: 14px; position: relative; background: transparent;" />
                             <div class="autocomplete-dropdown" id="chatAutocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;"></div>
                         </div>
                         <span id="diceIdleEmoji" style="font-size: 28px; cursor: pointer; user-select: none;" onclick="rollDiceButton()" title="주사위 굴리기">🎲</span>
@@ -1845,7 +1846,7 @@
         <div class="history-list" id="historyList">
             <div class="empty-history">아직 기록이 없습니다</div>
         </div>
-        <div class="rolled-users-info" id="rolledUsersInfo" style="text-align: right; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light); color: var(--text-secondary); font-size: 14px;">
+        <div class="rolled-users-info" id="rolledUsersInfo" style="text-align: right; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gray-200); color: var(--text-secondary); font-size: 14px;">
             총 기록: <span id="rolledUsersCount">0</span>
         </div>
     </div>
@@ -1855,8 +1856,8 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
             <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
             <div style="display: flex; gap: 5px;">
-                <button onclick="clearDebugLog()" style="background: var(--text-primary); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
-                <button onclick="toggleDebugLog()" style="background: var(--text-primary); color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
             </div>
         </div>
         <div id="debugLogContent" style="line-height: 1.4;"></div>
@@ -2667,7 +2668,7 @@
                 // 게임 타입 태그 표시
                 let gameTypeIcon = '🎲';
                 let gameTypeLabel = '주사위';
-                let gameTypeColor = 'var(--dice-500)';
+                let gameTypeColor = 'var(--dice-accent)';
                 if (room.gameType === 'roulette') {
                     gameTypeIcon = '🎰';
                     gameTypeLabel = '룰렛';
@@ -2675,13 +2676,13 @@
                 } else if (room.gameType === 'horse-race') {
                     gameTypeIcon = '🐎';
                     gameTypeLabel = '경마';
-                    gameTypeColor = 'var(--game-type-horse)';
+                    gameTypeColor = 'var(--horse-accent)';
                 } else if (room.gameType === 'crane-game') {
                     gameTypeIcon = '🪄';
                     gameTypeLabel = '인형뽑기';
                     gameTypeColor = 'var(--crane-accent)';
                 }
-                const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: var(--bg-white); padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
+                const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
                 
                 // 남은 시간 표시
                 let remainingTimeText = '';
@@ -2699,7 +2700,7 @@
                         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
                         remainingTimeText = ` | 남은 시간: ${hours}시간 ${minutes}분`;
                     } else {
-                        remainingTimeText = ` | <span style="color: var(--btn-danger); font-weight: bold;">폭파 예정</span>`;
+                        remainingTimeText = ` | <span style="color: var(--red-500); font-weight: bold;">폭파 예정</span>`;
                     }
                 }
                 
@@ -2885,23 +2886,23 @@
             let bgColor, borderColor, icon;
             switch(type) {
                 case 'error':
-                    bgColor = 'var(--status-danger-bg)';
-                    borderColor = 'var(--red-300)';
+                    bgColor = 'var(--red-50)';
+                    borderColor = 'var(--red-400)';
                     icon = '⚠️';
                     break;
                 case 'warning':
-                    bgColor = 'var(--panel-attention)';
-                    borderColor = 'var(--yellow-400)';
+                    bgColor = 'var(--yellow-50)';
+                    borderColor = 'var(--yellow-600)';
                     icon = '⚠️';
                     break;
                 case 'success':
-                    bgColor = 'var(--status-success-bg)';
-                    borderColor = 'var(--status-success)';
+                    bgColor = 'var(--green-50)';
+                    borderColor = 'var(--green-400)';
                     icon = '✅';
                     break;
                 default:
-                    bgColor = 'var(--status-info-bg)';
-                    borderColor = 'var(--purple-500)';
+                    bgColor = 'var(--purple-50)';
+                    borderColor = 'var(--dice-accent)';
                     icon = 'ℹ️';
             }
             
@@ -2954,7 +2955,7 @@
             confirmButton.style.cssText = `
                 padding: 10px 30px;
                 background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
-                color: var(--bg-white);
+                color: white;
                 border: none;
                 border-radius: 8px;
                 font-size: 16px;
@@ -3021,23 +3022,23 @@
                 let bgColor, borderColor, icon;
                 switch(type) {
                     case 'error':
-                        bgColor = 'var(--status-danger-bg)';
-                        borderColor = 'var(--red-300)';
+                        bgColor = 'var(--red-50)';
+                        borderColor = 'var(--red-400)';
                         icon = '⚠️';
                         break;
                     case 'warning':
-                        bgColor = 'var(--panel-attention)';
-                        borderColor = 'var(--yellow-400)';
+                        bgColor = 'var(--yellow-50)';
+                        borderColor = 'var(--yellow-600)';
                         icon = '⚠️';
                         break;
                     case 'success':
-                        bgColor = 'var(--status-success-bg)';
-                        borderColor = 'var(--status-success)';
+                        bgColor = 'var(--green-50)';
+                        borderColor = 'var(--green-400)';
                         icon = '✅';
                         break;
                     default:
-                        bgColor = 'var(--status-info-bg)';
-                        borderColor = 'var(--purple-500)';
+                        bgColor = 'var(--purple-50)';
+                        borderColor = 'var(--dice-accent)';
                         icon = 'ℹ️';
                 }
                 
@@ -3097,9 +3098,9 @@
                 cancelButton.textContent = '취소';
                 cancelButton.style.cssText = `
                     padding: 10px 25px;
-                    background: var(--bg-primary);
+                    background: var(--gray-100);
                     color: var(--text-secondary);
-                    border: 1px solid var(--border-light);
+                    border: 1px solid var(--gray-300);
                     border-radius: 8px;
                     font-size: 16px;
                     font-weight: 600;
@@ -3129,7 +3130,7 @@
                 confirmButton.style.cssText = `
                     padding: 10px 25px;
                     background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
-                    color: var(--bg-white);
+                    color: white;
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -3226,7 +3227,7 @@
                     max-width: 500px;
                     width: 90vw;
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-                    border: 2px solid var(--yellow-400);
+                    border: 2px solid var(--yellow-600);
                     animation: slideDown 0.3s ease-out;
                 `;
                 
@@ -3258,7 +3259,7 @@
                 hostButton.style.cssText = `
                     padding: 12px 25px;
                     background: var(--dice-gradient);
-                    color: var(--bg-white);
+                    color: white;
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -3289,7 +3290,7 @@
                 kickButton.style.cssText = `
                     padding: 12px 25px;
                     background: linear-gradient(135deg, var(--red-400) 0%, var(--red-400) 100%);
-                    color: var(--bg-white);
+                    color: white;
                     border: none;
                     border-radius: 8px;
                     font-size: 16px;
@@ -3319,9 +3320,9 @@
                 cancelButton.textContent = '취소';
                 cancelButton.style.cssText = `
                     padding: 12px 25px;
-                    background: var(--bg-primary);
+                    background: var(--gray-100);
                     color: var(--text-secondary);
-                    border: 1px solid var(--border-light);
+                    border: 1px solid var(--gray-300);
                     border-radius: 8px;
                     font-size: 16px;
                     font-weight: 600;
@@ -3804,7 +3805,7 @@
                             userNameError.textContent = '한글, 영문 소문자, 숫자, _, -만 사용 가능합니다. (공백/특수문자 불가)';
                             userNameError.style.display = 'block';
                         }
-                        globalNameInput.style.borderColor = 'var(--btn-danger)';
+                        globalNameInput.style.borderColor = 'var(--red-500)';
                     } else {
                         if (userNameError) {
                             userNameError.style.display = 'none';
@@ -4145,9 +4146,9 @@
                     
                     reconnectNotice.style.display = 'block';
                     reconnectMessage.textContent = '아직 주사위를 굴리지 않았습니다. /주사위 명령어로 굴릴 수 있습니다!';
-                    reconnectMessage.style.color = 'var(--status-success-text)';
+                    reconnectMessage.style.color = 'var(--green-900)';
                     reconnectNotice.style.background = 'var(--status-success-bg)';
-                    reconnectNotice.style.borderColor = 'var(--btn-ready)';
+                    reconnectNotice.style.borderColor = 'var(--green-500)';
                 }
             }
             
@@ -4288,9 +4289,9 @@
                 
                 if (remaining <= 0) {
                     countdownElement.textContent = '00:00:00';
-                    expirySection.style.background = 'var(--status-danger-bg)';
-                    expirySection.style.borderColor = 'var(--btn-danger)';
-                    countdownElement.style.color = 'var(--status-danger-text)';
+                    expirySection.style.background = 'var(--red-50)';
+                    expirySection.style.borderColor = 'var(--red-500)';
+                    countdownElement.style.color = 'var(--red-800)';
                     if (roomExpiryInterval) {
                         clearInterval(roomExpiryInterval);
                         roomExpiryInterval = null;
@@ -4520,9 +4521,9 @@
                     
                     reconnectNotice.style.display = 'block';
                     reconnectMessage.textContent = '아직 주사위를 굴리지 않았습니다. /주사위 명령어로 굴릴 수 있습니다!';
-                    reconnectMessage.style.color = 'var(--status-success-text)';
+                    reconnectMessage.style.color = 'var(--green-900)';
                     reconnectNotice.style.background = 'var(--status-success-bg)';
-                    reconnectNotice.style.borderColor = 'var(--btn-ready)';
+                    reconnectNotice.style.borderColor = 'var(--green-500)';
                 }
             }
 
@@ -4692,7 +4693,7 @@
                 rulesInput.disabled = true;
                 rulesSaveButton.disabled = true;
                 rulesInput.style.cursor = 'not-allowed';
-                rulesInput.style.backgroundColor = 'var(--bg-primary)';
+                rulesInput.style.backgroundColor = 'var(--gray-100)';
             }
             
             console.log('게임 룰 UI 업데이트:', { isHost, isGameActive, canEdit });
@@ -4914,7 +4915,7 @@
             // 주사위 굴리기 버튼은 제거됨 (명령어로 대체)
             
             document.getElementById('progressSection').style.display = 'block';
-            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, var(--dice-500) 0%, var(--dice-600) 100%)';
+            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, var(--dice-accent) 0%, var(--purple-600) 100%)';
             
             // 게임 시작 시 초기 진행 상황 설정
             if (data.players && data.players.length > 0) {
@@ -5544,7 +5545,7 @@
         // 모두 완료 알림
         socket.on('allPlayersRolled', (data) => {
             // 팝업 제거 - 방장이 게임종료 버튼을 눌렀을 때만 팝업 표시
-            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%)';
+            document.getElementById('progressBar').style.background = 'linear-gradient(90deg, var(--btn-ready) 0%, var(--green-400) 100%)';
         });
 
         // 주사위 굴리기 에러
@@ -5752,8 +5753,8 @@
                 const userTag = document.createElement('div');
                 userTag.className = 'user-tag';
                 userTag.style.background = 'var(--status-success-bg)';
-                userTag.style.borderColor = 'var(--btn-ready)';
-                userTag.style.color = 'var(--status-success-text)';
+                userTag.style.borderColor = 'var(--green-500)';
+                userTag.style.color = 'var(--green-900)';
                 
                 let content = userName;
                 if (userName === currentUser) {
@@ -5819,7 +5820,7 @@
                 readyButton.style.background = 'linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%)';
             } else {
                 readyButton.textContent = '준비';
-                readyButton.style.background = 'linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%)';
+                readyButton.style.background = 'linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%)';
             }
         }
         
@@ -5843,8 +5844,8 @@
                 // 접속자 목록에서 드래그하는 경우만 허용
                 if (source === 'users' && isHost && !isGameActive) {
                     e.dataTransfer.dropEffect = 'move';
-                    readyUsersList.style.backgroundColor = 'var(--status-success-bg)';
-                    readyUsersList.style.border = '2px dashed var(--btn-ready)';
+                    readyUsersList.style.backgroundColor = 'var(--green-50)';
+                    readyUsersList.style.border = '2px dashed var(--green-500)';
                 }
             });
             
@@ -6410,7 +6411,7 @@
                         }
                         
                         const titleDiv = document.createElement('div');
-                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--bg-white); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                        titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
                         titleDiv.textContent = '🎉 주사위 다 굴렸습니다!';
                         messageDiv.appendChild(titleDiv);
                         
@@ -6441,7 +6442,7 @@
                         if (winnerInfo) {
                             console.log('[showMessage] 당첨자 정보 표시:', winnerInfo);
                             const winnerDiv = document.createElement('div');
-                            winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                            winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: #ffd700; margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
                             
                             if (winnerInfo.error) {
                                 // 에러 메시지 표시
@@ -6455,12 +6456,12 @@
                                 
                                 // 두 번째 줄: 룰 (GPT 판단)
                                 const ruleDiv = document.createElement('div');
-                                ruleDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                                ruleDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: #ffd700; margin-top: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
                                 ruleDiv.textContent = `${winnerInfo.gameRules || gameRulesText} (GPT 판단)`;
                                 messageDiv.appendChild(ruleDiv);
                                 
                                 // 세 번째 줄: 당첨자 이름과 숫자
-                                winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: var(--yellow-400); margin-top: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+                                winnerDiv.style.cssText = 'font-size: 16px; font-weight: bold; color: #ffd700; margin-top: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
                                 if (winnerInfo.isTie) {
                                     // 여러 명인 경우
                                     const winnerText = winnerInfo.winnersWithResults
@@ -6601,14 +6602,14 @@
                     return; // 여기서 종료하여 아래 코드 실행 방지
                 } else if (titleLine) {
                     const titleDiv = document.createElement('div');
-                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: var(--bg-white); margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
+                    titleDiv.style.cssText = 'font-size: 18px; font-weight: bold; color: white; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);';
                     titleDiv.textContent = '🎮 게임 시작';
                     messageDiv.appendChild(titleDiv);
                 }
                 
                 if (rulesLines.length > 0) {
                     const rulesDiv = document.createElement('div');
-                    rulesDiv.style.cssText = 'font-size: 15px; color: var(--bg-white); background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: center;';
+                    rulesDiv.style.cssText = 'font-size: 15px; color: #fff; background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin: 8px 0; backdrop-filter: blur(10px); line-height: 1.6; white-space: pre-wrap; word-break: break-word; text-align: center;';
                     // 모든 룰 줄을 줄바꿈으로 연결
                     rulesDiv.textContent = rulesLines.map(line => line.trim()).join('\n');
                     messageDiv.appendChild(rulesDiv);
@@ -6633,7 +6634,7 @@
                 aiIcon.style.marginRight = '6px';
                 
                 const userNameSpan = document.createElement('span');
-                userNameSpan.style.cssText = 'font-weight: 600; color: var(--purple-500);';
+                userNameSpan.style.cssText = 'font-weight: 600; color: var(--dice-accent);';
                 userNameSpan.textContent = chatMessage.userName;
                 
                 headerDiv.appendChild(aiIcon);
@@ -6658,14 +6659,14 @@
             }
 
             // 일반 메시지는 왼쪽 정렬
-            messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: var(--bg-white); border-radius: 6px; border-left: 3px solid var(--dice-500);';
+            messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: var(--bg-white); border-radius: 6px; border-left: 3px solid var(--dice-accent);';
             
             // /주사위 명령어인 경우 나중에 결과를 추가할 수 있도록 표시
             if (isDiceCommand) {
                 messageDiv.setAttribute('data-dice-command', 'true');
                 messageDiv.setAttribute('data-user-name', chatMessage.userName);
                 // /주사위 명령어는 첫 줄을 flex로 만들어서 결과를 오른쪽 끝으로 정렬
-                messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: var(--bg-white); border-radius: 6px; border-left: 3px solid var(--dice-500); display: flex; flex-direction: column;';
+                messageDiv.style.cssText = 'margin-bottom: 10px; padding: 8px; background: var(--bg-white); border-radius: 6px; border-left: 3px solid var(--dice-accent); display: flex; flex-direction: column;';
                 const firstLineDiv = document.createElement('div');
                 firstLineDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; width: 100%;';
                 messageDiv.appendChild(firstLineDiv);
@@ -6674,7 +6675,7 @@
                 leftContentSpan.style.cssText = 'display: flex; align-items: center;';
                 
                 const userNameSpan = document.createElement('span');
-                userNameSpan.style.cssText = 'font-weight: 600; color: var(--dice-500); margin-right: 8px;';
+                userNameSpan.style.cssText = 'font-weight: 600; color: var(--dice-accent); margin-right: 8px;';
                 userNameSpan.setAttribute('data-user-name-display', chatMessage.userName);
                 // 디바이스 아이콘 추가
                 let userNameText = chatMessage.isHost ? `👑 ${chatMessage.userName}` : chatMessage.userName;
@@ -6689,7 +6690,7 @@
                 userNameSpan.textContent = userNameText;
                 if (chatMessage.userName === currentUser) {
                     userNameSpan.textContent += ' (나)';
-                    userNameSpan.style.color = 'var(--dice-600)';
+                    userNameSpan.style.color = 'var(--purple-600)';
                 }
                 
                 const messageSpan = document.createElement('span');
@@ -6756,7 +6757,7 @@
                             reactionBtn.style.cssText = `
                                 height: 20px;
                                 border-radius: 10px;
-                                background: ${hasReacted ? 'var(--text-primary)' : 'var(--text-secondary)'};
+                                background: ${hasReacted ? 'var(--gray-800)' : 'var(--gray-600)'};
                                 border: none;
                                 color: var(--bg-white) !important;
                                 font-size: 12px;
@@ -6810,7 +6811,7 @@
                         border-radius: 50%;
                         background: var(--gray-900);
                         border: 1px solid var(--text-primary);
-                        color: var(--bg-white);
+                        color: white;
                         font-size: 10px;
                         cursor: pointer;
                         display: inline-flex;
@@ -6849,7 +6850,7 @@
             } else {
                 // 일반 메시지는 왼쪽 정렬
                 const userNameSpan = document.createElement('span');
-                userNameSpan.style.cssText = 'font-weight: 600; color: var(--dice-500); margin-right: 8px;';
+                userNameSpan.style.cssText = 'font-weight: 600; color: var(--dice-accent); margin-right: 8px;';
                 // 디바이스 아이콘 추가
                 let userNameText = chatMessage.isHost ? `👑 ${chatMessage.userName}` : chatMessage.userName;
                 if (chatMessage.deviceType) {
@@ -6863,7 +6864,7 @@
                 userNameSpan.textContent = userNameText;
                 if (chatMessage.userName === currentUser) {
                     userNameSpan.textContent += ' (나)';
-                    userNameSpan.style.color = 'var(--dice-600)';
+                    userNameSpan.style.color = 'var(--purple-600)';
                 }
                 
                 const messageSpan = document.createElement('span');
@@ -6910,7 +6911,7 @@
                             reactionBtn.style.cssText = `
                                 height: 20px;
                                 border-radius: 10px;
-                                background: ${hasReacted ? 'var(--text-primary)' : 'var(--text-secondary)'};
+                                background: ${hasReacted ? 'var(--gray-800)' : 'var(--gray-600)'};
                                 border: none;
                                 color: var(--bg-white) !important;
                                 font-size: 12px;
@@ -6964,7 +6965,7 @@
                         border-radius: 50%;
                         background: var(--gray-900);
                         border: 1px solid var(--text-primary);
-                        color: var(--bg-white);
+                        color: white;
                         font-size: 10px;
                         cursor: pointer;
                         display: inline-flex;
@@ -7331,9 +7332,9 @@
     <footer style="text-align: center; padding: 20px 0; font-size: 0.9em; color: var(--text-secondary);">
         <p>Copyright © 2025 LAMDice. All rights reserved.</p>
         <div style="margin-top: 10px;">
-            <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">이용 약관</a> |
-            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">문의하기</a>
+            <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: var(--dice-accent);">개인정보 처리방침</a> |
+            <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: var(--dice-accent);">이용 약관</a> |
+            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: var(--dice-accent);">문의하기</a>
         </div>
     </footer>
 </body>

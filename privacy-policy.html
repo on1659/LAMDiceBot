@@ -7,6 +7,18 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>개인정보 처리방침 - LAMDice</title>
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -14,21 +26,21 @@
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: var(--gray-100);
         }
         .container {
-            background: white;
+            background: var(--bg-white);
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         h1 {
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
+            color: var(--dice-accent);
+            border-bottom: 2px solid var(--dice-accent);
             padding-bottom: 10px;
         }
         h2 {
-            color: #333;
+            color: var(--text-primary);
             margin-top: 30px;
         }
         p {
@@ -37,7 +49,7 @@
         .back-link {
             display: inline-block;
             margin-bottom: 20px;
-            color: #007bff;
+            color: var(--dice-accent);
             text-decoration: none;
         }
     </style>
@@ -95,7 +107,7 @@
         <p>이 개인정보 처리방침은 2025년 12월 9일부터 적용되며, 법령 및 방침에 따른 변경내용의 추가, 삭제 및 정정이 있는 경우에는 변경사항의 시행 7일 전부터 공지사항을 통하여 고지할 것입니다.</p>
         
         <h2>10. 문의</h2>
-        <p>개인정보 처리와 관련한 문의사항이 있으시면 <a href="contact.html" style="color: #007bff;">문의하기</a> 페이지를 통해 연락해주세요.</p>
+        <p>개인정보 처리와 관련한 문의사항이 있으시면 <a href="contact.html" style="color: var(--dice-accent);">문의하기</a> 페이지를 통해 연락해주세요.</p>
     </div>
 </body>
 </html>

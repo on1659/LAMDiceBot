@@ -7,6 +7,18 @@
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>사이트 소개 - LAMDice</title>
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -14,27 +26,27 @@
             max-width: 900px;
             margin: 0 auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: var(--gray-100);
         }
         .container {
-            background: white;
+            background: var(--bg-white);
             padding: 40px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         h1 {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
+            color: var(--dice-accent);
+            border-bottom: 3px solid var(--dice-accent);
             padding-bottom: 15px;
         }
         h2 {
-            color: #333;
+            color: var(--text-primary);
             margin-top: 40px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid var(--dice-accent);
             padding-left: 15px;
         }
         h3 {
-            color: #555;
+            color: var(--text-secondary);
             margin-top: 25px;
         }
         p {
@@ -42,30 +54,30 @@
             text-align: justify;
         }
         .mission-box {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--dice-gradient);
             color: white;
             padding: 30px;
             border-radius: 10px;
             margin: 30px 0;
         }
         .feature-box {
-            background: #f8f9fa;
+            background: var(--bg-primary);
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid var(--dice-accent);
         }
         .trust-box {
-            background: #d4edda;
+            background: var(--status-success-bg);
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            border-left: 4px solid #28a745;
+            border-left: 4px solid var(--btn-ready);
         }
         .back-link {
             display: inline-block;
             margin-bottom: 20px;
-            color: #007bff;
+            color: var(--dice-accent);
             text-decoration: none;
         }
         ul {
@@ -129,7 +141,7 @@
         <p>우리는 사용자 피드백을 적극적으로 수렴하여 서비스를 지속적으로 개선하고 있습니다. 새로운 기능 추가, 버그 수정, 성능 최적화 등을 통해 더 나은 서비스를 제공하기 위해 노력합니다.</p>
 
         <h2>개인정보 보호</h2>
-        <p>LAMDice는 사용자의 개인정보를 소중히 여깁니다. 우리는 최소한의 정보만 수집하며, 수집된 정보는 서비스 제공 목적으로만 사용됩니다. 자세한 내용은 <a href="privacy-policy.html" style="color: #007bff;">개인정보 처리방침</a>을 참고해주세요.</p>
+        <p>LAMDice는 사용자의 개인정보를 소중히 여깁니다. 우리는 최소한의 정보만 수집하며, 수집된 정보는 서비스 제공 목적으로만 사용됩니다. 자세한 내용은 <a href="privacy-policy.html" style="color: var(--dice-accent);">개인정보 처리방침</a>을 참고해주세요.</p>
         <div class="feature-box">
             <h3>개인정보 보호 원칙</h3>
             <ul>
@@ -141,7 +153,7 @@
         </div>
 
         <h2>서비스 약관 준수</h2>
-        <p>LAMDice는 모든 사용자가 공정하고 즐거운 게임 환경을 즐길 수 있도록 서비스 약관을 마련했습니다. 우리는 모든 사용자가 이 약관을 준수할 것을 기대하며, 위반 시 적절한 조치를 취할 수 있습니다. 자세한 내용은 <a href="terms-of-service.html" style="color: #007bff;">이용 약관</a>을 참고해주세요.</p>
+        <p>LAMDice는 모든 사용자가 공정하고 즐거운 게임 환경을 즐길 수 있도록 서비스 약관을 마련했습니다. 우리는 모든 사용자가 이 약관을 준수할 것을 기대하며, 위반 시 적절한 조치를 취할 수 있습니다. 자세한 내용은 <a href="terms-of-service.html" style="color: var(--dice-accent);">이용 약관</a>을 참고해주세요.</p>
 
         <h2>기술적 우수성</h2>
         <p>LAMDice는 최신 웹 기술을 사용하여 구축되었습니다. 실시간 통신을 위한 WebSocket 기술, 안정적인 서버 아키텍처, 그리고 확장 가능한 시스템 설계를 통해 안정적이고 빠른 서비스를 제공합니다.</p>
@@ -153,7 +165,7 @@
         <p>우리는 건전한 게임 문화를 조성하기 위해 노력합니다. 모든 사용자가 서로를 존중하고, 공정한 게임 정신을 유지할 것을 권장합니다. 부적절한 행위나 비매너 행위는 서비스 약관에 따라 제재될 수 있습니다.</p>
 
         <h2>문의 및 지원</h2>
-        <p>LAMDice에 대한 문의사항이나 제안사항이 있으시면 언제든지 <a href="contact.html" style="color: #007bff;">문의하기</a> 페이지를 통해 연락해주세요. 우리는 사용자의 의견을 소중히 여기며, 가능한 한 빠르게 응답하도록 노력합니다.</p>
+        <p>LAMDice에 대한 문의사항이나 제안사항이 있으시면 언제든지 <a href="contact.html" style="color: var(--dice-accent);">문의하기</a> 페이지를 통해 연락해주세요. 우리는 사용자의 의견을 소중히 여기며, 가능한 한 빠르게 응답하도록 노력합니다.</p>
         <div class="feature-box">
             <h3>지원 서비스</h3>
             <ul>
@@ -243,7 +255,7 @@
         <p>우리는 사용자 피드백을 적극적으로 수렴하여 서비스를 지속적으로 개선하고 있습니다. 새로운 기능 추가, 버그 수정, 성능 최적화 등을 통해 더 나은 서비스를 제공하기 위해 노력합니다.</p>
 
         <h2>개인정보 보호</h2>
-        <p>LAMDice는 사용자의 개인정보를 소중히 여깁니다. 우리는 최소한의 정보만 수집하며, 수집된 정보는 서비스 제공 목적으로만 사용됩니다. 자세한 내용은 <a href="privacy-policy.html" style="color: #007bff;">개인정보 처리방침</a>을 참고해주세요.</p>
+        <p>LAMDice는 사용자의 개인정보를 소중히 여깁니다. 우리는 최소한의 정보만 수집하며, 수집된 정보는 서비스 제공 목적으로만 사용됩니다. 자세한 내용은 <a href="privacy-policy.html" style="color: var(--dice-accent);">개인정보 처리방침</a>을 참고해주세요.</p>
         <div class="feature-box">
             <h3>개인정보 보호 원칙</h3>
             <ul>
@@ -255,7 +267,7 @@
         </div>
 
         <h2>서비스 약관 준수</h2>
-        <p>LAMDice는 모든 사용자가 공정하고 즐거운 게임 환경을 즐길 수 있도록 서비스 약관을 마련했습니다. 우리는 모든 사용자가 이 약관을 준수할 것을 기대하며, 위반 시 적절한 조치를 취할 수 있습니다. 자세한 내용은 <a href="terms-of-service.html" style="color: #007bff;">이용 약관</a>을 참고해주세요.</p>
+        <p>LAMDice는 모든 사용자가 공정하고 즐거운 게임 환경을 즐길 수 있도록 서비스 약관을 마련했습니다. 우리는 모든 사용자가 이 약관을 준수할 것을 기대하며, 위반 시 적절한 조치를 취할 수 있습니다. 자세한 내용은 <a href="terms-of-service.html" style="color: var(--dice-accent);">이용 약관</a>을 참고해주세요.</p>
 
         <h2>기술적 우수성</h2>
         <p>LAMDice는 최신 웹 기술을 사용하여 구축되었습니다. 실시간 통신을 위한 WebSocket 기술, 안정적인 서버 아키텍처, 그리고 확장 가능한 시스템 설계를 통해 안정적이고 빠른 서비스를 제공합니다.</p>
@@ -267,7 +279,7 @@
         <p>우리는 건전한 게임 문화를 조성하기 위해 노력합니다. 모든 사용자가 서로를 존중하고, 공정한 게임 정신을 유지할 것을 권장합니다. 부적절한 행위나 비매너 행위는 서비스 약관에 따라 제재될 수 있습니다.</p>
 
         <h2>문의 및 지원</h2>
-        <p>LAMDice에 대한 문의사항이나 제안사항이 있으시면 언제든지 <a href="contact.html" style="color: #007bff;">문의하기</a> 페이지를 통해 연락해주세요. 우리는 사용자의 의견을 소중히 여기며, 가능한 한 빠르게 응답하도록 노력합니다.</p>
+        <p>LAMDice에 대한 문의사항이나 제안사항이 있으시면 언제든지 <a href="contact.html" style="color: var(--dice-accent);">문의하기</a> 페이지를 통해 연락해주세요. 우리는 사용자의 의견을 소중히 여기며, 가능한 한 빠르게 응답하도록 노력합니다.</p>
         <div class="feature-box">
             <h3>지원 서비스</h3>
             <ul>

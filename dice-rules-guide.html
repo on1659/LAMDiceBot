@@ -7,6 +7,18 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>다양한 주사위 규칙 가이드 - LAMDice</title>
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -14,27 +26,27 @@
             max-width: 900px;
             margin: 0 auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: var(--gray-100);
         }
         .container {
-            background: white;
+            background: var(--bg-white);
             padding: 40px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         h1 {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
+            color: var(--dice-accent);
+            border-bottom: 3px solid var(--dice-accent);
             padding-bottom: 15px;
         }
         h2 {
-            color: #333;
+            color: var(--text-primary);
             margin-top: 40px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid var(--dice-accent);
             padding-left: 15px;
         }
         h3 {
-            color: #555;
+            color: var(--text-secondary);
             margin-top: 25px;
         }
         p {
@@ -42,14 +54,14 @@
             text-align: justify;
         }
         .rule-box {
-            background: #f8f9fa;
+            background: var(--bg-primary);
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid var(--dice-accent);
         }
         .example {
-            background: #e7f3ff;
+            background: var(--purple-50);
             padding: 15px;
             border-radius: 5px;
             margin: 15px 0;
@@ -57,7 +69,7 @@
         .back-link {
             display: inline-block;
             margin-bottom: 20px;
-            color: #007bff;
+            color: var(--dice-accent);
             text-decoration: none;
         }
         ul, ol {

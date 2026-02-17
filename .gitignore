@@ -8,7 +8,7 @@
 # 테스트 폴더 (런타임 산출물만 제외)
 
 # 백업파일
-.bak
+*.bak
 
 # 방문자 통계 (로컬/서버별 누적)
 visitor-stats.json
@@ -31,6 +31,7 @@ docs/.bkit-memory.json
 docs/.pdca-snapshots/
 docs/.pdca-status.json
 docs/CURSOR_*.md
+docs/frontend/
 
 # 임시/로그 파일
 cd

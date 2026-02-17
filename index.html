@@ -7,23 +7,36 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LAM Dice :)</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+
     <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--dice-gradient);
             min-height: 100vh;
         }
         header {
-            background-color: #f8f9fa;
+            background-color: var(--bg-primary);
             padding: 15px 20px;
-            border-bottom: 1px solid #e7e7e7;
+            border-bottom: 1px solid var(--gray-200);
         }
         header nav {
             display: flex;
@@ -34,7 +47,7 @@
         }
         header h1 { margin: 0; font-size: 1.5em; }
         header a { text-decoration: none; }
-        .nav-links a { margin-left: 20px; color: #007bff; text-decoration: none; }
+        .nav-links a { margin-left: 20px; color: var(--dice-accent); text-decoration: none; }
         footer {
             text-align: center;
             padding: 20px 0;
@@ -47,7 +60,7 @@
 <body>
     <header>
         <nav>
-            <h1><a href="/" style="color: #333;">LAMDice 주사위 게임</a></h1>
+            <h1><a href="/" style="color: var(--text-primary);">LAMDice 주사위 게임</a></h1>
             <div class="nav-links">
                 <a href="dice-rules-guide.html">다양한 주사위 규칙</a>
                 <a href="probability-analysis.html">확률 분석 및 팁</a>

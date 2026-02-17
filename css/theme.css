@@ -1,0 +1,273 @@
+/* ============================================
+   LAMDiceBot 색상 팔레트
+   Material Design 스타일 (50~900 단계)
+
+   모든 색상은 여기에만 정의됩니다.
+   HTML/CSS 파일들은 var()로 참조합니다.
+
+   테마 변경 시: 이 파일만 수정하세요!
+============================================ */
+
+:root {
+  /* ============================================
+     보라색 팔레트 (브랜드 색상)
+  ============================================ */
+  --purple-50:  #F3F0FF;
+  --purple-100: #E5DEFF;
+  --purple-200: #D0BFFF;
+  --purple-300: #B69FFF;
+  --purple-400: #9C7FFF;
+  --purple-500: #667eea;  /* 메인 (현재 사용 중) */
+  --purple-600: #764ba2;  /* 진한색 (현재 사용 중) */
+  --purple-700: #5A3880;
+  --purple-800: #3D255E;
+  --purple-900: #21133C;
+
+  /* ============================================
+     초록색 팔레트 (성공/준비)
+  ============================================ */
+  --green-50:   #E8F5E9;
+  --green-100:  #C8E6C9;
+  --green-200:  #A5D6A7;
+  --green-300:  #81C784;
+  --green-400:  #66BB6A;
+  --green-500:  #28a745;  /* 메인 */
+  --green-600:  #218838;  /* 마우스 올림 */
+  --green-700:  #1e7e34;  /* 클릭 */
+  --green-800:  #1b5e20;
+  --green-900:  #145214;
+
+  /* ============================================
+     빨강색 팔레트 (위험/삭제)
+  ============================================ */
+  --red-50:     #FFEBEE;
+  --red-100:    #FFCDD2;
+  --red-200:    #EF9A9A;
+  --red-300:    #E57373;
+  --red-400:    #EF5350;
+  --red-500:    #dc3545;  /* 메인 */
+  --red-600:    #c82333;  /* 마우스 올림 */
+  --red-700:    #bd2130;  /* 클릭 */
+  --red-800:    #a71d2a;
+  --red-900:    #7f1d1d;
+
+  /* ============================================
+     노란색 팔레트 (경고/호스트 배지)
+  ============================================ */
+  --yellow-50:  #FFF9E6;
+  --yellow-100: #FFF3CD;
+  --yellow-200: #FFE69C;
+  --yellow-300: #FFDA6A;
+  --yellow-400: #FFCD39;
+  --yellow-500: #ffc107;  /* 메인 */
+  --yellow-600: #e0a800;  /* 마우스 올림 */
+  --yellow-700: #d39e00;  /* 클릭 */
+  --yellow-800: #c69500;
+  --yellow-900: #7f6000;
+
+  /* ============================================
+     회색 팔레트 (중립/배경)
+  ============================================ */
+  --gray-50:    #f8f9fa;
+  --gray-100:   #e9ecef;
+  --gray-200:   #dee2e6;
+  --gray-300:   #ced4da;
+  --gray-400:   #adb5bd;
+  --gray-500:   #6c757d;  /* 메인 (중립 버튼) */
+  --gray-600:   #5a6268;  /* 마우스 올림 */
+  --gray-700:   #495057;  /* 클릭 */
+  --gray-800:   #343a40;
+  --gray-900:   #212529;
+
+  /* ============================================
+     슬레이트 팔레트 (어두운 청회색)
+  ============================================ */
+  --slate-50:   #f8fafc;
+  --slate-100:  #f1f5f9;
+  --slate-200:  #e2e8f0;
+  --slate-300:  #cbd5e1;
+  --slate-400:  #94a3b8;
+  --slate-500:  #64748b;
+  --slate-600:  #475569;
+  --slate-700:  #334155;
+  --slate-800:  #1e293b;
+  --slate-900:  #0f172a;
+  --slate-950:  #2c3e50;  /* 커스텀 (패널 배경용) */
+  --slate-960:  #34495e;  /* 커스텀 (패널 배경용) */
+
+  /* ============================================
+     파란색 팔레트 (정보/강조)
+  ============================================ */
+  --blue-50:    #eff6ff;
+  --blue-100:   #dbeafe;
+  --blue-200:   #bfdbfe;
+  --blue-300:   #93c5fd;
+  --blue-400:   #60a5fa;
+  --blue-500:   #3b82f6;
+  --blue-600:   #2563eb;
+  --blue-700:   #1d4ed8;
+  --blue-800:   #1e40af;
+  --blue-900:   #1e3a8a;
+
+  /* ============================================
+     게임별 색상 팔레트
+  ============================================ */
+  /* 주사위 게임 - 보라색 유지 */
+  --dice-50:    #F3F0FF;
+  --dice-500:   #667eea;
+  --dice-600:   #764ba2;
+  --dice-700:   #5A3880;
+
+  /* 룰렛 게임 - 회색 유지 */
+  --roulette-50:  #F5F7F8;
+  --roulette-500: #7c4dff;  /* 강조색 */
+  --roulette-600: #536dfe;
+  --roulette-bg:  #8e99a4;
+
+  /* 뽑기 게임 - 회색 배경 + 보라색 강조 */
+  --crane-50:   #F5F7F8;
+  --crane-500:  #9c27b0;  /* 보라색 강조 (h1, 버튼) */
+  --crane-600:  #7b1fa2;
+  --crane-700:  #6a1b9a;
+  --crane-bg:   #8e99a4;  /* 룰렛과 동일한 회색 */
+
+  /* ============================================
+     게임 타입 식별용 색상
+     게임 선택 UI, 방 목록 등에서 사용
+  ============================================ */
+  --game-type-dice: var(--dice-500);
+  --game-type-roulette: var(--roulette-500);
+  --game-type-crane: var(--crane-500);
+  --game-type-horse: #8B4513;
+
+  /* ============================================
+     전체 (의미론적 이름)
+     실제 코드에서 사용하는 변수
+  ============================================ */
+  --brand-primary: var(--purple-500);
+  --brand-secondary: var(--purple-600);
+  --brand-gradient: linear-gradient(135deg, var(--purple-500) 0%, var(--purple-600) 100%);
+
+  /* ============================================
+     의미론적 버튼 색상 (팔레트 사용)
+     모든 게임에서 동일해야 함
+  ============================================ */
+  --btn-ready: var(--green-500);
+  --btn-ready-hover: var(--green-600);
+  --btn-ready-active: var(--green-700);
+
+  --btn-start: var(--green-500);
+  --btn-start-hover: var(--green-600);
+  --btn-start-active: var(--green-700);
+
+  --btn-danger: var(--red-500);
+  --btn-danger-hover: var(--red-600);
+  --btn-danger-active: var(--red-700);
+
+  --btn-neutral: var(--gray-500);
+  --btn-neutral-hover: var(--gray-600);
+  --btn-neutral-active: var(--gray-700);
+
+  --btn-warning: var(--yellow-500);
+  --btn-warning-hover: var(--yellow-600);
+  --btn-warning-active: var(--yellow-700);
+
+  /* ============================================
+     상태 색상 (팔레트 사용)
+  ============================================ */
+  --status-success: var(--green-500);
+  --status-success-bg: var(--green-50);
+  --status-success-text: var(--green-900);
+
+  --status-warning: var(--yellow-500);
+  --status-warning-bg: var(--yellow-50);
+  --status-warning-text: var(--yellow-900);
+
+  --status-danger: var(--red-500);
+  --status-danger-bg: var(--red-50);
+  --status-danger-text: var(--red-900);
+
+  --status-info: var(--purple-500);
+  --status-info-bg: var(--purple-50);
+  --status-info-text: var(--purple-900);
+
+  /* ============================================
+     배경 & 텍스트 (팔레트 사용)
+  ============================================ */
+  --bg-white: #ffffff;
+  --bg-primary: var(--gray-50);
+  --bg-secondary: var(--gray-100);
+  --bg-tertiary: var(--gray-200);
+
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-tertiary: var(--gray-500);
+  --text-muted: var(--gray-400);
+
+  --border-color: var(--gray-300);
+  --border-light: var(--gray-200);
+
+  /* ============================================
+     패널 계층 구조 (팔레트 사용)
+  ============================================ */
+  --panel-primary: #ffffff;
+  --panel-secondary: var(--gray-50);
+  --panel-tertiary: var(--gray-100);
+  --panel-attention: var(--yellow-50);
+  --panel-warning: var(--red-50);
+
+  /* ============================================
+     호스트 배지 (팔레트 사용)
+  ============================================ */
+  --host-badge-bg: var(--yellow-500);
+  --host-badge-text: var(--gray-900);
+  --host-badge-border: rgba(0, 0, 0, 0.1);
+
+  /* ============================================
+     게임별 그라디언트 (팔레트 사용)
+  ============================================ */
+  --dice-gradient: linear-gradient(135deg, var(--dice-500) 0%, var(--dice-600) 100%);
+  --dice-accent: var(--dice-500);
+
+  --roulette-gradient: linear-gradient(135deg, var(--roulette-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
+  --roulette-accent: var(--roulette-500);
+
+  --crane-gradient: linear-gradient(135deg, var(--crane-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
+  --crane-accent: var(--crane-500);
+}
+
+/* ============================================
+   다크 테마 (Phase 3 - 선택 사항)
+   다크 모드용 팔레트 재정의
+============================================ */
+[data-theme="dark"] {
+  /* 회색 반전 */
+  --gray-50: #1a1a1a;
+  --gray-100: #2d2d2d;
+  --gray-200: #3a3a3a;
+  --gray-300: #4a4a4a;
+  --gray-500: #9ca3af;
+  --gray-700: #d1d5db;
+  --gray-900: #f0f0f0;
+
+  /* 보라색: 채도 감소 */
+  --purple-500: #9C7FFF;
+  --purple-600: #8B6FCC;
+
+  /* 초록색: 채도 감소 */
+  --green-500: #66BB6A;
+  --green-600: #52A556;
+
+  /* 빨강색: 채도 감소 */
+  --red-500: #EF5350;
+  --red-600: #E53935;
+
+  /* 노란색: 채도 감소 */
+  --yellow-500: #FFD54F;
+  --yellow-600: #FFC107;
+
+  /* 게임별: 채도 감소 */
+  --dice-500: #9C7FFF;
+  --roulette-500: #9575cd;
+  --crane-500: #ba68c8;
+}

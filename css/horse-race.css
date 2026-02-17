@@ -1,3 +1,40 @@
+:root {
+  /* ============================================
+     경마 게임 전용 색상
+  ============================================ */
+  /* 경마 게임 - 갈색 */
+  --horse-50:   #EFEBE9;
+  --horse-500:  #8B4513;  /* 메인 */
+  --horse-600:  #a0522d;
+  --horse-700:  #7a3b0f;  /* 접근성 개선 (4.6:1 대비율) */
+
+  /* 경마 레이스 결과 전용 색상 */
+  --result-gold-light: #fff8dc;    /* 1등 배경 밝은색 */
+  --result-gold-dark: #ffeaa7;     /* 1등 배경 어두운색 */
+  --result-gold-text: #8b6914;     /* 1등 텍스트 */
+  --result-gold-subtext: #a08030;  /* 1등 서브텍스트 */
+  --result-gold-border: #f1c40f;   /* 1등 테두리 */
+
+  --result-silver-light: #f5f5f5;  /* 2등 배경 밝은색 */
+  --result-silver-dark: #e8e8e8;   /* 2등 배경 어두운색 */
+  --result-silver-border: #bdc3c7; /* 2등 테두리 */
+
+  --result-bronze-light: #fae5d3;  /* 3등 배경 밝은색 */
+  --result-bronze-dark: #f0d5b8;   /* 3등 배경 어두운색 */
+  --result-bronze-text: #8b5e3c;   /* 3등 텍스트 */
+  --result-bronze-subtext: #a07050;/* 3등 서브텍스트 */
+  --result-bronze-border: #cd7f32; /* 3등 테두리 */
+
+  --result-loser-light: #2d1f3d;   /* 꼴등 배경 밝은색 */
+  --result-loser-dark: #1a1a2e;    /* 꼴등 배경 어두운색 */
+  --result-loser-dark2: #16213e;   /* 꼴등 배경 어두운색2 */
+  --result-loser-border: #e94560;  /* 꼴등 테두리 */
+
+  /* 경마 그라디언트 & 악센트 */
+  --horse-gradient: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
+  --horse-accent: var(--horse-500);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -6,7 +43,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #8e99a4 0%, #7a8b99 50%, #6b7c8a 100%);
+    background: var(--horse-gradient);
     min-height: 100vh;
     margin: 0;
     padding: 0;
@@ -15,7 +52,7 @@ body {
 }
 
 .container {
-    background: white;
+    background: var(--bg-white);
     border-radius: 20px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     padding: 40px;
@@ -39,7 +76,7 @@ body.game-active footer {
 
 h1 {
     text-align: center;
-    color: #8b4513;
+    color: var(--horse-accent);
     margin-bottom: 30px;
     font-size: 2.5em;
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -54,8 +91,8 @@ h1 {
 }
 
 button {
-    background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
-    color: #000;
+    background: var(--horse-gradient);
+    color: var(--text-primary);
     border: none;
     padding: 12px 25px;
     border-radius: 8px;
@@ -74,7 +111,7 @@ button {
     font-size: 10px;
     border-radius: 4px;
     background: rgba(0,0,0,0.65);
-    color: #fff;
+    color: var(--bg-white);
     border: 1px solid rgba(255,255,255,0.3);
     font-weight: normal;
     top: 6px; bottom: auto;
@@ -86,8 +123,8 @@ button:hover {
 }
 
 button:disabled {
-    background: #ccc;
-    color: #666;
+    background: var(--gray-300);
+    color: var(--text-secondary);
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
@@ -96,7 +133,7 @@ button:disabled {
 input[type="text"], input[type="password"] {
     width: 100%;
     padding: 12px;
-    border: 2px solid #ddd;
+    border: 2px solid var(--gray-300);
     border-radius: 8px;
     font-size: 16px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -105,7 +142,7 @@ input[type="text"], input[type="password"] {
 }
 
 input[type="text"]:focus, input[type="password"]:focus {
-    border-color: #8b4513;
+    border-color: var(--horse-accent);
     outline: none;
 }
 
@@ -117,11 +154,11 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .connection-status.connected {
-    color: #28a745;
+    color: var(--green-500);
 }
 
 .connection-status.disconnected {
-    color: #dc3545;
+    color: var(--red-500);
 }
 
 .connection-sound-row {
@@ -139,7 +176,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #555;
+    color: var(--text-secondary);
 }
 .volume-btn {
     background: none;
@@ -158,7 +195,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: #ddd;
+    background: var(--gray-300);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -168,14 +205,14 @@ input[type="text"]:focus, input[type="password"]:focus {
     appearance: none;
     width: 12px;
     height: 12px;
-    background: #667eea;
+    background: var(--dice-accent);
     border-radius: 50%;
     cursor: pointer;
 }
 .volume-slider::-moz-range-thumb {
     width: 12px;
     height: 12px;
-    background: #667eea;
+    background: var(--dice-accent);
     border-radius: 50%;
     cursor: pointer;
     border: none;
@@ -525,8 +562,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .horse-selection-button {
-    background: white;
-    border: 3px solid #8b4513;
+    background: var(--bg-white);
+    border: 3px solid var(--horse-500);
     border-radius: 12px;
     padding: 20px;
     text-align: center;
@@ -538,12 +575,12 @@ input[type="text"]:focus, input[type="password"]:focus {
 .horse-selection-button:hover:not(:disabled) {
     transform: translateY(-5px);
     box-shadow: 0 5px 15px rgba(139, 69, 19, 0.3);
-    border-color: #a0522d;
+    border-color: var(--horse-600);
 }
 
 .horse-selection-button.selected {
-    background: #f5e6d3;
-    border-color: #8b4513;
+    background: var(--horse-50);
+    border-color: var(--horse-accent);
     border-width: 4px;
 }
 
@@ -551,8 +588,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     opacity: 0.6;
     cursor: not-allowed;
     filter: grayscale(80%);
-    background: #f0f0f0;
-    border-color: #999;
+    background: var(--gray-100);
+    border-color: var(--text-muted);
 }
 
 .horse-selection-button.taken {
@@ -566,7 +603,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     left: 50%;
     transform: translateX(-50%);
     font-size: 11px;
-    color: #666;
+    color: var(--text-secondary);
     background: rgba(255,255,255,0.9);
     padding: 2px 8px;
     border-radius: 10px;
@@ -575,23 +612,23 @@ input[type="text"]:focus, input[type="password"]:focus {
 /* 준비 섹션 */
 .ready-section {
     display: none; /* 초기에 숨김, JS에서 조건부 표시 */
-    background: #f5e6d3;
+    background: var(--horse-50);
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 20px;
-    border: 2px solid #8b4513;
+    border: 2px solid var(--horse-500);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* 준비 버튼 hover 효과 */
 #readyButton:hover {
-    background: linear-gradient(135deg, #a0522d 0%, #8b4513 100%) !important;
+    background: linear-gradient(135deg, var(--horse-600) 0%, var(--horse-500) 100%) !important;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3);
 }
 
 .users-list {
-    background: #faf5ef;
+    background: var(--horse-50);
     border-radius: 8px;
     padding: 12px;
     display: flex;
@@ -602,13 +639,13 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 /* 준비 섹션 내부 리스트도 갈색톤 */
 .ready-section .users-list {
-    background: #faf5ef;
+    background: var(--horse-50);
 }
 
 .user-tag {
-    background: white;
-    border: 2px solid #8b4513;
-    color: #8b4513;
+    background: var(--bg-white);
+    border: 2px solid var(--horse-500);
+    color: var(--horse-accent);
     padding: 6px 12px;
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     border-radius: 20px;
@@ -620,12 +657,12 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .user-tag.host {
-    background: white;
-    color: #8b4513;
+    background: var(--bg-white);
+    color: var(--horse-accent);
 }
 
 .user-tag.me {
-    background: #8b4513;
+    background: var(--horse-500);
     color: white;
 }
 
@@ -641,8 +678,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .my-order-box {
-    background: #fff9e6;
-    border: 2px solid #ffc107;
+    background: var(--yellow-50);
+    border: 2px solid var(--yellow-500);
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 15px;
@@ -651,7 +688,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 .my-order-title {
     font-size: 16px;
     font-weight: 600;
-    color: #856404;
+    color: var(--yellow-900);
     margin-bottom: 10px;
     display: flex;
     align-items: center;
@@ -676,7 +713,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     left: 0;
     right: 0;
     padding: 12px;
-    color: #999;
+    color: var(--text-muted);
     pointer-events: none;
     font-family: inherit;
     font-size: 16px;
@@ -697,8 +734,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     top: 100%;
     left: 0;
     right: 0;
-    background: white;
-    border: 2px solid #8b4513;
+    background: var(--bg-white);
+    border: 2px solid var(--horse-500);
     border-radius: 8px;
     margin-top: 4px;
     max-height: 200px;
@@ -710,7 +747,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 .autocomplete-item {
     padding: 10px 12px;
     cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--gray-100);
     transition: background-color 0.2s;
 }
 
@@ -720,13 +757,13 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .autocomplete-item:hover,
 .autocomplete-item.selected {
-    background-color: #fff9e6;
+    background-color: var(--yellow-50);
 }
 
 .menu-manager {
     display: none;
-    background: #f8f9fa;
-    border: 2px solid #8b4513;
+    background: var(--bg-primary);
+    border: 2px solid var(--horse-500);
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 15px;
@@ -742,7 +779,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     align-items: center;
     margin-bottom: 10px;
     font-weight: bold;
-    color: #8b4513;
+    color: var(--horse-accent);
 }
 
 .menu-list {
@@ -756,8 +793,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     display: flex;
     align-items: center;
     gap: 5px;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--bg-white);
+    border: 1px solid var(--gray-300);
     padding: 6px 12px;
     border-radius: 20px;
     font-size: 14px;
@@ -766,7 +803,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 .menu-item .delete-btn {
     background: none;
     border: none;
-    color: #dc3545;
+    color: var(--red-500);
     cursor: pointer;
     font-size: 14px;
     padding: 0;
@@ -779,11 +816,11 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .order-item {
-    background: white;
+    background: var(--bg-white);
     padding: 12px;
     margin-bottom: 8px;
     border-radius: 6px;
-    border-left: 3px solid #d2b48c;
+    border-left: 3px solid var(--horse-600);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -799,26 +836,26 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .order-user {
     font-weight: 600;
-    color: #8b4513;
+    color: var(--horse-accent);
     margin-bottom: 4px;
 }
 
 .order-text {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 20px;
     font-weight: 600;
     word-break: break-word;
 }
 
 .order-text.empty {
-    color: #999;
+    color: var(--text-muted);
     font-style: italic;
 }
 
 .order-count {
     font-size: 48px;
     font-weight: bold;
-    color: #8b4513;
+    color: var(--horse-accent);
     margin-left: 15px;
 }
 
@@ -830,7 +867,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 .sort-button {
     padding: 6px 12px;
     font-size: 12px;
-    background: #e9ecef;
+    background: var(--gray-100);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -838,25 +875,25 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .sort-button:hover {
-    background: #dee2e6;
+    background: var(--gray-200);
 }
 
 .sort-button.active {
-    background: #8b4513;
+    background: var(--horse-500);
     color: white;
 }
 
 .not-ordered-section {
     margin-bottom: 15px;
     padding: 12px;
-    background: #fff5e6;
+    background: var(--yellow-50);
     border-radius: 8px;
-    border-left: 4px solid #ff6b6b;
+    border-left: 4px solid var(--red-400);
 }
 
 .not-ordered-title {
     font-weight: bold;
-    color: #ff6b6b;
+    color: var(--red-400);
     margin-bottom: 8px;
     font-size: 13px;
 }
@@ -868,8 +905,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .not-ordered-item {
-    background: #ffe6e6;
-    color: #cc0000;
+    background: var(--red-50);
+    color: var(--red-600);
     padding: 4px 10px;
     border-radius: 15px;
     font-size: 12px;
@@ -883,7 +920,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     top: 20px;
     width: 320px;
     max-height: calc(100vh - 40px);
-    background: white;
+    background: var(--bg-white);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -901,45 +938,45 @@ body.game-active .history-section {
 .history-title {
     font-size: 18px;
     font-weight: bold;
-    color: #8b4513;
+    color: var(--horse-accent);
     margin-bottom: 15px;
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     text-align: center;
 }
 
 .history-item {
-    background: #f8f9fa;
+    background: var(--bg-primary);
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 10px;
-    border-left: 4px solid #8b4513;
+    border-left: 4px solid var(--horse-500);
 }
 
 .history-round {
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 5px;
 }
 
 .history-participants {
     font-size: 12px;
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 5px;
 }
 
 .history-winner {
     font-size: 16px;
     font-weight: bold;
-    color: #8b4513;
+    color: var(--horse-accent);
 }
 
 /* 채팅 섹션 */
 .chat-section {
-    background: #f8f9fa;
+    background: var(--bg-primary);
     border-radius: 8px;
     padding: 15px;
     margin-top: 20px;
-    border: 2px solid #8b4513;
+    border: 2px solid var(--horse-500);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -948,7 +985,7 @@ body.game-active .history-section {
     overflow-y: auto;
     margin-bottom: 10px;
     padding: 10px;
-    background: white;
+    background: var(--bg-white);
     border-radius: 8px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -956,7 +993,7 @@ body.game-active .history-section {
 .chat-message.system {
     margin-bottom: 10px;
     padding: 12px;
-    background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
+    background: var(--horse-gradient);
     color: white;
     text-align: center;
     font-weight: bold;
@@ -964,8 +1001,8 @@ body.game-active .history-section {
 }
 
 .chat-message.winner {
-    background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
-    color: #333;
+    background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
+    color: var(--text-primary);
     text-align: center;
     font-weight: bold;
     font-size: 18px;
@@ -1001,11 +1038,11 @@ body.game-active .history-section {
     line-height: 1.3;
 }
 #raceChatOverlay .race-chat-msg.system {
-    color: #ffd700;
+    color: var(--yellow-500);
     font-style: italic;
 }
 #raceChatOverlay .race-chat-msg.me {
-    color: #ffeb3b;
+    color: var(--yellow-400);
 }
 
 /* 레이스 중 채팅 섹션: 제목+메시지 숨기고 입력바만 표시 */
@@ -1024,10 +1061,10 @@ body.game-active .history-section {
 .users-title {
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 2px solid #8b4513;
+    border-bottom: 2px solid var(--horse-500);
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -1036,12 +1073,12 @@ body.game-active .history-section {
     text-align: center;
     margin-bottom: 20px;
     padding-bottom: 20px;
-    border-bottom: 2px solid #eee;
+    border-bottom: 2px solid var(--gray-200);
 }
 
 .room-title {
     font-size: 24px;
-    color: #8b4513;
+    color: var(--horse-accent);
     font-weight: bold;
     margin-bottom: 5px;
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -1049,8 +1086,8 @@ body.game-active .history-section {
 
 .host-badge {
     display: none;
-    background: #ffc107;
-    color: #333;
+    background: var(--host-badge-bg);
+    color: var(--text-primary);
     padding: 4px 12px;
     border-radius: 20px;
     font-size: 12px;
@@ -1061,30 +1098,30 @@ body.game-active .history-section {
 /* 호스트 컨트롤 */
 .host-controls {
     display: none;
-    background: linear-gradient(135deg, #fff3cd 0%, #ffe082 100%);
+    background: linear-gradient(135deg, var(--yellow-100) 0%, var(--yellow-200) 100%);
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 20px;
-    border: 2px solid #ffc107;
+    border: 2px solid var(--yellow-500);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .start-button {
-    background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
-    color: #000;
+    background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);
+    color: var(--text-primary);
     font-size: 20px;
     padding: 15px 30px;
     font-weight: 600;
 }
 
 .start-button:disabled {
-    background: #ccc;
-    color: #666;
+    background: var(--gray-300);
+    color: var(--text-secondary);
 }
 
 .end-button {
-    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
-    color: #fff;
+    background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%);
+    color: var(--bg-white);
     font-weight: 600;
     font-size: 16px;
     padding: 15px 30px;
@@ -1109,7 +1146,7 @@ body.game-active .history-section {
 }
 
 .result-card {
-    background: white;
+    background: var(--bg-white);
     border-radius: 20px;
     padding: 30px;
     text-align: center;
@@ -1197,7 +1234,7 @@ body.game-active .history-section {
 
 .result-title {
     font-size: 24px;
-    color: #8b4513;
+    color: var(--horse-accent);
     margin-bottom: 20px;
     font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -1205,13 +1242,13 @@ body.game-active .history-section {
 .result-winner {
     font-size: 48px;
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 20px;
 }
 
 .result-message {
     font-size: 18px;
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 30px;
 }
 
@@ -1231,8 +1268,8 @@ body.game-active .history-section {
 
 /* 방 폭파 카운트다운 */
 .room-expiry-section {
-    background: #fff3cd;
-    border: 2px solid #ffc107;
+    background: var(--yellow-100);
+    border: 2px solid var(--yellow-500);
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 20px;
@@ -1242,8 +1279,8 @@ body.game-active .history-section {
 /* 말 선택 섹션 */
 .horse-selection-section {
     display: none;
-    background: #f8f9fa;
-    border: 2px solid #8b4513;
+    background: var(--bg-primary);
+    border: 2px solid var(--horse-500);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
@@ -1255,20 +1292,20 @@ body.game-active .history-section {
 
 /* 게임 모드 선택 */
 .game-mode-section {
-    background: #f5e6d3;
-    border: 2px solid #8b4513;
+    background: var(--horse-50);
+    border: 2px solid var(--horse-500);
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 20px;
 }
 
 .game-mode-section label:hover {
-    background: #faf5ef;
+    background: var(--horse-50);
     transform: translateX(2px);
 }
 
 .game-mode-section label input[type="radio"]:checked + span {
-    color: #8b4513;
+    color: var(--horse-accent);
     font-weight: 600;
 }
 
@@ -1437,7 +1474,7 @@ body.game-active .history-section {
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.8);
-    color: #ffd700;
+    color: var(--yellow-500);
     padding: 8px 20px;
     border-radius: 8px;
     font-size: 12px;
@@ -1465,10 +1502,10 @@ body.game-active .history-section {
     text-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 .weather-buff {
-    color: #3B82F6;
+    color: var(--blue-500);
 }
 .weather-nerf {
-    color: #EF4444;
+    color: var(--red-400);
 }
 @keyframes indicatorPulse {
     0% { opacity: 0; transform: translateX(-50%) scale(1.5); }

@@ -10,6 +10,18 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>LAM Roulette 🎰</title>
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
@@ -22,7 +34,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #8e99a4 0%, #7a8b99 50%, #6b7c8a 100%);
+            background: var(--roulette-gradient);
             min-height: 100vh;
             margin: 0;
             padding: 0;
@@ -30,7 +42,7 @@
         }
 
         .container {
-            background: white;
+            background: var(--bg-white);
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 40px;
@@ -54,7 +66,7 @@
 
         h1 {
             text-align: center;
-            color: #7c4dff;
+            color: var(--roulette-accent);
             margin-bottom: 30px;
             font-size: 2.5em;
         }
@@ -68,7 +80,7 @@
         }
 
         button {
-            background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+            background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--roulette-600) 100%);
             color: white;
             border: none;
             padding: 12px 25px;
@@ -86,7 +98,7 @@
         }
 
         button:disabled {
-            background: #ccc;
+            background: var(--gray-300);
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
@@ -95,7 +107,7 @@
         input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px;
-            border: 2px solid #ddd;
+            border: 2px solid var(--gray-300);
             border-radius: 8px;
             font-size: 16px;
             margin-bottom: 10px;
@@ -103,7 +115,7 @@
         }
 
         input[type="text"]:focus, input[type="password"]:focus {
-            border-color: #7c4dff;
+            border-color: var(--roulette-accent);
             outline: none;
         }
 
@@ -115,11 +127,11 @@
         }
 
         .connection-status.connected {
-            color: #28a745;
+            color: var(--green-500);
         }
 
         .connection-status.disconnected {
-            color: #dc3545;
+            color: var(--red-500);
         }
 
         .connection-sound-row {
@@ -135,7 +147,7 @@
             align-items: center;
             gap: 6px;
             font-size: 12px;
-            color: #555;
+            color: var(--text-secondary);
             cursor: pointer;
         }
         .connection-sound-row input[type="checkbox"] {
@@ -147,7 +159,7 @@
             align-items: center;
             gap: 6px;
             font-size: 12px;
-            color: #555;
+            color: var(--text-secondary);
         }
         .volume-btn {
             background: none;
@@ -167,7 +179,7 @@
             height: 4px;
             -webkit-appearance: none;
             appearance: none;
-            background: #ddd;
+            background: var(--gray-300);
             border-radius: 2px;
             outline: none;
             cursor: pointer;
@@ -177,14 +189,14 @@
             appearance: none;
             width: 12px;
             height: 12px;
-            background: #7c4dff;
+            background: var(--roulette-accent);
             border-radius: 50%;
             cursor: pointer;
         }
         .volume-slider::-moz-range-thumb {
             width: 12px;
             height: 12px;
-            background: #7c4dff;
+            background: var(--roulette-accent);
             border-radius: 50%;
             cursor: pointer;
             border: none;
@@ -216,7 +228,7 @@
             position: relative;
             overflow: hidden;
             box-shadow: 0 0 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.2);
-            border: 8px solid #333;
+            border: 8px solid var(--text-primary);
             transition: transform 0.1s ease-out;
         }
 
@@ -228,7 +240,7 @@
             transform: translate(-50%, -50%);
             width: 60px;
             height: 60px;
-            background: linear-gradient(135deg, #333 0%, #666 100%);
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
             border-radius: 50%;
             z-index: 10;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
@@ -284,7 +296,7 @@
             transform: translateX(-50%) rotate(90deg);
             font-size: 14px;
             font-weight: bold;
-            color: #fff;
+            color: var(--bg-white);
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
             white-space: nowrap;
             max-width: 80px;
@@ -294,15 +306,15 @@
 
         /* 준비 섹션 */
         .ready-section {
-            background: #f8f9fa;
+            background: var(--bg-primary);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            border: 2px solid #7c4dff;
+            border: 2px solid var(--roulette-accent);
         }
 
         .users-list {
-            background: #f8f9fa;
+            background: var(--bg-primary);
             border-radius: 8px;
             padding: 12px;
             display: flex;
@@ -312,9 +324,9 @@
         }
 
         .user-tag {
-            background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
+            background: var(--bg-white);
+            border: 2px solid var(--dice-accent);
+            color: var(--dice-accent);
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 14px;
@@ -325,7 +337,7 @@
         }
 
         .user-tag.host {
-            background: #667eea;
+            background: var(--dice-accent);
             color: white;
         }
 
@@ -336,7 +348,7 @@
             top: 20px;
             width: 320px;
             max-height: calc(100vh - 40px);
-            background: white;
+            background: var(--bg-white);
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 20px;
@@ -351,44 +363,44 @@
         .history-title {
             font-size: 18px;
             font-weight: bold;
-            color: #7c4dff;
+            color: var(--roulette-accent);
             margin-bottom: 15px;
             text-align: center;
         }
 
         .history-item {
-            background: #f8f9fa;
+            background: var(--bg-primary);
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 10px;
-            border-left: 4px solid #7c4dff;
+            border-left: 4px solid var(--roulette-accent);
         }
 
         .history-round {
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 5px;
         }
 
         .history-participants {
             font-size: 12px;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 5px;
         }
 
         .history-winner {
             font-size: 16px;
             font-weight: bold;
-            color: #7c4dff;
+            color: var(--roulette-accent);
         }
 
         /* 채팅 섹션 */
         .chat-section {
-            background: #f8f9fa;
+            background: var(--bg-primary);
             border-radius: 8px;
             padding: 15px;
             margin-top: 20px;
-            border: 2px solid #7c4dff;
+            border: 2px solid var(--roulette-accent);
         }
 
         .chat-messages {
@@ -396,14 +408,14 @@
             overflow-y: auto;
             margin-bottom: 10px;
             padding: 10px;
-            background: white;
+            background: var(--bg-white);
             border-radius: 8px;
         }
 
         .chat-message.system {
             margin-bottom: 10px;
             padding: 12px;
-            background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+            background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--roulette-600) 100%);
             color: white;
             text-align: center;
             font-weight: bold;
@@ -411,8 +423,8 @@
         }
 
         .chat-message.winner {
-            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
-            color: #333;
+            background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
+            color: var(--text-primary);
             text-align: center;
             font-weight: bold;
             font-size: 18px;
@@ -434,10 +446,10 @@
         .users-title {
             font-size: 18px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid var(--dice-accent);
         }
 
         /* 방 정보 헤더 */
@@ -445,20 +457,20 @@
             text-align: center;
             margin-bottom: 20px;
             padding-bottom: 20px;
-            border-bottom: 2px solid #eee;
+            border-bottom: 2px solid var(--gray-200);
         }
 
         .room-title {
             font-size: 24px;
-            color: #7c4dff;
+            color: var(--roulette-accent);
             font-weight: bold;
             margin-bottom: 5px;
         }
 
         .host-badge {
             display: none;
-            background: #ffc107;
-            color: #333;
+            background: var(--host-badge-bg);
+            color: var(--text-primary);
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
@@ -469,25 +481,25 @@
         /* 호스트 컨트롤 */
         .host-controls {
             display: none;
-            background: linear-gradient(135deg, #fff3cd 0%, #ffe082 100%);
+            background: linear-gradient(135deg, var(--yellow-100) 0%, var(--yellow-200) 100%);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            border: 2px solid #ffc107;
+            border: 2px solid var(--yellow-500);
         }
 
         .start-button {
-            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+            background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);
             font-size: 20px;
             padding: 15px 30px;
         }
 
         .start-button:disabled {
-            background: #ccc;
+            background: var(--gray-300);
         }
 
         .end-button {
-            background: linear-gradient(135deg, #f44336 0%, #ff5722 100%);
+            background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%);
         }
 
         /* 결과 오버레이 */
@@ -509,7 +521,7 @@
         }
 
         .result-card {
-            background: white;
+            background: var(--bg-white);
             border-radius: 20px;
             padding: 40px;
             text-align: center;
@@ -536,20 +548,20 @@
 
         .result-title {
             font-size: 24px;
-            color: #7c4dff;
+            color: var(--roulette-accent);
             margin-bottom: 20px;
         }
 
         .result-winner {
             font-size: 48px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 20px;
         }
 
         .result-message {
             font-size: 18px;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 30px;
         }
 
@@ -561,8 +573,8 @@
 
         /* 방 폭파 카운트다운 */
         .room-expiry-section {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
+            background: var(--yellow-100);
+            border: 2px solid var(--yellow-500);
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 20px;
@@ -609,7 +621,7 @@
 </head>
 <body>
     <!-- 로딩 화면 -->
-    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dice-gradient); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         <div style="text-align: center; color: white;">
             <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🎰</div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
@@ -632,8 +644,8 @@
             display: block;
         }
         .my-order-box {
-            background: #fff9e6;
-            border: 2px solid #ffc107;
+            background: var(--yellow-50);
+            border: 2px solid var(--yellow-500);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
@@ -641,7 +653,7 @@
         .my-order-title {
             font-size: 16px;
             font-weight: 600;
-            color: #856404;
+            color: var(--yellow-900);
             margin-bottom: 10px;
             display: flex;
             align-items: center;
@@ -664,7 +676,7 @@
             left: 0;
             right: 0;
             padding: 12px;
-            color: #999;
+            color: var(--text-muted);
             pointer-events: none;
             font-family: inherit;
             font-size: 16px;
@@ -685,8 +697,8 @@
             top: 100%;
             left: 0;
             right: 0;
-            background: white;
-            border: 2px solid #7c4dff;
+            background: var(--bg-white);
+            border: 2px solid var(--roulette-accent);
             border-radius: 8px;
             margin-top: 4px;
             max-height: 200px;
@@ -698,7 +710,7 @@
         .autocomplete-item {
             padding: 10px 12px;
             cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--gray-100);
             transition: background-color 0.2s;
         }
 
@@ -708,22 +720,22 @@
 
         .autocomplete-item:hover,
         .autocomplete-item.selected {
-            background-color: #ede7f6;
+            background-color: var(--purple-50);
         }
 
         .order-list {
-            background: #f8f9fa;
+            background: var(--bg-primary);
             border-radius: 8px;
             padding: 12px;
             max-height: 200px;
             overflow-y: auto;
         }
         .order-item {
-            background: white;
+            background: var(--bg-white);
             padding: 12px;
             margin-bottom: 8px;
             border-radius: 6px;
-            border-left: 3px solid #ffc107;
+            border-left: 3px solid var(--yellow-500);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -739,31 +751,31 @@
 
         .order-user {
             font-weight: 600;
-            color: #856404;
+            color: var(--yellow-900);
             margin-bottom: 4px;
         }
 
         .order-text {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 20px;
             font-weight: 600;
             word-break: break-word;
         }
 
         .order-text.empty {
-            color: #999;
+            color: var(--text-muted);
             font-style: italic;
         }
 
         .order-count {
             font-size: 48px;
             font-weight: bold;
-            color: #667eea;
+            color: var(--dice-accent);
             margin-left: 15px;
         }
         .menu-manager {
-            background: #f8f9fa;
-            border: 2px solid #7c4dff;
+            background: var(--bg-primary);
+            border: 2px solid var(--roulette-accent);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
@@ -775,7 +787,7 @@
         .menu-manager-title {
             font-size: 16px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
@@ -788,7 +800,7 @@
             margin-bottom: 10px;
         }
         .menu-list {
-            background: white;
+            background: var(--bg-white);
             border-radius: 6px;
             padding: 10px;
             max-height: 150px;
@@ -796,7 +808,7 @@
         }
         .menu-tag {
             display: inline-block;
-            background: #7c4dff;
+            background: var(--roulette-accent);
             color: white;
             padding: 4px 10px;
             border-radius: 15px;
@@ -814,29 +826,29 @@
             gap: 5px;
         }
         .sort-button {
-            background: #f8f9fa;
-            border: 1px solid #ddd;
-            color: #666;
+            background: var(--bg-primary);
+            border: 1px solid var(--gray-300);
+            color: var(--text-secondary);
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
             cursor: pointer;
         }
         .sort-button.active {
-            background: #7c4dff;
+            background: var(--roulette-accent);
             color: white;
-            border-color: #7c4dff;
+            border-color: var(--roulette-accent);
         }
         .not-ordered-section {
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 2px dashed #ddd;
+            border-top: 2px dashed var(--gray-300);
         }
 
         .not-rolled-title {
             font-size: 16px;
             font-weight: 600;
-            color: #856404;
+            color: var(--yellow-900);
             margin-bottom: 12px;
         }
 
@@ -850,7 +862,7 @@
         .spectator-orders-section {
             margin-top: 20px;
             padding-top: 20px;
-            border-top: 2px solid #e0e0e0;
+            border-top: 2px solid var(--gray-200);
         }
         .game-status {
             padding: 15px;
@@ -860,16 +872,16 @@
             margin-bottom: 20px;
         }
         .game-status.waiting {
-            background: #e9ecef;
-            color: #495057;
+            background: var(--gray-100);
+            color: var(--gray-700);
         }
         .game-status.ordering {
-            background: #fff9e6;
-            color: #856404;
+            background: var(--yellow-50);
+            color: var(--yellow-900);
         }
         .game-status.playing {
-            background: #d4edda;
-            color: #155724;
+            background: var(--status-success-bg);
+            color: var(--green-900);
         }
     </style>
 
@@ -884,16 +896,16 @@
                 <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <span class="room-title" id="roomTitle">룰렛 방</span>
                     <span class="host-badge" id="hostBadge">👑 호스트</span>
-                    <span id="turboBadge" class="turbo-badge" style="display: none; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🚀 터보</span>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; cursor: pointer; margin: 0;"><input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드</label>
+                    <span id="turboBadge" class="turbo-badge" style="display: none; background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🚀 터보</span>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; margin: 0;"><input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드</label>
                 </div>
-                <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: #6c757d; margin-top: 10px;">🚪 나가기</button>
+                <button onclick="leaveRoom()" style="width: auto; padding: 8px 15px; font-size: 12px; background: var(--btn-neutral); margin-top: 10px;">🚪 나가기</button>
             </div>
 
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
-                <div style="color: #856404; font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: #d9534f;">--:--:--</span>
+                <div style="color: var(--yellow-900); font-weight: bold; font-size: 14px;">
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
 
@@ -901,7 +913,7 @@
             <div class="users-section" id="usersSection">
                 <div class="users-title">
                     👥 접속자 (<span id="usersCount">0</span>명)
-                    <span id="dragHint" style="display: none; font-size: 12px; color: #7c4dff; margin-left: 10px; font-weight: normal;">💡 드래그하여 준비시키기</span>
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--roulette-accent); margin-left: 10px; font-weight: normal;">💡 드래그하여 준비시키기</span>
                 </div>
                 <div class="users-list" id="usersList"></div>
             </div>
@@ -910,10 +922,10 @@
             <div class="ready-section" id="readySection">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
-                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">준비</button>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">준비</button>
                 </div>
                 <div class="users-list" id="readyUsersList">
-                    <div style="color: #999; text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
                 </div>
             </div>
 
@@ -922,16 +934,16 @@
                 <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled style="grid-column: 1 / -1;">
                     🎰 룰렛 시작 (최소 2명 준비 필요)
                 </button>
-                <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">주문받기 시작</button>
-                <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">주문받기 종료</button>
+                <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">주문받기 시작</button>
+                <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%);">주문받기 종료</button>
             </div>
 
             <!-- 주문받기 섹션 -->
             <div class="orders-section" id="ordersSection">
                 <div class="history-title-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div class="users-title" style="font-weight: bold; color: #7c4dff; font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div class="users-title" style="font-weight: bold; color: var(--roulette-accent); font-size: 16px; margin: 0;">🍔 주문받기</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, #7c4dff 0%, #b388ff 100%);">📋 주문리스트 보기</button>
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: linear-gradient(135deg, var(--roulette-accent) 0%, var(--purple-200) 100%);">📋 주문리스트 보기</button>
                         <div class="sort-buttons">
                             <button class="sort-button active" id="sortOrderAscBtn" onclick="OrderModule.sortOrders('asc')">가나다순</button>
                             <button class="sort-button" id="sortOrderDescBtn" onclick="OrderModule.sortOrders('desc')">가나다 역순</button>
@@ -953,14 +965,14 @@
                     <div class="my-order-title">
                         <span>📝</span>
                         <span>내 주문</span>
-                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: #f8f9fa; color: #7c4dff; border: 1px solid #7c4dff;">메뉴 관리</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: var(--bg-primary); color: var(--roulette-accent); border: 1px solid var(--roulette-accent);">메뉴 관리</button>
                     </div>
                     
                     <!-- 자주 쓰는 메뉴 관리 -->
                     <div class="menu-manager" id="menuManager">
                         <div class="menu-manager-title">
                             <span>📋 자주 쓰는 메뉴</span>
-                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px;">닫기</button>
+                            <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px;">닫기</button>
                         </div>
                         <div class="menu-manager-input">
                             <input type="text" id="menuInput" placeholder="메뉴 추가 (예: 치킨)" maxlength="50" />
@@ -987,18 +999,18 @@
 
                 <!-- 전체 주문 목록 -->
                 <div class="order-list" id="orderList">
-                    <div style="color: #999; text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 주문이 없습니다</div>
                 </div>
                 
                 <!-- 관전자 주문 목록 -->
-                <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
-                    <div class="users-title" style="margin-bottom: 15px; color: #999; font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
+                <div class="spectator-orders-section" id="spectatorOrdersSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--gray-200);">
+                    <div class="users-title" style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;">👁️ 관전자 주문 (게임 참여 후 메뉴를 다시 골라주시면됩니다)</div>
                     <div class="order-list" id="spectatorOrderList"></div>
                 </div>
             </div>
             
             <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus" style="padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; background: #e9ecef; color: #495057;">
+            <div class="game-status waiting" id="gameStatus" style="padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; background: var(--gray-100); color: var(--gray-700);">
                 대기 중...
             </div>
 
@@ -1015,9 +1027,9 @@
             <div id="turboSettingSection" style="display: none; text-align: center; margin-top: 15px; padding: 10px; background: rgba(124, 77, 255, 0.1); border-radius: 8px;">
                 <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="turboToggle" style="width: auto; margin: 0;" onchange="toggleTurboAnimation()">
-                    <span style="font-weight: bold; color: #7c4dff;">🚀 터보 애니메이션</span>
+                    <span style="font-weight: bold; color: var(--roulette-accent);">🚀 터보 애니메이션</span>
                 </label>
-                <div style="font-size: 11px; color: #666; margin-top: 5px;">다양한 마무리 효과</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 5px;">다양한 마무리 효과</div>
             </div>
             
             <!-- 게임 종료 버튼 (호스트 전용, 결과 후 표시) -->
@@ -1026,18 +1038,18 @@
             </div>
 
             <!-- 다시보기 버튼 (화면 숨김 상태에서 룰렛이 진행된 경우 표시) -->
-            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: var(--dice-gradient); border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
                 <div style="color: white; margin-bottom: 12px; font-size: 14px;">
                     🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다
                 </div>
-                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
+                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
                     🔄 다시보기
                 </button>
             </div>
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: #7c4dff; margin-bottom: 10px;">💬 채팅</div>
+                <div style="font-weight: bold; color: var(--roulette-accent); margin-bottom: 10px;">💬 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -1065,12 +1077,12 @@
 
     <!-- 비밀번호 입력 모달 -->
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
-            <h3 style="color: #7c4dff; margin-bottom: 15px;">🔒 비공개 방</h3>
-            <p style="margin-bottom: 15px; color: #666;">비밀번호를 입력하세요</p>
+        <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+            <h3 style="color: var(--roulette-accent); margin-bottom: 15px;">🔒 비공개 방</h3>
+            <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
             <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
             <div style="display: flex; gap: 10px;">
-                <button onclick="closePasswordModal()" style="background: #6c757d; flex: 1;">취소</button>
+                <button onclick="closePasswordModal()" style="background: var(--btn-neutral); flex: 1;">취소</button>
                 <button onclick="submitPassword()" style="flex: 1;">입장</button>
             </div>
         </div>
@@ -1180,23 +1192,23 @@
             let bgColor, borderColor, icon;
             switch(type) {
                 case 'error':
-                    bgColor = '#fee';
-                    borderColor = '#f66';
+                    bgColor = 'var(--red-50)';
+                    borderColor = 'var(--red-400)';
                     icon = '⚠️';
                     break;
                 case 'warning':
-                    bgColor = '#fff9e6';
-                    borderColor = '#ffa500';
+                    bgColor = 'var(--yellow-50)';
+                    borderColor = 'var(--yellow-600)';
                     icon = '⚠️';
                     break;
                 case 'success':
-                    bgColor = '#e8f5e9';
-                    borderColor = '#4caf50';
+                    bgColor = 'var(--green-50)';
+                    borderColor = 'var(--green-400)';
                     icon = '✅';
                     break;
                 default:
-                    bgColor = '#e3f2fd';
-                    borderColor = '#2196f3';
+                    bgColor = 'var(--purple-50)';
+                    borderColor = 'var(--dice-accent)';
                     icon = 'ℹ️';
             }
             
@@ -1220,7 +1232,7 @@
             // 얼럿 컨텐츠 생성
             const alertContent = document.createElement('div');
             alertContent.style.cssText = `
-                background: white;
+                background: var(--bg-white);
                 border-radius: 16px;
                 padding: 25px 30px;
                 max-width: 500px;
@@ -1235,7 +1247,7 @@
             messageDiv.style.cssText = `
                 font-size: 16px;
                 line-height: 1.6;
-                color: #333;
+                color: var(--text-primary);
                 white-space: pre-wrap;
                 word-break: break-word;
                 text-align: center;
@@ -1316,23 +1328,23 @@
                 let bgColor, borderColor, icon;
                 switch(type) {
                     case 'error':
-                        bgColor = '#fee';
-                        borderColor = '#f66';
+                        bgColor = 'var(--red-50)';
+                        borderColor = 'var(--red-400)';
                         icon = '⚠️';
                         break;
                     case 'warning':
-                        bgColor = '#fff9e6';
-                        borderColor = '#ffa500';
+                        bgColor = 'var(--yellow-50)';
+                        borderColor = 'var(--yellow-600)';
                         icon = '⚠️';
                         break;
                     case 'success':
-                        bgColor = '#e8f5e9';
-                        borderColor = '#4caf50';
+                        bgColor = 'var(--green-50)';
+                        borderColor = 'var(--green-400)';
                         icon = '✅';
                         break;
                     default:
-                        bgColor = '#e3f2fd';
-                        borderColor = '#2196f3';
+                        bgColor = 'var(--purple-50)';
+                        borderColor = 'var(--dice-accent)';
                         icon = 'ℹ️';
                 }
                 
@@ -1356,7 +1368,7 @@
                 // Confirm 컨텐츠 생성
                 const confirmContent = document.createElement('div');
                 confirmContent.style.cssText = `
-                    background: white;
+                    background: var(--bg-white);
                     border-radius: 16px;
                     padding: 25px 30px;
                     max-width: 500px;
@@ -1371,7 +1383,7 @@
                 messageDiv.style.cssText = `
                     font-size: 16px;
                     line-height: 1.6;
-                    color: #333;
+                    color: var(--text-primary);
                     white-space: pre-wrap;
                     word-break: break-word;
                     text-align: center;
@@ -1392,9 +1404,9 @@
                 cancelButton.textContent = '취소';
                 cancelButton.style.cssText = `
                     padding: 10px 25px;
-                    background: #f5f5f5;
-                    color: #666;
-                    border: 1px solid #ddd;
+                    background: var(--gray-100);
+                    color: var(--text-secondary);
+                    border: 1px solid var(--gray-300);
                     border-radius: 8px;
                     font-size: 16px;
                     font-weight: 600;
@@ -1515,13 +1527,13 @@
                 // 다이얼로그 컨텐츠 생성
                 const dialogContent = document.createElement('div');
                 dialogContent.style.cssText = `
-                    background: white;
+                    background: var(--bg-white);
                     border-radius: 16px;
                     padding: 25px 30px;
                     max-width: 500px;
                     width: 90vw;
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-                    border: 2px solid #ffa500;
+                    border: 2px solid var(--yellow-600);
                     animation: slideDown 0.3s ease-out;
                 `;
                 
@@ -1530,7 +1542,7 @@
                 messageDiv.style.cssText = `
                     font-size: 18px;
                     line-height: 1.6;
-                    color: #333;
+                    color: var(--text-primary);
                     white-space: pre-wrap;
                     word-break: break-word;
                     text-align: center;
@@ -1552,7 +1564,7 @@
                 hostButton.textContent = '호스트임명';
                 hostButton.style.cssText = `
                     padding: 12px 25px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: var(--dice-gradient);
                     color: white;
                     border: none;
                     border-radius: 8px;
@@ -1583,7 +1595,7 @@
                 kickButton.textContent = '제외시키기';
                 kickButton.style.cssText = `
                     padding: 12px 25px;
-                    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                    background: linear-gradient(135deg, var(--red-400) 0%, var(--red-400) 100%);
                     color: white;
                     border: none;
                     border-radius: 8px;
@@ -1614,9 +1626,9 @@
                 cancelButton.textContent = '취소';
                 cancelButton.style.cssText = `
                     padding: 12px 25px;
-                    background: #f5f5f5;
-                    color: #666;
-                    border: 1px solid #ddd;
+                    background: var(--gray-100);
+                    color: var(--text-secondary);
+                    border: 1px solid var(--gray-300);
                     border-radius: 8px;
                     font-size: 16px;
                     font-weight: 600;
@@ -1749,10 +1761,10 @@
             if (chatModuleInitialized) return;
             chatModuleInitialized = true;
             ChatModule.init(socket, currentUser, {
-                themeColor: '#7c4dff',
-                myColor: '#2e7d32',
-                myBgColor: '#e8f5e9',
-                myBorderColor: '#4caf50',
+                themeColor: 'var(--roulette-accent)',
+                myColor: 'var(--green-800)',
+                myBgColor: 'var(--green-50)',
+                myBorderColor: 'var(--green-400)',
                 messageFilter: (data) => {
                     // 룰렛 당첨 메시지 스포일러 방지
                     if (data.isRouletteWinner) {
@@ -2081,7 +2093,7 @@
             } else {
                 // 준비한 사람이 없으면 빈 상태 표시
                 const wheel = document.getElementById('rouletteWheel');
-                wheel.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #999; font-size: 14px; text-align: center;">준비한 사람이<br>없습니다</div>';
+                wheel.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted); font-size: 14px; text-align: center;">준비한 사람이<br>없습니다</div>';
             }
         }
 
@@ -2131,7 +2143,7 @@
                 gradientParts.push(`${participantColors[idx]} ${startAngle}deg ${endAngle}deg`);
             });
             wheel.style.background = `conic-gradient(from 0deg, ${gradientParts.join(', ')})`;
-            wheel.style.border = '4px solid #222';
+            wheel.style.border = '4px solid var(--gray-900)';
             wheel.dataset.segmentCount = String(participants.length);
             
             // 구분선과 이름 추가
@@ -2144,7 +2156,7 @@
                     top: 50%;
                     width: 3px;
                     height: 50%;
-                    background: #222;
+                    background: var(--gray-900);
                     transform-origin: 0 0;
                     transform: rotate(${index * segmentAngle}deg) translateY(-100%);
                     box-shadow: 0 0 3px rgba(0,0,0,0.5);
@@ -2167,7 +2179,7 @@
                     transform: translate(-50%, -50%);
                     font-size: 16px;
                     font-weight: 700;
-                    color: #333;
+                    color: var(--text-primary);
                     text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
                     white-space: nowrap;
                     text-align: center;
@@ -2479,7 +2491,7 @@
             readyUsersList.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 readyUsersList.style.backgroundColor = 'rgba(124, 77, 255, 0.1)';
-                readyUsersList.style.border = '2px dashed #7c4dff';
+                readyUsersList.style.border = '2px dashed var(--roulette-accent)';
             });
             
             readyUsersList.addEventListener('dragleave', (e) => {
@@ -2531,7 +2543,7 @@
             if (!historyList) return;
             
             if (rouletteHistory.length === 0) {
-                historyList.innerHTML = '<div style="color: #999; text-align: center;">아직 기록이 없습니다</div>';
+                historyList.innerHTML = '<div style="color: var(--text-muted); text-align: center;">아직 기록이 없습니다</div>';
                 return;
             }
             
@@ -3130,7 +3142,7 @@
                     const winnerEnd = (data.winnerIndex + 1) * segmentAngle;
                     const isInWinnerSegment = arrowPointsTo >= winnerStart && arrowPointsTo < winnerEnd;
                     
-                    console.log('%c========== 🎰 룰렛 CSS 검증 ==========', 'font-size: 14px; font-weight: bold; color: #7c4dff;');
+                    console.log('%c========== 🎰 룰렛 CSS 검증 ==========', 'font-size: 14px; font-weight: bold; color: var(--roulette-accent);');
                     console.log('참가자:', data.participants);
                     console.log('당첨자:', data.winner, '(index:', data.winnerIndex + ')');
                     console.log('세그먼트 각도:', segmentAngle.toFixed(2) + '°');
@@ -3154,7 +3166,7 @@
                     } else {
                         console.log('%c❌ 테스트 실패: 화살표가 다른 세그먼트를 가리킴!', 'color: red; font-weight: bold; font-size: 16px;');
                     }
-                    console.log('%c==========================================', 'font-size: 14px; font-weight: bold; color: #7c4dff;');
+                    console.log('%c==========================================', 'font-size: 14px; font-weight: bold; color: var(--roulette-accent);');
                     // ========== 검증 로그 끝 ==========
                     
                     // 호스트만 결과 이벤트 전송 (애니메이션이 실제로 완료된 경우에만)
