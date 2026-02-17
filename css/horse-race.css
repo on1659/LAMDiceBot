@@ -1108,7 +1108,7 @@ body.game-active .history-section {
 
 .start-button {
     background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);
-    color: var(--text-primary);
+    color: white;
     font-size: 20px;
     padding: 15px 30px;
     font-weight: 600;

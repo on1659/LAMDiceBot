@@ -234,6 +234,16 @@
 
   --crane-gradient: linear-gradient(135deg, var(--crane-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
   --crane-accent: var(--crane-500);
+
+  /* ============================================
+     버튼 텍스트 색상
+  ============================================ */
+  --btn-ready-text: white;
+
+  /* ============================================
+     배경 Surface (컨트롤 바, 액션 버튼 등)
+  ============================================ */
+  --bg-surface: var(--panel-primary);
 }
 
 /* ============================================
@@ -270,4 +280,180 @@
   --dice-500: #9C7FFF;
   --roulette-500: #9575cd;
   --crane-500: #ba68c8;
+}
+
+/* ============================================
+   Room Control Bar Components
+   게임 방 상단 컨트롤 바 공통 스타일
+============================================ */
+
+.room-control-bar {
+  background: var(--bg-surface);
+  border-radius: 12px;
+  padding: 15px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.control-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.control-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Room Title Editing */
+.room-title {
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.room-title:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.room-title .edit-icon {
+  margin-left: 5px;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.room-title:hover .edit-icon {
+  opacity: 1;
+}
+
+/* Host Badge */
+.host-badge {
+  background: var(--host-badge-bg);
+  color: var(--host-badge-text);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+/* Username Display */
+.username-display {
+  background: var(--bg-white);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border: 1px solid var(--gray-200);
+}
+
+/* Control Bar Buttons */
+.control-bar-btn {
+  padding: 8px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.control-bar-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.control-bar-btn:active {
+  transform: translateY(0);
+}
+
+#readyBtn {
+  background: var(--btn-ready);
+  color: var(--btn-ready-text);
+}
+
+#readyBtn.ready {
+  background: var(--green-600);
+  opacity: 0.6;
+  cursor: default;
+}
+
+#readyBtn.ready:hover {
+  transform: none;
+}
+
+#logoutBtn {
+  background: var(--btn-neutral);
+  color: var(--text-primary);
+}
+
+#leaveBtn {
+  background: var(--btn-danger);
+  color: white;
+}
+
+/* User Actions (Delegation, Kick) */
+.user-actions {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.action-btn {
+  padding: 4px 8px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--bg-surface);
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: var(--gray-200);
+  transform: scale(1.1);
+}
+
+.action-btn.kick {
+  background: var(--red-100);
+}
+
+.action-btn.kick:hover {
+  background: var(--red-200);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .room-control-bar {
+    padding: 12px 15px;
+    gap: 10px;
+  }
+
+  .control-bar-left,
+  .control-bar-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .control-bar-btn {
+    flex: 1;
+    min-width: 80px;
+  }
 }

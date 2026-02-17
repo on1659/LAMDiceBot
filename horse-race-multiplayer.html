@@ -226,7 +226,7 @@
                 </div>
                 <!-- 미니맵 -->
                 <div id="raceMinimap" style="display: none; position: absolute; bottom: 8px; right: 8px; width: 180px; background: rgba(0,0,0,0.75); border-radius: 8px; padding: 8px 10px; z-index: 100; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.15);">
-                    <div style="font-size: 9px; color: rgba(255,255,255,0.5); margin-bottom: 4px; text-align: center;">TRACK MAP</div>
+                    <div style="font-size: 9px; color: rgba(255,255,255,0.8); margin-bottom: 4px; text-align: center;">TRACK MAP</div>
                     <div id="minimapTrack" style="position: relative; width: 100%; height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-bottom: 2px;">
                         <!-- 거리 마커 + 말 위치 동적 생성 -->
                     </div>
@@ -245,7 +245,7 @@
             <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
                 <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="mainReplayButton" onclick="playLastReplay()" style="flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
+                    <button id="mainReplayButton" onclick="playLastReplay()" style="flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: #333333; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
                     <!-- GIF 기능 숨김 (CORS 이슈) -->
                     <button id="gifSaveButton" onclick="showGifOptionsModal()" style="display: none; flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--green-400) 0%, var(--green-600) 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">📹 GIF 저장</button>
                 </div>

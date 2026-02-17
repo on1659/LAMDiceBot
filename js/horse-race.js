@@ -755,11 +755,11 @@ function renderHorseSelection() {
         }
         let content = vehicleDisplay;
         const isPopular = popularVehicles.includes(vehicleId);
-        content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${isPopular ? ' <span style="font-size: 10px; background: var(--red-400); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : ''}</div>`;
+        content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${isPopular ? ' <span style="font-size: 10px; background: var(--red-600); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : ''}</div>`;
 
         // 추천 뱃지 표시 (1등 비율이 가장 낮은 탈것 = 승률 평준화 목적)
         if (vehicleId === recommendedVehicleId) {
-            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: var(--red-500); color: var(--bg-white); padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
+            content += `<div style="margin-top: 3px;"><span style="font-size: 10px; background: var(--red-700); color: var(--bg-white); padding: 1px 6px; border-radius: 8px;">추천!</span></div>`;
         }
 
         // 내 선택만 표시 (타인 선택은 숨김 - 카운트다운 후 공개)
@@ -1121,7 +1121,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         marker.className = 'distance-marker';
         marker.style.cssText = `position: absolute; left: ${markerPx}px; top: 0; height: 100%; width: 1px; background: rgba(255,255,255,0.08); z-index: 1; pointer-events: none;`;
         const label = document.createElement('span');
-        label.style.cssText = `position: absolute; top: -14px; left: -12px; font-size: 9px; color: rgba(255,255,255,0.35); white-space: nowrap;`;
+        label.style.cssText = `position: absolute; top: -14px; left: -12px; font-size: 9px; color: rgba(255,255,255,0.75); white-space: nowrap;`;
         label.textContent = `${m}m`;
         marker.appendChild(label);
         track.appendChild(marker);
@@ -1462,7 +1462,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const isMajor = m % 100 === 0;
             const remaining = trackMeters - m;
             ticksHtml += `<div style="position: absolute; left: ${pct}%; top: 0; width: 1px; height: 6px; background: rgba(255,255,255,${isMajor ? '0.4' : '0.2'}); transform: translateX(-50%);"></div>`;
-            markersHtml += `<div style="position: absolute; left: ${pct}%; transform: translateX(-50%); font-size: 7px; color: rgba(255,255,255,${isMajor ? '0.6' : '0.35'}); white-space: nowrap;">${remaining}m</div>`;
+            markersHtml += `<div style="position: absolute; left: ${pct}%; transform: translateX(-50%); font-size: 7px; color: rgba(255,255,255,${isMajor ? '0.75' : '0.6'}); white-space: nowrap;">${remaining}m</div>`;
         });
         // 결승선 마커
         ticksHtml += `<div style="position: absolute; right: 0; top: 0; width: 2px; height: 6px; background: var(--green-400);"></div>`;
