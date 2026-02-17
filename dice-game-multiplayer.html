@@ -478,57 +478,6 @@
             width: auto;
             margin: 0;
         }
-        .volume-control {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-        .volume-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 2px 4px;
-            border-radius: 4px;
-            transition: background 0.2s;
-            width: auto;
-        }
-        .volume-btn:hover {
-            background: rgba(0,0,0,0.1);
-        }
-        .volume-slider {
-            width: 60px;
-            height: 4px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: var(--border-light);
-            border-radius: 2px;
-            outline: none;
-            cursor: pointer;
-        }
-        .volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 12px;
-            height: 12px;
-            background: var(--dice-500);
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        .volume-slider::-moz-range-thumb {
-            width: 12px;
-            height: 12px;
-            background: var(--dice-500);
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-        }
-        .volume-slider.muted {
-            opacity: 0.5;
-        }
-
         .game-status {
             text-align: center;
             padding: 15px;
@@ -1578,25 +1527,18 @@
 
         <!-- 게임 섹션 -->
         <div class="game-section" id="gameSection">
-            <div class="user-info">
-                <span id="headerServerNameDisplay" style="font-size: 13px; color: var(--dice-500); font-weight: 600; white-space: nowrap; flex-shrink: 0;" title="현재 서버">🖥️ 서버</span>
-                <div>
-                    <span class="user-name" id="currentUser"></span>
-                    <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
-                    <span id="roomStatusIcons" style="display: flex; align-items: center; gap: 5px;"></span>
-                    <span class="connection-sound-row">
-                        <span class="connection-status connected" id="connectionStatus">● 연결됨</span>
-                        <div class="volume-control" id="volumeControl">
-                            <button class="volume-btn" id="volumeBtn" title="음소거 토글">🔇</button>
-                            <input type="range" class="volume-slider muted" id="volumeSlider" min="0" max="100" value="50">
-                        </div>
-                    </span>
-                    <button onclick="logout()" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; background: var(--btn-neutral); color: var(--text-primary); white-space: nowrap;">🔄 로그아웃</button>
-                    <span id="roomPasswordDisplay" style="font-size: 12px; color: var(--dice-500); font-weight: 500; display: none;"></span>
-                </div>
-            </div>
+            <!-- 방 정보 헤더 (공유 컨트롤 바) -->
+            <div id="controlBarMount"></div>
+            <script src="/control-bar-shared.js"></script>
+            <script>
+                ControlBar.init({
+                    gameKey: 'dice',
+                    soundKey: 'diceSoundEnabled',
+                    volumeKey: 'diceSoundVolume',
+                    onLeave: function() { logout(); },
+                    onEditRoomName: function() { editRoomName(); }
+                });
+            </script>
             
             <!-- 재접속 알림 -->
             <div class="reconnect-notice" id="reconnectNotice" style="display: none;">
@@ -1604,21 +1546,16 @@
                 <p id="reconnectMessage"></p>
             </div>
 
-            <!-- 1. 방 제목 + 서버명 -->
-            <div class="room-info-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div id="roomNameDisplay" style="font-size: 18px; font-weight: 600; color: var(--dice-500); margin-bottom: 6px;">
-                    <span id="roomNameText">방 제목</span>
+            <!-- 방 제목 편집 (숨김) -->
+            <div id="roomNameEditSection" style="display: none; background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <input type="text" id="roomNameInput" placeholder="방 제목 입력" maxlength="30" />
                 </div>
-                <div id="currentServerNameDisplay" style="font-size: 14px; color: var(--text-secondary); font-weight: 500;">🖥️ 서버</div>
-                <div id="roomNameEditSection" style="display: none;">
-                    <div class="input-group" style="margin-bottom: 10px;">
-                        <input type="text" id="roomNameInput" placeholder="방 제목 입력" maxlength="30" />
-                    </div>
-                    <button onclick="saveRoomName()" style="width: auto; padding: 8px 16px; margin-right: 10px;">저장</button>
-                    <button onclick="cancelRoomNameEdit()" style="width: auto; padding: 8px 16px; background: var(--btn-neutral);">취소</button>
-                </div>
-                <button id="editRoomNameButton" onclick="editRoomName()" style="width: auto; padding: 8px 16px; font-size: 14px; display: none;">방 제목 변경</button>
+                <button onclick="saveRoomName()" style="width: auto; padding: 8px 16px; margin-right: 10px;">저장</button>
+                <button onclick="cancelRoomNameEdit()" style="width: auto; padding: 8px 16px; background: var(--btn-neutral);">취소</button>
             </div>
+            <span id="currentServerNameDisplay" style="display: none;"></span>
+            <span id="headerServerNameDisplay" style="display: none;"></span>
 
             <!-- 2. 게임 룰 섹션 -->
             <div class="game-rules-section" id="gameRulesSection" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
@@ -1830,7 +1767,6 @@
                 </div>
             </div>
 
-            <button class="logout-button" onclick="logout()">로그아웃</button>
         </div>
     </div>
 
@@ -2461,67 +2397,9 @@
             return hash.toString();
         }
         
-        // 주사위 사운드 볼륨 관리 (경마와 동일한 패턴)
-        const DICE_SOUND_KEY = 'diceSoundEnabled';
-        const DICE_VOLUME_KEY = 'diceSoundVolume';
-        var diceMasterVolume = 0; // 0 = 음소거 (기본)
-        var diceStoredVolume = 0.5; // 음소거 해제 시 복원할 볼륨 (기본 50%)
-
-        function getDiceSoundEnabled() { return diceMasterVolume > 0; }
-        function getDiceMasterVolume() { return diceMasterVolume; }
-
-        function initDiceVolumeFromStorage() {
-            const storedMuted = localStorage.getItem(DICE_SOUND_KEY);
-            const storedVolume = localStorage.getItem(DICE_VOLUME_KEY);
-            diceStoredVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
-            const isEnabled = storedMuted === 'true';
-            diceMasterVolume = isEnabled ? diceStoredVolume : 0;
-        }
-
-        function updateDiceVolumeUI() {
-            const isMuted = diceMasterVolume === 0;
-            const volumePercent = Math.round(diceStoredVolume * 100);
-            const btn = document.getElementById('volumeBtn');
-            const slider = document.getElementById('volumeSlider');
-            if (btn) btn.textContent = isMuted ? '🔇' : (diceMasterVolume < 0.5 ? '🔈' : '🔊');
-            if (slider) {
-                slider.value = volumePercent;
-                slider.classList.toggle('muted', isMuted);
-            }
-        }
-
-        function toggleDiceMute() {
-            if (diceMasterVolume > 0) {
-                diceMasterVolume = 0;
-                localStorage.setItem(DICE_SOUND_KEY, 'false');
-            } else {
-                diceMasterVolume = diceStoredVolume;
-                localStorage.setItem(DICE_SOUND_KEY, 'true');
-            }
-            updateDiceVolumeUI();
-            if (window.SoundManager) SoundManager.applyMasterVolume();
-        }
-
-        function setDiceMasterVolume(volumePercent) {
-            const vol = volumePercent / 100;
-            diceStoredVolume = vol;
-            diceMasterVolume = vol;
-            localStorage.setItem(DICE_VOLUME_KEY, vol.toString());
-            localStorage.setItem(DICE_SOUND_KEY, vol > 0 ? 'true' : 'false');
-            updateDiceVolumeUI();
-            if (window.SoundManager) SoundManager.applyMasterVolume();
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initDiceVolumeFromStorage();
-            updateDiceVolumeUI();
-            const btn = document.getElementById('volumeBtn');
-            const slider = document.getElementById('volumeSlider');
-            if (btn) btn.addEventListener('click', toggleDiceMute);
-            if (slider) slider.addEventListener('input', () => setDiceMasterVolume(parseInt(slider.value)));
-            // SoundManager에 마스터 볼륨 getter 등록
-            if (window.SoundManager) SoundManager.setMasterVolumeGetter(getDiceMasterVolume);
-        });
+        // 주사위 사운드 볼륨 관리 — ControlBar 위임
+        function getDiceSoundEnabled() { return ControlBar.getSoundEnabled(); }
+        function getDiceMasterVolume() { return ControlBar.getMasterVolume(); }
         
         // 채팅 입력창용 자동완성 제안 찾기
         function findChatAutocompleteSuggestions(text) {
@@ -2555,9 +2433,6 @@
         
         // 연결 상태 모니터링 및 초기화
         socket.on('connect', () => {
-            document.getElementById('connectionStatus').textContent = '● 연결됨';
-            document.getElementById('connectionStatus').className = 'connection-status connected';
-            
             const createRoomConnectionStatus = document.getElementById('createRoomConnectionStatus');
             if (createRoomConnectionStatus) {
                 createRoomConnectionStatus.textContent = '● 연결됨';
@@ -2573,13 +2448,10 @@
         });
 
         socket.on('disconnect', () => {
-            document.getElementById('connectionStatus').textContent = '● 연결 끊김';
-            document.getElementById('connectionStatus').className = 'connection-status disconnected';
-            
-            const createRoomConnectionStatus = document.getElementById('createRoomConnectionStatus');
-            if (createRoomConnectionStatus) {
-                createRoomConnectionStatus.textContent = '● 연결 끊김';
-                createRoomConnectionStatus.className = 'connection-status disconnected';
+            const createRoomConnectionStatus2 = document.getElementById('createRoomConnectionStatus');
+            if (createRoomConnectionStatus2) {
+                createRoomConnectionStatus2.textContent = '● 연결 끊김';
+                createRoomConnectionStatus2.className = 'connection-status disconnected';
             }
         });
 
@@ -3941,11 +3813,13 @@
             
             // 비공개 방 비밀번호 표시
             const passwordDisplay = document.getElementById('roomPasswordDisplay');
-            if (data.isPrivate && data.password) {
-                passwordDisplay.textContent = `비밀번호: ${data.password}`;
-                passwordDisplay.style.display = 'inline-block';
-            } else {
-                passwordDisplay.style.display = 'none';
+            if (passwordDisplay) {
+                if (data.isPrivate && data.password) {
+                    passwordDisplay.textContent = `비밀번호: ${data.password}`;
+                    passwordDisplay.style.display = 'inline-block';
+                } else {
+                    passwordDisplay.style.display = 'none';
+                }
             }
             
             // 방 상태 아이콘 표시 (IP 차단만)
@@ -3981,7 +3855,7 @@
                 document.getElementById('editRoomNameButton').style.display = 'none';
             }
             
-            document.getElementById('currentUser').textContent = currentUser;
+            document.getElementById('usernameDisplay').textContent = currentUser;
 
             // 내 주문 불러오기
             document.getElementById('myOrderInput').value = data.myOrder || '';
@@ -4435,15 +4309,13 @@
         function editRoomName() {
             const currentName = document.getElementById('roomNameText').textContent;
             document.getElementById('roomNameInput').value = currentName;
-            document.getElementById('roomNameDisplay').style.display = 'none';
             document.getElementById('roomNameEditSection').style.display = 'block';
-            document.getElementById('editRoomNameButton').style.display = 'none';
         }
-        
+
         // 방 제목 저장
         function saveRoomName() {
             const newName = document.getElementById('roomNameInput').value.trim();
-            
+
             if (newName === '') {
                 showCustomAlert('방 제목을 입력해주세요!', 'warning');
                 return;
@@ -4451,14 +4323,10 @@
 
             socket.emit('updateRoomName', { roomName: newName });
         }
-        
+
         // 방 제목 편집 취소
         function cancelRoomNameEdit() {
-            document.getElementById('roomNameDisplay').style.display = 'block';
             document.getElementById('roomNameEditSection').style.display = 'none';
-            if (isHost) {
-                document.getElementById('editRoomNameButton').style.display = 'inline-block';
-            }
         }
 
         // 로그인 성공 (하위 호환성 유지, 사용 안 함)
@@ -4471,7 +4339,7 @@
 
             document.getElementById('loginSection').classList.remove('active');
             document.getElementById('gameSection').classList.add('active');
-            document.getElementById('currentUser').textContent = currentUser;
+            document.getElementById('usernameDisplay').textContent = currentUser;
 
             // 내 주문 불러오기
             document.getElementById('myOrderInput').value = data.myOrder || '';

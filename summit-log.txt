@@ -1,4 +1,46 @@
 ========================================
+📋 Summit Log - 2026-02-18 (컨트롤바 통일 & 볼륨 슬라이더 복원)
+========================================
+
+## 변경 파일
+- control-bar-shared.js (신규): 공유 컨트롤바 렌더링 + 볼륨 컨트롤 모듈
+- css/theme.css: 컨트롤바 2줄 레이아웃 + 볼륨 슬라이더 CSS
+- dice-game-multiplayer.html: controlBarMount 적용, 볼륨 위임, 인라인 CSS 제거
+- roulette-game-multiplayer.html: controlBarMount 적용, 볼륨 위임, 인라인 CSS 제거
+- crane-game-multiplayer.html: controlBarMount 적용, 볼륨 위임, 인라인 CSS 제거
+- horse-race-multiplayer.html: controlBarMount 적용 (볼륨 신규 추가)
+
+## 상세 변경 내역
+
+### control-bar-shared.js (신규 파일)
+- IIFE 패턴으로 ControlBar 전역 객체 노출
+- ControlBar.init({ gameKey, soundKey, volumeKey, onLeave, extraBadges, onEditRoomName })
+- 컨트롤바 HTML 동적 생성 (2줄 구조: 방제목 / 메타+액션)
+- 볼륨 관리: initVolumeFromStorage, toggleMute, setMasterVolume, updateVolumeUI
+- soundKey/volumeKey 옵션으로 기존 localStorage 키 호환성 유지
+- SoundManager.setMasterVolumeGetter() 자동 연결
+
+### css/theme.css 레이아웃 변경
+- .room-control-bar: flex-direction: column (1줄 → 2줄)
+- .control-bar-title: 방제목 전용 (18px, bold, 가운데)
+- .control-bar-meta: 뱃지 + 볼륨 + 나가기 (flex, wrap)
+- .volume-control, .volume-btn, .volume-slider: 볼륨 슬라이더 스타일
+- 기존 .control-bar-left, .control-bar-right 제거
+- 모바일 반응형 (@media 768px)
+
+### 4개 게임 HTML 통일
+- 하드코딩 컨트롤바 HTML → <div id="controlBarMount"></div> + ControlBar.init()
+- 각 게임별 볼륨 함수(get*SoundEnabled, get*MasterVolume) → ControlBar 위임
+- 인라인 .volume-control/.volume-btn/.volume-slider CSS 제거 (theme.css로 통합)
+- localStorage 키 호환: dice=diceSoundEnabled, roulette=rouletteSoundEnabled, crane=craneGameSoundEnabled
+
+### 게임별 특이사항
+- dice: onEditRoomName 콜백 포함, currentUser → usernameDisplay id 변경
+- roulette: turboBadge extraBadge 포함
+- horse: 볼륨 시스템 신규 추가 (기존에 없었음)
+- crane: 기존 43줄 볼륨 코드 → 2줄 위임으로 축소
+
+========================================
 📋 Summit Log - 2026-02-18 (경마 배팅 안 된 말 정지 처리)
 ========================================
 

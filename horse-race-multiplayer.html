@@ -62,35 +62,15 @@
     <div class="container">
         <!-- 게임 섹션 -->
         <section class="game-section" id="gameSection">
-            <!-- 방 정보 헤더 (통합 컨트롤 바) -->
-            <div class="room-control-bar">
-                <!-- Left: Room Identity -->
-                <div class="control-bar-left">
-                    <span class="room-title" id="roomTitle" style="cursor: pointer;">
-                        <span id="roomNameDisplay">경마 방</span>
-                        <span class="edit-icon" style="display: none;">✏️</span>
-                    </span>
-                    <span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>
-                    <span class="username-display" id="usernameDisplay" style="display: none;">플레이어</span>
-                </div>
-
-                <!-- Right: Actions -->
-                <div class="control-bar-right">
-                    <div class="volume-control" id="gameSectionVolumeControl">
-                        <button class="volume-btn" id="gameSectionVolumeBtn" title="음소거 토글">🔇</button>
-                        <input type="range" class="volume-slider muted" id="gameSectionVolumeSlider" min="0" max="100" value="50">
-                    </div>
-                    <button onclick="toggleReady()" id="readyBtn" class="control-bar-btn" style="display: none;">
-                        ✅ 준비
-                    </button>
-                    <button onclick="logout()" id="logoutBtn" class="control-bar-btn">
-                        🔄 로그아웃
-                    </button>
-                    <button onclick="leaveRoom()" id="leaveBtn" class="control-bar-btn">
-                        🚪 나가기
-                    </button>
-                </div>
-            </div>
+            <!-- 방 정보 헤더 (공유 컨트롤 바) -->
+            <div id="controlBarMount"></div>
+            <script src="/control-bar-shared.js"></script>
+            <script>
+                ControlBar.init({
+                    gameKey: 'horse',
+                    onLeave: function() { leaveRoom(); }
+                });
+            </script>
 
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">

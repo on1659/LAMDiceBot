@@ -154,57 +154,6 @@
             width: auto;
             margin: 0;
         }
-        .volume-control {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-        .volume-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 2px 4px;
-            border-radius: 4px;
-            transition: background 0.2s;
-            width: auto;
-        }
-        .volume-btn:hover {
-            background: rgba(0,0,0,0.1);
-        }
-        .volume-slider {
-            width: 60px;
-            height: 4px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: var(--gray-300);
-            border-radius: 2px;
-            outline: none;
-            cursor: pointer;
-        }
-        .volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 12px;
-            height: 12px;
-            background: var(--roulette-accent);
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        .volume-slider::-moz-range-thumb {
-            width: 12px;
-            height: 12px;
-            background: var(--roulette-accent);
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-        }
-        .volume-slider.muted {
-            opacity: 0.5;
-        }
-
         /* 룰렛 컨테이너 */
         .roulette-container {
             display: flex;
@@ -891,35 +840,20 @@
     <div class="container">
         <!-- 게임 섹션 -->
         <section class="game-section" id="gameSection">
-            <!-- 방 정보 헤더 (통합 컨트롤 바) -->
-            <div class="room-control-bar">
-                <!-- Left: Room Identity -->
-                <div class="control-bar-left">
-                    <span class="room-title" id="roomTitle" style="cursor: pointer;">
-                        <span id="roomNameDisplay">룰렛 방</span>
-                        <span class="edit-icon" style="display: none;">✏️</span>
-                    </span>
-                    <span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>
-                    <span id="turboBadge" class="turbo-badge" style="display: none; background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">🚀 터보</span>
-                    <span class="username-display" id="usernameDisplay" style="display: none;">플레이어</span>
-                </div>
-
-                <!-- Right: Actions -->
-                <div class="control-bar-right">
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; margin: 0;">
-                        <input type="checkbox" id="gameSectionSoundCheckbox"> 🔊 사운드
-                    </label>
-                    <button onclick="toggleReady()" id="readyBtn" class="control-bar-btn" style="display: none;">
-                        ✅ 준비
-                    </button>
-                    <button onclick="logout()" id="logoutBtn" class="control-bar-btn">
-                        🔄 로그아웃
-                    </button>
-                    <button onclick="leaveRoom()" id="leaveBtn" class="control-bar-btn">
-                        🚪 나가기
-                    </button>
-                </div>
-            </div>
+            <!-- 방 정보 헤더 (공유 컨트롤 바) -->
+            <div id="controlBarMount"></div>
+            <script src="/control-bar-shared.js"></script>
+            <script>
+                ControlBar.init({
+                    gameKey: 'roulette',
+                    soundKey: 'rouletteSoundEnabled',
+                    volumeKey: 'rouletteSoundVolume',
+                    onLeave: function() { leaveRoom(); },
+                    extraBadges: [
+                        { id: 'turboBadge', html: '🚀 터보', className: 'turbo-badge', style: 'background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;' }
+                    ]
+                });
+            </script>
 
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
@@ -2032,54 +1966,9 @@
         ];
         let pendingUserName = null;
 
-        // 룰렛 사운드 볼륨 관리 (경마와 동일한 패턴)
-        const ROULETTE_SOUND_KEY = 'rouletteSoundEnabled';
-        const ROULETTE_VOLUME_KEY = 'rouletteSoundVolume';
-        var rouletteMasterVolume = 0; // 0 = 음소거 (기본)
-        var rouletteStoredVolume = 0.5; // 음소거 해제 시 복원할 볼륨 (기본 50%)
-
-        function getRouletteSoundEnabled() { return rouletteMasterVolume > 0; }
-        function getRouletteMasterVolume() { return rouletteMasterVolume; }
-
-        function initRouletteVolumeFromStorage() {
-            const storedMuted = localStorage.getItem(ROULETTE_SOUND_KEY);
-            const storedVolume = localStorage.getItem(ROULETTE_VOLUME_KEY);
-            rouletteStoredVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
-            const isEnabled = storedMuted === 'true';
-            rouletteMasterVolume = isEnabled ? rouletteStoredVolume : 0;
-        }
-
-        function updateRouletteVolumeUI() {
-            const isMuted = rouletteMasterVolume === 0;
-            const volumePercent = Math.round(rouletteStoredVolume * 100);
-            const btn = document.getElementById('volumeBtn');
-            const slider = document.getElementById('volumeSlider');
-            if (btn) btn.textContent = isMuted ? '🔇' : (rouletteMasterVolume < 0.5 ? '🔈' : '🔊');
-            if (slider) {
-                slider.value = volumePercent;
-                slider.classList.toggle('muted', isMuted);
-            }
-        }
-
-        function toggleRouletteMute() {
-            if (rouletteMasterVolume > 0) {
-                rouletteMasterVolume = 0;
-                localStorage.setItem(ROULETTE_SOUND_KEY, 'false');
-            } else {
-                rouletteMasterVolume = rouletteStoredVolume;
-                localStorage.setItem(ROULETTE_SOUND_KEY, 'true');
-            }
-            updateRouletteVolumeUI();
-        }
-
-        function setRouletteMasterVolume(volumePercent) {
-            const vol = volumePercent / 100;
-            rouletteStoredVolume = vol;
-            rouletteMasterVolume = vol;
-            localStorage.setItem(ROULETTE_VOLUME_KEY, vol.toString());
-            localStorage.setItem(ROULETTE_SOUND_KEY, vol > 0 ? 'true' : 'false');
-            updateRouletteVolumeUI();
-        }
+        // 룰렛 사운드 볼륨 관리 — ControlBar 위임
+        function getRouletteSoundEnabled() { return ControlBar.getSoundEnabled(); }
+        function getRouletteMasterVolume() { return ControlBar.getMasterVolume(); }
 
         // 룰렛 사운드 (Web Audio API - 외부 파일 불필요, 마스터 볼륨 적용)
         const RouletteSound = {
@@ -3519,13 +3408,7 @@
         
         // 비공개 방 체크박스 이벤트
         document.addEventListener('DOMContentLoaded', () => {
-            // 볼륨 컨트롤 초기화
-            initRouletteVolumeFromStorage();
-            updateRouletteVolumeUI();
-            const volumeBtn = document.getElementById('volumeBtn');
-            const volumeSlider = document.getElementById('volumeSlider');
-            if (volumeBtn) volumeBtn.addEventListener('click', toggleRouletteMute);
-            if (volumeSlider) volumeSlider.addEventListener('input', () => setRouletteMasterVolume(parseInt(volumeSlider.value)));
+            // 볼륨 컨트롤은 ControlBar.init()에서 처리됨
             
             // 저장된 이름 불러오기
             const savedName = localStorage.getItem('rouletteUserName');
