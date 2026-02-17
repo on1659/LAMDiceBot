@@ -96,85 +96,17 @@ var gifCaptureInterval = null; // 프레임 캡처 인터벌
 var currentGifMode = 'highlight'; // 녹화 모드 (full/highlight)
 var currentGifQuality = 'medium'; // 녹화 품질
 
-// 경마 사운드 볼륨 관리
-var HORSE_SOUND_KEY = 'horseSoundEnabled';
-var HORSE_VOLUME_KEY = 'horseSoundVolume';
-var horseMasterVolume = 0; // 0 = 음소거 (기본)
-var horseStoredVolume = 0.5; // 음소거 해제 시 복원할 볼륨 (기본 50%)
-
+// 경마 사운드 볼륨 관리 (ControlBar 위임)
 function getHorseSoundEnabled() {
-    return horseMasterVolume > 0;
+    return ControlBar.getSoundEnabled();
 }
 
 function getHorseMasterVolume() {
-    return horseMasterVolume;
+    return ControlBar.getMasterVolume();
 }
 
-function initVolumeFromStorage() {
-    const storedMuted = localStorage.getItem(HORSE_SOUND_KEY);
-    const storedVolume = localStorage.getItem(HORSE_VOLUME_KEY);
-    horseStoredVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
-    const isEnabled = storedMuted === 'true';
-    horseMasterVolume = isEnabled ? horseStoredVolume : 0;
-}
-
-function updateVolumeUI() {
-    const isMuted = horseMasterVolume === 0;
-    const volumePercent = Math.round(horseStoredVolume * 100);
-
-    // 로비 볼륨 컨트롤
-    const btn1 = document.getElementById('volumeBtn');
-    const slider1 = document.getElementById('volumeSlider');
-    if (btn1) btn1.textContent = isMuted ? '🔇' : (horseMasterVolume < 0.5 ? '🔈' : '🔊');
-    if (slider1) {
-        slider1.value = volumePercent;
-        slider1.classList.toggle('muted', isMuted);
-    }
-
-    // 게임 섹션 볼륨 컨트롤
-    const btn2 = document.getElementById('gameSectionVolumeBtn');
-    const slider2 = document.getElementById('gameSectionVolumeSlider');
-    if (btn2) btn2.textContent = isMuted ? '🔇' : (horseMasterVolume < 0.5 ? '🔈' : '🔊');
-    if (slider2) {
-        slider2.value = volumePercent;
-        slider2.classList.toggle('muted', isMuted);
-    }
-}
-
-function toggleMute() {
-    if (horseMasterVolume > 0) {
-        horseMasterVolume = 0;
-        localStorage.setItem(HORSE_SOUND_KEY, 'false');
-    } else {
-        horseMasterVolume = horseStoredVolume;
-        localStorage.setItem(HORSE_SOUND_KEY, 'true');
-    }
-    updateVolumeUI();
-    applyMasterVolumeToAll();
-}
-
-function setMasterVolume(volumePercent) {
-    const vol = volumePercent / 100;
-    horseStoredVolume = vol;
-    horseMasterVolume = vol;
-    localStorage.setItem(HORSE_VOLUME_KEY, vol.toString());
-    localStorage.setItem(HORSE_SOUND_KEY, vol > 0 ? 'true' : 'false');
-    updateVolumeUI();
-    applyMasterVolumeToAll();
-}
-
-function applyMasterVolumeToAll() {
-    if (!window.SoundManager) return;
-    SoundManager.applyMasterVolume();
-}
-
-// 기존 호환성 유지
-function setHorseSoundCheckboxes() { updateVolumeUI(); }
-function onHorseSoundChange(checked) {
-    horseMasterVolume = checked ? horseStoredVolume : 0;
-    localStorage.setItem(HORSE_SOUND_KEY, checked ? 'true' : 'false');
-    updateVolumeUI();
-}
+// 기존 호환성 유지 (호출하는 곳이 있으므로 빈 함수로 유지)
+function setHorseSoundCheckboxes() {}
 
 // 디버그 로그 초기화
 addDebugLog('경마 게임 초기화', 'info');
@@ -3426,7 +3358,7 @@ function startGifRecordingReplay(mode, quality) {
     // 사운드 비활성화 (GIF 녹화 중)
     const originalSoundEnabled = getHorseSoundEnabled();
     if (originalSoundEnabled) {
-        toggleMute(); // 음소거
+        ControlBar.toggleMute(); // 음소거
     }
 
     // GifRecorder 녹화 시작
@@ -3451,7 +3383,7 @@ function startGifRecordingReplay(mode, quality) {
 
         // 사운드 복원
         if (originalSoundEnabled) {
-            toggleMute(); // 음소거 해제
+            ControlBar.toggleMute(); // 음소거 해제
         }
     });
 }
@@ -4888,10 +4820,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // 볼륨 컨트롤 초기화 (기본 음소거, 볼륨 50%)
-    initVolumeFromStorage();
-    updateVolumeUI();
-
     // GifRecorder 초기화 (async 함수이므로 IIFE로 await)
     if (window.GifRecorder) {
         (async () => {
@@ -4913,11 +4841,6 @@ document.addEventListener('DOMContentLoaded', () => {
         })();
     }
 
-    // SoundManager에 마스터 볼륨 getter 등록
-    if (window.SoundManager) {
-        SoundManager.setMasterVolumeGetter(getHorseMasterVolume);
-    }
-
     // 탭 포커스 잃으면 소리 음소거, 복귀하면 다시 재생
     document.addEventListener('visibilitychange', function() {
         if (window.SoundManager) {
@@ -4937,18 +4860,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 로비 볼륨 컨트롤 이벤트
-    const volBtn1 = document.getElementById('volumeBtn');
-    const volSlider1 = document.getElementById('volumeSlider');
-    if (volBtn1) volBtn1.addEventListener('click', toggleMute);
-    if (volSlider1) volSlider1.addEventListener('input', (e) => setMasterVolume(e.target.value));
-
-    // 게임 섹션 볼륨 컨트롤 이벤트
-    const volBtn2 = document.getElementById('gameSectionVolumeBtn');
-    const volSlider2 = document.getElementById('gameSectionVolumeSlider');
-    if (volBtn2) volBtn2.addEventListener('click', toggleMute);
-    if (volSlider2) volSlider2.addEventListener('input', (e) => setMasterVolume(e.target.value));
-    
     // 저장된 이름 불러오기
     const savedName = localStorage.getItem('horseRaceUserName');
     if (savedName) {

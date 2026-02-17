@@ -557,17 +557,6 @@
             margin-bottom: 5px;
         }
 
-        .host-badge {
-            display: none;
-            background: var(--host-badge-bg);
-            color: #1a1a1a;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-
         /* 호스트 컨트롤 */
         .host-controls {
             display: none;
@@ -1230,7 +1219,7 @@
                 input.type = 'text';
                 input.value = currentName;
                 input.maxLength = 30;
-                input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--crane-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white);';
+                input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--crane-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
 
                 displaySpan.replaceWith(input);
                 input.focus();

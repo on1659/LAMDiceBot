@@ -422,15 +422,6 @@
             font-size: 18px;
         }
 
-        .host-badge {
-            background: var(--host-badge-bg);
-            color: var(--text-primary);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
         .connection-status {
             display: inline-block;
             padding: 4px 12px;
@@ -1535,8 +1526,7 @@
                     gameKey: 'dice',
                     soundKey: 'diceSoundEnabled',
                     volumeKey: 'diceSoundVolume',
-                    onLeave: function() { logout(); },
-                    onEditRoomName: function() { editRoomName(); }
+                    onLeave: function() { logout(); }
                 });
             </script>
             
@@ -1546,14 +1536,6 @@
                 <p id="reconnectMessage"></p>
             </div>
 
-            <!-- 방 제목 편집 (숨김) -->
-            <div id="roomNameEditSection" style="display: none; background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div class="input-group" style="margin-bottom: 10px;">
-                    <input type="text" id="roomNameInput" placeholder="방 제목 입력" maxlength="30" />
-                </div>
-                <button onclick="saveRoomName()" style="width: auto; padding: 8px 16px; margin-right: 10px;">저장</button>
-                <button onclick="cancelRoomNameEdit()" style="width: auto; padding: 8px 16px; background: var(--btn-neutral);">취소</button>
-            </div>
             <span id="currentServerNameDisplay" style="display: none;"></span>
             <span id="headerServerNameDisplay" style="display: none;"></span>
 
@@ -3848,13 +3830,6 @@
             const headerServerEl = document.getElementById('headerServerNameDisplay');
             if (headerServerEl) { headerServerEl.textContent = serverLabel; headerServerEl.style.display = 'inline-block'; headerServerEl.style.visibility = 'visible'; }
             
-            // 호스트면 방 제목 변경 버튼 표시
-            if (isHost) {
-                document.getElementById('editRoomNameButton').style.display = 'inline-block';
-            } else {
-                document.getElementById('editRoomNameButton').style.display = 'none';
-            }
-            
             document.getElementById('usernameDisplay').textContent = currentUser;
 
             // 내 주문 불러오기
@@ -4211,12 +4186,6 @@
                     hostControls.style.display = 'grid';
                 }
                 
-                // 방 제목 변경 버튼 표시
-                const editRoomNameButton = document.getElementById('editRoomNameButton');
-                if (editRoomNameButton) {
-                    editRoomNameButton.style.display = 'inline-block';
-                }
-                
                 // 드래그 안내 멘트 표시 (게임 진행 중이 아닐 때)
                 if (dragHint) {
                     if (!isGameActive) {
@@ -4262,12 +4231,6 @@
                     hostControls.style.display = 'none';
                 }
                 
-                // 방 제목 변경 버튼 숨김
-                const editRoomNameButton = document.getElementById('editRoomNameButton');
-                if (editRoomNameButton) {
-                    editRoomNameButton.style.display = 'none';
-                }
-                
                 // 드래그 안내 멘트 숨김
                 if (dragHint) {
                     dragHint.style.display = 'none';
@@ -4301,33 +4264,47 @@
         
         // 방 제목 업데이트
         socket.on('roomNameUpdated', (roomName) => {
-            document.getElementById('roomNameText').textContent = roomName;
-            cancelRoomNameEdit();
+            const roomNameText = document.getElementById('roomNameText');
+            if (roomNameText) roomNameText.textContent = roomName;
         });
-        
-        // 방 제목 편집
-        function editRoomName() {
-            const currentName = document.getElementById('roomNameText').textContent;
-            document.getElementById('roomNameInput').value = currentName;
-            document.getElementById('roomNameEditSection').style.display = 'block';
-        }
 
-        // 방 제목 저장
-        function saveRoomName() {
-            const newName = document.getElementById('roomNameInput').value.trim();
-
-            if (newName === '') {
-                showCustomAlert('방 제목을 입력해주세요!', 'warning');
-                return;
-            }
-
-            socket.emit('updateRoomName', { roomName: newName });
-        }
-
-        // 방 제목 편집 취소
-        function cancelRoomNameEdit() {
-            document.getElementById('roomNameEditSection').style.display = 'none';
-        }
+        // 방 제목 클릭 편집 (호스트만)
+        let isEditingRoomName = false;
+        document.addEventListener('DOMContentLoaded', function() {
+            const roomTitleElem = document.getElementById('roomTitle');
+            if (!roomTitleElem) return;
+            roomTitleElem.addEventListener('click', function() {
+                if (!isHost || isEditingRoomName) return;
+                isEditingRoomName = true;
+                const displaySpan = document.getElementById('roomNameDisplay');
+                const roomNameText = document.getElementById('roomNameText');
+                const currentName = roomNameText ? roomNameText.textContent : '';
+                const editIcon = this.querySelector('.edit-icon');
+                if (editIcon) editIcon.style.display = 'none';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentName;
+                input.maxLength = 30;
+                input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--dice-500); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
+                displaySpan.replaceWith(input);
+                input.focus();
+                input.select();
+                function finishEdit() {
+                    const newName = input.value.trim();
+                    const newDisplay = document.createElement('span');
+                    newDisplay.id = 'roomNameDisplay';
+                    newDisplay.innerHTML = '<span id="roomNameText">' + (newName || currentName) + '</span>';
+                    input.replaceWith(newDisplay);
+                    if (editIcon) editIcon.style.display = '';
+                    isEditingRoomName = false;
+                    if (newName && newName !== currentName && socket) {
+                        socket.emit('updateRoomName', { roomName: newName });
+                    }
+                }
+                input.addEventListener('blur', finishEdit);
+                input.addEventListener('keypress', (e) => { if (e.key === 'Enter') finishEdit(); });
+            });
+        });
 
         // 로그인 성공 (하위 호환성 유지, 사용 안 함)
         socket.on('loginSuccess', (data) => {

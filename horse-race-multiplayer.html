@@ -68,6 +68,8 @@
             <script>
                 ControlBar.init({
                     gameKey: 'horse',
+                    soundKey: 'horseSoundEnabled',
+                    volumeKey: 'horseSoundVolume',
                     onLeave: function() { leaveRoom(); }
                 });
             </script>
@@ -92,7 +94,10 @@
 
             <!-- 준비 섹션 -->
             <div class="ready-section" id="readySection">
-                <div class="users-title" style="margin-bottom: 15px;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
+                </div>
                 <div class="users-list" id="readyUsersList">
                     <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
                 </div>
@@ -517,7 +522,7 @@
             input.type = 'text';
             input.value = currentName;
             input.maxLength = 30;
-            input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--horse-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white);';
+            input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--horse-accent); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
 
             displaySpan.replaceWith(input);
             input.focus();
@@ -557,16 +562,14 @@
         function updateControlBarUI(isHostUser) {
             const editIcon = document.querySelector('.edit-icon');
             const hostBadge = document.getElementById('hostBadge');
-            const readyBtn = document.getElementById('readyBtn');
             const usernameDisplay = document.getElementById('usernameDisplay');
 
             if (editIcon) editIcon.style.display = isHostUser ? 'inline' : 'none';
             if (hostBadge) hostBadge.style.display = isHostUser ? 'inline-block' : 'none';
-            if (readyBtn) readyBtn.style.display = 'inline-block';
 
             // Show username if available
-            if (usernameDisplay && window.myUserName) {
-                usernameDisplay.textContent = window.myUserName;
+            if (usernameDisplay && currentUser) {
+                usernameDisplay.textContent = currentUser;
                 usernameDisplay.style.display = 'inline-block';
             }
         }

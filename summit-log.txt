@@ -1,4 +1,51 @@
 ========================================
+📋 Summit Log - 2026-02-18 (컨트롤바 통일 v3 — 전수 분석 수정)
+========================================
+
+## 변경 파일
+- css/theme.css: #leaveBtn에 width: auto 추가
+- roulette-game-multiplayer.html: 닉네임 표시 수정(window.myUserName→currentUser), 준비버튼 HTML 추가, readyBtn 데드코드 제거
+- horse-race-multiplayer.html: 닉네임 표시 수정, 준비버튼 HTML 추가, readyBtn 데드코드 제거, ControlBar.init에 soundKey/volumeKey 추가
+- js/horse-race.js: 독립 볼륨 시스템(~70줄) 제거 → ControlBar 위임, GIF toggleMute→ControlBar.toggleMute
+- dice-game-multiplayer.html: 방제목 편집을 ✏️아이콘→클릭 방식으로 통일, roomNameEditSection 제거, editRoomName/saveRoomName/cancelRoomNameEdit 함수 제거
+- docs/meeting/impl/2026-02-18-control-bar-unification-v3-impl.md: 함수명 정확화, 항목 6(방제목 편집 통일) 추가
+- control-bar-shared.js: 이전 세션 변경 (레이아웃, soundKey/volumeKey 지원)
+
+## 상세 변경 내역
+
+### 닉네임 미표시 수정 (룰렛/경마)
+- 근본 원인: updateControlBarUI()가 window.myUserName 참조 → 코드베이스 어디에서도 미설정
+- 수정: window.myUserName → currentUser (각 게임의 로컬 변수, roomJoined에서 설정됨)
+- 영향: roulette-game-multiplayer.html:1126, horse-race-multiplayer.html:568
+
+### 준비 버튼 추가 (룰렛/경마)
+- 근본 원인: readySection HTML에 <button id="readyButton"> 자체가 없었음 (git 히스토리 확인: 원래 누락)
+- 수정: 주사위 패턴과 동일하게 readySection 내 flex 레이아웃 + readyButton 추가
+- ready-shared.js의 updateReadyButton()이 이제 정상 동작
+
+### 경마 볼륨 ControlBar 위임
+- 근본 원인: js/horse-race.js에 독립적인 horseMasterVolume 시스템 (lines 100-177)
+- 제거: HORSE_SOUND_KEY/VOLUME_KEY, horseMasterVolume, horseStoredVolume, initVolumeFromStorage, updateVolumeUI, toggleMute, setMasterVolume, applyMasterVolumeToAll, setHorseSoundCheckboxes, onHorseSoundChange
+- 대체: getHorseSoundEnabled() → ControlBar.getSoundEnabled(), getHorseMasterVolume() → ControlBar.getMasterVolume()
+- GIF 녹화 mute: toggleMute() → ControlBar.toggleMute()
+- 이벤트 리스너: volumeBtn/volumeSlider 중복 바인딩 제거 (ControlBar에서 처리)
+- SoundManager.setMasterVolumeGetter 호출 제거 (ControlBar.init에서 처리)
+
+### 나가기 버튼 크기 수정
+- #leaveBtn에 width: auto 추가 → flex column 컨테이너에서 풀 너비 확장 방지
+
+### 방제목 편집 통일 (주사위)
+- 기존: ✏️ 아이콘 클릭 → 별도 roomNameEditSection 표시 (저장/취소 버튼)
+- 변경: roomTitle 클릭 → 인라인 input (룰렛/경마와 동일 패턴)
+- 제거: onEditRoomName 콜백, editRoomName(), saveRoomName(), cancelRoomNameEdit(), roomNameEditSection HTML
+- editRoomNameButton 참조 3곳 제거
+
+### 데드코드 제거
+- 룰렛/경마: updateControlBarUI()에서 존재하지 않는 #readyBtn 참조 2줄 제거
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-18 (컨트롤바 통일 & 볼륨 슬라이더 복원)
 ========================================
 

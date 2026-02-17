@@ -150,14 +150,72 @@ Same removal.
 
 ---
 
-## 6. Implementation order
+## 6. Unify room name editing (dice → click-on-title pattern)
+
+**Issue**: Dice uses ✏️ icon + separate `roomNameEditSection`, while roulette/horse use click-on-title inline input. Unify dice to match roulette/horse pattern.
+
+### File: `dice-game-multiplayer.html`
+
+**ControlBar.init** (line ~1530): Remove `onEditRoomName` callback.
+
+**Add** room title click handler (same pattern as roulette/horse):
+```js
+let isEditingRoomName = false;
+document.addEventListener('DOMContentLoaded', function() {
+    const roomTitleElem = document.getElementById('roomTitle');
+    if (!roomTitleElem) return;
+    roomTitleElem.addEventListener('click', function() {
+        if (!isHost || isEditingRoomName) return;
+        isEditingRoomName = true;
+        const displaySpan = document.getElementById('roomNameDisplay');
+        const currentName = displaySpan.querySelector('#roomNameText').textContent;
+        const editIcon = this.querySelector('.edit-icon');
+        if (editIcon) editIcon.style.display = 'none';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentName;
+        input.maxLength = 30;
+        input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--dice-500); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
+        displaySpan.replaceWith(input);
+        input.focus();
+        input.select();
+        function finishEdit() {
+            const newName = input.value.trim();
+            const newDisplay = document.createElement('span');
+            newDisplay.id = 'roomNameDisplay';
+            newDisplay.innerHTML = '<span id="roomNameText">' + (newName || currentName) + '</span>';
+            input.replaceWith(newDisplay);
+            if (editIcon) editIcon.style.display = '';
+            isEditingRoomName = false;
+            if (newName && newName !== currentName && socket) {
+                socket.emit('updateRoomName', { roomName: newName });
+            }
+        }
+        input.addEventListener('blur', finishEdit);
+        input.addEventListener('keypress', (e) => { if (e.key === 'Enter') finishEdit(); });
+    });
+});
+```
+
+**Remove**: `editRoomName()`, `saveRoomName()`, `cancelRoomNameEdit()` functions (lines ~4300-4321).
+
+**Remove**: `roomNameEditSection` HTML (line ~1541-1547).
+
+**Update** `roomNameUpdated` handler (line ~4294): Change `cancelRoomNameEdit()` to just update text.
+
+**Note**: Dice uses `roomNameText` inside `roomNameDisplay` (control-bar-shared.js renders `<span id="roomNameDisplay"><span id="roomNameText">`), so `finishEdit` must recreate both spans. Roulette/horse only have `roomNameDisplay`.
+
+---
+
+## 7. Implementation order
 
 1. `css/theme.css` — leave button width fix (1 line)
 2. `roulette-game-multiplayer.html` — nickname + ready button + dead code (3 edits)
 3. `horse-race-multiplayer.html` — nickname + ready button + dead code + ControlBar.init keys (4 edits)
 4. `js/horse-race.js` — volume delegation (~70 lines removed, 2 lines replaced)
+5. `dice-game-multiplayer.html` — room name editing unification (remove editSection, add click handler)
 
-## 7. Verification
+## 8. Verification
 
 Open each game in browser, join a room, and check:
 
@@ -166,7 +224,7 @@ Open each game in browser, join a room, and check:
 - [ ] Volume slider controls sound (all 3 games, especially horse)
 - [ ] Leave button is small (not full width)
 - [ ] Host badge shows for host only
-- [ ] Room title editing works (dice: pencil icon, roulette/horse: click title)
+- [ ] Room title editing works (all 3 games: click title → inline input)
 - [ ] Control bar layout identical across 3 games
 
 > **On completion**: move this file to `docs/meeting/applied/`

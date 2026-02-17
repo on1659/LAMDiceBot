@@ -98,18 +98,18 @@
                         '<span id="roomNameText">방 제목</span>' +
                     '</span>' +
                     editIcon +
-                '</div>' +
-                '<div class="control-bar-meta">' +
                     '<span class="host-badge" id="hostBadge" style="display: none;">👑 호스트</span>' +
                     extraHtml +
+                '</div>' +
+                '<div class="control-bar-meta">' +
                     '<span id="roomStatusIcons" style="display: none;"></span>' +
                     '<span class="username-display" id="usernameDisplay"></span>' +
                     '<div class="volume-control">' +
                         '<button class="volume-btn" id="volumeBtn" type="button">🔊</button>' +
                         '<input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">' +
                     '</div>' +
-                    '<button id="leaveBtn" class="control-bar-btn">🚪 나가기</button>' +
                 '</div>' +
+                '<button id="leaveBtn" class="control-bar-btn leave-btn">🚪 나가기</button>' +
             '</div>';
 
         // Event listeners
