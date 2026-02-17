@@ -77,9 +77,19 @@ Material Design 기반 CSS Variable 색상 시스템 구현. 769개 UI 색상을
 
 ---
 
+## control-bar-unification-v2
+
+**완료일**: 2026-02-18
+**요약**: 컨트롤바 모듈화 (control-bar-shared.js), 2줄 레이아웃, 볼륨 슬라이더 복원, 4개 게임 통일
+
+### 문서
+- [구현 문서](./2026-02-18-1930-control-bar-unification-v2-impl.md)
+
+---
+
 ## 통계
 
 | 항목 | 값 |
 |------|---:|
-| 완료된 기능 | 5 |
-| 총 문서 수 | 8 |
+| 완료된 기능 | 6 |
+| 총 문서 수 | 9 |
