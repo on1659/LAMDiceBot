@@ -52,6 +52,9 @@ Add ranking badges for top 3 players in each game (dice, horse-race, roulette) i
 async function getTop3Badges(serverId) {
   if (!serverId) return { dice: {}, horse: {}, roulette: {} };
 
+  const pool = getPool();
+  if (!pool) return { dice: {}, horse: {}, roulette: {} };
+
   const gameTypes = ['dice', 'horse-race', 'roulette'];
   const result = { dice: {}, horse: {}, roulette: {} };
 
@@ -117,22 +120,34 @@ getTop3Badges(1).then(console.log);
 const { getTop3Badges } = require('../db/ranking');
 ```
 
-**Code**: Add after user joins room successfully
+**Code**: Add after socket.emit('roomJoined', ...) (~line 636-700)
 ```javascript
-// After socket.join(roomId) and before io.to(roomId).emit('roomJoined', ...)
-
 // Send ranking badges (private servers only)
-if (room.isPrivateServer && room.serverId) {
+// Note: room.isPrivateServer is set asynchronously in room creation,
+// but should be available by the time users join
+if (room.serverId) {
   try {
-    // Check if badges already cached in room
-    if (!room.userBadges) {
-      room.userBadges = await getTop3Badges(room.serverId);
+    // Wait for isPrivateServer to be set (if not already)
+    if (room.isPrivateServer === undefined) {
+      // Fallback: check server in DB
+      const { getServerById } = require('../db/servers');
+      const server = await getServerById(room.serverId);
+      room.isPrivateServer = !!(server && server.password_hash && server.password_hash !== '');
     }
 
-    socket.emit('rankingBadges', {
-      badges: room.userBadges,
-      gameType: room.gameType
-    });
+    if (room.isPrivateServer) {
+      // Check if badges already cached in room
+      if (!room.userBadges) {
+        room.userBadges = await getTop3Badges(room.serverId);
+      }
+
+      socket.emit('rankingBadges', {
+        badges: room.userBadges,
+        gameType: room.gameType
+      });
+    } else {
+      socket.emit('rankingBadges', null);
+    }
   } catch (err) {
     console.error('Failed to fetch badges:', err);
     // Continue without badges (graceful degradation)
@@ -251,46 +266,20 @@ return {
 
 **Add CSS classes**:
 ```css
-/* Ranking Badge Spacing */
-.chat-message .user-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
+/* Ranking Badge Spacing - Optional */
+/* Note: Badge emojis (🥇🥈🥉) are already properly spaced in buildUserNameText() */
+/* This CSS is for future enhancements if needed */
 
-/* Fixed-width badge area for alignment consistency */
-.chat-message .user-name::before {
-  content: '';
-  display: inline-block;
-  width: 20px; /* Approximate emoji width */
-  flex-shrink: 0;
-}
-
-/* Remove placeholder when badge exists */
-.chat-message .user-name.has-badge::before {
-  content: none;
-}
-
-/* Mobile: Ensure badges don't cause line wrap */
+/* Mobile: Ensure long names with badges don't overflow */
 @media (max-width: 480px) {
-  .chat-message .user-name {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .chat-message {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 }
 ```
 
-**Alternative** (if inline styles preferred):
-Add to `chat-shared.js` in `buildUserNameText()`:
-```javascript
-// Add class 'has-badge' when badge is present
-if (rank) {
-  text += '<span class="has-badge">';
-}
-// ... rest of function
-```
+**Note**: The current implementation (adding emojis as text in `buildUserNameText()`) already provides proper spacing. Additional CSS is optional and only needed if visual issues arise during testing.
 
 **Testing**:
 - Open chat on mobile (320px width) → Verify no horizontal scroll
@@ -388,14 +377,21 @@ if (room.serverId) {
 ## Performance Optimization
 
 ### Database Indexes
-Ensure indexes exist on `server_game_records` table:
-```sql
-CREATE INDEX IF NOT EXISTS idx_game_records_server_winner
-ON server_game_records(server_id, game_type, is_winner);
 
-CREATE INDEX IF NOT EXISTS idx_game_records_user
-ON server_game_records(user_name);
+**Existing indexes** (already in `db/init.js`):
+
+- `idx_sgr_server_id` on `server_id`
+- `idx_sgr_user_name` on `user_name`
+- `idx_sgr_server_user` on `(server_id, user_name)`
+
+**Recommended additional index** (add to `db/init.js` after line 116):
+```sql
+CREATE INDEX IF NOT EXISTS idx_sgr_server_game_winner
+ON server_game_records(server_id, game_type, is_winner)
+WHERE is_winner = true;
 ```
+
+This partial index speeds up the `getTop3Badges()` query by filtering only winners.
 
 ### Query Optimization
 - Use `LIMIT 3` in subquery to reduce rows processed
