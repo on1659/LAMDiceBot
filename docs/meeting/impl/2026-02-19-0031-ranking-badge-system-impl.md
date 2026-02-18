@@ -10,10 +10,13 @@
 ## Implementation Summary
 
 Add ranking badges for top 3 players in each game (dice, horse-race, roulette) in chat display:
+
 - Badges show only in **private servers** (not free servers)
 - Display format: **(Badge) (Host Icon) (Platform) (Name)**
 - Socket-based delivery: Query on room join, cache in client
+- **Real-time updates**: Badges refresh automatically on game completion ✅
 - CSS fixed-width spacing for visual consistency
+- Toggle UI for user preference (default: ON)
 
 ---
 
@@ -449,35 +452,49 @@ If critical bug found after deployment:
 
 ---
 
-## Phase 1.5: Real-Time Badge Updates (Optional Future Work)
+## Phase 1.5: Real-Time Badge Updates ✅ IMPLEMENTED
 
-If Phase 1 succeeds, add real-time updates on game completion:
+**Status**: ✅ Completed during initial implementation
 
-**Files to modify**:
-- `socket/dice.js` (line ~300, after `recordWinner()`)
-- `socket/horse.js` (line ~250, after race ends)
-- `socket/roulette.js` (line ~200, after spin ends)
+Real-time badge updates are now active on game completion:
 
-**Code pattern**:
+**Modified files**:
+
+- ✅ `socket/dice.js` - Line 157: Badge update after `endGame` event
+- ✅ `socket/horse.js` - Lines 435, 500, 828, 867: Badge updates after all race end scenarios
+- ✅ `socket/roulette.js` - Line 243: Badge update after roulette spin
+- ✅ `chat-shared.js` - Line 911-920: `rankingBadgesUpdated` handler + `rerenderChatBadges()` function
+
+**Implementation**:
 ```javascript
-// After game ends and winner recorded
-const updatedBadges = await getTop3Badges(room.serverId);
-room.userBadges = updatedBadges; // Update cache
-io.to(roomId).emit('rankingBadgesUpdated', {
-  badges: updatedBadges,
-  gameType: room.gameType
+// Server-side (after game ends)
+if (room.serverId && room.isPrivateServer) {
+    getTop3Badges(room.serverId).then(updatedBadges => {
+        room.userBadges = updatedBadges;
+        io.to(room.roomId).emit('rankingBadgesUpdated', {
+            badges: updatedBadges,
+            gameType: room.gameType
+        });
+    }).catch(err => {
+        console.error('Failed to update badges:', err);
+    });
+}
+
+// Client-side (chat-shared.js)
+_socket.on('rankingBadgesUpdated', (data) => {
+    if (data && data.badges) {
+        _rankingBadges = data.badges;
+        rerenderChatBadges(); // Immediate visual update
+    }
 });
 ```
 
-**Client handler** (chat-shared.js):
-```javascript
-socket.on('rankingBadgesUpdated', (data) => {
-  _rankingBadges = data.badges;
-  // Re-render chat messages (same as toggle function)
-});
-```
+**Benefits**:
 
-**Estimated effort**: +2 hours (3 game handlers + testing)
+- 🚀 Instant badge updates when rankings change
+- 🎯 No page refresh needed
+- ⚡ Optimized: Only queries DB on actual game completion
+- 🔒 Still respects privacy (private servers only)
 
 ---
 

@@ -514,3 +514,15 @@ input, select, textarea {
     width: 50px;
   }
 }
+
+/* ─────────────────────────────────────────────────
+   Ranking Badge Spacing
+   ───────────────────────────────────────────────── */
+
+/* Mobile: 긴 이름 + 배지 조합 시 오버플로우 방지 */
+@media (max-width: 480px) {
+  .chat-message {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+}

@@ -18,6 +18,7 @@ const ChatModule = (function () {
     let _messageReactionTimestamps = {}; // 메시지별 마지막 반응 타임스탬프
     let _connectedUsers = []; // 접속한 사용자 목록
     let _mentionAutocompleteActive = false; // 멘션 자동완성 활성 상태
+    let _showBadges = localStorage.getItem('showBadges') !== 'false'; // 배지 표시 여부 (기본 ON)
 
     const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB
 
@@ -497,6 +498,14 @@ const ChatModule = (function () {
     // 유저명 텍스트 생성
     function buildUserNameText(data) {
         let text = '';
+
+        // 배지 표시 (서버가 채팅 메시지에 포함시킨 badgeRank 사용)
+        if (_showBadges && data.badgeRank) {
+            if (data.badgeRank === 1) text += '🥇 ';
+            else if (data.badgeRank === 2) text += '🥈 ';
+            else if (data.badgeRank === 3) text += '🥉 ';
+        }
+
         if (data.isHost) text += '👑 ';
         if (data.deviceType) text += getDeviceIcon(data.deviceType) + ' ';
         text += data.userName;
@@ -890,6 +899,7 @@ const ChatModule = (function () {
         _socket.on('mentionReceived', (data) => {
             showMentionNotification(data);
         });
+
     }
 
     // ========== 이미지 & 알림 기능 ==========
@@ -1606,6 +1616,14 @@ const ChatModule = (function () {
         });
     }
 
+    /**
+     * 배지 표시 토글 (ON/OFF)
+     */
+    function toggleBadgeDisplay() {
+        _showBadges = !_showBadges;
+        localStorage.setItem('showBadges', _showBadges);
+    }
+
     // 외부 API
     return {
         init,
@@ -1631,6 +1649,7 @@ const ChatModule = (function () {
         scrollToMessage,
         updateConnectedUsers,
         initMentionAutocomplete,
-        updateDiceResult
+        updateDiceResult,
+        toggleBadgeDisplay
     };
 })();

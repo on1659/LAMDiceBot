@@ -3,6 +3,7 @@ const { getMergedFrequentMenus } = require('../db/menus');
 const { getVisitorStats, recordVisitor } = require('../db/stats');
 const { getServerId } = require('../routes/api');
 const { getServerById } = require('../db/servers');
+const { getTop3Badges } = require('../db/ranking');
 const path = require('path');
 const fs = require('fs');
 
@@ -281,7 +282,8 @@ module.exports = (socket, io, ctx) => {
             serverName: serverName || null, // 서버 이름
             isPrivateServer: false, // 비공개서버 여부 (아래에서 DB 조회 후 설정)
             gameState: gameStateNew,
-            createdAt: new Date()
+            createdAt: new Date(),
+            userBadges: null // 배지 캐시 (첫 입장 시 채워짐)
         };
 
         const room = rooms[roomId];
@@ -503,6 +505,13 @@ module.exports = (socket, io, ctx) => {
                     trackPresets: trackMeters
                 });
             }
+        }
+
+        // 배지 캐시 초기화 (비공개 서버인 경우 첫 채팅 시 조회됨)
+        if (room.serverId && room.isPrivateServer) {
+            getTop3Badges(room.serverId).then(badges => {
+                room.userBadges = badges;
+            }).catch(() => {});
         }
 
         console.log(`방 생성: ${finalRoomName} (${roomId}) by ${userName.trim()}`);

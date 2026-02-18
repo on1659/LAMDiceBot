@@ -317,6 +317,54 @@ async function getMyRank(serverId, userName) {
     return result;
 }
 
+// ─── TOP 3 배지 조회 (채팅용) ───
+
+/**
+ * Get top 3 rankers for all games in a server
+ * @param {number} serverId - Server ID (null for free server)
+ * @returns {Promise<Object>} { dice: {userName: rank}, horse: {...}, roulette: {...} }
+ */
+async function getTop3Badges(serverId) {
+  if (!serverId) return { dice: {}, horse: {}, roulette: {} };
+
+  const pool = getPool();
+  if (!pool) return { dice: {}, horse: {}, roulette: {} };
+
+  const gameTypes = ['dice', 'horse', 'roulette'];
+  const result = { dice: {}, horse: {}, roulette: {} };
+
+  for (const gameType of gameTypes) {
+    const query = `
+      SELECT user_name, rank
+      FROM (
+        SELECT
+          user_name,
+          DENSE_RANK() OVER (ORDER BY wins DESC) as rank
+        FROM (
+          SELECT
+            user_name,
+            COUNT(*) FILTER (WHERE is_winner = true) as wins
+          FROM server_game_records
+          WHERE server_id = $1
+            AND game_type = $2
+          GROUP BY user_name
+          HAVING COUNT(*) FILTER (WHERE is_winner = true) > 0
+        ) wins_sub
+      ) ranked_sub
+      WHERE rank <= 3
+      ORDER BY rank
+    `;
+
+    const { rows } = await pool.query(query, [serverId, gameType]);
+
+    rows.forEach(row => {
+      result[gameType][row.user_name] = parseInt(row.rank);
+    });
+  }
+
+  return result;
+}
+
 // ─── 전체 랭킹 데이터 (API용) ───
 
 async function getFullRanking(serverId, userName, isPrivate) {
@@ -359,5 +407,6 @@ module.exports = {
     getOrderRanking,
     getMyTopOrders,
     getMyRank,
-    getFullRanking
+    getFullRanking,
+    getTop3Badges
 };

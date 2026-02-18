@@ -1,6 +1,7 @@
 // 룰렛 게임 이벤트 핸들러
 const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
+const { getTop3Badges } = require('../db/ranking');
 
 module.exports = function registerRouletteHandlers(socket, io, ctx) {
     // 터보 애니메이션 설정 변경 (호스트만 가능)
@@ -240,6 +241,13 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
         io.to(room.roomId).emit('newMessage', resultMessage);
 
         io.to(room.roomId).emit('rouletteEnded', { winner: winner });
+
+        // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+        if (room.serverId && room.isPrivateServer) {
+            getTop3Badges(room.serverId).then(updatedBadges => {
+                room.userBadges = updatedBadges;
+            }).catch(() => {});
+        }
 
         console.log(`방 ${room.roomName} 룰렛 결과 - 당첨자: ${winner}`);
     });

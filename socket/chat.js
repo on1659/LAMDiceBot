@@ -58,12 +58,20 @@ module.exports = (socket, io, ctx) => {
             deviceType = 'android';
         }
 
+        // 배지 rank 조회 (비공개 서버만)
+        let badgeRank = null;
+        if (room.userBadges && room.isPrivateServer) {
+            const gameType = room.gameType === 'horse-race' ? 'horse' : room.gameType;
+            badgeRank = room.userBadges[gameType]?.[user.name] || null;
+        }
+
         const chatMessage = {
             userName: user.name,
             message: message.trim(),
             time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
             isHost: user.isHost,
             deviceType: deviceType, // 디바이스 타입 추가
+            badgeRank: badgeRank, // 랭킹 배지 (1, 2, 3 or null)
             reactions: {}, // 이모티콘 반응 {emoji: [userName1, userName2, ...]}
             mentions: parseMentions(message.trim(), gameState.users) // 멘션 파싱
         };

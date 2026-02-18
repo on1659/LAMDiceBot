@@ -1,4 +1,58 @@
 ========================================
+📋 Summit Log - 2026-02-19 (랭킹 배지 시스템 구현)
+========================================
+
+## 변경 파일
+- db/ranking.js: getTop3Badges() 함수 추가 (DENSE_RANK 쿼리)
+- socket/chat.js: 채팅 메시지에 badgeRank 필드 포함
+- socket/rooms.js: createRoom에 room.userBadges 캐시 초기화, rankingBadges 클라이언트 전송 제거
+- socket/dice.js: 게임 종료 시 room.userBadges 캐시 갱신
+- socket/horse.js: 경마 종료 시 room.userBadges 캐시 갱신 (4곳)
+- socket/roulette.js: 룰렛 종료 시 room.userBadges 캐시 갱신
+- chat-shared.js: buildUserNameText에 badgeRank 배지 표시, toggleBadgeDisplay, 클라이언트 캐시 방식 제거
+- css/theme.css: 배지 모바일 overflow CSS 추가
+- dice-game-multiplayer.html: 채팅 설정 토글 UI 추가
+- horse-race-multiplayer.html: 채팅 설정 토글 UI 추가
+- roulette-game-multiplayer.html: 채팅 설정 토글 UI 추가
+- docs/meeting/impl/2026-02-19-0031-ranking-badge-system-impl.md: Phase 1.5 구현 완료 기록
+
+## 상세 변경 내역
+
+### 서버 배지 조회 (db/ranking.js)
+- getTop3Badges(serverId) 함수 추가
+- server_game_records에서 DENSE_RANK() 윈도우 함수로 게임별 Top 3 조회
+- gameTypes: ['dice', 'horse', 'roulette'] (DB는 'horse'로 저장, 'horse-race' 아님)
+- parseInt(row.rank) 적용 (PostgreSQL이 문자열로 반환하는 문제 수정)
+
+### 채팅 메시지에 배지 포함 (socket/chat.js)
+- sendMessage 핸들러에서 room.userBadges 조회
+- room.isPrivateServer인 경우만 badgeRank 포함
+- gameType 정규화: 'horse-race' → 'horse'
+- 모든 유저가 동일하게 배지를 볼 수 있음 (서버 측에서 결정)
+
+### 서버 배지 캐시 관리
+- room.userBadges: 방 생성 시 초기화, 게임 종료 시 갱신
+- 클라이언트에 rankingBadges/rankingBadgesUpdated 이벤트 전송 제거
+  (초기 구현에서는 클라이언트 캐시 방식이었으나, 다른 유저에게 배지가 안 보이는 문제 발견)
+- 최종 아키텍처: 서버가 채팅 메시지에 badgeRank 포함 → 클라이언트는 표시만
+
+### 클라이언트 배지 표시 (chat-shared.js)
+- buildUserNameText: data.badgeRank만 사용 (1→🥇, 2→🥈, 3→🥉)
+- _rankingBadges, _currentGameType 상태 변수 제거
+- rankingBadges/rankingBadgesUpdated 소켓 핸들러 제거
+- rerenderChatBadges(), debugBadges() 함수 제거
+- toggleBadgeDisplay(): localStorage 기반 ON/OFF 토글
+
+### 배지 토글 UI (HTML 3개 파일)
+- 채팅 설정 섹션에 "랭킹 배지 표시" 토글 추가
+- ChatModule.toggleBadgeDisplay() 호출
+
+### 아키텍처 변경 이력
+1. 초기: 클라이언트 캐시 방식 (rankingBadges 이벤트로 전체 배지 데이터 전송)
+2. 문제: createRoom에서 배지 미전송, 타이밍 이슈, 다른 유저에게 배지 미표시
+3. 최종: 서버사이드 방식 (chat.js에서 채팅 메시지에 badgeRank 포함)
+
+========================================
 📋 Summit Log - 2026-02-18 (경마 애니메이션 떨림 수정 + 동일 베팅 가속)
 ========================================
 

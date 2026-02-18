@@ -2,6 +2,7 @@ const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('.
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
+const { getTop3Badges } = require('../db/ranking');
 
 // ALL_VEHICLE_IDS constant
 const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse'];
@@ -431,6 +432,14 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('newMessage', resultMessage);
             io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
             io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+            // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+            if (room.serverId && room.isPrivateServer) {
+                getTop3Badges(room.serverId).then(updatedBadges => {
+                    room.userBadges = updatedBadges;
+                }).catch(() => {});
+            }
+
             console.log(`방 ${roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`);
         } else {
             // 동점 또는 당첨자 없음 → 자동 준비
@@ -483,6 +492,13 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('newMessage', resultMessage);
 
             io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, tieWinners: autoReadyPlayers });
+
+            // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+            if (room.serverId && room.isPrivateServer) {
+                getTop3Badges(room.serverId).then(updatedBadges => {
+                    room.userBadges = updatedBadges;
+                }).catch(() => {});
+            }
 
             // 자동 준비 설정
             gameState.readyUsers = [];
@@ -799,6 +815,13 @@ module.exports = (socket, io, ctx) => {
                 });
                 io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
+                // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+                if (room.serverId && room.isPrivateServer) {
+                    getTop3Badges(room.serverId).then(updatedBadges => {
+                        room.userBadges = updatedBadges;
+                    }).catch(() => {});
+                }
+
                 console.log(`방 ${room.roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`);
             } else {
                 // 동점자 전원 당첨 처리 - 게임 종료 후 동점자 자동 준비
@@ -827,6 +850,13 @@ module.exports = (socket, io, ctx) => {
                     horseRaceHistory: gameState.horseRaceHistory,
                     tieWinners: winners
                 });
+
+                // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+                if (room.serverId && room.isPrivateServer) {
+                    getTop3Badges(room.serverId).then(updatedBadges => {
+                        room.userBadges = updatedBadges;
+                    }).catch(() => {});
+                }
 
                 // 동점자들을 자동으로 준비 상태로 설정
                 gameState.readyUsers = [];
