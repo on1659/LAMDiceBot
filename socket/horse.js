@@ -231,7 +231,12 @@ module.exports = (socket, io, ctx) => {
         gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
         const vehicleTypes = gameState.selectedVehicleTypes || [];
-        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets);
+
+        // 모든 베팅이 같은 말인지 확인 (가속 레이스)
+        const uniqueBets = [...new Set(Object.values(gameState.userHorseBets))];
+        const allSameBet = uniqueBets.length === 1 && Object.keys(gameState.userHorseBets).length > 1;
+
+        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -1184,7 +1189,7 @@ module.exports = (socket, io, ctx) => {
     }
 
     // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
-    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}) {
+    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false) {
         // 트랙 길이 설정
         const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = preset.meters;
@@ -1213,9 +1218,10 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 각 말의 기본 도착 시간 랜덤 생성
+        const speedUp = allSameBet ? 3 : 1; // 전원 동일 베팅 시 3배속
         const baseDurations = [];
         for (let i = 0; i < horseCount; i++) {
-            baseDurations.push(minDuration + Math.random() * (maxDuration - minDuration));
+            baseDurations.push((minDuration + Math.random() * (maxDuration - minDuration)) / speedUp);
         }
 
         // 접전 강제: 1등과 2등의 도착 시간을 거의 동일하게 조정

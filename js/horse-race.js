@@ -850,11 +850,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     // idle 애니메이션 정리
     if (window._idleAnimInterval) { clearInterval(window._idleAnimInterval); window._idleAnimInterval = null; }
 
-    // 🔧 기존 경주 인터벌 정리 (중복 호출 방지)
-    if (window._raceAnimInterval) {
-        clearInterval(window._raceAnimInterval);
-        window._raceAnimInterval = null;
-        console.log('[경주] 기존 animationInterval 정리됨');
+    // 🔧 기존 경주 애니메이션 정리 (중복 호출 방지)
+    if (window._raceAnimFrameId) {
+        cancelAnimationFrame(window._raceAnimFrameId);
+        window._raceAnimFrameId = null;
+        console.log('[경주] 기존 animationFrame 정리됨');
     }
     if (window._raceRankingInterval) {
         clearInterval(window._raceRankingInterval);
@@ -1049,6 +1049,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
     // 거리 마커 생성 (50m 간격)
     const markerInterval = 50; // 50m마다
+    const distanceMarkers = [];
     for (let m = markerInterval; m < trackDistanceMeters; m += markerInterval) {
         const markerPx = m * PIXELS_PER_METER;
         const marker = document.createElement('div');
@@ -1059,6 +1060,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         label.textContent = `${m}m`;
         marker.appendChild(label);
         track.appendChild(marker);
+        distanceMarkers.push(marker);
     }
 
     // 각 말 생성 및 애니메이션 (모든 말을 먼저 생성)
@@ -1426,7 +1428,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
     // 실시간 순위 업데이트 인터벌
     let rankingInterval = null;
-    let animationInterval = null;
+    let animationFrameId = null;
     let currentScrollOffset = 0; // 현재 스크롤 오프셋
     let cameraMode = 'leader'; // 'leader' | 'myHorse'
 
@@ -1659,7 +1661,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
         // 탭 전환 일시정지/재개
         function onVisChange() {
-            if (!animationInterval) return; // 경주 끝났으면 무시
+            if (!animationFrameId) return; // 경주 끝났으면 무시
             if (document.hidden) {
                 pausedAt = Date.now();
             } else if (pausedAt > 0) {
@@ -1686,9 +1688,12 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         randomCutawayTarget = null;
         cutawayDisabled = false;
 
-        // JavaScript 기반 애니메이션 루프
-        animationInterval = window._raceAnimInterval = setInterval(() => {
-            if (pausedAt > 0) return; // 일시정지 중
+        // JavaScript 기반 애니메이션 루프 (rAF로 vsync 동기화)
+        function animLoop() {
+            if (pausedAt > 0) {
+                animationFrameId = window._raceAnimFrameId = requestAnimationFrame(animLoop);
+                return; // 일시정지 중
+            }
             const now = Date.now();
             const deltaTime = Math.min(now - lastFrameTime, 50);
             lastFrameTime = now;
@@ -2337,7 +2342,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const bgScrollOffset = currentScrollOffset;
             
             // 거리 마커 스크롤
-            track.querySelectorAll('.distance-marker').forEach(marker => {
+            distanceMarkers.forEach(marker => {
                 const origLeft = parseFloat(marker.dataset.origLeft || marker.style.left);
                 if (!marker.dataset.origLeft) marker.dataset.origLeft = origLeft;
                 marker.style.left = `${origLeft + bgScrollOffset}px`;
@@ -2361,7 +2366,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
                 if (isOffscreen && !state.finished) {
                     const distBehind = Math.round((leaderPos - state.currentPos) / PIXELS_PER_METER);
-                    state.offscreenIndicator.innerHTML = `<span style="animation: blink 0.6s infinite;">◀</span> ${distBehind}m`;
+                    if (state.lastDistBehind !== distBehind) {
+                        state.offscreenIndicator.innerHTML = `<span style="animation: blink 0.6s infinite;">◀</span> ${distBehind}m`;
+                        state.lastDistBehind = distBehind;
+                    }
                     state.offscreenIndicator.style.display = 'block';
                     state.horse.style.left = `-200px`; // 완전히 숨김
                     state.horse.style.visibility = 'hidden';
@@ -2396,9 +2404,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const shouldEndRace = bettedFinishedCount >= raceEndThreshold;
 
             if (shouldEndRace) {
-                clearInterval(animationInterval);
-                animationInterval = null;
-                window._raceAnimInterval = null;
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+                window._raceAnimFrameId = null;
                 document.removeEventListener('visibilitychange', onVisChange);
 
                 // 슬로우모션 강제 해제
@@ -2507,9 +2515,12 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 } else {
                     finishGame();
                 }
+                return; // 레이스 종료 — 루프 탈출
             }
-        }, 16);
-        
+            animationFrameId = window._raceAnimFrameId = requestAnimationFrame(animLoop);
+        }
+        animationFrameId = window._raceAnimFrameId = requestAnimationFrame(animLoop);
+
         // 실시간 순위 업데이트 시작 (100ms 간격)
         rankingInterval = window._raceRankingInterval = setInterval(() => updateLiveRanking(horseStates), 100);
         updateLiveRanking(horseStates); // 즉시 첫 업데이트
@@ -4552,11 +4563,11 @@ socket.on('horseRaceEnded', (data) => {
 
 // 게임 완전 리셋 이벤트 (호스트가 게임 종료 버튼을 누른 경우)
 socket.on('horseRaceGameReset', (data) => {
-    // 🔧 경주 인터벌 정리 (경주 중 리셋 시 화면 깨짐 방지)
-    if (window._raceAnimInterval) {
-        clearInterval(window._raceAnimInterval);
-        window._raceAnimInterval = null;
-        console.log('[horseRaceGameReset] animationInterval 정리됨');
+    // 🔧 경주 애니메이션 정리 (경주 중 리셋 시 화면 깨짐 방지)
+    if (window._raceAnimFrameId) {
+        cancelAnimationFrame(window._raceAnimFrameId);
+        window._raceAnimFrameId = null;
+        console.log('[horseRaceGameReset] animationFrame 정리됨');
     }
     if (window._raceRankingInterval) {
         clearInterval(window._raceRankingInterval);
