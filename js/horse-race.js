@@ -2408,6 +2408,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 animationFrameId = null;
                 window._raceAnimFrameId = null;
                 document.removeEventListener('visibilitychange', onVisChange);
+                removeQuickRaceOverlay();
 
                 // 슬로우모션 강제 해제
                 slowMotionFactor = 1;
@@ -3140,6 +3141,48 @@ function showCountdown() {
         setTimeout(showNext, 1000);
     }
     showNext();
+}
+
+// 전원 동일 베팅 시 빠른 레이스 오버레이 (뒤에서 레이스 진행)
+function showQuickRaceOverlay() {
+    const trackContainer = document.getElementById('raceTrackContainer');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'quickRaceOverlay';
+    overlay.style.cssText = `
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); z-index: 100;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        pointer-events: none;
+        transition: opacity 0.5s ease-out;
+    `;
+    overlay.innerHTML = `
+        <style>@keyframes qr-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}</style>
+        <div style="font-size: 40px; margin-bottom: 8px; animation: qr-bounce 0.8s ease-in-out infinite;">⚡</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--yellow-400);
+            text-shadow: 0 0 20px rgba(255,215,0,0.6);">
+            모두 같은 선택!
+        </div>
+        <div style="font-size: 14px; color: var(--gray-300); margin-top: 6px;">
+            빠르게 결과를 확인합니다
+        </div>
+    `;
+
+    if (trackContainer) {
+        trackContainer.appendChild(overlay);
+    }
+
+    // 10초 후 페이드아웃
+    setTimeout(() => {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 500);
+    }, 10000);
+}
+
+function removeQuickRaceOverlay() {
+    const overlay = document.getElementById('quickRaceOverlay');
+    if (overlay) overlay.remove();
 }
 
 // 호스트 UI 업데이트 함수
@@ -4497,6 +4540,11 @@ socket.on('horseRaceStarted', (data) => {
     // 현재 진행 중인 경주 기록 저장
     const currentRaceRecord = data.record;
 
+    // 전원 동일 베팅 시 오버레이 (뒤에서 레이스 진행됨)
+    if (data.allSameBet) {
+        showQuickRaceOverlay();
+    }
+
     // 경주 트랙 표시 (서버에서 받은 기믹 데이터 전달) - 콜백으로 종료 처리
     startRaceAnimation(data.horseRankings, data.speeds, data.gimmicks, (actualFinishOrder) => {
         // 사운드: 골인! 관중 최고조 → 환호 → 페이드아웃
@@ -4563,6 +4611,7 @@ socket.on('horseRaceEnded', (data) => {
 
 // 게임 완전 리셋 이벤트 (호스트가 게임 종료 버튼을 누른 경우)
 socket.on('horseRaceGameReset', (data) => {
+    removeQuickRaceOverlay();
     // 🔧 경주 애니메이션 정리 (경주 중 리셋 시 화면 깨짐 방지)
     if (window._raceAnimFrameId) {
         cancelAnimationFrame(window._raceAnimFrameId);

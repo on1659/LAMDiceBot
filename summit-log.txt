@@ -23,10 +23,22 @@
 - 증상: showRaceResult 수십 번 중복 호출, 비석/유령 대량 생성
 - 수정: shouldEndRace 블록 끝에 return 추가
 
-### 전원 동일 베팅 시 가속 레이스
-- socket/horse.js에서 모든 베팅이 같은 말인지 확인 (uniqueBets.length === 1 && 2명 이상)
-- allSameBet=true → baseDurations를 1/3로 줄여 3배속 시뮬레이션
-- 클라이언트 변경 없음 (서버에서 speeds 데이터 자체가 빠름)
+### 전원 동일 베팅 시 가속 레이스 (기믹 기반으로 리팩토링)
+- socket/horse.js: duration 3배속 해킹 제거 → item_boost 기믹 방식으로 전환
+  - allSameBet 감지 코드를 기믹 생성 섹션 바로 아래로 이동
+  - 베팅된 말에 item_boost 기믹 부착 (progressTrigger: 0, speedMultiplier: 5, duration: 999999)
+  - calculateHorseRaceResult에서 allSameBet 파라미터, speedUp 나눗셈 제거
+- allSameBet 플래그를 raceData에 포함하여 클라이언트로 전송
+- 기존 unbetted_stop 기믹과 동일한 패턴 활용
+
+### 전원 동일 베팅 시 "빠른 레이스" 오버레이 추가
+- js/horse-race.js: showQuickRaceOverlay() / removeQuickRaceOverlay() 함수 추가
+  - 반투명(60%) 오버레이, pointer-events: none (뒤에서 레이스 진행 가능)
+  - ⚡ 이모지 + "모두 같은 선택!" + "빠르게 결과를 확인합니다" 텍스트
+  - ⚡에 CSS @keyframes qr-bounce 바운스 애니메이션 (0.8s 무한 반복)
+  - 10초 후 페이드아웃 (transition: opacity 0.5s)
+- 정리 조건: 레이스 종료(shouldEndRace), 게임 리셋(horseRaceGameReset), 10초 타이머
+- horseRaceStarted 이벤트에서 data.allSameBet 확인 후 오버레이 표시
 
 ========================================
 

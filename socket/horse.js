@@ -220,6 +220,22 @@ module.exports = (socket, io, ctx) => {
             }
         });
 
+        // 전원 동일 베팅: 모든 말에 최고속도 부스터 기믹 부착
+        const uniqueBets = [...new Set(Object.values(gameState.userHorseBets))];
+        const allSameBet = uniqueBets.length === 1 && Object.keys(gameState.userHorseBets).length > 1;
+        if (allSameBet) {
+            gameState.availableHorses.forEach(horseIndex => {
+                if (bettedHorseIndices.has(horseIndex)) {
+                    gimmicksData[horseIndex] = [{
+                        progressTrigger: 0,
+                        type: 'item_boost',
+                        duration: 999999,
+                        speedMultiplier: 5
+                    }];
+                }
+            });
+        }
+
         // 날씨 스케줄 생성
         const forcedWeather = gameState.forcedWeather || null;
         const weatherSchedule = generateWeatherSchedule(forcedWeather);
@@ -231,12 +247,7 @@ module.exports = (socket, io, ctx) => {
         gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
         const vehicleTypes = gameState.selectedVehicleTypes || [];
-
-        // 모든 베팅이 같은 말인지 확인 (가속 레이스)
-        const uniqueBets = [...new Set(Object.values(gameState.userHorseBets))];
-        const allSameBet = uniqueBets.length === 1 && Object.keys(gameState.userHorseBets).length > 1;
-
-        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
+        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -289,7 +300,7 @@ module.exports = (socket, io, ctx) => {
 
         // 카운트다운 이벤트 전송 (3-2-1-START) + 모든 선택 공개
         io.to(room.roomId).emit('horseRaceCountdown', {
-            duration: 4, // 3-2-1-START = 4초
+            duration: 4,
             raceRound: gameState.raceRound,
             // 경기 시작 시 모든 선택 공개
             userHorseBets: { ...gameState.userHorseBets },
@@ -318,7 +329,8 @@ module.exports = (socket, io, ctx) => {
             trackFinishLine: trackFinishLine,
             record: raceRecord,
             slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } },
-            weatherConfig: weatherConfig.vehicleModifiers || {} // 탈것별 날씨 보정값 (클라이언트 표시용)
+            weatherConfig: weatherConfig.vehicleModifiers || {}, // 탈것별 날씨 보정값 (클라이언트 표시용)
+            allSameBet: allSameBet
         };
 
         gameState.horseRaceCountdownTimeout = setTimeout(() => {
@@ -1189,7 +1201,7 @@ module.exports = (socket, io, ctx) => {
     }
 
     // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
-    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false) {
+    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}) {
         // 트랙 길이 설정
         const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = preset.meters;
@@ -1218,10 +1230,9 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 각 말의 기본 도착 시간 랜덤 생성
-        const speedUp = allSameBet ? 3 : 1; // 전원 동일 베팅 시 3배속
         const baseDurations = [];
         for (let i = 0; i < horseCount; i++) {
-            baseDurations.push((minDuration + Math.random() * (maxDuration - minDuration)) / speedUp);
+            baseDurations.push(minDuration + Math.random() * (maxDuration - minDuration));
         }
 
         // 접전 강제: 1등과 2등의 도착 시간을 거의 동일하게 조정
