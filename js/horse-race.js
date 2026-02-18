@@ -262,9 +262,11 @@ function submitPassword() {
 
 // 방 나가기
 function leaveRoom() {
-    if (confirm('방을 나가시겠습니까?')) {
-        socket.emit('leaveRoom');
-    }
+    showCustomConfirm('방을 나가시겠습니까?').then(result => {
+        if (result) {
+            socket.emit('leaveRoom');
+        }
+    });
 }
 
 // 준비 함수 (ReadyModule 위임)
@@ -3129,6 +3131,32 @@ function showCountdown() {
     showNext();
 }
 
+// 호스트 UI 업데이트 함수
+function updateHostUI() {
+    const hostBadge = document.getElementById('hostBadge');
+    const hostControls = document.getElementById('hostControls');
+    const dragHint = document.getElementById('dragHint');
+
+    if (isHost) {
+        if (hostBadge) hostBadge.style.display = 'inline-block';
+        if (hostControls) hostControls.style.display = 'block';
+        if (dragHint) dragHint.style.display = isRaceActive ? 'none' : 'inline';
+
+        // 주문받기 버튼 상태
+        if (isOrderActive) {
+            document.getElementById('startOrderButton').style.display = 'none';
+            document.getElementById('endOrderButton').style.display = 'block';
+        } else {
+            document.getElementById('startOrderButton').style.display = 'block';
+            document.getElementById('endOrderButton').style.display = 'none';
+        }
+    } else {
+        if (hostBadge) hostBadge.style.display = 'none';
+        if (hostControls) hostControls.style.display = 'none';
+        if (dragHint) dragHint.style.display = 'none';
+    }
+}
+
 // 사용자 목록 렌더링
 function updateUsers(users) {
     currentUsers = users;
@@ -3330,13 +3358,13 @@ function renderHistory() {
 // GIF 옵션 모달 표시
 function showGifOptionsModal() {
     if (horseRaceHistory.length === 0) {
-        alert('기록을 찾을 수 없습니다.');
+        showCustomAlert('기록을 찾을 수 없습니다.', 'warning');
         return;
     }
     if (window.GifRecorder) {
         GifRecorder.showOptionsModal();
     } else {
-        alert('GIF 녹화 모듈을 불러오지 못했습니다.');
+        showCustomAlert('GIF 녹화 모듈을 불러오지 못했습니다.', 'error');
     }
 }
 
@@ -3555,7 +3583,7 @@ function checkHorseRaceHighlightCondition(horseStates) {
 // 마지막 경주 다시보기 (메인 다시보기 버튼)
 function playLastReplay() {
     if (horseRaceHistory.length === 0) {
-        alert('기록을 찾을 수 없습니다.');
+        showCustomAlert('기록을 찾을 수 없습니다.', 'warning');
         return;
     }
     const record = horseRaceHistory[horseRaceHistory.length - 1];
@@ -3565,7 +3593,7 @@ function playLastReplay() {
 // 다시보기 기능 (단순 재생, 시크바 없음)
 function playReplay(record) {
     if (!record) {
-        alert('기록을 찾을 수 없습니다.');
+        showCustomAlert('기록을 찾을 수 없습니다.', 'warning');
         return;
     }
 
@@ -3636,7 +3664,7 @@ function playReplay(record) {
 // 놓친 경주 다시보기 (화면을 보지 않았을 때)
 function replayMissedRace() {
     if (!lastHorseRaceData) {
-        alert('다시보기 데이터가 없습니다.');
+        showCustomAlert('다시보기 데이터가 없습니다.', 'warning');
         return;
     }
 
@@ -3752,7 +3780,7 @@ function initReadyModule() {
         onRenderComplete: (users) => {
             updateStartButton();
         },
-        onError: (message) => alert(message),
+        onError: (message) => showCustomAlert(message, 'error'),
         readyStyle: { background: 'var(--horse-gradient)', color: 'var(--bg-white)' },
         readyCancelStyle: { background: 'linear-gradient(135deg, var(--horse-600) 0%, var(--horse-500) 100%)', color: 'var(--bg-white)' }
     });
@@ -3764,7 +3792,7 @@ function initOrderModule() {
         isGameActive: () => isRaceActive,
         getEverPlayedUsers: () => everPlayedUsers,
         getUsersList: () => currentUsers,
-        showCustomAlert: (msg, type) => showCustomAlert ? showCustomAlert(msg, type) : alert(msg),
+        showCustomAlert: (msg, type) => showCustomAlert(msg, type),
         onOrderStarted: () => { isOrderActive = true; },
         onOrderEnded: () => { isOrderActive = false; },
         onOrdersUpdated: (data) => { ordersData = data; },
@@ -3850,22 +3878,7 @@ function initializeGameScreen(data) {
     OrderModule.setOrdersData(ordersData);
 
     // 호스트 UI 설정
-    if (isHost) {
-        document.getElementById('hostBadge').style.display = 'inline-block';
-        document.getElementById('hostControls').style.display = 'block';
-
-        // 주문받기 버튼 상태
-        if (isOrderActive) {
-            document.getElementById('startOrderButton').style.display = 'none';
-            document.getElementById('endOrderButton').style.display = 'block';
-        } else {
-            document.getElementById('startOrderButton').style.display = 'block';
-            document.getElementById('endOrderButton').style.display = 'none';
-        }
-    } else {
-        document.getElementById('hostBadge').style.display = 'none';
-        document.getElementById('hostControls').style.display = 'none';
-    }
+    updateHostUI();
 
     // 주문받기 상태 반영 (CSS: .orders-section { display:none }, .orders-section.active { display:block })
     if (isOrderActive) {
@@ -4110,13 +4123,13 @@ socket.on('roomJoined', (data) => {
 socket.on('roomError', (message) => {
     sessionStorage.removeItem('horseRaceFromDice');
     sessionStorage.removeItem('horseRaceActiveRoom');
-    alert(message);
+    showCustomAlert(message, 'error');
     window.location.href = '/game';
 });
 
 socket.on('horseRaceError', (message) => {
     addDebugLog(`에러: ${message}`, 'error');
-    alert(message);
+    showCustomAlert(message, 'error');
 });
 
 // readyError는 ReadyModule에서 처리
@@ -4585,8 +4598,21 @@ socket.on('horseRaceGameReset', (data) => {
 // 사용자 목록 업데이트
 socket.on('updateUsers', (users) => {
     if (window.SoundManager) SoundManager.playSound('common_notification', getHorseSoundEnabled());
+    // 호스트 상태 확인 및 업데이트
+    const myUser = users.find(u => u.name === currentUser);
+    if (myUser && myUser.isHost !== isHost) {
+        isHost = myUser.isHost;
+        updateHostUI();
+    }
     ChatModule.updateConnectedUsers(users);
     updateUsers(users);
+});
+
+// 호스트 권한 전달 알림
+socket.on('hostTransferred', (data) => {
+    showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
+    isHost = true;
+    updateHostUI();
 });
 
 // 강퇴당했을 때
@@ -4798,7 +4824,7 @@ socket.on('roomLeft', () => {
 
 socket.on('roomDeleted', (data) => {
     sessionStorage.removeItem('horseRaceActiveRoom');
-    alert(data.message || '방이 삭제되었습니다.');
+    showCustomAlert(data.message || '방이 삭제되었습니다.', 'info');
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }

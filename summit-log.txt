@@ -1,4 +1,38 @@
 ========================================
+📋 Summit Log - 2026-02-18 (호스트 컨트롤 버그 수정 + alert→커스텀 알림)
+========================================
+
+## 변경 파일
+- js/horse-race.js: updateHostUI() 함수 추가, hostTransferred 핸들러 추가, updateUsers 호스트 감지 추가, alert→showCustomAlert 전환, confirm→showCustomConfirm 전환
+- roulette-game-multiplayer.html: CSS display 충돌 수정(display:none;display:grid→display:none), hostControls display:block→grid 4곳, alert→showCustomAlert 전환, confirm→showCustomConfirm 전환
+- horse-race-multiplayer.html: 컨트롤바 통일 v3 후속 (이전 세션 변경 포함)
+- dice-game-multiplayer.html: 컨트롤바 통일 v3 후속 (이전 세션 변경 포함)
+- crane-game-multiplayer.html: confirm→showCustomConfirm 전환 (이전 세션 변경 포함)
+- docs/meeting/impl/2026-02-18-input-color-fix-impl.md: input 색상 수정 impl 업데이트
+
+## 상세 변경 내역
+
+### 경마 호스트 컨트롤 버그 (핵심 수정)
+- 근본 원인: hostTransferred 이벤트 핸들러가 경마에만 없었음 (주사위/룰렛/인형뽑기는 있음)
+- 추가 원인: updateUsers에서 호스트 변경 감지 로직도 없었음
+- 추가 원인: updateHostUI() 함수 자체가 없어서 initializeGameScreen 안에 인라인으로 있었고, hostBadge가 경마 HTML에 없는데 null 체크 없이 접근 → TypeError로 함수 중단 → hostControls 표시 코드 미도달
+- 수정: updateHostUI() 함수 신규 추가 (null-safe), hostTransferred 핸들러 추가, updateUsers에 호스트 변경 감지 추가
+
+### 룰렛 CSS display 충돌
+- 근본 원인: hostControls div에 style="display: none; display: grid; ..." → CSS 파싱 시 두 번째 값 우선 → 항상 grid 표시
+- 수정: 중복 display:grid 제거, JS에서 display:'block'→'grid' 4곳 변경
+
+### alert/confirm → 커스텀 알림 전환 (경마/룰렛)
+- leaveRoom: confirm→showCustomConfirm
+- logout: confirm→showCustomConfirm
+- roomError, horseRaceError, rouletteError: alert→showCustomAlert
+- roomDeleted: alert→showCustomAlert
+- GIF 모달, 다시보기, 준비 에러: alert→showCustomAlert
+- OrderModule.showCustomAlert: 중복 래퍼 정리
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-18 (컨트롤바 통일 v3 — 전수 분석 수정)
 ========================================
 

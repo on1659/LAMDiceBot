@@ -872,7 +872,7 @@
             </div>
 
             <!-- 호스트 컨트롤 -->
-            <div class="host-controls" id="hostControls" style="display: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+            <div class="host-controls" id="hostControls" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
                 <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled style="grid-column: 1 / -1;">
                     🎰 룰렛 시작 (최소 2명 준비 필요)
                 </button>
@@ -1132,19 +1132,17 @@
 
         // Logout function
         function logout() {
-            if (confirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.')) {
-                if (window.socket) {
-                    window.socket.emit('leaveRoom');
-                    window.socket.disconnect();
+            showCustomConfirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.').then(result => {
+                if (result) {
+                    if (window.socket) {
+                        window.socket.emit('leaveRoom');
+                        window.socket.disconnect();
+                    }
+                    sessionStorage.removeItem('rouletteActiveRoom');
+                    sessionStorage.removeItem('userName');
+                    location.href = '/';
                 }
-
-                // Clear session
-                sessionStorage.removeItem('rouletteActiveRoom');
-                sessionStorage.removeItem('userName');
-
-                // Redirect to main page
-                location.href = '/';
-            }
+            });
         }
 
         // Host delegation
@@ -1154,9 +1152,11 @@
             const targetUser = window.roomUsers.find(u => u.socketId === targetSocketId);
             if (!targetUser) return;
 
-            if (confirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`)) {
-                window.socket.emit('delegateHost', { targetSocketId });
-            }
+            showCustomConfirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`).then(result => {
+                if (result) {
+                    window.socket.emit('delegateHost', { targetSocketId });
+                }
+            });
         }
 
         // Listen for host delegation
@@ -1172,7 +1172,7 @@
                 }
 
                 if (window.isHost) {
-                    alert('호스트 권한을 받았습니다!');
+                    showCustomAlert('호스트 권한을 받았습니다!', 'success');
                 }
             });
         }
@@ -1334,7 +1334,7 @@
             confirmButton.textContent = '확인';
             confirmButton.style.cssText = `
                 padding: 10px 30px;
-                background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                background: ${borderColor};
                 color: white;
                 border: none;
                 border-radius: 8px;
@@ -1513,7 +1513,7 @@
                 confirmButton.textContent = '확인';
                 confirmButton.style.cssText = `
                     padding: 10px 25px;
-                    background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                    background: ${borderColor};
                     color: white;
                     border: none;
                     border-radius: 8px;
@@ -1888,7 +1888,7 @@
                     }
                 },
                 onError: (message) => {
-                    alert(message);
+                    showCustomAlert(message, 'error');
                     addDebugLog(`❌ 준비 에러: ${message}`, 'error');
                 }
             });
@@ -1903,7 +1903,7 @@
                 isGameActive: () => isSpinning,
                 getEverPlayedUsers: () => everPlayedUsers,
                 getUsersList: () => currentUsers,
-                showCustomAlert: (msg, type) => alert(msg),
+                showCustomAlert: (msg, type) => showCustomAlert(msg, type),
                 onOrderStarted: () => { isOrderActive = true; },
                 onOrderEnded: () => { isOrderActive = false; },
                 onOrdersUpdated: (data) => { ordersData = data; },
@@ -2102,9 +2102,11 @@
 
         // 방 나가기
         function leaveRoom() {
-            if (confirm('방을 나가시겠습니까?')) {
-                socket.emit('leaveRoom');
-            }
+            showCustomConfirm('방을 나가시겠습니까?').then(result => {
+                if (result) {
+                    socket.emit('leaveRoom');
+                }
+            });
         }
 
         // 준비 함수 (ReadyModule 위임)
@@ -2147,7 +2149,7 @@
         // 룰렛 시작
         function startRoulette() {
             if (readyUsers.length < 2) {
-                alert('최소 2명이 준비해야 시작할 수 있습니다!');
+                showCustomAlert('최소 2명이 준비해야 시작할 수 있습니다!', 'warning');
                 return;
             }
             RouletteSound.ensureContext();
@@ -2783,7 +2785,7 @@
         // 터보 애니메이션 토글
         function toggleTurboAnimation() {
             if (!isHost) {
-                alert('호스트만 설정을 변경할 수 있습니다.');
+                showCustomAlert('호스트만 설정을 변경할 수 있습니다.', 'warning');
                 return;
             }
             
@@ -2835,7 +2837,7 @@
             // 호스트 UI 설정
             if (isHost) {
                 document.getElementById('hostBadge').style.display = 'inline-block';
-                document.getElementById('hostControls').style.display = 'block';
+                document.getElementById('hostControls').style.display = 'grid';
                 const dragHint = document.getElementById('dragHint');
                 if (dragHint) dragHint.style.display = 'inline';
                 
@@ -2967,12 +2969,12 @@
         socket.on('roomError', (message) => {
             sessionStorage.removeItem('rouletteFromDice');
             sessionStorage.removeItem('rouletteActiveRoom');
-            alert(message);
+            showCustomAlert(message, 'error');
             window.location.href = '/game';
         });
 
         socket.on('rouletteError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'error');
         });
 
         // readyError, readyStateChanged, readyUsersUpdated는 ReadyModule에서 처리
@@ -2992,7 +2994,7 @@
                 if (isHost && !wasHost) {
                     // 호스트 권한이 전달되었을 때
                     document.getElementById('hostBadge').style.display = 'inline-block';
-                    document.getElementById('hostControls').style.display = 'block';
+                    document.getElementById('hostControls').style.display = 'grid';
                     updateStartButton();
                     
                     // 주문받기 버튼 상태 업데이트
@@ -3332,7 +3334,7 @@
             
             // 호스트 컨트롤 표시
             if (isHost) {
-                document.getElementById('hostControls').style.display = 'block';
+                document.getElementById('hostControls').style.display = 'grid';
             }
             
             // 준비 상태 초기화
@@ -3344,7 +3346,7 @@
 
         socket.on('roomDeleted', (data) => {
             sessionStorage.removeItem('rouletteActiveRoom');
-            alert(data.message || '방이 삭제되었습니다.');
+            showCustomAlert(data.message || '방이 삭제되었습니다.', 'info');
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
@@ -3377,7 +3379,7 @@
             showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
             isHost = true;
             document.getElementById('hostBadge').style.display = 'inline-block';
-            document.getElementById('hostControls').style.display = 'block';
+            document.getElementById('hostControls').style.display = 'grid';
             updateStartButton();
             
             // 주문받기 버튼 상태 업데이트

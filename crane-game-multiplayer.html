@@ -1275,19 +1275,17 @@
 
         // Logout function
         function logout() {
-            if (confirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.')) {
-                if (window.socket) {
-                    window.socket.emit('leaveRoom');
-                    window.socket.disconnect();
+            showCustomConfirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.').then(result => {
+                if (result) {
+                    if (window.socket) {
+                        window.socket.emit('leaveRoom');
+                        window.socket.disconnect();
+                    }
+                    sessionStorage.removeItem('craneActiveRoom');
+                    sessionStorage.removeItem('userName');
+                    location.href = '/';
                 }
-
-                // Clear session
-                sessionStorage.removeItem('craneActiveRoom');
-                sessionStorage.removeItem('userName');
-
-                // Redirect to main page
-                location.href = '/';
-            }
+            });
         }
 
         // Host delegation
@@ -1297,9 +1295,11 @@
             const targetUser = window.roomUsers.find(u => u.socketId === targetSocketId);
             if (!targetUser) return;
 
-            if (confirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`)) {
-                window.socket.emit('delegateHost', { targetSocketId });
-            }
+            showCustomConfirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`).then(result => {
+                if (result) {
+                    window.socket.emit('delegateHost', { targetSocketId });
+                }
+            });
         }
 
         // Listen for host delegation
@@ -1315,7 +1315,7 @@
                 }
 
                 if (window.isHost) {
-                    alert('호스트 권한을 받았습니다!');
+                    showCustomAlert('호스트 권한을 받았습니다!', 'success');
                 }
             });
         }
@@ -1456,7 +1456,7 @@
             confirmButton.textContent = '확인';
             confirmButton.style.cssText = `
                 padding: 10px 30px;
-                background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                background: ${borderColor};
                 color: white; border: none; border-radius: 8px;
                 font-size: 16px; font-weight: 600; cursor: pointer;
                 width: 100%; transition: transform 0.1s, box-shadow 0.1s;
@@ -1548,7 +1548,7 @@
                 confirmButton.textContent = '확인';
                 confirmButton.style.cssText = `
                     padding: 10px 25px;
-                    background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                    background: ${borderColor};
                     color: white; border: none; border-radius: 8px; font-size: 16px;
                     font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
                 `;
@@ -1806,7 +1806,7 @@
                     }
                 },
                 onError: (message) => {
-                    alert(message);
+                    showCustomAlert(message, 'error');
                     addDebugLog(`❌ 준비 에러: ${message}`, 'error');
                 }
             });
@@ -1821,7 +1821,7 @@
                 isGameActive: () => isAnimating,
                 getEverPlayedUsers: () => everPlayedUsers,
                 getUsersList: () => currentUsers,
-                showCustomAlert: (msg, type) => alert(msg),
+                showCustomAlert: (msg, type) => showCustomAlert(msg, type),
                 onOrderStarted: () => { isOrderActive = true; },
                 onOrderEnded: () => { isOrderActive = false; },
                 onOrdersUpdated: (data) => { ordersData = data; },
@@ -1986,9 +1986,11 @@
 
         // 방 나가기
         function leaveRoom() {
-            if (confirm('방을 나가시겠습니까?')) {
-                socket.emit('leaveRoom');
-            }
+            showCustomConfirm('방을 나가시겠습니까?').then(result => {
+                if (result) {
+                    socket.emit('leaveRoom');
+                }
+            });
         }
 
         // 준비 함수 (ReadyModule 위임)
@@ -2024,7 +2026,7 @@
         // 인형뽑기 시작
         function startCraneGame() {
             if (readyUsers.length < 2) {
-                alert('최소 2명이 준비해야 시작할 수 있습니다!');
+                showCustomAlert('최소 2명이 준비해야 시작할 수 있습니다!', 'warning');
                 return;
             }
             CraneSound.ensureContext();
@@ -2702,12 +2704,12 @@
         socket.on('roomError', (message) => {
             sessionStorage.removeItem('craneGameFromDice');
             sessionStorage.removeItem('craneGameActiveRoom');
-            alert(message);
+            showCustomAlert(message, 'error');
             window.location.href = '/game';
         });
 
         socket.on('craneGameError', (message) => {
-            alert(message);
+            showCustomAlert(message, 'error');
         });
 
         // 주문받기 이벤트 (OrderModule에서 처리)
@@ -2905,7 +2907,7 @@
 
         socket.on('roomDeleted', (data) => {
             sessionStorage.removeItem('craneGameActiveRoom');
-            alert(data.message || '방이 삭제되었습니다.');
+            showCustomAlert(data.message || '방이 삭제되었습니다.', 'info');
             if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
             window.location.replace('/game');

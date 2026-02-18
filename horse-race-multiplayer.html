@@ -370,7 +370,7 @@
             confirmButton.textContent = '확인';
             confirmButton.style.cssText = `
                 padding: 10px 30px;
-                background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                background: ${borderColor};
                 color: white; border: none; border-radius: 8px;
                 font-size: 16px; font-weight: 600; cursor: pointer;
                 width: 100%; transition: transform 0.1s, box-shadow 0.1s;
@@ -461,7 +461,7 @@
                 const confirmButton = document.createElement('button');
                 confirmButton.textContent = '확인';
                 confirmButton.style.cssText = `
-                    padding: 10px 25px; background: linear-gradient(135deg, ${borderColor} 0%, ${borderColor}dd 100%);
+                    padding: 10px 25px; background: ${borderColor};
                     color: white; border: none; border-radius: 8px; font-size: 16px;
                     font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
                 `;
