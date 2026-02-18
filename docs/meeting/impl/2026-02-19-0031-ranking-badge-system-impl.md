@@ -57,20 +57,23 @@ async function getTop3Badges(serverId) {
 
   for (const gameType of gameTypes) {
     const query = `
-      SELECT
-        user_name,
-        DENSE_RANK() OVER (ORDER BY wins DESC) as rank
+      SELECT user_name, rank
       FROM (
         SELECT
           user_name,
-          COUNT(*) FILTER (WHERE is_winner = true) as wins
-        FROM server_game_records
-        WHERE server_id = $1
-          AND game_type = $2
-        GROUP BY user_name
-        HAVING COUNT(*) FILTER (WHERE is_winner = true) > 0
-      ) sub
-      WHERE DENSE_RANK() OVER (ORDER BY wins DESC) <= 3
+          DENSE_RANK() OVER (ORDER BY wins DESC) as rank
+        FROM (
+          SELECT
+            user_name,
+            COUNT(*) FILTER (WHERE is_winner = true) as wins
+          FROM server_game_records
+          WHERE server_id = $1
+            AND game_type = $2
+          GROUP BY user_name
+          HAVING COUNT(*) FILTER (WHERE is_winner = true) > 0
+        ) wins_sub
+      ) ranked_sub
+      WHERE rank <= 3
       ORDER BY rank
     `;
 
@@ -141,12 +144,10 @@ if (room.isPrivateServer && room.serverId) {
 }
 ```
 
-**Cache invalidation**: Add in room creation (~line 283)
+**Cache initialization**: Add after room creation (~line 287, after `const room = rooms[roomId];`)
 ```javascript
-const gameStateNew = {
-  // ... existing fields
-  userBadges: null // Will be populated on first user join
-};
+// Initialize badge cache (will be populated on first user join)
+room.userBadges = null;
 ```
 
 **Testing**:
@@ -168,9 +169,10 @@ let _currentGameType = null;
 let _showBadges = localStorage.getItem('showBadges') !== 'false'; // Default ON
 ```
 
-**Add socket handler** (~line 50, after other socket.on handlers):
+**Add socket handler** (~line 890, inside `bindSocketEvents()` function, after `socket.on('mentionReceived', ...)`):
 ```javascript
-socket.on('rankingBadges', (data) => {
+// Ranking badges (private servers only)
+_socket.on('rankingBadges', (data) => {
   if (data && data.badges) {
     _rankingBadges = data.badges;
     _currentGameType = data.gameType;
@@ -227,11 +229,11 @@ function toggleBadgeDisplay() {
 }
 ```
 
-**Export toggle**:
+**Export toggle**: Add to existing return statement (at end of ChatModule, ~line 1620):
 ```javascript
-module.exports = {
-  // ... existing exports
-  toggleBadgeDisplay
+return {
+    // ... existing exports (init, sendMessage, etc.)
+    toggleBadgeDisplay  // Add this line
 };
 ```
 
@@ -299,29 +301,33 @@ if (rank) {
 ### Step 5: Badge Toggle UI (30 min)
 
 **File**: Game HTML files (dice-game-multiplayer.html, horse-race-multiplayer.html, roulette-game-multiplayer.html)
-**Location**: Add to settings menu or control bar
+**Location**: Add after game rules section (after `gameRulesSection` div, ~line 1580 in dice-game-multiplayer.html)
 
-**Example HTML** (add to settings overlay):
+**Example HTML** (add new settings section):
 ```html
-<div class="setting-item">
-  <label>
-    <input type="checkbox" id="badge-toggle" checked>
-    <span>랭킹 배지 표시</span>
+<!-- 3. 채팅 설정 섹션 -->
+<div class="chat-settings-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
+  <div class="dice-settings-title">💬 채팅 설정</div>
+  <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer;">
+    <input type="checkbox" id="badge-toggle" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+    <span style="font-weight: 500;">랭킹 배지 표시 (비공개 서버 전용)</span>
   </label>
 </div>
 ```
 
-**JavaScript** (add to page script):
+**JavaScript** (add to page script, after ChatModule.init(...)):
 ```javascript
-document.getElementById('badge-toggle').addEventListener('change', (e) => {
-  ChatModule.toggleBadgeDisplay();
-});
+// Badge toggle handler
+const badgeToggle = document.getElementById('badge-toggle');
+if (badgeToggle) {
+  badgeToggle.addEventListener('change', (e) => {
+    ChatModule.toggleBadgeDisplay();
+  });
 
-// Initialize checkbox state from localStorage
-window.addEventListener('DOMContentLoaded', () => {
+  // Initialize checkbox state from localStorage
   const showBadges = localStorage.getItem('showBadges') !== 'false';
-  document.getElementById('badge-toggle').checked = showBadges;
-});
+  badgeToggle.checked = showBadges;
+}
 ```
 
 **Testing**:

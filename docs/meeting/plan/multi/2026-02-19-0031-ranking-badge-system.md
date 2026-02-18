@@ -215,12 +215,12 @@ joinRoom → getTop3Badges(serverId) → socket.emit('rankingBadges')
 
 ### Phase 1: MVP 구현 (예상 4-6시간)
 
-- [x] **Step 1**: `db/ranking.js`에 `getTop3Badges(serverId)` 함수 추가 (배치 쿼리, DENSE_RANK, ~80줄)
-- [x] **Step 2**: `socket/rooms.js` joinRoom 핸들러에서 배지 맵 소켓 전송 (~30줄)
-- [x] **Step 3**: `chat-shared.js`에 배지 상태 관리 + `buildUserNameText()` 수정 (~50줄)
-- [x] **Step 4**: CSS 시각적 간격 추가 (`theme.css` or inline, ~15줄)
-- [x] **Step 5**: 배지 ON/OFF 토글 설정 (localStorage, ~30줄)
-- [x] **Step 6**: 비공개서버 필터링 확인 (~15줄)
+- [ ] **Step 1**: `db/ranking.js`에 `getTop3Badges(serverId)` 함수 추가 (배치 쿼리, DENSE_RANK, ~80줄)
+- [ ] **Step 2**: `socket/rooms.js` joinRoom 핸들러에서 배지 맵 소켓 전송 (~30줄)
+- [ ] **Step 3**: `chat-shared.js`에 배지 상태 관리 + `buildUserNameText()` 수정 (~50줄)
+- [ ] **Step 4**: CSS 시각적 간격 추가 (`theme.css` or inline, ~15줄)
+- [ ] **Step 5**: 배지 ON/OFF 토글 설정 (localStorage, ~30줄)
+- [ ] **Step 6**: 비공개서버 필터링 확인 (~15줄)
 
 ### Phase 1 검증 (예상 1-2시간)
 
