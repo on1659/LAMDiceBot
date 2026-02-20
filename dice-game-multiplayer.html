@@ -7,6 +7,13 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LAM Dice :)</title>
+    <meta name="description" content="친구와 함께하는 온라인 주사위 게임. High, Low, Near 등 다양한 규칙으로 실시간 대결.">
+    <meta property="og:title" content="LAM Dice :)">
+    <meta property="og:description" content="친구와 함께하는 온라인 주사위 게임. High, Low, Near 등 다양한 규칙으로 실시간 대결.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lamdice.com/game">
+    <meta property="og:locale" content="ko_KR">
+    <link rel="canonical" href="https://lamdice.com/game">
     <!-- Google Fonts - 귀여운 폰트 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1308,8 +1315,27 @@
             50% { transform: scale(1.1); }
         }
     </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LAMDice 주사위 게임",
+      "description": "친구와 함께하는 온라인 주사위 게임. High, Low, Near 등 다양한 규칙으로 실시간 대결.",
+      "url": "https://lamdice.com/game",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+    }
+    </script>
 </head>
 <body>
+    <noscript>
+        <div style="padding:40px; text-align:center; font-family:sans-serif;">
+            <h1>LAMDice 주사위 게임</h1>
+            <p>이 게임은 JavaScript가 필요합니다.</p>
+            <p>친구와 함께하는 온라인 주사위 게임. High, Low, Near 등 다양한 규칙으로 실시간 대결. <a href="/">메인으로 돌아가기</a></p>
+        </div>
+    </noscript>
     <header style="background-color: var(--bg-primary); padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
         <nav style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
             <h1 style="margin: 0; font-size: 1.5em;"><a href="/" style="text-decoration: none; color: var(--text-primary);">LAMDice 주사위 게임</a></h1>
@@ -7204,12 +7230,13 @@
     </script>
     <hr>
     <footer style="text-align: center; padding: 20px 0; font-size: 0.9em; color: var(--text-secondary);">
-        <p>Copyright © 2025 LAMDice. All rights reserved.</p>
+        <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top: 10px;">
             <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">개인정보 처리방침</a> |
             <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">이용 약관</a> |
             <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">문의하기</a>
         </div>
+        <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
 </body>
 </html>

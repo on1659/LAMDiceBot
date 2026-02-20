@@ -384,7 +384,7 @@ const ServerSelectModule = (function () {
 
             <div class="ss-container">
                 <div class="ss-header">
-                    <h1>🎮 서버 선택</h1>
+                    <h1>🎮 LAMDice</h1>
                     <p>서버에 참여하거나 자유롭게 플레이하세요</p>
                 </div>
 
@@ -400,11 +400,12 @@ const ServerSelectModule = (function () {
             </div>
 
             <div style="text-align:center;padding:16px 0 20px;font-size:0.8em;color:rgba(255,255,255,0.5);">
-                <p style="margin:0 0 6px;">Copyright &copy; 2025 LAMDice. All rights reserved.</p>
+                <p style="margin:0 0 6px;">Copyright &copy; 2026 LAMDice. All rights reserved.</p>
                 <a href="privacy-policy.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">개인정보 처리방침</a> |
                 <a href="terms-of-service.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">이용 약관</a> |
                 <a href="contact.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">문의하기</a> |
                 <a href="statistics.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">📊 통계</a>
+                <p style="margin:8px 0 0;font-size:0.75em;opacity:0.5;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
             </div>
         `;
 
@@ -683,9 +684,13 @@ const ServerSelectModule = (function () {
                 (s.host_name || '').toLowerCase().includes(query)
             );
         } else {
-            // 기본: 가입한 서버 + 신청 대기중 + 내가 호스트인 서버 표시
+            // 기본: 가입한 서버 표시, 없으면 전체 서버 표시
             const myName = _getUserName();
-            filtered = filtered.filter(s => s.is_member || s.is_pending || s.host_name === myName);
+            const myServers = filtered.filter(s => s.is_member || s.is_pending || s.host_name === myName);
+            if (myServers.length > 0) {
+                filtered = myServers;
+            }
+            // myServers가 비어있으면 filtered 유지 (전체 서버 표시)
         }
 
         if (filtered.length === 0) {

@@ -1,4 +1,70 @@
 ========================================
+📋 Summit Log - 2026-02-21 (AdSense 반려 대응 SEO 개선)
+========================================
+
+## 변경 파일
+- about-us.html: 중복 콘텐츠 제거 (</html> 이후 110줄 삭제), meta/OG 태그 추가, footer 면책 문구
+- index.html: meta/OG/canonical 추가, 정적 콘텐츠(main 섹션) 삽입, noscript 폴백, footer 면책 문구, Copyright 2026
+- dice-game-multiplayer.html: meta/OG/canonical, JSON-LD, noscript, footer 면책 문구, Copyright 2026
+- roulette-game-multiplayer.html: meta/OG/canonical, JSON-LD, noscript, footer 면책 문구
+- horse-race-multiplayer.html: meta/OG/canonical, JSON-LD, noscript, footer 면책 문구
+- dice-rules-guide.html: meta/OG/canonical, footer 면책 문구
+- probability-analysis.html: meta/OG/canonical, footer 면책 문구
+- contact.html: meta/OG/canonical, footer 면책 문구
+- statistics.html: meta/OG/canonical, footer 면책 문구
+- privacy-policy.html: meta/OG/canonical, footer 면책 문구
+- terms-of-service.html: meta/OG/canonical, footer 면책 문구, 최종 수정일 2026
+- sitemap.xml: 신규 생성 (11개 URL, priority 포함)
+- robots.txt: Disallow /admin, /prototype/ 추가, Sitemap 지시어 추가
+- server-select-shared.js: 오버레이 헤더 "LAMDice" 브랜딩, 신규 사용자 전체 서버 표시, Copyright 2026, footer 면책 문구
+- docs/meeting/impl/2026-02-21-1530-adsense-rejection-fix-impl.md: 구현 문서 업데이트 (7→9항목)
+
+## 상세 변경 내역
+
+### 1. about-us.html 중복 콘텐츠 제거
+- </html> 태그 이후 lines 210-323에 전체 콘텐츠가 중복 존재 (~8,500자)
+- W3C 유효성 오류 + 크롤러 혼란 유발 → 삭제
+
+### 2. 정적 콘텐츠 추가 (index.html)
+- </header>와 <script> 사이에 <main> 섹션 삽입
+- 서비스 소개, 게임 목록, 가이드 링크 포함
+- 서버 선택 오버레이(z-index:10000)가 위에 덮이므로 JS 유저에게는 안 보임
+- 크롤러가 읽을 수 있는 텍스트 콘텐츠 확보가 목적
+
+### 3. 전 페이지 SEO 메타데이터 (11파일)
+- meta description: 페이지별 고유 설명 (한국어)
+- Open Graph: og:title, og:description, og:type, og:url, og:locale
+- canonical URL: 게임 페이지는 pretty URL (/game, /roulette, /horse-race)
+
+### 4. sitemap.xml + robots.txt
+- sitemap.xml: 11개 공개 URL, priority 0.3~1.0
+- robots.txt: /admin, /prototype/ 차단, Sitemap 지시어 추가
+- Express static middleware가 자동 서빙 (서버 코드 변경 불필요)
+
+### 5. 게임 페이지 JSON-LD + noscript (3파일)
+- JSON-LD: WebApplication 스키마 (schema.org), 무료 게임 명시
+- noscript: JS 비활성 시 게임 설명 + 메인 링크 표시
+
+### 6. footer 면책 문구 (12곳)
+- "LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다."
+- 기존 footer 있는 3파일: footer 내부에 추가
+- footer 없는 8파일: <footer> 태그로 감싸서 </body> 앞에 삽입
+- server-select-shared.js 오버레이 footer에도 추가
+
+### 7. Copyright 2025→2026 (3곳 + ToS)
+- index.html, dice-game-multiplayer.html, server-select-shared.js
+- terms-of-service.html 최종 수정일도 2026년으로 변경
+
+### 8. 서버 선택 오버레이 브랜딩
+- "🎮 서버 선택" → "🎮 LAMDice"
+- 첫 화면에서 사이트 브랜드 인식 확보
+
+### 9. 신규 사용자 전체 서버 표시
+- 기존: 가입 서버만 표시 → 신규 유저에게 빈 목록
+- 변경: myServers.length === 0이면 전체 서버 표시
+- 기존 유저(가입 서버 있음)에게는 동작 변화 없음
+
+========================================
 📋 Summit Log - 2026-02-19 (랭킹 배지 시스템 구현)
 ========================================
 
