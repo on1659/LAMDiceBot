@@ -226,6 +226,33 @@ async function initDatabase() {
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_stats_server ON order_stats(server_id)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_stats_user ON order_stats(server_id, user_name)`);
 
+        // ─── 태그라인 테이블 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS taglines (
+                id SERIAL PRIMARY KEY,
+                text VARCHAR(100) NOT NULL UNIQUE,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 기본 태그라인 시드 (테이블 비어있을 때만)
+        const { rows: existing } = await pool.query('SELECT COUNT(*) FROM taglines');
+        if (parseInt(existing[0].count) === 0) {
+            const seeds = [
+                '오늘 커피는 누가 쏠까?','누가 쏘는지 주사위에 맡겨','오늘도 누군가는 쏜다',
+                '운빨로 승부하자','한 판에 모든 걸 건다','오늘의 운은 내 편일까?',
+                '실력? 여기선 운이 전부야','변명 불가, 결과는 하나','누구도 피할 수 없는 한 판',
+                '운에 맡기면 공평하잖아','이건 실력이 아니야, 운이야','오늘의 운명을 굴려보세요',
+                '굴려라! 운명이 정해진다','지금 바로 한판 굴려','클릭 한 번에 승부 끝',
+                '주사위는 거짓말 안 해','한번 굴리면 돌이킬 수 없다','시작은 가볍게, 결과는 잔인하게',
+                '굴리기 전엔 다 자신만만','마지막에 웃는 자가 승자','결과에 승복하세요',
+                '어차피 한 명은 쏜다'
+            ];
+            const values = seeds.map((t, i) => `($${i + 1})`).join(',');
+            await pool.query(`INSERT INTO taglines (text) VALUES ${values}`, seeds);
+        }
+
         await loadVisitorStatsFromDB();
         await loadPlayStatsFromDB();
 

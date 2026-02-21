@@ -405,6 +405,18 @@ function setupRoutes(app) {
             res.status(500).json({ error: '서버 오류가 발생했습니다.' });
         }
     });
+
+    // ─── 태그라인 API ───
+    app.get('/api/taglines', async (req, res) => {
+        const pool = getPool();
+        if (!pool) return res.json(['오늘 커피는 누가 쏠까?']);
+        try {
+            const { rows } = await pool.query('SELECT text FROM taglines WHERE is_active = true ORDER BY RANDOM()');
+            res.json(rows.map(r => r.text));
+        } catch {
+            res.json(['오늘 커피는 누가 쏠까?']);
+        }
+    });
 }
 
 module.exports = { setupRoutes, getServerId };

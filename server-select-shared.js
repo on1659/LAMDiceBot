@@ -139,19 +139,64 @@ const ServerSelectModule = (function () {
         /* ── 헤더 ── */
         .ss-header { text-align: center; margin-bottom: 20px; }
         .ss-header h1 { font-size: 1.6em; color: #333; margin: 0 0 6px 0; }
-        .ss-header p { color: #888; font-size: 0.95em; margin: 0; }
+        .ss-tagline {
+            overflow: hidden; height: 1.3em; position: relative; margin: 0;
+            color: #888; font-size: 0.95em;
+        }
+        .ss-tagline span {
+            display: inline-block; transition: all 0.7s ease;
+            transform-origin: center;
+        }
+        .ss-tagline .out-sl { opacity: 0; transform: translateX(-30px); }
+        .ss-tagline .wait-sl { opacity: 0; transform: translateX(30px); }
+        .ss-tagline .out-sr { opacity: 0; transform: translateX(30px); }
+        .ss-tagline .wait-sr { opacity: 0; transform: translateX(-30px); }
+        .ss-tagline .out-su { opacity: 0; transform: translateY(-20px); }
+        .ss-tagline .wait-su { opacity: 0; transform: translateY(20px); }
+        .ss-tagline .out-sd { opacity: 0; transform: translateY(20px); }
+        .ss-tagline .wait-sd { opacity: 0; transform: translateY(-20px); }
+        .ss-tagline .out-fade { opacity: 0; }
+        .ss-tagline .wait-fade { opacity: 0; }
+        .ss-tagline .out-scale { opacity: 0; transform: scale(0.6); }
+        .ss-tagline .wait-scale { opacity: 0; transform: scale(1.3); }
+        .ss-tagline .out-blur { opacity: 0; filter: blur(8px); }
+        .ss-tagline .wait-blur { opacity: 0; filter: blur(8px); }
+        .ss-tagline .wait-drop { opacity: 0; transform: translateY(-25px) scale(0.95); }
+        .ss-tagline .wait-rise { opacity: 0; transform: translateY(25px) scale(0.95); }
+        .ss-tagline .wait-pop { opacity: 0; transform: scale(0.3); }
+        .ss-tagline .wait-flip { opacity: 0; transform: rotateX(90deg); perspective: 200px; }
 
         /* ── 자유 플레이 버튼 ── */
         .ss-free-btn {
-            width: 100%; padding: 16px; border: 2px dashed #ccc; border-radius: 14px;
-            background: #fafafa; cursor: pointer; font-size: 1.05em; color: #666;
-            transition: all 0.2s; margin-bottom: 20px; text-align: center;
+            width: 100%; padding: 14px 16px; border: 2px solid rgba(102,126,234,0.3); border-radius: 14px;
+            background: #f0f2ff; cursor: pointer; font-size: 1.05em; color: #4a5acf;
+            font-weight: 600; transition: all 0.3s; margin-bottom: 20px; text-align: center;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+            position: relative;
         }
-        .ss-free-btn:hover { border-color: #667eea; color: #667eea; background: #f0f0ff; }
+        .ss-free-btn::after {
+            content: ''; position: absolute; width: 6px; height: 6px;
+            border-radius: 50%; background: #667eea;
+            box-shadow: 0 0 8px 2px rgba(102,126,234,0.6);
+            offset-path: inset(-1px round 14px);
+            offset-anchor: center;
+            offset-rotate: 0deg;
+            opacity: 0;
+            animation: ssBorderRun 8s linear infinite;
+        }
+        @keyframes ssBorderRun {
+            0% { offset-distance: 40%; opacity: 0; }
+            5% { offset-distance: 40%; opacity: 1; }
+            50% { offset-distance: 140%; opacity: 1; }
+            55% { offset-distance: 140%; opacity: 0; }
+            100% { offset-distance: 140%; opacity: 0; }
+        }
+        .ss-free-btn:hover { background: #e8ebff; box-shadow: 0 3px 12px rgba(102, 126, 234, 0.25); }
 
         /* ── 구분선 ── */
         .ss-divider { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: #ccc; font-size: 0.85em; }
         .ss-divider::before, .ss-divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
+
 
         /* ── 로그인 필요 안내 ── */
         .ss-login-prompt {
@@ -385,11 +430,14 @@ const ServerSelectModule = (function () {
             <div class="ss-container">
                 <div class="ss-header">
                     <h1>🎮 LAMDice</h1>
-                    <p>서버에 참여하거나 자유롭게 플레이하세요</p>
+                    <div class="ss-tagline">
+                        <span class="ss-tag-in" id="ss-tagline-text">오늘 커피는 누가 쏠까?</span>
+                    </div>
                 </div>
 
                 <button class="ss-free-btn" onclick="ServerSelectModule.selectFree()">
-                    🎲 자유 플레이 (기존 방식) 🎲
+                    🎲 바로 플레이
+                    <div style="font-size:0.65em;font-weight:400;margin-top:4px;opacity:0.7;">회원가입 없이 바로 시작</div>
                 </button>
 
                 <div class="ss-divider">또는 서버 참여</div>
@@ -410,8 +458,57 @@ const ServerSelectModule = (function () {
         `;
 
         document.body.appendChild(_overlay);
+        _startTaglineRotation();
         PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
+    }
+
+    let _taglines = ['오늘 커피는 누가 쏠까?'];
+    let _taglineTimer = null;
+    let _taglineLoaded = false;
+
+    function _loadTaglines() {
+        if (_taglineLoaded) return;
+        _taglineLoaded = true;
+        fetch('/api/taglines')
+            .then(r => r.json())
+            .then(data => { if (Array.isArray(data) && data.length) _taglines = data; })
+            .catch(() => {});
+    }
+
+    const _tagOutFx = ['sl','sr','su','sd','fade','scale','blur'];
+    const _tagInFx = ['sl','sr','su','sd','fade','scale','type','drop','rise','pop','flip'];
+
+    function _tagTypeIn(el, text) {
+        el.textContent = '';
+        el.className = '';
+        let i = 0;
+        const step = () => {
+            if (i < text.length) { el.textContent += text[i++]; setTimeout(step, 50); }
+        };
+        step();
+    }
+
+    function _startTaglineRotation() {
+        _loadTaglines();
+        if (_taglineTimer) clearInterval(_taglineTimer);
+        _taglineTimer = setInterval(() => {
+            const el = document.getElementById('ss-tagline-text');
+            if (!el) { clearInterval(_taglineTimer); return; }
+            const text = _taglines[Math.floor(Math.random() * _taglines.length)];
+            const inFx = _tagInFx[Math.floor(Math.random() * _tagInFx.length)];
+            const outFx = inFx === 'type' ? 'fade' : _tagOutFx[Math.floor(Math.random() * _tagOutFx.length)];
+            el.className = 'out-' + outFx;
+            setTimeout(() => {
+                if (inFx === 'type') {
+                    _tagTypeIn(el, text);
+                } else {
+                    el.textContent = text;
+                    el.className = 'wait-' + inFx;
+                    requestAnimationFrame(() => requestAnimationFrame(() => el.className = ''));
+                }
+            }, 700);
+        }, 4000);
     }
 
     function _serverSectionHTML() {
@@ -432,11 +529,10 @@ const ServerSelectModule = (function () {
 
     function _loginPromptHTML() {
         return `
-            <div class="ss-login-prompt">
-                <div class="ss-login-prompt-icon">🔐</div>
-                <h3>로그인이 필요합니다</h3>
-                <p>서버에 참여하려면 먼저 로그인하세요</p>
+            <div class="ss-login-prompt" style="padding:16px 20px;">
+                <p style="margin:0 0 10px;color:#888;font-size:0.85em;">서버 참여는 로그인이 필요합니다</p>
                 <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showLoginModal()">로그인</button>
+                <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showRegisterModal()" style="margin-left:8px;background:#28a745;">회원가입</button>
             </div>
         `;
     }

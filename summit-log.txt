@@ -1,4 +1,46 @@
 ========================================
+📋 Summit Log - 2026-02-21 (메인화면 리디자인 + 태그라인 시스템)
+========================================
+
+## 변경 파일
+- server-select-shared.js: 메인화면 오버레이 CSS/HTML/JS 대폭 변경
+- db/init.js: taglines 테이블 추가 + 시드 데이터 22개
+- routes/api.js: GET /api/taglines 엔드포인트 추가
+
+## 상세 변경 내역
+
+### 바로 플레이 버튼 CTA 강조
+- .ss-free-btn: dashed border → solid border + 연한 블루 배경(#f0f2ff)
+- ::after 파란 점이 offset-path로 버튼 테두리를 따라 도는 애니메이션
+- 버튼 텍스트: "자유 플레이 (기존 방식)" → "바로 플레이" + 부제
+
+### 태그라인 롤링 시스템
+- 헤더 p 태그 → .ss-tagline 컨테이너로 변경
+- 22개 문구가 4초 간격 랜덤 전환
+- 나가기 7종: slide-left/right/up/down, fade, scale, blur
+- 들어오기 11종: 위 7종 + drop, rise, pop, flip, typewriter
+- 나가기/들어오기 독립 랜덤 = 77가지 조합
+- typewriter 시 나가기는 fade 고정
+- DB 기반: taglines 테이블에서 /api/taglines로 로드, 캐싱
+
+### 로그인 프롬프트 축소
+- _loginPromptHTML(): 아이콘+제목+설명 블록 → 1줄 안내 + 로그인/회원가입 버튼 2개
+
+### 태그라인 문구 변경
+- "오늘의 꼴찌는 누구?" → "오늘 커피는 누가 쏠까?" (부정어 제거)
+
+### DB 변경 (db/init.js)
+- taglines 테이블: id, text(UNIQUE), is_active, created_at
+- 테이블 비어있을 때 22개 시드 자동 삽입
+- 향후 Gemini API로 6시간마다 자동 추가 예정
+
+### API 변경 (routes/api.js)
+- GET /api/taglines: is_active=true인 태그라인 랜덤 순서 반환
+- DB 없으면 기본값 1개 반환
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-21 (AdSense 반려 대응 SEO 개선)
 ========================================
 
