@@ -19,11 +19,13 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
-    <!-- FOUC Prevention: Always use light theme -->
+    <!-- FOUC Prevention: Always use light theme + hide body until overlay ready -->
     <script>
       (function() {
-        // Always use light mode regardless of system preference
         document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.classList.add('ss-loading');
+        // CSS 파일 로드 전에 인라인으로 즉시 숨김 (CSS 파싱 타이밍 문제 방지)
+        document.documentElement.style.opacity = '0';
       })();
     </script>
 
@@ -34,6 +36,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <style>
+        html.ss-loading body { opacity: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

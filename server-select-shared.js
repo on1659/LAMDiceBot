@@ -103,7 +103,6 @@ const ServerSelectModule = (function () {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-            animation: ssFadeIn 0.3s ease;
         }
         @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes ssSlideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -458,6 +457,10 @@ const ServerSelectModule = (function () {
         `;
 
         document.body.appendChild(_overlay);
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove('ss-loading');
+            document.documentElement.style.opacity = '';
+        });
         _startTaglineRotation();
         PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
