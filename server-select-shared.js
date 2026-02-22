@@ -11,6 +11,60 @@ const ServerSelectModule = (function () {
     let _membersInterval = null;
     let _isJoining = false;
     let _joiningTimeout = null;
+    let _freeRoomCount = 0;
+    let _freeSubTimer = null;
+    let _freeSubTexts = null; // API 로딩 캐시
+
+    function _buildFreeSubTexts() {
+        const base = _freeSubTexts && _freeSubTexts.length ? _freeSubTexts : ['회원가입 없이 바로 시작'];
+        if (_freeRoomCount <= 0) return base;
+        return [...base, `현재 방 ${_freeRoomCount}개`];
+    }
+
+    function _startFreeSubRoller() {
+        if (_freeSubTimer) { clearInterval(_freeSubTimer); _freeSubTimer = null; }
+        const el = document.getElementById('ss-free-sub-text');
+        if (!el) return;
+
+        const _run = () => {
+            let idx = 0;
+            const outFx = ['sl','sr','su','sd','fade'];
+            const inFx  = ['sl','sr','su','sd','fade','rise','drop'];
+            const roll = () => {
+                // 매번 최신 _freeRoomCount 반영
+                const texts = _buildFreeSubTexts();
+                if (texts.length <= 1) { el.textContent = texts[0] || '회원가입 없이 바로 시작'; return; }
+                idx = (idx + 1) % texts.length;
+                const out = outFx[Math.floor(Math.random() * outFx.length)];
+                const inF = inFx[Math.floor(Math.random() * inFx.length)];
+                el.className = 'ss-sub-out-' + out;
+                setTimeout(() => {
+                    el.textContent = texts[idx];
+                    el.className = 'ss-sub-wait-' + inF;
+                    requestAnimationFrame(() => requestAnimationFrame(() => { el.className = ''; }));
+                }, 600);
+            };
+            if (_freeSubTimer) clearInterval(_freeSubTimer);
+            _freeSubTimer = setInterval(roll, 4000);
+        };
+
+        // 캐시 있으면 바로, 없으면 API 로딩 후 시작
+        if (_freeSubTexts !== null) {
+            _run();
+        } else {
+            fetch('/api/taglines?type=free_sub')
+                .then(r => r.json())
+                .then(data => { _freeSubTexts = Array.isArray(data) && data.length ? data : ['회원가입 없이 바로 시작']; })
+                .catch(() => { _freeSubTexts = ['회원가입 없이 바로 시작']; })
+                .finally(() => _run());
+        }
+    }
+
+    function _stopFreeSubRoller() {
+        if (_freeSubTimer) { clearInterval(_freeSubTimer); _freeSubTimer = null; }
+        const el = document.getElementById('ss-free-sub-text');
+        if (el) { el.className = ''; el.textContent = '회원가입 없이 바로 시작'; }
+    }
 
     function init(socket, onSelect, onBack) {
         _socket = socket;
@@ -26,9 +80,13 @@ const ServerSelectModule = (function () {
         }
 
         // 소켓 이벤트
-        _socket.on('serversList', (servers) => {
+        _socket.on('serversList', (servers, extra) => {
             _allServers = servers || [];
             renderServerList(_allServers);
+            if (extra && typeof extra.freeRoomCount === 'number') {
+                _freeRoomCount = extra.freeRoomCount;
+                _startFreeSubRoller();
+            }
         });
 
         _socket.on('serversUpdated', () => {
@@ -108,6 +166,19 @@ const ServerSelectModule = (function () {
         }
         @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes ssSlideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        #ss-free-sub-text { display: inline-block; transition: opacity 0.6s ease, transform 0.6s ease; transform-origin: center; }
+        #ss-free-sub-text.ss-sub-out-sl { opacity: 0; transform: translateX(-20px); }
+        #ss-free-sub-text.ss-sub-out-sr { opacity: 0; transform: translateX(20px); }
+        #ss-free-sub-text.ss-sub-out-su { opacity: 0; transform: translateY(-16px); }
+        #ss-free-sub-text.ss-sub-out-sd { opacity: 0; transform: translateY(16px); }
+        #ss-free-sub-text.ss-sub-out-fade { opacity: 0; }
+        #ss-free-sub-text.ss-sub-wait-sl { opacity: 0; transform: translateX(20px); }
+        #ss-free-sub-text.ss-sub-wait-sr { opacity: 0; transform: translateX(-20px); }
+        #ss-free-sub-text.ss-sub-wait-su { opacity: 0; transform: translateY(16px); }
+        #ss-free-sub-text.ss-sub-wait-sd { opacity: 0; transform: translateY(-16px); }
+        #ss-free-sub-text.ss-sub-wait-fade { opacity: 0; }
+        #ss-free-sub-text.ss-sub-wait-rise { opacity: 0; transform: translateY(16px) scale(0.95); }
+        #ss-free-sub-text.ss-sub-wait-drop { opacity: 0; transform: translateY(-16px) scale(0.95); }
         @keyframes ssShake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-6px); }
@@ -411,7 +482,7 @@ const ServerSelectModule = (function () {
 
                 <button class="ss-free-btn" onclick="ServerSelectModule.selectFree()">
                     🎲 바로 플레이
-                    <div style="font-size:0.65em;font-weight:400;margin-top:4px;opacity:0.7;">회원가입 없이 바로 시작</div>
+                    <div style="font-size:0.65em;font-weight:400;margin-top:4px;opacity:0.7;overflow:hidden;height:1.3em;position:relative;"><span id="ss-free-sub-text" style="display:inline-block;transition:opacity 0.6s ease,transform 0.6s ease;transform-origin:center;">회원가입 없이 바로 시작</span></div>
                 </button>
 
                 <div class="ss-divider">또는 서버 참여</div>
@@ -437,6 +508,7 @@ const ServerSelectModule = (function () {
             document.documentElement.style.opacity = '';
         });
         if (typeof TaglineRoller !== 'undefined') TaglineRoller.start();
+        _startFreeSubRoller();
         PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
     }
@@ -469,6 +541,7 @@ const ServerSelectModule = (function () {
 
 
     function hide() {
+        _stopFreeSubRoller();
         if (_overlay) {
             _overlay.style.animation = 'ssFadeIn 0.2s ease reverse';
             setTimeout(() => { if (_overlay) _overlay.remove(); _overlay = null; }, 200);
@@ -739,7 +812,7 @@ const ServerSelectModule = (function () {
                     <div class="ss-server-icon" style="background: ${color}15; color: ${color};">${initial}</div>
                     <div class="ss-server-info">
                         <div class="ss-server-name">${escapeStr(s.name)} ${privateBadge}${statusBadge}${pendingBadge}</div>
-                        <div class="ss-server-meta">${escapeStr(s.host_name)} · ${s.member_count || 0}명</div>
+                        <div class="ss-server-meta">${escapeStr(s.host_name)} · ${s.member_count || 0}명${s.room_count > 0 ? ` · 방 ${s.room_count}개` : ''}</div>
                     </div>
                 </div>
             `;

@@ -10,7 +10,7 @@ const {
 const onlineMembers = new Map();
 
 function registerServerHandlers(socket, io, ctx) {
-    const { checkRateLimit } = ctx;
+    const { checkRateLimit, rooms } = ctx;
 
     // 서버 생성
     socket.on('createServer', async (data) => {
@@ -85,7 +85,23 @@ function registerServerHandlers(socket, io, ctx) {
         try {
             const userName = (data && data.userName) || socket.serverUserName || null;
             const servers = await getServers({ userName });
-            socket.emit('serversList', servers);
+
+            // 인메모리 rooms에서 서버별/자유 방 개수 계산
+            let freeRoomCount = 0;
+            const serverRoomCounts = {};
+            for (const roomId in rooms) {
+                const room = rooms[roomId];
+                if (room.serverId) {
+                    serverRoomCounts[room.serverId] = (serverRoomCounts[room.serverId] || 0) + 1;
+                } else {
+                    freeRoomCount++;
+                }
+            }
+            for (const s of servers) {
+                s.room_count = serverRoomCounts[s.id] || 0;
+            }
+
+            socket.emit('serversList', servers, { freeRoomCount });
         } catch (e) {
             console.error('서버 목록 오류:', e.message);
             socket.emit('serverError', '서버 목록 조회 중 오류가 발생했습니다.');

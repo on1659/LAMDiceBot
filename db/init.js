@@ -235,9 +235,12 @@ async function initDatabase() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        await pool.query(`
+            ALTER TABLE taglines ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'tagline'
+        `);
 
         // 기본 태그라인 시드 (테이블 비어있을 때만)
-        const { rows: existing } = await pool.query('SELECT COUNT(*) FROM taglines');
+        const { rows: existing } = await pool.query("SELECT COUNT(*) FROM taglines WHERE type = 'tagline'");
         if (parseInt(existing[0].count) === 0) {
             const seeds = [
                 '오늘 커피는 누가 쏠까?','누가 쏘는지 주사위에 맡겨','오늘도 누군가는 쏜다',
@@ -249,8 +252,27 @@ async function initDatabase() {
                 '굴리기 전엔 다 자신만만','마지막에 웃는 자가 승자','결과에 승복하세요',
                 '어차피 한 명은 쏜다'
             ];
-            const values = seeds.map((t, i) => `($${i + 1})`).join(',');
-            await pool.query(`INSERT INTO taglines (text) VALUES ${values}`, seeds);
+            const values = seeds.map((t, i) => `($${i + 1}, 'tagline')`).join(',');
+            await pool.query(`INSERT INTO taglines (text, type) VALUES ${values} ON CONFLICT (text) DO NOTHING`, seeds);
+        }
+
+        // free_sub 시드 (없을 때만)
+        const { rows: existingFreeSub } = await pool.query("SELECT COUNT(*) FROM taglines WHERE type = 'free_sub'");
+        if (parseInt(existingFreeSub[0].count) === 0) {
+            const freeSubSeeds = [
+                '회원가입 없이 바로 시작',
+                '얼른 참여하세요 🔥',
+                '지금 바로 한판 어때요?',
+                '기다리는 방이 있어요!',
+                '로그인 없이 5초 입장',
+                '지금 가장 핫한 방 🎲',
+                '자리 있을 때 들어오세요',
+                '눈치 보지 말고 입장!',
+                '빈 방 있어요, 먼저 잡아요',
+                '방장 되면 규칙 내 마음대로',
+            ];
+            const freeSubValues = freeSubSeeds.map((t, i) => `($${i + 1}, 'free_sub')`).join(',');
+            await pool.query(`INSERT INTO taglines (text, type) VALUES ${freeSubValues} ON CONFLICT (text) DO NOTHING`, freeSubSeeds);
         }
 
         await loadVisitorStatsFromDB();

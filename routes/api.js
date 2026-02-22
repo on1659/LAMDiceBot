@@ -409,12 +409,13 @@ function setupRoutes(app) {
     // ─── 태그라인 API ───
     app.get('/api/taglines', async (req, res) => {
         const pool = getPool();
-        if (!pool) return res.json(['오늘 커피는 누가 쏠까?']);
+        const type = req.query.type || 'tagline';
+        if (!pool) return res.json(type === 'free_sub' ? ['회원가입 없이 바로 시작'] : ['오늘 커피는 누가 쏠까?']);
         try {
-            const { rows } = await pool.query('SELECT text FROM taglines WHERE is_active = true ORDER BY RANDOM()');
+            const { rows } = await pool.query('SELECT text FROM taglines WHERE is_active = true AND type = $1 ORDER BY RANDOM()', [type]);
             res.json(rows.map(r => r.text));
         } catch {
-            res.json(['오늘 커피는 누가 쏠까?']);
+            res.json(type === 'free_sub' ? ['회원가입 없이 바로 시작'] : ['오늘 커피는 누가 쏠까?']);
         }
     });
 }

@@ -301,9 +301,10 @@ module.exports = (socket, io, ctx) => {
 
         // 비공개서버 여부 캐시 (방 생명주기 동안 불변)
         if (room.serverId) {
-            getServerById(room.serverId).then(server => {
+            try {
+                const server = await getServerById(room.serverId);
                 room.isPrivateServer = !!(server && server.password_hash && server.password_hash !== '');
-            }).catch(() => {});
+            } catch (e) {}
         }
 
         gameState.frequentMenus = await getMergedFrequentMenus(getServerId());
@@ -512,11 +513,11 @@ module.exports = (socket, io, ctx) => {
             }
         }
 
-        // 배지 캐시 초기화 (비공개 서버인 경우 첫 채팅 시 조회됨)
-        if (room.serverId && room.isPrivateServer) {
-            getTop3Badges(room.serverId).then(badges => {
-                room.userBadges = badges;
-            }).catch(() => {});
+        // 배지 캐시 초기화 (비공개 서버인 경우)
+        if (room.serverId) {
+            try {
+                room.userBadges = await getTop3Badges(room.serverId);
+            } catch (e) {}
         }
 
         console.log(`방 생성: ${finalRoomName} (${roomId}) by ${userName.trim()}`);

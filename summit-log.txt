@@ -1,4 +1,53 @@
 ========================================
+📋 Summit Log - 2026-02-23 (배지 시스템 개선 + 서버 방 개수 표시 + 서브 태그라인)
+========================================
+
+## 변경 파일
+- chat-shared.js: _showBadges를 const true로 고정, toggleBadgeDisplay 함수 삭제
+- socket/chat.js: 배지 조건 isPrivateServer → serverId로 변경
+- socket/dice.js: endGame/requestRoll에 await 추가, 자동종료 시 getTop3Badges 추가, isPrivateServer 조건 제거
+- socket/horse.js: raceAnimationComplete/selectHorse async 변경, record에 await 추가, isPrivateServer 조건 제거
+- socket/roulette.js: rouletteResult async 변경, record에 await 추가, isPrivateServer 조건 제거
+- socket/rooms.js: getServerById를 await로 변경, getTop3Badges를 await로 변경, 배지 조건 serverId만 체크
+- socket/shared.js: 주문 통계 조건 isPrivateServer → serverId로 변경
+- socket/server.js: serversList에 rooms 기반 방 개수(freeRoomCount, room_count) 추가
+- socket/index.js: updateRoomsList에 io.emit('serversUpdated') 추가
+- server-select-shared.js: free_sub 롤러 구현, 서버 목록에 방 개수 표시
+- db/init.js: taglines 테이블에 type 컬럼 추가, free_sub 시드 데이터 추가
+- routes/api.js: 태그라인 API에 type 파라미터 지원
+- dice/roulette/horse HTML: 채팅 설정 섹션(배지 토글) 제거, 관련 JS 핸들러 제거
+
+## 상세 변경 내역
+
+### 배지 시스템 개선
+- 문제: 배지가 비공개 서버(비밀번호 있는 서버)에서만 작동, 일반 서버에서 안 나옴
+- 원인 1: isPrivateServer 조건이 password_hash 유무로 판단 → 비밀번호 없는 사용자 서버 제외됨
+- 원인 2: recordServerGame이 await 없이 fire-and-forget → getTop3Badges가 DB 저장 전에 실행
+- 원인 3: getServerById가 .then()으로 비동기 → 방 생성 직후 isPrivateServer=false
+- 수정: isPrivateServer 조건을 serverId로 변경 (서버 소속이면 배지 작동)
+- 수정: 모든 record 호출에 await 추가하여 DB 저장 후 배지 갱신
+- 수정: rooms.js에서 getServerById/getTop3Badges를 await로 변경
+
+### 배지 토글 UI 제거
+- 채팅 설정 섹션의 "랭킹 배지 표시" 체크박스 제거 (3개 게임 HTML)
+- chat-shared.js에서 toggleBadgeDisplay 함수 삭제, _showBadges=true 고정
+- 관련 JS 이벤트 핸들러 및 localStorage 코드 제거
+
+### 주문 통계 조건 변경
+- shared.js의 주문 DB 기록도 isPrivateServer → serverId로 변경
+- 비밀번호 없는 서버에서도 주문 통계 저장되도록 수정
+
+### 서버 방 개수 표시
+- socket/server.js: 인메모리 rooms에서 서버별/자유 방 개수 계산하여 serversList와 함께 전달
+- server-select-shared.js: 서버 목록에 "방 N개" 표시, 바로 플레이 버튼에 "현재 방 N개" 롤링
+
+### 서브 태그라인 시스템
+- db/init.js: taglines 테이블에 type 컬럼(tagline/free_sub) 추가
+- free_sub 시드 데이터 10개 추가
+- routes/api.js: /api/taglines?type=free_sub 지원
+- server-select-shared.js: free_sub 롤러 구현 (다양한 애니메이션 효과)
+
+========================================
 📋 Summit Log - 2026-02-22 (태그라인 효과 + 상수 정리)
 ========================================
 

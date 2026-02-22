@@ -56,6 +56,7 @@ function setupSocketHandlers(io, rooms) {
         for (const [, socket] of io.of('/').sockets) {
             socket.emit('roomsListUpdated', filterRoomsForSocket(allRooms, socket));
         }
+        io.emit('serversUpdated');
     };
 
     const updateRoomsList = () => {

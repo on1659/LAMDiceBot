@@ -123,7 +123,7 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         gameState.userOrders[trimmedUserName] = trimmedOrder;
 
         // 비공개서버: 주문 통계 DB 기록
-        if (room.isPrivateServer && room.serverId && trimmedOrder) {
+        if (room.serverId && trimmedOrder) {
             recordOrder(room.serverId, trimmedUserName, trimmedOrder);
         }
 

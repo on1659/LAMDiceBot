@@ -18,7 +18,7 @@ const ChatModule = (function () {
     let _messageReactionTimestamps = {}; // 메시지별 마지막 반응 타임스탬프
     let _connectedUsers = []; // 접속한 사용자 목록
     let _mentionAutocompleteActive = false; // 멘션 자동완성 활성 상태
-    let _showBadges = localStorage.getItem('showBadges') !== 'false'; // 배지 표시 여부 (기본 ON)
+    const _showBadges = true; // 배지 항상 표시
 
     const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB
 
@@ -1616,14 +1616,6 @@ const ChatModule = (function () {
         });
     }
 
-    /**
-     * 배지 표시 토글 (ON/OFF)
-     */
-    function toggleBadgeDisplay() {
-        _showBadges = !_showBadges;
-        localStorage.setItem('showBadges', _showBadges);
-    }
-
     // 외부 API
     return {
         init,
@@ -1649,7 +1641,6 @@ const ChatModule = (function () {
         scrollToMessage,
         updateConnectedUsers,
         initMentionAutocomplete,
-        updateDiceResult,
-        toggleBadgeDisplay
+        updateDiceResult
     };
 })();

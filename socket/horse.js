@@ -374,7 +374,7 @@ module.exports = (socket, io, ctx) => {
     });
 
     // 경주 애니메이션 완료 (클라이언트에서 전송)
-    socket.on('raceAnimationComplete', () => {
+    socket.on('raceAnimationComplete', async () => {
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
         if (!gameState || !room) return;
@@ -400,12 +400,12 @@ module.exports = (socket, io, ctx) => {
             const winnerName = winners.length === 1 ? winners[0] : (winners[0] || null);
             const bettors = Object.entries(raceData.userHorseBets);
 
-            bettors.forEach(([userName, horseIndex]) => {
+            await Promise.all(bettors.map(([userName, horseIndex]) => {
                 const rank = horseRankMap[horseIndex] || 0;
                 const isWinner = winners.includes(userName);
-                recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId, rank);
-            });
-            recordGameSession({
+                return recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId, rank);
+            }));
+            await recordGameSession({
                 serverId: room.serverId,
                 sessionId,
                 gameType: 'horse',
@@ -442,7 +442,7 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
             // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-            if (room.serverId && room.isPrivateServer) {
+            if (room.serverId) {
                 getTop3Badges(room.serverId).then(updatedBadges => {
                     room.userBadges = updatedBadges;
                 }).catch(() => {});
@@ -502,7 +502,7 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, tieWinners: autoReadyPlayers });
 
             // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-            if (room.serverId && room.isPrivateServer) {
+            if (room.serverId) {
                 getTop3Badges(room.serverId).then(updatedBadges => {
                     room.userBadges = updatedBadges;
                 }).catch(() => {});
@@ -530,7 +530,7 @@ module.exports = (socket, io, ctx) => {
     });
 
     // 말 선택 (베팅)
-    socket.on('selectHorse', (data) => {
+    socket.on('selectHorse', async (data) => {
         if (!checkRateLimit()) return;
 
         const gameState = getCurrentRoomGameState();
@@ -773,12 +773,12 @@ module.exports = (socket, io, ctx) => {
                 const winnerName = winners.length === 1 ? winners[0] : (winners[0] || null);
                 const bettors = Object.entries(gameState.userHorseBets);
 
-                bettors.forEach(([uName, horseIndex]) => {
+                await Promise.all(bettors.map(([uName, horseIndex]) => {
                     const rank = horseRankMap[horseIndex] || 0;
                     const isWin = winners.includes(uName);
-                    recordServerGame(room.serverId, uName, rank, 'horse', isWin, sessionId, rank);
-                });
-                recordGameSession({
+                    return recordServerGame(room.serverId, uName, rank, 'horse', isWin, sessionId, rank);
+                }));
+                await recordGameSession({
                     serverId: room.serverId,
                     sessionId,
                     gameType: 'horse',
@@ -824,7 +824,7 @@ module.exports = (socket, io, ctx) => {
                 io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
                 // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-                if (room.serverId && room.isPrivateServer) {
+                if (room.serverId) {
                     getTop3Badges(room.serverId).then(updatedBadges => {
                         room.userBadges = updatedBadges;
                     }).catch(() => {});
@@ -860,7 +860,7 @@ module.exports = (socket, io, ctx) => {
                 });
 
                 // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-                if (room.serverId && room.isPrivateServer) {
+                if (room.serverId) {
                     getTop3Badges(room.serverId).then(updatedBadges => {
                         room.userBadges = updatedBadges;
                     }).catch(() => {});

@@ -100,7 +100,7 @@ module.exports = (socket, io, ctx) => {
     });
 
     // 게임 종료
-    socket.on('endGame', () => {
+    socket.on('endGame', async () => {
         if (!ctx.checkRateLimit()) return;
 
         const gameState = ctx.getCurrentRoomGameState();
@@ -132,7 +132,7 @@ module.exports = (socket, io, ctx) => {
             // 비공개서버: 등수 판별하여 game_rank + is_winner 기록
             const diceRanks = determineDiceRanks(currentGameHistory, gameState.gameRules);
             const winnerName = diceRanks ? Object.keys(diceRanks).find(u => diceRanks[u] === 1) || null : null;
-            recordGameSession({
+            await recordGameSession({
                 serverId: room.serverId,
                 sessionId,
                 gameType: 'dice',
@@ -140,11 +140,11 @@ module.exports = (socket, io, ctx) => {
                 winnerName: winnerName,
                 participantCount: currentGamePlayers.length
             });
-            currentGameHistory.forEach(r => {
+            await Promise.all(currentGameHistory.map(r => {
                 const rank = diceRanks[r.user] || null;
                 const isWinner = rank === 1;
-                recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId, rank);
-            });
+                return recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId, rank);
+            }));
         }
 
         gameState.gamePlayers = []; // 참여자 목록 초기화
@@ -158,7 +158,7 @@ module.exports = (socket, io, ctx) => {
         ctx.updateRoomsList();
 
         // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-        if (room.serverId && room.isPrivateServer) {
+        if (room.serverId) {
             getTop3Badges(room.serverId).then(updatedBadges => {
                 room.userBadges = updatedBadges;
             }).catch(() => {});
@@ -539,7 +539,7 @@ module.exports = (socket, io, ctx) => {
                     // 비공개서버: 등수 판별하여 game_rank + is_winner 기록
                     const diceRanks = determineDiceRanks(currentGameHistory, gameState.gameRules);
                     const winnerName = diceRanks ? Object.keys(diceRanks).find(u => diceRanks[u] === 1) || null : null;
-                    recordGameSession({
+                    await recordGameSession({
                         serverId: room.serverId,
                         sessionId,
                         gameType: 'dice',
@@ -547,11 +547,11 @@ module.exports = (socket, io, ctx) => {
                         winnerName: winnerName,
                         participantCount: currentGamePlayers.length
                     });
-                    currentGameHistory.forEach(r => {
+                    await Promise.all(currentGameHistory.map(r => {
                         const rank = diceRanks[r.user] || null;
                         const isWinner = rank === 1;
-                        recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId, rank);
-                    });
+                        return recordServerGame(room.serverId, r.user, r.result, 'dice', isWinner, sessionId, rank);
+                    }));
                 }
 
                 gameState.gamePlayers = []; // 참여자 목록 초기화
@@ -563,6 +563,13 @@ module.exports = (socket, io, ctx) => {
 
                 // 방 목록 업데이트 (게임 상태 변경)
                 ctx.updateRoomsList();
+
+                // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+                if (room.serverId) {
+                    getTop3Badges(room.serverId).then(updatedBadges => {
+                        room.userBadges = updatedBadges;
+                    }).catch(() => {});
+                }
 
                 console.log(`방 ${room.roomName} 게임 자동 종료, 총`, currentGameHistory.length, '번 굴림');
             }

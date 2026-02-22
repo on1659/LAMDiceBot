@@ -66,7 +66,7 @@ module.exports = (socket, io, ctx) => {
 
         // 배지 rank 조회 (비공개 서버만)
         let badgeRank = null;
-        if (room.userBadges && room.isPrivateServer) {
+        if (room.userBadges && room.serverId) {
             const gameType = room.gameType === 'horse-race' ? 'horse' : room.gameType;
             badgeRank = room.userBadges[gameType]?.[user.name] || null;
         }

@@ -1617,15 +1617,6 @@
                 </div>
             </div>
 
-            <!-- 채팅 설정 섹션 -->
-            <div class="chat-settings-section" style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div class="dice-settings-title">💬 채팅 설정</div>
-                <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-white); border: 2px solid var(--dice-500); border-radius: 8px; cursor: pointer;">
-                    <input type="checkbox" id="badge-toggle" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
-                    <span style="font-weight: 500;">랭킹 배지 표시 (비공개 서버 전용)</span>
-                </label>
-            </div>
-
             <!-- 접속자 리스트 -->
             <div class="users-section">
                 <div class="users-title">
@@ -2040,18 +2031,6 @@
                 onDiceRoll: (min, max) => rollDiceWithRange(min, max),
                 getRoomUsers: () => users
             });
-
-            // 배지 토글 핸들러
-            const badgeToggle = document.getElementById('badge-toggle');
-            if (badgeToggle) {
-                badgeToggle.addEventListener('change', (e) => {
-                    ChatModule.toggleBadgeDisplay();
-                });
-
-                // localStorage에서 초기 상태 복원
-                const showBadges = localStorage.getItem('showBadges') !== 'false';
-                badgeToggle.checked = showBadges;
-            }
 
             OrderModule.init(socket, currentUser, {
                 isHost: () => isHost,

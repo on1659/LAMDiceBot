@@ -187,7 +187,7 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
     });
 
     // 룰렛 결과 처리
-    socket.on('rouletteResult', (data) => {
+    socket.on('rouletteResult', async (data) => {
         if (!ctx.checkRateLimit()) return;
 
         const gameState = ctx.getCurrentRoomGameState();
@@ -208,16 +208,16 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
         // 서버 게임 기록 저장
         if (room.serverId && participants.length > 0) {
             const sessionId = generateSessionId('roulette', room.serverId);
-            recordGameSession({
+            await recordGameSession({
                 serverId: room.serverId,
                 sessionId,
                 gameType: 'roulette',
                 winnerName: winner,
                 participantCount: participants.length
             });
-            participants.forEach(name => {
-                recordServerGame(room.serverId, name, 0, 'roulette', name === winner, sessionId);
-            });
+            await Promise.all(participants.map(name =>
+                recordServerGame(room.serverId, name, 0, 'roulette', name === winner, sessionId)
+            ));
         }
 
         gameState.readyUsers = [];
@@ -243,7 +243,7 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
         io.to(room.roomId).emit('rouletteEnded', { winner: winner });
 
         // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-        if (room.serverId && room.isPrivateServer) {
+        if (room.serverId) {
             getTop3Badges(room.serverId).then(updatedBadges => {
                 room.userBadges = updatedBadges;
             }).catch(() => {});
