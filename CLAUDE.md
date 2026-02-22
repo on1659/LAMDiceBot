@@ -95,6 +95,7 @@ Express + Socket.IO 기반 멀티플레이어 주사위/경마 게임 서버.
 | horse-app 소스 수정 | `cd horse-app && npm run build` 빌드 필요 |
 | 새 게임 추가 | `socket/[game].js` → `socket/index.js` 등록 → `routes/api.js` 라우트 → `index.html` 링크 |
 | 구현 요청 (impl 없이) | 파일 3개+ 또는 DB 변경 포함 → "impl 문서를 먼저 만들까요, 바로 구현할까요?" 확인 |
+| 조정 가능한 숫자 상수 추가 | 하드코딩 금지 — `config/` 파일 또는 파일 상단 `const` 블록에 이름 있는 상수로 정의 후 참조 |
 
 ---
 

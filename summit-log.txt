@@ -1,4 +1,32 @@
 ========================================
+📋 Summit Log - 2026-02-22 (태그라인 효과 + 상수 정리)
+========================================
+
+## 변경 파일
+- tagline-roller.js: eraseL/eraseR 퇴장 효과 추가, 지우기 속도 80ms, 인터벌 7초
+- config/client-config.js: TAGLINE_INTERVAL_MS 4000→7000, TAGLINE_ERASE_STEP_MS 80 반영
+- server-select-shared.js: 태그라인 로직 TaglineRoller로 분리, 하드코딩 상수 외부화
+- server.js: 소켓 설정 상수화 (SOCKET_MAX_BUFFER, PING_TIMEOUT, PING_INTERVAL, ROOM_CLEANUP_INTERVAL)
+- socket/chat.js: CHAT_MAX_LENGTH, CHAT_IMAGE_MAX_BYTES, CHAT_HISTORY_MAX 상수화
+- socket/horse.js: HORSE_COUNT_MIN/MAX, HORSE_COUNTDOWN_SEC, HORSE_FRAME_INTERVAL, HORSE_HISTORY_MAX 상수화
+- socket/index.js: SOCKET_RATE_WINDOW, SOCKET_RATE_MAX 상수화
+- socket/rooms.js: HORSE_COUNT_MIN/MAX 상수화
+- index.html / dice-game-multiplayer.html: client-config.js + tagline-roller.js 스크립트 태그 추가
+- CLAUDE.md: 상수 하드코딩 금지 규칙 추가
+
+## 상세 변경 내역
+
+### 태그라인 애니메이션 개선
+- eraseL: 앞 글자부터 한 글자씩 지우기 (text.slice(i), 80ms/글자)
+- eraseR: 뒤 글자부터 한 글자씩 지우기 (text.slice(0,i), 80ms/글자)
+- 비동기 완료 후 콜백(applyIn)으로 등장 효과 연결
+- 표시 유지 시간 4초 → 7초 (문구 읽을 시간 확보)
+
+### 하드코딩 상수 정리 (전 세션)
+- 숫자 상수들을 이름있는 const로 교체, config/ 파일로 클라이언트 상수 분리
+- 태그라인 로직을 server-select-shared.js에서 tagline-roller.js 독립 모듈로 분리
+
+========================================
 📋 Summit Log - 2026-02-22 (FOUC 수정)
 ========================================
 

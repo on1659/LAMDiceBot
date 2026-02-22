@@ -1,4 +1,9 @@
 const { generateRoomId, generateUniqueUserName, createRoomGameState } = require('../utils/room-helpers');
+
+// ─── 조정 가능한 상수 ───
+const HORSE_COUNT_MIN = 4;  // 경마 최소 말 수
+const HORSE_COUNT_MAX = 6;  // 경마 최대 말 수
+// ────────────────────────
 const { getMergedFrequentMenus } = require('../db/menus');
 const { getVisitorStats, recordVisitor } = require('../db/stats');
 const { getServerId } = require('../routes/api');
@@ -350,7 +355,7 @@ module.exports = (socket, io, ctx) => {
             const players = gameState.users.map(u => u.name);
             if (players.length >= 1) {
                 // 말 수 결정 (4~6마리 랜덤)
-                let horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                let horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
                 gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
 
                 // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정 (방 생성 시)
@@ -710,7 +715,7 @@ module.exports = (socket, io, ctx) => {
                     if (players.length >= 1) {
                         // 말 수 결정 (이미 있으면 유지, 4~6마리 랜덤)
                         if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
-                            let horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                            let horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
                             gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
                         }
 
@@ -933,7 +938,7 @@ module.exports = (socket, io, ctx) => {
             if (players.length >= 1) {
                 // 말 수 결정 (이미 있으면 유지, 4~6마리 랜덤)
                 if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
-                    let horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                    let horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
                     gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
                 }
 

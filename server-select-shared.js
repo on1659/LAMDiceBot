@@ -1,4 +1,6 @@
 // 서버 선택 UI 공유 모듈
+// 상수: config/client-config.js 참조
+
 const ServerSelectModule = (function () {
     let _socket = null;
     let _onSelect = null;
@@ -47,7 +49,7 @@ const ServerSelectModule = (function () {
             if (_onSelect) _onSelect({ serverId: data.id, serverName: data.name, hostName: data.hostName });
             // 대기 멤버가 있으면 빨간점 표시 (약간 딜레이 - DOM 렌더링 대기)
             if (data.pendingCount > 0) {
-                setTimeout(() => _showMembersDot(), 300);
+                setTimeout(() => _showMembersDot(), SS_MEMBERS_DOT_DELAY);
             }
         });
 
@@ -138,33 +140,6 @@ const ServerSelectModule = (function () {
         /* ── 헤더 ── */
         .ss-header { text-align: center; margin-bottom: 20px; }
         .ss-header h1 { font-size: 1.6em; color: #333; margin: 0 0 6px 0; }
-        .ss-tagline {
-            overflow: hidden; height: 1.3em; position: relative; margin: 0;
-            color: #888; font-size: 0.95em;
-        }
-        .ss-tagline span {
-            display: inline-block; transition: all 0.7s ease;
-            transform-origin: center;
-        }
-        .ss-tagline .out-sl { opacity: 0; transform: translateX(-30px); }
-        .ss-tagline .wait-sl { opacity: 0; transform: translateX(30px); }
-        .ss-tagline .out-sr { opacity: 0; transform: translateX(30px); }
-        .ss-tagline .wait-sr { opacity: 0; transform: translateX(-30px); }
-        .ss-tagline .out-su { opacity: 0; transform: translateY(-20px); }
-        .ss-tagline .wait-su { opacity: 0; transform: translateY(20px); }
-        .ss-tagline .out-sd { opacity: 0; transform: translateY(20px); }
-        .ss-tagline .wait-sd { opacity: 0; transform: translateY(-20px); }
-        .ss-tagline .out-fade { opacity: 0; }
-        .ss-tagline .wait-fade { opacity: 0; }
-        .ss-tagline .out-scale { opacity: 0; transform: scale(0.6); }
-        .ss-tagline .wait-scale { opacity: 0; transform: scale(1.3); }
-        .ss-tagline .out-blur { opacity: 0; filter: blur(8px); }
-        .ss-tagline .wait-blur { opacity: 0; filter: blur(8px); }
-        .ss-tagline .wait-drop { opacity: 0; transform: translateY(-25px) scale(0.95); }
-        .ss-tagline .wait-rise { opacity: 0; transform: translateY(25px) scale(0.95); }
-        .ss-tagline .wait-pop { opacity: 0; transform: scale(0.3); }
-        .ss-tagline .wait-flip { opacity: 0; transform: rotateX(90deg); perspective: 200px; }
-
         /* ── 자유 플레이 버튼 ── */
         .ss-free-btn {
             width: 100%; padding: 14px 16px; border: 2px solid rgba(102,126,234,0.3); border-radius: 14px;
@@ -461,57 +436,9 @@ const ServerSelectModule = (function () {
             document.documentElement.classList.remove('ss-loading');
             document.documentElement.style.opacity = '';
         });
-        _startTaglineRotation();
+        if (typeof TaglineRoller !== 'undefined') TaglineRoller.start();
         PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
-    }
-
-    let _taglines = ['오늘 커피는 누가 쏠까?'];
-    let _taglineTimer = null;
-    let _taglineLoaded = false;
-
-    function _loadTaglines() {
-        if (_taglineLoaded) return;
-        _taglineLoaded = true;
-        fetch('/api/taglines')
-            .then(r => r.json())
-            .then(data => { if (Array.isArray(data) && data.length) _taglines = data; })
-            .catch(() => {});
-    }
-
-    const _tagOutFx = ['sl','sr','su','sd','fade','scale','blur'];
-    const _tagInFx = ['sl','sr','su','sd','fade','scale','type','drop','rise','pop','flip'];
-
-    function _tagTypeIn(el, text) {
-        el.textContent = '';
-        el.className = '';
-        let i = 0;
-        const step = () => {
-            if (i < text.length) { el.textContent += text[i++]; setTimeout(step, 50); }
-        };
-        step();
-    }
-
-    function _startTaglineRotation() {
-        _loadTaglines();
-        if (_taglineTimer) clearInterval(_taglineTimer);
-        _taglineTimer = setInterval(() => {
-            const el = document.getElementById('ss-tagline-text');
-            if (!el) { clearInterval(_taglineTimer); return; }
-            const text = _taglines[Math.floor(Math.random() * _taglines.length)];
-            const inFx = _tagInFx[Math.floor(Math.random() * _tagInFx.length)];
-            const outFx = inFx === 'type' ? 'fade' : _tagOutFx[Math.floor(Math.random() * _tagOutFx.length)];
-            el.className = 'out-' + outFx;
-            setTimeout(() => {
-                if (inFx === 'type') {
-                    _tagTypeIn(el, text);
-                } else {
-                    el.textContent = text;
-                    el.className = 'wait-' + inFx;
-                    requestAnimationFrame(() => requestAnimationFrame(() => el.className = ''));
-                }
-            }, 700);
-        }, 4000);
     }
 
     function _serverSectionHTML() {
@@ -880,7 +807,7 @@ const ServerSelectModule = (function () {
             _joiningTimeout = setTimeout(() => {
                 _clearJoining();
                 _showErrorModal('서버 응답 시간이 초과되었습니다. 다시 시도해주세요.');
-            }, 10000);
+            }, SS_JOIN_TIMEOUT);
         });
     }
 
@@ -958,7 +885,7 @@ const ServerSelectModule = (function () {
                 _joiningTimeout = setTimeout(() => {
                     _clearJoining();
                     _showErrorModal('서버 응답 시간이 초과되었습니다. 다시 시도해주세요.');
-                }, 10000);
+                }, SS_JOIN_TIMEOUT);
             }
         });
     }
@@ -1173,7 +1100,7 @@ const ServerSelectModule = (function () {
         document.body.appendChild(modal);
 
         _fetchMembers();
-        _membersInterval = setInterval(_fetchMembers, 5000);
+        _membersInterval = setInterval(_fetchMembers, SS_MEMBERS_REFRESH_INTERVAL);
     }
 
     function closeMembersModal() {
@@ -1340,7 +1267,7 @@ const ServerSelectModule = (function () {
             transition: 'opacity 0.3s'
         });
         document.body.appendChild(toast);
-        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), SS_TOAST_FADE_MS); }, SS_TOAST_DURATION);
     }
 
     function _emitGetServers() {

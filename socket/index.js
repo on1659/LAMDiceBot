@@ -114,14 +114,17 @@ function setupSocketHandlers(io, rooms) {
         let requestCount = 0;
         let requestResetTime = Date.now();
 
+        const SOCKET_RATE_WINDOW = 10000; // 소켓 rate limit 윈도우 (ms)
+        const SOCKET_RATE_MAX = 50;       // 소켓 rate limit 최대 요청 수
+
         const checkRateLimit = () => {
             const now = Date.now();
-            if (now - requestResetTime > 10000) {
+            if (now - requestResetTime > SOCKET_RATE_WINDOW) {
                 requestCount = 0;
                 requestResetTime = now;
             }
             requestCount++;
-            if (requestCount > 50) {
+            if (requestCount > SOCKET_RATE_MAX) {
                 socket.emit('rateLimitError', '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
                 return false;
             }

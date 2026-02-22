@@ -1,5 +1,11 @@
 const geminiService = require('../gemini-utils');
 
+// ─── 조정 가능한 상수 ───
+const CHAT_MAX_LENGTH = 200;           // 채팅 메시지 최대 길이 (문자)
+const CHAT_IMAGE_MAX_BYTES = 4 * 1024 * 1024; // 이미지 최대 크기 (4MB)
+const CHAT_HISTORY_MAX = 100;          // 채팅 히스토리 최대 보관 수
+// ────────────────────────
+
 module.exports = (socket, io, ctx) => {
     // Helper function: @멘션 파싱
     function parseMentions(message, roomUsers) {
@@ -37,8 +43,8 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 메시지 길이 제한
-        if (message.trim().length > 200) {
-            socket.emit('chatError', '메시지는 200자 이하로 입력해주세요!');
+        if (message.trim().length > CHAT_MAX_LENGTH) {
+            socket.emit('chatError', `메시지는 ${CHAT_MAX_LENGTH}자 이하로 입력해주세요!`);
             return;
         }
 
@@ -286,7 +292,7 @@ module.exports = (socket, io, ctx) => {
 
         // 채팅 기록에 저장 (최대 100개)
         gameState.chatHistory.push(chatMessage);
-        if (gameState.chatHistory.length > 100) {
+        if (gameState.chatHistory.length > CHAT_HISTORY_MAX) {
             gameState.chatHistory.shift(); // 가장 오래된 메시지 제거
         }
 
@@ -337,7 +343,7 @@ module.exports = (socket, io, ctx) => {
 
                     // 채팅 기록에 저장
                     gameState.chatHistory.push(geminiChatMessage);
-                    if (gameState.chatHistory.length > 100) {
+                    if (gameState.chatHistory.length > CHAT_HISTORY_MAX) {
                         gameState.chatHistory.shift();
                     }
 
@@ -452,9 +458,8 @@ module.exports = (socket, io, ctx) => {
 
         // 이미지 크기 검증 (4MB 제한 - Base64 인코딩 시 ~5.3MB → maxHttpBufferSize 6MB 이내)
         const sizeInBytes = (imageData.length * 3) / 4;
-        const MAX_SIZE = 4 * 1024 * 1024; // 4MB
-        if (sizeInBytes > MAX_SIZE) {
-            socket.emit('chatError', '이미지 크기가 4MB를 초과합니다!');
+        if (sizeInBytes > CHAT_IMAGE_MAX_BYTES) {
+            socket.emit('chatError', `이미지 크기가 ${CHAT_IMAGE_MAX_BYTES / 1024 / 1024}MB를 초과합니다!`);
             return;
         }
 
@@ -488,7 +493,7 @@ module.exports = (socket, io, ctx) => {
 
         // 채팅 기록에 저장 (최대 100개, 이미지 데이터 미포함으로 메모리 절약)
         gameState.chatHistory.push({ ...imageMessage, imageData: null });
-        if (gameState.chatHistory.length > 100) {
+        if (gameState.chatHistory.length > CHAT_HISTORY_MAX) {
             gameState.chatHistory.shift();
         }
 

@@ -1,4 +1,12 @@
 const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('../db/stats');
+
+// ─── 조정 가능한 상수 ───
+const HORSE_COUNT_MIN = 4;       // 경마 최소 말 수
+const HORSE_COUNT_MAX = 6;       // 경마 최대 말 수
+const HORSE_COUNTDOWN_SEC = 4;   // 카운트다운 시간 (초)
+const HORSE_FRAME_INTERVAL = 16; // 레이스 프레임 인터벌 (~60fps, ms)
+const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
+// ────────────────────────
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
@@ -286,8 +294,8 @@ module.exports = (socket, io, ctx) => {
 
         // 기록 저장
         gameState.horseRaceHistory.push(raceRecord);
-        if (gameState.horseRaceHistory.length > 100) {
-            gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-100);
+        if (gameState.horseRaceHistory.length > HORSE_HISTORY_MAX) {
+            gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-HORSE_HISTORY_MAX);
         }
 
         // 탈것 통계 저장
@@ -301,7 +309,7 @@ module.exports = (socket, io, ctx) => {
 
         // 카운트다운 이벤트 전송 (3-2-1-START) + 모든 선택 공개
         io.to(room.roomId).emit('horseRaceCountdown', {
-            duration: 4,
+            duration: HORSE_COUNTDOWN_SEC,
             raceRound: gameState.raceRound,
             // 경기 시작 시 모든 선택 공개
             userHorseBets: { ...gameState.userHorseBets },
@@ -428,7 +436,7 @@ module.exports = (socket, io, ctx) => {
                 isHorseRaceWinner: true
             };
             gameState.chatHistory.push(resultMessage);
-            if (gameState.chatHistory.length > 100) gameState.chatHistory = gameState.chatHistory.slice(-100);
+            if (gameState.chatHistory.length > HORSE_HISTORY_MAX) gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
             io.to(roomId).emit('newMessage', resultMessage);
             io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
             io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
@@ -488,7 +496,7 @@ module.exports = (socket, io, ctx) => {
                 isHorseRaceWinner: true
             };
             gameState.chatHistory.push(resultMessage);
-            if (gameState.chatHistory.length > 100) gameState.chatHistory = gameState.chatHistory.slice(-100);
+            if (gameState.chatHistory.length > HORSE_HISTORY_MAX) gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
             io.to(roomId).emit('newMessage', resultMessage);
 
             io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, tieWinners: autoReadyPlayers });
@@ -563,7 +571,7 @@ module.exports = (socket, io, ctx) => {
         if (!gameState.isHorseRaceActive) {
             if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
                 needsInitialization = true;
-                let horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+                let horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
                 gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
 
                 // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정
@@ -729,8 +737,8 @@ module.exports = (socket, io, ctx) => {
             };
 
             gameState.horseRaceHistory.push(raceRecord);
-            if (gameState.horseRaceHistory.length > 100) {
-                gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-100);
+            if (gameState.horseRaceHistory.length > HORSE_HISTORY_MAX) {
+                gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-HORSE_HISTORY_MAX);
             }
 
             // 탈것 통계 저장
@@ -803,8 +811,8 @@ module.exports = (socket, io, ctx) => {
                     isHorseRaceWinner: true
                 };
                 gameState.chatHistory.push(resultMessage);
-                if (gameState.chatHistory.length > 100) {
-                    gameState.chatHistory = gameState.chatHistory.slice(-100);
+                if (gameState.chatHistory.length > HORSE_HISTORY_MAX) {
+                    gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
                 }
                 io.to(room.roomId).emit('newMessage', resultMessage);
 
@@ -840,8 +848,8 @@ module.exports = (socket, io, ctx) => {
                     isHorseRaceWinner: true
                 };
                 gameState.chatHistory.push(resultMessage);
-                if (gameState.chatHistory.length > 100) {
-                    gameState.chatHistory = gameState.chatHistory.slice(-100);
+                if (gameState.chatHistory.length > HORSE_HISTORY_MAX) {
+                    gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
                 }
                 io.to(room.roomId).emit('newMessage', resultMessage);
 
@@ -1010,7 +1018,7 @@ module.exports = (socket, io, ctx) => {
         const players = gameState.users.map(u => u.name);
         if (players.length >= 2) {
             // 말 수 결정 (4~6마리 랜덤)
-            let horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+            let horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
             gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
 
             // 게임 종료 후 탈것 타입 새로 랜덤으로 설정
@@ -1084,7 +1092,7 @@ module.exports = (socket, io, ctx) => {
         gameState.userHorseBets = {};
 
         // 탈것 새로 랜덤 설정 (맵 선택 상태로 복귀)
-        const horseCount = 4 + Math.floor(Math.random() * 3); // 4~6마리 랜덤
+        const horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
         gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
         gameState.selectedVehicleTypes = [];
         const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
@@ -1241,7 +1249,7 @@ module.exports = (socket, io, ctx) => {
         const startPosition = 10;
         const finishLine = trackDistanceMeters * PIXELS_PER_METER;
         const totalDistance = finishLine - startPosition;
-        const frameInterval = 16; // ~60fps
+        const frameInterval = HORSE_FRAME_INTERVAL;
 
         // 슬로우모션 설정 (클라이언트와 동일)
         const smConf = horseConfig.slowMotion || {

@@ -15,10 +15,15 @@ const { setupSocketHandlers } = require('./socket/index');
 const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
+const SOCKET_MAX_BUFFER = 6e6;   // 소켓 최대 버퍼 크기 (bytes)
+const SOCKET_PING_TIMEOUT = 60000;  // 핑 타임아웃 (ms)
+const SOCKET_PING_INTERVAL = 25000; // 핑 인터벌 (ms)
+const ROOM_CLEANUP_INTERVAL = 60000; // 빈 방 자동 삭제 체크 주기 (ms)
+
 const io = socketIo(server, {
-    maxHttpBufferSize: 6e6,
-    pingTimeout: 60000,
-    pingInterval: 25000
+    maxHttpBufferSize: SOCKET_MAX_BUFFER,
+    pingTimeout: SOCKET_PING_TIMEOUT,
+    pingInterval: SOCKET_PING_INTERVAL
 });
 
 // Rate Limiting 설정
@@ -109,7 +114,7 @@ async function startServer() {
                 }
             }
         });
-    }, 60000);
+    }, ROOM_CLEANUP_INTERVAL);
 }
 
 // 종료 시그널 처리
