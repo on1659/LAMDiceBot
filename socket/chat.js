@@ -101,12 +101,14 @@ module.exports = (socket, io, ctx) => {
 
         if (user.isHost && room.gameType === 'horse-race') {
             // 전체 탈것 목록
-            const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse'];
+            const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse', 'knight', 'dinosaur', 'ninja', 'crab'];
             const VEHICLE_NAMES = {
                 'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
                 'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
+                'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게',
                 '자동차': 'car', '로켓': 'rocket', '새': 'bird', '보트': 'boat', '자전거': 'bicycle',
-                '토끼': 'rabbit', '거북이': 'turtle', '독수리': 'eagle', '킥보드': 'scooter', '헬리콥터': 'helicopter', '말': 'horse'
+                '토끼': 'rabbit', '거북이': 'turtle', '독수리': 'eagle', '킥보드': 'scooter', '헬리콥터': 'helicopter', '말': 'horse',
+                '기사': 'knight', '공룡': 'dinosaur', '닌자': 'ninja', '게': 'crab'
             };
 
             if (trimmedMsg === '/탈것리스트') {

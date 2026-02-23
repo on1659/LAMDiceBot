@@ -881,9 +881,1500 @@ function getVehicleSVG(vehicleId) {
             // 하위호환: frame1/frame2 직접 접근 시 run 모션 사용
             get frame1() { return this.run.frame1; },
             get frame2() { return this.run.frame2; }
+        },
+
+        'knight': { // 픽셀 기사 - 갑옷 입고 달리기
+            // === 대기 모션 (idle) - 검을 들고 서있기, 살짝 움직임 ===
+            idle: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (서있기) -->
+                    <rect x="25" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="25" y="42" width="4" height="2" fill="#888"/>
+                    <rect x="31" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="31" y="42" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="20" width="16" height="13" rx="1" fill="#777"/>
+                    <rect x="24" y="21" width="4" height="5" fill="#999"/>
+                    <rect x="30" y="21" width="4" height="5" fill="#999"/>
+                    <rect x="22" y="28" width="16" height="3" fill="#555"/>
+                    <!-- 팔 (검 세우기) -->
+                    <rect x="16" y="20" width="6" height="3" fill="#777"/>
+                    <rect x="13" y="10" width="2" height="14" fill="#ccc"/>
+                    <rect x="10" y="13" width="8" height="2" fill="#aaa"/>
+                    <rect x="13" y="8" width="2" height="3" fill="#f1c40f"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="22" width="5" height="3" fill="#666"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="11" width="12" height="9" rx="1" fill="#666"/>
+                    <rect x="26" y="8" width="8" height="5" rx="1" fill="#777"/>
+                    <rect x="26" y="14" width="8" height="3" fill="#333"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="15" width="2" height="2" fill="#88ccff"/>
+                    <rect x="31" y="15" width="2" height="2" fill="#88ccff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="5" width="2" height="5" fill="#e74c3c"/>
+                    <rect x="30" y="4" width="2" height="6" fill="#c0392b"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (서있기, 살짝 이동) -->
+                    <rect x="25" y="33" width="4" height="9" fill="#555"/>
+                    <rect x="25" y="42" width="4" height="2" fill="#888"/>
+                    <rect x="31" y="33" width="4" height="9" fill="#555"/>
+                    <rect x="31" y="42" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="21" width="16" height="13" rx="1" fill="#777"/>
+                    <rect x="24" y="22" width="4" height="5" fill="#999"/>
+                    <rect x="30" y="22" width="4" height="5" fill="#999"/>
+                    <rect x="22" y="29" width="16" height="3" fill="#555"/>
+                    <!-- 팔 (검 살짝 흔들기) -->
+                    <rect x="16" y="21" width="6" height="3" fill="#777"/>
+                    <rect x="12" y="11" width="2" height="14" fill="#ccc"/>
+                    <rect x="9" y="14" width="8" height="2" fill="#aaa"/>
+                    <rect x="12" y="9" width="2" height="3" fill="#f1c40f"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="23" width="5" height="3" fill="#666"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="12" width="12" height="9" rx="1" fill="#666"/>
+                    <rect x="26" y="9" width="8" height="5" rx="1" fill="#777"/>
+                    <rect x="26" y="15" width="8" height="3" fill="#333"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="16" width="2" height="2" fill="#88ccff"/>
+                    <rect x="31" y="16" width="2" height="2" fill="#88ccff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="6" width="2" height="5" fill="#e74c3c"/>
+                    <rect x="30" y="5" width="2" height="6" fill="#c0392b"/>
+                </svg>`
+            },
+            run: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (달리기 자세 A) -->
+                    <rect x="24" y="32" width="4" height="8" fill="#555"/>
+                    <rect x="24" y="40" width="4" height="2" fill="#888"/>
+                    <rect x="30" y="34" width="4" height="6" fill="#555"/>
+                    <rect x="30" y="40" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="20" width="16" height="13" rx="1" fill="#777"/>
+                    <rect x="24" y="21" width="4" height="5" fill="#999"/>
+                    <rect x="30" y="21" width="4" height="5" fill="#999"/>
+                    <rect x="22" y="28" width="16" height="3" fill="#555"/>
+                    <!-- 팔 (앞으로) -->
+                    <rect x="16" y="21" width="6" height="3" fill="#777"/>
+                    <rect x="13" y="20" width="4" height="5" rx="1" fill="#888"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="22" width="5" height="3" fill="#666"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="11" width="12" height="9" rx="1" fill="#666"/>
+                    <rect x="26" y="8" width="8" height="5" rx="1" fill="#777"/>
+                    <rect x="26" y="14" width="8" height="3" fill="#333"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="15" width="2" height="2" fill="#88ccff"/>
+                    <rect x="31" y="15" width="2" height="2" fill="#88ccff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="5" width="2" height="5" fill="#e74c3c"/>
+                    <rect x="30" y="4" width="2" height="6" fill="#c0392b"/>
+                    <!-- 검 -->
+                    <rect x="10" y="16" width="2" height="14" fill="#ccc"/>
+                    <rect x="7" y="19" width="8" height="2" fill="#aaa"/>
+                    <rect x="10" y="14" width="2" height="3" fill="#f1c40f"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (달리기 자세 B) -->
+                    <rect x="26" y="30" width="4" height="10" fill="#555"/>
+                    <rect x="26" y="40" width="4" height="2" fill="#888"/>
+                    <rect x="32" y="32" width="4" height="8" fill="#555"/>
+                    <rect x="30" y="40" width="6" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="19" width="16" height="13" rx="1" fill="#777"/>
+                    <rect x="24" y="20" width="4" height="5" fill="#999"/>
+                    <rect x="30" y="20" width="4" height="5" fill="#999"/>
+                    <rect x="22" y="27" width="16" height="3" fill="#555"/>
+                    <!-- 팔 (위로) -->
+                    <rect x="15" y="18" width="7" height="3" fill="#777"/>
+                    <rect x="12" y="17" width="4" height="5" rx="1" fill="#888"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="21" width="5" height="3" fill="#666"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="10" width="12" height="9" rx="1" fill="#666"/>
+                    <rect x="26" y="7" width="8" height="5" rx="1" fill="#777"/>
+                    <rect x="26" y="13" width="8" height="3" fill="#333"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="14" width="2" height="2" fill="#88ccff"/>
+                    <rect x="31" y="14" width="2" height="2" fill="#88ccff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="4" width="2" height="5" fill="#e74c3c"/>
+                    <rect x="30" y="3" width="2" height="6" fill="#c0392b"/>
+                    <!-- 검 -->
+                    <rect x="9" y="14" width="2" height="14" fill="#ccc"/>
+                    <rect x="6" y="17" width="8" height="2" fill="#aaa"/>
+                    <rect x="9" y="12" width="2" height="3" fill="#f1c40f"/>
+                </svg>`
+            },
+            rest: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (서있기) -->
+                    <rect x="25" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="25" y="42" width="4" height="2" fill="#888"/>
+                    <rect x="31" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="31" y="42" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="20" width="16" height="13" rx="1" fill="#666"/>
+                    <rect x="24" y="21" width="4" height="5" fill="#888"/>
+                    <rect x="30" y="21" width="4" height="5" fill="#888"/>
+                    <rect x="22" y="28" width="16" height="3" fill="#444"/>
+                    <!-- 팔 (내리기) -->
+                    <rect x="15" y="22" width="7" height="3" fill="#666"/>
+                    <rect x="38" y="22" width="7" height="3" fill="#666"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="11" width="12" height="9" rx="1" fill="#555"/>
+                    <rect x="26" y="8" width="8" height="5" rx="1" fill="#666"/>
+                    <rect x="26" y="14" width="8" height="3" fill="#222"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="15" width="2" height="2" fill="#6699cc"/>
+                    <rect x="31" y="15" width="2" height="2" fill="#6699cc"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="5" width="2" height="5" fill="#c0392b"/>
+                    <rect x="30" y="4" width="2" height="6" fill="#a93226"/>
+                    <!-- 검 (내려놓기) -->
+                    <rect x="38" y="20" width="2" height="18" fill="#bbb"/>
+                    <rect x="35" y="23" width="8" height="2" fill="#999"/>
+                    <!-- z z z -->
+                    <text x="44" y="14" font-size="6" fill="#aaa">z</text>
+                    <text x="47" y="10" font-size="5" fill="#aaa">z</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (서있기) -->
+                    <rect x="25" y="33" width="4" height="9" fill="#555"/>
+                    <rect x="25" y="42" width="4" height="2" fill="#888"/>
+                    <rect x="31" y="33" width="4" height="9" fill="#555"/>
+                    <rect x="31" y="42" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="21" width="16" height="13" rx="1" fill="#666"/>
+                    <rect x="24" y="22" width="4" height="5" fill="#888"/>
+                    <rect x="30" y="22" width="4" height="5" fill="#888"/>
+                    <rect x="22" y="29" width="16" height="3" fill="#444"/>
+                    <!-- 팔 -->
+                    <rect x="15" y="23" width="7" height="3" fill="#666"/>
+                    <rect x="38" y="23" width="7" height="3" fill="#666"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="12" width="12" height="9" rx="1" fill="#555"/>
+                    <rect x="26" y="9" width="8" height="5" rx="1" fill="#666"/>
+                    <rect x="26" y="15" width="8" height="3" fill="#222"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="16" width="2" height="2" fill="#6699cc"/>
+                    <rect x="31" y="16" width="2" height="2" fill="#6699cc"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="6" width="2" height="5" fill="#c0392b"/>
+                    <rect x="30" y="5" width="2" height="6" fill="#a93226"/>
+                    <!-- 검 -->
+                    <rect x="38" y="21" width="2" height="18" fill="#bbb"/>
+                    <rect x="35" y="24" width="8" height="2" fill="#999"/>
+                    <!-- z z z -->
+                    <text x="45" y="15" font-size="6" fill="#aaa">z</text>
+                    <text x="48" y="11" font-size="5" fill="#aaa">z</text>
+                </svg>`
+            },
+            // === 도착 모션 (finish) - 천천히 걸으며 감속 ===
+            finish: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (천천히 걷기 A) -->
+                    <rect x="24" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="24" y="42" width="4" height="2" fill="#888"/>
+                    <rect x="31" y="33" width="4" height="8" fill="#555"/>
+                    <rect x="31" y="41" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="20" width="16" height="13" rx="1" fill="#777"/>
+                    <rect x="24" y="21" width="4" height="5" fill="#999"/>
+                    <rect x="30" y="21" width="4" height="5" fill="#999"/>
+                    <rect x="22" y="28" width="16" height="3" fill="#555"/>
+                    <!-- 팔 (검 내리기) -->
+                    <rect x="16" y="22" width="6" height="3" fill="#777"/>
+                    <rect x="38" y="22" width="5" height="3" fill="#666"/>
+                    <!-- 검 (옆으로) -->
+                    <rect x="8" y="22" width="10" height="2" fill="#ccc"/>
+                    <rect x="13" y="20" width="2" height="2" fill="#f1c40f"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="11" width="12" height="9" rx="1" fill="#666"/>
+                    <rect x="26" y="8" width="8" height="5" rx="1" fill="#777"/>
+                    <rect x="26" y="14" width="8" height="3" fill="#333"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="15" width="2" height="2" fill="#88ccff"/>
+                    <rect x="31" y="15" width="2" height="2" fill="#88ccff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="5" width="2" height="5" fill="#e74c3c"/>
+                    <rect x="30" y="4" width="2" height="6" fill="#c0392b"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (천천히 걷기 B) -->
+                    <rect x="25" y="33" width="4" height="8" fill="#555"/>
+                    <rect x="25" y="41" width="4" height="2" fill="#888"/>
+                    <rect x="32" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="32" y="42" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="21" width="16" height="13" rx="1" fill="#777"/>
+                    <rect x="24" y="22" width="4" height="5" fill="#999"/>
+                    <rect x="30" y="22" width="4" height="5" fill="#999"/>
+                    <rect x="22" y="29" width="16" height="3" fill="#555"/>
+                    <!-- 팔 -->
+                    <rect x="16" y="23" width="6" height="3" fill="#777"/>
+                    <rect x="38" y="23" width="5" height="3" fill="#666"/>
+                    <!-- 검 (옆으로) -->
+                    <rect x="9" y="23" width="10" height="2" fill="#ccc"/>
+                    <rect x="14" y="21" width="2" height="2" fill="#f1c40f"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="12" width="12" height="9" rx="1" fill="#666"/>
+                    <rect x="26" y="9" width="8" height="5" rx="1" fill="#777"/>
+                    <rect x="26" y="15" width="8" height="3" fill="#333"/>
+                    <!-- 눈구멍 -->
+                    <rect x="27" y="16" width="2" height="2" fill="#88ccff"/>
+                    <rect x="31" y="16" width="2" height="2" fill="#88ccff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="6" width="2" height="5" fill="#e74c3c"/>
+                    <rect x="30" y="5" width="2" height="6" fill="#c0392b"/>
+                </svg>`
+            },
+            // === 승리 모션 (victory) - 검을 높이 들고 환호 ===
+            victory: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (벌리고 서기) -->
+                    <rect x="23" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="23" y="42" width="4" height="2" fill="#888"/>
+                    <rect x="33" y="32" width="4" height="10" fill="#555"/>
+                    <rect x="33" y="42" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="20" width="16" height="13" rx="1" fill="#888"/>
+                    <rect x="24" y="21" width="4" height="5" fill="#aaa"/>
+                    <rect x="30" y="21" width="4" height="5" fill="#aaa"/>
+                    <rect x="22" y="28" width="16" height="3" fill="#666"/>
+                    <!-- 뒷팔 (위로) -->
+                    <rect x="38" y="16" width="5" height="3" fill="#777"/>
+                    <!-- 앞팔 (검 높이 들기) -->
+                    <rect x="15" y="14" width="7" height="3" fill="#888"/>
+                    <!-- 검 (위로!) -->
+                    <rect x="13" y="2" width="2" height="16" fill="#ddd"/>
+                    <rect x="10" y="13" width="8" height="2" fill="#bbb"/>
+                    <rect x="13" y="0" width="2" height="3" fill="#f1c40f"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="11" width="12" height="9" rx="1" fill="#777"/>
+                    <rect x="26" y="8" width="8" height="5" rx="1" fill="#888"/>
+                    <rect x="26" y="14" width="8" height="3" fill="#444"/>
+                    <!-- 눈구멍 (밝게) -->
+                    <rect x="27" y="15" width="2" height="2" fill="#aaddff"/>
+                    <rect x="31" y="15" width="2" height="2" fill="#aaddff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="5" width="2" height="5" fill="#ff5555"/>
+                    <rect x="30" y="4" width="2" height="6" fill="#e74c3c"/>
+                    <!-- 왕관 -->
+                    <rect x="26" y="5" width="8" height="3" fill="#FFD700"/>
+                    <rect x="27" y="3" width="2" height="3" fill="#FFD700"/>
+                    <rect x="31" y="3" width="2" height="3" fill="#FFD700"/>
+                    <rect x="29" y="2" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 -->
+                    <text x="8" y="6" font-size="5" fill="#FFD700">✦</text>
+                    <text x="44" y="14" font-size="4" fill="#FFD700">✦</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (벌리고 서기) -->
+                    <rect x="23" y="33" width="4" height="9" fill="#555"/>
+                    <rect x="23" y="42" width="4" height="2" fill="#888"/>
+                    <rect x="33" y="33" width="4" height="9" fill="#555"/>
+                    <rect x="33" y="42" width="4" height="2" fill="#888"/>
+                    <!-- 몸통 갑옷 -->
+                    <rect x="22" y="21" width="16" height="13" rx="1" fill="#888"/>
+                    <rect x="24" y="22" width="4" height="5" fill="#aaa"/>
+                    <rect x="30" y="22" width="4" height="5" fill="#aaa"/>
+                    <rect x="22" y="29" width="16" height="3" fill="#666"/>
+                    <!-- 뒷팔 (위로) -->
+                    <rect x="38" y="15" width="5" height="3" fill="#777"/>
+                    <!-- 앞팔 (검 더 높이!) -->
+                    <rect x="16" y="12" width="7" height="3" fill="#888"/>
+                    <!-- 검 (더 위로!) -->
+                    <rect x="14" y="0" width="2" height="16" fill="#ddd"/>
+                    <rect x="11" y="11" width="8" height="2" fill="#bbb"/>
+                    <rect x="14" y="-2" width="2" height="3" fill="#f1c40f"/>
+                    <!-- 투구 -->
+                    <rect x="24" y="12" width="12" height="9" rx="1" fill="#777"/>
+                    <rect x="26" y="9" width="8" height="5" rx="1" fill="#888"/>
+                    <rect x="26" y="15" width="8" height="3" fill="#444"/>
+                    <!-- 눈구멍 (밝게) -->
+                    <rect x="27" y="16" width="2" height="2" fill="#aaddff"/>
+                    <rect x="31" y="16" width="2" height="2" fill="#aaddff"/>
+                    <!-- 깃털 장식 -->
+                    <rect x="28" y="6" width="2" height="5" fill="#ff5555"/>
+                    <rect x="30" y="5" width="2" height="6" fill="#e74c3c"/>
+                    <!-- 왕관 (흔들림) -->
+                    <rect x="25" y="6" width="8" height="3" fill="#FFD700"/>
+                    <rect x="26" y="4" width="2" height="3" fill="#FFD700"/>
+                    <rect x="30" y="4" width="2" height="3" fill="#FFD700"/>
+                    <rect x="28" y="3" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 (위치 변경) -->
+                    <text x="5" y="10" font-size="4" fill="#FFD700">✦</text>
+                    <text x="46" y="10" font-size="5" fill="#FFD700">✦</text>
+                    <text x="20" y="4" font-size="3" fill="#FFD700">✦</text>
+                </svg>`
+            },
+            // === 사망 모션 (dead) - 갑옷과 비석 ===
+            dead: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 투구 유령 (반투명) -->
+                    <g opacity="0.4">
+                        <rect x="28" y="2" width="10" height="8" rx="1" fill="#666"/>
+                        <rect x="30" y="0" width="6" height="4" rx="1" fill="#777"/>
+                        <!-- X 눈 -->
+                        <line x1="30" y1="5" x2="32" y2="7" stroke="#333" stroke-width="0.8"/>
+                        <line x1="32" y1="5" x2="30" y2="7" stroke="#333" stroke-width="0.8"/>
+                        <line x1="34" y1="5" x2="36" y2="7" stroke="#333" stroke-width="0.8"/>
+                        <line x1="36" y1="5" x2="34" y2="7" stroke="#333" stroke-width="0.8"/>
+                    </g>
+                    <!-- 검 (바닥에) -->
+                    <rect x="44" y="30" width="10" height="2" fill="#bbb"/>
+                    <rect x="48" y="28" width="2" height="2" fill="#f1c40f"/>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 투구 유령 (올라가는 중) -->
+                    <g opacity="0.3">
+                        <rect x="28" y="-1" width="10" height="8" rx="1" fill="#666"/>
+                        <rect x="30" y="-3" width="6" height="4" rx="1" fill="#777"/>
+                        <line x1="30" y1="2" x2="32" y2="4" stroke="#333" stroke-width="0.8"/>
+                        <line x1="32" y1="2" x2="30" y2="4" stroke="#333" stroke-width="0.8"/>
+                        <line x1="34" y1="2" x2="36" y2="4" stroke="#333" stroke-width="0.8"/>
+                        <line x1="36" y1="2" x2="34" y2="4" stroke="#333" stroke-width="0.8"/>
+                    </g>
+                    <!-- 검 (바닥에) -->
+                    <rect x="44" y="30" width="10" height="2" fill="#bbb"/>
+                    <rect x="48" y="28" width="2" height="2" fill="#f1c40f"/>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`
+            },
+            get frame1() { return this.run.frame1; },
+            get frame2() { return this.run.frame2; }
+        },
+
+        'dinosaur': { // 픽셀 공룡 - 통통 달리기
+            // === 대기 모션 (idle) - 서서 두리번거리기 ===
+            idle: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 -->
+                    <rect x="4" y="27" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="2" y="29" width="4" height="3" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="19" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="16" y="23" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 -->
+                    <rect x="14" y="15" width="3" height="6" fill="#e74c3c"/>
+                    <rect x="19" y="12" width="3" height="8" fill="#e74c3c"/>
+                    <rect x="24" y="13" width="3" height="7" fill="#e74c3c"/>
+                    <rect x="29" y="15" width="3" height="5" fill="#e74c3c"/>
+                    <!-- 다리 (서있기) -->
+                    <rect x="14" y="35" width="5" height="7" fill="#27ae60"/>
+                    <rect x="12" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="24" y="35" width="5" height="7" fill="#27ae60"/>
+                    <rect x="24" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 -->
+                    <rect x="32" y="23" width="5" height="3" fill="#27ae60"/>
+                    <rect x="36" y="23" width="3" height="5" fill="#27ae60"/>
+                    <!-- 머리 (정면) -->
+                    <rect x="34" y="14" width="14" height="10" rx="2" fill="#27ae60"/>
+                    <rect x="44" y="18" width="6" height="4" rx="1" fill="#27ae60"/>
+                    <!-- 눈 (정면 응시) -->
+                    <rect x="44" y="15" width="3" height="3" fill="white"/>
+                    <rect x="46" y="16" width="2" height="2" fill="#1a1a1a"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="19" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 -->
+                    <rect x="45" y="22" width="2" height="2" fill="white"/>
+                    <rect x="48" y="22" width="2" height="2" fill="white"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 (살짝 흔들림) -->
+                    <rect x="4" y="26" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="2" y="28" width="4" height="3" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="19" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="16" y="23" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 -->
+                    <rect x="14" y="15" width="3" height="6" fill="#e74c3c"/>
+                    <rect x="19" y="12" width="3" height="8" fill="#e74c3c"/>
+                    <rect x="24" y="13" width="3" height="7" fill="#e74c3c"/>
+                    <rect x="29" y="15" width="3" height="5" fill="#e74c3c"/>
+                    <!-- 다리 (서있기) -->
+                    <rect x="14" y="35" width="5" height="7" fill="#27ae60"/>
+                    <rect x="12" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="24" y="35" width="5" height="7" fill="#27ae60"/>
+                    <rect x="24" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 (위로) -->
+                    <rect x="32" y="21" width="5" height="3" fill="#27ae60"/>
+                    <rect x="36" y="21" width="3" height="5" fill="#27ae60"/>
+                    <!-- 머리 (살짝 위) -->
+                    <rect x="34" y="12" width="14" height="10" rx="2" fill="#27ae60"/>
+                    <rect x="44" y="16" width="6" height="4" rx="1" fill="#27ae60"/>
+                    <!-- 눈 -->
+                    <rect x="44" y="13" width="3" height="3" fill="white"/>
+                    <rect x="45" y="14" width="2" height="2" fill="#1a1a1a"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="17" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 -->
+                    <rect x="45" y="20" width="2" height="2" fill="white"/>
+                    <rect x="48" y="20" width="2" height="2" fill="white"/>
+                </svg>`
+            },
+            run: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 -->
+                    <rect x="4" y="26" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="2" y="28" width="4" height="3" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="18" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="16" y="22" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 -->
+                    <rect x="14" y="14" width="3" height="6" fill="#e74c3c"/>
+                    <rect x="19" y="11" width="3" height="8" fill="#e74c3c"/>
+                    <rect x="24" y="12" width="3" height="7" fill="#e74c3c"/>
+                    <rect x="29" y="14" width="3" height="5" fill="#e74c3c"/>
+                    <!-- 뒷다리 (달리기 A) -->
+                    <rect x="14" y="34" width="5" height="8" fill="#27ae60"/>
+                    <rect x="12" y="40" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="24" y="32" width="5" height="6" fill="#27ae60"/>
+                    <rect x="24" y="37" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 -->
+                    <rect x="32" y="22" width="5" height="3" fill="#27ae60"/>
+                    <rect x="36" y="22" width="3" height="5" fill="#27ae60"/>
+                    <!-- 머리 -->
+                    <rect x="34" y="14" width="14" height="10" rx="2" fill="#27ae60"/>
+                    <rect x="44" y="18" width="6" height="4" rx="1" fill="#27ae60"/>
+                    <!-- 눈 -->
+                    <rect x="44" y="15" width="3" height="3" fill="white"/>
+                    <rect x="45" y="16" width="2" height="2" fill="#1a1a1a"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="19" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 -->
+                    <rect x="45" y="22" width="2" height="2" fill="white"/>
+                    <rect x="48" y="22" width="2" height="2" fill="white"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 -->
+                    <rect x="4" y="25" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="2" y="27" width="4" height="3" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="17" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="16" y="21" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 -->
+                    <rect x="14" y="13" width="3" height="6" fill="#e74c3c"/>
+                    <rect x="19" y="10" width="3" height="8" fill="#e74c3c"/>
+                    <rect x="24" y="11" width="3" height="7" fill="#e74c3c"/>
+                    <rect x="29" y="13" width="3" height="5" fill="#e74c3c"/>
+                    <!-- 뒷다리 (달리기 B) -->
+                    <rect x="16" y="33" width="5" height="6" fill="#27ae60"/>
+                    <rect x="14" y="38" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="22" y="33" width="5" height="8" fill="#27ae60"/>
+                    <rect x="22" y="40" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 -->
+                    <rect x="32" y="21" width="5" height="3" fill="#27ae60"/>
+                    <rect x="36" y="21" width="3" height="6" fill="#27ae60"/>
+                    <!-- 머리 -->
+                    <rect x="34" y="13" width="14" height="10" rx="2" fill="#27ae60"/>
+                    <rect x="44" y="17" width="6" height="4" rx="1" fill="#27ae60"/>
+                    <!-- 눈 -->
+                    <rect x="44" y="14" width="3" height="3" fill="white"/>
+                    <rect x="45" y="15" width="2" height="2" fill="#1a1a1a"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="18" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 -->
+                    <rect x="45" y="21" width="2" height="2" fill="white"/>
+                    <rect x="48" y="21" width="2" height="2" fill="white"/>
+                </svg>`
+            },
+            rest: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 -->
+                    <rect x="4" y="28" width="9" height="4" fill="#239a55"/>
+                    <rect x="2" y="30" width="4" height="3" fill="#239a55"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="21" width="22" height="16" rx="2" fill="#239a55"/>
+                    <!-- 배 -->
+                    <rect x="16" y="25" width="12" height="10" rx="1" fill="#90d4b0"/>
+                    <!-- 등 가시 (축 처진) -->
+                    <rect x="15" y="17" width="3" height="5" fill="#c0392b"/>
+                    <rect x="20" y="15" width="3" height="7" fill="#c0392b"/>
+                    <rect x="25" y="16" width="3" height="6" fill="#c0392b"/>
+                    <rect x="30" y="17" width="3" height="5" fill="#c0392b"/>
+                    <!-- 다리 (쉬기) -->
+                    <rect x="15" y="37" width="5" height="6" fill="#239a55"/>
+                    <rect x="13" y="43" width="7" height="2" fill="#1a7840"/>
+                    <rect x="24" y="37" width="5" height="6" fill="#239a55"/>
+                    <rect x="24" y="43" width="7" height="2" fill="#1a7840"/>
+                    <!-- 앞팔 -->
+                    <rect x="32" y="25" width="5" height="3" fill="#239a55"/>
+                    <rect x="36" y="25" width="3" height="4" fill="#239a55"/>
+                    <!-- 머리 -->
+                    <rect x="34" y="17" width="14" height="10" rx="2" fill="#239a55"/>
+                    <rect x="44" y="21" width="6" height="4" rx="1" fill="#239a55"/>
+                    <!-- 눈 (반쯤 감음) -->
+                    <rect x="44" y="18" width="3" height="2" fill="white"/>
+                    <rect x="44" y="19" width="3" height="1" fill="#1a1a1a"/>
+                    <!-- z z z -->
+                    <text x="46" y="12" font-size="6" fill="#aaa">z</text>
+                    <text x="50" y="8" font-size="5" fill="#aaa">z</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 -->
+                    <rect x="4" y="29" width="9" height="4" fill="#239a55"/>
+                    <rect x="2" y="31" width="4" height="3" fill="#239a55"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="22" width="22" height="16" rx="2" fill="#239a55"/>
+                    <!-- 배 -->
+                    <rect x="16" y="26" width="12" height="10" rx="1" fill="#90d4b0"/>
+                    <!-- 등 가시 -->
+                    <rect x="15" y="18" width="3" height="5" fill="#c0392b"/>
+                    <rect x="20" y="16" width="3" height="7" fill="#c0392b"/>
+                    <rect x="25" y="17" width="3" height="6" fill="#c0392b"/>
+                    <rect x="30" y="18" width="3" height="5" fill="#c0392b"/>
+                    <!-- 다리 (쉬기) -->
+                    <rect x="15" y="38" width="5" height="5" fill="#239a55"/>
+                    <rect x="13" y="43" width="7" height="2" fill="#1a7840"/>
+                    <rect x="24" y="38" width="5" height="5" fill="#239a55"/>
+                    <rect x="24" y="43" width="7" height="2" fill="#1a7840"/>
+                    <!-- 앞팔 -->
+                    <rect x="32" y="26" width="5" height="3" fill="#239a55"/>
+                    <rect x="36" y="26" width="3" height="4" fill="#239a55"/>
+                    <!-- 머리 -->
+                    <rect x="34" y="18" width="14" height="10" rx="2" fill="#239a55"/>
+                    <rect x="44" y="22" width="6" height="4" rx="1" fill="#239a55"/>
+                    <!-- 눈 -->
+                    <rect x="44" y="19" width="3" height="2" fill="white"/>
+                    <rect x="44" y="20" width="3" height="1" fill="#1a1a1a"/>
+                    <!-- z z z -->
+                    <text x="47" y="13" font-size="6" fill="#aaa">z</text>
+                    <text x="51" y="9" font-size="5" fill="#aaa">z</text>
+                </svg>`
+            },
+            // === 도착 모션 (finish) - 천천히 걸으며 감속 ===
+            finish: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 -->
+                    <rect x="4" y="27" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="2" y="29" width="4" height="3" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="19" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="16" y="23" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 -->
+                    <rect x="14" y="15" width="3" height="6" fill="#e74c3c"/>
+                    <rect x="19" y="12" width="3" height="8" fill="#e74c3c"/>
+                    <rect x="24" y="13" width="3" height="7" fill="#e74c3c"/>
+                    <rect x="29" y="15" width="3" height="5" fill="#e74c3c"/>
+                    <!-- 다리 (천천히 걷기 A) -->
+                    <rect x="14" y="35" width="5" height="7" fill="#27ae60"/>
+                    <rect x="12" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="24" y="33" width="5" height="6" fill="#27ae60"/>
+                    <rect x="24" y="38" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 -->
+                    <rect x="32" y="23" width="5" height="3" fill="#27ae60"/>
+                    <rect x="36" y="23" width="3" height="5" fill="#27ae60"/>
+                    <!-- 머리 -->
+                    <rect x="34" y="15" width="14" height="10" rx="2" fill="#27ae60"/>
+                    <rect x="44" y="19" width="6" height="4" rx="1" fill="#27ae60"/>
+                    <!-- 눈 -->
+                    <rect x="44" y="16" width="3" height="3" fill="white"/>
+                    <rect x="45" y="17" width="2" height="2" fill="#1a1a1a"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="20" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 -->
+                    <rect x="45" y="23" width="2" height="2" fill="white"/>
+                    <rect x="48" y="23" width="2" height="2" fill="white"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 -->
+                    <rect x="4" y="28" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="2" y="30" width="4" height="3" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="12" y="20" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="16" y="24" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 -->
+                    <rect x="14" y="16" width="3" height="6" fill="#e74c3c"/>
+                    <rect x="19" y="13" width="3" height="8" fill="#e74c3c"/>
+                    <rect x="24" y="14" width="3" height="7" fill="#e74c3c"/>
+                    <rect x="29" y="16" width="3" height="5" fill="#e74c3c"/>
+                    <!-- 다리 (천천히 걷기 B) -->
+                    <rect x="15" y="36" width="5" height="6" fill="#27ae60"/>
+                    <rect x="13" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="23" y="36" width="5" height="7" fill="#27ae60"/>
+                    <rect x="23" y="42" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 -->
+                    <rect x="32" y="24" width="5" height="3" fill="#27ae60"/>
+                    <rect x="36" y="24" width="3" height="5" fill="#27ae60"/>
+                    <!-- 머리 -->
+                    <rect x="34" y="16" width="14" height="10" rx="2" fill="#27ae60"/>
+                    <rect x="44" y="20" width="6" height="4" rx="1" fill="#27ae60"/>
+                    <!-- 눈 -->
+                    <rect x="44" y="17" width="3" height="3" fill="white"/>
+                    <rect x="45" y="18" width="2" height="2" fill="#1a1a1a"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="21" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 -->
+                    <rect x="45" y="24" width="2" height="2" fill="white"/>
+                    <rect x="48" y="24" width="2" height="2" fill="white"/>
+                </svg>`
+            },
+            // === 승리 모션 (victory) - 으르렁! 포효 + 왕관 ===
+            victory: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 (위로) -->
+                    <rect x="2" y="20" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="0" y="18" width="4" height="4" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="10" y="18" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="14" y="22" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 (서있기) -->
+                    <rect x="12" y="14" width="3" height="6" fill="#ff5555"/>
+                    <rect x="17" y="11" width="3" height="8" fill="#ff5555"/>
+                    <rect x="22" y="12" width="3" height="7" fill="#ff5555"/>
+                    <rect x="27" y="14" width="3" height="5" fill="#ff5555"/>
+                    <!-- 다리 (벌리고 서기) -->
+                    <rect x="12" y="34" width="5" height="8" fill="#27ae60"/>
+                    <rect x="10" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="24" y="34" width="5" height="8" fill="#27ae60"/>
+                    <rect x="24" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 (위로) -->
+                    <rect x="30" y="18" width="5" height="3" fill="#27ae60"/>
+                    <rect x="34" y="16" width="3" height="6" fill="#27ae60"/>
+                    <!-- 머리 (위로, 포효) -->
+                    <rect x="32" y="8" width="14" height="12" rx="2" fill="#27ae60"/>
+                    <rect x="42" y="10" width="8" height="6" rx="1" fill="#27ae60"/>
+                    <!-- 눈 (번뜩) -->
+                    <rect x="42" y="9" width="3" height="3" fill="white"/>
+                    <rect x="43" y="10" width="2" height="2" fill="#ff3333"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="12" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 (크게) -->
+                    <rect x="43" y="16" width="2" height="3" fill="white"/>
+                    <rect x="46" y="16" width="2" height="3" fill="white"/>
+                    <rect x="49" y="16" width="2" height="2" fill="white"/>
+                    <!-- 입 안 -->
+                    <rect x="43" y="15" width="8" height="2" fill="#c0392b"/>
+                    <!-- 왕관 -->
+                    <rect x="34" y="5" width="8" height="3" fill="#FFD700"/>
+                    <rect x="35" y="3" width="2" height="3" fill="#FFD700"/>
+                    <rect x="39" y="3" width="2" height="3" fill="#FFD700"/>
+                    <rect x="37" y="2" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 -->
+                    <text x="6" y="14" font-size="5" fill="#FFD700">✦</text>
+                    <text x="50" y="6" font-size="4" fill="#FFD700">✦</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 꼬리 (더 위로) -->
+                    <rect x="2" y="18" width="8" height="4" fill="#2ecc71"/>
+                    <rect x="0" y="16" width="4" height="4" fill="#2ecc71"/>
+                    <!-- 몸통 -->
+                    <rect x="10" y="19" width="22" height="16" rx="2" fill="#27ae60"/>
+                    <!-- 배 -->
+                    <rect x="14" y="23" width="12" height="10" rx="1" fill="#a8e6cf"/>
+                    <!-- 등 가시 (서있기) -->
+                    <rect x="12" y="15" width="3" height="6" fill="#ff5555"/>
+                    <rect x="17" y="12" width="3" height="8" fill="#ff5555"/>
+                    <rect x="22" y="13" width="3" height="7" fill="#ff5555"/>
+                    <rect x="27" y="15" width="3" height="5" fill="#ff5555"/>
+                    <!-- 다리 (벌리고 서기) -->
+                    <rect x="12" y="35" width="5" height="7" fill="#27ae60"/>
+                    <rect x="10" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <rect x="24" y="35" width="5" height="7" fill="#27ae60"/>
+                    <rect x="24" y="41" width="7" height="3" fill="#1a8a45"/>
+                    <!-- 앞팔 (더 위로) -->
+                    <rect x="30" y="17" width="5" height="3" fill="#27ae60"/>
+                    <rect x="34" y="14" width="3" height="7" fill="#27ae60"/>
+                    <!-- 머리 (더 위로, 포효) -->
+                    <rect x="32" y="6" width="14" height="12" rx="2" fill="#27ae60"/>
+                    <rect x="42" y="8" width="8" height="6" rx="1" fill="#27ae60"/>
+                    <!-- 눈 -->
+                    <rect x="42" y="7" width="3" height="3" fill="white"/>
+                    <rect x="43" y="8" width="2" height="2" fill="#ff3333"/>
+                    <!-- 콧구멍 -->
+                    <rect x="49" y="10" width="1" height="1" fill="#1a8a45"/>
+                    <!-- 이빨 (크게) -->
+                    <rect x="43" y="14" width="2" height="3" fill="white"/>
+                    <rect x="46" y="14" width="2" height="3" fill="white"/>
+                    <rect x="49" y="14" width="2" height="2" fill="white"/>
+                    <!-- 입 안 -->
+                    <rect x="43" y="13" width="8" height="2" fill="#c0392b"/>
+                    <!-- 왕관 (흔들림) -->
+                    <rect x="33" y="3" width="8" height="3" fill="#FFD700"/>
+                    <rect x="34" y="1" width="2" height="3" fill="#FFD700"/>
+                    <rect x="38" y="1" width="2" height="3" fill="#FFD700"/>
+                    <rect x="36" y="0" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 (위치 변경) -->
+                    <text x="4" y="10" font-size="4" fill="#FFD700">✦</text>
+                    <text x="52" y="4" font-size="5" fill="#FFD700">✦</text>
+                    <text x="28" y="6" font-size="3" fill="#FFD700">✦</text>
+                </svg>`
+            },
+            // === 사망 모션 (dead) - 뼈다귀와 비석 ===
+            dead: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 공룡 유령 (반투명) -->
+                    <g opacity="0.4">
+                        <rect x="30" y="0" width="10" height="8" rx="2" fill="#27ae60"/>
+                        <rect x="38" y="2" width="5" height="4" rx="1" fill="#27ae60"/>
+                        <!-- X 눈 -->
+                        <line x1="38" y1="1" x2="40" y2="3" stroke="#333" stroke-width="0.8"/>
+                        <line x1="40" y1="1" x2="38" y2="3" stroke="#333" stroke-width="0.8"/>
+                        <!-- 등 가시 -->
+                        <rect x="31" y="-2" width="2" height="3" fill="#c0392b"/>
+                        <rect x="34" y="-3" width="2" height="4" fill="#c0392b"/>
+                    </g>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 공룡 유령 (올라가는 중) -->
+                    <g opacity="0.3">
+                        <rect x="30" y="-3" width="10" height="8" rx="2" fill="#27ae60"/>
+                        <rect x="38" y="-1" width="5" height="4" rx="1" fill="#27ae60"/>
+                        <line x1="38" y1="-2" x2="40" y2="0" stroke="#333" stroke-width="0.8"/>
+                        <line x1="40" y1="-2" x2="38" y2="0" stroke="#333" stroke-width="0.8"/>
+                        <rect x="31" y="-5" width="2" height="3" fill="#c0392b"/>
+                        <rect x="34" y="-6" width="2" height="4" fill="#c0392b"/>
+                    </g>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`
+            },
+            get frame1() { return this.run.frame1; },
+            get frame2() { return this.run.frame2; }
+        },
+
+        'ninja': { // 픽셀 닌자 - 빠르게 질주
+            // === 대기 모션 (idle) - 팔짱 끼고 서있기 ===
+            idle: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (서있기) -->
+                    <rect x="25" y="32" width="4" height="10" fill="#1a1a1a"/>
+                    <rect x="24" y="42" width="6" height="2" fill="#333"/>
+                    <rect x="31" y="32" width="4" height="10" fill="#1a1a1a"/>
+                    <rect x="31" y="42" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="30" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="20" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 팔 (팔짱) -->
+                    <rect x="22" y="22" width="16" height="4" fill="#222"/>
+                    <rect x="20" y="22" width="4" height="4" fill="#222"/>
+                    <rect x="36" y="22" width="4" height="4" fill="#222"/>
+                    <!-- 머리 (마스크) -->
+                    <rect x="26" y="11" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="15" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="15" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="15" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="14" width="10" height="2" fill="#e74c3c"/>
+                    <rect x="36" y="14" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="14" width="2" height="4" fill="#e74c3c"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (서있기, 살짝 이동) -->
+                    <rect x="25" y="33" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="24" y="42" width="6" height="2" fill="#333"/>
+                    <rect x="31" y="33" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="31" y="42" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="31" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="21" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 팔 (팔짱) -->
+                    <rect x="22" y="23" width="16" height="4" fill="#222"/>
+                    <rect x="20" y="23" width="4" height="4" fill="#222"/>
+                    <rect x="36" y="23" width="4" height="4" fill="#222"/>
+                    <!-- 머리 -->
+                    <rect x="26" y="12" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="16" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="16" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="16" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="15" width="10" height="2" fill="#e74c3c"/>
+                    <rect x="36" y="15" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="15" width="2" height="4" fill="#e74c3c"/>
+                </svg>`
+            },
+            run: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 속도감 선 -->
+                    <line x1="2" y1="22" x2="14" y2="22" stroke="#ddd" stroke-width="1" opacity="0.5"/>
+                    <line x1="4" y1="26" x2="12" y2="26" stroke="#ddd" stroke-width="1" opacity="0.4"/>
+                    <line x1="2" y1="18" x2="10" y2="18" stroke="#ddd" stroke-width="1" opacity="0.3"/>
+                    <!-- 다리 (달리기 A) -->
+                    <rect x="24" y="31" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="23" y="39" width="6" height="2" fill="#333"/>
+                    <rect x="30" y="33" width="4" height="7" fill="#1a1a1a"/>
+                    <rect x="30" y="39" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="29" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 (검은 닌자복) -->
+                    <rect x="22" y="19" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 앞팔 (검 들기) -->
+                    <rect x="15" y="18" width="8" height="3" fill="#222"/>
+                    <rect x="10" y="10" width="2" height="12" fill="#ccc"/>
+                    <rect x="8" y="13" width="6" height="2" fill="#aaa"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="22" width="6" height="3" fill="#222"/>
+                    <!-- 머리 (마스크) -->
+                    <rect x="26" y="10" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈만 보임 -->
+                    <rect x="28" y="14" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="14" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="14" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="13" width="10" height="2" fill="#e74c3c"/>
+                    <!-- 머리띠 끈 -->
+                    <rect x="36" y="13" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="13" width="2" height="4" fill="#e74c3c"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 속도감 선 -->
+                    <line x1="2" y1="21" x2="14" y2="21" stroke="#ddd" stroke-width="1" opacity="0.5"/>
+                    <line x1="4" y1="25" x2="12" y2="25" stroke="#ddd" stroke-width="1" opacity="0.4"/>
+                    <line x1="2" y1="17" x2="10" y2="17" stroke="#ddd" stroke-width="1" opacity="0.3"/>
+                    <!-- 다리 (달리기 B) -->
+                    <rect x="26" y="29" width="4" height="11" fill="#1a1a1a"/>
+                    <rect x="24" y="39" width="6" height="2" fill="#333"/>
+                    <rect x="32" y="31" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="32" y="39" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="28" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="18" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 앞팔 (검 위로) -->
+                    <rect x="14" y="15" width="8" height="3" fill="#222"/>
+                    <rect x="10" y="8" width="2" height="12" fill="#ccc"/>
+                    <rect x="8" y="11" width="6" height="2" fill="#aaa"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="21" width="6" height="3" fill="#222"/>
+                    <!-- 머리 (마스크) -->
+                    <rect x="26" y="9" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="13" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="13" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="13" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="12" width="10" height="2" fill="#e74c3c"/>
+                    <!-- 머리띠 끈 -->
+                    <rect x="36" y="12" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="12" width="2" height="4" fill="#e74c3c"/>
+                </svg>`
+            },
+            rest: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (웅크리기) -->
+                    <rect x="24" y="33" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="23" y="42" width="6" height="2" fill="#333"/>
+                    <rect x="30" y="33" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="30" y="42" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="31" width="16" height="3" fill="#c0392b"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="21" width="16" height="11" rx="1" fill="#1a1a1a"/>
+                    <!-- 팔 (접기) -->
+                    <rect x="15" y="23" width="7" height="3" fill="#1a1a1a"/>
+                    <rect x="38" y="23" width="7" height="3" fill="#1a1a1a"/>
+                    <!-- 머리 -->
+                    <rect x="26" y="12" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 (반쯤 감음) -->
+                    <rect x="28" y="17" width="6" height="1" fill="#c0392b"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="15" width="10" height="2" fill="#c0392b"/>
+                    <!-- 머리띠 끈 -->
+                    <rect x="36" y="15" width="5" height="1" fill="#c0392b"/>
+                    <rect x="39" y="15" width="2" height="4" fill="#c0392b"/>
+                    <!-- z z z -->
+                    <text x="42" y="12" font-size="6" fill="#aaa">z</text>
+                    <text x="45" y="8" font-size="5" fill="#aaa">z</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (웅크리기) -->
+                    <rect x="24" y="34" width="4" height="8" fill="#1a1a1a"/>
+                    <rect x="23" y="42" width="6" height="2" fill="#333"/>
+                    <rect x="30" y="34" width="4" height="8" fill="#1a1a1a"/>
+                    <rect x="30" y="42" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="32" width="16" height="3" fill="#c0392b"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="22" width="16" height="11" rx="1" fill="#1a1a1a"/>
+                    <!-- 팔 (접기) -->
+                    <rect x="15" y="24" width="7" height="3" fill="#1a1a1a"/>
+                    <rect x="38" y="24" width="7" height="3" fill="#1a1a1a"/>
+                    <!-- 머리 -->
+                    <rect x="26" y="13" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="18" width="6" height="1" fill="#c0392b"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="16" width="10" height="2" fill="#c0392b"/>
+                    <!-- 머리띠 끈 -->
+                    <rect x="36" y="16" width="5" height="1" fill="#c0392b"/>
+                    <rect x="39" y="16" width="2" height="4" fill="#c0392b"/>
+                    <!-- z z z -->
+                    <text x="43" y="13" font-size="6" fill="#aaa">z</text>
+                    <text x="46" y="9" font-size="5" fill="#aaa">z</text>
+                </svg>`
+            },
+            // === 도착 모션 (finish) - 천천히 걸으며 감속 ===
+            finish: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (천천히 걷기 A) -->
+                    <rect x="25" y="32" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="24" y="41" width="6" height="2" fill="#333"/>
+                    <rect x="31" y="33" width="4" height="8" fill="#1a1a1a"/>
+                    <rect x="31" y="41" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="30" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="20" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 팔 (내리기) -->
+                    <rect x="15" y="22" width="7" height="3" fill="#222"/>
+                    <rect x="38" y="22" width="6" height="3" fill="#222"/>
+                    <!-- 머리 -->
+                    <rect x="26" y="11" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="15" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="15" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="15" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="14" width="10" height="2" fill="#e74c3c"/>
+                    <rect x="36" y="14" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="14" width="2" height="4" fill="#e74c3c"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (천천히 걷기 B) -->
+                    <rect x="26" y="33" width="4" height="8" fill="#1a1a1a"/>
+                    <rect x="25" y="41" width="6" height="2" fill="#333"/>
+                    <rect x="32" y="32" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="32" y="41" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="31" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="21" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 팔 (내리기) -->
+                    <rect x="15" y="23" width="7" height="3" fill="#222"/>
+                    <rect x="38" y="23" width="6" height="3" fill="#222"/>
+                    <!-- 머리 -->
+                    <rect x="26" y="12" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="16" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="16" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="16" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="15" width="10" height="2" fill="#e74c3c"/>
+                    <rect x="36" y="15" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="15" width="2" height="4" fill="#e74c3c"/>
+                </svg>`
+            },
+            // === 승리 모션 (victory) - 닌자 포즈 + 왕관 ===
+            victory: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (넓게 벌리기) -->
+                    <rect x="21" y="32" width="4" height="10" fill="#1a1a1a"/>
+                    <rect x="20" y="42" width="6" height="2" fill="#333"/>
+                    <rect x="35" y="32" width="4" height="10" fill="#1a1a1a"/>
+                    <rect x="35" y="42" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="20" y="30" width="20" height="3" fill="#ff5555"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="20" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 앞팔 (수리검 들기) -->
+                    <rect x="12" y="16" width="10" height="3" fill="#222"/>
+                    <!-- 수리검 -->
+                    <rect x="8" y="14" width="4" height="4" fill="#ccc" transform="rotate(45,10,16)"/>
+                    <!-- 뒷팔 (위로) -->
+                    <rect x="38" y="16" width="8" height="3" fill="#222"/>
+                    <!-- 머리 -->
+                    <rect x="26" y="10" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 (번뜩) -->
+                    <rect x="28" y="14" width="6" height="2" fill="#ff5555"/>
+                    <rect x="29" y="14" width="2" height="2" fill="#ff9999"/>
+                    <rect x="33" y="14" width="2" height="2" fill="#ff9999"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="13" width="10" height="2" fill="#ff5555"/>
+                    <rect x="36" y="13" width="6" height="1" fill="#ff5555"/>
+                    <rect x="40" y="13" width="2" height="5" fill="#ff5555"/>
+                    <!-- 왕관 -->
+                    <rect x="27" y="7" width="8" height="3" fill="#FFD700"/>
+                    <rect x="28" y="5" width="2" height="3" fill="#FFD700"/>
+                    <rect x="32" y="5" width="2" height="3" fill="#FFD700"/>
+                    <rect x="30" y="4" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 -->
+                    <text x="6" y="10" font-size="5" fill="#FFD700">✦</text>
+                    <text x="46" y="14" font-size="4" fill="#FFD700">✦</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (넓게 벌리기) -->
+                    <rect x="21" y="33" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="20" y="42" width="6" height="2" fill="#333"/>
+                    <rect x="35" y="33" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="35" y="42" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="20" y="31" width="20" height="3" fill="#ff5555"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="21" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 앞팔 (수리검 더 위) -->
+                    <rect x="11" y="14" width="11" height="3" fill="#222"/>
+                    <!-- 수리검 -->
+                    <rect x="7" y="12" width="4" height="4" fill="#ccc" transform="rotate(45,9,14)"/>
+                    <!-- 뒷팔 (위로) -->
+                    <rect x="38" y="14" width="8" height="3" fill="#222"/>
+                    <!-- 머리 -->
+                    <rect x="26" y="11" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="15" width="6" height="2" fill="#ff5555"/>
+                    <rect x="29" y="15" width="2" height="2" fill="#ff9999"/>
+                    <rect x="33" y="15" width="2" height="2" fill="#ff9999"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="14" width="10" height="2" fill="#ff5555"/>
+                    <rect x="36" y="14" width="6" height="1" fill="#ff5555"/>
+                    <rect x="40" y="14" width="2" height="5" fill="#ff5555"/>
+                    <!-- 왕관 (흔들림) -->
+                    <rect x="26" y="8" width="8" height="3" fill="#FFD700"/>
+                    <rect x="27" y="6" width="2" height="3" fill="#FFD700"/>
+                    <rect x="31" y="6" width="2" height="3" fill="#FFD700"/>
+                    <rect x="29" y="5" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 (위치 변경) -->
+                    <text x="4" y="14" font-size="4" fill="#FFD700">✦</text>
+                    <text x="48" y="10" font-size="5" fill="#FFD700">✦</text>
+                    <text x="22" y="6" font-size="3" fill="#FFD700">✦</text>
+                </svg>`
+            },
+            // === 사망 모션 (dead) - 연기와 비석 ===
+            dead: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 닌자 유령 (반투명) -->
+                    <g opacity="0.4">
+                        <rect x="30" y="1" width="8" height="8" rx="1" fill="#111"/>
+                        <!-- 눈 (X) -->
+                        <line x1="32" y1="4" x2="34" y2="6" stroke="#e74c3c" stroke-width="0.8"/>
+                        <line x1="34" y1="4" x2="32" y2="6" stroke="#e74c3c" stroke-width="0.8"/>
+                        <line x1="35" y1="4" x2="37" y2="6" stroke="#e74c3c" stroke-width="0.8"/>
+                        <line x1="37" y1="4" x2="35" y2="6" stroke="#e74c3c" stroke-width="0.8"/>
+                        <!-- 머리띠 -->
+                        <rect x="30" y="3" width="8" height="1" fill="#c0392b"/>
+                    </g>
+                    <!-- 수리검 (바닥에) -->
+                    <rect x="46" y="34" width="4" height="4" fill="#bbb" transform="rotate(45,48,36)"/>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 닌자 유령 (올라가는 중) -->
+                    <g opacity="0.3">
+                        <rect x="30" y="-2" width="8" height="8" rx="1" fill="#111"/>
+                        <line x1="32" y1="1" x2="34" y2="3" stroke="#e74c3c" stroke-width="0.8"/>
+                        <line x1="34" y1="1" x2="32" y2="3" stroke="#e74c3c" stroke-width="0.8"/>
+                        <line x1="35" y1="1" x2="37" y2="3" stroke="#e74c3c" stroke-width="0.8"/>
+                        <line x1="37" y1="1" x2="35" y2="3" stroke="#e74c3c" stroke-width="0.8"/>
+                        <rect x="30" y="0" width="8" height="1" fill="#c0392b"/>
+                    </g>
+                    <!-- 수리검 (바닥에) -->
+                    <rect x="46" y="34" width="4" height="4" fill="#bbb" transform="rotate(45,48,36)"/>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`
+            },
+            get frame1() { return this.run.frame1; },
+            get frame2() { return this.run.frame2; }
+        },
+
+        'crab': { // 게 - 옆걸음 질주
+            // === 대기 모션 (idle) - 집게발 벌리고 서있기 ===
+            idle: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (왼쪽 3개) -->
+                    <rect x="10" y="32" width="2" height="6" fill="#c0392b" transform="rotate(-15,11,32)"/>
+                    <rect x="14" y="34" width="2" height="6" fill="#c0392b" transform="rotate(-5,15,34)"/>
+                    <rect x="18" y="35" width="2" height="5" fill="#c0392b"/>
+                    <!-- 다리 (오른쪽 3개) -->
+                    <rect x="38" y="35" width="2" height="5" fill="#c0392b"/>
+                    <rect x="42" y="34" width="2" height="6" fill="#c0392b" transform="rotate(5,43,34)"/>
+                    <rect x="46" y="32" width="2" height="6" fill="#c0392b" transform="rotate(15,47,32)"/>
+                    <!-- 몸통 (등껍질) -->
+                    <ellipse cx="30" cy="28" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="26" rx="11" ry="6" fill="#c0392b"/>
+                    <!-- 등 무늬 -->
+                    <ellipse cx="30" cy="26" rx="5" ry="3" fill="#a93226" opacity="0.5"/>
+                    <!-- 눈 (위로 튀어나옴) -->
+                    <rect x="24" y="18" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="18" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="18" r="2" fill="white"/>
+                    <circle cx="34.5" cy="18" r="2" fill="white"/>
+                    <circle cx="25.5" cy="18" r="1" fill="#1a1a1a"/>
+                    <circle cx="34.5" cy="18" r="1" fill="#1a1a1a"/>
+                    <!-- 집게발 (왼쪽, 열린) -->
+                    <rect x="4" y="22" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="2" y="20" width="4" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="2" y="25" width="4" height="3" rx="1" fill="#c0392b"/>
+                    <!-- 집게발 (오른쪽, 열린) -->
+                    <rect x="48" y="22" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="54" y="20" width="4" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="54" y="25" width="4" height="3" rx="1" fill="#c0392b"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (왼쪽 3개) -->
+                    <rect x="10" y="33" width="2" height="5" fill="#c0392b" transform="rotate(-15,11,33)"/>
+                    <rect x="14" y="35" width="2" height="5" fill="#c0392b" transform="rotate(-5,15,35)"/>
+                    <rect x="18" y="36" width="2" height="4" fill="#c0392b"/>
+                    <!-- 다리 (오른쪽 3개) -->
+                    <rect x="38" y="36" width="2" height="4" fill="#c0392b"/>
+                    <rect x="42" y="35" width="2" height="5" fill="#c0392b" transform="rotate(5,43,35)"/>
+                    <rect x="46" y="33" width="2" height="5" fill="#c0392b" transform="rotate(15,47,33)"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="30" cy="29" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="27" rx="11" ry="6" fill="#c0392b"/>
+                    <ellipse cx="30" cy="27" rx="5" ry="3" fill="#a93226" opacity="0.5"/>
+                    <!-- 눈 -->
+                    <rect x="24" y="19" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="19" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="19" r="2" fill="white"/>
+                    <circle cx="34.5" cy="19" r="2" fill="white"/>
+                    <circle cx="25.5" cy="19" r="1" fill="#1a1a1a"/>
+                    <circle cx="34.5" cy="19" r="1" fill="#1a1a1a"/>
+                    <!-- 집게발 (왼쪽, 닫힌) -->
+                    <rect x="4" y="23" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="2" y="22" width="4" height="3" rx="1" fill="#c0392b"/>
+                    <rect x="2" y="25" width="4" height="2" rx="1" fill="#c0392b"/>
+                    <!-- 집게발 (오른쪽, 닫힌) -->
+                    <rect x="48" y="23" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="54" y="22" width="4" height="3" rx="1" fill="#c0392b"/>
+                    <rect x="54" y="25" width="4" height="2" rx="1" fill="#c0392b"/>
+                </svg>`
+            },
+            // === 달리기 모션 (run) - 옆걸음 질주 ===
+            run: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (왼쪽 3개, 벌어진) -->
+                    <rect x="8" y="30" width="2" height="8" fill="#c0392b" transform="rotate(-20,9,30)"/>
+                    <rect x="13" y="32" width="2" height="8" fill="#c0392b" transform="rotate(-10,14,32)"/>
+                    <rect x="18" y="34" width="2" height="6" fill="#c0392b"/>
+                    <!-- 다리 (오른쪽 3개, 모인) -->
+                    <rect x="38" y="34" width="2" height="6" fill="#c0392b"/>
+                    <rect x="43" y="33" width="2" height="7" fill="#c0392b" transform="rotate(5,44,33)"/>
+                    <rect x="48" y="32" width="2" height="7" fill="#c0392b" transform="rotate(10,49,32)"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="30" cy="27" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="25" rx="11" ry="6" fill="#c0392b"/>
+                    <ellipse cx="30" cy="25" rx="5" ry="3" fill="#a93226" opacity="0.5"/>
+                    <!-- 눈 -->
+                    <rect x="24" y="17" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="17" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="17" r="2" fill="white"/>
+                    <circle cx="34.5" cy="17" r="2" fill="white"/>
+                    <circle cx="26" cy="17" r="1" fill="#1a1a1a"/>
+                    <circle cx="35" cy="17" r="1" fill="#1a1a1a"/>
+                    <!-- 집게발 (왼쪽, 앞으로) -->
+                    <rect x="2" y="20" width="10" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="0" y="18" width="4" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="0" y="22" width="4" height="3" rx="1" fill="#c0392b"/>
+                    <!-- 집게발 (오른쪽, 뒤로) -->
+                    <rect x="48" y="24" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="54" y="22" width="4" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="54" y="26" width="4" height="3" rx="1" fill="#c0392b"/>
+                    <!-- 거품 -->
+                    <circle cx="8" cy="28" r="1.5" fill="white" opacity="0.4"/>
+                    <circle cx="5" cy="32" r="1" fill="white" opacity="0.3"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (왼쪽 3개, 모인) -->
+                    <rect x="10" y="33" width="2" height="7" fill="#c0392b" transform="rotate(-5,11,33)"/>
+                    <rect x="14" y="33" width="2" height="7" fill="#c0392b" transform="rotate(-3,15,33)"/>
+                    <rect x="18" y="33" width="2" height="7" fill="#c0392b"/>
+                    <!-- 다리 (오른쪽 3개, 벌어진) -->
+                    <rect x="38" y="33" width="2" height="7" fill="#c0392b"/>
+                    <rect x="43" y="31" width="2" height="8" fill="#c0392b" transform="rotate(10,44,31)"/>
+                    <rect x="48" y="29" width="2" height="9" fill="#c0392b" transform="rotate(20,49,29)"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="30" cy="26" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="24" rx="11" ry="6" fill="#c0392b"/>
+                    <ellipse cx="30" cy="24" rx="5" ry="3" fill="#a93226" opacity="0.5"/>
+                    <!-- 눈 -->
+                    <rect x="24" y="16" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="16" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="16" r="2" fill="white"/>
+                    <circle cx="34.5" cy="16" r="2" fill="white"/>
+                    <circle cx="25" cy="16" r="1" fill="#1a1a1a"/>
+                    <circle cx="34" cy="16" r="1" fill="#1a1a1a"/>
+                    <!-- 집게발 (왼쪽, 뒤로) -->
+                    <rect x="4" y="24" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="2" y="22" width="4" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="2" y="26" width="4" height="3" rx="1" fill="#c0392b"/>
+                    <!-- 집게발 (오른쪽, 앞으로) -->
+                    <rect x="48" y="20" width="10" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="56" y="18" width="4" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="56" y="22" width="4" height="3" rx="1" fill="#c0392b"/>
+                    <!-- 거품 -->
+                    <circle cx="52" cy="27" r="1.5" fill="white" opacity="0.4"/>
+                    <circle cx="55" cy="31" r="1" fill="white" opacity="0.3"/>
+                </svg>`
+            },
+            // === 쉬는 모션 (rest) - 모래에 파묻히기 ===
+            rest: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 모래 -->
+                    <ellipse cx="30" cy="38" rx="16" ry="5" fill="#f0d9a0" opacity="0.6"/>
+                    <!-- 몸통 (낮게) -->
+                    <ellipse cx="30" cy="34" rx="14" ry="7" fill="#c0392b"/>
+                    <ellipse cx="30" cy="33" rx="11" ry="5" fill="#a93226"/>
+                    <!-- 눈 (반쯤 감음) -->
+                    <rect x="24" y="26" width="3" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="33" y="26" width="3" height="4" rx="1" fill="#c0392b"/>
+                    <circle cx="25.5" cy="26" r="2" fill="white"/>
+                    <circle cx="34.5" cy="26" r="2" fill="white"/>
+                    <rect x="24" y="25" width="3" height="1.5" fill="#c0392b"/>
+                    <rect x="33" y="25" width="3" height="1.5" fill="#c0392b"/>
+                    <!-- 집게발 (축 늘어짐) -->
+                    <rect x="6" y="32" width="8" height="3" rx="1" fill="#a93226"/>
+                    <rect x="46" y="32" width="8" height="3" rx="1" fill="#a93226"/>
+                    <!-- z z z -->
+                    <text x="40" y="22" font-size="6" fill="#aaa">z</text>
+                    <text x="44" y="18" font-size="5" fill="#aaa">z</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 모래 -->
+                    <ellipse cx="30" cy="39" rx="16" ry="5" fill="#f0d9a0" opacity="0.6"/>
+                    <!-- 몸통 (더 낮게) -->
+                    <ellipse cx="30" cy="35" rx="14" ry="7" fill="#c0392b"/>
+                    <ellipse cx="30" cy="34" rx="11" ry="5" fill="#a93226"/>
+                    <!-- 눈 (더 감음) -->
+                    <rect x="24" y="27" width="3" height="4" rx="1" fill="#c0392b"/>
+                    <rect x="33" y="27" width="3" height="4" rx="1" fill="#c0392b"/>
+                    <circle cx="25.5" cy="27" r="2" fill="white"/>
+                    <circle cx="34.5" cy="27" r="2" fill="white"/>
+                    <rect x="24" y="26" width="3" height="2" fill="#c0392b"/>
+                    <rect x="33" y="26" width="3" height="2" fill="#c0392b"/>
+                    <!-- 집게발 -->
+                    <rect x="6" y="33" width="8" height="3" rx="1" fill="#a93226"/>
+                    <rect x="46" y="33" width="8" height="3" rx="1" fill="#a93226"/>
+                    <!-- z z z -->
+                    <text x="41" y="23" font-size="6" fill="#aaa">z</text>
+                    <text x="45" y="19" font-size="5" fill="#aaa">z</text>
+                </svg>`
+            },
+            // === 도착 모션 (finish) - 천천히 옆걸음 ===
+            finish: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 (살짝만) -->
+                    <rect x="10" y="33" width="2" height="6" fill="#c0392b" transform="rotate(-10,11,33)"/>
+                    <rect x="14" y="34" width="2" height="6" fill="#c0392b"/>
+                    <rect x="18" y="35" width="2" height="5" fill="#c0392b"/>
+                    <rect x="38" y="35" width="2" height="5" fill="#c0392b"/>
+                    <rect x="42" y="34" width="2" height="6" fill="#c0392b"/>
+                    <rect x="46" y="33" width="2" height="6" fill="#c0392b" transform="rotate(10,47,33)"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="30" cy="28" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="26" rx="11" ry="6" fill="#c0392b"/>
+                    <ellipse cx="30" cy="26" rx="5" ry="3" fill="#a93226" opacity="0.5"/>
+                    <!-- 눈 -->
+                    <rect x="24" y="18" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="18" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="18" r="2" fill="white"/>
+                    <circle cx="34.5" cy="18" r="2" fill="white"/>
+                    <circle cx="25.5" cy="18" r="1" fill="#1a1a1a"/>
+                    <circle cx="34.5" cy="18" r="1" fill="#1a1a1a"/>
+                    <!-- 집게발 (내리기) -->
+                    <rect x="4" y="24" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="48" y="24" width="8" height="4" rx="1" fill="#e74c3c"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 -->
+                    <rect x="10" y="34" width="2" height="5" fill="#c0392b" transform="rotate(-5,11,34)"/>
+                    <rect x="14" y="35" width="2" height="5" fill="#c0392b"/>
+                    <rect x="18" y="35" width="2" height="5" fill="#c0392b"/>
+                    <rect x="38" y="35" width="2" height="5" fill="#c0392b"/>
+                    <rect x="42" y="35" width="2" height="5" fill="#c0392b"/>
+                    <rect x="46" y="34" width="2" height="5" fill="#c0392b" transform="rotate(5,47,34)"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="30" cy="29" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="27" rx="11" ry="6" fill="#c0392b"/>
+                    <ellipse cx="30" cy="27" rx="5" ry="3" fill="#a93226" opacity="0.5"/>
+                    <!-- 눈 -->
+                    <rect x="24" y="19" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="19" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="19" r="2" fill="white"/>
+                    <circle cx="34.5" cy="19" r="2" fill="white"/>
+                    <circle cx="25.5" cy="19" r="1" fill="#1a1a1a"/>
+                    <circle cx="34.5" cy="19" r="1" fill="#1a1a1a"/>
+                    <!-- 집게발 -->
+                    <rect x="4" y="25" width="8" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="48" y="25" width="8" height="4" rx="1" fill="#e74c3c"/>
+                </svg>`
+            },
+            // === 승리 모션 (victory) - 집게발 만세 + 왕관 ===
+            victory: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 -->
+                    <rect x="10" y="34" width="2" height="6" fill="#c0392b" transform="rotate(-15,11,34)"/>
+                    <rect x="14" y="35" width="2" height="6" fill="#c0392b"/>
+                    <rect x="18" y="36" width="2" height="5" fill="#c0392b"/>
+                    <rect x="38" y="36" width="2" height="5" fill="#c0392b"/>
+                    <rect x="42" y="35" width="2" height="6" fill="#c0392b"/>
+                    <rect x="46" y="34" width="2" height="6" fill="#c0392b" transform="rotate(15,47,34)"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="30" cy="30" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="28" rx="11" ry="6" fill="#c0392b"/>
+                    <!-- 눈 (반짝) -->
+                    <rect x="24" y="20" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="20" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="20" r="2" fill="white"/>
+                    <circle cx="34.5" cy="20" r="2" fill="white"/>
+                    <circle cx="25.5" cy="20" r="1.2" fill="#1a1a1a"/>
+                    <circle cx="34.5" cy="20" r="1.2" fill="#1a1a1a"/>
+                    <circle cx="26" cy="19.5" r="0.5" fill="white"/>
+                    <circle cx="35" cy="19.5" r="0.5" fill="white"/>
+                    <!-- 집게발 (만세!) -->
+                    <rect x="4" y="14" width="8" height="4" rx="1" fill="#ff5555"/>
+                    <rect x="0" y="12" width="5" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="0" y="16" width="5" height="3" rx="1" fill="#e74c3c"/>
+                    <rect x="48" y="14" width="8" height="4" rx="1" fill="#ff5555"/>
+                    <rect x="55" y="12" width="5" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="55" y="16" width="5" height="3" rx="1" fill="#e74c3c"/>
+                    <!-- 왕관 -->
+                    <rect x="26" y="14" width="8" height="3" fill="#FFD700"/>
+                    <rect x="27" y="12" width="2" height="3" fill="#FFD700"/>
+                    <rect x="31" y="12" width="2" height="3" fill="#FFD700"/>
+                    <rect x="29" y="11" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 -->
+                    <text x="4" y="10" font-size="5" fill="#FFD700">✦</text>
+                    <text x="52" y="10" font-size="4" fill="#FFD700">✦</text>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 다리 -->
+                    <rect x="10" y="35" width="2" height="5" fill="#c0392b" transform="rotate(-15,11,35)"/>
+                    <rect x="14" y="36" width="2" height="5" fill="#c0392b"/>
+                    <rect x="18" y="36" width="2" height="5" fill="#c0392b"/>
+                    <rect x="38" y="36" width="2" height="5" fill="#c0392b"/>
+                    <rect x="42" y="36" width="2" height="5" fill="#c0392b"/>
+                    <rect x="46" y="35" width="2" height="5" fill="#c0392b" transform="rotate(15,47,35)"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="30" cy="31" rx="14" ry="8" fill="#e74c3c"/>
+                    <ellipse cx="30" cy="29" rx="11" ry="6" fill="#c0392b"/>
+                    <!-- 눈 -->
+                    <rect x="24" y="21" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <rect x="33" y="21" width="3" height="5" rx="1" fill="#e74c3c"/>
+                    <circle cx="25.5" cy="21" r="2" fill="white"/>
+                    <circle cx="34.5" cy="21" r="2" fill="white"/>
+                    <circle cx="25.5" cy="21" r="1.2" fill="#1a1a1a"/>
+                    <circle cx="34.5" cy="21" r="1.2" fill="#1a1a1a"/>
+                    <circle cx="26" cy="20.5" r="0.5" fill="white"/>
+                    <circle cx="35" cy="20.5" r="0.5" fill="white"/>
+                    <!-- 집게발 (더 위로!) -->
+                    <rect x="4" y="12" width="8" height="4" rx="1" fill="#ff5555"/>
+                    <rect x="0" y="10" width="5" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="0" y="14" width="5" height="3" rx="1" fill="#e74c3c"/>
+                    <rect x="48" y="12" width="8" height="4" rx="1" fill="#ff5555"/>
+                    <rect x="55" y="10" width="5" height="4" rx="1" fill="#e74c3c"/>
+                    <rect x="55" y="14" width="5" height="3" rx="1" fill="#e74c3c"/>
+                    <!-- 왕관 (흔들림) -->
+                    <rect x="25" y="15" width="8" height="3" fill="#FFD700"/>
+                    <rect x="26" y="13" width="2" height="3" fill="#FFD700"/>
+                    <rect x="30" y="13" width="2" height="3" fill="#FFD700"/>
+                    <rect x="28" y="12" width="2" height="4" fill="#FFD700"/>
+                    <!-- 반짝이 -->
+                    <text x="2" y="8" font-size="4" fill="#FFD700">✦</text>
+                    <text x="54" y="8" font-size="5" fill="#FFD700">✦</text>
+                    <text x="28" y="10" font-size="3" fill="#FFD700">✦</text>
+                </svg>`
+            },
+            // === 사망 모션 (dead) - 뒤집힌 게 + 비석 ===
+            dead: {
+                frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 게 유령 (반투명, 뒤집힘) -->
+                    <g opacity="0.4">
+                        <ellipse cx="38" cy="5" rx="6" ry="4" fill="#e74c3c"/>
+                        <!-- 다리 (위로, 뒤집힌) -->
+                        <rect x="33" y="1" width="1.5" height="3" fill="#c0392b"/>
+                        <rect x="36" y="0" width="1.5" height="3" fill="#c0392b"/>
+                        <rect x="39" y="0" width="1.5" height="3" fill="#c0392b"/>
+                        <rect x="42" y="1" width="1.5" height="3" fill="#c0392b"/>
+                        <!-- X 눈 -->
+                        <line x1="36" y1="5" x2="38" y2="7" stroke="#333" stroke-width="0.6"/>
+                        <line x1="38" y1="5" x2="36" y2="7" stroke="#333" stroke-width="0.6"/>
+                        <line x1="39" y1="5" x2="41" y2="7" stroke="#333" stroke-width="0.6"/>
+                        <line x1="41" y1="5" x2="39" y2="7" stroke="#333" stroke-width="0.6"/>
+                    </g>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`,
+                frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                    <!-- 비석 -->
+                    <rect x="20" y="10" width="24" height="28" rx="4" ry="4" fill="#808080" stroke="#666" stroke-width="0.5"/>
+                    <rect x="20" y="34" width="28" height="6" rx="1" fill="#696969"/>
+                    <line x1="28" y1="14" x2="36" y2="32" stroke="#999" stroke-width="0.3"/>
+                    <text x="32" y="22" text-anchor="middle" font-size="6" fill="#333" font-weight="bold">R.I.P</text>
+                    <!-- 게 유령 (올라가는 중) -->
+                    <g opacity="0.3">
+                        <ellipse cx="38" cy="2" rx="6" ry="4" fill="#e74c3c"/>
+                        <rect x="33" y="-2" width="1.5" height="3" fill="#c0392b"/>
+                        <rect x="36" y="-3" width="1.5" height="3" fill="#c0392b"/>
+                        <rect x="39" y="-3" width="1.5" height="3" fill="#c0392b"/>
+                        <rect x="42" y="-2" width="1.5" height="3" fill="#c0392b"/>
+                        <line x1="36" y1="2" x2="38" y2="4" stroke="#333" stroke-width="0.6"/>
+                        <line x1="38" y1="2" x2="36" y2="4" stroke="#333" stroke-width="0.6"/>
+                        <line x1="39" y1="2" x2="41" y2="4" stroke="#333" stroke-width="0.6"/>
+                        <line x1="41" y1="2" x2="39" y2="4" stroke="#333" stroke-width="0.6"/>
+                    </g>
+                    <!-- 풀 -->
+                    <path d="M16,40 Q17,36 18,40" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                    <path d="M48,39 Q49,35 50,39" fill="none" stroke="#2d5a1e" stroke-width="0.8"/>
+                </svg>`
+            },
+            get frame1() { return this.run.frame1; },
+            get frame2() { return this.run.frame2; }
         }
     };
-    
     return svgMap[vehicleId] || svgMap['car'];
 }
 

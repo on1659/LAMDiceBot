@@ -87,6 +87,38 @@
       "theme": "forest",
       "backgroundImage": "assets/backgrounds/forest.png",
       "visualWidth": 56
+    },
+    "knight": {
+      "id": "knight",
+      "name": "기사",
+      "emoji": "⚔️",
+      "theme": "road",
+      "backgroundImage": "assets/backgrounds/road.png",
+      "visualWidth": 48
+    },
+    "dinosaur": {
+      "id": "dinosaur",
+      "name": "공룡",
+      "emoji": "🦕",
+      "theme": "beach",
+      "backgroundImage": "assets/backgrounds/beach.png",
+      "visualWidth": 56
+    },
+    "ninja": {
+      "id": "ninja",
+      "name": "닌자",
+      "emoji": "🥷",
+      "theme": "sky",
+      "backgroundImage": "assets/backgrounds/sky.png",
+      "visualWidth": 44
+    },
+    "crab": {
+      "id": "crab",
+      "name": "게",
+      "emoji": "🦀",
+      "theme": "beach",
+      "backgroundImage": "assets/backgrounds/beach.png",
+      "visualWidth": 54
     }
   }
 }

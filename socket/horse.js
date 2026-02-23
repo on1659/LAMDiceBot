@@ -13,10 +13,11 @@ const { getServerId } = require('../routes/api');
 const { getTop3Badges } = require('../db/ranking');
 
 // ALL_VEHICLE_IDS constant
-const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse'];
+const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse', 'knight', 'dinosaur', 'ninja', 'crab'];
 const VEHICLE_NAMES = {
     'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
-    'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말'
+    'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
+    'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게'
 };
 
 // 한글 받침 유무에 따른 조사 처리
@@ -420,9 +421,9 @@ module.exports = (socket, io, ctx) => {
             gameState.isGameActive = false;
             gameState.userHorseBets = {};
 
-            // 꼴등 탈것 이름 가져오기
-            const lastHorseIndex = rankings[rankings.length - 1].horseIndex;
-            const lastVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[lastHorseIndex] ? gameState.selectedVehicleTypes[lastHorseIndex] : 'horse';
+            // 승자가 배팅한 탈것 이름 가져오기 (배팅 안 된 말이 꼴등일 수 있으므로 rankings 대신 직접 조회)
+            const winnerHorseIndex = raceData.userHorseBets[winners[0]];
+            const lastVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[winnerHorseIndex] ? gameState.selectedVehicleTypes[winnerHorseIndex] : 'horse';
             const lastVehicleName = VEHICLE_NAMES[lastVehicleId] || lastVehicleId;
 
             const now = new Date();
@@ -790,14 +791,14 @@ module.exports = (socket, io, ctx) => {
 
             // 당첨자 수에 따라 분기
             if (winners.length === 1) {
+                // 승자가 배팅한 탈것 이름 가져오기 (초기화 전에 조회)
+                const winnerHorseIndex2 = gameState.userHorseBets[winners[0]];
+                const lastVehicleId2 = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[winnerHorseIndex2] ? gameState.selectedVehicleTypes[winnerHorseIndex2] : 'horse';
+                const lastVehicleName2 = VEHICLE_NAMES[lastVehicleId2] || lastVehicleId2;
+
                 // 게임 종료
                 gameState.isGameActive = false;
                 gameState.userHorseBets = {};
-
-                // 꼴등 탈것 이름 가져오기
-                const lastHorseIndex2 = rankings[rankings.length - 1].horseIndex;
-                const lastVehicleId2 = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[lastHorseIndex2] ? gameState.selectedVehicleTypes[lastHorseIndex2] : 'horse';
-                const lastVehicleName2 = VEHICLE_NAMES[lastVehicleId2] || lastVehicleId2;
 
                 // 채팅에 최종 당첨자 메시지 추가
                 const nowResult = new Date();
@@ -1261,7 +1262,8 @@ module.exports = (socket, io, ctx) => {
         const VISUAL_WIDTHS = {
             'car': 50, 'rocket': 60, 'bird': 60, 'boat': 50, 'bicycle': 56,
             'rabbit': 53, 'turtle': 58, 'eagle': 60, 'kickboard': 54,
-            'helicopter': 48, 'horse': 56
+            'helicopter': 48, 'horse': 56,
+            'knight': 48, 'dinosaur': 56, 'ninja': 44, 'crab': 54
         };
         function getVisualWidth(vehicleId) {
             return VISUAL_WIDTHS[vehicleId] || 60;
