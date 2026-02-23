@@ -14,11 +14,18 @@
 
 In the `show()` function, overlay footer currently has: privacy-policy, terms-of-service, contact, statistics.
 
-**Add before** the existing links:
+**Add before** the existing `개인정보 처리방침` link:
 ```html
 <a href="game-guides.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">게임 가이드</a> |
 <a href="about-us.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">사이트 소개</a> |
 ```
+
+**Add after** the existing `이용 약관` link:
+```html
+| <a href="disclaimer.html" style="color:rgba(255,255,255,0.6);text-decoration:none;margin:0 6px;">면책 조항</a>
+```
+
+> This places disclaimer alongside the other legal pages (privacy-policy, terms-of-service) in the footer.
 
 ---
 
@@ -122,8 +129,9 @@ Add `<lastmod>` and `<changefreq>` to all existing URLs. Add new pages:
     <loc>https://lamdice.com/crane-game-guide.html</loc>
     <lastmod>2026-02-23</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
 </url>
+<!-- NOTE: Do NOT add /crane-game to sitemap — route is disabled in routes/api.js -->
 <url>
     <loc>https://lamdice.com/changelog.html</loc>
     <lastmod>2026-02-23</lastmod>
@@ -332,6 +340,8 @@ Content (target: 2,000+ words):
 - 공정성 검증 방법
 - 온라인 게임 산업의 공정성 기준
 
+Include: common nav bar, AdSense snippet, OG tags, canonical URL, JSON-LD (Article).
+
 ---
 
 ### Item 12c: probability-education.html
@@ -345,14 +355,16 @@ Content (target: 2,000+ words):
 - 기대값과 전략
 - 일상생활 속 확률
 
+Include: common nav bar, AdSense snippet, OG tags, canonical URL, JSON-LD (Article).
+
 ---
 
 ## Implementation Order
 
-### Phase 1 (technical, ~2 hours)
+### Phase 1 (technical, ~1.5 hours)
 1. Item 6: sitemap.xml improvements (10min)
 2. Item 1: Overlay footer links (10min)
-3. Item 4: Game page noscript (20min, 4 files)
+3. ~~Item 4: Game page noscript~~ — already done (verify crane-game only, 5min)
 4. Item 2: Common nav bar (40min, existing 7 + new pages as created)
 5. Item 5: JSON-LD schemas (30min, all pages)
 6. Item 13: Search Console submission (manual, 10min)
@@ -372,14 +384,14 @@ Content (target: 2,000+ words):
 16. Item 12b: fairness-rng.html (40min)
 17. Item 12c: probability-education.html (40min)
 
-Total: Phase 1+2 ~5 hours, Phase 3 ~2 hours additional
+Total: Phase 1+2 ~4.5 hours, Phase 3 ~2 hours additional
 
 ---
 
 ## QA Checklist
 
 ### Phase 1 QA
-- [ ] All game pages: noscript content visible with JS disabled
+- [x] ~~All game pages: noscript content visible with JS disabled~~ — already present (dice/roulette/horse), verify crane-game only
 - [ ] Overlay footer: game-guides + about-us links visible
 - [ ] All info pages: common nav bar present, all links work
 - [ ] JSON-LD: Google Rich Results Test validates all schemas
