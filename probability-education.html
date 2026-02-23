@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <title>확률의 기초 - 주사위로 배우는 확률 이론 - LAMDice</title>
+    <meta name="description" content="확률의 기초 - 주사위로 배우는 확률 이론. 기본 개념, 큰 수의 법칙, 기대값, 조건부 확률을 쉽게 설명합니다.">
+    <meta property="og:title" content="확률의 기초 - 주사위로 배우는 확률 이론 - LAMDice">
+    <meta property="og:description" content="확률의 기초 - 주사위로 배우는 확률 이론. 기본 개념, 큰 수의 법칙, 기대값, 조건부 확률을 쉽게 설명합니다.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://lamdice.com/probability-education.html">
+    <meta property="og:locale" content="ko_KR">
+    <link rel="canonical" href="https://lamdice.com/probability-education.html">
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.8;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: var(--gray-100);
+        }
+        .container {
+            background: var(--bg-white);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: var(--dice-accent);
+            border-bottom: 3px solid var(--dice-accent);
+            padding-bottom: 15px;
+        }
+        h2 {
+            color: var(--text-primary);
+            margin-top: 40px;
+            border-left: 4px solid var(--dice-accent);
+            padding-left: 15px;
+        }
+        h3 {
+            color: var(--text-secondary);
+            margin-top: 25px;
+        }
+        p {
+            margin: 15px 0;
+            text-align: justify;
+        }
+        .highlight-box {
+            background: var(--bg-primary);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid var(--dice-accent);
+        }
+        .example {
+            background: var(--purple-50);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .formula {
+            background: var(--gray-100);
+            padding: 12px 20px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            text-align: center;
+        }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "확률의 기초 - 주사위로 배우는 확률 이론",
+      "description": "확률의 기본 개념, 큰 수의 법칙, 기대값, 조건부 확률을 주사위 예시로 쉽게 설명.",
+      "url": "https://lamdice.com/probability-education.html",
+      "author": { "@type": "Organization", "name": "LAMDice" },
+      "publisher": { "@type": "Organization", "name": "LAMDice" },
+      "datePublished": "2026-02-24",
+      "dateModified": "2026-02-24"
+    }
+    </script>
+</head>
+<body>
+    <nav style="background:var(--purple-500, #667eea);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <a href="/" style="color:#fff;text-decoration:none;font-weight:700;font-size:1.1em;">LAMDice</a>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <a href="game-guides.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">게임 가이드</a>
+            <a href="about-us.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">소개</a>
+            <a href="statistics.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">통계</a>
+            <a href="contact.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">문의</a>
+            <a href="changelog.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">업데이트</a>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>확률의 기초 — 주사위로 배우는 확률 이론</h1>
+        <p>확률은 우리 일상에서 끊임없이 마주치는 수학적 개념입니다. 날씨 예보의 "강수 확률 60%", 복권의 당첨 확률, 게임에서의 승률 등 확률은 다양한 곳에서 활용됩니다. 이 글에서는 주사위를 예시로 확률의 기본 개념부터 실용적인 응용까지 쉽게 설명합니다.</p>
+
+        <h2>1. 확률의 기본 개념</h2>
+
+        <h3>확률이란?</h3>
+        <div class="highlight-box">
+            <p><strong>확률</strong>이란 어떤 사건이 일어날 가능성을 0부터 1 사이의 숫자(또는 0%부터 100%)로 나타낸 것입니다. 0은 "절대 일어나지 않음"을, 1은 "반드시 일어남"을 의미합니다.</p>
+        </div>
+        <div class="formula">
+            확률 = 원하는 결과의 수 / 가능한 모든 결과의 수
+        </div>
+        <p>예를 들어, 공정한 6면체 주사위를 던져 "3"이 나올 확률은 1/6(약 16.7%)입니다. 원하는 결과(3이 나오는 경우)는 1가지이고, 가능한 모든 결과(1, 2, 3, 4, 5, 6)는 6가지이기 때문입니다.</p>
+
+        <h3>LAMDice에서의 확률</h3>
+        <p>LAMDice의 주사위 게임에서 기본 범위는 1~100입니다. 이 경우 특정 숫자(예: 42)가 나올 확률은 1/100 = 1%입니다. 50 이상의 숫자가 나올 확률은 51/100 = 51% (50, 51, 52, ..., 100의 51개 숫자)입니다.</p>
+
+        <div class="example">
+            <strong>예시: LAMDice High 규칙 (1~100)</strong>
+            <ul>
+                <li>특정 숫자가 나올 확률: 1/100 = 1%</li>
+                <li>50 이상이 나올 확률: 51/100 = 51%</li>
+                <li>90 이상이 나올 확률: 11/100 = 11%</li>
+                <li>100이 나올 확률: 1/100 = 1%</li>
+            </ul>
+        </div>
+
+        <h2>2. 독립 시행과 도박사의 오류</h2>
+
+        <h3>독립 시행이란?</h3>
+        <p>독립 시행이란 이전 결과가 다음 결과에 영향을 주지 않는 시행을 말합니다. 주사위 게임은 대표적인 독립 시행입니다. 이번에 6이 나왔다고 해서 다음에 6이 나올 확률이 변하지 않습니다. 매번 던질 때마다 확률은 동일합니다.</p>
+        <p>LAMDice의 모든 게임(주사위, 룰렛, 경마, 인형뽑기)은 독립 시행으로 작동합니다. 각 라운드는 이전 라운드와 완전히 독립적이며, 서버는 매 라운드마다 새로운 난수를 생성합니다.</p>
+
+        <h3>도박사의 오류</h3>
+        <div class="highlight-box">
+            <p><strong>도박사의 오류(Gambler's Fallacy)</strong>란 독립 시행에서 이전 결과가 미래 결과에 영향을 줄 것이라고 잘못 믿는 것입니다. "앞면이 5번 연속 나왔으니 다음엔 뒷면이 나올 차례"라는 생각이 대표적입니다.</p>
+        </div>
+        <p>이 오류가 발생하는 이유는 인간의 뇌가 "균형"을 기대하기 때문입니다. 하지만 주사위나 동전은 과거를 기억하지 않습니다. 앞면이 100번 연속 나왔더라도, 다음에 앞면이 나올 확률은 여전히 50%입니다.</p>
+
+        <div class="example">
+            <strong>LAMDice 예시:</strong> 4명이 참가하는 룰렛에서 같은 사람이 3번 연속 당첨되었습니다. "이번엔 다른 사람이 당첨될 차례야"라고 생각할 수 있지만, 4번째 라운드에서도 각 참가자의 당첨 확률은 여전히 25%로 동일합니다.
+        </div>
+
+        <h2>3. 큰 수의 법칙</h2>
+
+        <h3>개념 설명</h3>
+        <p>큰 수의 법칙(Law of Large Numbers)은 시행 횟수가 충분히 많아지면, 실제 결과의 비율이 이론적 확률에 수렴한다는 법칙입니다. 주사위를 6번만 던지면 "1"이 한 번도 안 나올 수 있지만, 6만 번 던지면 "1"이 나온 비율은 거의 정확하게 1/6에 가까워집니다.</p>
+
+        <div class="example">
+            <strong>주사위 던지기 실험:</strong>
+            <ul>
+                <li>6번 던짐: "1"이 0번 나올 수 있음 (큰 편차 가능)</li>
+                <li>60번 던짐: "1"이 약 8~12번 나올 것으로 기대 (편차 줄어듦)</li>
+                <li>600번 던짐: "1"이 약 90~110번 나올 것으로 기대 (비율이 1/6에 근접)</li>
+                <li>6000번 던짐: "1"의 비율이 16.67%에 매우 가까움</li>
+            </ul>
+        </div>
+
+        <h3>LAMDice에서의 큰 수의 법칙</h3>
+        <p>LAMDice의 통계 페이지에서 확인할 수 있는 게임 데이터는 큰 수의 법칙이 실제로 작동하는 것을 보여줍니다. 개별 게임에서는 특정 참가자가 연속으로 이기거나 지는 것처럼 보일 수 있지만, 누적 데이터를 보면 각 참가자의 승률이 이론적 확률에 수렴하는 것을 확인할 수 있습니다.</p>
+
+        <h3>주의: 큰 수의 법칙 ≠ 보상의 법칙</h3>
+        <p>큰 수의 법칙은 "앞으로 결과가 균형을 맞추기 위해 보상될 것"이라는 의미가 아닙니다. 이는 단순히 충분히 많은 시행을 했을 때 전체 비율이 수렴한다는 것입니다. 이전에 "운이 나빴다"고 해서 다음에 "운이 좋을" 이유는 없습니다.</p>
+
+        <h2>4. 기대값</h2>
+
+        <h3>기대값이란?</h3>
+        <p>기대값(Expected Value)은 어떤 확률 실험을 무한히 많이 반복했을 때 예상되는 평균 결과입니다. 주사위의 기대값은 그 주사위를 매우 많이 던졌을 때의 평균 값입니다.</p>
+        <div class="formula">
+            6면체 주사위 기대값 = (1+2+3+4+5+6) / 6 = 3.5
+        </div>
+        <p>6면체 주사위의 기대값은 3.5입니다. 물론 주사위에서 3.5가 나오는 것은 불가능하지만, 매우 많이 던졌을 때의 평균이 3.5에 수렴한다는 의미입니다.</p>
+
+        <h3>LAMDice에서의 기대값</h3>
+        <div class="example">
+            <strong>LAMDice 주사위 기대값 (범위별):</strong>
+            <ul>
+                <li>1~100 범위: 기대값 = (1+100)/2 = 50.5</li>
+                <li>1~50 범위: 기대값 = (1+50)/2 = 25.5</li>
+                <li>1~200 범위: 기대값 = (1+200)/2 = 100.5</li>
+            </ul>
+            <p>High 규칙에서 기대값보다 높은 숫자를 굴리면 평균 이상의 결과를 얻은 것이고, 낮은 숫자를 굴리면 평균 이하입니다. 하지만 승패는 상대방의 결과에도 의존합니다.</p>
+        </div>
+
+        <h3>참가자 수와 승률</h3>
+        <p>High 규칙에서 N명의 참가자가 있을 때, 각 참가자의 이론적 승률은 1/N입니다:</p>
+        <ul>
+            <li>2명: 각 50%</li>
+            <li>3명: 각 33.3%</li>
+            <li>4명: 각 25%</li>
+            <li>5명: 각 20%</li>
+        </ul>
+        <p>이 확률은 주사위 범위에 관계없이 동일합니다. 범위를 1~100으로 하든 1~1000으로 하든, 가장 높은 숫자를 굴릴 확률은 모든 참가자에게 동일합니다.</p>
+
+        <h2>5. 조건부 확률</h2>
+
+        <h3>개념 설명</h3>
+        <p>조건부 확률이란 특정 조건이 주어졌을 때의 확률입니다. "A가 일어났을 때, B가 일어날 확률"을 P(B|A)로 표기합니다.</p>
+
+        <div class="example">
+            <strong>예시: LAMDice Near 규칙</strong>
+            <p>1~100 범위, 목표 숫자가 50인 Near 규칙에서:</p>
+            <ul>
+                <li>"50에서 10 이내의 숫자(40~60)가 나올 확률": 21/100 = 21%</li>
+                <li>"50에서 5 이내의 숫자(45~55)가 나올 확률": 11/100 = 11%</li>
+                <li>"정확히 50이 나올 확률": 1/100 = 1%</li>
+            </ul>
+            <p>목표 숫자에 가까울수록 더 유리하지만, 정확히 맞출 확률은 매우 낮습니다.</p>
+        </div>
+
+        <h2>6. 확률과 전략</h2>
+
+        <h3>주사위 범위 선택의 수학</h3>
+        <p>LAMDice에서 주사위 범위를 변경하면 결과의 분포가 달라집니다. 범위가 넓을수록 결과의 분산이 커지고, 범위가 좁을수록 분산이 작아집니다.</p>
+        <ul>
+            <li><strong>넓은 범위 (1~200)</strong> — 극단적인 고점과 저점이 나올 가능성이 높습니다. High 규칙에서 매우 높은 숫자를 노리는 공격적 전략에 적합합니다.</li>
+            <li><strong>좁은 범위 (1~50)</strong> — 결과가 좁은 범위 안에 분포하여 예측 가능성이 높아집니다. Near 규칙에서 안정적인 결과를 원할 때 유용합니다.</li>
+            <li><strong>기본 범위 (1~100)</strong> — 적절한 변동성과 예측 가능성의 균형을 제공합니다.</li>
+        </ul>
+
+        <h3>Near 규칙에서의 전략적 사고</h3>
+        <p>Near 규칙에서는 목표 숫자의 위치에 따라 확률 분포가 달라집니다:</p>
+        <div class="example">
+            <strong>목표 숫자 위치에 따른 분석 (1~100 범위):</strong>
+            <ul>
+                <li><strong>목표 50 (중앙)</strong>: 양쪽으로 동일한 범위가 있어 모든 참가자에게 가장 공정합니다.</li>
+                <li><strong>목표 10 (편향)</strong>: 10보다 낮은 숫자(1~9)는 9개뿐이지만, 높은 숫자(11~100)는 90개입니다. 따라서 대부분의 결과가 목표보다 높게 나옵니다.</li>
+                <li><strong>목표 90 (편향)</strong>: 반대로 대부분의 결과가 목표보다 낮게 나옵니다.</li>
+            </ul>
+        </div>
+
+        <h2>7. 일상생활 속 확률</h2>
+        <p>주사위 게임에서 배운 확률 개념은 일상생활에서도 유용하게 활용됩니다:</p>
+        <ul>
+            <li><strong>날씨 예보</strong> — "강수 확률 30%"는 비슷한 기상 조건에서 10번 중 3번은 비가 온다는 의미입니다. 주사위를 던져 30% 확률의 결과가 나올 수 있는 것과 같습니다.</li>
+            <li><strong>의사결정</strong> — 여러 선택지의 기대값을 비교하여 더 나은 결정을 내릴 수 있습니다. 확률적 사고는 불확실한 상황에서의 판단력을 높여줍니다.</li>
+            <li><strong>리스크 평가</strong> — "이 일이 잘못될 확률은 얼마나 되는가?"를 정량적으로 사고하면, 감정에 휘둘리지 않는 합리적 판단이 가능합니다.</li>
+            <li><strong>통계 이해</strong> — 뉴스에서 접하는 통계 데이터(여론 조사, 의학 연구 등)를 올바르게 해석하는 데 확률 지식이 필수적입니다.</li>
+        </ul>
+
+        <h2>결론</h2>
+        <p>확률은 추상적인 수학 개념이 아니라, 우리 일상에서 끊임없이 마주치는 실용적인 도구입니다. 주사위 게임은 이 개념을 가장 직관적으로 이해할 수 있는 방법 중 하나입니다. LAMDice에서 게임을 즐기면서 확률의 기본 원리 — 독립 시행, 큰 수의 법칙, 기대값 — 를 자연스럽게 체험해보세요. 게임을 더 재미있게 즐기는 동시에 확률적 사고력도 높일 수 있습니다.</p>
+
+        <h2>관련 가이드</h2>
+        <ul>
+            <li><a href="probability-analysis.html" style="color: var(--dice-accent);">확률 분석 및 팁</a> — LAMDice 게임의 실전 확률 분석</li>
+            <li><a href="dice-rules-guide.html" style="color: var(--dice-accent);">주사위 규칙 가이드</a> — 다양한 주사위 규칙과 전략</li>
+            <li><a href="fairness-rng.html" style="color: var(--dice-accent);">온라인 게임의 공정성과 난수</a> — RNG의 원리</li>
+            <li><a href="dice-history.html" style="color: var(--dice-accent);">주사위의 역사</a> — 고대 문명부터 디지털 시대까지</li>
+        </ul>
+    </div>
+    <footer style="text-align:center; padding:16px 0; font-size:0.9em; color:var(--text-secondary, #666);">
+        <p style="font-size:0.85em; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
+    </footer>
+</body>
+</html>
