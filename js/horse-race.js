@@ -83,6 +83,7 @@ var currentTrackDistanceMeters = 500; // 트랙 거리(m)
 var trackPresetsFromServer = { short: 500, medium: 700, long: 1000 }; // 서버에서 받은 프리셋
 var selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
 var popularVehicles = []; // 인기말 vehicle_id 목록
+var NEW_VEHICLES = ['knight', 'dinosaur', 'ninja', 'crab']; // 신규 탈것 (NEW 배지)
 var vehicleStatsData = []; // 탈것별 통계 데이터
 var missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상태였는지)
 var lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
@@ -697,7 +698,9 @@ function renderHorseSelection() {
         }
         let content = vehicleDisplay;
         const isPopular = popularVehicles.includes(vehicleId);
-        content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${isPopular ? ' <span style="font-size: 10px; background: var(--red-600); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : ''}</div>`;
+        const isNew = NEW_VEHICLES.includes(vehicleId);
+        const badges = (isNew ? ' <span style="font-size: 10px; background: var(--green-500); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">NEW</span>' : '') + (isPopular ? ' <span style="font-size: 10px; background: var(--red-600); color: var(--bg-white); padding: 1px 5px; border-radius: 8px; vertical-align: middle;">인기</span>' : '');
+        content += `<div style="font-size: 14px; margin-top: 5px; font-weight: 600;">${vehicle.name}${badges}</div>`;
 
         // 추천 뱃지 표시 (1등 비율이 가장 낮은 탈것 = 승률 평준화 목적)
         if (vehicleId === recommendedVehicleId) {
@@ -2358,14 +2361,12 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
             // 모든 말의 화면 위치 및 배경 업데이트 (스크롤 오프셋 기준)
             const cullEdge = -10; // 화면 밖 판정 기준
-            const rightEdge = trackWidth + 10; // 오른쪽 화면 밖 판정 기준
             horseStates.forEach(state => {
                 // 화면 위치 = 실제 위치 + 스크롤 오프셋
                 let horseDisplayPos = state.currentPos + bgScrollOffset;
-                const isOffscreenLeft = horseDisplayPos < cullEdge;
-                const isOffscreenRight = horseDisplayPos > rightEdge;
+                const isOffscreen = horseDisplayPos < cullEdge;
 
-                // 왼쪽 오프스크린 인디케이터 (뒤처진 말)
+                // 오프스크린 인디케이터 처리
                 if (!state.offscreenIndicator) {
                     const indicator = document.createElement('div');
                     indicator.className = 'offscreen-indicator';
@@ -2374,39 +2375,18 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     state.offscreenIndicator = indicator;
                 }
 
-                // 오른쪽 오프스크린 인디케이터 (앞서간 말)
-                if (!state.offscreenRightIndicator) {
-                    const indicator = document.createElement('div');
-                    indicator.className = 'offscreen-indicator-right';
-                    indicator.style.cssText = `position: absolute; right: 2px; top: 50%; transform: translateY(-50%); z-index: 100; display: none; font-size: 10px; color: var(--yellow-400); white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
-                    state.lane.appendChild(indicator);
-                    state.offscreenRightIndicator = indicator;
-                }
-
-                if (isOffscreenLeft && !state.finished) {
+                if (isOffscreen && !state.finished) {
                     const distBehind = Math.round((leaderPos - state.currentPos) / PIXELS_PER_METER);
                     if (state.lastDistBehind !== distBehind) {
                         state.offscreenIndicator.innerHTML = `<span style="animation: blink 0.6s infinite;">◀</span> ${distBehind}m`;
                         state.lastDistBehind = distBehind;
                     }
                     state.offscreenIndicator.style.display = 'block';
-                    state.offscreenRightIndicator.style.display = 'none';
                     state.horse.style.left = `-200px`; // 완전히 숨김
-                    state.horse.style.visibility = 'hidden';
-                } else if (isOffscreenRight && !state.finished) {
-                    const distAhead = Math.round((state.currentPos - cameraTarget.currentPos) / PIXELS_PER_METER);
-                    if (state.lastDistAhead !== distAhead) {
-                        state.offscreenRightIndicator.innerHTML = `${distAhead}m <span style="animation: blink 0.6s infinite;">▶</span>`;
-                        state.lastDistAhead = distAhead;
-                    }
-                    state.offscreenRightIndicator.style.display = 'block';
-                    state.offscreenIndicator.style.display = 'none';
-                    state.horse.style.left = `${trackWidth + 200}px`; // 완전히 숨김
                     state.horse.style.visibility = 'hidden';
                 } else {
                     state.offscreenIndicator.style.display = 'none';
-                    state.offscreenRightIndicator.style.display = 'none';
-                    if (isOffscreenLeft) horseDisplayPos = cullEdge;
+                    if (isOffscreen) horseDisplayPos = cullEdge;
                     state.horse.style.left = `${horseDisplayPos}px`;
                     state.horse.style.visibility = 'visible';
                 }
