@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <title>인형뽑기 게임 가이드 - LAMDice</title>
+    <meta name="description" content="LAMDice 인형뽑기 게임 가이드 - 크레인 게임 규칙, 플레이 방법, 페이크 동작 안내, 확률 분석.">
+    <meta property="og:title" content="인형뽑기 게임 가이드 - LAMDice">
+    <meta property="og:description" content="LAMDice 인형뽑기 게임 가이드 - 크레인 게임 규칙, 플레이 방법, 페이크 동작 안내, 확률 분석.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lamdice.com/crane-game-guide.html">
+    <meta property="og:locale" content="ko_KR">
+    <link rel="canonical" href="https://lamdice.com/crane-game-guide.html">
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.8;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: var(--gray-100);
+        }
+        .container {
+            background: var(--bg-white);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: var(--dice-accent);
+            border-bottom: 3px solid var(--dice-accent);
+            padding-bottom: 15px;
+        }
+        h2 {
+            color: var(--text-primary);
+            margin-top: 40px;
+            border-left: 4px solid var(--dice-accent);
+            padding-left: 15px;
+        }
+        h3 {
+            color: var(--text-secondary);
+            margin-top: 25px;
+        }
+        p {
+            margin: 15px 0;
+            text-align: justify;
+        }
+        .rule-box {
+            background: var(--bg-primary);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid var(--dice-accent);
+        }
+        .example {
+            background: var(--purple-50);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .cta-box {
+            background: var(--dice-gradient);
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        .cta-box a {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1em;
+            text-decoration: none;
+            display: inline-block;
+            padding: 10px 30px;
+            border: 2px solid #fff;
+            border-radius: 25px;
+            margin-top: 10px;
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "인형뽑기 게임 가이드",
+      "description": "LAMDice 인형뽑기 게임의 크레인 규칙, 플레이 방법, 페이크 동작, 확률 분석.",
+      "url": "https://lamdice.com/crane-game-guide.html",
+      "author": { "@type": "Organization", "name": "LAMDice" },
+      "publisher": { "@type": "Organization", "name": "LAMDice" },
+      "datePublished": "2026-02-24",
+      "dateModified": "2026-02-24"
+    }
+    </script>
+</head>
+<body>
+    <nav style="background:var(--purple-500, #667eea);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <a href="/" style="color:#fff;text-decoration:none;font-weight:700;font-size:1.1em;">LAMDice</a>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <a href="game-guides.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">게임 가이드</a>
+            <a href="about-us.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">소개</a>
+            <a href="statistics.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">통계</a>
+            <a href="contact.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">문의</a>
+            <a href="changelog.html" style="color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.85em;">업데이트</a>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>인형뽑기 게임 가이드</h1>
+        <p>LAMDice 인형뽑기는 실제 오락실의 크레인 게임을 온라인 멀티플레이어로 재현한 <strong>추첨 방식의 게임</strong>입니다. 크레인이 내려와 인형을 집으려는 애니메이션과 함께 당첨자가 결정되며, 실패 연출(페이크)이 긴장감을 극대화합니다. 이 가이드에서는 인형뽑기 게임의 모든 규칙과 메커니즘을 설명합니다.</p>
+
+        <h2>1. 인형뽑기 게임이란?</h2>
+        <div class="rule-box">
+            <p>LAMDice 인형뽑기는 참가자 중 한 명을 무작위로 선정하는 추첨 게임입니다. 실제 크레인 게임처럼 크레인이 내려와 인형을 집는 애니메이션이 재생되며, 서버에서 결정된 당첨자가 발표됩니다. 모든 참가자에게 동일한 당첨 확률이 보장되는 순수 운 기반 게임입니다.</p>
+        </div>
+        <p>인형뽑기 게임의 핵심 매력은 크레인 애니메이션과 페이크 동작입니다. 실제 오락실에서 크레인이 인형을 집다가 놓치는 경험을 온라인에서 재현하여, 결과가 나올 때까지 긴장감이 이어집니다. 당첨자 결정 자체는 서버에서 이미 완료되어 있지만, 애니메이션이 그 과정을 드라마틱하게 연출합니다.</p>
+
+        <h2>2. 게임 진행 방법</h2>
+        <h3>플레이 순서</h3>
+        <ol>
+            <li><strong>방 입장</strong> — 인형뽑기 게임 방에 입장합니다.</li>
+            <li><strong>준비</strong> — "준비" 버튼을 클릭하여 게임 참여 의사를 표시합니다.</li>
+            <li><strong>게임 시작</strong> — 방장이 게임을 시작합니다 (최소 2명 이상 준비 필요).</li>
+            <li><strong>크레인 애니메이션</strong> — 크레인이 내려와 인형을 집는 애니메이션이 재생됩니다.</li>
+            <li><strong>페이크 동작 (0~2회)</strong> — 인형을 집다가 놓치는 연출이 0~2회 발생할 수 있습니다.</li>
+            <li><strong>결과 발표</strong> — 최종적으로 당첨자가 결정되어 화면에 표시됩니다.</li>
+        </ol>
+
+        <h3>준비 및 참여</h3>
+        <p>인형뽑기 게임에 참여하려면 "준비" 버튼을 클릭해야 합니다. 준비 상태인 참가자만 추첨 대상에 포함됩니다. 게임이 진행 중일 때는 준비 상태를 변경할 수 없으며, 게임이 끝난 후 다음 라운드에서 준비 상태를 변경할 수 있습니다.</p>
+
+        <h2>3. 크레인 애니메이션과 페이크 동작</h2>
+        <h3>크레인 동작의 구조</h3>
+        <p>인형뽑기 게임의 가장 큰 특징은 크레인 애니메이션입니다. 게임이 시작되면 크레인이 위에서 아래로 내려와 인형을 집으려 합니다. 이 과정에서 실제 오락실처럼 인형을 집었다가 놓치는 "페이크(fake-out)" 동작이 발생할 수 있습니다.</p>
+        <div class="rule-box">
+            <p><strong>페이크 동작</strong>은 0~2회 무작위로 발생합니다. 크레인이 인형을 잡는 듯 보이다가 놓치는 연출로, "이번에 됐나?" 하는 긴장감을 극대화합니다. 페이크 횟수는 서버에서 무작위로 결정되며, 참가자가 제어할 수 없습니다.</p>
+        </div>
+
+        <h3>페이크 동작의 유형</h3>
+        <ul>
+            <li><strong>0회 페이크</strong> — 크레인이 바로 인형을 집고 당첨자를 발표합니다. 가장 빠른 진행이지만 긴장감은 적습니다.</li>
+            <li><strong>1회 페이크</strong> — 한 번 집었다가 놓친 후, 다시 시도하여 당첨자를 결정합니다. 적당한 긴장감을 제공합니다.</li>
+            <li><strong>2회 페이크</strong> — 두 번 연속 실패 연출 후, 세 번째 시도에서 당첨자를 결정합니다. 최대의 긴장감을 제공하며, "이번에도 안 되나?" 하는 반전의 재미가 있습니다.</li>
+        </ul>
+        <p>중요한 점은 페이크 동작은 순수하게 연출 목적이라는 것입니다. 당첨자는 게임 시작 시점에 이미 서버에서 결정되어 있으며, 페이크 동작의 횟수나 타이밍은 당첨 결과에 전혀 영향을 주지 않습니다. 크레인 애니메이션은 결과 발표까지의 시간을 즐겁게 기다리게 하는 엔터테인먼트 요소입니다.</p>
+
+        <h2>4. 확률 분석</h2>
+        <h3>당첨 확률</h3>
+        <p>인형뽑기 게임의 당첨 확률은 룰렛과 동일하게 참가자 수에 따라 균등하게 결정됩니다. N명의 준비 완료 참가자가 있을 때, 각 참가자의 당첨 확률은 1/N입니다.</p>
+        <div class="example">
+            <strong>참가자 수별 당첨 확률:</strong>
+            <ul>
+                <li>2명: 각 50.0%</li>
+                <li>3명: 각 33.3%</li>
+                <li>4명: 각 25.0%</li>
+                <li>5명: 각 20.0%</li>
+                <li>6명: 각 16.7%</li>
+            </ul>
+        </div>
+
+        <h3>연속 당첨과 독립 시행</h3>
+        <p>각 라운드의 추첨은 완전히 독립적입니다. 이전 라운드에서 당첨되었는지 여부는 다음 라운드의 당첨 확률에 영향을 주지 않습니다. 같은 사람이 여러 번 연속으로 당첨되는 것은 통계적으로 가능하며, 난수의 정상적인 분포 현상입니다.</p>
+        <p>큰 수의 법칙에 따르면, 충분히 많은 라운드를 진행하면 각 참가자의 당첨 비율은 이론적 확률(1/N)에 수렴합니다. 단기적으로는 편차가 있을 수 있지만, 장기적으로는 공정한 결과가 보장됩니다.</p>
+
+        <h2>5. 다른 게임과의 비교</h2>
+        <p>인형뽑기 게임은 룰렛과 유사한 추첨 방식이지만, 크레인 애니메이션과 페이크 동작이라는 독특한 연출 요소가 차별점입니다.</p>
+        <div class="example">
+            <strong>인형뽑기 vs 룰렛 vs 주사위:</strong>
+            <ul>
+                <li><strong>결과 결정</strong> — 인형뽑기: 무작위 추첨 / 룰렛: 무작위 추첨 / 주사위: 숫자 비교</li>
+                <li><strong>연출 방식</strong> — 인형뽑기: 크레인 + 페이크 / 룰렛: 회전 애니메이션 / 주사위: 즉시 결과</li>
+                <li><strong>긴장감</strong> — 인형뽑기: 매우 높음 (페이크) / 룰렛: 높음 / 주사위: 보통</li>
+                <li><strong>게임 시간</strong> — 인형뽑기: 긴 편 / 룰렛: 보통 / 주사위: 짧음</li>
+            </ul>
+        </div>
+
+        <h2>6. 활용 팁</h2>
+        <ul>
+            <li><strong>벌칙 게임</strong>에 최적화되어 있습니다. 페이크 동작이 "누가 뽑힐까?"라는 긴장감을 극대화합니다.</li>
+            <li>여러 라운드를 연속으로 진행하여 <strong>누적 당첨 횟수</strong>로 최종 결과를 정할 수도 있습니다.</li>
+            <li>크레인 애니메이션을 함께 보면서 <strong>실시간 채팅</strong>으로 반응을 공유하면 더 재미있습니다.</li>
+            <li>인형뽑기와 룰렛을 번갈아 가며 플레이하면 <strong>다양한 연출</strong>을 즐길 수 있습니다.</li>
+        </ul>
+
+        <h2>7. 공정성 안내</h2>
+        <p>인형뽑기 게임의 당첨자는 게임 시작 시점에 서버에서 완전히 결정됩니다. 크레인 애니메이션과 페이크 동작은 이미 결정된 결과를 연출하는 것이며, 애니메이션이 결과에 영향을 주지는 않습니다. 서버에서 생성되는 난수는 균등 분포를 따르며, 모든 참가자에게 동일한 당첨 확률이 보장됩니다.</p>
+        <p>LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 게임이며, 모든 게임 결과의 공정성을 최우선으로 보장합니다. 게임 기록은 <a href="statistics.html" style="color: var(--dice-accent);">통계 페이지</a>에서 확인할 수 있습니다.</p>
+
+        <div class="cta-box">
+            <p>다양한 게임을 즐겨보세요!</p>
+            <a href="/">메인으로 돌아가기</a>
+        </div>
+
+        <h2>관련 가이드</h2>
+        <ul>
+            <li><a href="roulette-guide.html" style="color: var(--dice-accent);">룰렛 게임 가이드</a> — 추첨 방식 멀티플레이어 룰렛</li>
+            <li><a href="dice-rules-guide.html" style="color: var(--dice-accent);">주사위 규칙 가이드</a> — 다양한 주사위 규칙과 전략</li>
+            <li><a href="horse-race-guide.html" style="color: var(--dice-accent);">경마 게임 가이드</a> — 탈것을 선택하고 레이스에 베팅</li>
+            <li><a href="probability-analysis.html" style="color: var(--dice-accent);">확률 분석 및 팁</a> — 확률의 수학적 분석</li>
+        </ul>
+    </div>
+    <footer style="text-align:center; padding:16px 0; font-size:0.9em; color:var(--text-secondary, #666);">
+        <p style="font-size:0.85em; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
+    </footer>
+</body>
+</html>
