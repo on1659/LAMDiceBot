@@ -334,7 +334,8 @@ function renderTrackForSelection() {
     const wrapper = document.getElementById('raceTrackWrapper');
     if (wrapper) wrapper.style.display = 'block';
     track.innerHTML = '';
-    
+    track.style.width = '100%';
+
     const trackWidth = trackContainer.offsetWidth || 700;
     const horseCount = availableHorses.length;
     

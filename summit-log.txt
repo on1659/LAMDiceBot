@@ -1,4 +1,23 @@
 ========================================
+📋 Summit Log - 2026-02-25 (경마 트랙 배경 깨짐 수정 + SEO 메타태그)
+========================================
+
+## 변경 파일
+- js/horse-race.js: renderTrackForSelection()에서 track.style.width 리셋 추가
+- horse-race-multiplayer.html: og:site_name, twitter:card/title/description 메타태그 추가
+
+## 상세 변경 내역
+
+### Bug Fix: 경주 종료 후 트랙 배경 늘어남
+- 원인: startRaceAnimation()에서 track.style.width를 수천px로 설정 (1052행)한 뒤, renderTrackForSelection()에서 리셋하지 않아 레인 배경이 cover로 늘어남
+- 수정: renderTrackForSelection() 시작부에 track.style.width = '100%' 추가 (337행)
+
+### SEO: Twitter Card 메타태그 추가
+- horse-race-multiplayer.html: og:site_name, twitter:card, twitter:title, twitter:description 추가
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-25 (경마 4가지 개선: 인게임 랭킹, 스크롤 수정, 다시보기 히스토리, DB 기록 조건)
 ========================================
 
