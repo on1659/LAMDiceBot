@@ -220,7 +220,7 @@
 
 ## 5. 다음 단계 (Action Items)
 
-> 구현 상세: [`2026-02-17-game-room-controls-ux-impl.md`](../../impl/2026-02-17-game-room-controls-ux-impl.md)
+> 구현 상세: [`2026-02-17-game-room-controls-ux-impl.md`](../../../meeting/impl/2026-02-17-game-room-controls-ux-impl.md)
 
 ### 1차 출시 (MVP) - 채택 항목
 - [ ] **방 제목 변경 UI 통일** - 주사위 패턴을 경마/룰렛/크레인에 적용, 인라인 편집 방식

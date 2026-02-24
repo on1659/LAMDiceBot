@@ -211,7 +211,7 @@ joinRoom → getTop3Badges(serverId) → socket.emit('rankingBadges')
 
 ## 5. 다음 단계 (Action Items)
 
-> 구현 상세: [`2026-02-19-0031-ranking-badge-system-impl.md`](../impl/2026-02-19-0031-ranking-badge-system-impl.md)
+> 구현 상세: [`2026-02-19-0031-ranking-badge-system-impl.md`](../../meeting/impl/2026-02-19-0031-ranking-badge-system-impl.md)
 
 ### Phase 1: MVP 구현 (예상 4-6시간)
 

@@ -134,7 +134,7 @@
 
 ## 5. 다음 단계 (Action Items)
 
-> 구현 상세: [`2026-02-16-ux-improvement-impl.md`](../impl/2026-02-16-ux-improvement-impl.md)
+> 구현 상세: [`2026-02-16-ux-improvement-impl.md`](../../meeting/impl/2026-02-16-ux-improvement-impl.md)
 
 ### Phase 1: 즉시 UX 개선
 

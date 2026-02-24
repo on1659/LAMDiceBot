@@ -193,7 +193,7 @@
 
 ## 5. 다음 단계 (Action Items)
 
-> 구현 상세: [`2026-02-17-game-ux-unification-impl.md`](../../impl/2026-02-17-game-ux-unification-impl.md)
+> 구현 상세: [`2026-02-17-game-ux-unification-impl.md`](../../../meeting/impl/2026-02-17-game-ux-unification-impl.md)
 
 ### 1차 출시 (MVP) - 채택 항목
 - [ ] **통합 로비 시스템 구축** - 룰렛/경마/크레인에 주사위와 동일한 로비 추가

@@ -220,7 +220,7 @@
 
 ## 5. 다음 단계 (Action Items)
 
-> **구현 상세**: [`2026-02-17-1617-crane-game-redesign-impl.md`](../impl/2026-02-17-1617-crane-game-redesign-impl.md)
+> **구현 상세**: [`2026-02-17-1617-crane-game-redesign-impl.md`](../../meeting/impl/2026-02-17-1617-crane-game-redesign-impl.md)
 
 ### Phase 0: 현재 완성 사항 정리
 - [x] 다단계 긴장감 시스템 (`socket/crane-game.js` fake-out 완성)

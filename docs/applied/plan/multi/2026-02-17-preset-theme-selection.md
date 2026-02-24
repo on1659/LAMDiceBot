@@ -214,7 +214,7 @@
 
 ## 5. 다음 단계 (Action Items)
 
-> 구현 상세: [`2026-02-17-preset-theme-selection-impl.md`](../impl/2026-02-17-preset-theme-selection-impl.md)
+> 구현 상세: [`2026-02-17-preset-theme-selection-impl.md`](../../meeting/impl/2026-02-17-preset-theme-selection-impl.md)
 
 ### Phase 1 (즉시 구현) - 예상 8-11시간
 
