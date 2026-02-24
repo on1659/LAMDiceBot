@@ -1,4 +1,44 @@
 ========================================
+📋 Summit Log - 2026-02-25 (경마 4가지 개선: 인게임 랭킹, 스크롤 수정, 다시보기 히스토리, DB 기록 조건)
+========================================
+
+## 변경 파일
+- horse-race-multiplayer.html: 채팅 헤더 랭킹 버튼 추가, 다시보기 버튼 onclick→showReplaySelector + 스타일 변경
+- js/horse-race.js: RankingModule.init() 호출, 스크롤 보존, showReplaySelector/showReplayStopButton 추가, renderHistory 라운드별 다시보기, 리플레이 중단 로직, 게임 리셋 시 채팅 복원
+- ranking-shared.js: show(gameType) 파라미터 추가, 탭 초기 렌더링을 _currentMainTab/_currentGameTab 기반으로 변경
+- socket/horse.js: DB 기록 조건에 winners.length === 1 추가 (2곳), winnerName 간소화
+
+## 상세 변경 내역
+
+### Feature 1: 인게임 랭킹 (impl Step 1-2)
+- horse-race-multiplayer.html: 채팅 헤더를 flex 레이아웃으로 변경, 우측에 🏆 랭킹 버튼 추가
+- js/horse-race.js: roomCreated/roomJoined 핸들러에 RankingModule.init(currentServerId, currentUser) 추가
+- ranking-shared.js: show() → show(gameType) — gameType 전달 시 '게임별' 탭의 해당 게임으로 바로 열림
+- ranking-shared.js: fetchAndRender()에서 mainTabs/gameTabsEl/overallSubTabsEl 초기 display를 _currentMainTab 기반으로 결정
+
+### Feature 2: 스크롤 점프 수정 (impl Step 3)
+- js/horse-race.js renderHorseSelection(): 함수 시작에 scrollY 저장, 끝에 scrollTo 복원
+
+### Feature 3: 다시보기 히스토리 선택 (impl Step 4-5 + 추가 기능)
+- horse-race-multiplayer.html: onclick="playLastReplay()" → onclick="showReplaySelector()", 스타일을 gradient → 흰배경+horse-accent 테두리로 변경
+- js/horse-race.js: showReplaySelector() 추가 — 최근 3개 라운드 모달 (horse-500/#A0522D/#B8734A 색상)
+- js/horse-race.js: renderHistory()에 라운드별 ▶ 다시보기 버튼 추가 (isRaceActive/isReplayActive 가드)
+- js/horse-race.js: showReplayStopButton()/removeReplayStopButton() 추가 — raceTrackWrapper 내 absolute 위치
+- js/horse-race.js: playReplay() 리팩터링 — cleanupReplay() 헬퍼 추출, stopButton 통합
+
+### Feature 4: DB 기록 조건 (impl Step 6)
+- socket/horse.js raceAnimationComplete 핸들러: if 조건에 winners.length === 1 추가, winnerName = winners[0]로 간소화
+- socket/horse.js 두 번째 경로 (auto-ready reconnect): 동일 조건 추가
+- recordVehicleRaceResult는 변경 없음 (매 라운드 기록 유지)
+
+### 추가 버그 수정 (사용자 피드백)
+- js/horse-race.js horseRaceGameReset: hideRaceChatOverlay() 호출 추가 — 게임 종료 후 채팅 섹션 race-active 클래스 미제거 버그
+- js/horse-race.js horseRaceCountdown + horseRaceStarted: 리플레이 중 새 라운드 시작 시 즉시 중단 (cancelAnimationFrame, clearInterval, SoundManager.stopAll, isReplayActive=false)
+- 랭킹 버튼 스타일: horse-race.css의 전역 button{width:100%} 오버라이드를 위해 width:auto;margin:0 인라인 추가
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-24 (경마 새 탈것 4종 + 승자 탈것명 수정)
 ========================================
 

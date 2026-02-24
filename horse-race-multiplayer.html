@@ -256,7 +256,7 @@
             <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
                 <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="mainReplayButton" onclick="playLastReplay()" style="flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); color: #333333; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
+                    <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--horse-accent); border: 2px solid var(--horse-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
                     <!-- GIF 기능 숨김 (CORS 이슈) -->
                     <button id="gifSaveButton" onclick="showGifOptionsModal()" style="display: none; flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--green-400) 0%, var(--green-600) 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">📹 GIF 저장</button>
                 </div>
@@ -277,7 +277,10 @@
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: var(--horse-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: bold; color: var(--horse-accent); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</span>
+                    <button onclick="RankingModule.show('horse')" style="width: auto; margin: 0; flex-shrink: 0; background: var(--bg-white); border: 1px solid var(--horse-accent); color: var(--horse-accent); padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🏆 랭킹</button>
+                </div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">

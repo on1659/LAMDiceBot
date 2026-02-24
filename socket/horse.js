@@ -394,11 +394,13 @@ module.exports = (socket, io, ctx) => {
         if (!gameState.isGameActive) return; // 이미 게임 종료됨
 
         // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
-        if (room.serverId && raceData.userHorseBets) {
+        // Player stats: per-game only (recorded when single winner found)
+        // Vehicle stats (recordVehicleRaceResult at line 303): per-round (every race)
+        if (room.serverId && raceData.userHorseBets && winners.length === 1) {
             const sessionId = generateSessionId('horse', room.serverId);
             const horseRankMap = {};
             rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
-            const winnerName = winners.length === 1 ? winners[0] : (winners[0] || null);
+            const winnerName = winners[0];
             const bettors = Object.entries(raceData.userHorseBets);
 
             await Promise.all(bettors.map(([userName, horseIndex]) => {
@@ -767,11 +769,13 @@ module.exports = (socket, io, ctx) => {
             console.log(`방 ${room.roomName} 경주 완료 - 라운드 ${gameState.raceRound}, 당첨자: ${winners.join(', ')}`);
 
             // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
-            if (room.serverId) {
+            // Player stats: per-game only (recorded when single winner found)
+            // Vehicle stats (recordVehicleRaceResult at line 746): per-round (every race)
+            if (room.serverId && winners.length === 1) {
                 const sessionId = generateSessionId('horse', room.serverId);
                 const horseRankMap = {};
                 rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
-                const winnerName = winners.length === 1 ? winners[0] : (winners[0] || null);
+                const winnerName = winners[0];
                 const bettors = Object.entries(gameState.userHorseBets);
 
                 await Promise.all(bettors.map(([uName, horseIndex]) => {

@@ -46,10 +46,15 @@ const RankingModule = (function () {
         }
     }
 
-    function show() {
+    function show(gameType) {
         if (_overlay) { _overlay.remove(); _overlay = null; }
-        _currentMainTab = 'overall';
-        _currentGameTab = 'dice';
+        if (gameType) {
+            _currentMainTab = 'games';
+            _currentGameTab = gameType;
+        } else {
+            _currentMainTab = 'overall';
+            _currentGameTab = 'dice';
+        }
         _searchResult = null;
         if (typeof PageHistoryManager !== 'undefined') PageHistoryManager.pushPage('ranking');
         createOverlay();
@@ -599,9 +604,9 @@ const RankingModule = (function () {
             { label: '🏆 종합', key: 'overall' },
             { label: '🎮 게임별', key: 'games' }
         ];
-        mainTabs.forEach((t, i) => {
+        mainTabs.forEach((t) => {
             const btn = document.createElement('button');
-            btn.className = 'rk-tab' + (i === 0 ? ' active' : '');
+            btn.className = 'rk-tab' + (t.key === _currentMainTab ? ' active' : '');
             btn.textContent = t.label;
             btn.dataset.tab = t.key;
             btn.onclick = () => switchMainTab(t.key);
@@ -632,13 +637,13 @@ const RankingModule = (function () {
                 chip.onclick = () => switchOverallSubTab(t.key);
                 overallSubTabsEl.appendChild(chip);
             });
-            overallSubTabsEl.style.display = 'flex';
+            overallSubTabsEl.style.display = _currentMainTab === 'overall' ? 'flex' : 'none';
         }
 
         // 게임 서브탭 생성
         const gameTabsEl = document.getElementById('ranking-game-tabs');
         gameTabsEl.innerHTML = '';
-        gameTabsEl.style.display = 'none';
+        gameTabsEl.style.display = _currentMainTab === 'games' ? 'flex' : 'none';
         const gameTabs = [
             { label: '🎲 주사위', key: 'dice', color: '#667eea' },
             { label: '🐎 경마', key: 'horse', color: '#e67e22' },
@@ -647,13 +652,13 @@ const RankingModule = (function () {
         if (data.orders) {
             gameTabs.push({ label: '🍜 주문', key: 'orders', color: '#e91e63' });
         }
-        gameTabs.forEach((t, i) => {
+        gameTabs.forEach((t) => {
             const chip = document.createElement('button');
             chip.className = 'rk-game-chip';
             chip.textContent = t.label;
             chip.dataset.game = t.key;
             chip.dataset.color = t.color;
-            if (i === 0) {
+            if (t.key === _currentGameTab) {
                 chip.classList.add('active');
                 chip.style.background = t.color;
                 chip.style.borderColor = t.color;
@@ -664,7 +669,11 @@ const RankingModule = (function () {
         });
 
         // 기본 탭 렌더링
-        renderOverall(content);
+        if (_currentMainTab === 'games') {
+            renderGameContent(_currentGameTab);
+        } else {
+            renderOverall(content);
+        }
     }
 
     // ─── 렌더러 ───
