@@ -137,4 +137,5 @@
 
 ## 9. impl 링크
 
-(구현 시 impl 문서 생성 후 여기에 링크 추가)
+- 1차 회의 결과 전원 리젝 → [2차 회의록](2026-02-25-new-game-types-v2.md) 참조
+- [Lucky Mine impl](../../impl/2026-02-25-lucky-mine-impl.md)
