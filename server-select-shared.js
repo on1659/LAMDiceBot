@@ -111,6 +111,31 @@ function _removeDemoApprovedCard() {
     if (card) card.remove();
 }
 
+// 비로그인 시 튜토리얼용 가짜 서버섹션 주입/복원
+var _savedServerSectionHTML = null;
+function _injectFakeServerSection() {
+    var section = document.getElementById('ss-server-section');
+    if (!section) return;
+    // 이미 서버 목록이 있으면 (로그인 상태) 주입 불필요
+    if (document.getElementById('ss-search-input')) return;
+    _savedServerSectionHTML = section.innerHTML;
+    section.innerHTML =
+        '<div class="ss-section-title">서버 목록</div>' +
+        '<div class="ss-search-wrap">' +
+            '<input type="text" id="ss-search-input" placeholder="서버 검색..." disabled />' +
+            '<button class="ss-search-btn" disabled>검색</button>' +
+        '</div>' +
+        '<div class="ss-server-list" id="ss-server-list"></div>' +
+        '<div class="ss-error" id="ss-error"></div>' +
+        '<button class="ss-create-btn" disabled>+ 새 서버 만들기</button>';
+}
+function _restoreFakeServerSection() {
+    if (_savedServerSectionHTML === null) return;
+    var section = document.getElementById('ss-server-section');
+    if (section) section.innerHTML = _savedServerSectionHTML;
+    _savedServerSectionHTML = null;
+}
+
 const LOBBY_TUTORIAL_STEPS = [
     {
         target: '.ss-free-btn',
@@ -127,15 +152,22 @@ const LOBBY_TUTORIAL_STEPS = [
     {
         target: '#ss-search-input',
         title: '서버 검색',
-        content: '가입하고 싶은 서버를 이름으로 검색할 수 있어요.',
+        content: function() {
+            var inp = document.getElementById('ss-search-input');
+            return inp && !inp.disabled
+                ? '가입하고 싶은 서버를 이름으로 검색할 수 있어요.'
+                : '로그인하면 이 화면이 나타나요. 가입하고 싶은 서버를 이름으로 검색할 수 있습니다.';
+        },
         position: 'bottom',
         beforeShow: function() {
+            _injectFakeServerSection();
             var input = document.getElementById('ss-search-input');
             if (input) input.value = 'LAMDice :)';
         },
         cleanup: function() {
             var input = document.getElementById('ss-search-input');
             if (input) input.value = '';
+            _restoreFakeServerSection();
         }
     },
     {
@@ -401,6 +433,13 @@ const ServerSelectModule = (function () {
         .ss-tutorial-help-btn:hover {
             transform: scale(1.12);
             box-shadow: 0 4px 14px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        .ss-tutorial-help-btn.ss-help-attention {
+            animation: ssHelpPulse 2s ease-in-out infinite;
+        }
+        @keyframes ssHelpPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 2px 8px rgba(139,92,246,0.4); }
+            50% { transform: scale(1.25); box-shadow: 0 0 16px rgba(139,92,246,0.7), 0 0 32px rgba(139,92,246,0.3); }
         }
         /* ── 자유 플레이 버튼 ── */
         .ss-free-btn {
@@ -709,12 +748,28 @@ const ServerSelectModule = (function () {
         PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
 
-        // 첫 방문 시 튜토리얼 자동 시작
-        setTimeout(function() {
-            if (typeof TutorialModule !== 'undefined') {
-                TutorialModule.start('lobby', LOBBY_TUTORIAL_STEPS);
+        // 튜토리얼 — 로그인: 서버 flags로 자동 시작, 비로그인: ? 버튼 애니메이션 유도
+        if (typeof TutorialModule !== 'undefined') {
+            if (loggedIn && _socket) {
+                TutorialModule.setUser(_socket, savedName, function() {
+                    TutorialModule.start('lobby', LOBBY_TUTORIAL_STEPS);
+                });
+            } else {
+                // 비로그인: ? 버튼에 주목 애니메이션
+                _startHelpBtnAnimation();
             }
-        }, 500);
+        }
+    }
+
+    function _startHelpBtnAnimation() {
+        var btn = document.getElementById('ss-tutorial-btn');
+        if (!btn) return;
+        if (!TutorialModule.shouldShow('lobby')) return;
+        btn.classList.add('ss-help-attention');
+        // 클릭하면 애니메이션 제거
+        btn.addEventListener('click', function() {
+            btn.classList.remove('ss-help-attention');
+        }, { once: true });
     }
 
     function _serverSectionHTML() {
@@ -896,6 +951,9 @@ const ServerSelectModule = (function () {
                 modal.remove();
                 _saveName(name);
                 _showToast(title.includes('회원') ? '회원가입 성공!' : '로그인 성공!');
+                if (typeof TutorialModule !== 'undefined' && _socket) {
+                    TutorialModule.setUser(_socket, name);
+                }
                 if (_socket) {
                     _emitGetServers();
                     _socket.emit('getRooms');

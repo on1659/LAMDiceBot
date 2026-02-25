@@ -1,4 +1,42 @@
 ========================================
+📋 Summit Log - 2026-02-26 (튜토리얼 개선: DB flags + 비로그인 UX + 코드리뷰 반영)
+========================================
+
+## 변경 파일
+- tutorial-shared.js: DB 비트플래그 연동, setUser/onReady 콜백, _hasSeen 통합 판단
+- server-select-shared.js: 비로그인 가짜 서버섹션 주입, ? 버튼 펄스 애니메이션, 로그인 분기
+- update-log.md: 업데이트 내역 추가
+
+## 상세 변경 내역
+
+### 서버 flags 연동 (로그인 유저 기기 무관 1회 표시)
+- FLAG_BITS: lobby=1, dice=2, roulette=4, horse=8, crane=16
+- setUser(socket, userName, onReady): 소켓으로 getUserFlags 조회 → _serverFlags 캐시
+- _hasSeen(): 서버 flags 우선 확인, 없으면 localStorage 폴백
+- _complete(): localStorage 저장 + setGuideComplete 소켓 이벤트로 서버에도 저장
+- createServer는 FLAG_BITS에서 제거 (조건이 _allServers 기반으로 명확)
+
+### 비로그인 UX 개선
+- 자동 시작 제거 → ? 버튼 펄스 애니메이션(ssHelpPulse)으로 유도
+- _startHelpBtnAnimation(): TutorialModule.shouldShow('lobby') 체크, 클릭 시 애니메이션 해제
+- 3번 스텝 beforeShow에서 _injectFakeServerSection() → 가짜 서버섹션 주입
+- 3번 스텝 cleanup에서 _restoreFakeServerSection() → 원래 로그인 유도 HTML 복원
+- 3번 스텝 content를 함수로 변경: 로그인/비로그인 분기 메시지
+
+### 코드리뷰 반영
+- Fix: _startHelpBtnAnimation에서 하드코딩된 'tutorialSeen_lobby'/'v1' → TutorialModule.shouldShow('lobby')
+- Fix: 600ms setTimeout 레이스 컨디션 → setUser onReady 콜백 체이닝
+- Fix: next()에 cleanup 미호출 의도 설명 주석 추가
+
+### 이전/닫기 버튼 (튜토리얼 공통 모듈)
+- "건너뛰기" → "← 이전" (첫 스텝에서 자동 숨김)
+- ✕ 닫기 버튼 우측 상단 추가
+- prev(): 현재 스텝 cleanup 후 이전으로 이동
+- title/content 함수 지원: typeof === 'function'이면 런타임 호출
+
+========================================
+
+========================================
 📋 Summit Log - 2026-02-26 (로비 튜토리얼 시스템 구현)
 ========================================
 

@@ -6,6 +6,21 @@ var TutorialModule = (function() {
     var STORAGE_PREFIX = 'tutorialSeen_';
     var STYLE_ID = 'tutorial-module-css';
 
+    // Bit flags — must match server-side convention
+    var FLAG_BITS = {
+        lobby: 1,
+        dice: 2,
+        roulette: 4,
+        horse: 8,
+        crane: 16
+    };
+
+    // Server flags cache (loaded once per session via socket)
+    var _serverFlags = 0;
+    var _flagsLoaded = false;
+    var _socket = null;
+    var _userName = '';
+
     var CSS = [
         '.tutorial-highlight {',
         '  position: fixed;',
@@ -184,8 +199,8 @@ var TutorialModule = (function() {
         _highlight.style.width  = (rect.width  + PAD * 2) + 'px';
         _highlight.style.height = (rect.height + PAD * 2) + 'px';
 
-        _tooltip.querySelector('.tutorial-tooltip-title').textContent = step.title;
-        _tooltip.querySelector('.tutorial-tooltip-body').textContent  = step.content;
+        _tooltip.querySelector('.tutorial-tooltip-title').textContent = typeof step.title === 'function' ? step.title() : step.title;
+        _tooltip.querySelector('.tutorial-tooltip-body').textContent  = typeof step.content === 'function' ? step.content() : step.content;
         _tooltip.querySelector('.tutorial-tooltip-counter').textContent =
             (idx + 1) + ' / ' + _steps.length;
 
@@ -196,6 +211,9 @@ var TutorialModule = (function() {
         _placeTooltip(el, step.position || 'bottom');
     }
 
+    // NOTE: next() does NOT call cleanup on the current step.
+    // Steps with beforeShow can layer DOM (e.g. lobby steps 3-7 build on each other).
+    // All cleanups run at once in _complete().
     function next() {
         _current++;
         var idx = _findNext(_current);
@@ -224,12 +242,25 @@ var TutorialModule = (function() {
         if (_highlight) _highlight.style.display = 'none';
         if (_tooltip)   _tooltip.style.display   = 'none';
         localStorage.setItem(STORAGE_PREFIX + _gameType, VERSION);
+        // Save to server if logged in
+        var bit = FLAG_BITS[_gameType];
+        if (bit && _socket && _userName) {
+            _socket.emit('setGuideComplete', { name: _userName, flagBit: bit });
+            _serverFlags = _serverFlags | bit;
+        }
         if (typeof _onComplete === 'function') _onComplete();
+    }
+
+    function _hasSeen(gameType) {
+        // Server flags take priority for logged-in users
+        var bit = FLAG_BITS[gameType];
+        if (bit && _flagsLoaded && (_serverFlags & bit)) return true;
+        return localStorage.getItem(STORAGE_PREFIX + gameType) === VERSION;
     }
 
     function start(gameType, steps, options) {
         options = options || {};
-        if (!options.force && localStorage.getItem(STORAGE_PREFIX + gameType) === VERSION) return;
+        if (!options.force && _hasSeen(gameType)) return;
 
         _inject();
         _gameType   = gameType;
@@ -250,8 +281,24 @@ var TutorialModule = (function() {
     }
 
     function shouldShow(gameType) {
-        return localStorage.getItem(STORAGE_PREFIX + gameType) !== VERSION;
+        return !_hasSeen(gameType);
     }
 
-    return { start: start, reset: reset, shouldShow: shouldShow };
+    function setUser(socket, userName, onReady) {
+        _socket = socket;
+        _userName = userName;
+        if (socket && userName) {
+            socket.emit('getUserFlags', { name: userName }, function(res) {
+                _serverFlags = (res && res.flags) || 0;
+                _flagsLoaded = true;
+                if (typeof onReady === 'function') onReady();
+            });
+        } else {
+            _serverFlags = 0;
+            _flagsLoaded = false;
+            if (typeof onReady === 'function') onReady();
+        }
+    }
+
+    return { start: start, reset: reset, shouldShow: shouldShow, setUser: setUser, FLAG_BITS: FLAG_BITS };
 })();
