@@ -138,4 +138,4 @@
 ## 9. impl 링크
 
 - 1차 회의 결과 전원 리젝 → [2차 회의록](2026-02-25-new-game-types-v2.md) 참조
-- [Lucky Mine impl](../../impl/2026-02-25-lucky-mine-impl.md)
+- 최종 결과: [4차 회의록](2026-02-25-new-game-types-v4.md) — 5개 신규 게임 확정

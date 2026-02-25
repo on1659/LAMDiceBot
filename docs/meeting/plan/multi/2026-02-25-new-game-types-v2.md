@@ -141,4 +141,5 @@
 
 ## 7. impl 링크
 
-- [Lucky Mine impl](../../impl/2026-02-25-lucky-mine-impl.md)
+- [Lucky Mine impl](../../impl/2026-02-25-lucky-mine-impl.md) — 사장 리젝 (끌리지 않음)
+- 후속: [3차 회의록](2026-02-25-new-game-types-v3.md) → [4차 회의록](2026-02-25-new-game-types-v4.md) — 최종 5개 확정
