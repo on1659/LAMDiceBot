@@ -1,14 +1,14 @@
 # Implementation: Race Excitement Improvements
 
 > **Meeting**: [2026-02-25-race-excitement-improvements](../plan/multi/2026-02-25-race-excitement-improvements.md)
-> **Recommended model**: Sonnet (all changes are surgical, file/function/location specified)
+> **Recommended model**: Opus (Phase 5 reversal system requires multi-file coordination + design decisions)
 > **Status**: Pending
 
 ---
 
 ## Overview
 
-9 adopted improvements to increase race comeback drama, diversify object actions, and connect existing sound assets — all without breaking server pre-computation or client synchronization.
+9 adopted improvements + **"Trinity of Reversals" system** (Crown Curse + Stamina Collapse + Dimension Gate) to increase race comeback drama, diversify object actions, and connect existing sound assets — all without breaking server pre-computation or client synchronization.
 
 ---
 
@@ -248,6 +248,261 @@ Phase 4: Gameplay (3-4 hours)
   4.1 Vehicle traits → Verify: early/late speed curves
   4.2 Chain gimmicks → Verify: stop→sprint chains
 ```
+
+---
+
+## Phase 5: Trinity of Reversals — Crown Curse + Stamina Collapse + Dimension Gate
+
+> **Sync strategy**: Server pre-computes ALL reversal decisions in `calculateHorseRaceResult()` → sends `reversalEvents[]` timestamped log → client plays back visually (cosmetic only). Same pattern as existing gimmicks.
+
+### Sync Architecture (Confirmed)
+
+```text
+Server (socket/horse.js)                    Client (raceSimulator.ts)
+────────────────────────                    ────────────────────────
+calculateHorseRaceResult()                  tickRace()
+├─ Deterministic seed RNG                   ├─ Math.random() (unsync!)
+├─ 16ms interval simulation                 ├─ requestAnimationFrame interval
+├─ Final rankings + baseDuration output     ├─ baseSpeed derived from baseDuration
+└─ Send rankings to client                  └─ Independent physics replay (visual)
+
+Client is a "cosmetic animator" — two tabs in same room already show
+different per-frame positions (different RNG). Only final rankings match.
+→ Reversal events are visual-only; outcomes already baked into baseDuration.
+```
+
+### 5.0 Config Addition
+
+**File**: `config/horse/race.json`
+
+Add `reversalMechanics` section:
+
+```json
+"reversalMechanics": {
+  "enabled": true,
+  "crownCurse": {
+    "activationProgress": 0.10,
+    "penaltyPerSecond": 0.08,
+    "minPenalty": 0.50,
+    "freedBoostMultiplier": 1.30,
+    "freedBoostDuration": 1500
+  },
+  "staminaCollapse": {
+    "baseDrain": 0.06,
+    "speedDrainExponent": 2.0,
+    "exhaustDuration": 2000,
+    "exhaustSpeedMultiplier": 0.05,
+    "recoveryRate": 0.15
+  },
+  "dimensionGate": {
+    "countByTrack": { "short": [1, 2], "medium": [2, 3], "long": [2, 4] },
+    "positionRange": [0.25, 0.75],
+    "baseBackwardProb": 0.30,
+    "rankBackwardBonus": 0.40,
+    "teleportRange": [0.08, 0.20]
+  }
+}
+```
+
+### 5.1 Server Simulation (`socket/horse.js`)
+
+Extend `calculateHorseRaceResult()`:
+
+1. Create `reversalEvents[]` array — all reversal decisions logged with timestamps
+2. Pre-generate Dimension Gate positions (after gimmick generation, using deterministic seed)
+3. Add 3 systems to simulation loop (multiply after existing speed calculation):
+
+   - **Crown**: Each frame find leader → transfer crown → accumulate crownPenalty
+   - **Stamina**: speed² drain → exhausted event → exhaustSpeed → recovery event
+   - **Portal**: horse passes gate position → rank-based probability → position change + event
+
+4. Speed formula change:
+
+```js
+movement = baseSpeed * speedMultiplier * weatherMod * crownPenalty * staminaFactor
+         * (frameInterval / 1000) * 1000 * slowMotionFactor;
+```
+
+5. Add to `raceData`: `reversalEvents`, `dimensionGates`, `reversalMechanics` config
+6. Add to `raceRecord` (for replay)
+
+**reversalEvents format**:
+
+```json
+{ "time": 2300, "type": "crown_transfer", "fromHorse": 2, "toHorse": 0, "horseIndex": 0 }
+{ "time": 4100, "type": "stamina_exhaust", "horseIndex": 1 }
+{ "time": 4600, "type": "stamina_recover", "horseIndex": 1 }
+{ "time": 3500, "type": "portal_enter", "horseIndex": 3, "gateIndex": 1, "delta": 0.15 }
+{ "time": 5200, "type": "crown_freed", "horseIndex": 0 }
+```
+
+### 5.2 Type Definitions (`horse-app/src/types/game-state.ts`)
+
+```typescript
+interface ReversalEvent {
+  time: number;
+  type: 'crown_transfer' | 'crown_freed' | 'stamina_exhaust' | 'stamina_recover' | 'portal_enter';
+  horseIndex: number;
+  fromHorse?: number;
+  toHorse?: number;
+  gateIndex?: number;
+  delta?: number;
+}
+
+interface DimensionGate {
+  gateIndex: number;
+  progressPosition: number;
+}
+```
+
+Also update `horse-app/src/types/socket-events.ts` — add `reversalEvents` and `dimensionGates` to raceData payload.
+
+### 5.3 Client Simulator (`horse-app/src/utils/raceSimulator.ts`)
+
+Extend `HorseState`: `hasCrown`, `crownStartTime`, `stamina`, `isExhausted`, `isTeleporting`
+
+Extend `tickRace()` — **Event Log Playback**:
+
+1. Consume `reversalEvents` whose `time <= elapsedMs`
+2. `crown_transfer` → update crown visual state
+3. `stamina_exhaust` / `stamina_recover` → update exhaustion visual state
+4. `portal_enter` → position jump + teleport flash flag
+5. **No speed modification** — server already baked outcomes into baseDuration
+
+### 5.4 Visual Rendering (`horse-app/src/components/RaceTrack.tsx`)
+
+- **Crown**: Crown emoji above leader, grows + reddens over time (curse). Green glow on freed
+- **Stamina bar**: 3px bar below horse, green→yellow→red gradient. Spin animation on exhaust
+- **Portal**: Full-height purple column on track + portal emoji. Teleport flash on enter
+- CSS keyframes: `crownBob`, `portalPulse`, `teleportFlash`, `exhaustSpin`
+
+### 5.5 Data Pipeline
+
+- `horse-app/src/hooks/useSocketEvents.ts` — store reversalEvents/dimensionGates to gameStore
+- `horse-app/src/stores/gameStore.ts` — extend raceData type with reversalEvents/dimensionGates fields
+
+### Worked Example — medium track, 4 horses
+
+**Base constants**:
+
+```text
+Track: medium (700m), speedRange: [85, 95] km/h
+durationRange: [26526ms, 29647ms]  (buildTrackPresets formula)
+finishLine = 7000px, startPosition = 10px, totalDistance = 6990px
+frameInterval = 16ms
+
+horse0: baseDuration=27200ms → baseSpeed=0.2570 px/ms
+horse1: baseDuration=26800ms → baseSpeed=0.2608 px/ms (fastest)
+horse2: baseDuration=28500ms → baseSpeed=0.2453 px/ms
+horse3: baseDuration=29100ms → baseSpeed=0.2402 px/ms (slowest)
+
+Per-frame movement (horse.js:1491):
+  movement = baseSpeed * speedMultiplier * 16 * slowMotionFactor
+  horse1 normal: 0.2608 * 1.0 * 16 * 1 = 4.17 px/frame
+```
+
+**Crown Curse walkthrough**:
+
+```text
+Config: penaltyPerSecond=0.08, minPenalty=0.50, activationProgress=0.10
+
+t=4000ms: horse1 leads, progress≈24% > 10% → crown activated
+  crownPenalty = 1.0
+
+t=5000ms: crown held 1s → crownPenalty = 1.0 - 0.08*1 = 0.92
+  horse1: 0.2608 * 0.92 * 16 = 3.84 px/frame (was 4.17, -8%)
+
+t=7000ms: crown held 3s → crownPenalty = 1.0 - 0.08*3 = 0.76
+  horse1: 0.2608 * 0.76 * 16 = 3.17 px/frame (-24%!)
+  horse0: 0.2570 * 1.00 * 16 = 4.11 px/frame → overtakes!
+
+t=7000ms event: { crown_transfer, fromHorse:1, toHorse:0 }
+  horse1: freed → boost 1.30x for 1.5s → 0.2608*1.30*16 = 5.42 px/frame
+  horse0: crown starts, penalty resets to 1.0
+```
+
+**Stamina Collapse walkthrough**:
+
+```text
+Config: baseDrain=0.06/sec, speedDrainExponent=2.0, exhaustDuration=2000ms
+
+Per-frame drain = baseDrain * (speedMult)^2 * (16/1000)
+
+horse1 (normal, speedMult≈1.0):
+  drain = 0.06 * 1.0 * 0.016 = 0.00096/frame → exhausts at ~16.7s
+
+horse1 (sprint active, speedMult=1.5):
+  drain = 0.06 * 2.25 * 0.016 = 0.00216/frame (2.25x faster!)
+  sprint 800ms = 50 frames → stamina cost 0.108
+
+t=16700ms: horse1 stamina=0 → exhaust!
+  staminaFactor = 0.05 → 0.2608*0.05*16 = 0.21 px/frame (95% slow!)
+
+t=18700ms: recover → stamina=0.15, resume normal drain
+```
+
+**Dimension Gate walkthrough**:
+
+```text
+Config: medium=[2,3] gates, positionRange=[0.25,0.75]
+        baseBackwardProb=0.30, rankBackwardBonus=0.40, teleportRange=[0.08,0.20]
+
+Backward probability formula:
+  prob = max(0, baseBackwardProb - rankBackwardBonus * ((horseCount-rank)/(horseCount-1)))
+  1st: 0.30 - 0.40*1.00 = -0.10 → 0% backward (always forward!)
+  2nd: 0.30 - 0.40*0.67 = 0.03 → 3% backward
+  3rd: 0.30 - 0.40*0.33 = 0.17 → 17% backward
+  4th: 0.30 - 0.40*0.00 = 0.30 → 30% backward
+
+horse1 (1st) enters gate0: 100% forward, +0.12*6990 = +839px
+horse3 (4th) enters gate0: 70% forward / 30% backward
+  (forward!) +0.15*6990 = +1049px → last-to-mid leap!
+```
+
+**Combined timeline (t=0~20s)**:
+
+```text
+t=0~4s:   horse1 leads (fastest baseSpeed)
+t=4s:     Crown activates → horse1 gets crown
+t=4~7s:   crownPenalty accumulates → horse1 slowing
+t=9.4s:   horse1 enters gate0 → forward +12%
+t=9.8s:   horse3 enters gate0 → forward +15% (4th→2nd!)
+t=10s:    horse1 gets sprint gimmick → fast but 2.25x stamina drain
+t=12s:    horse0 overtakes → crown transfers! horse1 freed boost 1.3x
+t=14s:    horse1 freed boost ends + stamina drain accelerated
+t=16.7s:  horse1 exhausted! → 95% slow for 2s → drops to 4th
+t=18.7s:  horse1 recovers, stamina=0.15
+t=20s:    horse3(portal) > horse0(crown) > horse2 > horse1(post-exhaust)
+          → horse3 (started last) wins! Lead changes: 3 ✅
+
+reversalEvents:
+  { time:4000,  type:'crown_transfer', fromHorse:-1, toHorse:1 }
+  { time:9400,  type:'portal_enter', horseIndex:1, gateIndex:0, delta:+0.12 }
+  { time:9800,  type:'portal_enter', horseIndex:3, gateIndex:0, delta:+0.15 }
+  { time:12000, type:'crown_transfer', fromHorse:1, toHorse:0 }
+  { time:12000, type:'crown_freed', horseIndex:1 }
+  { time:16700, type:'stamina_exhaust', horseIndex:1 }
+  { time:18700, type:'stamina_recover', horseIndex:1 }
+```
+
+**Balance notes**:
+
+- Target: 2~3 lead changes per race
+- Crown = 1st only, Stamina = equal for all (speed-proportional), Portal = rank-weighted (not 100%)
+- Gimmick synergy: sprint → faster stamina drain + slower crown penalty relief; stop → stamina recovery + crown freed
+- Unbetted horses: already stopped by `unbetted_stop`, unaffected by reversal systems
+
+**Verification**:
+
+1. Server: reversalEvents log output (crown_transfer, stamina_exhaust, portal_enter)
+2. Client: crown icon on leader, transfers on overtake
+3. Stamina bar depletes faster on fast horses, exhaust animation at 0
+4. Portal: teleport flash + position change on enter
+5. 2-tab sync: same room, same events at same timestamps
+6. 10 races: minimum 2 lead changes per race
+7. Mobile 360px: stamina bar / crown / portal display correctly
+
+**Build required**: `cd horse-app && npm run build`
 
 ---
 
