@@ -2874,6 +2874,7 @@ function showRaceResult(data, isReplay = false) {
     if (!isReplay) raceResultShown = true;
 
     isRaceActive = false;
+    if (typeof stopRaceCommentary === 'function') stopRaceCommentary();
     updateStartButton(); // 게임 종료 시 버튼 상태 업데이트
 
     const winners = data.winners || [];
@@ -3068,6 +3069,12 @@ function showRaceResult(data, isReplay = false) {
     
     console.log('[resultOverlay] visible 추가', { isReplay, stack: new Error().stack });
     document.getElementById('resultOverlay').classList.add('visible');
+
+    // 경주 종료 → 탈것 선택 UI 복원
+    const horseSelectionSection = document.getElementById('horseSelectionSection');
+    if (horseSelectionSection) {
+        horseSelectionSection.classList.add('active');
+    }
     
     // 게임 상태 업데이트
     const gameStatus = document.getElementById('gameStatus');
@@ -4737,14 +4744,14 @@ socket.on('horseRaceStarted', (data) => {
         weatherConfig: data.weatherConfig || {}
     });
     
-    // 게임 상태 업데이트
+    // 게임 상태 업데이트 + 실황 중계 시작
     const gameStatus = document.getElementById('gameStatus');
     if (gameStatus) {
-        gameStatus.textContent = '경주 진행 중!';
         gameStatus.className = 'game-status playing';
         gameStatus.style.background = 'var(--green-50)';
         gameStatus.style.color = 'var(--green-800)';
     }
+    if (typeof startRaceCommentary === 'function') startRaceCommentary();
 });
 
 // 경주 종료 이벤트 (라운드 결과 후 서버에서 보내는 경우)
@@ -4804,6 +4811,7 @@ socket.on('horseRaceGameReset', (data) => {
     isReady = false;
     isRaceActive = false;
     mySelectedHorse = null;
+    if (typeof stopRaceCommentary === 'function') stopRaceCommentary();
     updateReadyButton();
     updateStartButton();
 });
@@ -4819,6 +4827,11 @@ socket.on('updateUsers', (users) => {
     if (myUser && myUser.isHost !== isHost) {
         isHost = myUser.isHost;
         updateHostUI();
+        // 호스트 변경 시 트랙 길이 컨트롤 업데이트
+        const hss = document.getElementById('horseSelectionSection');
+        if (hss && hss.classList.contains('active')) {
+            renderHorseSelection();
+        }
     }
     ChatModule.updateConnectedUsers(users);
     updateUsers(users);
@@ -4829,6 +4842,11 @@ socket.on('hostTransferred', (data) => {
     showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
     isHost = true;
     updateHostUI();
+    // 호스트 변경 시 트랙 길이 컨트롤 업데이트
+    const hss = document.getElementById('horseSelectionSection');
+    if (hss && hss.classList.contains('active')) {
+        renderHorseSelection();
+    }
 });
 
 // 강퇴당했을 때

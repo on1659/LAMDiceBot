@@ -1035,6 +1035,8 @@ module.exports = (socket, io, ctx) => {
             console.log(`[경마 종료] selectedVehicleTypes 설정:`, gameState.selectedVehicleTypes);
 
             // 모든 클라이언트에게 말 선택 UI 표시 (통계+인기말 정보 포함)
+            const trackPresetsInfo = {};
+            for (const [k, v] of Object.entries(TRACK_PRESETS)) trackPresetsInfo[k] = v.meters;
             getVehicleStats(getServerId()).then(stats => {
                 const popularVehicles = stats.filter(s => s.appearance_count >= 5).sort((a, b) => b.pick_rate - a.pick_rate).slice(0, 2).map(s => s.vehicle_id);
                 io.to(room.roomId).emit('horseSelectionReady', {
@@ -1046,6 +1048,9 @@ module.exports = (socket, io, ctx) => {
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    trackLength: gameState.trackLength || 'medium',
+                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.medium).meters,
+                    trackPresets: trackPresetsInfo,
                     popularVehicles: popularVehicles,
                     vehicleStats: stats
                 });
@@ -1059,6 +1064,9 @@ module.exports = (socket, io, ctx) => {
                     horseRaceMode: gameState.horseRaceMode || 'last',
                     raceRound: gameState.raceRound || 1,
                     selectedVehicleTypes: gameState.selectedVehicleTypes,
+                    trackLength: gameState.trackLength || 'medium',
+                    trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.medium).meters,
+                    trackPresets: trackPresetsInfo,
                     popularVehicles: [],
                     vehicleStats: []
                 });
