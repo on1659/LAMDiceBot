@@ -18,7 +18,7 @@ First-visit interactive tutorial that highlights real UI buttons and shows a pos
 
 ### Z-Index Layers
 
-```
+```text
 z-index 9998 → .tutorial-overlay     (dark background)
 z-index 9999 → .tutorial-highlight   (highlighted element border + pulse)
 z-index 10000 → .tutorial-tooltip    (speech bubble)
@@ -216,7 +216,6 @@ Add before `</body>`:
 const GAME_TUTORIAL_STEPS = [/* see game-specific doc */];
 
 // Hook into socket roomJoined event
-const _origRoomJoined = socket.listeners('roomJoined');
 socket.on('roomJoined', function() {
     setTimeout(function() {
         TutorialModule.start('gameName', GAME_TUTORIAL_STEPS);
@@ -232,7 +231,7 @@ socket.on('roomJoined', function() {
 ## display:none Auto-Skip Rules
 
 | Situation | Behavior |
-|-----------|----------|
+| --------- | -------- |
 | `#hostControls` hidden (non-host) | Steps targeting host buttons → skip |
 | `#horseSelectionSection` collapsed | Use fallback or skip |
 | Element not yet rendered | Skip + log warning |
@@ -242,7 +241,7 @@ socket.on('roomJoined', function() {
 ## Files to Create/Modify
 
 | File | Action |
-|------|--------|
+| ---- | ------ |
 | `tutorial-shared.js` | CREATE at root |
 | `dice-game-multiplayer.html` | MODIFY (already done — verify integration) |
 | `roulette-game-multiplayer.html` | MODIFY — add script + steps + roomJoined hook |
@@ -255,9 +254,11 @@ socket.on('roomJoined', function() {
 ## Verification
 
 1. **Console test** (any game page):
+
    ```javascript
    TutorialModule.start('test', [{ target: 'body', title: 'T', content: 'C', position: 'bottom' }], { force: true });
    ```
+
 2. **First visit**: Open game page → join room → tutorial appears after 1s
 3. **Return visit**: `localStorage.getItem('tutorialSeen_dice')` → `'v1'` → no tutorial
 4. **Skip**: Click "건너뛰기" → tutorial closes, `tutorialSeen_*` set

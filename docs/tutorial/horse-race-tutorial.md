@@ -130,14 +130,14 @@ const HORSE_RACE_TUTORIAL_STEPS = [
 | `#readyButton` | 준비/준비취소 버튼 | All |
 | `#startHorseRaceButton` | 경마 시작 버튼 | **Host only** (inside `#hostControls`) |
 
-> Note: `#horseSelectionSection` may have `display:none` before a vehicle is available. Use `fallbackTarget: '#usersSection'` as safety.
+> Note: `#horseSelectionSection`은 항상 렌더링되어 있음 (display:none 아님). 다만 내부 콘텐츠(탈것 목록)는 동적으로 채워짐. `fallbackTarget`은 예외 처리용 안전장치.
 
 ---
 
 ## display:none Handling
 
-- `#startHorseRaceButton` inside `#hostControls` → hidden for non-hosts → auto-skip
-- `#horseSelectionSection` may be hidden initially → `fallbackTarget: '#usersSection'` fallback
+- `#startHorseRaceButton` — `#hostControls` 안, 비호스트 `display:none` → 자동 스킵
+- `#horseSelectionSection` — 항상 렌더링됨 (display:none 아님). fallbackTarget은 예외 안전장치
 
 ---
 
