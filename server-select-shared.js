@@ -1,6 +1,183 @@
 // 서버 선택 UI 공유 모듈
 // 상수: config/client-config.js 참조
 
+const CREATE_SERVER_TUTORIAL_STEPS = [
+    {
+        target: '#ss-create-name',
+        title: '서버 이름',
+        content: '친구들이 알아볼 수 있는 이름을 지어주세요. 한글, 영문, 숫자 모두 가능합니다.',
+        position: 'bottom'
+    },
+    {
+        target: '#ss-create-desc',
+        title: '서버 설명',
+        content: '어떤 서버인지 간단히 소개해주세요. 입력하지 않아도 괜찮아요!',
+        position: 'bottom'
+    },
+    {
+        target: '#ss-create-pw',
+        title: '참여코드',
+        content: '설정하면 코드를 아는 사람만 가입할 수 있어요. 비워두면 누구나 가입 신청이 가능한 공개 서버가 됩니다.',
+        position: 'top'
+    }
+];
+
+// 가짜 서버 카드 삽입/제거 헬퍼
+function _insertDemoServerCard() {
+    var list = document.getElementById('ss-server-list');
+    if (!list || document.getElementById('ss-demo-card')) return;
+    var card = document.createElement('div');
+    card.id = 'ss-demo-card';
+    card.className = 'ss-server-card';
+    card.style.pointerEvents = 'none';
+    card.innerHTML =
+        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:#667eea;">L</div>' +
+        '<div class="ss-server-info">' +
+            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span><span class="ss-server-badge">참여 가능</span></div>' +
+            '<div class="ss-server-meta">LAM \u00B7 3명</div>' +
+        '</div>';
+    list.prepend(card);
+}
+function _removeDemoServerCard() {
+    var card = document.getElementById('ss-demo-card');
+    if (card) card.remove();
+}
+
+// 가짜 참여코드 모달 삽입/제거 헬퍼
+function _insertDemoPwModal() {
+    if (document.getElementById('ss-demo-pw-modal')) return;
+    var modal = document.createElement('div');
+    modal.id = 'ss-demo-pw-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+    modal.innerHTML =
+        '<div id="ss-demo-pw-box" style="background:white;border-radius:20px;padding:30px;width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">' +
+            '<h3 style="margin:0 0 16px;color:#333;">\uD83D\uDD12 \uC608\uC2DC \uC11C\uBC84</h3>' +
+            '<input type="password" disabled placeholder="\uCC38\uC5EC\uCF54\uB4DC \uC785\uB825" style="width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;background:#f9f9f9;" />' +
+            '<div style="display:flex;gap:10px;">' +
+                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:#eee;color:#666;">\uCDE8\uC18C</button>' +
+                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:#667eea;color:white;">\uC785\uC7A5</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+}
+function _removeDemoPwModal() {
+    var modal = document.getElementById('ss-demo-pw-modal');
+    if (modal) modal.remove();
+}
+
+// 승인 대기 카드 삽입/제거 헬퍼
+function _insertDemoPendingCard() {
+    var list = document.getElementById('ss-server-list');
+    if (!list || document.getElementById('ss-demo-pending-card')) return;
+    // 기존 데모 카드/모달 정리
+    _removeDemoServerCard();
+    _removeDemoPwModal();
+    var card = document.createElement('div');
+    card.id = 'ss-demo-pending-card';
+    card.className = 'ss-server-card ss-card-pending';
+    card.style.pointerEvents = 'none';
+    card.innerHTML =
+        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:#667eea;">L</div>' +
+        '<div class="ss-server-info">' +
+            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span><span class="ss-server-badge waiting">\uC2B9\uC778 \uB300\uAE30 \uC911</span></div>' +
+            '<div class="ss-server-meta">LAM \u00B7 3명</div>' +
+        '</div>';
+    list.prepend(card);
+}
+function _removeDemoPendingCard() {
+    var card = document.getElementById('ss-demo-pending-card');
+    if (card) card.remove();
+}
+
+// 승인 완료 카드 삽입/제거 헬퍼
+function _insertDemoApprovedCard() {
+    var list = document.getElementById('ss-server-list');
+    if (!list || document.getElementById('ss-demo-approved-card')) return;
+    _removeDemoPendingCard();
+    var card = document.createElement('div');
+    card.id = 'ss-demo-approved-card';
+    card.className = 'ss-server-card';
+    card.style.pointerEvents = 'none';
+    card.innerHTML =
+        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:#667eea;">L</div>' +
+        '<div class="ss-server-info">' +
+            '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span></div>' +
+            '<div class="ss-server-meta">LAM \u00B7 4명</div>' +
+        '</div>';
+    list.prepend(card);
+}
+function _removeDemoApprovedCard() {
+    var card = document.getElementById('ss-demo-approved-card');
+    if (card) card.remove();
+}
+
+const LOBBY_TUTORIAL_STEPS = [
+    {
+        target: '.ss-free-btn',
+        title: '바로 플레이',
+        content: '회원가입 없이 이름만 입력하면 바로 시작! 같은 서버의 친구들과 함께 즐기세요.',
+        position: 'bottom'
+    },
+    {
+        target: '.ss-login-btn',
+        title: '서버 참여하기',
+        content: '친구들과 전용 서버를 이용하려면 로그인이 필요합니다. 이름과 간단한 암호코드만 있으면 돼요!',
+        position: 'bottom'
+    },
+    {
+        target: '#ss-search-input',
+        title: '서버 검색',
+        content: '가입하고 싶은 서버를 이름으로 검색할 수 있어요.',
+        position: 'bottom',
+        beforeShow: function() {
+            var input = document.getElementById('ss-search-input');
+            if (input) input.value = 'LAMDice :)';
+        },
+        cleanup: function() {
+            var input = document.getElementById('ss-search-input');
+            if (input) input.value = '';
+        }
+    },
+    {
+        target: '#ss-demo-card',
+        title: '서버 가입하기',
+        content: '검색 결과에서 서버를 클릭하면 가입할 수 있어요.',
+        position: 'right',
+        beforeShow: _insertDemoServerCard,
+        cleanup: _removeDemoServerCard
+    },
+    {
+        target: '#ss-demo-pw-box',
+        title: '참여코드 입력',
+        content: '비공개 서버는 가입할 때 참여코드를 한 번만 입력하면 돼요. 이후에는 코드 없이 바로 입장됩니다.',
+        position: 'bottom',
+        beforeShow: _insertDemoPwModal,
+        cleanup: _removeDemoPwModal
+    },
+    {
+        target: '#ss-demo-pending-card',
+        title: '승인 대기',
+        content: '가입 신청 후에는 이렇게 "승인 대기 중" 상태가 됩니다. 서버장이 승인해주면 입장할 수 있어요.',
+        position: 'right',
+        beforeShow: _insertDemoPendingCard,
+        cleanup: _removeDemoPendingCard
+    },
+    {
+        target: '#ss-demo-approved-card',
+        title: '승인 완료!',
+        content: '서버장이 승인하면 바로 입장할 수 있어요. 클릭 한 번이면 게임 시작!',
+        position: 'right',
+        beforeShow: _insertDemoApprovedCard,
+        cleanup: _removeDemoApprovedCard
+    },
+    {
+        target: '.ss-create-btn',
+        title: '새 서버 만들기',
+        content: '나만의 서버를 만들어 친구들과 함께 즐겨보세요!',
+        position: 'top'
+    }
+];
+
 const ServerSelectModule = (function () {
     let _socket = null;
     let _onSelect = null;
@@ -209,8 +386,22 @@ const ServerSelectModule = (function () {
         }
 
         /* ── 헤더 ── */
-        .ss-header { text-align: center; margin-bottom: 20px; }
+        .ss-header { text-align: center; margin-bottom: 20px; position: relative; }
         .ss-header h1 { font-size: 1.6em; color: #333; margin: 0 0 6px 0; }
+        .ss-tutorial-help-btn {
+            position: absolute; top: 0; right: 0;
+            width: 28px; height: 28px; border-radius: 50%;
+            background: linear-gradient(135deg, #a78bfa, #7c3aed);
+            color: white; border: 2px solid rgba(255,255,255,0.6);
+            cursor: pointer; font-size: 0.85rem; font-weight: bold;
+            box-shadow: 0 2px 8px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            line-height: 1;
+        }
+        .ss-tutorial-help-btn:hover {
+            transform: scale(1.12);
+            box-shadow: 0 4px 14px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+        }
         /* ── 자유 플레이 버튼 ── */
         .ss-free-btn {
             width: 100%; padding: 14px 16px; border: 2px solid rgba(102,126,234,0.3); border-radius: 14px;
@@ -475,6 +666,7 @@ const ServerSelectModule = (function () {
             <div class="ss-container">
                 <div class="ss-header">
                     <h1>🎮 LAMDice</h1>
+                    <button class="ss-tutorial-help-btn" id="ss-tutorial-btn" title="사용법 보기" onclick="ServerSelectModule._startTutorial()">?</button>
                     <div class="ss-tagline">
                         <span class="ss-tag-in" id="ss-tagline-text">오늘 커피는 누가 쏠까?</span>
                     </div>
@@ -506,6 +698,8 @@ const ServerSelectModule = (function () {
         `;
 
         document.body.appendChild(_overlay);
+
+
         requestAnimationFrame(() => {
             document.documentElement.classList.remove('ss-loading');
             document.documentElement.style.opacity = '';
@@ -514,6 +708,13 @@ const ServerSelectModule = (function () {
         _startFreeSubRoller();
         PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
+
+        // 첫 방문 시 튜토리얼 자동 시작
+        setTimeout(function() {
+            if (typeof TutorialModule !== 'undefined') {
+                TutorialModule.start('lobby', LOBBY_TUTORIAL_STEPS);
+            }
+        }, 500);
     }
 
     function _serverSectionHTML() {
@@ -996,6 +1197,17 @@ const ServerSelectModule = (function () {
         `;
         document.body.appendChild(modal);
         document.getElementById('ss-create-name').focus();
+
+        // 서버를 만든 적이 없으면 항목별 가이드
+        var myName = _getUserName();
+        var hasOwned = _allServers.some(function(s) { return s.host_name === myName; });
+        if (!hasOwned) {
+            setTimeout(function() {
+                if (typeof TutorialModule !== 'undefined') {
+                    TutorialModule.start('createServer', CREATE_SERVER_TUTORIAL_STEPS, { force: true });
+                }
+            }, 300);
+        }
     }
 
     function closeCreateModal() {
@@ -1379,6 +1591,11 @@ const ServerSelectModule = (function () {
         showServerMembersManage,
         deleteMyServer,
         getCurrentServer,
-        setCurrentServer
+        setCurrentServer,
+        _startTutorial: function() {
+            if (typeof TutorialModule !== 'undefined') {
+                TutorialModule.start('lobby', LOBBY_TUTORIAL_STEPS, { force: true });
+            }
+        }
     };
 })();
