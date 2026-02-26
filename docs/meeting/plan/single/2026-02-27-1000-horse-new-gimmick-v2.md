@@ -167,9 +167,10 @@ raceData.trackZones = [
 
 ## 6. 다음 단계 (Action Items)
 
-> 구현 상세: [`2026-02-27-1000-horse-new-gimmick-v2-impl.md`](../impl/2026-02-27-1000-horse-new-gimmick-v2-impl.md)
+> 트랙 존 구현 상세: [`2026-02-27-1000-horse-track-zone-impl.md`](../impl/2026-02-27-1000-horse-track-zone-impl.md)
+> 기타 기믹 구현 초안: [`2026-02-27-1000-horse-new-gimmick-v2-impl.md`](../impl/2026-02-27-1000-horse-new-gimmick-v2-impl.md)
 
-- [ ] 트랙 존 시스템 구현 — `socket/horse.js` (generateTrackZones) + `config/horse/race.json` (zones 섹션 추가) + `horse-race-multiplayer.html` (존 시각화 + 속도 적용)
+- [ ] 트랙 존 시스템 구현 — `socket/horse.js` (generateTrackZones) + `config/horse/race.json` (zones 섹션 추가) + `js/horse-race.js` (존 시각화 + 카메라 투어) + `horse-race-multiplayer.html` (CSS)
 - [ ] 유성우 이벤트 구현 — `socket/horse.js` (globalEvents 생성) + `horse-race-multiplayer.html` (파티클 이펙트)
 - [ ] 체력 시스템 — 별도 설계 문서 필요
 - [ ] 도미노 연쇄 기믹 — 별도 설계 문서 필요
