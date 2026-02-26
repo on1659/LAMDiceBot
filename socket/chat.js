@@ -1,12 +1,11 @@
 const geminiService = require('../gemini-utils');
+const { ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
 
 // ─── 조정 가능한 상수 ───
 const CHAT_MAX_LENGTH = 200;           // 채팅 메시지 최대 길이 (문자)
 const CHAT_IMAGE_MAX_BYTES = 4 * 1024 * 1024; // 이미지 최대 크기 (4MB)
 const CHAT_HISTORY_MAX = 100;          // 채팅 히스토리 최대 보관 수
-const DISCONNECT_WAIT_REDIRECT = 15000; // transport close 대기 시간 (ms, 기존 5000)
-const DISCONNECT_WAIT_DEFAULT = 5000;   // 기타 disconnect 대기 시간 (ms, 기존 3000)
-const ROOM_GRACE_PERIOD = 30000;        // 빈 방 삭제 유예 시간 (ms)
+// DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, ROOM_GRACE_PERIOD → config.js (.env로 재정의 가능)
 // ────────────────────────
 
 module.exports = (socket, io, ctx) => {
