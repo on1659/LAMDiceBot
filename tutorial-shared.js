@@ -59,6 +59,16 @@ var TutorialModule = (function() {
         '.tutorial-tooltip.arr-left::after   { right:-10px;  top:var(--ay,50%);  transform:translateY(-50%); border-right:0;  border-left-color:#fff; }',
         '.tutorial-click-blocker {',
         '  position: fixed; inset: 0; z-index: 10009; background: transparent;',
+        '}',
+        '/* Mobile: compact tooltip + lighter overlay */',
+        '@media (max-width: 480px) {',
+        '  .tutorial-highlight { box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); border-width: 2px; }',
+        '  .tutorial-tooltip { max-width: 220px; width: auto; padding: 10px 14px; border-radius: 10px; }',
+        '  .tutorial-tooltip-title { font-size: 0.875rem; margin-bottom: 4px; }',
+        '  .tutorial-tooltip-body { font-size: 0.78rem; margin-bottom: 8px; line-height: 1.4; }',
+        '  .tutorial-tooltip-counter { margin-top: 4px; }',
+        '  .tutorial-btn-next { padding: 5px 10px; font-size: 0.75rem; }',
+        '  .tutorial-btn-prev { padding: 5px 10px; font-size: 0.75rem; }',
         '}'
     ].join('\n');
 
@@ -136,6 +146,10 @@ var TutorialModule = (function() {
         return -1;
     }
 
+    function _isMobile() {
+        return window.innerWidth <= 480;
+    }
+
     function _placeTooltip(targetEl, pos) {
         var rect = targetEl.getBoundingClientRect();
         var GAP = 14;
@@ -151,6 +165,38 @@ var TutorialModule = (function() {
         var vh = window.innerHeight;
         var cx = rect.left + rect.width / 2;
         var cy = rect.top + rect.height / 2;
+
+        // Mobile: place tooltip opposite to highlight, with overlap guard
+        if (_isMobile()) {
+            var PAD = 6;
+            var cl = Math.max(M, (vw - tw) / 2);
+            var hlTop = rect.top - PAD;
+            var hlBot = rect.bottom + PAD;
+            var ct;
+            // Try bottom first: enough room below highlight?
+            if (hlBot + GAP + th <= vh - M) {
+                ct = hlBot + GAP;
+            }
+            // Try top: enough room above highlight?
+            else if (hlTop - GAP - th >= M) {
+                ct = hlTop - GAP - th;
+            }
+            // Neither fits cleanly — pick side with more space, clamp
+            else {
+                var spaceBelow = vh - hlBot;
+                var spaceAbove = hlTop;
+                if (spaceBelow >= spaceAbove) {
+                    ct = Math.max(hlBot + GAP, vh - th - M);
+                } else {
+                    ct = Math.min(hlTop - GAP - th, M);
+                }
+                ct = Math.max(M, Math.min(ct, vh - th - M));
+            }
+            _tooltip.style.top  = ct + 'px';
+            _tooltip.style.left = cl + 'px';
+            _tooltip.className  = 'tutorial-tooltip';
+            return;
+        }
 
         var top, left;
         if (pos === 'bottom')     { top = rect.bottom + GAP; left = cx - tw/2; }
