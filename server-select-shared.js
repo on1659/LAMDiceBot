@@ -174,7 +174,7 @@ const LOBBY_TUTORIAL_STEPS = [
         target: '#ss-demo-card',
         title: '서버 가입하기',
         content: '검색 결과에서 서버를 클릭하면 가입할 수 있어요.',
-        position: 'right',
+        position: 'bottom',
         beforeShow: _insertDemoServerCard,
         cleanup: _removeDemoServerCard
     },
@@ -190,7 +190,7 @@ const LOBBY_TUTORIAL_STEPS = [
         target: '#ss-demo-pending-card',
         title: '승인 대기',
         content: '가입 신청 후에는 이렇게 "승인 대기 중" 상태가 됩니다. 서버장이 승인해주면 입장할 수 있어요.',
-        position: 'right',
+        position: 'bottom',
         beforeShow: _insertDemoPendingCard,
         cleanup: _removeDemoPendingCard
     },
@@ -198,7 +198,7 @@ const LOBBY_TUTORIAL_STEPS = [
         target: '#ss-demo-approved-card',
         title: '승인 완료!',
         content: '서버장이 승인하면 바로 입장할 수 있어요. 클릭 한 번이면 게임 시작!',
-        position: 'right',
+        position: 'bottom',
         beforeShow: _insertDemoApprovedCard,
         cleanup: _removeDemoApprovedCard
     },

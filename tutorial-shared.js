@@ -55,8 +55,6 @@ var TutorialModule = (function() {
         '.tutorial-tooltip::after { content:""; position:absolute; border:10px solid transparent; }',
         '.tutorial-tooltip.arr-bottom::after { top:-10px;    left:var(--ax,50%); transform:translateX(-50%); border-top:0;    border-bottom-color:#fff; }',
         '.tutorial-tooltip.arr-top::after    { bottom:-10px; left:var(--ax,50%); transform:translateX(-50%); border-bottom:0; border-top-color:#fff; }',
-        '.tutorial-tooltip.arr-right::after  { left:-10px;   top:var(--ay,50%);  transform:translateY(-50%); border-left:0;   border-right-color:#fff; }',
-        '.tutorial-tooltip.arr-left::after   { right:-10px;  top:var(--ay,50%);  transform:translateY(-50%); border-right:0;  border-left-color:#fff; }',
         '.tutorial-click-blocker {',
         '  position: fixed; inset: 0; z-index: 10009; background: transparent;',
         '}',
@@ -146,14 +144,11 @@ var TutorialModule = (function() {
         return -1;
     }
 
-    function _isMobile() {
-        return window.innerWidth <= 480;
-    }
-
     function _placeTooltip(targetEl, pos) {
         var rect = targetEl.getBoundingClientRect();
         var GAP = 14;
         var M = 10;
+        var PAD = 6;
 
         // Measure tooltip off-screen
         _tooltip.style.display = 'block';
@@ -164,69 +159,41 @@ var TutorialModule = (function() {
         var vw = window.innerWidth;
         var vh = window.innerHeight;
         var cx = rect.left + rect.width / 2;
-        var cy = rect.top + rect.height / 2;
+        var hlTop = rect.top - PAD;
+        var hlBot = rect.bottom + PAD;
 
-        // Mobile: place tooltip opposite to highlight, with overlap guard
-        if (_isMobile()) {
-            var PAD = 6;
-            var cl = Math.max(M, (vw - tw) / 2);
-            var hlTop = rect.top - PAD;
-            var hlBot = rect.bottom + PAD;
-            var ct;
-            // Try bottom first: enough room below highlight?
-            if (hlBot + GAP + th <= vh - M) {
+        // Top/bottom only — pick side with more room, flip if needed
+        var ct;
+        if (pos === 'top' && hlTop - GAP - th >= M) {
+            ct = hlTop - GAP - th;
+            pos = 'top';
+        } else if (hlBot + GAP + th <= vh - M) {
+            ct = hlBot + GAP;
+            pos = 'bottom';
+        } else if (hlTop - GAP - th >= M) {
+            ct = hlTop - GAP - th;
+            pos = 'top';
+        } else {
+            // Neither fits — pick wider side, clamp
+            if ((vh - hlBot) >= hlTop) {
                 ct = hlBot + GAP;
-            }
-            // Try top: enough room above highlight?
-            else if (hlTop - GAP - th >= M) {
+                pos = 'bottom';
+            } else {
                 ct = hlTop - GAP - th;
+                pos = 'top';
             }
-            // Neither fits cleanly — pick side with more space, clamp
-            else {
-                var spaceBelow = vh - hlBot;
-                var spaceAbove = hlTop;
-                if (spaceBelow >= spaceAbove) {
-                    ct = Math.max(hlBot + GAP, vh - th - M);
-                } else {
-                    ct = Math.min(hlTop - GAP - th, M);
-                }
-                ct = Math.max(M, Math.min(ct, vh - th - M));
-            }
-            _tooltip.style.top  = ct + 'px';
-            _tooltip.style.left = cl + 'px';
-            _tooltip.className  = 'tutorial-tooltip';
-            return;
+            ct = Math.max(M, Math.min(ct, vh - th - M));
         }
 
-        var top, left;
-        if (pos === 'bottom')     { top = rect.bottom + GAP; left = cx - tw/2; }
-        else if (pos === 'top')   { top = rect.top - th - GAP; left = cx - tw/2; }
-        else if (pos === 'left')  { top = cy - th/2; left = rect.left - tw - GAP; }
-        else if (pos === 'right') { top = cy - th/2; left = rect.right + GAP; }
-        else                      { top = rect.bottom + GAP; left = cx - tw/2; pos = 'bottom'; }
-
-        // Flip if out of viewport
-        if (pos === 'bottom' && top + th > vh - M)      { pos = 'top';    top = rect.top - th - GAP; }
-        else if (pos === 'top' && top < M)               { pos = 'bottom'; top = rect.bottom + GAP; }
-        else if (pos === 'right' && left + tw > vw - M)  { pos = 'left';   left = rect.left - tw - GAP; }
-        else if (pos === 'left' && left < M)             { pos = 'right';  left = rect.right + GAP; }
-
-        // Clamp
-        var ct = Math.max(M, Math.min(top,  vh - th - M));
-        var cl = Math.max(M, Math.min(left, vw - tw - M));
+        var cl = Math.max(M, Math.min(cx - tw / 2, vw - tw - M));
 
         _tooltip.style.top  = ct + 'px';
         _tooltip.style.left = cl + 'px';
         _tooltip.className  = 'tutorial-tooltip arr-' + pos;
 
-        // Arrow — point at highlight center, not tooltip center
-        if (pos === 'bottom' || pos === 'top') {
-            var ax = Math.max(20, Math.min(cx - cl, tw - 20));
-            _tooltip.style.setProperty('--ax', ax + 'px');
-        } else {
-            var ay = Math.max(20, Math.min(cy - ct, th - 20));
-            _tooltip.style.setProperty('--ay', ay + 'px');
-        }
+        // Arrow — point at highlight center
+        var ax = Math.max(20, Math.min(cx - cl, tw - 20));
+        _tooltip.style.setProperty('--ax', ax + 'px');
     }
 
     function _showStep(idx) {
