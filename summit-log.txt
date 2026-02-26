@@ -1,4 +1,47 @@
 ========================================
+📋 Summit Log - 2026-02-26 (WebSocket reconnect 방 삭제 버그 수정)
+========================================
+
+## 변경 파일
+- socket/chat.js: 상수 3개 + startRoomGrace() 함수 + 즉시삭제 2곳 → grace period 교체
+- socket/rooms.js: joinRoom 유효성 검사 통과 후 grace timer 취소 블록 추가
+- dice-game-multiplayer.html: socket.off 제거 + setServerId 누락 추가
+- roulette-game-multiplayer.html: socket.off 제거
+- crane-game-multiplayer.html: socket.off 제거
+- horse-app/src/hooks/useSocket.ts: connect 핸들러에 rejoin 로직 추가 + 빌드
+
+## 상세 변경 내역
+
+### 근본 원인
+- ZScaler 기업 프록시 환경에서 WebSocket 연결 일괄 리셋 → 방 전원 동시 disconnect
+- 클라이언트: 1회용 connect 리스너(socket.off 패턴) → auto-reconnect 시 joinRoom 미전송
+- 서버: 빈 방 즉시 삭제 (grace period 없음), 대기 시간 5초가 프록시 환경에서 부족
+- 2/26 실서버에서 김영태 사용자 방 3번 연속 소실 사건 발생
+
+### socket/chat.js
+- DISCONNECT_WAIT_REDIRECT: 5000 → 15000ms (transport close 대기)
+- DISCONNECT_WAIT_DEFAULT: 3000 → 5000ms (기타 disconnect 대기)
+- ROOM_GRACE_PERIOD: 30000ms (빈 방 삭제 유예)
+- startRoomGrace(roomId, room): 빈 방 즉시 삭제 대신 30초 타이머 시작
+  - room._graceTimer 가드로 race condition 방지
+  - 30초 후 여전히 빈 방이면 roomDeleted 이벤트 후 삭제
+- 호스트/일반유저 나감 + 0명 시 즉시삭제 → startRoomGrace 호출로 교체
+
+### socket/rooms.js
+- joinRoom에서 모든 유효성 검사(서버격리, 비밀번호, 최대인원) 통과 후 grace timer 취소
+- 위치: if (socket.currentRoomId) 체크 직전
+- 서버 격리 체크 이전 배치 시 타이머 취소 후 입장 실패 → 방 고아 상태 위험 방지
+
+### HTML 클라이언트 3종
+- socket.off('connect', handler) 1줄씩 제거 → 영구 리스너로 전환
+- 재연결 시마다 joinRoom 전송 가능
+- dice: setServerId 누락 추가 (roulette/crane에는 이미 있었음)
+
+### horse-app
+- useSocket.ts connect 핸들러: horseRaceActiveRoom sessionStorage 확인 후 joinRoom 재전송
+- npm run build 완료 (dist 업데이트)
+
+========================================
 📋 Summit Log - 2026-02-26 (튜토리얼 툴팁 상하 전용 배치로 단순화)
 ========================================
 

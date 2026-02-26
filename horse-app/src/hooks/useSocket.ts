@@ -29,6 +29,20 @@ export function useSocket(): TypedSocket | null {
 
     s.on('connect', () => {
       console.log('[Socket] Connected:', s.id);
+      const saved = sessionStorage.getItem('horseRaceActiveRoom');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.roomId && parsed.userName) {
+            s.emit('joinRoom', {
+              roomId: parsed.roomId,
+              userName: parsed.userName,
+              deviceType: 'unknown',
+              tabId: sessionStorage.getItem('tabId') || '',
+            });
+          }
+        } catch { /* ignore */ }
+      }
     });
 
     s.on('disconnect', (reason) => {

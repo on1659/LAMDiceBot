@@ -4,6 +4,9 @@ const geminiService = require('../gemini-utils');
 const CHAT_MAX_LENGTH = 200;           // 채팅 메시지 최대 길이 (문자)
 const CHAT_IMAGE_MAX_BYTES = 4 * 1024 * 1024; // 이미지 최대 크기 (4MB)
 const CHAT_HISTORY_MAX = 100;          // 채팅 히스토리 최대 보관 수
+const DISCONNECT_WAIT_REDIRECT = 15000; // transport close 대기 시간 (ms, 기존 5000)
+const DISCONNECT_WAIT_DEFAULT = 5000;   // 기타 disconnect 대기 시간 (ms, 기존 3000)
+const ROOM_GRACE_PERIOD = 30000;        // 빈 방 삭제 유예 시간 (ms)
 // ────────────────────────
 
 module.exports = (socket, io, ctx) => {
@@ -518,6 +521,21 @@ module.exports = (socket, io, ctx) => {
         }
     });
 
+    // 빈 방 삭제 유예 타이머 시작
+    function startRoomGrace(roomId, room) {
+        if (room._graceTimer) return;
+        console.log(`방 grace period 시작: ${room.roomName} (${roomId}) - ${ROOM_GRACE_PERIOD / 1000}초`);
+        ctx.updateRoomsList();
+        room._graceTimer = setTimeout(() => {
+            if (ctx.rooms[roomId] && ctx.rooms[roomId].gameState.users.length === 0) {
+                io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
+                delete ctx.rooms[roomId];
+                ctx.updateRoomsList();
+                console.log(`방 삭제: ${room.roomName} (${roomId}) - grace period 만료`);
+            }
+        }, ROOM_GRACE_PERIOD);
+    }
+
     // 연결 해제
     socket.on('disconnect', async (reason) => {
         console.log(`사용자 연결 해제: ${socket.id}, 이유: ${reason}, 방: ${socket.currentRoomId}, 사용자: ${socket.userName}`);
@@ -533,7 +551,7 @@ module.exports = (socket, io, ctx) => {
             const wasHost = socket.isHost;
 
             // 리다이렉트인 경우 더 오래 대기 (5초)
-            const waitTime = isRedirect ? 5000 : 3000;
+            const waitTime = isRedirect ? DISCONNECT_WAIT_REDIRECT : DISCONNECT_WAIT_DEFAULT;
 
             // 잠시 대기 후 사용자가 재연결하지 않았는지 확인
             setTimeout(async () => {
@@ -591,22 +609,16 @@ module.exports = (socket, io, ctx) => {
                             });
                             ctx.updateRoomsList();
                         } else {
-                            // 모든 사용자가 나감 - 방 삭제
-                            io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
-                            delete ctx.rooms[roomId];
-                            ctx.updateRoomsList();
-                            console.log(`방 삭제: ${room.roomName} (${roomId}) - 모든 사용자 나감`);
+                            // 모든 사용자가 나감 - grace period 후 삭제
+                            startRoomGrace(roomId, room);
                         }
                     } else {
                         // 일반 사용자 나감
                         io.to(roomId).emit('updateUsers', gameState.users);
 
                         if (gameState.users.length === 0) {
-                            // 모든 사용자가 나감 - 방 삭제
-                            io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
-                            delete ctx.rooms[roomId];
-                            ctx.updateRoomsList();
-                            console.log(`방 삭제: ${room.roomName} (${roomId}) - 모든 사용자 나감`);
+                            // 모든 사용자가 나감 - grace period 후 삭제
+                            startRoomGrace(roomId, room);
                         }
                     }
                 } else {

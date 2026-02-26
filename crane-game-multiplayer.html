@@ -1723,7 +1723,6 @@
                         document.title = `${rd.serverName} - LAM Crane Game`;
                     }
                     socket.on('connect', function onReconnect() {
-                        socket.off('connect', onReconnect);
                         socket.emit('joinRoom', {
                             roomId: rd.roomId,
                             userName: rd.userName,

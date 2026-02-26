@@ -1912,8 +1912,10 @@
                     const ar = JSON.parse(_activeRoom);
                     // 로비 숨기고 로딩 표시
                     document.getElementById('lobbySection').classList.remove('active');
+                    if (currentServerId) {
+                        socket.emit('setServerId', { serverId: currentServerId });
+                    }
                     socket.on('connect', function _onReconnect() {
-                        socket.off('connect', _onReconnect);
                         socket.emit('joinRoom', {
                             roomId: ar.roomId,
                             userName: ar.userName,

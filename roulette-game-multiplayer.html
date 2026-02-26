@@ -1822,7 +1822,6 @@
                         document.title = `${rd.serverName} - LAM Roulette`;
                     }
                     socket.on('connect', function onReconnect() {
-                        socket.off('connect', onReconnect);
                         socket.emit('joinRoom', {
                             roomId: rd.roomId,
                             userName: rd.userName,

@@ -586,6 +586,13 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
+        // grace period 진행 중이면 취소 (재입장으로 간주)
+        if (room._graceTimer) {
+            clearTimeout(room._graceTimer);
+            delete room._graceTimer;
+            console.log(`방 grace period 취소: ${room.roomName} (${roomId}) - 유저 재입장`);
+        }
+
         // 기존 방에서 나가기
         if (socket.currentRoomId) {
             await leaveRoom(socket);
