@@ -686,6 +686,7 @@ const ServerSelectModule = (function () {
     function show() {
         if (_overlay) { _overlay.remove(); }
         _currentServer = null;
+        document.body.style.overflow = 'hidden';
 
         const savedName = _getUserName() || '';
         const loggedIn = _isLoggedIn();
@@ -741,10 +742,11 @@ const ServerSelectModule = (function () {
         document.body.appendChild(_overlay);
 
 
-        requestAnimationFrame(() => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
             document.documentElement.classList.remove('ss-loading');
             document.documentElement.style.opacity = '';
-        });
+            document.body.style.visibility = '';
+        }));
         if (typeof TaglineRoller !== 'undefined') TaglineRoller.start();
         _startFreeSubRoller();
         PageHistoryManager.replacePage('serverSelect');
@@ -803,6 +805,7 @@ const ServerSelectModule = (function () {
 
     function hide() {
         _stopFreeSubRoller();
+        document.body.style.overflow = '';
         if (_overlay) {
             _overlay.style.animation = 'ssFadeIn 0.2s ease reverse';
             setTimeout(() => { if (_overlay) _overlay.remove(); _overlay = null; }, 200);
