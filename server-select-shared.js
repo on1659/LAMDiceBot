@@ -313,7 +313,9 @@ const ServerSelectModule = (function () {
             hide();
             _currentServer = { id: data.id, name: data.name, hostName: data.hostName };
             PageHistoryManager.pushPage('lobby');
-            if (_onSelect) _onSelect({ serverId: data.id, serverName: data.name, hostName: data.hostName });
+            setTimeout(() => {
+                if (_onSelect) _onSelect({ serverId: data.id, serverName: data.name, hostName: data.hostName });
+            }, 220);
             // 대기 멤버가 있으면 빨간점 표시 (약간 딜레이 - DOM 렌더링 대기)
             if (data.pendingCount > 0) {
                 setTimeout(() => _showMembersDot(), SS_MEMBERS_DOT_DELAY);
