@@ -1069,12 +1069,13 @@ const ServerSelectModule = (function () {
             const statusBadge = s.is_member ? '' : s.is_pending ? '<span class="ss-server-badge waiting">승인 대기 중</span>' : '<span class="ss-server-badge">참여 가능</span>';
             const pending = parseInt(s.pending_count, 10) || 0;
             const pendingBadge = pending > 0 ? `<span class="ss-server-badge pending">${pending}명 대기</span>` : '';
+            const maskedHost = s.is_member ? escapeStr(s.host_name) : escapeStr(s.host_name.charAt(0)) + '**';
             return `
                 <div class="ss-server-card${s.is_pending ? ' ss-card-pending' : ''}" onclick="ServerSelectModule.selectServer(${s.id}, '${escapeStr(s.name)}', ${!!s.is_private}, ${!!s.is_member}, ${!!s.is_pending})">
                     <div class="ss-server-icon" style="background: ${color}15; color: ${color};">${initial}</div>
                     <div class="ss-server-info">
                         <div class="ss-server-name">${escapeStr(s.name)} ${privateBadge}${statusBadge}${pendingBadge}</div>
-                        <div class="ss-server-meta">${escapeStr(s.host_name)} · ${s.member_count || 0}명${s.room_count > 0 ? ` · 방 ${s.room_count}개` : ''}</div>
+                        <div class="ss-server-meta">${maskedHost} · ${s.member_count || 0}명${s.room_count > 0 ? ` · 방 ${s.room_count}개` : ''}</div>
                     </div>
                 </div>
             `;

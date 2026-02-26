@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /prototype/
+Disallow: /api/
 
 Sitemap: https://lamdice.com/sitemap.xml

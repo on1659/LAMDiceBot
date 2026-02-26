@@ -64,10 +64,20 @@ function setupRoutes(app) {
         return res.sendFile(legacyHorseHtml);
     });
 
-    // 기존 링크 호환 유지
+    // 기존 .html URL 301 리디렉트 (SEO: 구 URL → 현재 URL)
+    app.get('/dice-game-multiplayer.html', (req, res) => {
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        return res.redirect(301, `/game${query}`);
+    });
+
+    app.get('/roulette-game-multiplayer.html', (req, res) => {
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        return res.redirect(301, `/roulette${query}`);
+    });
+
     app.get('/horse-race-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-        return res.redirect(302, `/horse-race${query}`);
+        return res.redirect(301, `/horse-race${query}`);
     });
 
     app.get('/admin', (req, res) => {
