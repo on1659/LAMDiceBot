@@ -42,7 +42,7 @@ Add rejoin logic to the **main connect handler** (always registered, fires on ev
 | `roulette-game-multiplayer.html` | line 2941 (empty) | `currentRoomId` (line 1946), `currentServerId` (line 1803) |
 | `crane-game-multiplayer.html` | line 2668 (empty) | `currentRoomId` (line 1852), `currentServerId` (line 1704) |
 
-horse-app: Already fixed in v1 (useSocket.ts connect handler has rejoin logic). No change needed.
+horse-app: React 앱(`horse-app/src/hooks/useSocket.ts`)은 v1에서 connect 핸들러에 rejoin 로직 추가 완료. 레거시 HTML(`horse-race-multiplayer.html`)은 소켓 JS 없으므로 변경 불필요.
 
 ---
 

@@ -1,4 +1,30 @@
 ========================================
+📋 Summit Log - 2026-02-27 (WebSocket reconnect v2 — 메인 connect 핸들러 rejoin)
+========================================
+
+## 변경 파일
+- dice-game-multiplayer.html: 메인 connect 핸들러에 rejoin 로직 추가
+- roulette-game-multiplayer.html: 빈 connect 핸들러를 rejoin 로직으로 교체
+- crane-game-multiplayer.html: 빈 connect 핸들러를 rejoin 로직으로 교체
+- docs/meeting/impl/2026-02-27-websocket-reconnect-fix-v2-impl.md: horse-race 설명 보완
+
+## 상세 변경 내역
+
+### WebSocket Reconnect v2 — 메인 connect 핸들러 rejoin
+- **문제**: v1에서 socket.off 제거로 page-load 핸들러를 영구화했지만, 이 핸들러는 페이지 로드 시 sessionStorage에 activeRoom이 있을 때만 등록됨
+- **실제 시나리오**: 페이지 로드 → 로비 → 방 입장 → transport close → reconnect 시 page-load 핸들러가 등록되지 않은 상태 → joinRoom 미전송 → grace period 만료 → 방 삭제
+- **해결**: 메인 connect 핸들러(항상 등록됨)에 rejoin 로직 추가
+  - currentRoomId 존재 + sessionStorage activeRoom 존재 시 → setServerId + joinRoom 전송
+  - dice: line 2446 connect 핸들러 끝에 추가 (기존 상태 업데이트 코드 유지)
+  - roulette: line 2941 빈 핸들러를 rejoin 로직으로 교체
+  - crane: line 2668 빈 핸들러를 rejoin 로직으로 교체
+- **page-load 핸들러와 역할 분담**:
+  - page-load 핸들러: F5 새로고침 대응 (currentRoomId null, activeRoom 존재)
+  - 메인 핸들러: transport close 재연결 대응 (currentRoomId 설정됨, activeRoom 존재)
+- horse-app: v1에서 이미 connect 핸들러에 rejoin 추가 완료, 추가 수정 불필요
+- Railway ROOM_GRACE_PERIOD=300000 (5분) 설정 완료 (이전 세션)
+
+========================================
 📋 Summit Log - 2026-02-27 (ahead indicator impl 이슈 기록)
 ========================================
 
