@@ -23,7 +23,10 @@ const ROOM_CLEANUP_INTERVAL = 60000; // 빈 방 자동 삭제 체크 주기 (ms)
 const io = socketIo(server, {
     maxHttpBufferSize: SOCKET_MAX_BUFFER,
     pingTimeout: SOCKET_PING_TIMEOUT,
-    pingInterval: SOCKET_PING_INTERVAL
+    pingInterval: SOCKET_PING_INTERVAL,
+    connectionStateRecovery: {
+        maxDisconnectionDuration: 5 * 60 * 1000,  // 5분간 세션 유지 (transport close 복구)
+    }
 });
 
 // Rate Limiting 설정
