@@ -201,7 +201,6 @@ var currentServerName = null;
             }
             // 소켓 연결 후 재입장
             socket.on('connect', function onReconnect() {
-                socket.off('connect', onReconnect);
                 socket.emit('joinRoom', {
                     roomId: rd.roomId,
                     userName: rd.userName,
@@ -4150,6 +4149,28 @@ function initializeGameScreen(data) {
 // === 소켓 이벤트 핸들러 ===
 
 socket.on('connect', () => {
+    // 방에 있었다면 자동 재입장 (transport close reconnect 대응)
+    if (currentRoomId) {
+        const activeRoom = sessionStorage.getItem('horseRaceActiveRoom');
+        if (activeRoom) {
+            try {
+                const ar = JSON.parse(activeRoom);
+                if (currentServerId) {
+                    socket.emit('setServerId', { serverId: currentServerId });
+                }
+                socket.emit('joinRoom', {
+                    roomId: ar.roomId,
+                    userName: ar.userName,
+                    isHost: false,
+                    password: '',
+                    deviceId: getDeviceId(),
+                    tabId: getTabId()
+                });
+            } catch(e) {
+                sessionStorage.removeItem('horseRaceActiveRoom');
+            }
+        }
+    }
 });
 
 socket.on('disconnect', () => {
