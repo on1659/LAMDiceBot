@@ -1,4 +1,45 @@
 ========================================
+📋 Summit Log - 2026-03-08 (경마 튜토리얼 v3 — Shadow DOM + 11단계 확장)
+========================================
+
+## 변경 파일
+- tutorial-shared.js: Shadow DOM CSS 격리 적용
+- horse-race-multiplayer.html: 튜토리얼 11단계 확장 + 랭킹 버튼 id 추가
+- index.html: cache-busting v3
+- docs/tutorial/horse-race-tutorial.md: v2 문서로 superseded 표시
+
+## 상세 변경 내역
+
+### Shadow DOM CSS 격리 (tutorial-shared.js)
+- 문제: horse-race.css의 `button { width:100% }` 글로벌 스타일이 튜토리얼 버튼(X, 이전, 다음) 스타일을 오염시킴
+- 로비에서는 정상, 경마에서만 깨지는 원인: 경마 페이지의 공격적 글로벌 button 스타일
+- 해결: tooltip을 Shadow DOM 안에 배치하여 페이지 CSS가 절대 침투할 수 없도록 격리
+- CSS 분리: CSS_OUTER (highlight + blocker, 메인 DOM) + CSS_SHADOW (tooltip, Shadow DOM 내부)
+- _inject(): _shadowHost.attachShadow({ mode: 'open' }) → tooltip + style을 shadow root에 배치
+- :host 스타일: position:fixed; inset:0; z-index:10012; pointer-events:none
+- tooltip에 pointer-events:auto → tooltip 내부만 클릭 가능
+- _complete()/start(): _shadowHost.style.display 토글 추가
+- close 버튼: inline style 제거 (Shadow DOM이 격리하므로 불필요)
+
+### 경마 튜토리얼 11단계 확장 (horse-race-multiplayer.html)
+- v2(6단계) → v3(11단계) 확장
+- 단계: 참여자→준비→탈것→경마시작→채팅→랭킹→다시보기→게임기록→게임종료→주문받기시작→주문받기
+- step 4(경마 시작): fallbackTarget 제거, non-host는 자동 스킵
+- step 6(랭킹): 버튼에 id="rankingBtn" 추가하여 직접 타겟팅
+- step 7(다시보기): beforeShow로 가짜 버튼 생성, cleanup으로 제거
+- step 8(게임 기록): beforeShow로 가짜 기록 3개(이더/감자/램다이스) 삽입, 다시보기 버튼 포함
+- step 9(게임 종료): beforeShow에서 window.isHost 체크, non-host는 스킵
+- step 10(주문받기 시작): #startOrderButton 타겟, hostControls 안이라 non-host 자동 스킵
+- step 11(주문받기): beforeShow로 가짜 주문 UI 생성
+
+### Host/Non-host 분기
+- Host: 1→2→3→4→5→6→7→8→9→10→11 (11단계)
+- Non-host: 1→2→3→5→6→7→8→10→11 (4,9,10 스킵 = 8단계)
+
+### cache-busting
+- tutorial-shared.js?v=2 → ?v=3 (index.html, horse-race-multiplayer.html)
+
+========================================
 📋 Summit Log - 2026-02-27 (WebSocket reconnect v2 — 메인 connect 핸들러 rejoin)
 ========================================
 

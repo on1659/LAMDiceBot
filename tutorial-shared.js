@@ -21,7 +21,8 @@ var TutorialModule = (function() {
     var _socket = null;
     var _userName = '';
 
-    var CSS = [
+    // CSS for main DOM elements (highlight + blocker only)
+    var CSS_OUTER = [
         '.tutorial-highlight {',
         '  position: fixed;',
         '  border: 3px solid #a855f7;',
@@ -31,9 +32,19 @@ var TutorialModule = (function() {
         '  box-shadow: 0 0 0 9999px rgba(0,0,0,0.65);',
         '  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;',
         '}',
+        '.tutorial-click-blocker {',
+        '  position: fixed; inset: 0; z-index: 10009; background: transparent;',
+        '}',
+        '@media (max-width: 480px) {',
+        '  .tutorial-highlight { box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); border-width: 2px; }',
+        '}'
+    ].join('\n');
+
+    // CSS inside Shadow DOM (tooltip — fully isolated from page styles)
+    var CSS_SHADOW = [
+        ':host { position: fixed; inset: 0; z-index: 10012; pointer-events: none; }',
         '.tutorial-tooltip {',
         '  position: fixed;',
-        '  z-index: 10012;',
         '  background: white;',
         '  border-radius: 12px;',
         '  padding: 16px 20px;',
@@ -41,26 +52,24 @@ var TutorialModule = (function() {
         '  width: 90vw;',
         '  box-shadow: 0 8px 32px rgba(0,0,0,0.25);',
         '  transition: top 0.25s ease, left 0.25s ease;',
+        '  pointer-events: auto;',
+        '  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;',
+        '  box-sizing: border-box;',
         '}',
-        '.tutorial-tooltip-title { font-weight: bold; font-size: 1rem; margin-bottom: 8px; color: #1e1e2e; }',
+        '.tutorial-tooltip-title { font-weight: bold; font-size: 1rem; margin-bottom: 8px; color: #1e1e2e; padding-right: 24px; }',
         '.tutorial-tooltip-body  { font-size: 0.875rem; color: #555; margin-bottom: 12px; line-height: 1.5; }',
         '.tutorial-tooltip-buttons { display: flex; gap: 8px; justify-content: flex-end; }',
-        '.tutorial-btn-close { position:absolute; top:8px; right:10px; background:none; border:none; cursor:pointer; font-size:1.1rem; color:#bbb; line-height:1; padding:2px; }',
+        '.tutorial-btn-close { position:absolute; top:8px; right:10px; width:auto; background:none; border:none; cursor:pointer; font-size:1.1rem; color:#bbb; line-height:1; padding:2px; margin:0; }',
         '.tutorial-btn-close:hover { color:#666; }',
-        '.tutorial-btn-prev { background: none; border: 1px solid #ccc; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 0.8rem; color: #888; }',
+        '.tutorial-btn-prev { background: none; border: 1px solid #ccc; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 0.8rem; color: #888; width: auto; margin: 0; }',
         '.tutorial-btn-prev:hover { background: #f5f5f5; }',
-        '.tutorial-btn-next { background: #8b5cf6; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.8rem; color: white; font-weight: bold; }',
+        '.tutorial-btn-next { background: #8b5cf6; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.8rem; color: white; font-weight: bold; width: auto; margin: 0; }',
         '.tutorial-tooltip-counter { font-size: 0.75rem; color: #aaa; text-align: right; margin-top: 8px; }',
         '/* Arrow: named by tooltip position relative to target */',
         '.tutorial-tooltip::after { content:""; position:absolute; border:10px solid transparent; }',
         '.tutorial-tooltip.arr-bottom::after { top:-10px;    left:var(--ax,50%); transform:translateX(-50%); border-top:0;    border-bottom-color:#fff; }',
         '.tutorial-tooltip.arr-top::after    { bottom:-10px; left:var(--ax,50%); transform:translateX(-50%); border-bottom:0; border-top-color:#fff; }',
-        '.tutorial-click-blocker {',
-        '  position: fixed; inset: 0; z-index: 10009; background: transparent;',
-        '}',
-        '/* Mobile: compact tooltip + lighter overlay */',
         '@media (max-width: 480px) {',
-        '  .tutorial-highlight { box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); border-width: 2px; }',
         '  .tutorial-tooltip { max-width: 220px; width: auto; padding: 10px 14px; border-radius: 10px; }',
         '  .tutorial-tooltip-title { font-size: 0.875rem; margin-bottom: 4px; }',
         '  .tutorial-tooltip-body { font-size: 0.78rem; margin-bottom: 8px; line-height: 1.4; }',
@@ -74,15 +83,17 @@ var TutorialModule = (function() {
     var _current = 0;
     var _gameType = '';
     var _onComplete = null;
-    var _highlight, _tooltip, _blocker;
+    var _highlight, _tooltip, _blocker, _shadowHost;
     var _injected = false;
 
     function _inject() {
         if (_injected) return;
         _injected = true;
+
+        // Outer CSS (highlight + blocker) — in main DOM
         var s = document.createElement('style');
         s.id = STYLE_ID;
-        s.textContent = CSS;
+        s.textContent = CSS_OUTER;
         document.head.appendChild(s);
 
         _blocker = document.createElement('div');
@@ -94,8 +105,17 @@ var TutorialModule = (function() {
         _highlight.className = 'tutorial-highlight';
         _highlight.style.display = 'none';
 
+        // Shadow DOM host — tooltip lives inside, fully isolated from page CSS
+        _shadowHost = document.createElement('div');
+        _shadowHost.id = 'tutorialShadowHost';
+        _shadowHost.style.display = 'none';
+        var shadow = _shadowHost.attachShadow({ mode: 'open' });
+
+        var shadowStyle = document.createElement('style');
+        shadowStyle.textContent = CSS_SHADOW;
+        shadow.appendChild(shadowStyle);
+
         _tooltip = document.createElement('div');
-        _tooltip.id = 'tutorialTooltip';
         _tooltip.className = 'tutorial-tooltip';
         _tooltip.style.display = 'none';
         _tooltip.innerHTML =
@@ -107,10 +127,11 @@ var TutorialModule = (function() {
                 '<button class="tutorial-btn-next">\uB2E4\uC74C \u2192</button>' +
             '</div>' +
             '<div class="tutorial-tooltip-counter"></div>';
+        shadow.appendChild(_tooltip);
 
         document.body.appendChild(_blocker);
         document.body.appendChild(_highlight);
-        document.body.appendChild(_tooltip);
+        document.body.appendChild(_shadowHost);
 
         _tooltip.querySelector('.tutorial-btn-close').addEventListener('click', skip);
         _tooltip.querySelector('.tutorial-btn-prev').addEventListener('click', prev);
@@ -203,6 +224,19 @@ var TutorialModule = (function() {
         var el = _getTarget(step);
         if (!el) { next(); return; }
 
+        // Scroll into view if off-screen
+        var rect = el.getBoundingClientRect();
+        var vh = window.innerHeight;
+        if (rect.top < 0 || rect.bottom > vh) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(function() { _positionStep(idx, el); }, 400);
+            return;
+        }
+        _positionStep(idx, el);
+    }
+
+    function _positionStep(idx, el) {
+        var step = _steps[idx];
         var rect = el.getBoundingClientRect();
         var PAD = 6;
 
@@ -251,9 +285,10 @@ var TutorialModule = (function() {
         for (var i = 0; i < _steps.length; i++) {
             if (typeof _steps[i].cleanup === 'function') _steps[i].cleanup();
         }
-        if (_blocker)   _blocker.style.display   = 'none';
-        if (_highlight) _highlight.style.display = 'none';
-        if (_tooltip)   _tooltip.style.display   = 'none';
+        if (_blocker)     _blocker.style.display     = 'none';
+        if (_highlight)   _highlight.style.display   = 'none';
+        if (_shadowHost)  _shadowHost.style.display  = 'none';
+        if (_tooltip)     _tooltip.style.display     = 'none';
         localStorage.setItem(STORAGE_PREFIX + _gameType, VERSION);
         // Save to server if logged in
         var bit = FLAG_BITS[_gameType];
@@ -286,6 +321,7 @@ var TutorialModule = (function() {
         _current = idx;
 
         _blocker.style.display = 'block';
+        _shadowHost.style.display = 'block';
         _showStep(_current);
     }
 

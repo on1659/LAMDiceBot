@@ -283,7 +283,7 @@
             <div class="chat-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-weight: bold; color: var(--horse-accent); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</span>
-                    <button onclick="RankingModule.show('horse')" style="width: auto; margin: 0; flex-shrink: 0; background: var(--bg-white); border: 1px solid var(--horse-accent); color: var(--horse-accent); padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🏆 랭킹</button>
+                    <button id="rankingBtn" onclick="RankingModule.show('horse')" style="width: auto; margin: 0; flex-shrink: 0; background: var(--bg-white); border: 1px solid var(--horse-accent); color: var(--horse-accent); padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🏆 랭킹</button>
                 </div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
@@ -688,5 +688,193 @@
     <footer style="text-align:center; padding:16px 0; font-size:0.9em; color:var(--text-secondary, #666);">
         <p style="font-size:0.85em; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
+
+    <script src="/tutorial-shared.js?v=3"></script>
+    <script>
+    var HORSE_RACE_TUTORIAL_STEPS = [
+        {
+            target: '#usersSection',
+            title: '1단계: 참여자 목록',
+            content: '방에 참여한 플레이어들이 표시됩니다. 준비 후 원하는 탈것을 골라 레이스에 참가하세요.',
+            position: 'bottom'
+        },
+        {
+            target: '#readySection',
+            title: '2단계: 준비하기',
+            content: '"준비" 버튼을 눌러주세요. 최초 입장 시에는 자동으로 준비됩니다. 모든 참가자가 준비되면 게임을 시작할 수 있습니다.',
+            position: 'bottom'
+        },
+        {
+            target: '#horseSelectionSection',
+            title: '3단계: 탈것 선택',
+            content: '원하는 탈것을 선택하세요. 선택한 탈것이 레이스에서 나를 대신해 달립니다.',
+            position: 'bottom',
+            fallbackTarget: '#readySection'
+        },
+        {
+            target: '#startHorseRaceButton',
+            title: '4단계: 경마 시작',
+            content: '이 버튼을 누르면 레이스가 시작됩니다! 서버가 공정하게 순위를 결정합니다.',
+            position: 'top'
+        },
+        {
+            target: '.chat-section',
+            title: '5단계: 채팅',
+            content: '채팅으로 다른 참가자와 대화할 수 있습니다.',
+            position: 'top'
+        },
+        {
+            target: '#rankingBtn',
+            title: '6단계: 랭킹',
+            content: '이 버튼을 누르면 전체 순위를 확인할 수 있습니다.',
+            position: 'top'
+        },
+        {
+            target: '#tutorialFakeReplay',
+            title: '7단계: 다시보기',
+            content: '레이스가 끝나면 다시보기 버튼이 나타납니다. 경주 장면을 다시 볼 수 있습니다.',
+            position: 'top',
+            beforeShow: function() {
+                if (document.getElementById('tutorialFakeReplay')) return;
+                var btn = document.createElement('button');
+                btn.id = 'tutorialFakeReplay';
+                btn.textContent = '🎬 다시보기';
+                btn.style.cssText = 'display:block; margin:15px auto; padding:12px 25px; font-size:15px; background:var(--bg-white); color:var(--horse-accent); border:2px solid var(--horse-accent); border-radius:8px; font-weight:bold; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
+                var ref = document.getElementById('replaySection');
+                if (ref && ref.parentNode) {
+                    ref.parentNode.insertBefore(btn, ref);
+                }
+            },
+            cleanup: function() {
+                var el = document.getElementById('tutorialFakeReplay');
+                if (el) el.remove();
+            }
+        },
+        {
+            target: '#historySection',
+            title: '8단계: 게임 기록',
+            content: '지난 레이스 결과가 여기에 기록됩니다. 각 기록의 ▶ 다시보기 버튼으로 이전 경주를 다시 볼 수 있습니다.',
+            position: 'top',
+            beforeShow: function() {
+                if (document.getElementById('tutorialFakeHistory')) return;
+                var list = document.getElementById('historyList');
+                if (!list) return;
+                var wrap = document.createElement('div');
+                wrap.id = 'tutorialFakeHistory';
+                var fakeRecords = [
+                    { round: 3, medals: ['🥇 1등 🐎 말 — 이더', '🥈 2등 🦄 유니콘 — 감자', '🥉 3등 🐫 낙타 — 램다이스'], winner: '🎊 당첨: 이더', time: '3/8 14:30' },
+                    { round: 2, medals: ['🥇 1등 🦌 사슴 — 감자', '🥈 2등 🐎 말 — 램다이스', '🥉 3등 🦄 유니콘 — 이더'], winner: '🎊 당첨: 감자', time: '3/8 14:22' },
+                    { round: 1, medals: ['🥇 1등 🐫 낙타 — 램다이스', '🥈 2등 🦌 사슴 — 이더', '🥉 3등 🐎 말 — 감자'], winner: '🎊 당첨: 램다이스', time: '3/8 14:15' }
+                ];
+                fakeRecords.forEach(function(r) {
+                    var rankHtml = r.medals.map(function(m, i) {
+                        var bg = i === 0 ? 'var(--result-gold-light)' : i === 1 ? 'var(--result-silver-light)' : 'var(--result-bronze-light)';
+                        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:' + bg + ';border-radius:4px;margin-bottom:4px;font-size:12px;">' + m + '</div>';
+                    }).join('');
+                    wrap.innerHTML += '<div style="background:var(--yellow-50);padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid var(--yellow-200);">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                            '<div style="font-weight:bold;color:var(--horse-accent);font-size:14px;">' + r.round + '라운드</div>' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="width:auto;margin:0;padding:3px 8px;font-size:10px;background:var(--bg-white);color:var(--horse-accent);border:1px solid var(--horse-accent);border-radius:5px;font-weight:600;font-family:Jua,sans-serif;">▶ 다시보기</span>' +
+                                '<span style="font-size:11px;color:var(--text-muted);">' + r.time + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="margin-bottom:8px;">' + rankHtml + '</div>' +
+                        '<div style="font-size:13px;color:var(--horse-600);font-weight:bold;text-align:center;padding:5px;background:var(--yellow-50);border-radius:4px;">' + r.winner + '</div>' +
+                    '</div>';
+                });
+                list.insertBefore(wrap, list.firstChild);
+            },
+            cleanup: function() {
+                var el = document.getElementById('tutorialFakeHistory');
+                if (el) el.remove();
+            }
+        },
+        {
+            target: '#tutorialFakeEndGame',
+            title: '9단계: 게임 종료',
+            content: '레이스가 끝난 후 이 버튼으로 게임을 종료하고 다시 시작할 수 있습니다. 방장만 사용할 수 있습니다.',
+            position: 'top',
+            beforeShow: function() {
+                if (!window.isHost) return;
+                if (document.getElementById('tutorialFakeEndGame')) return;
+                var btn = document.createElement('button');
+                btn.id = 'tutorialFakeEndGame';
+                btn.textContent = '🏁 게임 종료';
+                btn.style.cssText = 'display:block; margin:15px auto; padding:12px 25px; font-size:15px; background:var(--horse-gradient); color:white; border:none; border-radius:8px; font-weight:bold; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
+                var ref = document.getElementById('endGameSection');
+                if (ref && ref.parentNode) {
+                    ref.parentNode.insertBefore(btn, ref);
+                }
+            },
+            cleanup: function() {
+                var el = document.getElementById('tutorialFakeEndGame');
+                if (el) el.remove();
+            }
+        },
+        {
+            target: '#startOrderButton',
+            title: '10단계: 주문받기 시작',
+            content: '방장은 이 버튼으로 주문받기를 시작할 수 있습니다. 주문받기가 시작되면 참가자들이 주문을 입력할 수 있습니다.',
+            position: 'top'
+        },
+        {
+            target: '#tutorialFakeOrders',
+            title: '11단계: 주문받기',
+            content: '방장이 주문받기를 시작하면 음식 주문을 할 수 있습니다. 내 주문을 입력하고 저장하세요.',
+            position: 'bottom',
+            beforeShow: function() {
+                if (document.getElementById('tutorialFakeOrders')) return;
+                var div = document.createElement('div');
+                div.id = 'tutorialFakeOrders';
+                div.style.cssText = 'margin:15px 0; padding:15px; background:var(--bg-white); border:2px solid var(--horse-accent); border-radius:12px; text-align:center; font-family:"Jua","Segoe UI",sans-serif;';
+                div.innerHTML = '<div style="font-weight:bold; color:var(--horse-accent); font-size:16px; margin-bottom:8px;">🍔 주문받기</div><div style="color:#888; font-size:13px;">방장이 주문받기를 시작하면 여기에 주문 화면이 나타납니다.</div>';
+                var ref = document.getElementById('ordersSection');
+                if (ref && ref.parentNode) {
+                    ref.parentNode.insertBefore(div, ref);
+                }
+            },
+            cleanup: function() {
+                var el = document.getElementById('tutorialFakeOrders');
+                if (el) el.remove();
+            }
+        }
+    ];
+
+    window.addEventListener('load', () => {
+        if (typeof socket === 'undefined') return;
+
+        // Help button: ? (inline, users-title right side)
+        const helpBtn = document.createElement('button');
+        helpBtn.textContent = '?';
+        helpBtn.title = '게임 튜토리얼 보기';
+        helpBtn.style.cssText = [
+            'margin-left:auto; width:24px; height:24px; border-radius:50%;',
+            'background:linear-gradient(135deg,#8b5cf6,#a78bfa);',
+            'color:white; border:1px solid white; cursor:pointer;',
+            'font-weight:bold; font-size:12px; line-height:1;',
+            'box-shadow:0 2px 6px rgba(139,92,246,0.4); flex-shrink:0;'
+        ].join('');
+        helpBtn.addEventListener('click', () => {
+            TutorialModule.reset('horse');
+            TutorialModule.start('horse', HORSE_RACE_TUTORIAL_STEPS, { force: true });
+        });
+        const titleEl = document.querySelector('#usersSection .users-title');
+        if (titleEl) {
+            titleEl.style.display = 'flex';
+            titleEl.style.alignItems = 'center';
+            titleEl.appendChild(helpBtn);
+        }
+
+        // Auto-start on room join
+        socket.on('roomJoined', () => {
+            setTimeout(() => {
+                TutorialModule.setUser(socket, currentUser || '', () => {
+                    TutorialModule.start('horse', HORSE_RACE_TUTORIAL_STEPS);
+                });
+            }, 1000);
+        });
+    });
+    </script>
 </body>
 </html>
