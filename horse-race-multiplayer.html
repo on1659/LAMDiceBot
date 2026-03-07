@@ -160,6 +160,9 @@
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
+                <div id="endGameSection" style="display: none; margin-bottom: 10px;">
+                    <button class="end-button" onclick="endHorseRaceGame()" style="width: 100%;">🏁 게임 종료</button>
+                </div>
                 <button onclick="clearHorseRaceData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
             </div>
 
@@ -264,9 +267,6 @@
                     <!-- GIF 기능 숨김 (CORS 이슈) -->
                     <button id="gifSaveButton" onclick="showGifOptionsModal()" style="display: none; flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--green-400) 0%, var(--green-600) 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">📹 GIF 저장</button>
                 </div>
-            </div>
-            <div id="endGameSection" style="display: none; text-align: center; margin-top: 10px;">
-                <button class="end-button" onclick="endHorseRaceGame()">🏁 게임 종료</button>
             </div>
 
             <!-- 다시보기 버튼 (화면 숨김 상태에서 경주가 진행된 경우 표시) -->
@@ -801,7 +801,7 @@
                 var btn = document.createElement('button');
                 btn.id = 'tutorialFakeEndGame';
                 btn.textContent = '🏁 게임 종료';
-                btn.style.cssText = 'display:block; margin:15px auto; padding:12px 25px; font-size:15px; background:var(--horse-gradient); color:white; border:none; border-radius:8px; font-weight:bold; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
+                btn.style.cssText = 'display:block; margin:15px auto; padding:15px 30px; font-size:16px; background:linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color:white; border:none; border-radius:8px; font-weight:600; font-family:"Jua","Segoe UI",sans-serif; cursor:default;';
                 var ref = document.getElementById('endGameSection');
                 if (ref && ref.parentNode) {
                     ref.parentNode.insertBefore(btn, ref);
