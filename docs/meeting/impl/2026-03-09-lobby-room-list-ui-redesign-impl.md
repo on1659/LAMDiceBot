@@ -303,10 +303,16 @@ roomItem.innerHTML = `
         <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
         <div id="userNameError"></div>
     </div>
+
+    <!-- ⚠️ 기존 AdSense 블록 (line 1387-1398) 그대로 유지 — 삭제 금지 -->
+    <div style="margin: 20px 0; text-align: center;">
+        <ins class="adsbygoogle" ... ></ins>
+    </div>
+</div> <!-- /join-room-section -->
 ```
 
 > **Important**: `globalUserNameInput` / `userNameError`는 JS에서 참조하므로 hidden div으로 유지.
-> AdSense 블록(line 1387-1398)은 그대로 유지.
+> AdSense 블록(line 1387-1398)은 반드시 그대로 유지 — HTML 스니펫에 마커 포함됨.
 
 #### 5c. JS change in `renderRoomsList()`
 
