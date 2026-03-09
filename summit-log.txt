@@ -1,4 +1,72 @@
 ========================================
+📋 Summit Log - 2026-03-09 (로비 방 목록 UI 리디자인)
+========================================
+
+## 변경 파일
+- dice-game-multiplayer.html: 로비 방 목록 UI 전면 리디자인
+
+## 상세 변경 내역
+
+### P0: Dynamic Room List Height
+- .rooms-list: max-height 400px → calc(100vh - 350px), min-height 200px 추가
+- padding 15px → 10px, margin 20px 0 → 0
+
+### P0: Mobile Card Vertical Layout
+- @media 768px 내부에 .room-item flex-direction: column, .room-actions-row 100% 너비
+- 모바일에서 랭킹 버튼 텍스트 숨김 (.btn-ranking-text display:none)
+
+### P1: Game Type Left Color Bar
+- .room-item border: 2px solid dice-500 → 1px solid purple-200 + border-left 4px
+- .game-dice / .game-roulette / .game-horse-race / .game-crane-game 클래스 추가
+- JS: roomItem.classList.add('game-' + gameType)
+
+### P1: Information Hierarchy Restructure
+- room-details를 flex+gap 레이아웃으로 변경, middot 구분자 사용
+- 이모지 아이콘(👤👥⏱) 추가, 시간 형식 "Xh Ym"
+- .room-actions-row CSS 클래스로 인라인 스타일 대체
+
+### P1: Unified Header Bar (v2)
+- create-room-button-section 전체 제거
+- join-room-section에 .room-header 통합 (방 목록 (N) + 🏆랭킹 + +방만들기 + ↺)
+- globalUserNameInput/userNameError를 hidden div으로 이동
+- join-room-section border 제거 (border: none)
+- roomCount 엘리먼트로 방 개수 실시간 표시
+
+### P1: Card Full-Tap Entry
+- roomItem.onclick 추가 (버튼 클릭은 제외)
+- .room-item:active { transform: scale(0.98) }
+
+### P1: Empty List CTA
+- 빈 방 목록: 🎲 이모지 + "아직 방이 없어요" + 방 만들기 버튼
+
+### P2: Entry Button State Styling
+- 대기 중: btn-ready 배경 + white 텍스트
+- 게임 진행 중: bg-white + gray-300 테두리
+
+### P2: Status Badge Enhancement
+- font-size 12→13px, padding 4px 10px→5px 12px, border-radius 12→8px
+
+### isMyRoom 제거
+- 로비에서 currentRoomId는 항상 null → isMyRoom 분기/roomNameHtml/재입장 버튼 제거
+
+========================================
+📋 Summit Log - 2026-03-09 (경마 리플레이 채팅 오버레이 수정)
+========================================
+
+## 변경 파일
+- js/horse-race.js: 리플레이 정리 + observer 중복 방지
+
+## 상세 변경 내역
+
+### 리플레이 종료 시 채팅 오버레이 닫기
+- cleanupReplay()에 window.hideRaceChatOverlay() 호출 추가
+- 리플레이 끝나도 채팅 오버레이가 남아있던 버그 수정
+
+### observer 중복 등록 방지
+- showRaceChatOverlay()에서 기존 observer.disconnect() 후 재등록
+- 반복 호출 시 observer가 누적되던 문제 해결
+
+========================================
 📋 Summit Log - 2026-03-08 (경마 게임종료 버튼 위치 이동 + 튜토리얼 색상 수정)
 ========================================
 

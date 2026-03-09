@@ -107,17 +107,19 @@
         }
         
         .rooms-list {
-            margin: 20px 0;
-            max-height: 400px;
+            margin: 0;
+            max-height: calc(100vh - 350px);
+            min-height: 200px;
             overflow-y: auto;
             background: var(--bg-primary);
             border-radius: 12px;
-            padding: 15px;
+            padding: 10px;
         }
         
         .room-item {
             background: var(--bg-white);
-            border: 2px solid var(--dice-500);
+            border: 1px solid var(--purple-200);
+            border-left: 4px solid var(--purple-200);
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 10px;
@@ -127,6 +129,15 @@
             justify-content: space-between;
             align-items: center;
         }
+
+        .room-item:active {
+            transform: scale(0.98);
+        }
+
+        .room-item.game-dice { border-left-color: var(--game-type-dice); }
+        .room-item.game-roulette { border-left-color: var(--game-type-roulette); }
+        .room-item.game-horse-race { border-left-color: var(--game-type-horse); }
+        .room-item.game-crane-game { border-left-color: var(--game-type-crane); }
         
         .room-item:hover {
             transform: translateY(-2px);
@@ -214,12 +225,26 @@
         .room-details {
             font-size: 14px;
             color: var(--text-secondary);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
         }
-        
+
+        .room-detail-sep {
+            color: var(--text-muted);
+        }
+
+        .room-actions-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .room-status {
-            font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 12px;
+            font-size: 13px;
+            padding: 5px 12px;
+            border-radius: 8px;
             font-weight: 600;
             margin-top: 5px;
             display: inline-block;
@@ -248,12 +273,90 @@
             width: auto;
             padding: 10px 20px;
         }
+
+        /* Unified header bar */
+        .room-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+
+        .room-header h2 {
+            margin: 0;
+            color: var(--dice-500);
+            font-size: 18px;
+            flex: 1;
+        }
+
+        .room-header .count {
+            font-size: 14px;
+            font-weight: normal;
+            color: var(--text-muted);
+        }
+
+        .room-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .room-header .btn-create {
+            background: var(--dice-gradient);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .room-header .btn-ranking {
+            background: var(--bg-white);
+            border: 1.5px solid var(--purple-200);
+            color: var(--dice-500);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .room-header .btn-refresh {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border: 1.5px solid var(--border-light);
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0;
+        }
         
-        .create-room-section, .join-room-section {
+        .create-room-section {
             background: var(--bg-primary);
             border: 2px solid var(--dice-500);
             border-radius: 12px;
             padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .join-room-section {
+            background: var(--bg-primary);
+            border: none;
+            border-radius: 12px;
+            padding: 15px;
             margin-bottom: 20px;
         }
 
@@ -986,6 +1089,49 @@
                 min-width: 44px;
                 font-size: 16px;
             }
+
+            /* Room list mobile */
+            .rooms-list {
+                padding: 8px;
+                max-height: calc(100vh - 280px);
+            }
+
+            .room-item {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 10px;
+                margin-bottom: 6px;
+                gap: 8px;
+            }
+
+            .room-name {
+                font-size: 15px;
+            }
+
+            .room-details {
+                font-size: 13px;
+            }
+
+            .room-actions-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+            }
+
+            .room-action {
+                margin-left: auto;
+            }
+
+            .room-action button {
+                padding: 8px 14px;
+                font-size: 14px;
+            }
+
+            /* Mobile header: ranking icon only */
+            .room-header .btn-ranking .btn-ranking-text {
+                display: none;
+            }
         }
         
         .chat-section {
@@ -1366,24 +1512,25 @@
                 <span id="serverInfoUserName" style="font-weight: 600; color: var(--dice-600); display: none;">👤 </span>
                 <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--dice-500); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
             </div>
-            <div class="create-room-button-section" style="background: var(--bg-primary); border: 2px solid var(--dice-500); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                <h2 style="margin-bottom: 15px; color: var(--dice-500);">방 만들기</h2>
-                <button onclick="showCreateRoomPage()" style="background: var(--dice-gradient); margin-bottom: 15px;">방 생성하기</button>
-                <button onclick="RankingModule.show()" style="background: var(--bg-white); border: 2px solid var(--dice-500); color: var(--dice-500); margin-bottom: 15px; font-weight: 600;">랭킹</button>
-                <div class="input-group" style="margin: 0; display: none;">
-                    <label for="globalUserNameInput">이름</label>
-                    <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
-                    <div id="userNameError" style="color: var(--btn-danger); font-size: 12px; margin-top: 5px; display: none;"></div>
-                </div>
-            </div>
-            
             <div class="join-room-section">
-                <h2 style="margin-bottom: 15px; color: var(--dice-500);">방 목록</h2>
-                <button onclick="refreshRooms()" style="width: auto; padding: 8px 16px; margin-bottom: 15px; background: var(--btn-neutral);">새로고침</button>
+                <div class="room-header">
+                    <h2>방 목록 <span class="count" id="roomCount"></span></h2>
+                    <div class="room-header-actions">
+                        <button class="btn-ranking" onclick="RankingModule.show()">🏆 <span class="btn-ranking-text">랭킹</span></button>
+                        <button class="btn-create" onclick="showCreateRoomPage()">+ 방 만들기</button>
+                        <button class="btn-refresh" onclick="refreshRooms()">↺</button>
+                    </div>
+                </div>
                 <div class="rooms-list" id="roomsList">
                     <div style="color: var(--text-muted); text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
                 </div>
-                
+                <!-- keep globalUserNameInput hidden for JS references -->
+                <div style="display: none;">
+                    <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
+                    <div id="userNameError" style="color: var(--btn-danger); font-size: 12px; margin-top: 5px; display: none;"></div>
+                </div>
+
+                <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
                 <!-- Google AdSense 광고: 반응형 박스 -->
                 <div style="margin: 20px 0; text-align: center;">
                     <ins class="adsbygoogle"
@@ -1396,7 +1543,7 @@
                         (adsbygoogle = window.adsbygoogle || []).push({});
                     </script>
                 </div>
-                
+
             </div>
             
             <!-- 업데이트 내역 -->
@@ -2536,22 +2683,31 @@
             const roomsListEl = document.getElementById('roomsList');
             
             if (roomsList.length === 0) {
-                roomsListEl.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">생성된 방이 없습니다</div>';
+                roomsListEl.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">🎲</div>
+                        <div style="color: var(--text-secondary); font-size: 16px; margin-bottom: 8px;">아직 방이 없어요</div>
+                        <div style="color: var(--text-muted); font-size: 14px; margin-bottom: 16px;">첫 번째 방을 만들어보세요!</div>
+                        <button onclick="showCreateRoomPage()" style="background: var(--dice-gradient); width: auto; padding: 10px 24px;">방 만들기</button>
+                    </div>
+                `;
+                const roomCountEl = document.getElementById('roomCount');
+                if (roomCountEl) roomCountEl.textContent = '(0)';
                 return;
             }
             
             roomsListEl.innerHTML = '';
-            
+            const roomCountEl = document.getElementById('roomCount');
+            if (roomCountEl) roomCountEl.textContent = `(${roomsList.length})`;
+
             roomsList.forEach(room => {
                 const roomItem = document.createElement('div');
-                const isMyRoom = room.roomId === currentRoomId;
                 let className = 'room-item';
-                if (isMyRoom) {
-                    className += ' my-room';
-                } else if (room.roomId === selectedRoomId) {
+                if (room.roomId === selectedRoomId) {
                     className += ' active';
                 }
                 roomItem.className = className;
+                roomItem.classList.add('game-' + (room.gameType || 'dice'));
                 
                 let statusClass = 'waiting';
                 let statusText = '대기 중';
@@ -2562,10 +2718,6 @@
                     statusClass = 'ordering';
                     statusText = '주문받기 중';
                 }
-                
-                const roomNameHtml = isMyRoom
-                    ? `${room.roomName}<span class="my-room-badge">참여 중</span>`
-                    : room.roomName;
                 
                 // 비공개 방 표시
                 const privateBadge = room.isPrivate 
@@ -2605,30 +2757,45 @@
                     if (remaining > 0) {
                         const hours = Math.floor(remaining / (1000 * 60 * 60));
                         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-                        remainingTimeText = ` | 남은 시간: ${hours}시간 ${minutes}분`;
+                        remainingTimeText = `${hours}h ${minutes}m`;
                     } else {
-                        remainingTimeText = ` | <span style="color: var(--btn-danger); font-weight: bold;">폭파 예정</span>`;
+                        remainingTimeText = `<span style="color: var(--btn-danger); font-weight: bold;">폭파 예정</span>`;
                     }
                 }
                 
-                const buttonText = isMyRoom ? '재입장' : '입장하기';
-                
+                // 게임 진행 중인 방 vs 대기 중인 방 버튼 스타일 분화
+                let buttonStyle = '';
+                if (room.isGameActive) {
+                    buttonStyle = 'background: var(--bg-white); border: 2px solid var(--gray-300); color: var(--text-secondary);';
+                } else {
+                    buttonStyle = 'background: var(--btn-ready); color: white; font-weight: 700;';
+                }
+
                 roomItem.innerHTML = `
                     <div class="room-info">
-                        <div class="room-name">${roomNameHtml}${privateBadge}</div>
+                        <div class="room-name">${room.roomName}${privateBadge}</div>
                         <div class="room-details">
-                            호스트: ${room.hostName} | 인원: ${room.playerCount}명${remainingTimeText}
+                            <span>👤 ${room.hostName}</span>
+                            <span class="room-detail-sep">&middot;</span>
+                            <span>👥 ${room.playerCount}명</span>
+                            ${remainingTimeText ? `<span class="room-detail-sep">&middot;</span><span>⏱ ${remainingTimeText}</span>` : ''}
                         </div>
                         <span class="room-status ${statusClass}">${statusText}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="room-actions-row">
                         ${gameTypeBadge}
                         <div class="room-action">
-                            <button onclick="joinRoomDirectly('${room.roomId}')">${buttonText}</button>
+                            <button style="${buttonStyle}" onclick="joinRoomDirectly('${room.roomId}')">입장하기</button>
                         </div>
                     </div>
                 `;
-                
+
+                // Card full-tap entry
+                roomItem.onclick = (e) => {
+                    if (e.target.tagName === 'BUTTON') return;
+                    joinRoomDirectly(room.roomId);
+                };
+
                 roomsListEl.appendChild(roomItem);
             });
             

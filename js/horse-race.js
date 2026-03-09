@@ -3787,6 +3787,9 @@ function playReplay(record) {
 
     function cleanupReplay() {
         removeReplayStopButton();
+        if (typeof window.hideRaceChatOverlay === 'function') {
+            window.hideRaceChatOverlay();
+        }
         isRaceActive = false;
         isReplayActive = false;
         selectedVehicleTypes = originalSelectedVehicleTypes;
@@ -5319,6 +5322,12 @@ function toggleDebugLog() {
         const overlay = document.getElementById('raceChatOverlay');
         const chatMessages = document.getElementById('chatMessages');
         if (!overlay || !chatMessages) return;
+
+        // 기존 observer 정리 (중복 등록 방지)
+        if (observer) {
+            observer.disconnect();
+            observer = null;
+        }
 
         overlay.innerHTML = '';
         overlay.style.display = 'block';
