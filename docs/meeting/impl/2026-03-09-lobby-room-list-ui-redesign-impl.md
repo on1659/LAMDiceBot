@@ -1,12 +1,17 @@
-# Lobby Room List UI Redesign — Implementation Document
+# Lobby Room List UI Redesign — Implementation Document (v2)
 
 **Recommended Model**: Sonnet (specific file/line changes, code-focused)
 **Target File**: `dice-game-multiplayer.html` (single file — CSS, HTML, JS all inline)
 **Meeting Reference**: `docs/meeting/plan/multi/2026-03-09-lobby-room-list-ui-redesign.md`
+**Mockup Reference**: `prototype/lobby-redesign-mockup-v2.html`
 
 > **Note**: "내 방" 관련 기능(상단 고정, 글로우 테두리, 재입장 버튼)은 실제 플레이 흐름에서
 > 동작하지 않아 제거함. 로비 화면에서는 `currentRoomId`가 항상 `null`이므로
 > `isMyRoom`이 `true`가 될 수 없음 (방에 들어가면 게임 화면으로 전환됨).
+
+> **v2 변경사항**: "방 만들기" 섹션과 "방 목록" 헤더를 **1단 통합 헤더**로 병합.
+> `방 목록 (N)` + `🏆 랭킹` + `+ 방 만들기` + `↺` 아이콘 버튼.
+> 수직 공간 ~100px 추가 절약.
 
 ---
 
@@ -14,7 +19,6 @@
 
 ### 1. Dynamic Room List Height
 
-**File**: `dice-game-multiplayer.html`
 **Location**: CSS `.rooms-list` (line ~109-116)
 
 **Change**:
@@ -31,7 +35,7 @@
 
 /* After */
 .rooms-list {
-    margin: 15px 0;
+    margin: 0;
     max-height: calc(100vh - 350px);
     min-height: 200px;
     overflow-y: auto;
@@ -47,7 +51,6 @@
 
 ### 2. Mobile Card Vertical Layout
 
-**File**: `dice-game-multiplayer.html`
 **Location**: Inside existing `@media (max-width: 768px)` block (line ~946-989)
 
 **Add these rules inside the media query**:
@@ -89,9 +92,14 @@
     padding: 8px 14px;
     font-size: 14px;
 }
+
+/* Mobile header: ranking icon only */
+.room-header .btn-ranking .btn-ranking-text {
+    display: none;
+}
 ```
 
-**Verification**: Chrome DevTools → 375px viewport → cards stack vertically, button on bottom row.
+**Verification**: Chrome DevTools → 375px viewport → cards stack vertically, button on bottom row. Ranking button shows only icon.
 
 ---
 
@@ -99,8 +107,7 @@
 
 ### 3. Game Type Left Color Bar
 
-**File**: `dice-game-multiplayer.html`
-**Location**: CSS `.room-item` (line ~118)
+**Location**: CSS `.room-item` (line ~118-129)
 
 **Change `.room-item` border**:
 ```css
@@ -131,7 +138,6 @@ roomItem.classList.add('game-' + (room.gameType || 'dice'));
 
 ### 4. Information Hierarchy Restructure + Details Tags
 
-**File**: `dice-game-multiplayer.html`
 **Location**: `renderRoomsList()` innerHTML template (line ~2616-2630)
 
 **Change remainingTimeText** (lines 2608, 2610):
@@ -158,7 +164,7 @@ roomItem.innerHTML = `
     <div class="room-actions-row">
         ${gameTypeBadge}
         <div class="room-action">
-            <button onclick="joinRoomDirectly('${room.roomId}')">입장하기</button>
+            <button onclick="joinRoomDirectly('${room.roomId}')">${buttonText}</button>
         </div>
     </div>
 `;
@@ -196,52 +202,150 @@ roomItem.innerHTML = `
 
 ---
 
-### 5. Create Room Section Inline Bar + Refresh Move + Room Count
+### 5. Unified Header Bar (v2 — replaces separate sections)
 
-**File**: `dice-game-multiplayer.html`
+**v2 핵심 변경**: "방 만들기" 섹션 제거 → 모든 액션을 `방 목록` 헤더 1줄에 통합.
+수직 공간 ~100px 추가 절약.
 
-**HTML change** (line ~1369-1382):
+#### 5a. New CSS (add after `.room-action button`)
 
-Replace the `create-room-button-section` with inline flex bar:
-```html
-<div class="create-room-button-section" style="background: var(--bg-primary); border: 2px solid var(--dice-500); border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-    <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--dice-500);">방 만들기</h2>
-    <button onclick="showCreateRoomPage()" style="background: var(--dice-gradient); width: auto; padding: 8px 16px;">방 생성하기</button>
-    <button onclick="RankingModule.show()" style="background: var(--bg-white); border: 2px solid var(--dice-500); color: var(--dice-500); width: auto; padding: 8px 16px; font-weight: 600;">랭킹</button>
-    <div class="input-group" style="margin: 0; display: none;">
-        <label for="globalUserNameInput">이름</label>
-        <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
-        <div id="userNameError" style="color: var(--btn-danger); font-size: 12px; margin-top: 5px; display: none;"></div>
-    </div>
-</div>
+```css
+/* Unified header bar */
+.room-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 8px;
+}
+
+.room-header h2 {
+    margin: 0;
+    color: var(--dice-500);
+    font-size: 18px;
+    flex: 1;
+}
+
+.room-header .count {
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--text-muted);
+}
+
+.room-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.room-header .btn-create {
+    background: var(--dice-gradient);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.room-header .btn-ranking {
+    background: var(--bg-white);
+    border: 1.5px solid var(--purple-200);
+    color: var(--dice-500);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.room-header .btn-refresh {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border-light);
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 0;
+}
 ```
 
-Replace join-room-section header (line ~1380-1382):
+#### 5b. HTML change (line ~1369-1400)
+
+**Remove** entire `create-room-button-section` div (line 1369-1378).
+
+**Replace** `join-room-section` content (line 1380-1385) with unified header:
+
 ```html
 <div class="join-room-section">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-        <h2 style="margin: 0; color: var(--dice-500);">방 목록 <span id="roomCount" style="font-size: 14px; font-weight: normal; color: var(--text-muted);"></span></h2>
-        <button onclick="refreshRooms()" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--btn-neutral);">새로고침</button>
+    <div class="room-header">
+        <h2>방 목록 <span class="count" id="roomCount"></span></h2>
+        <div class="room-header-actions">
+            <button class="btn-ranking" onclick="RankingModule.show()">🏆 <span class="btn-ranking-text">랭킹</span></button>
+            <button class="btn-create" onclick="showCreateRoomPage()">+ 방 만들기</button>
+            <button class="btn-refresh" onclick="refreshRooms()">↺</button>
+        </div>
     </div>
     <div class="rooms-list" id="roomsList">
-        ...
+        <div style="color: var(--text-muted); text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
+    </div>
+    <!-- keep globalUserNameInput hidden for JS references -->
+    <div style="display: none;">
+        <input type="text" id="globalUserNameInput" placeholder="이름 입력" maxlength="20" />
+        <div id="userNameError"></div>
     </div>
 ```
 
-**JS change** in `renderRoomsList()`:
+> **Important**: `globalUserNameInput` / `userNameError`는 JS에서 참조하므로 hidden div으로 유지.
+> AdSense 블록(line 1387-1398)은 그대로 유지.
+
+#### 5c. JS change in `renderRoomsList()`
+
 ```javascript
 // After roomsListEl.innerHTML = '';
 const roomCountEl = document.getElementById('roomCount');
 if (roomCountEl) roomCountEl.textContent = `(${roomsList.length})`;
 ```
 
-**Verification**: Create room section is one compact row. "방 목록 (N)" shows count. Refresh button on same line as heading.
+#### 5d. CSS for `join-room-section` (remove double border)
+
+```css
+/* Before — both sections had identical style */
+.create-room-section, .join-room-section {
+    background: var(--bg-primary);
+    border: 2px solid var(--dice-500);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* After — join-room-section no longer needs heavy border */
+.join-room-section {
+    background: var(--bg-primary);
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+```
+
+> `.create-room-section` 스타일은 방 만들기 페이지에서 여전히 사용하므로 유지.
+
+**Verification**: Single compact header row. "방 목록 (N)" shows count. 랭킹/방 만들기/새로고침 버튼 한 줄. 모바일에서 랭킹은 아이콘만.
 
 ---
 
 ### 6. Card Full-Tap Entry
 
-**File**: `dice-game-multiplayer.html`
 **Location**: `renderRoomsList()` (line ~2546)
 
 **Add click handler to room-item div** (after creating roomItem):
@@ -265,7 +369,6 @@ roomItem.onclick = (e) => {
 
 ### 7. Empty List CTA
 
-**File**: `dice-game-multiplayer.html`
 **Location**: `renderRoomsList()` empty state (line ~2538-2541)
 
 **Replace empty state HTML**:
@@ -342,11 +445,11 @@ Existing `.my-room` CSS in the codebase is left as-is (not removing pre-existing
 ```
 Step 1: P0 CSS changes (dynamic height, mobile layout)
   → Verify: mobile viewport test at 375px
-Step 2: P1 CSS changes (color bar, details flex, room-actions-row, active feedback)
+Step 2: P1 CSS changes (color bar, details flex, room-actions-row, active feedback, header bar styles)
   → Verify: colored borders, details with middots
-Step 3: P1 HTML changes (inline bar, refresh move, room count)
-  → Verify: compact header, count shows
-Step 4: P1 JS changes (game class, details restructure, card tap, empty CTA)
+Step 3: P1 HTML changes (remove create-room-button-section, unified header)
+  → Verify: single compact header row, count shows
+Step 4: P1 JS changes (game class, details restructure, card tap, empty CTA, room count)
   → Verify: full card clickable, empty state CTA
 Step 5: P2 changes (button styles, badge)
   → Verify: visual polish
