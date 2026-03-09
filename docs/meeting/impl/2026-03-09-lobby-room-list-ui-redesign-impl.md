@@ -108,8 +108,8 @@
 border: 2px solid var(--dice-500);
 
 /* After */
-border: 1px solid var(--border-light);
-border-left: 4px solid var(--border-light);
+border: 1px solid var(--purple-200);
+border-left: 4px solid var(--purple-200);
 ```
 
 **Add game type classes** (new CSS after `.room-status.waiting`):
