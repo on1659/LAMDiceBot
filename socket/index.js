@@ -41,7 +41,8 @@ function setupSocketHandlers(io, rooms) {
                     filtered.push(room);
                 }
             } else {
-                // 공개방: 최대 PUBLIC_ROOMS_LIMIT개
+                // 공개방: 같은 서버(또는 자유플레이)만, 최대 PUBLIC_ROOMS_LIMIT개
+                if ((userServerId || null) !== (room.serverId || null)) continue;
                 if (publicCount < PUBLIC_ROOMS_LIMIT) {
                     filtered.push(room);
                     publicCount++;

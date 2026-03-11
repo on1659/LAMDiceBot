@@ -1017,7 +1017,10 @@
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="font-weight: bold; color: var(--roulette-accent); margin-bottom: 10px;">💬 채팅</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: bold; color: var(--roulette-accent);">💬 채팅</span>
+                    <button id="rankingBtn" onclick="RankingModule.show('roulette')" style="width: auto; margin: 0; flex-shrink: 0; background: var(--bg-white); border: 1px solid var(--roulette-accent); color: var(--roulette-accent); padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">🏆 랭킹</button>
+                </div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -2861,12 +2864,13 @@
             }
             
             // 호스트 UI 설정
+            const hostBadge = document.getElementById('hostBadge');
             if (isHost) {
-                document.getElementById('hostBadge').style.display = 'inline-block';
+                if (hostBadge) hostBadge.style.display = 'inline-block';
                 document.getElementById('hostControls').style.display = 'grid';
                 const dragHint = document.getElementById('dragHint');
                 if (dragHint) dragHint.style.display = 'inline';
-                
+
                 // 주문받기 버튼 상태
                 if (isOrderActive) {
                     document.getElementById('startOrderButton').style.display = 'none';
@@ -2876,7 +2880,7 @@
                     document.getElementById('endOrderButton').style.display = 'none';
                 }
             } else {
-                document.getElementById('hostBadge').style.display = 'none';
+                if (hostBadge) hostBadge.style.display = 'none';
                 document.getElementById('hostControls').style.display = 'none';
                 const dragHint = document.getElementById('dragHint');
                 if (dragHint) dragHint.style.display = 'none';
@@ -2979,6 +2983,7 @@
             readyUsers = data.readyUsers || [];
             initReadyModule();
             initOrderModule();
+            RankingModule.init(currentServerId, currentUser);
 
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('gameSection').classList.add('active');
@@ -3005,6 +3010,7 @@
             readyUsers = data.readyUsers || [];
             initReadyModule();
             initOrderModule();
+            RankingModule.init(currentServerId, currentUser);
 
             document.getElementById('gameSection').classList.add('active');
             document.body.classList.add('game-active');
@@ -3041,7 +3047,8 @@
                 isHost = myUser.isHost;
                 if (isHost && !wasHost) {
                     // 호스트 권한이 전달되었을 때
-                    document.getElementById('hostBadge').style.display = 'inline-block';
+                    const hostBadge = document.getElementById('hostBadge');
+                    if (hostBadge) hostBadge.style.display = 'inline-block';
                     document.getElementById('hostControls').style.display = 'grid';
                     updateStartButton();
                     
@@ -3055,7 +3062,8 @@
                     }
                 } else if (!isHost && wasHost) {
                     // 호스트 권한이 제거되었을 때
-                    document.getElementById('hostBadge').style.display = 'none';
+                    const hostBadge = document.getElementById('hostBadge');
+                    if (hostBadge) hostBadge.style.display = 'none';
                     document.getElementById('hostControls').style.display = 'none';
                     updateStartButton();
                     
@@ -3426,7 +3434,8 @@
         socket.on('hostTransferred', (data) => {
             showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
             isHost = true;
-            document.getElementById('hostBadge').style.display = 'inline-block';
+            const hostBadge = document.getElementById('hostBadge');
+            if (hostBadge) hostBadge.style.display = 'inline-block';
             document.getElementById('hostControls').style.display = 'grid';
             updateStartButton();
             
@@ -3467,9 +3476,7 @@
                     localStorage.removeItem('pendingRouletteRoom');
                     
                     // 소켓 연결 후 방 생성
-                    socket.on('connect', function onConnect() {
-                        socket.off('connect', onConnect); // 한 번만 실행
-                        
+                    function emitCreateRoom() {
                         socket.emit('createRoom', {
                             userName: roomData.userName,
                             roomName: roomData.roomName,
@@ -3483,7 +3490,15 @@
                             serverName: roomData.serverName || currentServerName,
                             tabId: getTabId()
                         });
-                    });
+                    }
+                    if (socket.connected) {
+                        emitCreateRoom();
+                    } else {
+                        socket.on('connect', function onConnect() {
+                            socket.off('connect', onConnect);
+                            emitCreateRoom();
+                        });
+                    }
 
                     // URL에서 파라미터 제거
                     window.history.replaceState({}, document.title, window.location.pathname);
@@ -3504,9 +3519,7 @@
                     document.getElementById('globalUserNameInput').value = joinData.userName;
                     
                     // 소켓 연결 후 방 입장
-                    socket.on('connect', function onJoinConnect() {
-                        socket.off('connect', onJoinConnect); // 한 번만 실행
-                        
+                    function emitJoinRoom() {
                         if (joinData.isPrivate) {
                             // 비공개 방이면 비밀번호 모달 표시
                             pendingRoomId = joinData.roomId;
@@ -3524,7 +3537,15 @@
                                 tabId: getTabId()
                             });
                         }
-                    });
+                    }
+                    if (socket.connected) {
+                        emitJoinRoom();
+                    } else {
+                        socket.on('connect', function onJoinConnect() {
+                            socket.off('connect', onJoinConnect);
+                            emitJoinRoom();
+                        });
+                    }
                     
                     // URL에서 파라미터 제거
                     window.history.replaceState({}, document.title, window.location.pathname);
