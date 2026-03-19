@@ -6,10 +6,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>LAM Dice :)</title>
-    <meta name="description" content="LAMDice - 친구와 함께하는 무료 온라인 멀티플레이어 보드게임. 주사위, 룰렛, 레이스를 실시간으로 즐기세요.">
-    <meta property="og:title" content="LAM Dice :)">
-    <meta property="og:description" content="LAMDice - 친구와 함께하는 무료 온라인 멀티플레이어 보드게임. 주사위, 룰렛, 레이스를 실시간으로 즐기세요.">
+    <title>LAMDice - 무료 온라인 멀티플레이어 보드게임</title>
+    <meta name="description" content="LAMDice - 친구와 함께하는 무료 온라인 멀티플레이어 보드게임. 주사위, 룰렛, 레이스를 실시간으로 즐기세요. 회원가입 없이 바로 플레이.">
+    <meta property="og:title" content="LAMDice - 무료 온라인 멀티플레이어 보드게임">
+    <meta property="og:description" content="친구와 함께하는 무료 온라인 멀티플레이어 보드게임. 주사위, 룰렛, 레이스를 실시간으로 즐기세요.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/">
     <meta property="og:locale" content="ko_KR">
@@ -19,15 +19,8 @@
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
-    <!-- FOUC Prevention: Always use light theme + hide body until overlay ready -->
-    <script>
-      (function() {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.documentElement.classList.add('ss-loading');
-        // CSS 파일 로드 전에 인라인으로 즉시 숨김 (CSS 파싱 타이밍 문제 방지)
-        document.documentElement.style.opacity = '0';
-      })();
-    </script>
+    <!-- Theme: always light -->
+    <script>document.documentElement.setAttribute('data-theme', 'light');</script>
 
     <!-- Theme Variables -->
     <link rel="stylesheet" href="/css/theme.css">
@@ -36,7 +29,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <style>
-        html.ss-loading body { opacity: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -57,14 +49,134 @@
         }
         header h1 { margin: 0; font-size: 1.5em; }
         header a { text-decoration: none; }
-        .nav-links a { margin-left: 20px; color: var(--dice-accent); text-decoration: none; }
+        .nav-links { display: flex; flex-wrap: wrap; gap: 4px 0; }
+        .nav-links a { margin-left: 20px; color: var(--dice-accent); text-decoration: none; font-size: 0.95em; }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 48px 20px 32px;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        .hero h2 {
+            font-size: 2em;
+            color: #fff;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .hero p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .hero-cta {
+            display: inline-block;
+            padding: 16px 40px;
+            background: #fff;
+            color: var(--purple-600, #7c3aed);
+            font-size: 1.2em;
+            font-weight: 700;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+
+        /* Game Cards */
+        .game-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto 40px;
+            padding: 0 20px;
+        }
+        .game-card {
+            background: rgba(255,255,255,0.12);
+            backdrop-filter: blur(8px);
+            border-radius: 16px;
+            padding: 28px 24px;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: transform 0.15s;
+        }
+        .game-card:hover { transform: translateY(-4px); }
+        .game-card-icon { font-size: 2.2em; margin-bottom: 12px; }
+        .game-card h3 { font-size: 1.2em; margin-bottom: 8px; }
+        .game-card p { font-size: 0.95em; opacity: 0.9; line-height: 1.5; margin-bottom: 14px; }
+        .game-card-links { display: flex; gap: 12px; flex-wrap: wrap; }
+        .game-card-links a {
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            font-size: 0.88em;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            transition: color 0.15s;
+        }
+        .game-card-links a:hover { color: #fff; border-color: #fff; }
+
+        /* Content Section */
+        .content-section {
+            max-width: 900px;
+            margin: 0 auto 40px;
+            padding: 0 20px;
+        }
+        .content-section h3 {
+            color: #fff;
+            font-size: 1.3em;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+        }
+        .content-link {
+            display: block;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.95em;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: background 0.15s;
+        }
+        .content-link:hover { background: rgba(255,255,255,0.18); }
+        .content-link-icon { margin-right: 8px; }
+
+        /* About Section */
+        .about-section {
+            max-width: 720px;
+            margin: 0 auto 40px;
+            padding: 0 20px;
+            color: rgba(255,255,255,0.85);
+            text-align: center;
+            line-height: 1.7;
+            font-size: 0.95em;
+        }
+
+        /* Footer */
         footer {
             text-align: center;
-            padding: 20px 0;
+            padding: 24px 20px;
             font-size: 0.9em;
             color: rgba(255,255,255,0.6);
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
-        footer a { color: rgba(255,255,255,0.7); text-decoration: none; margin: 0 8px; }
+        .footer-links { margin-top: 10px; line-height: 2; }
+        .footer-links a { color: rgba(255,255,255,0.7); text-decoration: none; margin: 0 8px; }
+        .footer-links a:hover { color: #fff; }
+
+        @media (max-width: 600px) {
+            .hero h2 { font-size: 1.5em; }
+            .nav-links a { margin-left: 10px; font-size: 0.85em; }
+            .game-cards { grid-template-columns: 1fr; }
+        }
     </style>
     <script type="application/ld+json">
     {
@@ -72,49 +184,132 @@
       "@type": "WebSite",
       "name": "LAMDice",
       "url": "https://lamdice.com",
-      "description": "공정하고 투명한 무료 멀티플레이어 보드게임 플랫폼"
+      "description": "친구와 함께하는 무료 온라인 멀티플레이어 보드게임 플랫폼. 주사위, 룰렛, 레이스를 실시간으로 즐기세요."
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LAMDice",
+      "url": "https://lamdice.com",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" },
+      "description": "회원가입 없이 바로 즐기는 무료 온라인 멀티플레이어 보드게임. 주사위, 룰렛, 레이스 제공."
     }
     </script>
 </head>
-<body style="visibility:hidden;">
+<body>
     <header>
         <nav>
-            <h1><a href="/" style="color: var(--text-primary);">LAMDice 주사위 게임</a></h1>
+            <h1><a href="/" style="color: var(--text-primary);">LAMDice</a></h1>
             <div class="nav-links">
-                <a href="dice-rules-guide.html">다양한 주사위 규칙</a>
-                <a href="probability-analysis.html">확률 분석 및 팁</a>
-                <a href="about-us.html">사이트 소개</a>
+                <a href="game-guides.html">게임 가이드</a>
+                <a href="faq.html">FAQ</a>
+                <a href="about-us.html">소개</a>
+                <a href="statistics.html">통계</a>
             </div>
         </nav>
     </header>
 
-    <main style="max-width:900px; margin:40px auto; padding:0 20px; color:#fff; visibility:hidden;">
-        <section>
-            <h2>무료 온라인 멀티플레이어 보드게임</h2>
-            <p>LAMDice는 친구들과 함께 즐기는 무료 온라인 보드게임 플랫폼입니다.
-               주사위, 룰렛, 레이스 등 다양한 게임을 실시간 멀티플레이어로 즐겨보세요.
-               회원가입 없이 바로 플레이할 수 있으며, 모든 게임은 서버 기반 난수로 공정성이 보장됩니다.</p>
+    <main>
+        <!-- Hero -->
+        <section class="hero">
+            <h2>친구와 함께하는 무료 온라인 보드게임</h2>
+            <p>LAMDice는 회원가입 없이 바로 플레이할 수 있는 무료 멀티플레이어 보드게임 플랫폼입니다.
+               주사위, 룰렛, 레이스 등 다양한 게임을 실시간으로 즐기세요.
+               모든 게임은 서버 기반 난수 생성으로 공정성이 보장됩니다.</p>
+            <button class="hero-cta" onclick="ServerSelectModule.show()">🎲 게임 시작하기</button>
         </section>
-        <section>
-            <h3>제공 게임</h3>
-            <ul>
-                <li><strong>주사위 게임</strong> - High, Low, Near, Custom 등 다양한 규칙으로 실시간 대결</li>
-                <li><strong>룰렛</strong> - 한 칸 골라 당첨 맞히는 실시간 돌림판</li>
-                <li><strong>레이스</strong> - 1등·꼴등을 맞히는 내기로 친구들과 관전</li>
-            </ul>
+
+        <!-- Game Cards -->
+        <section class="game-cards">
+            <div class="game-card">
+                <div class="game-card-icon">🎲</div>
+                <h3>주사위 게임</h3>
+                <p>High, Low, Near, Custom 등 다양한 규칙으로 실시간 대결. 친구들과 포인트를 걸고 승부하세요.</p>
+                <div class="game-card-links">
+                    <a href="dice-rules-guide.html">규칙 가이드 →</a>
+                    <a href="probability-analysis.html">확률 분석 →</a>
+                </div>
+            </div>
+            <div class="game-card">
+                <div class="game-card-icon">🎰</div>
+                <h3>룰렛</h3>
+                <p>한 칸을 골라 당첨을 맞히는 실시간 돌림판 게임. 운과 직감을 시험하세요.</p>
+                <div class="game-card-links">
+                    <a href="roulette-guide.html">규칙 가이드 →</a>
+                </div>
+            </div>
+            <div class="game-card">
+                <div class="game-card-icon">🐎</div>
+                <h3>레이스</h3>
+                <p>1등과 꼴등을 예측하는 내기 게임. 친구들과 함께 레이스를 관전하며 결과를 맞혀보세요.</p>
+                <div class="game-card-links">
+                    <a href="horse-race-guide.html">규칙 가이드 →</a>
+                </div>
+            </div>
         </section>
-        <section>
-            <h3>게임 가이드</h3>
-            <ul>
-                <li><a href="dice-rules-guide.html" style="color:#fff;">주사위 규칙 가이드</a></li>
-                <li><a href="probability-analysis.html" style="color:#fff;">확률 분석 및 팁</a></li>
-            </ul>
+
+        <!-- Ad: After Game Cards -->
+        <div class="ad-container" style="max-width:900px;">
+          <span class="ad-label">AD</span>
+          <ins class="adsbygoogle"
+               style="display:block"
+               data-ad-client="ca-pub-1608259764663412"
+               data-ad-slot="8436152197"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+        </div>
+
+        <!-- Content Highlights -->
+        <section class="content-section">
+            <h3>게임을 더 재밌게 즐기는 방법</h3>
+            <div class="content-grid">
+                <a href="probability-analysis.html" class="content-link">
+                    <span class="content-link-icon">📊</span>확률 분석 및 전략 팁
+                </a>
+                <a href="fairness-rng.html" class="content-link">
+                    <span class="content-link-icon">🔒</span>공정성과 난수 생성 원리
+                </a>
+                <a href="dice-history.html" class="content-link">
+                    <span class="content-link-icon">📜</span>주사위의 역사
+                </a>
+                <a href="probability-education.html" class="content-link">
+                    <span class="content-link-icon">🎓</span>확률 교육
+                </a>
+                <a href="faq.html" class="content-link">
+                    <span class="content-link-icon">❓</span>자주 묻는 질문
+                </a>
+                <a href="changelog.html" class="content-link">
+                    <span class="content-link-icon">📝</span>업데이트 내역
+                </a>
+            </div>
+        </section>
+
+        <!-- About -->
+        <section class="about-section">
+            <p>LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.
+               서버 기반 암호학적 난수 생성(CSPRNG)을 사용하여 모든 게임의 공정성을 보장하며,
+               게임 결과는 투명하게 기록됩니다.
+               <a href="about-us.html" style="color:#fff; text-decoration:underline;">자세히 알아보기 →</a></p>
         </section>
     </main>
+
     <noscript>
-        <p style="text-align:center; padding:20px; color:#fff;">
-            이 사이트는 JavaScript가 필요합니다. 브라우저 설정에서 JavaScript를 활성화해주세요.
-        </p>
+        <div style="max-width:700px; margin:40px auto; padding:20px; color:#fff; text-align:center;">
+            <h2>LAMDice - 무료 온라인 멀티플레이어 보드게임</h2>
+            <p style="margin:16px 0;">이 사이트는 JavaScript가 필요합니다. 브라우저 설정에서 JavaScript를 활성화해주세요.</p>
+            <p style="margin:16px 0;">LAMDice는 친구들과 함께 즐기는 무료 온라인 보드게임 플랫폼입니다. 주사위, 룰렛, 레이스 등 다양한 게임을 제공합니다.</p>
+            <ul style="list-style:none; margin:16px 0;">
+                <li><a href="game-guides.html" style="color:#fff;">게임 가이드</a></li>
+                <li><a href="dice-rules-guide.html" style="color:#fff;">주사위 규칙 가이드</a></li>
+                <li><a href="probability-analysis.html" style="color:#fff;">확률 분석 및 팁</a></li>
+                <li><a href="about-us.html" style="color:#fff;">사이트 소개</a></li>
+                <li><a href="faq.html" style="color:#fff;">자주 묻는 질문</a></li>
+            </ul>
+        </div>
     </noscript>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -127,7 +322,6 @@
         const socket = io();
 
         ServerSelectModule.init(socket, (selection) => {
-            // 서버 선택 완료 → 세션에 저장 후 게임 페이지로 이동
             sessionStorage.setItem('diceSession', JSON.stringify({
                 serverId: selection.serverId,
                 serverName: selection.serverName,
@@ -136,19 +330,35 @@
             window.location.href = '/game';
         });
 
-        // 서버 선택 표시
+        // 페이지 로드 시 바로 서버 선택 표시
         ServerSelectModule.show();
     </script>
 
+    <!-- Ad: Bottom Banner -->
+    <div class="ad-container" style="max-width:800px;">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="1850295640"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
     <footer>
         <p>Copyright &copy; 2026 LAMDice. All rights reserved.</p>
-        <div style="margin-top: 8px;">
+        <div class="footer-links">
+            <a href="game-guides.html">게임 가이드</a> |
+            <a href="about-us.html">사이트 소개</a> |
+            <a href="faq.html">FAQ</a> |
+            <a href="statistics.html">📊 통계</a> |
             <a href="privacy-policy.html">개인정보 처리방침</a> |
             <a href="terms-of-service.html">이용 약관</a> |
-            <a href="contact.html">문의하기</a> |
-            <a href="statistics.html">📊 통계</a>
+            <a href="disclaimer.html">면책 조항</a> |
+            <a href="contact.html">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
+    <script src="/js/ads.js"></script>
 </body>
 </html>

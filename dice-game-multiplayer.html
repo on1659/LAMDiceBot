@@ -18,8 +18,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
-    <!-- Google AdSense -->
+    <!-- Google AdSense (auto-ads disabled on game pages) -->
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script>
+      /* Disable auto-ads (anchor/vignette) on game pages — this is a config call, not a slot push */
+      (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
+    </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
 
     <!-- FOUC Prevention: Always use light theme -->
@@ -1479,7 +1483,8 @@
         <div style="padding:40px; text-align:center; font-family:sans-serif;">
             <h1>LAMDice 주사위 게임</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
-            <p>친구와 함께하는 온라인 주사위 게임. High, Low, Near 등 다양한 규칙으로 실시간 대결. <a href="/">메인으로 돌아가기</a></p>
+            <p>친구와 함께하는 온라인 주사위 게임. High, Low, Near, Custom 등 다양한 규칙으로 실시간 대결하세요. 회원가입 없이 바로 플레이할 수 있으며, 서버 기반 난수로 공정성이 보장됩니다.</p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="dice-rules-guide.html">주사위 규칙 가이드</a> · <a href="probability-analysis.html">확률 분석</a></p>
         </div>
     </noscript>
     <header style="background-color: var(--bg-primary); padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
@@ -1531,17 +1536,15 @@
                 </div>
 
                 <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
-                <!-- Google AdSense 광고: 반응형 박스 -->
-                <div style="margin: 20px 0; text-align: center;">
-                    <ins class="adsbygoogle"
-                         style="display:block"
-                         data-ad-client="ca-pub-1608259764663412"
-                         data-ad-slot="YOUR_SLOT_ID"
-                         data-ad-format="auto"
-                         data-full-width-responsive="true"></ins>
-                    <script>
-                        (adsbygoogle = window.adsbygoogle || []).push({});
-                    </script>
+                <!-- Ad: Lobby Banner -->
+                <div class="ad-container ad-lobby">
+                  <span class="ad-label">AD</span>
+                  <ins class="adsbygoogle"
+                       style="display:block"
+                       data-ad-client="ca-pub-1608259764663412"
+                       data-ad-slot="7466418558"
+                       data-ad-format="auto"
+                       data-full-width-responsive="true"></ins>
                 </div>
 
             </div>
@@ -2509,6 +2512,7 @@
         let currentUser = '';
         let isHost = false;
         let isGameActive = false;
+        let _dragSource = null; // 드래그 소스 추적 (dragover에서 getData() 대체)
         let gameGeneration = 0; // 게임 세대 카운터 (게임 간 애니메이션 플래그 충돌 방지)
         let gameEndWaitInterval = null; // 게임 종료 대기 인터벌 (전역 관리)
         let gameEndWaitTimeout = null; // 게임 종료 대기 타임아웃 (전역 관리)
@@ -4664,6 +4668,8 @@
             PageHistoryManager.replacePage('lobby');
 
             refreshRooms();
+            // Re-init ads that may have failed while lobbySection was hidden
+            if (typeof initAds === 'function') initAds();
         });
 
         socket.on('kicked', (message) => {
@@ -5738,13 +5744,15 @@
                     userTag.addEventListener('dragstart', (e) => {
                         e.dataTransfer.setData('text/plain', user.name);
                         e.dataTransfer.effectAllowed = 'move';
-                        e.dataTransfer.setData('source', 'users'); // 접속자 목록에서 드래그하는 것 표시
+                        e.dataTransfer.setData('source', 'users');
+                        _dragSource = 'users';
                         userTag.style.opacity = '0.5';
                     });
-                    
+
                     // 드래그 종료
                     userTag.addEventListener('dragend', (e) => {
                         userTag.style.opacity = '1';
+                        _dragSource = null;
                     });
                 } else {
                     userTag.draggable = false;
@@ -5846,18 +5854,16 @@
                     userTag.addEventListener('dragstart', (e) => {
                         e.dataTransfer.setData('text/plain', userName);
                         e.dataTransfer.effectAllowed = 'move';
-                        e.dataTransfer.setData('source', 'ready'); // 준비 목록에서 드래그하는 것 표시
+                        e.dataTransfer.setData('source', 'ready');
+                        _dragSource = 'ready';
                         userTag.style.opacity = '0.5';
-                        // 전역 변수에 드래그 중인 사용자 저장
                         window.draggedReadyUser = userName;
                     });
                     
                     // 드래그 종료
                     userTag.addEventListener('dragend', (e) => {
                         userTag.style.opacity = '1';
-                        // 드롭이 준비 섹션 밖에서 일어났는지 확인
-                        // dragend 이벤트는 드롭 후에 발생하므로, 드롭 위치를 확인할 수 없음
-                        // 대신 전역 드롭 플래그를 사용
+                        _dragSource = null;
                         if (window.draggedReadyUser && !window.droppedInReadySection) {
                             // 준비 섹션 밖에서 드롭됨 - 준비 취소
                             if (isHost && !isGameActive) {
@@ -5913,9 +5919,8 @@
             // 드롭 존 설정 (접속자 목록에서 드래그하는 경우)
             readyUsersList.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                const source = e.dataTransfer.getData('source');
-                // 접속자 목록에서 드래그하는 경우만 허용
-                if (source === 'users' && isHost && !isGameActive) {
+                // _dragSource 사용 (dragover에서 getData()는 브라우저 보안상 빈 문자열 반환)
+                if (_dragSource === 'users' && isHost && !isGameActive) {
                     e.dataTransfer.dropEffect = 'move';
                     readyUsersList.style.backgroundColor = 'var(--status-success-bg)';
                     readyUsersList.style.border = '2px dashed var(--btn-ready)';
@@ -5968,9 +5973,8 @@
                 document.documentElement.setAttribute('data-global-drop-setup', 'true');
                 
                 document.addEventListener('dragover', (e) => {
-                    const source = e.dataTransfer.getData('source');
-                    // 준비 목록에서 드래그하는 경우
-                    if (source === 'ready' && isHost && !isGameActive) {
+                    // _dragSource 사용 (dragover에서 getData()는 브라우저 보안상 빈 문자열 반환)
+                    if (_dragSource === 'ready' && isHost && !isGameActive) {
                         // 준비 섹션 밖에 있는지 확인
                         const readySection = document.getElementById('readySection');
                         if (readySection && !readySection.contains(e.target)) {
@@ -7401,15 +7405,42 @@
             updateRolledUsersCount();
         }
     </script>
-    <hr>
+    <!-- Ad: Pre-SEO Banner -->
+    <div class="ad-container" style="max-width:800px;">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- SEO Content Section (hidden, crawlers only) -->
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--purple-600);">LAMDice 주사위 게임 안내</h2>
+        <p>LAMDice 주사위 게임은 친구들과 실시간으로 즐기는 무료 온라인 멀티플레이어 게임입니다. High(높은 수 승리), Low(낮은 수 승리), Near(목표 수에 가까운 수 승리), Custom(사용자 정의 규칙) 등 다양한 규칙을 선택할 수 있습니다. 모든 주사위는 서버 기반 난수 생성으로 공정성이 보장됩니다.</p>
+        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+            <a href="dice-rules-guide.html" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">📖 주사위 규칙 가이드</a>
+            <a href="probability-analysis.html" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">📊 확률 분석 및 팁</a>
+            <a href="fairness-rng.html" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">🔒 공정성 원리</a>
+            <a href="/" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">🏠 홈으로</a>
+        </div>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-secondary);">다른 게임도 즐겨보세요: <a href="/roulette" style="color:var(--purple-500);">룰렛</a> · <a href="/horse-race" style="color:var(--purple-500);">레이스</a></p>
+    </section>
+
     <footer style="text-align: center; padding: 20px 0; font-size: 0.9em; color: var(--text-secondary);">
         <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top: 10px;">
-            <a href="privacy-policy.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">이용 약관</a> |
-            <a href="contact.html" style="margin: 0 10px; text-decoration: none; color: var(--purple-500);">문의하기</a>
+            <a href="/" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">홈</a> |
+            <a href="game-guides.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">게임 가이드</a> |
+            <a href="faq.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">FAQ</a> |
+            <a href="privacy-policy.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">개인정보 처리방침</a> |
+            <a href="terms-of-service.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">이용 약관</a> |
+            <a href="contact.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
+    <script src="/js/ads.js"></script>
 </body>
 </html>

@@ -6,8 +6,12 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <!-- Google AdSense -->
+    <!-- Google AdSense (auto-ads disabled on game pages) -->
     <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script>
+      /* Disable auto-ads (anchor/vignette) on game pages — this is a config call, not a slot push */
+      (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
+    </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>인형뽑기 게임 - LAMDice</title>
     <meta name="description" content="LAMDice 인형뽑기 - 실시간 멀티플레이어 크레인 게임. 타이밍과 전략으로 인형을 뽑아보세요.">
@@ -17,6 +21,19 @@
     <meta property="og:url" content="https://lamdice.com/crane-game">
     <meta property="og:locale" content="ko_KR">
     <link rel="canonical" href="https://lamdice.com/crane-game">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LAMDice 인형뽑기",
+      "description": "실시간 멀티플레이어 크레인 게임. 타이밍과 전략으로 인형을 뽑아보세요.",
+      "url": "https://lamdice.com/crane-game",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+    }
+    </script>
 
     <!-- FOUC Prevention: Always use light theme -->
     <script>
@@ -1142,6 +1159,17 @@
                 <button onclick="replayCraneGame()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: #333333; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
                     🔄 다시보기
                 </button>
+            </div>
+
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
             </div>
 
             <!-- 채팅 섹션 -->
@@ -3062,5 +3090,6 @@
             }
         });
     </script>
+    <script src="/js/ads.js"></script>
 </body>
 </html>

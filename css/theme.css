@@ -526,3 +526,44 @@ input, select, textarea {
     overflow-wrap: break-word;
   }
 }
+
+/* ─────────────────────────────────────────────────
+   Ad Container
+   ───────────────────────────────────────────────── */
+.ad-container {
+  margin: 20px auto;
+  padding: 12px;
+  text-align: center;
+  max-width: 728px;
+  min-height: 90px;
+  background: var(--bg-primary);
+  border-radius: 10px;
+}
+.ad-container .ad-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+.ad-container.ad-hidden {
+  display: none;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+/* Game playing: hide lobby ad but keep height (prevent CLS) */
+.game-active .ad-container.ad-lobby {
+  visibility: hidden;
+}
+/* Mobile: reduce ad container reserved height */
+@media (max-width: 480px) {
+  .ad-container {
+    min-height: 50px;
+    padding: 8px;
+  }
+}
+/* Future: premium users see no ads */
+body.premium .ad-container {
+  display: none !important;
+}
