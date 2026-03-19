@@ -1713,11 +1713,14 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const elapsed = now - startTime;
             let allFinished = true;
             
-            // 슬로우모션 체크: 1등이 결승선 30m 전에 도달하면 무조건 발동
+            // 슬로우모션 체크: 선두가 결승선 근처에 도달하면 발동 (서버와 동일 로직)
             if (!slowMotionTriggered) {
-                const rank1 = horseStates.find(s => s.rank === 0);
-                if (rank1 && !rank1.finishJudged) {
-                    const remainingPx = finishLine - rank1.currentPos;
+                const unfinishedHorses = horseStates.filter(s => !s.finishJudged);
+                const rank1 = unfinishedHorses.length > 0
+                    ? unfinishedHorses.reduce((a, b) => a.currentPos > b.currentPos ? a : b)
+                    : null;
+                if (rank1) {
+                    const remainingPx = finishLine - (rank1.currentPos + rank1.visualWidth);
                     const remainingM = remainingPx / PIXELS_PER_METER;
                     if (remainingM <= smConf.leader.triggerDistanceM) {
                         slowMotionTriggered = true;
@@ -1806,9 +1809,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 }
             }
 
-            // 꼴등 결정 슬로우모션: 베팅된 말 중 꼴등과 직전 말이 접전 중일 때 발동
-            // (1등 슬로우모션과 독립적으로 체크 — 1등 슬로우 중에도 조건 감지)
-            if (!loserSlowMotionTriggered) {
+            // 꼴등 결정 슬로우모션: 리더 슬로우모션 해제 후, 베팅된 말 중 꼴등 접전 시 발동 (서버와 동일)
+            if (!loserSlowMotionTriggered && !slowMotionActive) {
                 const bettedHorseIndices = [...new Set(Object.values(userHorseBets))];
                 const bettedByRank = bettedHorseIndices
                     .map(hi => horseStates.find(s => s.horseIndex === hi))
@@ -1867,14 +1869,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 }
             }
 
-            // 꼴등 슬로우모션 해제: 베팅된 말 중 아무나 결승선에 닿으면 해제
+            // 꼴등 슬로우모션 해제: 카메라 타겟이 완전 통과하면 해제 (서버와 동일)
             if (loserSlowMotionActive) {
-                const bettedIndicesForCheck = [...new Set(Object.values(userHorseBets))];
-                const anyBettedFinished = bettedIndicesForCheck.some(hi => {
-                    const state = horseStates.find(s => s.horseIndex === hi);
-                    return state && state.finishJudged;
-                });
-                const loserFinished = !loserCameraTarget || anyBettedFinished;
+                const loserFinished = !loserCameraTarget || loserCameraTarget.finished;
                 if (loserFinished) {
                     loserSlowMotionActive = false;
                     slowMotionFactor = 1;
@@ -2124,8 +2121,16 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     speedMultiplier = state.currentSpeed / state.baseSpeed;
                 }
                 
+                // 날씨 보정 적용 (서버와 동일)
+                if (weatherSchedule.length > 0 && selectedVehicleTypes && selectedVehicleTypes[state.horseIndex]) {
+                    const vehicleModifiers = weatherConfig.vehicleModifiers || {};
+                    const vehicleMods = vehicleModifiers[selectedVehicleTypes[state.horseIndex]];
+                    if (vehicleMods && vehicleMods[currentWeather]) {
+                        speedMultiplier *= vehicleMods[currentWeather];
+                    }
+                }
+
                 // 위치 업데이트 (완전 정지 전까지)
-                // 서버에서 슬로우모션 포함 순위 계산 → 순위 동기화 불필요
                 if (!state.finished) {
                     let movement;
                     if (state.finishJudged) {
