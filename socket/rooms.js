@@ -608,8 +608,9 @@ module.exports = (socket, io, ctx) => {
             const socketsInRoom = await io.in(roomId).fetchSockets();
 
             // 같은 이름을 가진 사용자가 이미 연결되어 있는지 확인
+            // s.id !== socket.id: connectionStateRecovery로 같은 id를 가진 현재 소켓 자기 자신 제외
             const connectedUserWithSameName = socketsInRoom.find(s =>
-                (s.userName === finalUserName || s.id === existingUser.id) && s.connected
+                s.id !== socket.id && (s.userName === finalUserName || s.id === existingUser.id) && s.connected
             );
 
             // 같은 tabId면 같은 탭의 새로고침 (구 소켓 connected 여부 무관)
@@ -1025,10 +1026,11 @@ module.exports = (socket, io, ctx) => {
         // 사용자 목록에서 제거
         gameState.users = gameState.users.filter(u => u.id !== socket.id);
 
-        // 추가 리스트 정리 (준비 중인 사용자, 게임 참여 중인 사용자)
+        // 추가 리스트 정리 (준비 중인 사용자, 게임 참여 중인 사용자, 굴린 사용자)
         if (socket.userName) {
             gameState.readyUsers = gameState.readyUsers.filter(name => name !== socket.userName);
             gameState.gamePlayers = gameState.gamePlayers.filter(name => name !== socket.userName);
+            gameState.rolledUsers = gameState.rolledUsers.filter(name => name !== socket.userName);
 
             // 🔧 퇴장한 사용자의 말 선택 정보 삭제
             if (gameState.userHorseBets && gameState.userHorseBets[socket.userName]) {
@@ -1207,9 +1209,10 @@ module.exports = (socket, io, ctx) => {
         gameState.chatHistory.push(kickMessage);
         io.to(room.roomId).emit('newMessage', kickMessage);
 
-        // 추가 리스트 정리 (준비 중인 사용자, 게임 참여 중인 사용자)
+        // 추가 리스트 정리 (준비 중인 사용자, 게임 참여 중인 사용자, 굴린 사용자)
         gameState.readyUsers = gameState.readyUsers.filter(name => name !== targetName);
         gameState.gamePlayers = gameState.gamePlayers.filter(name => name !== targetName);
+        gameState.rolledUsers = gameState.rolledUsers.filter(name => name !== targetName);
 
         if (targetSocket) {
             targetSocket.emit('kicked', '호스트에 의해 방에서 제외되었습니다.');
@@ -1414,6 +1417,8 @@ module.exports = (socket, io, ctx) => {
     });
 
     // 모든 참여자가 주사위를 굴렸는지 확인하고 게임 종료 처리
+    // ctx에 노출하여 disconnect 핸들러(chat.js)에서도 사용 가능
+    ctx.checkAndEndGame = checkAndEndGame;
     function checkAndEndGame(gameState, room) {
         if (!gameState.isGameActive || gameState.gamePlayers.length === 0) return;
 

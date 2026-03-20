@@ -2012,7 +2012,8 @@
         });
 
         // 세션 복원: 다른 게임에서 돌아온 경우 또는 새로고침 시 로비 유지
-        const _returnData = sessionStorage.getItem('returnToLobby') || sessionStorage.getItem('diceSession');
+        const _returnToLobby = sessionStorage.getItem('returnToLobby');
+        const _returnData = _returnToLobby || sessionStorage.getItem('diceSession');
         if (_returnData) {
             sessionStorage.removeItem('returnToLobby');
             let _restoredServerName = null;
@@ -2023,17 +2024,32 @@
                 currentServerName = rd.serverName || null;
                 _restoredServerName = rd.serverName || null;
                 _restoredHostName = rd.hostName || null;
+                // returnToLobby에 hostName/serverName 누락 시 diceSession에서 보충
+                if (_returnToLobby && (!_restoredHostName || !_restoredServerName)) {
+                    try {
+                        const ds = JSON.parse(sessionStorage.getItem('diceSession') || '{}');
+                        if (ds.serverId == currentServerId) {
+                            if (!_restoredHostName) _restoredHostName = ds.hostName || null;
+                            if (!_restoredServerName) {
+                                _restoredServerName = ds.serverName || null;
+                                currentServerName = _restoredServerName;
+                            }
+                        }
+                    } catch(e2) {}
+                }
             } catch(e) {}
+            // 유저 이름 (auth 우선, localStorage 폴백)
+            const _authData = localStorage.getItem('userAuth');
+            const userName = _authData ? (JSON.parse(_authData).name || '') : (localStorage.getItem('userName') || '');
             // 소켓에 서버 ID 설정 (방 목록 필터링 + 입장 검증용)
             if (currentServerId) {
-                socket.emit('setServerId', { serverId: currentServerId });
+                socket.emit('setServerId', { serverId: currentServerId, userName });
                 ServerSelectModule.setCurrentServer({ id: currentServerId, name: currentServerName, hostName: _restoredHostName || '' });
             }
             // 서버 정보 바 표시
             const infoBar = document.getElementById('serverInfoBar');
             infoBar.style.display = 'flex';
             const membersBtn = document.getElementById('serverMembersBtn');
-            const userName = localStorage.getItem('userName') || '';
             if (currentServerId) {
                 if (_restoredServerName) {
                     document.getElementById('serverInfoName').textContent = `🖥️ ${_restoredServerName}`;
@@ -2063,7 +2079,7 @@
                     // 로비 숨기고 로딩 표시
                     document.getElementById('lobbySection').classList.remove('active');
                     if (currentServerId) {
-                        socket.emit('setServerId', { serverId: currentServerId });
+                        socket.emit('setServerId', { serverId: currentServerId, userName });
                     }
                     socket.on('connect', function _onReconnect() {
                         socket.emit('joinRoom', {
@@ -2082,7 +2098,7 @@
 
             // 방 목록 로드
             socket.emit('getRooms');
-            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId });
+            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId, userName });
         } else {
             // 세션 없음 → 서버 선택 페이지로 리다이렉트
             window.location.replace('/');
@@ -2615,7 +2631,7 @@
                     try {
                         const ar = JSON.parse(activeRoom);
                         if (currentServerId) {
-                            socket.emit('setServerId', { serverId: currentServerId });
+                            socket.emit('setServerId', { serverId: currentServerId, userName: ar.userName });
                         }
                         socket.emit('joinRoom', {
                             roomId: ar.roomId,
@@ -6953,8 +6969,23 @@
                 timeSpan.textContent = chatMessage.time;
                 
                 messageDiv.appendChild(userNameSpan);
-                messageDiv.appendChild(messageSpan);
+                if (chatMessage.message) {
+                    messageDiv.appendChild(messageSpan);
+                }
                 messageDiv.appendChild(document.createElement('br'));
+
+                // 이미지 메시지 처리
+                if (chatMessage.isImage && chatMessage.imageData) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.style.cssText = 'margin-top: 8px; max-width: 100%;';
+                    const img = document.createElement('img');
+                    img.src = chatMessage.imageData;
+                    img.style.cssText = 'max-width: 100%; max-height: 300px; border-radius: 8px; cursor: pointer; display: block;';
+                    img.onclick = () => ChatModule.openImageModal(chatMessage.imageData);
+                    img.onerror = () => { img.style.display = 'none'; };
+                    imageContainer.appendChild(img);
+                    messageDiv.appendChild(imageContainer);
+                }
                 
                 // 타임스탬프와 이모티콘을 같은 줄에 표시하기 위한 컨테이너
                 const timeReactionsContainer = document.createElement('span');

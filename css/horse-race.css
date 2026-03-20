@@ -1347,6 +1347,11 @@ body.game-active .history-section {
         height: 300px;
         margin: 10px 0;
         border-radius: 8px;
+        overflow: visible;
+        margin-bottom: 44px; /* 미니맵 풀바 공간 확보 */
+    }
+    .race-track-container .race-track {
+        overflow: hidden;
     }
 
     /* [필수2] 히스토리 패널 모바일 대응 */
@@ -1358,9 +1363,17 @@ body.game-active .history-section {
         margin-top: 10px;
     }
 
-    /* [권장7] 미니맵 모바일 숨김 */
+    /* [권장7] 미니맵 모바일 하단 풀바 */
     #raceMinimap {
-        display: none !important;
+        position: absolute !important;
+        bottom: auto !important;
+        top: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        border-radius: 0 0 8px 8px !important;
+        padding: 6px 12px !important;
+        background: rgba(0,0,0,0.85) !important;
     }
 
     /* [권장8] 카메라 버튼 터치 타겟 확대 */

@@ -2974,21 +2974,21 @@
             sessionStorage.removeItem('craneGameActiveRoom');
             showCustomAlert(data.message || '방이 삭제되었습니다.', 'info');
             if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
-            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
 
         socket.on('roomLeft', () => {
             sessionStorage.removeItem('craneGameActiveRoom');
             if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
-            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
 
         socket.on('leftRoom', () => {
             sessionStorage.removeItem('craneGameActiveRoom');
             if (roomExpiryInterval) { clearInterval(roomExpiryInterval); }
-            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
 

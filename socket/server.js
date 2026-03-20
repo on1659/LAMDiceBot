@@ -197,12 +197,33 @@ function registerServerHandlers(socket, io, ctx) {
         handleServerLeave(socket, io);
     });
 
-    // 현재 서버 ID 설정
-    socket.on('setServerId', (data) => {
+    // 현재 서버 ID 설정 (세션 복원 시 룸 재조인 + 온라인 등록)
+    socket.on('setServerId', async (data) => {
         if (!checkRateLimit()) return;
-        const { serverId } = data || {};
-        if (serverId) {
-            socket.serverId = serverId;
+        const { serverId, userName } = data || {};
+        if (!serverId) return;
+
+        socket.serverId = serverId;
+        socket.join(`server:${serverId}`);
+
+        if (userName) {
+            socket.serverUserName = userName;
+            if (!onlineMembers.has(serverId)) {
+                onlineMembers.set(serverId, new Map());
+            }
+            onlineMembers.get(serverId).set(userName, socket.id);
+
+            // 호스트면 대기 멤버 수 전송
+            try {
+                const server = await getServerById(serverId);
+                if (server && server.host_name === userName) {
+                    const members = await getMembers(serverId);
+                    const pendingCount = members.filter(m => !m.is_approved).length;
+                    if (pendingCount > 0) {
+                        socket.emit('memberUpdated', { type: 'joinRequest', serverId });
+                    }
+                }
+            } catch (e) {}
         }
     });
 

@@ -15,6 +15,7 @@ const ReadyModule = (function () {
     // 드래그 상태 (전역 플래그 대신 모듈 내부)
     let _draggedReadyUser = null;
     let _droppedInReadySection = false;
+    let _dragSource = null; // dragover에서 getData() 대체 (브라우저 보안 정책)
 
     // 소켓 이벤트 바인딩
     function bindSocketEvents() {
@@ -149,6 +150,7 @@ const ReadyModule = (function () {
                     e.dataTransfer.setData('text/plain', userName);
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('source', 'ready');
+                    _dragSource = 'ready';
                     tag.style.opacity = '0.5';
                     _draggedReadyUser = userName;
                 });
@@ -165,6 +167,7 @@ const ReadyModule = (function () {
                     }
                     _draggedReadyUser = null;
                     _droppedInReadySection = false;
+                    _dragSource = null;
                 });
             } else {
                 tag.draggable = false;
@@ -196,10 +199,11 @@ const ReadyModule = (function () {
         readyUsersList.setAttribute('data-drag-setup', 'true');
 
         // 드롭 존: 접속자 목록에서 드래그
+        // dragover에서는 source 체크 생략 (getData()는 브라우저 보안상 빈 문자열 반환)
+        // 실제 source 검증은 drop 핸들러에서 수행
         readyUsersList.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const source = e.dataTransfer.getData('source');
-            if (source === 'users' && _isHost && !isGameActive()) {
+            if (_isHost && !isGameActive()) {
                 e.dataTransfer.dropEffect = 'move';
                 readyUsersList.style.backgroundColor = '#e8f5e9';
                 readyUsersList.style.border = '2px dashed #28a745';
@@ -241,8 +245,7 @@ const ReadyModule = (function () {
             document.documentElement.setAttribute('data-ready-global-drop-setup', 'true');
 
             document.addEventListener('dragover', (e) => {
-                const source = e.dataTransfer.getData('source');
-                if (source === 'ready' && _isHost && !isGameActive()) {
+                if (_dragSource === 'ready' && _isHost && !isGameActive()) {
                     const rs = document.getElementById('readySection');
                     if (rs && !rs.contains(e.target)) {
                         e.dataTransfer.dropEffect = 'move';

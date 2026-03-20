@@ -1571,6 +1571,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     cameraMode = cameraModeBefore || 'leader';
                     cameraModeBefore = null;
                     loserCameraTarget = null;
+                    loserReleaseTarget = null;
                 }
                 cameraMode = cameraMode === 'leader' ? 'myHorse' : 'leader';
                 // 바운스 효과
@@ -1650,6 +1651,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         let slowMotionTriggered = false; // 한번만 트리거
         let loserSlowMotionTriggered = false; // 꼴등 결정 슬로우모션
         let loserSlowMotionActive = false;
+        let loserReleaseTarget = null; // 해제 판정용 (카메라 추적과 분리)
         let leaderCheerFadeInterval = null; // 리더 슬로우 환호 페이드아웃 interval ID
         // loserCameraTarget, cameraModeBefore, 패닝 변수는 상위 스코프에서 선언됨
 
@@ -1825,10 +1827,6 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     if (slRemainingM <= smConf.loser.triggerDistanceM) {
                         loserSlowMotionTriggered = true;
                         loserSlowMotionActive = true;
-                        // 1등 슬로우모션 활성 중이면 해제 후 꼴등으로 전환
-                        if (slowMotionActive) {
-                            slowMotionActive = false;
-                        }
                         // 리더 환호 페이드아웃이 진행 중이면 취소 (꼴등 사운드를 죽이지 않도록)
                         if (leaderCheerFadeInterval) {
                             clearInterval(leaderCheerFadeInterval);
@@ -1840,6 +1838,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         }
                         slowMotionFactor = smConf.loser.factor;
                         loserCameraTarget = secondLastBetted; // 결승선에 가까운 말(들어가는 애)에 카메라
+                        loserReleaseTarget = secondLastBetted; // 해제 판정용 (카메라와 분리)
                         cameraModeBefore = cameraMode;
                         cameraMode = '_loser';
                         let vignette = document.getElementById('slowmoVignette');
@@ -1871,9 +1870,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
             // 꼴등 슬로우모션 해제: 카메라 타겟이 완전 통과하면 해제 (서버와 동일)
             if (loserSlowMotionActive) {
-                const loserFinished = !loserCameraTarget || loserCameraTarget.finished;
+                const loserFinished = !loserReleaseTarget || loserReleaseTarget.finishJudged;
                 if (loserFinished) {
                     loserSlowMotionActive = false;
+                    loserReleaseTarget = null;
                     slowMotionFactor = 1;
                     // secondLastBetted가 들어왔으니 → lastBetted(진짜 꼴등)로 카메라 전환
                     const bettedIndices = [...new Set(Object.values(userHorseBets))];
@@ -2432,6 +2432,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 slowMotionFactor = 1;
                 slowMotionActive = false;
                 loserSlowMotionActive = false;
+                loserReleaseTarget = null;
                 loserCameraTarget = null;
                 if (cameraModeBefore) { cameraMode = cameraModeBefore; cameraModeBefore = null; }
                 track.style.filter = '';
@@ -5081,7 +5082,7 @@ socket.on('roomLeft', () => {
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }
-    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
     window.location.replace('/game');
 });
 
@@ -5091,7 +5092,7 @@ socket.on('roomDeleted', (data) => {
     if (roomExpiryInterval) {
         clearInterval(roomExpiryInterval);
     }
-    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
     window.location.replace('/game');
 });
 

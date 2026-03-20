@@ -1392,27 +1392,37 @@ const ChatModule = (function () {
             chatMessages.parentNode.insertBefore(pinnedSection, chatMessages);
         }
 
-        // 클립보드 붙여넣기 감지 (이미지)
-        document.addEventListener('paste', (e) => {
-            const items = e.clipboardData?.items;
-            if (!items) return;
+        // 클립보드 붙여넣기 감지 (이미지) — 중복 등록 방지
+        if (!document.documentElement.hasAttribute('data-chat-paste-setup')) {
+            document.documentElement.setAttribute('data-chat-paste-setup', 'true');
+            document.addEventListener('paste', (e) => {
+                console.log('[Chat Paste] 이벤트 발생, socket:', !!_socket, 'items:', e.clipboardData?.items?.length);
+                if (!_socket) return;
+                const items = e.clipboardData?.items;
+                if (!items) return;
 
-            for (let item of items) {
-                if (item.type.startsWith('image/')) {
-                    e.preventDefault();
-                    const file = item.getAsFile();
-
-                    compressImage(file).then((imageData) => {
-                        showClipboardImageModal(imageData);
-                    }).catch(() => {
-                        if (typeof showCustomAlert === 'function') {
-                            showCustomAlert('이미지 처리 중 오류가 발생했습니다.', 'warning');
+                for (let item of items) {
+                    console.log('[Chat Paste] item type:', item.type, 'kind:', item.kind);
+                    if (item.type.startsWith('image/')) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (!file) {
+                            console.warn('[Chat Paste] getAsFile() 반환값 null');
+                            return;
                         }
-                    });
-                    break;
+                        console.log('[Chat Paste] 파일:', file.name, file.size, 'bytes');
+
+                        compressImage(file).then((imageData) => {
+                            console.log('[Chat Paste] 압축 완료, 모달 표시');
+                            showClipboardImageModal(imageData);
+                        }).catch((err) => {
+                            console.error('[Chat Paste] 이미지 처리 오류:', err);
+                        });
+                        break;
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     // 사용자 목록 업데이트

@@ -582,6 +582,11 @@ module.exports = (socket, io, ctx) => {
                         }
                     }
 
+                    // 게임 상태 정리 (준비/참여/굴림 목록에서 제거)
+                    gameState.readyUsers = gameState.readyUsers.filter(name => name !== userName);
+                    gameState.gamePlayers = gameState.gamePlayers.filter(name => name !== userName);
+                    gameState.rolledUsers = gameState.rolledUsers.filter(name => name !== userName);
+
                     // 호스트가 나간 경우
                     if (wasHost) {
                         if (gameState.users.length > 0) {
@@ -619,6 +624,11 @@ module.exports = (socket, io, ctx) => {
                             // 모든 사용자가 나감 - grace period 후 삭제
                             startRoomGrace(roomId, room);
                         }
+                    }
+
+                    // 게임 진행 중이면 종료 조건 체크
+                    if (gameState.isGameActive && ctx.checkAndEndGame) {
+                        ctx.checkAndEndGame(gameState, room);
                     }
                 } else {
                     console.log(`사용자 ${userName}이(가) 방 ${roomId}에 재연결했습니다.`);

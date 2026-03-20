@@ -14,11 +14,32 @@ const { getTop3Badges } = require('../db/ranking');
 
 // ALL_VEHICLE_IDS constant
 const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse', 'knight', 'dinosaur', 'ninja', 'crab'];
+const NEW_VEHICLE_IDS = ['knight', 'dinosaur', 'ninja', 'crab']; // 신규 탈것 (가중치 적용)
+const NEW_VEHICLE_WEIGHT = 2; // 신규 탈것 선택 가중치 (기존 1배 대비)
 const VEHICLE_NAMES = {
     'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
     'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
     'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게'
 };
+
+// 신규 탈것 가중치 적용 셔플: 신규 탈것을 풀에 WEIGHT번 넣어 확률 증가
+function weightedShuffleVehicles() {
+    const pool = [];
+    for (const id of ALL_VEHICLE_IDS) {
+        const count = NEW_VEHICLE_IDS.includes(id) ? NEW_VEHICLE_WEIGHT : 1;
+        for (let i = 0; i < count; i++) pool.push(id);
+    }
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const seen = new Set();
+    return pool.filter(id => {
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+    });
+}
 
 // 한글 받침 유무에 따른 조사 처리
 function getPostPosition(word, type) {
@@ -126,7 +147,7 @@ module.exports = (socket, io, ctx) => {
             const horseCount = gameState.availableHorses.length;
             gameState.selectedVehicleTypes = [];
             // 예외 상황: 랜덤으로 설정
-            const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+            const shuffled = weightedShuffleVehicles();
             for (let i = 0; i < horseCount; i++) {
                 gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
             }
@@ -581,7 +602,7 @@ module.exports = (socket, io, ctx) => {
                 if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
                     gameState.selectedVehicleTypes = [];
                     // 랜덤으로 섞어서 말 수만큼 선택
-                    const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+                    const shuffled = weightedShuffleVehicles();
                     for (let i = 0; i < horseCount; i++) {
                         gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
                     }
@@ -1028,7 +1049,7 @@ module.exports = (socket, io, ctx) => {
 
             // 게임 종료 후 탈것 타입 새로 랜덤으로 설정
             gameState.selectedVehicleTypes = [];
-            const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+            const shuffled = weightedShuffleVehicles();
             for (let i = 0; i < horseCount; i++) {
                 gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
             }
@@ -1108,7 +1129,7 @@ module.exports = (socket, io, ctx) => {
         const horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
         gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
         gameState.selectedVehicleTypes = [];
-        const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+        const shuffled = weightedShuffleVehicles();
         for (let i = 0; i < horseCount; i++) {
             gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
         }

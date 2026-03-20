@@ -3422,7 +3422,7 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
-            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
 
@@ -3432,7 +3432,7 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
-            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
 
@@ -3442,7 +3442,7 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
-            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId }));
+            sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
 

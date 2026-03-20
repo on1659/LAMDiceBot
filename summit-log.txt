@@ -1,4 +1,63 @@
 ========================================
+📋 Summit Log - 2026-03-21 (주사위 버그 수정 + 경마 개선)
+========================================
+
+## 변경 파일
+- socket/rooms.js: leaveRoom/kickPlayer에서 rolledUsers 정리 추가, checkAndEndGame ctx 노출
+- socket/chat.js: disconnect 핸들러에 게임 상태 정리(readyUsers/gamePlayers/rolledUsers) + checkAndEndGame 호출 추가
+- dice-game-multiplayer.html: dragover에서 getData() 대신 _dragSource 변수 사용 (브라우저 보안 정책 대응)
+- ready-shared.js: 동일 dragSource 수정 (ReadyModule용)
+- chat-shared.js: paste 리스너 중복 등록 방지 + getAsFile() null 체크 + 에러 로깅
+- socket/horse.js: 신규 탈것 가중치 적용 셔플 (knight/dinosaur/ninja/crab 2배 확률)
+- js/horse-race.js: loserReleaseTarget 분리 (해제 판정 vs 카메라 추적 분리) + returnToLobby serverName 추가
+- css/horse-race.css: 모바일 미니맵 숨김→하단 풀바 UI로 변경
+- crane-game-multiplayer.html: returnToLobby에 serverName 추가
+- roulette-game-multiplayer.html: returnToLobby에 serverName 추가
+- socket/server.js: setServerId에서 세션 복원 시 룸 재조인 + 온라인 등록 + 호스트 대기멤버 알림
+- sitemap.xml: lastmod 2026-02-24 → 2026-03-15 일괄 업데이트
+- update-log.md: 유저 공개용 업데이트 로그 추가
+
+## 상세 변경 내역
+
+### Bug Fix 1: 주사위 게임 조기종료 (Critical)
+- 원인: 유저 퇴장 시 rolledUsers를 정리하지 않아 rolledUsers.length === gamePlayers.length 조기 충족
+- 수정 (rooms.js): leaveRoom/kickPlayer에 rolledUsers.filter() 추가 (각 1줄)
+- 수정 (rooms.js): checkAndEndGame을 ctx에 노출하여 chat.js에서 접근 가능
+- 수정 (chat.js): disconnect 핸들러에 readyUsers/gamePlayers/rolledUsers 전부 정리 + checkAndEndGame 호출
+- 영향: 3개 퇴장 경로(수동/강퇴/연결끊김) 모두 수정
+
+### Bug Fix 2: 드래그 준비 간헐적 미작동 (Medium)
+- 원인: dragover 이벤트에서 e.dataTransfer.getData('source') 호출 — 브라우저 보안 정책(Protected Mode)상 빈 문자열 반환
+- 수정: dragstart에서 _dragSource 변수 설정, dragover에서 참조, dragend에서 해제
+- 파일: dice-game-multiplayer.html (인라인 드래그 코드) + ready-shared.js (ReadyModule)
+
+### Bug Fix 3: 채팅 이미지 붙여넣기 방어 코드 (Medium)
+- 수정: data-chat-paste-setup 가드로 중복 리스너 방지
+- 수정: _socket null 체크, getAsFile() null 체크, console.error 추가
+- 근본 원인 불확실 — 방어 코드 + 디버깅 로그 추가
+
+### 경마: 신규 탈것 가중치 (horse.js)
+- weightedShuffleVehicles() 함수 추가: 신규 탈것(knight/dinosaur/ninja/crab) 풀에 2배 투입
+- 기존 sort(() => Math.random() - 0.5) 4곳을 weightedShuffleVehicles()로 교체
+
+### 경마: 꼴등 슬로우모션 해제 개선 (horse-race.js)
+- loserReleaseTarget 변수 분리: 해제 판정용(finishJudged)과 카메라 추적용(loserCameraTarget) 분리
+- 1등 슬로우모션 중 꼴등 발동 시 slowMotionActive=false 제거 (불필요한 전환 방지)
+
+### 서버: returnToLobby serverName 추가
+- crane-game, roulette, horse-race: returnToLobby JSON에 serverName 포함
+- 로비 복귀 시 서버 이름 유지
+
+### 서버: setServerId 세션 복원 강화 (server.js)
+- userName 파라미터 추가: 온라인 멤버 등록
+- 호스트면 대기 멤버 수 확인하여 memberUpdated 이벤트 전송
+
+### sitemap.xml
+- 전체 URL lastmod 2026-02-24 → 2026-03-15 업데이트
+
+========================================
+
+========================================
 📋 Summit Log - 2026-03-19 (경마 순위 불일치 수정)
 ========================================
 
