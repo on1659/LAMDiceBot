@@ -1033,10 +1033,7 @@
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-weight: bold; color: var(--roulette-accent);">💬 채팅</span>
-                    <button id="rankingBtn" onclick="RankingModule.show('roulette')" style="width: auto; margin: 0; flex-shrink: 0; background: var(--bg-white); border: 1px solid var(--roulette-accent); color: var(--roulette-accent); padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">🏆 랭킹</button>
-                </div>
+                <div style="font-weight: bold; color: var(--roulette-accent); margin-bottom: 10px;">💬 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
@@ -1883,6 +1880,7 @@
             if (chatModuleInitialized) return;
             chatModuleInitialized = true;
             ChatModule.init(socket, currentUser, {
+                gameType: 'roulette',
                 themeColor: 'var(--roulette-accent)',
                 myColor: 'var(--green-800)',
                 myBgColor: 'var(--green-50)',

@@ -3922,6 +3922,7 @@ function initChatModule() {
     if (chatModuleInitialized) return;
     chatModuleInitialized = true;
     ChatModule.init(socket, currentUser, {
+        gameType: 'horse',
         systemGradient: 'var(--horse-gradient)',
         themeColor: 'var(--text-primary)',
         myColor: 'var(--horse-accent)',

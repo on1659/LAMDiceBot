@@ -1793,6 +1793,7 @@
             if (chatModuleInitialized) return;
             chatModuleInitialized = true;
             ChatModule.init(socket, currentUser, {
+                gameType: 'crane-game',
                 themeColor: 'var(--crane-accent)',
                 myColor: 'var(--green-800)',
                 myBgColor: 'var(--green-50)',

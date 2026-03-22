@@ -297,10 +297,7 @@
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-weight: bold; color: var(--horse-accent); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</span>
-                    <button id="rankingBtn" onclick="RankingModule.show('horse')" style="width: auto; margin: 0; flex-shrink: 0; background: var(--bg-white); border: 1px solid var(--horse-accent); color: var(--horse-accent); padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🏆 랭킹</button>
-                </div>
+                <div style="font-weight: bold; color: var(--horse-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">

@@ -1373,8 +1373,24 @@ const ChatModule = (function () {
         // 멘션 자동완성 초기화
         initMentionAutocomplete();
 
-        // 고정 메시지 섹션 UI 생성
+        // 채팅 헤더에 랭킹 버튼 자동 삽입 (gameType 옵션 필요, RankingModule 존재 시)
         const chatMessages = document.getElementById('chatMessages');
+        if (chatMessages && _options.gameType && typeof RankingModule !== 'undefined' && !document.getElementById('rankingBtn')) {
+            // chatMessages 바로 앞의 채팅 타이틀 요소 찾기
+            const chatSection = chatMessages.parentElement;
+            const titleEl = chatSection && chatSection.firstElementChild;
+            if (titleEl && titleEl !== chatMessages) {
+                titleEl.style.cssText += ';display:flex;justify-content:space-between;align-items:center;';
+                const btn = document.createElement('button');
+                btn.id = 'rankingBtn';
+                btn.textContent = '🏆 랭킹';
+                btn.style.cssText = 'width:auto;margin:0;flex-shrink:0;background:var(--bg-white,#fff);border:1px solid currentColor;color:inherit;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
+                btn.addEventListener('click', () => RankingModule.show(_options.gameType));
+                titleEl.appendChild(btn);
+            }
+        }
+
+        // 고정 메시지 섹션 UI 생성
         if (chatMessages && !document.getElementById('pinnedMessagesSection')) {
             const pinnedSection = document.createElement('div');
             pinnedSection.id = 'pinnedMessagesSection';
