@@ -312,6 +312,8 @@ const ServerSelectModule = (function () {
             _showToast(`${data.name} 입장!`);
             hide();
             _currentServer = { id: data.id, name: data.name, hostName: data.hostName };
+            // 재방문 시 랜딩 페이지 건너뛰기용
+            try { localStorage.setItem('lamdice_lastServer', JSON.stringify({ serverId: data.id, serverName: data.name, hostName: data.hostName })); } catch(e) {}
             PageHistoryManager.pushPage('lobby');
             setTimeout(() => {
                 if (_onSelect) _onSelect({ serverId: data.id, serverName: data.name, hostName: data.hostName });

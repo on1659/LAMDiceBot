@@ -1,4 +1,28 @@
 ========================================
+📋 Summit Log - 2026-03-22 (랜딩 페이지 스킵 → 바로 게임 로비)
+========================================
+
+## 변경 파일
+- routes/api.js: `/` 라우트를 sendFile → res.redirect('/game')로 변경
+- index.html: JS 리다이렉트 스크립트 추가/제거 (최종: 서버 리다이렉트로 대체), ServerSelectModule 콜백에서 localStorage 저장 추가
+- dice-game-multiplayer.html: ServerSelectModule.init 콜백에 세션 저장+reload 로직 추가, 세션 없을 때 `/`로 리다이렉트 대신 ServerSelectModule.show() 호출, "← 서버 목록" 버튼/onServerSelect에서 reload로 변경
+- server-select-shared.js: serverJoined 이벤트에서 localStorage에 lamdice_lastServer 자동 저장
+
+## 상세 변경 내역
+
+### 랜딩 페이지 스킵 (UX 개선)
+- 문제: `/` 접속 시 항상 랜딩 페이지(index.html)가 표시되어 매번 "게임 시작하기" 클릭 필요
+- 해결: 서버에서 `/` → `/game` 302 리다이렉트 (routes/api.js)
+- `/game`에서 세션 없을 때 기존 동작: `window.location.replace('/')` → 랜딩 페이지 무한 순환
+- 변경 후: `ServerSelectModule.show()` 호출로 게임 페이지 위에 서버 선택 모달 바로 표시
+- ServerSelectModule.init 콜백: 서버 선택 완료 시 sessionStorage에 세션 저장 + 페이지 reload
+- server-select-shared.js: serverJoined 시 localStorage에도 저장 (향후 확장용)
+- "← 서버 목록" 버튼: `/`로 이동 대신 sessionStorage 클리어 + reload → 서버 선택 모달 재표시
+- SEO 영향: index.html의 메타태그/콘텐츠 유지, dice-game-multiplayer.html에도 별도 SEO 메타태그 존재
+
+========================================
+
+========================================
 📋 Summit Log - 2026-03-21 (주사위 버그 수정 + 경마 개선)
 ========================================
 

@@ -322,11 +322,13 @@
         const socket = io();
 
         ServerSelectModule.init(socket, (selection) => {
-            sessionStorage.setItem('diceSession', JSON.stringify({
+            const serverData = JSON.stringify({
                 serverId: selection.serverId,
                 serverName: selection.serverName,
                 hostName: selection.hostName
-            }));
+            });
+            sessionStorage.setItem('diceSession', serverData);
+            localStorage.setItem('lamdice_lastServer', serverData);
             window.location.href = '/game';
         });
 
