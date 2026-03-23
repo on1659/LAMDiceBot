@@ -1,4 +1,47 @@
 ========================================
+📋 Summit Log - 2026-03-23 (주사위 튜토리얼 구현)
+========================================
+
+## 변경 파일
+- dice-game-multiplayer.html: 9스텝 튜토리얼 코드 추가 (171줄), ? 도움말 버튼, 호스트/비호스트 content 분기
+- horse-race-multiplayer.html: ? 버튼 SVG 아이콘 변경 + flex-wrap 추가 (11줄)
+- tutorial-shared.js: click-blocker에 스크롤 이벤트 전달 추가 (wheel + touch)
+- docs/tutorial/dice-tutorial.md: 설계 문서 전면 개정 (4→9스텝, 오류 수정)
+
+## 상세 변경 내역
+
+### 주사위 튜토리얼 (dice-game-multiplayer.html)
+- DICE_TUTORIAL_STEPS 9스텝 정의 (var 선언, 콘솔 검증용)
+- Step 1(참여자), 2(게임룰), 3(준비), 6(주문): content를 function()으로 호스트/비호스트 분기
+- Step 4(게임시작): 호스트만 표시, fallbackTarget 없음 → 비호스트 자동 스킵
+- Step 5(주사위 버튼): #diceIdleEmoji 타겟
+- Step 6(주사위 채팅): #chatInput 타겟, beforeShow로 placeholder를 '/주사위'로 변경, cleanup으로 복원
+- Step 7(채팅): #chatMessages 타겟, beforeShow로 가짜 채팅 3건 삽입 (/주사위 결과 우측 표시 포함), cleanup으로 제거
+- Step 8(랭킹): #rankingBtn 타겟 (ChatModule.init 자동 삽입)
+- Step 9(주문받기): #ordersSection 타겟, 맨 뒤 배치
+- window.load → ? 버튼 생성 (.users-section .users-title에 append) + roomJoined 1500ms 후 setUser → start
+- ? 버튼: SVG 아이콘 (Lucide help-circle 스타일), 28x28px 보라 그라디언트
+
+### ? 버튼 SVG 변경 (dice + horse 공통)
+- 기존: 텍스트 '?' (12px)
+- 변경: inline SVG (circle + question mark path), 28x28px, stroke white
+- flex-wrap: wrap 추가 (dragHint 레이아웃 깨짐 방지)
+
+### 튜토리얼 스크롤 수정 (tutorial-shared.js)
+- click-blocker가 전체 화면을 덮어 스크롤 차단하던 문제
+- wheel 이벤트: window.scrollBy(0, e.deltaY) 전달 (passive)
+- touchstart/touchmove: 터치 Y 좌표 추적 → window.scrollBy 전달 (passive)
+- 클릭 차단은 유지하면서 스크롤만 통과
+
+### 설계 문서 개정 (dice-tutorial.md)
+- 4스텝 → 9스텝 확장
+- hostOnly 속성 제거 → _isVisible() 자동 스킵 설명
+- 수동 HTML overlay 삭제 → _inject() 자동 생성 설명
+- setUser() 호출 패턴 추가
+- gameRulesInput → gameRulesSection 타겟 변경 (팩트 오류 수정)
+- DOM 구조, display:none 핸들링, 검증 코드 갱신
+
+========================================
 📋 Summit Log - 2026-03-22 (랭킹 버튼 공통화)
 ========================================
 

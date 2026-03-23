@@ -892,14 +892,14 @@
 
         // Help button: ? (inline, users-title right side)
         const helpBtn = document.createElement('button');
-        helpBtn.textContent = '?';
+        helpBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
         helpBtn.title = '게임 튜토리얼 보기';
         helpBtn.style.cssText = [
-            'margin-left:auto; width:24px; height:24px; border-radius:50%;',
+            'margin-left:auto; width:28px; height:28px; border-radius:50%;',
             'background:linear-gradient(135deg,#8b5cf6,#a78bfa);',
-            'color:white; border:1px solid white; cursor:pointer;',
-            'font-weight:bold; font-size:12px; line-height:1;',
-            'box-shadow:0 2px 6px rgba(139,92,246,0.4); flex-shrink:0;'
+            'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
+            'display:flex; align-items:center; justify-content:center; padding:0;',
+            'box-shadow:0 2px 8px rgba(139,92,246,0.5); flex-shrink:0;'
         ].join('');
         helpBtn.addEventListener('click', () => {
             TutorialModule.reset('horse');
@@ -909,6 +909,7 @@
         if (titleEl) {
             titleEl.style.display = 'flex';
             titleEl.style.alignItems = 'center';
+            titleEl.style.flexWrap = 'wrap';
             titleEl.appendChild(helpBtn);
         }
 

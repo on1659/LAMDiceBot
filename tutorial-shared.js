@@ -99,6 +99,19 @@ var TutorialModule = (function() {
         _blocker = document.createElement('div');
         _blocker.className = 'tutorial-click-blocker';
         _blocker.style.display = 'none';
+        // Allow scroll through blocker
+        _blocker.addEventListener('wheel', function(e) {
+            window.scrollBy(0, e.deltaY);
+        }, { passive: true });
+        var _touchY = 0;
+        _blocker.addEventListener('touchstart', function(e) {
+            _touchY = e.touches[0].clientY;
+        }, { passive: true });
+        _blocker.addEventListener('touchmove', function(e) {
+            var dy = _touchY - e.touches[0].clientY;
+            _touchY = e.touches[0].clientY;
+            window.scrollBy(0, dy);
+        }, { passive: true });
 
         _highlight = document.createElement('div');
         _highlight.id = 'tutorialHighlight';

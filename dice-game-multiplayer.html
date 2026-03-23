@@ -7481,6 +7481,177 @@
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
+    <script src="/tutorial-shared.js?v=3"></script>
+    <script>
+    var DICE_TUTORIAL_STEPS = [
+        {
+            target: '.users-section',
+            title: '1단계: 참여자 목록',
+            content: function() {
+                return isHost
+                    ? '방에 참여한 플레이어들이 여기에 표시됩니다. 드래그로 다른 플레이어를 준비시킬 수 있습니다.'
+                    : '방에 참여한 플레이어들이 여기에 표시됩니다.';
+            },
+            position: 'bottom'
+        },
+        {
+            target: '#gameRulesSection',
+            title: '2단계: 게임 룰',
+            content: function() {
+                return isHost
+                    ? '하이/로우/니어/기타 중 게임 룰을 선택하세요. 선택한 룰에 따라 승패가 결정됩니다.'
+                    : '방장이 설정한 게임 룰이 여기에 표시됩니다. 룰에 따라 승패가 결정됩니다.';
+            },
+            position: 'bottom'
+        },
+        {
+            target: '#readyButton',
+            title: '3단계: 준비하기',
+            content: function() {
+                return isHost
+                    ? '모든 참가자가 이 버튼을 누르면 게임을 시작할 수 있습니다. 접속자 목록에서 드래그로 준비시킬 수도 있습니다.'
+                    : '이 버튼을 클릭하면 준비 완료! 모든 참가자가 준비되면 방장이 게임을 시작합니다.';
+            },
+            position: 'bottom'
+        },
+        {
+            target: '#startButton',
+            title: '4단계: 게임 시작',
+            content: '이 버튼을 누르면 모든 참가자가 주사위를 굴릴 수 있습니다!',
+            position: 'top'
+        },
+        {
+            target: '#diceIdleEmoji',
+            title: '5단계: 주사위 굴리기 — 버튼',
+            content: '게임이 시작되면 이 🎲 아이콘을 클릭해서 주사위를 굴릴 수 있습니다.',
+            position: 'top'
+        },
+        {
+            target: '#chatInput',
+            title: '6단계: 주사위 굴리기 — 채팅 명령어',
+            content: '채팅창에 /주사위 를 입력하고 엔터를 눌러도 주사위를 굴릴 수 있습니다.',
+            position: 'top',
+            beforeShow: function() {
+                var input = document.getElementById('chatInput');
+                if (input) {
+                    input._origPlaceholder = input.placeholder;
+                    input.placeholder = '/주사위';
+                }
+            },
+            cleanup: function() {
+                var input = document.getElementById('chatInput');
+                if (input && input._origPlaceholder) {
+                    input.placeholder = input._origPlaceholder;
+                    delete input._origPlaceholder;
+                }
+            }
+        },
+        {
+            target: '#chatMessages',
+            title: '7단계: 채팅',
+            content: '채팅으로 대화할 수 있습니다. /주사위 를 치면 우측에 결과가 표시됩니다.',
+            position: 'top',
+            beforeShow: function() {
+                var cm = document.getElementById('chatMessages');
+                if (!cm || document.getElementById('tutorialFakeChat')) return;
+                var wrap = document.createElement('div');
+                wrap.id = 'tutorialFakeChat';
+                var msgs = [
+                    { name: '감자', msg: '/주사위', dice: '🎲 42' },
+                    { name: '이더', msg: '/주사위', dice: '🎲 87' },
+                    { name: '👑 램다이스', msg: '/주사위', dice: '🎲 15' }
+                ];
+                msgs.forEach(function(m) {
+                    var div = document.createElement('div');
+                    div.style.cssText = 'margin-bottom:8px;padding:8px;background:var(--bg-white);border-radius:6px;border-left:3px solid var(--dice-500);';
+                    var row = document.createElement('div');
+                    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+                    var left = document.createElement('span');
+                    left.style.cssText = 'display:flex;align-items:center;';
+                    var nameSpan = document.createElement('span');
+                    nameSpan.style.cssText = 'font-weight:600;color:var(--dice-500);margin-right:8px;';
+                    nameSpan.textContent = m.name;
+                    var msgSpan = document.createElement('span');
+                    msgSpan.style.color = 'var(--text-primary)';
+                    msgSpan.textContent = m.msg;
+                    left.appendChild(nameSpan);
+                    left.appendChild(msgSpan);
+                    row.appendChild(left);
+                    var right = document.createElement('span');
+                    right.style.cssText = 'font-weight:600;color:var(--text-primary);';
+                    right.textContent = m.dice;
+                    row.appendChild(right);
+                    div.appendChild(row);
+                    wrap.appendChild(div);
+                });
+                cm.innerHTML = '';
+                cm.appendChild(wrap);
+                cm.scrollTop = 0;
+            },
+            cleanup: function() {
+                var el = document.getElementById('tutorialFakeChat');
+                if (el) el.remove();
+                var cm = document.getElementById('chatMessages');
+                if (cm && cm.childNodes.length === 0) {
+                    var empty = document.createElement('div');
+                    empty.style.cssText = 'color:var(--text-muted);text-align:center;padding:10px;';
+                    empty.textContent = '채팅 메시지가 없습니다';
+                    cm.appendChild(empty);
+                }
+            }
+        },
+        {
+            target: '#rankingBtn',
+            title: '8단계: 랭킹',
+            content: '이 버튼을 누르면 전체 순위를 확인할 수 있습니다.',
+            position: 'top'
+        },
+        {
+            target: '#ordersSection',
+            title: '9단계: 주문받기',
+            content: function() {
+                return isHost
+                    ? '주문받기 시작 버튼을 누르면 참가자들이 주문을 입력할 수 있습니다.'
+                    : '방장이 주문받기를 시작하면 주문할 상품을 입력할 수 있습니다.';
+            },
+            position: 'top'
+        }
+    ];
+
+    window.addEventListener('load', function() {
+        if (typeof socket === 'undefined') return;
+
+        var helpBtn = document.createElement('button');
+        helpBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+        helpBtn.title = '게임 튜토리얼 보기';
+        helpBtn.style.cssText = [
+            'margin-left:auto; width:28px; height:28px; border-radius:50%;',
+            'background:linear-gradient(135deg,#8b5cf6,#a78bfa);',
+            'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
+            'display:flex; align-items:center; justify-content:center; padding:0;',
+            'box-shadow:0 2px 8px rgba(139,92,246,0.5); flex-shrink:0;'
+        ].join('');
+        helpBtn.addEventListener('click', function() {
+            TutorialModule.reset('dice');
+            TutorialModule.start('dice', DICE_TUTORIAL_STEPS, { force: true });
+        });
+        var titleEl = document.querySelector('.users-section .users-title');
+        if (titleEl) {
+            titleEl.style.display = 'flex';
+            titleEl.style.alignItems = 'center';
+            titleEl.style.flexWrap = 'wrap';
+            titleEl.appendChild(helpBtn);
+        }
+
+        socket.on('roomJoined', function() {
+            setTimeout(function() {
+                TutorialModule.setUser(socket, currentUser || '', function() {
+                    TutorialModule.start('dice', DICE_TUTORIAL_STEPS);
+                });
+            }, 1500);
+        });
+    });
+    </script>
     <script src="/js/ads.js"></script>
 </body>
 </html>
