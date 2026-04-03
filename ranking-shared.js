@@ -105,8 +105,27 @@ const RankingModule = (function () {
 
     const CSS = `
         #ranking-overlay {
+            --rk-bg-start: #1a1a2e;
+            --rk-bg-end: #16213e;
+            --rk-accent: #667eea;
+            --rk-accent-light: #8B9CF7;
+            --rk-accent-purple: #764ba2;
+            --rk-accent-purple2: #9B59B6;
+            --rk-gold: #FFD700;
+            --rk-silver: #C0C0C0;
+            --rk-bronze: #CD7F32;
+            --rk-text: rgba(255,255,255,0.85);
+            --rk-text-dim: rgba(255,255,255,0.5);
+            --rk-text-muted: rgba(255,255,255,0.4);
+            --rk-border: rgba(255,255,255,0.08);
+            --rk-border-light: rgba(255,255,255,0.12);
+            --rk-surface: rgba(255,255,255,0.06);
+            --rk-surface-hover: rgba(255,255,255,0.03);
+            --rk-btn-bg: rgba(255,255,255,0.2);
+            --rk-btn-hover: rgba(255,255,255,0.3);
+
             position: fixed; inset: 0; z-index: 9999;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(180deg, var(--rk-bg-start) 0%, var(--rk-bg-end) 100%);
             display: flex; flex-direction: column;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             opacity: 0; transition: opacity 0.25s ease;
@@ -125,7 +144,7 @@ const RankingModule = (function () {
         .rk-header {
             display: flex; align-items: center; gap: 12px;
             padding: 18px 16px 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #9B59B6 100%);
+            background: linear-gradient(135deg, var(--rk-accent) 0%, var(--rk-accent-purple) 50%, var(--rk-accent-purple2) 100%);
             color: white; flex-shrink: 0;
             position: relative; overflow: hidden;
         }
@@ -140,13 +159,13 @@ const RankingModule = (function () {
             background: rgba(255,255,255,0.08);
         }
         .rk-back-btn {
-            background: rgba(255,255,255,0.2); border: none; color: white;
+            background: var(--rk-btn-bg); border: none; color: white;
             width: 38px; height: 38px; border-radius: 12px;
             font-size: 1.15em; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s; z-index: 1;
         }
-        .rk-back-btn:hover { background: rgba(255,255,255,0.3); }
+        .rk-back-btn:hover { background: var(--rk-btn-hover); }
         .rk-back-btn:active { transform: scale(0.95); }
         .rk-header-title {
             font-family: 'Jua', sans-serif;
@@ -159,8 +178,8 @@ const RankingModule = (function () {
         .rk-tabs {
             display: flex; justify-content: center; gap: 8px;
             padding: 12px 16px;
-            background: rgba(255,255,255,0.03);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: var(--rk-surface-hover);
+            border-bottom: 1px solid var(--rk-surface);
             flex-shrink: 0;
         }
         .rk-tab {
@@ -169,22 +188,22 @@ const RankingModule = (function () {
             border-radius: 14px;
             font-family: 'Jua', sans-serif;
             font-size: 1em; cursor: pointer;
-            border: 2px solid rgba(102,126,234,0.2);
+            border: 2px solid rgba(102,126,234,0.2); /* --rk-accent */
             background: rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.5);
+            color: var(--rk-text-dim);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
         }
         .rk-tab.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--rk-accent), var(--rk-accent-purple));
             color: white; border-color: transparent;
-            box-shadow: 0 4px 16px rgba(102,126,234,0.4);
+            box-shadow: 0 4px 16px rgba(102,126,234,0.4); /* --rk-accent */
             transform: scale(1.03);
         }
         .rk-tab:not(.active):hover {
-            background: rgba(255,255,255,0.08);
+            background: var(--rk-border);
             color: rgba(255,255,255,0.7);
-            border-color: rgba(102,126,234,0.3);
+            border-color: rgba(102,126,234,0.3); /* --rk-accent */
         }
         .rk-tab:active { transform: scale(0.97); }
 
@@ -205,7 +224,7 @@ const RankingModule = (function () {
             border-radius: 20px;
             font-family: 'Jua', sans-serif;
             font-size: 0.88em; cursor: pointer;
-            border: 1.5px solid rgba(255,255,255,0.12);
+            border: 1.5px solid var(--rk-border-light);
             background: rgba(255,255,255,0.04);
             color: rgba(255,255,255,0.45);
             transition: all 0.25s; white-space: nowrap;
@@ -221,34 +240,34 @@ const RankingModule = (function () {
         }
         .rk-search-input {
             flex: 1; padding: 10px 14px; border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--rk-border-light);
+            background: var(--rk-surface);
             color: rgba(255,255,255,0.9);
             font-size: 0.95em;
         }
-        .rk-search-input::placeholder { color: rgba(255,255,255,0.4); }
+        .rk-search-input::placeholder { color: var(--rk-text-muted); }
         .rk-search-btn {
             padding: 10px 18px; border-radius: 12px; border: none;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--rk-accent), var(--rk-accent-purple));
             color: white; font-weight: 600; cursor: pointer;
             white-space: nowrap;
         }
         .rk-search-btn:active { transform: scale(0.97); }
         .rk-top10-label {
             font-family: 'Jua', sans-serif; font-size: 1em;
-            color: #8B9CF7; margin: 0 0 8px 4px; padding: 0;
+            color: var(--rk-accent-light); margin: 0 0 8px 4px; padding: 0;
         }
         .rk-my-rank-card, .rk-search-result-card {
             margin: 16px 0; padding: 14px 16px;
-            border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.06);
+            border-radius: 16px; border: 1px solid var(--rk-border);
+            background: var(--rk-surface);
         }
         .rk-my-rank-title, .rk-search-result-title {
             font-family: 'Jua', sans-serif; font-size: 0.95em;
-            color: #8B9CF7; margin-bottom: 8px;
+            color: var(--rk-accent-light); margin-bottom: 8px;
         }
         .rk-my-rank-body, .rk-search-result-body {
-            color: rgba(255,255,255,0.85); font-size: 0.9em; line-height: 1.6;
+            color: var(--rk-text); font-size: 0.9em; line-height: 1.6;
         }
 
         /* ── 콘텐츠 ── */
@@ -269,22 +288,22 @@ const RankingModule = (function () {
         .rk-section:nth-child(4) { animation-delay: 0.15s; }
         .rk-section-title {
             font-family: 'Jua', sans-serif;
-            font-size: 0.95em; color: #8B9CF7;
+            font-size: 0.95em; color: var(--rk-accent-light);
             margin: 0 0 10px 4px;
             display: flex; align-items: center; gap: 8px;
         }
         .rk-section-title::after {
             content: ''; flex: 1; height: 1px;
-            background: linear-gradient(90deg, rgba(102,126,234,0.3), transparent);
+            background: linear-gradient(90deg, rgba(102,126,234,0.3), transparent); /* --rk-accent */
         }
 
         /* ── 카드 ── */
         .rk-card {
-            background: rgba(255,255,255,0.06);
+            background: var(--rk-surface);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid var(--rk-border);
             overflow: hidden;
         }
 
@@ -296,18 +315,18 @@ const RankingModule = (function () {
             transition: background 0.2s;
         }
         .rk-row:last-child { border-bottom: none; }
-        .rk-row:hover { background: rgba(255,255,255,0.03); }
+        .rk-row:hover { background: var(--rk-surface-hover); }
         .rk-rank {
             min-width: 32px; text-align: center;
             flex-shrink: 0;
         }
         .rk-name {
-            flex: 1; color: rgba(255,255,255,0.85); font-size: 0.93em;
+            flex: 1; color: var(--rk-text); font-size: 0.93em;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .rk-top3 .rk-name { font-weight: 600; color: rgba(255,255,255,0.95); }
         .rk-value {
-            color: #FFD700; font-size: 0.88em; font-weight: 600;
+            color: var(--rk-gold); font-size: 0.88em; font-weight: 600;
             white-space: nowrap;
         }
 
@@ -319,24 +338,24 @@ const RankingModule = (function () {
             font-size: 0.85em; font-weight: 700; color: white;
         }
         .rk-gold {
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            box-shadow: 0 0 12px rgba(255,215,0,0.5);
+            background: linear-gradient(135deg, var(--rk-gold), #FFA500);
+            box-shadow: 0 0 12px rgba(255,215,0,0.5); /* --rk-gold */
             animation: rkPulseGold 2.5s ease-in-out infinite;
         }
         .rk-silver {
-            background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
-            box-shadow: 0 0 8px rgba(192,192,192,0.3);
+            background: linear-gradient(135deg, var(--rk-silver), #A8A8A8);
+            box-shadow: 0 0 8px rgba(192,192,192,0.3); /* --rk-silver */
         }
         .rk-bronze {
-            background: linear-gradient(135deg, #CD7F32, #B87333);
-            box-shadow: 0 0 8px rgba(205,127,50,0.3);
+            background: linear-gradient(135deg, var(--rk-bronze), #B87333);
+            box-shadow: 0 0 8px rgba(205,127,50,0.3); /* --rk-bronze */
         }
         .rk-rank-num {
             display: inline-flex; align-items: center; justify-content: center;
             width: 28px; height: 28px; border-radius: 50%;
             font-size: 0.8em; font-weight: 700;
             color: rgba(255,255,255,0.35);
-            background: rgba(255,255,255,0.06);
+            background: var(--rk-surface);
         }
 
         /* ── 빈 상태 ── */
@@ -353,9 +372,9 @@ const RankingModule = (function () {
         /* ── 스켈레톤 로딩 ── */
         .rk-skeleton-section { margin-bottom: 20px; }
         .rk-skeleton-card {
-            background: rgba(255,255,255,0.06);
+            background: var(--rk-surface);
             border-radius: 16px; padding: 4px 0;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid var(--rk-border);
         }
         .rk-skeleton-row {
             display: flex; align-items: center;
@@ -376,7 +395,7 @@ const RankingModule = (function () {
         /* ── 당겨서 새로고침 ── */
         .rk-pull-indicator {
             text-align: center; padding: 12px;
-            color: rgba(255,255,255,0.4);
+            color: var(--rk-text-muted);
             font-family: 'Jua', sans-serif;
             font-size: 0.85em; transition: opacity 0.2s;
         }
@@ -388,9 +407,9 @@ const RankingModule = (function () {
         }
         .rk-vehicle-table th {
             padding: 10px 6px; text-align: center;
-            color: rgba(255,255,255,0.4); font-weight: 600;
+            color: var(--rk-text-muted); font-weight: 600;
             font-size: 0.85em;
-            border-bottom: 2px solid rgba(255,255,255,0.08);
+            border-bottom: 2px solid var(--rk-border);
         }
         .rk-vehicle-table th:first-child { text-align: left; padding-left: 14px; }
         .rk-vehicle-table td {
@@ -400,17 +419,17 @@ const RankingModule = (function () {
         }
         .rk-vehicle-table td:first-child {
             text-align: left; padding-left: 14px;
-            font-weight: 600; color: rgba(255,255,255,0.85);
+            font-weight: 600; color: var(--rk-text);
         }
         .rk-vehicle-table tr:last-child td { border-bottom: none; }
-        .rk-vehicle-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .rk-vehicle-table tr:hover td { background: var(--rk-surface-hover); }
         .rk-rank-cell {
             display: inline-flex; align-items: center; justify-content: center;
             min-width: 26px; height: 22px; border-radius: 6px;
             font-weight: 600; font-size: 0.9em;
         }
-        .rk-rank-1 { background: rgba(255,215,0,0.15); color: #FFD700; }
-        .rk-rank-6 { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .rk-rank-1 { background: rgba(255,215,0,0.15); color: var(--rk-gold); }
+        .rk-rank-6 { background: rgba(239,68,68,0.15); color: var(--red-500, #ef4444); } /* --red-500 */
 
         /* ── 애니메이션 ── */
         @keyframes rkSpin { to { transform: rotate(360deg); } }
@@ -423,8 +442,8 @@ const RankingModule = (function () {
             to { opacity: 1; max-height: 60px; }
         }
         @keyframes rkPulseGold {
-            0%, 100% { box-shadow: 0 0 12px rgba(255,215,0,0.5); }
-            50% { box-shadow: 0 0 20px rgba(255,215,0,0.8); }
+            0%, 100% { box-shadow: 0 0 12px rgba(255,215,0,0.5); } /* --rk-gold */
+            50% { box-shadow: 0 0 20px rgba(255,215,0,0.8); } /* --rk-gold */
         }
         @keyframes rkFadeInUp {
             from { opacity: 0; transform: translateY(12px); }
@@ -433,14 +452,14 @@ const RankingModule = (function () {
 
         /* ── 새 시즌 버튼 ── */
         .rk-reset-btn {
-            background: rgba(255,255,255,0.2); border: none; color: white;
+            background: var(--rk-btn-bg); border: none; color: white;
             width: 38px; height: 38px; border-radius: 12px;
             font-size: 1.15em; cursor: pointer;
             display: none; align-items: center; justify-content: center;
             transition: background 0.2s; z-index: 1;
             margin-left: auto;
         }
-        .rk-reset-btn:hover { background: rgba(59,130,246,0.5); /* --blue-500 */ }
+        .rk-reset-btn:hover { background: rgba(59,130,246,0.5); } /* --blue-500 */
         .rk-reset-btn:active { transform: scale(0.95); }
 
         /* ── 확인바 / 피드백바 ── */
@@ -482,17 +501,17 @@ const RankingModule = (function () {
         .rk-season-bar {
             display: flex; align-items: center; gap: 8px;
             padding: 8px 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid var(--rk-surface);
         }
         .rk-season-select {
-            background: var(--md-gray-900, #1a1a2e);
+            background: var(--gray-900, var(--rk-bg-start));
             border: 1px solid rgba(255,255,255,0.15);
             color: white; border-radius: 8px;
             padding: 5px 10px; font-size: 0.85em;
             font-family: 'Jua', sans-serif;
         }
         .rk-season-label {
-            color: rgba(255,255,255,0.5);
+            color: var(--rk-text-dim);
             font-size: 0.8em;
         }
     `;
@@ -594,9 +613,9 @@ const RankingModule = (function () {
                     c.style.borderColor = c.dataset.color;
                     c.style.color = 'white';
                 } else {
-                    c.style.background = 'rgba(255,255,255,0.04)';
-                    c.style.borderColor = 'rgba(255,255,255,0.12)';
-                    c.style.color = 'rgba(255,255,255,0.45)';
+                    c.style.background = '';
+                    c.style.borderColor = '';
+                    c.style.color = '';
                 }
             });
         }
@@ -616,9 +635,9 @@ const RankingModule = (function () {
                 c.style.borderColor = c.dataset.color;
                 c.style.color = 'white';
             } else {
-                c.style.background = 'rgba(255,255,255,0.04)';
-                c.style.borderColor = 'rgba(255,255,255,0.12)';
-                c.style.color = 'rgba(255,255,255,0.45)';
+                c.style.background = '';
+                c.style.borderColor = '';
+                c.style.color = '';
             }
         });
         renderGameContent(key);
