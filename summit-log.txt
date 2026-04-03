@@ -1,4 +1,63 @@
 ========================================
+📋 Summit Log - 2026-04-04 (랭킹 시즌 아카이브)
+========================================
+
+## 변경 파일
+- db/init.js: servers.current_season 컬럼 추가, season_archives 테이블 생성
+- db/ranking.js: resetRanking 삭제 → startNewSeason(트랜잭션), getCurrentSeason, getSeasonList, getSeasonRanking 추가
+- routes/server.js: DELETE /ranking/:id 삭제 → POST /ranking/:id/new-season, GET season/seasons/season/:n API 3개 추가, 기존 GET 응답에 currentSeason 필드 추가
+- ranking-shared.js: 🗑️→🔄 버튼 변경, 시즌 표시(헤더), 시즌 셀렉터(드롭다운), 과거 시즌 열람, doReset→doNewSeason, 색상 CSS 변수 전환
+- dice-game-multiplayer.html: newSeason 소켓 리스너, 로비 setHost 추가
+- roulette-game-multiplayer.html: newSeason 소켓 리스너
+- crane-game-multiplayer.html: newSeason 소켓 리스너, RankingModule.init 누락 수정
+- js/horse-race.js: newSeason 소켓 리스너
+- horse-app/src/utils/externalModules.ts: setHost, onNewSeason, forceHide 타입 추가
+- AutoTest/ranking-season-test.js: Playwright E2E 테스트 (6항목)
+
+## 상세 변경 내역
+
+### DB 스키마 (db/init.js)
+- servers 테이블에 current_season INTEGER DEFAULT 1 컬럼 추가 (DO $$ 마이그레이션)
+- season_archives 테이블 신규: server_game_records와 동일 구조 + season, archived_at
+- 인덱스 idx_sa_server_season 생성
+
+### 백엔드 로직 (db/ranking.js)
+- resetRanking(DELETE만) 삭제
+- startNewSeason: pool.connect 트랜잭션 (BEGIN→INSERT INTO season_archives SELECT→DELETE→UPDATE season→COMMIT→ROLLBACK/release)
+- getCurrentSeason: servers.current_season 조회
+- getSeasonList: season_archives GROUP BY season, 게임수/기간 요약
+- getSeasonRanking: season_archives 대상 종합 랭킹 (mostPlayed, mostWins, winRate, avgRank)
+
+### API (routes/server.js)
+- DELETE /ranking/:serverId 제거 → POST /ranking/:serverId/new-season (호스트 검증, newSeason 반환)
+- GET /ranking/:serverId/season — 현재 시즌 번호
+- GET /ranking/:serverId/seasons — 과거 시즌 목록
+- GET /ranking/:serverId/season/:season — 특정 시즌 랭킹 ({ overall: {...}, season })
+- 기존 GET /api/ranking/:serverId 응답에 currentSeason 필드 추가
+- 소켓 이벤트: rankingReset → newSeason ({ serverId, newSeason })
+
+### 프론트엔드 (ranking-shared.js)
+- _currentSeason, _viewingSeason 상태 변수 추가
+- 버튼: 🗑️(&#128465;) → 🔄(&#128260;), hover 파랑(--blue-500)
+- 확인바: "게임 기록을 초기화할까요?" → "새 시즌을 시작할까요?", 파랑 테마
+- 피드백: "시즌 N이 시작되었습니다"
+- 헤더: "🏆 랭킹 · 시즌 N" 동적 표시
+- 시즌 셀렉터: fetchSeasonList → renderSeasonBar 드롭다운
+- 과거 시즌 열람: fetchRanking에서 _viewingSeason 분기, 게임별 탭 숨김
+- fetchAndRender().then(fetchSeasonList) 순서 보장 (타이밍 버그 수정)
+- CSS: 하드코딩 색상을 var(--blue-500), var(--green-500) 등 CSS 변수로 전환 (투명도 필요 시 rgba + 주석)
+
+### 버그 수정
+- crane-game RankingModule.init() 누락 수정 (roomCreated/roomJoined)
+- free play에서 새 시즌 버튼 숨김 (_isHost && _serverId && !_viewingSeason)
+- 소켓 페이로드 키 불일치 수정 (season → newSeason)
+- 시즌 셀렉터 객체/숫자 타입 불일치 수정
+- 시즌 셀렉터에 현재 시즌 옵션 항상 포함
+- 드롭다운 흰배경/흰텍스트 문제 → 배경 var(--md-gray-900) 적용
+
+========================================
+
+========================================
 📋 Summit Log - 2026-03-23 (주사위 튜토리얼 구현)
 ========================================
 

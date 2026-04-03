@@ -9,7 +9,7 @@ const {
 } = require('../db/servers');
 const { register: authRegister, login: authLogin } = require('../db/auth');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
-const { getFullRanking, getMyRank } = require('../db/ranking');
+const { getFullRanking, getMyRank, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking } = require('../db/ranking');
 
 // Rate Limiting (Server API 전용)
 let rateLimit;
@@ -368,6 +368,7 @@ router.get('/ranking/:serverId(\\d+)', async (req, res) => {
         const isPrivate = !!(server.password_hash && server.password_hash !== '');
         const userName = req.query.userName || null;
         const ranking = await getFullRanking(serverId, userName, isPrivate);
+        ranking.currentSeason = await getCurrentSeason(serverId);
         res.json(ranking);
     } catch (e) {
         res.status(500).json({ error: '랭킹 조회 실패' });
@@ -388,6 +389,85 @@ router.get('/ranking/:serverId(\\d+)/search', async (req, res) => {
         res.json(hasAny ? { found: true, userName, myRank } : { found: false, userName });
     } catch (e) {
         res.status(500).json({ error: '랭킹 검색 실패' });
+    }
+});
+
+// 새 시즌 시작 (호스트 전용)
+router.post('/ranking/:serverId(\\d+)/new-season', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ success: false, error: '유효하지 않은 서버 ID' });
+        }
+
+        const { hostName } = req.body || {};
+        if (!hostName) {
+            return res.status(400).json({ success: false, error: 'hostName 필요' });
+        }
+
+        const server = await getServerById(serverId);
+        if (!server) return res.status(404).json({ success: false, error: '서버를 찾을 수 없습니다.' });
+        if (server.host_name !== hostName) {
+            return res.status(403).json({ success: false, error: '서버 호스트만 새 시즌을 시작할 수 있습니다.' });
+        }
+
+        const newSeason = await startNewSeason(serverId);
+        console.log(`[newSeason] serverId=${serverId}, host=${hostName}, season=${newSeason}`);
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`server:${serverId}`).emit('newSeason', { serverId, newSeason });
+        }
+
+        res.json({ success: true, newSeason });
+    } catch (e) {
+        res.status(500).json({ success: false, error: '새 시즌 시작 실패' });
+    }
+});
+
+// 현재 시즌 조회
+router.get('/ranking/:serverId(\\d+)/season', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        }
+        const season = await getCurrentSeason(serverId);
+        res.json({ season });
+    } catch (e) {
+        res.status(500).json({ error: '시즌 조회 실패' });
+    }
+});
+
+// 시즌 목록 조회
+router.get('/ranking/:serverId(\\d+)/seasons', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        }
+        const seasons = await getSeasonList(serverId);
+        res.json({ seasons });
+    } catch (e) {
+        res.status(500).json({ error: '시즌 목록 조회 실패' });
+    }
+});
+
+// 특정 시즌 랭킹 조회
+router.get('/ranking/:serverId(\\d+)/season/:season(\\d+)', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        const season = parseInt(req.params.season);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        }
+        if (isNaN(season) || season <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 시즌 번호' });
+        }
+        const ranking = await getSeasonRanking(serverId, season);
+        res.json({ overall: ranking, season });
+    } catch (e) {
+        res.status(500).json({ error: '시즌 랭킹 조회 실패' });
     }
 });
 

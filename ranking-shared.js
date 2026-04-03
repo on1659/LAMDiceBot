@@ -2,10 +2,13 @@
 const RankingModule = (function () {
     let _serverId = null;
     let _userName = null;
+    let _isHost = false;
     let _overlay = null;
     let _cache = null;
     let _cacheTime = 0;
     const CACHE_TTL = 10000; // 10초
+    let _currentSeason = 1;
+    let _viewingSeason = null; // null = 현재 시즌
 
     // 탭 상태
     let _currentMainTab = 'overall';
@@ -24,6 +27,14 @@ const RankingModule = (function () {
         _userName = userName;
     }
 
+    function setHost(isHost) {
+        _isHost = !!isHost;
+        if (_overlay) {
+            const btn = _overlay.querySelector('.rk-reset-btn');
+            if (btn) btn.style.display = (_isHost && _serverId && !_viewingSeason) ? 'flex' : 'none';
+        }
+    }
+
     function invalidateCache() {
         _cache = null;
         _cacheTime = 0;
@@ -31,14 +42,23 @@ const RankingModule = (function () {
 
     async function fetchRanking() {
         if (_cache && Date.now() - _cacheTime < CACHE_TTL) return _cache;
-        const url = _serverId
-            ? `/api/ranking/${_serverId}?userName=${encodeURIComponent(_userName || '')}`
-            : '/api/ranking/free';
+        let url;
+        if (_viewingSeason && _serverId) {
+            url = `/api/ranking/${_serverId}/season/${_viewingSeason}?userName=${encodeURIComponent(_userName || '')}`;
+        } else if (_serverId) {
+            url = `/api/ranking/${_serverId}?userName=${encodeURIComponent(_userName || '')}`;
+        } else {
+            url = '/api/ranking/free';
+        }
         try {
             const res = await fetch(url);
             if (!res.ok) throw new Error('Failed');
             _cache = await res.json();
             _cacheTime = Date.now();
+            if (_cache.currentSeason) {
+                _currentSeason = _cache.currentSeason;
+                updateSeasonTitle();
+            }
             return _cache;
         } catch (e) {
             console.warn('랭킹 조회 실패:', e);
@@ -56,9 +76,10 @@ const RankingModule = (function () {
             _currentGameTab = 'dice';
         }
         _searchResult = null;
+        _viewingSeason = null;
         if (typeof PageHistoryManager !== 'undefined') PageHistoryManager.pushPage('ranking');
         createOverlay();
-        fetchAndRender();
+        fetchAndRender().then(() => fetchSeasonList());
     }
 
     function hide() {
@@ -409,6 +430,71 @@ const RankingModule = (function () {
             from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* ── 새 시즌 버튼 ── */
+        .rk-reset-btn {
+            background: rgba(255,255,255,0.2); border: none; color: white;
+            width: 38px; height: 38px; border-radius: 12px;
+            font-size: 1.15em; cursor: pointer;
+            display: none; align-items: center; justify-content: center;
+            transition: background 0.2s; z-index: 1;
+            margin-left: auto;
+        }
+        .rk-reset-btn:hover { background: rgba(59,130,246,0.5); /* --blue-500 */ }
+        .rk-reset-btn:active { transform: scale(0.95); }
+
+        /* ── 확인바 / 피드백바 ── */
+        .rk-confirm-bar {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            padding: 10px 16px;
+            background: rgba(59,130,246,0.15); /* --blue-500 */
+            border-bottom: 1px solid rgba(59,130,246,0.3); /* --blue-500 */
+            font-family: 'Jua', sans-serif; font-size: 0.9em;
+            color: rgba(255,255,255,0.9);
+            flex-shrink: 0;
+            animation: rkSlideDown 0.2s ease;
+        }
+        .rk-confirm-yes {
+            padding: 6px 16px; border: none; border-radius: 8px;
+            background: var(--blue-500); color: white;
+            font-family: 'Jua', sans-serif; font-size: 0.85em;
+            cursor: pointer; white-space: nowrap;
+        }
+        .rk-confirm-yes:active { transform: scale(0.95); }
+        .rk-confirm-no {
+            padding: 6px 16px; border: none; border-radius: 8px;
+            background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8);
+            font-family: 'Jua', sans-serif; font-size: 0.85em;
+            cursor: pointer; white-space: nowrap;
+        }
+        .rk-confirm-no:active { transform: scale(0.95); }
+        .rk-feedback-bar {
+            display: flex; align-items: center; justify-content: center;
+            padding: 10px 16px;
+            font-family: 'Jua', sans-serif; font-size: 0.9em;
+            color: white; flex-shrink: 0;
+            animation: rkSlideDown 0.2s ease;
+        }
+        .rk-feedback-bar.success { background: rgba(40,167,69,0.3); /* --green-500 */ }
+        .rk-feedback-bar.error { background: rgba(220,53,69,0.3); /* --red-500 */ }
+
+        /* ── 시즌 셀렉터 ── */
+        .rk-season-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .rk-season-select {
+            background: var(--md-gray-900, #1a1a2e);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white; border-radius: 8px;
+            padding: 5px 10px; font-size: 0.85em;
+            font-family: 'Jua', sans-serif;
+        }
+        .rk-season-label {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8em;
+        }
     `;
 
     // ─── 오버레이 생성 ───
@@ -420,8 +506,11 @@ const RankingModule = (function () {
             <style>${CSS}</style>
             <div class="rk-header">
                 <button class="rk-back-btn" onclick="RankingModule.hide()">&#8592;</button>
-                <span class="rk-header-title">🏆 랭킹</span>
+                <span class="rk-header-title">🏆 랭킹 · 시즌 ${_currentSeason}</span>
+                <button class="rk-reset-btn" style="display:${(_isHost && _serverId && !_viewingSeason) ? 'flex' : 'none'}" onclick="RankingModule._showConfirm()">&#128260;</button>
             </div>
+            <div id="ranking-confirm-slot"></div>
+            <div id="ranking-season-bar"></div>
             <div class="rk-tabs" id="ranking-tabs"></div>
             <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
             <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
@@ -600,10 +689,10 @@ const RankingModule = (function () {
         // 메인 탭 생성
         const tabsEl = document.getElementById('ranking-tabs');
         tabsEl.innerHTML = '';
-        const mainTabs = [
-            { label: '🏆 종합', key: 'overall' },
-            { label: '🎮 게임별', key: 'games' }
-        ];
+        if (_viewingSeason) _currentMainTab = 'overall';
+        const mainTabs = _viewingSeason
+            ? [{ label: '🏆 종합', key: 'overall' }]
+            : [{ label: '🏆 종합', key: 'overall' }, { label: '🎮 게임별', key: 'games' }];
         mainTabs.forEach((t) => {
             const btn = document.createElement('button');
             btn.className = 'rk-tab' + (t.key === _currentMainTab ? ' active' : '');
@@ -1009,5 +1098,134 @@ const RankingModule = (function () {
         }, { passive: true });
     }
 
-    return { init, show, hide, forceHide, invalidateCache };
+    // ─── 초기화 확인바 ───
+
+    let _confirmTimer = null;
+
+    function showConfirm() {
+        const slot = document.getElementById('ranking-confirm-slot');
+        if (!slot) return;
+        clearConfirmTimer();
+        slot.innerHTML = `
+            <div class="rk-confirm-bar">
+                <span>새 시즌을 시작할까요?</span>
+                <button class="rk-confirm-no" onclick="RankingModule._hideConfirm()">취소</button>
+                <button class="rk-confirm-yes" onclick="RankingModule._doNewSeason()">시작</button>
+            </div>`;
+        _confirmTimer = setTimeout(hideConfirm, 3000);
+    }
+
+    function hideConfirm() {
+        clearConfirmTimer();
+        const slot = document.getElementById('ranking-confirm-slot');
+        if (slot) slot.innerHTML = '';
+    }
+
+    function clearConfirmTimer() {
+        if (_confirmTimer) { clearTimeout(_confirmTimer); _confirmTimer = null; }
+    }
+
+    function showFeedback(msg, ok) {
+        const slot = document.getElementById('ranking-confirm-slot');
+        if (!slot) return;
+        clearConfirmTimer();
+        slot.innerHTML = `<div class="rk-feedback-bar ${ok ? 'success' : 'error'}">${esc(msg)}</div>`;
+        setTimeout(() => { if (slot) slot.innerHTML = ''; }, 2000);
+    }
+
+    async function doNewSeason() {
+        hideConfirm();
+        try {
+            const res = await fetch(`/api/ranking/${_serverId}/new-season`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hostName: _userName })
+            });
+            if (!res.ok) throw new Error('Failed');
+            const result = await res.json();
+            const newSeason = result.newSeason || (_currentSeason + 1);
+            _currentSeason = newSeason;
+            _viewingSeason = null;
+            showFeedback(`시즌 ${newSeason}이 시작되었습니다`, true);
+            invalidateCache();
+            fetchAndRender();
+            fetchSeasonList();
+        } catch (e) {
+            showFeedback('시즌 시작에 실패했습니다', false);
+        }
+    }
+
+    function onNewSeason(data) {
+        if (data && data.newSeason) _currentSeason = data.newSeason;
+        _viewingSeason = null;
+        invalidateCache();
+        if (_overlay) {
+            updateSeasonTitle();
+            updateResetBtnVisibility();
+            fetchAndRender();
+            fetchSeasonList();
+        }
+    }
+
+    function updateSeasonTitle() {
+        if (!_overlay) return;
+        const titleEl = _overlay.querySelector('.rk-header-title');
+        if (titleEl) {
+            const viewing = _viewingSeason || _currentSeason;
+            titleEl.textContent = `🏆 랭킹 · 시즌 ${viewing}`;
+        }
+    }
+
+    function updateResetBtnVisibility() {
+        if (!_overlay) return;
+        const btn = _overlay.querySelector('.rk-reset-btn');
+        if (btn) btn.style.display = (_isHost && _serverId && !_viewingSeason) ? 'flex' : 'none';
+    }
+
+    async function fetchSeasonList() {
+        if (!_serverId) return;
+        try {
+            const res = await fetch(`/api/ranking/${_serverId}/seasons`);
+            if (!res.ok) return;
+            const data = await res.json();
+            renderSeasonBar(data.seasons || []);
+        } catch (e) {
+            // 시즌 목록 조회 실패 — 무시
+        }
+    }
+
+    function renderSeasonBar(seasons) {
+        const bar = document.getElementById('ranking-season-bar');
+        if (!bar) return;
+        const nums = seasons.map(s => typeof s === 'object' ? s.season : s);
+        if (!nums.length) { bar.innerHTML = ''; return; }
+        const all = [_currentSeason, ...nums.filter(n => n !== _currentSeason)];
+        if (all.length <= 1) { bar.innerHTML = ''; return; }
+        const viewing = _viewingSeason || _currentSeason;
+        let options = '';
+        all.forEach(s => {
+            const label = s === _currentSeason ? `시즌 ${s} (현재)` : `시즌 ${s}`;
+            options += `<option value="${s}"${s === viewing ? ' selected' : ''}>${label}</option>`;
+        });
+        bar.innerHTML = `
+            <div class="rk-season-bar">
+                <span class="rk-season-label">시즌 선택</span>
+                <select class="rk-season-select" id="ranking-season-select">${options}</select>
+            </div>`;
+        const sel = document.getElementById('ranking-season-select');
+        if (sel) sel.addEventListener('change', function () {
+            const val = parseInt(this.value, 10);
+            _viewingSeason = val === _currentSeason ? null : val;
+            invalidateCache();
+            updateSeasonTitle();
+            updateResetBtnVisibility();
+            fetchAndRender();
+        });
+    }
+
+    return {
+        init, show, hide, forceHide, invalidateCache, setHost,
+        onRankingReset: onNewSeason, onNewSeason,
+        _showConfirm: showConfirm, _hideConfirm: hideConfirm, _doNewSeason: doNewSeason
+    };
 })();

@@ -2,7 +2,11 @@ export type RankingModuleType = {
   init?: (serverId?: string | null, userName?: string) => void;
   show?: () => void;
   hide?: () => void;
+  forceHide?: () => void;
   invalidateCache?: () => void;
+  setHost?: (isHost: boolean) => void;
+  onRankingReset?: (data?: unknown) => void;
+  onNewSeason?: (data?: unknown) => void;
 };
 
 export type SoundManagerType = {

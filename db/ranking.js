@@ -399,6 +399,126 @@ async function getFullRanking(serverId, userName, isPrivate) {
     return result;
 }
 
+// ─── 시즌 아카이브 ───
+
+async function startNewSeason(serverId) {
+    if (!Number.isInteger(serverId) || serverId <= 0) {
+        throw new Error('유효하지 않은 서버 ID');
+    }
+
+    const pool = getPool();
+    if (!pool) throw new Error('DB 미연결');
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 현재 시즌 조회
+        const seasonResult = await client.query(
+            'SELECT current_season FROM servers WHERE id = $1',
+            [serverId]
+        );
+        const currentSeason = seasonResult.rows[0]?.current_season || 1;
+
+        // 기존 기록을 아카이브로 복사
+        await client.query(`
+            INSERT INTO season_archives
+                (server_id, season, user_name, result, game_type, is_winner,
+                 game_session_id, range_min, range_max, game_rules, game_rank, created_at)
+            SELECT server_id, $2, user_name, result, game_type, is_winner,
+                   game_session_id, range_min, range_max, game_rules, game_rank, created_at
+            FROM server_game_records
+            WHERE server_id = $1
+        `, [serverId, currentSeason]);
+
+        // 현재 기록 삭제
+        await client.query(
+            'DELETE FROM server_game_records WHERE server_id = $1',
+            [serverId]
+        );
+
+        // 시즌 번호 증가
+        const updateResult = await client.query(
+            'UPDATE servers SET current_season = current_season + 1 WHERE id = $1 RETURNING current_season',
+            [serverId]
+        );
+
+        await client.query('COMMIT');
+        return updateResult.rows[0].current_season;
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+async function getCurrentSeason(serverId) {
+    const pool = getPool();
+    if (!pool) return 1;
+
+    const result = await pool.query(
+        'SELECT current_season FROM servers WHERE id = $1',
+        [serverId]
+    );
+    return result.rows[0]?.current_season || 1;
+}
+
+async function getSeasonList(serverId) {
+    const pool = getPool();
+    if (!pool) return [];
+
+    const result = await pool.query(`
+        SELECT season,
+               COUNT(*) AS game_count,
+               MIN(created_at) AS started_at,
+               MAX(created_at) AS ended_at
+        FROM season_archives
+        WHERE server_id = $1
+        GROUP BY season
+        ORDER BY season DESC
+    `, [serverId]);
+
+    return result.rows.map(r => ({
+        season: parseInt(r.season),
+        gameCount: parseInt(r.game_count),
+        startedAt: r.started_at,
+        endedAt: r.ended_at
+    }));
+}
+
+async function getSeasonRanking(serverId, season) {
+    const pool = getPool();
+    if (!pool) return { mostPlayed: [], mostWins: [], winRate: [], avgRank: [] };
+
+    const result = await pool.query(`
+        WITH stats AS (
+            SELECT user_name,
+                COUNT(*) AS games,
+                COUNT(*) FILTER (WHERE is_winner = true) AS wins,
+                ROUND(AVG(game_rank) FILTER (WHERE game_rank IS NOT NULL), 1) AS avg_rank,
+                COUNT(*) FILTER (WHERE game_rank IS NOT NULL AND game_rank <= 3) AS top3_count
+            FROM season_archives
+            WHERE server_id = $1 AND season = $2
+            GROUP BY user_name
+        )
+        SELECT user_name, games, wins, avg_rank, top3_count,
+            CASE WHEN games > 0 THEN ROUND(wins::numeric / games * 100, 1) ELSE 0 END AS win_rate
+        FROM stats
+        ORDER BY games DESC
+    `, [serverId, season]);
+
+    const rows = result.rows;
+    return {
+        mostPlayed: rows.slice(0, 10).map(r => ({ name: r.user_name, games: parseInt(r.games) })),
+        mostWins: [...rows].sort((a, b) => b.wins - a.wins).slice(0, 10).map(r => ({ name: r.user_name, wins: parseInt(r.wins) })),
+        winRate: rows.filter(r => parseInt(r.games) >= 5).sort((a, b) => parseFloat(b.win_rate) - parseFloat(a.win_rate)).slice(0, 10)
+            .map(r => ({ name: r.user_name, winRate: parseFloat(r.win_rate), games: parseInt(r.games), wins: parseInt(r.wins) })),
+        avgRank: rows.filter(r => r.avg_rank !== null).sort((a, b) => parseFloat(a.avg_rank) - parseFloat(b.avg_rank)).slice(0, 10)
+            .map(r => ({ name: r.user_name, avgRank: parseFloat(r.avg_rank), top3: parseInt(r.top3_count), games: parseInt(r.games) }))
+    };
+}
+
 module.exports = {
     recordOrder,
     getOverallRanking,
@@ -408,5 +528,9 @@ module.exports = {
     getMyTopOrders,
     getMyRank,
     getFullRanking,
-    getTop3Badges
+    getTop3Badges,
+    startNewSeason,
+    getCurrentSeason,
+    getSeasonList,
+    getSeasonRanking
 };

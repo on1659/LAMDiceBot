@@ -3958,6 +3958,27 @@ function initReadyModule() {
         isGameActive: () => isRaceActive,
         onReadyChanged: (users) => {
             readyUsers = users;
+            // 말 선택 UI가 활성화되어 있으면 "선택 안 한 사람" 목록 갱신
+            const selectionSection = document.getElementById('horseSelectionSection');
+            if (selectionSection && selectionSection.classList.contains('active')) {
+                const notSelectedSection = document.getElementById('notSelectedVehicleSection');
+                const notSelectedList = document.getElementById('notSelectedVehicleList');
+                if (notSelectedSection && notSelectedList) {
+                    const notSelectedUsers = readyUsers.filter(name => !selectedUsersFromServer.includes(name));
+                    if (notSelectedUsers.length > 0 && readyUsers.length > 0) {
+                        notSelectedSection.style.display = 'block';
+                        notSelectedList.innerHTML = '';
+                        notSelectedUsers.sort((a, b) => a.localeCompare(b, 'ko')).forEach(name => {
+                            const tag = document.createElement('div');
+                            tag.className = 'not-rolled-tag';
+                            tag.textContent = name + (name === currentUser ? ' (나)' : '');
+                            notSelectedList.appendChild(tag);
+                        });
+                    } else {
+                        notSelectedSection.style.display = 'none';
+                    }
+                }
+            }
         },
         onRenderComplete: (users) => {
             updateStartButton();
@@ -4206,6 +4227,7 @@ socket.on('roomCreated', (data) => {
     initOrderModule();
     if (typeof RankingModule !== 'undefined') {
         RankingModule.init(currentServerId, currentUser);
+        RankingModule.setHost(isHost);
     }
 
     // 경마 게임 상태 초기화 (gameState에서 가져오기)
@@ -4269,6 +4291,7 @@ socket.on('roomJoined', (data) => {
     initOrderModule();
     if (typeof RankingModule !== 'undefined') {
         RankingModule.init(currentServerId, currentUser);
+        RankingModule.setHost(isHost);
     }
 
     // 경마 게임 상태 초기화 (gameState에서 가져오기)
@@ -4857,6 +4880,7 @@ socket.on('updateUsers', (users) => {
     const myUser = users.find(u => u.name === currentUser);
     if (myUser && myUser.isHost !== isHost) {
         isHost = myUser.isHost;
+        if (typeof RankingModule !== 'undefined') RankingModule.setHost(isHost);
         updateHostUI();
         // 호스트 변경 시 트랙 길이 컨트롤 업데이트
         const hss = document.getElementById('horseSelectionSection');
@@ -4889,6 +4913,10 @@ socket.on('kicked', (message) => {
 // 호스트 변경 알림
 socket.on('hostChanged', (data) => {
     console.log('호스트 변경 알림:', data.message);
+});
+
+socket.on('newSeason', (data) => {
+    if (typeof RankingModule !== 'undefined') RankingModule.onNewSeason(data);
 });
 
 // 채팅은 ChatModule에서 처리 (initChatModule에서 바인딩)

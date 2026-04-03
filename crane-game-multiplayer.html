@@ -2733,6 +2733,8 @@
             readyUsers = data.readyUsers || [];
             initReadyModule();
             initOrderModule();
+            RankingModule.init(currentServerId, currentUser);
+            RankingModule.setHost(true);
 
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('gameSection').classList.add('active');
@@ -2759,6 +2761,8 @@
             readyUsers = data.readyUsers || [];
             initReadyModule();
             initOrderModule();
+            RankingModule.init(currentServerId, currentUser);
+            RankingModule.setHost(isHost);
 
             document.getElementById('gameSection').classList.add('active');
             document.body.classList.add('game-active');
@@ -2789,6 +2793,7 @@
             if (myUser && myUser.isHost !== isHost) {
                 const wasHost = isHost;
                 isHost = myUser.isHost;
+                RankingModule.setHost(isHost);
                 if (isHost && !wasHost) {
                     document.getElementById('hostBadge').style.display = 'inline-block';
                     document.getElementById('hostControls').style.display = 'block';
@@ -3011,6 +3016,10 @@
 
         socket.on('hostChanged', (data) => {
             console.log('호스트 변경 알림:', data.message);
+        });
+
+        socket.on('newSeason', (data) => {
+            RankingModule.onNewSeason(data);
         });
 
         // DOMContentLoaded

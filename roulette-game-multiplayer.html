@@ -3025,6 +3025,7 @@
             initReadyModule();
             initOrderModule();
             RankingModule.init(currentServerId, currentUser);
+            RankingModule.setHost(isHost);
 
             document.getElementById('gameSection').classList.add('active');
             document.body.classList.add('game-active');
@@ -3059,13 +3060,14 @@
             if (myUser && myUser.isHost !== isHost) {
                 const wasHost = isHost;
                 isHost = myUser.isHost;
+                RankingModule.setHost(isHost);
                 if (isHost && !wasHost) {
                     // 호스트 권한이 전달되었을 때
                     const hostBadge = document.getElementById('hostBadge');
                     if (hostBadge) hostBadge.style.display = 'inline-block';
                     document.getElementById('hostControls').style.display = 'grid';
                     updateStartButton();
-                    
+
                     // 주문받기 버튼 상태 업데이트
                     if (isOrderActive) {
                         document.getElementById('startOrderButton').style.display = 'none';
@@ -3080,13 +3082,13 @@
                     if (hostBadge) hostBadge.style.display = 'none';
                     document.getElementById('hostControls').style.display = 'none';
                     updateStartButton();
-                    
+
                     // 주문받기 버튼 숨김
                     document.getElementById('startOrderButton').style.display = 'none';
                     document.getElementById('endOrderButton').style.display = 'none';
                 }
             }
-            
+
             updateUsers(users);
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 업데이트
             if (isOrderActive) {
@@ -3468,7 +3470,11 @@
             // updateUsers 이벤트를 통해 호스트 상태 확인
             console.log('호스트 변경 알림:', data.message);
         });
-        
+
+        socket.on('newSeason', (data) => {
+            RankingModule.onNewSeason(data);
+        });
+
         // 비공개 방 체크박스 이벤트
         document.addEventListener('DOMContentLoaded', () => {
             // 볼륨 컨트롤은 ControlBar.init()에서 처리됨

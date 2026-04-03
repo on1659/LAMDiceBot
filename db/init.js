@@ -76,6 +76,7 @@ async function initDatabase() {
         await pool.query(`DO $$ BEGIN ALTER TABLE servers ADD COLUMN password_hash VARCHAR(255) DEFAULT ''; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
         await pool.query(`DO $$ BEGIN ALTER TABLE servers ADD COLUMN host_code VARCHAR(10) DEFAULT ''; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
         await pool.query(`DO $$ BEGIN ALTER TABLE servers ADD COLUMN is_active BOOLEAN DEFAULT true; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+        await pool.query(`DO $$ BEGIN ALTER TABLE servers ADD COLUMN current_season INTEGER DEFAULT 1; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
 
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_servers_host_id ON servers(host_id)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_servers_is_active ON servers(is_active)`);
@@ -120,6 +121,27 @@ async function initDatabase() {
         await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN range_max INTEGER; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
         await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN game_rules TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
         await pool.query(`DO $$ BEGIN ALTER TABLE server_game_records ADD COLUMN game_rank INTEGER; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+
+        // ─── 시즌 아카이브 테이블 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS season_archives (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+                season INTEGER NOT NULL,
+                user_name VARCHAR(50) NOT NULL,
+                result INTEGER NOT NULL,
+                game_type VARCHAR(20) NOT NULL,
+                is_winner BOOLEAN DEFAULT false,
+                game_session_id VARCHAR(100),
+                range_min INTEGER,
+                range_max INTEGER,
+                game_rules TEXT,
+                game_rank INTEGER,
+                created_at TIMESTAMP,
+                archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_sa_server_season ON season_archives(server_id, season)`);
 
         // ─── 게임 세션 테이블 ───
         await pool.query(`
