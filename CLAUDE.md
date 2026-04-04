@@ -31,6 +31,7 @@ Express + Socket.IO 기반 멀티플레이어 주사위/경마 게임 서버.
 - 한 번만 쓰이는 코드에 추상화 금지.
 - 요청하지 않은 "유연성"이나 "설정 가능성" 금지.
 - 불가능한 시나리오에 대한 에러 핸들링 금지.
+- **"나중에 하면 되니까 지금은 쉽게 가자" 금지.** 지금 해야 할 것은 지금 한다. 분리가 필요하면 지금 분리하고, 구조가 잘못되면 지금 고친다.
 - 200줄을 50줄로 줄일 수 있으면 줄인다.
 
 스스로 물어보기: "시니어 엔지니어가 이걸 보고 과하다고 할까?" 그렇다면 단순화.
@@ -51,10 +52,12 @@ Express + Socket.IO 기반 멀티플레이어 주사위/경마 게임 서버.
 
 ### 4. Goal-Driven Execution
 
-작업을 검증 가능한 목표로 변환:
-- "유효성 검사 추가" → "잘못된 입력에 대한 테스트 작성, 통과시키기"
-- "버그 수정" → "재현 테스트 작성, 통과시키기"
-- "X 리팩터링" → "전후 테스트 통과 확인"
+작업을 검증 가능한 목표로 변환. 검증은 `docs/GameGuide/system/QA-GUIDE.md` 참조:
+
+- 정적 검증: Grep으로 호출부 시그니처 일치, 위험 패턴(document.hasAttribute 등) 검사
+- 서버 검증: `node -c server.js` 문법 체크
+- 브라우저 검증: 변경 완료 후 수동 QA 체크리스트 제시 (확인 항목 나열)
+- 공통 모듈 변경 시: 크로스게임 검증 (주사위/룰렛/경마 모두)
 
 다단계 작업은 간략한 계획 제시:
 ```
@@ -89,17 +92,20 @@ Express + Socket.IO 기반 멀티플레이어 주사위/경마 게임 서버.
 
 ### 7. Project-Specific Rules
 
-상황-행동 매칭 (이 프로젝트 전용):
+경로별 상세 규칙은 `.claude/rules/`에 분리 (파일 작업 시 자동 로드):
+
+- `backend.md` — socket/, db/, routes/, server.js 수정 시
+- `frontend.md` — HTML, CSS, *-shared.js 수정 시
+- `horse-app.md` — horse-app/ 수정 시
+
+항상 적용되는 규칙:
 
 | 상황 | 행동 |
-|------|------|
-| Socket 핸들러 수정 | `ctx.checkRateLimit()` 호출 확인, 방 상태 변경 시 `ctx.updateRoomsList()` 확인 |
-| DB 모듈 수정 | `db/init.js` 스키마와 일치하는지 확인, 마이그레이션 필요 여부 확인 |
-| HTML 수정 | AdSense 스니펫 포함 확인 (admin.html 제외), API는 `/api/...` 상대 경로만 |
-| horse-app 소스 수정 | `cd horse-app && npm run build` 빌드 필요 |
+| ---- | ---- |
 | 새 게임 추가 | `socket/[game].js` → `socket/index.js` 등록 → `routes/api.js` 라우트 → `index.html` 링크 |
 | 구현 요청 (impl 없이) | 파일 3개+ 또는 DB 변경 포함 → "impl 문서를 먼저 만들까요, 바로 구현할까요?" 확인 |
 | 조정 가능한 숫자 상수 추가 | 하드코딩 금지 — `config/` 파일 또는 파일 상단 `const` 블록에 이름 있는 상수로 정의 후 참조 |
+| 개발 도구/봇 코드 추가 | **게임 서버에 개발 지원 코드 삽입 금지** — 텔레그램 봇, AI 요약, 회의 보고 등 개발 도구 성격의 코드는 게임 서버(`server.js`, `routes/`, `socket/`)에 넣지 않는다. 텔레그램 전송은 Claude Code에서 WebFetch로 직접 호출 |
 
 ---
 

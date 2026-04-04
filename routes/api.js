@@ -77,13 +77,6 @@ function setupRoutes(app) {
         return res.redirect(301, `/horse-race${query}`);
     });
 
-    app.get('/botpage', (req, res) => {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'bot-settings.html'));
-    });
-
     app.get('/admin', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
