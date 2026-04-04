@@ -10,6 +10,7 @@ const {
 const { register: authRegister, login: authLogin } = require('../db/auth');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 const { getFullRanking, getMyRank, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking } = require('../db/ranking');
+const telegram = require('../utils/telegram');
 
 // Rate Limiting (Server API 전용)
 let rateLimit;
@@ -483,6 +484,63 @@ router.get('/server/:id/records', async (req, res) => {
         res.json(result);
     } catch (e) {
         res.status(500).json({ error: '기록 조회 실패' });
+    }
+});
+
+// ─── 텔레그램 봇 API ───
+
+// 현재 설정 조회
+router.get('/telegram/config', adminAuth, (req, res) => {
+    const config = telegram.loadConfig();
+    res.json({ chatId: config.chatId || '', hasToken: !!process.env.TELEGRAM_BOT_TOKEN });
+});
+
+// chat_id 자동 감지
+router.post('/telegram/detect', adminAuth, async (req, res) => {
+    try {
+        const result = await telegram.detectChatId();
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ chatId: result.chatId });
+    } catch (e) {
+        res.status(500).json({ error: 'Chat ID 감지 실패' });
+    }
+});
+
+// chat_id 저장
+router.post('/telegram/config', adminAuth, (req, res) => {
+    const { chatId } = req.body || {};
+    if (!chatId || typeof chatId !== 'string') {
+        return res.status(400).json({ error: 'chatId가 필요합니다.' });
+    }
+    const config = telegram.loadConfig();
+    config.chatId = chatId.trim();
+    telegram.saveConfig(config);
+    res.json({ success: true });
+});
+
+// 테스트 메시지 전송
+router.post('/telegram/test', adminAuth, async (req, res) => {
+    try {
+        const result = await telegram.sendMessage('🔔 LAMDice 텔레그램 봇 연동 테스트');
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: '메시지 전송 실패' });
+    }
+});
+
+// 보고 메시지 전송 (내부 용도 — 회의 결과 등)
+router.post('/telegram/send', adminAuth, async (req, res) => {
+    try {
+        const { text } = req.body || {};
+        if (!text || typeof text !== 'string') {
+            return res.status(400).json({ error: 'text가 필요합니다.' });
+        }
+        const result = await telegram.sendMessage(text);
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: '메시지 전송 실패' });
     }
 });
 

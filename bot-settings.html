@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>텔레그램 봇 설정 - LAMDice</title>
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; max-width: 700px; margin: 0 auto; padding: 20px; background: var(--gray-100); }
+        .container { background: var(--bg-white); padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: var(--blue-500); border-bottom: 2px solid var(--blue-500); padding-bottom: 10px; font-size: 1.4em; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--blue-500); text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+
+        .login-box { max-width: 400px; margin: 60px auto; text-align: center; }
+        .login-box input { width: 100%; padding: 12px; border: 2px solid var(--gray-300); border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 12px; }
+        .login-box input:focus { border-color: var(--blue-500); outline: none; }
+        .login-box button { width: 100%; padding: 12px; background: var(--blue-500); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        .login-box button:hover { background: var(--blue-600); }
+
+        .panel { display: none; }
+        .section { margin-bottom: 28px; }
+        .section h2 { font-size: 1.1em; color: var(--text-primary); margin-bottom: 12px; }
+        .section p { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 12px; }
+
+        .status-row { display: flex; gap: 12px; margin-bottom: 20px; }
+        .status-box { flex: 1; padding: 14px; border-radius: 8px; text-align: center; }
+        .status-ok { background: var(--green-50); border: 1px solid var(--green-200); }
+        .status-ok .label { color: var(--green-700); }
+        .status-warn { background: var(--yellow-50); border: 1px solid var(--yellow-200); }
+        .status-warn .label { color: var(--yellow-700); }
+        .status-err { background: var(--red-50); border: 1px solid var(--red-200); }
+        .status-err .label { color: var(--red-700); }
+
+        .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+        .input-row input { flex: 1; padding: 10px; border: 2px solid var(--gray-300); border-radius: 8px; font-size: 14px; }
+        .input-row input:focus { border-color: var(--blue-500); outline: none; }
+
+        .btn { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; color: white; }
+        .btn-primary { background: var(--blue-500); }
+        .btn-primary:hover { background: var(--blue-600); }
+        .btn-secondary { background: var(--gray-500); }
+        .btn-secondary:hover { background: var(--gray-600); }
+        .btn-success { background: var(--green-500); }
+        .btn-success:hover { background: var(--green-600); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .msg { padding: 10px 14px; border-radius: 8px; font-size: 0.9em; margin-top: 12px; display: none; }
+        .msg-ok { background: var(--green-50); color: var(--green-700); border: 1px solid var(--green-200); }
+        .msg-err { background: var(--red-50); color: var(--red-700); border: 1px solid var(--red-200); }
+
+        .error-msg { color: var(--red-500); margin-top: 8px; font-size: 0.9em; }
+        .logout-btn { float: right; padding: 6px 14px; border: 1px solid var(--gray-300); border-radius: 6px; background: var(--bg-white); color: var(--text-secondary); cursor: pointer; font-size: 0.85em; }
+        .logout-btn:hover { background: var(--gray-100); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin" class="back-link">&larr; 관리자 패널</a>
+        <h1>텔레그램 봇 설정 <button class="logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">로그아웃</button></h1>
+
+        <!-- 로그인 -->
+        <div class="login-box" id="loginBox">
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">관리자 계정으로 로그인</p>
+            <input type="text" id="adminId" placeholder="관리자 ID" />
+            <input type="password" id="adminPw" placeholder="비밀번호" />
+            <button onclick="doLogin()">로그인</button>
+            <p class="error-msg" id="loginError" style="display:none;"></p>
+        </div>
+
+        <!-- 설정 패널 -->
+        <div class="panel" id="panel">
+
+            <!-- 상태 표시 -->
+            <div class="status-row" id="statusRow">
+                <div class="status-box" id="tokenStatus">
+                    <div class="label">봇 토큰</div>
+                </div>
+                <div class="status-box" id="chatIdStatus">
+                    <div class="label">Chat ID</div>
+                </div>
+            </div>
+
+            <!-- Chat ID 설정 -->
+            <div class="section">
+                <h2>1. Chat ID 설정</h2>
+                <p>텔레그램에서 봇에게 아무 메시지(/start)를 보낸 뒤 [자동 감지] 버튼을 누르세요.</p>
+                <div class="input-row">
+                    <input type="text" id="chatIdInput" placeholder="Chat ID" />
+                    <button class="btn btn-primary" onclick="detectChatId()">자동 감지</button>
+                    <button class="btn btn-secondary" onclick="saveChatId()">저장</button>
+                </div>
+                <div class="msg" id="chatIdMsg"></div>
+            </div>
+
+            <!-- 테스트 발송 -->
+            <div class="section">
+                <h2>2. 테스트 발송</h2>
+                <p>설정이 맞는지 테스트 메시지를 보내봅니다.</p>
+                <button class="btn btn-success" onclick="sendTest()">테스트 메시지 보내기</button>
+                <div class="msg" id="testMsg"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let adminToken = '';
+
+        function apiHeaders() {
+            return { 'Content-Type': 'application/json', 'x-admin-token': adminToken };
+        }
+
+        function showMsg(el, text, ok) {
+            el.textContent = text;
+            el.className = ok ? 'msg msg-ok' : 'msg msg-err';
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        async function doLogin() {
+            const id = document.getElementById('adminId').value.trim();
+            const pw = document.getElementById('adminPw').value;
+            const errEl = document.getElementById('loginError');
+            errEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/admin/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, password: pw })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errEl.textContent = data.error || '로그인 실패';
+                    errEl.style.display = 'block';
+                    return;
+                }
+                adminToken = data.token;
+                document.getElementById('loginBox').style.display = 'none';
+                document.getElementById('panel').style.display = 'block';
+                document.getElementById('logoutBtn').style.display = '';
+                loadConfig();
+            } catch {
+                errEl.textContent = '서버 연결 실패';
+                errEl.style.display = 'block';
+            }
+        }
+
+        function doLogout() {
+            adminToken = '';
+            document.getElementById('loginBox').style.display = '';
+            document.getElementById('panel').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'none';
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/telegram/config', { headers: apiHeaders() });
+                const data = await res.json();
+
+                const tokenEl = document.getElementById('tokenStatus');
+                const chatEl = document.getElementById('chatIdStatus');
+
+                if (data.hasToken) {
+                    tokenEl.className = 'status-box status-ok';
+                    tokenEl.querySelector('.label').textContent = '봇 토큰: 설정됨';
+                } else {
+                    tokenEl.className = 'status-box status-err';
+                    tokenEl.querySelector('.label').textContent = '봇 토큰: 미설정';
+                }
+
+                if (data.chatId) {
+                    chatEl.className = 'status-box status-ok';
+                    chatEl.querySelector('.label').textContent = 'Chat ID: ' + data.chatId;
+                    document.getElementById('chatIdInput').value = data.chatId;
+                } else {
+                    chatEl.className = 'status-box status-warn';
+                    chatEl.querySelector('.label').textContent = 'Chat ID: 미설정';
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        async function detectChatId() {
+            const msgEl = document.getElementById('chatIdMsg');
+            try {
+                const res = await fetch('/api/telegram/detect', {
+                    method: 'POST',
+                    headers: apiHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showMsg(msgEl, data.error || '감지 실패', false);
+                    return;
+                }
+                document.getElementById('chatIdInput').value = data.chatId;
+                showMsg(msgEl, 'Chat ID 감지 완료: ' + data.chatId + ' (저장 버튼을 눌러주세요)', true);
+            } catch {
+                showMsg(msgEl, '서버 연결 실패', false);
+            }
+        }
+
+        async function saveChatId() {
+            const msgEl = document.getElementById('chatIdMsg');
+            const chatId = document.getElementById('chatIdInput').value.trim();
+            if (!chatId) {
+                showMsg(msgEl, 'Chat ID를 입력하세요', false);
+                return;
+            }
+            try {
+                const res = await fetch('/api/telegram/config', {
+                    method: 'POST',
+                    headers: apiHeaders(),
+                    body: JSON.stringify({ chatId })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showMsg(msgEl, data.error || '저장 실패', false);
+                    return;
+                }
+                showMsg(msgEl, 'Chat ID 저장 완료', true);
+                loadConfig();
+            } catch {
+                showMsg(msgEl, '서버 연결 실패', false);
+            }
+        }
+
+        async function sendTest() {
+            const msgEl = document.getElementById('testMsg');
+            try {
+                const res = await fetch('/api/telegram/test', {
+                    method: 'POST',
+                    headers: apiHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showMsg(msgEl, data.error || '전송 실패', false);
+                    return;
+                }
+                showMsg(msgEl, '테스트 메시지 전송 완료! 텔레그램을 확인하세요.', true);
+            } catch {
+                showMsg(msgEl, '서버 연결 실패', false);
+            }
+        }
+
+        // Enter 키 로그인
+        document.getElementById('adminPw').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') doLogin();
+        });
+    </script>
+</body>
+</html>
