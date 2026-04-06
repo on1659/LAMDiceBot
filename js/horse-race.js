@@ -1271,12 +1271,24 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         horseElements.push({ horse, vehicleContent, frames: [frame1, frame2], rank, duration, lane });
     });
     
-    // 실시간 순위 패널 표시
-    const liveRankingPanel = document.getElementById('liveRankingPanel');
-    const liveRankingList = document.getElementById('liveRankingList');
-    if (liveRankingPanel) {
-        liveRankingPanel.style.display = 'block';
+    // 실시간 순위 패널 동적 생성
+    let liveRankingPanel = document.getElementById('liveRankingPanel');
+    if (!liveRankingPanel) {
+        liveRankingPanel = document.createElement('div');
+        liveRankingPanel.id = 'liveRankingPanel';
+        liveRankingPanel.style.cssText = 'background: linear-gradient(135deg, var(--slate-950) 0%, var(--slate-960) 100%); color: white; padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
+        const title = document.createElement('div');
+        title.style.cssText = 'font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; font-size: 14px; font-family: "Jua", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
+        title.textContent = '🏃 실시간 순위';
+        liveRankingPanel.appendChild(title);
+        const list = document.createElement('div');
+        list.id = 'liveRankingList';
+        liveRankingPanel.appendChild(list);
+        const historySection = document.getElementById('historySection');
+        if (historySection) historySection.appendChild(liveRankingPanel);
     }
+    liveRankingPanel.style.display = 'block';
+    const liveRankingList = document.getElementById('liveRankingList');
     
     // 탈것 정보 맵 생성 (horseIndex -> vehicleInfo)
     const vehicleInfoMap = {};
