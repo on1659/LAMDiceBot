@@ -845,7 +845,8 @@ const RankingModule = (function () {
         const d = _cache.horseRace;
         const VN = {
             'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
-            'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말'
+            'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
+            'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게'
         };
 
         if (!d.winners.length && (!d.vehicles || !d.vehicles.length)) {
