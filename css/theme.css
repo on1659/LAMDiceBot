@@ -144,6 +144,26 @@
   --game-type-horse: var(--horse-accent);
 
   /* ============================================
+     게임별 파스텔 배경 토큰
+  ============================================ */
+  --dice-accent-bg: #EEEAFF;
+  --dice-accent-light: #F5F3FF;
+
+  --roulette-accent-bg: #DCFAF5;
+  --roulette-accent-light: #F0FDFB;
+
+  --horse-accent-bg: #FFF0D6;
+  --horse-accent-light: #FFFAF0;
+
+  /* ============================================
+     공통 링크/SEO 색상
+  ============================================ */
+  --link-brand: #8b5cf6;
+  --link-brand-light: #a78bfa;
+  --link-brand-border: #c4b5fd;
+  --heading-brand: #7c3aed;
+
+  /* ============================================
      전체 (의미론적 이름)
      실제 코드에서 사용하는 변수
   ============================================ */

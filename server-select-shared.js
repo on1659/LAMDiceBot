@@ -31,7 +31,7 @@ function _insertDemoServerCard() {
     card.className = 'ss-server-card';
     card.style.pointerEvents = 'none';
     card.innerHTML =
-        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:#667eea;">L</div>' +
+        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:var(--brand-primary);">L</div>' +
         '<div class="ss-server-info">' +
             '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span><span class="ss-server-badge">참여 가능</span></div>' +
             '<div class="ss-server-meta">LAM \u00B7 3명</div>' +
@@ -51,11 +51,11 @@ function _insertDemoPwModal() {
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;pointer-events:none;';
     modal.innerHTML =
         '<div id="ss-demo-pw-box" style="background:white;border-radius:20px;padding:30px;width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.2);text-align:center;">' +
-            '<h3 style="margin:0 0 16px;color:#333;">\uD83D\uDD12 \uC608\uC2DC \uC11C\uBC84</h3>' +
-            '<input type="password" disabled placeholder="\uCC38\uC5EC\uCF54\uB4DC \uC785\uB825" style="width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;background:#f9f9f9;" />' +
+            '<h3 style="margin:0 0 16px;color:var(--text-primary);">\uD83D\uDD12 \uC608\uC2DC \uC11C\uBC84</h3>' +
+            '<input type="password" disabled placeholder="\uCC38\uC5EC\uCF54\uB4DC \uC785\uB825" style="width:100%;padding:12px;border:2px solid var(--border-light);border-radius:10px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;background:var(--bg-primary);" />' +
             '<div style="display:flex;gap:10px;">' +
-                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:#eee;color:#666;">\uCDE8\uC18C</button>' +
-                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:#667eea;color:white;">\uC785\uC7A5</button>' +
+                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:#eee;color:var(--text-tertiary);">\uCDE8\uC18C</button>' +
+                '<button disabled style="flex:1;padding:12px;border:none;border-radius:10px;font-size:0.95em;background:var(--brand-primary);color:white;">\uC785\uC7A5</button>' +
             '</div>' +
         '</div>';
     document.body.appendChild(modal);
@@ -77,7 +77,7 @@ function _insertDemoPendingCard() {
     card.className = 'ss-server-card ss-card-pending';
     card.style.pointerEvents = 'none';
     card.innerHTML =
-        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:#667eea;">L</div>' +
+        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:var(--brand-primary);">L</div>' +
         '<div class="ss-server-info">' +
             '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span><span class="ss-server-badge waiting">\uC2B9\uC778 \uB300\uAE30 \uC911</span></div>' +
             '<div class="ss-server-meta">LAM \u00B7 3명</div>' +
@@ -99,7 +99,7 @@ function _insertDemoApprovedCard() {
     card.className = 'ss-server-card';
     card.style.pointerEvents = 'none';
     card.innerHTML =
-        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:#667eea;">L</div>' +
+        '<div class="ss-server-icon" style="background:rgba(102,126,234,0.1);color:var(--brand-primary);">L</div>' +
         '<div class="ss-server-info">' +
             '<div class="ss-server-name">LAMDice :) <span class="ss-server-badge private">\uD83D\uDD12</span></div>' +
             '<div class="ss-server-meta">LAM \u00B7 4명</div>' +
@@ -374,7 +374,7 @@ const ServerSelectModule = (function () {
     const MAIN_CSS = `
         #serverSelectOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--brand-gradient);
             z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
         }
         @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -423,11 +423,11 @@ const ServerSelectModule = (function () {
 
         /* ── 헤더 ── */
         .ss-header { text-align: center; margin-bottom: 20px; position: relative; }
-        .ss-header h1 { font-size: 1.6em; color: #333; margin: 0 0 6px 0; }
+        .ss-header h1 { font-size: 1.6em; color: var(--text-primary); margin: 0 0 6px 0; }
         .ss-tutorial-help-btn {
             position: absolute; top: 0; right: 0;
             width: 28px; height: 28px; border-radius: 50%;
-            background: linear-gradient(135deg, #a78bfa, #7c3aed);
+            background: linear-gradient(135deg, var(--link-brand-light), var(--heading-brand));
             color: white; border: 2px solid rgba(255,255,255,0.6);
             cursor: pointer; font-size: 0.85rem; font-weight: bold;
             box-shadow: 0 2px 8px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
@@ -455,7 +455,7 @@ const ServerSelectModule = (function () {
         }
         .ss-free-btn::after {
             content: ''; position: absolute; width: 6px; height: 6px;
-            border-radius: 50%; background: #667eea;
+            border-radius: 50%; background: var(--brand-primary);
             box-shadow: 0 0 8px 2px rgba(102,126,234,0.6);
             offset-path: inset(-1px round 14px);
             offset-anchor: center;
@@ -474,79 +474,79 @@ const ServerSelectModule = (function () {
 
         /* ── 구분선 ── */
         .ss-divider { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: #ccc; font-size: 0.85em; }
-        .ss-divider::before, .ss-divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
+        .ss-divider::before, .ss-divider::after { content: ''; flex: 1; height: 1px; background: var(--gray-100); }
 
 
         /* ── 로그인 필요 안내 ── */
         .ss-login-prompt {
             text-align: center; padding: 36px 20px;
-            background: #f8f9fa; border-radius: 14px;
-            border: 1px solid #eee;
+            background: var(--bg-primary); border-radius: 14px;
+            border: 1px solid var(--gray-100);
         }
         .ss-login-prompt-icon { font-size: 2.5em; margin-bottom: 12px; }
-        .ss-login-prompt h3 { color: #333; margin: 0 0 8px 0; font-size: 1.05em; }
-        .ss-login-prompt p { color: #888; font-size: 0.9em; margin: 0 0 20px 0; }
+        .ss-login-prompt h3 { color: var(--text-primary); margin: 0 0 8px 0; font-size: 1.05em; }
+        .ss-login-prompt p { color: var(--text-muted); font-size: 0.9em; margin: 0 0 20px 0; }
         .ss-login-prompt-btn {
             padding: 12px 32px; border: none; border-radius: 10px;
-            background: #667eea; color: white; font-size: 0.95em;
+            background: var(--brand-primary); color: white; font-size: 0.95em;
             font-weight: 600; cursor: pointer; transition: all 0.2s;
         }
         .ss-login-prompt-btn:hover { background: #5a6fd6; }
 
         /* ── 서버 섹션 ── */
-        .ss-section-title { font-size: 0.9em; font-weight: 600; color: #555; margin-bottom: 12px; }
+        .ss-section-title { font-size: 0.9em; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
         .ss-search-wrap { display: flex; gap: 8px; margin-bottom: 12px; }
         .ss-search-wrap input {
-            flex: 1; min-width: 0; padding: 10px 14px 10px 36px; border: 2px solid #eee; border-radius: 12px;
+            flex: 1; min-width: 0; padding: 10px 14px 10px 36px; border: 2px solid var(--gray-100); border-radius: 12px;
             font-size: 14px; box-sizing: border-box; transition: border-color 0.2s;
             background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") 12px center no-repeat;
         }
-        .ss-search-wrap input:focus { border-color: #667eea; outline: none; }
+        .ss-search-wrap input:focus { border-color: var(--brand-primary); outline: none; }
         .ss-search-btn {
-            padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px;
-            background: #fff; color: #888; font-size: 11px;
+            padding: 6px 10px; border: 1px solid var(--border-light); border-radius: 8px;
+            background: #fff; color: var(--text-muted); font-size: 11px;
             cursor: pointer; transition: all 0.2s; white-space: nowrap;
             flex-shrink: 0; line-height: 1; min-width: 0; max-width: 50px;
         }
-        .ss-search-btn:hover { background: #f0f0f0; color: #555; }
+        .ss-search-btn:hover { background: var(--gray-100); color: var(--text-secondary); }
 
         .ss-server-list { display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto; margin-bottom: 20px; }
         .ss-server-card {
             display: flex; align-items: center; padding: 14px 16px; border-radius: 14px;
-            border: 2px solid #eee; cursor: pointer; transition: all 0.2s; background: white;
+            border: 2px solid var(--gray-100); cursor: pointer; transition: all 0.2s; background: white;
         }
-        .ss-server-card:hover { border-color: #667eea; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.15); }
+        .ss-server-card:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.15); }
         .ss-server-icon {
             width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center;
             justify-content: center; font-size: 1.4em; margin-right: 14px; flex-shrink: 0;
         }
         .ss-server-info { flex: 1; min-width: 0; }
-        .ss-server-name { font-weight: 600; color: #333; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ss-server-meta { font-size: 0.8em; color: #999; margin-top: 2px; }
-        .ss-server-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 8px; background: #f0f0f0; color: #888; margin-left: 8px; }
-        .ss-server-badge.private { background: #fff3cd; color: #856404; }
-        .ss-server-badge.pending { background: #dc3545; color: white; animation: ssPulse 1.5s ease-in-out infinite; }
+        .ss-server-name { font-weight: 600; color: var(--text-primary); font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ss-server-meta { font-size: 0.8em; color: var(--text-muted); margin-top: 2px; }
+        .ss-server-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 8px; background: var(--gray-100); color: var(--text-muted); margin-left: 8px; }
+        .ss-server-badge.private { background: var(--yellow-100); color: var(--yellow-900); }
+        .ss-server-badge.pending { background: var(--red-500); color: white; animation: ssPulse 1.5s ease-in-out infinite; }
         .ss-server-badge.waiting { background: #fd7e14; color: white; }
         .ss-card-pending { opacity: 0.7; border-style: dashed; }
 
         .ss-create-btn {
             width: 100%; padding: 14px; border: none; border-radius: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--brand-gradient);
             color: white; font-size: 1em; font-weight: 600; cursor: pointer;
             transition: all 0.2s; box-shadow: 0 4px 15px rgba(102,126,234,0.3);
         }
         .ss-create-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
 
         .ss-manage-btn {
-            width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 14px;
-            background: white; color: #667eea; font-size: 0.95em; font-weight: 600;
+            width: 100%; padding: 12px; border: 2px solid var(--brand-primary); border-radius: 14px;
+            background: white; color: var(--brand-primary); font-size: 0.95em; font-weight: 600;
             cursor: pointer; transition: all 0.2s; margin-top: 8px;
         }
         .ss-manage-btn:hover { background: #f0f0ff; }
 
-        .ss-empty { text-align: center; padding: 30px; color: #bbb; font-size: 0.95em; }
-        .ss-loading { text-align: center; padding: 30px; color: #999; }
-        .ss-error { color: #dc3545; font-size: 0.85em; margin-top: 8px; display: none; text-align: center; }
+        .ss-empty { text-align: center; padding: 30px; color: var(--gray-300); font-size: 0.95em; }
+        .ss-loading { text-align: center; padding: 30px; color: var(--text-muted); }
+        .ss-error { color: var(--red-500); font-size: 0.85em; margin-top: 8px; display: none; text-align: center; }
     `;
 
     const MODAL_CSS = `
@@ -563,22 +563,22 @@ const ServerSelectModule = (function () {
             max-width: 90%; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             display: flex; flex-direction: column;
         }
-        .ss-members-box h3, .ss-myserver-box h3 { margin: 0 0 16px 0; color: #333; text-align: center; }
+        .ss-members-box h3, .ss-myserver-box h3 { margin: 0 0 16px 0; color: var(--text-primary); text-align: center; }
         .ss-members-list, .ss-myserver-list { flex: 1; overflow-y: auto; max-height: 400px; }
         .ss-member-item {
             display: flex; align-items: center; padding: 10px 12px; border-radius: 10px;
-            margin-bottom: 6px; background: #f8f9fa; gap: 10px;
+            margin-bottom: 6px; background: var(--bg-primary); gap: 10px;
         }
         .ss-member-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-        .ss-member-dot.online { background: #28a745; }
-        .ss-member-dot.offline { background: #ccc; }
-        .ss-member-name { flex: 1; font-size: 0.95em; color: #333; }
+        .ss-member-dot.online { background: var(--green-500); }
+        .ss-member-dot.offline { background: var(--gray-300); }
+        .ss-member-name { flex: 1; font-size: 0.95em; color: var(--text-primary); }
         .ss-member-name .host-badge {
-            font-size: 0.75em; background: #667eea; color: white; padding: 1px 6px;
+            font-size: 0.75em; background: var(--brand-primary); color: white; padding: 1px 6px;
             border-radius: 6px; margin-left: 6px;
         }
         .ss-member-name .pending-badge {
-            font-size: 0.75em; background: #ffc107; color: #333; padding: 1px 6px;
+            font-size: 0.75em; background: var(--yellow-500); color: var(--text-primary); padding: 1px 6px;
             border-radius: 6px; margin-left: 6px;
         }
         .ss-member-actions { display: flex; gap: 4px; }
@@ -587,42 +587,42 @@ const ServerSelectModule = (function () {
             cursor: pointer; transition: opacity 0.2s;
         }
         .ss-member-actions button:hover { opacity: 0.8; }
-        .ss-btn-approve { background: #28a745; color: white; }
-        .ss-btn-reject { background: #dc3545; color: white; }
-        .ss-btn-kick { background: #ff6b6b; color: white; }
+        .ss-btn-approve { background: var(--green-500); color: white; }
+        .ss-btn-reject { background: var(--red-500); color: white; }
+        .ss-btn-kick { background: var(--red-400); color: white; }
         .ss-members-close, .ss-myserver-close {
             margin-top: 14px; padding: 12px; border: none; border-radius: 10px;
-            background: #eee; color: #666; font-size: 0.95em; cursor: pointer; width: 100%;
+            background: var(--gray-100); color: var(--text-tertiary); font-size: 0.95em; cursor: pointer; width: 100%;
         }
 
         .ss-error-box {
             background: white; border-radius: 20px; padding: 30px; width: 320px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
         }
-        .ss-error-box h3 { margin: 0 0 12px 0; color: #dc3545; }
-        .ss-error-box p { color: #555; font-size: 0.95em; margin: 0 0 20px 0; }
+        .ss-error-box h3 { margin: 0 0 12px 0; color: var(--red-500); }
+        .ss-error-box p { color: var(--text-secondary); font-size: 0.95em; margin: 0 0 20px 0; }
         .ss-error-box button {
             padding: 12px 40px; border: none; border-radius: 10px;
-            background: #667eea; color: white; font-size: 0.95em; cursor: pointer;
+            background: var(--brand-primary); color: white; font-size: 0.95em; cursor: pointer;
         }
 
         .ss-pw-box, .ss-name-box {
             background: white; border-radius: 20px; padding: 30px; width: 340px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
         }
-        .ss-pw-box h3, .ss-name-box h3 { margin: 0 0 16px 0; color: #333; }
+        .ss-pw-box h3, .ss-name-box h3 { margin: 0 0 16px 0; color: var(--text-primary); }
         .ss-pw-box input, .ss-name-box input {
-            width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px;
+            width: 100%; padding: 12px; border: 2px solid var(--border-light); border-radius: 10px;
             font-size: 16px; text-align: center; box-sizing: border-box; margin-bottom: 12px;
         }
-        .ss-pw-box input:focus, .ss-name-box input:focus { border-color: #667eea; outline: none; }
+        .ss-pw-box input:focus, .ss-name-box input:focus { border-color: var(--brand-primary); outline: none; }
         .ss-pw-btns, .ss-name-btns { display: flex; gap: 10px; }
         .ss-pw-btns button, .ss-name-btns button {
             flex: 1; padding: 12px; border: none; border-radius: 10px;
             font-size: 0.95em; cursor: pointer;
         }
-        .ss-pw-cancel, .ss-name-cancel { background: #eee; color: #666; }
-        .ss-pw-confirm, .ss-name-confirm { background: #667eea; color: white; }
+        .ss-pw-cancel, .ss-name-cancel { background: var(--gray-100); color: var(--text-tertiary); }
+        .ss-pw-confirm, .ss-name-confirm { background: var(--brand-primary); color: white; }
 
         .ss-spinner {
             width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
@@ -640,23 +640,23 @@ const ServerSelectModule = (function () {
 
         .ss-myserver-item {
             padding: 12px; border-radius: 12px; margin-bottom: 8px;
-            background: #f8f9fa; border: 1px solid #eee;
+            background: var(--bg-primary); border: 1px solid var(--gray-100);
         }
         .ss-myserver-item-header {
             display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
         }
-        .ss-myserver-item-name { font-weight: 600; color: #333; font-size: 0.95em; }
-        .ss-myserver-item-meta { font-size: 0.8em; color: #999; }
+        .ss-myserver-item-name { font-weight: 600; color: var(--text-primary); font-size: 0.95em; }
+        .ss-myserver-item-meta { font-size: 0.8em; color: var(--text-muted); }
         .ss-myserver-item-actions { display: flex; gap: 6px; margin-top: 8px; }
         .ss-myserver-item-actions button {
             padding: 6px 12px; border: none; border-radius: 8px;
             font-size: 0.8em; cursor: pointer; transition: opacity 0.2s;
         }
         .ss-myserver-item-actions button:hover { opacity: 0.8; }
-        .ss-btn-members { background: #667eea; color: white; position: relative; }
-        .ss-btn-delete { background: #dc3545; color: white; }
+        .ss-btn-members { background: var(--brand-primary); color: white; position: relative; }
+        .ss-btn-delete { background: var(--red-500); color: white; }
         .ss-pending-dot {
-            display: inline-block; width: 8px; height: 8px; background: #dc3545;
+            display: inline-block; width: 8px; height: 8px; background: var(--red-500);
             border-radius: 50%; margin-left: 4px; vertical-align: middle;
             animation: ssPulse 1.5s ease-in-out infinite;
         }
@@ -672,14 +672,14 @@ const ServerSelectModule = (function () {
             background: white; border-radius: 20px; padding: 30px; width: 380px;
             max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
-        .ss-create-box h3 { margin: 0 0 20px 0; color: #333; text-align: center; }
+        .ss-create-box h3 { margin: 0 0 20px 0; color: var(--text-primary); text-align: center; }
         .ss-input-group { margin-bottom: 14px; }
-        .ss-input-group label { display: block; font-size: 0.85em; color: #555; margin-bottom: 4px; font-weight: 500; }
+        .ss-input-group label { display: block; font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500; }
         .ss-input-group input, .ss-input-group textarea {
-            width: 100%; padding: 10px 12px; border: 2px solid #eee; border-radius: 10px;
+            width: 100%; padding: 10px 12px; border: 2px solid var(--gray-100); border-radius: 10px;
             font-size: 14px; box-sizing: border-box; transition: border-color 0.2s;
         }
-        .ss-input-group input:focus, .ss-input-group textarea:focus { border-color: #667eea; outline: none; }
+        .ss-input-group input:focus, .ss-input-group textarea:focus { border-color: var(--brand-primary); outline: none; }
         .ss-input-group textarea { resize: none; height: 60px; }
     `;
 
@@ -797,9 +797,9 @@ const ServerSelectModule = (function () {
     function _loginPromptHTML() {
         return `
             <div class="ss-login-prompt" style="padding:16px 20px;">
-                <p style="margin:0 0 10px;color:#888;font-size:0.85em;">서버 참여는 로그인이 필요합니다</p>
+                <p style="margin:0 0 10px;color:var(--text-muted);font-size:0.85em;">서버 참여는 로그인이 필요합니다</p>
                 <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showLoginModal()">로그인</button>
-                <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showRegisterModal()" style="margin-left:8px;background:#28a745;">회원가입</button>
+                <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showRegisterModal()" style="margin-left:8px;background:var(--green-500);">회원가입</button>
             </div>
         `;
     }
@@ -920,7 +920,7 @@ const ServerSelectModule = (function () {
                 <input type="text" id="ss-login-input" placeholder="이름" maxlength="20" />
                 <input type="password" id="ss-pin-input" placeholder="암호코드 (4~6자리 숫자)" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="margin-top:8px;" />
                 ${confirmPinHTML}
-                <p id="ss-login-error" style="color:#dc3545;font-size:0.8em;margin:6px 0 0;display:none;"></p>
+                <p id="ss-login-error" style="color:var(--red-500);font-size:0.8em;margin:6px 0 0;display:none;"></p>
                 <div class="ss-pw-btns">
                     <button class="ss-pw-cancel" onclick="document.getElementById('ss-login-modal').remove()">취소</button>
                     <button class="ss-pw-confirm" id="ss-login-confirm">${confirmText}</button>
@@ -974,11 +974,11 @@ const ServerSelectModule = (function () {
         async function doSubmit() {
             const name = nameInput.value.trim();
             const pin = pinInput.value.trim();
-            if (!name) { nameInput.style.borderColor = '#dc3545'; return; }
-            if (!/^\d{4,6}$/.test(pin)) { pinInput.style.borderColor = '#dc3545'; showError('암호코드는 4~6자리 숫자'); return; }
+            if (!name) { nameInput.style.borderColor = 'var(--red-500)'; return; }
+            if (!/^\d{4,6}$/.test(pin)) { pinInput.style.borderColor = 'var(--red-500)'; showError('암호코드는 4~6자리 숫자'); return; }
             if (isRegister && pinConfirm) {
                 const pinC = pinConfirm.value.trim();
-                if (pin !== pinC) { pinConfirm.style.borderColor = '#dc3545'; showError('암호코드가 일치하지 않습니다.'); return; }
+                if (pin !== pinC) { pinConfirm.style.borderColor = 'var(--red-500)'; showError('암호코드가 일치하지 않습니다.'); return; }
                 _showConfirm('비밀번호 찾기 기능이 없습니다.\n암호코드를 신중하게 확인해주세요.', () => doApiCall(name, pin));
                 return;
             }
@@ -1117,7 +1117,7 @@ const ServerSelectModule = (function () {
 
         function doStart() {
             const name = nameInput.value.trim();
-            if (!name) { nameInput.style.borderColor = '#dc3545'; return; }
+            if (!name) { nameInput.style.borderColor = 'var(--red-500)'; return; }
             modal.remove();
             _saveName(name);
             hide();
@@ -1541,7 +1541,7 @@ const ServerSelectModule = (function () {
         if (btn.querySelector('.ss-members-dot')) return;
         const dot = document.createElement('span');
         dot.className = 'ss-members-dot';
-        dot.style.cssText = 'display:inline-block;width:8px;height:8px;background:#dc3545;border-radius:50%;margin-left:5px;vertical-align:middle;animation:ssPulse 1.5s ease-in-out infinite;';
+        dot.style.cssText = 'display:inline-block;width:8px;height:8px;background:var(--red-500);border-radius:50%;margin-left:5px;vertical-align:middle;animation:ssPulse 1.5s ease-in-out infinite;';
         btn.appendChild(dot);
     }
 
@@ -1598,10 +1598,10 @@ const ServerSelectModule = (function () {
         });
         box.innerHTML = `
             <p style="font-size:1.5em;margin:0 0 8px;">⚠️</p>
-            <p style="font-size:0.9em;color:#333;margin:0 0 20px;white-space:pre-line;line-height:1.5;">${msg}</p>
+            <p style="font-size:0.9em;color:var(--text-primary);margin:0 0 20px;white-space:pre-line;line-height:1.5;">${msg}</p>
             <div style="display:flex;gap:10px;">
-                <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid #ddd;background:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>
-                <button id="ss-confirm-ok" style="flex:1;padding:10px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:600;">가입하기</button>
+                <button id="ss-confirm-cancel" style="flex:1;padding:10px;border:1px solid var(--border-light);background:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;">취소</button>
+                <button id="ss-confirm-ok" style="flex:1;padding:10px;border:none;background:var(--brand-gradient);color:#fff;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:600;">가입하기</button>
             </div>
         `;
         overlay.appendChild(box);

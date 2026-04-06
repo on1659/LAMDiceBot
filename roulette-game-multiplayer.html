@@ -1015,7 +1015,7 @@
                 <div style="color: white; margin-bottom: 12px; font-size: 14px;">
                     🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다
                 </div>
-                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: #333333; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
+                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: var(--text-primary); font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
                     🔄 다시보기
                 </button>
             </div>
@@ -1360,7 +1360,7 @@
             messageDiv.style.cssText = `
                 font-size: 15px;
                 line-height: 1.6;
-                color: #1a1a1a;
+                color: var(--text-primary);
                 white-space: pre-wrap;
                 word-wrap: break-word;
                 word-break: keep-all;
@@ -1500,7 +1500,7 @@
                 messageDiv.style.cssText = `
                     font-size: 15px;
                     line-height: 1.6;
-                    color: #1a1a1a;
+                    color: var(--text-primary);
                     white-space: pre-wrap;
                     word-wrap: break-word;
                     word-break: keep-all;
@@ -1662,7 +1662,7 @@
                 messageDiv.style.cssText = `
                     font-size: 18px;
                     line-height: 1.6;
-                    color: #1a1a1a;
+                    color: var(--text-primary);
                     white-space: pre-wrap;
                     word-break: break-word;
                     text-align: center;
@@ -2257,7 +2257,7 @@
                     transform: translate(-50%, -50%);
                     font-size: 16px;
                     font-weight: 700;
-                    color: #1a1a1a;
+                    color: var(--text-primary);
                     text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
                     white-space: nowrap;
                     text-align: center;
@@ -3588,27 +3588,27 @@
     </div>
 
     <!-- SEO Content Section (hidden, crawlers only) -->
-    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary, #fff); border-radius:12px; color:var(--text-primary, #333); line-height:1.7; position:absolute; left:-9999px;">
-        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--purple-600, #7c3aed);">LAMDice 룰렛 게임 안내</h2>
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 룰렛 게임 안내</h2>
         <p>LAMDice 룰렛은 친구들과 실시간으로 즐기는 무료 온라인 돌림판 게임입니다. 여러 칸 중 하나를 선택하여 당첨을 맞히세요. 돌림판은 서버에서 결정되므로 클라이언트 조작이 불가능하며, 모든 결과는 공정하게 기록됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="roulette-guide.html" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">📖 룰렛 규칙 가이드</a>
-            <a href="fairness-rng.html" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">🔒 공정성 원리</a>
-            <a href="game-guides.html" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">📚 전체 게임 가이드</a>
-            <a href="/" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">🏠 홈으로</a>
+            <a href="roulette-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 룰렛 규칙 가이드</a>
+            <a href="fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
         </div>
-        <p style="margin-top:12px; font-size:0.9em; color:var(--text-secondary, #666);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--purple-500, #8b5cf6);">주사위</a> · <a href="/horse-race" style="color:var(--purple-500, #8b5cf6);">레이스</a></p>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a></p>
     </section>
 
-    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary, #666);">
+    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary);">
         <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top:10px;">
-            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">홈</a> |
-            <a href="game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">게임 가이드</a> |
-            <a href="faq.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">FAQ</a> |
-            <a href="privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">이용 약관</a> |
-            <a href="contact.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">문의하기</a>
+            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">홈</a> |
+            <a href="game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
+            <a href="faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
+            <a href="privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
+            <a href="terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
+            <a href="contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
