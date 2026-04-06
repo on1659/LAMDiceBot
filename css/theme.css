@@ -118,11 +118,11 @@
   --dice-600:   #764ba2;
   --dice-700:   #5A3880;
 
-  /* 룰렛 게임 - 회색 유지 */
-  --roulette-50:  #F5F7F8;
+  /* 룰렛 게임 - 딥그린 */
+  --roulette-50:  #E8F5EC;
   --roulette-500: #7c4dff;  /* 강조색 */
   --roulette-600: #536dfe;
-  --roulette-bg:  #8e99a4;
+  --roulette-bg:  #1a5c3a;
 
   /* 뽑기 게임 - 회색 배경 + 보라색 강조 */
   --crane-50:   #F5F7F8;
@@ -229,7 +229,7 @@
   --dice-gradient: linear-gradient(135deg, var(--dice-500) 0%, var(--dice-600) 100%);
   --dice-accent: var(--dice-500);
 
-  --roulette-gradient: linear-gradient(135deg, var(--roulette-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
+  --roulette-gradient: linear-gradient(135deg, #1a5c3a 0%, #22693f 50%, #2d7a52 100%);
   --roulette-accent: var(--roulette-500);
 
   --crane-gradient: linear-gradient(135deg, var(--crane-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
