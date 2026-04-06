@@ -145,7 +145,7 @@
         
         .room-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 5px 15px rgba(var(--dice-500-rgb),0.3);
         }
         
         /* 경마 버튼 툴팁 */
@@ -367,11 +367,11 @@
         /* 업데이트 내역 섹션 */
         .update-log-section {
             background: linear-gradient(145deg, var(--purple-50) 0%, var(--purple-100) 100%);
-            border: 1px solid rgba(102, 126, 234, 0.35);
+            border: 1px solid rgba(var(--dice-500-rgb),0.35);
             border-radius: 16px;
             padding: 24px;
             margin-top: 24px;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.12);
+            box-shadow: 0 4px 20px rgba(var(--dice-500-rgb),0.12);
         }
         .update-log-section h2 {
             margin-bottom: 16px;
@@ -507,7 +507,7 @@
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--dice-500-rgb),0.4);
         }
 
         button:active {
@@ -563,7 +563,7 @@
             flex-shrink: 0;
             min-width: 80px;
             padding: 6px 12px;
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(var(--dice-500-rgb),0.2);
             border-radius: 8px;
             border: 1px solid var(--dice-500);
             display: inline-block !important;
@@ -648,14 +648,14 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            background: linear-gradient(135deg, rgba(var(--dice-500-rgb),0.1) 0%, rgba(var(--dice-600-rgb),0.1) 100%);
             border-radius: 15px;
             pointer-events: none;
         }
 
         .dice.rolling {
             animation: roll 0.3s infinite, shake 0.15s infinite, pulse 0.4s infinite;
-            filter: drop-shadow(0 0 15px rgba(102, 126, 234, 0.9));
+            filter: drop-shadow(0 0 15px rgba(var(--dice-500-rgb),0.9));
         }
         
         .dice.rolling .dice-content {
@@ -1270,18 +1270,18 @@
             position: relative;
             background: linear-gradient(135deg, var(--panel-attention) 0%, var(--bg-white) 50%, var(--panel-attention) 100%);
             border-left: 4px solid var(--btn-ready);
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+            box-shadow: 0 4px 15px rgba(var(--green-500-rgb),0.2), 0 0 30px rgba(var(--yellow-gold-rgb),0.15);
             animation: winnerPulse 2s ease-in-out infinite;
             transform: scale(1);
         }
 
         @keyframes winnerPulse {
             0%, 100% {
-                box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+                box-shadow: 0 4px 15px rgba(var(--green-500-rgb),0.2), 0 0 30px rgba(var(--yellow-gold-rgb),0.15);
                 transform: scale(1);
             }
             50% {
-                box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35), 0 0 40px rgba(255, 215, 0, 0.25);
+                box-shadow: 0 6px 20px rgba(var(--green-500-rgb),0.35), 0 0 40px rgba(var(--yellow-gold-rgb),0.25);
                 transform: scale(1.02);
             }
         }
@@ -1294,7 +1294,7 @@
             font-size: 20px;
             animation: sparkle 1.5s ease-in-out infinite;
             z-index: 1;
-            filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.8));
+            filter: drop-shadow(0 0 3px rgba(var(--yellow-gold-rgb),0.8));
         }
 
         @keyframes sparkle {
@@ -1400,7 +1400,7 @@
         }
 
         .logout-button:hover {
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--red-500-rgb),0.4);
         }
 
         .dice-settings {
@@ -1450,7 +1450,7 @@
         }
 
         .order-button:hover {
-            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--yellow-500-rgb),0.4);
         }
 
         .clear-data-button {
@@ -1458,7 +1458,7 @@
         }
 
         .clear-data-button:hover {
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--red-500-rgb),0.4);
         }
         @keyframes newBadgePulse {
             0%, 100% { transform: scale(1); }
@@ -1511,7 +1511,7 @@
         <!-- 대기실 섹션 -->
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
-            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid var(--dice-500); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(var(--dice-500-rgb),0.1), rgba(var(--dice-600-rgb),0.1)); border: 1px solid var(--dice-500); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
                 <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--btn-neutral); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: var(--dice-500);"></span>
                 <span id="serverInfoUserName" style="font-weight: 600; color: var(--dice-600); display: none;">👤 </span>
@@ -3381,7 +3381,7 @@
                 `;
                 hostButton.onmouseenter = () => {
                     hostButton.style.transform = 'scale(1.02)';
-                    hostButton.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                    hostButton.style.boxShadow = '0 4px 12px rgba(var(--dice-500-rgb),0.3)';
                 };
                 hostButton.onmouseleave = () => {
                     hostButton.style.transform = 'scale(1)';
