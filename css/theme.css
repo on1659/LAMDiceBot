@@ -513,6 +513,15 @@ input, select, textarea {
   width: auto;
 }
 
+#rankingBtn {
+  background: var(--purple-100, #f0e6ff);
+  color: var(--purple-600, #7c3aed);
+  padding: 2px 8px;
+  font-size: 12px;
+  align-self: center;
+  width: auto;
+}
+
 /* User Actions (Delegation, Kick) */
 .user-actions {
   display: flex;

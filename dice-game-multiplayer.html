@@ -1702,7 +1702,8 @@
                     gameKey: 'dice',
                     soundKey: 'diceSoundEnabled',
                     volumeKey: 'diceSoundVolume',
-                    onLeave: function() { logout(); }
+                    onLeave: function() { logout(); },
+                    onRanking: function() { RankingModule.show(); }
                 });
             </script>
             

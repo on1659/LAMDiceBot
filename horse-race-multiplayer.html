@@ -105,7 +105,8 @@
                     gameKey: 'horse',
                     soundKey: 'horseSoundEnabled',
                     volumeKey: 'horseSoundVolume',
-                    onLeave: function() { leaveRoom(); }
+                    onLeave: function() { leaveRoom(); },
+                    onRanking: function() { RankingModule.show(); }
                 });
             </script>
 
