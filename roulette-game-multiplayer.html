@@ -1107,6 +1107,7 @@
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>
     <script src="/ranking-shared.js"></script>
+    <script src="/countdown-shared.js"></script>
     <script>
         // ============================================
         // Room Control Bar Enhancement
@@ -3154,6 +3155,10 @@
                 everPlayedUsers = [...data.everPlayedUsers];
             }
             
+            // 게임 상태 바 업데이트
+            document.getElementById('gameStatus').textContent = '게임 진행 중!';
+            document.getElementById('gameStatus').className = 'game-status playing';
+
             // UI 상태 변경 (돌림판과 준비 섹션은 계속 표시)
             // 룰렛 시작 버튼만 비활성화 (주문받기 버튼은 유지)
             document.getElementById('startRouletteButton').disabled = true;
@@ -3344,10 +3349,17 @@
             // 모든 클라이언트에서 화면 표시 확인 (호스트/비호스트 모두)
             // visibilityState가 visible이고 창이 포커스를 가지고 있어야 실제로 보이는 것
             if (isActuallyVisible) {
-                addDebugLog('✅ 화면 visible + 포커스 있음 → actuallyStartRoulette 호출', 'info');
-                // 화면이 보이면 즉시 시작
+                addDebugLog('✅ 화면 visible + 포커스 있음 → 카운트다운 후 actuallyStartRoulette 호출', 'info');
+                // 화면이 보이면 카운트다운 후 시작
                 missedRoulette = false;
-                actuallyStartRoulette(data);
+                // 게임 시작 카운트다운 (3-2-1-START!)
+                if (typeof showGameCountdown === 'function') {
+                    showGameCountdown('rouletteContainer', function() {
+                        actuallyStartRoulette(data);
+                    });
+                } else {
+                    actuallyStartRoulette(data);
+                }
             } else {
                 addDebugLog(`⚠️ 화면 NOT visible (visible=${isVisible}, focus=${hasFocus}) → 룰렛 무시, 다시보기 데이터 저장`, 'visibility');
                 // 화면이 보이지 않으면 무시 (대기하지 않음)
@@ -3410,6 +3422,10 @@
             // 다시보기 섹션 숨기기
             document.getElementById('replaySection').style.display = 'none';
             
+            // 게임 상태 바 초기화
+            document.getElementById('gameStatus').textContent = '게임 대기 중...';
+            document.getElementById('gameStatus').className = 'game-status waiting';
+
             // UI 초기화 (돌림판은 계속 표시)
             document.getElementById('rouletteContainer').style.display = 'flex';
             document.getElementById('readySection').style.display = 'block';

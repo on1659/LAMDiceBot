@@ -3128,7 +3128,7 @@ function showRaceResult(data, isReplay = false) {
     }
 }
 
-// 3-2-1 카운트다운 표시 (경마맵 영역 안에)
+// 3-2-1 카운트다운 표시 (경마맵 영역 안에) — countdown-shared.js 사용
 function showCountdown() {
     // 레이스 트랙 컨테이너 표시
     const trackContainer = document.getElementById('raceTrackContainer');
@@ -3138,46 +3138,7 @@ function showCountdown() {
         if (wrapper) wrapper.style.display = 'block';
     }
 
-    // 기존 오버레이 제거
-    const existing = document.getElementById('countdownOverlay');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'countdownOverlay';
-    overlay.style.cssText = `
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.75); z-index: 100;
-        display: flex; justify-content: center; align-items: center;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    `;
-
-    // raceTrackContainer에 relative 설정 후 내부에 오버레이 추가
-    if (trackContainer) {
-        trackContainer.style.position = 'relative';
-        trackContainer.appendChild(overlay);
-    } else {
-        document.body.appendChild(overlay);
-    }
-
-    const nums = ['3', '2', '1', 'START!'];
-    const colors = ['var(--red-500)', 'var(--yellow-500)', 'var(--green-500)', 'var(--blue-500)'];
-    let idx = 0;
-
-    function showNext() {
-        if (idx >= nums.length) {
-            overlay.remove();
-            return;
-        }
-        overlay.innerHTML = `<div style="
-            font-size: ${nums[idx] === 'START!' ? '60px' : '90px'};
-            font-weight: 900; color: ${colors[idx]};
-            text-shadow: 0 0 30px ${colors[idx]}, 0 0 60px ${colors[idx]}40;
-            animation: countPop 0.8s ease-out;
-        ">${nums[idx]}</div>`;
-        idx++;
-        setTimeout(showNext, 1000);
-    }
-    showNext();
+    showGameCountdown('raceTrackContainer');
 }
 
 // 전원 동일 베팅 시 빠른 레이스 오버레이 (뒤에서 레이스 진행)

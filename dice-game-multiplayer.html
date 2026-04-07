@@ -1988,6 +1988,7 @@
     <script src="/ready-shared.js"></script>
     <script src="/order-shared.js"></script>
     <script src="/ranking-shared.js"></script>
+    <script src="/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
@@ -4244,10 +4245,9 @@
             // 재접속 처리
             if (isGameActive && data.isGamePlayer) {
                 document.getElementById('gameStatus').textContent = '게임 진행 중!';
-                document.getElementById('gameStatus').classList.remove('waiting');
-                document.getElementById('gameStatus').classList.add('playing');
+                document.getElementById('gameStatus').className = 'game-status playing';
                 document.getElementById('progressSection').style.display = 'block';
-                
+
                 // 진행 상황 업데이트 (재접속 시에도)
                 if (gamePlayers.length > 0) {
                     const rolled = rolledUsersInGame.length;
@@ -4290,15 +4290,13 @@
                 document.getElementById('myOrderInput').disabled = false;
                 document.getElementById('orderSaveButton').disabled = false;
                 document.getElementById('gameStatus').textContent = '주문받기 진행 중!';
-                document.getElementById('gameStatus').classList.remove('waiting');
-                document.getElementById('gameStatus').classList.remove('playing');
-                document.getElementById('gameStatus').classList.add('ordering');
-                
+                document.getElementById('gameStatus').className = 'game-status ordering';
+
                 if (isHost) {
                     document.getElementById('startOrderButton').style.display = 'none';
                     document.getElementById('endOrderButton').style.display = 'block';
                 }
-                
+
                 // 주문 목록과 주문하지 않은 사람 목록 표시
                 OrderModule.renderOrders();
                 OrderModule.renderNotOrderedUsers();
@@ -4307,12 +4305,10 @@
                 document.getElementById('ordersSection').classList.remove('active');
                 document.getElementById('myOrderInput').disabled = true;
                 document.getElementById('orderSaveButton').disabled = true;
-                
+
                 if (!isGameActive) {
                     document.getElementById('gameStatus').textContent = '게임 대기 중...';
-                    document.getElementById('gameStatus').classList.remove('ordering');
-                    document.getElementById('gameStatus').classList.remove('playing');
-                    document.getElementById('gameStatus').classList.add('waiting');
+                    document.getElementById('gameStatus').className = 'game-status waiting';
                 }
                 
                 if (isHost && !isGameActive) {
@@ -4630,15 +4626,14 @@
             // 재접속 처리
             if (isGameActive && data.isGamePlayer) {
                 document.getElementById('gameStatus').textContent = '게임 진행 중!';
-                document.getElementById('gameStatus').classList.remove('waiting');
-                document.getElementById('gameStatus').classList.add('playing');
+                document.getElementById('gameStatus').className = 'game-status playing';
                 document.getElementById('progressSection').style.display = 'block';
-                
+
                 if (isHost) {
                     document.getElementById('startButton').style.display = 'none';
                     document.getElementById('endButton').style.display = 'block';
                 }
-                
+
                 const reconnectNotice = document.getElementById('reconnectNotice');
                 const reconnectMessage = document.getElementById('reconnectMessage');
                 
@@ -4665,7 +4660,7 @@
                 document.getElementById('myOrderInput').disabled = false;
                 document.getElementById('orderSaveButton').disabled = false;
                 document.getElementById('gameStatus').textContent = '주문받기 진행 중!';
-                document.getElementById('gameStatus').classList.add('ordering');
+                document.getElementById('gameStatus').className = 'game-status ordering';
                 
                 if (isHost) {
                     document.getElementById('startOrderButton').style.display = 'none';
@@ -5030,13 +5025,14 @@
             
             // 준비 섹션 숨기기
             document.getElementById('readySection').style.display = 'none';
-            
+
             document.getElementById('reconnectNotice').style.display = 'none';
-            
+
+            // 게임 시작 카운트다운 (3-2-1-START!)
+            if (typeof showGameCountdown === 'function') showGameCountdown(null);
+
             document.getElementById('gameStatus').textContent = '게임 진행 중!';
-            document.getElementById('gameStatus').classList.remove('waiting');
-            document.getElementById('gameStatus').classList.remove('ordering');
-            document.getElementById('gameStatus').classList.add('playing');
+            document.getElementById('gameStatus').className = 'game-status playing';
             document.getElementById('startButton').style.display = 'none';
             document.getElementById('endButton').style.display = 'block';
             
@@ -5234,9 +5230,8 @@
                 // 호스트 UI 업데이트 (드래그 안내 멘트 포함)
                 updateHostUI();
                 
-                document.getElementById('gameStatus').textContent = '게임 종료됨';
-                document.getElementById('gameStatus').classList.remove('playing');
-                document.getElementById('gameStatus').classList.add('waiting');
+                document.getElementById('gameStatus').textContent = '게임 대기 중...';
+                document.getElementById('gameStatus').className = 'game-status waiting';
                 document.getElementById('startButton').style.display = 'block';
                 document.getElementById('endButton').style.display = 'none';
                 // 주사위 굴리기 버튼은 제거됨
