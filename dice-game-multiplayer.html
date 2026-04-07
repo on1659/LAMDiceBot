@@ -1023,15 +1023,16 @@
 
         .history-section {
             position: fixed;
+            right: 20px;
             top: 20px;
             width: 320px;
             background: var(--bg-white);
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 20px;
             max-height: calc(100vh - 40px);
             overflow-y: auto;
-            z-index: 1000;
+            z-index: 100;
             display: none; /* 기본적으로 숨김, 방 입장 시에만 표시 */
         }
         
@@ -1167,8 +1168,6 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--dice-500);
         }
 
         .history-title {
@@ -1944,7 +1943,7 @@
     <!-- 기록 섹션 (오른쪽 고정) -->
     <div class="history-section">
         <div class="history-title-wrapper">
-            <div class="history-title" id="historyTitle">📋 게임 기록 - 연습경기</div>
+            <div class="history-title" id="historyTitle">📜 게임 기록 - 연습경기</div>
             <div class="sort-buttons">
                 <button class="sort-button active" id="sortTimeBtn" onclick="sortHistory('time')">시간순</button>
                 <button class="sort-button" id="sortAscBtn" onclick="sortHistory('asc')">오름차순</button>
@@ -4054,7 +4053,7 @@
             // 게임 기록 제목 설정
             const historyTitle = document.getElementById('historyTitle');
             if (historyTitle) {
-                historyTitle.textContent = isGameActive ? '📋 게임' : '📋 연습';
+                historyTitle.textContent = isGameActive ? '📜 게임' : '📜 연습';
             }
             
             // 비공개 방 비밀번호 표시
@@ -5016,7 +5015,7 @@
             }
             
             // 게임 기록 제목 변경
-            document.getElementById('historyTitle').textContent = '📋 게임';
+            document.getElementById('historyTitle').textContent = '📜 게임';
             
             // 굴린 인원 업데이트
             updateRolledUsersCount();
@@ -5210,7 +5209,7 @@
                 // currentGameHistory는 현재 게임의 기록만 포함됨
                 
                 // 게임 기록 제목은 그대로 유지 (게임 기록으로 계속 표시)
-                document.getElementById('historyTitle').textContent = '📋 게임';
+                document.getElementById('historyTitle').textContent = '📜 게임';
                 
                 // 굴린 인원 업데이트
                 updateRolledUsersCount();

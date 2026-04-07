@@ -924,7 +924,6 @@ input[type="text"]:focus, input[type="password"]:focus {
     background: var(--bg-white);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     padding: 20px;
     overflow-y: auto;
     display: none;
