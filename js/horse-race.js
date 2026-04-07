@@ -3096,9 +3096,8 @@ function showRaceResult(data, isReplay = false) {
     // 게임 상태 업데이트
     const gameStatus = document.getElementById('gameStatus');
     if (gameStatus) {
-        gameStatus.textContent = '경주 종료!';
-        gameStatus.style.background = 'var(--gray-100)';
-        gameStatus.style.color = 'var(--gray-700)';
+        gameStatus.textContent = '게임 대기 중...';
+        gameStatus.className = 'game-status waiting';
     }
     
     // 다시보기 버튼 표시 (모든 사용자)
@@ -4046,6 +4045,9 @@ function startRoomExpiryCountdown(createdAt, expiryHours) {
         
         if (remaining <= 0) {
             countdownElement.textContent = '00:00:00';
+            expirySection.style.background = 'var(--status-danger-bg)';
+            expirySection.style.borderColor = 'var(--red-500)';
+            countdownElement.style.color = 'var(--status-danger-text)';
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
@@ -4117,15 +4119,11 @@ function initializeGameScreen(data) {
         const serverIsRaceActive = (data.gameState && data.gameState.isHorseRaceActive) || data.isGameActive;
         if (serverIsRaceActive) {
             isRaceActive = true; // 클라이언트 상태도 동기화
-            document.getElementById('gameStatus').textContent = '게임 진행 중';
-            document.getElementById('gameStatus').classList.remove('waiting', 'ordering');
-            document.getElementById('gameStatus').classList.add('playing');
-            document.getElementById('gameStatus').style.background = 'var(--yellow-100)';
-            document.getElementById('gameStatus').style.color = 'var(--yellow-900)';
+            document.getElementById('gameStatus').textContent = '게임 진행 중!';
+            document.getElementById('gameStatus').className = 'game-status playing';
         } else if (!isRaceActive) {
-            document.getElementById('gameStatus').textContent = '대기 중...';
-            document.getElementById('gameStatus').classList.remove('ordering');
-            document.getElementById('gameStatus').classList.add('waiting');
+            document.getElementById('gameStatus').textContent = '게임 대기 중...';
+            document.getElementById('gameStatus').className = 'game-status waiting';
         }
 
         if (isHost && !isRaceActive) {
@@ -4813,9 +4811,8 @@ socket.on('horseRaceStarted', (data) => {
     // 게임 상태 업데이트 + 실황 중계 시작
     const gameStatus = document.getElementById('gameStatus');
     if (gameStatus) {
+        gameStatus.textContent = '게임 진행 중!';
         gameStatus.className = 'game-status playing';
-        gameStatus.style.background = 'var(--green-50)';
-        gameStatus.style.color = 'var(--green-800)';
     }
     if (typeof startRaceCommentary === 'function') startRaceCommentary();
 });

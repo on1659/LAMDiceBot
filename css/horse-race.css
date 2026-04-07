@@ -35,6 +35,27 @@
   --horse-accent: var(--horse-500);
 }
 
+/* 게임 상태 바 (3게임 공통 패턴) */
+.game-status {
+    text-align: center;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+.game-status.waiting {
+    background: var(--gray-100);
+    color: var(--gray-700);
+}
+.game-status.ordering {
+    background: var(--status-warning-bg);
+    color: var(--status-warning-text);
+}
+.game-status.playing {
+    background: var(--status-success-bg);
+    color: var(--status-success-text);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -1266,7 +1287,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 /* 방 폭파 카운트다운 */
 .room-expiry-section {
-    background: var(--yellow-100);
+    background: var(--status-warning-bg);
     border: 2px solid var(--yellow-500);
     border-radius: 8px;
     padding: 12px;

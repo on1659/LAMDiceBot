@@ -588,13 +588,12 @@
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            font-weight: 600;
-            font-size: 18px;
+            font-weight: bold;
         }
 
         .game-status.waiting {
-            background: var(--status-warning-bg);
-            color: var(--status-warning-text);
+            background: var(--gray-100);
+            color: var(--gray-700);
         }
 
         .game-status.playing {
@@ -603,8 +602,17 @@
         }
 
         .game-status.ordering {
-            background: var(--panel-attention);
+            background: var(--status-warning-bg);
             color: var(--status-warning-text);
+        }
+
+        .room-expiry-section {
+            background: var(--status-warning-bg);
+            border: 2px solid var(--yellow-500);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            text-align: center;
         }
 
         .host-controls {
@@ -1782,9 +1790,9 @@
             </div>
             
             <!-- 방 폭파까지 남은 시간 -->
-            <div class="room-expiry-section" id="roomExpirySection" style="display: none; background: var(--status-warning-bg); border: 2px solid var(--host-badge-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px; text-align: center;">
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--btn-danger);">--:--:--</span>
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
             
@@ -4411,7 +4419,7 @@
                 if (remaining <= 0) {
                     countdownElement.textContent = '00:00:00';
                     expirySection.style.background = 'var(--status-danger-bg)';
-                    expirySection.style.borderColor = 'var(--btn-danger)';
+                    expirySection.style.borderColor = 'var(--red-500)';
                     countdownElement.style.color = 'var(--status-danger-text)';
                     if (roomExpiryInterval) {
                         clearInterval(roomExpiryInterval);
