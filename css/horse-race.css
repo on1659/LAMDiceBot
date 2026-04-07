@@ -931,8 +931,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     z-index: 100;
 }
 
-.history-section.visible,
-body.game-active .history-section {
+.history-section.visible {
     display: block;
 }
 
@@ -941,7 +940,6 @@ body.game-active .history-section {
     font-weight: bold;
     color: var(--horse-accent);
     margin-bottom: 15px;
-    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     text-align: center;
 }
 
