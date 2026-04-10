@@ -22,7 +22,12 @@
 ├── css/
 │   ├── theme.css                    # 전역 색상 시스템 (140 CSS 변수)
 │   └── horse-race.css               # 경마 전용 색상 (23 CSS 변수)
-├── *-shared.js                      # 공유 모듈 (ranking, chat, order, ready)
+├── js/
+│   ├── shared/                      # 공유 모듈 (ranking, chat, order, ready, control-bar 등)
+│   ├── gif-recorder.js              # GIF 녹화
+│   ├── gif.worker.js                # GIF 워커
+│   └── tagline-roller.js            # 태그라인 롤러
+├── pages/                           # SEO/정보 페이지 (about, faq, guides 등)
 ├── assets/sounds/                   # 사운드 리소스
 └── horse-app/                       # 경마 React 리빌드 (별도 빌드)
 ```

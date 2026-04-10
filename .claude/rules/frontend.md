@@ -1,14 +1,9 @@
 ---
 paths:
   - "*.html"
+  - "pages/**"
   - "css/**"
-  - "*-shared.js"
   - "js/**"
-  - "tutorial-shared.js"
-  - "tagline-roller.js"
-  - "control-bar-shared.js"
-  - "gif-recorder.js"
-  - "gif.worker.js"
 ---
 
 # Frontend Rules
@@ -23,7 +18,8 @@ paths:
 - 게임 공통 색상 → `css/theme.css`
 - 게임 전용 색상 → 해당 게임 CSS 파일의 `:root`
 
-## 공유 JS (*-shared.js)
+## 공유 JS (js/shared/*-shared.js)
+- 공유 모듈은 `js/shared/` 디렉토리에 위치 (chat, ranking, order, ready, control-bar, countdown, page-history, server-select, tutorial)
 - 수정 시 이 모듈을 import하는 HTML 파일 전체에 영향 — Grep으로 사용처 확인
 - Socket emit/on 이벤트명 변경 시 서버(`socket/*.js`)도 검색
 - init 시그니처 변경 시 `docs/GameGuide/system/SHARED-MODULES.md` 참조 — 모든 게임 HTML의 호출부 동기화 필수
@@ -44,7 +40,7 @@ paths:
 
 JS/HTML 변경 후 Grep 필수:
 ```
-grep -n "document\.hasAttribute\|document\.setAttribute\|document\.style[^E]\|document\.classList\|document\.className" *.js *.html
+grep -rn "document\.hasAttribute\|document\.setAttribute\|document\.style[^E]\|document\.classList\|document\.className" js/ pages/ *.html
 ```
 
 ## 검증

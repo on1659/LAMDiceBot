@@ -3,25 +3,46 @@
     "allow": [
       "Bash(railway list:*)",
       "Bash(railway status:*)",
-      "Read(//d/Work/vibe/claude_team_gui/.claude/**)",
       "Bash(python3 -c \":*)"
     ],
     "additionalDirectories": [
       "d:\\Work\\LAMDiceBot\\.claude",
-      "C:\\Users\\user\\.claude\\channels\\telegram",
-      "D:\\Work\\LAMDiceBot\\.claude\\hooks",
-      "d:\\Work\\LAMDiceBot\\docs\\meeting\\impl",
-      "D:\\Work\\LAMDiceBot\\docs\\GameGuide\\01-plan\\features\\applied"
+      "d:\\Work\\LAMDiceBot\\docs"
     ]
   },
   "hooks": {
-    "PostToolUse": [
+    "PreToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /d/Work/LAMDiceBot/.claude/hooks/ui-check.py"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-main-branch.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/ui-check.py\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/file-type-reminder.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"systemMessage\":\"이 세션에서 새로 알게 된 패턴이나 결정사항이 있다면 MEMORY.md에 기록하세요.\"}'"
           }
         ]
       }

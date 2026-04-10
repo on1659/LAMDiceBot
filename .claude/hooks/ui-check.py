@@ -66,7 +66,8 @@ for i, line in enumerate(lines, 1):
 # AdSense 체크 (HTML만, admin.html 제외)
 if ext == '.html':
     fname = os.path.basename(file_path)
-    if fname != 'admin.html' and 'pagead2.googlesyndication.com' not in content:
+    # admin.html과 prototype/ 디렉토리는 AdSense 체크 skip
+    if fname != 'admin.html' and '/prototype/' not in file_path and 'pagead2.googlesyndication.com' not in content:
         issues.append('  AdSense 스니펫 없음 — <head>에 추가 필요')
 
 if issues:

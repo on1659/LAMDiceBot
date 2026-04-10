@@ -15,9 +15,12 @@
 
 ```text
 ├── server.js                    # 메인 진입점 (Express + Socket.IO, DB 초기화)
-├── config.js                    # 환경변수 (PORT, BASE_URL)
+├── config/
+│   ├── index.js                 # 환경변수 (PORT, BASE_URL) — require('./config')으로 사용
+│   ├── client-config.js         # 클라이언트 설정
+│   └── horse/                   # 경마 설정
 ├── routes/
-│   ├── api.js                   # HTTP 라우트 (정적 파일, 게임 페이지)
+│   ├── api.js                   # HTTP 라우트 (정적 파일, 게임 페이지, SEO 리다이렉트)
 │   └── server.js                # 서버 관리 API
 ├── socket/
 │   ├── index.js                 # connection 설정, ctx 생성
@@ -38,7 +41,15 @@
 │   ├── auth.js                  # 인증
 │   ├── menus.js                 # 메뉴
 │   └── suggestions.js           # 게시판
-└── config/                      # 설정 상수
+├── utils/
+│   └── gemini-utils.js          # Gemini AI 유틸리티
+├── js/
+│   ├── shared/                  # 공유 모듈 (*-shared.js)
+│   ├── gif-recorder.js          # GIF 녹화
+│   ├── gif.worker.js            # GIF 워커
+│   └── tagline-roller.js        # 태그라인 롤러
+├── pages/                       # SEO/정보 페이지 (about, faq, guides 등)
+└── tests/                       # 테스트 스크립트
 ```
 
 ---
