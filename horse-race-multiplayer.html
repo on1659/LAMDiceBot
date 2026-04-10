@@ -76,7 +76,7 @@
             <h1>LAMDice 레이스</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
             <p>친구와 함께하는 실시간 레이스 게임. 다양한 탈것 중 1등과 꼴등을 맞히는 내기로 관전하세요. 회원가입 없이 무료로 플레이할 수 있습니다.</p>
-            <p><a href="/">홈으로 돌아가기</a> · <a href="horse-race-guide.html">레이스 가이드</a> · <a href="game-guides.html">전체 게임 가이드</a></p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/horse-race-guide.html">레이스 가이드</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
         </div>
     </noscript>
     <!-- 로딩 화면 -->
@@ -99,7 +99,7 @@
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
-            <script src="/control-bar-shared.js"></script>
+            <script src="/js/shared/control-bar-shared.js"></script>
             <script>
                 ControlBar.init({
                     gameKey: 'horse',
@@ -351,14 +351,14 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/page-history-shared.js"></script>
-    <script src="/chat-shared.js"></script>
-    <script src="/ready-shared.js"></script>
-    <script src="/order-shared.js"></script>
-    <script src="/ranking-shared.js"></script>
-    <script src="/countdown-shared.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
+    <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
-    <!-- <script src="/gif-recorder.js"></script> GIF 기능 비활성화 -->
+    <!-- <script src="/js/gif-recorder.js"></script> GIF 기능 비활성화 -->
     <script src="/js/horse-race-sprites.js"></script>
     <script src="/js/horse-race-commentary.js"></script>
     <script src="/js/horse-race.js"></script>
@@ -713,9 +713,9 @@
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 레이스 게임 안내</h2>
         <p>LAMDice 레이스는 친구들과 함께 즐기는 무료 온라인 경주 게임입니다. 다양한 탈것 중 1등과 꼴등을 예측하여 포인트를 걸고 결과를 관전하세요. 레이스 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="horse-race-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 레이스 규칙 가이드</a>
-            <a href="fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
-            <a href="game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
+            <a href="/pages/horse-race-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 레이스 규칙 가이드</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
             <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
         </div>
         <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a></p>
@@ -736,11 +736,11 @@
         <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top:10px;">
             <a href="/" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">홈</a> |
-            <a href="game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
-            <a href="faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
-            <a href="privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
-            <a href="contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
+            <a href="/pages/game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>

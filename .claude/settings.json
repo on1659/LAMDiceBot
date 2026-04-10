@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(railway list:*)",
+      "Bash(railway status:*)",
+      "Read(//d/Work/vibe/claude_team_gui/.claude/**)",
+      "Bash(python3 -c \":*)"
+    ],
+    "additionalDirectories": [
+      "d:\\Work\\LAMDiceBot\\.claude",
+      "C:\\Users\\user\\.claude\\channels\\telegram",
+      "D:\\Work\\LAMDiceBot\\.claude\\hooks",
+      "d:\\Work\\LAMDiceBot\\docs\\meeting\\impl",
+      "D:\\Work\\LAMDiceBot\\docs\\GameGuide\\01-plan\\features\\applied"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /d/Work/LAMDiceBot/.claude/hooks/ui-check.py"
+          }
+        ]
+      }
+    ]
+  }
+}

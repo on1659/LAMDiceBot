@@ -736,7 +736,7 @@
             <h1>LAMDice - 인형뽑기 게임</h1>
             <p>LAMDice 인형뽑기는 실시간 멀티플레이어 크레인 게임입니다. 타이밍과 전략으로 인형을 뽑아보세요.</p>
             <p>크레인을 조작하여 원하는 인형을 집어올리는 게임으로, 여러 명이 함께 즐길 수 있습니다.</p>
-            <p><a href="crane-game-guide.html">인형뽑기 가이드 보기</a> | <a href="/">메인으로</a></p>
+            <p><a href="/pages/crane-game-guide.html">인형뽑기 가이드 보기</a> | <a href="/">메인으로</a></p>
         </div>
     </noscript>
     <!-- 로딩 화면 -->
@@ -1012,7 +1012,7 @@
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
-            <script src="/control-bar-shared.js"></script>
+            <script src="/js/shared/control-bar-shared.js"></script>
             <script>
                 ControlBar.init({
                     gameKey: 'crane',
@@ -1227,12 +1227,12 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/page-history-shared.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
-    <script src="/chat-shared.js"></script>
-    <script src="/ready-shared.js"></script>
-    <script src="/order-shared.js"></script>
-    <script src="/ranking-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
     <script>
         // ============================================
         // Room Control Bar Enhancement

@@ -1492,16 +1492,16 @@
             <h1>LAMDice 주사위 게임</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
             <p>친구와 함께하는 온라인 주사위 게임. High, Low, Near, Custom 등 다양한 규칙으로 실시간 대결하세요. 회원가입 없이 바로 플레이할 수 있으며, 서버 기반 난수로 공정성이 보장됩니다.</p>
-            <p><a href="/">홈으로 돌아가기</a> · <a href="dice-rules-guide.html">주사위 규칙 가이드</a> · <a href="probability-analysis.html">확률 분석</a></p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/dice-rules-guide.html">주사위 규칙 가이드</a> · <a href="/pages/probability-analysis.html">확률 분석</a></p>
         </div>
     </noscript>
     <header style="background-color: var(--bg-primary); padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
         <nav style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
             <h1 style="margin: 0; font-size: 1.5em;"><a href="/" style="text-decoration: none; color: var(--text-primary);">LAMDice 주사위 게임</a></h1>
             <div class="nav-links">
-                <a href="dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">다양한 주사위 규칙</a>
-                <a href="probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">확률 분석 및 팁</a>
-                <a href="about-us.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">사이트 소개</a>
+                <a href="/pages/dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">다양한 주사위 규칙</a>
+                <a href="/pages/probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">확률 분석 및 팁</a>
+                <a href="/pages/about-us.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">사이트 소개</a>
             </div>
         </nav>
     </header>
@@ -1704,7 +1704,7 @@
         <div class="game-section" id="gameSection">
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
-            <script src="/control-bar-shared.js"></script>
+            <script src="/js/shared/control-bar-shared.js"></script>
             <script>
                 ControlBar.init({
                     gameKey: 'dice',
@@ -1980,15 +1980,15 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/page-history-shared.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
     <script src="/config/client-config.js"></script>
-    <script src="/tagline-roller.js"></script>
-    <script src="/server-select-shared.js"></script>
-    <script src="/chat-shared.js"></script>
-    <script src="/ready-shared.js"></script>
-    <script src="/order-shared.js"></script>
-    <script src="/ranking-shared.js"></script>
-    <script src="/countdown-shared.js"></script>
+    <script src="/js/tagline-roller.js"></script>
+    <script src="/js/shared/server-select-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
+    <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
@@ -7473,9 +7473,9 @@
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 주사위 게임 안내</h2>
         <p>LAMDice 주사위 게임은 친구들과 실시간으로 즐기는 무료 온라인 멀티플레이어 게임입니다. High(높은 수 승리), Low(낮은 수 승리), Near(목표 수에 가까운 수 승리), Custom(사용자 정의 규칙) 등 다양한 규칙을 선택할 수 있습니다. 모든 주사위는 서버 기반 난수 생성으로 공정성이 보장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="dice-rules-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 주사위 규칙 가이드</a>
-            <a href="probability-analysis.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📊 확률 분석 및 팁</a>
-            <a href="fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="/pages/dice-rules-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 주사위 규칙 가이드</a>
+            <a href="/pages/probability-analysis.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📊 확률 분석 및 팁</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
             <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
         </div>
         <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a></p>
@@ -7496,11 +7496,11 @@
         <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top: 10px;">
             <a href="/" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">홈</a> |
-            <a href="game-guides.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">게임 가이드</a> |
-            <a href="faq.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">FAQ</a> |
-            <a href="privacy-policy.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">이용 약관</a> |
-            <a href="contact.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">문의하기</a>
+            <a href="/pages/game-guides.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>

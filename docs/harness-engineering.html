@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>하네스 엔지니어링 현황 — LAMDice</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue:       #0064FF;
+      --blue-light: #EBF3FF;
+      --blue-dark:  #004FCC;
+      --green:      #00B050;
+      --green-light:#E8F8EF;
+      --orange:     #FF6900;
+      --orange-light:#FFF0E6;
+      --red:        #E03131;
+      --red-light:  #FFF0F0;
+      --gray-50:    #F4F6F8;
+      --gray-100:   #EAECEF;
+      --gray-200:   #D1D5DB;
+      --gray-400:   #8B95A1;
+      --gray-600:   #4E5968;
+      --gray-900:   #1B1D1F;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ─── Layout ─── */
+    .page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* ─── Header ─── */
+    .page-header { margin-bottom: 32px; }
+    .page-header .breadcrumb {
+      font-size: 13px;
+      color: var(--gray-400);
+      margin-bottom: 10px;
+    }
+    .page-header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--gray-900);
+      margin-bottom: 8px;
+    }
+    .page-header .subtitle {
+      font-size: 15px;
+      color: var(--gray-400);
+    }
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    /* ─── Badge ─── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 100px;
+    }
+    .badge-blue   { background: var(--blue-light);   color: var(--blue); }
+    .badge-green  { background: var(--green-light);  color: var(--green); }
+    .badge-orange { background: var(--orange-light); color: var(--orange); }
+    .badge-red    { background: var(--red-light);    color: var(--red); }
+    .badge-gray   { background: var(--gray-100);     color: var(--gray-600); }
+    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+    /* ─── Card ─── */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .card-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--gray-100);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gray-900);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .card-icon-blue   { background: var(--blue-light); }
+    .card-icon-green  { background: var(--green-light); }
+    .card-icon-orange { background: var(--orange-light); }
+    .card-body { padding: 20px 24px; }
+
+    /* ─── Row list ─── */
+    .row-list { display: flex; flex-direction: column; }
+    .row-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .row-item:last-child { border-bottom: none; }
+    .row-label {
+      font-size: 14px;
+      color: var(--gray-600);
+      min-width: 140px;
+      flex-shrink: 0;
+    }
+    .row-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-900);
+      text-align: right;
+    }
+    .row-value.mono {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      color: var(--blue-dark);
+      background: var(--blue-light);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    /* ─── Flow ─── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      padding: 4px 0;
+    }
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 100px;
+    }
+    .flow-box {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .flow-box-blue   { background: var(--blue);    color: #fff; }
+    .flow-box-gray   { background: var(--gray-100); color: var(--gray-600); }
+    .flow-box-green  { background: var(--green);   color: #fff; }
+    .flow-box-orange { background: var(--orange);  color: #fff; }
+    .flow-caption { font-size: 11px; color: var(--gray-400); }
+    .flow-arrow {
+      font-size: 16px;
+      color: var(--gray-200);
+      padding: 0 4px;
+      flex-shrink: 0;
+      align-self: center;
+      margin-bottom: 22px;
+    }
+
+    /* ─── Check list ─── */
+    .check-list { display: flex; flex-direction: column; gap: 10px; }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--gray-50);
+      font-size: 14px;
+    }
+    .check-item .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .check-item .text { color: var(--gray-900); font-weight: 500; }
+    .check-item .sub  { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+    /* ─── Status table ─── */
+    .status-list { display: flex; flex-direction: column; }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .status-item:last-child { border-bottom: none; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.green  { background: var(--green); }
+    .status-dot.orange { background: var(--orange); }
+    .status-dot.gray   { background: var(--gray-200); }
+    .status-text { font-size: 14px; font-weight: 500; flex: 1; }
+    .status-sub  { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+    /* ─── Code block ─── */
+    .code-block {
+      background: var(--gray-900);
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #e2e8f0;
+      overflow-x: auto;
+    }
+    .code-block .c  { color: #64748b; }   /* comment */
+    .code-block .k  { color: #93c5fd; }   /* keyword */
+    .code-block .s  { color: #86efac; }   /* string */
+    .code-block .n  { color: #fde68a; }   /* name */
+
+    /* ─── Next steps ─── */
+    .next-list { display: flex; flex-direction: column; gap: 8px; }
+    .next-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--gray-100);
+      font-size: 14px;
+      cursor: default;
+      transition: background 0.15s;
+    }
+    .next-item:hover { background: var(--gray-50); }
+    .next-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .next-text { font-weight: 500; flex: 1; }
+    .next-sub { font-size: 12px; color: var(--gray-400); }
+
+    /* ─── Divider ─── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      margin: 28px 0 12px;
+    }
+
+    /* ─── Callout ─── */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+    .callout-orange {
+      background: var(--orange-light);
+      color: #7a3000;
+    }
+    .callout-blue {
+      background: var(--blue-light);
+      color: var(--blue-dark);
+    }
+    .callout-icon { font-size: 16px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- ── Header ── -->
+    <div class="page-header">
+      <div class="breadcrumb">LAMDice · 개발 방법론</div>
+      <h1>하네스 엔지니어링</h1>
+      <div class="subtitle">Claude Code 훅 기반 자동화 — UI/UX 개발 워크플로우</div>
+      <div class="header-meta">
+        <span class="badge badge-orange">부분 적용 중</span>
+        <span class="badge badge-gray">2026-04-09</span>
+      </div>
+    </div>
+
+    <!-- ── 개요 ── -->
+    <div class="section-label">개요</div>
+    <div class="card">
+      <div class="card-body">
+        <div class="check-list">
+          <div class="check-item">
+            <div class="icon">🪝</div>
+            <div>
+              <div class="text">하네스 엔지니어링이란?</div>
+              <div class="sub">Claude Code의 훅(Hook) 시스템을 활용해 파일 편집 전후에 자동 검증·피드백을 실행하는 개발 방식. CI/CD처럼 로컬에서도 품질 체크가 자동화된다.</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <div class="icon">🎯</div>
+            <div>
+              <div class="text">LAMDice에서의 목적</div>
+              <div class="sub">HTML/CSS 수정 시 CSS 변수 위반·AdSense 누락 등을 Claude에게 즉시 피드백 → 사람이 리뷰하기 전에 자동 자가 수정 가능</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 동작 플로우 ── -->
+    <div class="section-label">동작 플로우</div>
+    <div class="card">
+      <div class="card-body">
+        <div class="flow">
+          <div class="flow-step">
+            <div class="flow-box flow-box-blue">Claude<br>Edit/Write</div>
+            <div class="flow-caption">파일 수정</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="flow-box flow-box-gray">PostToolUse<br>훅 실행</div>
+            <div class="flow-caption">자동 트리거</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="flow-box flow-box-orange">ui-check.py<br>분석</div>
+            <div class="flow-caption">색상·AdSense 체크</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">
+            <div class="flow-box flow-box-green">결과 출력<br>→ Claude 수신</div>
+            <div class="flow-caption">자가 수정 가능</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 설정 파일 ── -->
+    <div class="section-label">설정 파일</div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <div class="card-icon card-icon-blue">⚙️</div>
+          .claude/settings.json
+        </div>
+        <span class="badge badge-green">등록됨</span>
+      </div>
+      <div class="card-body">
+        <div class="code-block"><span class="c">// PostToolUse: Edit 또는 Write 실행 후 자동 실행</span>
+<span class="s">"hooks"</span>: {
+  <span class="s">"PostToolUse"</span>: [{
+    <span class="s">"matcher"</span>: <span class="s">"Edit|Write"</span>,
+    <span class="s">"hooks"</span>: [{
+      <span class="k">"type"</span>: <span class="s">"command"</span>,
+      <span class="k">"command"</span>: <span class="n">"python3 /d/Work/LAMDiceBot/.claude/hooks/ui-check.py"</span>
+    }]
+  }]
+}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <div class="card-icon card-icon-orange">🐍</div>
+          .claude/hooks/ui-check.py
+        </div>
+        <span class="badge badge-green">동작 확인</span>
+      </div>
+      <div class="card-body">
+        <div class="row-list">
+          <div class="row-item">
+            <div class="row-label">트리거 조건</div>
+            <div class="row-value">.html, .css 파일 편집 시</div>
+          </div>
+          <div class="row-item">
+            <div class="row-label">체크 ①</div>
+            <div class="row-value">하드코딩 hex 색상 감지 → var() 권장</div>
+          </div>
+          <div class="row-item">
+            <div class="row-label">체크 ②</div>
+            <div class="row-value">AdSense 스니펫 누락 여부</div>
+          </div>
+          <div class="row-item">
+            <div class="row-label">:root 블록</div>
+            <div class="row-value">CSS 변수 정의 영역 자동 skip</div>
+          </div>
+          <div class="row-item">
+            <div class="row-label">출력 제한</div>
+            <div class="row-value">최대 10건 표시 (이후 "외 N건")</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 현재 상태 ── -->
+    <div class="section-label">현재 상태</div>
+    <div class="card">
+      <div class="card-body">
+        <div class="status-list">
+          <div class="status-item">
+            <div class="status-dot green"></div>
+            <div>
+              <div class="status-text">ui-check.py 스크립트 작성</div>
+              <div class="status-sub">.claude/hooks/ui-check.py — 색상·AdSense 체크</div>
+            </div>
+            <span class="badge badge-green">완료</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green"></div>
+            <div>
+              <div class="status-text">settings.json PostToolUse 훅 등록</div>
+              <div class="status-sub">Edit|Write 매처로 등록됨</div>
+            </div>
+            <span class="badge badge-green">완료</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green"></div>
+            <div>
+              <div class="status-text">Bash 직접 실행 테스트</div>
+              <div class="status-sub">echo JSON | python3 ui-check.py → 15건 정상 감지</div>
+            </div>
+            <span class="badge badge-green">완료</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot orange"></div>
+            <div>
+              <div class="status-text">실제 세션 중 자동 실행 확인</div>
+              <div class="status-sub">settings.json은 Claude Code 시작 시 로드 → 재시작 필요</div>
+            </div>
+            <span class="badge badge-orange">미확인</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot orange"></div>
+            <div>
+              <div class="status-text">훅 출력 → Claude 피드백 루프</div>
+              <div class="status-sub">stdout 출력이 tool result로 전달되는지 확인 필요</div>
+            </div>
+            <span class="badge badge-orange">미확인</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 확인 방법 callout ── -->
+    <div class="callout callout-orange">
+      <div class="callout-icon">⚠️</div>
+      <div>
+        <strong>확인 방법</strong><br>
+        Claude Code 재시작 후 HTML 파일 임의 수정 → Claude 응답 상단에 <code style="background:rgba(0,0,0,0.1);padding:1px 5px;border-radius:4px;">[UI체크]</code> 출력이 자동으로 붙으면 피드백 루프 완성
+      </div>
+    </div>
+
+    <!-- ── 다음 단계 ── -->
+    <div class="section-label">다음 단계</div>
+    <div class="card">
+      <div class="card-body">
+        <div class="next-list">
+          <div class="next-item">
+            <div class="next-num">1</div>
+            <div>
+              <div class="next-text">Claude Code 재시작 → 훅 실제 동작 확인</div>
+              <div class="next-sub">HTML 파일 편집 시 자동 피드백 루프 검증</div>
+            </div>
+            <span class="badge badge-orange">우선</span>
+          </div>
+          <div class="next-item">
+            <div class="next-num">2</div>
+            <div>
+              <div class="next-text">node -c server.js 문법 체크 훅 추가</div>
+              <div class="next-sub">server.js / routes / socket 수정 시 자동 문법 검사</div>
+            </div>
+            <span class="badge badge-gray">예정</span>
+          </div>
+          <div class="next-item">
+            <div class="next-num">3</div>
+            <div>
+              <div class="next-text">CSS 변수 화이트리스트 확장</div>
+              <div class="next-sub">#fff → var(--bg-white) 자동 제안 로직 추가</div>
+            </div>
+            <span class="badge badge-gray">예정</span>
+          </div>
+          <div class="next-item">
+            <div class="next-num">4</div>
+            <div>
+              <div class="next-text">크로스게임 검증 훅</div>
+              <div class="next-sub">*-shared.js 수정 시 4개 게임 HTML 영향 범위 자동 알림</div>
+            </div>
+            <span class="badge badge-gray">예정</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 파일 구조 ── -->
+    <div class="section-label">파일 구조</div>
+    <div class="card">
+      <div class="card-body">
+        <div class="code-block"><span class="n">LAMDiceBot/</span>
+<span class="c">├── .claude/</span>
+<span class="c">│   ├── settings.json       ← PostToolUse 훅 등록</span>
+<span class="c">│   ├── hooks/</span>
+<span class="k">│   │   └── ui-check.py     ← 색상·AdSense 자동 체크</span>
+<span class="c">│   └── rules/</span>
+<span class="c">│       ├── frontend.md     ← 프론트 코딩 규칙</span>
+<span class="c">│       └── backend.md      ← 백엔드 코딩 규칙</span>
+<span class="c">├── css/</span>
+<span class="c">│   └── theme.css           ← CSS 변수 정의 (여기만 수정)</span>
+<span class="c">└── docs/</span>
+<span class="n">    └── harness-engineering.html  ← 이 파일</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-blue">
+      <div class="callout-icon">💡</div>
+      <div>
+        <strong>하네스 엔지니어링의 핵심 원칙</strong><br>
+        훅은 Claude가 스스로 실수를 발견하고 수정할 수 있도록 돕는 피드백 루프다. 사람이 리뷰하기 전에 품질 기준을 자동으로 통과하는 것이 목표.
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -77,6 +77,20 @@ function setupRoutes(app) {
         return res.redirect(301, `/horse-race${query}`);
     });
 
+    // SEO 페이지 구 URL 301 리디렉트 (루트 → /pages/)
+    const seoPages = [
+        'about-us', 'changelog', 'contact', 'crane-game-guide',
+        'dice-history', 'dice-rules-guide', 'disclaimer', 'faq',
+        'fairness-rng', 'game-guides', 'horse-race-guide',
+        'privacy-policy', 'probability-analysis', 'probability-education',
+        'roulette-guide', 'server-members', 'statistics', 'terms-of-service'
+    ];
+    seoPages.forEach(page => {
+        app.get(`/${page}.html`, (req, res) => {
+            return res.redirect(301, `/pages/${page}.html`);
+        });
+    });
+
     app.get('/admin', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
