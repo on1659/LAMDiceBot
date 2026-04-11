@@ -4,10 +4,8 @@ paths:
   - "db/**"
   - "routes/**"
   - "utils/**"
-  - "server.js"
-  - "config.js"
   - "config/**"
-  - "gemini-utils.js"
+  - "server.js"
 ---
 
 # Backend Rules
@@ -30,6 +28,6 @@ paths:
 
 ## 검증
 - 수정한 함수를 호출하는 모든 곳을 Grep으로 찾아 시그니처 일치 확인
-- Socket 이벤트명 변경 시: 서버(`socket/*.js`)와 클라이언트(`*.html`, `*-shared.js`) 양쪽 검색
+- Socket 이벤트명 변경 시: 서버(`socket/*.js`)와 클라이언트(`*.html`, `js/shared/*-shared.js`) 양쪽 검색
 - DB 컬럼 변경 시: `db/init.js` 스키마와 쿼리 파일 교차 확인
 - 변경 완료 후 수동 QA 체크리스트 제시 (브라우저 확인 항목)
