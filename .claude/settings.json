@@ -20,6 +20,15 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-main-branch.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-push-branch.sh\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
