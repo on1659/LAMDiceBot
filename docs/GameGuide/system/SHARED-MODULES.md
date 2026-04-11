@@ -18,9 +18,9 @@
 ## 1. Script 태그 (순서 중요)
 
 ```html
-<script src="/chat-shared.js"></script>
-<script src="/ready-shared.js"></script>
-<script src="/order-shared.js"></script>
+<script src="/js/shared/chat-shared.js"></script>
+<script src="/js/shared/ready-shared.js"></script>
+<script src="/js/shared/order-shared.js"></script>
 <script src="/assets/sounds/sound-manager.js"></script>
 ```
 
