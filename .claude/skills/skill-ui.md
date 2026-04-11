@@ -15,8 +15,8 @@ css/theme.css          → 전역 공통 (140 variables)
 │  └─ Blue:   --md-blue-50 ~ 900
 ├─ 의미론적 버튼 (btn-ready, btn-danger, btn-neutral)
 ├─ 상태 색상 (status-success, status-warning, status-danger)
-├─ 게임 그라디언트 (dice-gradient, roulette-gradient, crane-gradient)
-└─ 게임 타입 식별 (game-type-dice/roulette/crane/horse)
+├─ 게임 그라디언트 (dice-gradient, roulette-gradient)
+└─ 게임 타입 식별 (game-type-dice/roulette/horse)
 
 css/horse-race.css     → 경마 전용 (23 variables)
 └─ 레이스 결과 (result-gold-*, result-silver-*, result-bronze-*, result-loser-*)
@@ -29,7 +29,6 @@ css/horse-race.css     → 경마 전용 (23 variables)
 | 주사위  | 보라 Purple  | --game-type-dice           |
 | 룰렛    | 빨강 Red     | --game-type-roulette       |
 | 경마    | 초록 Green   | --game-type-horse          |
-| 크레인  | 파랑 Blue    | --game-type-crane          |
 ```
 
 ---

@@ -18,7 +18,6 @@
 ├── dice-game-multiplayer.html       # 주사위 게임
 ├── roulette-game-multiplayer.html   # 룰렛 게임
 ├── horse-race-multiplayer.html      # 경마 게임
-├── crane-game-multiplayer.html      # 크레인 게임
 ├── css/
 │   ├── theme.css                    # 전역 색상 시스템 (140 CSS 변수)
 │   └── horse-race.css               # 경마 전용 색상 (23 CSS 변수)
@@ -42,8 +41,8 @@ css/theme.css          → 전역 공통 색상 (140 variables)
 ├─ Material Design 팔레트 (Purple, Green, Red, Yellow, Gray, Slate, Blue)
 ├─ 의미론적 버튼 색상 (btn-ready, btn-danger, btn-neutral)
 ├─ 상태 색상 (status-success, status-warning, status-danger)
-├─ 게임별 그라디언트 (dice-gradient, roulette-gradient, crane-gradient)
-└─ 게임 타입 식별 (game-type-dice, game-type-roulette, game-type-crane, game-type-horse)
+├─ 게임별 그라디언트 (dice-gradient, roulette-gradient)
+└─ 게임 타입 식별 (game-type-dice, game-type-roulette, game-type-horse)
 
 css/horse-race.css     → 경마 전용 색상 (23 variables)
 └─ 레이스 결과 색상 (result-gold-*, result-silver-*, result-bronze-*, result-loser-*)

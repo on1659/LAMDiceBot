@@ -28,7 +28,6 @@
 │   ├── dice.js                  # 주사위 게임 핸들러
 │   ├── roulette.js              # 룰렛 게임 핸들러
 │   ├── horse.js                 # 경마 게임 핸들러
-│   ├── crane-game.js            # 크레인 게임 핸들러
 │   ├── shared.js                # 공통 이벤트 (준비, 이모티콘)
 │   ├── chat.js                  # 채팅
 │   └── board.js                 # 건의사항

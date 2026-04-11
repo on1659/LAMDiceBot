@@ -82,10 +82,10 @@ node AutoTest/console-error-check.js --game all
 
 | 모듈 | 위치 | 사용처 |
 |------|------|--------|
-| `ready-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
-| `chat-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
-| `order-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
+| `ready-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
+| `chat-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
+| `order-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
 | `ranking-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
 | `control-bar-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
-| `server-select-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
+| `server-select-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
 | `server.js` | 루트 | 전체 |

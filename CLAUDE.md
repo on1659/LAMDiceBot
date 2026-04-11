@@ -1,6 +1,6 @@
 # LAMDiceBot
 
-Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/크레인).
+Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마).
 순수 HTML, PostgreSQL, 상대 경로 API (`/api/...`).
 
 ## 작업별 참조
