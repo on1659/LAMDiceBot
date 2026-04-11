@@ -55,7 +55,7 @@
 
 **검사 명령어:**
 ```bash
-grep -n "document\.hasAttribute\|document\.setAttribute\|document\.style[^.]" *.js *.html
+grep -rn "document\.hasAttribute\|document\.setAttribute\|document\.style[^.]" js/ pages/ *.html
 ```
 
 ---
@@ -80,8 +80,12 @@ node AutoTest/console-error-check.js --game all
 
 변경 시 Level 4 (크로스게임 검증) 필수:
 
-| 모듈 | 사용처 |
-|------|--------|
-| `ready-shared.js` | 주사위, 룰렛, 경마 |
-| `chat-shared.js` | 주사위, 룰렛, 경마 |
-| `server.js` | 전체 |
+| 모듈 | 위치 | 사용처 |
+|------|------|--------|
+| `ready-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
+| `chat-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
+| `order-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
+| `ranking-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
+| `control-bar-shared.js` | `js/shared/` | 주사위, 룰렛, 경마 |
+| `server-select-shared.js` | `js/shared/` | 주사위, 룰렛, 경마, 크레인 |
+| `server.js` | 루트 | 전체 |
