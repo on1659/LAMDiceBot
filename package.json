@@ -7,8 +7,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node server.js",
-    "test-bot": "node dice-test-bot.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

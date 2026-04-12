@@ -19,7 +19,20 @@
 
 ### `socket/shared.js` — 공통 게임
 
-주문/준비/룰/메뉴 — `02-shared-systems/shared-modules.md` 참조
+| 핸들러 | 기능 |
+|--------|------|
+| `toggleReady` | 준비 상태 토글 (payload 없음) |
+| `setUserReady` | 호스트가 다른 유저 준비 강제 설정 |
+| `updateGameRules` | 규칙 문자열 저장 |
+| `startOrder` / `endOrder` | 주문 시작/종료 |
+| `updateOrder` | 주문 내용 저장 |
+| `updateUserDiceSettings` | 개인 주사위 최대값 설정 |
+| `updateRange` | 전역 주사위 범위 설정 (레거시) |
+| `getFrequentMenus` | 자주 쓰는 메뉴 조회 |
+| `addFrequentMenu` | 자주 쓰는 메뉴 추가 |
+| `deleteFrequentMenu` | 자주 쓰는 메뉴 삭제 |
+
+상세: `02-shared-systems/shared-modules.md` 참조
 
 ### `socket/chat.js` — 채팅
 
@@ -53,6 +66,40 @@
 | `setServerId` | 세션 복원 (페이지 로드 후) |
 | `getServerRecords` | 게임 기록 조회 (페이지네이션) |
 | `disconnect` | 온라인 상태 정리 |
+
+---
+
+## 공통 이벤트와 게임 전용 이벤트
+
+모든 게임이 공유하는 이벤트는 `socket/shared.js`에서 처리됩니다. 게임 전용 이벤트는 각 게임 모듈에서 처리됩니다.
+
+### 공통 (`socket/shared.js`) — 모든 게임 타입에서 동일
+
+| 이벤트 | 방향 | 설명 |
+|--------|------|------|
+| `toggleReady` | client → server | 준비 토글 (payload 없음) |
+| `setUserReady` | client → server | 호스트가 강제 준비 설정 |
+| `updateGameRules` | client → server | 규칙 문자열 저장 |
+| `startOrder` / `endOrder` | client → server | 주문 시작/종료 |
+| `updateOrder` | client → server | 주문 저장 |
+| `updateUserDiceSettings` | client → server | 개인 주사위 최대값 설정 |
+| `updateRange` | client → server | 전역 주사위 범위 (레거시) |
+| `getFrequentMenus` | client → server | 자주 쓰는 메뉴 조회 |
+| `addFrequentMenu` | client → server | 자주 쓰는 메뉴 추가 |
+| `deleteFrequentMenu` | client → server | 자주 쓰는 메뉴 삭제 |
+| `readyUsersUpdated` | server → client | 준비 목록 갱신 |
+| `gameRulesUpdated` | server → client | 규칙 브로드캐스트 |
+| `settingsUpdated` | server → client | 개인 주사위 설정 저장 결과 |
+
+### 게임 전용 — 각 모듈에서만 처리
+
+| 게임 | 모듈 | 주요 핸들러 | 상세 문서 |
+|------|------|-------------|-----------|
+| 주사위 | `socket/dice.js` | `startGame`, `endGame`, `clearGameData`, `requestRoll` | `03-games/dice.md` |
+| 룰렛 | `socket/roulette.js` | `startRoulette`, `endRoulette`, `rouletteResult`, `updateTurboAnimation`, `selectRouletteColor`, `getUserColors` | `03-games/roulette.md` |
+| 경마 | `socket/horse.js` | `startHorseRace`, `endHorseRace`, `setTrackLength`, `selectHorse`, `selectRandomHorse`, `raceAnimationComplete`, `clearHorseRaceData` | `03-games/horse-race.md` |
+
+**핵심 원칙**: 준비/주문/규칙/메뉴 = `shared.js`, 게임 진행/결과 = 게임 전용 모듈.
 
 ---
 

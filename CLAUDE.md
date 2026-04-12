@@ -12,8 +12,8 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마).
 | 프론트엔드 (`*.html`, `pages/`, `css/`, `js/`) | [frontend.md](.claude/rules/frontend.md) |
 | horse-app (React) | [horse-app.md](.claude/rules/horse-app.md) |
 | 새 게임 추가 | [new-game.md](.claude/rules/new-game.md) |
-| QA / 검증 | [QA-GUIDE.md](docs/GameGuide/system/QA-GUIDE.md) |
 | 문서 작성 | [docs.md](.claude/rules/docs.md) |
+| 게임 가이드 | [GameGuide](docs/GameGuide/README.md) — 아키텍처, 게임별 상세, 공통 시스템, QA |
 
 ## 항상 적용
 

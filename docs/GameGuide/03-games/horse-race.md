@@ -20,7 +20,7 @@
 3. 호스트가 규칙을 저장하면 `horseRaceMode`가 `first` 또는 `last`로 정리됩니다.
 4. 호스트가 `startHorseRace`를 보내면 서버가 선택 가능한 탈것과 라운드 정보를 준비합니다.
 5. 서버가 `horseSelectionReady`를 보내고, 각 사용자는 `selectHorse` 또는 `selectRandomHorse`로 선택합니다.
-6. 선택 과정에서는 `horseSelectionUpdated`, `randomHorseSelected`, `horseSelectionCancelled` 같은 보조 이벤트가 갱신됩니다.
+6. 선택 과정에서는 `horseSelectionUpdated`, `randomHorseSelected` 같은 보조 이벤트가 갱신됩니다.
 7. 모든 선택이 끝나면 서버가 `horseRaceCountdown`을 보낸 뒤 `horseRaceStarted`를 전송합니다.
 8. 클라이언트는 애니메이션을 재생하고 끝나면 `raceAnimationComplete`를 보냅니다.
 9. 서버는 `horseRaceResult`와 `horseRaceEnded`를 통해 결과와 기록을 확정합니다.
@@ -42,7 +42,7 @@
 | `setTrackLength` | 트랙 길이 설정. 호스트 전용 |
 | `startHorseRace` | 선택 단계 및 레이스 시작 준비 |
 | `selectHorse` | 탈것 선택 또는 선택 취소 |
-| `selectRandomHorse` | 랜덤 선택 |
+| `selectRandomHorse` | 랜덤 선택. 서버 핸들러 존재, 클라이언트 미emit |
 | `raceAnimationComplete` | 클라이언트 애니메이션 종료 알림 |
 | `endHorseRace` | 현재 경마 세션 리셋 |
 | `clearHorseRaceData` | 경마 기록 초기화 |
@@ -67,7 +67,7 @@
 | `setTrackLength` | `{ trackLength: 'short' | 'medium' | 'long' }` |
 | `startHorseRace` | 없음 |
 | `selectHorse` | `{ horseIndex }` |
-| `selectRandomHorse` | 없음 |
+| `selectRandomHorse` | 없음 (서버 핸들러 존재, 클라이언트 미emit) |
 | `raceAnimationComplete` | 없음 |
 | `endHorseRace` | 없음 |
 | `clearHorseRaceData` | 없음 |
@@ -82,14 +82,17 @@
 | `horseSelectionReady` | `{ availableHorses, participants, players, userHorseBets, selectedUsers, selectedHorseIndices, canSelectDuplicate, horseRaceMode, raceRound, selectedVehicleTypes, trackPresets, popularVehicles, vehicleStats, trackLength?, trackDistanceMeters? }` |
 | `horseSelectionUpdated` | `{ userHorseBets, selectedUsers, selectedHorseIndices, canSelectDuplicate }` |
 | `randomHorseSelected` | `{ selectedUsers, canSelectDuplicate }` |
-| `horseSelectionCancelled` | `{ userName }` |
+| `allHorsesSelected` | `{ userHorseBets: {}, selectedCount, players }` (호스트에게만 전송) |
 | `horseRaceCountdown` | `{ duration, raceRound, userHorseBets, selectedUsers, selectedHorseIndices }` |
 | `horseRaceStarted` | `{ availableHorses, players, raceRound, horseRaceMode, everPlayedUsers, rankings, horseRankings, speeds, gimmicks, weatherSchedule, winners, userHorseBets, selectedVehicleTypes, trackDistanceMeters, trackFinishLine, record, slowMotionConfig, weatherConfig, allSameBet }` |
 | `horseRaceResult` | `{ rankings, userHorseBets, winners, raceRound, horseRaceMode, record }` |
 | `horseRaceEnded` | `{ horseRaceHistory, finalWinner? , tieWinners? }` |
 | `horseRaceGameReset` | `{ horseRaceHistory }` |
+| `horseRaceDataCleared` | 없음 |
 
 `horseSelected` 리스너는 클라이언트에 일부 남아 있지만, 현재 서버가 실제로 선택 단계에서 사용하는 이벤트는 `horseSelectionUpdated` 중심입니다.
+
+`horseSelectionCancelled`는 문서화되어 있었으나 현재 서버에서 emit하지 않습니다. 클라이언트에 리스너만 남아 있는 상태입니다 (dead code).
 
 ## 핵심 상태 필드
 
@@ -117,6 +120,28 @@
 - 선택 단계에서는 본인에게만 본인 선택 정보가 보이고, 전체 선택 완료 여부는 `selectedUsers`로 공유됩니다.
 - 레이스 애니메이션이 끝나기 전까지 서버 결과 확정은 `raceAnimationComplete`를 기다립니다.
 - 종료 결과는 `horseRaceResult`와 `horseRaceEnded`로 나뉘며, 후자는 기록 히스토리와 최종 승자 또는 동점 승자 목록을 담습니다.
+
+## 클라이언트 UX 흐름 (`js/horse-race.js`)
+
+### 선택 단계
+
+`horseSelectionReady` 수신 → 탈것 그리드 UI 표시. 호스트에게는 트랙 길이 버튼(short/medium/long)도 표시. 탈것 클릭으로 선택, Ready 버튼으로 확정. 본인 선택만 본인에게 보이고, 타인은 선택 완료 여부만 알 수 있음.
+
+### 랜덤 선택
+
+`randomHorseSelected` 수신 → "랜덤!" 뱃지(🎲) 표시. 어떤 탈것인지는 카운트다운까지 비공개. 내부 상태 `mySelectedHorse = -999`.
+
+### 카운트다운 → 레이스
+
+`horseRaceCountdown` → 3초 카운트다운 + 전체 선택 공개. `horseRaceStarted` → 총성 + 레이스 애니메이션 시작. 기믹/날씨 효과 포함. 탭이 숨겨진 상태였으면 애니메이션 생략 후 결과만 표시.
+
+### 결과 표시
+
+레이스 종료 → `horseRaceResult` → 순위 오버레이 (1등~꼴등, 베팅 유저 표시). 꼴등 베팅 유저는 채팅에 "💀 꼴등" 카드로 강조. 팡파레 + 환호 사운드.
+
+### 종료 & 리셋
+
+`horseRaceEnded` → 히스토리 기록 확정, 선택 상태 초기화. `horseRaceGameReset` (호스트 종료) → 오버레이/애니메이션/사운드 정리, 선택 화면으로 복귀.
 
 ## 참고 파일
 

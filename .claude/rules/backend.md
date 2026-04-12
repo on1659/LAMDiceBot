@@ -10,6 +10,17 @@ paths:
 
 # Backend Rules
 
+## 게임별 가이드
+
+수정 전 해당 문서 참조:
+- 주사위: `docs/GameGuide/03-games/dice.md`
+- 룰렛: `docs/GameGuide/03-games/roulette.md`
+- 경마: `docs/GameGuide/03-games/horse-race.md`
+- 아키텍처: `docs/GameGuide/01-architecture/server-bootstrap.md`
+- 랭킹/통계 (`db/ranking.js`, `db/stats.js`): `docs/GameGuide/02-shared-systems/ranking-and-stats.md`
+- 서버 멤버십 (`db/servers.js`): `docs/GameGuide/02-shared-systems/server-membership.md`
+- 설정 (`config/`): `docs/GameGuide/02-shared-systems/config-and-env.md`
+
 ## Socket Handlers
 - 모든 이벤트 핸들러 첫 줄: `if (!ctx.checkRateLimit()) return;`
 - 방 상태 변경 시: `ctx.updateRoomsList()` 호출 필수

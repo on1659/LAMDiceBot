@@ -22,6 +22,9 @@ visitor-stats.json
 nul
 con
 
+# 로컬 도구 산출물
+.bkit/
+
 # AI 도구 설정
 .claude/commands/
 .claude/settings.local.json

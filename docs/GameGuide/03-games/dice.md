@@ -90,9 +90,28 @@
 | `diceRolled` | 주사위 기록 객체 |
 | `rollProgress` | `{ rolled, total, notRolledYet }` |
 | `allPlayersRolled` | `{ message, totalPlayers }` |
+| `gameDataCleared` | 없음 |
 | `gameRulesUpdated` | `string` |
 | `readyUsersUpdated` | `string[]` |
 | `settingsUpdated` | `{ max }` |
+
+### 에러 이벤트 (server -> caller)
+
+| 이벤트 | 발생 조건 |
+|--------|-----------|
+| `roomError` | 방 미입장 상태에서 요청 |
+| `permissionError` | 호스트 전용 동작을 비호스트가 요청 |
+| `gameError` | 준비 인원 부족 등 게임 시작 조건 불충족 |
+| `rollError` | 잘못된 사용자, 시드 누락, 범위 초과 |
+| `clearDataError` | 게임 진행 중 데이터 삭제 시도 |
+
+### 시스템 이벤트 (server -> room)
+
+| 이벤트 | 설명 |
+|--------|------|
+| `newMessage` | 게임 시작/전원 완료 시 시스템 메시지 |
+| `updateOrders` | 데이터 삭제 시 주문 목록 동기화 |
+| `visitorStats` | 방문자 통계 전체 브로드캐스트 |
 
 ## 주사위 기록 구조
 

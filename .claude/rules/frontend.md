@@ -8,6 +8,14 @@ paths:
 
 # Frontend Rules
 
+## 게임별 가이드
+
+게임 UI 수정 전 해당 문서 참조:
+- 주사위: `docs/GameGuide/03-games/dice.md`
+- 룰렛: `docs/GameGuide/03-games/roulette.md`
+- 경마: `docs/GameGuide/03-games/horse-race.md`
+- 공통 모듈: `docs/GameGuide/02-shared-systems/shared-modules.md`
+
 ## HTML
 - AdSense 스니펫 `<head>`에 포함 확인 (admin.html 제외)
 - API 호출은 `/api/...` 상대 경로만 (도메인 하드코딩 금지)
@@ -22,7 +30,7 @@ paths:
 - 공유 모듈은 `js/shared/` 디렉토리에 위치 (chat, ranking, order, ready, control-bar, countdown, page-history, server-select, tutorial)
 - 수정 시 이 모듈을 import하는 HTML 파일 전체에 영향 — Grep으로 사용처 확인
 - Socket emit/on 이벤트명 변경 시 서버(`socket/*.js`)도 검색
-- init 시그니처 변경 시 `docs/GameGuide/system/SHARED-MODULES.md` 참조 — 모든 게임 HTML의 호출부 동기화 필수
+- init 시그니처 변경 시 `docs/GameGuide/02-shared-systems/shared-modules.md` 참조 — 모든 게임 HTML의 호출부 동기화 필수
 
 ## 보안
 - 사용자 입력(닉네임, 메시지 등)을 `innerHTML`에 삽입 금지 — `textContent` 사용 또는 이스케이프 적용
