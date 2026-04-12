@@ -3,7 +3,7 @@
 > **File to modify**: `horse-race-multiplayer.html`, `tutorial-shared.js`
 > **Common module**: `tutorial-shared.js` (see [impl.md](impl.md))
 > **Status**: Implemented (2026-03-07)
-> **Previous version**: [horse-race-tutorial.md](horse-race-tutorial.md)
+> **Previous version**: legacy v1 draft (removed during docs cleanup; see git history if needed)
 
 ---
 

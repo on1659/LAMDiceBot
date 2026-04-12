@@ -4,6 +4,8 @@
 
 ## 문서 목록
 
+- [2026-04-13-branch-docs-cleanup-status.md](./2026-04-13-branch-docs-cleanup-status.md)
+  - 오래된 브랜치/문서 정리 결과와 다음 액션을 묶은 작업용 상태 문서
 - [2026-04-11-unused-files-audit.md](./2026-04-11-unused-files-audit.md)
   - 프로젝트 전체 기준 미사용 파일 및 정리 후보 메모
 - [design/README.md](./design/README.md)

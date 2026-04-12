@@ -1,7 +1,7 @@
 # Horse Race Tutorial — 설계 vs 구현 차이점
 
 > **목적**: 게임별 튜토리얼 구현 시 설계 문서 vs 실제 구현 차이 기록
-> **비교 대상**: `docs/tutorial/horse-race-tutorial.md` (구현 전 설계), 실제 `horse-race-multiplayer.html` + `tutorial-shared.js`
+> **비교 대상**: 제거된 v1 경마 튜토리얼 설계 초안(구현 전 설계), 실제 `horse-race-multiplayer.html` + `tutorial-shared.js`
 > **구현일**: 2026-03-06
 
 ---
