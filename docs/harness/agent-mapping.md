@@ -94,6 +94,8 @@
 |---------|----------|------|
 | 윤서 (QA) | QA 스킬 + BE 스킬 | `.claude/skills/skill-qa.md` + `.claude/skills/skill-backend.md` |
 
+> /meeting의 QA는 직접 테스트를 실행하지 않고, **/build QA에서 Playwright MCP로 실행할 테스트 항목을 제안**한다 (어떤 뷰포트, 어떤 플로우, 어떤 브라우저에서 테스트해야 하는지).
+
 ### Phase 5: PD 최종 판단
 
 | 에이전트 | 참조 파일 | 경로 |
@@ -109,7 +111,7 @@
 | 검증 항목 | 1차 담당 | 2차 검증 | 공통 참조 파일 |
 |----------|---------|---------|--------------|
 | 공정성 (서버 난수) | Coder | QA | `skill-backend.md` 보안 체크리스트 |
-| 모바일 호환성 | Coder | Reviewer | `skill-frontend.md` + `skill-ui.md` |
+| 모바일 호환성 | Coder | Reviewer + QA (Playwright MCP) | `skill-frontend.md` + `skill-ui.md` |
 | Socket 패턴 | Coder | Reviewer | `skill-backend.md` 핵심 패턴 |
 | CSS 변수 규칙 | Coder | Reviewer | `skill-frontend.md` + `skill-ui.md` |
 | 접근성 | Coder | Reviewer | `skill-ux.md` 접근성 기준 |
