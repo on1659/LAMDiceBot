@@ -165,8 +165,10 @@ Playwright MCP를 WebKit 엔진으로 실행:
 ```
 /build "기능 구현"
   │
-  ├─ Stage 2: Coder → 구현
-  ├─ Stage 3: Reviewer → 코드 리뷰 (정적 검사)
+  ├─ Stage 2: Scout → 코드베이스 정찰
+  ├─ Stage 1-b: 이더 → 지시서 작성
+  ├─ Stage 3: Coder → 구현
+  ├─ Stage 4: Reviewer → 코드 리뷰 (정적 검사)
   │
   ├─ Stage 4: QA Agent
   │   │
@@ -175,14 +177,14 @@ Playwright MCP를 WebKit 엔진으로 실행:
   │   │   ├─ 멀티플레이어 동기화
   │   │   └─ 엣지케이스
   │   │
-  │   └─ Playwright MCP 검증 (시각)    ← 추가
+  │   └─ Playwright MCP 검증 (시각)
   │       ├─ 서버 시작 (node server.js)
   │       ├─ 5개 뷰포트 스크린샷
   │       ├─ 모바일 게임 플로우 실행
   │       ├─ 터치 타겟 동작 확인
   │       └─ 스크린샷 기반 pass/fail
   │
-  └─ Stage 5: 이더 → 최종 확인
+  └─ Stage 6: 이더 → 최종 확인
 ```
 
 ---
