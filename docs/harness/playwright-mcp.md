@@ -182,7 +182,7 @@ Playwright MCP를 WebKit 엔진으로 실행:
   │       ├─ 터치 타겟 동작 확인
   │       └─ 스크린샷 기반 pass/fail
   │
-  └─ Stage 5: Main → 최종 확인
+  └─ Stage 5: 이더 → 최종 확인
 ```
 
 ---

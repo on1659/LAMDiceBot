@@ -6,7 +6,7 @@
 
 ## /build 파이프라인 에이전트
 
-### Main Orchestrator
+### 이더(Ether)
 
 | 참조 파일 | 경로 | 용도 |
 |----------|------|------|
@@ -117,7 +117,7 @@
 | Socket 패턴 | Coder | Reviewer | `skill-backend.md` 핵심 패턴 |
 | CSS 변수 규칙 | Coder | Reviewer | `skill-frontend.md` + `skill-ui.md` |
 | 접근성 | Coder | Reviewer | `skill-ux.md` 접근성 기준 |
-| 배포 안전성 | QA | Main | `skill-qa.md` + `skill-pd.md` |
+| 배포 안전성 | QA | 이더(Ether) | `skill-qa.md` + `skill-pd.md` |
 
 ---
 
@@ -130,7 +130,7 @@
 | /build Coder | mid (4-7년차) | 패턴 따르면서 구현 방안 + 대안 제시 |
 | /build Reviewer | senior (8-12년차) | 핵심 판단 먼저, 숨겨진 리스크 선제 경고 |
 | /build QA | mid (4-7년차) | 실전적 엣지케이스 도출, 리스크 분류 |
-| /build Main | senior (8-12년차) | 결론 먼저, 단호한 게이트키핑 |
+| /build 이더(Ether) | senior (8-12년차) | 결론 먼저, 단호한 게이트키핑 |
 | /meeting 전원 | mid (4-7년차) 기본 | 구조적 분석 + 근거 제시 |
 
 이 설정은 파이프라인 정의 파일에서 에이전트별로 오버라이드할 수 있다.
