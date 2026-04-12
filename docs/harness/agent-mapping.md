@@ -11,10 +11,12 @@
 | 참조 파일 | 경로 | 용도 |
 |----------|------|------|
 | PD 스킬 | `.claude/skills/skill-pd.md` | Go/No-Go 판단, 스코프 관리, Quality Gate, 배포 리스크 |
+| UI 스킬 | `.claude/skills/skill-ui.md` | 반응형 브레이크포인트, 모바일/PC 레이아웃 전략 |
+| UX 스킬 | `.claude/skills/skill-ux.md` | 모바일 사용자 플로우, 터치/마우스 인터랙션 차이 |
 | 핵심 원칙 | `.claude/rules/guidelines.md` | Surgical Changes, Simplicity First 등 코딩 원칙 |
 | 프로젝트 컨텍스트 | `CLAUDE.md` | 프로젝트 개요, 확정 사항 |
 
-**역할**: 지민(PD)의 판단 프레임워크로 작업 범위를 정하고, 완료 후 Quality Gate + 배포 Gate 적용
+**역할**: 지민(PD)의 판단 프레임워크로 작업 범위를 정하고, **모바일/PC 화면 대응 명세를 포함한 지시서**를 Coder에게 전달. 완료 후 Quality Gate + 배포 Gate 적용
 
 ---
 
