@@ -2698,16 +2698,13 @@
             renderRoomsList();
         });
         
-        // 업데이트 내역: update-log.md + update-log_old.md 합쳐서 Markdown 파싱 후 표시
+        // 업데이트 내역: update-log.md Markdown 파싱 후 표시
         function loadUpdateLog() {
             const updateLogContent = document.getElementById('updateLogContent');
             if (!updateLogContent) return;
             const parseMd = (text) => (typeof marked !== 'undefined' ? marked.parse(text) : text.replace(/\n/g, '<br>'));
-            Promise.all([
-                fetch('update-log.md').then(r => r.ok ? r.text() : ''),
-                fetch('update-log_old.md').then(r => r.ok ? r.text() : '')
-            ]).then(([recent, old]) => {
-                const combined = [recent, old].filter(Boolean).join('\n\n---\n\n');
+            fetch('update-log.md').then(r => r.ok ? r.text() : '').then(recent => {
+                const combined = recent;
                 if (!combined.trim()) {
                     updateLogContent.innerHTML = '업데이트 내역을 불러올 수 없습니다.';
                     return;
@@ -7503,7 +7500,7 @@
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
-    <script src="/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script>
     var DICE_TUTORIAL_STEPS = [
         {

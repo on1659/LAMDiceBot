@@ -31,9 +31,6 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        /* Jua: 이미 로드된 한국어 게임 폰트 → 제목에 적용 */
-        h1, h2, h3 { font-family: 'Jua', 'Segoe UI', sans-serif; }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: var(--dice-gradient);
@@ -89,8 +86,8 @@
             padding: 17px 48px;
             background: #fff;
             color: var(--purple-600);
-            font-family: 'Jua', sans-serif;
             font-size: 1.2em;
+            font-weight: 700;
             border: none;
             border-radius: 50px;
             cursor: pointer;
@@ -351,7 +348,7 @@
     <script src="/js/shared/page-history-shared.js"></script>
     <script src="/config/client-config.js"></script>
     <script src="/js/tagline-roller.js"></script>
-    <script src="/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/shared/server-select-shared.js"></script>
     <script>
         const socket = io();
