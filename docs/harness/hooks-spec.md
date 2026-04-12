@@ -126,7 +126,7 @@ fi
 
 ```bash
 #!/bin/bash
-# security-guard.sh — Socket 핸들러에 Rate Limiting 누락 경고
+# security-guard.sh — Socket 핸들러에 Rate Limiting 누락 차단
 INPUT=$(cat)
 FILE=$(echo "$INPUT" | node -e "
   let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
@@ -143,7 +143,7 @@ if echo "$FILE" | grep -q 'socket/'; then
   HAS_RATE_LIMIT=$(echo "$CONTENT" | grep -c "checkRateLimit")
 
   if [ "$HAS_SOCKET_ON" -gt 0 ] && [ "$HAS_RATE_LIMIT" -eq 0 ]; then
-    echo "{\"decision\":\"allow\",\"reason\":\"⚠️ socket.on 핸들러에 ctx.checkRateLimit() 호출이 없습니다. 보안 체크리스트를 확인하세요.\"}"
+    echo "{\"decision\":\"block\",\"reason\":\"socket.on 핸들러에 ctx.checkRateLimit() 호출이 없습니다. security-guard는 운영 버전에서 block입니다.\"}"
     exit 0
   fi
 fi
@@ -423,15 +423,15 @@ fi
 ```bash
 # tdd-guard 테스트 — 테스트 파일 없는 경우
 echo '{"tool_name":"Write","tool_input":{"file_path":"socket/newgame.js","content":"..."}}' | bash .claude/hooks/tdd-guard.sh
-# 기대: block 반환
+# 기대: future (운영 설정 미등록, 스크립트 단독 실행 시 block 예시)
 
 # fairness-guard 테스트 — 클라이언트 Math.random 사용
 echo '{"tool_name":"Write","tool_input":{"file_path":"js/game.js","content":"let x = Math.random();"}}' | bash .claude/hooks/fairness-guard.sh
-# 기대: block 반환
+# 기대: warn 반환
 
 # security-guard 테스트 — Rate Limit 누락
 echo '{"tool_name":"Write","tool_input":{"file_path":"socket/dice.js","content":"socket.on(\"roll\", (data) => { })"}}' | bash .claude/hooks/security-guard.sh
-# 기대: warn 반환
+# 기대: block 반환
 
 # mobile-guard 테스트 — viewport 누락
 echo '{"tool_name":"Write","tool_input":{"file_path":"new-game.html","content":"<html><head><title>Test</title></head></html>"}}' | bash .claude/hooks/mobile-guard.sh

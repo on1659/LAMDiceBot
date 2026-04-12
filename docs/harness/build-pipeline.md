@@ -82,10 +82,11 @@
 │  - 기존 패턴 준수                         │
 │  - 변경 사항 diff 반환                    │
 │                                         │
-│  [Hook] tdd-guard.sh → 테스트 없으면 차단  │
-│  [Hook] security-guard.sh → 보안 위반 차단 │
-│  [Hook] fairness-guard.sh → 난수 위반 차단 │
-│  [Hook] css-var-guard.sh → 색상 하드코딩 차단│
+│  [Hook] security-guard.sh → 보안 위반 시 block │
+│  [Hook] fairness-guard.sh → 결과 난수 감지 warn│
+│  [Hook] css-var-guard.sh → 색상 하드코딩 감지 warn│
+│  [Hook] mobile-guard.sh → 모바일 호환성 감지 warn│
+│  [Hook] tdd-guard.sh → future (운영 버전 미적용) │
 └──────────────────┬──────────────────────┘
                    ▼
 ┌─────────────────────────────────────────┐
@@ -245,6 +246,12 @@
 - **기존 패턴**: (따라야 할 구현 방식)
 - **의존성**: (수정 시 영향받는 파일)
 - **Socket 이벤트 관계**: (연결된 이벤트 목록)
+- **불변조건 (must-preserve contracts)**:
+  - 깨지면 안 되는 라우트
+  - 유지해야 하는 Socket 이벤트 이름
+  - 기존 UX에서 바뀌면 안 되는 상호작용
+  - SEO/리다이렉트/AdSense 관련 불변조건
+  - 운영/배포 계약 (`main` = 실서버)
 - **예상 영향 범위**: (어떤 게임/기능에 영향)
 ```
 
@@ -253,6 +260,7 @@
 ## 작업 지시서
 - **요청**: (원래 요청)
 - **수정 대상 파일**: (경로 나열)
+- **불변조건**: (Scout가 보고한 must-preserve contracts)
 - **화면 대응 명세**:
   - 모바일(375px): (레이아웃, 숨김 요소, 터치 인터랙션)
   - 태블릿(768px): (레이아웃 변화점)

@@ -92,6 +92,21 @@ LAMDiceBot 사용 환경에 맞춘 테스트 뷰포트:
 
 ## QA Agent 테스트 시나리오
 
+### 공통 실행 흐름
+
+```
+1. 서버 시작 → PORT=5173 node server.js
+2. 서버 준비 확인 → http://localhost:5173 접속 가능 여부 확인
+3. Playwright MCP 테스트 실행
+4. 테스트 완료 후 서버 종료
+
+테스트 대상 라우트:
+  - http://localhost:5173/                         (메인 로비)
+  - http://localhost:5173/dice-game-multiplayer.html
+  - http://localhost:5173/roulette-game-multiplayer.html
+  - http://localhost:5173/horse-race-multiplayer.html
+```
+
 ### 시나리오 1: 게임 페이지 반응형 검증
 
 ```
@@ -126,17 +141,20 @@ LAMDiceBot 사용 환경에 맞춘 테스트 뷰포트:
 
 ```
 주사위:
+  browser_navigate → http://localhost:5173/dice-game-multiplayer.html
   browser_resize(375, 667) → 모바일
   주사위 굴리기 → 애니메이션 완료 후 스크린샷
   ☐ 결과가 화면 내에 표시되는가
 
 룰렛:
+  browser_navigate → http://localhost:5173/roulette-game-multiplayer.html
   browser_resize(375, 667) → 모바일
   룰렛 시작 → 회전 중 스크린샷 → 결과 스크린샷
   ☐ 파이차트가 잘리지 않는가
   ☐ 플레이어 이름이 읽히는가
 
 경마:
+  browser_navigate → http://localhost:5173/horse-race-multiplayer.html
   browser_resize(375, 667) → 모바일
   레이스 시작 → 진행 중 스크린샷 → 결과 스크린샷
   ☐ 말 애니메이션이 화면에 맞는가
@@ -149,9 +167,11 @@ LAMDiceBot 사용 환경에 맞춘 테스트 뷰포트:
 Playwright MCP를 WebKit 엔진으로 실행:
   npx @playwright/mcp@latest --browser webkit
 
-1. browser_navigate → 각 게임 페이지
-2. browser_resize(375, 667) → iPhone Safari 시뮬레이션
-3. 확인:
+1. browser_navigate → http://localhost:5173/dice-game-multiplayer.html
+2. browser_navigate → http://localhost:5173/roulette-game-multiplayer.html
+3. browser_navigate → http://localhost:5173/horse-race-multiplayer.html
+4. browser_resize(375, 667) → iPhone Safari 시뮬레이션
+5. 확인:
    ☐ CSS 변수가 정상 렌더링되는가
    ☐ Socket.IO 연결이 정상인가
    ☐ 사운드 자동재생 차단 대응이 되는가
@@ -178,11 +198,13 @@ Playwright MCP를 WebKit 엔진으로 실행:
   │   │   └─ 엣지케이스
   │   │
   │   └─ Playwright MCP 검증 (시각)
-  │       ├─ 서버 시작 (node server.js)
+  │       ├─ 서버 시작 (PORT=5173 node server.js)
+  │       ├─ browser_navigate → /, /dice-game-multiplayer.html, /roulette-game-multiplayer.html, /horse-race-multiplayer.html
   │       ├─ 5개 뷰포트 스크린샷
   │       ├─ 모바일 게임 플로우 실행
   │       ├─ 터치 타겟 동작 확인
-  │       └─ 스크린샷 기반 pass/fail
+  │       ├─ 스크린샷 기반 pass/fail
+  │       └─ 서버 종료
   │
   └─ Stage 6: 이더 → 최종 확인
 ```

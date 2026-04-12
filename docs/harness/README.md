@@ -126,3 +126,6 @@ Hook   = 안전장치 (TDD/보안/공정성 물리적 차단)
 | [hooks-spec.md](hooks-spec.md) | Hook 사양 및 입출력 정의 |
 | [playwright-mcp.md](playwright-mcp.md) | Playwright MCP 모바일 테스트 연동 |
 | [codex-comment-harness-options.md](codex-comment-harness-options.md) | Codex 관점의 최소/맥시멈 하네스 운영 제안 |
+| [codex-comment-harness-review-2026-04-13.md](codex-comment-harness-review-2026-04-13.md) | Codex 리뷰: 구조 적합성, 모순, 구현 시 첫 문제점 정리 |
+| [claude-handoff-harness-2026-04-13.md](claude-handoff-harness-2026-04-13.md) | Claude 전달용: 현재 상태, 반영 사항, 다음 작업 정리 |
+| [claude-planned-dot-claude-changes-2026-04-13.md](claude-planned-dot-claude-changes-2026-04-13.md) | `.claude` 예정 변경사항을 실제 수정 없이 문서로만 정리 |
