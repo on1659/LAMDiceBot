@@ -7,9 +7,11 @@
 - [2026-04-11-unused-files-audit.md](./2026-04-11-unused-files-audit.md)
   - 프로젝트 전체 기준 미사용 파일 및 정리 후보 메모
 - [design/README.md](./design/README.md)
-  - 디자인 레퍼런스 조사, AI 디자인 가이드, UI 방향성 메모
-- [design/2026-04-12-awesome-design-md-insights.md](./design/2026-04-12-awesome-design-md-insights.md)
-  - `awesome-design-md` 저장소에서 LAMDiceBot에 적용할 만한 인사이트 정리
+  - 디자인 조사 문서 모음 인덱스
+- [design/2026-04-12-design-research-synthesis.md](./design/2026-04-12-design-research-synthesis.md)
+  - 외부 디자인 GitHub 조사 통합본
+- [design/2026-04-12-lamdicebot-ui-ux-opportunities.md](./design/2026-04-12-lamdicebot-ui-ux-opportunities.md)
+  - LAMDiceBot UI/UX 개선 여지와 우선순위 정리
 
 ## 메모
 

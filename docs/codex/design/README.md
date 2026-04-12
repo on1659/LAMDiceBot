@@ -1,21 +1,27 @@
-# Design Notes
+# Design Research Notes
 
-`docs/codex/design`은 Codex가 외부 디자인 레퍼런스나 내부 UI 규칙을 검토하면서 남긴 메모를 모아두는 폴더다.
+`docs/codex/design`은 LAMDiceBot의 디자인 레퍼런스 조사와 UI/UX 개선 판단을 모아두는 폴더다.
 
-이 폴더의 문서는 다음 목적에 맞춰 정리한다.
+이 폴더의 문서는 두 갈래로 정리한다.
 
-- 외부 레퍼런스가 우리 프로젝트에 실제로 어떤 도움이 되는지 판단
-- 메인 랜딩, 게임 화면, 가이드 문서, 운영 화면의 톤을 분리해서 기록
-- AI가 UI 작업을 할 때 참고할 수 있는 디자인 규칙 초안 축적
-- `css/theme.css`, 디자인 통합 문서, 화면별 구현 파일 사이의 연결 포인트 정리
+- 외부 레퍼런스 조사: 어떤 GitHub 저장소가 우리 프로젝트에 실질적으로 도움이 되는지
+- 내부 적용 판단: 현재 LAMDiceBot UI/UX에서 실제로 손볼 만한 여지가 어디인지
 
 ## 문서 목록
 
-- [2026-04-12-awesome-design-md-insights.md](./2026-04-12-awesome-design-md-insights.md)
-  - `VoltAgent/awesome-design-md` 조사 결과와 LAMDiceBot 적용 포인트
+- [2026-04-12-design-research-synthesis.md](./2026-04-12-design-research-synthesis.md)
+  - `awesome-design-md`와 유사하거나 함께 참고할 만한 GitHub 저장소 조사 통합본
+- [2026-04-12-lamdicebot-ui-ux-opportunities.md](./2026-04-12-lamdicebot-ui-ux-opportunities.md)
+  - LAMDiceBot 현재 UI/UX 구조 분석, 개선 여지, 우선순위 정리
+
+## 읽는 순서
+
+1. 외부 레퍼런스 조사 문서로 참고 기준 확인
+2. LAMDiceBot 적용 문서로 실제 수정 우선순위 확인
+3. 필요하면 다음 단계로 루트 `DESIGN.md` 초안 작성
 
 ## 운영 메모
 
-- 이 폴더는 최종 디자인 시스템 자체보다 조사 메모와 초안 문서를 우선 저장한다.
-- 실제 공용 디자인 규칙이 필요해지면 별도 `DESIGN.md` 초안으로 승격하는 것을 목표로 한다.
-- 구현 결정이 끝난 내용은 `docs/meeting/impl/` 또는 관련 운영 문서로 옮길 수 있다.
+- 이 폴더는 구현 결과보다 조사와 판단 근거를 우선 저장한다.
+- 실제 확정된 방향은 `docs/meeting/impl/` 또는 관련 운영 문서로 승격할 수 있다.
+- 이 폴더의 결론은 "예쁜 레퍼런스 수집"보다 "우리 프로젝트에서 무엇을 바꿔야 체감이 큰가"에 초점을 둔다.
