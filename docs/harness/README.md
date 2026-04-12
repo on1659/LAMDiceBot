@@ -68,6 +68,7 @@ Hook  = 안전장치 (TDD/보안/공정성 물리적 차단)
     ├── security-guard.sh       # build: 보안 패턴 위반 차단
     ├── fairness-guard.sh       # 공통: 클라이언트 난수 차단
     ├── css-var-guard.sh        # build: 하드코딩 색상 차단
+    ├── mobile-guard.sh         # build: 모바일 호환성 검증 (viewport, 터치 타겟, 반응형)
     └── format-guard.sh         # meeting: 의견 형식 강제
 ```
 
