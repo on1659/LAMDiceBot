@@ -6,6 +6,24 @@
 
 ---
 
+## 현재 상태
+
+```
+📋 설계 완료 — 구현 준비 중
+```
+
+| 구분 | 상태 | 설명 |
+|------|------|------|
+| 🟢 **지금 적용 가능** | `/build` 파이프라인 (이더 + Scout + Coder + Reviewer) | 트리아지, Scout 정찰, 코드 구현/리뷰 |
+| 🟢 **지금 적용 가능** | Hook: security-guard (block) | Socket 핸들러 Rate Limiting 누락 차단 |
+| 🟡 **경고 모드로 적용 가능** | Hook: fairness-guard, css-var-guard, mobile-guard (warn) | 감지 시 경고만, 차단하지 않음 |
+| 🟡 **경고 모드로 적용 가능** | `/meeting` 파이프라인 | format-guard 없이 템플릿 기반 운영 |
+| 🔴 **준비 필요** | Hook: tdd-guard (future) | 테스트 자산 확충 후 핵심 경로부터 적용 |
+| 🔴 **준비 필요** | Playwright MCP QA 자동화 | 설치 + 시나리오 작성 필요 |
+| 🔴 **준비 필요** | format-guard (meeting 형식 강제) | 실사용 후 정교화 |
+
+---
+
 ## 개요
 
 Superpowers, GStack, OMC 등 커뮤니티 스킬 프레임워크의 핵심 개념을 참고하여, LAMDiceBot 프로젝트에 맞는 **hook 기반 멀티에이전트 오케스트레이션 하네스**를 설계한다.
@@ -66,12 +84,12 @@ Hook   = 안전장치 (TDD/보안/공정성 물리적 차단)
 │   └── ux.md                   # UX — 승호 (meeting 전용)
 │
 └── hooks/
-    ├── tdd-guard.sh            # build: 테스트 없으면 코드 차단
-    ├── security-guard.sh       # build: 보안 패턴 위반 차단
-    ├── fairness-guard.sh       # 공통: 클라이언트 난수 차단
-    ├── css-var-guard.sh        # build: 하드코딩 색상 차단
-    ├── mobile-guard.sh         # build: 모바일 호환성 검증 (viewport, 터치 타겟, 반응형)
-    └── format-guard.sh         # meeting: 의견 형식 강제
+    ├── security-guard.sh       # 🟢 block — Socket Rate Limiting 누락 차단
+    ├── fairness-guard.sh       # 🟡 warn  — 게임 결과 결정 랜덤만 감지 (연출용 제외)
+    ├── css-var-guard.sh        # 🟡 warn  — 하드코딩 색상 경고
+    ├── mobile-guard.sh         # 🟡 warn  — 모바일 호환성 경고
+    ├── tdd-guard.sh            # 🔴 future — 테스트 자산 확충 후 적용
+    └── format-guard.sh         # 🔴 future — meeting 실사용 후 적용
 ```
 
 ---

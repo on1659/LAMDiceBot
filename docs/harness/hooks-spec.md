@@ -4,6 +4,19 @@
 
 ---
 
+## 운영 등급 요약
+
+| Hook | 등급 | 기본 모드 | 이유 |
+|------|------|----------|------|
+| security-guard | 🟢 **block** | 즉시 적용 | Socket Rate Limiting 누락은 보안 직결 |
+| fairness-guard | 🟡 **warn** | 경고만 | 연출용 랜덤까지 차단하면 과차단 |
+| css-var-guard | 🟡 **warn** | 경고만 | 차단하면 생산성 저하, 경고로 충분 |
+| mobile-guard | 🟡 **warn** | 경고만 | 자동 감지가 부정확할 수 있음 |
+| tdd-guard | 🔴 **future** | 미적용 | 테스트 자산 일부만 존재, 핵심 경로부터 점진 적용 |
+| format-guard | 🔴 **future** | 미적용 | /meeting 실사용 후 형식 안정화 뒤 적용 |
+
+---
+
 ## Hook 아키텍처
 
 ```
@@ -55,15 +68,18 @@ Claude Code Tool Call
 
 ## Hook 목록
 
-### 1. tdd-guard.sh
+### 1. tdd-guard.sh — 🔴 future
 
 | 항목 | 내용 |
 |------|------|
+| **운영 등급** | 🔴 **future** — 테스트 자산 확충 후 핵심 경로(socket/, db/)부터 점진 적용 |
 | **이벤트** | PreToolUse:Write |
 | **트리거 조건** | `socket/*.js`, `routes/*.js`, `db/*.js` 파일 작성 시 |
 | **검증** | 대응하는 테스트 파일 존재 여부 |
 | **차단 조건** | 테스트 파일이 없으면 block |
 | **제외** | `*.test.js`, `*.spec.js` 자체는 제외 (테스트 작성은 허용) |
+| **선행조건** | tests/ 디렉토리에 주요 핸들러 테스트 파일 확보 필요 |
+| **과차단 위험** | 현재 테스트 파일이 일부만 존재 → 전역 적용 시 거의 모든 Write가 차단됨 |
 
 ```bash
 #!/bin/bash
@@ -97,14 +113,16 @@ fi
 
 ---
 
-### 2. security-guard.sh
+### 2. security-guard.sh — 🟢 block
 
 | 항목 | 내용 |
 |------|------|
+| **운영 등급** | 🟢 **block** — 즉시 적용 가능. 보안 직결 |
 | **이벤트** | PostToolUse:Write |
 | **트리거 조건** | `socket/*.js` 파일 작성 완료 후 |
 | **검증** | `checkRateLimit()` 호출 포함 여부 |
-| **경고 조건** | socket.on 이벤트 핸들러에 checkRateLimit 없으면 warn |
+| **차단 조건** | socket.on 이벤트 핸들러에 checkRateLimit 없으면 block |
+| **과차단 위험** | 낮음 — 모든 Socket 핸들러에 필수인 패턴 |
 
 ```bash
 #!/bin/bash
@@ -135,34 +153,55 @@ fi
 
 ---
 
-### 3. fairness-guard.sh
+### 3. fairness-guard.sh — 🟡 warn
 
 | 항목 | 내용 |
 |------|------|
+| **운영 등급** | 🟡 **warn** — 경고만. 연출용 랜덤까지 차단하면 과차단 |
 | **이벤트** | PostToolUse:Write |
 | **트리거 조건** | `js/*.js` (클라이언트 코드) 파일 작성 완료 후 |
-| **검증** | `Math.random()` 사용 여부 |
-| **차단 조건** | 클라이언트 측 코드에서 Math.random 사용 시 block |
-| **제외** | `socket/*.js` (서버 측)은 검사 대상 아님 |
+| **검증** | `Math.random()` 사용 여부 — **게임 결과 결정 컨텍스트** 감지 |
+| **경고 조건** | 클라이언트 측 코드에서 Math.random 사용 시 warn |
+| **제외** | `socket/*.js` (서버 측), 연출용 파일 (`*-sprites.js`, `*-commentary.js`, `tagline-*.js`, `gif-*.js`) |
+| **과차단 위험** | 높음 — 애니메이션 흔들림, 파티클 효과, 태그라인 롤러 등 연출용 랜덤까지 막을 수 있음 |
+
+**차단해야 할 것 vs 허용할 것:**
+
+| 구분 | 예시 | 판정 |
+|------|------|------|
+| 게임 결과 결정 | 주사위 값, 룰렛 결과, 경마 순위 | 반드시 서버 측 |
+| 게임 진행 보조 | 팀 배정 순서, 베팅 배당률 계산 | 반드시 서버 측 |
+| 연출/UI 효과 | 애니메이션 타이밍, 파티클 방향, 스프라이트 흔들림 | 클라이언트 허용 |
+| 비게임 기능 | 태그라인 롤러, GIF 녹화 타이밍 | 클라이언트 허용 |
 
 ```bash
 #!/bin/bash
-# fairness-guard.sh — 클라이언트 측 난수 생성 차단
+# fairness-guard.sh — 클라이언트 측 게임 결과 랜덤 감지 (경고)
 INPUT=$(cat)
 FILE=$(echo "$INPUT" | node -e "
   let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
     try{const j=JSON.parse(d);console.log(j.tool_input?.file_path||'')}catch{}
   })")
 
-# 클라이언트 JS만 검사 (서버 측 socket/, routes/, db/ 제외)
-if echo "$FILE" | grep -qE '\.js$' && ! echo "$FILE" | grep -qE '(socket|routes|db|node_modules|tests|AutoTest)/'; then
+# 서버 측 제외
+if echo "$FILE" | grep -qE '(socket|routes|db|node_modules|tests|AutoTest)/'; then
+  exit 0
+fi
+
+# 연출용 파일 제외
+if echo "$FILE" | grep -qE '(sprites|commentary|tagline|gif-|animation|particle)'; then
+  exit 0
+fi
+
+# 클라이언트 JS만 검사
+if echo "$FILE" | grep -qE '\.js$'; then
   CONTENT=$(echo "$INPUT" | node -e "
     let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
       try{const j=JSON.parse(d);console.log(j.tool_input?.content||'')}catch{}
     })")
 
   if echo "$CONTENT" | grep -q "Math.random"; then
-    echo "{\"decision\":\"block\",\"reason\":\"❌ 클라이언트 코드에서 Math.random() 사용 금지. 난수 생성은 반드시 서버 측에서 수행해야 합니다. (공정성 원칙)\"}"
+    echo "{\"decision\":\"allow\",\"reason\":\"⚠️ 클라이언트 코드에서 Math.random() 감지. 게임 결과를 결정하는 용도라면 반드시 서버 측에서 수행해야 합니다. 연출용(애니메이션, UI 효과)이면 무시해도 됩니다.\"}"
     exit 0
   fi
 fi
@@ -172,15 +211,17 @@ fi
 
 ---
 
-### 4. css-var-guard.sh
+### 4. css-var-guard.sh — 🟡 warn
 
 | 항목 | 내용 |
 |------|------|
+| **운영 등급** | 🟡 **warn** — 경고만. 차단하면 스타일 작업 생산성 저하 |
 | **이벤트** | PostToolUse:Write |
 | **트리거 조건** | `css/*.css`, `*.html` (인라인 스타일) 파일 작성 완료 후 |
 | **검증** | `#` 16진수 색상 하드코딩 여부 |
 | **경고 조건** | `:root` 외부에서 #hex 색상 직접 사용 시 warn |
 | **제외** | `:root` 블록 내 변수 정의, `theme.css`의 `:root`는 허용 |
+| **과차단 위험** | 중간 — SVG inline 색상, 외부 라이브러리 CSS 등 의도적 하드코딩 가능 |
 
 ```bash
 #!/bin/bash
@@ -211,14 +252,16 @@ fi
 
 ---
 
-### 5. mobile-guard.sh
+### 5. mobile-guard.sh — 🟡 warn
 
 | 항목 | 내용 |
 |------|------|
+| **운영 등급** | 🟡 **warn** — 경고만. 자동 감지가 부정확할 수 있음 |
 | **이벤트** | PostToolUse:Write |
 | **트리거 조건** | `*.html`, `css/*.css` 파일 작성 완료 후 |
 | **검증** | 모바일 호환성 필수 요소 포함 여부 |
 | **경고 조건** | viewport meta 누락, 고정 px 너비, 터치 타겟 미달 감지 시 warn |
+| **과차단 위험** | 중간 — 의도적 고정 너비(모달, 팝업), 아이콘 버튼 등 오탐 가능 |
 
 ```bash
 #!/bin/bash
@@ -283,14 +326,16 @@ fi
 
 ---
 
-### 6. format-guard.sh (meeting 전용)
+### 6. format-guard.sh (meeting 전용) — 🔴 future
 
 | 항목 | 내용 |
 |------|------|
+| **운영 등급** | 🔴 **future** — /meeting 실사용 후 형식 안정화 뒤 적용 |
 | **이벤트** | PostToolUse (에이전트 출력 검증) |
 | **트리거 조건** | /meeting 파이프라인 에이전트 출력 |
 | **검증** | 역할별 필수 의견 형식 포함 여부 |
 | **동작** | 누락 시 해당 에이전트 재실행 요청 |
+| **선행조건** | /meeting을 여러 번 실사용하여 형식이 안정화된 후 적용 |
 
 **역할별 필수 키워드:**
 
@@ -309,22 +354,13 @@ fi
 
 ---
 
-## settings.json Hook 등록 (예시)
+## settings.json Hook 등록
+
+### 지금 적용 가능한 설정 (운영 버전)
 
 ```json
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/tdd-guard.sh"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Write",
@@ -350,6 +386,32 @@ fi
     ]
   }
 }
+```
+
+> - security-guard: block (Socket Rate Limiting 필수)
+> - fairness-guard, css-var-guard, mobile-guard: warn (경고만)
+> - tdd-guard: 미등록 (테스트 자산 확충 후 추가)
+> - format-guard: 미등록 (/meeting 실사용 후 추가)
+
+### 테스트 자산 확충 후 추가할 설정 (장기 목표)
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/tdd-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 ```
 
 ---
