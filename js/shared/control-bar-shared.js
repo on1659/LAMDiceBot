@@ -91,10 +91,6 @@
             ? '<span class="edit-icon" id="editRoomNameButton" style="display: none;">✏️</span>'
             : '';
 
-        var rankingBtn = cfg.onRanking
-            ? '<button id="rankingBtn" class="control-bar-btn ranking-btn">🏆</button>'
-            : '';
-
         mount.innerHTML =
             '<div class="room-control-bar">' +
                 '<div class="control-bar-title" id="roomTitle">' +
@@ -113,7 +109,6 @@
                         '<input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">' +
                     '</div>' +
                 '</div>' +
-                rankingBtn +
                 '<button id="leaveBtn" class="control-bar-btn leave-btn">🚪 나가기</button>' +
             '</div>';
 
@@ -129,8 +124,6 @@
         });
         if (leaveBtn && cfg.onLeave) leaveBtn.addEventListener('click', cfg.onLeave);
         if (editBtn && cfg.onEditRoomName) editBtn.addEventListener('click', cfg.onEditRoomName);
-        var rkBtn = document.getElementById('rankingBtn');
-        if (rkBtn && cfg.onRanking) rkBtn.addEventListener('click', cfg.onRanking);
     }
 
     // --- Init ---

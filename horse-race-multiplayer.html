@@ -105,8 +105,7 @@
                     gameKey: 'horse',
                     soundKey: 'horseSoundEnabled',
                     volumeKey: 'horseSoundVolume',
-                    onLeave: function() { leaveRoom(); },
-                    onRanking: function() { RankingModule.show(); }
+                    onLeave: function() { leaveRoom(); }
                 });
             </script>
 
@@ -282,8 +281,7 @@
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
                 <div style="display: flex; gap: 10px; justify-content: center;">
                     <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--horse-accent); border: 2px solid var(--horse-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
-                    <!-- GIF 기능 숨김 (CORS 이슈) -->
-                    <button id="gifSaveButton" onclick="showGifOptionsModal()" style="display: none; flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--green-400) 0%, var(--green-600) 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">📹 GIF 저장</button>
+
                 </div>
             </div>
 
@@ -358,7 +356,7 @@
     <script src="/js/shared/ranking-shared.js"></script>
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
-    <!-- <script src="/js/gif-recorder.js"></script> GIF 기능 비활성화 -->
+
     <script src="/js/horse-race-sprites.js"></script>
     <script src="/js/horse-race-commentary.js"></script>
     <script src="/js/horse-race.js"></script>
