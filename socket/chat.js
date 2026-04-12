@@ -1,4 +1,4 @@
-const geminiService = require('../gemini-utils');
+const geminiService = require('../utils/gemini-utils');
 const { ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
 
 // ─── 조정 가능한 상수 ───

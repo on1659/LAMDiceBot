@@ -145,7 +145,7 @@
         
         .room-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 5px 15px rgba(var(--dice-500-rgb),0.3);
         }
         
         /* 경마 버튼 툴팁 */
@@ -367,11 +367,11 @@
         /* 업데이트 내역 섹션 */
         .update-log-section {
             background: linear-gradient(145deg, var(--purple-50) 0%, var(--purple-100) 100%);
-            border: 1px solid rgba(102, 126, 234, 0.35);
+            border: 1px solid rgba(var(--dice-500-rgb),0.35);
             border-radius: 16px;
             padding: 24px;
             margin-top: 24px;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.12);
+            box-shadow: 0 4px 20px rgba(var(--dice-500-rgb),0.12);
         }
         .update-log-section h2 {
             margin-bottom: 16px;
@@ -507,7 +507,7 @@
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--dice-500-rgb),0.4);
         }
 
         button:active {
@@ -563,7 +563,7 @@
             flex-shrink: 0;
             min-width: 80px;
             padding: 6px 12px;
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(var(--dice-500-rgb),0.2);
             border-radius: 8px;
             border: 1px solid var(--dice-500);
             display: inline-block !important;
@@ -588,13 +588,12 @@
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            font-weight: 600;
-            font-size: 18px;
+            font-weight: bold;
         }
 
         .game-status.waiting {
-            background: var(--status-warning-bg);
-            color: var(--status-warning-text);
+            background: var(--gray-100);
+            color: var(--gray-700);
         }
 
         .game-status.playing {
@@ -603,8 +602,17 @@
         }
 
         .game-status.ordering {
-            background: var(--panel-attention);
+            background: var(--status-warning-bg);
             color: var(--status-warning-text);
+        }
+
+        .room-expiry-section {
+            background: var(--status-warning-bg);
+            border: 2px solid var(--yellow-500);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            text-align: center;
         }
 
         .host-controls {
@@ -648,14 +656,14 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            background: linear-gradient(135deg, rgba(var(--dice-500-rgb),0.1) 0%, rgba(var(--dice-600-rgb),0.1) 100%);
             border-radius: 15px;
             pointer-events: none;
         }
 
         .dice.rolling {
             animation: roll 0.3s infinite, shake 0.15s infinite, pulse 0.4s infinite;
-            filter: drop-shadow(0 0 15px rgba(102, 126, 234, 0.9));
+            filter: drop-shadow(0 0 15px rgba(var(--dice-500-rgb),0.9));
         }
         
         .dice.rolling .dice-content {
@@ -1023,15 +1031,16 @@
 
         .history-section {
             position: fixed;
+            right: 20px;
             top: 20px;
             width: 320px;
             background: var(--bg-white);
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 20px;
             max-height: calc(100vh - 40px);
             overflow-y: auto;
-            z-index: 1000;
+            z-index: 100;
             display: none; /* 기본적으로 숨김, 방 입장 시에만 표시 */
         }
         
@@ -1167,15 +1176,14 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--dice-500);
         }
 
         .history-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-            white-space: nowrap; /* 줄바꿈 방지 */
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--dice-500);
+            margin-bottom: 15px;
+            text-align: center;
         }
 
         .sort-buttons {
@@ -1270,18 +1278,18 @@
             position: relative;
             background: linear-gradient(135deg, var(--panel-attention) 0%, var(--bg-white) 50%, var(--panel-attention) 100%);
             border-left: 4px solid var(--btn-ready);
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+            box-shadow: 0 4px 15px rgba(var(--green-500-rgb),0.2), 0 0 30px rgba(var(--yellow-gold-rgb),0.15);
             animation: winnerPulse 2s ease-in-out infinite;
             transform: scale(1);
         }
 
         @keyframes winnerPulse {
             0%, 100% {
-                box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2), 0 0 30px rgba(255, 215, 0, 0.15);
+                box-shadow: 0 4px 15px rgba(var(--green-500-rgb),0.2), 0 0 30px rgba(var(--yellow-gold-rgb),0.15);
                 transform: scale(1);
             }
             50% {
-                box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35), 0 0 40px rgba(255, 215, 0, 0.25);
+                box-shadow: 0 6px 20px rgba(var(--green-500-rgb),0.35), 0 0 40px rgba(var(--yellow-gold-rgb),0.25);
                 transform: scale(1.02);
             }
         }
@@ -1294,7 +1302,7 @@
             font-size: 20px;
             animation: sparkle 1.5s ease-in-out infinite;
             z-index: 1;
-            filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.8));
+            filter: drop-shadow(0 0 3px rgba(var(--yellow-gold-rgb),0.8));
         }
 
         @keyframes sparkle {
@@ -1400,7 +1408,7 @@
         }
 
         .logout-button:hover {
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--red-500-rgb),0.4);
         }
 
         .dice-settings {
@@ -1450,7 +1458,7 @@
         }
 
         .order-button:hover {
-            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--yellow-500-rgb),0.4);
         }
 
         .clear-data-button {
@@ -1458,7 +1466,7 @@
         }
 
         .clear-data-button:hover {
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+            box-shadow: 0 5px 15px rgba(var(--red-500-rgb),0.4);
         }
         @keyframes newBadgePulse {
             0%, 100% { transform: scale(1); }
@@ -1484,16 +1492,16 @@
             <h1>LAMDice 주사위 게임</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
             <p>친구와 함께하는 온라인 주사위 게임. High, Low, Near, Custom 등 다양한 규칙으로 실시간 대결하세요. 회원가입 없이 바로 플레이할 수 있으며, 서버 기반 난수로 공정성이 보장됩니다.</p>
-            <p><a href="/">홈으로 돌아가기</a> · <a href="dice-rules-guide.html">주사위 규칙 가이드</a> · <a href="probability-analysis.html">확률 분석</a></p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/dice-rules-guide.html">주사위 규칙 가이드</a> · <a href="/pages/probability-analysis.html">확률 분석</a></p>
         </div>
     </noscript>
     <header style="background-color: var(--bg-primary); padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
         <nav style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
             <h1 style="margin: 0; font-size: 1.5em;"><a href="/" style="text-decoration: none; color: var(--text-primary);">LAMDice 주사위 게임</a></h1>
             <div class="nav-links">
-                <a href="dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">다양한 주사위 규칙</a>
-                <a href="probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">확률 분석 및 팁</a>
-                <a href="about-us.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">사이트 소개</a>
+                <a href="/pages/dice-rules-guide.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">다양한 주사위 규칙</a>
+                <a href="/pages/probability-analysis.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">확률 분석 및 팁</a>
+                <a href="/pages/about-us.html" style="margin-left: 20px; text-decoration: none; color: var(--purple-500);">사이트 소개</a>
             </div>
         </nav>
     </header>
@@ -1511,7 +1519,7 @@
         <!-- 대기실 섹션 -->
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
-            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); border: 1px solid var(--dice-500); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
+            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(var(--dice-500-rgb),0.1), rgba(var(--dice-600-rgb),0.1)); border: 1px solid var(--dice-500); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
                 <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--btn-neutral); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: var(--dice-500);"></span>
                 <span id="serverInfoUserName" style="font-weight: 600; color: var(--dice-600); display: none;">👤 </span>
@@ -1696,7 +1704,7 @@
         <div class="game-section" id="gameSection">
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
-            <script src="/control-bar-shared.js"></script>
+            <script src="/js/shared/control-bar-shared.js"></script>
             <script>
                 ControlBar.init({
                     gameKey: 'dice',
@@ -1781,9 +1789,9 @@
             </div>
             
             <!-- 방 폭파까지 남은 시간 -->
-            <div class="room-expiry-section" id="roomExpirySection" style="display: none; background: var(--status-warning-bg); border: 2px solid var(--host-badge-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px; text-align: center;">
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
                 <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
-                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--btn-danger);">--:--:--</span>
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
             
@@ -1924,13 +1932,25 @@
                 </div>
             </div>
 
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: In-Game Bottom Banner -->
+            <div class="ad-container ad-game">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="3774585551"
+                   data-ad-format="horizontal"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
         </div>
     </div>
 
     <!-- 기록 섹션 (오른쪽 고정) -->
     <div class="history-section">
         <div class="history-title-wrapper">
-            <div class="history-title" id="historyTitle">📋 게임 기록 - 연습경기</div>
+            <div class="history-title" id="historyTitle">📜 게임 기록 - 연습경기</div>
             <div class="sort-buttons">
                 <button class="sort-button active" id="sortTimeBtn" onclick="sortHistory('time')">시간순</button>
                 <button class="sort-button" id="sortAscBtn" onclick="sortHistory('asc')">오름차순</button>
@@ -1959,14 +1979,14 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/page-history-shared.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
     <script src="/config/client-config.js"></script>
-    <script src="/tagline-roller.js"></script>
-    <script src="/server-select-shared.js"></script>
-    <script src="/chat-shared.js"></script>
-    <script src="/ready-shared.js"></script>
-    <script src="/order-shared.js"></script>
-    <script src="/ranking-shared.js"></script>
+    <script src="/js/tagline-roller.js"></script>
+    <script src="/js/shared/server-select-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
@@ -2677,16 +2697,13 @@
             renderRoomsList();
         });
         
-        // 업데이트 내역: update-log.md + update-log_old.md 합쳐서 Markdown 파싱 후 표시
+        // 업데이트 내역: update-log.md Markdown 파싱 후 표시
         function loadUpdateLog() {
             const updateLogContent = document.getElementById('updateLogContent');
             if (!updateLogContent) return;
             const parseMd = (text) => (typeof marked !== 'undefined' ? marked.parse(text) : text.replace(/\n/g, '<br>'));
-            Promise.all([
-                fetch('update-log.md').then(r => r.ok ? r.text() : ''),
-                fetch('update-log_old.md').then(r => r.ok ? r.text() : '')
-            ]).then(([recent, old]) => {
-                const combined = [recent, old].filter(Boolean).join('\n\n---\n\n');
+            fetch('update-log.md').then(r => r.ok ? r.text() : '').then(recent => {
+                const combined = recent;
                 if (!combined.trim()) {
                     updateLogContent.innerHTML = '업데이트 내역을 불러올 수 없습니다.';
                     return;
@@ -3046,7 +3063,7 @@
             messageDiv.style.cssText = `
                 font-size: 15px;
                 line-height: 1.6;
-                color: #1a1a1a;
+                color: var(--text-primary);
                 white-space: pre-wrap;
                 word-wrap: break-word;
                 word-break: keep-all;
@@ -3186,7 +3203,7 @@
                 messageDiv.style.cssText = `
                     font-size: 15px;
                     line-height: 1.6;
-                    color: #1a1a1a;
+                    color: var(--text-primary);
                     white-space: pre-wrap;
                     word-wrap: break-word;
                     word-break: keep-all;
@@ -3381,7 +3398,7 @@
                 `;
                 hostButton.onmouseenter = () => {
                     hostButton.style.transform = 'scale(1.02)';
-                    hostButton.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                    hostButton.style.boxShadow = '0 4px 12px rgba(var(--dice-500-rgb),0.3)';
                 };
                 hostButton.onmouseleave = () => {
                     hostButton.style.transform = 'scale(1)';
@@ -4040,7 +4057,7 @@
             // 게임 기록 제목 설정
             const historyTitle = document.getElementById('historyTitle');
             if (historyTitle) {
-                historyTitle.textContent = isGameActive ? '📋 게임' : '📋 연습';
+                historyTitle.textContent = isGameActive ? '📜 게임' : '📜 연습';
             }
             
             // 비공개 방 비밀번호 표시
@@ -4223,10 +4240,9 @@
             // 재접속 처리
             if (isGameActive && data.isGamePlayer) {
                 document.getElementById('gameStatus').textContent = '게임 진행 중!';
-                document.getElementById('gameStatus').classList.remove('waiting');
-                document.getElementById('gameStatus').classList.add('playing');
+                document.getElementById('gameStatus').className = 'game-status playing';
                 document.getElementById('progressSection').style.display = 'block';
-                
+
                 // 진행 상황 업데이트 (재접속 시에도)
                 if (gamePlayers.length > 0) {
                     const rolled = rolledUsersInGame.length;
@@ -4269,15 +4285,13 @@
                 document.getElementById('myOrderInput').disabled = false;
                 document.getElementById('orderSaveButton').disabled = false;
                 document.getElementById('gameStatus').textContent = '주문받기 진행 중!';
-                document.getElementById('gameStatus').classList.remove('waiting');
-                document.getElementById('gameStatus').classList.remove('playing');
-                document.getElementById('gameStatus').classList.add('ordering');
-                
+                document.getElementById('gameStatus').className = 'game-status ordering';
+
                 if (isHost) {
                     document.getElementById('startOrderButton').style.display = 'none';
                     document.getElementById('endOrderButton').style.display = 'block';
                 }
-                
+
                 // 주문 목록과 주문하지 않은 사람 목록 표시
                 OrderModule.renderOrders();
                 OrderModule.renderNotOrderedUsers();
@@ -4286,12 +4300,10 @@
                 document.getElementById('ordersSection').classList.remove('active');
                 document.getElementById('myOrderInput').disabled = true;
                 document.getElementById('orderSaveButton').disabled = true;
-                
+
                 if (!isGameActive) {
                     document.getElementById('gameStatus').textContent = '게임 대기 중...';
-                    document.getElementById('gameStatus').classList.remove('ordering');
-                    document.getElementById('gameStatus').classList.remove('playing');
-                    document.getElementById('gameStatus').classList.add('waiting');
+                    document.getElementById('gameStatus').className = 'game-status waiting';
                 }
                 
                 if (isHost && !isGameActive) {
@@ -4398,7 +4410,7 @@
                 if (remaining <= 0) {
                     countdownElement.textContent = '00:00:00';
                     expirySection.style.background = 'var(--status-danger-bg)';
-                    expirySection.style.borderColor = 'var(--btn-danger)';
+                    expirySection.style.borderColor = 'var(--red-500)';
                     countdownElement.style.color = 'var(--status-danger-text)';
                     if (roomExpiryInterval) {
                         clearInterval(roomExpiryInterval);
@@ -4609,15 +4621,14 @@
             // 재접속 처리
             if (isGameActive && data.isGamePlayer) {
                 document.getElementById('gameStatus').textContent = '게임 진행 중!';
-                document.getElementById('gameStatus').classList.remove('waiting');
-                document.getElementById('gameStatus').classList.add('playing');
+                document.getElementById('gameStatus').className = 'game-status playing';
                 document.getElementById('progressSection').style.display = 'block';
-                
+
                 if (isHost) {
                     document.getElementById('startButton').style.display = 'none';
                     document.getElementById('endButton').style.display = 'block';
                 }
-                
+
                 const reconnectNotice = document.getElementById('reconnectNotice');
                 const reconnectMessage = document.getElementById('reconnectMessage');
                 
@@ -4644,7 +4655,7 @@
                 document.getElementById('myOrderInput').disabled = false;
                 document.getElementById('orderSaveButton').disabled = false;
                 document.getElementById('gameStatus').textContent = '주문받기 진행 중!';
-                document.getElementById('gameStatus').classList.add('ordering');
+                document.getElementById('gameStatus').className = 'game-status ordering';
                 
                 if (isHost) {
                     document.getElementById('startOrderButton').style.display = 'none';
@@ -5002,20 +5013,18 @@
             }
             
             // 게임 기록 제목 변경
-            document.getElementById('historyTitle').textContent = '📋 게임';
+            document.getElementById('historyTitle').textContent = '📜 게임';
             
             // 굴린 인원 업데이트
             updateRolledUsersCount();
             
             // 준비 섹션 숨기기
             document.getElementById('readySection').style.display = 'none';
-            
+
             document.getElementById('reconnectNotice').style.display = 'none';
-            
+
             document.getElementById('gameStatus').textContent = '게임 진행 중!';
-            document.getElementById('gameStatus').classList.remove('waiting');
-            document.getElementById('gameStatus').classList.remove('ordering');
-            document.getElementById('gameStatus').classList.add('playing');
+            document.getElementById('gameStatus').className = 'game-status playing';
             document.getElementById('startButton').style.display = 'none';
             document.getElementById('endButton').style.display = 'block';
             
@@ -5196,7 +5205,7 @@
                 // currentGameHistory는 현재 게임의 기록만 포함됨
                 
                 // 게임 기록 제목은 그대로 유지 (게임 기록으로 계속 표시)
-                document.getElementById('historyTitle').textContent = '📋 게임';
+                document.getElementById('historyTitle').textContent = '📜 게임';
                 
                 // 굴린 인원 업데이트
                 updateRolledUsersCount();
@@ -5213,9 +5222,8 @@
                 // 호스트 UI 업데이트 (드래그 안내 멘트 포함)
                 updateHostUI();
                 
-                document.getElementById('gameStatus').textContent = '게임 종료됨';
-                document.getElementById('gameStatus').classList.remove('playing');
-                document.getElementById('gameStatus').classList.add('waiting');
+                document.getElementById('gameStatus').textContent = '게임 대기 중...';
+                document.getElementById('gameStatus').className = 'game-status waiting';
                 document.getElementById('startButton').style.display = 'block';
                 document.getElementById('endButton').style.display = 'none';
                 // 주사위 굴리기 버튼은 제거됨
@@ -7452,7 +7460,20 @@
             updateRolledUsersCount();
         }
     </script>
-    <!-- Ad: Pre-SEO Banner -->
+    <!-- SEO Content Section (hidden, crawlers only) -->
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 주사위 게임 안내</h2>
+        <p>LAMDice 주사위 게임은 친구들과 실시간으로 즐기는 무료 온라인 멀티플레이어 게임입니다. High(높은 수 승리), Low(낮은 수 승리), Near(목표 수에 가까운 수 승리), Custom(사용자 정의 규칙) 등 다양한 규칙을 선택할 수 있습니다. 모든 주사위는 서버 기반 난수 생성으로 공정성이 보장됩니다.</p>
+        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+            <a href="/pages/dice-rules-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 주사위 규칙 가이드</a>
+            <a href="/pages/probability-analysis.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📊 확률 분석 및 팁</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+        </div>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a></p>
+    </section>
+
+    <!-- Ad: Footer Banner -->
     <div class="ad-container" style="max-width:800px;">
       <span class="ad-label">AD</span>
       <ins class="adsbygoogle"
@@ -7463,32 +7484,19 @@
            data-full-width-responsive="true"></ins>
     </div>
 
-    <!-- SEO Content Section (hidden, crawlers only) -->
-    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
-        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--purple-600);">LAMDice 주사위 게임 안내</h2>
-        <p>LAMDice 주사위 게임은 친구들과 실시간으로 즐기는 무료 온라인 멀티플레이어 게임입니다. High(높은 수 승리), Low(낮은 수 승리), Near(목표 수에 가까운 수 승리), Custom(사용자 정의 규칙) 등 다양한 규칙을 선택할 수 있습니다. 모든 주사위는 서버 기반 난수 생성으로 공정성이 보장됩니다.</p>
-        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="dice-rules-guide.html" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">📖 주사위 규칙 가이드</a>
-            <a href="probability-analysis.html" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">📊 확률 분석 및 팁</a>
-            <a href="fairness-rng.html" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">🔒 공정성 원리</a>
-            <a href="/" style="color:var(--purple-500); text-decoration:none; border-bottom:1px solid var(--purple-300);">🏠 홈으로</a>
-        </div>
-        <p style="margin-top:12px; font-size:0.9em; color:var(--text-secondary);">다른 게임도 즐겨보세요: <a href="/roulette" style="color:var(--purple-500);">룰렛</a> · <a href="/horse-race" style="color:var(--purple-500);">레이스</a></p>
-    </section>
-
     <footer style="text-align: center; padding: 20px 0; font-size: 0.9em; color: var(--text-secondary);">
         <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top: 10px;">
-            <a href="/" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">홈</a> |
-            <a href="game-guides.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">게임 가이드</a> |
-            <a href="faq.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">FAQ</a> |
-            <a href="privacy-policy.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">이용 약관</a> |
-            <a href="contact.html" style="margin: 0 8px; text-decoration: none; color: var(--purple-500);">문의하기</a>
+            <a href="/" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">홈</a> |
+            <a href="/pages/game-guides.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin: 0 8px; text-decoration: none; color: var(--link-brand);">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
-    <script src="/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script>
     var DICE_TUTORIAL_STEPS = [
         {
@@ -7633,7 +7641,7 @@
         helpBtn.title = '게임 튜토리얼 보기';
         helpBtn.style.cssText = [
             'margin-left:auto; width:28px; height:28px; border-radius:50%;',
-            'background:linear-gradient(135deg,#8b5cf6,#a78bfa);',
+            'background:linear-gradient(135deg,var(--link-brand),var(--link-brand-light));',
             'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
             'box-shadow:0 2px 8px rgba(139,92,246,0.5); flex-shrink:0;'

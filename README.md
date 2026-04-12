@@ -263,9 +263,7 @@ DATABASE_URL=postgresql://user:password@host:port/database
 
 - **CHANGELOG.md**: 상세한 변경 내역
 - **docs/Railway배포완벽가이드.md**: 클라우드 배포 방법
-- **docs/game-type/dice/**: 주사위 게임 문서·계획
-- **docs/game-type/horse/**: 경마 게임 문서·리소스
-- **docs/DEVELOPMENT_GUIDE.md**: 개발 가이드
+- **docs/GameGuide/**: 게임 가이드 (아키텍처, 게임별 상세, 운영)
 
 ## 🎯 기술 스택
 

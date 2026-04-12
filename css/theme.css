@@ -118,11 +118,14 @@
   --dice-600:   #764ba2;
   --dice-700:   #5A3880;
 
-  /* 룰렛 게임 - 회색 유지 */
-  --roulette-50:  #F5F7F8;
+  /* 룰렛 게임 - 딥그린 */
+  --roulette-50:  #E8F5EC;
   --roulette-500: #7c4dff;  /* 강조색 */
   --roulette-600: #536dfe;
-  --roulette-bg:  #8e99a4;
+  --roulette-bg:  #1a5c3a;
+
+  /* 경마 게임 - 갈색 (로비용 fallback) */
+  --horse-accent: #8B4513;
 
   /* 뽑기 게임 - 회색 배경 + 보라색 강조 */
   --crane-50:   #F5F7F8;
@@ -138,7 +141,27 @@
   --game-type-dice: var(--dice-500);
   --game-type-roulette: var(--roulette-500);
   --game-type-crane: var(--crane-500);
-  --game-type-horse: #8B4513;
+  --game-type-horse: var(--horse-accent);
+
+  /* ============================================
+     게임별 파스텔 배경 토큰
+  ============================================ */
+  --dice-accent-bg: #EEEAFF;
+  --dice-accent-light: #F5F3FF;
+
+  --roulette-accent-bg: #DCFAF5;
+  --roulette-accent-light: #F0FDFB;
+
+  --horse-accent-bg: #EFEBE9;
+  --horse-accent-light: #F5F0EB;
+
+  /* ============================================
+     공통 링크/SEO 색상
+  ============================================ */
+  --link-brand: #8b5cf6;
+  --link-brand-light: #a78bfa;
+  --link-brand-border: #c4b5fd;
+  --heading-brand: #7c3aed;
 
   /* ============================================
      전체 (의미론적 이름)
@@ -229,7 +252,7 @@
   --dice-gradient: linear-gradient(135deg, var(--dice-500) 0%, var(--dice-600) 100%);
   --dice-accent: var(--dice-500);
 
-  --roulette-gradient: linear-gradient(135deg, var(--roulette-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
+  --roulette-gradient: linear-gradient(135deg, #1a5c3a 0%, #22693f 50%, #2d7a52 100%);
   --roulette-accent: var(--roulette-500);
 
   --crane-gradient: linear-gradient(135deg, var(--crane-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
@@ -244,6 +267,19 @@
      배경 Surface (컨트롤 바, 액션 버튼 등)
   ============================================ */
   --bg-surface: var(--panel-primary);
+
+  /* ============================================
+     RGB 채널 변수 (rgba()에서 var() 사용)
+  ============================================ */
+  --dice-500-rgb: 102, 126, 234;
+  --dice-600-rgb: 118, 75, 162;
+  --green-500-rgb: 40, 167, 69;
+  --red-500-rgb: 220, 53, 69;
+  --yellow-500-rgb: 255, 193, 7;
+  --yellow-gold-rgb: 255, 215, 0;
+  --crane-500-rgb: 156, 39, 176;
+  --roulette-500-rgb: 124, 77, 255;
+  --roulette-pointer: #ff1744;
 }
 
 /* ============================================
@@ -280,6 +316,14 @@
   --dice-500: #9C7FFF;
   --roulette-500: #9575cd;
   --crane-500: #ba68c8;
+
+  /* RGB 채널 변수 (다크 모드) */
+  --dice-500-rgb: 156, 127, 255;
+  --green-500-rgb: 102, 187, 106;
+  --red-500-rgb: 239, 83, 80;
+  --yellow-500-rgb: 255, 213, 79;
+  --crane-500-rgb: 186, 104, 200;
+  --roulette-500-rgb: 149, 117, 205;
 }
 
 /* ============================================

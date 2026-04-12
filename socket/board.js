@@ -1,6 +1,6 @@
 // 게시판 & Gemini AI 소켓 핸들러
 const { loadSuggestions, saveSuggestion, deleteSuggestion } = require('../db/suggestions');
-const geminiService = require('../gemini-utils');
+const geminiService = require('../utils/gemini-utils');
 
 module.exports = function registerBoardHandlers(socket, io, ctx) {
     // 게시판 조회

@@ -105,7 +105,7 @@
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(233, 30, 99, 0.3);
+            box-shadow: 0 5px 20px rgba(var(--roulette-500-rgb),0.3);
         }
 
         button:disabled {
@@ -220,7 +220,7 @@
             height: 0;
             border-left: 20px solid transparent;
             border-right: 20px solid transparent;
-            border-top: 35px solid #ff1744;
+            border-top: 35px solid var(--roulette-pointer);
             z-index: 20;
             filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
         }
@@ -313,6 +313,7 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 20px;
             overflow-y: auto;
+            z-index: 100;
             display: none;
         }
 
@@ -522,7 +523,7 @@
 
         /* 방 폭파 카운트다운 */
         .room-expiry-section {
-            background: var(--yellow-100);
+            background: var(--status-warning-bg);
             border: 2px solid var(--yellow-500);
             border-radius: 8px;
             padding: 12px;
@@ -586,7 +587,7 @@
             <h1>LAMDice 룰렛</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
             <p>무료 온라인 멀티플레이어 룰렛 게임. 친구들과 실시간 돌림판으로 승부하세요. 회원가입 없이 바로 플레이 가능합니다.</p>
-            <p><a href="/">홈으로 돌아가기</a> · <a href="roulette-guide.html">룰렛 가이드</a> · <a href="game-guides.html">전체 게임 가이드</a></p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/roulette-guide.html">룰렛 가이드</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
         </div>
     </noscript>
     <!-- 로딩 화면 -->
@@ -834,23 +835,23 @@
             border-top: 2px solid var(--gray-200);
         }
         .game-status {
+            text-align: center;
             padding: 15px;
             border-radius: 8px;
-            text-align: center;
-            font-weight: bold;
             margin-bottom: 20px;
+            font-weight: bold;
         }
         .game-status.waiting {
             background: var(--gray-100);
             color: var(--gray-700);
         }
         .game-status.ordering {
-            background: var(--yellow-50);
-            color: var(--yellow-900);
+            background: var(--status-warning-bg);
+            color: var(--status-warning-text);
         }
         .game-status.playing {
             background: var(--status-success-bg);
-            color: var(--green-900);
+            color: var(--status-success-text);
         }
     </style>
 
@@ -862,7 +863,7 @@
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
-            <script src="/control-bar-shared.js"></script>
+            <script src="/js/shared/control-bar-shared.js"></script>
             <script>
                 ControlBar.init({
                     gameKey: 'roulette',
@@ -877,7 +878,7 @@
 
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
-                <div style="color: var(--yellow-900); font-weight: bold; font-size: 14px;">
+                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
                     ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
@@ -889,6 +890,18 @@
                     <span id="dragHint" style="display: none; font-size: 12px; color: var(--roulette-accent); margin-left: 10px; font-weight: normal;">💡 드래그하여 준비시키기</span>
                 </div>
                 <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
             </div>
 
             <!-- 준비 섹션 -->
@@ -983,8 +996,8 @@
             </div>
             
             <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus" style="padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; background: var(--gray-100); color: var(--gray-700);">
-                대기 중...
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
             </div>
 
             <!-- 룰렛 컨테이너 (항상 표시) -->
@@ -1015,20 +1028,9 @@
                 <div style="color: white; margin-bottom: 12px; font-size: 14px;">
                     🎬 화면을 보지 않는 동안 룰렛이 진행되었습니다
                 </div>
-                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: #333333; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
+                <button onclick="replayRoulette()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: var(--text-primary); font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);">
                     🔄 다시보기
                 </button>
-            </div>
-
-            <!-- Ad: Lobby Banner -->
-            <div class="ad-container ad-lobby">
-              <span class="ad-label">AD</span>
-              <ins class="adsbygoogle"
-                   style="display:block"
-                   data-ad-client="ca-pub-1608259764663412"
-                   data-ad-slot="7466418558"
-                   data-ad-format="auto"
-                   data-full-width-responsive="true"></ins>
             </div>
 
             <!-- 채팅 섹션 -->
@@ -1040,6 +1042,19 @@
                     <button onclick="sendMessage()" style="width: auto; padding: 10px 20px;">전송</button>
                 </div>
             </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: In-Game Bottom Banner -->
+            <div class="ad-container ad-game">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="3774585551"
+                   data-ad-format="horizontal"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
         </section>
     </div>
 
@@ -1085,12 +1100,12 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/page-history-shared.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
-    <script src="/chat-shared.js"></script>
-    <script src="/ready-shared.js"></script>
-    <script src="/order-shared.js"></script>
-    <script src="/ranking-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
     <script>
         // ============================================
         // Room Control Bar Enhancement
@@ -1360,7 +1375,7 @@
             messageDiv.style.cssText = `
                 font-size: 15px;
                 line-height: 1.6;
-                color: #1a1a1a;
+                color: var(--text-primary);
                 white-space: pre-wrap;
                 word-wrap: break-word;
                 word-break: keep-all;
@@ -1500,7 +1515,7 @@
                 messageDiv.style.cssText = `
                     font-size: 15px;
                     line-height: 1.6;
-                    color: #1a1a1a;
+                    color: var(--text-primary);
                     white-space: pre-wrap;
                     word-wrap: break-word;
                     word-break: keep-all;
@@ -1662,7 +1677,7 @@
                 messageDiv.style.cssText = `
                     font-size: 18px;
                     line-height: 1.6;
-                    color: #1a1a1a;
+                    color: var(--text-primary);
                     white-space: pre-wrap;
                     word-break: break-word;
                     text-align: center;
@@ -2257,7 +2272,7 @@
                     transform: translate(-50%, -50%);
                     font-size: 16px;
                     font-weight: 700;
-                    color: #1a1a1a;
+                    color: var(--text-primary);
                     text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
                     white-space: nowrap;
                     text-align: center;
@@ -2784,6 +2799,9 @@
                 
                 if (remaining <= 0) {
                     countdownElement.textContent = '00:00:00';
+                    expirySection.style.background = 'var(--status-danger-bg)';
+                    expirySection.style.borderColor = 'var(--red-500)';
+                    countdownElement.style.color = 'var(--status-danger-text)';
                     if (roomExpiryInterval) {
                         clearInterval(roomExpiryInterval);
                     }
@@ -3135,6 +3153,10 @@
                 everPlayedUsers = [...data.everPlayedUsers];
             }
             
+            // 게임 상태 바 업데이트
+            document.getElementById('gameStatus').textContent = '게임 진행 중!';
+            document.getElementById('gameStatus').className = 'game-status playing';
+
             // UI 상태 변경 (돌림판과 준비 섹션은 계속 표시)
             // 룰렛 시작 버튼만 비활성화 (주문받기 버튼은 유지)
             document.getElementById('startRouletteButton').disabled = true;
@@ -3325,8 +3347,8 @@
             // 모든 클라이언트에서 화면 표시 확인 (호스트/비호스트 모두)
             // visibilityState가 visible이고 창이 포커스를 가지고 있어야 실제로 보이는 것
             if (isActuallyVisible) {
-                addDebugLog('✅ 화면 visible + 포커스 있음 → actuallyStartRoulette 호출', 'info');
-                // 화면이 보이면 즉시 시작
+                addDebugLog('✅ 화면 visible + 포커스 있음 → 카운트다운 후 actuallyStartRoulette 호출', 'info');
+                // 화면이 보이면 카운트다운 후 시작
                 missedRoulette = false;
                 actuallyStartRoulette(data);
             } else {
@@ -3391,6 +3413,10 @@
             // 다시보기 섹션 숨기기
             document.getElementById('replaySection').style.display = 'none';
             
+            // 게임 상태 바 초기화
+            document.getElementById('gameStatus').textContent = '게임 대기 중...';
+            document.getElementById('gameStatus').className = 'game-status waiting';
+
             // UI 초기화 (돌림판은 계속 표시)
             document.getElementById('rouletteContainer').style.display = 'flex';
             document.getElementById('readySection').style.display = 'block';
@@ -3576,7 +3602,20 @@
         // ========== 주문받기 (OrderModule 사용) ==========
         
     </script>
-    <!-- Ad: Pre-SEO Banner -->
+    <!-- SEO Content Section (hidden, crawlers only) -->
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 룰렛 게임 안내</h2>
+        <p>LAMDice 룰렛은 친구들과 실시간으로 즐기는 무료 온라인 돌림판 게임입니다. 여러 칸 중 하나를 선택하여 당첨을 맞히세요. 돌림판은 서버에서 결정되므로 클라이언트 조작이 불가능하며, 모든 결과는 공정하게 기록됩니다.</p>
+        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+            <a href="/pages/roulette-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 룰렛 규칙 가이드</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+        </div>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/horse-race" style="color:var(--link-brand);">레이스</a></p>
+    </section>
+
+    <!-- Ad: Footer Banner -->
     <div class="ad-container" style="max-width:800px;">
       <span class="ad-label">AD</span>
       <ins class="adsbygoogle"
@@ -3587,28 +3626,15 @@
            data-full-width-responsive="true"></ins>
     </div>
 
-    <!-- SEO Content Section (hidden, crawlers only) -->
-    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:var(--bg-primary, #fff); border-radius:12px; color:var(--text-primary, #333); line-height:1.7; position:absolute; left:-9999px;">
-        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--purple-600, #7c3aed);">LAMDice 룰렛 게임 안내</h2>
-        <p>LAMDice 룰렛은 친구들과 실시간으로 즐기는 무료 온라인 돌림판 게임입니다. 여러 칸 중 하나를 선택하여 당첨을 맞히세요. 돌림판은 서버에서 결정되므로 클라이언트 조작이 불가능하며, 모든 결과는 공정하게 기록됩니다.</p>
-        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="roulette-guide.html" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">📖 룰렛 규칙 가이드</a>
-            <a href="fairness-rng.html" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">🔒 공정성 원리</a>
-            <a href="game-guides.html" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">📚 전체 게임 가이드</a>
-            <a href="/" style="color:var(--purple-500, #8b5cf6); text-decoration:none; border-bottom:1px solid var(--purple-300, #c4b5fd);">🏠 홈으로</a>
-        </div>
-        <p style="margin-top:12px; font-size:0.9em; color:var(--text-secondary, #666);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--purple-500, #8b5cf6);">주사위</a> · <a href="/horse-race" style="color:var(--purple-500, #8b5cf6);">레이스</a></p>
-    </section>
-
-    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary, #666);">
+    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary);">
         <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top:10px;">
-            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">홈</a> |
-            <a href="game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">게임 가이드</a> |
-            <a href="faq.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">FAQ</a> |
-            <a href="privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">이용 약관</a> |
-            <a href="contact.html" style="margin:0 8px; text-decoration:none; color:var(--purple-500, #8b5cf6);">문의하기</a>
+            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">홈</a> |
+            <a href="/pages/game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>

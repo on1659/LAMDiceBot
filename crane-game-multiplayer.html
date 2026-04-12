@@ -118,7 +118,7 @@
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(156, 39, 176, 0.3);
+            box-shadow: 0 5px 20px rgba(var(--crane-500-rgb),0.3);
         }
 
         button:disabled {
@@ -195,7 +195,7 @@
             border: 4px solid var(--crane-accent);
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 0 30px rgba(156, 39, 176, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 30px rgba(var(--crane-500-rgb),0.3), inset 0 0 20px rgba(0, 0, 0, 0.3);
             margin: 20px auto;
         }
 
@@ -270,7 +270,7 @@
             right: 0;
             bottom: 80px;
             background: rgba(255, 255, 255, 0.03);
-            border-bottom: 3px solid rgba(156, 39, 176, 0.5);
+            border-bottom: 3px solid rgba(var(--crane-500-rgb),0.5);
             pointer-events: none;
             z-index: 1;
         }
@@ -308,7 +308,7 @@
             left: 50%;
             transform: translateX(-50%);
             background: rgba(255, 255, 255, 0.95);
-            color: #1a1a1a;
+            color: var(--text-primary);
             padding: 4px 8px;
             border-radius: 8px;
             font-size: 11px;
@@ -464,7 +464,7 @@
 
         .history-round {
             font-weight: bold;
-            color: #1a1a1a;
+            color: var(--text-primary);
             margin-bottom: 5px;
         }
 
@@ -510,7 +510,7 @@
 
         .chat-message.winner {
             background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
-            color: #1a1a1a;
+            color: var(--text-primary);
             text-align: center;
             font-weight: bold;
             font-size: 18px;
@@ -560,7 +560,7 @@
         .users-title {
             font-size: 18px;
             font-weight: 600;
-            color: #1a1a1a;
+            color: var(--text-primary);
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 2px solid var(--dice-accent);
@@ -658,7 +658,7 @@
         .result-winner {
             font-size: 48px;
             font-weight: bold;
-            color: #1a1a1a;
+            color: var(--text-primary);
             margin-bottom: 20px;
         }
 
@@ -736,7 +736,7 @@
             <h1>LAMDice - 인형뽑기 게임</h1>
             <p>LAMDice 인형뽑기는 실시간 멀티플레이어 크레인 게임입니다. 타이밍과 전략으로 인형을 뽑아보세요.</p>
             <p>크레인을 조작하여 원하는 인형을 집어올리는 게임으로, 여러 명이 함께 즐길 수 있습니다.</p>
-            <p><a href="crane-game-guide.html">인형뽑기 가이드 보기</a> | <a href="/">메인으로</a></p>
+            <p><a href="/pages/crane-game-guide.html">인형뽑기 가이드 보기</a> | <a href="/">메인으로</a></p>
         </div>
     </noscript>
     <!-- 로딩 화면 -->
@@ -906,7 +906,7 @@
         .menu-manager-title {
             font-size: 16px;
             font-weight: 600;
-            color: #1a1a1a;
+            color: var(--text-primary);
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
@@ -1012,7 +1012,7 @@
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
-            <script src="/control-bar-shared.js"></script>
+            <script src="/js/shared/control-bar-shared.js"></script>
             <script>
                 ControlBar.init({
                     gameKey: 'crane',
@@ -1152,7 +1152,7 @@
             </div>
 
             <!-- 다시보기 버튼 -->
-            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, var(--crane-accent) 0%, var(--crane-600) 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);">
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, var(--crane-accent) 0%, var(--crane-600) 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(var(--crane-500-rgb),0.4);">
                 <div style="color: white; margin-bottom: 12px; font-size: 14px;">
                     🎬 화면을 보지 않는 동안 인형뽑기가 진행되었습니다
                 </div>
@@ -1227,12 +1227,12 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/page-history-shared.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
-    <script src="/chat-shared.js"></script>
-    <script src="/ready-shared.js"></script>
-    <script src="/order-shared.js"></script>
-    <script src="/ranking-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
     <script>
         // ============================================
         // Room Control Bar Enhancement
@@ -1487,7 +1487,7 @@
 
             const messageDiv = document.createElement('div');
             messageDiv.style.cssText = `
-                font-size: 15px; line-height: 1.6; color: #1a1a1a;
+                font-size: 15px; line-height: 1.6; color: var(--text-primary);
                 white-space: pre-wrap; word-wrap: break-word;
                 word-break: keep-all; overflow-wrap: break-word;
                 text-align: center; margin-bottom: 20px;
@@ -1565,7 +1565,7 @@
 
                 const messageDiv = document.createElement('div');
                 messageDiv.style.cssText = `
-                    font-size: 15px; line-height: 1.6; color: #1a1a1a;
+                    font-size: 15px; line-height: 1.6; color: var(--text-primary);
                     white-space: pre-wrap; word-wrap: break-word;
                     word-break: keep-all; overflow-wrap: break-word;
                     text-align: center; margin-bottom: 25px;
@@ -1650,7 +1650,7 @@
 
                 const messageDiv = document.createElement('div');
                 messageDiv.style.cssText = `
-                    font-size: 18px; line-height: 1.6; color: #1a1a1a;
+                    font-size: 18px; line-height: 1.6; color: var(--text-primary);
                     white-space: pre-wrap; word-break: break-word;
                     text-align: center; margin-bottom: 25px; font-weight: 600;
                 `;
@@ -2376,7 +2376,7 @@
 
             readyUsersList.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                readyUsersList.style.backgroundColor = 'rgba(156, 39, 176, 0.1)';
+                readyUsersList.style.backgroundColor = 'rgba(var(--crane-500-rgb),0.1)';
                 readyUsersList.style.border = '2px dashed var(--crane-accent)';
             });
 

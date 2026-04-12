@@ -76,7 +76,7 @@
             <h1>LAMDice 레이스</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
             <p>친구와 함께하는 실시간 레이스 게임. 다양한 탈것 중 1등과 꼴등을 맞히는 내기로 관전하세요. 회원가입 없이 무료로 플레이할 수 있습니다.</p>
-            <p><a href="/">홈으로 돌아가기</a> · <a href="horse-race-guide.html">레이스 가이드</a> · <a href="game-guides.html">전체 게임 가이드</a></p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/horse-race-guide.html">레이스 가이드</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
         </div>
     </noscript>
     <!-- 로딩 화면 -->
@@ -99,7 +99,7 @@
         <section class="game-section" id="gameSection">
             <!-- 방 정보 헤더 (공유 컨트롤 바) -->
             <div id="controlBarMount"></div>
-            <script src="/control-bar-shared.js"></script>
+            <script src="/js/shared/control-bar-shared.js"></script>
             <script>
                 ControlBar.init({
                     gameKey: 'horse',
@@ -111,7 +111,7 @@
 
             <!-- 방 폭파 카운트다운 -->
             <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
-                <div style="color: var(--yellow-900); font-weight: bold; font-size: 14px;">
+                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
                     ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
                 </div>
             </div>
@@ -125,6 +125,18 @@
                     </span>
                 </div>
                 <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
             </div>
 
             <!-- 준비 섹션 -->
@@ -235,8 +247,8 @@
             </div>
             
             <!-- 게임 상태 표시 -->
-            <div class="game-status waiting" id="gameStatus" style="padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; background: var(--gray-100); color: var(--gray-700);">
-                대기 중...
+            <div class="game-status waiting" id="gameStatus">
+                게임 대기 중...
             </div>
 
             <!-- 경주 트랙 래퍼 (카메라 버튼 + 트랙) -->
@@ -269,8 +281,7 @@
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
                 <div style="display: flex; gap: 10px; justify-content: center;">
                     <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--horse-accent); border: 2px solid var(--horse-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
-                    <!-- GIF 기능 숨김 (CORS 이슈) -->
-                    <button id="gifSaveButton" onclick="showGifOptionsModal()" style="display: none; flex: 1; padding: 12px; font-size: 15px; background: linear-gradient(135deg, var(--green-400) 0%, var(--green-600) 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">📹 GIF 저장</button>
+
                 </div>
             </div>
 
@@ -284,17 +295,6 @@
                 </button>
             </div>
 
-            <!-- Ad: Lobby Banner -->
-            <div class="ad-container ad-lobby">
-              <span class="ad-label">AD</span>
-              <ins class="adsbygoogle"
-                   style="display:block"
-                   data-ad-client="ca-pub-1608259764663412"
-                   data-ad-slot="7466418558"
-                   data-ad-format="auto"
-                   data-full-width-responsive="true"></ins>
-            </div>
-
             <!-- 채팅 섹션 -->
             <div class="chat-section">
                 <div style="font-weight: bold; color: var(--horse-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
@@ -304,6 +304,19 @@
                     <button onclick="sendMessage()" style="width: auto; padding: 10px 20px; color: var(--text-primary); font-weight: 600;">전송</button>
                 </div>
             </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: In-Game Bottom Banner -->
+            <div class="ad-container ad-game">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="3774585551"
+                   data-ad-format="horizontal"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
         </section>
     </div>
 
@@ -311,12 +324,6 @@
     <div class="history-section" id="historySection">
         <div class="history-title">📜 게임 기록</div>
         <div id="historyList"></div>
-        
-        <!-- 실시간 순위 패널 (게임 기록 하단) -->
-        <div id="liveRankingPanel" style="display: none; background: linear-gradient(135deg, var(--slate-950) 0%, var(--slate-960) 100%); color: white; padding: 12px 15px; border-radius: 10px; margin-top: 15px; font-size: 13px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-            <div style="font-weight: bold; margin-bottom: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; font-size: 14px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🏃 실시간 순위</div>
-            <div id="liveRankingList"></div>
-        </div>
     </div>
 
     <!-- 결과 오버레이 -->
@@ -342,13 +349,14 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/page-history-shared.js"></script>
-    <script src="/chat-shared.js"></script>
-    <script src="/ready-shared.js"></script>
-    <script src="/order-shared.js"></script>
-    <script src="/ranking-shared.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
+    <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
-    <!-- <script src="/gif-recorder.js"></script> GIF 기능 비활성화 -->
+
     <script src="/js/horse-race-sprites.js"></script>
     <script src="/js/horse-race-commentary.js"></script>
     <script src="/js/horse-race.js"></script>
@@ -698,7 +706,20 @@
         </div>
         <div id="debugLogContent" style="line-height: 1.4;"></div>
     </div>
-    <!-- Ad: Pre-SEO Banner -->
+    <!-- SEO Content Section (hidden, crawlers only) -->
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 레이스 게임 안내</h2>
+        <p>LAMDice 레이스는 친구들과 함께 즐기는 무료 온라인 경주 게임입니다. 다양한 탈것 중 1등과 꼴등을 예측하여 포인트를 걸고 결과를 관전하세요. 레이스 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
+        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+            <a href="/pages/horse-race-guide.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📖 레이스 규칙 가이드</a>
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+        </div>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a></p>
+    </section>
+
+    <!-- Ad: Footer Banner -->
     <div class="ad-container" style="max-width:800px;">
       <span class="ad-label">AD</span>
       <ins class="adsbygoogle"
@@ -709,33 +730,20 @@
            data-full-width-responsive="true"></ins>
     </div>
 
-    <!-- SEO Content Section (hidden, crawlers only) -->
-    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:#333; line-height:1.7; position:absolute; left:-9999px;">
-        <h2 style="font-size:1.3em; margin-bottom:12px; color:#7c3aed;">LAMDice 레이스 게임 안내</h2>
-        <p>LAMDice 레이스는 친구들과 함께 즐기는 무료 온라인 경주 게임입니다. 다양한 탈것 중 1등과 꼴등을 예측하여 포인트를 걸고 결과를 관전하세요. 레이스 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
-        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
-            <a href="horse-race-guide.html" style="color:#8b5cf6; text-decoration:none; border-bottom:1px solid #c4b5fd;">📖 레이스 규칙 가이드</a>
-            <a href="fairness-rng.html" style="color:#8b5cf6; text-decoration:none; border-bottom:1px solid #c4b5fd;">🔒 공정성 원리</a>
-            <a href="game-guides.html" style="color:#8b5cf6; text-decoration:none; border-bottom:1px solid #c4b5fd;">📚 전체 게임 가이드</a>
-            <a href="/" style="color:#8b5cf6; text-decoration:none; border-bottom:1px solid #c4b5fd;">🏠 홈으로</a>
-        </div>
-        <p style="margin-top:12px; font-size:0.9em; color:#666;">다른 게임도 즐겨보세요: <a href="/game" style="color:#8b5cf6;">주사위</a> · <a href="/roulette" style="color:#8b5cf6;">룰렛</a></p>
-    </section>
-
-    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary, #666);">
+    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary);">
         <p>Copyright © 2026 LAMDice. All rights reserved.</p>
         <div style="margin-top:10px;">
-            <a href="/" style="margin:0 8px; text-decoration:none; color:#8b5cf6;">홈</a> |
-            <a href="game-guides.html" style="margin:0 8px; text-decoration:none; color:#8b5cf6;">게임 가이드</a> |
-            <a href="faq.html" style="margin:0 8px; text-decoration:none; color:#8b5cf6;">FAQ</a> |
-            <a href="privacy-policy.html" style="margin:0 8px; text-decoration:none; color:#8b5cf6;">개인정보 처리방침</a> |
-            <a href="terms-of-service.html" style="margin:0 8px; text-decoration:none; color:#8b5cf6;">이용 약관</a> |
-            <a href="contact.html" style="margin:0 8px; text-decoration:none; color:#8b5cf6;">문의하기</a>
+            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">홈</a> |
+            <a href="/pages/game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
         </div>
         <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
     </footer>
 
-    <script src="/tutorial-shared.js?v=3"></script>
+    <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script>
     var HORSE_RACE_TUTORIAL_STEPS = [
         {
@@ -874,7 +882,7 @@
                 var div = document.createElement('div');
                 div.id = 'tutorialFakeOrders';
                 div.style.cssText = 'margin:15px 0; padding:15px; background:var(--bg-white); border:2px solid var(--horse-accent); border-radius:12px; text-align:center; font-family:"Jua","Segoe UI",sans-serif;';
-                div.innerHTML = '<div style="font-weight:bold; color:var(--horse-accent); font-size:16px; margin-bottom:8px;">🍔 주문받기</div><div style="color:#888; font-size:13px;">방장이 주문받기를 시작하면 여기에 주문 화면이 나타납니다.</div>';
+                div.innerHTML = '<div style="font-weight:bold; color:var(--horse-accent); font-size:16px; margin-bottom:8px;">🍔 주문받기</div><div style="color:var(--text-muted); font-size:13px;">방장이 주문받기를 시작하면 여기에 주문 화면이 나타납니다.</div>';
                 var ref = document.getElementById('ordersSection');
                 if (ref && ref.parentNode) {
                     ref.parentNode.insertBefore(div, ref);
@@ -896,7 +904,7 @@
         helpBtn.title = '게임 튜토리얼 보기';
         helpBtn.style.cssText = [
             'margin-left:auto; width:28px; height:28px; border-radius:50%;',
-            'background:linear-gradient(135deg,#8b5cf6,#a78bfa);',
+            'background:linear-gradient(135deg,var(--link-brand),var(--link-brand-light));',
             'color:white; border:2px solid rgba(255,255,255,0.6); cursor:pointer;',
             'display:flex; align-items:center; justify-content:center; padding:0;',
             'box-shadow:0 2px 8px rgba(139,92,246,0.5); flex-shrink:0;'
