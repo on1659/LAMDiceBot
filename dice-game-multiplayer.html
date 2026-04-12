@@ -1987,7 +1987,6 @@
     <script src="/js/shared/ready-shared.js"></script>
     <script src="/js/shared/order-shared.js"></script>
     <script src="/js/shared/ranking-shared.js"></script>
-    <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script>
         const socket = io();
@@ -5023,9 +5022,6 @@
             document.getElementById('readySection').style.display = 'none';
 
             document.getElementById('reconnectNotice').style.display = 'none';
-
-            // 게임 시작 카운트다운 (3-2-1-START!)
-            if (typeof showGameCountdown === 'function') showGameCountdown(null);
 
             document.getElementById('gameStatus').textContent = '게임 진행 중!';
             document.getElementById('gameStatus').className = 'game-status playing';

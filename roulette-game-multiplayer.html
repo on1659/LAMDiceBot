@@ -1106,7 +1106,6 @@
     <script src="/js/shared/ready-shared.js"></script>
     <script src="/js/shared/order-shared.js"></script>
     <script src="/js/shared/ranking-shared.js"></script>
-    <script src="/js/shared/countdown-shared.js"></script>
     <script>
         // ============================================
         // Room Control Bar Enhancement
@@ -3351,14 +3350,7 @@
                 addDebugLog('✅ 화면 visible + 포커스 있음 → 카운트다운 후 actuallyStartRoulette 호출', 'info');
                 // 화면이 보이면 카운트다운 후 시작
                 missedRoulette = false;
-                // 게임 시작 카운트다운 (3-2-1-START!)
-                if (typeof showGameCountdown === 'function') {
-                    showGameCountdown('rouletteContainer', function() {
-                        actuallyStartRoulette(data);
-                    });
-                } else {
-                    actuallyStartRoulette(data);
-                }
+                actuallyStartRoulette(data);
             } else {
                 addDebugLog(`⚠️ 화면 NOT visible (visible=${isVisible}, focus=${hasFocus}) → 룰렛 무시, 다시보기 데이터 저장`, 'visibility');
                 // 화면이 보이지 않으면 무시 (대기하지 않음)
