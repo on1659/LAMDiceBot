@@ -55,7 +55,13 @@
 | BE 스킬 | `.claude/skills/skill-backend.md` | 보안 체크리스트 (Rate Limiting, SQL 인젝션, 서버 RNG) |
 | 핵심 원칙 | `.claude/rules/guidelines.md` | 회귀 테스트 기준 |
 
-**역할**: 윤서(QA)의 4티어 테스트 + 공정성/멀티플레이어 체크리스트로 검증
+**외부 도구:**
+
+| 도구 | 용도 | 상세 |
+|------|------|------|
+| Playwright MCP | 실제 브라우저에서 모바일/태블릿/데스크톱 뷰포트 테스트, 스크린샷 비교, 게임 플로우 실행, WebKit(Safari) 크로스 브라우저 | [playwright-mcp.md](playwright-mcp.md) |
+
+**역할**: 윤서(QA)의 4티어 테스트 + 공정성/멀티플레이어 체크리스트 + Playwright MCP 브라우저 테스트로 검증
 
 ---
 

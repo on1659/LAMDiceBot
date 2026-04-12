@@ -88,6 +88,14 @@ Hook  = 안전장치 (TDD/보안/공정성 물리적 차단)
 
 ---
 
+## 외부 도구 의존성
+
+| 도구 | 용도 | 상세 |
+|------|------|------|
+| Playwright MCP | QA Agent 브라우저 테스트 (모바일/태블릿/데스크톱) | [playwright-mcp.md](playwright-mcp.md) |
+
+---
+
 ## 문서 목록
 
 | 문서 | 설명 |
@@ -96,3 +104,4 @@ Hook  = 안전장치 (TDD/보안/공정성 물리적 차단)
 | [meeting-pipeline.md](meeting-pipeline.md) | `/meeting` 파이프라인 상세 설계 |
 | [agent-mapping.md](agent-mapping.md) | 에이전트별 참조 파일 매핑 |
 | [hooks-spec.md](hooks-spec.md) | Hook 사양 및 입출력 정의 |
+| [playwright-mcp.md](playwright-mcp.md) | Playwright MCP 모바일 테스트 연동 |
