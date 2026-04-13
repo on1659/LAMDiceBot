@@ -1,4 +1,5 @@
 const { generateRoomId, generateUniqueUserName, createRoomGameState } = require('../utils/room-helpers');
+const { weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 
 // ─── 조정 가능한 상수 ───
 const HORSE_COUNT_MIN = 4;  // 경마 최소 말 수
@@ -953,9 +954,8 @@ module.exports = (socket, io, ctx) => {
 
                 // 탈것 타입이 아직 설정되지 않았으면 랜덤으로 설정
                 if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
-                    const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse'];
                     gameState.selectedVehicleTypes = [];
-                    const shuffled = [...ALL_VEHICLE_IDS].sort(() => Math.random() - 0.5);
+                    const shuffled = weightedShuffleVehicles();
                     for (let i = 0; i < gameState.availableHorses.length; i++) {
                         gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
                     }
