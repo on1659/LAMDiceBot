@@ -1,5 +1,9 @@
 # Claude Handoff: Harness Follow-up (2026-04-13)
 
+> 상태: 완료 이력 문서
+>
+> 현재 기준 문서는 [current-status-2026-04-13.md](current-status-2026-04-13.md) 이다.
+
 > 목적: `docs/harness/` 멀티에이전트 오케스트레이션 하네스 설계를 Claude가 이어서 다듬거나 실제 `.claude` 구현으로 옮길 때 참고할 전달 문서
 
 ---
