@@ -7,39 +7,11 @@ const HORSE_COUNTDOWN_SEC = 4;   // 카운트다운 시간 (초)
 const HORSE_FRAME_INTERVAL = 16; // 레이스 프레임 인터벌 (~60fps, ms)
 const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
 // ────────────────────────
+const { ALL_VEHICLE_IDS, NEW_VEHICLE_IDS, NEW_VEHICLE_WEIGHT, VEHICLE_NAMES, weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
 const { getTop3Badges } = require('../db/ranking');
-
-// ALL_VEHICLE_IDS constant
-const ALL_VEHICLE_IDS = ['car', 'rocket', 'bird', 'boat', 'bicycle', 'rabbit', 'turtle', 'eagle', 'scooter', 'helicopter', 'horse', 'knight', 'dinosaur', 'ninja', 'crab'];
-const NEW_VEHICLE_IDS = ['knight', 'dinosaur', 'ninja', 'crab']; // 신규 탈것 (가중치 적용)
-const NEW_VEHICLE_WEIGHT = 2; // 신규 탈것 선택 가중치 (기존 1배 대비)
-const VEHICLE_NAMES = {
-    'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
-    'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
-    'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게'
-};
-
-// 신규 탈것 가중치 적용 셔플: 신규 탈것을 풀에 WEIGHT번 넣어 확률 증가
-function weightedShuffleVehicles() {
-    const pool = [];
-    for (const id of ALL_VEHICLE_IDS) {
-        const count = NEW_VEHICLE_IDS.includes(id) ? NEW_VEHICLE_WEIGHT : 1;
-        for (let i = 0; i < count; i++) pool.push(id);
-    }
-    for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    const seen = new Set();
-    return pool.filter(id => {
-        if (seen.has(id)) return false;
-        seen.add(id);
-        return true;
-    });
-}
 
 // 한글 받침 유무에 따른 조사 처리
 function getPostPosition(word, type) {
@@ -464,6 +436,7 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('newMessage', resultMessage);
             io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
             io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            ctx.triggerAutoOrder(gameState, room);
 
             // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
             if (room.serverId) {
@@ -848,6 +821,7 @@ module.exports = (socket, io, ctx) => {
                     finalWinner: winners[0]
                 });
                 io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+                ctx.triggerAutoOrder(gameState, room);
 
                 // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
                 if (room.serverId) {
@@ -1039,6 +1013,7 @@ module.exports = (socket, io, ctx) => {
         io.to(room.roomId).emit('horseRaceGameReset', {
             horseRaceHistory: gameState.horseRaceHistory
         });
+        ctx.triggerAutoOrder(gameState, room);
 
         // 게임 종료 후 말 선택 UI 다시 표시 (방에 입장한 사람이 2명 이상이면)
         const players = gameState.users.map(u => u.name);
@@ -1122,6 +1097,7 @@ module.exports = (socket, io, ctx) => {
         gameState.horseRaceHistory = [];
         gameState.userOrders = {};
         gameState.isOrderActive = false;
+        gameState.orderAutoTriggered = false;
         gameState.raceRound = 0;
         gameState.userHorseBets = {};
 

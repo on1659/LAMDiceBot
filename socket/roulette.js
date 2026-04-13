@@ -241,6 +241,7 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
         io.to(room.roomId).emit('newMessage', resultMessage);
 
         io.to(room.roomId).emit('rouletteEnded', { winner: winner });
+        ctx.triggerAutoOrder(gameState, room);
 
         // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
         if (room.serverId) {
@@ -270,6 +271,7 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
         }
 
         gameState.isGameActive = false;
+        gameState.orderAutoTriggered = false;
         gameState.isRouletteSpinning = false;
         gameState.gamePlayers = [];
         gameState.readyUsers = [];
@@ -278,6 +280,7 @@ module.exports = function registerRouletteHandlers(socket, io, ctx) {
             rouletteHistory: gameState.rouletteHistory
         });
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+        ctx.triggerAutoOrder(gameState, room);
 
         ctx.updateRoomsList();
 
