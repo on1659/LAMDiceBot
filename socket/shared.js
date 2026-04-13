@@ -14,6 +14,20 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
     const { checkRateLimit, getCurrentRoom, getCurrentRoomGameState } = ctx;
     const pool = getPool();
 
+    // 게임 종료 시 자동 주문 트리거 (최초 1회만)
+    function triggerAutoOrder(gameState, room) {
+        if (gameState.orderAutoTriggered || gameState.isOrderActive) return;
+        gameState.orderAutoTriggered = true;
+        gameState.isOrderActive = true;
+        gameState.userOrders = {};
+        gameState.users.forEach(u => {
+            gameState.userOrders[u.name] = '';
+        });
+        io.to(room.roomId).emit('orderStarted');
+        io.to(room.roomId).emit('updateOrders', gameState.userOrders);
+    }
+    ctx.triggerAutoOrder = triggerAutoOrder;
+
     // 주문받기 시작
     socket.on('startOrder', () => {
         if (!checkRateLimit()) return;

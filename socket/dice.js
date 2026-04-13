@@ -153,6 +153,7 @@ module.exports = (socket, io, ctx) => {
         gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
         io.to(room.roomId).emit('gameEnded', currentGameHistory);
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+        ctx.triggerAutoOrder(gameState, room);
 
         // 방 목록 업데이트 (게임 상태 변경)
         ctx.updateRoomsList();
@@ -197,6 +198,7 @@ module.exports = (socket, io, ctx) => {
         gameState.gamePlayers = [];
         gameState.userOrders = {};
         gameState.gameRules = '';
+        gameState.orderAutoTriggered = false;
 
         // 같은 방의 모든 클라이언트에게 업데이트 전송
         io.to(room.roomId).emit('gameDataCleared');
@@ -560,6 +562,7 @@ module.exports = (socket, io, ctx) => {
                 gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
                 io.to(room.roomId).emit('gameEnded', currentGameHistory);
                 io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+                ctx.triggerAutoOrder(gameState, room);
 
                 // 방 목록 업데이트 (게임 상태 변경)
                 ctx.updateRoomsList();

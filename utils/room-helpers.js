@@ -36,6 +36,7 @@ function createRoomGameState() {
         users: [],
         isGameActive: false,
         isOrderActive: false,
+        orderAutoTriggered: false,
         diceMax: 100,
         history: [],
         rolledUsers: [],

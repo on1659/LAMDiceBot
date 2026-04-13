@@ -4,7 +4,7 @@
 >
 > **Date**: 2026-03-06
 > **Status**: Implemented
-> **Design Doc**: [horse-race-tutorial.md](../tutorial/horse-race-tutorial.md)
+> **Design Doc**: legacy v1 draft (removed during docs cleanup; see git history if needed)
 > **Diff Analysis**: [horse-race-implementation-diff.md](../tutorial/diff/horse-race-implementation-diff.md)
 
 ---

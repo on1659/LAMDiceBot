@@ -3,6 +3,10 @@
     "railway": {
       "command": "npx",
       "args": ["-y", "@railway/mcp-server"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
     }
   }
 }

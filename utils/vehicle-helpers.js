@@ -7,7 +7,6 @@ const VEHICLE_NAMES = {
     'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게'
 };
 
-// 신규 탈것 가중치 적용 셔플: 신규 탈것을 풀에 WEIGHT번 넣어 확률 증가
 function weightedShuffleVehicles() {
     const pool = [];
     for (const id of ALL_VEHICLE_IDS) {

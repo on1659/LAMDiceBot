@@ -7,12 +7,11 @@ const HORSE_COUNTDOWN_SEC = 4;   // 카운트다운 시간 (초)
 const HORSE_FRAME_INTERVAL = 16; // 레이스 프레임 인터벌 (~60fps, ms)
 const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
 // ────────────────────────
+const { ALL_VEHICLE_IDS, NEW_VEHICLE_IDS, NEW_VEHICLE_WEIGHT, VEHICLE_NAMES, weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
 const { getTop3Badges } = require('../db/ranking');
-
-const { ALL_VEHICLE_IDS, NEW_VEHICLE_IDS, NEW_VEHICLE_WEIGHT, VEHICLE_NAMES, weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 
 // 한글 받침 유무에 따른 조사 처리
 function getPostPosition(word, type) {
@@ -437,6 +436,7 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('newMessage', resultMessage);
             io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
             io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+            ctx.triggerAutoOrder(gameState, room);
 
             // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
             if (room.serverId) {
@@ -821,6 +821,7 @@ module.exports = (socket, io, ctx) => {
                     finalWinner: winners[0]
                 });
                 io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+                ctx.triggerAutoOrder(gameState, room);
 
                 // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
                 if (room.serverId) {
@@ -1012,6 +1013,7 @@ module.exports = (socket, io, ctx) => {
         io.to(room.roomId).emit('horseRaceGameReset', {
             horseRaceHistory: gameState.horseRaceHistory
         });
+        ctx.triggerAutoOrder(gameState, room);
 
         // 게임 종료 후 말 선택 UI 다시 표시 (방에 입장한 사람이 2명 이상이면)
         const players = gameState.users.map(u => u.name);
@@ -1095,6 +1097,7 @@ module.exports = (socket, io, ctx) => {
         gameState.horseRaceHistory = [];
         gameState.userOrders = {};
         gameState.isOrderActive = false;
+        gameState.orderAutoTriggered = false;
         gameState.raceRound = 0;
         gameState.userHorseBets = {};
 

@@ -1,0 +1,114 @@
+========================================
+📋 Summit Log - 2026-04-14
+========================================
+
+## 변경 파일
+- utils/vehicle-helpers.js: 경마 탈것 헬퍼 모듈 (worktree에서 메인으로 복사, 서버 시작 필수)
+- AutoTest/auto-order-test.js: 자동 주문 기능 E2E 테스트 (Playwright)
+- update-log.md: 유저 공개 업데이트 로그 추가
+
+## 상세 변경 내역
+
+### 자동 주문 E2E 테스트 추가
+- Playwright로 2명(호스트+게스트) 브라우저 테스트 구현
+- 테스트 시나리오: 방 생성 → 입장 → 게임 시작 → 주사위 굴리기 → 게임 종료 → 자동 주문 UI 활성화 검증
+- 주문 입력/저장/종료 + 2라운드 재발동 테스트 포함
+- 발견: 방 입장 시 자동 준비(readyUsers 추가), requestRoll 이벤트 형식, orderAutoTriggered는 clearGameData에서만 리셋
+
+### vehicle-helpers.js 복구
+- socket/rooms.js, socket/horse.js에서 require하는 필수 모듈
+- .claude/worktrees/agent-aa9e925a/에만 존재하던 파일을 메인으로 복사
+- ALL_VEHICLE_IDS 15종 (기존 11 + 신규 4: knight, dinosaur, ninja, crab)
+- 신규 탈것 가중치 2배(NEW_VEHICLE_WEIGHT=2)로 출현 확률 상향
+
+### feature/auto-order 브랜치 → main 머지
+- 17개 커밋 포함: 하네스 시스템, 자동 주문, Playwright MCP 설정, 문서 정리
+
+========================================
+
+========================================
+📋 Summit Log - 2026-04-13
+========================================
+
+## 변경 파일
+
+### 하네스 에이전트 추가
+- .claude/agents/scout-codex.md: Codex 기반 추가 정찰 에이전트 (ScoutCodex) — Scout 보고 보완용
+- .claude/agents/reviewer-codex.md: Codex 기반 추가 리뷰 에이전트 (ReviewerCodex) — Reviewer 보고 보완용
+
+### Hook 수정
+- .claude/hooks/check-push-branch.sh: main 브랜치 푸시 시 block → allow 변경 (경고만 표시)
+
+## 상세 변경 내역
+
+### 하네스 Codex 에이전트 2종 추가
+- ScoutCodex: subagent_type=codex:codex-rescue, 읽기 전용, Scout와 다른 시각으로 누락 의존성/엣지케이스 탐색
+- ReviewerCodex: subagent_type=codex:codex-rescue, 읽기 전용, Reviewer와 다른 시각으로 보안/사이드이펙트 재검증
+- 기존 Scout/Reviewer 에이전트는 변경 없음, Codex 에이전트는 독립 보완 역할
+
+### Hook 동작 변경
+- check-push-branch.sh: main 푸시 시 block 대신 allow+경고로 변경 — 사용자 확인 프롬프트로 충분
+
+========================================
+
+========================================
+📋 Summit Log - 2026-04-12
+========================================
+
+## 변경 파일 (feature/design-unification → main 머지)
+
+### CSS / 테마
+- css/theme.css: 룰렛 딥그린 배경, RGB 채널 변수, 파스텔 배경 토큰, 링크 색상 토큰 추가
+- css/horse-race.css: 게임 상태 바 공통 CSS (.waiting/.ordering/.playing)
+
+### 새 공유 모듈
+- js/shared/control-bar-shared.js: 컨트롤바 동적 생성 + 볼륨 슬라이더 (기존 main에도 존재)
+- js/shared/countdown-shared.js: 3-2-1-START 카운트다운 오버레이 (경마 전용)
+
+### 기존 공유 모듈 변경
+- js/shared/ranking-shared.js: CSS 하드코딩 → CSS 변수 전환 (18개 로컬 변수), 탈것 매핑 4종 추가
+- js/shared/server-select-shared.js: 스타일 변수화
+
+### 게임 HTML
+- dice-game-multiplayer.html: 상태 바 클래스 통일, rgba→CSS 변수, 광고 배치 변경, SEO 색상 변수화
+- roulette-game-multiplayer.html: 동일 패턴 적용
+- horse-race-multiplayer.html: 동일 패턴 적용
+- index.html: 글래스 헤더, CTA 필 버튼+펄스, 카드 페이드인 애니메이션, /pages/ 경로
+
+### 백엔드
+- routes/api.js: SEO 페이지 18개 301 리다이렉트 추가
+- routes/server.js: 시즌 아카이브 API 4개 (main에서 이미 커밋됨, 머지)
+- db/init.js: season_archives 테이블 (main에서 이미 커밋됨, 머지)
+- db/ranking.js: 시즌 함수 4개 (main에서 이미 커밋됨, 머지)
+- config.js → config/index.js 이동
+
+### 파일 이동 (50+)
+- *-shared.js (루트) → js/shared/
+- *.html (SEO 페이지) → pages/
+- gemini-utils.js → utils/
+- test-*.js → tests/
+- tagline-roller.js → js/
+
+### 삭제
+- AutoTest/ 전체 (재설계 예정)
+- summit-log.txt, update-log_old.md 등 레거시
+- docs/meeting/ 구 회의록/impl 대량 정리
+- 크레인 게임 참조 제거 (비공개)
+- 텔레그램 봇 코드 분리 → LAMDice-Pilot
+
+### 문서
+- docs/GameGuide/ 전면 재구성 (00~04 + 90-archive)
+- docs/renewal/design-unification-summary.md 작성
+- docs/renewal/codex_merge_review_main_2026-04-12.md 전수 조사
+
+## 머지 충돌 해결
+- js/shared/ranking-shared.js: CSS 하드코딩 vs CSS 변수 4곳 → feature(CSS 변수) 채택
+- summit-log.txt: feature에서 삭제 vs main에서 수정 → 삭제 후 재생성
+
+## 리버트 항목
+- 경마 색상: #F5A623 → #8B4513 (갈색 복원)
+- 랭킹 버튼: 컨트롤바 → 채팅 헤더 (원래 위치)
+- Jua 폰트: index.html h1~h3 적용 제거
+- 주사위/룰렛 카운트다운: main에 없던 기능 제거
+
+========================================
