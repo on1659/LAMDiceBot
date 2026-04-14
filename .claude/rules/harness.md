@@ -40,6 +40,7 @@
 
 ## 상세 참조
 
+- 워크플로우 (상태 전이/분기/루프): `.claude/rules/workflow.md`
 - 파이프라인 상세: `.claude/skills/harness/SKILL.md`
 - 에이전트 정의: `.claude/agents/*.md`
 - 행동 지시: `docs/harness/agent-mapping.md`
