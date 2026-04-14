@@ -25,9 +25,11 @@
 | REVIEW | approve | DONE (STANDARD) 또는 QA (COMPLEX) |
 | REVIEW | request-changes, 루프 < 3 | CODE (수정 지시 포함) |
 | REVIEW | request-changes, 루프 ≥ 3 | ESCALATE |
-| QA | pass | DONE |
-| QA | fail, 루프 < 3 | CODE (버그 수정 지시 포함) → REVIEW → QA |
-| QA | fail, 루프 ≥ 3 | ESCALATE |
+| QA | 서버 실행 확인 | TEST (Playwright 테스트 작성 + 실행) |
+| QA (TEST) | 테스트 pass + 코드 분석 pass | DONE |
+| QA (TEST) | 테스트 fail 또는 코드 분석 fail, 루프 < 3 | CODE (버그 수정 지시 포함) → REVIEW → QA |
+| QA (TEST) | 루프 ≥ 3 | ESCALATE |
+| QA | 서버 미실행 / 테스트 불가 | 코드 분석만 + 수동 QA 체크리스트 제시 → DONE |
 | ESCALATE | 항상 | 미해결 이슈 + 현재 결과를 사용자에게 보고, 판단 요청 |
 
 ### 재트리아지 전이

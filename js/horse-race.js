@@ -89,6 +89,7 @@ var missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상
 var lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
 var countdownVisibilityHandler = null; // 카운트다운 중 탭 복귀 감지 리스너
 var isReplayActive = false; // 다시보기 진행 중 여부
+var replayTimeoutId = null; // 다시보기 setTimeout ID (중간 종료용)
 var raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
 
 
@@ -3541,20 +3542,33 @@ function playReplay(record) {
         }
     }
 
+    replayTimeoutId = null;
+
     showReplayStopButton(function() {
+        if (replayTimeoutId) {
+            clearTimeout(replayTimeoutId);
+            replayTimeoutId = null;
+        }
         if (window._raceAnimFrameId) {
             cancelAnimationFrame(window._raceAnimFrameId);
             window._raceAnimFrameId = null;
         }
+        if (window._raceRankingInterval) {
+            clearInterval(window._raceRankingInterval);
+            window._raceRankingInterval = null;
+        }
         if (window.SoundManager) SoundManager.stopAll();
         const ro = document.getElementById('resultOverlay');
         if (ro) ro.classList.remove('visible');
+        document.getElementById('countdownOverlay')?.remove();
         cleanupReplay();
+        const hss = document.getElementById('horseSelectionSection');
+        if (hss) hss.classList.add('active');
         renderHorseSelection();
     });
 
     showCountdown();
-    setTimeout(() => {
+    replayTimeoutId = setTimeout(() => {
         startRaceAnimation(horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
             showRaceResult({
                 winners: record.winners || [],
@@ -3621,9 +3635,39 @@ function replayMissedRace() {
 
     // 3-2-1 카운트다운 후 애니메이션 시작
     isReplayActive = true;
+    replayTimeoutId = null;
+
+    showReplayStopButton(function() {
+        if (replayTimeoutId) {
+            clearTimeout(replayTimeoutId);
+            replayTimeoutId = null;
+        }
+        if (window._raceAnimFrameId) {
+            cancelAnimationFrame(window._raceAnimFrameId);
+            window._raceAnimFrameId = null;
+        }
+        if (window._raceRankingInterval) {
+            clearInterval(window._raceRankingInterval);
+            window._raceRankingInterval = null;
+        }
+        if (window.SoundManager) SoundManager.stopAll();
+        const ro = document.getElementById('resultOverlay');
+        if (ro) ro.classList.remove('visible');
+        document.getElementById('countdownOverlay')?.remove();
+        isRaceActive = false;
+        isReplayActive = false;
+        selectedVehicleTypes = originalSelectedVehicleTypes;
+        userHorseBets = originalUserHorseBets;
+        availableHorses = originalAvailableHorses;
+        const hss2 = document.getElementById('horseSelectionSection');
+        if (hss2) hss2.classList.add('active');
+        renderHorseSelection();
+    });
+
     showCountdown();
-    setTimeout(() => {
+    replayTimeoutId = setTimeout(() => {
         startRaceAnimation(data.horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+            removeReplayStopButton();
             isRaceActive = false;
             isReplayActive = false;
 
@@ -3643,6 +3687,7 @@ function replayMissedRace() {
                 selectedVehicleTypes = originalSelectedVehicleTypes;
                 userHorseBets = originalUserHorseBets;
                 availableHorses = originalAvailableHorses;
+                renderHorseSelection();
             }, 100);
         }, { trackDistanceMeters: data.trackDistanceMeters || 500 });
     }, 4000);
@@ -4267,14 +4312,23 @@ var missedAtCountdown = false;
 socket.on('horseRaceCountdown', (data) => {
     // 다시보기 중이면 즉시 중단 (새 라운드 시작)
     if (isReplayActive) {
+        if (replayTimeoutId) {
+            clearTimeout(replayTimeoutId);
+            replayTimeoutId = null;
+        }
         removeReplayStopButton();
         if (window._raceAnimFrameId) {
             cancelAnimationFrame(window._raceAnimFrameId);
             window._raceAnimFrameId = null;
         }
+        if (window._raceRankingInterval) {
+            clearInterval(window._raceRankingInterval);
+            window._raceRankingInterval = null;
+        }
         if (window.SoundManager) SoundManager.stopAll();
         const resultOverlay = document.getElementById('resultOverlay');
         if (resultOverlay) resultOverlay.classList.remove('visible');
+        document.getElementById('countdownOverlay')?.remove();
         isRaceActive = false;
         isReplayActive = false;
     }
@@ -4374,14 +4428,26 @@ socket.on('horseRaceStarted', (data) => {
     missedAtCountdown = false; // 리셋
 
     // 다시보기 중이면 즉시 중단
-    removeReplayStopButton();
-    if (window._raceAnimFrameId) {
-        cancelAnimationFrame(window._raceAnimFrameId);
-        window._raceAnimFrameId = null;
+    if (isReplayActive) {
+        if (replayTimeoutId) {
+            clearTimeout(replayTimeoutId);
+            replayTimeoutId = null;
+        }
+        removeReplayStopButton();
+        if (window._raceAnimFrameId) {
+            cancelAnimationFrame(window._raceAnimFrameId);
+            window._raceAnimFrameId = null;
+        }
+        if (window._raceRankingInterval) {
+            clearInterval(window._raceRankingInterval);
+            window._raceRankingInterval = null;
+        }
+        if (window.SoundManager) SoundManager.stopAll();
+        const ro = document.getElementById('resultOverlay');
+        if (ro) ro.classList.remove('visible');
+        document.getElementById('countdownOverlay')?.remove();
+        isReplayActive = false;
     }
-    if (window.SoundManager) SoundManager.stopAll();
-    const resultOverlay = document.getElementById('resultOverlay');
-    if (resultOverlay) resultOverlay.classList.remove('visible');
 
     // 화면을 보고 있으면 정상적으로 경주 시작
     missedHorseRace = false;
