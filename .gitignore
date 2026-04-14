@@ -26,7 +26,6 @@ con
 .bkit/
 
 # AI 도구 설정
-.claude/commands/
 .claude/settings.local.json
 .cursorrules
 
