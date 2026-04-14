@@ -3,6 +3,27 @@
 Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마).
 순수 HTML, PostgreSQL, 상대 경로 API (`/api/...`).
 
+## 하네스 구조
+
+두 트랙의 파이프라인이 impl 문서를 인터페이스로 연결된다.
+
+```
+계획 (Brain)                    개발 (Hands)
+/meeting-codex                  자동 트리아지
+Claude ↔ Codex 토론              Scout → Coder → Reviewer → QA
+     ↓                               ↑
+  impl 문서  ──── 사용자 승인 ────→  입력
+```
+
+| 계층 | 파일 | 역할 |
+|------|------|------|
+| 트리아지 | [harness.md](.claude/rules/harness.md) | 언제 시작하나 — 수준 판정 + 재트리아지 |
+| 워크플로우 | [workflow.md](.claude/rules/workflow.md) | 어떻게 흐르나 — 상태 전이 + 분기 + 루프 |
+| 에이전트 | [agents/](.claude/agents/) | 각 단계가 뭘 하나 — 7개 에이전트 정의 |
+| 스킬 | [harness/SKILL.md](.claude/skills/harness/SKILL.md) | 출력 형식 + 지시서 템플릿 |
+| 커맨드 | [commands/](.claude/commands/) | 사용자 진입점 — /build, /meeting-codex 등 |
+| 훅 | [hooks/](.claude/hooks/) | 자동 가드 — 보안, 공정성, CSS, 모바일 |
+
 ## 작업별 참조
 
 | 작업 | 참조 |
