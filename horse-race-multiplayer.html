@@ -259,7 +259,8 @@
                     <div class="race-track" id="raceTrack">
                     <!-- 말들이 여기에 동적으로 생성됨 -->
                 </div>
-                <!-- 미니맵 -->
+                </div>
+                <!-- 미니맵 (컨테이너 밖, 래퍼 안 — overflow:hidden에 잘리지 않도록) -->
                 <div id="raceMinimap" style="display: none; position: absolute; bottom: 8px; right: 8px; width: 180px; background: rgba(0,0,0,0.75); border-radius: 8px; padding: 8px 10px; z-index: 100; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.15);">
                     <div style="font-size: 9px; color: rgba(255,255,255,0.8); margin-bottom: 4px; text-align: center;">TRACK MAP</div>
                     <div id="minimapTrack" style="position: relative; width: 100%; height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-bottom: 2px;">
@@ -271,7 +272,6 @@
                     <div id="minimapDots" style="position: relative; width: 100%; min-height: 14px; margin-top: 2px;">
                         <!-- 말 아이콘 범례 -->
                     </div>
-                </div>
                 </div>
                 <!-- 레이스 중 채팅 오버레이 -->
                 <div id="raceChatOverlay"></div>
