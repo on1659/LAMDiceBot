@@ -87,7 +87,6 @@ var NEW_VEHICLES = ['knight', 'dinosaur', 'ninja', 'crab']; // 신규 탈것 (NE
 var vehicleStatsData = []; // 탈것별 통계 데이터
 var missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상태였는지)
 var lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
-var countdownVisibilityHandler = null; // 카운트다운 중 탭 복귀 감지 리스너
 var isReplayActive = false; // 다시보기 진행 중 여부
 var raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
 
@@ -2365,13 +2364,26 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             });
 
             // 모든 말의 화면 위치 및 배경 업데이트 (스크롤 오프셋 기준)
-            const cullEdge = -10; // 화면 밖 판정 기준
+            const cullEdge = -10; // 화면 왼쪽 밖 판정 기준
+            const rightEdge = trackWidth + 10; // 화면 오른쪽 밖 판정 기준
+            // 내 베팅 말 위치 (우측 거리 표시 기준)
+            const myBetIdx = userHorseBets[currentUser];
+            const myBetState = myBetIdx !== undefined ? horseStates.find(s => s.horseIndex === myBetIdx) : null;
+            const myHorsePos = myBetState ? myBetState.currentPos : null;
+            // DEBUG: 1회만 로그
+            if (!window._distDebugLogged) {
+                window._distDebugLogged = true;
+                console.warn('🐴 [거리표시 DEBUG]', 'currentUser:', currentUser, 'myBetIdx:', myBetIdx, 'myHorsePos:', myHorsePos, 'userHorseBets:', userHorseBets, 'horseStates:', horseStates.length);
+            }
             horseStates.forEach(state => {
                 // 화면 위치 = 실제 위치 + 스크롤 오프셋
                 let horseDisplayPos = state.currentPos + bgScrollOffset;
-                const isOffscreen = horseDisplayPos < cullEdge;
+                const isOffscreenLeft = horseDisplayPos < cullEdge;
+                const isOffscreenRight = horseDisplayPos > rightEdge;
+                // 내 말보다 앞서있는지 (내 말 자신은 제외)
+                const isAheadOfMe = myHorsePos !== null && state.horseIndex !== myBetIdx && state.currentPos > myHorsePos;
 
-                // 오프스크린 인디케이터 처리
+                // 왼쪽 오프스크린 인디케이터 처리
                 if (!state.offscreenIndicator) {
                     const indicator = document.createElement('div');
                     indicator.className = 'offscreen-indicator';
@@ -2380,18 +2392,52 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     state.offscreenIndicator = indicator;
                 }
 
-                if (isOffscreen && !state.finished) {
+                // 오른쪽 거리 인디케이터 (내 말보다 앞서있는 말 표시)
+                if (!state.offscreenRightIndicator) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'offscreen-indicator-right';
+                    indicator.style.cssText = `position: absolute; right: 2px; top: 50%; transform: translateY(-50%); z-index: 100; display: none; font-size: 10px; color: var(--green-400); white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
+                    state.lane.appendChild(indicator);
+                    state.offscreenRightIndicator = indicator;
+                }
+
+                if (isOffscreenLeft && !state.finished) {
+                    // 화면 왼쪽 밖 — 선두와의 거리 표시
                     const distBehind = Math.round((leaderPos - state.currentPos) / PIXELS_PER_METER);
                     if (state.lastDistBehind !== distBehind) {
                         state.offscreenIndicator.innerHTML = `<span style="animation: blink 0.6s infinite;">◀</span> ${distBehind}m`;
                         state.lastDistBehind = distBehind;
                     }
                     state.offscreenIndicator.style.display = 'block';
-                    state.horse.style.left = `-200px`; // 완전히 숨김
+                    state.offscreenRightIndicator.style.display = 'none';
+                    state.horse.style.left = `-200px`;
+                    state.horse.style.visibility = 'hidden';
+                } else if (isOffscreenRight && !state.finished) {
+                    // 화면 오른쪽 밖 — 내 말과의 거리 표시
+                    const distAhead = myHorsePos !== null ? Math.round((state.currentPos - myHorsePos) / PIXELS_PER_METER) : 0;
+                    if (state.lastDistAhead !== distAhead) {
+                        state.offscreenRightIndicator.innerHTML = `${distAhead}m <span style="animation: blink 0.6s infinite;">▶</span>`;
+                        state.lastDistAhead = distAhead;
+                    }
+                    state.offscreenRightIndicator.style.display = 'block';
+                    state.offscreenIndicator.style.display = 'none';
+                    state.horse.style.left = `${trackWidth + 200}px`;
                     state.horse.style.visibility = 'hidden';
                 } else {
+                    // 화면 안에 있는 말
                     state.offscreenIndicator.style.display = 'none';
-                    if (isOffscreen) horseDisplayPos = cullEdge;
+                    // 화면에 보이지만 내 말보다 앞서있으면 우측에 거리 표시
+                    if (isAheadOfMe && !state.finished) {
+                        const distAhead = Math.round((state.currentPos - myHorsePos) / PIXELS_PER_METER);
+                        if (state.lastDistAhead !== distAhead) {
+                            state.offscreenRightIndicator.innerHTML = `+${distAhead}m`;
+                            state.lastDistAhead = distAhead;
+                        }
+                        state.offscreenRightIndicator.style.display = 'block';
+                    } else {
+                        state.offscreenRightIndicator.style.display = 'none';
+                    }
+                    if (isOffscreenLeft) horseDisplayPos = cullEdge;
                     state.horse.style.left = `${horseDisplayPos}px`;
                     state.horse.style.visibility = 'visible';
                 }
@@ -4263,7 +4309,6 @@ socket.on('horseSelectionCancelled', (data) => {
 });
 
 // 카운트다운 이벤트 (3,2,1 - 이미 게임 시작)
-var missedAtCountdown = false;
 socket.on('horseRaceCountdown', (data) => {
     // 다시보기 중이면 즉시 중단 (새 라운드 시작)
     if (isReplayActive) {
@@ -4297,27 +4342,8 @@ socket.on('horseRaceCountdown', (data) => {
         });
     }
 
-    // 카운트다운 시점에 visibility 체크 (탭이 보이면 OK)
-    const isVisible = document.visibilityState === 'visible';
-
-    // 초기 상태 설정: 탭이 보이면 false, 숨겨져 있으면 true
-    missedAtCountdown = !isVisible;
-
-    if (missedAtCountdown) {
-        addDebugLog(`⚠️ 카운트다운 시 화면 NOT visible → 복귀 대기`, 'visibility');
-    }
-
-    // 카운트다운 중 탭 복귀 감지 (기존 리스너 정리)
-    if (countdownVisibilityHandler) {
-        document.removeEventListener('visibilitychange', countdownVisibilityHandler);
-    }
-    countdownVisibilityHandler = () => {
-        if (document.visibilityState === 'visible') {
-            missedAtCountdown = false;
-            addDebugLog('✅ 카운트다운 중 탭 복귀 → 경주 놓침 해제', 'visibility');
-        }
-    };
-    document.addEventListener('visibilitychange', countdownVisibilityHandler);
+    // 화면 가시성 무관하게 항상 경주 진행
+    missedAtCountdown = false;
 
     // 사운드: 카운트다운 + 관중 웅성거림 시작 (저볼륨)
     if (window.SoundManager) {
@@ -4332,18 +4358,7 @@ socket.on('horseRaceCountdown', (data) => {
 
 // 경주 시작 이벤트
 socket.on('horseRaceStarted', (data) => {
-    // 카운트다운 중 복귀 감지 리스너 정리
-    if (countdownVisibilityHandler) {
-        document.removeEventListener('visibilitychange', countdownVisibilityHandler);
-        document.removeEventListener('focus', countdownVisibilityHandler);
-        countdownVisibilityHandler = null;
-    }
-
-    // 조건 완화: 카운트다운 한번이라도 봤거나 OR 출발 시점에 보고 있으면 OK
-    const isVisible = document.visibilityState === 'visible';
-    const isActuallyVisible = !missedAtCountdown || isVisible;
-
-    addDebugLog(`📨 horseRaceStarted 이벤트 수신 - visible: ${isVisible}, missedAtCountdown: ${missedAtCountdown}`, 'info');
+    addDebugLog(`📨 horseRaceStarted 이벤트 수신`, 'info');
 
     // 마지막 경주 데이터 저장 (다시보기용)
     lastHorseRaceData = data;
@@ -4351,27 +4366,6 @@ socket.on('horseRaceStarted', (data) => {
 
     // 다시보기 섹션 숨기기 (새 경주 시작 시)
     document.getElementById('horseReplaySection').style.display = 'none';
-
-    // 카운트다운 때 화면을 보고 있지 않았으면 경주 무시
-    if (!isActuallyVisible) {
-        addDebugLog(`⚠️ 카운트다운 시 화면 NOT visible → 경주 무시, 다시보기 데이터 저장`, 'visibility');
-
-        missedHorseRace = true;
-        missedAtCountdown = false; // 리셋
-        isRaceActive = false;
-
-        // 사운드 정지 (카운트다운에서 시작된 관중 소리)
-        if (window.SoundManager) {
-            SoundManager.stopLoop('horse-race_crowd');
-        }
-
-        // 다시보기 섹션 표시
-        document.getElementById('horseReplaySection').style.display = 'block';
-        addDebugLog('🎬 다시보기 섹션 표시 (경주 놓침)', 'visibility');
-
-        return;
-    }
-    missedAtCountdown = false; // 리셋
 
     // 다시보기 중이면 즉시 중단
     removeReplayStopButton();
