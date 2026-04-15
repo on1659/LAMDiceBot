@@ -1,4 +1,44 @@
 ========================================
+📋 Summit Log - 2026-04-15 (3) — main 머지
+========================================
+
+## 변경 파일 (feature/harness-system → main 머지)
+- .claude/agents/*.md (7개): 프로젝트 컨텍스트 + 정체성 + 행동 원칙 + 절대 규칙 추가
+- .claude/agents/codex-planner.md: 신규 — Claude × Codex 계획 토론 파트너
+- .claude/commands/*.md (13개): gitignore 해제로 git 추적 시작
+- .claude/commands/meeting-codex.md: 신규 — /meeting-codex 커맨드
+- .claude/rules/workflow.md: 신규 — 워크플로우 실행 그래프
+- .claude/rules/harness.md: 재트리아지 규칙 + workflow 참조 추가
+- CLAUDE.md: Brain/Hands/Session 3계층 구조로 재구성
+- css/horse-race.css: 모바일 overflow 버그 수정
+- horse-race-multiplayer.html: 미니맵 DOM 위치 이동
+- .claude/agents/qa.md: 실행 테스트 절차 추가
+- .claude/rules/workflow.md: QA TEST 상태 추가
+- .gitignore: .claude/commands/ 제거
+
+## 상세 변경 내역
+
+### 하네스 시스템 구축
+- 계획 트랙: /meeting-codex (Claude×Codex 최대 5라운드 토론) + CodexPlanner 에이전트
+- 개발 트랙: workflow.md (상태 전이/분기/루프/에스컬레이션)
+- 에이전트 7개 전면 정비 (정체성, 행동 원칙, MUST/NEVER 절대 규칙)
+- Coder 17단계 실행 절차 (사전 탐색 6 + 구현 3 + 검증 8)
+- 재트리아지 규칙 (조사→수정 전환 시 재판정)
+- QA 실행 테스트 절차 (서버 시작 → Playwright → 수동 체크리스트)
+- CLAUDE.md Brain/Hands/Session 3계층 문서 지도
+
+### 경마 모바일 overflow 수정
+- 원인: 모바일 CSS에서 .race-track-container overflow: visible → 트랙이 수천px로 늘어남
+- 수정: overflow: hidden 복원 + 미니맵을 raceTrackContainer 밖으로 이동
+- 미니맵 모바일 CSS: position absolute → relative
+
+### 제외된 항목 (feature/harness-system에 잔류)
+- 다시보기 중간 종료 기능 (js/horse-race.js) — Playwright rAF 호환 이슈로 E2E 테스트 미완
+- 테스트 파일 (AutoTest/horse-race/test-replay-stop.js)
+
+========================================
+
+========================================
 📋 Summit Log - 2026-04-15 (2)
 ========================================
 
