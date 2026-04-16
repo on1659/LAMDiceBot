@@ -2370,18 +2370,13 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const myBetIdx = userHorseBets[currentUser];
             const myBetState = myBetIdx !== undefined ? horseStates.find(s => s.horseIndex === myBetIdx) : null;
             const myHorsePos = myBetState ? myBetState.currentPos : null;
-            // DEBUG: 1회만 로그
-            if (!window._distDebugLogged) {
-                window._distDebugLogged = true;
-                console.warn('🐴 [거리표시 DEBUG]', 'currentUser:', currentUser, 'myBetIdx:', myBetIdx, 'myHorsePos:', myHorsePos, 'userHorseBets:', userHorseBets, 'horseStates:', horseStates.length);
-            }
             horseStates.forEach(state => {
                 // 화면 위치 = 실제 위치 + 스크롤 오프셋
                 let horseDisplayPos = state.currentPos + bgScrollOffset;
                 const isOffscreenLeft = horseDisplayPos < cullEdge;
                 const isOffscreenRight = horseDisplayPos > rightEdge;
                 // 내 말보다 앞서있는지 (내 말 자신은 제외)
-                const isAheadOfMe = myHorsePos !== null && state.horseIndex !== myBetIdx && state.currentPos > myHorsePos;
+                const isAheadOfMe = myHorsePos !== null && state.horseIndex !== myBetIdx && state.currentPos > myHorsePos && state.currentPos > startPosition;
 
                 // 왼쪽 오프스크린 인디케이터 처리
                 if (!state.offscreenIndicator) {
@@ -2393,10 +2388,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 }
 
                 // 오른쪽 거리 인디케이터 (내 말보다 앞서있는 말 표시)
+                // 레인은 트랙(7350px) 기준 width:100%이므로 right:2px 사용 불가 → 뷰포트(trackWidth)의 오른쪽 끝에 고정
                 if (!state.offscreenRightIndicator) {
                     const indicator = document.createElement('div');
                     indicator.className = 'offscreen-indicator-right';
-                    indicator.style.cssText = `position: absolute; right: 2px; top: 50%; transform: translateY(-50%); z-index: 100; display: none; font-size: 10px; color: var(--green-400); white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
+                    indicator.style.cssText = `position: absolute; left: ${trackWidth - 5}px; top: 50%; transform: translate(-100%, -50%); z-index: 100; display: none; font-size: 10px; color: var(--yellow-400); white-space: nowrap; text-shadow: 0 0 4px rgba(0,0,0,0.8); pointer-events: none;`;
                     state.lane.appendChild(indicator);
                     state.offscreenRightIndicator = indicator;
                 }
