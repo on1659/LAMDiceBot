@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>경마 디버그 패널</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+h1 { font-size: 18px; margin-bottom: 16px; color: #ffd700; }
+.section { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+.section h2 { font-size: 14px; color: #888; margin-bottom: 10px; }
+label { display: block; font-size: 13px; margin-bottom: 4px; color: #aaa; }
+input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 13px; margin-bottom: 8px; }
+button { padding: 10px 16px; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin: 4px; transition: 0.2s; }
+button:hover { filter: brightness(1.2); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-join { background: #4CAF50; color: white; }
+.btn-select { background: #2196F3; color: white; }
+.btn-danger { background: #f44336; color: white; }
+.btn-small { padding: 6px 12px; font-size: 12px; }
+#log { background: #0a0a1a; border-radius: 6px; padding: 12px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.6; }
+.log-info { color: #64b5f6; }
+.log-ok { color: #81c784; }
+.log-err { color: #e57373; }
+.log-event { color: #fff176; }
+.bot-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+.bot-status { width: 8px; height: 8px; border-radius: 50%; }
+.bot-status.connecting { background: #666; }
+.bot-status.connected { background: #FF9800; }
+.bot-status.joined { background: #4CAF50; }
+.bot-status.disconnected { background: #f44336; }
+#botList { margin: 8px 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 4px; }
+.room-item { padding: 6px 10px; background: #0f3460; border-radius: 4px; margin: 2px; cursor: pointer; font-size: 13px; display: inline-block; }
+.room-item:hover { background: #1a4a8a; }
+.room-item.selected { background: #2196F3; }
+#roomList { margin-bottom: 8px; min-height: 30px; }
+</style>
+</head>
+<body>
+
+<h1>🐎 경마 디버그 패널</h1>
+
+<div class="section">
+    <h2>1. 방 선택</h2>
+    <div id="roomList"><span style="color:#666">방 목록 로딩 중...</span></div>
+    <button class="btn-small" onclick="refreshRooms()" style="background:#555;color:#eee">🔄 새로고침</button>
+    <label style="margin-top:8px">봇 수</label>
+    <input id="botCount" type="number" value="3" min="1" max="8">
+    <div class="controls">
+        <button class="btn-join" onclick="joinBots()">🤖 봇 입장</button>
+        <button class="btn-danger btn-small" onclick="disconnectAll()">전원 퇴장</button>
+    </div>
+</div>
+
+<div class="section">
+    <h2>2. 봇 상태</h2>
+    <div id="botList"><span style="color:#666">봇 없음</span></div>
+</div>
+
+<div class="section">
+    <h2>3. 경주 조작</h2>
+    <div class="controls">
+        <button class="btn-select" onclick="selectAllHorses()">🐴 전원 말 선택</button>
+        <button class="btn-join" onclick="readyAll()">✅ 전원 준비</button>
+    </div>
+</div>
+
+<div class="section">
+    <h2>로그</h2>
+    <div id="log"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const bots = [];
+const BOT_NAMES = ['봇_알파', '봇_브라보', '봇_찰리', '봇_델타', '봇_에코', '봇_폭스', '봇_골프', '봇_호텔'];
+let availableHorses = [];
+let selectedRoomId = null;
+let selectedRoomName = null;
+
+// 방 목록 조회용 소켓 (봇 아님)
+const controlSocket = io({ forceNew: true });
+let roomsCache = [];
+
+controlSocket.on('connect', () => {
+    log('컨트롤 소켓 연결', 'ok');
+    controlSocket.emit('getRooms');
+});
+
+controlSocket.on('roomsList', (rooms) => {
+    roomsCache = rooms;
+    renderRooms();
+});
+
+controlSocket.on('roomsListUpdated', (rooms) => {
+    roomsCache = rooms;
+    renderRooms();
+});
+
+function refreshRooms() {
+    controlSocket.emit('getRooms');
+}
+
+function renderRooms() {
+    const el = document.getElementById('roomList');
+    const horseRooms = roomsCache.filter(r => r.gameType === 'horse-race');
+    if (horseRooms.length === 0) {
+        el.innerHTML = '<span style="color:#666">경마 방 없음 — 게임 탭에서 방을 먼저 만드세요</span>';
+        return;
+    }
+    el.innerHTML = horseRooms.map(r => {
+        const sel = r.roomId === selectedRoomId ? ' selected' : '';
+        const players = r.playerCount || 0;
+        const status = r.isGameActive ? '🏁진행중' : '⏳대기';
+        return `<div class="room-item${sel}" onclick="pickRoom('${r.roomId}', '${r.roomName.replace(/'/g, "\\'")}')">` +
+            `<b>${r.roomName}</b> <span style="color:#888">(${players}명 ${status})</span></div>`;
+    }).join('');
+}
+
+function pickRoom(roomId, roomName) {
+    selectedRoomId = roomId;
+    selectedRoomName = roomName;
+    log(`방 선택: ${roomName} (${roomId})`, 'info');
+    renderRooms();
+}
+
+function log(msg, cls = 'info') {
+    const el = document.getElementById('log');
+    const line = document.createElement('div');
+    line.className = 'log-' + cls;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+}
+
+function updateBotList() {
+    const el = document.getElementById('botList');
+    if (bots.length === 0) {
+        el.innerHTML = '<span style="color:#666">봇 없음</span>';
+        return;
+    }
+    el.innerHTML = bots.map(b => `
+        <div class="bot-row">
+            <div class="bot-status ${b.status}"></div>
+            <span>${b.name}</span>
+            <span style="color:#666">${b.status}${b.selectedHorse !== null ? ' / 말' + b.selectedHorse : ''}</span>
+        </div>
+    `).join('');
+}
+
+async function joinBots() {
+    if (!selectedRoomId) {
+        log('방을 먼저 선택하세요', 'err');
+        return;
+    }
+    const count = parseInt(document.getElementById('botCount').value) || 3;
+    log(`봇 ${count}명 → ${selectedRoomName} 순차 입장...`, 'info');
+
+    for (let i = 0; i < count; i++) {
+        if (bots.length >= 8) break;
+        const name = BOT_NAMES[bots.length] || '봇_' + bots.length;
+
+        try {
+            await joinOneBot(name);
+        } catch (err) {
+            log(`${name} 입장 실패: ${err}`, 'err');
+        }
+
+        // 봇 간 500ms 간격 (rate limit 방지)
+        if (i < count - 1) await sleep(500);
+    }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function joinOneBot(name) {
+    return new Promise((resolve, reject) => {
+        const s = io({ forceNew: true });
+        const bot = { socket: s, name, status: 'connecting', selectedHorse: null };
+        bots.push(bot);
+        updateBotList();
+
+        const timeout = setTimeout(() => {
+            bot.status = 'timeout';
+            log(`${name} 입장 타임아웃 (10초)`, 'err');
+            updateBotList();
+            reject('timeout');
+        }, 10000);
+
+        s.on('connect', () => {
+            bot.status = 'connected';
+            updateBotList();
+
+            s.emit('joinRoom', {
+                roomId: selectedRoomId,
+                userName: name,
+                isHost: false,
+                password: '',
+                deviceId: 'bot-' + Math.random().toString(36).slice(2),
+                tabId: 'bot-tab-' + Math.random().toString(36).slice(2)
+            });
+        });
+
+        s.on('roomJoined', () => {
+            clearTimeout(timeout);
+            bot.status = 'joined';
+            log(`${name} → ${selectedRoomName} 입장 ✓`, 'ok');
+            updateBotList();
+            resolve();
+        });
+
+        s.on('roomError', (msg) => {
+            clearTimeout(timeout);
+            bot.status = 'error';
+            log(`${name} 방 거부: ${JSON.stringify(msg)}`, 'err');
+            updateBotList();
+            reject(msg);
+        });
+
+        s.on('horseSelectionReady', (data) => {
+            availableHorses = data.availableHorses || [];
+            bot.selectedHorse = null;
+            updateBotList();
+        });
+
+        s.on('horseRaceStarted', (data) => {
+            const seeds = data.speedSeeds;
+            log(`${name} 경주 시작 — speedSeeds ${seeds ? '✓' : '✗'}`, seeds ? 'event' : 'err');
+            setTimeout(() => s.emit('raceAnimationComplete'), 5000);
+        });
+
+        s.on('horseRaceEnded', () => {
+            bot.selectedHorse = null;
+            updateBotList();
+        });
+
+        s.on('horseRaceError', (msg) => log(`${name} 에러: ${JSON.stringify(msg)}`, 'err'));
+        s.on('connect_error', (err) => {
+            clearTimeout(timeout);
+            bot.status = 'error';
+            log(`${name} 연결 실패: ${err.message}`, 'err');
+            updateBotList();
+            reject(err.message);
+        });
+        s.on('disconnect', () => { bot.status = 'disconnected'; updateBotList(); });
+    });
+}
+
+function selectAllHorses() {
+    const joinedBots = bots.filter(b => b.status === 'joined');
+    if (joinedBots.length === 0) {
+        log('입장한 봇이 없습니다', 'err');
+        return;
+    }
+
+    joinedBots.forEach((bot, i) => {
+        const horseIndex = availableHorses.length > 0
+            ? availableHorses[i % availableHorses.length]
+            : i;
+        bot.socket.emit('selectHorse', { horseIndex });
+        bot.selectedHorse = horseIndex;
+        log(`${bot.name} → 말 ${horseIndex}`, 'ok');
+    });
+    updateBotList();
+}
+
+function readyAll() {
+    const joinedBots = bots.filter(b => b.status === 'joined');
+    if (joinedBots.length === 0) {
+        log('입장한 봇이 없습니다', 'err');
+        return;
+    }
+    joinedBots.forEach(bot => {
+        bot.socket.emit('toggleReady');
+        log(`${bot.name} → 준비`, 'ok');
+    });
+}
+
+function disconnectAll() {
+    bots.forEach(b => b.socket.disconnect());
+    bots.length = 0;
+    availableHorses = [];
+    log('전원 퇴장', 'info');
+    updateBotList();
+}
+
+log('방을 클릭해서 선택 → [봇 입장] → [전원 말 선택] → 게임 탭에서 경주 시작', 'info');
+</script>
+</body>
+</html>

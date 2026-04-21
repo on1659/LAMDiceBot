@@ -250,7 +250,7 @@ module.exports = (socket, io, ctx) => {
         gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
         const vehicleTypes = gameState.selectedVehicleTypes || [];
-        const rankings = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets);
+        const { rankings, speedSeeds } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -283,6 +283,7 @@ module.exports = (socket, io, ctx) => {
             selectedVehicleTypes: gameState.selectedVehicleTypes ? [...gameState.selectedVehicleTypes] : null,
             availableHorses: [...gameState.availableHorses],
             trackDistanceMeters: trackDistanceMeters,
+            speedSeeds: speedSeeds,
             timestamp: new Date().toISOString()
         };
 
@@ -330,6 +331,7 @@ module.exports = (socket, io, ctx) => {
             selectedVehicleTypes: gameState.selectedVehicleTypes || null,
             trackDistanceMeters: trackDistanceMeters,
             trackFinishLine: trackFinishLine,
+            speedSeeds: speedSeeds,
             record: raceRecord,
             slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } },
             weatherConfig: weatherConfig.vehicleModifiers || {}, // 탈것별 날씨 보정값 (클라이언트 표시용)
@@ -714,7 +716,11 @@ module.exports = (socket, io, ctx) => {
         // 경주 진행 중일 때만 경주 결과 계산
         if (allSelected) {
             // 경주 결과 계산 (기믹 없는 auto-ready용)
-            const rankings = calculateHorseRaceResult(gameState.availableHorses.length, {});
+            const { rankings, speedSeeds } = await calculateHorseRaceResult(gameState.availableHorses.length, {});
+
+            // 순위별 �� ��덱스 배열 (정상 ��로와 동일 형식)
+            const horseRankings = rankings.map(r => r.horseIndex);
+            const speeds = rankings.map(r => r.finishTime);
 
             // 룰에 맞는 사람 확인
             const winners = getWinnersByRule(gameState, rankings, players);
@@ -725,11 +731,13 @@ module.exports = (socket, io, ctx) => {
                 round: gameState.raceRound,
                 players: players,
                 userHorseBets: { ...gameState.userHorseBets },
-                rankings: rankings, // [1등말인덱스, 2등말인덱스, ...]
+                rankings: horseRankings, // 순위별 말 인덱스 배열 (정상 경로와 동일)
+                speeds: speeds,
                 winners: winners,
                 mode: gameState.horseRaceMode,
                 selectedVehicleTypes: gameState.selectedVehicleTypes ? [...gameState.selectedVehicleTypes] : null,
                 availableHorses: [...gameState.availableHorses],
+                speedSeeds: speedSeeds,
                 timestamp: new Date().toISOString()
             };
 
@@ -753,6 +761,7 @@ module.exports = (socket, io, ctx) => {
             // 모든 클라이언트에게 경주 결과 전송
             io.to(room.roomId).emit('horseRaceResult', {
                 rankings: rankings,
+                horseRankings: horseRankings,
                 userHorseBets: { ...gameState.userHorseBets },
                 winners: winners,
                 raceRound: gameState.raceRound,
@@ -1299,8 +1308,8 @@ module.exports = (socket, io, ctx) => {
         for (let i = 0; i < horseCount; i++) {
             const duration = baseDurations[i];
             const baseSpeed = totalDistance / duration;
-            const initialSpeedFactor = 0.8 + ((i * 1234567) % 100) / 250;
-            const speedChangeSeed = i * 9876;
+            const initialSpeedFactor = 0.8 + Math.random() * 0.4;
+            const speedChangeSeed = Math.floor(Math.random() * 2147483647);
 
             // 기믹 상태 초기화
             const gimmicks = (gimmicksData[i] || []).map(g => ({
@@ -1326,6 +1335,7 @@ module.exports = (socket, io, ctx) => {
                 targetSpeed: baseSpeed,
                 lastSpeedChange: 0,
                 speedChangeSeed,
+                initialSpeedFactor,
                 gimmicks,
                 finished: false,
                 finishJudged: false,  // 오른쪽 끝 기준 도착 판정 (클라이언트와 동일)
@@ -1529,7 +1539,14 @@ module.exports = (socket, io, ctx) => {
         }));
 
         console.log(`[서버시뮬] 순위 결정 완료:`, rankings.map(r => `${r.rank}등=말${r.horseIndex}`).join(', '));
-        return rankings;
+
+        // 클라이언트 동기화용 시드 정보
+        const speedSeeds = horseStates.map(s => ({
+            changeSeed: s.speedChangeSeed,
+            initialFactor: s.initialSpeedFactor
+        }));
+
+        return { rankings, speedSeeds };
     }
 
     // 룰에 맞는 당첨자 확인 함수

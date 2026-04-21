@@ -83,7 +83,7 @@ var currentTrackDistanceMeters = 500; // 트랙 거리(m)
 var trackPresetsFromServer = { short: 500, medium: 700, long: 1000 }; // 서버에서 받은 프리셋
 var selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
 var popularVehicles = []; // 인기말 vehicle_id 목록
-var NEW_VEHICLES = ['knight', 'dinosaur', 'ninja', 'crab']; // 신규 탈것 (NEW 배지)
+var NEW_VEHICLES = []; // 신규 탈것 (NEW 배지)
 var vehicleStatsData = []; // 탈것별 통계 데이터
 var missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상태였는지)
 var lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
@@ -902,6 +902,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
 
     // ========== 날씨 시스템 초기화 ==========
+    const speedSeeds = (trackOptions && trackOptions.speedSeeds) || null;
     const weatherSchedule = (trackOptions && trackOptions.weatherSchedule) || [];
     const weatherConfig = (trackOptions && trackOptions.weatherConfig) || {};
     let currentWeather = weatherSchedule.length > 0 ? weatherSchedule[0].weather : 'sunny';
@@ -1610,8 +1611,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         // 기본 속도 계산 (duration 기반)
         const baseSpeed = totalDistance / duration;
 
-        // 초기 속도 변화를 위한 시드 (horseIndex 기반으로 일관성 유지)
-        const initialSpeedFactor = 0.8 + ((horseIndex * 1234567) % 100) / 250; // 0.8 ~ 1.2
+        // 초기 속도 변화를 위한 시드 (서버에서 받은 값 우선, 폴백: 기존 horseIndex 기반)
+        const serverSeed = speedSeeds && speedSeeds[horseIndex];
+        const initialSpeedFactor = serverSeed ? serverSeed.initialFactor : (0.8 + ((horseIndex * 1234567) % 100) / 250);
 
         return {
             horse,
@@ -1629,7 +1631,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             gimmicks,
             wobblePhase: 0,
             lastSpeedChange: 0,
-            speedChangeSeed: horseIndex * 9876, // 속도 변화 시드
+            speedChangeSeed: serverSeed ? serverSeed.changeSeed : (horseIndex * 9876), // 속도 변화 시드
             simElapsed: 0, // 서버와 동기화용 고정 16ms 스텝 elapsed
             visualWidth // 탈것별 시각적 너비
         };
@@ -3610,6 +3612,7 @@ function playReplay(record) {
             cleanupReplay();
         }, {
             trackDistanceMeters: record.trackDistanceMeters || 500,
+            speedSeeds: record.speedSeeds || null,
             weatherSchedule: record.weatherSchedule || [],
             weatherConfig: window._weatherConfig || {}
         });
@@ -3686,7 +3689,10 @@ function replayMissedRace() {
                 userHorseBets = originalUserHorseBets;
                 availableHorses = originalAvailableHorses;
             }, 100);
-        }, { trackDistanceMeters: data.trackDistanceMeters || 500 });
+        }, {
+            trackDistanceMeters: data.trackDistanceMeters || 500,
+            speedSeeds: data.speedSeeds || null
+        });
     }, 4000);
 }
 
@@ -4360,6 +4366,17 @@ socket.on('horseRaceStarted', (data) => {
     lastHorseRaceData = data;
     window._slowMotionConfig = data.slowMotionConfig || null;
 
+    // 현재 라운드 record를 로컬 히스토리에 즉시 추가 (horseRaceEnded 도착 전 다시보기 가능)
+    if (data.record) {
+        // 같은 id의 record가 이미 있으면 덮어쓰기, 없으면 추가
+        const existIdx = horseRaceHistory.findIndex(r => r.id === data.record.id);
+        if (existIdx >= 0) {
+            horseRaceHistory[existIdx] = data.record;
+        } else {
+            horseRaceHistory.push(data.record);
+        }
+    }
+
     // 다시보기 섹션 숨기기 (새 경주 시작 시)
     document.getElementById('horseReplaySection').style.display = 'none';
 
@@ -4487,6 +4504,7 @@ socket.on('horseRaceStarted', (data) => {
         console.log('[경마] 애니메이션 완료 → 서버에 알림 전송');
     }, {
         trackDistanceMeters: data.trackDistanceMeters || 500,
+        speedSeeds: data.speedSeeds || null,
         weatherSchedule: data.weatherSchedule || [],
         weatherConfig: data.weatherConfig || {}
     });

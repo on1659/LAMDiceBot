@@ -1,4 +1,27 @@
 ========================================
+📋 Summit Log - 2026-04-22 — 다시보기 버그 수정 + NEW 배지 제거
+========================================
+
+## 변경 파일
+- socket/horse.js: 다시보기 데이터 동기화 개선, auto-ready 경로 await 누락 수정
+- js/horse-race.js: 다시보기 데이터 동기화, NEW_VEHICLES 배열 비움
+- AutoTest/horse-debug-panel.html: 신규 — 봇 입장/말선택/준비 디버그 패널
+- AutoTest/horse-race/test-speed-seed-bias.js: 신규 — E2E 테스트
+
+## 상세 변경 내역
+
+### 다시보기 버그 수정
+- horseRaceEnded 도착 전 다시보기 시 이전 라운드 record 재생되는 문제
+- horseRaceStarted 수신 시 data.record를 로컬 horseRaceHistory에 즉시 push
+- selectHorse 자동준비 경로 raceRecord 데이터 형식 정상 경로와 통일
+
+### NEW 배지 제거
+- js/horse-race.js: `NEW_VEHICLES` 배열을 빈 배열로 변경
+- 기사/공룡/닌자/게에서 NEW 표시 제거
+
+========================================
+
+========================================
 📋 Summit Log - 2026-04-15 (3) — main 머지
 ========================================
 
