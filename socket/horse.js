@@ -6,6 +6,7 @@ const HORSE_COUNT_MAX = 6;       // 경마 최대 말 수
 const HORSE_COUNTDOWN_SEC = 4;   // 카운트다운 시간 (초)
 const HORSE_FRAME_INTERVAL = 16; // 레이스 프레임 인터벌 (~60fps, ms)
 const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
+const MIN_FINISH_GAP_MS = 150;   // 결승 gap 최소 보장 (클라 deltaTime cap 50ms + 안전마진)
 // ────────────────────────
 const { ALL_VEHICLE_IDS, NEW_VEHICLE_IDS, NEW_VEHICLE_WEIGHT, VEHICLE_NAMES, weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
@@ -1520,6 +1521,27 @@ module.exports = (socket, io, ctx) => {
             baseDuration: s.baseDuration
         }));
         simResults.sort((a, b) => a.simFinishJudgedTime - b.simFinishJudgedTime);
+
+        // ─── 150ms gap 보장: SSOT 확립 ───
+        // 조건: forcePhotoFinish 모드가 아닐 때만 적용 (접전 UX 보존)
+        if (!forcePhotoFinish) {
+            // (a) baseDuration 값들을 simFinishJudgedTime 순서로 재매핑
+            //     → "서버 1등 말 = 가장 작은 baseDuration" 보장
+            //     → 클라 재시뮬도 같은 순서로 결승선 통과
+            const sortedBase = simResults
+                .map(r => r.baseDuration)
+                .sort((a, b) => a - b);
+            simResults.forEach((r, i) => { r.baseDuration = sortedBase[i]; });
+
+            // (b) 150ms 이상 gap 강제 (순차적으로)
+            //     unbetted_stop으로 60000ms cap된 말은 이미 충분히 떨어져 있음 → 영향 없음
+            for (let i = 1; i < simResults.length; i++) {
+                const minAllowed = simResults[i - 1].baseDuration + MIN_FINISH_GAP_MS;
+                if (simResults[i].baseDuration < minAllowed) {
+                    simResults[i].baseDuration = minAllowed;
+                }
+            }
+        }
 
         const rankings = simResults.map((result, rank) => ({
             horseIndex: result.horseIndex,

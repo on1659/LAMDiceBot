@@ -30,8 +30,8 @@ export function RaceResult({ socket }: Props) {
 
   const { rankings, winners } = activeData;
 
-  // Sort rankings by finishTime
-  const sortedRankings = [...rankings].sort((a, b) => a.finishTime - b.finishTime);
+  // 서버 rankings는 이미 rank 오름차순 (서버 SSOT)
+  const sortedRankings = rankings;
 
   const isWinner = winners.includes(currentUser);
 
