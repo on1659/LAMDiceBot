@@ -1,4 +1,43 @@
 ========================================
+📋 Summit Log - 2026-04-23 — Evolution 기믹 + 결승선 접전 스턴
+========================================
+
+## 변경 파일
+- js/horse-race.js: Evolution 체인 기믹 fix + 결승선 접전 스턴 로직
+- js/horse-race-sprites.js: Power SVG 시스템 (getVehiclePowerSVG, buildPoweredVehicleSVG)
+- css/horse-race.css: Evolution 애니메이션 + vehicle-active-layer + finish-stun 이펙트
+- socket/horse.js: Evolution 발동 확률 1.0 → 0.6 복구
+
+## 상세 변경 내역
+
+### Evolution 기믹 power SVG 교체 수정 (horse-race.js)
+- 버그: 연쇄 기믹(evolution_boost) 이 triggered:true, active:true 로 push되어
+  trigger 블록(power SVG 교체 코드)이 실행되지 않음
+- 수정: isEvolutionChain 여부에 따라 triggered/active/endTime 분기
+  - evolution_boost 체인: triggered:false → 같은 forEach 루프에서 트리거 블록 실행
+  - 그 외 체인(reverse_boost 등): 기존처럼 triggered:true (속도 배수만, 시각 효과 없음)
+
+### Power SVG 시스템 추가 (horse-race-sprites.js)
+- getVehiclePowerSVG(vehicleId): 탈것별 power 변형 SVG 반환
+- buildPoweredVehicleSVG(): base SVG에 glow/aura/spark 오버레이 래핑
+- data-variant="power" 속성 SVG에 부여 → animateVehicleVariantSwap 으로 교체
+
+### Evolution 애니메이션 CSS (horse-race.css)
+- .vehicle-active-layer: position:absolute, inset:0, z-index:2
+- vehiclePowerIn/Out/Flash, vehicleBaseIn/Out/Flash 키프레임
+- .evolution-charge (evo-pulse), .evolution-burst, .evolution-run 클래스
+
+### 결승선 접전 스턴 (horse-race.js + horse-race.css)
+- 문제: 랜덤 속도 wobble로 하위 순위 말이 상위 순위 말보다 시각적으로 먼저 결승선 통과
+  - 실제 로그: 5등(ninja) pos=6956, 4등(helicopter) pos=6952 — 5등이 4px 앞
+- 수정: 상위 순위 말 미통과 시 현재 말을 결승선 20px 앞에서 hold
+- 시각 효과: .finish-stun 클래스 → translateY 0↔-2px 0.12s 진동 (발 걸린 느낌)
+- 스턴 지속: ~160ms (슬로우모션 기준), 상위 말 통과 즉시 해제
+
+### Evolution 확률 복구 (socket/horse.js)
+- probability: 1.0(테스트) → 0.6(프로덕션)
+
+========================================
 📋 Summit Log - 2026-04-22 — 다시보기 버그 수정 + NEW 배지 제거
 ========================================
 

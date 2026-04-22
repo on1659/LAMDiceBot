@@ -89,6 +89,11 @@ var missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상
 var lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
 var isReplayActive = false; // 다시보기 진행 중 여부
 var raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
+var countdownVisibilityHandler = null; // 카운트다운 중 탭 복귀 감지 리스너
+var missedAtCountdown = false; // 카운트다운 시 화면 숨겨져 있었는지
+
+// 놓친 경주 다시보기 필수 시청 횟수: 0=바로 종료가능 | 1=1회 후 종료 | 2=2회 후 종료
+const MISSED_REPLAY_REQUIRED = 1;
 
 
 // 경마 사운드 볼륨 관리 (ControlBar 위임)
@@ -400,10 +405,15 @@ function renderTrackForSelection() {
         frame1.innerHTML = idleData.frame1 || vehicleSVGs.frame1;
         frame2.innerHTML = (idleData.frame2 || vehicleSVGs.frame2) || '';
 
-        vehicleContent.appendChild(frame1);
-        vehicleContent.appendChild(frame2);
+        const activeLayer = document.createElement('div');
+        activeLayer.className = 'vehicle-active-layer';
+        activeLayer.appendChild(frame1);
+        activeLayer.appendChild(frame2);
+
+        vehicleContent.appendChild(activeLayer);
         horse.appendChild(vehicleContent);
         horse.dataset.vehicleId = vehicleId;
+        horse.dataset.vehicleVariant = 'base';
 
         // 내가 선택한 탈것 위에 화살표 표시
         if (userHorseBets[currentUser] === horseIndex) {
@@ -901,6 +911,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     const finishLine = trackDistanceMeters * PIXELS_PER_METER;
 
 
+    // ========== 다시보기/Evolution 플래그 ==========
+    const isReplay = (trackOptions && trackOptions.isReplay) || false;
+    const evolutionTargets = (trackOptions && trackOptions.evolutionTargets) || [];
+
     // ========== 날씨 시스템 초기화 ==========
     const speedSeeds = (trackOptions && trackOptions.speedSeeds) || null;
     const weatherSchedule = (trackOptions && trackOptions.weatherSchedule) || [];
@@ -1148,11 +1162,16 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         frame1.innerHTML = idleData.frame1 || vehicleSVGs.frame1;
         frame2.innerHTML = (idleData.frame2 || vehicleSVGs.frame2) || '';
 
-        vehicleContent.appendChild(frame1);
-        vehicleContent.appendChild(frame2);
+        const activeLayer = document.createElement('div');
+        activeLayer.className = 'vehicle-active-layer';
+        activeLayer.appendChild(frame1);
+        activeLayer.appendChild(frame2);
+
+        vehicleContent.appendChild(activeLayer);
 
         horse.appendChild(vehicleContent);
         horse.dataset.vehicleId = vehicleId;
+        horse.dataset.vehicleVariant = 'base';
 
         // 모든 말에 화살표 생성 (카메라 타겟에 따라 동적으로 표시)
         const arrow = document.createElement('div');
@@ -1460,6 +1479,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     let randomCutawayStartTime = null;         // 컷어웨이 시작 시간
     let randomCutawayTarget = null;            // 컷어웨이 대상 말 상태
     let cutawayDisabled = false;               // 50m 진입 시 완전 비활성화 플래그
+
+    // Evolution 카메라 컷어웨이
+    let isEvolutionCutaway = false;
+    let evolutionCutawayTarget = null;
 
     // 컷어웨이 상수
     const LEADER_FOCUS_DURATION = 3000;        // 1등 고정 시간 (3초)
@@ -1908,12 +1931,24 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
                 // 기믹 체크
                 state.gimmicks.forEach(gimmick => {
+                    // Evolution 예고: 트리거 1.5초 전 (라이브만)
+                    if (!isReplay && gimmick.type === 'evolution' && !gimmick.triggered && !gimmick._chargeStarted) {
+                        const chargeProgress = gimmick.progressTrigger - 0.03;
+                        if (progress >= chargeProgress) {
+                            gimmick._chargeStarted = true;
+                            state.horse.classList.add('evolution-charge');
+                            // 카메라 강제 컷어웨이
+                            isEvolutionCutaway = true;
+                            evolutionCutawayTarget = state;
+                        }
+                    }
+
                     // 기믹 트리거 체크
-                    if (!gimmick.triggered && progress >= gimmick.progressTrigger) {
+                    if (!gimmick.triggered && !gimmick.disabled && progress >= gimmick.progressTrigger) {
                         gimmick.triggered = true;
                         gimmick.active = true;
                         gimmick.endTime = elapsed + gimmick.duration;
-                        
+
                         // 기믹 시작 효과 및 이펙트 추가
                         if (gimmick.type === 'stop') {
                             state.horse.style.filter = 'brightness(0.7)';
@@ -2028,9 +2063,34 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             rBoostEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;';
                             state.horse.appendChild(rBoostEffect);
                             gimmick.effectElement = rBoostEffect;
+                        } else if (gimmick.type === 'evolution') {
+                            // Evolution 변신 단계: 정지 + burst 이펙트
+                            state.horse.classList.remove('evolution-charge');
+                            state.horse.classList.add('evolution-burst');
+                            // rest 상태로 전환 (멈춤 연출)
+                            state.horse.classList.remove('racing');
+                            state.horse.classList.add('rest');
+                            setVehicleState(state.horse, state.horse.dataset.vehicleId, 'rest');
+                        } else if (gimmick.type === 'evolution_boost') {
+                            // Evolution 질주 단계: power 스프라이트 + 가속 (라이브/다시보기 동일)
+                            state.horse.classList.remove('evolution-burst', 'rest');
+                            state.horse.classList.add('racing', 'evolution-run');
+                            const vehicleId = state.horse.dataset.vehicleId;
+                            if (typeof getVehiclePowerSVG === 'function') {
+                                const powerSVG = getVehiclePowerSVG(vehicleId);
+                                if (powerSVG && powerSVG.run) {
+                                    state._evolutionActive = true;
+                                    animateVehicleVariantSwap(state.horse, vehicleId, 'power', 'run');
+                                }
+                            }
+                            // 카메라 컷어웨이 (아직 설정 안 됐으면)
+                            if (!isEvolutionCutaway) {
+                                isEvolutionCutaway = true;
+                                evolutionCutawayTarget = state;
+                                }
                         }
                     }
-                    
+
                     // 기믹 종료 체크
                     if (gimmick.active && elapsed >= gimmick.endTime) {
                         gimmick.active = false;
@@ -2045,6 +2105,31 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.classList.add('racing');
                             setVehicleState(state.horse, state.horse.dataset.vehicleId, 'run');
                         }
+                        // evolution 변신 종료: burst 정리 (nextGimmick으로 boost가 이어짐)
+                        if (gimmick.type === 'evolution') {
+                            state.horse.classList.remove('evolution-charge', 'evolution-burst');
+                        }
+                        // evolution_boost 종료: 이펙트 정리 + base 스프라이트 복원 + 카메라 해제
+                        if (gimmick.type === 'evolution_boost') {
+                            state.horse.classList.remove('evolution-run', 'evolution-charge', 'evolution-burst');
+                            state.horse.style.filter = '';
+                            // 카메라 해제
+                            isEvolutionCutaway = false;
+                            evolutionCutawayTarget = null;
+                            if (state._evolutionActive) {
+                                state._evolutionActive = false;
+                                const vid = state.horse.dataset.vehicleId;
+                                const baseSVG = getVehicleSVG(vid);
+                                if (baseSVG && baseSVG.run) {
+                                    animateVehicleVariantSwap(
+                                        state.horse,
+                                        vid,
+                                        'base',
+                                        state.finished ? 'finish' : 'run'
+                                    );
+                                }
+                            }
+                        }
                         // 이펙트 요소 제거
                         if (gimmick.effectElement && gimmick.effectElement.parentNode) {
                             gimmick.effectElement.remove();
@@ -2055,17 +2140,23 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             gimmick.speedLinesElement = null;
                         }
                         // 연쇄 기믹 활성화
+                        // - Evolution 체인만 triggered:false로 push → 같은 forEach 루프에서
+                        //   트리거 블록이 실행되어 power SVG 교체가 발동됨.
+                        //   (SVG 변환은 Evolution 기믹 전용 — 다른 체인에서 발동되면 안 됨)
+                        // - 그 외 체인(reverse_boost 등)은 기존처럼 triggered:true로 즉시 활성화
+                        //   (속도 배수만 반영, 시각 효과 분기는 기존 동작 유지)
                         if (gimmick.nextGimmick && !gimmick.chainTriggered) {
                             gimmick.chainTriggered = true;
+                            const isEvolutionChain = gimmick.nextGimmick.type === 'evolution_boost';
                             state.gimmicks.push({
                                 progressTrigger: 0,
                                 type: gimmick.nextGimmick.type,
                                 duration: gimmick.nextGimmick.duration,
                                 speedMultiplier: gimmick.nextGimmick.speedMultiplier,
                                 nextGimmick: null,
-                                triggered: true,
-                                active: true,
-                                endTime: elapsed + gimmick.nextGimmick.duration
+                                triggered: !isEvolutionChain,
+                                active: !isEvolutionChain,
+                                endTime: isEvolutionChain ? 0 : elapsed + gimmick.nextGimmick.duration
                             });
                         }
                     }
@@ -2142,6 +2233,19 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     state.currentPos = Math.max(startPosition, state.currentPos + movement);
                 }
 
+                // 상위 순위 말이 아직 결승선 미통과 시 결승선 10px 앞에서 스턴
+                if (!state.finishJudged) {
+                    const higherRankedPending = horseStates.some(s => s.rank < state.rank && !s.finishJudged);
+                    if (higherRankedPending && state.currentPos + state.visualWidth >= finishLine - 20) {
+                        state.currentPos = finishLine - state.visualWidth - 20;
+                        if (!state.horse.classList.contains('finish-stun')) {
+                            state.horse.classList.add('finish-stun');
+                        }
+                    } else if (state.horse.classList.contains('finish-stun')) {
+                        state.horse.classList.remove('finish-stun');
+                    }
+                }
+
                 // 결승선 도착 체크 (탈것의 오른쪽 끝 = currentPos + visualWidth가 결승선에 닿으면 도착 판정)
                 const horseRightEdge = state.currentPos + state.visualWidth;
 
@@ -2189,8 +2293,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         // 프레임 애니메이션 속도 감속 (0.15s → 0.4s)
                         const sprite = state.horse.querySelector('.vehicle-sprite');
                         if (sprite) {
-                            const f1 = sprite.querySelector('.frame1');
-                            const f2 = sprite.querySelector('.frame2');
+                            const { frame1: f1, frame2: f2 } = getVehicleSpriteFrameElements(sprite);
                             if (f1) f1.style.animationDuration = '0.4s';
                             if (f2) f2.style.animationDuration = '0.4s';
                         }
@@ -2211,6 +2314,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const maxScrollLimit = -(scrollReleasePoint - centerPosition);
 
             // 카메라 대상 결정 (1등 / 내 말 / 꼴등 슬로우모션 대상 / 패닝)
+            let indicatorReferenceState = null;
             if (panningToLoser) {
                 // 부드러운 패닝 중 (1등 결승 후 → 꼴등으로 이동)
                 const panElapsed = Date.now() - panStartTime;
@@ -2221,6 +2325,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     panTargetOffset = -(loserCameraTarget.currentPos - centerPosition);
                     if (panTargetOffset < maxScrollLimit) panTargetOffset = maxScrollLimit;
                 }
+                indicatorReferenceState = loserCameraTarget || null;
                 currentScrollOffset = panStartOffset + (panTargetOffset - panStartOffset) * ease;
                 if (t >= 1) {
                     panningToLoser = false;
@@ -2229,7 +2334,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 }
             } else {
                 let cameraTarget = leaderState;
-                if (cameraMode === '_loser') {
+
+                // Evolution 컷어웨이 (최우선 — evolution_boost 종료까지 유지)
+                if (isEvolutionCutaway && evolutionCutawayTarget) {
+                    cameraTarget = evolutionCutawayTarget;
+                } else if (cameraMode === '_loser') {
                     // 매 프레임 베팅된 말 중 꼴등 재계산
                     const bettedIndicesForLoser = [...new Set(Object.values(userHorseBets))];
                     const unfinishedNow = horseStates
@@ -2320,6 +2429,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     }
                 }
                 const cameraPos = cameraTarget.currentPos;
+                indicatorReferenceState = horseStates.find(s => s.horseIndex === cameraTarget.horseIndex) || null;
 
                 // 카메라 타겟에 화살표 표시 (다른 화살표는 숨김, 내 베팅 말이면 노란색)
                 const myBetIndex = userHorseBets[currentUser];
@@ -2368,17 +2478,26 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             // 모든 말의 화면 위치 및 배경 업데이트 (스크롤 오프셋 기준)
             const cullEdge = -10; // 화면 왼쪽 밖 판정 기준
             const rightEdge = trackWidth + 10; // 화면 오른쪽 밖 판정 기준
-            // 내 베팅 말 위치 (우측 거리 표시 기준)
-            const myBetIdx = userHorseBets[currentUser];
-            const myBetState = myBetIdx !== undefined ? horseStates.find(s => s.horseIndex === myBetIdx) : null;
-            const myHorsePos = myBetState ? myBetState.currentPos : null;
+            // 현재 카메라 기준 말 위치 (우측 거리 표시 기준)
+            const AHEAD_INDICATOR_EPSILON_PX = 1;
+            const getFrontEdge = (horseState) => horseState.currentPos + (horseState.visualWidth || 0);
+            const getAheadDistanceMeters = (gapPx) => {
+                if (gapPx <= AHEAD_INDICATOR_EPSILON_PX) return 0;
+                return Math.max(1, Math.ceil(gapPx / PIXELS_PER_METER));
+            };
+            const indicatorReferenceIdx = indicatorReferenceState ? indicatorReferenceState.horseIndex : null;
+            const indicatorReferenceFrontEdge = indicatorReferenceState ? getFrontEdge(indicatorReferenceState) : null;
             horseStates.forEach(state => {
                 // 화면 위치 = 실제 위치 + 스크롤 오프셋
                 let horseDisplayPos = state.currentPos + bgScrollOffset;
                 const isOffscreenLeft = horseDisplayPos < cullEdge;
                 const isOffscreenRight = horseDisplayPos > rightEdge;
-                // 내 말보다 앞서있는지 (내 말 자신은 제외)
-                const isAheadOfMe = myHorsePos !== null && state.horseIndex !== myBetIdx && state.currentPos > myHorsePos && state.currentPos > startPosition;
+                // 현재 카메라 기준 말보다 앞서있는지 (기준 말 자신은 제외)
+                const aheadGapPx = indicatorReferenceFrontEdge !== null && state.horseIndex !== indicatorReferenceIdx
+                    ? getFrontEdge(state) - indicatorReferenceFrontEdge
+                    : 0;
+                const distAhead = getAheadDistanceMeters(aheadGapPx);
+                const isAheadOfMe = distAhead > 0;
 
                 // 왼쪽 오프스크린 인디케이터 처리
                 if (!state.offscreenIndicator) {
@@ -2411,30 +2530,24 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     state.horse.style.left = `-200px`;
                     state.horse.style.visibility = 'hidden';
                 } else if (isOffscreenRight && !state.finished) {
-                    // 화면 오른쪽 밖 — 내 말과의 거리 표시
-                    const distAhead = myHorsePos !== null ? Math.round((state.currentPos - myHorsePos) / PIXELS_PER_METER) : 0;
-                    if (state.lastDistAhead !== distAhead) {
-                        state.offscreenRightIndicator.innerHTML = `${distAhead}m <span style="animation: blink 0.6s infinite;">▶</span>`;
-                        state.lastDistAhead = distAhead;
-                    }
-                    state.offscreenRightIndicator.style.display = 'block';
-                    state.offscreenIndicator.style.display = 'none';
-                    state.horse.style.left = `${trackWidth + 200}px`;
-                    state.horse.style.visibility = 'hidden';
-                } else {
-                    // 화면 안에 있는 말
-                    state.offscreenIndicator.style.display = 'none';
-                    // 화면에 보이지만 내 말보다 앞서있으면 우측에 거리 표시
-                    if (isAheadOfMe && !state.finished) {
-                        const distAhead = Math.round((state.currentPos - myHorsePos) / PIXELS_PER_METER);
+                    // 화면 오른쪽 밖 — 현재 카메라 기준 말과의 거리 표시
+                    if (isAheadOfMe) {
                         if (state.lastDistAhead !== distAhead) {
-                            state.offscreenRightIndicator.innerHTML = `+${distAhead}m`;
+                            state.offscreenRightIndicator.innerHTML = `${distAhead}m <span style="animation: blink 0.6s infinite;">▶</span>`;
                             state.lastDistAhead = distAhead;
                         }
                         state.offscreenRightIndicator.style.display = 'block';
                     } else {
                         state.offscreenRightIndicator.style.display = 'none';
                     }
+                    state.offscreenIndicator.style.display = 'none';
+                    state.horse.style.left = `${trackWidth + 200}px`;
+                    state.horse.style.visibility = 'hidden';
+                } else {
+                    // 화면 안에 있는 말
+                    state.offscreenIndicator.style.display = 'none';
+                    // 같은 화면에 보이는 말은 우측 거리 표시를 숨김
+                    state.offscreenRightIndicator.style.display = 'none';
                     if (isOffscreenLeft) horseDisplayPos = cullEdge;
                     state.horse.style.left = `${horseDisplayPos}px`;
                     state.horse.style.visibility = 'visible';
@@ -2782,17 +2895,136 @@ function createConfetti() {
     return confettiHtml;
 }
 
+const VEHICLE_VARIANT_TRANSITION_MS = 360;
+
+function createVehicleSpriteLayer(frame1Markup, frame2Markup, className = 'vehicle-active-layer') {
+    const layer = document.createElement('div');
+    layer.className = className;
+
+    const frame1 = document.createElement('div');
+    frame1.className = 'frame1';
+    frame1.innerHTML = frame1Markup || '';
+
+    const frame2 = document.createElement('div');
+    frame2.className = 'frame2';
+    frame2.innerHTML = frame2Markup || frame1Markup || '';
+
+    layer.appendChild(frame1);
+    layer.appendChild(frame2);
+    return layer;
+}
+
+function getVehicleSpriteActiveLayer(sprite) {
+    if (!sprite) return null;
+    return Array.from(sprite.children).find(child => child.classList && child.classList.contains('vehicle-active-layer')) || sprite;
+}
+
+function getVehicleSpriteFrameElements(sprite) {
+    const layer = getVehicleSpriteActiveLayer(sprite);
+    if (!layer) {
+        return { layer: null, frame1: null, frame2: null };
+    }
+
+    const directChildren = Array.from(layer.children || []);
+    const frame1 = directChildren.find(child => child.classList && child.classList.contains('frame1')) || layer.querySelector('.frame1');
+    const frame2 = directChildren.find(child => child.classList && child.classList.contains('frame2')) || layer.querySelector('.frame2');
+    return { layer, frame1, frame2 };
+}
+
+function getVehicleVariantResource(vehicleId, variant = 'base') {
+    if (typeof getVehicleVariantSVG === 'function') {
+        return getVehicleVariantSVG(vehicleId, variant);
+    }
+    if (variant === 'power' && typeof getVehiclePowerSVG === 'function') {
+        return getVehiclePowerSVG(vehicleId);
+    }
+    if (typeof getVehicleBaseSVG === 'function') {
+        return getVehicleBaseSVG(vehicleId);
+    }
+    return getVehicleSVG(vehicleId);
+}
+
+function resolveVehicleStateData(vehicleId, state, variant = 'base') {
+    const preferredResource = getVehicleVariantResource(vehicleId, variant) || {};
+    const baseResource = variant === 'base'
+        ? preferredResource
+        : (getVehicleVariantResource(vehicleId, 'base') || getVehicleSVG(vehicleId) || {});
+
+    const preferredState = preferredResource[state] || (preferredResource.frame1 ? preferredResource : null);
+    if (preferredState) return preferredState;
+
+    const baseState = baseResource[state] || baseResource.run || baseResource.idle || (baseResource.frame1 ? baseResource : null);
+    if (baseState) return baseState;
+
+    return preferredResource.run || preferredResource.idle || (preferredResource.frame1 ? preferredResource : null) || null;
+}
+
+function writeVehicleSpriteState(sprite, stateData) {
+    if (!sprite || !stateData) return;
+    const { frame1, frame2 } = getVehicleSpriteFrameElements(sprite);
+    if (frame1) frame1.innerHTML = stateData.frame1 || '';
+    if (frame2) frame2.innerHTML = stateData.frame2 || stateData.frame1 || '';
+}
+
+function clearVehicleVariantTransition(sprite) {
+    if (!sprite) return;
+    if (sprite._vehicleVariantTransitionTimer) {
+        clearTimeout(sprite._vehicleVariantTransitionTimer);
+        sprite._vehicleVariantTransitionTimer = null;
+    }
+    sprite.classList.remove('vehicle-transforming', 'vehicle-transform-to-power', 'vehicle-transform-to-base');
+    sprite.querySelectorAll('.vehicle-transition-layer, .vehicle-transition-flash').forEach(node => node.remove());
+}
+
+function animateVehicleVariantSwap(horseElement, vehicleId, variant, state = 'run') {
+    const sprite = horseElement && horseElement.querySelector('.vehicle-sprite');
+    const stateData = resolveVehicleStateData(vehicleId, state, variant);
+
+    if (!sprite || !stateData) {
+        if (horseElement) horseElement.dataset.vehicleVariant = variant;
+        setVehicleState(horseElement, vehicleId, state);
+        return;
+    }
+
+    clearVehicleVariantTransition(sprite);
+
+    const { frame1, frame2 } = getVehicleSpriteFrameElements(sprite);
+    const outgoingFrame1 = frame1 ? frame1.innerHTML : '';
+    const outgoingFrame2 = frame2 ? frame2.innerHTML : '';
+
+    horseElement.dataset.vehicleVariant = variant;
+    writeVehicleSpriteState(sprite, stateData);
+
+    if (outgoingFrame1 || outgoingFrame2) {
+        const outgoingLayer = createVehicleSpriteLayer(
+            outgoingFrame1,
+            outgoingFrame2,
+            'vehicle-transition-layer vehicle-transition-outgoing'
+        );
+        sprite.appendChild(outgoingLayer);
+    }
+
+    const flash = document.createElement('div');
+    flash.className = 'vehicle-transition-flash';
+    sprite.appendChild(flash);
+
+    const directionClass = variant === 'power' ? 'vehicle-transform-to-power' : 'vehicle-transform-to-base';
+    void sprite.offsetWidth;
+    sprite.classList.add('vehicle-transforming', directionClass);
+    sprite._vehicleVariantTransitionTimer = setTimeout(() => {
+        clearVehicleVariantTransition(sprite);
+    }, VEHICLE_VARIANT_TRANSITION_MS + 40);
+}
+
 // 탈것별 SVG 생성 함수
 // 탈것 상태 전환 헬퍼
 function setVehicleState(horseElement, vehicleId, state) {
-    const svgData = getVehicleSVG(vehicleId);
-    const stateData = svgData[state] || svgData.run || svgData;
-    const sprite = horseElement.querySelector('.vehicle-sprite');
+    const sprite = horseElement && horseElement.querySelector('.vehicle-sprite');
     if (!sprite) return;
-    const f1 = sprite.querySelector('.frame1');
-    const f2 = sprite.querySelector('.frame2');
-    if (f1) f1.innerHTML = stateData.frame1;
-    if (f2 && stateData.frame2) f2.innerHTML = stateData.frame2;
+
+    const variant = horseElement.dataset.vehicleVariant || 'base';
+    const stateData = resolveVehicleStateData(vehicleId, state, variant);
+    writeVehicleSpriteState(sprite, stateData);
 }
 
 
@@ -3614,7 +3846,9 @@ function playReplay(record) {
             trackDistanceMeters: record.trackDistanceMeters || 500,
             speedSeeds: record.speedSeeds || null,
             weatherSchedule: record.weatherSchedule || [],
-            weatherConfig: window._weatherConfig || {}
+            weatherConfig: window._weatherConfig || {},
+            isReplay: true,
+            evolutionTargets: record.evolutionTargets || []
         });
     }, 4000);
 }
@@ -3626,30 +3860,18 @@ function replayMissedRace() {
         return;
     }
 
-    // 기존 사운드 정리
-    if (window.SoundManager) {
-        SoundManager.stopAll();
-    }
-
+    if (window.SoundManager) SoundManager.stopAll();
     addDebugLog('🔄 놓친 경주 다시보기 시작', 'replay');
 
-    // 다시보기 섹션 숨기기
     document.getElementById('horseReplaySection').style.display = 'none';
     missedHorseRace = false;
 
-    // 결과 오버레이 숨기기
     const resultOverlay = document.getElementById('resultOverlay');
-    if (resultOverlay) {
-        resultOverlay.classList.remove('visible');
-    }
+    if (resultOverlay) resultOverlay.classList.remove('visible');
 
-    // 말 선택 섹션 숨기기
     const horseSelectionSection = document.getElementById('horseSelectionSection');
-    if (horseSelectionSection) {
-        horseSelectionSection.classList.remove('active');
-    }
+    if (horseSelectionSection) horseSelectionSection.classList.remove('active');
 
-    // 데이터 임시 설정
     const data = lastHorseRaceData;
     const originalSelectedVehicleTypes = selectedVehicleTypes;
     const originalUserHorseBets = userHorseBets;
@@ -3659,41 +3881,74 @@ function replayMissedRace() {
     userHorseBets = data.userHorseBets || {};
     availableHorses = data.availableHorses || data.horseRankings.map((_, i) => i);
 
-    isRaceActive = true;
-
-    let replaySpeeds = data.speeds || data.horseRankings.map((_, rank) => 3000 + rank * 500);
+    const replaySpeeds = data.speeds || data.horseRankings.map((_, rank) => 3000 + rank * 500);
     const replayGimmicks = data.gimmicks || null;
+    let watchCount = 0;
 
-    // 3-2-1 카운트다운 후 애니메이션 시작
-    isReplayActive = true;
-    showCountdown();
-    setTimeout(() => {
-        startRaceAnimation(data.horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
-            isRaceActive = false;
-            isReplayActive = false;
+    function restoreAndFinish(actualFinishOrder) {
+        removeReplayStopButton();
+        isRaceActive = false;
+        isReplayActive = false;
+        showRaceResult({
+            winners: data.winners || [],
+            horseRankings: actualFinishOrder || data.horseRankings,
+            horseRaceMode: data.horseRaceMode || 'last'
+        }, true);
+        pendingRaceResultMessages.forEach(msg => ChatModule.displayChatMessage(msg));
+        pendingRaceResultMessages = [];
+        setTimeout(() => {
+            selectedVehicleTypes = originalSelectedVehicleTypes;
+            userHorseBets = originalUserHorseBets;
+            availableHorses = originalAvailableHorses;
+        }, 100);
+    }
 
-            showRaceResult({
-                winners: data.winners || [],
-                horseRankings: actualFinishOrder || data.horseRankings,
-                horseRaceMode: data.horseRaceMode || 'last'
-            }, true);
+    function stopMidReplay() {
+        if (window._raceAnimFrameId) {
+            cancelAnimationFrame(window._raceAnimFrameId);
+            window._raceAnimFrameId = null;
+        }
+        if (window.SoundManager) SoundManager.stopAll();
+        removeReplayStopButton();
+        const ro = document.getElementById('resultOverlay');
+        if (ro) ro.classList.remove('visible');
+        isRaceActive = false;
+        isReplayActive = false;
+        selectedVehicleTypes = originalSelectedVehicleTypes;
+        userHorseBets = originalUserHorseBets;
+        availableHorses = originalAvailableHorses;
+        document.getElementById('horseReplaySection').style.display = 'block';
+    }
 
-            // 보관된 결과 채팅 메시지 표시
-            pendingRaceResultMessages.forEach(msg => {
-                ChatModule.displayChatMessage(msg);
+    function playOnce() {
+        isRaceActive = true;
+        isReplayActive = true;
+
+        if (MISSED_REPLAY_REQUIRED === 0) {
+            showReplayStopButton(stopMidReplay);
+        }
+
+        showCountdown();
+        setTimeout(() => {
+            startRaceAnimation(data.horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+                watchCount++;
+                if (watchCount < MISSED_REPLAY_REQUIRED) {
+                    setTimeout(() => playOnce(), 1500);
+                } else {
+                    restoreAndFinish(actualFinishOrder);
+                }
+            }, {
+                trackDistanceMeters: data.trackDistanceMeters || 500,
+                speedSeeds: data.speedSeeds || null,
+                weatherSchedule: data.weatherSchedule || [],
+                weatherConfig: window._weatherConfig || {},
+                isReplay: true,
+                evolutionTargets: data.evolutionTargets || []
             });
-            pendingRaceResultMessages = [];
+        }, 4000);
+    }
 
-            setTimeout(() => {
-                selectedVehicleTypes = originalSelectedVehicleTypes;
-                userHorseBets = originalUserHorseBets;
-                availableHorses = originalAvailableHorses;
-            }, 100);
-        }, {
-            trackDistanceMeters: data.trackDistanceMeters || 500,
-            speedSeeds: data.speedSeeds || null
-        });
-    }, 4000);
+    playOnce();
 }
 
 // 채팅 모듈 초기화 (roomCreated/roomJoined 후 호출)
@@ -4344,8 +4599,15 @@ socket.on('horseRaceCountdown', (data) => {
         });
     }
 
-    // 화면 가시성 무관하게 항상 경주 진행
-    missedAtCountdown = false;
+    // 카운트다운 시점 visibility 감지
+    missedAtCountdown = document.hidden;
+    if (countdownVisibilityHandler) {
+        document.removeEventListener('visibilitychange', countdownVisibilityHandler);
+    }
+    countdownVisibilityHandler = () => {
+        if (document.visibilityState === 'visible') missedAtCountdown = false;
+    };
+    document.addEventListener('visibilitychange', countdownVisibilityHandler);
 
     // 사운드: 카운트다운 + 관중 웅성거림 시작 (저볼륨)
     if (window.SoundManager) {
@@ -4390,7 +4652,30 @@ socket.on('horseRaceStarted', (data) => {
     const resultOverlay = document.getElementById('resultOverlay');
     if (resultOverlay) resultOverlay.classList.remove('visible');
 
+    // 카운트다운 리스너 정리
+    if (countdownVisibilityHandler) {
+        document.removeEventListener('visibilitychange', countdownVisibilityHandler);
+        countdownVisibilityHandler = null;
+    }
+
+    // 화면 가시성 체크: 탭 숨김 OR 트랙이 스크롤로 화면 밖
+    const _trackEl = document.getElementById('raceTrackContainer');
+    const _trackRect = _trackEl ? _trackEl.getBoundingClientRect() : null;
+    const _isTrackInViewport = _trackRect ? (_trackRect.bottom > 0 && _trackRect.top < window.innerHeight) : true;
+    const _isActuallyVisible = !document.hidden && _isTrackInViewport;
+
+    if (missedAtCountdown || !_isActuallyVisible) {
+        missedAtCountdown = false;
+        missedHorseRace = true;
+        isRaceActive = false;
+        if (window.SoundManager) SoundManager.stopAll();
+        document.getElementById('horseReplaySection').style.display = 'block';
+        addDebugLog('⚠️ 화면 미확인 → 다시보기 섹션 표시', 'visibility');
+        return;
+    }
+
     // 화면을 보고 있으면 정상적으로 경주 시작
+    missedAtCountdown = false;
     missedHorseRace = false;
     raceResultShown = false; // 새 경주 시작 시 결과 표시 플래그 리셋
     isRaceActive = true;
@@ -4506,9 +4791,10 @@ socket.on('horseRaceStarted', (data) => {
         trackDistanceMeters: data.trackDistanceMeters || 500,
         speedSeeds: data.speedSeeds || null,
         weatherSchedule: data.weatherSchedule || [],
-        weatherConfig: data.weatherConfig || {}
+        weatherConfig: data.weatherConfig || {},
+        evolutionTargets: data.evolutionTargets || []
     });
-    
+
     // 게임 상태 업데이트 + 실황 중계 시작
     const gameStatus = document.getElementById('gameStatus');
     if (gameStatus) {

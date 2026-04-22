@@ -2620,3 +2620,2327 @@ function getTrackObjectSVG(objectId) {
     };
     return objects[objectId] || '';
 }
+
+const BASE_VEHICLE_VARIANT_OVERRIDES = {
+    ninja: {
+        idle: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 14 Q46 11 51 15 Q45 16 36 18 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 11 H34 Q37 11 37 16 L36 21 H24 L24 16 Q24 11 25 11 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 15 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28.5" cy="16" r="0.9" fill="#86e8ff"/>
+                <circle cx="32.5" cy="16" r="0.9" fill="#86e8ff"/>
+                <path d="M22 22 L30 20 L38 24 L37 34 H23 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 29 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M20 24 L15 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 24 L43 27" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 13 L46 8" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M37 14 L41 11" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 34 L25 40" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 34 L34 40" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 40 H27 M32 40 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 15 Q46 12 51 16 Q45 17 36 19 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 12 H34 Q37 12 37 17 L36 22 H24 L24 17 Q24 12 25 12 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 16 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <ellipse cx="30.5" cy="17" rx="3.5" ry="0.8" fill="#86e8ff"/>
+                <path d="M22 23 L30 21 L38 25 L37 35 H23 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 30 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M20 25 L15 29" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 25 L43 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 14 L46 9" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M37 15 L41 12" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 35 L25 41" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 35 L34 41" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 41 H27 M32 41 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M33 13 Q45 6 53 11 Q45 15 35 18 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M24 10 H33 Q36 10 36 15 L35 20 H23 L23 15 Q23 10 24 10 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 14 H34" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="27.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <circle cx="31.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <path d="M20 21 L30 18 L39 22 L37 31 H22 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M20 28 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M19 23 L14 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M38 23 L44 20 L46 24 L40 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 19 L54 14 L55 17 L45 22 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M42 20 L46 18" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M25 31 L20 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 31 L38 36" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M18 38 H23 M37 36 H41" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 14 Q46 18 51 24 Q43 23 35 20 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 9 H34 Q37 9 37 14 L36 19 H24 L24 14 Q24 9 25 9 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 13 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <circle cx="32.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <path d="M22 19 L31 17 L40 21 L38 30 H24 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 27 H39" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 21 L15 17" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 22 L43 25 L42 29 L37 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 17 L10 11 L12 8 L21 14 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M18 16 L14 13" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 30 L24 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 30 L39 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 38 H27 M37 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 14 Q46 11 51 15 Q45 16 36 18 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 11 H34 Q37 11 37 16 L36 21 H24 L24 16 Q24 11 25 11 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 15 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28.5" cy="16" r="0.9" fill="#86e8ff"/>
+                <circle cx="32.5" cy="16" r="0.9" fill="#86e8ff"/>
+                <path d="M22 22 L30 20 L38 24 L37 34 H23 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 29 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M20 24 L15 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 24 L43 27" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 13 L46 8" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M37 14 L41 11" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 34 L25 40" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 34 L34 40" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 40 H27 M32 40 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 15 Q46 12 51 16 Q45 17 36 19 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 12 H34 Q37 12 37 17 L36 22 H24 L24 17 Q24 12 25 12 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 16 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <ellipse cx="30.5" cy="17" rx="3.5" ry="0.8" fill="#86e8ff"/>
+                <path d="M22 23 L30 21 L38 25 L37 35 H23 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 30 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M20 25 L15 29" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 25 L43 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 14 L46 9" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M37 15 L41 12" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 35 L25 41" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 35 L34 41" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 41 H27 M32 41 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        finish: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M33 13 Q45 6 53 11 Q45 15 35 18 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M24 10 H33 Q36 10 36 15 L35 20 H23 L23 15 Q23 10 24 10 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 14 H34" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="27.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <circle cx="31.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <path d="M20 21 L30 18 L39 22 L37 31 H22 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M20 28 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M19 23 L14 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M38 23 L44 20 L46 24 L40 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 19 L54 14 L55 17 L45 22 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M42 20 L46 18" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M25 31 L20 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 31 L38 36" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M18 38 H23 M37 36 H41" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 14 Q46 18 51 24 Q43 23 35 20 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 9 H34 Q37 9 37 14 L36 19 H24 L24 14 Q24 9 25 9 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 13 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <circle cx="32.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <path d="M22 19 L31 17 L40 21 L38 30 H24 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 27 H39" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 21 L15 17" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 22 L43 25 L42 29 L37 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 17 L10 11 L12 8 L21 14 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M18 16 L14 13" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 30 L24 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 30 L39 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 38 H27 M37 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        victory: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M33 13 Q45 6 53 11 Q45 15 35 18 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M24 10 H33 Q36 10 36 15 L35 20 H23 L23 15 Q23 10 24 10 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 14 H34" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="27.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <circle cx="31.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <path d="M20 21 L30 18 L39 22 L37 31 H22 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M20 28 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M19 23 L14 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M38 23 L44 20 L46 24 L40 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 19 L54 14 L55 17 L45 22 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M42 20 L46 18" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M25 31 L20 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 31 L38 36" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M18 38 H23 M37 36 H41" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 14 Q46 18 51 24 Q43 23 35 20 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 9 H34 Q37 9 37 14 L36 19 H24 L24 14 Q24 9 25 9 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 13 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <circle cx="32.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <path d="M22 19 L31 17 L40 21 L38 30 H24 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 27 H39" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 21 L15 17" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 22 L43 25 L42 29 L37 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 17 L10 11 L12 8 L21 14 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M18 16 L14 13" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 30 L24 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 30 L39 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 38 H27 M37 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        dead: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M30 20 Q40 22 44 28 Q35 27 29 24 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M17 26 L26 23 L38 28 L35 34 H20 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M31 19 H38 Q41 19 41 24 L39 28 H30 L30 23 Q30 19 31 19 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M32 22 L35 25 M35 22 L32 25" fill="none" stroke="#86e8ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M36 22 L39 25 M39 22 L36 25" fill="none" stroke="#86e8ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M13 33 H27" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M15 33 H25" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M19 35 L16 39 M28 35 L30 39" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M30 21 Q40 23 44 29 Q35 28 29 25 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M17 27 L26 24 L38 29 L35 35 H20 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M31 20 H38 Q41 20 41 25 L39 29 H30 L30 24 Q30 20 31 20 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M32 23 L35 26 M35 23 L32 26" fill="none" stroke="#86e8ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M36 23 L39 26 M39 23 L36 26" fill="none" stroke="#86e8ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M13 34 H27" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M15 34 H25" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M19 36 L16 40 M28 36 L30 40" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+            </svg>`
+        },
+        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M33 13 Q45 6 53 11 Q45 15 35 18 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M24 10 H33 Q36 10 36 15 L35 20 H23 L23 15 Q23 10 24 10 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 14 H34" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="27.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <circle cx="31.5" cy="15" r="0.9" fill="#86e8ff"/>
+                <path d="M20 21 L30 18 L39 22 L37 31 H22 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M20 28 H38" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M19 23 L14 28" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M38 23 L44 20 L46 24 L40 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 19 L54 14 L55 17 L45 22 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M42 20 L46 18" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M25 31 L20 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 31 L38 36" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M18 38 H23 M37 36 H41" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M35 14 Q46 18 51 24 Q43 23 35 20 Z" fill="#ff5d6c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 9 H34 Q37 9 37 14 L36 19 H24 L24 14 Q24 9 25 9 Z" fill="#0f1322" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 13 H35" fill="none" stroke="#ff5d6c" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <circle cx="32.5" cy="14" r="0.9" fill="#86e8ff"/>
+                <path d="M22 19 L31 17 L40 21 L38 30 H24 Z" fill="#1e243b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 27 H39" fill="none" stroke="#ff5d6c" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 21 L15 17" fill="none" stroke="#1e243b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M39 22 L43 25 L42 29 L37 27 Z" fill="#1e243b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 17 L10 11 L12 8 L21 14 Z" fill="#f2f6ff" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M18 16 L14 13" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27 30 L24 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 30 L39 38" fill="none" stroke="#0f1322" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 38 H27 M37 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+    },
+    crab: {
+        idle: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 33 L12 37 M20 35 L16 39 M23 36 L21 40" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M43 36 L45 40 M40 35 L44 39 M37 33 L42 37" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M18 27 L11 24 L8 18 L14 20 L18 24 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 24 L46 20 L52 18 L49 24 L42 27 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="29" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="26" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 22 V18 M36 22 V18" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="17" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="17" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="24.4" cy="17.2" r="0.9" fill="#24324a"/>
+                <circle cx="36.4" cy="17.2" r="0.9" fill="#24324a"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 34 L12 38 M20 36 L16 40 M23 37 L21 41" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M43 37 L45 41 M40 36 L44 40 M37 34 L42 38" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M18 28 L11 25 L8 19 L14 21 L18 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 25 L46 21 L52 19 L49 25 L42 28 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="30" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="27" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 23 V19 M36 23 V19" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="18" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="18" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <ellipse cx="24" cy="18.2" rx="1.2" ry="0.7" fill="#24324a"/>
+                <ellipse cx="36" cy="18.2" rx="1.2" ry="0.7" fill="#24324a"/>
+            </svg>`
+        },
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M16 31 L10 36 M20 34 L15 39 M24 35 L22 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M44 36 L46 40 M40 34 L44 39 M36 31 L42 35" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 26 L9 21 L6 15 L13 17 L18 22 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 25 L47 19 L54 17 L51 24 L42 28 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="27" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="24" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 20 V16 M36 20 V16" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="24.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="36.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="8" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 36 L12 40 M22 34 L17 39 M26 31 L24 36" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M42 31 L48 35 M38 34 L43 39 M34 36 L36 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 28 L12 22 L9 17 L15 19 L20 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M40 22 L47 17 L54 15 L51 21 L43 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="28" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="25" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 21 V17 M36 21 V17" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="23.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="35.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="52" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 33 L12 37 M20 35 L16 39 M23 36 L21 40" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M43 36 L45 40 M40 35 L44 39 M37 33 L42 37" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M18 27 L11 24 L8 18 L14 20 L18 24 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 24 L46 20 L52 18 L49 24 L42 27 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="29" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="26" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 22 V18 M36 22 V18" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="17" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="17" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="24.4" cy="17.2" r="0.9" fill="#24324a"/>
+                <circle cx="36.4" cy="17.2" r="0.9" fill="#24324a"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 34 L12 38 M20 36 L16 40 M23 37 L21 41" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M43 37 L45 41 M40 36 L44 40 M37 34 L42 38" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M18 29 L11 26 L8 20 L14 22 L18 26 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 26 L46 22 L52 20 L49 26 L42 29 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="30" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="27" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 23 V19 M36 23 V19" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="18" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="18" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <ellipse cx="24" cy="18.2" rx="1.2" ry="0.7" fill="#24324a"/>
+                <ellipse cx="36" cy="18.2" rx="1.2" ry="0.7" fill="#24324a"/>
+            </svg>`
+        },
+        finish: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M16 31 L10 36 M20 34 L15 39 M24 35 L22 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M44 36 L46 40 M40 34 L44 39 M36 31 L42 35" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 26 L9 21 L6 15 L13 17 L18 22 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 25 L47 19 L54 17 L51 24 L42 28 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="27" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="24" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 20 V16 M36 20 V16" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="24.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="36.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="8" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 36 L12 40 M22 34 L17 39 M26 31 L24 36" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M42 31 L48 35 M38 34 L43 39 M34 36 L36 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 28 L12 22 L9 17 L15 19 L20 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M40 22 L47 17 L54 15 L51 21 L43 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="28" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="25" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 21 V17 M36 21 V17" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="23.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="35.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="52" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`
+        },
+        victory: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M16 31 L10 36 M20 34 L15 39 M24 35 L22 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M44 36 L46 40 M40 34 L44 39 M36 31 L42 35" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 26 L9 21 L6 15 L13 17 L18 22 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 25 L47 19 L54 17 L51 24 L42 28 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="27" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="24" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 20 V16 M36 20 V16" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="24.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="36.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="8" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 36 L12 40 M22 34 L17 39 M26 31 L24 36" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M42 31 L48 35 M38 34 L43 39 M34 36 L36 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 28 L12 22 L9 17 L15 19 L20 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M40 22 L47 17 L54 15 L51 21 L43 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="28" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="25" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 21 V17 M36 21 V17" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="23.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="35.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="52" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`
+        },
+        dead: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 38 L13 40 M22 38 L18 41 M38 38 L42 41 M42 38 L47 40" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M17 31 L10 29 L8 24 L14 25 L18 28 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 28 L46 25 L52 24 L50 29 L43 31 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="34" rx="13" ry="6.5" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="32" rx="9" ry="3.8" fill="#d85749"/>
+                <path d="M24 27 V24 M36 27 V24" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="23" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="23" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <path d="M22.8 21.8 L25.2 24.2 M25.2 21.8 L22.8 24.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M34.8 21.8 L37.2 24.2 M37.2 21.8 L34.8 24.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 39 L13 41 M22 39 L18 42 M38 39 L42 42 M42 39 L47 41" fill="none" stroke="#c54b3d" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M17 32 L10 30 L8 25 L14 26 L18 29 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 29 L46 26 L52 25 L50 30 L43 32 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="35" rx="13" ry="6.5" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="33" rx="9" ry="3.8" fill="#d85749"/>
+                <path d="M24 28 V25 M36 28 V25" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="24" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="24" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <path d="M22.8 22.8 L25.2 25.2 M25.2 22.8 L22.8 25.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M34.8 22.8 L37.2 25.2 M37.2 22.8 L34.8 25.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>`
+        },
+        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M16 31 L10 36 M20 34 L15 39 M24 35 L22 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M44 36 L46 40 M40 34 L44 39 M36 31 L42 35" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 26 L9 21 L6 15 L13 17 L18 22 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M42 25 L47 19 L54 17 L51 24 L42 28 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="27" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="24" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 20 V16 M36 20 V16" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="15" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="24.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="36.5" cy="15.2" r="0.9" fill="#24324a"/>
+                <circle cx="8" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`,
+        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 36 L12 40 M22 34 L17 39 M26 31 L24 36" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M42 31 L48 35 M38 34 L43 39 M34 36 L36 40" fill="none" stroke="#c54b3d" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 28 L12 22 L9 17 L15 19 L20 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M40 22 L47 17 L54 15 L51 21 L43 25 Z" fill="#ff7b63" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="28" rx="13" ry="8" fill="#ff7b63" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="25" rx="9" ry="4.8" fill="#d85749"/>
+                <path d="M24 21 V17 M36 21 V17" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="36" cy="16" r="2.2" fill="#ffffff" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="23.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="35.5" cy="16.2" r="0.9" fill="#24324a"/>
+                <circle cx="52" cy="30" r="1.2" fill="#fff3a2"/>
+            </svg>`
+    },
+    eagle: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="30" cy="25" rx="12" ry="7" fill="#8B4513"/>
+                <circle cx="48" cy="22" r="7" fill="#8B4513"/>
+                <polygon points="55,22 63,20 63,24" fill="#FFD700"/>
+                <polygon points="55,22 63,22 58,25" fill="#DAA520"/>
+                <circle cx="52" cy="19" r="2" fill="black"/>
+                <path d="M22,25 Q5,8 28,18" fill="#654321"/>
+                <path d="M35,25 Q55,5 40,18" fill="#654321"/>
+                <polygon points="15,28 10,32 18,30" fill="#8B4513"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="30" cy="25" rx="12" ry="7" fill="#8B4513"/>
+                <circle cx="48" cy="22" r="7" fill="#8B4513"/>
+                <polygon points="55,22 63,20 63,24" fill="#FFD700"/>
+                <polygon points="55,22 63,22 58,25" fill="#DAA520"/>
+                <circle cx="52" cy="19" r="2" fill="black"/>
+                <path d="M22,25 Q5,38 28,32" fill="#654321"/>
+                <path d="M35,25 Q55,40 40,32" fill="#654321"/>
+                <polygon points="15,28 10,32 18,30" fill="#8B4513"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="30" cy="32" rx="12" ry="7" fill="#7a3d10"/>
+                <circle cx="46" cy="28" r="7" fill="#7a3d10"/>
+                <polygon points="53,28 60,26 60,30" fill="#d4a017"/>
+                <polygon points="53,28 60,28 56,31" fill="#b8860b"/>
+                <ellipse cx="50" cy="26" rx="2" ry="1" fill="black"/>
+                <path d="M22,30 Q18,28 16,32" fill="#5a3520"/>
+                <path d="M38,30 Q42,28 44,32" fill="#5a3520"/>
+                <ellipse cx="22" cy="38" rx="4" ry="2" fill="#d4a017"/>
+                <ellipse cx="38" cy="38" rx="4" ry="2" fill="#d4a017"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="30" cy="33" rx="12" ry="7" fill="#7a3d10"/>
+                <circle cx="46" cy="29" r="7" fill="#7a3d10"/>
+                <polygon points="53,29 60,27 60,31" fill="#d4a017"/>
+                <polygon points="53,29 60,29 56,32" fill="#b8860b"/>
+                <ellipse cx="50" cy="27" rx="2" ry="1" fill="black"/>
+                <path d="M22,31 Q18,29 16,33" fill="#5a3520"/>
+                <path d="M38,31 Q42,29 44,33" fill="#5a3520"/>
+                <ellipse cx="22" cy="39" rx="4" ry="2" fill="#d4a017"/>
+                <ellipse cx="38" cy="39" rx="4" ry="2" fill="#d4a017"/>
+            </svg>`
+        }
+    }
+};
+
+const POWER_VEHICLE_VARIANT_OVERRIDES = {
+    car: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M8 28 L12 21 Q15 17 22 17 H34 Q39 12 47 13 L51 16 Q54 18 54 23 V27 Q54 31 51 31 H48 Q46 35 40 35 Q35 35 34 31 H24 Q23 35 17 35 Q11 35 10 31 H8 Q6 31 6 28 Z" fill="#ff5f57" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M12 21 L16 21 L17 16 H13 Z" fill="#ffd44d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 18 H33 Q38 13 45 15 L48 18 Z" fill="#ff8f7a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M18 19 H28 L26 24 H16 Q16 21 18 19 Z" fill="#8edcff"/>
+                <path d="M29 19 H42 Q45 19 48 22 L36 24 H27 Z" fill="#8edcff"/>
+                <path d="M26 25 H41" stroke="#ffe68a" stroke-width="2" stroke-linecap="round"/>
+                <rect x="46" y="22" width="5" height="4" rx="1.5" fill="#ffe36e"/>
+                <circle cx="18" cy="30" r="6" fill="#24324a"/>
+                <circle cx="18" cy="30" r="3" fill="#f4f7fb"/>
+                <line x1="14.3" y1="27.3" x2="21.7" y2="32.7" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <line x1="21.7" y1="27.3" x2="14.3" y2="32.7" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="41" cy="30" r="6" fill="#24324a"/>
+                <circle cx="41" cy="30" r="3" fill="#f4f7fb"/>
+                <line x1="37.3" y1="27.3" x2="44.7" y2="32.7" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <line x1="44.7" y1="27.3" x2="37.3" y2="32.7" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M8 29 L12 23 Q16 19 23 19 H35 Q41 13 49 15 L53 18 Q55 20 55 24 V28 Q55 32 52 32 H49 Q47 36 41 36 Q36 36 35 32 H24 Q23 36 17 36 Q11 36 10 32 H8 Q6 32 6 29 Z" fill="#ff5f57" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M12 23 L16 23 L17 18 H13 Z" fill="#ffd44d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M21 20 H34 Q39 15 46 17 L49 20 Z" fill="#ff8f7a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 21 H29 L27 26 H17 Q17 23 19 21 Z" fill="#8edcff"/>
+                <path d="M30 21 H43 Q46 21 49 24 L37 26 H28 Z" fill="#8edcff"/>
+                <path d="M27 27 H42" stroke="#ffe68a" stroke-width="2" stroke-linecap="round"/>
+                <rect x="47" y="23" width="5" height="4" rx="1.5" fill="#ffe36e"/>
+                <circle cx="18" cy="31" r="6" fill="#24324a"/>
+                <circle cx="18" cy="31" r="3" fill="#f4f7fb"/>
+                <line x1="18" y1="26.4" x2="18" y2="35.6" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <line x1="13.4" y1="31" x2="22.6" y2="31" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="42" cy="31" r="6" fill="#24324a"/>
+                <circle cx="42" cy="31" r="3" fill="#f4f7fb"/>
+                <line x1="42" y1="26.4" x2="42" y2="35.6" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <line x1="37.4" y1="31" x2="46.6" y2="31" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M9 29 L13 22 Q16 18 22 18 H34 Q39 13 47 14 L51 17 Q54 19 54 24 V28 Q54 31 51 31 H48 Q46 35 40 35 Q35 35 34 31 H24 Q23 35 17 35 Q11 35 10 31 H9 Q7 31 7 29 Z" fill="#ff5f57" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 22 L16.5 22 L17.5 17 H13.5 Z" fill="#ffd44d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 19 H33 Q38 14 45 16 L48 19 Z" fill="#ff8f7a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M18 20 H28 L26 25 H16 Q16 22 18 20 Z" fill="#8edcff"/>
+                <path d="M29 20 H42 Q45 20 48 23 L36 25 H27 Z" fill="#8edcff"/>
+                <path d="M26 26 H40" stroke="#ffe68a" stroke-width="2" stroke-linecap="round"/>
+                <rect x="46" y="23" width="5" height="4" rx="1.5" fill="#ffd76b"/>
+                <circle cx="18" cy="31" r="6" fill="#24324a"/>
+                <circle cx="18" cy="31" r="3" fill="#f4f7fb"/>
+                <circle cx="41" cy="31" r="6" fill="#24324a"/>
+                <circle cx="41" cy="31" r="3" fill="#f4f7fb"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M9 30 L13 23 Q16 19 22 19 H34 Q39 14 47 15 L51 18 Q54 20 54 25 V29 Q54 32 51 32 H48 Q46 36 40 36 Q35 36 34 32 H24 Q23 36 17 36 Q11 36 10 32 H9 Q7 32 7 30 Z" fill="#ff5f57" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 23 L16.5 23 L17.5 18 H13.5 Z" fill="#ffd44d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 20 H33 Q38 15 45 17 L48 20 Z" fill="#ff8f7a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M18 21 H28 L26 26 H16 Q16 23 18 21 Z" fill="#8edcff"/>
+                <path d="M29 21 H42 Q45 21 48 24 L36 26 H27 Z" fill="#8edcff"/>
+                <path d="M26 27 H40" stroke="#ffe68a" stroke-width="2" stroke-linecap="round"/>
+                <rect x="46" y="24" width="5" height="4" rx="1.5" fill="#ffe36e"/>
+                <circle cx="18" cy="32" r="6" fill="#24324a"/>
+                <circle cx="18" cy="32" r="3" fill="#f4f7fb"/>
+                <circle cx="41" cy="32" r="6" fill="#24324a"/>
+                <circle cx="41" cy="32" r="3" fill="#f4f7fb"/>
+            </svg>`
+        }
+    },
+    rocket: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M13 23 Q19 11 35 11 Q46 11 52 18 L55 23 L52 28 Q46 35 35 35 Q19 35 13 23 Z" fill="#f7fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M43 12 Q51 15 55 23 Q51 31 43 34 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 17 L13 10 L14 22 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 29 L13 36 L14 24 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="36" cy="23" r="5" fill="#8edcff" stroke="#24324a" stroke-width="2"/>
+                <rect x="24" y="18" width="6" height="10" rx="2" fill="#ffd86b"/>
+                <path d="M13 23 C8 17 3 18 4 23 C3 28 8 29 13 23 Z" fill="#ff9f43"/>
+                <path d="M13 23 C9 20 6 21 6 23 C6 25 9 26 13 23 Z" fill="#ffe36e"/>
+                <circle cx="5" cy="17" r="2.5" fill="#d6dde5"/>
+                <circle cx="4.5" cy="29" r="3.2" fill="#d6dde5"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M13 22 Q19 10 35 10 Q46 10 52 17 L55 22 L52 27 Q46 34 35 34 Q19 34 13 22 Z" fill="#f7fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M43 11 Q51 14 55 22 Q51 30 43 33 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 16 L13 9 L14 21 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 28 L13 35 L14 23 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="36" cy="22" r="5" fill="#8edcff" stroke="#24324a" stroke-width="2"/>
+                <rect x="24" y="17" width="6" height="10" rx="2" fill="#ffd86b"/>
+                <path d="M13 22 C6 11 2 15 2 22 C2 29 6 34 13 22 Z" fill="#ff7d2a"/>
+                <path d="M13 22 C8 17 4 19 5 22 C4 25 8 27 13 22 Z" fill="#ffe36e"/>
+                <circle cx="6" cy="13.5" r="3" fill="#d6dde5"/>
+                <circle cx="5" cy="22" r="4" fill="#d6dde5"/>
+                <circle cx="6" cy="31" r="3" fill="#d6dde5"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M13 24 Q19 12 35 12 Q46 12 52 19 L55 24 L52 29 Q46 36 35 36 Q19 36 13 24 Z" fill="#f7fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M43 13 Q51 16 55 24 Q51 32 43 35 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 18 L13 11 L14 23 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 30 L13 37 L14 25 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="36" cy="24" r="5" fill="#8edcff" stroke="#24324a" stroke-width="2"/>
+                <rect x="24" y="19" width="6" height="10" rx="2" fill="#ffd86b"/>
+                <path d="M13 24 C10 21 8 22 8 24 C8 26 10 27 13 24 Z" fill="#ff9f43"/>
+                <path d="M13 24 C10.5 22.5 9.5 23 9.5 24 C9.5 25 10.5 25.5 13 24 Z" fill="#ffe36e"/>
+                <circle cx="7" cy="24" r="2.5" fill="#d6dde5"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M13 23 Q19 11 35 11 Q46 11 52 18 L55 23 L52 28 Q46 35 35 35 Q19 35 13 23 Z" fill="#f7fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M43 12 Q51 15 55 23 Q51 31 43 34 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 17 L13 10 L14 22 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M20 29 L13 36 L14 24 Z" fill="#ff5d64" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="36" cy="23" r="5" fill="#8edcff" stroke="#24324a" stroke-width="2"/>
+                <rect x="24" y="18" width="6" height="10" rx="2" fill="#ffd86b"/>
+                <path d="M13 23 C9.5 20.5 7.5 21.5 7.5 23 C7.5 24.5 9.5 25.5 13 23 Z" fill="#ff9f43"/>
+                <path d="M13 23 C10.5 21.8 9.5 22.2 9.5 23 C9.5 23.8 10.5 24.2 13 23 Z" fill="#ffe36e"/>
+                <circle cx="7.5" cy="22.5" r="2.1" fill="#d6dde5"/>
+            </svg>`
+        }
+    },
+    bird: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="26" cy="24" rx="13" ry="10" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <circle cx="41" cy="20" r="8" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <path d="M22 24 Q10 8 21 4 Q34 9 31 22 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="28" cy="27" rx="7" ry="5" fill="#fff1c2"/>
+                <polygon points="47,21 55,18 54,24" fill="#ffb347" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 25 L8 22 L8 29 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="43" cy="18.5" r="2" fill="#24324a"/>
+                <circle cx="44" cy="18" r="0.8" fill="#ffffff"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="26" cy="25" rx="13" ry="10" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <circle cx="41" cy="21" r="8" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <path d="M22 27 Q9 34 14 40 Q29 39 31 28 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="28" cy="28" rx="7" ry="5" fill="#fff1c2"/>
+                <polygon points="47,22 55,19 54,25" fill="#ffb347" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 26 L7 29 L9 33 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="43" cy="19.5" r="2" fill="#24324a"/>
+                <circle cx="44" cy="19" r="0.8" fill="#ffffff"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="27" cy="29" rx="14" ry="10" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <circle cx="41" cy="25" r="8" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <path d="M22 29 Q27 22 34 28 Q31 34 23 34 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="29" cy="32" rx="7" ry="5" fill="#fff1c2"/>
+                <polygon points="47,26 54,24 54,29" fill="#ffb347" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 29 L8 27 L8 32 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="43" cy="23.5" r="2" fill="#24324a"/>
+                <line x1="24" y1="37" x2="22" y2="40" stroke="#ffb347" stroke-width="2" stroke-linecap="round"/>
+                <line x1="29" y1="37" x2="27" y2="40" stroke="#ffb347" stroke-width="2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <ellipse cx="27" cy="30" rx="14" ry="10" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <circle cx="41" cy="26" r="8" fill="#5cced8" stroke="#24324a" stroke-width="2"/>
+                <path d="M22 30 Q27 23 34 29 Q31 35 23 35 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="29" cy="33" rx="7" ry="5" fill="#fff1c2"/>
+                <polygon points="47,27 54,25 54,30" fill="#ffb347" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 30 L8 28 L8 33 Z" fill="#2f9db1" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <line x1="42" y1="24.5" x2="45" y2="24.5" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <line x1="24" y1="38" x2="22" y2="41" stroke="#ffb347" stroke-width="2" stroke-linecap="round"/>
+                <line x1="29" y1="38" x2="27" y2="41" stroke="#ffb347" stroke-width="2" stroke-linecap="round"/>
+            </svg>`
+        }
+    },
+    boat: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M6 35 Q11 31 16 35 Q21 39 26 35 Q31 31 36 35 Q41 39 46 35 Q51 31 54 34" fill="none" stroke="#49c6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M12 30 L20 20 H44 Q49 20 53 25 L49 33 H20 Q15 33 12 30 Z" fill="#ff6a5f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M24 20 H36 L40 27 H22 Z" fill="#f8fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M28 22 H35 L37 26 H27 Z" fill="#8edcff"/>
+                <path d="M18 27 H44" stroke="#ffd970" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 31 Q7 29 6 25" fill="none" stroke="#f8fbff" stroke-width="2" stroke-linecap="round"/>
+                <path d="M7 33 Q4 31 4 28" fill="none" stroke="#d9f7ff" stroke-width="2" stroke-linecap="round"/>
+                <path d="M49 29 Q52 28 54 30" fill="none" stroke="#f8fbff" stroke-width="2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M6 34 Q11 38 16 34 Q21 30 26 34 Q31 38 36 34 Q41 30 46 34 Q51 38 54 35" fill="none" stroke="#49c6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M11 28 L18 22 H42 Q49 19 54 23 L50 32 H19 Q14 32 11 28 Z" fill="#ff6a5f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M23 21 H35 L39 26 H21 Z" fill="#f8fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M27 23 H34 L36 26 H26 Z" fill="#8edcff"/>
+                <path d="M18 26 H43" stroke="#ffd970" stroke-width="2" stroke-linecap="round"/>
+                <path d="M11 30 Q8 27 8 23" fill="none" stroke="#f8fbff" stroke-width="2" stroke-linecap="round"/>
+                <path d="M8 32 Q5 29 5 26" fill="none" stroke="#d9f7ff" stroke-width="2" stroke-linecap="round"/>
+                <path d="M50 27 Q53 26 55 28" fill="none" stroke="#f8fbff" stroke-width="2" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M6 34 Q11 32 16 34 Q21 36 26 34 Q31 32 36 34 Q41 36 46 34 Q51 32 54 33" fill="none" stroke="#49c6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M13 30 L21 22 H43 Q48 22 52 27 L48 34 H20 Q15 34 13 30 Z" fill="#ff6a5f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 22 H36 L39 28 H23 Z" fill="#f8fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M28 24 H35 L36.5 27 H27 Z" fill="#8edcff"/>
+                <path d="M19 28 H43" stroke="#ffd970" stroke-width="2" stroke-linecap="round"/>
+                <path d="M49 30 Q51 30 53 31" fill="none" stroke="#f8fbff" stroke-width="2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M6 33 Q11 35 16 33 Q21 31 26 33 Q31 35 36 33 Q41 31 46 33 Q51 35 54 34" fill="none" stroke="#49c6ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M13 31 L21 23 H43 Q48 23 52 28 L48 35 H20 Q15 35 13 31 Z" fill="#ff6a5f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 23 H36 L39 29 H23 Z" fill="#f8fbff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M28 25 H35 L36.5 28 H27 Z" fill="#8edcff"/>
+                <path d="M19 29 H43" stroke="#ffd970" stroke-width="2" stroke-linecap="round"/>
+                <path d="M49 31 Q51 31 53 32" fill="none" stroke="#f8fbff" stroke-width="2" stroke-linecap="round"/>
+            </svg>`
+        }
+    },
+    bicycle: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="15" cy="32" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <circle cx="45" cy="32" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M15 24 L15 40 M7 32 H23 M10 26 L20 38 M10 38 L20 26" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M45 24 L45 40 M37 32 H53 M40 26 L50 38 M40 38 L50 26" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M15 32 L25 22 L35 22 L45 32 L30 32 Z" fill="#5ccb68" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M25 22 L30 32 L35 22" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M35 22 L40 17.5 L43.5 19.5" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 21 H27" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="30" cy="32" r="2.8" fill="#ffd970" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M30 32 L34 28" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="34" cy="28" r="1.7" fill="#ff9b6e" stroke="#24324a" stroke-width="1.4"/>
+                <path d="M30 32 L25.5 36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25.5" cy="36" r="1.7" fill="#ff9b6e" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="31" cy="13.5" r="4.1" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M27.8 13.2 Q31 10.2 34.2 13.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="32.2" cy="13.2" r="0.45" fill="#ffffff"/>
+                <path d="M27.5 18 Q31 15.8 34.2 18.8 L35 24 L28 24 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 18.5 L25 22 M34 19.5 L40 18" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M29 24 L29 30 L26 35" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33 24 L34.5 29 L37.5 33.5" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M5 28 Q3 29 4 31" fill="none" stroke="#fff6a3" stroke-width="2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="15" cy="31" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <circle cx="45" cy="32" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M15 23 L15 39 M7 31 H23 M10 31 H20 M10 26 L20 36" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M45 24 L45 40 M37 32 H53 M40 32 H50 M40 27 L50 37" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M15 31 L25 23 L35 23 L45 32 L30 32 Z" fill="#5ccb68" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M25 23 L30 32 L35 23" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M35 23 L40.5 18 L44 20" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 22 H27" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="30" cy="32" r="2.8" fill="#ffd970" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M30 32 L34.5 36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="34.5" cy="36" r="1.7" fill="#ff9b6e" stroke="#24324a" stroke-width="1.4"/>
+                <path d="M30 32 L25.5 28" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25.5" cy="28" r="1.7" fill="#ff9b6e" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="32" cy="14.5" r="4.1" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M28.7 14.2 Q32 11.2 35.2 14.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="33.2" cy="14.2" r="0.45" fill="#ffffff"/>
+                <path d="M28.5 19 Q32 17 35 19.6 L35.6 25 L28.7 24.7 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 19 L25 23 M34.8 20 L40.5 18.5" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M29.5 24.6 L27.5 29.5 L24.5 33.5" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33.4 24.8 L34 31 L37 36" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M5 27 Q3 28 4 30" fill="none" stroke="#fff6a3" stroke-width="2" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="15" cy="32" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <circle cx="45" cy="32" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M15 24 L15 40 M7 32 H23 M10 26 L20 38 M10 38 L20 26" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M45 24 L45 40 M37 32 H53 M40 26 L50 38 M40 38 L50 26" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M15 32 L25 23 L35 23 L45 32 L30 32 Z" fill="#5ccb68" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M25 23 L30 32 L35 23" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M35 23 L40 18 L43.5 20" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 22 H27" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="30" cy="32" r="2.8" fill="#ffd970" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M30 32 L33 29" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M30 32 L27 35" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="31" cy="15.5" r="4.1" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M27.7 15.2 Q31 12.3 34.2 15.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="32.2" cy="15.2" r="0.45" fill="#ffffff"/>
+                <path d="M27.6 20 Q31 18.2 34.1 20.4 L34.7 25 L28.1 24.8 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29.2 20.2 L25.2 23.2 M33.8 20.8 L39.5 19" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M29.2 24.8 L29.2 29.8 L27 34" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33.1 24.8 L33.6 29.6 L36 33.2" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="15" cy="33" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <circle cx="45" cy="33" r="8.5" fill="#f4fff0" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M15 25 L15 41 M7 33 H23 M10 27 L20 39 M10 39 L20 27" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M45 25 L45 41 M37 33 H53 M40 27 L50 39 M40 39 L50 27" fill="none" stroke="#8edb8c" stroke-width="2" stroke-linecap="round"/>
+                <path d="M15 33 L25 24 L35 24 L45 33 L30 33 Z" fill="#5ccb68" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M25 24 L30 33 L35 24" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M35 24 L40 19 L43.5 21" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 23 H27" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="30" cy="33" r="2.8" fill="#ffd970" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M30 33 L33 30" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M30 33 L27 36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="31" cy="16.5" r="4.1" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M27.7 16.2 Q31 13.3 34.2 16.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M27.6 21 Q31 19.2 34.1 21.4 L34.5 25.8 L28.1 25.7 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 21.1 L25.1 24 M33.6 21.6 L39.4 19.8" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M29 25.7 L29.1 30.4 L27.2 34.4" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33 25.7 L33.5 30.4 L35.6 34.2" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        }
+    },
+    rabbit: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="17" cy="22" r="3.2" fill="#fff3f8" stroke="#24324a" stroke-width="2"/>
+                <ellipse cx="29" cy="23" rx="13" ry="8" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <circle cx="43" cy="18" r="6" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M40 15 Q31 8 26 7 Q30 14 35 18 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M42 13 Q35 5 30 4 Q33 12 38 16 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M38 14 Q33 10 30 9" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M40 12 Q35 8 32 6" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M18 25 Q10 30 5 27 Q10 20 18 20 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M22 28 Q12 33 8 38 Q18 39 28 31 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M30 29 Q37 31 45 29" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M47 22 Q51 24 53 29" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="45.5" cy="17.5" r="1.2" fill="#24324a"/>
+                <circle cx="46" cy="17.1" r="0.45" fill="#ffffff"/>
+                <circle cx="49.5" cy="20" r="0.9" fill="#ff9b9b"/>
+                <path d="M48.5 21.8 Q50.4 22.4 51.6 21.3" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="16" cy="27" r="3.2" fill="#fff3f8" stroke="#24324a" stroke-width="2"/>
+                <ellipse cx="29" cy="28" rx="14" ry="7" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <circle cx="43" cy="22" r="6" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M39 15 L39 5 Q42 2 45 5 L44 18 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M44 16 L46 6 Q49 3 52 6 L49 19 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M40.5 15.5 L41.5 7.5" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M46 16.5 L47 8.5" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M19 28 Q11 30 8 35 Q17 36 22 31 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 30 Q33 37 41 37 Q39 30 34 27 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M42 28 Q47 31 51 35" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M49 23 Q52 24 54 22" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="45.5" cy="21.5" r="1.2" fill="#24324a"/>
+                <circle cx="46" cy="21.1" r="0.45" fill="#ffffff"/>
+                <circle cx="49.5" cy="24" r="0.9" fill="#ff9b9b"/>
+                <path d="M48.5 25.8 Q50.3 26.2 51.6 25.1" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="19" cy="33" r="3" fill="#fff3f8" stroke="#24324a" stroke-width="2"/>
+                <ellipse cx="28" cy="30" rx="12" ry="8" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <circle cx="42" cy="22" r="6" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M39 16 L39 7 Q42 3 45 7 L44 19 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M44 16 Q46 9 50 7 Q52 10 49 19 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M40.5 16 L41.4 8.8" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M46 16 Q47 11 48.7 8.8" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M21 33 Q19 38 23 40" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M30 34 Q33 38 37 36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="44.5" cy="21.5" r="1.2" fill="#24324a"/>
+                <circle cx="45" cy="21.1" r="0.45" fill="#ffffff"/>
+                <circle cx="48.8" cy="24" r="0.9" fill="#ff9b9b"/>
+                <path d="M47.8 25.6 Q49.2 26.3 50.4 25.4" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="19" cy="34" r="3" fill="#fff3f8" stroke="#24324a" stroke-width="2"/>
+                <ellipse cx="28" cy="31" rx="12" ry="8" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <circle cx="42" cy="23" r="6" fill="#fff3f8" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M40 17 L40 8 Q43 4 46 8 L45 20 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M45 18 Q48 12 51 11 Q53 14 50 21 Z" fill="#fff3f8" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M41.5 17 L42.2 10" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M46.5 18 Q48 14 49.7 12.7" fill="none" stroke="#ffb6d8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M21 34 Q19 39 23 41" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M30 35 Q33 39 37 37" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <ellipse cx="44.5" cy="22.5" rx="1.5" ry="0.8" fill="#24324a"/>
+                <circle cx="48.8" cy="25" r="0.9" fill="#ff9b9b"/>
+                <path d="M47.8 26.6 Q49.2 27.3 50.4 26.4" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>`
+        }
+    },
+    turtle: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M10 28 Q8 27 7 29 Q8 31 10 31 Q12 30 10 28 Z" fill="#8ddf8c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 26 Q9 22 12 19 Q16 18 20 22 Q18 26 13 26 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M14 34 Q10 37 12 40 Q16 40 21 36 Q18 35 14 34 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M36 22 Q42 17 47 20 Q48 24 43 27 Q38 27 36 22 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 35 Q41 40 47 37 Q48 33 43 31 Q38 31 35 35 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="28" rx="16.2" ry="11.2" fill="#59c56d" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M16 28 Q19 20 27 18 Q35 20 38 28 Q35 36 27 38 Q19 36 16 28 Z" fill="#d7ef7f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M21 22 Q27 18 33 22 M18 28 H36 M21 34 Q27 38 33 34 M22 23 Q25 28 22 33 M32 23 Q29 28 32 33" fill="none" stroke="#7ca845" stroke-width="2" stroke-linecap="round"/>
+                <path d="M40 22 Q47 19 53 23 Q52 29 44 29 Q40 27 40 22 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="49.6" cy="23.4" r="1.25" fill="#24324a"/>
+                <circle cx="50.1" cy="22.9" r="0.4" fill="#ffffff"/>
+                <circle cx="46.2" cy="26.1" r="1" fill="#ffb8bd"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M10 27 Q8 26 7 28 Q8 30 10 30 Q12 29 10 27 Z" fill="#8ddf8c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M13 22 Q9 18 12 16 Q16 16 20 19 Q18 23 13 23 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M15 31 Q11 33 12 38 Q16 39 21 34 Q18 33 15 31 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M36 24 Q42 29 47 26 Q48 21 43 19 Q38 19 36 24 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M36 37 Q42 42 47 39 Q48 34 42 32 Q38 33 36 37 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="27" rx="16.2" ry="11.2" fill="#59c56d" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M16 27 Q19 19 27 17 Q35 19 38 27 Q35 35 27 37 Q19 35 16 27 Z" fill="#d7ef7f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M21 21 Q27 17 33 21 M18 27 H36 M21 33 Q27 37 33 33 M22 22 Q25 27 22 32 M32 22 Q29 27 32 32" fill="none" stroke="#7ca845" stroke-width="2" stroke-linecap="round"/>
+                <path d="M39 23 Q47 20 53 25 Q51 31 43 30 Q39 27 39 23 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="48.8" cy="24.8" r="1.25" fill="#24324a"/>
+                <circle cx="49.3" cy="24.3" r="0.4" fill="#ffffff"/>
+                <circle cx="45.6" cy="27" r="1" fill="#ffb8bd"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M11 29 Q9 28 8 30 Q9 32 11 32 Q13 31 11 29 Z" fill="#8ddf8c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M14 27 Q11 23 14 21 Q18 21 21 24 Q18 27 14 27 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M15 35 Q13 39 16 40 Q19 40 22 36 Q18 36 15 35 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 23 Q40 20 44 22 Q45 25 40 28 Q36 27 35 23 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 35 Q39 38 43 36 Q44 33 40 31 Q36 31 35 35 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="28.5" rx="16.2" ry="11.2" fill="#59c56d" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M16 28.5 Q19 20.5 27 18.5 Q35 20.5 38 28.5 Q35 36.5 27 38.5 Q19 36.5 16 28.5 Z" fill="#d7ef7f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M21 22 Q27 18 33 22 M18 28.5 H36 M21 35 Q27 39 33 35 M22 23 Q25 28 22 33 M32 23 Q29 28 32 33" fill="none" stroke="#7ca845" stroke-width="2" stroke-linecap="round"/>
+                <path d="M38 23 Q45 21 50 24 Q49 29 41 28 Q37 26 38 23 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="46.4" cy="24.7" r="1.2" fill="#24324a"/>
+                <circle cx="46.9" cy="24.3" r="0.38" fill="#ffffff"/>
+                <circle cx="43.8" cy="26.8" r="0.95" fill="#ffb8bd"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M11 30 Q9 29 8 31 Q9 33 11 33 Q13 32 11 30 Z" fill="#8ddf8c" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M14 28 Q11 24 14 22 Q18 22 21 25 Q18 28 14 28 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M15 36 Q13 40 16 41 Q19 41 22 37 Q18 37 15 36 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 24 Q38 22 40 23 Q40 26 37 28 Q35 27 35 24 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 36 Q39 39 43 37 Q44 34 40 32 Q36 32 35 36 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="29.5" rx="16.2" ry="11.2" fill="#59c56d" stroke="#24324a" stroke-width="2.4"/>
+                <path d="M16 29.5 Q19 21.5 27 19.5 Q35 21.5 38 29.5 Q35 37.5 27 39.5 Q19 37.5 16 29.5 Z" fill="#d7ef7f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M21 23 Q27 19 33 23 M18 29.5 H36 M21 36 Q27 40 33 36 M22 24 Q25 29 22 34 M32 24 Q29 29 32 34" fill="none" stroke="#7ca845" stroke-width="2" stroke-linecap="round"/>
+                <path d="M36 24 Q40 23 42 24 Q42 27 38 28 Q36 27 36 24 Z" fill="#9de39a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="40.8" cy="25.2" rx="1.35" ry="0.75" fill="#24324a"/>
+                <circle cx="39.2" cy="27.4" r="0.9" fill="#ffb8bd"/>
+            </svg>`
+        }
+    },
+    scooter: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="18" cy="33" r="5.8" fill="#24324a"/>
+                <circle cx="18" cy="33" r="2.8" fill="#f3fbff"/>
+                <path d="M14.6 29.6 L21.4 36.4 M21.4 29.6 L14.6 36.4" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="45" cy="32" r="5.8" fill="#24324a"/>
+                <circle cx="45" cy="32" r="2.8" fill="#f3fbff"/>
+                <path d="M41.6 28.6 L48.4 35.4 M48.4 28.6 L41.6 35.4" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M17 27 Q22 20 31 20 H36 Q41 20 45 24 L49 28 L48 31 H31 Q29 35 24 35 H18 Q14 35 13 31 Q13 28 17 27 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M30 19 H38 Q42 19 44 22 L35 24 H28 Z" fill="#8ad8ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M22 18 H31 Q33 18 33 21 H20 Z" fill="#ffdf72" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 24 Q40 16 47 16 Q50 17 50 22 L47 22 Q46 19 42 20 Q39 21 38 25 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M44 16 L46 11 H50" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 29 H33" fill="none" stroke="#fff0a1" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="46.8" cy="23.8" r="1.6" fill="#fff0a1" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="28" cy="13.5" r="4.2" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M24.7 13.2 Q28 10.2 31.3 13.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="29.2" cy="13.2" r="0.45" fill="#ffffff"/>
+                <path d="M24.8 18 Q28 16 31.8 18.5 L32.2 24.5 L25.5 24.2 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26.6 18.6 L24 21.4 M31.4 19.2 L37.2 18.6" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M27.2 24.3 L27.5 29.5 L26 34" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M31.4 24.2 L34 29 H39.5" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="18" cy="32" r="5.8" fill="#24324a"/>
+                <circle cx="18" cy="32" r="2.8" fill="#f3fbff"/>
+                <path d="M18 27.4 V36.6 M13.4 32 H22.6" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="45" cy="33" r="5.8" fill="#24324a"/>
+                <circle cx="45" cy="33" r="2.8" fill="#f3fbff"/>
+                <path d="M45 28.4 V37.6 M40.4 33 H49.6" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M16 26 Q22 18 31 18 H37 Q43 18 47 23 L50 27 L49 30 H32 Q30 34 24 34 H18 Q14 34 12 30 Q12 27 16 26 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M31 17 H39 Q43 17 46 20 L35 22 H29 Z" fill="#8ad8ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M22 16 H31 Q33 16 34 19 H20 Z" fill="#ffdf72" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M36 22 Q42 14 48 14 Q51 15 51 20 L48 20 Q47 17 43 18 Q40 19 39 23 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M45 14 L47 9 H51" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 28 H33" fill="none" stroke="#fff0a1" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="47.5" cy="21.5" r="1.6" fill="#fff0a1" stroke="#24324a" stroke-width="1.4"/>
+                <circle cx="29" cy="12.5" r="4.2" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M25.7 12.2 Q29 9.3 32.3 12.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="30.2" cy="12.2" r="0.45" fill="#ffffff"/>
+                <path d="M25.8 17.2 Q29.2 15.2 32.7 18 L33.3 24 L26.4 23.8 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M27.5 17.8 L24.8 20.2 M32.1 18.7 L38.2 17.6" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M28 23.8 L27.3 28.7 L24.8 33" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M32.2 23.8 L35 28.3 L40 28.3" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="18" cy="33" r="5.8" fill="#24324a"/>
+                <circle cx="18" cy="33" r="2.8" fill="#f3fbff"/>
+                <circle cx="45" cy="33" r="5.8" fill="#24324a"/>
+                <circle cx="45" cy="33" r="2.8" fill="#f3fbff"/>
+                <path d="M17 27 Q22 21 31 21 H36 Q41 21 45 25 L48 28 L47 32 H31 Q29 35 24 35 H18 Q14 35 13 32 Q13 28 17 27 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M30 20 H38 Q42 20 44 23 L35 25 H28 Z" fill="#8ad8ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M22 19 H31 Q33 19 33 22 H20 Z" fill="#ffdf72" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 24 Q40 17 46 17 Q49 18 49 22 L46 22 Q45 20 42 21 Q39 22 38 25 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M44 17 L46 12 H49.5" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 29 H33" fill="none" stroke="#fff0a1" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28" cy="14.5" r="4.2" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M24.7 14.2 Q28 11.3 31.3 14.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M24.9 19 Q28.2 17.5 31.6 19.8 L31.9 25.2 L25.6 24.9 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26.5 19.4 L24.2 21.6 M31.2 20 L36.8 19.3" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M27.3 24.8 L27.7 29.6 L26.4 34" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M31.1 24.8 L33.2 28.7 L38 28.7" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <circle cx="18" cy="34" r="5.8" fill="#24324a"/>
+                <circle cx="18" cy="34" r="2.8" fill="#f3fbff"/>
+                <circle cx="45" cy="34" r="5.8" fill="#24324a"/>
+                <circle cx="45" cy="34" r="2.8" fill="#f3fbff"/>
+                <path d="M17 28 Q22 22 31 22 H36 Q41 22 45 26 L48 29 L47 33 H31 Q29 36 24 36 H18 Q14 36 13 33 Q13 29 17 28 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M30 21 H38 Q42 21 44 24 L35 26 H28 Z" fill="#8ad8ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M22 20 H31 Q33 20 33 23 H20 Z" fill="#ffdf72" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 25 Q40 18 46 18 Q49 19 49 23 L46 23 Q45 21 42 22 Q39 23 38 26 Z" fill="#58b9ff" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M44 18 L46 13 H49.5" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 30 H33" fill="none" stroke="#fff0a1" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="28" cy="15.5" r="4.2" fill="#ffb14d" stroke="#24324a" stroke-width="2"/>
+                <path d="M24.7 15.2 Q28 12.3 31.3 15.2" fill="none" stroke="#24324a" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M24.9 20 Q28.2 18.5 31.6 20.8 L31.9 26.2 L25.6 25.9 Z" fill="#59b4ff" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26.5 20.4 L24.2 22.6 M31.2 21 L36.8 20.3" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M27.3 25.8 L27.7 30.6 L26.4 35" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M31.1 25.8 L33.2 29.7 L38 29.7" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        }
+    },
+    helicopter: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 22 Q17 15 25 14 H38 Q46 14 48 22 Q47 30 39 31 H26 Q18 31 17 22 Z" fill="#ff7c7c" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M17 20 H10 Q6 20 5 17 Q5 14 9 14 H18 Z" fill="#ff9e84" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 16 H38 Q42 16 45 20 L35 24 H24 Q24 18 28 16 Z" fill="#ffd8d8" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="39.5" cy="21.5" r="4.3" fill="#8ad8ff" stroke="#24324a" stroke-width="2"/>
+                <path d="M6 14 L10 14 M8 12 L8 16" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M31 14 L31 8" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M13 8 H49" fill="none" stroke="#24324a" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M21 34 H41 M19 34 Q16 38 13 38 M43 34 Q46 38 49 38" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 27 Q11 30 7 28" fill="none" stroke="#ffe48b" stroke-width="2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 21 Q17 14 25 13 H38 Q46 13 48 21 Q47 29 39 30 H26 Q18 30 17 21 Z" fill="#ff7c7c" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M17 19 H10 Q6 19 5 16 Q5 13 9 13 H18 Z" fill="#ff9e84" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 15 H38 Q42 15 45 19 L35 23 H24 Q24 17 28 15 Z" fill="#ffd8d8" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="39.5" cy="20.5" r="4.3" fill="#8ad8ff" stroke="#24324a" stroke-width="2"/>
+                <path d="M6 12 L10 16 M10 12 L6 16" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M31 13 L31 7" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M17 7 L46 19 M46 7 L17 19" fill="none" stroke="#24324a" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M21 33 H41 M19 33 Q16 37 13 37 M43 33 Q46 37 49 37" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 26 Q11 29 7 27" fill="none" stroke="#ffe48b" stroke-width="2" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 23 Q17 17 25 17 H38 Q46 17 48 23 Q47 30 39 31 H26 Q18 31 17 23 Z" fill="#ff7c7c" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M17 21 H10 Q6 21 5 18 Q5 15 9 15 H18 Z" fill="#ff9e84" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 18 H38 Q42 18 45 22 L35 25 H24 Q24 19 28 18 Z" fill="#ffd8d8" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="39.5" cy="23" r="4.3" fill="#8ad8ff" stroke="#24324a" stroke-width="2"/>
+                <path d="M6 15 L10 15 M8 13.5 L8 16.5" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M31 17 L31 11" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M15 11 H46" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 34 H41 M19 34 Q16 38 13 38 M43 34 Q46 38 49 38" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 24 Q17 18 25 18 H38 Q46 18 48 24 Q47 31 39 32 H26 Q18 32 17 24 Z" fill="#ff7c7c" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M17 22 H10 Q6 22 5 19 Q5 16 9 16 H18 Z" fill="#ff9e84" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 19 H38 Q42 19 45 23 L35 26 H24 Q24 20 28 19 Z" fill="#ffd8d8" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="39.5" cy="24" r="4.3" fill="#8ad8ff" stroke="#24324a" stroke-width="2"/>
+                <path d="M6 15.5 L10 14.5 M8 13 L8.5 16.5" fill="none" stroke="#24324a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M31 18 L31 12" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M16 12 L45 14" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 35 H41 M19 35 Q16 39 13 39 M43 35 Q46 39 49 39" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`
+        }
+    },
+    horse: {
+        idle: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 24 Q9 21 7 16 Q11 17 14 18 Q13 22 14 24 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25.5" cy="26" rx="13" ry="8.5" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="26" cy="28" rx="8.5" ry="5.1" fill="#d99a60"/>
+                <path d="M31 25 Q34 17 39 13 Q45 10 49 14 Q50 18 47 23 Q43 27 37 27 L32 27 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M36 14 Q33 16 32 24 Q35 22 38 26 Q41 21 42 13 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M40.5 12 L41.5 7 Q43 5 44.8 8 L44.2 14 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M44.5 12 L46.2 7 Q48 5.2 49.3 8 L48.3 14 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="48.3" cy="19" rx="4.7" ry="3.4" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="46.2" cy="17.2" r="1.15" fill="#24324a"/>
+                <circle cx="46.7" cy="16.8" r="0.4" fill="#ffffff"/>
+                <circle cx="50.5" cy="18.9" r="0.45" fill="#6d4122"/>
+                <path d="M49.6 19.7 Q50.8 20.6 52.1 19.8" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20 21 Q25 19 30 21 Q29 25 24 26 Q20 24 20 21 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 33 Q17 37 17 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24 33 Q24 37 24 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 33 Q31 37 31 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36 32 Q39 36 41 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M15.8 40 H18.2 M22 40 H26 M29 40 H33 M39 39 H42.5" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 25 Q9 23 8 18 Q11 19 14 20 Q13 23 14 25 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25.5" cy="27" rx="13" ry="8.5" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="26" cy="29" rx="8.5" ry="5.1" fill="#d99a60"/>
+                <path d="M31 26 Q34 18 39 14 Q45 11 49 15 Q50 19 47 24 Q43 28 37 28 L32 28 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M36 15 Q33 17 32 25 Q35 23 38 27 Q41 22 42 14 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M41 13 L42 8 Q43.4 6 45 9 L44.5 15 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M45 13 L46.5 8 Q48 6.2 49.2 9 L48.5 15 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="48.3" cy="20" rx="4.7" ry="3.4" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <ellipse cx="46.3" cy="18.2" rx="1.35" ry="0.75" fill="#24324a"/>
+                <circle cx="50.5" cy="19.9" r="0.45" fill="#6d4122"/>
+                <path d="M49.6 20.7 Q50.8 21.6 52.1 20.8" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20 22 Q25 20 30 22 Q29 26 24 27 Q20 25 20 22 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 34 Q17 38 17 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24 34 Q24 38 24 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 34 Q32 38 32 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36 33 Q39 37 40 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M15.8 40 H18.2 M22 40 H26 M30 40 H33.5 M38 39 H41.5" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 24 Q8 19 6 13 Q11 15 15 17 Q14 21 14 24 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25" cy="25.5" rx="13" ry="8.3" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="25.5" cy="27.3" rx="8.5" ry="5" fill="#d99a60"/>
+                <path d="M31 24.5 Q35 16 41 12.5 Q47 10.5 50 14.5 Q51 19 48 23.5 Q44 27.5 38 28 L32 27 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M36.5 13.5 Q32.5 16 31.5 24.5 Q35 22 39 27 Q42 21.5 43 13 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M41 12 L42 6.5 Q43.5 4.5 45 7.5 L44.5 13.5 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M45 12 L46.8 6.8 Q48.5 4.8 49.6 7.8 L48.8 13.8 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="49" cy="19" rx="4.8" ry="3.4" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="46.8" cy="17.1" r="1.15" fill="#24324a"/>
+                <circle cx="47.3" cy="16.7" r="0.4" fill="#ffffff"/>
+                <circle cx="51.1" cy="18.8" r="0.45" fill="#6d4122"/>
+                <path d="M50.2 19.7 Q51.5 20.4 52.7 19.4" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20 20.5 Q25 18.5 30 20.5 Q29 24.5 24 25.7 Q20 23.7 20 20.5 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M18 32 Q14 36 12 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24 32 Q22 37 22 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 32 Q32 36 33 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36 31 Q40 34 44 38" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M10.6 40 H13.8 M20 40 H23.8 M31.5 39 H34.6 M42 37.8 H45.4" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 23 Q9 20 7 15 Q11 16 15 18 Q14 21 14 23 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25" cy="24.5" rx="13" ry="8.3" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="25.5" cy="26.3" rx="8.5" ry="5" fill="#d99a60"/>
+                <path d="M31 23.5 Q35 14.5 41 11.5 Q47 9.8 50 13.8 Q51 18.2 48 22.5 Q44 26.5 38 27 L32 26 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M36.5 12.5 Q33 15 32 23.5 Q35 21 39 26 Q42 20.5 43 12 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M41 11 L42.2 5.5 Q43.8 3.8 45.2 6.8 L44.6 12.5 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M45 11 L46.8 5.7 Q48.5 4 49.6 7 L48.8 12.8 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="49" cy="18" rx="4.8" ry="3.4" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="46.8" cy="16.1" r="1.15" fill="#24324a"/>
+                <circle cx="47.3" cy="15.7" r="0.4" fill="#ffffff"/>
+                <circle cx="51.1" cy="17.8" r="0.45" fill="#6d4122"/>
+                <path d="M50.2 18.7 Q51.5 19.4 52.7 18.4" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20 19.5 Q25 17.5 30 19.5 Q29 23.5 24 24.7 Q20 22.7 20 19.5 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 31 Q18 36 18 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24 31 Q20 34 16 38" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 31 Q35 35 38 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36 31 Q40 36 44 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M16.2 39 H19.5 M13.2 38 H16.6 M36.5 39 H39.8 M42 39 H45.2" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 27 Q10 27 8 23 Q11 23 14 22 Q14 25 14 27 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25.5" cy="29" rx="13" ry="8.5" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="26" cy="30.8" rx="8.5" ry="5.1" fill="#d99a60"/>
+                <path d="M31 28 Q34 21 38.5 18 Q44 15 47.5 18 Q48.5 22 46 25.5 Q42 29 37 30 L31.5 30 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M35.5 18.5 Q33 20 32 27.5 Q35 26 37.5 29.5 Q40 25.5 40.5 18 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M39.5 17 L40.5 12.5 Q42 10.5 43.6 13 L43.2 18 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M43 17 L44.5 12.5 Q46 10.8 47.2 13.2 L46.6 18 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="46.8" cy="22.2" rx="4.4" ry="3.2" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="44.9" cy="20.6" r="1.1" fill="#24324a"/>
+                <circle cx="45.4" cy="20.2" r="0.4" fill="#ffffff"/>
+                <circle cx="48.7" cy="21.9" r="0.42" fill="#6d4122"/>
+                <path d="M47.6 22.8 Q48.7 23.6 49.9 22.9" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20 24 Q25 22.5 29.5 24 Q28.5 27.6 24 28.2 Q20.4 27 20 24 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 35 Q18 38 18 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24 35 Q24 38 24 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 35 Q31 38 31 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36 35 Q37 38 38 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M16 40 H19 M22 40 H26 M29 40 H33 M36.2 40 H39.2" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 28 Q10 28 9 24 Q12 24 14 23 Q14 26 14 28 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25.5" cy="30" rx="13" ry="8.5" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="26" cy="31.8" rx="8.5" ry="5.1" fill="#d99a60"/>
+                <path d="M31 29 Q34 22 38 19 Q43.5 16 47 19 Q48 23 45.5 26.5 Q41.8 30 36.8 31 L31.5 31 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M35.2 19.5 Q33 21 32 28.2 Q35 26.8 37.2 30.2 Q39.6 26.2 40 19.2 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M39.3 18 L40.2 13.6 Q41.6 11.5 43.1 14 L42.8 19 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M42.7 18 L44.1 13.6 Q45.7 12 46.8 14.4 L46.3 19 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="46.3" cy="23.1" rx="4.4" ry="3.2" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <ellipse cx="44.5" cy="21.5" rx="1.25" ry="0.7" fill="#24324a"/>
+                <circle cx="48.2" cy="22.8" r="0.42" fill="#6d4122"/>
+                <path d="M47.1 23.7 Q48.2 24.5 49.4 23.8" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20 25 Q25 23.5 29.5 25 Q28.5 28.6 24 29.2 Q20.4 28 20 25 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 36 Q18 39 18 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24 36 Q24 39 24 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 36 Q31 39 31 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36 36 Q37 39 37.8 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M16 40 H19 M22 40 H26 M29 40 H33 M35.8 40 H38.8" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        finish: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 24 Q9 20 7 14 Q11 15 15 17 Q14 21 14 24 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25.5" cy="25" rx="13" ry="8.3" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="26" cy="26.8" rx="8.5" ry="5" fill="#d99a60"/>
+                <path d="M31.5 24 Q35 15 41 11.8 Q47.2 10 50.2 14 Q51.2 18.5 48 23 Q44 27 38 27.5 L32.5 26.5 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M36.8 12.8 Q33.2 15.4 32 23.8 Q35.4 21.5 39.2 26.2 Q42.4 20.8 43.2 12.2 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M41.2 11.5 L42.3 6.2 Q43.7 4.3 45.2 7.2 L44.8 13 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M45.2 11.5 L47 6.4 Q48.6 4.7 49.8 7.6 L49 13.2 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="49.2" cy="18.4" rx="4.7" ry="3.3" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="47" cy="16.6" r="1.15" fill="#24324a"/>
+                <circle cx="47.5" cy="16.2" r="0.4" fill="#ffffff"/>
+                <circle cx="51.2" cy="18.2" r="0.45" fill="#6d4122"/>
+                <path d="M50.4 19.1 Q51.6 19.9 52.8 19" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20.2 20 Q25.2 18 30.2 20 Q29 24.2 24.2 25.4 Q20.2 23.2 20.2 20 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M18.5 32 Q15 35 13 39" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24.5 32 Q23 36 23 40" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31.5 32 Q34 35 36 39" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36.5 31 Q40.5 33.5 44.5 37" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M11.5 39 H14.5 M21 39 H24.2 M34 38.5 H36.8 M42.5 36.8 H45.6" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 23 Q10 20 8 15 Q12 16 15 18 Q14 21 14 23 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="25.5" cy="24" rx="13" ry="8.3" fill="#b97842" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="26" cy="25.8" rx="8.5" ry="5" fill="#d99a60"/>
+                <path d="M31.5 23 Q35 14.2 41 11 Q47 9.5 50 13.2 Q51 17.8 48 22.2 Q44 26.2 38 26.8 L32.5 25.8 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M36.8 12 Q33.4 14.4 32.3 22.8 Q35.5 20.4 39.4 25.2 Q42.4 19.6 43 11.2 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M41.2 10.8 L42.4 5.4 Q43.8 3.6 45.3 6.4 L44.8 12.2 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M45.2 10.8 L47 5.6 Q48.6 3.9 49.8 6.8 L49 12.4 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="49.1" cy="17.4" rx="4.7" ry="3.3" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="46.9" cy="15.6" r="1.15" fill="#24324a"/>
+                <circle cx="47.4" cy="15.2" r="0.4" fill="#ffffff"/>
+                <circle cx="51.1" cy="17.2" r="0.45" fill="#6d4122"/>
+                <path d="M50.3 18.1 Q51.5 18.9 52.7 18" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M20.2 19 Q25.2 17 30.2 19 Q29 23.2 24.2 24.4 Q20.2 22.2 20.2 19 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M19 31 Q18 35 18 39.8" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M24.5 31 Q21 33.5 17 37.4" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31.5 31 Q35.5 34.8 38.5 39.5" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M36.5 31 Q40.5 36.2 44 39.8" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M16.2 38 H19.5 M14 37.2 H17.3 M37 38.6 H40.2 M41.8 39 H45" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        victory: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M16 25 Q10 21 8 15 Q12 17 16 18 Q15 22 16 25 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="24.5" rx="12.5" ry="8" fill="#b97842" stroke="#24324a" stroke-width="2.2" transform="rotate(-8 27 24.5)"/>
+                <ellipse cx="27.2" cy="26.1" rx="8" ry="4.8" fill="#d99a60" transform="rotate(-8 27.2 26.1)"/>
+                <path d="M33 23 Q36 14 41 10 Q46 8 49 11.5 Q50.5 16 47.5 20 Q44 23 39 24.5 L33.5 25.5 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M37 11.5 Q33.6 14.2 32.8 22.5 Q36 20 39.5 24.5 Q42 18.8 42.8 11 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M41 10.5 L42.4 5.2 Q43.8 3.4 45.2 6.2 L44.8 11.8 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M44.8 10.4 L46.8 5.2 Q48.4 3.5 49.6 6.2 L49 12 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="48.2" cy="16.3" rx="4.5" ry="3.2" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="46.2" cy="14.6" r="1.15" fill="#24324a"/>
+                <circle cx="46.7" cy="14.2" r="0.4" fill="#ffffff"/>
+                <circle cx="50.1" cy="16.1" r="0.45" fill="#6d4122"/>
+                <path d="M49.3 17.1 Q50.6 18.2 51.8 17.2" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M21 19.5 Q25.5 18 30 20 Q29 23.8 24.7 24.6 Q21.2 22.5 21 19.5 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M21 31 Q19 35 19 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M27 30 Q27 35 27 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 24 Q37 20 41 16" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M29 24 Q32 18 34 13" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M17.5 40 H20.5 M25.3 40 H28.7 M39.5 15.2 H42.2 M32.7 12.5 H35.3" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M16 26 Q11 23 9 18 Q13 19 16 20 Q15 23 16 26 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="25.5" rx="12.5" ry="8" fill="#b97842" stroke="#24324a" stroke-width="2.2" transform="rotate(-6 27 25.5)"/>
+                <ellipse cx="27.2" cy="27.1" rx="8" ry="4.8" fill="#d99a60" transform="rotate(-6 27.2 27.1)"/>
+                <path d="M33 24 Q36 15 41 11 Q46 9.5 49 13 Q50.5 17.3 47.5 21.2 Q44 24.2 39 25.5 L33.5 26.5 Z" fill="#b97842" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M37 12.4 Q33.7 15.2 32.8 23.4 Q36 21 39.4 25.2 Q42.1 19.6 42.7 12 Z" fill="#6d4122" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M41 11.4 L42.3 6.1 Q43.6 4.2 45.1 7.1 L44.7 12.6 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M44.8 11.3 L46.7 6.1 Q48.3 4.3 49.5 7.1 L48.9 12.8 Z" fill="#6d4122" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="48.2" cy="17.2" rx="4.5" ry="3.2" fill="#f3d9c0" stroke="#24324a" stroke-width="2"/>
+                <circle cx="46.2" cy="15.5" r="1.15" fill="#24324a"/>
+                <circle cx="46.7" cy="15.1" r="0.4" fill="#ffffff"/>
+                <circle cx="50.1" cy="17" r="0.45" fill="#6d4122"/>
+                <path d="M49.3 18 Q50.6 19.1 51.8 18.1" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M21 20.5 Q25.5 19 30 21 Q29 24.8 24.7 25.6 Q21.2 23.5 21 20.5 Z" fill="#ff735d" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M21 32 Q19.5 36 19.5 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M27 31 Q27.5 36 27.5 41" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M33 25 Q37.5 22 42 19" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M29 25 Q31.5 19 33 15" fill="none" stroke="#6d4122" stroke-width="4" stroke-linecap="round"/>
+                <path d="M18 40 H21 M25.8 40 H29 M40.5 18.3 H43 M31.8 14.5 H34.2" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        dead: getVehicleSVG('horse').dead,
+        get frame1() { return this.run.frame1; },
+        get frame2() { return this.run.frame2; }
+    },
+    knight: {
+        idle: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 22 Q16 24 15 32 L23 33 L26 25 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 24 Q12 29 14 34 L20 35 Q23 30 20 23 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 6 Q28 3 25 4 Q26 9 29 11 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 9 H36 Q39 9 39 15 L38 21 H27 L27 15 Q27 9 28 9 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 16 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 22 L31 20 L39 24 L38 34 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 21 H34 L35 31 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 24 L43 22 L44 28 L40 29 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 7 H46 V22 H44 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.4" stroke-linejoin="round"/>
+                <path d="M42.5 20 H47.5" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M27 34 L25 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 34 L35 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 40 H27" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33 40 H38" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 23 Q16 25 15 33 L23 34 L26 26 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 25 Q12 30 14 35 L20 36 Q23 31 20 24 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 7 Q29 4 26 5 Q27 10 30 12 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 10 H36 Q39 10 39 16 L38 22 H27 L27 16 Q27 10 28 10 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 17 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 23 L31 21 L39 25 L38 35 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 22 H34 L35 32 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 25 L43 23 L44 29 L40 30 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 8 H46 V23 H44 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.4" stroke-linejoin="round"/>
+                <path d="M42.5 21 H47.5" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M27 35 L25 41" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 35 L35 41" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 41 H27" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33 41 H38" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 21 Q15 23 14 31 L22 33 L26 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M15 24 Q11 28 13 34 L20 35 Q23 29 20 23 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 6 Q29 3 26 4 Q27 9 30 11 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 9 H36 Q39 9 39 15 L38 21 H27 L27 15 Q27 9 28 9 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 16 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 L31 19 L39 23 L38 33 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 20 H34 L35 30 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 23 L44 19 L47 23 L42 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M46 18 L53 10 L56 12 L49 21 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M44 19 L48 15" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M28 33 L24 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 33 L39 38" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M21 40 H26" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M38 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 20 Q16 23 15 30 L24 32 L27 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 22 Q12 26 14 33 L21 34 Q24 28 21 22 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M31 5 Q31 2 28 3 Q28 8 31 10 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M29 8 H37 Q40 8 40 14 L39 20 H28 L28 14 Q28 8 29 8 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 15 H37" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M23 20 L32 18 L40 22 L39 32 H24 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 19 H35 L36 29 H27 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M40 22 L44 22 L46 27 L41 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M45 23 L54 25 L53 28 L44 26 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M43 23 H47" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M29 32 L26 39" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M35 32 L39 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M23 39 H28" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M37 40 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 22 Q16 24 15 32 L23 33 L26 25 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 24 Q12 29 14 34 L20 35 Q23 30 20 23 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 6 Q28 3 25 4 Q26 9 29 11 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 9 H36 Q39 9 39 15 L38 21 H27 L27 15 Q27 9 28 9 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 16 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 22 L31 20 L39 24 L38 34 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 21 H34 L35 31 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 24 L43 22 L44 28 L40 29 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 7 H46 V22 H44 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.4" stroke-linejoin="round"/>
+                <path d="M42.5 20 H47.5" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M27 34 L25 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 34 L35 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 40 H27" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33 40 H38" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 23 Q16 25 15 33 L23 34 L26 26 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 25 Q12 30 14 35 L20 36 Q23 31 20 24 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 7 Q29 4 26 5 Q27 10 30 12 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 10 H36 Q39 10 39 16 L38 22 H27 L27 16 Q27 10 28 10 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 17 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 23 L31 21 L39 25 L38 35 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 22 H34 L35 32 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 25 L43 23 L44 29 L40 30 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 8 H46 V23 H44 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.4" stroke-linejoin="round"/>
+                <path d="M42.5 21 H47.5" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M27 35 L25 41" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 35 L35 41" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M22 41 H27" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M33 41 H38" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        finish: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 21 Q15 23 14 31 L22 33 L26 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M15 24 Q11 28 13 34 L20 35 Q23 29 20 23 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 6 Q29 3 26 4 Q27 9 30 11 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 9 H36 Q39 9 39 15 L38 21 H27 L27 15 Q27 9 28 9 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 16 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 L31 19 L39 23 L38 33 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 20 H34 L35 30 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 23 L44 19 L47 23 L42 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M46 18 L53 10 L56 12 L49 21 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M44 19 L48 15" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M28 33 L24 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 33 L39 38" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M21 40 H26" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M38 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 20 Q16 23 15 30 L24 32 L27 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 22 Q12 26 14 33 L21 34 Q24 28 21 22 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M31 5 Q31 2 28 3 Q28 8 31 10 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M29 8 H37 Q40 8 40 14 L39 20 H28 L28 14 Q28 8 29 8 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 15 H37" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M23 20 L32 18 L40 22 L39 32 H24 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 19 H35 L36 29 H27 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M40 22 L44 22 L46 27 L41 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M45 23 L54 25 L53 28 L44 26 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M43 23 H47" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M29 32 L26 39" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M35 32 L39 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M23 39 H28" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M37 40 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        victory: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 21 Q15 23 14 31 L22 33 L26 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M15 24 Q11 28 13 34 L20 35 Q23 29 20 23 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 6 Q29 3 26 4 Q27 9 30 11 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 9 H36 Q39 9 39 15 L38 21 H27 L27 15 Q27 9 28 9 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 16 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 L31 19 L39 23 L38 33 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 20 H34 L35 30 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 23 L44 19 L47 23 L42 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M46 18 L53 10 L56 12 L49 21 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M44 19 L48 15" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M28 33 L24 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 33 L39 38" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M21 40 H26" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M38 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 20 Q16 23 15 30 L24 32 L27 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 22 Q12 26 14 33 L21 34 Q24 28 21 22 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M31 5 Q31 2 28 3 Q28 8 31 10 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M29 8 H37 Q40 8 40 14 L39 20 H28 L28 14 Q28 8 29 8 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 15 H37" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M23 20 L32 18 L40 22 L39 32 H24 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 19 H35 L36 29 H27 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M40 22 L44 22 L46 27 L41 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M45 23 L54 25 L53 28 L44 26 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M43 23 H47" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M29 32 L26 39" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M35 32 L39 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M23 39 H28" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M37 40 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        dead: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M12 33 L20 29 L32 29 L40 32 L36 37 H18 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M21 28 Q16 28 13 32 L19 35 L23 31 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M18 31 Q15 34 16 38 L21 38 Q23 34 21 30 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M34 22 H41 Q44 22 44 27 L42 31 H33 L33 26 Q33 22 34 22 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 25 L39 28 M39 25 L35 28" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M31 24 L27 27" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+                <path d="M28 34 H44" fill="none" stroke="#f5f7fb" stroke-width="3" stroke-linecap="round"/>
+                <path d="M30 34 H42" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M16 38 H22 M27 37 H32" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M12 34 L20 30 L32 30 L40 33 L36 38 H18 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M21 29 Q16 29 13 33 L19 36 L23 32 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M18 32 Q15 35 16 39 L21 39 Q23 35 21 31 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M34 23 H41 Q44 23 44 28 L42 32 H33 L33 27 Q33 23 34 23 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M35 26 L39 29 M39 26 L35 29" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M31 25 L27 28" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+                <path d="M28 35 H44" fill="none" stroke="#f5f7fb" stroke-width="3" stroke-linecap="round"/>
+                <path d="M30 35 H42" fill="none" stroke="#24324a" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M16 39 H22 M27 38 H32" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 21 Q15 23 14 31 L22 33 L26 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M15 24 Q11 28 13 34 L20 35 Q23 29 20 23 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 6 Q29 3 26 4 Q27 9 30 11 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M28 9 H36 Q39 9 39 15 L38 21 H27 L27 15 Q27 9 28 9 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M29 16 H36" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 L31 19 L39 23 L38 33 H23 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 20 H34 L35 30 H26 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M39 23 L44 19 L47 23 L42 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M46 18 L53 10 L56 12 L49 21 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M44 19 L48 15" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M28 33 L24 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M34 33 L39 38" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M21 40 H26" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M38 38 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 20 Q16 23 15 30 L24 32 L27 24 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 22 Q12 26 14 33 L21 34 Q24 28 21 22 Z" fill="#f3d56a" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M31 5 Q31 2 28 3 Q28 8 31 10 Z" fill="#ff6b6b" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M29 8 H37 Q40 8 40 14 L39 20 H28 L28 14 Q28 8 29 8 Z" fill="#dce6f4" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M30 15 H37" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M23 20 L32 18 L40 22 L39 32 H24 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M28 19 H35 L36 29 H27 Z" fill="#eef4ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M40 22 L44 22 L46 27 L41 28 Z" fill="#7d8ca6" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M45 23 L54 25 L53 28 L44 26 Z" fill="#f5f7fb" stroke="#24324a" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M43 23 H47" fill="none" stroke="#ffd35a" stroke-width="2" stroke-linecap="round"/>
+                <path d="M29 32 L26 39" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M35 32 L39 40" fill="none" stroke="#516079" stroke-width="4" stroke-linecap="round"/>
+                <path d="M23 39 H28" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M37 40 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+    },
+    dinosaur: {
+        idle: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 29 Q10 24 5 28 Q9 34 17 33 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="28" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="30" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 20 L21 14 L24 20 L28 13 L32 20 L36 15 L39 21" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 24 Q39 16 46 15 Q52 15 54 20 Q53 27 45 28 L38 28 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 21 H53 L52 24 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="19.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="19.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="24.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M19 35 Q18 39 21 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 35 Q31 39 34 39" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 27 Q35 30 36 32" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 30 Q10 26 5 30 Q9 35 17 34 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="29" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="31" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 21 L21 15 L24 21 L28 14 L32 21 L36 16 L39 22" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 25 Q39 17 46 16 Q52 16 54 21 Q53 28 45 29 L38 29 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 22 H53 L52 25 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="47.5" cy="20.5" rx="1.4" ry="0.8" fill="#24324a"/>
+                <circle cx="43.5" cy="25.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M19 36 Q18 40 21 41" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 36 Q31 40 34 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 28 Q35 31 36 33" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`
+        },
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 27 Q9 20 4 24 Q8 31 17 31 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="26" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="28" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 18 L21 12 L24 18 L28 11 L32 18 L36 13 L39 19" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 22 Q39 14 46 13 Q52 13 54 18 Q53 25 45 26 L38 26 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 19 H53 L52 22 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="17.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="17.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="22.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 34 Q19 39 22 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M32 32 Q34 37 37 37" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 25 Q35 28 36 30" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 30 Q10 27 5 31 Q10 36 17 35 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="29" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="31" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 21 L21 15 L24 21 L28 14 L32 21 L36 16 L39 22" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 25 Q39 18 46 17 Q52 17 54 22 Q53 29 45 30 L38 30 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 22 H53 L52 25 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="20.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="20.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="25.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 35 Q20 40 23 41" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 35 Q31 39 34 39" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 28 Q35 31 36 33" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 29 Q10 24 5 28 Q9 34 17 33 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="28" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="30" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 20 L21 14 L24 20 L28 13 L32 20 L36 15 L39 21" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 24 Q39 16 46 15 Q52 15 54 20 Q53 27 45 28 L38 28 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 21 H53 L52 24 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="19.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="19.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="24.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M19 35 Q18 39 21 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 35 Q31 39 34 39" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 27 Q35 30 36 32" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 30 Q10 26 5 30 Q9 35 17 34 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="29" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="31" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 21 L21 15 L24 21 L28 14 L32 21 L36 16 L39 22" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 25 Q39 17 46 16 Q52 16 54 21 Q53 28 45 29 L38 29 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 22 H53 L52 25 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="47.5" cy="20.5" rx="1.4" ry="0.8" fill="#24324a"/>
+                <circle cx="43.5" cy="25.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M19 36 Q18 40 21 41" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 36 Q31 40 34 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 28 Q35 31 36 33" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`
+        },
+        finish: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 27 Q9 20 4 24 Q8 31 17 31 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="26" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="28" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 18 L21 12 L24 18 L28 11 L32 18 L36 13 L39 19" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 22 Q39 14 46 13 Q52 13 54 18 Q53 25 45 26 L38 26 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 19 H53 L52 22 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="17.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="17.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="22.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 34 Q19 39 22 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M32 32 Q34 37 37 37" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 25 Q35 28 36 30" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 30 Q10 27 5 31 Q10 36 17 35 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="29" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="31" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 21 L21 15 L24 21 L28 14 L32 21 L36 16 L39 22" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 25 Q39 18 46 17 Q52 17 54 22 Q53 29 45 30 L38 30 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 22 H53 L52 25 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="20.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="20.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="25.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 35 Q20 40 23 41" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 35 Q31 39 34 39" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 28 Q35 31 36 33" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`
+        },
+        victory: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 27 Q9 20 4 24 Q8 31 17 31 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="26" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="28" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 18 L21 12 L24 18 L28 11 L32 18 L36 13 L39 19" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 22 Q39 14 46 13 Q52 13 54 18 Q53 25 45 26 L38 26 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 19 H53 L52 22 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="17.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="17.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="22.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 34 Q19 39 22 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M32 32 Q34 37 37 37" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 25 Q35 28 36 30" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 30 Q10 27 5 31 Q10 36 17 35 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="29" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="31" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 21 L21 15 L24 21 L28 14 L32 21 L36 16 L39 22" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 25 Q39 18 46 17 Q52 17 54 22 Q53 29 45 30 L38 30 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 22 H53 L52 25 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="20.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="20.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="25.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 35 Q20 40 23 41" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 35 Q31 39 34 39" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 28 Q35 31 36 33" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`
+        },
+        dead: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M15 34 Q9 31 6 33 Q9 37 15 37 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="34" rx="14" ry="7" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="35" rx="7" ry="3.8" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 28 L21 24 L24 28 L28 23 L32 28 L36 25 L39 29" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M39 31 Q41 25 47 25 Q53 25 54 29 Q53 34 47 35 L39 35 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 31 L49 34 M49 31 L46 34" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M50 31 L53 34 M53 31 L50 34" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M19 38 H23 M30 38 H34" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M15 35 Q9 32 6 34 Q9 38 15 38 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="35" rx="14" ry="7" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="36" rx="7" ry="3.8" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 29 L21 25 L24 29 L28 24 L32 29 L36 26 L39 30" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M39 32 Q41 26 47 26 Q53 26 54 30 Q53 35 47 36 L39 36 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 32 L49 35 M49 32 L46 35" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M50 32 L53 35 M53 32 L50 35" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M19 39 H23 M30 39 H34" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+            </svg>`
+        },
+        frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 27 Q9 20 4 24 Q8 31 17 31 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="26" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="28" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 18 L21 12 L24 18 L28 11 L32 18 L36 13 L39 19" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 22 Q39 14 46 13 Q52 13 54 18 Q53 25 45 26 L38 26 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 19 H53 L52 22 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="17.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="17.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="22.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 34 Q19 39 22 40" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M32 32 Q34 37 37 37" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 25 Q35 28 36 30" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`,
+        frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 30 Q10 27 5 31 Q10 36 17 35 Z" fill="#34c96f" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <ellipse cx="27" cy="29" rx="15" ry="10" fill="#42d86f" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="27" cy="31" rx="8" ry="5" fill="#f6efb6" stroke="#24324a" stroke-width="1.8"/>
+                <path d="M18 21 L21 15 L24 21 L28 14 L32 21 L36 16 L39 22" fill="none" stroke="#ff915b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M38 25 Q39 18 46 17 Q52 17 54 22 Q53 29 45 30 L38 30 Z" fill="#42d86f" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M46 22 H53 L52 25 H46 Z" fill="#42d86f" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="47.5" cy="20.5" r="1.3" fill="#24324a"/>
+                <circle cx="48" cy="20.1" r="0.4" fill="#ffffff"/>
+                <circle cx="43.5" cy="25.5" r="1.1" fill="#ff9aa0"/>
+                <path d="M20 35 Q20 40 23 41" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M31 35 Q31 39 34 39" fill="none" stroke="#34c96f" stroke-width="4" stroke-linecap="round"/>
+                <path d="M37 28 Q35 31 36 33" fill="none" stroke="#34c96f" stroke-width="3" stroke-linecap="round"/>
+            </svg>`
+    },
+    ninja: {
+        idle: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M22 16 Q10 10 6 15 Q14 20 24 20 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M26 9 H36 Q39 9 39 15 L38 21 H25 L25 15 Q25 9 26 9 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 15 H37" fill="none" stroke="#ff4f7b" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="30" cy="16" r="1.1" fill="#7ff6ff"/>
+                <circle cx="34" cy="16" r="1.1" fill="#7ff6ff"/>
+                <path d="M22 22 L31 20 L40 24 L39 35 H23 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M23 29 H39" fill="none" stroke="#9da7ff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 24 L17 28" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M39 24 L44 23" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M43 23 L49 19 L51 23 L44 27 Z" fill="#c9f8ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M27 35 L25 40" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M33 35 L34 40" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M22 40 H27 M32 40 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M23 17 Q12 12 8 17 Q15 21 24 21 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M26 10 H36 Q39 10 39 16 L38 22 H25 L25 16 Q25 10 26 10 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 16 H37" fill="none" stroke="#ff4f7b" stroke-width="2.4" stroke-linecap="round"/>
+                <ellipse cx="32" cy="17" rx="4.2" ry="0.95" fill="#7ff6ff"/>
+                <path d="M22 23 L31 21 L40 25 L39 36 H23 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M23 30 H39" fill="none" stroke="#9da7ff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 25 L17 29" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M39 25 L44 24" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M43 24 L49 20 L51 24 L44 28 Z" fill="#c9f8ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M27 36 L25 41" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M33 36 L34 41" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M22 41 H27 M32 41 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M21 14 Q9 7 5 12 Q12 20 23 19 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M16 17 Q8 13 6 18 Q13 22 19 22" fill="none" stroke="#ff7ba8" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M25 8 H35 Q38 8 38 14 L37 20 H24 L24 14 Q24 8 25 8 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M26 13 H36" fill="none" stroke="#ff4f7b" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="28.8" cy="13.8" r="1.05" fill="#7ff6ff"/>
+                <circle cx="32.8" cy="13.8" r="1.05" fill="#7ff6ff"/>
+                <path d="M20 19 L30 16 L40 20 L38 31 H22 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M21 27 H39" fill="none" stroke="#9da7ff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M19 22 L14 27" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M38 21 L44 19 L46 23 L40 27 Z" fill="#2c2550" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M44 18 L55 13 L56 16 L45 22 Z" fill="#c9f8ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M25 31 L19 38" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M33 31 L39 36" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M17 38 H22.5 M38 36 H42" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M23 13 Q10 16 7 24 Q16 23 24 20 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M20 17 Q11 18 8 26" fill="none" stroke="#ff7ba8" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M26 7 H36 Q39 7 39 13 L38 19 H25 L25 13 Q25 7 26 7 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 12 H37" fill="none" stroke="#ff4f7b" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="29" cy="12.8" r="1.05" fill="#7ff6ff"/>
+                <circle cx="33" cy="12.8" r="1.05" fill="#7ff6ff"/>
+                <path d="M22 18 L31 15 L41 20 L39 30 H24 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M23 26 H40" fill="none" stroke="#9da7ff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 20 L16 16" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M40 21 L45 23 L45 28 L40 27 Z" fill="#2c2550" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M45 23 L56 25 L55 28 L44 26 Z" fill="#c9f8ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M27 30 L24 38" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M34 30 L40 39" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M22 38 H27 M38 39 H42.5" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M23 15 Q12 10 8 15 Q15 19 24 19 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M26 10 H36 Q39 10 39 16 L38 22 H25 L25 16 Q25 10 26 10 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 16 H37" fill="none" stroke="#ff4f7b" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="30" cy="17" r="1.05" fill="#7ff6ff"/>
+                <circle cx="34" cy="17" r="1.05" fill="#7ff6ff"/>
+                <path d="M23 22 L31 20 L40 24 L39 35 H23 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M23 29 H39" fill="none" stroke="#9da7ff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 24 L17 28" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M39 24 L43 25" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M43 25 L48 22 L49 27 L43 29 Z" fill="#c9f8ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M27 35 L25 40" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M33 35 L34 40" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M22 40 H27 M32 40 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M24 16 Q13 11 9 16 Q15 20 24 20 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M26 11 H36 Q39 11 39 17 L38 23 H25 L25 17 Q25 11 26 11 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M27 17 H37" fill="none" stroke="#ff4f7b" stroke-width="2.4" stroke-linecap="round"/>
+                <ellipse cx="32" cy="18" rx="4.3" ry="0.95" fill="#7ff6ff"/>
+                <path d="M23 23 L31 21 L40 25 L39 36 H23 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M23 30 H39" fill="none" stroke="#9da7ff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M21 25 L17 29" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M39 25 L43 26" fill="none" stroke="#2c2550" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M43 26 L48 23 L49 28 L43 30 Z" fill="#c9f8ff" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M27 36 L25 41" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M33 36 L34 41" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+                <path d="M22 41 H27 M32 41 H37" fill="none" stroke="#24324a" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>`
+        },
+        get finish() { return this.run; },
+        get victory() { return this.run; },
+        dead: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M28 22 Q18 18 12 21 Q18 25 28 27 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M16 26 L27 22 L40 29 L36 35 H20 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M31 19 H39 Q43 19 43 25 L41 30 H31 L31 24 Q31 19 31 19 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M33 23 L36 26 M36 23 L33 26" fill="none" stroke="#7ff6ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M37 23 L40 26 M40 23 L37 26" fill="none" stroke="#7ff6ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M14 34 H28" fill="none" stroke="#c9f8ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M17 36 L14 40 M29 36 L31 40" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M28 23 Q18 19 12 22 Q18 26 28 28 Z" fill="#ff4f7b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M16 27 L27 23 L40 30 L36 36 H20 Z" fill="#2c2550" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M31 20 H39 Q43 20 43 26 L41 31 H31 L31 25 Q31 20 31 20 Z" fill="#15192e" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M33 24 L36 27 M36 24 L33 27" fill="none" stroke="#7ff6ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M37 24 L40 27 M40 24 L37 27" fill="none" stroke="#7ff6ff" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M14 35 H28" fill="none" stroke="#c9f8ff" stroke-width="3" stroke-linecap="round"/>
+                <path d="M17 37 L14 41 M29 37 L31 41" fill="none" stroke="#15192e" stroke-width="4.2" stroke-linecap="round"/>
+            </svg>`
+        },
+        get frame1() { return this.run.frame1; },
+        get frame2() { return this.run.frame2; }
+    },
+    crab: {
+        idle: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M15 33 L11 37 M19 35 L16 39 M23 36 L21 40" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M38 34 L43 38 M42 35 L47 40 M46 34 L51 38" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 28 L11 24 L9 18 L15 21 L20 26 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M39 25 L47 18 L56 16 L54 24 L44 30 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M18 27 Q30 16 42 27 Q41 35 30 36 Q19 35 18 27 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="28" rx="10" ry="5.5" fill="#ffb390"/>
+                <path d="M23 23 Q30 19 37 23" fill="none" stroke="#cf503f" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M25 20 V15 M36 19 V14" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25" cy="14" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="13" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="25.8" cy="14.1" r="1" fill="#24324a"/>
+                <circle cx="36.8" cy="13.1" r="1" fill="#24324a"/>
+                <circle cx="28" cy="30" r="0.9" fill="#cf503f"/>
+                <circle cx="32" cy="30" r="0.9" fill="#cf503f"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M15 34 L11 38 M19 36 L16 40 M23 37 L21 41" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M38 35 L43 39 M42 36 L47 41 M46 35 L51 39" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 29 L11 25 L9 19 L15 22 L20 27 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M39 26 L47 19 L56 17 L54 25 L44 31 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M18 28 Q30 17 42 28 Q41 36 30 37 Q19 36 18 28 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="29" rx="10" ry="5.5" fill="#ffb390"/>
+                <path d="M23 24 Q30 20 37 24" fill="none" stroke="#cf503f" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M25 21 V16 M36 20 V15" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25" cy="15" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="14" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <ellipse cx="25.8" cy="15.2" rx="1.2" ry="0.75" fill="#24324a"/>
+                <ellipse cx="36.8" cy="14.2" rx="1.2" ry="0.75" fill="#24324a"/>
+                <circle cx="28" cy="31" r="0.9" fill="#cf503f"/>
+                <circle cx="32" cy="31" r="0.9" fill="#cf503f"/>
+            </svg>`
+        },
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M15 31 L10 36 M19 34 L15 39 M23 35 L21 40" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M36 32 L42 36 M40 35 L46 40 M44 36 L50 40" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M17 27 L9 22 L7 15 L14 18 L20 24 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M39 24 L48 16 L57 15 L55 25 L44 30 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M18 26 Q30 15 42 26 Q41 34 30 35 Q19 34 18 26 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="27" rx="10" ry="5.5" fill="#ffb390"/>
+                <path d="M23 21 Q30 17 37 21" fill="none" stroke="#cf503f" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M25 18 V13 M36 17 V12" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25" cy="12" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="11" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="26" cy="12.2" r="1" fill="#24324a"/>
+                <circle cx="37" cy="11.2" r="1" fill="#24324a"/>
+                <path d="M6 28 Q4 29 4 31" fill="none" stroke="#fff3a2" stroke-width="2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M17 36 L12 40 M21 34 L17 39 M25 31 L23 36" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M34 31 L40 37 M38 34 L44 40 M42 36 L48 41" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 29 L12 23 L10 17 L16 20 L20 26 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M37 24 L46 18 L55 17 L53 23 L42 27 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M18 28 Q30 17 42 28 Q41 36 30 37 Q19 36 18 28 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="29" rx="10" ry="5.5" fill="#ffb390"/>
+                <path d="M23 24 Q30 20 37 24" fill="none" stroke="#cf503f" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M25 20 V15 M36 19 V14" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25" cy="14" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="13" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="25.9" cy="14.2" r="1" fill="#24324a"/>
+                <circle cx="36.9" cy="13.2" r="1" fill="#24324a"/>
+                <path d="M53 29 Q55 29 56 31" fill="none" stroke="#fff3a2" stroke-width="2" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M15 33 L11 37 M19 35 L16 39 M23 36 L21 40" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M38 34 L43 38 M42 35 L47 40 M46 34 L51 38" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 28 L11 24 L9 19 L15 21 L20 26 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M39 25 L47 18 L56 16 L54 24 L44 30 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M18 27 Q30 16 42 27 Q41 35 30 36 Q19 35 18 27 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="28" rx="10" ry="5.5" fill="#ffb390"/>
+                <path d="M23 23 Q30 19 37 23" fill="none" stroke="#cf503f" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M25 20 V15 M36 19 V14" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25" cy="14" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="13" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="25.8" cy="14.1" r="1" fill="#24324a"/>
+                <circle cx="36.8" cy="13.1" r="1" fill="#24324a"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M15 34 L11 38 M19 36 L16 40 M23 37 L21 41" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M38 35 L43 39 M42 36 L47 41 M46 35 L51 39" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 29 L11 25 L9 20 L15 22 L20 27 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M39 26 L47 19 L56 17 L54 25 L44 31 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M18 28 Q30 17 42 28 Q41 36 30 37 Q19 36 18 28 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="29" rx="10" ry="5.5" fill="#ffb390"/>
+                <path d="M23 24 Q30 20 37 24" fill="none" stroke="#cf503f" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M25 21 V16 M36 20 V15" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="25" cy="15" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="14" r="2.6" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <ellipse cx="25.8" cy="15.2" rx="1.2" ry="0.75" fill="#24324a"/>
+                <ellipse cx="36.8" cy="14.2" rx="1.2" ry="0.75" fill="#24324a"/>
+            </svg>`
+        },
+        get finish() { return this.run; },
+        get victory() { return this.run; },
+        dead: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 38 L14 40 M22 38 L19 41 M38 38 L43 41 M42 38 L47 40" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 32 L12 29 L10 24 L15 25 L19 29 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M41 29 L46 25 L53 24 L51 30 L44 32 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="34" rx="13" ry="6.5" fill="#ff8868" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="32" rx="9" ry="3.8" fill="#ffb390"/>
+                <path d="M24 27 V24 M36 27 V24" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="24" cy="23" r="2.3" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="23" r="2.3" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <path d="M23 22 L25 24 M25 22 L23 24" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M35 22 L37 24 M37 22 L35 24" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M18 39 L14 41 M22 39 L19 42 M38 39 L43 42 M42 39 L47 41" fill="none" stroke="#cf503f" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M18 33 L12 30 L10 25 L15 26 L19 30 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M41 30 L46 26 L53 25 L51 31 L44 33 Z" fill="#ff8868" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="30" cy="35" rx="13" ry="6.5" fill="#ff8868" stroke="#24324a" stroke-width="2.2"/>
+                <ellipse cx="30" cy="33" rx="9" ry="3.8" fill="#ffb390"/>
+                <path d="M24 28 V25 M36 28 V25" fill="none" stroke="#24324a" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="24" cy="24" r="2.3" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <circle cx="36" cy="24" r="2.3" fill="#ffffff" stroke="#24324a" stroke-width="1.5"/>
+                <path d="M23 23 L25 25 M25 23 L23 25" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M35 23 L37 25 M37 23 L35 25" fill="none" stroke="#24324a" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>`
+        },
+        get frame1() { return this.run.frame1; },
+        get frame2() { return this.run.frame2; }
+    },
+    eagle: {
+        run: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 25 L6 21 L8 30 L16 29 Z" fill="#6c4323" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M26 22 Q13 6 17 4 Q27 6 33 20 Q30 22 26 22 Z" fill="#6b3f22" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M30 23 Q24 10 33 8 Q45 12 44 24 Q37 23 30 23 Z" fill="#86532b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="28" cy="25" rx="13" ry="8" fill="#7c4c28" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M38 20 Q40 16 43 16 Q43 20 39 23 Z" fill="#f7f5ef" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="45" cy="17" r="5.8" fill="#f7f5ef" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M49.5 17 L56 15.5 L50.5 20.5 Z" fill="#f4c43c" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="46.5" cy="16.7" r="1.2" fill="#24324a"/>
+                <circle cx="47" cy="16.2" r="0.4" fill="#ffffff"/>
+                <path d="M21 32 Q19 35 20 38" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M27 33 Q26 36 27 39" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 26 L6 26 L8 34 L16 31 Z" fill="#6c4323" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M25 24 Q10 33 16 39 Q29 37 33 28 Q29 25 25 24 Z" fill="#6b3f22" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M30 24 Q19 37 30 40 Q44 36 44 24 Q38 25 30 24 Z" fill="#86532b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="28" cy="24" rx="13" ry="8" fill="#7c4c28" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M38 19 Q40 16 43 16 Q43 20 39 23 Z" fill="#f7f5ef" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="45" cy="17" r="5.8" fill="#f7f5ef" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M49.5 17 L56 16 L50.5 20.8 Z" fill="#f4c43c" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="46.5" cy="16.7" r="1.2" fill="#24324a"/>
+                <circle cx="47" cy="16.2" r="0.4" fill="#ffffff"/>
+                <path d="M20 31 Q18 34 18 37" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M27 31 Q25 34 25 37" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>`
+        },
+        rest: {
+            frame1: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 29 L8 28 L10 35 L16 34 Z" fill="#6c4323" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M22 28 Q18 22 14 28 Q17 33 24 32 Z" fill="#6b3f22" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M32 28 Q38 22 42 28 Q38 33 31 32 Z" fill="#86532b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="28" cy="29" rx="13" ry="8.5" fill="#7c4c28" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M38 24 Q40 21 43 22 Q42 26 39 28 Z" fill="#f7f5ef" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="45" cy="22.5" r="5.8" fill="#f7f5ef" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M49.5 22.5 L55.5 21 L50.5 25.8 Z" fill="#f4c43c" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <circle cx="46.5" cy="22" r="1.2" fill="#24324a"/>
+                <circle cx="47" cy="21.5" r="0.4" fill="#ffffff"/>
+                <path d="M22 36 L21 40" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M28 36 L28 40" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>`,
+            frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
+                <path d="M14 30 L8 29 L10 36 L16 35 Z" fill="#6c4323" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M22 29 Q18 24 14 29 Q17 34 24 33 Z" fill="#6b3f22" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M32 29 Q38 24 42 29 Q38 34 31 33 Z" fill="#86532b" stroke="#24324a" stroke-width="2.2" stroke-linejoin="round"/>
+                <ellipse cx="28" cy="30" rx="13" ry="8.5" fill="#7c4c28" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M38 25 Q40 22 43 23 Q42 27 39 29 Z" fill="#f7f5ef" stroke="#24324a" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="45" cy="23.5" r="5.8" fill="#f7f5ef" stroke="#24324a" stroke-width="2.2"/>
+                <path d="M49.5 23.5 L55.5 22 L50.5 26.8 Z" fill="#f4c43c" stroke="#24324a" stroke-width="1.8" stroke-linejoin="round"/>
+                <ellipse cx="46.5" cy="23.2" rx="1.4" ry="0.8" fill="#24324a"/>
+                <path d="M22 37 L21 41" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M28 37 L28 41" fill="none" stroke="#f4c43c" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>`
+        }
+    }
+};
+
+const POWER_VEHICLE_PALETTES = {
+    default: { glow: '#6ee7ff', spark: '#ffe082', core: '#f7fdff' },
+    car: { glow: '#ffb347', spark: '#fff4a3', core: '#fff7e8' },
+    rocket: { glow: '#ff8f5f', spark: '#ffe07b', core: '#fff6ef' },
+    bird: { glow: '#c892ff', spark: '#7cecff', core: '#faf0ff' },
+    boat: { glow: '#5cd2ff', spark: '#d9f7ff', core: '#f2fbff' },
+    bicycle: { glow: '#8dff91', spark: '#fff29a', core: '#f4fff0' },
+    rabbit: { glow: '#ffd5f0', spark: '#fff6a3', core: '#fff8fd' },
+    turtle: { glow: '#7dffb4', spark: '#d9ff9f', core: '#f2fff8' },
+    eagle: { glow: '#7fd8ff', spark: '#ffe27a', core: '#f8fdff' },
+    scooter: { glow: '#8ad8ff', spark: '#fff0a1', core: '#f3fbff' },
+    helicopter: { glow: '#ff8d8d', spark: '#ffe48b', core: '#fff6f6' },
+    horse: { glow: '#ffca80', spark: '#fff0a8', core: '#fff9f2' },
+    knight: { glow: '#7be1ff', spark: '#fff2a0', core: '#f4fcff' },
+    dinosaur: { glow: '#6fffb3', spark: '#fff08f', core: '#f2fff8' },
+    ninja: { glow: '#9da7ff', spark: '#85f6ff', core: '#f4f6ff' },
+    crab: { glow: '#ff9b7e', spark: '#fff3a2', core: '#fff7f2' }
+};
+
+const POWER_VEHICLE_FALLBACK_BASE_OVERRIDE_IDS = new Set(['ninja', 'crab']);
+
+const vehicleVariantCache = {
+    base: Object.create(null),
+    power: Object.create(null)
+};
+
+let vehiclePowerSvgSequence = 0;
+
+function cloneVehicleSpriteResource(resource) {
+    if (typeof resource === 'string') return resource;
+    if (!resource || typeof resource !== 'object') return resource;
+
+    const cloned = Array.isArray(resource) ? [] : {};
+    Object.keys(resource).forEach(key => {
+        cloned[key] = cloneVehicleSpriteResource(resource[key]);
+    });
+    return cloned;
+}
+
+function mapVehicleSpriteResource(resource, transform, path = []) {
+    if (typeof resource === 'string') return transform(resource, path);
+    if (!resource || typeof resource !== 'object') return resource;
+
+    const mapped = Array.isArray(resource) ? [] : {};
+    Object.keys(resource).forEach(key => {
+        mapped[key] = mapVehicleSpriteResource(resource[key], transform, [...path, key]);
+    });
+    return mapped;
+}
+
+function getVehiclePowerPalette(vehicleId) {
+    return POWER_VEHICLE_PALETTES[vehicleId] || POWER_VEHICLE_PALETTES.default;
+}
+
+function getVehiclePowerStateIntensity(state) {
+    switch (state) {
+        case 'run':
+            return 1;
+        case 'finish':
+            return 1.12;
+        case 'victory':
+            return 1.2;
+        case 'idle':
+            return 0.82;
+        case 'rest':
+            return 0.62;
+        case 'dead':
+            return 0.22;
+        default:
+            return 0.55;
+    }
+}
+
+function getVehiclePowerBadgeMarkup(state, box, palette) {
+    if (!['finish', 'victory'].includes(state)) return '';
+
+    const { minX, minY, width, height, intensity } = box;
+    const crownX = minX + (width * 0.5);
+    const crownY = minY + (height * 0.08);
+    const crownOpacity = Math.min(0.65 + (intensity * 0.12), 0.9).toFixed(2);
+
+    return `
+        <g opacity="${crownOpacity}">
+            <path d="M${crownX - (width * 0.12)},${crownY + (height * 0.08)} L${crownX - (width * 0.07)},${crownY - (height * 0.02)} L${crownX},${crownY + (height * 0.06)} L${crownX + (width * 0.07)},${crownY - (height * 0.02)} L${crownX + (width * 0.12)},${crownY + (height * 0.08)} L${crownX + (width * 0.1)},${crownY + (height * 0.16)} L${crownX - (width * 0.1)},${crownY + (height * 0.16)} Z" fill="${palette.spark}" stroke="${palette.glow}" stroke-width="${Math.max(0.5, width * 0.01)}"/>
+            <circle cx="${crownX}" cy="${crownY + (height * 0.1)}" r="${Math.max(1.2, width * 0.022)}" fill="${palette.core}"/>
+        </g>
+    `;
+}
+
+function getVehiclePowerOverlayMarkup(vehicleId, state, box, palette) {
+    if (state === 'dead') return '';
+
+    const { minX, minY, width, height, intensity } = box;
+    const strongOpacity = Math.min(0.36 + (intensity * 0.28), 0.92).toFixed(2);
+    const softOpacity = Math.min(0.16 + (intensity * 0.24), 0.68).toFixed(2);
+    const trailOpacity = Math.min(0.12 + (intensity * 0.22), 0.58).toFixed(2);
+    const sparkRadius = Math.max(0.75, width * 0.018);
+    const isFastState = ['run', 'finish', 'victory'].includes(state);
+
+    switch (vehicleId) {
+        case 'car':
+            return `
+                ${isFastState ? `<path d="M${minX + (width * 0.04)},${minY + (height * 0.56)} C${minX - (width * 0.06)},${minY + (height * 0.38)} ${minX - (width * 0.04)},${minY + (height * 0.74)} ${minX + (width * 0.1)},${minY + (height * 0.66)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1.2, width * 0.028)}" stroke-linecap="round" opacity="${trailOpacity}"/>` : ''}
+                <polygon points="${minX + (width * 0.16)},${minY + (height * 0.26)} ${minX + (width * 0.08)},${minY + (height * 0.18)} ${minX + (width * 0.2)},${minY + (height * 0.18)} ${minX + (width * 0.25)},${minY + (height * 0.26)}" fill="${palette.glow}" opacity="${softOpacity}"/>
+                <path d="M${minX + (width * 0.36)},${minY + (height * 0.28)} L${minX + (width * 0.54)},${minY + (height * 0.38)} L${minX + (width * 0.46)},${minY + (height * 0.52)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1.1, width * 0.025)}" stroke-linecap="round" stroke-linejoin="round" opacity="${strongOpacity}"/>
+                <circle cx="${minX + (width * 0.3)}" cy="${minY + (height * 0.71)}" r="${width * 0.1}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(0.8, width * 0.018)}" opacity="${softOpacity}"/>
+                <circle cx="${minX + (width * 0.7)}" cy="${minY + (height * 0.71)}" r="${width * 0.1}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(0.8, width * 0.018)}" opacity="${softOpacity}"/>
+            `;
+        case 'rocket':
+            return `
+                ${isFastState ? `<path d="M${minX + (width * 0.02)},${minY + (height * 0.5)} C${minX - (width * 0.14)},${minY + (height * 0.32)} ${minX - (width * 0.12)},${minY + (height * 0.68)} ${minX + (width * 0.08)},${minY + (height * 0.62)}" fill="${palette.glow}" opacity="${trailOpacity}"/>` : ''}
+                <polygon points="${minX + (width * 0.18)},${minY + (height * 0.28)} ${minX + (width * 0.08)},${minY + (height * 0.16)} ${minX + (width * 0.2)},${minY + (height * 0.42)}" fill="${palette.spark}" opacity="${softOpacity}"/>
+                <polygon points="${minX + (width * 0.18)},${minY + (height * 0.72)} ${minX + (width * 0.08)},${minY + (height * 0.84)} ${minX + (width * 0.2)},${minY + (height * 0.58)}" fill="${palette.spark}" opacity="${softOpacity}"/>
+                <path d="M${minX + (width * 0.54)},${minY + (height * 0.22)} L${minX + (width * 0.72)},${minY + (height * 0.5)} L${minX + (width * 0.54)},${minY + (height * 0.78)}" fill="none" stroke="${palette.core}" stroke-width="${Math.max(1, width * 0.02)}" stroke-linecap="round" opacity="${strongOpacity}"/>
+                <circle cx="${minX + (width * 0.83)}" cy="${minY + (height * 0.49)}" r="${sparkRadius * 1.3}" fill="${palette.spark}" opacity="${softOpacity}"/>
+            `;
+        case 'bird':
+            return `
+                ${isFastState ? `<path d="M${minX + (width * 0.18)},${minY + (height * 0.44)} C${minX - (width * 0.02)},${minY + (height * 0.18)} ${minX + (width * 0.06)},${minY + (height * 0.7)} ${minX + (width * 0.24)},${minY + (height * 0.58)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.022)}" opacity="${trailOpacity}"/>` : ''}
+                <path d="M${minX + (width * 0.38)},${minY + (height * 0.16)} Q${minX + (width * 0.5)},${minY + (height * 0.02)} ${minX + (width * 0.62)},${minY + (height * 0.16)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.32)},${minY + (height * 0.36)} Q${minX + (width * 0.16)},${minY + (height * 0.18)} ${minX + (width * 0.2)},${minY + (height * 0.48)}" fill="none" stroke="${palette.core}" stroke-width="${Math.max(0.8, width * 0.018)}" opacity="${softOpacity}"/>
+                <path d="M${minX + (width * 0.52)},${minY + (height * 0.34)} Q${minX + (width * 0.72)},${minY + (height * 0.14)} ${minX + (width * 0.68)},${minY + (height * 0.48)}" fill="none" stroke="${palette.core}" stroke-width="${Math.max(0.8, width * 0.018)}" opacity="${softOpacity}"/>
+            `;
+        case 'boat':
+            return `
+                <polygon points="${minX + (width * 0.56)},${minY + (height * 0.22)} ${minX + (width * 0.8)},${minY + (height * 0.34)} ${minX + (width * 0.56)},${minY + (height * 0.46)}" fill="${palette.glow}" opacity="${softOpacity}"/>
+                <path d="M${minX + (width * 0.18)},${minY + (height * 0.72)} Q${minX + (width * 0.38)},${minY + (height * 0.58)} ${minX + (width * 0.62)},${minY + (height * 0.72)}" fill="none" stroke="${palette.core}" stroke-width="${Math.max(1, width * 0.022)}" opacity="${strongOpacity}"/>
+                ${isFastState ? `<path d="M${minX + (width * 0.06)},${minY + (height * 0.76)} C${minX - (width * 0.08)},${minY + (height * 0.8)} ${minX + (width * 0.02)},${minY + (height * 0.96)} ${minX + (width * 0.22)},${minY + (height * 0.84)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1.1, width * 0.024)}" opacity="${trailOpacity}"/>` : ''}
+                <polygon points="${minX + (width * 0.76)},${minY + (height * 0.52)} ${minX + (width * 0.94)},${minY + (height * 0.6)} ${minX + (width * 0.76)},${minY + (height * 0.68)}" fill="${palette.spark}" opacity="${softOpacity}"/>
+            `;
+        case 'bicycle':
+            return `
+                <circle cx="${minX + (width * 0.2)}" cy="${minY + (height * 0.68)}" r="${width * 0.16}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(0.9, width * 0.02)}" opacity="${softOpacity}"/>
+                <circle cx="${minX + (width * 0.8)}" cy="${minY + (height * 0.68)}" r="${width * 0.16}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(0.9, width * 0.02)}" opacity="${softOpacity}"/>
+                <path d="M${minX + (width * 0.45)},${minY + (height * 0.26)} L${minX + (width * 0.58)},${minY + (height * 0.44)} L${minX + (width * 0.5)},${minY + (height * 0.56)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1, width * 0.022)}" opacity="${strongOpacity}"/>
+                ${isFastState ? `<path d="M${minX + (width * 0.08)},${minY + (height * 0.4)} L${minX - (width * 0.06)},${minY + (height * 0.3)} M${minX + (width * 0.1)},${minY + (height * 0.56)} L${minX - (width * 0.04)},${minY + (height * 0.56)}" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" stroke-linecap="round" opacity="${trailOpacity}"/>` : ''}
+            `;
+        case 'rabbit':
+            return `
+                <path d="M${minX + (width * 0.64)},${minY + (height * 0.12)} Q${minX + (width * 0.58)},${minY + (height * 0.02)} ${minX + (width * 0.48)},${minY + (height * 0.08)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1.1, width * 0.022)}" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.72)},${minY + (height * 0.18)} Q${minX + (width * 0.56)},${minY + (height * 0.32)} ${minX + (width * 0.48)},${minY + (height * 0.54)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1.2, width * 0.024)}" stroke-linecap="round" opacity="${softOpacity}"/>
+                ${isFastState ? `<circle cx="${minX + (width * 0.18)}" cy="${minY + (height * 0.58)}" r="${sparkRadius * 1.3}" fill="${palette.spark}" opacity="${trailOpacity}"/><circle cx="${minX + (width * 0.1)}" cy="${minY + (height * 0.48)}" r="${sparkRadius}" fill="${palette.glow}" opacity="${trailOpacity}"/>` : ''}
+            `;
+        case 'turtle':
+            return `
+                <polygon points="${minX + (width * 0.38)},${minY + (height * 0.28)} ${minX + (width * 0.5)},${minY + (height * 0.16)} ${minX + (width * 0.62)},${minY + (height * 0.28)} ${minX + (width * 0.56)},${minY + (height * 0.44)} ${minX + (width * 0.44)},${minY + (height * 0.44)}" fill="${palette.spark}" opacity="${softOpacity}"/>
+                <path d="M${minX + (width * 0.24)},${minY + (height * 0.34)} L${minX + (width * 0.32)},${minY + (height * 0.18)} L${minX + (width * 0.4)},${minY + (height * 0.34)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.6)},${minY + (height * 0.34)} L${minX + (width * 0.68)},${minY + (height * 0.18)} L${minX + (width * 0.76)},${minY + (height * 0.34)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${strongOpacity}"/>
+                <ellipse cx="${minX + (width * 0.5)}" cy="${minY + (height * 0.46)}" rx="${width * 0.18}" ry="${height * 0.08}" fill="none" stroke="${palette.core}" stroke-width="${Math.max(0.8, width * 0.016)}" opacity="${softOpacity}"/>
+            `;
+        case 'eagle':
+            return `
+                ${isFastState ? `<path d="M${minX + (width * 0.14)},${minY + (height * 0.38)} C${minX - (width * 0.02)},${minY + (height * 0.18)} ${minX + (width * 0.06)},${minY + (height * 0.76)} ${minX + (width * 0.22)},${minY + (height * 0.58)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${trailOpacity}"/>` : ''}
+                <path d="M${minX + (width * 0.6)},${minY + (height * 0.16)} Q${minX + (width * 0.68)},${minY + (height * 0.04)} ${minX + (width * 0.76)},${minY + (height * 0.16)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.48)},${minY + (height * 0.22)} L${minX + (width * 0.4)},${minY + (height * 0.08)} M${minX + (width * 0.38)},${minY + (height * 0.5)} L${minX + (width * 0.28)},${minY + (height * 0.24)}" stroke="${palette.core}" stroke-width="${Math.max(0.8, width * 0.016)}" stroke-linecap="round" opacity="${softOpacity}"/>
+            `;
+        case 'scooter':
+            return `
+                <rect x="${minX + (width * 0.2)}" y="${minY + (height * 0.7)}" width="${width * 0.44}" height="${height * 0.05}" rx="${height * 0.02}" fill="${palette.glow}" opacity="${softOpacity}"/>
+                <circle cx="${minX + (width * 0.2)}" cy="${minY + (height * 0.78)}" r="${width * 0.08}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(0.8, width * 0.018)}" opacity="${softOpacity}"/>
+                <circle cx="${minX + (width * 0.8)}" cy="${minY + (height * 0.78)}" r="${width * 0.08}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(0.8, width * 0.018)}" opacity="${softOpacity}"/>
+                ${isFastState ? `<path d="M${minX + (width * 0.06)},${minY + (height * 0.58)} C${minX - (width * 0.08)},${minY + (height * 0.52)} ${minX - (width * 0.02)},${minY + (height * 0.8)} ${minX + (width * 0.12)},${minY + (height * 0.72)}" fill="${palette.glow}" opacity="${trailOpacity}"/>` : ''}
+            `;
+        case 'helicopter':
+            return `
+                <ellipse cx="${minX + (width * 0.5)}" cy="${minY + (height * 0.22)}" rx="${width * 0.26}" ry="${height * 0.05}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.022)}" opacity="${softOpacity}"/>
+                <ellipse cx="${minX + (width * 0.5)}" cy="${minY + (height * 0.22)}" rx="${width * 0.18}" ry="${height * 0.03}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(0.8, width * 0.016)}" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.3)},${minY + (height * 0.56)} L${minX + (width * 0.5)},${minY + (height * 0.44)} L${minX + (width * 0.7)},${minY + (height * 0.56)}" fill="none" stroke="${palette.core}" stroke-width="${Math.max(0.9, width * 0.018)}" opacity="${softOpacity}"/>
+                ${isFastState ? `<path d="M${minX + (width * 0.12)},${minY + (height * 0.44)} C${minX - (width * 0.08)},${minY + (height * 0.3)} ${minX - (width * 0.08)},${minY + (height * 0.64)} ${minX + (width * 0.12)},${minY + (height * 0.56)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${trailOpacity}"/>` : ''}
+            `;
+        case 'horse':
+            return `
+                <path d="M${minX + (width * 0.46)},${minY + (height * 0.2)} Q${minX + (width * 0.36)},${minY + (height * 0.02)} ${minX + (width * 0.28)},${minY + (height * 0.24)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1.1, width * 0.022)}" opacity="${strongOpacity}"/>
+                <polygon points="${minX + (width * 0.3)},${minY + (height * 0.4)} ${minX + (width * 0.48)},${minY + (height * 0.34)} ${minX + (width * 0.54)},${minY + (height * 0.48)} ${minX + (width * 0.34)},${minY + (height * 0.56)}" fill="${palette.glow}" opacity="${softOpacity}"/>
+                ${isFastState ? `<path d="M${minX + (width * 0.16)},${minY + (height * 0.62)} L${minX + (width * 0.08)},${minY + (height * 0.76)} M${minX + (width * 0.34)},${minY + (height * 0.68)} L${minX + (width * 0.26)},${minY + (height * 0.82)}" stroke="${palette.spark}" stroke-width="${Math.max(1, width * 0.02)}" stroke-linecap="round" opacity="${trailOpacity}"/>` : ''}
+            `;
+        case 'knight':
+            return `
+                <path d="M${minX + (width * 0.28)},${minY + (height * 0.2)} L${minX + (width * 0.16)},${minY + (height * 0.56)} L${minX + (width * 0.36)},${minY + (height * 0.46)}" fill="${palette.glow}" opacity="${softOpacity}"/>
+                <path d="M${minX + (width * 0.48)},${minY + (height * 0.22)} L${minX + (width * 0.62)},${minY + (height * 0.46)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1.1, width * 0.022)}" opacity="${strongOpacity}"/>
+                <circle cx="${minX + (width * 0.52)}" cy="${minY + (height * 0.36)}" r="${sparkRadius * 1.4}" fill="${palette.core}" opacity="${softOpacity}"/>
+                ${isFastState ? `<path d="M${minX + (width * 0.14)},${minY + (height * 0.54)} C${minX - (width * 0.04)},${minY + (height * 0.34)} ${minX},${minY + (height * 0.76)} ${minX + (width * 0.18)},${minY + (height * 0.68)}" fill="${palette.glow}" opacity="${trailOpacity}"/>` : ''}
+            `;
+        case 'dinosaur':
+            return `
+                <path d="M${minX + (width * 0.26)},${minY + (height * 0.28)} L${minX + (width * 0.34)},${minY + (height * 0.12)} L${minX + (width * 0.42)},${minY + (height * 0.28)} M${minX + (width * 0.4)},${minY + (height * 0.24)} L${minX + (width * 0.5)},${minY + (height * 0.08)} L${minX + (width * 0.6)},${minY + (height * 0.26)} M${minX + (width * 0.56)},${minY + (height * 0.3)} L${minX + (width * 0.68)},${minY + (height * 0.16)} L${minX + (width * 0.76)},${minY + (height * 0.32)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.66)},${minY + (height * 0.42)} Q${minX + (width * 0.82)},${minY + (height * 0.34)} ${minX + (width * 0.84)},${minY + (height * 0.52)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${softOpacity}"/>
+            `;
+        case 'ninja':
+            return `
+                <path d="M${minX + (width * 0.44)},${minY + (height * 0.24)} L${minX + (width * 0.28)},${minY + (height * 0.08)} M${minX + (width * 0.48)},${minY + (height * 0.3)} L${minX + (width * 0.22)},${minY + (height * 0.24)}" stroke="${palette.glow}" stroke-width="${Math.max(1.1, width * 0.02)}" stroke-linecap="round" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.52)},${minY + (height * 0.24)} Q${minX + (width * 0.7)},${minY + (height * 0.08)} ${minX + (width * 0.78)},${minY + (height * 0.24)}" fill="none" stroke="${palette.spark}" stroke-width="${Math.max(0.9, width * 0.018)}" opacity="${softOpacity}"/>
+                ${isFastState ? `<path d="M${minX + (width * 0.2)},${minY + (height * 0.48)} L${minX + (width * 0.06)},${minY + (height * 0.4)} M${minX + (width * 0.22)},${minY + (height * 0.62)} L${minX + (width * 0.08)},${minY + (height * 0.68)}" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" stroke-linecap="round" opacity="${trailOpacity}"/>` : ''}
+                <circle cx="${minX + (width * 0.56)}" cy="${minY + (height * 0.28)}" r="${sparkRadius}" fill="${palette.core}" opacity="${softOpacity}"/>
+            `;
+        case 'crab':
+            return `
+                <path d="M${minX + (width * 0.3)},${minY + (height * 0.42)} L${minX + (width * 0.18)},${minY + (height * 0.22)} L${minX + (width * 0.34)},${minY + (height * 0.3)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${strongOpacity}"/>
+                <path d="M${minX + (width * 0.7)},${minY + (height * 0.42)} L${minX + (width * 0.82)},${minY + (height * 0.22)} L${minX + (width * 0.66)},${minY + (height * 0.3)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${strongOpacity}"/>
+                <polygon points="${minX + (width * 0.42)},${minY + (height * 0.24)} ${minX + (width * 0.5)},${minY + (height * 0.12)} ${minX + (width * 0.58)},${minY + (height * 0.24)} ${minX + (width * 0.5)},${minY + (height * 0.34)}" fill="${palette.spark}" opacity="${softOpacity}"/>
+                ${isFastState ? `<circle cx="${minX + (width * 0.16)}" cy="${minY + (height * 0.58)}" r="${sparkRadius}" fill="${palette.glow}" opacity="${trailOpacity}"/><circle cx="${minX + (width * 0.84)}" cy="${minY + (height * 0.56)}" r="${sparkRadius}" fill="${palette.glow}" opacity="${trailOpacity}"/>` : ''}
+            `;
+        default:
+            return isFastState
+                ? `<path d="M${minX + (width * 0.12)},${minY + (height * 0.52)} C${minX - (width * 0.04)},${minY + (height * 0.34)} ${minX},${minY + (height * 0.76)} ${minX + (width * 0.18)},${minY + (height * 0.64)}" fill="none" stroke="${palette.glow}" stroke-width="${Math.max(1, width * 0.02)}" opacity="${trailOpacity}"/>`
+                : '';
+    }
+}
+
+function buildPoweredVehicleSVG(svgMarkup, vehicleId, state, palette) {
+    if (typeof svgMarkup !== 'string') return svgMarkup;
+
+    const openingTagMatch = svgMarkup.match(/^<svg\b[^>]*>/i);
+    const closingIndex = svgMarkup.lastIndexOf('</svg>');
+    if (!openingTagMatch || closingIndex === -1) return svgMarkup;
+
+    const openingTag = openingTagMatch[0];
+    const innerMarkup = svgMarkup.slice(openingTag.length, closingIndex);
+    const svgTag = openingTag.slice(0, -1);
+    const viewBoxMatch = openingTag.match(/viewBox="([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)"/i);
+    const minX = viewBoxMatch ? Number(viewBoxMatch[1]) : 0;
+    const minY = viewBoxMatch ? Number(viewBoxMatch[2]) : 0;
+    const width = viewBoxMatch ? Number(viewBoxMatch[3]) : 60;
+    const height = viewBoxMatch ? Number(viewBoxMatch[4]) : 45;
+    const centerX = minX + (width / 2);
+    const centerY = minY + (height / 2);
+    const intensity = getVehiclePowerStateIntensity(state);
+    const glowId = `vehicle-power-glow-${vehiclePowerSvgSequence}`;
+    const auraId = `vehicle-power-aura-${vehiclePowerSvgSequence}`;
+    vehiclePowerSvgSequence += 1;
+
+    const enhancedOpeningTag = svgTag.includes('overflow=')
+        ? openingTag
+        : `${svgTag} overflow="visible" data-variant="power" data-resource-id="${vehicleId}_power">`;
+    const box = { minX, minY, width, height, intensity };
+    const overlayMarkup = getVehiclePowerOverlayMarkup(vehicleId, state, box, palette);
+    const badgeMarkup = getVehiclePowerBadgeMarkup(state, box, palette);
+
+    return `${enhancedOpeningTag}
+        <defs>
+            <radialGradient id="${auraId}" cx="50%" cy="50%" r="60%">
+                <stop offset="0%" stop-color="${palette.core}" stop-opacity="${Math.min(0.74 + (intensity * 0.08), 0.92).toFixed(2)}"/>
+                <stop offset="55%" stop-color="${palette.glow}" stop-opacity="${Math.min(0.22 + (intensity * 0.2), 0.55).toFixed(2)}"/>
+                <stop offset="100%" stop-color="${palette.glow}" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="${glowId}" x="-45%" y="-45%" width="190%" height="190%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="${palette.glow}" flood-opacity="0.55"/>
+                <feDropShadow dx="0" dy="0" stdDeviation="4.5" flood-color="${palette.spark}" flood-opacity="0.25"/>
+            </filter>
+        </defs>
+        <ellipse cx="${centerX}" cy="${centerY}" rx="${width * 0.37}" ry="${height * 0.33}" fill="url(#${auraId})" opacity="${Math.min(0.35 + (intensity * 0.15), 0.65).toFixed(2)}"/>
+        <g opacity="${Math.min(0.56 + (intensity * 0.24), 0.92).toFixed(2)}">
+            <circle cx="${minX + (width * 0.18)}" cy="${minY + (height * 0.2)}" r="${Math.max(0.8, width * 0.022)}" fill="${palette.spark}"/>
+            <circle cx="${minX + (width * 0.82)}" cy="${minY + (height * 0.18)}" r="${Math.max(0.7, width * 0.018)}" fill="${palette.glow}"/>
+            <circle cx="${minX + (width * 0.74)}" cy="${minY + (height * 0.78)}" r="${Math.max(0.8, width * 0.02)}" fill="${palette.spark}"/>
+            <path d="M${minX + (width * 0.12)},${minY + (height * 0.55)} L${minX + (width * 0.16)},${minY + (height * 0.48)} L${minX + (width * 0.2)},${minY + (height * 0.55)} L${minX + (width * 0.16)},${minY + (height * 0.62)} Z" fill="${palette.spark}" opacity="0.85"/>
+            <path d="M${minX + (width * 0.88)},${minY + (height * 0.48)} L${minX + (width * 0.91)},${minY + (height * 0.42)} L${minX + (width * 0.94)},${minY + (height * 0.48)} L${minX + (width * 0.91)},${minY + (height * 0.54)} Z" fill="${palette.glow}" opacity="0.82"/>
+        </g>
+        <g filter="url(#${glowId})">
+            ${innerMarkup}
+        </g>
+        ${overlayMarkup}
+        ${badgeMarkup}
+    </svg>`;
+}
+
+function getVehicleBaseSVG(vehicleId) {
+    const cacheKey = vehicleId || 'car';
+    if (!vehicleVariantCache.base[cacheKey]) {
+        const baseResource = vehicleId === 'eagle'
+            ? BASE_VEHICLE_VARIANT_OVERRIDES.eagle
+            : getVehicleSVG(vehicleId);
+        vehicleVariantCache.base[cacheKey] = cloneVehicleSpriteResource(baseResource);
+    }
+    return cloneVehicleSpriteResource(vehicleVariantCache.base[cacheKey]);
+}
+
+function getVehiclePowerSVG(vehicleId) {
+    const cacheKey = vehicleId || 'car';
+    if (!vehicleVariantCache.power[cacheKey]) {
+        const poweredSource = POWER_VEHICLE_VARIANT_OVERRIDES[vehicleId]
+            || (POWER_VEHICLE_FALLBACK_BASE_OVERRIDE_IDS.has(vehicleId) ? BASE_VEHICLE_VARIANT_OVERRIDES[vehicleId] : null)
+            || (vehicleId === 'eagle'
+                ? getVehicleSVG('eagle')
+                : getVehicleBaseSVG(vehicleId));
+        vehicleVariantCache.power[cacheKey] = mapVehicleSpriteResource(
+            poweredSource,
+            (markup, path) => buildPoweredVehicleSVG(markup, vehicleId, path[0] || 'run', getVehiclePowerPalette(vehicleId))
+        );
+    }
+    return cloneVehicleSpriteResource(vehicleVariantCache.power[cacheKey]);
+}
+
+function getVehicleSVGVariants(vehicleId) {
+    return {
+        base: getVehicleBaseSVG(vehicleId),
+        power: getVehiclePowerSVG(vehicleId)
+    };
+}
+
+function getVehicleVariantSVG(vehicleId, variant = 'base') {
+    return variant === 'power' ? getVehiclePowerSVG(vehicleId) : getVehicleBaseSVG(vehicleId);
+}
+
+function getVehicleSpriteResourceIds(vehicleId) {
+    const normalizedId = String(vehicleId || 'car').replace(/_power$/, '');
+    return {
+        base: normalizedId,
+        power: `${normalizedId}_power`
+    };
+}
+
+function parseVehicleSpriteResourceId(resourceId) {
+    const normalizedId = String(resourceId || 'car');
+    if (normalizedId.endsWith('_power')) {
+        return {
+            vehicleId: normalizedId.slice(0, -6) || 'car',
+            variant: 'power'
+        };
+    }
+
+    return {
+        vehicleId: normalizedId,
+        variant: 'base'
+    };
+}
+
+function getVehicleSVGByResourceId(resourceId) {
+    const parsed = parseVehicleSpriteResourceId(resourceId);
+    return getVehicleVariantSVG(parsed.vehicleId, parsed.variant);
+}
