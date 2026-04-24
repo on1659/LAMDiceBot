@@ -1,4 +1,52 @@
 ========================================
+📋 Summit Log - 2026-04-25 — 룰렛 서버 확정 + 긴장감 중계 개선
+========================================
+
+## 변경 파일
+- socket/roulette.js: 서버 기준 룰렛 결과 확정, roundId/pendingRound, nearMiss 효과 파라미터
+- roulette-game-multiplayer.html: 라이브 중계 패널, nearMiss 클라이언트 연출, 새로고침 후 방장 UI 복구
+- docs/GameGuide/03-games/roulette.md: 룰렛 이벤트 payload와 효과 설명 갱신
+- update-log.md: 사용자-facing 룰렛 개선 내역 추가
+
+## 상세 변경 내역
+
+### 서버 주도 결과 확정 (socket/roulette.js)
+- ROULETTE_RESULT_GRACE_MS, calculateRouletteDisplayDurationMs, createRouletteRoundId 추가
+- startRoulette 시 pendingRouletteRound 저장
+  - roundId / winner / participants / serverStartedAt / serverEndAt / displayDurationMs
+- 서버 타이머로 rouletteEnded 자동 확정
+- rouletteResult 클라이언트 신호는 서버 pending 결과와 일치할 때만 수락
+- 중복 확정 방지를 위해 finalizeRouletteRound 공통화
+- 서버 기록 저장, 채팅 메시지, 자동 주문 트리거, 랭킹 배지 갱신을 서버 확정 루틴으로 이동
+
+### 룰렛 긴장감 연출 (roulette-game-multiplayer.html)
+- nearMiss 클라이언트 애니메이션 추가
+  - tease / hold / recoil / settle 단계
+  - suspense ring, pointer tension, wheel glow CSS
+  - WebAudio tension tick, stop rumble 정리
+- 룰렛 라이브 중계 패널 추가
+  - 초반 예열 멘트, 후보 표시, 마지막 접전, 최종 당첨자 표시
+  - 텍스트 길이 변화가 레이아웃을 흔들지 않도록 고정 높이/행 구성
+  - 긴 이름 자동 폰트 축소
+- 많은 참가자에서도 현재 후보/당첨자를 따로 읽을 수 있게 개선
+
+### 새로고침 방장 UI 복구
+- roomJoined 처리 중 setRouletteSoundCheckboxes 누락으로 initializeGameScreen이 중단되던 문제 수정
+- applyRouletteHostUiState 공통 함수 추가
+  - hostControls, hostBadge, 주문받기 버튼, 터보 설정, ReadyModule/RankingModule host 상태 동기화
+- updateUsers, initializeGameScreen, hostTransferred 경로에서 방장 UI를 재동기화
+
+### 검증
+- git diff --check -- roulette-game-multiplayer.html socket/roulette.js docs/GameGuide/03-games/roulette.md
+- node --check socket/roulette.js
+- node AutoTest/roulette-server-finalization-test.js
+- Playwright:
+  - 방장 새로고침 후 hostControls 유지 확인
+  - 룰렛 중계 초반 "???" 제거 및 후보 표시 확인
+
+========================================
+
+========================================
 📋 Summit Log - 2026-04-24 (2) — Evolution 중계 해설 연동
 ========================================
 

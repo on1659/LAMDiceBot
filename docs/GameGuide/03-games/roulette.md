@@ -16,9 +16,9 @@
 2. 플레이어들이 입장합니다.
 3. 플레이어들이 준비 상태를 켭니다.
 4. 호스트가 `startRoulette`을 보냅니다 (2명 이상 준비 필요).
-5. 서버가 당첨자를 수학적으로 결정하고 `rouletteStarted`를 전송합니다.
+5. 서버가 당첨자와 서버 기준 종료 시각을 결정하고 `rouletteStarted`를 전송합니다.
 6. 클라이언트가 회전 애니메이션을 재생합니다.
-7. 호스트가 `rouletteResult`로 결과를 확정합니다.
+7. 서버 타이머가 `serverEndAt` 기준으로 결과를 확정하고 `rouletteEnded`를 전송합니다.
 
 ## 전용 서버 이벤트 (`socket/roulette.js`)
 
@@ -26,7 +26,7 @@
 |--------|------|
 | `updateTurboAnimation` | 터보 애니메이션 on/off (호스트, 게임 중 불가) |
 | `startRoulette` | 룰렛 시작 (호스트, 2명+ 준비) |
-| `rouletteResult` | 결과 확정, 뱃지/통계 기록 |
+| `rouletteResult` | 호스트 클라이언트 완료 신호(서버 pending 결과와 일치할 때만 기록, 최종 확정은 서버 타이머) |
 | `endRoulette` | 게임 종료, 준비/플레이어 초기화 |
 | `selectRouletteColor` | 색상 선택 (0~15, 방 내 중복 불가). 서버 구현만 존재, 클라이언트 미연결 |
 | `getUserColors` | 현재 색상 배정 조회. 서버 구현만 존재, 클라이언트 미연결 |
@@ -49,7 +49,7 @@
 | 이벤트 | payload |
 |--------|---------|
 | `startRoulette` | 없음 |
-| `rouletteResult` | `{ winner }` |
+| `rouletteResult` | `{ winner, roundId? }` |
 | `endRoulette` | 없음 |
 | `updateTurboAnimation` | `{ turboAnimation: boolean }` |
 | `toggleReady` | 없음 |
@@ -60,8 +60,8 @@
 
 | 이벤트 | payload |
 |--------|---------|
-| `rouletteStarted` | `{ participants, spinDuration, totalRotation, winnerIndex, winner, record, everPlayedUsers, effectType, effectParams }` |
-| `rouletteEnded` | `{ winner }` |
+| `rouletteStarted` | `{ roundId, participants, spinDuration, totalRotation, winnerIndex, winner, record, everPlayedUsers, effectType, effectParams, serverStartedAt, displayDurationMs, resultGraceMs, serverEndAt }` |
+| `rouletteEnded` | `{ winner, roundId, finalizedBy }` |
 | `rouletteGameEnded` | `{ rouletteHistory }` |
 | `turboAnimationUpdated` | `{ turboAnimation }` |
 | `readyUsersUpdated` | `string[]` |
@@ -78,7 +78,7 @@
 4. `finalAngle = fullRotations * 360 + (360 - winnerCenterAngle)`
 
 터보 애니메이션 활성 시 마무리 효과:
-- normal (30%), bounce (25%), shake (25%), slowCrawl (20%)
+- normal (20%), bounce (20%), shake (20%), slowCrawl (15%), nearMiss (25%)
 
 터보 비활성 시 항상 normal.
 

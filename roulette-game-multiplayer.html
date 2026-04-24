@@ -225,6 +225,124 @@
             filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
         }
 
+        .roulette-wrapper::after {
+            content: "";
+            position: absolute;
+            inset: -14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 214, 10, 0.7);
+            box-shadow: 0 0 0 rgba(255, 214, 10, 0);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .roulette-wrapper.suspense-active::after {
+            opacity: 1;
+            animation: rouletteSuspenseRing 0.9s ease-in-out infinite;
+        }
+
+        .roulette-wrapper.suspense-active .roulette-pointer {
+            animation: roulettePointerTension 0.2s ease-in-out infinite;
+        }
+
+        .roulette-wrapper.holding-breath .roulette-pointer {
+            animation: roulettePointerHold 0.45s ease-in-out infinite;
+        }
+
+        .roulette-wheel.suspense-glow {
+            box-shadow:
+                0 0 42px rgba(255, 214, 10, 0.45),
+                0 0 18px rgba(233, 69, 96, 0.35),
+                inset 0 0 24px rgba(0, 0, 0, 0.26);
+        }
+
+        .roulette-live-commentary {
+            display: none;
+            width: min(92vw, 520px);
+            height: 86px;
+            margin: 2px auto 0;
+            padding: 9px 16px;
+            border-radius: 8px;
+            background: var(--gray-900);
+            color: var(--bg-white);
+            text-align: center;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+            box-sizing: border-box;
+        }
+
+        .roulette-live-commentary.visible {
+            display: grid;
+            grid-template-rows: 18px 32px 18px;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .roulette-live-commentary.winner {
+            background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
+            color: var(--text-primary);
+        }
+
+        .roulette-live-commentary.tension {
+            background: linear-gradient(135deg, var(--gray-900) 0%, var(--red-500) 100%);
+            animation: rouletteCommentaryPulse 0.8s ease-in-out infinite alternate;
+        }
+
+        .roulette-commentary-status,
+        .roulette-commentary-hint {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+            font-weight: 800;
+            opacity: 0.82;
+            line-height: 1;
+        }
+
+        .roulette-commentary-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 26px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        @keyframes rouletteCommentaryPulse {
+            from {
+                transform: scale(1);
+                box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+            }
+            to {
+                transform: scale(1.015);
+                box-shadow: 0 10px 24px rgba(233, 69, 96, 0.28);
+            }
+        }
+
+        @keyframes rouletteSuspenseRing {
+            0%, 100% {
+                transform: scale(0.98);
+                box-shadow: 0 0 0 rgba(255, 214, 10, 0);
+            }
+            50% {
+                transform: scale(1.03);
+                box-shadow: 0 0 26px rgba(255, 214, 10, 0.6);
+            }
+        }
+
+        @keyframes roulettePointerTension {
+            0%, 100% { transform: translateX(-50%) rotate(0deg); }
+            50% { transform: translateX(-50%) rotate(4deg); }
+        }
+
+        @keyframes roulettePointerHold {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
         /* 룰렛 세그먼트 */
         .roulette-segment {
             position: absolute;
@@ -1007,6 +1125,7 @@
                     <div class="roulette-wheel" id="rouletteWheel"></div>
                     <div class="roulette-center">🎰</div>
                 </div>
+                <div class="roulette-live-commentary" id="rouletteLiveCommentary" aria-live="polite"></div>
             </div>
 
             <!-- 터보 애니메이션 설정 (호스트 전용) -->
@@ -1992,6 +2111,12 @@
         let lastRouletteData = null; // 마지막 룰렛 데이터 (다시보기용 - 모든 사람 사용 가능)
         let missedRoulette = false; // 룰렛을 놓쳤는지 여부 (화면 숨김 상태였는지)
         let everPlayedUsers = []; // 방에 입장한 후 한번이라도 게임에 참여한 사람 목록 (누적)
+        let rouletteCommentaryRafId = null;
+        let rouletteCommentaryLastIndex = null;
+        let rouletteCommentaryPhraseIndex = 0;
+        let rouletteCommentaryLastUpdatedAt = 0;
+        let rouletteCommentaryStage = null;
+        let rouletteCommentaryLastName = '';
         
         // 파스텔톤 색상 목록
         const PASTEL_COLORS = [
@@ -2017,11 +2142,17 @@
         // 룰렛 사운드 볼륨 관리 — ControlBar 위임
         function getRouletteSoundEnabled() { return ControlBar.getSoundEnabled(); }
         function getRouletteMasterVolume() { return ControlBar.getMasterVolume(); }
+        function setRouletteSoundCheckboxes() {
+            if (window.ControlBar && typeof ControlBar.updateVolumeUI === 'function') {
+                ControlBar.updateVolumeUI();
+            }
+        }
 
         // 룰렛 사운드 (Web Audio API - 외부 파일 불필요, 마스터 볼륨 적용)
         const RouletteSound = {
             audioCtx: null,
             spinRafId: null,
+            tensionTimerIds: [],
             init() {
                 if (this.audioCtx) return this.audioCtx;
                 this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -2033,9 +2164,10 @@
             },
             playTick() {
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                const vol = getRouletteMasterVolume();
+                if (vol <= 0) return;
                 this.ensureContext();
                 if (!this.audioCtx) return;
-                const vol = getRouletteMasterVolume();
                 const osc = this.audioCtx.createOscillator();
                 const gain = this.audioCtx.createGain();
                 osc.type = 'sine';
@@ -2046,6 +2178,42 @@
                 gain.connect(this.audioCtx.destination);
                 osc.start(this.audioCtx.currentTime);
                 osc.stop(this.audioCtx.currentTime + 0.06);
+            },
+            playTensionTick(intensity = 1) {
+                if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                const vol = getRouletteMasterVolume();
+                if (vol <= 0) return;
+                this.ensureContext();
+                if (!this.audioCtx) return;
+                const now = this.audioCtx.currentTime;
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(170 + intensity * 65, now);
+                gain.gain.setValueAtTime(0.12 * vol * intensity, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            },
+            clearTension() {
+                this.tensionTimerIds.forEach(timerId => clearTimeout(timerId));
+                this.tensionTimerIds = [];
+            },
+            startSuspenseTicks(totalDuration) {
+                if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                this.clearTension();
+                const startedAt = Date.now();
+                const tick = () => {
+                    const elapsed = Date.now() - startedAt;
+                    const progress = Math.min(1, elapsed / totalDuration);
+                    this.playTensionTick(0.7 + progress * 0.6);
+                    if (progress >= 1) return;
+                    const delay = Math.max(120, 380 - progress * 240);
+                    this.tensionTimerIds.push(setTimeout(tick, delay));
+                };
+                this.tensionTimerIds.push(setTimeout(tick, 90));
             },
             startBoundaryTicks(wheel, mainDuration, animationStartTime) {
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
@@ -2087,9 +2255,10 @@
             },
             playStopRumble() {
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                const vol = getRouletteMasterVolume();
+                if (vol <= 0) return;
                 this.ensureContext();
                 if (!this.audioCtx) return;
-                const vol = getRouletteMasterVolume();
                 const osc = this.audioCtx.createOscillator();
                 const gain = this.audioCtx.createGain();
                 osc.type = 'sine';
@@ -2103,9 +2272,10 @@
             },
             playWinner() {
                 if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+                const vol = getRouletteMasterVolume();
+                if (vol <= 0) return;
                 this.ensureContext();
                 if (!this.audioCtx) return;
-                const vol = getRouletteMasterVolume();
                 const notes = [523.25, 659.25, 783.99, 1046.50];
                 const gain = this.audioCtx.createGain();
                 gain.gain.setValueAtTime(0.25 * vol, this.audioCtx.currentTime);
@@ -2204,6 +2374,31 @@
             }
         }
 
+        function applyRouletteHostUiState() {
+            window.isHost = isHost;
+            if (typeof ReadyModule !== 'undefined' && typeof ReadyModule.setHost === 'function') {
+                ReadyModule.setHost(isHost);
+            }
+            if (typeof RankingModule !== 'undefined' && typeof RankingModule.setHost === 'function') {
+                RankingModule.setHost(isHost);
+            }
+
+            updateControlBarUI(isHost);
+
+            const hostControls = document.getElementById('hostControls');
+            const dragHint = document.getElementById('dragHint');
+            const startOrderButton = document.getElementById('startOrderButton');
+            const endOrderButton = document.getElementById('endOrderButton');
+
+            if (hostControls) hostControls.style.display = isHost ? 'grid' : 'none';
+            if (dragHint) dragHint.style.display = isHost ? 'inline' : 'none';
+            if (startOrderButton) startOrderButton.style.display = isHost && !isOrderActive ? 'block' : 'none';
+            if (endOrderButton) endOrderButton.style.display = isHost && isOrderActive ? 'block' : 'none';
+
+            updateTurboSettingUI();
+            updateStartButton();
+        }
+
         // 룰렛 시작
         function startRoulette() {
             if (readyUsers.length < 2) {
@@ -2212,6 +2407,219 @@
             }
             RouletteSound.ensureContext();
             socket.emit('startRoulette');
+        }
+
+        function ensureRouletteCommentaryElements(commentary) {
+            if (!commentary || commentary._structured) return;
+            commentary.innerHTML = '';
+
+            const status = document.createElement('div');
+            status.className = 'roulette-commentary-status';
+            status.dataset.role = 'status';
+
+            const name = document.createElement('div');
+            name.className = 'roulette-commentary-name';
+            name.dataset.role = 'name';
+
+            const hint = document.createElement('div');
+            hint.className = 'roulette-commentary-hint';
+            hint.dataset.role = 'hint';
+
+            commentary.append(status, name, hint);
+            commentary._structured = true;
+        }
+
+        function fitRouletteCommentaryName(nameElement) {
+            if (!nameElement) return;
+            nameElement.style.fontSize = '26px';
+            let size = 26;
+            while (size > 14 && nameElement.scrollWidth > nameElement.clientWidth) {
+                size -= 1;
+                nameElement.style.fontSize = `${size}px`;
+            }
+        }
+
+        function setRouletteLiveCommentary(content, mode = 'spinning') {
+            const commentary = document.getElementById('rouletteLiveCommentary');
+            if (!commentary) return;
+            ensureRouletteCommentaryElements(commentary);
+
+            if (!content) {
+                commentary.className = 'roulette-live-commentary';
+                return;
+            }
+
+            const normalized = typeof content === 'string'
+                ? { status: content, name: '', hint: '' }
+                : content;
+            const status = commentary.querySelector('[data-role="status"]');
+            const name = commentary.querySelector('[data-role="name"]');
+            const hint = commentary.querySelector('[data-role="hint"]');
+
+            status.textContent = normalized.status || '';
+            name.textContent = normalized.name || '';
+            hint.textContent = normalized.hint || '';
+            name.title = normalized.name || '';
+            commentary.className = `roulette-live-commentary visible ${mode}`;
+            fitRouletteCommentaryName(name);
+        }
+
+        function clearRouletteLiveCommentary() {
+            stopRouletteLiveCommentary();
+            setRouletteLiveCommentary('');
+        }
+
+        function stopRouletteLiveCommentary() {
+            if (rouletteCommentaryRafId !== null) {
+                cancelAnimationFrame(rouletteCommentaryRafId);
+                rouletteCommentaryRafId = null;
+            }
+            rouletteCommentaryLastIndex = null;
+            rouletteCommentaryStage = null;
+            rouletteCommentaryLastName = '';
+        }
+
+        function getRouletteWheelRotationDeg(wheel) {
+            const transform = window.getComputedStyle(wheel).transform;
+            if (!transform || transform === 'none') return 0;
+            const matrix = new DOMMatrix(transform);
+            return (Math.atan2(matrix.b, matrix.a) * 180 / Math.PI + 360) % 360;
+        }
+
+        function getRoulettePointerIndex(wheel, participants) {
+            if (!participants || participants.length === 0) return -1;
+            const segmentAngle = 360 / participants.length;
+            const rotationDeg = getRouletteWheelRotationDeg(wheel);
+            const pointerAngle = (360 - rotationDeg + 360) % 360;
+            return Math.min(participants.length - 1, Math.floor(pointerAngle / segmentAngle));
+        }
+
+        function getRouletteCommentaryPhrase(stage) {
+            const phrases = stage === 'tension'
+                ? [
+                    { status: '여기서 멈추면', hint: '아직 지나갈 수도 있습니다' },
+                    { status: '멈출 듯 말 듯', hint: '포인터가 버팁니다' },
+                    { status: '마지막 접전', hint: '끝까지 봐야 합니다' }
+                ]
+                : [
+                    { status: '후보가 보입니다', hint: '슬슬 좁혀집니다' },
+                    { status: '포인터가 향하는 곳', hint: '아직 지나갈 수 있습니다' },
+                    { status: '근처를 지나갑니다', hint: '긴장하세요' }
+                ];
+            const phrase = phrases[rouletteCommentaryPhraseIndex % phrases.length];
+            rouletteCommentaryPhraseIndex++;
+            return phrase;
+        }
+
+        function getRouletteIntroCommentary(participants) {
+            const count = participants.length;
+            const intros = [
+                {
+                    status: `${count}명 입장 완료`,
+                    name: '포인터 탐색 중',
+                    hint: '이제부터 이름이 잡힙니다'
+                },
+                {
+                    status: '초반은 속도전',
+                    name: '슬슬 좁혀집니다',
+                    hint: '아직 누구도 확정 아닙니다'
+                },
+                {
+                    status: '첫 바퀴 예열 중',
+                    name: '긴장감 충전',
+                    hint: '포인터가 속도를 올립니다'
+                }
+            ];
+            return intros[Math.floor(Math.random() * intros.length)];
+        }
+
+        function startRouletteLiveCommentary(participants, displayDurationMs = 9000) {
+            const wheel = document.getElementById('rouletteWheel');
+            stopRouletteLiveCommentary();
+            rouletteCommentaryPhraseIndex = 0;
+            rouletteCommentaryLastUpdatedAt = 0;
+            rouletteCommentaryStage = null;
+
+            if (!wheel || !participants || participants.length === 0) return;
+
+            const startedAt = Date.now();
+            const safeDuration = Math.max(2500, displayDurationMs || 9000);
+            const introCommentary = getRouletteIntroCommentary(participants);
+
+            const updateCommentary = () => {
+                const elapsed = Date.now() - startedAt;
+                const progress = Math.min(1, elapsed / safeDuration);
+                let nextStage = 'intro';
+                if (progress >= 0.26 && progress < 0.62) {
+                    nextStage = 'candidate';
+                } else if (progress >= 0.62 && progress < 0.88) {
+                    nextStage = 'tension';
+                } else if (progress >= 0.88) {
+                    nextStage = 'hold';
+                }
+
+                if (nextStage === 'intro') {
+                    if (rouletteCommentaryStage !== 'intro') {
+                        rouletteCommentaryStage = 'intro';
+                        setRouletteLiveCommentary(introCommentary, 'spinning');
+                    }
+                    rouletteCommentaryRafId = requestAnimationFrame(updateCommentary);
+                    return;
+                }
+
+                if (nextStage === 'hold') {
+                    if (rouletteCommentaryStage !== 'hold') {
+                        rouletteCommentaryStage = 'hold';
+                        setRouletteLiveCommentary({
+                            status: '멈출 듯 말 듯',
+                            name: rouletteCommentaryLastName || '끝까지 확인',
+                            hint: '마지막 한 칸입니다'
+                        }, 'tension');
+                    }
+                    rouletteCommentaryRafId = requestAnimationFrame(updateCommentary);
+                    return;
+                }
+
+                const index = getRoulettePointerIndex(wheel, participants);
+                const name = participants[index];
+                const now = Date.now();
+                const minInterval = nextStage === 'tension' ? 1100 : 1300;
+                if (
+                    name &&
+                    (index !== rouletteCommentaryLastIndex || nextStage !== rouletteCommentaryStage) &&
+                    now - rouletteCommentaryLastUpdatedAt > minInterval
+                ) {
+                    rouletteCommentaryLastIndex = index;
+                    rouletteCommentaryLastName = name;
+                    rouletteCommentaryStage = nextStage;
+                    rouletteCommentaryLastUpdatedAt = now;
+                    const phrase = getRouletteCommentaryPhrase(nextStage);
+                    setRouletteLiveCommentary(
+                        {
+                            status: phrase.status,
+                            name,
+                            hint: phrase.hint
+                        },
+                        nextStage === 'tension' ? 'tension' : 'spinning'
+                    );
+                }
+                rouletteCommentaryRafId = requestAnimationFrame(updateCommentary);
+            };
+
+            setRouletteLiveCommentary(introCommentary, 'spinning');
+            rouletteCommentaryStage = 'intro';
+            rouletteCommentaryRafId = requestAnimationFrame(updateCommentary);
+        }
+
+        function finishRouletteLiveCommentary(winner) {
+            stopRouletteLiveCommentary();
+            if (winner) {
+                setRouletteLiveCommentary({
+                    status: '결국 당첨자는',
+                    name: winner,
+                    hint: '축하합니다!'
+                }, 'winner');
+            }
         }
 
         // 룰렛 휠 생성
@@ -2285,10 +2693,11 @@
         }
 
         // 룰렛 애니메이션
-        // effectType: 서버에서 결정한 마무리 효과 타입 (normal, bounce, shake, slowCrawl)
+        // effectType: 서버에서 결정한 마무리 효과 타입 (normal, bounce, shake, slowCrawl, nearMiss)
         // effectParams: 효과별 파라미터 (서버에서 결정)
         function spinRoulette(finalAngle, duration, effectType, effectParams, callback) {
             const wheel = document.getElementById('rouletteWheel');
+            const wrapper = wheel.closest('.roulette-wrapper');
             
             // 기존 transitionend 이벤트 리스너 제거 (중복 방지)
             if (wheel._rouletteTransitionHandler) {
@@ -2300,7 +2709,30 @@
             if (wheel._rouletteShakeInterval) {
                 clearInterval(wheel._rouletteShakeInterval);
             }
-            
+            if (wheel._rouletteEffectTimeouts) {
+                wheel._rouletteEffectTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            }
+            wheel._rouletteEffectTimeouts = [];
+
+            const clearRouletteEffectState = () => {
+                RouletteSound.clearTension();
+                wheel.classList.remove('suspense-glow');
+                if (wrapper) {
+                    wrapper.classList.remove('suspense-active', 'holding-breath');
+                }
+                if (wheel._rouletteEffectTimeouts) {
+                    wheel._rouletteEffectTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+                    wheel._rouletteEffectTimeouts = [];
+                }
+            };
+            clearRouletteEffectState();
+
+            const scheduleEffectTimeout = (fn, delay) => {
+                const timeoutId = setTimeout(fn, delay);
+                wheel._rouletteEffectTimeouts.push(timeoutId);
+                return timeoutId;
+            };
+
             let callbackCalled = false;
             const animationStartTime = Date.now();
             
@@ -2309,6 +2741,7 @@
                 if (callbackCalled) return;
                 callbackCalled = true;
                 RouletteSound.stopSpin();
+                clearRouletteEffectState();
                 const elapsed = Date.now() - animationStartTime;
                 console.log(`✅ 룰렛 애니메이션 완료 - ${mode} (경과 시간: ${elapsed}ms)`);
                 if (wheel._rouletteTransitionHandler) {
@@ -2341,6 +2774,8 @@
                 preEffectAngle = finalAngle; // 떨림: 정확한 위치에서 흔들림
             } else if (effectType === 'slowCrawl') {
                 preEffectAngle = finalAngle - (effectParams.crawlDistance || 45); // 느린 크롤: 조금 전에서 시작
+            } else if (effectType === 'nearMiss') {
+                preEffectAngle = finalAngle - (effectParams.teaseDistance || 45); // 아슬아슬: 당첨 칸 바로 앞에서 긴장감 조성
             }
             
             // 메인 회전 시작 (경계선 지날 때마다 틱 사운드)
@@ -2433,6 +2868,50 @@
                         wheel.offsetHeight;
                         wheel.style.transform = `rotate(${finalAngle}deg)`;
                         break;
+
+                    case 'nearMiss': {
+                        addDebugLog('🎯 아슬아슬 효과 발동!', 'animation');
+                        const teaseDuration = effectParams.teaseDuration || 1800;
+                        const holdDuration = effectParams.holdDuration || 900;
+                        const recoilDuration = effectParams.recoilDuration || 420;
+                        const settleDuration = effectParams.settleDuration || 900;
+                        const holdOffsetDeg = effectParams.holdOffsetDeg || 2;
+                        const recoilDistance = effectParams.recoilDistance || 10;
+                        const totalSuspenseDuration = teaseDuration + holdDuration + recoilDuration + settleDuration;
+
+                        wheel.classList.add('suspense-glow');
+                        if (wrapper) wrapper.classList.add('suspense-active');
+                        RouletteSound.startSuspenseTicks(totalSuspenseDuration);
+
+                        wheel.style.transition = `transform ${teaseDuration}ms cubic-bezier(0.12, 0.72, 0.08, 1)`;
+                        wheel.offsetHeight;
+                        wheel.style.transform = `rotate(${finalAngle - holdOffsetDeg}deg)`;
+
+                        scheduleEffectTimeout(() => {
+                            if (callbackCalled) return;
+                            RouletteSound.playTensionTick(1.3);
+                            if (wrapper) wrapper.classList.add('holding-breath');
+
+                            scheduleEffectTimeout(() => {
+                                if (callbackCalled) return;
+                                if (wrapper) wrapper.classList.remove('holding-breath');
+                                RouletteSound.playTensionTick(0.95);
+                                wheel.style.transition = `transform ${recoilDuration}ms cubic-bezier(0.45, 0, 0.35, 1)`;
+                                wheel.offsetHeight;
+                                wheel.style.transform = `rotate(${finalAngle - recoilDistance}deg)`;
+
+                                scheduleEffectTimeout(() => {
+                                    if (callbackCalled) return;
+                                    RouletteSound.playStopRumble();
+                                    wheel.style.transition = `transform ${settleDuration}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+                                    wheel.offsetHeight;
+                                    wheel.style.transform = `rotate(${finalAngle}deg)`;
+                                    scheduleEffectTimeout(() => finishAnimation('아슬아슬'), settleDuration);
+                                }, recoilDuration);
+                            }, holdDuration);
+                        }, teaseDuration);
+                        break;
+                    }
                         
                     default:
                         // 🎯 일반 모드: 이미 메인 회전에서 최종 위치에 도달
@@ -2671,6 +3150,7 @@
             
             // 다시보기 섹션 숨기기
             document.getElementById('replaySection').style.display = 'none';
+            clearRouletteLiveCommentary();
             
             // 다시보기 모드로 룰렛 재생 (결과 이벤트는 전송하지 않음)
             const data = lastRouletteData;
@@ -2703,11 +3183,13 @@
             
             setTimeout(() => {
                 // 서버에서 결정한 효과를 사용 (동일한 애니메이션 재현)
+                startRouletteLiveCommentary(data.participants, data.displayDurationMs || data.spinDuration);
                 spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
                     addDebugLog('✅ 다시보기 애니메이션 완료', 'animation');
                     
                     isSpinning = false;
                     rouletteResultShown = true;
+                    finishRouletteLiveCommentary(data.winner);
                     
                     // 결과 오버레이 표시
                     document.getElementById('resultWinner').textContent = data.winner;
@@ -2896,27 +3378,7 @@
             }
             
             // 호스트 UI 설정
-            const hostBadge = document.getElementById('hostBadge');
-            if (isHost) {
-                if (hostBadge) hostBadge.style.display = 'inline-block';
-                document.getElementById('hostControls').style.display = 'grid';
-                const dragHint = document.getElementById('dragHint');
-                if (dragHint) dragHint.style.display = 'inline';
-
-                // 주문받기 버튼 상태
-                if (isOrderActive) {
-                    document.getElementById('startOrderButton').style.display = 'none';
-                    document.getElementById('endOrderButton').style.display = 'block';
-                } else {
-                    document.getElementById('startOrderButton').style.display = 'block';
-                    document.getElementById('endOrderButton').style.display = 'none';
-                }
-            } else {
-                if (hostBadge) hostBadge.style.display = 'none';
-                document.getElementById('hostControls').style.display = 'none';
-                const dragHint = document.getElementById('dragHint');
-                if (dragHint) dragHint.style.display = 'none';
-            }
+            applyRouletteHostUiState();
             
             // 주문받기 섹션 표시
             if (isOrderActive) {
@@ -3075,36 +3537,9 @@
 
             // 호스트 상태 확인 및 업데이트
             const myUser = users.find(u => u.name === currentUser);
-            if (myUser && myUser.isHost !== isHost) {
-                const wasHost = isHost;
+            if (myUser) {
                 isHost = myUser.isHost;
-                RankingModule.setHost(isHost);
-                if (isHost && !wasHost) {
-                    // 호스트 권한이 전달되었을 때
-                    const hostBadge = document.getElementById('hostBadge');
-                    if (hostBadge) hostBadge.style.display = 'inline-block';
-                    document.getElementById('hostControls').style.display = 'grid';
-                    updateStartButton();
-
-                    // 주문받기 버튼 상태 업데이트
-                    if (isOrderActive) {
-                        document.getElementById('startOrderButton').style.display = 'none';
-                        document.getElementById('endOrderButton').style.display = 'block';
-                    } else {
-                        document.getElementById('startOrderButton').style.display = 'block';
-                        document.getElementById('endOrderButton').style.display = 'none';
-                    }
-                } else if (!isHost && wasHost) {
-                    // 호스트 권한이 제거되었을 때
-                    const hostBadge = document.getElementById('hostBadge');
-                    if (hostBadge) hostBadge.style.display = 'none';
-                    document.getElementById('hostControls').style.display = 'none';
-                    updateStartButton();
-
-                    // 주문받기 버튼 숨김
-                    document.getElementById('startOrderButton').style.display = 'none';
-                    document.getElementById('endOrderButton').style.display = 'none';
-                }
+                applyRouletteHostUiState();
             }
 
             updateUsers(users);
@@ -3130,6 +3565,7 @@
                 rouletteResultShown = true;
                 isSpinning = false;
                 pendingRouletteData = null;
+                clearRouletteLiveCommentary();
                 
                 // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
                 document.getElementById('resultOverlay').classList.remove('visible');
@@ -3146,6 +3582,7 @@
             isSpinning = true;
             pendingRouletteData = null; // 대기 데이터 초기화
             rouletteResultShown = false; // 결과 표시 플래그 초기화
+            clearRouletteLiveCommentary();
             addDebugLog(`📊 상태 설정: isSpinning=${isSpinning}, rouletteResultShown=${rouletteResultShown}`, 'info');
             
             // 서버에서 받은 누적 참여자 목록으로 업데이트
@@ -3195,6 +3632,7 @@
                     rouletteResultShown = true;
                     isSpinning = false;
                     pendingRouletteData = null;
+                    clearRouletteLiveCommentary();
                     addDebugLog(`📊 상태 설정: rouletteResultShown=${rouletteResultShown}, isSpinning=${isSpinning}`, 'visibility');
                     
                     // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
@@ -3214,11 +3652,13 @@
                 rouletteResultShown = false; // 결과 표시 플래그 초기화
                 addDebugLog(`🎬 spinRoulette 호출 시작 - wasSpinning: ${wasSpinning}, rouletteResultShown: ${rouletteResultShown}, effectType: ${data.effectType}`, 'animation');
                 
+                startRouletteLiveCommentary(data.participants, data.displayDurationMs || data.spinDuration);
                 spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
                     addDebugLog(`🔄 spinRoulette 콜백 실행 - rouletteResultShown: ${rouletteResultShown}, wasSpinning: ${wasSpinning}`, 'animation');
                     
                     // 중복 호출 방지
                     if (rouletteResultShown) {
+                        stopRouletteLiveCommentary();
                         addDebugLog('⚠️ 결과 이미 표시됨 - 중복 방지로 return', 'warn');
                         console.log('⚠️ 결과가 이미 표시되었습니다. 중복 표시를 방지합니다.');
                         return;
@@ -3226,6 +3666,7 @@
                     
                     // 애니메이션이 실제로 시작되었는지 확인
                     if (!wasSpinning) {
+                        clearRouletteLiveCommentary();
                         addDebugLog('⚠️ wasSpinning=false - 애니메이션 시작 안 됨, return', 'warn');
                         console.log('⚠️ 애니메이션이 시작되지 않았습니다. 결과를 표시하지 않습니다.');
                         return;
@@ -3236,6 +3677,7 @@
                     const minDuration = data.spinDuration * 0.7; // 최소 70% 이상 경과해야 함 (너무 엄격하지 않게)
                     addDebugLog(`⏱️ 애니메이션 시간 체크 - elapsed: ${elapsed}ms, minDuration: ${minDuration}ms`, 'animation');
                     if (elapsed < minDuration) {
+                        clearRouletteLiveCommentary();
                         addDebugLog(`⚠️ 애니메이션 너무 빨리 완료 (${elapsed}ms < ${minDuration}ms) - return`, 'warn');
                         console.log(`⚠️ 애니메이션이 너무 빨리 완료되었습니다 (${elapsed}ms < ${minDuration}ms). 결과를 표시하지 않습니다.`);
                         return;
@@ -3244,6 +3686,7 @@
                     addDebugLog('✅ 모든 체크 통과 - 결과 표시 진행', 'info');
                     isSpinning = false;
                     rouletteResultShown = true; // 결과 표시 플래그 설정
+                    finishRouletteLiveCommentary(data.winner);
                     
                     // ========== 🧪 CSS 애니메이션 검증 로그 ==========
                     const wheelAfter = document.getElementById('rouletteWheel');
@@ -3364,6 +3807,7 @@
                 rouletteResultShown = true; // 결과 화면이 뜨지 않도록 설정
                 isSpinning = false;
                 pendingRouletteData = null; // 대기 데이터 없음
+                clearRouletteLiveCommentary();
                 addDebugLog(`📊 상태 설정: rouletteResultShown=${rouletteResultShown}, isSpinning=${isSpinning}`, 'visibility');
                 
                 // 결과 오버레이 숨기기 (이전 결과가 남아있을 수 있음)
@@ -3405,6 +3849,7 @@
             rouletteResultShown = false; // 결과 표시 플래그 초기화
             missedRoulette = false; // 놓친 상태 초기화
             lastRouletteData = null; // 마지막 룰렛 데이터 초기화 (게임 종료 시)
+            clearRouletteLiveCommentary();
             isReady = false; // 준비 상태 초기화
             
             // 결과 오버레이 숨기기
@@ -3476,19 +3921,7 @@
         socket.on('hostTransferred', (data) => {
             showCustomAlert(data.message || '호스트 권한이 전달되었습니다.', 'success');
             isHost = true;
-            const hostBadge = document.getElementById('hostBadge');
-            if (hostBadge) hostBadge.style.display = 'inline-block';
-            document.getElementById('hostControls').style.display = 'grid';
-            updateStartButton();
-            
-            // 주문받기 버튼 상태 업데이트
-            if (isOrderActive) {
-                document.getElementById('startOrderButton').style.display = 'none';
-                document.getElementById('endOrderButton').style.display = 'block';
-            } else {
-                document.getElementById('startOrderButton').style.display = 'block';
-                document.getElementById('endOrderButton').style.display = 'none';
-            }
+            applyRouletteHostUiState();
         });
         
         // 호스트 변경 알림
@@ -3641,4 +4074,3 @@
     <script src="/js/ads.js"></script>
 </body>
 </html>
-
