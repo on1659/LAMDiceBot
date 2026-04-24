@@ -1,4 +1,4 @@
-# LAMDiceBot 하네스 현행 상태 (2026-04-13)
+# LAMDiceBot 하네스 현행 상태 (2026-04-13, updated 2026-04-24)
 
 > 목적: 기존 계획 문서에서 이미 적용된 항목은 완료로 승격하고, 남은 수정 포인트만 다음 작업으로 남긴다.
 
@@ -7,7 +7,8 @@
 ## 한 줄 판단
 
 `/build` 중심 최소 운영 하네스는 적용 완료 상태다.  
-이제 남은 일은 "하네스를 새로 설계"하는 것이 아니라, "운영 안정화"와 "확장 범위 선택"이다.
+2026-04-24 기준으로 `/meeting`도 gstack식 기획 하네스로 승격됐다.
+이제 남은 일은 "하네스를 새로 설계"하는 것이 아니라, "운영 안정화"와 "실행 자산 연결"이다.
 
 ---
 
@@ -74,6 +75,20 @@
 - Ether 지시서에도 보존 계약 전달 구조 반영
 - `/build` 문서를 최소 운영 하네스 기준으로 연결
 - Codex 보조 Scout/Reviewer 추가
+
+### 5. `/meeting` gstack식 기획 하네스
+
+2026-04-24에 아래 구조가 반영됐다.
+
+- `.claude/commands/meeting.md`: gstack식 Scope/Planning/Engineering/Frontend/Design/QA/PD Final Gate 명령
+- `.claude/commands/meeting-light.md`: 기존 1인 순차 회의 보존
+- `docs/harness/meeting-gstack-adaptation-2026-04-24.md`: 포팅 기준과 명령 경계 기록
+
+의미:
+
+- `/meeting`은 더 이상 단순 경량 회의가 아니라 회의록 + impl 문서까지 연결하는 기본 기획 하네스다.
+- gstack의 `autoplan`, `plan-ceo-review`, `plan-eng-review`, `plan-design-review`, `qa` 원칙을 LAMDiceBot 역할 스킬에 맞게 얇게 포팅했다.
+- 자동 커밋/푸시는 기본값에서 제외했다. 문서 커밋은 사용자가 원할 때 `/summitdocs`로 처리한다.
 
 ---
 
@@ -144,21 +159,7 @@
 
 - `/meeting` 문서 산출물 형식이 실제로 강제 가능한 수준까지 고정되어야 함
 
-### 4. `/meeting` 하네스화
-
-현재 상태:
-
-- `.claude/commands/meeting.md`는 존재한다.
-- 하지만 문서상 멀티에이전트 하네스 구조 전체가 그대로 반영된 상태는 아니다.
-
-완료 기준:
-
-- `/meeting`을 하네스 파이프라인으로 올릴지
-- 아니면 현재 경량 명령으로 유지할지
-
-먼저 방향을 확정해야 한다.
-
-### 5. `qa.md`, `review.md`, `meeting*.md` 명령 체계 정리
+### 4. `qa.md`, `review.md`, `meeting*.md` 명령 체계 정리
 
 현재 상태:
 
@@ -167,8 +168,7 @@
 완료 기준:
 
 - 역할 중복 없이 경계를 명확히 정리
-- "기존 명령 유지 + `/build`만 하네스"인지
-- "점진적으로 하네스 기준 명령으로 전환"인지 결정
+- `/meeting`, `/meeting-light`, `/meeting-multi`, `/meeting-team`, `/meeting-codex`의 사용 경계를 운영하면서 다듬기
 
 ---
 
@@ -210,18 +210,18 @@
 - `.claude/mcp.json` 연결
 - 기본 시나리오 2~3개를 실제 실행 가능한 형태로 정리
 
-### 4. `/meeting` 범위 고정
+### 4. `/meeting` 포맷 가드
 
 필요 이유:
 
-- 지금은 `/build`는 하네스 진입점인데 `/meeting`은 경량 명령에 가까워 경계가 흐릴 수 있다.
+- `/meeting`이 풀 하네스로 승격되면서 회의록 필수 섹션이 늘었다.
+- 현재는 명령 내부 체크리스트로 보완하지만, 장기적으로는 `format-guard.sh`가 산출물 형식을 자동 경고하는 편이 안정적이다.
 
 수정 방향:
 
-- `/meeting`을 하네스화할지
-- 아니면 현 상태를 유지하고 문서만 그렇게 명시할지
-
-둘 중 하나를 확정한다.
+- `docs/meeting/plan/**` 저장 시 필수 섹션 누락 여부 경고
+- impl 링크 또는 "구현 없음" 명시 여부 확인
+- Decision Audit Trail 누락 여부 확인
 
 ---
 
@@ -229,8 +229,8 @@
 
 1. Hook 실행 환경과 경고 스크립트부터 안정화
 2. Playwright MCP를 실제 `.claude/mcp.json`에 연결
-3. `/meeting`을 하네스 범위에 넣을지 결정
-4. `tdd-guard`, `format-guard`는 마지막 확장 단계에서 붙인다
+3. `/meeting` 산출물 형식이 안정되면 `format-guard` 추가
+4. `tdd-guard`는 마지막 확장 단계에서 붙인다
 
 ---
 

@@ -1,243 +1,289 @@
-# /meeting - 1인 순차 팀 회의 (경량 버전)
+# /meeting — gstack식 기획 하네스 회의
 
-Topic: $ARGUMENTS (default: "현재 단계에서 추가할 기능")
+Topic: $ARGUMENTS (default: "현재 프로젝트에서 다음에 할 일")
 
-## 지시사항
+## 목적
 
-LAMDiceBot 프로젝트의 7인 전문가 관점을 **1명이 순차적으로 분석**한다.
-Task 에이전트 호출 없이 직접 수행하는 경량 버전.
+LAMDiceBot의 기획 안건을 **회의록 + 구현용 impl 문서**까지 연결 가능한 형태로 검토한다.
 
----
+이 명령은 `D:/work/vibe/gstack`의 `autoplan`, `plan-ceo-review`, `plan-eng-review`, `plan-design-review`, `qa` 구조를 LAMDiceBot에 맞게 얇게 포팅한 것이다.
 
-## 7인 전문가 관점
+핵심 원칙:
 
-### 기획팀
-- **A1 기획 팀장**: 전략적 방향, 비즈니스 가치, 로드맵, 우선순위 판단
-- **A2 기획 사원**: 사용자 경험, 게임 재미, 디테일한 시나리오, 유저 대변
+- gstack처럼 한 번에 여러 관점의 리뷰 게이트를 통과시킨다.
+- 단, LAMDiceBot의 기존 `.claude/skills/*`와 `docs/harness/meeting-pipeline.md`를 source of truth로 사용한다.
+- 회의는 문서 산출물만 만든다. 코드 수정은 하지 않는다.
+- 자동 커밋/푸시는 하지 않는다. 사용자가 요청하면 `/summitdocs`를 별도로 실행한다.
 
-### 개발팀
-- **B1 개발 팀장**: 아키텍처, 기술 부채, 확장성, 기술 방향 결정
-- **B2 개발 사원**: 실제 구현, Socket.IO 코드, 영향 파일, 빠른 프로토타입
+## 참조 파일
 
-### 디자인팀
-- **C UI/UX 디자이너**: 사용성, 시각적 피드백, 반응형 디자인, 모바일 호환
-- **D 사운드 디자이너**: 효과음, BGM, 오디오 피드백, 몰입감
+먼저 필요한 파일만 읽어라.
 
-### 품질팀
-- **E QA 엔지니어**: 테스트 전략, **테스트 방법론**, 공정성 검증 방법
+- `docs/harness/meeting-pipeline.md`
+- `docs/harness/agent-mapping.md`
+- `.claude/skills/skill-pd.md`
+- `.claude/skills/skill-planner-research.md`
+- `.claude/skills/skill-planner-strategy.md`
+- `.claude/skills/skill-backend.md`
+- `.claude/skills/skill-frontend.md`
+- `.claude/skills/skill-ui.md`
+- `.claude/skills/skill-ux.md`
+- `.claude/skills/skill-qa.md`
+- 주제 관련 GameGuide, meeting, source 파일
 
----
+## gstack에서 가져온 운영 방식
 
-## 프로젝트 컨텍스트
+### 1. 단계형 리뷰
 
-```
-LAMDiceBot - 멀티플레이어 게임 플랫폼
-- 게임: 주사위, 룰렛, 경마, 팀 배정
-- 핵심 가치: 100% 공정성 (서버 난수 생성)
-- 기술: Node.js + Express + Socket.IO (실시간 WebSocket)
-- 보안: Rate Limiting, 입력값 검증, Host 권한 관리
-- 주요 파일:
-  - server.js (서버)
-  - dice-game-multiplayer.html (주사위)
-  - roulette-game-multiplayer.html (룰렛)
-  - horse-race-multiplayer.html (경마)
-  - team-game-multiplayer.html (팀 배정)
-  - assets/sounds/ (사운드 리소스)
-```
+아래 순서로 검토한다.
 
----
+1. **Scope/CEO Gate**: 문제 정의, 10점 제품 가능성, 스코프 확장/축소 판단
+2. **Planning Gate**: 사용자 세그먼트, JTBD, MoSCoW, KPI, ICE
+3. **Engineering Gate**: 아키텍처, Socket/DB/API 영향, 보안, race condition, 롤백
+4. **Frontend Gate**: 파일 영향, CSS 변수, 모바일/태블릿/데스크톱 대응
+5. **Design Gate**: 정보 위계, 상태 커버리지, 반응형 의도, 접근성
+6. **QA Gate**: 공정성, 멀티플레이어 동기화, 모바일, Playwright 제안, DoD
+7. **PD Final Gate**: Go/No-Go, v1/v2/제외, 담당, 의존성, 사용 시나리오
 
-## 1단계: 현황 파악
+### 2. 결정 분류
 
-- README.md, CHANGELOG.md 읽고 현재 상태 확인
-- 4개 게임 HTML 파일 상태 파악
-- assets/sounds/ 사운드 현황 확인
-- 현황 요약 작성
+모든 중요한 결정을 아래 중 하나로 분류한다.
 
----
+| 분류 | 의미 | 처리 |
+|------|------|------|
+| Mechanical | 한 방향이 명확함 | 자동 결정 |
+| Taste | 합리적 선택지가 2개 이상 | 추천안을 내고 근거 기록 |
+| User Challenge | 사용자 요청 자체를 바꾸는 제안 | 회의록에 "사용자 확인 필요"로 남김 |
 
-## 2단계: 7인 관점 순차 분석
+### 3. 스코프 모드
 
-Task 에이전트 호출 없이 직접 7개 관점에서 분석한다.
+PD Final Gate에서 아래 중 하나를 선택한다.
 
-### A1 기획 팀장 관점
-- 전략적 관점에서 2-3개 제안
-- 비즈니스 가치, 우선순위 판단
+| 모드 | 의미 |
+|------|------|
+| Scope Expansion | 더 크게 가야 제품 가치가 살아남 |
+| Selective Expansion | 기본 스코프 유지 + 일부 확장만 채택 |
+| Hold Scope | 요청 범위 그대로 엄격히 구현 |
+| Scope Reduction | v1은 더 줄여야 함 |
 
-### A2 기획 사원 관점
-- 사용자 관점에서 2-3개 제안
-- 게임 시나리오, 재미 요소
+## Phase 0: 컨텍스트 수집
 
-### B1 개발 팀장 관점
-- 아키텍처 관점에서 2-3개 제안
-- 기술 부채, 확장성 영향
+주제와 관련된 현재 상태를 10줄 이내로 정리한다.
 
-### B2 개발 사원 관점
-- 구현 관점에서 2-3개 제안
-- 영향 파일, 구현 가능성
+반드시 확인할 것:
 
-### C UI/UX 디자이너 관점
-- UX 관점에서 2-3개 제안
-- 인터랙션 디자인, 모바일 호환성
+- 관련 파일/문서
+- 기존 기능과 충돌 가능성
+- 공정성/Socket/DB/모바일 영향 여부
+- 최근 비슷한 meeting/impl 문서
 
-### D 사운드 디자이너 관점
-- 사운드 관점에서 2-3개 제안
-- 효과음 적용 시점, 몰입감
+## Phase 1: Scope/CEO Gate
 
-### E QA 엔지니어 관점
-- 품질 관점에서 2-3개 제안
-- **"어떻게 테스트할 것인가"** 방법론
+지민(PD) 관점으로 먼저 안건의 방향을 잡는다.
 
----
+출력 필수:
 
-## 3단계: 합의 도출
+- 문제 재정의: 사용자가 말한 요청의 진짜 문제
+- 10점 제품 관점: 너무 작게 보고 있는 지점
+- 줄여야 할 범위: v1에서 빼야 할 것
+- 스코프 모드: Scope Expansion / Selective Expansion / Hold Scope / Scope Reduction
 
-7개 관점을 종합하여:
+## Phase 2: 기획 검토
 
-- 여러 관점에서 긍정 평가 → 우선순위 상승
-- 관점 간 충돌 → 명시적 기록
-- 최종 판정: 채택/보류/기각
+### 현우 (리서치)
 
----
+필수 포함:
 
-## 4단계: 회의록 저장
+- 대상 사용자
+- 해결하는 문제
+- 사용자 스토리
+- MoSCoW
+- 성공 지표
+- 검증 방법
 
-`docs/meeting/plan/single/YYYY-MM-DD-HHmm-{topic-summary}.md`에 저장.
+### 소연 (전략)
 
-### Git 인코딩 설정 (커밋 시)
+필수 포함:
 
-```bash
-# 커밋 전 UTF-8 설정 (한글 깨짐 방지)
-git config --local i18n.commitEncoding utf-8
-git config --local i18n.logOutputEncoding utf-8
-```
+- KPI 연결
+- ICE 점수
+- 수익/체류 시간/재방문 영향
+- 경쟁 포지셔닝 또는 차별점
 
----
+## Phase 3: 구현 검토
 
-## 5단계: 구현문서(impl) 생성
+### 태준 (BE)
 
-회의록 저장 후, 채택 항목을 **영문 구현문서**로 분리 생성한다.
+필수 포함:
 
-**파일명**: `docs/meeting/impl/{회의록 파일명}-impl.md`
+- 수정 파일
+- DB 영향
+- Socket 영향
+- 보안 체크
+- race condition 가능성
+- 예상 공수
+- 롤백 방법
 
-**규칙**:
-- impl이 구현의 **source of truth** — 구현 세션에서는 impl만 읽는다
-- 회의록은 역사 기록이므로 변경하지 않는다
-- 피드백으로 구현 내용이 바뀌면 impl만 수정한다
-- 회의록 5번 섹션에는 impl 링크만 남긴다
+### 미래 (FE)
 
-**impl 포함 내용**: 추천 모델, 수정 파일, 구현 상세 (코드/위치), 구현 순서, 검증 방법
+필수 포함:
 
-**구현 완료 시**: impl 파일을 `docs/meeting/applied/`로 이동
-**impl 하단에 반드시 포함**: `> **On completion**: move this file to \`docs/meeting/applied/\``
+- 수정 파일
+- CSS 변수 필요 여부
+- 모바일(375px) 레이아웃
+- 태블릿(768px) 레이아웃
+- 데스크톱(1920px) 레이아웃
+- 터치/마우스 인터랙션 차이
+- 예상 공수
 
----
+## Phase 4: 디자인 검토
 
-## 6단계: 자동 커밋 & 푸시
+### 다은 (UI)
 
-회의록과 impl 문서 생성 완료 후 **자동으로 `/summitdocs` 실행**:
+필수 포함:
 
-```bash
-# UTF-8 인코딩 설정
-git config --local i18n.commitEncoding utf-8
-git config --local i18n.logOutputEncoding utf-8
+- 정보 위계
+- CSS 변수
+- 상태별 피드백
+- 모바일 UI 검증
+- 접근성/대비/터치 타겟
 
-# docs 폴더 변경사항 스테이징
-git add docs/
+### 승호 (UX)
 
-# 커밋 메시지 자동 생성 및 커밋
-git commit -m "docs: {주제} 회의록 및 구현 문서 추가
+필수 포함:
 
-{변경사항 요약}
+- 호스트/참여자/관전자 플로우
+- 마찰 포인트
+- 접근성 체크
+- 모바일 UX
+- 사운드 없이 상태 파악 가능 여부
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+## Phase 5: 품질 검토
 
-# 원격 저장소에 푸시
-git push
-```
+### 윤서 (QA)
 
-**자동 커밋 규칙**:
-- 회의록과 impl 문서 생성 완료 후 즉시 실행
-- 커밋 메시지는 주제 기반 자동 생성
-- 푸시 실패 시 사용자에게 알림
+필수 포함:
 
----
+- 리스크 등급: CRITICAL / HIGH / MEDIUM / LOW
+- 테스트 시나리오
+- 공정성 영향
+- 멀티플레이어 동기화 테스트
+- 모바일 테스트
+- Playwright 테스트 제안
+- DoD
 
-## 출력 형식
+## Phase 6: PD Final Gate
+
+### 지민 (PD)
+
+필수 포함:
+
+- 판정: Go / Conditional Go / No-Go
+- 범위: v1 / v2 / 제외
+- 배포 리스크
+- 담당자
+- 의존성
+- 예상 사용 시나리오:
+  - As-Is
+  - To-Be
+  - 사용 흐름
+  - 기대 효과
+  - v1 한계
+
+## Phase 7: Decision Audit Trail
+
+회의록 하단에 중요한 결정만 기록한다.
 
 ```markdown
-# LAMDiceBot 팀 회의록 (Single)
+## Decision Audit Trail
 
-**일시**: {날짜}
-**주제**: {topic}
-**참석자 (관점)**:
-- 기획팀: 기획 팀장, 기획 사원
-- 개발팀: 개발 팀장, 개발 사원
-- 디자인팀: UI/UX 디자이너, 사운드 디자이너
-- 품질팀: QA 엔지니어
-**회의 방식**: 1인 순차 분석 (경량 버전)
-**게임 대상**: 주사위 / 룰렛 / 경마 / 팀 배정 / 공통
-
----
-
-## 1. 현황 요약
-
-{현재 상태}
-
-## 2. 관점별 분석 결과
-
-### 기획팀
-#### 2-1. 기획 팀장 (A1)
-{전략적 제안}
-
-#### 2-2. 기획 사원 (A2)
-{사용자 중심 제안}
-
-### 개발팀
-#### 2-3. 개발 팀장 (B1)
-{아키텍처 제안}
-
-#### 2-4. 개발 사원 (B2)
-{구현 중심 제안}
-
-### 디자인팀
-#### 2-5. UI/UX 디자이너 (C)
-{UX 개선 제안}
-
-#### 2-6. 사운드 디자이너 (D)
-{사운드 제안}
-
-### 품질팀
-#### 2-7. QA 엔지니어 (E)
-{테스트 방법론 제안}
-
-## 3. 테스트 전략 (QA 주도)
-
-| 기능 | 테스트 방법 | 자동화 가능 | 검증 기준 |
-|------|-------------|-------------|-----------|
-
-## 4. 합의 도출
-
-| 우선순위 | 기능 | 판정 | 주요 지지 관점 | 근거 |
-|---------|------|------|---------------|------|
-
-### 관점 간 충돌 사항
-
-{충돌 목록}
-
-## 5. 다음 단계 (Action Items)
-
-> 구현 상세: [`{파일명}-impl.md`](../impl/{파일명}-impl.md)
-
-- [ ] {채택 항목 요약 — 1줄씩}
+| # | Phase | Decision | Classification | Rationale | Rejected |
+|---|-------|----------|----------------|-----------|----------|
 ```
 
----
+## Phase 8: 산출물 저장
+
+회의록 저장:
+
+`docs/meeting/plan/single/YYYY-MM-DD-HHmm-{topic-summary}.md`
+
+구현 가능한 채택 항목이 있으면 impl 문서도 생성:
+
+`docs/meeting/impl/YYYY-MM-DD-HHmm-{topic-summary}-impl.md`
+
+impl 문서는 영어로 작성한다.
+
+impl 필수 포함:
+
+- Recommended model
+- Triage: SIMPLE / STANDARD / COMPLEX
+- Scope
+- Files to modify
+- Data/socket contracts
+- Implementation order
+- QA plan
+- Rollback
+- `> **On completion**: move this file to \`docs/meeting/applied/\``
+
+## 회의록 출력 형식
+
+```markdown
+# 회의록: [안건 제목]
+> 일시: YYYY-MM-DD
+> 방식: gstack식 기획 하네스
+
+## 안건
+
+## 컨텍스트
+
+## Scope/CEO Gate
+### 지민 (PD)
+
+## 기획 검토
+### 현우 (리서치)
+### 소연 (전략)
+
+## 구현 검토
+### 태준 (BE)
+### 미래 (FE)
+
+## 디자인 검토
+### 다은 (UI)
+### 승호 (UX)
+
+## 품질 검토
+### 윤서 (QA)
+
+## PD 최종 판단
+### 지민 (PD)
+
+## Decision Audit Trail
+
+## 액션 아이템
+| 항목 | 담당 | 범위 | 기한 |
+|------|------|------|------|
+```
+
+## Hook처럼 자체 점검할 형식 규칙
+
+저장 전 아래 항목이 빠졌는지 검사한다.
+
+- [ ] 대상 사용자, MoSCoW, 성공 지표
+- [ ] KPI, ICE 점수
+- [ ] 수정 파일, DB 영향, Socket 영향, 예상 공수
+- [ ] 모바일/태블릿/데스크톱 대응
+- [ ] UI 상태 피드백, 접근성
+- [ ] QA 리스크 등급, 공정성, Playwright 제안, DoD
+- [ ] PD Go/No-Go, v1/v2/제외, 사용 시나리오
+- [ ] Decision Audit Trail
+- [ ] impl 문서 링크 또는 "구현 없음" 명시
+
+누락 시 저장 전에 보완한다.
 
 ## 규칙
 
-1. 사용자에게 질문하지 않는다. README.md 기준으로 자율 판단.
-2. Task 에이전트를 호출하지 않는다. 직접 분석한다.
-3. QA는 리스크 평가가 아닌 **"어떻게 테스트할 것인가"** 방법론에 집중한다.
-4. 한국어로 응답한다.
-5. meeting-multi보다 간결하게 (관점당 2-3개 제안).
+1. 코드 수정은 하지 않는다. 문서 산출물만 만든다.
+2. 사용자에게 질문하지 않는다. 단, User Challenge가 있으면 문서에 "사용자 확인 필요"로 남긴다.
+3. 기존 `/meeting-light`, `/meeting-multi`, `/meeting-team`, `/meeting-codex`는 유지한다.
+4. 자동 커밋/푸시는 하지 않는다.
+5. 한국어로 진행한다. impl 문서는 영어로 쓴다.
