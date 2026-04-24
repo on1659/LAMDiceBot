@@ -409,3 +409,29 @@
 - 주사위/룰렛 카운트다운: main에 없던 기능 제거
 
 ========================================
+========================================
+Summit Log - 2026-04-24 (3) Roulette Server-Owned Result Finalization Plan
+========================================
+
+## 변경 파일
+- docs/meeting/plan/single/2026-04-24-roulette-server-owned-result-finalization.md: 룰렛 서버 주도 결과 확정 개선안 신규 문서
+- update-log.md: 사용자 관점 공개 업데이트 요약 추가
+- summit-log.txt: 내부 서밋 기록 추가
+
+## 상세 변경 내역
+
+### 룰렛 현재 구조 문서화
+- 서버가 `participants`, `winnerIndex`, `winner`, `spinDuration`, `totalRotation`, `effectType`, `effectParams`를 한 번 결정한다는 흐름 정리
+- 클라이언트는 같은 서버 데이터를 받아 같은 최종 각도를 계산하므로 결과가 동일하다는 점 기록
+- 현재 최종 확정이 호스트 클라이언트의 `rouletteResult` 전송에 의존한다는 리스크 정리
+
+### 서버 주도 종료 개선 방향
+- 후속 구현 필드로 `roundId`, `serverStartedAt`, `displayDurationMs`, `serverEndAt` 제안
+- 서버 내부 타이머가 종료 예정 시각에 결과를 확정하고 `rouletteEnded`를 broadcast하는 구조 기록
+- `rouletteResult`는 호환용으로 남기되 서버 pending result와 맞지 않는 값은 결과를 바꾸지 못하게 하는 방향 명시
+
+### 구현 전제
+- 이번 서밋은 문서 전용 변경이며 게임 코드 동작 변경 없음
+- 서버 부팅/브라우저 QA는 생략, Markdown 구조와 diff 정합성만 확인 대상
+
+========================================
