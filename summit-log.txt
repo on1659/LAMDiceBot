@@ -1,4 +1,42 @@
 ========================================
+📋 Summit Log - 2026-04-24 (2) — Evolution 중계 해설 연동
+========================================
+
+## 변경 파일
+- js/horse-race-commentary.js: Evolution 단계별 해설 문구 + hold 메커니즘
+- js/horse-race.js: Evolution 트리거 지점에서 해설 announce 호출
+- .claude/commands/summit.md: update-log 작성 규칙 보강 (기믹/확률 기재 금지)
+
+## 상세 변경 내역
+
+### Evolution 해설 시스템 (horse-race-commentary.js)
+- EVOLUTION_COMMENTARY 사전 추가 — 5단계별 문구 배열
+  - evolutionCharge / evolutionBurst / evolutionBoost / evolutionLead / evolutionWin
+  - 각 3개 변형, {subject} 플레이스홀더 치환 방식
+- showRaceCommentaryOnce(text, holdMs): 일회성 중요 해설 표시
+- announceEvolutionCommentary(stage, subject, holdMs): 랜덤 선택 + 주입
+- _raceCommentaryHoldUntil 플래그: hold 기간 동안 일반 중계가 덮어쓰지 않음
+- stopRaceCommentary 에서 hold 플래그 리셋
+
+### horse-race.js 연동
+- getEvolutionCommentarySubject(horseIndex): 베팅 유저명 + 탈것명 조합으로 주어 생성
+  - 단독: "유저A의 car"
+  - 2인: "유저A·유저B의 car"
+  - 3인+: "유저A 외 N명의 car"
+  - 무: "car" 단독
+- announceEvolutionStage(stage, state, holdMs): 공통 래퍼 (replay 중 스킵)
+- maybeAnnounceEvolutionLead(horseStatesRef): 부스트 후 선두 확정 시 1회 공지
+- Evolution 트리거 블록에 announceEvolutionStage 호출 삽입
+  - charge / burst / boost / win 단계 + lead 체크
+
+### summit.md 규칙 보강
+- update-log.txt 작성 규칙에 2줄 추가
+  - "기믹이나 확률 관련 된 내용은 작성 금지"
+  - "신규 추가되는 기능에 대해서 100% 보여지는 행동이 아닌이상 금지 (10%확률로 등장하는 기믹등)"
+
+========================================
+
+========================================
 📋 Summit Log - 2026-04-24 — Fall Motion 시스템 + 탈것별 finish-stun 연출
 ========================================
 

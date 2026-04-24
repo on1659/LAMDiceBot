@@ -1660,6 +1660,35 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         };
     });
 
+    function getEvolutionCommentarySubject(horseIndex) {
+        const info = vehicleInfoMap[horseIndex];
+        const vehicleName = info && info.vehicle && info.vehicle.name ? info.vehicle.name : '탈것';
+        const users = info && Array.isArray(info.bettingUsers) ? info.bettingUsers.filter(Boolean) : [];
+
+        if (users.length === 1) return `${users[0]}의 ${vehicleName}`;
+        if (users.length === 2) return `${users[0]}·${users[1]}의 ${vehicleName}`;
+        if (users.length > 2) return `${users[0]} 외 ${users.length - 1}명의 ${vehicleName}`;
+        return vehicleName;
+    }
+
+    function announceEvolutionStage(stage, state, holdMs) {
+        if (isReplay || typeof announceEvolutionCommentary !== 'function' || !state) return;
+        announceEvolutionCommentary(stage, getEvolutionCommentarySubject(state.horseIndex), holdMs);
+    }
+
+    function maybeAnnounceEvolutionLead(horseStatesRef) {
+        if (isReplay || typeof announceEvolutionCommentary !== 'function') return;
+
+        const currentLeader = horseStatesRef
+            .filter(s => !s.finishJudged)
+            .sort((a, b) => b.currentPos - a.currentPos)[0];
+
+        if (!currentLeader || !currentLeader._evolutionBoostUsed || currentLeader._evolutionLeadAnnounced) return;
+        if (currentLeader._evolutionLeadEligibleAt && Date.now() < currentLeader._evolutionLeadEligibleAt) return;
+
+        currentLeader._evolutionLeadAnnounced = true;
+        announceEvolutionStage('evolutionLead', currentLeader, 3200);
+    }
 
     // 모든 탈것 동시에 애니메이션 시작
     setTimeout(() => {
@@ -1937,6 +1966,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         if (progress >= chargeProgress) {
                             gimmick._chargeStarted = true;
                             state.horse.classList.add('evolution-charge');
+                            announceEvolutionStage('evolutionCharge', state, 3000);
                             // 카메라 강제 컷어웨이
                             isEvolutionCutaway = true;
                             evolutionCutawayTarget = state;
@@ -2065,6 +2095,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             gimmick.effectElement = rBoostEffect;
                         } else if (gimmick.type === 'evolution') {
                             // Evolution 변신 단계: 정지 + burst 이펙트
+                            announceEvolutionStage('evolutionBurst', state, 3200);
                             state.horse.classList.remove('evolution-charge');
                             state.horse.classList.add('evolution-burst');
                             // rest 상태로 전환 (멈춤 연출)
@@ -2073,6 +2104,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             setVehicleState(state.horse, state.horse.dataset.vehicleId, 'rest');
                         } else if (gimmick.type === 'evolution_boost') {
                             // Evolution 질주 단계: power 스프라이트 + 가속 (라이브/다시보기 동일)
+                            state._evolutionBoostUsed = true;
+                            state._evolutionLeadEligibleAt = Date.now() + 2200;
+                            announceEvolutionStage('evolutionBoost', state, 3200);
                             state.horse.classList.remove('evolution-burst', 'rest');
                             state.horse.classList.add('racing', 'evolution-run');
                             const vehicleId = state.horse.dataset.vehicleId;
@@ -2279,6 +2313,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     finishOrderCounter = Math.max(finishOrderCounter, state.rank + 1);
                     console.log(`[DEBUG] 말 ${state.horseIndex} 도착 판정! pos=${state.currentPos.toFixed(0)}, 결승선=${finishLine}`);
 
+                    if (state.rank === 0 && state._evolutionBoostUsed && !state._evolutionWinAnnounced) {
+                        state._evolutionWinAnnounced = true;
+                        announceEvolutionStage('evolutionWin', state, 3600);
+                    }
+
                     // 도착 애니메이션 표시 (순위 뱃지)
                     showFinishAnimation(state.horse, state.finishOrder, state.horseIndex);
 
@@ -2321,6 +2360,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     }
                 }
             });
+
+            maybeAnnounceEvolutionLead(horseStates);
 
             // === 일정 속도 스크롤링 ===
             // 리더(1등) 말 찾기 (순위 표시용)

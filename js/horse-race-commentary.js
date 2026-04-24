@@ -37,8 +37,54 @@ const RACE_COMMENTARY = [
     '꼴찌에게도 박수를!',
 ];
 
+const EVOLUTION_COMMENTARY = {
+    evolutionCharge: [
+        '{subject} 주변이 번쩍입니다. 뭔가 옵니다.',
+        '{subject}, 방금 분위기가 달라졌습니다. 예고 신호입니다.',
+        '{subject} 쪽에서 이상한 빛이 올라옵니다.'
+    ],
+    evolutionBurst: [
+        '{subject} 진화 발동! 해설석도 방금 눈 떴습니다.',
+        '{subject}, Evolution! 지금부터 장르가 살짝 바뀝니다.',
+        '{subject}가 각성합니다. 이 장면은 그냥 못 지나갑니다.'
+    ],
+    evolutionBoost: [
+        '{subject} 각성 질주 시작! 지금부터 속도가 달라집니다.',
+        '{subject}, 파워 모드 진입! 뒤쪽 계산이 복잡해집니다.',
+        '{subject}가 부스터를 밟았습니다. 화면이 따라가기 바빠집니다.'
+    ],
+    evolutionLead: [
+        '{subject}, 부스터로 선두까지 치고 올라옵니다!',
+        '{subject}가 선두를 잡습니다. Evolution 효과가 제대로 터졌습니다.',
+        '{subject}, 각성 질주로 판을 뒤집고 있습니다!'
+    ],
+    evolutionWin: [
+        '{subject} 그대로 결승선 통과! Evolution이 판을 뒤집었습니다.',
+        '{subject}, 각성 질주 끝에 1등입니다!',
+        '{subject} 우승! 방금 Evolution이 하이라이트를 가져갔습니다.'
+    ]
+};
+
 // 경주 중 인터벌 ID
 let _raceCommentaryInterval = null;
+let _raceCommentaryHoldUntil = 0;
+
+function showRaceCommentaryOnce(text, holdMs = 3000) {
+    const gameStatus = document.getElementById('gameStatus');
+    if (!gameStatus || !text) return;
+
+    gameStatus.textContent = text;
+    _raceCommentaryHoldUntil = Date.now() + holdMs;
+}
+
+function announceEvolutionCommentary(stage, subject = '해당 말', holdMs = 3200) {
+    const comments = EVOLUTION_COMMENTARY[stage] || [];
+    if (comments.length === 0) return;
+
+    const comment = comments[Math.floor(Math.random() * comments.length)]
+        .replace(/\{subject\}/g, subject);
+    showRaceCommentaryOnce(comment, holdMs);
+}
 
 function startRaceCommentary() {
     stopRaceCommentary();
@@ -51,6 +97,8 @@ function startRaceCommentary() {
     // 3초마다 랜덤 교체
     let lastIndex = -1;
     _raceCommentaryInterval = setInterval(() => {
+        if (Date.now() < _raceCommentaryHoldUntil) return;
+
         let idx;
         do {
             idx = Math.floor(Math.random() * RACE_COMMENTARY.length);
@@ -65,4 +113,5 @@ function stopRaceCommentary() {
         clearInterval(_raceCommentaryInterval);
         _raceCommentaryInterval = null;
     }
+    _raceCommentaryHoldUntil = 0;
 }
