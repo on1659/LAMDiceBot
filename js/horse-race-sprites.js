@@ -2375,7 +2375,7 @@ function getVehicleSVG(vehicleId) {
             get frame2() { return this.run.frame2; }
         }
     };
-    return svgMap[vehicleId] || svgMap['car'];
+    return ensureVehicleFallenState(svgMap[vehicleId] || svgMap['car']);
 }
 
 // 트랙 오브젝트 SVG 생성 함수
@@ -4640,6 +4640,7 @@ const vehicleVariantCache = {
 };
 
 let vehiclePowerSvgSequence = 0;
+var generatedVehicleFallenStateCache;
 
 function cloneVehicleSpriteResource(resource) {
     if (typeof resource === 'string') return resource;
@@ -4663,6 +4664,74 @@ function mapVehicleSpriteResource(resource, transform, path = []) {
     return mapped;
 }
 
+function extractVehicleSvgInnerMarkup(svgMarkup) {
+    if (typeof svgMarkup !== 'string') return '';
+    const match = svgMarkup.match(/<svg\b[^>]*>([\s\S]*?)<\/svg>/i);
+    return match ? match[1].trim() : svgMarkup;
+}
+
+function buildVehicleFallenFrame(svgMarkup, variant = 1) {
+    const innerMarkup = extractVehicleSvgInnerMarkup(svgMarkup);
+    if (!innerMarkup) return svgMarkup;
+
+    const config = variant === 2
+        ? {
+            translateX: -1.0,
+            translateY: 5.0,
+            rotate: 82,
+            scale: 0.9,
+            dustOpacity: 0.28,
+            dustY: 37.8
+        }
+        : {
+            translateX: -2.0,
+            translateY: 4.2,
+            rotate: 74,
+            scale: 0.92,
+            dustOpacity: 0.36,
+            dustY: 37.1
+        };
+
+    return `<svg viewBox="0 0 60 45" width="60" height="45">
+        <ellipse cx="30" cy="${config.dustY + 1.2}" rx="17.5" ry="4.6" fill="#091121" opacity="0.22"/>
+        <g opacity="${config.dustOpacity}">
+            <ellipse cx="18.2" cy="${config.dustY}" rx="6.2" ry="2.5" fill="#d7c29a"/>
+            <ellipse cx="29.8" cy="${config.dustY - 0.4}" rx="9.2" ry="3.4" fill="#e7d5ad"/>
+            <ellipse cx="41.6" cy="${config.dustY + 0.2}" rx="6.8" ry="2.7" fill="#d8c29a"/>
+        </g>
+        <g transform="translate(${config.translateX} ${config.translateY}) rotate(${config.rotate} 30 24)">
+            <g transform="translate(30 24) scale(${config.scale}) translate(-30 -24)">
+                ${innerMarkup}
+            </g>
+        </g>
+    </svg>`;
+}
+
+function ensureVehicleFallenState(resource) {
+    if (!resource || typeof resource !== 'object') return resource;
+    if (resource.fallen && resource.fallen.frame1) return resource;
+
+    const fallenStateCache = generatedVehicleFallenStateCache || (generatedVehicleFallenStateCache = new WeakMap());
+    const cached = fallenStateCache.get(resource);
+    if (cached) return cached;
+
+    const sourceState = resource.finish || resource.run || resource.idle || resource.rest || (resource.frame1 ? resource : null);
+    if (!sourceState || (!sourceState.frame1 && !sourceState.frame2)) return resource;
+
+    const sourceFrame1 = sourceState.frame1 || sourceState.frame2 || '';
+    const sourceFrame2 = sourceState.frame2 || sourceState.frame1 || '';
+    const enriched = {
+        ...resource,
+        fallen: {
+            frame1: buildVehicleFallenFrame(sourceFrame1, 1),
+            frame2: buildVehicleFallenFrame(sourceFrame2, 2)
+        }
+    };
+
+    fallenStateCache.set(resource, enriched);
+    return enriched;
+}
+
 function getVehiclePowerPalette(vehicleId) {
     return POWER_VEHICLE_PALETTES[vehicleId] || POWER_VEHICLE_PALETTES.default;
 }
@@ -4679,6 +4748,8 @@ function getVehiclePowerStateIntensity(state) {
             return 0.82;
         case 'rest':
             return 0.62;
+        case 'fallen':
+            return 0.38;
         case 'dead':
             return 0.22;
         default:
@@ -4882,9 +4953,9 @@ function buildPoweredVehicleSVG(svgMarkup, vehicleId, state, palette) {
 function getVehicleBaseSVG(vehicleId) {
     const cacheKey = vehicleId || 'car';
     if (!vehicleVariantCache.base[cacheKey]) {
-        const baseResource = vehicleId === 'eagle'
+        const baseResource = ensureVehicleFallenState(vehicleId === 'eagle'
             ? BASE_VEHICLE_VARIANT_OVERRIDES.eagle
-            : getVehicleSVG(vehicleId);
+            : getVehicleSVG(vehicleId));
         vehicleVariantCache.base[cacheKey] = cloneVehicleSpriteResource(baseResource);
     }
     return cloneVehicleSpriteResource(vehicleVariantCache.base[cacheKey]);
@@ -4893,11 +4964,11 @@ function getVehicleBaseSVG(vehicleId) {
 function getVehiclePowerSVG(vehicleId) {
     const cacheKey = vehicleId || 'car';
     if (!vehicleVariantCache.power[cacheKey]) {
-        const poweredSource = POWER_VEHICLE_VARIANT_OVERRIDES[vehicleId]
+        const poweredSource = ensureVehicleFallenState(POWER_VEHICLE_VARIANT_OVERRIDES[vehicleId]
             || (POWER_VEHICLE_FALLBACK_BASE_OVERRIDE_IDS.has(vehicleId) ? BASE_VEHICLE_VARIANT_OVERRIDES[vehicleId] : null)
             || (vehicleId === 'eagle'
                 ? getVehicleSVG('eagle')
-                : getVehicleBaseSVG(vehicleId));
+                : getVehicleBaseSVG(vehicleId)));
         vehicleVariantCache.power[cacheKey] = mapVehicleSpriteResource(
             poweredSource,
             (markup, path) => buildPoweredVehicleSVG(markup, vehicleId, path[0] || 'run', getVehiclePowerPalette(vehicleId))

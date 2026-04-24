@@ -2233,16 +2233,37 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     state.currentPos = Math.max(startPosition, state.currentPos + movement);
                 }
 
-                // 상위 순위 말이 아직 결승선 미통과 시 결승선 10px 앞에서 스턴
+                // 상위 순위 말이 아직 결승선 미통과 시 결승선 앞에서 fallen 연출
+                // 버퍼는 탈것별 동적 — 최종 정착 위치가 모든 탈것에서 finishLine - FALL_FINAL_GAP_PX 로 정렬됨
                 if (!state.finishJudged) {
                     const higherRankedPending = horseStates.some(s => s.rank < state.rank && !s.finishJudged);
-                    if (higherRankedPending && state.currentPos + state.visualWidth >= finishLine - 20) {
-                        state.currentPos = finishLine - state.visualWidth - 20;
-                        if (!state.horse.classList.contains('finish-stun')) {
-                            state.horse.classList.add('finish-stun');
+                    const stunBuffer = (typeof getFinishStunBuffer === 'function')
+                        ? getFinishStunBuffer(state.visualWidth)
+                        : ((typeof FINISH_STUN_BUFFER_PX === 'number') ? FINISH_STUN_BUFFER_PX : 20);
+                    const shouldStun = higherRankedPending && state.currentPos + state.visualWidth >= finishLine - stunBuffer;
+                    if (shouldStun) {
+                        state.currentPos = finishLine - state.visualWidth - stunBuffer;
+                        if (!state.finishStunned) {
+                            state.finishStunned = true;
+                            const vid = state.horse.dataset.vehicleId;
+                            if (vid) {
+                                if (typeof animateVehicleFallState === 'function') {
+                                    animateVehicleFallState(state.horse, vid, 'fallen');
+                                } else {
+                                    setVehicleState(state.horse, vid, 'fallen');
+                                }
+                            }
                         }
-                    } else if (state.horse.classList.contains('finish-stun')) {
-                        state.horse.classList.remove('finish-stun');
+                    } else if (state.finishStunned) {
+                        state.finishStunned = false;
+                        const vid = state.horse.dataset.vehicleId;
+                        if (vid) {
+                            if (typeof animateVehicleFallState === 'function') {
+                                animateVehicleFallState(state.horse, vid, 'run');
+                            } else {
+                                setVehicleState(state.horse, vid, 'run');
+                            }
+                        }
                     }
                 }
 
@@ -3155,6 +3176,7 @@ function showRaceResult(data, isReplay = false) {
     isRaceActive = false;
     if (typeof stopRaceCommentary === 'function') stopRaceCommentary();
     updateStartButton(); // 게임 종료 시 버튼 상태 업데이트
+    if (currentUsers.length > 0) updateUsers(currentUsers);
 
     const winners = data.winners || [];
     const horseRankings = data.horseRankings || [];
@@ -3809,6 +3831,7 @@ function playReplay(record) {
         selectedVehicleTypes = originalSelectedVehicleTypes;
         userHorseBets = originalUserHorseBets;
         availableHorses = originalAvailableHorses;
+        if (currentUsers.length > 0) updateUsers(currentUsers);
         if (replayBtn) {
             replayBtn.disabled = false;
             replayBtn.textContent = '🎬 다시보기';
@@ -3917,6 +3940,7 @@ function replayMissedRace() {
         selectedVehicleTypes = originalSelectedVehicleTypes;
         userHorseBets = originalUserHorseBets;
         availableHorses = originalAvailableHorses;
+        if (currentUsers.length > 0) updateUsers(currentUsers);
         document.getElementById('horseReplaySection').style.display = 'block';
     }
 
@@ -4864,6 +4888,7 @@ socket.on('horseRaceGameReset', (data) => {
     if (typeof stopRaceCommentary === 'function') stopRaceCommentary();
     updateReadyButton();
     updateStartButton();
+    if (currentUsers.length > 0) updateUsers(currentUsers);
 });
 
 // 준비 상태 변경
@@ -4877,6 +4902,7 @@ socket.on('updateUsers', (users) => {
     if (myUser && myUser.isHost !== isHost) {
         isHost = myUser.isHost;
         if (typeof RankingModule !== 'undefined') RankingModule.setHost(isHost);
+        ReadyModule.setHost(isHost);
         updateHostUI();
         // 호스트 변경 시 트랙 길이 컨트롤 업데이트
         const hss = document.getElementById('horseSelectionSection');

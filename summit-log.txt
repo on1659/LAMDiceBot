@@ -1,4 +1,62 @@
 ========================================
+📋 Summit Log - 2026-04-24 — Fall Motion 시스템 + 탈것별 finish-stun 연출
+========================================
+
+## 변경 파일 (게임 런타임)
+- js/horse-race-fall-motion.js (신규, ~654줄): devtools fallProfile 시스템 포팅
+- js/horse-race-sprites.js: ensureVehicleFallenState 자동 생성 시스템 (Codex 작업)
+- js/horse-race.js: finish-stun 블록에 animateVehicleFallState 연결 + per-vehicle 동적 버퍼
+- css/horse-race.css: .vehicle-transition-dust FX 레이어 + Evolution CSS 변수
+- horse-race-multiplayer.html: horse-race-fall-motion.js 스크립트 태그 추가
+
+## 상세 변경 내역
+
+### Fall Motion 시스템 포팅 (horse-race-fall-motion.js 신규)
+- devtools (AutoTest/horse-devtools.html) 의 FALL_MOTION_PROFILES 를 게임 런타임으로 포팅
+- 7종 motionType: faceplant / burst-stop / arc-drop / thrust-fade / heavy-flop / side-slip / splash-dip
+- 15종 탈것별 프로필 (category/motionType/slideX/overshootX/dropY/tiltDeg/fxType/fxStrength)
+- 6종 FX 팔레트: dust / spark / smoke / feather / splash / wind
+- 5종 키프레임 빌더: buildFallOffsetKeyframes / buildFallOutgoingKeyframes / buildFallIncomingKeyframes / buildRecoverOutgoingKeyframes / buildRecoverIncomingKeyframes
+- WAAPI 기반 animateVehicleFallState(horse, vehicleId, targetState) 진입점
+- 스프라이트 레벨 offset + 레이어(outgoing/active/flash/trail) 각각 WAAPI 애니메이션
+
+### finish-stun per-vehicle 동적 버퍼 (horse-race.js)
+- 기존 고정 20/50px 버퍼 → 탈것별 동적 계산
+- 공식: buffer = FALL_TRAVEL_DISTANCE_PX(24) + FALL_VISIBLE_MAX_X(48) + FALL_FINAL_GAP_PX(15) - visualWidth
+- 결과: 모든 탈것이 결승선 15px 앞 동일 위치에 정착
+- ninja(vW 44): 버퍼 43 → 최종 -15, rocket(vW 60): 버퍼 27 → 최종 -15
+- 결승선 접전 시 순위와 시각 통과 순서 불일치 문제 해결
+- 기존 setVehicleState('fallen') → animateVehicleFallState('fallen') 으로 교체 (run recovery도 동일)
+
+### ensureVehicleFallenState 자동 생성 (horse-race-sprites.js, Codex 작업)
+- buildVehicleFallenFrame(svgMarkup, variant): base run SVG 회전 74~82° + scale 0.9 + 먼지구름 오버레이
+- ensureVehicleFallenState(resource): 모든 탈것 리소스에 .fallen = {frame1, frame2} 자동 첨부
+- getVehicleSVG / getVehicleBaseSVG / getVehiclePowerSVG 호출 시 자동 wrapping
+- 15종 탈것 전부 fallen 상태 확보 — 별도 SVG 추가 없이
+
+### CSS 변경 (horse-race.css)
+- :root 에 --evo-glow: gold 변수 추가 (Evolution 기믹)
+- .vehicle-transition-dust: fall 연출 FX 트레일 레이어 스타일 (left 3px / right 3px / bottom -2px / height 22px)
+
+### 문서 (별도 커밋)
+- docs/codex/design/2026-04-23-fallen-motion-profiles.md: Codex 기획 문서
+- docs/meeting/impl/2026-04-18-horse-150ms-gap-impl.md
+- docs/meeting/impl/2026-04-22-horse-evolution-gimmick-impl.md
+- docs/meeting/plan/single/2026-04-24-0908-horse-gimmick-character-planning.md
+- docs/harness/meeting-gstack-adaptation-2026-04-24.md
+- .claude/commands/meeting.md (대폭 수정 +260줄)
+- .claude/commands/meeting-light.md (신규)
+
+### AutoTest 디버깅 도구 (별도 커밋)
+- AutoTest/horse-devtools.html: Codex가 만든 fall 프리뷰 devtools
+- AutoTest/finish-stun-compare.html: finalGap 동적 비교 시각화
+- AutoTest/fall-animation-test.html: 실제 animateVehicleFallState 단독 테스트
+- AutoTest/horse-race/diag-*.js: Evolution/power-swap/렌더 진단 7종
+- AutoTest/sprite-viewer.html, 각종 parse/var/simple 체크 스크립트
+
+========================================
+
+========================================
 📋 Summit Log - 2026-04-23 — Evolution 기믹 + 결승선 접전 스턴
 ========================================
 
