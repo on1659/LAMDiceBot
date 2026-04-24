@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Fall Animation Test — 실제 animateVehicleFallState 검증</title>
+<link rel="stylesheet" href="../css/horse-race.css">
+<script src="../js/horse-race-sprites.js"></script>
+<script src="../js/horse-race-fall-motion.js"></script>
+<style>
+    body { font-family: sans-serif; background: #1a1a2e; color: #eee; padding: 20px; margin: 0; }
+    h1 { color: #ffd700; }
+    .legend { background: #16213e; padding: 10px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
+    .legend code { color: #ffd700; }
+
+    .controls { margin-bottom: 16px; background: #0f1a2d; padding: 10px; border-radius: 6px; }
+    .controls button {
+        background: #2a3b5c; color: #eee; border: 1px solid #666;
+        padding: 6px 14px; margin-right: 6px; cursor: pointer; border-radius: 4px; font-size: 13px;
+    }
+    .controls button.primary { background: #4caf50; color: #fff; border-color: #4caf50; }
+    .controls button.danger { background: #f44336; color: #fff; border-color: #f44336; }
+    .controls button.active { background: #ffd700; color: #000; border-color: #ffd700; }
+    .controls label { margin: 0 6px; font-size: 13px; }
+    .controls input[type="range"] { vertical-align: middle; }
+
+    .track-wrap {
+        position: relative;
+        width: 520px;
+        background: linear-gradient(180deg, #3a6b4e 0%, #2a4a38 100%);
+        border: 1px solid #555;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    .track-row {
+        position: relative;
+        height: 56px;
+        border-bottom: 1px solid rgba(0,0,0,0.25);
+    }
+    .finish-line {
+        position: absolute;
+        top: 0; right: 10px;
+        width: 3px; height: 100%;
+        background: repeating-linear-gradient(0deg, #fff 0 6px, #000 6px 12px);
+        z-index: 10;
+    }
+    .track-label {
+        position: absolute;
+        left: 6px; top: 4px;
+        color: rgba(255,255,255,0.75);
+        font-size: 11px;
+        font-weight: bold;
+        z-index: 5;
+        text-shadow: 0 0 2px #000;
+    }
+    .stun-marker {
+        position: absolute;
+        top: 0; height: 100%;
+        width: 1px;
+        background: rgba(255,150,150,0.35);
+        z-index: 6;
+    }
+    .stun-marker::after {
+        content: attr(data-label);
+        position: absolute;
+        top: 44px;
+        left: 3px;
+        font-size: 9px;
+        color: rgba(255,150,150,0.7);
+        white-space: nowrap;
+    }
+
+    .horse {
+        position: absolute;
+        top: 6px;
+        width: 60px;
+        height: 45px;
+        transition: left 0.2s linear;
+    }
+
+    .buttons-row {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        padding: 4px 0;
+        font-size: 12px;
+    }
+    .buttons-row strong { min-width: 80px; color: #ffd700; }
+    .buttons-row button {
+        background: #2a3b5c; color: #eee; border: 1px solid #555;
+        padding: 3px 8px; cursor: pointer; border-radius: 3px; font-size: 11px;
+    }
+    .status { color: #888; font-size: 11px; margin-left: auto; }
+</style>
+</head>
+<body>
+<h1>🏁 Fall Animation Test — 실제 게임과 동일</h1>
+
+<div class="legend">
+    <strong>이 페이지는 실제 게임 코드(<code>animateVehicleFallState</code>)를 그대로 호출합니다.</strong><br>
+    탈것이 결승선 왼쪽 끝(초록)에서 오른쪽 결승선까지 달려가다가
+    <strong>stun 위치(분홍선)</strong>에서 fallen 상태로 전환됩니다.<br>
+    버퍼는 <code>getFinishStunBuffer(visualWidth)</code>로 per-vehicle 계산. 최종 정착은 모두 결승선 <strong>15px 앞</strong>.
+</div>
+
+<div class="controls">
+    <button id="playAllBtn" class="primary">▶ 전체 재생 (모든 탈것)</button>
+    <button id="stopAllBtn" class="danger">■ 정지</button>
+    <label>속도:
+        <input type="range" id="speedSlider" min="40" max="300" value="100" style="width:100px;">
+        <span id="speedLabel">100 px/s</span>
+    </label>
+    <label>루프 대기(ms):
+        <input type="range" id="loopSlider" min="500" max="4000" value="1500" step="100" style="width:100px;">
+        <span id="loopLabel">1500</span>
+    </label>
+</div>
+
+<div id="tracks"></div>
+
+<script>
+    const TRACK_WIDTH = 520;
+    const FINISH_LINE_X = TRACK_WIDTH - 10; // 오른쪽 끝 10px 안쪽
+    const START_X = -60; // 트랙 왼쪽 밖
+
+    const VEHICLES = [
+        { id: 'ninja', vw: 44 },
+        { id: 'knight', vw: 48 },
+        { id: 'helicopter', vw: 48 },
+        { id: 'car', vw: 50 },
+        { id: 'boat', vw: 50 },
+        { id: 'rabbit', vw: 53 },
+        { id: 'scooter', vw: 54 },
+        { id: 'crab', vw: 54 },
+        { id: 'horse', vw: 56 },
+        { id: 'bicycle', vw: 56 },
+        { id: 'dinosaur', vw: 56 },
+        { id: 'turtle', vw: 58 },
+        { id: 'rocket', vw: 60 },
+        { id: 'bird', vw: 60 },
+        { id: 'eagle', vw: 60 }
+    ];
+
+    const state = {
+        speed: 100,
+        loopGap: 1500,
+        playing: false,
+        rafId: null,
+        lastTime: 0,
+        rows: [] // {vehicleId, horseEl, buffer, stunLeft, mode, pos, waitUntil}
+    };
+
+    function buildHorseElement(vehicleId) {
+        const horse = document.createElement('div');
+        horse.className = 'horse';
+        horse.dataset.vehicleId = vehicleId;
+        horse.dataset.vehicleVariant = 'base';
+        horse.style.left = START_X + 'px';
+
+        const sprite = document.createElement('div');
+        sprite.className = 'vehicle-sprite';
+
+        const frame1 = document.createElement('div');
+        frame1.className = 'frame1';
+        const frame2 = document.createElement('div');
+        frame2.className = 'frame2';
+
+        sprite.appendChild(frame1);
+        sprite.appendChild(frame2);
+        horse.appendChild(sprite);
+        return horse;
+    }
+
+    function setHorseState(horseEl, vehicleId, stateName) {
+        // resolveVehicleStateData, writeVehicleSpriteState 가 horse-race.js에 있으나
+        // 테스트 페이지는 그걸 로드 안 했으므로 직접 SVG 프레임 주입
+        const resource = getVehicleBaseSVG(vehicleId);
+        if (!resource) return;
+        const stateData = resource[stateName] || resource.run;
+        if (!stateData) return;
+        const sprite = horseEl.querySelector('.vehicle-sprite');
+        const frame1 = sprite.querySelector('.frame1');
+        const frame2 = sprite.querySelector('.frame2');
+        if (frame1) frame1.innerHTML = stateData.frame1 || '';
+        if (frame2) frame2.innerHTML = stateData.frame2 || '';
+        horseEl.dataset.currentState = stateName;
+    }
+
+    // horse-race.js 의 헬퍼를 테스트용으로 제공 — fall-motion.js가 이걸 참조
+    window.resolveVehicleStateData = function(vid, state, variant) {
+        const resource = getVehicleBaseSVG(vid);
+        if (!resource) return null;
+        return resource[state] || resource.run || null;
+    };
+    window.writeVehicleSpriteState = function(sprite, stateData) {
+        if (!sprite || !stateData) return;
+        const frame1 = sprite.querySelector('.frame1');
+        const frame2 = sprite.querySelector('.frame2');
+        if (frame1) frame1.innerHTML = stateData.frame1 || '';
+        if (frame2) frame2.innerHTML = stateData.frame2 || '';
+    };
+    window.createVehicleSpriteLayer = function(f1, f2, className) {
+        const layer = document.createElement('div');
+        layer.className = className;
+        const d1 = document.createElement('div'); d1.className = 'frame1'; d1.innerHTML = f1 || '';
+        const d2 = document.createElement('div'); d2.className = 'frame2'; d2.innerHTML = f2 || '';
+        layer.appendChild(d1); layer.appendChild(d2);
+        return layer;
+    };
+
+    function buildRow(vehicle) {
+        const row = document.createElement('div');
+        row.className = 'buttons-row';
+
+        const track = document.createElement('div');
+        track.className = 'track-wrap';
+
+        const trackRow = document.createElement('div');
+        trackRow.className = 'track-row';
+        trackRow.style.width = TRACK_WIDTH + 'px';
+
+        const label = document.createElement('div');
+        label.className = 'track-label';
+        label.textContent = `${vehicle.id} (vW ${vehicle.vw})`;
+        trackRow.appendChild(label);
+
+        const finishLine = document.createElement('div');
+        finishLine.className = 'finish-line';
+        trackRow.appendChild(finishLine);
+
+        const buffer = getFinishStunBuffer(vehicle.vw);
+        const stunLeft = FINISH_LINE_X - vehicle.vw - buffer;
+
+        const marker = document.createElement('div');
+        marker.className = 'stun-marker';
+        marker.style.left = (stunLeft + vehicle.vw) + 'px';
+        marker.dataset.label = `stun @ -${buffer}px`;
+        trackRow.appendChild(marker);
+
+        const horseEl = buildHorseElement(vehicle.id);
+        trackRow.appendChild(horseEl);
+
+        track.appendChild(trackRow);
+
+        const btnFall = document.createElement('button');
+        btnFall.textContent = '💥 Fall';
+        btnFall.onclick = () => triggerSingleFall(vehicle.id, horseEl);
+
+        const btnRecover = document.createElement('button');
+        btnRecover.textContent = '↻ Recover';
+        btnRecover.onclick = () => animateVehicleFallState(horseEl, vehicle.id, 'run');
+
+        const btnReset = document.createElement('button');
+        btnReset.textContent = 'Reset';
+        btnReset.onclick = () => resetRow(vehicle.id, horseEl);
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'status';
+        statusSpan.textContent = `버퍼 ${buffer}, stun @ ${stunLeft}`;
+
+        const titleStrong = document.createElement('strong');
+        titleStrong.textContent = vehicle.id;
+
+        row.appendChild(titleStrong);
+        row.appendChild(btnFall);
+        row.appendChild(btnRecover);
+        row.appendChild(btnReset);
+        row.appendChild(statusSpan);
+
+        document.getElementById('tracks').appendChild(track);
+        document.getElementById('tracks').appendChild(row);
+
+        setHorseState(horseEl, vehicle.id, 'run');
+
+        state.rows.push({
+            vehicleId: vehicle.id,
+            vw: vehicle.vw,
+            horseEl,
+            buffer,
+            stunLeft,
+            mode: 'idle', // idle | running | fallen
+            pos: START_X,
+            waitUntil: 0
+        });
+    }
+
+    function triggerSingleFall(vehicleId, horseEl) {
+        animateVehicleFallState(horseEl, vehicleId, 'fallen');
+    }
+
+    function resetRow(vehicleId, horseEl) {
+        horseEl.style.left = START_X + 'px';
+        setHorseState(horseEl, vehicleId, 'run');
+        const sprite = horseEl.querySelector('.vehicle-sprite');
+        if (sprite) sprite.style.transform = '';
+        const row = state.rows.find(r => r.horseEl === horseEl);
+        if (row) { row.pos = START_X; row.mode = 'idle'; }
+    }
+
+    function startAll() {
+        state.playing = true;
+        state.lastTime = performance.now();
+        state.rows.forEach(r => {
+            r.pos = START_X;
+            r.mode = 'running';
+            r.waitUntil = 0;
+            r.horseEl.style.left = START_X + 'px';
+            setHorseState(r.horseEl, r.vehicleId, 'run');
+            const sprite = r.horseEl.querySelector('.vehicle-sprite');
+            if (sprite) sprite.style.transform = '';
+        });
+        document.getElementById('playAllBtn').textContent = '⏸ 일시정지';
+        loop(performance.now());
+    }
+
+    function stopAll() {
+        state.playing = false;
+        if (state.rafId) cancelAnimationFrame(state.rafId);
+        document.getElementById('playAllBtn').textContent = '▶ 전체 재생 (모든 탈것)';
+    }
+
+    function loop(now) {
+        if (!state.playing) return;
+        const dt = Math.min((now - state.lastTime) / 1000, 0.05);
+        state.lastTime = now;
+
+        state.rows.forEach(r => {
+            if (r.mode === 'running') {
+                r.pos += state.speed * dt;
+                r.horseEl.style.left = r.pos + 'px';
+                if (r.pos >= r.stunLeft) {
+                    r.pos = r.stunLeft;
+                    r.horseEl.style.left = r.pos + 'px';
+                    r.mode = 'fallen';
+                    r.waitUntil = now + state.loopGap;
+                    animateVehicleFallState(r.horseEl, r.vehicleId, 'fallen');
+                }
+            } else if (r.mode === 'fallen') {
+                if (now >= r.waitUntil) {
+                    // recover → 다시 출발점
+                    animateVehicleFallState(r.horseEl, r.vehicleId, 'run');
+                    setTimeout(() => {
+                        r.pos = START_X;
+                        r.horseEl.style.left = r.pos + 'px';
+                        r.mode = 'running';
+                    }, 350); // recoverMs 이후 재출발
+                    r.mode = 'recovering';
+                }
+            }
+        });
+
+        state.rafId = requestAnimationFrame(loop);
+    }
+
+    document.getElementById('playAllBtn').addEventListener('click', () => {
+        if (state.playing) stopAll(); else startAll();
+    });
+    document.getElementById('stopAllBtn').addEventListener('click', stopAll);
+    document.getElementById('speedSlider').addEventListener('input', e => {
+        state.speed = parseInt(e.target.value);
+        document.getElementById('speedLabel').textContent = state.speed + ' px/s';
+    });
+    document.getElementById('loopSlider').addEventListener('input', e => {
+        state.loopGap = parseInt(e.target.value);
+        document.getElementById('loopLabel').textContent = state.loopGap;
+    });
+
+    window.addEventListener('load', () => {
+        if (typeof animateVehicleFallState !== 'function') {
+            document.body.innerHTML = '<h1 style="color:red;">horse-race-fall-motion.js 로드 실패</h1>';
+            return;
+        }
+        VEHICLES.forEach(buildRow);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Finish Stun X값 비교 (실제 애니메이션)</title>
+<script src="../js/horse-race-sprites.js"></script>
+<script src="../js/horse-race-fall-motion.js"></script>
+<style>
+    body { font-family: sans-serif; background: #1a1a2e; color: #eee; padding: 20px; margin: 0; }
+    h1 { color: #ffd700; margin-bottom: 8px; }
+    h2 { color: #90caf9; border-bottom: 1px solid #444; padding-bottom: 4px; margin-top: 30px; }
+    .legend { background: #16213e; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; }
+
+    .row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
+    .label { width: 110px; font-weight: bold; color: #ffd700; font-size: 13px; }
+    .label small { display: block; font-size: 10px; color: #888; font-weight: normal; }
+
+    .track {
+        position: relative;
+        width: 400px;
+        height: 70px;
+        background: linear-gradient(180deg, #2a5d3b 0%, #1a3a24 100%);
+        border: 1px solid #444;
+        overflow: hidden;
+    }
+
+    .finish-line {
+        position: absolute;
+        top: 0; right: 0;
+        width: 3px; height: 100%;
+        background: repeating-linear-gradient(0deg, #fff 0 6px, #000 6px 12px);
+        z-index: 10;
+    }
+
+    .sprite-wrap {
+        position: absolute;
+        top: 12px;
+        width: 60px; height: 45px;
+    }
+
+    .sprite-wrap svg {
+        width: 60px; height: 45px;
+        transform-origin: 30px 24px;
+    }
+    .sprite-wrap.running svg {
+        animation: runBob 0.18s infinite alternate;
+    }
+    @keyframes runBob {
+        from { transform: translateY(0); }
+        to   { transform: translateY(-2px); }
+    }
+    .sprite-wrap.mode-d-falling svg {
+        animation: none;
+        transition: transform 0.25s cubic-bezier(0.4, 0.9, 0.6, 1);
+    }
+    .dust-layer {
+        position: absolute;
+        top: 0; left: 0;
+        width: 60px; height: 45px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease-in;
+    }
+    .dust-layer.visible { opacity: 1; }
+
+    .vw-marker {
+        position: absolute;
+        top: 12px; height: 45px;
+        border-right: 1px dashed rgba(100, 200, 255, 0.5);
+        pointer-events: none;
+    }
+
+    .gap-bar {
+        position: absolute;
+        top: 58px; height: 8px;
+        background: rgba(100, 255, 100, 0.3);
+        border: 1px solid #4f4;
+        font-size: 9px;
+        line-height: 8px;
+        text-align: center;
+        color: #4f4;
+        box-sizing: border-box;
+    }
+
+    .verdict { font-size: 11px; margin-left: 8px; min-width: 230px; }
+    .good { color: #4f4; }
+    .bad  { color: #f55; }
+    .mid  { color: #fb4; }
+
+    .controls { margin-bottom: 20px; }
+    .controls button {
+        background: #2a3b5c; color: #eee; border: 1px solid #666;
+        padding: 6px 12px; margin-right: 6px; cursor: pointer; border-radius: 4px;
+    }
+    .controls button.active { background: #ffd700; color: #000; }
+    .controls input[type="range"] { vertical-align: middle; margin-left: 10px; }
+</style>
+</head>
+<body>
+<h1>🏁 Finish Stun 최종 정착 위치 비교</h1>
+
+<div class="legend">
+    <strong>읽는 법:</strong> 모든 탈것이 <strong>동일한 최종 위치</strong>에 정착하도록
+    per-vehicle 동적 버퍼 적용 (<code>buffer = slideX(24) + 48 + finalGap - vW</code>).<br>
+    빨간 영역 = fallen 몸통 시각 내용 범위, 점선 = visualWidth 경계, 초록 바 = 결승선까지 gap.
+</div>
+
+<div class="controls">
+    <strong>finalGap (결승선까지 거리):</strong>
+    <span id="gapButtons"></span>
+    <input type="range" id="gapSlider" min="5" max="30" value="15" />
+    <span id="gapDisplay" style="color:#ffd700;font-weight:bold;">finalGap = 15px</span>
+    <button id="playBtn" style="background:#4caf50;color:#fff;margin-left:20px;">▶ 재생</button>
+    <label style="margin-left:10px;">속도:
+        <input type="range" id="speedSlider" min="50" max="400" value="150" style="width:100px;" />
+        <span id="speedDisplay">150 px/s</span>
+    </label>
+</div>
+
+<div id="charts"></div>
+
+<script>
+    const TRACK_WIDTH = 400;
+    const FINISH_LINE_PX = TRACK_WIDTH - 3;
+    const GAP_OPTIONS = [5, 10, 15, 20, 25, 30];
+    // 실제 게임의 slideX (fall 애니메이션 최종 offset)
+    const SLIDE_X = typeof FALL_TRAVEL_DISTANCE_PX === 'number' ? FALL_TRAVEL_DISTANCE_PX : 24;
+    // 실제 게임의 overshootX (peak 시 offset)
+    const OVERSHOOT_X = typeof FALL_OVERSHOOT_DISTANCE_PX === 'number' ? FALL_OVERSHOOT_DISTANCE_PX : 28;
+    const vehicles = [
+        { name: 'ninja', vw: 44 },
+        { name: 'knight', vw: 48 },
+        { name: 'helicopter', vw: 48 },
+        { name: 'car', vw: 50 },
+        { name: 'boat', vw: 50 },
+        { name: 'rabbit', vw: 53 },
+        { name: 'scooter', vw: 54 },
+        { name: 'crab', vw: 54 },
+        { name: 'horse', vw: 56 },
+        { name: 'bicycle', vw: 56 },
+        { name: 'dinosaur', vw: 56 },
+        { name: 'turtle', vw: 58 },
+        { name: 'rocket', vw: 60 },
+        { name: 'bird', vw: 60 },
+        { name: 'eagle', vw: 60 },
+    ];
+
+    // SVG 실측: 프레임 내 fallen 시각 내용 범위 (측정)
+    function measureFallenBounds(svgMarkup) {
+        const div = document.createElement('div');
+        div.style.cssText = 'position:absolute;visibility:hidden;';
+        div.innerHTML = svgMarkup;
+        document.body.appendChild(div);
+        const svg = div.querySelector('svg');
+        let minX = 60, maxX = 0;
+        svg.querySelectorAll('ellipse, rect, circle, path, polygon, polyline').forEach(el => {
+            try {
+                const b = el.getBBox();
+                const ctm = el.getCTM();
+                if (!ctm) return;
+                const x1 = b.x * ctm.a + b.y * ctm.c + ctm.e;
+                const x2 = (b.x + b.width) * ctm.a + b.y * ctm.c + ctm.e;
+                const x3 = b.x * ctm.a + (b.y + b.height) * ctm.c + ctm.e;
+                const x4 = (b.x + b.width) * ctm.a + (b.y + b.height) * ctm.c + ctm.e;
+                minX = Math.min(minX, x1, x2, x3, x4);
+                maxX = Math.max(maxX, x1, x2, x3, x4);
+            } catch (e) {}
+        });
+        document.body.removeChild(div);
+        return { minX: Math.max(0, minX), maxX: Math.min(60, maxX) };
+    }
+
+    let currentGap = 15; // 최종 정착 gap (finishLine - currentGap 에 fallen 오른쪽 끝이 위치)
+    let currentSpeed = 150; // px/s
+    let playing = false;
+    let animId = null;
+    let blendMode = 'C'; // 'C' = 중간 프레임, 'D' = CSS 트윈
+    const FALL_DURATION_MS = 250;
+    const rowStates = [];
+
+    const FALL_COMPARE_PROFILES = {
+        default: { motionType: 'faceplant', dropY: 6, tiltDeg: 78, scale: 0.9, bodyShiftX: -1.2, braceX: 1.6, braceY: -1.2, arcLift: 0, fxType: 'dust' },
+        car: { motionType: 'burst-stop', dropY: 5.4, tiltDeg: 58, scale: 0.94, bodyShiftX: -0.4, braceX: 2.4, braceY: -1.1, fxType: 'spark' },
+        rocket: { motionType: 'air-sink', dropY: 8.2, tiltDeg: 0, scale: 0.9, bodyShiftX: -0.4, braceX: 1.2, braceY: -1.2, arcLift: 0, fxType: 'smoke', damageEffect: 'fire', damageX: 15, damageY: 27, damageScale: 1.05 },
+        bird: { motionType: 'air-sink', dropY: 8.9, tiltDeg: 0, scale: 0.92, bodyShiftX: -0.3, braceX: 1.1, braceY: -1.5, arcLift: 0, fxType: 'feather', damageEffect: 'x-eyes', damageX: 52, damageY: 20, damageScale: 0.84, damageEyesCount: 1, eyePatchFill: '#9b59b6', eyePatchRadius: 2.35 },
+        boat: { motionType: 'splash-dip', dropY: 7.6, tiltDeg: 64, scale: 0.92, bodyShiftX: -0.9, braceX: 1.2, braceY: -0.7, arcLift: 1.8, fxType: 'splash' },
+        bicycle: { motionType: 'burst-stop', dropY: 6.2, tiltDeg: 76, scale: 0.87, bodyShiftX: -1.4, braceX: 2.8, braceY: -1.2, fxType: 'spark' },
+        rabbit: { motionType: 'faceplant', dropY: 6.7, tiltDeg: 82, scale: 0.89, bodyShiftX: -1.6, braceX: 2.2, braceY: -1.8, arcLift: 1.6, fxType: 'dust' },
+        turtle: { motionType: 'heavy-flop', dropY: 7.4, tiltDeg: 58, scale: 0.93, bodyShiftX: -0.6, braceX: 1.1, braceY: -0.5, fxType: 'dust' },
+        eagle: { motionType: 'air-sink', dropY: 9.1, tiltDeg: 0, scale: 0.91, bodyShiftX: -0.3, braceX: 1.2, braceY: -1.7, arcLift: 0, fxType: 'feather', damageEffect: 'x-eyes', damageX: 52, damageY: 19, damageScale: 0.92, damageEyesCount: 1, eyePatchFill: '#8B4513', eyePatchRadius: 2.35 },
+        scooter: { motionType: 'burst-stop', dropY: 5.8, tiltDeg: 62, scale: 0.91, bodyShiftX: -0.8, braceX: 2.2, braceY: -1.1, fxType: 'spark' },
+        helicopter: { motionType: 'air-sink', dropY: 8, tiltDeg: 0, scale: 0.91, bodyShiftX: -0.3, braceX: 1.2, braceY: -1.1, arcLift: 0, fxType: 'wind', damageEffect: 'fire', damageX: 26, damageY: 20, damageScale: 1.15 },
+        horse: { motionType: 'heavy-flop', dropY: 7.8, tiltDeg: 66, scale: 0.91, bodyShiftX: -1.1, braceX: 1.6, braceY: -0.8, fxType: 'dust' },
+        knight: { motionType: 'heavy-flop', dropY: 7.2, tiltDeg: 60, scale: 0.92, bodyShiftX: -0.8, braceX: 1.3, braceY: -0.7, fxType: 'spark' },
+        dinosaur: { motionType: 'heavy-flop', dropY: 7.9, tiltDeg: 64, scale: 0.92, bodyShiftX: -0.7, braceX: 1.4, braceY: -0.6, fxType: 'dust' },
+        ninja: { motionType: 'side-slip', dropY: 6.1, tiltDeg: 72, scale: 0.9, bodyShiftX: -1.4, braceX: 1.9, braceY: -1.1, fxType: 'wind' },
+        crab: { motionType: 'side-slip', dropY: 6.4, tiltDeg: 56, scale: 0.92, bodyShiftX: -1.2, braceX: 1.5, braceY: -0.8, fxType: 'dust' }
+    };
+
+    function clamp01(value) {
+        return Math.max(0, Math.min(1, value));
+    }
+
+    function lerp(a, b, t) {
+        return a + ((b - a) * t);
+    }
+
+    function interpolateMotionValue(stops, progress) {
+        const p = clamp01(progress);
+        if (!Array.isArray(stops) || !stops.length) return 0;
+        if (p <= stops[0].offset) return stops[0].value;
+        for (let i = 1; i < stops.length; i++) {
+            const prev = stops[i - 1];
+            const next = stops[i];
+            if (p <= next.offset) {
+                const span = Math.max(0.0001, next.offset - prev.offset);
+                return lerp(prev.value, next.value, (p - prev.offset) / span);
+            }
+        }
+        return stops[stops.length - 1].value;
+    }
+
+    function getCompareFallProfile(vehicleName) {
+        return {
+            ...FALL_COMPARE_PROFILES.default,
+            ...(FALL_COMPARE_PROFILES[vehicleName] || {}),
+            slideX: SLIDE_X,
+            overshootX: OVERSHOOT_X
+        };
+    }
+
+    function getFallTravelStops(profile) {
+        switch (profile.motionType) {
+            case 'burst-stop':
+                return [
+                    { offset: 0, value: 0 },
+                    { offset: 0.08, value: 0.8 },
+                    { offset: 0.22, value: 3.5 },
+                    { offset: 0.54, value: profile.slideX * 0.62 },
+                    { offset: 0.82, value: profile.overshootX },
+                    { offset: 1, value: profile.slideX }
+                ];
+            case 'arc-drop':
+            case 'thrust-fade':
+            case 'air-sink':
+                return [
+                    { offset: 0, value: 0 },
+                    { offset: 0.14, value: 2.5 },
+                    { offset: 0.38, value: profile.slideX * 0.42 },
+                    { offset: 0.7, value: profile.slideX * 0.9 },
+                    { offset: 0.9, value: profile.overshootX },
+                    { offset: 1, value: profile.slideX }
+                ];
+            case 'heavy-flop':
+                return [
+                    { offset: 0, value: 0 },
+                    { offset: 0.16, value: 1.5 },
+                    { offset: 0.44, value: profile.slideX * 0.48 },
+                    { offset: 0.74, value: profile.overshootX - 2 },
+                    { offset: 1, value: profile.slideX }
+                ];
+            case 'side-slip':
+                return [
+                    { offset: 0, value: 0 },
+                    { offset: 0.1, value: 2 },
+                    { offset: 0.32, value: profile.slideX * 0.5 },
+                    { offset: 0.72, value: profile.overshootX },
+                    { offset: 1, value: profile.slideX }
+                ];
+            case 'splash-dip':
+                return [
+                    { offset: 0, value: 0 },
+                    { offset: 0.1, value: 1.5 },
+                    { offset: 0.34, value: profile.slideX * 0.38 },
+                    { offset: 0.74, value: profile.overshootX - 1.5 },
+                    { offset: 1, value: profile.slideX }
+                ];
+            default:
+                return [
+                    { offset: 0, value: 0 },
+                    { offset: 0.12, value: 1.5 },
+                    { offset: 0.36, value: profile.slideX * 0.34 },
+                    { offset: 0.78, value: profile.overshootX },
+                    { offset: 1, value: profile.slideX }
+                ];
+        }
+    }
+
+    function getFallTravelOffset(profile, progress) {
+        return interpolateMotionValue(getFallTravelStops(profile), progress);
+    }
+
+    function getPartialFallTransform(profile, progress) {
+        const p = clamp01(progress);
+        let translateX = profile.bodyShiftX * p;
+        let translateY = profile.dropY * p;
+        let rotate = profile.tiltDeg * p;
+        let scale = 1 - ((1 - profile.scale) * p);
+        const swing = Math.sin(Math.PI * p);
+
+        if (profile.motionType === 'air-sink') {
+            translateX = profile.bodyShiftX * p;
+            translateY = (profile.dropY * Math.pow(p, 0.86)) + (0.28 * Math.sin(Math.PI * p * 0.9));
+            rotate = 0;
+            scale = 1 - ((1 - profile.scale) * Math.pow(p, 0.72));
+        } else if (profile.motionType === 'arc-drop' || profile.motionType === 'thrust-fade') {
+            translateY -= profile.arcLift * swing;
+            rotate = profile.tiltDeg * (0.12 + (0.88 * p));
+            translateX -= 0.4 * swing;
+            scale -= 0.02 * swing;
+        } else if (profile.motionType === 'burst-stop') {
+            translateX += 0.7 * Math.sin(Math.PI * Math.min(1, p * 1.1));
+            rotate = profile.tiltDeg * (0.22 + (0.78 * p));
+        } else if (profile.motionType === 'heavy-flop') {
+            translateY = (profile.dropY * Math.pow(p, 0.84)) + (0.9 * swing);
+            rotate = profile.tiltDeg * (0.15 + (0.85 * p));
+            scale = 1 - ((1 - profile.scale) * Math.pow(p, 0.82));
+        } else if (profile.motionType === 'side-slip') {
+            translateX -= 1.4 * swing;
+            translateY += 0.5 * swing;
+            rotate = profile.tiltDeg * (0.34 + (0.66 * p));
+        } else if (profile.motionType === 'splash-dip') {
+            translateY += 1.3 * swing;
+            rotate = profile.tiltDeg * (0.18 + (0.82 * p));
+        } else {
+            translateY += 0.4 * swing;
+        }
+
+        return { translateX, translateY, rotate, scale };
+    }
+
+    function buildPartialFallFxMarkup(profile, progress) {
+        const p = clamp01(progress);
+        const fxProgress = clamp01((p - 0.18) / 0.82);
+        if (fxProgress <= 0) return '';
+
+        const opacity = 0.22 + (fxProgress * 0.32);
+        const stretch = 0.55 + (fxProgress * 0.75);
+        const x = 26 + (fxProgress * 8);
+
+        switch (profile.fxType) {
+            case 'spark':
+                return `
+                    <g opacity="${opacity}">
+                        <ellipse cx="${x}" cy="37.2" rx="${5.6 * stretch}" ry="${2.2 * fxProgress}" fill="#ffcf73"/>
+                        <path d="M${x - 6} 34.8 l4 -2 l-1.4 3.2 l3.6 0.6 l-4.8 1.5" stroke="#fff0a6" stroke-width="${1.2 * fxProgress}" stroke-linecap="round" fill="none"/>
+                        <path d="M${x + 2} 35.2 l3.4 -2.6" stroke="#ff8f52" stroke-width="${1.1 * fxProgress}" stroke-linecap="round" fill="none"/>
+                    </g>`;
+            case 'smoke':
+                return `
+                    <g opacity="${0.2 + (fxProgress * 0.28)}">
+                        <ellipse cx="${x - 2}" cy="${36.4 - (fxProgress * 1.6)}" rx="${7.2 * stretch}" ry="${2.8 + (fxProgress * 1.2)}" fill="#cfd7e5"/>
+                        <ellipse cx="${x + 6}" cy="${35.6 - (fxProgress * 2.2)}" rx="${5.6 * stretch}" ry="${2.4 + (fxProgress * 1)}" fill="#9aa8bf"/>
+                    </g>`;
+            case 'feather':
+                return `
+                    <g opacity="${opacity}">
+                        <ellipse cx="${x - 3}" cy="${34.6 - (fxProgress * 3.2)}" rx="${2.2 * fxProgress}" ry="${4 * fxProgress}" fill="#fff5d8" transform="rotate(-24 ${x - 3} ${34.6 - (fxProgress * 3.2)})"/>
+                        <ellipse cx="${x + 5}" cy="${35.8 - (fxProgress * 2.4)}" rx="${1.8 * fxProgress}" ry="${3.4 * fxProgress}" fill="#efd7ff" transform="rotate(18 ${x + 5} ${35.8 - (fxProgress * 2.4)})"/>
+                    </g>`;
+            case 'splash':
+                return `
+                    <g opacity="${opacity}">
+                        <ellipse cx="${x}" cy="38.2" rx="${7.6 * stretch}" ry="${2.2 * fxProgress}" fill="#9ee4ff"/>
+                        <path d="M${x - 7} 36.5 q2.8 -4 5.4 0" stroke="#dff8ff" stroke-width="${1.2 * fxProgress}" stroke-linecap="round" fill="none"/>
+                        <path d="M${x + 1} 36 q2.4 -3.4 4.8 0" stroke="#63c6ff" stroke-width="${1 * fxProgress}" stroke-linecap="round" fill="none"/>
+                    </g>`;
+            case 'wind':
+                return `
+                    <g opacity="${0.18 + (fxProgress * 0.26)}">
+                        <path d="M${x - 8} 35.2 q6 -2.6 12 0" stroke="#baf6ff" stroke-width="${1.1 * fxProgress}" stroke-linecap="round" fill="none"/>
+                        <path d="M${x - 4} 38 q5.4 -1.8 10.8 0" stroke="#7ee8ff" stroke-width="${0.9 * fxProgress}" stroke-linecap="round" fill="none"/>
+                    </g>`;
+            default:
+                return `
+                    <ellipse cx="31" cy="38" rx="${17.5 * fxProgress}" ry="${4.4 * fxProgress}" fill="#091121" opacity="${0.22 * fxProgress}"/>
+                    <g opacity="${opacity}">
+                        <ellipse cx="${x - 10}" cy="37.8" rx="${5.8 * stretch}" ry="${2.4 * fxProgress}" fill="#d7c29a"/>
+                        <ellipse cx="${x}" cy="37.3" rx="${8.8 * stretch}" ry="${3.1 * fxProgress}" fill="#e7d5ad"/>
+                        <ellipse cx="${x + 11}" cy="38.1" rx="${6.5 * stretch}" ry="${2.6 * fxProgress}" fill="#d8c29a"/>
+                    </g>`;
+        }
+    }
+
+    function buildDamageOverlayMarkup(profile, progress) {
+        const effect = profile.damageEffect;
+        if (!effect) return '';
+
+        const p = clamp01((progress - 0.72) / 0.28);
+        if (p <= 0) return '';
+
+        const x = profile.damageX || 30;
+        const y = profile.damageY || 20;
+        const scale = profile.damageScale || 1;
+        const opacity = 0.3 + (p * 0.7);
+
+        if (effect === 'x-eyes') {
+            const arm = 1.4 * scale;
+            const strokeWidth = 1.4 * scale;
+            const eyesCount = profile.damageEyesCount || 2;
+            const patchRadius = profile.eyePatchRadius || (2.2 * scale);
+            const patchFill = profile.eyePatchFill || '#ffffff';
+            const eyeGap = 4.6 * scale;
+            const eyeMarkup = eyesCount === 1
+                ? `
+                    <circle cx="${x}" cy="${y}" r="${patchRadius}" fill="${patchFill}"/>
+                    <path d="M${x - arm} ${y - arm} L${x + arm} ${y + arm}"/>
+                    <path d="M${x + arm} ${y - arm} L${x - arm} ${y + arm}"/>
+                `
+                : `
+                    <circle cx="${x - eyeGap}" cy="${y}" r="${patchRadius}" fill="${patchFill}"/>
+                    <circle cx="${x + eyeGap}" cy="${y}" r="${patchRadius}" fill="${patchFill}"/>
+                    <path d="M${x - eyeGap - arm} ${y - arm} L${x - eyeGap + arm} ${y + arm}"/>
+                    <path d="M${x - eyeGap + arm} ${y - arm} L${x - eyeGap - arm} ${y + arm}"/>
+                    <path d="M${x + eyeGap - arm} ${y - arm} L${x + eyeGap + arm} ${y + arm}"/>
+                    <path d="M${x + eyeGap + arm} ${y - arm} L${x + eyeGap - arm} ${y + arm}"/>
+                `;
+            return `
+                <g data-damage="x-eyes" opacity="${opacity}">
+                    <g stroke="#2a1a1a" stroke-width="${strokeWidth}" stroke-linecap="round">
+                        ${eyeMarkup}
+                    </g>
+                </g>`;
+        }
+
+        if (effect === 'fire') {
+            const smokeOpacity = 0.18 + (p * 0.28);
+            return `
+                <g data-damage="fire" opacity="${opacity}">
+                    <g opacity="${smokeOpacity}">
+                        <ellipse cx="${x - (3.4 * scale)}" cy="${y - (4.6 * scale)}" rx="${4.2 * scale}" ry="${2.9 * scale}" fill="#cfd7e6"/>
+                        <ellipse cx="${x + (1.2 * scale)}" cy="${y - (6.8 * scale)}" rx="${3.3 * scale}" ry="${2.3 * scale}" fill="#9aa7bf"/>
+                    </g>
+                    <path d="M${x - (1.8 * scale)} ${y + (2.6 * scale)} q${1.4 * scale} ${-4.2 * scale} ${3.4 * scale} ${-7.4 * scale} q${2.2 * scale} ${4 * scale} 0 ${8.1 * scale} q${-1.2 * scale} ${2.1 * scale} ${-3.4 * scale} ${-0.7 * scale} q${-1.8 * scale} ${2.1 * scale} ${-3.1 * scale} ${0.1 * scale} q${1.3 * scale} ${-1.9 * scale} 0 ${-5.1 * scale}Z" fill="#ff8c3a"/>
+                    <path d="M${x - (0.8 * scale)} ${y + (1.6 * scale)} q${1.1 * scale} ${-2.6 * scale} ${2.2 * scale} ${-4.8 * scale} q${1.4 * scale} ${2.7 * scale} 0 ${5.2 * scale} q${-0.9 * scale} ${1.4 * scale} ${-2.1 * scale} ${0.1 * scale} q${-1.1 * scale} ${1.1 * scale} ${-1.8 * scale} ${0} q${0.9 * scale} ${-1.2 * scale} 0 ${-3.6 * scale}Z" fill="#ffd36a"/>
+                </g>`;
+        }
+
+        return '';
+    }
+
+    function buildImpactShadowMarkup(profile, progress) {
+        const p = clamp01(progress);
+        if (p <= 0) return '';
+
+        let cx = 29.5 + (profile.slideX * 0.1 * p);
+        let cy = 38.1;
+        let rx = (9.8 + (profile.slideX * 0.18)) * (0.42 + (p * 0.58));
+        let ry = (1.9 + (profile.dropY * 0.08)) * (0.5 + (p * 0.5));
+        let opacity = 0.08 + (p * 0.18);
+
+        if (profile.motionType === 'air-sink') {
+            cx += 0.8;
+            rx *= 1.18;
+            ry *= 1.08;
+            opacity += 0.04;
+        } else if (profile.motionType === 'heavy-flop') {
+            rx *= 1.08;
+            ry *= 1.16;
+            opacity += 0.03;
+        } else if (profile.motionType === 'burst-stop') {
+            cx += 0.5;
+            rx *= 1.06;
+        } else if (profile.motionType === 'splash-dip') {
+            ry *= 0.92;
+            opacity -= 0.02;
+        }
+
+        const softRx = rx * 1.28;
+        const softRy = ry * 1.35;
+        const coreOpacity = Math.max(0.06, opacity);
+        const softOpacity = Math.max(0.04, opacity * 0.45);
+
+        return `
+            <g data-shadow="impact">
+                <ellipse cx="${cx}" cy="${cy}" rx="${softRx}" ry="${softRy}" fill="#050a14" opacity="${softOpacity}"/>
+                <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#091121" opacity="${coreOpacity}"/>
+            </g>`;
+    }
+
+    function buildShadowedFrame(svgMarkup, profile, progress = 1, extraMarkup = '') {
+        if (!svgMarkup || typeof extractVehicleSvgInnerMarkup !== 'function') return svgMarkup;
+        const innerMarkup = extractVehicleSvgInnerMarkup(svgMarkup);
+        if (!innerMarkup) return svgMarkup;
+
+        const shadowMarkup = buildImpactShadowMarkup(profile, progress);
+        return `<svg viewBox="0 0 60 45" width="60" height="45">
+            ${shadowMarkup}
+            <g>
+                ${innerMarkup}
+                ${extraMarkup}
+            </g>
+        </svg>`;
+    }
+
+    function getModeDFinalTransform(profile) {
+        const finalPose = getPartialFallTransform(profile, 1);
+        return `translate(${finalPose.translateX}px, ${finalPose.translateY}px) rotate(${finalPose.rotate}deg) scale(${finalPose.scale})`;
+    }
+
+    // progress 0~1에 따라 부분적으로 넘어진 SVG 생성
+    function buildPartialFallenFrame(svgMarkup, progress, profile) {
+        if (!svgMarkup || typeof extractVehicleSvgInnerMarkup !== 'function') return svgMarkup;
+        const innerMarkup = extractVehicleSvgInnerMarkup(svgMarkup);
+        if (!innerMarkup) return svgMarkup;
+
+        const pose = getPartialFallTransform(profile, progress);
+        // 먼지는 후반부부터 등장 (p >= 0.5)
+        const shadowMarkup = buildImpactShadowMarkup(profile, progress);
+        const fxMarkup = buildPartialFallFxMarkup(profile, progress);
+        const damageMarkup = buildDamageOverlayMarkup(profile, progress);
+
+        return `<svg viewBox="0 0 60 45" width="60" height="45">
+            ${shadowMarkup}
+            ${fxMarkup}
+            <g transform="translate(${pose.translateX} ${pose.translateY}) rotate(${pose.rotate} 30 24)">
+                <g transform="translate(30 24) scale(${pose.scale}) translate(-30 -24)">
+                    ${innerMarkup}
+                    ${damageMarkup}
+                </g>
+            </g>
+        </svg>`;
+    }
+
+    function getSettledFallenFrame(resource, profile) {
+        if (!resource) return '';
+        if (profile.motionType === 'air-sink') {
+            const baseRun = resource.run && resource.run.frame1;
+            return baseRun ? buildPartialFallenFrame(baseRun, 1, profile) : '';
+        }
+        return (resource.fallen && resource.fallen.frame1) ? buildShadowedFrame(resource.fallen.frame1, profile, 1) : '';
+    }
+
+    function buildRows() {
+        const container = document.getElementById('charts');
+        container.innerHTML = '';
+        rowStates.length = 0;
+
+        vehicles.forEach(v => {
+            let resource;
+            try { resource = getVehicleBaseSVG(v.name); } catch (e) { resource = null; }
+            const fallProfile = getCompareFallProfile(v.name);
+            const fallenFrame1 = getSettledFallenFrame(resource, fallProfile);
+
+            let fallenMaxX = 48;
+            if (fallenFrame1) {
+                try {
+                    const b = measureFallenBounds(fallenFrame1);
+                    if (b.maxX > b.minX) fallenMaxX = b.maxX;
+                } catch (e) {}
+            }
+
+            const row = document.createElement('div');
+            row.className = 'row';
+            row.innerHTML = `
+                <div class="label">${v.name}<small>vW=${v.vw}</small></div>
+                <div class="track">
+                    <div class="finish-line"></div>
+                    <div class="sprite-wrap running" style="left:-60px;"></div>
+                    <div class="vw-marker"></div>
+                    <div class="gap-bar" style="display:none;"></div>
+                </div>
+                <div class="verdict"></div>
+            `;
+            container.appendChild(row);
+
+            const state = {
+                vehicle: v,
+                resource,
+                fallProfile,
+                fallenMaxX,
+                pos: -50, // 탈것 왼쪽 좌표 (프레임 기준)
+                mode: 'run', // run | fallen
+                frameIdx: 1,
+                frameTimer: 0,
+                wrapEl: row.querySelector('.sprite-wrap'),
+                markerEl: row.querySelector('.vw-marker'),
+                gapEl: row.querySelector('.gap-bar'),
+                verdictEl: row.querySelector('.verdict'),
+                trackEl: row.querySelector('.track'),
+            };
+            rowStates.push(state);
+            updateRowVisual(state);
+        });
+    }
+
+    // finalGap 값에 따른 정지 위치 갱신 + verdict 갱신
+    // 탈것별 버퍼 = slideX + fallenMaxX + finalGap - vW → 최종 fallenRight 가 모든 탈것에서 finishLine - finalGap 으로 정렬
+    function updateStunTargets() {
+        rowStates.forEach(s => {
+            const buffer = SLIDE_X + s.fallenMaxX + currentGap - s.vehicle.vw;
+            const stunLeft = FINISH_LINE_PX - s.vehicle.vw - buffer;
+            s.stunLeft = stunLeft;
+            s.vwRight = stunLeft + s.vehicle.vw;
+            s.fallenLeft = stunLeft + SLIDE_X;
+            s.fallenRight = s.fallenLeft + s.fallenMaxX;
+            s.gapToFinish = FINISH_LINE_PX - s.fallenRight;
+            s.buffer = buffer;
+
+            // peak 시 위치 (overshootX 기준)
+            const peakRight = stunLeft + OVERSHOOT_X + s.fallenMaxX;
+            s.peakGap = FINISH_LINE_PX - peakRight;
+
+            // verdict
+            let verdict = '', cls = '';
+            if (s.peakGap < 0) { verdict = `⚠️ peak ${-s.peakGap}px 넘음!`; cls = 'bad'; }
+            else if (s.peakGap < 6) { verdict = `⚠️ peak ${s.peakGap}px (버퍼 ${buffer})`; cls = 'mid'; }
+            else { verdict = `✓ final ${s.gapToFinish}px / peak ${s.peakGap}px (버퍼 ${buffer})`; cls = 'good'; }
+            s.verdictEl.textContent = verdict;
+            s.verdictEl.className = `verdict ${cls}`;
+        });
+    }
+
+    function setWrapHTML(s, html) {
+        if (s.wrapEl._lastFrame !== html) {
+            s.wrapEl.innerHTML = html;
+            s.wrapEl._lastFrame = html;
+        }
+    }
+
+    function updateRowVisual(s) {
+        s.wrapEl.style.left = `${s.pos}px`;
+        s.markerEl.style.left = `${s.pos + s.vehicle.vw}px`;
+
+        // fallen 모드일 때 gap bar 표시
+        if (s.mode === 'fallen' && s.gapToFinish > 0) {
+            s.gapEl.style.display = 'block';
+            s.gapEl.style.left = `${s.pos + s.fallenMaxX}px`;
+            s.gapEl.style.width = `${s.gapToFinish}px`;
+            s.gapEl.textContent = s.gapToFinish;
+        } else {
+            s.gapEl.style.display = 'none';
+        }
+
+        if (s.mode === 'run') {
+            s.wrapEl.classList.add('running');
+            s.wrapEl.classList.remove('mode-d-falling');
+            s.wrapEl.style.transform = '';
+            const frame = (s.resource && s.resource.run)
+                ? (s.frameIdx === 1 ? s.resource.run.frame1 : s.resource.run.frame2)
+                : '<div style="color:#f55;font-size:10px;">(no)</div>';
+            setWrapHTML(s, frame);
+        } else if (s.mode === 'falling') {
+            s.wrapEl.classList.remove('running');
+            if (blendMode === 'C') {
+                // C: 중간 진행도 SVG를 매 프레임 렌더
+                s.wrapEl.classList.remove('mode-d-falling');
+                s.wrapEl.style.transform = '';
+                const baseRun = (s.resource && s.resource.run) ? s.resource.run.frame1 : '';
+                const partial = buildPartialFallenFrame(baseRun, s.fallProgress, s.fallProfile);
+                setWrapHTML(s, partial);
+            } else {
+                // D: 첫 run 프레임 유지 + CSS transform으로 서서히 쓰러짐
+                s.wrapEl.classList.add('mode-d-falling');
+                if (!s.dCssApplied) {
+                    // 첫 프레임에 run 스프라이트 세팅 (고정)
+                    const baseRun = (s.resource && s.resource.run) ? s.resource.run.frame1 : '';
+                    setWrapHTML(s, baseRun);
+                    s.dCssApplied = true;
+                    // 다음 tick 에 transform 적용 (transition 동작하도록)
+                    requestAnimationFrame(() => {
+                        const svg = s.wrapEl.querySelector('svg');
+                        if (svg) {
+                            svg.style.transition = `transform ${FALL_DURATION_MS}ms cubic-bezier(0.4, 0.9, 0.6, 1)`;
+                            svg.style.transform = getModeDFinalTransform(s.fallProfile);
+                        }
+                    });
+                }
+            }
+        } else if (s.mode === 'fallen') {
+            s.wrapEl.classList.remove('running');
+            s.wrapEl.classList.remove('mode-d-falling');
+            s.wrapEl.style.transform = '';
+            const frame = getSettledFallenFrame(s.resource, s.fallProfile);
+            setWrapHTML(s, frame);
+        }
+    }
+
+    let lastTime = 0;
+    function loop(now) {
+        if (!playing) return;
+        const dt = Math.min((now - lastTime) / 1000, 0.05);
+        lastTime = now;
+
+        rowStates.forEach(s => {
+            if (s.mode === 'run') {
+                s.pos += currentSpeed * dt;
+                s.frameTimer += dt;
+                if (s.frameTimer > 0.1) {
+                    s.frameTimer = 0;
+                    s.frameIdx = s.frameIdx === 1 ? 2 : 1;
+                }
+                // 정지 위치 도달 → falling (전환 애니메이션)
+                if (s.pos >= s.stunLeft) {
+                    s.pos = s.stunLeft;
+                    s.mode = 'falling';
+                    s.fallStart = now;
+                    s.fallProgress = 0;
+                    s.dCssApplied = false;
+                }
+            } else if (s.mode === 'falling') {
+                const elapsed = now - s.fallStart;
+                s.fallProgress = Math.min(1, elapsed / FALL_DURATION_MS);
+                s.pos = s.stunLeft + getFallTravelOffset(s.fallProfile, s.fallProgress);
+                if (s.fallProgress >= 1) {
+                    s.pos = s.fallenLeft;
+                    s.mode = 'fallen';
+                    s.fallenUntil = now + 1000;
+                }
+            } else if (s.mode === 'fallen') {
+                if (now >= s.fallenUntil) {
+                    s.pos = -60;
+                    s.mode = 'run';
+                    s.frameIdx = 1;
+                    s.frameTimer = 0;
+                    s.dCssApplied = false;
+                }
+            }
+            updateRowVisual(s);
+        });
+
+        animId = requestAnimationFrame(loop);
+    }
+
+    function startAnim() {
+        if (playing) return;
+        playing = true;
+        lastTime = performance.now();
+        document.getElementById('playBtn').textContent = '⏸ 일시정지';
+        document.getElementById('playBtn').style.background = '#f44336';
+        animId = requestAnimationFrame(loop);
+    }
+
+    function pauseAnim() {
+        playing = false;
+        if (animId) cancelAnimationFrame(animId);
+        document.getElementById('playBtn').textContent = '▶ 애니메이션 재생';
+        document.getElementById('playBtn').style.background = '#4caf50';
+    }
+
+    function setGap(gap) {
+        currentGap = gap;
+        document.getElementById('gapDisplay').textContent = `finalGap = ${currentGap}px`;
+        document.getElementById('gapSlider').value = currentGap;
+        document.querySelectorAll('#gapButtons button').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.gap) === currentGap);
+        });
+        updateStunTargets();
+        // 정지 상태인 말은 즉시 새 위치로 이동
+        rowStates.forEach(s => {
+            if (s.mode === 'falling') {
+                s.pos = s.stunLeft + getFallTravelOffset(s.fallProfile, s.fallProgress || 0);
+                updateRowVisual(s);
+                return;
+            }
+            if (s.mode === 'fallen') { s.pos = s.fallenLeft; updateRowVisual(s); }
+        });
+    }
+
+    // 버튼 생성
+    const btns = document.getElementById('gapButtons');
+    GAP_OPTIONS.forEach(g => {
+        const b = document.createElement('button');
+        b.textContent = `${g}px`;
+        b.dataset.gap = g;
+        b.onclick = () => setGap(g);
+        btns.appendChild(b);
+    });
+
+    document.getElementById('gapSlider').addEventListener('input', e => setGap(parseInt(e.target.value)));
+    document.getElementById('speedSlider').addEventListener('input', e => {
+        currentSpeed = parseInt(e.target.value);
+        document.getElementById('speedDisplay').textContent = `${currentSpeed} px/s`;
+    });
+    document.getElementById('playBtn').addEventListener('click', () => {
+        if (playing) pauseAnim(); else startAnim();
+    });
+
+    function setMode(m) {
+        blendMode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => {
+            b.style.background = b.dataset.mode === m ? '#5a5' : '#555';
+        });
+        // 진행 중인 falling 을 리셋
+        rowStates.forEach(s => {
+            if (s.mode === 'falling' || s.mode === 'fallen') {
+                s.pos = -60;
+                s.mode = 'run';
+                s.frameIdx = 1;
+                s.frameTimer = 0;
+                s.dCssApplied = false;
+            }
+        });
+    }
+    document.querySelectorAll('.mode-btn').forEach(b => {
+        b.addEventListener('click', () => setMode(b.dataset.mode));
+    });
+
+    window.addEventListener('load', () => {
+        if (typeof getVehicleBaseSVG !== 'function') {
+            document.body.innerHTML = '<h1 style="color:red;">horse-race-sprites.js 로드 실패</h1>';
+            return;
+        }
+        buildRows();
+        setGap(currentGap);
+        startAnim();
+    });
+</script>
+</body>
+</html>

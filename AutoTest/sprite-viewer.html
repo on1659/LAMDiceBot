@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>스프라이트 뷰어</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+h1 { font-size: 20px; margin-bottom: 16px; color: #ffd700; }
+.controls { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.controls label { font-size: 13px; color: #aaa; }
+.controls select { padding: 6px 10px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 13px; }
+.controls button { padding: 6px 14px; border: none; border-radius: 4px; background: #2196F3; color: white; font-size: 13px; cursor: pointer; }
+.controls button.active { background: #4CAF50; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.card { background: #16213e; border-radius: 8px; padding: 16px; }
+.card.custom { border: 1px solid #ffd700; }
+.card h3 { font-size: 14px; color: #ffd700; margin-bottom: 8px; }
+.card h3 .badge { font-size: 10px; background: #ffd700; color: #1a1a2e; padding: 1px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+.state-toggle { display: flex; gap: 4px; margin-bottom: 10px; }
+.state-toggle button { padding: 3px 8px; font-size: 11px; border: 1px solid #333; border-radius: 3px; background: #0f3460; color: #aaa; cursor: pointer; }
+.state-toggle button.active { background: #2196F3; color: white; border-color: #2196F3; }
+.frames { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.frame-box { text-align: center; }
+.frame-box .label { font-size: 11px; color: #666; margin-bottom: 4px; }
+.preview { border: 1px solid #333; border-radius: 4px; padding: 8px; background: #0a0a1a; display: inline-block; }
+.no-svg { color: #f44336; font-size: 12px; }
+
+/* 추가 패널 */
+.add-panel { background: #16213e; border: 2px dashed #ffd700; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+.add-panel h2 { font-size: 16px; color: #ffd700; margin-bottom: 12px; }
+.add-panel .row { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-start; flex-wrap: wrap; }
+.add-panel label { font-size: 12px; color: #aaa; display: block; margin-bottom: 3px; }
+.add-panel input { padding: 6px 10px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 13px; width: 160px; }
+.add-panel textarea { width: 100%; min-height: 100px; padding: 8px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 12px; font-family: monospace; resize: vertical; }
+.add-panel .tab-bar { display: flex; gap: 4px; margin-bottom: 8px; }
+.add-panel .tab-bar button { padding: 4px 10px; font-size: 12px; border: 1px solid #333; border-radius: 4px 4px 0 0; background: #0f3460; color: #aaa; cursor: pointer; }
+.add-panel .tab-bar button.active { background: #2196F3; color: white; border-color: #2196F3; }
+.add-panel .actions { display: flex; gap: 8px; margin-top: 10px; }
+.add-panel .actions button { padding: 8px 18px; font-size: 13px; font-weight: bold; }
+.btn-preview { background: #FF9800; color: white; }
+.btn-add { background: #4CAF50; color: white; }
+.btn-export { background: #9C27B0; color: white; }
+.btn-del { background: #f44336; color: white; padding: 3px 8px; font-size: 11px; border: none; border-radius: 3px; cursor: pointer; margin-left: 8px; }
+.collapse-btn { background: none; border: 1px solid #555; color: #aaa; font-size: 12px; padding: 2px 8px; border-radius: 3px; cursor: pointer; float: right; }
+.mode-toggle { display: flex; gap: 4px; margin-bottom: 12px; }
+.mode-toggle button { padding: 6px 14px; font-size: 12px; border: 1px solid #333; border-radius: 4px; background: #0f3460; color: #aaa; cursor: pointer; }
+.mode-toggle button.active { background: #FF9800; color: white; border-color: #FF9800; }
+.add-panel code { background: #0a0a1a; padding: 2px 6px; border-radius: 3px; font-size: 11px; color: #81c784; }
+</style>
+</head>
+<body>
+
+<h1>🎨 스프라이트 뷰어</h1>
+
+<!-- 추가 패널 -->
+<div class="add-panel" id="addPanel">
+    <h2>+ 새 스프라이트 추가 <button class="collapse-btn" onclick="togglePanel()">접기</button></h2>
+    <div id="addPanelBody">
+        <!-- 입력 모드 토글 -->
+        <div class="mode-toggle">
+            <button class="active" onclick="switchMode(this,'tabs')">프레임별 입력</button>
+            <button onclick="switchMode(this,'code')">코드 붙여넣기</button>
+        </div>
+
+        <!-- 모드1: 프레임별 입력 -->
+        <div id="modeTabsBody">
+            <div class="row">
+                <div>
+                    <label>ID (영문)</label>
+                    <input id="newId" placeholder="예: phoenix">
+                </div>
+            </div>
+            <div class="tab-bar">
+                <button class="active" onclick="switchTab(this,'run-f1')">run frame1</button>
+                <button onclick="switchTab(this,'run-f2')">run frame2</button>
+                <button onclick="switchTab(this,'rest-f1')">rest frame1</button>
+                <button onclick="switchTab(this,'rest-f2')">rest frame2</button>
+            </div>
+            <textarea id="svg-run-f1" placeholder="<svg viewBox=&quot;0 0 60 45&quot; width=&quot;60&quot; height=&quot;45&quot;>...</svg>"></textarea>
+            <textarea id="svg-run-f2" style="display:none" placeholder="run frame2 SVG"></textarea>
+            <textarea id="svg-rest-f1" style="display:none" placeholder="rest frame1 SVG"></textarea>
+            <textarea id="svg-rest-f2" style="display:none" placeholder="rest frame2 SVG"></textarea>
+            <div class="actions">
+                <button class="btn-preview" onclick="previewCustom()">👁 미리보기</button>
+                <button class="btn-add" onclick="addCustom()">+ 추가</button>
+                <button class="btn-export" onclick="exportCustom()">📋 코드 복사</button>
+            </div>
+        </div>
+
+        <!-- 모드2: 코드 통째 붙여넣기 -->
+        <div id="modeCodeBody" style="display:none">
+            <label>JS 객체 코드를 그대로 붙여넣기 — <code>'id': { run: { frame1: `...`, ... }, ... }</code></label>
+            <textarea id="codeInput" style="min-height:200px" placeholder="'eagle': {
+    run: {
+        frame1: `<svg ...>...</svg>`,
+        frame2: `<svg ...>...</svg>`
+    },
+    rest: {
+        frame1: `<svg ...>...</svg>`,
+        frame2: `<svg ...>...</svg>`
+    }
+},"></textarea>
+            <div class="actions">
+                <button class="btn-preview" onclick="previewCode()">👁 미리보기</button>
+                <button class="btn-add" onclick="addCode()">+ 추가</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="controls">
+    <label>필터:</label>
+    <select id="filterSelect"><option value="all">전체</option></select>
+    <label>크기:</label>
+    <select id="sizeSelect">
+        <option value="1">1x</option>
+        <option value="2" selected>2x</option>
+        <option value="3">3x</option>
+        <option value="4">4x</option>
+    </select>
+    <button id="animToggle" class="active" onclick="toggleAnim()">▶ 애니메이션</button>
+</div>
+<div class="grid" id="grid"></div>
+
+<script src="../js/horse-race-sprites.js"></script>
+<script>
+const VEHICLE_IDS = [
+    'car','rocket','bird','boat','bicycle','rabbit','turtle','eagle',
+    'scooter','helicopter','horse','knight','dinosaur','ninja','crab'
+];
+
+const customSprites = {}; // id → { run: { frame1, frame2 }, rest: { frame1, frame2 } }
+let animating = true;
+let animInterval = null;
+let currentFrame = 1;
+
+function getSpriteData(id) {
+    if (customSprites[id]) return customSprites[id];
+    return getVehicleSVG(id);
+}
+
+function getAllIds() {
+    return [...VEHICLE_IDS, ...Object.keys(customSprites)];
+}
+
+function render() {
+    const grid = document.getElementById('grid');
+    const scale = parseInt(document.getElementById('sizeSelect').value);
+    const filter = document.getElementById('filterSelect').value;
+
+    grid.innerHTML = '';
+    getAllIds().forEach(id => {
+        if (filter !== 'all' && filter !== id) return;
+
+        const data = getSpriteData(id);
+        if (!data) return;
+
+        const isCustom = !!customSprites[id];
+        const card = document.createElement('div');
+        card.className = 'card' + (isCustom ? ' custom' : '');
+        card.dataset.id = id;
+
+        const hasRun = data.run;
+        const hasRest = data.rest;
+        const state = hasRun ? 'run' : 'rest';
+        card.dataset.state = state;
+
+        const frames = data[state] || {};
+        const mb = (scale - 1) * 45;
+        const mr = (scale - 1) * 60;
+        const sty = `transform:scale(${scale});transform-origin:top left;margin-bottom:${mb}px;margin-right:${mr}px`;
+
+        const badge = isCustom ? '<span class="badge">커스텀</span>' : '';
+        const delBtn = isCustom ? `<button class="btn-del" onclick="removeCustom('${id}')">✕</button>` : '';
+
+        card.innerHTML = `
+            <h3>${id}${badge}${delBtn}</h3>
+            <div class="state-toggle">
+                ${hasRun ? `<button class="${state === 'run' ? 'active' : ''}" onclick="switchState(this,'${id}','run')">run</button>` : ''}
+                ${hasRest ? `<button class="${state === 'rest' ? 'active' : ''}" onclick="switchState(this,'${id}','rest')">rest</button>` : ''}
+            </div>
+            <div class="frames">
+                <div class="frame-box">
+                    <div class="label">frame1</div>
+                    <div class="preview" data-frame="1" style="${sty}">${frames.frame1 || '<span class="no-svg">없음</span>'}</div>
+                </div>
+                <div class="frame-box">
+                    <div class="label">frame2</div>
+                    <div class="preview" data-frame="2" style="${sty}">${frames.frame2 || '<span class="no-svg">없음</span>'}</div>
+                </div>
+                <div class="frame-box">
+                    <div class="label">animated</div>
+                    <div class="preview animated" data-vehicle="${id}" data-state="${state}" style="${sty}">${frames.frame1 || ''}</div>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+
+    updateFilterOptions();
+}
+
+function updateFilterOptions() {
+    const sel = document.getElementById('filterSelect');
+    const current = sel.value;
+    const ids = getAllIds();
+    sel.innerHTML = '<option value="all">전체</option>';
+    ids.forEach(id => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = id + (customSprites[id] ? ' ★' : '');
+        sel.appendChild(opt);
+    });
+    sel.value = current;
+}
+
+function switchState(btn, vehicleId, state) {
+    const card = btn.closest('.card');
+    card.dataset.state = state;
+    const data = getSpriteData(vehicleId);
+    const frames = data[state] || {};
+    const scale = parseInt(document.getElementById('sizeSelect').value);
+    const mb = (scale - 1) * 45;
+    const mr = (scale - 1) * 60;
+    const sty = `transform:scale(${scale});transform-origin:top left;margin-bottom:${mb}px;margin-right:${mr}px`;
+
+    card.querySelectorAll('.state-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const previews = card.querySelectorAll('.frames .preview');
+    previews[0].innerHTML = frames.frame1 || '<span class="no-svg">없음</span>';
+    previews[0].style.cssText = sty;
+    previews[1].innerHTML = frames.frame2 || '<span class="no-svg">없음</span>';
+    previews[1].style.cssText = sty;
+
+    const animBox = card.querySelector('.animated');
+    animBox.dataset.state = state;
+    animBox.innerHTML = frames.frame1 || '';
+    animBox.style.cssText = sty;
+}
+
+function animTick() {
+    currentFrame = currentFrame === 1 ? 2 : 1;
+    document.querySelectorAll('.animated').forEach(el => {
+        const id = el.dataset.vehicle;
+        const state = el.dataset.state || 'run';
+        const data = getSpriteData(id);
+        const frames = data?.[state];
+        const svg = currentFrame === 1 ? frames?.frame1 : frames?.frame2;
+        if (svg) el.innerHTML = svg;
+    });
+}
+
+function toggleAnim() {
+    const btn = document.getElementById('animToggle');
+    animating = !animating;
+    btn.textContent = animating ? '▶ 애니메이션' : '⏸ 정지';
+    btn.className = animating ? 'active' : '';
+    if (animating) {
+        animInterval = setInterval(animTick, 300);
+    } else {
+        clearInterval(animInterval);
+    }
+}
+
+// === 추가 패널 ===
+
+function switchMode(btn, mode) {
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('modeTabsBody').style.display = mode === 'tabs' ? '' : 'none';
+    document.getElementById('modeCodeBody').style.display = mode === 'code' ? '' : 'none';
+}
+
+function parseCode(raw) {
+    // 'id': { run: { frame1: `...`, frame2: `...` }, rest: { ... } }
+    // 또는 여러 개가 연속으로 올 수도 있음
+    const results = [];
+
+    // backtick 안의 SVG 추출 — 중첩 backtick 없으므로 안전
+    // ID 추출: 'id': { 또는 "id": {
+    const idPattern = /['"](\w+)['"]\s*:\s*\{/g;
+    let idMatch;
+    const idPositions = [];
+    while ((idMatch = idPattern.exec(raw)) !== null) {
+        idPositions.push({ id: idMatch[1], start: idMatch.index, braceStart: idMatch.index + idMatch[0].length });
+    }
+
+    if (idPositions.length === 0) return results;
+
+    for (let idx = 0; idx < idPositions.length; idx++) {
+        const { id, braceStart } = idPositions[idx];
+        // 해당 ID의 범위: 다음 ID 시작 전까지 또는 끝까지
+        const end = idx + 1 < idPositions.length ? idPositions[idx + 1].start : raw.length;
+        const chunk = raw.substring(braceStart, end);
+
+        const data = {};
+        ['run', 'rest'].forEach(state => {
+            const statePattern = new RegExp(state + '\\s*:\\s*\\{');
+            const stateMatch = statePattern.exec(chunk);
+            if (!stateMatch) return;
+
+            const afterState = chunk.substring(stateMatch.index);
+            const frames = {};
+            ['frame1', 'frame2'].forEach(frame => {
+                const framePattern = new RegExp(frame + '\\s*:\\s*`([\\s\\S]*?)`');
+                const fMatch = framePattern.exec(afterState);
+                if (fMatch) frames[frame] = fMatch[1].trim();
+            });
+
+            if (frames.frame1 || frames.frame2) {
+                data[state] = {
+                    frame1: frames.frame1 || frames.frame2,
+                    frame2: frames.frame2 || frames.frame1
+                };
+            }
+        });
+
+        if (data.run || data.rest) {
+            results.push({ id, data });
+        }
+    }
+
+    return results;
+}
+
+function previewCode() {
+    const raw = document.getElementById('codeInput').value;
+    const parsed = parseCode(raw);
+    if (parsed.length === 0) { alert('파싱 실패 — JS 객체 코드 형식을 확인하세요'); return; }
+
+    parsed.forEach(({ id, data }) => { customSprites[id] = data; });
+    render();
+    if (parsed.length === 1) {
+        document.getElementById('filterSelect').value = parsed[0].id;
+        render();
+    }
+}
+
+function addCode() {
+    const raw = document.getElementById('codeInput').value;
+    const parsed = parseCode(raw);
+    if (parsed.length === 0) { alert('파싱 실패 — JS 객체 코드 형식을 확인하세요'); return; }
+
+    parsed.forEach(({ id, data }) => { customSprites[id] = data; });
+    render();
+    if (parsed.length === 1) {
+        document.getElementById('filterSelect').value = parsed[0].id;
+        render();
+    }
+}
+
+function togglePanel() {
+    const body = document.getElementById('addPanelBody');
+    const btn = body.previousElementSibling.querySelector('.collapse-btn');
+    if (body.style.display === 'none') {
+        body.style.display = '';
+        btn.textContent = '접기';
+    } else {
+        body.style.display = 'none';
+        btn.textContent = '펼치기';
+    }
+}
+
+function switchTab(btn, tabId) {
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['run-f1','run-f2','rest-f1','rest-f2'].forEach(id => {
+        document.getElementById('svg-' + id).style.display = id === tabId ? '' : 'none';
+    });
+}
+
+function readInputs() {
+    return {
+        id: document.getElementById('newId').value.trim(),
+        run: {
+            frame1: document.getElementById('svg-run-f1').value.trim(),
+            frame2: document.getElementById('svg-run-f2').value.trim()
+        },
+        rest: {
+            frame1: document.getElementById('svg-rest-f1').value.trim(),
+            frame2: document.getElementById('svg-rest-f2').value.trim()
+        }
+    };
+}
+
+function previewCustom() {
+    const input = readInputs();
+    const id = input.id || '_preview';
+
+    const data = {};
+    if (input.run.frame1 || input.run.frame2) {
+        data.run = { frame1: input.run.frame1 || input.run.frame2, frame2: input.run.frame2 || input.run.frame1 };
+    }
+    if (input.rest.frame1 || input.rest.frame2) {
+        data.rest = { frame1: input.rest.frame1 || input.rest.frame2, frame2: input.rest.frame2 || input.rest.frame1 };
+    }
+
+    if (!data.run && !data.rest) { alert('SVG를 하나 이상 입력하세요'); return; }
+
+    customSprites[id] = data;
+    render();
+    document.getElementById('filterSelect').value = id;
+    render();
+}
+
+function addCustom() {
+    const input = readInputs();
+    if (!input.id) { alert('ID를 입력하세요'); return; }
+    if (VEHICLE_IDS.includes(input.id)) { alert('기존 탈것 ID와 중복됩니다'); return; }
+
+    const data = {};
+    if (input.run.frame1 || input.run.frame2) {
+        data.run = { frame1: input.run.frame1 || input.run.frame2, frame2: input.run.frame2 || input.run.frame1 };
+    }
+    if (input.rest.frame1 || input.rest.frame2) {
+        data.rest = { frame1: input.rest.frame1 || input.rest.frame2, frame2: input.rest.frame2 || input.rest.frame1 };
+    }
+
+    if (!data.run && !data.rest) { alert('SVG를 하나 이상 입력하세요'); return; }
+
+    customSprites[input.id] = data;
+    render();
+    document.getElementById('filterSelect').value = input.id;
+    render();
+}
+
+function removeCustom(id) {
+    delete customSprites[id];
+    document.getElementById('filterSelect').value = 'all';
+    render();
+}
+
+function exportCustom() {
+    const input = readInputs();
+    if (!input.id) { alert('ID를 입력하세요'); return; }
+
+    const indent = '            ';
+    let code = `        '${input.id}': {\n`;
+
+    if (input.run.frame1 || input.run.frame2) {
+        code += `            run: {\n`;
+        code += `                frame1: \`${input.run.frame1 || input.run.frame2}\`,\n`;
+        code += `                frame2: \`${input.run.frame2 || input.run.frame1}\`\n`;
+        code += `            }`;
+        if (input.rest.frame1 || input.rest.frame2) code += ',';
+        code += '\n';
+    }
+    if (input.rest.frame1 || input.rest.frame2) {
+        code += `            rest: {\n`;
+        code += `                frame1: \`${input.rest.frame1 || input.rest.frame2}\`,\n`;
+        code += `                frame2: \`${input.rest.frame2 || input.rest.frame1}\`\n`;
+        code += `            }\n`;
+    }
+
+    code += `        },`;
+
+    navigator.clipboard.writeText(code).then(() => {
+        alert('horse-race-sprites.js에 붙여넣을 코드가 클립보드에 복사되었습니다!');
+    }).catch(() => {
+        // 클립보드 실패 시 textarea로 표시
+        const ta = document.createElement('textarea');
+        ta.value = code;
+        ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:300px;z-index:9999;background:#0a0a1a;color:#eee;font-family:monospace;font-size:12px;padding:12px;border:2px solid #ffd700;border-radius:8px;';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.addEventListener('blur', () => ta.remove());
+    });
+}
+
+document.getElementById('sizeSelect').addEventListener('change', render);
+document.getElementById('filterSelect').addEventListener('change', render);
+
+render();
+animInterval = setInterval(animTick, 300);
+</script>
+</body>
+</html>
