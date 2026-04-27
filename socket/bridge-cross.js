@@ -219,8 +219,9 @@ module.exports = (socket, io, ctx) => {
 
         console.log(`[다리건너기] 방 ${room.roomName} 게임 종료 - 통과색=${winnerColor}(${COLOR_NAMES[winnerColor]}), 승자=${winners.join(', ')}`);
 
-        // 다음 라운드를 위해 베팅 리셋 + 클라이언트에 베팅 가능 알림
+        // 다음 라운드를 위해 베팅 리셋 + 통과자만 자동 준비 (horse-race 패턴)
         // (gameEnd 결과 표시 시간 확보 위해 약간 지연)
+        const passersForNextRound = [...winners];
         setTimeout(() => {
             const currentRoom = ctx.rooms[room.roomId];
             if (!currentRoom) return;
@@ -232,6 +233,18 @@ module.exports = (socket, io, ctx) => {
             currentBc.scenarios = [];
             currentBc.winnerColor = null;
             currentBc.winners = [];
+
+            // readyUsers 리셋 + 통과자(유리 다리 건넌 사람)만 자동 ready
+            const currentGameState = currentRoom.gameState;
+            const validPassers = passersForNextRound.filter(name =>
+                currentGameState.users.some(u => u.name === name)
+            );
+            currentGameState.readyUsers = validPassers;
+            currentGameState.users.forEach(u => {
+                u.isReady = validPassers.includes(u.name);
+            });
+            io.to(room.roomId).emit('readyUsersUpdated', currentGameState.readyUsers);
+
             io.to(room.roomId).emit('bridge-cross:bettingReady');
         }, 4000);
 
