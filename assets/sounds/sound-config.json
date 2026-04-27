@@ -19,5 +19,14 @@
   "horse-race_bgm": "assets/sounds/horse-race/bgm.mp3",
   "horse-race_slowmo_cheer": "assets/sounds/horse-race/slowmo.mp3",
   "horse-race_cheer_burst": "assets/sounds/horse-race/cheer_burst.mp3",
-  "team_bgm": "assets/sounds/team/bgm.mp3"
+  "team_bgm": "assets/sounds/team/bgm.mp3",
+  "bridge-cross_step": "",
+  "bridge-cross_safe": "",
+  "bridge-cross_crack": "",
+  "bridge-cross_break": "",
+  "bridge-cross_fall": "",
+  "bridge-cross_betting_open": "",
+  "bridge-cross_countdown": "",
+  "bridge-cross_result": "",
+  "bridge-cross_bgm": ""
 }
