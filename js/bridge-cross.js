@@ -500,6 +500,7 @@ function escapeHtml(str) {
 }
 
 var currentBettorCount = 0;
+var currentBettorNames = [];
 
 function updateStartButton() {
     const btn = document.getElementById('startBridgeCrossButton');
@@ -512,6 +513,10 @@ function updateStartButton() {
 
     btn.disabled = !isHost || isBridgeCrossActive || !allReady || !enoughBets;
 
+    // 베팅 안 한 사람 = 전체 사용자 - 베팅한 사용자
+    const allUserNames = (users || []).map(u => u.name);
+    const nonBettors = allUserNames.filter(n => !currentBettorNames.includes(n));
+
     if (isBridgeCrossActive) {
         btn.textContent = '게임 진행 중';
     } else if (totalUsers < 2) {
@@ -519,9 +524,17 @@ function updateStartButton() {
     } else if (!allReady) {
         btn.textContent = `게임 시작 (준비 ${readyCount}/${totalUsers}명)`;
     } else if (!enoughBets) {
-        btn.textContent = `게임 시작 (베팅 ${currentBettorCount}/2명)`;
+        if (nonBettors.length > 0) {
+            const list = nonBettors.slice(0, 3).join(', ') + (nonBettors.length > 3 ? ` 외 ${nonBettors.length - 3}명` : '');
+            btn.textContent = `게임 시작 (베팅 안 함: ${list})`;
+        } else {
+            btn.textContent = `게임 시작 (베팅 ${currentBettorCount}/2명)`;
+        }
+    } else if (nonBettors.length === 0) {
+        btn.textContent = `게임 시작 (전원 베팅)`;
     } else {
-        btn.textContent = `게임 시작 (준비 ${readyCount}명·베팅 ${currentBettorCount}명)`;
+        const list = nonBettors.slice(0, 3).join(', ') + (nonBettors.length > 3 ? ` 외 ${nonBettors.length - 3}명` : '');
+        btn.textContent = `게임 시작 (베팅 안 함: ${list})`;
     }
 }
 
@@ -546,6 +559,7 @@ function replayMissedRace() { showCustomAlert('다시보기는 다음 단계에�
 socket.on('bridge-cross:bettingReady', () => {
     showBridgeBettingUI();
     currentBettorCount = 0;
+    currentBettorNames = [];
     updateStartButton();
     addDebugLog('다음 라운드 베팅 가능', 'bridge');
 });
@@ -563,6 +577,7 @@ socket.on('bridge-cross:selectionCount', (data) => {
     const el = document.getElementById('bridgeBettorCountValue');
     if (el && data) el.textContent = String(data.count || 0);
     currentBettorCount = (data && data.count) || 0;
+    currentBettorNames = (data && Array.isArray(data.bettorNames)) ? data.bettorNames : [];
     updateStartButton();
 });
 

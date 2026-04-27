@@ -301,9 +301,10 @@ module.exports = (socket, io, ctx) => {
             colorIndex: bc.userColorBets[userName] !== undefined ? bc.userColorBets[userName] : null
         });
 
-        // 모두에게: 베팅 인원 수
+        // 모두에게: 베팅 인원 수 + 베팅한 사용자 이름 목록 (클라가 "베팅 안 한 사람" 표시)
         io.to(room.roomId).emit('bridge-cross:selectionCount', {
-            count: Object.keys(bc.userColorBets).length
+            count: Object.keys(bc.userColorBets).length,
+            bettorNames: Object.keys(bc.userColorBets)
         });
     });
 
