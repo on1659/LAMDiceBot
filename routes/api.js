@@ -53,12 +53,20 @@ function setupRoutes(app) {
 
     // 경마 (레거시 HTML)
     const legacyHorseHtml = path.join(__dirname, '..', 'horse-race-multiplayer.html');
+    const bridgeCrossHtml = path.join(__dirname, '..', 'bridge-cross-multiplayer.html');
 
     app.get('/horse-race', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         return res.sendFile(legacyHorseHtml);
+    });
+
+    app.get('/bridge-cross', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        return res.sendFile(bridgeCrossHtml);
     });
 
     // 기존 .html URL 301 리디렉트 (SEO: 구 URL → 현재 URL)
@@ -165,7 +173,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 }, bridge: { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {

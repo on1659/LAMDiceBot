@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Google AdSense (auto-ads disabled on game pages) -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script>
+      /* Disable auto-ads (anchor/vignette) on game pages — this is a config call, not a slot push */
+      (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <title>LAM Bridge Cross 🌉</title>
+    <meta name="description" content="유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.">
+    <meta property="og:title" content="LAM Bridge Cross 🌉">
+    <meta property="og:description" content="유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lamdice.com/bridge-cross">
+    <meta property="og:site_name" content="LAMDice">
+    <meta property="og:locale" content="ko_KR">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="LAM Bridge Cross 🌉">
+    <meta name="twitter:description" content="유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.">
+    <link rel="canonical" href="https://lamdice.com/bridge-cross">
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/bridge-cross.css">
+    <style>
+        /* Custom Popup Animations (showCustomAlert/Confirm 공통) */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LAMDice 다리 건너기",
+      "description": "유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.",
+      "url": "https://lamdice.com/bridge-cross",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+    }
+    </script>
+</head>
+<body class="bridge-cross">
+    <noscript>
+        <div style="padding:40px; text-align:center; font-family:sans-serif;">
+            <h1>LAMDice 다리 건너기</h1>
+            <p>이 게임은 JavaScript가 필요합니다.</p>
+            <p>친구와 함께하는 실시간 다리 건너기 베팅 게임. 서버가 결정하는 공정한 시나리오로 누가 살아남을지 맞히세요.</p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
+        </div>
+    </noscript>
+    <!-- 로딩 화면 -->
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bridge-bg-radial); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🌉</div>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
+            <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
+            <div style="margin-top: 30px;">
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 이름 입력 (로그인 시 자동 설정, 숨김) -->
+    <input type="hidden" id="globalUserNameInput">
+
+    <div class="container">
+        <!-- 게임 섹션 -->
+        <section class="game-section" id="gameSection">
+            <!-- 방 정보 헤더 (공유 컨트롤 바) -->
+            <div id="controlBarMount"></div>
+            <script src="/js/shared/control-bar-shared.js"></script>
+            <script>
+                ControlBar.init({
+                    gameKey: 'bridge',
+                    soundKey: 'bridgeSoundEnabled',
+                    volumeKey: 'bridgeSoundVolume',
+                    onLeave: function() { leaveRoom(); }
+                });
+            </script>
+
+            <!-- 방 폭파 카운트다운 -->
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
+                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                </div>
+            </div>
+
+            <!-- 접속자 목록 -->
+            <div class="users-section" id="usersSection">
+                <div class="users-title">
+                    👥 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--bridge-500); font-weight: normal; margin-left: 10px;">
+                        💡 드래그로 준비 시킬 수 있습니다.
+                    </span>
+                </div>
+                <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
+            <!-- 준비 섹션 -->
+            <div class="ready-section" id="readySection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
+                </div>
+                <div class="users-list" id="readyUsersList">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 베팅 섹션 (mockup base에서 이식) -->
+            <section class="betting-panel" id="bettingSection" style="display:none" aria-label="베팅">
+                <div class="section-head">
+                    <h2>베팅</h2>
+                    <span id="bettingCountLabel">0명 베팅 완료</span>
+                </div>
+                <div id="bettingCountdown" style="text-align:center; font-size:15px; font-weight:800; color:var(--bridge-gold); margin-bottom:8px;"></div>
+                <div class="betting-grid" id="bettingGrid">
+                    <button class="bet-card" type="button" data-color-index="0" style="--bet-color:#ff4f68"><strong>1 빨강</strong></button>
+                    <button class="bet-card" type="button" data-color-index="1" style="--bet-color:#ff9b3d"><strong>2 주황</strong></button>
+                    <button class="bet-card" type="button" data-color-index="2" style="--bet-color:#ffd84f"><strong>3 노랑</strong></button>
+                    <button class="bet-card" type="button" data-color-index="3" style="--bet-color:#5df08a"><strong>4 초록</strong></button>
+                    <button class="bet-card" type="button" data-color-index="4" style="--bet-color:#42edff"><strong>5 파랑</strong></button>
+                    <button class="bet-card" type="button" data-color-index="5" style="--bet-color:#7489ff"><strong>6 남색</strong></button>
+                </div>
+            </section>
+
+            <!-- 호스트 컨트롤 -->
+            <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button class="start-button" id="startBtn" style="flex: 1;">
+                        게임 시작
+                    </button>
+                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                </div>
+            </div>
+
+            <!-- 주문받기 섹션 -->
+            <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="font-weight: bold; color: var(--bridge-500); font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--bridge-500); color: var(--text-primary); font-weight: 600;">📋 주문리스트</button>
+                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--bridge-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--bridge-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                    </div>
+                </div>
+
+                <!-- 주문하지 않은 사람 목록 -->
+                <div id="notOrderedSection" style="display: none; margin-bottom: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 주문하지 않은 사람</div>
+                    <div id="notOrderedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
+
+                <!-- 내 주문 입력 -->
+                <div style="background: var(--yellow-50); border: 2px solid var(--yellow-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-size: 16px; font-weight: 600; color: var(--yellow-900); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>📝</span>
+                            <span>내 주문</span>
+                        </div>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--bridge-500); border: 1px solid var(--bridge-500); border-radius: 4px; cursor: pointer;">메뉴 관리</button>
+                    </div>
+
+                    <!-- 자주 쓰는 메뉴 관리 -->
+                    <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--bridge-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-weight: bold; color: var(--bridge-500);">📋 자주 쓰는 메뉴</span>
+                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" id="newMenuInput" placeholder="새 메뉴 입력" maxlength="50" style="flex: 1; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px;">
+                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: var(--bridge-500); color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
+                        </div>
+                        <div id="menuList" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto;">
+                            <div style="color: var(--text-muted); text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>
+                        </div>
+                    </div>
+
+                    <div class="order-input-group">
+                        <div class="order-input-wrapper">
+                            <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
+                            <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled>
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
+                        </div>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: var(--text-primary); font-weight: 600;" disabled>저장</button>
+                    </div>
+                </div>
+
+                <!-- 전체 주문 목록 -->
+                <div id="orderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                </div>
+                <!-- 관전자 주문 -->
+                <div id="spectatorOrdersSection" style="display: none; margin-top: 10px;">
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">관전자 주문</div>
+                    <div id="spectatorOrderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px;"></div>
+                </div>
+            </div>
+
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus">
+                대기 중
+            </div>
+
+            <!-- 다리 건너기 게임 영역 (mockup base에서 이식) -->
+            <section class="stage-wrap">
+                <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
+                <div class="zoom-ui" id="zoomUi">
+                    <button data-zoom="-0.1" type="button" aria-label="줌 아웃">−</button>
+                    <span class="zoom-value" id="zoomValue">1.0×</span>
+                    <button data-zoom="+0.1" type="button" aria-label="줌 인">+</button>
+                    <button data-zoom="reset" type="button" aria-label="리셋">⟲</button>
+                </div>
+                <div class="debug-panel" id="debugPanel" hidden>
+                    <div class="debug-title">Stage Layout Debug &mdash; D 키로 토글</div>
+                    <div class="debug-row">
+                        <label><span>start.x</span><input type="range" id="dbgStartX" min="-300" max="1500" value="-145"><input type="number" id="dbgStartXNum" value="-145"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>start.y</span><input type="range" id="dbgStartY" min="-200" max="1200" value="751"><input type="number" id="dbgStartYNum" value="751"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>finish.x</span><input type="range" id="dbgFinishX" min="500" max="2400" value="1013"><input type="number" id="dbgFinishXNum" value="1013"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>finish.y</span><input type="range" id="dbgFinishY" min="-300" max="800" value="-27"><input type="number" id="dbgFinishYNum" value="-27"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>entry.dx</span><input type="range" id="dbgEntryDx" min="-300" max="400" value="217"><input type="number" id="dbgEntryDxNum" value="217"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>entry.dy</span><input type="range" id="dbgEntryDy" min="-300" max="300" value="-159"><input type="number" id="dbgEntryDyNum" value="-159"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>exit.dx</span><input type="range" id="dbgExitDx" min="-300" max="300" value="-122"><input type="number" id="dbgExitDxNum" value="-122"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>exit.dy</span><input type="range" id="dbgExitDy" min="-300" max="300" value="40"><input type="number" id="dbgExitDyNum" value="40"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>row.dx</span><input type="range" id="dbgRowDx" min="-50" max="200" value="146"><input type="number" id="dbgRowDxNum" value="146"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>row.dy</span><input type="range" id="dbgRowDy" min="-50" max="200" value="76"><input type="number" id="dbgRowDyNum" value="76"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>tile.w</span><input type="range" id="dbgTileW" min="100" max="400" value="300"><input type="number" id="dbgTileWNum" value="300"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>tile.h</span><input type="range" id="dbgTileH" min="60" max="250" value="143"><input type="number" id="dbgTileHNum" value="143"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>tile.rot°</span><input type="range" id="dbgTileRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgTileRotNum" value="0" step="0.5"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>start.rot°</span><input type="range" id="dbgStartRot" min="-180" max="180" value="2.5" step="0.5"><input type="number" id="dbgStartRotNum" value="2.5" step="0.5"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>finish.rot°</span><input type="range" id="dbgFinishRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgFinishRotNum" value="0" step="0.5"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>char.footY</span><input type="range" id="dbgFootY" min="-50" max="100" value="30"><input type="number" id="dbgFootYNum" value="30"></label>
+                    </div>
+                    <div class="debug-info" id="dbgInfo"></div>
+                    <button type="button" id="dbgSnapBtn" title="row 슬로프와 평행하도록 다리 column step 자동 보정">📐 Dimetric Snap</button>
+                    <button type="button" id="dbgCopyBtn">코드 복사</button>
+                    <textarea id="dbgCodeOut" readonly rows="11"></textarea>
+                </div>
+            </section>
+
+            <!-- Event Feed / Crossing Order (게임 진행 텍스트 패널) -->
+            <section class="statusbar">
+                <article class="card">
+                    <h2>Event Feed</h2>
+                    <ul class="ticker" id="ticker"></ul>
+                </article>
+                <article class="card">
+                    <h2>Crossing Order</h2>
+                    <ul class="ranking" id="ranking"></ul>
+                </article>
+            </section>
+
+            <!-- 채팅 섹션 -->
+            <div class="chat-section">
+                <div style="font-weight: bold; color: var(--bridge-500); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
+                    <button onclick="sendMessage()" style="width: auto; padding: 10px 20px; color: var(--text-primary); font-weight: 600;">전송</button>
+                </div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: In-Game Bottom Banner -->
+            <div class="ad-container ad-game">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="3774585551"
+                   data-ad-format="horizontal"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
+        </section>
+    </div>
+
+    <!-- 기록 섹션 -->
+    <div class="history-section" id="historySection">
+        <div class="history-title">📜 게임 기록</div>
+        <div id="historyList"></div>
+    </div>
+
+    <!-- 결과 오버레이 -->
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-card">
+            <div class="result-title">🎊 결과 발표 🎊</div>
+            <div id="resultRankings" style="margin-bottom: 20px;"></div>
+            <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">확인</button>
+        </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 -->
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+            <h3 style="color: var(--bridge-500); margin-bottom: 15px;">🔒 비공개 방</h3>
+            <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
+            <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closePasswordModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">취소</button>
+                <button onclick="submitPassword()" style="flex: 1; color: var(--text-primary); font-weight: 600;">입장</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
+    <script src="/js/shared/countdown-shared.js"></script>
+    <script src="/assets/sounds/sound-manager.js"></script>
+
+    <script src="/js/bridge-cross.js"></script>
+
+    <script>
+        // ============================================
+        // Custom Popup Functions
+        // ============================================
+
+        // 커스텀 얼럿 함수
+        function showCustomAlert(message, type = 'info') {
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            let borderColor, icon;
+            switch(type) {
+                case 'error':
+                    borderColor = 'rgb(239, 68, 68)';
+                    icon = '⚠️';
+                    break;
+                case 'warning':
+                    borderColor = 'rgb(234, 179, 8)';
+                    icon = '⚠️';
+                    break;
+                case 'success':
+                    borderColor = 'rgb(34, 197, 94)';
+                    icon = '✅';
+                    break;
+                default:
+                    borderColor = 'rgb(147, 51, 234)';
+                    icon = 'ℹ️';
+            }
+
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.4); z-index: 10001;
+                display: flex; justify-content: center; align-items: center;
+                animation: fadeIn 0.2s ease-out;
+            `;
+
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `
+                background: white; border-radius: 16px; padding: 20px;
+                max-width: 450px; width: calc(100vw - 40px);
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                border: 2px solid ${borderColor};
+                animation: slideDown 0.3s ease-out;
+                box-sizing: border-box;
+            `;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+                white-space: pre-wrap; word-wrap: break-word;
+                word-break: keep-all; overflow-wrap: break-word;
+                text-align: center; margin-bottom: 20px;
+                max-width: 100%;
+            `;
+            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `
+                padding: 10px 30px;
+                background: ${borderColor};
+                color: white; border: none; border-radius: 8px;
+                font-size: 16px; font-weight: 600; cursor: pointer;
+                width: 100%; transition: transform 0.1s, box-shadow 0.1s;
+            `;
+            confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+            confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+            confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
+
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+
+            alertOverlay.onclick = (e) => {
+                if (e.target === alertOverlay) {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+
+            alertContent.appendChild(messageDiv);
+            alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent);
+            document.body.appendChild(alertOverlay);
+            confirmButton.focus();
+        }
+
+        // 커스텀 확인 다이얼로그
+        function showCustomConfirm(message, type = 'warning') {
+            return new Promise((resolve) => {
+                const existingConfirm = document.getElementById('customConfirm');
+                if (existingConfirm) { existingConfirm.remove(); }
+
+                let borderColor, icon;
+                switch(type) {
+                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
+                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
+                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
+                    default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                }
+
+                const confirmOverlay = document.createElement('div');
+                confirmOverlay.id = 'customConfirm';
+                confirmOverlay.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0, 0, 0, 0.4); z-index: 10002;
+                    display: flex; justify-content: center; align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+
+                const confirmContent = document.createElement('div');
+                confirmContent.style.cssText = `
+                    background: white; border-radius: 16px; padding: 20px;
+                    max-width: 450px; width: calc(100vw - 40px);
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid ${borderColor};
+                    animation: slideDown 0.3s ease-out;
+                    box-sizing: border-box;
+                `;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+                    white-space: pre-wrap; word-wrap: break-word;
+                    word-break: keep-all; overflow-wrap: break-word;
+                    text-align: center; margin-bottom: 25px;
+                    max-width: 100%;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `display: flex; gap: 10px; justify-content: center;`;
+
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 10px 25px; background: rgb(243, 244, 246); color: rgb(107, 114, 128);
+                    border: 1px solid rgb(209, 213, 219); border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                cancelButton.onmouseenter = () => { cancelButton.style.transform = 'scale(1.02)'; };
+                cancelButton.onmouseleave = () => { cancelButton.style.transform = 'scale(1)'; };
+                cancelButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(false); }, 200); };
+
+                const confirmButton = document.createElement('button');
+                confirmButton.textContent = '확인';
+                confirmButton.style.cssText = `
+                    padding: 10px 25px; background: ${borderColor};
+                    color: white; border: none; border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+                confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+                confirmButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(true); }, 200); };
+
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+
+                confirmOverlay.onclick = (e) => {
+                    if (e.target === confirmOverlay) {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(confirmButton);
+                confirmContent.appendChild(messageDiv);
+                confirmContent.appendChild(buttonContainer);
+                confirmOverlay.appendChild(confirmContent);
+                document.body.appendChild(confirmOverlay);
+                confirmButton.focus();
+            });
+        }
+
+        // ============================================
+        // Result Overlay (placeholder — Phase 2/3에서 historySection 통합 예정)
+        // ============================================
+        function closeResultOverlay() {
+            const overlay = document.getElementById('resultOverlay');
+            if (overlay) {
+                overlay.classList.remove('visible');
+                overlay.style.display = '';  // inline 강제 제거
+            }
+        }
+
+        function closePasswordModal() {
+            const m = document.getElementById('passwordModal');
+            if (m) m.style.display = 'none';
+            const inp = document.getElementById('roomPasswordInput');
+            if (inp) inp.value = '';
+        }
+
+        function submitPassword() {
+            // js/bridge-cross.js의 joinRoomOnLoad가 비공개 방일 때 window.pendingRoomId / window.pendingUserName을 세팅함
+            const inp = document.getElementById('roomPasswordInput');
+            const password = inp ? inp.value : '';
+            if (!window.pendingRoomId || !window.pendingUserName) {
+                closePasswordModal();
+                return;
+            }
+            const sock = window.socket;
+            if (sock) {
+                sock.emit('joinRoom', {
+                    roomId: window.pendingRoomId,
+                    userName: window.pendingUserName,
+                    isHost: false,
+                    password: password,
+                    gameType: 'bridge',
+                    deviceId: (typeof getDeviceId === 'function' ? getDeviceId() : undefined),
+                    tabId: (typeof getTabId === 'function' ? getTabId() : undefined)
+                });
+            }
+            window.pendingRoomId = null;
+            window.pendingUserName = null;
+            closePasswordModal();
+        }
+
+        // ============================================
+        // Room Control Bar Enhancement
+        // ============================================
+
+        // Room title editing
+        let isEditingRoomName = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const roomTitleElem = document.getElementById('roomTitle');
+            if (!roomTitleElem) return;
+
+            roomTitleElem.addEventListener('click', function() {
+            // Check if user is host (check global isHost from bridge-cross.js or room data)
+            if (!window.isHost || isEditingRoomName) return;
+
+            isEditingRoomName = true;
+            const displaySpan = document.getElementById('roomNameDisplay');
+            const currentName = displaySpan.textContent;
+            const editIcon = this.querySelector('.edit-icon');
+
+            // Hide icon during edit
+            if (editIcon) editIcon.style.display = 'none';
+
+            // Create input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.maxLength = 30;
+            input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--bridge-500); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
+
+            displaySpan.replaceWith(input);
+            input.focus();
+            input.select();
+
+            function finishEdit() {
+                const newName = input.value.trim();
+                const newDisplay = document.createElement('span');
+                newDisplay.id = 'roomNameDisplay';
+                newDisplay.textContent = newName || currentName;
+
+                input.replaceWith(newDisplay);
+                if (editIcon) editIcon.style.display = '';
+                isEditingRoomName = false;
+
+                if (newName && newName !== currentName && window.socket) {
+                    window.socket.emit('updateRoomName', { roomName: newName });
+                }
+            }
+
+            input.addEventListener('blur', finishEdit);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') finishEdit();
+            });
+            });
+        });
+
+        // Update room title on server broadcast
+        if (window.socket) {
+            window.socket.on('roomNameUpdated', (data) => {
+                const display = document.getElementById('roomNameDisplay');
+                if (display) display.textContent = data.roomName;
+            });
+        }
+
+        // Show/hide UI elements based on host status
+        function updateControlBarUI(isHostUser) {
+            const editIcon = document.querySelector('.edit-icon');
+            const hostBadge = document.getElementById('hostBadge');
+            const usernameDisplay = document.getElementById('usernameDisplay');
+
+            if (editIcon) editIcon.style.display = isHostUser ? 'inline' : 'none';
+            if (hostBadge) hostBadge.style.display = isHostUser ? 'inline-block' : 'none';
+
+            // Show username if available
+            if (usernameDisplay && currentUser) {
+                usernameDisplay.textContent = currentUser;
+                usernameDisplay.style.display = 'inline-block';
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            const confirmed = await showCustomConfirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.', 'warning');
+            if (confirmed) {
+                if (window.socket) {
+                    window.socket.emit('leaveRoom');
+                    window.socket.disconnect();
+                }
+
+                // Clear session
+                sessionStorage.removeItem('bridgeActiveRoom');
+                sessionStorage.removeItem('userName');
+
+                // Redirect to main page
+                location.href = '/';
+            }
+        }
+
+        // Host delegation (to be implemented in user list rendering)
+        async function delegateHost(targetSocketId) {
+            if (!window.socket || !window.roomUsers) return;
+
+            const targetUser = window.roomUsers.find(u => u.socketId === targetSocketId);
+            if (!targetUser) return;
+
+            const confirmed = await showCustomConfirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`, 'warning');
+            if (confirmed) {
+                window.socket.emit('delegateHost', { targetSocketId });
+            }
+        }
+
+        // Listen for host delegation
+        if (window.socket) {
+            window.socket.on('hostDelegated', (data) => {
+                window.isHost = data.newHostSocketId === window.socket.id;
+                window.hostSocketId = data.newHostSocketId;
+
+                updateControlBarUI(window.isHost);
+
+                // Refresh user list if available
+                if (typeof renderUsersList === 'function' && window.roomUsers) {
+                    renderUsersList(window.roomUsers);
+                }
+
+                if (window.isHost) {
+                    showCustomAlert('호스트 권한을 받았습니다!', 'success');
+                }
+            });
+        }
+
+        // Initialize control bar on page load
+        window.addEventListener('load', () => {
+            // This will be called after bridge-cross.js loads
+            if (window.socket) {
+                window.socket.on('roomJoined', (data) => {
+                    setTimeout(() => {
+                        updateControlBarUI(window.isHost);
+                    }, 100);
+                });
+            }
+
+        });
+    </script>
+
+    <!-- 디버그 로그 섹션 -->
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+            </div>
+        </div>
+        <div id="debugLogContent" style="line-height: 1.4;"></div>
+    </div>
+    <!-- SEO Content Section (hidden, crawlers only) -->
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 다리 건너기 게임 안내</h2>
+        <p>LAMDice 다리 건너기는 친구들과 함께 즐기는 무료 온라인 베팅 게임입니다. 6개 색깔 캐릭터 중 누가 유리 다리를 끝까지 건너 살아남을지 예측하여 베팅하세요. 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
+        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+        </div>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">경마</a></p>
+    </section>
+
+    <!-- Ad: Footer Banner -->
+    <div class="ad-container" style="max-width:800px;">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
+    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary);">
+        <p>Copyright © 2026 LAMDice. All rights reserved.</p>
+        <div style="margin-top:10px;">
+            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">홈</a> |
+            <a href="/pages/game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
+        </div>
+        <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
+    </footer>
+
+    <script src="/js/shared/tutorial-shared.js?v=3"></script>
+    <!-- 튜토리얼 스텝은 Phase 5에서 추가 (현재 보류) — FLAG_BITS.bridge=32만 Phase 2에서 예약 -->
+
+    <script src="/js/ads.js"></script>
+</body>
+</html>

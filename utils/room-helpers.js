@@ -60,6 +60,22 @@ function createRoomGameState() {
         horseRaceMode: 'last',
         craneGameHistory: [],
         isCraneGameActive: false,
+        bridgeCross: {
+            phase: 'idle',
+            userColorBets: {},
+            passerIndex: null,
+            activeColors: [],
+            safeRows: [],
+            scenarios: [],
+            bettingDeadline: 0,
+            bettingTimeout: null,
+            endTimeout: null,
+            isBridgeCrossActive: false,
+            bridgeCrossHistory: [],
+            raceRound: 0,
+            winnerColor: null,
+            winners: []
+        },
     };
 }
 

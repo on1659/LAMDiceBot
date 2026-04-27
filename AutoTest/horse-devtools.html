@@ -81,6 +81,21 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .frame-box { text-align: center; }
 .frame-box .lbl { font-size: 10px; color: #555; margin-bottom: 3px; }
 .preview { border: 1px solid #333; border-radius: 4px; padding: 6px; background: #0a0a1a; display: inline-block; }
+.preview.with-bg {
+    background-color: #0a0a1a;
+    background-repeat: repeat-x;
+    background-position: center;
+    background-size: auto 100%;
+    border-color: rgba(255,255,255,0.28);
+}
+.sprite-preview-stage {
+    position: relative;
+    width: 60px;
+    height: 45px;
+    overflow: visible;
+    isolation: isolate;
+    flex: 0 0 auto;
+}
 .transform-shell { width: 144px; }
 .transform-preview { display: flex; align-items: center; justify-content: center; min-width: 84px; min-height: 68px; overflow: visible; padding: 6px; }
 .transform-preview .transform-stage {
@@ -520,6 +535,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
             <option value="4">4x</option>
         </select>
         <span class="toolbar-check"><input type="checkbox" id="glowCheck" class="glow-cb" checked><label for="glowCheck" class="glow-cb-label">Glow</label></span>
+        <span class="toolbar-check"><input type="checkbox" id="backgroundCheck" class="glow-cb" checked><label for="backgroundCheck" class="glow-cb-label">BG</label></span>
         <button class="btn-ghost btn-sm active" id="transformToggle" onclick="toggleTransformAnim()">base-power ON</button>
         <button class="btn-ghost btn-sm active" id="fallToggle" onclick="toggleFallAnim()">run-fallen ON</button>
         <button class="btn-ghost btn-sm" onclick="replayAllVisiblePreviews()">replay visible</button>
@@ -529,7 +545,11 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     <div class="sprite-grid" id="spriteGrid"></div>
 </div>
 
-<script src="/socket.io/socket.io.js"></script>
+<script>
+if (location.protocol !== 'file:') {
+    document.write('<script src="/socket.io/socket.io.js"><\\/script>');
+}
+</script>
 <script src="../js/horse-race-sprites.js?v=20260423-fallen-preview"></script>
 <script>
 // ===================================================================
@@ -551,7 +571,16 @@ let availableHorses = [];
 let selectedRoomId = null;
 let selectedRoomName = null;
 
-const controlSocket = io({ forceNew: true });
+function createNoopSocket() {
+    return {
+        on() { return this; },
+        emit() {},
+        disconnect() {}
+    };
+}
+
+const socketIoAvailable = typeof io === 'function';
+const controlSocket = socketIoAvailable ? io({ forceNew: true }) : createNoopSocket();
 let roomsCache = [];
 
 controlSocket.on('connect', () => {
@@ -602,6 +631,11 @@ function dlog(msg, cls) {
     el.scrollTop = el.scrollHeight;
 }
 
+if (!socketIoAvailable) {
+    document.getElementById('connStatus').textContent = 'file preview';
+    dlog('Socket.IO 없음: Sprite Viewer는 사용 가능, 봇 디버그는 서버 실행 시 사용', 'info');
+}
+
 function updateBotList() {
     const el = document.getElementById('botList');
     document.getElementById('botCountBadge').textContent = bots.length;
@@ -628,6 +662,10 @@ async function joinBots() {
 
 function joinOneBot(name) {
     return new Promise((resolve, reject) => {
+        if (!socketIoAvailable) {
+            reject('Socket.IO 없음: 서버로 열어야 봇 디버그 사용 가능');
+            return;
+        }
         const s = io({ forceNew: true });
         const bot = { socket: s, name, status: 'connecting', selectedHorse: null };
         bots.push(bot);
@@ -706,6 +744,8 @@ const VEHICLE_IDS = [
     'car','rocket','bird','boat','bicycle','rabbit','turtle','eagle',
     'scooter','helicopter','horse','knight','dinosaur','ninja','crab'
 ];
+const VEHICLE_BACKGROUND_BASE = '../assets/backgrounds/vehicle-flat/';
+const VEHICLE_BACKGROUND_VERSION = '20260427-lane-fit';
 const customSprites = {};
 let spriteAnimating = true;
 let spriteInterval = null;
@@ -1017,6 +1057,24 @@ function getSelectedVariant() {
 
 function isGlowOn() {
     return document.getElementById('glowCheck')?.checked !== false;
+}
+
+function isBackgroundOn() {
+    return document.getElementById('backgroundCheck')?.checked !== false;
+}
+
+function getVehicleBackgroundUrl(id) {
+    if (!VEHICLE_IDS.includes(id)) return '';
+    return `${VEHICLE_BACKGROUND_BASE}${id}.png?v=${VEHICLE_BACKGROUND_VERSION}`;
+}
+
+function getPreviewClass(id) {
+    return isBackgroundOn() && getVehicleBackgroundUrl(id) ? 'preview with-bg' : 'preview';
+}
+
+function getPreviewBackgroundStyle(id) {
+    const url = getVehicleBackgroundUrl(id);
+    return isBackgroundOn() && url ? `background-image:url('${url}');` : '';
 }
 
 function getSpriteDataForVariant(id, variant, options = {}) {
@@ -1777,9 +1835,11 @@ function renderSprites() {
         const isCustom = !!customSprites[id];
         const state = getDefaultSpriteState(data, globalSpriteState);
         const frames = data[state] || {};
-        const mb = (scale - 1) * 45, mr = (scale - 1) * 60;
-        const sty = `transform:scale(${scale});transform-origin:top left;margin-bottom:${mb}px;margin-right:${mr}px`;
-        const transformShellStyle = `width:${(scale * 60) + 28}px;height:${(scale * 45) + 28}px`;
+        const previewClass = getPreviewClass(id);
+        const bgStyle = getPreviewBackgroundStyle(id);
+        const framePreviewStyle = `${bgStyle}width:${(scale * 60) + 28}px;height:${(scale * 45) + 28}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;`;
+        const spriteStageStyle = `transform:scale(${scale});transform-origin:center center;`;
+        const transformShellStyle = `${bgStyle}width:${(scale * 60) + 28}px;height:${(scale * 45) + 28}px`;
         const transitionAvailable = !!getFrameMarkupForVariant(id, state, 'base', 1, { respectGlow: false })
             && !!getFrameMarkupForVariant(id, state, 'power', 1, { respectGlow: false });
         const fallPreviewAvailable = !!getFrameMarkupForVariant(id, 'run', getSelectedVariant(), 1, { respectGlow: true })
@@ -1789,7 +1849,7 @@ function renderSprites() {
         const transformMarkup = transitionAvailable
             ? `<div class="frame-box transform-shell">
                     <div class="lbl">base-power</div>
-                    <div class="preview transform-preview" style="${transformShellStyle}">
+                    <div class="${previewClass} transform-preview" style="${transformShellStyle}">
                         <div class="transform-stage" data-vehicle="${id}" data-state="${state}" data-current-variant="base" data-scale="${scale}" data-offset-x="0" style="transform:translateX(0px) scale(${scale});transform-origin:center center;"></div>
                     </div>
                     <div class="transform-actions">
@@ -1798,14 +1858,14 @@ function renderSprites() {
                </div>`
             : `<div class="frame-box transform-shell">
                     <div class="lbl">base-power</div>
-                    <div class="preview transform-preview" style="${transformShellStyle}">
+                    <div class="${previewClass} transform-preview" style="${transformShellStyle}">
                         <span class="no-svg">n/a</span>
                     </div>
                </div>`;
         const fallMarkup = fallPreviewAvailable
             ? `<div class="frame-box transform-shell">
                     <div class="lbl">run-fallen</div>
-                    <div class="preview transform-preview" style="${transformShellStyle}">
+                    <div class="${previewClass} transform-preview" style="${transformShellStyle}">
                         <div class="transform-stage fall-stage" data-vehicle="${id}" data-current-state="run" data-scale="${scale}" data-offset-x="0" style="transform:translateX(0px) scale(${scale});transform-origin:center center;"></div>
                     </div>
                     <div class="transform-actions">
@@ -1814,7 +1874,7 @@ function renderSprites() {
                </div>`
             : `<div class="frame-box transform-shell">
                     <div class="lbl">run-fallen</div>
-                    <div class="preview transform-preview" style="${transformShellStyle}">
+                    <div class="${previewClass} transform-preview" style="${transformShellStyle}">
                         <span class="no-svg">n/a</span>
                     </div>
                </div>`;
@@ -1829,9 +1889,9 @@ function renderSprites() {
                 <span class="state-badge">global state: ${state}</span>
             </div>
             <div class="frames-row">
-                <div class="frame-box"><div class="lbl">frame1</div><div class="preview" data-frame="1" style="${sty}">${frames.frame1||'<span class="no-svg">-</span>'}</div></div>
-                <div class="frame-box"><div class="lbl">frame2</div><div class="preview" data-frame="2" style="${sty}">${frames.frame2||'<span class="no-svg">-</span>'}</div></div>
-                <div class="frame-box"><div class="lbl">anim</div><div class="preview animated" data-vehicle="${id}" data-state="${state}" style="${sty}">${frames.frame1||''}</div></div>
+                <div class="frame-box"><div class="lbl">frame1</div><div class="${previewClass}" data-frame="1" style="${framePreviewStyle}"><div class="sprite-preview-stage" style="${spriteStageStyle}">${frames.frame1||'<span class="no-svg">-</span>'}</div></div></div>
+                <div class="frame-box"><div class="lbl">frame2</div><div class="${previewClass}" data-frame="2" style="${framePreviewStyle}"><div class="sprite-preview-stage" style="${spriteStageStyle}">${frames.frame2||'<span class="no-svg">-</span>'}</div></div></div>
+                <div class="frame-box"><div class="lbl">anim</div><div class="${previewClass}" style="${framePreviewStyle}"><div class="sprite-preview-stage animated" data-vehicle="${id}" data-state="${state}" style="${spriteStageStyle}">${frames.frame1||''}</div></div></div>
                 ${transformMarkup}
                 ${fallMarkup}
             </div>`;
@@ -2381,6 +2441,7 @@ document.getElementById('sizeSelect').addEventListener('change', renderSprites);
 document.getElementById('filterSelect').addEventListener('change', renderSprites);
 document.getElementById('variantSelect').addEventListener('change', renderSprites);
 document.getElementById('glowCheck').addEventListener('change', renderSprites);
+document.getElementById('backgroundCheck').addEventListener('change', renderSprites);
 renderSprites();
 document.getElementById('animToggle').textContent = 'anim ON';
 document.getElementById('transformToggle').textContent = 'base-power ON';

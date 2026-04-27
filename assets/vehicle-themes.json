@@ -5,7 +5,7 @@
       "name": "자동차",
       "emoji": "🚗",
       "theme": "expressway",
-      "backgroundImage": "assets/backgrounds/expressway.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/car.png",
       "visualWidth": 50
     },
     "rocket": {
@@ -13,7 +13,7 @@
       "name": "로켓",
       "emoji": "🚀",
       "theme": "space",
-      "backgroundImage": "assets/backgrounds/space.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/rocket.png",
       "visualWidth": 60
     },
     "bird": {
@@ -21,7 +21,7 @@
       "name": "새",
       "emoji": "🐦",
       "theme": "sky",
-      "backgroundImage": "assets/backgrounds/sky.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/bird.png",
       "visualWidth": 60
     },
     "boat": {
@@ -29,7 +29,7 @@
       "name": "보트",
       "emoji": "🚤",
       "theme": "ocean",
-      "backgroundImage": "assets/backgrounds/ocean.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/boat.png",
       "visualWidth": 50
     },
     "bicycle": {
@@ -37,7 +37,7 @@
       "name": "자전거",
       "emoji": "🚴",
       "theme": "road",
-      "backgroundImage": "assets/backgrounds/road.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/bicycle.png",
       "visualWidth": 56
     },
     "rabbit": {
@@ -45,7 +45,7 @@
       "name": "토끼",
       "emoji": "🐇",
       "theme": "forest",
-      "backgroundImage": "assets/backgrounds/forest.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/rabbit.png",
       "visualWidth": 53
     },
     "turtle": {
@@ -53,7 +53,7 @@
       "name": "거북이",
       "emoji": "🐢",
       "theme": "forest",
-      "backgroundImage": "assets/backgrounds/forest.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/turtle.png",
       "visualWidth": 58
     },
     "eagle": {
@@ -61,7 +61,7 @@
       "name": "독수리",
       "emoji": "🦅",
       "theme": "sky",
-      "backgroundImage": "assets/backgrounds/sky.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/eagle.png",
       "visualWidth": 60
     },
     "scooter": {
@@ -69,7 +69,7 @@
       "name": "킥보드",
       "emoji": "🛴",
       "theme": "road",
-      "backgroundImage": "assets/backgrounds/road.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/scooter.png",
       "visualWidth": 54
     },
     "helicopter": {
@@ -77,7 +77,7 @@
       "name": "헬리콥터",
       "emoji": "🚁",
       "theme": "sky",
-      "backgroundImage": "assets/backgrounds/sky.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/helicopter.png",
       "visualWidth": 48
     },
     "horse": {
@@ -85,7 +85,7 @@
       "name": "말",
       "emoji": "🐎",
       "theme": "forest",
-      "backgroundImage": "assets/backgrounds/forest.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/horse.png",
       "visualWidth": 56
     },
     "knight": {
@@ -93,7 +93,7 @@
       "name": "기사",
       "emoji": "⚔️",
       "theme": "road",
-      "backgroundImage": "assets/backgrounds/road.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/knight.png",
       "visualWidth": 48
     },
     "dinosaur": {
@@ -101,7 +101,7 @@
       "name": "공룡",
       "emoji": "🦕",
       "theme": "beach",
-      "backgroundImage": "assets/backgrounds/beach.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/dinosaur.png",
       "visualWidth": 56
     },
     "ninja": {
@@ -109,7 +109,7 @@
       "name": "닌자",
       "emoji": "🥷",
       "theme": "sky",
-      "backgroundImage": "assets/backgrounds/sky.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/ninja.png",
       "visualWidth": 44
     },
     "crab": {
@@ -117,7 +117,7 @@
       "name": "게",
       "emoji": "🦀",
       "theme": "beach",
-      "backgroundImage": "assets/backgrounds/beach.png",
+      "backgroundImage": "assets/backgrounds/vehicle-flat/crab.png",
       "visualWidth": 54
     }
   }

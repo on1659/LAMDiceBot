@@ -118,7 +118,7 @@ var ALL_VEHICLES = [];
 // JSON 파일 로드
 async function loadVehicleThemes() {
     try {
-        const response = await fetch('assets/vehicle-themes.json');
+        const response = await fetch('assets/vehicle-themes.json?v=20260427-lane-fit', { cache: 'no-store' });
         const data = await response.json();
         vehicleThemes = data.vehicleThemes;
         
@@ -326,6 +326,7 @@ function renderTrackForSelection() {
     trackContainer.style.display = 'block';
     const wrapper = document.getElementById('raceTrackWrapper');
     if (wrapper) wrapper.style.display = 'block';
+    setRaceMinimapVisible(false);
     track.innerHTML = '';
     track.style.width = '100%';
 
@@ -340,8 +341,8 @@ function renderTrackForSelection() {
     const wallHeight = 6;
     // [모바일대응] 트랙 높이 동적 계산 (350 하드코딩 → 실제 높이)
     const trackContainerEl = document.getElementById('raceTrackContainer');
-    const availableTrackHeight = (trackContainerEl ? trackContainerEl.offsetHeight : 400) - 50; // 상단 여백
-    const laneHeight = Math.min(75, Math.floor((availableTrackHeight - wallHeight * (horseCount - 1)) / horseCount));
+    const availableTrackHeight = (trackContainerEl && trackContainerEl.offsetHeight) || 400;
+    const laneHeight = Math.min(75, (availableTrackHeight - wallHeight * (horseCount - 1)) / horseCount);
     const totalLaneHeight = laneHeight + wallHeight;
 
     console.log('[renderTrackForSelection] 시작:', {
@@ -1056,8 +1057,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     const horseCount = horseRankings.length;
     const wallHeight = 6; // 벽 높이
     // [필수3] 레인 높이 동적 계산 (350 하드코딩 → 실제 트랙 높이)
-    const availableTrackHeight = (trackContainer.offsetHeight || 400) - 50;
-    const laneHeight = Math.min(75, Math.floor((availableTrackHeight - wallHeight * (horseCount - 1)) / horseCount));
+    const availableTrackHeight = trackContainer.offsetHeight || 400;
+    const laneHeight = Math.min(75, (availableTrackHeight - wallHeight * (horseCount - 1)) / horseCount);
     const totalLaneHeight = laneHeight + wallHeight; // 레인 + 벽 높이
     
     console.log('경주 시작:', { horseRankings, speeds, trackWidth, finishLine, trackDistanceMeters });
@@ -1387,8 +1388,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     }
     
     // 미니맵 초기화 및 표시
-    const minimapEl = document.getElementById('raceMinimap');
-    if (minimapEl) minimapEl.style.display = 'block';
+    setRaceMinimapVisible(true);
 
     // 미니맵에 사용할 색상 팔레트
     const minimapColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#ff6b6b', '#4ecdc4', '#a29bfe', '#fd79a8', '#00cec9', '#e17055', '#636e72'];
@@ -2717,8 +2717,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             if (liveRankingPanel) {
                                 liveRankingPanel.style.display = 'none';
                             }
-                            const minimap = document.getElementById('raceMinimap');
-                            if (minimap) minimap.style.display = 'none';
+                            setRaceMinimapVisible(false);
                             // 채팅 오버레이 해제
                             if (typeof window.hideRaceChatOverlay === 'function') {
                                 window.hideRaceChatOverlay();
@@ -3093,6 +3092,9 @@ function setVehicleState(horseElement, vehicleId, state) {
 // 레인 생성 공통 함수
 function createLane({ vehicleId, topPx, laneHeight, isRacing }) {
     const vehicleBg = getVehicleBackground(vehicleId);
+    const backgroundSize = vehicleBg.bgSize || 'auto 100%';
+    const backgroundRepeat = vehicleBg.bgRepeat || 'repeat-x';
+    const backgroundPosition = vehicleBg.bgPosition || '0 center';
     const lane = document.createElement('div');
     lane.style.cssText = `
         position: absolute;
@@ -3101,9 +3103,9 @@ function createLane({ vehicleId, topPx, laneHeight, isRacing }) {
         width: 100%;
         height: ${laneHeight}px;
         background-image: ${vehicleBg.bg};
-        background-size: ${isRacing ? 'auto 100%' : 'cover'};
-        background-repeat: ${isRacing ? 'repeat-x' : 'no-repeat'};
-        background-position: ${isRacing ? '0 center' : 'center'};
+        background-size: ${backgroundSize};
+        background-repeat: ${backgroundRepeat};
+        background-position: ${backgroundPosition};
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
     `;
 
@@ -3163,30 +3165,59 @@ function createWall({ topPx, wallHeight }) {
     return wall;
 }
 
+function setRaceMinimapVisible(visible) {
+    const minimap = document.getElementById('raceMinimap');
+    const wrapper = document.getElementById('raceTrackWrapper');
+    const isMobileLayout = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+
+    if (minimap) {
+        minimap.style.display = visible ? 'block' : 'none';
+        if (visible && !isMobileLayout) {
+            minimap.style.top = 'calc(100% + 8px)';
+            minimap.style.bottom = 'auto';
+        } else {
+            minimap.style.top = '';
+            minimap.style.bottom = '';
+        }
+    }
+
+    if (wrapper) {
+        wrapper.style.marginBottom = visible && !isMobileLayout ? '64px' : '';
+    }
+}
+
 // 탈것별 배경 생성 함수
 function getVehicleBackground(vehicleId) {
     // JSON에서 테마 데이터 가져오기
     const theme = vehicleThemes[vehicleId];
     
     if (theme) {
+        const backgroundImage = theme.backgroundImage || '';
+        const isLaneTile = backgroundImage.includes('/vehicle-flat/');
+        const cssBackgroundImage = isLaneTile
+            ? `${backgroundImage}?v=20260427-lane-fit`
+            : backgroundImage;
         // 배경 이미지 사용
         return {
-            bg: `url('${theme.backgroundImage}')`,
-            bgSize: 'cover',
-            bgRepeat: 'no-repeat',
-            bgPosition: 'center',
+            bg: `url('${cssBackgroundImage}')`,
+            bgSize: 'auto 100%',
+            bgRepeat: 'repeat-x',
+            bgPosition: '0 center',
             textColor: getTextColorByTheme(theme.theme),
             theme: theme.theme,
-            backgroundImage: theme.backgroundImage
+            backgroundImage
         };
     }
     
     // 폴백: 기본값
     return {
-        bg: 'linear-gradient(0deg, #333 0%, #333 30%, #555 30%, #555 70%, #87CEEB 70%, #87CEEB 100%)',
+        bg: "url('assets/backgrounds/vehicle-flat/car.png?v=20260427-lane-fit')",
+        bgSize: 'auto 100%',
+        bgRepeat: 'repeat-x',
+        bgPosition: '0 center',
         textColor: '#fff',
         theme: 'expressway',
-        backgroundImage: 'assets/backgrounds/expressway.png'
+        backgroundImage: 'assets/backgrounds/vehicle-flat/car.png'
     };
 }
 
