@@ -3831,15 +3831,18 @@
             // 다리건너기 게임이면 다리건너기 페이지로 이동
             if (gameType === 'bridge') {
                 // 다리 건너기는 개발 중 — 일반 사용자는 방 생성 차단
-                // 봇 테스트는 /AutoTest/bridge-cross-devtools.html 또는 dev console에서 우회
-                if (!localStorage.getItem('bridgeDevAccess')) {
+                // 우회: 방 제목에 "이더테스트" 포함 OR localStorage bridgeDevAccess
+                const hasMagicWord = (roomName || '').includes('이더테스트');
+                if (!hasMagicWord && !localStorage.getItem('bridgeDevAccess')) {
                     showCustomAlert('🚧 Untitle은 현재 개발 중입니다. 곧 만나요!', 'info');
                     return;
                 }
+                // 매직 워드 제거 (방 제목 정리)
+                const cleanedRoomName = (roomName || '').replace(/이더테스트/g, '').trim() || 'test';
                 localStorage.setItem('bridgeUserName', hostName);
                 localStorage.setItem('pendingBridgeRoom', JSON.stringify({
                     userName: hostName,
-                    roomName: roomName,
+                    roomName: cleanedRoomName,
                     isPrivate: isPrivate,
                     password: isPrivate ? password : '',
                     expiryHours: expiryHours,
