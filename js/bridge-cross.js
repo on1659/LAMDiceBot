@@ -85,6 +85,17 @@ window.socket = socket;
 var currentServerId = null;
 var currentServerName = null;
 
+function runWhenSocketConnected(callback) {
+    if (socket.connected) {
+        callback();
+        return;
+    }
+    socket.on('connect', function onConnect() {
+        socket.off('connect', onConnect);
+        callback();
+    });
+}
+
 // 직접 URL 접속 차단 + 새로고침 재입장
 (function() {
     var urlParams = new URLSearchParams(window.location.search);
@@ -102,8 +113,7 @@ var currentServerName = null;
             if (rd.serverName) {
                 document.title = rd.serverName + ' - Bridge Cross';
             }
-            socket.on('connect', function onReconnect() {
-                socket.off('connect', onReconnect);
+            runWhenSocketConnected(function () {
                 socket.emit('joinRoom', {
                     roomId: rd.roomId,
                     userName: rd.userName,
@@ -157,8 +167,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const roomData = JSON.parse(pendingRoom);
             localStorage.removeItem('pendingBridgeRoom');
 
-            socket.on('connect', function onConnect() {
-                socket.off('connect', onConnect);
+            runWhenSocketConnected(function () {
                 socket.emit('createRoom', {
                     userName: roomData.userName,
                     roomName: roomData.roomName,
@@ -186,8 +195,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById('globalUserNameInput');
             if (input) input.value = joinData.userName;
 
-            socket.on('connect', function onJoinConnect() {
-                socket.off('connect', onJoinConnect);
+            runWhenSocketConnected(function () {
                 if (joinData.isPrivate) {
                     pendingRoomId = joinData.roomId;
                     pendingUserName = joinData.userName;
@@ -515,7 +523,12 @@ function updateNonBettorList() {
         .map(u => u.name);
 
     // 베팅 단계가 아니거나 모두 베팅했으면 숨김
-    if (isBridgeCrossActive || nonBettors.length === 0 || (readyUsers || []).length === 0) {
+    if (
+        isBridgeCrossActive
+        || nonBettors.length === 0
+        || (readyUsers || []).length === 0
+        || (currentBettorNames.length === 0 && currentBettorCount >= readySet.size)
+    ) {
         section.style.display = 'none';
         return;
     }
@@ -581,14 +594,26 @@ socket.on('bridge-cross:bettingOpen', () => {
 });
 
 socket.on('bridge-cross:selectionConfirm', (data) => {
-    updateBridgeSelection(data && typeof data.colorIndex === 'number' ? data.colorIndex : null);
+    const colorIdx = data && typeof data.colorIndex === 'number' ? data.colorIndex : null;
+    updateBridgeSelection(colorIdx);
+
+    // 본인 베팅 상태를 currentBettorNames에 즉시 반영 (서버 selectionCount payload 의존 안 함)
+    const meIdx = currentBettorNames.indexOf(currentUser);
+    if (colorIdx !== null) {
+        if (meIdx === -1) currentBettorNames.push(currentUser);
+    } else {
+        if (meIdx !== -1) currentBettorNames.splice(meIdx, 1);
+    }
+    updateStartButton();
 });
 
 socket.on('bridge-cross:selectionCount', (data) => {
     const el = document.getElementById('bridgeBettorCountValue');
     if (el && data) el.textContent = String(data.count || 0);
     currentBettorCount = (data && data.count) || 0;
-    currentBettorNames = (data && Array.isArray(data.bettorNames)) ? data.bettorNames : [];
+    if (data && Array.isArray(data.bettorNames)) {
+        currentBettorNames = data.bettorNames;
+    }
     updateStartButton();
 });
 
