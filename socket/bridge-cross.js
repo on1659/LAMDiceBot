@@ -173,7 +173,6 @@ module.exports = (socket, io, ctx) => {
 
         console.log(`[다리건너기] 방 ${room.roomName} 게임 시작 - M=${M}, K=${K}, activeColors=${activeColors}`);
         console.log(`[다리건너기] safeRows=${safeRows.join(',')}`);
-        console.log(`[다리건너기] failColumns=${failColumns.join(',')}`);
         scenarios.forEach((sc, idx) => {
             const pathStr = sc.path.map(s => `col${s.col}=${s.row}${s.success ? '✓' : '✗'}`).join(' → ');
             console.log(`[다리건너기] scenario[${idx}] success=${sc.success} : ${pathStr}`);
