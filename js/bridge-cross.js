@@ -1254,7 +1254,9 @@ socket.on('joinError', (data) => {
                 return { zoom: 1.25, target: current || startCenter };
             case 'finish-wait':
             case 'finished':
-                return { zoom: 0.7, target: finishCenter };
+                // 통과한 캐릭터(avatar) 위치에 2배 줌 인 (없으면 finishCenter fallback)
+                var winnerPos = current || finishCenter;
+                return { zoom: 2.0, target: winnerPos };
             default:
                 return { zoom: 1.0, target: current || startCenter };
         }
