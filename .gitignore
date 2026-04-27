@@ -55,20 +55,12 @@ _unused
 .claude/scheduled_tasks.lock
 .claude/worktrees/
 
-# 산출물 / 백업
+# 산출물 / 백업 (개인 환경 잔재)
 output/
 progress.md
 assets/bridge-cross_backup/
 assets/backgrounds/vehicle-flat/
 assets/backgrounds/vehicle-generated/
 
-# 미공개 dev 도구 (별도 PR로 push 가능)
-AutoTest/bridge-cross-sprite-player.html
-AutoTest/roulette-debug-panel.html
-AutoTest/roulette-server-finalization-test.js
-
-# 문서 임시/개인 작업물
-docs/asset/
-docs/etc/
-docs/meeting/applied/
-docs/meeting/plan/codex/
+# docs/는 협업 추적 폴더라 이그노어 X
+# AutoTest/는 dev 도구 폴더라 이그노어 X — 필요한 것만 git add
