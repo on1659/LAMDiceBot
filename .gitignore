@@ -48,3 +48,27 @@ AutoTest/node_modules/
 AutoTest/**/*.log
 AutoTest/**/*.png
 .gstack/
+.playwright-cli
+_unused
+
+# Claude Code 세션 잔재
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
+# 산출물 / 백업
+output/
+progress.md
+assets/bridge-cross_backup/
+assets/backgrounds/vehicle-flat/
+assets/backgrounds/vehicle-generated/
+
+# 미공개 dev 도구 (별도 PR로 push 가능)
+AutoTest/bridge-cross-sprite-player.html
+AutoTest/roulette-debug-panel.html
+AutoTest/roulette-server-finalization-test.js
+
+# 문서 임시/개인 작업물
+docs/asset/
+docs/etc/
+docs/meeting/applied/
+docs/meeting/plan/codex/
