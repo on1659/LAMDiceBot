@@ -369,8 +369,11 @@ function startBridgeCountdown() {
 function showBridgeBettingUI() {
     const betting = document.getElementById('bettingSection');
     const playing = document.getElementById('bridgePlayingSection');
+    const gameArea = document.getElementById('bridgeCrossGameArea');
     if (betting) betting.style.display = 'block';
     if (playing) playing.style.display = 'none';
+    // 베팅 단계부터 캔버스 표시 (IIFE의 ready 모드에서 6색 캐릭터 + stage 그려짐)
+    if (gameArea) gameArea.style.display = 'block';
     renderBridgeColorGrid();
     setBridgeCardsEnabled(true);
     myColorIndex = null;
@@ -403,16 +406,10 @@ function showBridgePlayingUI(detail) {
 }
 
 function hideBridgeGameUI() {
-    const betting = document.getElementById('bettingSection');
+    // 게임 종료 후 결과 오버레이 표시 시점. 캔버스 자체는 베팅 UI에서 다시 표시되므로 숨기지 않음.
     const playing = document.getElementById('bridgePlayingSection');
-    const gameArea = document.getElementById('bridgeCrossGameArea');
     const statusbar = document.getElementById('bridgeStatusbar');
-    if (betting) {
-        betting.style.display = 'none';
-        betting.style.opacity = '1';
-    }
     if (playing) playing.style.display = 'none';
-    if (gameArea) gameArea.style.display = 'none';
     if (statusbar) statusbar.style.display = 'none';
     if (bridgeCountdownTimer) {
         clearInterval(bridgeCountdownTimer);
@@ -2042,12 +2039,17 @@ socket.on('joinError', (data) => {
             drawTile(col, 'bottom');
         }
 
-        // 비활성 캐릭터(베팅 없음): 시작 plat에 dim으로 표시
+        // 비활성 캐릭터(베팅 없음): 시작 plat에 dim으로 표시.
+        // 베팅 단계(activeColors 비어있음)에는 모든 캐릭터를 일반 색으로 표시 (대기 화면)
         var activeColorSet = new Set(state.activeColors);
         if (state.allPlayers.length > 0) {
             state.allPlayers.forEach(function (player) {
-                var isDim = activeColorSet.size > 0 && !activeColorSet.has(player.colorIndex);
-                if (isDim && player.status === 'waiting') {
+                if (player.status !== 'waiting') return;
+                if (activeColorSet.size === 0) {
+                    // 베팅 단계: 모든 캐릭터 일반 표시
+                    drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96);
+                } else if (!activeColorSet.has(player.colorIndex)) {
+                    // 게임 진행 중: 베팅 안 된 색은 dim
                     drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96, false, true);
                 }
             });

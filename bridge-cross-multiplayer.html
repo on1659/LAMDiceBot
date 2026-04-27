@@ -168,13 +168,9 @@
                 </div>
             </div>
 
-            <!-- 게임 진행 표시 (Phase E에서 캔버스 시각화로 교체) -->
+            <!-- 게임 진행 캡션 (캔버스 위에 게임 정보 표시) -->
             <div id="bridgePlayingSection" class="bridge-playing-section" style="display: none;">
-                <div style="text-align: center; padding: 30px 20px; background: var(--bg-white); border-radius: 12px; border: 2px solid var(--bridge-500);">
-                    <div style="font-size: 48px; margin-bottom: 12px;">🌉</div>
-                    <div style="font-size: 18px; font-weight: bold; color: var(--bridge-accent); margin-bottom: 6px;">다리를 건너는 중...</div>
-                    <div id="bridgePlayingDetail" style="font-size: 13px; color: var(--text-secondary);">결과를 확인 중입니다.</div>
-                </div>
+                <div id="bridgePlayingDetail" style="text-align:center; padding:8px 12px; background: var(--bridge-accent); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">결과를 확인 중입니다.</div>
             </div>
 
             <!-- 호스트 컨트롤 -->
@@ -260,8 +256,52 @@
                 게임 대기 중...
             </div>
 
-            <!-- bridge-cross 게임 영역 자리 (Phase E에서 캔버스 + 베팅 UI 추가) -->
-            <div id="bridgeCrossGameArea" style="display: none;"></div>
+            <!-- 다리 건너기 게임 캔버스 영역 (방 입장 직후부터 캐릭터/맵 표시) -->
+            <section class="stage-wrap" id="bridgeCrossGameArea" style="display: none;">
+                <!-- 인라인 display:none은 페이지 로드 시 IIFE 초기화 안전, JS에서 베팅 UI 표시할 때 block으로 바꿈 -->
+                <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
+                <div class="zoom-ui" id="zoomUi">
+                    <button data-zoom="-0.1" type="button" aria-label="줌 아웃">−</button>
+                    <span class="zoom-value" id="zoomValue">1.0×</span>
+                    <button data-zoom="+0.1" type="button" aria-label="줌 인">+</button>
+                    <button data-zoom="reset" type="button" aria-label="리셋">⟲</button>
+                </div>
+                <div class="debug-panel" id="debugPanel" hidden>
+                    <div class="debug-title">Stage Layout Debug — D 키로 토글</div>
+                    <div class="debug-row"><label><span>start.x</span><input type="range" id="dbgStartX" min="-300" max="1500" value="-145"><input type="number" id="dbgStartXNum" value="-145"></label></div>
+                    <div class="debug-row"><label><span>start.y</span><input type="range" id="dbgStartY" min="-200" max="1200" value="751"><input type="number" id="dbgStartYNum" value="751"></label></div>
+                    <div class="debug-row"><label><span>finish.x</span><input type="range" id="dbgFinishX" min="500" max="2400" value="1013"><input type="number" id="dbgFinishXNum" value="1013"></label></div>
+                    <div class="debug-row"><label><span>finish.y</span><input type="range" id="dbgFinishY" min="-300" max="800" value="-27"><input type="number" id="dbgFinishYNum" value="-27"></label></div>
+                    <div class="debug-row"><label><span>entry.dx</span><input type="range" id="dbgEntryDx" min="-300" max="400" value="217"><input type="number" id="dbgEntryDxNum" value="217"></label></div>
+                    <div class="debug-row"><label><span>entry.dy</span><input type="range" id="dbgEntryDy" min="-300" max="300" value="-159"><input type="number" id="dbgEntryDyNum" value="-159"></label></div>
+                    <div class="debug-row"><label><span>exit.dx</span><input type="range" id="dbgExitDx" min="-300" max="300" value="-122"><input type="number" id="dbgExitDxNum" value="-122"></label></div>
+                    <div class="debug-row"><label><span>exit.dy</span><input type="range" id="dbgExitDy" min="-300" max="300" value="40"><input type="number" id="dbgExitDyNum" value="40"></label></div>
+                    <div class="debug-row"><label><span>row.dx</span><input type="range" id="dbgRowDx" min="-50" max="200" value="146"><input type="number" id="dbgRowDxNum" value="146"></label></div>
+                    <div class="debug-row"><label><span>row.dy</span><input type="range" id="dbgRowDy" min="-50" max="200" value="76"><input type="number" id="dbgRowDyNum" value="76"></label></div>
+                    <div class="debug-row"><label><span>tile.w</span><input type="range" id="dbgTileW" min="100" max="400" value="300"><input type="number" id="dbgTileWNum" value="300"></label></div>
+                    <div class="debug-row"><label><span>tile.h</span><input type="range" id="dbgTileH" min="60" max="250" value="143"><input type="number" id="dbgTileHNum" value="143"></label></div>
+                    <div class="debug-row"><label><span>tile.rot°</span><input type="range" id="dbgTileRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgTileRotNum" value="0" step="0.5"></label></div>
+                    <div class="debug-row"><label><span>start.rot°</span><input type="range" id="dbgStartRot" min="-180" max="180" value="2.5" step="0.5"><input type="number" id="dbgStartRotNum" value="2.5" step="0.5"></label></div>
+                    <div class="debug-row"><label><span>finish.rot°</span><input type="range" id="dbgFinishRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgFinishRotNum" value="0" step="0.5"></label></div>
+                    <div class="debug-row"><label><span>char.footY</span><input type="range" id="dbgFootY" min="-50" max="100" value="30"><input type="number" id="dbgFootYNum" value="30"></label></div>
+                    <div class="debug-info" id="dbgInfo"></div>
+                    <button type="button" id="dbgSnapBtn" title="row 슬로프와 평행하도록 다리 column step 자동 보정">📐 Dimetric Snap</button>
+                    <button type="button" id="dbgCopyBtn">코드 복사</button>
+                    <textarea id="dbgCodeOut" readonly rows="11"></textarea>
+                </div>
+            </section>
+
+            <!-- 게임 진행 텍스트 패널 (Event Feed + Crossing Order) -->
+            <section class="bridge-statusbar" id="bridgeStatusbar" style="display: none;">
+                <article class="bridge-card">
+                    <h3>📰 진행 상황</h3>
+                    <ul class="bridge-ticker" id="ticker"></ul>
+                </article>
+                <article class="bridge-card">
+                    <h3>🏁 도전 순서</h3>
+                    <ul class="bridge-ranking" id="ranking"></ul>
+                </article>
+            </section>
 
             <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
             <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
