@@ -263,7 +263,10 @@ function initReadyModule() {
     ReadyModule.init(socket, currentUser, {
         isHost: isHost,
         isGameActive: () => isBridgeCrossActive,
-        onReadyChanged: (rUsers) => { readyUsers = rUsers; }
+        onReadyChanged: (rUsers) => {
+            readyUsers = rUsers;
+            updateStartButton();
+        }
     });
 }
 
@@ -496,13 +499,25 @@ var currentBettorCount = 0;
 function updateStartButton() {
     const btn = document.getElementById('startBridgeCrossButton');
     if (!btn) return;
-    // 호스트 + 게임 진행 중 아님 + 베팅 인원 2명 이상
-    btn.disabled = !isHost || isBridgeCrossActive || currentBettorCount < 2;
-    btn.textContent = isBridgeCrossActive
-        ? '게임 진행 중'
-        : currentBettorCount < 2
-            ? `게임 시작 (베팅 ${currentBettorCount}/2명)`
-            : `게임 시작 (베팅 ${currentBettorCount}명)`;
+    // 호스트 + 게임 진행 중 아님 + 모두 준비 + 베팅 인원 2명 이상
+    const totalUsers = (users && users.length) || 0;
+    const readyCount = (readyUsers && readyUsers.length) || 0;
+    const allReady = totalUsers >= 2 && readyCount >= totalUsers;
+    const enoughBets = currentBettorCount >= 2;
+
+    btn.disabled = !isHost || isBridgeCrossActive || !allReady || !enoughBets;
+
+    if (isBridgeCrossActive) {
+        btn.textContent = '게임 진행 중';
+    } else if (totalUsers < 2) {
+        btn.textContent = `게임 시작 (인원 ${totalUsers}/2명)`;
+    } else if (!allReady) {
+        btn.textContent = `게임 시작 (준비 ${readyCount}/${totalUsers}명)`;
+    } else if (!enoughBets) {
+        btn.textContent = `게임 시작 (베팅 ${currentBettorCount}/2명)`;
+    } else {
+        btn.textContent = `게임 시작 (준비 ${readyCount}명·베팅 ${currentBettorCount}명)`;
+    }
 }
 
 // 호스트 컨트롤 함수 (HTML onclick)
@@ -741,6 +756,7 @@ socket.on('updateUsers', (data) => {
         ChatModule.updateConnectedUsers(userArray);
     }
     renderUsersList(userArray);
+    updateStartButton();  // 인원 변경 시 시작 조건 재계산
 });
 
 // 호스트 변경
