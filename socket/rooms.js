@@ -211,8 +211,8 @@ module.exports = (socket, io, ctx) => {
             roomPassword = password.trim();
         }
 
-        // 게임 타입 검증 (dice, roulette, horse-race 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game'].includes(gameType) ? gameType : 'dice';
+        // 게임 타입 검증 (dice, roulette, horse-race, crane-game, bridge 허용, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge'].includes(gameType) ? gameType : 'dice';
 
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1034,6 +1034,14 @@ module.exports = (socket, io, ctx) => {
             if (gameState.userHorseBets && gameState.userHorseBets[socket.userName]) {
                 delete gameState.userHorseBets[socket.userName];
             }
+
+            // 🔧 퇴장한 사용자의 다리건너기 색상 베팅 삭제
+            if (gameState.bridgeCross && gameState.bridgeCross.userColorBets &&
+                gameState.bridgeCross.userColorBets[socket.userName] !== undefined) {
+                delete gameState.bridgeCross.userColorBets[socket.userName];
+            }
+            // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js:139)가 차단.
+            // 일반 사용자 leaveRoom 시 timeout을 cleanup하면 진행 중 게임이 stuck하므로 손대지 않는다.
         }
 
         // 호스트가 나가는 경우

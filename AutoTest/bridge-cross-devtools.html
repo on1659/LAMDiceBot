@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>다리 건너기 DevTools</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 16px; }
+h1 { font-size: 16px; color: #42edff; margin-bottom: 12px; }
+.subtitle { font-size: 12px; color: #888; margin-bottom: 16px; }
+.section { background: #16213e; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+.section h2 { font-size: 13px; color: #888; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.section h2 .count { font-size: 11px; background: #0f3460; padding: 1px 6px; border-radius: 8px; color: #aaa; }
+label { display: block; font-size: 12px; margin-bottom: 3px; color: #aaa; }
+input, select { padding: 7px 10px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 13px; width: 80px; }
+button { padding: 8px 14px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s; margin-right: 4px; }
+button:hover { filter: brightness(1.15); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-cyan { background: #42edff; color: #0a0a1a; }
+.btn-green { background: #4CAF50; color: white; }
+.btn-blue { background: #2196F3; color: white; }
+.btn-orange { background: #FF9800; color: white; }
+.btn-red { background: #f44336; color: white; }
+.btn-purple { background: #9C27B0; color: white; }
+.btn-ghost { background: rgba(255,255,255,0.06); color: #aaa; border: 1px solid #333; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.flex-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+.status { font-size: 11px; color: #666; padding: 0 12px; }
+.status.ok { color: #4CAF50; }
+.room-chip { display: inline-block; padding: 5px 10px; background: #0f3460; border-radius: 4px; margin: 2px; cursor: pointer; font-size: 12px; transition: 0.15s; }
+.room-chip:hover { background: #1a4a8a; }
+.room-chip.selected { background: #42edff; color: #0a0a1a; }
+.bot-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot.connecting { background: #666; }
+.dot.connected { background: #FF9800; }
+.dot.joined { background: #4CAF50; }
+.dot.disconnected { background: #f44336; }
+.dot.error { background: #f44336; }
+.dot.timeout { background: #666; }
+.color-chip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
+#debugLog { background: #0a0a1a; border-radius: 6px; padding: 10px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.5; }
+.log-info { color: #64b5f6; }
+.log-ok { color: #81c784; }
+.log-err { color: #e57373; }
+.log-event { color: #fff176; }
+.log-bridge { color: #42edff; }
+</style>
+</head>
+<body>
+<h1>🌉 다리 건너기 DevTools</h1>
+<div class="subtitle">봇을 자동 입장시켜서 다리 건너기 게임을 테스트합니다. (호스트는 직접 dice 로비에서 만드세요)</div>
+
+<div class="section">
+    <h2>📡 연결 <span class="status" id="connStatus">connecting...</span></h2>
+    <button class="btn-blue btn-sm" onclick="refreshRooms()">방 목록 새로고침</button>
+</div>
+
+<div class="section">
+    <h2>🏠 다리 건너기 방 <span class="count" id="roomCount">0</span></h2>
+    <div id="roomList"><span style="color:#555">방 없음</span></div>
+</div>
+
+<div class="section">
+    <h2>🤖 봇 <span class="count" id="botCountBadge">0</span></h2>
+    <div class="flex-row">
+        <label style="margin: 0 4px 0 0;">봇 수</label>
+        <input type="number" id="botCount" value="3" min="1" max="8">
+        <button class="btn-cyan" onclick="joinBots()">봇 입장</button>
+        <button class="btn-orange" onclick="betAll()">랜덤 베팅</button>
+        <button class="btn-purple" onclick="betAllSameColor()">전원 같은 색 베팅</button>
+        <button class="btn-red" onclick="disconnectAll()">전원 퇴장</button>
+    </div>
+    <div class="flex-row" style="margin-top: 8px;">
+        <button class="btn-blue btn-sm" onclick="readyAll()">전원 준비</button>
+        <button class="btn-ghost btn-sm" onclick="unreadyAll()">전원 준비 취소</button>
+        <button class="btn-green btn-sm" onclick="quickFlow()">⚡ 입장+준비+베팅 한번에</button>
+        <button class="btn-ghost btn-sm" onclick="cancelAllBets()">베팅 취소</button>
+    </div>
+    <div id="botList" style="margin-top: 10px;"><span style="color:#555">봇 없음</span></div>
+</div>
+
+<div class="section">
+    <h2>📜 로그</h2>
+    <div id="debugLog"></div>
+    <button class="btn-ghost btn-sm" onclick="document.getElementById('debugLog').innerHTML=''" style="margin-top: 6px;">로그 지우기</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const COLOR_NAMES = ['빨강', '주황', '노랑', '초록', '파랑', '남색'];
+const COLOR_HEX = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#6366f1'];
+const BOT_NAMES = ['Alpha','Bravo','Charlie','Delta','Echo','Fox','Golf','Hotel'];
+
+const bots = [];
+let selectedRoomId = null;
+let selectedRoomName = null;
+let roomsCache = [];
+
+const controlSocket = io({ forceNew: true });
+
+controlSocket.on('connect', () => {
+    dlog('control 소켓 연결', 'ok');
+    document.getElementById('connStatus').textContent = 'connected';
+    document.getElementById('connStatus').className = 'status ok';
+    controlSocket.emit('getRooms');
+});
+controlSocket.on('disconnect', () => {
+    document.getElementById('connStatus').textContent = 'disconnected';
+    document.getElementById('connStatus').className = 'status';
+});
+controlSocket.on('roomsList', r => { roomsCache = r; renderRooms(); });
+controlSocket.on('roomsListUpdated', r => { roomsCache = r; renderRooms(); });
+
+function refreshRooms() { controlSocket.emit('getRooms'); }
+
+function renderRooms() {
+    const el = document.getElementById('roomList');
+    const rooms = (roomsCache || []).filter(r => r.gameType === 'bridge');
+    document.getElementById('roomCount').textContent = rooms.length;
+    if (rooms.length === 0) {
+        el.innerHTML = '<span style="color:#555">다리 건너기 방 없음 (dice 로비에서 🌉 방 만들기)</span>';
+        return;
+    }
+    el.innerHTML = rooms.map(r => {
+        const sel = r.roomId === selectedRoomId ? ' selected' : '';
+        const n = r.playerCount || 0;
+        const st = r.isGameActive ? '진행' : '대기';
+        const safeName = String(r.roomName).replace(/'/g, "\\'");
+        return `<span class="room-chip${sel}" onclick="pickRoom('${r.roomId}','${safeName}')"><b>${escape(r.roomName)}</b> ${n}명 ${st}</span>`;
+    }).join('');
+}
+
+function escape(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function pickRoom(id, name) {
+    selectedRoomId = id;
+    selectedRoomName = name;
+    dlog(`방 선택: ${name}`, 'info');
+    renderRooms();
+}
+
+function dlog(msg, cls) {
+    const el = document.getElementById('debugLog');
+    const d = document.createElement('div');
+    d.className = 'log-' + (cls || 'info');
+    const t = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    d.textContent = `[${t}] ${msg}`;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+}
+
+function updateBotList() {
+    const el = document.getElementById('botList');
+    document.getElementById('botCountBadge').textContent = bots.length;
+    if (bots.length === 0) {
+        el.innerHTML = '<span style="color:#555">봇 없음</span>';
+        return;
+    }
+    el.innerHTML = bots.map(b => {
+        const colorBlock = b.colorIndex !== null && b.colorIndex !== undefined
+            ? `<span class="color-chip" style="background:${COLOR_HEX[b.colorIndex]};"></span>${COLOR_NAMES[b.colorIndex]}`
+            : '';
+        const readyBadge = b.isReady
+            ? '<span style="font-size:10px;background:#4CAF50;color:white;padding:1px 6px;border-radius:8px;">✓준비</span>'
+            : '<span style="font-size:10px;background:#666;color:#aaa;padding:1px 6px;border-radius:8px;">대기</span>';
+        return `<div class="bot-row"><div class="dot ${b.status}"></div><span>${b.name}</span>` +
+            `<span style="color:#555;font-size:11px">${b.status}</span>` +
+            (b.status === 'joined' ? readyBadge : '') +
+            (colorBlock ? `<span style="font-size:11px">${colorBlock}</span>` : '') +
+            `</div>`;
+    }).join('');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function joinBots() {
+    if (!selectedRoomId) { dlog('방을 먼저 선택하세요', 'err'); return; }
+    const n = parseInt(document.getElementById('botCount').value) || 3;
+    dlog(`봇 ${n}명 입장 시도 → ${selectedRoomName}`, 'info');
+    for (let i = 0; i < n; i++) {
+        if (bots.length >= 8) { dlog('최대 8봇', 'err'); break; }
+        const name = BOT_NAMES[bots.length] || ('Bot' + bots.length);
+        try { await joinOneBot(name); }
+        catch (e) { dlog(`${name} 입장 실패: ${e}`, 'err'); }
+        if (i < n - 1) await sleep(400);
+    }
+}
+
+function joinOneBot(name) {
+    return new Promise((resolve, reject) => {
+        const s = io({ forceNew: true });
+        // 서버는 입장 시 자동 isReady: true 처리 (socket/rooms.js:894)
+        const bot = { socket: s, name, status: 'connecting', colorIndex: null, isReady: true };
+        bots.push(bot);
+        updateBotList();
+
+        const timeout = setTimeout(() => {
+            bot.status = 'timeout';
+            dlog(`${name} 타임아웃`, 'err');
+            updateBotList();
+            reject('timeout');
+        }, 10000);
+
+        s.on('connect', () => {
+            bot.status = 'connected';
+            updateBotList();
+            s.emit('joinRoom', {
+                roomId: selectedRoomId,
+                userName: name,
+                isHost: false,
+                password: '',
+                deviceId: 'bot-' + Math.random().toString(36).slice(2),
+                tabId: 'bot-' + Math.random().toString(36).slice(2)
+            });
+        });
+        s.on('roomJoined', () => {
+            clearTimeout(timeout);
+            bot.status = 'joined';
+            dlog(`${name} 입장`, 'ok');
+            updateBotList();
+            resolve();
+        });
+        s.on('roomError', m => {
+            clearTimeout(timeout);
+            bot.status = 'error';
+            dlog(`${name} 거부: ${typeof m === 'string' ? m : JSON.stringify(m)}`, 'err');
+            updateBotList();
+            reject(m);
+        });
+
+        // bridge-cross 이벤트
+        s.on('bridge-cross:selectionConfirm', d => {
+            bot.colorIndex = (d && typeof d.colorIndex === 'number') ? d.colorIndex : null;
+            updateBotList();
+        });
+        s.on('bridge-cross:gameStart', d => {
+            const M = (d && d.activeColors) ? d.activeColors.length : 0;
+            const K = d && d.passerIndex ? d.passerIndex : 0;
+            dlog(`${name} 게임 시작 M=${M} K=${K}`, 'bridge');
+        });
+        s.on('bridge-cross:gameEnd', d => {
+            const winner = d && d.winnerColorName ? d.winnerColorName : '?';
+            const winnersCount = d && d.winners ? d.winners.length : 0;
+            dlog(`${name} 게임 종료 — ${winner} 통과, 당첨 ${winnersCount}명`, 'event');
+            bot.colorIndex = null;
+            updateBotList();
+        });
+        s.on('bridge-cross:gameAborted', d => {
+            dlog(`${name} 게임 취소: ${d?.reason || '?'}`, 'err');
+            bot.colorIndex = null;
+            updateBotList();
+        });
+        s.on('bridge-cross:bettingReady', () => {
+            bot.colorIndex = null;
+            updateBotList();
+        });
+
+        // 준비 상태 동기화
+        s.on('readyUsersUpdated', readyList => {
+            const list = Array.isArray(readyList) ? readyList : (readyList?.readyUsers || []);
+            bot.isReady = list.includes(bot.name);
+            updateBotList();
+        });
+        s.on('bridge-cross:error', m => dlog(`${name} err: ${m}`, 'err'));
+
+        s.on('connect_error', e => {
+            clearTimeout(timeout);
+            bot.status = 'error';
+            dlog(`${name} 연결실패`, 'err');
+            updateBotList();
+            reject(e.message);
+        });
+        s.on('disconnect', () => {
+            bot.status = 'disconnected';
+            updateBotList();
+        });
+    });
+}
+
+function betAll() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    joined.forEach(bot => {
+        const c = Math.floor(Math.random() * 6);
+        bot.socket.emit('bridge-cross:select', { colorIndex: c });
+        bot.colorIndex = c;
+    });
+    dlog(`${joined.length}봇 랜덤 베팅`, 'ok');
+    updateBotList();
+}
+
+function betAllSameColor() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const c = Math.floor(Math.random() * 6);
+    joined.forEach(bot => {
+        bot.socket.emit('bridge-cross:select', { colorIndex: c });
+        bot.colorIndex = c;
+    });
+    dlog(`${joined.length}봇 모두 ${COLOR_NAMES[c]} 베팅`, 'ok');
+    updateBotList();
+}
+
+function cancelAllBets() {
+    const bettors = bots.filter(b => b.status === 'joined' && b.colorIndex !== null);
+    bettors.forEach(bot => {
+        // 같은 색 다시 보내면 서버에서 토글로 취소 처리
+        bot.socket.emit('bridge-cross:select', { colorIndex: bot.colorIndex });
+        bot.colorIndex = null;
+    });
+    dlog(`${bettors.length}봇 베팅 취소`, 'info');
+    updateBotList();
+}
+
+function readyAll() {
+    const targets = bots.filter(b => b.status === 'joined' && !b.isReady);
+    if (!targets.length) {
+        dlog('이미 모두 준비 상태', 'info');
+        return;
+    }
+    targets.forEach(b => b.socket.emit('toggleReady'));
+    dlog(`${targets.length}봇 준비 토글 (→ ready)`, 'ok');
+}
+
+function unreadyAll() {
+    const targets = bots.filter(b => b.status === 'joined' && b.isReady);
+    if (!targets.length) {
+        dlog('준비 상태인 봇 없음', 'info');
+        return;
+    }
+    targets.forEach(b => b.socket.emit('toggleReady'));
+    dlog(`${targets.length}봇 준비 취소 토글`, 'ok');
+}
+
+function disconnectAll() {
+    bots.forEach(b => { try { b.socket.disconnect(); } catch (e) {} });
+    bots.length = 0;
+    dlog('전원 퇴장', 'info');
+    updateBotList();
+}
+
+async function quickFlow() {
+    if (!selectedRoomId) { dlog('방을 먼저 선택하세요', 'err'); return; }
+    await joinBots();
+    await sleep(500);
+    readyAll();   // 입장 시 자동 ready지만 명시적 동기화
+    await sleep(300);
+    betAll();
+}
+</script>
+</body>
+</html>

@@ -47,3 +47,20 @@ summit-log.txt
 AutoTest/node_modules/
 AutoTest/**/*.log
 AutoTest/**/*.png
+.gstack/
+.playwright-cli
+_unused
+
+# Claude Code 세션 잔재
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
+# 산출물 / 백업 (개인 환경 잔재)
+output/
+progress.md
+assets/bridge-cross_backup/
+assets/backgrounds/vehicle-flat/
+assets/backgrounds/vehicle-generated/
+
+# docs/는 협업 추적 폴더라 이그노어 X
+# AutoTest/는 dev 도구 폴더라 이그노어 X — 필요한 것만 git add
