@@ -533,39 +533,19 @@ function updateNonBettorList() {
 function updateStartButton() {
     const btn = document.getElementById('startBridgeCrossButton');
     if (!btn) return;
-    // 호스트 + 게임 진행 중 아님 + 모두 준비 + 베팅 인원 2명 이상
-    const totalUsers = (users && users.length) || 0;
-    const readyCount = (readyUsers && readyUsers.length) || 0;
-    const allReady = totalUsers >= 2 && readyCount >= totalUsers;
-    const enoughBets = currentBettorCount >= 2;
 
-    btn.disabled = !isHost || isBridgeCrossActive || !allReady || !enoughBets;
-
-    // 베팅 안 한 사람 = 전체 사용자 - 베팅한 사용자
-    const allUserNames = (users || []).map(u => u.name);
-    const nonBettors = allUserNames.filter(n => !currentBettorNames.includes(n));
-
-    if (isBridgeCrossActive) {
-        btn.textContent = '게임 진행 중';
-    } else if (totalUsers < 2) {
-        btn.textContent = `게임 시작 (인원 ${totalUsers}/2명)`;
-    } else if (!allReady) {
-        btn.textContent = `게임 시작 (준비 ${readyCount}/${totalUsers}명)`;
-    } else if (!enoughBets) {
-        if (nonBettors.length > 0) {
-            const list = nonBettors.slice(0, 3).join(', ') + (nonBettors.length > 3 ? ` 외 ${nonBettors.length - 3}명` : '');
-            btn.textContent = `게임 시작 (베팅 안 함: ${list})`;
+    // horse-race 패턴: 호스트 + 준비 2명 이상 + 게임 진행 중 아님
+    if (isHost) {
+        if ((readyUsers || []).length >= 2 && !isBridgeCrossActive) {
+            btn.disabled = false;
+            btn.textContent = '🌉 다리 건너기 시작!';
         } else {
-            btn.textContent = `게임 시작 (베팅 ${currentBettorCount}/2명)`;
+            btn.disabled = true;
+            btn.textContent = `🌉 다리 건너기 시작 (${(readyUsers || []).length}/2명 준비)`;
         }
-    } else if (nonBettors.length === 0) {
-        btn.textContent = `게임 시작 (전원 베팅)`;
-    } else {
-        const list = nonBettors.slice(0, 3).join(', ') + (nonBettors.length > 3 ? ` 외 ${nonBettors.length - 3}명` : '');
-        btn.textContent = `게임 시작 (베팅 안 함: ${list})`;
     }
 
-    // "준비했는데 베팅 안 한 사람" 화면 표시 갱신
+    // "준비했는데 베팅 안 한 사람"은 별도 ⏳ 영역에서 표시
     updateNonBettorList();
 }
 
