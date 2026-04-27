@@ -183,7 +183,7 @@ async function getMyRank(serverId, userName) {
     const params = serverId ? [serverId, userName] : [userName];
     const userParam = serverId ? '$2' : '$1';
 
-    const result = { overall: {}, dice: {}, horse: {}, roulette: {} };
+    const result = { overall: {}, dice: {}, horse: {}, roulette: {}, bridge: {} };
 
     // overall: mostPlayed (games DESC)
     const mostPlayedRow = await pool.query(`
@@ -314,6 +314,20 @@ async function getMyRank(serverId, userName) {
         result.roulette.games = { rank: parseInt(r.rank), total: parseInt(r.total), games: parseInt(r.games) };
     }
 
+    const bridgeWinsRow = await pool.query(`
+        WITH stats AS (
+            SELECT user_name, COUNT(*) FILTER (WHERE is_winner = true) AS wins
+            FROM server_game_records WHERE ${serverId ? 'server_id = $1 AND game_type = $3' : 'server_id IS NULL AND game_type = $2'} GROUP BY user_name
+        ),
+        ranked AS (SELECT user_name, wins, DENSE_RANK() OVER (ORDER BY wins DESC) AS rn FROM stats)
+        SELECT r.rn AS rank, (SELECT COUNT(*) FROM stats) AS total, r.wins
+        FROM ranked r WHERE r.user_name = ${typeUserParam}
+    `, serverId ? [serverId, userName, 'bridge'] : [userName, 'bridge']);
+    if (bridgeWinsRow.rows[0]) {
+        const r = bridgeWinsRow.rows[0];
+        result.bridge.wins = { rank: parseInt(r.rank), total: parseInt(r.total), wins: parseInt(r.wins) };
+    }
+
     return result;
 }
 
@@ -325,13 +339,13 @@ async function getMyRank(serverId, userName) {
  * @returns {Promise<Object>} { dice: {userName: rank}, horse: {...}, roulette: {...} }
  */
 async function getTop3Badges(serverId) {
-  if (!serverId) return { dice: {}, horse: {}, roulette: {} };
+  if (!serverId) return { dice: {}, horse: {}, roulette: {}, bridge: {} };
 
   const pool = getPool();
-  if (!pool) return { dice: {}, horse: {}, roulette: {} };
+  if (!pool) return { dice: {}, horse: {}, roulette: {}, bridge: {} };
 
-  const gameTypes = ['dice', 'horse', 'roulette'];
-  const result = { dice: {}, horse: {}, roulette: {} };
+  const gameTypes = ['dice', 'horse', 'roulette', 'bridge'];
+  const result = { dice: {}, horse: {}, roulette: {}, bridge: {} };
 
   for (const gameType of gameTypes) {
     const query = `
@@ -372,13 +386,15 @@ async function getFullRanking(serverId, userName, isPrivate) {
     const dice = await getGameRanking(serverId, 'dice');
     const horseRace = await getHorseRaceStats(serverId);
     const roulette = await getGameRanking(serverId, 'roulette');
+    const bridge = await getGameRanking(serverId, 'bridge');
 
     const result = {
         serverType: isPrivate ? 'private' : 'public',
         overall,
         dice,
         horseRace,
-        roulette
+        roulette,
+        bridge
     };
 
     if (userName) {

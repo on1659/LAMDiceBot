@@ -1,2583 +1,818 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LAMDice - 다리 건너기</title>
-  <meta name="description" content="LAMDice 다리 건너기 — 유리 다리에서 누가 살아남을지 베팅!">
-  <!-- Google AdSense (auto-ads disabled on game pages) -->
-  <meta name="google-adsense-account" content="ca-pub-1608259764663412">
-  <script>
-    /* Disable auto-ads (anchor/vignette) on game pages — this is a config call, not a slot push */
-    (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
-  </script>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/css/theme.css">
-  <style>
-    /* Custom Popup Animations */
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
-    }
-    @keyframes slideDown {
-        from { transform: translateY(-30px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-    :root {
-      color-scheme: dark;
-      --bg: #050616;
-      --panel: rgba(9, 12, 34, 0.9);
-      --line: rgba(88, 231, 255, 0.24);
-      --cyan: #42edff;
-      --gold: #ffd86b;
-      --danger: #ff5ebd;
-      --text: #f8fbff;
-      --muted: #a8b7d0;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      min-height: 100%;
-      background: radial-gradient(circle at 50% 0%, #1b2462 0, #090b22 46%, #03040d 100%);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    body {
-      display: flex;
-      justify-content: center;
-      padding: 16px;
-      overflow-x: hidden;
-    }
-
-    .shell {
-      width: min(1280px, 100%);
-      display: grid;
-      gap: 12px;
-    }
-
-    .topbar,
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.34);
-      backdrop-filter: blur(12px);
-    }
-
-    .topbar {
-      min-height: 68px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-      padding: 12px 14px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(19px, 2.2vw, 25px);
-      font-weight: 900;
-      letter-spacing: 0;
-    }
-
-    .subtitle {
-      margin: 4px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.35;
-    }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    button {
-      min-height: 38px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 7px;
-      padding: 9px 13px;
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.08);
-      font-weight: 800;
-      cursor: pointer;
-      transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
-    }
-
-    button:hover {
-      transform: translateY(-1px);
-      background: rgba(255, 255, 255, 0.14);
-      border-color: rgba(255, 255, 255, 0.28);
-    }
-
-    button.primary {
-      color: #041018;
-      background: linear-gradient(135deg, var(--cyan), #a9fff4);
-      border-color: rgba(66, 237, 255, 0.78);
-    }
-
-    button.warn {
-      background: rgba(255, 94, 189, 0.16);
-      border-color: rgba(255, 94, 189, 0.46);
-    }
-
-    .top-links {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .top-links a {
-      color: var(--cyan);
-      text-decoration: none;
-      border-bottom: 1px solid rgba(66, 237, 255, 0.34);
-    }
-
-    .phase-pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 24px;
-      padding: 3px 8px;
-      border: 1px solid rgba(255, 216, 107, 0.36);
-      border-radius: 999px;
-      color: var(--gold);
-      background: rgba(255, 216, 107, 0.1);
-    }
-
-    .stage-wrap {
-      position: relative;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
-      background: #02030b;
-      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.46);
-    }
-
-    .zoom-ui {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      background: rgba(4, 7, 22, 0.78);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 4px 8px;
-      backdrop-filter: blur(8px);
-    }
-
-    .zoom-ui button {
-      min-height: 36px;
-      min-width: 36px;
-      padding: 4px 8px;
-      font-size: 16px;
-      font-weight: 700;
-      border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.07);
-      color: var(--text);
-      cursor: pointer;
-      transition: background 0.14s ease, border-color 0.14s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .zoom-ui button:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(255, 255, 255, 0.28);
-      transform: none;
-    }
-
-    .zoom-value {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--cyan);
-      min-width: 38px;
-      text-align: center;
-      user-select: none;
-    }
-
-    .debug-panel {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 11;
-      background: rgba(4, 7, 22, 0.88);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 10px;
-      backdrop-filter: blur(8px);
-      min-width: 230px;
-      max-width: 270px;
-      font-size: 12px;
-      color: var(--text);
-      line-height: 1.4;
-    }
-
-    .debug-panel .debug-title {
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 6px;
-      letter-spacing: 0.04em;
-    }
-
-    .debug-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-bottom: 4px;
-    }
-
-    .debug-row label {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      width: 100%;
-      font-size: 11px;
-      color: var(--muted);
-    }
-
-    .debug-row label span {
-      min-width: 46px;
-      flex-shrink: 0;
-    }
-
-    .debug-row input[type="range"] {
-      flex: 1;
-      height: 16px;
-      accent-color: var(--cyan);
-      cursor: pointer;
-    }
-
-    .debug-row input[type="number"] {
-      width: 52px;
-      flex-shrink: 0;
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 4px;
-      color: var(--text);
-      font-size: 11px;
-      padding: 1px 4px;
-      text-align: right;
-    }
-
-    .debug-info {
-      margin: 6px 0;
-      font-size: 11px;
-      color: var(--cyan);
-      line-height: 1.5;
-    }
-
-    .debug-panel button {
-      min-height: 28px;
-      font-size: 11px;
-      padding: 4px 8px;
-      width: 100%;
-      margin-top: 4px;
-    }
-
-    #dbgCodeOut {
-      width: 100%;
-      margin-top: 4px;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      color: var(--gold);
-      font-size: 10px;
-      font-family: monospace;
-      padding: 4px;
-      resize: none;
-    }
-
-    @media (max-width: 760px) {
-      .zoom-ui {
-        bottom: 8px;
-        right: 8px;
-        padding: 3px 6px;
-      }
-
-      .zoom-ui button {
-        min-height: 36px;
-        min-width: 36px;
-      }
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: auto;
-      aspect-ratio: 3 / 2;
-      background: #02030b;
-      image-rendering: pixelated;
-    }
-
-    .statusbar {
-      display: grid;
-      grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
-      gap: 12px;
-    }
-
-    .card {
-      min-width: 0;
-      padding: 12px 14px;
-    }
-
-    .card h2 {
-      margin: 0 0 8px;
-      color: var(--cyan);
-      font-size: 13px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .game-status {
-      border: 1px solid rgba(66, 237, 255, 0.24);
-      border-radius: 8px;
-      padding: 10px 14px;
-      background: rgba(5, 8, 24, 0.82);
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
-      text-align: center;
-    }
-    .game-status.waiting {
-      background: rgba(168, 183, 208, 0.10);
-      color: var(--muted);
-    }
-    .game-status.playing {
-      background: rgba(66, 237, 255, 0.16);
-      color: var(--cyan);
-    }
-    .game-status.finished {
-      background: rgba(255, 216, 107, 0.14);
-      color: var(--gold);
-    }
-
-    .betting-panel {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      padding: 12px 14px;
-      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
-      backdrop-filter: blur(12px);
-      min-width: 0;
-    }
-
-    .ready-section,
-    .chat-section,
-    .users-section,
-    .orders-section {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      padding: 12px 14px;
-      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
-      backdrop-filter: blur(12px);
-      min-width: 0;
-    }
-
-    .section-head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-
-    .section-head h2 {
-      margin: 0;
-      color: var(--cyan);
-      font-size: 13px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .section-head span {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    /* `.users-title` — bridge-cross 시안 테마 (horse-race.css 의 동일 클래스 대체) */
-    .users-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: var(--cyan);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-
-    .betting-grid {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(80px, 1fr));
-      gap: 8px;
-    }
-
-    .bet-card {
-      min-height: 86px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-top: 4px solid var(--bet-color, var(--cyan));
-      border-radius: 8px;
-      padding: 9px;
-      background: rgba(255, 255, 255, 0.055);
-      color: var(--text);
-      text-align: left;
-    }
-
-    .bet-card[aria-disabled="true"] {
-      cursor: default;
-      opacity: 0.78;
-    }
-
-    .bet-card strong,
-    .bet-card span {
-      display: block;
-    }
-
-    .bet-card strong {
-      font-size: 16px;
-      margin-bottom: 4px;
-    }
-
-    .bet-card span {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
-    }
-
-    .users-list,
-    .chat-messages {
-      min-height: 44px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      padding: 9px;
-      background: rgba(0, 0, 0, 0.16);
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .user-tag {
-      display: inline-flex;
-      align-items: center;
-      min-height: 26px;
-      margin: 2px 4px 2px 0;
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 2px solid var(--cyan);
-      background: rgba(66, 237, 255, 0.12);
-      color: var(--text);
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .user-tag.host {
-      background: var(--cyan);
-      color: #041018;
-    }
-    .user-tag.ready {
-      background: #4CAF50;
-      border-color: #4CAF50;
-      color: white;
-    }
-    .user-tag.me {
-      border-color: var(--gold);
-      color: var(--gold);
-    }
-
-    .chat-section {
-      display: grid;
-      gap: 8px;
-    }
-
-    .chat-messages {
-      min-height: 96px;
-      max-height: 140px;
-      overflow-y: auto;
-    }
-
-    .chat-input-row,
-    .order-input-group {
-      display: flex;
-      gap: 8px;
-    }
-
-    .chat-input-row button,
-    .order-actions button {
-      white-space: nowrap;
-      font-size: 12px;
-    }
-
-    .chat-input-row button {
-      min-width: 56px;
-    }
-
-    .order-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-
-    .order-actions button {
-      flex: 1 1 110px;
-    }
-
-    input[type="text"] {
-      min-height: 38px;
-      width: 100%;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 7px;
-      padding: 8px 10px;
-      background: rgba(255, 255, 255, 0.07);
-      color: var(--text);
-      font: inherit;
-    }
-
-    input[type="text"]:disabled,
-    button:disabled {
-      cursor: default;
-      opacity: 0.58;
-    }
-
-    .ticker,
-    .ranking {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .ticker li,
-    .ranking li {
-      padding: 3px 0;
-      overflow-wrap: anywhere;
-    }
-
-    .ticker strong,
-    .ranking strong {
-      color: var(--text);
-    }
-
-    @media (max-width: 760px) {
-      body {
-        padding: 10px;
-      }
-
-      .topbar,
-      .statusbar {
-        grid-template-columns: 1fr;
-      }
-
-      .actions {
-        justify-content: stretch;
-      }
-
-      .actions button {
-        flex: 1 1 110px;
-      }
-
-      .debug-panel {
-        min-width: 180px;
-        max-width: 210px;
-        font-size: 11px;
-      }
-
-      .betting-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Google AdSense (auto-ads disabled on game pages) -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script>
+      /* Disable auto-ads (anchor/vignette) on game pages — this is a config call, not a slot push */
+      (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+    <title>LAM Bridge Cross 🌉</title>
+    <meta name="description" content="유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.">
+    <meta property="og:title" content="LAM Bridge Cross 🌉">
+    <meta property="og:description" content="유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lamdice.com/bridge-cross">
+    <meta property="og:site_name" content="LAMDice">
+    <meta property="og:locale" content="ko_KR">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="LAM Bridge Cross 🌉">
+    <meta name="twitter:description" content="유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.">
+    <link rel="canonical" href="https://lamdice.com/bridge-cross">
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/bridge-cross.css">
+    <style>
+        /* Custom Popup Animations (showCustomAlert/Confirm 공통) */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LAMDice 다리 건너기",
+      "description": "유리 다리에서 살아남을 색을 베팅하세요. 서버가 결정하는 공정한 다리 건너기 게임.",
+      "url": "https://lamdice.com/bridge-cross",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+    }
+    </script>
 </head>
-<body>
-  <input type="hidden" id="globalUserNameInput">
-  <main class="shell">
-    <section class="topbar">
-      <div>
-        <h1>다리 건너기</h1>
-        <p class="subtitle" id="roomSubtitle">방에 연결 중...</p>
-        <div class="top-links">
-          <a href="/">LAMDice 홈</a>
-          <span id="roomNameBadge" class="phase-pill" style="display:none"></span>
+<body class="bridge-cross">
+    <noscript>
+        <div style="padding:40px; text-align:center; font-family:sans-serif;">
+            <h1>LAMDice 다리 건너기</h1>
+            <p>이 게임은 JavaScript가 필요합니다.</p>
+            <p>친구와 함께하는 실시간 다리 건너기 베팅 게임. 서버가 결정하는 공정한 시나리오로 누가 살아남을지 맞히세요.</p>
+            <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
         </div>
-      </div>
-      <div class="actions">
-        <button class="primary" id="startBtn" type="button" style="display:none">게임 시작</button>
-        <button class="warn" id="leaveBtn" type="button" onclick="leaveRoom()">나가기</button>
-      </div>
+    </noscript>
+    <!-- 로딩 화면 -->
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bridge-bg-radial); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite;">🌉</div>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">방에 입장 중...</h2>
+            <p style="font-size: 16px; opacity: 0.8;">잠시만 기다려주세요</p>
+            <div style="margin-top: 30px;">
+                <div style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 이름 입력 (로그인 시 자동 설정, 숨김) -->
+    <input type="hidden" id="globalUserNameInput">
+
+    <div class="container">
+        <!-- 게임 섹션 -->
+        <section class="game-section" id="gameSection">
+            <!-- 방 정보 헤더 (공유 컨트롤 바) -->
+            <div id="controlBarMount"></div>
+            <script src="/js/shared/control-bar-shared.js"></script>
+            <script>
+                ControlBar.init({
+                    gameKey: 'bridge',
+                    soundKey: 'bridgeSoundEnabled',
+                    volumeKey: 'bridgeSoundVolume',
+                    onLeave: function() { leaveRoom(); }
+                });
+            </script>
+
+            <!-- 방 폭파 카운트다운 -->
+            <div class="room-expiry-section" id="roomExpirySection" style="display: none;">
+                <div style="color: var(--status-warning-text); font-weight: bold; font-size: 14px;">
+                    ⏰ 방 폭파까지 남은 시간: <span id="roomExpiryCountdown" style="color: var(--red-500);">--:--:--</span>
+                </div>
+            </div>
+
+            <!-- 접속자 목록 -->
+            <div class="users-section" id="usersSection">
+                <div class="users-title">
+                    👥 접속자 (<span id="usersCount">0</span>명)
+                    <span id="dragHint" style="display: none; font-size: 12px; color: var(--bridge-500); font-weight: normal; margin-left: 10px;">
+                        💡 드래그로 준비 시킬 수 있습니다.
+                    </span>
+                </div>
+                <div class="users-list" id="usersList"></div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: Lobby Banner -->
+            <div class="ad-container ad-lobby">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="7466418558"
+                   data-ad-format="auto"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
+            <!-- 준비 섹션 -->
+            <div class="ready-section" id="readySection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
+                    <button id="readyButton" onclick="toggleReady()" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--btn-ready-hover) 100%);">준비</button>
+                </div>
+                <div class="users-list" id="readyUsersList">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px; width: 100%;">아직 준비한 사람이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 베팅 섹션 (mockup base에서 이식) -->
+            <section class="betting-panel" id="bettingSection" style="display:none" aria-label="베팅">
+                <div class="section-head">
+                    <h2>베팅</h2>
+                    <span id="bettingCountLabel">0명 베팅 완료</span>
+                </div>
+                <div id="bettingCountdown" style="text-align:center; font-size:15px; font-weight:800; color:var(--bridge-gold); margin-bottom:8px;"></div>
+                <div class="betting-grid" id="bettingGrid">
+                    <button class="bet-card" type="button" data-color-index="0" style="--bet-color:#ff4f68"><strong>1 빨강</strong></button>
+                    <button class="bet-card" type="button" data-color-index="1" style="--bet-color:#ff9b3d"><strong>2 주황</strong></button>
+                    <button class="bet-card" type="button" data-color-index="2" style="--bet-color:#ffd84f"><strong>3 노랑</strong></button>
+                    <button class="bet-card" type="button" data-color-index="3" style="--bet-color:#5df08a"><strong>4 초록</strong></button>
+                    <button class="bet-card" type="button" data-color-index="4" style="--bet-color:#42edff"><strong>5 파랑</strong></button>
+                    <button class="bet-card" type="button" data-color-index="5" style="--bet-color:#7489ff"><strong>6 남색</strong></button>
+                </div>
+            </section>
+
+            <!-- 호스트 컨트롤 -->
+            <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button class="start-button" id="startBtn" style="flex: 1;">
+                        게임 시작
+                    </button>
+                    <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
+                    <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                </div>
+            </div>
+
+            <!-- 주문받기 섹션 -->
+            <div class="orders-section" id="ordersSection" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="users-title" style="font-weight: bold; color: var(--bridge-500); font-size: 16px; margin: 0;">🍔 주문받기</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="OrderModule.showOrderList()" id="showOrderListButton" style="width: auto; padding: 8px 16px; font-size: 14px; background: var(--bridge-500); color: var(--text-primary); font-weight: 600;">📋 주문리스트</button>
+                        <button onclick="OrderModule.sortOrders('asc')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--bridge-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">가나다순</button>
+                        <button onclick="OrderModule.sortOrders('count')" class="sort-btn" style="padding: 6px 10px; font-size: 12px; background: var(--bridge-600); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer;">주문 많은 순</button>
+                    </div>
+                </div>
+
+                <!-- 주문하지 않은 사람 목록 -->
+                <div id="notOrderedSection" style="display: none; margin-bottom: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 주문하지 않은 사람</div>
+                    <div id="notOrderedList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
+
+                <!-- 내 주문 입력 -->
+                <div style="background: var(--yellow-50); border: 2px solid var(--yellow-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-size: 16px; font-weight: 600; color: var(--yellow-900); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>📝</span>
+                            <span>내 주문</span>
+                        </div>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--bridge-500); border: 1px solid var(--bridge-500); border-radius: 4px; cursor: pointer;">메뉴 관리</button>
+                    </div>
+
+                    <!-- 자주 쓰는 메뉴 관리 -->
+                    <div id="menuManager" style="display: none; background: var(--bg-primary); border: 2px solid var(--bridge-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-weight: bold; color: var(--bridge-500);">📋 자주 쓰는 메뉴</span>
+                            <button onclick="OrderModule.toggleMenuManager()" style="padding: 4px 8px; font-size: 12px; background: var(--btn-danger); color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" id="newMenuInput" placeholder="새 메뉴 입력" maxlength="50" style="flex: 1; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px;">
+                            <button onclick="OrderModule.addMenu()" style="padding: 8px 16px; background: var(--bridge-500); color: white; border: none; border-radius: 4px; cursor: pointer;">추가</button>
+                        </div>
+                        <div id="menuList" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto;">
+                            <div style="color: var(--text-muted); text-align: center; padding: 10px;">등록된 메뉴가 없습니다</div>
+                        </div>
+                    </div>
+
+                    <div class="order-input-group">
+                        <div class="order-input-wrapper">
+                            <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
+                            <input type="text" id="myOrderInput" placeholder="주문할 내용을 입력하세요" maxlength="100" disabled>
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
+                        </div>
+                        <button onclick="OrderModule.updateMyOrder()" id="orderSaveButton" style="width: auto; padding: 12px 20px; height: fit-content; margin: 0; color: var(--text-primary); font-weight: 600;" disabled>저장</button>
+                    </div>
+                </div>
+
+                <!-- 전체 주문 목록 -->
+                <div id="orderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                    <div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 주문이 없습니다</div>
+                </div>
+                <!-- 관전자 주문 -->
+                <div id="spectatorOrdersSection" style="display: none; margin-top: 10px;">
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">관전자 주문</div>
+                    <div id="spectatorOrderList" style="background: var(--bg-primary); border-radius: 8px; padding: 12px;"></div>
+                </div>
+            </div>
+
+            <!-- 게임 상태 표시 -->
+            <div class="game-status waiting" id="gameStatus">
+                대기 중
+            </div>
+
+            <!-- 다리 건너기 게임 영역 (mockup base에서 이식) -->
+            <section class="stage-wrap">
+                <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
+                <div class="zoom-ui" id="zoomUi">
+                    <button data-zoom="-0.1" type="button" aria-label="줌 아웃">−</button>
+                    <span class="zoom-value" id="zoomValue">1.0×</span>
+                    <button data-zoom="+0.1" type="button" aria-label="줌 인">+</button>
+                    <button data-zoom="reset" type="button" aria-label="리셋">⟲</button>
+                </div>
+                <div class="debug-panel" id="debugPanel" hidden>
+                    <div class="debug-title">Stage Layout Debug &mdash; D 키로 토글</div>
+                    <div class="debug-row">
+                        <label><span>start.x</span><input type="range" id="dbgStartX" min="-300" max="1500" value="-145"><input type="number" id="dbgStartXNum" value="-145"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>start.y</span><input type="range" id="dbgStartY" min="-200" max="1200" value="751"><input type="number" id="dbgStartYNum" value="751"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>finish.x</span><input type="range" id="dbgFinishX" min="500" max="2400" value="1013"><input type="number" id="dbgFinishXNum" value="1013"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>finish.y</span><input type="range" id="dbgFinishY" min="-300" max="800" value="-27"><input type="number" id="dbgFinishYNum" value="-27"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>entry.dx</span><input type="range" id="dbgEntryDx" min="-300" max="400" value="217"><input type="number" id="dbgEntryDxNum" value="217"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>entry.dy</span><input type="range" id="dbgEntryDy" min="-300" max="300" value="-159"><input type="number" id="dbgEntryDyNum" value="-159"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>exit.dx</span><input type="range" id="dbgExitDx" min="-300" max="300" value="-122"><input type="number" id="dbgExitDxNum" value="-122"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>exit.dy</span><input type="range" id="dbgExitDy" min="-300" max="300" value="40"><input type="number" id="dbgExitDyNum" value="40"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>row.dx</span><input type="range" id="dbgRowDx" min="-50" max="200" value="146"><input type="number" id="dbgRowDxNum" value="146"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>row.dy</span><input type="range" id="dbgRowDy" min="-50" max="200" value="76"><input type="number" id="dbgRowDyNum" value="76"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>tile.w</span><input type="range" id="dbgTileW" min="100" max="400" value="300"><input type="number" id="dbgTileWNum" value="300"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>tile.h</span><input type="range" id="dbgTileH" min="60" max="250" value="143"><input type="number" id="dbgTileHNum" value="143"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>tile.rot°</span><input type="range" id="dbgTileRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgTileRotNum" value="0" step="0.5"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>start.rot°</span><input type="range" id="dbgStartRot" min="-180" max="180" value="2.5" step="0.5"><input type="number" id="dbgStartRotNum" value="2.5" step="0.5"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>finish.rot°</span><input type="range" id="dbgFinishRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgFinishRotNum" value="0" step="0.5"></label>
+                    </div>
+                    <div class="debug-row">
+                        <label><span>char.footY</span><input type="range" id="dbgFootY" min="-50" max="100" value="30"><input type="number" id="dbgFootYNum" value="30"></label>
+                    </div>
+                    <div class="debug-info" id="dbgInfo"></div>
+                    <button type="button" id="dbgSnapBtn" title="row 슬로프와 평행하도록 다리 column step 자동 보정">📐 Dimetric Snap</button>
+                    <button type="button" id="dbgCopyBtn">코드 복사</button>
+                    <textarea id="dbgCodeOut" readonly rows="11"></textarea>
+                </div>
+            </section>
+
+            <!-- Event Feed / Crossing Order (게임 진행 텍스트 패널) -->
+            <section class="statusbar">
+                <article class="card">
+                    <h2>Event Feed</h2>
+                    <ul class="ticker" id="ticker"></ul>
+                </article>
+                <article class="card">
+                    <h2>Crossing Order</h2>
+                    <ul class="ranking" id="ranking"></ul>
+                </article>
+            </section>
+
+            <!-- 채팅 섹션 -->
+            <div class="chat-section">
+                <div style="font-weight: bold; color: var(--bridge-500); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
+                    <button onclick="sendMessage()" style="width: auto; padding: 10px 20px; color: var(--text-primary); font-weight: 600;">전송</button>
+                </div>
+            </div>
+
+            <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+            <!-- Ad: In-Game Bottom Banner -->
+            <div class="ad-container ad-game">
+              <span class="ad-label">AD</span>
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-1608259764663412"
+                   data-ad-slot="3774585551"
+                   data-ad-format="horizontal"
+                   data-full-width-responsive="true"></ins>
+            </div>
+
+        </section>
+    </div>
+
+    <!-- 기록 섹션 -->
+    <div class="history-section" id="historySection">
+        <div class="history-title">📜 게임 기록</div>
+        <div id="historyList"></div>
+    </div>
+
+    <!-- 결과 오버레이 -->
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-card">
+            <div class="result-title">🎊 결과 발표 🎊</div>
+            <div id="resultRankings" style="margin-bottom: 20px;"></div>
+            <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">확인</button>
+        </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 -->
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+            <h3 style="color: var(--bridge-500); margin-bottom: 15px;">🔒 비공개 방</h3>
+            <p style="margin-bottom: 15px; color: var(--text-secondary);">비밀번호를 입력하세요</p>
+            <input type="password" id="roomPasswordInput" placeholder="비밀번호" style="margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closePasswordModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">취소</button>
+                <button onclick="submitPassword()" style="flex: 1; color: var(--text-primary); font-weight: 600;">입장</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/shared/page-history-shared.js"></script>
+    <script src="/js/shared/chat-shared.js"></script>
+    <script src="/js/shared/ready-shared.js"></script>
+    <script src="/js/shared/order-shared.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
+    <script src="/js/shared/countdown-shared.js"></script>
+    <script src="/assets/sounds/sound-manager.js"></script>
+
+    <script src="/js/bridge-cross.js"></script>
+
+    <script>
+        // ============================================
+        // Custom Popup Functions
+        // ============================================
+
+        // 커스텀 얼럿 함수
+        function showCustomAlert(message, type = 'info') {
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            let borderColor, icon;
+            switch(type) {
+                case 'error':
+                    borderColor = 'rgb(239, 68, 68)';
+                    icon = '⚠️';
+                    break;
+                case 'warning':
+                    borderColor = 'rgb(234, 179, 8)';
+                    icon = '⚠️';
+                    break;
+                case 'success':
+                    borderColor = 'rgb(34, 197, 94)';
+                    icon = '✅';
+                    break;
+                default:
+                    borderColor = 'rgb(147, 51, 234)';
+                    icon = 'ℹ️';
+            }
+
+            const alertOverlay = document.createElement('div');
+            alertOverlay.id = 'customAlert';
+            alertOverlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.4); z-index: 10001;
+                display: flex; justify-content: center; align-items: center;
+                animation: fadeIn 0.2s ease-out;
+            `;
+
+            const alertContent = document.createElement('div');
+            alertContent.style.cssText = `
+                background: white; border-radius: 16px; padding: 20px;
+                max-width: 450px; width: calc(100vw - 40px);
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                border: 2px solid ${borderColor};
+                animation: slideDown 0.3s ease-out;
+                box-sizing: border-box;
+            `;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+                white-space: pre-wrap; word-wrap: break-word;
+                word-break: keep-all; overflow-wrap: break-word;
+                text-align: center; margin-bottom: 20px;
+                max-width: 100%;
+            `;
+            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '확인';
+            confirmButton.style.cssText = `
+                padding: 10px 30px;
+                background: ${borderColor};
+                color: white; border: none; border-radius: 8px;
+                font-size: 16px; font-weight: 600; cursor: pointer;
+                width: 100%; transition: transform 0.1s, box-shadow 0.1s;
+            `;
+            confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+            confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+            confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
+
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+
+            alertOverlay.onclick = (e) => {
+                if (e.target === alertOverlay) {
+                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
+                }
+            };
+
+            alertContent.appendChild(messageDiv);
+            alertContent.appendChild(confirmButton);
+            alertOverlay.appendChild(alertContent);
+            document.body.appendChild(alertOverlay);
+            confirmButton.focus();
+        }
+
+        // 커스텀 확인 다이얼로그
+        function showCustomConfirm(message, type = 'warning') {
+            return new Promise((resolve) => {
+                const existingConfirm = document.getElementById('customConfirm');
+                if (existingConfirm) { existingConfirm.remove(); }
+
+                let borderColor, icon;
+                switch(type) {
+                    case 'error': borderColor = 'rgb(239, 68, 68)'; icon = '⚠️'; break;
+                    case 'warning': borderColor = 'rgb(234, 179, 8)'; icon = '⚠️'; break;
+                    case 'success': borderColor = 'rgb(34, 197, 94)'; icon = '✅'; break;
+                    default: borderColor = 'rgb(147, 51, 234)'; icon = 'ℹ️';
+                }
+
+                const confirmOverlay = document.createElement('div');
+                confirmOverlay.id = 'customConfirm';
+                confirmOverlay.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0, 0, 0, 0.4); z-index: 10002;
+                    display: flex; justify-content: center; align-items: center;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+
+                const confirmContent = document.createElement('div');
+                confirmContent.style.cssText = `
+                    background: white; border-radius: 16px; padding: 20px;
+                    max-width: 450px; width: calc(100vw - 40px);
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    border: 2px solid ${borderColor};
+                    animation: slideDown 0.3s ease-out;
+                    box-sizing: border-box;
+                `;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+                    white-space: pre-wrap; word-wrap: break-word;
+                    word-break: keep-all; overflow-wrap: break-word;
+                    text-align: center; margin-bottom: 25px;
+                    max-width: 100%;
+                `;
+                messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `display: flex; gap: 10px; justify-content: center;`;
+
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = '취소';
+                cancelButton.style.cssText = `
+                    padding: 10px 25px; background: rgb(243, 244, 246); color: rgb(107, 114, 128);
+                    border: 1px solid rgb(209, 213, 219); border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                cancelButton.onmouseenter = () => { cancelButton.style.transform = 'scale(1.02)'; };
+                cancelButton.onmouseleave = () => { cancelButton.style.transform = 'scale(1)'; };
+                cancelButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(false); }, 200); };
+
+                const confirmButton = document.createElement('button');
+                confirmButton.textContent = '확인';
+                confirmButton.style.cssText = `
+                    padding: 10px 25px; background: ${borderColor};
+                    color: white; border: none; border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; flex: 1;
+                `;
+                confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+                confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+                confirmButton.onclick = () => { confirmOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => { confirmOverlay.remove(); resolve(true); }, 200); };
+
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+                document.addEventListener('keydown', handleEsc);
+
+                confirmOverlay.onclick = (e) => {
+                    if (e.target === confirmOverlay) {
+                        confirmOverlay.style.animation = 'fadeOut 0.2s ease-out';
+                        setTimeout(() => { confirmOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(false); }, 200);
+                    }
+                };
+
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(confirmButton);
+                confirmContent.appendChild(messageDiv);
+                confirmContent.appendChild(buttonContainer);
+                confirmOverlay.appendChild(confirmContent);
+                document.body.appendChild(confirmOverlay);
+                confirmButton.focus();
+            });
+        }
+
+        // ============================================
+        // Result Overlay (placeholder — Phase 2/3에서 historySection 통합 예정)
+        // ============================================
+        function closeResultOverlay() {
+            const overlay = document.getElementById('resultOverlay');
+            if (overlay) {
+                overlay.classList.remove('visible');
+                overlay.style.display = '';  // inline 강제 제거
+            }
+        }
+
+        function closePasswordModal() {
+            const m = document.getElementById('passwordModal');
+            if (m) m.style.display = 'none';
+            const inp = document.getElementById('roomPasswordInput');
+            if (inp) inp.value = '';
+        }
+
+        function submitPassword() {
+            // js/bridge-cross.js의 joinRoomOnLoad가 비공개 방일 때 window.pendingRoomId / window.pendingUserName을 세팅함
+            const inp = document.getElementById('roomPasswordInput');
+            const password = inp ? inp.value : '';
+            if (!window.pendingRoomId || !window.pendingUserName) {
+                closePasswordModal();
+                return;
+            }
+            const sock = window.socket;
+            if (sock) {
+                sock.emit('joinRoom', {
+                    roomId: window.pendingRoomId,
+                    userName: window.pendingUserName,
+                    isHost: false,
+                    password: password,
+                    gameType: 'bridge',
+                    deviceId: (typeof getDeviceId === 'function' ? getDeviceId() : undefined),
+                    tabId: (typeof getTabId === 'function' ? getTabId() : undefined)
+                });
+            }
+            window.pendingRoomId = null;
+            window.pendingUserName = null;
+            closePasswordModal();
+        }
+
+        // ============================================
+        // Room Control Bar Enhancement
+        // ============================================
+
+        // Room title editing
+        let isEditingRoomName = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const roomTitleElem = document.getElementById('roomTitle');
+            if (!roomTitleElem) return;
+
+            roomTitleElem.addEventListener('click', function() {
+            // Check if user is host (check global isHost from bridge-cross.js or room data)
+            if (!window.isHost || isEditingRoomName) return;
+
+            isEditingRoomName = true;
+            const displaySpan = document.getElementById('roomNameDisplay');
+            const currentName = displaySpan.textContent;
+            const editIcon = this.querySelector('.edit-icon');
+
+            // Hide icon during edit
+            if (editIcon) editIcon.style.display = 'none';
+
+            // Create input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.maxLength = 30;
+            input.style.cssText = 'font-size: inherit; font-weight: inherit; border: 2px solid var(--bridge-500); border-radius: 4px; padding: 4px 8px; width: 200px; background: var(--bg-white); color: var(--text-primary);';
+
+            displaySpan.replaceWith(input);
+            input.focus();
+            input.select();
+
+            function finishEdit() {
+                const newName = input.value.trim();
+                const newDisplay = document.createElement('span');
+                newDisplay.id = 'roomNameDisplay';
+                newDisplay.textContent = newName || currentName;
+
+                input.replaceWith(newDisplay);
+                if (editIcon) editIcon.style.display = '';
+                isEditingRoomName = false;
+
+                if (newName && newName !== currentName && window.socket) {
+                    window.socket.emit('updateRoomName', { roomName: newName });
+                }
+            }
+
+            input.addEventListener('blur', finishEdit);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') finishEdit();
+            });
+            });
+        });
+
+        // Update room title on server broadcast
+        if (window.socket) {
+            window.socket.on('roomNameUpdated', (data) => {
+                const display = document.getElementById('roomNameDisplay');
+                if (display) display.textContent = data.roomName;
+            });
+        }
+
+        // Show/hide UI elements based on host status
+        function updateControlBarUI(isHostUser) {
+            const editIcon = document.querySelector('.edit-icon');
+            const hostBadge = document.getElementById('hostBadge');
+            const usernameDisplay = document.getElementById('usernameDisplay');
+
+            if (editIcon) editIcon.style.display = isHostUser ? 'inline' : 'none';
+            if (hostBadge) hostBadge.style.display = isHostUser ? 'inline-block' : 'none';
+
+            // Show username if available
+            if (usernameDisplay && currentUser) {
+                usernameDisplay.textContent = currentUser;
+                usernameDisplay.style.display = 'inline-block';
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            const confirmed = await showCustomConfirm('로그아웃 하시겠습니까? 방에서 나가고 메인 페이지로 이동합니다.', 'warning');
+            if (confirmed) {
+                if (window.socket) {
+                    window.socket.emit('leaveRoom');
+                    window.socket.disconnect();
+                }
+
+                // Clear session
+                sessionStorage.removeItem('bridgeActiveRoom');
+                sessionStorage.removeItem('userName');
+
+                // Redirect to main page
+                location.href = '/';
+            }
+        }
+
+        // Host delegation (to be implemented in user list rendering)
+        async function delegateHost(targetSocketId) {
+            if (!window.socket || !window.roomUsers) return;
+
+            const targetUser = window.roomUsers.find(u => u.socketId === targetSocketId);
+            if (!targetUser) return;
+
+            const confirmed = await showCustomConfirm(`${targetUser.name}님에게 호스트를 위임하시겠습니까?`, 'warning');
+            if (confirmed) {
+                window.socket.emit('delegateHost', { targetSocketId });
+            }
+        }
+
+        // Listen for host delegation
+        if (window.socket) {
+            window.socket.on('hostDelegated', (data) => {
+                window.isHost = data.newHostSocketId === window.socket.id;
+                window.hostSocketId = data.newHostSocketId;
+
+                updateControlBarUI(window.isHost);
+
+                // Refresh user list if available
+                if (typeof renderUsersList === 'function' && window.roomUsers) {
+                    renderUsersList(window.roomUsers);
+                }
+
+                if (window.isHost) {
+                    showCustomAlert('호스트 권한을 받았습니다!', 'success');
+                }
+            });
+        }
+
+        // Initialize control bar on page load
+        window.addEventListener('load', () => {
+            // This will be called after bridge-cross.js loads
+            if (window.socket) {
+                window.socket.on('roomJoined', (data) => {
+                    setTimeout(() => {
+                        updateControlBarUI(window.isHost);
+                    }, 100);
+                });
+            }
+
+        });
+    </script>
+
+    <!-- 디버그 로그 섹션 -->
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
+                <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
+            </div>
+        </div>
+        <div id="debugLogContent" style="line-height: 1.4;"></div>
+    </div>
+    <!-- SEO Content Section (hidden, crawlers only) -->
+    <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
+        <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 다리 건너기 게임 안내</h2>
+        <p>LAMDice 다리 건너기는 친구들과 함께 즐기는 무료 온라인 베팅 게임입니다. 6개 색깔 캐릭터 중 누가 유리 다리를 끝까지 건너 살아남을지 예측하여 베팅하세요. 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
+        <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+            <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
+            <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
+            <a href="/" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🏠 홈으로</a>
+        </div>
+        <p style="margin-top:12px; font-size:0.9em; color:var(--text-tertiary);">다른 게임도 즐겨보세요: <a href="/game" style="color:var(--link-brand);">주사위</a> · <a href="/roulette" style="color:var(--link-brand);">룰렛</a> · <a href="/horse-race" style="color:var(--link-brand);">경마</a></p>
     </section>
 
-    <section class="users-section" id="usersSection">
-      <div class="section-head">
-        <h2>접속자</h2>
-        <span><span id="usersCount">0</span>명</span>
-      </div>
-      <div class="users-list" id="usersList"></div>
-    </section>
+    <!-- Ad: Footer Banner -->
+    <div class="ad-container" style="max-width:800px;">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
 
-    <section class="ready-section" id="readySection">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <div class="users-title" style="margin: 0;">✅ 준비한 사람 (<span id="readyCount">0</span>명)</div>
-        <button id="readyButton" type="button" onclick="toggleReady()" style="min-height: 34px; padding: 6px 16px; background: linear-gradient(135deg, #4CAF50, #43a047); border-color: rgba(76, 175, 80, 0.6); color: white; font-weight: 800;">준비</button>
-      </div>
-      <div class="users-list" id="readyUsersList">
-        <div style="color: var(--muted); text-align: center; padding: 8px;">아직 준비한 사람이 없습니다</div>
-      </div>
-    </section>
-
-    <section class="betting-panel" id="bettingSection" style="display:none" aria-label="베팅">
-      <div class="section-head">
-        <h2>베팅</h2>
-        <span id="bettingCountLabel">0명 베팅 완료</span>
-      </div>
-      <div id="bettingCountdown" style="text-align:center; font-size:15px; font-weight:800; color:var(--gold); margin-bottom:8px;"></div>
-      <div class="betting-grid" id="bettingGrid">
-        <button class="bet-card" type="button" data-color-index="0" style="--bet-color:#ff4f68"><strong>1 빨강</strong></button>
-        <button class="bet-card" type="button" data-color-index="1" style="--bet-color:#ff9b3d"><strong>2 주황</strong></button>
-        <button class="bet-card" type="button" data-color-index="2" style="--bet-color:#ffd84f"><strong>3 노랑</strong></button>
-        <button class="bet-card" type="button" data-color-index="3" style="--bet-color:#5df08a"><strong>4 초록</strong></button>
-        <button class="bet-card" type="button" data-color-index="4" style="--bet-color:#42edff"><strong>5 파랑</strong></button>
-        <button class="bet-card" type="button" data-color-index="5" style="--bet-color:#7489ff"><strong>6 남색</strong></button>
-      </div>
-    </section>
-
-    <section class="orders-section" id="ordersSection">
-      <div class="section-head">
-        <h2>주문받기</h2>
-      </div>
-      <div id="notOrderedSection" hidden><div id="notOrderedList"></div></div>
-      <div class="order-input-group">
-        <div class="order-input-wrapper" style="flex:1;position:relative;">
-          <div class="autocomplete-suggestion" id="autocompleteSuggestion"></div>
-          <input type="text" id="myOrderInput" placeholder="주문 입력" maxlength="100" disabled>
-          <div class="autocomplete-dropdown" id="autocompleteDropdown" hidden></div>
+    <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary);">
+        <p>Copyright © 2026 LAMDice. All rights reserved.</p>
+        <div style="margin-top:10px;">
+            <a href="/" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">홈</a> |
+            <a href="/pages/game-guides.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">게임 가이드</a> |
+            <a href="/pages/faq.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">FAQ</a> |
+            <a href="/pages/privacy-policy.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">개인정보 처리방침</a> |
+            <a href="/pages/terms-of-service.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">이용 약관</a> |
+            <a href="/pages/contact.html" style="margin:0 8px; text-decoration:none; color:var(--link-brand);">문의하기</a>
         </div>
-        <button id="orderSaveButton" type="button" disabled>저장</button>
-      </div>
-      <div id="orderList"></div>
-      <div id="spectatorOrdersSection" hidden><div id="spectatorOrderList"></div></div>
-      <div id="menuManager" hidden>
-        <input type="text" id="newMenuInput" maxlength="50">
-        <div id="menuList"></div>
-      </div>
-      <div class="order-actions">
-        <button id="startOrderButton" type="button" onclick="OrderModule.startOrder()" style="display:none">주문받기 시작</button>
-        <button id="endOrderButton" type="button" onclick="OrderModule.endOrder()" style="display:none">주문받기 종료</button>
-        <button id="showOrderListButton" type="button" onclick="OrderModule.showOrderList()" style="display:none">주문리스트</button>
-      </div>
-    </section>
+        <p style="font-size:0.8em; margin-top:8px; opacity:0.7;">LAMDice는 실제 화폐가 사용되지 않는 무료 소셜 보드게임 서비스입니다.</p>
+    </footer>
 
-    <div class="game-status waiting" id="gameStatus">대기 중</div>
+    <script src="/js/shared/tutorial-shared.js?v=3"></script>
+    <!-- 튜토리얼 스텝은 Phase 5에서 추가 (현재 보류) — FLAG_BITS.bridge=32만 Phase 2에서 예약 -->
 
-    <section class="stage-wrap">
-      <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
-      <div class="zoom-ui" id="zoomUi">
-        <button data-zoom="-0.1" type="button" aria-label="줌 아웃">−</button>
-        <span class="zoom-value" id="zoomValue">1.0×</span>
-        <button data-zoom="+0.1" type="button" aria-label="줌 인">+</button>
-        <button data-zoom="reset" type="button" aria-label="리셋">⟲</button>
-      </div>
-      <div class="debug-panel" id="debugPanel" hidden>
-        <div class="debug-title">Stage Layout Debug &mdash; D 키로 토글</div>
-        <div class="debug-row">
-          <label><span>start.x</span><input type="range" id="dbgStartX" min="-300" max="1500" value="-145"><input type="number" id="dbgStartXNum" value="-145"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>start.y</span><input type="range" id="dbgStartY" min="-200" max="1200" value="751"><input type="number" id="dbgStartYNum" value="751"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>finish.x</span><input type="range" id="dbgFinishX" min="500" max="2400" value="1013"><input type="number" id="dbgFinishXNum" value="1013"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>finish.y</span><input type="range" id="dbgFinishY" min="-300" max="800" value="-27"><input type="number" id="dbgFinishYNum" value="-27"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>entry.dx</span><input type="range" id="dbgEntryDx" min="-300" max="400" value="217"><input type="number" id="dbgEntryDxNum" value="217"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>entry.dy</span><input type="range" id="dbgEntryDy" min="-300" max="300" value="-159"><input type="number" id="dbgEntryDyNum" value="-159"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>exit.dx</span><input type="range" id="dbgExitDx" min="-300" max="300" value="-122"><input type="number" id="dbgExitDxNum" value="-122"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>exit.dy</span><input type="range" id="dbgExitDy" min="-300" max="300" value="40"><input type="number" id="dbgExitDyNum" value="40"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>row.dx</span><input type="range" id="dbgRowDx" min="-50" max="200" value="146"><input type="number" id="dbgRowDxNum" value="146"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>row.dy</span><input type="range" id="dbgRowDy" min="-50" max="200" value="76"><input type="number" id="dbgRowDyNum" value="76"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>tile.w</span><input type="range" id="dbgTileW" min="100" max="400" value="300"><input type="number" id="dbgTileWNum" value="300"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>tile.h</span><input type="range" id="dbgTileH" min="60" max="250" value="143"><input type="number" id="dbgTileHNum" value="143"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>tile.rot°</span><input type="range" id="dbgTileRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgTileRotNum" value="0" step="0.5"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>start.rot°</span><input type="range" id="dbgStartRot" min="-180" max="180" value="2.5" step="0.5"><input type="number" id="dbgStartRotNum" value="2.5" step="0.5"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>finish.rot°</span><input type="range" id="dbgFinishRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgFinishRotNum" value="0" step="0.5"></label>
-        </div>
-        <div class="debug-row">
-          <label><span>char.footY</span><input type="range" id="dbgFootY" min="-50" max="100" value="30"><input type="number" id="dbgFootYNum" value="30"></label>
-        </div>
-        <div class="debug-info" id="dbgInfo"></div>
-        <button type="button" id="dbgSnapBtn" title="row 슬로프와 평행하도록 다리 column step 자동 보정">📐 Dimetric Snap</button>
-        <button type="button" id="dbgCopyBtn">코드 복사</button>
-        <textarea id="dbgCodeOut" readonly rows="11"></textarea>
-      </div>
-    </section>
-
-    <section class="chat-section">
-      <div class="users-title" style="margin: 0;">💬 채팅</div>
-      <div class="chat-messages" id="chatMessages"></div>
-      <div class="chat-input-row">
-        <input type="text" id="chatInput" placeholder="메시지를 입력하세요..." style="flex: 1; margin: 0;" onkeypress="handleChatKeypress(event)">
-        <button type="button" onclick="sendMessage()" style="min-height: 38px; width: auto; padding: 8px 16px; font-weight: 800;">전송</button>
-      </div>
-    </section>
-
-    <section class="statusbar">
-      <article class="card">
-        <h2>Event Feed</h2>
-        <ul class="ticker" id="ticker"></ul>
-      </article>
-      <article class="card">
-        <h2>Crossing Order</h2>
-        <ul class="ranking" id="ranking"></ul>
-      </article>
-    </section>
-  </main>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/shared/chat-shared.js"></script>
-  <script src="/js/shared/ready-shared.js"></script>
-  <script src="/js/shared/order-shared.js"></script>
-  <script src="/assets/sounds/sound-manager.js"></script>
-  <script>
-    // ── 전역 상태 ──────────────────────────────────────────────────────────────
-    const socket = io();
-    let currentUser = '';
-    let isHost = false;
-    let currentRoomId = null;
-    let myBetColorIndex = null;   // 본인 베팅 색상 (null = 미선택)
-    let bettingDeadlineTs = null; // 베팅 마감 timestamp
-    let countdownTimer = null;
-
-    // ── 색상 정의 (0~5 인덱스, 보라 제외) ─────────────────────────────────────
-    const COLOR_HEX = ['#ff4f68', '#ff9b3d', '#ffd84f', '#5df08a', '#42edff', '#7489ff'];
-    const COLOR_NAME = ['빨강', '주황', '노랑', '초록', '파랑', '남색'];
-
-    // ── 베팅 UI 함수 ──────────────────────────────────────────────────────────
-    function showBettingUI(deadline) {
-      bettingDeadlineTs = deadline;
-      myBetColorIndex = null;
-      document.getElementById('bettingSection').style.display = '';
-      updateBettingHighlight();
-      startBettingCountdown();
-      // 베팅 카드 클릭 이벤트 등록 (중복 방지)
-      document.querySelectorAll('#bettingGrid .bet-card').forEach((btn) => {
-        btn.onclick = () => {
-          const idx = parseInt(btn.dataset.colorIndex, 10);
-          socket.emit('bridge-cross:select', { colorIndex: idx });
-        };
-      });
-    }
-
-    function hideBettingUI() {
-      document.getElementById('bettingSection').style.display = 'none';
-      stopBettingCountdown();
-    }
-
-    function updateBettingHighlight() {
-      document.querySelectorAll('#bettingGrid .bet-card').forEach((btn) => {
-        const idx = parseInt(btn.dataset.colorIndex, 10);
-        btn.style.background = idx === myBetColorIndex
-          ? `rgba(${hexToRgb(COLOR_HEX[idx])}, 0.32)`
-          : 'rgba(255,255,255,0.055)';
-        btn.style.borderColor = idx === myBetColorIndex
-          ? COLOR_HEX[idx]
-          : 'rgba(255,255,255,0.12)';
-        btn.style.setProperty('--bet-color', COLOR_HEX[idx]);
-      });
-    }
-
-    function hexToRgb(hex) {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      return `${r},${g},${b}`;
-    }
-
-    function startBettingCountdown() {
-      stopBettingCountdown();
-      let _lastCountdownSec = -1;
-      function tick() {
-        if (!bettingDeadlineTs) return;
-        const remain = Math.max(0, Math.ceil((bettingDeadlineTs - Date.now()) / 1000));
-        const el = document.getElementById('bettingCountdown');
-        if (el) {
-          el.textContent = `베팅 마감까지 ${remain}초`;
-          el.style.color = remain <= 3 ? 'var(--danger)' : 'var(--gold)';
-        }
-        // 5초 이하 구간에서 초가 바뀔 때마다 카운트다운 사운드
-        if (remain <= 5 && remain > 0 && remain !== _lastCountdownSec) {
-          _lastCountdownSec = remain;
-          if (window.SoundManager) SoundManager.playSound('bridge-cross_countdown');
-        }
-        if (remain > 0) countdownTimer = setTimeout(tick, 500);
-      }
-      tick();
-    }
-
-    function stopBettingCountdown() {
-      if (countdownTimer) { clearTimeout(countdownTimer); countdownTimer = null; }
-      const el = document.getElementById('bettingCountdown');
-      if (el) el.textContent = '';
-    }
-
-    function setGameStatus(text, phase) {
-      const el = document.getElementById('gameStatus');
-      if (!el) return;
-      el.textContent = text;
-      if (phase) el.className = `game-status ${phase}`;
-    }
-
-    // 커스텀 알림 모달 (horse-race 패턴 이식)
-    function showCustomAlert(message, type = 'info') {
-      const existingAlert = document.getElementById('customAlert');
-      if (existingAlert) {
-        existingAlert.remove();
-      }
-
-      let borderColor, icon;
-      switch (type) {
-        case 'error':
-          borderColor = 'rgb(239, 68, 68)';
-          icon = '⚠️';
-          break;
-        case 'warning':
-          borderColor = 'rgb(234, 179, 8)';
-          icon = '⚠️';
-          break;
-        case 'success':
-          borderColor = 'rgb(34, 197, 94)';
-          icon = '✅';
-          break;
-        default:
-          borderColor = 'rgb(147, 51, 234)';
-          icon = 'ℹ️';
-      }
-
-      const alertOverlay = document.createElement('div');
-      alertOverlay.id = 'customAlert';
-      alertOverlay.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.4); z-index: 10001;
-        display: flex; justify-content: center; align-items: center;
-        animation: fadeIn 0.2s ease-out;
-      `;
-
-      const alertContent = document.createElement('div');
-      alertContent.style.cssText = `
-        background: white; border-radius: 16px; padding: 20px;
-        max-width: 450px; width: calc(100vw - 40px);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        border: 2px solid ${borderColor};
-        animation: slideDown 0.3s ease-out;
-        box-sizing: border-box;
-      `;
-
-      const messageDiv = document.createElement('div');
-      messageDiv.style.cssText = `
-        font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
-        white-space: pre-wrap; word-wrap: break-word;
-        word-break: keep-all; overflow-wrap: break-word;
-        text-align: center; margin-bottom: 20px;
-        max-width: 100%;
-      `;
-      messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
-
-      const confirmButton = document.createElement('button');
-      confirmButton.textContent = '확인';
-      confirmButton.style.cssText = `
-        padding: 10px 30px;
-        background: ${borderColor};
-        color: white; border: none; border-radius: 8px;
-        font-size: 16px; font-weight: 600; cursor: pointer;
-        width: 100%; transition: transform 0.1s, box-shadow 0.1s;
-      `;
-      confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
-      confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
-      confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
-
-      const handleEsc = (e) => {
-        if (e.key === 'Escape') {
-          alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
-          setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
-        }
-      };
-      document.addEventListener('keydown', handleEsc);
-
-      alertOverlay.onclick = (e) => {
-        if (e.target === alertOverlay) {
-          alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
-          setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
-        }
-      };
-
-      alertContent.appendChild(messageDiv);
-      alertContent.appendChild(confirmButton);
-      alertOverlay.appendChild(alertContent);
-      document.body.appendChild(alertOverlay);
-      confirmButton.focus();
-    }
-
-    function leaveRoom() {
-      if (currentRoomId) socket.emit('leaveRoom');
-      window.location.href = '/';
-    }
-
-    // ── 공유 모듈 글로벌 함수 ────────────────────────────────────────────────
-    function sendMessage() { ChatModule.sendMessage(); }
-    function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
-    function toggleReady() { ReadyModule.toggle(); }
-
-    // ── Socket 이벤트: roomJoined ─────────────────────────────────────────────
-    socket.on('roomJoined', (data) => {
-      currentRoomId = data.roomId;
-      currentUser = data.userName;
-      isHost = data.isHost;
-      window.isHost = isHost;
-
-      // 방 정보 표시
-      document.getElementById('globalUserNameInput').value = currentUser;
-      const subtitle = document.getElementById('roomSubtitle');
-      if (subtitle) subtitle.textContent = `방: ${data.roomName || data.roomId}  |  ${currentUser}`;
-      const badge = document.getElementById('roomNameBadge');
-      if (badge) { badge.textContent = data.roomName || data.roomId; badge.style.display = ''; }
-
-      // 호스트만 시작 버튼 표시
-      const startBtn = document.getElementById('startBtn');
-      if (startBtn) startBtn.style.display = isHost ? '' : 'none';
-
-      // 공유 모듈 init (Chat → Ready → Order 순서)
-      ChatModule.init(socket, currentUser, {
-        gameType: 'bridge-cross',
-        themeColor: 'var(--cyan)',
-        myColor: 'var(--gold)',
-        myBgColor: 'rgba(66, 237, 255, 0.12)',
-        myBorderColor: 'var(--cyan)',
-        systemGradient: 'linear-gradient(135deg, rgba(66,237,255,0.15), rgba(255,216,107,0.10))',
-        getRoomUsers: () => window._bcUsers || []
-      });
-      ReadyModule.init(socket, currentUser, {
-        isHost: isHost,
-        isGameActive: () => window._bcPhase === 'betting' || window._bcPhase === 'playing' || window._bcPhase === 'finished',
-        readyStyle: { background: 'linear-gradient(135deg, var(--cyan), #2dd4f4)', color: '#041018' },
-        readyCancelStyle: { background: 'linear-gradient(135deg, var(--danger), #c026d3)', color: 'white' }
-      });
-      OrderModule.init(socket, currentUser, {
-        isHost: () => isHost,
-        isGameActive: () => window._bcPhase === 'betting' || window._bcPhase === 'playing' || window._bcPhase === 'finished',
-        getEverPlayedUsers: () => window._bcEverPlayedUsers || [],
-        getUsersList: () => window._bcUsers || [],
-        showCustomAlert: (msg, type) => showCustomAlert(msg, type),
-        onOrderStarted: () => {},
-        onOrderEnded: () => {},
-        onOrdersUpdated: () => {}
-      });
-      SoundManager.loadConfig();
-
-      window._bcPhase = 'idle';
-      setGameStatus('대기 중', 'waiting');
-    });
-
-    // ── Socket 이벤트: bridge-cross ─────────────────────────────────────────
-    socket.on('bridge-cross:bettingOpen', ({ deadline }) => {
-      window._bcPhase = 'betting';
-      setGameStatus(`베팅 중 (${Math.ceil((deadline - Date.now()) / 1000)}초)`, 'waiting');
-      showBettingUI(deadline);
-      if (window.SoundManager) SoundManager.playSound('bridge-cross_betting_open');
-      // 시작 버튼 비활성화 (베팅 중 재시작 방지)
-      const startBtn = document.getElementById('startBtn');
-      if (startBtn) startBtn.disabled = true;
-    });
-
-    socket.on('bridge-cross:selectionConfirm', ({ colorIndex }) => {
-      myBetColorIndex = colorIndex;
-      updateBettingHighlight();
-    });
-
-    socket.on('bridge-cross:selectionCount', ({ count }) => {
-      const el = document.getElementById('bettingCountLabel');
-      if (el) el.textContent = `${count}명 베팅 완료`;
-    });
-
-    socket.on('bridge-cross:gameStart', (data) => {
-      hideBettingUI();
-      window._bcPhase = 'playing';
-      setGameStatus('진행 중', 'playing');
-      if (window.SoundManager) SoundManager.playLoop('bridge-cross_bgm', true, 0.4);
-      // 시나리오 데이터를 게임 루프에 전달
-      if (typeof window._onGameStart === 'function') {
-        window._onGameStart(data);
-      }
-      const startBtn = document.getElementById('startBtn');
-      if (startBtn) { startBtn.disabled = false; startBtn.style.display = 'none'; }
-    });
-
-    socket.on('bridge-cross:gameEnd', ({ winnerColor, winners, winnerColorName, ranking }) => {
-      window._bcPhase = 'finished';
-      const winnersText = winners && winners.length > 0 ? `승리: ${winners.join(', ')}` : '';
-      setGameStatus(`결과: ${winnerColorName || COLOR_NAME[winnerColor] || winnerColor} 통과  ${winnersText}`, 'finished');
-      if (window.SoundManager) { SoundManager.stopLoop('bridge-cross_bgm'); SoundManager.playSound('bridge-cross_result'); }
-      // 결과를 게임 루프에 전달
-      if (typeof window._onGameEnd === 'function') {
-        window._onGameEnd({ winnerColor, winners, ranking });
-      }
-      // 호스트 재시작 버튼
-      const startBtn = document.getElementById('startBtn');
-      if (startBtn && isHost) { startBtn.textContent = '다시 시작'; startBtn.style.display = ''; }
-    });
-
-    socket.on('bridge-cross:gameAborted', ({ reason }) => {
-      window._bcPhase = 'idle';
-      hideBettingUI();
-      setGameStatus(`중단: ${reason}`, 'waiting');
-      const startBtn = document.getElementById('startBtn');
-      if (startBtn && isHost) { startBtn.disabled = false; startBtn.textContent = '게임 시작'; startBtn.style.display = ''; }
-    });
-
-    // 서버 에러 알림 (게임 시작 실패 등 — 페이로드는 단순 문자열)
-    socket.on('bridge-cross:error', (message) => {
-      showCustomAlert(message, 'error');
-    });
-
-    // ── 사용자 목록 동기화 (ChatModule / OrderModule 콜백용) ─────────────────
-    window._bcUsers = [];
-    // OrderModule 시그니처 충족용 stub. bridge-cross는 누적 참여자 미추적 (랭킹 통합 시 서버 emit과 함께 채워짐).
-    window._bcEverPlayedUsers = [];
-    socket.on('updateUsers', (users) => {
-      window._bcUsers = users || [];
-      const countEl = document.getElementById('usersCount');
-      if (countEl) countEl.textContent = window._bcUsers.length;
-    });
-
-    // ── 방 참여: URL 파라미터에서 roomId 읽기 (다른 게임 패턴) ──────────────
-    (function joinRoomOnLoad() {
-      const params = new URLSearchParams(window.location.search);
-      const roomId = params.get('room');
-      const userName = params.get('name') || (document.getElementById('globalUserNameInput').value) || '';
-      if (roomId) {
-        socket.emit('joinRoom', { roomId, userName, gameType: 'bridge-cross' });
-      }
-    })();
-  </script>
-  <script>
-    (() => {
-      const canvas = document.getElementById('game');
-      const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingEnabled = false;
-
-      // World and viewport sizes — never reference canvas.width/canvas.height directly
-      const world = { w: 2400, h: 1024 };
-      const viewport = { w: 1024, h: 683 };
-
-      const spriteRoot = '/assets/bridge-cross/sprites/';
-      const stageRoot = '/assets/bridge-cross/stage/';
-
-      // 6색 고정 (보라 제외) — impl §1.2
-      const playerColors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo'];
-      // 도전 순서 고정: 빨(0) 주(1) 노(2) 초(3) 파(4) 남(5)
-      const allPlayerDefs = [
-        { name: '빨강', color: 'red',    colorIndex: 0 },
-        { name: '주황', color: 'orange', colorIndex: 1 },
-        { name: '노랑', color: 'yellow', colorIndex: 2 },
-        { name: '초록', color: 'green',  colorIndex: 3 },
-        { name: '파랑', color: 'blue',   colorIndex: 4 },
-        { name: '남색', color: 'indigo', colorIndex: 5 },
-      ];
-
-      const playerSheet = {
-        columns: 4,
-        rows: 6,
-        animations: {
-          idle: { row: 0, frames: [0, 1, 2, 3], fps: 5, loop: true },
-          run: { row: 1, frames: [0, 1, 2, 3], fps: 8, loop: true },
-          jump: { row: 2, frames: [0, 1, 2, 3], fps: 7, loop: false },
-          land: { row: 3, frames: [0, 1, 2, 3], fps: 8, loop: false },
-          fall: { row: 4, frames: [0, 1, 2, 3], fps: 7, loop: false },
-          result: { row: 5, frames: [0, 1, 2, 3], fps: 5, loop: true },
-        },
-        anchor: { x: 0.5, y: 0.88 },
-      };
-
-      const fxSheet = {
-        columns: 4,
-        rows: 6,
-        // 현재 자산은 legacy visual pivot(0.62)을 쓴다.
-        // 새 contact-anchor glass-fx가 들어오면 y를 player anchor(0.88)로 바꾸면 drawTile이 자동 전환된다.
-        anchor: { x: 0.5, y: 0.62 },
-        animations: {
-          safe_sparkle: { row: 0, frames: [0, 1, 2, 3], fps: 7, loop: true },
-          warning_glow: { row: 1, frames: [0, 1, 2, 3], fps: 7, loop: true },
-          crack: { row: 2, frames: [0, 1, 2, 3], fps: 8, loop: false },
-          break_shards: { row: 3, frames: [0, 1, 2, 3], fps: 7, loop: false },
-          fall_trail: { row: 4, frames: [0, 1, 2, 3], fps: 8, loop: true },
-          landing_pulse: { row: 5, frames: [0, 1, 2, 3], fps: 8, loop: false },
-        },
-      };
-
-      const imageDefs = {
-        bg: stageRoot + 'background-void-v2.png',
-        startStage: stageRoot + 'start-stage-v3.png',
-        finishStage: stageRoot + 'finish-stage-v2.png',
-        glassFx: spriteRoot + 'glass-fx-v2.png',
-        ...Object.fromEntries(playerColors.map((color) => [`player_${color}`, `${spriteRoot}players-${color}.png`])),
-      };
-
-      const images = {};
-      const loadImage = (key, src) => new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          images[key] = img;
-          resolve();
-        };
-        img.onerror = () => {
-          console.error(`Asset failed to load: ${src}`);
-          resolve();
-        };
-        img.src = src;
-      });
-
-      async function applySpriteManifest() {
-        try {
-          const response = await fetch(spriteRoot + 'bridge-cross-sprites.manifest.json', { cache: 'no-store' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const manifest = await response.json();
-          const manifestFxAnchor = manifest?.sheets?.glassFx?.anchor;
-          if (Number.isFinite(manifestFxAnchor?.x) && Number.isFinite(manifestFxAnchor?.y)) {
-            fxSheet.anchor = { x: manifestFxAnchor.x, y: manifestFxAnchor.y };
-          }
-        } catch (error) {
-          console.warn(`Sprite manifest not loaded; using inline sheet config. ${error.message}`);
-        }
-      }
-
-      class Platform {
-        constructor(name, { topCorner, rightCorner, bottomCorner, leftCorner }) {
-          this.name = name;
-          this.corners = {
-            top: { ...topCorner },
-            right: { ...rightCorner },
-            bottom: { ...bottomCorner },
-            left: { ...leftCorner },
-          };
-        }
-
-        get center() {
-          const c = this.corners;
-          return {
-            x: (c.top.x + c.right.x + c.bottom.x + c.left.x) / 4,
-            y: (c.top.y + c.right.y + c.bottom.y + c.left.y) / 4,
-          };
-        }
-
-        // u, v ∈ [0, 1] 평행사변형 내부 좌표
-        // u = 0 → 후면(top↔right 변), u = 1 → 전면(left↔bottom 변)
-        // v = 0 → 좌측(top↔left 변), v = 1 → 우측(right↔bottom 변)
-        pointAt(u, v) {
-          const c = this.corners;
-          const tx = c.top.x + (c.right.x - c.top.x) * v;
-          const ty = c.top.y + (c.right.y - c.top.y) * v;
-          const bx = c.left.x + (c.bottom.x - c.left.x) * v;
-          const by = c.left.y + (c.bottom.y - c.left.y) * v;
-          return {
-            x: Math.round(tx + (bx - tx) * u),
-            y: Math.round(ty + (by - ty) * u),
-          };
-        }
-
-        // 평행사변형 안에 캐릭터 슬롯 격자 분배
-        layoutSlots(count, { gridU = 2, gridV = 4, padU = 0.15, padV = 0.12 } = {}) {
-          const slots = [];
-          for (let i = 0; i < count; i += 1) {
-            const r = Math.floor(i / gridV);
-            const c = i % gridV;
-            const lastRow = Math.floor((count - 1) / gridV);
-            const isLastRow = r === lastRow;
-            const lastRowCount = count - lastRow * gridV;
-            const rowSize = isLastRow ? lastRowCount : gridV;
-
-            const u = gridU > 1
-              ? padU + (1 - padU * 2) * (r / (gridU - 1))
-              : 0.5;
-            const v = rowSize > 1
-              ? padV + (1 - padV * 2) * (c / (rowSize - 1))
-              : 0.5;
-            slots.push(this.pointAt(u, v));
-          }
-          return slots;
-        }
-      }
-
-      class Bridge {
-        constructor({ entrance, exit, columnCount, tileSize, rowStep }) {
-          this.entrance = { ...entrance };
-          this.exit = { ...exit };
-          this.columnCount = columnCount;
-          this.tileSize = { ...tileSize };
-
-          this.columnStep = {
-            x: (exit.x - entrance.x) / (columnCount - 1),
-            y: (exit.y - entrance.y) / (columnCount - 1),
-          };
-
-          // dimetric 2:1 isometric 한 격자 (top→bottom 방향)
-          this.rowStep = rowStep
-            ? { ...rowStep }
-            : { x: this.tileSize.w * 0.21, y: this.tileSize.h * 0.7 };
-        }
-
-        tileCenter(col, row) {
-          const yIndex = row === 'bottom' ? 1 : 0;
-          return {
-            x: Math.round(this.entrance.x + this.columnStep.x * col + this.rowStep.x * yIndex),
-            y: Math.round(this.entrance.y + this.columnStep.y * col + this.rowStep.y * yIndex),
-          };
-        }
-
-        tileRect(col, row) {
-          const c = this.tileCenter(col, row);
-          return {
-            x: c.x - this.tileSize.w / 2,
-            y: c.y - this.tileSize.h / 2,
-            w: this.tileSize.w,
-            h: this.tileSize.h,
-          };
-        }
-      }
-
-      class StageLayout {
-        constructor({ startWorld, finishWorld, entranceOffset, exitOffset, rowStep, tileSize, tileRotation, startStageRotation, finishStageRotation, charFootOffset } = {}) {
-          // 사용자가 디버그 모드에서 잡은 값 (2026-04-26)
-          this.startWorld     = startWorld     || { x: -145, y: 751 };
-          this.finishWorld    = finishWorld    || { x: 1013, y: -27 };
-          this.entranceOffset = entranceOffset || { x: 217, y: -159 };
-          this.exitOffset     = exitOffset     || { x: -122, y: 40 };
-          this.rowStep        = rowStep        || { x: 146, y: 76 };
-          this.tileSize       = tileSize       || { w: 300, h: 143 };
-          this.tileRotation         = tileRotation != null ? tileRotation : 0;            // 다리 타일 회전 각도 (deg)
-          this.startStageRotation   = startStageRotation != null ? startStageRotation : 2.5; // 시작 자산 회전 (자산 가운데 기준)
-          this.finishStageRotation  = finishStageRotation != null ? finishStageRotation : 0;  // 골 자산 회전 (자산 가운데 기준)
-          this.charFootOffset       = charFootOffset != null ? charFootOffset : 30;            // 다리 위 캐릭터 발 y 보정 (px) — 다이아몬드 시각 중심 보정
-
-          // 자산 (0,0) 기준 corners (crop 후 좌표) + world offset
-          this.startPlatform = new Platform('start', {
-            topCorner:    { x: (394 - 54) + this.startWorld.x, y: (278 - 261) + this.startWorld.y },
-            rightCorner:  { x: (743 - 54) + this.startWorld.x, y: (446 - 261) + this.startWorld.y },
-            bottomCorner: { x: (428 - 54) + this.startWorld.x, y: (600 - 261) + this.startWorld.y },
-            leftCorner:   { x: ( 91 - 54) + this.startWorld.x, y: (412 - 261) + this.startWorld.y },
-          });
-
-          this.finishPlatform = new Platform('finish', {
-            topCorner:    { x: (1028 - 845) + this.finishWorld.x, y: (223 - 24) + this.finishWorld.y },
-            rightCorner:  { x: (1374 - 845) + this.finishWorld.x, y: (392 - 24) + this.finishWorld.y },
-            bottomCorner: { x: (1195 - 845) + this.finishWorld.x, y: (487 - 24) + this.finishWorld.y },
-            leftCorner:   { x: ( 870 - 845) + this.finishWorld.x, y: (303 - 24) + this.finishWorld.y },
-          });
-
-          // worldOffset 저장 — drawImage 및 향후 시각 조정에 사용
-          this.startSize = { w: 728, h: 743 };
-          this.finishSize = { w: 559, h: 794 };
-
-          // 다리: 시작 LEFT-RIGHT 중점 + entranceOffset → 골 LEFT-BOTTOM 중점 + exitOffset
-          const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-          const entryMid = midpoint(this.startPlatform.corners.left, this.startPlatform.corners.right);
-          const exitMid = midpoint(this.finishPlatform.corners.left, this.finishPlatform.corners.bottom);
-          this.bridge = new Bridge({
-            entrance: { x: entryMid.x + this.entranceOffset.x, y: entryMid.y + this.entranceOffset.y },
-            exit:     { x: exitMid.x  + this.exitOffset.x,     y: exitMid.y  + this.exitOffset.y },
-            columnCount: 6,
-            tileSize: this.tileSize,
-            rowStep: this.rowStep,
-          });
-
-          // 슬롯 자동 분배: 6명 (빨주노초파남), 2 row × 3 col, 평행사변형 안쪽 padding
-          this.waitingSlots = this.startPlatform.layoutSlots(6, { gridU: 2, gridV: 3, padU: 0.18, padV: 0.12 });
-          // 첫 도착자(slot 0)는 골 plat 정중앙, 나머지 6명은 주위 6 위치에 분포
-          const finishCenter = { x: this.finishPlatform.center.x, y: this.finishPlatform.center.y };
-          const sideSlots = this.finishPlatform.layoutSlots(6, { gridU: 2, gridV: 3, padU: 0.22, padV: 0.22 });
-          this.finishSlots = [finishCenter, ...sideSlots];
-        }
-
-        // 게임 코드 호환 인터페이스
-        get columnCount() { return this.bridge.columnCount; }
-        get tileW() { return this.bridge.tileSize.w; }
-        get tileH() { return this.bridge.tileSize.h; }
-
-        tileCenter(col, row) { return this.bridge.tileCenter(col, row); }
-        tileRect(col, row) { return this.bridge.tileRect(col, row); }
-
-        // 점프 출발점: 시작 평행사변형 안 우측, RIGHT 모서리 살짝 안쪽
-        entrance() {
-          return this.startPlatform.pointAt(0.15, 0.88);
-        }
-
-        waitingSlot(index) { return this.waitingSlots[index % this.waitingSlots.length]; }
-        finishSlot(index) { return this.finishSlots[index % this.finishSlots.length]; }
-
-        debugPayload() {
-          return {
-            startCorners: this.startPlatform.corners,
-            finishCorners: this.finishPlatform.corners,
-            entrance: this.bridge.entrance,
-            exit: this.bridge.exit,
-            columnStep: this.bridge.columnStep,
-            rowStep: this.bridge.rowStep,
-          };
-        }
-      }
-
-      // ── Camera (impl §3) ──────────────────────────────────────────────────────
-      class Camera {
-        constructor({ viewportW, viewportH, worldW, worldH }) {
-          this.viewport = { w: viewportW, h: viewportH };
-          this.world = { w: worldW, h: worldH };
-          this.minZoom = Math.max(viewportW / worldW, viewportH / worldH);
-          this.x = worldW / 2; this.y = worldH / 2; this.zoom = 1;
-          this.targetX = this.x; this.targetY = this.y; this.targetZoom = 1;
-          this.lerpRate = { pan: 8.0, zoom: 5.0 };
-          this.shakeT = 0; this.shakeDuration = 0; this.shakeAmp = 0;
-          this._effectiveZoom = 1;
-          this._renderX = this.x; this._renderY = this.y;
-          this._shakeX = 0; this._shakeY = 0;
-        }
-
-        setTarget({ x, y, zoom }) {
-          if (x !== undefined) this.targetX = x;
-          if (y !== undefined) this.targetY = y;
-          if (zoom !== undefined) this.targetZoom = zoom;
-        }
-
-        shake(amp, duration) {
-          this.shakeAmp = amp;
-          this.shakeDuration = duration;
-          this.shakeT = duration;
-        }
-
-        update(dt, userZoom = 1) {
-          // dt-based lerp: 1 - exp(-dt * rate)
-          const panAlpha = 1 - Math.exp(-dt * this.lerpRate.pan);
-          const zoomAlpha = 1 - Math.exp(-dt * this.lerpRate.zoom);
-          this.x += (this.targetX - this.x) * panAlpha;
-          this.y += (this.targetY - this.y) * panAlpha;
-          this.zoom += (this.targetZoom - this.zoom) * zoomAlpha;
-
-          // effectiveZoom + minZoom floor
-          this._effectiveZoom = Math.max(this.zoom * userZoom, this.minZoom);
-
-          // shake (screen-space, normalized 감쇠)
-          if (this.shakeT > 0) {
-            this.shakeT = Math.max(0, this.shakeT - dt);
-            const decay = this.shakeT / this.shakeDuration;
-            this._shakeX = (Math.random() - 0.5) * 2 * this.shakeAmp * decay;
-            this._shakeY = (Math.random() - 0.5) * 2 * this.shakeAmp * decay;
-          } else {
-            this._shakeX = 0; this._shakeY = 0;
-          }
-
-          // clamp: viewport가 world 밖으로 못 나가게
-          const halfW = this.viewport.w / 2 / this._effectiveZoom;
-          const halfH = this.viewport.h / 2 / this._effectiveZoom;
-          const minX = Math.min(halfW, this.world.w / 2);
-          const maxX = Math.max(this.world.w - halfW, this.world.w / 2);
-          const minY = Math.min(halfH, this.world.h / 2);
-          const maxY = Math.max(this.world.h - halfH, this.world.h / 2);
-          this._renderX = Math.max(minX, Math.min(maxX, this.x));
-          this._renderY = Math.max(minY, Math.min(maxY, this.y));
-        }
-
-        apply(ctx) {
-          ctx.save();
-          // shake가 scale 전에 적용되어야 screen-space pixel amp 보존
-          ctx.translate(this.viewport.w / 2 + this._shakeX, this.viewport.h / 2 + this._shakeY);
-          ctx.scale(this._effectiveZoom, this._effectiveZoom);
-          ctx.translate(-this._renderX, -this._renderY);
-        }
-
-        release(ctx) { ctx.restore(); }
-      }
-
-      // ── CameraDirector (impl §3) ──────────────────────────────────────────────
-      function resolvePhaseFraming(state, layout) {
-        const phase = state.phase;
-        const startCenter = layout.startPlatform.center;
-        const finishCenter = layout.finishPlatform.center;
-        const current = state.current && state.avatar
-          ? { x: state.avatar.x, y: state.avatar.y }
-          : null;
-
-        switch (phase) {
-          case 'ready':
-            return { zoom: 0.7, target: startCenter };
-          case 'next-player':
-            return { zoom: 0.85, target: current ?? startCenter };
-          case 'enter-bridge':
-          case 'walk-known':
-          case 'walk-known-wait':
-          case 'safe-flash':
-            return { zoom: 1.0, target: current ?? startCenter };
-          case 'choose':
-            return { zoom: 1.12, target: current ?? startCenter };
-          case 'choice-wait':
-            return { zoom: 1.18, target: current ?? startCenter };
-          case 'falling':
-            return { zoom: 1.25, target: current ?? startCenter };
-          case 'finish-wait':
-          case 'finished':
-            return { zoom: 0.7, target: finishCenter };
-          default:
-            return { zoom: 1.0, target: current ?? startCenter };
-        }
-      }
-
-      class CameraDirector {
-        constructor(camera, layout) {
-          this.camera = camera;
-          this.layout = layout;
-          this._shakeAppliedFor = null;
-        }
-
-        update(state) {
-          const { zoom, target } = resolvePhaseFraming(state, this.layout);
-          this.camera.setTarget({ x: target.x, y: target.y, zoom });
-
-          // falling shake (캐릭터당 1회)
-          if (state.phase === 'falling' && this._shakeAppliedFor !== state.currentIndex) {
-            this.camera.shake(8, 0.4);
-            this._shakeAppliedFor = state.currentIndex;
-          } else if (state.phase !== 'falling') {
-            this._shakeAppliedFor = null;
-          }
-        }
-      }
-
-      // ── UserZoomController (impl §3, Phase 2) ────────────────────────────────
-      class UserZoomController {
-        constructor({ min = 0.5, max = 2.0, defaultValue = 1.0 } = {}) {
-          this.min = min;
-          this.max = max;
-          this.value = defaultValue;
-        }
-
-        set(v) {
-          if (!Number.isFinite(v)) return;
-          this.value = Math.max(this.min, Math.min(this.max, v));
-        }
-        delta(d) { this.set(this.value + d); }
-        reset() { this.value = 1.0; }
-      }
-
-      class SpriteAnimator {
-        constructor(animName = 'idle') {
-          this.animName = animName;
-          this.elapsed = 0;
-          this.lockedFrame = null;
-        }
-
-        set(animName, restart = false) {
-          if (this.animName !== animName || restart) {
-            this.animName = animName;
-            this.elapsed = 0;
-            this.lockedFrame = null;
-          }
-        }
-
-        update(dt) {
-          this.elapsed += dt;
-        }
-
-        frame(sheet) {
-          const anim = sheet.animations[this.animName] || sheet.animations.idle;
-          if (this.lockedFrame !== null) return anim.frames[this.lockedFrame] ?? anim.frames[0];
-          const raw = Math.floor(this.elapsed * anim.fps);
-          if (anim.loop) return anim.frames[raw % anim.frames.length];
-          return anim.frames[Math.min(anim.frames.length - 1, raw)];
-        }
-
-        row(sheet) {
-          return (sheet.animations[this.animName] || sheet.animations.idle).row;
-        }
-      }
-
-      class PlayerActor {
-        constructor(def, index, layout) {
-          this.id = index;
-          this.name = def.name;
-          this.color = def.color;
-          this.colorIndex = def.colorIndex ?? index;  // 서버 colorIndex (0~5)
-          this.status = 'waiting';
-          this.progress = 0;
-          this.fallsAt = null;
-          this.choiceLog = [];
-          this.slot = layout.waitingSlot(index);
-          this.animator = new SpriteAnimator('idle');
-        }
-
-        resetForRun() {
-          this.status = 'crossing';
-          this.progress = 0;
-          this.fallsAt = null;
-          this.choiceLog = [];
-          this.animator.set('run', true);
-        }
-      }
-
-      class AvatarController {
-        constructor() {
-          this.reset({ x: 0, y: 0 });
-        }
-
-        reset(point) {
-          this.x = point.x;
-          this.y = point.y;
-          this.groundX = point.x;
-          this.groundY = point.y;
-          this.fromX = point.x;
-          this.fromY = point.y;
-          this.toX = point.x;
-          this.toY = point.y;
-          this.t = 1;
-          this.duration = 1;
-          this.jumpHeight = 0;
-          this.landPulse = 0;
-        }
-
-        moveTo(point, duration, options = {}) {
-          this.fromX = this.x;
-          this.fromY = this.y;
-          this.toX = point.x;
-          // 다리 위 캐릭터의 발 보정 — layout.charFootOffset 참조 (디버그에서 조정 가능)
-          const defaultOffset = (typeof layout !== 'undefined' && layout && layout.charFootOffset != null) ? layout.charFootOffset : 0;
-          this.toY = point.y + (options.anchorOffset ?? defaultOffset);
-          this.t = 0;
-          this.duration = Math.max(0.01, duration);
-          this.jumpHeight = options.jumpHeight ?? 52;
-          this.landPulse = 0;
-        }
-
-        update(dt) {
-          if (this.t < 1) {
-            const prevT = this.t;
-            this.t = Math.min(1, this.t + dt / this.duration);
-            const eased = this.t < 0.5
-              ? 2 * this.t * this.t
-              : 1 - Math.pow(-2 * this.t + 2, 2) / 2;
-            const baseX = this.fromX + (this.toX - this.fromX) * eased;
-            const baseY = this.fromY + (this.toY - this.fromY) * eased;
-            const arc = Math.sin(Math.PI * this.t) * this.jumpHeight;
-            this.groundX = baseX;
-            this.groundY = baseY;
-            this.x = baseX;
-            this.y = baseY - arc;
-            if (prevT < 1 && this.t >= 1) {
-              this.x = this.toX;
-              this.y = this.toY;
-              this.groundX = this.toX;
-              this.groundY = this.toY;
-              this.landPulse = 0.28;
-            }
-          }
-          this.landPulse = Math.max(0, this.landPulse - dt);
-        }
-      }
-
-      let layout = new StageLayout();
-      const camera = new Camera({
-        viewportW: viewport.w,
-        viewportH: viewport.h,
-        worldW: world.w,
-        worldH: world.h,
-      });
-      const cameraDirector = new CameraDirector(camera, layout);
-      const userZoomController = new UserZoomController();
-
-      const state = {
-        mode: 'loading',
-        phase: 'loading',
-        paused: false,
-        // 서버 broadcast 데이터 (gameStart 이벤트로 채워짐)
-        safeRows: [],          // string[] ('top'|'bottom') — 서버 결정
-        scenarios: [],         // ({failColumn, failRow}|{success:true})[] — 서버 결정
-        activeColors: [],      // number[] — 베팅된 색상 인덱스 (오름차순)
-        allBets: {},           // {[userName]: colorIndex}
-        currentScenarioIndex: 0,  // 현재 처리 중인 시나리오 인덱스
-        revealed: [],
-        players: [],           // 활성 PlayerActor[] (도전 순)
-        allPlayers: [],        // 6명 모두 (비활성 포함, dim 그리기용)
-        currentIndex: -1,
-        current: null,
-        avatar: new AvatarController(),
-        pendingChoice: null,
-        timer: 0,
-        elapsed: 0,
-        winner: null,
-        events: ['Loading assets...'],
-      };
-
-      // ── Debug mode ────────────────────────────────────────────────────────────
-      const debugEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
-      const debug = { mode: debugEnabled };
-
-      function updateDebugInfo() {
-        const start = layout.startPlatform.corners.right;
-        const finish = layout.finishPlatform.corners.left;
-        const dx = finish.x - start.x;
-        const dy = finish.y - start.y;
-        const distance = Math.round(Math.sqrt(dx * dx + dy * dy));
-        const slope = (dy / dx).toFixed(3);
-        const colStep = `(${(dx / 5).toFixed(1)}, ${(dy / 5).toFixed(1)})`;
-        document.getElementById('dbgInfo').innerHTML =
-          `bridge dist: ${distance}px<br>drop: ${dy}px (slope ${slope})<br>column step: ${colStep}`;
-      }
-
-      function applyOffsets() {
-        const startWorld = {
-          x: parseInt(document.getElementById('dbgStartX').value, 10),
-          y: parseInt(document.getElementById('dbgStartY').value, 10),
-        };
-        const finishWorld = {
-          x: parseInt(document.getElementById('dbgFinishX').value, 10),
-          y: parseInt(document.getElementById('dbgFinishY').value, 10),
-        };
-        const entranceOffset = {
-          x: parseInt(document.getElementById('dbgEntryDx').value, 10),
-          y: parseInt(document.getElementById('dbgEntryDy').value, 10),
-        };
-        const exitOffset = {
-          x: parseInt(document.getElementById('dbgExitDx').value, 10),
-          y: parseInt(document.getElementById('dbgExitDy').value, 10),
-        };
-        const rowStep = {
-          x: parseInt(document.getElementById('dbgRowDx').value, 10),
-          y: parseInt(document.getElementById('dbgRowDy').value, 10),
-        };
-        const tileSize = {
-          w: parseInt(document.getElementById('dbgTileW').value, 10),
-          h: parseInt(document.getElementById('dbgTileH').value, 10),
-        };
-        const tileRotation = parseFloat(document.getElementById('dbgTileRot').value);
-        const startStageRotation = parseFloat(document.getElementById('dbgStartRot').value);
-        const finishStageRotation = parseFloat(document.getElementById('dbgFinishRot').value);
-        const charFootOffset = parseInt(document.getElementById('dbgFootY').value, 10);
-        const oldFootOffset = (layout && layout.charFootOffset != null) ? layout.charFootOffset : 0;
-        layout = new StageLayout({ startWorld, finishWorld, entranceOffset, exitOffset, rowStep, tileSize, tileRotation, startStageRotation, finishStageRotation, charFootOffset });
-        // 캐릭터 waiting slot 재할당 (waitingSlot 좌표 새 layout 따라감)
-        state.players.forEach((p, idx) => {
-          if (p.status === 'waiting') p.slot = layout.waitingSlot(idx);
-        });
-        // avatar 위치는 reset 안 함 (게임 진행 중 캐릭터가 시작 위치로 튀는 것 방지)
-        // 단 charFootOffset 변경분만큼 avatar y 비례 보정 (다리 위 캐릭터 자연스럽게 따라감)
-        const footDelta = charFootOffset - oldFootOffset;
-        if (footDelta !== 0 && state.avatar) {
-          state.avatar.y += footDelta;
-          state.avatar.toY += footDelta;
-          state.avatar.fromY += footDelta;
-          state.avatar.groundY += footDelta;
-        }
-        updateDebugInfo();
-      }
-
-      function syncDebugInputs(changedId, value) {
-        const pairs = {
-          dbgStartX: 'dbgStartXNum', dbgStartXNum: 'dbgStartX',
-          dbgStartY: 'dbgStartYNum', dbgStartYNum: 'dbgStartY',
-          dbgFinishX: 'dbgFinishXNum', dbgFinishXNum: 'dbgFinishX',
-          dbgFinishY: 'dbgFinishYNum', dbgFinishYNum: 'dbgFinishY',
-          dbgEntryDx: 'dbgEntryDxNum', dbgEntryDxNum: 'dbgEntryDx',
-          dbgEntryDy: 'dbgEntryDyNum', dbgEntryDyNum: 'dbgEntryDy',
-          dbgExitDx: 'dbgExitDxNum', dbgExitDxNum: 'dbgExitDx',
-          dbgExitDy: 'dbgExitDyNum', dbgExitDyNum: 'dbgExitDy',
-          dbgRowDx: 'dbgRowDxNum', dbgRowDxNum: 'dbgRowDx',
-          dbgRowDy: 'dbgRowDyNum', dbgRowDyNum: 'dbgRowDy',
-          dbgTileW: 'dbgTileWNum', dbgTileWNum: 'dbgTileW',
-          dbgTileH: 'dbgTileHNum', dbgTileHNum: 'dbgTileH',
-          dbgTileRot: 'dbgTileRotNum', dbgTileRotNum: 'dbgTileRot',
-          dbgStartRot: 'dbgStartRotNum', dbgStartRotNum: 'dbgStartRot',
-          dbgFinishRot: 'dbgFinishRotNum', dbgFinishRotNum: 'dbgFinishRot',
-          dbgFootY: 'dbgFootYNum', dbgFootYNum: 'dbgFootY',
-        };
-        const peerId = pairs[changedId];
-        if (peerId) document.getElementById(peerId).value = value;
-      }
-
-      function initDebugPanel() {
-        const ids = ['dbgStartX', 'dbgStartY', 'dbgFinishX', 'dbgFinishY',
-                     'dbgStartXNum', 'dbgStartYNum', 'dbgFinishXNum', 'dbgFinishYNum',
-                     'dbgEntryDx', 'dbgEntryDy', 'dbgExitDx', 'dbgExitDy',
-                     'dbgEntryDxNum', 'dbgEntryDyNum', 'dbgExitDxNum', 'dbgExitDyNum',
-                     'dbgRowDx', 'dbgRowDy', 'dbgTileW', 'dbgTileH',
-                     'dbgRowDxNum', 'dbgRowDyNum', 'dbgTileWNum', 'dbgTileHNum',
-                     'dbgTileRot', 'dbgTileRotNum',
-                     'dbgStartRot', 'dbgStartRotNum',
-                     'dbgFinishRot', 'dbgFinishRotNum',
-                     'dbgFootY', 'dbgFootYNum'];
-        ids.forEach((id) => {
-          document.getElementById(id).addEventListener('input', (e) => {
-            syncDebugInputs(id, e.target.value);
-            applyOffsets();
-          });
-        });
-        // Dimetric Snap: row 슬로프와 평행한 column step이 되도록 exitOffset 자동 보정
-        document.getElementById('dbgSnapBtn').addEventListener('click', () => {
-          const rs = layout.rowStep;
-          if (rs.x === 0) return;
-          const rowSlope = rs.y / rs.x;                      // 예: +0.521
-          const cs = layout.bridge.columnStep;
-          const magn = Math.sqrt(cs.x * cs.x + cs.y * cs.y); // 현재 column step 길이 유지
-          const dirX = cs.x >= 0 ? 1 : -1;                   // 좌→우 진행 부호
-          // 새 column step: |magn|, slope = -rowSlope
-          const newColX = (dirX * magn) / Math.sqrt(1 + rowSlope * rowSlope);
-          const newColY = -newColX * rowSlope;
-          // 새 exit = entrance + newColumnStep × (columnCount - 1)
-          const cnt = layout.bridge.columnCount - 1;
-          const newExitX = layout.bridge.entrance.x + newColX * cnt;
-          const newExitY = layout.bridge.entrance.y + newColY * cnt;
-          // exit = midpoint(finish.LEFT, finish.BOTTOM) + exitOffset
-          const fc = layout.finishPlatform.corners;
-          const exitMidX = (fc.left.x + fc.bottom.x) / 2;
-          const exitMidY = (fc.left.y + fc.bottom.y) / 2;
-          const newOffsetX = Math.round(newExitX - exitMidX);
-          const newOffsetY = Math.round(newExitY - exitMidY);
-          document.getElementById('dbgExitDx').value = newOffsetX;
-          document.getElementById('dbgExitDxNum').value = newOffsetX;
-          document.getElementById('dbgExitDy').value = newOffsetY;
-          document.getElementById('dbgExitDyNum').value = newOffsetY;
-          applyOffsets();
-        });
-
-        document.getElementById('dbgCopyBtn').addEventListener('click', () => {
-          const sw = layout.startWorld;
-          const fw = layout.finishWorld;
-          const eo = layout.entranceOffset;
-          const xo = layout.exitOffset;
-          const rs = layout.rowStep;
-          const ts = layout.tileSize;
-          const code = [
-            `const startWorld     = { x: ${sw.x}, y: ${sw.y} };`,
-            `const finishWorld    = { x: ${fw.x}, y: ${fw.y} };`,
-            `const entranceOffset = { x: ${eo.x}, y: ${eo.y} };`,
-            `const exitOffset     = { x: ${xo.x}, y: ${xo.y} };`,
-            `const rowStep        = { x: ${rs.x}, y: ${rs.y} };`,
-            `const tileSize       = { w: ${ts.w}, h: ${ts.h} };`,
-            `const tileRotation        = ${layout.tileRotation};`,
-            `const startStageRotation  = ${layout.startStageRotation};`,
-            `const finishStageRotation = ${layout.finishStageRotation};`,
-            `const charFootOffset      = ${layout.charFootOffset};`,
-          ].join('\n');
-          document.getElementById('dbgCodeOut').value = code;
-          navigator.clipboard.writeText(code).catch(() => {});
-        });
-        updateDebugInfo();
-      }
-
-      function drawDebugMarkers() {
-        if (!debug.mode) return;
-        ctx.save();
-        ctx.font = '14px sans-serif';
-        ctx.lineWidth = 2;
-
-        // start corners (핑크-빨강)
-        ctx.fillStyle = '#ff5cc8';
-        ctx.strokeStyle = '#ff5cc8';
-        Object.entries(layout.startPlatform.corners).forEach(([name, c]) => {
-          ctx.beginPath();
-          ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillText(name.toUpperCase(), c.x + 8, c.y - 8);
-        });
-
-        // finish corners (파랑)
-        ctx.fillStyle = '#42edff';
-        ctx.strokeStyle = '#42edff';
-        Object.entries(layout.finishPlatform.corners).forEach(([name, c]) => {
-          ctx.beginPath();
-          ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillText(name.toUpperCase(), c.x + 8, c.y - 8);
-        });
-
-        // bridge entrance/exit (녹색 X)
-        ctx.strokeStyle = '#7cf08a';
-        ctx.lineWidth = 3;
-        [layout.bridge.entrance, layout.bridge.exit].forEach((p) => {
-          ctx.beginPath();
-          ctx.moveTo(p.x - 8, p.y - 8);
-          ctx.lineTo(p.x + 8, p.y + 8);
-          ctx.moveTo(p.x + 8, p.y - 8);
-          ctx.lineTo(p.x - 8, p.y + 8);
-          ctx.stroke();
-        });
-
-        // waitingSlots / finishSlots (노랑)
-        ctx.fillStyle = '#ffd86b';
-        layout.waitingSlots.forEach((s) => {
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
-          ctx.fill();
-        });
-        layout.finishSlots.forEach((s) => {
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
-          ctx.fill();
-        });
-
-        ctx.restore();
-      }
-
-      function pushEvent(text) {
-        state.events.unshift(text);
-        state.events = state.events.slice(0, 8);
-        updateTextPanels();
-      }
-
-      /**
-       * 서버 gameStart broadcast 데이터로 시나리오 재생을 시작한다.
-       * mulberry32 / Math.random / randItem 호출 없음 — 모든 결정은 서버 broadcast 데이터.
-       */
-      function startScenarioReplay(data) {
-        const { passerIndex, activeColors, allBets, safeRows, scenarios } = data;
-
-        // 서버 데이터를 state에 저장
-        state.safeRows = safeRows;
-        state.scenarios = scenarios;
-        state.activeColors = activeColors;
-        state.allBets = allBets;
-
-        // revealed 초기화
-        state.revealed = Array.from({ length: layout.columnCount }, () => ({ safe: null, broken: null }));
-
-        // 전체 6명 PlayerActor 생성 (비활성 포함) — 시작 plat에 배치
-        state.allPlayers = allPlayerDefs.map((def, i) => new PlayerActor(def, i, layout));
-
-        // 활성 캐릭터만 (베팅된 색 오름차순) → 도전 플레이어 목록
-        state.players = activeColors.map((colorIdx) => {
-          return state.allPlayers[colorIdx];
-        });
-
-        state.currentScenarioIndex = 0;
-        state.currentIndex = -1;
-        state.current = null;
-        state.pendingChoice = null;
-        state.timer = 0.5;
-        state.elapsed = 0;
-        state.winner = null;
-        state.paused = false;
-        state.mode = 'playing';
-        state.phase = 'next-player';
-        state.avatar.reset(layout.entrance());
-        state.events = ['다리 건너기 시작!'];
-        updateTextPanels();
-      }
-
-      function getKnownPathLength() {
-        let length = 0;
-        for (const item of state.revealed) {
-          if (!item.safe) break;
-          length += 1;
-        }
-        return length;
-      }
-
-      function nextActivePlayer() {
-        for (let i = state.currentIndex + 1; i < state.players.length; i += 1) {
-          if (state.players[i].status === 'waiting') return i;
-        }
-        return -1;
-      }
-
-      function beginPlayer(index) {
-        state.currentIndex = index;
-        state.current = state.players[index];
-        state.current.resetForRun();
-        state.avatar.reset(state.current.slot);
-        state.phase = 'enter-bridge';
-        moveAvatar(layout.entrance(), 0.55, { jumpHeight: 0, anchorOffset: 0 });
-        pushEvent(`${state.current.name} steps up.`);
-      }
-
-      function moveAvatar(point, duration, options = {}) {
-        state.avatar.moveTo(point, duration, options);
-        state.timer = duration;
-      }
-
-      function revealChoice(player, col, choice) {
-        const safe = state.safeRows[col];
-        const success = choice === safe;
-        const broken = success ? (safe === 'top' ? 'bottom' : 'top') : choice;
-        state.revealed[col] = { safe, broken };
-        player.choiceLog.push({ col, choice, success });
-        return success;
-      }
-
-      function finishGame(winner) {
-        state.winner = winner || state.players.slice().sort((a, b) => b.progress - a.progress)[0] || null;
-        if (state.winner) {
-          state.winner.status = 'winner';
-          state.winner.animator.set('result', true);
-        }
-        state.current = null;
-        state.phase = 'finished';
-        state.mode = 'finished';
-        pushEvent(`${state.winner ? state.winner.name : '—'} 통과!`);
-        updateTextPanels();
-      }
-
-      function update(dt) {
-        if (state.mode === 'loading' || state.paused) return;
-        state.elapsed += dt;
-        // 전체 6명 animator 업데이트 (비활성도 idle bob 처리)
-        const animPlayers = state.allPlayers.length ? state.allPlayers : state.players;
-        for (const player of animPlayers) player.animator.update(dt);
-        state.avatar.update(dt);
-
-        if (state.current) {
-          if (state.phase === 'falling') state.current.animator.set('fall');
-          else if (state.phase === 'enter-bridge') state.current.animator.set('run');
-          else if (state.avatar.t < 1) state.current.animator.set('jump');
-          else if (state.phase === 'safe-flash') state.current.animator.set('land');
-          else state.current.animator.set('run');
-        }
-
-        state.timer -= dt;
-        if (state.timer > 0) return;
-
-        switch (state.phase) {
-          case 'next-player': {
-            const next = nextActivePlayer();
-            if (next === -1) finishGame(null);
-            else beginPlayer(next);
-            break;
-          }
-          case 'enter-bridge':
-            state.phase = 'walk-known';
-            state.timer = 0.08;
-            break;
-          case 'walk-known': {
-            const player = state.current;
-            const known = getKnownPathLength();
-            if (!player) break;
-            if (player.progress < known) {
-              const col = player.progress;
-              const row = state.revealed[col].safe;
-              moveAvatar(layout.tileCenter(col, row), 0.48, { jumpHeight: 42 });
-              if (window.SoundManager) SoundManager.playSound('bridge-cross_step');
-              player.progress += 1;
-              state.phase = 'walk-known-wait';
-            } else {
-              state.phase = 'choose';
-              state.timer = 0.35;
-            }
-            break;
-          }
-          case 'walk-known-wait':
-            state.phase = 'walk-known';
-            state.timer = 0.08;
-            break;
-          case 'choose': {
-            const player = state.current;
-            const col = player.progress;
-            if (col >= layout.columnCount) {
-              player.status = 'finished';
-              player.animator.set('result', true);
-              moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
-              state.phase = 'finish-wait';
-              break;
-            }
-            // 서버 시나리오에서 이 column의 선택 row를 결정 — Math.random 0회
-            const scenario = state.scenarios[state.currentScenarioIndex];
-            let choice;
-            if (!scenario) {
-              // 시나리오 범위 초과 (안전 fallback — 도달하면 안 됨)
-              choice = state.safeRows[col] || 'top';
-            } else if (scenario.success) {
-              // 통과자 — 이 column은 안전 row로 진행
-              choice = state.safeRows[col];
-            } else if (col === scenario.failColumn) {
-              // 이 column에서 실패하는 시나리오
-              choice = scenario.failRow;
-            } else {
-              // 앞 캐릭터들이 공개한 안전 row 따라감
-              choice = state.safeRows[col];
-            }
-            state.pendingChoice = { col, row: choice };
-            moveAvatar(layout.tileCenter(col, choice), 0.68, { jumpHeight: 70 });
-            state.phase = 'choice-wait';
-            if (window.SoundManager) SoundManager.playSound('bridge-cross_crack');
-            pushEvent(`${player.name}이(가) ${col + 1}번 열에 도전.`);
-            break;
-          }
-          case 'choice-wait': {
-            const player = state.current;
-            const { col, row } = state.pendingChoice;
-            // 서버 시나리오로 성공/실패 결정 — 클라이언트 판정 없음
-            const scenario = state.scenarios[state.currentScenarioIndex];
-            let success;
-            if (!scenario) {
-              success = true; // 안전 fallback
-            } else if (scenario.success) {
-              success = true;
-            } else {
-              success = (col !== scenario.failColumn);
-            }
-            revealChoice(player, col, row);
-            if (success) {
-              player.progress += 1;
-              pushEvent(`${player.name}: ${col + 1}번 열 통과.`);
-              state.pendingChoice = null;
-              state.phase = 'safe-flash';
-              state.timer = 0.42;
-              if (window.SoundManager) SoundManager.playSound('bridge-cross_safe');
-            } else {
-              player.fallsAt = col + 1;
-              player.status = 'fallen';
-              pushEvent(`${player.name}: ${col + 1}번 열에서 추락! 안전 발판 공개.`);
-              state.phase = 'falling';
-              state.timer = 0.92;
-              if (window.SoundManager) { SoundManager.playSound('bridge-cross_break'); SoundManager.playSound('bridge-cross_fall'); }
-            }
-            updateTextPanels();
-            break;
-          }
-          case 'safe-flash':
-            if (state.current.progress >= layout.columnCount) {
-              state.current.status = 'finished';
-              state.current.animator.set('result', true);
-              moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
-              state.phase = 'finish-wait';
-            } else {
-              state.phase = 'choose';
-              state.timer = 0.2;
-            }
-            break;
-          case 'falling':
-            // 이 캐릭터의 시나리오 처리 완료 → 다음 시나리오로
-            state.currentScenarioIndex += 1;
-            state.current = null;
-            state.pendingChoice = null;
-            state.phase = 'next-player';
-            state.timer = 0.45;
-            break;
-          case 'finish-wait':
-            // 통과자 시나리오 처리 완료
-            state.currentScenarioIndex += 1;
-            finishGame(state.current);
-            break;
-          default:
-            break;
-        }
-      }
-
-      function sheetCell(image, sheet, row, col) {
-        const cellW = Math.floor(image.naturalWidth / sheet.columns);
-        const cellH = Math.floor(image.naturalHeight / sheet.rows);
-        return {
-          sx: col * cellW,
-          sy: row * cellH,
-          sw: cellW,
-          sh: cellH,
-        };
-      }
-
-      function fxFrame(name) {
-        const image = images.glassFx;
-        const anim = fxSheet.animations[name];
-        const frame = anim.frames[Math.floor(state.elapsed * anim.fps) % anim.frames.length];
-        return sheetCell(image, fxSheet, anim.row, frame);
-      }
-
-      function drawImageCell(image, cell, x, y, w, h, alpha = 1) {
-        if (!image) return;
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, x, y, w, h);
-        ctx.restore();
-      }
-
-      function fxUsesContactAnchor() {
-        return Math.abs(fxSheet.anchor.x - playerSheet.anchor.x) < 0.001
-          && Math.abs(fxSheet.anchor.y - playerSheet.anchor.y) < 0.001;
-      }
-
-      function tileFxRect(center) {
-        const size = { w: layout.tileW, h: layout.tileH };
-        const anchor = fxUsesContactAnchor() ? fxSheet.anchor : { x: 0.5, y: 0.5 };
-        return {
-          x: center.x - size.w * anchor.x,
-          y: center.y - size.h * anchor.y,
-          w: size.w,
-          h: size.h,
-          anchor,
-        };
-      }
-
-      function drawTile(col, row) {
-        const info = state.revealed[col];
-        const center = layout.tileCenter(col, row);
-        const rect = tileFxRect(center);
-        const pending = state.pendingChoice && state.pendingChoice.col === col && state.pendingChoice.row === row;
-        const lastSafe = state.current && state.current.progress === col + 1 && info.safe === row;
-
-        let fxName = 'safe_sparkle';
-        let frameOverride = 0;
-        let alpha = 0.9;
-        if (info.broken === row) {
-          fxName = 'break_shards';
-          frameOverride = 1;
-          alpha = 0.95;
-        } else if (info.safe === row) {
-          fxName = lastSafe && state.phase === 'safe-flash' ? 'safe_sparkle' : 'safe_sparkle';
-          frameOverride = lastSafe ? null : 0;
-          alpha = 1;
-        } else if (pending) {
-          fxName = 'warning_glow';
-          frameOverride = null;
-          alpha = 1;
-        }
-
-        const image = images.glassFx;
-        const anim = fxSheet.animations[fxName];
-        const frame = frameOverride === null
-          ? anim.frames[Math.floor(state.elapsed * anim.fps) % anim.frames.length]
-          : frameOverride;
-        const cell = sheetCell(image, fxSheet, anim.row, frame);
-        const rotation = layout.tileRotation || 0;
-        if (rotation !== 0) {
-          ctx.save();
-          const pivotX = rect.x + rect.w * rect.anchor.x;
-          const pivotY = rect.y + rect.h * rect.anchor.y;
-          ctx.translate(pivotX, pivotY);
-          ctx.rotate(rotation * Math.PI / 180);
-          ctx.translate(-pivotX, -pivotY);
-          drawImageCell(image, cell, rect.x, rect.y, rect.w, rect.h, alpha);
-          ctx.restore();
-        } else {
-          drawImageCell(image, cell, rect.x, rect.y, rect.w, rect.h, alpha);
-        }
-      }
-
-      function drawPlayer(player, x, y, scale = 0.34, alpha = 1, falling = false, dim = false) {
-        if (dim) alpha *= 0.35;
-        const image = images[`player_${player.color}`];
-        const anim = falling ? 'fall' : player.animator.animName;
-        const row = playerSheet.animations[anim].row;
-        const col = player.animator.frame(playerSheet);
-        const cell = sheetCell(image, playerSheet, row, col);
-        const w = cell.sw * scale;
-        const h = cell.sh * scale;
-        // 살아있는 느낌의 idle bob — 캐릭터별 phase 분산 (player.id), 진폭 키우고 horizontal도 추가
-        const isIdle = !falling && (player.status === 'waiting' || player.status === 'finished' || player.status === 'winner');
-        const bobX = isIdle ? Math.sin(state.elapsed * 2.3 + player.id * 1.7) * 1.5 : 0;
-        const bobY = isIdle ? Math.sin(state.elapsed * 4.5 + player.id) * 5 : 0;
-
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        if (falling) {
-          const fallT = 1 - Math.max(0, state.timer) / 0.92;
-          const fallY = y + fallT * 150;
-          const fallX = x + Math.sin(fallT * Math.PI) * 20;
-          const trail = fxFrame('fall_trail');
-          drawImageCell(images.glassFx, trail, fallX - 48, fallY - 64, 96, 110, 0.8 * (1 - fallT * 0.35));
-          ctx.translate(fallX, fallY);
-          ctx.rotate(0.25 + fallT * 0.8);
-          ctx.globalAlpha = alpha * Math.max(0.16, 1 - fallT * 0.78);
-          ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, -w * playerSheet.anchor.x, -h * playerSheet.anchor.y, w, h);
-        } else {
-          ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, x - w * playerSheet.anchor.x + bobX, y - h * playerSheet.anchor.y + bobY, w, h);
-        }
-        ctx.restore();
-      }
-
-      // 자산 가운데 기준 회전 적용한 stage drawImage
-      function drawStageImage(image, world, size, rotationDeg) {
-        if (rotationDeg === 0) {
-          ctx.drawImage(image, world.x, world.y, size.w, size.h);
-          return;
-        }
-        ctx.save();
-        const cx = world.x + size.w / 2;
-        const cy = world.y + size.h / 2;
-        ctx.translate(cx, cy);
-        ctx.rotate(rotationDeg * Math.PI / 180);
-        ctx.translate(-cx, -cy);
-        ctx.drawImage(image, world.x, world.y, size.w, size.h);
-        ctx.restore();
-      }
-
-      function drawBackground() {
-        // background-void-v2 2회: (0,0) + (864,0) — world 좌표, 원본 크기 그대로
-        if (images.bg) {
-          ctx.drawImage(images.bg, 0, 0, 1536, 1024);
-          ctx.drawImage(images.bg, 864, 0, 1536, 1024);
-        }
-        // start-stage: crop 후 자산 크기(728×743), world 배치 위치는 layout.startWorld
-        if (images.startStage) {
-          drawStageImage(images.startStage, layout.startWorld, layout.startSize, layout.startStageRotation || 0);
-        }
-        // finish-stage: crop 후 자산 크기(559×794), world 배치 위치는 layout.finishWorld
-        if (images.finishStage) {
-          drawStageImage(images.finishStage, layout.finishWorld, layout.finishSize, layout.finishStageRotation || 0);
-        }
-      }
-
-      function drawScreenAtmosphere() {
-        // viewport 좌표 고정 atmosphere — camera 이동과 무관하게 화면에 고정
-        // 중심 X: viewport.w / 2, 중심 Y: viewport.h × 0.18 (상단 1/5 지점)
-        const cx = viewport.w / 2;
-        const cy = viewport.h * 0.18;
-        const grad = ctx.createRadialGradient(cx, cy, viewport.w * 0.08, cx, viewport.h * 0.6, viewport.w * 0.8);
-        grad.addColorStop(0, 'rgba(31, 45, 112, 0.2)');
-        grad.addColorStop(0.62, 'rgba(3, 5, 17, 0.16)');
-        grad.addColorStop(1, 'rgba(2, 3, 11, 0.58)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, viewport.w, viewport.h);
-      }
-
-      function drawAvatarShadow() {
-        if (!state.current || state.phase === 'falling') return;
-        const airborne = state.avatar.t < 1 ? Math.sin(Math.PI * state.avatar.t) : 0;
-        ctx.save();
-        ctx.fillStyle = `rgba(0, 0, 0, ${0.34 * (1 - airborne * 0.45)})`;
-        ctx.beginPath();
-        ctx.ellipse(state.avatar.groundX, state.avatar.groundY - 8, 32 * (1 - airborne * 0.35), 12, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      function drawJumpTrail() {
-        if (!state.current || state.phase === 'falling' || state.phase === 'enter-bridge' || state.avatar.t >= 1) return;
-        ctx.save();
-        for (let i = 0; i < 4; i += 1) {
-          const lag = Math.max(0, state.avatar.t - (i + 1) * 0.08);
-          const eased = lag < 0.5 ? 2 * lag * lag : 1 - Math.pow(-2 * lag + 2, 2) / 2;
-          const x = state.avatar.fromX + (state.avatar.toX - state.avatar.fromX) * eased;
-          const y = state.avatar.fromY + (state.avatar.toY - state.avatar.fromY) * eased - Math.sin(Math.PI * lag) * state.avatar.jumpHeight;
-          const size = 7 - i;
-          ctx.globalAlpha = 0.42 - i * 0.07;
-          ctx.fillStyle = i % 2 === 0 ? '#42edff' : '#fff2a8';
-          ctx.fillRect(Math.round(x - size / 2), Math.round(y - 42 - size / 2), size, size);
-        }
-        ctx.restore();
-      }
-
-      function drawLandingPulse() {
-        if (!state.current || state.avatar.landPulse <= 0 || state.phase === 'falling') return;
-        const t = 1 - state.avatar.landPulse / 0.28;
-        const cell = fxFrame('landing_pulse');
-        const size = 86 + t * 34;
-        drawImageCell(images.glassFx, cell, state.avatar.groundX - size / 2, state.avatar.groundY - size * 0.72, size, size, 0.78 * (1 - t * 0.4));
-      }
-
-      function drawHud() {
-        // HUD는 screen-space (camera 밖) — viewport 1024×683 기준 좌표
-        // 원본 1536×1024 기준 → 0.667 스케일 적용
-        ctx.save();
-        ctx.fillStyle = 'rgba(4, 7, 22, 0.7)';
-        ctx.strokeStyle = 'rgba(75, 235, 255, 0.28)';
-        ctx.lineWidth = 2;
-        // 좌상 패널: 원본 (36,30,510,112) → (24,20,340,75)
-        roundedRect(24, 20, 340, 75, 9);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = '#f8fbff';
-        ctx.font = '900 23px Segoe UI, sans-serif';
-        ctx.fillText('Bridge Cross', 41, 51);
-        ctx.fillStyle = '#a8b7d0';
-        ctx.font = '700 12px Segoe UI, sans-serif';
-        const label = state.phase === 'finished'
-          ? `통과: ${state.winner ? state.winner.name : '-'}`
-          : state.current
-            ? `도전 중: ${state.current.name}`
-            : state.mode === 'playing'
-              ? '다음 도전자 대기'
-              : '대기';
-        ctx.fillText(label, 43, 75);
-
-        ctx.fillStyle = 'rgba(4, 7, 22, 0.7)';
-        // 우상 패널: 원본 (1114,30,376,92) → (744,20,251,61)
-        roundedRect(744, 20, 251, 61, 9);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = '#42edff';
-        ctx.font = '900 12px Segoe UI, sans-serif';
-        const knownCols = getKnownPathLength();
-        ctx.fillText(`열 ${knownCols} / ${layout.columnCount}`, 760, 44);
-        ctx.fillStyle = '#a8b7d0';
-        ctx.font = '700 10px Segoe UI, sans-serif';
-        const activeStr = state.activeColors.length > 0
-          ? `활성: ${state.activeColors.length}명`
-          : '';
-        ctx.fillText(activeStr, 760, 64);
-        ctx.restore();
-      }
-
-      function roundedRect(x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.arcTo(x + w, y, x + w, y + h, r);
-        ctx.arcTo(x + w, y + h, x, y + h, r);
-        ctx.arcTo(x, y + h, x, y, r);
-        ctx.arcTo(x, y, x + w, y, r);
-        ctx.closePath();
-      }
-
-      function render() {
-        // Screen clear (viewport 좌표)
-        ctx.clearRect(0, 0, viewport.w, viewport.h);
-        ctx.fillStyle = '#030511';
-        ctx.fillRect(0, 0, viewport.w, viewport.h);
-
-        // World draws (camera transform 적용)
-        camera.apply(ctx);
-
-        drawBackground();
-
-        for (let col = 0; col < layout.columnCount; col += 1) {
-          drawTile(col, 'top');
-          drawTile(col, 'bottom');
-        }
-
-        // 비활성 캐릭터(베팅 없음): 시작 plat에 dim으로 표시
-        const activeColorSet = new Set(state.activeColors);
-        if (state.allPlayers.length > 0) {
-          state.allPlayers.forEach((player) => {
-            const isDim = activeColorSet.size > 0 && !activeColorSet.has(player.colorIndex);
-            if (isDim && player.status === 'waiting') {
-              drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96, false, true);
-            }
-          });
-        }
-
-        state.players.filter((p) => p.status === 'waiting').forEach((player) => {
-          drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96);
-        });
-
-        state.players.filter((p) => p.status === 'fallen').forEach((player) => {
-          const col = Math.max(0, (player.fallsAt || 1) - 1);
-          const row = state.revealed[col].broken || 'bottom';
-          const pos = layout.tileCenter(col, row);
-          const cell = fxFrame('break_shards');
-          drawImageCell(images.glassFx, cell, pos.x - 58, pos.y + 6, 116, 116, 0.34);
-        });
-
-        state.players.filter((p) => p !== state.current && (p.status === 'finished' || p.status === 'winner')).forEach((player, index) => {
-          const slot = layout.finishSlot(index);
-          drawPlayer(player, slot.x, slot.y, 0.66, 1);
-        });
-
-        if (state.current) {
-          const falling = state.phase === 'falling';
-          drawAvatarShadow();
-          drawLandingPulse();
-          drawJumpTrail();
-          drawPlayer(state.current, state.avatar.x, state.avatar.y, 0.78, 1, falling);
-        }
-
-        if (state.phase === 'falling' && state.pendingChoice) {
-          const pos = layout.tileCenter(state.pendingChoice.col, state.pendingChoice.row);
-          const warning = fxFrame('warning_glow');
-          const tw = layout.tileSize.w;
-          const th = layout.tileSize.h;
-          drawImageCell(images.glassFx, warning, pos.x - tw / 2, pos.y - th / 2, tw, th, 0.9);
-        }
-
-        drawDebugMarkers();
-
-        camera.release(ctx);
-
-        // Screen-space atmosphere (viewport 고정, camera 이동과 무관)
-        drawScreenAtmosphere();
-
-        // HUD (screen-space, camera 밖)
-        drawHud();
-      }
-
-      function updateTextPanels() {
-        document.getElementById('ticker').innerHTML = state.events
-          .map((event) => `<li>${escapeHtml(event)}</li>`)
-          .join('');
-        document.getElementById('ranking').innerHTML = state.players
-          .map((player, index) => `<li><strong>${index + 1}. ${escapeHtml(player.name)}</strong> - ${escapeHtml(player.status)} - ${player.progress}/${layout.columnCount}</li>`)
-          .join('');
-      }
-
-      function escapeHtml(text) {
-        return String(text)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-      }
-
-      function loop(now) {
-        const dt = Math.min(0.05, (now - (loop.last || now)) / 1000);
-        loop.last = now;
-        update(dt);
-        cameraDirector.update(state);
-        camera.update(dt, userZoomController.value);
-        render();
-        requestAnimationFrame(loop);
-      }
-
-      function renderGameToText() {
-        return JSON.stringify({
-          coordinateSystem: 'world 2400x1024, viewport 1024x683, origin top-left, x right, y down',
-          mode: state.mode,
-          phase: state.phase,
-          paused: state.paused,
-          activeColors: state.activeColors,
-          activePlayer: state.current ? state.current.name : null,
-          activeColor: state.current ? state.current.color : null,
-          avatar: {
-            x: Math.round(state.avatar.x),
-            y: Math.round(state.avatar.y),
-            groundX: Math.round(state.avatar.groundX),
-            groundY: Math.round(state.avatar.groundY),
-            jumpT: Number(state.avatar.t.toFixed(2)),
-          },
-          knownColumns: getKnownPathLength(),
-          revealed: state.revealed.map((item, index) => ({
-            column: index + 1,
-            safe: item.safe,
-            broken: item.broken,
-          })),
-          players: state.players.map((player) => ({
-            name: player.name,
-            color: player.color,
-            status: player.status,
-            progress: player.progress,
-            fallsAt: player.fallsAt,
-          })),
-          pendingChoice: state.pendingChoice,
-          winner: state.winner ? state.winner.name : null,
-          layout: layout.debugPayload(),
-          latestEvent: state.events[0],
-        });
-      }
-
-      window.render_game_to_text = renderGameToText;
-      window.advanceTime = (ms) => {
-        const steps = Math.max(1, Math.round(ms / (1000 / 60)));
-        for (let i = 0; i < steps; i += 1) update(1 / 60);
-        render();
-      };
-
-      // 게임 시작 버튼 — 호스트가 클릭하면 서버에 요청
-      const startBtnEl = document.getElementById('startBtn');
-      if (startBtnEl) {
-        startBtnEl.addEventListener('click', () => {
-          socket.emit('bridge-cross:start');
-        });
-      }
-
-      // _onGameStart 콜백 등록 — Socket script 블록에서 호출됨
-      window._onGameStart = function(data) {
-        startScenarioReplay(data);
-      };
-      window._onGameEnd = function({ winnerColor, winners }) {
-        // 게임 종료 시 시각 루프는 자연스럽게 finished 상태로 멈춤
-        // (finishGame은 update()→finish-wait 케이스에서 이미 호출됨)
-      };
-
-      // Zoom UI — DOM floating controls
-      function updateZoomDisplay() {
-        document.getElementById('zoomValue').textContent = userZoomController.value.toFixed(1) + '×';
-      }
-
-      document.getElementById('zoomUi').addEventListener('click', (event) => {
-        const btn = event.target.closest('button[data-zoom]');
-        if (!btn) return;
-        const action = btn.dataset.zoom;
-        if (action === 'reset') {
-          userZoomController.reset();
-        } else {
-          userZoomController.delta(parseFloat(action));
-        }
-        updateZoomDisplay();
-      });
-
-      // 마우스 휠: canvas hover 시에만 작동, 전역 페이지 스크롤 차단 안 함
-      // deltaY 비례 매핑: 트랙패드(±4~10)와 마우스 휠(±100~400) 단위 차이 자동 흡수
-      canvas.addEventListener('wheel', (event) => {
-        event.preventDefault();
-        userZoomController.delta(-event.deltaY * 0.001);
-        updateZoomDisplay();
-      }, { passive: false });
-
-      window.addEventListener('keydown', (event) => {
-        if (event.key.toLowerCase() === 'f') {
-          if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-          else document.exitFullscreen().catch(() => {});
-        }
-        if (event.key.toLowerCase() === 'd') {
-          if (!debugEnabled) return;
-          debug.mode = !debug.mode;
-          document.getElementById('debugPanel').hidden = !debug.mode;
-          if (debug.mode) updateDebugInfo();
-        }
-        if (event.key === ' ') {
-          event.preventDefault();
-          // Space bar: 호스트면 게임 시작 emit
-          if (window.isHost) socket.emit('bridge-cross:start');
-        }
-      });
-
-      applySpriteManifest().then(() => Promise.all(Object.entries(imageDefs).map(([key, src]) => loadImage(key, src)))).then(() => {
-        // Phase 3: resetGame 없음. 빈 캔버스 상태에서 시작, 서버 broadcast 대기
-        state.mode = 'ready';
-        state.phase = 'ready';
-        state.allPlayers = allPlayerDefs.map((def, i) => new PlayerActor(def, i, layout));
-        state.players = [];
-        state.revealed = Array.from({ length: layout.columnCount }, () => ({ safe: null, broken: null }));
-        state.events = ['방에 연결 중...'];
-        updateTextPanels();
-        if (debugEnabled) {
-          document.getElementById('debugPanel').hidden = false;
-          initDebugPanel();
-        }
-        requestAnimationFrame(loop);
-      });
-    })();
-  </script>
+    <script src="/js/ads.js"></script>
 </body>
 </html>

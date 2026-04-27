@@ -1,0 +1,696 @@
+/*
+ * css/bridge-cross.css
+ *
+ * Bridge Cross 게임 전용 스타일.
+ * mockup base의 inline <style> (bridge-cross-multiplayer.html line 30~322)을 분리.
+ *
+ * 변수 의존성 — Phase 2에서 css/theme.css에 다음을 정의해야 한다:
+ *   --bridge-500       (메인 브랜드, 권장 톤: mockup의 #42edff cyan / SPEC 디폴트 #5B8DEF blue 중 택1)
+ *   --bridge-500-rgb   (--bridge-500의 r,g,b)
+ *   --bridge-600       (호버/강조)
+ *   --bridge-accent    (메인 색의 옅은 변형)
+ *   --game-type-bridge (게임 색상 식별자, = var(--bridge-500))
+ *
+ * Phase 1 단계에서는 변수 미정의 상태로 둔다. Phase 2에서 theme.css 추가 시
+ * 본 파일은 변경 없이 cascade 적용됨.
+ */
+
+:root {
+  /* 다리 건너기 게임 — 시안 테마 보강 색상 (Phase 2에서 theme.css로 흡수 가능) */
+  --bridge-panel: rgba(9, 12, 34, 0.9);
+  --bridge-line: rgba(var(--bridge-500-rgb, 66, 237, 255), 0.24);
+  --bridge-gold: #ffd86b;
+  --bridge-danger: #ff5ebd;
+  --bridge-text: #f8fbff;
+  --bridge-muted: #a8b7d0;
+  --bridge-bg-radial: radial-gradient(circle at 50% 0%, #1b2462 0, #090b22 46%, #03040d 100%);
+}
+
+/* Bridge Cross 페이지 전용 스코프 — 다른 게임에 영향 안 가도록 body.bridge-cross 사용 */
+body.bridge-cross {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bridge-bg-radial);
+  color: var(--bridge-text);
+  font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  overflow-x: hidden;
+}
+
+body.bridge-cross * {
+  box-sizing: border-box;
+}
+
+body.bridge-cross .shell {
+  width: min(1280px, 100%);
+  display: grid;
+  gap: 12px;
+}
+
+/* 패널 / 카드 공통 */
+body.bridge-cross .topbar,
+body.bridge-cross .card {
+  border: 1px solid var(--bridge-line);
+  border-radius: 8px;
+  background: var(--bridge-panel);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+}
+
+body.bridge-cross .topbar {
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+body.bridge-cross h1 {
+  margin: 0;
+  font-size: clamp(19px, 2.2vw, 25px);
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+body.bridge-cross .subtitle {
+  margin: 4px 0 0;
+  color: var(--bridge-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+body.bridge-cross .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+body.bridge-cross button {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  padding: 9px 13px;
+  color: var(--bridge-text);
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+body.bridge-cross button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+body.bridge-cross button.primary {
+  color: #041018;
+  background: linear-gradient(135deg, var(--bridge-500), #a9fff4);
+  border-color: rgba(var(--bridge-500-rgb, 66, 237, 255), 0.78);
+}
+
+body.bridge-cross button.warn {
+  background: rgba(255, 94, 189, 0.16);
+  border-color: rgba(255, 94, 189, 0.46);
+}
+
+body.bridge-cross .top-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  color: var(--bridge-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+body.bridge-cross .top-links a {
+  color: var(--bridge-500);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(var(--bridge-500-rgb, 66, 237, 255), 0.34);
+}
+
+body.bridge-cross .phase-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 216, 107, 0.36);
+  border-radius: 999px;
+  color: var(--bridge-gold);
+  background: rgba(255, 216, 107, 0.1);
+}
+
+/* 캔버스 컨테이너 */
+body.bridge-cross .stage-wrap {
+  position: relative;
+  border: 1px solid var(--bridge-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #02030b;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.46);
+}
+
+/* Zoom UI (canvas 위 floating) */
+body.bridge-cross .zoom-ui {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(4, 7, 22, 0.78);
+  border: 1px solid var(--bridge-line);
+  border-radius: 8px;
+  padding: 4px 8px;
+  backdrop-filter: blur(8px);
+}
+
+body.bridge-cross .zoom-ui button {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 4px 8px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--bridge-text);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.bridge-cross .zoom-ui button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: none;
+}
+
+body.bridge-cross .zoom-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bridge-500);
+  min-width: 38px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Debug 패널 (?debug=1로 enable) */
+body.bridge-cross .debug-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 11;
+  background: rgba(4, 7, 22, 0.88);
+  border: 1px solid var(--bridge-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  backdrop-filter: blur(8px);
+  min-width: 230px;
+  max-width: 270px;
+  font-size: 12px;
+  color: var(--bridge-text);
+  line-height: 1.4;
+}
+
+body.bridge-cross .debug-panel .debug-title {
+  font-size: 11px;
+  color: var(--bridge-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+body.bridge-cross .debug-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+body.bridge-cross .debug-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  font-size: 11px;
+  color: var(--bridge-muted);
+}
+
+body.bridge-cross .debug-row label span {
+  min-width: 46px;
+  flex-shrink: 0;
+}
+
+body.bridge-cross .debug-row input[type="range"] {
+  flex: 1;
+  height: 16px;
+  accent-color: var(--bridge-500);
+  cursor: pointer;
+}
+
+body.bridge-cross .debug-row input[type="number"] {
+  width: 52px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  color: var(--bridge-text);
+  font-size: 11px;
+  padding: 1px 4px;
+  text-align: right;
+}
+
+body.bridge-cross .debug-info {
+  margin: 6px 0;
+  font-size: 11px;
+  color: var(--bridge-500);
+  line-height: 1.5;
+}
+
+body.bridge-cross .debug-panel button {
+  min-height: 28px;
+  font-size: 11px;
+  padding: 4px 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+body.bridge-cross #dbgCodeOut {
+  width: 100%;
+  margin-top: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--bridge-gold);
+  font-size: 10px;
+  font-family: monospace;
+  padding: 4px;
+  resize: none;
+}
+
+/* 캔버스 본체 */
+body.bridge-cross canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  background: #02030b;
+  image-rendering: pixelated;
+}
+
+/* 게임 상태바 */
+body.bridge-cross .game-status {
+  border: 1px solid rgba(var(--bridge-500-rgb, 66, 237, 255), 0.24);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: rgba(5, 8, 24, 0.82);
+  color: var(--bridge-muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+body.bridge-cross .game-status.waiting {
+  background: rgba(168, 183, 208, 0.10);
+  color: var(--bridge-muted);
+}
+body.bridge-cross .game-status.playing {
+  background: rgba(var(--bridge-500-rgb, 66, 237, 255), 0.16);
+  color: var(--bridge-500);
+}
+body.bridge-cross .game-status.finished {
+  background: rgba(255, 216, 107, 0.14);
+  color: var(--bridge-gold);
+}
+
+/* 베팅 패널 */
+body.bridge-cross .betting-panel,
+body.bridge-cross .ready-section,
+body.bridge-cross .chat-section,
+body.bridge-cross .users-section,
+body.bridge-cross .orders-section,
+body.bridge-cross .horse-selection-section {
+  border: 1px solid var(--bridge-line);
+  border-radius: 8px;
+  background: var(--bridge-panel);
+  padding: 12px 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+  min-width: 0;
+}
+
+body.bridge-cross .section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+body.bridge-cross .section-head h2 {
+  margin: 0;
+  color: var(--bridge-500);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.bridge-cross .section-head span {
+  color: var(--bridge-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* `.users-title` — bridge-cross 시안 테마 (horse-race.css 의 동일 클래스 대체) */
+body.bridge-cross .users-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--bridge-500);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* 베팅 카드 그리드 */
+body.bridge-cross .betting-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+body.bridge-cross .bet-card {
+  min-height: 86px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 4px solid var(--bet-color, var(--bridge-500));
+  border-radius: 8px;
+  padding: 9px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--bridge-text);
+  text-align: left;
+}
+
+body.bridge-cross .bet-card[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.78;
+}
+
+body.bridge-cross .bet-card strong,
+body.bridge-cross .bet-card span {
+  display: block;
+}
+
+body.bridge-cross .bet-card strong {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+body.bridge-cross .bet-card span {
+  color: var(--bridge-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+body.bridge-cross .users-list,
+body.bridge-cross .chat-messages {
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 9px;
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--bridge-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* `.user-tag` — bridge 테마색 (new-game.md §3 가이드 준수) */
+body.bridge-cross .user-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin: 2px 4px 2px 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 2px solid var(--bridge-500);
+  background: rgba(var(--bridge-500-rgb, 66, 237, 255), 0.12);
+  color: var(--bridge-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+body.bridge-cross .user-tag.host {
+  background: var(--bridge-500);
+  color: #041018;
+}
+body.bridge-cross .user-tag.ready {
+  background: #4CAF50;
+  border-color: #4CAF50;
+  color: white;
+}
+body.bridge-cross .user-tag.me {
+  border-color: var(--bridge-gold);
+  color: var(--bridge-gold);
+}
+
+body.bridge-cross .chat-section {
+  display: grid;
+  gap: 8px;
+}
+
+body.bridge-cross .chat-messages {
+  min-height: 96px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+body.bridge-cross .chat-input-row,
+body.bridge-cross .order-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+body.bridge-cross .chat-input-row button,
+body.bridge-cross .order-actions button {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+body.bridge-cross .chat-input-row button {
+  min-width: 56px;
+}
+
+body.bridge-cross .order-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.bridge-cross .order-actions button {
+  flex: 1 1 110px;
+}
+
+body.bridge-cross input[type="text"] {
+  min-height: 38px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--bridge-text);
+  font: inherit;
+}
+
+body.bridge-cross input[type="text"]:disabled,
+body.bridge-cross button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+/* Event Feed / Crossing Order 카드 */
+body.bridge-cross .statusbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+  gap: 12px;
+}
+
+body.bridge-cross .card {
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+body.bridge-cross .card h2 {
+  margin: 0 0 8px;
+  color: var(--bridge-500);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.bridge-cross .ticker,
+body.bridge-cross .ranking {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--bridge-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+body.bridge-cross .ticker li,
+body.bridge-cross .ranking li {
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+}
+
+body.bridge-cross .ticker strong,
+body.bridge-cross .ranking strong {
+  color: var(--bridge-text);
+}
+
+/* 모바일 반응 */
+@media (max-width: 760px) {
+  body.bridge-cross {
+    padding: 10px;
+  }
+
+  body.bridge-cross .topbar,
+  body.bridge-cross .statusbar {
+    grid-template-columns: 1fr;
+  }
+
+  body.bridge-cross .actions {
+    justify-content: stretch;
+  }
+
+  body.bridge-cross .actions button {
+    flex: 1 1 110px;
+  }
+
+  body.bridge-cross .debug-panel {
+    min-width: 180px;
+    max-width: 210px;
+    font-size: 11px;
+  }
+
+  body.bridge-cross .betting-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.bridge-cross .zoom-ui {
+    bottom: 8px;
+    right: 8px;
+    padding: 3px 6px;
+  }
+
+  body.bridge-cross .zoom-ui button {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* ========================================
+   결과 오버레이 / 게임 기록 (horse-race 패턴 차용)
+======================================== */
+.result-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.result-overlay.visible {
+    display: flex;
+}
+
+.result-card {
+    background: var(--bg-white);
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    animation: popup 0.5s ease-out;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 20px;
+}
+
+.result-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--bridge-500);
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .result-card {
+        padding: 20px 15px;
+        max-height: 80vh;
+        font-size: 14px;
+    }
+    .result-card .result-title {
+        font-size: 20px;
+    }
+}
+
+@keyframes popup {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+/* 게임 기록 섹션 */
+.history-section {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+    width: 320px;
+    max-height: calc(100vh - 40px);
+    background: var(--bg-white);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    overflow-y: auto;
+    display: none;
+    z-index: 100;
+}
+
+.history-section.visible {
+    display: block;
+}
+
+.history-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--bridge-500);
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.history-item {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--bridge-500);
+}
+
+@media (max-width: 768px) {
+    .history-section {
+        position: static !important;
+        width: 100% !important;
+        right: auto;
+        top: auto;
+        max-width: none;
+        margin-top: 16px;
+    }
+}

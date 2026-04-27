@@ -1,6 +1,8 @@
 // Bridge Cross 게임 소켓 핸들러
 // 경마(socket/horse.js) 패턴 차용
 const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
+const { recordGamePlay } = require('../db/stats');
+const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 
 // ─── 조정 가능한 상수 ───
 const BRIDGE_COLUMNS = 6;           // 유리 열 수 (고정)
@@ -133,6 +135,15 @@ module.exports = (socket, io, ctx) => {
             bc.endTimeout = null;
         }
 
+        // 모든 사용자 leaveRoom 후 endTimeout 발동 시 race 가드
+        if (!bc.userColorBets || Object.keys(bc.userColorBets).length === 0) {
+            bc.phase = 'idle';
+            bc.isBridgeCrossActive = false;
+            io.to(room.roomId).emit('bridge-cross:gameAborted', { reason: '베팅한 플레이어가 모두 나갔습니다.' });
+            updateRoomsList();
+            return;
+        }
+
         const { activeColors, passerIndex: K, userColorBets } = bc;
 
         // K번째 통과자 색 (1-based → 0-based 인덱스)
@@ -178,6 +189,34 @@ module.exports = (socket, io, ctx) => {
             ranking
         });
 
+        // 게임 플레이 기록
+        const players = Object.keys(bc.userColorBets);
+        recordGamePlay('bridge', players.length, room.serverId || null);
+
+        // 서버: 다리건너기 결과 DB 기록 (server_game_records + game_sessions)
+        // bridge는 winners.length === 0 / 1+ 모두 가능하므로 horse-race의 단독 승자 가드 제거
+        // 결과: 통과(rank=1) / 탈락(rank=2) 2단계
+        if (room.serverId) {
+            const sessionId = generateSessionId('bridge', room.serverId);
+            const winnerName = winners.length > 0 ? winners[0] : null;
+            const bettors = Object.entries(userColorBets);
+
+            Promise.all(bettors.map(([userName, colorIdx]) => {
+                const isWinner = winners.includes(userName);
+                const rank = isWinner ? 1 : 2;
+                return recordServerGame(room.serverId, userName, rank, 'bridge', isWinner, sessionId, rank);
+            })).then(() => {
+                return recordGameSession({
+                    serverId: room.serverId,
+                    sessionId,
+                    gameType: 'bridge',
+                    gameRules: 'bridge-bet',
+                    winnerName,
+                    participantCount: bettors.length
+                });
+            }).catch(e => console.warn('[다리건너기] DB 기록 실패:', e.message));
+        }
+
         console.log(`[다리건너기] 방 ${room.roomName} 게임 종료 - 통과색=${winnerColor}(${COLOR_NAMES[winnerColor]}), 승자=${winners.join(', ')}`);
 
         updateRoomsList();
@@ -212,7 +251,7 @@ module.exports = (socket, io, ctx) => {
         if (!gameState || !room) return;
 
         // 게임 타입 검증
-        if (room.gameType !== 'bridge-cross') return;
+        if (room.gameType !== 'bridge') return;
 
         const bc = gameState.bridgeCross;
 
@@ -261,7 +300,7 @@ module.exports = (socket, io, ctx) => {
         if (!gameState || !room) return;
 
         // 게임 타입 검증
-        if (room.gameType !== 'bridge-cross') {
+        if (room.gameType !== 'bridge') {
             socket.emit('bridge-cross:error', '다리 건너기 게임 방이 아닙니다!');
             return;
         }
@@ -287,8 +326,11 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // race 가드: 이전 bettingTimeout 잔존 시 정리
+        // race 가드: 이전 timeout 잔존 시 정리 (비정상 종료 후 재시작 시 이중 endScenario 방지)
         if (bc.bettingTimeout) clearTimeout(bc.bettingTimeout);
+        if (bc.endTimeout) clearTimeout(bc.endTimeout);
+        bc.bettingTimeout = null;
+        bc.endTimeout = null;
 
         // 베팅 phase 시작
         bc.phase = 'betting';

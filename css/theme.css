@@ -134,6 +134,12 @@
   --crane-700:  #6a1b9a;
   --crane-bg:   #8e99a4;  /* 룰렛과 동일한 회색 */
 
+  /* 다리건너기 게임 - 시안 */
+  --bridge-500: #42edff;
+  --bridge-500-rgb: 66, 237, 255;
+  --bridge-600: #1ec8da;
+  --bridge-accent: rgba(66, 237, 255, 0.18);
+
   /* ============================================
      게임 타입 식별용 색상
      게임 선택 UI, 방 목록 등에서 사용
@@ -142,6 +148,7 @@
   --game-type-roulette: var(--roulette-500);
   --game-type-crane: var(--crane-500);
   --game-type-horse: var(--horse-accent);
+  --game-type-bridge: var(--bridge-500);
 
   /* ============================================
      게임별 파스텔 배경 토큰
@@ -316,6 +323,12 @@
   --dice-500: #9C7FFF;
   --roulette-500: #9575cd;
   --crane-500: #ba68c8;
+
+  /* 다리건너기: 명도 약간 높임 */
+  --bridge-500: #5af2ff;
+  --bridge-500-rgb: 90, 242, 255;
+  --bridge-600: #38d4e6;
+  --bridge-accent: rgba(90, 242, 255, 0.22);
 
   /* RGB 채널 변수 (다크 모드) */
   --dice-500-rgb: 156, 127, 255;

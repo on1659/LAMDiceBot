@@ -259,33 +259,76 @@
 
         .roulette-live-commentary {
             display: none;
-            width: min(92vw, 520px);
-            height: 86px;
-            margin: 2px auto 0;
-            padding: 9px 16px;
+            width: min(92vw, 400px);
+            min-height: 78px;
+            margin: 4px auto 0;
+            padding: 10px 14px 11px;
             border-radius: 8px;
-            background: var(--gray-900);
-            color: var(--bg-white);
-            text-align: center;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+            border: 1px solid var(--gray-200);
+            background: var(--bg-white);
+            color: var(--text-primary);
+            box-shadow: 0 2px 6px rgba(33, 37, 41, 0.06);
             box-sizing: border-box;
+            position: relative;
         }
 
         .roulette-live-commentary.visible {
             display: grid;
-            grid-template-rows: 18px 32px 18px;
+            grid-template-rows: auto auto auto;
             align-items: center;
-            gap: 3px;
+            gap: 4px;
         }
 
         .roulette-live-commentary.winner {
-            background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-600) 100%);
+            border-color: var(--yellow-500);
+            background: var(--bg-white);
             color: var(--text-primary);
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.18);
         }
 
         .roulette-live-commentary.tension {
-            background: linear-gradient(135deg, var(--gray-900) 0%, var(--red-500) 100%);
+            border-color: var(--red-400);
+            background: var(--bg-white);
             animation: rouletteCommentaryPulse 0.8s ease-in-out infinite alternate;
+        }
+
+        .roulette-commentary-top {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .roulette-commentary-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            height: 18px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: var(--gray-100);
+            border: 1px solid var(--gray-200);
+            color: var(--gray-700);
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .roulette-commentary-badge::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--red-400);
+            box-shadow: 0 0 8px rgba(239, 83, 80, 0.9);
+        }
+
+        .roulette-live-commentary.winner .roulette-commentary-badge {
+            background: rgba(255, 193, 7, 0.14);
+            border-color: rgba(255, 193, 7, 0.28);
         }
 
         .roulette-commentary-status,
@@ -294,10 +337,21 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 800;
-            opacity: 0.82;
             line-height: 1;
+            position: relative;
+            z-index: 1;
+            color: var(--text-secondary);
+        }
+
+        .roulette-commentary-status {
+            opacity: 0.9;
+        }
+
+        .roulette-commentary-hint {
+            align-self: center;
+            opacity: 0.75;
         }
 
         .roulette-commentary-name {
@@ -305,20 +359,28 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font-size: 26px;
+            align-self: center;
+            font-size: 23px;
             font-weight: 900;
             line-height: 1;
             letter-spacing: 0;
+            text-align: left;
+            color: var(--text-primary);
+            text-shadow: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        .roulette-live-commentary.winner .roulette-commentary-hint {
+            opacity: 0.82;
         }
 
         @keyframes rouletteCommentaryPulse {
             from {
-                transform: scale(1);
-                box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+                box-shadow: 0 2px 6px rgba(33, 37, 41, 0.06);
             }
             to {
-                transform: scale(1.015);
-                box-shadow: 0 10px 24px rgba(233, 69, 96, 0.28);
+                box-shadow: 0 2px 10px rgba(239, 83, 80, 0.22);
             }
         }
 
@@ -634,6 +696,228 @@
         }
 
         /* 게임 타입 아이콘 */
+        /* Modern roulette visual refresh */
+        body.game-active {
+            background:
+                radial-gradient(circle at 50% 16%, rgba(87, 214, 162, 0.13), transparent 34%),
+                radial-gradient(circle at 80% 76%, rgba(129, 184, 255, 0.08), transparent 30%),
+                #0b0d10;
+        }
+
+        body.game-active .container {
+            background: rgba(17, 20, 25, 0.86);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+            color: #f7fafc;
+        }
+
+        body.game-active .room-header,
+        body.game-active .ready-section,
+        body.game-active .host-controls,
+        body.game-active .chat-section,
+        body.game-active .orders-section,
+        body.game-active #turboSettingSection {
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 8px !important;
+            background: rgba(255, 255, 255, 0.045) !important;
+            box-shadow: none !important;
+        }
+
+        body.game-active .users-title,
+        body.game-active .room-title,
+        body.game-active .history-title,
+        body.game-active #turboSettingSection span {
+            color: #f7fafc !important;
+        }
+
+        body.game-active .game-status {
+            max-width: 520px;
+            margin: 10px auto 18px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.045);
+            color: rgba(247, 250, 252, 0.72);
+            font-size: 13px;
+            font-weight: 760;
+            box-shadow: none;
+        }
+
+        body.game-active .game-status.playing {
+            border-color: rgba(87, 214, 162, 0.34);
+            background: rgba(87, 214, 162, 0.09);
+            color: #57d6a2;
+        }
+
+        body.game-active .roulette-container {
+            position: relative;
+            padding: 18px 16px 8px;
+            border-radius: 8px;
+            background:
+                radial-gradient(circle at 50% 45%, rgba(87, 214, 162, 0.1), transparent 38%),
+                rgba(255, 255, 255, 0.025);
+        }
+
+        body.game-active .roulette-wrapper {
+            width: min(430px, 74vw);
+            height: min(430px, 74vw);
+            margin: 22px auto 12px;
+        }
+
+        body.game-active .roulette-wheel {
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            filter: saturate(0.72) brightness(0.76);
+            box-shadow:
+                inset 0 0 0 10px rgba(255, 255, 255, 0.035),
+                inset 0 0 45px rgba(255, 255, 255, 0.08),
+                0 30px 80px rgba(0, 0, 0, 0.48);
+        }
+
+        body.game-active .roulette-wheel.suspense-glow {
+            box-shadow:
+                inset 0 0 0 10px rgba(255, 255, 255, 0.035),
+                inset 0 0 45px rgba(255, 255, 255, 0.08),
+                0 0 44px rgba(87, 214, 162, 0.24),
+                0 30px 80px rgba(0, 0, 0, 0.5);
+        }
+
+        body.game-active .roulette-center {
+            width: 74px;
+            height: 74px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(12, 14, 18, 0.96);
+            color: #57d6a2;
+            font-size: 11px;
+            font-weight: 840;
+            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.48);
+        }
+
+        body.game-active .roulette-pointer {
+            top: -30px;
+            width: 18px;
+            height: 34px;
+            border: 0;
+            border-radius: 2px;
+            background: linear-gradient(180deg, #ffffff, #57d6a2);
+            transform: translateX(-50%) skewX(-8deg);
+            filter: drop-shadow(0 0 18px rgba(87, 214, 162, 0.42));
+        }
+
+        body.game-active .roulette-wrapper.suspense-active .roulette-pointer {
+            animation: roulettePointerTensionClean 0.22s ease-in-out infinite;
+        }
+
+        body.game-active .roulette-wrapper.holding-breath .roulette-pointer {
+            animation: roulettePointerHoldClean 0.45s ease-in-out infinite;
+        }
+
+        body.game-active .roulette-live-commentary {
+            width: min(92vw, 500px);
+            min-height: 70px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(10, 12, 16, 0.82);
+            color: #f7fafc;
+            box-shadow: none;
+            backdrop-filter: blur(12px);
+        }
+
+        body.game-active .roulette-live-commentary.winner {
+            border-color: rgba(87, 214, 162, 0.32);
+            background: rgba(87, 214, 162, 0.08);
+            color: #f7fafc;
+        }
+
+        body.game-active .roulette-commentary-badge {
+            border-color: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(247, 250, 252, 0.68);
+        }
+
+        body.game-active .roulette-commentary-badge::before {
+            background: #57d6a2;
+            box-shadow: 0 0 10px rgba(87, 214, 162, 0.72);
+        }
+
+        body.game-active .roulette-commentary-status,
+        body.game-active .roulette-commentary-hint {
+            color: rgba(247, 250, 252, 0.58);
+        }
+
+        body.game-active .roulette-commentary-name {
+            color: #f7fafc;
+            text-shadow: none;
+        }
+
+        body.game-active .chat-messages,
+        body.game-active .users-list {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.035);
+        }
+
+        body.game-active .result-overlay {
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(10px);
+        }
+
+        body.game-active .result-card {
+            min-width: min(440px, calc(100vw - 40px));
+            padding: 24px;
+            border: 1px solid rgba(87, 214, 162, 0.32);
+            border-radius: 8px;
+            background: rgba(17, 20, 25, 0.96);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+        }
+
+        body.game-active .result-title {
+            margin-bottom: 10px;
+            color: rgba(247, 250, 252, 0.62);
+            font-size: 13px;
+            font-weight: 760;
+        }
+
+        body.game-active .result-winner {
+            margin-bottom: 10px;
+            color: #f7fafc;
+            font-size: 42px;
+            line-height: 1;
+        }
+
+        body.game-active .result-message {
+            margin-bottom: 20px;
+            color: rgba(247, 250, 252, 0.58);
+            font-size: 14px;
+        }
+
+        body.game-active .result-card button,
+        body.game-active .start-button,
+        body.game-active #readyButton {
+            border-radius: 8px !important;
+            background: #57d6a2 !important;
+            color: #07110d !important;
+            font-weight: 820;
+            box-shadow: none !important;
+        }
+
+        body.game-active #turboSettingSection {
+            max-width: 520px;
+            margin: 14px auto 0 !important;
+            padding: 12px !important;
+        }
+
+        body.game-active #turboSettingSection div {
+            color: rgba(247, 250, 252, 0.48) !important;
+        }
+
+        @keyframes roulettePointerTensionClean {
+            0%, 100% { transform: translateX(-50%) skewX(-8deg) rotate(0deg); }
+            50% { transform: translateX(-50%) skewX(-8deg) rotate(3deg); }
+        }
+
+        @keyframes roulettePointerHoldClean {
+            0%, 100% { transform: translateX(-50%) skewX(-8deg) translateY(0); }
+            50% { transform: translateX(-50%) skewX(-8deg) translateY(-4px); }
+        }
+
         .game-type-icon {
             font-size: 16px;
             margin-right: 5px;
@@ -677,6 +961,21 @@
             .roulette-wrapper {
                 width: 280px;
                 height: 280px;
+            }
+
+            .roulette-live-commentary {
+                width: min(92vw, 340px);
+                height: 78px;
+                padding: 9px 12px 10px;
+            }
+
+            .roulette-live-commentary.visible {
+                grid-template-rows: 18px 28px 16px;
+                gap: 4px;
+            }
+
+            .roulette-commentary-name {
+                font-size: 22px;
             }
 
             button, select, input[type="text"], .clickable {
@@ -1123,7 +1422,7 @@
                 <div class="roulette-wrapper">
                     <div class="roulette-pointer"></div>
                     <div class="roulette-wheel" id="rouletteWheel"></div>
-                    <div class="roulette-center">🎰</div>
+                    <div class="roulette-center">SPIN</div>
                 </div>
                 <div class="roulette-live-commentary" id="rouletteLiveCommentary" aria-live="polite"></div>
             </div>
@@ -2413,6 +2712,13 @@
             if (!commentary || commentary._structured) return;
             commentary.innerHTML = '';
 
+            const top = document.createElement('div');
+            top.className = 'roulette-commentary-top';
+
+            const badge = document.createElement('div');
+            badge.className = 'roulette-commentary-badge';
+            badge.textContent = '중계';
+
             const status = document.createElement('div');
             status.className = 'roulette-commentary-status';
             status.dataset.role = 'status';
@@ -2425,14 +2731,16 @@
             hint.className = 'roulette-commentary-hint';
             hint.dataset.role = 'hint';
 
-            commentary.append(status, name, hint);
+            top.append(badge, status);
+            commentary.append(top, name, hint);
             commentary._structured = true;
         }
 
         function fitRouletteCommentaryName(nameElement) {
             if (!nameElement) return;
-            nameElement.style.fontSize = '26px';
-            let size = 26;
+            const baseSize = window.innerWidth <= 768 ? 22 : 23;
+            nameElement.style.fontSize = `${baseSize}px`;
+            let size = baseSize;
             while (size > 14 && nameElement.scrollWidth > nameElement.clientWidth) {
                 size -= 1;
                 nameElement.style.fontSize = `${size}px`;
@@ -2644,7 +2952,7 @@
                 gradientParts.push(`${participantColors[idx]} ${startAngle}deg ${endAngle}deg`);
             });
             wheel.style.background = `conic-gradient(from 0deg, ${gradientParts.join(', ')})`;
-            wheel.style.border = '4px solid var(--gray-900)';
+            wheel.style.border = '1px solid rgba(255, 255, 255, 0.22)';
             wheel.dataset.segmentCount = String(participants.length);
             
             // 구분선과 이름 추가
@@ -2655,12 +2963,12 @@
                     position: absolute;
                     left: 50%;
                     top: 50%;
-                    width: 3px;
+                    width: 1px;
                     height: 50%;
-                    background: var(--gray-900);
+                    background: rgba(255, 255, 255, 0.24);
                     transform-origin: 0 0;
                     transform: rotate(${index * segmentAngle}deg) translateY(-100%);
-                    box-shadow: 0 0 3px rgba(0,0,0,0.5);
+                    box-shadow: none;
                     z-index: 5;
                 `;
                 wheel.appendChild(divider);
@@ -2670,7 +2978,7 @@
                 // 파이 조각의 정중앙 계산
                 const angleToCenter = index * segmentAngle + segmentAngle / 2;
                 const angleRad = (angleToCenter - 90) * Math.PI / 180; // -90도는 12시 방향 기준
-                const textRadius = 95; // 중앙에서 텍스트까지의 거리
+                const textRadius = Math.min(wheel.clientWidth * 0.31, 128);
                 const textX = Math.cos(angleRad) * textRadius;
                 const textY = Math.sin(angleRad) * textRadius;
                 textOverlay.style.cssText = `
@@ -2678,14 +2986,14 @@
                     left: calc(50% + ${textX}px);
                     top: calc(50% + ${textY}px);
                     transform: translate(-50%, -50%);
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: var(--text-primary);
-                    text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+                    font-size: 13px;
+                    font-weight: 800;
+                    color: rgba(247, 250, 252, 0.88);
+                    text-shadow: none;
                     white-space: nowrap;
                     text-align: center;
                     z-index: 6;
-                    letter-spacing: 1px;
+                    letter-spacing: 0;
                 `;
                 textOverlay.textContent = name.length > 6 ? name.substring(0, 6) + '..' : name;
                 wheel.appendChild(textOverlay);

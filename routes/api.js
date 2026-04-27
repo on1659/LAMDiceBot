@@ -173,7 +173,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 }, bridge: { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {
