@@ -122,5 +122,229 @@
 }
 
 .bridge-playing-section {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
+}
+
+/* ========== 캔버스 게임 영역 ========== */
+
+.stage-wrap {
+    position: relative;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #02030b;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    margin-bottom: 12px;
+    aspect-ratio: 1024 / 683;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* canvas는 width="1024" 속성이 default size이므로 CSS로 강제 100% 축소 (부모에 fit) */
+.stage-wrap canvas#game {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    display: block;
+    background: #02030b;
+}
+
+/* Zoom UI (캔버스 위 floating, 우하단) */
+.zoom-ui {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(4, 7, 22, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 4px 8px;
+    backdrop-filter: blur(8px);
+}
+
+.zoom-ui button {
+    min-height: 32px;
+    min-width: 32px;
+    padding: 2px 6px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.07);
+    color: white;
+    cursor: pointer;
+    transition: background 0.14s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    width: auto;
+}
+
+.zoom-ui button:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.zoom-ui .zoom-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--bridge-500);
+    min-width: 36px;
+    text-align: center;
+    user-select: none;
+}
+
+/* Debug Panel (localhost용, D키 토글) */
+.debug-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 11;
+    width: 280px;
+    max-height: 80%;
+    overflow-y: auto;
+    background: rgba(4, 7, 22, 0.92);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+}
+
+.debug-panel[hidden] {
+    display: none !important;
+}
+
+.debug-panel .debug-title {
+    font-weight: bold;
+    color: var(--bridge-500);
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 4px;
+}
+
+.debug-panel .debug-row {
+    margin-bottom: 4px;
+}
+
+.debug-panel .debug-row label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+}
+
+.debug-panel .debug-row label span {
+    width: 60px;
+    flex-shrink: 0;
+}
+
+.debug-panel .debug-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.debug-panel .debug-row input[type="number"] {
+    width: 50px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    font-size: 10px;
+    padding: 2px 4px;
+}
+
+.debug-panel button {
+    margin: 4px 4px 0 0;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    width: auto;
+}
+
+.debug-panel textarea {
+    width: 100%;
+    margin-top: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #0f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    padding: 4px;
+    resize: vertical;
+}
+
+.debug-panel .debug-info {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 6px;
+    border-radius: 4px;
+    margin-top: 6px;
+    font-size: 10px;
+    white-space: pre-wrap;
+    color: #0ff;
+}
+
+/* Event Feed + Crossing Order */
+.bridge-statusbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.bridge-statusbar .bridge-card {
+    flex: 1;
+    background: var(--bg-white);
+    border: 1px solid var(--bridge-500);
+    border-radius: 10px;
+    padding: 12px;
+    min-height: 100px;
+}
+
+.bridge-statusbar .bridge-card h3 {
+    font-size: 13px;
+    color: var(--bridge-accent);
+    margin: 0 0 8px 0;
+    font-weight: bold;
+}
+
+.bridge-statusbar .bridge-ticker,
+.bridge-statusbar .bridge-ranking {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.bridge-statusbar .bridge-ticker li,
+.bridge-statusbar .bridge-ranking li {
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.bridge-statusbar .bridge-ticker li:last-child,
+.bridge-statusbar .bridge-ranking li:last-child {
+    border-bottom: none;
+}
+
+@media (max-width: 600px) {
+    .bridge-statusbar {
+        flex-direction: column;
+    }
+    .debug-panel {
+        width: 220px;
+        font-size: 10px;
+    }
 }
