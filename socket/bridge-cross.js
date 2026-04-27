@@ -43,11 +43,47 @@ module.exports = (socket, io, ctx) => {
         return result.sort((a, b) => a - b);
     }
 
+    function oppositeRow(row) {
+        return row === 'top' ? 'bottom' : 'top';
+    }
+
+    function buildPathScenario(safeRows, failColumn, brokenRows) {
+        const path = [];
+        const isSuccessScenario = failColumn === null || failColumn === undefined;
+
+        for (let col = 0; col < BRIDGE_COLUMNS; col++) {
+            const brokenRow = brokenRows[col];
+            let row;
+            let success = true;
+
+            if (brokenRow) {
+                row = oppositeRow(brokenRow);
+            } else if (!isSuccessScenario && col === failColumn) {
+                row = oppositeRow(safeRows[col]);
+                success = false;
+            } else {
+                row = safeRows[col];
+            }
+
+            path.push({ col, row, success });
+
+            if (!success) {
+                brokenRows[col] = row;
+                break;
+            }
+        }
+
+        return {
+            success: isSuccessScenario,
+            path
+        };
+    }
+
     /**
      * 게임 시나리오 결정 (베팅 마감 후 호출)
      * - K = 통과자 인덱스 (1~M, 1-based)
-     * - safeRows[N] = 각 column의 안전 row ('top'|'bottom')
-     * - scenarios[M개]: i<K-1: {failColumn, failRow}, i=K-1: {success:true}
+     * - safeRows[N] = server-only safe row ('top'|'bottom') for each column
+     * - scenarios[M개]: {success:boolean,path:[{col,row,success}]} for each runner
      */
     function beginScenario(room, gameState) {
         const bc = gameState.bridgeCross;
@@ -84,15 +120,13 @@ module.exports = (socket, io, ctx) => {
 
         // scenarios 배열 (K개만 push)
         const scenarios = [];
+        const brokenRows = Array.from({ length: BRIDGE_COLUMNS }, () => null);
         for (let i = 0; i < K; i++) {
             if (i < K - 1) {
-                const failColumn = failColumns[i];
-                // failRow = safeRows[failColumn]의 반대
-                const failRow = safeRows[failColumn] === 'top' ? 'bottom' : 'top';
-                scenarios.push({ failColumn, failRow });
+                scenarios.push(buildPathScenario(safeRows, failColumns[i], brokenRows));
             } else {
                 // K번째 (0-based: K-1) = 통과
-                scenarios.push({ success: true });
+                scenarios.push(buildPathScenario(safeRows, null, brokenRows));
             }
         }
 
@@ -109,11 +143,16 @@ module.exports = (socket, io, ctx) => {
             passerIndex: K,
             activeColors,
             allBets: { ...userColorBets },
-            safeRows,
             scenarios
         });
 
         console.log(`[다리건너기] 방 ${room.roomName} 게임 시작 - M=${M}, K=${K}, activeColors=${activeColors}`);
+        console.log(`[다리건너기] safeRows=${safeRows.join(',')}`);
+        console.log(`[다리건너기] failColumns=${failColumns.join(',')}`);
+        scenarios.forEach((sc, idx) => {
+            const pathStr = sc.path.map(s => `col${s.col}=${s.row}${s.success ? '✓' : '✗'}`).join(' → ');
+            console.log(`[다리건너기] scenario[${idx}] success=${sc.success} : ${pathStr}`);
+        });
 
         // 게임 진행 시간 후 자동 종료
         // 각 캐릭터당 4초 + 여유 5초 (최소 8초, 최대 30초)
@@ -230,6 +269,7 @@ module.exports = (socket, io, ctx) => {
             currentBc.phase = 'idle';
             currentBc.passerIndex = null;
             currentBc.activeColors = [];
+            currentBc.safeRows = [];
             currentBc.scenarios = [];
             currentBc.winnerColor = null;
             currentBc.winners = [];
@@ -266,6 +306,8 @@ module.exports = (socket, io, ctx) => {
         bc.userColorBets = {};
         bc.isBridgeCrossActive = false;
         bc.phase = 'idle';
+        bc.safeRows = [];
+        bc.scenarios = [];
     }
 
     // ========== 소켓 이벤트 핸들러 ==========

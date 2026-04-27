@@ -1745,6 +1745,28 @@ socket.on('joinError', (data) => {
         state.phase = 'enter-bridge';
         moveAvatar(layout.entrance(), 0.55, { jumpHeight: 0, anchorOffset: 0 });
         pushEvent(state.current.name + ' steps up.');
+
+        // 디버그: 도전자 진입 시 scenario path 전체 출력
+        var scenario = state.scenarios[state.currentScenarioIndex];
+        var pathSummary = scenario && scenario.path
+            ? scenario.path.map(function (s) {
+                return 'col' + s.col + '=' + s.row + (s.success ? '✓' : '✗');
+            }).join(' → ')
+            : '(없음)';
+        if (typeof addDebugLog === 'function') {
+            addDebugLog(
+                '[player ' + index + '] ' + state.current.name + ' (color=' + state.current.colorIndex + ') 진입. scenario#' +
+                state.currentScenarioIndex + ' = ' + pathSummary,
+                'bridge'
+            );
+        }
+        // 현재 revealed 상태도 출력
+        var revealedSummary = state.revealed.map(function (r, i) {
+            return 'col' + i + (r && r.broken ? ':broken=' + r.broken : ':-');
+        }).join(' ');
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('  revealed: ' + revealedSummary, 'bridge');
+        }
     }
 
     function moveAvatar(point, duration, options) {
@@ -1760,6 +1782,14 @@ socket.on('joinError', (data) => {
         state.revealed[col] = { broken: success ? revealed.broken : choice };
         state.lastStep = { col: col, row: choice, success: success };
         player.choiceLog.push({ col: col, choice: choice, success: success });
+
+        if (typeof addDebugLog === 'function') {
+            addDebugLog(
+                '  → ' + player.name + ' col' + col + ' ' + choice + (success ? ' ✓통과' : ' ✗추락') +
+                ' (broken now: ' + (state.revealed[col].broken || 'none') + ')',
+                'bridge'
+            );
+        }
         return success;
     }
 
@@ -2012,6 +2042,71 @@ socket.on('joinError', (data) => {
         ctx.restore();
     }
 
+    function getPlayerBettors(player) {
+        return Object.entries(state.allBets || {})
+            .filter(function (entry) { return entry[1] === player.colorIndex; })
+            .map(function (entry) { return entry[0]; });
+    }
+
+    function bettorTagText(player) {
+        var bettors = getPlayerBettors(player);
+        if (bettors.length === 0) return '';
+        if (bettors.length === 1) return bettors[0];
+        if (bettors.length === 2) return bettors.join(', ');
+        return bettors[0] + ' 외 ' + (bettors.length - 1) + '명';
+    }
+
+    function fitTagText(text, maxWidth) {
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        var suffix = '...';
+        var next = String(text);
+        while (next.length > 1 && ctx.measureText(next + suffix).width > maxWidth) {
+            next = next.slice(0, -1);
+        }
+        return next + suffix;
+    }
+
+    function drawBettorTag(player, x, y, scale, dim) {
+        var text = bettorTagText(player);
+        if (!text) return;
+        if (scale == null) scale = 0.66;
+
+        ctx.save();
+        ctx.font = '900 13px Jua, Segoe UI, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        var maxTextWidth = 116;
+        text = fitTagText(text, maxTextWidth);
+        var textW = ctx.measureText(text).width;
+        var padX = 11;
+        var tagW = Math.max(52, textW + padX * 2);
+        var tagH = 24;
+        var tagX = x - tagW / 2;
+        var tagY = y - Math.max(98, 148 * scale);
+        var alpha = dim ? 0.42 : 0.94;
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = 'rgba(8, 13, 35, 0.86)';
+        ctx.strokeStyle = 'rgba(66, 237, 255, 0.72)';
+        ctx.lineWidth = 2;
+        roundedRect(tagX, tagY, tagW, tagH, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(x - 6, tagY + tagH - 1);
+        ctx.lineTo(x, tagY + tagH + 7);
+        ctx.lineTo(x + 6, tagY + tagH - 1);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.globalAlpha = dim ? 0.58 : 1;
+        ctx.fillStyle = '#f8fbff';
+        ctx.fillText(text, x, tagY + tagH / 2 + 1);
+        ctx.restore();
+    }
+
     function wrapSpeechText(text, maxWidth) {
         var chars = String(text).split('');
         var lines = [];
@@ -2032,12 +2127,8 @@ socket.on('joinError', (data) => {
     function drawWinnerSpeechBubble(player, x, y) {
         if (!state.winnerSpeech || state.winnerSpeech.playerId !== player.id) return;
 
-        var age = state.elapsed - state.winnerSpeech.startedAt;
-        var fade = age > 5 ? Math.max(0, 1 - (age - 5) / 0.8) : 1;
-        if (fade <= 0) return;
-
         ctx.save();
-        ctx.globalAlpha = fade;
+        ctx.globalAlpha = 1;
         ctx.font = '900 17px Jua, Segoe UI, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -2233,15 +2324,18 @@ socket.on('joinError', (data) => {
                 if (activeColorSet.size === 0) {
                     // 베팅 단계: 모든 캐릭터 일반 표시
                     drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96);
+                    drawBettorTag(player, player.slot.x, player.slot.y, 0.66);
                 } else if (!activeColorSet.has(player.colorIndex)) {
                     // 게임 진행 중: 베팅 안 된 색은 dim
                     drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96, false, true);
+                    drawBettorTag(player, player.slot.x, player.slot.y, 0.66, true);
                 }
             });
         }
 
         state.players.filter(function (p) { return p.status === 'waiting'; }).forEach(function (player) {
             drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96);
+            drawBettorTag(player, player.slot.x, player.slot.y, 0.66);
         });
 
         state.players.filter(function (p) { return p.status === 'fallen'; }).forEach(function (player) {
@@ -2255,6 +2349,7 @@ socket.on('joinError', (data) => {
         state.players.filter(function (p) { return p !== state.current && (p.status === 'finished' || p.status === 'winner'); }).forEach(function (player, index) {
             var slot = layout.finishSlot(index);
             drawPlayer(player, slot.x, slot.y, 0.66, 1);
+            drawBettorTag(player, slot.x, slot.y, 0.66);
             if (player.status === 'winner') {
                 drawWinnerSpeechBubble(player, slot.x, slot.y);
             }
@@ -2266,6 +2361,7 @@ socket.on('joinError', (data) => {
             drawLandingPulse();
             drawJumpTrail();
             drawPlayer(state.current, state.avatar.x, state.avatar.y, 0.78, 1, falling);
+            drawBettorTag(state.current, state.avatar.x, state.avatar.y, 0.78);
         }
 
         if (state.phase === 'falling' && state.pendingChoice) {
@@ -2347,6 +2443,8 @@ socket.on('joinError', (data) => {
                 return {
                     name: player.name,
                     color: player.color,
+                    bettors: getPlayerBettors(player),
+                    bettorTag: bettorTagText(player),
                     status: player.status,
                     progress: player.progress,
                     fallsAt: player.fallsAt
