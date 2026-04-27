@@ -502,6 +502,34 @@ function escapeHtml(str) {
 var currentBettorCount = 0;
 var currentBettorNames = [];
 
+function updateNonBettorList() {
+    const section = document.getElementById('nonBettorSection');
+    const list = document.getElementById('nonBettorList');
+    if (!section || !list) return;
+
+    // 준비한 사람 중 베팅 안 한 사람 (horse-race notSelectedVehicle 패턴)
+    const readySet = new Set(readyUsers || []);
+    const bettorSet = new Set(currentBettorNames || []);
+    const nonBettors = (users || [])
+        .filter(u => readySet.has(u.name) && !bettorSet.has(u.name))
+        .map(u => u.name);
+
+    // 베팅 단계가 아니거나 모두 베팅했으면 숨김
+    if (isBridgeCrossActive || nonBettors.length === 0 || (readyUsers || []).length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = '';
+    nonBettors.sort((a, b) => a.localeCompare(b, 'ko')).forEach(name => {
+        const tag = document.createElement('div');
+        tag.style.cssText = 'background: var(--bg-white); border: 1px solid var(--red-400); color: var(--red-400); padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;';
+        tag.textContent = name + (name === currentUser ? ' (나)' : '');
+        list.appendChild(tag);
+    });
+}
+
 function updateStartButton() {
     const btn = document.getElementById('startBridgeCrossButton');
     if (!btn) return;
@@ -536,6 +564,9 @@ function updateStartButton() {
         const list = nonBettors.slice(0, 3).join(', ') + (nonBettors.length > 3 ? ` 외 ${nonBettors.length - 3}명` : '');
         btn.textContent = `게임 시작 (베팅 안 함: ${list})`;
     }
+
+    // "준비했는데 베팅 안 한 사람" 화면 표시 갱신
+    updateNonBettorList();
 }
 
 // 호스트 컨트롤 함수 (HTML onclick)

@@ -166,6 +166,11 @@
                 <div id="bridgeBettorCount" style="text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 13px;">
                     베팅한 사람: <span id="bridgeBettorCountValue">0</span>명
                 </div>
+                <!-- 준비했지만 베팅 안 한 사람 (horse-race notSelectedVehicleSection 패턴) -->
+                <div id="nonBettorSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 베팅 안 한 사람</div>
+                    <div id="nonBettorList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
             </div>
 
             <!-- 게임 진행 캡션 (캔버스 위에 게임 정보 표시) -->
