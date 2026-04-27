@@ -1,4 +1,88 @@
 ========================================
+📋 Summit Log - 2026-04-27 — 다리 건너기 게임 v2 골격 (Phase A/B/C + 베팅/결과)
+========================================
+
+## 변경 파일
+- bridge-cross-multiplayer.html: 신규. horse-race base 복사 후 horseSelectionSection/raceTrackWrapper/HORSE_RACE_TUTORIAL_STEPS 제거, bettingSection(6색 카드) + bridgePlayingSection 마크업 추가
+- css/bridge-cross.css: 신규. --bridge-* 게임 색상 토큰, 6색 카드 스타일, .container max-width 800px 강제(Tailwind override), --horse-* 변수 alias로 horse-race.css 색상 재활용
+- js/bridge-cross.js: 신규. socket 연결, ?createRoom/?joinRoom 처리, 공통 모듈(Chat/Ready/Order/Sound) init, bridge-cross:* 8개 핸들러, 베팅 카드 렌더링, 카운트다운, 결과 오버레이, 히스토리, renderUsersList
+- socket/bridge-cross.js: 신규(v1 cherry-pick). 서버 측 게임 룰. select/start/disconnect 핸들러, beginScenario/endScenario, server_game_records + game_sessions DB 기록, 베팅 0명/2명 미만 가드, 호스트 disconnect grace 처리
+- socket/index.js: registerBridgeCrossHandlers import + 등록
+- socket/rooms.js: gameType allowlist에 'bridge' 추가, leaveRoom 시 userColorBets cleanup
+- utils/room-helpers.js: gameState.bridgeCross 초기화 (phase/userColorBets/passerIndex/scenarios/timeout 등)
+- dice-game-multiplayer.html: 🌉 다리 건너기 라디오, colorMap, 방카드 분기, joinRoomDirectly/finalizeRoomCreation/joinSelectedRoom 3곳 redirect, .room-item.game-bridge CSS
+- css/theme.css: --bridge-500/-600/-accent/-rgb (light + dark) + --game-type-bridge
+- js/shared/tutorial-shared.js: FLAG_BITS.bridge = 32 비트 예약
+- js/shared/server-select-shared.js: bridgeUserName localStorage 동기화
+- routes/api.js: /bridge-cross 라우트 + /bridge-cross-multiplayer.html 301 리다이렉트
+- .gitignore: .gstack/ 추가
+
+## 상세 변경 내역
+
+### v1 폐기 → v2 재시작 배경
+- v1 (feat/bridge-cross-integration commit 03d3fcd, PR #12): 라이브 스모크 8/9 PASS했으나 mockup의 IIFE/CSS/레이아웃 잔재로 공통 시스템(Ready/Order/Chat/ControlBar/AdSense/passwordModal/historySection/resultOverlay/SoundManager) 통합이 구조적으로 어려움
+- 사용자 핵심 지적: "목업은 게임플레이만 가져오란거였지 그 외의 모든건 참고하면안됐어"
+- v2 원칙: horse-race-multiplayer.html 단순 복사 → 게임 전용 마크업만 교체
+
+### Phase A — horse-race 단순 복사
+- horse-race-multiplayer.html → bridge-cross-multiplayer.html
+- 메타: title/description/og/canonical/JSON-LD를 bridge-cross로 변경
+- horse-race 고유 마크업 통째 제거 → 빈 placeholder div (Phase E에서 캔버스 + 베팅 UI로 대체 예정)
+  - horseSelectionSection → bettingSection
+  - raceTrackWrapper → bridgeCrossGameArea
+  - HORSE_RACE_TUTORIAL_STEPS + 도움말 버튼 통째 제거 (Phase F 보류)
+- inline style의 var(--horse-*) → var(--bridge-*) 일괄 치환
+- horse-race specific 함수(startHorseRace/clearHorseRaceData/sessionStorage horseActiveRoom) → bridge 이름으로 치환
+
+### Phase B — dice 진입점 등록 (14곳)
+- v1 변경분(feat/bridge-cross-integration)을 main 기준으로 그대로 적용
+- dice 로비 라디오: value="bridge", border-color var(--bridge-500), 🌉 이모지
+- gameType colorMap에 'bridge': 'var(--game-type-bridge)' 추가
+- 방카드 gameTypeBadge 분기에 'bridge' (🌉 다리건너기, var(--bridge-500))
+- 3곳 redirect (joinRoomDirectly/finalizeRoomCreation/joinSelectedRoom): localStorage pendingBridgeRoom/pendingBridgeJoin 저장 + /bridge-cross?createRoom=true/?joinRoom=true 이동
+- localStorage bridgeUserName 동기화
+
+### Phase C — 서버 핸들러
+- socket/bridge-cross.js v1 그대로 cherry-pick (서버 결정 책임은 검증 끝남)
+  - BRIDGE_COLUMNS=6, BRIDGE_BETTING_SEC=15, BRIDGE_MIN_PLAYERS=2, BRIDGE_MIN_BETTORS=2
+  - bridge-cross:select 토글, bridge-cross:start (호스트만, 게임 진행 중 차단)
+  - beginScenario: K=1+random(M) 통과자 결정, safeRows[6] / scenarios[K] (K-1개 fail + 1개 success)
+  - endScenario: winnerColor = activeColors[K-1], 해당 색 베팅자 = winners
+  - 0명 leave 후 dead timer race 가드(line 139)
+  - DB 기록: recordServerGame(rank=1 win | 2 lose) + recordGameSession(participantCount, winnerName)
+  - 호스트 disconnect grace: phase별 분기 (playing은 endTimeout 진행, betting은 abort)
+- socket/rooms.js gameType allowlist 확장 + leaveRoom 시 userColorBets cleanup (단 timeout cleanup은 진행 중 게임 stuck 방지를 위해 손대지 않음)
+- utils/room-helpers.js gameState.bridgeCross 초기화
+
+### 클라이언트 게임 흐름 (베팅 → 결과)
+- BRIDGE_COLORS 6개: 빨/주/노/초/파/남 (서버 COLOR_NAMES와 일치)
+- 베팅 UI: 6색 카드 그리드(모바일 3열 / 600px+ 6열), 클릭 토글, 본인 선택 "내선택" 라벨, 카운트다운(초 단위 200ms 갱신), 베팅 인원 카운터
+- 게임 진행: "다리를 건너는 중..." + "참가 색상 N개 · K번째 도전자가 통과합니다" 텍스트 (캔버스 시각화는 Phase E)
+- 결과: 통과 색상 + 당첨자 목록을 horse-race resultOverlay에 표시, bridgeCrossHistory[] 누적 후 historyList 렌더링
+
+### Phase E 보류 사항 (다음 단계)
+- 캔버스 다리 건너기 시각화 (mockup의 sprite 코드 IIFE 이식)
+- 베팅 카드 미리 렌더 + 진행 시 활성 색상만 시각 강조
+
+### Phase D 보류 사항
+- db/stats.js DEFAULT_GAME_STATS, db/ranking.js getMyRank/getTop3Badges/getFullRanking 확장
+- assets/sounds/sound-config.json에 bridge-cross_* 9개 키
+- routes/api.js defaultGameStats 갱신
+
+### 작업 중 발견한 함정 (다음 게임 추가 시 반드시 체크)
+- horse-race.css의 .container { max-width: 800px } 가 cdn.tailwindcss.com의 .container responsive 클래스(데스크톱 1280px)에 의해 override 됨 → bridge-cross.css에서 max-width: 800px !important 강제 필요
+- horse-race.css의 .game-section { display: none } + .game-section.active { display: block } 패턴: roomCreated/roomJoined 핸들러에서 classList.add('active') 호출 또는 CSS에서 강제 표시 필요
+- socket.on('updateUsers') 데이터는 배열 자체(Array.isArray(data) ? data : data.users), 화면 #usersCount/#usersList 갱신은 별도 renderUsersList(userArray) 함수 필요. ChatModule.updateConnectedUsers(userArray) 호출도 필수
+- horse-race.css에서 사용하는 var(--horse-*) 변수들을 bridge-cross.css :root에서 var(--bridge-*)로 alias하면 horse-race.css 그대로 import해도 색상은 bridge로 표시됨 (페이지별 stylesheet link라 horse-race 페이지엔 무영향)
+
+### 검증
+- node -c routes/api.js / socket/bridge-cross.js / socket/index.js / socket/rooms.js / utils/room-helpers.js / js/bridge-cross.js / server.js — 모두 PASS
+- 클라이언트 Math.random 3건 (tabId 1 + deviceId 1 + 주석 1) — 모두 게임 결과와 무관
+- /browse 스킬로 /bridge-cross?createRoom=true 진입 후 .container width 800px 확인, usersCount=1, usersList에 호스트 본인 표시 확인
+
+========================================
+
+========================================
 📋 Summit Log - 2026-04-25 — 룰렛 서버 확정 + 긴장감 중계 개선
 ========================================
 

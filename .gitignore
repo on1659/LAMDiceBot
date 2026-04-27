@@ -47,3 +47,4 @@ summit-log.txt
 AutoTest/node_modules/
 AutoTest/**/*.log
 AutoTest/**/*.png
+.gstack/

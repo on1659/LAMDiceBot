@@ -61,6 +61,14 @@ function setupRoutes(app) {
         return res.sendFile(legacyHorseHtml);
     });
 
+    // bridge-cross (Phase A: 임시 라우트, Phase B에서 dice 진입점 등록 후 정식 동작)
+    app.get('/bridge-cross', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'bridge-cross-multiplayer.html'));
+    });
+
     // 기존 .html URL 301 리디렉트 (SEO: 구 URL → 현재 URL)
     app.get('/dice-game-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
@@ -75,6 +83,11 @@ function setupRoutes(app) {
     app.get('/horse-race-multiplayer.html', (req, res) => {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
         return res.redirect(301, `/horse-race${query}`);
+    });
+
+    app.get('/bridge-cross-multiplayer.html', (req, res) => {
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        return res.redirect(301, `/bridge-cross${query}`);
     });
 
     // SEO 페이지 구 URL 301 리디렉트 (루트 → /pages/)
