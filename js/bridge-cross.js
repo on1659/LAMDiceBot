@@ -287,6 +287,11 @@ function initOrderModule() {
 function sendMessage() { ChatModule.sendMessage(); }
 function handleChatKeypress(event) { ChatModule.handleChatKeypress(event); }
 
+// 준비 글로벌 함수 (HTML onclick)
+function toggleReady() { ReadyModule.toggleReady(); }
+function updateReadyButton() { ReadyModule.updateReadyButton(); }
+function renderReadyUsers() { ReadyModule.renderReadyUsers(); }
+
 // 결과 오버레이 닫기
 function closeResultOverlay() {
     const overlay = document.getElementById('resultOverlay');
