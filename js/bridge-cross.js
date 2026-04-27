@@ -642,11 +642,35 @@ socket.on('bridge-cross:gameEnd', (data) => {
         try { window._onGameEnd(data); } catch (e) { console.error('_onGameEnd error:', e); }
     }
 
-    // 캔버스 시각화가 끝난 후 결과 오버레이 (3초 여유)
-    setTimeout(() => {
+    // 캔버스 시각화 완료(state.mode === 'finished') 후 결과 오버레이 표시
+    // 서버 gameEnd가 IIFE 시각화보다 일찍 도달하는 race 방지
+    const startTime = Date.now();
+    const MAX_WAIT_MS = 30000;
+    const CHECK_INTERVAL_MS = 300;
+    let resultShown = false;
+
+    function showResultOnce() {
+        if (resultShown) return;
+        resultShown = true;
         hideBridgeGameUI();
         showBridgeResult(data || {});
-    }, 3000);
+    }
+
+    const pollFinished = setInterval(() => {
+        let isFinished = false;
+        if (typeof window.render_game_to_text === 'function') {
+            try {
+                const s = JSON.parse(window.render_game_to_text());
+                isFinished = (s.mode === 'finished' || s.phase === 'finished');
+            } catch (e) {}
+        }
+        const timeoutReached = (Date.now() - startTime) > MAX_WAIT_MS;
+        if (isFinished || timeoutReached) {
+            clearInterval(pollFinished);
+            // 시각화 완료 후 1초 결과 강조 시간
+            setTimeout(showResultOnce, 1000);
+        }
+    }, CHECK_INTERVAL_MS);
 });
 
 socket.on('bridge-cross:gameAborted', (data) => {
@@ -879,6 +903,15 @@ socket.on('joinError', (data) => {
         { name: '초록', color: 'green',  colorIndex: 3 },
         { name: '파랑', color: 'blue',   colorIndex: 4 },
         { name: '남색', color: 'indigo', colorIndex: 5 }
+    ];
+
+    var winnerSpeechLines = [
+        '살았다! 오늘은 내가 쏜다!',
+        '통과했으니 내가 쏜다!',
+        '휴... 내가 산다!',
+        '끝까지 왔다! 내가 산다!',
+        '나 살아남았다! 내가 쏜다!',
+        '살아서 왔다! 내가 산다!'
     ];
 
     var playerSheet = {
@@ -1189,8 +1222,6 @@ socket.on('joinError', (data) => {
             case 'next-player':
                 return { zoom: 0.85, target: current || startCenter };
             case 'enter-bridge':
-            case 'walk-known':
-            case 'walk-known-wait':
             case 'safe-flash':
                 return { zoom: 1.0, target: current || startCenter };
             case 'choose':
@@ -1353,11 +1384,11 @@ socket.on('joinError', (data) => {
         phase: 'loading',
         paused: false,
         // 서버 broadcast 데이터 (gameStart 이벤트로 채워짐)
-        safeRows: [],          // string[] ('top'|'bottom') — 서버 결정
-        scenarios: [],         // ({failColumn, failRow}|{success:true})[] — 서버 결정
+        scenarios: [],         // server-authored path scenarios
         activeColors: [],      // number[] — 베팅된 색상 인덱스 (오름차순)
         allBets: {},           // {[userName]: colorIndex}
         currentScenarioIndex: 0,
+        currentPathIndex: 0,
         revealed: [],
         players: [],           // 활성 PlayerActor[] (도전 순)
         allPlayers: [],        // 6명 모두 (비활성 포함, dim 그리기용)
@@ -1365,9 +1396,11 @@ socket.on('joinError', (data) => {
         current: null,
         avatar: new AvatarController(),
         pendingChoice: null,
+        lastStep: null,
         timer: 0,
         elapsed: 0,
         winner: null,
+        winnerSpeech: null,
         events: ['Loading assets...']
     };
 
@@ -1607,19 +1640,33 @@ socket.on('joinError', (data) => {
      * 서버 gameStart broadcast 데이터로 시나리오 재생을 시작한다.
      * mulberry32 / Math.random / randItem 호출 없음 — 모든 결정은 서버 broadcast 데이터.
      */
-    function startScenarioReplay(data) {
-        var passerIndex = data.passerIndex;
-        var activeColors = data.activeColors;
-        var allBets = data.allBets;
-        var safeRows = data.safeRows;
-        var scenarios = data.scenarios;
+    function normalizeScenario(scenario) {
+        var path = Array.isArray(scenario && scenario.path) ? scenario.path : [];
+        return {
+            success: !!(scenario && scenario.success),
+            path: path.map(function (step) {
+                step = step || {};
+                var rawCol = typeof step.col === 'number' ? step.col : (typeof step.column === 'number' ? step.column - 1 : 0);
+                return {
+                    col: Math.max(0, Math.min(layout.columnCount - 1, rawCol)),
+                    row: step.row === 'bottom' ? 'bottom' : 'top',
+                    success: step.success !== false
+                };
+            })
+        };
+    }
 
-        state.safeRows = safeRows;
+    function startScenarioReplay(data) {
+        data = data || {};
+        var activeColors = Array.isArray(data.activeColors) ? data.activeColors : [];
+        var allBets = data.allBets || {};
+        var scenarios = Array.isArray(data.scenarios) ? data.scenarios.map(normalizeScenario) : [];
+
         state.scenarios = scenarios;
         state.activeColors = activeColors;
         state.allBets = allBets;
 
-        state.revealed = Array.from({ length: layout.columnCount }, function () { return { safe: null, broken: null }; });
+        state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
 
         // 전체 6명 PlayerActor 생성 (비활성 포함) — 시작 plat에 배치
         state.allPlayers = allPlayerDefs.map(function (def, i) { return new PlayerActor(def, i, layout); });
@@ -1628,12 +1675,15 @@ socket.on('joinError', (data) => {
         state.players = activeColors.map(function (colorIdx) { return state.allPlayers[colorIdx]; });
 
         state.currentScenarioIndex = 0;
+        state.currentPathIndex = 0;
         state.currentIndex = -1;
         state.current = null;
         state.pendingChoice = null;
+        state.lastStep = null;
         state.timer = 0.5;
         state.elapsed = 0;
         state.winner = null;
+        state.winnerSpeech = null;
         state.paused = false;
         state.mode = 'playing';
         state.phase = 'next-player';
@@ -1642,14 +1692,18 @@ socket.on('joinError', (data) => {
         updateTextPanels();
     }
 
-    function getKnownPathLength() {
-        var length = 0;
-        for (var i = 0; i < state.revealed.length; i += 1) {
-            var item = state.revealed[i];
-            if (!item.safe) break;
-            length += 1;
-        }
-        return length;
+    function getBrokenCount() {
+        return state.revealed.filter(function (item) { return item && item.broken; }).length;
+    }
+
+    function getCurrentScenario() {
+        return state.scenarios[state.currentScenarioIndex] || null;
+    }
+
+    function getCurrentPathStep() {
+        var scenario = getCurrentScenario();
+        if (!scenario || !Array.isArray(scenario.path)) return null;
+        return scenario.path[state.currentPathIndex] || null;
     }
 
     function nextActivePlayer() {
@@ -1662,6 +1716,8 @@ socket.on('joinError', (data) => {
     function beginPlayer(index) {
         state.currentIndex = index;
         state.current = state.players[index];
+        state.currentPathIndex = 0;
+        state.lastStep = null;
         state.current.resetForRun();
         state.avatar.reset(state.current.slot);
         state.phase = 'enter-bridge';
@@ -1674,11 +1730,13 @@ socket.on('joinError', (data) => {
         state.timer = duration;
     }
 
-    function revealChoice(player, col, choice) {
-        var safe = state.safeRows[col];
-        var success = choice === safe;
-        var broken = success ? (safe === 'top' ? 'bottom' : 'top') : choice;
-        state.revealed[col] = { safe: safe, broken: broken };
+    function revealChoice(player, step) {
+        var col = step.col;
+        var choice = step.row;
+        var success = step.success !== false;
+        var revealed = state.revealed[col] || { broken: null };
+        state.revealed[col] = { broken: success ? revealed.broken : choice };
+        state.lastStep = { col: col, row: choice, success: success };
         player.choiceLog.push({ col: col, choice: choice, success: success });
         return success;
     }
@@ -1688,6 +1746,12 @@ socket.on('joinError', (data) => {
         if (state.winner) {
             state.winner.status = 'winner';
             state.winner.animator.set('result', true);
+            var speechIndex = (state.winner.colorIndex + state.activeColors.length + state.currentScenarioIndex) % winnerSpeechLines.length;
+            state.winnerSpeech = {
+                playerId: state.winner.id,
+                text: winnerSpeechLines[speechIndex],
+                startedAt: state.elapsed
+            };
         }
         state.current = null;
         state.phase = 'finished';
@@ -1723,57 +1787,22 @@ socket.on('joinError', (data) => {
                 break;
             }
             case 'enter-bridge':
-                state.phase = 'walk-known';
-                state.timer = 0.08;
-                break;
-            case 'walk-known': {
-                var player = state.current;
-                var known = getKnownPathLength();
-                if (!player) break;
-                if (player.progress < known) {
-                    var col = player.progress;
-                    var row = state.revealed[col].safe;
-                    moveAvatar(layout.tileCenter(col, row), 0.48, { jumpHeight: 42 });
-                    if (window.SoundManager) SoundManager.playSound('bridge-cross_step');
-                    player.progress += 1;
-                    state.phase = 'walk-known-wait';
-                } else {
-                    state.phase = 'choose';
-                    state.timer = 0.35;
-                }
-                break;
-            }
-            case 'walk-known-wait':
-                state.phase = 'walk-known';
-                state.timer = 0.08;
+                state.phase = 'choose';
+                state.timer = 0.12;
                 break;
             case 'choose': {
                 var player2 = state.current;
-                var col2 = player2.progress;
-                if (col2 >= layout.columnCount) {
+                var step = getCurrentPathStep();
+                var col2 = step ? step.col : player2.progress;
+                if (!step || player2.progress >= layout.columnCount) {
                     player2.status = 'finished';
                     player2.animator.set('result', true);
                     moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
                     state.phase = 'finish-wait';
                     break;
                 }
-                // 서버 시나리오에서 이 column의 선택 row를 결정 — Math.random 0회
-                var scenario = state.scenarios[state.currentScenarioIndex];
-                var choice;
-                if (!scenario) {
-                    // 시나리오 범위 초과 (안전 fallback — 도달하면 안 됨)
-                    choice = state.safeRows[col2] || 'top';
-                } else if (scenario.success) {
-                    // 통과자 — 이 column은 안전 row로 진행
-                    choice = state.safeRows[col2];
-                } else if (col2 === scenario.failColumn) {
-                    // 이 column에서 실패하는 시나리오
-                    choice = scenario.failRow;
-                } else {
-                    // 앞 캐릭터들이 공개한 안전 row 따라감
-                    choice = state.safeRows[col2];
-                }
-                state.pendingChoice = { col: col2, row: choice };
+                var choice = step.row;
+                state.pendingChoice = { col: col2, row: choice, success: step.success };
                 moveAvatar(layout.tileCenter(col2, choice), 0.68, { jumpHeight: 70 });
                 state.phase = 'choice-wait';
                 if (window.SoundManager) SoundManager.playSound('bridge-cross_crack');
@@ -1782,21 +1811,12 @@ socket.on('joinError', (data) => {
             }
             case 'choice-wait': {
                 var player3 = state.current;
-                var col3 = state.pendingChoice.col;
-                var row3 = state.pendingChoice.row;
-                // 서버 시나리오로 성공/실패 결정 — 클라이언트 판정 없음
-                var scenario3 = state.scenarios[state.currentScenarioIndex];
-                var success;
-                if (!scenario3) {
-                    success = true; // 안전 fallback
-                } else if (scenario3.success) {
-                    success = true;
-                } else {
-                    success = (col3 !== scenario3.failColumn);
-                }
-                revealChoice(player3, col3, row3);
+                var step3 = state.pendingChoice;
+                var col3 = step3.col;
+                var success = revealChoice(player3, step3);
+                state.currentPathIndex += 1;
                 if (success) {
-                    player3.progress += 1;
+                    player3.progress = Math.max(player3.progress, col3 + 1);
                     pushEvent(player3.name + ': ' + (col3 + 1) + '번 열 통과.');
                     state.pendingChoice = null;
                     state.phase = 'safe-flash';
@@ -1817,7 +1837,7 @@ socket.on('joinError', (data) => {
                 break;
             }
             case 'safe-flash':
-                if (state.current.progress >= layout.columnCount) {
+                if (state.current.progress >= layout.columnCount || !getCurrentPathStep()) {
                     state.current.status = 'finished';
                     state.current.animator.set('result', true);
                     moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
@@ -1888,11 +1908,15 @@ socket.on('joinError', (data) => {
     }
 
     function drawTile(col, row) {
-        var info = state.revealed[col];
+        var info = state.revealed[col] || { broken: null };
         var center = layout.tileCenter(col, row);
         var rect = tileFxRect(center);
         var pending = state.pendingChoice && state.pendingChoice.col === col && state.pendingChoice.row === row;
-        var lastSafe = state.current && state.current.progress === col + 1 && info.safe === row;
+        var lastSuccess = state.phase === 'safe-flash'
+            && state.lastStep
+            && state.lastStep.success
+            && state.lastStep.col === col
+            && state.lastStep.row === row;
 
         var fxName = 'safe_sparkle';
         var frameOverride = 0;
@@ -1901,9 +1925,9 @@ socket.on('joinError', (data) => {
             fxName = 'break_shards';
             frameOverride = 1;
             alpha = 0.95;
-        } else if (info.safe === row) {
-            fxName = lastSafe && state.phase === 'safe-flash' ? 'safe_sparkle' : 'safe_sparkle';
-            frameOverride = lastSafe ? null : 0;
+        } else if (lastSuccess) {
+            fxName = 'safe_sparkle';
+            frameOverride = null;
             alpha = 1;
         } else if (pending) {
             fxName = 'warning_glow';
@@ -1963,6 +1987,73 @@ socket.on('joinError', (data) => {
         } else {
             ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, x - w * playerSheet.anchor.x + bobX, y - h * playerSheet.anchor.y + bobY, w, h);
         }
+        ctx.restore();
+    }
+
+    function wrapSpeechText(text, maxWidth) {
+        var chars = String(text).split('');
+        var lines = [];
+        var line = '';
+        chars.forEach(function (char) {
+            var next = line + char;
+            if (line && ctx.measureText(next).width > maxWidth) {
+                lines.push(line);
+                line = char.trimStart();
+            } else {
+                line = next;
+            }
+        });
+        if (line) lines.push(line);
+        return lines;
+    }
+
+    function drawWinnerSpeechBubble(player, x, y) {
+        if (!state.winnerSpeech || state.winnerSpeech.playerId !== player.id) return;
+
+        var age = state.elapsed - state.winnerSpeech.startedAt;
+        var fade = age > 5 ? Math.max(0, 1 - (age - 5) / 0.8) : 1;
+        if (fade <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.font = '900 17px Jua, Segoe UI, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        var maxTextWidth = 184;
+        var lines = wrapSpeechText(state.winnerSpeech.text, maxTextWidth);
+        var lineHeight = 20;
+        var bubbleW = Math.min(220, Math.max(122, Math.max.apply(null, lines.map(function (line) {
+            return ctx.measureText(line).width;
+        })) + 28));
+        var bubbleH = lines.length * lineHeight + 20;
+        var bob = Math.sin(state.elapsed * 4 + player.id) * 3;
+        var bx = x;
+        var by = y - 142 + bob;
+        var left = bx - bubbleW / 2;
+        var top = by - bubbleH / 2;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+        ctx.strokeStyle = 'rgba(66, 237, 255, 0.86)';
+        ctx.lineWidth = 3;
+        roundedRect(left, top, bubbleW, bubbleH, 13);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(bx - 15, top + bubbleH - 2);
+        ctx.lineTo(bx + 5, top + bubbleH + 18);
+        ctx.lineTo(bx + 21, top + bubbleH - 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#162033';
+        lines.forEach(function (line, index) {
+            var textY = top + 20 + index * lineHeight;
+            ctx.fillText(line, bx, textY);
+        });
+
         ctx.restore();
     }
 
@@ -2074,8 +2165,8 @@ socket.on('joinError', (data) => {
         ctx.stroke();
         ctx.fillStyle = '#42edff';
         ctx.font = '900 12px Segoe UI, sans-serif';
-        var knownCols = getKnownPathLength();
-        ctx.fillText('열 ' + knownCols + ' / ' + layout.columnCount, 760, 44);
+        var brokenCols = getBrokenCount();
+        ctx.fillText('깨짐 ' + brokenCols + ' / ' + layout.columnCount, 760, 44);
         ctx.fillStyle = '#a8b7d0';
         ctx.font = '700 10px Segoe UI, sans-serif';
         var activeStr = state.activeColors.length > 0
@@ -2142,6 +2233,9 @@ socket.on('joinError', (data) => {
         state.players.filter(function (p) { return p !== state.current && (p.status === 'finished' || p.status === 'winner'); }).forEach(function (player, index) {
             var slot = layout.finishSlot(index);
             drawPlayer(player, slot.x, slot.y, 0.66, 1);
+            if (player.status === 'winner') {
+                drawWinnerSpeechBubble(player, slot.x, slot.y);
+            }
         });
 
         if (state.current) {
@@ -2223,9 +2317,9 @@ socket.on('joinError', (data) => {
                 groundY: Math.round(state.avatar.groundY),
                 jumpT: Number(state.avatar.t.toFixed(2))
             },
-            knownColumns: getKnownPathLength(),
+            brokenColumns: getBrokenCount(),
             revealed: state.revealed.map(function (item, index) {
-                return { column: index + 1, safe: item.safe, broken: item.broken };
+                return { column: index + 1, broken: item.broken };
             }),
             players: state.players.map(function (player) {
                 return {
@@ -2238,6 +2332,7 @@ socket.on('joinError', (data) => {
             }),
             pendingChoice: state.pendingChoice,
             winner: state.winner ? state.winner.name : null,
+            winnerSpeech: state.winnerSpeech ? state.winnerSpeech.text : null,
             layout: layout.debugPayload(),
             latestEvent: state.events[0]
         });
@@ -2326,7 +2421,7 @@ socket.on('joinError', (data) => {
             state.phase = 'ready';
             state.allPlayers = allPlayerDefs.map(function (def, i) { return new PlayerActor(def, i, layout); });
             state.players = [];
-            state.revealed = Array.from({ length: layout.columnCount }, function () { return { safe: null, broken: null }; });
+            state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
             state.events = ['방에 연결 중...'];
             updateTextPanels();
             if (debugEnabled) {
