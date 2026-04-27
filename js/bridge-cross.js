@@ -559,14 +559,24 @@ function updateStartButton() {
     const btn = document.getElementById('startBridgeCrossButton');
     if (!btn) return;
 
-    // horse-race 패턴: 호스트 + 준비 2명 이상 + 게임 진행 중 아님
     if (isHost) {
-        if ((readyUsers || []).length >= 2 && !isBridgeCrossActive) {
+        const readyCount = (readyUsers || []).length;
+        // 준비했는데 베팅 안 한 사람 = ready ∩ !bet
+        const bettorSet = new Set(currentBettorNames || []);
+        const readyNonBettors = (readyUsers || []).filter(name => !bettorSet.has(name));
+
+        if (isBridgeCrossActive) {
+            btn.disabled = true;
+            btn.textContent = '🌉 게임 진행 중';
+        } else if (readyCount < 2) {
+            btn.disabled = true;
+            btn.textContent = `🌉 다리 건너기 시작 (${readyCount}/2명 준비)`;
+        } else if (readyNonBettors.length > 0) {
+            btn.disabled = true;
+            btn.textContent = `🌉 다리 건너기 시작 (베팅 안 함 ${readyNonBettors.length}명)`;
+        } else {
             btn.disabled = false;
             btn.textContent = '🌉 다리 건너기 시작!';
-        } else {
-            btn.disabled = true;
-            btn.textContent = `🌉 다리 건너기 시작 (${(readyUsers || []).length}/2명 준비)`;
         }
     }
 
