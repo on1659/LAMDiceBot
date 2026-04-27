@@ -1642,11 +1642,11 @@
                         <span style="font-weight: 600;">경마</span>
                         <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label id="bridgeLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--bridge-500); position: relative;">
+                    <label id="bridgeLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--bridge-500); position: relative; opacity: 0.6;">
                         <input type="radio" name="gameType" value="bridge" id="bridgeRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🌉</span>
                         <span style="font-weight: 600;">다리 건너기</span>
-                        <span id="bridgeNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
                     <!-- 인형뽑기 (비공개 처리) -->
                     <!-- <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--crane-accent); position: relative;">
@@ -3830,6 +3830,12 @@
 
             // 다리건너기 게임이면 다리건너기 페이지로 이동
             if (gameType === 'bridge') {
+                // 다리 건너기는 개발 중 — 일반 사용자는 방 생성 차단
+                // 봇 테스트는 /AutoTest/bridge-cross-devtools.html 또는 dev console에서 우회
+                if (!localStorage.getItem('bridgeDevAccess')) {
+                    showCustomAlert('🚧 다리 건너기는 현재 개발 중입니다. 곧 만나요!', 'info');
+                    return;
+                }
                 localStorage.setItem('bridgeUserName', hostName);
                 localStorage.setItem('pendingBridgeRoom', JSON.stringify({
                     userName: hostName,
