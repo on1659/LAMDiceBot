@@ -26,57 +26,82 @@ module.exports = (socket, io, ctx) => {
 
     // ========== 헬퍼 함수 ==========
 
-    /**
-     * 0..max-1 범위에서 count개를 비복원 추출하여 오름차순 반환
-     * @param {number} max - 범위 상한 (exclusive)
-     * @param {number} count - 추출 수
-     * @returns {number[]}
-     */
-    function pickRandomSorted(max, count) {
-        if (count <= 0) return [];
-        const pool = Array.from({ length: max }, (_, i) => i);
-        const result = [];
-        for (let i = 0; i < count; i++) {
-            const idx = Math.floor(Math.random() * pool.length);
-            result.push(pool.splice(idx, 1)[0]);
-        }
-        return result.sort((a, b) => a - b);
-    }
-
     function oppositeRow(row) {
         return row === 'top' ? 'bottom' : 'top';
     }
 
-    function buildPathScenario(safeRows, failColumn, brokenRows) {
-        const path = [];
-        const isSuccessScenario = failColumn === null || failColumn === undefined;
+    function randomRow() {
+        return Math.random() < 0.5 ? 'top' : 'bottom';
+    }
 
-        for (let col = 0; col < BRIDGE_COLUMNS; col++) {
-            const brokenRow = brokenRows[col];
-            let row;
-            let success = true;
+    /**
+     * 실패자 path: 매 col에서 random row 선택. brokenRows 정보 활용.
+     * 끝까지 성공하면 retry (최대 100회). 그래도 안 되면 buildForcedFailPath 폴백.
+     */
+    function buildRandomFailPath(safeRows, brokenRows) {
+        for (let attempt = 0; attempt < 100; attempt++) {
+            const simulatedBroken = brokenRows.slice();
+            const path = [];
+            let failed = false;
 
-            if (brokenRow) {
-                row = oppositeRow(brokenRow);
-            } else if (!isSuccessScenario && col === failColumn) {
-                row = oppositeRow(safeRows[col]);
-                success = false;
-            } else {
-                row = safeRows[col];
+            for (let col = 0; col < BRIDGE_COLUMNS; col++) {
+                const row = simulatedBroken[col]
+                    ? oppositeRow(simulatedBroken[col])  // 깨진 row 반대 = 안전
+                    : randomRow();                       // 미공개 col은 random 도박
+
+                const success = row === safeRows[col];
+                path.push({ col, row, success });
+
+                if (!success) {
+                    simulatedBroken[col] = row;
+                    return { path, brokenRows: simulatedBroken };
+                }
             }
-
-            path.push({ col, row, success });
-
-            if (!success) {
-                brokenRows[col] = row;
-                break;
-            }
+            // 모든 col 통과 — fail 시나리오 아님. retry.
         }
 
-        return {
-            success: isSuccessScenario,
-            path
-        };
+        return buildForcedFailPath(safeRows, brokenRows);
+    }
+
+    /**
+     * 안전장치: 100회 retry 후에도 fail 못 만들면 첫 미공개 col에서 강제 fall.
+     * 모든 col이 이미 broken이면 impossible (수학적으로 K-1 < BRIDGE_COLUMNS면 발생 안 함).
+     */
+    function buildForcedFailPath(safeRows, brokenRows) {
+        const path = [];
+        const nextBroken = brokenRows.slice();
+
+        for (let col = 0; col < BRIDGE_COLUMNS; col++) {
+            if (nextBroken[col]) {
+                path.push({ col, row: oppositeRow(nextBroken[col]), success: true });
+                continue;
+            }
+
+            const row = oppositeRow(safeRows[col]);
+            path.push({ col, row, success: false });
+            nextBroken[col] = row;
+            return { path, brokenRows: nextBroken };
+        }
+
+        // 모든 col 이미 broken — 실패자 만들 자리가 없음 (이론상 K-1 < 6이면 불가)
+        return { path, brokenRows: nextBroken, impossible: true };
+    }
+
+    /**
+     * K번째 통과자 path: brokenRows 있으면 반대, 없으면 safeRows[col] 그대로.
+     */
+    function buildPassPath(safeRows, brokenRows) {
+        const path = [];
+
+        for (let col = 0; col < BRIDGE_COLUMNS; col++) {
+            const row = brokenRows[col]
+                ? oppositeRow(brokenRows[col])
+                : safeRows[col];
+
+            path.push({ col, row, success: true });
+        }
+
+        return { path };
     }
 
     /**
@@ -112,23 +137,23 @@ module.exports = (socket, io, ctx) => {
         // M=1: 모두 같은 색 → K=1, 자동 통과
         const K = M === 1 ? 1 : 1 + Math.floor(Math.random() * M);
 
-        // safeRows[N]: 각 column의 안전 row
+        // safeRows[N]: 각 column의 안전 row (서버 내부 정답)
         const safeRows = Array.from({ length: BRIDGE_COLUMNS }, () => Math.random() < 0.5 ? 'top' : 'bottom');
 
-        // 실패 column 결정 (K-1개, 비복원 오름차순)
-        const failColumns = pickRandomSorted(BRIDGE_COLUMNS, K - 1);
-
-        // scenarios 배열 (K개만 push)
+        // scenarios 배열 (K개)
+        // - K-1명 실패자: 매 col에서 random row 선택, 운 나쁘면 fail (오징어 게임 룰)
+        // - K번째 통과자: brokenRows 활용 + safeRows로 안전 통과
         const scenarios = [];
-        const brokenRows = Array.from({ length: BRIDGE_COLUMNS }, () => null);
-        for (let i = 0; i < K; i++) {
-            if (i < K - 1) {
-                scenarios.push(buildPathScenario(safeRows, failColumns[i], brokenRows));
-            } else {
-                // K번째 (0-based: K-1) = 통과
-                scenarios.push(buildPathScenario(safeRows, null, brokenRows));
-            }
+        let brokenRows = Array.from({ length: BRIDGE_COLUMNS }, () => null);
+
+        for (let i = 0; i < K - 1; i++) {
+            const result = buildRandomFailPath(safeRows, brokenRows);
+            brokenRows = result.brokenRows;
+            scenarios.push({ success: false, path: result.path });
         }
+
+        const passResult = buildPassPath(safeRows, brokenRows);
+        scenarios.push({ success: true, path: passResult.path });
 
         // gameState 업데이트
         bc.phase = 'playing';
