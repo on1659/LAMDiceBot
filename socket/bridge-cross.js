@@ -219,6 +219,22 @@ module.exports = (socket, io, ctx) => {
 
         console.log(`[다리건너기] 방 ${room.roomName} 게임 종료 - 통과색=${winnerColor}(${COLOR_NAMES[winnerColor]}), 승자=${winners.join(', ')}`);
 
+        // 다음 라운드를 위해 베팅 리셋 + 클라이언트에 베팅 가능 알림
+        // (gameEnd 결과 표시 시간 확보 위해 약간 지연)
+        setTimeout(() => {
+            const currentRoom = ctx.rooms[room.roomId];
+            if (!currentRoom) return;
+            const currentBc = currentRoom.gameState.bridgeCross;
+            currentBc.userColorBets = {};
+            currentBc.phase = 'idle';
+            currentBc.passerIndex = null;
+            currentBc.activeColors = [];
+            currentBc.scenarios = [];
+            currentBc.winnerColor = null;
+            currentBc.winners = [];
+            io.to(room.roomId).emit('bridge-cross:bettingReady');
+        }, 4000);
+
         updateRoomsList();
     }
 
@@ -291,7 +307,7 @@ module.exports = (socket, io, ctx) => {
         });
     });
 
-    // 게임 시작 (호스트만)
+    // 게임 시작 (호스트만) — 베팅은 idle phase에서 이미 진행됨, 이 버튼은 베팅 마감 + 즉시 시나리오
     socket.on('bridge-cross:start', () => {
         if (!checkRateLimit()) return;
 
@@ -321,52 +337,29 @@ module.exports = (socket, io, ctx) => {
         const bc = gameState.bridgeCross;
 
         // 이미 진행 중인 경우 차단
-        if (bc.phase === 'betting' || bc.phase === 'playing') {
+        if (bc.phase === 'playing') {
             socket.emit('bridge-cross:error', '이미 게임이 진행 중입니다!');
             return;
         }
 
-        // race 가드: 이전 timeout 잔존 시 정리 (비정상 종료 후 재시작 시 이중 endScenario 방지)
+        // 베팅 인원 검증 (idle phase에서 이미 베팅 완료된 상태)
+        const bettorCount = Object.keys(bc.userColorBets || {}).length;
+        if (bettorCount < BRIDGE_MIN_BETTORS) {
+            socket.emit('bridge-cross:error', `베팅 인원이 부족합니다. (${bettorCount}명 / 최소 ${BRIDGE_MIN_BETTORS}명)`);
+            return;
+        }
+
+        // race 가드: 이전 timeout 잔존 시 정리
         if (bc.bettingTimeout) clearTimeout(bc.bettingTimeout);
         if (bc.endTimeout) clearTimeout(bc.endTimeout);
         bc.bettingTimeout = null;
         bc.endTimeout = null;
 
-        // 베팅 phase 시작
-        bc.phase = 'betting';
-        bc.userColorBets = {};
-        const deadline = Date.now() + BRIDGE_BETTING_SEC * 1000;
-        bc.bettingDeadline = deadline;
-
-        // 베팅 타임아웃 설정
-        bc.bettingTimeout = setTimeout(() => {
-            const currentRoom = ctx.rooms[room.roomId];
-            if (!currentRoom) return;
-            const currentBc = currentRoom.gameState.bridgeCross;
-
-            // 베팅 인원 검증
-            const bettorCount = Object.keys(currentBc.userColorBets).length;
-            if (bettorCount < BRIDGE_MIN_BETTORS) {
-                currentBc.phase = 'idle';
-                if (currentBc.bettingTimeout) {
-                    clearTimeout(currentBc.bettingTimeout);
-                    currentBc.bettingTimeout = null;
-                }
-                io.to(room.roomId).emit('bridge-cross:gameAborted', {
-                    reason: `베팅 인원이 부족합니다. (${bettorCount}명 / 최소 ${BRIDGE_MIN_BETTORS}명)`
-                });
-                updateRoomsList();
-                return;
-            }
-
-            beginScenario(currentRoom, currentRoom.gameState);
-        }, BRIDGE_BETTING_SEC * 1000);
-
-        // 베팅 시작 broadcast
-        io.to(room.roomId).emit('bridge-cross:bettingOpen', { deadline });
+        // 즉시 시나리오 진행 (베팅 phase 생략 — userColorBets 그대로 사용)
+        beginScenario(room, gameState);
 
         updateRoomsList();
-        console.log(`[다리건너기] 방 ${room.roomName} 베팅 시작 - 마감: ${new Date(deadline).toISOString()}`);
+        console.log(`[다리건너기] 방 ${room.roomName} 게임 시작 (베팅 ${bettorCount}명 즉시 마감)`);
     });
 
     // 호스트 이탈 감지 → grace 후 phase 분기 처리 (chat.js 패턴)
