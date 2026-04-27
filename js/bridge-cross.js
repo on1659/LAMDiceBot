@@ -20,6 +20,18 @@ var debugLogEnabled = isLocalhost;
 var MAX_LOG_LINES = 100;
 function addDebugLog(message, type = 'info') {
     if (!debugLogEnabled) return;
+
+    // F12 콘솔에도 동시 출력 (브라우저 DevTools에서 추적 용이)
+    const consoleStyle = {
+        info: 'color:#0a0',
+        warn: 'color:#cc0',
+        error: 'color:#c00',
+        bridge: 'color:#06c;font-weight:bold'
+    }[type] || 'color:#0a0';
+    if (type === 'error') console.error('%c[bridge-cross] ' + message, consoleStyle);
+    else if (type === 'warn') console.warn('%c[bridge-cross] ' + message, consoleStyle);
+    else console.log('%c[bridge-cross] ' + message, consoleStyle);
+
     const logSection = document.getElementById('debugLogSection');
     const logContent = document.getElementById('debugLogContent');
     if (!logSection || !logContent) return;
