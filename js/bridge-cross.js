@@ -2368,7 +2368,8 @@ socket.on('joinError', (data) => {
             fxName = 'safe_sparkle';
             frameOverride = null;
             alpha = 1;
-        } else if (pending) {
+        } else if (pending && state.phase !== 'pre-choice') {
+            // pre-choice 동안엔 별도 oscillation 시각(preChoiceWarningRow)을 위해 정적 warning 차단
             fxName = 'warning_glow';
             frameOverride = null;
             alpha = 1;
