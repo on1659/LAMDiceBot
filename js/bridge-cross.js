@@ -2513,6 +2513,11 @@ socket.on('joinError', (data) => {
     }, { passive: false });
 
     window.addEventListener('keydown', function (event) {
+        // 채팅/입력창 입력 중엔 단축키(F/D/Space) 무시 (스페이스 띄어쓰기 + 호스트 자동 시작 막힘 방지)
+        var activeTag = (document.activeElement && document.activeElement.tagName) || '';
+        var isEditable = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable);
+        if (isEditable) return;
+
         if (event.key.toLowerCase() === 'f') {
             if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function () {});
             else document.exitFullscreen().catch(function () {});
