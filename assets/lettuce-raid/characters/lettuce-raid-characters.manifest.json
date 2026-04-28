@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "game": "lettuce-raid",
+  "generatedAt": "2026-04-28",
+  "notes": [
+    "First visual pass for the lettuce raid character set.",
+    "Player atlas uses six rows by shirt color and four columns by pose.",
+    "Owner atlas uses two rows and three columns by pose."
+  ],
+  "players": {
+    "image": "players-atlas-v3.png",
+    "source": [
+      "source/players-warm-source-v1.png",
+      "source/players-cool-source-v1.png"
+    ],
+    "columns": 4,
+    "rows": 6,
+    "cell": {
+      "width": 384,
+      "height": 288
+    },
+    "poses": [
+      "idle",
+      "sneak",
+      "steal",
+      "stunned"
+    ],
+    "colors": [
+      {
+        "id": "red",
+        "row": 0,
+        "label": "빨강"
+      },
+      {
+        "id": "orange",
+        "row": 1,
+        "label": "주황"
+      },
+      {
+        "id": "yellow",
+        "row": 2,
+        "label": "노랑"
+      },
+      {
+        "id": "green",
+        "row": 3,
+        "label": "초록"
+      },
+      {
+        "id": "blue",
+        "row": 4,
+        "label": "파랑"
+      },
+      {
+        "id": "violet",
+        "row": 5,
+        "label": "보라"
+      }
+    ]
+  },
+  "owner": {
+    "image": "owner-atlas-v1.png",
+    "source": "source/owner-sheet-source-v1.png",
+    "columns": 3,
+    "rows": 2,
+    "cell": {
+      "width": 512,
+      "height": 512
+    },
+    "poses": [
+      {
+        "id": "idle",
+        "col": 0,
+        "row": 0
+      },
+      {
+        "id": "notice",
+        "col": 1,
+        "row": 0
+      },
+      {
+        "id": "chase",
+        "col": 2,
+        "row": 0
+      },
+      {
+        "id": "swing",
+        "col": 0,
+        "row": 1
+      },
+      {
+        "id": "angry",
+        "col": 1,
+        "row": 1
+      },
+      {
+        "id": "victory",
+        "col": 2,
+        "row": 1
+      }
+    ]
+  }
+}

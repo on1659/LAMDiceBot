@@ -1,4 +1,43 @@
 ========================================
+📋 Summit Log - 2026-04-29 (2) — 신규 게임 자산 + 작업 메모 + 디버그 도구
+========================================
+
+## 변경 파일 (모두 신규)
+
+### 신규 게임 자산 — 양상추 약탈(lettuce-raid)
+- assets/lettuce-raid/characters/lettuce-raid-characters.manifest.json: 캐릭터 매니페스트
+- assets/lettuce-raid/characters/owner-atlas-v1.png: owner 캐릭터 스프라이트 atlas
+- assets/lettuce-raid/characters/players-atlas-v3.png: players 캐릭터 스프라이트 atlas
+- assets/lettuce-raid/characters/README.md: 캐릭터 자산 안내
+- assets/lettuce-raid/characters/source/owner-sheet-source-v1.png: owner 원본 시트
+- assets/lettuce-raid/characters/source/players-cool-source-v1.png: players cool 원본 시트
+- assets/lettuce-raid/characters/source/players-warm-source-v1.png: players warm 원본 시트
+
+### 자산 가이드
+- docs/asset/guide/README.md: 자산 가이드 인덱스
+- docs/asset/guide/bridge-cross.md: 다리건너기 자산 가이드
+- docs/asset/guide/bridge-cross-asset-alignment-request.md: 다리건너기 자산 정렬 요청
+- docs/asset/guide/lettuce-raid.md: 양상추 약탈 자산 가이드
+- docs/asset/guide/stage-layer-template.md: 스테이지 레이어 템플릿
+
+### 작업 핸드오프 메모
+- docs/etc/2026-04-27-bridge-cross-integration-impl.txt: bridge-cross v1 통합 impl
+- docs/etc/2026-04-27-bridge-cross-rewrite-handoff.md: bridge-cross 재작성 핸드오프
+- docs/etc/2026-04-27-bridge-cross-v2-handoff.md: bridge-cross v2 핸드오프
+
+### 회의 산출물
+- docs/meeting/applied/2026-04-26-bridge-cross-camera-impl.md: 카메라 작업 완료 impl
+- docs/meeting/plan/codex/2026-04-26-1430-bridge-cross-camera.md: codex 회의 계획
+
+### 내부 디버그 도구 — AutoTest
+- AutoTest/bridge-cross-sprite-player.html: bridge-cross 스프라이트 미리보기 도구
+- AutoTest/roulette-debug-panel.html: 룰렛 디버그 패널
+- AutoTest/roulette-server-finalization-test.js: 룰렛 서버 결정 테스트
+
+## 비고
+이전 commit(9414871)에서 작업 외 파일로 분류해 untracked로 남겼던 것들을 일괄 추가. 코드 변경 없음, 자산/문서/도구만.
+
+========================================
 📋 Summit Log - 2026-04-29 — 다리건너기 룰 단순화 + 관리자 패널 활성 방 모니터링
 ========================================
 

@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roulette Debug Panel</title>
+<style>
+:root {
+    color-scheme: dark;
+    --bg: #0f1115;
+    --surface: #161a21;
+    --surface-2: #1d2430;
+    --surface-3: #252e3b;
+    --line: #2d3543;
+    --line-soft: rgba(255, 255, 255, 0.06);
+    --text: #eef3f8;
+    --muted: #9aa6b5;
+    --muted-2: #748194;
+    --green: #2fb875;
+    --blue: #4389ff;
+    --amber: #e5b84a;
+    --red: #e05a5a;
+    --purple: #9d72ee;
+    --radius: 8px;
+    --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+        linear-gradient(180deg, #15171d 0%, var(--bg) 270px),
+        var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(15, 17, 21, 0.92);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.brand-mark {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--amber), var(--purple));
+    color: #111318;
+    font-weight: 900;
+    box-shadow: 0 10px 24px rgba(157, 114, 238, 0.22);
+}
+
+.eyebrow {
+    color: var(--muted-2);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+h1 {
+    font-size: 18px;
+    line-height: 1.15;
+    margin: 0;
+    color: var(--text);
+}
+
+.status {
+    margin-left: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    white-space: nowrap;
+}
+
+.status.ok {
+    color: #8fe3a6;
+    border-color: rgba(47, 184, 117, 0.3);
+    background: rgba(47, 184, 117, 0.09);
+}
+.status.err {
+    color: #ff9b9b;
+    border-color: rgba(224, 90, 90, 0.3);
+    background: rgba(224, 90, 90, 0.1);
+}
+
+.shell {
+    display: grid;
+    grid-template-columns: minmax(300px, 390px) minmax(420px, 1fr);
+    gap: 16px;
+    padding: 16px;
+    align-items: start;
+    max-width: 1320px;
+    margin: 0 auto;
+}
+
+.column { display: grid; gap: 16px; }
+
+.section {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 42px), var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow);
+}
+
+.section h2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 12px;
+    color: #dce5ee;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.badge {
+    min-width: 22px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--surface-3);
+    color: #cfd8e3;
+    font-size: 11px;
+    text-align: center;
+    letter-spacing: 0;
+}
+
+label {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin: 8px 0 4px;
+}
+
+input {
+    width: 100%;
+    height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #111720;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.16s, box-shadow 0.16s, background 0.16s;
+}
+
+input:focus {
+    border-color: rgba(67, 137, 255, 0.65);
+    background: #121b27;
+    box-shadow: 0 0 0 3px rgba(67, 137, 255, 0.14);
+}
+
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    accent-color: var(--green);
+}
+
+.inline {
+    display: flex;
+    gap: 10px;
+    align-items: end;
+}
+
+.inline > div { flex: 1; }
+.inline .small { width: 84px; flex: none; }
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+button {
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 8px 12px;
+    min-height: 36px;
+    color: white;
+    font-weight: 750;
+    font-size: 12px;
+    cursor: pointer;
+    background: var(--surface-3);
+    transition: transform 0.12s, filter 0.12s, border-color 0.12s;
+}
+
+button:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    filter: none;
+    transform: none;
+}
+
+.btn-green { background: linear-gradient(135deg, #239963, var(--green)); }
+.btn-blue { background: linear-gradient(135deg, #2e6fd6, var(--blue)); }
+.btn-amber { background: linear-gradient(135deg, #d39b25, var(--amber)); color: #171717; }
+.btn-red { background: linear-gradient(135deg, #be3f43, var(--red)); }
+.btn-purple { background: linear-gradient(135deg, #7b55d9, var(--purple)); }
+.btn-ghost {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--line);
+    color: #cbd5e1;
+}
+
+.rooms,
+.bots,
+.kv {
+    display: grid;
+    gap: 6px;
+}
+
+.room,
+.bot,
+.kv-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 38px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #111821;
+    border: 1px solid var(--line-soft);
+}
+
+.room {
+    cursor: pointer;
+}
+
+.room:hover {
+    background: #172231;
+    border-color: rgba(67, 137, 255, 0.28);
+}
+.room.selected {
+    border-color: var(--blue);
+    background: linear-gradient(135deg, rgba(67, 137, 255, 0.2), rgba(157, 114, 238, 0.1));
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #6b7280;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+}
+
+.dot.connected { background: var(--amber); }
+.dot.joined,
+.dot.ready,
+.dot.done { background: var(--green); }
+.dot.error,
+.dot.disconnected { background: var(--red); }
+.dot.active { background: var(--blue); }
+
+.main-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sub-text {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.pill {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    color: #cbd5e1;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.pill.ready { color: #92f0b8; }
+.pill.active { color: #8ab7ff; }
+.pill.err { color: #ff9b9b; }
+
+.kv-row {
+    grid-template-columns: 110px 1fr;
+    min-height: 34px;
+}
+
+.kv-row span:first-child {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.kv-row strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    color: #f5f7fb;
+}
+
+#log {
+    height: 360px;
+    overflow: auto;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--line-soft);
+    background: #080c11;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.log-info { color: #7eb6ff; }
+.log-ok { color: #8fe3a6; }
+.log-err { color: #ff8a8a; }
+.log-event { color: #f4dc7a; }
+.log-muted { color: #808b9b; }
+
+.empty {
+    color: var(--muted-2);
+    font-size: 12px;
+    padding: 10px;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.checkline {
+    display: inline-flex;
+    gap: 7px;
+    align-items: center;
+    color: #cbd5e1;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+@media (max-width: 860px) {
+    header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .status {
+        margin-left: 0;
+    }
+    .shell {
+        grid-template-columns: 1fr;
+        padding: 12px;
+    }
+    #log { height: 300px; }
+}
+
+@media (max-width: 520px) {
+    .inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .inline .small {
+        width: 100%;
+    }
+
+    .row button {
+        flex: 1 1 130px;
+    }
+
+    .room,
+    .bot {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .room .pill,
+    .bot .pill {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .kv-row {
+        grid-template-columns: 1fr;
+        align-items: start;
+        gap: 4px;
+    }
+
+    .kv-row strong {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+</style>
+</head>
+<body>
+<header>
+    <div class="brand">
+        <div class="brand-mark">R</div>
+        <div>
+            <div class="eyebrow">LAMDice QA Console</div>
+            <h1>Roulette Debug Panel</h1>
+        </div>
+    </div>
+    <div class="status" id="connStatus">disconnected</div>
+</header>
+
+<main class="shell">
+    <div class="column">
+        <section class="section">
+            <h2>Host Room</h2>
+            <label for="hostName">Host name</label>
+            <input id="hostName" value="RouletteHost" maxlength="20">
+            <label for="roomName">Room name</label>
+            <input id="roomName" value="Roulette Debug Room" maxlength="30">
+            <label class="checkline">
+                <input id="turboAnimation" type="checkbox" checked>
+                Turbo animation
+            </label>
+            <div class="row" style="margin-top:10px">
+                <button class="btn-green" id="createRoomBtn">Create room</button>
+                <button class="btn-purple" id="quickRunBtn">Quick run</button>
+                <button class="btn-ghost" id="openGameBtn" disabled>Open game</button>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Rooms <span class="badge" id="roomCount">0</span></h2>
+            <div id="roomList" class="rooms"><div class="empty">Loading rooms...</div></div>
+            <div class="row" style="margin-top:10px">
+                <button class="btn-ghost" id="refreshRoomsBtn">Refresh</button>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Bots <span class="badge" id="botCountBadge">0</span></h2>
+            <div class="inline">
+                <div class="small">
+                    <label for="botCount">Count</label>
+                    <input id="botCount" type="number" min="1" max="20" value="3">
+                </div>
+                <div>
+                    <label for="botPrefix">Name prefix</label>
+                    <input id="botPrefix" value="RBot" maxlength="12">
+                </div>
+            </div>
+            <div id="botList" class="bots" style="margin-top:10px"><div class="empty">No bots</div></div>
+            <div class="row" style="margin-top:10px">
+                <button class="btn-green" id="joinBotsBtn">Join bots</button>
+                <button class="btn-blue" id="readyAllBtn">Ready missing</button>
+                <button class="btn-amber" id="colorAllBtn">Assign colors</button>
+                <button class="btn-red" id="disconnectAllBtn">Disconnect</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="column">
+        <section class="section">
+            <h2>Game Control</h2>
+            <div class="row">
+                <button class="btn-blue" id="startRouletteBtn" disabled>Start roulette</button>
+                <button class="btn-ghost" id="sendLegacyResultBtn" disabled>Send legacy result</button>
+                <button class="btn-red" id="endRouletteBtn" disabled>End game</button>
+            </div>
+            <div class="kv" style="margin-top:12px">
+                <div class="kv-row"><span>Selected room</span><strong id="selectedRoomText">None</strong></div>
+                <div class="kv-row"><span>Host socket</span><strong id="hostSocketText">None</strong></div>
+                <div class="kv-row"><span>Users</span><strong id="usersText">0</strong></div>
+                <div class="kv-row"><span>Ready users</span><strong id="readyUsersText">0</strong></div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Round</h2>
+            <div class="kv">
+                <div class="kv-row"><span>Round ID</span><strong id="roundIdText">None</strong></div>
+                <div class="kv-row"><span>Winner</span><strong id="winnerText">None</strong></div>
+                <div class="kv-row"><span>Participants</span><strong id="participantsText">0</strong></div>
+                <div class="kv-row"><span>Effect</span><strong id="effectText">None</strong></div>
+                <div class="kv-row"><span>Server end</span><strong id="serverEndText">None</strong></div>
+                <div class="kv-row"><span>Finalized by</span><strong id="finalizedByText">None</strong></div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Log</h2>
+            <div id="log"></div>
+            <div class="row" style="margin-top:10px">
+                <button class="btn-ghost" id="clearLogBtn">Clear</button>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const controlSocket = io({ forceNew: true });
+const bots = [];
+let roomsCache = [];
+let selectedRoomId = null;
+let selectedRoomName = null;
+let hostSocket = null;
+let hostRoomId = null;
+let hostUserName = null;
+let currentUsers = [];
+let readyUsers = [];
+let lastRound = null;
+let lastFinalizedBy = null;
+let creatingRoomPromise = null;
+let botSerial = 0;
+
+const els = {
+    connStatus: document.getElementById('connStatus'),
+    roomList: document.getElementById('roomList'),
+    roomCount: document.getElementById('roomCount'),
+    botList: document.getElementById('botList'),
+    botCountBadge: document.getElementById('botCountBadge'),
+    selectedRoomText: document.getElementById('selectedRoomText'),
+    hostSocketText: document.getElementById('hostSocketText'),
+    usersText: document.getElementById('usersText'),
+    readyUsersText: document.getElementById('readyUsersText'),
+    roundIdText: document.getElementById('roundIdText'),
+    winnerText: document.getElementById('winnerText'),
+    participantsText: document.getElementById('participantsText'),
+    effectText: document.getElementById('effectText'),
+    serverEndText: document.getElementById('serverEndText'),
+    finalizedByText: document.getElementById('finalizedByText'),
+    log: document.getElementById('log'),
+    startRouletteBtn: document.getElementById('startRouletteBtn'),
+    sendLegacyResultBtn: document.getElementById('sendLegacyResultBtn'),
+    endRouletteBtn: document.getElementById('endRouletteBtn'),
+    openGameBtn: document.getElementById('openGameBtn')
+};
+
+function nowTime() {
+    return new Date().toLocaleTimeString();
+}
+
+function log(message, type = 'info') {
+    const line = document.createElement('div');
+    line.className = 'log-' + type;
+    line.textContent = '[' + nowTime() + '] ' + message;
+    els.log.appendChild(line);
+    els.log.scrollTop = els.log.scrollHeight;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function makeDeviceId(prefix) {
+    return prefix + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+function selectedRoomIsPanelHost() {
+    return !!hostSocket && hostSocket.connected && selectedRoomId && selectedRoomId === hostRoomId;
+}
+
+function updateControlState() {
+    els.selectedRoomText.textContent = selectedRoomName ? selectedRoomName + ' (' + selectedRoomId + ')' : 'None';
+    els.hostSocketText.textContent = hostSocket && hostSocket.connected
+        ? hostUserName + ' (' + hostSocket.id + ')'
+        : 'None';
+    els.usersText.textContent = String(currentUsers.length);
+    els.readyUsersText.textContent = readyUsers.length + (readyUsers.length ? ' - ' + readyUsers.join(', ') : '');
+    els.startRouletteBtn.disabled = !selectedRoomIsPanelHost() || readyUsers.length < 2;
+    els.endRouletteBtn.disabled = !selectedRoomIsPanelHost();
+    els.openGameBtn.disabled = !selectedRoomId;
+    els.sendLegacyResultBtn.disabled = !selectedRoomIsPanelHost() || !lastRound || !lastRound.winner;
+}
+
+function updateRoundView() {
+    els.roundIdText.textContent = lastRound && lastRound.roundId ? lastRound.roundId : 'None';
+    els.winnerText.textContent = lastRound && lastRound.winner ? lastRound.winner : 'None';
+    els.participantsText.textContent = lastRound && lastRound.participants
+        ? lastRound.participants.length + ' - ' + lastRound.participants.join(', ')
+        : '0';
+    els.effectText.textContent = lastRound && lastRound.effectType ? lastRound.effectType : 'None';
+    els.serverEndText.textContent = lastRound && lastRound.serverEndAt
+        ? new Date(lastRound.serverEndAt).toLocaleTimeString()
+        : 'None';
+    els.finalizedByText.textContent = lastFinalizedBy || 'None';
+    updateControlState();
+}
+
+function setSelectedRoom(roomId, roomName) {
+    selectedRoomId = roomId;
+    selectedRoomName = roomName;
+    currentUsers = [];
+    readyUsers = [];
+    const room = roomsCache.find(r => r.roomId === roomId);
+    if (room) {
+        currentUsers = Array.from({ length: room.playerCount || 0 }, (_, i) => ({ name: 'user-' + (i + 1) }));
+    }
+    renderRooms();
+    renderBots();
+    updateControlState();
+}
+
+function upsertRoomFromJoinData(data) {
+    if (!data || !data.roomId) return;
+
+    const users = data.gameState && Array.isArray(data.gameState.users)
+        ? data.gameState.users
+        : currentUsers;
+    const hostUser = users.find(user => user.isHost);
+    const existing = roomsCache.find(room => room.roomId === data.roomId);
+    const room = {
+        roomId: data.roomId,
+        roomName: data.roomName || selectedRoomName || 'Roulette Debug Room',
+        hostName: (hostUser && hostUser.name) || data.userName || hostUserName || '-',
+        playerCount: users.length || (data.readyUsers && data.readyUsers.length) || 1,
+        isGameActive: !!(data.isGameActive || (data.gameState && data.gameState.isGameActive)),
+        isOrderActive: !!(data.isOrderActive || (data.gameState && data.gameState.isOrderActive)),
+        isPrivate: !!data.isPrivate,
+        gameType: data.gameType || 'roulette',
+        serverId: data.serverId || null
+    };
+
+    if (existing) {
+        Object.assign(existing, room);
+    } else {
+        roomsCache = [room, ...roomsCache];
+    }
+}
+
+function updateSelectedRoomCache(updates) {
+    if (!selectedRoomId) return;
+    const room = roomsCache.find(item => item.roomId === selectedRoomId);
+    if (!room) return;
+    Object.assign(room, updates);
+    renderRooms();
+}
+
+function setRoomsCacheFromServer(rooms) {
+    const incoming = rooms || [];
+    const selectedLocalRoom = selectedRoomId
+        ? roomsCache.find(room => room.roomId === selectedRoomId)
+        : null;
+
+    if (selectedLocalRoom && !incoming.some(room => room.roomId === selectedRoomId)) {
+        roomsCache = [selectedLocalRoom, ...incoming];
+    } else {
+        roomsCache = incoming;
+    }
+}
+
+function renderRooms() {
+    const rooms = roomsCache.filter(room => room.gameType === 'roulette');
+    els.roomCount.textContent = String(rooms.length);
+    els.roomList.innerHTML = '';
+
+    if (!rooms.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No roulette rooms';
+        els.roomList.appendChild(empty);
+        updateControlState();
+        return;
+    }
+
+    rooms.forEach(room => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'room' + (room.roomId === selectedRoomId ? ' selected' : '');
+        item.addEventListener('click', () => {
+            setSelectedRoom(room.roomId, room.roomName);
+            log('Selected room: ' + room.roomName + ' (' + room.roomId + ')', 'info');
+        });
+
+        const dot = document.createElement('span');
+        dot.className = 'dot ' + (room.isGameActive ? 'active' : 'ready');
+
+        const text = document.createElement('span');
+        text.className = 'main-text';
+        text.innerHTML = '<strong></strong><div class="sub-text"></div>';
+        text.querySelector('strong').textContent = room.roomName;
+        text.querySelector('.sub-text').textContent = room.roomId + ' / host: ' + (room.hostName || '-');
+
+        const meta = document.createElement('span');
+        meta.className = 'pill ' + (room.isGameActive ? 'active' : '');
+        meta.textContent = (room.playerCount || 0) + ' users' + (room.isGameActive ? ' / active' : '');
+
+        item.append(dot, text, meta);
+        els.roomList.appendChild(item);
+    });
+
+    updateControlState();
+}
+
+function renderBots() {
+    els.botCountBadge.textContent = String(bots.length);
+    els.botList.innerHTML = '';
+
+    if (!bots.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No bots';
+        els.botList.appendChild(empty);
+        updateControlState();
+        return;
+    }
+
+    bots.forEach(bot => {
+        const row = document.createElement('div');
+        row.className = 'bot';
+
+        const dot = document.createElement('span');
+        dot.className = 'dot ' + (readyUsers.includes(bot.name) ? 'ready' : bot.status);
+
+        const text = document.createElement('span');
+        text.className = 'main-text';
+        text.innerHTML = '<strong></strong><div class="sub-text"></div>';
+        text.querySelector('strong').textContent = bot.name;
+        text.querySelector('.sub-text').textContent = bot.socket && bot.socket.id ? bot.socket.id : '-';
+
+        const pill = document.createElement('span');
+        pill.className = 'pill ' + (readyUsers.includes(bot.name) ? 'ready' : '');
+        pill.textContent = readyUsers.includes(bot.name) ? 'ready' : bot.status;
+
+        row.append(dot, text, pill);
+        els.botList.appendChild(row);
+    });
+
+    updateControlState();
+}
+
+function syncRoomStateFromJoin(data) {
+    selectedRoomId = data.roomId;
+    selectedRoomName = data.roomName;
+    readyUsers = data.readyUsers || [];
+    currentUsers = data.gameState && data.gameState.users ? data.gameState.users : currentUsers;
+    upsertRoomFromJoinData(data);
+    renderRooms();
+    renderBots();
+    updateControlState();
+}
+
+function handleUsers(users) {
+    currentUsers = users || [];
+    updateSelectedRoomCache({ playerCount: currentUsers.length });
+    updateControlState();
+}
+
+function handleReadyUsers(users) {
+    readyUsers = users || [];
+    renderBots();
+    updateControlState();
+}
+
+function handleRouletteStarted(data, sourceLabel) {
+    if (!data || !data.roundId) return;
+    const isNew = !lastRound || lastRound.roundId !== data.roundId;
+    lastRound = data;
+    lastFinalizedBy = null;
+    updateSelectedRoomCache({ isGameActive: true });
+    updateRoundView();
+    if (isNew) {
+        log(
+            'rouletteStarted from ' + sourceLabel +
+            ' / winner=' + data.winner +
+            ' / participants=' + (data.participants || []).join(', '),
+            'event'
+        );
+    }
+}
+
+function handleRouletteEnded(data, sourceLabel) {
+    lastFinalizedBy = data && data.finalizedBy ? data.finalizedBy : sourceLabel;
+    if (data && data.winner) {
+        if (!lastRound) lastRound = {};
+        lastRound.winner = data.winner;
+        if (data.roundId) lastRound.roundId = data.roundId;
+    }
+    updateSelectedRoomCache({ isGameActive: false });
+    updateRoundView();
+    log('rouletteEnded from ' + sourceLabel + ' / winner=' + (data && data.winner ? data.winner : '-') + ' / finalizedBy=' + lastFinalizedBy, 'ok');
+}
+
+function wireGameEvents(socket, label) {
+    socket.on('updateUsers', handleUsers);
+    socket.on('readyUsersUpdated', handleReadyUsers);
+    socket.on('rouletteStarted', data => handleRouletteStarted(data, label));
+    socket.on('rouletteEnded', data => handleRouletteEnded(data, label));
+    socket.on('rouletteGameEnded', () => {
+        lastFinalizedBy = 'gameEnded';
+        readyUsers = [];
+        updateSelectedRoomCache({ isGameActive: false });
+        updateRoundView();
+        renderBots();
+        log('rouletteGameEnded from ' + label, 'event');
+    });
+    socket.on('rouletteError', msg => log(label + ' rouletteError: ' + JSON.stringify(msg), 'err'));
+    socket.on('roomError', msg => log(label + ' roomError: ' + JSON.stringify(msg), 'err'));
+    socket.on('permissionError', msg => log(label + ' permissionError: ' + JSON.stringify(msg), 'err'));
+    socket.on('disconnect', () => {
+        if (socket === hostSocket) updateControlState();
+    });
+}
+
+controlSocket.on('connect', () => {
+    els.connStatus.textContent = 'connected: ' + controlSocket.id;
+    els.connStatus.className = 'status ok';
+    log('Control socket connected', 'ok');
+    controlSocket.emit('getRooms');
+});
+
+controlSocket.on('connect_error', err => {
+    els.connStatus.textContent = 'connect_error: ' + err.message;
+    els.connStatus.className = 'status err';
+});
+
+controlSocket.on('disconnect', reason => {
+    els.connStatus.textContent = 'disconnected: ' + reason;
+    els.connStatus.className = 'status err';
+});
+
+controlSocket.on('roomsList', rooms => {
+    setRoomsCacheFromServer(rooms);
+    renderRooms();
+});
+
+controlSocket.on('roomsListUpdated', rooms => {
+    setRoomsCacheFromServer(rooms);
+    renderRooms();
+});
+
+function refreshRooms() {
+    controlSocket.emit('getRooms');
+}
+
+function disconnectHost() {
+    if (hostSocket) {
+        hostSocket.disconnect();
+    }
+    hostSocket = null;
+    hostRoomId = null;
+    hostUserName = null;
+}
+
+function createHostRoom() {
+    if (creatingRoomPromise) return creatingRoomPromise;
+
+    disconnectHost();
+    lastRound = null;
+    lastFinalizedBy = null;
+    updateRoundView();
+
+    const hostName = document.getElementById('hostName').value.trim() || 'RouletteHost';
+    const roomName = document.getElementById('roomName').value.trim() || 'Roulette Debug Room';
+    const turboAnimation = document.getElementById('turboAnimation').checked;
+
+    log('Creating roulette room as ' + hostName + '...', 'info');
+
+    creatingRoomPromise = new Promise((resolve, reject) => {
+        const s = io({ forceNew: true });
+        hostSocket = s;
+        hostUserName = hostName;
+        let resolved = false;
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                reject(new Error('create room timeout'));
+            }
+        }, 10000);
+
+        wireGameEvents(s, 'host');
+
+        function finish(data) {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timeout);
+            hostRoomId = data.roomId;
+            syncRoomStateFromJoin(data);
+            log('Host room ready: ' + data.roomName + ' (' + data.roomId + ')', 'ok');
+            refreshRooms();
+            resolve(data);
+        }
+
+        s.on('connect', () => {
+            s.emit('createRoom', {
+                userName: hostName,
+                roomName,
+                isPrivate: false,
+                password: '',
+                gameType: 'roulette',
+                expiryHours: 1,
+                blockIPPerUser: false,
+                turboAnimation,
+                deviceId: makeDeviceId('debug-host'),
+                tabId: makeDeviceId('debug-host-tab')
+            });
+        });
+
+        s.on('roomCreated', finish);
+        s.on('roomJoined', finish);
+        s.on('roomError', msg => {
+            if (!resolved) {
+                clearTimeout(timeout);
+                reject(new Error(String(msg)));
+            }
+        });
+        s.on('connect_error', err => {
+            if (!resolved) {
+                clearTimeout(timeout);
+                reject(err);
+            }
+        });
+    }).finally(() => {
+        creatingRoomPromise = null;
+    });
+
+    return creatingRoomPromise;
+}
+
+function buildBotName() {
+    const prefix = (document.getElementById('botPrefix').value.trim() || 'RBot').slice(0, 12);
+    botSerial += 1;
+    return (prefix + '-' + String(botSerial).padStart(2, '0')).slice(0, 20);
+}
+
+function joinOneBot() {
+    return new Promise((resolve, reject) => {
+        const name = buildBotName();
+        const s = io({ forceNew: true });
+        const bot = { socket: s, name, status: 'connecting' };
+        bots.push(bot);
+        renderBots();
+
+        const timeout = setTimeout(() => {
+            bot.status = 'error';
+            renderBots();
+            reject(new Error(name + ' join timeout'));
+        }, 10000);
+
+        wireGameEvents(s, name);
+
+        s.on('connect', () => {
+            bot.status = 'connected';
+            renderBots();
+            s.emit('joinRoom', {
+                roomId: selectedRoomId,
+                userName: name,
+                isHost: false,
+                password: '',
+                deviceId: makeDeviceId('debug-bot'),
+                tabId: makeDeviceId('debug-bot-tab')
+            });
+        });
+
+        s.on('roomJoined', data => {
+            clearTimeout(timeout);
+            bot.status = 'joined';
+            bot.name = data.userName || bot.name;
+            syncRoomStateFromJoin(data);
+            log(bot.name + ' joined ' + data.roomName, 'ok');
+            resolve(bot);
+        });
+
+        s.on('roomError', msg => {
+            clearTimeout(timeout);
+            bot.status = 'error';
+            renderBots();
+            reject(new Error(String(msg)));
+        });
+
+        s.on('connect_error', err => {
+            clearTimeout(timeout);
+            bot.status = 'error';
+            renderBots();
+            reject(err);
+        });
+
+        s.on('disconnect', () => {
+            bot.status = 'disconnected';
+            renderBots();
+        });
+    });
+}
+
+async function joinBots() {
+    if (!selectedRoomId) {
+        log('Select or create a roulette room first', 'err');
+        return;
+    }
+
+    const count = Math.max(1, Math.min(20, parseInt(document.getElementById('botCount').value, 10) || 1));
+    log('Joining ' + count + ' bots...', 'info');
+
+    for (let i = 0; i < count; i += 1) {
+        try {
+            await joinOneBot(i);
+        } catch (err) {
+            log('Bot join failed: ' + err.message, 'err');
+        }
+        if (i < count - 1) await sleep(250);
+    }
+
+    refreshRooms();
+}
+
+function readyMissing() {
+    let changed = 0;
+
+    if (selectedRoomIsPanelHost() && hostUserName && !readyUsers.includes(hostUserName)) {
+        hostSocket.emit('toggleReady');
+        changed += 1;
+    }
+
+    bots.forEach(bot => {
+        if (bot.status === 'joined' && bot.socket && bot.socket.connected && !readyUsers.includes(bot.name)) {
+            bot.socket.emit('toggleReady');
+            changed += 1;
+        }
+    });
+
+    log(changed ? 'Ready requested for ' + changed + ' sockets' : 'Everyone tracked is already ready', changed ? 'info' : 'muted');
+}
+
+function assignColors() {
+    let color = 0;
+    if (selectedRoomIsPanelHost()) {
+        hostSocket.emit('selectRouletteColor', { colorIndex: color });
+        color += 1;
+    }
+    bots.forEach(bot => {
+        if (bot.status === 'joined' && bot.socket && bot.socket.connected) {
+            bot.socket.emit('selectRouletteColor', { colorIndex: color % 16 });
+            color += 1;
+        }
+    });
+    log('Color assignment sent to ' + color + ' sockets', 'info');
+}
+
+function startRoulette() {
+    if (!selectedRoomIsPanelHost()) {
+        log('Start needs a room created by this panel host socket', 'err');
+        return;
+    }
+    if (readyUsers.length < 2) {
+        log('At least 2 ready users are required', 'err');
+        return;
+    }
+    lastFinalizedBy = null;
+    updateRoundView();
+    hostSocket.emit('startRoulette');
+    log('startRoulette emitted by host', 'event');
+}
+
+function sendLegacyResult() {
+    if (!selectedRoomIsPanelHost() || !lastRound || !lastRound.winner) return;
+    hostSocket.emit('rouletteResult', {
+        roundId: lastRound.roundId || null,
+        winner: lastRound.winner
+    });
+    log('rouletteResult legacy signal emitted: ' + lastRound.winner, 'event');
+}
+
+function endRoulette() {
+    if (!selectedRoomIsPanelHost()) return;
+    hostSocket.emit('endRoulette');
+    log('endRoulette emitted by host', 'event');
+}
+
+function disconnectAll() {
+    bots.forEach(bot => {
+        if (bot.socket) bot.socket.disconnect();
+    });
+    bots.length = 0;
+    botSerial = 0;
+    disconnectHost();
+    currentUsers = [];
+    readyUsers = [];
+    renderBots();
+    updateControlState();
+    refreshRooms();
+    log('Disconnected panel host and bots', 'info');
+}
+
+function openSelectedGame() {
+    if (!selectedRoomId) return;
+    const userName = 'Manual-' + Math.random().toString(36).slice(2, 6);
+    localStorage.setItem('pendingRouletteJoin', JSON.stringify({
+        roomId: selectedRoomId,
+        userName,
+        isPrivate: false,
+        serverId: null,
+        serverName: null
+    }));
+    window.open('/roulette?joinRoom=true', '_blank', 'noopener');
+}
+
+async function quickRun() {
+    try {
+        await createHostRoom();
+        await sleep(250);
+        await joinBots();
+        await sleep(350);
+        readyMissing();
+        await sleep(350);
+        startRoulette();
+    } catch (err) {
+        log('Quick run failed: ' + err.message, 'err');
+    }
+}
+
+document.getElementById('createRoomBtn').addEventListener('click', () => {
+    createHostRoom().catch(err => log('Create room failed: ' + err.message, 'err'));
+});
+document.getElementById('quickRunBtn').addEventListener('click', quickRun);
+document.getElementById('openGameBtn').addEventListener('click', openSelectedGame);
+document.getElementById('refreshRoomsBtn').addEventListener('click', refreshRooms);
+document.getElementById('joinBotsBtn').addEventListener('click', () => {
+    joinBots().catch(err => log('Join bots failed: ' + err.message, 'err'));
+});
+document.getElementById('readyAllBtn').addEventListener('click', readyMissing);
+document.getElementById('colorAllBtn').addEventListener('click', assignColors);
+document.getElementById('disconnectAllBtn').addEventListener('click', disconnectAll);
+document.getElementById('startRouletteBtn').addEventListener('click', startRoulette);
+document.getElementById('sendLegacyResultBtn').addEventListener('click', sendLegacyResult);
+document.getElementById('endRouletteBtn').addEventListener('click', endRoulette);
+document.getElementById('clearLogBtn').addEventListener('click', () => {
+    els.log.innerHTML = '';
+});
+
+log('Open the server, create or select a roulette room, then join bots.', 'muted');
+</script>
+</body>
+</html>
