@@ -964,6 +964,17 @@ socket.on('kicked', (message) => {
     setTimeout(() => location.reload(), 800);
 });
 
+// 방 나가기 응답
+socket.on('roomLeft', () => {
+    sessionStorage.removeItem('bridgeActiveRoom');
+    if (roomExpiryInterval) {
+        clearInterval(roomExpiryInterval);
+        roomExpiryInterval = null;
+    }
+    sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
+    window.location.replace('/game');
+});
+
 // 사용자 목록 업데이트 (서버는 data를 배열로 보냄: horse-race line 4939 패턴)
 socket.on('updateUsers', (data) => {
     const userArray = Array.isArray(data) ? data : (data && data.users) || [];
