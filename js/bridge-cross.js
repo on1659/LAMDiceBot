@@ -2767,13 +2767,14 @@ socket.on('joinError', (data) => {
             }
         }
 
-        // pre-choice 단계: 선택된 row(step.row) 위치에서 warning_glow 깜빡 (on/off)
-        if (state.phase === 'pre-choice' && state.pendingChoice && state.preChoiceWarningRow && state.preChoiceVisible) {
+        // pre-choice 단계: 양쪽 row(top + bottom) 동시에 warning_glow 깜빡 (on/off)
+        if (state.phase === 'pre-choice' && state.pendingChoice && state.preChoiceVisible) {
             var wcol = state.pendingChoice.col;
-            var wrow = state.preChoiceWarningRow;
-            var wpos = layout.tileCenter(wcol, wrow);
-            var wcell = fxFrame('warning_glow');
-            drawImageCell(images.glassFx, wcell, wpos.x - 58, wpos.y + 6, 116, 116, 0.92);
+            ['top', 'bottom'].forEach(function (wrow) {
+                var wpos = layout.tileCenter(wcol, wrow);
+                var wcell = fxFrame('warning_glow');
+                drawImageCell(images.glassFx, wcell, wpos.x - 58, wpos.y + 6, 116, 116, 0.92);
+            });
         }
 
         state.players.filter(function (p) { return p !== state.current && (p.status === 'finished' || p.status === 'winner'); }).forEach(function (player, index) {
