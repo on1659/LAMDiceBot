@@ -864,9 +864,105 @@ function renderUsersList(userArray) {
         if (user.isHost) content += ' 👑';
         if (user.name === currentUser) content += ' (나)';
         tag.innerHTML = content;
+
+        // 호스트가 다른 사용자 클릭 시 액션 다이얼로그 (호스트임명 / 제외)
+        if (isHost && user.name !== currentUser) {
+            tag.style.cursor = 'pointer';
+            tag.title = '클릭하여 호스트임명 또는 제외';
+            tag.addEventListener('click', () => {
+                showPlayerActionDialog(user.name).then(action => {
+                    if (action === 'host') {
+                        socket.emit('transferHost', user.name);
+                    } else if (action === 'kick') {
+                        showConfirmDialog(`${user.name}님을 게임에서 제외하시겠습니까?`, () => {
+                            socket.emit('kickPlayer', user.name);
+                        });
+                    }
+                });
+            });
+        }
+
         usersList.appendChild(tag);
     });
 }
+
+// 확인 다이얼로그 (강퇴 등)
+function showConfirmDialog(message, onConfirm) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);';
+    modal.innerHTML = `
+        <div style="margin-bottom: 20px; line-height: 1.6; text-align: center;">${escapeHtml(message)}</div>
+        <div style="display: flex; gap: 10px;">
+            <button id="bridgeConfirmCancel" style="flex: 1; padding: 12px; background: var(--gray-100, #f3f4f6); color: var(--text-primary); border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">취소</button>
+            <button id="bridgeConfirmOk" style="flex: 1; padding: 12px; background: var(--btn-danger, #ef4444); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">확인</button>
+        </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    modal.querySelector('#bridgeConfirmCancel').addEventListener('click', () => overlay.remove());
+    modal.querySelector('#bridgeConfirmOk').addEventListener('click', () => {
+        overlay.remove();
+        if (onConfirm) onConfirm();
+    });
+}
+
+// 플레이어 액션 다이얼로그 (호스트임명, 제외시키기, 취소)
+function showPlayerActionDialog(playerName) {
+    return new Promise(resolve => {
+        const existingDialog = document.getElementById('bridgePlayerActionDialog');
+        if (existingDialog) existingDialog.remove();
+        const dialogOverlay = document.createElement('div');
+        dialogOverlay.id = 'bridgePlayerActionDialog';
+        dialogOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 10002; display: flex; justify-content: center; align-items: center;';
+        const dialogContent = document.createElement('div');
+        dialogContent.style.cssText = 'background: var(--bg-white); border-radius: 16px; padding: 25px 30px; max-width: 500px; width: 90vw; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid var(--bridge-accent);';
+        const messageDiv = document.createElement('div');
+        messageDiv.style.cssText = 'font-size: 18px; line-height: 1.6; color: var(--text-primary); text-align: center; margin-bottom: 25px; font-weight: 600;';
+        messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">👤</span>${escapeHtml(playerName)}님에게 어떤 행동을 하시겠습니까?`;
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
+
+        function createBtn(text, bg, resolveValue) {
+            const btn = document.createElement('button');
+            btn.textContent = text;
+            btn.style.cssText = `padding: 12px 25px; background: ${bg}; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;`;
+            btn.onclick = () => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve(resolveValue); };
+            return btn;
+        }
+
+        const hostButton = createBtn('호스트임명', 'var(--brand-gradient, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))', 'host');
+        const kickButton = createBtn('제외시키기', 'linear-gradient(135deg, var(--red-300, #fca5a5) 0%, var(--red-400, #f87171) 100%)', 'kick');
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = '취소';
+        cancelButton.style.cssText = 'padding: 12px 25px; background: var(--gray-100, #f3f4f6); color: var(--text-secondary); border: 1px solid var(--gray-300, #d1d5db); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;';
+        cancelButton.onclick = () => { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); };
+
+        const handleEsc = e => {
+            if (e.key === 'Escape') { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); }
+        };
+        document.addEventListener('keydown', handleEsc);
+        dialogOverlay.onclick = e => {
+            if (e.target === dialogOverlay) { dialogOverlay.remove(); document.removeEventListener('keydown', handleEsc); resolve('cancel'); }
+        };
+
+        buttonContainer.appendChild(hostButton);
+        buttonContainer.appendChild(kickButton);
+        buttonContainer.appendChild(cancelButton);
+        dialogContent.appendChild(messageDiv);
+        dialogContent.appendChild(buttonContainer);
+        dialogOverlay.appendChild(dialogContent);
+        document.body.appendChild(dialogOverlay);
+    });
+}
+
+// 강퇴당했을 때
+socket.on('kicked', (message) => {
+    showCustomAlert(typeof message === 'string' ? message : '방에서 제외되었습니다.', 'info');
+    sessionStorage.removeItem('bridgeActiveRoom');
+    setTimeout(() => location.reload(), 800);
+});
 
 // 사용자 목록 업데이트 (서버는 data를 배열로 보냄: horse-race line 4939 패턴)
 socket.on('updateUsers', (data) => {
@@ -1270,6 +1366,12 @@ socket.on('joinError', (data) => {
         var current = state.current && state.avatar
             ? { x: state.avatar.x, y: state.avatar.y }
             : null;
+        var pending = state.pendingChoice
+            ? layout.tileCenter(state.pendingChoice.col, state.pendingChoice.row)
+            : null;
+        var suspenseTarget = pending && current
+            ? { x: (pending.x + current.x) / 2, y: (pending.y + current.y) / 2 }
+            : (pending || current || startCenter);
 
         switch (phase) {
             case 'ready':
@@ -1277,14 +1379,19 @@ socket.on('joinError', (data) => {
             case 'next-player':
                 return { zoom: 0.85, target: current || startCenter };
             case 'enter-bridge':
-            case 'safe-flash':
                 return { zoom: 1.0, target: current || startCenter };
+            case 'pre-choice':
+                return { zoom: 1.24, target: suspenseTarget };
+            case 'result-hold':
+                return { zoom: 1.28, target: pending || current || startCenter };
+            case 'safe-flash':
+                return { zoom: 1.12, target: current || pending || startCenter };
             case 'choose':
-                return { zoom: 1.12, target: current || startCenter };
+                return { zoom: 1.18, target: suspenseTarget };
             case 'choice-wait':
-                return { zoom: 1.18, target: current || startCenter };
+                return { zoom: 1.22, target: pending || current || startCenter };
             case 'falling':
-                return { zoom: 1.25, target: current || startCenter };
+                return { zoom: 1.34, target: current || pending || startCenter };
             case 'finish-wait':
             case 'finished':
                 // 통과한 캐릭터(avatar) 위치에 2배 줌 인 (없으면 finishCenter fallback)
@@ -1306,7 +1413,7 @@ socket.on('joinError', (data) => {
 
         // falling shake (캐릭터당 1회)
         if (state.phase === 'falling' && this._shakeAppliedFor !== state.currentIndex) {
-            this.camera.shake(8, 0.4);
+            this.camera.shake(14, 0.55);
             this._shakeAppliedFor = state.currentIndex;
         } else if (state.phase !== 'falling') {
             this._shakeAppliedFor = null;
@@ -1809,6 +1916,26 @@ socket.on('joinError', (data) => {
         state.timer = duration;
     }
 
+    function prepareChoicePause() {
+        var player = state.current;
+        var step = getCurrentPathStep();
+        var col = step ? step.col : (player ? player.progress : 0);
+        if (!player || !step || player.progress >= layout.columnCount) {
+            if (player) {
+                player.status = 'finished';
+                player.animator.set('result', true);
+                moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
+                state.phase = 'finish-wait';
+            }
+            return;
+        }
+
+        state.pendingChoice = { col: col, row: step.row, success: step.success };
+        state.phase = 'pre-choice';
+        state.timer = 0.92;
+        pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 멈췄다.');
+    }
+
     function revealChoice(player, step) {
         var col = step.col;
         var choice = step.row;
@@ -1858,8 +1985,9 @@ socket.on('joinError', (data) => {
         if (state.current) {
             if (state.phase === 'falling') state.current.animator.set('fall');
             else if (state.phase === 'enter-bridge') state.current.animator.set('run');
+            else if (state.phase === 'pre-choice') state.current.animator.set('idle');
             else if (state.avatar.t < 1) state.current.animator.set('jump');
-            else if (state.phase === 'safe-flash') state.current.animator.set('land');
+            else if (state.phase === 'result-hold' || state.phase === 'safe-flash') state.current.animator.set('land');
             else state.current.animator.set('run');
         }
 
@@ -1874,31 +2002,36 @@ socket.on('joinError', (data) => {
                 break;
             }
             case 'enter-bridge':
-                state.phase = 'choose';
-                state.timer = 0.12;
+                prepareChoicePause();
                 break;
             case 'choose': {
-                var player2 = state.current;
-                var step = getCurrentPathStep();
-                var col2 = step ? step.col : player2.progress;
-                if (!step || player2.progress >= layout.columnCount) {
-                    player2.status = 'finished';
-                    player2.animator.set('result', true);
-                    moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
-                    state.phase = 'finish-wait';
+                prepareChoicePause();
+                break;
+            }
+            case 'pre-choice': {
+                var step2 = state.pendingChoice;
+                if (!step2) {
+                    prepareChoicePause();
                     break;
                 }
-                var choice = step.row;
-                state.pendingChoice = { col: col2, row: choice, success: step.success };
-                moveAvatar(layout.tileCenter(col2, choice), 0.68, { jumpHeight: 70 });
+                moveAvatar(layout.tileCenter(step2.col, step2.row), 0.68, { jumpHeight: 70 });
                 state.phase = 'choice-wait';
-                if (window.SoundManager) SoundManager.playSound('bridge-cross_crack');
-                pushEvent(player2.name + '이(가) ' + (col2 + 1) + '번 열에 도전.');
+                pushEvent(state.current.name + '이(가) ' + (step2.col + 1) + '번 열에 도전.');
                 break;
             }
             case 'choice-wait': {
+                state.phase = 'result-hold';
+                state.timer = 0.34;
+                break;
+            }
+            case 'result-hold': {
                 var player3 = state.current;
                 var step3 = state.pendingChoice;
+                if (!player3 || !step3) {
+                    state.phase = 'next-player';
+                    state.timer = 0.2;
+                    break;
+                }
                 var col3 = step3.col;
                 var success = revealChoice(player3, step3);
                 state.currentPathIndex += 1;
@@ -1930,8 +2063,7 @@ socket.on('joinError', (data) => {
                     moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
                     state.phase = 'finish-wait';
                 } else {
-                    state.phase = 'choose';
-                    state.timer = 0.2;
+                    prepareChoicePause();
                 }
                 break;
             case 'falling':
@@ -2496,7 +2628,11 @@ socket.on('joinError', (data) => {
     window.render_game_to_text = renderGameToText;
     window.advanceTime = function (ms) {
         var steps = Math.max(1, Math.round(ms / (1000 / 60)));
-        for (var i = 0; i < steps; i += 1) update(1 / 60);
+        for (var i = 0; i < steps; i += 1) {
+            update(1 / 60);
+            cameraDirector.update(state);
+            camera.update(1 / 60, userZoomController.value);
+        }
         render();
     };
 
