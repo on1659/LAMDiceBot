@@ -2094,12 +2094,13 @@ socket.on('joinError', (data) => {
             state.phase = 'choice-wait';
             pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 통과 (확실).');
         } else {
-            // warning_glow가 top↔bottom 왔다갔다 (4번) — 캐릭터는 정지
-            state.preChoiceTogglesLeft = 4;
-            state.preChoiceWarningRow = 'top';
+            // 선택된 row(step.row)가 켜졌다 꺼졌다 깜빡 (5번 on/off)
+            state.preChoiceTogglesLeft = 5;
+            state.preChoiceWarningRow = step.row;
+            state.preChoiceVisible = true;
             state.phase = 'pre-choice';
             state.timer = 0.22;
-            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 어느 쪽으로 갈지 망설인다...');
+            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 망설인다...');
         }
     }
 
@@ -2199,14 +2200,14 @@ socket.on('joinError', (data) => {
                     prepareChoicePause();
                     break;
                 }
-                // warning_glow가 top↔bottom 토글 (4번) — 캐릭터는 정지. 마지막에 step.row 점프
+                // 선택된 row 위치에서 켰다↔껐다 깜빡 (5번 on/off). 마지막에 step.row 점프
                 if (state.preChoiceTogglesLeft > 0) {
-                    state.preChoiceWarningRow = state.preChoiceWarningRow === 'top' ? 'bottom' : 'top';
+                    state.preChoiceVisible = !state.preChoiceVisible;
                     state.preChoiceTogglesLeft -= 1;
                     state.timer = 0.22;
-                    // 같은 phase 유지 — timer 끝나면 재진입
                 } else {
                     state.preChoiceWarningRow = null;
+                    state.preChoiceVisible = false;
                     moveAvatar(layout.tileCenter(step2.col, step2.row), 0.36, { jumpHeight: 62 });
                     state.phase = 'choice-wait';
                     pushEvent(state.current.name + '이(가) ' + (step2.col + 1) + '번 열에 도전.');
@@ -2766,13 +2767,13 @@ socket.on('joinError', (data) => {
             }
         }
 
-        // pre-choice 단계: warning_glow를 한쪽 row에 깜빡 (top↔bottom 토글)
-        if (state.phase === 'pre-choice' && state.pendingChoice && state.preChoiceWarningRow) {
+        // pre-choice 단계: 선택된 row(step.row) 위치에서 warning_glow 깜빡 (on/off)
+        if (state.phase === 'pre-choice' && state.pendingChoice && state.preChoiceWarningRow && state.preChoiceVisible) {
             var wcol = state.pendingChoice.col;
             var wrow = state.preChoiceWarningRow;
             var wpos = layout.tileCenter(wcol, wrow);
             var wcell = fxFrame('warning_glow');
-            drawImageCell(images.glassFx, wcell, wpos.x - 58, wpos.y + 6, 116, 116, 0.85);
+            drawImageCell(images.glassFx, wcell, wpos.x - 58, wpos.y + 6, 116, 116, 0.92);
         }
 
         state.players.filter(function (p) { return p !== state.current && (p.status === 'finished' || p.status === 'winner'); }).forEach(function (player, index) {
