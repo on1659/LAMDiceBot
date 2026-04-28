@@ -1081,7 +1081,7 @@ socket.on('joinError', (data) => {
 
     var fxSheet = {
         columns: 4,
-        rows: 6,
+        rows: 7,
         // 현재 자산은 legacy visual pivot(0.62)을 쓴다.
         // 새 contact-anchor glass-fx가 들어오면 y를 player anchor(0.88)로 바꾸면 drawTile이 자동 전환된다.
         anchor: { x: 0.5, y: 0.62 },
@@ -1091,7 +1091,8 @@ socket.on('joinError', (data) => {
             crack:          { row: 2, frames: [0, 1, 2, 3], fps: 8, loop: false },
             break_shards:   { row: 3, frames: [0, 1, 2, 3], fps: 7, loop: false },
             fall_trail:     { row: 4, frames: [0, 1, 2, 3], fps: 8, loop: true },
-            landing_pulse:  { row: 5, frames: [0, 1, 2, 3], fps: 8, loop: false }
+            landing_pulse:  { row: 5, frames: [0, 1, 2, 3], fps: 8, loop: false },
+            restore_glass:  { row: 6, frames: [0, 1, 2, 3], fps: 8, loop: false }
         }
     };
 
@@ -1127,9 +1128,18 @@ socket.on('joinError', (data) => {
                 return response.json();
             })
             .then(function (manifest) {
-                var manifestFxAnchor = manifest && manifest.sheets && manifest.sheets.glassFx && manifest.sheets.glassFx.anchor;
+                var manifestFx = manifest && manifest.sheets && manifest.sheets.glassFx;
+                var manifestFxGrid = manifestFx && manifestFx.grid;
+                var manifestFxAnchor = manifestFx && manifestFx.anchor;
+                if (manifestFxGrid && Number.isFinite(manifestFxGrid.columns) && Number.isFinite(manifestFxGrid.rows)) {
+                    fxSheet.columns = manifestFxGrid.columns;
+                    fxSheet.rows = manifestFxGrid.rows;
+                }
                 if (manifestFxAnchor && Number.isFinite(manifestFxAnchor.x) && Number.isFinite(manifestFxAnchor.y)) {
                     fxSheet.anchor = { x: manifestFxAnchor.x, y: manifestFxAnchor.y };
+                }
+                if (manifestFx && manifestFx.animations) {
+                    fxSheet.animations = Object.assign({}, fxSheet.animations, manifestFx.animations);
                 }
             })
             .catch(function (error) {
@@ -1935,18 +1945,22 @@ socket.on('joinError', (data) => {
         state.fastReturn = (state.stage === 'return' && rd && (rd.runOrder || []).length === 1);
         // 시작 좌표: outbound는 시작점(slot), return은 도착점
         if (state.stage === 'return') {
-            // 도착점에서 시작 — 마지막 finishSlot 위치 사용
+            // 도착점에서 시작 — finishSlot(0) 위치
             var finishStart = layout.finishSlot(0);
             state.avatar.reset(finishStart);
         } else {
             state.avatar.reset(state.current.slot);
         }
         state.phase = 'enter-bridge';
-        // 첫 점프 도착 좌표: outbound는 entrance, return은 layout.exit (없으면 마지막 col tileCenter)
+        // 첫 점프 도착 좌표: outbound는 entrance, return은 마지막 col 안전 row 위치
+        var lastCol = layout.columnCount - 1;
         var bridgeEntry = state.stage === 'return'
-            ? (layout.exitForReturn ? layout.exitForReturn() : layout.tileCenter(BRIDGE_COLUMNS - 1, 'top'))
+            ? layout.tileCenter(lastCol, 'top')
             : layout.entrance();
         moveAvatar(bridgeEntry, state.fastReturn ? 0.32 : 0.55, { jumpHeight: 0, anchorOffset: 0 });
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[beginPlayer] stage=' + state.stage + ' player=' + state.current.name + ' from=(' + Math.round(state.avatar.x) + ',' + Math.round(state.avatar.y) + ') to=(' + Math.round(bridgeEntry.x) + ',' + Math.round(bridgeEntry.y) + ')', 'bridge');
+        }
         pushEvent(state.current.name + (state.stage === 'return' ? ' starts return.' : ' steps up.'));
 
         // 디버그: 도전자 진입 시 scenario path 전체 출력
@@ -2701,6 +2715,19 @@ socket.on('joinError', (data) => {
             var cell = fxFrame('break_shards');
             drawImageCell(images.glassFx, cell, pos.x - 58, pos.y + 6, 116, 116, 0.34);
         });
+
+        // reset-fx 단계: 모든 broken col에 restore_glass 애니메이션
+        if (state.stage === 'reset-fx') {
+            for (var rcol = 0; rcol < layout.columnCount; rcol += 1) {
+                var rinfo = state.revealed[rcol];
+                if (rinfo && rinfo.broken) {
+                    var rpos = layout.tileCenter(rcol, rinfo.broken);
+                    var rcell = fxFrame('restore_glass');
+                    var alpha = Math.max(0.4, Math.min(1, state.timer / 1.5));
+                    drawImageCell(images.glassFx, rcell, rpos.x - 58, rpos.y + 6, 116, 116, alpha);
+                }
+            }
+        }
 
         state.players.filter(function (p) { return p !== state.current && (p.status === 'finished' || p.status === 'winner'); }).forEach(function (player, index) {
             var slot = layout.finishSlot(index);

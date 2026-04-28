@@ -68,7 +68,7 @@
       "image": "glass-fx-v2.png",
       "grid": {
         "columns": 4,
-        "rows": 6
+        "rows": 7
       },
       "anchor": {
         "x": 0.5,
@@ -108,6 +108,12 @@
         },
         "landing_pulse": {
           "row": 5,
+          "frames": [0, 1, 2, 3],
+          "fps": 8,
+          "loop": false
+        },
+        "restore_glass": {
+          "row": 6,
           "frames": [0, 1, 2, 3],
           "fps": 8,
           "loop": false
