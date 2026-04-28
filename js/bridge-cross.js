@@ -2083,9 +2083,11 @@ socket.on('joinError', (data) => {
             state.phase = 'choice-wait';
             pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 통과 (확실).');
         } else {
+            // 양쪽 row 왔다갔다 연출 (4번 토글 + 최종 점프)
+            state.preChoiceTogglesLeft = 4;
             state.phase = 'pre-choice';
-            state.timer = 0.92;
-            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 멈췄다.');
+            state.timer = 0.22;
+            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 망설인다...');
         }
     }
 
@@ -2185,9 +2187,18 @@ socket.on('joinError', (data) => {
                     prepareChoicePause();
                     break;
                 }
-                moveAvatar(layout.tileCenter(step2.col, step2.row), 0.68, { jumpHeight: 70 });
-                state.phase = 'choice-wait';
-                pushEvent(state.current.name + '이(가) ' + (step2.col + 1) + '번 열에 도전.');
+                // 양쪽 row 왔다갔다 (4번 토글) → 마지막은 step.row로 결정
+                if (state.preChoiceTogglesLeft > 0) {
+                    var oscRow = (state.preChoiceTogglesLeft % 2 === 0) ? 'top' : 'bottom';
+                    moveAvatar(layout.tileCenter(step2.col, oscRow), 0.22, { jumpHeight: 28 });
+                    state.preChoiceTogglesLeft -= 1;
+                    // 같은 phase 유지 — timer 끝나면 재진입
+                } else {
+                    state.preChoiceTogglesLeft = 0;
+                    moveAvatar(layout.tileCenter(step2.col, step2.row), 0.36, { jumpHeight: 62 });
+                    state.phase = 'choice-wait';
+                    pushEvent(state.current.name + '이(가) ' + (step2.col + 1) + '번 열에 도전.');
+                }
                 break;
             }
             case 'choice-wait': {
