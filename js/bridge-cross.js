@@ -1824,18 +1824,28 @@ socket.on('joinError', (data) => {
         data = data || {};
         var activeColors = Array.isArray(data.activeColors) ? data.activeColors : [];
         var allBets = data.allBets || {};
-        var scenarios = Array.isArray(data.scenarios) ? data.scenarios.map(normalizeScenario) : [];
 
-        state.scenarios = scenarios;
+        // 왕복 룰: data.outbound + data.returnRound 받음
+        var outboundData = data.outbound || { safeRows: [], paths: [], survivorPositions: [] };
+        var returnData = data.returnRound || { safeRows: [], paths: [], runOrder: [], winnerOrderPosition: -1 };
+        var winnerColor = (typeof data.winnerColor === 'number') ? data.winnerColor : null;
+
         state.activeColors = activeColors;
         state.allBets = allBets;
+        state.outboundData = outboundData;
+        state.returnData = returnData;
+        state.expectedWinnerColor = winnerColor;
+
+        // 1차 outbound 흐름 시작
+        state.stage = 'outbound';
+        state.scenarios = (outboundData.paths || []).map(function (p) { return normalizeScenario({ path: p }); });
 
         state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
 
         // 전체 6명 PlayerActor 생성 (비활성 포함) — 시작 plat에 배치
         state.allPlayers = allPlayerDefs.map(function (def, i) { return new PlayerActor(def, i, layout); });
 
-        // 활성 캐릭터만 (베팅된 색 오름차순) → 도전 플레이어 목록
+        // 활성 캐릭터만 (베팅된 색 오름차순) → outbound 도전 순서
         state.players = activeColors.map(function (colorIdx) { return state.allPlayers[colorIdx]; });
 
         state.currentScenarioIndex = 0;
@@ -1852,8 +1862,12 @@ socket.on('joinError', (data) => {
         state.mode = 'playing';
         state.phase = 'next-player';
         state.avatar.reset(layout.entrance());
-        state.events = ['다리 건너기 시작!'];
+        state.events = ['1차 다리 건너기 시작!'];
         updateTextPanels();
+
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[stage] outbound 시작 (M=' + activeColors.length + ' 명)', 'bridge');
+        }
     }
 
     function getBrokenCount() {
@@ -1883,10 +1897,24 @@ socket.on('joinError', (data) => {
         state.currentPathIndex = 0;
         state.lastStep = null;
         state.current.resetForRun();
-        state.avatar.reset(state.current.slot);
+        // 단독 생존자 빠른 통과 (return + N=1)
+        var rd = state.returnData;
+        state.fastReturn = (state.stage === 'return' && rd && (rd.runOrder || []).length === 1);
+        // 시작 좌표: outbound는 시작점(slot), return은 도착점
+        if (state.stage === 'return') {
+            // 도착점에서 시작 — 마지막 finishSlot 위치 사용
+            var finishStart = layout.finishSlot(0);
+            state.avatar.reset(finishStart);
+        } else {
+            state.avatar.reset(state.current.slot);
+        }
         state.phase = 'enter-bridge';
-        moveAvatar(layout.entrance(), 0.55, { jumpHeight: 0, anchorOffset: 0 });
-        pushEvent(state.current.name + ' steps up.');
+        // 첫 점프 도착 좌표: outbound는 entrance, return은 layout.exit (없으면 마지막 col tileCenter)
+        var bridgeEntry = state.stage === 'return'
+            ? (layout.exitForReturn ? layout.exitForReturn() : layout.tileCenter(BRIDGE_COLUMNS - 1, 'top'))
+            : layout.entrance();
+        moveAvatar(bridgeEntry, state.fastReturn ? 0.32 : 0.55, { jumpHeight: 0, anchorOffset: 0 });
+        pushEvent(state.current.name + (state.stage === 'return' ? ' starts return.' : ' steps up.'));
 
         // 디버그: 도전자 진입 시 scenario path 전체 출력
         var scenario = state.scenarios[state.currentScenarioIndex];
@@ -1914,6 +1942,64 @@ socket.on('joinError', (data) => {
     function moveAvatar(point, duration, options) {
         state.avatar.moveTo(point, duration, options);
         state.timer = duration;
+    }
+
+    // ── 왕복 룰: stage 전환 헬퍼 ──────────────────────────────────────────────
+    function beginResetFx() {
+        state.stage = 'reset-fx';
+        state.phase = 'reset-fx';
+        state.timer = 1.5;  // 1.5초 broken 사라지는 연출
+        state.current = null;
+        state.pendingChoice = null;
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[stage] reset-fx — 다리 복구 연출', 'bridge');
+        }
+    }
+
+    function beginReturnIntro() {
+        state.stage = 'return-intro';
+        state.phase = 'return-intro';
+        state.timer = 2.0;  // 2초 인트로 (텍스트 + 카메라)
+        // broken 시각 제거 — return은 다리 reset 상태로 시작
+        state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[stage] return-intro — 귀환 시작 연출', 'bridge');
+        }
+    }
+
+    function beginReturnStage() {
+        var rd = state.returnData || { paths: [], runOrder: [] };
+        state.stage = 'return';
+
+        // 새 player 목록: outbound 생존자만, runOrder 순서로
+        var ob = state.outboundData || { survivorPositions: [] };
+        var survivors = (ob.survivorPositions || []).map(function (pos) {
+            return state.activeColors[pos];
+        });
+        var runOrder = rd.runOrder || [];
+        // 도착자 status 'finished' → 도전 가능하게 'waiting' 복귀 (단 runOrder에 없는 사람은 그대로)
+        var orderedSurvivorColors = runOrder.map(function (idx) { return survivors[idx]; });
+        state.players = orderedSurvivorColors.map(function (colorIdx) {
+            var p = state.allPlayers[colorIdx];
+            p.status = 'waiting';
+            return p;
+        });
+
+        // 시나리오 재설정
+        state.scenarios = (rd.paths || []).map(function (p) { return normalizeScenario({ path: p }); });
+        state.currentScenarioIndex = 0;
+        state.currentPathIndex = 0;
+        state.currentIndex = -1;
+        state.current = null;
+        state.pendingChoice = null;
+        state.lastStep = null;
+        state.phase = 'next-player';
+        state.timer = 0.5;
+        state.events = ['귀환 시작!'];
+
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[stage] return 시작 (생존자 ' + state.players.length + '명, runOrder=' + runOrder.join(',') + ')', 'bridge');
+        }
     }
 
     function prepareChoicePause() {
@@ -2070,12 +2156,49 @@ socket.on('joinError', (data) => {
                 state.currentScenarioIndex += 1;
                 state.current = null;
                 state.pendingChoice = null;
-                state.phase = 'next-player';
-                state.timer = 0.45;
+                if (state.stage === 'outbound' && state.currentScenarioIndex >= state.scenarios.length) {
+                    // outbound 마지막 도전자가 fall — outbound 끝
+                    beginResetFx();
+                } else if (state.stage === 'return' && state.currentScenarioIndex >= state.scenarios.length) {
+                    // return 마지막 도전자가 fall — 모두 fall (이론상 발생 안 함, winner 보장됨)
+                    finishGame(null);
+                } else {
+                    state.phase = 'next-player';
+                    state.timer = 0.45;
+                }
+                break;
+            case 'reset-fx':
+                // 다리 복구 연출 끝 → return-intro
+                beginReturnIntro();
+                break;
+            case 'return-intro':
+                // 귀환 인트로 끝 → return 시작
+                beginReturnStage();
                 break;
             case 'finish-wait':
-                state.currentScenarioIndex += 1;
-                finishGame(state.current);
+                // outbound 단계: 도착자 등록 + 다음 도전자 / outbound 끝나면 reset-fx
+                if (state.stage === 'outbound') {
+                    var arrived = state.current;
+                    if (arrived) {
+                        arrived.status = 'finished';
+                        arrived.animator.set('idle', true);
+                        // 도착자는 finishSlot에 idle로 머무름 (nextActivePlayer가 'waiting'만 진입)
+                    }
+                    state.currentScenarioIndex += 1;
+                    state.current = null;
+                    state.pendingChoice = null;
+                    if (state.currentScenarioIndex >= state.scenarios.length) {
+                        // outbound 모두 끝 → reset-fx 진입
+                        beginResetFx();
+                    } else {
+                        state.phase = 'next-player';
+                        state.timer = 0.5;
+                    }
+                } else if (state.stage === 'return') {
+                    // return 통과자 = 시작점 도달 = 최종 winner
+                    state.currentScenarioIndex += 1;
+                    finishGame(state.current);
+                }
                 break;
             default:
                 break;
@@ -2191,6 +2314,9 @@ socket.on('joinError', (data) => {
         var bobX = isIdle ? Math.sin(state.elapsed * 2.3 + player.id * 1.7) * 1.5 : 0;
         var bobY = isIdle ? Math.sin(state.elapsed * 4.5 + player.id) * 5 : 0;
 
+        // 왕복 룰: return stage 시 활성 도전자(state.current)는 스프라이트 좌우 반전
+        var flip = (state.stage === 'return' && state.current && state.current.id === player.id);
+
         ctx.save();
         ctx.globalAlpha = alpha;
         if (falling) {
@@ -2201,7 +2327,13 @@ socket.on('joinError', (data) => {
             drawImageCell(images.glassFx, trail, fallX - 48, fallY - 64, 96, 110, 0.8 * (1 - fallT * 0.35));
             ctx.translate(fallX, fallY);
             ctx.rotate(0.25 + fallT * 0.8);
+            if (flip) ctx.scale(-1, 1);
             ctx.globalAlpha = alpha * Math.max(0.16, 1 - fallT * 0.78);
+            ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, -w * playerSheet.anchor.x, -h * playerSheet.anchor.y, w, h);
+        } else if (flip) {
+            // 좌우 반전: 캐릭터 중심을 기준으로 scale(-1,1)
+            ctx.translate(x + bobX, y + bobY);
+            ctx.scale(-1, 1);
             ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, -w * playerSheet.anchor.x, -h * playerSheet.anchor.y, w, h);
         } else {
             ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, x - w * playerSheet.anchor.x + bobX, y - h * playerSheet.anchor.y + bobY, w, h);
