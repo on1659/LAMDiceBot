@@ -2218,9 +2218,7 @@ socket.on('joinError', (data) => {
     function bettorTagText(player) {
         var bettors = getPlayerBettors(player);
         if (bettors.length === 0) return '';
-        if (bettors.length === 1) return bettors[0];
-        if (bettors.length === 2) return bettors.join(', ');
-        return bettors[0] + ' 외 ' + (bettors.length - 1) + '명';
+        return bettors.join(', ');
     }
 
     function fitTagText(text, maxWidth) {
@@ -2243,7 +2241,8 @@ socket.on('joinError', (data) => {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        var maxTextWidth = 116;
+        // 머리 위 태그는 모든 베팅자 이름 표시 (truncate 안 함). 캔버스 폭만큼 확장 가능.
+        var maxTextWidth = 320;
         text = fitTagText(text, maxTextWidth);
         var textW = ctx.measureText(text).width;
         var padX = 11;
