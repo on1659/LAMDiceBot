@@ -1,4 +1,75 @@
 ========================================
+📋 Summit Log - 2026-04-29 — 다리건너기 룰 단순화 + 관리자 패널 활성 방 모니터링
+========================================
+
+## 변경 파일
+
+### 다리건너기 룰 변경
+- socket/bridge-cross.js: 왕복(return) 라운드 제거, winnerColor random pick + 통과 보장 시나리오, 다수 winner 처리, ready 검증, endTimeout cap 90s→120s
+- js/bridge-cross.js: return 시각화 제거(beginResetFx/beginReturnIntro/beginReturnStage 삭제), 다수 winner UI(state.winners/winnerSpeeches/arrivedCount), pre-choice warning_glow 양쪽 발판 동시 깜빡(발판 사이즈), drawHud winner 라벨 truncate
+- utils/room-helpers.js: bridgeCross.passerIndex 제거, passingColors 필드 추가
+- AutoTest/bridge-cross-devtools.html: passerIndex 표기 정리, winnerColorNames 다수 표시
+- AutoTest/bridge-cross-fairness-test.js: 신규. 시나리오 결정 공정성 자체 테스트 (winnerColor 분포 + 룰 정합성)
+- docs/meeting/impl/2026-04-29-bridge-cross-no-return-impl.md: 신규. 룰 변경 SPEC
+- assets/bridge-cross/asset-fix-list.md: 에셋 정리 메모
+
+### 관리자 패널 활성 방 모니터링
+- routes/server.js: /api/admin/rooms API 추가. dice/roulette/horse-race/crane-game/bridge 게임별 phase 통합 판정, 진행중 우선 정렬
+- server.js: app.set('rooms', rooms) — 라우트에서 인메모리 rooms 접근 가능
+- admin.html: 활성 방 테이블 UI(방ID/이름/게임/상태/호스트/인원/준비/참여자/경과/서버) + 자동 새로고침 5초 토글, 게임별 컬러 배지(dice/roulette/horse-race/crane-game/bridge), 활성 방/게임중 stat-box 추가
+
+### 환경
+- .claude/settings.json: Bash(git fetch *) 권한 추가
+
+## 상세 변경 내역
+
+### [다리건너기 룰 — 핵심 변화]
+이전: 왕복(outbound + return) 2단계, return에서 정확히 1명만 강제 통과. outbound는 정보 누적으로 후순위 색 통과율 ~50%, 1번 색 ~1.5% 편향.
+
+변경:
+1. 왕복 제거 → outbound 1회만 진행
+2. 매 라운드 활성 색 중 random pick → 당첨 색(winnerColor) 결정
+3. 시나리오: winnerColor는 buildPassPath(통과 보장), 다른 색은 buildRandomFailPath(실패)
+4. 베팅 정산: winnerColor에 베팅한 모든 사용자 = winners (다수 가능)
+5. "활성 색 중에서만" pick하므로 winners.length >= 1 항상 보장 (모두 허탕 없음)
+
+검증: AutoTest/bridge-cross-fairness-test.js (M=2/3/4/6, 총 100,000 라운드)
+- 색별 우승 분포 최대 편차 < 2% (균등)
+- M=6 마지막 색 16.65% (이전 ~50% → 균등 16.7%)
+- survivorPositions === [winnerPos] 정합성 100%
+- 룰 위반 0건 (winner 통과 + 다른 색 fail 모두 보장)
+
+### [다리건너기 — return 부산물 제거]
+- 다리 reset 연출 (restore_glass fxSheet 호출 0건, sprite는 보존)
+- return 카메라 이동, 좌우반전(state.stage === 'return' flip)
+- buildReturnRandomFailPath/buildReturnPassPath/buildReturnScenarios/shuffleArray 삭제
+- beginResetFx/beginReturnIntro/beginReturnStage 삭제
+- state.fastReturn/returnData/stage 변수 정리
+- update() phase에서 reset-fx/return-intro/return case 삭제 → outbound 끝나면 finishGame 직접
+
+### [다리건너기 — payload 호환성]
+신규 클라/서버는 winnerColors[] 배열 사용. 옛 클라 호환을 위해 winnerColor(단일) + winnerColorName(단일) 필드도 broadcast/history에 함께 보존(=passingColors[0]).
+
+### [다리건너기 — UX 개선]
+- ready 안 한 사용자 색 클릭 → 서버 거부 + "준비(Ready) 후에 베팅할 수 있습니다" 토스트
+- pre-choice 시각: 양쪽 발판(top + bottom) 동시 깜빡, 발판 사이즈에 정확히 맞춤(이전 116×116 하드코딩 → layout.tileSize.w/h)
+- drawHud winner 라벨: 3명 이상이면 "이름1, 이름2 외 N" 형식 (overflow 방지)
+- finishSlot 분산 (state.arrivedCount + player.arrivedSlotIndex) — 다수 캐릭터 통과 시 슬롯 겹침 방지
+- 다수 winner 말풍선 모두 표시 (state.winnerSpeeches 배열)
+
+### [관리자 패널 — 활성 방 모니터링]
+- /api/admin/rooms: 인메모리 rooms 스냅샷 → 게임별 phase/isPlaying 통합 판정 + 진행중 우선 정렬
+- 응답: {total, playing, rooms[]} — 각 방의 roomId/roomName/gameType/hostName/userNames/readyCount/phase/ageMs/historyCount
+- admin.html: 활성 방 테이블 UI, 자동 새로고침 5초(체크박스 토글), 게임 컬러 배지(dice/roulette/horse-race/crane-game/bridge), 새 stat-box 2개(전체 방/게임중)
+- 인증: adminAuth 미들웨어 + x-admin-token 헤더
+
+### [영향 범위]
+- 다리건너기 게임 룰 자체가 변경됨 (왕복 → 단발). 기존 history 데이터의 winnerColor(단일) 필드는 호환 유지
+- 다른 게임(주사위/룰렛/경마/팀배정) 무영향
+- 공유 시스템(chat/ready/order/ranking/control-bar/sound) 무영향
+- DB schema 변경 없음 (recordServerGame/recordGameSession 호출 호환)
+
+========================================
 📋 Summit Log - 2026-04-27 — 다리 건너기 게임 v2 골격 (Phase A/B/C + 베팅/결과)
 ========================================
 

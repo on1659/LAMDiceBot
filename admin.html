@@ -48,6 +48,20 @@
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; color: white; }
         .badge-active { background: var(--btn-ready); }
         .badge-inactive { background: var(--btn-danger); }
+        .badge-game { background: var(--gray-300); color: var(--text-secondary); }
+        .badge-game.dice { background: var(--dice-accent); color: white; }
+        .badge-game.roulette { background: #c2185b; color: white; }
+        .badge-game.horse-race { background: #f57c00; color: white; }
+        .badge-game.crane-game { background: #00897b; color: white; }
+        .badge-game.bridge { background: #5e35b1; color: white; }
+        .badge-phase { background: var(--gray-200); color: var(--text-secondary); }
+        .badge-phase.playing,
+        .badge-phase.racing,
+        .badge-phase.spinning,
+        .badge-phase.crossing,
+        .badge-phase.betting,
+        .badge-phase.order { background: var(--btn-ready); color: white; }
+        .users-cell { max-width: 240px; font-size: 0.8em; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .btn-danger { padding: 6px 12px; background: var(--btn-danger); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
         .btn-danger:hover { background: var(--btn-danger-hover); }
         .btn-info { padding: 6px 12px; background: var(--dice-accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
@@ -82,6 +96,20 @@
                 <div class="stat-box"><div class="num" id="totalServers">-</div><div class="label">전체 서버</div></div>
                 <div class="stat-box"><div class="num" id="activeServers">-</div><div class="label">활성 서버</div></div>
                 <div class="stat-box"><div class="num" id="totalUsers">-</div><div class="label">전체 유저</div></div>
+                <div class="stat-box"><div class="num" id="totalRooms">-</div><div class="label">활성 방</div></div>
+                <div class="stat-box"><div class="num" id="playingRooms">-</div><div class="label">게임 중</div></div>
+            </div>
+
+            <div class="section">
+                <h2>활성 방
+                    <span style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                        <label style="font-size:0.8em; color:var(--text-secondary); display:flex; align-items:center; gap:4px;">
+                            <input type="checkbox" id="autoRefreshRooms" checked> 자동 새로고침 5초
+                        </label>
+                        <button class="refresh-btn" onclick="loadRooms()">새로고침</button>
+                    </span>
+                </h2>
+                <div id="roomsList"><div class="empty-state">로딩 중...</div></div>
             </div>
 
             <div class="section">
@@ -143,8 +171,10 @@
             document.getElementById('loginBox').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'block';
             document.getElementById('logoutBtn').style.display = 'inline-block';
+            loadRooms();
             loadServers();
             loadUsers();
+            startRoomsAutoRefresh();
         }
 
         function doLogout() {
@@ -153,6 +183,76 @@
             document.getElementById('loginBox').style.display = 'block';
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('logoutBtn').style.display = 'none';
+            stopRoomsAutoRefresh();
+        }
+
+        // ─── 활성 방 ───
+
+        let roomsTimer = null;
+        function startRoomsAutoRefresh() {
+            stopRoomsAutoRefresh();
+            const cb = document.getElementById('autoRefreshRooms');
+            if (!cb || !cb.checked) return;
+            roomsTimer = setInterval(loadRooms, 5000);
+        }
+        function stopRoomsAutoRefresh() {
+            if (roomsTimer) { clearInterval(roomsTimer); roomsTimer = null; }
+        }
+        document.getElementById('autoRefreshRooms').addEventListener('change', () => {
+            startRoomsAutoRefresh();
+        });
+
+        function fmtAge(ms) {
+            if (ms == null || ms < 0) return '-';
+            const s = Math.floor(ms / 1000);
+            if (s < 60) return s + '초';
+            const m = Math.floor(s / 60);
+            if (m < 60) return m + '분';
+            const h = Math.floor(m / 60);
+            const rm = m % 60;
+            return h + '시간' + (rm ? ' ' + rm + '분' : '');
+        }
+
+        async function loadRooms() {
+            try {
+                const res = await fetch('/api/admin/rooms', { headers: { 'x-admin-token': adminToken } });
+                if (!res.ok) return;
+                const data = await res.json();
+                const rooms = data.rooms || [];
+                document.getElementById('totalRooms').textContent = data.total || 0;
+                document.getElementById('playingRooms').textContent = data.playing || 0;
+
+                if (rooms.length === 0) {
+                    document.getElementById('roomsList').innerHTML = '<div class="empty-state">활성 방 없음</div>';
+                    return;
+                }
+
+                document.getElementById('roomsList').innerHTML = `
+                    <table>
+                        <thead><tr>
+                            <th>방ID</th><th>이름</th><th>게임</th><th>상태</th>
+                            <th>호스트</th><th>인원</th><th>준비</th><th>참여자</th>
+                            <th>경과</th><th>서버</th>
+                        </tr></thead>
+                        <tbody>${rooms.map(r => `
+                            <tr>
+                                <td style="font-family:monospace; font-size:0.8em;">${esc(r.roomId)}</td>
+                                <td>${esc(r.roomName)}${r.isPrivate ? ' 🔒' : ''}</td>
+                                <td><span class="badge badge-game ${esc(r.gameType)}">${esc(r.gameType)}</span></td>
+                                <td>
+                                    <span class="badge ${r.isPlaying ? 'badge-active' : 'badge-inactive'}">${r.isPlaying ? '진행' : '대기'}</span>
+                                    <span class="badge badge-phase ${esc(r.phase)}">${esc(r.phase)}</span>
+                                </td>
+                                <td>${esc(r.hostName)}</td>
+                                <td>${r.playerCount}명</td>
+                                <td>${r.readyCount}/${r.playerCount}</td>
+                                <td class="users-cell" title="${esc((r.userNames || []).join(', '))}">${esc((r.userNames || []).join(', '))}</td>
+                                <td>${fmtAge(r.ageMs)}</td>
+                                <td>${r.serverId ? '#' + r.serverId : '-'}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>`;
+            } catch (e) {}
         }
 
         // ─── 서버 관리 ───

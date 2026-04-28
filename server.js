@@ -48,8 +48,9 @@ app.use(express.json());
 // 방 관리 시스템
 const rooms = {};
 
-// HTTP 라우트 설정 (io 를 app에 저장하여 라우트에서 접근 가능)
+// HTTP 라우트 설정 (io / rooms 를 app에 저장하여 라우트에서 접근 가능)
 app.set('io', io);
+app.set('rooms', rooms);
 setupRoutes(app);
 
 // WebSocket 핸들러 설정

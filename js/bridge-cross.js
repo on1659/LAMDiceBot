@@ -452,9 +452,18 @@ function showBridgeResult(data) {
     const rankings = document.getElementById('resultRankings');
     if (!overlay || !rankings) return;
 
-    const winnerColor = BRIDGE_COLORS[data.winnerColor];
-    const winnerColorBlock = winnerColor
-        ? `<div style="font-size:28px; margin-bottom:8px;">${winnerColor.emoji} ${winnerColor.name} 통과!</div>`
+    // 통과 색 목록 (다수 winner 호환). 옛 클라/서버 호환을 위해 winnerColors fallback.
+    const winnerColorIdxs = Array.isArray(data.winnerColors)
+        ? data.winnerColors.slice()
+        : (typeof data.winnerColor === 'number' ? [data.winnerColor] : []);
+
+    const colorChips = winnerColorIdxs
+        .map(idx => BRIDGE_COLORS[idx])
+        .filter(Boolean)
+        .map(c => `${c.emoji} ${c.name}`)
+        .join(' / ');
+    const winnerColorBlock = colorChips
+        ? `<div style="font-size:28px; margin-bottom:8px;">${colorChips} 통과!</div>`
         : '';
 
     let winnersHtml = '';
@@ -476,10 +485,16 @@ function showBridgeResult(data) {
     rankings.innerHTML = winnerColorBlock + winnersHtml;
     overlay.classList.add('visible');
 
-    // 히스토리에 추가 (베팅 정보까지 포함)
+    // 히스토리에 추가 (베팅 정보 + 다수 통과 색 보존)
+    const passingColors = Array.isArray(data.passingColors)
+        ? data.passingColors.slice()
+        : (Array.isArray(data.outboundSurvivorColors)
+            ? data.outboundSurvivorColors.slice()
+            : winnerColorIdxs.slice());
     bridgeCrossHistory.unshift({
         round: data.round || (bridgeCrossHistory.length + 1),
-        winnerColor: data.winnerColor,
+        winnerColor: data.winnerColor,                       // 옛 단일 호환
+        passingColors,                                       // 신규 다수 통과 색
         winnerColorName: data.winnerColorName,
         winners: data.winners || [],
         activeColors: Array.isArray(data.activeColors) ? data.activeColors : [],
@@ -497,7 +512,6 @@ function renderBridgeHistory() {
         return;
     }
     list.innerHTML = bridgeCrossHistory.slice(0, 20).map((h, idx) => {
-        const winnerColor = BRIDGE_COLORS[h.winnerColor];
         const round = h.round;
         const time = h.timestamp ? new Date(h.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -512,9 +526,12 @@ function renderBridgeHistory() {
                 if (!bettorsByColor[colorIdx]) bettorsByColor[colorIdx] = [];
                 bettorsByColor[colorIdx].push(userName);
             });
+            const passingForRow = Array.isArray(h.passingColors)
+                ? h.passingColors
+                : (typeof h.winnerColor === 'number' ? [h.winnerColor] : []);
             colorRowsHtml = activeColors.map(colorIdx => {
                 const c = BRIDGE_COLORS[colorIdx];
-                const isPasser = colorIdx === h.winnerColor;
+                const isPasser = passingForRow.includes(colorIdx);
                 const bettors = (bettorsByColor[colorIdx] || []).map(escapeHtml).join(', ') || '-';
                 const bgColor = isPasser ? 'var(--result-gold-light, #fef3c7)' : 'var(--panel-secondary, rgba(0,0,0,0.04))';
                 const status = isPasser ? '✅ 통과' : '❌ 실패';
@@ -678,10 +695,9 @@ socket.on('bridge-cross:gameStart', (data) => {
         bridgeCountdownTimer = null;
     }
     const M = (data && data.activeColors) ? data.activeColors.length : 0;
-    const K = data && data.passerIndex ? data.passerIndex : 0;
-    const detail = `참가 색상 ${M}개 · ${K}번째 도전자가 통과합니다`;
+    const detail = `참가 색상 ${M}개 — 통과한 색에 베팅한 모두가 winner!`;
     showBridgePlayingUI(detail);
-    addDebugLog(`게임 시작 (M=${M}, K=${K})`, 'bridge');
+    addDebugLog(`게임 시작 (M=${M})`, 'bridge');
 
     // 캔버스 IIFE wiring (window._onGameStart는 IIFE가 등록함)
     if (typeof window._onGameStart === 'function') {
@@ -690,7 +706,10 @@ socket.on('bridge-cross:gameStart', (data) => {
 });
 
 socket.on('bridge-cross:gameEnd', (data) => {
-    addDebugLog(`게임 종료 — ${data && data.winnerColorName ? data.winnerColorName : ''} 통과, 당첨 ${data && data.winners ? data.winners.length : 0}명`, 'bridge');
+    const colorNames = (data && Array.isArray(data.winnerColorNames) && data.winnerColorNames.length > 0)
+        ? data.winnerColorNames.join(', ')
+        : (data && data.winnerColorName ? data.winnerColorName : '');
+    addDebugLog(`게임 종료 — ${colorNames} 통과, 당첨 ${data && data.winners ? data.winners.length : 0}명`, 'bridge');
 
     // 캔버스 IIFE wiring (시각 마무리)
     if (typeof window._onGameEnd === 'function') {
@@ -1846,10 +1865,13 @@ socket.on('joinError', (data) => {
         var activeColors = Array.isArray(data.activeColors) ? data.activeColors : [];
         var allBets = data.allBets || {};
 
-        // 왕복 룰: data.outbound + data.returnRound 받음
+        // 왕복 제거: outbound 1회만 진행. return 데이터/처리 모두 제거.
         var outboundData = data.outbound || null;
-        var returnData = data.returnRound || null;
-        var winnerColor = (typeof data.winnerColor === 'number') ? data.winnerColor : null;
+
+        // 통과 색 목록 (다수 winner). 옛 단일 winnerColor 호환.
+        var expectedWinnerColors = Array.isArray(data.winnerColors)
+            ? data.winnerColors.slice()
+            : (typeof data.winnerColor === 'number' ? [data.winnerColor] : []);
 
         // 옛 형식(scenarios) 감지 — 서버 미재시작 시 발생
         if (!outboundData && Array.isArray(data.scenarios)) {
@@ -1869,29 +1891,23 @@ socket.on('joinError', (data) => {
                     .map(function (sc, i) { return sc.success ? i : -1; })
                     .filter(function (i) { return i >= 0; })
             };
-            returnData = { safeRows: [], paths: [], runOrder: [], winnerOrderPosition: -1 };
         }
 
         outboundData = outboundData || { safeRows: [], paths: [], survivorPositions: [] };
-        returnData = returnData || { safeRows: [], paths: [], runOrder: [], winnerOrderPosition: -1 };
 
         if (typeof addDebugLog === 'function') {
             addDebugLog('[gameStart] M=' + activeColors.length + ', outbound.paths=' + (outboundData.paths || []).length +
                 ', survivorPositions=[' + (outboundData.survivorPositions || []).join(',') + ']' +
-                ', return.paths=' + (returnData.paths || []).length +
-                ', runOrder=[' + (returnData.runOrder || []).join(',') + ']' +
-                ', winnerOrderPos=' + returnData.winnerOrderPosition +
-                ', winnerColor=' + winnerColor, 'bridge');
+                ', winnerColors=[' + expectedWinnerColors.join(',') + ']', 'bridge');
         }
 
         state.activeColors = activeColors;
         state.allBets = allBets;
         state.outboundData = outboundData;
-        state.returnData = returnData;
-        state.expectedWinnerColor = winnerColor;
+        state.expectedWinnerColors = expectedWinnerColors;
+        // 옛 단일 호환 (사용처 fallback)
+        state.expectedWinnerColor = expectedWinnerColors.length > 0 ? expectedWinnerColors[0] : null;
 
-        // 1차 outbound 흐름 시작
-        state.stage = 'outbound';
         state.scenarios = (outboundData.paths || []).map(function (p) { return normalizeScenario({ path: p }); });
 
         state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
@@ -1911,16 +1927,19 @@ socket.on('joinError', (data) => {
         state.timer = 0.5;
         state.elapsed = 0;
         state.winner = null;
+        state.winners = [];
         state.winnerSpeech = null;
+        state.winnerSpeeches = [];
+        state.arrivedCount = 0;
         state.paused = false;
         state.mode = 'playing';
         state.phase = 'next-player';
         state.avatar.reset(layout.entrance());
-        state.events = ['1차 다리 건너기 시작!'];
+        state.events = ['다리 건너기 시작!'];
         updateTextPanels();
 
         if (typeof addDebugLog === 'function') {
-            addDebugLog('[stage] outbound 시작 (M=' + activeColors.length + ' 명)', 'bridge');
+            addDebugLog('[outbound] 시작 (M=' + activeColors.length + ' 명)', 'bridge');
         }
     }
 
@@ -1951,28 +1970,16 @@ socket.on('joinError', (data) => {
         state.currentPathIndex = 0;
         state.lastStep = null;
         state.current.resetForRun();
-        // 단독 생존자 빠른 통과 (return + N=1)
-        var rd = state.returnData;
-        state.fastReturn = (state.stage === 'return' && rd && (rd.runOrder || []).length === 1);
-        // 시작 좌표: outbound는 시작점(slot), return은 도착점
-        if (state.stage === 'return') {
-            // 도착점에서 시작 — finishSlot(0) 위치
-            var finishStart = layout.finishSlot(0);
-            state.avatar.reset(finishStart);
-        } else {
-            state.avatar.reset(state.current.slot);
-        }
+        // 시작 좌표: 시작 plat slot
+        state.avatar.reset(state.current.slot);
         state.phase = 'enter-bridge';
-        // 첫 점프 도착 좌표: outbound는 entrance, return은 마지막 col 안전 row 위치
-        var lastCol = layout.columnCount - 1;
-        var bridgeEntry = state.stage === 'return'
-            ? layout.tileCenter(lastCol, 'top')
-            : layout.entrance();
-        moveAvatar(bridgeEntry, state.fastReturn ? 0.32 : 0.55, { jumpHeight: 0, anchorOffset: 0 });
+        // 첫 점프 도착 좌표: 다리 entrance
+        var bridgeEntry = layout.entrance();
+        moveAvatar(bridgeEntry, 0.55, { jumpHeight: 0, anchorOffset: 0 });
         if (typeof addDebugLog === 'function') {
-            addDebugLog('[beginPlayer] stage=' + state.stage + ' player=' + state.current.name + ' from=(' + Math.round(state.avatar.x) + ',' + Math.round(state.avatar.y) + ') to=(' + Math.round(bridgeEntry.x) + ',' + Math.round(bridgeEntry.y) + ')', 'bridge');
+            addDebugLog('[beginPlayer] player=' + state.current.name + ' from=(' + Math.round(state.avatar.x) + ',' + Math.round(state.avatar.y) + ') to=(' + Math.round(bridgeEntry.x) + ',' + Math.round(bridgeEntry.y) + ')', 'bridge');
         }
-        pushEvent(state.current.name + (state.stage === 'return' ? ' starts return.' : ' steps up.'));
+        pushEvent(state.current.name + ' steps up.');
 
         // 디버그: 도전자 진입 시 scenario path 전체 출력
         var scenario = state.scenarios[state.currentScenarioIndex];
@@ -2002,71 +2009,6 @@ socket.on('joinError', (data) => {
         state.timer = duration;
     }
 
-    // ── 왕복 룰: stage 전환 헬퍼 ──────────────────────────────────────────────
-    function beginResetFx() {
-        state.stage = 'reset-fx';
-        state.phase = 'reset-fx';
-        state.timer = 1.5;  // 1.5초 broken 사라지는 연출
-        state.current = null;
-        state.pendingChoice = null;
-        if (typeof addDebugLog === 'function') {
-            addDebugLog('[stage] reset-fx — 다리 복구 연출', 'bridge');
-        }
-    }
-
-    function beginReturnIntro() {
-        state.stage = 'return-intro';
-        state.phase = 'return-intro';
-        state.timer = 2.0;  // 2초 인트로 (텍스트 + 카메라)
-        // broken 시각 제거 — return은 다리 reset 상태로 시작
-        state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
-        if (typeof addDebugLog === 'function') {
-            addDebugLog('[stage] return-intro — 귀환 시작 연출', 'bridge');
-        }
-    }
-
-    function beginReturnStage() {
-        var rd = state.returnData || { paths: [], runOrder: [] };
-        state.stage = 'return';
-
-        // 새 player 목록: outbound 생존자만, runOrder 순서로
-        var ob = state.outboundData || { survivorPositions: [] };
-        var survivors = (ob.survivorPositions || []).map(function (pos) {
-            return state.activeColors[pos];
-        });
-        var runOrder = rd.runOrder || [];
-        // 도착자 status 'finished' → 도전 가능하게 'waiting' 복귀
-        var orderedSurvivorColors = runOrder.map(function (idx) { return survivors[idx]; });
-        state.players = orderedSurvivorColors.map(function (colorIdx) {
-            var p = state.allPlayers[colorIdx];
-            p.status = 'waiting';
-            p.progress = 0;  // path index 리셋
-            return p;
-        });
-
-        // 시나리오 재설정
-        state.scenarios = (rd.paths || []).map(function (p) { return normalizeScenario({ path: p }); });
-        state.currentScenarioIndex = 0;
-        state.currentPathIndex = 0;
-        state.currentIndex = -1;
-        state.current = null;
-        state.pendingChoice = null;
-        state.lastStep = null;
-        state.phase = 'next-player';
-        state.timer = 0.5;
-        state.events = ['귀환 시작!'];
-
-        if (typeof addDebugLog === 'function') {
-            addDebugLog('[stage] return 시작 (생존자=' + state.players.length + '명, runOrder=' + runOrder.join(',') + ', winnerOrderPos=' + rd.winnerOrderPosition + ', expectedWinnerColor=' + state.expectedWinnerColor + ')', 'bridge');
-            state.scenarios.forEach(function (sc, i) {
-                var pathStr = sc.path.map(function (s) {
-                    return 'col' + s.col + '=' + s.row + (s.success ? '✓' : '✗');
-                }).join(' → ');
-                addDebugLog('  return scenarios[' + i + '] = ' + pathStr, 'bridge');
-            });
-        }
-    }
-
     function prepareChoicePause() {
         var player = state.current;
         var step = getCurrentPathStep();
@@ -2075,7 +2017,11 @@ socket.on('joinError', (data) => {
             if (player) {
                 player.status = 'finished';
                 player.animator.set('result', true);
-                moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
+                var arrivedIdx = state.arrivedCount || 0;
+                player.arrivedSlotIndex = arrivedIdx;
+                var arrivedSlot = layout.finishSlot(arrivedIdx);
+                state.arrivedCount = arrivedIdx + 1;
+                moveAvatar(arrivedSlot, 0.7, { jumpHeight: 46, anchorOffset: 0 });
                 state.phase = 'finish-wait';
             }
             return;
@@ -2085,21 +2031,19 @@ socket.on('joinError', (data) => {
 
         // 확실한 step → 고민 phase(pre-choice 0.92s) 생략 + 빠른 점프
         // - 이미 broken 정보 알려진 col (안전 row 명확)
-        // - 단독 생존자 fastReturn
         var revealedCol = state.revealed[col];
-        var isCertain = (revealedCol && revealedCol.broken) || state.fastReturn;
+        var isCertain = !!(revealedCol && revealedCol.broken);
 
         if (isCertain) {
             moveAvatar(layout.tileCenter(col, step.row), 0.34, { jumpHeight: 48 });
             state.phase = 'choice-wait';
             pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 통과 (확실).');
         } else {
-            // 선택된 row(step.row)가 켜졌다 꺼졌다 깜빡 (5번 on/off)
+            // top↔bottom 왔다갔다 4번 → 마지막 1번은 step.row에 멈춤 (총 5단계)
             state.preChoiceTogglesLeft = 5;
-            state.preChoiceWarningRow = step.row;
-            state.preChoiceVisible = true;
+            state.preChoiceWarningRow = (step.row === 'top') ? 'bottom' : 'top';
             state.phase = 'pre-choice';
-            state.timer = 0.22;
+            state.timer = 0.18;
             pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 망설인다...');
         }
     }
@@ -2124,39 +2068,54 @@ socket.on('joinError', (data) => {
     }
 
     function finishGame(winner) {
-        // 우선순위: 명시된 winner → expectedWinnerColor에 해당하는 player → state.players 중 progress 큰 사람
-        var resolved = winner;
-        if (!resolved && typeof state.expectedWinnerColor === 'number') {
-            // outbound 생존자/return 도전자 + allPlayers에서 색 매칭
-            resolved = state.allPlayers.find(function (p) { return p && p.colorIndex === state.expectedWinnerColor; }) || null;
+        // 다수 winner: expectedWinnerColors에 해당하는 모든 player가 winner
+        var winnerColors = Array.isArray(state.expectedWinnerColors) ? state.expectedWinnerColors : [];
+        var candidateWinners = (state.players || []).filter(function (p) {
+            return winnerColors.indexOf(p.colorIndex) !== -1;
+        });
+        var winners;
+        if (candidateWinners.length > 0) {
+            winners = candidateWinners;
+        } else if (winner) {
+            winners = [winner];
+        } else if (state.players && state.players.length > 0) {
+            // fallback: progress 가장 큰 사람 1명
+            winners = [state.players.slice().sort(function (a, b) { return b.progress - a.progress; })[0]];
+        } else {
+            winners = [];
         }
-        if (!resolved && state.players && state.players.length > 0) {
-            resolved = state.players.slice().sort(function (a, b) { return b.progress - a.progress; })[0];
-        }
-        state.winner = resolved || null;
+
+        state.winners = winners;
+        state.winner = winners.length > 0 ? winners[0] : null; // 옛 단일 호환
 
         if (typeof addDebugLog === 'function') {
             addDebugLog('[finishGame] winnerArg=' + (winner ? winner.name : 'null') +
-                ', expectedWinnerColor=' + state.expectedWinnerColor +
-                ', resolved=' + (state.winner ? state.winner.name + '(color=' + state.winner.colorIndex + ')' : 'null') +
-                ', stage=' + state.stage +
+                ', expectedWinnerColors=[' + winnerColors.join(',') + ']' +
+                ', winners=[' + winners.map(function (w) { return w.name + '(color=' + w.colorIndex + ')'; }).join(',') + ']' +
                 ', state.players=' + (state.players ? state.players.length : 0), 'bridge');
         }
 
-        if (state.winner) {
-            state.winner.status = 'winner';
-            state.winner.animator.set('result', true);
-            var speechIndex = (state.winner.colorIndex + state.activeColors.length + state.currentScenarioIndex) % winnerSpeechLines.length;
-            state.winnerSpeech = {
-                playerId: state.winner.id,
+        // 모든 winner: status set + result 애니메이션 + 말풍선
+        state.winnerSpeeches = [];
+        winners.forEach(function (w, i) {
+            w.status = 'winner';
+            w.animator.set('result', true);
+            var speechIndex = (w.colorIndex + state.activeColors.length + i) % winnerSpeechLines.length;
+            state.winnerSpeeches.push({
+                playerId: w.id,
                 text: winnerSpeechLines[speechIndex],
                 startedAt: state.elapsed
-            };
-        }
+            });
+        });
+        // 옛 단일 호환 (drawWinnerSpeechBubble fallback)
+        state.winnerSpeech = state.winnerSpeeches.length > 0 ? state.winnerSpeeches[0] : null;
+
         state.current = null;
         state.phase = 'finished';
         state.mode = 'finished';
-        pushEvent((state.winner ? state.winner.name : '—') + ' 통과!');
+        pushEvent((winners.length > 0
+            ? winners.map(function (w) { return w.name; }).join(', ')
+            : '—') + ' 통과!');
         updateTextPanels();
     }
 
@@ -2200,15 +2159,18 @@ socket.on('joinError', (data) => {
                     prepareChoicePause();
                     break;
                 }
-                // 선택된 row 위치에서 켰다↔껐다 깜빡 (5번 on/off). 마지막에 step.row 점프
-                if (state.preChoiceTogglesLeft > 0) {
-                    state.preChoiceVisible = !state.preChoiceVisible;
+                // top↔bottom 왔다갔다 → 마지막 1회는 step.row에서 멈추고 그게 남음
+                if (state.preChoiceTogglesLeft > 1) {
+                    state.preChoiceWarningRow = (state.preChoiceWarningRow === 'top') ? 'bottom' : 'top';
                     state.preChoiceTogglesLeft -= 1;
-                    state.timer = 0.22;
+                    state.timer = 0.18;
+                } else if (state.preChoiceTogglesLeft === 1) {
+                    state.preChoiceWarningRow = step2.row;
+                    state.preChoiceTogglesLeft -= 1;
+                    state.timer = 0.32;
                 } else {
-                    state.preChoiceWarningRow = null;
-                    state.preChoiceVisible = false;
                     moveAvatar(layout.tileCenter(step2.col, step2.row), 0.36, { jumpHeight: 62 });
+                    state.preChoiceWarningRow = null;
                     state.phase = 'choice-wait';
                     pushEvent(state.current.name + '이(가) ' + (step2.col + 1) + '번 열에 도전.');
                 }
@@ -2216,7 +2178,7 @@ socket.on('joinError', (data) => {
             }
             case 'choice-wait': {
                 state.phase = 'result-hold';
-                state.timer = state.fastReturn ? 0.12 : 0.34;
+                state.timer = 0.34;
                 break;
             }
             case 'result-hold': {
@@ -2235,7 +2197,7 @@ socket.on('joinError', (data) => {
                     pushEvent(player3.name + ': ' + (col3 + 1) + '번 열 통과.');
                     state.pendingChoice = null;
                     state.phase = 'safe-flash';
-                    state.timer = state.fastReturn ? 0.18 : 0.42;
+                    state.timer = 0.42;
                     if (window.SoundManager) SoundManager.playSound('bridge-cross_safe');
                 } else {
                     player3.fallsAt = col3 + 1;
@@ -2255,7 +2217,11 @@ socket.on('joinError', (data) => {
                 if (state.current.progress >= layout.columnCount || !getCurrentPathStep()) {
                     state.current.status = 'finished';
                     state.current.animator.set('result', true);
-                    moveAvatar(layout.finishSlot(0), 0.7, { jumpHeight: 46, anchorOffset: 0 });
+                    var arrivedIdxFlash = state.arrivedCount || 0;
+                    state.current.arrivedSlotIndex = arrivedIdxFlash;
+                    var arrivedSlotFlash = layout.finishSlot(arrivedIdxFlash);
+                    state.arrivedCount = arrivedIdxFlash + 1;
+                    moveAvatar(arrivedSlotFlash, 0.7, { jumpHeight: 46, anchorOffset: 0 });
                     state.phase = 'finish-wait';
                 } else {
                     prepareChoicePause();
@@ -2265,28 +2231,17 @@ socket.on('joinError', (data) => {
                 state.currentScenarioIndex += 1;
                 state.current = null;
                 state.pendingChoice = null;
-                if (state.stage === 'outbound' && state.currentScenarioIndex >= state.scenarios.length) {
-                    // outbound 마지막 도전자가 fall — outbound 끝
-                    beginResetFx();
-                } else if (state.stage === 'return' && state.currentScenarioIndex >= state.scenarios.length) {
-                    // return 마지막 도전자가 fall — 모두 fall (이론상 발생 안 함, winner 보장됨)
+                if (state.currentScenarioIndex >= state.scenarios.length) {
+                    // outbound 마지막 도전자 도전 끝 → 게임 종료
                     finishGame(null);
                 } else {
                     state.phase = 'next-player';
                     state.timer = 0.45;
                 }
                 break;
-            case 'reset-fx':
-                // 다리 복구 연출 끝 → return-intro
-                beginReturnIntro();
-                break;
-            case 'return-intro':
-                // 귀환 인트로 끝 → return 시작
-                beginReturnStage();
-                break;
             case 'finish-wait':
-                // outbound 단계: 도착자 등록 + 다음 도전자 / outbound 끝나면 reset-fx
-                if (state.stage === 'outbound') {
+                // outbound 통과자 등록 + 다음 도전자 / 마지막이면 게임 종료
+                {
                     var arrived = state.current;
                     if (arrived) {
                         arrived.status = 'finished';
@@ -2297,16 +2252,11 @@ socket.on('joinError', (data) => {
                     state.current = null;
                     state.pendingChoice = null;
                     if (state.currentScenarioIndex >= state.scenarios.length) {
-                        // outbound 모두 끝 → reset-fx 진입
-                        beginResetFx();
+                        finishGame(null);
                     } else {
                         state.phase = 'next-player';
                         state.timer = 0.5;
                     }
-                } else if (state.stage === 'return') {
-                    // return 통과자 = 시작점 도달 = 최종 winner
-                    state.currentScenarioIndex += 1;
-                    finishGame(state.current);
                 }
                 break;
             default:
@@ -2424,9 +2374,6 @@ socket.on('joinError', (data) => {
         var bobX = isIdle ? Math.sin(state.elapsed * 2.3 + player.id * 1.7) * 1.5 : 0;
         var bobY = isIdle ? Math.sin(state.elapsed * 4.5 + player.id) * 5 : 0;
 
-        // 왕복 룰: return stage 시 활성 도전자(state.current)는 스프라이트 좌우 반전
-        var flip = (state.stage === 'return' && state.current && state.current.id === player.id);
-
         ctx.save();
         ctx.globalAlpha = alpha;
         if (falling) {
@@ -2437,13 +2384,7 @@ socket.on('joinError', (data) => {
             drawImageCell(images.glassFx, trail, fallX - 48, fallY - 64, 96, 110, 0.8 * (1 - fallT * 0.35));
             ctx.translate(fallX, fallY);
             ctx.rotate(0.25 + fallT * 0.8);
-            if (flip) ctx.scale(-1, 1);
             ctx.globalAlpha = alpha * Math.max(0.16, 1 - fallT * 0.78);
-            ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, -w * playerSheet.anchor.x, -h * playerSheet.anchor.y, w, h);
-        } else if (flip) {
-            // 좌우 반전: 캐릭터 중심을 기준으로 scale(-1,1)
-            ctx.translate(x + bobX, y + bobY);
-            ctx.scale(-1, 1);
             ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, -w * playerSheet.anchor.x, -h * playerSheet.anchor.y, w, h);
         } else {
             ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, x - w * playerSheet.anchor.x + bobX, y - h * playerSheet.anchor.y + bobY, w, h);
@@ -2533,7 +2474,21 @@ socket.on('joinError', (data) => {
     }
 
     function drawWinnerSpeechBubble(player, x, y) {
-        if (!state.winnerSpeech || state.winnerSpeech.playerId !== player.id) return;
+        // 다수 winner: state.winnerSpeeches 배열에서 본인 말풍선 찾기.
+        // 옛 단일 호환: state.winnerSpeech도 fallback으로 살림.
+        var mySpeech = null;
+        if (Array.isArray(state.winnerSpeeches)) {
+            for (var i = 0; i < state.winnerSpeeches.length; i += 1) {
+                if (state.winnerSpeeches[i] && state.winnerSpeeches[i].playerId === player.id) {
+                    mySpeech = state.winnerSpeeches[i];
+                    break;
+                }
+            }
+        }
+        if (!mySpeech && state.winnerSpeech && state.winnerSpeech.playerId === player.id) {
+            mySpeech = state.winnerSpeech;
+        }
+        if (!mySpeech) return;
 
         ctx.save();
         ctx.globalAlpha = 1;
@@ -2542,7 +2497,7 @@ socket.on('joinError', (data) => {
         ctx.textBaseline = 'middle';
 
         var maxTextWidth = 184;
-        var lines = wrapSpeechText(state.winnerSpeech.text, maxTextWidth);
+        var lines = wrapSpeechText(mySpeech.text, maxTextWidth);
         var lineHeight = 20;
         var bubbleW = Math.min(220, Math.max(122, Math.max.apply(null, lines.map(function (line) {
             return ctx.measureText(line).width;
@@ -2671,8 +2626,17 @@ socket.on('joinError', (data) => {
         ctx.fillText('Bridge Cross', 41, 51);
         ctx.fillStyle = '#a8b7d0';
         ctx.font = '700 12px Segoe UI, sans-serif';
+        var winnerLabel = '-';
+        if (Array.isArray(state.winners) && state.winners.length > 0) {
+            var names = state.winners.map(function (w) { return w.name; });
+            winnerLabel = names.length <= 2
+                ? names.join(', ')
+                : names.slice(0, 2).join(', ') + ' 외 ' + (names.length - 2);
+        } else if (state.winner) {
+            winnerLabel = state.winner.name;
+        }
         var label = state.phase === 'finished'
-            ? '통과: ' + (state.winner ? state.winner.name : '-')
+            ? '통과: ' + winnerLabel
             : state.current
                 ? '도전 중: ' + state.current.name
                 : state.mode === 'playing'
@@ -2754,31 +2718,21 @@ socket.on('joinError', (data) => {
             drawImageCell(images.glassFx, cell, pos.x - 58, pos.y + 6, 116, 116, 0.34);
         });
 
-        // reset-fx 단계: 모든 broken col에 restore_glass 애니메이션
-        if (state.stage === 'reset-fx') {
-            for (var rcol = 0; rcol < layout.columnCount; rcol += 1) {
-                var rinfo = state.revealed[rcol];
-                if (rinfo && rinfo.broken) {
-                    var rpos = layout.tileCenter(rcol, rinfo.broken);
-                    var rcell = fxFrame('restore_glass');
-                    var alpha = Math.max(0.4, Math.min(1, state.timer / 1.5));
-                    drawImageCell(images.glassFx, rcell, rpos.x - 58, rpos.y + 6, 116, 116, alpha);
-                }
-            }
-        }
-
-        // pre-choice 단계: 양쪽 row(top + bottom) 동시에 warning_glow 깜빡 (on/off)
-        if (state.phase === 'pre-choice' && state.pendingChoice && state.preChoiceVisible) {
+        // pre-choice 단계: top↔bottom 왔다갔다 → 마지막에 step.row에 멈춤
+        if (state.phase === 'pre-choice' && state.pendingChoice && state.preChoiceWarningRow) {
             var wcol = state.pendingChoice.col;
-            ['top', 'bottom'].forEach(function (wrow) {
-                var wpos = layout.tileCenter(wcol, wrow);
-                var wcell = fxFrame('warning_glow');
-                drawImageCell(images.glassFx, wcell, wpos.x - 58, wpos.y + 6, 116, 116, 0.92);
-            });
+            var preTw = layout.tileSize.w;
+            var preTh = layout.tileSize.h;
+            var wpos = layout.tileCenter(wcol, state.preChoiceWarningRow);
+            var wcell = fxFrame('warning_glow');
+            drawImageCell(images.glassFx, wcell, wpos.x - preTw / 2, wpos.y - preTh / 2, preTw, preTh, 0.92);
         }
 
         state.players.filter(function (p) { return p !== state.current && (p.status === 'finished' || p.status === 'winner'); }).forEach(function (player, index) {
-            var slot = layout.finishSlot(index);
+            // 캐릭터별 도착 인덱스가 저장돼 있으면 그것을 사용 (finishSlot 분산 보장).
+            // 없으면 forEach index fallback.
+            var slotIdx = (typeof player.arrivedSlotIndex === 'number') ? player.arrivedSlotIndex : index;
+            var slot = layout.finishSlot(slotIdx);
             drawPlayer(player, slot.x, slot.y, 0.66, 1);
             drawBettorTag(player, slot.x, slot.y, 0.66);
             if (player.status === 'winner') {
@@ -2855,8 +2809,7 @@ socket.on('joinError', (data) => {
             coordinateSystem: 'world 2400x1024, viewport 1024x683, origin top-left, x right, y down',
             mode: state.mode,
             phase: state.phase,
-            stage: state.stage || null,
-            expectedWinnerColor: typeof state.expectedWinnerColor === 'number' ? state.expectedWinnerColor : null,
+            expectedWinnerColors: Array.isArray(state.expectedWinnerColors) ? state.expectedWinnerColors : [],
             currentScenarioIndex: state.currentScenarioIndex,
             currentPathIndex: state.currentPathIndex,
             scenarioCount: state.scenarios ? state.scenarios.length : 0,
@@ -2888,8 +2841,8 @@ socket.on('joinError', (data) => {
                 };
             }),
             pendingChoice: state.pendingChoice,
+            winners: Array.isArray(state.winners) ? state.winners.map(function (w) { return w.name; }) : [],
             winner: state.winner ? state.winner.name : null,
-            winnerSpeech: state.winnerSpeech ? state.winnerSpeech.text : null,
             layout: layout.debugPayload(),
             latestEvent: state.events[0]
         });

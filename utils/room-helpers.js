@@ -63,7 +63,6 @@ function createRoomGameState() {
         bridgeCross: {
             phase: 'idle',
             userColorBets: {},
-            passerIndex: null,
             activeColors: [],
             safeRows: [],
             scenarios: [],
@@ -74,6 +73,7 @@ function createRoomGameState() {
             bridgeCrossHistory: [],
             raceRound: 0,
             winnerColor: null,
+            passingColors: [],
             winners: []
         },
     };
