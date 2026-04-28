@@ -1820,15 +1820,48 @@ socket.on('joinError', (data) => {
         };
     }
 
-    function startScenarioReplay(data) {
+        function startScenarioReplay(data) {
         data = data || {};
         var activeColors = Array.isArray(data.activeColors) ? data.activeColors : [];
         var allBets = data.allBets || {};
 
         // 왕복 룰: data.outbound + data.returnRound 받음
-        var outboundData = data.outbound || { safeRows: [], paths: [], survivorPositions: [] };
-        var returnData = data.returnRound || { safeRows: [], paths: [], runOrder: [], winnerOrderPosition: -1 };
+        var outboundData = data.outbound || null;
+        var returnData = data.returnRound || null;
         var winnerColor = (typeof data.winnerColor === 'number') ? data.winnerColor : null;
+
+        // 옛 형식(scenarios) 감지 — 서버 미재시작 시 발생
+        if (!outboundData && Array.isArray(data.scenarios)) {
+            console.error('[bridge-cross] 서버가 옛 형식 보냄 (scenarios만). 서버 재시작 필요.');
+            if (typeof addDebugLog === 'function') {
+                addDebugLog('[ERR] 서버 옛 형식 수신 — 5173 서버 재시작 필요!', 'error');
+            }
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert('🚨 서버 코드가 옛 버전입니다. 5173 서버 재시작이 필요합니다.', 'error');
+            }
+            // outbound paths를 옛 scenarios로 채워서 동작은 하게 (생존자 = scenario.success === true인 인덱스)
+            var oldScenarios = data.scenarios;
+            outboundData = {
+                safeRows: [],
+                paths: oldScenarios.map(function (sc) { return sc.path || []; }),
+                survivorPositions: oldScenarios
+                    .map(function (sc, i) { return sc.success ? i : -1; })
+                    .filter(function (i) { return i >= 0; })
+            };
+            returnData = { safeRows: [], paths: [], runOrder: [], winnerOrderPosition: -1 };
+        }
+
+        outboundData = outboundData || { safeRows: [], paths: [], survivorPositions: [] };
+        returnData = returnData || { safeRows: [], paths: [], runOrder: [], winnerOrderPosition: -1 };
+
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[gameStart] M=' + activeColors.length + ', outbound.paths=' + (outboundData.paths || []).length +
+                ', survivorPositions=[' + (outboundData.survivorPositions || []).join(',') + ']' +
+                ', return.paths=' + (returnData.paths || []).length +
+                ', runOrder=[' + (returnData.runOrder || []).join(',') + ']' +
+                ', winnerOrderPos=' + returnData.winnerOrderPosition +
+                ', winnerColor=' + winnerColor, 'bridge');
+        }
 
         state.activeColors = activeColors;
         state.allBets = allBets;
@@ -1977,11 +2010,12 @@ socket.on('joinError', (data) => {
             return state.activeColors[pos];
         });
         var runOrder = rd.runOrder || [];
-        // 도착자 status 'finished' → 도전 가능하게 'waiting' 복귀 (단 runOrder에 없는 사람은 그대로)
+        // 도착자 status 'finished' → 도전 가능하게 'waiting' 복귀
         var orderedSurvivorColors = runOrder.map(function (idx) { return survivors[idx]; });
         state.players = orderedSurvivorColors.map(function (colorIdx) {
             var p = state.allPlayers[colorIdx];
             p.status = 'waiting';
+            p.progress = 0;  // path index 리셋
             return p;
         });
 
@@ -1998,7 +2032,13 @@ socket.on('joinError', (data) => {
         state.events = ['귀환 시작!'];
 
         if (typeof addDebugLog === 'function') {
-            addDebugLog('[stage] return 시작 (생존자 ' + state.players.length + '명, runOrder=' + runOrder.join(',') + ')', 'bridge');
+            addDebugLog('[stage] return 시작 (생존자=' + state.players.length + '명, runOrder=' + runOrder.join(',') + ', winnerOrderPos=' + rd.winnerOrderPosition + ', expectedWinnerColor=' + state.expectedWinnerColor + ')', 'bridge');
+            state.scenarios.forEach(function (sc, i) {
+                var pathStr = sc.path.map(function (s) {
+                    return 'col' + s.col + '=' + s.row + (s.success ? '✓' : '✗');
+                }).join(' → ');
+                addDebugLog('  return scenarios[' + i + '] = ' + pathStr, 'bridge');
+            });
         }
     }
 
@@ -2042,7 +2082,25 @@ socket.on('joinError', (data) => {
     }
 
     function finishGame(winner) {
-        state.winner = winner || state.players.slice().sort(function (a, b) { return b.progress - a.progress; })[0] || null;
+        // 우선순위: 명시된 winner → expectedWinnerColor에 해당하는 player → state.players 중 progress 큰 사람
+        var resolved = winner;
+        if (!resolved && typeof state.expectedWinnerColor === 'number') {
+            // outbound 생존자/return 도전자 + allPlayers에서 색 매칭
+            resolved = state.allPlayers.find(function (p) { return p && p.colorIndex === state.expectedWinnerColor; }) || null;
+        }
+        if (!resolved && state.players && state.players.length > 0) {
+            resolved = state.players.slice().sort(function (a, b) { return b.progress - a.progress; })[0];
+        }
+        state.winner = resolved || null;
+
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[finishGame] winnerArg=' + (winner ? winner.name : 'null') +
+                ', expectedWinnerColor=' + state.expectedWinnerColor +
+                ', resolved=' + (state.winner ? state.winner.name + '(color=' + state.winner.colorIndex + ')' : 'null') +
+                ', stage=' + state.stage +
+                ', state.players=' + (state.players ? state.players.length : 0), 'bridge');
+        }
+
         if (state.winner) {
             state.winner.status = 'winner';
             state.winner.animator.set('result', true);
@@ -2722,6 +2780,12 @@ socket.on('joinError', (data) => {
             coordinateSystem: 'world 2400x1024, viewport 1024x683, origin top-left, x right, y down',
             mode: state.mode,
             phase: state.phase,
+            stage: state.stage || null,
+            expectedWinnerColor: typeof state.expectedWinnerColor === 'number' ? state.expectedWinnerColor : null,
+            currentScenarioIndex: state.currentScenarioIndex,
+            currentPathIndex: state.currentPathIndex,
+            scenarioCount: state.scenarios ? state.scenarios.length : 0,
+            playerCount: state.players ? state.players.length : 0,
             paused: state.paused,
             activeColors: state.activeColors,
             activePlayer: state.current ? state.current.name : null,
