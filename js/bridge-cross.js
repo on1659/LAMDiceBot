@@ -2071,9 +2071,22 @@ socket.on('joinError', (data) => {
         }
 
         state.pendingChoice = { col: col, row: step.row, success: step.success };
-        state.phase = 'pre-choice';
-        state.timer = 0.92;
-        pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 멈췄다.');
+
+        // 확실한 step → 고민 phase(pre-choice 0.92s) 생략 + 빠른 점프
+        // - 이미 broken 정보 알려진 col (안전 row 명확)
+        // - 단독 생존자 fastReturn
+        var revealedCol = state.revealed[col];
+        var isCertain = (revealedCol && revealedCol.broken) || state.fastReturn;
+
+        if (isCertain) {
+            moveAvatar(layout.tileCenter(col, step.row), 0.34, { jumpHeight: 48 });
+            state.phase = 'choice-wait';
+            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 통과 (확실).');
+        } else {
+            state.phase = 'pre-choice';
+            state.timer = 0.92;
+            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 멈췄다.');
+        }
     }
 
     function revealChoice(player, step) {
@@ -2179,7 +2192,7 @@ socket.on('joinError', (data) => {
             }
             case 'choice-wait': {
                 state.phase = 'result-hold';
-                state.timer = 0.34;
+                state.timer = state.fastReturn ? 0.12 : 0.34;
                 break;
             }
             case 'result-hold': {
@@ -2198,7 +2211,7 @@ socket.on('joinError', (data) => {
                     pushEvent(player3.name + ': ' + (col3 + 1) + '번 열 통과.');
                     state.pendingChoice = null;
                     state.phase = 'safe-flash';
-                    state.timer = 0.42;
+                    state.timer = state.fastReturn ? 0.18 : 0.42;
                     if (window.SoundManager) SoundManager.playSound('bridge-cross_safe');
                 } else {
                     player3.fallsAt = col3 + 1;
