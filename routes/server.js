@@ -132,6 +132,78 @@ router.post('/admin/servers/bulk-delete', adminAuth, async (req, res) => {
     }
 });
 
+// 활성 방 목록 (관리자) — 인메모리 rooms 스냅샷
+router.get('/admin/rooms', adminAuth, (req, res) => {
+    try {
+        const rooms = req.app.get('rooms') || {};
+        const now = Date.now();
+        const list = Object.entries(rooms).map(([roomId, r]) => {
+            const gs = r.gameState || {};
+            const bc = gs.bridgeCross || {};
+            const gameType = r.gameType || 'dice';
+
+            // 게임별 진행 여부 통합 판정
+            let isPlaying = false;
+            let phase = 'idle';
+            if (gameType === 'dice') {
+                isPlaying = !!gs.isGameActive;
+                phase = gs.isOrderActive ? 'order' : (gs.isGameActive ? 'playing' : 'idle');
+            } else if (gameType === 'roulette') {
+                isPlaying = !!gs.isRouletteSpinning;
+                phase = gs.isRouletteSpinning ? 'spinning' : 'idle';
+            } else if (gameType === 'horse-race') {
+                isPlaying = !!gs.isHorseRaceActive;
+                phase = gs.isHorseRaceActive ? 'racing' : 'idle';
+            } else if (gameType === 'crane-game') {
+                isPlaying = !!gs.isCraneGameActive;
+                phase = gs.isCraneGameActive ? 'playing' : 'idle';
+            } else if (gameType === 'bridge' || gameType === 'bridge-cross') {
+                isPlaying = !!bc.isBridgeCrossActive;
+                phase = bc.phase || 'idle';
+            }
+
+            const createdAt = r.createdAt || null;
+            const ageMs = createdAt ? (now - new Date(createdAt).getTime()) : null;
+
+            return {
+                roomId,
+                roomName: r.roomName || '',
+                gameType,
+                hostName: r.hostName || '',
+                isPrivate: !!r.isPrivate,
+                serverId: r.serverId || null,
+                playerCount: Array.isArray(gs.users) ? gs.users.length : 0,
+                userNames: Array.isArray(gs.users) ? gs.users.map(u => u && u.name).filter(Boolean) : [],
+                readyCount: Array.isArray(gs.readyUsers) ? gs.readyUsers.length : 0,
+                isPlaying,
+                phase,
+                createdAt,
+                ageMs,
+                expiryHours: r.expiryHours || null,
+                historyCount: (Array.isArray(gs.history) ? gs.history.length : 0)
+                    + (Array.isArray(gs.rouletteHistory) ? gs.rouletteHistory.length : 0)
+                    + (Array.isArray(gs.horseRaceHistory) ? gs.horseRaceHistory.length : 0)
+                    + (Array.isArray(gs.craneGameHistory) ? gs.craneGameHistory.length : 0)
+                    + (Array.isArray(bc.bridgeCrossHistory) ? bc.bridgeCrossHistory.length : 0)
+            };
+        });
+        list.sort((a, b) => {
+            // 진행중 먼저, 그 다음 최신 생성 순
+            if (a.isPlaying !== b.isPlaying) return a.isPlaying ? -1 : 1;
+            const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bt - at;
+        });
+        res.json({
+            total: list.length,
+            playing: list.filter(r => r.isPlaying).length,
+            rooms: list
+        });
+    } catch (e) {
+        res.status(500).json({ error: '활성 방 조회 실패' });
+    }
+});
+
 // 유저 목록 (관리자)
 router.get('/admin/users', adminAuth, async (req, res) => {
     try {

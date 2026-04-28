@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>Bridge Cross Sprite Player</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060716;
+      --panel: #111735;
+      --panel-2: #17204a;
+      --line: rgba(98, 229, 255, 0.22);
+      --cyan: #44edff;
+      --gold: #ffd76a;
+      --pink: #ff5cc8;
+      --text: #f7fbff;
+      --muted: #a6b4cc;
+      --deep: #030511;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: radial-gradient(circle at 50% 0%, #18225f 0, var(--bg) 46%, #02030a 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      padding: 16px;
+    }
+
+    .shell {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    header,
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(12, 17, 43, 0.92);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.32);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 21px;
+      color: var(--text);
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      min-width: 112px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    select,
+    input[type="range"],
+    button {
+      min-height: 36px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 7px;
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+    }
+
+    select {
+      padding: 6px 9px;
+      min-width: 132px;
+    }
+
+    input[type="range"] {
+      width: 132px;
+      accent-color: var(--cyan);
+    }
+
+    button {
+      padding: 7px 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    button.primary {
+      color: #041018;
+      background: linear-gradient(135deg, var(--cyan), #a9fff4);
+      border-color: rgba(68, 237, 255, 0.7);
+    }
+
+    button.warn {
+      background: rgba(255, 92, 200, 0.15);
+      border-color: rgba(255, 92, 200, 0.45);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .panel {
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .pill {
+      color: var(--gold);
+      font-size: 12px;
+      text-transform: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--deep);
+      image-rendering: pixelated;
+    }
+
+    #stageCanvas {
+      aspect-ratio: 16 / 10;
+    }
+
+    #sheetCanvas {
+      aspect-ratio: 16 / 10;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .meta div {
+      min-width: 0;
+      padding: 8px;
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .meta div.meta-wide {
+      grid-column: 1 / -1;
+    }
+
+    .meta strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 3px;
+      font-size: 13px;
+    }
+
+    .status {
+      min-height: 42px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status strong {
+      color: var(--text);
+    }
+
+    .status .ok {
+      color: var(--cyan);
+      font-weight: 800;
+    }
+
+    .status .bad {
+      color: var(--pink);
+      font-weight: 900;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <h1>Bridge Cross Sprite Player</h1>
+        <p class="subtitle">다리건너기 스프라이트 시트 재생/크롭 확인용 툴</p>
+      </div>
+      <div class="controls">
+        <label>
+          시트
+          <select id="sheetSelect"></select>
+        </label>
+        <label>
+          애니메이션
+          <select id="animSelect"></select>
+        </label>
+        <label id="paletteWrap">
+          색상
+          <select id="paletteSelect"></select>
+        </label>
+        <label>
+          FPS <span id="fpsValue"></span>
+          <input id="fpsRange" type="range" min="1" max="18" value="8">
+        </label>
+        <label>
+          크기 <span id="scaleValue"></span>
+          <input id="scaleRange" type="range" min="30" max="150" value="70">
+        </label>
+        <button id="playBtn" class="primary" type="button">Pause</button>
+        <button id="restartBtn" class="warn" type="button">Replay</button>
+      </div>
+    </header>
+
+    <section class="layout">
+      <article class="panel">
+        <div class="panel-title">
+          <span>Animation Preview</span>
+          <span class="pill" id="frameLabel">frame 1</span>
+        </div>
+        <canvas id="stageCanvas" width="720" height="450"></canvas>
+        <div class="meta">
+          <div><strong>sheet</strong><span id="metaSheet">-</span></div>
+          <div><strong>image</strong><span id="metaImage">-</span></div>
+          <div><strong>animation</strong><span id="metaAnim">-</span></div>
+          <div><strong>cell</strong><span id="metaCell">-</span></div>
+          <div><strong>anchor</strong><span id="metaAnchor">-</span></div>
+          <div><strong>bbox</strong><span id="metaBbox">-</span></div>
+          <div class="meta-wide"><strong>path</strong><span id="metaPath">-</span></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-title">
+          <span>Sprite Sheet</span>
+          <span class="pill" id="sheetLabel">loading</span>
+        </div>
+        <canvas id="sheetCanvas" width="720" height="450"></canvas>
+        <div class="status" id="status">manifest loading...</div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const manifestUrl = new URL('../assets/bridge-cross/sprites/bridge-cross-sprites.manifest.json', location.href);
+      const assetRevision = `20260428-glassfx-7row-${Date.now()}`;
+      const projectRootPath = 'D:\\Work\\LAMDiceBot';
+      const stageCanvas = document.getElementById('stageCanvas');
+      const sheetCanvas = document.getElementById('sheetCanvas');
+      const stageCtx = stageCanvas.getContext('2d');
+      const sheetCtx = sheetCanvas.getContext('2d');
+      const sheetSelect = document.getElementById('sheetSelect');
+      const animSelect = document.getElementById('animSelect');
+      const paletteSelect = document.getElementById('paletteSelect');
+      const paletteWrap = document.getElementById('paletteWrap');
+      const fpsRange = document.getElementById('fpsRange');
+      const scaleRange = document.getElementById('scaleRange');
+      const fpsValue = document.getElementById('fpsValue');
+      const scaleValue = document.getElementById('scaleValue');
+      const playBtn = document.getElementById('playBtn');
+      const restartBtn = document.getElementById('restartBtn');
+      const statusEl = document.getElementById('status');
+
+      const state = {
+        manifest: null,
+        images: {},
+        sheetId: '',
+        animId: '',
+        paletteId: 'blue',
+        playing: true,
+        frameCursor: 0,
+        accumulator: 0,
+        fps: 8,
+        scalePct: 70,
+        lastTime: performance.now(),
+      };
+
+      function setCanvasDefaults(ctx) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.textBaseline = 'middle';
+      }
+
+      setCanvasDefaults(stageCtx);
+      setCanvasDefaults(sheetCtx);
+
+      function drawChecker(ctx, width, height, size = 16) {
+        ctx.save();
+        ctx.fillStyle = '#070a1d';
+        ctx.fillRect(0, 0, width, height);
+        for (let y = 0; y < height; y += size) {
+          for (let x = 0; x < width; x += size) {
+            ctx.fillStyle = ((x / size + y / size) % 2 === 0) ? '#0e1535' : '#101944';
+            ctx.fillRect(x, y, size, size);
+          }
+        }
+        ctx.restore();
+      }
+
+      function getSheet() {
+        return state.manifest.sheets[state.sheetId];
+      }
+
+      function getAnimation() {
+        return getSheet().animations[state.animId];
+      }
+
+      function getImageKey(sheetId = state.sheetId, paletteId = state.paletteId) {
+        const sheet = state.manifest.sheets[sheetId];
+        if (sheet.paletteImages && sheet.paletteImages[paletteId]) {
+          return `${sheetId}:${paletteId}`;
+        }
+        return sheetId;
+      }
+
+      function getActiveImage() {
+        return state.images[getImageKey()];
+      }
+
+      function getActiveImageName() {
+        const sheet = getSheet();
+        return sheet.paletteImages?.[state.paletteId] || sheet.image;
+      }
+
+      function getActiveImagePaths() {
+        const url = new URL(getActiveImageName(), manifestUrl);
+        url.searchParams.set('v', assetRevision);
+        const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+        return {
+          url: url.href,
+          relativePath,
+          localPath: `${projectRootPath}\\${relativePath.replace(/\//g, '\\')}`,
+        };
+      }
+
+      function getSheetMetrics(image, sheet) {
+        const cellW = Math.floor(image.naturalWidth / sheet.grid.columns);
+        const cellH = Math.floor(image.naturalHeight / sheet.grid.rows);
+        const usedW = cellW * sheet.grid.columns;
+        const usedH = cellH * sheet.grid.rows;
+        return {
+          cellW,
+          cellH,
+          usedW,
+          usedH,
+          remainderW: image.naturalWidth - usedW,
+          remainderH: image.naturalHeight - usedH,
+        };
+      }
+
+      function getFrameRect() {
+        const sheet = getSheet();
+        const anim = getAnimation();
+        const image = getActiveImage();
+        const col = anim.frames[state.frameCursor] ?? anim.frames[0];
+        const row = anim.row;
+        const metrics = getSheetMetrics(image, sheet);
+        return {
+          sx: col * metrics.cellW,
+          sy: row * metrics.cellH,
+          sw: metrics.cellW,
+          sh: metrics.cellH,
+          col,
+          row,
+          cellW: metrics.cellW,
+          cellH: metrics.cellH,
+        };
+      }
+
+      function getFrameAlphaBounds(image, rect) {
+        const scratch = document.createElement('canvas');
+        scratch.width = rect.sw;
+        scratch.height = rect.sh;
+        const scratchCtx = scratch.getContext('2d', { willReadFrequently: true });
+        scratchCtx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, rect.sw, rect.sh);
+        const data = scratchCtx.getImageData(0, 0, rect.sw, rect.sh).data;
+        let minX = rect.sw;
+        let minY = rect.sh;
+        let maxX = -1;
+        let maxY = -1;
+        for (let y = 0; y < rect.sh; y += 1) {
+          for (let x = 0; x < rect.sw; x += 1) {
+            if (data[(y * rect.sw + x) * 4 + 3] === 0) continue;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
+        if (maxX < 0) return null;
+        return {
+          x: minX,
+          y: minY,
+          w: maxX - minX + 1,
+          h: maxY - minY + 1,
+          cx: (minX + maxX) / 2,
+          cy: (minY + maxY) / 2,
+          bottom: maxY + 1,
+        };
+      }
+
+      function drawStage() {
+        const sheet = getSheet();
+        const image = getActiveImage();
+        const rect = getFrameRect();
+        const scale = state.scalePct / 100 * (sheet.defaultScale || 1);
+        const dw = rect.sw * scale;
+        const dh = rect.sh * scale;
+        const cx = stageCanvas.width / 2;
+        const cy = stageCanvas.height * 0.58;
+        const dx = cx - dw * sheet.anchor.x;
+        const dy = cy - dh * sheet.anchor.y;
+
+        drawChecker(stageCtx, stageCanvas.width, stageCanvas.height, 18);
+        stageCtx.save();
+        stageCtx.globalAlpha = 0.24;
+        stageCtx.strokeStyle = '#42ecff';
+        stageCtx.lineWidth = 2;
+        stageCtx.beginPath();
+        stageCtx.ellipse(cx, cy + 5, 86 * scale, 24 * scale, 0, 0, Math.PI * 2);
+        stageCtx.stroke();
+        stageCtx.restore();
+
+        stageCtx.save();
+        stageCtx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, dx, dy, dw, dh);
+        stageCtx.restore();
+
+        stageCtx.save();
+        stageCtx.strokeStyle = 'rgba(255, 215, 106, 0.72)';
+        stageCtx.lineWidth = 1;
+        stageCtx.setLineDash([5, 5]);
+        stageCtx.beginPath();
+        stageCtx.moveTo(cx - 110, cy);
+        stageCtx.lineTo(cx + 110, cy);
+        stageCtx.moveTo(cx, cy - 96);
+        stageCtx.lineTo(cx, cy + 44);
+        stageCtx.stroke();
+        stageCtx.restore();
+      }
+
+      function drawSheet() {
+        const sheet = getSheet();
+        const image = getActiveImage();
+        const rect = getFrameRect();
+        drawChecker(sheetCtx, sheetCanvas.width, sheetCanvas.height, 14);
+
+        const pad = 22;
+        const scale = Math.min(
+          (sheetCanvas.width - pad * 2) / image.naturalWidth,
+          (sheetCanvas.height - pad * 2) / image.naturalHeight
+        );
+        const dw = image.naturalWidth * scale;
+        const dh = image.naturalHeight * scale;
+        const dx = (sheetCanvas.width - dw) / 2;
+        const dy = (sheetCanvas.height - dh) / 2;
+
+        sheetCtx.save();
+        sheetCtx.globalAlpha = 0.9;
+        sheetCtx.drawImage(image, dx, dy, dw, dh);
+        sheetCtx.restore();
+
+        const metrics = getSheetMetrics(image, sheet);
+        const cellW = metrics.cellW * scale;
+        const cellH = metrics.cellH * scale;
+        const usedW = metrics.usedW * scale;
+        const usedH = metrics.usedH * scale;
+        sheetCtx.save();
+        if (metrics.remainderW || metrics.remainderH) {
+          sheetCtx.fillStyle = 'rgba(255, 92, 200, 0.28)';
+          if (metrics.remainderW) {
+            sheetCtx.fillRect(dx + usedW, dy, dw - usedW, dh);
+          }
+          if (metrics.remainderH) {
+            sheetCtx.fillRect(dx, dy + usedH, dw, dh - usedH);
+          }
+        }
+        sheetCtx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        sheetCtx.lineWidth = 1;
+        for (let i = 0; i <= sheet.grid.columns; i += 1) {
+          const x = dx + i * cellW;
+          sheetCtx.beginPath();
+          sheetCtx.moveTo(x, dy);
+          sheetCtx.lineTo(x, dy + usedH);
+          sheetCtx.stroke();
+        }
+        for (let i = 0; i <= sheet.grid.rows; i += 1) {
+          const y = dy + i * cellH;
+          sheetCtx.beginPath();
+          sheetCtx.moveTo(dx, y);
+          sheetCtx.lineTo(dx + usedW, y);
+          sheetCtx.stroke();
+        }
+
+        const anchorX = sheet.anchor.x * cellW;
+        const anchorY = sheet.anchor.y * cellH;
+        sheetCtx.strokeStyle = 'rgba(68, 237, 255, 0.55)';
+        sheetCtx.fillStyle = 'rgba(68, 237, 255, 0.85)';
+        sheetCtx.lineWidth = 1;
+        for (let row = 0; row < sheet.grid.rows; row += 1) {
+          for (let col = 0; col < sheet.grid.columns; col += 1) {
+            const ax = dx + col * cellW + anchorX;
+            const ay = dy + row * cellH + anchorY;
+            sheetCtx.beginPath();
+            sheetCtx.moveTo(ax - 5, ay);
+            sheetCtx.lineTo(ax + 5, ay);
+            sheetCtx.moveTo(ax, ay - 5);
+            sheetCtx.lineTo(ax, ay + 5);
+            sheetCtx.stroke();
+            sheetCtx.beginPath();
+            sheetCtx.arc(ax, ay, 2, 0, Math.PI * 2);
+            sheetCtx.fill();
+          }
+        }
+
+        sheetCtx.strokeStyle = '#ffd76a';
+        sheetCtx.lineWidth = 4;
+        sheetCtx.strokeRect(dx + rect.sx * scale, dy + rect.sy * scale, rect.sw * scale, rect.sh * scale);
+        const selectedAnchorX = dx + (rect.sx + rect.sw * sheet.anchor.x) * scale;
+        const selectedAnchorY = dy + (rect.sy + rect.sh * sheet.anchor.y) * scale;
+        sheetCtx.fillStyle = '#ffd76a';
+        sheetCtx.beginPath();
+        sheetCtx.arc(selectedAnchorX, selectedAnchorY, 4, 0, Math.PI * 2);
+        sheetCtx.fill();
+        sheetCtx.restore();
+      }
+
+      function updateMeta() {
+        const sheet = getSheet();
+        const anim = getAnimation();
+        const image = getActiveImage();
+        const rect = getFrameRect();
+        const metrics = getSheetMetrics(image, sheet);
+        const bounds = getFrameAlphaBounds(image, rect);
+        const paths = getActiveImagePaths();
+        const remainderClass = metrics.remainderW || metrics.remainderH ? 'bad' : 'ok';
+        const remainderText = `${metrics.remainderW}x${metrics.remainderH}`;
+        document.getElementById('frameLabel').textContent = `frame ${state.frameCursor + 1} / ${anim.frames.length}`;
+        document.getElementById('sheetLabel').textContent = `${sheet.label} ${sheet.grid.columns}x${sheet.grid.rows} · ${image.naturalWidth}x${image.naturalHeight} · remainder ${remainderText}`;
+        document.getElementById('metaSheet').textContent = state.sheetId;
+        document.getElementById('metaImage').textContent = `${image.naturalWidth} x ${image.naturalHeight}`;
+        document.getElementById('metaAnim').textContent = state.animId;
+        document.getElementById('metaCell').textContent = `${rect.sw} x ${rect.sh} / row ${rect.row}, col ${rect.col}`;
+        document.getElementById('metaAnchor').textContent = `${sheet.anchor.x}, ${sheet.anchor.y} / x=${Math.round(rect.sw * sheet.anchor.x)}, y=${Math.round(rect.sh * sheet.anchor.y)}`;
+        document.getElementById('metaBbox').textContent = bounds
+          ? `${bounds.w} x ${bounds.h} / cx=${bounds.cx.toFixed(1)}, cy=${bounds.cy.toFixed(1)}, bottom=${bounds.bottom}`
+          : 'empty';
+        document.getElementById('metaPath').textContent = paths.localPath;
+        fpsValue.textContent = `${state.fps}`;
+        scaleValue.textContent = `${state.scalePct}%`;
+        playBtn.textContent = state.playing ? 'Pause' : 'Play';
+        statusEl.innerHTML = `<strong>${paths.url}</strong> - image ${image.naturalWidth}x${image.naturalHeight}, code cell ${rect.sw}x${rect.sh}, remainder <span class="${remainderClass}">${remainderText}</span>, ${state.animId}, fps ${state.fps}, scale ${state.scalePct}%`;
+      }
+
+      function render() {
+        if (!state.manifest || !state.sheetId || !state.animId) return;
+        drawStage();
+        drawSheet();
+        updateMeta();
+      }
+
+      function step(ms) {
+        if (!state.playing) {
+          render();
+          return;
+        }
+        const anim = getAnimation();
+        const fps = Math.max(1, state.fps || anim.fps || 8);
+        state.accumulator += ms;
+        const frameMs = 1000 / fps;
+        while (state.accumulator >= frameMs) {
+          state.accumulator -= frameMs;
+          if (state.frameCursor < anim.frames.length - 1) {
+            state.frameCursor += 1;
+          } else if (anim.loop) {
+            state.frameCursor = 0;
+          } else {
+            state.playing = false;
+            state.frameCursor = anim.frames.length - 1;
+            state.accumulator = 0;
+            break;
+          }
+        }
+        render();
+      }
+
+      function restart() {
+        state.frameCursor = 0;
+        state.accumulator = 0;
+        state.playing = true;
+        render();
+      }
+
+      function populateControls() {
+        sheetSelect.innerHTML = '';
+        Object.entries(state.manifest.sheets).forEach(([id, sheet]) => {
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = sheet.label;
+          sheetSelect.appendChild(option);
+        });
+        state.sheetId = sheetSelect.value || Object.keys(state.manifest.sheets)[0];
+        populateAnimations();
+      }
+
+      function populateAnimations() {
+        const sheet = getSheet();
+        animSelect.innerHTML = '';
+        Object.keys(sheet.animations).forEach((id) => {
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = id;
+          animSelect.appendChild(option);
+        });
+        paletteSelect.innerHTML = '';
+        const palettes = sheet.paletteOrder || (sheet.paletteImages ? Object.keys(sheet.paletteImages) : ['none']);
+        palettes.forEach((id) => {
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = id;
+          paletteSelect.appendChild(option);
+        });
+        paletteWrap.style.display = sheet.paletteImages ? 'grid' : 'none';
+        state.animId = animSelect.value;
+        state.paletteId = paletteSelect.value || 'none';
+        state.fps = sheet.animations[state.animId].fps || 8;
+        state.scalePct = Math.round((sheet.defaultScale || 1) * 100);
+        fpsRange.value = String(state.fps);
+        scaleRange.value = String(Math.min(150, Math.max(30, state.scalePct)));
+        restart();
+      }
+
+      async function loadImageByUrl(key, imageUrl) {
+        const img = new Image();
+        img.decoding = 'async';
+        const url = new URL(imageUrl.href);
+        url.searchParams.set('v', assetRevision);
+        img.src = url.href;
+        await img.decode();
+        state.images[key] = img;
+      }
+
+      async function loadImage(id, sheet) {
+        const imageUrl = new URL(sheet.image, manifestUrl);
+        await loadImageByUrl(id, imageUrl);
+        if (sheet.paletteImages) {
+          await Promise.all(Object.entries(sheet.paletteImages).map(([paletteId, image]) => {
+            return loadImageByUrl(`${id}:${paletteId}`, new URL(image, manifestUrl));
+          }));
+        }
+      }
+
+      async function boot() {
+        const res = await fetch(manifestUrl.href, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`manifest load failed: ${res.status}`);
+        state.manifest = await res.json();
+        await Promise.all(Object.entries(state.manifest.sheets).map(([id, sheet]) => loadImage(id, sheet)));
+        populateControls();
+        requestAnimationFrame(tick);
+      }
+
+      function tick(now) {
+        const dt = Math.min(100, now - state.lastTime);
+        state.lastTime = now;
+        step(dt);
+        requestAnimationFrame(tick);
+      }
+
+      sheetSelect.addEventListener('change', () => {
+        state.sheetId = sheetSelect.value;
+        populateAnimations();
+      });
+
+      animSelect.addEventListener('change', () => {
+        state.animId = animSelect.value;
+        state.fps = getAnimation().fps || state.fps;
+        fpsRange.value = String(state.fps);
+        restart();
+      });
+
+      paletteSelect.addEventListener('change', () => {
+        state.paletteId = paletteSelect.value;
+        render();
+      });
+
+      fpsRange.addEventListener('input', () => {
+        state.fps = Number(fpsRange.value);
+        render();
+      });
+
+      scaleRange.addEventListener('input', () => {
+        state.scalePct = Number(scaleRange.value);
+        render();
+      });
+
+      playBtn.addEventListener('click', () => {
+        state.playing = !state.playing;
+        render();
+      });
+
+      restartBtn.addEventListener('click', restart);
+
+      window.advanceTime = (ms) => {
+        const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+        for (let i = 0; i < steps; i += 1) step(1000 / 60);
+      };
+
+      window.render_game_to_text = () => {
+        if (!state.manifest || !state.sheetId || !state.animId) return JSON.stringify({ ready: false });
+        const rect = getFrameRect();
+        return JSON.stringify({
+          ready: true,
+          sheet: state.sheetId,
+          animation: state.animId,
+          palette: state.paletteId,
+          playing: state.playing,
+          frameCursor: state.frameCursor,
+          cell: { row: rect.row, col: rect.col },
+          fps: state.fps,
+          scalePct: state.scalePct,
+          coordinateSystem: 'canvas origin top-left, x right, y down'
+        });
+      };
+
+      boot().catch((error) => {
+        console.error(error);
+        statusEl.textContent = error.message;
+      });
+    })();
+  </script>
+</body>
+</html>

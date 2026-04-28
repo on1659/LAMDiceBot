@@ -65,9 +65,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     <h2>🤖 봇 <span class="count" id="botCountBadge">0</span></h2>
     <div class="flex-row">
         <label style="margin: 0 4px 0 0;">봇 수</label>
-        <input type="number" id="botCount" value="3" min="1" max="8">
+        <input type="number" id="botCount" value="8" min="1" max="8">
         <button class="btn-cyan" onclick="joinBots()">봇 입장</button>
-        <button class="btn-orange" onclick="betAll()">랜덤 베팅</button>
+        <button class="btn-orange" onclick="betAll()">순차 베팅</button>
         <button class="btn-purple" onclick="betAllSameColor()">전원 같은 색 베팅</button>
         <button class="btn-red" onclick="disconnectAll()">전원 퇴장</button>
     </div>
@@ -238,13 +238,14 @@ function joinOneBot(name) {
         });
         s.on('bridge-cross:gameStart', d => {
             const M = (d && d.activeColors) ? d.activeColors.length : 0;
-            const K = d && d.passerIndex ? d.passerIndex : 0;
-            dlog(`${name} 게임 시작 M=${M} K=${K}`, 'bridge');
+            dlog(`${name} 게임 시작 M=${M}`, 'bridge');
         });
         s.on('bridge-cross:gameEnd', d => {
-            const winner = d && d.winnerColorName ? d.winnerColorName : '?';
+            const colorNames = (d && Array.isArray(d.winnerColorNames) && d.winnerColorNames.length > 0)
+                ? d.winnerColorNames.join(', ')
+                : (d && d.winnerColorName ? d.winnerColorName : '?');
             const winnersCount = d && d.winners ? d.winners.length : 0;
-            dlog(`${name} 게임 종료 — ${winner} 통과, 당첨 ${winnersCount}명`, 'event');
+            dlog(`${name} 게임 종료 — ${colorNames} 통과, 당첨 ${winnersCount}명`, 'event');
             bot.colorIndex = null;
             updateBotList();
         });
@@ -283,12 +284,13 @@ function joinOneBot(name) {
 function betAll() {
     const joined = bots.filter(b => b.status === 'joined');
     if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
-    joined.forEach(bot => {
-        const c = Math.floor(Math.random() * 6);
+    joined.forEach((bot, i) => {
+        const c = i % 6;
+        if (bot.colorIndex === c) return;
         bot.socket.emit('bridge-cross:select', { colorIndex: c });
         bot.colorIndex = c;
     });
-    dlog(`${joined.length}봇 랜덤 베팅`, 'ok');
+    dlog(`${joined.length}봇 순차 베팅 (위에서부터)`, 'ok');
     updateBotList();
 }
 

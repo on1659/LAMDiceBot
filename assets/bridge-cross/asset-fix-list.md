@@ -9,6 +9,8 @@
 
 2026-04-26 추가: 기존 `glass-fx-v2.png`도 loose contact sheet처럼 가로 프레임 위치가 압축되어 있어 `1400x1122`, `350x187` cell atlas로 재패킹했다. 재패킹된 atlas가 현재 `glass-fx-v2.png` 파일명으로 교체됐고, 기존 loose 원본은 `_unused/sprites/archive/loose-glass-fx-1402/glass-fx-v2-loose-1402.png`에 보관했다.
 
+2026-04-28 추가: 깨진 유리가 새 유리로 복구되는 `restore_glass` 4-frame row를 `glass-fx-v2.png`의 row 6에 추가했다. 현재 `glass-fx-v2.png`는 `1400x1309`, `4 cols x 7 rows`, `350x187` cell atlas다.
+
 2026-04-26 추가: 런타임 미사용 파일은 삭제하지 않고 `assets/bridge-cross/_unused/` 아래로 모았다. `pixel/`, preview, loose archive, target-map v1 자료, debug 비교 이미지는 이 위치에 있다.
 
 ---
@@ -40,7 +42,7 @@
 | **`players-blue.png`** | 1400x1122 | 파랑 캐릭터, strict 4 cols x 6 rows atlas | 사용 |
 | **`players-indigo.png`** | 1400x1122 | 남색 캐릭터, strict 4 cols x 6 rows atlas | 사용 |
 | **`players-violet.png`** | 1400x1122 | 보라 캐릭터, strict 4 cols x 6 rows atlas | 사용 |
-| **`glass-fx-v2.png`** | 1400x1122 | 유리 타일/FX, strict 4 cols x 6 rows atlas | 사용 |
+| **`glass-fx-v2.png`** | 1400x1309 | 유리 타일/FX, strict 4 cols x 7 rows atlas | 사용 |
 | `_unused/sprites/archive/loose-players-1402/players-*-loose-1402.png` | 1402x1122 | 원본 loose contact sheet | 미사용, 재패킹 후 보관 |
 | `_unused/sprites/archive/loose-glass-fx-1402/glass-fx-v2-loose-1402.png` | 1402x1122 | 원본 loose FX contact sheet | 미사용, 재패킹 후 보관 |
 | `players-blue-source.png` | 1402x1122 | chroma-key 원본 | 보관 |

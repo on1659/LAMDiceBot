@@ -3,7 +3,8 @@
     "allow": [
       "Bash(railway list:*)",
       "Bash(railway status:*)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "Bash(git fetch *)"
     ],
     "additionalDirectories": [
       "d:\\Work\\LAMDiceBot\\.claude",

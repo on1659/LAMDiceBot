@@ -3831,9 +3831,10 @@
             // 다리건너기 게임이면 다리건너기 페이지로 이동
             if (gameType === 'bridge') {
                 // 다리 건너기는 개발 중 — 일반 사용자는 방 생성 차단
-                // 우회: 방 제목에 "이더테스트" 포함 OR localStorage bridgeDevAccess
+                // 우회: localhost / 방 제목에 "이더테스트" / localStorage bridgeDevAccess 중 하나
+                const isLocal = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
                 const hasMagicWord = (roomName || '').includes('이더테스트');
-                if (!hasMagicWord && !localStorage.getItem('bridgeDevAccess')) {
+                if (!isLocal && !hasMagicWord && !localStorage.getItem('bridgeDevAccess')) {
                     showCustomAlert('🚧 Untitle은 현재 개발 중입니다. 곧 만나요!', 'info');
                     return;
                 }

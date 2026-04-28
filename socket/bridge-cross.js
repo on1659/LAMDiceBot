@@ -104,6 +104,38 @@ module.exports = (socket, io, ctx) => {
         return { path };
     }
 
+    function makeRandomSafeRows() {
+        return Array.from({ length: BRIDGE_COLUMNS }, () => randomRow());
+    }
+
+    /**
+     * outbound: M명 도전. 색 인덱스 오름차순.
+     * winnerPos 도전자는 buildPassPath로 무조건 통과 보장.
+     * 다른 도전자는 buildRandomFailPath로 fail.
+     * 반환: { safeRows, paths, survivorPositions, finalBrokenRows }
+     *   - paths: M개. 각 path의 마지막 step.success로 통과 여부 판별
+     *   - survivorPositions: 통과한 도전자 = [winnerPos] 단일
+     */
+    function buildOutboundScenarios(M, winnerPos) {
+        const safeRows = makeRandomSafeRows();
+        let brokenRows = Array(BRIDGE_COLUMNS).fill(null);
+        const paths = new Array(M);
+
+        for (let i = 0; i < M; i++) {
+            if (i === winnerPos) {
+                const passResult = buildPassPath(safeRows, brokenRows);
+                paths[i] = passResult.path;
+                // winner는 안전 row만 밟으니 brokenRows 변화 없음
+            } else {
+                const result = buildRandomFailPath(safeRows, brokenRows);
+                paths[i] = result.path;
+                brokenRows = result.brokenRows;
+            }
+        }
+
+        return { safeRows, paths, survivorPositions: [winnerPos], finalBrokenRows: brokenRows };
+    }
+
     /**
      * 게임 시나리오 결정 (베팅 마감 후 호출)
      * - K = 통과자 인덱스 (1~M, 1-based)
@@ -134,53 +166,50 @@ module.exports = (socket, io, ctx) => {
         const activeColors = Array.from(new Set(Object.values(userColorBets))).sort((a, b) => a - b);
         const M = activeColors.length;
 
-        // M=1: 모두 같은 색 → K=1, 자동 통과
-        const K = M === 1 ? 1 : 1 + Math.floor(Math.random() * M);
+        // 활성 색 중 random pick → 당첨 색 (베팅된 색 중에서만 → 항상 winner 1명 이상 보장)
+        const winnerPos = Math.floor(Math.random() * M);
+        const winnerColor = activeColors[winnerPos];
 
-        // safeRows[N]: 각 column의 안전 row (서버 내부 정답)
-        const safeRows = Array.from({ length: BRIDGE_COLUMNS }, () => Math.random() < 0.5 ? 'top' : 'bottom');
+        // outbound 1회만 진행. winnerPos는 무조건 통과, 다른 색은 fail.
+        const outbound = buildOutboundScenarios(M, winnerPos);
 
-        // scenarios 배열 (K개)
-        // - K-1명 실패자: 매 col에서 random row 선택, 운 나쁘면 fail (오징어 게임 룰)
-        // - K번째 통과자: brokenRows 활용 + safeRows로 안전 통과
-        const scenarios = [];
-        let brokenRows = Array.from({ length: BRIDGE_COLUMNS }, () => null);
-
-        for (let i = 0; i < K - 1; i++) {
-            const result = buildRandomFailPath(safeRows, brokenRows);
-            brokenRows = result.brokenRows;
-            scenarios.push({ success: false, path: result.path });
-        }
-
-        const passResult = buildPassPath(safeRows, brokenRows);
-        scenarios.push({ success: true, path: passResult.path });
+        // 당첨 색은 단일. 베팅자 측면 다수 winner는 endScenario에서 결정.
+        const passingColors = [winnerColor];
 
         // gameState 업데이트
         bc.phase = 'playing';
-        bc.passerIndex = K;
         bc.activeColors = activeColors;
-        bc.safeRows = safeRows;
-        bc.scenarios = scenarios;
+        bc.outbound = outbound;
+        bc.passingColors = passingColors;
+        bc.winnerColor = passingColors[0];  // 단일 호환 필드 (옛 클라/history)
         bc.isBridgeCrossActive = true;
 
-        // 게임 시작 broadcast (모든 베팅 공개)
+        // 게임 시작 broadcast (outbound 시나리오 전체 + 베팅 공개)
         io.to(room.roomId).emit('bridge-cross:gameStart', {
-            passerIndex: K,
+            M,
             activeColors,
             allBets: { ...userColorBets },
-            scenarios
+            outbound: {
+                safeRows: outbound.safeRows,
+                paths: outbound.paths,
+                survivorPositions: outbound.survivorPositions
+            },
+            winnerColor: passingColors[0],   // 옛 클라 호환
+            winnerColors: [...passingColors]  // 신규 (다수 winner)
         });
 
-        console.log(`[다리건너기] 방 ${room.roomName} 게임 시작 - M=${M}, K=${K}, activeColors=${activeColors}`);
-        console.log(`[다리건너기] safeRows=${safeRows.join(',')}`);
-        scenarios.forEach((sc, idx) => {
-            const pathStr = sc.path.map(s => `col${s.col}=${s.row}${s.success ? '✓' : '✗'}`).join(' → ');
-            console.log(`[다리건너기] scenario[${idx}] success=${sc.success} : ${pathStr}`);
+        console.log(`[다리건너기] 방 ${room.roomName} 게임 시작 - M=${M}, activeColors=${activeColors}`);
+        console.log(`[다리건너기] outbound.safeRows=${outbound.safeRows.join(',')}`);
+        console.log(`[다리건너기] outbound.survivors=${outbound.survivorPositions.join(',')}`);
+        outbound.paths.forEach((p, i) => {
+            const pathStr = p.map(s => `col${s.col}=${s.row}${s.success ? '✓' : '✗'}`).join(' → ');
+            console.log(`[다리건너기] outbound[${i}] color=${activeColors[i]}: ${pathStr}`);
         });
+        console.log(`[다리건너기] passingColors=${passingColors.join(',')}`);
 
-        // 게임 진행 시간 후 자동 종료
-        // 각 캐릭터당 4초 + 여유 5초 (최소 8초, 최대 30초)
-        const endDelay = Math.min(30000, Math.max(8000, M * 4000 + 5000));
+        // 자동 종료 시간 재산정 (outbound 1회만):
+        // worst case 도전자당 ~16s (8 col × pre-choice 5단계 + safe-flash + 점프) → cap 120s
+        const endDelay = Math.min(120000, M * 8000 + 8000);
         bc.endTimeout = setTimeout(() => {
             if (!ctx.rooms[room.roomId]) return;
             endScenario(room, gameState);
@@ -207,29 +236,34 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        const { activeColors, passerIndex: K, userColorBets } = bc;
+        const { activeColors, userColorBets, outbound } = bc;
 
-        // K번째 통과자 색 (1-based → 0-based 인덱스)
-        const winnerColor = activeColors[K - 1];
+        // outbound 통과 색 = winner 색 (beginScenario에서 bc.passingColors에 저장됨)
+        const passingColors = Array.isArray(bc.passingColors) ? bc.passingColors : [];
 
-        // 승자: winnerColor에 베팅한 사용자 목록
+        // 승자: passingColors 중 하나에 베팅한 모든 사용자 (다수 winner)
         const winners = Object.entries(userColorBets)
-            .filter(([, c]) => c === winnerColor)
+            .filter(([, c]) => passingColors.includes(c))
             .map(([u]) => u);
 
+        // outbound 생존자 색 인덱스 (passingColors와 동일하지만, history 호환을 위해 별도 유지)
+        const outboundSurvivorColors = (outbound && outbound.survivorPositions)
+            ? outbound.survivorPositions.map(pos => activeColors[pos])
+            : [];
+
         // 상태 업데이트
-        bc.winnerColor = winnerColor;
         bc.winners = winners;
         bc.phase = 'finished';
         bc.isBridgeCrossActive = false;
 
-        // 히스토리 기록
+        // 히스토리 기록 (옛 형식의 winnerColor 단일 + passingColors 배열 둘 다 보존)
         bc.bridgeCrossHistory.push({
             round: bc.raceRound + 1,
-            K,
-            winnerColor,
+            winnerColor: passingColors[0],          // 옛 history 호환 (단일)
+            passingColors: [...passingColors],      // 신규 (다수 winner)
             winners: [...winners],
             activeColors: [...activeColors],
+            outboundSurvivorColors,
             timestamp: new Date().toISOString()
         });
         if (bc.bridgeCrossHistory.length > BRIDGE_HISTORY_MAX) {
@@ -238,18 +272,28 @@ module.exports = (socket, io, ctx) => {
 
         bc.raceRound++;
 
-        // ranking: 도전 순서대로 활성 색상 결과 (Phase 3에서 활용)
+        // ranking: 활성 색상 결과 (outbound 통과 색이 곧 winner 색)
         const ranking = activeColors.map((color, i) => ({
             color,
-            success: i === K - 1
+            outboundSurvived: outbound && outbound.survivorPositions.includes(i),
+            isWinner: passingColors.includes(color)
         }));
 
         // 결과 broadcast
+        // - 옛 클라 호환: winnerColor (단일) / winnerColorName (단일) 유지
+        // - 신규: winnerColors / winnerColorNames 배열 추가
         io.to(room.roomId).emit('bridge-cross:gameEnd', {
-            winnerColor,
+            winnerColor: passingColors[0],
+            winnerColors: [...passingColors],
             winners,
-            winnerColorName: COLOR_NAMES[winnerColor] || String(winnerColor),
-            ranking
+            winnerColorName: COLOR_NAMES[passingColors[0]] || String(passingColors[0]),
+            winnerColorNames: passingColors.map(c => COLOR_NAMES[c] || String(c)),
+            passingColors: [...passingColors],
+            ranking,
+            activeColors: [...activeColors],
+            outboundSurvivorColors,
+            allBets: { ...userColorBets },
+            round: bc.raceRound + 1
         });
 
         // 게임 플레이 기록
@@ -280,7 +324,8 @@ module.exports = (socket, io, ctx) => {
             }).catch(e => console.warn('[다리건너기] DB 기록 실패:', e.message));
         }
 
-        console.log(`[다리건너기] 방 ${room.roomName} 게임 종료 - 통과색=${winnerColor}(${COLOR_NAMES[winnerColor]}), 승자=${winners.join(', ')}`);
+        const passingColorsLog = passingColors.map(c => `${c}(${COLOR_NAMES[c] || c})`).join(', ');
+        console.log(`[다리건너기] 방 ${room.roomName} 게임 종료 - 통과색=[${passingColorsLog}], 승자=${winners.join(', ')}`);
 
         // 다음 라운드를 위해 베팅 리셋 + 통과자만 자동 준비 (horse-race 패턴)
         // (gameEnd 결과 표시 시간 확보 위해 약간 지연)
@@ -291,11 +336,11 @@ module.exports = (socket, io, ctx) => {
             const currentBc = currentRoom.gameState.bridgeCross;
             currentBc.userColorBets = {};
             currentBc.phase = 'idle';
-            currentBc.passerIndex = null;
             currentBc.activeColors = [];
             currentBc.safeRows = [];
             currentBc.scenarios = [];
             currentBc.winnerColor = null;
+            currentBc.passingColors = [];
             currentBc.winners = [];
 
             // readyUsers 리셋 + 통과자(유리 다리 건넌 사람)만 자동 ready
@@ -357,6 +402,12 @@ module.exports = (socket, io, ctx) => {
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return;
         const userName = user.name;
+
+        // ready 검증: 준비 안 한 사용자는 베팅 불가
+        if (!gameState.readyUsers || !gameState.readyUsers.includes(userName)) {
+            socket.emit('bridge-cross:error', '준비(Ready) 후에 베팅할 수 있습니다.');
+            return;
+        }
 
         const { colorIndex } = data;
 
