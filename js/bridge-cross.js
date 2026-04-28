@@ -476,12 +476,14 @@ function showBridgeResult(data) {
     rankings.innerHTML = winnerColorBlock + winnersHtml;
     overlay.classList.add('visible');
 
-    // 히스토리에 추가
+    // 히스토리에 추가 (베팅 정보까지 포함)
     bridgeCrossHistory.unshift({
-        round: bridgeCrossHistory.length + 1,
+        round: data.round || (bridgeCrossHistory.length + 1),
         winnerColor: data.winnerColor,
         winnerColorName: data.winnerColorName,
         winners: data.winners || [],
+        activeColors: Array.isArray(data.activeColors) ? data.activeColors : [],
+        allBets: (data.allBets && typeof data.allBets === 'object') ? data.allBets : {},
         timestamp: new Date().toISOString()
     });
     renderBridgeHistory();
@@ -491,23 +493,54 @@ function renderBridgeHistory() {
     const list = document.getElementById('historyList');
     if (!list) return;
     if (bridgeCrossHistory.length === 0) {
-        list.innerHTML = '';
+        list.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 기록이 없습니다</div>';
         return;
     }
     list.innerHTML = bridgeCrossHistory.slice(0, 20).map((h, idx) => {
-        const color = BRIDGE_COLORS[h.winnerColor];
-        const round = bridgeCrossHistory.length - idx;
+        const winnerColor = BRIDGE_COLORS[h.winnerColor];
+        const round = h.round;
+        const time = h.timestamp ? new Date(h.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+        // 활성 색상별 베팅자 + 통과/실패 표시
+        let colorRowsHtml = '';
+        const activeColors = Array.isArray(h.activeColors) ? h.activeColors : [];
+        const allBets = h.allBets || {};
+        if (activeColors.length > 0) {
+            // 색상 인덱스 → 베팅자 그룹
+            const bettorsByColor = {};
+            Object.entries(allBets).forEach(([userName, colorIdx]) => {
+                if (!bettorsByColor[colorIdx]) bettorsByColor[colorIdx] = [];
+                bettorsByColor[colorIdx].push(userName);
+            });
+            colorRowsHtml = activeColors.map(colorIdx => {
+                const c = BRIDGE_COLORS[colorIdx];
+                const isPasser = colorIdx === h.winnerColor;
+                const bettors = (bettorsByColor[colorIdx] || []).map(escapeHtml).join(', ') || '-';
+                const bgColor = isPasser ? 'var(--result-gold-light, #fef3c7)' : 'var(--panel-secondary, rgba(0,0,0,0.04))';
+                const status = isPasser ? '✅ 통과' : '❌ 실패';
+                return `
+                    <div style="display:flex; align-items:center; gap:6px; padding:4px 8px; background:${bgColor}; border-radius:4px; margin-bottom:4px; font-size:12px;">
+                        <span style="font-size:14px;">${c ? c.emoji : ''}</span>
+                        <span style="font-weight:bold; min-width:36px;">${c ? c.name : ''}</span>
+                        <span style="color:${isPasser ? '#b45309' : 'var(--text-muted)'}; font-weight:600;">${status}</span>
+                        <span style="margin-left:auto; color:var(--text-secondary); font-size:11px;">${bettors}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
         const winnersText = h.winners && h.winners.length > 0
-            ? h.winners.map(escapeHtml).join(', ')
+            ? `🎊 당첨: ${h.winners.map(escapeHtml).join(', ')}`
             : '당첨자 없음';
-        const time = h.timestamp ? new Date(h.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '';
+
         return `
-            <div style="background:var(--yellow-50); padding:10px; margin-bottom:8px; border-radius:8px; border:1px solid var(--yellow-200);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="background:var(--yellow-50); padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--yellow-200);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <span style="font-weight:bold; color:var(--bridge-accent);">${round}라운드</span>
                     <span style="font-size:11px; color:var(--text-muted);">${time}</span>
                 </div>
-                <div style="font-size:14px;">${color ? color.emoji + ' ' + color.name : ''} 통과 — 🎊 ${winnersText}</div>
+                <div style="margin-bottom:8px;">${colorRowsHtml}</div>
+                <div style="font-size:13px; color:var(--bridge-accent); font-weight:bold; text-align:center; padding:5px; background:var(--yellow-50); border-radius:4px;">${winnersText}</div>
             </div>
         `;
     }).join('');

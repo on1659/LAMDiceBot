@@ -244,12 +244,15 @@ module.exports = (socket, io, ctx) => {
             success: i === K - 1
         }));
 
-        // 결과 broadcast
+        // 결과 broadcast (history 표시용으로 activeColors + allBets 포함)
         io.to(room.roomId).emit('bridge-cross:gameEnd', {
             winnerColor,
             winners,
             winnerColorName: COLOR_NAMES[winnerColor] || String(winnerColor),
-            ranking
+            ranking,
+            activeColors: [...activeColors],
+            allBets: { ...userColorBets },
+            round: bc.raceRound + 1
         });
 
         // 게임 플레이 기록
