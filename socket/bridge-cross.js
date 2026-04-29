@@ -208,8 +208,9 @@ module.exports = (socket, io, ctx) => {
         console.log(`[다리건너기] passingColors=${passingColors.join(',')}`);
 
         // 자동 종료 시간 재산정 (outbound 1회만):
-        // worst case 도전자당 ~16s (8 col × pre-choice 5단계 + safe-flash + 점프) → cap 120s
-        const endDelay = Math.min(120000, M * 8000 + 8000);
+        // 병렬 진행 모드 — 모든 runner가 동시에 다리 위에 있으므로 M에 무관.
+        // 한 runner 풀 path = ~16초 + jitter 마진 → 30초 캡 (impl §4-8)
+        const endDelay = 30000;
         bc.endTimeout = setTimeout(() => {
             if (!ctx.rooms[room.roomId]) return;
             endScenario(room, gameState);
