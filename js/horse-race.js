@@ -79,7 +79,6 @@ var mySelectedHorse = null;
 var horseRaceMode = 'last'; // 무조건 꼴등 찾기
 var currentTrackLength = 'medium'; // 트랙 길이 옵션
 var pendingRaceResultMessages = []; // 놓친 경주 결과 메시지 보관 큐
-var pendingLineupData = null; // 결과 오버레이 표시 중 수신된 라인업 데이터 (오버레이 닫힐 때 적용)
 var currentTrackDistanceMeters = 500; // 트랙 거리(m)
 var trackPresetsFromServer = { short: 500, medium: 700, long: 1000 }; // 서버에서 받은 프리셋
 var selectedVehicleTypes = null; // 선택된 탈것 타입 (null이면 랜덤)
@@ -4112,13 +4111,6 @@ function toggleReaction(messageIndex, emoji) {
 function closeResultOverlay() {
     document.getElementById('resultOverlay').classList.remove('visible');
     // 순위 이펙트는 제거하지 않음 → 비석이 남음. 새 경주 시작 시 clearFinishEffects()로 정리됨
-
-    // 오버레이 표시 중 수신된 라인업 데이터가 있으면 지금 적용
-    if (pendingLineupData) {
-        const data = pendingLineupData;
-        pendingLineupData = null;
-        applyLineupData(data);
-    }
 }
 
 // 방 폭파 카운트다운
@@ -4482,19 +4474,6 @@ socket.on('horseSelectionReady', async (data) => {
         return;
     }
 
-    // 결과 오버레이 표시 중이면 라인업 데이터만 보관 — UI 갱신은 오버레이 닫힐 때 수행
-    const resultOverlayEl = document.getElementById('resultOverlay');
-    if (resultOverlayEl && resultOverlayEl.classList.contains('visible')) {
-        console.log('[horseSelectionReady] 결과 오버레이 표시 중 — 라인업 보관');
-        pendingLineupData = data;
-        return;
-    }
-
-    applyLineupData(data);
-});
-
-// horseSelectionReady 데이터를 실제로 UI에 적용하는 함수
-async function applyLineupData(data) {
     availableHorses = data.availableHorses || [];
     userHorseBets = data.userHorseBets || {};
     selectedUsersFromServer = data.selectedUsers || [];  // 선택 완료자 목록
@@ -4514,11 +4493,11 @@ async function applyLineupData(data) {
     }
     currentTrackLength = data.trackLength || 'medium';
     currentTrackDistanceMeters = data.trackDistanceMeters || 500;
-
+    
     addDebugLog(`말 선택 준비: ${availableHorses.length}마리`, 'selection');
-
+    
     mySelectedHorse = userHorseBets[currentUser] !== undefined ? userHorseBets[currentUser] : null;
-
+    
     // 결과 오버레이 숨기기
     const resultOverlay = document.getElementById('resultOverlay');
     if (resultOverlay) {
@@ -4553,7 +4532,8 @@ async function applyLineupData(data) {
     setTimeout(() => {
         renderHorseSelection();
     }, 100);
-}
+    
+});
 
 // 트랙 길이 변경 이벤트
 socket.on('trackLengthChanged', (data) => {
