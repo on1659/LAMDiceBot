@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>경마 확률 편향 조사 + 수정 — 전체 작업 요약 (2026-04-30)</title>
+<style>
+:root {
+    --bg: #0f1419;
+    --panel: #1a1f2e;
+    --panel-2: #232938;
+    --border: #2d3548;
+    --text: #e6e9ef;
+    --text-dim: #9aa3b8;
+    --accent: #7c9cff;
+    --accent-2: #c792ea;
+    --good: #6ee7b7;
+    --bad: #f87171;
+    --warn: #fbbf24;
+    --code-bg: #0c1118;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Pretendard', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    padding: 24px 16px 80px;
+}
+
+.container { max-width: 1040px; margin: 0 auto; }
+
+header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+}
+
+.tag {
+    display: inline-block;
+    font-size: 11.5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    color: var(--text-dim);
+    margin-right: 6px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+.tag.good { background: rgba(110, 231, 183, 0.15); color: var(--good); }
+.tag.bad { background: rgba(248, 113, 113, 0.15); color: var(--bad); }
+.tag.warn { background: rgba(251, 191, 36, 0.15); color: var(--warn); }
+.tag.accent { background: rgba(124, 156, 255, 0.15); color: var(--accent); }
+
+h1 {
+    font-size: clamp(24px, 3.6vw, 32px);
+    margin: 14px 0 10px;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: clamp(19px, 2.6vw, 23px);
+    margin: 44px 0 18px;
+    letter-spacing: -0.01em;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+h3 {
+    font-size: 16.5px;
+    margin: 28px 0 12px;
+    color: var(--accent);
+}
+
+p { margin-bottom: 12px; color: var(--text); }
+.dim { color: var(--text-dim); }
+.lead { font-size: 15.5px; color: var(--text); margin: 14px 0; }
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin: 22px 0;
+}
+.summary-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+}
+.summary-card .label {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+}
+.summary-card .value {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+.summary-card .value.good { color: var(--good); }
+.summary-card .value.bad { color: var(--bad); }
+.summary-card .value.warn { color: var(--warn); }
+.summary-card .value.accent { color: var(--accent); }
+.summary-card .sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+pre, code {
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 12.5px;
+}
+pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.55;
+}
+pre.log { font-size: 11.5px; }
+code {
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+}
+pre code { background: transparent; padding: 0; color: inherit; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 14px;
+}
+th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+th {
+    background: var(--panel-2);
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+}
+tr:hover td { background: rgba(124, 156, 255, 0.04); }
+td code { font-size: 12px; }
+
+.callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(124, 156, 255, 0.06);
+    padding: 13px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 18px 0;
+    font-size: 14px;
+}
+.callout.warn { border-left-color: var(--warn); background: rgba(251, 191, 36, 0.06); }
+.callout.good { border-left-color: var(--good); background: rgba(110, 231, 183, 0.06); }
+.callout.bad { border-left-color: var(--bad); background: rgba(248, 113, 113, 0.06); }
+.callout strong { color: var(--accent); }
+.callout.warn strong { color: var(--warn); }
+.callout.good strong { color: var(--good); }
+.callout.bad strong { color: var(--bad); }
+
+ul, ol { padding-left: 24px; margin: 8px 0 16px; }
+li { margin: 4px 0; }
+
+.timeline {
+    position: relative;
+    padding-left: 28px;
+    margin: 16px 0;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--border);
+}
+.timeline-step {
+    position: relative;
+    margin-bottom: 22px;
+}
+.timeline-step::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+.timeline-step.good::before { background: var(--good); box-shadow: 0 0 0 2px var(--good); }
+.timeline-step.bad::before { background: var(--bad); box-shadow: 0 0 0 2px var(--bad); }
+.timeline-step.warn::before { background: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
+
+.timeline-step .title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+.timeline-step .desc {
+    font-size: 13.5px;
+    color: var(--text-dim);
+}
+
+.file-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin: 14px 0;
+}
+.file-card .file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.file-card .file-path {
+    font-family: 'SF Mono', 'Monaco', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 600;
+}
+.file-card .file-stats {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+.file-card .file-stats .add { color: var(--good); }
+.file-card .file-stats .del { color: var(--bad); }
+.file-card ul { margin: 6px 0; }
+
+footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+}
+
+.toc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 22px;
+    margin: 20px 0 30px;
+}
+.toc-title {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+.toc ol { padding-left: 18px; margin: 0; }
+.toc li { font-size: 13.5px; color: var(--text-dim); margin: 3px 0; }
+.toc a { color: var(--accent); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+    <div>
+        <span class="tag accent">전체 작업 요약</span>
+        <span class="tag good">검증 완료</span>
+        <span class="tag warn">P2-1 수정</span>
+        <span class="tag">2026-04-30</span>
+    </div>
+    <h1>경마 확률 편향 조사 + 수정 — 전체 작업 요약</h1>
+    <p class="lead">"같은 방 연속 라운드에서 같은 horseIndex가 자주 우승" 사용자 보고를 시작으로, 가설 검증 → 통계 측정 → adversarial 리뷰 → 결정성 검증 → P2 이슈 수정까지의 전체 작업 정리. 결론: <strong>코드 결정성 편향 없음</strong>, 사용자 체감은 <code>unbetted_stop</code>으로 인한 2-way race 단순화 + 인지 편향 조합. Phase 1 라인업 셔플은 UX 개선 + 코드 정리 가치로 머지 진행.</p>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="label">수정 파일</div>
+            <div class="value">3</div>
+            <div class="sub">socket/horse.js, js/horse-race.js, .gitignore</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">신규 파일</div>
+            <div class="value">6</div>
+            <div class="sub">AutoTest 5 + 리포트 1</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">총 라인 변화</div>
+            <div class="value bad">−240</div>
+            <div class="sub">192줄 dead branch 제거 효과</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">최종 1등 분포</div>
+            <div class="value good">균등</div>
+            <div class="sub">chi² = 0.036, p &gt; 0.05</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Trace 반복 비율</div>
+            <div class="value good">51.5%</div>
+            <div class="sub">baseline 50% — 정상</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">검증 N</div>
+            <div class="value accent">1000+</div>
+            <div class="sub">×4 시나리오</div>
+        </div>
+    </div>
+</header>
+
+<div class="toc">
+    <div class="toc-title">목차</div>
+    <ol>
+        <li><a href="#timeline">조사 흐름 (시간순)</a></li>
+        <li><a href="#code-changes">코드 변경 상세</a></li>
+        <li><a href="#new-files">신규 AutoTest 파일</a></li>
+        <li><a href="#verification">검증 결과 종합</a></li>
+        <li><a href="#root-cause">진짜 원인 — 종합 결론</a></li>
+        <li><a href="#discarded">폐기된 가설/계획</a></li>
+        <li><a href="#next-actions">다음 단계</a></li>
+    </ol>
+</div>
+
+<h2 id="timeline">1. 조사 흐름 (시간순)</h2>
+
+<div class="timeline">
+    <div class="timeline-step">
+        <div class="title">사용자 보고 (2026-04-29)</div>
+        <div class="desc">"이어지는 판에서 동일 연출 반복, 같은 레일 말과 순위가 유지" — 자주 그런다는 보고. Railway 로그 확인 가능</div>
+    </div>
+    <div class="timeline-step warn">
+        <div class="title">가설 1: 라인업 동결 (Railway 로그로 확인)</div>
+        <div class="desc">호스트가 <code>endHorseRace</code>를 누르지 않고 자동준비로 다음 라운드 진행 시 <code>selectedVehicleTypes</code>가 라운드 간 고정됨. 두 라운드 모두 <code>['horse', 'knight', 'bicycle', 'crab', 'boat', 'ninja']</code> 동일 확인</div>
+    </div>
+    <div class="timeline-step">
+        <div class="title">Phase 1 구현 (Scout → Coder → Reviewer)</div>
+        <div class="desc"><code>reshuffleLineup</code> + <code>broadcastLineupReady</code> helper 추출, 5곳 적용, <code>selectHorse</code> dead branch 192줄 제거, race condition 가드 추가. Reviewer approve, blocker/important 0</div>
+    </div>
+    <div class="timeline-step warn">
+        <div class="title">사용자 의문: random인데 왜 편향?</div>
+        <div class="desc">시드가 매번 다른데 결과가 같으면 라인업 동결만으로 설명 안 됨. 코드 결정성 추적 필요</div>
+    </div>
+    <div class="timeline-step">
+        <div class="title">검증 1: chi² (N=1000)</div>
+        <div class="desc">단일 gameState, 라인업 동결, 베팅 동결 시나리오. 1등 분포 50.3/49.7. <strong>chi² = 0.036 → 균등</strong></div>
+    </div>
+    <div class="timeline-step">
+        <div class="title">검증 2: 기믹 패턴 유사도</div>
+        <div class="desc">평균 5.32%, ≥70% 유사 라운드 0건. 안티-유사 재추출 코드는 trigger 자체가 발동 안 함 → 폐기</div>
+    </div>
+    <div class="timeline-step warn">
+        <div class="title">Railway 재확인 — 시뮬 내부 동작까지 동일?</div>
+        <div class="desc">Evolution progressTrigger=0.55 / Loser slowmo 4.9m 두 라운드 동일. AutoTest와 모순 의심</div>
+    </div>
+    <div class="timeline-step">
+        <div class="title">검증 3: gameState 영향 추적 (Scout)</div>
+        <div class="desc">Evolution <code>progressTrigger=0.55</code>는 <code>EVOLUTION_CONFIG.checkProgress(0.50)+0.05</code> 하드코딩 상수. Loser 4.9m는 16ms frame 이산화 + <code>triggerDistanceM=10</code>의 결과. 모두 구조적 고정값, 버그 아님</div>
+    </div>
+    <div class="timeline-step">
+        <div class="title">검증 4: 실제 코드 직접 호출 (Coder)</div>
+        <div class="desc">fake socket/io로 <code>startHorseRace</code> 직접 호출, N=1000. 49.7/50.3 균등. 복제 시뮬과 결과 일치 — 우리 1차 AutoTest 정확함</div>
+    </div>
+    <div class="timeline-step warn">
+        <div class="title">Codex Adversarial Review</div>
+        <div class="desc">두 가지 빈틈 지적: (1) chi²는 marginal 균형만 보고 trace 반복은 못 잡음, (2) Evolution boostMultiplier 2.8이 last 모드 결과 dominate 가능</div>
+    </div>
+    <div class="timeline-step good">
+        <div class="title">검증 5: trace 반복 (N=999 인접 쌍)</div>
+        <div class="desc">인접 1등 일치 51.5% (baseline 50%) — temporal repetition 없음. horseRankings 패턴은 단 2가지 (<code>[2,4,0,1,3,5]</code> / <code>[4,2,0,1,3,5]</code>) — unbetted_stop으로 하위 4자리 deterministic, 1·2등만 random</div>
+    </div>
+    <div class="timeline-step good">
+        <div class="title">검증 6: Evolution on/off ablation</div>
+        <div class="desc">Evolution OFF에서 strict 일치 비율 47.1%, ON에서 27.2% — <strong>Evolution은 오히려 trace 다양성을 늘림</strong>. Codex 가설 역방향 반증</div>
+    </div>
+    <div class="timeline-step">
+        <div class="title">P2 수정 (Codex 지적)</div>
+        <div class="desc">P2-1 (resultOverlay 가림) → 클라이언트 가드 + <code>pendingLineupData</code> 보관 패턴. P2-2 (stats 오염) → .gitignore 추가</div>
+    </div>
+    <div class="timeline-step good">
+        <div class="title">최종 결론 — 코드 정상</div>
+        <div class="desc">모든 검증 통과. 사용자 체감은 unbetted_stop으로 인한 2-way race 단순화 + 인지 편향. Phase 1은 UX 개선 + 코드 정리 가치로 머지 진행</div>
+    </div>
+</div>
+
+<h2 id="code-changes">2. 코드 변경 상세</h2>
+
+<h3>2.1 socket/horse.js — Phase 1 (라인업 셔플)</h3>
+
+<div class="file-card">
+    <div class="file-header">
+        <span class="file-path">socket/horse.js</span>
+        <span class="file-stats"><span class="add">+77</span> <span class="del">−269</span> = <span class="del">−192줄</span></span>
+    </div>
+    <ul>
+        <li><strong>helper 2개 추가</strong> (L51-101): <code>reshuffleLineup(gameState)</code> + <code>broadcastLineupReady(io, room, gameState, players)</code></li>
+        <li><strong><code>raceAnimationComplete</code> 단독 당첨 분기</strong>: 셔플 + emit 추가 (players ≥ 2 가드)</li>
+        <li><strong><code>raceAnimationComplete</code> 동점/없음 분기</strong>: 동일 패턴 추가</li>
+        <li><strong><code>endHorseRace</code></strong>: 인라인 셔플 (16줄) → helper 호출 3줄로 교체</li>
+        <li><strong><code>clearHorseRaceData</code></strong>: 동일 helper 교체 (DRY)</li>
+        <li><strong><code>selectHorse</code> 진입부</strong>: <code>isHorseRaceActive</code> 가드 + 에러 emit (race condition 차단)</li>
+        <li><strong><code>selectHorse</code> dead branch 제거</strong>: 게임 진행 중 selectHorse가 들어왔을 때 시뮬레이션 중복 호출 + DB 중복 기록하던 비정상 경로 192줄 통째로 제거</li>
+    </ul>
+</div>
+
+<h3>2.2 js/horse-race.js — P2-1 (결과 오버레이 가림 수정)</h3>
+
+<div class="file-card">
+    <div class="file-header">
+        <span class="file-path">js/horse-race.js</span>
+        <span class="file-stats"><span class="add">+30</span> <span class="del">−5</span></span>
+    </div>
+    <p class="dim">Codex가 발견한 P2 — Phase 1의 새 <code>horseSelectionReady</code> broadcast가 결과 오버레이를 즉시 닫는 문제. 옵션 1 (클라이언트 가드 + pending 보관) 패턴 적용.</p>
+    <ul>
+        <li><strong>L82</strong>: <code>pendingLineupData = null</code> 변수 선언 추가</li>
+        <li><strong><code>horseSelectionReady</code> 핸들러 (L4478-4494)</strong>: <code>resultOverlay.classList.contains('visible')</code>이면 데이터만 보관하고 return. 아니면 <code>applyLineupData(data)</code> 호출</li>
+        <li><strong><code>applyLineupData</code> 함수 분리 (L4497-4556)</strong>: 기존 핸들러 본문을 별도 함수로</li>
+        <li><strong><code>closeResultOverlay</code> (L4112-4121)</strong>: 사용자가 결과 닫을 때 보관된 lineup 데이터 적용</li>
+    </ul>
+</div>
+
+<h3>2.3 .gitignore — P2-2 (stats 오염 차단)</h3>
+
+<div class="file-card">
+    <div class="file-header">
+        <span class="file-path">.gitignore</span>
+        <span class="file-stats"><span class="add">+4</span></span>
+    </div>
+    <p class="dim">AutoTest 실행 시 <code>recordVehicleRaceResult</code> / <code>recordGamePlay</code> fallback이 두 파일에 통계 기록. 머지 시 prod 통계 오염 방지.</p>
+    <pre><code><span class="add">config/vehicle-stats.json
+stats.json</span></code></pre>
+</div>
+
+<h2 id="new-files">3. 신규 AutoTest 파일</h2>
+
+<table>
+<thead>
+<tr><th>파일</th><th>측정 대상</th><th>핵심 결과</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td><code>test-rank-distribution.js</code></td>
+    <td>1등 horseIndex 분포 (시뮬 복제, N=1000)</td>
+    <td>50/50 (chi²=0.000) ✓</td>
+</tr>
+<tr>
+    <td><code>test-rank-distribution-real.js</code></td>
+    <td>1등 분포 (실제 socket/horse.js 호출, N=1000)</td>
+    <td>49.7/50.3 (chi²=0.036) ✓</td>
+</tr>
+<tr>
+    <td><code>test-gimmick-similarity.js</code></td>
+    <td>인접 라운드 기믹 패턴 유사도 (N=999)</td>
+    <td>평균 5.32%, ≥70% 0건 ✓</td>
+</tr>
+<tr>
+    <td><code>test-trace-repetition.js</code></td>
+    <td>인접 라운드 race signature 일치 (N=999)</td>
+    <td>1등 일치 51.5%, strict 26.8% — baseline 수준 ✓</td>
+</tr>
+<tr>
+    <td><code>test-evolution-ablation.js</code></td>
+    <td>Evolution on/off 비교 (각 N=1000)</td>
+    <td>OFF strict 47.1% &gt; ON 27.2% — Evolution이 다양성 증가 ✓</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="verification">4. 검증 결과 종합</h2>
+
+<table>
+<thead>
+<tr><th>가설</th><th>검증 방법</th><th>결과</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td>시드 고정 / Date.now() 시드</td>
+    <td>코드 grep — <code>seedrandom|setSeed|new Random|Date\.now\(\).*random</code></td>
+    <td><span class="tag good">없음</span> Math.random은 V8 기본 PRNG</td>
+</tr>
+<tr>
+    <td>1등 분포 균등 (시뮬 복제)</td>
+    <td>N=1000, 카이제곱 검정</td>
+    <td><span class="tag good">균등</span> chi²=0.000 (df=1, p&gt;0.05)</td>
+</tr>
+<tr>
+    <td>1등 분포 균등 (실제 코드)</td>
+    <td>fake socket/io로 startHorseRace 직접 호출, N=1000</td>
+    <td><span class="tag good">균등</span> chi²=0.036</td>
+</tr>
+<tr>
+    <td>기믹 패턴 유사도 ≥70%</td>
+    <td>N=999 인접 쌍, type+progressTrigger 일치율</td>
+    <td><span class="tag good">0건</span> 평균 5.32%, 최대 41.67%</td>
+</tr>
+<tr>
+    <td>Evolution progressTrigger 결정성</td>
+    <td>코드 정밀 추적 (Scout)</td>
+    <td><span class="tag warn">하드코딩</span> 0.55 = checkProgress(0.50)+0.05, 버그 아님</td>
+</tr>
+<tr>
+    <td>Loser slowmo 4.9m 결정성</td>
+    <td>코드 정밀 추적</td>
+    <td><span class="tag warn">구조적</span> triggerDistanceM=10 + 16ms frame 이산화</td>
+</tr>
+<tr>
+    <td>인접 라운드 trace 반복 (Codex 지적)</td>
+    <td>N=999 signature 비교</td>
+    <td><span class="tag good">없음</span> 51.5% (baseline 50%)</td>
+</tr>
+<tr>
+    <td>Evolution dominance (Codex 지적)</td>
+    <td>on/off ablation, 각 N=1000</td>
+    <td><span class="tag good">반증</span> Evolution OFF에서 strict 일치 ↑</td>
+</tr>
+<tr>
+    <td>P2-1 결과 오버레이 가림</td>
+    <td>클라이언트 핸들러 추적 + pendingLineupData 패턴</td>
+    <td><span class="tag good">수정</span> 옵션 1 적용</td>
+</tr>
+<tr>
+    <td>P2-2 stats 파일 오염</td>
+    <td>.gitignore 추가, untracked 격리</td>
+    <td><span class="tag good">수정</span> git status에서 제거</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="root-cause">5. 진짜 원인 — 종합 결론</h2>
+
+<div class="callout good">
+    <strong>코드는 정상.</strong> 모든 random 변수(<code>baseDurations</code>, <code>speedChangeSeed</code>, gimmicks)는 매 라운드 새로 생성. 시드 고정 없음. 1등 분포 균등. Trace 반복 baseline 수준. Evolution은 다양성을 늘림.
+</div>
+
+<h3>사용자 체감의 진짜 메커니즘</h3>
+
+<table>
+<thead>
+<tr><th>요인</th><th>설명</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td><code>unbetted_stop</code> 기믹</td>
+    <td>베팅 안 된 말 4마리는 즉시 정지 → 하위 4등 deterministic. 6마리 race가 사실상 <strong>2-way race로 단순화</strong></td>
+</tr>
+<tr>
+    <td>좁은 random 폭</td>
+    <td>speedRange [85, 95] km/h → baseDuration ±6%. 두 vehicle 차이를 만드는 random 신호가 약함</td>
+</tr>
+<tr>
+    <td>50/50 동전 던지기</td>
+    <td>2-way race + sunny 100% + modifier 1.00 → 두 말 사이 50/50. 인접 두 라운드 같은 1등 = 50% 자연 우연</td>
+</tr>
+<tr>
+    <td>인지 편향 (frequency illusion)</td>
+    <td>같은 결과는 강하게 기억, 다른 결과는 흘려보냄. 4번 중 2번 같아도 "자주 그래" 체감</td>
+</tr>
+<tr>
+    <td>베팅 메타 자기 강화</td>
+    <td>"boat 강해" 학습 → 같은 lane 베팅 → 같은 두 말 경쟁 → 같은 결과 패턴 강화</td>
+</tr>
+<tr>
+    <td>구조적 고정값 (Evolution 0.55, slowmo 4.9m)</td>
+    <td>설계된 상수 — 매 라운드 같은 게 정상. 로그에서 반복 출력되는 건 버그 아님</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="discarded">6. 폐기된 가설/계획</h2>
+
+<table>
+<thead>
+<tr><th>계획</th><th>폐기 사유</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td>Phase 2 안티-편향 재시뮬</td>
+    <td>chi²=0.036 + trace 반복 baseline 수준 → 진짜 random인데 인위적 보정은 새 결정성 만듦. 사용자도 "직전 1등 절대 안 됨" 메타 위험 지적</td>
+</tr>
+<tr>
+    <td>기믹 패턴 70% 유사 재추출</td>
+    <td>실제 ≥70% 0건. trigger 자체가 발동 안 함</td>
+</tr>
+<tr>
+    <td>weather config 정상화</td>
+    <td>weather는 매 라운드 동일이라 라운드 간 차별화 요인 아님. modifier도 sunny에서 모두 1.00</td>
+</tr>
+<tr>
+    <td>vehicleModifiers 차이 부여</td>
+    <td>vehicle별 강약 메타 학습 위험. 게임 디자인 회의 필요한 사안 (별도 트랙)</td>
+</tr>
+<tr>
+    <td>speedRange [85,95] → [70,110] 확장</td>
+    <td>photo finish 빈도 ↓ (게임 흥미 손실). 게임 디자인 회의 필요</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+    <strong>별도 검토 가치 있는 발견</strong> — Evolution boostMultiplier 2.8 × 5초가 매우 강력해서 "누가 50% 시점에 꼴등이냐"가 결과를 dominate하는 구조. 게임 디자인 측면 영향 분석은 별도 트랙으로 분리 가능 (지금 작업과 무관).
+</div>
+
+<h2 id="next-actions">7. 다음 단계</h2>
+
+<h3>즉시 진행 가능</h3>
+<ol>
+    <li><strong>P2-1 수동 QA</strong> — 로컬 5173, 2탭, 결과 오버레이가 닫히지 않고 사용자가 닫을 때 새 라인업 표시되는지 확인</li>
+    <li><strong>commit + push</strong> — 모든 변경 한 번에 머지</li>
+    <li><strong>Railway 배포 후 모니터링</strong> — <code>[경마 시작] selectedVehicleTypes 유지: [...]</code> 가 라운드마다 다른 배열인지 확인</li>
+</ol>
+
+<h3>옵션 (별도 트랙)</h3>
+<ul>
+    <li>Evolution 강도 회의 — boostMultiplier 2.8 / 5초가 결과 dominate하는 구조 검토</li>
+    <li>speedRange / vehicleModifier 게임 디자인 회의 — 결과 다양성 ↑ vs photo finish ↓ 트레이드오프</li>
+    <li>"기믹이 발동해도 결과가 뒤집히지 않는 박진감" 측면 검토 (Coder 보고에서 제기된 게임 디자인 피드백)</li>
+</ul>
+
+<h3>변경 파일 최종 목록</h3>
+<pre><code>Modified (3):
+  M socket/horse.js       (Phase 1: +77 -269)
+  M js/horse-race.js      (P2-1: +30 -5)
+  M .gitignore            (P2-2: +4)
+
+Untracked (6, 신규 commit 대상):
+  AutoTest/horse-race/test-rank-distribution.js
+  AutoTest/horse-race/test-rank-distribution-real.js
+  AutoTest/horse-race/test-gimmick-similarity.js
+  AutoTest/horse-race/test-trace-repetition.js
+  AutoTest/horse-race/test-evolution-ablation.js
+  docs/etc/2026-04-29-horse-lineup-reshuffle-report.html
+  docs/etc/2026-04-30-horse-final-summary.html  (이 문서)
+
+Excluded (gitignore):
+  config/vehicle-stats.json
+  stats.json</code></pre>
+
+<footer>
+    LAMDiceBot — Horse Race Probability Bias Investigation Final Summary<br>
+    Generated 2026-04-30 · branch <code>feat/bridge-cross-history-v1</code><br>
+    Verifications: chi² × 2, similarity, trace repetition, evolution ablation · Codex native + adversarial review · 모두 통과
+</footer>
+
+</div>
+</body>
+</html>
