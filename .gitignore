@@ -62,5 +62,9 @@ assets/bridge-cross_backup/
 assets/backgrounds/vehicle-flat/
 assets/backgrounds/vehicle-generated/
 
+# AutoTest 런타임 산출물 (DB fallback 파일 — 운영 환경에서는 DB 사용)
+config/vehicle-stats.json
+stats.json
+
 # docs/는 협업 추적 폴더라 이그노어 X
 # AutoTest/는 dev 도구 폴더라 이그노어 X — 필요한 것만 git add
