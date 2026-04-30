@@ -167,6 +167,9 @@ module.exports = (socket, io, ctx) => {
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             gameState: {
                 ...gameState,
+                // 보안: bridgeCross.safeRows 평문 누출 방지 (impl §9-1).
+                // Phase 1 정책 = 재진입 시 관전 모드라 클라가 bridgeCross 정보 없어도 무방.
+                bridgeCross: undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
                 frequentMenus: gameState.frequentMenus
@@ -1035,13 +1038,24 @@ module.exports = (socket, io, ctx) => {
                 delete gameState.userHorseBets[socket.userName];
             }
 
-            // 🔧 퇴장한 사용자의 다리건너기 색상 베팅 삭제
-            if (gameState.bridgeCross && gameState.bridgeCross.userColorBets &&
-                gameState.bridgeCross.userColorBets[socket.userName] !== undefined) {
-                delete gameState.bridgeCross.userColorBets[socket.userName];
+            // 🔧 퇴장한 사용자의 다리건너기(user-driven) 데이터 삭제
+            if (gameState.bridgeCross) {
+                var bc = gameState.bridgeCross;
+                if (bc.participants && Array.isArray(bc.participants)) {
+                    bc.participants = bc.participants.filter(function (p) { return p && p.userName !== socket.userName; });
+                }
+                if (bc.pendingChoices && bc.pendingChoices[socket.userName] !== undefined) {
+                    delete bc.pendingChoices[socket.userName];
+                }
+                if (bc.finishedUsers && Array.isArray(bc.finishedUsers)) {
+                    bc.finishedUsers = bc.finishedUsers.filter(function (n) { return n !== socket.userName; });
+                }
+                if (bc.fallenUsers && Array.isArray(bc.fallenUsers)) {
+                    bc.fallenUsers = bc.fallenUsers.filter(function (n) { return n !== socket.userName; });
+                }
             }
-            // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js:139)가 차단.
-            // 일반 사용자 leaveRoom 시 timeout을 cleanup하면 진행 중 게임이 stuck하므로 손대지 않는다.
+            // 0명 leave 후 dead timer 방지: endTimeout/waveTimer는 진행 중 게임 stuck 방지를 위해
+            // 여기서 cleanup하지 않는다. socket/bridge-cross.js의 endGame 0명 가드가 처리.
         }
 
         // 호스트가 나가는 경우

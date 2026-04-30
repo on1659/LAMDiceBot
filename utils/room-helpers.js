@@ -61,19 +61,26 @@ function createRoomGameState() {
         craneGameHistory: [],
         isCraneGameActive: false,
         bridgeCross: {
+            // user-driven 모델 (2026-04-30):
+            // 'idle' | 'ready-wait' | 'playing' | 'finished'
             phase: 'idle',
-            userColorBets: {},
-            activeColors: [],
-            safeRows: [],
-            scenarios: [],
-            bettingDeadline: 0,
-            bettingTimeout: null,
-            endTimeout: null,
+            // 라운드 데이터 (게임 시작 시 설정)
+            participants: [],          // [{userName, colorIndex, mode}]
+            safeRows: [],              // server-only, length=6, 'top'|'bottom' — 절대 클라 노출 금지
+            brokenRows: [],            // [{top:bool, bottom:bool}] x 6 — 시각용 누적
+            currentCol: 0,             // 0~5
+            waveDeadline: 0,           // Date.now() + 3000
+            pendingChoices: {},        // {[userName]: 'top'|'bottom'}
+            waveTimer: null,           // setTimeout handle (wave timeout)
+            waveProcessing: false,     // race 가드
+            // 진행 추적
+            finishedUsers: [],         // 마지막 col 통과자 = winner
+            fallenUsers: [],           // 도중 추락자
+            // 호환 / 기존 필드
             isBridgeCrossActive: false,
             bridgeCrossHistory: [],
             raceRound: 0,
-            winnerColor: null,
-            passingColors: [],
+            endTimeout: null,
             winners: []
         },
     };

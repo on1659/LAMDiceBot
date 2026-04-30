@@ -39,90 +39,141 @@
     max-width: 800px !important;
 }
 
-.bridge-betting-section {
+.bridge-playing-section {
+    margin-bottom: 12px;
+}
+
+/* ========== Wave 선택 패널 (게임 진행 중) ========== */
+
+.bridge-wave-panel {
     background: var(--bg-white);
-    border: 2px solid var(--bridge-500);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 10px rgba(var(--bridge-500-rgb), 0.15);
+    border: 3px solid var(--bridge-500);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 18px rgba(var(--bridge-500-rgb), 0.22);
 }
 
-.bridge-color-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+.bridge-wave-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
 }
 
-@media (min-width: 600px) {
-    .bridge-color-grid {
-        grid-template-columns: repeat(6, 1fr);
-    }
-}
-
-.bridge-color-card {
-    position: relative;
-    cursor: pointer;
-    border-radius: 10px;
-    padding: 14px 8px;
-    text-align: center;
-    color: white;
-    font-weight: bold;
+.bridge-wave-label {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--bridge-accent);
     font-family: 'Jua', 'Segoe UI', sans-serif;
-    border: 3px solid transparent;
-    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+
+.bridge-wave-countdown {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--bridge-500);
+    line-height: 1;
+    min-width: 40px;
+    text-align: center;
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+}
+
+.bridge-wave-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.bridge-wave-btn {
+    padding: 18px 10px;
+    border: 3px solid var(--bridge-500);
+    border-radius: 12px;
+    background: var(--bg-white);
+    color: var(--bridge-accent);
+    font-weight: 900;
+    font-size: 18px;
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.bridge-color-card[data-color="0"] { background: var(--bridge-color-0); }
-.bridge-color-card[data-color="1"] { background: var(--bridge-color-1); }
-.bridge-color-card[data-color="2"] { background: var(--bridge-color-2); }
-.bridge-color-card[data-color="3"] { background: var(--bridge-color-3); }
-.bridge-color-card[data-color="4"] { background: var(--bridge-color-4); }
-.bridge-color-card[data-color="5"] { background: var(--bridge-color-5); }
-
-.bridge-color-card:hover {
+.bridge-wave-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 
-.bridge-color-card.selected {
-    border-color: var(--text-primary);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0 0 2px white;
-    transform: translateY(-2px);
+.bridge-wave-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
 }
 
-.bridge-color-card[disabled],
-.bridge-color-card.disabled {
+.bridge-wave-btn.locked {
+    background: var(--bridge-gradient);
+    color: white;
+    border-color: transparent;
+}
+
+.bridge-wave-btn[disabled],
+.bridge-wave-btn.disabled {
     cursor: not-allowed;
     opacity: 0.5;
     pointer-events: none;
 }
 
-.bridge-color-card .color-emoji {
-    font-size: 24px;
-    line-height: 1;
-    margin-bottom: 4px;
+.bridge-wave-btn-top {
+    /* 위 — 추가 시각 차이는 글자/이모지로 구분 */
 }
 
-.bridge-color-card .color-name {
+.bridge-wave-btn-bottom {
+    /* 아래 */
+}
+
+.bridge-wave-status {
+    text-align: center;
+    margin-top: 10px;
     font-size: 13px;
+    color: var(--text-secondary);
+    min-height: 18px;
 }
 
-.bridge-color-card .my-mark {
-    position: absolute;
-    top: 4px;
-    right: 6px;
-    font-size: 10px;
-    background: rgba(255, 255, 255, 0.95);
-    color: var(--text-primary);
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-weight: bold;
+.bridge-wave-decision-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+    min-height: 22px;
 }
 
-.bridge-playing-section {
-    margin-bottom: 12px;
+.bridge-wave-decision-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    background: var(--yellow-50);
+    border: 1px solid var(--bridge-500);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--bridge-accent);
+    font-weight: 600;
+}
+
+.bridge-wave-decision-item.decided {
+    background: var(--bridge-gradient);
+    color: white;
+    border-color: transparent;
+}
+
+@media (max-width: 480px) {
+    .bridge-wave-btn {
+        padding: 14px 6px;
+        font-size: 16px;
+    }
+    .bridge-wave-countdown {
+        font-size: 28px;
+    }
 }
 
 /* ========== 캔버스 게임 영역 ========== */

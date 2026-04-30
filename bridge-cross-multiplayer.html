@@ -153,29 +153,27 @@
                 </div>
             </div>
 
-            <!-- 베팅 영역: 6색 카드 + 카운트다운 + 인원 카운터 -->
-            <div id="bettingSection" class="bridge-betting-section" style="display: none;">
-                <div class="users-title" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>🎯 색상 베팅</span>
-                    <span id="bridgeCountdown" style="color: var(--bridge-accent); font-weight: bold;">15초</span>
-                </div>
-                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                    누가 다리를 건널까? 색을 선택하세요. (다시 누르면 취소)
-                </div>
-                <div id="bridgeColorGrid" class="bridge-color-grid"></div>
-                <div id="bridgeBettorCount" style="text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 13px;">
-                    베팅한 사람: <span id="bridgeBettorCountValue">0</span>명
-                </div>
-                <!-- 준비했지만 베팅 안 한 사람 (horse-race notSelectedVehicleSection 패턴) -->
-                <div id="nonBettorSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
-                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 베팅 안 한 사람</div>
-                    <div id="nonBettorList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
-                </div>
-            </div>
-
             <!-- 게임 진행 캡션 (캔버스 위에 게임 정보 표시) -->
             <div id="bridgePlayingSection" class="bridge-playing-section" style="display: none;">
                 <div id="bridgePlayingDetail" style="text-align:center; padding:8px 12px; background: var(--bridge-accent); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">결과를 확인 중입니다.</div>
+            </div>
+
+            <!-- Wave 선택 패널 (게임 진행 중, wave-wait 시 활성) -->
+            <div id="waveChoicePanel" class="bridge-wave-panel" style="display: none;">
+                <div class="bridge-wave-header">
+                    <span class="bridge-wave-label">🌉 <span id="waveColLabel">1</span>번 발판 선택</span>
+                    <span class="bridge-wave-countdown" id="waveCountdown">3</span>
+                </div>
+                <div class="bridge-wave-buttons">
+                    <button type="button" id="waveTopBtn" class="bridge-wave-btn bridge-wave-btn-top" onclick="submitWaveChoice('top')">
+                        ▲ 위 (Top)
+                    </button>
+                    <button type="button" id="waveBottomBtn" class="bridge-wave-btn bridge-wave-btn-bottom" onclick="submitWaveChoice('bottom')">
+                        ▼ 아래 (Bottom)
+                    </button>
+                </div>
+                <div id="waveChoiceStatus" class="bridge-wave-status">위 또는 아래를 선택하세요!</div>
+                <div id="waveDecisionList" class="bridge-wave-decision-list"></div>
             </div>
 
             <!-- 호스트 컨트롤 -->
