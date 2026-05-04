@@ -74,8 +74,15 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     <div class="flex-row" style="margin-top: 8px;">
         <button class="btn-blue btn-sm" onclick="readyAll()">전원 준비</button>
         <button class="btn-ghost btn-sm" onclick="unreadyAll()">전원 준비 취소</button>
-        <button class="btn-green btn-sm" onclick="quickFlow()">⚡ 입장+준비+베팅 한번에</button>
-        <button class="btn-ghost btn-sm" onclick="cancelAllBets()">베팅 취소</button>
+        <button class="btn-green btn-sm" onclick="quickFlow()">⚡ 입장+준비+베팅 한번에 (옛)</button>
+        <button class="btn-ghost btn-sm" onclick="cancelAllBets()">베팅 취소 (옛)</button>
+    </div>
+    <div class="flex-row" style="margin-top: 8px; padding: 6px 8px; background: rgba(66,237,255,0.06); border: 1px solid #42edff; border-radius: 5px;">
+        <span style="font-size: 11px; color: #42edff; font-weight: bold; margin-right: 4px;">🎨 색 선택 (신규 user-driven 모델)</span>
+        <button class="btn-cyan btn-sm" onclick="pickColorAll()">순차 색 선택 (i%6)</button>
+        <button class="btn-purple btn-sm" onclick="pickColorAllSame()">전원 같은 색</button>
+        <button class="btn-orange btn-sm" onclick="pickColorRandom()">랜덤 색</button>
+        <button class="btn-green btn-sm" onclick="quickFlowUserDriven()">⚡ 입장+준비+색선택 (신규)</button>
     </div>
     <div id="botList" style="margin-top: 10px;"><span style="color:#555">봇 없음</span></div>
 </div>
@@ -233,8 +240,17 @@ function joinOneBot(name) {
 
         // bridge-cross 이벤트
         s.on('bridge-cross:selectionConfirm', d => {
+            // 옛 베팅 모델 호환 (현재 서버는 emit 안 함)
             bot.colorIndex = (d && typeof d.colorIndex === 'number') ? d.colorIndex : null;
             updateBotList();
+        });
+        // 신규 user-driven 모델 — 색 선택 broadcast
+        s.on('bridge-cross:colorUpdated', d => {
+            if (!d || typeof d.userName !== 'string') return;
+            if (d.userName === name && typeof d.colorIndex === 'number') {
+                bot.colorIndex = d.colorIndex;
+                updateBotList();
+            }
         });
         s.on('bridge-cross:gameStart', d => {
             const M = (d && d.activeColors) ? d.activeColors.length : 0;
@@ -351,6 +367,53 @@ async function quickFlow() {
     readyAll();   // 입장 시 자동 ready지만 명시적 동기화
     await sleep(300);
     betAll();
+}
+
+// ========== 신규 user-driven 모델 색 선택 ==========
+
+function pickColorAll() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    joined.forEach((bot, i) => {
+        const c = i % 6;
+        bot.socket.emit('bridge-cross:pickColor', { colorIndex: c });
+        bot.colorIndex = c;
+    });
+    dlog(`${joined.length}봇 순차 색 선택 (i%6)`, 'ok');
+    updateBotList();
+}
+
+function pickColorAllSame() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const c = Math.floor(Math.random() * 6);
+    joined.forEach(bot => {
+        bot.socket.emit('bridge-cross:pickColor', { colorIndex: c });
+        bot.colorIndex = c;
+    });
+    dlog(`${joined.length}봇 모두 ${COLOR_NAMES[c]} 색 선택`, 'ok');
+    updateBotList();
+}
+
+function pickColorRandom() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    joined.forEach(bot => {
+        const c = Math.floor(Math.random() * 6);
+        bot.socket.emit('bridge-cross:pickColor', { colorIndex: c });
+        bot.colorIndex = c;
+    });
+    dlog(`${joined.length}봇 랜덤 색 선택`, 'ok');
+    updateBotList();
+}
+
+async function quickFlowUserDriven() {
+    if (!selectedRoomId) { dlog('방을 먼저 선택하세요', 'err'); return; }
+    await joinBots();
+    await sleep(500);
+    readyAll();
+    await sleep(300);
+    pickColorAll();
 }
 </script>
 </body>

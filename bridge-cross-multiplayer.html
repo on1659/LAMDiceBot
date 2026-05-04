@@ -153,28 +153,25 @@
                 </div>
             </div>
 
+            <!-- 색 선택 섹션 (ready phase) — 본인 캐릭터 색 결정 -->
+            <div id="colorPickerSection" class="bridge-color-picker-section">
+                <div class="users-title" style="margin-bottom: 8px;">🎨 내 캐릭터 색 선택 <span style="font-size:12px; color:var(--text-secondary); font-weight:normal; margin-left:6px;">— 색까지 선택해야 게임 시작 가능</span></div>
+                <div class="bridge-color-grid">
+                    <div class="bridge-color-card" data-color="0" onclick="pickBridgeColor(0)"><div class="color-emoji">🔴</div><div class="color-name">빨강</div></div>
+                    <div class="bridge-color-card" data-color="1" onclick="pickBridgeColor(1)"><div class="color-emoji">🟠</div><div class="color-name">주황</div></div>
+                    <div class="bridge-color-card" data-color="2" onclick="pickBridgeColor(2)"><div class="color-emoji">🟡</div><div class="color-name">노랑</div></div>
+                    <div class="bridge-color-card" data-color="3" onclick="pickBridgeColor(3)"><div class="color-emoji">🟢</div><div class="color-name">초록</div></div>
+                    <div class="bridge-color-card" data-color="4" onclick="pickBridgeColor(4)"><div class="color-emoji">🔵</div><div class="color-name">파랑</div></div>
+                    <div class="bridge-color-card" data-color="5" onclick="pickBridgeColor(5)"><div class="color-emoji">🟣</div><div class="color-name">남색</div></div>
+                </div>
+            </div>
+
             <!-- 게임 진행 캡션 (캔버스 위에 게임 정보 표시) -->
             <div id="bridgePlayingSection" class="bridge-playing-section" style="display: none;">
                 <div id="bridgePlayingDetail" style="text-align:center; padding:8px 12px; background: var(--bridge-accent); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">결과를 확인 중입니다.</div>
             </div>
 
-            <!-- Wave 선택 패널 (게임 진행 중, wave-wait 시 활성) -->
-            <div id="waveChoicePanel" class="bridge-wave-panel" style="display: none;">
-                <div class="bridge-wave-header">
-                    <span class="bridge-wave-label">🌉 <span id="waveColLabel">1</span>번 발판 선택</span>
-                    <span class="bridge-wave-countdown" id="waveCountdown">3</span>
-                </div>
-                <div class="bridge-wave-buttons">
-                    <button type="button" id="waveTopBtn" class="bridge-wave-btn bridge-wave-btn-top" onclick="submitWaveChoice('top')">
-                        ▲ 위 (Top)
-                    </button>
-                    <button type="button" id="waveBottomBtn" class="bridge-wave-btn bridge-wave-btn-bottom" onclick="submitWaveChoice('bottom')">
-                        ▼ 아래 (Bottom)
-                    </button>
-                </div>
-                <div id="waveChoiceStatus" class="bridge-wave-status">위 또는 아래를 선택하세요!</div>
-                <div id="waveDecisionList" class="bridge-wave-decision-list"></div>
-            </div>
+            <!-- Wave 선택 패널은 캔버스 내 overlay로 이동됨 (#waveChoicePanel — stage-wrap 안) -->
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
@@ -263,11 +260,17 @@
             <section class="stage-wrap" id="bridgeCrossGameArea" style="display: none;">
                 <!-- 인라인 display:none은 페이지 로드 시 IIFE 초기화 안전, JS에서 베팅 UI 표시할 때 block으로 바꿈 -->
                 <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
-                <div class="zoom-ui" id="zoomUi">
-                    <button data-zoom="-0.1" type="button" aria-label="줌 아웃">−</button>
-                    <span class="zoom-value" id="zoomValue">1.0×</span>
-                    <button data-zoom="+0.1" type="button" aria-label="줌 인">+</button>
-                    <button data-zoom="reset" type="button" aria-label="리셋">⟲</button>
+                <!-- Wave 선택 패널 (캔버스 내 중앙 상단 overlay — 사용자 결정 2026-04-30) -->
+                <div id="waveChoicePanel" class="bridge-wave-panel" style="display: none;">
+                    <div class="bridge-wave-header">
+                        <span class="bridge-wave-label">🌉 <span id="waveColLabel">1</span>번 발판</span>
+                        <span class="bridge-wave-countdown" id="waveCountdown">3</span>
+                    </div>
+                    <div class="bridge-wave-buttons">
+                        <button type="button" id="waveTopBtn" class="bridge-wave-btn bridge-wave-btn-top" onclick="submitWaveChoice('top')" onmouseenter="setBridgeTileHover('top')" onmouseleave="setBridgeTileHover(null)">◀ 왼쪽 <span class="pick-count" id="waveTopCount">0</span></button>
+                        <button type="button" id="waveBottomBtn" class="bridge-wave-btn bridge-wave-btn-bottom" onclick="submitWaveChoice('bottom')" onmouseenter="setBridgeTileHover('bottom')" onmouseleave="setBridgeTileHover(null)">▶ 오른쪽 <span class="pick-count" id="waveBottomCount">0</span></button>
+                    </div>
+                    <div id="waveChoiceStatus" class="bridge-wave-status">왼쪽 또는 오른쪽을 선택하세요!</div>
                 </div>
                 <div class="debug-panel" id="debugPanel" hidden>
                     <div class="debug-title">Stage Layout Debug — D 키로 토글</div>

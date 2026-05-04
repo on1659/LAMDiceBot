@@ -11,7 +11,7 @@ const BRIDGE_WAVE_SEC = 3;           // 한 col 도전 wave 제한 시간 (초)
 const BRIDGE_WAVE_MS = BRIDGE_WAVE_SEC * 1000;
 const BRIDGE_HISTORY_MAX = 100;      // 게임 히스토리 최대 보관 수
 const BRIDGE_MIN_PLAYERS = 1;        // M=1 허용 (decision C)
-const BRIDGE_MAX_PLAYERS = 6;        // 최대 인원 cap (decision G)
+// 캐릭터 수 제한 폐지(2026-04-30): 사용자 후속 — 색은 6개 중 중복 허용, 인원 무제한
 const BRIDGE_INTER_WAVE_MS = 1500;   // wave 사이 시각화 마진
 // 동적 endTimeout: 6 wave * (3s + 1.5s) + 8s 안전장치 = 35s (decision H)
 const BRIDGE_END_TIMEOUT_MS = BRIDGE_COLUMNS * (BRIDGE_WAVE_MS + BRIDGE_INTER_WAVE_MS) + 8000;
@@ -202,23 +202,29 @@ module.exports = (socket, io, ctx) => {
             .map(name => userArray.find(u => u.name === name))
             .filter(u => !!u);
 
-        // 7명+ cap 차단 (decision G)
-        if (readyUserList.length > BRIDGE_MAX_PLAYERS) {
-            socket.emit('bridge-cross:error',
-                `최대 ${BRIDGE_MAX_PLAYERS}명까지만 참가 가능합니다. (현재 준비 ${readyUserList.length}명)`);
-            return;
-        }
         if (readyUserList.length < BRIDGE_MIN_PLAYERS) {
             socket.emit('bridge-cross:error',
                 `최소 ${BRIDGE_MIN_PLAYERS}명 이상 준비 필요합니다.`);
             return;
         }
 
-        // participants 생성: ready 순서 기반, colorIndex 0..5 cyclic
-        // (모드 토글 폐기: mode 필드는 호환성 위해 'manual' 고정 — 클라/payload 형식 보존)
-        const participants = readyUserList.map((u, i) => ({
+        // 색 선택 검증: ready된 user 중 색 안 고른 사람 차단 (사용자 결정 #3)
+        const userColors = bc.userColors || {};
+        const missingColor = readyUserList.filter(u => {
+            const c = userColors[u.name];
+            return typeof c !== 'number' || c < 0 || c >= BRIDGE_COLUMNS;
+        });
+        if (missingColor.length > 0) {
+            socket.emit('bridge-cross:error',
+                `색을 선택하지 않은 사용자: ${missingColor.map(u => u.name).join(', ')}`);
+            return;
+        }
+
+        // participants 생성: ready 순서 + 사용자가 고른 colorIndex (중복 허용)
+        // mode 필드는 호환성 위해 'manual' 고정
+        const participants = readyUserList.map(u => ({
             userName: u.name,
-            colorIndex: i % BRIDGE_COLUMNS,
+            colorIndex: userColors[u.name],
             mode: 'manual'
         }));
 
@@ -419,6 +425,39 @@ module.exports = (socket, io, ctx) => {
 
     // ========== 소켓 이벤트 핸들러 ==========
 
+    // 색 선택 (ready phase) — 본인 캐릭터 색 결정. 중복 허용.
+    socket.on('bridge-cross:pickColor', (data) => {
+        if (!checkRateLimit()) return;
+        if (!data || typeof data.colorIndex !== 'number') return;
+        if (data.colorIndex < 0 || data.colorIndex >= BRIDGE_COLUMNS) return;
+
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) return;
+        if (room.gameType !== 'bridge') return;
+
+        const bc = gameState.bridgeCross;
+        // 게임 진행 중엔 색 변경 불가
+        if (bc.phase === 'playing') {
+            socket.emit('bridge-cross:error', '게임 진행 중에는 색을 변경할 수 없습니다.');
+            return;
+        }
+
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return;
+        const userName = user.name;
+
+        if (!bc.userColors) bc.userColors = {};
+        bc.userColors[userName] = data.colorIndex;
+
+        // 모든 user에게 color 갱신 broadcast (UI 동기화)
+        io.to(room.roomId).emit('bridge-cross:colorUpdated', {
+            userName,
+            colorIndex: data.colorIndex,
+            allColors: { ...bc.userColors }
+        });
+    });
+
     // 위/아래 선택 emit
     socket.on('bridge-cross:choice', (data) => {
         if (!checkRateLimit()) return;
@@ -455,10 +494,24 @@ module.exports = (socket, io, ctx) => {
 
         bc.pendingChoices[userName] = data.choice;
 
-        // 모두 결정 완료 → 즉시 processWave (waveTimer 차단)
+        // 모든 user에게 진행도(카운트) broadcast — 사용자 결정(2026-04-30): 사람 수만 표시
+        let topCount = 0;
+        let bottomCount = 0;
+        Object.values(bc.pendingChoices).forEach(c => {
+            if (c === 'top') topCount += 1;
+            else if (c === 'bottom') bottomCount += 1;
+        });
         const liveCount = bc.participants.filter(p =>
             !bc.finishedUsers.includes(p.userName) && !bc.fallenUsers.includes(p.userName)
         ).length;
+        io.to(room.roomId).emit('bridge-cross:choiceProgress', {
+            col: bc.currentCol,
+            topCount,
+            bottomCount,
+            liveCount
+        });
+
+        // 모두 결정 완료 → 즉시 processWave (waveTimer 차단)
         if (liveCount > 0 && Object.keys(bc.pendingChoices).length >= liveCount) {
             processWave(room, gameState);
         }

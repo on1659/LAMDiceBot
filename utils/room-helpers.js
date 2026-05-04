@@ -56,6 +56,9 @@ function createRoomGameState() {
         isHorseRaceActive: false,
         availableHorses: [],
         userHorseBets: {},
+        userRankVotes: {},        // { [userName]: 1-based rank } — N등 찾기 투표
+        targetRank: null,         // 룰렛 결정 결과 등수. null = 'last' fallback
+        rouletteResult: null,     // { segments, winningRank, animDurationMs } — 클라 애니용
         horseRankings: [],
         horseRaceMode: 'last',
         craneGameHistory: [],
@@ -73,6 +76,7 @@ function createRoomGameState() {
             pendingChoices: {},        // {[userName]: 'top'|'bottom'}
             waveTimer: null,           // setTimeout handle (wave timeout)
             waveProcessing: false,     // race 가드
+            userColors: {},            // {[userName]: colorIndex} — ready phase에서 본인 색 선택
             // 진행 추적
             finishedUsers: [],         // 마지막 col 통과자 = winner
             fallenUsers: [],           // 도중 추락자
