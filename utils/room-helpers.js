@@ -64,28 +64,31 @@ function createRoomGameState() {
         craneGameHistory: [],
         isCraneGameActive: false,
         bridgeCross: {
-            // user-driven 모델 (2026-04-30):
-            // 'idle' | 'ready-wait' | 'playing' | 'finished'
+            // bonus-race 모델 (2026-05-05):
+            // 'idle' | 'ready-wait' | 'playing' | 'sudden-death' | 'finished'
             phase: 'idle',
             // 라운드 데이터 (게임 시작 시 설정)
             participants: [],          // [{userName, colorIndex, mode}]
-            safeRows: [],              // server-only, length=6, 'top'|'bottom' — 절대 클라 노출 금지
-            brokenRows: [],            // [{top:bool, bottom:bool}] x 6 — 시각용 누적
-            currentCol: 0,             // 0~5
+            // server-only (절대 클라 노출 금지) — 8 col 보너스 row + 보너스 점프 칸수
+            bonusRows: [],             // length=8, 'top'|'bottom'
+            bonusAmounts: [],          // length=8, 2|3
+            // 진행 추적 (bonus-race)
+            userProgress: {},          // {[userName]: 0~8}
+            finishOrder: [],           // [userName1, userName2, ...] — 도달 순서
+            currentWave: 0,            // 1~12 (BRIDGE_MAX_WAVES). sudden death 시 13+
+            suddenDeathCount: 0,       // 0~6 (안전장치)
+            // turn 진행
             waveDeadline: 0,           // Date.now() + 3000
             pendingChoices: {},        // {[userName]: 'top'|'bottom'}
             waveTimer: null,           // setTimeout handle (wave timeout)
             waveProcessing: false,     // race 가드
+            interTurnTimer: null,      // turn 사이 대기 timer
             userColors: {},            // {[userName]: colorIndex} — ready phase에서 본인 색 선택
-            // 진행 추적
-            finishedUsers: [],         // 마지막 col 통과자 = winner
-            fallenUsers: [],           // 도중 추락자
             // 호환 / 기존 필드
             isBridgeCrossActive: false,
             bridgeCrossHistory: [],
             raceRound: 0,
-            endTimeout: null,
-            winners: []
+            endTimeout: null
         },
     };
 }

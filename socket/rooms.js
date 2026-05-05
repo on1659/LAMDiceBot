@@ -167,7 +167,7 @@ module.exports = (socket, io, ctx) => {
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             gameState: {
                 ...gameState,
-                // 보안: bridgeCross.safeRows 평문 누출 방지 (impl §9-1).
+                // 보안: bridgeCross.bonusRows / bonusAmounts 평문 누출 방지 (bonus-race §10).
                 // Phase 1 정책 = 재진입 시 관전 모드라 클라가 bridgeCross 정보 없어도 무방.
                 bridgeCross: undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
@@ -1053,7 +1053,7 @@ module.exports = (socket, io, ctx) => {
                 });
             }
 
-            // 🔧 퇴장한 사용자의 다리건너기(user-driven) 데이터 삭제
+            // 🔧 퇴장한 사용자의 다리건너기(bonus-race) 데이터 삭제
             if (gameState.bridgeCross) {
                 var bc = gameState.bridgeCross;
                 if (bc.participants && Array.isArray(bc.participants)) {
@@ -1065,11 +1065,11 @@ module.exports = (socket, io, ctx) => {
                 if (bc.userColors && bc.userColors[socket.userName] !== undefined) {
                     delete bc.userColors[socket.userName];
                 }
-                if (bc.finishedUsers && Array.isArray(bc.finishedUsers)) {
-                    bc.finishedUsers = bc.finishedUsers.filter(function (n) { return n !== socket.userName; });
+                if (bc.userProgress && bc.userProgress[socket.userName] !== undefined) {
+                    delete bc.userProgress[socket.userName];
                 }
-                if (bc.fallenUsers && Array.isArray(bc.fallenUsers)) {
-                    bc.fallenUsers = bc.fallenUsers.filter(function (n) { return n !== socket.userName; });
+                if (bc.finishOrder && Array.isArray(bc.finishOrder)) {
+                    bc.finishOrder = bc.finishOrder.filter(function (n) { return n !== socket.userName; });
                 }
             }
             // 0명 leave 후 dead timer 방지: endTimeout/waveTimer는 진행 중 게임 stuck 방지를 위해
