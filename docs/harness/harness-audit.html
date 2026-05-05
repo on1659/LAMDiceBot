@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>하네스 감사(Harness Audit) — LAMDice</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue:       #0064FF;
+      --blue-light: #EBF3FF;
+      --blue-dark:  #004FCC;
+      --green:      #00B050;
+      --green-light:#E8F8EF;
+      --orange:     #FF6900;
+      --orange-light:#FFF0E6;
+      --red:        #E03131;
+      --red-light:  #FFF0F0;
+      --purple:     #7950F2;
+      --purple-light:#F3F0FF;
+      --gray-50:    #F4F6F8;
+      --gray-100:   #EAECEF;
+      --gray-200:   #D1D5DB;
+      --gray-400:   #8B95A1;
+      --gray-600:   #4E5968;
+      --gray-900:   #1B1D1F;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* Header */
+    .page-header { margin-bottom: 32px; }
+    .breadcrumb {
+      font-size: 13px;
+      color: var(--gray-400);
+      margin-bottom: 10px;
+    }
+    .page-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    .page-header .subtitle {
+      font-size: 15px;
+      color: var(--gray-600);
+    }
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 100px;
+    }
+    .badge-blue   { background: var(--blue-light);   color: var(--blue); }
+    .badge-green  { background: var(--green-light);  color: var(--green); }
+    .badge-orange { background: var(--orange-light); color: var(--orange); }
+    .badge-red    { background: var(--red-light);    color: var(--red); }
+    .badge-purple { background: var(--purple-light); color: var(--purple); }
+    .badge-gray   { background: var(--gray-100);     color: var(--gray-600); }
+
+    /* Section */
+    .section { margin-bottom: 32px; }
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -0.3px;
+    }
+    .section-intro {
+      font-size: 14px;
+      color: var(--gray-600);
+      margin-bottom: 16px;
+    }
+
+    /* Card */
+    .card {
+      background: white;
+      border: 1px solid var(--gray-100);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .card-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      font-weight: 700;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .card-summary {
+      font-size: 14px;
+      color: var(--gray-600);
+      margin-bottom: 16px;
+    }
+
+    /* Rule fields */
+    .rule-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .rule-field {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 12px;
+      font-size: 14px;
+      align-items: start;
+    }
+    .rule-field-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-top: 2px;
+    }
+    .rule-field-body {
+      color: var(--gray-900);
+    }
+
+    /* Code */
+    code, pre {
+      font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    code {
+      background: var(--gray-100);
+      color: var(--gray-900);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    pre {
+      background: var(--gray-900);
+      color: #E8ECEF;
+      padding: 14px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+      line-height: 1.55;
+    }
+    pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+    }
+
+    /* Example box */
+    .example-box {
+      background: var(--orange-light);
+      border-left: 3px solid var(--orange);
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .example-box.found {
+      background: var(--red-light);
+      border-left-color: var(--red);
+    }
+    .example-box.clean {
+      background: var(--green-light);
+      border-left-color: var(--green);
+    }
+    .example-box-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .example-box.found .example-box-title { color: var(--red); }
+    .example-box .example-box-title { color: var(--orange); }
+    .example-box.clean .example-box-title { color: var(--green); }
+
+    /* Action list */
+    ul.action-list {
+      margin: 6px 0 0 18px;
+      padding: 0;
+    }
+    ul.action-list li {
+      margin-bottom: 4px;
+    }
+
+    /* Workflow diagram */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+    .flow-step {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .flow-step.active {
+      background: var(--blue-light);
+      border-color: var(--blue);
+      color: var(--blue-dark);
+    }
+    .flow-arrow {
+      color: var(--gray-400);
+      font-size: 16px;
+    }
+
+    /* Safety callout */
+    .callout {
+      background: var(--blue-light);
+      border-left: 3px solid var(--blue);
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: var(--blue-dark);
+      margin-bottom: 4px;
+    }
+    .callout.warn {
+      background: var(--red-light);
+      border-left-color: var(--red);
+    }
+    .callout.warn .callout-title {
+      color: var(--red);
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .page { padding: 24px 16px 60px; }
+      .page-header h1 { font-size: 22px; }
+      .card { padding: 16px 18px; }
+      .card-title { font-size: 15px; }
+      .rule-field {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+      .rule-field-label { padding-top: 0; }
+      pre { font-size: 12px; padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <header class="page-header">
+      <div class="breadcrumb">docs / harness / harness-audit</div>
+      <h1>하네스 감사 — Harness Audit</h1>
+      <div class="subtitle">
+        LAMDiceBot의 이더(Ether) 하네스를 6가지 룰로 점검하는 슬래시 커맨드.
+        <code>/harness-audit</code> 명령으로 수동 실행, SessionStart 카운터로 10세션마다 자동 알림.
+      </div>
+      <div class="header-meta">
+        <span class="badge badge-blue">v1.0</span>
+        <span class="badge badge-gray">2026-05-04</span>
+        <span class="badge badge-green">분리형(A) 구조</span>
+        <span class="badge badge-purple">Memory-Audit과 짝</span>
+      </div>
+    </header>
+
+    <!-- ===== Overview ===== -->
+    <section class="section">
+      <h2 class="section-title">개요</h2>
+      <p class="section-intro">
+        하네스 폴더(<code>.claude/</code>)는 시간이 지나면서 stale worktree, 끊긴 참조, 안 쓰이는 에이전트, stale lock 파일이 쌓인다.
+        하네스 감사는 이런 누적을 6가지 룰로 자동 검출하고, <strong>발견 즉시 삭제하지 않고 보고서로 제시</strong>해 사용자가 결정하게 한다.
+      </p>
+
+      <div class="flow">
+        <div class="flow-step">SessionStart</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">카운터 +1</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step active">10의 배수?</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">알림 inject</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">/harness-audit 실행</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">사용자 승인 → 정리</div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">Memory-Audit과의 관계</div>
+        하네스 감사와 메모리 감사는 <strong>분리된 슬래시 커맨드</strong>다 (구조 옵션 A).
+        룰의 종류가 다르기 때문 — 메모리는 stale/중복/secret, 하네스는 worktree/orphan/reference.
+        SessionStart 카운터(<code>.claude/hooks/audit-counter.sh</code>)는 둘 모두에 안내 메시지를 보낸다.
+      </div>
+    </section>
+
+    <!-- ===== Rule 1: Stale Worktree ===== -->
+    <section class="section">
+      <h2 class="section-title">6가지 룰</h2>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-num">1</div>
+          <div class="card-title">Stale Worktree</div>
+          <span class="badge badge-orange">정리 우선순위 높음</span>
+        </div>
+        <div class="card-summary">
+          <code>.claude/worktrees/</code>에 남은 옛 에이전트 worktree를 검출하고, dirty 여부를 보고한다.
+        </div>
+
+        <div class="rule-grid">
+          <div class="rule-field">
+            <div class="rule-field-label">무엇</div>
+            <div class="rule-field-body">
+              <code>git worktree list</code>의 외부 worktree 중 main 브랜치 외 모든 항목.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">왜</div>
+            <div class="rule-field-body">
+              에이전트 작업이 끝난 뒤 worktree를 정리하지 않으면 디스크와 git 메타데이터에 누적된다.
+              dirty 상태로 남으면 어떤 작업이었는지 헷갈려서 자료 손실의 위험이 있다.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">어떻게</div>
+            <div class="rule-field-body">
+              <pre><code># 1) 모든 worktree 나열
+git worktree list
+
+# 2) 외부 worktree 각각의 dirty 검사
+for wt in .claude/worktrees/*; do
+  cd "$wt" && git status --porcelain
+done</code></pre>
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">매칭 시</div>
+            <div class="rule-field-body">
+              <ul class="action-list">
+                <li><strong>Clean worktree</strong> → 즉시 <code>git worktree remove &lt;path&gt;</code></li>
+                <li><strong>Dirty worktree</strong> → 사용자 보고 후 결정 (보존 / stash / force remove)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="example-box found">
+          <div class="example-box-title">2026-05-04 발견 사례</div>
+          7개 worktree 중 3개 clean(자동 제거 완료), <strong>4개 dirty</strong>:
+          <code>agent-aa9e925a</code> (자동 주문 잔재 추정),
+          <code>agent-acdb6a3a</code> (경마 스프라이트),
+          <code>bold-shirley-a7d227</code> (공정성 테스트),
+          <code>mystifying-wu</code> (.claude/agents/ 수정).
+          dirty 4개는 보존 후 사용자 판단으로 처리.
+        </div>
+      </div>
+
+      <!-- ===== Rule 2: Stale Lock ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-num">2</div>
+          <div class="card-title">Stale Lock</div>
+          <span class="badge badge-red">긴급</span>
+        </div>
+        <div class="card-summary">
+          <code>.claude/*.lock</code> 파일이 release 안 된 채 남아있으면 다른 세션의 작업이 막힌다.
+        </div>
+
+        <div class="rule-grid">
+          <div class="rule-field">
+            <div class="rule-field-label">무엇</div>
+            <div class="rule-field-body">
+              <code>.claude/scheduled_tasks.lock</code> 등 <code>.lock</code> 확장자 파일.
+              JSON 본문에 <code>acquiredAt</code> 타임스탬프 있는 경우 경과 시간 비교.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">왜</div>
+            <div class="rule-field-body">
+              세션이 비정상 종료되면 락이 해제되지 않는다. 24시간 이상 지속되면 거의 확실히 stale.
+              새 세션이 같은 자원을 요구할 때 충돌하거나 무한 대기에 빠질 수 있다.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">어떻게</div>
+            <div class="rule-field-body">
+              <pre><code># lock 파일에서 acquiredAt 추출 후 24h 비교
+acquired=$(jq -r .acquiredAt .claude/scheduled_tasks.lock)
+now=$(date +%s%3N)
+diff=$(( now - acquired ))
+[ $diff -gt 86400000 ] && echo "STALE"</code></pre>
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">매칭 시</div>
+            <div class="rule-field-body">
+              <ul class="action-list">
+                <li><strong>24h+ stale</strong> → 자동 삭제 안전 (단, pid가 살아있으면 보존)</li>
+                <li><strong>1h~24h</strong> → 보고만, 사용자 판단</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="example-box found">
+          <div class="example-box-title">2026-05-04 발견 사례</div>
+          <code>scheduled_tasks.lock</code> — 8일 전(2026-04-26) 획득된 락이 release 안 됨. 정리 완료.
+        </div>
+      </div>
+
+      <!-- ===== Rule 3: Orphan Files ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-num">3</div>
+          <div class="card-title">Orphan Files (고아 파일)</div>
+          <span class="badge badge-gray">우선순위 낮음</span>
+        </div>
+        <div class="card-summary">
+          <code>agents/</code>, <code>rules/</code>, <code>skills/</code>, <code>commands/</code>에 있지만 어디서도 참조 안 되는 <code>.md</code> 파일.
+        </div>
+
+        <div class="rule-grid">
+          <div class="rule-field">
+            <div class="rule-field-label">무엇</div>
+            <div class="rule-field-body">
+              파일명을 추출 후 다른 모든 마크다운 파일과 코드 파일에서 grep. 0회 매칭이면 고아.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">왜</div>
+            <div class="rule-field-body">
+              하네스를 리팩토링하다 보면 더 안 쓰이는 에이전트나 룰 파일이 남는다.
+              자동으로 삭제하면 위험하지만, 후보 목록은 유용하다.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">어떻게</div>
+            <div class="rule-field-body">
+              <pre><code>for f in .claude/agents/*.md .claude/rules/*.md; do
+  name=$(basename "$f" .md)
+  refs=$(grep -rln "$name\.md\|$name'" \
+    --include="*.md" .claude/ docs/ CLAUDE.md \
+    | grep -v "$f" | wc -l)
+  [ $refs -eq 0 ] && echo "ORPHAN: $f"
+done</code></pre>
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">매칭 시</div>
+            <div class="rule-field-body">
+              <strong>자동 삭제 금지</strong>. 사용자에게 후보 목록만 제시.
+              일부는 의도적으로 자료/참고용으로 남겨둔 것일 수 있다.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Rule 4: Broken References ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-num">4</div>
+          <div class="card-title">Broken References (참조 깨짐)</div>
+          <span class="badge badge-red">긴급</span>
+        </div>
+        <div class="card-summary">
+          <code>CLAUDE.md</code>, <code>harness.md</code>, <code>workflow.md</code>가 가리키는 파일이 실제로 존재하는가.
+        </div>
+
+        <div class="rule-grid">
+          <div class="rule-field">
+            <div class="rule-field-label">무엇</div>
+            <div class="rule-field-body">
+              마크다운 링크 <code>[text](path)</code> 또는 코드 인용 <code>`path/file.md`</code>의 모든 경로.
+              로컬 상대 경로만 검사 (외부 URL 제외).
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">왜</div>
+            <div class="rule-field-body">
+              파일 이동/이름 변경 후 참조가 끊기면 다음 세션에서 Claude가 잘못된 경로를 안내하거나 파일을 못 찾는다.
+              하네스 신뢰성 직접 영향.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">어떻게</div>
+            <div class="rule-field-body">
+              <pre><code># 마크다운 링크에서 경로 추출 후 존재 검증
+grep -oE '\]\([^)]+\.md\)' CLAUDE.md \
+  .claude/rules/*.md \
+  | sed 's/.*(\(.*\))/\1/' \
+  | while read p; do
+      # 템플릿 placeholder({...}) 제외
+      [[ "$p" =~ \{.*\} ]] && continue
+      [ ! -f "$p" ] && echo "BROKEN: $p"
+    done</code></pre>
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">매칭 시</div>
+            <div class="rule-field-body">
+              <ul class="action-list">
+                <li><strong>파일 이름 비슷한 게 있음</strong> → rename 후보 제시</li>
+                <li><strong>완전히 사라짐</strong> → 참조 줄을 제거하거나 새 경로로 갱신</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Rule 5: Hook Integrity ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-num">5</div>
+          <div class="card-title">Hook 무결성</div>
+          <span class="badge badge-blue">검증</span>
+        </div>
+        <div class="card-summary">
+          <code>settings.json</code>에 등록된 hook 스크립트가 실제로 존재하고 실행 권한이 있는가.
+        </div>
+
+        <div class="rule-grid">
+          <div class="rule-field">
+            <div class="rule-field-label">무엇</div>
+            <div class="rule-field-body">
+              <code>.claude/settings.json</code>의 <code>hooks.*.hooks[].command</code> 필드에서
+              <code>$CLAUDE_PROJECT_DIR/.claude/hooks/*.sh</code> 패턴 추출.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">왜</div>
+            <div class="rule-field-body">
+              hook이 등록만 되어 있고 파일이 없거나 chmod +x 안 되어 있으면 매 도구 호출마다 조용히 실패.
+              가드(공정성 검사 등)가 작동 안 하는데 사용자는 모름.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">어떻게</div>
+            <div class="rule-field-body">
+              <pre><code>jq -r '.hooks[][].hooks[].command' \
+  .claude/settings.json \
+  | grep -oE '\.claude/hooks/[^"]+\.sh' \
+  | sort -u \
+  | while read h; do
+      [ ! -x "$h" ] && echo "BROKEN HOOK: $h"
+    done</code></pre>
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">매칭 시</div>
+            <div class="rule-field-body">
+              <ul class="action-list">
+                <li><strong>파일 없음</strong> → settings.json에서 등록 제거 또는 hook 작성</li>
+                <li><strong>실행 권한 없음</strong> → <code>chmod +x</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Rule 6: Stale Agent ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-num">6</div>
+          <div class="card-title">Stale Agent</div>
+          <span class="badge badge-gray">우선순위 낮음</span>
+        </div>
+        <div class="card-summary">
+          <code>.claude/agents/*.md</code>가 60일 이상 수정 안 된 경우. (<code>rules/</code>, <code>skills/</code>는 안정적이라 stale OK)
+        </div>
+
+        <div class="rule-grid">
+          <div class="rule-field">
+            <div class="rule-field-label">무엇</div>
+            <div class="rule-field-body">
+              에이전트 정의 파일의 마지막 수정 시각이 60일 이상 지난 것.
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">왜</div>
+            <div class="rule-field-body">
+              에이전트 정의는 워크플로우와 함께 진화한다. 60일+ 변경 없는 에이전트는
+              실제로 호출되고 있지 않거나, 호출되더라도 다른 에이전트와 룰이 어긋날 가능성.
+              <strong>룰 파일은 의도적으로 안정적이라 stale 대상 아님.</strong>
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">어떻게</div>
+            <div class="rule-field-body">
+              <pre><code>find .claude/agents -name "*.md" \
+  -mtime +60 \
+  -exec stat -c "%y %n" {} \;</code></pre>
+            </div>
+          </div>
+          <div class="rule-field">
+            <div class="rule-field-label">매칭 시</div>
+            <div class="rule-field-body">
+              <strong>자동 삭제 금지</strong>. 후보 목록 + 마지막 수정일 보고만.
+              사용자가 "아직 쓰는가?" 판단.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== Workflow ===== -->
+    <section class="section">
+      <h2 class="section-title">실행 흐름</h2>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px">수동 실행: <code>/harness-audit</code></div>
+        <ol style="margin-left:18px;font-size:14px;color:var(--gray-600)">
+          <li>6개 룰을 순차 적용 (병렬 가능한 것은 병렬)</li>
+          <li>발견된 후보를 표 형식 보고서로 제시</li>
+          <li>각 후보에 권장 액션 명시 (<strong>제거 / 보존 / 보고만 / 수동 검토</strong>)</li>
+          <li>사용자 승인 → 일괄 처리. <strong>자동 삭제 금지.</strong></li>
+          <li>처리 후 before/after 통계 보고</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px">자동 알림: SessionStart 카운터</div>
+        <p style="font-size:14px;color:var(--gray-600);margin-bottom:8px">
+          <code>.claude/hooks/audit-counter.sh</code>가 매 세션 시작 시 카운터를 +1한다.
+          10의 배수에 도달하면 알림 메시지를 inject:
+        </p>
+        <pre><code>🔔 감사 주기 도달 (세션 N회).
+   /memory-audit + /harness-audit 점검을 권장합니다.</code></pre>
+        <p style="font-size:13px;color:var(--gray-400);margin-top:8px">
+          카운터 위치: <code>~/.claude/projects/d--Work-LAMDiceBot/memory/.audit-counter</code>
+        </p>
+      </div>
+    </section>
+
+    <!-- ===== Safety Guards ===== -->
+    <section class="section">
+      <h2 class="section-title">안전 가드</h2>
+
+      <div class="callout warn">
+        <div class="callout-title">자동 삭제 금지 — 모든 destructive 액션은 사용자 승인 필요</div>
+        룰 1(dirty worktree), 3(orphan), 6(stale agent)은 <strong>보고만</strong> 한다.
+        룰 1(clean worktree)과 2(24h+ lock)만 자동 처리 안전.
+        룰 4(broken ref), 5(hook 무결성)은 자동 수정이 의도와 다를 수 있어 사용자 확인 필수.
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">Memory-Audit과 충돌 없음</div>
+        하네스 감사는 <code>.claude/</code>만 본다. 메모리 폴더(<code>~/.claude/projects/.../memory/</code>)는 건드리지 않는다.
+        반대로 <code>/memory-audit</code>은 메모리만 보고 <code>.claude/</code>는 건드리지 않는다.
+      </div>
+    </section>
+
+    <!-- ===== Related Files ===== -->
+    <section class="section">
+      <h2 class="section-title">관련 파일</h2>
+      <div class="card">
+        <ul style="list-style:none;font-size:14px;display:flex;flex-direction:column;gap:8px">
+          <li><code>.claude/commands/harness-audit.md</code> — 슬래시 커맨드 정의 (Claude가 읽음)</li>
+          <li><code>.claude/hooks/audit-counter.sh</code> — SessionStart 카운터 + 알림</li>
+          <li><code>.claude/settings.json</code> — hook 등록</li>
+          <li><code>.claude/commands/memory-audit.md</code> — 짝꿍 슬래시 커맨드</li>
+          <li><code>docs/harness/harness-audit.html</code> — 이 문서</li>
+          <li><code>docs/harness/agent-mapping.md</code> — 에이전트별 행동 지시 (참고)</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer style="margin-top:48px;padding-top:24px;border-top:1px solid var(--gray-100);font-size:13px;color:var(--gray-400);text-align:center">
+      LAMDiceBot Harness Audit · v1.0 · 2026-05-04
+    </footer>
+
+  </div>
+</body>
+</html>

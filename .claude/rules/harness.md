@@ -37,6 +37,8 @@
 - 불변조건(must-preserve contracts)을 Scout가 보고하면 절대 깨뜨리지 마라
 - main = 실서버. 배포 리스크를 항상 인지해라
 - 모바일/PC 화면 대응을 계획 단계부터 포함해라
+- **게임 lesson 자동 조회**: 트리아지가 STANDARD/COMPLEX이고 작업 대상이 게임별 파일(`*-multiplayer.html`, `js/{game}.js`, `socket/{game}.js`, `css/{game}.css`)을 포함하거나 "새 게임/게임 추가/새 모드" 키워드를 포함하면, 코딩 전에 [`docs/GameGuide/lessons/_common.md`](../../docs/GameGuide/lessons/_common.md)와 해당 게임의 `docs/GameGuide/lessons/{game}.md` 를 자동으로 읽어라
+- **lesson 후보 능동 제안**: 작업 종료 시 Coder/Reviewer/QA가 함정/실수를 새로 발견했다면 보고서 마지막에 "💡 lesson 후보:" 섹션을 추가하고 사용자에게 lessons 폴더에 추가할지 물어라
 
 ## 상세 참조
 

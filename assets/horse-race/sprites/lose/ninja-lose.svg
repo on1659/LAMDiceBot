@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="45" viewBox="0 0 120 45" shape-rendering="crispEdges">
+<title>ninja-lose</title>
+<desc>Derived from the base svgMap vehicle in D:/Work/LAMDiceBot/js/horse-race-sprites.js ninja run.frame1 near line 1677; strict 2x1 lose atlas, 60x45 cells. Not derived from POWER_VEHICLE_VARIANT_OVERRIDES.</desc>
+<defs>
+  <clipPath id="clip-0"><rect x="0" y="0" width="60" height="45"/></clipPath>
+  <clipPath id="clip-1"><rect x="60" y="0" width="60" height="45"/></clipPath>
+  <filter id="muted" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0.78"/>
+  </filter>
+</defs>
+<!-- strict atlas: 2 columns x 1 row, 60x45 cells, no gutters -->
+<g clip-path="url(#clip-0)">
+  <g transform="translate(0 0)">
+    <g filter="url(#muted)" transform="translate(0 1) translate(0 45) scale(1 0.94) translate(0 -45)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<!-- 속도감 선 -->
+                    <line x1="2" y1="22" x2="14" y2="22" stroke="#ddd" stroke-width="1" opacity="0.5"/>
+                    <line x1="4" y1="26" x2="12" y2="26" stroke="#ddd" stroke-width="1" opacity="0.4"/>
+                    <line x1="2" y1="18" x2="10" y2="18" stroke="#ddd" stroke-width="1" opacity="0.3"/>
+                    <!-- 다리 (달리기 A) -->
+                    <rect x="24" y="31" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="23" y="39" width="6" height="2" fill="#333"/>
+                    <rect x="30" y="33" width="4" height="7" fill="#1a1a1a"/>
+                    <rect x="30" y="39" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="29" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 (검은 닌자복) -->
+                    <rect x="22" y="19" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 앞팔 (검 들기) -->
+                    <rect x="15" y="18" width="8" height="3" fill="#222"/>
+                    <rect x="10" y="10" width="2" height="12" fill="#ccc"/>
+                    <rect x="8" y="13" width="6" height="2" fill="#aaa"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="22" width="6" height="3" fill="#222"/>
+                    <!-- 머리 (마스크) -->
+                    <rect x="26" y="10" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈만 보임 -->
+                    <rect x="28" y="14" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="14" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="14" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="13" width="10" height="2" fill="#e74c3c"/>
+                    <!-- 머리띠 끈 -->
+                    <rect x="36" y="13" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="13" width="2" height="4" fill="#e74c3c"/>
+      </svg>
+    </g>
+<rect x="27" y="16" width="3" height="1.4" fill="#24324a"/><rect x="32" y="16" width="3" height="1.4" fill="#24324a"/><rect x="28" y="17" width="1.2" height="2.4" fill="#24324a"/><rect x="33" y="17" width="1.2" height="2.4" fill="#24324a"/>
+<path d="M45,10 L48,14 L45,18 L42,14 Z" fill="#69bdf5" stroke="#1f5f92" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<g clip-path="url(#clip-1)">
+  <g transform="translate(60 0)">
+    <g filter="url(#muted)" transform="translate(0 2) translate(0 45) scale(1 0.91) translate(0 -45)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<!-- 속도감 선 -->
+                    <line x1="2" y1="21" x2="14" y2="21" stroke="#ddd" stroke-width="1" opacity="0.5"/>
+                    <line x1="4" y1="25" x2="12" y2="25" stroke="#ddd" stroke-width="1" opacity="0.4"/>
+                    <line x1="2" y1="17" x2="10" y2="17" stroke="#ddd" stroke-width="1" opacity="0.3"/>
+                    <!-- 다리 (달리기 B) -->
+                    <rect x="26" y="29" width="4" height="11" fill="#1a1a1a"/>
+                    <rect x="24" y="39" width="6" height="2" fill="#333"/>
+                    <rect x="32" y="31" width="4" height="9" fill="#1a1a1a"/>
+                    <rect x="32" y="39" width="5" height="2" fill="#333"/>
+                    <!-- 허리띠 -->
+                    <rect x="22" y="28" width="16" height="3" fill="#e74c3c"/>
+                    <!-- 몸통 -->
+                    <rect x="22" y="18" width="16" height="11" rx="1" fill="#222"/>
+                    <!-- 앞팔 (검 위로) -->
+                    <rect x="14" y="15" width="8" height="3" fill="#222"/>
+                    <rect x="10" y="8" width="2" height="12" fill="#ccc"/>
+                    <rect x="8" y="11" width="6" height="2" fill="#aaa"/>
+                    <!-- 뒷팔 -->
+                    <rect x="38" y="21" width="6" height="3" fill="#222"/>
+                    <!-- 머리 (마스크) -->
+                    <rect x="26" y="9" width="10" height="10" rx="1" fill="#111"/>
+                    <!-- 눈 -->
+                    <rect x="28" y="13" width="6" height="2" fill="#e74c3c"/>
+                    <rect x="29" y="13" width="2" height="2" fill="#ff6666"/>
+                    <rect x="33" y="13" width="2" height="2" fill="#ff6666"/>
+                    <!-- 머리띠 -->
+                    <rect x="26" y="12" width="10" height="2" fill="#e74c3c"/>
+                    <!-- 머리띠 끈 -->
+                    <rect x="36" y="12" width="5" height="1" fill="#e74c3c"/>
+                    <rect x="39" y="12" width="2" height="4" fill="#e74c3c"/>
+      </svg>
+    </g>
+<rect x="27" y="17" width="3" height="1.4" fill="#24324a"/><rect x="32" y="17" width="3" height="1.4" fill="#24324a"/><rect x="28" y="18" width="1.2" height="2.4" fill="#24324a"/><rect x="33" y="18" width="1.2" height="2.4" fill="#24324a"/>
+<path d="M45,9 L48,13 L45,17 L42,13 Z" fill="#69bdf5" stroke="#1f5f92" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+</svg>

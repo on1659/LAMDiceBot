@@ -203,6 +203,65 @@
           "loop": false
         }
       }
+    },
+    "bonusPad": {
+      "label": "Bridge Cross Bonus Jump Pad V1",
+      "image": "bonus-pad-v1.png",
+      "grid": {
+        "columns": 4,
+        "rows": 1
+      },
+      "anchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "baselineY": 256,
+      "defaultScale": 0.8,
+      "animations": {
+        "spawn": {
+          "row": 0,
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "ready": {
+          "row": 0,
+          "frames": [
+            1
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "compress": {
+          "row": 0,
+          "frames": [
+            2
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "launch": {
+          "row": 0,
+          "frames": [
+            3
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "full": {
+          "row": 0,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 14,
+          "loop": false
+        }
+      }
     }
   }
 }

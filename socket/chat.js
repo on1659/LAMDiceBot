@@ -587,31 +587,61 @@ module.exports = (socket, io, ctx) => {
                     gameState.gamePlayers = gameState.gamePlayers.filter(name => name !== userName);
                     gameState.rolledUsers = gameState.rolledUsers.filter(name => name !== userName);
 
+                    // 경마: 떠난 유저의 베팅/투표 정리 (다음 라운드 가중치/공정성 보호)
+                    let horseStateChanged = false;
+                    if (gameState.userHorseBets && gameState.userHorseBets[userName] !== undefined) {
+                        delete gameState.userHorseBets[userName];
+                        horseStateChanged = true;
+                    }
+                    if (gameState.userRankVotes && gameState.userRankVotes[userName] !== undefined) {
+                        delete gameState.userRankVotes[userName];
+                        horseStateChanged = true;
+                    }
+                    if (horseStateChanged && room.gameType === 'horse-race') {
+                        io.to(roomId).emit('horseSelectionCancelled', { userName });
+                        io.to(roomId).emit('rankVotesUpdated', {
+                            userRankVotes: { ...gameState.userRankVotes },
+                            maxRank: (gameState.availableHorses || []).length
+                        });
+                    }
+
                     // 호스트가 나간 경우
                     if (wasHost) {
                         if (gameState.users.length > 0) {
-                            // 새 호스트 지정
-                            const newHost = gameState.users[0];
-                            newHost.isHost = true;
+                            // 새 호스트 후보를 socket이 살아있는 첫 번째 user로 선택
+                            // (gameState.users[0].id는 재접속 등으로 stale 가능 → userName fallback)
+                            let newHost = null;
+                            let newHostSocket = null;
+                            for (const candidate of gameState.users) {
+                                const sock = socketsInRoom.find(s => s.id === candidate.id)
+                                          || socketsInRoom.find(s => s.userName === candidate.name);
+                                if (sock) { newHost = candidate; newHostSocket = sock; break; }
+                            }
 
-                            const newHostSocket = socketsInRoom.find(s => s.id === newHost.id);
-                            if (newHostSocket) {
+                            if (newHost && newHostSocket) {
+                                newHost.id = newHostSocket.id;   // user 레코드 id 보정
+                                newHost.isHost = true;
                                 newHostSocket.isHost = true;
-                                room.hostId = newHost.id;
+                                room.hostId = newHostSocket.id;
                                 room.hostName = newHost.name;
                                 newHostSocket.emit('hostTransferred', {
                                     message: '호스트 권한이 전달되었습니다.',
                                     roomName: room.roomName
                                 });
-                            }
 
-                            io.to(roomId).emit('updateUsers', gameState.users);
-                            io.to(roomId).emit('hostChanged', {
-                                newHostId: newHost.id,
-                                newHostName: newHost.name,
-                                message: `${userName} 호스트가 나갔습니다. ${newHost.name}님이 새 호스트가 되었습니다.`
-                            });
-                            ctx.updateRoomsList();
+                                io.to(roomId).emit('updateUsers', gameState.users);
+                                io.to(roomId).emit('hostChanged', {
+                                    newHostId: newHostSocket.id,
+                                    newHostName: newHost.name,
+                                    message: `${userName} 호스트가 나갔습니다. ${newHost.name}님이 새 호스트가 되었습니다.`
+                                });
+                                ctx.updateRoomsList();
+                            } else {
+                                // 살아있는 socket이 하나도 없음 → 빈 방 처리
+                                console.warn(`[hostTransfer] 살아있는 user socket 없음, 방 grace로 전환: ${room.roomName}`);
+                                gameState.users = [];
+                                startRoomGrace(roomId, room);
+                            }
                         } else {
                             // 모든 사용자가 나감 - grace period 후 삭제
                             startRoomGrace(roomId, room);

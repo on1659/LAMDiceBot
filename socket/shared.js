@@ -289,10 +289,19 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             gameState.readyUsers = gameState.readyUsers.filter(name => name !== userName);
             socket.emit('readyStateChanged', { isReady: false });
 
-            // 경마 게임: 준비 취소 시 말 선택도 취소
-            if (room.gameType === 'horse-race' && gameState.userHorseBets) {
-                delete gameState.userHorseBets[userName];
-                io.to(room.roomId).emit('horseSelectionCancelled', { userName });
+            // 경마 게임: 준비 취소 시 말 선택 + N등 투표 모두 취소
+            if (room.gameType === 'horse-race') {
+                if (gameState.userHorseBets && gameState.userHorseBets[userName] !== undefined) {
+                    delete gameState.userHorseBets[userName];
+                    io.to(room.roomId).emit('horseSelectionCancelled', { userName });
+                }
+                if (gameState.userRankVotes && gameState.userRankVotes[userName] !== undefined) {
+                    delete gameState.userRankVotes[userName];
+                    io.to(room.roomId).emit('rankVotesUpdated', {
+                        userRankVotes: { ...gameState.userRankVotes },
+                        maxRank: (gameState.availableHorses || []).length
+                    });
+                }
             }
         } else {
             // 준비
@@ -361,6 +370,21 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         } else if (!isReady && currentlyReady) {
             // 준비 취소 - 방에 없어도 제거 가능
             gameState.readyUsers = gameState.readyUsers.filter(name => name !== trimmedUserName);
+
+            // 경마 게임: 호스트가 강제 unready 시킨 사용자의 말 선택 + N등 투표도 정리
+            if (room.gameType === 'horse-race') {
+                if (gameState.userHorseBets && gameState.userHorseBets[trimmedUserName] !== undefined) {
+                    delete gameState.userHorseBets[trimmedUserName];
+                    io.to(room.roomId).emit('horseSelectionCancelled', { userName: trimmedUserName });
+                }
+                if (gameState.userRankVotes && gameState.userRankVotes[trimmedUserName] !== undefined) {
+                    delete gameState.userRankVotes[trimmedUserName];
+                    io.to(room.roomId).emit('rankVotesUpdated', {
+                        userRankVotes: { ...gameState.userRankVotes },
+                        maxRank: (gameState.availableHorses || []).length
+                    });
+                }
+            }
 
             // 같은 방의 모든 클라이언트에게 준비 목록 업데이트
             io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);

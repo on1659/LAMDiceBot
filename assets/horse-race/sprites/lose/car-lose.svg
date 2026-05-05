@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="45" viewBox="0 0 120 45" shape-rendering="crispEdges">
+<title>car-lose</title>
+<desc>Derived from the base svgMap vehicle in D:/Work/LAMDiceBot/js/horse-race-sprites.js car run.frame1 near line 3; strict 2x1 lose atlas, 60x45 cells. Not derived from POWER_VEHICLE_VARIANT_OVERRIDES.</desc>
+<defs>
+  <clipPath id="clip-0"><rect x="0" y="0" width="60" height="45"/></clipPath>
+  <clipPath id="clip-1"><rect x="60" y="0" width="60" height="45"/></clipPath>
+  <filter id="muted" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0.78"/>
+  </filter>
+</defs>
+<!-- strict atlas: 2 columns x 1 row, 60x45 cells, no gutters -->
+<g clip-path="url(#clip-0)">
+  <g transform="translate(0 0)">
+    <g filter="url(#muted)" transform="translate(0 0) rotate(5 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<rect x="10" y="15" width="40" height="15" rx="3" fill="#e74c3c"/>
+                    <rect x="18" y="8" width="22" height="12" rx="2" fill="#e74c3c"/>
+                    <rect x="20" y="10" width="8" height="8" fill="#87CEEB"/>
+                    <rect x="30" y="10" width="8" height="8" fill="#87CEEB"/>
+                    <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#666"/>
+                    <line x1="18" y1="29" x2="18" y2="35" stroke="#999" stroke-width="1"/>
+                    <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#666"/>
+                    <line x1="42" y1="29" x2="42" y2="35" stroke="#999" stroke-width="1"/>
+      </svg>
+    </g>
+
+<circle cx="30" cy="10" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/><circle cx="33" cy="9" r="2.4" fill="#d6dadd" stroke="#6c737a" stroke-width="1.1"/><circle cx="36" cy="10" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/>
+  </g>
+</g>
+<g clip-path="url(#clip-1)">
+  <g transform="translate(60 0)">
+    <g filter="url(#muted)" transform="translate(0 1) rotate(8 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<rect x="10" y="15" width="40" height="15" rx="3" fill="#e74c3c"/>
+                    <rect x="18" y="8" width="22" height="12" rx="2" fill="#e74c3c"/>
+                    <rect x="20" y="10" width="8" height="8" fill="#87CEEB"/>
+                    <rect x="30" y="10" width="8" height="8" fill="#87CEEB"/>
+                    <circle cx="18" cy="32" r="6" fill="#333"/><circle cx="18" cy="32" r="3" fill="#666"/>
+                    <line x1="15" y1="32" x2="21" y2="32" stroke="#999" stroke-width="1"/>
+                    <circle cx="42" cy="32" r="6" fill="#333"/><circle cx="42" cy="32" r="3" fill="#666"/>
+                    <line x1="39" y1="32" x2="45" y2="32" stroke="#999" stroke-width="1"/>
+      </svg>
+    </g>
+
+<circle cx="30" cy="9" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/><circle cx="33" cy="8" r="2.4" fill="#d6dadd" stroke="#6c737a" stroke-width="1.1"/><circle cx="36" cy="9" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/>
+  </g>
+</g>
+</svg>

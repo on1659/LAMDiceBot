@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="45" viewBox="0 0 120 45" shape-rendering="crispEdges">
+<title>horse-lose</title>
+<desc>Derived from the base svgMap vehicle in D:/Work/LAMDiceBot/js/horse-race-sprites.js horse run.frame1 near line 463; strict 2x1 lose atlas, 60x45 cells. Not derived from POWER_VEHICLE_VARIANT_OVERRIDES.</desc>
+<defs>
+  <clipPath id="clip-0"><rect x="0" y="0" width="60" height="45"/></clipPath>
+  <clipPath id="clip-1"><rect x="60" y="0" width="60" height="45"/></clipPath>
+  <filter id="muted" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0.78"/>
+  </filter>
+</defs>
+<!-- strict atlas: 2 columns x 1 row, 60x45 cells, no gutters -->
+<g clip-path="url(#clip-0)">
+  <g transform="translate(0 0)">
+    <g filter="url(#muted)" transform="translate(0 1) translate(0 45) scale(1 0.94) translate(0 -45)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<!-- 뒷다리 (오른쪽 뒤 - 들림) -->
+                    <path d="M38,28 L40,32 L38,34 L36,34 Z" fill="#654321"/>
+                    <ellipse cx="37" cy="34" rx="2" ry="2.5" fill="#2C1810"/>
+                    <!-- 뒷다리 (왼쪽 뒤 - 땅) -->
+                    <path d="M32,28 L34,38 L32,40 L30,40 Z" fill="#654321"/>
+                    <ellipse cx="31" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="28" cy="26" rx="12" ry="7" fill="#8B4513"/>
+                    <!-- 목 -->
+                    <path d="M16,26 Q20,18 24,20 Q26,22 28,26" fill="#8B4513"/>
+                    <!-- 앞다리 (오른쪽 앞 - 땅) -->
+                    <path d="M22,26 L20,38 L18,40 L22,40 Z" fill="#654321"/>
+                    <ellipse cx="19" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                    <!-- 앞다리 (왼쪽 앞 - 들림) -->
+                    <path d="M18,26 L16,32 L14,34 L18,34 Z" fill="#654321"/>
+                    <ellipse cx="15" cy="34" rx="2" ry="2.5" fill="#2C1810"/>
+                    <!-- 머리 -->
+                    <ellipse cx="46" cy="18" rx="8" ry="7" fill="#8B4513"/>
+                    <ellipse cx="48" cy="16" rx="5" ry="4" fill="#A0522D"/>
+                    <!-- 귀 (왼쪽) -->
+                    <path d="M40,12 Q42,6 44,10 Q42,8 40,12" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                    <!-- 귀 (오른쪽) -->
+                    <path d="M43,12 Q45,6 47,10 Q45,8 43,12" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                    <!-- 눈 -->
+                    <circle cx="48" cy="17" r="1.8" fill="white"/>
+                    <circle cx="48" cy="17" r="1.2" fill="black"/>
+                    <!-- 코 -->
+                    <ellipse cx="53" cy="19" rx="2.5" ry="2" fill="#654321"/>
+                    <ellipse cx="54" cy="19" rx="1" ry="0.8" fill="#2C1810"/>
+                    <!-- 갈기 (더 풍성하게) -->
+                    <path d="M20,20 Q22,14 24,16 Q26,14 28,18 Q26,16 24,20" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                    <path d="M22,18 Q24,12 26,14 Q28,12 30,16 Q28,14 26,18" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                    <path d="M24,16 Q26,10 28,12 Q30,10 32,14 Q30,12 28,16" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                    <!-- 꼬리 (더 자연스럽게) -->
+                    <path d="M16,26 Q12,22 8,18 Q4,14 2,10" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
+                    <path d="M14,24 Q10,20 6,16 Q2,12 0,8" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
+      </svg>
+    </g>
+<rect x="45" y="15" width="3" height="1.4" fill="#24324a"/><rect x="50" y="15" width="3" height="1.4" fill="#24324a"/><rect x="46" y="16" width="1.2" height="2.4" fill="#24324a"/><rect x="51" y="16" width="1.2" height="2.4" fill="#24324a"/>
+<circle cx="24" cy="13" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/><circle cx="27" cy="12" r="2.4" fill="#d6dadd" stroke="#6c737a" stroke-width="1.1"/><circle cx="30" cy="13" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/>
+  </g>
+</g>
+<g clip-path="url(#clip-1)">
+  <g transform="translate(60 0)">
+    <g filter="url(#muted)" transform="translate(0 2) translate(0 45) scale(1 0.91) translate(0 -45)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<!-- 뒷다리 (오른쪽 뒤 - 땅) -->
+                    <path d="M38,28 L40,38 L38,40 L36,40 Z" fill="#654321"/>
+                    <ellipse cx="37" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                    <!-- 뒷다리 (왼쪽 뒤 - 들림) -->
+                    <path d="M32,28 L34,32 L32,34 L30,34 Z" fill="#654321"/>
+                    <ellipse cx="31" cy="34" rx="2" ry="2.5" fill="#2C1810"/>
+                    <!-- 몸통 -->
+                    <ellipse cx="28" cy="24" rx="12" ry="7" fill="#8B4513"/>
+                    <!-- 목 -->
+                    <path d="M16,24 Q20,16 24,18 Q26,20 28,24" fill="#8B4513"/>
+                    <!-- 앞다리 (오른쪽 앞 - 들림) -->
+                    <path d="M22,24 L20,30 L18,32 L22,32 Z" fill="#654321"/>
+                    <ellipse cx="19" cy="32" rx="2" ry="2.5" fill="#2C1810"/>
+                    <!-- 앞다리 (왼쪽 앞 - 땅) -->
+                    <path d="M18,24 L16,38 L14,40 L18,40 Z" fill="#654321"/>
+                    <ellipse cx="15" cy="40" rx="2.5" ry="3" fill="#2C1810"/>
+                    <!-- 머리 -->
+                    <ellipse cx="46" cy="16" rx="8" ry="7" fill="#8B4513"/>
+                    <ellipse cx="48" cy="14" rx="5" ry="4" fill="#A0522D"/>
+                    <!-- 귀 (왼쪽) -->
+                    <path d="M40,10 Q42,4 44,8 Q42,6 40,10" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                    <!-- 귀 (오른쪽) -->
+                    <path d="M43,10 Q45,4 47,8 Q45,6 43,10" fill="#654321" stroke="#2C1810" stroke-width="0.3"/>
+                    <!-- 눈 -->
+                    <circle cx="48" cy="15" r="1.8" fill="white"/>
+                    <circle cx="48" cy="15" r="1.2" fill="black"/>
+                    <!-- 코 -->
+                    <ellipse cx="53" cy="17" rx="2.5" ry="2" fill="#654321"/>
+                    <ellipse cx="54" cy="17" rx="1" ry="0.8" fill="#2C1810"/>
+                    <!-- 갈기 (더 풍성하게) -->
+                    <path d="M20,18 Q22,12 24,14 Q26,12 28,16 Q26,14 24,18" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                    <path d="M22,16 Q24,10 26,12 Q28,10 30,14 Q28,12 26,16" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                    <path d="M24,14 Q26,8 28,10 Q30,8 32,12 Q30,10 28,14" fill="#654321" stroke="#2C1810" stroke-width="0.4"/>
+                    <!-- 꼬리 (더 자연스럽게) -->
+                    <path d="M16,24 Q12,20 8,16 Q4,12 2,8" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
+                    <path d="M14,22 Q10,18 6,14 Q2,10 0,6" fill="#654321" stroke="#2C1810" stroke-width="0.5"/>
+      </svg>
+    </g>
+<rect x="45" y="16" width="3" height="1.4" fill="#24324a"/><rect x="50" y="16" width="3" height="1.4" fill="#24324a"/><rect x="46" y="17" width="1.2" height="2.4" fill="#24324a"/><rect x="51" y="17" width="1.2" height="2.4" fill="#24324a"/>
+<circle cx="24" cy="12" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/><circle cx="27" cy="11" r="2.4" fill="#d6dadd" stroke="#6c737a" stroke-width="1.1"/><circle cx="30" cy="12" r="2" fill="#c5c9cc" stroke="#6c737a" stroke-width="1.1"/>
+  </g>
+</g>
+</svg>
