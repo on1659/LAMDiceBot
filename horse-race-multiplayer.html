@@ -796,26 +796,56 @@
             fallbackTarget: '#readySection'
         },
         {
+            target: '#tutorialFakeRankVote',
+            title: '4단계: 당첨 등수 투표 (선택)',
+            content: '"몇 등이 당첨될지" 투표할 수 있습니다. 원하는 등수 박스를 클릭해 한 표 던지세요. 호스트가 시작을 누르면 투표 비례 룰렛이 등수를 결정합니다. 안 해도 됩니다 — 모두 미투표면 기본 꼴등 찾기로 진행됩니다.',
+            position: 'bottom',
+            beforeShow: function() {
+                if (document.getElementById('tutorialFakeRankVote')) return;
+                var wrap = document.createElement('div');
+                wrap.id = 'tutorialFakeRankVote';
+                wrap.className = 'rank-vote-section';
+                wrap.style.cssText = 'display:block; margin:14px 0;';
+                wrap.innerHTML = ''
+                    + '<div class="rank-vote-title">🎯 당첨 등수 투표</div>'
+                    + '<div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>'
+                    + '<div class="rank-vote-boxes">'
+                    +   '<div class="rank-vote-box selected"><div class="rank-vote-rank">1등</div><div class="rank-vote-bars"><div class="rank-vote-bar"></div><div class="rank-vote-bar"></div></div></div>'
+                    +   '<div class="rank-vote-box"><div class="rank-vote-rank">2등</div><div class="rank-vote-bars"><div class="rank-vote-bar"></div></div></div>'
+                    +   '<div class="rank-vote-box"><div class="rank-vote-rank">3등</div><div class="rank-vote-bars"></div></div>'
+                    +   '<div class="rank-vote-box"><div class="rank-vote-rank">4등</div><div class="rank-vote-bars"><div class="rank-vote-bar"></div></div></div>'
+                    + '</div>';
+                var ref = document.getElementById('horseSelectionSection');
+                if (ref && ref.parentNode) {
+                    ref.parentNode.insertBefore(wrap, ref.nextSibling);
+                }
+            },
+            cleanup: function() {
+                var el = document.getElementById('tutorialFakeRankVote');
+                if (el) el.remove();
+            }
+        },
+        {
             target: '#startHorseRaceButton',
-            title: '4단계: 경마 시작',
-            content: '이 버튼을 누르면 레이스가 시작됩니다! 서버가 공정하게 순위를 결정합니다.',
+            title: '5단계: 경마 시작',
+            content: '이 버튼을 누르면 레이스가 시작됩니다. 투표가 있으면 룰렛이 등수를 결정한 뒤 경주가 시작됩니다.',
             position: 'top'
         },
         {
             target: '.chat-section',
-            title: '5단계: 채팅',
+            title: '6단계: 채팅',
             content: '채팅으로 다른 참가자와 대화할 수 있습니다.',
             position: 'top'
         },
         {
             target: '#rankingBtn',
-            title: '6단계: 랭킹',
+            title: '7단계: 랭킹',
             content: '이 버튼을 누르면 전체 순위를 확인할 수 있습니다.',
             position: 'top'
         },
         {
             target: '#tutorialFakeReplay',
-            title: '7단계: 다시보기',
+            title: '8단계: 다시보기',
             content: '레이스가 끝나면 다시보기 버튼이 나타납니다. 경주 장면을 다시 볼 수 있습니다.',
             position: 'top',
             beforeShow: function() {
@@ -836,7 +866,7 @@
         },
         {
             target: '#historySection',
-            title: '8단계: 게임 기록',
+            title: '9단계: 게임 기록',
             content: '지난 레이스 결과가 여기에 기록됩니다. 각 기록의 ▶ 다시보기 버튼으로 이전 경주를 다시 볼 수 있습니다.',
             position: 'top',
             beforeShow: function() {
@@ -846,18 +876,19 @@
                 var wrap = document.createElement('div');
                 wrap.id = 'tutorialFakeHistory';
                 var fakeRecords = [
-                    { round: 3, medals: ['🥇 1등 🐎 말 — 이더', '🥈 2등 🦄 유니콘 — 감자', '🥉 3등 🐫 낙타 — 램다이스'], winner: '🎊 당첨: 이더', time: '3/8 14:30' },
-                    { round: 2, medals: ['🥇 1등 🦌 사슴 — 감자', '🥈 2등 🐎 말 — 램다이스', '🥉 3등 🦄 유니콘 — 이더'], winner: '🎊 당첨: 감자', time: '3/8 14:22' },
-                    { round: 1, medals: ['🥇 1등 🐫 낙타 — 램다이스', '🥈 2등 🦌 사슴 — 이더', '🥉 3등 🐎 말 — 감자'], winner: '🎊 당첨: 램다이스', time: '3/8 14:15' }
+                    { round: 3, targetLabel: '1등', medals: ['🥇 1등 🐎 말 — 이더', '🥈 2등 🦄 유니콘 — 감자', '🥉 3등 🐫 낙타 — 램다이스'], winner: '🎊 당첨: 이더', time: '3/8 14:30' },
+                    { round: 2, targetLabel: '꼴등', medals: ['🥇 1등 🦌 사슴 — 감자', '🥈 2등 🐎 말 — 램다이스', '🥉 3등 🦄 유니콘 — 이더'], winner: '🎊 당첨: 이더', time: '3/8 14:22' },
+                    { round: 1, targetLabel: '2등', medals: ['🥇 1등 🐫 낙타 — 램다이스', '🥈 2등 🦌 사슴 — 이더', '🥉 3등 🐎 말 — 감자'], winner: '🎊 당첨: 이더', time: '3/8 14:15' }
                 ];
                 fakeRecords.forEach(function(r) {
                     var rankHtml = r.medals.map(function(m, i) {
                         var bg = i === 0 ? 'var(--result-gold-light)' : i === 1 ? 'var(--result-silver-light)' : 'var(--result-bronze-light)';
                         return '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:' + bg + ';border-radius:4px;margin-bottom:4px;font-size:12px;">' + m + '</div>';
                     }).join('');
+                    var targetBadge = '<span style="margin-left:6px;padding:2px 5px;background:var(--horse-500);color:var(--bg-white);border-radius:4px;font-size:9px;font-weight:bold;white-space:nowrap;">🎯' + r.targetLabel + '</span>';
                     wrap.innerHTML += '<div style="background:var(--yellow-50);padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid var(--yellow-200);">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                            '<div style="font-weight:bold;color:var(--horse-accent);font-size:14px;">' + r.round + '라운드</div>' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;">' +
+                            '<div style="font-weight:bold;color:var(--horse-accent);font-size:14px;white-space:nowrap;">' + r.round + '라운드' + targetBadge + '</div>' +
                             '<div style="display:flex;align-items:center;gap:8px;">' +
                                 '<span style="width:auto;margin:0;padding:3px 8px;font-size:10px;background:var(--bg-white);color:var(--horse-accent);border:1px solid var(--horse-accent);border-radius:5px;font-weight:600;font-family:Jua,sans-serif;">▶ 다시보기</span>' +
                                 '<span style="font-size:11px;color:var(--text-muted);">' + r.time + '</span>' +
@@ -876,7 +907,7 @@
         },
         {
             target: '#tutorialFakeEndGame',
-            title: '9단계: 게임 종료',
+            title: '10단계: 게임 종료',
             content: '레이스가 끝난 후 이 버튼으로 게임을 종료하고 다시 시작할 수 있습니다. 방장만 사용할 수 있습니다.',
             position: 'top',
             beforeShow: function() {
@@ -898,13 +929,13 @@
         },
         {
             target: '#startOrderButton',
-            title: '10단계: 주문받기 시작',
+            title: '11단계: 주문받기 시작',
             content: '방장은 이 버튼으로 주문받기를 시작할 수 있습니다. 주문받기가 시작되면 참가자들이 주문을 입력할 수 있습니다.',
             position: 'top'
         },
         {
             target: '#tutorialFakeOrders',
-            title: '11단계: 주문받기',
+            title: '12단계: 주문받기',
             content: '방장이 주문받기를 시작하면 음식 주문을 할 수 있습니다. 내 주문을 입력하고 저장하세요.',
             position: 'bottom',
             beforeShow: function() {

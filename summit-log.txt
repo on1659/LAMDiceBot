@@ -1,4 +1,47 @@
 ========================================
+📋 Summit Log - 2026-05-05 (2) — 경마 튜토리얼에 등수 투표 step 추가 + 게임 기록 배지 보강
+========================================
+
+## 변경 파일
+- horse-race-multiplayer.html: HORSE_RACE_TUTORIAL_STEPS 12단계로 재구성 (4단계 신규 + 5~12 재정렬)
+- docs/meeting/impl/2026-05-05-bridge-cross-bonus-race-impl.md: 다리건너기 회의 impl 문서 (IDE 자동 갱신)
+
+## 상세 변경 내역
+
+### [경마 튜토리얼 — 4단계 신규: 당첨 등수 투표]
+- HORSE_RACE_TUTORIAL_STEPS 배열에 새 step 삽입 (탈것 선택 → 등수 투표 → 경마 시작 흐름)
+- target: '#tutorialFakeRankVote' — beforeShow에서 fake rank-vote-section을 horseSelectionSection 바로 아래에 동적 생성
+- fake 마크업: 1등(selected), 2등(1표), 3등(0표), 4등(1표) 박스로 실제 투표 UI mimic
+- 실제 css/horse-race.css의 .rank-vote-section / .rank-vote-box 클래스 사용 → 골드 톤 + outline 강조 그대로 적용
+- cleanup: 투어 종료 시 fake 박스 제거
+- content 문구: "안 해도 됨 — 모두 미투표면 기본 꼴등 찾기로 진행" 명시 (사용자 부담 최소화)
+
+### [튜토리얼 단계 번호 재정렬]
+- 4단계 (이전 경마 시작) → 5단계
+- 5~11단계 → 6~12단계 (채팅 / 랭킹 / 다시보기 / 게임 기록 / 게임 종료 / 주문받기 시작 / 주문받기)
+- 5단계 content에 "투표가 있으면 룰렛이 등수 결정 후 경주 시작" 문구 보강
+
+### [튜토리얼 게임 기록 fake records 배지 추가]
+- 9단계 "게임 기록" beforeShow 내 fakeRecords 객체에 targetLabel 필드 추가 (3가지 케이스 골고루)
+    * 3라운드: targetLabel='1등' (1등 찾기 모드 예시)
+    * 2라운드: targetLabel='꼴등' (fallback 모드 예시)
+    * 1라운드: targetLabel='2등' (중간 등수 예시)
+- 라운드 제목 옆에 🎯N등 배지 표시 (실제 history와 동일한 horse-500 배경 + 흰 텍스트 + 9px + white-space:nowrap)
+- 라운드 제목 div에 white-space:nowrap 추가, parent flex에 gap:6px 추가 (한 줄 정렬 보장)
+- 사용자가 다시보기 클릭 전에 "이 라운드는 어떤 등수 찾기였는지" 한눈에 인지 가능
+
+### [bridge-cross impl 문서]
+- IDE 자동 갱신으로 변경 감지 (계획/내용 변경 — 이번 작업 범위 외)
+- 코드 영향 없음
+
+## 비고
+- 클라이언트 HTML만 변경, 서버 무관
+- 새로고침으로 즉시 적용
+- Wait for CI 토글 켜져 있어 자동 배포 대신 railway up 또는 토글 OFF 후 push 필요
+
+========================================
+
+========================================
 📋 Summit Log - 2026-05-05 — 경마 N등 찾기 투표 시스템 + 호스트 안정화 + 트리아지 훅 + lose 스프라이트
 ========================================
 
