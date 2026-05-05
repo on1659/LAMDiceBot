@@ -286,6 +286,7 @@ function initReadyModule() {
         onReadyChanged: (rUsers) => {
             readyUsers = rUsers;
             updateStartButton();
+            updateBridgePreviewSpawn();
         }
     });
 }
@@ -319,10 +320,11 @@ function closeResultOverlay() {
 }
 
 // ============================================
-// bridge-cross 게임 (베팅 + 결과)
-// 캔버스 시각화는 다음 단계 (Phase E)에서 추가
+// bridge-cross 게임 (User-Driven, 2026-04-30)
+// 베팅 phase 제거. 각 user가 col마다 위/아래를 직접 선택.
 // ============================================
 
+// 식별용 색상 메타 (캐릭터 spawn / 결과 표시용. 베팅 X)
 const BRIDGE_COLORS = [
     { idx: 0, name: '빨강', emoji: '🟥' },
     { idx: 1, name: '주황', emoji: '🟧' },
@@ -332,91 +334,91 @@ const BRIDGE_COLORS = [
     { idx: 5, name: '남색', emoji: '🟪' }
 ];
 
-var myColorIndex = null;
-var bridgeBettingDeadline = 0;
-var bridgeCountdownTimer = null;
+// participants (게임 시작 시 서버에서 받음)
+var bridgeParticipants = [];
 
-function renderBridgeColorGrid() {
-    const grid = document.getElementById('bridgeColorGrid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    BRIDGE_COLORS.forEach(color => {
-        const card = document.createElement('div');
-        card.className = 'bridge-color-card';
-        card.dataset.color = String(color.idx);
-        card.innerHTML = `
-            <div class="color-emoji">${color.emoji}</div>
-            <div class="color-name">${color.name}</div>
-        `;
-        card.addEventListener('click', () => {
-            if (card.classList.contains('disabled')) return;
-            socket.emit('bridge-cross:select', { colorIndex: color.idx });
-        });
-        grid.appendChild(card);
-    });
+// 색 선택 (ready phase) — {[userName]: colorIndex}
+var bridgeUserColors = {};
+var myBridgeColor = null; // 내가 고른 색 인덱스
+
+// 현재 wave 상태
+var waveDeadlineTs = 0;
+var waveCountdownTimer = null;
+var waveActiveCol = -1;
+var waveMyChoice = null;       // 'top' | 'bottom' | null
+var waveDecidedUsers = [];     // 결정 완료한 user 이름 누적 (waveResult에서 산출)
+var waveAllParticipantNames = [];
+
+// 색 선택 emit
+function pickBridgeColor(colorIndex) {
+    if (typeof colorIndex !== 'number') return;
+    if (colorIndex < 0 || colorIndex > 5) return;
+    if (isBridgeCrossActive) return;
+    myBridgeColor = colorIndex;
+    socket.emit('bridge-cross:pickColor', { colorIndex });
+    // 즉시 UI 반영 (서버 broadcast 도착 전)
+    refreshColorPicker();
 }
 
-function updateBridgeSelection(colorIndex) {
-    myColorIndex = colorIndex;
-    document.querySelectorAll('.bridge-color-card').forEach(card => {
-        const cIdx = parseInt(card.dataset.color, 10);
-        card.classList.toggle('selected', cIdx === colorIndex);
-        const existing = card.querySelector('.my-mark');
-        if (existing) existing.remove();
-        if (cIdx === colorIndex) {
-            const mark = document.createElement('span');
-            mark.className = 'my-mark';
-            mark.textContent = '내선택';
-            card.appendChild(mark);
+// 색 picker UI 렌더 갱신
+function refreshColorPicker() {
+    const cards = document.querySelectorAll('.bridge-color-card');
+    cards.forEach(card => {
+        const c = parseInt(card.getAttribute('data-color'), 10);
+        // mine 표시
+        card.classList.toggle('mine', c === myBridgeColor);
+        // 다른 user 마크 (선택한 사람 이름 표시)
+        let mark = card.querySelector('.other-marks');
+        const others = Object.keys(bridgeUserColors || {})
+            .filter(name => bridgeUserColors[name] === c && name !== currentUser);
+        if (others.length > 0) {
+            if (!mark) {
+                mark = document.createElement('div');
+                mark.className = 'other-marks';
+                card.appendChild(mark);
+            }
+            mark.textContent = '+' + others.length;
+        } else if (mark) {
+            mark.remove();
         }
     });
 }
 
-function setBridgeCardsEnabled(enabled) {
-    document.querySelectorAll('.bridge-color-card').forEach(card => {
-        card.classList.toggle('disabled', !enabled);
-    });
-}
+window.pickBridgeColor = pickBridgeColor;
 
-function startBridgeCountdown() {
-    if (bridgeCountdownTimer) clearInterval(bridgeCountdownTimer);
-    const el = document.getElementById('bridgeCountdown');
-    function tick() {
-        const remain = Math.max(0, bridgeBettingDeadline - Date.now());
-        const sec = Math.ceil(remain / 1000);
-        if (el) el.textContent = `${sec}초`;
-        if (remain <= 0) {
-            clearInterval(bridgeCountdownTimer);
-            bridgeCountdownTimer = null;
-        }
+// ───────── 미리 등장 (ready+색 충족 user를 시작 plat에 spawn) ─────────
+// 게임 시작 전: ready+색 둘 다 충족한 user들을 PlayerActor로 만들어 startPlatform에 idle 표시
+function updateBridgePreviewSpawn() {
+    if (isBridgeCrossActive) return; // 게임 진행 중엔 active 모델이 우선
+    // PlayerActor는 IIFE 내부 — 외부 scope에서 보이지 않음. 대신 _bridgeRebuildPreview/_bridgeLayout 검사
+    if (typeof window._bridgeRebuildPreview !== 'function') return;
+    if (!window._bridgeLayout) return;
+
+    const layout = window._bridgeLayout;
+    const colors = bridgeUserColors || {};
+
+    // 사용자 결정(2026-04-30): 색 고르는 순간 spawn (ready 무관)
+    // ready는 게임 시작 검증에서만 — 시각 등장은 색 선택만으로 충분
+    const eligible = (currentUsers || [])
+        .filter(u => typeof colors[u.name] === 'number');
+
+    // 동일한 set이면 skip
+    const newKey = eligible.map(u => u.name + ':' + colors[u.name]).join('|');
+    if (window._bridgePreviewKey === newKey) return;
+    window._bridgePreviewKey = newKey;
+
+    // PlayerActor 재생성 (canvas IIFE의 state.allPlayers/state.players 직접 mutation)
+    if (window._bridgeRebuildPreview) {
+        window._bridgeRebuildPreview(eligible.map(u => ({
+            userName: u.name,
+            colorIndex: colors[u.name]
+        })));
     }
-    tick();
-    bridgeCountdownTimer = setInterval(tick, 200);
 }
 
-function showBridgeBettingUI() {
-    const betting = document.getElementById('bettingSection');
-    const playing = document.getElementById('bridgePlayingSection');
-    const gameArea = document.getElementById('bridgeCrossGameArea');
-    if (betting) betting.style.display = 'block';
-    if (playing) playing.style.display = 'none';
-    // 베팅 단계부터 캔버스 표시 (IIFE의 ready 모드에서 6색 캐릭터 + stage 그려짐)
-    if (gameArea) gameArea.style.display = 'block';
-    renderBridgeColorGrid();
-    setBridgeCardsEnabled(true);
-    myColorIndex = null;
-    const counter = document.getElementById('bridgeBettorCountValue');
-    if (counter) counter.textContent = '0';
-    // 카운트다운 자리에 "베팅 받는 중" 텍스트
-    const countdownEl = document.getElementById('bridgeCountdown');
-    if (countdownEl) countdownEl.textContent = '베팅 받는 중';
-    isBridgeCrossActive = false;  // 베팅 단계는 게임 진행 중이 아님
-    updateStartButton();
-}
+window.updateBridgePreviewSpawn = updateBridgePreviewSpawn;
 
 function showBridgePlayingUI(detail) {
-    setBridgeCardsEnabled(false);
-    const betting = document.getElementById('bettingSection');
     const playing = document.getElementById('bridgePlayingSection');
     const gameArea = document.getElementById('bridgeCrossGameArea');
     const statusbar = document.getElementById('bridgeStatusbar');
@@ -425,26 +427,167 @@ function showBridgePlayingUI(detail) {
     if (statusbar) statusbar.style.display = 'flex';
     const detailEl = document.getElementById('bridgePlayingDetail');
     if (detailEl && detail) detailEl.textContent = detail;
-    if (betting) {
-        // 베팅 카드는 보여주되 disabled로 (어떤 색이 활성인지 시각화)
-        betting.style.opacity = '0.7';
-    }
     isBridgeCrossActive = true;
+    // 게임 진행 중 색 picker 숨김
+    const colorPicker = document.getElementById('colorPickerSection');
+    if (colorPicker) colorPicker.style.display = 'none';
     updateStartButton();
 }
 
 function hideBridgeGameUI() {
-    // 게임 종료 후 결과 오버레이 표시 시점. 캔버스 자체는 베팅 UI에서 다시 표시되므로 숨기지 않음.
     const playing = document.getElementById('bridgePlayingSection');
     const statusbar = document.getElementById('bridgeStatusbar');
     if (playing) playing.style.display = 'none';
     if (statusbar) statusbar.style.display = 'none';
-    if (bridgeCountdownTimer) {
-        clearInterval(bridgeCountdownTimer);
-        bridgeCountdownTimer = null;
-    }
+    hideWaveChoicePanel();
     isBridgeCrossActive = false;
+    // 게임 종료 후 색 picker 다시 표시
+    const colorPicker = document.getElementById('colorPickerSection');
+    if (colorPicker) colorPicker.style.display = 'block';
+    refreshColorPicker();
     updateStartButton();
+}
+
+// ───────── Wave 선택 패널 ─────────
+
+function showWaveChoicePanel(col) {
+    waveActiveCol = col;
+    window._bridgeWaveActiveCol = col;
+    waveMyChoice = null;
+    updateWaveCounts(0, 0); // 카운트 초기화
+
+    // 사용자 결정(2026-04-30): 관전자(추락/비참가)는 panel 자체 숨김
+    const myParticipant = (bridgeParticipants || []).find(p => p.userName === currentUser);
+    const iAmAlive = !!myParticipant
+        && !(window._bridgeFallenUsers || []).includes(currentUser)
+        && !(window._bridgeFinishedUsers || []).includes(currentUser);
+    if (!iAmAlive) {
+        const panel = document.getElementById('waveChoicePanel');
+        if (panel) panel.style.display = 'none';
+        return;
+    }
+
+    const panel = document.getElementById('waveChoicePanel');
+    if (!panel) return;
+    panel.classList.remove('hiding');
+    panel.style.display = 'block';
+
+    const colLabel = document.getElementById('waveColLabel');
+    if (colLabel) colLabel.textContent = String(col + 1);
+
+    waveDecidedUsers = [];
+    refreshWaveDecisionList();
+
+    const topBtn = document.getElementById('waveTopBtn');
+    const bottomBtn = document.getElementById('waveBottomBtn');
+    const status = document.getElementById('waveChoiceStatus');
+
+    if (topBtn) {
+        topBtn.classList.remove('locked', 'disabled');
+        topBtn.removeAttribute('disabled');
+    }
+    if (bottomBtn) {
+        bottomBtn.classList.remove('locked', 'disabled');
+        bottomBtn.removeAttribute('disabled');
+    }
+    if (status) status.textContent = '⏰ 왼쪽 또는 오른쪽을 선택하세요!';
+
+    startWaveCountdown();
+}
+
+function hideWaveChoicePanel() {
+    const panel = document.getElementById('waveChoicePanel');
+    if (!panel) {
+        if (waveCountdownTimer) { clearInterval(waveCountdownTimer); waveCountdownTimer = null; }
+        waveActiveCol = -1;
+        window._bridgeWaveActiveCol = null;
+        window._bridgeHoverRow = null;
+        waveMyChoice = null;
+        return;
+    }
+    // 슬라이드업 fade 애니메이션 후 display:none
+    panel.classList.add('hiding');
+    setTimeout(() => {
+        panel.style.display = 'none';
+        panel.classList.remove('hiding');
+    }, 350);
+    if (waveCountdownTimer) {
+        clearInterval(waveCountdownTimer);
+        waveCountdownTimer = null;
+    }
+    waveActiveCol = -1;
+    window._bridgeWaveActiveCol = null;
+    window._bridgeHoverRow = null;
+    waveMyChoice = null;
+}
+
+function startWaveCountdown() {
+    if (waveCountdownTimer) clearInterval(waveCountdownTimer);
+    waveDeadlineTs = Date.now() + 3000;
+    const el = document.getElementById('waveCountdown');
+
+    function tick() {
+        const remain = Math.max(0, waveDeadlineTs - Date.now());
+        const sec = Math.max(0, Math.ceil(remain / 1000));
+        if (el) el.textContent = String(sec);
+        if (remain <= 0) {
+            clearInterval(waveCountdownTimer);
+            waveCountdownTimer = null;
+        }
+    }
+    tick();
+    waveCountdownTimer = setInterval(tick, 100);
+}
+
+function submitWaveChoice(choice) {
+    if (choice !== 'top' && choice !== 'bottom') return;
+    if (waveActiveCol < 0) return;
+    if (waveMyChoice) return; // 이미 선택함
+
+    const myParticipant = (bridgeParticipants || []).find(p => p.userName === currentUser);
+    if (!myParticipant) return;
+    if ((window._bridgeFallenUsers || []).includes(currentUser)) return;
+    if ((window._bridgeFinishedUsers || []).includes(currentUser)) return;
+
+    waveMyChoice = choice;
+    socket.emit('bridge-cross:choice', { col: waveActiveCol, choice });
+
+    // UI lock
+    const topBtn = document.getElementById('waveTopBtn');
+    const bottomBtn = document.getElementById('waveBottomBtn');
+    if (topBtn) {
+        if (choice === 'top') topBtn.classList.add('locked');
+        topBtn.classList.add('disabled');
+        topBtn.setAttribute('disabled', 'disabled');
+    }
+    if (bottomBtn) {
+        if (choice === 'bottom') bottomBtn.classList.add('locked');
+        bottomBtn.classList.add('disabled');
+        bottomBtn.setAttribute('disabled', 'disabled');
+    }
+    const status = document.getElementById('waveChoiceStatus');
+    if (status) status.textContent = '✅ 선택 완료 — 다른 사용자 대기 중...';
+}
+
+// 사용자 결정(2026-04-30): 다른 사람 정보 표시 제거 — refreshWaveDecisionList no-op
+function refreshWaveDecisionList() { /* removed */ }
+
+// 버튼 hover 시 캔버스 발판 highlight (window 변수 — drawTile에서 검사)
+function setBridgeTileHover(row) {
+    if (row !== 'top' && row !== 'bottom') {
+        window._bridgeHoverRow = null;
+    } else {
+        window._bridgeHoverRow = row;
+    }
+}
+window.setBridgeTileHover = setBridgeTileHover;
+
+// 버튼 카운트 표시 갱신
+function updateWaveCounts(topCount, bottomCount) {
+    var t = document.getElementById('waveTopCount');
+    var b = document.getElementById('waveBottomCount');
+    if (t) t.textContent = topCount;
+    if (b) b.textContent = bottomCount;
 }
 
 function showBridgeResult(data) {
@@ -452,53 +595,34 @@ function showBridgeResult(data) {
     const rankings = document.getElementById('resultRankings');
     if (!overlay || !rankings) return;
 
-    // 통과 색 목록 (다수 winner 호환). 옛 클라/서버 호환을 위해 winnerColors fallback.
-    const winnerColorIdxs = Array.isArray(data.winnerColors)
-        ? data.winnerColors.slice()
-        : (typeof data.winnerColor === 'number' ? [data.winnerColor] : []);
+    const winners = Array.isArray(data.winners) ? data.winners : [];
+    const fallenUsers = Array.isArray(data.fallenUsers) ? data.fallenUsers : [];
 
-    const colorChips = winnerColorIdxs
-        .map(idx => BRIDGE_COLORS[idx])
-        .filter(Boolean)
-        .map(c => `${c.emoji} ${c.name}`)
-        .join(' / ');
-    const winnerColorBlock = colorChips
-        ? `<div style="font-size:28px; margin-bottom:8px;">${colorChips} 통과!</div>`
+    const winnersHtml = winners.length > 0
+        ? `<div style="margin-top:12px; padding:14px; background: var(--result-gold-light, #fef3c7); border-radius:10px;">
+                <div style="font-weight:bold; color:#b45309; margin-bottom:6px; font-size:18px;">🏆 통과 (winner)</div>
+                <div style="font-size:16px; line-height:1.6;">${winners.map(w => escapeHtml(w)).join(' · ')}</div>
+            </div>`
+        : `<div style="margin-top:12px; padding:14px; background: var(--bg-secondary, #f3f4f6); border-radius:10px; color: var(--text-secondary);">
+                통과자 없음
+            </div>`;
+
+    const fallenHtml = fallenUsers.length > 0
+        ? `<div style="margin-top:10px; padding:10px; background: rgba(0,0,0,0.04); border-radius:8px;">
+                <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px; font-size:13px;">🪦 추락</div>
+                <div style="font-size:13px;">${fallenUsers.map(w => escapeHtml(w)).join(', ')}</div>
+            </div>`
         : '';
 
-    let winnersHtml = '';
-    if (Array.isArray(data.winners) && data.winners.length > 0) {
-        winnersHtml = `
-            <div style="margin-top:12px; padding:12px; background: var(--result-gold-light, #fef3c7); border-radius:8px;">
-                <div style="font-weight:bold; color:#b45309; margin-bottom:6px;">🏆 당첨자</div>
-                <div style="font-size:15px;">${data.winners.map(w => escapeHtml(w)).join(', ')}</div>
-            </div>
-        `;
-    } else {
-        winnersHtml = `
-            <div style="margin-top:12px; padding:12px; background: var(--bg-secondary, #f3f4f6); border-radius:8px; color: var(--text-secondary);">
-                당첨자 없음
-            </div>
-        `;
-    }
-
-    rankings.innerHTML = winnerColorBlock + winnersHtml;
+    rankings.innerHTML = winnersHtml + fallenHtml;
     overlay.classList.add('visible');
 
-    // 히스토리에 추가 (베팅 정보 + 다수 통과 색 보존)
-    const passingColors = Array.isArray(data.passingColors)
-        ? data.passingColors.slice()
-        : (Array.isArray(data.outboundSurvivorColors)
-            ? data.outboundSurvivorColors.slice()
-            : winnerColorIdxs.slice());
+    // 히스토리에 추가
     bridgeCrossHistory.unshift({
         round: data.round || (bridgeCrossHistory.length + 1),
-        winnerColor: data.winnerColor,                       // 옛 단일 호환
-        passingColors,                                       // 신규 다수 통과 색
-        winnerColorName: data.winnerColorName,
-        winners: data.winners || [],
-        activeColors: Array.isArray(data.activeColors) ? data.activeColors : [],
-        allBets: (data.allBets && typeof data.allBets === 'object') ? data.allBets : {},
+        winners: winners,
+        fallenUsers: fallenUsers,
+        participants: Array.isArray(data.participants) ? data.participants.slice() : [],
         timestamp: new Date().toISOString()
     });
     renderBridgeHistory();
@@ -511,44 +635,31 @@ function renderBridgeHistory() {
         list.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 10px;">아직 기록이 없습니다</div>';
         return;
     }
-    list.innerHTML = bridgeCrossHistory.slice(0, 20).map((h, idx) => {
+    list.innerHTML = bridgeCrossHistory.slice(0, 20).map((h) => {
         const round = h.round;
         const time = h.timestamp ? new Date(h.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        const participants = Array.isArray(h.participants) ? h.participants : [];
+        const winners = Array.isArray(h.winners) ? h.winners : [];
+        const fallen = Array.isArray(h.fallenUsers) ? h.fallenUsers : [];
 
-        // 활성 색상별 베팅자 + 통과/실패 표시
-        let colorRowsHtml = '';
-        const activeColors = Array.isArray(h.activeColors) ? h.activeColors : [];
-        const allBets = h.allBets || {};
-        if (activeColors.length > 0) {
-            // 색상 인덱스 → 베팅자 그룹
-            const bettorsByColor = {};
-            Object.entries(allBets).forEach(([userName, colorIdx]) => {
-                if (!bettorsByColor[colorIdx]) bettorsByColor[colorIdx] = [];
-                bettorsByColor[colorIdx].push(userName);
-            });
-            const passingForRow = Array.isArray(h.passingColors)
-                ? h.passingColors
-                : (typeof h.winnerColor === 'number' ? [h.winnerColor] : []);
-            colorRowsHtml = activeColors.map(colorIdx => {
-                const c = BRIDGE_COLORS[colorIdx];
-                const isPasser = passingForRow.includes(colorIdx);
-                const bettors = (bettorsByColor[colorIdx] || []).map(escapeHtml).join(', ') || '-';
-                const bgColor = isPasser ? 'var(--result-gold-light, #fef3c7)' : 'var(--panel-secondary, rgba(0,0,0,0.04))';
-                const status = isPasser ? '✅ 통과' : '❌ 실패';
-                return `
-                    <div style="display:flex; align-items:center; gap:6px; padding:4px 8px; background:${bgColor}; border-radius:4px; margin-bottom:4px; font-size:12px;">
-                        <span style="font-size:14px;">${c ? c.emoji : ''}</span>
-                        <span style="font-weight:bold; min-width:36px;">${c ? c.name : ''}</span>
-                        <span style="color:${isPasser ? '#b45309' : 'var(--text-muted)'}; font-weight:600;">${status}</span>
-                        <span style="margin-left:auto; color:var(--text-secondary); font-size:11px;">${bettors}</span>
-                    </div>
-                `;
-            }).join('');
-        }
+        const userRowsHtml = participants.map(p => {
+            const c = BRIDGE_COLORS[p.colorIndex] || { emoji: '⚪', name: '' };
+            const isWinner = winners.includes(p.userName);
+            const isFallen = fallen.includes(p.userName);
+            const bgColor = isWinner ? 'var(--result-gold-light, #fef3c7)' : 'var(--panel-secondary, rgba(0,0,0,0.04))';
+            const status = isWinner ? '✅ 통과' : (isFallen ? '🪦 추락' : '—');
+            const modeIcon = p.mode === 'auto' ? '🤖' : '🎮';
+            return `<div style="display:flex; align-items:center; gap:6px; padding:4px 8px; background:${bgColor}; border-radius:4px; margin-bottom:4px; font-size:12px;">
+                <span style="font-size:14px;">${c.emoji}</span>
+                <span style="font-weight:bold; min-width:80px;">${escapeHtml(p.userName)}</span>
+                <span style="font-size:11px; color:var(--text-muted);">${modeIcon}</span>
+                <span style="margin-left:auto; color:${isWinner ? '#b45309' : 'var(--text-muted)'}; font-weight:600;">${status}</span>
+            </div>`;
+        }).join('');
 
-        const winnersText = h.winners && h.winners.length > 0
-            ? `🎊 당첨: ${h.winners.map(escapeHtml).join(', ')}`
-            : '당첨자 없음';
+        const winnersText = winners.length > 0
+            ? `🎊 통과: ${winners.map(escapeHtml).join(', ')}`
+            : '통과자 없음';
 
         return `
             <div style="background:var(--yellow-50); padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--yellow-200);">
@@ -556,7 +667,7 @@ function renderBridgeHistory() {
                     <span style="font-weight:bold; color:var(--bridge-accent);">${round}라운드</span>
                     <span style="font-size:11px; color:var(--text-muted);">${time}</span>
                 </div>
-                <div style="margin-bottom:8px;">${colorRowsHtml}</div>
+                <div style="margin-bottom:8px;">${userRowsHtml}</div>
                 <div style="font-size:13px; color:var(--bridge-accent); font-weight:bold; text-align:center; padding:5px; background:var(--yellow-50); border-radius:4px;">${winnersText}</div>
             </div>
         `;
@@ -569,69 +680,25 @@ function escapeHtml(str) {
     }[ch]));
 }
 
-var currentBettorCount = 0;
-var currentBettorNames = [];
-
-function updateNonBettorList() {
-    const section = document.getElementById('nonBettorSection');
-    const list = document.getElementById('nonBettorList');
-    if (!section || !list) return;
-
-    // 준비한 사람 중 베팅 안 한 사람 (horse-race notSelectedVehicle 패턴)
-    const readySet = new Set(readyUsers || []);
-    const bettorSet = new Set(currentBettorNames || []);
-    const nonBettors = (users || [])
-        .filter(u => readySet.has(u.name) && !bettorSet.has(u.name))
-        .map(u => u.name);
-
-    // 베팅 단계가 아니거나 모두 베팅했으면 숨김
-    if (
-        isBridgeCrossActive
-        || nonBettors.length === 0
-        || (readyUsers || []).length === 0
-        || (currentBettorNames.length === 0 && currentBettorCount >= readySet.size)
-    ) {
-        section.style.display = 'none';
-        return;
-    }
-
-    section.style.display = 'block';
-    list.innerHTML = '';
-    nonBettors.sort((a, b) => a.localeCompare(b, 'ko')).forEach(name => {
-        const tag = document.createElement('div');
-        tag.style.cssText = 'background: var(--bg-white); border: 1px solid var(--red-400); color: var(--red-400); padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;';
-        tag.textContent = name + (name === currentUser ? ' (나)' : '');
-        list.appendChild(tag);
-    });
-}
-
 function updateStartButton() {
     const btn = document.getElementById('startBridgeCrossButton');
     if (!btn) return;
 
     if (isHost) {
         const readyCount = (readyUsers || []).length;
-        // 준비했는데 베팅 안 한 사람 = ready ∩ !bet
-        const bettorSet = new Set(currentBettorNames || []);
-        const readyNonBettors = (readyUsers || []).filter(name => !bettorSet.has(name));
+        // 사용자 결정(2026-04-30): 인원 제한 폐지 — 색은 6개 중복 허용
 
         if (isBridgeCrossActive) {
             btn.disabled = true;
             btn.textContent = '🌉 게임 진행 중';
-        } else if (readyCount < 2) {
+        } else if (readyCount < 1) {
             btn.disabled = true;
-            btn.textContent = `🌉 다리 건너기 시작 (${readyCount}/2명 준비)`;
-        } else if (readyNonBettors.length > 0) {
-            btn.disabled = true;
-            btn.textContent = `🌉 다리 건너기 시작 (베팅 안 함 ${readyNonBettors.length}명)`;
+            btn.textContent = `🌉 다리 건너기 시작 (${readyCount}/1명 준비)`;
         } else {
             btn.disabled = false;
-            btn.textContent = '🌉 다리 건너기 시작!';
+            btn.textContent = `🌉 다리 건너기 시작! (${readyCount}명)`;
         }
     }
-
-    // "준비했는데 베팅 안 한 사람"은 별도 ⏳ 영역에서 표시
-    updateNonBettorList();
 }
 
 // 호스트 컨트롤 함수 (HTML onclick)
@@ -650,74 +717,110 @@ function clearBridgeCrossData() {
 function showReplaySelector() { showCustomAlert('다시보기는 다음 단계에서 구현됩니다.', 'info'); }
 function replayMissedRace() { showCustomAlert('다시보기는 다음 단계에서 구현됩니다.', 'info'); }
 
-// bridge-cross 소켓 이벤트
-// 다음 라운드 시작 알림 (서버 endScenario 후 4초 뒤)
-socket.on('bridge-cross:bettingReady', () => {
-    showBridgeBettingUI();
-    currentBettorCount = 0;
-    currentBettorNames = [];
+// bridge-cross 소켓 이벤트 (User-Driven 모델)
+
+// 다음 라운드 시작 가능 알림 (서버 endGame 후 4초 뒤)
+socket.on('bridge-cross:roundReady', () => {
+    bridgeParticipants = [];
+    waveAllParticipantNames = [];
+    waveDecidedUsers = [];
+    window._bridgeFallenUsers = [];
+    window._bridgeFinishedUsers = [];
+    // 라운드 종료 — 색 picker 다시 활성. 본인 색 유지 (서버 userColors persist).
+    const colorPicker = document.getElementById('colorPickerSection');
+    if (colorPicker) colorPicker.style.display = 'block';
+    refreshColorPicker();
     updateStartButton();
-    addDebugLog('다음 라운드 베팅 가능', 'bridge');
+    addDebugLog('다음 라운드 시작 가능', 'bridge');
 });
 
-// 구 호환: 서버가 더이상 emit하지 않지만 받으면 베팅 UI 보장
-socket.on('bridge-cross:bettingOpen', () => {
-    showBridgeBettingUI();
-});
-
-socket.on('bridge-cross:selectionConfirm', (data) => {
-    const colorIdx = data && typeof data.colorIndex === 'number' ? data.colorIndex : null;
-    updateBridgeSelection(colorIdx);
-
-    // 본인 베팅 상태를 currentBettorNames에 즉시 반영 (서버 selectionCount payload 의존 안 함)
-    const meIdx = currentBettorNames.indexOf(currentUser);
-    if (colorIdx !== null) {
-        if (meIdx === -1) currentBettorNames.push(currentUser);
+// 색 선택 broadcast (다른 user의 색 동기화 + 본인 ack)
+socket.on('bridge-cross:colorUpdated', (data) => {
+    if (!data || typeof data.userName !== 'string') return;
+    if (data.allColors && typeof data.allColors === 'object') {
+        bridgeUserColors = { ...data.allColors };
     } else {
-        if (meIdx !== -1) currentBettorNames.splice(meIdx, 1);
+        bridgeUserColors[data.userName] = data.colorIndex;
     }
-    updateStartButton();
+    if (data.userName === currentUser && typeof data.colorIndex === 'number') {
+        myBridgeColor = data.colorIndex;
+    }
+    refreshColorPicker();
+    updateBridgePreviewSpawn();
 });
 
-socket.on('bridge-cross:selectionCount', (data) => {
-    const el = document.getElementById('bridgeBettorCountValue');
-    if (el && data) el.textContent = String(data.count || 0);
-    currentBettorCount = (data && data.count) || 0;
-    if (data && Array.isArray(data.bettorNames)) {
-        currentBettorNames = data.bettorNames;
-    }
-    updateStartButton();
-});
-
+// 게임 시작 (User-Driven)
 socket.on('bridge-cross:gameStart', (data) => {
-    if (bridgeCountdownTimer) {
-        clearInterval(bridgeCountdownTimer);
-        bridgeCountdownTimer = null;
-    }
-    const M = (data && data.activeColors) ? data.activeColors.length : 0;
-    const detail = `참가 색상 ${M}개 — 통과한 색에 베팅한 모두가 winner!`;
-    showBridgePlayingUI(detail);
+    bridgeParticipants = Array.isArray(data && data.participants) ? data.participants.slice() : [];
+    waveAllParticipantNames = bridgeParticipants.map(p => p.userName);
+    waveDecidedUsers = [];
+    window._bridgeFallenUsers = [];
+    window._bridgeFinishedUsers = [];
+
+    const M = bridgeParticipants.length;
+    showBridgePlayingUI(`참가자 ${M}명 — 마지막 발판까지 살아남으면 winner!`);
     addDebugLog(`게임 시작 (M=${M})`, 'bridge');
 
-    // 캔버스 IIFE wiring (window._onGameStart는 IIFE가 등록함)
+    // 캔버스 IIFE wiring
     if (typeof window._onGameStart === 'function') {
         try { window._onGameStart(data); } catch (e) { console.error('_onGameStart error:', e); }
     }
 });
 
-socket.on('bridge-cross:gameEnd', (data) => {
-    const colorNames = (data && Array.isArray(data.winnerColorNames) && data.winnerColorNames.length > 0)
-        ? data.winnerColorNames.join(', ')
-        : (data && data.winnerColorName ? data.winnerColorName : '');
-    addDebugLog(`게임 종료 — ${colorNames} 통과, 당첨 ${data && data.winners ? data.winners.length : 0}명`, 'bridge');
+// Wave 시작 — 위/아래 선택 UI 활성
+socket.on('bridge-cross:waveStart', (data) => {
+    if (!data || typeof data.col !== 'number') return;
+    addDebugLog(`waveStart col=${data.col}`, 'bridge');
+    showWaveChoicePanel(data.col);
+});
 
-    // 캔버스 IIFE wiring (시각 마무리)
+// 진행도(카운트) — 매 choice 도착 시 서버 broadcast (사용자 결정: 카운트만)
+socket.on('bridge-cross:choiceProgress', (data) => {
+    if (!data) return;
+    updateWaveCounts(data.topCount || 0, data.bottomCount || 0);
+});
+
+// Wave 결과 — 시각화 트리거
+socket.on('bridge-cross:waveResult', (data) => {
+    if (!data || typeof data.col !== 'number') return;
+    const results = Array.isArray(data.results) ? data.results : [];
+    addDebugLog(`waveResult col=${data.col} results=[${results.map(r => r.userName + ':' + r.choice + (r.success ? '✓' : '✗')).join(', ')}]`, 'bridge');
+
+    // fallenUsers 갱신 (시각용)
+    results.forEach(r => {
+        if (!r.success) {
+            window._bridgeFallenUsers = window._bridgeFallenUsers || [];
+            if (window._bridgeFallenUsers.indexOf(r.userName) === -1) {
+                window._bridgeFallenUsers.push(r.userName);
+            }
+        }
+    });
+
+    // 사용자 결정(2026-04-30): 카운트 0 → UI slide-up fade-out 끝난 다음 캐릭터 점프
+    // hide 애니 0.34s + 마진 → 600ms 후 점프 트리거 (UI 완전 사라진 뒤)
+    updateWaveCounts(0, 0);
+    hideWaveChoicePanel();
+    setTimeout(() => {
+        if (typeof window._onWaveResult === 'function') {
+            try { window._onWaveResult(data); } catch (e) { console.error('_onWaveResult error:', e); }
+        }
+    }, 600);
+});
+
+// 게임 종료
+socket.on('bridge-cross:gameEnd', (data) => {
+    const winners = data && Array.isArray(data.winners) ? data.winners : [];
+    const fallen = data && Array.isArray(data.fallenUsers) ? data.fallenUsers : [];
+    addDebugLog(`게임 종료 — winners=[${winners.join(', ')}] fallen=[${fallen.join(', ')}]`, 'bridge');
+
+    window._bridgeFinishedUsers = winners.slice();
+    window._bridgeFallenUsers = fallen.slice();
+
     if (typeof window._onGameEnd === 'function') {
         try { window._onGameEnd(data); } catch (e) { console.error('_onGameEnd error:', e); }
     }
 
-    // 캔버스 시각화 완료(state.mode === 'finished') 후 결과 오버레이 표시
-    // 서버 gameEnd가 IIFE 시각화보다 일찍 도달하는 race 방지
+    // 캔버스 시각화 완료 polling
     const startTime = Date.now();
     const MAX_WAIT_MS = 30000;
     const CHECK_INTERVAL_MS = 300;
@@ -741,7 +844,6 @@ socket.on('bridge-cross:gameEnd', (data) => {
         const timeoutReached = (Date.now() - startTime) > MAX_WAIT_MS;
         if (isFinished || timeoutReached) {
             clearInterval(pollFinished);
-            // 시각화 완료 후 1초 결과 강조 시간
             setTimeout(showResultOnce, 1000);
         }
     }, CHECK_INTERVAL_MS);
@@ -807,9 +909,9 @@ socket.on('roomCreated', (data) => {
     const hostControls = document.getElementById('hostControls');
     if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
 
-    // 방 입장 직후 베팅 UI 자동 표시 (idle phase에서 베팅 가능)
-    showBridgeBettingUI();
-    currentBettorCount = 0;
+    // 방 입장 직후 캔버스 노출
+    const gameArea = document.getElementById('bridgeCrossGameArea');
+    if (gameArea) gameArea.style.display = 'block';
     updateStartButton();
 
     addDebugLog(`방 생성: ${data.roomId}`, 'bridge');
@@ -852,9 +954,9 @@ socket.on('roomJoined', (data) => {
     const hostControls = document.getElementById('hostControls');
     if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
 
-    // 방 입장 직후 베팅 UI 자동 표시 (idle phase에서 베팅 가능)
-    showBridgeBettingUI();
-    currentBettorCount = 0;
+    // 방 입장 직후 캔버스 노출
+    const gameArea = document.getElementById('bridgeCrossGameArea');
+    if (gameArea) gameArea.style.display = 'block';
     updateStartButton();
 
     addDebugLog(`방 입장: ${data.roomId} (host=${isHost})`, 'bridge');
@@ -1018,6 +1120,7 @@ socket.on('updateUsers', (data) => {
     }
     renderUsersList(userArray);
     updateStartButton();  // 인원 변경 시 시작 조건 재계산
+    updateBridgePreviewSpawn();
 });
 
 // 호스트 변경
@@ -1076,15 +1179,10 @@ socket.on('joinError', (data) => {
 
     // 6색 고정 (보라 제외) — impl §1.2
     var playerColors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo'];
-    // 도전 순서 고정: 빨(0) 주(1) 노(2) 초(3) 파(4) 남(5)
-    var allPlayerDefs = [
-        { name: '빨강', color: 'red',    colorIndex: 0 },
-        { name: '주황', color: 'orange', colorIndex: 1 },
-        { name: '노랑', color: 'yellow', colorIndex: 2 },
-        { name: '초록', color: 'green',  colorIndex: 3 },
-        { name: '파랑', color: 'blue',   colorIndex: 4 },
-        { name: '남색', color: 'indigo', colorIndex: 5 }
-    ];
+    // user-driven 모델: 캐릭터는 user 단위, 색은 cyclic. allPlayerDefs 사용 안 함.
+    function colorByIndex(colorIndex) {
+        return playerColors[((colorIndex % playerColors.length) + playerColors.length) % playerColors.length];
+    }
 
     var winnerSpeechLines = [
         '살았다! 오늘은 내가 쏜다!',
@@ -1097,9 +1195,10 @@ socket.on('joinError', (data) => {
 
     var playerSheet = {
         columns: 4,
-        rows: 6,
+        rows: 7,
         animations: {
             idle:   { row: 0, frames: [0, 1, 2, 3], fps: 5, loop: true },
+            walk:   { row: 6, frames: [0, 1, 2, 3], fps: 5, loop: true },
             run:    { row: 1, frames: [0, 1, 2, 3], fps: 8, loop: true },
             jump:   { row: 2, frames: [0, 1, 2, 3], fps: 7, loop: false },
             land:   { row: 3, frames: [0, 1, 2, 3], fps: 8, loop: false },
@@ -1130,7 +1229,9 @@ socket.on('joinError', (data) => {
         bg: stageRoot + 'background-void-v2.png',
         startStage: stageRoot + 'start-stage-v3.png',
         finishStage: stageRoot + 'finish-stage-v2.png',
-        glassFx: spriteRoot + 'glass-fx-v2.png'
+        glassFx: spriteRoot + 'glass-fx-v2.png',
+        // 본인 캐릭터 식별용 외곽선 atlas (1400x1122, 4col x 6row, cell 350x187, anchor 동일)
+        myPlayerOutline: spriteRoot + 'players-my-outline-v1.png'
     }, Object.fromEntries(playerColors.map(function (color) {
         return ['player_' + color, spriteRoot + 'players-' + color + '.png'];
     })));
@@ -1272,12 +1373,14 @@ socket.on('joinError', (data) => {
         this.finishWorld    = opts.finishWorld    || { x: 1013, y: -27 };
         this.entranceOffset = opts.entranceOffset || { x: 217, y: -159 };
         this.exitOffset     = opts.exitOffset     || { x: -122, y: 40 };
-        this.rowStep        = opts.rowStep        || { x: 146, y: 76 };
-        this.tileSize       = opts.tileSize       || { w: 300, h: 143 };
+        // Parallel-run impl §4-7 + 사용자 후속 피드백(2026-04-29):
+        // tileSize ×1.50 from original (390→450), rowStep ×1.50 (190→219), charFootOffset 23
+        this.rowStep        = opts.rowStep        || { x: 219, y: 114 };
+        this.tileSize       = opts.tileSize       || { w: 450, h: 214 };
         this.tileRotation         = opts.tileRotation != null ? opts.tileRotation : 0;
         this.startStageRotation   = opts.startStageRotation != null ? opts.startStageRotation : 2.5;
         this.finishStageRotation  = opts.finishStageRotation != null ? opts.finishStageRotation : 0;
-        this.charFootOffset       = opts.charFootOffset != null ? opts.charFootOffset : 30;
+        this.charFootOffset       = opts.charFootOffset != null ? opts.charFootOffset : 23;
 
         // 자산 (0,0) 기준 corners (crop 후 좌표) + world offset
         this.startPlatform = new Platform('start', {
@@ -1420,8 +1523,6 @@ socket.on('joinError', (data) => {
                 return { zoom: 0.85, target: current || startCenter };
             case 'enter-bridge':
                 return { zoom: 1.0, target: current || startCenter };
-            case 'pre-choice':
-                return { zoom: 1.24, target: suspenseTarget };
             case 'result-hold':
                 return { zoom: 1.28, target: pending || current || startCenter };
             case 'safe-flash':
@@ -1451,11 +1552,18 @@ socket.on('joinError', (data) => {
         var framing = resolvePhaseFraming(state, this.layout);
         this.camera.setTarget({ x: framing.target.x, y: framing.target.y, zoom: framing.zoom });
 
-        // falling shake (캐릭터당 1회)
-        if (state.phase === 'falling' && this._shakeAppliedFor !== state.currentIndex) {
+        // impl §G5: actives 중 falling/cascade-falling 1명이라도 있으면 shake.
+        // 식별자는 첫 fall한 player.id (state.cascadeShake.id) — 같은 fall에 1회만 trigger
+        var anyFalling = false;
+        for (var fi = 0; fi < state.actives.length; fi += 1) {
+            var rp = state.actives[fi].phase;
+            if (rp === 'falling' || rp === 'cascade-falling') { anyFalling = true; break; }
+        }
+        var shakeId = state.cascadeShake ? state.cascadeShake.id : null;
+        if (anyFalling && shakeId != null && this._shakeAppliedFor !== shakeId) {
             this.camera.shake(14, 0.55);
-            this._shakeAppliedFor = state.currentIndex;
-        } else if (state.phase !== 'falling') {
+            this._shakeAppliedFor = shakeId;
+        } else if (!anyFalling) {
             this._shakeAppliedFor = null;
         }
     };
@@ -1486,7 +1594,10 @@ socket.on('joinError', (data) => {
             this.lockedFrame = null;
         }
     };
-    SpriteAnimator.prototype.update = function (dt) { this.elapsed += dt; };
+    SpriteAnimator.prototype.update = function (dt) {
+        var scale = (typeof this._extraAdvance === 'number') ? this._extraAdvance : 1.0;
+        this.elapsed += dt * scale;
+    };
     SpriteAnimator.prototype.frame = function (sheet) {
         var anim = sheet.animations[this.animName] || sheet.animations.idle;
         if (this.lockedFrame !== null) return anim.frames[this.lockedFrame] != null ? anim.frames[this.lockedFrame] : anim.frames[0];
@@ -1498,6 +1609,18 @@ socket.on('joinError', (data) => {
         return (sheet.animations[this.animName] || sheet.animations.idle).row;
     };
 
+    // ── Deterministic PRNG (impl §G9) — 호스트/게스트 동기 jitter ──────────────
+    function mulberry32(seed) {
+        var s = seed >>> 0;
+        return function () {
+            s = (s + 0x6D2B79F5) >>> 0;
+            var t = s;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
     function PlayerActor(def, index, layoutInst) {
         this.id = index;
         this.name = def.name;
@@ -1506,6 +1629,7 @@ socket.on('joinError', (data) => {
         this.status = 'waiting';
         this.progress = 0;
         this.fallsAt = null;
+        this.fallsAtRow = null;     // impl §G3: per-runner fall row 기록
         this.choiceLog = [];
         this.slot = layoutInst.waitingSlot(index);
         this.animator = new SpriteAnimator('idle');
@@ -1514,8 +1638,10 @@ socket.on('joinError', (data) => {
         this.status = 'crossing';
         this.progress = 0;
         this.fallsAt = null;
+        this.fallsAtRow = null;
         this.choiceLog = [];
         this.animator.set('run', true);
+        this.animator._extraAdvance = 1.0;
     };
 
     function AvatarController() {
@@ -1548,6 +1674,19 @@ socket.on('joinError', (data) => {
         this.jumpHeight = options.jumpHeight != null ? options.jumpHeight : 52;
         this.landPulse = 0;
     };
+    // 보간 강제 종료 — 현재 위치를 도착점으로 snap. cascade fall 등 외부에서 점프를
+    // 즉시 중단해야 할 때 사용 (impl §G-cascade-freeze: 점프 중 cascade 진입 시 비행 글리치 방지)
+    AvatarController.prototype.freeze = function () {
+        this.fromX = this.x;
+        this.fromY = this.y;
+        this.toX = this.x;
+        this.toY = this.y;
+        this.groundX = this.x;
+        this.groundY = this.y;
+        this.t = 1;
+        this.jumpHeight = 0;
+        this.landPulse = 0;
+    };
     AvatarController.prototype.update = function (dt) {
         if (this.t < 1) {
             var prevT = this.t;
@@ -1574,6 +1713,7 @@ socket.on('joinError', (data) => {
     };
 
     var layout = new StageLayout();
+    window._bridgeLayout = layout; // 외부 noscope에서 접근 (preview spawn)
     var camera = new Camera({
         viewportW: viewport.w,
         viewportH: viewport.h,
@@ -1587,15 +1727,22 @@ socket.on('joinError', (data) => {
         mode: 'loading',
         phase: 'loading',
         paused: false,
-        // 서버 broadcast 데이터 (gameStart 이벤트로 채워짐)
-        scenarios: [],         // server-authored path scenarios
-        activeColors: [],      // number[] — 베팅된 색상 인덱스 (오름차순)
-        allBets: {},           // {[userName]: colorIndex}
+        // user-driven 모델 (2026-04-30) — startUserDrivenRun에서 채워짐
+        scenarios: [],         // (legacy compat — user-driven에선 미사용, getRunnerScenario fallback용)
+        activeColors: [],      // number[] — participants의 colorIndex 모음 (camera framing 호환)
+        revealed: [],          // (col) → { brokenTop, brokenBottom } (impl §G3)
+        players: [],           // 활성 PlayerActor[] (user 단위)
+        allPlayers: [],        // user 단위 PlayerActor[] (user-driven에선 players와 동일)
+        // 병렬 진행 모델 (impl §4-1)
+        actives: [],           // 다리 위 진행 중 runner record[]
+        startQueue: [],        // 출발 대기 runner record[] (jitter 카운트다운)
+        arrivedCount: 0,       // finishSlot 배정 atomic 카운터 (impl §G4)
+        cascadeShake: { id: null, t: 0 },   // 마지막 fall trigger (impl §G5)
+        cascadeSoundT: 0,      // sound throttle 플래그 (impl §G11)
+        waveIndex: 0,          // 사용자 후속 피드백(wave): 동기 도전 wave 카운터 (deterministic seed)
+        // 옛 단일 호환 필드 (renderGameToText fallback / camera framing 등)
         currentScenarioIndex: 0,
         currentPathIndex: 0,
-        revealed: [],
-        players: [],           // 활성 PlayerActor[] (도전 순)
-        allPlayers: [],        // 6명 모두 (비활성 포함, dim 그리기용)
         currentIndex: -1,
         current: null,
         avatar: new AvatarController(),
@@ -1668,13 +1815,22 @@ socket.on('joinError', (data) => {
             if (p.status === 'waiting') p.slot = layout.waitingSlot(idx);
         });
         // avatar 위치는 reset 안 함 (게임 진행 중 캐릭터가 시작 위치로 튀는 것 방지)
-        // 단 charFootOffset 변경분만큼 avatar y 비례 보정 (다리 위 캐릭터 자연스럽게 따라감)
+        // 단 charFootOffset 변경분만큼 avatar y 비례 보정 — 모든 active runner avatar에 적용
         var footDelta = charFootOffset - oldFootOffset;
-        if (footDelta !== 0 && state.avatar) {
-            state.avatar.y += footDelta;
-            state.avatar.toY += footDelta;
-            state.avatar.fromY += footDelta;
-            state.avatar.groundY += footDelta;
+        if (footDelta !== 0) {
+            (state.actives || []).forEach(function (r) {
+                if (!r || !r.avatar) return;
+                r.avatar.y += footDelta;
+                r.avatar.toY += footDelta;
+                r.avatar.fromY += footDelta;
+                r.avatar.groundY += footDelta;
+            });
+            if (state.avatar) {
+                state.avatar.y += footDelta;
+                state.avatar.toY += footDelta;
+                state.avatar.fromY += footDelta;
+                state.avatar.groundY += footDelta;
+            }
         }
         updateDebugInfo();
     }
@@ -1705,7 +1861,26 @@ socket.on('joinError', (data) => {
         }
     }
 
+    // impl §G8: HTML 디버그 패널 default를 layout 값으로 일괄 주입.
+    // (코드↔HTML 단일 truth source — tileSize/rowStep 변경 시 HTML 수정 누락 방지)
+    function syncDebugInputsToLayout() {
+        function setBoth(id, val) {
+            var el = document.getElementById(id);
+            if (el) el.value = val;
+            var nm = document.getElementById(id + 'Num');
+            if (nm) nm.value = val;
+        }
+        setBoth('dbgRowDx', layout.rowStep.x);
+        setBoth('dbgRowDy', layout.rowStep.y);
+        setBoth('dbgTileW', layout.tileSize.w);
+        setBoth('dbgTileH', layout.tileSize.h);
+        if (layout.charFootOffset != null) setBoth('dbgFootY', layout.charFootOffset);
+    }
+
     function initDebugPanel() {
+        // impl §G8: 디버그 패널 입력 default를 layout으로 일괄 주입
+        syncDebugInputsToLayout();
+
         var ids = ['dbgStartX', 'dbgStartY', 'dbgFinishX', 'dbgFinishY',
                    'dbgStartXNum', 'dbgStartYNum', 'dbgFinishXNum', 'dbgFinishYNum',
                    'dbgEntryDx', 'dbgEntryDy', 'dbgExitDx', 'dbgExitDy',
@@ -1841,82 +2016,39 @@ socket.on('joinError', (data) => {
     }
 
     /**
-     * 서버 gameStart broadcast 데이터로 시나리오 재생을 시작한다.
-     * mulberry32 / Math.random / randItem 호출 없음 — 모든 결정은 서버 broadcast 데이터.
+     * User-Driven 모드 (2026-04-30):
+     * 서버 gameStart broadcast — participants[]만 포함. safeRows는 서버 비밀.
+     * wave별로 server가 waveResult로 choice/success를 전달하면 그때 runner.pendingChoice 설정.
+     * mulberry32 / Math.random — 시각 jitter only (서버 결정 의존).
      */
-    function normalizeScenario(scenario) {
-        var path = Array.isArray(scenario && scenario.path) ? scenario.path : [];
-        return {
-            success: !!(scenario && scenario.success),
-            path: path.map(function (step) {
-                step = step || {};
-                var rawCol = typeof step.col === 'number' ? step.col : (typeof step.column === 'number' ? step.column - 1 : 0);
-                return {
-                    col: Math.max(0, Math.min(layout.columnCount - 1, rawCol)),
-                    row: step.row === 'bottom' ? 'bottom' : 'top',
-                    success: step.success !== false
-                };
-            })
-        };
-    }
-
-        function startScenarioReplay(data) {
+    function startUserDrivenRun(data) {
         data = data || {};
-        var activeColors = Array.isArray(data.activeColors) ? data.activeColors : [];
-        var allBets = data.allBets || {};
-
-        // 왕복 제거: outbound 1회만 진행. return 데이터/처리 모두 제거.
-        var outboundData = data.outbound || null;
-
-        // 통과 색 목록 (다수 winner). 옛 단일 winnerColor 호환.
-        var expectedWinnerColors = Array.isArray(data.winnerColors)
-            ? data.winnerColors.slice()
-            : (typeof data.winnerColor === 'number' ? [data.winnerColor] : []);
-
-        // 옛 형식(scenarios) 감지 — 서버 미재시작 시 발생
-        if (!outboundData && Array.isArray(data.scenarios)) {
-            console.error('[bridge-cross] 서버가 옛 형식 보냄 (scenarios만). 서버 재시작 필요.');
-            if (typeof addDebugLog === 'function') {
-                addDebugLog('[ERR] 서버 옛 형식 수신 — 5173 서버 재시작 필요!', 'error');
-            }
-            if (typeof showCustomAlert === 'function') {
-                showCustomAlert('🚨 서버 코드가 옛 버전입니다. 5173 서버 재시작이 필요합니다.', 'error');
-            }
-            // outbound paths를 옛 scenarios로 채워서 동작은 하게 (생존자 = scenario.success === true인 인덱스)
-            var oldScenarios = data.scenarios;
-            outboundData = {
-                safeRows: [],
-                paths: oldScenarios.map(function (sc) { return sc.path || []; }),
-                survivorPositions: oldScenarios
-                    .map(function (sc, i) { return sc.success ? i : -1; })
-                    .filter(function (i) { return i >= 0; })
-            };
-        }
-
-        outboundData = outboundData || { safeRows: [], paths: [], survivorPositions: [] };
+        var participants = Array.isArray(data.participants) ? data.participants : [];
 
         if (typeof addDebugLog === 'function') {
-            addDebugLog('[gameStart] M=' + activeColors.length + ', outbound.paths=' + (outboundData.paths || []).length +
-                ', survivorPositions=[' + (outboundData.survivorPositions || []).join(',') + ']' +
-                ', winnerColors=[' + expectedWinnerColors.join(',') + ']', 'bridge');
+            addDebugLog('[gameStart] participants=' + participants.length +
+                ' [' + participants.map(function (p) { return p.userName + ':' + p.colorIndex + ':' + p.mode; }).join(', ') + ']', 'bridge');
         }
 
-        state.activeColors = activeColors;
-        state.allBets = allBets;
-        state.outboundData = outboundData;
-        state.expectedWinnerColors = expectedWinnerColors;
-        // 옛 단일 호환 (사용처 fallback)
-        state.expectedWinnerColor = expectedWinnerColors.length > 0 ? expectedWinnerColors[0] : null;
+        // user-driven: activeColors는 participants의 colorIndex 모음 (camera framing 호환용)
+        state.activeColors = participants.map(function (p) { return p.colorIndex; });
+        state.scenarios = [];                // 사전 결정 path 폐기 (getRunnerScenario fallback용)
 
-        state.scenarios = (outboundData.paths || []).map(function (p) { return normalizeScenario({ path: p }); });
+        state.revealed = Array.from({ length: layout.columnCount }, function () { return { brokenTop: false, brokenBottom: false }; });
 
-        state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
-
-        // 전체 6명 PlayerActor 생성 (비활성 포함) — 시작 plat에 배치
-        state.allPlayers = allPlayerDefs.map(function (def, i) { return new PlayerActor(def, i, layout); });
-
-        // 활성 캐릭터만 (베팅된 색 오름차순) → outbound 도전 순서
-        state.players = activeColors.map(function (colorIdx) { return state.allPlayers[colorIdx]; });
+        // PlayerActor 생성 — user 단위
+        state.allPlayers = participants.map(function (p, i) {
+            var def = {
+                name: p.userName,
+                color: colorByIndex(p.colorIndex),
+                colorIndex: p.colorIndex
+            };
+            var actor = new PlayerActor(def, i, layout);
+            actor.userName = p.userName;
+            actor.mode = p.mode;
+            return actor;
+        });
+        state.players = state.allPlayers.slice();
 
         state.currentScenarioIndex = 0;
         state.currentPathIndex = 0;
@@ -1931,6 +2063,7 @@ socket.on('joinError', (data) => {
         state.winnerSpeech = null;
         state.winnerSpeeches = [];
         state.arrivedCount = 0;
+        state.waveIndex = 0;
         state.paused = false;
         state.mode = 'playing';
         state.phase = 'next-player';
@@ -1938,151 +2071,302 @@ socket.on('joinError', (data) => {
         state.events = ['다리 건너기 시작!'];
         updateTextPanels();
 
+        // ── 병렬 startQueue 초기화 (parallel-run 인프라 재활용) ──────────────────────
+        // mulberry32 deterministic seed (impl §10 stage-10): participants.length + waveIndex + colorSum
+        var colorSum0 = state.activeColors.reduce(function (a, c) { return a + (c | 0); }, 0);
+        var seed = (state.players.length * 1000) + (state.waveIndex * 7) + colorSum0;
+        var rng = mulberry32(seed >>> 0);
+        state.actives = [];
+        state.startQueue = state.players.map(function (player, i) {
+            var delay = 0.10 + i * 0.20 + rng() * 0.15;
+            return makeRunner(player, i, delay);
+        });
+        state.cascadeShake = { id: null, t: 0 };
+        state.cascadeSoundT = 0;
+
         if (typeof addDebugLog === 'function') {
-            addDebugLog('[outbound] 시작 (M=' + activeColors.length + ' 명)', 'bridge');
+            addDebugLog('[user-driven] 시작 (M=' + participants.length + ' 명, parallel)', 'bridge');
+            state.startQueue.forEach(function (qr) {
+                addDebugLog('  ' + qr.player.name + ' startDelay=' + qr.startDelay.toFixed(2) + 's', 'bridge');
+            });
+        }
+    }
+
+    /**
+     * Wave 결과 수신 — 각 user의 choice/success를 해당 runner의 pendingChoice에 주입.
+     * runner는 wave-launch 단계에서 prepareChoicePause를 통해 시각 점프.
+     */
+    function applyWaveResult(data) {
+        if (!data || typeof data.col !== 'number') return;
+        var col = data.col;
+        var results = Array.isArray(data.results) ? data.results : [];
+
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[applyWaveResult] col=' + col + ' results=' +
+                results.map(function (r) { return r.userName + ':' + r.choice + (r.success ? '✓' : '✗'); }).join(', '), 'bridge');
+        }
+
+        // 각 user의 active runner를 찾아 다음 wave step 주입
+        results.forEach(function (r) {
+            // active runner 우선
+            var runner = null;
+            for (var ai = 0; ai < state.actives.length; ai += 1) {
+                if (state.actives[ai].player && state.actives[ai].player.userName === r.userName) {
+                    runner = state.actives[ai];
+                    break;
+                }
+            }
+            if (!runner) {
+                // startQueue에 있다면 — wave-wait까지 대기. 첫 wave 도착 전이면 발생 가능.
+                // 이 경우 player.pendingWaveStep로 저장 → beginRunner 끝에서 wave-wait → wave-launch 시 사용
+                for (var qi = 0; qi < state.startQueue.length; qi += 1) {
+                    if (state.startQueue[qi].player && state.startQueue[qi].player.userName === r.userName) {
+                        runner = state.startQueue[qi];
+                        break;
+                    }
+                }
+            }
+            if (!runner) return;
+
+            // pendingChoice를 server-determined로 설정 (col, row, success)
+            runner.pendingChoice = {
+                col: col,
+                row: (r.choice === 'bottom') ? 'bottom' : 'top',
+                success: !!r.success
+            };
+        });
+
+        // wave-wait 상태인 runner들을 wave-launch로 트리거 (시차 부여)
+        var colorSum = state.activeColors.reduce(function (a, c) { return a + c; }, 0);
+        state.waveIndex += 1;
+        var waveRng = mulberry32(((state.players.length * 1000) + (state.waveIndex * 7) + colorSum + 31) >>> 0);
+        var waveOrder = 0;
+        for (var wj = 0; wj < state.actives.length; wj += 1) {
+            var wr = state.actives[wj];
+            if (wr.phase !== 'wave-wait') continue;
+            // 이 runner가 이번 wave에서 결과를 받았는지 확인 (pendingChoice의 col이 이번 col이면)
+            if (!wr.pendingChoice || wr.pendingChoice.col !== col) continue;
+            wr.phase = 'wave-launch';
+            wr.timer = 0.05 + waveOrder * 0.18 + waveRng() * 0.10;
+            waveOrder += 1;
         }
     }
 
     function getBrokenCount() {
-        return state.revealed.filter(function (item) { return item && item.broken; }).length;
+        // 한 col에 양쪽 깨짐도 가능하므로 col 단위 카운트 (한쪽이라도 깨지면 1)
+        return state.revealed.filter(function (item) { return item && (item.brokenTop || item.brokenBottom); }).length;
+    }
+    // (col, row) 깨짐 여부 헬퍼
+    function isRowBroken(item, row) {
+        if (!item) return false;
+        return row === 'top' ? !!item.brokenTop : !!item.brokenBottom;
+    }
+    function brokenRowName(item) {
+        if (!item) return null;
+        if (item.brokenTop && item.brokenBottom) return 'both';
+        if (item.brokenTop) return 'top';
+        if (item.brokenBottom) return 'bottom';
+        return null;
     }
 
-    function getCurrentScenario() {
-        return state.scenarios[state.currentScenarioIndex] || null;
+    // ── 병렬 runner 모델 (impl §4-1, 4-2) ────────────────────────────────────
+    // runner record 구조:
+    // {
+    //   player: PlayerActor,
+    //   scenarioIndex: number,        // state.scenarios 인덱스
+    //   pathIndex: number,             // 현재 path step (col)
+    //   avatar: AvatarController,
+    //   phase: string,
+    //   timer: number,
+    //   pendingChoice: { col, row, success } | null,
+    //   lastStep: { col, row, success } | null,
+    //   startDelay: number,            // startQueue에서만 사용
+    //   fallElapsed: number            // impl §G1 — 자체 fall 진행도
+    // }
+
+    function makeRunner(player, scenarioIndex, startDelay) {
+        return {
+            player: player,
+            scenarioIndex: scenarioIndex,
+            pathIndex: 0,
+            avatar: new AvatarController(),
+            phase: 'pending',
+            timer: startDelay || 0,
+            pendingChoice: null,
+            lastStep: null,
+            startDelay: startDelay || 0,
+            fallElapsed: 0
+        };
     }
 
-    function getCurrentPathStep() {
-        var scenario = getCurrentScenario();
+    function getRunnerScenario(runner) {
+        return state.scenarios[runner.scenarioIndex] || null;
+    }
+
+    function getRunnerPathStep(runner) {
+        var scenario = getRunnerScenario(runner);
         if (!scenario || !Array.isArray(scenario.path)) return null;
-        return scenario.path[state.currentPathIndex] || null;
+        return scenario.path[runner.pathIndex] || null;
     }
 
-    function nextActivePlayer() {
-        for (var i = state.currentIndex + 1; i < state.players.length; i += 1) {
-            if (state.players[i].status === 'waiting') return i;
+    function moveRunnerAvatar(runner, point, duration, options) {
+        options = options || {};
+        var dest = point;
+        // impl §4-6 + 사용자 후속 피드백 (2회): 같은 발판 다인 시각 분리 강화
+        // - jitter 폭 ±36/22 (이전 ±24/14에서 1.5배) — tileSize 450×214에서 8~10%
+        // - seed에 col 추가 → 매 col마다 다른 분산 패턴 (한쪽 쏠림 방지)
+        if (options.tileJitter) {
+            var col = (options.col != null) ? options.col : 0;
+            var jrng = mulberry32((runner.player.id * 31 + col * 7 + 13) * 1664525);
+            var jx = (jrng() - 0.5) * 72;
+            var jy = (jrng() - 0.5) * 44;
+            dest = { x: point.x + jx, y: point.y + jy };
         }
-        return -1;
+        runner.avatar.moveTo(dest, duration, options);
+        runner.timer = duration;
     }
 
-    function beginPlayer(index) {
-        state.currentIndex = index;
-        state.current = state.players[index];
-        state.currentPathIndex = 0;
-        state.lastStep = null;
-        state.current.resetForRun();
-        // 시작 좌표: 시작 plat slot
-        state.avatar.reset(state.current.slot);
-        state.phase = 'enter-bridge';
-        // 첫 점프 도착 좌표: 다리 entrance
+    function beginRunner(runner) {
+        var player = runner.player;
+        runner.pathIndex = 0;
+        runner.lastStep = null;
+        runner.pendingChoice = null;
+        runner.fallElapsed = 0;
+        player.resetForRun();
+        runner.avatar.reset(player.slot);
+        runner.phase = 'enter-bridge';
         var bridgeEntry = layout.entrance();
-        moveAvatar(bridgeEntry, 0.55, { jumpHeight: 0, anchorOffset: 0 });
+        moveRunnerAvatar(runner, bridgeEntry, 0.55, { jumpHeight: 0, anchorOffset: 0, tileJitter: true, col: -1 });
         if (typeof addDebugLog === 'function') {
-            addDebugLog('[beginPlayer] player=' + state.current.name + ' from=(' + Math.round(state.avatar.x) + ',' + Math.round(state.avatar.y) + ') to=(' + Math.round(bridgeEntry.x) + ',' + Math.round(bridgeEntry.y) + ')', 'bridge');
-        }
-        pushEvent(state.current.name + ' steps up.');
-
-        // 디버그: 도전자 진입 시 scenario path 전체 출력
-        var scenario = state.scenarios[state.currentScenarioIndex];
-        var pathSummary = scenario && scenario.path
-            ? scenario.path.map(function (s) {
-                return 'col' + s.col + '=' + s.row + (s.success ? '✓' : '✗');
-            }).join(' → ')
-            : '(없음)';
-        if (typeof addDebugLog === 'function') {
-            addDebugLog(
-                '[player ' + index + '] ' + state.current.name + ' (color=' + state.current.colorIndex + ') 진입. scenario#' +
-                state.currentScenarioIndex + ' = ' + pathSummary,
-                'bridge'
-            );
-        }
-        // 현재 revealed 상태도 출력
-        var revealedSummary = state.revealed.map(function (r, i) {
-            return 'col' + i + (r && r.broken ? ':broken=' + r.broken : ':-');
-        }).join(' ');
-        if (typeof addDebugLog === 'function') {
+            addDebugLog('[beginRunner] user=' + (player.userName || player.name) +
+                ' mode=' + (player.mode || 'manual') +
+                ' from=(' + Math.round(runner.avatar.x) + ',' + Math.round(runner.avatar.y) +
+                ') to=(' + Math.round(bridgeEntry.x) + ',' + Math.round(bridgeEntry.y) + ')',
+                'bridge');
+            var revealedSummary = state.revealed.map(function (r, i) {
+                var b = brokenRowName(r);
+                return 'col' + i + (b ? ':broken=' + b : ':-');
+            }).join(' ');
             addDebugLog('  revealed: ' + revealedSummary, 'bridge');
         }
+        pushEvent(player.name + ' steps up.');
     }
 
-    function moveAvatar(point, duration, options) {
-        state.avatar.moveTo(point, duration, options);
-        state.timer = duration;
-    }
-
-    function prepareChoicePause() {
-        var player = state.current;
-        var step = getCurrentPathStep();
-        var col = step ? step.col : (player ? player.progress : 0);
+    function prepareChoicePause(runner) {
+        var player = runner.player;
+        // user-driven: pendingChoice는 wave-launch 트리거 시점에 이미 applyWaveResult로 설정됨
+        var step = runner.pendingChoice;
         if (!player || !step || player.progress >= layout.columnCount) {
             if (player) {
                 player.status = 'finished';
                 player.animator.set('result', true);
-                var arrivedIdx = state.arrivedCount || 0;
+                var arrivedIdx = state.arrivedCount;
+                state.arrivedCount = arrivedIdx + 1;
                 player.arrivedSlotIndex = arrivedIdx;
                 var arrivedSlot = layout.finishSlot(arrivedIdx);
-                state.arrivedCount = arrivedIdx + 1;
-                moveAvatar(arrivedSlot, 0.7, { jumpHeight: 46, anchorOffset: 0 });
-                state.phase = 'finish-wait';
+                moveRunnerAvatar(runner, arrivedSlot, 0.7, { jumpHeight: 46, anchorOffset: 0 });
+                runner.phase = 'finish-wait';
             }
             return;
         }
-
-        state.pendingChoice = { col: col, row: step.row, success: step.success };
-
-        // 확실한 step → 고민 phase(pre-choice 0.92s) 생략 + 빠른 점프
-        // - 이미 broken 정보 알려진 col (안전 row 명확)
-        var revealedCol = state.revealed[col];
-        var isCertain = !!(revealedCol && revealedCol.broken);
-
-        if (isCertain) {
-            moveAvatar(layout.tileCenter(col, step.row), 0.34, { jumpHeight: 48 });
-            state.phase = 'choice-wait';
-            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 통과 (확실).');
-        } else {
-            // top↔bottom 왔다갔다 4번 → 마지막 1번은 step.row에 멈춤 (총 5단계)
-            state.preChoiceTogglesLeft = 5;
-            state.preChoiceWarningRow = (step.row === 'top') ? 'bottom' : 'top';
-            state.phase = 'pre-choice';
-            state.timer = 0.18;
-            pushEvent(player.name + '이(가) ' + (col + 1) + '번 열 앞에서 망설인다...');
-        }
+        var col = step.col;
+        moveRunnerAvatar(runner, layout.tileCenter(step.col, step.row), 0.55, { jumpHeight: 62, tileJitter: true, col: step.col });
+        runner.phase = 'choice-wait';
+        pushEvent(player.name + '이(가) ' + (col + 1) + '번 열에 도전.');
     }
 
-    function revealChoice(player, step) {
+    function revealChoice(runner, step) {
         var col = step.col;
         var choice = step.row;
         var success = step.success !== false;
-        var revealed = state.revealed[col] || { broken: null };
-        state.revealed[col] = { broken: success ? revealed.broken : choice };
-        state.lastStep = { col: col, row: choice, success: success };
-        player.choiceLog.push({ col: col, choice: choice, success: success });
+        // impl §G3: brokenTop/brokenBottom 분리 — 같은 col 양쪽 깨짐도 표현 가능
+        var revealed = state.revealed[col] || { brokenTop: false, brokenBottom: false };
+        if (!success) {
+            if (choice === 'top') revealed.brokenTop = true;
+            else revealed.brokenBottom = true;
+        }
+        state.revealed[col] = revealed;
+        runner.lastStep = { col: col, row: choice, success: success };
+        runner.player.choiceLog.push({ col: col, choice: choice, success: success });
 
         if (typeof addDebugLog === 'function') {
             addDebugLog(
-                '  → ' + player.name + ' col' + col + ' ' + choice + (success ? ' ✓통과' : ' ✗추락') +
-                ' (broken now: ' + (state.revealed[col].broken || 'none') + ')',
+                '  → ' + runner.player.name + ' col' + col + ' ' + choice + (success ? ' ✓통과' : ' ✗추락') +
+                ' (broken now: ' + (brokenRowName(state.revealed[col]) || 'none') + ')',
                 'bridge'
             );
+        }
+
+        // impl §4-5: cascade fall — runner가 추락하는 순간, 같은 (col, row) 위 다른 active도 동시 fall
+        if (!success) {
+            applyCascadeFall(runner, col, choice);
         }
         return success;
     }
 
-    function finishGame(winner) {
-        // 다수 winner: expectedWinnerColors에 해당하는 모든 player가 winner
-        var winnerColors = Array.isArray(state.expectedWinnerColors) ? state.expectedWinnerColors : [];
-        var candidateWinners = (state.players || []).filter(function (p) {
-            return winnerColors.indexOf(p.colorIndex) !== -1;
+    // user-driven: visual tile position — 어떤 (col, row)에 시각적으로 서있는지 추론
+    // cascade 가드: 자기 lastStep이 success면 cascade에 휩쓸리지 않음 (자기 row가 안전 row)
+    function visualTilePosition(runner) {
+        if (!runner) return null;
+        // safe-flash 단계의 runner는 자기 row가 success였으므로 cascade 면역 (lastStep.success === true)
+        if (runner.phase === 'safe-flash' && runner.lastStep && runner.lastStep.success) {
+            return null;
+        }
+        // pendingChoice가 있으면 그 (col, row) — choice-wait/result-hold (cascade 대상)
+        if (runner.pendingChoice) {
+            return { col: runner.pendingChoice.col, row: runner.pendingChoice.row };
+        }
+        if (runner.phase === 'safe-flash' && runner.lastStep) {
+            return { col: runner.lastStep.col, row: runner.lastStep.row };
+        }
+        return null;
+    }
+
+    function applyCascadeFall(triggerRunner, brokenCol, brokenRow) {
+        var soundPlayed = false;
+        // impl §G11: cascade fall 묶음당 break/fall 사운드 1회만 (100ms throttle)
+        var canPlaySound = (state.elapsed - state.cascadeSoundT) > 0.1;
+        state.actives.forEach(function (other) {
+            if (other === triggerRunner) return;
+            if (other.phase === 'falling' || other.phase === 'cascade-falling') return;
+            if (other.player.status === 'fallen' || other.player.status === 'finished'
+                || other.player.status === 'winner') return;
+            var pos = visualTilePosition(other);
+            if (!pos) return;
+            if (pos.col !== brokenCol || pos.row !== brokenRow) return;
+            // cascade fall 강제 전이
+            // 진행 중인 avatar 보간(점프 등)을 즉시 freeze — 그러지 않으면 update(dt)가
+            // 점프 도착점으로 보간하면서 동시에 fallY 가산되어 "비행 곡선" 시각 글리치 발생
+            if (other.avatar && typeof other.avatar.freeze === 'function') {
+                other.avatar.freeze();
+            }
+            other.phase = 'cascade-falling';
+            other.timer = 0.92;
+            other.fallElapsed = 0;
+            other.player.status = 'fallen';
+            other.player.fallsAt = brokenCol + 1;
+            other.player.fallsAtRow = brokenRow;
+            other.player.animator.set('fall', true);
+            soundPlayed = true;
+            pushEvent(other.player.name + '이(가) 함께 추락! (cascade)');
+            if (typeof addDebugLog === 'function') {
+                addDebugLog('  ↘ cascade fall: ' + other.player.name + ' on col' + brokenCol + ' ' + brokenRow, 'warn');
+            }
         });
-        var winners;
-        if (candidateWinners.length > 0) {
-            winners = candidateWinners;
-        } else if (winner) {
+        // shake/sound throttle
+        if (soundPlayed && canPlaySound && window.SoundManager) {
+            // 단, 트리거 runner의 사운드는 advanceRunner에서 이미 재생되므로 cascade는 생략
+            state.cascadeSoundT = state.elapsed;
+        }
+    }
+
+    function finishGame(winner) {
+        // user-driven: status === 'finished' 인 player가 winner
+        var winners = (state.players || []).filter(function (p) {
+            return p.status === 'finished' || p.status === 'winner';
+        });
+        if (winners.length === 0 && winner) {
             winners = [winner];
-        } else if (state.players && state.players.length > 0) {
-            // fallback: progress 가장 큰 사람 1명
-            winners = [state.players.slice().sort(function (a, b) { return b.progress - a.progress; })[0]];
-        } else {
-            winners = [];
         }
 
         state.winners = winners;
@@ -2090,7 +2374,6 @@ socket.on('joinError', (data) => {
 
         if (typeof addDebugLog === 'function') {
             addDebugLog('[finishGame] winnerArg=' + (winner ? winner.name : 'null') +
-                ', expectedWinnerColors=[' + winnerColors.join(',') + ']' +
                 ', winners=[' + winners.map(function (w) { return w.name + '(color=' + w.colorIndex + ')'; }).join(',') + ']' +
                 ', state.players=' + (state.players ? state.players.length : 0), 'bridge');
         }
@@ -2111,6 +2394,8 @@ socket.on('joinError', (data) => {
         state.winnerSpeech = state.winnerSpeeches.length > 0 ? state.winnerSpeeches[0] : null;
 
         state.current = null;
+        state.actives = [];
+        state.startQueue = [];
         state.phase = 'finished';
         state.mode = 'finished';
         pushEvent((winners.length > 0
@@ -2119,92 +2404,60 @@ socket.on('joinError', (data) => {
         updateTextPanels();
     }
 
-    function update(dt) {
-        if (state.mode === 'loading' || state.paused) return;
-        state.elapsed += dt;
-        // 전체 6명 animator 업데이트 (비활성도 idle bob 처리)
-        var animPlayers = state.allPlayers.length ? state.allPlayers : state.players;
-        for (var i = 0; i < animPlayers.length; i += 1) animPlayers[i].animator.update(dt);
-        state.avatar.update(dt);
-
-        if (state.current) {
-            if (state.phase === 'falling') state.current.animator.set('fall');
-            else if (state.phase === 'enter-bridge') state.current.animator.set('run');
-            else if (state.phase === 'pre-choice') state.current.animator.set('idle');
-            else if (state.avatar.t < 1) state.current.animator.set('jump');
-            else if (state.phase === 'result-hold' || state.phase === 'safe-flash') state.current.animator.set('land');
-            else state.current.animator.set('run');
-        }
-
-        state.timer -= dt;
-        if (state.timer > 0) return;
-
-        switch (state.phase) {
-            case 'next-player': {
-                var next = nextActivePlayer();
-                if (next === -1) finishGame(null);
-                else beginPlayer(next);
-                break;
-            }
+    // impl §4-2, §G6: 병렬 update — actives + startQueue 동시 진행
+    // 사용자 후속 피드백(2026-04-29 wave): col 단위 동기 도전 — 모두 wave-wait 진입 시 동시 트리거
+    function advanceRunner(runner) {
+        // runner.timer는 update(dt)에서 이미 0 이하로 떨어진 상태
+        switch (runner.phase) {
             case 'enter-bridge':
-                prepareChoicePause();
-                break;
-            case 'choose': {
-                prepareChoicePause();
-                break;
-            }
-            case 'pre-choice': {
-                var step2 = state.pendingChoice;
-                if (!step2) {
-                    prepareChoicePause();
-                    break;
-                }
-                // top↔bottom 왔다갔다 → 마지막 1회는 step.row에서 멈추고 그게 남음
-                if (state.preChoiceTogglesLeft > 1) {
-                    state.preChoiceWarningRow = (state.preChoiceWarningRow === 'top') ? 'bottom' : 'top';
-                    state.preChoiceTogglesLeft -= 1;
-                    state.timer = 0.18;
-                } else if (state.preChoiceTogglesLeft === 1) {
-                    state.preChoiceWarningRow = step2.row;
-                    state.preChoiceTogglesLeft -= 1;
-                    state.timer = 0.32;
-                } else {
-                    moveAvatar(layout.tileCenter(step2.col, step2.row), 0.36, { jumpHeight: 62 });
-                    state.preChoiceWarningRow = null;
-                    state.phase = 'choice-wait';
-                    pushEvent(state.current.name + '이(가) ' + (step2.col + 1) + '번 열에 도전.');
+                // 다리 진입 후 wave-wait — 서버 waveResult까지 대기
+                runner.phase = 'wave-wait';
+                runner.timer = 999;
+                // user-driven: applyWaveResult가 먼저 도착해 pendingChoice를 미리 설정한 경우
+                // (runner가 enter-bridge 중일 때) 즉시 wave-launch로 전환
+                if (runner.pendingChoice) {
+                    runner.phase = 'wave-launch';
+                    runner.timer = 0.05;
                 }
                 break;
-            }
-            case 'choice-wait': {
-                state.phase = 'result-hold';
-                state.timer = 0.34;
+            case 'wave-wait':
+                // 외부 트리거(applyWaveResult) 외엔 timer로 깨지 않음
+                runner.timer = 999;
                 break;
-            }
+            case 'wave-launch':
+                // wave 트리거에서 시차 부여된 후 col 도전 시작
+                prepareChoicePause(runner);
+                break;
+            case 'choice-wait':
+                runner.phase = 'result-hold';
+                runner.timer = 0.34;
+                break;
             case 'result-hold': {
-                var player3 = state.current;
-                var step3 = state.pendingChoice;
-                if (!player3 || !step3) {
-                    state.phase = 'next-player';
-                    state.timer = 0.2;
+                var step3 = runner.pendingChoice;
+                if (!step3) {
+                    runner.phase = 'finished-runner';
+                    runner.timer = 0.2;
                     break;
                 }
                 var col3 = step3.col;
-                var success = revealChoice(player3, step3);
-                state.currentPathIndex += 1;
+                var success = revealChoice(runner, step3);
                 if (success) {
-                    player3.progress = Math.max(player3.progress, col3 + 1);
-                    pushEvent(player3.name + ': ' + (col3 + 1) + '번 열 통과.');
-                    state.pendingChoice = null;
-                    state.phase = 'safe-flash';
-                    state.timer = 0.42;
+                    runner.player.progress = Math.max(runner.player.progress, col3 + 1);
+                    pushEvent(runner.player.name + ': ' + (col3 + 1) + '번 열 통과.');
+                    runner.pendingChoice = null;
+                    runner.phase = 'safe-flash';
+                    runner.timer = 0.42;
                     if (window.SoundManager) SoundManager.playSound('bridge-cross_safe');
                 } else {
-                    player3.fallsAt = col3 + 1;
-                    player3.status = 'fallen';
-                    pushEvent(player3.name + ': ' + (col3 + 1) + '번 열에서 추락! 안전 발판 공개.');
-                    state.phase = 'falling';
-                    state.timer = 0.92;
+                    runner.player.fallsAt = col3 + 1;
+                    runner.player.fallsAtRow = step3.row;
+                    runner.player.status = 'fallen';
+                    pushEvent(runner.player.name + ': ' + (col3 + 1) + '번 열에서 추락! 안전 발판 공개.');
+                    runner.phase = 'falling';
+                    runner.timer = 0.92;
+                    runner.fallElapsed = 0;
+                    state.cascadeShake = { id: runner.player.id, t: 0 };
+                    state.cascadeSoundT = state.elapsed;
                     if (window.SoundManager) {
                         SoundManager.playSound('bridge-cross_break');
                         SoundManager.playSound('bridge-cross_fall');
@@ -2214,54 +2467,130 @@ socket.on('joinError', (data) => {
                 break;
             }
             case 'safe-flash':
-                if (state.current.progress >= layout.columnCount || !getCurrentPathStep()) {
-                    state.current.status = 'finished';
-                    state.current.animator.set('result', true);
-                    var arrivedIdxFlash = state.arrivedCount || 0;
-                    state.current.arrivedSlotIndex = arrivedIdxFlash;
-                    var arrivedSlotFlash = layout.finishSlot(arrivedIdxFlash);
+                // user-driven: 마지막 col 통과 검사
+                if (runner.player.progress >= layout.columnCount) {
+                    runner.player.status = 'finished';
+                    runner.player.animator.set('result', true);
+                    var arrivedIdxFlash = state.arrivedCount;
                     state.arrivedCount = arrivedIdxFlash + 1;
-                    moveAvatar(arrivedSlotFlash, 0.7, { jumpHeight: 46, anchorOffset: 0 });
-                    state.phase = 'finish-wait';
+                    runner.player.arrivedSlotIndex = arrivedIdxFlash;
+                    var arrivedSlotFlash = layout.finishSlot(arrivedIdxFlash);
+                    moveRunnerAvatar(runner, arrivedSlotFlash, 0.7, { jumpHeight: 46, anchorOffset: 0 });
+                    runner.phase = 'finish-wait';
                 } else {
-                    prepareChoicePause();
+                    // wave gating: 다음 wave는 server waveResult가 도착할 때까지 대기
+                    runner.phase = 'wave-wait';
+                    runner.timer = 999;
                 }
                 break;
             case 'falling':
-                state.currentScenarioIndex += 1;
-                state.current = null;
-                state.pendingChoice = null;
-                if (state.currentScenarioIndex >= state.scenarios.length) {
-                    // outbound 마지막 도전자 도전 끝 → 게임 종료
-                    finishGame(null);
-                } else {
-                    state.phase = 'next-player';
-                    state.timer = 0.45;
-                }
+            case 'cascade-falling':
+                // 추락 애니메이션 종료 → runner 제거
+                runner.phase = 'finished-runner';
+                runner.timer = 0;
                 break;
             case 'finish-wait':
-                // outbound 통과자 등록 + 다음 도전자 / 마지막이면 게임 종료
-                {
-                    var arrived = state.current;
-                    if (arrived) {
-                        arrived.status = 'finished';
-                        arrived.animator.set('idle', true);
-                        // 도착자는 finishSlot에 idle로 머무름 (nextActivePlayer가 'waiting'만 진입)
-                    }
-                    state.currentScenarioIndex += 1;
-                    state.current = null;
-                    state.pendingChoice = null;
-                    if (state.currentScenarioIndex >= state.scenarios.length) {
-                        finishGame(null);
-                    } else {
-                        state.phase = 'next-player';
-                        state.timer = 0.5;
-                    }
-                }
+                runner.player.status = 'finished';
+                runner.player.animator.set('idle', true);
+                runner.phase = 'finished-runner';
+                runner.timer = 0;
                 break;
             default:
+                runner.timer = 0.2;
                 break;
         }
+    }
+
+    function update(dt) {
+        if (state.mode === 'loading' || state.paused) return;
+        state.elapsed += dt;
+        // 전체 6명 animator 업데이트 (비활성도 idle bob 처리)
+        var animPlayers = state.allPlayers.length ? state.allPlayers : state.players;
+        for (var i = 0; i < animPlayers.length; i += 1) animPlayers[i].animator.update(dt);
+
+        // ── startQueue 처리: jitter 카운트다운 → actives로 이동 ─────────────
+        if (state.startQueue.length > 0) {
+            var stillWaiting = [];
+            for (var qi = 0; qi < state.startQueue.length; qi += 1) {
+                var qr = state.startQueue[qi];
+                qr.startDelay -= dt;
+                if (qr.startDelay <= 0) {
+                    state.actives.push(qr);
+                    beginRunner(qr);
+                } else {
+                    stillWaiting.push(qr);
+                }
+            }
+            state.startQueue = stillWaiting;
+        }
+
+        // ── actives 처리 (deterministic 순서: colorIndex 오름차순 = scenarioIndex 순) ──
+        // impl §G4: arrivedCount race 안전 — actives는 scenarioIndex 순으로 미리 정렬됨
+        var nextActives = [];
+        for (var ri = 0; ri < state.actives.length; ri += 1) {
+            var runner = state.actives[ri];
+
+            // 자체 avatar 보간
+            runner.avatar.update(dt);
+
+            // animator 동기화 — runner 자체 phase 기반
+            if (runner.phase === 'falling' || runner.phase === 'cascade-falling') {
+                runner.player.animator.set('fall');
+                runner.fallElapsed += dt; // impl §G1
+            } else if (runner.phase === 'enter-bridge') {
+                runner.player.animator.set('run');
+            } else if (runner.phase === 'wave-wait' || runner.phase === 'wave-launch') {
+                runner.player.animator.set('idle');
+            } else if (runner.avatar.t < 1) {
+                runner.player.animator.set('jump');
+            } else if (runner.phase === 'result-hold' || runner.phase === 'safe-flash') {
+                runner.player.animator.set('land');
+            } else {
+                runner.player.animator.set('run');
+            }
+
+            // 타이머 경과 후 phase 진행
+            runner.timer -= dt;
+            if (runner.timer <= 0) {
+                advanceRunner(runner);
+            }
+
+            // finished-runner는 actives에서 제거
+            if (runner.phase !== 'finished-runner') {
+                nextActives.push(runner);
+            }
+        }
+        state.actives = nextActives;
+
+        // 옛 단일 호환 fallback (renderGameToText / camera framing) — 진척이 가장 빠른
+        // runner를 leader로 선정 (impl §camera-leader: pathIndex 내림차순, 동률 시 colorIndex 오름차순).
+        // 이 leader 정보를 state.current/avatar/phase/등 옛 단일 필드에 미러링해
+        // resolvePhaseFraming / CameraDirector / renderGameToText가 자연스럽게 진행 빠른
+        // runner를 따라가도록 한다.
+        if (state.actives.length > 0) {
+            var leader = state.actives.slice().sort(function (a, b) {
+                if (b.pathIndex !== a.pathIndex) return b.pathIndex - a.pathIndex;
+                return a.player.colorIndex - b.player.colorIndex;
+            })[0];
+            state.current = leader.player;
+            state.avatar = leader.avatar;
+            state.phase = leader.phase;
+            state.pendingChoice = leader.pendingChoice;
+            state.lastStep = leader.lastStep;
+            state.currentScenarioIndex = leader.scenarioIndex;
+            state.currentPathIndex = leader.pathIndex;
+            state.timer = leader.timer;
+            // currentIndex: state.players 인덱스 (있다면)
+            state.currentIndex = state.players.indexOf(leader.player);
+        } else if (state.startQueue.length === 0 && state.mode === 'playing') {
+            // impl §G6: 모든 active 종료 + 출발큐 비면 즉시 finishGame
+            finishGame(null);
+        } else {
+            state.current = null;
+        }
+
+        // user-driven: wave gating은 서버 waveResult가 트리거 (applyWaveResult).
+        // 클라이언트에서 자동 wave 진행 안 함 — 모두 wave-wait 상태로 대기.
     }
 
     function sheetCell(image, sheet, row, col) {
@@ -2309,20 +2638,28 @@ socket.on('joinError', (data) => {
     }
 
     function drawTile(col, row) {
-        var info = state.revealed[col] || { broken: null };
+        var info = state.revealed[col] || { brokenTop: false, brokenBottom: false };
         var center = layout.tileCenter(col, row);
         var rect = tileFxRect(center);
-        var pending = state.pendingChoice && state.pendingChoice.col === col && state.pendingChoice.row === row;
-        var lastSuccess = state.phase === 'safe-flash'
-            && state.lastStep
-            && state.lastStep.success
-            && state.lastStep.col === col
-            && state.lastStep.row === row;
+        // impl §4-3 render: pending/safe-flash 검사를 actives 전체로 확장
+        var pending = false;
+        var lastSuccess = false;
+        for (var ai = 0; ai < state.actives.length; ai += 1) {
+            var ar = state.actives[ai];
+            if (ar.pendingChoice && ar.pendingChoice.col === col && ar.pendingChoice.row === row) {
+                pending = true;
+            }
+            if (ar.phase === 'safe-flash' && ar.lastStep
+                && ar.lastStep.success && ar.lastStep.col === col && ar.lastStep.row === row) {
+                lastSuccess = true;
+            }
+        }
+        var rowBroken = isRowBroken(info, row);
 
         var fxName = 'safe_sparkle';
         var frameOverride = 0;
         var alpha = 0.9;
-        if (info.broken === row) {
+        if (rowBroken) {
             fxName = 'break_shards';
             frameOverride = 1;
             alpha = 0.95;
@@ -2330,12 +2667,13 @@ socket.on('joinError', (data) => {
             fxName = 'safe_sparkle';
             frameOverride = null;
             alpha = 1;
-        } else if (pending && state.phase !== 'pre-choice') {
-            // pre-choice 동안엔 별도 oscillation 시각(preChoiceWarningRow)을 위해 정적 warning 차단
-            fxName = 'warning_glow';
-            frameOverride = null;
-            alpha = 1;
         }
+        // 사용자 결정(2026-04-30): pending warning_glow 제거. 대신 hover row만 살짝 빛남.
+        var hoverRow = window._bridgeHoverRow;
+        var hoverActiveCol = window._bridgeWaveActiveCol;
+        var isHoverHighlight = hoverRow === row
+            && typeof hoverActiveCol === 'number'
+            && hoverActiveCol === col;
 
         var image = images.glassFx;
         var anim = fxSheet.animations[fxName];
@@ -2356,9 +2694,27 @@ socket.on('joinError', (data) => {
         } else {
             drawImageCell(image, cell, rect.x, rect.y, rect.w, rect.h, alpha);
         }
+        // hover 시 발판에 warning_glow(주황) overlay — 사용자 결정(2026-04-30)
+        if (isHoverHighlight) {
+            var hoverAnim = fxSheet.animations.warning_glow;
+            var hoverFrame = hoverAnim.frames[Math.floor(state.elapsed * hoverAnim.fps) % hoverAnim.frames.length];
+            var hoverCell = sheetCell(image, fxSheet, hoverAnim.row, hoverFrame);
+            if (rotation !== 0) {
+                ctx.save();
+                var hpx = rect.x + rect.w * rect.anchor.x;
+                var hpy = rect.y + rect.h * rect.anchor.y;
+                ctx.translate(hpx, hpy);
+                ctx.rotate(rotation * Math.PI / 180);
+                ctx.translate(-hpx, -hpy);
+                drawImageCell(image, hoverCell, rect.x, rect.y, rect.w, rect.h, 1);
+                ctx.restore();
+            } else {
+                drawImageCell(image, hoverCell, rect.x, rect.y, rect.w, rect.h, 1);
+            }
+        }
     }
 
-    function drawPlayer(player, x, y, scale, alpha, falling, dim) {
+    function drawPlayer(player, x, y, scale, alpha, falling, dim, fallElapsed) {
         if (scale == null) scale = 0.34;
         if (alpha == null) alpha = 1;
         if (dim) alpha *= 0.35;
@@ -2370,14 +2726,35 @@ socket.on('joinError', (data) => {
         var w = cell.sw * scale;
         var h = cell.sh * scale;
         // 살아있는 느낌의 idle bob — 캐릭터별 phase 분산 (player.id), 진폭 키우고 horizontal도 추가
-        var isIdle = !falling && (player.status === 'waiting' || player.status === 'finished' || player.status === 'winner');
-        var bobX = isIdle ? Math.sin(state.elapsed * 2.3 + player.id * 1.7) * 1.5 : 0;
-        var bobY = isIdle ? Math.sin(state.elapsed * 4.5 + player.id) * 5 : 0;
+        var isIdle = !falling && anim === 'idle' && (player.status === 'waiting' || player.status === 'finished' || player.status === 'winner');
+        // idle bob — 작은 호흡(살짝 위아래), 떨림 없음. wander 제거(이전 커밋이 너무 산만)
+        var bobX = 0;
+        var bobY = isIdle ? Math.sin(state.elapsed * 2.0 + player.id) * 2 : 0;
+        if (!falling && (anim === 'run' || anim === 'walk')) {
+            var moveStep = col % 4;
+            var isWalk = anim === 'walk';
+            var moveAmp = isWalk ? (scale >= 0.56 ? 2 : 1) : (scale >= 0.56 ? 3 : 2);
+            var moveY = [0, -moveAmp, 0, -Math.max(1, moveAmp - 1)][moveStep] || 0;
+            var moveX = isWalk ? [0, 0.5, 0, -0.5][moveStep] || 0 : [0, 1, 0, -1][moveStep] || 0;
+            bobX += player.facing === 'left' ? -moveX : moveX;
+            bobY += moveY;
+        }
+
+        // 본인 캐릭터 식별 — outline atlas (user-driven: userName 기준)
+        var isMine = !!(player.userName && currentUser && player.userName === currentUser);
+        var outlineImg = images.myPlayerOutline;
+        var shouldDrawOutline = isMine && outlineImg;
 
         ctx.save();
         ctx.globalAlpha = alpha;
         if (falling) {
-            var fallT = 1 - Math.max(0, state.timer) / 0.92;
+            // impl §G1: per-runner fallElapsed 우선 (병렬 모드에서 글로벌 timer 글리치 방지)
+            var fallT;
+            if (typeof fallElapsed === 'number') {
+                fallT = Math.min(1, Math.max(0, fallElapsed / 0.92));
+            } else {
+                fallT = 1 - Math.max(0, state.timer) / 0.92;
+            }
             var fallY = y + fallT * 150;
             var fallX = x + Math.sin(fallT * Math.PI) * 20;
             var trail = fxFrame('fall_trail');
@@ -2385,23 +2762,46 @@ socket.on('joinError', (data) => {
             ctx.translate(fallX, fallY);
             ctx.rotate(0.25 + fallT * 0.8);
             ctx.globalAlpha = alpha * Math.max(0.16, 1 - fallT * 0.78);
+            // 본인이면 outline을 캐릭터 아래에 (같은 transform 안에서 먼저 그리기)
+            if (shouldDrawOutline) {
+                ctx.drawImage(outlineImg, cell.sx, cell.sy, cell.sw, cell.sh, -w * playerSheet.anchor.x, -h * playerSheet.anchor.y, w, h);
+            }
             ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, -w * playerSheet.anchor.x, -h * playerSheet.anchor.y, w, h);
         } else {
-            ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, x - w * playerSheet.anchor.x + bobX, y - h * playerSheet.anchor.y + bobY, w, h);
+            var dx = x - w * playerSheet.anchor.x + bobX;
+            var dy = y - h * playerSheet.anchor.y + bobY;
+            // 사용자 결정(2026-04-30): facing이 'left'면 sprite flip
+            var faceLeft = player.facing === 'left';
+            if (faceLeft) {
+                ctx.save();
+                ctx.translate(x + bobX, 0);
+                ctx.scale(-1, 1);
+                ctx.translate(-(x + bobX), 0);
+            }
+            // 본인이면 outline을 캐릭터 아래에 (같은 좌표/cell)
+            if (shouldDrawOutline) {
+                // dim된 비활성 캐릭터라도 본인이면 최소 alpha 보장 (식별 우선)
+                if (dim) {
+                    ctx.globalAlpha = Math.max(alpha, 0.6);
+                }
+                ctx.drawImage(outlineImg, cell.sx, cell.sy, cell.sw, cell.sh, dx, dy, w, h);
+                ctx.globalAlpha = alpha;
+            }
+            ctx.drawImage(image, cell.sx, cell.sy, cell.sw, cell.sh, dx, dy, w, h);
+            if (faceLeft) ctx.restore();
         }
         ctx.restore();
     }
 
+    // user-driven: 각 캐릭터는 한 user 1명 (베팅자 그룹 X)
     function getPlayerBettors(player) {
-        return Object.entries(state.allBets || {})
-            .filter(function (entry) { return entry[1] === player.colorIndex; })
-            .map(function (entry) { return entry[0]; });
+        if (!player) return [];
+        return [player.userName || player.name];
     }
 
     function bettorTagText(player) {
-        var bettors = getPlayerBettors(player);
-        if (bettors.length === 0) return '';
-        return bettors.join(', ');
+        if (!player) return '';
+        return player.userName || player.name || '';
     }
 
     function fitTagText(text, maxWidth) {
@@ -2577,25 +2977,31 @@ socket.on('joinError', (data) => {
         ctx.fillRect(0, 0, viewport.w, viewport.h);
     }
 
-    function drawAvatarShadow() {
-        if (!state.current || state.phase === 'falling') return;
-        var airborne = state.avatar.t < 1 ? Math.sin(Math.PI * state.avatar.t) : 0;
+    function drawAvatarShadow(runner) {
+        if (!runner) return;
+        if (runner.phase === 'falling' || runner.phase === 'cascade-falling') return;
+        var av = runner.avatar;
+        var airborne = av.t < 1 ? Math.sin(Math.PI * av.t) : 0;
         ctx.save();
         ctx.fillStyle = 'rgba(0, 0, 0, ' + (0.34 * (1 - airborne * 0.45)) + ')';
         ctx.beginPath();
-        ctx.ellipse(state.avatar.groundX, state.avatar.groundY - 8, 32 * (1 - airborne * 0.35), 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(av.groundX, av.groundY - 8, 32 * (1 - airborne * 0.35), 12, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
 
-    function drawJumpTrail() {
-        if (!state.current || state.phase === 'falling' || state.phase === 'enter-bridge' || state.avatar.t >= 1) return;
+    function drawJumpTrail(runner) {
+        if (!runner) return;
+        if (runner.phase === 'falling' || runner.phase === 'cascade-falling'
+            || runner.phase === 'enter-bridge') return;
+        var av = runner.avatar;
+        if (av.t >= 1) return;
         ctx.save();
         for (var i = 0; i < 4; i += 1) {
-            var lag = Math.max(0, state.avatar.t - (i + 1) * 0.08);
+            var lag = Math.max(0, av.t - (i + 1) * 0.08);
             var eased = lag < 0.5 ? 2 * lag * lag : 1 - Math.pow(-2 * lag + 2, 2) / 2;
-            var x = state.avatar.fromX + (state.avatar.toX - state.avatar.fromX) * eased;
-            var y = state.avatar.fromY + (state.avatar.toY - state.avatar.fromY) * eased - Math.sin(Math.PI * lag) * state.avatar.jumpHeight;
+            var x = av.fromX + (av.toX - av.fromX) * eased;
+            var y = av.fromY + (av.toY - av.fromY) * eased - Math.sin(Math.PI * lag) * av.jumpHeight;
             var size = 7 - i;
             ctx.globalAlpha = 0.42 - i * 0.07;
             ctx.fillStyle = i % 2 === 0 ? '#42edff' : '#fff2a8';
@@ -2604,12 +3010,51 @@ socket.on('joinError', (data) => {
         ctx.restore();
     }
 
-    function drawLandingPulse() {
-        if (!state.current || state.avatar.landPulse <= 0 || state.phase === 'falling') return;
-        var t = 1 - state.avatar.landPulse / 0.28;
+    function drawLandingPulse(runner) {
+        if (!runner) return;
+        var av = runner.avatar;
+        if (av.landPulse <= 0) return;
+        if (runner.phase === 'falling' || runner.phase === 'cascade-falling') return;
+        var t = 1 - av.landPulse / 0.28;
         var cell = fxFrame('landing_pulse');
         var size = 86 + t * 34;
-        drawImageCell(images.glassFx, cell, state.avatar.groundX - size / 2, state.avatar.groundY - size * 0.72, size, size, 0.78 * (1 - t * 0.4));
+        drawImageCell(images.glassFx, cell, av.groundX - size / 2, av.groundY - size * 0.72, size, size, 0.78 * (1 - t * 0.4));
+    }
+
+    function drawSelfOverlay() {
+        if (!currentUser) return;
+        // 1) 다리 위 active runner 우선 (가장 최근 위치)
+        var activeMine = null;
+        var actives = state.actives || [];
+        for (var ai = 0; ai < actives.length; ai += 1) {
+            if (actives[ai].player && actives[ai].player.userName === currentUser) {
+                activeMine = actives[ai];
+                break;
+            }
+        }
+        if (activeMine) {
+            var falling = activeMine.phase === 'falling' || activeMine.phase === 'cascade-falling';
+            drawPlayer(activeMine.player, activeMine.avatar.x, activeMine.avatar.y, 0.58, 1, falling, false, activeMine.fallElapsed);
+            return;
+        }
+        // 2) state.players / state.allPlayers에서 본인 찾기
+        var pool = (state.players && state.players.length > 0) ? state.players : (state.allPlayers || []);
+        var p = null;
+        for (var pi = 0; pi < pool.length; pi += 1) {
+            if (pool[pi].userName === currentUser) { p = pool[pi]; break; }
+        }
+        if (!p) return;
+        if (p.status === 'fallen') return; // 추락 자국 위에 그리지 않음
+        if (p.status === 'finished' || p.status === 'winner') {
+            var slotIdx = (typeof p.arrivedSlotIndex === 'number') ? p.arrivedSlotIndex : 0;
+            var slot = layout.finishSlot(slotIdx);
+            drawPlayer(p, slot.x, slot.y, 0.50, 1);
+            return;
+        }
+        // waiting / preview — startPlatform slot
+        if (p.slot) {
+            drawPlayer(p, p.slot.x, p.slot.y, 0.50, 1);
+        }
     }
 
     function drawHud() {
@@ -2635,13 +3080,17 @@ socket.on('joinError', (data) => {
         } else if (state.winner) {
             winnerLabel = state.winner.name;
         }
+        // 병렬 진행: 다리 위 active 인원수 표시
+        var activeCount = state.actives ? state.actives.length : 0;
         var label = state.phase === 'finished'
             ? '통과: ' + winnerLabel
-            : state.current
-                ? '도전 중: ' + state.current.name
-                : state.mode === 'playing'
-                    ? '다음 도전자 대기'
-                    : '대기';
+            : activeCount > 1
+                ? '다리 위 ' + activeCount + '명'
+                : state.current
+                    ? '도전 중: ' + state.current.name
+                    : state.mode === 'playing'
+                        ? '다음 도전자 대기'
+                        : '대기';
         ctx.fillText(label, 43, 75);
 
         ctx.fillStyle = 'rgba(4, 7, 22, 0.7)';
@@ -2654,8 +3103,8 @@ socket.on('joinError', (data) => {
         ctx.fillText('깨짐 ' + brokenCols + ' / ' + layout.columnCount, 760, 44);
         ctx.fillStyle = '#a8b7d0';
         ctx.font = '700 10px Segoe UI, sans-serif';
-        var activeStr = state.activeColors.length > 0
-            ? '활성: ' + state.activeColors.length + '명'
+        var activeStr = (state.players && state.players.length > 0)
+            ? '참가자: ' + state.players.length + '명'
             : '';
         ctx.fillText(activeStr, 760, 64);
         ctx.restore();
@@ -2687,75 +3136,114 @@ socket.on('joinError', (data) => {
             drawTile(col, 'bottom');
         }
 
-        // 비활성 캐릭터(베팅 없음): 시작 plat에 dim으로 표시.
-        // 베팅 단계(activeColors 비어있음)에는 모든 캐릭터를 일반 색으로 표시 (대기 화면)
-        var activeColorSet = new Set(state.activeColors);
-        if (state.allPlayers.length > 0) {
-            state.allPlayers.forEach(function (player) {
-                if (player.status !== 'waiting') return;
-                if (activeColorSet.size === 0) {
-                    // 베팅 단계: 모든 캐릭터 일반 표시
-                    drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96);
-                    drawBettorTag(player, player.slot.x, player.slot.y, 0.66);
-                } else if (!activeColorSet.has(player.colorIndex)) {
-                    // 게임 진행 중: 베팅 안 된 색은 dim
-                    drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96, false, true);
-                    drawBettorTag(player, player.slot.x, player.slot.y, 0.66, true);
-                }
-            });
-        }
+        // ── impl §G12: active runner는 allPlayers/players 순회 시 skip (중복 방지) ──
+        // active runner들의 player 객체 set
+        var activePlayerSet = new Set();
+        state.actives.forEach(function (r) { activePlayerSet.add(r.player); });
 
-        state.players.filter(function (p) { return p.status === 'waiting'; }).forEach(function (player) {
-            drawPlayer(player, player.slot.x, player.slot.y, 0.66, 0.96);
-            drawBettorTag(player, player.slot.x, player.slot.y, 0.66);
+        // user-driven: waiting 캐릭터 z-order 정렬 (사용자 결정: 자연스러운 isometric)
+        // y 좌표 작은(뒤쪽) → 큰(앞쪽) 순으로 그려야 앞쪽이 뒤쪽을 가림
+        var waitingPool = [];
+        var waitingSeen = new Set();
+        function pushWaiting(player) {
+            if (!player || activePlayerSet.has(player)) return;
+            if (player.status !== 'waiting') return;
+            if (waitingSeen.has(player)) return;
+            waitingSeen.add(player);
+            waitingPool.push(player);
+        }
+        if (state.allPlayers.length > 0) state.allPlayers.forEach(pushWaiting);
+        state.players.forEach(pushWaiting);
+
+        // 사용자 결정(2026-04-30): startPlatform 안에서 자유롭게 흘러다님 + 발걸음/방향 동기
+        // (u, v) ∈ [0.05, 0.95] clamp — sin/cos 합성 wander
+        // 속도 임계값으로 run/idle 토글 + dx 부호로 facing flip
+        var t = state.elapsed;
+        waitingPool.forEach(function (player) {
+            if (typeof player.wanderBaseU !== 'number') return;
+            var prevX = (player.slot && typeof player.slot.x === 'number') ? player.slot.x : null;
+            var ph = player.wanderPhase || 0;
+            // 사용자 결정(2026-05-01): wander 속도 ↑ → run.fps 8과 매칭. 평행사변형 안 활발히 이동
+            var du = Math.sin(t * 0.42 + ph) * 0.18
+                   + Math.cos(t * 0.28 + ph * 0.7) * 0.08;
+            var dv = Math.cos(t * 0.36 + ph * 1.3) * 0.18
+                   + Math.sin(t * 0.24 + ph * 0.5) * 0.08;
+            var u = Math.max(0.05, Math.min(0.95, player.wanderBaseU + du));
+            var v = Math.max(0.05, Math.min(0.95, player.wanderBaseV + dv));
+            player.slot = layout.startPlatform.pointAt(u, v);
+            // Start-platform roam uses walk; bridge crossing still uses run.
+            player.animator.set('walk');
+            if (prevX != null) {
+                var dx = player.slot.x - prevX;
+                var speed = Math.abs(dx);
+                if (dx > 0.05) player.facing = 'right';
+                else if (dx < -0.05) player.facing = 'left';
+                // Keep walk readable even when the wander path slows near a turn.
+                player.animator._extraAdvance = Math.max(0.55, Math.min(1.15, speed / 1.0));
+            }
+        });
+        waitingPool.sort(function (a, b) {
+            return ((a.slot && a.slot.y) || 0) - ((b.slot && b.slot.y) || 0);
+        });
+        waitingPool.forEach(function (player) {
+            drawPlayer(player, player.slot.x, player.slot.y, 0.50, 0.96);
+            drawBettorTag(player, player.slot.x, player.slot.y, 0.50);
         });
 
-        state.players.filter(function (p) { return p.status === 'fallen'; }).forEach(function (player) {
+        // impl §G3: fallen 캐릭터 — player.fallsAtRow 직접 참조 (revealed 의존 제거)
+        state.players.filter(function (p) {
+            // active fallen은 actives 루프에서 추락 애니메이션 그리므로 skip
+            return p.status === 'fallen' && !activePlayerSet.has(p);
+        }).forEach(function (player) {
             var col = Math.max(0, (player.fallsAt || 1) - 1);
-            var row = state.revealed[col].broken || 'bottom';
+            var row = player.fallsAtRow || 'bottom';
             var pos = layout.tileCenter(col, row);
             var cell = fxFrame('break_shards');
             drawImageCell(images.glassFx, cell, pos.x - 58, pos.y + 6, 116, 116, 0.34);
         });
 
-        // pre-choice 단계: top↔bottom 왔다갔다 → 마지막에 step.row에 멈춤
-        if (state.phase === 'pre-choice' && state.pendingChoice && state.preChoiceWarningRow) {
-            var wcol = state.pendingChoice.col;
-            var preTw = layout.tileSize.w;
-            var preTh = layout.tileSize.h;
-            var wpos = layout.tileCenter(wcol, state.preChoiceWarningRow);
-            var wcell = fxFrame('warning_glow');
-            drawImageCell(images.glassFx, wcell, wpos.x - preTw / 2, wpos.y - preTh / 2, preTw, preTh, 0.92);
-        }
-
-        state.players.filter(function (p) { return p !== state.current && (p.status === 'finished' || p.status === 'winner'); }).forEach(function (player, index) {
-            // 캐릭터별 도착 인덱스가 저장돼 있으면 그것을 사용 (finishSlot 분산 보장).
-            // 없으면 forEach index fallback.
+        // 통과/winner 캐릭터 (active 아닌 것만 — 다 도착하고 finishSlot에 idle)
+        state.players.filter(function (p) {
+            return !activePlayerSet.has(p) && (p.status === 'finished' || p.status === 'winner');
+        }).forEach(function (player, index) {
             var slotIdx = (typeof player.arrivedSlotIndex === 'number') ? player.arrivedSlotIndex : index;
             var slot = layout.finishSlot(slotIdx);
-            drawPlayer(player, slot.x, slot.y, 0.66, 1);
-            drawBettorTag(player, slot.x, slot.y, 0.66);
+            drawPlayer(player, slot.x, slot.y, 0.50, 1);
+            drawBettorTag(player, slot.x, slot.y, 0.50);
             if (player.status === 'winner') {
                 drawWinnerSpeechBubble(player, slot.x, slot.y);
             }
         });
 
-        if (state.current) {
-            var falling = state.phase === 'falling';
-            drawAvatarShadow();
-            drawLandingPulse();
-            drawJumpTrail();
-            drawPlayer(state.current, state.avatar.x, state.avatar.y, 0.78, 1, falling);
-            drawBettorTag(state.current, state.avatar.x, state.avatar.y, 0.78);
-        }
+        // ── 다리 위 active runner들 ─────────────────────────────────────
+        // 본인 캐릭터는 z-order 가장 위로 + 다른 active는 y 정렬 (자연스러운 isometric)
+        var ownActives = [];
+        var otherActives = [];
+        state.actives.forEach(function (ar) {
+            if (ar.player && ar.player.userName === currentUser) {
+                ownActives.push(ar);
+            } else {
+                otherActives.push(ar);
+            }
+        });
+        otherActives.sort(function (a, b) {
+            return ((a.avatar && a.avatar.y) || 0) - ((b.avatar && b.avatar.y) || 0);
+        });
+        var orderedActives = otherActives.concat(ownActives);
+        orderedActives.forEach(function (ar) {
+            var falling = ar.phase === 'falling' || ar.phase === 'cascade-falling';
+            drawAvatarShadow(ar);
+            drawLandingPulse(ar);
+            drawJumpTrail(ar);
+            drawPlayer(ar.player, ar.avatar.x, ar.avatar.y, 0.58, 1, falling, false, ar.fallElapsed);
+            drawBettorTag(ar.player, ar.avatar.x, ar.avatar.y, 0.58);
+        });
 
-        if (state.phase === 'falling' && state.pendingChoice) {
-            var pos2 = layout.tileCenter(state.pendingChoice.col, state.pendingChoice.row);
-            var warning = fxFrame('warning_glow');
-            var tw = layout.tileSize.w;
-            var th = layout.tileSize.h;
-            drawImageCell(images.glassFx, warning, pos2.x - tw / 2, pos2.y - th / 2, tw, th, 0.9);
-        }
+        // 사용자 결정(2026-04-30): 추락 시 warning_glow(주황 cue) 제거 — break_shards 만으로 충분
+
+        // 본인 캐릭터 z-order 최상단 보장 — 모든 캐릭터 그리기 후 한 번 더 overdraw
+        // (사용자 결정 2026-04-30: 안 보임 문제 — 다른 캐릭터에 가리지 않게)
+        drawSelfOverlay();
 
         drawDebugMarkers();
 
@@ -2764,8 +3252,8 @@ socket.on('joinError', (data) => {
         // Screen-space atmosphere (viewport 고정, camera 이동과 무관)
         drawScreenAtmosphere();
 
-        // HUD (screen-space, camera 밖)
-        drawHud();
+        // 사용자 결정(2026-04-30): 캔버스 내 HUD(타이틀/정보/zoom) 제거 — DOM UI로 대체
+        // drawHud();
     }
 
     function updateTextPanels() {
@@ -2805,29 +3293,58 @@ socket.on('joinError', (data) => {
     }
 
     function renderGameToText() {
+        // impl §G7: actives[] 직렬화 추가. 단일 active fallback 필드는 deprecated but kept
+        var first = state.actives && state.actives.length > 0 ? state.actives[0] : null;
         return JSON.stringify({
             coordinateSystem: 'world 2400x1024, viewport 1024x683, origin top-left, x right, y down',
             mode: state.mode,
             phase: state.phase,
-            expectedWinnerColors: Array.isArray(state.expectedWinnerColors) ? state.expectedWinnerColors : [],
             currentScenarioIndex: state.currentScenarioIndex,
             currentPathIndex: state.currentPathIndex,
-            scenarioCount: state.scenarios ? state.scenarios.length : 0,
             playerCount: state.players ? state.players.length : 0,
             paused: state.paused,
             activeColors: state.activeColors,
-            activePlayer: state.current ? state.current.name : null,
-            activeColor: state.current ? state.current.color : null,
-            avatar: {
+            // 옛 단일 호환 (첫 active를 fallback으로 노출)
+            activePlayer: first ? first.player.name : (state.current ? state.current.name : null),
+            activeColor: first ? first.player.color : (state.current ? state.current.color : null),
+            avatar: first ? {
+                x: Math.round(first.avatar.x),
+                y: Math.round(first.avatar.y),
+                groundX: Math.round(first.avatar.groundX),
+                groundY: Math.round(first.avatar.groundY),
+                jumpT: Number(first.avatar.t.toFixed(2))
+            } : {
                 x: Math.round(state.avatar.x),
                 y: Math.round(state.avatar.y),
                 groundX: Math.round(state.avatar.groundX),
                 groundY: Math.round(state.avatar.groundY),
                 jumpT: Number(state.avatar.t.toFixed(2))
             },
+            // impl §G7: 새 actives[] 직렬화
+            actives: (state.actives || []).map(function (r) {
+                return {
+                    name: r.player.name,
+                    color: r.player.color,
+                    phase: r.phase,
+                    pathIndex: r.pathIndex,
+                    scenarioIndex: r.scenarioIndex,
+                    avatar: {
+                        x: Math.round(r.avatar.x),
+                        y: Math.round(r.avatar.y),
+                        jumpT: Number(r.avatar.t.toFixed(2))
+                    },
+                    pendingChoice: r.pendingChoice,
+                    lastStep: r.lastStep,
+                    fallElapsed: Number((r.fallElapsed || 0).toFixed(2))
+                };
+            }),
+            startQueue: (state.startQueue || []).map(function (r) {
+                return { name: r.player.name, startDelay: Number(r.startDelay.toFixed(2)) };
+            }),
+            arrivedCount: state.arrivedCount,
             brokenColumns: getBrokenCount(),
             revealed: state.revealed.map(function (item, index) {
-                return { column: index + 1, broken: item.broken };
+                return { column: index + 1, brokenTop: !!item.brokenTop, brokenBottom: !!item.brokenBottom };
             }),
             players: state.players.map(function (player) {
                 return {
@@ -2837,10 +3354,11 @@ socket.on('joinError', (data) => {
                     bettorTag: bettorTagText(player),
                     status: player.status,
                     progress: player.progress,
-                    fallsAt: player.fallsAt
+                    fallsAt: player.fallsAt,
+                    fallsAtRow: player.fallsAtRow
                 };
             }),
-            pendingChoice: state.pendingChoice,
+            pendingChoice: first ? first.pendingChoice : state.pendingChoice,
             winners: Array.isArray(state.winners) ? state.winners.map(function (w) { return w.name; }) : [],
             winner: state.winner ? state.winner.name : null,
             layout: layout.debugPayload(),
@@ -2867,13 +3385,80 @@ socket.on('joinError', (data) => {
         });
     }
 
+    // 게임 시작 전 preview spawn — ready+색 충족 user를 startPlatform에 idle 표시
+    window._bridgeRebuildPreview = function (participants) {
+        if (state.mode === 'playing') return; // 게임 진행 중엔 무시
+        // 사용자 결정(2026-04-30): 출발선/wander는 시각 effect — 동기화 불필요, Math.random 사용
+        // 사용자 결정(2026-04-30): incremental update — 기존 user 위치 보존, 신규만 새 slot
+        var prev = state.allPlayers || [];
+        var prevByName = {};
+        prev.forEach(function (a) { if (a && a.userName) prevByName[a.userName] = a; });
+
+        var nextPlayers = (participants || []).map(function (p, i) {
+            var existing = prevByName[p.userName];
+            if (existing) {
+                // 같은 user — slot/wanderPhase 유지, 색만 갱신
+                if (existing.colorIndex !== p.colorIndex) {
+                    existing.color = colorByIndex(p.colorIndex);
+                    existing.colorIndex = p.colorIndex;
+                }
+                existing.id = i; // index 갱신
+                existing.status = 'waiting';
+                return existing;
+            }
+            // 신규 user
+            var def = {
+                name: p.userName,
+                color: colorByIndex(p.colorIndex),
+                colorIndex: p.colorIndex
+            };
+            var actor = new PlayerActor(def, i, layout);
+            actor.userName = p.userName;
+            actor.status = 'waiting';
+            // startPlatform 평행사변형 안 (u, v) base — render에서 매 프레임 wander 갱신
+            actor.wanderBaseU = 0.18 + Math.random() * 0.64;
+            actor.wanderBaseV = 0.18 + Math.random() * 0.64;
+            actor.wanderPhase = Math.random() * Math.PI * 2;
+            actor.slot = layout.startPlatform.pointAt(actor.wanderBaseU, actor.wanderBaseV);
+            actor.animator.set('idle');
+            return actor;
+        });
+        state.allPlayers = nextPlayers;
+        state.players = state.allPlayers.slice();
+        state.activeColors = state.allPlayers.map(function (a) { return a.colorIndex; });
+        state.mode = 'preview';
+    };
+
+    // IIFE init 직후 — 이미 색 고른 상태라면 즉시 spawn (입장 직후 spawn race 안전망)
+    setTimeout(function () {
+        if (typeof window.updateBridgePreviewSpawn === 'function') {
+            window._bridgePreviewKey = ''; // 강제 rebuild
+            window.updateBridgePreviewSpawn();
+        }
+    }, 50);
+
     // _onGameStart 콜백 등록 — Socket script 블록에서 호출됨
     window._onGameStart = function (data) {
-        startScenarioReplay(data);
+        startUserDrivenRun(data);
     };
-    window._onGameEnd = function () {
-        // 게임 종료 시 시각 루프는 자연스럽게 finished 상태로 멈춤
-        // (finishGame은 update()→finish-wait 케이스에서 이미 호출됨)
+    window._onWaveResult = function (data) {
+        applyWaveResult(data);
+    };
+    window._onGameEnd = function (data) {
+        // 서버 gameEnd payload — 시각 진행은 자체적으로 finishGame까지 갈 것이므로 추가 개입 없음.
+        // 단, 서버가 결정한 winners를 state.players의 status에 반영 (race 보호)
+        if (!data || !Array.isArray(data.winners)) return;
+        var winnerSet = {};
+        data.winners.forEach(function (n) { winnerSet[n] = true; });
+        var fallenSet = {};
+        (Array.isArray(data.fallenUsers) ? data.fallenUsers : []).forEach(function (n) { fallenSet[n] = true; });
+        (state.players || []).forEach(function (p) {
+            if (winnerSet[p.userName] && p.status !== 'finished' && p.status !== 'winner') {
+                p.status = 'finished';
+            } else if (fallenSet[p.userName] && p.status !== 'fallen') {
+                p.status = 'fallen';
+            }
+        });
     };
 
     // Zoom UI — DOM floating controls
@@ -2935,12 +3520,12 @@ socket.on('joinError', (data) => {
             }));
         })
         .then(function () {
-            // Phase 3: resetGame 없음. 빈 캔버스 상태에서 시작, 서버 broadcast 대기
+            // user-driven: 빈 캔버스 상태에서 시작, gameStart까지 캐릭터 spawn 안 함
             state.mode = 'ready';
             state.phase = 'ready';
-            state.allPlayers = allPlayerDefs.map(function (def, i) { return new PlayerActor(def, i, layout); });
+            state.allPlayers = [];
             state.players = [];
-            state.revealed = Array.from({ length: layout.columnCount }, function () { return { broken: null }; });
+            state.revealed = Array.from({ length: layout.columnCount }, function () { return { brokenTop: false, brokenBottom: false }; });
             state.events = ['방에 연결 중...'];
             updateTextPanels();
             if (debugEnabled) {

@@ -416,7 +416,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
         <div id="roomList" style="margin-bottom:8px;min-height:24px"><span style="color:#555">로딩 중...</span></div>
         <div class="flex-row">
             <label style="margin:0;font-size:11px">봇 수</label>
-            <input id="botCount" type="number" value="3" min="1" max="8" style="width:50px;margin:0">
+            <input id="botCount" type="number" value="8" min="1" max="8" style="width:50px;margin:0">
             <button class="btn-ghost btn-sm" onclick="refreshRooms()">새로고침</button>
         </div>
     </div>
@@ -430,6 +430,18 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
             <button class="btn-orange" onclick="selectAllHorses()">전원 말 선택</button>
             <button class="btn-red btn-sm" onclick="disconnectAll()">전원 퇴장</button>
         </div>
+    </div>
+
+    <div class="section">
+        <h2>N등 투표</h2>
+        <div class="flex-row" style="margin-bottom:6px">
+            <input id="voteRank" type="number" min="1" max="6" value="1" style="width:60px"/>
+            <button class="btn-purple btn-sm" onclick="voteAll(document.getElementById('voteRank').value)">전원 같은 등수</button>
+            <button class="btn-purple btn-sm" onclick="voteAllRandom()">전원 무작위</button>
+            <button class="btn-purple btn-sm" onclick="voteAllSpread()">전원 분산</button>
+            <button class="btn-ghost btn-sm" onclick="clearVoteAll()">투표 취소</button>
+        </div>
+        <div style="font-size:11px;color:#666">서버 startHorseRace 시 무효 표는 자동 제외됨 (투표 0표 → 꼴등 모드 fallback)</div>
     </div>
 
     <div class="section">
@@ -608,7 +620,9 @@ function updateBotList() {
     if (bots.length === 0) { el.innerHTML = '<span style="color:#555">봇 없음</span>'; return; }
     el.innerHTML = bots.map(b =>
         `<div class="bot-row"><div class="dot ${b.status}"></div><span>${b.name}</span>` +
-        `<span style="color:#555;font-size:11px">${b.status}${b.selectedHorse !== null ? ' / 말' + b.selectedHorse : ''}</span></div>`
+        `<span style="color:#555;font-size:11px">${b.status}` +
+        `${b.selectedHorse !== null ? ' / 말' + b.selectedHorse : ''}` +
+        `${b.vote ? ' / ' + b.vote + '등 투표' : ''}</span></div>`
     ).join('');
 }
 
@@ -629,7 +643,7 @@ async function joinBots() {
 function joinOneBot(name) {
     return new Promise((resolve, reject) => {
         const s = io({ forceNew: true });
-        const bot = { socket: s, name, status: 'connecting', selectedHorse: null };
+        const bot = { socket: s, name, status: 'connecting', selectedHorse: null, vote: null };
         bots.push(bot);
         updateBotList();
 
@@ -646,12 +660,20 @@ function joinOneBot(name) {
         s.on('roomJoined', () => { clearTimeout(timeout); bot.status = 'joined'; dlog(`${name} 입장`, 'ok'); updateBotList(); resolve(); });
         s.on('roomError', m => { clearTimeout(timeout); bot.status = 'error'; dlog(`${name} 거부: ${JSON.stringify(m)}`, 'err'); updateBotList(); reject(m); });
         s.on('horseSelectionReady', d => { availableHorses = d.availableHorses || []; bot.selectedHorse = null; updateBotList(); });
+        s.on('rankVotesUpdated', d => {
+            const v = d && d.userRankVotes ? d.userRankVotes[name] : null;
+            bot.vote = v || null;
+            updateBotList();
+        });
+        s.on('horseRouletteStart', d => {
+            if (bot === bots[0]) dlog(`룰렛 시작 → ${d.winningRank}등 결정`, 'event');
+        });
         s.on('horseRaceStarted', d => {
-            dlog(`${name} 경주시작 seeds:${d.speedSeeds ? 'O' : 'X'}`, 'event');
+            dlog(`${name} 경주시작 seeds:${d.speedSeeds ? 'O' : 'X'}${d.targetRank ? ' target:'+d.targetRank+'등' : ''}`, 'event');
             // 실제 경주 애니메이션(15~30초)보다 늦게 보내야 호스트 화면에 영향 없음
             setTimeout(() => s.emit('raceAnimationComplete'), 60000);
         });
-        s.on('horseRaceEnded', () => { bot.selectedHorse = null; updateBotList(); });
+        s.on('horseRaceEnded', () => { bot.selectedHorse = null; bot.vote = null; updateBotList(); });
         s.on('horseRaceError', m => dlog(`${name} err: ${JSON.stringify(m)}`, 'err'));
         s.on('connect_error', e => { clearTimeout(timeout); bot.status = 'error'; dlog(`${name} 연결실패`, 'err'); updateBotList(); reject(e.message); });
         s.on('disconnect', () => { bot.status = 'disconnected'; updateBotList(); });
@@ -675,6 +697,45 @@ function readyAll() {
     if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
     joined.forEach(b => b.socket.emit('toggleReady'));
     dlog(`${joined.length}봇 준비`, 'ok');
+}
+
+function voteAll(rank) {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const max = availableHorses.length || 6;
+    const r = parseInt(rank, 10);
+    if (!Number.isInteger(r) || r < 1 || r > max) { dlog(`등수 ${rank} 무효 (1~${max})`, 'err'); return; }
+    joined.forEach(b => b.socket.emit('voteRank', { rank: r }));
+    dlog(`${joined.length}봇 ${r}등 투표`, 'ok');
+}
+
+function voteAllRandom() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const max = availableHorses.length || 6;
+    joined.forEach(b => {
+        const r = 1 + Math.floor(Math.random() * max);
+        b.socket.emit('voteRank', { rank: r });
+    });
+    dlog(`${joined.length}봇 1~${max}등 무작위 투표`, 'ok');
+}
+
+function voteAllSpread() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const max = availableHorses.length || 6;
+    joined.forEach((b, i) => {
+        const r = 1 + (i % max);
+        b.socket.emit('voteRank', { rank: r });
+    });
+    dlog(`${joined.length}봇 1~${max}등 분산 투표`, 'ok');
+}
+
+function clearVoteAll() {
+    const joined = bots.filter(b => b.status === 'joined' && b.vote);
+    if (!joined.length) { dlog('투표한 봇 없음', 'err'); return; }
+    joined.forEach(b => b.socket.emit('voteRank', { rank: b.vote })); // 같은 값 = 취소
+    dlog(`${joined.length}봇 투표 취소`, 'ok');
 }
 
 function disconnectAll() {

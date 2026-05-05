@@ -113,58 +113,17 @@ css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 }
 ```
 
-## 4. 함정 (반드시 체크) — bridge-cross v2 작업에서 발견
+## 4. 함정 (반드시 체크)
 
-### 4-1. Tailwind .container override
-- `<script src="https://cdn.tailwindcss.com">` 의 `.container` 클래스가 화면 폭에 따라 `max-width`를 동적 설정 (1280px 등)
-- horse-race.css의 `.container { max-width: 800px }` (specificity 동일)를 cascade 순서로 override 가능
-- **해결: `[game].css`에서 `.container { max-width: 800px !important; }` 강제**
-- 검증: `getComputedStyle(document.querySelector('.container')).width` 가 800px 인지 콘솔에서 확인
+모든 게임 공통 함정 5개(C-1 Tailwind override, C-2 `.game-section.active`, C-3 `updateUsers` 형식, C-4 `horse-race.css` 의존, C-5 URL 진입 흐름)는 [`docs/GameGuide/lessons/_common.md`](../../docs/GameGuide/lessons/_common.md)로 이동했다.
 
-### 4-2. .game-section.active 토글 패턴
-- horse-race.css `.game-section { display: none }` + `.game-section.active { display: block }`
-- horse-race.js의 roomCreated/roomJoined에서 `gameSection.classList.add('active')` 호출
-- **해결 1: roomCreated/roomJoined 핸들러에 `document.getElementById('gameSection').classList.add('active')` 추가**
-- **해결 2: `[game].css`에서 `.game-section { display: block }` 강제** (LoadingScreen이 z-index 9999로 가리므로 안전)
+**새 게임 작업 시작 전 반드시 읽어라.** Claude는 자동으로 lessons 폴더를 읽지만, 사용자가 직접 검토하면 함정을 더 빨리 인지할 수 있다.
 
-### 4-3. updateUsers 데이터 형식
-- 서버는 **users 배열 자체**를 보냄 (`data.users` 아님)
-- 화면 #usersCount/#usersList 갱신은 별도 함수 호출 필요
-```javascript
-socket.on('updateUsers', (data) => {
-    const userArray = Array.isArray(data) ? data : (data && data.users) || [];
-    users = userArray;
-    currentUsers = userArray;
-    window.roomUsers = userArray;
+게임별 함정/lesson은 [`docs/GameGuide/lessons/{game}.md`](../../docs/GameGuide/lessons/) 참조 (horse-race / bridge-cross / dice / roulette).
 
-    // 호스트 위임 동기화
-    const myUser = userArray.find(u => u.name === currentUser);
-    if (myUser && myUser.isHost !== isHost) {
-        isHost = myUser.isHost;
-        window.isHost = isHost;
-        if (typeof ReadyModule !== 'undefined' && ReadyModule.setHost) ReadyModule.setHost(isHost);
-        if (typeof RankingModule !== 'undefined') RankingModule.setHost(isHost);
-        const hostControls = document.getElementById('hostControls');
-        if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
-    }
-
-    if (typeof ChatModule !== 'undefined' && ChatModule.updateConnectedUsers) {
-        ChatModule.updateConnectedUsers(userArray);
-    }
-    renderUsersList(userArray);  // §5-3 참조
-});
-```
-
-### 4-4. horse-race.css 의존
-- horse-race.css는 사실상 게임 페이지 공통 layout: `.container`, `.users-section`, `.users-title`, `.chat-section`, `.history-section`, `.host-controls`, `.result-overlay`, `.result-card`, `body { background: var(--horse-gradient) }`
-- 새 게임에서 이 layout을 다시 작성하지 말고 horse-race.css 그대로 import + `--horse-*` 변수만 alias 처리
-- 분리는 큰 리팩토링 필요. Phase 단위로 점진 분리 권장
-
-### 4-5. URL 진입 흐름
-- `/[game]?createRoom=true` → localStorage `pending[Game]Room` 읽고 `socket.emit('createRoom', {gameType: '[game]', ...})`
-- `/[game]?joinRoom=true` → localStorage `pending[Game]Join` 읽고 `socket.emit('joinRoom', {...})`
-- sessionStorage `[game]ActiveRoom` → 새로고침 시 자동 재입장
-- 직접 URL 접속(파라미터 없음)은 `/game` 으로 redirect
+새 함정을 발견하면:
+- 모든 게임에 적용되면 → `_common.md`에 C-6, C-7… 으로 추가
+- 특정 게임에만 적용되면 → 해당 게임의 `{game}.md`에 추가
 
 ## 5. 클라이언트 로직 패턴 (js/[game].js)
 

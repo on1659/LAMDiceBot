@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="45" viewBox="0 0 120 45" shape-rendering="crispEdges">
+<title>rocket-lose</title>
+<desc>Derived from the base svgMap vehicle in D:/Work/LAMDiceBot/js/horse-race-sprites.js rocket run.frame1 near line 49; strict 2x1 lose atlas, 60x45 cells. Not derived from POWER_VEHICLE_VARIANT_OVERRIDES.</desc>
+<defs>
+  <clipPath id="clip-0"><rect x="0" y="0" width="60" height="45"/></clipPath>
+  <clipPath id="clip-1"><rect x="60" y="0" width="60" height="45"/></clipPath>
+  <filter id="muted" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0.78"/>
+  </filter>
+</defs>
+<!-- strict atlas: 2 columns x 1 row, 60x45 cells, no gutters -->
+<g clip-path="url(#clip-0)">
+  <g transform="translate(0 0)">
+    <g filter="url(#muted)" transform="translate(0 0) rotate(5 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="35" cy="22" rx="18" ry="10" fill="#3498db"/>
+                    <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
+                    <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
+                    <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
+                    <polygon points="8,22 2,18 2,26" fill="#f39c12"/>
+                    <polygon points="2,22 -3,20 -3,24" fill="#e67e22"/>
+      </svg>
+    </g>
+
+<circle cx="10" cy="24" r="2" fill="#8d939a" stroke="#4e565e" stroke-width="1.1"/><circle cx="14" cy="23" r="2.2" fill="#a5abb1" stroke="#4e565e" stroke-width="1.1"/><circle cx="18" cy="25" r="1.7" fill="#747b83" stroke="#4e565e" stroke-width="1.1"/>
+  </g>
+</g>
+<g clip-path="url(#clip-1)">
+  <g transform="translate(60 0)">
+    <g filter="url(#muted)" transform="translate(0 1) rotate(8 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="35" cy="22" rx="18" ry="10" fill="#3498db"/>
+                    <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
+                    <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
+                    <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
+                    <polygon points="8,22 0,16 0,28" fill="#f1c40f"/>
+                    <polygon points="0,22 -5,19 -5,25" fill="#f39c12"/>
+      </svg>
+    </g>
+
+<circle cx="10" cy="23" r="2" fill="#8d939a" stroke="#4e565e" stroke-width="1.1"/><circle cx="14" cy="22" r="2.2" fill="#a5abb1" stroke="#4e565e" stroke-width="1.1"/><circle cx="18" cy="24" r="1.7" fill="#747b83" stroke="#4e565e" stroke-width="1.1"/>
+  </g>
+</g>
+</svg>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="45" viewBox="0 0 120 45" shape-rendering="crispEdges">
+<title>bird-lose</title>
+<desc>Derived from the base svgMap vehicle in D:/Work/LAMDiceBot/js/horse-race-sprites.js bird run.frame1 near line 91; strict 2x1 lose atlas, 60x45 cells. Not derived from POWER_VEHICLE_VARIANT_OVERRIDES.</desc>
+<defs>
+  <clipPath id="clip-0"><rect x="0" y="0" width="60" height="45"/></clipPath>
+  <clipPath id="clip-1"><rect x="60" y="0" width="60" height="45"/></clipPath>
+  <filter id="muted" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0.78"/>
+  </filter>
+</defs>
+<!-- strict atlas: 2 columns x 1 row, 60x45 cells, no gutters -->
+<g clip-path="url(#clip-0)">
+  <g transform="translate(0 0)">
+    <g filter="url(#muted)" transform="translate(0 0) rotate(5 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="30" cy="25" rx="15" ry="8" fill="#9b59b6"/>
+                    <circle cx="48" cy="22" r="7" fill="#9b59b6"/>
+                    <polygon points="55,22 62,20 62,24" fill="#f39c12"/>
+                    <circle cx="52" cy="20" r="2" fill="black"/>
+                    <path d="M25,25 Q15,10 30,18" fill="#8e44ad"/>
+                    <path d="M35,25 Q25,8 40,16" fill="#8e44ad"/>
+                    <polygon points="12,28 8,32 15,30" fill="#9b59b6"/>
+      </svg>
+    </g>
+<rect x="48" y="21" width="3" height="1.4" fill="#24324a"/><rect x="53" y="21" width="3" height="1.4" fill="#24324a"/><rect x="49" y="22" width="1.2" height="2.4" fill="#24324a"/><rect x="54" y="22" width="1.2" height="2.4" fill="#24324a"/>
+<path d="M18,15 Q23,19 20,25 Q16,20 18,15 Z" fill="#9fd0f0" stroke="#3d6f8c" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<g clip-path="url(#clip-1)">
+  <g transform="translate(60 0)">
+    <g filter="url(#muted)" transform="translate(0 1) rotate(8 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="30" cy="25" rx="15" ry="8" fill="#9b59b6"/>
+                    <circle cx="48" cy="22" r="7" fill="#9b59b6"/>
+                    <polygon points="55,22 62,20 62,24" fill="#f39c12"/>
+                    <circle cx="52" cy="20" r="2" fill="black"/>
+                    <path d="M25,25 Q15,35 30,30" fill="#8e44ad"/>
+                    <path d="M35,25 Q25,38 40,32" fill="#8e44ad"/>
+                    <polygon points="12,28 8,32 15,30" fill="#9b59b6"/>
+      </svg>
+    </g>
+<rect x="48" y="22" width="3" height="1.4" fill="#24324a"/><rect x="53" y="22" width="3" height="1.4" fill="#24324a"/><rect x="49" y="23" width="1.2" height="2.4" fill="#24324a"/><rect x="54" y="23" width="1.2" height="2.4" fill="#24324a"/>
+<path d="M18,14 Q23,18 20,24 Q16,19 18,14 Z" fill="#9fd0f0" stroke="#3d6f8c" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+</svg>

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>경마 라인업 동결 버그 수정 리포트 — 2026-04-29</title>
+<style>
+:root {
+    --bg: #0f1419;
+    --panel: #1a1f2e;
+    --panel-2: #232938;
+    --border: #2d3548;
+    --text: #e6e9ef;
+    --text-dim: #9aa3b8;
+    --accent: #7c9cff;
+    --good: #6ee7b7;
+    --bad: #f87171;
+    --warn: #fbbf24;
+    --code-bg: #0c1118;
+    --diff-add: rgba(110, 231, 183, 0.12);
+    --diff-add-text: #6ee7b7;
+    --diff-del: rgba(248, 113, 113, 0.12);
+    --diff-del-text: #f87171;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Pretendard', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px 16px 80px;
+}
+
+.container {
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+}
+
+.tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    color: var(--text-dim);
+    margin-right: 6px;
+    font-weight: 500;
+}
+
+.tag.good { background: rgba(110, 231, 183, 0.15); color: var(--good); }
+.tag.bad { background: rgba(248, 113, 113, 0.15); color: var(--bad); }
+.tag.warn { background: rgba(251, 191, 36, 0.15); color: var(--warn); }
+
+h1 {
+    font-size: clamp(22px, 3.4vw, 30px);
+    margin: 12px 0 8px;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: clamp(18px, 2.6vw, 22px);
+    margin: 40px 0 16px;
+    letter-spacing: -0.01em;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+h3 {
+    font-size: 16px;
+    margin: 24px 0 12px;
+    color: var(--accent);
+}
+
+p { margin-bottom: 12px; color: var(--text); }
+.dim { color: var(--text-dim); }
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.summary-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.summary-card .label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.summary-card .value {
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.summary-card .value.add { color: var(--good); }
+.summary-card .value.del { color: var(--bad); }
+
+.compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+@media (max-width: 720px) {
+    .compare { grid-template-columns: 1fr; }
+}
+
+.compare-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.compare-card.before { border-left: 3px solid var(--bad); }
+.compare-card.after { border-left: 3px solid var(--good); }
+
+.compare-card .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.compare-card.before .header { color: var(--bad); }
+.compare-card.after .header { color: var(--good); }
+
+pre, code {
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 12.5px;
+}
+
+pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.55;
+}
+
+pre.log {
+    font-size: 12px;
+}
+
+code {
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+}
+
+pre code { background: transparent; padding: 0; color: inherit; }
+
+.diff-add { background: var(--diff-add); color: var(--diff-add-text); display: block; }
+.diff-del { background: var(--diff-del); color: var(--diff-del-text); display: block; text-decoration: line-through; opacity: 0.85; }
+.diff-ctx { display: block; color: var(--text-dim); }
+.kw { color: #c792ea; }
+.str { color: #c3e88d; }
+.num { color: #f78c6c; }
+.cmt { color: #5b6478; font-style: italic; }
+.fn { color: #82aaff; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+}
+
+th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+th {
+    background: var(--panel-2);
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+}
+
+tr:hover td { background: rgba(124, 156, 255, 0.04); }
+
+td code { font-size: 12px; }
+
+.flow {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 16px 0;
+}
+
+.flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.flow-step + .flow-step {
+    border-top: 1px dashed var(--border);
+}
+
+.flow-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--panel-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.flow-step.bad .flow-num { background: rgba(248, 113, 113, 0.2); color: var(--bad); }
+.flow-step.good .flow-num { background: rgba(110, 231, 183, 0.2); color: var(--good); }
+
+.flow-text {
+    flex: 1;
+    font-size: 14px;
+}
+
+.flow-text strong { color: var(--text); }
+
+.callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(124, 156, 255, 0.06);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    font-size: 14px;
+}
+
+.callout.warn {
+    border-left-color: var(--warn);
+    background: rgba(251, 191, 36, 0.06);
+}
+
+.callout.good {
+    border-left-color: var(--good);
+    background: rgba(110, 231, 183, 0.06);
+}
+
+.callout strong { color: var(--accent); }
+.callout.warn strong { color: var(--warn); }
+.callout.good strong { color: var(--good); }
+
+ul, ol { padding-left: 24px; margin: 8px 0 16px; }
+li { margin: 4px 0; }
+li code { font-size: 12.5px; }
+
+.qa-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.qa-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 13px;
+}
+
+.qa-card .num {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.qa-card .title {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+    <div>
+        <span class="tag good">approved</span>
+        <span class="tag">socket/horse.js</span>
+        <span class="tag">STANDARD</span>
+        <span class="tag">2026-04-29</span>
+    </div>
+    <h1>경마 라인업 동결 버그 수정 리포트</h1>
+    <p class="dim">같은 방의 연속 라운드에서 vehicle 라인업이 셔플되지 않아 같은 lane이 반복 우승하던 버그 수정. 단일 파일 변경(<code>socket/horse.js</code>), Railway 로그로 가설 검증 후 helper 추출 + 5곳 적용 + race condition 가드 추가.</p>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="label">변경 파일</div>
+            <div class="value">1</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">추가 (insertions)</div>
+            <div class="value add">+77</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">삭제 (deletions)</div>
+            <div class="value del">−269</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">총 라인 수</div>
+            <div class="value">1686 → 1494</div>
+        </div>
+    </div>
+</header>
+
+<h2>1. 버그 가설 검증 — Railway 로그</h2>
+
+<p>변경 전 프로덕션 로그에서 같은 방의 연속 라운드 사이 <code>selectedVehicleTypes</code>가 그대로 유지되는 결정적 증거 발견.</p>
+
+<pre class="log">[방 생성] selectedVehicleTypes 미리 설정: [ 'horse', 'knight', 'bicycle', 'crab', 'boat', 'ninja' ]
+[경마] 방 ... 트랙 길이 설정: long (1000m)
+<span class="diff-ctx">[디버그] 경주 시작 - raceRound: 1, horseRaceMode: last</span>
+<span class="diff-del">[경마 시작] selectedVehicleTypes 유지: [ 'horse', 'knight', 'bicycle', 'crab', 'boat', 'ninja' ]</span>
+[경마] 날씨 스케줄: 0%=sunny → 50%=sunny → 70%=sunny
+방 ... 경마 시작 - 말 수: 6, 참가자: 3명, 라운드: 1
+[경마] 결과 데이터 저장 완료 - 클라이언트 애니메이션 완료 대기
+방 ... 경마 라운드 종료 - 자동 준비: 조현건, 박성원
+<span class="diff-ctx">[디버그] 경주 시작 - raceRound: 2, horseRaceMode: last</span>
+<span class="diff-del">[경마 시작] selectedVehicleTypes 유지: [ 'horse', 'knight', 'bicycle', 'crab', 'boat', 'ninja' ]</span>  <span class="cmt"># ← 동일 배열!</span>
+[경마] 날씨 스케줄: 0%=sunny → 50%=sunny
+방 ... 경마 시작 - 말 수: 6, 참가자: 2명, 라운드: 2</pre>
+
+<div class="callout warn">
+    <strong>핵심 단서</strong> — 라운드 1과 2의 <code>selectedVehicleTypes</code>가 순서까지 완전 동일. 같은 lane = 같은 vehicle = 같은 weather modifier 영향 → 통계적으로 같은 lane이 반복 우승하는 패턴.
+</div>
+
+<h2>2. 근본 원인 — endHorseRace에만 셔플 로직 존재</h2>
+
+<p>호스트가 명시적으로 "게임 종료" 버튼을 누를 때 호출되는 <code>endHorseRace</code> 핸들러에만 라인업 셔플 코드가 있었음. <strong>자동준비 → 다음 라운드</strong> 흐름에서는 <code>raceAnimationComplete</code> 핸들러가 처리하는데 거기엔 셔플이 없어 라인업이 동결됨.</p>
+
+<div class="compare">
+    <div class="compare-card before">
+        <div class="header">❌ Before — 라운드 종료 흐름</div>
+        <div class="flow-step bad">
+            <div class="flow-num">1</div>
+            <div class="flow-text">라운드 1: <code>startHorseRace</code> → 시뮬레이션 → 결과 broadcast</div>
+        </div>
+        <div class="flow-step bad">
+            <div class="flow-num">2</div>
+            <div class="flow-text"><code>raceAnimationComplete</code> → 동점/없음/단독 모두 <strong>셔플 없이</strong> 자동준비/종료</div>
+        </div>
+        <div class="flow-step bad">
+            <div class="flow-num">3</div>
+            <div class="flow-text">라운드 2: 같은 <code>selectedVehicleTypes</code>로 다시 시뮬레이션</div>
+        </div>
+        <div class="flow-step bad">
+            <div class="flow-num">∞</div>
+            <div class="flow-text">호스트가 <code>endHorseRace</code> 누를 때까지 <strong>같은 라인업 무한 반복</strong></div>
+        </div>
+    </div>
+
+    <div class="compare-card after">
+        <div class="header">✅ After — 라운드 종료 흐름</div>
+        <div class="flow-step good">
+            <div class="flow-num">1</div>
+            <div class="flow-text">라운드 1: <code>startHorseRace</code> → 시뮬레이션 → 결과 broadcast</div>
+        </div>
+        <div class="flow-step good">
+            <div class="flow-num">2</div>
+            <div class="flow-text"><code>raceAnimationComplete</code> → DB 기록 → <strong><code>reshuffleLineup()</code> + <code>broadcastLineupReady()</code></strong></div>
+        </div>
+        <div class="flow-step good">
+            <div class="flow-num">3</div>
+            <div class="flow-text">라운드 2: <strong>새 vehicle</strong>로 horseSelectionReady emit → 사용자 새 라인업 보고 베팅</div>
+        </div>
+        <div class="flow-step good">
+            <div class="flow-num">∞</div>
+            <div class="flow-text">매 라운드마다 vehicle 새로 셔플</div>
+        </div>
+    </div>
+</div>
+
+<h2>3. 수정 내용 — 6곳 변경</h2>
+
+<table>
+<thead>
+<tr><th>#</th><th>위치</th><th>변경</th><th>이유</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td>1</td>
+    <td><code>L51-101</code> 신규</td>
+    <td><code>reshuffleLineup()</code> + <code>broadcastLineupReady()</code> helper 2개 추가</td>
+    <td>인라인 셔플 코드 4곳 통일 → 누락 시 같은 버그 재발 방지</td>
+</tr>
+<tr>
+    <td>2</td>
+    <td><code>raceAnimationComplete</code> 단독 당첨 분기</td>
+    <td>helper 호출 추가 (<code>players.length ≥ 2</code> 가드)</td>
+    <td>단독 우승 후 호스트가 종료 안 누르고 재시작하는 경로 대응</td>
+</tr>
+<tr>
+    <td>3</td>
+    <td><code>raceAnimationComplete</code> 동점/없음 분기</td>
+    <td>helper 호출 추가</td>
+    <td>자동준비 후 다음 라운드 진입 시 새 라인업</td>
+</tr>
+<tr>
+    <td>4</td>
+    <td><code>selectHorse</code> 진입부</td>
+    <td><code>isHorseRaceActive</code> 가드 + 에러 emit 추가</td>
+    <td>카운트다운 중 race condition 차단</td>
+</tr>
+<tr>
+    <td>5</td>
+    <td><code>selectHorse</code> dead branch (구 L731-906)</td>
+    <td><strong>192줄 제거</strong> (시뮬레이션 중복 호출 + DB 중복 기록)</td>
+    <td>가드로 도달 불가 → 비정상 경로 정리</td>
+</tr>
+<tr>
+    <td>6</td>
+    <td><code>endHorseRace</code> + <code>clearHorseRaceData</code></td>
+    <td>인라인 셔플/emit → helper 호출 (DRY)</td>
+    <td>코드 중복 제거, 단일 진입점</td>
+</tr>
+</tbody>
+</table>
+
+<h2>4. 핵심 helper 코드</h2>
+
+<h3>reshuffleLineup(gameState)</h3>
+<p class="dim"><code>availableHorses</code> + <code>selectedVehicleTypes</code>를 새로 셔플. closure 내부 정의로 <code>HORSE_COUNT_MIN/MAX</code>, <code>weightedShuffleVehicles()</code>를 직접 사용.</p>
+
+<pre><code><span class="kw">function</span> <span class="fn">reshuffleLineup</span>(gameState) {
+    <span class="kw">const</span> horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + <span class="num">1</span>));
+    gameState.availableHorses = Array.from({ length: horseCount }, (_, i) => i);
+    gameState.selectedVehicleTypes = [];
+    <span class="kw">const</span> shuffled = weightedShuffleVehicles();
+    <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; horseCount; i++) {
+        gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+    }
+    <span class="kw">return</span> horseCount;
+}</code></pre>
+
+<h3>broadcastLineupReady(io, room, gameState, players)</h3>
+<p class="dim"><code>horseSelectionReady</code> 이벤트를 vehicle 통계 + popularVehicles와 함께 방 전체로 broadcast. payload 필드는 변경 전 <code>endHorseRace</code> 인라인 emit과 정확히 동일 — 클라이언트 호환성 유지.</p>
+
+<pre><code><span class="kw">function</span> <span class="fn">broadcastLineupReady</span>(io, room, gameState, players) {
+    <span class="kw">const</span> trackPresetsInfo = {};
+    <span class="kw">for</span> (<span class="kw">const</span> [k, v] <span class="kw">of</span> Object.entries(TRACK_PRESETS)) trackPresetsInfo[k] = v.meters;
+
+    <span class="kw">const</span> payload = {
+        availableHorses: gameState.availableHorses,
+        participants: players,
+        players: players,
+        userHorseBets: {},
+        selectedUsers: [],
+        horseRaceMode: gameState.horseRaceMode || <span class="str">'last'</span>,
+        raceRound: gameState.raceRound || <span class="num">1</span>,
+        selectedVehicleTypes: gameState.selectedVehicleTypes,
+        trackLength: gameState.trackLength || <span class="str">'medium'</span>,
+        trackDistanceMeters: (TRACK_PRESETS[gameState.trackLength] || TRACK_PRESETS.medium).meters,
+        trackPresets: trackPresetsInfo,
+    };
+
+    getVehicleStats(getServerId()).then(stats => {
+        <span class="kw">const</span> popularVehicles = stats.filter(s => s.appearance_count &gt;= <span class="num">5</span>)
+            .sort((a, b) => b.pick_rate - a.pick_rate)
+            .slice(<span class="num">0</span>, <span class="num">2</span>).map(s => s.vehicle_id);
+        io.to(room.roomId).emit(<span class="str">'horseSelectionReady'</span>, { ...payload, popularVehicles, vehicleStats: stats });
+    }).catch(() => {
+        io.to(room.roomId).emit(<span class="str">'horseSelectionReady'</span>, { ...payload, popularVehicles: [], vehicleStats: [] });
+    });
+}</code></pre>
+
+<h2>5. 호출부 적용 — Before / After</h2>
+
+<h3>raceAnimationComplete (단독 당첨 분기 끝)</h3>
+<div class="compare">
+    <div class="compare-card before">
+        <div class="header">Before</div>
+<pre><code><span class="diff-ctx">console.log(<span class="str">`방 ${roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`</span>);</span>
+<span class="diff-ctx">// (셔플 없음 — 라인업 동결)</span>
+<span class="diff-ctx">}</span></code></pre>
+    </div>
+    <div class="compare-card after">
+        <div class="header">After</div>
+<pre><code><span class="diff-ctx">console.log(<span class="str">`방 ${roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`</span>);</span>
+<span class="diff-add">
+<span class="cmt">// 다음 라운드용 라인업 새로 셔플 + broadcast</span>
+const playersForLineup = gameState.users.map(u =&gt; u.name);
+if (playersForLineup.length &gt;= 2) {
+    reshuffleLineup(gameState);
+    broadcastLineupReady(io, room, gameState, playersForLineup);
+}</span>
+<span class="diff-ctx">}</span></code></pre>
+    </div>
+</div>
+
+<h3>selectHorse 진입부 — race condition 가드</h3>
+<div class="compare">
+    <div class="compare-card before">
+        <div class="header">Before</div>
+<pre><code><span class="diff-ctx">const players = gameState.users.map(u =&gt; u.name);</span>
+<span class="diff-ctx">const { horseIndex } = data;</span>
+<span class="diff-ctx">// 게임 진행 중에도 selectHorse 통과 → dead branch에서 시뮬레이션 중복 호출</span></code></pre>
+    </div>
+    <div class="compare-card after">
+        <div class="header">After</div>
+<pre><code><span class="diff-ctx">const players = gameState.users.map(u =&gt; u.name);</span>
+<span class="diff-add">
+<span class="cmt">// 경주 진행 중에는 말 변경 불가 (race condition 차단)</span>
+if (gameState.isHorseRaceActive) {
+    socket.emit(<span class="str">'horseRaceError'</span>, <span class="str">'경주 진행 중에는 말을 변경할 수 없습니다!'</span>);
+    return;
+}</span>
+<span class="diff-ctx">const { horseIndex } = data;</span></code></pre>
+    </div>
+</div>
+
+<h3>endHorseRace — 인라인 → helper 호출</h3>
+<div class="compare">
+    <div class="compare-card before">
+        <div class="header">Before (16줄)</div>
+<pre><code><span class="diff-del">let horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * ...);
+gameState.availableHorses = Array.from({ length: horseCount }, ...);
+gameState.selectedVehicleTypes = [];
+const shuffled = weightedShuffleVehicles();
+for (let i = 0; i &lt; horseCount; i++) {
+    gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+}
+console.log(<span class="str">`[경마 종료] selectedVehicleTypes 설정:`</span>, ...);
+getVehicleStats(getServerId()).then(stats =&gt; {
+    const popularVehicles = stats.filter(...).slice(0, 2);
+    io.to(room.roomId).emit(<span class="str">'horseSelectionReady'</span>, {
+        availableHorses, participants, players, userHorseBets, ...
+        // 14개 필드 inline
+    });
+}).catch(() =&gt; { ... });</span></code></pre>
+    </div>
+    <div class="compare-card after">
+        <div class="header">After (3줄)</div>
+<pre><code><span class="diff-add">reshuffleLineup(gameState);
+console.log(<span class="str">`[경마 종료] selectedVehicleTypes 설정:`</span>, gameState.selectedVehicleTypes);
+broadcastLineupReady(io, room, gameState, players);</span></code></pre>
+    </div>
+</div>
+
+<h2>6. 192줄 dead branch 제거</h2>
+
+<p><code>selectHorse</code> 핸들러 안에 <code>isHorseRaceActive=true</code>일 때 <strong>다시 시뮬레이션을 돌리고 DB에 중복 기록하는 비정상 경로</strong>가 있었음. 진입부 가드 추가로 도달 불가 → 통째로 제거.</p>
+
+<div class="callout warn">
+    <strong>제거 효과</strong>
+    <ul>
+        <li><code>calculateHorseRaceResult</code> 호출 위치 단일화 (이전: 2곳 → 이후: <code>startHorseRace</code> 1곳만)</li>
+        <li>DB 중복 기록 가능성 제거 (<code>recordVehicleRaceResult</code>, <code>recordServerGame</code>, <code>recordGameSession</code>)</li>
+        <li>호환성 변경 없음 — 정상 흐름은 모두 <code>raceAnimationComplete</code>를 거침</li>
+    </ul>
+</div>
+
+<h2>7. 검증 결과</h2>
+
+<table>
+<thead>
+<tr><th>검증 항목</th><th>결과</th></tr>
+</thead>
+<tbody>
+<tr><td><code>node -c socket/horse.js</code></td><td><span class="tag good">SYNTAX OK</span></td></tr>
+<tr><td><code>calculateHorseRaceResult</code> 호출</td><td>1곳 (startHorseRace L315만, dead branch 제거 효과)</td></tr>
+<tr><td>helper 호출 분포</td><td>4쌍 — raceAnimationComplete 단독/동점·없음 + endHorseRace + clearHorseRaceData</td></tr>
+<tr><td><code>horseSelectionReady</code> payload 호환성</td><td>변경 전 endHorseRace inline emit과 필드 동일</td></tr>
+<tr><td>결과 broadcast → DB 기록 → 셔플 순서</td><td>보존 ✓ (공정성 영향 없음)</td></tr>
+<tr><td>호스트 권한 체크 (<code>endHorseRace</code> host-only)</td><td>변경 없음 ✓</td></tr>
+<tr><td>클라이언트 <code>Math.random()</code> 추가</td><td>0건 (서버 수정만)</td></tr>
+<tr><td>Reviewer 판정</td><td><span class="tag good">approve</span> — blocker/important 0, nit 3</td></tr>
+</tbody>
+</table>
+
+<h2>8. 수동 QA 시나리오</h2>
+
+<p class="dim">로컬 5173, 2탭 (호스트 + 게스트) 기준 — Phase 1 머지 전 마지막 점검.</p>
+
+<div class="qa-grid">
+    <div class="qa-card">
+        <div class="num">QA 1</div>
+        <div class="title">단독 당첨 → 다음 라운드 라인업 변경</div>
+        <div class="dim">라운드 1 종료 후 두 탭의 vehicle UI가 라운드 1과 다른 vehicle/말 수로 표시되는지</div>
+    </div>
+    <div class="qa-card">
+        <div class="num">QA 2</div>
+        <div class="title">동점 자동 준비 → 새 라인업</div>
+        <div class="dim">두 탭이 같은 말 베팅 → 동점 → 자동 준비된 사용자 쪽 vehicle UI 갱신 확인</div>
+    </div>
+    <div class="qa-card">
+        <div class="num">QA 3</div>
+        <div class="title">당첨자 없음 분기</div>
+        <div class="dim">베팅 안 된 말이 1등 → "가장 가까운 베팅자" 자동 준비 + 새 라인업 표시</div>
+    </div>
+    <div class="qa-card">
+        <div class="num">QA 4</div>
+        <div class="title">selectHorse 가드 동작</div>
+        <div class="dim">콘솔에서 <code>socket.emit('selectHorse', ...)</code> 직접 호출 → 진행 중이면 에러 토스트</div>
+    </div>
+    <div class="qa-card">
+        <div class="num">QA 5</div>
+        <div class="title">endHorseRace / clearHorseRaceData 동작 동일</div>
+        <div class="dim">호스트 명시 종료 / 데이터 삭제 흐름의 vehicle UI 갱신 회귀 없는지</div>
+    </div>
+    <div class="qa-card">
+        <div class="num">QA 6</div>
+        <div class="title">Railway 프로덕션 로그 (배포 후)</div>
+        <div class="dim"><code>[경마 시작] selectedVehicleTypes 유지: [...]</code> 가 라운드마다 다른 배열로 변하는지</div>
+    </div>
+</div>
+
+<h2>9. 통계 검증 — 진짜 편향이 있는가?</h2>
+
+<p>"같은 horseIndex가 반복 우승" 사용자 보고가 진짜 결정성 버그인지, 통계적 우연인지 확인하기 위해 N=1000 몬테카를로 실행.</p>
+
+<p class="dim">테스트: <code>AutoTest/horse-race/test-rank-distribution.js</code> — 단일 <code>gameState</code> 유지, 라인업/베팅 동결, 매 라운드 자동준비 흐름 재현.</p>
+
+<pre class="log">트랙: medium (700m) / 반복: 1000회
+라인업: [horse, knight, bicycle, crab, boat, ninja]
+베팅: user1→말2(bicycle), user2→말4(boat), user3→말4(boat)
+검증 조건: selectedVehicleTypes/availableHorses 동결, userHorseBets 유지
+
+=== 1등 분포 ===
+  말 2 (bicycle):  497회 (49.70%) [베팅됨]
+  말 4 (boat):     503회 (50.30%) [베팅됨]
+  말 0, 1, 3, 5:     0회 (0.00%)  [unbetted — 즉시 정지]
+
+=== 카이제곱 검정 (df=1) ===
+  chi² = <span class="diff-add">0.036</span>  (임계값 3.841)
+  판정: <span class="diff-add">균등 (p > 0.05) — 진짜 random + 우연</span></pre>
+
+<div class="callout good">
+    <strong>결론</strong> — <code>chi² = 0.036</code> 으로 임계값 3.841에 한참 못 미침. <strong>50.3% vs 49.7%</strong> 의 통계적으로 완벽한 50/50 분포. 시뮬레이션 코드는 정상 random이며 결정성 편향 없음.
+</div>
+
+<h2>10. 사용자 체감의 진짜 원인</h2>
+
+<p>편향이 없는데 사용자가 "자주 같은 결과"라고 느끼는 이유는 코드 문제가 아니라 <strong>인간 인지 + 게임 메커니즘 조합</strong>이다.</p>
+
+<table>
+<thead>
+<tr><th>요인</th><th>설명</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td><code>unbetted_stop</code> 효과</td>
+    <td>베팅 안 된 말 4마리는 즉시 정지 → 베팅된 2마리만 경쟁 → <strong>50/50 동전 던지기</strong>. 4번 연속 같은 면 12.5%, 5번 6.25% — 드물지 않은 우연</td>
+</tr>
+<tr>
+    <td>인지 편향 (frequency illusion)</td>
+    <td>같은 결과는 강하게 기억, 다른 결과는 흘려보냄. 4번 중 2번만 같아도 "자주 그래" 체감</td>
+</tr>
+<tr>
+    <td>베팅 메타 자기 강화</td>
+    <td>"boat가 강해" 학습 → 다음 라운드도 같은 lane 베팅 → 같은 두 말 경쟁 → 같은 결과 패턴 강화</td>
+</tr>
+</tbody>
+</table>
+
+<h2>11. Phase 2 폐기 결정</h2>
+
+<div class="callout warn">
+    <strong>Phase 2 (안티-편향 재시뮬) 폐기</strong> — 통계 검증으로 불필요 확정. 진짜 random인데 인위적 보정을 더하면 새로운 결정성("직전 1등 = 절대 안 1등" 메타)을 만들어 오히려 공정성 손상. <code>speedRange</code> 확장, <code>vehicleModifiers</code> 차이 부여 같은 config 변경도 같은 이유로 보류.
+</div>
+
+<h2>12. 최종 정리 — Phase 1의 위상</h2>
+
+<p>통계 검증 결과를 반영하면 Phase 1 변경의 정확한 가치는:</p>
+
+<table>
+<thead>
+<tr><th>항목</th><th>가치</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td>vehicle 라인업 시각적 동결 해소</td>
+    <td><span class="tag">UX 개선</span> 같은 lane = 같은 vehicle 패턴 깨짐. 사용자 인지 편향 완화 효과</td>
+</tr>
+<tr>
+    <td>192줄 dead branch 제거</td>
+    <td><span class="tag good">버그 수정</span> 카운트다운 race condition + DB 중복 기록 가능성 차단</td>
+</tr>
+<tr>
+    <td><code>selectHorse</code> race condition 가드</td>
+    <td><span class="tag good">버그 수정</span> 진행 중 베팅 변경 시도 차단</td>
+</tr>
+<tr>
+    <td>인라인 셔플 helper 통일 (DRY)</td>
+    <td><span class="tag">코드 품질</span> 셔플 로직 단일 진입점</td>
+</tr>
+<tr>
+    <td>1등 horseIndex 분포에 미치는 영향</td>
+    <td><span class="tag bad">없음</span> 통계 검증 결과 50/50 그대로 — 공정성 측면 효과 0</td>
+</tr>
+</tbody>
+</table>
+
+<p>즉 Phase 1은 <strong>"공정성 버그 수정"이 아니라 "UX 개선 + 코드 정리"</strong>로 분류. 머지 가치는 충분하지만 사용자에게 "공정성 개선됨"으로 보고하지 말 것.</p>
+
+<footer>
+    LAMDiceBot — Horse Race Lineup Reshuffle Fix Report<br>
+    Generated 2026-04-29, updated 2026-04-30 (통계 검증 + Phase 2 폐기 반영)<br>
+    branch <code>feat/bridge-cross-history-v1</code> · Reviewer approved · Stat verified (chi² = 0.036)
+</footer>
+
+</div>
+</body>
+</html>

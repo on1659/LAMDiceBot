@@ -1,4 +1,142 @@
 ========================================
+📋 Summit Log - 2026-05-05 — 경마 N등 찾기 투표 시스템 + 호스트 안정화 + 트리아지 훅 + lose 스프라이트
+========================================
+
+## 변경 파일
+
+### 서버
+- socket/horse.js (+311줄):
+    * voteRank 핸들러 신규 (등수 투표, 익명, 토글)
+    * startHorseRace에 룰렛 단계 통합 (서버 가중 랜덤 winningRank, Fisher-Yates 셔플 rankOrder, ROULETTE_ANIM_MS=5s + ROULETTE_HOLD_MS=3s + FALLBACK_HOLD_MS=3s)
+    * targetRankReason 텍스트 4가지 케이스 분기 (미투표 / 모두 무효 / 한 등수 몰림 / 다중 등수 룰렛)
+    * horseRouletteStart / horseRaceReasonHold / horseRaceCountdown / horseRaceStarted / raceData / raceRecord 페이로드에 targetRank + targetRankReason
+    * getWinnersByRule에 targetRank 분기 (mode 'first'/'last'/'rank-N')
+    * 채팅 결과 메시지: "제일 순위가 낮습니다" → "N등에 걸렸습니다"
+    * userRankVotes/targetRank/rouletteResult cleanup 6곳 (raceAnimationComplete x2, selectHorse endgame x2, endHorseRace, clearHorseRaceData)
+
+- socket/chat.js (+58줄):
+    * disconnect grace 처리에 userRankVotes 정리 + rankVotesUpdated broadcast
+    * 호스트 위임 silent failure 수정: socket.id 매칭 실패 시 userName fallback + user 레코드 id 보정
+
+- socket/rooms.js (+74줄):
+    * leaveRoom userRankVotes 정리 + broadcast
+    * joinRoom payload에 userRankVotes/targetRank 동기화 (재접속/신규입장)
+    * 호스트 위임 동일 패치 (chat.js와 같은 패턴)
+
+- socket/shared.js (+32줄):
+    * toggleReady/setUserReady 시 userRankVotes 정리 + broadcast (Ready 취소 시 잔존 방지)
+
+- utils/room-helpers.js (+3줄):
+    * gameState 초기 필드 userRankVotes / targetRank / rouletteResult 추가
+
+### 클라이언트 — 경마
+- js/horse-race.js (+741줄):
+    * renderRankVoteSection: 등수 박스 + 막대 표시 (익명, 한 줄 정렬)
+    * playRouletteAnimation: 인라인 막대 하이라이트 애니메이션 (서버 winningRank/rankOrder 기반, ease-out + 마지막 5스텝 가속 감속)
+    * moveResultUiToCanvas / moveResultUiOffCanvas / fadeBarsOverlayOnly: 캔버스 위(배너) + 캔버스 정중앙(투표/사유) UI 분리 + fade-out
+    * updateTargetRankBanner: 배너 + 결정 사유 토글 (reason 명시 시에만 표시)
+    * 슬로우모션 일반화: targetRank===null/꼴등 → 기존 동작, 중간 등수 → 타깃 말 자체 트리거 + 카메라 고정
+    * 카메라 _loser 모드 매 프레임 재계산을 targetRank 분기로 보정 (중간 등수 추적 유지)
+    * setVehicleState(targetHorse, vid, 'lose') 트리거 — 슬로우모션 발동 시점
+    * resolveVehicleStateData에 'lose' 우선 분기
+    * writeVehicleSpriteState 외부 atlas (background-image) 지원
+    * showRaceResult 결과창 winner row 골드 회전 효과 + 당첨자 칩 pop 애니메이션 + 라벨 동적 (targetRank ? N등 : 꼴등)
+    * 히스토리 라벨 한 줄 정렬 + fallback도 🎯꼴등 배지 표시
+    * 카메라 라벨 N등 추적중 동적
+    * 1등 결승 후 패닝 타깃 일반화 (targetRank=2 → 다음 빠른 / N → unfinishedDesc[N-2] / null → 가장 느림)
+
+- js/horse-race-lose.js (신규):
+    * VEHICLE_LOSE_STATES 매핑 15종 (atlas 120x45, 2 frames)
+    * getVehicleLoseState(vehicleId) 노출
+
+- horse-race-multiplayer.html (+29줄):
+    * #targetRankBanner / #targetRankReason / #rankVoteSection 마크업
+    * <script src="/js/horse-race-lose.js"> 추가
+    * 투표 섹션 제목/안내 텍스트 ("당첨 등수 투표" + 안내)
+
+- css/horse-race.css (+578줄):
+    * .rank-vote-section / .rank-vote-box / .rank-vote-bar / .rank-vote-bars 게임 스타일 (브라운/골드 톤)
+    * .rank-vote-bar.active / .winner 펄스 애니메이션
+    * .rank-vote-box.selected outline 강조 (사이즈 변경 없음)
+    * .canvas-result-center / .canvas-bars-overlay (캔버스 위 + 캔버스 내부 절대좌표) + fade-out
+    * .target-rank-banner.on-canvas 단순 사각 박스 (사용자 요청)
+    * .target-rank-reason.on-canvas 베이지 양피지 카드 + pop 등장
+    * .result-target-row 모서리 빛 회전 (box-shadow 4단계 회전 + outer pulse + sheen sweep + outline)
+    * .winner-chip / .winner-chip-row 골드 칩 + cubic-bezier pop
+    * 모바일 480px 미디어쿼리 전반 추가
+
+### DevTools / Test 도구
+- AutoTest/horse-devtools.html (+71줄):
+    * voteRank emit 헬퍼 (voteAll / voteAllRandom / voteAllSpread / clearVoteAll)
+    * UI 버튼 추가 + 봇 row에 현재 투표 표시
+    * rankVotesUpdated / horseRouletteStart 리스너 + 로그
+- AutoTest/start-horse-devtools.bat (신규): DevTools 페이지 자동 실행 (영문)
+- start-test.bat (신규): 서버 + 게임 2탭 + DevTools 1탭 자동 실행 (영문)
+
+### 트리아지 강제 훅
+- .claude/hooks/check-triage.sh (신규): PreToolUse Edit/Write/MultiEdit 차단 — 현재 turn에 SIMPLE/STANDARD/COMPLEX/트리아지 키워드 미선언 시 exit 2
+- .claude/settings.json: PreToolUse 매처 Write|Edit → Write|Edit|MultiEdit, triage-reminder.sh → check-triage.sh 교체
+
+### 자산 — Lose 스프라이트 (SpriteMake 산출)
+- assets/horse-race/sprites/lose/{vehicleId}-lose.svg x 15: 차량별 패배 자세 atlas (120x45, 2-frame, 60x45 cell, anchor 30,45)
+    horse / rabbit / turtle / bird / boat / bicycle / rocket / car / eagle / scooter / helicopter / knight / dinosaur / ninja / crab
+
+### 문서
+- docs/spritemake-request/applied/2026-05-05-horse-lose-poses.md: SpriteMake 의뢰서 (적용 완료, applied/로 이동)
+
+### 기타
+- .claude/agents/coder.md, .claude/rules/harness.md, .claude/rules/new-game.md: 사소한 보강
+
+## 상세 변경 내역
+
+### [N등 찾기 투표 시스템 — 핵심]
+- 게임 룰: 라운드 시작 전 1~N등(N=출전 말 수) 투표 → 호스트 시작 시 서버 가중 랜덤 룰렛 → targetRank 결정 → 슬로우모션·결과창 모두 그 등수 기준
+- 공정성:
+    * 서버 Math.random() 1회로 winningRank 결정, Fisher-Yates 셔플 1회로 rankOrder 결정
+    * io.to(roomId).emit('horseRouletteStart', {winningRank, rankOrder, ...}) — 모든 클라이언트 동일 데이터 broadcast
+    * 클라는 배열/값 시각화만 — Math.random() 추가 0회 (deviceId/jitter/comment 외)
+- 무효 조건: validVotes 필터 — `rank <= runningHorseCount` (베팅된 unique 말 수). 모든 표 무효 시 fallback 'last'
+
+### [타이밍 시퀀스]
+- 룰렛 케이스: ROULETTE_ANIM_MS(5s) + ROULETTE_HOLD_MS(3s) + 카운트다운(4s) = 12s
+- Fallback 케이스: FALLBACK_HOLD_MS(3s) + 카운트다운(4s) = 7s
+- 카운트다운 emit 시점에 fadeBarsOverlayOnly() 호출 → 캔버스 정중앙 UI(투표/사유) fade out, 배너만 잔존
+
+### [호스트 위임 silent failure 수정]
+- 원인: chat.js disconnect grace + rooms.js leaveRoom 양쪽에서 newHost 매칭을 socket.id로만 시도. user 레코드 id가 stale(재접속으로 socket.id 변경됨에도 user array 갱신 안 됨)이면 매칭 실패 → if (newHostSocket) 블록 스킵 → room.hostId 갱신 안 됨 → 권한 체크 (socket.id === room.hostId) 통과 못 하는 socket이 호스트 권한 행세
+- 수정: socket.id 매칭 → userName fallback → 다음 user 후보 순회. 매칭 시 newHost.id를 새 socket.id로 보정. 모두 실패 시 빈 방 처리
+
+### [lose 스프라이트 통합]
+- SpriteMake 산출: 15개 atlas SVG (120x45, 2 frames horizontal, muted filter 적용)
+- 통합 방식: 외부 SVG 파일 + background-image (인라인 SVG ID 충돌 회피)
+- writeVehicleSpriteState에 stateData.external 분기 추가: frame1=background-position 0 0, frame2=background-position -60px 0. 양쪽 frame 요소가 atlas 좌/우 셀 표시 → 기존 frame swap 시스템(0.6s 루프)과 자동 연동
+- 트리거: loserSlowMotion 발동 시점에 cameraTargetHorse(=타깃 말)에 setVehicleState(..., 'lose')
+- VEHICLE_LOSE_STATES는 base 변형만 사용 (power 변형 무시 — 단일 자산)
+
+### [트리아지 강제 훅]
+- 동기: 사용자가 작은 UI 변경에도 트리아지 트리아지 선언 누락을 자주 지적 → 자동화로 강제
+- 메커니즘: PreToolUse hook이 transcript_path 받아 마지막 REAL user 메시지 이후 어시스턴트 메시지에 SIMPLE/STANDARD/COMPLEX/트리아지 키워드 grep. 미발견 → exit 2 차단
+- tool_result도 type:"user"로 기록되는 점 보정 (grep -v '"type":"tool_result"')
+- 분류 자체는 Claude 판단, 훅은 "어떤 트리아지든 1번 선언" 여부만 강제
+
+### [DevTools 봇 투표 통합]
+- 봇 자동화에 voteRank 능력 추가 → N등 찾기 시스템 일괄 테스트 가능
+- 전원 같은 등수 / 전원 무작위 / 전원 분산(i % max) / 투표 취소 4 모드
+
+### [회귀 검증 결과]
+- 모두 미투표 fallback: 정확히 기존 'last' 모드와 동일 (resolvedTargetRank=null → getWinnersByRule fallback)
+- 'first' 모드(사용 여부 불명): 기존 분기 보존
+- 다른 게임(주사위/룰렛/팀배정/다리건너기): socket/shared.js + socket/chat.js 변경분 모두 if (room.gameType === 'horse-race') 가드 안 — 영향 없음
+- 정적 검증: node -c 8개 파일 모두 OK / Math.random 클라 20곳 (이전 그대로) / 핵심 페이로드 grep 11곳 / lose SVG 15/15
+
+## 비고
+- 다리건너기 자산(README/manifest/PNG) 작은 업데이트 동반
+- 의뢰서 docs/spritemake-request/2026-05-05-horse-lose-poses.md → applied/로 이동
+- 사용자 명시 요청에 따라 main 직접 머지
+
+========================================
+
+========================================
 📋 Summit Log - 2026-04-29 (2) — 신규 게임 자산 + 작업 메모 + 디버그 도구
 ========================================
 

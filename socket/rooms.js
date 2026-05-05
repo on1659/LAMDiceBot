@@ -167,6 +167,9 @@ module.exports = (socket, io, ctx) => {
             everPlayedUsers: gameState.everPlayedUsers || [], // 누적 참여자 목록
             gameState: {
                 ...gameState,
+                // 보안: bridgeCross.safeRows 평문 누출 방지 (impl §9-1).
+                // Phase 1 정책 = 재진입 시 관전 모드라 클라가 bridgeCross 정보 없어도 무방.
+                bridgeCross: undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
                 frequentMenus: gameState.frequentMenus
@@ -712,6 +715,9 @@ module.exports = (socket, io, ctx) => {
                         horseRaceHistory: gameState.horseRaceHistory || [],
                         horseRankings: gameState.horseRankings || [],
                         trackLength: gameState.trackLength || 'medium',
+                        // N등 투표 / 룰렛 결과 (재접속 동기화)
+                        userRankVotes: gameState.userRankVotes || {},
+                        targetRank: gameState.targetRank || null,
                         // 추가 정보
                         hasRolled: gameState.rolledUsers.includes(userName.trim()),
                         myResult: myResult
@@ -934,6 +940,9 @@ module.exports = (socket, io, ctx) => {
                 horseRaceHistory: gameState.horseRaceHistory || [],
                 horseRankings: gameState.horseRankings || [],
                 trackLength: gameState.trackLength || 'medium',
+                // N등 투표 / 룰렛 결과 (신규 입장자 동기화)
+                userRankVotes: gameState.userRankVotes || {},
+                targetRank: gameState.targetRank || null,
                 // 추가 정보
                 hasRolled: gameState.rolledUsers.includes(finalUserName),
                 myResult: myResult
@@ -1035,29 +1044,57 @@ module.exports = (socket, io, ctx) => {
                 delete gameState.userHorseBets[socket.userName];
             }
 
-            // 🔧 퇴장한 사용자의 다리건너기 색상 베팅 삭제
-            if (gameState.bridgeCross && gameState.bridgeCross.userColorBets &&
-                gameState.bridgeCross.userColorBets[socket.userName] !== undefined) {
-                delete gameState.bridgeCross.userColorBets[socket.userName];
+            // 🔧 퇴장한 사용자의 N등 투표 정보 삭제 + broadcast (다른 유저 화면 동기화)
+            if (gameState.userRankVotes && gameState.userRankVotes[socket.userName] !== undefined) {
+                delete gameState.userRankVotes[socket.userName];
+                io.to(roomId).emit('rankVotesUpdated', {
+                    userRankVotes: { ...gameState.userRankVotes },
+                    maxRank: (gameState.availableHorses || []).length
+                });
             }
-            // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js:139)가 차단.
-            // 일반 사용자 leaveRoom 시 timeout을 cleanup하면 진행 중 게임이 stuck하므로 손대지 않는다.
+
+            // 🔧 퇴장한 사용자의 다리건너기(user-driven) 데이터 삭제
+            if (gameState.bridgeCross) {
+                var bc = gameState.bridgeCross;
+                if (bc.participants && Array.isArray(bc.participants)) {
+                    bc.participants = bc.participants.filter(function (p) { return p && p.userName !== socket.userName; });
+                }
+                if (bc.pendingChoices && bc.pendingChoices[socket.userName] !== undefined) {
+                    delete bc.pendingChoices[socket.userName];
+                }
+                if (bc.userColors && bc.userColors[socket.userName] !== undefined) {
+                    delete bc.userColors[socket.userName];
+                }
+                if (bc.finishedUsers && Array.isArray(bc.finishedUsers)) {
+                    bc.finishedUsers = bc.finishedUsers.filter(function (n) { return n !== socket.userName; });
+                }
+                if (bc.fallenUsers && Array.isArray(bc.fallenUsers)) {
+                    bc.fallenUsers = bc.fallenUsers.filter(function (n) { return n !== socket.userName; });
+                }
+            }
+            // 0명 leave 후 dead timer 방지: endTimeout/waveTimer는 진행 중 게임 stuck 방지를 위해
+            // 여기서 cleanup하지 않는다. socket/bridge-cross.js의 endGame 0명 가드가 처리.
         }
 
         // 호스트가 나가는 경우
         if (socket.isHost) {
             // 남은 사용자가 있으면 새 호스트 지정
             if (gameState.users.length > 0) {
-                // 첫 번째 사용자를 새 호스트로 지정
-                const newHost = gameState.users[0];
-                newHost.isHost = true;
-
-                // 새 호스트의 소켓 찾기 및 설정
+                // 살아있는 socket이 있는 첫 번째 user를 새 호스트로 (stale id 방지: userName fallback)
                 const socketsInRoom = await io.in(roomId).fetchSockets();
-                const newHostSocket = socketsInRoom.find(s => s.id === newHost.id);
-                if (newHostSocket) {
+                let newHost = null;
+                let newHostSocket = null;
+                for (const candidate of gameState.users) {
+                    const sock = socketsInRoom.find(s => s.id === candidate.id)
+                              || socketsInRoom.find(s => s.userName === candidate.name);
+                    if (sock) { newHost = candidate; newHostSocket = sock; break; }
+                }
+
+                if (newHost && newHostSocket) {
+                    newHost.id = newHostSocket.id;   // user 레코드 id 보정
+                    newHost.isHost = true;
                     newHostSocket.isHost = true;
-                    room.hostId = newHost.id;
+                    room.hostId = newHostSocket.id;
                     room.hostName = newHost.name;
 
                     // 새 호스트에게 호스트 권한 알림
@@ -1065,20 +1102,31 @@ module.exports = (socket, io, ctx) => {
                         message: '호스트 권한이 전달되었습니다.',
                         roomName: room.roomName
                     });
+
+                    // 모든 사용자에게 업데이트 전송
+                    io.to(roomId).emit('updateUsers', gameState.users);
+                    io.to(roomId).emit('hostChanged', {
+                        newHostId: newHostSocket.id,
+                        newHostName: newHost.name,
+                        message: `${socket.userName} 호스트가 나갔습니다. ${newHost.name}님이 새 호스트가 되었습니다.`
+                    });
+
+                    // 방 목록 업데이트
+                    updateRoomsList();
+
+                    console.log(`호스트 변경: ${room.roomName} (${roomId}) - 새 호스트: ${newHost.name} (${newHostSocket.id})`);
+                } else {
+                    // 살아있는 socket이 하나도 없음 → 방 삭제
+                    console.warn(`[leaveRoom] 새 호스트로 지정할 살아있는 socket 없음, 방 삭제: ${room.roomName}`);
+                    io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
+                    socketsInRoom.forEach(s => {
+                        s.currentRoomId = null;
+                        s.userName = null;
+                        s.isHost = false;
+                    });
+                    delete rooms[roomId];
+                    updateRoomsList();
                 }
-
-                // 모든 사용자에게 업데이트 전송
-                io.to(roomId).emit('updateUsers', gameState.users);
-                io.to(roomId).emit('hostChanged', {
-                    newHostId: newHost.id,
-                    newHostName: newHost.name,
-                    message: `${socket.userName} 호스트가 나갔습니다. ${newHost.name}님이 새 호스트가 되었습니다.`
-                });
-
-                // 방 목록 업데이트
-                updateRoomsList();
-
-                console.log(`호스트 변경: ${room.roomName} (${roomId}) - 새 호스트: ${newHost.name} (${newHost.id})`);
             } else {
                 // 남은 사용자가 없으면 방 삭제
                 // 방 삭제 전에 오늘 날짜의 공식전 기록을 전역 저장소에 저장

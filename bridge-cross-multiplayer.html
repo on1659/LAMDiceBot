@@ -153,23 +153,16 @@
                 </div>
             </div>
 
-            <!-- 베팅 영역: 6색 카드 + 카운트다운 + 인원 카운터 -->
-            <div id="bettingSection" class="bridge-betting-section" style="display: none;">
-                <div class="users-title" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>🎯 색상 베팅</span>
-                    <span id="bridgeCountdown" style="color: var(--bridge-accent); font-weight: bold;">15초</span>
-                </div>
-                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                    누가 다리를 건널까? 색을 선택하세요. (다시 누르면 취소)
-                </div>
-                <div id="bridgeColorGrid" class="bridge-color-grid"></div>
-                <div id="bridgeBettorCount" style="text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 13px;">
-                    베팅한 사람: <span id="bridgeBettorCountValue">0</span>명
-                </div>
-                <!-- 준비했지만 베팅 안 한 사람 (horse-race notSelectedVehicleSection 패턴) -->
-                <div id="nonBettorSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
-                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 베팅 안 한 사람</div>
-                    <div id="nonBettorList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+            <!-- 색 선택 섹션 (ready phase) — 본인 캐릭터 색 결정 -->
+            <div id="colorPickerSection" class="bridge-color-picker-section">
+                <div class="users-title" style="margin-bottom: 8px;">🎨 내 캐릭터 색 선택 <span style="font-size:12px; color:var(--text-secondary); font-weight:normal; margin-left:6px;">— 색까지 선택해야 게임 시작 가능</span></div>
+                <div class="bridge-color-grid">
+                    <div class="bridge-color-card" data-color="0" onclick="pickBridgeColor(0)"><div class="color-emoji">🔴</div><div class="color-name">빨강</div></div>
+                    <div class="bridge-color-card" data-color="1" onclick="pickBridgeColor(1)"><div class="color-emoji">🟠</div><div class="color-name">주황</div></div>
+                    <div class="bridge-color-card" data-color="2" onclick="pickBridgeColor(2)"><div class="color-emoji">🟡</div><div class="color-name">노랑</div></div>
+                    <div class="bridge-color-card" data-color="3" onclick="pickBridgeColor(3)"><div class="color-emoji">🟢</div><div class="color-name">초록</div></div>
+                    <div class="bridge-color-card" data-color="4" onclick="pickBridgeColor(4)"><div class="color-emoji">🔵</div><div class="color-name">파랑</div></div>
+                    <div class="bridge-color-card" data-color="5" onclick="pickBridgeColor(5)"><div class="color-emoji">🟣</div><div class="color-name">남색</div></div>
                 </div>
             </div>
 
@@ -177,6 +170,8 @@
             <div id="bridgePlayingSection" class="bridge-playing-section" style="display: none;">
                 <div id="bridgePlayingDetail" style="text-align:center; padding:8px 12px; background: var(--bridge-accent); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">결과를 확인 중입니다.</div>
             </div>
+
+            <!-- Wave 선택 패널은 캔버스 내 overlay로 이동됨 (#waveChoicePanel — stage-wrap 안) -->
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
@@ -265,11 +260,17 @@
             <section class="stage-wrap" id="bridgeCrossGameArea" style="display: none;">
                 <!-- 인라인 display:none은 페이지 로드 시 IIFE 초기화 안전, JS에서 베팅 UI 표시할 때 block으로 바꿈 -->
                 <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
-                <div class="zoom-ui" id="zoomUi">
-                    <button data-zoom="-0.1" type="button" aria-label="줌 아웃">−</button>
-                    <span class="zoom-value" id="zoomValue">1.0×</span>
-                    <button data-zoom="+0.1" type="button" aria-label="줌 인">+</button>
-                    <button data-zoom="reset" type="button" aria-label="리셋">⟲</button>
+                <!-- Wave 선택 패널 (캔버스 내 중앙 상단 overlay — 사용자 결정 2026-04-30) -->
+                <div id="waveChoicePanel" class="bridge-wave-panel" style="display: none;">
+                    <div class="bridge-wave-header">
+                        <span class="bridge-wave-label">🌉 <span id="waveColLabel">1</span>번 발판</span>
+                        <span class="bridge-wave-countdown" id="waveCountdown">3</span>
+                    </div>
+                    <div class="bridge-wave-buttons">
+                        <button type="button" id="waveTopBtn" class="bridge-wave-btn bridge-wave-btn-top" onclick="submitWaveChoice('top')" onmouseenter="setBridgeTileHover('top')" onmouseleave="setBridgeTileHover(null)">◀ 왼쪽 <span class="pick-count" id="waveTopCount">0</span></button>
+                        <button type="button" id="waveBottomBtn" class="bridge-wave-btn bridge-wave-btn-bottom" onclick="submitWaveChoice('bottom')" onmouseenter="setBridgeTileHover('bottom')" onmouseleave="setBridgeTileHover(null)">▶ 오른쪽 <span class="pick-count" id="waveBottomCount">0</span></button>
+                    </div>
+                    <div id="waveChoiceStatus" class="bridge-wave-status">왼쪽 또는 오른쪽을 선택하세요!</div>
                 </div>
                 <div class="debug-panel" id="debugPanel" hidden>
                     <div class="debug-title">Stage Layout Debug — D 키로 토글</div>
@@ -281,14 +282,14 @@
                     <div class="debug-row"><label><span>entry.dy</span><input type="range" id="dbgEntryDy" min="-300" max="300" value="-159"><input type="number" id="dbgEntryDyNum" value="-159"></label></div>
                     <div class="debug-row"><label><span>exit.dx</span><input type="range" id="dbgExitDx" min="-300" max="300" value="-122"><input type="number" id="dbgExitDxNum" value="-122"></label></div>
                     <div class="debug-row"><label><span>exit.dy</span><input type="range" id="dbgExitDy" min="-300" max="300" value="40"><input type="number" id="dbgExitDyNum" value="40"></label></div>
-                    <div class="debug-row"><label><span>row.dx</span><input type="range" id="dbgRowDx" min="-50" max="200" value="146"><input type="number" id="dbgRowDxNum" value="146"></label></div>
-                    <div class="debug-row"><label><span>row.dy</span><input type="range" id="dbgRowDy" min="-50" max="200" value="76"><input type="number" id="dbgRowDyNum" value="76"></label></div>
-                    <div class="debug-row"><label><span>tile.w</span><input type="range" id="dbgTileW" min="100" max="400" value="300"><input type="number" id="dbgTileWNum" value="300"></label></div>
-                    <div class="debug-row"><label><span>tile.h</span><input type="range" id="dbgTileH" min="60" max="250" value="143"><input type="number" id="dbgTileHNum" value="143"></label></div>
+                    <div class="debug-row"><label><span>row.dx</span><input type="range" id="dbgRowDx" min="-50" max="300" value="219"><input type="number" id="dbgRowDxNum" value="219"></label></div>
+                    <div class="debug-row"><label><span>row.dy</span><input type="range" id="dbgRowDy" min="-50" max="280" value="114"><input type="number" id="dbgRowDyNum" value="114"></label></div>
+                    <div class="debug-row"><label><span>tile.w</span><input type="range" id="dbgTileW" min="100" max="600" value="450"><input type="number" id="dbgTileWNum" value="450"></label></div>
+                    <div class="debug-row"><label><span>tile.h</span><input type="range" id="dbgTileH" min="60" max="320" value="214"><input type="number" id="dbgTileHNum" value="214"></label></div>
                     <div class="debug-row"><label><span>tile.rot°</span><input type="range" id="dbgTileRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgTileRotNum" value="0" step="0.5"></label></div>
                     <div class="debug-row"><label><span>start.rot°</span><input type="range" id="dbgStartRot" min="-180" max="180" value="2.5" step="0.5"><input type="number" id="dbgStartRotNum" value="2.5" step="0.5"></label></div>
                     <div class="debug-row"><label><span>finish.rot°</span><input type="range" id="dbgFinishRot" min="-180" max="180" value="0" step="0.5"><input type="number" id="dbgFinishRotNum" value="0" step="0.5"></label></div>
-                    <div class="debug-row"><label><span>char.footY</span><input type="range" id="dbgFootY" min="-50" max="100" value="30"><input type="number" id="dbgFootYNum" value="30"></label></div>
+                    <div class="debug-row"><label><span>char.footY</span><input type="range" id="dbgFootY" min="-50" max="100" value="23"><input type="number" id="dbgFootYNum" value="23"></label></div>
                     <div class="debug-info" id="dbgInfo"></div>
                     <button type="button" id="dbgSnapBtn" title="row 슬로프와 평행하도록 다리 column step 자동 보정">📐 Dimetric Snap</button>
                     <button type="button" id="dbgCopyBtn">코드 복사</button>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="45" viewBox="0 0 120 45" shape-rendering="crispEdges">
+<title>scooter-lose</title>
+<desc>Derived from the base svgMap vehicle in D:/Work/LAMDiceBot/js/horse-race-sprites.js scooter run.frame1 near line 363; strict 2x1 lose atlas, 60x45 cells. Not derived from POWER_VEHICLE_VARIANT_OVERRIDES.</desc>
+<defs>
+  <clipPath id="clip-0"><rect x="0" y="0" width="60" height="45"/></clipPath>
+  <clipPath id="clip-1"><rect x="60" y="0" width="60" height="45"/></clipPath>
+  <filter id="muted" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0.78"/>
+  </filter>
+</defs>
+<!-- strict atlas: 2 columns x 1 row, 60x45 cells, no gutters -->
+<g clip-path="url(#clip-0)">
+  <g transform="translate(0 0)">
+    <g filter="url(#muted)" transform="translate(0 0) rotate(5 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<circle cx="12" cy="35" r="6" fill="#333"/>
+                    <circle cx="48" cy="35" r="6" fill="#333"/>
+                    <line x1="48" y1="35" x2="48" y2="15" stroke="#666" stroke-width="3"/>
+                    <line x1="12" y1="35" x2="48" y2="35" stroke="#333" stroke-width="2"/>
+                    <rect x="42" y="12" width="10" height="4" rx="2" fill="#666"/>
+                    <circle cx="25" cy="20" r="5" fill="#3498db"/>
+                    <line x1="25" y1="25" x2="25" y2="35" stroke="#333" stroke-width="2"/>
+                    <line x1="25" y1="35" x2="22" y2="42" stroke="#333" stroke-width="2"/>
+                    <line x1="25" y1="35" x2="28" y2="42" stroke="#333" stroke-width="2"/>
+      </svg>
+    </g>
+<rect x="26" y="13" width="3" height="1.4" fill="#24324a"/><rect x="31" y="13" width="3" height="1.4" fill="#24324a"/><rect x="27" y="14" width="1.2" height="2.4" fill="#24324a"/><rect x="32" y="14" width="1.2" height="2.4" fill="#24324a"/>
+<path d="M41,10 L44,14 L41,18 L38,14 Z" fill="#69bdf5" stroke="#1f5f92" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<g clip-path="url(#clip-1)">
+  <g transform="translate(60 0)">
+    <g filter="url(#muted)" transform="translate(0 1) rotate(8 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<circle cx="12" cy="35" r="6" fill="#333"/>
+                    <circle cx="48" cy="35" r="6" fill="#333"/>
+                    <line x1="48" y1="35" x2="48" y2="15" stroke="#666" stroke-width="3"/>
+                    <line x1="12" y1="35" x2="48" y2="35" stroke="#333" stroke-width="2"/>
+                    <rect x="42" y="12" width="10" height="4" rx="2" fill="#666"/>
+                    <circle cx="25" cy="20" r="5" fill="#3498db"/>
+                    <line x1="25" y1="25" x2="25" y2="35" stroke="#333" stroke-width="2"/>
+                    <line x1="25" y1="35" x2="28" y2="42" stroke="#333" stroke-width="2"/>
+                    <line x1="25" y1="35" x2="22" y2="42" stroke="#333" stroke-width="2"/>
+      </svg>
+    </g>
+<rect x="26" y="14" width="3" height="1.4" fill="#24324a"/><rect x="31" y="14" width="3" height="1.4" fill="#24324a"/><rect x="27" y="15" width="1.2" height="2.4" fill="#24324a"/><rect x="32" y="15" width="1.2" height="2.4" fill="#24324a"/>
+<path d="M41,9 L44,13 L41,17 L38,13 Z" fill="#69bdf5" stroke="#1f5f92" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+</svg>

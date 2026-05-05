@@ -7,14 +7,22 @@
       "image": "players-blue.png",
       "grid": {
         "columns": 4,
-        "rows": 6
+        "rows": 7
       },
       "anchor": {
         "x": 0.5,
         "y": 0.88
       },
       "defaultScale": 0.62,
-      "paletteOrder": ["red", "orange", "yellow", "green", "blue", "indigo", "violet"],
+      "paletteOrder": [
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "indigo",
+        "violet"
+      ],
       "paletteImages": {
         "red": "players-red.png",
         "orange": "players-orange.png",
@@ -27,37 +35,78 @@
       "animations": {
         "idle": {
           "row": 0,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 5,
+          "loop": true
+        },
+        "walk": {
+          "row": 6,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 5,
           "loop": true
         },
         "run": {
           "row": 1,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 8,
           "loop": true
         },
         "jump": {
           "row": 2,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 7,
           "loop": false
         },
         "land": {
           "row": 3,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 8,
           "loop": false
         },
         "fall": {
           "row": 4,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 7,
           "loop": false
         },
         "result": {
           "row": 5,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 5,
           "loop": true
         }
@@ -78,44 +127,138 @@
       "animations": {
         "safe_sparkle": {
           "row": 0,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 7,
           "loop": true
         },
         "warning_glow": {
           "row": 1,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 7,
           "loop": true
         },
         "crack": {
           "row": 2,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 8,
           "loop": false
         },
         "break_shards": {
           "row": 3,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 7,
           "loop": false
         },
         "fall_trail": {
           "row": 4,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 8,
           "loop": true
         },
         "landing_pulse": {
           "row": 5,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 8,
           "loop": false
         },
         "restore_glass": {
           "row": 6,
-          "frames": [0, 1, 2, 3],
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
           "fps": 8,
+          "loop": false
+        }
+      }
+    },
+    "bonusPad": {
+      "label": "Bridge Cross Bonus Jump Pad V1",
+      "image": "bonus-pad-v1.png",
+      "grid": {
+        "columns": 4,
+        "rows": 1
+      },
+      "anchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "baselineY": 256,
+      "defaultScale": 0.8,
+      "animations": {
+        "spawn": {
+          "row": 0,
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "ready": {
+          "row": 0,
+          "frames": [
+            1
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "compress": {
+          "row": 0,
+          "frames": [
+            2
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "launch": {
+          "row": 0,
+          "frames": [
+            3
+          ],
+          "fps": 1,
+          "loop": false
+        },
+        "full": {
+          "row": 0,
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 14,
           "loop": false
         }
       }

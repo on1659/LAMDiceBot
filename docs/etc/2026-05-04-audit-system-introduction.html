@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit 시스템 도입 — 작업 방식 변화 보고서</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue:        #0064FF;
+      --blue-light:  #EBF3FF;
+      --blue-dark:   #004FCC;
+      --green:       #00B050;
+      --green-light: #E8F8EF;
+      --green-dark:  #007A35;
+      --orange:      #FF6900;
+      --orange-light:#FFF0E6;
+      --red:         #E03131;
+      --red-light:   #FFF0F0;
+      --purple:      #7950F2;
+      --purple-light:#F3F0FF;
+      --gray-50:     #F4F6F8;
+      --gray-100:    #EAECEF;
+      --gray-200:    #D1D5DB;
+      --gray-300:    #B0B8C1;
+      --gray-400:    #8B95A1;
+      --gray-600:    #4E5968;
+      --gray-700:    #333D4B;
+      --gray-900:    #1B1D1F;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* Header */
+    .page-header { margin-bottom: 36px; }
+    .breadcrumb {
+      font-size: 13px;
+      color: var(--gray-400);
+      margin-bottom: 10px;
+    }
+    .page-header h1 {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+    .page-header .subtitle {
+      font-size: 16px;
+      color: var(--gray-600);
+    }
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 100px;
+    }
+    .badge-blue   { background: var(--blue-light);   color: var(--blue); }
+    .badge-green  { background: var(--green-light);  color: var(--green-dark); }
+    .badge-orange { background: var(--orange-light); color: var(--orange); }
+    .badge-red    { background: var(--red-light);    color: var(--red); }
+    .badge-purple { background: var(--purple-light); color: var(--purple); }
+    .badge-gray   { background: var(--gray-100);     color: var(--gray-600); }
+
+    /* TL;DR */
+    .tldr {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%);
+      color: white;
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 32px;
+      box-shadow: 0 8px 24px rgba(0,100,255,0.18);
+    }
+    .tldr-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      opacity: 0.85;
+      margin-bottom: 8px;
+    }
+    .tldr-text {
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.5;
+      letter-spacing: -0.3px;
+    }
+
+    /* Section */
+    .section { margin-bottom: 36px; }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 20px;
+      background: var(--blue);
+      border-radius: 2px;
+    }
+    .section-intro {
+      font-size: 14px;
+      color: var(--gray-600);
+      margin-bottom: 16px;
+    }
+
+    /* Before/After Card */
+    .ba-grid {
+      display: grid;
+      grid-template-columns: 1fr 32px 1fr;
+      gap: 0;
+      align-items: stretch;
+      margin: 16px 0;
+    }
+    .ba-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 22px;
+      border: 1px solid var(--gray-100);
+    }
+    .ba-card.before {
+      background: #FAFBFC;
+      border-color: var(--gray-200);
+    }
+    .ba-card.after {
+      background: var(--blue-light);
+      border-color: var(--blue);
+      border-width: 2px;
+    }
+    .ba-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .ba-card.before .ba-label { color: var(--gray-400); }
+    .ba-card.after .ba-label { color: var(--blue); }
+
+    .ba-card ul {
+      list-style: none;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ba-card.before ul li {
+      color: var(--gray-600);
+      padding-left: 20px;
+      position: relative;
+    }
+    .ba-card.before ul li::before {
+      content: '✕';
+      position: absolute;
+      left: 0;
+      color: var(--gray-300);
+      font-weight: 700;
+    }
+    .ba-card.after ul li {
+      color: var(--gray-900);
+      padding-left: 20px;
+      position: relative;
+    }
+    .ba-card.after ul li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .ba-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--blue);
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    /* Stats Table */
+    .stats-table {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--gray-100);
+      width: 100%;
+    }
+    .stats-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .stats-table th, .stats-table td {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 14px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .stats-table th {
+      background: var(--gray-50);
+      font-weight: 700;
+      color: var(--gray-600);
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .stats-table td.before { color: var(--gray-600); }
+    .stats-table td.after { color: var(--green-dark); font-weight: 600; }
+    .stats-table td.delta {
+      text-align: right;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 13px;
+    }
+    .stats-table td.delta.good { color: var(--green); }
+    .stats-table td.delta.neutral { color: var(--gray-400); }
+    .stats-table tbody tr:last-child td { border-bottom: none; }
+
+    /* Workflow */
+    .workflow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 16px 0;
+    }
+    .wf-step {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+    .wf-step.trigger { background: var(--orange-light); border-color: var(--orange); color: var(--orange); }
+    .wf-step.auto { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+    .wf-step.user { background: var(--purple-light); border-color: var(--purple); color: var(--purple); }
+    .wf-step.done { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+    .wf-arrow {
+      color: var(--gray-300);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* Card grid */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+    .card {
+      background: white;
+      border: 1px solid var(--gray-100);
+      border-radius: 12px;
+      padding: 18px 22px;
+    }
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .icon-blue { background: var(--blue-light); }
+    .icon-green { background: var(--green-light); }
+    .icon-purple { background: var(--purple-light); }
+    .icon-orange { background: var(--orange-light); }
+    .card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: -0.2px;
+    }
+    .card p {
+      font-size: 13px;
+      color: var(--gray-600);
+      line-height: 1.5;
+    }
+
+    /* File list */
+    .file-list {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-100);
+      overflow: hidden;
+    }
+    .file-row {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: 13px;
+      align-items: center;
+      gap: 14px;
+    }
+    .file-row:last-child { border-bottom: none; }
+    .file-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+    .tag-new { background: var(--green-light); color: var(--green-dark); }
+    .tag-edit { background: var(--blue-light); color: var(--blue); }
+    .tag-del { background: var(--red-light); color: var(--red); }
+    .file-row code {
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 13px;
+      color: var(--gray-900);
+    }
+    .file-desc {
+      color: var(--gray-400);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    /* Code */
+    pre {
+      background: var(--gray-900);
+      color: #E8ECEF;
+      padding: 14px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      margin: 8px 0;
+    }
+    code {
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 13px;
+      background: var(--gray-100);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* Callout */
+    .callout {
+      background: var(--blue-light);
+      border-left: 3px solid var(--blue);
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: var(--blue-dark);
+      margin-bottom: 4px;
+    }
+
+    /* Mobile */
+    @media (max-width: 720px) {
+      .page { padding: 24px 16px 60px; }
+      .page-header h1 { font-size: 22px; }
+      .ba-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .ba-arrow { transform: rotate(90deg); padding: 4px 0; }
+      .stats-table th, .stats-table td { padding: 10px 12px; font-size: 13px; }
+      .file-row { grid-template-columns: 1fr; padding: 12px 16px; }
+      .workflow { gap: 6px; }
+      .wf-step { font-size: 12px; padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <header class="page-header">
+      <div class="breadcrumb">docs / etc / 2026-05-04 audit-system-introduction</div>
+      <h1>Audit 시스템 도입 — 작업 방식 변화 보고서</h1>
+      <div class="subtitle">
+        하네스(.claude/)와 메모리 폴더를 자동으로 점검하는 audit 시스템을 도입했습니다.
+        오늘 세션 전후로 작업 방식이 어떻게 달라졌는지 정리합니다.
+      </div>
+      <div class="header-meta">
+        <span class="badge badge-blue">2026-05-04</span>
+        <span class="badge badge-green">자동화 도입</span>
+        <span class="badge badge-purple">감사 6개 룰 통과</span>
+        <span class="badge badge-gray">한국어 보고서</span>
+      </div>
+    </header>
+
+    <div class="tldr">
+      <div class="tldr-label">TL;DR</div>
+      <div class="tldr-text">
+        손으로 가끔 메모리/하네스를 정리하던 방식 → SessionStart 카운터가 10세션마다 자동 알림하고,
+        <code style="color:#FFD700;background:rgba(255,255,255,0.18);padding:1px 8px;border-radius:4px">/memory-audit</code>과
+        <code style="color:#FFD700;background:rgba(255,255,255,0.18);padding:1px 8px;border-radius:4px">/harness-audit</code> 두 슬래시 커맨드가
+        총 12개 룰로 후보를 진단하면 사용자 승인 후 일괄 정리하는 구조로 전환.
+        오늘 정리 결과는 메모리 -38%, 하네스 worktree 7→0, 토큰 누출 1→0건.
+      </div>
+    </div>
+
+    <!-- ===== Section 1: 무엇이 달라졌나 ===== -->
+    <section class="section">
+      <h2 class="section-title">1. 핵심 변화 4가지</h2>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon icon-orange">⏰</div>
+          <h3>점검 트리거</h3>
+          <p><strong>Before:</strong> 사용자가 가끔 떠올렸을 때 손으로<br>
+          <strong>After:</strong> SessionStart마다 카운터 +1, <strong>10세션마다</strong> 자동 알림</p>
+        </div>
+        <div class="card">
+          <div class="card-icon icon-blue">🔍</div>
+          <h3>진단 룰</h3>
+          <p><strong>Before:</strong> 명문화 없음, 매번 즉흥<br>
+          <strong>After:</strong> 메모리 6개 + 하네스 6개 = <strong>12개 룰 표준화</strong></p>
+        </div>
+        <div class="card">
+          <div class="card-icon icon-purple">🛡️</div>
+          <h3>안전 가드</h3>
+          <p><strong>Before:</strong> 자동 삭제 위험 노출<br>
+          <strong>After:</strong> destructive 액션은 <strong>전부 사용자 승인 필요</strong>, dirty worktree 보존 우선</p>
+        </div>
+        <div class="card">
+          <div class="card-icon icon-green">🔒</div>
+          <h3>보안</h3>
+          <p><strong>Before:</strong> 텔레그램 토큰 prefix가 메모리에 노출<br>
+          <strong>After:</strong> 정규식 기반 secret 누출 검사 + <code>.env</code> 참조로 전환</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Section 2: Before / After 비교 ===== -->
+    <section class="section">
+      <h2 class="section-title">2. 작업 방식 — Before vs After</h2>
+
+      <div class="ba-grid">
+        <div class="ba-card before">
+          <div class="ba-label">Before</div>
+          <ul>
+            <li>점검을 시작할 트리거가 없어서 잊기 쉬움</li>
+            <li>점검 룰이 매번 새로 정의됨 — 일관성 없음</li>
+            <li>고아 파일, 깨진 참조 같은 건 사실상 점검 못 함</li>
+            <li>worktree dirty 처리 절차가 즉흥적</li>
+            <li>secret 누출 검사 없음</li>
+            <li>점검 결과를 외부 보고로 남기지 않음</li>
+          </ul>
+        </div>
+        <div class="ba-arrow">→</div>
+        <div class="ba-card after">
+          <div class="ba-label">After</div>
+          <ul>
+            <li>SessionStart 카운터 — 10세션마다 자동 알림</li>
+            <li>12개 룰이 코드/문서로 명문화</li>
+            <li>orphan / broken-ref / hook 무결성 등 자동 검사</li>
+            <li>dirty worktree는 WIP commit으로 보존 후 정리</li>
+            <li>토큰 패턴 정규식 검사 (룰 6)</li>
+            <li>HTML 가이드 + 슬래시 커맨드 + 카운터 hook</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Section 3: 정리 흐름 비교 ===== -->
+    <section class="section">
+      <h2 class="section-title">3. 정리 흐름 비교</h2>
+      <p class="section-intro">SessionStart 시점부터 정리 완료까지의 단계.</p>
+
+      <div style="background:white;border:1px solid var(--gray-100);border-radius:12px;padding:20px 24px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--gray-400);letter-spacing:1px;margin-bottom:12px">BEFORE — 비표준 / 휘발성</div>
+        <div class="workflow">
+          <div class="wf-step">사용자 어느 날 떠올림</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step">즉흥적으로 ls/cat</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step">눈으로 판단</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step">일부만 정리</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step">기록 안 남김</div>
+        </div>
+      </div>
+
+      <div style="background:white;border:1px solid var(--blue);border-width:2px;border-radius:12px;padding:20px 24px">
+        <div style="font-size:13px;font-weight:700;color:var(--blue);letter-spacing:1px;margin-bottom:12px">AFTER — 자동 + 표준</div>
+        <div class="workflow">
+          <div class="wf-step trigger">SessionStart</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step auto">audit-counter.sh +1</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step auto">N % 10 == 0?</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step trigger">🔔 알림 inject</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step user">/memory-audit /harness-audit</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step auto">12개 룰 진단</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step user">사용자 승인</div>
+          <div class="wf-arrow">→</div>
+          <div class="wf-step done">일괄 정리 + 보고</div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">자동 ≠ 무인</div>
+        SessionStart 카운터는 자동, 진단도 자동, 그러나 <strong>destructive 액션(파일 삭제/worktree remove)은 항상 사용자 승인 필요</strong>.
+        시스템은 "감사관" 역할이지 "삭제기" 역할이 아닙니다.
+      </div>
+    </section>
+
+    <!-- ===== Section 4: 정량 비교 ===== -->
+    <section class="section">
+      <h2 class="section-title">4. 정량 비교 (오늘 정리 결과)</h2>
+
+      <div class="stats-table">
+        <table>
+          <thead>
+            <tr>
+              <th>항목</th>
+              <th>Before</th>
+              <th>After</th>
+              <th style="text-align:right">변화</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>메모리 파일 수</td>
+              <td class="before">22개</td>
+              <td class="after">18개</td>
+              <td class="delta good">−4 (−18%)</td>
+            </tr>
+            <tr>
+              <td><code>MEMORY.md</code> 크기</td>
+              <td class="before">5,375자 / 89줄</td>
+              <td class="after">1,809자 / 24줄</td>
+              <td class="delta good">−66% / −73%</td>
+            </tr>
+            <tr>
+              <td>메모리 폴더 총 용량</td>
+              <td class="before">~30 KB</td>
+              <td class="after">18.6 KB</td>
+              <td class="delta good">−38%</td>
+            </tr>
+            <tr>
+              <td>외부 worktree</td>
+              <td class="before">7개 (4 dirty)</td>
+              <td class="after">0개</td>
+              <td class="delta good">−7</td>
+            </tr>
+            <tr>
+              <td>Stale lock 파일</td>
+              <td class="before">1개 (8일 전)</td>
+              <td class="after">0개</td>
+              <td class="delta good">−1</td>
+            </tr>
+            <tr>
+              <td>토큰 누출</td>
+              <td class="before">1건 (텔레그램 prefix)</td>
+              <td class="after">0건</td>
+              <td class="delta good">−1 ✅</td>
+            </tr>
+            <tr>
+              <td>점검 룰 수</td>
+              <td class="before">미정의</td>
+              <td class="after">12개 (메모리 6 + 하네스 6)</td>
+              <td class="delta neutral">+12</td>
+            </tr>
+            <tr>
+              <td>자동화 hook</td>
+              <td class="before">0개</td>
+              <td class="after">1개 (SessionStart)</td>
+              <td class="delta neutral">+1</td>
+            </tr>
+            <tr>
+              <td>슬래시 커맨드</td>
+              <td class="before">0개</td>
+              <td class="after">2개</td>
+              <td class="delta neutral">+2</td>
+            </tr>
+            <tr>
+              <td>가이드 문서</td>
+              <td class="before">없음</td>
+              <td class="after">1개 (HTML)</td>
+              <td class="delta neutral">+1</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== Section 5: 산출물 ===== -->
+    <section class="section">
+      <h2 class="section-title">5. 오늘 만든 / 수정한 파일</h2>
+
+      <div class="file-list">
+        <div class="file-row">
+          <div class="file-tag tag-new">신규</div>
+          <div>
+            <code>.claude/hooks/audit-counter.sh</code>
+            <div class="file-desc">SessionStart마다 카운트 +1, 10의 배수에 systemMessage 알림 inject</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-new">신규</div>
+          <div>
+            <code>.claude/commands/memory-audit.md</code>
+            <div class="file-desc">메모리 폴더 6개 룰 진단 슬래시 커맨드 (stale / code-derive / git-완료 / 룰-중복 / 메모리-중복 / secret-누출)</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-new">신규</div>
+          <div>
+            <code>.claude/commands/harness-audit.md</code>
+            <div class="file-desc">하네스 6개 룰 진단 슬래시 커맨드 (worktree / lock / orphan / reference / hook / stale-agent)</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-new">신규</div>
+          <div>
+            <code>docs/harness/harness-audit.html</code>
+            <div class="file-desc">하네스 감사 6개 룰 자세한 가이드 (Pretendard, 모바일 대응)</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-edit">수정</div>
+          <div>
+            <code>.claude/settings.json</code>
+            <div class="file-desc">SessionStart hook 등록 (기존 PreToolUse / PostToolUse / Stop와 같은 패턴)</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-edit">수정</div>
+          <div>
+            <code>~/.claude/projects/.../memory/MEMORY.md</code>
+            <div class="file-desc">인덱스로 정리. 5,375자 → 1,809자. Document Rules / Tutorial / AdSense 등 코드에서 derive 가능한 항목 제거</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-edit">수정</div>
+          <div>
+            <code>memory/bug_replay_nondeterministic.md</code>
+            <div class="file-desc">수정 완료된 원인 1, 2 제거 (코드/git에 위임), 미수정 원인 3만 남김</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-edit">수정</div>
+          <div>
+            <code>memory/reference_telegram_bot.md</code>
+            <div class="file-desc">🔒 봇 토큰 prefix 제거 → <code>.env</code> 참조로 변경 (보안)</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-del">삭제</div>
+          <div>
+            <code>memory/project_session_2026_04_04.md</code>
+            <div class="file-desc">디자인 통합 1차 회의 잔재. 정보 90%가 다른 feedback / docs / .env에 보존</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-del">삭제</div>
+          <div>
+            <code>memory/project_session_2026_04_13.md</code>
+            <div class="file-desc">자동 주문 작업 — <code>64fefd4 merge</code>로 main 통합 완료, 진행 중 메모 무의미</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-del">삭제</div>
+          <div>
+            <code>memory/project_session_2026_04_27_bridge_cross.md</code>
+            <div class="file-desc">bridge-cross v2 — <code>36d9d4c</code>로 main 머지 완료. 핸드오프 본문은 <code>docs/etc/2026-04-27-bridge-cross-v2-handoff.md</code>에 git 보존</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-del">삭제</div>
+          <div>
+            <code>memory/project_design_unification.md</code>
+            <div class="file-desc"><code>feedback_two_phase_meeting.md</code>와 95% 중복</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-del">삭제</div>
+          <div>
+            <code>.claude/scheduled_tasks.lock</code>
+            <div class="file-desc">8일 전 stale 락. 다른 세션의 스케줄 작업이 막힐 수 있어 정리</div>
+          </div>
+        </div>
+        <div class="file-row">
+          <div class="file-tag tag-del">삭제</div>
+          <div>
+            <code>.claude/worktrees/* (7개)</code>
+            <div class="file-desc">3 clean 자동 제거 / 3 dirty force remove / 1(<code>mystifying-wu</code>)은 <code>fb2feb8</code> WIP commit으로 branch 보존 후 worktree 제거</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Section 6: 12개 룰 한눈에 ===== -->
+    <section class="section">
+      <h2 class="section-title">6. 12개 룰 한눈에</h2>
+
+      <div class="card-grid">
+        <div class="card" style="border-left:4px solid var(--purple)">
+          <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--purple);margin-bottom:6px">/MEMORY-AUDIT</div>
+          <ol style="font-size:13px;margin-left:20px;color:var(--gray-700);display:flex;flex-direction:column;gap:4px">
+            <li>Stale (30일+ / 60일+)</li>
+            <li>Code derive 가능 (코드에서 grep 가능)</li>
+            <li>Git 완료 (PR/merge로 종료된 작업)</li>
+            <li>CLAUDE.md / 룰 중복</li>
+            <li>메모리 간 중복 (70%+ 유사)</li>
+            <li>🔒 Secret 누출 (토큰 패턴)</li>
+          </ol>
+        </div>
+        <div class="card" style="border-left:4px solid var(--blue)">
+          <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--blue);margin-bottom:6px">/HARNESS-AUDIT</div>
+          <ol style="font-size:13px;margin-left:20px;color:var(--gray-700);display:flex;flex-direction:column;gap:4px">
+            <li>Stale Worktree (clean / dirty)</li>
+            <li>Stale Lock (24h+)</li>
+            <li>Orphan Files (참조 없음)</li>
+            <li>Broken References (placeholder 가드 포함)</li>
+            <li>Hook 무결성 (파일 + 실행 권한)</li>
+            <li>Stale Agent (60일+)</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">분리형 (옵션 A) 구조 채택 이유</div>
+        메모리와 하네스는 룰의 종류가 매우 다르기 때문에 슬래시 커맨드를 분리했습니다.
+        SessionStart 카운터(<code>audit-counter.sh</code>)만 두 영역 공통 트리거 — 알림 메시지에서 두 커맨드를 모두 안내합니다.
+      </div>
+    </section>
+
+    <!-- ===== Section 7: 첫 실행 결과 ===== -->
+    <section class="section">
+      <h2 class="section-title">7. 첫 실행 결과 (오늘)</h2>
+      <p class="section-intro">자동 알림(10세션) 기다리지 않고 12개 룰을 즉시 한 번 돌려본 결과 — 모두 깨끗.</p>
+
+      <div class="stats-table">
+        <table>
+          <thead>
+            <tr>
+              <th>룰</th>
+              <th>결과</th>
+              <th>비고</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1.</strong> Stale Worktree</td>
+              <td class="after">0 / 7 → 0</td>
+              <td>3 clean 자동 / 3 dirty force / 1 보존(WIP commit)</td>
+            </tr>
+            <tr>
+              <td><strong>2.</strong> Stale Lock</td>
+              <td class="after">0 / 1 → 0</td>
+              <td>scheduled_tasks.lock 8일 stale 정리</td>
+            </tr>
+            <tr>
+              <td><strong>3.</strong> Orphan Files</td>
+              <td class="after">0</td>
+              <td>agents 7 + rules 8 + skills 10 = 25개 파일 모두 참조됨</td>
+            </tr>
+            <tr>
+              <td><strong>4.</strong> Broken References</td>
+              <td class="after">0 (false positive 1 → 가드)</td>
+              <td><code>{파일명}-impl.md</code> placeholder는 가드로 제외</td>
+            </tr>
+            <tr>
+              <td><strong>5.</strong> Hook 무결성</td>
+              <td class="after">10 / 10 OK</td>
+              <td>audit-counter 포함 모든 hook 실행 가능</td>
+            </tr>
+            <tr>
+              <td><strong>6.</strong> Stale Agent</td>
+              <td class="after">0 (가장 오래된 게 19일)</td>
+              <td>모든 agent 60일 이내 수정</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== Section 8: 향후 시나리오 ===== -->
+    <section class="section">
+      <h2 class="section-title">8. 향후 동작 시나리오</h2>
+
+      <pre><code>현재: 카운터 = 0 (오늘 리셋)
+↓
+다음 SessionStart → 카운터 = 1 (침묵)
+SessionStart × 9회 → 카운터 = 9 (침묵)
+SessionStart 10회째 → 카운터 = 10
+   → 🔔 시스템 메시지 inject:
+       "감사 주기 도달 (세션 10회).
+        /memory-audit + /harness-audit 으로 점검을 권장합니다."
+↓
+사용자가 두 커맨드 호출 (1주일~2주 정도 간격 예상)
+↓
+12개 룰 진단 → 후보 보고서
+↓
+사용자 승인 → 정리 → 다시 깨끗한 상태
+↓
+카운터 11, 12, ... 20 → 다음 알림
+</code></pre>
+    </section>
+
+    <!-- ===== Section 9: Hermes Agent와의 비교 ===== -->
+    <section class="section">
+      <h2 class="section-title">9. Hermes Agent와의 비교 (참고)</h2>
+      <p class="section-intro">
+        오늘 세션 초반에 Nous Research의 <a href="https://github.com/NousResearch/hermes-agent" style="color:var(--blue)">Hermes Agent</a> 도입 검토했으나,
+        LAMDiceBot의 도메인 특화 하네스(공정성 / 멀티플레이어 / 14곳 등록 체크리스트)가 범용 self-improving 에이전트보다 적합도 우위로 판단.
+        다만 운영 layer(텔레그램 보고 / 크론 retro)는 LAMDice-Pilot 위 Hermes PoC로 검토 가치 있음.
+      </p>
+
+      <div class="stats-table">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>LAMDiceBot 하네스 (오늘 도입 후)</th>
+              <th>Hermes Agent</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>스코프</td>
+              <td>프로젝트 별</td>
+              <td>글로벌 (사용자 단위)</td>
+            </tr>
+            <tr>
+              <td>메모리 한계</td>
+              <td>한계 없음 (인덱스 28줄 권장)</td>
+              <td>MEMORY 2,200자 / USER 1,375자</td>
+            </tr>
+            <tr>
+              <td>자기개선</td>
+              <td>사용자 승인 후 룰 수정</td>
+              <td>5+ tool call 후 자동 patch</td>
+            </tr>
+            <tr>
+              <td>도메인 특화</td>
+              <td>공정성 / 모바일 / 멀티플레이어</td>
+              <td>없음 (범용)</td>
+            </tr>
+            <tr>
+              <td>외부 통합</td>
+              <td>현재 없음</td>
+              <td>텔레그램 / Discord / 크론 내장</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">결론</div>
+        본체 코드 작업은 그대로 LAMDiceBot 하네스 + 오늘 도입한 audit 시스템으로 운영.
+        Hermes는 <strong>LAMDice-Pilot에 한정</strong>해 텔레그램 보고 / 24h VPS 모니터링 PoC 후보로 별도 검토.
+      </div>
+    </section>
+
+    <footer style="margin-top:48px;padding-top:24px;border-top:1px solid var(--gray-100);font-size:13px;color:var(--gray-400);text-align:center">
+      LAMDiceBot · Audit System Introduction · 2026-05-04 · v1.0<br>
+      관련 문서: <a href="../harness/harness-audit.html" style="color:var(--blue)">docs/harness/harness-audit.html</a>
+    </footer>
+
+  </div>
+</body>
+</html>

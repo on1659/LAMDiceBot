@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="45" viewBox="0 0 120 45" shape-rendering="crispEdges">
+<title>helicopter-lose</title>
+<desc>Derived from the base svgMap vehicle in D:/Work/LAMDiceBot/js/horse-race-sprites.js helicopter run.frame1 near line 405; strict 2x1 lose atlas, 60x45 cells. Not derived from POWER_VEHICLE_VARIANT_OVERRIDES.</desc>
+<defs>
+  <clipPath id="clip-0"><rect x="0" y="0" width="60" height="45"/></clipPath>
+  <clipPath id="clip-1"><rect x="60" y="0" width="60" height="45"/></clipPath>
+  <filter id="muted" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0.78"/>
+  </filter>
+</defs>
+<!-- strict atlas: 2 columns x 1 row, 60x45 cells, no gutters -->
+<g clip-path="url(#clip-0)">
+  <g transform="translate(0 0)">
+    <g filter="url(#muted)" transform="translate(0 0) rotate(5 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<g transform="translate(60, 0) scale(-1, 1)">
+                        <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
+                        <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
+                        <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
+                        <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
+                        <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
+                        <line x1="15" y1="10" x2="45" y2="10" stroke="#333" stroke-width="2"/>
+                        <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
+                        <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
+                        <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                    </g>
+      </svg>
+    </g>
+
+<circle cx="14" cy="19" r="2" fill="#8d939a" stroke="#4e565e" stroke-width="1.1"/><circle cx="18" cy="18" r="2.2" fill="#a5abb1" stroke="#4e565e" stroke-width="1.1"/><circle cx="22" cy="20" r="1.7" fill="#747b83" stroke="#4e565e" stroke-width="1.1"/>
+  </g>
+</g>
+<g clip-path="url(#clip-1)">
+  <g transform="translate(60 0)">
+    <g filter="url(#muted)" transform="translate(0 1) rotate(8 30 39)">
+      <svg x="0" y="0" width="60" height="45" viewBox="0 0 60 45" preserveAspectRatio="xMidYMax meet">
+<g transform="translate(60, 0) scale(-1, 1)">
+                        <ellipse cx="30" cy="25" rx="18" ry="10" fill="#e74c3c"/>
+                        <rect x="45" y="22" width="15" height="4" fill="#c0392b"/>
+                        <polygon points="58,20 62,24 58,28" fill="#c0392b"/>
+                        <circle cx="40" cy="22" r="5" fill="#87CEEB"/>
+                        <line x1="30" y1="15" x2="30" y2="10" stroke="#333" stroke-width="2"/>
+                        <line x1="20" y1="8" x2="40" y2="12" stroke="#333" stroke-width="2"/>
+                        <line x1="25" y1="35" x2="25" y2="40" stroke="#333" stroke-width="2"/>
+                        <line x1="35" y1="35" x2="35" y2="40" stroke="#333" stroke-width="2"/>
+                        <line x1="20" y1="40" x2="40" y2="40" stroke="#333" stroke-width="2"/>
+                    </g>
+      </svg>
+    </g>
+
+<circle cx="14" cy="18" r="2" fill="#8d939a" stroke="#4e565e" stroke-width="1.1"/><circle cx="18" cy="17" r="2.2" fill="#a5abb1" stroke="#4e565e" stroke-width="1.1"/><circle cx="22" cy="19" r="1.7" fill="#747b83" stroke="#4e565e" stroke-width="1.1"/>
+  </g>
+</g>
+</svg>
