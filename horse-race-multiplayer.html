@@ -163,7 +163,7 @@
                 </div>
                 <!-- N등 투표 섹션 -->
                 <div class="rank-vote-section" id="rankVoteSection" style="display: none;">
-                    <div class="rank-vote-title">🎯 당첨 등수 투표</div>
+                    <div class="rank-vote-title">🎯 당첨 등수 투표 <span style="font-size: 11px; font-weight: 600; color: var(--btn-warning, #f59e0b);">(베타)</span></div>
                     <div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>
                     <div id="rankVoteBoxes" class="rank-vote-boxes"></div>
                     <div id="rankVoteWarn" class="rank-vote-warn" style="display: none;"></div>
@@ -797,7 +797,7 @@
         },
         {
             target: '#tutorialFakeRankVote',
-            title: '4단계: 당첨 등수 투표 (선택)',
+            title: '4단계: 당첨 등수 투표 (베타, 선택)',
             content: '"몇 등이 당첨될지" 투표할 수 있습니다. 원하는 등수 박스를 클릭해 한 표 던지세요. 호스트가 시작을 누르면 투표 비례 룰렛이 등수를 결정합니다. 안 해도 됩니다 — 모두 미투표면 기본 꼴등 찾기로 진행됩니다.',
             position: 'bottom',
             beforeShow: function() {
@@ -807,7 +807,7 @@
                 wrap.className = 'rank-vote-section';
                 wrap.style.cssText = 'display:block; margin:14px 0;';
                 wrap.innerHTML = ''
-                    + '<div class="rank-vote-title">🎯 당첨 등수 투표</div>'
+                    + '<div class="rank-vote-title">🎯 당첨 등수 투표 <span style="font-size:11px;font-weight:600;color:var(--btn-warning,#f59e0b);">(베타)</span></div>'
                     + '<div class="rank-vote-hint">당첨될 등수에 한 표 던지세요. 호스트가 시작을 누르면 룰렛이 결정합니다.</div>'
                     + '<div class="rank-vote-boxes">'
                     +   '<div class="rank-vote-box selected"><div class="rank-vote-rank">1등</div><div class="rank-vote-bars"><div class="rank-vote-bar"></div><div class="rank-vote-bar"></div></div></div>'

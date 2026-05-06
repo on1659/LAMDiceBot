@@ -17,9 +17,11 @@ if (isLocalhost) {
 
 // 디버그 로그
 var debugLogEnabled = isLocalhost;
+var debugLogPaused = false;
+var debugLogHidden = false;
 var MAX_LOG_LINES = 100;
 function addDebugLog(message, type = 'info') {
-    if (!debugLogEnabled) return;
+    if (!debugLogEnabled || debugLogPaused) return;
 
     // F12 콘솔에도 동시 출력 (브라우저 DevTools에서 추적 용이)
     const consoleStyle = {
@@ -47,7 +49,7 @@ function addDebugLog(message, type = 'info') {
         logContent.removeChild(logContent.firstChild);
     }
     logContent.scrollTop = logContent.scrollHeight;
-    logSection.style.display = 'block';
+    if (!debugLogHidden) logSection.style.display = 'block';
 }
 
 // 탭 세션 ID
@@ -478,13 +480,13 @@ function showWaveChoicePanel(wave, opts) {
     panel.classList.remove('hiding');
     panel.style.display = 'block';
 
-    // bonus-race: 라벨에 "턴 K/12" 또는 "🔥 SUDDEN DEATH"
+    // bonus-race: 라벨에 "턴 K/10" 또는 "🔥 SUDDEN DEATH"
     const colLabel = document.getElementById('waveColLabel');
     if (colLabel) {
         if (opts.isSuddenDeath) {
             colLabel.textContent = '🔥 SUDDEN DEATH';
         } else {
-            const maxWaves = (typeof opts.maxWaves === 'number' && opts.maxWaves > 0) ? opts.maxWaves : 12;
+            const maxWaves = (typeof opts.maxWaves === 'number' && opts.maxWaves > 0) ? opts.maxWaves : 10;
             colLabel.textContent = String(wave) + '/' + String(maxWaves);
         }
     }
@@ -560,7 +562,7 @@ function submitWaveChoice(choice) {
 
     const myParticipant = (bridgeParticipants || []).find(p => p.userName === currentUser);
     if (!myParticipant) return;
-    // bonus-race: 도달자(progress=8)면 선택 X
+    // bonus-race: 도달자면 선택 X
     if ((window._bridgeFinishedUsers || []).includes(currentUser)) return;
 
     waveMyChoice = choice;
@@ -615,6 +617,7 @@ function showBridgeResult(data) {
     const userProgress = (data && typeof data.userProgress === 'object' && data.userProgress) ? data.userProgress : {};
     const participants = Array.isArray(data && data.participants) ? data.participants : [];
     const suddenDeathCount = (data && typeof data.suddenDeathCount === 'number') ? data.suddenDeathCount : 0;
+    const totalCols = (data && typeof data.totalCols === 'number') ? data.totalCols : (window._bridgeTotalCols || 10);
 
     // 도착 순서 정렬 — finishOrder 순 + 미도달자(꼴등) 마지막
     const ordered = finishOrder.slice();
@@ -641,7 +644,7 @@ function showBridgeResult(data) {
             <span style="font-weight:bold; min-width:42px; color:${isLoser ? '#b45309' : 'var(--text-secondary)'};">${rankLabel}</span>
             <span style="font-size:14px;">${c.emoji}</span>
             <span style="font-weight:bold;">${escapeHtml(name)}</span>
-            <span style="margin-left:auto; color:var(--text-muted); font-size:12px;">${progress}/8</span>
+            <span style="margin-left:auto; color:var(--text-muted); font-size:12px;">${progress}/${totalCols}</span>
         </div>`;
     }).join('');
 
@@ -665,6 +668,7 @@ function showBridgeResult(data) {
         loser: loser,
         finishOrder: finishOrder,
         userProgress: userProgress,
+        totalCols: totalCols,
         participants: participants.slice(),
         suddenDeathCount: suddenDeathCount,
         timestamp: new Date().toISOString()
@@ -686,6 +690,7 @@ function renderBridgeHistory() {
         const finishOrder = Array.isArray(h.finishOrder) ? h.finishOrder : [];
         const userProgress = (h.userProgress && typeof h.userProgress === 'object') ? h.userProgress : {};
         const loser = (typeof h.loser === 'string') ? h.loser : null;
+        const totalCols = (typeof h.totalCols === 'number') ? h.totalCols : (window._bridgeTotalCols || 10);
 
         // 정렬: finishOrder 순 + 미도달자(꼴등) 마지막
         const ordered = finishOrder.slice();
@@ -703,7 +708,7 @@ function renderBridgeHistory() {
                 <span style="min-width:42px; font-weight:bold; color:${isLoser ? '#b45309' : 'var(--text-muted)'};">${rankLabel}</span>
                 <span style="font-size:14px;">${c.emoji}</span>
                 <span style="font-weight:bold; min-width:80px;">${escapeHtml(name)}</span>
-                <span style="margin-left:auto; color:var(--text-muted); font-size:11px;">${progress}/8</span>
+                <span style="margin-left:auto; color:var(--text-muted); font-size:11px;">${progress}/${totalCols}</span>
             </div>`;
         }).join('');
 
@@ -808,6 +813,7 @@ socket.on('bridge-cross:gameStart', (data) => {
     if (data && typeof data.maxWaves === 'number') {
         window._bridgeMaxWaves = data.maxWaves;
     }
+    window._bridgeTotalCols = (data && typeof data.totalCols === 'number') ? data.totalCols : 10;
 
     const M = bridgeParticipants.length;
     showBridgePlayingUI(`참가자 ${M}명 — 가장 늦게 도착한 사람이 주문!`);
@@ -826,7 +832,7 @@ socket.on('bridge-cross:waveStart', (data) => {
     showWaveChoicePanel(data.wave, {
         eligible: Array.isArray(data.eligible) ? data.eligible : null,
         isSuddenDeath: !!data.isSuddenDeath,
-        maxWaves: window._bridgeMaxWaves || 12
+        maxWaves: window._bridgeMaxWaves || 10
     });
 });
 
@@ -863,6 +869,18 @@ socket.on('bridge-cross:waveResult', (data) => {
             try { window._onWaveResult(data); } catch (e) { console.error('_onWaveResult error:', e); }
         }
     }, 600);
+});
+
+// 다리 collapse — 1명만 남았을 때 collapse 시각 후 gameEnd가 따라 옴 (사용자 피드백 2026-05-05)
+socket.on('bridge-cross:bridgeCollapse', (data) => {
+    if (!data) return;
+    addDebugLog(`다리 collapse loser=${data.loser} finalProgress=${data.finalProgress}/${data.totalCols}`, 'bridge');
+    // turn UI 비활성화 (이제 추가 turn 진행 X)
+    hideWaveChoicePanel();
+    // 캔버스 IIFE wiring
+    if (typeof window._onBridgeCollapse === 'function') {
+        try { window._onBridgeCollapse(data); } catch (e) { console.error('_onBridgeCollapse error:', e); }
+    }
 });
 
 // 게임 종료
@@ -922,8 +940,55 @@ function clearDebugLog() {
 }
 function toggleDebugLog() {
     const s = document.getElementById('debugLogSection');
-    if (s) s.style.display = s.style.display === 'none' ? 'block' : 'none';
+    if (!s) return;
+    debugLogHidden = !debugLogHidden;
+    s.style.display = debugLogHidden ? 'none' : 'block';
+    const restoreBtn = document.getElementById('debugLogRestoreBtn');
+    if (restoreBtn) restoreBtn.style.display = debugLogHidden ? 'block' : 'none';
 }
+function toggleDebugLogPause() {
+    debugLogPaused = !debugLogPaused;
+    const btn = document.getElementById('debugLogPauseBtn');
+    if (btn) {
+        btn.textContent = debugLogPaused ? '재개' : '정지';
+        btn.style.background = debugLogPaused ? '#600' : '#333';
+        btn.style.color = debugLogPaused ? '#f88' : '#0f0';
+        btn.style.borderColor = debugLogPaused ? '#f88' : '#0f0';
+    }
+}
+(function initDebugLogDrag() {
+    const sec = document.getElementById('debugLogSection');
+    const handle = document.getElementById('debugLogHeader');
+    if (!sec || !handle) return;
+    let dragging = false, offsetX = 0, offsetY = 0;
+    handle.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        const rect = sec.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        sec.style.left = rect.left + 'px';
+        sec.style.top = rect.top + 'px';
+        sec.style.right = 'auto';
+        sec.style.bottom = 'auto';
+        dragging = true;
+        handle.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const x = Math.max(0, Math.min(window.innerWidth - 40, e.clientX - offsetX));
+        const y = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - offsetY));
+        sec.style.left = x + 'px';
+        sec.style.top = y + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        handle.style.cursor = 'grab';
+        document.body.style.userSelect = '';
+    });
+})();
 if (!isLocalhost) {
     const dls = document.getElementById('debugLogSection');
     if (dls) dls.style.display = 'none';
@@ -1228,8 +1293,8 @@ socket.on('joinError', (data) => {
     ctx.imageSmoothingEnabled = false;
 
     // World and viewport sizes — never reference canvas.width/canvas.height directly
-    // bonus-race (2026-05-05): 8 col 확장으로 world.w 1.4배 (2400→3200)
-    var world = { w: 3200, h: 1280 };
+    // bridge 10-column map (2026-05-06): preserve the old per-tile spacing and extend world/background coverage.
+    var world = { w: 2800, h: 1900 };
     var viewport = { w: 1024, h: 683 };
 
     var spriteRoot = '/assets/bridge-cross/sprites/';
@@ -1454,8 +1519,8 @@ socket.on('joinError', (data) => {
     function StageLayout(opts) {
         opts = opts || {};
         // 사용자가 디버그 모드에서 잡은 값 (2026-04-26)
-        this.startWorld     = opts.startWorld     || { x: -145, y: 751 };
-        this.finishWorld    = opts.finishWorld    || { x: 1013, y: -27 };
+        this.startWorld     = opts.startWorld     || { x: -145, y: 1080 };
+        this.finishWorld    = opts.finishWorld    || { x: 1528, y: 1 };
         this.entranceOffset = opts.entranceOffset || { x: 217, y: -159 };
         this.exitOffset     = opts.exitOffset     || { x: -122, y: 40 };
         // Parallel-run impl §4-7 + 사용자 후속 피드백(2026-04-29):
@@ -1486,15 +1551,14 @@ socket.on('joinError', (data) => {
         this.finishSize = { w: 559, h: 794 };
 
         // 다리: 시작 LEFT-RIGHT 중점 + entranceOffset → 골 LEFT-BOTTOM 중점 + exitOffset
-        // bonus-race (2026-05-05): 8 col로 확장 — entrance 위치 유지, exit를 (8-1)/(6-1)=1.4배 거리로 이동
-        // (columnStep 동일 유지, world 폭만 확장 → Camera/CameraDirector가 자동 follow + zoom)
+        // bridge 10-column map (2026-05-06): keep the previous per-column spacing, then extend the finish island.
         var midpoint = function (a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
         var entryMid = midpoint(this.startPlatform.corners.left, this.startPlatform.corners.right);
         var exitMid = midpoint(this.finishPlatform.corners.left, this.finishPlatform.corners.bottom);
         var entranceXY = { x: entryMid.x + this.entranceOffset.x, y: entryMid.y + this.entranceOffset.y };
         var exitXYBase = { x: exitMid.x + this.exitOffset.x, y: exitMid.y + this.exitOffset.y };
-        var bridgeColumnCount = 8;
-        var bridgeStretch = (bridgeColumnCount - 1) / (6 - 1); // 1.4
+        var bridgeColumnCount = 10;
+        var bridgeStretch = 1.0;
         var exitXY = {
             x: entranceXY.x + (exitXYBase.x - entranceXY.x) * bridgeStretch,
             y: entranceXY.y + (exitXYBase.y - entranceXY.y) * bridgeStretch
@@ -1511,10 +1575,11 @@ socket.on('joinError', (data) => {
         this.waitingSlots = this.startPlatform.layoutSlots(6, { gridU: 2, gridV: 3, padU: 0.18, padV: 0.12 });
         // bonus-race (2026-05-05) impl §8-3: finishSlots = 2열 4×2 grid (8개)
         // 도착 순서대로 시각 자연스럽게 배치 (앞줄 중앙→측면, 뒷줄 중앙→측면)
+        // 사용자 피드백 2026-05-05: dx 0.7→0.45, dy 0.6→0.5 (8명 모두 finishPlatform 안쪽 수용)
         var fcX = this.finishPlatform.center.x;
         var fcY = this.finishPlatform.center.y;
-        var dx = this.tileSize.w * 0.7;
-        var dy = this.tileSize.h * 0.6;
+        var dx = this.tileSize.w * 0.45;
+        var dy = this.tileSize.h * 0.5;
         var arrivalOrder = [
             { row: 0, col: 1 },  // 1등: 앞줄 왼쪽 중앙
             { row: 0, col: 2 },  // 2등: 앞줄 오른쪽 중앙
@@ -1859,11 +1924,12 @@ socket.on('joinError', (data) => {
         cascadeSoundT: 0,      // sound throttle 플래그 (impl §G11) — bonus-race에선 dead
         waveIndex: 0,          // 사용자 후속 피드백(wave): 동기 도전 wave 카운터 (deterministic seed)
         // bonus-race (2026-05-05)
-        bridgeProgress: {},    // {[userName]: 0~8}
+        bridgeProgress: {},    // {[userName]: 0~10}
         bridgeFinishOrder: [], // 도달 순서 (시각용)
-        bridgePadEffects: {},  // {[userName]: {wave, advance, startedAt}} — 보너스 점프대 시각 효과
+        bridgePadEffects: {},  // {[userName]: {wave, advance, fromCol, toCol, row, triggered, triggeredAt}}
+        bridgeCollapse: null,  // {loser, finalProgress, totalCols, startedAt} — 1명 남았을 때 다리 collapse 시각
         currentWave: 0,        // 1-based
-        maxWaves: 12,          // 서버 maxWaves 캐시
+        maxWaves: 10,          // 서버 maxWaves 캐시 (fallback)
         isSuddenDeath: false,  // sudden death turn 여부 (UI 라벨 분기)
         // 옛 단일 호환 필드 (renderGameToText fallback / camera framing 등)
         currentScenarioIndex: 0,
@@ -1891,7 +1957,8 @@ socket.on('joinError', (data) => {
         var dy = finish.y - start.y;
         var distance = Math.round(Math.sqrt(dx * dx + dy * dy));
         var slope = (dy / dx).toFixed(3);
-        var colStep = '(' + (dx / 5).toFixed(1) + ', ' + (dy / 5).toFixed(1) + ')';
+        var gapCount = Math.max(1, layout.columnCount - 1);
+        var colStep = '(' + (dx / gapCount).toFixed(1) + ', ' + (dy / gapCount).toFixed(1) + ')';
         var info = document.getElementById('dbgInfo');
         if (info) info.innerHTML = 'bridge dist: ' + distance + 'px<br>drop: ' + dy + 'px (slope ' + slope + ')<br>column step: ' + colStep;
     }
@@ -1995,10 +2062,21 @@ socket.on('joinError', (data) => {
             var nm = document.getElementById(id + 'Num');
             if (nm) nm.value = val;
         }
+        setBoth('dbgStartX', layout.startWorld.x);
+        setBoth('dbgStartY', layout.startWorld.y);
+        setBoth('dbgFinishX', layout.finishWorld.x);
+        setBoth('dbgFinishY', layout.finishWorld.y);
+        setBoth('dbgEntryDx', layout.entranceOffset.x);
+        setBoth('dbgEntryDy', layout.entranceOffset.y);
+        setBoth('dbgExitDx', layout.exitOffset.x);
+        setBoth('dbgExitDy', layout.exitOffset.y);
         setBoth('dbgRowDx', layout.rowStep.x);
         setBoth('dbgRowDy', layout.rowStep.y);
         setBoth('dbgTileW', layout.tileSize.w);
         setBoth('dbgTileH', layout.tileSize.h);
+        setBoth('dbgTileRot', layout.tileRotation);
+        setBoth('dbgStartRot', layout.startStageRotation);
+        setBoth('dbgFinishRot', layout.finishStageRotation);
         if (layout.charFootOffset != null) setBoth('dbgFootY', layout.charFootOffset);
     }
 
@@ -2199,8 +2277,9 @@ socket.on('joinError', (data) => {
         participants.forEach(function (p) { state.bridgeProgress[p.userName] = 0; });
         state.bridgeFinishOrder = [];
         state.bridgePadEffects = {};
+        state.bridgeCollapse = null;
         state.currentWave = 0;
-        state.maxWaves = (data && typeof data.maxWaves === 'number') ? data.maxWaves : 12;
+        state.maxWaves = (data && typeof data.maxWaves === 'number') ? data.maxWaves : layout.columnCount;
         state.isSuddenDeath = false;
         updateTextPanels();
 
@@ -2246,18 +2325,29 @@ socket.on('joinError', (data) => {
         }
 
         // bridgeProgress / bridgeFinishOrder 갱신 + bonusPad effect 등록 (advance >= 2)
-        var nowSec = state.elapsed;
+        // 사용자 피드백 2026-05-05: bonus-pad는 캐릭터 점프 phase에 동기화 (등록 시점이 아니라 wave-launch 트리거 시).
+        // 등록 단계: triggered=false, fromCol/toCol/row 보존만. 실제 그리기는 prepareChoicePause에서 triggered=true.
         var finishedSet = {};
         finishedThisWave.forEach(function (n) { finishedSet[n] = true; });
 
         results.forEach(function (r) {
+            // prevProgress는 server 권위 (newProgress - advance) — clamp 영향 없는 경우 정확.
+            // 현재 advance=2 한정이라 finish clamp 케이스도 출발 col 계산에 영향 없음.
+            var prevProgress = Math.max(0, (r.newProgress || 0) - (r.advance || 0));
             state.bridgeProgress[r.userName] = r.newProgress;
-            // bonusPad 효과: advance >= 2인 경우 — 발판 위 점프대 sprite 시퀀스
-            if (r.advance >= 2) {
+            // bonusPad 효과: advance >= 2 + 출발 col이 다리 안(prevProgress >= 1)인 경우만 등록.
+            // turn 1은 server에서 +1 강제 (보너스 disable) → 자동으로 advance>=2 안 나옴.
+            if (r.advance >= 2 && prevProgress >= 1) {
+                var fromCol = prevProgress - 1;       // 0-based 출발 col
+                var toCol = Math.min(layout.columnCount - 1, Math.max(0, r.newProgress - 1));
                 state.bridgePadEffects[r.userName] = {
                     wave: wave,
                     advance: r.advance,
-                    startedAt: nowSec
+                    row: (r.choice === 'bottom') ? 'bottom' : 'top',
+                    fromCol: fromCol,
+                    toCol: toCol,
+                    triggered: false,    // wave-launch에서 true로 전환
+                    triggeredAt: 0
                 };
             }
             if (finishedSet[r.userName] && state.bridgeFinishOrder.indexOf(r.userName) === -1) {
@@ -2434,7 +2524,7 @@ socket.on('joinError', (data) => {
         // jumpHeight + 점프 거리(실제 col 변화)는 advance 칸수 비례
         var advance = step.advance || 1;
         var newProgress = step.newProgress || (player.progress + advance);
-        var targetColRaw = newProgress - 1; // 0-based — newProgress가 8이면 마지막 col(7)
+        var targetColRaw = newProgress - 1; // 0-based — finish progress maps to the last visual column.
         var targetCol = Math.min(layout.columnCount - 1, Math.max(0, targetColRaw));
 
         // 점프 호 비례: +1=46, +2=70, +3=95
@@ -2449,6 +2539,15 @@ socket.on('joinError', (data) => {
         });
         runner.phase = 'choice-wait';
         pushEvent(player.name + ' +' + advance + ' 칸 (' + newProgress + '/' + layout.columnCount + ')');
+
+        // bonus-race: bonus-pad 시퀀스를 캐릭터 점프 phase에 동기화 (사용자 피드백 2026-05-05).
+        // applyWaveResult에서 등록만 해두고, 캐릭터가 wave-launch로 전환되며 실제 점프를 시작하는 이 시점에
+        // triggered=true + triggeredAt 세팅. render 루프는 triggered=false면 그리지 않음.
+        var padEff = state.bridgePadEffects && state.bridgePadEffects[player.userName];
+        if (padEff && padEff.wave === step.wave && !padEff.triggered) {
+            padEff.triggered = true;
+            padEff.triggeredAt = state.elapsed;
+        }
     }
 
     function revealChoice(runner, step) {
@@ -2808,10 +2907,57 @@ socket.on('joinError', (data) => {
         };
     }
 
+    /**
+     * 다리 collapse 시각 효과 (사용자 피드백 2026-05-05).
+     * loser가 서있는 col부터 col 0까지 순차로 흔들리다가 깨져 떨어지는 시각.
+     * - elapsed < 200ms: 안내 페이즈 (모두 미세 흔들림)
+     * - elapsed 200~600ms: 순차 break (loser의 col부터 col 0까지 cascade)
+     * - elapsed >= 600ms: 모두 떨어진 상태 (alpha 0 까지 fade out)
+     * return: { shakeX, shakeY, fallY, alpha, render } — render=false면 그리지 않음
+     */
+    function getCollapseTileEffect(col) {
+        var collapse = state.bridgeCollapse;
+        if (!collapse) return null;
+        var elapsedMs = (state.elapsed - collapse.startedAt) * 1000;
+        if (elapsedMs < 0) return null;
+        // loser 위치 (0-based 마지막 도달 col). finalProgress=2면 col 1
+        var loserCol = Math.max(0, Math.min(layout.columnCount - 1, (collapse.finalProgress || 0) - 1));
+        // 사용자 결정(2026-05-05): loser가 서있는 발판 1개만 무너짐. 나머지 col은 그대로
+        if (col !== loserCol) return { shakeX: 0, shakeY: 0, fallY: 0, alpha: 1 };
+
+        // Phase 1 (0~200ms): 흔들림
+        if (elapsedMs < 200) {
+            var jitter = 1 - elapsedMs / 200;
+            return {
+                shakeX: (Math.random() - 0.5) * 2 * 5 * jitter,
+                shakeY: (Math.random() - 0.5) * 2 * 5 * jitter,
+                fallY: 0,
+                alpha: 1
+            };
+        }
+
+        // Phase 2 (200~1500ms): 가속 낙하 + fade
+        var fallMs = elapsedMs - 200;
+        var fallProgress = Math.min(1, fallMs / 1300);
+        return {
+            shakeX: 0,
+            shakeY: 0,
+            fallY: Math.pow(fallProgress, 1.8) * 320,
+            alpha: Math.max(0, 1 - fallProgress * 1.1)
+        };
+    }
+
     function drawTile(col, row) {
         var info = state.revealed[col] || { brokenTop: false, brokenBottom: false };
         var center = layout.tileCenter(col, row);
         var rect = tileFxRect(center);
+        // collapse 시각 효과 (1명 남았을 때) — col별 offset/alpha 적용
+        var collapseEff = getCollapseTileEffect(col);
+        if (collapseEff && collapseEff.alpha <= 0) return; // 완전히 떨어졌으면 그리지 않음
+        if (collapseEff) {
+            ctx.save();
+            ctx.translate(collapseEff.shakeX, collapseEff.shakeY + collapseEff.fallY);
+        }
         // bonus-race render: lastStep은 {wave,row,advance,newProgress}. safe-flash 발판은 newProgress-1.
         // pendingChoice는 진행 중인 choice — 시각 highlight는 hover로 처리하므로 별도 강조 X.
         var lastSuccess = false;
@@ -2833,12 +2979,17 @@ socket.on('joinError', (data) => {
             frameOverride = null;
             alpha = 1;
         }
+        // collapse 시각: 떨어지는 발판 alpha 감쇠
+        if (collapseEff) alpha *= collapseEff.alpha;
         // 사용자 결정(2026-04-30): pending warning_glow 제거. 대신 hover row만 살짝 빛남.
+        // bonus-race(2026-05-05): hover col을 본인 다음 발판(userProgress 기준)으로 — wave 번호 X
         var hoverRow = window._bridgeHoverRow;
-        var hoverActiveCol = window._bridgeWaveActiveCol;
-        var isHoverHighlight = hoverRow === row
-            && typeof hoverActiveCol === 'number'
-            && hoverActiveCol === col;
+        var turnActive = typeof window._bridgeWaveActiveCol === 'number';
+        var myProgress = (state.bridgeProgress && currentUser) ? (state.bridgeProgress[currentUser] || 0) : 0;
+        var myNextCol = myProgress; // progress N → 다음 발판 col N (0-based)
+        var isHoverHighlight = turnActive
+            && hoverRow === row
+            && myNextCol === col;
 
         var image = images.glassFx;
         var anim = fxSheet.animations[fxName];
@@ -2860,7 +3011,8 @@ socket.on('joinError', (data) => {
             drawImageCell(image, cell, rect.x, rect.y, rect.w, rect.h, alpha);
         }
         // hover 시 발판에 warning_glow(주황) overlay — 사용자 결정(2026-04-30)
-        if (isHoverHighlight) {
+        // collapse 중엔 hover highlight 표시 X
+        if (isHoverHighlight && !collapseEff) {
             var hoverAnim = fxSheet.animations.warning_glow;
             var hoverFrame = hoverAnim.frames[Math.floor(state.elapsed * hoverAnim.fps) % hoverAnim.frames.length];
             var hoverCell = sheetCell(image, fxSheet, hoverAnim.row, hoverFrame);
@@ -2877,6 +3029,7 @@ socket.on('joinError', (data) => {
                 drawImageCell(image, hoverCell, rect.x, rect.y, rect.w, rect.h, 1);
             }
         }
+        if (collapseEff) ctx.restore();
     }
 
     function drawPlayer(player, x, y, scale, alpha, falling, dim, fallElapsed) {
@@ -3115,10 +3268,20 @@ socket.on('joinError', (data) => {
     }
 
     function drawBackground() {
-        // background-void-v2 2회: (0,0) + (864,0) — world 좌표, 원본 크기 그대로
+        // 10-column map: tile the 1.5x void background across the taller, wider world.
         if (images.bg) {
-            ctx.drawImage(images.bg, 0, 0, 1536, 1024);
-            ctx.drawImage(images.bg, 864, 0, 1536, 1024);
+            var bgScale = 1.5;
+            var bgW = (images.bg.naturalWidth || 1536) * bgScale;
+            var bgH = (images.bg.naturalHeight || 1024) * bgScale;
+            var overlap = 200;
+            var stepX = Math.max(1, bgW - overlap);
+            var stepY = Math.max(1, bgH - overlap);
+            var bgY = -120;
+            for (var y = bgY; y < world.h + bgH; y += stepY) {
+                for (var x = 0; x < world.w + bgW; x += stepX) {
+                    ctx.drawImage(images.bg, x, y, bgW, bgH);
+                }
+            }
         }
         // start-stage: crop 후 자산 크기(728×743), world 배치 위치는 layout.startWorld
         if (images.startStage) {
@@ -3199,7 +3362,19 @@ socket.on('joinError', (data) => {
         }
         if (activeMine) {
             var falling = activeMine.phase === 'falling' || activeMine.phase === 'cascade-falling';
+            // collapse 시각: 본인이 loser면 collapse offset 적용
+            var selfCollapseEff = null;
+            if (state.bridgeCollapse && state.bridgeCollapse.loser === currentUser) {
+                var selfLoserCol = Math.max(0, (state.bridgeCollapse.finalProgress || 0) - 1);
+                selfCollapseEff = getCollapseTileEffect(selfLoserCol);
+            }
+            if (selfCollapseEff && selfCollapseEff.alpha <= 0) return;
+            if (selfCollapseEff) {
+                ctx.save();
+                ctx.translate(selfCollapseEff.shakeX, selfCollapseEff.shakeY + selfCollapseEff.fallY);
+            }
             drawPlayer(activeMine.player, activeMine.avatar.x, activeMine.avatar.y, 0.58, 1, falling, false, activeMine.fallElapsed);
+            if (selfCollapseEff) ctx.restore();
             return;
         }
         // 2) state.players / state.allPlayers에서 본인 찾기
@@ -3302,8 +3477,10 @@ socket.on('joinError', (data) => {
         }
 
         // bonus-race: bonusPad 효과 — z-order tile < bonusPad < player
-        // 각 user의 시작 발판(이번 turn 시작점) 위에 점프대 시퀀스 그리기
-        // elapsed: <150 spawn(0), <270 ready(1), <370 compress(2), <620 launch(3), >=620 삭제
+        // 사용자 피드백 2026-05-05: 캐릭터 점프 phase에 동기화. applyWaveResult가 effect 등록만 하고
+        // wave-launch 트리거 시점에 triggered=true + triggeredAt 세팅 → 그때부터 그리기.
+        // 위치: 출발 발판(fromCol, row) — "보너스 받은 발판이 점프대로 변신해 user를 튕겨주는" 시각.
+        // 시퀀스: <120 spawn(0), <240 ready(1), <360 compress(2), <620 launch(3), >=620 삭제.
         if (state.bridgePadEffects) {
             var padImage = images.bonusPad;
             var padNames = Object.keys(state.bridgePadEffects);
@@ -3311,53 +3488,22 @@ socket.on('joinError', (data) => {
                 var padName = padNames[pi];
                 var eff = state.bridgePadEffects[padName];
                 if (!eff) continue;
-                var elapsedMs = (state.elapsed - eff.startedAt) * 1000;
+                if (!eff.triggered) continue; // 캐릭터 점프 시작 전엔 그리지 않음
+                var elapsedMs = (state.elapsed - eff.triggeredAt) * 1000;
                 if (elapsedMs < 0) continue;
                 var frameIdx = -1;
-                if (elapsedMs < 150) frameIdx = 0;
-                else if (elapsedMs < 270) frameIdx = 1;
-                else if (elapsedMs < 370) frameIdx = 2;
+                if (elapsedMs < 120) frameIdx = 0;
+                else if (elapsedMs < 240) frameIdx = 1;
+                else if (elapsedMs < 360) frameIdx = 2;
                 else if (elapsedMs < 620) frameIdx = 3;
                 if (frameIdx === -1) {
                     delete state.bridgePadEffects[padName];
                     continue;
                 }
                 if (!padImage) continue;
-                // 점프대 위치: user의 이번 turn 시작 col = newProgress - advance 위치
-                // 하지만 시작 col 정보가 없으므로 player의 현재(점프 도착) 직전 발판을 추정.
-                // 가장 단순한 방식 — 이번 turn에 출발한 col은 (newProgress - advance) - 1 (0-based 마지막 시작 발판)
-                // 출발 col을 못 구하면 newProgress-1 (도착)을 fallback.
-                // 점프 시작점 추정: 도달 col = newProgress-1, 출발 col = newProgress-1 - advance + 1 = newProgress - advance
-                // (정확한 0-based: 출발은 그 직전 col → newProgress - advance - 1, 단 0 이상)
-                var ePlayer = (state.players || []).find(function (pp) { return pp.userName === padName; });
-                if (!ePlayer) continue;
-                // pad는 user가 점프 출발하는 발판(직전 위치) 위에 그림
-                // 출발 col: progress가 갱신되기 전 = newProgress - advance
-                // user-driven에선 player.progress가 result-hold에서 newProgress로 갱신되므로 시작 col을 추적할 수 없음.
-                // 대안: 도달 col(newProgress-1)에 그려서 "여기가 보너스 발판이었다" 시각 표시 (pad가 압축→점프하는 모양은 도착 발판에 더 자연스러움)
-                // bonus-pad anchor x=0.5 y=1.0 — 발판 위 base
-                // pad 크기: tileSize.h 기준 0.8배 (manifest defaultScale 참조)
-                // 도착 발판 (도착 row와 newProgress-1 col):
-                // step의 row 정보가 lastStep에 있다 — runner가 finish-* 으로 가버리면 lastStep도 잃을 수 있음.
-                // 단순화: state.bridgeProgress[name]이 newProgress, 아래 row는 padInfo의 step에서 가져온 row
-                // 효율 위해 effect에 row 미보존 — top/bottom 동일 alias로 그리기 (양쪽 다 그리는 대신 도착 row만)
-                var newProg = state.bridgeProgress[padName] || 0;
-                var padCol = Math.min(layout.columnCount - 1, Math.max(0, newProg - 1));
-                // row는 effect에 저장 안 됨 — fallback으로 actives의 lastStep에서 찾음
-                var padRow = 'top';
-                var foundRow = false;
-                for (var pa = 0; pa < state.actives.length; pa += 1) {
-                    var par = state.actives[pa];
-                    if (par.player && par.player.userName === padName && par.lastStep && par.lastStep.row) {
-                        padRow = par.lastStep.row;
-                        foundRow = true;
-                        break;
-                    }
-                }
-                if (!foundRow) {
-                    // fallback: top
-                    padRow = 'top';
-                }
+                // 출발 발판 위치 (fromCol, row) — applyWaveResult에서 보존된 값
+                var padCol = Math.min(layout.columnCount - 1, Math.max(0, eff.fromCol || 0));
+                var padRow = (eff.row === 'bottom') ? 'bottom' : 'top';
                 var padCenter = layout.tileCenter(padCol, padRow);
                 var padCellW = Math.floor(padImage.naturalWidth / bonusPadSheet.columns);
                 var padCellH = Math.floor(padImage.naturalHeight / bonusPadSheet.rows);
@@ -3470,11 +3616,23 @@ socket.on('joinError', (data) => {
         var orderedActives = otherActives.concat(ownActives);
         orderedActives.forEach(function (ar) {
             var falling = ar.phase === 'falling' || ar.phase === 'cascade-falling';
+            // collapse 시각: loser 캐릭터는 자기 progress col의 collapse offset과 함께 떨어짐
+            var arCollapseEff = null;
+            if (state.bridgeCollapse && ar.player && ar.player.userName === state.bridgeCollapse.loser) {
+                var loserCol = Math.max(0, (state.bridgeCollapse.finalProgress || 0) - 1);
+                arCollapseEff = getCollapseTileEffect(loserCol);
+            }
+            if (arCollapseEff && arCollapseEff.alpha <= 0) return; // 떨어졌으면 그리지 않음
+            if (arCollapseEff) {
+                ctx.save();
+                ctx.translate(arCollapseEff.shakeX, arCollapseEff.shakeY + arCollapseEff.fallY);
+            }
             drawAvatarShadow(ar);
             drawLandingPulse(ar);
             drawJumpTrail(ar);
             drawPlayer(ar.player, ar.avatar.x, ar.avatar.y, 0.58, 1, falling, false, ar.fallElapsed);
             drawBettorTag(ar.player, ar.avatar.x, ar.avatar.y, 0.58);
+            if (arCollapseEff) ctx.restore();
         });
 
         // 사용자 결정(2026-04-30): 추락 시 warning_glow(주황 cue) 제거 — break_shards 만으로 충분
@@ -3534,7 +3692,7 @@ socket.on('joinError', (data) => {
         // impl §G7: actives[] 직렬화 추가. 단일 active fallback 필드는 deprecated but kept
         var first = state.actives && state.actives.length > 0 ? state.actives[0] : null;
         return JSON.stringify({
-            coordinateSystem: 'world 2400x1024, viewport 1024x683, origin top-left, x right, y down',
+            coordinateSystem: 'world ' + world.w + 'x' + world.h + ', viewport ' + viewport.w + 'x' + viewport.h + ', origin top-left, x right, y down',
             mode: state.mode,
             phase: state.phase,
             currentScenarioIndex: state.currentScenarioIndex,
@@ -3682,6 +3840,20 @@ socket.on('joinError', (data) => {
     window._onWaveResult = function (data) {
         applyWaveResult(data);
     };
+    window._onBridgeCollapse = function (data) {
+        // 1명 남았을 때 — 다리 collapse 시각 (1500ms 후 gameEnd가 옴).
+        // bonusPadEffects는 즉시 정리 (collapse 중엔 점프대 시각 X).
+        state.bridgePadEffects = {};
+        state.bridgeCollapse = {
+            loser: (data && typeof data.loser === 'string') ? data.loser : null,
+            finalProgress: (data && typeof data.finalProgress === 'number') ? data.finalProgress : 0,
+            totalCols: (data && typeof data.totalCols === 'number') ? data.totalCols : layout.columnCount,
+            startedAt: state.elapsed
+        };
+        if (typeof addDebugLog === 'function') {
+            addDebugLog('[bridgeCollapse] 시각 시작 — loser=' + state.bridgeCollapse.loser, 'bridge');
+        }
+    };
     window._onGameEnd = function (data) {
         // bonus-race: 서버 finishOrder를 state.players의 status에 반영 (race 보호)
         // 모든 user는 'finished' 또는 'winner' 상태로 통일 (추락 폐지)
@@ -3695,6 +3867,10 @@ socket.on('joinError', (data) => {
                 p.status = 'finished';
             }
         });
+        // 사용자 피드백 2026-05-05: collapse 시각 후 gameEnd 도착 시점에 mode='finished'로 전환해
+        // gameEnd 핸들러의 polling이 즉시 통과하도록. (loser는 wave-wait인 채 actives에 남아 있어도 OK)
+        state.mode = 'finished';
+        state.phase = 'finished';
     };
 
     // Zoom UI — DOM floating controls

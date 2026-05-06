@@ -1,16 +1,16 @@
 // Bridge Cross 게임 소켓 핸들러 — Bonus Race 모델 (2026-05-05)
-// 추락 폐지. 좌/우 선택 → 서버가 결정한 보너스 row 맞추면 +2/+3 칸 점프, 틀리면 +1.
-// 8칸 도달자 = finishOrder. 마지막 1명 = 꼴등 = 당첨자.
+// 추락 폐지. 좌/우 선택 → 서버가 결정한 보너스 row 맞추면 +2 칸 점프, 틀리면 +1.
+// 10칸 도달자 = finishOrder. 마지막 1명 = 꼴등 = 당첨자.
 // bonusRows / bonusAmounts는 server-only (절대 클라 broadcast 금지).
 const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 
 // ─── 조정 가능한 상수 ───
-const BRIDGE_COLUMNS = 8;            // 다리 길이 (8칸 도달 = finish)
-const BRIDGE_MAX_WAVES = 12;         // 1라운드 max turn 수 (sudden death는 별도 카운터)
+const BRIDGE_COLUMNS = 10;           // 다리 길이 (10칸 도달 = finish) — 사용자 피드백 2026-05-06
+const BRIDGE_MAX_WAVES = 10;         // 1라운드 max turn 수 — 10칸과 일치. sudden death는 별도 카운터
 const BRIDGE_MAX_SUDDEN_DEATH = 6;   // sudden death loop 안전장치
-const BRIDGE_BONUS_AMOUNTS = [2, 3]; // 보너스 점프 칸수 후보
+const BRIDGE_BONUS_AMOUNTS = [2];    // 보너스 점프 칸수 후보 — +2만 (사용자 피드백 2026-05-05: +3 폐지)
 const BRIDGE_NORMAL_ADVANCE = 1;     // 보너스 빗나갔을 때 advance
 const BRIDGE_WAVE_SEC = 3;           // 한 turn 도전 wave 제한 시간 (초)
 const BRIDGE_WAVE_MS = BRIDGE_WAVE_SEC * 1000;
@@ -18,7 +18,9 @@ const BRIDGE_HISTORY_MAX = 100;      // 게임 히스토리 최대 보관 수
 const BRIDGE_MIN_PLAYERS = 1;        // M=1 허용
 // turn 사이 대기 — turn 시각 + finish 시차 delay 0~800ms 충분 보장
 const BRIDGE_INTER_TURN_MS = 1800;
-// 동적 endTimeout: max 12 turn + 6 sudden death = 18 turn × (3s + 1.8s) + 8s 안전장치
+// 1명 남으면 다리 collapse 시각 시간 (사용자 피드백 2026-05-05)
+const BRIDGE_COLLAPSE_MS = 1500;
+// 동적 endTimeout: max 10 turn + 6 sudden death = 16 turn × (3s + 1.8s) + 8s 안전장치
 const BRIDGE_END_TIMEOUT_MS = (BRIDGE_MAX_WAVES + BRIDGE_MAX_SUDDEN_DEATH) * (BRIDGE_WAVE_MS + BRIDGE_INTER_TURN_MS) + 8000;
 
 // bonusRows 디버그 로그 출력 여부 (prod에선 절대 출력 안 함)
@@ -93,9 +95,9 @@ module.exports = (socket, io, ctx) => {
         let bonusRow;
         let bonusAmount;
         if (isSuddenDeath) {
-            // sudden death: 매번 새 random. 1명만 못 건너기 위해 보너스 받은 user 즉시 도달 (+8)
+            // sudden death: 매번 새 random. 1명만 못 건너기 위해 보너스 받은 user 즉시 도달
             bonusRow = randomRow();
-            bonusAmount = BRIDGE_COLUMNS; // +8 — 즉시 도달 강제
+            bonusAmount = BRIDGE_COLUMNS; // 즉시 도달 강제
         } else {
             bonusRow = bc.bonusRows[wave - 1];
             bonusAmount = bc.bonusAmounts[wave - 1];
@@ -113,10 +115,13 @@ module.exports = (socket, io, ctx) => {
 
         // 결과 산출 (advance + newProgress)
         // tie-break: pendingChoices 처리 순서 (eligible 순서). 같은 turn 다중 도달 시 advance 큰 순으로 정렬.
+        // 첫 turn(wave === 1, normal)은 보너스 disable — 모든 user 무조건 +1 (사용자 피드백 2026-05-05).
+        // 게임 도입을 자연스럽게 하기 위해 turn 1은 보너스 발동 X. sudden death는 별도 매 turn 추첨.
+        const isFirstTurn = !isSuddenDeath && wave === 1;
         const results = eligible.map(p => {
             const choice = bc.pendingChoices[p.userName];
             const match = (choice === bonusRow);
-            const advance = match ? bonusAmount : BRIDGE_NORMAL_ADVANCE;
+            const advance = (isFirstTurn || !match) ? BRIDGE_NORMAL_ADVANCE : bonusAmount;
             const prevProgress = bc.userProgress[p.userName] || 0;
             const newProgress = Math.min(BRIDGE_COLUMNS, prevProgress + advance);
             bc.userProgress[p.userName] = newProgress;
@@ -154,7 +159,7 @@ module.exports = (socket, io, ctx) => {
         bc.waveProcessing = false;
 
         // 종료 / 다음 turn 검사
-        const remaining = getEligible(bc); // progress < 8 인 user
+        const remaining = getEligible(bc); // progress < BRIDGE_COLUMNS 인 user
 
         // 0명 도달 안 함 → endGame (꼴등 = finishOrder 마지막)
         if (remaining.length === 0) {
@@ -162,9 +167,9 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 1명 남음 → 그가 꼴등, endGame
+        // 1명 남음 → 그가 꼴등. 다리 collapse 시각 후 endGame (사용자 피드백 2026-05-05)
         if (remaining.length === 1) {
-            scheduleEndGame(room, gameState);
+            scheduleCollapseAndEnd(room, gameState, remaining[0].userName);
             return;
         }
 
@@ -231,6 +236,41 @@ module.exports = (socket, io, ctx) => {
             if (!gs2 || !gs2.bridgeCross) return;
             endGame(room2, gs2);
         }, BRIDGE_INTER_TURN_MS);
+    }
+
+    /**
+     * 1명 남았을 때 — 다리 collapse 시각 broadcast 후 endGame.
+     * collapse 도중엔 추가 turn 진행 X (waveTimer/interTurnTimer 모두 clear).
+     * 사용자 피드백 2026-05-05: "마지막 한명이 남았으면 더 이상 앞으로 가지 말고 다리 무너지는 애니메이션"
+     */
+    function scheduleCollapseAndEnd(room, gameState, loserName) {
+        const bc = gameState.bridgeCross;
+        // 추가 turn / 결과 timer 모두 무력화
+        if (bc.waveTimer) {
+            clearTimeout(bc.waveTimer);
+            bc.waveTimer = null;
+        }
+        if (bc.interTurnTimer) {
+            clearTimeout(bc.interTurnTimer);
+            bc.interTurnTimer = null;
+        }
+        bc.phase = 'collapsing';
+
+        const finalProgress = bc.userProgress[loserName] || 0;
+        io.to(room.roomId).emit('bridge-cross:bridgeCollapse', {
+            loser: loserName,
+            finalProgress,
+            totalCols: BRIDGE_COLUMNS
+        });
+
+        bc.interTurnTimer = setTimeout(() => {
+            bc.interTurnTimer = null;
+            if (!ctx.rooms[room.roomId]) return;
+            const room2 = ctx.rooms[room.roomId];
+            const gs2 = room2.gameState;
+            if (!gs2 || !gs2.bridgeCross) return;
+            endGame(room2, gs2);
+        }, BRIDGE_COLLAPSE_MS);
     }
 
     /**
@@ -403,6 +443,7 @@ module.exports = (socket, io, ctx) => {
             loser: loser,
             finishOrder: finishOrder.slice(),
             userProgress: Object.assign({}, userProgress),
+            totalCols: BRIDGE_COLUMNS,
             participants: participants.map(p => ({
                 userName: p.userName,
                 colorIndex: p.colorIndex,
@@ -421,6 +462,7 @@ module.exports = (socket, io, ctx) => {
             loser: loser,
             finishOrder: finishOrder,
             userProgress: userProgress,
+            totalCols: BRIDGE_COLUMNS,
             participants: participants.map(p => ({
                 userName: p.userName,
                 colorIndex: p.colorIndex,

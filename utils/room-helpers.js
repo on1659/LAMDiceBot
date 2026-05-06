@@ -69,13 +69,13 @@ function createRoomGameState() {
             phase: 'idle',
             // 라운드 데이터 (게임 시작 시 설정)
             participants: [],          // [{userName, colorIndex, mode}]
-            // server-only (절대 클라 노출 금지) — 8 col 보너스 row + 보너스 점프 칸수
-            bonusRows: [],             // length=8, 'top'|'bottom'
-            bonusAmounts: [],          // length=8, 2|3
+            // server-only (절대 클라 노출 금지) — 6 col 보너스 row + 보너스 점프 칸수
+            bonusRows: [],             // length=6, 'top'|'bottom'
+            bonusAmounts: [],          // length=6, 2 (단일)
             // 진행 추적 (bonus-race)
-            userProgress: {},          // {[userName]: 0~8}
+            userProgress: {},          // {[userName]: 0~6}
             finishOrder: [],           // [userName1, userName2, ...] — 도달 순서
-            currentWave: 0,            // 1~12 (BRIDGE_MAX_WAVES). sudden death 시 13+
+            currentWave: 0,            // 1~6 (BRIDGE_MAX_WAVES). sudden death 시 7+
             suddenDeathCount: 0,       // 0~6 (안전장치)
             // turn 진행
             waveDeadline: 0,           // Date.now() + 3000

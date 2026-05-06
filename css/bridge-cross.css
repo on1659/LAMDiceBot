@@ -117,35 +117,36 @@
 /* 사용자 결정(2026-04-30): 캔버스 stage-wrap 내 absolute로 띄움 */
 
 .bridge-wave-panel {
+    /* bonus-race(2026-05-05): 캔버스 하단으로 이동 + 사이즈 축소 — 다리 안 가리게 */
     position: absolute;
-    top: 12px;
+    bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 50;
     width: calc(100% - 24px);
-    max-width: 460px;
+    max-width: 380px;
     background: rgba(4, 7, 22, 0.85);
     border: 2px solid var(--bridge-500);
-    border-radius: 12px;
-    padding: 10px 14px;
+    border-radius: 10px;
+    padding: 6px 10px;
     color: white;
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 -6px 22px rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(6px);
-    animation: bridgeWavePanelSlideDown 0.22s ease-out;
+    animation: bridgeWavePanelSlideUp 0.22s ease-out;
 }
 
-@keyframes bridgeWavePanelSlideDown {
-    from { opacity: 0; transform: translate(-50%, -12px); }
+@keyframes bridgeWavePanelSlideUp {
+    from { opacity: 0; transform: translate(-50%, 12px); }
     to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 .bridge-wave-panel.hiding {
-    animation: bridgeWavePanelSlideUp 0.34s ease-in forwards;
+    animation: bridgeWavePanelSlideDown 0.34s ease-in forwards;
 }
 
-@keyframes bridgeWavePanelSlideUp {
+@keyframes bridgeWavePanelSlideDown {
     from { opacity: 1; transform: translate(-50%, 0); }
-    to { opacity: 0; transform: translate(-50%, -16px); }
+    to { opacity: 0; transform: translate(-50%, 16px); }
 }
 
 .bridge-wave-header {
@@ -156,7 +157,7 @@
 }
 
 .bridge-wave-label {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
     color: #42edff;
     font-family: 'Jua', 'Segoe UI', sans-serif;
@@ -164,18 +165,18 @@
 }
 
 .bridge-wave-countdown {
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 900;
     color: #fff;
     line-height: 1;
-    min-width: 36px;
+    min-width: 28px;
     text-align: center;
     font-family: 'Jua', 'Segoe UI', sans-serif;
     text-shadow: 0 0 8px rgba(66, 237, 255, 0.7);
 }
 
 .bridge-wave-header {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .bridge-wave-buttons + #waveChoiceStatus,
@@ -196,18 +197,18 @@
 .bridge-wave-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 8px;
 }
 
 .bridge-wave-btn {
     position: relative;
-    padding: 18px 10px;
-    border: 3px solid rgba(66, 237, 255, 0.5);
-    border-radius: 12px;
+    padding: 10px 6px;
+    border: 2px solid rgba(66, 237, 255, 0.5);
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.92);
     color: var(--bridge-accent);
     font-weight: 900;
-    font-size: 18px;
+    font-size: 15px;
     font-family: 'Jua', 'Segoe UI', sans-serif;
     cursor: pointer;
     transition: transform 0.14s, box-shadow 0.14s, background 0.14s, border-color 0.14s;
@@ -553,5 +554,26 @@
     .debug-panel {
         width: 220px;
         font-size: 10px;
+    }
+}
+
+/* 디버그 로그 패널 — 기본은 우하단 (좁은 화면 폴백) */
+.debug-log-section {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 360px;
+    max-height: 300px;
+}
+
+/* 와이드 화면(≥1280px) — 800px 컨테이너 우측 바깥으로 도킹 */
+@media (min-width: 1280px) {
+    .debug-log-section {
+        top: 80px;
+        bottom: auto;
+        left: calc(50% + 420px);
+        right: auto;
+        width: min(360px, calc(50vw - 420px));
+        max-height: calc(100vh - 100px);
     }
 }
