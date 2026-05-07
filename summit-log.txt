@@ -1,4 +1,60 @@
 ========================================
+📋 Summit Log - 2026-05-08 — 경마 등수 룰렛 연출 강화 + 변신 기믹 재밸런싱 + 가짜 변신 신규 + Evolution config 분리
+========================================
+
+## 변경 파일
+- socket/horse.js: 변신 부스터 확률 60→6%, 가짜 변신 신규 기믹, ROULETTE_ANIM_MS 5000→5500, EVOLUTION_CONFIG/FAKE_EVOLUTION_CONFIG → race.json 이동
+- js/horse-race.js: 룰렛 감속 파라미터 강화, runningHorseCount 서버 신뢰, invalid 박스 룰렛 회전 제외
+- config/horse/race.json: evolution / fakeEvolution 섹션 신설
+
+## 상세 변경 내역
+
+### [등수 룰렛 감속 강화 (#1)]
+- ROULETTE_ANIM_MS: 5000 → 5500ms
+- playRouletteAnimation: REPEAT 3→4, ease-out 지수 4.0→3.0, weight 1+25 → 1+40, tailBoost [1.4..2.5] → [1.6..4.0]
+- 마지막 step weight cap 30% — 막대 1~2개 케이스에서 마지막 step이 전체 시간의 60%+ 점유 → "갑자기 정지" 방지
+- 일반 케이스(totalSteps≥10)에선 cap 미발동 (no-op)
+
+### [변신 부스터 확률 축소 (#2)]
+- evolution.probability: 0.6 → 0.06 (희소성 부여)
+
+### [가짜 변신 신규 기믹 (#3)]
+- fakeEvolution 신설 — 진짜 추첨 실패 시 별도 추첨 (probability 0.20)
+- 후보: 그 시점 꼴찌 1마리 (rankThreshold -1, 진짜와 동일)
+- 변신 정지 1500ms (transformDurationMs) + fakeBoost 1.7배 × 1000ms (진짜 2.8배 × 5000ms 대비 약하고 짧게)
+- 카메라 컷어웨이 / burst / power 스프라이트 교체 — 진짜와 동일 연출 (페이크감)
+- 보호 구간 progressMin/Max 0.40~0.70 (진짜와 동일) — 다른 기믹과의 filter clear 충돌 방지
+- 시뮬: socket/horse.js 1788-1819 추첨 분기, 1976-2003 gimmicksData mutation
+- 클라 이펙트: js/horse-race.js evolution_fake / evolution_fake_boost 분기 추가 (1298, 2396, 2528, 2537, 2575, 2579, 2616)
+- replay/reconnect 호환: trackOptions에 fakeEvolutionTargets 동봉 (4453, 4551, 5447)
+
+### [등수 룰렛 invalid 박스 처리 (#4)]
+- playRouletteAnimation 진입 시 r > runningHorseCount 박스에 .invalid 클래스 부여
+- runningHorseCount는 서버 horseRouletteStart payload (line 433) 신뢰 — 익명성 보호로 클라 글로벌 userHorseBets는 본인 베팅만 보유 → 자체 계산 불가
+- 클라 자체 계산은 fallback으로만
+- allBars 수집 시 :not(.invalid) 필터 — invalid 박스 막대는 룰렛 회전 순회에서 제외 (정지 표시만, 받은 표 수는 그대로 보임)
+
+### [Evolution config 외부 분리]
+- EVOLUTION_CONFIG / FAKE_EVOLUTION_CONFIG 정의를 socket/horse.js → config/horse/race.json 이동
+- 다른 일반 기믹(stop/sprint/slow 등) types와 동일 위치 — 일관성 확보
+- socket/horse.js는 require로 4줄 로드 (정의 28줄 → 4줄)
+
+### [리뷰 피드백 fix]
+- CRITICAL: 룰렛 disable 클라 자체 계산 버그 → 서버 runningHorseCount 신뢰 (Reviewer-Codex 발견)
+- HIGH: 가짜 변신 보호 구간 0.05 → 0.40~0.70 (진짜와 동일, filter clear 충돌 차단)
+- MED: 룰렛 마지막 step weight 30% cap
+
+## 비고
+- 클라/서버 양쪽 변경, 서버 재시작 필요
+- DB 스키마 변경 없음, 마이그레이션 불필요
+- 다른 게임(주사위/룰렛/bridge-cross) 영향 없음
+- 공정성: 클라 Math.random 신규 추가 0건, 가짜 변신 추첨도 100% 서버 결정
+- 소켓 이벤트명 변경 없음 (horseRouletteStart payload에 runningHorseCount 추가만, 이미 존재)
+- js/horse-race.js diff에 line-ending 정규화 ~6000라인 포함 (실제 의미 변경은 52+/22- 라인) — 향후 review는 git diff -w 권장
+
+========================================
+
+========================================
 📋 Summit Log - 2026-05-05 (2) — 경마 튜토리얼에 등수 투표 step 추가 + 게임 기록 배지 보강
 ========================================
 

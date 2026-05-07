@@ -86,6 +86,29 @@
       }
     }
   },
+  "evolution": {
+    "progressMin": 0.40,
+    "progressMax": 0.70,
+    "checkProgress": 0.50,
+    "rankThreshold": -1,
+    "transformMultiplier": 0,
+    "transformDurationMs": 1500,
+    "boostMultiplier": 2.8,
+    "boostDurationMs": 5000,
+    "probability": 0.06
+  },
+  "fakeEvolution": {
+    "probability": 0.20,
+    "rankThreshold": -1,
+    "checkProgress": 0.50,
+    "progressTrigger": 0.55,
+    "transformMultiplier": 0,
+    "transformDurationMs": 1500,
+    "fakeBoostSpeedMultiplier": 1.7,
+    "fakeBoostDurationMs": 1000,
+    "progressMin": 0.40,
+    "progressMax": 0.70
+  },
   "photoFinish": {
     "gapPercent": [0.01, 0.02]
   },

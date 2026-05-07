@@ -6,22 +6,14 @@ const HORSE_COUNT_MAX = 6;       // 경마 최대 말 수
 const HORSE_COUNTDOWN_SEC = 4;   // 카운트다운 시간 (초)
 const HORSE_FRAME_INTERVAL = 16; // 레이스 프레임 인터벌 (~60fps, ms)
 const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
-const ROULETTE_ANIM_MS = 5000;   // N등 투표 룰렛 애니메이션 길이 (ms)
+const ROULETTE_ANIM_MS = 5500;   // N등 투표 룰렛 애니메이션 길이 (ms)
 const ROULETTE_HOLD_MS = 3000;   // 룰렛 결과 인지/감상 시간 (ms)
 const FALLBACK_HOLD_MS = 3000;   // fallback(투표 없음/모두 무효) 사유 표시 시간 (ms)
 
-// Evolution 기믹 설정
-const EVOLUTION_CONFIG = {
-    progressMin: 0.40,        // 발동 가능 시작 진행률
-    progressMax: 0.70,        // 발동 가능 종료 진행률
-    checkProgress: 0.50,      // 하위권 판별 시점 (50% 지점)
-    rankThreshold: -1,        // 하위 몇 등까지 (-1 = 꼴찌만)
-    transformMultiplier: 0,   // 변신 중 정지 (0 = 멈춤)
-    transformDurationMs: 1500, // 변신 시간 (ms)
-    boostMultiplier: 2.8,     // 질주 배율
-    boostDurationMs: 5000,    // 질주 시간 (ms)
-    probability: 0.6,         // 발동 확률
-};
+// Evolution / Fake Evolution 기믹 설정 — config/horse/race.json 의 evolution / fakeEvolution 섹션 참조
+const _horseRaceConfig = require('../config/horse/race.json');
+const EVOLUTION_CONFIG = _horseRaceConfig.evolution;
+const FAKE_EVOLUTION_CONFIG = _horseRaceConfig.fakeEvolution;
 // ────────────────────────
 const { ALL_VEHICLE_IDS, NEW_VEHICLE_IDS, NEW_VEHICLE_WEIGHT, VEHICLE_NAMES, weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
@@ -329,7 +321,7 @@ module.exports = (socket, io, ctx) => {
         gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
         const vehicleTypes = gameState.selectedVehicleTypes || [];
-        const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
+        const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets: verifiedFakeEvolutionTargets } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -364,6 +356,7 @@ module.exports = (socket, io, ctx) => {
             trackDistanceMeters: trackDistanceMeters,
             speedSeeds: speedSeeds,
             evolutionTargets: verifiedEvolutionTargets,
+            fakeEvolutionTargets: verifiedFakeEvolutionTargets,
             targetRank: resolvedTargetRank,
             targetRankReason: targetRankReason,
             timestamp: new Date().toISOString()
@@ -457,6 +450,7 @@ module.exports = (socket, io, ctx) => {
             weatherConfig: weatherConfig.vehicleModifiers || {}, // 탈것별 날씨 보정값 (클라이언트 표시용)
             allSameBet: allSameBet,
             evolutionTargets: verifiedEvolutionTargets,
+            fakeEvolutionTargets: verifiedFakeEvolutionTargets,
             targetRank: resolvedTargetRank,
             targetRankReason: targetRankReason
         };
@@ -1655,6 +1649,8 @@ module.exports = (socket, io, ctx) => {
         // Evolution 기믹 상태
         let evolutionChecked = false;
         let evolutionTargets = [];
+        // Fake Evolution 기믹 상태 (진짜와 별도 추첨, 결과를 크게 안 바꾸는 페이크)
+        let fakeEvolutionTargets = [];
 
         // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
         let frameCount = 0;
@@ -1768,6 +1764,36 @@ module.exports = (socket, io, ctx) => {
 
                                 evolutionTargets.push(candidate.horseIndex);
                                 console.log(`[서버시뮬] Evolution 대상: 말${candidate.horseIndex} (progressTrigger=0.55)`);
+                            } else if (Math.random() < FAKE_EVOLUTION_CONFIG.probability) {
+                                // 진짜 변신 추첨 실패 시 가짜 변신 별도 추첨
+                                const fakeGimmick = {
+                                    type: 'evolution_fake',
+                                    progressTrigger: FAKE_EVOLUTION_CONFIG.progressTrigger,
+                                    speedMultiplier: FAKE_EVOLUTION_CONFIG.transformMultiplier,
+                                    duration: FAKE_EVOLUTION_CONFIG.transformDurationMs,
+                                    nextGimmick: {
+                                        type: 'evolution_fake_boost',
+                                        duration: FAKE_EVOLUTION_CONFIG.fakeBoostDurationMs,
+                                        speedMultiplier: FAKE_EVOLUTION_CONFIG.fakeBoostSpeedMultiplier
+                                    },
+                                    triggered: false,
+                                    active: false,
+                                    endTime: 0
+                                };
+                                candidate.gimmicks.push(fakeGimmick);
+
+                                // 진짜 evolution과 동일한 보호 구간(progressMin~progressMax)에서 다른 기믹 비활성화
+                                // — fakeBoost 종료 시 filter='' 클리어가 sprint brightness/saturate를 같이 지우는 충돌 방지
+                                candidate.gimmicks.forEach(g => {
+                                    if (g !== fakeGimmick && g.type !== 'evolution' && g.type !== 'evolution_fake' &&
+                                        g.progressTrigger >= FAKE_EVOLUTION_CONFIG.progressMin &&
+                                        g.progressTrigger <= FAKE_EVOLUTION_CONFIG.progressMax) {
+                                        g.disabled = true;
+                                    }
+                                });
+
+                                fakeEvolutionTargets.push(candidate.horseIndex);
+                                console.log(`[서버시뮬] Fake Evolution 대상: 말${candidate.horseIndex} (progressTrigger=${FAKE_EVOLUTION_CONFIG.progressTrigger})`);
                             }
                         });
                     }
@@ -1923,13 +1949,46 @@ module.exports = (socket, io, ctx) => {
             console.log(`[서버시뮬] Evolution 이펙트 대상: 말${verifiedEvolutionTargets.join(', 말')}`);
         }
 
+        // ─── Fake Evolution 기믹 클라이언트 전달 처리 ───
+        // 가짜 변신은 "성공한 케이스만 필터"하지 않음 → 모든 발동 케이스를 그대로 전달
+        // 진짜 evolution과 동일한 보호 구간(0.40~0.70)을 적용 — sprint filter 클리어 충돌 차단
+        const fakeEvoMin = FAKE_EVOLUTION_CONFIG.progressMin;
+        const fakeEvoMax = FAKE_EVOLUTION_CONFIG.progressMax;
+        fakeEvolutionTargets.forEach(horseIndex => {
+            // 보호 구간(progressMin~progressMax) 기존 기믹 제거
+            if (gimmicksData[horseIndex]) {
+                gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g =>
+                    g.progressTrigger < fakeEvoMin ||
+                    g.progressTrigger > fakeEvoMax
+                );
+            }
+            // 가짜 변신 기믹을 gimmicksData에 역삽입 (클라이언트 전달용)
+            const state = horseStates.find(s => s.horseIndex === horseIndex);
+            const fakeGimmick = state && state.gimmicks.find(g => g.type === 'evolution_fake');
+            if (fakeGimmick && gimmicksData[horseIndex]) {
+                gimmicksData[horseIndex].push({
+                    type: 'evolution_fake',
+                    progressTrigger: fakeGimmick.progressTrigger,
+                    speedMultiplier: fakeGimmick.speedMultiplier,
+                    duration: fakeGimmick.duration,
+                    nextGimmick: fakeGimmick.nextGimmick || null
+                });
+                // disabled 기믹 제거 (클라이언트에 보내지 않음)
+                gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g => !g.disabled);
+            }
+        });
+
+        if (fakeEvolutionTargets.length > 0) {
+            console.log(`[서버시뮬] Fake Evolution 이펙트 대상: 말${fakeEvolutionTargets.join(', 말')}`);
+        }
+
         // 클라이언트 동기화용 시드 정보
         const speedSeeds = horseStates.map(s => ({
             changeSeed: s.speedChangeSeed,
             initialFactor: s.initialSpeedFactor
         }));
 
-        return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets };
+        return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets };
     }
 
     // 룰에 맞는 당첨자 확인 함수

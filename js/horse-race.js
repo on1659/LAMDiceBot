@@ -1149,12 +1149,28 @@ function playRouletteAnimation(data) {
     // 막대가 화면에 그려져 있는지 보장 (룰렛 시각화는 readyUsers/isRaceActive 무관하게 강제 표시)
     if (typeof renderRankVoteSection === 'function') renderRankVoteSection({ forceShow: true });
 
+    // 룰렛 단계에서 불가능한 등수 disable — 실제 출주 마릿수보다 높은 등수는 invalid 표시
+    // 서버가 horseRouletteStart payload로 보내는 runningHorseCount를 신뢰 (익명성 보호로 클라 글로벌은 본인 베팅만 가짐).
+    // 서버 값이 없는 경우에만 클라 자체 계산을 fallback으로 사용.
+    var runningHorseCount = (typeof data.runningHorseCount === 'number')
+        ? data.runningHorseCount
+        : new Set(Object.values(userHorseBets || {})).size;
+    if (runningHorseCount > 0) {
+        var rankBoxes = document.querySelectorAll('.rank-vote-box[data-rank]');
+        rankBoxes.forEach(function(box) {
+            var rank = parseInt(box.getAttribute('data-rank'), 10);
+            if (rank > runningHorseCount) {
+                box.classList.add('invalid');
+            }
+        });
+    }
+
     // 결과 연출 UI를 경주 캔버스 오버레이로 이동
     moveResultUiToCanvas();
 
-    // DOM 순서대로 모든 막대 수집
+    // DOM 순서대로 활성 막대만 수집 — invalid(비활성) 박스 막대는 표시만 하고 룰렛 순회에서 제외
     var allBars = Array.prototype.slice.call(
-        document.querySelectorAll('.rank-vote-box .rank-vote-bar')
+        document.querySelectorAll('.rank-vote-box:not(.invalid) .rank-vote-bar')
     );
     if (allBars.length === 0) return;
 
@@ -1174,21 +1190,31 @@ function playRouletteAnimation(data) {
     }
 
     // 총 스텝 = 전체 사이클 REPEAT 회 + 마지막 사이클에서 target까지
-    var REPEAT = 3;
+    var REPEAT = 4;
     var totalSteps = REPEAT * allBars.length + targetIdx + 1;
 
     // 각 스텝 가중치(ease-out) — 처음 빠르게, 끝 천천히 (쫄깃한 감속)
     var weights = [];
     for (var i = 0; i < totalSteps; i++) {
         var t = totalSteps > 1 ? (i / (totalSteps - 1)) : 1;
-        // 더 강한 ease-out (지수 4.0) + 더 큰 감속 폭 (1x → 25x)
-        var eased = 1 - Math.pow(1 - t, 4.0);
-        weights.push(1 + eased * 25);
+        // 시작 더 빠르게(지수 3.0) + 감속비 강화 (1x → 40x)
+        var eased = 1 - Math.pow(1 - t, 3.0);
+        weights.push(1 + eased * 40);
     }
-    // 마지막 5스텝은 추가로 더 느리게 — 쫄깃하게 (점진적 부스트 1.4x→2.5x)
-    var tailBoost = [1.4, 1.6, 1.9, 2.2, 2.5];
+    // 마지막 5스텝은 추가로 더 느리게 — 쫄깃하게 (점진적 부스트 1.6x→4.0x)
+    var tailBoost = [1.6, 2.0, 2.5, 3.0, 4.0];
     for (var k = 0; k < tailBoost.length && (totalSteps - 1 - k) >= 0; k++) {
         weights[totalSteps - 1 - k] *= tailBoost[k];
+    }
+    // 마지막 step weight cap — 막대 수가 적을 때(예: REPEAT=4, allBars=1 → totalSteps=5)
+    // 마지막 한 step이 전체 시간의 60%+ 차지해 "감속" 대신 "갑자기 정지"처럼 보이는 문제 방지.
+    // 마지막 weight 비중을 30% 이하로 제한.
+    var weightCapRatio = 0.30;
+    var totalWeightBeforeCap = weights.reduce(function(a, b) { return a + b; }, 0);
+    var otherWeightSum = totalWeightBeforeCap - weights[totalSteps - 1];
+    var maxLastWeight = otherWeightSum * weightCapRatio / (1 - weightCapRatio);
+    if (weights[totalSteps - 1] > maxLastWeight) {
+        weights[totalSteps - 1] = maxLastWeight;
     }
     var totalWeight = weights.reduce(function(a, b) { return a + b; }, 0);
     var scale = animDurationMs / totalWeight;
@@ -1283,6 +1309,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     // ========== 다시보기/Evolution 플래그 ==========
     const isReplay = (trackOptions && trackOptions.isReplay) || false;
     const evolutionTargets = (trackOptions && trackOptions.evolutionTargets) || [];
+    const fakeEvolutionTargets = (trackOptions && trackOptions.fakeEvolutionTargets) || [];
 
     // ========== 날씨 시스템 초기화 ==========
     const speedSeeds = (trackOptions && trackOptions.speedSeeds) || null;
@@ -2379,8 +2406,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
                 // 기믹 체크
                 state.gimmicks.forEach(gimmick => {
-                    // Evolution 예고: 트리거 1.5초 전 (라이브만)
-                    if (!isReplay && gimmick.type === 'evolution' && !gimmick.triggered && !gimmick._chargeStarted) {
+                    // Evolution 예고: 트리거 1.5초 전 (라이브만, 진짜/가짜 동일 처리)
+                    if (!isReplay && (gimmick.type === 'evolution' || gimmick.type === 'evolution_fake') && !gimmick.triggered && !gimmick._chargeStarted) {
                         const chargeProgress = gimmick.progressTrigger - 0.03;
                         if (progress >= chargeProgress) {
                             gimmick._chargeStarted = true;
@@ -2512,8 +2539,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             rBoostEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;';
                             state.horse.appendChild(rBoostEffect);
                             gimmick.effectElement = rBoostEffect;
-                        } else if (gimmick.type === 'evolution') {
-                            // Evolution 변신 단계: 정지 + burst 이펙트
+                        } else if (gimmick.type === 'evolution' || gimmick.type === 'evolution_fake') {
+                            // Evolution 변신 단계: 정지 + burst 이펙트 (진짜/가짜 동일 연출)
                             announceEvolutionStage('evolutionBurst', state, 3200);
                             state.horse.classList.remove('evolution-charge');
                             state.horse.classList.add('evolution-burst');
@@ -2521,8 +2548,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.classList.remove('racing');
                             state.horse.classList.add('rest');
                             setVehicleState(state.horse, state.horse.dataset.vehicleId, 'rest');
-                        } else if (gimmick.type === 'evolution_boost') {
-                            // Evolution 질주 단계: power 스프라이트 + 가속 (라이브/다시보기 동일)
+                        } else if (gimmick.type === 'evolution_boost' || gimmick.type === 'evolution_fake_boost') {
+                            // Evolution 질주 단계: power 스프라이트 + 가속 (라이브/다시보기 동일, 진짜/가짜 동일 연출)
                             state._evolutionBoostUsed = true;
                             state._evolutionLeadEligibleAt = Date.now() + 2200;
                             announceEvolutionStage('evolutionBoost', state, 3200);
@@ -2558,12 +2585,12 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             state.horse.classList.add('racing');
                             setVehicleState(state.horse, state.horse.dataset.vehicleId, 'run');
                         }
-                        // evolution 변신 종료: burst 정리 (nextGimmick으로 boost가 이어짐)
-                        if (gimmick.type === 'evolution') {
+                        // evolution 변신 종료: burst 정리 (nextGimmick으로 boost가 이어짐, 진짜/가짜 동일)
+                        if (gimmick.type === 'evolution' || gimmick.type === 'evolution_fake') {
                             state.horse.classList.remove('evolution-charge', 'evolution-burst');
                         }
-                        // evolution_boost 종료: 이펙트 정리 + base 스프라이트 복원 + 카메라 해제
-                        if (gimmick.type === 'evolution_boost') {
+                        // evolution_boost 종료: 이펙트 정리 + base 스프라이트 복원 + 카메라 해제 (진짜/가짜 동일)
+                        if (gimmick.type === 'evolution_boost' || gimmick.type === 'evolution_fake_boost') {
                             state.horse.classList.remove('evolution-run', 'evolution-charge', 'evolution-burst');
                             state.horse.style.filter = '';
                             // 카메라 해제
@@ -2600,7 +2627,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         //   (속도 배수만 반영, 시각 효과 분기는 기존 동작 유지)
                         if (gimmick.nextGimmick && !gimmick.chainTriggered) {
                             gimmick.chainTriggered = true;
-                            const isEvolutionChain = gimmick.nextGimmick.type === 'evolution_boost';
+                            const isEvolutionChain = gimmick.nextGimmick.type === 'evolution_boost' || gimmick.nextGimmick.type === 'evolution_fake_boost';
                             state.gimmicks.push({
                                 progressTrigger: 0,
                                 type: gimmick.nextGimmick.type,
@@ -4436,7 +4463,8 @@ function playReplay(record) {
             weatherSchedule: record.weatherSchedule || [],
             weatherConfig: window._weatherConfig || {},
             isReplay: true,
-            evolutionTargets: record.evolutionTargets || []
+            evolutionTargets: record.evolutionTargets || [],
+            fakeEvolutionTargets: record.fakeEvolutionTargets || []
         });
     }, 4000);
 }
@@ -4533,7 +4561,8 @@ function replayMissedRace() {
                 weatherSchedule: data.weatherSchedule || [],
                 weatherConfig: window._weatherConfig || {},
                 isReplay: true,
-                evolutionTargets: data.evolutionTargets || []
+                evolutionTargets: data.evolutionTargets || [],
+                fakeEvolutionTargets: data.fakeEvolutionTargets || []
             });
         }, 4000);
     }
@@ -5428,7 +5457,8 @@ socket.on('horseRaceStarted', (data) => {
         speedSeeds: data.speedSeeds || null,
         weatherSchedule: data.weatherSchedule || [],
         weatherConfig: data.weatherConfig || {},
-        evolutionTargets: data.evolutionTargets || []
+        evolutionTargets: data.evolutionTargets || [],
+        fakeEvolutionTargets: data.fakeEvolutionTargets || []
     });
 
     // 게임 상태 업데이트 + 실황 중계 시작
