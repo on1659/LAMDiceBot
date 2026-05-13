@@ -1987,6 +1987,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="/js/shared/page-history-shared.js"></script>
+    <script src="/js/shared/free-invite.js"></script>
     <script src="/config/client-config.js"></script>
     <script src="/js/tagline-roller.js"></script>
     <script src="/js/shared/server-select-shared.js"></script>
@@ -4061,6 +4062,7 @@
             document.querySelector('.history-section').classList.add('visible');
 
             initializeGameScreen(data);
+            if (window.FreeInvite) window.FreeInvite.init();
         });
 
         // 방 입장 성공
@@ -4101,6 +4103,7 @@
             document.querySelector('.history-section').classList.add('visible');
 
             initializeGameScreen(data);
+            if (window.FreeInvite) window.FreeInvite.init();
         });
 
         // 게임 화면 초기화

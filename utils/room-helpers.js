@@ -1,6 +1,7 @@
 // 방 관리 유틸리티
 const crypto = require('crypto');
 const { loadFrequentMenus } = require('../db/menus');
+const { releaseShortcode } = require('./shortcode');
 
 function generateRoomId() {
     return crypto.randomBytes(4).toString('hex');
@@ -93,4 +94,16 @@ function createRoomGameState() {
     };
 }
 
-module.exports = { generateRoomId, generateUniqueUserName, createRoomGameState };
+// 방 삭제 헬퍼 — shortcode cleanup 포함
+// 모든 `delete rooms[roomId]` 호출 지점에서 이 헬퍼를 사용해야
+// /free 발급 shortcode 메모리 누수를 막을 수 있다.
+function deleteRoom(rooms, roomId) {
+    if (!rooms || !roomId) return;
+    const room = rooms[roomId];
+    if (room && room.shortcode) {
+        releaseShortcode(room.shortcode);
+    }
+    delete rooms[roomId];
+}
+
+module.exports = { generateRoomId, generateUniqueUserName, createRoomGameState, deleteRoom };

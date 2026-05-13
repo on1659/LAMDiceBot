@@ -1220,6 +1220,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/shared/page-history-shared.js"></script>
+    <script src="/js/shared/free-invite.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/chat-shared.js"></script>
     <script src="/js/shared/ready-shared.js"></script>
@@ -3485,6 +3486,7 @@
 
             initializeGameScreen(data);
             ReadyModule.setReadyUsers(readyUsers);
+            if (window.FreeInvite) window.FreeInvite.init();
         });
 
         socket.on('roomJoined', (data) => {
@@ -3513,6 +3515,7 @@
             setRouletteSoundCheckboxes();
             initializeGameScreen(data);
             ReadyModule.setReadyUsers(readyUsers);
+            if (window.FreeInvite) window.FreeInvite.init();
         });
 
         socket.on('roomError', (message) => {
@@ -3980,7 +3983,12 @@
                     }
 
                     // URL에서 파라미터 제거
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    (function() {
+                        var u = new URL(window.location.href);
+                        u.searchParams.delete('createRoom');
+                        u.searchParams.delete('joinRoom');
+                        window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
+                    })();
                 }
             }
             
@@ -4027,7 +4035,12 @@
                     }
                     
                     // URL에서 파라미터 제거
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    (function() {
+                        var u = new URL(window.location.href);
+                        u.searchParams.delete('createRoom');
+                        u.searchParams.delete('joinRoom');
+                        window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
+                    })();
                 }
             }
         });

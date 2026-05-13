@@ -10,6 +10,7 @@ const { initDatabase } = require('./db/init');
 const { loadSuggestions } = require('./db/suggestions');
 const { setupRoutes } = require('./routes/api');
 const { setupSocketHandlers } = require('./socket/index');
+const { deleteRoom } = require('./utils/room-helpers');
 
 // Express & HTTP 서버 생성
 const app = express();
@@ -101,7 +102,7 @@ async function startServer() {
                             reason: `방이 ${room.expiryHours}시간 경과로 자동 삭제되었습니다.`
                         });
                     }
-                    delete rooms[roomId];
+                    deleteRoom(rooms, roomId);
                     const roomsList = Object.entries(rooms).map(([id, r]) => ({
                         roomId: id,
                         roomName: r.roomName,

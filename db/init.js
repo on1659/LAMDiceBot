@@ -58,6 +58,21 @@ async function initDatabase() {
             CREATE INDEX IF NOT EXISTS idx_game_records_played_at ON game_records(played_at DESC)
         `);
 
+        // ─── 광고 노출 측정 테이블 (Phase D) ───
+        // /free origin vs 기존 dice 로비 origin 비교용 ping 저장.
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ad_impression (
+                id BIGSERIAL PRIMARY KEY,
+                game_type VARCHAR(32),
+                page VARCHAR(64),
+                origin VARCHAR(16),
+                ip VARCHAR(64),
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_ad_impression_created ON ad_impression(created_at DESC)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_ad_impression_origin_game ON ad_impression(origin, game_type)`);
+
         // ─── 서버 시스템 테이블 ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS servers (

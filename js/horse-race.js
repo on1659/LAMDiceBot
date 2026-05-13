@@ -4918,6 +4918,7 @@ socket.on('roomCreated', (data) => {
 
     initializeGameScreen(data);
     ReadyModule.setReadyUsers(readyUsers);
+    if (window.FreeInvite) window.FreeInvite.init();
 });
 
 socket.on('roomJoined', (data) => {
@@ -5011,6 +5012,8 @@ socket.on('roomJoined', (data) => {
             }
         }, 500);
     }
+
+    if (window.FreeInvite) window.FreeInvite.init();
 });
 
 socket.on('roomError', (message) => {
@@ -5881,7 +5884,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            window.history.replaceState({}, document.title, window.location.pathname);
+            (function() {
+                var u = new URL(window.location.href);
+                u.searchParams.delete('createRoom');
+                u.searchParams.delete('joinRoom');
+                window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
+            })();
         }
     }
     
@@ -5916,7 +5924,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
-            window.history.replaceState({}, document.title, window.location.pathname);
+            (function() {
+                var u = new URL(window.location.href);
+                u.searchParams.delete('createRoom');
+                u.searchParams.delete('joinRoom');
+                window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
+            })();
         }
     }
 });

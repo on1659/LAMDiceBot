@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Google AdSense (auto-ads disabled on game pages) -->
+    <meta name="google-adsense-account" content="ca-pub-1608259764663412">
+    <script>
+      /* Disable auto-ads (anchor/vignette) on game pages — this is a config call, not a slot push */
+      (adsbygoogle = window.adsbygoogle || []).push({ google_ad_client: "ca-pub-1608259764663412", enable_page_level_ads: false });
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
+
+    <!-- FOUC Prevention: Always use light theme -->
+    <script>
+      (function() {
+        // Always use light mode regardless of system preference
+        document.documentElement.setAttribute('data-theme', 'light');
+      })();
+    </script>
+
+    <!-- Theme Variables -->
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/free.css">
+
+    <title>친구랑 같이 놀기 - LAMDice</title>
+    <meta name="description" content="게임을 고르면 방이 생겨요. 다이렉트 링크로 친구를 초대해서 함께 노는 LAMDice 자유 모드.">
+    <meta property="og:title" content="친구랑 같이 놀기 - LAMDice">
+    <meta property="og:description" content="게임을 고르면 방이 생겨요. 다이렉트 링크로 친구를 초대해서 함께 노는 LAMDice 자유 모드.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lamdice.kr/free">
+    <meta property="og:site_name" content="LAMDice">
+    <meta property="og:locale" content="ko_KR">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="친구랑 같이 놀기 - LAMDice">
+    <meta name="twitter:description" content="게임을 고르면 방이 생겨요. 다이렉트 링크로 친구를 초대해서 함께 노는 LAMDice 자유 모드.">
+    <link rel="canonical" href="https://lamdice.kr/free">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LAMDice 친구랑 같이 놀기",
+      "description": "게임을 고르면 방이 생겨요. 다이렉트 링크로 친구를 초대해서 함께 노는 LAMDice 자유 모드.",
+      "url": "https://lamdice.kr/free",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+    }
+    </script>
+</head>
+<body>
+    <noscript>
+        <div style="padding:40px; text-align:center; font-family:sans-serif;">
+            <h1>친구랑 같이 놀기</h1>
+            <p>이 페이지는 JavaScript가 필요합니다.</p>
+            <p><a href="/">홈으로 돌아가기</a></p>
+        </div>
+    </noscript>
+
+    <main class="free-main" id="freeMain">
+        <h1>친구랑 같이 놀기</h1>
+        <p class="subtitle">게임을 고르면 방이 생겨요. 링크로 친구를 초대하세요</p>
+
+        <div class="game-grid" id="gameGrid">
+            <button type="button" class="game-card" data-game="dice">
+                <div class="game-emoji">🎲</div>
+                <div>
+                    <div class="game-name">주사위</div>
+                    <div class="game-meta">2~10명</div>
+                </div>
+            </button>
+            <button type="button" class="game-card" data-game="roulette">
+                <div class="game-emoji">🎰</div>
+                <div>
+                    <div class="game-name">룰렛</div>
+                    <div class="game-meta">2~10명</div>
+                </div>
+            </button>
+            <button type="button" class="game-card" data-game="horse">
+                <div class="game-emoji">🐎</div>
+                <div>
+                    <div class="game-name">경마</div>
+                    <div class="game-meta">2~10명</div>
+                </div>
+            </button>
+            <button type="button" class="game-card" data-game="bridge">
+                <div class="game-emoji">🌉</div>
+                <div>
+                    <div class="game-name">다리건너기</div>
+                    <div class="game-meta">2~10명</div>
+                </div>
+            </button>
+        </div>
+
+        <button type="button" class="ranking-cta" id="rankingButton">🏆 자유 랭킹 보기</button>
+        <button type="button" class="cancel-match" id="cancelMatchButton">취소</button>
+    </main>
+
+    <!-- 이름 토스트 (재방문 — 3초 카운트다운) -->
+    <div class="name-toast" id="nameToast">
+        <div class="name-text"><b id="nameToastName"></b>(으)로 입장합니다</div>
+        <div class="countdown" id="nameToastCountdown">3</div>
+        <button type="button" class="toast-link" id="nameToastChange">다른 이름</button>
+    </div>
+
+    <!-- 이름 모달 (신규 — 강한 입력) -->
+    <div class="modal-backdrop hidden" id="nameModal">
+        <div class="modal">
+            <h2>이름을 알려주세요</h2>
+            <p class="modal-sub">다른 사람들에게 이 이름으로 보여요</p>
+            <input type="text" id="nameModalInput" placeholder="닉네임 (최대 8자)" maxlength="8" autocomplete="off">
+            <button type="button" class="modal-btn" id="nameModalSubmit">매칭 시작 →</button>
+        </div>
+    </div>
+
+    <!-- 만료 모달 -->
+    <div class="modal-backdrop hidden" id="expiredModal">
+        <div class="modal expired-modal">
+            <div class="expired-icon">⏰</div>
+            <h2>이 방은 끝났어요</h2>
+            <p class="modal-sub">친구가 새 방을 만들었거나<br>방이 비어서 사라졌어요</p>
+            <div class="expired-actions">
+                <button type="button" class="btn-ghost" id="expiredMainButton">메인으로</button>
+                <button type="button" class="btn-primary" id="expiredNewRoomButton">새 방 만들기</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/shared/ranking-shared.js"></script>
+    <script src="/js/free.js"></script>
+</body>
+</html>

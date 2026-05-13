@@ -4,6 +4,34 @@ const fs = require('fs');
 const { getPool } = require('../db/pool');
 const { loadFrequentMenus, getMergedFrequentMenus, loadEmojiConfigBase, getMergedEmojiConfig } = require('../db/menus');
 const { getVisitorStats, getGameStatsByType, getRecentPlaysList } = require('../db/stats');
+const { resolveShortcode } = require('../utils/shortcode');
+
+// /free shortcode rate limiter — IP당 분당 30회 (shortcode 무차별 대입 방지).
+// express-rate-limit이 로드되지 않은 환경 (테스트 등)에서는 no-op으로 fallback.
+let _rateLimit = null;
+try { _rateLimit = require('express-rate-limit'); } catch (e) {}
+const freeShortcodeLimiter = _rateLimit ? _rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'too_many_requests' }
+}) : (req, res, next) => next();
+
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'bridge'];
+
+// 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
+// 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
+const adImpressionLimiter = _rateLimit ? _rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: false,
+    legacyHeaders: false,
+    message: { error: 'too_many_requests' }
+}) : (req, res, next) => next();
+
+// 허용 origin whitelist — 외 값은 null로 정규화하여 저장.
+const AD_IMPRESSION_ORIGINS = ['free', 'lobby', 'server'];
 
 function getServerId() {
     return process.env.SERVER_ID || 'default';
@@ -67,6 +95,98 @@ function setupRoutes(app) {
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.sendFile(path.join(__dirname, '..', 'bridge-cross-multiplayer.html'));
+    });
+
+    // /free 즉석 방 만들기 — 메인 페이지
+    app.get('/free', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'free.html'));
+    });
+
+    // /free/:game/:shortcode — 다이렉트 링크 진입 (specific 라우트, /free/:game 보다 먼저)
+    // shortcode 무차별 대입 방지 rate limit 적용
+    app.get('/free/:game/:shortcode', freeShortcodeLimiter, (req, res) => {
+        const { game, shortcode } = req.params;
+        if (!FREE_GAME_SLUGS.includes(game)) return res.redirect('/free');
+        if (!/^[A-Z0-9]{4,5}$/.test(shortcode)) {
+            return res.redirect(`/free/${game}?expired=true`);
+        }
+        // 실제 resolve는 클라가 /api/free/resolve로 호출.
+        // 만료 여부 분기까지 클라에서 처리해 흐름 일관성 유지.
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'free.html'));
+    });
+
+    // /free/:game — 카드 직접 진입 (자동 방 생성 흐름)
+    app.get('/free/:game', (req, res) => {
+        const { game } = req.params;
+        if (!FREE_GAME_SLUGS.includes(game)) return res.redirect('/free');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'free.html'));
+    });
+
+    // shortcode → 방 정보 resolve REST endpoint
+    app.get('/api/free/resolve/:code', freeShortcodeLimiter, (req, res) => {
+        const { code } = req.params;
+        if (!code || !/^[A-Z0-9]{4,5}$/.test(code)) {
+            return res.status(400).json({ error: 'invalid_code' });
+        }
+        const rooms = req.app.get('rooms') || {};
+        const roomId = resolveShortcode(code);
+        if (!roomId || !rooms[roomId]) {
+            return res.status(404).json({ error: 'expired' });
+        }
+        const room = rooms[roomId];
+        const gs = room.gameState || {};
+        const isGameActive = !!(
+            gs.isGameActive ||
+            gs.isHorseRaceActive ||
+            (gs.bridgeCross && gs.bridgeCross.phase && gs.bridgeCross.phase !== 'idle' && gs.bridgeCross.phase !== 'finished')
+        );
+        res.json({
+            roomId,
+            gameType: room.gameType,
+            hostName: room.hostName,
+            isGameActive,
+            playerCount: Array.isArray(gs.users) ? gs.users.length : 0
+        });
+    });
+
+    // 광고 노출 측정 ping (Phase D)
+    // /free origin과 기존 dice 로비 origin의 광고 노출을 비교해 카니발리제이션을 측정.
+    // DB 없으면 graceful skip, 실패해도 페이지 동작 무영향.
+    app.post('/api/ad-impression', adImpressionLimiter, async (req, res) => {
+        try {
+            const { recordAdImpression } = require('../db/ad-impression');
+            const body = req.body || {};
+            const rawGameType = typeof body.gameType === 'string' ? body.gameType : null;
+            const rawPage     = typeof body.page === 'string' ? body.page : null;
+            const rawOrigin   = typeof body.origin === 'string' ? body.origin : null;
+            if (!rawGameType && !rawPage) {
+                return res.status(400).json({ error: 'invalid' });
+            }
+
+            const safeGameType = rawGameType ? rawGameType.slice(0, 32) : null;
+            const safePage     = rawPage ? rawPage.slice(0, 64) : null;
+            const safeOrigin   = AD_IMPRESSION_ORIGINS.includes(rawOrigin) ? rawOrigin : null;
+
+            await recordAdImpression({
+                gameType: safeGameType,
+                page: safePage,
+                origin: safeOrigin,
+                ip: req.ip
+            });
+            res.json({ ok: true });
+        } catch (e) {
+            console.warn('[/api/ad-impression] 처리 실패:', e.message);
+            res.status(500).json({ error: 'internal' });
+        }
     });
 
     // 기존 .html URL 301 리디렉트 (SEO: 구 URL → 현재 URL)

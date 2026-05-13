@@ -1,4 +1,4 @@
-const { generateRoomId, generateUniqueUserName, createRoomGameState } = require('../utils/room-helpers');
+const { generateRoomId, generateUniqueUserName, createRoomGameState, deleteRoom } = require('../utils/room-helpers');
 const { weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 
 // ─── 조정 가능한 상수 ───
@@ -1124,7 +1124,7 @@ module.exports = (socket, io, ctx) => {
                         s.userName = null;
                         s.isHost = false;
                     });
-                    delete rooms[roomId];
+                    deleteRoom(rooms, roomId);
                     updateRoomsList();
                 }
             } else {
@@ -1141,7 +1141,7 @@ module.exports = (socket, io, ctx) => {
                 });
 
                 // 방 삭제
-                delete rooms[roomId];
+                deleteRoom(rooms, roomId);
 
                 // 방 목록 업데이트
                 updateRoomsList();
@@ -1166,7 +1166,7 @@ module.exports = (socket, io, ctx) => {
                 });
 
                 // 방 삭제
-                delete rooms[roomId];
+                deleteRoom(rooms, roomId);
 
                 // 방 목록 업데이트
                 updateRoomsList();

@@ -196,7 +196,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     tabId: getTabId()
                 });
             });
-            window.history.replaceState({}, document.title, window.location.pathname);
+            (function() {
+                var u = new URL(window.location.href);
+                u.searchParams.delete('createRoom');
+                u.searchParams.delete('joinRoom');
+                window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
+            })();
         }
     }
 
@@ -226,7 +231,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             });
-            window.history.replaceState({}, document.title, window.location.pathname);
+            (function() {
+                var u = new URL(window.location.href);
+                u.searchParams.delete('createRoom');
+                u.searchParams.delete('joinRoom');
+                window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
+            })();
         }
     }
 });
@@ -1037,6 +1047,7 @@ socket.on('roomCreated', (data) => {
     updateStartButton();
 
     addDebugLog(`방 생성: ${data.roomId}`, 'bridge');
+    if (window.FreeInvite) window.FreeInvite.init();
 });
 
 socket.on('roomJoined', (data) => {
@@ -1082,6 +1093,7 @@ socket.on('roomJoined', (data) => {
     updateStartButton();
 
     addDebugLog(`방 입장: ${data.roomId} (host=${isHost})`, 'bridge');
+    if (window.FreeInvite) window.FreeInvite.init();
 });
 
 // 사용자 목록 렌더링 (horse-race 패턴 mimic)
