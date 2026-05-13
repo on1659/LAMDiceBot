@@ -330,14 +330,21 @@
         }
 
         if (gameType === 'dice') {
-            // dice는 sessionStorage.diceActiveRoom → 자동 joinRoom (페이지 IIFE)
+            // dice-game-multiplayer.html IIFE가 sessionStorage.diceSession 보고
+            // 자유서버 로비 진입 → diceActiveRoom으로 자동 joinRoom 발동.
             try {
+                sessionStorage.setItem('diceSession', JSON.stringify({
+                    serverId: null,
+                    serverName: null,
+                    hostName: null
+                }));
                 sessionStorage.setItem('diceActiveRoom', JSON.stringify({
                     roomId: info.roomId,
                     userName: userName,
                     serverId: null,
                     serverName: null
                 }));
+                localStorage.setItem('userName', userName);
             } catch (_) {}
             window.location.href = '/game?from=free&shortcode=' + encodeURIComponent(shortcode);
             return;
@@ -379,12 +386,18 @@
 
         if (gameType === 'dice') {
             try {
+                sessionStorage.setItem('diceSession', JSON.stringify({
+                    serverId: null,
+                    serverName: null,
+                    hostName: userName
+                }));
                 sessionStorage.setItem('diceActiveRoom', JSON.stringify({
                     roomId: roomId,
                     userName: userName,
                     serverId: null,
                     serverName: null
                 }));
+                localStorage.setItem('userName', userName);
             } catch (_) {}
             window.location.href = '/game?from=free&shortcode=' + encodeURIComponent(shortcode);
             return;
