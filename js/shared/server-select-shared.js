@@ -1093,7 +1093,10 @@ const ServerSelectModule = (function () {
     // ─── 서버 선택/입장 ───
 
     function selectFree() {
-        _showNameModal();
+        // 모달 없이 곧장 자유 모드 진입 — 닉네임은 자유 로비 헤더 입력란에서 받는다.
+        hide();
+        PageHistoryManager.pushPage('lobby');
+        if (_onSelect) _onSelect({ serverId: null, serverName: null });
     }
 
     function _showNameModal() {
