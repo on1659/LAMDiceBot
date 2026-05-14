@@ -97,34 +97,24 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'bridge-cross-multiplayer.html'));
     });
 
-    // /free 즉석 방 만들기 — 메인 페이지
+    // /free — 메인 페이지 [바로 플레이]와 동일한 흐름.
+    // dice-game-multiplayer.html이 path === '/free' 감지 시 자유 모드 자동 진입.
     app.get('/free', (req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'free.html'));
+        res.sendFile(path.join(__dirname, '..', 'dice-game-multiplayer.html'));
     });
 
-    // /free/:game/:shortcode — 다이렉트 링크 진입 (specific 라우트, /free/:game 보다 먼저)
-    // shortcode 무차별 대입 방지 rate limit 적용
+    // /free/:game/:shortcode — 다이렉트 링크 진입 (shortcode resolve wrapper).
+    // shortcode 무차별 대입 방지 rate limit 적용.
     app.get('/free/:game/:shortcode', freeShortcodeLimiter, (req, res) => {
         const { game, shortcode } = req.params;
         if (!FREE_GAME_SLUGS.includes(game)) return res.redirect('/free');
         if (!/^[A-Z0-9]{4,5}$/.test(shortcode)) {
-            return res.redirect(`/free/${game}?expired=true`);
+            return res.redirect(`/free?expired=true`);
         }
-        // 실제 resolve는 클라가 /api/free/resolve로 호출.
-        // 만료 여부 분기까지 클라에서 처리해 흐름 일관성 유지.
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'free.html'));
-    });
-
-    // /free/:game — 카드 직접 진입 (자동 방 생성 흐름)
-    app.get('/free/:game', (req, res) => {
-        const { game } = req.params;
-        if (!FREE_GAME_SLUGS.includes(game)) return res.redirect('/free');
+        // 실제 resolve는 클라가 /api/free/resolve로 호출, 게임 페이지로 자동 redirect.
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');

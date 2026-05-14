@@ -18,6 +18,7 @@
     const PATH_TO_SLUG = {
         '/game': 'dice',
         '/dice-game': 'dice',
+        '/free': 'dice',         // /free 자유 로비 = dice 자유 모드
         '/roulette': 'roulette',
         '/horse-race': 'horse',
         '/bridge-cross': 'bridge'
@@ -25,13 +26,21 @@
 
     let initialized = false;
 
-    function init() {
+    /**
+     * init(opts)
+     *   - opts.shortcode (선택): 명시적으로 shortcode 전달 (예: roomCreated/roomJoined payload)
+     *   - opts 없으면 URL ?from=free&shortcode=XXX 쿼리에서 자동 추출 (기존 호환)
+     */
+    function init(opts) {
         if (initialized) return;
+        opts = opts || {};
 
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('from') !== 'free') return;
-
-        const shortcode = urlParams.get('shortcode');
+        let shortcode = opts.shortcode || null;
+        if (!shortcode) {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('from') !== 'free') return;
+            shortcode = urlParams.get('shortcode');
+        }
         if (!shortcode || !/^[A-Z0-9]{4,5}$/.test(shortcode)) return;
 
         const slug = detectSlug();

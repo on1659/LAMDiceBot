@@ -1,4 +1,5 @@
 const { generateRoomId, generateUniqueUserName, createRoomGameState, deleteRoom } = require('../utils/room-helpers');
+const { issueShortcode } = require('../utils/shortcode');
 const { weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 
 // ─── 조정 가능한 상수 ───
@@ -295,6 +296,16 @@ module.exports = (socket, io, ctx) => {
             userBadges: null // 배지 캐시 (첫 입장 시 채워짐)
         };
 
+        // 자유플레이(serverId=null) 방은 다이렉트 링크 활성화를 위해 자동 shortcode 발급
+        if (!rooms[roomId].serverId) {
+            try {
+                rooms[roomId].shortcode = issueShortcode(roomId);
+                rooms[roomId].origin = 'free';
+            } catch (e) {
+                console.warn('[createRoom] shortcode 발급 실패:', e.message);
+            }
+        }
+
         const room = rooms[roomId];
         const gameState = room.gameState;
 
@@ -381,6 +392,7 @@ module.exports = (socket, io, ctx) => {
             roomName: finalRoomName,
             serverId: room.serverId || null,
             serverName: room.serverName || null,
+            shortcode: room.shortcode || null,  // 자유플레이 방의 다이렉트 링크 코드
             userName: trimmedUserName, // 호스트 이름 추가
             isHost: true, // 방 생성자는 항상 호스트
             readyUsers: gameState.readyUsers || [], // 준비 목록 전송
@@ -435,6 +447,7 @@ module.exports = (socket, io, ctx) => {
             roomName: room.roomName,
             serverId: room.serverId || null,
             serverName: room.serverName || null,
+            shortcode: room.shortcode || null,
             userName: trimmedUserName,
             isHost: true,
             hasRolled: false,
@@ -664,6 +677,7 @@ module.exports = (socket, io, ctx) => {
                     roomName: room.roomName,
                     serverId: room.serverId || null,
                     serverName: room.serverName || null,
+                    shortcode: room.shortcode || null,
                     userName: userName.trim(),
                     isHost: user.isHost,
                     hasRolled: hasRolled,
@@ -889,6 +903,7 @@ module.exports = (socket, io, ctx) => {
             roomName: room.roomName,
             serverId: room.serverId || null,
             serverName: room.serverName || null,
+            shortcode: room.shortcode || null,
             userName: finalUserName, // 중복 시 변경된 이름 전달
             isHost: finalIsHost,
             hasRolled: hasRolled,
