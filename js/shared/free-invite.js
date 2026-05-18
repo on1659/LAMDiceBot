@@ -43,7 +43,6 @@
      *   - opts 없으면 URL ?from=free&shortcode=XXX 쿼리에서 자동 추출 (기존 호환)
      */
     function init(opts) {
-        console.log('[FreeInvite.init]', { initialized, opts, path: window.location.pathname });
         if (initialized) return;
         opts = opts || {};
 
@@ -53,16 +52,10 @@
             if (urlParams.get('from') !== 'free') return;
             shortcode = urlParams.get('shortcode');
         }
-        if (!shortcode || !/^[A-Z0-9]{4,6}$/.test(shortcode)) {
-            console.warn('[FreeInvite.init] shortcode 형식 안 맞음:', shortcode);
-            return;
-        }
+        if (!shortcode || !/^[A-Z0-9]{4,6}$/.test(shortcode)) return;
 
         const slug = detectSlug();
-        if (!slug) {
-            console.warn('[FreeInvite.init] slug 못 찾음 path:', window.location.pathname);
-            return;
-        }
+        if (!slug) return;
 
         initialized = true;
 
@@ -92,7 +85,6 @@
             const roomTitle = document.getElementById('roomTitle');
             if (!roomTitle || !roomTitle.parentNode) {
                 if (++tries < 10) setTimeout(attempt, 200);
-                else console.warn('[FreeInvite] mountInviteBar: #roomTitle 못 찾음');
                 return;
             }
             const existing = document.getElementById('freeInviteBar');
