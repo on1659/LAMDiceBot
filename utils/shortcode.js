@@ -3,9 +3,11 @@
 // - 모든 방 삭제 지점에서 releaseShortcode 호출 필수 (메모리 누수 방지)
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32자 (혼동 문자 OI01 제외)
-const DEFAULT_LENGTH = 4;
+// 2026-05-17 보안 패치: 4 → 5 (32^5 ≈ 33.5M, brute force 약 32배 어려워짐).
+// 추후 비공개 서버 방에 한해 6자로 분리 가능 (이번 패치 범위 밖).
+const DEFAULT_LENGTH = 5;
 const MAX_RETRY = 10;
-const FALLBACK_LENGTH = 5;
+const FALLBACK_LENGTH = 6;
 
 const shortcodeIndex = Object.create(null); // 'K7AB' → roomId
 
@@ -27,7 +29,7 @@ function issueShortcode(roomId) {
             return code;
         }
     }
-    // 4자 실패 → 5자로 fallback
+    // 5자 실패 → 6자로 fallback
     for (let i = 0; i < MAX_RETRY; i++) {
         const code = generateShortcode(FALLBACK_LENGTH);
         if (!shortcodeIndex[code]) {

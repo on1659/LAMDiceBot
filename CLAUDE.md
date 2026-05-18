@@ -3,6 +3,10 @@
 Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마).
 순수 HTML, PostgreSQL, 상대 경로 API (`/api/...`).
 
+> **🚦 모든 턴 첫 응답은 `[트리아지: SIMPLE|STANDARD|COMPLEX] 한 줄 사유`로 시작.**
+> 조사·분석만 요청돼도 선언 필수. 판정 기준은 [.claude/rules/harness.md](.claude/rules/harness.md).
+> `UserPromptSubmit` 훅이 매 턴 리마인더를 주입하고, `check-triage.sh`가 Edit/Write 직전에 형식을 강제한다.
+
 ## 문서 역할 구조
 
 `.claude` 문서는 3개 층으로 나뉜다.

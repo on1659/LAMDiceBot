@@ -1047,7 +1047,9 @@ socket.on('roomCreated', (data) => {
     updateStartButton();
 
     addDebugLog(`방 생성: ${data.roomId}`, 'bridge');
-    if (window.FreeInvite) window.FreeInvite.init();
+    if (window.FreeInvite && data.shortcode) {
+        window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+    }
 });
 
 socket.on('roomJoined', (data) => {
@@ -1093,7 +1095,9 @@ socket.on('roomJoined', (data) => {
     updateStartButton();
 
     addDebugLog(`방 입장: ${data.roomId} (host=${isHost})`, 'bridge');
-    if (window.FreeInvite) window.FreeInvite.init();
+    if (window.FreeInvite && data.shortcode) {
+        window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+    }
 });
 
 // 사용자 목록 렌더링 (horse-race 패턴 mimic)

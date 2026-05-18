@@ -27,11 +27,8 @@ if echo "$FILE" | grep -qE '\.css$'; then
     WARNINGS="${WARNINGS}300px 이상 고정 너비 감지 — max-width 또는 % 사용 권장. "
   fi
 
-  # 터치 타겟: 44px 미만 감지
-  SMALL_TARGET=$(echo "$CONTENT" | grep -cE '(width|height):\s*([1-3][0-9]|[0-9])px' || true)
-  if [ "$SMALL_TARGET" -gt 0 ]; then
-    WARNINGS="${WARNINGS}44px 미만 크기 감지 — 터치 타겟 최소 44x44px 필요. "
-  fi
+  # NOTE: 터치 타겟 < 44px 검사는 false-positive 폭탄(border-width / icon / gap 등 모두 매치)이라
+  #       비활성화. 추후 .btn / button / [role=button] / .touch- 컨텍스트 한정해서 재도입 권장.
 
   # 미디어 쿼리 없음 감지 (30줄 이상 CSS에 반응형 누락)
   if ! echo "$CONTENT" | grep -q '@media'; then

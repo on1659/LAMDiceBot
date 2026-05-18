@@ -24,11 +24,14 @@ fi
 # 마지막 user 메시지 이후 내용 = 현재 turn의 assistant 메시지들
 after_user=$(tail -n +$((last_user + 1)) "$transcript_path")
 
-# 트리아지 키워드 검사
-if printf '%s' "$after_user" | grep -qE 'SIMPLE|STANDARD|COMPLEX|트리아지'; then
+# 트리아지 형식 검사 — '[트리아지: SIMPLE|STANDARD|COMPLEX]' 정확 매칭
+# 공백·반각/전각 콜론은 허용. 단순 키워드("STANDARD가 아닌데..." 등)는 통과 안 됨.
+if printf '%s' "$after_user" | grep -qE '\[\s*트리아지\s*[:：]\s*(SIMPLE|STANDARD|COMPLEX)\s*\]'; then
     exit 0
 fi
 
-# 미선언 → 차단
-echo "❌ 트리아지 1줄 선언 후 다시 시도하세요. 형식: '[트리아지: SIMPLE|STANDARD|COMPLEX] 한 줄 사유'" >&2
+# 미선언 또는 형식 불일치 → 차단
+echo "❌ 트리아지 1줄 선언 후 다시 시도하세요." >&2
+echo "   형식: [트리아지: SIMPLE] 사유  /  [트리아지: STANDARD] 사유  /  [트리아지: COMPLEX] 사유" >&2
+echo "   기준: .claude/rules/harness.md" >&2
 exit 2

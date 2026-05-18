@@ -17,12 +17,55 @@ const GAME_TYPE_BY_SLUG = {
 };
 const ALLOWED_GAME_TYPES = Object.values(GAME_TYPE_BY_SLUG);
 
+// 2026-05-17 보안 패치: free:createRoom DoS 방지
+//  - 일반 checkRateLimit(분당 300회)은 같은 socket이 빠르게 빈 방을 양산하는 걸 막지 못함.
+//  - IP별 sliding window로 1분당 최대 10방까지만 허용.
+//  - 5분마다 만료된 entry cleanup (메모리 누수 방지, 서버 재시작 시 초기화).
+const FREE_CREATE_WINDOW_MS = 60 * 1000;
+const FREE_CREATE_MAX_PER_WINDOW = 10;
+const FREE_CREATE_CLEANUP_MS = 5 * 60 * 1000;
+const freeCreateRoomCounter = new Map(); // IP → { count, windowStart }
+
+function checkFreeCreateIPLimit(clientIP) {
+    const now = Date.now();
+    const entry = freeCreateRoomCounter.get(clientIP);
+    if (entry && now - entry.windowStart < FREE_CREATE_WINDOW_MS) {
+        if (entry.count >= FREE_CREATE_MAX_PER_WINDOW) return false;
+        entry.count += 1;
+        return true;
+    }
+    freeCreateRoomCounter.set(clientIP, { count: 1, windowStart: now });
+    return true;
+}
+
+// 만료된 entry 정리 — 5분 주기
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of freeCreateRoomCounter.entries()) {
+        if (now - entry.windowStart > FREE_CREATE_WINDOW_MS * 5) {
+            freeCreateRoomCounter.delete(ip);
+        }
+    }
+}, FREE_CREATE_CLEANUP_MS).unref?.();
+
 module.exports = (socket, io, ctx) => {
     const { rooms, updateRoomsList, checkRateLimit } = ctx;
 
     socket.on('free:createRoom', (data, ack) => {
         const safeAck = typeof ack === 'function' ? ack : () => {};
         if (!checkRateLimit()) return safeAck({ error: 'rate_limit' });
+
+        // 2026-05-17 보안 패치: 같은 socket이 이미 방에 있으면 새 방 생성 거부.
+        // 빈 방을 만들기 전에 차단 — race 방지.
+        if (socket.currentRoomId && rooms[socket.currentRoomId]) {
+            return safeAck({ error: 'already_in_room' });
+        }
+
+        // IP별 sliding window — 분당 10방 초과 차단
+        const clientIP = socket.clientIP || 'unknown';
+        if (!checkFreeCreateIPLimit(clientIP)) {
+            return safeAck({ error: 'rate_limit' });
+        }
 
         const payload = data || {};
         const gameSlug = payload.gameSlug;

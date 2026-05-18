@@ -66,7 +66,8 @@
         </div>
     </noscript>
 
-    <main class="free-main" id="freeMain">
+    <!-- free.html은 /free/:game/:shortcode 다이렉트 링크 wrapper로만 사용됨. 카드 메인은 기본 숨김. -->
+    <main class="free-main" id="freeMain" style="display: none;">
         <h1>친구랑 같이 놀기</h1>
         <p class="subtitle">게임을 고르면 방이 생겨요. 링크로 친구를 초대하세요</p>
 
@@ -119,6 +120,26 @@
             <p class="modal-sub">다른 사람들에게 이 이름으로 보여요</p>
             <input type="text" id="nameModalInput" placeholder="닉네임 (최대 8자)" maxlength="8" autocomplete="off">
             <button type="button" class="modal-btn" id="nameModalSubmit">매칭 시작 →</button>
+        </div>
+    </div>
+
+    <!-- 비공개 서버 참여코드 모달 -->
+    <div class="modal-backdrop hidden" id="serverPasswordModal">
+        <div class="modal">
+            <h2 id="serverPasswordTitle">서버 참여하기</h2>
+            <p class="modal-sub" id="serverPasswordSub">참여코드를 입력해주세요</p>
+            <input type="password" id="serverPasswordInput" placeholder="참여코드" maxlength="20" autocomplete="off">
+            <button type="button" class="modal-btn" id="serverPasswordSubmit">참여하기 →</button>
+            <button type="button" class="toast-link" id="serverPasswordCancel" style="margin-top:8px;background:none;border:none;color:var(--text-muted);text-decoration:underline;cursor:pointer;">취소</button>
+        </div>
+    </div>
+
+    <!-- 서버 입장 안내 모달 (승인 대기/오류 안내) -->
+    <div class="modal-backdrop hidden" id="serverInfoModal">
+        <div class="modal">
+            <h2 id="serverInfoTitle">알림</h2>
+            <p class="modal-sub" id="serverInfoMessage">메시지</p>
+            <button type="button" class="modal-btn" id="serverInfoClose">확인</button>
         </div>
     </div>
 

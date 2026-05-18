@@ -120,7 +120,7 @@ var ALL_VEHICLES = [];
 // JSON 파일 로드
 async function loadVehicleThemes() {
     try {
-        const response = await fetch('assets/vehicle-themes.json');
+        const response = await fetch('/assets/vehicle-themes.json');
         const data = await response.json();
         vehicleThemes = data.vehicleThemes;
         
@@ -3695,7 +3695,7 @@ function getVehicleBackground(vehicleId) {
         bg: 'linear-gradient(0deg, #333 0%, #333 30%, #555 30%, #555 70%, #87CEEB 70%, #87CEEB 100%)',
         textColor: '#fff',
         theme: 'expressway',
-        backgroundImage: 'assets/backgrounds/expressway.png'
+        backgroundImage: '/assets/backgrounds/expressway.png'
     };
 }
 
@@ -4918,7 +4918,9 @@ socket.on('roomCreated', (data) => {
 
     initializeGameScreen(data);
     ReadyModule.setReadyUsers(readyUsers);
-    if (window.FreeInvite) window.FreeInvite.init();
+    if (window.FreeInvite && data.shortcode) {
+        window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+    }
 });
 
 socket.on('roomJoined', (data) => {
@@ -5013,7 +5015,9 @@ socket.on('roomJoined', (data) => {
         }, 500);
     }
 
-    if (window.FreeInvite) window.FreeInvite.init();
+    if (window.FreeInvite && data.shortcode) {
+        window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+    }
 });
 
 socket.on('roomError', (message) => {
@@ -5866,9 +5870,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const roomData = JSON.parse(pendingRoom);
             localStorage.removeItem('pendingHorseRaceRoom');
 
-            socket.on('connect', function onConnect() {
-                socket.off('connect', onConnect);
-                
+            function doCreateRoom() {
                 socket.emit('createRoom', {
                     userName: roomData.userName,
                     roomName: roomData.roomName,
@@ -5882,7 +5884,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     serverName: roomData.serverName || currentServerName,
                     tabId: getTabId()
                 });
-            });
+            }
+            if (socket.connected) {
+                doCreateRoom();
+            } else {
+                socket.once('connect', doCreateRoom);
+            }
 
             (function() {
                 var u = new URL(window.location.href);
@@ -5892,21 +5899,19 @@ document.addEventListener('DOMContentLoaded', () => {
             })();
         }
     }
-    
+
     // 방 입장 요청
     if (urlParams.get('joinRoom') === 'true') {
         const pendingJoin = localStorage.getItem('pendingHorseRaceJoin');
         if (pendingJoin) {
             const joinData = JSON.parse(pendingJoin);
             localStorage.removeItem('pendingHorseRaceJoin');
-            
+
             sessionStorage.setItem('horseRaceFromDice', 'true');
 
             document.getElementById('globalUserNameInput').value = joinData.userName;
-            
-            socket.on('connect', function onJoinConnect() {
-                socket.off('connect', onJoinConnect);
-                
+
+            function doJoinRoom() {
                 if (joinData.isPrivate) {
                     pendingRoomId = joinData.roomId;
                     pendingUserName = joinData.userName;
@@ -5922,8 +5927,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         tabId: getTabId()
                     });
                 }
-            });
-            
+            }
+            if (socket.connected) {
+                doJoinRoom();
+            } else {
+                socket.once('connect', doJoinRoom);
+            }
+
             (function() {
                 var u = new URL(window.location.href);
                 u.searchParams.delete('createRoom');

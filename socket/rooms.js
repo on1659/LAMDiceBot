@@ -9,7 +9,7 @@ const HORSE_COUNT_MAX = 6;  // 경마 최대 말 수
 const { getMergedFrequentMenus } = require('../db/menus');
 const { getVisitorStats, recordVisitor } = require('../db/stats');
 const { getServerId } = require('../routes/api');
-const { getServerById } = require('../db/servers');
+const { getServerById, checkMember } = require('../db/servers');
 const { getTop3Badges } = require('../db/ranking');
 const path = require('path');
 const fs = require('fs');
@@ -197,6 +197,31 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
+        // 2026-05-17 보안 패치: 서버 방 생성 요청 시 멤버십 검증.
+        // 클라가 보낸 serverId/serverName을 무검증으로 사용하던 취약점 차단.
+        // serverId 있으면 DB로 승인된 멤버인지 확인, serverName도 DB값으로 덮어씀.
+        let validatedServerName = serverName || null;
+        const requestedServerId = serverId ? (parseInt(serverId) || null) : null;
+        if (requestedServerId) {
+            try {
+                const member = await checkMember(requestedServerId, userName.trim());
+                if (!member || !member.is_approved) {
+                    socket.emit('roomError', '이 서버의 승인된 멤버만 방을 만들 수 있습니다.');
+                    return;
+                }
+                const serverRow = await getServerById(requestedServerId);
+                if (!serverRow) {
+                    socket.emit('roomError', '서버를 찾을 수 없습니다.');
+                    return;
+                }
+                validatedServerName = serverRow.name;
+            } catch (e) {
+                console.warn('[createRoom] 서버 멤버십 검증 실패:', e.message);
+                socket.emit('roomError', '서버 확인 중 오류가 발생했습니다.');
+                return;
+            }
+        }
+
         // 비공개 방 설정 확인
         const isPrivateRoom = isPrivate === true;
         let roomPassword = '';
@@ -288,22 +313,23 @@ module.exports = (socket, io, ctx) => {
             expiryHours: validExpiryHours, // 방 유지 시간 추가 (시간 단위)
             blockIPPerUser: validBlockIPPerUser, // IP당 하나의 아이디만 입장 허용 옵션
             turboAnimation: validTurboAnimation, // 터보 애니메이션 (다양한 마무리 효과)
-            serverId: serverId ? (parseInt(serverId) || null) : null, // 서버 소속
-            serverName: serverName || null, // 서버 이름
+            serverId: requestedServerId, // 서버 소속 (검증 통과한 값만 들어옴)
+            serverName: validatedServerName, // 서버 이름 (DB 값으로 덮어씀)
             isPrivateServer: false, // 비공개서버 여부 (아래에서 DB 조회 후 설정)
             gameState: gameStateNew,
             createdAt: new Date(),
             userBadges: null // 배지 캐시 (첫 입장 시 채워짐)
         };
 
-        // 자유플레이(serverId=null) 방은 다이렉트 링크 활성화를 위해 자동 shortcode 발급
-        if (!rooms[roomId].serverId) {
-            try {
-                rooms[roomId].shortcode = issueShortcode(roomId);
+        // 모든 방에 다이렉트 링크 shortcode 발급.
+        // origin='free'는 자유플레이(serverId=null) 방에만 세팅 — 서버 방은 origin 미지정.
+        try {
+            rooms[roomId].shortcode = issueShortcode(roomId);
+            if (!rooms[roomId].serverId) {
                 rooms[roomId].origin = 'free';
-            } catch (e) {
-                console.warn('[createRoom] shortcode 발급 실패:', e.message);
             }
+        } catch (e) {
+            console.warn('[createRoom] shortcode 발급 실패:', e.message);
         }
 
         const room = rooms[roomId];
@@ -572,6 +598,23 @@ module.exports = (socket, io, ctx) => {
         if (userServerId !== roomServerId) {
             socket.emit('roomError', '다른 서버의 방에는 입장할 수 없습니다.');
             return;
+        }
+
+        // 2026-05-17 보안 패치: 서버 방은 멤버 승인 재검증 (방어적 layering).
+        // setServerId가 userName 없이 호출된 약한 신뢰 케이스를 여기서 최종 차단.
+        if (roomServerId) {
+            try {
+                const member = await checkMember(roomServerId, userName.trim());
+                if (!member || !member.is_approved) {
+                    socket.emit('roomError', '서버 멤버십이 필요합니다.');
+                    socket.serverId = null;
+                    return;
+                }
+            } catch (e) {
+                console.warn('[joinRoom] 멤버 확인 실패:', e.message);
+                socket.emit('roomError', '서버 확인 중 오류가 발생했습니다.');
+                return;
+            }
         }
 
         // 비공개 방 비밀번호 확인

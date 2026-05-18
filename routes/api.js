@@ -5,14 +5,16 @@ const { getPool } = require('../db/pool');
 const { loadFrequentMenus, getMergedFrequentMenus, loadEmojiConfigBase, getMergedEmojiConfig } = require('../db/menus');
 const { getVisitorStats, getGameStatsByType, getRecentPlaysList } = require('../db/stats');
 const { resolveShortcode } = require('../utils/shortcode');
+const { getServerById } = require('../db/servers');
 
-// /free shortcode rate limiter — IP당 분당 30회 (shortcode 무차별 대입 방지).
+// /free shortcode rate limiter — IP당 분당 15회 (shortcode 무차별 대입 방지).
+// 2026-05-17 보안 패치: 30 → 15. 비공개 서버 방 보호 강화.
 // express-rate-limit이 로드되지 않은 환경 (테스트 등)에서는 no-op으로 fallback.
 let _rateLimit = null;
 try { _rateLimit = require('express-rate-limit'); } catch (e) {}
 const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     windowMs: 60 * 1000,
-    max: 30,
+    max: 15,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'too_many_requests' }
@@ -106,12 +108,12 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'dice-game-multiplayer.html'));
     });
 
-    // /free/:game/:shortcode — 다이렉트 링크 진입 (shortcode resolve wrapper).
+    // /free/:game/:shortcode — 자유 방 다이렉트 링크 진입 (shortcode resolve wrapper).
     // shortcode 무차별 대입 방지 rate limit 적용.
     app.get('/free/:game/:shortcode', freeShortcodeLimiter, (req, res) => {
         const { game, shortcode } = req.params;
         if (!FREE_GAME_SLUGS.includes(game)) return res.redirect('/free');
-        if (!/^[A-Z0-9]{4,5}$/.test(shortcode)) {
+        if (!/^[A-Z0-9]{4,6}$/.test(shortcode)) {
             return res.redirect(`/free?expired=true`);
         }
         // 실제 resolve는 클라가 /api/free/resolve로 호출, 게임 페이지로 자동 redirect.
@@ -121,10 +123,24 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'free.html'));
     });
 
+    // /{game}/:shortcode — 비공개/공개 서버 방 다이렉트 링크 진입 (게임 경로 직접 사용).
+    // 자유 방은 /free/:game/:shortcode 그대로, 서버 방은 /{game}/:shortcode 형식.
+    // shortcode 정규식이 4-6자 영문대문자+숫자라 일반 페이지 URL과 충돌 없음.
+    const SERVER_ROOM_DIRECT_PATHS = ['/game', '/roulette', '/horse-race', '/bridge-cross'];
+    SERVER_ROOM_DIRECT_PATHS.forEach(gamePath => {
+        app.get(`${gamePath}/:shortcode([A-Z0-9]{4,6})`, freeShortcodeLimiter, (req, res) => {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+            res.sendFile(path.join(__dirname, '..', 'free.html'));
+        });
+    });
+
     // shortcode → 방 정보 resolve REST endpoint
-    app.get('/api/free/resolve/:code', freeShortcodeLimiter, (req, res) => {
+    // 서버 방(serverId 보유)도 지원. password_hash 등 민감 필드는 절대 노출 금지.
+    app.get('/api/free/resolve/:code', freeShortcodeLimiter, async (req, res) => {
         const { code } = req.params;
-        if (!code || !/^[A-Z0-9]{4,5}$/.test(code)) {
+        if (!code || !/^[A-Z0-9]{4,6}$/.test(code)) {
             return res.status(400).json({ error: 'invalid_code' });
         }
         const rooms = req.app.get('rooms') || {};
@@ -139,13 +155,51 @@ function setupRoutes(app) {
             gs.isHorseRaceActive ||
             (gs.bridgeCross && gs.bridgeCross.phase && gs.bridgeCross.phase !== 'idle' && gs.bridgeCross.phase !== 'finished')
         );
-        res.json({
+
+        // 서버 방이면 isPrivateServer만 조회 (참여코드 모달 분기에 필요).
+        // 2026-05-17 보안 패치: 비공개 서버 정보 노출 방지를 위해
+        //   서버 방의 hostName/roomName/serverName은 비인증 호출자에게 마스킹.
+        //   serverName은 멤버 확인 통과 후 serverJoined.name으로 권위 있게 받는다.
+        let isPrivateServer = false;
+        if (room.serverId) {
+            try {
+                const server = await getServerById(room.serverId);
+                if (server) {
+                    isPrivateServer = !!(server.password_hash && server.password_hash !== '');
+                }
+            } catch (e) {
+                console.warn('[/api/free/resolve] 서버 메타 조회 실패:', e.message);
+            }
+        }
+
+        // 명시적으로 선택 필드만 응답 — password_hash 등 절대 노출 금지.
+        const baseResponse = {
             roomId,
             gameType: room.gameType,
-            hostName: room.hostName,
             isGameActive,
-            playerCount: Array.isArray(gs.users) ? gs.users.length : 0
-        });
+            playerCount: Array.isArray(gs.users) ? gs.users.length : 0,
+            serverId: room.serverId || null,
+            isPrivateServer
+        };
+
+        if (room.serverId) {
+            // 서버 방 — 비공개/공개 서버의 존재·이름·호스트가 외부에 누설되지 않도록 마스킹.
+            // 클라이언트는 check-member 통과 후 joinServer → serverJoined 응답에서 serverName 획득.
+            res.json({
+                ...baseResponse,
+                hostName: null,
+                roomName: null,
+                serverName: null
+            });
+        } else {
+            // 자유 방 — 기존대로 모든 메타 공개 (서버 종속이 없으므로 정보 가치 없음).
+            res.json({
+                ...baseResponse,
+                hostName: room.hostName,
+                roomName: room.roomName || null,
+                serverName: null
+            });
+        }
     });
 
     // 광고 노출 측정 ping (Phase D)

@@ -28,7 +28,7 @@ const PATH = '/horse-race';
         await pageA.waitForURL(/\/free\/horse\/[A-Z0-9]+$/, { timeout: 15000 });
         const hostUrl = pageA.url();
         const shortcode = hostUrl.split('/').pop();
-        record('P0-2a: 호스트 /free/horse 진입 + URL 자동 교체', /^[A-Z0-9]{4,5}$/.test(shortcode), `shortcode=${shortcode}`);
+        record('P0-2a: 호스트 /free/horse 진입 + URL 자동 교체', /^[A-Z0-9]{4,6}$/.test(shortcode), `shortcode=${shortcode}`);
 
         // 호스트가 방에 진입했는지 — 방 컨텐츠 일부 확인
         await pageA.waitForTimeout(2000);

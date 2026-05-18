@@ -24,11 +24,22 @@
         '/bridge-cross': 'bridge'
     };
 
+    // 슬러그 → 게임 페이지 경로 (서버 방 다이렉트 링크용)
+    const SLUG_TO_GAME_PATH = {
+        'dice': '/game',
+        'roulette': '/roulette',
+        'horse': '/horse-race',
+        'bridge': '/bridge-cross'
+    };
+
     let initialized = false;
 
     /**
      * init(opts)
      *   - opts.shortcode (선택): 명시적으로 shortcode 전달 (예: roomCreated/roomJoined payload)
+     *   - opts.serverId (선택): 서버 방이면 serverId 값, 자유 방이면 null/undefined
+     *     자유 방: URL /free/{slug}/{shortcode}
+     *     서버 방: URL /{gamePath}/{shortcode} (예: /horse-race/X8K2P)
      *   - opts 없으면 URL ?from=free&shortcode=XXX 쿼리에서 자동 추출 (기존 호환)
      */
     function init(opts) {
@@ -41,22 +52,66 @@
             if (urlParams.get('from') !== 'free') return;
             shortcode = urlParams.get('shortcode');
         }
-        if (!shortcode || !/^[A-Z0-9]{4,5}$/.test(shortcode)) return;
+        if (!shortcode || !/^[A-Z0-9]{4,6}$/.test(shortcode)) return;
 
         const slug = detectSlug();
         if (!slug) return;
 
         initialized = true;
 
-        // 1. URL 자동 교체
-        const cleanUrl = '/free/' + slug + '/' + shortcode;
+        const isServerRoom = !!opts.serverId;
+
+        // 1. URL 자동 교체 — 자유 방 /free/..., 서버 방 /{game}/...
+        const cleanUrl = buildDirectUrl(shortcode, slug, isServerRoom);
         history.replaceState(null, '', cleanUrl);
 
-        // 2. 자동 초대 토스트
-        showInviteToast(shortcode, slug);
+        // 2. 헤더에 다이렉트 링크 URL 텍스트 mount (클릭 복사)
+        mountInviteBar(shortcode, slug, isServerRoom);
+    }
 
-        // 3. 우상단 초대 버튼 mount
-        mountInviteButton(shortcode, slug);
+    function buildDirectUrl(shortcode, slug, isServerRoom) {
+        if (isServerRoom) {
+            const gamePath = SLUG_TO_GAME_PATH[slug] || '/game';
+            return gamePath + '/' + shortcode;
+        }
+        return '/free/' + slug + '/' + shortcode;
+    }
+
+    // 헤더(#roomTitle)에 초대 링크 텍스트 mount — DOM 준비될 때까지 최대 5회 재시도
+    function mountInviteBar(shortcode, slug, isServerRoom) {
+        const url = window.location.origin + buildDirectUrl(shortcode, slug, isServerRoom);
+        let tries = 0;
+        function attempt() {
+            const roomTitle = document.getElementById('roomTitle');
+            if (!roomTitle) {
+                if (++tries < 5) setTimeout(attempt, 200);
+                return;
+            }
+            const existing = document.getElementById('freeInviteBar');
+            if (existing) existing.remove();
+
+            const bar = document.createElement('span');
+            bar.id = 'freeInviteBar';
+            bar.title = '클릭하여 초대 링크 복사';
+            bar.innerHTML = '<span class="fi-bar-icon">🔗</span><span class="fi-bar-url"></span>';
+            bar.querySelector('.fi-bar-url').textContent = url;
+
+            bar.addEventListener('click', function (e) {
+                e.stopPropagation();
+                copyToClipboard(url);
+                const urlSpan = bar.querySelector('.fi-bar-url');
+                const orig = urlSpan.textContent;
+                urlSpan.textContent = '복사됨!';
+                bar.classList.add('fi-bar-copied');
+                setTimeout(function () {
+                    urlSpan.textContent = orig;
+                    bar.classList.remove('fi-bar-copied');
+                }, 1200);
+            });
+
+            roomTitle.appendChild(bar);
+        }
+        attempt();
     }
 
     function detectSlug() {
@@ -130,6 +185,24 @@
         fab.setAttribute('aria-label', '친구 초대');
         fab.textContent = '🔗 초대';
         fab.addEventListener('click', function () { openShareSheet(shortcode, slug); });
+
+        // 인라인 mount: 접속자 헤더(.users-section .users-title) 우측, 도움말 ⓘ 버튼 앞
+        const usersTitle = document.querySelector('.users-section .users-title, #usersSection .users-title');
+        if (usersTitle) {
+            fab.classList.add('fi-inline');
+            const helpBtn = usersTitle.querySelector('button');
+            if (helpBtn) {
+                usersTitle.insertBefore(fab, helpBtn);
+            } else {
+                usersTitle.appendChild(fab);
+            }
+            // 우측 정렬 보장 (각 게임이 이미 flex로 만들지만 안전망)
+            usersTitle.style.display = 'flex';
+            usersTitle.style.alignItems = 'center';
+            return;
+        }
+
+        // fallback: 우상단 fixed FAB
         document.body.appendChild(fab);
     }
 
@@ -320,6 +393,16 @@
             +   'font-family: inherit;'
             + '}'
             + '#freeInviteFab:hover { filter: brightness(1.05); }'
+            + '#freeInviteFab.fi-inline {'
+            +   'position: static;'
+            +   'top: auto;'
+            +   'right: auto;'
+            +   'margin-left: auto;'
+            +   'margin-right: 8px;'
+            +   'padding: 6px 12px;'
+            +   'font-size: 12px;'
+            +   'z-index: auto;'
+            + '}'
             + '.fi-backdrop {'
             +   'position: fixed;'
             +   'inset: 0;'
@@ -400,6 +483,34 @@
             +   'font-size: 13px;'
             +   'z-index: 9200;'
             +   'font-family: inherit;'
+            + '}'
+            + '#freeInviteBar {'
+            +   'display: inline-flex;'
+            +   'align-items: center;'
+            +   'gap: 6px;'
+            +   'margin-left: 10px;'
+            +   'padding: 4px 10px;'
+            +   'background: rgba(102,126,234,0.10);'
+            +   'border: 1px solid rgba(102,126,234,0.22);'
+            +   'border-radius: 999px;'
+            +   'cursor: pointer;'
+            +   'vertical-align: middle;'
+            +   'transition: background 0.15s;'
+            + '}'
+            + '#freeInviteBar:hover { background: rgba(102,126,234,0.18); }'
+            + '#freeInviteBar .fi-bar-icon { font-size: 12px; }'
+            + '#freeInviteBar .fi-bar-url {'
+            +   "font-family: 'SF Mono', Consolas, monospace;"
+            +   'font-size: 0.78em;'
+            +   'color: #5a67d8;'
+            +   'font-weight: 500;'
+            +   'word-break: break-all;'
+            + '}'
+            + '#freeInviteBar.fi-bar-copied { background: #4ade80; border-color: #22c55e; }'
+            + '#freeInviteBar.fi-bar-copied .fi-bar-url { color: white; }'
+            + '@media (max-width: 480px) {'
+            +   '#freeInviteBar { margin-left: 6px; padding: 3px 8px; }'
+            +   '#freeInviteBar .fi-bar-url { font-size: 0.7em; }'
             + '}'
             + '@media (max-width: 480px) {'
             +   '#freeInviteToast .fi-toast-body b { font-size: 13px; }'

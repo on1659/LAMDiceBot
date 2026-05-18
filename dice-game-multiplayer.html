@@ -357,6 +357,32 @@
             margin-bottom: 20px;
         }
 
+        .create-room-button-section {
+            background: var(--bg-primary);
+            border: 2px solid var(--dice-500);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .create-room-button-section h2 {
+            color: var(--dice-500);
+            margin-bottom: 14px;
+        }
+
+        .create-room-button-section button {
+            background: var(--dice-gradient);
+            color: var(--bg-white);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            width: auto;
+            margin-bottom: 16px;
+        }
+
         .join-room-section {
             background: var(--bg-primary);
             border: none;
@@ -702,7 +728,7 @@
         }
 
         .users-section {
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }
 
         .progress-section {
@@ -1524,11 +1550,15 @@
                 <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--btn-neutral); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
                 <span id="serverInfoName" style="font-weight: bold; color: var(--dice-500);"></span>
                 <span id="serverInfoUserName" style="font-weight: 600; color: var(--dice-600); display: none;">👤 </span>
-                <span id="freeNameWrap" style="display: none; align-items: center; gap: 6px;">
-                    <span style="font-size: 14px;">👤</span>
-                    <input type="text" id="globalUserNameInput" placeholder="닉네임 입력" maxlength="20" style="padding: 6px 10px; font-size: 14px; border: 1px solid var(--dice-500); border-radius: 6px; max-width: 160px; color: var(--dice-600); font-weight: 600;" />
-                </span>
                 <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--dice-500); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+            </div>
+            <div id="freeCreateRoomBox" class="create-room-button-section" style="display: none;">
+                <h2>방 만들기</h2>
+                <button onclick="showCreateRoomPage()">방 생성하기</button>
+                <div class="input-group">
+                    <label for="globalUserNameInput">이름</label>
+                    <input type="text" id="globalUserNameInput" placeholder="닉네임 입력" maxlength="20" />
+                </div>
             </div>
             <div class="join-room-section">
                 <div class="room-header">
@@ -1542,7 +1572,7 @@
                 <div class="rooms-list" id="roomsList">
                     <div style="color: var(--text-muted); text-align: center; padding: 20px;">방 목록을 불러오는 중...</div>
                 </div>
-                <!-- globalUserNameInput은 서버 정보 바(#freeNameWrap)로 이동. userNameError만 JS 참조용 유지 -->
+                <!-- globalUserNameInput은 방 만들기 박스(#freeCreateRoomBox)로 이동. userNameError만 JS 참조용 유지 -->
                 <div style="display: none;">
                     <div id="userNameError" style="color: var(--btn-danger); font-size: 12px; margin-top: 5px; display: none;"></div>
                 </div>
@@ -2097,11 +2127,14 @@
                 }
                 if (membersBtn) membersBtn.style.display = '';
             } else {
-                // 자유 모드 — 서버명/멤버 버튼 숨기고 닉네임 입력란 노출
+                // 자유 모드 — 서버명/멤버 버튼 숨기고 방 만들기 박스 노출
                 document.getElementById('serverInfoName').style.display = 'none';
                 if (membersBtn) membersBtn.style.display = 'none';
-                const freeNameWrap = document.getElementById('freeNameWrap');
-                if (freeNameWrap) freeNameWrap.style.display = 'flex';
+                const freeCreateRoomBox = document.getElementById('freeCreateRoomBox');
+                if (freeCreateRoomBox) freeCreateRoomBox.style.display = 'block';
+                // 방 만들기는 박스 안 버튼 하나로 통일 — 헤더의 중복 버튼 숨김
+                const headerCreateBtn = document.querySelector('.room-header .btn-create');
+                if (headerCreateBtn) headerCreateBtn.style.display = 'none';
             }
             const userNameSpan = document.getElementById('serverInfoUserName');
             // 서버 모드에서만 이름 span 표시 (자유 모드는 입력란 사용)
@@ -4088,7 +4121,9 @@
             document.querySelector('.history-section').classList.add('visible');
 
             initializeGameScreen(data);
-            if (window.FreeInvite) window.FreeInvite.init({ shortcode: data.shortcode });
+            if (window.FreeInvite && data.shortcode) {
+                window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+            }
         });
 
         // 방 입장 성공
@@ -4129,7 +4164,9 @@
             document.querySelector('.history-section').classList.add('visible');
 
             initializeGameScreen(data);
-            if (window.FreeInvite) window.FreeInvite.init({ shortcode: data.shortcode });
+            if (window.FreeInvite && data.shortcode) {
+                window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+            }
         });
 
         // 게임 화면 초기화
