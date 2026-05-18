@@ -43,6 +43,7 @@
      *   - opts 없으면 URL ?from=free&shortcode=XXX 쿼리에서 자동 추출 (기존 호환)
      */
     function init(opts) {
+        console.log('[FreeInvite.init]', { initialized, opts, path: window.location.pathname });
         if (initialized) return;
         opts = opts || {};
 
@@ -52,10 +53,16 @@
             if (urlParams.get('from') !== 'free') return;
             shortcode = urlParams.get('shortcode');
         }
-        if (!shortcode || !/^[A-Z0-9]{4,6}$/.test(shortcode)) return;
+        if (!shortcode || !/^[A-Z0-9]{4,6}$/.test(shortcode)) {
+            console.warn('[FreeInvite.init] shortcode 형식 안 맞음:', shortcode);
+            return;
+        }
 
         const slug = detectSlug();
-        if (!slug) return;
+        if (!slug) {
+            console.warn('[FreeInvite.init] slug 못 찾음 path:', window.location.pathname);
+            return;
+        }
 
         initialized = true;
 
@@ -77,20 +84,21 @@
         return '/free/' + slug + '/' + shortcode;
     }
 
-    // 헤더(#roomTitle)에 초대 링크 텍스트 mount — DOM 준비될 때까지 최대 5회 재시도
+    // 방 제목(#roomTitle) 다음 줄에 초대 링크 텍스트 mount — DOM 준비될 때까지 최대 10회 재시도 (~2초)
     function mountInviteBar(shortcode, slug, isServerRoom) {
         const url = window.location.origin + buildDirectUrl(shortcode, slug, isServerRoom);
         let tries = 0;
         function attempt() {
             const roomTitle = document.getElementById('roomTitle');
-            if (!roomTitle) {
-                if (++tries < 5) setTimeout(attempt, 200);
+            if (!roomTitle || !roomTitle.parentNode) {
+                if (++tries < 10) setTimeout(attempt, 200);
+                else console.warn('[FreeInvite] mountInviteBar: #roomTitle 못 찾음');
                 return;
             }
             const existing = document.getElementById('freeInviteBar');
             if (existing) existing.remove();
 
-            const bar = document.createElement('span');
+            const bar = document.createElement('div');
             bar.id = 'freeInviteBar';
             bar.title = '클릭하여 초대 링크 복사';
             bar.innerHTML = '<span class="fi-bar-icon">🔗</span><span class="fi-bar-url"></span>';
@@ -109,7 +117,8 @@
                 }, 1200);
             });
 
-            roomTitle.appendChild(bar);
+            // 방 제목 컨테이너 바로 다음(별도 줄)에 삽입
+            roomTitle.parentNode.insertBefore(bar, roomTitle.nextSibling);
         }
         attempt();
     }
@@ -488,14 +497,13 @@
             +   'display: inline-flex;'
             +   'align-items: center;'
             +   'gap: 6px;'
-            +   'margin-left: 10px;'
-            +   'padding: 4px 10px;'
+            +   'padding: 5px 14px;'
             +   'background: rgba(102,126,234,0.10);'
             +   'border: 1px solid rgba(102,126,234,0.22);'
             +   'border-radius: 999px;'
             +   'cursor: pointer;'
-            +   'vertical-align: middle;'
             +   'transition: background 0.15s;'
+            +   'max-width: calc(100% - 16px);'
             + '}'
             + '#freeInviteBar:hover { background: rgba(102,126,234,0.18); }'
             + '#freeInviteBar .fi-bar-icon { font-size: 12px; }'
@@ -509,7 +517,7 @@
             + '#freeInviteBar.fi-bar-copied { background: #4ade80; border-color: #22c55e; }'
             + '#freeInviteBar.fi-bar-copied .fi-bar-url { color: white; }'
             + '@media (max-width: 480px) {'
-            +   '#freeInviteBar { margin-left: 6px; padding: 3px 8px; }'
+            +   '#freeInviteBar { padding: 4px 10px; }'
             +   '#freeInviteBar .fi-bar-url { font-size: 0.7em; }'
             + '}'
             + '@media (max-width: 480px) {'

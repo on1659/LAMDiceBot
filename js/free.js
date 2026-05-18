@@ -71,6 +71,14 @@
         'bridge':     'bridgeUserName'
     };
 
+    // 각 게임 페이지의 sessionStorage 활성 방 키 (fast path rejoin용)
+    var SESSION_KEY_BY_TYPE = {
+        'dice':       'diceActiveRoom',
+        'roulette':   'rouletteActiveRoom',
+        'horse-race': 'horseRaceActiveRoom',
+        'bridge':     'bridgeActiveRoom'
+    };
+
     // ─── DOM ──────────────────────────────────
     var freeMain          = document.getElementById('freeMain');
     var gameGrid          = document.getElementById('gameGrid');
@@ -289,6 +297,12 @@
             // info: { roomId, gameType, hostName, roomName, isGameActive, playerCount,
             //         serverId, serverName, isPrivateServer }
             // 자유플레이(serverId=null)는 기존 흐름, 서버 방은 멤버십 게이트 통과 후 입장.
+
+            // Fast path: 같은 탭에서 이미 그 방의 활성 세션이 있으면 (호스트/게스트 새로고침)
+            //   → 다이렉트 링크 게이트 우회하고 게임 페이지로 즉시 redirect.
+            //   게임 페이지 IIFE가 sessionStorage 기반 자동 rejoin 처리 (~1초).
+            if (tryFastPathRejoin(info)) return;
+
             var storedName = getStoredUserName();
             var isServerRoom = info.serverId != null;
 
@@ -319,6 +333,30 @@
             hideDirectLoading();
             showExpiredModal(gameSlug);
         });
+    }
+
+    // Fast path: 같은 탭에 이미 그 방의 sessionStorage 활성 세션이 있으면
+    // 게임 페이지로 즉시 redirect (다이렉트 링크 게이트 우회).
+    // - 호스트 새로고침: roomTitle URL이 다이렉트 링크라 새로고침 시 free.js로 들어옴
+    //   → 본인 sessionStorage 매칭되면 게임 페이지로 바로 → IIFE rejoin → 호스트 자리 복원
+    // - 게스트 새로고침: 같은 원리
+    // 일치 안 하면 false 반환 → 일반 흐름 진행.
+    function tryFastPathRejoin(info) {
+        if (!info || !info.roomId || !info.gameType) return false;
+        var sessKey = SESSION_KEY_BY_TYPE[info.gameType];
+        var gamePath = GAME_PATH_BY_TYPE[info.gameType];
+        if (!sessKey || !gamePath) return false;
+
+        var sessData = null;
+        try { sessData = JSON.parse(sessionStorage.getItem(sessKey) || 'null'); } catch (_) {}
+        if (!sessData || sessData.roomId !== info.roomId) return false;
+
+        // 같은 방 활성 세션 — 게임 페이지로 즉시 redirect.
+        // 게임 페이지 IIFE가 sessionStorage 보고 자동 joinRoom (deviceId/tabId 매칭으로 자리 복원).
+        if (redirecting) return true;
+        redirecting = true;
+        window.location.replace(gamePath);
+        return true;
     }
 
     // 이름 확인 후 — 새 방 만들기 (free:createRoom emit)
