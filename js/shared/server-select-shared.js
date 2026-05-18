@@ -1093,7 +1093,8 @@ const ServerSelectModule = (function () {
     // ─── 서버 선택/입장 ───
 
     function selectFree() {
-        _showNameModal();
+        // 자유 모드 — /free 페이지로 이동해 별도 자유 로비로 진입한다.
+        window.location.href = '/free';
     }
 
     function _showNameModal() {

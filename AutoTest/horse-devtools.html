@@ -414,6 +414,10 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     <div class="section">
         <h2>Room <span class="count" id="roomCount">0</span></h2>
         <div id="roomList" style="margin-bottom:8px;min-height:24px"><span style="color:#555">로딩 중...</span></div>
+        <div class="flex-row" style="margin-bottom:6px">
+            <input id="linkInput" type="text" placeholder="다이렉트 링크 또는 shortcode 붙여넣기" style="flex:1;min-width:240px;margin:0">
+            <button class="btn-blue btn-sm" onclick="pickRoomFromLink()">링크로 선택</button>
+        </div>
         <div class="flex-row">
             <label style="margin:0;font-size:11px">봇 수</label>
             <input id="botCount" type="number" value="8" min="1" max="8" style="width:50px;margin:0">
@@ -581,6 +585,14 @@ controlSocket.on('roomsListUpdated', r => { roomsCache = r; renderRooms(); });
 
 function refreshRooms() { controlSocket.emit('getRooms'); }
 
+// linkInput Enter 키 처리
+document.addEventListener('DOMContentLoaded', function() {
+    const li = document.getElementById('linkInput');
+    if (li) li.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); pickRoomFromLink(); }
+    });
+});
+
 function renderRooms() {
     const el = document.getElementById('roomList');
     const rooms = roomsCache.filter(r => r.gameType === 'horse-race');
@@ -602,6 +614,38 @@ function pickRoom(id, name) {
     selectedRoomName = name;
     dlog(`방 선택: ${name}`, 'info');
     renderRooms();
+}
+
+// 다이렉트 링크 URL 또는 shortcode → roomId resolve → selectedRoomId 세팅
+async function pickRoomFromLink() {
+    const raw = (document.getElementById('linkInput').value || '').trim();
+    if (!raw) return dlog('링크를 입력하세요', 'err');
+    // URL 끝부분 또는 단독 입력에서 shortcode 추출 (4-6자 영문대문자/숫자)
+    const m = raw.match(/([A-Z0-9]{4,6})\/?(?:\?|#|$)/);
+    if (!m) return dlog('링크에서 shortcode를 찾을 수 없습니다', 'err');
+    const shortcode = m[1];
+    try {
+        const r = await fetch('/api/free/resolve/' + encodeURIComponent(shortcode), {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!r.ok) {
+            const body = await r.json().catch(() => ({}));
+            return dlog(`방을 찾을 수 없습니다 (HTTP ${r.status} ${body.error || ''})`, 'err');
+        }
+        const info = await r.json();
+        if (!info.roomId) return dlog('잘못된 응답', 'err');
+        if (info.gameType !== 'horse-race') {
+            return dlog(`경마 방이 아닙니다 (gameType: ${info.gameType})`, 'err');
+        }
+        selectedRoomId = info.roomId;
+        // 서버 방은 roomName이 마스킹되어 null → shortcode로 fallback
+        selectedRoomName = info.roomName || ('방 #' + shortcode);
+        const tag = info.serverId ? '[서버 방]' : '[자유 방]';
+        dlog(`링크 방 선택: ${selectedRoomName} ${tag} (${shortcode})`, 'info');
+        renderRooms();
+    } catch (e) {
+        dlog(`링크 조회 실패: ${e.message}`, 'err');
+    }
 }
 
 function dlog(msg, cls) {

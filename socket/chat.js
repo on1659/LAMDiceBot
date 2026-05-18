@@ -1,5 +1,6 @@
 const geminiService = require('../utils/gemini-utils');
 const { ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
+const { deleteRoom } = require('../utils/room-helpers');
 
 // ─── 조정 가능한 상수 ───
 const CHAT_MAX_LENGTH = 200;           // 채팅 메시지 최대 길이 (문자)
@@ -528,7 +529,7 @@ module.exports = (socket, io, ctx) => {
         room._graceTimer = setTimeout(() => {
             if (ctx.rooms[roomId] && ctx.rooms[roomId].gameState.users.length === 0) {
                 io.to(roomId).emit('roomDeleted', { message: '모든 사용자가 방을 떠났습니다.' });
-                delete ctx.rooms[roomId];
+                deleteRoom(ctx.rooms, roomId);
                 ctx.updateRoomsList();
                 console.log(`방 삭제: ${room.roomName} (${roomId}) - grace period 만료`);
             }

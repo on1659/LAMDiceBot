@@ -1,0 +1,411 @@
+/* =====================================================
+   /free 페이지 전용 스타일
+   - Phase A: 정적 페이지 (백엔드/소켓 연동 없음)
+   - 디자인 원본: prototype/free-mockup/index.html
+   - mockup의 control-panel / preview-frame / url-bar / dev-note /
+     toggle-row 등 mockup 전용 요소는 제거
+===================================================== */
+
+/* -----------------------------------------------------
+   게임별 그라데이션 토큰
+   theme.css에 horse/bridge 그라데이션이 없어 여기서 직접 정의.
+   (theme.css를 건드리지 않기 위해 free 페이지 한정 토큰)
+----------------------------------------------------- */
+:root {
+    --dice-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --roulette-gradient: linear-gradient(135deg, #1a5c3a 0%, #22693f 50%, #2d7a52 100%);
+    --horse-gradient: linear-gradient(135deg, #8B4513 0%, #c97a3e 100%);
+    --bridge-gradient: linear-gradient(135deg, #0891b2 0%, #42edff 100%);
+
+    --free-bg: #f5f7fa;
+    --free-surface: #ffffff;
+    --free-text: #212529;
+    --free-text-muted: #6c757d;
+    --free-border: #e9ecef;
+    --free-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --free-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
+}
+
+/* 향후 다크모드 도입 시 호환 (현재 운영은 강제 light 라 미적용) */
+[data-theme="dark"] {
+    --free-bg: #1a1a1f;
+    --free-surface: #25252d;
+    --free-text: #f5f5f7;
+    --free-text-muted: #a1a1aa;
+    --free-border: #3f3f46;
+    --free-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --free-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', sans-serif;
+    background: var(--free-bg);
+    color: var(--free-text);
+    min-height: 100vh;
+}
+
+.free-main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    text-align: center;
+    position: relative;
+    min-height: 100vh;
+}
+
+.free-main h1 {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #667eea, #1ec8da);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.free-main .subtitle {
+    font-size: 15px;
+    color: var(--free-text-muted);
+    margin-bottom: 32px;
+}
+
+/* =====================================================
+   게임 카드 그리드
+===================================================== */
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    max-width: 520px;
+    margin: 0 auto 32px;
+}
+
+.game-card {
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+    padding: 20px;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.3s;
+    box-shadow: var(--free-shadow);
+    border: none;
+    text-align: left;
+    font-family: inherit;
+}
+
+.game-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+}
+
+.game-card[data-game="dice"]     { background: var(--dice-gradient); }
+.game-card[data-game="roulette"] { background: var(--roulette-gradient); }
+.game-card[data-game="horse"]    { background: var(--horse-gradient); }
+.game-card[data-game="bridge"]   { background: var(--bridge-gradient); }
+
+.game-card .game-emoji {
+    font-size: 36px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.game-card .game-name {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+.game-card .game-meta {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 2px;
+}
+
+/* =====================================================
+   매칭(방 만드는 중) 모드 — 선택 카드 펄스, 나머지 dim
+===================================================== */
+.free-main.matching .game-card:not(.selected) {
+    opacity: 0.35;
+    pointer-events: none;
+    transform: scale(0.96);
+}
+
+.free-main.matching .game-card.selected {
+    animation: free-pulse 1.4s ease-in-out infinite;
+}
+
+.free-main.matching .game-card.selected .game-meta { display: none; }
+
+.free-main.matching .game-card.selected .game-name::after {
+    content: " 방 만드는 중...";
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.9;
+    margin-top: 4px;
+}
+
+.free-main.matching .ranking-cta { display: none; }
+.free-main.matching .cancel-match { display: inline-block; }
+
+@keyframes free-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        transform: scale(1.03);
+        box-shadow: 0 16px 36px rgba(102, 126, 234, 0.7);
+    }
+}
+
+/* =====================================================
+   🏆 자유 랭킹 버튼 / 매칭 취소
+===================================================== */
+.ranking-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: transparent;
+    border: 1px solid var(--free-border);
+    border-radius: 999px;
+    color: var(--free-text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.ranking-cta:hover {
+    background: var(--free-surface);
+    border-color: #667eea;
+}
+
+.cancel-match {
+    display: none;
+    margin-top: 16px;
+    padding: 10px 24px;
+    background: transparent;
+    border: 1px solid var(--free-text-muted);
+    color: var(--free-text-muted);
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.cancel-match:hover {
+    color: var(--free-text);
+    border-color: var(--free-text);
+}
+
+/* =====================================================
+   이름 토스트 카운트다운 (재방문)
+===================================================== */
+.name-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--free-surface);
+    border: 1px solid var(--free-border);
+    border-radius: 12px;
+    box-shadow: var(--free-shadow-lg);
+    padding: 14px 18px;
+    display: none;
+    align-items: center;
+    gap: 16px;
+    min-width: 320px;
+    max-width: calc(100% - 32px);
+    z-index: 50;
+}
+
+.name-toast.visible { display: flex; }
+
+.name-toast .name-text {
+    font-size: 14px;
+    color: var(--free-text);
+    font-weight: 500;
+    flex: 1;
+}
+
+.name-toast .name-text b {
+    color: #667eea;
+    font-weight: 700;
+}
+
+.name-toast .countdown {
+    font-size: 18px;
+    font-weight: 800;
+    color: #667eea;
+    font-family: 'SF Mono', Consolas, monospace;
+    min-width: 24px;
+    text-align: center;
+}
+
+.name-toast .toast-link {
+    background: transparent;
+    border: none;
+    color: var(--free-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.name-toast .toast-link:hover { color: var(--free-text); }
+
+/* =====================================================
+   모달 (강한 이름 입력 / 만료 안내)
+   - mockup의 position:absolute → position:fixed로 변경
+   - z-index 1000 으로 충분히 높임
+===================================================== */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.modal-backdrop.hidden { display: none; }
+
+.modal {
+    background: var(--free-surface);
+    border-radius: 16px;
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: var(--free-shadow-lg);
+    position: relative;
+}
+
+.modal h2 {
+    font-size: 20px;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.modal .modal-sub {
+    font-size: 13px;
+    color: var(--free-text-muted);
+    text-align: center;
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+.modal input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid var(--free-border);
+    border-radius: 10px;
+    font-size: 15px;
+    background: var(--free-bg);
+    color: var(--free-text);
+    margin-bottom: 16px;
+    font-family: inherit;
+}
+
+.modal input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.modal .modal-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--dice-gradient);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.modal .modal-btn:hover { filter: brightness(1.05); }
+
+/* =====================================================
+   만료 모달
+===================================================== */
+.expired-modal { text-align: center; }
+.expired-modal .expired-icon { font-size: 48px; margin-bottom: 12px; }
+.expired-modal h2 { margin-bottom: 8px; }
+.expired-modal .modal-sub { margin-bottom: 24px; }
+
+.expired-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.expired-actions button {
+    flex: 1;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+}
+
+.expired-actions .btn-primary {
+    background: var(--dice-gradient);
+    color: white;
+}
+
+.expired-actions .btn-ghost {
+    background: transparent;
+    color: var(--free-text);
+    border: 1px solid var(--free-border);
+}
+
+/* =====================================================
+   모바일 반응형 (480px 이하 — 카드 1열)
+===================================================== */
+@media (max-width: 480px) {
+    .free-main {
+        padding: 32px 16px;
+    }
+
+    .free-main h1 { font-size: 24px; }
+    .free-main .subtitle {
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+
+    .game-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        max-width: 360px;
+    }
+
+    .game-card {
+        aspect-ratio: 5 / 2;
+    }
+
+    .game-card .game-name { font-size: 18px; }
+    .game-card .game-emoji { font-size: 28px; }
+
+    .name-toast {
+        min-width: 0;
+        width: calc(100% - 32px);
+    }
+}

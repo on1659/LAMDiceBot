@@ -1255,7 +1255,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 /* 접속자 목록 */
 .users-section {
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 
 .users-title {
