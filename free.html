@@ -134,12 +134,14 @@
         </div>
     </div>
 
-    <!-- 서버 입장 안내 모달 (승인 대기/오류 안내) -->
+    <!-- 서버 입장 안내 모달 (승인 대기/오류 안내 / 가입 확인) -->
     <div class="modal-backdrop hidden" id="serverInfoModal">
         <div class="modal">
             <h2 id="serverInfoTitle">알림</h2>
             <p class="modal-sub" id="serverInfoMessage">메시지</p>
+            <button type="button" class="modal-btn" id="serverInfoConfirm" style="display:none;">확인</button>
             <button type="button" class="modal-btn" id="serverInfoClose">확인</button>
+            <button type="button" class="toast-link" id="serverInfoCancel" style="display:none;margin-top:8px;background:none;border:none;color:var(--text-muted);text-decoration:underline;cursor:pointer;">취소</button>
         </div>
     </div>
 

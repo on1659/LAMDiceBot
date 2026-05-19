@@ -109,6 +109,8 @@
     var serverInfoTitle           = document.getElementById('serverInfoTitle');
     var serverInfoMessage         = document.getElementById('serverInfoMessage');
     var serverInfoClose           = document.getElementById('serverInfoClose');
+    var serverInfoConfirm         = document.getElementById('serverInfoConfirm');
+    var serverInfoCancel          = document.getElementById('serverInfoCancel');
 
     // ─── 상태 ─────────────────────────────────
     var selectedGame       = null;
@@ -501,20 +503,22 @@
                 showServerInfoModal('승인 대기 중', '이 서버는 가입 승인이 필요해요. 서버장이 승인하면 입장할 수 있어요.');
                 return;
             }
-            // 비멤버 — 비공개면 참여코드 모달, 공개면 가입 신청 안내
+            // 비멤버 — 가입 신청 의사 먼저 확인 후 진행 (거부 시 /game 서버 선택으로 이동)
             hideDirectLoading();
-            if (info.isPrivateServer) {
-                showServerPasswordModal(info.serverName || '비공개 서버', function(password) {
-                    if (password == null) {
-                        resetMatching();
-                        return;
-                    }
-                    doJoinServerThenEnter(info, userName, shortcode, password);
-                });
-            } else {
-                // 공개 서버 — joinServer 시도하면 가입 신청 (미승인 INSERT) → "승인 대기" 안내
-                doJoinServerThenEnter(info, userName, shortcode, '');
-            }
+            showServerJoinConfirmModal(info.serverName, function onConfirm() {
+                if (info.isPrivateServer) {
+                    showServerPasswordModal(info.serverName || '비공개 서버', function(password) {
+                        if (password == null) {
+                            resetMatching();
+                            return;
+                        }
+                        doJoinServerThenEnter(info, userName, shortcode, password);
+                    });
+                } else {
+                    // 공개 서버 — joinServer 시도하면 가입 신청 (미승인 INSERT) → "승인 대기" 안내
+                    doJoinServerThenEnter(info, userName, shortcode, '');
+                }
+            });
         })
         .catch(function() {
             hideDirectLoading();
@@ -960,11 +964,45 @@
         // textContent 사용 — 사용자 입력/서버 메시지를 innerHTML로 절대 삽입 금지
         serverInfoMessage.textContent = message;
         serverInfoModal.classList.remove('hidden');
+        // 단일 확인 모드 — 확인 버튼만 표시
+        if (serverInfoConfirm) serverInfoConfirm.style.display = 'none';
+        if (serverInfoCancel) serverInfoCancel.style.display = 'none';
         if (serverInfoClose) {
+            serverInfoClose.style.display = '';
+            serverInfoClose.textContent = '확인';
             serverInfoClose.onclick = function() {
                 serverInfoModal.classList.add('hidden');
                 // free 메인으로 복귀 (보안 불변조건 2: 승인 대기/오류 시 /free 복귀)
                 window.location.href = '/free';
+            };
+        }
+    }
+
+    // 가입 신청 확인 모달 — 비공개 서버 비멤버 진입 시
+    // 동의 → onConfirm() (참여코드 모달로 이어짐)
+    // 거부 → 서버 선택 화면(/game)으로 이동
+    function showServerJoinConfirmModal(serverName, onConfirm) {
+        if (!serverInfoModal || !serverInfoTitle || !serverInfoMessage) return;
+        serverInfoTitle.textContent = (serverName || '비공개 서버') + ' 가입';
+        serverInfoMessage.textContent = '아직 이 서버의 멤버가 아니에요. 가입 신청을 보낼까요? (호스트 승인 후 입장 가능)';
+        serverInfoModal.classList.remove('hidden');
+
+        // 확인 버튼 숨김, 신청/취소 두 버튼 모드
+        if (serverInfoClose) serverInfoClose.style.display = 'none';
+        if (serverInfoConfirm) {
+            serverInfoConfirm.style.display = '';
+            serverInfoConfirm.textContent = '가입 신청 →';
+            serverInfoConfirm.onclick = function() {
+                serverInfoModal.classList.add('hidden');
+                onConfirm && onConfirm();
+            };
+        }
+        if (serverInfoCancel) {
+            serverInfoCancel.style.display = '';
+            serverInfoCancel.textContent = '취소 (서버 선택으로)';
+            serverInfoCancel.onclick = function() {
+                serverInfoModal.classList.add('hidden');
+                window.location.href = '/game';
             };
         }
     }
