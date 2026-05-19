@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>경마 배경 가독성 미리보기 (2026-05-19)</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --fg: #e5e5e5;
+            --muted: #8b8b8b;
+            --warn: #ffb84d;
+            --danger: #ff5757;
+            --ok: #4ade80;
+            --row-bg: #242424;
+            --border: #333;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 16px;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, "Segoe UI", sans-serif;
+            font-size: 14px;
+        }
+        h1 { font-size: 18px; margin: 0 0 4px; }
+        .sub { color: var(--muted); margin: 0 0 16px; font-size: 13px; }
+        .controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 12px;
+            background: var(--row-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .controls input[type=range] { width: 140px; }
+        .controls input[type=checkbox] { transform: scale(1.2); }
+        .controls .badge {
+            margin-left: auto;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 12px;
+            background: var(--row-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        .row .meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            justify-content: center;
+        }
+        .row .name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .row .vehicle-color {
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .row .verdict { font-size: 12px; font-weight: 600; }
+        .verdict.ok { color: var(--ok); }
+        .verdict.warn { color: var(--warn); }
+        .verdict.danger { color: var(--danger); }
+        .row .verdict-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+        .lane-wrap {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: #000;
+        }
+        .lane {
+            position: relative;
+            width: 100%;
+            background-repeat: repeat-x;
+            background-size: auto 100%;
+            background-position: 0 0;
+            transition: height 0.15s;
+        }
+        .vehicle {
+            position: absolute;
+            top: 50%;
+            left: 12px;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .vehicle svg {
+            display: block;
+            height: 100%;
+            width: auto;
+            max-width: none;
+        }
+
+        .footer {
+            margin-top: 24px;
+            padding: 12px;
+            background: var(--row-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+        .footer b { color: var(--fg); }
+
+        @media (max-width: 720px) {
+            .row { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <h1>경마 배경 가독성 미리보기</h1>
+    <p class="sub">2026-05-19 vehicle-backgrounds batch 인수 후 시각 검수. 차량 SVG를 실제 lane 배경 위에 올려 가독성 확인.</p>
+
+    <div class="controls">
+        <label>
+            Lane 높이
+            <input type="range" id="laneHeight" min="40" max="200" value="75">
+            <span id="laneHeightVal">75px</span>
+        </label>
+        <label>
+            차량 크기
+            <input type="range" id="vehicleScale" min="50" max="200" value="100">
+            <span id="vehicleScaleVal">100%</span>
+        </label>
+        <label>
+            <input type="checkbox" id="showOk" checked> OK 10종 표시
+        </label>
+        <label>
+            <input type="checkbox" id="showWarn" checked> 위험 5종만 표시
+        </label>
+        <span class="badge">실제 게임 lane 높이는 60~75px</span>
+    </div>
+
+    <div id="rows"></div>
+
+    <div class="footer">
+        <b>판정 기준</b> — 차량 SVG의 색이 배경에 묻히지 않고 명확히 보이면 OK. 외곽선이 흐릿하거나 같은 hue 안에서 형체가 가려지면 위험.<br>
+        <b>위험 5종</b> — bird/eagle/scooter (요청 무시 또는 같은 hue), turtle/dinosaur (인접 hue, 살짝 우려).<br>
+        <b>다음 행동</b> — 진짜 안 보이는 차량만 SpriteMake에 재요청. REQUESTS.md의 contrast override 규칙 강화 후 재생성.
+    </div>
+
+    <script src="../js/horse-race-sprites.js"></script>
+    <script>
+        const VEHICLES = [
+            { id: 'car',        ko: '자동차',     color: '빨강', verdict: 'ok',     note: '회색 도로 + 빨강 차 — 대비 좋음' },
+            { id: 'rocket',     ko: '로켓',       color: '빨강', verdict: 'ok',     note: '보라 우주 + 빨강 로켓 — 대비 좋음' },
+            { id: 'bird',       ko: '새',         color: '파랑/노랑', verdict: 'danger', note: '⚠️ 요청 무시 — 파란 하늘 그대로, 파란 새 묻힐 위험' },
+            { id: 'boat',       ko: '보트',       color: '갈색', verdict: 'ok',     note: '푸른 바다 + 갈색 보트 — 대비 좋음' },
+            { id: 'bicycle',    ko: '자전거',     color: '다양', verdict: 'ok',     note: '잔디 + 라이더 — 일반 OK' },
+            { id: 'rabbit',     ko: '토끼',       color: '흰/회색', verdict: 'ok', note: '진초록 들판 + 흰 토끼 — 대비 좋음' },
+            { id: 'turtle',     ko: '거북이',     color: '초록', verdict: 'warn',   note: '⚠ 청록 강가 vs 초록 거북이, 인접 hue' },
+            { id: 'eagle',      ko: '독수리',     color: '갈색/검정', verdict: 'danger', note: '⚠️ 요청 무시 — 어두운 회색 톤, 검은 독수리 묻힐 위험' },
+            { id: 'scooter',    ko: '킥보드',     color: '파랑', verdict: 'danger', note: '⚠️ 파란 스쿠터 vs 푸른 하늘 배경, 가독성 위험' },
+            { id: 'helicopter', ko: '헬리콥터',   color: '노랑/검정', verdict: 'ok', note: '빌딩 사이 + 노랑 강함 OK' },
+            { id: 'horse',      ko: '말',         color: '갈색', verdict: 'ok',     note: '푸른 들판 + 갈색 말 — 대비 좋음' },
+            { id: 'knight',     ko: '기사',       color: '은색', verdict: 'ok',     note: '✅ override 잘 반영 — 어두운 성벽 + 빨간 깃발' },
+            { id: 'dinosaur',   ko: '공룡',       color: '초록', verdict: 'warn',   note: '⚠ 푸른 들판 + 작은 화산, 황토/주황은 일부만 반영' },
+            { id: 'ninja',      ko: '닌자',       color: '검정', verdict: 'ok',     note: '✅ override 잘 반영 — 보름달 강조' },
+            { id: 'crab',       ko: '게',         color: '빨강', verdict: 'ok',     note: '베이지 모래 + 빨강 게 — 대비 좋음' }
+        ];
+
+        const VERDICT_LABEL = { ok: '✅ OK', warn: '⚠ 우려', danger: '❌ 위험' };
+
+        function render() {
+            const laneHeight = parseInt(document.getElementById('laneHeight').value, 10);
+            const vehicleScale = parseInt(document.getElementById('vehicleScale').value, 10) / 100;
+            const showOk = document.getElementById('showOk').checked;
+            const showWarn = document.getElementById('showWarn').checked;
+
+            const list = VEHICLES.filter(v => {
+                if (v.verdict === 'ok' && !showOk) return false;
+                if ((v.verdict === 'warn' || v.verdict === 'danger') && !showWarn) return false;
+                return true;
+            });
+
+            const container = document.getElementById('rows');
+            container.innerHTML = '';
+
+            list.forEach(v => {
+                const row = document.createElement('div');
+                row.className = 'row';
+
+                const meta = document.createElement('div');
+                meta.className = 'meta';
+                meta.innerHTML = `
+                    <div class="name">${v.ko} <span style="color:var(--muted); font-size:12px;">(${v.id})</span></div>
+                    <div class="vehicle-color">차량 색: ${v.color}</div>
+                    <div class="verdict ${v.verdict}">${VERDICT_LABEL[v.verdict]}</div>
+                    <div class="verdict-note">${v.note}</div>
+                `;
+
+                const laneWrap = document.createElement('div');
+                laneWrap.className = 'lane-wrap';
+
+                const lane = document.createElement('div');
+                lane.className = 'lane';
+                lane.style.height = laneHeight + 'px';
+                lane.style.backgroundImage = `url('/assets/backgrounds/${v.id}.png')`;
+
+                const vehicle = document.createElement('div');
+                vehicle.className = 'vehicle';
+                const visualHeight = Math.round(laneHeight * 0.7 * vehicleScale);
+                vehicle.style.height = visualHeight + 'px';
+                vehicle.style.width = Math.round(visualHeight * (60 / 45)) + 'px';
+                if (typeof getVehicleSVG === 'function') {
+                    const svg = getVehicleSVG(v.id);
+                    vehicle.innerHTML = svg.run.frame1;
+                } else {
+                    vehicle.textContent = v.id;
+                }
+
+                lane.appendChild(vehicle);
+                laneWrap.appendChild(lane);
+                row.appendChild(meta);
+                row.appendChild(laneWrap);
+                container.appendChild(row);
+            });
+        }
+
+        document.getElementById('laneHeight').addEventListener('input', e => {
+            document.getElementById('laneHeightVal').textContent = e.target.value + 'px';
+            render();
+        });
+        document.getElementById('vehicleScale').addEventListener('input', e => {
+            document.getElementById('vehicleScaleVal').textContent = e.target.value + '%';
+            render();
+        });
+        document.getElementById('showOk').addEventListener('change', render);
+        document.getElementById('showWarn').addEventListener('change', render);
+
+        render();
+    </script>
+</body>
+</html>
