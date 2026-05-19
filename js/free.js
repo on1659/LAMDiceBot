@@ -503,21 +503,12 @@
                 showServerInfoModal('승인 대기 중', '이 서버는 가입 승인이 필요해요. 서버장이 승인하면 입장할 수 있어요.');
                 return;
             }
-            // 비멤버 — 가입 신청 의사 먼저 확인 후 진행 (거부 시 /game 서버 선택으로 이동)
+            // 비멤버 — 가입 신청 의사 확인 후 즉시 joinServer.
+            // 다이렉트 링크 진입(shortcode 동반)은 참여코드 우회 (서버측이 shortcode로 검증).
+            // 거부 시 /game(서버 선택)으로 이동.
             hideDirectLoading();
             showServerJoinConfirmModal(info.serverName, function onConfirm() {
-                if (info.isPrivateServer) {
-                    showServerPasswordModal(info.serverName || '비공개 서버', function(password) {
-                        if (password == null) {
-                            resetMatching();
-                            return;
-                        }
-                        doJoinServerThenEnter(info, userName, shortcode, password);
-                    });
-                } else {
-                    // 공개 서버 — joinServer 시도하면 가입 신청 (미승인 INSERT) → "승인 대기" 안내
-                    doJoinServerThenEnter(info, userName, shortcode, '');
-                }
+                doJoinServerThenEnter(info, userName, shortcode, '');
             });
         })
         .catch(function() {
@@ -605,7 +596,8 @@
         socket.emit('joinServer', {
             serverId: info.serverId,
             userName: userName,
-            password: password || ''
+            password: password || '',
+            shortcode: shortcode  // 다이렉트 링크 진입 — 서버측이 검증 후 참여코드 우회
         });
     }
 
