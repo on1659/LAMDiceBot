@@ -4,6 +4,7 @@ const {
     getMembers, updateMemberApproval, removeMember, checkMember, updateLastSeen,
     getServerRecords
 } = require('../db/servers');
+const { resolveShortcode } = require('../utils/shortcode');
 
 // 온라인 멤버 추적 (인메모리)
 // Map<serverId, Map<userName, socketId>>
@@ -111,15 +112,26 @@ function registerServerHandlers(socket, io, ctx) {
     // 서버 입장
     socket.on('joinServer', async (data) => {
         if (!checkRateLimit()) return;
-        const { serverId, userName, password } = data || {};
+        const { serverId, userName, password, shortcode } = data || {};
 
         if (!serverId || !userName) {
             socket.emit('serverError', '서버 ID와 이름은 필수입니다.');
             return;
         }
 
+        // 다이렉트 링크 진입(shortcode 동반)이면 참여코드 검증 우회 — 단, shortcode가 가리키는
+        // 방의 serverId가 요청 serverId와 일치해야 함. 임의 서버 shortcode로 다른 서버 가입 차단.
+        let skipPasswordCheck = false;
+        if (shortcode && typeof shortcode === 'string' && /^[A-Z0-9]{4,6}$/.test(shortcode)) {
+            const targetRoomId = resolveShortcode(shortcode);
+            const targetRoom = targetRoomId ? rooms[targetRoomId] : null;
+            if (targetRoom && Number(targetRoom.serverId) === Number(serverId)) {
+                skipPasswordCheck = true;
+            }
+        }
+
         try {
-            const result = await joinServer(serverId, userName, password);
+            const result = await joinServer(serverId, userName, password, { skipPasswordCheck });
 
             if (result.error) {
                 socket.emit('serverError', result.error);

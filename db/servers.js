@@ -137,7 +137,7 @@ async function getUserJoinedCount(userName) {
 
 // ─── Member 관리 ───
 
-async function joinServer(serverId, userName, password) {
+async function joinServer(serverId, userName, password, options = {}) {
     const pool = getPool();
     if (!pool) return { error: 'DB 미연결' };
 
@@ -161,7 +161,8 @@ async function joinServer(serverId, userName, password) {
     }
 
     // 새 가입: 참여코드 확인
-    if (server.password_hash) {
+    // options.skipPasswordCheck=true 면 우회 (다이렉트 링크 진입 — 서버측에서 shortcode 검증 후 호출)
+    if (server.password_hash && !options.skipPasswordCheck) {
         const match = await comparePassword(password, server.password_hash);
         if (!match) return { error: '참여코드가 일치하지 않습니다.' };
     }
