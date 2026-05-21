@@ -99,11 +99,15 @@
             background-position: 0 0;
             transition: height 0.15s;
         }
+        /* 실제 게임 차량 sprite는 60×45px 고정 (css/horse-race.css:351 .vehicle-sprite)
+           lane height와 무관하게 같은 크기로 표시해야 실제 게임과 비율이 일치한다. */
         .vehicle {
             position: absolute;
             top: 50%;
             left: 12px;
             transform: translateY(-50%);
+            width: 60px;
+            height: 45px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -111,8 +115,8 @@
         }
         .vehicle svg {
             display: block;
-            height: 100%;
-            width: auto;
+            width: 60px;
+            height: 45px;
             max-width: none;
         }
 
@@ -141,8 +145,8 @@
     <div class="controls">
         <label>
             Lane 높이
-            <input type="range" id="laneHeight" min="40" max="200" value="75">
-            <span id="laneHeightVal">75px</span>
+            <input type="range" id="laneHeight" min="40" max="200" value="60">
+            <span id="laneHeightVal">60px</span>
         </label>
         <label>
             차량 크기
@@ -155,7 +159,7 @@
         <label>
             <input type="checkbox" id="showWarn" checked> 위험 5종만 표시
         </label>
-        <span class="badge">실제 게임 lane 높이는 60~75px</span>
+        <span class="badge">실제 게임 lane 60px, 차량 60×45px 고정</span>
     </div>
 
     <div id="rows"></div>
