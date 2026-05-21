@@ -140,6 +140,7 @@
                    data-ad-slot="7466418558"
                    data-ad-format="auto"
                    data-full-width-responsive="true"></ins>
+<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
 
             <!-- 준비 섹션 -->
@@ -171,8 +172,6 @@
                 <div id="bridgePlayingDetail" style="text-align:center; padding:8px 12px; background: var(--bridge-accent); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">결과를 확인 중입니다.</div>
             </div>
 
-            <!-- Wave 선택 패널은 캔버스 내 overlay로 이동됨 (#waveChoicePanel — stage-wrap 안) -->
-
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -181,9 +180,6 @@
                     </button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
-                </div>
-                <div id="endGameSection" style="display: none; margin-bottom: 10px;">
-                    <button class="end-button" onclick="endBridgeCrossGame()" style="width: 100%;">🏁 게임 종료</button>
                 </div>
                 <button onclick="clearBridgeCrossData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
             </div>
@@ -260,18 +256,6 @@
             <section class="stage-wrap" id="bridgeCrossGameArea" style="display: none;">
                 <!-- 인라인 display:none은 페이지 로드 시 IIFE 초기화 안전, JS에서 베팅 UI 표시할 때 block으로 바꿈 -->
                 <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
-                <!-- Wave 선택 패널 (캔버스 내 중앙 상단 overlay — 사용자 결정 2026-04-30) -->
-                <div id="waveChoicePanel" class="bridge-wave-panel" style="display: none;">
-                    <div class="bridge-wave-header">
-                        <span class="bridge-wave-label">🌉 턴 <span id="waveColLabel">1/10</span></span>
-                        <span class="bridge-wave-countdown" id="waveCountdown">3</span>
-                    </div>
-                    <div class="bridge-wave-buttons">
-                        <button type="button" id="waveTopBtn" class="bridge-wave-btn bridge-wave-btn-top" onclick="submitWaveChoice('top')" onmouseenter="setBridgeTileHover('top')" onmouseleave="setBridgeTileHover(null)">◀ 왼쪽 <span class="pick-count" id="waveTopCount">0</span></button>
-                        <button type="button" id="waveBottomBtn" class="bridge-wave-btn bridge-wave-btn-bottom" onclick="submitWaveChoice('bottom')" onmouseenter="setBridgeTileHover('bottom')" onmouseleave="setBridgeTileHover(null)">▶ 오른쪽 <span class="pick-count" id="waveBottomCount">0</span></button>
-                    </div>
-                    <div id="waveChoiceStatus" class="bridge-wave-status">왼쪽 또는 오른쪽을 선택하세요!</div>
-                </div>
                 <div class="debug-panel" id="debugPanel" hidden>
                     <div class="debug-title">Stage Layout Debug — D 키로 토글</div>
                     <div class="debug-row"><label><span>start.x</span><input type="range" id="dbgStartX" min="-300" max="1500" value="-145"><input type="number" id="dbgStartXNum" value="-145"></label></div>
@@ -309,24 +293,6 @@
                 </article>
             </section>
 
-            <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
-            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--bridge-accent); border: 2px solid var(--bridge-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
-
-                </div>
-            </div>
-
-            <!-- 다시보기 버튼 (화면 숨김 상태에서 게임이 진행된 경우 표시) -->
-            <div id="bridgeReplaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, var(--bridge-500) 0%, var(--bridge-600) 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);">
-                <div style="color: white; margin-bottom: 12px; font-size: 14px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                    🎬 화면을 보지 않는 동안 경주가 진행되었습니다
-                </div>
-                <button onclick="replayMissedRace()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                    🔄 다시보기
-                </button>
-            </div>
-
             <!-- 채팅 섹션 -->
             <div class="chat-section">
                 <div style="font-weight: bold; color: var(--bridge-accent); margin-bottom: 10px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">💬 채팅</div>
@@ -347,6 +313,7 @@
                    data-ad-slot="3774585551"
                    data-ad-format="horizontal"
                    data-full-width-responsive="true"></ins>
+<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
 
         </section>
@@ -762,6 +729,7 @@
            data-ad-slot="3774585551"
            data-ad-format="horizontal"
            data-full-width-responsive="true"></ins>
+<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
     </div>
 
     <footer style="text-align:center; padding:20px 0; font-size:0.9em; color:var(--text-secondary);">
