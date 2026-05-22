@@ -1111,27 +1111,18 @@ module.exports = (socket, io, ctx) => {
                 });
             }
 
-            // 🔧 퇴장한 사용자의 다리건너기(bonus-race) 데이터 삭제
+            // 🔧 퇴장한 사용자의 다리건너기(glass-bridge) 데이터 삭제.
+            // phase==='crossing' 중 이탈은 게임이 이미 resolved & DB 기록 완료라 결과 불변
+            // (one-shot 모델) — 추가 종료 트리거 불필요. participants/userColors만 정리한다.
             if (gameState.bridgeCross) {
                 var bc = gameState.bridgeCross;
                 if (bc.participants && Array.isArray(bc.participants)) {
                     bc.participants = bc.participants.filter(function (p) { return p && p.userName !== socket.userName; });
                 }
-                if (bc.pendingChoices && bc.pendingChoices[socket.userName] !== undefined) {
-                    delete bc.pendingChoices[socket.userName];
-                }
                 if (bc.userColors && bc.userColors[socket.userName] !== undefined) {
                     delete bc.userColors[socket.userName];
                 }
-                if (bc.userProgress && bc.userProgress[socket.userName] !== undefined) {
-                    delete bc.userProgress[socket.userName];
-                }
-                if (bc.finishOrder && Array.isArray(bc.finishOrder)) {
-                    bc.finishOrder = bc.finishOrder.filter(function (n) { return n !== socket.userName; });
-                }
             }
-            // 0명 leave 후 dead timer 방지: endTimeout/waveTimer는 진행 중 게임 stuck 방지를 위해
-            // 여기서 cleanup하지 않는다. socket/bridge-cross.js의 endGame 0명 가드가 처리.
         }
 
         // 호스트가 나가는 경우
