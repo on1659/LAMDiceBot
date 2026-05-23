@@ -19,7 +19,18 @@ function initAds() {
   });
 }
 
+// AdSense는 광고 미게재 시 ins에 data-ad-status="unfilled"를 설정 — 응답 대기 후 빈 슬롯 컨테이너에 ad-hidden 적용해 reserved 공간(min-height 90px) collapse
+function hideUnfilledAds() {
+  document.querySelectorAll('.ad-container .adsbygoogle').forEach(function(ins) {
+    if (ins.dataset.adStatus === 'unfilled') {
+      var container = ins.closest('.ad-container');
+      if (container) container.classList.add('ad-hidden');
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   // Future: fetch('/api/user/premium').then(...)
   initAds();
+  setTimeout(hideUnfilledAds, 2000);
 });
