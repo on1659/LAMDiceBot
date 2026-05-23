@@ -2130,9 +2130,6 @@
                 if (membersBtn) membersBtn.style.display = 'none';
                 const freeCreateRoomBox = document.getElementById('freeCreateRoomBox');
                 if (freeCreateRoomBox) freeCreateRoomBox.style.display = 'block';
-                // 방 만들기는 박스 안 버튼 하나로 통일 — 헤더의 중복 버튼 숨김
-                const headerCreateBtn = document.querySelector('.room-header .btn-create');
-                if (headerCreateBtn) headerCreateBtn.style.display = 'none';
             }
             const userNameSpan = document.getElementById('serverInfoUserName');
             // 서버 모드에서만 이름 span 표시 (자유 모드는 입력란 사용)
