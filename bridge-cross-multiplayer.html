@@ -153,16 +153,23 @@
                 </div>
             </div>
 
-            <!-- 색 선택 섹션 (ready phase) — 본인 캐릭터 색 결정 -->
-            <div id="colorPickerSection" class="bridge-color-picker-section">
-                <div class="users-title" style="margin-bottom: 8px;">🎨 내 캐릭터 색 선택 <span style="font-size:12px; color:var(--text-secondary); font-weight:normal; margin-left:6px;">— 색까지 선택해야 게임 시작 가능</span></div>
-                <div class="bridge-color-grid">
-                    <div class="bridge-color-card" data-color="0" onclick="pickBridgeColor(0)"><div class="color-emoji">🔴</div><div class="color-name">빨강</div></div>
-                    <div class="bridge-color-card" data-color="1" onclick="pickBridgeColor(1)"><div class="color-emoji">🟠</div><div class="color-name">주황</div></div>
-                    <div class="bridge-color-card" data-color="2" onclick="pickBridgeColor(2)"><div class="color-emoji">🟡</div><div class="color-name">노랑</div></div>
-                    <div class="bridge-color-card" data-color="3" onclick="pickBridgeColor(3)"><div class="color-emoji">🟢</div><div class="color-name">초록</div></div>
-                    <div class="bridge-color-card" data-color="4" onclick="pickBridgeColor(4)"><div class="color-emoji">🔵</div><div class="color-name">파랑</div></div>
-                    <div class="bridge-color-card" data-color="5" onclick="pickBridgeColor(5)"><div class="color-emoji">🟣</div><div class="color-name">남색</div></div>
+            <!-- 베팅 영역: 6색 카드 + 카운트다운 + 인원 카운터 -->
+            <div id="bettingSection" class="bridge-betting-section" style="display: none;">
+                <div class="users-title" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>🎯 색상 베팅</span>
+                    <span id="bridgeCountdown" style="color: var(--bridge-accent); font-weight: bold;">15초</span>
+                </div>
+                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                    누가 다리를 건널까? 색을 선택하세요. (다시 누르면 취소)
+                </div>
+                <div id="bridgeColorGrid" class="bridge-color-grid"></div>
+                <div id="bridgeBettorCount" style="text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 13px;">
+                    베팅한 사람: <span id="bridgeBettorCountValue">0</span>명
+                </div>
+                <!-- 준비했지만 베팅 안 한 사람 (horse-race notSelectedVehicleSection 패턴) -->
+                <div id="nonBettorSection" style="display: none; margin-top: 10px; padding: 10px; background: var(--yellow-50); border-radius: 8px;">
+                    <div style="font-weight: bold; color: var(--red-400); margin-bottom: 8px; font-size: 13px;">⏳ 베팅 안 한 사람</div>
+                    <div id="nonBettorList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
             </div>
 
@@ -179,6 +186,9 @@
                     </button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
+                </div>
+                <div id="endGameSection" style="display: none; margin-bottom: 10px;">
+                    <button class="end-button" onclick="endBridgeCrossGame()" style="width: 100%;">🏁 게임 종료</button>
                 </div>
                 <button onclick="clearBridgeCrossData()" id="clearDataButton" style="width: 100%; background: linear-gradient(135deg, var(--purple-600) 0%, var(--purple-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 14px; padding: 12px;">이전 게임 데이터 삭제</button>
             </div>
@@ -255,12 +265,18 @@
             <section class="stage-wrap" id="bridgeCrossGameArea" style="display: none;">
                 <!-- 인라인 display:none은 페이지 로드 시 IIFE 초기화 안전, JS에서 베팅 UI 표시할 때 block으로 바꿈 -->
                 <canvas id="game" width="1024" height="683" aria-label="다리 건너기 게임 캔버스"></canvas>
+                <div class="zoom-ui" id="zoomUi">
+                    <button data-zoom="-0.1" type="button" aria-label="줌 아웃">−</button>
+                    <span class="zoom-value" id="zoomValue">1.0×</span>
+                    <button data-zoom="+0.1" type="button" aria-label="줌 인">+</button>
+                    <button data-zoom="reset" type="button" aria-label="리셋">⟲</button>
+                </div>
                 <div class="debug-panel" id="debugPanel" hidden>
                     <div class="debug-title">Stage Layout Debug — D 키로 토글</div>
                     <div class="debug-row"><label><span>start.x</span><input type="range" id="dbgStartX" min="-300" max="1500" value="-145"><input type="number" id="dbgStartXNum" value="-145"></label></div>
-                    <div class="debug-row"><label><span>start.y</span><input type="range" id="dbgStartY" min="-200" max="1900" value="1080"><input type="number" id="dbgStartYNum" value="1080"></label></div>
-                    <div class="debug-row"><label><span>finish.x</span><input type="range" id="dbgFinishX" min="500" max="2800" value="1528"><input type="number" id="dbgFinishXNum" value="1528"></label></div>
-                    <div class="debug-row"><label><span>finish.y</span><input type="range" id="dbgFinishY" min="-300" max="1200" value="1"><input type="number" id="dbgFinishYNum" value="1"></label></div>
+                    <div class="debug-row"><label><span>start.y</span><input type="range" id="dbgStartY" min="-200" max="1200" value="751"><input type="number" id="dbgStartYNum" value="751"></label></div>
+                    <div class="debug-row"><label><span>finish.x</span><input type="range" id="dbgFinishX" min="500" max="2400" value="1013"><input type="number" id="dbgFinishXNum" value="1013"></label></div>
+                    <div class="debug-row"><label><span>finish.y</span><input type="range" id="dbgFinishY" min="-300" max="800" value="-27"><input type="number" id="dbgFinishYNum" value="-27"></label></div>
                     <div class="debug-row"><label><span>entry.dx</span><input type="range" id="dbgEntryDx" min="-300" max="400" value="217"><input type="number" id="dbgEntryDxNum" value="217"></label></div>
                     <div class="debug-row"><label><span>entry.dy</span><input type="range" id="dbgEntryDy" min="-300" max="300" value="-159"><input type="number" id="dbgEntryDyNum" value="-159"></label></div>
                     <div class="debug-row"><label><span>exit.dx</span><input type="range" id="dbgExitDx" min="-300" max="300" value="-122"><input type="number" id="dbgExitDxNum" value="-122"></label></div>
@@ -291,6 +307,24 @@
                     <ul class="bridge-ranking" id="ranking"></ul>
                 </article>
             </section>
+
+            <!-- 다시보기 + GIF 저장 + 게임 종료 버튼 (결과 후 표시) -->
+            <div id="replaySection" style="display: none; text-align: center; margin-top: 20px;">
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="mainReplayButton" onclick="showReplaySelector()" style="flex: 1; padding: 12px; font-size: 15px; background: var(--bg-white); color: var(--bridge-accent); border: 2px solid var(--bridge-accent); border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">🎬 다시보기</button>
+
+                </div>
+            </div>
+
+            <!-- 다시보기 버튼 (화면 숨김 상태에서 게임이 진행된 경우 표시) -->
+            <div id="bridgeReplaySection" style="display: none; text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, var(--bridge-500) 0%, var(--bridge-600) 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);">
+                <div style="color: white; margin-bottom: 12px; font-size: 14px; font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                    🎬 화면을 보지 않는 동안 경주가 진행되었습니다
+                </div>
+                <button onclick="replayMissedRace()" style="background: linear-gradient(135deg, var(--red-400) 0%, var(--yellow-300) 100%); border: none; padding: 12px 25px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                    🔄 다시보기
+                </button>
+            </div>
 
             <!-- 채팅 섹션 -->
             <div class="chat-section">
@@ -347,7 +381,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/shared/page-history-shared.js"></script>
-    <script src="/js/shared/free-invite.js"></script>
     <script src="/js/shared/chat-shared.js"></script>
     <script src="/js/shared/ready-shared.js"></script>
     <script src="/js/shared/order-shared.js"></script>
@@ -692,20 +725,16 @@
     </script>
 
     <!-- 디버그 로그 섹션 -->
-    <div class="debug-log-section" id="debugLogSection" style="background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-        <div id="debugLogHeader" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px; cursor: grab; user-select: none;">
-            <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그 <span style="font-weight: normal; opacity: 0.6; font-size: 9px;">(드래그)</span></div>
+    <div class="debug-log-section" id="debugLogSection" style="position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 300px; background: rgba(0, 0, 0, 0.9); color: #0f0; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 11px; z-index: 10000; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            <div style="font-weight: bold; color: #0f0;">🐛 디버그 로그</div>
             <div style="display: flex; gap: 5px;">
-                <button id="debugLogPauseBtn" onclick="toggleDebugLogPause()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">정지</button>
                 <button onclick="clearDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">지우기</button>
                 <button onclick="toggleDebugLog()" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">숨기기</button>
             </div>
         </div>
         <div id="debugLogContent" style="line-height: 1.4;"></div>
     </div>
-
-    <!-- 디버그 로그 복귀 버튼 (숨김 상태일 때만 표시) -->
-    <button id="debugLogRestoreBtn" onclick="toggleDebugLog()" style="display: none; position: fixed; bottom: 20px; right: 20px; width: 40px; height: 40px; background: rgba(0,0,0,0.85); color: #0f0; border: 1px solid #0f0; border-radius: 50%; cursor: pointer; font-size: 18px; z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.4);" title="디버그 로그 표시">🐛</button>
     <!-- SEO Content Section (hidden, crawlers only) -->
     <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 다리 건너기 게임 안내</h2>
@@ -725,6 +754,18 @@
            style="display:block"
            data-ad-client="ca-pub-1608259764663412"
            data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+    <!-- Ad: Sticky Bottom Banner -->
+    <div class="ad-container ad-sticky">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="STICKY_SLOT_ID"
            data-ad-format="horizontal"
            data-full-width-responsive="true"></ins>
     </div>
