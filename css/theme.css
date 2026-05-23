@@ -612,10 +612,6 @@ input, select, textarea {
   margin: 0;
   padding: 0;
 }
-/* Game playing: hide lobby ad but keep height (prevent CLS) */
-.game-active .ad-container.ad-lobby {
-  visibility: hidden;
-}
 /* Mobile: reduce ad container reserved height */
 @media (max-width: 480px) {
   .ad-container {
