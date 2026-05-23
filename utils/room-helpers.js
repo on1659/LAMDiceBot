@@ -65,31 +65,21 @@ function createRoomGameState() {
         craneGameHistory: [],
         isCraneGameActive: false,
         bridgeCross: {
-            // bonus-race 모델 (2026-05-05):
-            // 'idle' | 'ready-wait' | 'playing' | 'sudden-death' | 'finished'
+            // history-v1 (오징어게임 방식 + 병렬진행, 2026-04-30) — feat/bridge-cross-history-v1 복원
             phase: 'idle',
-            // 라운드 데이터 (게임 시작 시 설정)
-            participants: [],          // [{userName, colorIndex, mode}]
-            // server-only (절대 클라 노출 금지) — 6 col 보너스 row + 보너스 점프 칸수
-            bonusRows: [],             // length=6, 'top'|'bottom'
-            bonusAmounts: [],          // length=6, 2 (단일)
-            // 진행 추적 (bonus-race)
-            userProgress: {},          // {[userName]: 0~6}
-            finishOrder: [],           // [userName1, userName2, ...] — 도달 순서
-            currentWave: 0,            // 1~6 (BRIDGE_MAX_WAVES). sudden death 시 7+
-            suddenDeathCount: 0,       // 0~6 (안전장치)
-            // turn 진행
-            waveDeadline: 0,           // Date.now() + 3000
-            pendingChoices: {},        // {[userName]: 'top'|'bottom'}
-            waveTimer: null,           // setTimeout handle (wave timeout)
-            waveProcessing: false,     // race 가드
-            interTurnTimer: null,      // turn 사이 대기 timer
-            userColors: {},            // {[userName]: colorIndex} — ready phase에서 본인 색 선택
-            // 호환 / 기존 필드
+            userColorBets: {},
+            activeColors: [],
+            safeRows: [],
+            scenarios: [],
+            bettingDeadline: 0,
+            bettingTimeout: null,
+            endTimeout: null,
             isBridgeCrossActive: false,
             bridgeCrossHistory: [],
             raceRound: 0,
-            endTimeout: null
+            winnerColor: null,
+            passingColors: [],
+            winners: []
         },
     };
 }

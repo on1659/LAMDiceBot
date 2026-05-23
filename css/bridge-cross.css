@@ -39,25 +39,19 @@
     max-width: 800px !important;
 }
 
-.bridge-playing-section {
-    margin-bottom: 12px;
-}
-
-/* ========== 색 선택 (ready phase, 본인 캐릭터 색) ========== */
-
-.bridge-color-picker-section {
+.bridge-betting-section {
     background: var(--bg-white);
     border: 2px solid var(--bridge-500);
     border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
     box-shadow: 0 2px 10px rgba(var(--bridge-500-rgb), 0.15);
 }
 
 .bridge-color-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 10px;
 }
 
 @media (min-width: 600px) {
@@ -70,7 +64,7 @@
     position: relative;
     cursor: pointer;
     border-radius: 10px;
-    padding: 12px 6px;
+    padding: 14px 8px;
     text-align: center;
     color: white;
     font-weight: bold;
@@ -92,245 +86,43 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.bridge-color-card.mine {
-    border-color: white;
-    box-shadow: 0 0 0 3px var(--bridge-500), 0 6px 18px rgba(0, 0, 0, 0.3);
-    transform: translateY(-3px);
+.bridge-color-card.selected {
+    border-color: var(--text-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0 0 2px white;
+    transform: translateY(-2px);
 }
 
-.bridge-color-card .color-emoji { font-size: 22px; line-height: 1; margin-bottom: 4px; }
-.bridge-color-card .color-name { font-size: 12px; }
-
-.bridge-color-card .other-marks {
-    position: absolute;
-    top: 4px;
-    right: 6px;
-    font-size: 10px;
-    background: rgba(255, 255, 255, 0.92);
-    color: var(--text-primary);
-    padding: 2px 5px;
-    border-radius: 6px;
-    font-weight: bold;
-}
-
-/* ========== Wave 선택 패널 (캔버스 내 중앙 상단 overlay) ========== */
-/* 사용자 결정(2026-04-30): 캔버스 stage-wrap 내 absolute로 띄움 */
-
-.bridge-wave-panel {
-    /* bonus-race(2026-05-05): 캔버스 하단으로 이동 + 사이즈 축소 — 다리 안 가리게 */
-    position: absolute;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 50;
-    width: calc(100% - 24px);
-    max-width: 380px;
-    background: rgba(4, 7, 22, 0.85);
-    border: 2px solid var(--bridge-500);
-    border-radius: 10px;
-    padding: 6px 10px;
-    color: white;
-    box-shadow: 0 -6px 22px rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(6px);
-    animation: bridgeWavePanelSlideUp 0.22s ease-out;
-}
-
-@keyframes bridgeWavePanelSlideUp {
-    from { opacity: 0; transform: translate(-50%, 12px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
-}
-
-.bridge-wave-panel.hiding {
-    animation: bridgeWavePanelSlideDown 0.34s ease-in forwards;
-}
-
-@keyframes bridgeWavePanelSlideDown {
-    from { opacity: 1; transform: translate(-50%, 0); }
-    to { opacity: 0; transform: translate(-50%, 16px); }
-}
-
-.bridge-wave-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.bridge-wave-label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #42edff;
-    font-family: 'Jua', 'Segoe UI', sans-serif;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-}
-
-.bridge-wave-countdown {
-    font-size: 22px;
-    font-weight: 900;
-    color: #fff;
-    line-height: 1;
-    min-width: 28px;
-    text-align: center;
-    font-family: 'Jua', 'Segoe UI', sans-serif;
-    text-shadow: 0 0 8px rgba(66, 237, 255, 0.7);
-}
-
-.bridge-wave-header {
-    margin-bottom: 4px;
-}
-
-.bridge-wave-buttons + #waveChoiceStatus,
-#waveChoiceStatus {
-    color: #d8e8ff;
-    font-size: 11px;
-    text-align: center;
-    margin-top: 6px;
-}
-
-#waveDecisionList {
-    color: #d8e8ff;
-    font-size: 11px;
-    margin-top: 4px;
-    text-align: center;
-}
-
-.bridge-wave-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-
-.bridge-wave-btn {
-    position: relative;
-    padding: 10px 6px;
-    border: 2px solid rgba(66, 237, 255, 0.5);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.92);
-    color: var(--bridge-accent);
-    font-weight: 900;
-    font-size: 15px;
-    font-family: 'Jua', 'Segoe UI', sans-serif;
-    cursor: pointer;
-    transition: transform 0.14s, box-shadow 0.14s, background 0.14s, border-color 0.14s;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    overflow: hidden;
-}
-
-/* hover: 캔버스 발판도 함께 hover (JS가 동기) */
-.bridge-wave-btn:hover {
-    transform: translateY(-3px) scale(1.03);
-    box-shadow: 0 10px 24px rgba(66, 237, 255, 0.45), 0 0 0 4px rgba(66, 237, 255, 0.2);
-    background: rgba(255, 255, 255, 1);
-    border-color: var(--bridge-500);
-}
-
-.bridge-wave-btn:active {
-    transform: translateY(-1px) scale(1.0);
-    box-shadow: 0 4px 12px rgba(66, 237, 255, 0.35);
-}
-
-/* selected (locked): 강한 박힘 — 그라디언트 + glow + 인셋 그림자 */
-.bridge-wave-btn.locked {
-    background: linear-gradient(135deg, var(--bridge-500) 0%, var(--bridge-600) 100%);
-    color: white;
-    border-color: white;
-    box-shadow:
-        inset 0 4px 8px rgba(0, 0, 0, 0.25),
-        0 0 0 4px rgba(66, 237, 255, 0.5),
-        0 6px 22px rgba(66, 237, 255, 0.55);
-    transform: translateY(0) scale(1.02);
-    cursor: default;
-}
-
-.bridge-wave-btn.locked::after {
-    content: '✓';
-    position: absolute;
-    top: 4px;
-    right: 8px;
-    font-size: 14px;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-/* 버튼 안 카운트 표시 */
-.bridge-wave-btn .pick-count {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 2px 7px;
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 800;
-    vertical-align: middle;
-}
-.bridge-wave-btn.locked .pick-count {
-    background: rgba(255, 255, 255, 0.25);
-}
-
-.bridge-wave-btn[disabled],
-.bridge-wave-btn.disabled {
+.bridge-color-card[disabled],
+.bridge-color-card.disabled {
     cursor: not-allowed;
     opacity: 0.5;
     pointer-events: none;
 }
 
-.bridge-wave-btn-top {
-    /* 위 — 추가 시각 차이는 글자/이모지로 구분 */
+.bridge-color-card .color-emoji {
+    font-size: 24px;
+    line-height: 1;
+    margin-bottom: 4px;
 }
 
-.bridge-wave-btn-bottom {
-    /* 아래 */
-}
-
-.bridge-wave-status {
-    text-align: center;
-    margin-top: 10px;
+.bridge-color-card .color-name {
     font-size: 13px;
-    color: var(--text-secondary);
-    min-height: 18px;
 }
 
-.bridge-wave-decision-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 8px;
-    min-height: 22px;
+.bridge-color-card .my-mark {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: bold;
 }
 
-.bridge-wave-decision-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 9px;
-    background: var(--yellow-50);
-    border: 1px solid var(--bridge-500);
-    border-radius: 12px;
-    font-size: 12px;
-    color: var(--bridge-accent);
-    font-weight: 600;
-}
-
-.bridge-wave-decision-item.decided {
-    background: var(--bridge-gradient);
-    color: white;
-    border-color: transparent;
-}
-
-@media (max-width: 480px) {
-    .bridge-wave-panel {
-        bottom: 12px;
-        padding: 10px 12px;
-    }
-    .bridge-wave-btn {
-        padding: 14px 6px;
-        font-size: 16px;
-    }
-    .bridge-wave-countdown {
-        font-size: 28px;
-    }
+.bridge-playing-section {
+    margin-bottom: 12px;
 }
 
 /* ========== 캔버스 게임 영역 ========== */
@@ -554,26 +346,5 @@
     .debug-panel {
         width: 220px;
         font-size: 10px;
-    }
-}
-
-/* 디버그 로그 패널 — 기본은 우하단 (좁은 화면 폴백) */
-.debug-log-section {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 360px;
-    max-height: 300px;
-}
-
-/* 와이드 화면(≥1280px) — 800px 컨테이너 우측 바깥으로 도킹 */
-@media (min-width: 1280px) {
-    .debug-log-section {
-        top: 80px;
-        bottom: auto;
-        left: calc(50% + 420px);
-        right: auto;
-        width: min(360px, calc(50vw - 420px));
-        max-height: calc(100vh - 100px);
     }
 }
