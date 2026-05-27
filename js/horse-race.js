@@ -71,6 +71,8 @@ var pendingRoomId = null;
 var isOrderActive = false;
 var everPlayedUsers = [];
 var availableHorses = [];
+var autoSelectHorseEnabled = false;
+var autoSelectAttempted = false; // 방마다 1회만 시도
 var userHorseBets = {};
 var selectedUsersFromServer = [];  // 선택 완료자 목록 (서버에서 전송)
 var selectedHorseIndices = [];  // 선택된 말 인덱스 목록 (서버에서 전송)
@@ -313,6 +315,68 @@ function selectHorse(horseIndex) {
     socket.emit('selectHorse', {
         horseIndex: horseIndex
     });
+}
+
+// 자동선택 토글 초기화 (로그인 유저만 표시, DB prefs 로드)
+function initAutoSelectHorseToggle() {
+    const wrap = document.getElementById('autoSelectHorseToggleWrap');
+    const checkbox = document.getElementById('autoSelectHorseToggle');
+    if (!wrap || !checkbox) return;
+
+    // 게스트(비로그인)는 토글 자체를 숨김
+    let userAuth = null;
+    try { userAuth = JSON.parse(localStorage.getItem('userAuth') || 'null'); } catch (e) {}
+    if (!userAuth || !userAuth.name || userAuth.name !== currentUser) {
+        wrap.style.display = 'none';
+        return;
+    }
+
+    // DB에서 prefs 로드
+    socket.emit('getUserPrefs', { name: currentUser }, (resp) => {
+        const prefs = (resp && resp.prefs) || {};
+        autoSelectHorseEnabled = !!prefs.horseAutoSelect;
+        checkbox.checked = autoSelectHorseEnabled;
+        wrap.style.display = 'inline-flex';
+
+        // 페이지 진입 직후 자동선택 시도 (조건 충족 시)
+        tryAutoSelectHorse();
+    });
+
+    // 토글 변경 핸들러 (중복 바인딩 방지)
+    if (!checkbox._autoSelectBound) {
+        checkbox.addEventListener('change', () => {
+            autoSelectHorseEnabled = checkbox.checked;
+            socket.emit('setUserPref', {
+                name: currentUser,
+                key: 'horseAutoSelect',
+                value: autoSelectHorseEnabled
+            });
+            // 토글을 ON으로 바꾸면 즉시 한 번 더 시도
+            if (autoSelectHorseEnabled) {
+                autoSelectAttempted = false; // 토글 변경 시 재시도 허용
+                tryAutoSelectHorse();
+            }
+        });
+        checkbox._autoSelectBound = true;
+    }
+}
+
+// 자동선택 시도 (조건 가드 — 한 라운드 1회만)
+function tryAutoSelectHorse() {
+    if (!autoSelectHorseEnabled) return;
+    if (autoSelectAttempted) return;
+    if (typeof isRaceActive !== 'undefined' && isRaceActive) return;
+    if (!Array.isArray(availableHorses) || availableHorses.length === 0) return;
+    if (!Array.isArray(readyUsers) || !readyUsers.includes(currentUser)) return;
+    if (typeof mySelectedHorse !== 'undefined' && mySelectedHorse !== null && mySelectedHorse !== undefined && mySelectedHorse !== -1) return;
+
+    const choices = availableHorses.filter(h => h !== mySelectedHorse);
+    if (choices.length === 0) return;
+
+    autoSelectAttempted = true;
+    const randomIndex = choices[Math.floor(Math.random() * choices.length)];
+    selectHorse(randomIndex);
+    if (typeof addDebugLog === 'function') addDebugLog(`자동선택: 탈것 ${randomIndex}`, 'selection');
 }
 
 // 탈것 선택 화면에 트랙 표시 (초기 상태)
@@ -4612,6 +4676,7 @@ function initReadyModule() {
         isGameActive: () => isRaceActive,
         onReadyChanged: (users) => {
             readyUsers = users;
+            tryAutoSelectHorse();
             // 말 선택 UI가 활성화되어 있으면 "선택 안 한 사람" 목록 갱신
             const selectionSection = document.getElementById('horseSelectionSection');
             if (selectionSection && selectionSection.classList.contains('active')) {
@@ -4806,8 +4871,9 @@ function initializeGameScreen(data) {
         readyUsers = data.readyUsers;
         isReady = readyUsers.includes(currentUser);
         ReadyModule.setReadyUsers(readyUsers);
+        tryAutoSelectHorse();
     }
-    
+
     // 경마 게임 상태 복원 및 말 선택 UI 표시
     if (data.gameType === 'horse-race' || (data.gameState && data.gameState.availableHorses)) {
         const gameState = data.gameState || {};
@@ -4918,6 +4984,8 @@ socket.on('roomCreated', (data) => {
 
     initializeGameScreen(data);
     ReadyModule.setReadyUsers(readyUsers);
+    autoSelectAttempted = false; // 방마다 리셋
+    initAutoSelectHorseToggle();
     if (window.FreeInvite && data.shortcode) {
         window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
     }
@@ -5000,6 +5068,8 @@ socket.on('roomJoined', (data) => {
     }
     initializeGameScreen(data);
     ReadyModule.setReadyUsers(readyUsers);
+    autoSelectAttempted = false; // 방마다 리셋
+    initAutoSelectHorseToggle();
 
     // 기록 섹션 표시
     document.getElementById('historySection').classList.add('visible');
@@ -5063,9 +5133,12 @@ socket.on('horseSelectionReady', async (data) => {
     currentTrackDistanceMeters = data.trackDistanceMeters || 500;
     
     addDebugLog(`말 선택 준비: ${availableHorses.length}마리`, 'selection');
-    
+
     mySelectedHorse = userHorseBets[currentUser] !== undefined ? userHorseBets[currentUser] : null;
-    
+    // 새 라운드 시작 — 자동선택 재시도 허용
+    autoSelectAttempted = false;
+    tryAutoSelectHorse();
+
     // 결과 오버레이 숨기기
     const resultOverlay = document.getElementById('resultOverlay');
     if (resultOverlay) {
@@ -5487,6 +5560,9 @@ socket.on('horseRaceEnded', (data) => {
 
     // 말 선택만 초기화 (준비 상태는 서버의 readyUsersUpdated 이벤트가 처리)
     mySelectedHorse = null;
+    // 동점자 자동준비 / 다음 라운드 자동선택을 위해 시도 플래그 리셋
+    // (서버가 horseRaceEnded 직후 readyUsersUpdated를 보내면 onReadyChanged가 tryAutoSelectHorse 호출)
+    autoSelectAttempted = false;
     // isReady 직접 초기화 제거 - 자동준비 대상자는 서버가 설정함
 
     // N등 투표 리셋 (다음 라운드에 잔존 방지) — 서버도 이미 비웠음
@@ -5798,6 +5874,9 @@ socket.on('vehicleTypesUpdated', (data) => {
     userHorseBets = {}; // 탈것 변경 시 선택 초기화
     mySelectedHorse = null;
     renderHorseSelection();
+    // 탈것 목록 변경 — 자동선택 재시도 허용
+    autoSelectAttempted = false;
+    tryAutoSelectHorse();
 });
 
 // 방 나가기
