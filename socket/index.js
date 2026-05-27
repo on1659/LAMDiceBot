@@ -11,7 +11,7 @@ const registerFreeHandlers = require('./free');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
 const { registerServerHandlers } = require('./server');
-const { getUserFlags, setFlag } = require('../db/auth');
+const { getUserFlags, setFlag, getUserPrefs, setUserPref } = require('../db/auth');
 
 function setupSocketHandlers(io, rooms) {
     // 방 목록 브로드캐스트 디바운싱 (200ms leading + trailing)
@@ -204,6 +204,28 @@ function setupSocketHandlers(io, rooms) {
             if (!data.name || !data.flagBit) return;
             try {
                 await setFlag(data.name, data.flagBit);
+            } catch (e) {
+                // silent fail
+            }
+        });
+
+        // 유저 환경설정 (prefs JSONB)
+        socket.on('getUserPrefs', async (data, callback) => {
+            if (!ctx.checkRateLimit()) return;
+            if (typeof callback !== 'function') return;
+            try {
+                const prefs = await getUserPrefs(data && data.name);
+                callback({ prefs });
+            } catch (e) {
+                callback({ prefs: {} });
+            }
+        });
+
+        socket.on('setUserPref', async (data) => {
+            if (!ctx.checkRateLimit()) return;
+            if (!data || !data.name || !data.key) return;
+            try {
+                await setUserPref(data.name, data.key, data.value);
             } catch (e) {
                 // silent fail
             }

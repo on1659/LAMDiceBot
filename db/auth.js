@@ -85,4 +85,21 @@ async function setFlag(name, flagBit) {
     await pool.query('UPDATE users SET flags = flags | $1 WHERE name = $2', [flagBit, name]);
 }
 
-module.exports = { register, login, getUserFlags, setFlag };
+async function getUserPrefs(name) {
+    const pool = getPool();
+    if (!pool || !name) return {};
+    const result = await pool.query('SELECT prefs FROM users WHERE name = $1', [name]);
+    return result.rows.length > 0 ? (result.rows[0].prefs || {}) : {};
+}
+
+async function setUserPref(name, key, value) {
+    const pool = getPool();
+    if (!pool || !name || !key) return;
+    // JSONB 부분 업데이트: jsonb_set 사용
+    await pool.query(
+        `UPDATE users SET prefs = jsonb_set(COALESCE(prefs, '{}'::jsonb), $1, $2::jsonb, true) WHERE name = $3`,
+        [`{${key}}`, JSON.stringify(value), name]
+    );
+}
+
+module.exports = { register, login, getUserFlags, setFlag, getUserPrefs, setUserPref };

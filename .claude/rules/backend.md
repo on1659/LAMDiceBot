@@ -20,6 +20,7 @@ paths:
 - 랭킹/통계 (`db/ranking.js`, `db/stats.js`): `docs/GameGuide/02-shared-systems/ranking-and-stats.md`
 - 서버 멤버십 (`db/servers.js`): `docs/GameGuide/02-shared-systems/server-membership.md`
 - 설정 (`config/`): `docs/GameGuide/02-shared-systems/config-and-env.md`
+- 보안 함정 (socket 핸들러 인증): `docs/GameGuide/lessons/security.md`
 
 ## Socket Handlers
 - 모든 이벤트 핸들러 첫 줄: `if (!ctx.checkRateLimit()) return;`

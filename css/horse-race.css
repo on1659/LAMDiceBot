@@ -2341,3 +2341,71 @@ input[type="text"]:focus, input[type="password"]:focus {
     .roulette-card { padding: 16px 14px; }
     .roulette-segment { width: 50px; }
 }
+
+/* 탈것 선택 헤더 (자동선택 토글 포함) */
+.horse-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.auto-select-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.auto-select-toggle input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.auto-select-toggle-slider {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    background: var(--text-secondary);
+    border-radius: 999px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.auto-select-toggle-slider::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.auto-select-toggle input[type="checkbox"]:checked ~ .auto-select-toggle-slider {
+    background: var(--horse-500);
+}
+
+.auto-select-toggle input[type="checkbox"]:checked ~ .auto-select-toggle-slider::before {
+    transform: translateX(16px);
+}
+
+.auto-select-toggle-label {
+    font-weight: 600;
+}
+
+@media (max-width: 480px) {
+    .auto-select-toggle {
+        font-size: 12px;
+    }
+}

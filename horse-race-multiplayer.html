@@ -154,7 +154,14 @@
 
             <!-- 탈것 선택 섹션 -->
             <div class="horse-selection-section" id="horseSelectionSection">
-                <div class="users-title" style="margin-bottom: 15px;">🏁 탈것 선택</div>
+                <div class="horse-selection-header">
+                    <div class="users-title" style="margin: 0;">🏁 탈것 선택</div>
+                    <label id="autoSelectHorseToggleWrap" class="auto-select-toggle" style="display:none;" title="다음 방 입장부터 자동으로 탈것을 골라줍니다">
+                        <input type="checkbox" id="autoSelectHorseToggle">
+                        <span class="auto-select-toggle-slider"></span>
+                        <span class="auto-select-toggle-label">자동선택</span>
+                    </label>
+                </div>
                 <div id="horseSelectionGrid" class="horse-selection-grid">
                     <!-- 탈것 선택 버튼들이 여기에 동적으로 생성됨 -->
                 </div>
