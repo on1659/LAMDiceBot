@@ -2784,9 +2784,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     const stunBuffer = (typeof getFinishStunBuffer === 'function')
                         ? getFinishStunBuffer(state.visualWidth)
                         : ((typeof FINISH_STUN_BUFFER_PX === 'number') ? FINISH_STUN_BUFFER_PX : 20);
-                    const shouldStun = higherRankedPending && state.currentPos + state.visualWidth >= finishLine - stunBuffer;
+                    // 결승선 직전에서 자빠지면 fallen 슬라이드가 결승선을 넘는 그림이 나옴 → 12m(120px) 뒤에서 자빠지게
+                    const earlyStunDistance = 120;
+                    const shouldStun = higherRankedPending && state.currentPos + state.visualWidth >= finishLine - stunBuffer - earlyStunDistance;
                     if (shouldStun) {
-                        state.currentPos = finishLine - state.visualWidth - stunBuffer;
+                        state.currentPos = finishLine - state.visualWidth - stunBuffer - earlyStunDistance;
                         if (!state.finishStunned) {
                             state.finishStunned = true;
                             const vid = state.horse.dataset.vehicleId;
@@ -4017,6 +4019,9 @@ function showRaceResult(data, isReplay = false) {
     console.log('[resultOverlay] visible 추가', { isReplay, stack: new Error().stack });
     document.getElementById('resultOverlay').classList.add('visible');
 
+    // 레이스 종료 — 결과 오버레이가 스티키 광고 자리를 덮으므로 광고 복원
+    document.body.classList.remove('race-running');
+
     // 경주 종료 → 탈것 선택 UI 복원
     const horseSelectionSection = document.getElementById('horseSelectionSection');
     if (horseSelectionSection) {
@@ -4465,6 +4470,7 @@ function playReplay(record) {
 
     isRaceActive = true;
     isReplayActive = true;
+    document.body.classList.add('race-running'); // 다시보기 애니메이션 중 스티키 광고 숨김
 
     const horseRankings = record.rankings || [];
     const replaySpeeds = record.speeds || horseRankings.map((_, rank) => 3000 + rank * 500);
@@ -4477,6 +4483,7 @@ function playReplay(record) {
         }
         isRaceActive = false;
         isReplayActive = false;
+        document.body.classList.remove('race-running'); // 다시보기 종료/중단 — 스티키 광고 복원
         selectedVehicleTypes = originalSelectedVehicleTypes;
         userHorseBets = originalUserHorseBets;
         availableHorses = originalAvailableHorses;
@@ -4595,6 +4602,7 @@ function replayMissedRace() {
         if (ro) ro.classList.remove('visible');
         isRaceActive = false;
         isReplayActive = false;
+        document.body.classList.remove('race-running'); // 놓친 경주 다시보기 중단 — 스티키 광고 복원
         selectedVehicleTypes = originalSelectedVehicleTypes;
         userHorseBets = originalUserHorseBets;
         availableHorses = originalAvailableHorses;
@@ -4605,6 +4613,7 @@ function replayMissedRace() {
     function playOnce() {
         isRaceActive = true;
         isReplayActive = true;
+        document.body.classList.add('race-running'); // 놓친 경주 다시보기 중 스티키 광고 숨김
 
         if (MISSED_REPLAY_REQUIRED === 0) {
             showReplayStopButton(stopMidReplay);
@@ -4934,6 +4943,8 @@ socket.on('roomCreated', (data) => {
         roomId: data.roomId, userName: currentUser,
         serverId: currentServerId, serverName: currentServerName
     }));
+    // 방 생성 직후는 항상 비-레이스 화면 — race-running 잔존 시 스티키 광고 영구 숨김 방지
+    document.body.classList.remove('race-running');
     initChatModule();
     isHost = true;
     isReady = data.isReady || false;
@@ -5061,6 +5072,8 @@ socket.on('roomJoined', (data) => {
 
     document.getElementById('gameSection').classList.add('active');
     document.body.classList.add('game-active');
+    // 재입장(reconnect 포함)은 항상 비-레이스 화면 — race-running 잔존 시 스티키 광고 영구 숨김 방지
+    document.body.classList.remove('race-running');
 
     setHorseSoundCheckboxes();
     if (window.SoundManager && typeof window.SoundManager.ensureContext === 'function') {
@@ -5414,6 +5427,8 @@ socket.on('horseRaceStarted', (data) => {
         missedHorseRace = true;
         isRaceActive = false;
         if (window.SoundManager) SoundManager.stopAll();
+        // 미관전 경로 — 레이스 애니메이션 미재생이므로 직전 라운드 race-running 잔존 방지 (방어적 복원)
+        document.body.classList.remove('race-running');
         document.getElementById('horseReplaySection').style.display = 'block';
         addDebugLog('⚠️ 화면 미확인 → 다시보기 섹션 표시', 'visibility');
         return;
@@ -5425,6 +5440,7 @@ socket.on('horseRaceStarted', (data) => {
     raceResultShown = false; // 새 경주 시작 시 결과 표시 플래그 리셋
     isRaceActive = true;
     isReplayActive = false;
+    document.body.classList.add('race-running'); // 레이스 중 스티키 광고 숨김
     updateStartButton(); // 게임 시작 시 버튼 상태 업데이트
 
     // 채팅에 게임 시작 시스템 메시지 추가
@@ -5602,6 +5618,9 @@ socket.on('horseRaceGameReset', (data) => {
     if (resultOverlay) {
         resultOverlay.classList.remove('visible');
     }
+
+    // 경주 중 리셋 시 race-running 잔존 방지 — 스티키 광고 복원
+    document.body.classList.remove('race-running');
 
     // 다시보기/게임종료 섹션 숨기기
     document.getElementById('replaySection').style.display = 'none';

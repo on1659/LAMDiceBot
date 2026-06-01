@@ -217,6 +217,13 @@ function registerRouletteHandlers(socket, io, ctx) {
 
         gameState.isRouletteSpinning = true;
         gameState.isGameActive = true;
+        // 게임 시작 시 이전 주문 cycle 가드 해제 — 두 번째 게임 종료에서도 triggerAutoOrder 정상 발동
+        const wasOrderActive = gameState.isOrderActive;
+        gameState.orderAutoTriggered = false;
+        gameState.isOrderActive = false;
+        if (wasOrderActive) {
+            io.to(room.roomId).emit('orderEnded');
+        }
 
         const participants = [...gameState.readyUsers];
         gameState.gamePlayers = participants;

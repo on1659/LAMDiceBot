@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.8 단독 vs Opus 4.7 + 하네스 — 개발환경 의사결정 기록</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-soft: #161b22;
+    --bg-card: #1a2029;
+    --bg-elev: #21262d;
+    --border: #30363d;
+    --border-soft: #262c34;
+    --text: #e6edf3;
+    --text-dim: #9aa7b4;
+    --text-faint: #6e7b89;
+    --accent: #58a6ff;
+    --accent-2: #bc8cff;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --pink: #f778ba;
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    --radius: 12px;
+    --maxw: 980px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(188,140,255,0.10), transparent 60%),
+      radial-gradient(1000px 500px at 0% 0%, rgba(88,166,255,0.10), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    gap: 40px;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---------- TOC ---------- */
+  nav.toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 0 40px;
+    border-right: 1px solid var(--border-soft);
+  }
+  nav.toc .toc-title {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 14px;
+    font-weight: 700;
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; margin: 2px 0; }
+  nav.toc a {
+    display: block;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13.5px;
+    padding: 5px 10px 5px 34px;
+    border-radius: 7px;
+    position: relative;
+    transition: background .15s, color .15s;
+  }
+  nav.toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    position: absolute;
+    left: 10px;
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 11px;
+    top: 7px;
+  }
+  nav.toc a:hover { background: var(--bg-elev); color: var(--text); }
+
+  /* ---------- main ---------- */
+  main { padding: 40px 0 120px; min-width: 0; }
+
+  header.hero {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 38px;
+    background: linear-gradient(160deg, rgba(88,166,255,0.08), rgba(188,140,255,0.06)), var(--bg-soft);
+    margin-bottom: 40px;
+  }
+  header.hero .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: .08em;
+    margin: 0 0 14px;
+  }
+  header.hero h1 {
+    margin: 0 0 16px;
+    font-size: 30px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+  header.hero p.lead {
+    margin: 0 0 20px;
+    color: var(--text-dim);
+    font-size: 15.5px;
+    max-width: 70ch;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .chip {
+    font-family: var(--mono);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 11px;
+    border-radius: 999px;
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+
+  section { margin-bottom: 52px; scroll-margin-top: 24px; }
+  section > h2 {
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  section > h2 .num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    background: rgba(88,166,255,0.1);
+    border: 1px solid rgba(88,166,255,0.25);
+    border-radius: 7px;
+    padding: 2px 9px;
+    flex: none;
+  }
+  section > .sub {
+    color: var(--text-faint);
+    font-size: 14px;
+    margin: 0 0 22px;
+    padding-left: 2px;
+  }
+  h3 { font-size: 16.5px; margin: 28px 0 10px; color: var(--text); }
+  p { margin: 12px 0; }
+  strong { color: #fff; font-weight: 650; }
+  a.inline { color: var(--accent); }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-soft);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    color: #d6e0ea;
+  }
+
+  /* ---------- tables ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.8px; min-width: 520px; }
+  th, td { text-align: left; padding: 11px 15px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  thead th { background: var(--bg-elev); color: var(--text-dim); font-weight: 600; font-size: 12.5px; letter-spacing: .02em; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.018); }
+  td.win-a { color: var(--accent); font-weight: 600; }
+  td.win-b { color: var(--accent-2); font-weight: 600; }
+  .tag-keep { color: var(--green); font-weight: 600; }
+  .tag-drop { color: var(--red); font-weight: 600; }
+  .tag-soft { color: var(--amber); font-weight: 600; }
+
+  /* ---------- callouts ---------- */
+  .callout {
+    border-radius: var(--radius);
+    padding: 16px 18px 16px 48px;
+    margin: 18px 0;
+    position: relative;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    font-size: 14.5px;
+  }
+  .callout::before {
+    position: absolute;
+    left: 16px;
+    top: 15px;
+    font-size: 17px;
+  }
+  .callout .label { display:block; font-size: 11px; letter-spacing:.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .callout.insight { border-left: 3px solid var(--accent); }
+  .callout.insight::before { content: "🔑"; }
+  .callout.insight .label { color: var(--accent); }
+  .callout.warn { border-left: 3px solid var(--amber); }
+  .callout.warn::before { content: "⚠️"; }
+  .callout.warn .label { color: var(--amber); }
+  .callout.verdict { border-left: 3px solid var(--green); background: linear-gradient(90deg, rgba(63,185,80,0.06), transparent); }
+  .callout.verdict::before { content: "✅"; }
+  .callout.verdict .label { color: var(--green); }
+
+  /* ---------- versus cards ---------- */
+  .vs {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .vs .side { padding: 20px 22px; background: var(--bg-card); }
+  .vs .side.a { border-right: none; }
+  .vs .side h4 { margin: 0 0 4px; font-size: 15px; }
+  .vs .side.a h4 { color: var(--accent); }
+  .vs .side.b h4 { color: var(--accent-2); }
+  .vs .side .role { font-size: 12px; color: var(--text-faint); margin: 0 0 12px; font-family: var(--mono); }
+  .vs .side ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--text-dim); }
+  .vs .side ul li { margin: 5px 0; }
+  .vs .divider {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-elev);
+    font-family: var(--mono); font-weight: 700; color: var(--text-faint);
+    padding: 0 14px; font-size: 13px;
+  }
+
+  /* ---------- dial ---------- */
+  .dial {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin: 18px 0;
+    overflow-x: auto;
+  }
+  .dial .row { display: grid; grid-template-columns: 150px 1fr; gap: 14px; padding: 6px 0; border-bottom: 1px dashed var(--border-soft); white-space: nowrap; }
+  .dial .row:last-child { border-bottom: none; }
+  .dial .row.head { color: var(--text-faint); border-bottom: 1px solid var(--border); }
+  .dial .lvl { color: var(--accent); font-weight: 700; }
+  .dial .lvl.ultra { color: var(--pink); }
+  .dial .desc { color: var(--text-dim); white-space: normal; }
+  .dial .arrow { color: var(--text-faint); }
+
+  /* ---------- arc / step list ---------- */
+  .arc { counter-reset: arc; margin: 18px 0; padding: 0; list-style: none; }
+  .arc li {
+    counter-increment: arc;
+    position: relative;
+    padding: 12px 16px 12px 52px;
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    margin: 8px 0;
+    background: var(--bg-card);
+    font-size: 14px;
+  }
+  .arc li::before {
+    content: counter(arc);
+    position: absolute; left: 14px; top: 12px;
+    width: 24px; height: 24px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 50%; color: var(--accent);
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .arc li b { color: #fff; }
+  .arc li .q { color: var(--text-faint); font-style: italic; }
+
+  /* ---------- two-col compare ---------- */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0; }
+  .grid3 .panel { position: relative; }
+  .grid3 .panel.c-a { border-top: 3px solid var(--accent); }
+  .grid3 .panel.c-b { border-top: 3px solid var(--accent-2); }
+  .grid3 .panel.c-c { border-top: 3px solid var(--green); }
+  .grid3 .panel .role { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); margin: 0 0 12px; }
+  .grid3 .panel.c-a h4 { color: var(--accent); }
+  .grid3 .panel.c-b h4 { color: var(--accent-2); }
+  .grid3 .panel.c-c h4 { color: var(--green); }
+  .grid3 .panel .verdict-tag { display:inline-block; margin-top: 12px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .grid3 .panel.c-a .verdict-tag { background: rgba(88,166,255,0.12); color: var(--accent); }
+  .grid3 .panel.c-b .verdict-tag { background: rgba(188,140,255,0.12); color: var(--accent-2); }
+  .grid3 .panel.c-c .verdict-tag { background: rgba(63,185,80,0.12); color: var(--green); }
+  /* rating dots */
+  .rate { font-family: var(--mono); letter-spacing: 1px; font-size: 13px; }
+  .rate.r3 { color: var(--green); }
+  .rate.r2 { color: var(--amber); }
+  .rate.r1 { color: var(--red); }
+  .rate.r0 { color: var(--text-faint); }
+  td.best { background: rgba(63,185,80,0.07); }
+  .panel { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; background: var(--bg-card); }
+  .panel h4 { margin: 0 0 10px; font-size: 14.5px; }
+  .panel.exec h4 { color: var(--green); }
+  .panel.assume h4 { color: var(--red); }
+  .panel ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--text-dim); }
+  .panel li { margin: 6px 0; }
+
+  hr.div { border: none; border-top: 1px solid var(--border-soft); margin: 40px 0; }
+
+  .footnote { font-size: 12.5px; color: var(--text-faint); }
+  .footnote code { font-size: 0.85em; }
+
+  /* est confidence bars */
+  .conf { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .conf i { width: 7px; height: 11px; border-radius: 2px; background: var(--border); display:inline-block; }
+  .conf.c1 i:nth-child(1){background:var(--amber)}
+  .conf.c2 i:nth-child(-n+2){background:var(--amber)}
+  .conf.c3 i:nth-child(-n+3){background:var(--green)}
+
+  footer.end {
+    border-top: 1px solid var(--border-soft);
+    padding-top: 24px;
+    color: var(--text-faint);
+    font-size: 13px;
+  }
+
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; padding: 0 18px; }
+    nav.toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border-soft); padding: 20px 0; }
+    nav.toc ol { columns: 2; }
+    main { padding: 24px 0 80px; }
+    .vs { grid-template-columns: 1fr; }
+    .vs .divider { padding: 8px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .grid3 { grid-template-columns: 1fr; }
+    header.hero { padding: 28px 22px; }
+    header.hero h1 { font-size: 23px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <nav class="toc">
+    <p class="toc-title">목차</p>
+    <ol>
+      <li><a href="#summary">한눈에 보기 — 결론</a></li>
+      <li><a href="#core">핵심 비교: 세 후보</a></li>
+      <li><a href="#audit">모델 ID 감사 결과</a></li>
+      <li><a href="#triage">트리아지 3단계란?</a></li>
+      <li><a href="#review">셀프리뷰 vs 독립리뷰</a></li>
+      <li><a href="#selfreview">4.8 셀프리뷰 개선의 진실</a></li>
+      <li><a href="#crossmodel">교차모델(Codex)의 독립 가치</a></li>
+      <li><a href="#workflow">Workflows vs 커스텀 하네스</a></li>
+      <li><a href="#estimate">개선폭 추정</a></li>
+      <li><a href="#ultra">울트라코드 분석</a></li>
+      <li><a href="#freecost">비용 무관 세계 재평가</a></li>
+      <li><a href="#delete">단계를 없애도 되나?</a></li>
+      <li><a href="#xy">모델 X vs 모델 Y</a></li>
+      <li><a href="#accuracy">정확도는 어디가 높은가</a></li>
+      <li><a href="#dial">최종 다이얼 권고</a></li>
+      <li><a href="#open">미결 질문</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <p class="eyebrow">LAMDiceBot · 개발환경 의사결정 기록</p>
+      <h1>4.8 단독 vs 4.7+하네스 vs 4.8+하네스<br>— 무엇을 어떻게 바꿀 것인가</h1>
+      <p class="lead">
+        Opus 4.8이 들어온 시점에서 세 후보를 비교한다 —
+        <b style="color:var(--accent)">4.8 단독</b>(쌩 모델),
+        <b style="color:var(--accent-2)">4.7 + 하네스</b>(구 세팅),
+        <b style="color:var(--green)">4.8 + 하네스</b>(현재 + 권장).
+        모델 ID 감사부터 Dynamic Workflows, 울트라코드, 비용 무관 가정, 자가-트리아지
+        오케스트레이터, 정확도 비교까지 — 결정에 필요한 모든 갈래를 담았다.
+      </p>
+      <div class="meta-row">
+        <span class="chip">작성: <b>2026-05-30</b></span>
+        <span class="chip">기준 모델: <b>claude-opus-4-8 (1M)</b></span>
+        <span class="chip">대상: <b>.claude/ 하네스</b></span>
+        <span class="chip">성격: <b>의사결정 토론 기록 · 결정 보류</b></span>
+      </div>
+    </header>
+
+    <!-- 1 -->
+    <section id="summary">
+      <h2><span class="num">01</span> 한눈에 보기 — 결론</h2>
+      <p class="sub">긴 토론의 착지점부터 먼저.</p>
+
+      <div class="callout verdict">
+        <span class="label">한 줄 결론</span>
+        세 후보 <strong>Ⓐ 4.8 단독 · Ⓑ 4.7+하네스 · Ⓒ 4.8+하네스</strong> 중 정답은 <strong>Ⓒ</strong>다.
+        단 "Ⓑ에서 모델만 4.8로 갈아끼우기"가 아니라 <strong>"4.8 + <em>재보정된</em> 하네스"</strong> —
+        하네스는 비용 절약 장치가 아니라 <strong>"위험 라우팅 + 멈춤 장치"</strong>라 모델이 좋아져도 사라지지 않지만,
+        4.8의 셀프리뷰 개선으로 <strong>STANDARD 의식은 중복</strong>이 되므로 <strong>실행 의식은 줄이고 검증은 "가정 오류 위험"에 비례</strong>하게 재배분한다.
+      </div>
+
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>질문</th><th>답</th></tr></thead>
+        <tbody>
+          <tr><td>4.8이 들어와도 하네스 괜찮나?</td><td><span class="tag-keep">괜찮다.</span> 하네스는 자연어 지시 + 셸 훅이라 모델 버전에 안 묶임. 깨질 위험 없음</td></tr>
+          <tr><td>모델 ID 하드코딩 있나?</td><td>에이전트/설정엔 <span class="tag-keep">없음.</span> 커밋 서명 2곳만 옛 버전 → 버전 없는 <code>Claude Opus</code>로 수정 완료</td></tr>
+          <tr><td>SIMPLE 단계는?</td><td><span class="tag-keep">유지.</span> 이미 사실상 "쌩 4.8". 비용이 공짜여도 직접 편집 유지 (지연·노이즈 때문)</td></tr>
+          <tr><td>STANDARD 단계는?</td><td><span class="tag-soft">경량화.</span> 별도 Scout/Reviewer 의식 → 4.8 인라인 + 집중 셀프리뷰</td></tr>
+          <tr><td>COMPLEX 단계는?</td><td><span class="tag-soft">분리.</span> "실행 위주" → 4.8+QA / "계약 위험" → 워크플로우 + 교차모델</td></tr>
+          <tr><td>Dynamic Workflows는?</td><td>커스텀 하네스의 <strong>실행 근육</strong>을 대체할 엔진. 하네스의 <strong>두뇌(정책)</strong>는 못 대체</td></tr>
+          <tr><td>울트라코드는?</td><td>상시 X, <strong>행사용 기어</strong> O (출시 직전·심층 감사·대수술)</td></tr>
+          <tr><td>비용 무관이면 전부 워크플로우?</td><td>아니다. SIMPLE 직접은 <strong>비용이 아니라</strong> 지연·주의력·골드플레이팅·검토가능성 때문에 유지</td></tr>
+          <tr><td>정확도는 X(게이트) vs Y(자가)?</td><td><strong>천장은 같다.</strong> Y가 "겉보기 사소+실은 위험"을 덜 놓쳐 실효 정확도 약간 높음 (단 자가분류기 품질에 인질)</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>이 문서가 다룬 토론의 흐름</h3>
+      <ul class="arc">
+        <li><b>Dynamic Workflows 개념</b> 확인 → 다중 에이전트 오케스트레이션 도구</li>
+        <li>현재 모델이 <b>4.8</b>임을 확인, 하네스가 <b>세팅된 상태</b>(훅 작동 중)임을 확인</li>
+        <li>하네스가 4.7 기준인데 4.8에서 괜찮나? <span class="q">→ 모델 ID 하드코딩 감사</span></li>
+        <li>4.8 <b>쌩으로</b> 쓰는 게 어떤가? <span class="q">→ SIMPLE은 이미 raw, COMPLEX는 유지 주장</span></li>
+        <li>4.8 셀프리뷰가 좋아진 거 아닌가? <span class="q">→ 실행 오류 vs 가정 오류 구분</span></li>
+        <li>개발환경 개선안 제안 → <b>가정-위험 축</b>으로 트리아지 재정의</li>
+        <li>이미 있는 <b>Dynamic Workflows</b>로 가는 게 낫지 않나? <span class="q">→ 두뇌/근육 분리</span></li>
+        <li>얼마나 좋아지나? <span class="q">→ 차원별 개선폭 추정</span></li>
+        <li><b>울트라코드</b>는? 비용 안 쓰면? <span class="q">→ 비용 무관 4가지 제약</span></li>
+        <li>단계 자체를 없애나? <span class="q">→ 모델 X vs Y, 정확도 비교</span></li>
+      </ul>
+    </section>
+
+    <!-- 2 -->
+    <section id="core">
+      <h2><span class="num">02</span> 핵심 비교: 세 후보</h2>
+      <p class="sub">4.8 단독 · 4.7+하네스 · 4.8+하네스 — 두 축(모델 품질 × 하네스 유무)이 만드는 세 점.</p>
+
+      <div class="grid3">
+        <div class="panel c-a">
+          <h4>Ⓐ 4.8 단독 (쌩)</h4>
+          <p class="role">// 좋은 모델, 규율 없음</p>
+          <ul>
+            <li>의식 0 → 가장 빠른 루프</li>
+            <li>판단력·지시준수 최상</li>
+            <li>1M 컨텍스트 통째 보유</li>
+            <li>토큰 최소</li>
+            <li class="tag-drop">독립검증·도메인 가드·안전레일 없음</li>
+          </ul>
+          <span class="verdict-tag">단순 작업엔 최적 · 위험 작업엔 무방비</span>
+        </div>
+        <div class="panel c-b">
+          <h4>Ⓑ 4.7 + 하네스 (구 세팅)</h4>
+          <p class="role">// 규율 풀세트, 약한 모델</p>
+          <ul>
+            <li>독립 리뷰/QA = 가정 오류 검출</li>
+            <li>결정론적 훅 = 모델 무관 강제</li>
+            <li>공정성·크로스게임 가드</li>
+            <li class="tag-drop">약한 모델 → 의식이 "필수"라 무거움</li>
+            <li class="tag-drop">셀프리뷰 약해 독립리뷰 의존 큼</li>
+          </ul>
+          <span class="verdict-tag">안전하지만 느리고 비쌈 (의식이 정당)</span>
+        </div>
+        <div class="panel c-c">
+          <h4>Ⓒ 4.8 + 하네스 (권장)</h4>
+          <p class="role">// 좋은 모델 + 규율</p>
+          <ul>
+            <li>Ⓐ의 속도·판단 + Ⓑ의 안전·가드</li>
+            <li>셀프리뷰 개선 → STANDARD 의식 잉여</li>
+            <li class="tag-soft">⚠ 그대로 두면 의식 일부가 <em>중복</em></li>
+            <li class="tag-keep">→ 의식 줄이고 검증을 위험에 비례 재배분</li>
+            <li class="tag-keep">Workflows로 COMPLEX 실행근육 강화</li>
+          </ul>
+          <span class="verdict-tag">정답 — 단, "재보정"이 핵심</span>
+        </div>
+      </div>
+
+      <h3>차원별 평점 매트릭스</h3>
+      <p class="footnote"><span class="rate r3">●●●</span> 강함 · <span class="rate r2">●●○</span> 중간 · <span class="rate r1">●○○</span> 약함 · <span class="rate r0">○○○</span> 없음 &nbsp;|&nbsp; 초록 셀 = 그 차원 최선</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>차원</th><th>Ⓐ 4.8 단독</th><th>Ⓑ 4.7+하네스</th><th>Ⓒ 4.8+하네스</th></tr></thead>
+        <tbody>
+          <tr><td>모델 판단력 / 지시준수</td><td class="best"><span class="rate r3">●●●</span></td><td><span class="rate r2">●●○</span></td><td class="best"><span class="rate r3">●●●</span></td></tr>
+          <tr><td>속도 (단순 작업)</td><td class="best"><span class="rate r3">●●●</span></td><td><span class="rate r1">●○○</span></td><td><span class="rate r2">●●○</span></td></tr>
+          <tr><td>토큰 / 비용 효율</td><td class="best"><span class="rate r3">●●●</span></td><td><span class="rate r1">●○○</span></td><td><span class="rate r2">●●○</span></td></tr>
+          <tr><td>셀프리뷰 신뢰도</td><td><span class="rate r2">●●○</span></td><td><span class="rate r1">●○○</span></td><td class="best"><span class="rate r2">●●○</span></td></tr>
+          <tr><td>가정 오류 검출 (독립리뷰)</td><td><span class="rate r1">●○○</span></td><td class="best"><span class="rate r3">●●●</span></td><td class="best"><span class="rate r3">●●●</span></td></tr>
+          <tr><td>실서버 안전 (main=prod)</td><td><span class="rate r1">●○○</span></td><td class="best"><span class="rate r3">●●●</span></td><td class="best"><span class="rate r3">●●●</span></td></tr>
+          <tr><td>공정성/크로스게임 가드</td><td><span class="rate r0">○○○</span></td><td class="best"><span class="rate r3">●●●</span></td><td class="best"><span class="rate r3">●●●</span></td></tr>
+          <tr><td>일관성 / 규율 (훅)</td><td><span class="rate r0">○○○</span></td><td class="best"><span class="rate r3">●●●</span></td><td class="best"><span class="rate r3">●●●</span></td></tr>
+          <tr><td>의식 오버헤드 낮음 <span class="footnote">(낮을수록 좋음)</span></td><td class="best"><span class="rate r3">●●●</span></td><td><span class="rate r1">●○○</span></td><td><span class="rate r2">●●○</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="callout insight">
+        <span class="label">3자 비교가 드러내는 두 가지</span>
+        ① <strong>Ⓐ vs Ⓑ는 거짓 양자택일</strong> — 우위 항목이 거의 안 겹친다(모델 성능 vs 정책·안전). 다른 층이라 <strong>합칠 수 있다</strong> = Ⓒ.<br>
+        ② <strong>Ⓑ → Ⓒ의 함정</strong> — 모델만 4.8로 올리고 하네스를 그대로 두면, 4.8의 개선된 셀프리뷰 때문에
+        <strong>STANDARD의 독립리뷰 의식이 중복(낭비)</strong>이 된다. 그래서 Ⓒ는 "하네스 유지"가 아니라 <strong>"하네스 재보정"</strong>이어야 한다.
+      </div>
+
+      <div class="callout verdict">
+        <span class="label">결론</span>
+        <strong>Ⓒ 4.8 + (재보정된) 하네스.</strong> Ⓐ의 속도·판단을 SIMPLE/STANDARD에서 살리고,
+        Ⓑ의 독립검증·도메인 가드를 COMPLEX-계약에 집중한다. "버리기"도 "그대로 두기"도 아닌 <strong>재배분</strong>이다.
+        구체적 다이얼은 <a class="inline" href="#dial">15장</a> 참조.
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="audit">
+      <h2><span class="num">03</span> 모델 ID 감사 결과</h2>
+      <p class="sub">"하네스가 4.7 기준인데 4.8에서 괜찮나?"의 실측 확인.</p>
+
+      <div class="callout verdict">
+        <span class="label">결론</span>
+        에이전트 frontmatter(<code>scout/coder/reviewer/qa</code>)와 <code>settings.json</code>에
+        <strong>모델 ID 하드코딩 0건</strong>. 서브에이전트는 전부 메인 모델(4.8) 상속.
+        하네스 동작이 특정 버전에 묶여 깨질 위험 <strong>없음.</strong>
+      </div>
+
+      <h3>발견 — 깨지진 않지만 옛 버전 박힌 곳 (수정 완료)</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>파일</th><th>전</th><th>후</th></tr></thead>
+        <tbody>
+          <tr><td><code>.claude/commands/meeting-multi.md</code></td><td>Claude Sonnet 4.5</td><td class="tag-keep">Claude Opus (버전 제거)</td></tr>
+          <tr><td><code>.claude/commands/summitdocs.md</code></td><td>Claude Opus 4.5</td><td class="tag-keep">Claude Opus (버전 제거)</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout insight">
+        <span class="label">왜 버전을 지웠나</span>
+        <code>Co-Authored-By</code>는 git에 박히는 <strong>순수 텍스트</strong> — 자동으로 버전을 못 찾는다.
+        <code>Opus 4.5</code>는 틀리고 다음 버전에 또 stale. <code>Claude Opus</code>(버전 없음)는
+        <strong>영원히 안 틀린다.</strong> 덜 구체적일 뿐.
+      </div>
+
+      <h3>문제 아님 — 등급 이름만 쓰는 곳</h3>
+      <p>나머지 <code>Opus</code>/<code>Sonnet</code> 참조는 전부 <strong>버전 숫자 없는 등급 이름</strong>이라
+      현재 모델로 자동 해석됨. (<code>meeting-codex</code>, <code>meeting-team</code>, <code>docs.md</code> 등)
+      <code>skill-*.md</code>의 <code>### mid (4-7년차)</code>는 <strong>경력</strong> 표기 — 오탐.</p>
+    </section>
+
+    <!-- 4 -->
+    <section id="triage">
+      <h2><span class="num">04</span> 트리아지 3단계란?</h2>
+      <p class="sub">하네스의 핵심 — 요청을 받으면 먼저 실행 수준을 판정한다.</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>단계</th><th>조건</th><th>동작</th></tr></thead>
+        <tbody>
+          <tr><td><b>SIMPLE</b></td><td>1~2파일, UI/공정성/DB/소켓 무관</td><td>직접 수정 (훅 가드만 동작)</td></tr>
+          <tr><td><b>STANDARD</b></td><td>UI 소규모 또는 3파일 미만</td><td>Scout → Coder → Reviewer</td></tr>
+          <tr><td><b>COMPLEX</b></td><td>3파일+, 새 기능, DB/소켓 변경, 공정성 영향</td><td>+ QA</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>매 턴 첫 줄을 <code>[트리아지: …]</code>로 강제하는 <code>UserPromptSubmit</code> 훅과,
+      Edit/Write 직전에 형식을 재검증하는 <code>check-triage.sh</code>가 이 시스템을 떠받친다.</p>
+    </section>
+
+    <!-- 5 -->
+    <section id="review">
+      <h2><span class="num">05</span> 셀프리뷰 vs 독립리뷰 — 토론의 개념적 핵심</h2>
+      <p class="sub">"4.8 셀프리뷰가 좋아졌는데 독립리뷰가 왜 필요해?"에 대한 답.</p>
+
+      <p><strong>"셀프리뷰"라는 한 단어가 두 가지 다른 오류를 섞고 있다.</strong> 쪼개면 답이 깔끔해진다.</p>
+
+      <div class="grid2">
+        <div class="panel exec">
+          <h4>✓ 실행 오류 (Execution)</h4>
+          <ul>
+            <li>오타, off-by-one</li>
+            <li>null 체크 누락</li>
+            <li>엣지케이스 빠뜨림</li>
+            <li>API 시그니처 불일치</li>
+          </ul>
+          <p style="font-size:13px;color:var(--text-dim);margin:10px 0 0">셀프리뷰로 <strong>잘 잡힘</strong>. 4.8에서 확실히 개선.</p>
+        </div>
+        <div class="panel assume">
+          <h4>✗ 가정 오류 (Assumption)</h4>
+          <ul>
+            <li>소켓 이벤트 계약 오해</li>
+            <li>"updateRoomsList가 전체 브로드캐스트한다" 식 잘못된 멘탈모델</li>
+            <li>공유모듈 동작 가정 틀림</li>
+          </ul>
+          <p style="font-size:13px;color:var(--text-dim);margin:10px 0 0">셀프리뷰로 <strong>구조적으로 약함</strong>. 모델 개선과 무관.</p>
+        </div>
+      </div>
+
+      <div class="callout insight">
+        <span class="label">왜 가정 오류는 똑똑해져도 안 잡히나</span>
+        같은 컨텍스트에서 검토하면 <strong>코드 짤 때 세운 잘못된 전제를 그대로 들고</strong> 본다.
+        전제가 틀린 걸 의심하려면 그 추론을 안 본 <strong>신선한 눈</strong>이 필요한데,
+        이건 IQ가 아니라 <strong>정보 격리</strong> 문제라 모델 성능으로 안 닫힌다.
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="selfreview">
+      <h2><span class="num">06</span> 4.8 셀프리뷰 개선의 진실</h2>
+      <p class="sub">개선은 진짜다. 단, 어디에 작동하느냐가 중요.</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>오류 종류</th><th>셀프리뷰로 잡힘?</th><th>4.8에서 개선?</th></tr></thead>
+        <tbody>
+          <tr><td>실행 오류</td><td class="tag-keep">✓ 잘 잡음</td><td class="tag-keep">✓ 확실히 좋아짐</td></tr>
+          <tr><td>가정 오류</td><td class="tag-drop">✗ 약함</td><td class="tag-soft">⚠ 별로 안 변함</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>그래서 계산이 이렇게 바뀐다. 셀프리뷰가 좋아질수록 독립리뷰와의 <strong>격차는 좁아진다.</strong>
+      하지만 닫히지는 않는다:</p>
+      <ul>
+        <li><strong>STANDARD</strong>: 격차가 충분히 좁아 셀프리뷰로 대체 OK</li>
+        <li><strong>COMPLEX</strong>: 남은 격차가 작아도 <strong>× 비대칭 리스크</strong>(실서버 공정성/desync)라 여전히 정당화. "90%→93%"의 3%가 실서버 버그면 비싸다</li>
+      </ul>
+    </section>
+
+    <!-- 7 -->
+    <section id="crossmodel">
+      <h2><span class="num">07</span> 교차모델(Codex)의 독립 가치</h2>
+      <p class="sub">셀프리뷰 개선과 완전히 무관한 축.</p>
+      <div class="callout insight">
+        <span class="label">사각지대는 IQ로 못 메운다</span>
+        4.8이 아무리 자기검토를 잘해도 <strong>4.8 훈련의 사각지대는 공유</strong>한다.
+        Codex 교차리뷰는 그 사각지대 <em>밖</em>에서 보는 것이라, 4.8 셀프리뷰가 100점이어도 가치가 남는다.
+        같은 4.8 두 번보다 <strong>4.8 + Codex</strong>가 잡는 게 다르다. → 4.8 시대에 오히려 <strong>가치 상승</strong>.
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="workflow">
+      <h2><span class="num">08</span> Dynamic Workflows vs 커스텀 하네스</h2>
+      <p class="sub">"이미 Workflows 있는데 이걸로 가는 게 낫지 않나?"</p>
+      <p>둘은 같은 게 아니라 <strong>다른 층</strong>이다.</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>커스텀 하네스 (.claude/)</th><th>Dynamic Workflows (네이티브)</th></tr></thead>
+        <tbody>
+          <tr><td>정체</td><td><b>정책/규율 층</b> — 언제 에스컬레이트, 불변조건, 도메인</td><td><b>실행/오케스트레이션 엔진</b> — 팬아웃·반증·스케일</td></tr>
+          <tr><td>발동</td><td>매 턴 자동 (훅 강제)</td><td>명시적 opt-in, 백그라운드, 토큰 다수</td></tr>
+          <tr><td>강점</td><td>가볍고 항상 켜짐, 공정성·크로스게임</td><td>병렬·adversarial verify·재개·구조화 출력</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout verdict">
+        <span class="label">착지</span>
+        하네스는 <strong>"두뇌(정책·불변조건·훅)"</strong>로 남기고, COMPLEX-계약의 <strong>"실행 근육"만</strong>
+        네이티브 Workflows로 갈아끼운다. 새 오케스트레이션 코드를 <em>재구현</em>하지 말고,
+        트리아지가 네이티브 도구를 <strong>호출만</strong> 하게. 하네스는 더 얇아지고 실행은 더 강해진다.
+      </div>
+      <div class="callout warn">
+        <span class="label">Workflows가 대체 못 하는 것</span>
+        ① 트리아지 <em>결정</em> 자체 (도구일 뿐, 매 턴 발동하는 정책 아님) ·
+        ② 결정론적 훅 (셸 강제) ·
+        ③ SIMPLE/STANDARD의 가벼운 규율 (2파일에 워크플로우는 과함)
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="estimate">
+      <h2><span class="num">09</span> 개선폭 추정</h2>
+      <p class="sub">⚠️ 측정값이 아니라 추정. 대상은 COMPLEX-계약 작업에 한정. <span class="conf c3"><i></i><i></i><i></i></span> = 신뢰도.</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>차원</th><th>현재 (순차)</th><th>Workflow (병렬+반증+교차)</th><th>예상 변화</th><th>신뢰도</th></tr></thead>
+        <tbody>
+          <tr><td>벽시계 시간</td><td>리뷰/QA 직렬</td><td>차원 병렬</td><td>전체 25~35%↓</td><td><span class="conf c2"><i></i><i></i><i></i></span></td></tr>
+          <tr><td>실버그 검출률(recall)</td><td>단일 리뷰어 ≈70~80%</td><td>다차원+verify</td><td>+10~20%p</td><td><span class="conf c2"><i></i><i></i><i></i></span></td></tr>
+          <tr><td>오탐 인한 헛루프</td><td>리뷰어 지적이 유발</td><td>verify 게이트 거름</td><td>30~50%↓</td><td><span class="conf c2"><i></i><i></i><i></i></span></td></tr>
+          <tr><td>교차모델 사각지대</td><td>Codex 선택적</td><td>기본 통합</td><td>추가 검출</td><td><span class="conf c1"><i></i><i></i><i></i></span></td></tr>
+          <tr><td>중단 복구</td><td>처음부터</td><td><code>resumeFromRunId</code></td><td>큰 절감</td><td><span class="conf c3"><i></i><i></i><i></i></span></td></tr>
+          <tr><td>토큰 비용</td><td>1×</td><td>팬아웃+반증+교차</td><td><span class="tag-drop">1.5~2.5×↑</span></td><td><span class="conf c3"><i></i><i></i><i></i></span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout insight">
+        <span class="label">진짜 이득은 평균이 아니라 꼬리(tail)</span>
+        순차 단일리뷰는 가끔 가정 오류를 통째로 놓쳐 실서버 desync/공정성 버그가 나간다 — 가장 비싼 사고.
+        adversarial verify + 교차모델은 <strong>이 최악 케이스 확률을 끌어내린다.</strong>
+        평균 30% 개선보다 이게 더 중요할 수 있다.
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="ultra">
+      <h2><span class="num">10</span> 울트라코드 분석</h2>
+      <p class="sub">모든 실질 작업을 기본적으로 워크플로우로 + 토큰 비용은 제약 아님 + 최대 철저.</p>
+      <div class="callout verdict">
+        <span class="label">결론</span>
+        상시 모드로는 <strong>비추</strong>, "특정 행사용 기어"로는 <strong>강력 추천.</strong>
+      </div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>캘리브레이션 (추천)</th><th>울트라코드</th></tr></thead>
+        <tbody>
+          <tr><td>철학</td><td>가정-위험에 <em>비례</em>해 힘 배분</td><td>어디든 <em>균일 최대</em></td></tr>
+          <tr><td>SIMPLE 광고 슬롯 수정</td><td>직접</td><td class="tag-drop">워크플로우 (과함)</td></tr>
+          <tr><td>토큰</td><td>통제</td><td>"제약 아님"</td></tr>
+          <tr><td>트리아지</td><td>핵심</td><td class="tag-drop">무력화</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><strong>천장(품질 상한)은 진짜 최고</strong>다 — 부정 금지. "여러 워크플로우 순차 + 적대적 검증"은
+      틀리면 재앙인 작업에서 최고 확신을 준다. 문제는 <em>언제나</em> 쓰는 게 낭비라는 것.</p>
+      <h3>켜는 순간 — 행사용 편성</h3>
+      <ul>
+        <li>대형 기능 출시 직전 하드닝 (새 게임 추가 등)</li>
+        <li>주기적 심층 감사 (공정성/소켓 전수 점검, <code>/cso</code>)</li>
+        <li>위험한 마이그레이션 (DB 스키마, 공유모듈 대수술)</li>
+        <li>"이번 건 절대 틀리면 안 됨" 핵심 재작성</li>
+      </ul>
+    </section>
+
+    <!-- 11 -->
+    <section id="freecost">
+      <h2><span class="num">11</span> 비용 무관 세계 재평가</h2>
+      <p class="sub">"토큰 비용 신경 안 쓴다면?" — 가장 큰 반대 논거를 제거하면.</p>
+      <p>솔직히 인정: <strong>비용이 반대 논리의 상당 부분을 떠받치고 있었다.</strong> 빼면 다이얼이 워크플로우 쪽으로 이동한다.
+      하지만 <strong>"전부 워크플로우"가 정답이 되진 않는다</strong> — 구속 조건이 다른 걸로 바뀔 뿐:</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>비용 빼도 남는 제약</th><th>요지</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>지연시간 ≠ 비용</b></td><td>2파일 수정이 직접 20초 vs 워크플로우 8분이면, 공짜여도 개발 루프가 느려짐</td></tr>
+          <tr><td>2</td><td><b>인간 주의력이 진짜 희소자원</b></td><td>잡을 게 없어도 N개 차원의 "이슈 0건" 리포트를 <em>사람이</em> 훑어야 함</td></tr>
+          <tr><td>3</td><td><b>코드베이스 철학과 충돌</b> ⚠️</td><td><code>guidelines.md</code>의 "최소·외과적"과 울트라코드의 "최대 철저"가 정면 충돌. 컴퓨트↑ → 골드플레이팅 유혹↑</td></tr>
+          <tr><td>4</td><td><b>실서버는 검토가능성이 확신</b></td><td>사람이 따라갈 수 있는 외과적 변경이, 쏟아진 대형 변경보다 신뢰하기 쉬움</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout insight">
+        <span class="label">반전 — 항상-오케스트레이션이 골드플레이팅을 더 잘 막을 수도</span>
+        제약 ③이 함정이지만, 워크플로우 안에 <strong>"surgical-change 위반 비평가"</strong>를 한 차원으로 넣으면
+        "요청 범위를 넘었나? 안 망가진 걸 리팩터했나?"를 자동 검사할 수 있다.
+        게이트 모델에선 사람이 해야 하는 일이다.
+      </div>
+      <div class="callout verdict">
+        <span class="label">비용 무관 시 다이얼 이동</span>
+        변화는 <strong>천장이 아니라 바닥</strong>(언제 발동)에서 일어난다. STANDARD·COMPLEX-실행이 워크플로우로 상향.
+        <strong>단 SIMPLE 직접은 유지</strong> — 한계효용이 진짜 0이라 비용과 무관.
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="delete">
+      <h2><span class="num">12</span> 단계를 없애도 되나?</h2>
+      <p class="sub">"그럼 SIMPLE/STANDARD/COMPLEX 없애는 거?"</p>
+      <p><strong>아니다.</strong> 트리아지는 <strong>비용 절약 장치가 아니라</strong> 두 가지를 한 라벨에 묶고 있다:</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>축</th><th>무엇</th><th>비용 빠지면?</th></tr></thead>
+        <tbody>
+          <tr><td>① 검증 강도</td><td>에이전트 몇 개, 얼마나 철저히</td><td class="tag-drop">"항상 최대" — 이 축은 무너짐</td></tr>
+          <tr><td>② 작업 형태</td><td>직접 vs 오케스트레이션, 외과적 vs 전수</td><td class="tag-keep">그대로 남음 — 비용 무관</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>비용 질문은 <strong>①만</strong> 때린다. ②는 지연·주의력·골드플레이팅·검토가능성이 떠받치므로 살아있다.</p>
+      <div class="callout insight">
+        <span class="label">폐지가 아니라 통합</span>
+        비용이 STANDARD와 COMPLEX-실행을 갈라주던 것이므로, 빠지면 둘이 합쳐진다.
+        3단계 → <strong>2단계(직접 / 오케스트레이션)</strong>로 줄이는 게 정직한 귀결. <strong>0단계(완전 폐지)는 잘못.</strong>
+      </div>
+      <h3>완전 폐지가 나쁜 구체적 이유</h3>
+      <ul>
+        <li>결정론적 훅이 트리아지 선언 위에 지어져 있음 → 단계 개념을 지우면 <strong>훅 강제 레이어를 통째로 재작성</strong></li>
+        <li>트리아지 한 줄 = <strong>공짜 "멈춤 장치"</strong>. 토큰 0원인데 "어, 이거 공정성 건드리네"를 사전에 잡음</li>
+      </ul>
+    </section>
+
+    <!-- 13 -->
+    <section id="xy">
+      <h2><span class="num">13</span> 모델 X vs 모델 Y — 진짜 크럭스</h2>
+      <p class="sub">"몇 단계냐"가 아니라 "라우팅 결정이 어디 사는가"가 본질.</p>
+      <div class="vs">
+        <div class="side a">
+          <h4>모델 X — 게이트 (현재)</h4>
+          <p class="role">// 작업 앞에서 사람이 선언</p>
+          <ul>
+            <li>싸고 투명함</li>
+            <li>멈춤 장치가 사람 눈에 보임</li>
+            <li>사람 오버라이드 가능</li>
+            <li>단점: 분류를 <em>정보 적을 때</em> 미리 해야 함</li>
+          </ul>
+        </div>
+        <div class="divider">VS</div>
+        <div class="side b">
+          <h4>모델 Y — 자가-트리아지</h4>
+          <p class="role">// 오케스트레이터가 내부 분기</p>
+          <ul>
+            <li>사소 → short-circuit 인라인</li>
+            <li>위험 → 다차원 + 반증</li>
+            <li>계약 → + 교차모델 + guidelines 비평가</li>
+            <li>단점: 진입 지연, 멈춤 장치 숨음, 훅 재작성</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout insight">
+        <span class="label">왜 중요한가</span>
+        모델 Y면 "전부 워크플로우"가 말이 된다 — 사소한 건 워크플로우가 <strong>알아서 short-circuit</strong>하니까.
+        즉 "SIMPLE은 직접"이 사라지는 게 아니라 <strong>오케스트레이터 안으로 들어가는</strong> 것.
+        "완전 폐지"가 비용 없는 세계에선 생각보다 덜 미친 선택 — 단 폐지가 아니라 <strong>라우팅 이전</strong>이다.
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section id="accuracy">
+      <h2><span class="num">14</span> 정확도는 어디가 높은가</h2>
+      <p class="sub">"X vs Y, 정확도는?"</p>
+      <div class="callout verdict">
+        <span class="label">핵심</span>
+        정확도의 <strong>천장은 같다.</strong> 같은 작업에 같은 검증 깊이를 적용하면 출력 정확도는 동일.
+        정확도는 <strong>아키텍처가 아니라 "검증 깊이"</strong>가 결정한다. 진짜 차이는 <strong>라우팅 오류(놓침)</strong> 하나뿐.
+      </div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>분류 시점</th><th>정보량</th><th>놓침</th></tr></thead>
+        <tbody>
+          <tr><td><b>X (게이트)</b></td><td>작업 시작 전</td><td>적음 (아직 안 파봄)</td><td class="tag-drop">"SIMPLE인 줄 알았는데 소켓 계약" 통과 ⚠</td></tr>
+          <tr><td><b>Y (자가)</b></td><td>빠른 스캔 후</td><td>많음 (훑고 결정)</td><td class="tag-keep">도중 위험 감지 시 자동 에스컬레이트</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>→ Y가 <strong>"겉보기 사소하지만 실은 계약-위험"</strong>을 덜 놓친다. 그게 바로 <em>가정 오류</em> 클래스.
+      이 한 가지로 <strong>Y의 실효 정확도가 살짝 높다.</strong></p>
+      <div class="callout warn">
+        <span class="label">단 — 조건부</span>
+        Y의 자가-분류기가 <strong>잘 만들어져야</strong> 함. 못 만들면 위험한 걸 short-circuit 해 <strong>X보다 나빠질 수</strong> 있다.
+        X는 사람 오버라이드가 있고, Y는 그걸 일부 제거한다.
+      </div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>작업 종류</th><th>정확도 차이 (추정)</th></tr></thead>
+        <tbody>
+          <tr><td>계약-위험 작업</td><td>Y가 놓침 ~몇%p 적음 (자동 에스컬레이션)</td></tr>
+          <tr><td>사소한 작업</td><td>둘 다 4.8 직접 ~97~98%, 검증 더 부어도 98~99% → 차이 거의 0</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section id="dial">
+      <h2><span class="num">15</span> 최종 다이얼 권고</h2>
+      <p class="sub">비용 신경 여부에 따라 두 버전.</p>
+
+      <h3>다이얼 A — 비용 신경 O (권장 기본)</h3>
+      <div class="dial">
+        <div class="row head"><span>단계</span><span>처리</span></div>
+        <div class="row"><span class="lvl">SIMPLE</span><span class="desc"><span class="arrow">→</span> 쌩 4.8 (직접) <span class="arrow">·</span> 항상</span></div>
+        <div class="row"><span class="lvl">STANDARD</span><span class="desc"><span class="arrow">→</span> 4.8 + 셀프리뷰 1패스</span></div>
+        <div class="row"><span class="lvl">COMPLEX-실행</span><span class="desc"><span class="arrow">→</span> 4.8 + QA</span></div>
+        <div class="row"><span class="lvl">COMPLEX-계약</span><span class="desc"><span class="arrow">→</span> 네이티브 Workflow (병렬+반증) + Codex 교차</span></div>
+        <div class="row"><span class="lvl ultra">울트라코드</span><span class="desc"><span class="arrow">→</span> 전부 최대 <span class="arrow">·</span> 출시/감사/대수술 때만 토글</span></div>
+      </div>
+
+      <h3>다이얼 B — 비용 신경 X</h3>
+      <div class="dial">
+        <div class="row head"><span>단계</span><span>처리 (바닥이 상향됨)</span></div>
+        <div class="row"><span class="lvl">SIMPLE</span><span class="desc"><span class="arrow">→</span> 직접 <span class="arrow">·</span> <b>그대로</b> (지연·노이즈 때문에 공짜여도 직접)</span></div>
+        <div class="row"><span class="lvl">STANDARD</span><span class="desc"><span class="arrow">→</span> + 경량 워크플로우 (병렬 셀프 + verify 1패스)</span></div>
+        <div class="row"><span class="lvl">COMPLEX-실행</span><span class="desc"><span class="arrow">→</span> + 워크플로우 (다차원+반증)</span></div>
+        <div class="row"><span class="lvl">COMPLEX-계약</span><span class="desc"><span class="arrow">→</span> 울트라코드급 (순차 다중 워크플로우 + 교차모델)</span></div>
+      </div>
+
+      <h3>가정-위험 트리거 (단계 무관, 닿으면 자동 승격)</h3>
+      <ul>
+        <li><code>socket/*</code>의 emit/on <strong>이벤트 계약</strong> 변경</li>
+        <li>공정성 경로 (서버 결과 결정, 클라 <code>Math.random</code>)</li>
+        <li><code>js/shared/*</code>, <code>utils/room-helpers.js</code> 등 <strong>크로스게임 공유</strong> 모듈</li>
+        <li>DB 스키마 / <code>db/*</code> 쓰기 경로</li>
+      </ul>
+
+      <h3>절대 안 건드리는 것 (frozen — 모델 좋아져도 가치 불변)</h3>
+      <ul>
+        <li>결정론적 훅 (트리아지/Edit 가드)</li>
+        <li>공정성 가드 (클라 <code>Math.random</code> 0회 검증)</li>
+        <li>impl 문서 강제 (3파일+/DB)</li>
+        <li><code>MEMORY.md</code> 기록 규율</li>
+        <li>main = 실서버 안전레일</li>
+      </ul>
+    </section>
+
+    <!-- 16 -->
+    <section id="open">
+      <h2><span class="num">16</span> 미결 질문</h2>
+      <p class="sub">결정을 끝내려면 답해야 할 것.</p>
+      <ol class="arc">
+        <li><b>모델 X vs Y</b> 중 어느 쪽인가? (단계 개수는 그다음 문제) <span class="q">— 현재 "더 논의" 상태</span></li>
+        <li><b>"비용 안 씀"이 진심인가, 사고실험인가?</b> 이게 X/Y를 가르는 결정타</li>
+        <li><b>Y의 자가-분류기를 신뢰할 만큼 잘 짤 수 있나?</b> 이 코드베이스에서 "계약-위험" 자동 판별 난이도가 X/Y를 거의 끝냄</li>
+        <li>실측: 현재 워킹트리 변경(<code>socket/* db/* js/*</code>)으로 순차 vs 워크플로우 리뷰를 <strong>1회씩 돌려 잡은 이슈·시간·토큰 직접 비교</strong>할 것인가?</li>
+      </ol>
+    </section>
+
+    <footer class="end">
+      <p>이 문서는 LAMDiceBot 개발환경 의사결정 토론의 전체 기록이다. 결정은 보류 상태이며,
+      위 미결 질문에 답하면 <code>.claude/rules/harness.md</code> 명문화(impl 문서)로 이어진다.</p>
+      <p style="margin-top:8px">생성: 2026-05-30 · 기준 모델 claude-opus-4-8 (1M) · 성격: 토론 기록(결정 전)</p>
+    </footer>
+
+  </main>
+</div>
+</body>
+</html>

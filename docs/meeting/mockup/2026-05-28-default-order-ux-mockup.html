@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디폴트 주문 UX 목업 비교</title>
+<style>
+    :root {
+        --primary: #667eea;
+        --primary-dark: #5568d3;
+        --secondary: #764ba2;
+        --warning: #ffc107;
+        --warning-text: #856404;
+        --bg: #f6f5fa;
+        --card-bg: #ffffff;
+        --text-primary: #2d3748;
+        --text-muted: #718096;
+        --border: #e2e8f0;
+        --chip-bg: #fff8e1;
+        --chip-border: #ffc107;
+        --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text-primary);
+        padding: 24px 12px;
+        line-height: 1.5;
+    }
+    .page { max-width: 1280px; margin: 0 auto; }
+    .page-title {
+        text-align: center;
+        margin-bottom: 8px;
+        font-size: 28px;
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .page-sub {
+        text-align: center;
+        color: var(--text-muted);
+        margin-bottom: 32px;
+        font-size: 14px;
+    }
+
+    /* 메인 카드 — C 방향 (강조) */
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 8px 32px rgba(102,126,234,0.15);
+        border: 2px solid var(--primary);
+        margin-bottom: 32px;
+    }
+    .main-card .badge {
+        display: inline-block;
+        background: var(--gradient);
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        letter-spacing: 0.5px;
+    }
+    .card-title {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: var(--primary-dark);
+    }
+    .card-tagline {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+
+    /* 보조 카드 — A/B 비교군 */
+    .alt-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+    @media (max-width: 760px) {
+        .alt-row { grid-template-columns: 1fr; }
+    }
+    .alt-card {
+        background: var(--card-bg);
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        opacity: 0.92;
+    }
+    .alt-card .card-title { font-size: 16px; color: var(--text-primary); }
+    .alt-card .card-tagline { font-size: 12px; margin-bottom: 14px; }
+
+    .device-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .device-tab {
+        flex: 1;
+        padding: 8px 12px;
+        background: #edf0f7;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+    .device-tab.active {
+        background: var(--gradient);
+        color: white;
+        border-color: transparent;
+    }
+    .device-frame {
+        background: #fafafa;
+        border: 2px dashed #d0d4e0;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 0 auto;
+        transition: max-width 0.3s;
+    }
+    .device-frame.mobile { max-width: 360px; }
+    .device-frame.desktop { max-width: 100%; }
+
+    /* 주문 섹션 */
+    .order-section {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .order-section-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: space-between;
+    }
+    .order-section-title .title-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .order-input-group {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: stretch;
+    }
+    .order-input-group input {
+        padding: 12px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        font-size: 15px;
+        outline: none;
+    }
+    .order-input-group input:focus { border-color: var(--primary); }
+    .btn {
+        padding: 12px 16px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text-primary);
+    }
+    .btn-primary { background: var(--gradient); color: white; }
+    .btn-ghost { background: #edf0f7; color: var(--text-primary); }
+
+    /* C 방향: 별 아이콘 (크롬 북마크 스타일 — 색으로만 상태 표시) */
+    .star-icon-btn {
+        background: transparent;
+        border: none;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+        color: #cbd5e0;          /* 미설정: 회색 */
+        transition: color 0.15s, transform 0.1s;
+    }
+    .star-icon-btn:hover {
+        transform: scale(1.15);
+        color: #b3bcd0;
+    }
+    .star-icon-btn.has-default {
+        color: var(--warning);    /* 설정됨: 노랑 */
+    }
+    .star-icon-btn.has-default:hover {
+        color: #ffb300;
+    }
+    .star-icon-tooltip {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-align: right;
+        margin-top: 8px;
+    }
+
+    /* 모달 */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        animation: fadeIn 0.15s ease-out;
+    }
+    .modal-overlay.open { display: flex; }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    .modal {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 420px;
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        animation: slideUp 0.2s ease-out;
+    }
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary-dark);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+    }
+    .modal-close:hover { background: #f0f0f0; }
+
+    .current-default {
+        background: var(--chip-bg);
+        border: 1.5px solid var(--chip-border);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .current-default.empty {
+        background: #f8f9fb;
+        border-style: dashed;
+        border-color: var(--border);
+        color: var(--text-muted);
+    }
+    .current-default .label {
+        font-size: 12px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .current-default .value {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--warning-text);
+        margin-top: 2px;
+    }
+    .current-default.empty .value {
+        color: var(--text-muted);
+        font-weight: 500;
+        font-style: italic;
+    }
+    .current-default-info { flex: 1; }
+    .btn-danger {
+        background: #fed7d7;
+        color: #c53030;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .modal-section {
+        margin-top: 20px;
+    }
+    .modal-section-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .menu-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .menu-tag-pick {
+        background: #edf0f7;
+        border: 1.5px solid var(--border);
+        border-radius: 18px;
+        padding: 7px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        color: var(--text-primary);
+    }
+    .menu-tag-pick:hover {
+        background: var(--chip-bg);
+        border-color: var(--chip-border);
+        color: var(--warning-text);
+    }
+    .menu-tag-pick.is-current {
+        background: var(--chip-bg);
+        border-color: var(--chip-border);
+        color: var(--warning-text);
+    }
+
+    /* 모달 모드 탭 */
+    .default-mode-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        background: #f0f2f8;
+        padding: 4px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+    }
+    .mode-tab {
+        background: transparent;
+        border: none;
+        padding: 10px 8px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .mode-tab.active {
+        background: white;
+        color: var(--primary-dark);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    .mode-content { display: block; }
+    .mode-content.hidden { display: none; }
+
+    /* 랜덤 모드 콘텐츠 */
+    .random-explainer {
+        background: linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%);
+        border: 1.5px solid var(--chip-border);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: var(--warning-text);
+        line-height: 1.6;
+    }
+    .random-explainer strong { font-size: 14px; }
+    .random-toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: var(--chip-bg);
+        border: 1.5px solid var(--chip-border);
+        border-radius: 10px;
+        margin-bottom: 16px;
+        cursor: pointer;
+    }
+    .random-toggle-row input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--warning);
+        cursor: pointer;
+    }
+    .random-toggle-row.active {
+        background: #fff3cd;
+        border-color: #ffa000;
+    }
+    .pool-preview-list {
+        background: #f8fafc;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1.8;
+    }
+    .pool-preview-list .pool-item {
+        display: inline-block;
+        background: white;
+        padding: 3px 10px;
+        border-radius: 12px;
+        margin-right: 4px;
+        margin-bottom: 4px;
+        border: 1px solid var(--border);
+    }
+
+    /* 하단 단발 랜덤 */
+    .modal-divider {
+        border-top: 1px dashed var(--border);
+        margin: 20px 0 16px;
+    }
+    .btn-random-once {
+        width: 100%;
+        background: linear-gradient(135deg, #ffe082 0%, #ffc107 100%);
+        color: var(--warning-text);
+        border: none;
+        border-radius: 10px;
+        padding: 14px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .btn-random-once:hover {
+        filter: brightness(1.05);
+        transform: translateY(-1px);
+    }
+    .random-result-flash {
+        background: var(--chip-bg);
+        border: 2px solid var(--warning);
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+        margin-top: 10px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--warning-text);
+        animation: popIn 0.3s ease-out;
+    }
+    @keyframes popIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .custom-input-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .custom-input-row input {
+        padding: 10px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+    }
+    .custom-input-row input:focus { border-color: var(--primary); }
+    .btn-save {
+        background: var(--gradient);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .game-status {
+        background: var(--gradient);
+        color: white;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 12px;
+    }
+
+    .scenario {
+        background: #f8fafc;
+        border-left: 3px solid var(--primary);
+        padding: 12px 14px;
+        margin-top: 16px;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+    .scenario strong { color: var(--primary-dark); }
+    .scenario ul { margin: 6px 0 0 18px; color: var(--text-muted); }
+    .alt-card .scenario { font-size: 12px; }
+
+    /* A 방향 */
+    .default-bar {
+        background: var(--chip-bg);
+        border: 1.5px solid var(--chip-border);
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        flex-wrap: wrap;
+    }
+    .default-bar-label { color: var(--text-muted); }
+    .default-bar-value { font-weight: 700; color: var(--warning-text); }
+    .default-bar-btn {
+        background: white;
+        border: 1px solid var(--chip-border);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--warning-text);
+        cursor: pointer;
+        margin-left: auto;
+    }
+
+    /* B 방향 */
+    .menu-pool {
+        background: white;
+        border-radius: 12px;
+        padding: 12px;
+        margin-top: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .menu-pool-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+    .menu-tag-b {
+        background: #edf0f7;
+        border: 1.5px solid var(--border);
+        border-radius: 18px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+    }
+    .menu-tag-b.is-default {
+        background: var(--chip-bg);
+        border-color: var(--chip-border);
+        color: var(--warning-text);
+    }
+    .menu-tag-b .star {
+        color: #cbd5e0;
+        font-size: 14px;
+    }
+    .menu-tag-b.is-default .star { color: var(--warning); }
+
+    .comparison-table {
+        margin-top: 32px;
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        overflow-x: auto;
+    }
+    .comparison-table h2 { color: var(--primary-dark); margin-bottom: 16px; }
+    .comparison-table table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        min-width: 640px;
+    }
+    .comparison-table th, .comparison-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+    }
+    .comparison-table th {
+        color: var(--text-muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .comparison-table td:first-child {
+        font-weight: 600;
+        width: 25%;
+    }
+    .comparison-table .col-c { background: rgba(102,126,234,0.06); }
+    .check { color: #38a169; font-weight: 700; }
+    .cross { color: #c53030; font-weight: 700; }
+    .neutral { color: var(--text-muted); }
+
+    .feedback-zone {
+        margin-top: 32px;
+        text-align: center;
+        padding: 24px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .feedback-zone p { color: var(--text-muted); font-size: 14px; margin-bottom: 12px; }
+    .feedback-zone .options { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .feedback-zone .options button {
+        padding: 10px 20px;
+        border: 2px solid var(--primary);
+        border-radius: 24px;
+        background: white;
+        color: var(--primary);
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    .feedback-zone .options button:hover { background: var(--primary); color: white; }
+</style>
+</head>
+<body>
+<div class="page">
+    <h1 class="page-title">디폴트 주문 UX — 3가지 방향</h1>
+    <p class="page-sub">메인은 C 방향(⭐ 아이콘 → 팝업). A/B는 비교군으로 작게.</p>
+
+    <!-- ============ 메인: C 방향 ============ -->
+    <div class="main-card">
+        <span class="badge">🆕 새 제안</span>
+        <h2 class="card-title">C 방향 — ⭐ 아이콘 → 팝업 모달</h2>
+        <p class="card-tagline">입력칸 영역은 깔끔, 디폴트 관리는 한 모달에 다 모음. <strong>🎯 고정 메뉴 + 🎲 매번 랜덤</strong> 두 모드 + 단발 랜덤 채우기 통합.</p>
+
+        <div class="device-tabs">
+            <button class="device-tab active" data-target="c">📱 모바일</button>
+            <button class="device-tab" data-target="c">🖥 데스크톱</button>
+        </div>
+
+        <div class="device-frame mobile" id="frame-c">
+            <div class="game-status">주문받기 진행 중!</div>
+            <div class="order-section">
+                <div class="order-section-title">
+                    <span class="title-text">🍽 주문하기</span>
+                    <button class="star-icon-btn has-default" id="star-c" onclick="openDefaultModal()" title="디폴트 주문 설정">★</button>
+                </div>
+                <div class="order-input-group">
+                    <input type="text" id="input-c" placeholder="주문할 메뉴" value="김치찌개">
+                    <button class="btn btn-primary">저장</button>
+                </div>
+                <div class="star-icon-tooltip">↑ 별 클릭 = 디폴트 설정 모달 (노랑 = 설정됨, 회색 = 미설정)</div>
+            </div>
+
+            <div class="scenario">
+                <strong>핵심 동작</strong>
+                <ul>
+                    <li>섹션 헤더 우측 <strong>★ 별 아이콘</strong> — 크롬 북마크처럼 <strong>노랑=설정됨 / 회색=미설정</strong></li>
+                    <li>클릭 → 모달 팝업으로 디폴트 관리 (보기/변경/해제/메뉴풀에서 선택/직접 입력)</li>
+                    <li>입력 라인은 진짜 단순 (input + 저장만)</li>
+                    <li>주문받기 시작 시 input에 디폴트 자동 채워짐 — 평소엔 모달 안 열어도 됨</li>
+                </ul>
+            </div>
+        </div>
+
+        <p style="text-align: center; margin-top: 16px; color: var(--text-muted); font-size: 13px;">
+            👆 위 ★ 별 아이콘을 직접 클릭해보세요 (노랑 = 설정됨)
+        </p>
+    </div>
+
+    <!-- ============ 모달 (C 방향용) ============ -->
+    <div class="modal-overlay" id="default-modal" onclick="if(event.target===this)closeDefaultModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">⭐ 내 디폴트 주문</div>
+                <button class="modal-close" onclick="closeDefaultModal()">×</button>
+            </div>
+
+            <!-- 모드 탭 -->
+            <div class="default-mode-tabs">
+                <button class="mode-tab active" data-mode="fixed" onclick="switchMode('fixed')">🎯 고정 메뉴</button>
+                <button class="mode-tab" data-mode="random" onclick="switchMode('random')">🎲 매번 랜덤</button>
+            </div>
+
+            <!-- 고정 모드 -->
+            <div class="mode-content" id="mode-fixed">
+                <div class="current-default" id="current-default-display">
+                    <div class="current-default-info">
+                        <div class="label">현재 디폴트</div>
+                        <div class="value" id="current-default-value">김치찌개</div>
+                    </div>
+                    <button class="btn-danger" onclick="clearModalDefault()">해제</button>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">자주 쓰는 메뉴에서 선택</div>
+                    <div class="menu-tags" id="modal-menu-pool">
+                        <span class="menu-tag-pick is-current" onclick="pickFromPool(this)">김치찌개</span>
+                        <span class="menu-tag-pick" onclick="pickFromPool(this)">된장찌개</span>
+                        <span class="menu-tag-pick" onclick="pickFromPool(this)">비빔밥</span>
+                        <span class="menu-tag-pick" onclick="pickFromPool(this)">제육덮밥</span>
+                        <span class="menu-tag-pick" onclick="pickFromPool(this)">짜장면</span>
+                        <span class="menu-tag-pick" onclick="pickFromPool(this)">짬뽕</span>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">또는 직접 입력</div>
+                    <div class="custom-input-row">
+                        <input type="text" id="custom-default-input" placeholder="새 메뉴 입력">
+                        <button class="btn-save" onclick="saveCustomDefault()">디폴트로 저장</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 랜덤 모드 -->
+            <div class="mode-content hidden" id="mode-random">
+                <div class="random-explainer">
+                    <strong>🎲 매번 랜덤 모드</strong><br>
+                    주문받기가 시작될 때마다 아래 메뉴 풀에서 <strong>랜덤 1개</strong>를 자동으로 골라 주문합니다. 결정 장애를 영구 해소합니다.
+                </div>
+
+                <label class="random-toggle-row active">
+                    <input type="checkbox" id="random-mode-toggle" checked onchange="toggleRandomMode()">
+                    <span><strong>이 모드 사용</strong> — 다음 주문받기부터 랜덤 자동 주문</span>
+                </label>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">랜덤 대상 메뉴 풀</div>
+                    <div class="pool-preview-list">
+                        <span class="pool-item">김치찌개</span>
+                        <span class="pool-item">된장찌개</span>
+                        <span class="pool-item">비빔밥</span>
+                        <span class="pool-item">제육덮밥</span>
+                        <span class="pool-item">짜장면</span>
+                        <span class="pool-item">짬뽕</span>
+                        <div style="margin-top: 8px; font-size: 11px; font-style: italic;">
+                            ※ 자주 쓰는 메뉴 전체에서 랜덤. 풀을 좁히고 싶으면 자주 쓰는 메뉴 관리에서 정리.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 모드 무관 단발 랜덤 -->
+            <div class="modal-divider"></div>
+            <button class="btn-random-once" onclick="rollRandomOnce()">🎲 지금 한 번만 랜덤 채우기</button>
+            <div id="random-result-flash"></div>
+        </div>
+    </div>
+
+    <!-- ============ A/B 비교군 ============ -->
+    <h3 style="text-align: center; color: var(--text-muted); margin-bottom: 16px; font-size: 14px; font-weight: 600;">
+        이전 후보들 (비교용 — 같은 mockup 안에서 직접 비교)
+    </h3>
+    <div class="alt-row">
+        <!-- A -->
+        <div class="alt-card">
+            <h3 class="card-title">A — 디폴트 줄</h3>
+            <p class="card-tagline">input 위에 항상 디폴트 줄 표시</p>
+            <div class="device-frame mobile">
+                <div class="order-section">
+                    <div class="default-bar">
+                        <span>⭐</span>
+                        <span class="default-bar-label">내 디폴트:</span>
+                        <span class="default-bar-value">김치찌개</span>
+                        <button class="default-bar-btn">해제</button>
+                    </div>
+                    <div class="order-input-group" style="grid-template-columns: 1fr auto;">
+                        <input type="text" value="김치찌개" placeholder="주문할 메뉴">
+                        <button class="btn btn-primary">저장</button>
+                    </div>
+                </div>
+            </div>
+            <div class="scenario">
+                항상 한 줄 차지. 디폴트 상태는 가장 잘 보이지만 input 영역이 두 줄.
+            </div>
+        </div>
+        <!-- B -->
+        <div class="alt-card">
+            <h3 class="card-title">B — 자주 쓰는 메뉴에 ★</h3>
+            <p class="card-tagline">메뉴 풀 태그 별표가 디폴트</p>
+            <div class="device-frame mobile">
+                <div class="order-section">
+                    <div class="order-input-group" style="grid-template-columns: 1fr auto;">
+                        <input type="text" value="김치찌개" placeholder="주문할 메뉴">
+                        <button class="btn btn-primary">저장</button>
+                    </div>
+                </div>
+                <div class="menu-pool">
+                    <div class="menu-pool-header"><span>⭐ 자주 쓰는 메뉴</span><span>+ 추가</span></div>
+                    <div class="menu-tags">
+                        <span class="menu-tag-b is-default"><span class="star">★</span>김치찌개</span>
+                        <span class="menu-tag-b"><span class="star">★</span>된장찌개</span>
+                        <span class="menu-tag-b"><span class="star">★</span>비빔밥</span>
+                        <span class="menu-tag-b"><span class="star">★</span>짜장면</span>
+                    </div>
+                </div>
+            </div>
+            <div class="scenario">
+                input 깔끔. 단점: 자주 쓰는 메뉴 풀에 없는 메뉴는 먼저 등록 필요.
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 비교 표 ============ -->
+    <div class="comparison-table">
+        <h2>3안 정면 비교</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>관점</th>
+                    <th>A — 디폴트 줄</th>
+                    <th>B — 메뉴에 ★ 통합</th>
+                    <th class="col-c">C — ⭐ 아이콘 + 모달 🆕</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>평소 input 영역 복잡도</td>
+                    <td><span class="cross">2행</span> (디폴트 줄 + input)</td>
+                    <td><span class="check">단순</span> (input + 저장)</td>
+                    <td class="col-c"><span class="check">최대 단순</span> (input + 저장. ⭐는 헤더 우측)</td>
+                </tr>
+                <tr>
+                    <td>디폴트 등록 여부 한눈</td>
+                    <td><span class="check">최고</span> (항상 줄로 표시)</td>
+                    <td><span class="check">메뉴 풀에서 보임</span></td>
+                    <td class="col-c"><span class="check">★ 노랑/회색</span> (크롬 북마크 방식)</td>
+                </tr>
+                <tr>
+                    <td>해제 클릭 수</td>
+                    <td>1 (해제 버튼)</td>
+                    <td>1 (★ 토글)</td>
+                    <td class="col-c">2 (⭐ → 해제)</td>
+                </tr>
+                <tr>
+                    <td>새 디폴트 등록</td>
+                    <td>입력 후 별도 버튼</td>
+                    <td>메뉴 풀에 추가 후 ★</td>
+                    <td class="col-c">모달 안에서 모든 경로</td>
+                </tr>
+                <tr>
+                    <td>풀 외 메뉴를 디폴트로</td>
+                    <td><span class="check">바로 가능</span></td>
+                    <td><span class="cross">먼저 풀 추가</span></td>
+                    <td class="col-c"><span class="check">모달 안 직접 입력</span></td>
+                </tr>
+                <tr>
+                    <td>모바일 공간 압박</td>
+                    <td><span class="cross">+1행</span></td>
+                    <td>메뉴 풀 영역</td>
+                    <td class="col-c"><span class="check">0</span> (헤더 영역 재사용)</td>
+                </tr>
+                <tr>
+                    <td>구현 변경 규모</td>
+                    <td>중 (4 HTML + JS)</td>
+                    <td>중 (메뉴 렌더링 재설계)</td>
+                    <td class="col-c">중 (모달 신규 + 4 HTML 마크업 단순)</td>
+                </tr>
+                <tr>
+                    <td>멘탈 모델</td>
+                    <td>"디폴트는 별도 설정값"</td>
+                    <td>"단골 메뉴 = 자주 쓰는 메뉴 중 하나"</td>
+                    <td class="col-c">"디폴트는 옵션, 관리 화면이 따로 있음"</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-top: 16px; font-size: 13px; line-height: 1.6;">
+            <strong style="color: var(--primary-dark);">C 방향의 특징</strong><br>
+            <span style="color: var(--text-muted);">
+                • input 영역 단순화 (A 단점 해소) + 풀 외 메뉴 가능 (B 단점 해소)<br>
+                • 디폴트 상태는 ⭐의 색/점으로 작게 표시 (A의 항상 표시보다는 약함, 충분히 명확)<br>
+                • 변경 동작은 모달에서 명시적(A의 멀티버튼 혼란 해소)<br>
+                • 트레이드오프: 디폴트 변경/해제에 클릭 1회 추가 — 평소 자주 안 바꾸는 동작이라 OK
+            </span>
+        </div>
+    </div>
+
+    <div class="feedback-zone">
+        <p>어느 방향으로 갈까요?</p>
+        <div class="options">
+            <button>C — ⭐ + 모달 (메인 안)</button>
+            <button>A — 디폴트 줄</button>
+            <button>B — 메뉴에 ★</button>
+            <button>섞은 안 / 다시 고민</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 디바이스 탭
+    document.querySelectorAll('.device-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.target;
+            const frame = document.getElementById('frame-' + target);
+            tab.parentElement.querySelectorAll('.device-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            if (tab.textContent.includes('모바일')) {
+                frame.classList.add('mobile');
+                frame.classList.remove('desktop');
+            } else {
+                frame.classList.remove('mobile');
+                frame.classList.add('desktop');
+            }
+        });
+    });
+
+    // C 방향 인터랙션
+    let currentDefault = '김치찌개';
+    let defaultMode = 'fixed'; // 'fixed' | 'random'
+    let randomEnabled = true;
+    const menuPool = ['김치찌개', '된장찌개', '비빔밥', '제육덮밥', '짜장면', '짬뽕'];
+
+    function openDefaultModal() {
+        document.getElementById('default-modal').classList.add('open');
+        renderCurrentDefault();
+    }
+    function closeDefaultModal() {
+        document.getElementById('default-modal').classList.remove('open');
+        // 결과 플래시 정리
+        document.getElementById('random-result-flash').innerHTML = '';
+    }
+
+    function switchMode(mode) {
+        defaultMode = mode;
+        document.querySelectorAll('.mode-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.mode === mode);
+        });
+        document.getElementById('mode-fixed').classList.toggle('hidden', mode !== 'fixed');
+        document.getElementById('mode-random').classList.toggle('hidden', mode !== 'random');
+        updateStarIcon();
+    }
+
+    function toggleRandomMode() {
+        const checkbox = document.getElementById('random-mode-toggle');
+        randomEnabled = checkbox.checked;
+        checkbox.parentElement.classList.toggle('active', randomEnabled);
+        updateStarIcon();
+    }
+
+    function updateStarIcon() {
+        const star = document.getElementById('star-c');
+        const hasFixed = defaultMode === 'fixed' && !!currentDefault;
+        const hasRandom = defaultMode === 'random' && randomEnabled;
+        // 크롬 북마크처럼 색으로만 표시: 설정됨=노랑, 미설정=회색
+        star.classList.toggle('has-default', hasFixed || hasRandom);
+    }
+
+    function rollRandomOnce() {
+        const pick = menuPool[Math.floor(Math.random() * menuPool.length)];
+        document.getElementById('input-c').value = pick;
+        const flash = document.getElementById('random-result-flash');
+        flash.innerHTML = '';
+        const el = document.createElement('div');
+        el.className = 'random-result-flash';
+        el.textContent = '🎲 → ' + pick;
+        flash.appendChild(el);
+    }
+    function renderCurrentDefault() {
+        const display = document.getElementById('current-default-display');
+        if (currentDefault) {
+            display.classList.remove('empty');
+            display.innerHTML = `
+                <div class="current-default-info">
+                    <div class="label">현재 디폴트</div>
+                    <div class="value">${currentDefault}</div>
+                </div>
+                <button class="btn-danger" onclick="clearModalDefault()">해제</button>
+            `;
+        } else {
+            display.classList.add('empty');
+            display.innerHTML = `
+                <div class="current-default-info">
+                    <div class="label">현재 디폴트</div>
+                    <div class="value">설정 안 됨</div>
+                </div>
+            `;
+        }
+        document.querySelectorAll('.menu-tag-pick').forEach(t => {
+            t.classList.toggle('is-current', t.textContent.trim() === currentDefault);
+        });
+        updateStarIcon();
+    }
+    function clearModalDefault() {
+        currentDefault = '';
+        renderCurrentDefault();
+    }
+    function pickFromPool(el) {
+        currentDefault = el.textContent.trim();
+        renderCurrentDefault();
+    }
+    function saveCustomDefault() {
+        const input = document.getElementById('custom-default-input');
+        const v = input.value.trim();
+        if (!v) { alert('메뉴를 입력하세요.'); return; }
+        currentDefault = v;
+        input.value = '';
+        renderCurrentDefault();
+    }
+
+    // ESC로 모달 닫기
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDefaultModal();
+    });
+</script>
+</body>
+</html>

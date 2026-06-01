@@ -217,11 +217,13 @@
                 <!-- 내 주문 입력 -->
                 <div style="background: var(--yellow-50); border: 2px solid var(--yellow-500); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="font-size: 16px; font-weight: 600; color: var(--yellow-900); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink:0; white-space:nowrap;">
                             <span>📝</span>
                             <span>내 주문</span>
                         </div>
-                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--horse-accent); border: 1px solid var(--horse-500); border-radius: 4px; cursor: pointer;">메뉴 관리</button>
+                        <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--horse-accent); border: 1px solid var(--horse-500); border-radius: 4px; cursor: pointer; flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
                     
                     <!-- 자주 쓰는 메뉴 관리 -->
@@ -764,6 +766,18 @@
            style="display:block"
            data-ad-client="ca-pub-1608259764663412"
            data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+    <!-- Ad: Sticky Bottom Banner -->
+    <div class="ad-container ad-sticky">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="STICKY_SLOT_ID"
            data-ad-format="horizontal"
            data-full-width-responsive="true"></ins>
     </div>

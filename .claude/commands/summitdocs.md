@@ -55,7 +55,7 @@ docs: 게임 가이드 문서 정리
 git add docs/
 git commit -m "커밋메시지
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus <noreply@anthropic.com>"
 git push
 ```
 

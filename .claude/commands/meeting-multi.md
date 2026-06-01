@@ -131,7 +131,7 @@ git commit -m "docs: {주제} 회의록 및 구현 문서 추가
 
 {변경사항 요약}
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus <noreply@anthropic.com>"
 
 # 원격 저장소에 푸시
 git push

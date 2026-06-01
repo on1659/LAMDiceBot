@@ -264,6 +264,55 @@ async function initDatabase() {
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_stats_server ON order_stats(server_id)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_stats_user ON order_stats(server_id, user_name)`);
 
+        // ─── 디폴트 주문 테이블 (비공개 서버 단골 메뉴) ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS default_orders (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL,
+                user_name VARCHAR(50) NOT NULL,
+                menu_text VARCHAR(100) NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(server_id, user_name)
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_default_orders_server ON default_orders(server_id)`);
+        // mode 컬럼 추가 (fixed=고정 메뉴 / random=매번 랜덤). 기존 row는 DEFAULT 'fixed'로 호환
+        await pool.query(`DO $$ BEGIN ALTER TABLE default_orders ADD COLUMN mode VARCHAR(10) DEFAULT 'fixed'; EXCEPTION WHEN duplicate_column THEN NULL; END $$`);
+
+        // ─── 주문 이력 테이블 (비공개 서버 시계열) ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS order_history (
+                id BIGSERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL,
+                user_name VARCHAR(50) NOT NULL,
+                menu_text VARCHAR(100) NOT NULL,
+                game_type VARCHAR(20),
+                game_session_id VARCHAR(100),
+                source VARCHAR(20) NOT NULL,
+                ordered_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        // idx_order_history_user(server_id, user_name, ordered_at DESC) 가 server_id 단독 조회도 커버 (leftmost prefix)
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_history_user ON order_history(server_id, user_name, ordered_at DESC)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_history_session ON order_history(game_session_id)`);
+
+        // ─── 경마 픽 이력 테이블 (비공개 서버 시계열) ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS vehicle_picks (
+                id BIGSERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL,
+                user_name VARCHAR(50) NOT NULL,
+                vehicle_id VARCHAR(20) NOT NULL,
+                rank INTEGER,
+                is_winner BOOLEAN DEFAULT false,
+                game_session_id VARCHAR(100),
+                picked_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        // idx_vehicle_picks_user(server_id, user_name, picked_at DESC) 가 server_id 단독 조회도 커버
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_vehicle_picks_user ON vehicle_picks(server_id, user_name, picked_at DESC)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_vehicle_picks_vehicle ON vehicle_picks(server_id, vehicle_id, picked_at DESC)`);
+
         // ─── 태그라인 테이블 ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS taglines (

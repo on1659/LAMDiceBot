@@ -11,6 +11,7 @@ const { getVisitorStats, recordVisitor } = require('../db/stats');
 const { getServerId } = require('../routes/api');
 const { getServerById, checkMember } = require('../db/servers');
 const { getTop3Badges } = require('../db/ranking');
+const { getDefaultOrder } = require('../db/default-orders');
 const path = require('path');
 const fs = require('fs');
 
@@ -372,6 +373,19 @@ module.exports = (socket, io, ctx) => {
 
         gameState.userOrders[userName.trim()] = '';
 
+        // 비공개 서버: 호스트 본인 디폴트 주문을 DB에서 1건 로드 → gameState 캐시
+        // joinRoom과 동일 패턴. createRoom 경로엔 이 로드가 없어 호스트의 저장된 디폴트가
+        // 자동주문/모달에 반영되지 않던 버그 수정. def = { menuText, mode } | null.
+        if (room.serverId) {
+            try {
+                const def = await getDefaultOrder(room.serverId, userName.trim());
+                if (def) gameState.userDefaultOrders[userName.trim()] = def;
+                else delete gameState.userDefaultOrders[userName.trim()];
+            } catch (e) {
+                console.warn('디폴트 주문 캐시 로드 실패(createRoom):', e.message);
+            }
+        }
+
         // 방 생성 시 호스트도 자동으로 준비 상태 추가
         const trimmedUserName = userName.trim();
         // readyUsers 배열이 없으면 초기화
@@ -710,6 +724,18 @@ module.exports = (socket, io, ctx) => {
 
                 socket.join(roomId);
 
+                // 비공개 서버: 본인 디폴트 주문을 DB에서 1건 로드 → gameState 캐시 (재연결 분기)
+                // def = { menuText, mode } | null. DB 결과로 무조건 동기화(set 또는 delete) — stale 캐시 방지
+                if (room.serverId) {
+                    try {
+                        const def = await getDefaultOrder(room.serverId, userName.trim());
+                        if (def) gameState.userDefaultOrders[userName.trim()] = def;
+                        else delete gameState.userDefaultOrders[userName.trim()];
+                    } catch (e) {
+                        console.warn('디폴트 주문 캐시 로드 실패:', e.message);
+                    }
+                }
+
                 // 재접속 시 이미 굴렸는지 확인
                 const hasRolled = gameState.rolledUsers.includes(userName.trim());
                 const myResult = gameState.history.find(r => r.user === userName.trim());
@@ -925,6 +951,18 @@ module.exports = (socket, io, ctx) => {
             gameState.userOrders[finalUserName] = '';
         }
 
+        // 비공개 서버: 본인 디폴트 주문을 DB에서 1건 로드 → gameState 캐시
+        // def = { menuText, mode } | null. DB 결과로 무조건 동기화(set 또는 delete) — stale 캐시 방지
+        if (room.serverId) {
+            try {
+                const def = await getDefaultOrder(room.serverId, finalUserName);
+                if (def) gameState.userDefaultOrders[finalUserName] = def;
+                else delete gameState.userDefaultOrders[finalUserName];
+            } catch (e) {
+                console.warn('디폴트 주문 캐시 로드 실패:', e.message);
+            }
+        }
+
         // 방 입장 시 자동으로 준비 상태 추가 (게임 진행 중이 아닐 때만)
         if (!gameState.isGameActive && !gameState.readyUsers.includes(finalUserName)) {
             gameState.readyUsers.push(finalUserName);
@@ -1100,6 +1138,11 @@ module.exports = (socket, io, ctx) => {
             // 🔧 퇴장한 사용자의 말 선택 정보 삭제
             if (gameState.userHorseBets && gameState.userHorseBets[socket.userName]) {
                 delete gameState.userHorseBets[socket.userName];
+            }
+
+            // 🔧 퇴장한 사용자의 디폴트 주문 캐시 삭제 (다음 입장 시 DB에서 다시 로드)
+            if (gameState.userDefaultOrders && gameState.userDefaultOrders[socket.userName] !== undefined) {
+                delete gameState.userDefaultOrders[socket.userName];
             }
 
             // 🔧 퇴장한 사용자의 N등 투표 정보 삭제 + broadcast (다른 유저 화면 동기화)

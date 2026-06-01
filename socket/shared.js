@@ -4,11 +4,29 @@
 const { getPool } = require('../db/pool');
 const { loadFrequentMenus, getMergedFrequentMenus, saveFrequentMenus } = require('../db/menus');
 const { getServerId } = require('../routes/api');
-const { recordOrder } = require('../db/ranking');
+const { recordOrder, getMyOrderedMenus } = require('../db/ranking');
+const { recordOrderHistory } = require('../db/order-history');
+const { setDefaultOrder, removeDefaultOrder } = require('../db/default-orders');
 const { createRoomGameState } = require('../utils/room-helpers');
 
 // updateRange용 레거시 전역 gameState
 let gameState = createRoomGameState();
+
+// 랜덤 메뉴 픽 — frequentMenus 풀에서 1개. 공정성 무관(게임 결과 아님)이라 서버 Math.random 허용
+function pickRandomMenu(gameState) {
+    const pool = Array.isArray(gameState.frequentMenus) ? gameState.frequentMenus : [];
+    if (pool.length === 0) return '';
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// 디폴트 주문 적용값 결정 (startOrder/triggerAutoOrder 공용, sync)
+// mode=random이면 매번 풀에서 랜덤, fixed면 저장된 menuText
+function resolveDefaultOrder(gameState, userName) {
+    const def = gameState.userDefaultOrders[userName];
+    if (!def) return '';
+    if (def.mode === 'random') return pickRandomMenu(gameState);
+    return def.menuText || '';
+}
 
 module.exports = function setupSharedHandlers(socket, io, ctx) {
     const { checkRateLimit, getCurrentRoom, getCurrentRoomGameState } = ctx;
@@ -21,8 +39,9 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         gameState.isOrderActive = true;
         gameState.userOrders = {};
         gameState.users.forEach(u => {
-            gameState.userOrders[u.name] = '';
+            gameState.userOrders[u.name] = resolveDefaultOrder(gameState, u.name);
         });
+        // 자동 채움 주문은 통계에 기록하지 않음 (사용자 직접 저장만 기록)
         io.to(room.roomId).emit('orderStarted');
         io.to(room.roomId).emit('updateOrders', gameState.userOrders);
     }
@@ -47,11 +66,12 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         }
 
         gameState.isOrderActive = true;
-        // 주문받기 시작 시 기존 주문 초기화
+        // 주문받기 시작 시 기존 주문 초기화 + 비공개 서버 디폴트 캐시 적용 (고정/랜덤 모드)
         gameState.userOrders = {};
         gameState.users.forEach(u => {
-            gameState.userOrders[u.name] = '';
+            gameState.userOrders[u.name] = resolveDefaultOrder(gameState, u.name);
         });
+        // 자동 채움 주문은 통계에 기록하지 않음 (사용자 직접 저장만 기록)
 
         io.to(room.roomId).emit('orderStarted');
         io.to(room.roomId).emit('updateOrders', gameState.userOrders);
@@ -139,6 +159,7 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         // 비공개서버: 주문 통계 DB 기록
         if (room.serverId && trimmedOrder) {
             recordOrder(room.serverId, trimmedUserName, trimmedOrder);
+            recordOrderHistory(room.serverId, trimmedUserName, trimmedOrder, { gameType: room.gameType, source: 'manual_update' });
         }
 
         // 같은 방의 모든 클라이언트에게 업데이트된 주문 목록 전송
@@ -146,6 +167,85 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
 
         socket.emit('orderUpdated', { order: order.trim() });
         console.log(`방 ${room.roomName}: ${trimmedUserName}의 주문 저장 성공: ${order.trim() || '(삭제됨)'}`);
+    });
+
+    // 본인 디폴트 주문 조회 (방 진입 후 클라이언트가 호출 — 캐시에서 응답)
+    // enabled = 비공개 서버 여부 → 클라가 별 아이콘 표시 제어
+    socket.on('getDefaultOrder', () => {
+        if (!checkRateLimit()) return;
+        const room = getCurrentRoom();
+        const gameState = getCurrentRoomGameState();
+        if (!room || !gameState) return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return;
+        const def = gameState.userDefaultOrders[user.name] || null;
+        socket.emit('defaultOrderUpdated', {
+            menu: def && def.mode === 'fixed' ? def.menuText : null,
+            mode: def ? def.mode : null,
+            enabled: !!room.serverId
+        });
+    });
+
+    // 본인이 주문한 적 있는 메뉴 목록 조회 (디폴트 모달 고정 메뉴 선택 풀, order_stats 기반)
+    socket.on('getMyOrderedMenus', async () => {
+        if (!checkRateLimit()) return;
+        const room = getCurrentRoom();
+        const gameState = getCurrentRoomGameState();
+        if (!room || !gameState) return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return;
+        if (!room.serverId) { socket.emit('myOrderedMenusUpdated', []); return; }
+        const menus = await getMyOrderedMenus(room.serverId, user.name);
+        socket.emit('myOrderedMenusUpdated', menus);
+    });
+
+    // 디폴트 주문 설정 — DB 저장 + 캐시 갱신 (비공개 서버 전용). { menu, mode }
+    socket.on('setDefaultOrder', async (data) => {
+        if (!checkRateLimit()) return;
+        const room = getCurrentRoom();
+        const gameState = getCurrentRoomGameState();
+        if (!room || !gameState) return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) return;
+        if (!room.serverId) {
+            socket.emit('orderError', '자유 플레이 방에서는 디폴트 주문을 사용할 수 없습니다. 서버 방으로 입장해주세요!');
+            return;
+        }
+        const mode = (data && data.mode === 'random') ? 'random' : 'fixed';
+        let menu = '';
+        if (mode === 'fixed') {
+            menu = (data && typeof data.menu === 'string') ? data.menu.trim() : '';
+            if (!menu) {
+                socket.emit('orderError', '디폴트로 저장할 메뉴를 입력해주세요!');
+                return;
+            }
+            if (menu.length > 100) {
+                socket.emit('orderError', '주문은 100자 이하로 입력해주세요!');
+                return;
+            }
+        }
+        if (await setDefaultOrder(room.serverId, user.name, menu, mode)) {
+            gameState.userDefaultOrders[user.name] = { menuText: menu, mode };
+            socket.emit('defaultOrderUpdated', { menu: mode === 'fixed' ? menu : null, mode, enabled: true });
+        } else {
+            socket.emit('orderError', '디폴트 주문 저장에 실패했습니다!');
+        }
+    });
+
+    // 디폴트 주문 해제 — DB 삭제 + 캐시 제거 (enabled는 비공개 서버이므로 유지)
+    socket.on('removeDefaultOrder', async () => {
+        if (!checkRateLimit()) return;
+        const room = getCurrentRoom();
+        const gameState = getCurrentRoomGameState();
+        if (!room || !gameState) return;
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !room.serverId) return;
+        if (await removeDefaultOrder(room.serverId, user.name)) {
+            delete gameState.userDefaultOrders[user.name];
+            socket.emit('defaultOrderUpdated', { menu: null, mode: null, enabled: true });
+        } else {
+            socket.emit('orderError', '디폴트 주문 해제에 실패했습니다!');
+        }
     });
 
 

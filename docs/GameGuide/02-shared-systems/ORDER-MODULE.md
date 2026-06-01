@@ -20,6 +20,7 @@
 | dice-game | O | `isGameActive` |
 | horse-race | O | `isRaceActive` |
 | roulette | O | `isSpinning` |
+| bridge-cross | O | `isBridgeCrossActive` |
 | team-game | X (미적용) | - |
 
 ---
@@ -189,6 +190,7 @@ function initOrderModule() {
 | `autocompleteSuggestion` | 자동완성 힌트 표시 |
 | `autocompleteDropdown` | 자동완성 드롭다운 |
 | `orderSaveButton` | 주문 저장 버튼 |
+| `defaultStarBtn` | 디폴트 주문 모달 여는 별(★) 아이콘 — 주문 섹션 헤더 우측 (비공개 서버 전용) |
 | `menuManager` | 메뉴 관리 패널 |
 | `menuInput` | 메뉴 추가 입력 필드 |
 | `menuList` | 등록된 메뉴 목록 |
@@ -208,6 +210,9 @@ function initOrderModule() {
 | `getFrequentMenus` | - | 자주 쓰는 메뉴 목록 요청 |
 | `addFrequentMenu` | `{menu}` | 메뉴 추가 |
 | `deleteFrequentMenu` | `{menu}` | 메뉴 삭제 |
+| `getDefaultOrder` | - | 본인 디폴트 주문 조회 (서버 캐시) |
+| `setDefaultOrder` | `{menu, mode}` | 본인 디폴트 주문 저장. `mode='fixed'`면 `menu` 필수, `mode='random'`이면 `menu` 무시 (비공개 서버 전용) |
+| `removeDefaultOrder` | - | 본인 디폴트 주문 해제 |
 
 ### On (서버 → 클라이언트)
 
@@ -220,6 +225,7 @@ function initOrderModule() {
 | `orderError` | error message | 주문 오류 |
 | `frequentMenusUpdated` | menus array | 메뉴 목록 갱신 |
 | `menuError` | error message | 메뉴 관리 오류 |
+| `defaultOrderUpdated` | `{menu, mode, enabled}` | 본인 디폴트 주문 현재값. `menu`=고정 메뉴(랜덤/미설정이면 null), `mode`=`'fixed'`\|`'random'`\|null, `enabled`=비공개 서버 여부(별 아이콘 표시 제어) |
 
 ---
 
@@ -261,6 +267,13 @@ function initOrderModule() {
 | `renderMenuList()` | 메뉴 태그 렌더링 |
 | `toggleMenuManager()` | 메뉴 관리 패널 토글 |
 
+### 디폴트 주문 (비공개 서버 전용)
+
+| 함수 | 설명 |
+|------|------|
+| `openDefaultModal()` | 디폴트 주문 모달 열기 (고정/랜덤 탭, 메뉴풀 선택, 직접 입력, 해제) |
+| `rollRandomOnce()` | 자주 쓰는 메뉴 풀에서 1개를 랜덤으로 골라 입력칸에 채움 (단발, 서버 왕복 없음) |
+
 ### 상태 접근
 
 | 함수 | 설명 |
@@ -297,7 +310,7 @@ function initOrderModule() {
 
 ### CSS 자동 주입
 
-`init()` 호출 시 `.not-rolled-tag` 스타일이 `<head>`에 자동 주입됩니다. 게임 HTML에서 별도 정의 불필요.
+`init()` 호출 시 `.not-rolled-tag` 스타일과 `#defaultStarBtn` 별 아이콘 스타일이 `<head>`에 자동 주입됩니다. 게임 HTML에서 별도 정의 불필요.
 
 ```css
 .not-rolled-tag {
@@ -309,7 +322,49 @@ function initOrderModule() {
     font-size: 14px;
     font-weight: 600;
 }
+#defaultStarBtn.has-default { color: #ffc107; }  /* 설정됨: 노랑 (기본은 회색 #cbd5e0) */
+#defaultStarBtn:hover { transform: scale(1.15); }
 ```
+
+### 디폴트 주문 (비공개 서버 단골 메뉴)
+
+비공개 서버(`room.serverId` 존재)에서만 동작하는 사람별 단골 메뉴 기능. 주문 섹션 헤더 우측의 **별(★) 아이콘**으로 진입하는 모달에서 관리한다.
+
+**저장 위치**: PostgreSQL `default_orders` 테이블 — 키 `(server_id, user_name)`, `mode` 컬럼(`'fixed'` 기본 / `'random'`).
+
+**모드**:
+
+| 모드 | 동작 |
+|------|------|
+| `fixed` | 저장된 메뉴 1개를 주문받기마다 자동 채움 |
+| `random` | 주문받기마다 `gameState.frequentMenus` 풀에서 서버가 랜덤 1개를 골라 채움 (매번 다른 메뉴) |
+
+**별 아이콘**: 비공개 서버에서만 표시. 디폴트 설정됨=노랑(`#ffc107`, `.has-default`), 미설정=회색(`#cbd5e0`). 공개/자유 방에서는 `display:none`.
+
+**동작 흐름**:
+
+1. **방 진입 (`joinRoom`)**: 서버가 본인 디폴트 1건을 DB에서 로드 → `gameState.userDefaultOrders[userName] = { menuText, mode }` 캐시.
+2. **모듈 init**: 클라이언트가 `getDefaultOrder` emit → 서버 캐시에서 즉시 응답 (`defaultOrderUpdated { menu, mode, enabled }`). `enabled`로 별 아이콘 표시 결정.
+3. **별 아이콘 클릭 → 모달**:
+   - **고정 메뉴 탭**: 현재 디폴트 표시/해제, 자주 쓰는 메뉴풀에서 선택, 직접 입력 후 저장 → `setDefaultOrder { menu, mode:'fixed' }`
+   - **매번 랜덤 탭**: 체크박스 on → `setDefaultOrder { mode:'random' }`, off → `removeDefaultOrder`
+   - **🎲 지금 한 번만 랜덤 채우기**: 클라가 `_frequentMenus`에서 1개 픽 → 입력칸에 채움(서버 왕복 없음). 디폴트 저장과 무관한 단발.
+4. **`startOrder` / `triggerAutoOrder` 시 (서버)**:
+   - 각 유저별 `userOrders[u.name] = resolveDefaultOrder(gameState, u.name)` — `fixed`면 `menuText`, `random`이면 `pickRandomMenu()`.
+   - 비공개 서버면 자동 채워진 주문을 `recordOrder` + `recordOrderHistory`(source `auto_default`)로 통계 기록.
+   - `updateOrders` emit으로 클라이언트에 즉시 반영. 클라는 input이 비어 있고 포커스가 없을 때만 본인 값으로 동기화(사용자 입력 보호).
+
+**불변조건**:
+
+- `room.serverId` null(자유플레이/공개)에서는 `setDefaultOrder`가 `orderError` 응답("비공개 서버에서만 …"). 별 아이콘은 숨김(`enabled:false`).
+- 캐시(`userDefaultOrders`)는 DB와 항상 동기 — set/remove 핸들러는 DB 성공 시에만 캐시 갱신.
+- `startOrder` / `triggerAutoOrder`는 sync 유지(emit 순서 보장). DB 조회는 joinRoom 시점에만 1회. 랜덤 픽도 메모리 풀에서 즉시(sync).
+- **메뉴 랜덤(`pickRandomMenu`/`rollRandomOnce`)은 게임 결과가 아니므로 `Math.random` 허용** — 게임 로직 난수는 여전히 서버 결정.
+
+**UI**:
+
+- `defaultStarBtn`이 주문 섹션 헤더(`🍔 주문받기`) 우측에 위치. 입력칸 영역은 `grid-template-columns: 1fr auto`(input + 저장)로 단순.
+- 모달은 `order-shared.js`가 동적 생성(`showOrderListModal` 패턴) — 4게임 공용 1곳.
 
 ---
 
@@ -325,4 +380,7 @@ function initOrderModule() {
 <button onclick="OrderModule.sortOrders('count')">주문 많은 순</button>
 <button onclick="OrderModule.toggleMenuManager()">메뉴 관리</button>
 <button onclick="OrderModule.addMenu()">추가</button>
+<!-- 주문 섹션 헤더 우측: 디폴트 주문 모달 진입 별 아이콘 (비공개 서버에서만 표시) -->
+<button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
+        style="display:none; background:transparent; border:none; font-size:22px; line-height:1; cursor:pointer; color:#cbd5e0; padding:2px 6px;">★</button>
 ```
