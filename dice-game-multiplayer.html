@@ -878,6 +878,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            justify-content: space-between;
         }
 
         .order-input-group {
@@ -1065,7 +1066,8 @@
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 20px;
-            max-height: calc(100vh - 40px);
+            /* 스티키 하단 광고와 겹치지 않도록 광고 예약 높이만큼 축소 */
+            max-height: calc(100vh - 40px - var(--ad-sticky-reserve));
             overflow-y: auto;
             z-index: 100;
             display: none; /* 기본적으로 숨김, 방 입장 시에만 표시 */
@@ -1878,9 +1880,13 @@
                 <!-- 내 주문 입력 -->
                 <div class="my-order-box">
                     <div class="my-order-title">
-                        <span>📝</span>
-                        <span>내 주문</span>
-                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: var(--bg-primary); color: var(--dice-500); border: 1px solid var(--dice-500);">메뉴 관리</button>
+                        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; white-space:nowrap;">
+                            <span>📝</span>
+                            <span>내 주문</span>
+                        </div>
+                        <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--dice-500); border: 1px solid var(--dice-500); flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
                     
                     <!-- 자주 쓰는 메뉴 관리 -->
@@ -4110,6 +4116,8 @@
             // body 클래스 변경
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
+            // 재입장(reconnect 포함)은 항상 비-레이스 화면 — race-running 잔존 시 스티키 광고 영구 숨김 방지
+            document.body.classList.remove('race-running');
             PageHistoryManager.pushPage('gameRoom');
 
             // 게임 기록 섹션 표시
@@ -4153,6 +4161,8 @@
             // body 클래스 변경
             document.body.classList.remove('lobby-active');
             document.body.classList.add('game-active');
+            // 재입장(reconnect 포함)은 항상 비-레이스 화면 — race-running 잔존 시 스티키 광고 영구 숨김 방지
+            document.body.classList.remove('race-running');
             PageHistoryManager.pushPage('gameRoom');
 
             // 게임 기록 섹션 표시
@@ -5096,6 +5106,9 @@
             window._lastRollerAnimationStarted = false;
             addDebugLog('🔄 애니메이션 완료 플래그 초기화', 'info');
 
+            // 새 게임 시작 — 이전 라운드 결과 애니메이션의 race-running 잔존 방지
+            document.body.classList.remove('race-running');
+
             // 게임 시작 시 모든 게임 기록 삭제 (이전 게임 기록 포함)
             historyData = historyData.filter(record => record.isGameActive === false);
             
@@ -5312,6 +5325,8 @@
                 isGameActive = false;
                 hasRolledInCurrentGame = false;
                 rolledUsersInGame = []; // 게임 종료 시 굴린 사용자 목록 초기화
+                // 게임 종료 시 스티키 광고 무조건 복원 — 안전장치(else 분기로 빠진 경우 잔존 방지)
+                document.body.classList.remove('race-running');
                 if (window.SoundManager) SoundManager.stopLoop('dice_bgm');
 
                 // 애니메이션 완료 플래그 초기화 (게임 종료 시)
@@ -5707,16 +5722,21 @@
                             }
                             
                             addDebugLog(`🎬 애니메이션 시작: user=${record.user}, result=${finalResult}, isLastRoller=${isLastRoller}`, 'animation');
-                            
+
+                            // 주사위 결과 애니메이션 진행 중 스티키 광고 숨김
+                            document.body.classList.add('race-running');
+
                             // 애니메이션 완료 콜백 함수
                             const onAnimationComplete = () => {
                                 const completeTime = Date.now();
                                 if (window.SoundManager) SoundManager.playSound('dice_result', getDiceSoundEnabled());
                                 addDebugLog(`✅ 애니메이션 완료: user=${record.user}, isLastRoller=${isLastRoller}, time=${new Date(completeTime).toLocaleTimeString()}`, 'animation');
-                                
+
                                 // 애니메이션 완료 후 기록에 저장 및 종료 메시지 표시 플래그 설정
                                 // 마지막 사람인 경우에만 플래그 설정 (중요!)
                                 if (isLastRoller) {
+                                    // 결과 애니메이션 종료 — 마지막 롤러에서만 스티키 광고 복원 (롤러마다 토글 시 깜빡임 방지)
+                                    document.body.classList.remove('race-running');
                                     window.lastRollerAnimationComplete = true;
                                     window.lastRollerAnimationCompleteTime = completeTime;
                                     addDebugLog(`📝 lastRollerAnimationComplete 설정: true (마지막 사람), time=${completeTime}`, 'animation');
@@ -7607,6 +7627,18 @@
            style="display:block"
            data-ad-client="ca-pub-1608259764663412"
            data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+    <!-- Ad: Sticky Bottom Banner -->
+    <div class="ad-container ad-sticky">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="STICKY_SLOT_ID"
            data-ad-format="horizontal"
            data-full-width-responsive="true"></ins>
     </div>

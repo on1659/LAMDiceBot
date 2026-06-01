@@ -17,6 +17,7 @@ const FAKE_EVOLUTION_CONFIG = _horseRaceConfig.fakeEvolution;
 // ────────────────────────
 const { ALL_VEHICLE_IDS, NEW_VEHICLE_IDS, NEW_VEHICLE_WEIGHT, VEHICLE_NAMES, weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
+const { recordVehiclePicks } = require('../db/vehicle-picks');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
 const { getTop3Badges } = require('../db/ranking');
@@ -176,6 +177,13 @@ module.exports = (socket, io, ctx) => {
         // 경주 시작
         gameState.isHorseRaceActive = true;
         gameState.isGameActive = true;
+        // 게임 시작 시 이전 주문 cycle 가드 해제 — 두 번째 게임 종료에서도 triggerAutoOrder 정상 발동
+        const wasOrderActive = gameState.isOrderActive;
+        gameState.orderAutoTriggered = false;
+        gameState.isOrderActive = false;
+        if (wasOrderActive) {
+            io.to(room.roomId).emit('orderEnded');
+        }
         gameState.raceRound = (gameState.raceRound || 0) + 1;
         console.log(`[디버그] 경주 시작 - raceRound: ${gameState.raceRound}, horseRaceMode: ${gameState.horseRaceMode}, targetRank: ${resolvedTargetRank}`);
 
@@ -510,26 +518,41 @@ module.exports = (socket, io, ctx) => {
         // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
         // Player stats: per-game only (recorded when single winner found)
         // Vehicle stats (recordVehicleRaceResult at line 303): per-round (every race)
-        if (room.serverId && raceData.userHorseBets && winners.length === 1) {
-            const sessionId = generateSessionId('horse', room.serverId);
+        // Vehicle picks (recordVehiclePicks): 시계열 픽 이력 — 우승자 수와 무관하게 항상 기록
+        if (room.serverId && raceData.userHorseBets) {
+            let sessionId = null;
             const horseRankMap = {};
             rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
-            const winnerName = winners[0];
-            const bettors = Object.entries(raceData.userHorseBets);
 
-            await Promise.all(bettors.map(([userName, horseIndex]) => {
-                const rank = horseRankMap[horseIndex] || 0;
-                const isWinner = winners.includes(userName);
-                return recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId, rank);
-            }));
-            await recordGameSession({
-                serverId: room.serverId,
-                sessionId,
-                gameType: 'horse',
-                gameRules: gameState.horseRaceMode || 'last',
-                winnerName: winnerName,
-                participantCount: bettors.length
-            });
+            if (winners.length === 1) {
+                sessionId = generateSessionId('horse', room.serverId);
+                const winnerName = winners[0];
+                const bettors = Object.entries(raceData.userHorseBets);
+
+                await Promise.all(bettors.map(([userName, horseIndex]) => {
+                    const rank = horseRankMap[horseIndex] || 0;
+                    const isWinner = winners.includes(userName);
+                    return recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId, rank);
+                }));
+                await recordGameSession({
+                    serverId: room.serverId,
+                    sessionId,
+                    gameType: 'horse',
+                    gameRules: gameState.horseRaceMode || 'last',
+                    winnerName: winnerName,
+                    participantCount: bettors.length
+                });
+            }
+
+            // vehicle_picks 이력 (winners 분기와 무관, sessionId만 조건부)
+            const picks = Object.entries(raceData.userHorseBets).map(([userName, horseIndex]) => ({
+                userName,
+                vehicleId: (gameState.selectedVehicleTypes || [])[horseIndex] || null,
+                rank: horseRankMap[horseIndex] ?? null,
+                isWinner: winners.includes(userName),
+                gameSessionId: sessionId
+            })).filter(p => p.vehicleId);
+            recordVehiclePicks(room.serverId, picks);
         }
 
         if (winners.length === 1) {
@@ -1031,26 +1054,41 @@ module.exports = (socket, io, ctx) => {
             // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
             // Player stats: per-game only (recorded when single winner found)
             // Vehicle stats (recordVehicleRaceResult at line 746): per-round (every race)
-            if (room.serverId && winners.length === 1) {
-                const sessionId = generateSessionId('horse', room.serverId);
+            // Vehicle picks (recordVehiclePicks): 시계열 픽 이력 — 우승자 수와 무관하게 항상 기록
+            if (room.serverId && gameState.userHorseBets) {
+                let sessionId = null;
                 const horseRankMap = {};
                 rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
-                const winnerName = winners[0];
-                const bettors = Object.entries(gameState.userHorseBets);
 
-                await Promise.all(bettors.map(([uName, horseIndex]) => {
-                    const rank = horseRankMap[horseIndex] || 0;
-                    const isWin = winners.includes(uName);
-                    return recordServerGame(room.serverId, uName, rank, 'horse', isWin, sessionId, rank);
-                }));
-                await recordGameSession({
-                    serverId: room.serverId,
-                    sessionId,
-                    gameType: 'horse',
-                    gameRules: gameState.horseRaceMode || 'last',
-                    winnerName: winnerName,
-                    participantCount: bettors.length
-                });
+                if (winners.length === 1) {
+                    sessionId = generateSessionId('horse', room.serverId);
+                    const winnerName = winners[0];
+                    const bettors = Object.entries(gameState.userHorseBets);
+
+                    await Promise.all(bettors.map(([uName, horseIndex]) => {
+                        const rank = horseRankMap[horseIndex] || 0;
+                        const isWin = winners.includes(uName);
+                        return recordServerGame(room.serverId, uName, rank, 'horse', isWin, sessionId, rank);
+                    }));
+                    await recordGameSession({
+                        serverId: room.serverId,
+                        sessionId,
+                        gameType: 'horse',
+                        gameRules: gameState.horseRaceMode || 'last',
+                        winnerName: winnerName,
+                        participantCount: bettors.length
+                    });
+                }
+
+                // vehicle_picks 이력 (winners 분기와 무관, sessionId만 조건부)
+                const picks = Object.entries(gameState.userHorseBets).map(([userName, horseIndex]) => ({
+                    userName,
+                    vehicleId: (gameState.selectedVehicleTypes || [])[horseIndex] || null,
+                    rank: horseRankMap[horseIndex] ?? null,
+                    isWinner: winners.includes(userName),
+                    gameSessionId: sessionId
+                })).filter(p => p.vehicleId);
+                recordVehiclePicks(room.serverId, picks);
             }
 
             // 당첨자 수에 따라 분기

@@ -43,6 +43,13 @@ module.exports = (socket, io, ctx) => {
         });
 
         gameState.isGameActive = true;
+        // 게임 시작 시 이전 주문 cycle 가드 해제 — 두 번째 게임 종료에서도 triggerAutoOrder 정상 발동
+        const wasOrderActive = gameState.isOrderActive;
+        gameState.orderAutoTriggered = false;
+        gameState.isOrderActive = false;
+        if (wasOrderActive) {
+            io.to(room.roomId).emit('orderEnded');
+        }
         // history는 초기화하지 않음 (통계를 위해 누적 기록 유지)
         // 대신 이전 게임의 기록을 isGameActive: false로 표시하여 현재 게임과 구분
         gameState.history.forEach(record => {

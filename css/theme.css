@@ -240,6 +240,9 @@
   --border-color: var(--gray-300);
   --border-light: var(--gray-200);
 
+  /* 게임 페이지 스티키 하단 광고 — 본문 하단 확보 여백 */
+  --ad-sticky-reserve: 96px;
+
   /* ============================================
      패널 계층 구조 (팔레트 사용)
   ============================================ */
@@ -622,4 +625,40 @@ input, select, textarea {
 /* Future: premium users see no ads */
 body.premium .ad-container {
   display: none !important;
+}
+
+/* ─────────────────────────────────────────────────
+   게임 페이지 스티키 하단 광고
+   ───────────────────────────────────────────────── */
+.ad-container.ad-sticky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  max-width: none;
+  min-height: 0;
+  padding: 4px 8px;
+  border-radius: 0;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 900; /* 모달(1000) 미만 — 결과/비번 모달이 위를 덮음 */
+}
+/* 레이스(결과 애니메이션) 진행 중에는 숨김 */
+body.race-running .ad-container.ad-sticky {
+  display: none;
+}
+/* 스티키 광고가 채팅 입력창 등 본문 하단 콘텐츠를 가리지 않도록 여백 확보 */
+/* 광고가 실제로 보일 때(실제 슬롯 + 레이스 중 아님)만 패딩 — placeholder/숨김 시 죽은 공간 방지 */
+body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running) {
+  padding-bottom: var(--ad-sticky-reserve);
+}
+@media (max-width: 480px) {
+  .ad-container.ad-sticky {
+    padding: 2px 4px;
+  }
+  body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running) {
+    padding-bottom: 64px;
+  }
 }

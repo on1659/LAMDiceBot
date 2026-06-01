@@ -425,7 +425,8 @@
             right: 20px;
             top: 20px;
             width: 320px;
-            max-height: calc(100vh - 40px);
+            /* 스티키 하단 광고와 겹치지 않도록 광고 예약 높이만큼 축소 */
+            max-height: calc(100vh - 40px - var(--ad-sticky-reserve));
             background: var(--bg-white);
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -746,6 +747,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            justify-content: space-between;
         }
         .order-input-group {
             display: grid;
@@ -1067,9 +1069,13 @@
                 <!-- 내 주문 입력 -->
                 <div class="my-order-box">
                     <div class="my-order-title">
-                        <span>📝</span>
-                        <span>내 주문</span>
-                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; margin-left: auto; background: var(--bg-primary); color: var(--roulette-accent); border: 1px solid var(--roulette-accent);">메뉴 관리</button>
+                        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; white-space:nowrap;">
+                            <span>📝</span>
+                            <span>내 주문</span>
+                        </div>
+                        <button id="defaultStarBtn" onclick="OrderModule.openDefaultModal()" title="디폴트 주문 설정"
+                                style="display:none; background:transparent; border:none; font-size:20px; line-height:1; cursor:pointer; color:#cbd5e0; padding:0 4px; margin-left:auto;">★</button>
+                        <button onclick="OrderModule.toggleMenuManager()" style="width: auto; padding: 6px 12px; font-size: 12px; background: var(--bg-primary); color: var(--roulette-accent); border: 1px solid var(--roulette-accent); flex-shrink:0; white-space:nowrap;">메뉴 관리</button>
                     </div>
                     
                     <!-- 자주 쓰는 메뉴 관리 -->
@@ -3181,15 +3187,17 @@
             
             isSpinning = true;
             rouletteResultShown = false;
-            
+            document.body.classList.add('race-running'); // 다시보기 애니메이션 중 스티키 광고 숨김
+
             setTimeout(() => {
                 // 서버에서 결정한 효과를 사용 (동일한 애니메이션 재현)
                 startRouletteLiveCommentary(data.participants, data.displayDurationMs || data.spinDuration);
                 spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
                     addDebugLog('✅ 다시보기 애니메이션 완료', 'animation');
-                    
+
                     isSpinning = false;
                     rouletteResultShown = true;
+                    document.body.classList.remove('race-running'); // 다시보기 종료 — 스티키 광고 복원
                     finishRouletteLiveCommentary(data.winner);
                     
                     // 결과 오버레이 표시
@@ -3483,6 +3491,8 @@
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('gameSection').classList.add('active');
             document.body.classList.add('game-active');
+            // 재입장(reconnect 포함)은 항상 비-레이스 화면 — race-running 잔존 시 스티키 광고 영구 숨김 방지
+            document.body.classList.remove('race-running');
 
             initializeGameScreen(data);
             ReadyModule.setReadyUsers(readyUsers);
@@ -3513,6 +3523,8 @@
 
             document.getElementById('gameSection').classList.add('active');
             document.body.classList.add('game-active');
+            // 재입장(reconnect 포함)은 항상 비-레이스 화면 — race-running 잔존 시 스티키 광고 영구 숨김 방지
+            document.body.classList.remove('race-running');
 
             setRouletteSoundCheckboxes();
             initializeGameScreen(data);
@@ -3587,6 +3599,7 @@
             
             addDebugLog('✅ 화면이 보임 - 룰렛 시작 진행', 'info');
             isSpinning = true;
+            document.body.classList.add('race-running'); // 스핀 중 스티키 광고 숨김
             pendingRouletteData = null; // 대기 데이터 초기화
             rouletteResultShown = false; // 결과 표시 플래그 초기화
             clearRouletteLiveCommentary();
@@ -3638,6 +3651,7 @@
                     // 무시하고 결과 화면도 표시하지 않음
                     rouletteResultShown = true;
                     isSpinning = false;
+                    document.body.classList.remove('race-running'); // 스핀 중단 — 스티키 광고 복원
                     pendingRouletteData = null;
                     clearRouletteLiveCommentary();
                     addDebugLog(`📊 상태 설정: rouletteResultShown=${rouletteResultShown}, isSpinning=${isSpinning}`, 'visibility');
@@ -3662,7 +3676,10 @@
                 startRouletteLiveCommentary(data.participants, data.displayDurationMs || data.spinDuration);
                 spinRoulette(finalAngle, data.spinDuration, data.effectType || 'normal', data.effectParams || {}, () => {
                     addDebugLog(`🔄 spinRoulette 콜백 실행 - rouletteResultShown: ${rouletteResultShown}, wasSpinning: ${wasSpinning}`, 'animation');
-                    
+
+                    // 스핀 애니메이션 종료 — 스티키 광고 복원 (결과 표시 여부와 무관)
+                    document.body.classList.remove('race-running');
+
                     // 중복 호출 방지
                     if (rouletteResultShown) {
                         stopRouletteLiveCommentary();
@@ -3781,6 +3798,8 @@
         
         socket.on('rouletteStarted', (data) => {
             if (window.SoundManager) SoundManager.playLoop('roulette_bgm', getRouletteSoundEnabled(), 0.3);
+            // 새 라운드 안전망 — 호스트 리셋/재시작 시 직전 라운드 race-running 잔존 방지
+            document.body.classList.remove('race-running');
             const hasFocus = document.hasFocus();
             const isVisible = document.visibilityState === 'visible';
             const isActuallyVisible = isVisible && hasFocus; // 둘 다 충족해야 실제로 보이는 것
@@ -4072,6 +4091,18 @@
            style="display:block"
            data-ad-client="ca-pub-1608259764663412"
            data-ad-slot="3774585551"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- ⚠️ AdSense 블록 — 삭제 금지 -->
+    <!-- Ad: Sticky Bottom Banner -->
+    <div class="ad-container ad-sticky">
+      <span class="ad-label">AD</span>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1608259764663412"
+           data-ad-slot="STICKY_SLOT_ID"
            data-ad-format="horizontal"
            data-full-width-responsive="true"></ins>
     </div>

@@ -9,6 +9,9 @@ function initAds() {
   document.querySelectorAll('.ad-container').forEach(function(container) {
     var ins = container.querySelector('.adsbygoogle');
     if (ins && !ins.dataset.adsbygoogleStatus) {
+      var slot = ins.getAttribute('data-ad-slot');
+      // placeholder 슬롯(예: STICKY_SLOT_ID) — 숫자가 아니면 push() 시 AdSense TagError 발생, skip
+      if (!/^\d+$/.test(slot || '')) return;
       try {
         (adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {

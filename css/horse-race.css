@@ -896,6 +896,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     display: flex;
     align-items: center;
     gap: 8px;
+    justify-content: space-between;
 }
 
 .order-input-group {
@@ -1122,7 +1123,8 @@ input[type="text"]:focus, input[type="password"]:focus {
     right: 20px;
     top: 20px;
     width: 320px;
-    max-height: calc(100vh - 40px);
+    /* 스티키 하단 광고와 겹치지 않도록 광고 예약 높이만큼 축소 */
+    max-height: calc(100vh - 40px - var(--ad-sticky-reserve));
     background: var(--bg-white);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);

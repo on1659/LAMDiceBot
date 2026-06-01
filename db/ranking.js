@@ -16,6 +16,22 @@ async function recordOrder(serverId, userName, menuText) {
     ).catch(e => console.warn('order_stats upsert:', e.message));
 }
 
+// 본인이 주문한 적 있는 메뉴 목록 (order_stats 기반, 많이 주문한 순)
+async function getMyOrderedMenus(serverId, userName) {
+    const pool = getPool();
+    if (!pool || !serverId || !userName) return [];
+    try {
+        const res = await pool.query(
+            'SELECT menu_text FROM order_stats WHERE server_id = $1 AND user_name = $2 ORDER BY order_count DESC, menu_text ASC',
+            [serverId, userName]
+        );
+        return (res.rows || []).map(r => r.menu_text);
+    } catch (e) {
+        console.warn('order_stats 조회:', e.message);
+        return [];
+    }
+}
+
 // ─── 종합 랭킹 ───
 
 async function getOverallRanking(serverId) {
@@ -521,6 +537,7 @@ async function getSeasonRanking(serverId, season) {
 
 module.exports = {
     recordOrder,
+    getMyOrderedMenus,
     getOverallRanking,
     getGameRanking,
     getHorseRaceStats,

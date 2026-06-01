@@ -73,6 +73,21 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-6. `.game-active` ≠ "게임 진행 중" + 전역 body 클래스 정리
+
+- `.game-active` 클래스는 **"방에 입장함(게임룸 화면)"**을 뜻하지 "레이스/게임 진행 중"이 아니다. 방 입장 즉시(=ready 화면 단계)부터 켜진다.
+- 토글 동작도 게임마다 다르다: dice 양방향(add/remove) · roulette·horse-race add만 · **bridge-cross는 `.game-active` 자체가 없음**.
+- → "게임 진행 중"을 가리키려면 별도 상태 클래스(예: `body.race-running`)를 직접 만들어 써야 한다. `.game-active`를 그 신호로 쓰면 ready 화면에서도 오작동한다.
+- **전역 body 상태 클래스(`race-running` 등)는 add 경로마다 대응 remove를 두는 것만으로 부족하다.** 다음을 모두 커버해야 클래스 잔존(→ 토글 대상 UI가 영구 숨김/고착)을 막는다:
+  - 정상 종료(결과 표시)
+  - 중단/취소 경로(abort, 게임 리셋, 다시보기 중단)
+  - **`roomJoined` / `roomCreated`** — socket.io 자동 reconnect가 `joinRoom`을 재발신해 이 핸들러를 다시 트리거한다. 재입장은 항상 비-진행 화면이므로 무조건 remove가 안전.
+  - 새 라운드 시작 hook(안전망)
+- 특히 `gameReset` 같은 라운드 리셋 이벤트가 없는 게임(bridge-cross)은 `roomJoined`/`roomCreated`의 cleanup이 최후의 방어선이다.
+- (출처: 2026-05-22 게임 스티키 하단 광고 작업)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

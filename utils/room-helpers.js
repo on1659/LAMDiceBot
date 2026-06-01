@@ -46,6 +46,7 @@ function createRoomGameState() {
         readyUsers: [],
         userDiceSettings: {},
         userOrders: {},
+        userDefaultOrders: {},   // { [userName]: { menuText, mode } } — joinRoom 시 DB에서 로드된 디폴트 캐시 (비공개 서버 전용)
         gameRules: '',
         frequentMenus: loadFrequentMenus(),
         allPlayersRolledMessageSent: false,
