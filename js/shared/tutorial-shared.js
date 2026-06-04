@@ -13,7 +13,8 @@ var TutorialModule = (function() {
         roulette: 4,
         horse: 8,
         crane: 16,
-        bridge: 32
+        bridge: 32,
+        ladder: 64
     };
 
     // Server flags cache (loaded once per session via socket)

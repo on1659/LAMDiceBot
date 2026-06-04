@@ -1,0 +1,314 @@
+/* 사다리타기(ladder) 전용 스타일 + 공통 변수 alias.
+   페이지별 stylesheet link라 horse-race 페이지엔 무영향. */
+
+:root {
+    /* 게임 전용 그라데이션 (amber/gold) */
+    --ladder-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+
+    /* 내 채팅 말풍선 — 라이트/다크 무관하게 항상 밝은 배경(어두운 #333 텍스트 가독 확보)
+       + 진한 이름색(배경과 충분히 대비). roulette의 green-50/green-800 패턴과 동일 의도. */
+    --ladder-chat-bg: #fef3c7;     /* 밝은 amber, 모드 불변 */
+    --ladder-chat-name: #92400e;   /* 진한 amber, 모드 불변 */
+
+    /* horse-race.css가 쓰는 var(--horse-*)를 ladder 색으로 alias */
+    --horse-500: var(--ladder-500);
+    --horse-600: var(--ladder-600);
+    --horse-accent: var(--ladder-accent);
+    --horse-gradient: var(--ladder-gradient);
+    --horse-50: rgba(var(--ladder-500-rgb), 0.08);
+    --horse-100: rgba(var(--ladder-500-rgb), 0.16);
+    --horse-200: rgba(var(--ladder-500-rgb), 0.24);
+    --horse-700: var(--ladder-600);
+}
+
+/* ⚠️ Tailwind CDN .container responsive(1280px)가 horse-race.css 800px override → 강제 */
+.container {
+    max-width: 800px !important;
+}
+
+/* ⚠️ horse-race.css는 .game-section{display:none}+.active 토글. 진입 즉시 표시 */
+.game-section {
+    display: block;
+}
+
+/* ── 선택 단계 ── */
+.ladder-select-section {
+    background: var(--bg-white);
+    border: 2px solid var(--ladder-500);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.ladder-select-title {
+    font-weight: bold;
+    color: var(--ladder-accent);
+    font-size: 16px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ladder-select-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.ladder-lane-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.ladder-lane-btn {
+    flex: 1 1 0;
+    min-width: 64px;
+    max-width: 110px;
+    padding: 14px 6px;
+    border: 2px solid var(--ladder-500);
+    border-radius: 10px;
+    background: var(--bg-white);
+    color: var(--ladder-accent);
+    font-weight: 700;
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.15s;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.ladder-lane-btn .lane-owner {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ladder-lane-btn:hover:not(.taken):not(.mine) {
+    transform: translateY(-2px);
+    background: rgba(var(--ladder-500-rgb), 0.12);
+}
+
+.ladder-lane-btn.mine {
+    background: var(--ladder-gradient);
+    color: #fff;
+    border-color: var(--ladder-600);
+}
+
+.ladder-lane-btn.mine .lane-owner {
+    color: #fff;
+}
+
+.ladder-lane-btn.taken {
+    background: var(--gray-100, #f3f4f6);
+    color: var(--text-muted, #9ca3af);
+    border-color: var(--gray-300, #d1d5db);
+    cursor: not-allowed;
+}
+
+.ladder-pick-status {
+    text-align: center;
+    margin-top: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* ── 캔버스(사다리 추적) ── */
+.ladder-canvas-wrap {
+    margin: 0 auto 20px;
+    text-align: center;
+}
+
+#ladderCanvas {
+    width: 100%;
+    max-width: 720px;
+    height: auto;
+    background: rgba(var(--ladder-500-rgb), 0.06);
+    border: 2px solid var(--ladder-500);
+    border-radius: 12px;
+    display: block;
+    margin: 0 auto;
+}
+
+.ladder-result-caption {
+    text-align: center;
+    margin: 10px 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ladder-accent);
+    min-height: 22px;
+}
+
+/* 캔버스 + 레인 이름 라벨 정렬 래퍼 (캔버스와 같은 폭) */
+.ladder-canvas-inner {
+    position: relative;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+/* 출발 레인별 소유자 이름 — 캔버스 바로 아래, 각 레인 x좌표에 맞춰 고정 */
+.ladder-lane-names {
+    position: relative;
+    width: 100%;
+    height: 22px;
+    margin-top: 2px;
+}
+
+.ladder-lane-name {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    max-width: 13%;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ladder-accent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    transition: color 0.15s, text-shadow 0.15s;
+}
+
+/* 현재 내려가는 중인 레인 강조 */
+.ladder-lane-name.active {
+    color: var(--ladder-600);
+    text-shadow: 0 0 7px rgba(var(--ladder-500-rgb), 0.7);
+}
+
+/* 꽝(패자) 레인 강조 */
+.ladder-lane-name.loser {
+    color: var(--red-500, #ef4444);
+    text-shadow: 0 0 7px rgba(239, 68, 68, 0.5);
+}
+
+/* 모바일: 레인 많을 때 이름 겹침 회피 */
+@media (max-width: 480px) {
+    .ladder-lane-name {
+        font-size: 10px;
+        max-width: 12%;
+    }
+}
+
+/* ── 빌드(막대기 배치) 단계 ── */
+.ladder-build-section {
+    background: var(--bg-white);
+    border: 2px solid var(--ladder-500);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.ladder-build-title {
+    font-weight: bold;
+    color: var(--ladder-accent);
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+
+.ladder-build-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+/* 빌드 단계 출발 레인 선택 */
+.ladder-build-lane-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ladder-accent);
+    margin: 4px 0 8px;
+}
+
+#ladderBuildLaneGrid {
+    margin-bottom: 16px;
+}
+
+.ladder-build-grid {
+    position: relative;
+    width: 100%;
+    background: rgba(var(--ladder-500-rgb), 0.06);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* 세로줄 (레인) */
+.ladder-build-col {
+    position: absolute;
+    width: 4px;
+    transform: translateX(-2px);
+    background: #d1a06a;
+    border-radius: 2px;
+}
+
+.ladder-build-col-label {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ladder-accent);
+}
+
+/* 막대기 슬롯 (행 r, 열 c~c+1 사이) — 좌우 폭은 JS가 % 로 지정, 세로 중앙 정렬 */
+.ladder-build-slot {
+    position: absolute;
+    height: 16px;
+    transform: translateY(-50%);
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+/* 배치된 막대기 (모두에게 가시) */
+.ladder-build-slot.filled {
+    background: #b8763a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.ladder-build-slot.filled.mine {
+    background: var(--ladder-gradient);
+    box-shadow: 0 1px 6px rgba(var(--ladder-500-rgb), 0.6);
+}
+
+.ladder-build-slot.removable {
+    cursor: pointer;
+}
+.ladder-build-slot.removable:hover {
+    filter: brightness(1.15);
+    outline: 2px solid var(--red-400, #f87171);
+}
+
+/* 놓을 수 있는 빈 슬롯 — 자동 회전 중(JS가 rotate 인라인 적용). transform엔 transition 금지(프레임 지연 방지) */
+.ladder-build-slot.placeable {
+    height: 8px;
+    background: rgba(var(--ladder-500-rgb), 0.35);
+    border: 1px dashed rgba(var(--ladder-500-rgb), 0.6);
+    border-radius: 5px;
+    cursor: pointer;
+    opacity: 0.6;
+    touch-action: none;            /* 터치 시 스크롤 대신 막대기 조준 */
+    transition: opacity 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.ladder-build-slot.placeable:hover {
+    opacity: 1;
+    background: rgba(var(--ladder-500-rgb), 0.5);
+}
+/* 누르고 있는(조준 중) 막대기 — 회전 멈춤 상태 강조 */
+.ladder-build-slot.placeable.aiming {
+    opacity: 1;
+    background: var(--ladder-gradient);
+    border-style: solid;
+    box-shadow: 0 0 10px rgba(var(--ladder-500-rgb), 0.8);
+}
+
+/* 인접 금지로 놓을 수 없는 빈 슬롯 — 비표시(공간만 차지) */
+.ladder-build-slot.blocked {
+    background: transparent;
+}

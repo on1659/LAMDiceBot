@@ -47,6 +47,36 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
     }
     ctx.triggerAutoOrder = triggerAutoOrder;
 
+    // 사다리타기 빌드 동기화 — 준비 인원(=레인 수) 변동 시 막대기/레인 정리 후 브로드캐스트.
+    // removedUserName: 준비 취소한 사용자(있으면 그 사람 막대기·레인 제거). 빌드(phase idle)에서만 동작.
+    function syncLadderBuildOnReadyChange(gameState, room, removedUserName) {
+        if (!room || room.gameType !== 'ladder' || !gameState.ladder) return;
+        const ld = gameState.ladder;
+        if (ld.phase !== 'idle') return;
+
+        if (removedUserName) {
+            if (ld.userRungs[removedUserName]) delete ld.userRungs[removedUserName];
+            if (ld.userLanes[removedUserName] !== undefined) delete ld.userLanes[removedUserName];
+        }
+        // 레인 수 = 방에 있고 준비한 사람 수. 범위 초과 막대기(c > N-2)·레인(lane ≥ N) 트림.
+        const N = (gameState.readyUsers || []).filter(name =>
+            gameState.users.some(u => u.name === name)).length;
+        Object.keys(ld.userRungs).forEach(name => {
+            const rg = ld.userRungs[name];
+            if (!rg || rg.c > N - 2) delete ld.userRungs[name];
+        });
+        Object.keys(ld.userLanes).forEach(name => {
+            const lane = ld.userLanes[name];
+            if (typeof lane !== 'number' || lane < 0 || lane >= N) delete ld.userLanes[name];
+        });
+        io.to(room.roomId).emit('ladder:rungsUpdated', {
+            userRungs: { ...ld.userRungs },
+            userLanes: { ...ld.userLanes },
+            numLanes: N,
+            rows: ld.rows || 12
+        });
+    }
+
     // 주문받기 시작
     socket.on('startOrder', () => {
         if (!checkRateLimit()) return;
@@ -412,6 +442,9 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         // 같은 방의 모든 클라이언트에게 준비 목록 업데이트
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
+        // 사다리타기: 준비 인원 변동 → 막대기 정리/브로드캐스트 (준비 취소 시 본인 막대기 제거)
+        syncLadderBuildOnReadyChange(gameState, room, isReady ? userName : null);
+
         console.log(`방 ${room.roomName}: ${userName} ${isReady ? '준비 취소' : '준비 완료'} (준비 인원: ${gameState.readyUsers.length}명)`);
     });
 
@@ -502,6 +535,9 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             // 같은 방의 모든 클라이언트에게 준비 목록 업데이트 (동기화를 위해)
             io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         }
+
+        // 사다리타기: 호스트 강제 준비 취소 시 해당 유저 막대기 제거 + 인원 변동 동기화
+        syncLadderBuildOnReadyChange(gameState, room, (!isReady && currentlyReady) ? trimmedUserName : null);
 
         console.log(`방 ${room.roomName}: 호스트가 ${trimmedUserName}을(를) ${isReady ? '준비 상태로' : '준비 취소로'} 설정 (준비 인원: ${gameState.readyUsers.length}명)`);
     });

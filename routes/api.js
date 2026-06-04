@@ -20,7 +20,7 @@ const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     message: { error: 'too_many_requests' }
 }) : (req, res, next) => next();
 
-const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'bridge'];
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'bridge', 'ladder'];
 
 // 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
 // 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
@@ -99,6 +99,14 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'bridge-cross-multiplayer.html'));
     });
 
+    // 사다리타기 (ladder)
+    app.get('/ladder', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'ladder-multiplayer.html'));
+    });
+
     // /free — 메인 페이지 [바로 플레이]와 동일한 흐름.
     // dice-game-multiplayer.html이 path === '/free' 감지 시 자유 모드 자동 진입.
     app.get('/free', (req, res) => {
@@ -126,7 +134,7 @@ function setupRoutes(app) {
     // /{game}/:shortcode — 비공개/공개 서버 방 다이렉트 링크 진입 (게임 경로 직접 사용).
     // 자유 방은 /free/:game/:shortcode 그대로, 서버 방은 /{game}/:shortcode 형식.
     // shortcode 정규식이 4-6자 영문대문자+숫자라 일반 페이지 URL과 충돌 없음.
-    const SERVER_ROOM_DIRECT_PATHS = ['/game', '/roulette', '/horse-race', '/bridge-cross'];
+    const SERVER_ROOM_DIRECT_PATHS = ['/game', '/roulette', '/horse-race', '/bridge-cross', '/ladder'];
     SERVER_ROOM_DIRECT_PATHS.forEach(gamePath => {
         app.get(`${gamePath}/:shortcode([A-Z0-9]{4,6})`, freeShortcodeLimiter, (req, res) => {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -153,7 +161,8 @@ function setupRoutes(app) {
         const isGameActive = !!(
             gs.isGameActive ||
             gs.isHorseRaceActive ||
-            (gs.bridgeCross && gs.bridgeCross.phase && gs.bridgeCross.phase !== 'idle' && gs.bridgeCross.phase !== 'finished')
+            (gs.bridgeCross && gs.bridgeCross.phase && gs.bridgeCross.phase !== 'idle' && gs.bridgeCross.phase !== 'finished') ||
+            (gs.ladder && gs.ladder.phase && gs.ladder.phase !== 'idle' && gs.ladder.phase !== 'finished')
         );
 
         // 서버 방이면 isPrivateServer만 조회 (참여코드 모달 분기에 필요).
@@ -254,6 +263,11 @@ function setupRoutes(app) {
         return res.redirect(301, `/bridge-cross${query}`);
     });
 
+    app.get('/ladder-multiplayer.html', (req, res) => {
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        return res.redirect(301, `/ladder${query}`);
+    });
+
     // SEO 페이지 구 URL 301 리디렉트 (루트 → /pages/)
     const seoPages = [
         'about-us', 'changelog', 'contact', 'crane-game-guide',
@@ -342,7 +356,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {

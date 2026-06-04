@@ -388,13 +388,15 @@ async function getFullRanking(serverId, userName, isPrivate) {
     const dice = await getGameRanking(serverId, 'dice');
     const horseRace = await getHorseRaceStats(serverId);
     const roulette = await getGameRanking(serverId, 'roulette');
+    const ladder = await getGameRanking(serverId, 'ladder');
 
     const result = {
         serverType: isPrivate ? 'private' : 'public',
         overall,
         dice,
         horseRace,
-        roulette
+        roulette,
+        ladder
     };
 
     if (userName) {

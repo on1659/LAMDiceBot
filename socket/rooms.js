@@ -172,6 +172,8 @@ module.exports = (socket, io, ctx) => {
                 // 보안: bridgeCross.safeRows / scenarios 등 server-only 정보 평문 누출 방지.
                 // 재진입 시 클라가 bridgeCross 정보 없어도 무방 (v2 정책).
                 bridgeCross: undefined,
+                // 보안: ladder.rungs / laneToBottom / losingLane 등 사다리 결과 server-only 마스킹.
+                ladder: undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
                 frequentMenus: gameState.frequentMenus
@@ -241,8 +243,8 @@ module.exports = (socket, io, ctx) => {
             roomPassword = password.trim();
         }
 
-        // 게임 타입 검증 (dice, roulette, horse-race, crane-game, bridge 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge'].includes(gameType) ? gameType : 'dice';
+        // 게임 타입 검증 (dice, roulette, horse-race, crane-game, bridge, ladder 허용, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge', 'ladder'].includes(gameType) ? gameType : 'dice';
 
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1113,6 +1115,20 @@ module.exports = (socket, io, ctx) => {
         io.to(roomId).emit('updateOrders', gameState.userOrders);
         io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
+        // 사다리타기 빌드(대기) 재진입: 막대기/레인 수 복원 + 인원 증가 반영 (server-only 정보 미포함).
+        // 입장자는 현재 상태를 받고, 기존 참가자는 늘어난 레인 수를 즉시 반영하도록 전체 브로드캐스트.
+        if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
+            const ld = gameState.ladder;
+            const n = (gameState.readyUsers || []).filter(name =>
+                gameState.users.some(u => u.name === name)).length;
+            io.to(roomId).emit('ladder:rungsUpdated', {
+                userRungs: { ...ld.userRungs },
+                userLanes: { ...ld.userLanes },
+                numLanes: n,
+                rows: ld.rows || 12
+            });
+        }
+
         console.log(`${finalUserName}이(가) 방 ${room.roomName} (${roomId})에 입장 (자동 준비)`);
     });
 
@@ -1158,6 +1174,34 @@ module.exports = (socket, io, ctx) => {
             if (gameState.bridgeCross && gameState.bridgeCross.userColorBets &&
                 gameState.bridgeCross.userColorBets[socket.userName] !== undefined) {
                 delete gameState.bridgeCross.userColorBets[socket.userName];
+            }
+
+            // 🔧 퇴장한 사용자의 사다리타기 레인 선택 삭제
+            if (gameState.ladder && gameState.ladder.userLanes &&
+                gameState.ladder.userLanes[socket.userName] !== undefined) {
+                delete gameState.ladder.userLanes[socket.userName];
+            }
+            // 🔧 퇴장한 사용자의 사다리타기 막대기 삭제 (빌드 단계) + 인원 변동 트림 후 브로드캐스트
+            if (gameState.ladder && gameState.ladder.phase === 'idle' && gameState.ladder.userRungs) {
+                const ld = gameState.ladder;
+                if (ld.userRungs[socket.userName]) delete ld.userRungs[socket.userName];
+                // 퇴장 후 준비 인원(=레인 수) 기준 범위 초과 막대기/레인 트림 (readyUsers는 위에서 이미 정리됨)
+                const n = (gameState.readyUsers || []).filter(name =>
+                    gameState.users.some(u => u.name === name)).length;
+                Object.keys(ld.userRungs).forEach(name => {
+                    const rg = ld.userRungs[name];
+                    if (!rg || rg.c > n - 2) delete ld.userRungs[name];
+                });
+                Object.keys(ld.userLanes || {}).forEach(name => {
+                    const lane = ld.userLanes[name];
+                    if (typeof lane !== 'number' || lane < 0 || lane >= n) delete ld.userLanes[name];
+                });
+                io.to(roomId).emit('ladder:rungsUpdated', {
+                    userRungs: { ...ld.userRungs },
+                    userLanes: { ...ld.userLanes },
+                    numLanes: n,
+                    rows: ld.rows || 12
+                });
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.
             // 일반 사용자 leaveRoom 시 timeout을 cleanup하면 진행 중 게임이 stuck하므로 손대지 않는다.
