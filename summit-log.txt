@@ -1,6 +1,48 @@
 ========================================
-📋 Summit Log - 2026-06-02 (디폴트 주문 캐시 버그픽스 + 직접입력 UX)
+📋 Summit Log - 2026-06-10 (사다리 경마화 — 6레인 고정 + 번호 고르기 + 동시 출발/도착)
 ========================================
+
+## 변경 파일
+- socket/ladder.js: 레인 6 고정 + 동시 reveal + 꽝 점유레인 선택 (핵심)
+- socket/shared.js / socket/rooms.js: ladder:rungsUpdated emit 3곳 → ctx.emitLadderRungsUpdated 단일 소스 통일 (numLanes=6 일관)
+- js/ladder.js: 동시 하강 애니 + readyCount 게이트 + 빈 레인 + dead code 제거
+- css/ladder.css: 빈 레인(.empty) 스타일 + 레인버튼 min-width 52px (6버튼 모바일)
+- ladder-multiplayer.html: 빌드 라벨 "번호 선택(1~6)" 문구
+- tests/test-ladder.js: 6레인·동시도착 사양으로 갱신 (37/37 통과)
+- update-log.md: 유저 공개 업데이트 기록
+- (번들 WIP) horse-race-multiplayer.html / css/horse-shop.css: 경마 "꾸미기 상점" 버튼 임시 비활성화(준비 중)
+
+## 상세 변경 내역
+
+### [6레인 고정 — 번호 1~6]
+- LADDER_LANES=6 신설, LADDER_MAX_PLAYERS=6. buildLaneCount → ladderLaneCount()=6 (레인은 인원과 무관 고정)
+- readyCount(gameState) 신설 → 막대기 배치/번호 선택 ≥2 게이트는 이 값으로 분리(레인 수와 분리)
+- ladder:start의 N = LADDER_LANES (기존 participants.length → 고정 6). 인원<6이면 빈 레인
+- emitRungsUpdated가 numLanes=6 송신. shared.js/rooms.js 인라인 emit(numLanes=readyCount) 3곳을 ctx.emitLadderRungsUpdated로 치환 → 6 일관(이전엔 이벤트마다 numLanes가 2/6으로 흔들릴 위험)
+- 클라 renderBuildSection 게이트를 readyCount()로, renderBuildLaneGrid는 항상 6버튼 렌더, 빈 레인 .empty 클래스
+
+### [공정성 — 꽝은 점유 레인 중에서만]
+- doReveal: 미선택자 RNG 레인 배정 후, occupiedLanes 중 균등 랜덤으로 losingLane 선택 → kkwangBottom = laneToBottom[losingLane]
+- 빈 레인엔 꽝이 절대 안 떨어짐 → 패자 항상 정확히 1명(endGame/DB/주문 가정 유지)
+- computeLaneToBottom 매핑 불변. buildLadder는 그대로(테스트 호환), start의 kkwang/losingLane dead write 제거
+- 만석(6명)이면 기존과 동일 분포 → 공정성 불변. 클라 Math.random 게임결과 0회, reveal 전 server-only 마스킹 유지
+
+### [동시 출발 → 동시 도착 reveal]
+- 순차 하강 폐기. 클라 drawLadderFrame(paths, progress) 모든 토큰 공통 progress로 동시 이동
+- pointAt(호 길이 비례 보간) 덕에 경로 길이 달라도 동일 progress=동시 도착(레인별 속도 자동 정규화)
+- 서버 ladderRevealDelay()=상수 LADDER_REVEAL_DESCENT(5000)+LADDER_FINAL_HOLD(1800)=6800ms. 클라 DURATION=5000ms 동기
+- 제거: LADDER_DESCENT_BUDGET/MIN/MAX/GAP, laneColAt, setLaneNameActive, trail/cross 펄스 변수 (동시 하강에 불필요)
+- 토큰별 잔상(ladderTrails)·도착 시점에만 이름 라벨(바닥칸 bijection이라 안 겹침)
+
+### [검증]
+- node -c 전 파일 통과, node tests/test-ladder.js 37/37 통과 (소켓 변경 → dev 서버 재시작 후)
+- Reviewer / ReviewerCodex 둘 다 approve. 차단 이슈 없음
+
+### [번들 WIP — 경마 꾸미기 상점 임시 비활성화]
+- horse-race-multiplayer.html: hshop-open-btn에 disabled + title="준비 중입니다"
+- css/horse-shop.css: .hshop-open-btn:disabled (opacity 0.45, not-allowed) 추가
+
+
 
 ## 변경 파일 (주문 디폴트 기능)
 - socket/rooms.js: createRoom 핸들러에 getDefaultOrder 캐시 로드 추가 (핵심 버그픽스)

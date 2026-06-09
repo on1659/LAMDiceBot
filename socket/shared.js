@@ -58,15 +58,8 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             if (ld.userRungs[removedUserName]) delete ld.userRungs[removedUserName];
             if (ld.userLanes[removedUserName] !== undefined) delete ld.userLanes[removedUserName];
         }
-        // 레인 수 = 방에 있고 준비한 사람 수. 범위 초과 막대기·레인 트림(공통 헬퍼 — ladder.js).
-        const N = (gameState.readyUsers || []).filter(name =>
-            gameState.users.some(u => u.name === name)).length;
-        if (ctx.trimLadderBuild) ctx.trimLadderBuild(ld, N);
-        io.to(room.roomId).emit('ladder:rungsUpdated', {
-            userRungs: { ...ld.userRungs },
-            userLanes: { ...ld.userLanes },
-            numLanes: N
-        });
+        // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
+        if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
     }
 
     // 주문받기 시작

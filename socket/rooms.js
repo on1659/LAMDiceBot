@@ -1121,16 +1121,8 @@ module.exports = (socket, io, ctx) => {
         // 사다리타기 빌드(대기) 재진입: 막대기/레인 수 복원 + 인원 증가 반영 (server-only 정보 미포함).
         // 입장자는 현재 상태를 받고, 기존 참가자는 늘어난 레인 수를 즉시 반영하도록 전체 브로드캐스트.
         if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
-            const ld = gameState.ladder;
-            const n = (gameState.readyUsers || []).filter(name =>
-                gameState.users.some(u => u.name === name)).length;
-            // 입장은 N 증가-only라 현재는 무해하나, 방어적 일관성으로 항상 N 범위 트림 (공통 헬퍼 — ladder.js)
-            if (ctx.trimLadderBuild) ctx.trimLadderBuild(ld, n);
-            io.to(roomId).emit('ladder:rungsUpdated', {
-                userRungs: { ...ld.userRungs },
-                userLanes: { ...ld.userLanes },
-                numLanes: n
-            });
+            // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
+            if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
         }
 
         console.log(`${finalUserName}이(가) 방 ${room.roomName} (${roomId})에 입장 (자동 준비)`);
@@ -1189,15 +1181,8 @@ module.exports = (socket, io, ctx) => {
             if (gameState.ladder && gameState.ladder.phase === 'idle' && gameState.ladder.userRungs) {
                 const ld = gameState.ladder;
                 if (ld.userRungs[socket.userName]) delete ld.userRungs[socket.userName];
-                // 퇴장 후 준비 인원(=레인 수) 기준 범위 초과 막대기/레인 트림 (공통 헬퍼 — ladder.js)
-                const n = (gameState.readyUsers || []).filter(name =>
-                    gameState.users.some(u => u.name === name)).length;
-                if (ctx.trimLadderBuild) ctx.trimLadderBuild(ld, n);
-                io.to(roomId).emit('ladder:rungsUpdated', {
-                    userRungs: { ...ld.userRungs },
-                    userLanes: { ...ld.userLanes },
-                    numLanes: n
-                });
+                // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
+                if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.
             // 일반 사용자 leaveRoom 시 timeout을 cleanup하면 진행 중 게임이 stuck하므로 손대지 않는다.

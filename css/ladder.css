@@ -65,7 +65,7 @@
 
 .ladder-lane-btn {
     flex: 1 1 0;
-    min-width: 64px;
+    min-width: 52px;   /* 6레인 고정 — 좁은 폰에서도 1~6이 한두 줄에 들어가게 */
     max-width: 110px;
     padding: 14px 6px;
     border: 2px solid var(--ladder-500);
@@ -117,6 +117,17 @@
     color: var(--text-muted, #9ca3af);
     border-color: var(--gray-300, #d1d5db);
     cursor: not-allowed;
+}
+
+/* 주인 없는 빈 레인(인원 6 미만) — 점선 테두리 + 흐리게. 선택 가능(내가 고를 수 있음)하나 비어 있음을 표시. */
+.ladder-lane-btn.empty {
+    border-style: dashed;
+    border-color: var(--gray-300, #d1d5db);
+    color: var(--text-muted, #9ca3af);
+    background: var(--bg-white);
+}
+.ladder-lane-btn.empty .lane-owner {
+    color: var(--text-muted, #9ca3af);
 }
 
 .ladder-pick-status {

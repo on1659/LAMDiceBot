@@ -5,7 +5,8 @@
  *
  * 검증:
  *  1. 로비(/game)에 사다리타기 라디오 + 대표 게임(경마) 라디오 존재 / 선택 가능
- *  2. 사다리타기 방 생성 → 입장(2탭) → 준비 → 시작 → 레인 선택 → 추적 → 결과/종료 도달
+ *  2. 사다리타기 방 생성 → 입장(2탭) → 준비 → 번호(1~6) 선택 → 시작(즉시 공개) → 동시 도착 → 결과/종료 도달
+ *     레인은 항상 6개 고정(인원 6 미만이면 빈 레인). 꽝은 점유 레인에서만 결정(패자 항상 1명).
  *  3. 콘솔 에러 없음 (광고/서드파티 노이즈 제외)
  *  4. 대표 게임(경마) 방 생성/로드 정상 (기존 모드 미파손)
  */
@@ -174,6 +175,21 @@ async function run() {
             await guest.waitForFunction(gridReady, { timeout: 10000 });
         });
 
+        await test('레인 항상 6개(1~6) 고정 + 인원 2명이면 빈 레인 존재', async () => {
+            const info = await host.evaluate(() => {
+                const btns = Array.from(document.querySelectorAll('#ladderBuildLaneGrid .ladder-lane-btn'));
+                return {
+                    count: btns.length,
+                    labels: btns.map(b => (b.textContent || '').replace(/\s+/g, ' ').trim()),
+                    empties: btns.filter(b => b.classList.contains('empty')).length
+                };
+            });
+            assert(info.count === 6, `레인이 6개가 아님: ${info.count}`);
+            assert(info.labels[0].startsWith('1번') && info.labels[5].startsWith('6번'), `번호 1~6 표기 오류: ${info.labels.join(' / ')}`);
+            // 2명만 있고 아직 아무도 안 골랐으면 6개 모두 비어있음(empty). 최소 4개는 비어 있어야 함(2명 점유 가정 시).
+            assert(info.empties >= 4, `빈 레인이 충분치 않음(empty=${info.empties})`);
+        });
+
         await test('호스트 출발 레인 선택 → 게스트에 브로드캐스트 동기화', async () => {
             await host.click('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(1)');
             await host.waitForFunction(() =>
@@ -237,11 +253,11 @@ async function run() {
             await host.waitForFunction(() => window.__ladderRungCount() === 1, { timeout: 10000 });
         });
 
-        await test('게스트 준비 취소 → 본인 막대기·레인 정리', async () => {
+        await test('게스트 준비 취소 → 본인 막대기·레인만 정리(호스트 것은 유지)', async () => {
             await guest.click('#readyButton');               // 준비 취소
             await host.waitForFunction(() => document.getElementById('readyCount').textContent === '1', { timeout: 10000 });
-            // 레인 1로 줄며 막대기 트림 → 호스트 화면 막대기 0개
-            await host.waitForFunction(() => window.__ladderRungCount() === 0, { timeout: 10000 });
+            // 레인은 6 고정이라 트림으로 사라지지 않음 → 호스트 본인 막대기(c=0)는 유지(1개), 게스트 것만 제거됨
+            await host.waitForFunction(() => window.__ladderRungCount() === 1, { timeout: 10000 });
         });
 
         await test('게스트 재준비 → 빌드 복귀(레인 미선택 허용)', async () => {
@@ -305,7 +321,7 @@ async function run() {
                 document.querySelectorAll('#ladderLaneNames .ladder-lane-name').length >= 2, { timeout: 10000 });
         });
 
-        await test('순차 하강 중 캔버스 유지', async () => {
+        await test('동시 하강 중 캔버스 유지', async () => {
             await host.waitForTimeout(1200);
             const visible = await host.evaluate(() => {
                 const w = document.getElementById('ladderCanvasWrap');
@@ -314,16 +330,16 @@ async function run() {
             assert(visible, '하강 도중 캔버스가 사라짐');
         });
 
-        await test('추적 애니메이션 결과 캡션 표시', async () => {
-            // 하강이 느려져(2명 기준 캡션 ~12s) 타임아웃 상향
+        await test('동시 도착 결과 캡션 표시', async () => {
+            // 동시 하강(DESCENT≈5s) 종료 시 결과 캡션 표시 — 여유 타임아웃
             await host.waitForFunction(() => {
                 const c = document.getElementById('ladderResultCaption');
                 return c && c.textContent.trim().length > 0;
-            }, { timeout: 16000 });
+            }, { timeout: 12000 });
         });
 
         await test('게임 종료 → 결과 오버레이 + 순위 표시', async () => {
-            // 서버 종료 타이머 = 연출 길이 + 결과 유지 (2명 기준 ~13.2s)
+            // 서버 종료 타이머 = 동시 하강(5s) + 결과 유지(1.8s) ≈ 6.8s
             await host.waitForFunction(() => {
                 const o = document.getElementById('resultOverlay');
                 const r = document.getElementById('resultRankings');
