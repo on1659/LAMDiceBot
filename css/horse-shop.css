@@ -1,0 +1,654 @@
+/*
+ * horse-shop.css — 경마 꾸미기 상점 (Phase 1: 시각 전용)
+ *
+ * 모달 UI는 목업(prototype/horse-shop-mockup.html) 기반.
+ * 경마 색감(--horse-*)은 horse-race.css :root에서 상속.
+ * 새 색상은 모두 아래 :root 변수로 정의(하드코딩 금지).
+ */
+
+:root {
+    /* 등급(rarity) 배지 색 — 상점 전용 토큰 */
+    --hshop-common: #94a3b8;
+    --hshop-rare:   #3b82f6;
+    --hshop-epic:   #a855f7;
+    --hshop-legend: #f59e0b;
+
+    /* 모달 표면/텍스트 */
+    --hshop-bg:        #f4f1ee;
+    --hshop-card:      #ffffff;
+    --hshop-ink:       #2b2320;
+    --hshop-ink-soft:  #8a7d75;
+    --hshop-line:      #e9e2dc;
+    --hshop-thumb-bg:  var(--horse-50, #EFEBE9);
+    --hshop-thumb-dark:#1b2a4a;
+    --hshop-shadow:    0 2px 8px rgba(80, 50, 20, 0.10);
+    --hshop-overlay-bg: rgba(20, 12, 6, 0.55);
+    --hshop-equipped:  #4a7c3f;
+    --hshop-equipped-bg: #e8f3e3;
+}
+
+/* 모달 열림 시 배경(트랙) 스크롤 잠금 — 모바일 하단시트 뒤 페이지 스크롤 방지 */
+body.hshop-open {
+    overflow: hidden;
+}
+
+/* ── 오버레이 ── */
+.hshop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    background: var(--hshop-overlay-bg);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── 패널 (모바일 퍼스트: 하단 시트) ── */
+.hshop-panel {
+    width: 100%;
+    max-width: 430px;
+    max-height: 88vh;
+    background: var(--hshop-bg);
+    color: var(--hshop-ink);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* ── 헤더 ── */
+.hshop-header {
+    flex: none;
+    background: var(--horse-gradient, linear-gradient(135deg, #8B4513 0%, #a0522d 100%));
+    color: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.hshop-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    line-height: 1.1;
+}
+.hshop-title small {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.85;
+    margin-top: 2px;
+}
+.hshop-close {
+    margin-left: auto;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.18);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+}
+
+/* ── 안내 배너 ── */
+.hshop-notice {
+    flex: none;
+    margin: 12px 16px 0;
+    padding: 10px 12px;
+    background: var(--hshop-card);
+    border: 1px solid var(--hshop-line);
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--hshop-ink-soft);
+    box-shadow: var(--hshop-shadow);
+}
+
+/* ── 탭 ── */
+.hshop-tabs {
+    flex: none;
+    display: flex;
+    gap: 6px;
+    padding: 12px 16px 4px;
+}
+.hshop-tab {
+    flex: 1;
+    padding: 10px 0;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 13px;
+    background: var(--hshop-card);
+    color: var(--hshop-ink-soft);
+    border: 1px solid var(--hshop-line);
+    cursor: pointer;
+    transition: 0.15s;
+}
+.hshop-tab.is-active {
+    background: var(--horse-500, #8B4513);
+    color: #fff;
+    border-color: var(--horse-500, #8B4513);
+    box-shadow: var(--hshop-shadow);
+}
+
+/* ── 그리드 (스크롤 영역) ── */
+.hshop-grid {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+/* ── 아이템 카드 ── */
+.hshop-card {
+    background: var(--hshop-card);
+    border: 1px solid var(--hshop-line);
+    border-radius: 14px;
+    padding: 10px;
+    box-shadow: var(--hshop-shadow);
+    display: flex;
+    flex-direction: column;
+}
+.hshop-thumb {
+    height: 84px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: var(--hshop-thumb-bg);
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+}
+.hshop-thumb--rare,
+.hshop-thumb--epic {
+    background: var(--hshop-thumb-dark);
+}
+.hshop-glyph {
+    font-size: 40px;
+    line-height: 1;
+}
+
+/* ── 카드 미리보기 (실제 탈것 + 꾸미기 적용 모습) ── */
+.hshop-preview {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+.hshop-preview-sprite {
+    position: relative;
+    z-index: 2;
+    line-height: 0;
+}
+.hshop-preview-sprite svg {
+    width: 62px;
+    height: auto;
+    display: block;
+}
+.hshop-preview-trail {
+    position: absolute;
+    left: 12%;
+    top: 50%;
+    transform: translateY(-20%);
+    font-size: 16px;
+    letter-spacing: -3px;
+    line-height: 1;
+    z-index: 1;
+    opacity: 0.9;
+    pointer-events: none;
+}
+.hshop-preview-acc {
+    position: absolute;
+    top: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    line-height: 1;
+    z-index: 3;
+    pointer-events: none;
+}
+.hshop-preview-bib {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 16px;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.3;
+    text-align: center;
+    border-radius: 6px;
+    border: 1.5px solid #000;
+    background: #333;
+    color: #fff;
+    z-index: 3;
+    pointer-events: none;
+}
+.hshop-rarity {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.2px;
+    z-index: 5;
+}
+.hshop-rarity--common { background: var(--hshop-common); }
+.hshop-rarity--rare   { background: var(--hshop-rare); }
+.hshop-rarity--epic   { background: var(--hshop-epic); }
+.hshop-rarity--legend { background: var(--hshop-legend); }
+
+.hshop-name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: var(--hshop-ink);
+}
+
+.hshop-equip {
+    margin-top: 9px;
+    width: 100%;
+    border: 1.5px solid var(--horse-500, #8B4513);
+    cursor: pointer;
+    padding: 9px 0;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 13px;
+    background: var(--horse-500, #8B4513);
+    color: #fff;
+}
+.hshop-equip.is-equipped {
+    background: var(--hshop-equipped-bg);
+    color: var(--hshop-equipped);
+    border-color: var(--hshop-equipped);
+}
+
+/* ── 잔고 배지 (헤더) ── */
+.hshop-balance {
+    margin-left: auto;
+    flex: none;
+    background: rgba(0, 0, 0, 0.18);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.hshop-header .hshop-close { margin-left: 4px; }
+
+/* ── 가격 + 구매 버튼 ── */
+.hshop-price {
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--horse-600, #a0522d);
+}
+.hshop-buy {
+    margin-top: 7px;
+    width: 100%;
+    border: 1.5px solid var(--hshop-legend);
+    cursor: pointer;
+    padding: 9px 0;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 13px;
+    background: var(--hshop-legend);
+    color: #fff;
+}
+.hshop-buy:disabled { opacity: 0.6; cursor: default; }
+
+/* ── 빈 카테고리 안내 ── */
+.hshop-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--hshop-ink-soft);
+    font-size: 13px;
+    padding: 28px 8px;
+}
+
+/* ── 상점 버튼 (경마 페이지 진입점) ── */
+.hshop-open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1.5px solid var(--horse-500, #8B4513);
+    background: var(--bg-white, #fff);
+    color: var(--horse-600, #a0522d);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: var(--hshop-shadow);
+}
+
+/* ── 탈것에 적용되는 꾸미기 (트랙 내부) ── */
+/* 액세서리: 스프라이트 위 오버레이 */
+.cosmetic-accessory {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    line-height: 1;
+    z-index: 250;
+    pointer-events: none;
+}
+/* 마번 배지: 스프라이트 아래 작은 번호판 */
+.cosmetic-bib {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 16px;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.3;
+    text-align: center;
+    border-radius: 6px;
+    border: 1.5px solid #000;
+    background: #333;
+    color: #fff;
+    z-index: 240;
+    pointer-events: none;
+}
+/* 트레일: 스프라이트 뒤(왼쪽) 잔상 — 달릴 때만 보이게 */
+.cosmetic-trail {
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    transform: translateY(-50%);
+    margin-right: -2px;
+    font-size: 15px;
+    line-height: 1;
+    letter-spacing: -3px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 90;
+    pointer-events: none;
+}
+.horse.racing .cosmetic-trail,
+.horse.running .cosmetic-trail {
+    opacity: 0.85;
+}
+
+/* ── 방 연출: 트랙 테마 (방장 장착분 방 전체 적용) ── */
+/* 가독성 보호: 낮은 불투명도 틴트 + pointer-events none, 트랙/말보다 뒤(z-index 0) */
+.cosmetic-track-theme {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.28;
+    background-size: cover;
+    background-position: center;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* ── 방 연출: 결승 이펙트 (폭죽/색종이) ── */
+.cosmetic-finish-fx {
+    position: absolute;
+    inset: 0;
+    z-index: 400;
+    pointer-events: none;
+    overflow: hidden;
+}
+.cosmetic-fx-piece {
+    position: absolute;
+    top: -8%;
+    font-size: 26px;
+    line-height: 1;
+    opacity: 0;
+    animation: hshopFxFall 2.4s ease-in forwards;
+}
+@keyframes hshopFxFall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    100% { transform: translateY(115%) rotate(220deg); opacity: 0; }
+}
+
+/* ── 카드 미리보기: 트랙테마 미니 썸네일 ── */
+/* (그라데이션 배경은 .hshop-thumb backgroundImage 로 이미 적용됨) */
+.hshop-track-mini {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+.hshop-track-ground {
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    bottom: 24%;
+    border-top: 2px dashed rgba(255, 255, 255, 0.55);
+}
+.hshop-track-runner {
+    position: absolute;
+    bottom: 24%;
+    left: 6%;
+    width: 38px;
+    line-height: 0;
+    transform-origin: left bottom;
+    animation: hshopTrackRun 2.6s linear infinite;
+}
+.hshop-track-runner svg {
+    width: 38px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+@keyframes hshopTrackRun {
+    0%   { transform: translateX(0);    opacity: 0; }
+    12%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { transform: translateX(230%); opacity: 0; }
+}
+
+/* ── 카드 미리보기: 결승연출 (펄스 + 낙하 조각) ── */
+.hshop-fx-mini {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+.hshop-fx-burst {
+    font-size: 40px;
+    line-height: 1;
+    animation: hshopFxPulse 1.6s ease-in-out infinite;
+}
+@keyframes hshopFxPulse {
+    0%, 100% { transform: scale(0.85); opacity: 0.7; }
+    50%      { transform: scale(1.1);  opacity: 1; }
+}
+.hshop-fx-confetti {
+    position: absolute;
+    top: -14%;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    animation: hshopFxConfetti 2s ease-in infinite;
+}
+@keyframes hshopFxConfetti {
+    0%   { transform: translateY(0) rotate(0deg);    opacity: 0; }
+    15%  { opacity: 1; }
+    100% { transform: translateY(360%) rotate(200deg); opacity: 0; }
+}
+
+/* ── 잔고 차감/적립 연출 ── */
+.hshop-balance--spend { animation: hshopBalSpend 0.55s ease-out; }
+.hshop-balance--earn  { animation: hshopBalEarn 0.55s ease-out; }
+@keyframes hshopBalSpend {
+    0%   { background: var(--red-500, #ef4444); transform: scale(1.08); }
+    100% { background: rgba(0, 0, 0, 0.18);     transform: scale(1); }
+}
+@keyframes hshopBalEarn {
+    0%   { background: var(--green-500, #22c55e); transform: scale(1.08); }
+    100% { background: rgba(0, 0, 0, 0.18);       transform: scale(1); }
+}
+
+/* ── 상점 전용 팝업 레이어 (확인/토스트, 상점 모달 위) ── */
+.hshop-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 12500;
+    pointer-events: none; /* 토스트는 통과, 확인 오버레이만 자체적으로 활성화 */
+}
+
+/* 떠오르는 ±금액 (body 기준 fixed, JS가 좌표 지정) */
+.hshop-delta {
+    position: fixed;
+    transform: translate(-50%, 0);
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    animation: hshopDeltaFloat 1.1s ease-out forwards;
+    will-change: transform, opacity;
+}
+.hshop-delta.is-spend { color: var(--red-500, #ef4444); }
+.hshop-delta.is-earn  { color: var(--green-500, #22c55e); }
+@keyframes hshopDeltaFloat {
+    0%   { transform: translate(-50%, 4px);   opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translate(-50%, -34px); opacity: 0; }
+}
+
+/* 구매 확인 다이얼로그 */
+.hshop-confirm-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+    background: rgba(20, 12, 6, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.hshop-confirm {
+    width: 100%;
+    max-width: 320px;
+    background: var(--hshop-card);
+    color: var(--hshop-ink);
+    border-radius: 16px;
+    padding: 20px 18px 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    text-align: center;
+}
+.hshop-confirm-title {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin-bottom: 14px;
+}
+.hshop-confirm-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--hshop-thumb-bg);
+    border: 1px solid var(--hshop-line);
+    border-radius: 12px;
+    padding: 11px 14px;
+    margin-bottom: 16px;
+}
+.hshop-confirm-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hshop-ink);
+}
+.hshop-confirm-price {
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--horse-600, #a0522d);
+    white-space: nowrap;
+}
+.hshop-confirm-btns {
+    display: flex;
+    gap: 10px;
+}
+.hshop-confirm-cancel,
+.hshop-confirm-ok {
+    flex: 1;
+    min-height: 46px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.hshop-confirm-cancel {
+    background: var(--hshop-card);
+    color: var(--hshop-ink-soft);
+    border: 1.5px solid var(--hshop-line);
+}
+.hshop-confirm-ok {
+    background: var(--hshop-legend);
+    color: #fff;
+    border: 1.5px solid var(--hshop-legend);
+}
+
+/* 토스트 (성공/실패) */
+.hshop-toast {
+    position: absolute;
+    left: 50%;
+    bottom: 12%;
+    transform: translate(-50%, 12px);
+    max-width: 84%;
+    pointer-events: none;
+    background: rgba(20, 12, 6, 0.92);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 700;
+    padding: 11px 18px;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    white-space: nowrap;
+}
+.hshop-toast.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+.hshop-toast--success { background: var(--hshop-equipped, #4a7c3f); }
+.hshop-toast--error   { background: var(--red-500, #ef4444); }
+
+/* 모션 최소화 선호 시 카드 미리보기 애니메이션 정지 */
+@media (prefers-reduced-motion: reduce) {
+    .hshop-track-runner,
+    .hshop-fx-burst,
+    .hshop-fx-confetti { animation: none; }
+    .hshop-track-runner { opacity: 1; }
+    .hshop-fx-confetti { opacity: 0; }
+}
+
+/* ── 데스크톱: 중앙 다이얼로그 ── */
+@media (min-width: 640px) {
+    .hshop-overlay {
+        align-items: center;
+    }
+    .hshop-panel {
+        max-width: 460px;
+        max-height: 84vh;
+        border-radius: 18px;
+    }
+}

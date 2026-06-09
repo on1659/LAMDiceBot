@@ -1665,6 +1665,20 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 horse.classList.add('jumping');
                 setTimeout(() => horse.classList.remove('jumping'), 400);
             });
+            // .my-horse 마커: 상점에서 장착 변경 시 내 말만 골라 갱신(타인 말 오염 방지)
+            horse.classList.add('my-horse');
+        }
+
+        // 꾸미기 적용 — 외관만, 결과 무관.
+        // 내 말 = 내 장착(서버 권위), 타인 말 = 서버 broadcast canonical(첫 선택자).
+        if (window.HorseShop) {
+            if (isMyHorse) {
+                window.HorseShop.applyToHorse(horse);
+            } else {
+                var _hc = (window._raceCosmetics && window._raceCosmetics.horses)
+                    ? window._raceCosmetics.horses[horseIndex] : null;
+                if (_hc) window.HorseShop.applyEquippedToHorse(horse, _hc);
+            }
         }
 
         track.appendChild(horse);
@@ -4908,6 +4922,15 @@ function initializeGameScreen(data) {
 // === 소켓 이벤트 핸들러 ===
 
 socket.on('connect', () => {
+    // 꾸미기 상점: 소켓 연결 + 토큰 인증 (지갑/장착 서버 동기화, 매 연결 멱등)
+    if (window.HorseShop) {
+        window.HorseShop.connect(socket);
+        try {
+            var _auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
+            if (_auth && _auth.token) window.HorseShop.authenticate(_auth.token);
+        } catch (e) {}
+    }
+
     // 방에 있었다면 자동 재입장 (transport close reconnect 대응)
     if (currentRoomId) {
         const activeRoom = sessionStorage.getItem('horseRaceActiveRoom');
@@ -5377,6 +5400,12 @@ socket.on('horseRaceStarted', (data) => {
 
     // 마지막 경주 데이터 저장 (다시보기용)
     lastHorseRaceData = data;
+
+    // 꾸미기 페이로드 저장 (말별 canonical + 방장 연출) — 시각 렌더용, 결과 무관
+    window._raceCosmetics = { room: data.roomCosmetics || null, horses: data.horseCosmetics || {} };
+    if (window.HorseShop) {
+        window.HorseShop.applyRoomCosmetics(window._raceCosmetics.room); // 트랙 테마(없으면 정리만)
+    }
     window._slowMotionConfig = data.slowMotionConfig || null;
     // N등 투표 결과 (null = fallback 'last')
     window._targetRank = (typeof data.targetRank === 'number') ? data.targetRank : null;
@@ -5515,6 +5544,10 @@ socket.on('horseRaceStarted', (data) => {
 
     // 경주 트랙 표시 (서버에서 받은 기믹 데이터 전달) - 콜백으로 종료 처리
     startRaceAnimation(data.horseRankings, data.speeds, data.gimmicks, (actualFinishOrder) => {
+        // 방장 결승 연출(폭죽/색종이) 1회 재생 — 외관만, 결과 무관
+        if (window.HorseShop && window._raceCosmetics && window._raceCosmetics.room) {
+            window.HorseShop.playFinishFx(window._raceCosmetics.room);
+        }
         // 사운드: 골인! 관중 최고조 → 환호 → 페이드아웃
         if (window.SoundManager) {
             // 슬로우모션 환호성 정지 (아직 재생 중이면)

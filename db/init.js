@@ -250,6 +250,42 @@ async function initDatabase() {
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS flags INTEGER DEFAULT 0`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS prefs JSONB DEFAULT '{}'::jsonb`);
 
+        // ─── 코인 지갑 (계정당 1행) ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS user_coins (
+                user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                balance    INTEGER NOT NULL DEFAULT 0 CHECK (balance >= 0),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
+        // ─── 코인 원장 (모든 적립/소비/충전 감사 추적) ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS coin_ledger (
+                id         SERIAL PRIMARY KEY,
+                user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                delta      INTEGER NOT NULL,
+                reason     VARCHAR(40) NOT NULL,
+                ref        VARCHAR(80),
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        // 게임 적립 멱등성: 같은 (user, ref, reason)은 1회만
+        await pool.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_idem
+                ON coin_ledger (user_id, ref, reason) WHERE ref IS NOT NULL
+        `);
+
+        // ─── 소유 꾸미기 인벤토리 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS user_cosmetics (
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                cosmetic_id VARCHAR(40) NOT NULL,
+                acquired_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (user_id, cosmetic_id)
+            )
+        `);
+
         // ─── 주문 통계 테이블 (랭킹용) ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS order_stats (

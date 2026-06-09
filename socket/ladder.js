@@ -7,14 +7,21 @@ const { recordServerGame, recordGameSession, generateSessionId } = require('../d
 // ─── 조정 가능한 상수 ───
 const LADDER_MIN_PLAYERS = 2;       // 시작 최소 인원
 const LADDER_MAX_PLAYERS = 8;       // 레인 최대 수
-const LADDER_ROWS = 12;             // 빌드 격자 고정 행 수 (컬럼 변동에도 막대기 행 위치 유지)
 const LADDER_HISTORY_MAX = 100;     // 히스토리 최대 보관 수
+// 기본(숨은) 막대기 개수 = max(MIN, 참가자수 N) + 0~RAND 랜덤(서버 RNG). 최소 보장 + 그 이상 랜덤.
+const LADDER_BASE_RUNG_MIN = 4;     // 기본 막대기 최소 개수 — 인원 적어도 사다리가 휑하지 않게
+const LADDER_BASE_RUNG_RAND = 4;    // 최소 위에 더해지는 랜덤 추가량 상한(0~이 값)
+
+// 연속 좌표 사다리 — 막대기는 두 인접 기둥(c, c+1)을 높이 y(0~1)에서 잇는다. 격자 없음.
+const LADDER_MIN_GAP_Y = 0.05;      // 같은 기둥을 공유하는 막대기 간 최소 세로 간격(비율) — 사다리 모호성 방지
+const LADDER_Y_MIN = 0.05;          // 막대기 높이 하한
+const LADDER_Y_MAX = 0.95;          // 막대기 높이 상한
 // ─── 순차 하강(reveal) 연출 타이밍 — js/ladder.js 와 반드시 동기화 ───
 // 한 명씩 차례로 내려가는 총 연출 길이를 인원수(N)로 계산해, 애니가 끝나기 전에 결과로 넘어가지 않게 한다.
-const LADDER_DESCENT_BUDGET = 11000; // 모든 토큰 하강 합계 목표(ms)
-const LADDER_DESCENT_MIN = 1900;    // 토큰당 최소 하강 시간
-const LADDER_DESCENT_MAX = 3600;    // 토큰당 최대 하강 시간
-const LADDER_DESCENT_GAP = 500;     // 토큰 간 간격(ms)
+const LADDER_DESCENT_BUDGET = 15000; // 모든 토큰 하강 합계 목표(ms) — js/ladder.js와 동일 유지
+const LADDER_DESCENT_MIN = 2200;    // 토큰당 최소 하강 시간
+const LADDER_DESCENT_MAX = 5400;    // 토큰당 최대 하강 시간
+const LADDER_DESCENT_GAP = 600;     // 토큰 간 간격(ms)
 const LADDER_FINAL_HOLD = 1800;     // 마지막 도착 후 결과 캡션 유지(ms)
 
 // reveal 시작부터 자동 종료(결과 오버레이)까지 걸려야 하는 시간 = 순차 하강 총길이 + 결과 유지
@@ -27,6 +34,65 @@ function ladderRevealDelay(N) {
 
 const LADDER_RESET_DELAY = 4000;    // gameEnd 후 다음 판 리셋까지
 const LADDER_SLANT_MAX = 1;         // rung 기울기(slant) 절대값 상한 (js/ladder.js와 동기 — 시각 효과)
+const LADDER_CURVE_MAX_POINTS = 24; // 곡선 막대기 점 개수 상한 (신뢰경계 — 페이로드 폭주 방지, js/ladder.js와 동기)
+const LADDER_CURVE_RAW_MAX = 256;   // 클라가 보낸 원시 점 허용 상한(이 초과는 비정상 → 직선 폴백)
+// 곡선 누적 세로 이동(vtravel) 상한 — Σ|Δy|(정규화 0~1). 공개 시 토큰은 막대기 폴리라인을 따라가므로
+// 세로로 길게/구불구불 그릴수록 경로가 길어져 속도가 튄다. 이 상한 초과분은 평균 중심으로 y편차를 줄여
+// 경로 길이를 일정 범위로 묶는다. points는 시각일 뿐 매핑(c+y정렬)과 무관 → 공정성 영향 0. js/ladder.js와 동기.
+const LADDER_CURVE_MAX_VTRAVEL = 1.0;
+
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+// 곡선 점 배열 정규화 (신뢰경계 — 클라 입력). 시각 장식일 뿐 결과에 영향 없음.
+// 비정상/빈약하면 null(→ 직선 폴백). 좌표 clamp(0~1), 개수 상한 다운샘플, 양끝을 두 기둥(x=0,1)에 스냅.
+function sanitizeCurvePoints(points) {
+    if (!Array.isArray(points) || points.length < 2 || points.length > LADDER_CURVE_RAW_MAX) return null;
+    let clean = [];
+    for (const p of points) {
+        if (!p || typeof p.x !== 'number' || typeof p.y !== 'number' || !isFinite(p.x) || !isFinite(p.y)) continue;
+        clean.push({ x: clamp01(p.x), y: clamp01(p.y) });
+    }
+    if (clean.length < 2) return null;
+    if (clean.length > LADDER_CURVE_MAX_POINTS) {   // 상한으로 균등 다운샘플(양끝 보존)
+        const ds = [];
+        for (let i = 0; i < LADDER_CURVE_MAX_POINTS; i++) {
+            ds.push(clean[Math.round(i * (clean.length - 1) / (LADDER_CURVE_MAX_POINTS - 1))]);
+        }
+        clean = ds;
+    }
+    clean[0] = { x: 0, y: clean[0].y };                       // 시작점 → 왼쪽 기둥
+    clean[clean.length - 1] = { x: 1, y: clean[clean.length - 1].y };  // 끝점 → 오른쪽 기둥
+    return clampCurveVTravel(clean);
+}
+
+// 곡선의 누적 세로 이동(Σ|Δy|)이 상한을 넘으면 평균 y 중심으로 편차를 일괄 축소 → 세로 path 길이 제한.
+// 비례 축소라 vtravel = 상한에 정확히 맞춰진다. x(가로)는 두 기둥에 고정이라 손대지 않는다.
+// 매핑은 c와 y정렬만 쓰므로(points 무관) 결과 불변 — 연출 속도/가독 목적의 시각 제약일 뿐.
+// vtravel 기준 멱등(재적용 시 vtravel은 상한 그대로; y값은 float 재계산 최하위 자릿수만 흔들릴 수 있음 — 렌더/결과 무해).
+function clampCurveVTravel(pts) {
+    let vtravel = 0;
+    for (let i = 1; i < pts.length; i++) vtravel += Math.abs(pts[i].y - pts[i - 1].y);
+    if (vtravel <= LADDER_CURVE_MAX_VTRAVEL) return pts;
+    const meanY = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+    const k = LADDER_CURVE_MAX_VTRAVEL / vtravel;
+    return pts.map(p => ({ x: p.x, y: clamp01(meanY + (p.y - meanY) * k) }));
+}
+
+// 상단 레인 → 바닥 열 매핑 (곡선·slant 무관: rg.c와 y정렬만 사용 → 결과 불변 보장 지점).
+// 외부에서 곡선 무관성 회귀 테스트로 호출. y 오름차순으로 내부 정렬해 자기완결.
+function computeLaneToBottom(N, rungs) {
+    const sorted = (rungs || []).slice().sort((a, b) => a.y - b.y);
+    const map = new Array(N);
+    for (let start = 0; start < N; start++) {
+        let col = start;
+        for (const rg of sorted) {
+            if (col === rg.c) col++;
+            else if (col === rg.c + 1) col--;
+        }
+        map[start] = col;
+    }
+    return map;
+}
 
 // slant 정규화: 숫자가 아니거나 범위를 벗어나면 보정 (신뢰경계 — 클라 입력)
 function clampSlant(s) {
@@ -34,71 +100,67 @@ function clampSlant(s) {
     return Math.max(-LADDER_SLANT_MAX, Math.min(LADDER_SLANT_MAX, s));
 }
 
-// 막대기 충돌(같은 행 인접/중복) 검사 — 표준 사다리 제약.
-// grid[r][c]=true → 행 r에서 열 c와 c+1 사이 가로줄. c-1/c/c+1 중 하나라도 차 있으면 불가.
-function rungConflicts(grid, N, r, c) {
-    if (r < 0 || r >= grid.length || c < 0 || c > N - 2) return true;
-    if (grid[r][c]) return true;
-    if (c > 0 && grid[r][c - 1]) return true;
-    if (c < N - 2 && grid[r][c + 1]) return true;
-    return false;
+// 높이 y 정규화 (신뢰경계 — 클라 입력). 범위 밖/비정상은 null.
+function clampY(y) {
+    if (typeof y !== 'number' || !isFinite(y)) return null;
+    return Math.max(LADDER_Y_MIN, Math.min(LADDER_Y_MAX, y));
+}
+
+// 두 막대기가 기둥을 공유하는가 (같은 구간 c 또는 인접 구간 → 공유 기둥 존재)
+function sharesPost(c1, c2) { return Math.abs(c1 - c2) <= 1; }
+
+// (c, y)에 막대기를 놓으면 기존 막대기와 너무 가까운가 (같은 기둥 공유 + |Δy| < 최소간격)
+function rungTooClose(rungList, c, y) {
+    return (rungList || []).some(rg => rg && sharesPost(rg.c, c) && Math.abs(rg.y - y) < LADDER_MIN_GAP_Y);
 }
 
 /**
- * 최종 사다리 구조 생성 (서버 전용).
- * 유저가 직접 놓은 막대기 + 서버가 숨겨 깔아둔 기본 막대기를 결합한다.
+ * 최종 사다리 구조 생성 (서버 전용) — 연속 좌표.
+ * 막대기 = { c: 왼쪽 기둥(0..N-2), y: 높이(0~1), slant: 기울기(-1~1, 시각) }.
+ * 매핑은 y 오름차순으로 정렬해 인접 스왑(표준 사다리). slant는 결과와 무관.
  * @param {number} N - 레인 수(= 참가자 수)
- * @param {Array<{r:number,c:number,slant:number}>} userRungs - 유저 배치 막대기 (가시, 검증 완료분)
- * @param {number} rows - 격자 행 수
- * @returns {{ rows, rungs, baseRungs, kkwangBottom, laneToBottom, losingLane }}
+ * @param {Array<{c:number,y:number,slant:number}>} userRungs - 유저 배치 막대기
+ * @returns {{ rungs, baseRungs, kkwangBottom, laneToBottom, losingLane }}
  */
-function buildLadder(N, userRungs, rows) {
-    // rungGrid[r][c] = true → 행 r에서 열 c와 c+1 사이 가로줄 (c: 0..N-2)
-    const rungGrid = Array.from({ length: rows }, () => new Array(Math.max(0, N - 1)).fill(false));
+function buildLadder(N, userRungs) {
     const rungs = [];
 
-    // 1) 유저 막대기 먼저 배치 (방어적 재검증 — 범위/인접/중복 위반분은 무시). slant는 시각효과로 보존.
-    (userRungs || []).forEach(({ r, c, slant }) => {
-        if (rungConflicts(rungGrid, N, r, c)) return;
-        rungGrid[r][c] = true;
-        rungs.push({ r, c, slant: clampSlant(slant) });
+    // 1) 유저 막대기 (방어적 재검증 — 범위/충돌 위반분은 무시). points = 곡선(시각, 결과 무관).
+    (userRungs || []).forEach(({ c, y, slant, points }) => {
+        if (!Number.isInteger(c) || c < 0 || c > N - 2) return;
+        const yy = clampY(y);
+        if (yy === null || rungTooClose(rungs, c, yy)) return;
+        // user:true = 참가자가 직접 그린 막대기 표식. reveal 페이로드(ld.rungs)에만 실려 공개 화면에서 색 구분에 쓰임.
+        // 빌드 브로드캐스트(userRungs)·재진입 마스킹과 무관 → reveal 전 비노출 유지. 매핑엔 영향 없음.
+        rungs.push({ c, y: yy, slant: clampSlant(slant), points: sanitizeCurvePoints(points), user: true });
     });
 
-    // 2) 숨은 기본 막대기 — 목표 개수 ≈ N, 기존 막대기와 인접/중복 회피. slant는 서버 RNG로 다양하게.
+    // 2) 숨은 기본 막대기 — 최소 보장 + 랜덤 추가, 기존과 충돌 회피. 개수·y·slant 모두 서버 RNG.
     const baseRungs = [];
-    const target = N;
+    const target = Math.max(LADDER_BASE_RUNG_MIN, N) + Math.floor(Math.random() * (LADDER_BASE_RUNG_RAND + 1));
     let placed = 0, attempts = 0;
-    while (placed < target && attempts < target * 50) {
+    while (placed < target && attempts < target * 80) {
         attempts++;
-        const r = Math.floor(Math.random() * rows);
         const c = Math.floor(Math.random() * (N - 1));
-        if (rungConflicts(rungGrid, N, r, c)) continue;
-        rungGrid[r][c] = true;
-        const slant = (Math.random() * 2 - 1) * LADDER_SLANT_MAX;   // -1~1 (시각 효과, 결과 무관)
-        baseRungs.push({ r, c, slant });
-        rungs.push({ r, c, slant });
+        const y = LADDER_Y_MIN + Math.random() * (LADDER_Y_MAX - LADDER_Y_MIN);
+        if (rungTooClose(rungs, c, y)) continue;
+        const rg = { c, y, slant: (Math.random() * 2 - 1) * LADDER_SLANT_MAX };
+        rungs.push(rg);
+        baseRungs.push(rg);
         placed++;
     }
 
-    // 3) 각 상단 레인 → 바닥 열 추적 (클라 buildPath와 동일 알고리즘이어야 함)
-    const laneToBottom = new Array(N);
-    for (let start = 0; start < N; start++) {
-        let col = start;
-        for (let r = 0; r < rows; r++) {
-            if (col < N - 1 && rungGrid[r][col]) {
-                col++;
-            } else if (col > 0 && rungGrid[r][col - 1]) {
-                col--;
-            }
-        }
-        laneToBottom[start] = col;
-    }
+    // 3) y 오름차순 정렬 (위→아래) — 매핑·연출 공통 순서
+    rungs.sort((a, b) => a.y - b.y);
 
-    // 4) 꽝 바닥칸 random → 해당 바닥칸에 도착하는 상단 레인 = 패배 레인 (bijection이라 유일)
+    // 4) 각 상단 레인 → 바닥 열 추적 (클라 buildPath와 동일 알고리즘. 곡선 points는 매핑에서 제외 → 결과 불변)
+    const laneToBottom = computeLaneToBottom(N, rungs);
+
+    // 5) 꽝 바닥칸 random → 도착 레인 = 패배 레인 (bijection이라 유일)
     const kkwangBottom = Math.floor(Math.random() * N);
     const losingLane = laneToBottom.indexOf(kkwangBottom);
 
-    return { rows, rungs, baseRungs, kkwangBottom, laneToBottom, losingLane };
+    return { rungs, baseRungs, kkwangBottom, laneToBottom, losingLane };
 }
 
 /**
@@ -120,18 +182,35 @@ module.exports = (socket, io, ctx) => {
             gameState.users.some(u => u.name === name)).length;
     }
 
+    // 빌드(idle) 막대기/레인을 현재 레인 수 N 범위로 트림 — 인원 감소 시 범위 밖(c>N-2·lane≥N) 잔존 제거.
+    // shared.js(준비 변동)·rooms.js(입장/이탈)·emitRungsUpdated 가 공통으로 호출하는 단일 정합성 규칙.
+    function trimLadderBuildToN(ld, N) {
+        if (!ld) return;
+        Object.keys(ld.userRungs || {}).forEach(name => {
+            const rg = ld.userRungs[name];
+            if (!rg || typeof rg.c !== 'number' || rg.c < 0 || rg.c > N - 2) delete ld.userRungs[name];
+        });
+        Object.keys(ld.userLanes || {}).forEach(name => {
+            const lane = ld.userLanes[name];
+            if (typeof lane !== 'number' || lane < 0 || lane >= N) delete ld.userLanes[name];
+        });
+    }
+
     // 유저 막대기 + 유저 레인선택 + 현재 레인 수를 전체 클라에 브로드캐스트 (server-only 정보 미포함)
+    // 브로드캐스트 전 항상 현재 N으로 트림 → 어떤 경로로 N이 바뀌어도 범위 밖 막대기 미전파.
     function emitRungsUpdated(room, gameState) {
         const ld = gameState.ladder;
+        const N = buildLaneCount(gameState);
+        trimLadderBuildToN(ld, N);
         io.to(room.roomId).emit('ladder:rungsUpdated', {
             userRungs: { ...ld.userRungs },
             userLanes: { ...ld.userLanes },
-            numLanes: buildLaneCount(gameState),
-            rows: ld.rows || LADDER_ROWS
+            numLanes: N
         });
     }
     ctx.emitLadderRungsUpdated = emitRungsUpdated;
     ctx.ladderBuildLaneCount = buildLaneCount;
+    ctx.trimLadderBuild = trimLadderBuildToN;
 
     // 전원 선택 완료 또는 호스트 강제 → reveal
     function doReveal(room, gameState) {
@@ -170,7 +249,6 @@ module.exports = (socket, io, ctx) => {
 
         io.to(room.roomId).emit('ladder:reveal', {
             numLanes: ld.numLanes,
-            rows: ld.rows,
             rungs: ld.rungs,
             kkwangBottom: ld.kkwangBottom,
             laneToBottom: ld.laneToBottom,
@@ -261,6 +339,10 @@ module.exports = (socket, io, ctx) => {
 
         console.log(`[사다리타기] 방 ${room.roomName} 종료 - 패자=${loser}`);
 
+        // 게임 종료 → 바로 주문받기 자동 시작 (경마 단일 당첨자 패턴과 동일).
+        // 사다리는 꽝이 항상 정확히 1명(losingLane bijection)이라 동점 분기가 없어 항상 여기로 온다.
+        if (ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
+
         // 다음 판 리셋 (결과 표시 시간 확보 후)
         ld.resetTimeout = setTimeout(() => {
             const currentRoom = ctx.rooms[room.roomId];
@@ -282,7 +364,6 @@ module.exports = (socket, io, ctx) => {
         clearLadderTimers(ld);
         ld.phase = 'idle';
         ld.numLanes = 0;
-        ld.rows = LADDER_ROWS;       // 다음 판 빌드용 격자 행 수 유지
         ld.userRungs = {};           // 유저 막대기 초기화 (매 판 새 기본 틀)
         ld.baseRungs = [];           // 숨은 기본 막대기 초기화
         ld.rungs = [];
@@ -298,10 +379,10 @@ module.exports = (socket, io, ctx) => {
 
     // ========== 소켓 이벤트 핸들러 ==========
 
-    // 막대기 배치 (준비자, 빌드 단계) — 1인 1개, 재배치는 이동. 범위/인접/중복 서버 검증
+    // 막대기 배치 (준비자, 빌드 단계) — 1인 1개, 재배치는 이동. 연속 좌표(c, y, slant) 서버 검증
     socket.on('ladder:addRung', (data) => {
         if (!checkRateLimit()) return;
-        if (!data || typeof data.r !== 'number' || typeof data.c !== 'number') return;
+        if (!data || typeof data.c !== 'number' || typeof data.y !== 'number') return;
 
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
@@ -328,24 +409,24 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        const r = data.r, c = data.c;
-        if (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || r >= ld.rows || c < 0 || c > N - 2) {
+        const c = data.c;
+        const y = clampY(data.y);
+        if (!Number.isInteger(c) || c < 0 || c > N - 2 || y === null) {
             socket.emit('ladder:error', '막대기를 놓을 수 없는 위치입니다.');
             return;
         }
 
-        // 다른 사람 막대기 기준 같은 행 인접/중복 금지 (본인 기존 막대기는 이동이므로 제외)
-        const conflict = Object.keys(ld.userRungs).some(other => {
-            if (other === name) return false;
-            const ru = ld.userRungs[other];
-            return ru && ru.r === r && Math.abs(ru.c - c) <= 1;
-        });
-        if (conflict) {
-            socket.emit('ladder:error', '다른 막대기와 같은 줄에서 붙거나 겹칠 수 없습니다.');
+        // 다른 사람 막대기와 같은 기둥 공유 + 너무 가까우면 금지 (본인 기존 막대기는 이동이므로 제외)
+        const others = Object.keys(ld.userRungs)
+            .filter(n => n !== name)
+            .map(n => ld.userRungs[n]);
+        if (rungTooClose(others, c, y)) {
+            socket.emit('ladder:error', '다른 막대기와 너무 가까워요. 조금 떨어뜨려 놓아주세요.');
             return;
         }
 
-        ld.userRungs[name] = { r, c, slant: clampSlant(data.slant) };   // 1인 1개 — 위치 덮어써 이동. slant=기울기(시각)
+        // 1인 1개 — 덮어써 이동. slant=기울기(시각), points=자유 곡선 궤적(시각). 둘 다 결과 무관.
+        ld.userRungs[name] = { c, y, slant: clampSlant(data.slant), points: sanitizeCurvePoints(data.points) };
         emitRungsUpdated(room, gameState);
     });
 
@@ -402,13 +483,19 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
+        // 게임 시작 시 이전 주문 cycle 가드 해제 — 다음 종료에서도 자동 주문이 다시 발동하도록 (경마 패턴)
+        const wasOrderActive = gameState.isOrderActive;
+        gameState.orderAutoTriggered = false;
+        gameState.isOrderActive = false;
+        if (wasOrderActive) io.to(room.roomId).emit('orderEnded');
+
         const participants = ready.slice(0, LADDER_MAX_PLAYERS);
         const N = participants.length;
 
-        // 시작 시점 유저 막대기 확정: 참가자 소유 + 범위(c ≤ N-2) 내인 것만 유지
+        // 시작 시점 유저 막대기 확정: 참가자 소유 + 기둥 범위(0 ≤ c ≤ N-2) 내인 것만 유지
         Object.keys(ld.userRungs).forEach(name => {
             const rg = ld.userRungs[name];
-            if (!participants.includes(name) || !rg || rg.c > N - 2 || rg.r >= LADDER_ROWS) {
+            if (!participants.includes(name) || !rg || rg.c < 0 || rg.c > N - 2) {
                 delete ld.userRungs[name];
             }
         });
@@ -422,11 +509,10 @@ module.exports = (socket, io, ctx) => {
         const userRungArr = Object.values(ld.userRungs);
 
         clearLadderTimers(ld);
-        const built = buildLadder(N, userRungArr, LADDER_ROWS);
+        const built = buildLadder(N, userRungArr);
         ld.phase = 'selecting';            // 전이용(클라 선택 UI 없음) — 곧바로 doReveal
         ld.numLanes = N;
-        ld.rows = built.rows;
-        ld.rungs = built.rungs;            // server-only: 유저+기본 결합, reveal에서만 전송
+        ld.rungs = built.rungs;            // server-only: 유저+기본 결합(y정렬), reveal에서만 전송
         ld.baseRungs = built.baseRungs;    // server-only: 숨은 기본 막대기
         ld.kkwangBottom = built.kkwangBottom;
         ld.laneToBottom = built.laneToBottom;
@@ -516,8 +602,13 @@ module.exports = (socket, io, ctx) => {
                 updateRoomsList();
                 return;
             }
-            // idle / finished: 타이머만 정리
-            clearLadderTimers(ld);
+            // idle: 진행 타이머 없음. finished: 다음 판 자동 리셋(resetTimeout)이 남은 참가자를 idle로
+            // 되돌리도록 그대로 둔다(호스트는 이미 위임됨). 여기서 타이머를 지우면 결과 화면에서 고착하므로 개입 안 함.
         }, waitTime);
     });
 };
+
+// 테스트용 export (공정성 회귀 — 곡선이 매핑을 바꾸지 않는지 검증). 핸들러 호출에는 영향 없음.
+module.exports.buildLadder = buildLadder;
+module.exports.computeLaneToBottom = computeLaneToBottom;
+module.exports.sanitizeCurvePoints = sanitizeCurvePoints;

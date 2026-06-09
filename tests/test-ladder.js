@@ -60,6 +60,29 @@ async function run() {
     console.log(colors.bold('  사다리타기 스모크 테스트 (Playwright)'));
     console.log(colors.bold('═'.repeat(52)) + '\n');
 
+    // ── Phase 0: 공정성(곡선 무관성) 단위 검증 — 브라우저 없이 서버 매핑 로직 직접 호출 ──
+    console.log(colors.cyan('Phase 0: 공정성 — 곡선이 매핑/결과를 바꾸지 않음'));
+    const ladderMod = require('../socket/ladder');
+    await test('같은 (c,y)면 곡선 유무·모양과 무관하게 매핑 동일', () => {
+        const N = 4;
+        const base = [{ c: 0, y: 0.2, slant: 0 }, { c: 1, y: 0.5, slant: 0.6 },
+                      { c: 2, y: 0.8, slant: -0.4 }, { c: 0, y: 0.66, slant: 0 }];
+        const curvedA = base.map(r => ({ ...r, points: [{ x: 0, y: r.y }, { x: 0.4, y: 0.95 }, { x: 1, y: r.y }] }));
+        const curvedB = base.map(r => ({ ...r, points: [{ x: 0, y: r.y }, { x: 0.6, y: 0.05 }, { x: 1, y: r.y }] }));
+        const m0 = JSON.stringify(ladderMod.computeLaneToBottom(N, base));
+        const mA = JSON.stringify(ladderMod.computeLaneToBottom(N, curvedA));
+        const mB = JSON.stringify(ladderMod.computeLaneToBottom(N, curvedB));
+        assert(m0 === mA && m0 === mB, `곡선이 매핑을 바꿈: base=${m0} A=${mA} B=${mB}`);
+    });
+    await test('서버 곡선 검증: 양끝 스냅 + 좌표 clamp + 개수 상한', () => {
+        const sp = ladderMod.sanitizeCurvePoints([{ x: 0.3, y: 0.4 }, { x: 0.5, y: 1.9 }, { x: -3, y: 0.2 }, { x: 0.7, y: 0.9 }]);
+        assert(sp && sp[0].x === 0 && sp[sp.length - 1].x === 1, '양끝 기둥 스냅 실패');
+        assert(sp.every(p => p.y >= 0 && p.y <= 1 && p.x >= 0 && p.x <= 1), '좌표 clamp 실패');
+        assert(ladderMod.sanitizeCurvePoints([{ x: 0, y: 0 }]) === null, '점 1개는 거부해야 함');
+        const big = ladderMod.sanitizeCurvePoints(Array.from({ length: 200 }, (_, i) => ({ x: i / 199, y: 0.5 })));
+        assert(big && big.length <= 24, `개수 상한(24) 다운샘플 실패: ${big && big.length}`);
+    });
+
     const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
@@ -138,15 +161,14 @@ async function run() {
             await guest.waitForFunction(() => document.getElementById('readyCount').textContent === '2', { timeout: 10000 });
         });
 
-        // ── 빌드(출발 레인 선택 + 막대기 배치) 단계 ──
-        await test('준비 2명 → 빌드 그리드(레인+막대기) 노출(양쪽)', async () => {
+        // ── 빌드(출발 레인 선택 + 드래그 자유 배치) 단계 ──
+        await test('준비 2명 → 빌드 캔버스(레인+막대기) 노출(양쪽)', async () => {
             const gridReady = () => {
                 const s = document.getElementById('ladderBuildSection');
                 const lane = document.getElementById('ladderBuildLaneGrid');
-                const g = document.getElementById('ladderBuildGrid');
+                const cv = document.getElementById('ladderBuildCanvas');
                 return s && s.style.display === 'block' &&
-                    lane && lane.children.length >= 2 &&
-                    g && g.children.length > 0;
+                    lane && lane.children.length >= 2 && cv;
             };
             await host.waitForFunction(gridReady, { timeout: 10000 });
             await guest.waitForFunction(gridReady, { timeout: 10000 });
@@ -160,17 +182,40 @@ async function run() {
                 document.querySelector('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(1)').classList.contains('taken'), { timeout: 10000 });
         });
 
-        await test('호스트 막대기 배치 → 게스트에 브로드캐스트 동기화', async () => {
-            // 막대기 슬롯은 자동 회전(애니) 중이라 Playwright 실제 click의 안정성 체크에 걸린다 →
-            // 프로그램적 click(폴백: 현재 각도로 설치)로 배치한다.
-            await host.evaluate(() => {
-                const slot = document.querySelector('.ladder-build-slot.placeable');
-                if (slot) slot.click();
+        await test('호스트 막대기 배치(드래그=연속 좌표) → 양쪽 동기화', async () => {
+            // 드래그 제스처 대신 노출된 헬퍼로 동일한 addRung emit (c=0, y=0.4, slant=0.3)
+            await host.evaluate(() => window.__ladderAddRung(0, 0.4, 0.3));
+            await host.waitForFunction(() => window.__ladderRungCount() >= 1, { timeout: 10000 });
+            await guest.waitForFunction(() => window.__ladderRungCount() >= 1, { timeout: 10000 });
+        });
+
+        await test('호스트 곡선 막대기 배치(그림판) → points 양쪽 동기화', async () => {
+            // 같은 자리(c=0)에 자유 곡선으로 덮어쓰기(1인 1개). 구불구불한 궤적 → points 배열 동기화 확인.
+            await host.evaluate(() => window.__ladderAddCurvedRung(0, [
+                { x: 0, y: 0.40 }, { x: 0.25, y: 0.62 }, { x: 0.5, y: 0.30 },
+                { x: 0.75, y: 0.58 }, { x: 1, y: 0.42 }
+            ]));
+            // 호스트·게스트 양쪽에서 내(HostA) 막대기가 곡선(점 ≥ 3개)으로 보여야 함
+            await host.waitForFunction(() => window.__ladderRungPoints('HostA') >= 3, { timeout: 10000 });
+            await guest.waitForFunction(() => window.__ladderRungPoints('HostA') >= 3, { timeout: 10000 });
+        });
+
+        await test('드래그 판정: 도착 기둥에 닿으면 설치, 안 닿으면 폐기', async () => {
+            // 시작 기둥(0)에서 옆 기둥(1)까지 그으면 설치(연결). 가운데서 멈추면 폐기(미연결).
+            const r = await host.evaluate(() => {
+                const x0 = window.__ladderPostX(0), x1 = window.__ladderPostX(1);
+                // 연결: 기둥0 → 기둥1 (가운데 위아래로 출렁)
+                const connected = window.__ladderTryDrag([
+                    { x: x0, y: 150 }, { x: (x0 + x1) / 2, y: 110 }, { x: (x0 + x1) / 2, y: 190 }, { x: x1, y: 150 }
+                ]);
+                // 미연결: 기둥0 → 가운데서 멈춤(옆 기둥에 안 닿음)
+                const dropped = window.__ladderTryDrag([
+                    { x: x0, y: 150 }, { x: (x0 + x1) / 2, y: 150 }
+                ]);
+                return { connectedC: connected ? connected.c : null, droppedNull: dropped === null };
             });
-            await host.waitForFunction(() =>
-                document.querySelectorAll('.ladder-build-slot.filled').length >= 1, { timeout: 10000 });
-            await guest.waitForFunction(() =>
-                document.querySelectorAll('.ladder-build-slot.filled').length >= 1, { timeout: 10000 });
+            assert(r.connectedC === 0, `연결된 드래그가 설치 안 됨(c=${r.connectedC})`);
+            assert(r.droppedNull, '도착 기둥 미연결 드래그가 폐기되지 않음');
         });
 
         await test('게스트 출발 레인 선택(중복 회피) → 2번 레인 점유', async () => {
@@ -181,34 +226,25 @@ async function run() {
                 document.querySelector('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(2)').classList.contains('taken'), { timeout: 10000 });
         });
 
-        await test('게스트 막대기 배치 → 총 2개(인접 금지 회피)', async () => {
-            // 호스트 막대기(및 인접)와 겹치지 않는 마지막 placeable 슬롯 선택
-            await guest.evaluate(() => {
-                const slots = document.querySelectorAll('.ladder-build-slot.placeable');
-                if (slots.length) slots[slots.length - 1].click();
-            });
-            await host.waitForFunction(() =>
-                document.querySelectorAll('.ladder-build-slot.filled').length === 2, { timeout: 10000 });
+        await test('게스트 막대기 배치(다른 높이) → 총 2개', async () => {
+            // 호스트(y=0.4)와 같은 기둥이지만 충분히 떨어진 y=0.75
+            await guest.evaluate(() => window.__ladderAddRung(0, 0.75, -0.3));
+            await host.waitForFunction(() => window.__ladderRungCount() === 2, { timeout: 10000 });
         });
 
         await test('게스트 본인 막대기 제거(소유권) → 호스트 화면 1개', async () => {
-            await guest.evaluate(() => {
-                const mine = document.querySelector('.ladder-build-slot.mine.removable');
-                if (mine) mine.click();
-            });
-            await host.waitForFunction(() =>
-                document.querySelectorAll('.ladder-build-slot.filled').length === 1, { timeout: 10000 });
+            await guest.evaluate(() => window.socket.emit('ladder:removeRung'));
+            await host.waitForFunction(() => window.__ladderRungCount() === 1, { timeout: 10000 });
         });
 
-        await test('게스트 준비 취소 → 본인 막대기·레인 정리(레인 1로 축소)', async () => {
+        await test('게스트 준비 취소 → 본인 막대기·레인 정리', async () => {
             await guest.click('#readyButton');               // 준비 취소
             await host.waitForFunction(() => document.getElementById('readyCount').textContent === '1', { timeout: 10000 });
-            // 레인 1로 줄며 막대기/레인 트림 → 호스트 화면 막대기 0개
-            await host.waitForFunction(() =>
-                document.querySelectorAll('.ladder-build-slot.filled').length === 0, { timeout: 10000 });
+            // 레인 1로 줄며 막대기 트림 → 호스트 화면 막대기 0개
+            await host.waitForFunction(() => window.__ladderRungCount() === 0, { timeout: 10000 });
         });
 
-        await test('게스트 재준비 → 빌드 그리드 복귀(레인 미선택 허용)', async () => {
+        await test('게스트 재준비 → 빌드 복귀(레인 미선택 허용)', async () => {
             await guest.click('#readyButton');               // 다시 준비
             await host.waitForFunction(() => document.getElementById('readyCount').textContent === '2', { timeout: 10000 });
             await host.waitForFunction(() => {
@@ -217,8 +253,7 @@ async function run() {
             }, { timeout: 10000 });
         });
 
-        await test('호스트만 레인+막대기 선택(게스트 미선택 → 시작 시 자동배정)', async () => {
-            // 호스트가 레인을 안 갖고 있으면 1번 레인 점유
+        await test('호스트만 레인+막대기 (게스트 미선택 → 시작 시 자동배정)', async () => {
             await host.evaluate(() => {
                 const grid = document.getElementById('ladderBuildLaneGrid');
                 if (grid && !grid.querySelector('.ladder-lane-btn.mine')) {
@@ -230,12 +265,8 @@ async function run() {
                 const grid = document.getElementById('ladderBuildLaneGrid');
                 return grid && grid.querySelector('.ladder-lane-btn.mine');
             }, { timeout: 10000 });
-            await host.evaluate(() => {
-                const slot = document.querySelector('.ladder-build-slot.placeable');
-                if (slot) slot.click();
-            });
-            await host.waitForFunction(() =>
-                document.querySelectorAll('.ladder-build-slot.filled').length >= 1, { timeout: 10000 });
+            await host.evaluate(() => window.__ladderAddRung(0, 0.5, 0.2));
+            await host.waitForFunction(() => window.__ladderRungCount() >= 1, { timeout: 10000 });
         });
 
         let ladderScrollBefore = 0, ladderScrollAfter = 0;
@@ -284,18 +315,20 @@ async function run() {
         });
 
         await test('추적 애니메이션 결과 캡션 표시', async () => {
+            // 하강이 느려져(2명 기준 캡션 ~12s) 타임아웃 상향
             await host.waitForFunction(() => {
                 const c = document.getElementById('ladderResultCaption');
                 return c && c.textContent.trim().length > 0;
-            }, { timeout: 10000 });
+            }, { timeout: 16000 });
         });
 
         await test('게임 종료 → 결과 오버레이 + 순위 표시', async () => {
+            // 서버 종료 타이머 = 연출 길이 + 결과 유지 (2명 기준 ~13.2s)
             await host.waitForFunction(() => {
                 const o = document.getElementById('resultOverlay');
                 const r = document.getElementById('resultRankings');
                 return o && o.classList.contains('visible') && r && r.children.length >= 2;
-            }, { timeout: 12000 });
+            }, { timeout: 18000 });
         });
 
         await test('게임 기록(history) 누적', async () => {

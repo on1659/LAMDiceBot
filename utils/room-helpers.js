@@ -85,10 +85,9 @@ function createRoomGameState() {
         ladder: {
             phase: 'idle',          // idle(로비/빌드) | selecting | revealing | finished
             numLanes: 0,
-            rows: 12,               // 빌드 격자 고정 행 수 (컬럼 변동에도 막대기 행 유지)
-            userRungs: {},          // { [userName]: { r, c } } — 유저가 직접 놓은 막대기 (가시)
-            baseRungs: [],          // server-only [{r,c}] — 숨은 기본 막대기 (reveal까지 비공개)
-            rungs: [],              // server-only [{r,c}] — 최종 결합 막대기 (reveal 시 전송)
+            userRungs: {},          // { [userName]: { c, y, slant } } — 유저가 직접 놓은 막대기(연속 좌표, 가시)
+            baseRungs: [],          // server-only [{c,y,slant}] — 숨은 기본 막대기 (reveal까지 비공개)
+            rungs: [],              // server-only [{c,y,slant}] — 최종 결합 막대기(y정렬, reveal 시 전송)
             kkwangBottom: -1,
             laneToBottom: [],       // server-only
             losingLane: -1,         // server-only

@@ -362,7 +362,8 @@ module.exports = (socket, io, ctx) => {
             id: socket.id,
             name: userName.trim(),
             isHost: true,
-            joinTime: new Date()
+            joinTime: new Date(),
+            authedUserId: socket.authedUserId || null // 코인 적립 매핑용 (인증 계정만)
         };
 
         gameState.users.push(user);
@@ -709,6 +710,7 @@ module.exports = (socket, io, ctx) => {
             } else {
                 // 기존 사용자의 소켓이 연결되지 않았거나 같은 탭이면 재연결로 간주
                 existingUser.id = socket.id;
+                if (socket.authedUserId) existingUser.authedUserId = socket.authedUserId; // 재연결 시 적립 매핑 갱신
                 const user = existingUser;
                 console.log(`사용자 ${userName.trim()}이(가) 방 ${roomId}에 재연결했습니다.`);
 
@@ -930,7 +932,8 @@ module.exports = (socket, io, ctx) => {
             id: socket.id,
             name: finalUserName,
             isHost: finalIsHost,
-            joinTime: new Date()
+            joinTime: new Date(),
+            authedUserId: socket.authedUserId || null // 코인 적립 매핑용 (인증 계정만)
         };
         gameState.users.push(user);
 
@@ -1121,11 +1124,12 @@ module.exports = (socket, io, ctx) => {
             const ld = gameState.ladder;
             const n = (gameState.readyUsers || []).filter(name =>
                 gameState.users.some(u => u.name === name)).length;
+            // 입장은 N 증가-only라 현재는 무해하나, 방어적 일관성으로 항상 N 범위 트림 (공통 헬퍼 — ladder.js)
+            if (ctx.trimLadderBuild) ctx.trimLadderBuild(ld, n);
             io.to(roomId).emit('ladder:rungsUpdated', {
                 userRungs: { ...ld.userRungs },
                 userLanes: { ...ld.userLanes },
-                numLanes: n,
-                rows: ld.rows || 12
+                numLanes: n
             });
         }
 
@@ -1185,22 +1189,14 @@ module.exports = (socket, io, ctx) => {
             if (gameState.ladder && gameState.ladder.phase === 'idle' && gameState.ladder.userRungs) {
                 const ld = gameState.ladder;
                 if (ld.userRungs[socket.userName]) delete ld.userRungs[socket.userName];
-                // 퇴장 후 준비 인원(=레인 수) 기준 범위 초과 막대기/레인 트림 (readyUsers는 위에서 이미 정리됨)
+                // 퇴장 후 준비 인원(=레인 수) 기준 범위 초과 막대기/레인 트림 (공통 헬퍼 — ladder.js)
                 const n = (gameState.readyUsers || []).filter(name =>
                     gameState.users.some(u => u.name === name)).length;
-                Object.keys(ld.userRungs).forEach(name => {
-                    const rg = ld.userRungs[name];
-                    if (!rg || rg.c > n - 2) delete ld.userRungs[name];
-                });
-                Object.keys(ld.userLanes || {}).forEach(name => {
-                    const lane = ld.userLanes[name];
-                    if (typeof lane !== 'number' || lane < 0 || lane >= n) delete ld.userLanes[name];
-                });
+                if (ctx.trimLadderBuild) ctx.trimLadderBuild(ld, n);
                 io.to(roomId).emit('ladder:rungsUpdated', {
                     userRungs: { ...ld.userRungs },
                     userLanes: { ...ld.userLanes },
-                    numLanes: n,
-                    rows: ld.rows || 12
+                    numLanes: n
                 });
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.

@@ -82,6 +82,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/goal-archive.sh\""
+          }
+        ]
+      }
     ]
   }
 }

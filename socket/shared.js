@@ -58,22 +58,14 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             if (ld.userRungs[removedUserName]) delete ld.userRungs[removedUserName];
             if (ld.userLanes[removedUserName] !== undefined) delete ld.userLanes[removedUserName];
         }
-        // 레인 수 = 방에 있고 준비한 사람 수. 범위 초과 막대기(c > N-2)·레인(lane ≥ N) 트림.
+        // 레인 수 = 방에 있고 준비한 사람 수. 범위 초과 막대기·레인 트림(공통 헬퍼 — ladder.js).
         const N = (gameState.readyUsers || []).filter(name =>
             gameState.users.some(u => u.name === name)).length;
-        Object.keys(ld.userRungs).forEach(name => {
-            const rg = ld.userRungs[name];
-            if (!rg || rg.c > N - 2) delete ld.userRungs[name];
-        });
-        Object.keys(ld.userLanes).forEach(name => {
-            const lane = ld.userLanes[name];
-            if (typeof lane !== 'number' || lane < 0 || lane >= N) delete ld.userLanes[name];
-        });
+        if (ctx.trimLadderBuild) ctx.trimLadderBuild(ld, N);
         io.to(room.roomId).emit('ladder:rungsUpdated', {
             userRungs: { ...ld.userRungs },
             userLanes: { ...ld.userLanes },
-            numLanes: N,
-            rows: ld.rows || 12
+            numLanes: N
         });
     }
 

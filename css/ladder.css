@@ -96,6 +96,12 @@
     background: rgba(var(--ladder-500-rgb), 0.12);
 }
 
+/* 키보드 포커스 가시 — 레인 선택을 키보드로도 할 수 있게(P3-2) */
+.ladder-lane-btn:focus-visible {
+    outline: 3px solid var(--ladder-600);
+    outline-offset: 2px;
+}
+
 .ladder-lane-btn.mine {
     background: var(--ladder-gradient);
     color: #fff;
@@ -130,7 +136,9 @@
     width: 100%;
     max-width: 720px;
     height: auto;
-    background: rgba(var(--ladder-500-rgb), 0.06);
+    /* 캔버스 내부 텍스트·막대기 색이 하드코딩(어두운 갈색/회색)이라, 다크모드에서 페이지 그라데이션이
+       비치면 대비가 나빠진다. 불투명 웜화이트 "보드"로 고정해 라이트·다크 모두 가독 확보(꽝/통과는 색+이모지). */
+    background: #fbf6ec;
     border: 2px solid var(--ladder-500);
     border-radius: 12px;
     display: block;
@@ -194,6 +202,11 @@
         font-size: 10px;
         max-width: 12%;
     }
+    /* 좁은 화면에선 height:auto(2:1)로 캔버스가 너무 낮아짐(8인 곡선 그리기 답답) → 최소 높이 확보.
+       toCanvas가 rect.height로 매핑하므로 종횡비가 늘어도 좌표는 정확. */
+    .ladder-build-canvas {
+        min-height: 220px;
+    }
 }
 
 /* ── 빌드(막대기 배치) 단계 ── */
@@ -219,6 +232,28 @@
     line-height: 1.5;
 }
 
+/* 미연결 드래그 폐기 시 일시 강조 — 안내가 눈에 들어오게 (1.8s 후 평상 힌트로 복원) */
+.ladder-build-hint.ladder-build-hint-flash {
+    color: var(--ladder-accent);
+    font-weight: 600;
+}
+
+/* 빌드 진행 표시 — 레인/막대기 고른 인원 카운트 (호스트 시작 타이밍 판단용) */
+.ladder-build-progress {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ladder-accent);
+    background: rgba(var(--ladder-500-rgb), 0.10);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+.ladder-build-progress .muted {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
 /* 빌드 단계 출발 레인 선택 */
 .ladder-build-lane-label {
     font-size: 12px;
@@ -239,76 +274,37 @@
     overflow: hidden;
 }
 
-/* 세로줄 (레인) */
-.ladder-build-col {
-    position: absolute;
-    width: 4px;
-    transform: translateX(-2px);
-    background: #d1a06a;
-    border-radius: 2px;
+/* 빌드 캔버스 — 두 기둥 사이를 드래그해 막대기를 자유롭게 긋는다.
+   touch-action:none → 터치 드래그가 페이지 스크롤로 새지 않게 한다. */
+.ladder-build-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    cursor: crosshair;
+    touch-action: none;
 }
 
-.ladder-build-col-label {
-    position: absolute;
-    top: 0;
-    transform: translateX(-50%);
+/* ── 결과 오버레이 순위 행 (공통 .result-overlay 안에서 사용) ── */
+.ladder-result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-bottom: 1px solid var(--gray-200, #e5e7eb);
+}
+/* 꽝(패자) 행 — 텍스트 색만이 아니라 배경 틴트로 또렷이 강조 */
+.ladder-result-row.loser {
+    background: rgba(239, 68, 68, 0.10);
+    border-bottom-color: rgba(239, 68, 68, 0.25);
+}
+.ladder-result-name { font-weight: 600; }
+.ladder-result-lane {
+    color: var(--text-muted, #9ca3af);
     font-size: 12px;
-    font-weight: 700;
-    color: var(--ladder-accent);
+    font-weight: 400;
 }
-
-/* 막대기 슬롯 (행 r, 열 c~c+1 사이) — 좌우 폭은 JS가 % 로 지정, 세로 중앙 정렬 */
-.ladder-build-slot {
-    position: absolute;
-    height: 16px;
-    transform: translateY(-50%);
-    border-radius: 6px;
-    box-sizing: border-box;
-}
-
-/* 배치된 막대기 (모두에게 가시) */
-.ladder-build-slot.filled {
-    background: #b8763a;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-}
-
-.ladder-build-slot.filled.mine {
-    background: var(--ladder-gradient);
-    box-shadow: 0 1px 6px rgba(var(--ladder-500-rgb), 0.6);
-}
-
-.ladder-build-slot.removable {
-    cursor: pointer;
-}
-.ladder-build-slot.removable:hover {
-    filter: brightness(1.15);
-    outline: 2px solid var(--red-400, #f87171);
-}
-
-/* 놓을 수 있는 빈 슬롯 — 자동 회전 중(JS가 rotate 인라인 적용). transform엔 transition 금지(프레임 지연 방지) */
-.ladder-build-slot.placeable {
-    height: 8px;
-    background: rgba(var(--ladder-500-rgb), 0.35);
-    border: 1px dashed rgba(var(--ladder-500-rgb), 0.6);
-    border-radius: 5px;
-    cursor: pointer;
-    opacity: 0.6;
-    touch-action: none;            /* 터치 시 스크롤 대신 막대기 조준 */
-    transition: opacity 0.12s, background 0.12s, box-shadow 0.12s;
-}
-.ladder-build-slot.placeable:hover {
-    opacity: 1;
-    background: rgba(var(--ladder-500-rgb), 0.5);
-}
-/* 누르고 있는(조준 중) 막대기 — 회전 멈춤 상태 강조 */
-.ladder-build-slot.placeable.aiming {
-    opacity: 1;
-    background: var(--ladder-gradient);
-    border-style: solid;
-    box-shadow: 0 0 10px rgba(var(--ladder-500-rgb), 0.8);
-}
-
-/* 인접 금지로 놓을 수 없는 빈 슬롯 — 비표시(공간만 차지) */
-.ladder-build-slot.blocked {
-    background: transparent;
-}
+.ladder-result-tag { font-weight: bold; white-space: nowrap; }
+.ladder-result-tag.loser { color: #ef4444; }
+.ladder-result-tag.pass { color: #10b981; }

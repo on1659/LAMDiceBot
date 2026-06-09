@@ -141,6 +141,7 @@
                 <div id="ladderBuildHint" class="ladder-build-hint">
                     준비한 사람이 2명 이상이면 출발 레인을 고르고 막대기를 놓을 수 있어요.
                 </div>
+                <div id="ladderBuildProgress" class="ladder-build-progress" style="display: none;"></div>
                 <div class="ladder-build-lane-label">출발 레인 선택 (위에서 내려갈 칸)</div>
                 <div id="ladderBuildLaneGrid" class="ladder-lane-grid"></div>
                 <div id="ladderBuildGrid" class="ladder-build-grid"></div>
@@ -421,8 +422,8 @@
         },
         {
             target: '#ladderBuildSection',
-            title: '3단계: 레인 고르고 막대기 놓기 (선택)',
-            content: '준비하면 ① 내 출발 레인을 고르고 ② 두 줄 사이를 클릭해 막대기를 1개 놓을 수 있어요. 둘 다 선택이라 안 골라도 됩니다(미선택 레인은 시작 시 자동 배정). 내 선택은 모두에게 보이고, 다시 클릭하면 취소됩니다. 서버가 숨겨둔 기본 막대기도 함께 사다리를 이룹니다.',
+            title: '3단계: 레인 고르고 막대기 그리기 (선택)',
+            content: '준비하면 ① 내 출발 레인을 고르고 ② 한 기둥에서 옆 기둥까지 마우스/손가락으로 그어 막대기를 만들어요. 그은 궤적 그대로 곡선이 되고, 옆 기둥에 닿으면 초록(연결됨)으로 바뀌어요. 닿지 않은 채 손을 떼면 그리던 막대기는 사라집니다. 둘 다 선택이라 안 골라도 됩니다(미선택 레인은 시작 시 자동 배정). 내 막대기는 모두에게 보이고, 톡 누르면 제거됩니다. 서버가 숨겨둔 기본 막대기도 함께 사다리를 이룹니다.',
             position: 'bottom',
             fallbackTarget: '#readySection'
         },
@@ -436,7 +437,7 @@
         {
             target: '#gameStatus',
             title: '5단계: 공개 & 결과',
-            content: '여러분이 고른 레인에서 토큰이 출발해, 놓은 막대기와 숨겨진 기본 막대기를 따라 내려갑니다. 꽝 바닥칸에 도착한 사람이 패자로 정해집니다!',
+            content: '여러분이 고른 레인에서 토큰이 출발해, 그려둔 곡선 막대기와 숨겨진 기본 막대기를 따라 구불구불 내려갑니다. 꽝 바닥칸에 도착한 사람이 패자로 정해집니다!',
             position: 'bottom',
             fallbackTarget: '#readySection'
         }

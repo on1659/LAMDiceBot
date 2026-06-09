@@ -116,12 +116,13 @@ async function run() {
         });
 
         console.log(c.cyan('\nPhase 2: 빌드 단계 자동 선택 (레인 + 막대기)'));
-        await test('빌드 그리드 노출(전원)', async () => {
+        await test('빌드 캔버스 노출(전원)', async () => {
             for (const p of players) {
                 await p.page.waitForFunction(() => {
                     const s = document.getElementById('ladderBuildSection');
                     const lane = document.getElementById('ladderBuildLaneGrid');
-                    return s && s.style.display === 'block' && lane && lane.children.length >= 2;
+                    const cv = document.getElementById('ladderBuildCanvas');
+                    return s && s.style.display === 'block' && lane && lane.children.length >= 2 && cv;
                 }, { timeout: 12000 });
             }
         });
@@ -145,17 +146,27 @@ async function run() {
             }, PLAYERS, { timeout: 12000 });
         });
 
-        await test('각 플레이어 막대기 자동 배치(best-effort)', async () => {
-            for (const p of players) {
-                await p.page.evaluate(() => {
-                    const slot = document.querySelector('.ladder-build-slot.placeable');
-                    if (slot) slot.click();
-                });
-                await p.page.waitForTimeout(200);
+        await test('각 플레이어 막대기 자동 배치(직선 + 그림판 곡선 혼합)', async () => {
+            // 플레이어마다 다른 높이로 자유 배치 (같은 기둥이어도 y가 충분히 떨어지게).
+            // 짝수 인덱스는 자유 곡선(그림판), 홀수는 직선 — 둘 다 한 판에서 동작하는지 검증.
+            for (let i = 0; i < PLAYERS; i++) {
+                const p = players[i];
+                const y = 0.2 + (0.6 * i) / Math.max(1, PLAYERS - 1);   // 0.2~0.8 분산
+                if (i % 2 === 0) {
+                    // 곡선: 양끝은 y, 가운데는 위아래로 출렁(±0.08) — center y는 그대로 유지(슬롯 충돌 회피)
+                    const w = Math.min(0.08, y, 1 - y);
+                    await p.page.evaluate(([yy, ww]) => window.__ladderAddCurvedRung(0, [
+                        { x: 0, y: yy }, { x: 0.33, y: yy + ww }, { x: 0.66, y: yy - ww }, { x: 1, y: yy }
+                    ]), [y, w]);
+                } else {
+                    await p.page.evaluate(([yy]) => window.__ladderAddRung(0, yy, -0.35), [y]);
+                }
+                await p.page.waitForTimeout(150);
             }
-            // 적어도 1개는 배치됨 (인접 충돌로 일부 거부될 수 있어 >=1)
-            await host.page.waitForFunction(() =>
-                document.querySelectorAll('.ladder-build-slot.filled').length >= 1, { timeout: 10000 });
+            // 적어도 1개는 배치됨 (근접 충돌로 일부 거부될 수 있어 >=1)
+            await host.page.waitForFunction(() => window.__ladderRungCount() >= 1, { timeout: 10000 });
+            // 곡선 막대기가 최소 1개는 동기화됐는지(첫 플레이어 = 곡선)
+            await host.page.waitForFunction(n => window.__ladderRungPoints(n) >= 3, host.name, { timeout: 10000 });
         });
 
         console.log(c.cyan('\nPhase 3: 시작 → 스크롤 유지 → 순차 하강 → 결과'));
@@ -204,18 +215,20 @@ async function run() {
         });
 
         await test('결과 캡션 표시', async () => {
+            // 하강이 느려져 인원 많을수록 캡션이 늦게 뜸(8명 기준 ~22s) — 타임아웃 상향
             await host.page.waitForFunction(() => {
                 const cap = document.getElementById('ladderResultCaption');
                 return cap && cap.textContent.trim().length > 0;
-            }, { timeout: 15000 });
+            }, { timeout: 26000 });
         });
 
         await test('결과 오버레이 + 순위 표시', async () => {
+            // 서버 종료 타이머 = 연출 길이 + 결과 유지 (8명 기준 ~24s)
             await host.page.waitForFunction(n => {
                 const o = document.getElementById('resultOverlay');
                 const r = document.getElementById('resultRankings');
                 return o && o.classList.contains('visible') && r && r.children.length >= n;
-            }, PLAYERS, { timeout: 16000 });
+            }, PLAYERS, { timeout: 28000 });
         });
 
         await test('히스토리 누적', async () => {

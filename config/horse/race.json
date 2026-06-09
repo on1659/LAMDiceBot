@@ -1,4 +1,5 @@
 {
+  "coinEconomy": { "raceJoin": 10, "raceWin": 30 },
   "pixelsPerMeter": 10,
   "trackPresets": {
     "short":  { "meters": 500, "speedRange": [85, 95] },
