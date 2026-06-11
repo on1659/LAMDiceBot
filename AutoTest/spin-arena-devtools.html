@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>회전 칼날 DevTools</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ===== 상단 바 ===== */
+.top-bar { display: flex; background: #0f1629; border-bottom: 1px solid #333; padding: 10px 16px; align-items: center; gap: 12px; }
+.top-bar .title { font-size: 14px; color: #ff7a7a; font-weight: bold; white-space: nowrap; }
+.top-bar .spacer { flex: 1; }
+.top-bar .status { font-size: 11px; color: #666; }
+.top-bar .status.ok { color: #4CAF50; }
+
+.wrap { flex: 1; padding: 16px; max-width: 720px; width: 100%; margin: 0 auto; }
+
+/* ===== 공통 섹션 ===== */
+.section { background: #16213e; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+.section h2 { font-size: 13px; color: #888; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.section h2 .count { font-size: 11px; background: #0f3460; padding: 1px 6px; border-radius: 8px; color: #aaa; }
+.hint { font-size: 11px; color: #666; margin-top: 6px; line-height: 1.5; }
+label { display: block; font-size: 12px; margin-bottom: 3px; color: #aaa; }
+input { padding: 7px 10px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 13px; }
+button { padding: 8px 14px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+button:hover { filter: brightness(1.15); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-green { background: #4CAF50; color: white; }
+.btn-blue { background: #2196F3; color: white; }
+.btn-orange { background: #FF9800; color: white; }
+.btn-red { background: #f44336; color: white; }
+.btn-ghost { background: rgba(255,255,255,0.06); color: #aaa; border: 1px solid #333; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.flex-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* ===== 방/봇 ===== */
+.room-chip { display: inline-block; padding: 5px 10px; background: #0f3460; border-radius: 4px; margin: 2px; cursor: pointer; font-size: 12px; transition: 0.15s; }
+.room-chip:hover { background: #1a4a8a; }
+.room-chip.selected { background: #2196F3; color: white; }
+.bot-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot.connecting { background: #666; }
+.dot.connected { background: #FF9800; }
+.dot.joined { background: #4CAF50; }
+.dot.disconnected { background: #f44336; }
+.dot.error { background: #f44336; }
+.dot.timeout { background: #666; }
+.skin-pip { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,0.4); }
+
+#debugLog { background: #0a0a1a; border-radius: 6px; padding: 10px; max-height: 280px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.5; }
+.log-info { color: #64b5f6; }
+.log-ok { color: #81c784; }
+.log-err { color: #e57373; }
+.log-event { color: #fff176; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="title">⚔️ 회전 칼날 DevTools</div>
+    <div class="spacer"></div>
+    <div class="status" id="connStatus">disconnected</div>
+</div>
+
+<div class="wrap">
+    <div class="section">
+        <h2>Room <span class="count" id="roomCount">0</span></h2>
+        <div id="roomList" style="margin-bottom:8px;min-height:24px"><span style="color:#555">로딩 중...</span></div>
+        <div class="flex-row" style="margin-bottom:6px">
+            <input id="linkInput" type="text" placeholder="초대 링크 또는 shortcode 붙여넣기" style="flex:1;min-width:240px;margin:0">
+            <button class="btn-blue btn-sm" onclick="pickRoomFromLink()">링크로 선택</button>
+        </div>
+        <div class="flex-row">
+            <label style="margin:0;font-size:11px">봇 수</label>
+            <input id="botCount" type="number" value="5" min="1" max="8" style="width:50px;margin:0">
+            <button class="btn-ghost btn-sm" onclick="refreshRooms()">새로고침</button>
+        </div>
+        <div class="hint">먼저 브라우저에서 회전 칼날 방을 직접 만들어 호스트가 되고(또는 초대 링크 입력), 여기서 봇을 채운 뒤 내 화면에서 "게임 시작"을 누르세요. 입장하면 서버가 자동으로 준비 상태로 잡습니다. 준비 선착 6명만 참가하고 그 이상은 관전이에요.</div>
+    </div>
+
+    <div class="section">
+        <h2>Bots <span class="count" id="botCountBadge">0</span></h2>
+        <div id="botList" style="min-height:20px"><span style="color:#555">봇 없음</span></div>
+        <div class="flex-row" style="margin-top:8px">
+            <button class="btn-green" onclick="joinBots()">입장</button>
+            <button class="btn-blue" onclick="ensureReadyAll()">전원 준비</button>
+            <button class="btn-orange" onclick="selectSkinsAll()">전원 스킨</button>
+            <button class="btn-ghost btn-sm" onclick="unreadyAll()">준비 해제</button>
+            <button class="btn-red btn-sm" onclick="disconnectAll()">전원 퇴장</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Quick Actions</h2>
+        <div class="flex-row">
+            <button class="btn-green btn-sm" onclick="quickFlow()">원클릭: 입장 + 스킨</button>
+            <button class="btn-ghost btn-sm" onclick="refreshRooms()">방 목록 새로고침</button>
+        </div>
+        <div class="hint">봇은 게임을 시작할 수 없습니다(호스트만 시작 가능). 봇 채운 뒤 내 브라우저 탭에서 시작하세요.</div>
+    </div>
+
+    <div class="section">
+        <h2>Log</h2>
+        <div id="debugLog"></div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ===================================================================
+//  회전 칼날(spin-arena) 봇 도구 — 경마 horse-devtools.html 패턴 차용.
+//  방을 채우는 게스트 봇만 스폰한다(게임 시작은 호스트=실제 브라우저 탭).
+//  스킨 프리셋은 socket/spin-arena.js SPIN_SKINS 와 동일(순수 외형).
+// ===================================================================
+const SPIN_SKINS = [
+    { id: 'crimson', name: '크림슨',   color: '#e23b3b' },
+    { id: 'azure',   name: '애저',     color: '#3b82e2' },
+    { id: 'emerald', name: '에메랄드', color: '#2bb673' },
+    { id: 'amber',   name: '앰버',     color: '#e2a23b' },
+    { id: 'violet',  name: '바이올렛', color: '#9b59e2' },
+    { id: 'rose',    name: '로즈',     color: '#e23b8f' },
+];
+const BOT_NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Fox', 'Golf', 'Hotel'];
+const MAX_BOTS = 8;
+
+const bots = [];
+let selectedRoomId = null;
+let selectedRoomName = null;
+
+const controlSocket = io({ forceNew: true });
+let roomsCache = [];
+
+controlSocket.on('connect', () => {
+    dlog('소켓 연결됨', 'ok');
+    document.getElementById('connStatus').textContent = 'connected';
+    document.getElementById('connStatus').className = 'status ok';
+    controlSocket.emit('getRooms');
+});
+controlSocket.on('disconnect', () => {
+    document.getElementById('connStatus').textContent = 'disconnected';
+    document.getElementById('connStatus').className = 'status';
+});
+controlSocket.on('roomsList', r => { roomsCache = r; renderRooms(); });
+controlSocket.on('roomsListUpdated', r => { roomsCache = r; renderRooms(); });
+
+function refreshRooms() { controlSocket.emit('getRooms'); }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const li = document.getElementById('linkInput');
+    if (li) li.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); pickRoomFromLink(); }
+    });
+});
+
+function renderRooms() {
+    const el = document.getElementById('roomList');
+    const rooms = roomsCache.filter(r => r.gameType === 'spin-arena');
+    document.getElementById('roomCount').textContent = rooms.length;
+    if (rooms.length === 0) {
+        el.innerHTML = '<span style="color:#555">회전 칼날 방 없음</span>';
+        return;
+    }
+    el.innerHTML = rooms.map(r => {
+        const sel = r.roomId === selectedRoomId ? ' selected' : '';
+        const n = r.playerCount || 0;
+        const st = r.isGameActive ? '진행' : '대기';
+        const nm = (r.roomName || ('방 #' + (r.roomId || '').slice(0, 6)));
+        const safeNm = nm.replace(/'/g, "\\'");
+        return `<span class="room-chip${sel}" onclick="pickRoom('${r.roomId}','${safeNm}')"><b>${escapeHtml(nm)}</b> ${n}명 ${st}</span>`;
+    }).join('');
+}
+
+function pickRoom(id, name) {
+    selectedRoomId = id;
+    selectedRoomName = name;
+    dlog(`방 선택: ${name}`, 'info');
+    renderRooms();
+}
+
+// 초대 링크 URL 또는 shortcode → roomId resolve → selectedRoomId 세팅
+async function pickRoomFromLink() {
+    const raw = (document.getElementById('linkInput').value || '').trim();
+    if (!raw) return dlog('링크를 입력하세요', 'err');
+    const m = raw.match(/([A-Z0-9]{4,6})\/?(?:\?|#|$)/);
+    if (!m) return dlog('링크에서 shortcode를 찾을 수 없습니다', 'err');
+    const shortcode = m[1];
+    try {
+        const r = await fetch('/api/free/resolve/' + encodeURIComponent(shortcode), {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!r.ok) {
+            const body = await r.json().catch(() => ({}));
+            return dlog(`방을 찾을 수 없습니다 (HTTP ${r.status} ${body.error || ''})`, 'err');
+        }
+        const info = await r.json();
+        if (!info.roomId) return dlog('잘못된 응답', 'err');
+        if (info.gameType !== 'spin-arena') {
+            return dlog(`회전 칼날 방이 아닙니다 (gameType: ${info.gameType})`, 'err');
+        }
+        selectedRoomId = info.roomId;
+        selectedRoomName = info.roomName || ('방 #' + shortcode);
+        const tag = info.serverId ? '[서버 방]' : '[자유 방]';
+        dlog(`링크 방 선택: ${selectedRoomName} ${tag} (${shortcode})`, 'info');
+        renderRooms();
+    } catch (e) {
+        dlog(`링크 조회 실패: ${e.message}`, 'err');
+    }
+}
+
+function dlog(msg, cls) {
+    const el = document.getElementById('debugLog');
+    const d = document.createElement('div');
+    d.className = 'log-' + (cls || 'info');
+    const t = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    d.textContent = `[${t}] ${msg}`;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function skinName(id) { const s = SPIN_SKINS.find(x => x.id === id); return s ? s.name : ''; }
+function skinColor(id) { const s = SPIN_SKINS.find(x => x.id === id); return s ? s.color : '#888'; }
+
+function updateBotList() {
+    const el = document.getElementById('botList');
+    document.getElementById('botCountBadge').textContent = bots.length;
+    if (bots.length === 0) { el.innerHTML = '<span style="color:#555">봇 없음</span>'; return; }
+    el.innerHTML = bots.map(b => {
+        const rdy = b.ready ? ' / <span style="color:#81c784">준비✓</span>' : ' / <span style="color:#666">대기</span>';
+        const sk = b.skin
+            ? ` / <span class="skin-pip" style="background:${skinColor(b.skin)}"></span> ${escapeHtml(skinName(b.skin))}`
+            : '';
+        return `<div class="bot-row"><div class="dot ${b.status}"></div><span>${escapeHtml(b.name)}</span>` +
+            `<span style="color:#888;font-size:11px">${b.status}${rdy}${sk}</span></div>`;
+    }).join('');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function joinBots() {
+    if (!selectedRoomId) { dlog('방을 먼저 선택하세요', 'err'); return; }
+    const n = parseInt(document.getElementById('botCount').value, 10) || 1;
+    dlog(`봇 ${n}명 → ${selectedRoomName || selectedRoomId}`, 'info');
+    for (let i = 0; i < n; i++) {
+        if (bots.length >= MAX_BOTS) { dlog(`봇 상한 ${MAX_BOTS}명 도달`, 'err'); break; }
+        try { await joinOneBot(BOT_NAMES[bots.length] || ('Bot' + bots.length)); }
+        catch (e) { dlog(`입장 실패: ${e}`, 'err'); }
+        if (i < n - 1) await sleep(400);
+    }
+}
+
+function joinOneBot(name) {
+    return new Promise((resolve, reject) => {
+        const s = io({ forceNew: true });
+        const bot = { socket: s, name, status: 'connecting', ready: false, skin: null };
+        bots.push(bot);
+        updateBotList();
+
+        const timeout = setTimeout(() => {
+            bot.status = 'timeout'; dlog(`${name} 타임아웃`, 'err'); updateBotList(); reject('timeout');
+        }, 10000);
+
+        s.on('connect', () => {
+            bot.status = 'connected'; updateBotList();
+            s.emit('joinRoom', {
+                roomId: selectedRoomId, userName: name, isHost: false, password: '',
+                deviceId: 'bot-' + Math.random().toString(36).slice(2),
+                tabId: 'bot-' + Math.random().toString(36).slice(2)
+            });
+        });
+        s.on('roomJoined', (data) => {
+            clearTimeout(timeout);
+            // 서버가 중복 이름을 변형했을 수 있으니 실제 배정 이름을 채택
+            if (data && data.userName) bot.name = data.userName;
+            bot.status = 'joined';
+            // 입장 시 서버 자동 준비 — readyUsers로 확정
+            if (data && Array.isArray(data.readyUsers)) bot.ready = data.readyUsers.includes(bot.name);
+            dlog(`${bot.name} 입장${bot.ready ? ' (자동 준비)' : ''}`, 'ok');
+            updateBotList();
+            resolve();
+        });
+        s.on('roomError', m => {
+            clearTimeout(timeout); bot.status = 'error';
+            dlog(`${name} 거부: ${typeof m === 'string' ? m : JSON.stringify(m)}`, 'err');
+            updateBotList(); reject(m);
+        });
+        // 준비 상태 동기화(멱등 토글의 권위)
+        s.on('readyUsersUpdated', (list) => {
+            if (Array.isArray(list)) { bot.ready = list.includes(bot.name); updateBotList(); }
+        });
+        // 스킨 동기화(내 스킨 반영)
+        s.on('spin-arena:skinsUpdated', (d) => {
+            const map = (d && d.skins) || {};
+            if (map[bot.name]) bot.skin = map[bot.name];
+            updateBotList();
+        });
+        s.on('spin-arena:reveal', (d) => {
+            if (bot === bots[0]) {
+                const sel = d && d.result ? d.result.selected : '?';
+                dlog(`공개됨 — 당첨(벌칙)=${sel}`, 'event');
+            }
+        });
+        s.on('spin-arena:gameEnd', (d) => {
+            if (bot === bots[0]) dlog(`게임 종료 — 당첨=${d && d.selected} (round ${d && d.round})`, 'event');
+        });
+        s.on('spin-arena:roundReset', () => { bot.skin = null; updateBotList(); });
+        s.on('spin-arena:error', m => dlog(`${bot.name} err: ${typeof m === 'string' ? m : JSON.stringify(m)}`, 'err'));
+        s.on('connect_error', e => {
+            clearTimeout(timeout); bot.status = 'error';
+            dlog(`${name} 연결실패`, 'err'); updateBotList(); reject(e.message);
+        });
+        s.on('disconnect', () => { bot.status = 'disconnected'; updateBotList(); });
+    });
+}
+
+// 멱등 — 준비 안 된 봇만 toggleReady (입장 자동준비라 보통 no-op)
+function ensureReadyAll() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    let n = 0;
+    joined.forEach(b => { if (!b.ready) { b.socket.emit('toggleReady'); n++; } });
+    dlog(n ? `${n}봇 준비 요청` : '모든 봇 이미 준비됨', 'ok');
+}
+
+function unreadyAll() {
+    const joined = bots.filter(b => b.status === 'joined');
+    if (!joined.length) { dlog('입장한 봇 없음', 'err'); return; }
+    let n = 0;
+    joined.forEach(b => { if (b.ready) { b.socket.emit('toggleReady'); n++; } });
+    dlog(n ? `${n}봇 준비 해제 요청` : '준비된 봇 없음', 'info');
+}
+
+// 준비된 봇에게 서로 다른 스킨을 라운드로빈 배정(idle 단계에서만 서버가 수락)
+function selectSkinsAll() {
+    const ready = bots.filter(b => b.status === 'joined' && b.ready);
+    if (!ready.length) { dlog('준비된 봇 없음 (먼저 입장/준비)', 'err'); return; }
+    ready.forEach((b, i) => {
+        const id = SPIN_SKINS[i % SPIN_SKINS.length].id;
+        b.socket.emit('spin-arena:selectSkin', { skinId: id });
+        b.skin = id;
+    });
+    dlog(`${ready.length}봇 스킨 선택`, 'ok');
+    updateBotList();
+}
+
+function disconnectAll() {
+    bots.forEach(b => b.socket.disconnect());
+    bots.length = 0;
+    dlog('전원 퇴장', 'info');
+    updateBotList();
+}
+
+async function quickFlow() {
+    await joinBots();
+    await sleep(400);
+    ensureReadyAll();
+    await sleep(400);
+    selectSkinsAll();
+}
+</script>
+</body>
+</html>
