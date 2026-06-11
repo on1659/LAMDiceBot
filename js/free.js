@@ -33,14 +33,18 @@
         dice:     '주사위',
         roulette: '룰렛',
         horse:    '경마',
-        bridge:   '다리건너기'
+        bridge:   '다리건너기',
+        ladder:   '사다리타기',
+        'spin-arena': '회전 칼날'
     };
 
     var GAME_EMOJI = {
         dice:     '🎲',
         roulette: '🎰',
         horse:    '🐎',
-        bridge:   '🌉'
+        bridge:   '🌉',
+        ladder:   '🪜',
+        'spin-arena': '⚔️'
     };
 
     // 게임별 로딩 화면 그라데이션 (theme.css 색상 기준)
@@ -48,7 +52,9 @@
         dice:     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',  // 보라
         roulette: 'linear-gradient(135deg, #7c4dff 0%, #536dfe 100%)',  // 보라/파랑
         horse:    'linear-gradient(135deg, #d2691e 0%, #8B4513 100%)',  // 주황/갈색
-        bridge:   'linear-gradient(135deg, #42edff 0%, #1ec8da 100%)'   // 시안
+        bridge:   'linear-gradient(135deg, #42edff 0%, #1ec8da 100%)',  // 시안
+        ladder:   'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',  // 호박/주황
+        'spin-arena': 'linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%)' // 보라/시안
     };
 
     // ─── gameType (서버 표기) → 게임 페이지 경로 / pendingJoin 키 ─────
@@ -56,19 +62,25 @@
         'dice':       '/game',
         'roulette':   '/roulette',
         'horse-race': '/horse-race',
-        'bridge':     '/bridge-cross'
+        'bridge':     '/bridge-cross',
+        'ladder':     '/ladder',
+        'spin-arena': '/spin-arena'
     };
     var PENDING_KEY_BY_TYPE = {
         'roulette':   'pendingRouletteJoin',
         'horse-race': 'pendingHorseRaceJoin',
-        'bridge':     'pendingBridgeJoin'
+        'bridge':     'pendingBridgeJoin',
+        'ladder':     'pendingLadderJoin',
+        'spin-arena': 'pendingSpinArenaJoin'
         // dice는 sessionStorage.diceActiveRoom을 사용 (게임 페이지 IIFE가 자동 joinRoom)
     };
     var USERNAME_KEY_BY_TYPE = {
         'dice':       'diceGameUserName',
         'roulette':   'rouletteUserName',
         'horse-race': 'horseRaceUserName',
-        'bridge':     'bridgeUserName'
+        'bridge':     'bridgeUserName',
+        'ladder':     'ladderUserName',
+        'spin-arena': 'spinArenaUserName'
     };
 
     // 각 게임 페이지의 sessionStorage 활성 방 키 (fast path rejoin용)
@@ -76,7 +88,9 @@
         'dice':       'diceActiveRoom',
         'roulette':   'rouletteActiveRoom',
         'horse-race': 'horseRaceActiveRoom',
-        'bridge':     'bridgeActiveRoom'
+        'bridge':     'bridgeActiveRoom',
+        'ladder':     'ladderActiveRoom',
+        'spin-arena': 'spinArenaActiveRoom'
     };
 
     // ─── DOM ──────────────────────────────────
@@ -146,7 +160,9 @@
         'game': 'dice',
         'roulette': 'roulette',
         'horse-race': 'horse',
-        'bridge-cross': 'bridge'
+        'bridge-cross': 'bridge',
+        'ladder': 'ladder',
+        'spin-arena': 'spin-arena'
     };
     var gameFromPath      = null;
     var shortcodeFromPath = null;

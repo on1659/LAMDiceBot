@@ -21,7 +21,9 @@
         '/free': 'dice',         // /free 자유 로비 = dice 자유 모드
         '/roulette': 'roulette',
         '/horse-race': 'horse',
-        '/bridge-cross': 'bridge'
+        '/bridge-cross': 'bridge',
+        '/ladder': 'ladder',
+        '/spin-arena': 'spin-arena'
     };
 
     // 슬러그 → 게임 페이지 경로 (서버 방 다이렉트 링크용)
@@ -29,7 +31,9 @@
         'dice': '/game',
         'roulette': '/roulette',
         'horse': '/horse-race',
-        'bridge': '/bridge-cross'
+        'bridge': '/bridge-cross',
+        'ladder': '/ladder',
+        'spin-arena': '/spin-arena'
     };
 
     let initialized = false;

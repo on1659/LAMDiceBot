@@ -1254,6 +1254,9 @@ socket.on('roomCreated', (data) => {
     if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
     updateStartButton();
     addDebugLog('방 생성: ' + data.roomId);
+    if (window.FreeInvite && data.shortcode) {
+        window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+    }
 });
 
 socket.on('roomJoined', (data) => {
@@ -1287,6 +1290,9 @@ socket.on('roomJoined', (data) => {
     if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
     updateStartButton();
     addDebugLog('방 입장: ' + data.roomId + ' (host=' + isHost + ')');
+    if (window.FreeInvite && data.shortcode) {
+        window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
+    }
 });
 
 function renderUsersList(userArray) {

@@ -1,4 +1,38 @@
 ========================================
+📋 Summit Log - 2026-06-11 2차 (spin-arena·ladder 다이렉트 링크 클라이언트 배선)
+========================================
+
+## 변경 파일
+- js/free.js: 맵 8종(GAME_LABELS/EMOJI/GRADIENT/GAME_PATH_BY_TYPE/PENDING_KEY/USERNAME_KEY/SESSION_KEY/GAME_PATH_TO_SLUG)에 ladder·spin-arena 키 추가
+- js/shared/free-invite.js: PATH_TO_SLUG / SLUG_TO_GAME_PATH 키 추가
+- spin-arena-multiplayer.html: free-invite.js 로드 + spin-arena.js ?v=3→?v=4
+- ladder-multiplayer.html: free-invite.js 로드 + ladder.js ?v=2 신규 부여
+- js/spin-arena.js / js/ladder.js: roomCreated/roomJoined 끝에 FreeInvite.init({shortcode, serverId}) — opts 방식(horse-race 패턴, IIFE 쿼리 스트립 때문에 URL 자동 추출 불가)
+- socket/free.js: GAME_TYPE_BY_SLUG에 ladder·spin-arena 추가 (만료 모달 "새 방 만들기" 막다른 길 해소 — 리뷰 후속)
+- AutoTest/spin-ladder-direct-link-test.js (신규 E2E), AutoTest/qa-expired-newroom-oneoff.js (QA 검증), docs/dev-cycle 지시서
+
+## 상세 변경 내역
+
+### [원인 — 4계층 클라 배선 누락]
+- 서버(routes/api.js FREE_GAME_SLUGS·SERVER_ROOM_DIRECT_PATHS, shortcode 발급·resolve·joinServer 우회)는 게임 무관으로 이미 동작
+- ladder는 출시 시점(f27adc6)부터 api.js만 등록되고 free.js/free-invite.js 미배선 → 다이렉트 링크가 한 번도 동작한 적 없음. spin-arena가 ladder 베이스 복제로 같은 구멍 상속
+- 수리: 맵 키 추가만(기존 게임 키/로직 무변경) + 스크립트 로드 + init 호출. 서버 게임 로직·시뮬·페이로드 무변경 (git diff 확인)
+
+### [검증]
+- 신규 E2E 16/16: 생성+URL 교체, 초대 바, /free/{slug}/CODE·/{game}/CODE 양형식 게스트 합류, 3자 동기화, 만료 모달 (spin-arena·ladder 각각)
+- 만료 모달 새 방 만들기 20/20 (socket/free.js 반영 후, dev 서버 재시작)
+- horse-race 회귀(생성→초대 바→게스트 합류) 통과, 전 게임 라우트 200, node -c 전부 OK
+- 모바일 390x844 초대 바 표시 확인. Math.random 실호출 2회·shortcode 정규식 4곳 불변
+- 파이프라인: Scout+ScoutCodex → Coder → Reviewer+ReviewerCodex approve → QA pass
+
+### [범위 밖 / 알려진 사항]
+- bridge-cross: 맵은 있으나 페이지가 free-invite.js 미로드(호스트 초대 바만 안 뜸) — 기존 결함, 미수정
+- 비공개 방 다이렉트 링크: 전 게임 공통 미지원(room password 우회 없음) — 기존 한계
+- AutoTest/free-multitab-test.js stale(/free/horse 404 + #freeInviteFab 구식 셀렉터) — 현행화 필요
+- AdSense TagError(enable_page_level_ads 중복)가 기존 페이지에도 발생 — 이번 변경 무관, 별도 확인 가치
+- 배포 시 free-invite.js는 무버전 로드라 구캐시 브라우저에서 초대 바만 잠시 안 뜰 수 있음(기능 오류 없음)
+
+========================================
 📋 Summit Log - 2026-06-11 (신규 게임 「회전 칼날」 spin-arena — 신규 추가 + 타격 연출 + 게임성 개편 + 중앙 군집/하드 월/선분 판정 번들)
 ========================================
 
