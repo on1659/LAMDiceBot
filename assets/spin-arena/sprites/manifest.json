@@ -1,0 +1,22 @@
+{
+  "image": "players-base.png",
+  "grid": {
+    "columns": 4,
+    "rows": 1
+  },
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 5,
+      "loop": true
+    }
+  },
+  "source": "codex-local-procedural",
+  "colorContract": "body=blue-dominant for runtime tint"
+}

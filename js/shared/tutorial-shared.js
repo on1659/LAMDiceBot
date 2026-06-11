@@ -14,7 +14,8 @@ var TutorialModule = (function() {
         horse: 8,
         crane: 16,
         bridge: 32,
-        ladder: 64
+        ladder: 64,
+        'spin-arena': 128
     };
 
     // Server flags cache (loaded once per session via socket)

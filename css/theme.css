@@ -149,6 +149,12 @@
   --ladder-600: #d97706;
   --ladder-accent: #b45309;
 
+  /* 회전 칼날 게임 - 보라+청록 (회전/날 느낌) */
+  --spin-arena-500: #7c5cff;
+  --spin-arena-500-rgb: 124, 92, 255;
+  --spin-arena-600: #6344e6;
+  --spin-arena-accent: #22d3ee;
+
   /* ============================================
      게임 타입 식별용 색상
      게임 선택 UI, 방 목록 등에서 사용
@@ -159,6 +165,7 @@
   --game-type-horse: var(--horse-accent);
   --game-type-bridge: var(--bridge-500);
   --game-type-ladder: var(--ladder-500);
+  --game-type-spin-arena: var(--spin-arena-500);
 
   /* ============================================
      게임별 파스텔 배경 토큰
@@ -348,6 +355,12 @@
   --ladder-500-rgb: 251, 191, 36;
   --ladder-600: #f59e0b;
   --ladder-accent: #fcd34d;
+
+  /* 회전 칼날: 다크 모드 명도 높임 */
+  --spin-arena-500: #9b7dff;
+  --spin-arena-500-rgb: 155, 125, 255;
+  --spin-arena-600: #7c5cff;
+  --spin-arena-accent: #67e8f9;
 
   /* RGB 채널 변수 (다크 모드) */
   --dice-500-rgb: 156, 127, 255;

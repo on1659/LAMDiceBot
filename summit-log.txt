@@ -1,4 +1,53 @@
 ========================================
+📋 Summit Log - 2026-06-11 (신규 게임 「회전 칼날」 spin-arena — 신규 추가 + 타격 연출 + 게임성 개편 + 중앙 군집/하드 월/선분 판정 번들)
+========================================
+
+## 변경 파일
+
+### 신규 게임 본체
+- socket/spin-arena.js: 서버 결정론 시뮬(시드 mulberry32, 30초 사전 계산) + 소켓 핸들러 9이벤트 + DB 기록 (신규)
+- js/spin-arena.js: 클라 리플레이 렌더러(키프레임 보간) + 타격/탈락 연출 + 검 그래픽 + 튜토리얼/BGM/다시보기 (신규)
+- spin-arena-multiplayer.html / css/spin-arena.css / assets/spin-arena/: 페이지 + 스타일 + 스프라이트 1장 (신규)
+
+### 등록 (new-game.md 14곳 패턴)
+- socket/index.js(register) / socket/rooms.js(allowlist+cleanup+재진입 마스킹) / utils/room-helpers.js(gameState) / routes/api.js(/spin-arena 라우트+301)
+- dice-game-multiplayer.html(로비 라디오/방카드/redirect) / css/theme.css(색 변수) / js/shared/tutorial-shared.js(FLAG_BITS 128) / js/shared/server-select-shared.js(닉네임 동기) / assets/sounds/sound-config.json(사운드 키, 기존 음원 재활용)
+- db/stats.js(DEFAULT_GAME_STATS) / db/ranking.js(랭킹 게임 목록)
+
+### 테스트/문서
+- AutoTest/spin-arena-determinism-test.js: 결정론 회귀 + 200시드 배치 게이트 (신규)
+- AutoTest/spin-arena-2tab-test.js / qa-spin-slot-bias.js / qa-spin-cluster-metric.js / spin-arena-render-harness.html / spin-arena-sample-reveal.json / gen-juice-report.js / spin-arena-juice-verification-report.html (신규)
+- docs/goal/applied/ 4건(spin-arena, juice, gameplay-rework, center-gather) + docs/meeting/applied/2026-06-10-spin-arena-impl.md + docs/dev-cycle/ 지시서 2건
+- update-log.md: 유저 공개 기록 3건 (06-10 신규+연출, 06-11 개편 2건)
+
+## 상세 변경 내역
+
+### [게임 규칙 — 최종 상태]
+- 준비 2~6명 사람만 참가(봇 없음, 7명+ 선착 6명), 30초 생존전, 최후 1인 = 당첨(벌칙)
+- 킬당 칼날 +1(상한 5), 킬러 크레딧 killerId, 넉백은 서버 실좌표(kvx/kvy)
+- 충돌 판정 = 검 날 선분(허브 18~46px, SWORD_LEN=28) vs 몸 원, 캡슐 반경 14+3.5(BLADE_EDGE_R) — 보이는 검 = 타격 범위(서버·클라 공유 상수)
+- 중앙 군집: CENTER_PULL=30 상시 중심 인력 + SPIN_DRAG=0.45 선형 감쇠(영구 진동 방지, 나선 수렴)
+- 링 = 하드 월 채택: 링 밖 HP 감소(RING_DPS) 제거, 경계 클램프+법선 반사(WALL_BOUNCE 0.9, 넉백은 kdot>0만 반사), 시체는 클램프 제외(사망 좌표 동결). INWARD_ACCEL 데드코드 정리
+- 튜닝 최종: HIT_DPS 110 / KNOCK 70·110·3.0 / 링 220→60 (10s~20s 수축) / DRIFT 50
+
+### [공정성]
+- 결과는 서버 시뮬 전용(시드 PRNG). 시뮬 내 Math.random/Date.now 0건, 클라 Math.random 실호출 2회(deviceId/tabId)뿐
+- reveal 페이로드에 seed/timeline 미포함, 재진입 시 phase/skins/round/history만 노출(rooms.js 마스킹)
+- frames 계약: 301 키프레임 × 폭 n×3(정수), 동일 시드 = 동일 frames/eliminations/result — 2탭 픽셀 동일
+
+### [검증 — 전부 실행 통과]
+- 200시드 배치: 정확히 1명 생존 h2 99.5% / h3 100% / h4 99.5% / h5 99.5% / h6 99.5% (게이트 h2/h3≥95, h6≥88), 칼날킬 100%, alive 링 밖 0건/1000판
+- 군집 지표: 생존자 평균 중심거리 t=15s 95~99px→26~35px, 첫 피해(h2) 10.6s→4.0s
+- 슬롯 편향 카이제곱 전 구간 임계 미만 / 2탭 동일 reveal·당첨자 / 렌더 하네스 에러 0 + 같은 t 2회 픽셀 일치
+- 파이프라인: Scout+ScoutCodex → Coder → Reviewer+ReviewerCodex approve → QA pass
+
+### [알려진 비차단 이슈 (후속 후보)]
+- 링 벽 반사가 dot≤0(수축 침투로 안쪽 이동 중)도 반전 — 벽 들러붙음 증가, 에너지 폭주 없음. 수정 시 전 시드 재튜닝 필요
+- 최후 2인 동시 사망(0.4~0.5%) 시 slotId tie-break로 슬롯 0 당첨 — rankHumans는 goal 불변 계약이라 유지
+- 클라 스파크 누락 12.2%(100ms 키프레임 보간 한계, 데미지 숫자는 별도 경로) — 코스메틱
+- docs/goal/ladder-freehand-curved-rung.md가 applied/와 양쪽에 중복 존재(과거 아카이브 훅 불완전) — ladder 건이라 이번 커밋 미정리
+
+========================================
 📋 Summit Log - 2026-06-10 (사다리 경마화 — 6레인 고정 + 번호 고르기 + 동시 출발/도착)
 ========================================
 

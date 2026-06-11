@@ -1,0 +1,304 @@
+/* 회전 칼날(spin-arena) 전용 스타일 + 공통 변수 alias.
+   페이지별 stylesheet link라 horse-race 페이지엔 무영향. */
+
+:root {
+    /* 게임 전용 그라데이션 (보라 + 청록 — 회전/날 느낌) */
+    --spin-arena-gradient: linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%);
+
+    /* horse-race.css가 쓰는 var(--horse-*)를 spin-arena 색으로 alias (C-4) */
+    --horse-500: var(--spin-arena-500);
+    --horse-600: var(--spin-arena-600);
+    --horse-accent: var(--spin-arena-accent);
+    --horse-gradient: var(--spin-arena-gradient);
+    --horse-50: rgba(var(--spin-arena-500-rgb), 0.08);
+    --horse-100: rgba(var(--spin-arena-500-rgb), 0.16);
+    --horse-200: rgba(var(--spin-arena-500-rgb), 0.24);
+    --horse-700: var(--spin-arena-600);
+}
+
+/* ⚠️ C-1: Tailwind CDN .container responsive(1280px)가 horse-race.css 800px override → 강제 */
+.container {
+    max-width: 800px !important;
+}
+
+/* ⚠️ C-2: horse-race.css는 .game-section{display:none}+.active 토글. 진입 즉시 표시 */
+.game-section {
+    display: block;
+}
+
+/* ── 아레나 캔버스 ── */
+#spinArenaWrap {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 20px;
+    text-align: center;
+}
+
+/* 캔버스 + 오버레이(채팅/카운트다운) 기준 박스 */
+#spinCanvasBox {
+    position: relative;
+}
+
+#spinArenaCanvas {
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    background: #0d1326;
+    border-radius: 16px;
+    border: 2px solid var(--spin-arena-500);
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.42),
+                0 0 0 1px rgba(var(--spin-arena-500-rgb), 0.4) inset;
+    transition: box-shadow 0.3s ease;
+}
+
+/* 리플레이 진행 중 앰비언트 글로우(긴장감) */
+body.spin-running #spinArenaCanvas {
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5),
+                0 0 22px rgba(var(--spin-arena-500-rgb), 0.45),
+                0 0 0 1px rgba(var(--spin-arena-500-rgb), 0.55) inset;
+    animation: spinArenaPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes spinArenaPulse {
+    0%, 100% { box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5),
+                           0 0 18px rgba(var(--spin-arena-500-rgb), 0.35),
+                           0 0 0 1px rgba(var(--spin-arena-500-rgb), 0.5) inset; }
+    50%      { box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5),
+                           0 0 30px rgba(34, 211, 238, 0.5),
+                           0 0 0 1px rgba(var(--spin-arena-500-rgb), 0.65) inset; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.spin-running #spinArenaCanvas { animation: none; }
+}
+
+/* ── 스킨 피커 ── */
+#spinSkinPicker {
+    background: var(--bg-white);
+    border: 2px solid var(--spin-arena-500);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.spin-skin-title {
+    font-weight: bold;
+    color: var(--spin-arena-accent);
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+
+.spin-skin-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+/* 스킨 스와치 그리드 — 모바일 2~3열, 데스크톱 더 넓게 */
+.spin-skin-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+@media (min-width: 420px) {
+    .spin-skin-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 640px) {
+    .spin-skin-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}
+
+.spin-skin-swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 6px;
+    border: 2px solid var(--gray-300, #d1d5db);
+    border-radius: 12px;
+    background: var(--bg-white);
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s, background 0.15s;
+    text-align: center;
+}
+
+.spin-skin-swatch:hover {
+    transform: translateY(-2px);
+    border-color: var(--spin-arena-500);
+}
+
+.spin-skin-swatch:focus-visible {
+    outline: 3px solid var(--spin-arena-600);
+    outline-offset: 2px;
+}
+
+.spin-skin-swatch.mine {
+    border-color: var(--spin-arena-600);
+    background: rgba(var(--spin-arena-500-rgb), 0.10);
+    box-shadow: 0 0 0 2px rgba(var(--spin-arena-500-rgb), 0.30);
+}
+
+.spin-skin-dot {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+}
+
+.spin-skin-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.spin-skin-owners {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: center;
+    min-height: 16px;
+}
+
+.spin-skin-owner {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--spin-arena-accent);
+    background: rgba(var(--spin-arena-500-rgb), 0.12);
+    border-radius: 6px;
+    padding: 1px 5px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── HP 현황 패널 (캔버스 아래) — 모바일 2열 컴팩트 가로 스택, 데스크톱 3열 ── */
+#spinHpPanel {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px 12px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #0d1326;            /* 캔버스 셸과 동일 톤 */
+    border: 1px solid rgba(var(--spin-arena-500-rgb), 0.45);
+    border-radius: 10px;
+    text-align: left;
+}
+
+@media (min-width: 640px) {
+    #spinHpPanel {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.spin-hp-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.spin-hp-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.spin-hp-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #eef2fb;
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.spin-hp-bar {
+    flex: 1;
+    height: 8px;
+    min-width: 24px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.spin-hp-fill {
+    height: 100%;
+    width: 100%;
+    border-radius: 4px;
+}
+
+.spin-hp-val {
+    font-size: 11px;
+    font-weight: 700;
+    color: #cdd6e8;
+    min-width: 30px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.spin-hp-row.dead {
+    opacity: 0.55;
+}
+
+.spin-hp-row.dead .spin-hp-name {
+    color: #8b93a3;
+    text-decoration: line-through;
+}
+
+.spin-hp-row.dead .spin-hp-val {
+    color: #8b93a3;
+}
+
+/* ── 다시보기 버튼 (게임 영역) ── */
+#spinReplayBtn {
+    display: block;
+    margin: 12px auto 0;
+    padding: 10px 24px;
+    background: var(--bg-white);
+    color: var(--spin-arena-accent);
+    border: 2px solid var(--spin-arena-accent);
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s;
+}
+
+#spinReplayBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--spin-arena-500-rgb), 0.35);
+}
+
+/* ── 결과 오버레이 순위 행 (공통 .result-overlay 안에서 사용) ── */
+.spin-result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-bottom: 1px solid var(--gray-200, #e5e7eb);
+}
+
+/* 당첨자(최후 생존 = 벌칙) 행 — 배경 틴트로 강조 */
+.spin-result-row.loser {
+    background: rgba(124, 92, 255, 0.12);
+    border-bottom-color: rgba(124, 92, 255, 0.28);
+}
+
+.spin-result-name { font-weight: 600; }
+.spin-result-tag { font-weight: bold; white-space: nowrap; }
+.spin-result-tag.loser { color: var(--spin-arena-600); }
+.spin-result-tag.pass { color: var(--green-500); }

@@ -102,6 +102,20 @@ function createRoomGameState() {
             endTimeout: null,
             resetTimeout: null
         },
+        spinArena: {
+            phase: 'idle',          // idle | playing | finished
+            skins: {},              // { userName: skinId }
+            participants: [],       // 시작 시점 사람 참가자 이름
+            timeline: null,         // server-only: { slots, frames, eliminations } (재진입 마스킹 대상)
+            result: null,           // server-only: { selected, rankings }
+            seed: 0,                // server-only
+            round: 0,
+            history: [],
+            isActive: false,
+            playTimeout: null,
+            endTimeout: null,
+            resetTimeout: null
+        },
     };
 }
 

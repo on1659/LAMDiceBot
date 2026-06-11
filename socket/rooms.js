@@ -174,6 +174,11 @@ module.exports = (socket, io, ctx) => {
                 bridgeCross: undefined,
                 // 보안: ladder.rungs / laneToBottom / losingLane 등 사다리 결과 server-only 마스킹.
                 ladder: undefined,
+                // 보안: spinArena.timeline / result / seed 등 결과 server-only 마스킹.
+                // reveal 전 결과 노출 = 공정성 위반. 재진입엔 스킨 피커 복원용 phase/skins/round/history만 노출.
+                spinArena: gameState.spinArena
+                    ? { phase: gameState.spinArena.phase, skins: gameState.spinArena.skins, round: gameState.spinArena.round, history: gameState.spinArena.history }
+                    : undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
                 frequentMenus: gameState.frequentMenus
@@ -244,7 +249,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 게임 타입 검증 (dice, roulette, horse-race, crane-game, bridge, ladder 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge', 'ladder'].includes(gameType) ? gameType : 'dice';
+        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge', 'ladder', 'spin-arena'].includes(gameType) ? gameType : 'dice';
 
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1183,6 +1188,14 @@ module.exports = (socket, io, ctx) => {
                 if (ld.userRungs[socket.userName]) delete ld.userRungs[socket.userName];
                 // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
                 if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+            }
+            // 🔧 퇴장한 사용자의 회전칼날 스킨 선택 삭제 + idle이면 동기화 재emit
+            if (gameState.spinArena && gameState.spinArena.skins &&
+                gameState.spinArena.skins[socket.userName] !== undefined) {
+                delete gameState.spinArena.skins[socket.userName];
+                if (gameState.spinArena.phase === 'idle') {
+                    io.to(roomId).emit('spin-arena:skinsUpdated', { skins: { ...gameState.spinArena.skins } });
+                }
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.
             // 일반 사용자 leaveRoom 시 timeout을 cleanup하면 진행 중 게임이 stuck하므로 손대지 않는다.

@@ -7,6 +7,7 @@ const registerRouletteHandlers = require('./roulette');
 const registerHorseHandlers = require('./horse');
 const registerBridgeCrossHandlers = require('./bridge-cross');
 const registerLadderHandlers = require('./ladder');
+const registerSpinArenaHandlers = require('./spin-arena');
 const registerFreeHandlers = require('./free');
 // const registerCraneGameHandlers = require('./crane-game'); // 비공개 처리
 const registerChatHandlers = require('./chat');
@@ -184,6 +185,7 @@ function setupSocketHandlers(io, rooms) {
         registerHorseHandlers(socket, io, ctx);
         registerBridgeCrossHandlers(socket, io, ctx);
         registerLadderHandlers(socket, io, ctx);
+        registerSpinArenaHandlers(socket, io, ctx);
         registerFreeHandlers(socket, io, ctx);
         // registerCraneGameHandlers(socket, io, ctx); // 비공개 처리
         registerChatHandlers(socket, io, ctx);
