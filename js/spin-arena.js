@@ -905,23 +905,31 @@ function drawSpinFrame(now) {
         // 스프라이트 좌우 방향(이동 방향 — frame 데이터 기반 결정론)
         var ddx = f1[bx] - f0[bx];
         if (ddx > 0.6) fxs.faceDir = 1; else if (ddx < -0.6) fxs.faceDir = -1;
-        // HP바 흰색 칩 잔상이 실제 HP로 천천히 수렴
+        // 칩 잔상이 실제 HP로 천천히 수렴 — 표시(탈출 게이지)에선 "방금 차오른 분량" 하이라이트로 쓰인다
         if (s.hp < fxs.chipHp) fxs.chipHp = Math.max(s.hp, fxs.chipHp - CHIP_DRAIN * dt);
         else fxs.chipHp = s.hp;
 
-        // 탈락 연출 1회 트리거(풍성한 파편 + 충격파 + 플래시 + OUT + 흔들림 + 사운드)
+        // 탈락 = 링 밖으로 튕겨나가 탈출 성공 — 축하 연출 1회 트리거(파편 + 충격파 + 플래시 + 텍스트 + 사운드).
+        // 단 selected(끝까지 탈출 못 한 당첨자)가 쓰러지는 동시 전멸 엣지는 실패 연출로 분기
+        // — 당첨자에게 탈출 축하가 나가는 모순 방지.
         if (s.dead && !spinReplay.burstDone[slots[si].id]) {
             spinReplay.burstDone[slots[si].id] = true;
             var dex = (fxs.elimX != null) ? fxs.elimX : s.x;
             var dey = (fxs.elimY != null) ? fxs.elimY : s.y;
             var dseed = (slots[si].id + 1) * 99991 + Math.floor(elimMs);
             var pcol = slots[si].color || '#c2c8cf';
+            var selElim = selected && slots[si].name === selected;
             spawnSparks(dex, dey, pcol, dseed, prefersReducedMotion ? 8 : 16, 40, 135, 4.2, 0.5, 60);
             spawnSparks(dex, dey, '#ffffff', dseed + 17, prefersReducedMotion ? 3 : 6, 60, 150, 3, 0.38, 40);
             spawnRing(dex, dey, slots[si].blade || '#ffffff', 48, 0.5);
             spawnFlash(dex, dey, 52, 0.26);
-            spawnText(dex, dey - CHAR_RADIUS, 'OUT', '#ff6b6b', 1.05);
-            addShake(9);
+            if (selElim) {
+                spawnText(dex, dey - CHAR_RADIUS, '못 나감!', '#ff6b6b', 1.05);
+                addShake(9);
+            } else {
+                spawnText(dex, dey - CHAR_RADIUS, '탈출!', '#ffd24a', 1.05);
+                addShake(6);
+            }
             playSpinSound('spin-arena_eliminate', 0.6);
         }
     }
@@ -1050,19 +1058,38 @@ function drawSpinFrame(now) {
 
     var nearEnd = t > durationMs - 2000;
 
-    // 탈락한 캐릭터(회색 페이드) 먼저
+    // 탈락한 캐릭터 먼저 — 일반 탈출자는 장외 퇴장(상승+페이드 700ms, 전부 t 파생 — 2탭 동일) 후 미표시.
+    // 탈출은 성공이므로 본인 스킨색 유지(회색 금지). selected(끝까지 못 나간 당첨자)가 쓰러진
+    // 동시 전멸 엣지만 기존 회색 시체 페이드 유지(못 나가고 쓰러짐 — 실패 서사).
     var spriteOn = spinSprites.ready;
     for (var dii = 0; dii < slots.length; dii++) {
         var sd = S[dii];
         if (!sd.dead) continue;
+        var sld = slots[dii];
+        if (selected && sld.name === selected) {
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            if (spriteOn) {
+                ctx.translate(sd.x, sd.y);
+                drawCharSprite(ctx, spinSprites.variants.gray, 0, spinReplay.slotFx[dii].faceDir);
+            } else {
+                ctx.fillStyle = '#5b6473';
+                ctx.beginPath(); ctx.arc(sd.x, sd.y, CHAR_RADIUS, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+            continue;
+        }
+        var exitK = (t - spinReplay._elimMs[dii]) / 700;   // 0→1 퇴장 진행도(t 파생, 결정론)
+        if (exitK >= 1) continue;                          // 퇴장 완료 — 미표시
+        if (exitK < 0) exitK = 0;
         ctx.save();
-        ctx.globalAlpha = 0.3;
+        ctx.globalAlpha = 1 - exitK;
+        ctx.translate(sd.x, sd.y - exitK * 60);            // 상승하며 페이드
         if (spriteOn) {
-            ctx.translate(sd.x, sd.y);
-            drawCharSprite(ctx, spinSprites.variants.gray, 0, spinReplay.slotFx[dii].faceDir);
+            drawCharSprite(ctx, spinSpriteVariantFor(sld), 0, spinReplay.slotFx[dii].faceDir);
         } else {
-            ctx.fillStyle = '#5b6473';
-            ctx.beginPath(); ctx.arc(sd.x, sd.y, CHAR_RADIUS, 0, Math.PI * 2); ctx.fill();
+            drawCharBody(ctx, spinReplay.slotFx[dii].rgb);
+            drawCharFace(ctx);
         }
         ctx.restore();
     }
@@ -1120,36 +1147,38 @@ function drawSpinFrame(now) {
         var topOff = spriteOn ? SPRITE_TOKEN_H * 0.58 : CHAR_RADIUS;
         var botOff = spriteOn ? SPRITE_TOKEN_H * 0.42 : CHAR_RADIUS;
 
-        // 승자/생존 글로우(막판)
+        // 막판 글로우: isSel(= 당첨자 = 못 나가는 사람)은 적색 위험 톤, 나머지 생존자는 흰색 유지
         if (nearEnd) {
             var gp = 0.5 + 0.5 * Math.sin(t / 110);
             ctx.save();
             ctx.globalAlpha = 0.35 + 0.3 * gp;
-            ctx.strokeStyle = isSel ? '#ffd24a' : 'rgba(255,255,255,0.5)';
+            ctx.strokeStyle = isSel ? '#ff5b5b' : 'rgba(255,255,255,0.5)';
             ctx.lineWidth = isSel ? 3 : 1.4;
             ctx.shadowBlur = isSel ? 14 : 5;
-            ctx.shadowColor = isSel ? '#ffd24a' : '#ffffff';
+            ctx.shadowColor = isSel ? '#ff5b5b' : '#ffffff';
             ctx.beginPath(); ctx.arc(rx, ry, (spriteOn ? 24 : CHAR_RADIUS + 5) + gp * 2, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
             if (isSel) {
                 ctx.save();
                 ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
-                ctx.fillText('👑', rx, ry - topOff - 8);
+                ctx.fillText('⚠️', rx, ry - topOff - 8);
                 ctx.restore();
             }
         }
 
-        // HP바(흰 칩 잔상 + 펀치 흔들림)
-        var hpRatio = clamp(sc.hp / HP_MAX, 0, 1);
-        var chipRatio = clamp(fx.chipHp / HP_MAX, 0, 1);
+        // 탈출 게이지(데이터는 HP 그대로, 표시만 인버트: 채움 = 100−hp — 가득 차면 링 밖으로 탈출).
+        // 칩 잔상(chipHp) 갱신 로직은 무변경 — 솔리드 = 100−chipHp, 밝은 하이라이트 = 방금 차오른
+        // [100−chipHp, 100−hp] 구간(전체 채움을 먼저 밝게 칠하고 솔리드로 덮어 남긴다). 펀치 흔들림 유지.
+        var escRatio = clamp((HP_MAX - sc.hp) / HP_MAX, 0, 1);
+        var escSolidRatio = clamp((HP_MAX - fx.chipHp) / HP_MAX, 0, 1);
         var barW = 30, barH = 4.5;
         var jit = 0;
         if (t - fx.hitT < 120) jit = (1 - (t - fx.hitT) / 120) * (hash01(Math.floor(t * 0.7)) - 0.5) * 3;
         var barX = rx - barW / 2 + jit, barY = ry - topOff - 8;
         ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(barX, barY, barW, barH);
-        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(barX, barY, barW * chipRatio, barH);
-        ctx.fillStyle = hpRatio > 0.4 ? '#34d399' : (hpRatio > 0.2 ? '#fbbf24' : '#ef4444');
-        ctx.fillRect(barX, barY, barW * hpRatio, barH);
+        ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(barX, barY, barW * escRatio, barH);
+        ctx.fillStyle = '#ffd24a';
+        ctx.fillRect(barX, barY, barW * escSolidRatio, barH);
 
         // 이름표(닉네임)
         ctx.save();
@@ -1373,13 +1402,14 @@ function drawSpinIdleFrame(now) {
     spinIdleRaf = requestAnimationFrame(drawSpinIdleFrame);
 }
 
-// ── HP 현황 패널 (캔버스 아래, 참가자별 이름+HP바+수치) ──
+// ── 탈출 게이지 패널 (캔버스 아래, 참가자별 이름+게이지+수치 — 찰수록 탈출 임박) ──
 function initSpinHpPanel(payload) {
     var panel = document.getElementById('spinHpPanel');
     if (!panel) return;
     panel.innerHTML = '';
     spinReplay._hpRows = [];
     var slots = payload.slots || [];
+    var selName = (payload.result && payload.result.selected) || null;
     var rankByName = {};
     var rks = (payload.result && payload.result.rankings) || [];
     for (var r = 0; r < rks.length; r++) rankByName[rks[r].name] = rks[r].rank;
@@ -1398,13 +1428,19 @@ function initSpinHpPanel(payload) {
         var fill = document.createElement('div');
         fill.className = 'spin-hp-fill';
         fill.style.background = sl.color || '#9aa3ad';
+        fill.style.width = '0%';                    // 탈출 게이지 — 0에서 차오른다
         bar.appendChild(fill);
         var val = document.createElement('span');
         val.className = 'spin-hp-val';
-        val.textContent = String(HP_MAX);
+        val.textContent = '0%';
         row.appendChild(dot); row.appendChild(name); row.appendChild(bar); row.appendChild(val);
         panel.appendChild(row);
-        spinReplay._hpRows.push({ row: row, fill: fill, val: val, rank: rankByName[sl.name] || null, deadShown: false });
+        spinReplay._hpRows.push({
+            row: row, fill: fill, val: val,
+            rank: rankByName[sl.name] || null,
+            isSel: selName !== null && sl.name === selName,
+            deadShown: false
+        });
     }
     panel.style.display = '';
 }
@@ -1423,13 +1459,14 @@ function updateSpinHpPanel() {
             if (!r.deadShown) {
                 r.deadShown = true;
                 r.row.classList.add('dead');
-                r.fill.style.width = '0%';
-                r.val.textContent = r.rank ? (r.rank + '위') : '탈락';
+                r.fill.style.width = '100%';   // 게이지 가득 = 링 밖으로 나감
+                // rank = 새 의미(탈출 순서). selected가 쓰러진 동시 전멸 엣지는 실패 표기.
+                r.val.textContent = r.isSel ? '못 나감' : (r.rank ? ('✓ ' + r.rank + '위 탈출') : '✓ 탈출');
             }
         } else {
-            var ratio = clamp(s.hp / HP_MAX, 0, 1);
+            var ratio = clamp((HP_MAX - s.hp) / HP_MAX, 0, 1);   // 탈출 게이지 — 찰수록 탈출 임박
             r.fill.style.width = (ratio * 100).toFixed(1) + '%';
-            r.val.textContent = String(Math.ceil(s.hp));
+            r.val.textContent = Math.floor(HP_MAX - s.hp) + '%';
         }
     }
 }
@@ -1637,7 +1674,7 @@ function startSpinReplay(payload, opts) {
         } else if (spinReplay.overflowSpectator) {
             status.textContent = '준비 선착 6명 초과 — 이번 판은 관전입니다';
         } else {
-            status.textContent = '⚔️ 회전 칼날 생존전이 시작됐습니다...';
+            status.textContent = '⚔️ 회전 칼날 탈출전이 시작됐습니다...';
         }
         status.className = 'game-status active';
     }
@@ -1657,7 +1694,7 @@ function startSpinReplay(payload, opts) {
     spinReplay.raf = requestAnimationFrame(drawSpinFrame);
 }
 
-// 결과 오버레이 (selected = 당첨자/벌칙)
+// 결과 오버레이 (selected = 당첨자/벌칙 = 끝까지 탈출 못 한 사람)
 function showSpinResult(result) {
     if (!result) return;
     var selected = result.selected;
@@ -1665,17 +1702,18 @@ function showSpinResult(result) {
 
     var rankingsEl = document.getElementById('resultRankings');
     if (rankingsEl) {
-        // 통과자 먼저, 당첨자(selected = 최후 생존자 = 벌칙)를 맨 아래로
+        // 탈출 성공자 먼저, 당첨자(selected = 끝까지 탈출 못 한 사람 = 벌칙)를 맨 아래로
         var ordered = rankings.slice().sort(function (a, b) {
             return (a.name === selected ? 1 : 0) - (b.name === selected ? 1 : 0);
         });
         rankingsEl.innerHTML = ordered.map(function (r) {
             var isSel = r.name === selected;
-            // 당첨자가 화면상 끝까지 생존이면 "최후 생존", 최후 2인 동시 탈락 엣지면 "최후 탈락"으로 표기(리플레이와 일치)
+            // 당첨자가 화면상 끝까지 링에 남았으면 "탈출 실패", 최후 2인 동시 탈락 엣지면 "막판 KO"로 표기(리플레이와 일치)
             var survived = r.eliminatedMs === null || r.eliminatedMs === undefined;
+            // 시간 만료 다중 생존 엣지: 탈출 못 한 비당첨 생존자에게 "탈출 성공"은 허위 — 중립 "통과"로
             var tag = isSel
-                ? '<span class="spin-result-tag loser">⚔️ ' + (survived ? '최후 생존' : '최후 탈락') + ' (당첨)</span>'
-                : '<span class="spin-result-tag pass">✅ 통과</span>';
+                ? '<span class="spin-result-tag loser">' + (survived ? '⚔️ 탈출 실패 (당첨)' : '⚔️ 막판 KO (당첨)') + '</span>'
+                : '<span class="spin-result-tag pass">' + (survived ? '✅ 통과' : '✅ 탈출 성공') + '</span>';
             return '<div class="spin-result-row' + (isSel ? ' loser' : '') + '">' +
                 '<span class="spin-result-name">' + escapeHtml(r.name) + '</span>' + tag + '</div>';
         }).join('');

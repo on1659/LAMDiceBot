@@ -222,7 +222,7 @@ body.spin-running #spinArenaCanvas {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex-shrink: 1;   /* '✓ N위 탈출' 라벨이 길어 모바일 2열에서 닉네임 ellipsis가 폭을 흡수해야 함 */
 }
 
 .spin-hp-bar {

@@ -2,6 +2,8 @@
 // 게임성 개편(봇 제거 — 사람 n=2~6 가변, 킬당 칼날 +1, 실제 넉백) 반영판.
 // 2026-06-11 후속: 중앙 군집(CENTER_PULL+SPIN_DRAG) + 링 하드 월(링 데미지 제거 — 킬 전부 칼날 귀속)
 //                + 칼날 히트박스 선분화(SWORD_LEN 28, BLADE_EDGE_R 3.5) 반영.
+// 2026-06-11 탈출 리프레이밍: rank 1 = 먼저 탈출(탈락), selected = rankings 최하위(끝까지 못 나감).
+//                시뮬 단언은 무변경 통과가 곧 회귀 증명 — simulate()는 코드 무변경.
 const path = require('path');
 const sa = require(path.join(__dirname, '..', 'socket', 'spin-arena.js'));
 const { simulate, rankHumans, ringRadiusAt } = sa;
@@ -91,11 +93,24 @@ const { simulate, rankHumans, ringRadiusAt } = sa;
   const s3 = await simulate(mkSlots(3), 99999);
   check('diff seed differs', JSON.stringify(s1.frames) !== JSON.stringify(s3.frames));
 
+  // 탈출 리프레이밍 플립 정합용 — 기존(생존순) 비교자의 selected(구정렬[0]) 도출.
+  // 새 rankings의 최하위(selected)가 이 인물과 항상 동일해야 한다(당첨자 동일 인물 회귀 증명).
+  function legacySelectedId(finalState) {
+    const hs = finalState.slice().sort((a, b) => {
+      if (a.alive !== b.alive) return a.alive ? -1 : 1;
+      if (a.alive) return b.hp - a.hp;
+      if (a.eliminatedMs !== b.eliminatedMs) return b.eliminatedMs - a.eliminatedMs;
+      return a.id - b.id;
+    });
+    return hs[0].id;
+  }
+
   // --- 200시드 배치 분포: "정확히 1명 생존" 비율 (기준: h2/h3 >= 95%, h6 >= 88%) ---
   console.log('--- 200-seed batch: exactly-1-survivor ratio ---');
   for (const h of [2, 3, 4, 5, 6]) {
     let one = 0, zero = 0, multi = 0, noSel = 0;
     let elimTotal = 0, bladeKills = 0, elimMsSum = 0, wallBad = 0;
+    let flipBad = 0, rank1Bad = 0;
     const N = 200;
     for (let t = 0; t < N; t++) {
       const seed = ((t * 2654435761 + h * 40503) >>> 0) & 0x7fffffff;
@@ -104,7 +119,17 @@ const { simulate, rankHumans, ringRadiusAt } = sa;
       const ranks = rankHumans(slots, sim.finalState);
       const alive = sim.finalState.filter(f => f.alive).length;
       if (alive === 1) one++; else if (alive === 0) zero++; else multi++;
-      if (!ranks.length || !ranks[0].name) noSel++;
+      // selected = 새 rankings 최하위(끝까지 탈출 못 한 사람)
+      const sel = ranks.length ? ranks[ranks.length - 1].name : null;
+      if (!sel) noSel++;
+      // 플립 정합: 생존자(또는 최후 탈락자) = 새 rankings 최하위 = selected
+      if (sel !== 'P' + legacySelectedId(sim.finalState)) flipBad++;
+      // rank 1 = 가장 먼저 탈출(탈락자가 있으면 ranks[0].eliminatedMs가 최솟값)
+      if (sim.eliminations.length) {
+        let minElim = Infinity;
+        for (const e of sim.eliminations) if (e.timeMs < minElim) minElim = e.timeMs;
+        if (ranks[0].eliminatedMs !== minElim) rank1Bad++;
+      }
       wallBad += wallViolations(sim, h);
       for (const e of sim.eliminations) {
         elimTotal++; elimMsSum += e.timeMs;
@@ -123,13 +148,35 @@ const { simulate, rankHumans, ringRadiusAt } = sa;
     check(`h${h} alive outside ring = 0`, wallBad === 0, wallBad ? '(' + wallBad + ')' : '');
     // 링 데미지 제거 → 모든 킬은 칼날 귀속(killerId 비-null)
     check(`h${h} bladeKill 100%`, elimTotal > 0 && bladeKills === elimTotal, `(${bladeKills}/${elimTotal})`);
+    // 탈출 리프레이밍: selected(새 최하위) = 기존 selected(구정렬[0])와 동일 인물
+    check(`h${h} flip selected == legacy`, flipBad === 0, flipBad ? '(' + flipBad + ' mismatch)' : '');
+    // rank 1 = 가장 먼저 탈출
+    check(`h${h} rank1 = earliest escape`, rank1Bad === 0, rank1Bad ? '(' + rank1Bad + ')' : '');
   }
 
-  // selected always non-null (rankHumans는 0생존도 정렬 리스트 반환)
+  // selected always non-null (rankHumans는 0생존도 정렬 리스트 반환 — selected = 최하위)
   const slots2 = mkSlots(2);
   const sim2 = await simulate(slots2, 7);
   const r2 = rankHumans(slots2, sim2.finalState);
-  check('rankHumans selected non-null', r2.length === 2 && !!r2[0].name, 'selected=' + r2[0].name);
+  const sel2 = r2.length ? r2[r2.length - 1].name : null;
+  check('rankHumans selected non-null', r2.length === 2 && !!sel2, 'selected=' + sel2);
+
+  // 합성 다중 생존 엣지 — 배치에서 발생 0건이라 alive 2인 hp 절/slotId tie-break 역전을 직접 고정
+  const synthSlots = mkSlots(3);
+  const synthA = rankHumans(synthSlots, [
+    { id: 0, isBot: false, alive: true, hp: 40, eliminatedMs: null },
+    { id: 1, isBot: false, alive: true, hp: 70, eliminatedMs: null },
+    { id: 2, isBot: false, alive: false, hp: 0, eliminatedMs: 12000 }
+  ]);
+  check('synth multi-alive: rank1 = 탈출자', synthA[0].name === 'P2');
+  check('synth multi-alive: selected = HP 높은 생존자', synthA[synthA.length - 1].name === 'P1');
+  // hp 동률 생존 2인 — legacy(구정렬[0] = slotId 낮은 쪽)와 동일 인물이 새 최하위여야 함
+  const synthB = rankHumans(synthSlots, [
+    { id: 0, isBot: false, alive: true, hp: 55, eliminatedMs: null },
+    { id: 1, isBot: false, alive: true, hp: 55, eliminatedMs: null },
+    { id: 2, isBot: false, alive: false, hp: 0, eliminatedMs: 9000 }
+  ]);
+  check('synth hp-tie: selected = slotId 낮은 쪽(legacy 동일)', synthB[synthB.length - 1].name === 'P0');
 
   console.log(fails === 0 ? '=== ALL PASS ===' : `=== FAILURES: ${fails} ===`);
   process.exitCode = fails ? 1 : 0;

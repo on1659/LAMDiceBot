@@ -132,11 +132,11 @@ async function simulate(slots, seed) {
         if (step === totalSteps) break;
 
         const ring = ringRadiusAt(tMs);
-        // 결판 규칙: 사람 생존자가 1명 이하(또는 전체 1명 이하)면 데미지 중단 — 그 사람이 최후 1인(당첨) 확정.
-        // 최후 2인이 같은 프레임에 동시 전멸하는 것을 막아 거의 항상 화면에 생존자 1명을 남긴다(배치 시뮬 검증).
+        // 결판 규칙: 사람 생존자가 1명 이하(또는 전체 1명 이하)면 데미지 중단 — 끝까지 탈출 못 한 최후 1인(당첨) 확정.
+        // 최후 2인이 같은 프레임에 동시 전멸하는 것을 막아 거의 항상 화면에 "못 나간 1명"을 남긴다(배치 시뮬 검증).
         let humansAlive = 0, totalAlive = 0;
         for (const c of st) { if (c.alive) { totalAlive++; if (!c.isBot) humansAlive++; } }
-        // 결판: 사람 최후 1인이 확정되면(당첨자 결정 — 선택엔 영향 없음) 그 사람은 무적(서사 보호).
+        // 결판: 끝까지 탈출 못 한 최후 1인이 확정되면(당첨자 결정 — 선택엔 영향 없음) 그 사람은 무적(서사 보호).
         // 전원이 사람이라 decided ≈ allDone 으로 수렴하지만 규칙 코드는 형태 유지(불변조건).
         const decided = humansAlive <= 1;
         const allDone = totalAlive <= 1;
@@ -255,17 +255,23 @@ async function simulate(slots, seed) {
     return { frames, eliminations, finalState: st };
 }
 
-// 사람 슬롯만 생존순 랭킹. aliveAtEnd > eliminatedMs(클수록 위) > hpEnd(클수록 위) > slotId
+// 사람 슬롯만 탈출순 랭킹(기존 생존순의 완전 역순 — selected 동일 인물 보장).
+// rank 1 = 가장 먼저 탈출(탈락), 최하위 = 끝까지 못 나감 = 당첨.
 function rankHumans(slots, finalState) {
     const humans = slots.filter(s => !s.isBot).map(s => {
         const fs = finalState.find(f => f.id === s.id);
         return { name: s.name, slotId: s.id, alive: fs.alive, elimMs: fs.eliminatedMs, hp: fs.hp };
     });
     humans.sort((a, b) => {
-        if (a.alive !== b.alive) return a.alive ? -1 : 1;
-        if (a.alive) return b.hp - a.hp;                  // 둘 다 생존: HP 높은 쪽이 당첨(더 오래 버팀)
-        if (a.elimMs !== b.elimMs) return b.elimMs - a.elimMs;  // 늦게 죽은 쪽 위
-        return a.slotId - b.slotId;
+        if (a.alive !== b.alive) return a.alive ? 1 : -1;                 // 탈출(탈락)이 위
+        if (a.alive && a.hp !== b.hp) return a.hp - b.hp;                 // 둘 다 못 나감: HP 낮은 쪽 위(탈출 임박)
+        if (!a.alive && a.elimMs !== b.elimMs) return a.elimMs - b.elimMs; // 먼저 탈출한 쪽 위
+        // 동률(같은 HP 생존 2인 / 같은 elimMs): slotId 역전. 구 정렬은 HP 동률에서 비교자 0 반환
+        // → 안정 정렬이 입력순(slotId 오름차순)을 유지해 selected = 구정렬[0] = slotId 낮은 쪽이었다.
+        // 새 selected = 새정렬[last]이므로 동률 그룹에서 slotId 낮은 쪽이 [last]에 가야
+        // 당첨자 인물이 변경 전후 동일하게 유지된다 — HP 동률도 0 반환(안정 정렬 의존) 대신
+        // 여기로 fall-through 시켜 명시적으로 역전한다.
+        return b.slotId - a.slotId;
     });
     return humans.map((h, i) => ({
         name: h.name, slotId: h.slotId, rank: i + 1,
@@ -437,7 +443,8 @@ module.exports = (socket, io, ctx) => {
         if (!ctx.rooms[room.roomId]) return;
 
         const rankings = rankHumans(slots, sim.finalState);
-        const selected = rankings.length ? rankings[0].name : null;
+        // selected(당첨자) = 새 rankings 최하위 = 끝까지 탈출 못 한 사람 (기존 rank 1과 동일 인물)
+        const selected = rankings.length ? rankings[rankings.length - 1].name : null;
 
         sa.timeline = { slots, frames: sim.frames, eliminations: sim.eliminations };  // server-only
         sa.result = { selected, rankings };   // server-only
@@ -511,13 +518,13 @@ module.exports = (socket, io, ctx) => {
 
         io.to(room.roomId).emit('spin-arena:gameEnd', { selected, rankings, round: sa.round });
 
-        // DB: 사람 참가자만 (봇 제외, 위에서 현재 방 잔류자로 필터). selected = 당첨자 = ladder loser 의미.
+        // DB: 사람 참가자만 (봇 제외, 위에서 현재 방 잔류자로 필터). selected = 당첨자 = 끝까지 탈출 못 한 사람 = ladder loser 의미.
         recordGamePlay('spin-arena', dbPlayers.length, room.serverId || null);
 
         if (room.serverId) {
             const sessionId = generateSessionId('spin-arena', room.serverId);
             Promise.all(dbPlayers.map(name => {
-                const isSelected = name === selected;     // 당첨 = ladder loser 의미
+                const isSelected = name === selected;     // 당첨 = 끝까지 탈출 못 한 사람 = ladder loser 의미
                 const isWinner = !isSelected;
                 const rank = isWinner ? 1 : 2;
                 return recordServerGame(room.serverId, name, rank, 'spin-arena', isWinner, sessionId, rank);

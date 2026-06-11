@@ -1,1 +1,200 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>spin-arena render harness</title><style>body{margin:0;background:#0a0f1e;font-family:sans-serif;color:#cdd}#spinArenaWrap{margin:10px auto;width:480px}#spinArenaCanvas{display:block;background:#0d1326;border-radius:16px}#log{font-size:12px;padding:8px;white-space:pre-wrap}</style></head><body><div id="loadingScreen" style="display:none"></div><div id="gameStatus"></div><section id="spinArenaWrap" style="display:none"><div id="spinCanvasBox" style="position:relative"><canvas id="spinArenaCanvas" width="480" height="480"></canvas><div id="raceChatOverlay"></div></div><div id="spinHpPanel" style="display:none"></div><button id="spinReplayBtn" style="display:none"></button></section><div id="spinSkinPicker" style="display:none"></div><div id="historyList"></div><div id="resultOverlay"></div><div id="resultRankings"></div><div id="log">harness loading...</div><script>window.__errors=[];window.addEventListener("error",function(e){window.__errors.push(String((e&&e.message)||e));});window.io=function(){var h={};return {connected:true,id:"sock1",on:function(n,f){h[n]=f;},off:function(){},emit:function(){},_handlers:h};};sessionStorage.setItem("spinArenaActiveRoom", JSON.stringify({roomId:"r1",userName:"이영희",serverId:null,serverName:null}));window.__PAYLOAD={"durationMs":30000,"sampleMs":100,"arena":{"w":480,"h":480,"cx":240,"cy":240,"r":220},"ring":{"rStart":220,"rEnd":60,"phase1Ms":10000,"phase2Ms":20000},"slots":[{"id":0,"isBot":false,"name":"홍길동","skinId":"crimson","color":"#e23b3b","blade":"#ff7a7a","bladeCount":2,"bladeRadius":46,"baseAngle":5.139233482914391,"spinSpeed":4.773570923367515,"spinDir":1},{"id":1,"isBot":false,"name":"김철수","skinId":"azure","color":"#3b82e2","blade":"#7ab0ff","bladeCount":2,"bladeRadius":46,"baseAngle":5.183769156518244,"spinSpeed":4.649837183766067,"spinDir":-1},{"id":2,"isBot":false,"name":"이영희","skinId":"emerald","color":"#2bb673","blade":"#6fe0a8","bladeCount":2,"bladeRadius":46,"baseAngle":1.5634178229705957,"spinSpeed":4.683357097906992,"spinDir":1}],"frames":[[383,240,100,179,346,100,170,118,100],[381,245,100,179,339,100,175,117,100],[379,249,100,180,332,100,180,117,100],[376,253,100,181,326,100,185,117,100],[374,257,100,183,319,100,190,116,100],[371,260,100,184,312,100,195,117,100],[368,264,100,185,306,100,200,117,100],[366,267,100,187,299,100,205,118,100],[362,270,100,188,293,100,209,119,100],[359,273,100,190,286,100,214,120,100],[356,276,100,192,280,100,218,122,100],[352,278,100,194,274,100,222,124,100],[349,280,100,196,268,100,226,125,100],[345,282,100,199,262,100,230,128,100],[341,284,100,201,256,100,234,130,100],[337,286,100,204,250,100,238,132,100],[333,287,100,207,244,100,241,135,100],[329,289,100,210,239,100,244,138,100],[325,290,100,213,234,100,247,141,100],[320,290,100,216,229,100,250,144,100],[316,291,100,219,225,100,253,148,100],[312,292,100,223,221,100,256,151,100],[307,292,100,227,217,100,258,155,100],[303,292,100,230,214,100,260,158,100],[298,292,100,234,211,100,263,162,100],[294,292,100,237,208,100,265,166,100],[289,291,100,240,206,100,266,170,100],[285,290,100,243,205,100,261,167,89],[280,290,100,236,201,89,265,169,80],[276,288,100,230,194,78,275,174,80],[271,287,100,223,190,67,283,179,80],[267,286,100,216,192,65,289,183,80],[262,284,100,211,193,65,293,188,80],[258,282,100,209,194,65,296,193,80],[254,280,100,208,195,65,298,197,80],[250,278,100,208,196,65,299,202,80],[245,276,100,209,198,65,300,206,80],[242,273,100,210,199,65,300,211,80],[238,271,100,212,200,65,300,215,80],[234,268,100,214,202,65,299,219,80],[231,265,100,217,204,65,298,223,80],[228,261,100,219,206,65,297,227,80],[229,262,93,222,208,65,296,231,80],[226,269,89,225,210,65,294,235,80],[223,273,89,228,212,65,292,239,80],[220,275,89,231,215,65,290,242,80],[218,276,89,236,212,60,287,245,80],[216,275,89,242,207,60,284,249,80],[214,274,89,247,204,60,282,252,80],[213,271,89,252,203,60,279,254,80],[212,269,89,256,203,60,282,264,74],[211,266,89,259,203,60,283,273,74],[211,262,89,262,205,60,283,280,74],[211,259,89,264,207,60,282,286,74],[211,255,89,266,210,60,280,290,74],[211,251,89,267,213,60,278,293,74],[212,248,89,268,216,60,276,296,74],[213,244,89,269,220,60,273,297,74],[214,240,89,270,223,60,270,298,74],[212,239,85,270,227,60,267,299,74],[204,238,80,270,230,60,264,299,74],[198,236,80,270,234,60,261,299,74],[194,233,80,269,237,60,257,298,74],[192,231,80,268,241,60,254,298,74],[192,229,80,267,244,60,251,296,74],[192,227,80,266,247,60,248,295,74],[193,225,80,264,250,60,245,293,74],[195,223,80,262,252,60,243,293,71],[197,221,80,268,256,52,248,297,60],[199,219,80,277,259,41,236,294,56],[202,218,80,281,253,34,226,292,56],[205,217,80,284,248,34,218,289,56],[208,216,80,284,244,34,211,286,56],[212,215,80,284,242,34,206,283,56],[215,214,80,283,241,34,202,280,56],[219,214,80,281,240,34,199,277,56],[222,214,80,279,240,34,197,274,56],[226,214,80,277,240,34,195,270,56],[222,214,71,274,241,34,194,267,56],[217,209,69,270,241,34,190,266,52],[215,206,69,267,242,34,184,270,49],[214,205,69,263,242,34,179,272,49],[214,204,69,259,243,34,176,273,49],[215,203,69,256,247,30,174,273,49],[214,202,67,258,256,23,173,272,49],[212,199,67,259,263,23,173,270,49],[212,198,67,259,268,23,174,268,49],[212,198,67,258,271,23,174,266,49],[214,199,67,256,273,23,176,264,49],[216,200,67,253,274,23,177,261,49],[218,202,67,250,275,23,179,259,49],[221,204,67,247,275,23,181,256,49],[224,206,67,244,274,23,184,253,49],[227,209,67,241,273,23,181,253,43],[230,211,67,237,272,23,176,255,43],[233,214,67,234,270,23,173,255,43],[234,211,58,231,268,23,172,255,43],[240,205,56,228,266,23,172,254,43],[246,201,56,232,269,14,173,253,43],[250,200,56,238,270,12,170,251,41],[254,200,56,243,270,12,167,250,41],[258,201,56,245,269,12,166,248,41],[261,203,56,247,267,12,167,246,41],[263,206,56,247,265,12,169,244,41],[266,209,56,247,262,12,171,242,41],[267,212,56,243,260,8,174,240,41],[269,216,56,233,260,0,177,238,41],[270,220,56,233,260,0,181,236,41],[271,224,56,233,260,0,185,235,41],[271,227,56,233,260,0,189,233,41],[272,231,56,233,260,0,194,231,41],[271,235,56,233,260,0,198,230,41],[271,239,56,233,260,0,203,229,41],[270,243,56,233,260,0,208,228,41],[269,246,56,233,260,0,213,227,41],[268,249,56,233,260,0,216,223,36],[267,252,56,233,260,0,214,214,27],[265,255,56,233,260,0,212,209,27],[263,258,56,233,260,0,212,205,27],[261,260,56,233,260,0,213,202,27],[259,262,56,233,260,0,215,200,27],[257,263,56,233,260,0,218,199,27],[255,265,56,233,260,0,221,199,27],[253,266,56,233,260,0,225,199,27],[250,267,56,233,260,0,228,200,27],[248,267,56,233,260,0,232,201,27],[246,267,56,233,260,0,236,202,27],[243,267,56,233,260,0,240,204,27],[240,271,54,233,260,0,244,206,27],[237,275,54,233,260,0,247,208,27],[234,278,54,233,260,0,251,210,27],[232,279,54,233,260,0,254,213,27],[230,280,54,233,260,0,257,215,27],[228,280,54,233,260,0,259,218,27],[226,279,54,233,260,0,262,221,27],[225,278,54,233,260,0,264,224,27],[223,276,54,233,260,0,266,227,27],[222,274,54,233,260,0,269,229,25],[222,272,54,233,260,0,275,229,25],[221,269,54,233,260,0,279,229,25],[221,267,54,233,260,0,281,230,25],[220,264,54,233,260,0,283,232,25],[220,261,54,233,260,0,285,233,25],[221,258,54,233,260,0,285,235,25],[221,255,54,233,260,0,285,237,25],[222,251,54,233,260,0,285,240,25],[222,248,54,233,260,0,284,242,25],[223,245,54,233,260,0,284,244,23],[225,242,54,233,260,0,292,249,19],[226,239,54,233,260,0,298,252,19],[228,236,54,233,260,0,301,255,19],[230,233,54,233,260,0,303,258,19],[232,231,54,233,260,0,304,260,19],[234,229,54,233,260,0,304,262,19],[237,227,54,233,260,0,302,263,19],[239,226,54,233,260,0,301,265,19],[241,225,54,233,260,0,299,266,19],[243,224,54,233,260,0,296,267,19],[245,224,54,233,260,0,293,267,19],[247,224,54,233,260,0,290,268,19],[244,218,49,233,260,0,287,268,19],[240,212,49,233,260,0,283,269,19],[238,208,49,233,260,0,280,269,19],[237,205,49,233,260,0,276,268,19],[236,204,49,233,260,0,272,268,19],[236,203,49,233,260,0,269,267,19],[236,203,49,233,260,0,265,267,19],[236,204,49,233,260,0,261,266,19],[237,206,49,233,260,0,257,265,19],[238,207,49,233,260,0,253,263,19],[238,209,49,233,260,0,249,262,19],[239,212,49,233,260,0,245,260,19],[240,214,49,233,260,0,238,260,14],[241,217,49,233,260,0,223,259,3],[242,220,49,233,260,0,218,257,0],[243,224,49,233,260,0,218,257,0],[243,227,49,233,260,0,218,257,0],[244,231,49,233,260,0,218,257,0],[245,234,49,233,260,0,218,257,0],[245,238,49,233,260,0,218,257,0],[245,242,49,233,260,0,218,257,0],[245,245,49,233,260,0,218,257,0],[244,248,49,233,260,0,218,257,0],[244,251,49,233,260,0,218,257,0],[243,253,49,233,260,0,218,257,0],[242,255,49,233,260,0,218,257,0],[242,257,49,233,260,0,218,257,0],[241,258,49,233,260,0,218,257,0],[240,259,49,233,260,0,218,257,0],[240,259,49,233,260,0,218,257,0],[239,259,49,233,260,0,218,257,0],[239,259,49,233,260,0,218,257,0],[238,259,49,233,260,0,218,257,0],[238,258,49,233,260,0,218,257,0],[237,257,49,233,260,0,218,257,0],[237,256,49,233,260,0,218,257,0],[237,255,49,233,260,0,218,257,0],[236,253,49,233,260,0,218,257,0],[236,251,49,233,260,0,218,257,0],[236,249,49,233,260,0,218,257,0],[236,247,49,233,260,0,218,257,0],[237,245,49,233,260,0,218,257,0],[237,242,49,233,260,0,218,257,0],[238,240,49,233,260,0,218,257,0],[238,237,49,233,260,0,218,257,0],[239,235,49,233,260,0,218,257,0],[240,234,49,233,260,0,218,257,0],[241,232,49,233,260,0,218,257,0],[242,231,49,233,260,0,218,257,0],[243,231,49,233,260,0,218,257,0],[243,230,49,233,260,0,218,257,0],[244,230,49,233,260,0,218,257,0],[244,230,49,233,260,0,218,257,0],[244,231,49,233,260,0,218,257,0],[244,232,49,233,260,0,218,257,0],[244,233,49,233,260,0,218,257,0],[244,234,49,233,260,0,218,257,0],[244,235,49,233,260,0,218,257,0],[243,237,49,233,260,0,218,257,0],[243,238,49,233,260,0,218,257,0],[242,240,49,233,260,0,218,257,0],[240,242,49,233,260,0,218,257,0],[239,243,49,233,260,0,218,257,0],[238,244,49,233,260,0,218,257,0],[237,245,49,233,260,0,218,257,0],[237,245,49,233,260,0,218,257,0],[236,245,49,233,260,0,218,257,0],[236,245,49,233,260,0,218,257,0],[236,245,49,233,260,0,218,257,0],[236,244,49,233,260,0,218,257,0],[236,243,49,233,260,0,218,257,0],[236,243,49,233,260,0,218,257,0],[237,242,49,233,260,0,218,257,0],[238,240,49,233,260,0,218,257,0],[239,239,49,233,260,0,218,257,0],[241,238,49,233,260,0,218,257,0],[242,238,49,233,260,0,218,257,0],[243,238,49,233,260,0,218,257,0],[243,238,49,233,260,0,218,257,0],[244,238,49,233,260,0,218,257,0],[244,238,49,233,260,0,218,257,0],[244,238,49,233,260,0,218,257,0],[243,239,49,233,260,0,218,257,0],[243,239,49,233,260,0,218,257,0],[242,240,49,233,260,0,218,257,0],[241,240,49,233,260,0,218,257,0],[239,241,49,233,260,0,218,257,0],[238,241,49,233,260,0,218,257,0],[238,241,49,233,260,0,218,257,0],[237,241,49,233,260,0,218,257,0],[237,241,49,233,260,0,218,257,0],[237,240,49,233,260,0,218,257,0],[237,240,49,233,260,0,218,257,0],[238,240,49,233,260,0,218,257,0],[239,240,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[241,240,49,233,260,0,218,257,0],[242,240,49,233,260,0,218,257,0],[242,240,49,233,260,0,218,257,0],[242,240,49,233,260,0,218,257,0],[242,240,49,233,260,0,218,257,0],[242,241,49,233,260,0,218,257,0],[241,241,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[239,240,49,233,260,0,218,257,0],[239,240,49,233,260,0,218,257,0],[238,239,49,233,260,0,218,257,0],[238,239,49,233,260,0,218,257,0],[238,239,49,233,260,0,218,257,0],[239,239,49,233,260,0,218,257,0],[239,239,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[241,240,49,233,260,0,218,257,0],[241,241,49,233,260,0,218,257,0],[241,241,49,233,260,0,218,257,0],[241,241,49,233,260,0,218,257,0],[241,241,49,233,260,0,218,257,0],[240,241,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[239,239,49,233,260,0,218,257,0],[239,239,49,233,260,0,218,257,0],[239,239,49,233,260,0,218,257,0],[240,239,49,233,260,0,218,257,0],[240,239,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[240,241,49,233,260,0,218,257,0],[240,241,49,233,260,0,218,257,0],[240,241,49,233,260,0,218,257,0],[240,241,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[240,239,49,233,260,0,218,257,0],[240,239,49,233,260,0,218,257,0],[240,239,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[240,241,49,233,260,0,218,257,0],[240,241,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0],[240,240,49,233,260,0,218,257,0]],"eliminations":[{"id":1,"timeMs":10560,"x":233,"y":260,"killerId":0},{"id":2,"timeMs":17320,"x":218,"y":257,"killerId":0}],"result":{"selected":"홍길동","rankings":[{"name":"홍길동","slotId":0,"rank":1,"eliminatedMs":null},{"name":"이영희","slotId":2,"rank":2,"eliminatedMs":17320},{"name":"김철수","slotId":1,"rank":3,"eliminatedMs":10560}]}};</script><script src="../js/spin-arena.js"></script><script>window.renderAt=function(targetMs){  try{    initSpinFx(window.__PAYLOAD);    spinReplay.phase="playing"; spinReplay.payload=window.__PAYLOAD;    var wrap=document.getElementById("spinArenaWrap"); wrap.style.display="block";    var c=document.getElementById("spinArenaCanvas"); c.width=480; c.height=480;    var base=performance.now(); spinReplay.startTs=base; spinReplay.lastNow=base;    for(var tt=0; tt<=targetMs; tt+=16){ var now=base+tt; spinReplay.startTs=base; drawSpinFrame(now); if(spinReplay.raf){cancelAnimationFrame(spinReplay.raf);spinReplay.raf=null;} }    var msg="rendered t="+targetMs+"ms | particles="+spinReplay.particles.length+" fx="+spinReplay.fx.length+" shake="+spinReplay.shake.toFixed(2)+" showdownStartT="+spinReplay.showdownStartT+" | errors="+window.__errors.length;    if(window.__errors.length) msg+=" :: "+window.__errors.join(" || ");    document.getElementById("log").textContent=msg;    return msg;  }catch(err){ window.__errors.push("renderAt:"+err.message); document.getElementById("log").textContent="THROW: "+err.message; return "THROW: "+err.message; }};renderAt(16000);</script></body></html>
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>spin-arena render harness (탈출 리프레이밍 QA)</title>
+<link rel="stylesheet" href="../css/spin-arena.css">
+<style>
+:root{--spin-arena-500:#7c5cff;--spin-arena-500-rgb:124,92,255;--spin-arena-600:#6344e6;--spin-arena-accent:#22d3ee;--bg-white:#fff;}
+body{margin:0;background:#0a0f1e;font-family:sans-serif;color:#cdd}
+#spinArenaWrap{margin:10px auto;width:480px}
+#spinArenaCanvas{display:block;background:#0d1326;border-radius:16px}
+#log{font-size:12px;padding:8px;white-space:pre-wrap}
+#resultOverlay{display:none}
+#resultOverlay.visible{display:block;background:#1a2238;margin:8px auto;width:480px;padding:10px;border-radius:8px}
+.spin-result-row{color:#eef2fb}
+</style></head><body>
+<div id="loadingScreen" style="display:none"></div>
+<div id="gameStatus"></div>
+<section id="spinArenaWrap" style="display:none">
+  <div id="spinCanvasBox" style="position:relative"><canvas id="spinArenaCanvas" width="480" height="480"></canvas><div id="raceChatOverlay"></div></div>
+  <div id="spinHpPanel" style="display:none"></div>
+  <button id="spinReplayBtn" style="display:none"></button>
+</section>
+<div id="spinSkinPicker" style="display:none"></div>
+<div id="historyList"></div>
+<div id="resultOverlay"><div id="resultRankings"></div></div>
+<div id="log">harness loading...</div>
+<script>
+window.__errors=[];
+window.addEventListener("error",function(e){window.__errors.push(String((e&&e.message)||e));});
+window.addEventListener("unhandledrejection",function(e){window.__errors.push("rejection:"+String(e.reason));});
+window.io=function(){var h={};return {connected:true,id:"sock1",on:function(n,f){h[n]=f;},off:function(){},emit:function(){},_handlers:h};};
+sessionStorage.setItem("spinArenaActiveRoom", JSON.stringify({roomId:"r1",userName:"이영희",serverId:null,serverName:null}));
+</script>
+<script src="qa-escape-payload.js"></script>
+<script src="../js/spin-arena.js"></script>
+<script>
+// ── 결정론 렌더 드라이버: 고정 base + 20ms 스텝 (2회 호출 시 동일 픽셀이어야 함) ──
+var FIXED_BASE = 100000;
+function renderTo(targetMs, payload){
+  payload = payload || window.__PAYLOAD;
+  spinReplay.isReplayMode = false;
+  spinReplay.phase = "playing";
+  spinReplay.payload = payload;
+  document.getElementById("spinArenaWrap").style.display = "block";
+  var c = document.getElementById("spinArenaCanvas"); c.width = 480; c.height = 480;
+  initSpinFx(payload);
+  initSpinHpPanel(payload);
+  spinReplay.startTs = FIXED_BASE;
+  for(var tt = 0; tt <= targetMs; tt += 20){
+    drawSpinFrame(FIXED_BASE + tt);
+    if(spinReplay.raf){ cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
+  }
+  if(targetMs % 20 !== 0){
+    drawSpinFrame(FIXED_BASE + targetMs);
+    if(spinReplay.raf){ cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
+  }
+  document.getElementById("log").textContent = "rendered t=" + targetMs + "ms | errors=" + window.__errors.length;
+}
+function canvasHash(){
+  var c = document.getElementById("spinArenaCanvas");
+  var d = c.getContext("2d").getImageData(0,0,c.width,c.height).data;
+  var h = 5381;
+  for(var i = 0; i < d.length; i += 7) h = ((h * 33) ^ d[i]) >>> 0;
+  return h.toString(16);
+}
+function fxTexts(){
+  return spinReplay.fx.filter(function(e){return e.type==="text";}).map(function(e){return e.text;});
+}
+function panelState(){
+  var rows = spinReplay._hpRows || [];
+  return rows.map(function(r){
+    return { val: r.val.textContent, fillW: r.fill.style.width, dead: r.row.classList.contains("dead") };
+  });
+}
+// 모바일 폭 검증: 패널 클론을 지정 폭 컨테이너에 넣고 행 overflow 측정 (2열 모바일 레이아웃 강제)
+function mobileCheck(w){
+  var src = document.getElementById("spinHpPanel");
+  var box = document.createElement("div");
+  box.style.cssText = "position:absolute;left:0;top:600px;width:" + w + "px;";
+  var clone = src.cloneNode(true);
+  clone.id = "";
+  clone.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:6px 12px;padding:10px 12px;border:1px solid #555;box-sizing:border-box;width:100%;background:#0d1326;";
+  box.appendChild(clone); document.body.appendChild(box);
+  var rows = clone.querySelectorAll(".spin-hp-row");
+  var overflow = 0, widths = [];
+  rows.forEach(function(r){ widths.push(r.clientWidth + "/" + r.scrollWidth); if(r.scrollWidth > r.clientWidth + 1) overflow++; });
+  var vw = 0;
+  clone.querySelectorAll(".spin-hp-val").forEach(function(v){ vw = Math.max(vw, v.scrollWidth); });
+  document.body.removeChild(box);
+  return { overflow: overflow, rows: widths, maxValW: vw };
+}
+
+// ── QA 배터리 ──
+async function runQA(){
+  var R = { checks: [], errors: [] };
+  function ck(name, ok, extra){ R.checks.push({ name: name, ok: !!ok, extra: extra || "" }); }
+  var t0 = Date.now();
+  while(!spinSprites.ready && Date.now() - t0 < 4000) await new Promise(function(r){ setTimeout(r, 100); });
+  ck("sprites loaded", spinSprites.ready);
+
+  var P = window.__PAYLOAD;
+  var els = P.eliminations.slice().sort(function(a,b){ return a.timeMs - b.timeMs; });
+  var e1 = els[0];   // 이영희(slot2) 12720ms
+  var sel = P.result.selected;
+
+  // T1: 일반 탈락 → '탈출!' 텍스트 (당첨자 아님)
+  renderTo(e1.timeMs + 200);
+  var texts1 = fxTexts();
+  ck("T1 '탈출!' text on elimination", texts1.indexOf("탈출!") >= 0, JSON.stringify(texts1));
+  ck("T1 no '못 나감!' for non-selected", texts1.indexOf("못 나감!") < 0);
+
+  // T2: 퇴장 애니 — dead 플래그 + 퇴장(미표시) vs selElim 회색 시체가 같은 t에서 픽셀 상이
+  renderTo(e1.timeMs + 350);
+  ck("T2 dead flag at elim+350", spinReplay._slotState[e1.id].dead === true);
+  renderTo(e1.timeMs + 900);
+  var hExitGone = canvasHash();
+
+  // T3: 탈출 게이지(생존) — 패널 val == floor(100-hp)+'%', fill == ((100-hp)).toFixed(1)+'%'
+  renderTo(8000);
+  var st = spinReplay._slotState, rows = panelState();
+  var ok3 = true, det3 = [];
+  for(var i = 0; i < st.length; i++){
+    if(st[i].dead) continue;
+    var expV = Math.floor(100 - st[i].hp) + "%";
+    var expW = (((100 - st[i].hp) / 100) * 100).toFixed(1) + "%";
+    det3.push(rows[i].val + "==" + expV + "," + rows[i].fillW + "==" + expW);
+    if(rows[i].val !== expV || rows[i].fillW !== expW) ok3 = false;
+  }
+  ck("T3 panel gauge = 100-hp (invert)", ok3, det3.join(" | "));
+
+  // T3b: 탈락 후 패널 — '✓ N위 탈출' / selected는 % 유지 / fill 100%
+  renderTo(20000);
+  rows = panelState();
+  ck("T3b row[slot2]='✓ 1위 탈출'", rows[2].val === "✓ 1위 탈출", rows[2].val);
+  ck("T3b row[slot0]='✓ 2위 탈출'", rows[0].val === "✓ 2위 탈출", rows[0].val);
+  ck("T3b selected row still %", /%$/.test(rows[1].val), rows[1].val);
+  ck("T3b dead fill=100%", rows[2].fillW === "100%" && rows[0].fillW === "100%", rows[2].fillW + "," + rows[0].fillW);
+  ck("T3b dead class", rows[2].dead && rows[0].dead && !rows[1].dead);
+
+  // T5: 종료 — 결과 오버레이 문구/순서/상태
+  renderTo(30000);
+  var rk = document.getElementById("resultRankings").innerHTML;
+  ck("T5 '⚔️ 탈출 실패 (당첨)' for selected", rk.indexOf("⚔️ 탈출 실패 (당첨)") >= 0);
+  ck("T5 '✅ 탈출 성공' x2", (rk.match(/✅ 탈출 성공/g) || []).length === 2);
+  var rowEls = document.querySelectorAll("#resultRankings .spin-result-row");
+  ck("T5 selected last row", rowEls.length === 3 && rowEls[2].textContent.indexOf(sel) >= 0,
+     rowEls.length ? rowEls[rowEls.length-1].textContent : "no rows");
+  ck("T5 status 당첨", document.getElementById("gameStatus").textContent.indexOf(sel) >= 0,
+     document.getElementById("gameStatus").textContent);
+  ck("T5 overlay visible", document.getElementById("resultOverlay").classList.contains("visible"));
+
+  // T6: 같은 t 2회 렌더 픽셀 동일 (결정론)
+  renderTo(12000); var hA = canvasHash();
+  renderTo(12000); var hB = canvasHash();
+  ck("T6 same-t pixel determinism", hA === hB, hA + " vs " + hB);
+
+  // T7: selElim 합성(selected를 탈락자로) — '못 나감!' + 회색 시체 잔존 + 패널 '못 나감' + '막판 KO'
+  var P2 = JSON.parse(JSON.stringify(P)); P2.result.selected = P.slots[e1.id].name;
+  renderTo(e1.timeMs + 200, P2);
+  var texts7 = fxTexts();
+  ck("T7 '못 나감!' text for selected elim", texts7.indexOf("못 나감!") >= 0, JSON.stringify(texts7));
+  renderTo(e1.timeMs + 900, P2);
+  var hCorpse = canvasHash();
+  ck("T2/T7 exit(미표시) vs corpse(회색) pixels differ", hExitGone !== hCorpse, hExitGone + " vs " + hCorpse);
+  renderTo(20000, P2);
+  ck("T7 panel '못 나감'", panelState()[e1.id].val === "못 나감", panelState()[e1.id].val);
+  renderTo(30000, P2);
+  ck("T7 '막판 KO (당첨)' tag", document.getElementById("resultRankings").innerHTML.indexOf("막판 KO (당첨)") >= 0);
+
+  // T8: result null(마스킹 방어 경로) — throw 없이 렌더, 전원 '탈출!' 처리
+  var P3 = JSON.parse(JSON.stringify(P)); P3.result = null;
+  var errBefore = window.__errors.length;
+  renderTo(e1.timeMs + 200, P3);
+  ck("T8 null result: '탈출!' (no selected)", fxTexts().indexOf("탈출!") >= 0);
+  renderTo(30000, P3);
+  ck("T8 null result: no errors", window.__errors.length === errBefore);
+
+  // T9: 스프라이트 미로드 폴백(drawCharBody/Face 퇴장 경로) — throw 없음
+  var was = spinSprites.ready; spinSprites.ready = false;
+  var errBefore9 = window.__errors.length;
+  renderTo(e1.timeMs + 350);
+  ck("T9 fallback procedural exit anim no errors", window.__errors.length === errBefore9);
+  spinSprites.ready = was;
+
+  // T10: 모바일 패널 폭 (290px=360vp 환산, 250px=320vp 환산) — 행 overflow 0
+  renderTo(20000);   // '✓ 1위 탈출' 최장 라벨 노출 상태
+  var m1 = mobileCheck(290), m2 = mobileCheck(250);
+  ck("T10 290px rows no overflow", m1.overflow === 0, JSON.stringify(m1));
+  ck("T10 250px rows no overflow", m2.overflow === 0, JSON.stringify(m2));
+
+  R.errors = window.__errors.slice();
+  ck("console/runtime errors = 0", R.errors.length === 0, R.errors.join(" | "));
+
+  var fails = R.checks.filter(function(c){ return !c.ok; });
+  R.summary = fails.length === 0 ? "ALL PASS (" + R.checks.length + ")" : "FAIL " + fails.length + "/" + R.checks.length;
+  document.getElementById("log").textContent = R.summary + "\n" +
+    R.checks.map(function(c){ return (c.ok ? "PASS " : "FAIL ") + c.name + (c.extra ? "  [" + c.extra + "]" : ""); }).join("\n");
+  window.qaResults = R;
+  return R;
+}
+window.renderTo = renderTo; window.runQA = runQA; window.canvasHash = canvasHash;
+document.getElementById("log").textContent = "harness ready. call runQA() or renderTo(ms[,payload])";
+</script></body></html>
