@@ -1,10 +1,10 @@
-// 경마 꾸미기 상점 소켓 핸들러
+// 꾸미기 상점 소켓 핸들러 (경마 + 회전 칼날 공용 — 게임 중립 인프라)
 //
 // 보안 린치핀: 모든 지갑/상점 핸들러는 socket.authedUserId(인증 계정 id)만
 // 사용한다. data.name(자유 닉네임)은 절대 신뢰하지 않는다 (lessons/security.md S-1).
 // 미인증 socket의 wallet/shop 요청은 즉시 { ok:false, reason:'auth' }.
 //
-// 가격·존재는 서버 카탈로그(config/horse/cosmetics.json)가 권위. 클라가 보낸
+// 가격·존재는 서버 카탈로그(config/{game}/cosmetics.json)가 권위. 클라가 보낸
 // 가격은 무시한다 (위변조 차단).
 const fs = require('fs');
 const path = require('path');
@@ -12,19 +12,34 @@ const { verifyToken } = require('../db/auth-tokens');
 const coins = require('../db/coins');
 const cosmetics = require('../db/cosmetics');
 
-// 카탈로그 1회 로드 (config/horse/race.json 로드 패턴과 동일)
-let CATALOG = {};
+// 카탈로그 1회 로드 (config/horse/race.json 로드 패턴과 동일) — 게임별 파일 병합.
+// cosmetic_id는 전 게임 전역 유일이어야 한다(user_cosmetics 단일 테이블).
+// spin-arena는 spin_ 접두로 네임스페이스 분리. 부팅 시 중복 ID 검사 — 중복은 스킵.
+const CATALOG_FILES = [
+    path.join(__dirname, '..', 'config', 'horse', 'cosmetics.json'),
+    path.join(__dirname, '..', 'config', 'spin-arena', 'cosmetics.json')
+];
+let CATALOG = {};       // slot -> items[] (병합 — shop:catalog 표시용)
 let CATALOG_INDEX = {}; // id -> { slot, item }
-try {
-    CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'horse', 'cosmetics.json'), 'utf8'));
-    Object.keys(CATALOG).forEach(slot => {
-        (CATALOG[slot] || []).forEach(item => {
-            if (item && item.id) CATALOG_INDEX[item.id] = { slot, item };
+CATALOG_FILES.forEach(file => {
+    try {
+        const cat = JSON.parse(fs.readFileSync(file, 'utf8'));
+        Object.keys(cat).forEach(slot => {
+            if (!CATALOG[slot]) CATALOG[slot] = [];
+            (cat[slot] || []).forEach(item => {
+                if (!item || !item.id) return;
+                if (CATALOG_INDEX[item.id]) {
+                    console.error(`[상점] 카탈로그 ID 충돌 — ${item.id} (${file}) 항목 스킵`);
+                    return;
+                }
+                CATALOG_INDEX[item.id] = { slot, item };
+                CATALOG[slot].push(item);
+            });
         });
-    });
-} catch (e) {
-    console.warn('[상점] 카탈로그 로드 실패:', e.message);
-}
+    } catch (e) {
+        console.warn('[상점] 카탈로그 로드 실패:', file, e.message);
+    }
+});
 
 // 로컬 개발 편의: 로컬(DATABASE_URL이 localhost)에서 방장(socket.isHost)에게만
 // 코인을 무한처럼 — 잔고를 큰 값까지 충전한다. 프로덕션 DATABASE_URL은 원격이라
@@ -116,6 +131,19 @@ function registerShopHandlers(socket, io, ctx) {
         const price = entry.item.price;
         if (!Number.isInteger(price)) return cb({ ok: false, reason: 'notfound' });
         try {
+            // 선행 소유 조건(스킨업 등): requires가 있으면 해당 cosmetic 소유 필수.
+            // 선행 아이템이 defaultOwned(기본 제공)면 소유 검사 면제.
+            const requires = entry.item.requires;
+            if (requires) {
+                const reqEntry = CATALOG_INDEX[requires];
+                const reqDefault = !!(reqEntry && reqEntry.item.defaultOwned);
+                if (!reqDefault) {
+                    const ownedNow = await cosmetics.getOwned(socket.authedUserId);
+                    if (ownedNow.indexOf(requires) === -1) {
+                        return cb({ ok: false, reason: 'requires' });
+                    }
+                }
+            }
             const result = await coins.spend(socket.authedUserId, price, id);
             if (!result.ok) return cb({ ok: false, reason: result.reason, balance: result.balance });
             await topUpLocalHost(socket); // 로컬 방장: 구매 후 다시 100만으로 채움
@@ -141,10 +169,13 @@ function registerShopHandlers(socket, io, ctx) {
         try {
             if (id !== null && id !== undefined) {
                 // 장착하려는 아이템이 그 슬롯에 속하고 소유 중인지 검증
+                // (defaultOwned 기본 제공 아이템은 구매 없이 장착 가능 — 카탈로그가 권위)
                 const entry = CATALOG_INDEX[id];
                 if (!entry || entry.slot !== slot) return cb({ ok: false, reason: 'notfound' });
-                const owned = await cosmetics.getOwned(socket.authedUserId);
-                if (owned.indexOf(id) === -1) return cb({ ok: false, reason: 'unowned' });
+                if (!entry.item.defaultOwned) {
+                    const owned = await cosmetics.getOwned(socket.authedUserId);
+                    if (owned.indexOf(id) === -1) return cb({ ok: false, reason: 'unowned' });
+                }
                 await cosmetics.setEquipped(socket.authedUserId, slot, id);
             } else {
                 await cosmetics.setEquipped(socket.authedUserId, slot, null);

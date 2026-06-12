@@ -1,12 +1,18 @@
-// QA: spin-arena 결정론 / killerId / 칼날 성장 / 분포 배치 검증 (서버 모듈 직접 호출, DB 불필요)
-// 게임성 개편(봇 제거 — 사람 n=2~6 가변, 킬당 칼날 +1, 실제 넉백) 반영판.
-// 2026-06-11 후속: 중앙 군집(CENTER_PULL+SPIN_DRAG) + 링 하드 월(링 데미지 제거 — 킬 전부 칼날 귀속)
-//                + 칼날 히트박스 선분화(SWORD_LEN 28, BLADE_EDGE_R 3.5) 반영.
-// 2026-06-11 탈출 리프레이밍: rank 1 = 먼저 탈출(탈락), selected = rankings 최하위(끝까지 못 나감).
-//                시뮬 단언은 무변경 통과가 곧 회귀 증명 — simulate()는 코드 무변경.
+// QA: spin-arena 칼 수집 탈출 + 인원 가변 스케일링 — 결정론 / frames 정합 / 하드 월 / 칼업·탈출·다운 / geom 스케일 / 스폰 피격 0 / 200시드 결판률 게이트
+// (서버 모듈 직접 호출, DB 불필요)
+// 2026-06-12 개편(칼 수집 탈출): 받은 데미지 BLADE_UP_DMG마다 칼 +1(시작 2), 칼 5 = 탈출(좌표 동결·시뮬 이탈),
+//                 HP 0 = 다운 3초 후 부활(grace 800ms), 잔류 1명 = decideMs → durationMs 압축(최대 30초 캡).
+//                 eliminations/killerId 제거 — frames 3채널은 hp가 아니라 cumDmg(받은 데미지 누적, 단조 비감소).
+// 2026-06-12 확장(인원 가변 스케일링): MAX_SLOTS 24, s(n)=√(6/n) n≤6 동결, geom 페이로드(additive),
+//                 스폰반경 규칙으로 스폰 즉시 피격 0. n=[2..24] 결판률·decideMs 분포 측정(cap=24 생존 판정 권위 데이터).
+// 게이트(설계 §5): 결판률 n2/n3 >= 95%, n4~6 >= 88%, n8~24 >= 80% + 결정론/정합/하드 월/스폰피격 0건.
+//   ※ 결판률 미달이어도 테스트는 분포를 끝까지 출력(어디서 깨지는지 봐야 함).
 const path = require('path');
 const sa = require(path.join(__dirname, '..', 'socket', 'spin-arena.js'));
 const { simulate, rankHumans, ringRadiusAt } = sa;
+
+// 확장 인원 루프 (n≤6 동결 회귀 + n>6 스케일 검증)
+const N_LIST = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24];
 
 (async () => {
   let fails = 0;
@@ -20,7 +26,7 @@ const { simulate, rankHumans, ringRadiusAt } = sa;
   console.log('ringRadiusAt: t0=' + ring0 + ' t10k=' + ring10 + ' t15k=' + ring15 + ' t20k=' + ring20 + ' t30k=' + ring30);
   check('ring boundaries 220/220/140/60/60', ring0 === 220 && ring10 === 220 && ring15 === 140 && ring20 === 60 && ring30 === 60);
 
-  // 봇 없음 — 사람 n명만 (가변 슬롯)
+  // 봇 없음 — 사람 n명만 (가변 슬롯). 스킨 6종 순환(결과 무관).
   function mkSlots(n) {
     const slots = [];
     const skins = ['crimson', 'azure', 'emerald', 'amber', 'violet', 'rose'];
@@ -28,27 +34,26 @@ const { simulate, rankHumans, ringRadiusAt } = sa;
     return slots;
   }
 
-  // 클라 공식 거울: bladeCount(si, t) = min(5, 2 + count(elims where killerId===si && timeMs < t))
-  function bladeCountAt(elims, si, t) {
-    let kills = 0;
-    for (const e of elims) if (e.killerId === si && e.timeMs < t) kills++;
-    return Math.min(5, 2 + kills);
-  }
-
-  // 하드 월: 살아있는 캐릭터는 모든 키프레임에서 링 안 — 위반 키프레임 수를 센다.
-  // ε 1.5 = 좌표 정수 반올림(최대 ~0.71) + 샘플이 직전 틱 클램프 기준이라 틱당 수축(0.32) 여유.
-  // 시체(탈락 후)는 수축 링 밖에 남는 게 정상이라 제외(사망 좌표 동결).
+  // 하드 월: 활성 캐릭터는 모든 키프레임에서 링 안 — 위반 키프레임 수를 센다.
+  // 제외 구간(좌표 동결 — 수축 링 밖 잔존이 정상):
+  //   탈출 후(t > escapeMs), 다운 구간(timeMs <= t <= reviveMs — 부활 틱 키프레임은 이동 클램프 이전 샘플이라 상한 포함).
+  // 한계 = ringRadiusAt(t) - charR(스케일 반영) + ε. ε 1.5 = 좌표 정수 반올림(최대 ~0.71) + 샘플이 직전 틱 클램프 기준이라 틱당 수축(0.32) 여유.
   function wallViolations(sim, n) {
-    const CHAR_RADIUS = 14, CX = 240, CY = 240, EPS = 1.5;
-    const elimMs = {};
-    for (const e of sim.eliminations) elimMs[e.id] = e.timeMs;
+    const CX = 240, CY = 240, EPS = 1.5;
+    const charR = sim.geom.charRadius;   // 스케일 반영 충돌 반경
+    const escMs = {};
+    for (const e of sim.escapes) escMs[e.id] = e.timeMs;
     let bad = 0;
     for (let j = 0; j < sim.frames.length; j++) {
       const t = j * 100;
-      const limit = ringRadiusAt(t) - CHAR_RADIUS + EPS;
+      const limit = ringRadiusAt(t) - charR + EPS;
       for (let s = 0; s < n; s++) {
-        const em = (s in elimMs) ? elimMs[s] : null;
-        if (em !== null && t > em) continue;
+        if ((s in escMs) && t > escMs[s]) continue;
+        let frozen = false;
+        for (const d of sim.downs) {
+          if (d.id === s && d.timeMs <= t && t <= d.reviveMs) { frozen = true; break; }
+        }
+        if (frozen) continue;
         const dx = sim.frames[j][s * 3] - CX, dy = sim.frames[j][s * 3 + 1] - CY;
         if (Math.hypot(dx, dy) > limit) bad++;
       }
@@ -56,127 +61,241 @@ const { simulate, rankHumans, ringRadiusAt } = sa;
     return bad;
   }
 
-  // --- 결정론 / frames 형태 / killerId (가변 n) ---
-  for (const n of [2, 3, 4, 6]) {
-    const a = await simulate(mkSlots(n), 12345);
-    const b = await simulate(mkSlots(n), 12345);
-    check(`determinism same seed n=${n}`,
-      JSON.stringify(a.frames) === JSON.stringify(b.frames) &&
-      JSON.stringify(a.eliminations) === JSON.stringify(b.eliminations));
-    check(`frames length 301 n=${n}`, a.frames.length === 301, '(' + a.frames.length + ')');
-    check(`frame width n*3 n=${n}`, a.frames[0].length === n * 3, '(' + a.frames[0].length + ')');
-    // killerId: 필드 존재 + null 또는 (유효 슬롯 id, 자기 자신 아님)
-    const kOk = a.eliminations.every(e => ('killerId' in e) &&
-      (e.killerId === null || (Number.isInteger(e.killerId) && e.killerId >= 0 && e.killerId < n && e.killerId !== e.id)));
-    check(`killerId valid n=${n}`, kOk, JSON.stringify(a.eliminations.map(e => [e.id, e.timeMs, e.killerId])));
-    // 칼날 성장: 시작 2, 상한 5, 최종값 = 클라 공식(t=∞)과 일치
-    const bOk = a.finalState.every(f =>
-      f.bladeCount >= 2 && f.bladeCount <= 5 &&
-      f.bladeCount === bladeCountAt(a.eliminations, f.id, Infinity));
-    check(`bladeCount growth/cap n=${n}`, bOk, '(' + a.finalState.map(f => f.bladeCount).join(',') + ')');
-    // 사망 위치 동결: 탈락 시점 이후 키프레임 좌표 불변
-    let frozen = true;
-    for (const e of a.eliminations) {
-      // 탈락 틱의 키프레임은 이동 적용 전 좌표일 수 있어 다음 키프레임부터 검사
-      const fi = Math.min(300, Math.floor(e.timeMs / 100) + 1);
-      for (let j = fi; j < a.frames.length; j++) {
-        if (a.frames[j][e.id * 3] !== a.frames[fi][e.id * 3] || a.frames[j][e.id * 3 + 1] !== a.frames[fi][e.id * 3 + 1]) { frozen = false; break; }
+  // 스폰 즉시 피격: 스폰 순간(frame 0~1 = 0~100ms) 전 슬롯 cumDmg(3번째 채널)가 0이어야 함(spawnR spacing 검증).
+  // ── 근거(200시드 측정): spawnR 규칙은 "스폰 순간 칼끝↔몸 미접촉"을 보장하는 frame-0 기하 성질이다.
+  //    전수 검증 결과 frame0/frame1은 n=2~24 전 구간 피격 0건. frame2(200ms)부터는 CENTER_PULL(30)+드리프트로
+  //    빠른 캐릭터가 정상 군집 접촉을 시작 — 이는 스폰 결함이 아니라 게임플레이(초기 교전 cascade)다.
+  //    따라서 "스폰 즉시" 게이트는 frame 0~1로 한정하고, 0~500ms 접촉 분포는 spawnSpacingStats로 별도 보고한다.
+  function spawnHitViolations(sim, n) {
+    let bad = 0;
+    const last = Math.min(1, sim.frames.length - 1);   // 스폰 순간 = frame 0~1
+    for (let j = 0; j <= last; j++) {
+      for (let s = 0; s < n; s++) {
+        if (sim.frames[j][s * 3 + 2] !== 0) bad++;
       }
     }
-    check(`dead position frozen n=${n}`, frozen);
-    // 링 하드 월: 살아있는 캐릭터 링 밖 좌표 0건
-    const wv = wallViolations(a, n);
-    check(`alive inside ring (hard wall) n=${n}`, wv === 0, wv ? '(' + wv + ' violations)' : '');
+    return bad;
+  }
+
+  // 보고용: 0~500ms(frame 0~5) 내 첫 피격이 발생한 frame 인덱스의 최소값(없으면 6 이상). 스폰 spacing 여유 가시화.
+  function earliestHitFrame(sim, n) {
+    const last = Math.min(5, sim.frames.length - 1);
+    let earliest = 99;
+    for (let s = 0; s < n; s++) {
+      for (let j = 0; j <= last; j++) {
+        if (sim.frames[j][s * 3 + 2] !== 0) { if (j < earliest) earliest = j; break; }
+      }
+    }
+    return earliest;
+  }
+
+  // 시뮬 1회분 구조 정합 검사 — 위반 사유 문자열 배열 반환(빈 배열 = OK)
+  function structuralIssues(sim, slots) {
+    const n = slots.length;
+    const issues = [];
+    // frames: 길이 = durationMs/100 + 1, 폭 n*3, cumDmg 단조 비감소
+    if (sim.frames.length !== sim.durationMs / 100 + 1) issues.push(`frames.length ${sim.frames.length} != ${sim.durationMs / 100 + 1}`);
+    if (sim.frames[0].length !== n * 3) issues.push(`frame width ${sim.frames[0].length} != ${n * 3}`);
+    for (let s = 0; s < n; s++) {
+      for (let j = 1; j < sim.frames.length; j++) {
+        if (sim.frames[j][s * 3 + 2] < sim.frames[j - 1][s * 3 + 2]) { issues.push(`cumDmg 감소 slot=${s} frame=${j}`); break; }
+      }
+    }
+    // durationMs: SAMPLE_MS 격자 + 캡 이내 + decideMs와 라운딩 규칙 일치
+    if (sim.durationMs % 100 !== 0 || sim.durationMs > 30000) issues.push(`durationMs 비정상 ${sim.durationMs}`);
+    if (sim.decideMs !== null) {
+      const expect = Math.min(30000, Math.ceil((sim.decideMs + 2000) / 100) * 100);
+      if (sim.durationMs !== expect) issues.push(`durationMs ${sim.durationMs} != 라운딩 ${expect}`);
+    } else if (sim.durationMs !== 30000) issues.push(`decideMs null인데 durationMs ${sim.durationMs}`);
+    // escapes: 필드/순서/상한(항상 잔류자 >= 1), 좌표 동결
+    if (sim.escapes.length > n - 1) issues.push(`escapes ${sim.escapes.length} > n-1`);
+    let prevEsc = -1;
+    for (const e of sim.escapes) {
+      if (![e.id, e.timeMs, e.x, e.y].every(Number.isInteger)) issues.push(`escape 필드 비정상 ${JSON.stringify(e)}`);
+      if (e.timeMs < prevEsc) issues.push('escapes 시간 역순');
+      prevEsc = e.timeMs;
+      // 좌표 동결: 탈출 다음 키프레임부터 불변
+      const last = sim.frames.length - 1;
+      const fi = Math.min(last, Math.floor(e.timeMs / 100) + 1);
+      for (let j = fi; j <= last; j++) {
+        if (sim.frames[j][e.id * 3] !== sim.frames[fi][e.id * 3] ||
+            sim.frames[j][e.id * 3 + 1] !== sim.frames[fi][e.id * 3 + 1]) { issues.push(`탈출자 ${e.id} 좌표 동결 위반`); break; }
+      }
+    }
+    // downs: 필드 + reviveMs = timeMs + 3000
+    for (const d of sim.downs) {
+      if (![d.id, d.timeMs, d.reviveMs, d.x, d.y].every(Number.isInteger) || d.reviveMs !== d.timeMs + 3000) {
+        issues.push(`down 필드 비정상 ${JSON.stringify(d)}`); break;
+      }
+    }
+    // bladeUps: 슬롯별 count = finalState.bladeCount - 2, 탈출자만 5, 비탈출자 2~4
+    const upCount = new Array(n).fill(0);
+    for (const b of sim.bladeUps) {
+      if (!Number.isInteger(b.id) || !Number.isInteger(b.timeMs)) { issues.push('bladeUp 필드 비정상'); break; }
+      upCount[b.id]++;
+    }
+    for (const f of sim.finalState) {
+      if (upCount[f.id] !== f.bladeCount - 2) issues.push(`bladeUps count slot=${f.id} ${upCount[f.id]} != ${f.bladeCount - 2}`);
+      if (f.escaped && f.bladeCount !== 5) issues.push(`탈출자 slot=${f.id} bladeCount ${f.bladeCount} != 5`);
+      if (!f.escaped && (f.bladeCount < 2 || f.bladeCount > 4)) issues.push(`비탈출자 slot=${f.id} bladeCount ${f.bladeCount} 범위 밖`);
+    }
+    // 하드 월
+    const wv = wallViolations(sim, n);
+    if (wv > 0) issues.push(`하드 월 위반 ${wv}건`);
+    // 스폰 즉시 피격 0 (frame 0~1 = 스폰 순간 — spawnR 기하 성질)
+    const sv = spawnHitViolations(sim, n);
+    if (sv > 0) issues.push(`스폰 순간(frame0~1) 피격 ${sv}건`);
+    // geom: scale = s(n) 정확, 파생 반경 = 전역 상수 × scale (시드 무관, n만의 함수)
+    if (!sim.geom) {
+      issues.push('geom 누락');
+    } else {
+      const expScale = n <= 6 ? 1 : Math.sqrt(6 / n);
+      if (n <= 6) {
+        if (sim.geom.scale !== 1) issues.push(`geom.scale n=${n} ${sim.geom.scale} != 1(동결)`);
+      } else if (Math.abs(sim.geom.scale - expScale) > 1e-9) {
+        issues.push(`geom.scale n=${n} ${sim.geom.scale} != √(6/n) ${expScale}`);
+      }
+    }
+    // rankings: rank 1 = 첫 탈출(= escapes 배열 순서), selected = 최하위 = 비탈출자
+    const ranks = rankHumans(slots, sim.finalState);
+    for (let i = 0; i < sim.escapes.length; i++) {
+      if (ranks[i].slotId !== sim.escapes[i].id || ranks[i].escapeMs !== sim.escapes[i].timeMs) {
+        issues.push(`rank${i + 1} != escapes[${i}]`); break;
+      }
+    }
+    const sel = ranks[ranks.length - 1];
+    if (sel.escapeMs !== null) issues.push('selected가 탈출자');
+    if (sim.escapes.some(e => e.id === sel.slotId)) issues.push('selected가 escapes에 존재');
+    return issues;
+  }
+
+  // --- 결정론 / 구조 정합 / geom (가변 n, 고정 시드) ---
+  console.log('--- 결정론 + 구조 정합 + geom (고정 시드 12345) ---');
+  for (const n of N_LIST) {
+    const a = await simulate(mkSlots(n), 12345);
+    const b = await simulate(mkSlots(n), 12345);
+    // 결정론: frames/escapes/downs/bladeUps/decideMs/durationMs + geom 동일
+    check(`determinism same seed n=${n}`,
+      JSON.stringify(a.frames) === JSON.stringify(b.frames) &&
+      JSON.stringify(a.escapes) === JSON.stringify(b.escapes) &&
+      JSON.stringify(a.downs) === JSON.stringify(b.downs) &&
+      JSON.stringify(a.bladeUps) === JSON.stringify(b.bladeUps) &&
+      a.decideMs === b.decideMs && a.durationMs === b.durationMs &&
+      JSON.stringify(a.geom) === JSON.stringify(b.geom));
+    // geom 시드 무관 결정론: 다른 시드라도 같은 n이면 geom 동일(n만의 함수)
+    const c = await simulate(mkSlots(n), 777);
+    const expScale = n <= 6 ? 1 : Math.sqrt(6 / n);
+    const scaleOk = n <= 6 ? (a.geom.scale === 1) : (Math.abs(a.geom.scale - expScale) <= 1e-9);
+    check(`geom 시드무관·scale=√(6/n) n=${n}`,
+      JSON.stringify(a.geom) === JSON.stringify(c.geom) && scaleOk,
+      `scale=${a.geom.scale.toFixed(6)} bladeR=${a.geom.bladeRadius.toFixed(2)} charR=${a.geom.charRadius.toFixed(2)} spawnR=${a.geom.spawnR.toFixed(1)}`);
+    const issues = structuralIssues(a, mkSlots(n));
+    check(`structural integrity n=${n}`, issues.length === 0, issues.join(' / '));
+    console.log(`  n=${n}: decideMs=${a.decideMs} durationMs=${a.durationMs} escapes=${a.escapes.length} downs=${a.downs.length} bladeUps=${a.bladeUps.length}`);
   }
 
   const s1 = await simulate(mkSlots(3), 12345);
   const s3 = await simulate(mkSlots(3), 99999);
   check('diff seed differs', JSON.stringify(s1.frames) !== JSON.stringify(s3.frames));
 
-  // 탈출 리프레이밍 플립 정합용 — 기존(생존순) 비교자의 selected(구정렬[0]) 도출.
-  // 새 rankings의 최하위(selected)가 이 인물과 항상 동일해야 한다(당첨자 동일 인물 회귀 증명).
-  function legacySelectedId(finalState) {
-    const hs = finalState.slice().sort((a, b) => {
-      if (a.alive !== b.alive) return a.alive ? -1 : 1;
-      if (a.alive) return b.hp - a.hp;
-      if (a.eliminatedMs !== b.eliminatedMs) return b.eliminatedMs - a.eliminatedMs;
-      return a.id - b.id;
-    });
-    return hs[0].id;
-  }
-
-  // --- 200시드 배치 분포: "정확히 1명 생존" 비율 (기준: h2/h3 >= 95%, h6 >= 88%) ---
-  console.log('--- 200-seed batch: exactly-1-survivor ratio ---');
-  for (const h of [2, 3, 4, 5, 6]) {
-    let one = 0, zero = 0, multi = 0, noSel = 0;
-    let elimTotal = 0, bladeKills = 0, elimMsSum = 0, wallBad = 0;
-    let flipBad = 0, rank1Bad = 0;
+  // --- 200시드 배치: 결판률(decideMs 확정) 게이트 + decideMs 분포 + 캡 도달률 ---
+  // cap=24 생존 판정의 권위 데이터. 미달 게이트도 분포를 끝까지 출력.
+  console.log('--- 200-seed batch: 결판률 + decideMs 분포 + 캡(30s) 도달률 ---');
+  console.log('게이트: n2/n3 >= 95%, n4~6 >= 88%, n8~24 >= 80%');
+  console.log('n     | 결판률        | decideMs avg/min/max | 캡도달  | durAvg | downs/인 | tie시드 | 칼업avg | 최이른피격f | selected편향');
+  const summary = [];
+  for (const h of N_LIST) {
     const N = 200;
+    let decided = 0, decideSum = 0, decideMin = Infinity, decideMax = -Infinity, capHit = 0;
+    let durSum = 0, downTotal = 0, tieSeeds = 0, upMsSum = 0, upTotal = 0;
+    let structBad = 0;
+    const selCount = new Array(h).fill(0);
+    let firstIssue = '';
+    let minHitFrame = 99;   // 0~500ms 내 어떤 시드든 가장 이른 피격 frame(보고용 — 스폰 spacing 여유)
     for (let t = 0; t < N; t++) {
       const seed = ((t * 2654435761 + h * 40503) >>> 0) & 0x7fffffff;
       const slots = mkSlots(h);
       const sim = await simulate(slots, seed);
+      const issues = structuralIssues(sim, slots);
+      if (issues.length) { structBad++; if (!firstIssue) firstIssue = `seed=${seed}: ${issues[0]}`; }
+      const ehf = earliestHitFrame(sim, slots.length);
+      if (ehf < minHitFrame) minHitFrame = ehf;
+      if (sim.decideMs !== null) {
+        decided++;
+        decideSum += sim.decideMs;
+        if (sim.decideMs < decideMin) decideMin = sim.decideMs;
+        if (sim.decideMs > decideMax) decideMax = sim.decideMs;
+      }
+      if (sim.durationMs >= 30000) capHit++;   // 30초 캡 도달(교착)
+      durSum += sim.durationMs;
+      downTotal += sim.downs.length;
+      // 동시 탈출 tie: 같은 timeMs의 탈출이 2건 이상인 시드
+      for (let i = 1; i < sim.escapes.length; i++) {
+        if (sim.escapes[i].timeMs === sim.escapes[i - 1].timeMs) { tieSeeds++; break; }
+      }
+      for (const u of sim.bladeUps) { upMsSum += u.timeMs; upTotal++; }
       const ranks = rankHumans(slots, sim.finalState);
-      const alive = sim.finalState.filter(f => f.alive).length;
-      if (alive === 1) one++; else if (alive === 0) zero++; else multi++;
-      // selected = 새 rankings 최하위(끝까지 탈출 못 한 사람)
-      const sel = ranks.length ? ranks[ranks.length - 1].name : null;
-      if (!sel) noSel++;
-      // 플립 정합: 생존자(또는 최후 탈락자) = 새 rankings 최하위 = selected
-      if (sel !== 'P' + legacySelectedId(sim.finalState)) flipBad++;
-      // rank 1 = 가장 먼저 탈출(탈락자가 있으면 ranks[0].eliminatedMs가 최솟값)
-      if (sim.eliminations.length) {
-        let minElim = Infinity;
-        for (const e of sim.eliminations) if (e.timeMs < minElim) minElim = e.timeMs;
-        if (ranks[0].eliminatedMs !== minElim) rank1Bad++;
-      }
-      wallBad += wallViolations(sim, h);
-      for (const e of sim.eliminations) {
-        elimTotal++; elimMsSum += e.timeMs;
-        if (e.killerId !== null) bladeKills++;
-      }
+      selCount[ranks[ranks.length - 1].slotId]++;
     }
-    const pct = (one / N * 100).toFixed(1);
-    const bk = elimTotal ? (bladeKills / elimTotal * 100).toFixed(1) : '0';
-    const avgMs = elimTotal ? Math.round(elimMsSum / elimTotal) : 0;
-    console.log(`h=${h}: 1survivor=${one} (${pct}%) 0survivor=${zero} multi=${multi} noSelected=${noSel} | bladeKill=${bk}% avgElim=${avgMs}ms wallViol=${wallBad} (/${N})`);
-    if (h === 2 || h === 3) check(`h${h} >= 95%`, one / N >= 0.95);
-    if (h === 6) check('h6 >= 88%', one / N >= 0.88);
-    // 게이트 명세는 h2/h3/h6 — h4/h5는 중간 인원수만 망가지는 회귀를 잡는 보수 하한
-    if (h === 4 || h === 5) check(`h${h} >= 88%`, one / N >= 0.88);
-    // 하드 월: 200시드 전체에서 alive 캐릭터 링 밖 좌표 0건
-    check(`h${h} alive outside ring = 0`, wallBad === 0, wallBad ? '(' + wallBad + ')' : '');
-    // 링 데미지 제거 → 모든 킬은 칼날 귀속(killerId 비-null)
-    check(`h${h} bladeKill 100%`, elimTotal > 0 && bladeKills === elimTotal, `(${bladeKills}/${elimTotal})`);
-    // 탈출 리프레이밍: selected(새 최하위) = 기존 selected(구정렬[0])와 동일 인물
-    check(`h${h} flip selected == legacy`, flipBad === 0, flipBad ? '(' + flipBad + ' mismatch)' : '');
-    // rank 1 = 가장 먼저 탈출
-    check(`h${h} rank1 = earliest escape`, rank1Bad === 0, rank1Bad ? '(' + rank1Bad + ')' : '');
+    const rate = decided / N;
+    const avgDec = decided ? Math.round(decideSum / decided) : 0;
+    const capRate = (capHit / N * 100).toFixed(1);
+    // selected 편향: 최대-최소 편차(균등이면 0에 근접). 슬롯 많으면 분포 대신 max/min만.
+    const selMax = Math.max(...selCount), selMin = Math.min(...selCount);
+    const selStr = h <= 8 ? `[${selCount.join(',')}]` : `max=${selMax} min=${selMin}`;
+    const minHitStr = minHitFrame === 99 ? '>5(none)' : `f${minHitFrame}(${minHitFrame * 100}ms)`;
+    console.log(
+      `n=${String(h).padEnd(3)} | ${decided}/${N} (${(rate * 100).toFixed(1).padStart(5)}%) | ` +
+      `${String(avgDec).padStart(5)}/${decided ? String(decideMin).padStart(5) : '    -'}/${decided ? String(decideMax).padStart(5) : '    -'} | ` +
+      `${capRate.padStart(5)}% | ${String(Math.round(durSum / N)).padStart(6)} | ${(downTotal / (N * h)).toFixed(2)} | ` +
+      `${String(tieSeeds).padStart(3)} | ${upTotal ? Math.round(upMsSum / upTotal) : 0}ms | ${minHitStr.padStart(9)} | ${selStr}`
+    );
+    summary.push({ h, rate, avgDec, capRate: capHit / N, structBad, firstIssue });
   }
 
-  // selected always non-null (rankHumans는 0생존도 정렬 리스트 반환 — selected = 최하위)
-  const slots2 = mkSlots(2);
-  const sim2 = await simulate(slots2, 7);
-  const r2 = rankHumans(slots2, sim2.finalState);
-  const sel2 = r2.length ? r2[r2.length - 1].name : null;
-  check('rankHumans selected non-null', r2.length === 2 && !!sel2, 'selected=' + sel2);
+  // 게이트 판정(분포 출력 후 일괄) — 미달이어도 위 분포는 이미 전량 출력됨.
+  console.log('--- 게이트 판정 ---');
+  for (const r of summary) {
+    const gate = (r.h <= 3) ? 0.95 : (r.h <= 6) ? 0.88 : 0.80;
+    check(`n${r.h} 결판률 >= ${(gate * 100).toFixed(0)}%`, r.rate >= gate, `(${(r.rate * 100).toFixed(1)}%)`);
+    check(`n${r.h} 구조 정합 0건`, r.structBad === 0, r.structBad ? `(${r.structBad}시드, 첫 위반: ${r.firstIssue})` : '');
+  }
+  // 보고용 경고: n=24 결판률 80% 미만 또는 평균 decideMs 26s 초과(후퇴/튜닝 판단은 오케스트레이터)
+  const r24 = summary.find(r => r.h === 24);
+  if (r24) {
+    if (r24.rate < 0.80) console.log(`*** 경고: n=24 결판률 ${(r24.rate * 100).toFixed(1)}% < 80% — cap=24 후퇴 검토 필요 ***`);
+    if (r24.avgDec > 26000) console.log(`*** 경고: n=24 평균 decideMs ${r24.avgDec}ms > 26s — T(n) 튜닝 검토 필요 ***`);
+  }
 
-  // 합성 다중 생존 엣지 — 배치에서 발생 0건이라 alive 2인 hp 절/slotId tie-break 역전을 직접 고정
-  const synthSlots = mkSlots(3);
-  const synthA = rankHumans(synthSlots, [
-    { id: 0, isBot: false, alive: true, hp: 40, eliminatedMs: null },
-    { id: 1, isBot: false, alive: true, hp: 70, eliminatedMs: null },
-    { id: 2, isBot: false, alive: false, hp: 0, eliminatedMs: 12000 }
+  // --- rankHumans 합성 엣지 (배치에서 드문 분기 직접 고정) ---
+  // 캡 교착(잔류 2 + 탈출 1): rank1 = 탈출자, 잔류자는 bladeCount desc → selected = 진행도 최하위
+  const synthA = rankHumans(mkSlots(3), [
+    { id: 0, escaped: false, escapeMs: null, bladeCount: 4, cumDmg: 150 },
+    { id: 1, escaped: false, escapeMs: null, bladeCount: 3, cumDmg: 100 },
+    { id: 2, escaped: true, escapeMs: 12000, bladeCount: 5, cumDmg: 140 }
   ]);
-  check('synth multi-alive: rank1 = 탈출자', synthA[0].name === 'P2');
-  check('synth multi-alive: selected = HP 높은 생존자', synthA[synthA.length - 1].name === 'P1');
-  // hp 동률 생존 2인 — legacy(구정렬[0] = slotId 낮은 쪽)와 동일 인물이 새 최하위여야 함
-  const synthB = rankHumans(synthSlots, [
-    { id: 0, isBot: false, alive: true, hp: 55, eliminatedMs: null },
-    { id: 1, isBot: false, alive: true, hp: 55, eliminatedMs: null },
-    { id: 2, isBot: false, alive: false, hp: 0, eliminatedMs: 9000 }
+  check('synth 캡 교착: rank1 = 탈출자', synthA[0].name === 'P2' && synthA[0].escapeMs === 12000);
+  check('synth 캡 교착: selected = bladeCount 최하위', synthA[2].name === 'P1' && synthA[2].escapeMs === null);
+  // 잔류자 bladeCount 동률 → cumDmg desc → selected = cumDmg 낮은 쪽
+  const synthB = rankHumans(mkSlots(3), [
+    { id: 0, escaped: false, escapeMs: null, bladeCount: 3, cumDmg: 90 },
+    { id: 1, escaped: false, escapeMs: null, bladeCount: 3, cumDmg: 120 },
+    { id: 2, escaped: true, escapeMs: 9000, bladeCount: 5, cumDmg: 140 }
   ]);
-  check('synth hp-tie: selected = slotId 낮은 쪽(legacy 동일)', synthB[synthB.length - 1].name === 'P0');
+  check('synth 칼 동률: selected = cumDmg 낮은 쪽', synthB[2].name === 'P0');
+  // 전부 동률 → slotId 큰 쪽이 selected
+  const synthC = rankHumans(mkSlots(2), [
+    { id: 0, escaped: false, escapeMs: null, bladeCount: 2, cumDmg: 0 },
+    { id: 1, escaped: false, escapeMs: null, bladeCount: 2, cumDmg: 0 }
+  ]);
+  check('synth 전부 동률: selected = slotId 큰 쪽', synthC[1].name === 'P1');
+  // 같은 틱 동시 탈출: cumDmg 내림차순(시뮬 ④ 순서 재현)
+  const synthD = rankHumans(mkSlots(3), [
+    { id: 0, escaped: true, escapeMs: 8000, bladeCount: 5, cumDmg: 137 },
+    { id: 1, escaped: true, escapeMs: 8000, bladeCount: 5, cumDmg: 142 },
+    { id: 2, escaped: false, escapeMs: null, bladeCount: 4, cumDmg: 130 }
+  ]);
+  check('synth 동시 탈출 tie: cumDmg 높은 쪽 rank1', synthD[0].name === 'P1' && synthD[1].name === 'P0');
 
   console.log(fails === 0 ? '=== ALL PASS ===' : `=== FAILURES: ${fails} ===`);
   process.exitCode = fails ? 1 : 0;

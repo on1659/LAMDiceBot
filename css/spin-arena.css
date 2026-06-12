@@ -75,6 +75,70 @@ body.spin-running #spinArenaCanvas {
     body.spin-running #spinArenaCanvas { animation: none; }
 }
 
+/* ── 관전 카메라 전환(세그먼트 컨트롤) — 캔버스 위, 게임 중에만 노출 ── */
+#spinCameraBar {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 8px;
+    padding: 4px;
+    background: rgba(13, 19, 38, 0.85);
+    border: 1px solid rgba(var(--spin-arena-500-rgb), 0.4);
+    border-radius: 12px;
+    box-sizing: border-box;
+}
+
+.spin-cam-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 44px;              /* 모바일 터치 타깃 */
+    padding: 6px 8px;
+    background: transparent;
+    color: var(--text-muted, #aeb6c2);
+    border: none;
+    border-radius: 9px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.spin-cam-btn .spin-cam-ic { font-size: 15px; line-height: 1; }
+
+.spin-cam-btn:hover {
+    background: rgba(var(--spin-arena-500-rgb), 0.14);
+    color: var(--text-bright, #eef2fb);
+}
+
+.spin-cam-btn.active {
+    background: var(--spin-arena-gradient);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(var(--spin-arena-500-rgb), 0.4);
+}
+
+.spin-cam-btn.disabled,
+.spin-cam-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.spin-cam-btn.disabled:hover,
+.spin-cam-btn:disabled:hover {
+    background: transparent;
+    color: var(--text-muted, #aeb6c2);
+}
+
+/* 모바일: 라벨 축약(아이콘 우선) — 좁은 화면에서 3버튼 가독 */
+@media (max-width: 400px) {
+    .spin-cam-btn { font-size: 12px; padding: 6px 4px; }
+    .spin-cam-btn .spin-cam-lb { font-size: 11px; }
+}
+
 /* ── 스킨 피커 ── */
 #spinSkinPicker {
     background: var(--bg-white);
@@ -89,6 +153,40 @@ body.spin-running #spinArenaCanvas {
     color: var(--spin-arena-accent);
     font-size: 16px;
     margin-bottom: 6px;
+}
+
+/* 피커 헤더(제목 + 상점 버튼) — 모바일에서도 한 줄 유지 */
+.spin-skin-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.spin-skin-head .spin-skin-title {
+    margin-bottom: 0;
+}
+
+/* 상점 진입 버튼 (경마 .hshop-open-btn 패턴 — spin 색) */
+.spin-shop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1.5px solid var(--spin-arena-500);
+    background: var(--bg-white);
+    color: var(--spin-arena-accent);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(var(--spin-arena-500-rgb), 0.18);
+    white-space: nowrap;
+}
+
+.spin-shop-btn:hover {
+    background: rgba(var(--spin-arena-500-rgb), 0.10);
 }
 
 .spin-skin-hint {
@@ -181,10 +279,69 @@ body.spin-running #spinArenaCanvas {
     text-overflow: ellipsis;
 }
 
-/* ── HP 현황 패널 (캔버스 아래) — 모바일 2열 컴팩트 가로 스택, 데스크톱 3열 ── */
+/* 미소유 스킨(신규 색) — 잠금. 클릭하면 상점이 열린다 */
+.spin-skin-swatch.locked {
+    opacity: 0.55;
+    border-style: dashed;
+}
+
+.spin-skin-swatch.locked:hover {
+    opacity: 0.8;
+    border-color: var(--spin-arena-500);
+}
+
+.spin-skin-lock {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+/* 스킨업(Ⅱ) 배지 — 색 이름 옆 */
+.spin-skin-tier {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--bg-white);
+    background: var(--spin-arena-600);
+    border-radius: 6px;
+    padding: 0 5px;
+    line-height: 15px;
+    vertical-align: 1px;
+}
+
+/* ── 상점 카드 미리보기 (js/spin-shop.js — hshop 카드 안) ── */
+.sshop-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+}
+
+.sshop-dot {
+    display: inline-block;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+}
+
+.sshop-tier-badge {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--spin-arena-accent);
+    background: rgba(var(--spin-arena-500-rgb), 0.14);
+    border-radius: 6px;
+    padding: 1px 6px;
+}
+
+/* ── HP 현황 패널 (캔버스 아래) — 슬롯 수 기반 열 분기(JS가 cols-N 클래스 부여) ──
+   n≤8: 1열, 9~16: 2열, n>16: 3열. 24명이 모바일 375px에서 3열=8행 스크롤 없이 표시 목표.
+   미디어쿼리(인원 무관) 대신 인원 기반이라 소수 인원은 넓게, 24명은 촘촘하게. */
 #spinHpPanel {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(1, 1fr);
     gap: 6px 12px;
     margin-top: 10px;
     padding: 10px 12px;
@@ -194,10 +351,13 @@ body.spin-running #spinArenaCanvas {
     text-align: left;
 }
 
-@media (min-width: 640px) {
-    #spinHpPanel {
-        grid-template-columns: repeat(3, 1fr);
-    }
+#spinHpPanel.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+#spinHpPanel.cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px 8px;                  /* 3열(다인원)은 간격 축소로 24행 밀도 확보 */
 }
 
 .spin-hp-row {
@@ -249,6 +409,27 @@ body.spin-running #spinArenaCanvas {
     flex-shrink: 0;
 }
 
+/* 3열(다인원 17~24명) — 셀 폭이 좁아 폰트·이름폭·바·값폭 축소로 24행 밀도 확보(모바일 375px 무스크롤 목표) */
+#spinHpPanel.cols-3 .spin-hp-row {
+    gap: 4px;
+}
+#spinHpPanel.cols-3 .spin-hp-name {
+    font-size: 10px;
+    max-width: 42px;
+}
+#spinHpPanel.cols-3 .spin-hp-dot {
+    width: 6px;
+    height: 6px;
+}
+#spinHpPanel.cols-3 .spin-hp-bar {
+    min-width: 14px;
+    height: 6px;
+}
+#spinHpPanel.cols-3 .spin-hp-val {
+    font-size: 9px;
+    min-width: 22px;
+}
+
 .spin-hp-row.dead {
     opacity: 0.55;
 }
@@ -260,6 +441,29 @@ body.spin-running #spinArenaCanvas {
 
 .spin-hp-row.dead .spin-hp-val {
     color: #8b93a3;
+}
+
+/* 다운(비석) 상태 — 부활 카운트다운 표시 중 */
+.spin-hp-row.down .spin-hp-name {
+    color: #8b93a3;
+}
+
+.spin-hp-row.down .spin-hp-val {
+    color: var(--yellow-500, #eab308);
+}
+
+/* 탈출 차단자(결판/캡 후 selected) — 진행 바 적색 고정(가득) + 상태 적색.
+   fill 배경은 JS가 인라인(스킨색)으로 칠하므로 !important로 덮는다. */
+.spin-hp-row.stuck .spin-hp-fill {
+    background: var(--red-500, #ef4444) !important;
+}
+
+.spin-hp-row.stuck .spin-hp-name {
+    color: var(--red-400, #f87171);
+}
+
+.spin-hp-row.stuck .spin-hp-val {
+    color: var(--red-400, #f87171);
 }
 
 /* ── 다시보기 버튼 (게임 영역) ── */

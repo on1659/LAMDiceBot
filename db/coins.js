@@ -89,7 +89,9 @@ async function spend(userId, price, cosmeticId) {
     try {
         await client.query('BEGIN');
 
-        // 이미 소유 시 재구매 차단 (코인 차감 없이 ok)
+        // 이미 소유 시 재구매 차단 (코인 차감 없이 응답) — fast-path.
+        // 이 사전 체크는 행 잠금 전이라 동시 구매 2건이 모두 통과할 수 있다.
+        // 최종 가드는 아래 user_cosmetics INSERT의 rowCount(충돌 = ROLLBACK).
         const ownedAlready = await client.query(
             'SELECT 1 FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2',
             [userId, cosmeticId]
@@ -117,11 +119,19 @@ async function spend(userId, price, cosmeticId) {
             `INSERT INTO coin_ledger (user_id, delta, reason, ref) VALUES ($1, $2, $3, $4)`,
             [userId, -price, 'buy:' + cosmeticId, null]
         );
-        await client.query(
+        const ins = await client.query(
             `INSERT INTO user_cosmetics (user_id, cosmetic_id) VALUES ($1, $2)
-             ON CONFLICT (user_id, cosmetic_id) DO NOTHING`,
+             ON CONFLICT (user_id, cosmetic_id) DO NOTHING
+             RETURNING user_id`,
             [userId, cosmeticId]
         );
+        // 동시 구매 레이스 가드: INSERT 충돌(이미 소유) = 다른 트랜잭션이 먼저 구매 완료.
+        // 이 트랜잭션의 차감/원장을 전부 되돌리고 already-owned로 응답 (이중과금 차단).
+        if (ins.rowCount === 0) {
+            await client.query('ROLLBACK');
+            const bal = await getBalance(userId);
+            return { ok: false, reason: 'owned', balance: bal };
+        }
 
         await client.query('COMMIT');
         return { ok: true, balance };

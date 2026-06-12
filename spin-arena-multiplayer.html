@@ -13,16 +13,16 @@
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>LAM 회전 칼날 ⚔️</title>
-    <meta name="description" content="친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞아 링 밖으로 탈출하세요 — 끝까지 탈출 못 한 사람이 당첨!">
+    <meta name="description" content="친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞을수록 검이 늘어나요 — 칼 5개를 모으면 탈출 성공, 끝까지 못 모은 1명이 당첨!">
     <meta property="og:title" content="LAM 회전 칼날 ⚔️">
-    <meta property="og:description" content="친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞아 링 밖으로 탈출하세요 — 끝까지 탈출 못 한 사람이 당첨!">
+    <meta property="og:description" content="친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞을수록 검이 늘어나요 — 칼 5개를 모으면 탈출 성공, 끝까지 못 모은 1명이 당첨!">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/spin-arena">
     <meta property="og:site_name" content="LAMDice">
     <meta property="og:locale" content="ko_KR">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="LAM 회전 칼날 ⚔️">
-    <meta name="twitter:description" content="친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞아 링 밖으로 탈출하세요 — 끝까지 탈출 못 한 사람이 당첨!">
+    <meta name="twitter:description" content="친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞을수록 검이 늘어나요 — 칼 5개를 모으면 탈출 성공, 끝까지 못 모은 1명이 당첨!">
     <link rel="canonical" href="https://lamdice.com/spin-arena">
 
     <!-- FOUC Prevention: Always use light theme -->
@@ -38,7 +38,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/spin-arena.css">
+    <!-- horse-shop.css: 상점 모달(.hshop-*) 공통 — spin-arena.css의 --horse-* alias로 spin 색이 입혀짐 -->
+    <link rel="stylesheet" href="/css/horse-shop.css">
+    <link rel="stylesheet" href="/css/spin-arena.css?v=3">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -49,7 +51,7 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "LAMDice 회전 칼날",
-      "description": "친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞아 링 밖으로 탈출하세요 — 끝까지 탈출 못 한 사람이 당첨!",
+      "description": "친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞을수록 검이 늘어나요 — 칼 5개를 모으면 탈출 성공, 끝까지 못 모은 1명이 당첨!",
       "url": "https://lamdice.com/spin-arena",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Web Browser",
@@ -62,7 +64,7 @@
         <div style="padding:40px; text-align:center; font-family:sans-serif;">
             <h1>LAMDice 회전 칼날</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
-            <p>친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞아 링 밖으로 탈출하세요 — 끝까지 탈출 못 한 사람이 당첨! 회원가입 없이 무료로 플레이할 수 있습니다.</p>
+            <p>친구와 함께하는 실시간 회전 칼날 탈출전. 검에 맞을수록 검이 늘어나요 — 칼 5개를 모으면 탈출 성공, 끝까지 못 모은 1명이 당첨! 회원가입 없이 무료로 플레이할 수 있습니다.</p>
             <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
         </div>
     </noscript>
@@ -137,6 +139,9 @@
 
             <!-- 회전 칼날 스킨 피커 (준비자만, idle 단계) -->
             <div id="spinSkinPicker" style="display: none;"></div>
+
+            <!-- 꾸미기 상점 모달 마운트 (js/spin-shop.js가 채움) -->
+            <div id="spinShopMount"></div>
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
@@ -213,6 +218,12 @@
 
             <!-- 회전 칼날 아레나 캔버스 영역 -->
             <section id="spinArenaWrap" style="display: none;">
+                <!-- 관전 카메라 전환(세그먼트 컨트롤) — 게임 중에만 노출(JS가 display 토글) -->
+                <div id="spinCameraBar" role="group" aria-label="관전 카메라 전환" style="display: none;">
+                    <button type="button" class="spin-cam-btn active" data-mode="follow" onclick="setSpinCameraMode('follow')" aria-label="내 캐릭터 추적"><span class="spin-cam-ic">🎯</span><span class="spin-cam-lb">내 캐릭터</span></button>
+                    <button type="button" class="spin-cam-btn" data-mode="overview" onclick="setSpinCameraMode('overview')" aria-label="전체 보기"><span class="spin-cam-ic">🗺️</span><span class="spin-cam-lb">전체</span></button>
+                    <button type="button" class="spin-cam-btn" data-mode="director" onclick="setSpinCameraMode('director')" aria-label="이벤트 디렉터"><span class="spin-cam-ic">🎬</span><span class="spin-cam-lb">디렉터</span></button>
+                </div>
                 <div id="spinCanvasBox">
                     <canvas id="spinArenaCanvas" width="480" height="480" aria-label="회전 칼날 아레나 캔버스"></canvas>
                     <!-- 리플레이 중 채팅 오버레이 (경마 raceChatOverlay CSS 재사용 — 페이지별 link라 경마 무영향) -->
@@ -288,7 +299,8 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/spin-arena.js?v=5"></script>
+    <script src="/js/spin-shop.js?v=1"></script>
+    <script src="/js/spin-arena.js?v=9"></script>
 
     <script>
         // ============================================
@@ -405,7 +417,7 @@
     <!-- SEO Content Section (hidden, crawlers only) -->
     <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 회전 칼날 게임 안내</h2>
-        <p>LAMDice 회전 칼날은 친구들과 함께 즐기는 무료 온라인 탈출 게임입니다. 검을 단 캐릭터들이 원형 아레나에서 부딪치고, 검에 맞아 기력이 다하면 링 밖으로 튕겨나가 탈출에 성공합니다. 좁아지는 안전구역 안에서 끝까지 탈출하지 못한 최후 1인이 당첨(벌칙)으로 정해집니다. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
+        <p>LAMDice 회전 칼날은 친구들과 함께 즐기는 무료 온라인 탈출 게임입니다. 검을 단 캐릭터들이 원형 아레나에서 부딪치고, 검에 맞을수록 상대의 검기를 흡수해 내 검이 늘어납니다. 칼 5개를 모으면 탈출 성공! 쓰러져도 비석이 된 뒤 3초 후 부활합니다. 좁아지는 안전구역 안에서 끝까지 칼 5개를 못 모은 1명이 당첨(벌칙)으로 정해집니다. 최대 24명까지 함께 즐길 수 있고, 사람이 많을 때는 내 캐릭터를 따라가는 카메라와 미니맵으로 상황을 한눈에 볼 수 있습니다. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
             <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
             <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
@@ -461,7 +473,7 @@
         {
             target: '#readySection',
             title: '2단계: 준비 = 참가',
-            content: '"준비" 버튼을 누른 사람만 이번 판에 참가합니다(선착 최대 6명). 준비하지 않으면 관전만 해요.',
+            content: '"준비" 버튼을 누른 사람만 이번 판에 참가합니다(선착 최대 24명). 준비하지 않으면 관전만 해요.',
             position: 'bottom'
         },
         {
@@ -473,28 +485,35 @@
         },
         {
             target: '#spinArenaWrap',
-            title: '4단계: 30초 탈출전',
-            content: '시작하면 캐릭터들이 검을 들고 30초 동안 탈출전을 벌입니다. 안전구역이 점점 좁아지며 모두를 가운데로 몰아넣어요 — 검에 맞아 기력이 다하면 링 밖으로 튕겨나가 탈출 성공!',
+            title: '4단계: 칼 5개 탈출 미션',
+            content: '시작하면 캐릭터들이 검을 들고 탈출전을 벌입니다. 검에 맞으면 검기를 흡수해 검이 +1! 칼 5개를 모으면 탈출 성공이에요. 안전구역이 점점 좁아지며 모두를 가운데로 몰아넣습니다.',
             position: 'top',
             fallbackTarget: '#gameStatus'
         },
         {
             target: '#spinArenaWrap',
-            title: '5단계: 날려보내면 검 +1',
-            content: '다른 캐릭터를 링 밖으로 날려보내면 검이 1개 늘어나요(최대 5개). 검이 많을수록 더 위협적이에요.',
+            title: '5단계: 3초 부활',
+            content: '쓰러져도 끝이 아니에요 — 비석이 된 뒤 3초 후 부활! 모은 칼과 진행도는 그대로 유지됩니다.',
             position: 'top',
             fallbackTarget: '#gameStatus'
         },
         {
+            target: '#spinCameraBar',
+            title: '6단계: 관전 카메라',
+            content: '사람이 많아도 잘 보이게 카메라를 고를 수 있어요. "내 캐릭터"는 내 캐릭터를 따라가고, "전체"는 아레나를 한눈에, "디렉터"는 탈출·쓰러짐 같은 명장면을 자동으로 비춰줍니다. 오른쪽 위 미니맵으로 전체 상황도 볼 수 있어요.',
+            position: 'top',
+            fallbackTarget: '#spinArenaWrap'
+        },
+        {
             target: '#startSpinButton',
-            title: '6단계: 게임 시작',
+            title: '7단계: 게임 시작',
             content: '호스트가 이 버튼을 누르면 3-2-1 카운트다운 후 탈출전이 시작됩니다. 결과는 서버에서 공정하게 결정돼요.',
             position: 'top'
         },
         {
             target: '.chat-section',
-            title: '7단계: 채팅과 결과',
-            content: '게임 중에는 채팅이 아레나 위로 올라옵니다. 끝까지 탈출 못 한 1명이 당첨(벌칙)! 끝나면 다시보기로 명장면을 복습하세요.',
+            title: '8단계: 채팅과 결과',
+            content: '게임 중에는 채팅이 아레나 위로 올라옵니다. 끝까지 칼 5개를 못 모은 1명이 당첨(벌칙)! 끝나면 다시보기로 명장면을 복습하세요.',
             position: 'top'
         }
     ];

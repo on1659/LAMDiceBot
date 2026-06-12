@@ -1,4 +1,55 @@
 ========================================
+📋 Summit Log - 2026-06-12 (spin-arena 4기능 번들: 칼 수집 탈출·부활·종료압축 / 꾸미기 상점 / 관전 카메라·24명 스케일링 / 24색 리소스 팩)
+========================================
+
+## 커밋 범위 주의
+- 한 워킹트리에 4개 독립 기능이 미커밋 누적 → 파일(특히 js/spin-arena.js 1279줄)이 엉켜 기능별 분리 커밋 불가 → 사용자 승인하에 한 커밋으로 정리.
+- **이번 세션(Claude) 직접 구현·리뷰·QA 완료**: ① 칼 수집 탈출+부활+종료압축. **다른 세션 산출물(이번 세션 미검증)**: ② 꾸미기 상점 ③ 관전 카메라+인원 스케일링 ④ 24색 리소스 팩. ②③④는 각 design/goal 문서·update-log에 완료 처리돼 있어 신뢰하되, 코드 검증 책임은 작성 세션에 있음.
+
+## 변경 파일
+- socket/spin-arena.js (401줄): [①] simulate 재작성 — 받은 데미지 누적 BLADE_UP_DMG(35)당 칼 +1, 칼 5(ESCAPE_BLADES) 도달=탈출, HP0=비석+3초 부활(grace 800ms), 잔류 1명=decideMs, durationMs 가변(min(30000, ceil((decideMs+2000)/100)*100)). reveal 페이로드 eliminations→escapes/downs/bladeUps/decideMs, frames 3채널 hp→cumDmg. rankHumans 재작성. endTimeout 가변화. [②④] 스킨 카탈로그 확장 연동.
+- js/spin-arena.js (1279줄): [①] 핍 HUD/진행 바(cumDmg 파생)/비석·부활·탈출 연출/미션 패널/스포일러 가드(decidedNow). [③] 관전 카메라 3모드(내 캐릭터·전체·디렉터)+미니맵+인원 가변 뷰포트. [④] 24색 스킨 렌더+이름표 가독.
+- js/spin-shop.js (신규): [②] 스핀 아레나 꾸미기 상점 클라(경마 상점 패턴 — 구매/장착/스킨업).
+- socket/shop.js (61줄), db/coins.js (16줄), db/cosmetics.js (3줄): [②] 스핀 스킨 카탈로그·소유/장착·코인 지갑(경마 상점 공유).
+- config/spin-arena/cosmetics.json (신규, 8KB): [②④] 스킨 카탈로그(기본 6색+구매 색)·24색 정의.
+- css/spin-arena.css (216줄): [①] 핍/미션 패널/적색 강조 [③] 카메라 버튼·미니맵 [④] 패널 다열 그리드.
+- spin-arena-multiplayer.html (51줄): [①③④] 메타/튜토리얼 문구, 캐시버스트 ?v=5→?v=6.
+- utils/room-helpers.js (2줄): [①] timeline 주석 필드명 동기화.
+- AutoTest: spin-arena-determinism-test.js(361줄 재작성, 200시드 게이트), spin-arena-2tab-test.js(26줄, 가변 durationMs·새 페이로드 단언), qa-escape-payload-gen.js/.js/.json·qa-spin-cluster-metric.js·spin-arena-render-harness.html·sample-reveal.json [①]. qa-spin-shop-browser-test.js·browser-authed-test.js·security-test.js(신규) [②].
+- docs: dev-cycle 2026-06-12-blade-escape-design[①]·2026-06-12-camera-scaling-design[③]·2026-06-11-resource-pack-design[②④], goal/applied blade-escape-and-revive[①]·cosmetic-shop[②], goal spectator-camera-and-scaling·temperament-choice(차기 후보), GameGuide/lessons/spin-arena.md(신규).
+- .claude/commands/goaldoc.md 삭제(스킬로 이관).
+
+## 상세 변경 내역
+
+### [① 칼 수집 탈출 + 부활 + 종료 압축 — 이번 세션 구현]
+- 설계: office-hours 빌더 모드 → Codex 콜드 리드 + 적대적 스펙 리뷰 2라운드(최종 8.5/10) → 결정서 docs/dev-cycle/2026-06-12-spin-arena-blade-escape-design.md.
+- 메커니즘: "그냥 버티다 보니"라는 수동성 + "이겼는데 지는 느낌" 해소 위해 능동 목표(칼 5개 수집=탈출) 도입. 죽음=영구 탈락→3초 부활(진행도 유지, 입력0이라 악용 불가). 결판 후 dead air(최대 ~20초) 제거 — decideMs 종료 압축.
+- 틱 순서 명문화(2탭 동기): ①칼날 스냅샷(활성만) ②피격/cumDmg 적산/넉백 ③칼업 후보(5번째 보류) ④탈출(cumDmg desc→slotId asc, 최소 1명 잔류 규칙=차단자 5번째 bladeUp 미발행→칼4) ⑤다운 ⑥부활(grace 800ms, 하드월 재진입) ⑦이동 ⑧결판. decideMs 후 피격 판정 스킵.
+- frames 3채널 hp→cumDmg 교체: HP UI 제거로 hp 유일 소비자가 진행 바인데 grace 클램프·부활 리셋으로 hp로 cumDmg 파생 불가 → 단조 cumDmg 채널화(스펙 리뷰 F-1).
+- 200시드 배치 튜닝: T=45/40은 h2 결판률 91%/90.5% FAIL → T=35에서 h2 97.5%·h3 99.5%·h4~6 100% 전부 PASS. 평균 decideMs 16.7~22.5초(권장 12~26).
+- 리뷰: Reviewer request-changes(스포일러 가드 decideMs 미적용 등 Minor 3) → 수정. ReviewerCodex approve(1000판 프로브 "decideMs 후 이벤트 0건" 증명). QA: 라이브 2탭+봇, 렌더 하네스 21/21, 엣지 — pass.
+
+### [② 꾸미기 상점 — 다른 세션, git diff 기반 개요]
+- 스핀 아레나 스킨 구매/장착/스킨업(Ⅱ). 경마 상점 선례(서버 권위 카탈로그 + owned/equipped 검증) 답습. db/coins.js 코인 지갑 경마와 공유, db/cosmetics.js·socket/shop.js 스핀 스킨 카탈로그 연동. js/spin-shop.js 신규 클라. 잠금 스킨 🔒 표시→상점 진입. 결과 무관 외형(스킨업 아우라).
+- 검증: 작성 세션 AutoTest qa-spin-shop-browser/authed/security 3종(이번 세션 미실행).
+
+### [③ 관전 카메라 + 인원 스케일링 — 다른 세션, git diff 기반 개요]
+- 결정서 docs/dev-cycle/2026-06-12-spin-arena-camera-scaling-design.md. 카메라 3모드(🎯 내 캐릭터 추적·🗺️ 전체·🎬 디렉터 자동 컷[탈출/다운/부활/칼4 임박]) + 우측 상단 미니맵(링·생존·다운·뷰포트). 참가자 기본=내 캐릭터, 관전/다시보기=디렉터. 인원 가변 스케일로 최대 24명. "2탭 동일"을 "동일 시뮬 상태"로 재정의(시점은 뷰어 로컬, t·페이로드 파생).
+- 검증: 작성 세션(이번 세션 미검증).
+
+### [④ 24색 리소스 팩 — 다른 세션, ②와 한 파이프라인]
+- 결정서 docs/dev-cycle/2026-06-11-spin-arena-resource-pack-design.md("리소스 팩 + 꾸미기 상점 파이프라인"). 기본 6색→24색 확장(자동 배정으로 24명까지 색 비충돌), config/spin-arena/cosmetics.json 카탈로그. 이름표 반투명 배경+외곽선 가독, 내 캐릭터 색 테두리 강조.
+- 검증: 작성 세션(이번 세션 미검증).
+
+### [공정성 — 4기능 공통 불변]
+- 결과는 서버 결정론 시뮬에서만. 클라 Math.random 실호출 2회(deviceId/tabId)만 — 카메라 로밍·연출 전부 t/hash01/페이로드 파생(2탭 동일). reveal 전 server-only(timeline/result/seed/이벤트) 비노출·재진입 마스킹 유지. 스킨·상점·카메라는 결과 영향 0. selected=DB rank2/isWinner false 시맨틱 유지.
+
+### [범위 밖 / 알려진 사항]
+- ②③④는 이번 세션(Claude)이 리뷰·QA하지 않음 — 검증 책임은 작성 세션. update-log·design/goal 문서상 완료 처리됨.
+- 차기 후보 goal: spin-arena-temperament-choice(기질 선택 — office-hours D5=B 균형 트레이드오프), spin-arena-spectator-camera-and-scaling(상한 16 재검토 분).
+- 재입장자는 마스킹으로 막판 KO 라벨이 "탈출 실패"로 표시(구조적 트레이드오프). 재입장 시 히스토리 미복원(기존 동작).
+
+========================================
 📋 Summit Log - 2026-06-11 2차 (spin-arena·ladder 다이렉트 링크 클라이언트 배선)
 ========================================
 

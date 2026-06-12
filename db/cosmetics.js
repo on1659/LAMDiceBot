@@ -8,7 +8,8 @@
 const { getPool } = require('./pool');
 
 // 장착 슬롯 화이트리스트 (카탈로그 카테고리와 일치)
-const EQUIP_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'skin_premium', 'track_theme', 'finish_fx', 'win_sound', 'win_emote', 'caster'];
+// spin_skin = 회전 칼날 스킨 슬롯 (config/spin-arena/cosmetics.json) — 화이트리스트 방식 유지(동적 슬롯명 금지)
+const EQUIP_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'skin_premium', 'track_theme', 'finish_fx', 'win_sound', 'win_emote', 'caster', 'spin_skin'];
 // 레이스 시작 시 타 플레이어에게 공개되는(broadcast) 슬롯
 const PUBLIC_HORSE_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'skin_premium'];
 

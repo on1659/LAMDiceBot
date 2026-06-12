@@ -1,6 +1,7 @@
-// QA: 2-client socket 통합 테스트 — 새 모델(가변 n, 봇 없음, killerId, requestSkins)
+// QA: 2-client socket 통합 테스트 — 칼 수집 탈출 개편(가변 durationMs, escapes/downs/bladeUps/decideMs, requestSkins)
 // 주의: 이 서버는 방 입장 시 자동 준비(rooms.js joinRoom) — 테스트는 그 사양을 전제로 한다.
-// 검증: 동일 reveal payload, slots.length === 참가자 수, frames 폭 n×3, killerId 필드,
+// 검증: 동일 reveal payload, slots.length === 참가자 수, frames 길이 = durationMs/sampleMs+1 · 폭 n×3,
+//       escapes/downs/bladeUps/decideMs 형태(eliminations/killerId 제거),
 //       requestSkins → skinsUpdated(skins만), gameEnd 동일 당첨자, 엣지케이스 3종
 const { io } = require('socket.io-client');
 const URL = 'http://localhost:5173';
@@ -118,12 +119,18 @@ async function setReady(s, name, want) {
     const n = host._reveal.slots.length;
     check(n === 2, 'slots.length === 2 (ready participants only), got ' + n);
     check(!host._reveal.slots.some(s => s.name === 'OBS'), 'edge2 non-ready user excluded from slots');
-    check(host._reveal.frames.length === 301, 'frames length 301, got ' + host._reveal.frames.length);
+    const dur = host._reveal.durationMs, smp = host._reveal.sampleMs;
+    check(Number.isInteger(dur) && dur > 0 && dur <= 30000 && dur % 100 === 0, 'durationMs valid (0<d<=30000, 100배수), got ' + dur);
+    check(host._reveal.frames.length === dur / smp + 1, 'frames length === durationMs/sampleMs+1 (' + (dur / smp + 1) + '), got ' + host._reveal.frames.length);
     check(host._reveal.frames.every(f => f.length === n * 3), 'every frame width === n*3 (' + (n * 3) + ')');
-    const elims = host._reveal.eliminations || [];
-    console.log('eliminations:', JSON.stringify(elims));
-    check(elims.every(e => 'killerId' in e), 'all eliminations have killerId field');
-    check(elims.every(e => ['id', 'timeMs', 'x', 'y'].every(k => k in e)), 'eliminations have id/timeMs/x/y');
+    const escapes = host._reveal.escapes, downs = host._reveal.downs, bladeUps = host._reveal.bladeUps;
+    console.log('escapes:', JSON.stringify(escapes), '| downs:', JSON.stringify(downs), '| bladeUps:', (bladeUps || []).length + '건', '| decideMs:', host._reveal.decideMs);
+    check(Array.isArray(escapes) && escapes.every(e => ['id', 'timeMs', 'x', 'y'].every(k => k in e)), 'escapes array, entries have id/timeMs/x/y');
+    check(Array.isArray(downs) && downs.every(d => ['id', 'timeMs', 'reviveMs', 'x', 'y'].every(k => k in d)), 'downs array, entries have id/timeMs/reviveMs/x/y');
+    check(Array.isArray(bladeUps) && bladeUps.every(b => ['id', 'timeMs'].every(k => k in b)), 'bladeUps array, entries have id/timeMs');
+    check('decideMs' in host._reveal && (host._reveal.decideMs === null || Number.isInteger(host._reveal.decideMs)), 'decideMs present (ms|null)');
+    check(!('eliminations' in host._reveal), 'reveal has NO legacy eliminations');
+    check(host._reveal.result.rankings.every(r => 'name' in r && 'slotId' in r && 'rank' in r && 'escapeMs' in r), 'rankings entries have name/slotId/rank/escapeMs');
     check(!('seed' in host._reveal) && !('timeline' in host._reveal), 'reveal has NO seed/timeline');
     check(hsel === 'HOST' || hsel === 'GUEST', 'selected is a participant (' + hsel + ')');
     const hostSlot = host._reveal.slots.find(s => s.name === 'HOST');
@@ -137,8 +144,9 @@ async function setReady(s, name, want) {
   await wait(500);
   check(guest._errors.length > gErrBefore, 'edge3 selectSkin during playing rejected');
 
-  // gameEnd 대기: COUNTDOWN 4000 + GAME 30000 + RESULT_HOLD 2200 = reveal 후 ~36.2s
-  console.log('waiting for gameEnd (~36.2s after reveal)...');
+  // gameEnd 대기: COUNTDOWN 4000 + durationMs(가변, 최대 30000) + RESULT_HOLD 2200 = reveal 후 최대 ~36.2s
+  // (결판 압축으로 더 빨리 끝날 수 있음 — 예산 42s는 그대로 유지)
+  console.log('waiting for gameEnd (up to ~36.2s after reveal)...');
   while (Date.now() - revealAt < 42000 && (!host._gameEnd || !guest._gameEnd)) await wait(1000);
   if (!host._gameEnd) fail('HOST no gameEnd'); else console.log('HOST gameEnd selected=' + host._gameEnd.selected + ' round=' + host._gameEnd.round);
   if (!guest._gameEnd) fail('GUEST no gameEnd'); else console.log('GUEST gameEnd selected=' + guest._gameEnd.selected);
