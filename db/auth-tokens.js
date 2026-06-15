@@ -5,9 +5,10 @@
 // socket 연결 후 `socket:authenticate { token }`로 재검증하면 서버가
 // 서명을 확인해 socket.authedUserId 를 세팅한다.
 //
-// 토큰은 서버에 저장하지 않는다. 비밀키(AUTH_TOKEN_SECRET)로 서명/검증만
-// 하므로 비밀키만 안정적이면 서버 재시작·배포에도 토큰이 그대로 유지된다.
-// (이전 인메모리 Map 방식은 재시작 시 전원 재로그인이 필요했다.)
+// 토큰은 서버에 저장하지 않는다. 비밀키로 서명/검증만 하므로 비밀키만
+// 안정적이면 서버 재시작·배포에도 토큰이 그대로 유지된다. 비밀키는 env
+// (AUTH_TOKEN_SECRET) 또는 DB(app_secrets 테이블)에 1회 영속된 값을 쓴다 —
+// env 없이도 재시작/재배포에 유지된다. (인메모리 Map 방식은 재시작 시 전원 재로그인)
 //
 // 토큰 형식: base64url(payload) + "." + base64url(signature)
 //   payload   = {"u": userId, "n": name, "e": 만료ms} (JSON)
@@ -21,27 +22,49 @@ const crypto = require('crypto');
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7일
 
-// 비밀키: AUTH_TOKEN_SECRET 환경변수에서 읽는다.
-// 미설정 시 — 임의 키를 매번 생성하면 재시작마다 토큰이 무효화되어
-// 인메모리 방식과 똑같은 문제로 되돌아간다. 운영 안전을 위해 기동은
-// 막지 않되, 이 키가 비영속(서버 재시작 시 전원 재로그인)임을 크게 경고한다.
-let SECRET = process.env.AUTH_TOKEN_SECRET;
-if (!SECRET) {
-    SECRET = crypto.randomBytes(32).toString('hex');
-    console.warn(
-        '\n' +
-        '================================================================\n' +
-        '⚠️  AUTH_TOKEN_SECRET 미설정 — 임시 비밀키를 생성했습니다.\n' +
-        '   이 키는 비영속(in-memory)입니다. 서버를 재시작하면 키가 바뀌어\n' +
-        '   모든 로그인 토큰이 무효화되고 사용자는 재로그인해야 합니다.\n' +
-        '   영구 유지하려면 .env 에 강한 랜덤 키를 추가하세요:\n' +
-        '     AUTH_TOKEN_SECRET=<crypto.randomBytes(32).toString("hex")>\n' +
-        '================================================================\n'
-    );
+// 비밀키 우선순위:
+//   1) AUTH_TOKEN_SECRET 환경변수 (배포 오버라이드)
+//   2) DB(app_secrets)에 1회 생성·영속된 키 — initAuthSecret(pool)가 부팅 시 로드
+// env 없이도 DB 키가 재시작/재배포에 유지되므로 토큰이 무효화되지 않는다.
+let SECRET = process.env.AUTH_TOKEN_SECRET || null;
+const SECRET_DB_KEY = 'auth_token_secret';
+
+// 부팅 시 1회 호출(db/init.js의 initDatabase). env 키가 있으면 그대로 쓰고,
+// 없으면 app_secrets에서 로드하거나, 없으면 생성해 영속한다.
+async function initAuthSecret(pool) {
+    if (SECRET) return; // env 오버라이드 — DB를 건드리지 않는다
+    if (!pool) {
+        // DB 없음(파일 모드) — 영속 불가. ephemeral 폴백(이 모드는 지갑/상점 자체가 비활성).
+        SECRET = crypto.randomBytes(32).toString('hex');
+        console.warn('⚠️  AUTH_TOKEN_SECRET 미설정 + DB 없음 — 임시 토큰키(재시작 시 재로그인). 파일 모드라 지갑/상점은 비활성.');
+        return;
+    }
+    try {
+        const sel = await pool.query('SELECT value FROM app_secrets WHERE key = $1', [SECRET_DB_KEY]);
+        if (sel.rows.length > 0) {
+            SECRET = sel.rows[0].value;
+            return;
+        }
+        // 없으면 생성 후 영속. 다중 인스턴스 동시 부팅 경쟁 안전을 위해
+        // INSERT(충돌 무시) 후 권위 값을 재조회한다.
+        const generated = crypto.randomBytes(32).toString('hex');
+        await pool.query(
+            'INSERT INTO app_secrets (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING',
+            [SECRET_DB_KEY, generated]
+        );
+        const reread = await pool.query('SELECT value FROM app_secrets WHERE key = $1', [SECRET_DB_KEY]);
+        SECRET = (reread.rows[0] && reread.rows[0].value) || generated;
+        console.log('🔑 토큰 서명키: DB 영속 키 사용 (env 미설정 — 재시작/재배포에도 유지)');
+    } catch (e) {
+        // DB 조회/저장 실패 — 부팅은 막지 않고 ephemeral 폴백
+        SECRET = crypto.randomBytes(32).toString('hex');
+        console.warn('⚠️  토큰 서명키 DB 영속 실패 — 임시키 폴백(재시작 시 재로그인):', e.message);
+    }
 }
 
 // base64url(payload) 문자열에 대한 HMAC-SHA256 서명 → base64url 문자열
 function sign(encodedPayload) {
+    if (!SECRET) SECRET = crypto.randomBytes(32).toString('hex'); // 방어: initAuthSecret 전 호출 시
     return crypto.createHmac('sha256', SECRET).update(encodedPayload).digest('base64url');
 }
 
@@ -90,4 +113,4 @@ function revokeToken(token) {
     // no-op (stateless) — 승격 시 여기서 세션 레코드 삭제
 }
 
-module.exports = { issueToken, verifyToken, revokeToken };
+module.exports = { issueToken, verifyToken, revokeToken, initAuthSecret };

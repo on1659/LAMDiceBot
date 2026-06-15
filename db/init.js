@@ -1,6 +1,7 @@
 // 데이터베이스 테이블 초기화
 const { getPool, clearPool } = require('./pool');
 const { loadVisitorStatsFromDB, loadPlayStatsFromDB } = require('./stats');
+const { initAuthSecret } = require('./auth-tokens');
 
 async function initDatabase() {
     const pool = getPool();
@@ -286,6 +287,15 @@ async function initDatabase() {
             )
         `);
 
+        // ─── 앱 비밀값 영속 (key/value) — 토큰 서명키 등을 env 없이 DB에 유지 ───
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS app_secrets (
+                key        VARCHAR(40) PRIMARY KEY,
+                value      TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
         // ─── 주문 통계 테이블 (랭킹용) ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS order_stats (
@@ -400,6 +410,9 @@ async function initDatabase() {
 
         await loadVisitorStatsFromDB();
         await loadPlayStatsFromDB();
+
+        // 토큰 서명키 영속 로드/생성 (env 미설정 시 DB에서 1회 생성 → 재시작에도 유지)
+        await initAuthSecret(pool);
 
         console.log('✅ 데이터베이스 테이블 초기화 완료');
     } catch (error) {
