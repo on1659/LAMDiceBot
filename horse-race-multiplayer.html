@@ -42,6 +42,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Yeon+Sung&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/css/horse-race.css">
+    <link rel="stylesheet" href="/css/horse-shop.css">
     <style>
         /* Custom Popup Animations */
         @keyframes fadeIn {
@@ -156,6 +157,7 @@
             <div class="horse-selection-section" id="horseSelectionSection">
                 <div class="horse-selection-header">
                     <div class="users-title" style="margin: 0;">🏁 탈것 선택</div>
+                    <button type="button" class="hshop-open-btn" onclick="HorseShop.openShop()" title="내 탈것 꾸미기" style="display:none;">🛒 꾸미기 상점</button>
                     <label id="autoSelectHorseToggleWrap" class="auto-select-toggle" style="display:none;" title="다음 방 입장부터 자동으로 탈것을 골라줍니다">
                         <input type="checkbox" id="autoSelectHorseToggle">
                         <span class="auto-select-toggle-slider"></span>
@@ -181,6 +183,9 @@
                     <div id="notSelectedVehicleList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
             </div>
+
+            <!-- 꾸미기 상점 모달 마운트 (JS가 채움) -->
+            <div id="horseShopMount"></div>
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
@@ -399,6 +404,7 @@
     <script src="/js/horse-race-lose.js"></script>
     <script src="/js/horse-race-commentary.js"></script>
     <script src="/js/horse-race-fall-motion.js"></script>
+    <script src="/js/horse-shop.js"></script>
     <script src="/js/horse-race.js"></script>
 
     <script>

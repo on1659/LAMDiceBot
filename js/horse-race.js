@@ -96,7 +96,7 @@ var missedAtCountdown = false; // 카운트다운 시 화면 숨겨져 있었는
 var userRankVotes = {};        // { [userName]: 1-based rank } — N등 투표 (서버 broadcast 동기화)
 var rouletteAnimFrameId = null; // 룰렛 애니메이션 rAF id
 
-// 놓친 경주 다시보기 필수 시청 횟수: 0=바로 종료가능 | 1=1회 후 종료 | 2=2회 후 종료
+// 놓친 경주 다시보기 자동 반복 재생 횟수 (종료 버튼은 첫 재생부터 항상 노출 — 사용자가 안 누르면 이 횟수만큼 재생 후 자동 종료)
 const MISSED_REPLAY_REQUIRED = 1;
 
 
@@ -941,13 +941,6 @@ function renderRankVoteSection(opts) {
 
     section.style.display = 'block';
 
-    // 달리는 말 수 = 베팅된 unique 말 인덱스 수 (서버 startHorseRace 검증 기준과 동일).
-    // 본인은 자기 베팅만 알므로 다른 사람 베팅 인덱스를 모르는 환경에선 추정치 — 시각 힌트용.
-    // 무효 표시 정확도는 서버 voteRank 검증이 최종 source of truth.
-    var runningHorseCount = userHorseBets ? new Set(Object.values(userHorseBets)).size : 0;
-    // runningHorseCount 가 0이면 모든 옵션 활성 (아직 아무도 베팅 안 함)
-    var activeMaxRank = runningHorseCount > 0 ? runningHorseCount : availableHorses.length;
-
     // 등수별 표 수 집계 (익명 — 이름 비공개)
     var tallyByRank = {};
     Object.values(userRankVotes || {}).forEach(function(rank) {
@@ -985,16 +978,15 @@ function renderRankVoteSection(opts) {
         boxesEl.appendChild(box);
     }
 
-    // 안내 메시지: 현재 출전 말 수보다 큰 등수는 무효 처리될 수 있음을 표시 (차단하지 않음)
+    // 안내 메시지: 출전 말 수는 선택이 끝나야 확정되므로, 마릿수에 의존하지 않는 상시 참 규칙으로 표시
     var warnEl = document.getElementById('rankVoteWarn');
     if (warnEl) {
-        if (runningHorseCount > 0 && activeMaxRank < availableHorses.length) {
-            warnEl.textContent =
-                '⚠ 현재 출전 ' + runningHorseCount + '마리 — ' +
-                (activeMaxRank + 1) + '등 이상에 투표하면 무효 처리되어 꼴등 찾기 모드로 진행됩니다.';
-            warnEl.style.display = 'block';
-        } else {
+        if (forceShow) {
+            // 룰렛 시각화 단계 — 투표가 끝났으므로 규칙 안내 숨김
             warnEl.style.display = 'none';
+        } else {
+            warnEl.textContent = '🐎 선택된 말 수보다 높은 등수에 던진 표는 사라져요.';
+            warnEl.style.display = 'block';
         }
     }
 }
@@ -1245,6 +1237,14 @@ function playRouletteAnimation(data) {
     if (!targetBar) return;
     var targetIdx = allBars.indexOf(targetBar);
     if (targetIdx < 0) return;
+
+    // 서버가 단일 등수 확정(skipAnim) — 스핀 없이 즉시 당첨 막대 + 배너로 점프
+    if (data.skipAnim) {
+        allBars.forEach(function(b) { b.classList.remove('active', 'winner'); });
+        targetBar.classList.add('winner');
+        updateTargetRankBanner(winningRank, true, window._targetRankReason);
+        return;
+    }
 
     // 이전 상태 청소
     allBars.forEach(function(b) { b.classList.remove('active', 'winner'); });
@@ -1665,6 +1665,20 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 horse.classList.add('jumping');
                 setTimeout(() => horse.classList.remove('jumping'), 400);
             });
+            // .my-horse 마커: 상점에서 장착 변경 시 내 말만 골라 갱신(타인 말 오염 방지)
+            horse.classList.add('my-horse');
+        }
+
+        // 꾸미기 적용 — 외관만, 결과 무관.
+        // 내 말 = 내 장착(서버 권위), 타인 말 = 서버 broadcast canonical(첫 선택자).
+        if (window.HorseShop) {
+            if (isMyHorse) {
+                window.HorseShop.applyToHorse(horse);
+            } else {
+                var _hc = (window._raceCosmetics && window._raceCosmetics.horses)
+                    ? window._raceCosmetics.horses[horseIndex] : null;
+                if (_hc) window.HorseShop.applyEquippedToHorse(horse, _hc);
+            }
         }
 
         track.appendChild(horse);
@@ -4615,9 +4629,8 @@ function replayMissedRace() {
         isReplayActive = true;
         document.body.classList.add('race-running'); // 놓친 경주 다시보기 중 스티키 광고 숨김
 
-        if (MISSED_REPLAY_REQUIRED === 0) {
-            showReplayStopButton(stopMidReplay);
-        }
+        // 첫 재생부터 즉시 종료 가능 — 종료 버튼 항상 노출
+        showReplayStopButton(stopMidReplay);
 
         showCountdown();
         setTimeout(() => {
@@ -4908,6 +4921,15 @@ function initializeGameScreen(data) {
 // === 소켓 이벤트 핸들러 ===
 
 socket.on('connect', () => {
+    // 꾸미기 상점: 소켓 연결 + 토큰 인증 (지갑/장착 서버 동기화, 매 연결 멱등)
+    if (window.HorseShop) {
+        window.HorseShop.connect(socket);
+        try {
+            var _auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
+            if (_auth && _auth.token) window.HorseShop.authenticate(_auth.token);
+        } catch (e) {}
+    }
+
     // 방에 있었다면 자동 재입장 (transport close reconnect 대응)
     if (currentRoomId) {
         const activeRoom = sessionStorage.getItem('horseRaceActiveRoom');
@@ -5377,6 +5399,12 @@ socket.on('horseRaceStarted', (data) => {
 
     // 마지막 경주 데이터 저장 (다시보기용)
     lastHorseRaceData = data;
+
+    // 꾸미기 페이로드 저장 (말별 canonical + 방장 연출) — 시각 렌더용, 결과 무관
+    window._raceCosmetics = { room: data.roomCosmetics || null, horses: data.horseCosmetics || {} };
+    if (window.HorseShop) {
+        window.HorseShop.applyRoomCosmetics(window._raceCosmetics.room); // 트랙 테마(없으면 정리만)
+    }
     window._slowMotionConfig = data.slowMotionConfig || null;
     // N등 투표 결과 (null = fallback 'last')
     window._targetRank = (typeof data.targetRank === 'number') ? data.targetRank : null;
@@ -5515,6 +5543,10 @@ socket.on('horseRaceStarted', (data) => {
 
     // 경주 트랙 표시 (서버에서 받은 기믹 데이터 전달) - 콜백으로 종료 처리
     startRaceAnimation(data.horseRankings, data.speeds, data.gimmicks, (actualFinishOrder) => {
+        // 방장 결승 연출(폭죽/색종이) 1회 재생 — 외관만, 결과 무관
+        if (window.HorseShop && window._raceCosmetics && window._raceCosmetics.room) {
+            window.HorseShop.playFinishFx(window._raceCosmetics.room);
+        }
         // 사운드: 골인! 관중 최고조 → 환호 → 페이드아웃
         if (window.SoundManager) {
             // 슬로우모션 환호성 정지 (아직 재생 중이면)

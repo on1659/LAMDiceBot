@@ -11,6 +11,7 @@ const registerFreeHandlers = require('./free');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
 const { registerServerHandlers } = require('./server');
+const registerShopHandlers = require('./shop');
 const { getUserFlags, setFlag, getUserPrefs, setUserPref } = require('../db/auth');
 
 function setupSocketHandlers(io, rooms) {
@@ -186,6 +187,7 @@ function setupSocketHandlers(io, rooms) {
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);
         registerServerHandlers(socket, io, ctx);
+        registerShopHandlers(socket, io, ctx);
 
         // 가이드 시스템 (bit flags)
         socket.on('getUserFlags', async (data, callback) => {

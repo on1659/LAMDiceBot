@@ -21,6 +21,85 @@ const { recordVehiclePicks } = require('../db/vehicle-picks');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
 const { getTop3Badges } = require('../db/ranking');
+const { grant: grantCoins, getBalance: getCoinBalance } = require('../db/coins');
+const { getEquippedMap, PUBLIC_HORSE_SLOTS } = require('../db/cosmetics');
+
+// 코인 경제 (config/horse/race.json 의 coinEconomy 로 조정 가능, 없으면 기본값)
+const COIN_RACE_JOIN = (_horseRaceConfig.coinEconomy && _horseRaceConfig.coinEconomy.raceJoin) || 10; // 참여 적립
+const COIN_RACE_WIN = (_horseRaceConfig.coinEconomy && _horseRaceConfig.coinEconomy.raceWin) || 30;   // 승리 적립
+
+// 경마 종료 시 인증 유저에게 코인 적립 (serverId 무관 = 자유플레이 포함, 멱등).
+// coinRef는 레이스당 1회 생성된 결정론적 식별자 — 호출이 재시도돼도 같은 ref라
+// coin_ledger_idem 유니크 인덱스가 이중적립을 막는다(적립 시점에 Date.now() 호출 금지).
+// 공정성: cosmetic/결과 계산과 무관한 순수 보상 경로. winners(이름) / userHorseBets(name→horseIndex) 기반.
+async function awardRaceCoins(io, room, gameState, userHorseBets, winners, coinRef) {
+    try {
+        if (!userHorseBets || !coinRef) return;
+        // name → { uid, socketId } (인증 참가자만)
+        const authByName = {};
+        (gameState.users || []).forEach(u => {
+            if (u.authedUserId) authByName[u.name] = { uid: u.authedUserId, sid: u.id };
+        });
+        const bettorNames = Object.keys(userHorseBets);
+        if (bettorNames.length === 0) return;
+        const coinSessionId = coinRef;
+        const winnerSet = new Set(winners || []);
+        for (const name of bettorNames) {
+            const a = authByName[name];
+            if (!a) continue; // 비인증/게스트는 적립 제외
+            await grantCoins(a.uid, COIN_RACE_JOIN, 'race_join', coinSessionId);
+            if (winnerSet.has(name)) await grantCoins(a.uid, COIN_RACE_WIN, 'race_win', coinSessionId);
+            const balance = await getCoinBalance(a.uid);
+            io.to(a.sid).emit('wallet:updated', { balance });
+        }
+    } catch (e) {
+        console.warn('[경마] 코인 적립 실패:', e.message);
+    }
+}
+
+// 레이스 시작 페이로드용 꾸미기 수집 (transient — gameState/leaveRoom 미오염).
+// - roomCosmetics: 방장(host)의 track_theme/finish_fx → 방 전체 broadcast
+// - horseCosmetics: 말별 공개 꾸미기(첫 인증 선택자 기준). 클라는 자기 말은 자기 것으로 덮어씀.
+// 공정성: cosmetic은 결과 계산 경로(calculateHorseRaceResult/getWinnersByRule)에 진입하지 않는다.
+async function buildRaceCosmetics(gameState, room) {
+    const result = { roomCosmetics: null, horseCosmetics: {} };
+    try {
+        const users = gameState.users || [];
+        const userIds = users.filter(u => u.authedUserId).map(u => u.authedUserId);
+        if (userIds.length === 0) return result;
+        const equippedMap = await getEquippedMap(userIds); // { uid: equippedObj }
+        const equippedByName = {};
+        users.forEach(u => {
+            if (u.authedUserId && equippedMap[u.authedUserId]) equippedByName[u.name] = equippedMap[u.authedUserId];
+        });
+
+        // 방장 연출 → roomCosmetics
+        const host = users.find(u => u.isHost);
+        if (host && equippedByName[host.name]) {
+            const eq = equippedByName[host.name];
+            const rc = {};
+            if (eq.track_theme) rc.track_theme = eq.track_theme;
+            if (eq.finish_fx) rc.finish_fx = eq.finish_fx;
+            if (Object.keys(rc).length) result.roomCosmetics = rc;
+        }
+
+        // 말별 공개 꾸미기 (users 순서 = 첫 인증 선택자 우선)
+        const bets = gameState.userHorseBets || {}; // name -> horseIndex
+        users.forEach(u => {
+            const hi = bets[u.name];
+            if (hi === undefined || hi === null) return;
+            if (result.horseCosmetics[hi]) return; // 이미 앞선 선택자가 채움
+            const eq = equippedByName[u.name];
+            if (!eq) return;
+            const pub = {};
+            PUBLIC_HORSE_SLOTS.forEach(slot => { if (eq[slot]) pub[slot] = eq[slot]; });
+            if (Object.keys(pub).length) result.horseCosmetics[hi] = pub;
+        });
+    } catch (e) {
+        console.warn('[경마] 꾸미기 페이로드 생성 실패:', e.message);
+    }
+    return result;
+}
 
 // 한글 받침 유무에 따른 조사 처리
 function getPostPosition(word, type) {
@@ -407,6 +486,9 @@ module.exports = (socket, io, ctx) => {
             io.to(room.roomId).emit('horseRaceCountdown', countdownPayload);
         };
 
+        // 유효표가 한 등수에만 몰리면(rouletteSegments 1개) 룰렛 스핀 스킵 — 결과가 이미 확정
+        const skipRouletteAnim = resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length === 1;
+        const rouletteHoldMs = skipRouletteAnim ? FALLBACK_HOLD_MS : (ROULETTE_ANIM_MS + ROULETTE_HOLD_MS);
         if (resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length > 0) {
             io.to(room.roomId).emit('horseRouletteStart', {
                 segments: rouletteSegments,
@@ -415,12 +497,13 @@ module.exports = (socket, io, ctx) => {
                 animDurationMs: ROULETTE_ANIM_MS,
                 userRankVotes: { ...gameState.userRankVotes },
                 runningHorseCount,
-                targetRankReason: targetRankReason
+                targetRankReason: targetRankReason,
+                skipAnim: skipRouletteAnim
             });
             gameState.horseRouletteTimeout = setTimeout(() => {
                 gameState.horseRouletteTimeout = null;
                 emitCountdown();
-            }, ROULETTE_ANIM_MS + ROULETTE_HOLD_MS);
+            }, rouletteHoldMs);
         } else {
             // fallback (투표 없음/모두 무효) — 사유 카드만 FALLBACK_HOLD_MS 보여준 뒤 카운트다운
             io.to(room.roomId).emit('horseRaceReasonHold', {
@@ -436,6 +519,8 @@ module.exports = (socket, io, ctx) => {
         // 카운트다운 후 경주 데이터 전송 (룰렛 + 카운트다운 4초 대기)
         const roomId = room.roomId;
         const roomName = room.roomName;
+        // 꾸미기 페이로드 (transient — 결과/공정성 무관, 시각 렌더용)
+        const { roomCosmetics, horseCosmetics } = await buildRaceCosmetics(gameState, room);
         const raceData = {
             availableHorses: gameState.availableHorses,
             players: players,
@@ -460,11 +545,13 @@ module.exports = (socket, io, ctx) => {
             evolutionTargets: verifiedEvolutionTargets,
             fakeEvolutionTargets: verifiedFakeEvolutionTargets,
             targetRank: resolvedTargetRank,
-            targetRankReason: targetRankReason
+            targetRankReason: targetRankReason,
+            roomCosmetics: roomCosmetics,   // 방장 연출 (track_theme/finish_fx)
+            horseCosmetics: horseCosmetics  // 말별 공개 꾸미기 (paint/trail/accessory/bib)
         };
 
         // 룰렛 있으면 룰렛 길이 + 카운트다운 4초 후 경주 시작, 없으면 4초 후 즉시
-        const startedDelayMs = (resolvedTargetRank !== null ? ROULETTE_ANIM_MS + ROULETTE_HOLD_MS : FALLBACK_HOLD_MS) + 4000;
+        const startedDelayMs = (resolvedTargetRank !== null ? rouletteHoldMs : FALLBACK_HOLD_MS) + 4000;
         gameState.horseRaceCountdownTimeout = setTimeout(() => {
             // 게임 종료로 취소된 경우 무시
             if (!gameState.isGameActive) {
@@ -490,7 +577,9 @@ module.exports = (socket, io, ctx) => {
                 rankings: rankings,
                 raceData: raceData,
                 roomId: roomId,
-                roomName: roomName
+                roomName: roomName,
+                // 코인 적립 멱등 ref: 레이스당 1회 생성(서버 전용). 재처리돼도 동일 → 이중적립 차단.
+                coinRef: generateSessionId('horsecoin', room.serverId || roomId)
             };
             console.log(`[경마] 결과 데이터 저장 완료 - 클라이언트 애니메이션 완료 대기`);
         }, startedDelayMs);
@@ -508,7 +597,7 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        const { winners, rankings, raceData, roomId, roomName } = gameState.pendingRaceResult;
+        const { winners, rankings, raceData, roomId, roomName, coinRef } = gameState.pendingRaceResult;
         gameState.pendingRaceResult = null; // 처리 후 삭제
 
         console.log(`[경마] 클라이언트 애니메이션 완료 신호 수신 - 결과 처리 시작`);
@@ -554,6 +643,9 @@ module.exports = (socket, io, ctx) => {
             })).filter(p => p.vehicleId);
             recordVehiclePicks(room.serverId, picks);
         }
+
+        // 코인 적립 (serverId 가드 밖 = 자유플레이 포함, 인증 유저만, 멱등 ref)
+        await awardRaceCoins(io, room, gameState, raceData.userHorseBets, winners, coinRef);
 
         if (winners.length === 1) {
             // 타깃 등수 캡처 (cleanup 이전)
@@ -1090,6 +1182,11 @@ module.exports = (socket, io, ctx) => {
                 })).filter(p => p.vehicleId);
                 recordVehiclePicks(room.serverId, picks);
             }
+
+            // 코인 적립 (serverId 가드 밖 = 자유플레이 포함, 인증 유저만)
+            // 결정론 ref: roomId + raceRound (Date.now 미사용 → 재진입 시 동일 ref로 이중적립 차단)
+            await awardRaceCoins(io, room, gameState, gameState.userHorseBets, winners,
+                'horsecoin_' + room.roomId + '_' + gameState.raceRound);
 
             // 당첨자 수에 따라 분기
             if (winners.length === 1) {

@@ -360,7 +360,8 @@ module.exports = (socket, io, ctx) => {
             id: socket.id,
             name: userName.trim(),
             isHost: true,
-            joinTime: new Date()
+            joinTime: new Date(),
+            authedUserId: socket.authedUserId || null // 코인 적립 매핑용 (인증 계정만)
         };
 
         gameState.users.push(user);
@@ -707,6 +708,7 @@ module.exports = (socket, io, ctx) => {
             } else {
                 // 기존 사용자의 소켓이 연결되지 않았거나 같은 탭이면 재연결로 간주
                 existingUser.id = socket.id;
+                if (socket.authedUserId) existingUser.authedUserId = socket.authedUserId; // 재연결 시 적립 매핑 갱신
                 const user = existingUser;
                 console.log(`사용자 ${userName.trim()}이(가) 방 ${roomId}에 재연결했습니다.`);
 
@@ -928,7 +930,8 @@ module.exports = (socket, io, ctx) => {
             id: socket.id,
             name: finalUserName,
             isHost: finalIsHost,
-            joinTime: new Date()
+            joinTime: new Date(),
+            authedUserId: socket.authedUserId || null // 코인 적립 매핑용 (인증 계정만)
         };
         gameState.users.push(user);
 
