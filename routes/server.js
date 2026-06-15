@@ -8,6 +8,7 @@ const {
     getServerRecords, comparePassword
 } = require('../db/servers');
 const { register: authRegister, login: authLogin } = require('../db/auth');
+const { issueToken } = require('../db/auth-tokens');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 const { getFullRanking, getMyRank, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking } = require('../db/ranking');
 
@@ -66,7 +67,9 @@ router.post('/auth/register', async (req, res) => {
         const { name, pin } = req.body || {};
         const result = await authRegister(name, pin);
         if (result.error) return res.status(400).json({ error: result.error });
-        res.json({ user: result.user });
+        // 가입 직후에도 socket 인증되도록 토큰 발급 (로그인과 동일)
+        const token = issueToken(result.user.id, result.user.name);
+        res.json({ user: result.user, token });
     } catch (e) {
         res.status(500).json({ error: '회원가입 실패' });
     }
@@ -84,7 +87,9 @@ router.post('/auth/login', async (req, res) => {
 
         const result = await authLogin(name, pin);
         if (result.error) return res.status(401).json({ error: result.error });
-        res.json({ user: result.user });
+        // socket 인증용 토큰 발급 (지갑/상점 신뢰 경계의 식별자)
+        const token = issueToken(result.user.id, result.user.name);
+        res.json({ user: result.user, token });
     } catch (e) {
         res.status(500).json({ error: '로그인 실패' });
     }

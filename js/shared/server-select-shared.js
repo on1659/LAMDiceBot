@@ -955,12 +955,19 @@ const ServerSelectModule = (function () {
                     window.location.href = '/admin';
                     return;
                 }
-                localStorage.setItem('userAuth', JSON.stringify(result.user));
+                // result.token: socket 인증용 (지갑/상점). 로그인 응답에만 존재.
+                var authData = Object.assign({}, result.user);
+                if (result.token) authData.token = result.token;
+                localStorage.setItem('userAuth', JSON.stringify(authData));
                 modal.remove();
                 _saveName(name);
                 _showToast(title.includes('회원') ? '회원가입 성공!' : '로그인 성공!');
                 if (typeof TutorialModule !== 'undefined' && _socket) {
                     TutorialModule.setUser(_socket, name);
+                }
+                // 로그인 직후 socket 인증 (이미 연결돼 있으면 즉시, 지갑/상점 활성화)
+                if (_socket && result.token && _socket.connected) {
+                    _socket.emit('socket:authenticate', { token: result.token }, function () {});
                 }
                 if (_socket) {
                     _emitGetServers();
