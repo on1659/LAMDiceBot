@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>경마 상점 코스메틱 미리보기 도구</title>
+<!-- 실제 게임 스프라이트(getVehicleSVG)를 그대로 로드 — 미리보기가 인게임과 동일 -->
+<script src="../js/horse-race-sprites.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+.top-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: #0f1629; border-bottom: 1px solid #333; padding: 12px 18px; }
+.top-bar .title { font-size: 16px; color: #ffd479; font-weight: bold; }
+.top-bar .spacer { flex: 1; }
+.top-bar label { font-size: 12px; color: #aaa; }
+select, input, textarea { background: #0f3460; color: #eee; border: 1px solid #333; border-radius: 4px; padding: 6px 9px; font-size: 13px; font-family: inherit; }
+textarea { width: 100%; font-family: monospace; font-size: 12px; line-height: 1.5; resize: vertical; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+.tab { padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.05); color: #aaa; border: 1px solid transparent; }
+.tab:hover { background: rgba(255,255,255,0.1); color: #ddd; }
+.tab.active { background: #2196F3; color: #fff; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px){ .grid { grid-template-columns: 1fr; } }
+.panel { background: #16213e; border-radius: 8px; padding: 16px; }
+.panel h2 { font-size: 13px; color: #888; margin-bottom: 12px; }
+.field { margin-bottom: 11px; }
+.field label { display: block; font-size: 12px; color: #9fb3d9; margin-bottom: 4px; }
+.field input, .field select, .field textarea { width: 100%; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* ===== 미리보기 스테이지 ===== */
+.stage { position: relative; height: 260px; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #0c1430; border: 1px solid #26314f; }
+.stage .ground { position: absolute; left: 0; right: 0; bottom: 38%; border-top: 3px dashed #46527a; }
+.veh-wrap { position: relative; transform: scale(3); transform-origin: center; }
+.veh-sprite { display: block; }
+.veh-sprite svg { display: block; }
+.ov-trail { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); font-size: 13px; white-space: nowrap; opacity: 0.9; margin-right: 1px; }
+.ov-acc { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); font-size: 12px; }
+.ov-bib { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px; border: 1px solid; line-height: 1.1; }
+.fx-burst { position: absolute; top: 28%; left: 50%; transform: translateX(-50%); font-size: 56px; animation: fxpulse 1.1s ease-in-out infinite; }
+.fx-piece { position: absolute; top: 10%; font-size: 18px; animation: fxfall 1.4s linear infinite; }
+@keyframes fxpulse { 0%,100%{ transform: translateX(-50%) scale(1); } 50%{ transform: translateX(-50%) scale(1.25); } }
+@keyframes fxfall { 0%{ transform: translateY(-10px); opacity: 0; } 20%{ opacity: 1; } 100%{ transform: translateY(180px); opacity: 0; } }
+.hint { font-size: 11px; color: #6a7a99; margin-top: 10px; line-height: 1.6; }
+.hint b { color: #9fb3d9; }
+button { padding: 8px 14px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; }
+button:hover { filter: brightness(1.15); }
+.btn-green { background: #4CAF50; color: #fff; }
+.btn-ghost { background: rgba(255,255,255,0.07); color: #ccd; border: 1px solid #333; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.preset { font-size: 11px; padding: 4px 9px; border-radius: 12px; background: #0f3460; color: #cdd; cursor: pointer; border: 1px solid #2a3f63; }
+.preset:hover { background: #1a4a8a; }
+.jsonbar { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.copied { color: #81c784; font-size: 12px; }
+.slot-only { display: none; }
+.slot-only.show { display: block; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+    <span class="title">🛒 경마 상점 코스메틱 미리보기</span>
+    <span class="spacer"></span>
+    <label>탈것
+        <select id="vehSel"></select>
+    </label>
+    <label><input type="checkbox" id="animChk"> 달리기 애니</label>
+    <a href="devtools.html" style="color:#7aa2e0; font-size:12px;">← DevTools 허브</a>
+</div>
+
+<div class="wrap">
+    <div class="tabs" id="tabs"></div>
+
+    <div class="grid">
+        <!-- 편집 -->
+        <div class="panel">
+            <h2>아이템 값 편집</h2>
+
+            <div class="row2">
+                <div class="field"><label>id</label><input id="f_id" placeholder="paint_xxx"></div>
+                <div class="field"><label>name (한국어)</label><input id="f_name" placeholder="○○ 도색"></div>
+            </div>
+            <div class="row2">
+                <div class="field"><label>price (코인)</label><input id="f_price" type="number" value="50"></div>
+                <div class="field"><label>rarity</label>
+                    <select id="f_rarity"><option>common</option><option>rare</option><option>epic</option></select>
+                </div>
+            </div>
+
+            <!-- paint -->
+            <div class="slot-only" data-slot="paint">
+                <div class="field"><label>filter (CSS filter — 스프라이트 전체에 적용)</label>
+                    <input id="f_filter" placeholder="drop-shadow(0 0 6px #ffd54a) saturate(1.3) hue-rotate(15deg)">
+                </div>
+                <div class="presets" id="paintPresets"></div>
+            </div>
+            <!-- trail / accessory / finish_fx (emoji) -->
+            <div class="slot-only" data-slot="emoji">
+                <div class="field"><label>emoji</label><input id="f_emoji" placeholder="🔥"></div>
+                <div class="presets" id="emojiPresets"></div>
+            </div>
+            <!-- bib -->
+            <div class="slot-only" data-slot="bib">
+                <div class="row2">
+                    <div class="field"><label>color (글자)</label><input id="f_color" type="color" value="#1a1a1a"></div>
+                    <div class="field"><label>bg (배경)</label><input id="f_bg" type="color" value="#ffd54a"></div>
+                </div>
+                <div class="field"><label>border (테두리)</label><input id="f_border" type="color" value="#c79100"></div>
+            </div>
+            <!-- track_theme -->
+            <div class="slot-only" data-slot="track_theme">
+                <div class="field"><label>bg (CSS gradient)</label>
+                    <input id="f_bgcss" placeholder="linear-gradient(180deg, #0b1026 0%, #2a3470 100%)">
+                </div>
+                <div class="field"><label>accent</label><input id="f_accent" type="color" value="#8ab4ff"></div>
+                <div class="presets" id="themePresets"></div>
+            </div>
+
+            <div class="jsonbar">
+                <button class="btn-green" id="copyBtn">📋 JSON 복사</button>
+                <button class="btn-ghost" id="resetBtn">초기화</button>
+                <span class="copied" id="copiedMsg"></span>
+            </div>
+            <textarea id="jsonOut" rows="6" readonly></textarea>
+            <div class="hint">
+                위 JSON을 <b>config/horse/cosmetics.json</b> 의 해당 슬롯 배열에 추가하면 상점에 노출됩니다.
+                <code>requires</code>(선행 소유), <code>defaultOwned</code>(기본 제공) 같은 선택 필드는 직접 추가하세요.
+            </div>
+        </div>
+
+        <!-- 미리보기 -->
+        <div class="panel">
+            <h2>미리보기 (인게임 적용과 동일)</h2>
+            <div class="stage" id="stage"></div>
+            <div class="hint" id="previewHint"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var VEHICLES = [
+        ['horse','말'],['rocket','로켓'],['boat','보트'],['dinosaur','공룡'],['bird','새'],['ninja','닌자'],
+        ['car','자동차'],['bicycle','자전거'],['rabbit','토끼'],['turtle','거북이'],['eagle','독수리'],
+        ['scooter','킥보드'],['helicopter','헬리콥터'],['knight','기사'],['crab','게']
+    ];
+
+    // 슬롯 정의: 어떤 편집 UI(editor)를 쓰는지
+    var SLOTS = [
+        { key: 'paint',       label: '🎨 도색',     editor: 'paint' },
+        { key: 'trail',       label: '✨ 트레일',   editor: 'emoji' },
+        { key: 'accessory',   label: '👑 악세서리', editor: 'emoji' },
+        { key: 'bib',         label: '🔢 마번',     editor: 'bib' },
+        { key: 'track_theme', label: '🏞️ 트랙테마', editor: 'track_theme' },
+        { key: 'finish_fx',   label: '🎆 결승연출', editor: 'emoji' }
+    ];
+
+    // 현재 카탈로그(프리셋) — 빠른 시작 + 인게임 값 참조용
+    var PRESETS = {
+        paint: [
+            { id:'paint_gold', name:'황금 도색', price:50, rarity:'rare', filter:'drop-shadow(0 0 6px #ffd54a) saturate(1.3) hue-rotate(15deg)' },
+            { id:'paint_neon', name:'네온 도색', price:50, rarity:'rare', filter:'drop-shadow(0 0 7px #4ade80) saturate(1.6) brightness(1.1)' },
+            { id:'paint_rainbow', name:'무지개 도색', price:90, rarity:'epic', filter:'saturate(2) hue-rotate(120deg) brightness(1.1)' },
+            { id:'paint_dark', name:'다크 도색', price:50, rarity:'common', filter:'brightness(0.55) contrast(1.2) grayscale(0.4)' }
+        ],
+        trail: [
+            { id:'trail_flame', name:'불꽃 트레일', price:80, rarity:'rare', emoji:'🔥' },
+            { id:'trail_star', name:'별가루 트레일', price:80, rarity:'rare', emoji:'✨' },
+            { id:'trail_splash', name:'물보라 트레일', price:60, rarity:'common', emoji:'💧' }
+        ],
+        accessory: [
+            { id:'acc_crown', name:'왕관', price:120, rarity:'epic', emoji:'👑' },
+            { id:'acc_sunglass', name:'선글라스', price:120, rarity:'common', emoji:'🕶️' },
+            { id:'acc_cape', name:'망토', price:120, rarity:'rare', emoji:'🦸' }
+        ],
+        bib: [
+            { id:'bib_gold', name:'황금 마번', price:40, rarity:'common', color:'#1a1a1a', bg:'#ffd54a', border:'#c79100' },
+            { id:'bib_neon', name:'네온 마번', price:40, rarity:'rare', color:'#0b1020', bg:'#4ade80', border:'#16a34a' }
+        ],
+        track_theme: [
+            { id:'theme_space', name:'우주 트랙', price:150, rarity:'epic', bg:'linear-gradient(180deg, #0b1026 0%, #1b2350 60%, #2a3470 100%)', accent:'#8ab4ff' },
+            { id:'theme_desert', name:'사막 트랙', price:150, rarity:'rare', bg:'linear-gradient(180deg, #f6d59b 0%, #e8b06a 60%, #cf8f47 100%)', accent:'#7a4a1e' },
+            { id:'theme_beach', name:'해변 트랙', price:150, rarity:'rare', bg:'linear-gradient(180deg, #aee9ff 0%, #5fc8e8 55%, #f2e2b6 100%)', accent:'#1d7fa3' },
+            { id:'theme_neon', name:'네온시티 트랙', price:150, rarity:'epic', bg:'linear-gradient(180deg, #16002b 0%, #3a006e 55%, #ff2db0 120%)', accent:'#39e6ff' },
+            { id:'theme_snow', name:'설원 트랙', price:150, rarity:'common', bg:'linear-gradient(180deg, #eaf4ff 0%, #cfe3f5 55%, #aebfd6 100%)', accent:'#5b7aa8' }
+        ],
+        finish_fx: [
+            { id:'fx_firework', name:'결승 폭죽', price:200, rarity:'epic', emoji:'🎆' },
+            { id:'fx_confetti', name:'결승 색종이', price:200, rarity:'rare', emoji:'🎉' }
+        ]
+    };
+
+    var EMOJI_QUICK = ['🔥','✨','💧','⚡','❄️','🌟','💨','🌀','👑','🕶️','🦸','🎩','🎀','🛡️','🎆','🎉','🎇','💥','🌈','🍀'];
+
+    var state = { slot: 'paint', vehicle: 'horse', anim: false };
+    var animTimer = null, animFrame = 0;
+
+    var el = function (id) { return document.getElementById(id); };
+
+    // ── 스프라이트 ──
+    function spriteFrames(id) {
+        if (typeof getVehicleSVG !== 'function') return [''];
+        try {
+            var s = getVehicleSVG(id);
+            if (!s) return [''];
+            var st = s.run || s.idle || s.rest || s;
+            var f1 = st.frame1 || s.frame1 || '';
+            var f2 = st.frame2 || f1;
+            return [f1, f2];
+        } catch (e) { return ['']; }
+    }
+
+    // ── 폼 → 아이템 객체 ──
+    function readItem() {
+        var slot = state.slot;
+        var it = {
+            id: el('f_id').value.trim() || (slot + '_new'),
+            name: el('f_name').value.trim() || '새 아이템',
+            price: parseInt(el('f_price').value, 10) || 0,
+            rarity: el('f_rarity').value
+        };
+        if (slot === 'paint') it.filter = el('f_filter').value.trim();
+        else if (slot === 'trail' || slot === 'accessory' || slot === 'finish_fx') it.emoji = el('f_emoji').value.trim();
+        else if (slot === 'bib') { it.color = el('f_color').value; it.bg = el('f_bg').value; it.border = el('f_border').value; }
+        else if (slot === 'track_theme') { it.bg = el('f_bgcss').value.trim(); it.accent = el('f_accent').value; }
+        return it;
+    }
+
+    // ── 미리보기 (horse-shop.js 적용 로직과 동일) ──
+    function renderPreview() {
+        var slot = state.slot, it = readItem(), stage = el('stage');
+        stage.innerHTML = '';
+        stage.style.background = '#0c1430';
+
+        if (slot === 'track_theme') {
+            stage.style.background = it.bg || '#0c1430';
+            var g = document.createElement('div'); g.className = 'ground';
+            g.style.borderTopColor = it.accent || '#46527a'; stage.appendChild(g);
+        } else {
+            var g2 = document.createElement('div'); g2.className = 'ground'; stage.appendChild(g2);
+        }
+
+        if (slot === 'finish_fx') {
+            var burst = document.createElement('div'); burst.className = 'fx-burst';
+            burst.textContent = it.emoji || '🎆'; stage.appendChild(burst);
+            for (var i = 0; i < 5; i++) {
+                var p = document.createElement('div'); p.className = 'fx-piece';
+                p.textContent = it.emoji || '🎆'; p.style.left = (14 + i * 17) + '%';
+                p.style.animationDelay = (i * 0.25) + 's'; stage.appendChild(p);
+            }
+        }
+
+        // 탈것 + 착용형(도색/트레일/악세서리/마번) — track/fx 탭에서도 탈것은 보여줌
+        var wrap = document.createElement('div'); wrap.className = 'veh-wrap';
+        if (slot === 'trail' && it.emoji) {
+            var tr = document.createElement('span'); tr.className = 'ov-trail';
+            tr.textContent = it.emoji + it.emoji; wrap.appendChild(tr);
+        }
+        var sp = document.createElement('div'); sp.className = 'veh-sprite';
+        var frames = spriteFrames(state.vehicle);
+        sp.innerHTML = frames[state.anim ? (animFrame % frames.length) : 0] || frames[0];
+        if (slot === 'paint' && it.filter) sp.style.filter = it.filter;  // ← 스프라이트 전체에 filter
+        wrap.appendChild(sp);
+        if (slot === 'accessory' && it.emoji) {
+            var ac = document.createElement('span'); ac.className = 'ov-acc'; ac.textContent = it.emoji; wrap.appendChild(ac);
+        }
+        if (slot === 'bib') {
+            var bb = document.createElement('span'); bb.className = 'ov-bib'; bb.textContent = '3';
+            if (it.color) bb.style.color = it.color;
+            if (it.bg) bb.style.background = it.bg;
+            if (it.border) bb.style.borderColor = it.border;
+            wrap.appendChild(bb);
+        }
+        stage.appendChild(wrap);
+
+        // JSON 출력
+        el('jsonOut').value = JSON.stringify(it, null, 2);
+
+        var hints = {
+            paint: '도색은 스프라이트 <b>전체</b>에 CSS filter를 겁니다(부분 색칠 아님). hue-rotate=색조회전, saturate=채도, brightness=밝기, drop-shadow=글로우.',
+            trail: '트레일은 탈것 <b>뒤(왼쪽)</b>에 이모지가 따라붙습니다.',
+            accessory: '악세서리는 탈것 <b>위</b>에 이모지가 얹힙니다.',
+            bib: '마번은 탈것 <b>아래</b> 번호 배지입니다. color/bg/border 3색.',
+            track_theme: '트랙테마는 <b>방 배경 전체</b>(방장 적용). bg=그라데이션, accent=결승선/포인트 색.',
+            finish_fx: '결승연출은 1등 결승 시 <b>화면 이모지 버스트</b>(방장 적용).'
+        };
+        el('previewHint').innerHTML = hints[slot] || '';
+    }
+
+    // ── 탭/에디터 표시 ──
+    function showEditorFor(slot) {
+        var editor = (SLOTS.filter(function (s) { return s.key === slot; })[0] || {}).editor;
+        document.querySelectorAll('.slot-only').forEach(function (n) {
+            n.classList.toggle('show', n.getAttribute('data-slot') === editor);
+        });
+        // 프리셋 렌더
+        renderPresets(slot);
+    }
+
+    function renderPresets(slot) {
+        // paint / emoji / theme 프리셋 영역
+        var list = PRESETS[slot] || [];
+        var paintBox = el('paintPresets'), emojiBox = el('emojiPresets'), themeBox = el('themePresets');
+        paintBox.innerHTML = ''; emojiBox.innerHTML = ''; themeBox.innerHTML = '';
+        var box = slot === 'paint' ? paintBox : slot === 'track_theme' ? themeBox : emojiBox;
+        list.forEach(function (it) {
+            var b = document.createElement('span'); b.className = 'preset';
+            b.textContent = it.name; b.title = '클릭 = 이 값 불러오기';
+            b.onclick = function () { loadItem(slot, it); };
+            box.appendChild(b);
+        });
+        if (slot === 'trail' || slot === 'accessory' || slot === 'finish_fx') {
+            EMOJI_QUICK.forEach(function (e) {
+                var b = document.createElement('span'); b.className = 'preset'; b.textContent = e;
+                b.onclick = function () { el('f_emoji').value = e; renderPreview(); };
+                emojiBox.appendChild(b);
+            });
+        }
+    }
+
+    function loadItem(slot, it) {
+        state.slot = slot;
+        el('f_id').value = it.id || '';
+        el('f_name').value = it.name || '';
+        el('f_price').value = (it.price != null ? it.price : 0);
+        el('f_rarity').value = it.rarity || 'common';
+        if (it.filter != null) el('f_filter').value = it.filter;
+        if (it.emoji != null) el('f_emoji').value = it.emoji;
+        if (it.color != null) el('f_color').value = it.color;
+        if (it.bg != null && slot === 'bib') el('f_bg').value = it.bg;
+        if (it.border != null) el('f_border').value = it.border;
+        if (it.bg != null && slot === 'track_theme') el('f_bgcss').value = it.bg;
+        if (it.accent != null) el('f_accent').value = it.accent;
+        showEditorFor(slot);
+        syncTabs();
+        renderPreview();
+    }
+
+    function blankFor(slot) {
+        var base = { common: { id: '', name: '', price: 50, rarity: 'common' } }.common;
+        return Object.assign({ id: slot + '_new', name: '새 ' + slot, price: 50, rarity: 'common' },
+            slot === 'paint' ? { filter: '' } :
+            slot === 'bib' ? { color: '#1a1a1a', bg: '#ffd54a', border: '#c79100' } :
+            slot === 'track_theme' ? { bg: 'linear-gradient(180deg,#0b1026,#2a3470)', accent: '#8ab4ff' } :
+            { emoji: '' });
+    }
+
+    // ── 탭 UI ──
+    function syncTabs() {
+        document.querySelectorAll('.tab').forEach(function (t) {
+            t.classList.toggle('active', t.getAttribute('data-slot') === state.slot);
+        });
+    }
+
+    function init() {
+        // 탈것 드롭다운
+        var vs = el('vehSel');
+        VEHICLES.forEach(function (v) {
+            var o = document.createElement('option'); o.value = v[0]; o.textContent = v[1] + ' (' + v[0] + ')'; vs.appendChild(o);
+        });
+        vs.value = state.vehicle;
+        vs.onchange = function () { state.vehicle = vs.value; renderPreview(); };
+
+        // 탭
+        var tabs = el('tabs');
+        SLOTS.forEach(function (s) {
+            var t = document.createElement('div'); t.className = 'tab'; t.setAttribute('data-slot', s.key);
+            t.textContent = s.label;
+            t.onclick = function () { loadItem(s.key, blankFor(s.key)); };
+            tabs.appendChild(t);
+        });
+
+        // 입력 → 실시간 미리보기
+        ['f_id','f_name','f_price','f_rarity','f_filter','f_emoji','f_color','f_bg','f_border','f_bgcss','f_accent']
+            .forEach(function (id) {
+                var n = el(id); if (n) n.addEventListener('input', renderPreview);
+            });
+
+        el('animChk').onchange = function () {
+            state.anim = el('animChk').checked;
+            if (animTimer) { clearInterval(animTimer); animTimer = null; }
+            if (state.anim) { animTimer = setInterval(function () { animFrame++; renderPreview(); }, 160); }
+            else { animFrame = 0; renderPreview(); }
+        };
+
+        el('copyBtn').onclick = function () {
+            var txt = el('jsonOut').value;
+            navigator.clipboard && navigator.clipboard.writeText(txt);
+            el('jsonOut').select();
+            el('copiedMsg').textContent = '복사됨!'; setTimeout(function () { el('copiedMsg').textContent = ''; }, 1500);
+        };
+        el('resetBtn').onclick = function () { loadItem(state.slot, blankFor(state.slot)); };
+
+        // 시작: 도색 첫 프리셋
+        loadItem('paint', PRESETS.paint[0]);
+        if (typeof getVehicleSVG !== 'function') {
+            el('stage').innerHTML = '<div style="color:#e57373;font-size:13px;padding:20px;text-align:center;">'
+                + 'getVehicleSVG 로드 실패 — <b>../js/horse-race-sprites.js</b> 경로 확인.<br>'
+                + 'AutoTest/ 폴더 기준 상대경로입니다. 서버(localhost) 또는 프로젝트 루트 file:// 로 여세요.</div>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
