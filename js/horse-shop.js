@@ -144,6 +144,34 @@
         } catch (e) { return null; }
     }
 
+    // 토큰이 있으면 그대로 반환. 없는데 로그인 상태(userAuth.name)면 PIN 없이
+    // 토큰을 부트스트랩 발급받아 userAuth에 저장한다 — 상점 도입 전 로그인
+    // 사용자의 재로그인 방지. 비로그인(name 없음)이면 null.
+    // (발급 토큰은 플레이머니 전용 신뢰 등급 — 현금화는 별도 게이트)
+    function ensureToken(done) {
+        var existing = getToken();
+        if (existing) { done(existing); return; }
+        var name = null;
+        try { var a = JSON.parse(localStorage.getItem('userAuth') || 'null'); name = a && a.name; } catch (e) {}
+        if (!name) { done(null); return; }
+        fetch('/api/auth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        }).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (res) {
+            if (res && res.token) {
+                try {
+                    var a2 = JSON.parse(localStorage.getItem('userAuth') || '{}') || {};
+                    a2.token = res.token;
+                    if (res.user) { a2.id = res.user.id; a2.name = res.user.name; }
+                    localStorage.setItem('userAuth', JSON.stringify(a2));
+                } catch (e) {}
+                done(res.token);
+            } else { done(null); }
+          }).catch(function () { done(null); });
+    }
+
     function findItem(slot, id) {
         if (!catalog || !id) return null;
         var list = catalog[slot] || [];
@@ -557,27 +585,28 @@
                 '| wallet.authed:', wallet.authed);
         } catch (e) { console.log('[상점진단] 예외:', e && e.message); }
 
-        var token = getToken();
-        if (!token) {
-            if (typeof showCustomAlert === 'function') showCustomAlert('상점은 로그인 후 이용할 수 있어요.');
-            else alert('상점은 로그인 후 이용할 수 있어요.');
-            return;
-        }
-        loadCatalog().then(function () {
-            if (wallet.authed) {
-                refreshWallet(function () { renderModal(); document.body.classList.add('hshop-open'); });
-            } else {
-                authenticate(token, function (ok) {
-                    if (!ok) {
-                        if (typeof showCustomAlert === 'function') showCustomAlert('인증에 실패했어요. 다시 로그인해 주세요.');
-                        return;
-                    }
-                    renderModal();
-                    document.body.classList.add('hshop-open');
-                });
+        ensureToken(function (token) {
+            if (!token) {
+                if (typeof showCustomAlert === 'function') showCustomAlert('상점은 로그인 후 이용할 수 있어요.');
+                else alert('상점은 로그인 후 이용할 수 있어요.');
+                return;
             }
-        }).catch(function () {
-            if (typeof showCustomAlert === 'function') showCustomAlert('상점 정보를 불러오지 못했어요.');
+            loadCatalog().then(function () {
+                if (wallet.authed) {
+                    refreshWallet(function () { renderModal(); document.body.classList.add('hshop-open'); });
+                } else {
+                    authenticate(token, function (ok) {
+                        if (!ok) {
+                            if (typeof showCustomAlert === 'function') showCustomAlert('인증에 실패했어요. 다시 로그인해 주세요.');
+                            return;
+                        }
+                        renderModal();
+                        document.body.classList.add('hshop-open');
+                    });
+                }
+            }).catch(function () {
+                if (typeof showCustomAlert === 'function') showCustomAlert('상점 정보를 불러오지 못했어요.');
+            });
         });
     }
 
