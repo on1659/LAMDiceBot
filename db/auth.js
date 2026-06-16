@@ -72,6 +72,15 @@ async function login(name, pin) {
     return { user: { id: user.id, name: user.name, isAdmin: user.is_admin } };
 }
 
+// 토큰 부트스트랩용: 이름으로 계정(id, name) 조회. PIN 검증 없음 —
+// 호출부(/auth/token)가 신뢰 등급을 책임진다(현재: 플레이머니 전용 느슨한 발급).
+async function getUserByName(name) {
+    const pool = getPool();
+    if (!pool || !name) return null;
+    const result = await pool.query('SELECT id, name FROM users WHERE name = $1', [name]);
+    return result.rows[0] || null;
+}
+
 async function getUserFlags(name) {
     const pool = getPool();
     if (!pool) return 0;
@@ -102,4 +111,4 @@ async function setUserPref(name, key, value) {
     );
 }
 
-module.exports = { register, login, getUserFlags, setFlag, getUserPrefs, setUserPref };
+module.exports = { register, login, getUserByName, getUserFlags, setFlag, getUserPrefs, setUserPref };
