@@ -9,27 +9,54 @@ const LADDER_MIN_PLAYERS = 2;       // 시작 최소 인원
 const LADDER_LANES = 6;             // 레인 항상 6개 고정(번호 1~6). 인원 6 미만이면 빈 레인.
 const LADDER_MAX_PLAYERS = LADDER_LANES;  // 최대 참가 = 레인 수(6)
 const LADDER_HISTORY_MAX = 100;     // 히스토리 최대 보관 수
-// 기본(숨은) 막대기 개수 = max(MIN, 참가자수 N) + 0~RAND 랜덤(서버 RNG). 최소 보장 + 그 이상 랜덤.
-const LADDER_BASE_RUNG_MIN = 4;     // 기본 막대기 최소 개수 — 인원 적어도 사다리가 휑하지 않게
-const LADDER_BASE_RUNG_RAND = 4;    // 최소 위에 더해지는 랜덤 추가량 상한(0~이 값)
+// 기본(가시) 막대기 — 모든 칸(c=0..N-2)에 1개씩 보장 + 다양성용 0~RAND개 추가(서버 RNG).
+// 유저가 직접 ~3개씩 그리므로 과밀 방지 위해 추가분은 적게.
+const LADDER_BASE_RUNG_RAND = 2;    // 칸별 1개 보장 위에 더해지는 랜덤 추가량 상한(0~이 값)
+
+// 인당 막대기 최대 개수 — 빌드 단계에서 한 사람이 놓을 수 있는 상한
+const LADDER_MAX_RUNGS_PER_USER = 3;
+// 스크램블(시작 시점): union에서 K개 지우고 M개 새로 그린다. 모두 서버 RNG. js/ladder.js와 동일 유지.
+const LADDER_SCRAMBLE_ERASE_MIN = 2;
+const LADDER_SCRAMBLE_ERASE_MAX = 4;
+const LADDER_SCRAMBLE_ADD_MIN = 2;
+const LADDER_SCRAMBLE_ADD_MAX = 4;
+// 밀도 바닥(floor): 스크램블 후 최종 막대기가 이 수 미만이면 서버 RNG로 추가해 채운다(spacing 규칙 준수).
+// 작은 방(2명, base 5칸 + erase로 거의 비는 경우)에서도 사다리가 꽉 차 보이게 하는 시각 목표.
+// 6레인=칸 5개, 칸당 평균 ~2.4개면 또렷 → 12. 매핑은 c+y정렬만 쓰므로(추가분도 동일) loser 분포 불변.
+const LADDER_MIN_TOTAL_RUNGS = 12;
+// 균등 생성용 세로 밴드 수 — y범위[Y_MIN,Y_MAX]를 이 개수로 등분(상/중/하). 추가분을 칸·밴드에 고르게 분산.
+// 균등화는 배치(c,y)만 바꾼다(loser는 doReveal의 점유 레인 균등 랜덤 — 배치와 독립). 시각/구조 균형 목적.
+const LADDER_GEN_BANDS = 3;
 
 // 연속 좌표 사다리 — 막대기는 두 인접 기둥(c, c+1)을 높이 y(0~1)에서 잇는다. 격자 없음.
 const LADDER_MIN_GAP_Y = 0.05;      // 같은 기둥을 공유하는 막대기 간 최소 세로 간격(비율) — 사다리 모호성 방지
 const LADDER_Y_MIN = 0.05;          // 막대기 높이 하한
 const LADDER_Y_MAX = 0.95;          // 막대기 높이 상한
-// ─── 동시 출발/도착(reveal) 연출 타이밍 — js/ladder.js 와 반드시 동기화 ───
-// 모든 토큰이 같은 시각에 출발해 같은 시각에 바닥(결승선)에 닿는다. 경로 길이가 레인마다 달라도
-// 각 토큰을 자기 경로 전체에 대해 동일한 시간(DESCENT)에 주파시키면(호 길이 비례 보간) 동시 도착이 된다.
-// 종료 타이머 = 동시 하강 시간 + 결과 캡션 유지. 동시 진행이라 인원수(N)와 무관한 상수.
-const LADDER_REVEAL_DESCENT = 5000; // 모든 토큰 동시 하강 시간(ms) — js/ladder.js와 동일 유지
-const LADDER_FINAL_HOLD = 1800;     // 동시 도착 후 결과 캡션 유지(ms)
+// ─── 순차 하강(reveal) 연출 타이밍 — js/ladder.js 와 반드시 동기화 ───
+// 토큰은 한 명씩 차례로(revealOrder 순) 출발한다. 한 토큰이 자기 경로 전체를 SLOT_MS 동안
+// 호 길이 비례 보간(pointAt)으로 끝까지 내려가면 다음 토큰이 출발한다. 경로 길이가 레인마다 달라도
+// 같은 시간(SLOT_MS)에 주파한다. 총 하강 시간 = 토큰 수(N) × SLOT_MS → 종료 타이머는 N에 비례.
+// 스크램블 연출 시퀀스 타이밍(reveal 시작 → 하강 시작 전 단계들). js/ladder.js와 반드시 동일 유지.
+const LADDER_COUNTDOWN_MS = 1600;     // "3·2·1 셔플!" 카운트다운
+const LADDER_ERASE_MS = 1200;         // 지울 막대기 동시 강조 → 일괄 탈락(드롭/페이드) 연출 시간
+const LADDER_DRAW_MS = 900;           // 펜 구슬이 새 막대기를 그리는 시간
+const LADDER_TOKEN_SLOT_MS = 3000;    // 토큰 한 명이 끝까지 내려가는 시간(아주 천천히) — js/ladder.js와 동일 유지
+const LADDER_BOTTOM_PAUSE_MS = 500;   // 그리기 후 1박자 멈춤(폭탄 포인터 시작 전) — js/ladder.js와 동일 유지
+const LADDER_BOMB_POINTER_MS = 2600;  // 폭탄 룰렛 포인터가 바닥칸을 가속→감속하며 훑다 kkwangBottom에 정지하는 시간(하강 전) — js/ladder.js와 동일 유지
+const LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — js/ladder.js와 동일 유지
 
-// reveal 시작부터 자동 종료(결과 오버레이)까지 — 동시 진행이라 N과 무관한 상수.
-function ladderRevealDelay() {
-    return LADDER_REVEAL_DESCENT + LADDER_FINAL_HOLD;
+// reveal 시작부터 자동 종료(결과 오버레이)까지 — 순차 하강이라 토큰 수(N)에 비례.
+// 시퀀스(꽝 선결정): 카운트다운 → 지우기(미사용 라벨→일괄탈락) → 그리기 → 바닥멈춤 → 폭탄 포인터(💀 공개) → 순차 하강(N×SLOT) → 결과 캡션 유지.
+// 단계 순서만 바뀌고 합은 동일(옛 순서 대비 바닥멈춤+폭탄포인터가 하강 앞으로 이동) — 합산식 불변.
+// 모든 단계 길이를 합산해야 서버 endGame이 클라 연출 도중에 끼어들지 않는다(서버↔클라 타이밍 동기 불변). N = 점유 레인(하강 토큰) 수.
+function ladderRevealDelay(N) {
+    const n = Math.max(1, N | 0);
+    const descent = n * LADDER_TOKEN_SLOT_MS;
+    return LADDER_COUNTDOWN_MS + LADDER_ERASE_MS + LADDER_DRAW_MS
+        + descent + LADDER_BOTTOM_PAUSE_MS + LADDER_BOMB_POINTER_MS + LADDER_FINAL_HOLD;
 }
 
-const LADDER_RESET_DELAY = 4000;    // gameEnd 후 다음 판 리셋까지
+const LADDER_RESET_DELAY = 600;     // gameEnd 후 다음 판 자동 리셋까지(빠른 재준비). 결과 표시는 클라가 유지(경마식).
 const LADDER_SLANT_MAX = 1;         // rung 기울기(slant) 절대값 상한 (js/ladder.js와 동기 — 시각 효과)
 const LADDER_CURVE_MAX_POINTS = 24; // 곡선 막대기 점 개수 상한 (신뢰경계 — 페이로드 폭주 방지, js/ladder.js와 동기)
 const LADDER_CURVE_RAW_MAX = 256;   // 클라가 보낸 원시 점 허용 상한(이 초과는 비정상 → 직선 폴백)
@@ -111,53 +138,192 @@ function rungTooClose(rungList, c, y) {
     return (rungList || []).some(rg => rg && sharesPost(rg.c, c) && Math.abs(rg.y - y) < LADDER_MIN_GAP_Y);
 }
 
+// ─── 균등(편향 없는) 배치 헬퍼 (서버 전용) ───
+// 추가분을 무작위 칸이 아니라 "현재 가장 적은 칸"에, 그 칸에서도 "가장 비어있는 밴드"에 놓아
+// 칸(c=0..N-2)·세로 밴드(상/중/하)에 라운드로빈처럼 고르게 분산한다. 매핑(c+y정렬)·loser 분포 불변.
+
+// 높이 y → 밴드 인덱스(0=상 .. LADDER_GEN_BANDS-1=하). Y범위를 등분.
+function bandOf(y) {
+    const span = LADDER_Y_MAX - LADDER_Y_MIN;
+    const f = span > 0 ? (y - LADDER_Y_MIN) / span : 0;
+    return Math.max(0, Math.min(LADDER_GEN_BANDS - 1, Math.floor(f * LADDER_GEN_BANDS)));
+}
+
+// 칸별(c=0..N-2) 현재 막대기 수 배열.
+function columnCounts(rungs, N) {
+    const counts = new Array(N - 1).fill(0);
+    (rungs || []).forEach(rg => { if (rg && rg.c >= 0 && rg.c < N - 1) counts[rg.c]++; });
+    return counts;
+}
+
+// 가장 적게 가진 칸을 고른다(동률이면 서버 RNG). 균형 라운드로빈 배치용.
+function pickLeastLoadedColumn(counts, rng) {
+    let min = Infinity;
+    counts.forEach(c => { if (c < min) min = c; });
+    const cands = [];
+    counts.forEach((c, i) => { if (c === min) cands.push(i); });
+    return cands[Math.floor(rng() * cands.length)];
+}
+
+// 주어진 칸(c)에서 가장 비어있는 밴드의 y범위 내 서버 RNG y를 고른다(동률 밴드면 RNG).
+// rungs = 현재 전체 막대기(밴드별 개수 산정용). 밴드 경계 안에서 균등 랜덤.
+function pickYInLeastLoadedBand(rungs, c, rng) {
+    const bandCounts = new Array(LADDER_GEN_BANDS).fill(0);
+    (rungs || []).forEach(rg => { if (rg && rg.c === c) bandCounts[bandOf(rg.y)]++; });
+    let min = Infinity;
+    bandCounts.forEach(n => { if (n < min) min = n; });
+    const cands = [];
+    bandCounts.forEach((n, i) => { if (n === min) cands.push(i); });
+    const band = cands[Math.floor(rng() * cands.length)];
+    const span = LADDER_Y_MAX - LADDER_Y_MIN;
+    const lo = LADDER_Y_MIN + span * (band / LADDER_GEN_BANDS);
+    const hi = LADDER_Y_MIN + span * ((band + 1) / LADDER_GEN_BANDS);
+    return lo + rng() * (hi - lo);
+}
+
 /**
- * 최종 사다리 구조 생성 (서버 전용) — 연속 좌표.
- * 막대기 = { c: 왼쪽 기둥(0..N-2), y: 높이(0~1), slant: 기울기(-1~1, 시각) }.
- * 매핑은 y 오름차순으로 정렬해 인접 스왑(표준 사다리). slant는 결과와 무관.
- * @param {number} N - 레인 수(= 참가자 수)
- * @param {Array<{c:number,y:number,slant:number}>} userRungs - 유저 배치 막대기
- * @returns {{ rungs, baseRungs, kkwangBottom, laneToBottom, losingLane }}
+ * 가시 기본(base) 막대기 생성 (서버 전용 RNG) — 빌드 오픈 시점에 1회 호출.
+ * 기존 막대기(여기선 다른 base)와 spacing 충돌 회피. owner 없음(user:false, owner:null).
+ * id는 단조 카운터(nextId)로 부여 — Math.random/timestamp 금지(결정성·공정성).
+ * @param {number} N - 레인 수(고정 6)
+ * @param {function(): number} nextId - id 발급 콜백 (ld.rungSeq++)
+ * @returns {Array<{id:number,c:number,y:number,slant:number}>}
  */
-function buildLadder(N, userRungs) {
-    const rungs = [];
-
-    // 1) 유저 막대기 (방어적 재검증 — 범위/충돌 위반분은 무시). points = 곡선(시각, 결과 무관).
-    (userRungs || []).forEach(({ c, y, slant, points }) => {
-        if (!Number.isInteger(c) || c < 0 || c > N - 2) return;
-        const yy = clampY(y);
-        if (yy === null || rungTooClose(rungs, c, yy)) return;
-        // user:true = 참가자가 직접 그린 막대기 표식. reveal 페이로드(ld.rungs)에만 실려 공개 화면에서 색 구분에 쓰임.
-        // 빌드 브로드캐스트(userRungs)·재진입 마스킹과 무관 → reveal 전 비노출 유지. 매핑엔 영향 없음.
-        rungs.push({ c, y: yy, slant: clampSlant(slant), points: sanitizeCurvePoints(points), user: true });
-    });
-
-    // 2) 숨은 기본 막대기 — 최소 보장 + 랜덤 추가, 기존과 충돌 회피. 개수·y·slant 모두 서버 RNG.
+function generateBaseRungs(N, nextId) {
     const baseRungs = [];
-    const target = Math.max(LADDER_BASE_RUNG_MIN, N) + Math.floor(Math.random() * (LADDER_BASE_RUNG_RAND + 1));
-    let placed = 0, attempts = 0;
-    while (placed < target && attempts < target * 80) {
-        attempts++;
-        const c = Math.floor(Math.random() * (N - 1));
-        const y = LADDER_Y_MIN + Math.random() * (LADDER_Y_MAX - LADDER_Y_MIN);
-        if (rungTooClose(rungs, c, y)) continue;
-        const rg = { c, y, slant: (Math.random() * 2 - 1) * LADDER_SLANT_MAX };
-        rungs.push(rg);
-        baseRungs.push(rg);
-        placed++;
+    const randY = () => LADDER_Y_MIN + Math.random() * (LADDER_Y_MAX - LADDER_Y_MIN);
+    const pushRung = (c, y) => baseRungs.push({ id: nextId(), c, y, slant: (Math.random() * 2 - 1) * LADDER_SLANT_MAX });
+
+    // 1) 모든 칸(c=0..N-2)에 최소 1개씩 보장 — 빈 칸 없이 사다리가 꽉 차 보이게.
+    //    인접 칸과 spacing(rungTooClose) 안 겹치는 y를 재시도로 찾는다.
+    for (let c = 0; c < N - 1; c++) {
+        for (let a = 0; a < 60; a++) {
+            const y = randY();
+            if (rungTooClose(baseRungs, c, y)) continue;
+            pushRung(c, y);
+            break;
+        }
     }
 
-    // 3) y 오름차순 정렬 (위→아래) — 매핑·연출 공통 순서
-    rungs.sort((a, b) => a.y - b.y);
+    // 2) 다양성용 추가 막대기 — 0~RAND개를 "가장 적은 칸 + 가장 빈 밴드"에 얹는다(균등 분산, spacing 회피).
+    //    무작위 칸 대신 희소 우선(least-loaded)이라 한 칸/한 구역에 몰리지 않는다. 매핑·loser 분포 불변.
+    const extra = Math.floor(Math.random() * (LADDER_BASE_RUNG_RAND + 1));
+    let placed = 0, attempts = 0;
+    while (placed < extra && attempts < extra * 80) {
+        attempts++;
+        const c = pickLeastLoadedColumn(columnCounts(baseRungs, N), Math.random);
+        const y = pickYInLeastLoadedBand(baseRungs, c, Math.random);
+        if (rungTooClose(baseRungs, c, y)) continue;
+        pushRung(c, y);
+        placed++;
+    }
+    return baseRungs;
+}
 
-    // 4) 각 상단 레인 → 바닥 열 추적 (클라 buildPath와 동일 알고리즘. 곡선 points는 매핑에서 제외 → 결과 불변)
+/**
+ * 스크램블 사다리 구조 생성 (서버 전용) — 연속 좌표.
+ * 막대기 = { id, c: 왼쪽 기둥(0..N-2), y: 높이(0~1), slant: 기울기(-1~1, 시각), user, owner }.
+ * 1) union = base + user(flatten) 방어적 재검증, 2) K개 erase, 3) M개 add(서버 RNG),
+ * 4) final = remaining + added 를 y 오름차순 정렬.
+ * 매핑(laneToBottom)은 c + y정렬만 사용 → slant/points/스크램블 토폴로지는 loser 분포와 무관(공정성 불변).
+ * kkwang/losingLane/loser는 여기서 정하지 않는다(doReveal의 점유 레인 균등 랜덤이 권위).
+ * @param {number} N - 레인 수(고정 6)
+ * @param {Array<{id,c,y,slant}>} baseRungs - 가시 base 막대기 (owner 없음)
+ * @param {Object<string, Array<{id,c,y,slant,points}>>} userRungsMap - 유저별 막대기 배열맵
+ * @param {function(): number} nextId - add 막대기 id 발급 콜백 (ld.rungSeq++)
+ * @returns {{ rungs, erased, added, laneToBottom }}
+ */
+function buildLadder(N, baseRungs, userRungsMap, nextId) {
+    nextId = nextId || (() => 0);
+
+    // 1) union 구성 + 방어적 재검증 (범위 0..N-2, clampY, spacing). 위반분 제외, id 보존.
+    //    유저 막대기를 먼저 넣어 우선권을 준다 → 유저가 base 근처에 그렸으면 그 base가 양보(드롭)하고
+    //    유저 막대기는 보존된다(빌드에서 그린 게 시작 시 조용히 사라지지 않게). base는 모든 칸 1개씩 깔리므로,
+    //    유저가 채운 칸은 유저 막대기로, 안 채운 칸은 base로 — 어느 칸도 비지 않는다.
+    const union = [];
+    Object.keys(userRungsMap || {}).forEach(owner => {
+        const arr = Array.isArray(userRungsMap[owner]) ? userRungsMap[owner] : [];
+        arr.forEach(rg => {
+            if (!rg || !Number.isInteger(rg.c) || rg.c < 0 || rg.c > N - 2) return;
+            const yy = clampY(rg.y);
+            if (yy === null || rungTooClose(union, rg.c, yy)) return;
+            // points = 곡선(시각, 결과 무관). 이미 add 시 sanitize됨 — 그대로 보존.
+            union.push({ id: rg.id, c: rg.c, y: yy, slant: clampSlant(rg.slant), points: rg.points || null, user: true, owner });
+        });
+    });
+    (baseRungs || []).forEach(rg => {
+        if (!rg || !Number.isInteger(rg.c) || rg.c < 0 || rg.c > N - 2) return;
+        const yy = clampY(rg.y);
+        if (yy === null || rungTooClose(union, rg.c, yy)) return;   // 유저 막대기와 너무 가까운 base는 드롭
+        union.push({ id: rg.id, c: rg.c, y: yy, slant: clampSlant(rg.slant), points: null, user: false, owner: null });
+    });
+
+    // 2) erase: K = ERASE_MIN..ERASE_MAX (서버 RNG). 사다리가 비지 않게 union.length-2까지로 클램프.
+    //    무작위 K개 대신 "가장 많이 가진 칸에서 라운드로빈으로" 지워 한 칸만 집중 비우지 않는다(균형).
+    //    각 칸은 가능하면 최소 1개 보존(union의 칸당 1개만 있는 작은 방에선 무리하지 않음 — 후보 없으면 중단).
+    let K = LADDER_SCRAMBLE_ERASE_MIN + Math.floor(Math.random() * (LADDER_SCRAMBLE_ERASE_MAX - LADDER_SCRAMBLE_ERASE_MIN + 1));
+    K = Math.min(K, Math.max(0, union.length - 2));
+    const eraseIdxSet = new Set();
+    // 칸별 union 인덱스 목록(칸당 보존 1개 판정·라운드로빈 선택용)
+    const colIdx = {};
+    union.forEach((rg, i) => { (colIdx[rg.c] = colIdx[rg.c] || []).push(i); });
+    for (let picked = 0; picked < K; picked++) {
+        // 현재 남은(미지움) 막대기가 2개 이상인 칸 중 가장 많이 가진 칸을 고른다(동률은 서버 RNG).
+        let maxRemain = -1;
+        Object.keys(colIdx).forEach(c => {
+            const remainInCol = colIdx[c].filter(i => !eraseIdxSet.has(i)).length;
+            if (remainInCol >= 2 && remainInCol > maxRemain) maxRemain = remainInCol;
+        });
+        if (maxRemain < 0) break;   // 모든 칸이 1개 이하 — 더 지우면 칸이 비므로 중단(균형 보존)
+        const cands = Object.keys(colIdx).filter(c =>
+            colIdx[c].filter(i => !eraseIdxSet.has(i)).length === maxRemain);
+        const col = cands[Math.floor(Math.random() * cands.length)];
+        // 그 칸의 남은 막대기 중 하나를 서버 RNG로 지운다.
+        const remainIdx = colIdx[col].filter(i => !eraseIdxSet.has(i));
+        eraseIdxSet.add(remainIdx[Math.floor(Math.random() * remainIdx.length)]);
+    }
+    const erased = [];
+    const remaining = [];
+    union.forEach((rg, i) => { (eraseIdxSet.has(i) ? erased : remaining).push(rg); });
+
+    // 3) add: M = ADD_MIN..ADD_MAX (서버 RNG). remaining + 이미 add된 것과 spacing 안 겹치게 배치.
+    //    못 채우면 M 미달 허용(attempts 한도). 추가분은 owner 없음(user:false, owner:null).
+    const M = LADDER_SCRAMBLE_ADD_MIN + Math.floor(Math.random() * (LADDER_SCRAMBLE_ADD_MAX - LADDER_SCRAMBLE_ADD_MIN + 1));
+    const added = [];
+    // 새 막대기 한 개를 "가장 적은 칸 + 가장 빈 밴드"에, spacing(remaining + 기존 added) 안 겹치게 배치 시도.
+    //    무작위 c/y 대신 희소 우선이라 erase 후 빈 칸·구역부터 채워 전체가 고르게 찬다. 매핑·loser 분포 불변.
+    function tryAddOne() {
+        const current = remaining.concat(added);
+        const c = pickLeastLoadedColumn(columnCounts(current, N), Math.random);
+        const y = pickYInLeastLoadedBand(current, c, Math.random);
+        if (rungTooClose(remaining, c, y) || rungTooClose(added, c, y)) return false;
+        added.push({ id: nextId(), c, y, slant: (Math.random() * 2 - 1) * LADDER_SLANT_MAX, points: null, user: false, owner: null });
+        return true;
+    }
+    let placed = 0, attempts = 0;
+    while (placed < M && attempts < M * 80) {
+        attempts++;
+        if (tryAddOne()) placed++;
+    }
+
+    // 3-b) 밀도 보충: 스크램블 후 총 막대기(remaining + added)가 floor 미만이면 floor까지 채운다.
+    //      작은 방에서도 사다리가 꽉 차 보이게. 추가분은 added에 합류 → reveal payload added/rungs에 동일 포함(클라 동기).
+    //      매핑은 c+y정렬만 사용하므로 추가분이 loser 분포를 바꾸지 않는다(공정성 불변). spacing 못 채우면(빽빽) 미달 허용.
+    const floor = Math.min(LADDER_MIN_TOTAL_RUNGS, (N - 1) * 3);   // 칸당 spacing 한계 고려 안전 상한(칸 5개 × ~3)
+    let fillAttempts = 0;
+    while (remaining.length + added.length < floor && fillAttempts < floor * 120) {
+        fillAttempts++;
+        tryAddOne();
+    }
+
+    // 4) final = remaining + added, y 오름차순 정렬 (위→아래) — 매핑·연출 공통 순서
+    const rungs = remaining.concat(added).sort((a, b) => a.y - b.y);
+
+    // 5) 각 상단 레인 → 바닥 열 추적 (곡선/slant/스크램블은 매핑에서 제외 → 결과 불변)
     const laneToBottom = computeLaneToBottom(N, rungs);
 
-    // 5) 꽝 바닥칸 random → 도착 레인 = 패배 레인 (bijection이라 유일)
-    const kkwangBottom = Math.floor(Math.random() * N);
-    const losingLane = laneToBottom.indexOf(kkwangBottom);
-
-    return { rungs, baseRungs, kkwangBottom, laneToBottom, losingLane };
+    // kkwangBottom/losingLane/loser는 doReveal에서 점유 레인 균등 랜덤으로 확정(공정성 불변).
+    return { rungs, erased, added, laneToBottom };
 }
 
 /**
@@ -181,13 +347,61 @@ module.exports = (socket, io, ctx) => {
             gameState.users.some(u => u.name === name)).length;
     }
 
+    // drawer 색 인덱스 배정 (서버 권위, 결정적) — 참가자가 빌드에서 처음 등장할 때 호출.
+    // 현재 참가자들과 겹치지 않는 가장 작은 미사용 인덱스(0부터)를 배정. Math.random 금지.
+    function assignColorIndex(ld, name) {
+        if (!ld.colorIndex) ld.colorIndex = {};
+        if (ld.colorIndex[name] !== undefined) return;
+        const used = new Set(Object.values(ld.colorIndex));
+        let idx = 0;
+        while (used.has(idx)) idx++;
+        ld.colorIndex[name] = idx;
+    }
+
+    // 입장 시 자동 레인 점유 (서버 RNG) — 빈 레인(1~6) 중 하나를 균등 랜덤으로 배정. 빈 레인 없으면 미배정.
+    // 이미 레인을 가진 사용자(재입장/이미 선택)는 그대로 둔다(중복 점유 방지). 색 인덱스도 함께 부여.
+    // pickLane으로 언제든 다른 빈 레인으로 이동 가능 — 자동 점유는 "입장 즉시 자리 하나" 선물일 뿐(예측·악용 영향 없음:
+    // 자리는 doReveal에서 점유 레인 균등 랜덤으로 패자를 뽑으므로, 어느 빈 레인을 받든 분포 불변).
+    function claimFreeLane(ld, N, name) {
+        if (!ld || ld.phase !== 'idle') return false;
+        if (typeof ld.userLanes[name] === 'number') return false;   // 이미 점유 중 — 유지
+        const taken = new Set(Object.values(ld.userLanes).filter(l => typeof l === 'number'));
+        const freeLanes = [];
+        for (let i = 0; i < N; i++) if (!taken.has(i)) freeLanes.push(i);
+        if (!freeLanes.length) return false;   // 6개 다 참 — 기존 용량 동작(미배정) 유지
+        const lane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+        assignColorIndex(ld, name);            // 자동 점유에도 drawer 색 부여(레인만 골라도 색 일관)
+        ld.userLanes[name] = lane;
+        return true;
+    }
+    // 입장 경로(rooms.js)에서 호출 — 빌드(idle) 단계일 때만 자동 점유 후 브로드캐스트.
+    ctx.claimLadderFreeLane = function (room, gameState, name) {
+        const ld = gameState && gameState.ladder;
+        if (!ld) return;
+        if (claimFreeLane(ld, ladderLaneCount(), name)) {
+            emitRungsUpdated(room, gameState);
+        }
+    };
+
+    // 가시 base 막대기 생성 — 입장(phase idle) 시점에 1회만. 멱등(baseRungsGenerated 가드).
+    // emitRungsUpdated 진입 시 호출 → 1명만 있어도(솔로 입장) base가 즉시 가시 broadcast된다(입장 즉시 사다리 표시).
+    // base는 결과와 무관(공정성 영향 0) — 빌드 중 공개 OK. 시작 게이트(준비 ≥2)는 별도(ladder:start)로 유지.
+    function ensureBaseRungs(ld, N, gameState) {
+        if (!ld || ld.phase !== 'idle' || ld.baseRungsGenerated) return;
+        ld.baseRungs = generateBaseRungs(N, () => ld.rungSeq++);
+        ld.baseRungsGenerated = true;
+    }
+
     // 빌드(idle) 막대기/레인을 현재 레인 수 N 범위로 트림 — 인원 감소 시 범위 밖(c>N-2·lane≥N) 잔존 제거.
     // shared.js(준비 변동)·rooms.js(입장/이탈)·emitRungsUpdated 가 공통으로 호출하는 단일 정합성 규칙.
+    // userRungs[name]은 배열 → 각 배열에서 범위밖 원소 필터, 빈 배열되면 키 삭제.
     function trimLadderBuildToN(ld, N) {
         if (!ld) return;
         Object.keys(ld.userRungs || {}).forEach(name => {
-            const rg = ld.userRungs[name];
-            if (!rg || typeof rg.c !== 'number' || rg.c < 0 || rg.c > N - 2) delete ld.userRungs[name];
+            const arr = Array.isArray(ld.userRungs[name]) ? ld.userRungs[name] : [];
+            const kept = arr.filter(rg => rg && typeof rg.c === 'number' && rg.c >= 0 && rg.c <= N - 2);
+            if (kept.length) ld.userRungs[name] = kept;
+            else delete ld.userRungs[name];
         });
         Object.keys(ld.userLanes || {}).forEach(name => {
             const lane = ld.userLanes[name];
@@ -195,15 +409,19 @@ module.exports = (socket, io, ctx) => {
         });
     }
 
-    // 유저 막대기 + 유저 레인선택 + 현재 레인 수를 전체 클라에 브로드캐스트 (server-only 정보 미포함)
-    // 브로드캐스트 전 항상 현재 N으로 트림 → 어떤 경로로 N이 바뀌어도 범위 밖 막대기 미전파.
+    // 유저 막대기(배열맵) + base 막대기(가시) + 유저 레인선택 + colorIndex + 현재 레인 수를 전체 클라에 브로드캐스트.
+    // server-only 정보(final rungs/laneToBottom/losingLane/kkwangBottom/loser/erased/added)는 미포함.
+    // 진입 시 base 생성(준비 ≥2)·트림을 먼저 수행 → 어떤 경로로 호출돼도 가시 base + 범위내 막대기만 전파.
     function emitRungsUpdated(room, gameState) {
         const ld = gameState.ladder;
         const N = ladderLaneCount();
+        ensureBaseRungs(ld, N, gameState);
         trimLadderBuildToN(ld, N);
         io.to(room.roomId).emit('ladder:rungsUpdated', {
             userRungs: { ...ld.userRungs },
+            baseRungs: (ld.baseRungs || []).slice(),
             userLanes: { ...ld.userLanes },
+            colorIndex: { ...ld.colorIndex },
             numLanes: N
         });
     }
@@ -260,21 +478,26 @@ module.exports = (socket, io, ctx) => {
 
         io.to(room.roomId).emit('ladder:reveal', {
             numLanes: ld.numLanes,
-            rungs: ld.rungs,
+            rungs: ld.rungs,                    // final(스크램블 후, y정렬). 각 막대기에 id·user·owner 포함(클라 색·라벨용)
             kkwangBottom: ld.kkwangBottom,
             laneToBottom: ld.laneToBottom,
             userLanes: { ...ld.userLanes },
             revealOrder: revealOrder,
-            loser: ld.loser
+            loser: ld.loser,
+            erased: (ld.erased || []).slice(),  // 지워질 막대기 객체 배열 (지우개 연출용 — 기하 포함)
+            added: (ld.added || []).slice(),    // 새로 그릴 막대기 객체 배열 (펜 연출용)
+            colorIndex: { ...ld.colorIndex }    // drawer 색 (서버 권위)
         });
 
         console.log(`[사다리타기] 방 ${room.roomName} 공개 - 레인=${ld.numLanes}, 꽝바닥=${ld.kkwangBottom}, 패배레인=${ld.losingLane}, 패자=${ld.loser}`);
 
         clearLadderTimers(ld);
+        // 종료 타이머 = 클라 연출 합과 정확히 일치. N = 점유 레인 수(=클라 revealOrder 필터 결과 = 하강 토큰 수).
+        const tokenCount = Object.keys(ld.userLanes).length;
         ld.endTimeout = setTimeout(() => {
             if (!ctx.rooms[room.roomId]) return;
             endGame(room, gameState);
-        }, ladderRevealDelay());
+        }, ladderRevealDelay(tokenCount));
 
         updateRoomsList();
     }
@@ -359,12 +582,27 @@ module.exports = (socket, io, ctx) => {
             const currentRoom = ctx.rooms[room.roomId];
             if (!currentRoom) return;
             const cur = currentRoom.gameState.ladder;
-            resetLadder(cur);
             const cg = currentRoom.gameState;
-            cg.readyUsers = [];
-            cg.users.forEach(u => { u.isReady = false; });
+
+            // 빠른 재준비 보존: 600ms 결과창에서 "다음 판 준비"를 이미 누른(=readyUsers에 들어있는)
+            // 연결 중 유저는 reset이 ready를 덮어쓰지 않게 캡처. resetLadder는 막대기/레인/색/phase를
+            // 깨끗이 초기화하지만(매 판 새 틀), 보존 대상은 직후 다시 ready로 복원 + 레인 자동 점유.
+            // (덮어쓰면 클라 버튼은 "준비됨"인데 서버 readyUsers=[] → 카운트/버튼 desync, 재클릭 강요.)
+            const preservedReady = (cg.readyUsers || []).filter(name =>
+                cg.users.some(u => u.name === name));
+
+            resetLadder(cur);
+            cg.readyUsers = preservedReady.slice();
+            cg.users.forEach(u => { u.isReady = preservedReady.includes(u.name); });
             io.to(room.roomId).emit('readyUsersUpdated', cg.readyUsers);
             io.to(room.roomId).emit('ladder:roundReset');
+
+            // 보존된 ready 유저에게 다음 빌드 레인 자동 점유(입장 경로와 동일 규칙).
+            // ensureBaseRungs는 phase=idle이면(인원 1명만 있어도) 새 base를 생성하므로, 다음 빌드가
+            // 보존 ready + base 가시 상태로 바로 열린다(매 라운드 새 base, 멱등 정확). 시작은 별도로 준비 ≥2 필요.
+            preservedReady.forEach(name => claimFreeLane(cur, ladderLaneCount(), name));
+            emitRungsUpdated(currentRoom, cg);   // base 생성(idle) + 점유 레인 브로드캐스트
+
             updateRoomsList();
         }, LADDER_RESET_DELAY);
 
@@ -375,9 +613,14 @@ module.exports = (socket, io, ctx) => {
         clearLadderTimers(ld);
         ld.phase = 'idle';
         ld.numLanes = 0;
-        ld.userRungs = {};           // 유저 막대기 초기화 (매 판 새 기본 틀)
-        ld.baseRungs = [];           // 숨은 기본 막대기 초기화
+        ld.userRungs = {};            // 유저 막대기 배열맵 초기화 (매 판 새 기본 틀)
+        ld.baseRungs = [];            // 가시 기본 막대기 초기화 — 다음 빌드 오픈 시 재생성
+        ld.baseRungsGenerated = false;
+        ld.colorIndex = {};           // drawer 색 인덱스 초기화 (라운드마다 재배정)
+        ld.rungSeq = 0;               // id 시퀀스 0 리셋 (라운드 분리라 id 충돌 없음)
         ld.rungs = [];
+        ld.erased = [];               // server-only: 스크램블 지운 막대기
+        ld.added = [];                // server-only: 스크램블 추가 막대기
         ld.kkwangBottom = -1;
         ld.laneToBottom = [];
         ld.losingLane = -1;
@@ -390,7 +633,7 @@ module.exports = (socket, io, ctx) => {
 
     // ========== 소켓 이벤트 핸들러 ==========
 
-    // 막대기 배치 (준비자, 빌드 단계) — 1인 1개, 재배치는 이동. 연속 좌표(c, y, slant) 서버 검증
+    // 막대기 배치 (준비자, 빌드 단계) — 인당 최대 3개 append. 연속 좌표(c, y, slant) 서버 검증
     socket.on('ladder:addRung', (data) => {
         if (!checkRateLimit()) return;
         if (!data || typeof data.c !== 'number' || typeof data.y !== 'number') return;
@@ -418,6 +661,13 @@ module.exports = (socket, io, ctx) => {
             socket.emit('ladder:error', '준비한 사람이 2명 이상이어야 막대기를 놓을 수 있습니다.');
             return;
         }
+
+        if (!Array.isArray(ld.userRungs[name])) ld.userRungs[name] = [];
+        if (ld.userRungs[name].length >= LADDER_MAX_RUNGS_PER_USER) {
+            socket.emit('ladder:error', `막대기는 한 사람당 최대 ${LADDER_MAX_RUNGS_PER_USER}개까지 놓을 수 있어요.`);
+            return;
+        }
+
         const N = ladderLaneCount();   // 항상 6 — 기둥 범위(0..N-2) 검증용
 
         const c = data.c;
@@ -427,22 +677,28 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 다른 사람 막대기와 같은 기둥 공유 + 너무 가까우면 금지 (본인 기존 막대기는 이동이므로 제외)
-        const others = Object.keys(ld.userRungs)
-            .filter(n => n !== name)
-            .map(n => ld.userRungs[n]);
-        if (rungTooClose(others, c, y)) {
+        // spacing 검증 — 유저 막대기끼리만 충돌 검사(본인+남). 기본(base) 막대기와의 근접은 막지 않는다:
+        // 유저가 base 근처에도 자유롭게 그릴 수 있고, 시작 시 union에서 유저를 먼저 넣어 base가 양보하므로
+        // 유저 막대기가 사라지지 않는다(buildLadder 참조). base까지 막으면 빌드가 과하게 빡빡해진다.
+        const all = [];
+        Object.keys(ld.userRungs).forEach(n => {
+            (Array.isArray(ld.userRungs[n]) ? ld.userRungs[n] : []).forEach(rg => all.push(rg));
+        });
+        if (rungTooClose(all, c, y)) {
             socket.emit('ladder:error', '다른 막대기와 너무 가까워요. 조금 떨어뜨려 놓아주세요.');
             return;
         }
 
-        // 1인 1개 — 덮어써 이동. slant=기울기(시각), points=자유 곡선 궤적(시각). 둘 다 결과 무관.
-        ld.userRungs[name] = { c, y, slant: clampSlant(data.slant), points: sanitizeCurvePoints(data.points) };
+        // 첫 등장이면 drawer 색 배정 (서버 권위, 결정적)
+        assignColorIndex(ld, name);
+
+        // append (cap 3). id=단조 카운터, slant=기울기(시각), points=자유 곡선 궤적(시각). 둘 다 결과 무관.
+        ld.userRungs[name].push({ id: ld.rungSeq++, c, y, slant: clampSlant(data.slant), points: sanitizeCurvePoints(data.points) });
         emitRungsUpdated(room, gameState);
     });
 
-    // 막대기 제거 (본인 소유분)
-    socket.on('ladder:removeRung', () => {
+    // 막대기 제거 (본인 소유분) — { id }(또는 { rungId })로 해당 id만 제거. 없거나 못 찾으면 무시.
+    socket.on('ladder:removeRung', (data) => {
         if (!checkRateLimit()) return;
 
         const gameState = getCurrentRoomGameState();
@@ -454,11 +710,20 @@ module.exports = (socket, io, ctx) => {
 
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) return;
+        const name = user.name;
 
-        if (ld.userRungs[user.name]) {
-            delete ld.userRungs[user.name];
-            emitRungsUpdated(room, gameState);
-        }
+        const arr = ld.userRungs[name];
+        if (!Array.isArray(arr) || arr.length === 0) return;
+
+        const rungId = data && (typeof data.id === 'number' ? data.id : (typeof data.rungId === 'number' ? data.rungId : null));
+        if (rungId === null) return;   // id 없으면 무시(에러 X)
+
+        const next = arr.filter(rg => rg && rg.id !== rungId);
+        if (next.length === arr.length) return;   // 본인 소유에 없는 id → 무시
+
+        if (next.length) ld.userRungs[name] = next;
+        else delete ld.userRungs[name];           // 빈 배열되면 키 정리
+        emitRungsUpdated(room, gameState);
     });
 
     // 게임 시작 (호스트) — 준비 인원 수만큼 사다리 생성, 선택 단계 진입
@@ -480,8 +745,16 @@ module.exports = (socket, io, ctx) => {
         }
 
         const ld = gameState.ladder;
-        if (ld.phase !== 'idle' && ld.phase !== 'finished') {
-            socket.emit('ladder:error', '이미 게임이 진행 중입니다!');
+        // idle(빌드)에서만 시작. finished(결과 표시 600ms)에서의 시작은 거부한다:
+        // 결과 직후엔 곧 roundReset(resetTimeout)이 phase를 idle로 되돌리며 base/레인/색/막대기를
+        // 새로 초기화한다. finished에서 바로 시작하면 clearLadderTimers가 그 resetTimeout을 취소해
+        // resetLadder가 영영 안 돌고 이전 라운드 막대기/색/출발레인이 그대로 carry-over된다(빌드 desync).
+        // 새 플로우: finished --600ms--> idle(ready 보존) --> build --> 호스트 시작.
+        if (ld.phase !== 'idle') {
+            socket.emit('ladder:error',
+                ld.phase === 'finished'
+                    ? '결과 정리 중이에요. 잠시 후 다음 판을 시작해주세요.'
+                    : '이미 게임이 진행 중입니다!');
             return;
         }
 
@@ -503,12 +776,13 @@ module.exports = (socket, io, ctx) => {
         const participants = ready.slice(0, LADDER_MAX_PLAYERS);
         const N = LADDER_LANES;   // 레인 항상 6 고정 — 참가자가 6 미만이면 일부는 빈 레인
 
-        // 시작 시점 유저 막대기 확정: 참가자 소유 + 기둥 범위(0 ≤ c ≤ N-2) 내인 것만 유지
+        // 시작 시점 유저 막대기 확정: 참가자 소유 + 각 배열 원소 기둥 범위(0 ≤ c ≤ N-2)인 것만 유지. 빈 배열 키 삭제.
         Object.keys(ld.userRungs).forEach(name => {
-            const rg = ld.userRungs[name];
-            if (!participants.includes(name) || !rg || rg.c < 0 || rg.c > N - 2) {
-                delete ld.userRungs[name];
-            }
+            if (!participants.includes(name)) { delete ld.userRungs[name]; return; }
+            const arr = Array.isArray(ld.userRungs[name]) ? ld.userRungs[name] : [];
+            const kept = arr.filter(rg => rg && Number.isInteger(rg.c) && rg.c >= 0 && rg.c <= N - 2);
+            if (kept.length) ld.userRungs[name] = kept;
+            else delete ld.userRungs[name];
         });
         // 시작 시점 유저 레인 확정: 참가자 소유 + 범위(0 ≤ lane ≤ N-1) 내인 것만 유지 (빌드 단계에서 고른 값)
         Object.keys(ld.userLanes).forEach(name => {
@@ -517,14 +791,16 @@ module.exports = (socket, io, ctx) => {
                 delete ld.userLanes[name];
             }
         });
-        const userRungArr = Object.values(ld.userRungs);
 
         clearLadderTimers(ld);
-        const built = buildLadder(N, userRungArr);
+        // 스크램블: base(이미 가시) + user(배열맵)를 union → K개 erase + M개 add (서버 RNG). id는 ld.rungSeq.
+        const built = buildLadder(N, ld.baseRungs, ld.userRungs, () => ld.rungSeq++);
         ld.phase = 'selecting';            // 전이용(클라 선택 UI 없음) — 곧바로 doReveal
         ld.numLanes = N;
-        ld.rungs = built.rungs;            // server-only: 유저+기본 결합(y정렬), reveal에서만 전송
-        ld.baseRungs = built.baseRungs;    // server-only: 숨은 기본 막대기
+        ld.rungs = built.rungs;            // server-only: 스크램블 후 final(y정렬), reveal에서만 전송
+        ld.erased = built.erased;          // server-only: 스크램블 지운 막대기(reveal에서 연출용 전송)
+        ld.added = built.added;            // server-only: 스크램블 추가 막대기(reveal에서 연출용 전송)
+        // ld.baseRungs는 그대로 유지 — 빌드 중 이미 가시였음(재생성 안 함)
         ld.laneToBottom = built.laneToBottom;
         // kkwangBottom/losingLane은 doReveal에서 "점유 레인 중"으로 확정(빈 레인 제외). 여기선 미설정.
         // ld.userLanes 유지 — 빌드 단계에서 고른 출발 레인. 미선택자는 doReveal에서 RNG 자동 배정.
@@ -578,6 +854,7 @@ module.exports = (socket, io, ctx) => {
         if (ld.userLanes[name] === lane) {
             delete ld.userLanes[name];
         } else {
+            assignColorIndex(ld, name);   // 첫 등장이면 drawer 색 배정 (막대기 없이 레인만 골라도 색 부여)
             ld.userLanes[name] = lane;
         }
         emitRungsUpdated(room, gameState);

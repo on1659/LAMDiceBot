@@ -225,6 +225,8 @@
                 <div class="ladder-result-caption" id="ladderResultCaption"></div>
                 <div class="ladder-canvas-inner" id="ladderCanvasInner">
                     <canvas id="ladderCanvas" width="720" height="420" aria-label="사다리타기 게임 캔버스"></canvas>
+                    <!-- 스크램블 카운트다운/"셔플!" 오버레이 (캔버스 중앙, 표시크기 기준 절대배치) -->
+                    <div class="ladder-scramble-overlay" id="ladderScrambleOverlay" aria-hidden="true"></div>
                     <!-- 레인별 소유자 이름 (출발 레인 x좌표에 맞춰 캔버스 하단에 고정 표시) -->
                     <div class="ladder-lane-names" id="ladderLaneNames"></div>
                 </div>
@@ -265,7 +267,11 @@
         <div class="result-card">
             <div class="result-title">🎊 결과 발표 🎊</div>
             <div id="resultRankings" style="margin-bottom: 20px;"></div>
-            <button onclick="closeResultOverlay()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">확인</button>
+            <!-- 빠른 재준비(경마식): 결과 위에서 바로 다음 판 준비 → 4초 대기 없이 라운드 연속 -->
+            <div class="ladder-result-actions">
+                <button id="ladderNextRoundBtn" onclick="readyForNextRound()" class="ladder-next-round-btn">🪜 다음 판 준비</button>
+                <button onclick="closeResultOverlay()" class="ladder-result-close-btn">결과 닫기</button>
+            </div>
         </div>
     </div>
 
@@ -292,7 +298,7 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/ladder.js?v=2"></script>
+    <script src="/js/ladder.js?v=3"></script>
 
     <script>
         // ============================================
@@ -423,22 +429,22 @@
         },
         {
             target: '#ladderBuildSection',
-            title: '3단계: 레인 고르고 막대기 그리기 (선택)',
-            content: '준비하면 ① 내 출발 레인을 고르고 ② 한 기둥에서 옆 기둥까지 마우스/손가락으로 그어 막대기를 만들어요. 그은 궤적 그대로 곡선이 되고, 옆 기둥에 닿으면 초록(연결됨)으로 바뀌어요. 닿지 않은 채 손을 떼면 그리던 막대기는 사라집니다. 둘 다 선택이라 안 골라도 됩니다(미선택 레인은 시작 시 자동 배정). 내 막대기는 모두에게 보이고, 톡 누르면 제거됩니다. 서버가 숨겨둔 기본 막대기도 함께 사다리를 이룹니다.',
+            title: '3단계: 내 번호 확인하고 막대기 그리기 (선택)',
+            content: '입장하면 빈 번호(1~6) 하나가 나에게 자동으로 배정돼요. 다른 빈 번호를 누르면 그쪽으로 옮길 수 있어요. 그리고 한 기둥에서 옆 기둥까지 그어 막대기를 만들 수 있어요(한 사람당 최대 3개). 사람마다 색이 달라 누가 그렸는지 한눈에 보이고, 회색은 서버가 처음부터 깔아둔 기본 막대기예요. 내 막대기를 톡 누르면 제거됩니다.',
             position: 'bottom',
             fallbackTarget: '#readySection'
         },
         {
             target: '#hostControls',
             title: '4단계: 사다리 시작 (방장)',
-            content: '방장이 "🪜 사다리 시작"을 누르면 곧바로 사다리가 공개됩니다. 레인이나 막대기를 안 고른 사람이 있어도 시작할 수 있어요.',
+            content: '방장이 "🪜 사다리 시작"을 누르면 사다리를 한 번 섞은 뒤 공개됩니다. 레인이나 막대기를 안 고른 사람이 있어도 시작할 수 있어요.',
             position: 'bottom',
             fallbackTarget: '#readySection'
         },
         {
             target: '#gameStatus',
-            title: '5단계: 공개 & 결과',
-            content: '여러분이 고른 레인에서 토큰이 출발해, 그려둔 곡선 막대기와 숨겨진 기본 막대기를 따라 구불구불 내려갑니다. 꽝 바닥칸에 도착한 사람이 패자로 정해집니다!',
+            title: '5단계: 셔플 → 폭탄 칸 → 결과',
+            content: '시작하면 「3·2·1 셔플!」과 함께 「미사용」으로 표시된 막대기가 동시에 반짝인 뒤 함께 떨어져 사라지고, 새 막대기를 펜으로 그려 넣어요. 그다음 폭탄 룰렛이 바닥칸을 훑다가 한 칸에 멈춰 💀 꽝 칸을 먼저 정합니다. 꽝 칸이 정해지면 토큰이 한 명씩 차례로 내려가고, 그 💀 칸에 도착한 사람이 꽝(패자)이 됩니다!',
             position: 'bottom',
             fallbackTarget: '#readySection'
         }

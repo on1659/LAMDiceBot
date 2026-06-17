@@ -55,8 +55,10 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         if (ld.phase !== 'idle') return;
 
         if (removedUserName) {
+            // 막대기 배열 전체 + 레인 + drawer 색 인덱스 정리 (준비 취소 → 빌드에서 완전 이탈)
             if (ld.userRungs[removedUserName]) delete ld.userRungs[removedUserName];
             if (ld.userLanes[removedUserName] !== undefined) delete ld.userLanes[removedUserName];
+            if (ld.colorIndex && ld.colorIndex[removedUserName] !== undefined) delete ld.colorIndex[removedUserName];
         }
         // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
         if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
@@ -386,6 +388,16 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         // 게임 진행 중이면 준비 상태 변경 불가
         if (gameState.isGameActive) {
             socket.emit('readyError', '게임이 진행 중일 때는 준비 상태를 변경할 수 없습니다!');
+            return;
+        }
+
+        // 사다리타기 전용 게이트(크로스게임 무영향 — ladder일 때만 동작):
+        // 사다리는 isGameActive를 켜지 않고 ld.phase로 진행을 추적한다. 공개 연출(selecting/revealing)
+        // 도중의 stray toggleReady가 readyUsers를 흔들면 reset 보존/카운트와 어긋나므로 무시한다.
+        // idle(빌드)·finished(결과창에서 다음 판 빠른 재준비)에서는 허용.
+        if (room.gameType === 'ladder' && gameState.ladder
+            && gameState.ladder.phase !== 'idle' && gameState.ladder.phase !== 'finished') {
+            socket.emit('readyError', '사다리 진행 중에는 준비 상태를 바꿀 수 없어요. 결과가 끝난 뒤 다시 시도해주세요.');
             return;
         }
 

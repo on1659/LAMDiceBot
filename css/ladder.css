@@ -172,6 +172,34 @@
     margin: 0 auto;
 }
 
+/* 스크램블 카운트다운/"셔플!" 오버레이 — 캔버스 위에 큰 글자로 페이드 인/아웃.
+   캔버스 표시크기(반응형) 기준 절대배치(부모 .ladder-canvas-inner가 relative + 캔버스와 같은 폭). */
+.ladder-scramble-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 22px;   /* 캔버스 영역(레인 이름 라벨 22px 제외)의 세로 중앙에 오도록 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Jua', 'Segoe UI', Tahoma, sans-serif;
+    font-size: clamp(48px, 16vw, 110px);   /* 모바일~데스크톱 가변 — 작은 화면에서도 또렷 */
+    font-weight: 900;
+    color: var(--ladder-accent);
+    text-shadow: 0 2px 12px rgba(var(--ladder-500-rgb), 0.55), 0 0 4px rgba(255, 255, 255, 0.9);
+    pointer-events: none;       /* 캔버스/구슬 위에 떠 있되 입력은 통과 */
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+}
+
+/* JS가 단계마다 .show 토글 — 숫자가 커지며 나타났다 사라짐 */
+.ladder-scramble-overlay.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
 /* 출발 레인별 소유자 이름 — 캔버스 바로 아래, 각 레인 x좌표에 맞춰 고정 */
 .ladder-lane-names {
     position: relative;
@@ -319,3 +347,39 @@
 .ladder-result-tag { font-weight: bold; white-space: nowrap; }
 .ladder-result-tag.loser { color: #ef4444; }
 .ladder-result-tag.pass { color: #10b981; }
+
+/* ── 빠른 재준비(경마식) — 결과 카드 안 버튼들 ── */
+.ladder-result-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+}
+.ladder-next-round-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: var(--ladder-gradient);
+    color: var(--text-primary);
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.ladder-next-round-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(var(--ladder-500-rgb), 0.4);
+}
+.ladder-next-round-btn:active { transform: translateY(0); }
+.ladder-result-close-btn {
+    width: 100%;
+    padding: 10px 20px;
+    background: var(--btn-neutral, #e5e7eb);
+    color: var(--text-secondary);
+    border: 1px solid var(--gray-300, #d1d5db);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}

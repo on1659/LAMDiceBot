@@ -5,8 +5,10 @@
  *
  * 검증:
  *  1. 로비(/game)에 사다리타기 라디오 + 대표 게임(경마) 라디오 존재 / 선택 가능
- *  2. 사다리타기 방 생성 → 입장(2탭) → 준비 → 번호(1~6) 선택 → 시작(즉시 공개) → 동시 도착 → 결과/종료 도달
+ *  2. 사다리타기 방 생성 → 입장(2탭) → 준비 → 번호(1~6) 선택 → 시작(즉시 공개) → 순차 하강 → 결과/종료 도달
  *     레인은 항상 6개 고정(인원 6 미만이면 빈 레인). 꽝은 점유 레인에서만 결정(패자 항상 1명).
+ *     토큰은 한 명씩 차례로 내려간다(SLOT 3s/명). 마지막 도착 후 폭탄 룰렛 포인터가 꽝칸에 정지(2.6s).
+ *     종료 후: 아직 준비 안 한 플레이어는 결과 캔버스 유지, 이미 준비된 플레이어는 roundReset에서 곧바로 다음 빌드로 전환(빠른 재준비).
  *  3. 콘솔 에러 없음 (광고/서드파티 노이즈 제외)
  *  4. 대표 게임(경마) 방 생성/로드 정상 (기존 모드 미파손)
  */
@@ -190,30 +192,89 @@ async function run() {
             assert(info.empties >= 4, `빈 레인이 충분치 않음(empty=${info.empties})`);
         });
 
-        await test('호스트 출발 레인 선택 → 게스트에 브로드캐스트 동기화', async () => {
-            await host.click('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(1)');
-            await host.waitForFunction(() =>
-                document.querySelector('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(1)').classList.contains('mine'), { timeout: 10000 });
-            await guest.waitForFunction(() =>
-                document.querySelector('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(1)').classList.contains('taken'), { timeout: 10000 });
+        await test('호스트 출발 레인 선택(빈 레인 이동) → 게스트에 브로드캐스트 동기화', async () => {
+            // 입장 즉시 자동 점유(서버 RNG)로 호스트는 이미 한 레인을 가진다. 고정 nth-child 클릭은
+            // 본인 점유면 toggle-off, 남이 점유면 no-op → flaky. 대신 "빈 레인"을 찾아 pickLane으로
+            // 명시 이동시키고, 이동 후 그 레인이 본인(.mine)·상대 탭에 .taken으로 동기화되는지 검증한다.
+            const hostLane = await host.evaluate(() => {
+                const ul = (window.buildState && window.buildState.userLanes) || {};
+                const taken = new Set(Object.values(ul));
+                let free = -1;
+                for (let i = 0; i < 6; i++) if (!taken.has(i)) { free = i; break; }
+                if (free < 0) return -1;
+                window.socket.emit('ladder:pickLane', { lane: free });
+                return free;
+            });
+            assert(hostLane >= 0, '빈 레인 없음(2명인데 비정상)');
+            // 선택한 레인이 호스트 본인 점유(.mine)로 표시
+            await host.waitForFunction(idx =>
+                document.querySelector(`#ladderBuildLaneGrid .ladder-lane-btn:nth-child(${idx + 1})`).classList.contains('mine'),
+                hostLane, { timeout: 10000 });
+            // 같은 레인이 게스트 탭엔 .taken으로 브로드캐스트 동기화
+            await guest.waitForFunction(idx =>
+                document.querySelector(`#ladderBuildLaneGrid .ladder-lane-btn:nth-child(${idx + 1})`).classList.contains('taken'),
+                hostLane, { timeout: 10000 });
+            host.__lane = hostLane;   // 후속 게스트 테스트가 이 레인을 피하도록 기록
         });
 
-        await test('호스트 막대기 배치(드래그=연속 좌표) → 양쪽 동기화', async () => {
-            // 드래그 제스처 대신 노출된 헬퍼로 동일한 addRung emit (c=0, y=0.4, slant=0.3)
-            await host.evaluate(() => window.__ladderAddRung(0, 0.4, 0.3));
-            await host.waitForFunction(() => window.__ladderRungCount() >= 1, { timeout: 10000 });
-            await guest.waitForFunction(() => window.__ladderRungCount() >= 1, { timeout: 10000 });
-        });
-
-        await test('호스트 곡선 막대기 배치(그림판) → points 양쪽 동기화', async () => {
-            // 같은 자리(c=0)에 자유 곡선으로 덮어쓰기(1인 1개). 구불구불한 궤적 → points 배열 동기화 확인.
+        await test('호스트 곡선 막대기 배치(그림판, 첫 막대기) → points 양쪽 동기화', async () => {
+            // 다중 막대기: 첫 막대기를 곡선으로 둔다(이후 __ladderRungPoints('HostA')=[0].points 검증과 일관).
+            // 구불구불한 궤적 → points 배열이 양쪽에 동기화되는지 확인.
             await host.evaluate(() => window.__ladderAddCurvedRung(0, [
                 { x: 0, y: 0.40 }, { x: 0.25, y: 0.62 }, { x: 0.5, y: 0.30 },
                 { x: 0.75, y: 0.58 }, { x: 1, y: 0.42 }
             ]));
-            // 호스트·게스트 양쪽에서 내(HostA) 막대기가 곡선(점 ≥ 3개)으로 보여야 함
+            await host.waitForFunction(() => window.__ladderUserRungCount('HostA') === 1, { timeout: 10000 });
+            // 호스트·게스트 양쪽에서 내(HostA) 첫 막대기가 곡선(점 ≥ 3개)으로 보여야 함
             await host.waitForFunction(() => window.__ladderRungPoints('HostA') >= 3, { timeout: 10000 });
             await guest.waitForFunction(() => window.__ladderRungPoints('HostA') >= 3, { timeout: 10000 });
+        });
+
+        await test('다중 막대기 append: 인당 최대 3개, 4번째는 거부', async () => {
+            // 이미 1개(곡선). 직선 2개를 더 추가하면 총 3개. 4번째는 서버가 거부 → 여전히 3.
+            await host.evaluate(() => {
+                window.__ladderAddRung(0, 0.70, 0.0);   // 2번째 (충분히 떨어진 y)
+                window.__ladderAddRung(0, 0.90, 0.0);   // 3번째
+            });
+            await host.waitForFunction(() => window.__ladderUserRungCount('HostA') === 3, { timeout: 10000 });
+            await guest.waitForFunction(() => window.__ladderUserRungCount('HostA') === 3, { timeout: 10000 });
+            // 4번째 시도 → cap(3) 유지(서버 ladder:error). 잠시 대기 후에도 3이어야 함.
+            await host.evaluate(() => window.__ladderAddRung(1, 0.50, 0.0));
+            await host.waitForTimeout(500);
+            const cnt = await host.evaluate(() => window.__ladderUserRungCount('HostA'));
+            assert(cnt === 3, `4번째 막대기가 거부되지 않음(count=${cnt})`);
+            // ladder:error 알림(#customAlert)이 떴으면 닫는다 — 이후 시작 버튼 클릭을 가리지 않도록
+            await host.evaluate(() => { const a = document.getElementById('customAlert'); if (a) a.remove(); });
+        });
+
+        await test('id 지정 제거: 가운데 막대기 1개만 제거 → 2개 남음', async () => {
+            const removed = await host.evaluate(() => {
+                const ids = window.__ladderMyRungIds();
+                if (ids.length < 2) return null;
+                window.__ladderRemoveRung(ids[1]);   // 두 번째 id 제거
+                return ids[1];
+            });
+            assert(removed !== null, '제거할 id 확보 실패');
+            await host.waitForFunction(() => window.__ladderUserRungCount('HostA') === 2, { timeout: 10000 });
+            await guest.waitForFunction(() => window.__ladderUserRungCount('HostA') === 2, { timeout: 10000 });
+            // 첫 막대기(곡선)는 그대로 남아 있어야 함
+            const firstStillCurved = await host.evaluate(() => window.__ladderRungPoints('HostA') >= 3);
+            assert(firstStillCurved, 'id 지정 제거가 엉뚱한 막대기를 지움(첫 곡선 막대기 소실)');
+        });
+
+        await test('서버 기본(base) 막대기가 빌드 단계에 가시', async () => {
+            // 준비 ≥2 도달 시 서버가 base 막대기(모든 칸 1개씩 + 추가)를 생성·broadcast → 양쪽에서 보여야 함
+            await host.waitForFunction(() => window.__ladderBaseRungCount() >= 1, { timeout: 10000 });
+            await guest.waitForFunction(() => window.__ladderBaseRungCount() >= 1, { timeout: 10000 });
+        });
+
+        await test('호스트 막대기 1개로 정리(다음 시나리오 정합)', async () => {
+            // 이후 "게스트 준비취소 시 호스트 막대기 유지" 검증을 위해 호스트 막대기를 1개로 줄인다.
+            await host.evaluate(() => {
+                const ids = window.__ladderMyRungIds();
+                ids.slice(1).forEach(id => window.__ladderRemoveRung(id));
+            });
+            await host.waitForFunction(() => window.__ladderUserRungCount('HostA') === 1, { timeout: 10000 });
         });
 
         await test('드래그 판정: 도착 기둥에 닿으면 설치, 안 닿으면 폐기', async () => {
@@ -234,30 +295,47 @@ async function run() {
             assert(r.droppedNull, '도착 기둥 미연결 드래그가 폐기되지 않음');
         });
 
-        await test('게스트 출발 레인 선택(중복 회피) → 2번 레인 점유', async () => {
-            await guest.click('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(2)');
-            await guest.waitForFunction(() =>
-                document.querySelector('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(2)').classList.contains('mine'), { timeout: 10000 });
-            await host.waitForFunction(() =>
-                document.querySelector('#ladderBuildLaneGrid .ladder-lane-btn:nth-child(2)').classList.contains('taken'), { timeout: 10000 });
+        await test('게스트 출발 레인 선택(빈 레인, 호스트와 중복 회피) → 양탭 동기화', async () => {
+            // 빈 레인(자동 점유로 이미 찬 레인 제외)을 골라 pickLane → 호스트 레인과 자연히 겹치지 않는다.
+            const guestLane = await guest.evaluate(() => {
+                const ul = (window.buildState && window.buildState.userLanes) || {};
+                const taken = new Set(Object.values(ul));
+                let free = -1;
+                for (let i = 0; i < 6; i++) if (!taken.has(i)) { free = i; break; }
+                if (free < 0) return -1;
+                window.socket.emit('ladder:pickLane', { lane: free });
+                return free;
+            });
+            assert(guestLane >= 0, '빈 레인 없음(2명인데 비정상)');
+            await guest.waitForFunction(idx =>
+                document.querySelector(`#ladderBuildLaneGrid .ladder-lane-btn:nth-child(${idx + 1})`).classList.contains('mine'),
+                guestLane, { timeout: 10000 });
+            await host.waitForFunction(idx =>
+                document.querySelector(`#ladderBuildLaneGrid .ladder-lane-btn:nth-child(${idx + 1})`).classList.contains('taken'),
+                guestLane, { timeout: 10000 });
         });
 
-        await test('게스트 막대기 배치(다른 높이) → 총 2개', async () => {
-            // 호스트(y=0.4)와 같은 기둥이지만 충분히 떨어진 y=0.75
+        await test('게스트 막대기 배치(다른 높이) → 게스트 1개', async () => {
+            // 호스트(y=0.4 곡선)와 같은 기둥이지만 충분히 떨어진 y=0.75
             await guest.evaluate(() => window.__ladderAddRung(0, 0.75, -0.3));
-            await host.waitForFunction(() => window.__ladderRungCount() === 2, { timeout: 10000 });
+            await guest.waitForFunction(() => window.__ladderUserRungCount('GuestB') === 1, { timeout: 10000 });
+            await host.waitForFunction(() => window.__ladderUserRungCount('GuestB') === 1, { timeout: 10000 });
         });
 
-        await test('게스트 본인 막대기 제거(소유권) → 호스트 화면 1개', async () => {
-            await guest.evaluate(() => window.socket.emit('ladder:removeRung'));
-            await host.waitForFunction(() => window.__ladderRungCount() === 1, { timeout: 10000 });
+        await test('게스트 본인 막대기 id 제거(소유권) → 호스트 화면에서 게스트 0개', async () => {
+            await guest.evaluate(() => {
+                const ids = window.__ladderMyRungIds();
+                if (ids.length) window.__ladderRemoveRung(ids[0]);
+            });
+            await host.waitForFunction(() => window.__ladderUserRungCount('GuestB') === 0, { timeout: 10000 });
         });
 
         await test('게스트 준비 취소 → 본인 막대기·레인만 정리(호스트 것은 유지)', async () => {
             await guest.click('#readyButton');               // 준비 취소
             await host.waitForFunction(() => document.getElementById('readyCount').textContent === '1', { timeout: 10000 });
-            // 레인은 6 고정이라 트림으로 사라지지 않음 → 호스트 본인 막대기(c=0)는 유지(1개), 게스트 것만 제거됨
-            await host.waitForFunction(() => window.__ladderRungCount() === 1, { timeout: 10000 });
+            // 레인은 6 고정이라 트림으로 사라지지 않음 → 호스트 본인 막대기(1개)는 유지, 게스트 것만 제거됨
+            await host.waitForFunction(() => window.__ladderUserRungCount('HostA') === 1, { timeout: 10000 });
+            await host.waitForFunction(() => window.__ladderUserRungCount('GuestB') === 0, { timeout: 10000 });
         });
 
         await test('게스트 재준비 → 빌드 복귀(레인 미선택 허용)', async () => {
@@ -285,16 +363,16 @@ async function run() {
             await host.waitForFunction(() => window.__ladderRungCount() >= 1, { timeout: 10000 });
         });
 
-        let ladderScrollBefore = 0, ladderScrollAfter = 0;
         await test('호스트 사다리 시작 → 별도 선택 단계 없이 즉시 공개', async () => {
             await host.waitForFunction(() => {
                 const b = document.getElementById('startLadderButton');
                 return b && !b.disabled;
             }, { timeout: 10000 });
-            // 시작 직전 스크롤을 내려두고(빌드 섹션 노출 상태) 시작 → 스크롤 튐 측정 준비
+            // 남아 있을 수 있는 알림(#customAlert)을 닫아 시작 버튼 클릭이 가리지 않게 한다
+            await host.evaluate(() => { const a = document.getElementById('customAlert'); if (a) a.remove(); });
+            // 시작 직전 스크롤을 내려둔다(빌드 섹션 보던 상태) → 시작 후 공개 캔버스가 화면에 들어오는지 측정 준비
             await host.evaluate(() => window.scrollTo(0, 220));
             await host.waitForTimeout(150);
-            ladderScrollBefore = await host.evaluate(() => window.scrollY);
             await host.click('#startLadderButton');
             // selecting 단계 없이 곧바로 캔버스(공개) 표시 — 양쪽
             await host.waitForFunction(() => {
@@ -307,11 +385,24 @@ async function run() {
             }, { timeout: 10000 });
         });
 
-        await test('시작 시 스크롤 위치 유지 (경마식, 위로 튀지 않음)', async () => {
-            await host.waitForTimeout(300);   // 섹션 토글 직후
-            ladderScrollAfter = await host.evaluate(() => window.scrollY);
-            assert(Math.abs(ladderScrollAfter - ladderScrollBefore) <= 60,
-                `스크롤이 튐: before=${ladderScrollBefore} after=${ladderScrollAfter}`);
+        await test('시작 시 공개 캔버스가 화면에 보임 (경마식 화면 고정)', async () => {
+            await host.waitForTimeout(300);   // 섹션 토글 + scrollIntoView 직후
+            // 빌드 섹션을 숨기면 내용이 위로 밀려 캔버스가 화면 밖으로 갈 수 있다 → 캔버스를 viewport 안으로 끌어와 게임이 계속 보여야 함
+            const visible = await host.evaluate(() => {
+                const w = document.getElementById('ladderCanvasWrap');
+                if (!w) return false;
+                const r = w.getBoundingClientRect();
+                return r.height > 0 && r.bottom > 0 && r.top < window.innerHeight;
+            });
+            assert(visible, '시작 후 공개 캔버스가 화면(viewport) 안에 보이지 않음');
+        });
+
+        await test('스크램블 카운트다운 오버레이(#ladderScrambleOverlay) 노출', async () => {
+            // 카운트다운(3·2·1·셔플!, 1.6s) 동안 오버레이가 .show로 켜졌다 꺼짐 — 시작 직후라 포착 용이
+            await host.waitForFunction(() => {
+                const o = document.getElementById('ladderScrambleOverlay');
+                return o && o.classList.contains('show') && o.textContent.trim().length > 0;
+            }, { timeout: 4000 });
         });
 
         await test('공개 화면에 레인 소유자 이름 라벨 표시 (양쪽 2개)', async () => {
@@ -321,34 +412,84 @@ async function run() {
                 document.querySelectorAll('#ladderLaneNames .ladder-lane-name').length >= 2, { timeout: 10000 });
         });
 
-        await test('동시 하강 중 캔버스 유지', async () => {
+        await test('스크램블 페이로드: erased/added 존재 + 2탭 final rungs 동일', async () => {
+            const h = await host.evaluate(() => window.__ladderLastReveal || null);
+            const g = await guest.evaluate(() => window.__ladderLastReveal || null);
+            assert(h && g, 'reveal 페이로드 미수신');
+            assert(Array.isArray(h.erased) && Array.isArray(h.added), 'erased/added 배열 없음');
+            assert(h.erased.length >= 1 || h.added.length >= 1, '스크램블이 아무것도 지우거나 추가하지 않음');
+            // final rungs는 모든 탭에서 동일(서버 권위) — id 순 정렬해 비교
+            const norm = d => JSON.stringify((d.rungs || []).map(r => ({ id: r.id, c: r.c, user: !!r.user })).sort((a, b) => a.id - b.id));
+            assert(norm(h) === norm(g), `2탭 final rungs 불일치\nhost=${norm(h)}\nguest=${norm(g)}`);
+        });
+
+        await test('하강 중 캔버스 유지 (스크램블 연출 도중)', async () => {
             await host.waitForTimeout(1200);
             const visible = await host.evaluate(() => {
                 const w = document.getElementById('ladderCanvasWrap');
                 return w && w.style.display !== 'none';
             });
-            assert(visible, '하강 도중 캔버스가 사라짐');
+            assert(visible, '연출 도중 캔버스가 사라짐');
         });
 
-        await test('동시 도착 결과 캡션 표시', async () => {
-            // 동시 하강(DESCENT≈5s) 종료 시 결과 캡션 표시 — 여유 타임아웃
+        await test('마지막 토큰 도착 후 결과 캡션 표시', async () => {
+            // 새 순서(꽝 선결정): 카운트다운1.6+지우개1.2+펜0.9+바닥멈춤0.5+폭탄포인터2.6 + (2명 × 3s) ≈ 12.8s에 캡션 — 여유 타임아웃
+            // "X 님이 꽝에 도착!" 캡션은 폭탄 포인터(💀 칸 공개) 후 "하강 끝"(loser 토큰 도착)에 뜬다.
+            // (포인터 착지 시점의 안내 캡션 "누가 도착할까요?"와 구분하려고 "꽝에 도착"을 명시 매칭.)
             await host.waitForFunction(() => {
                 const c = document.getElementById('ladderResultCaption');
-                return c && c.textContent.trim().length > 0;
-            }, { timeout: 12000 });
+                return c && /꽝에 도착/.test(c.textContent);
+            }, { timeout: 18000 });
         });
 
         await test('게임 종료 → 결과 오버레이 + 순위 표시', async () => {
-            // 서버 종료 타이머 = 동시 하강(5s) + 결과 유지(1.8s) ≈ 6.8s
+            // 서버 종료 타이머(2명, 순서 무관 합) = COUNTDOWN1.6+ERASE1.2+DRAW0.9 + BOTTOM0.5 + BOMB_POINTER2.6 + 2×SLOT(3s) + HOLD1.8 = 14.6s
             await host.waitForFunction(() => {
                 const o = document.getElementById('resultOverlay');
                 const r = document.getElementById('resultRankings');
                 return o && o.classList.contains('visible') && r && r.children.length >= 2;
-            }, { timeout: 18000 });
+            }, { timeout: 24000 });
         });
 
         await test('게임 기록(history) 누적', async () => {
             await host.waitForFunction(() => document.getElementById('historyList').children.length >= 1, { timeout: 8000 });
+        });
+
+        await test('이미 준비 상태면 roundReset에서 결과 캔버스 닫히고 빌드로 자동 전환', async () => {
+            // 이번 판은 양탭이 ready인 채로 시작했고, ladder는 라운드 동안 readyUsers를 비우지 않는다.
+            // 서버 reset은 이 보존 ready를 유지하므로, roundReset(서버 LADDER_RESET_DELAY=600ms) 시점에
+            // "이미 준비된" 플레이어는 결과창을 닫고 곧바로 다음 빌드로 들어가야 한다(재클릭 불필요 — 빠른 재준비).
+            // roundReset 도달까지 충분히 대기 후, 결과 캔버스가 닫히고 빌드 섹션이 노출되는지 확인.
+            await host.waitForTimeout(2000);
+            await host.waitForFunction(() => {
+                const w = document.getElementById('ladderCanvasWrap');
+                return w && w.style.display === 'none';
+            }, { timeout: 10000 });
+            await host.waitForFunction(() => {
+                const s = document.getElementById('ladderBuildSection');
+                return s && s.style.display === 'block';
+            }, { timeout: 10000 });
+            // 전체화면 결과 모달(z-index:1000)도 자동으로 닫혀야 빌드의 시작 버튼이 클릭 가능(소프트락 회귀 방지).
+            await host.waitForFunction(() => {
+                const o = document.getElementById('resultOverlay');
+                return o && !o.classList.contains('visible');
+            }, { timeout: 10000 });
+        });
+
+        await test('자동 전환된 빌드에서 다시 시작 가능(준비 유지 + 자동 레인 복원)', async () => {
+            // 결과 오버레이는 roundReset에서 이미 자동으로 닫혔고(위 테스트가 단언), 빌드 화면 상태.
+            // 보존 ready로 다음 판 시작 게이트가 살아 있는지 확인.
+            // 보존 ready → readyCount 2 유지 + 빌드 섹션 노출 상태
+            await host.waitForFunction(() => document.getElementById('readyCount').textContent === '2', { timeout: 10000 });
+            await host.waitForFunction(() => {
+                const s = document.getElementById('ladderBuildSection');
+                return s && s.style.display === 'block';
+            }, { timeout: 10000 });
+            // 재준비 시 자동 레인도 복원돼야 함(보존 ready → claimFreeLane)
+            await host.waitForFunction(() => {
+                const ul = (window.buildState && window.buildState.userLanes) || {};
+                return typeof ul['HostA'] === 'number';
+            }, { timeout: 10000 });
         });
 
         // ── Phase 3: 대표 기존 모드(경마) 미파손 ──
@@ -395,7 +536,7 @@ async function run() {
 
         await test('사운드 설정에 ladder_* 키 존재 (신규 mp3 0)', async () => {
             const cfg = await host.evaluate(async () => (await fetch('/assets/sounds/sound-config.json')).json());
-            ['ladder_pick', 'ladder_descend', 'ladder_result'].forEach(k => {
+            ['ladder_pick', 'ladder_descend', 'ladder_result', 'ladder_erase', 'ladder_draw'].forEach(k => {
                 assert(cfg[k], `사운드 키 ${k} 없음`);
                 assert(/common\//.test(cfg[k]), `${k}가 기존 공용 mp3 alias가 아님: ${cfg[k]}`);
             });

@@ -6,11 +6,12 @@
 
 | 파일 | 역할 |
 |------|------|
-| [_common.md](_common.md) | 모든 게임에 공통으로 적용되는 함정 (현 5개: Tailwind override, .game-section.active, updateUsers 형식, horse-race.css 의존, URL 진입 흐름) |
+| [_common.md](_common.md) | 모든 게임에 공통으로 적용되는 함정 (현 7개: Tailwind override, .game-section.active, updateUsers 형식, horse-race.css 의존, URL 진입 흐름, .game-active 의미, Playwright customAlert 정리) |
 | [horse-race.md](horse-race.md) | 경마 작업 lesson |
 | [bridge-cross.md](bridge-cross.md) | 다리건너기 작업 lesson |
 | [dice.md](dice.md) | 주사위 작업 lesson |
 | [roulette.md](roulette.md) | 룰렛 작업 lesson |
+| [ladder.md](ladder.md) | 사다리타기 작업 lesson |
 
 ## 자동 트리거 (사용자가 수동으로 호출할 필요 없음)
 

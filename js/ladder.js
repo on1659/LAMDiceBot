@@ -245,6 +245,16 @@ function initReadyModule() {
         isGameActive: () => isLadderActive,
         onReadyChanged: (rUsers) => {
             readyUsers = rUsers;
+            // 결과 캔버스 유지 중 누군가 다음 판 준비를 누르면 → 결과 화면을 닫고 빌드 화면으로 전환(경마식).
+            if (ladderState.showingResult && (readyUsers || []).length >= 1) {
+                ladderState.showingResult = false;
+                closeResultOverlay();   // 안전망 — 보통 버튼 경로라 이미 닫혀 있음(멱등 no-op)
+                const canvasWrap = document.getElementById('ladderCanvasWrap');
+                if (canvasWrap) canvasWrap.style.display = 'none';
+                clearLaneNames();
+                const status = document.getElementById('gameStatus');
+                if (status) { status.textContent = '게임 대기 중...'; status.className = 'game-status waiting'; }
+            }
             updateStartButton();
             renderBuildSection();   // 준비 상태/인원 변동 → 슬롯 활성화·레인 수 갱신
         }
@@ -273,6 +283,14 @@ function closeResultOverlay() {
     const overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
 }
+// 빠른 재준비(경마식): 결과 오버레이를 닫고, 아직 준비 안 했으면 준비를 켠다.
+// 서버가 roundReset(LADDER_RESET_DELAY 후)으로 phase를 idle로 돌리면 onReadyChanged가 결과 캔버스를 닫고 빌드로 전환한다.
+// 이미 준비 상태면 토글로 꺼지지 않게 가드 — "다음 판 준비"는 단방향(준비 켜기) 의도.
+function readyForNextRound() {
+    closeResultOverlay();
+    if (!amIReady()) ReadyModule.toggleReady();
+}
+window.readyForNextRound = readyForNextRound;
 
 function escapeHtml(str) {
     if (str == null) return '';
@@ -287,11 +305,21 @@ function escapeHtml(str) {
 
 var LADDER_TOKEN_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
-// ─── 동시 출발/도착(reveal) 연출 타이밍 ───
-// 모든 토큰이 같은 시각 출발 → 같은 시각 도착. 각 토큰을 자기 경로 전체에 대해 같은 시간(DESCENT)에
-// 호 길이 비례(pointAt)로 주파시키면 경로가 길어도 동시에 바닥에 닿는다(레인별 속도 자동 정규화).
-// 서버 socket/ladder.js가 동일 값으로 종료 타이머(DESCENT+FINAL_HOLD)를 계산하므로 반드시 동기화.
-var LADDER_REVEAL_DESCENT = 5000;   // 모든 토큰 동시 하강 시간(ms) — socket/ladder.js와 동일 유지
+// ─── 순차 하강(reveal) 연출 타이밍 ───
+// 토큰은 revealOrder 순서대로 한 명씩 출발한다. 한 토큰이 자기 경로 전체를 SLOT_MS 동안 호 길이 비례
+// (pointAt) 보간으로 끝까지 내려가면 다음 토큰이 출발한다. 경로가 길어도 같은 시간(SLOT_MS)에 주파한다.
+// 서버 socket/ladder.js가 동일 값으로 종료 타이머(COUNTDOWN+ERASE+DRAW+BOTTOM_PAUSE+BOMB_POINTER+N×SLOT+FINAL_HOLD)를
+// 계산하므로 반드시 동기화 — 단계 합이 같으면(순서만 이동) 서버 endGame이 연출 도중 끼어들지 않는다.
+// 새 순서(꽝 선결정): 카운트다운 → 지우기 → 그리기 → 바닥멈춤 → 폭탄 포인터(💀 공개) → 순차 하강 → 결과 캡션 유지.
+// (옛 순서 대비 BOTTOM_PAUSE+BOMB_POINTER가 하강 앞으로 이동 — 총합 불변.)
+// ── 스크램블 연출 시퀀스 타이밍 (socket/ladder.js와 동일 유지) ──
+var LADDER_COUNTDOWN_MS = 1600;     // "3·2·1 셔플!" 카운트다운 — socket/ladder.js와 동일 유지
+var LADDER_ERASE_MS = 1200;         // 지울 막대기 동시 강조(미사용 라벨) → 일괄 탈락(드롭/페이드) — socket/ladder.js와 동일 유지
+var LADDER_DRAW_MS = 900;           // 펜 구슬이 새 막대기를 그리는 시간 — socket/ladder.js와 동일 유지
+var LADDER_TOKEN_SLOT_MS = 3000;    // 토큰 한 명이 끝까지 내려가는 시간(아주 천천히) — socket/ladder.js와 동일 유지
+var LADDER_BOTTOM_PAUSE_MS = 500;   // 그리기 후 1박자 멈춤(폭탄 포인터 시작 전) — socket/ladder.js와 동일 유지
+var LADDER_BOMB_POINTER_MS = 2600;  // 폭탄 룰렛 포인터가 바닥칸을 가속→감속하며 훑다 kkwangBottom에 정지(하강 전) — socket/ladder.js와 동일 유지
+var LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — socket/ladder.js와 동일 유지
 
 // 가로줄(rung)은 연속 좌표 — 두 인접 기둥(c, c+1)을 높이 y(0~1)에서 잇고, slant(-1~1)로 비스듬히 그린다.
 // 빌드 단계에서 드래그로 위치(y)·기울기(slant)를 자유롭게 정한다. 모든 탭이 같은 값으로 보이도록 reveal로 전달.
@@ -307,19 +335,45 @@ var LADDER_CURVE_MIN_DIST = 3;      // 드래그 중 점 기록 최소 이동거
 var LADDER_CURVE_MAX_VTRAVEL = 1.0;
 
 // 공개(reveal) 막대기 색 — 누가 그렸는지 한눈에. 캔버스라 CSS 변수 직접 사용 불가 → 라이트/다크 양쪽 대비되는 고정 hex.
-var LADDER_RUNG_COLOR_USER = '#f59e0b';   // 유저가 직접 그린 막대기 — 비비드 앰버(게임 액센트 계열), 굵게
-var LADDER_RUNG_COLOR_BASE = '#9ca3af';   // 서버 기본(숨은) 막대기 — 중립 회색, 얇게
+var LADDER_RUNG_COLOR_BASE = '#9ca3af';   // 서버 기본 막대기 — 중립 회색, 얇게 (owner 없음)
+
+// drawer 색 — 서버 권위 colorIndex로 결정적 산출. 빌드/공개/구슬에서 동일 팔레트(LADDER_TOKEN_COLORS) 사용.
+// colorIndex가 없으면(드물게) base 회색으로 폴백. Math.random 0회(공정성 — 색은 서버 colorIndex만).
+function rungColor(name) {
+    var i = buildState.colorIndex ? buildState.colorIndex[name] : undefined;
+    return (typeof i === 'number') ? LADDER_TOKEN_COLORS[i % LADDER_TOKEN_COLORS.length] : LADDER_RUNG_COLOR_BASE;
+}
+// reveal 단계는 buildState.colorIndex가 reveal payload로 갱신되므로 동일 rungColor를 재사용한다.
 
 var ladderState = {
     phase: 'idle',      // idle | selecting | revealing | finished
+    showingResult: false,   // 게임 종료 후 결과 캔버스를 다음 판 준비 전까지 계속 노출(경마식). 누군가 준비하면 빌드로 전환.
     numLanes: 0,
     rungs: [],          // [{c, y, slant, _half}] — reveal 시 y 오름차순 (서버와 동일 순서)
     kkwangBottom: -1,
     laneToBottom: [],
     userLanes: {},      // {name: lane}
     participants: [],
-    loser: null
+    loser: null,
+    // ── 스크램블 연출용 (reveal payload에서 채움) ──
+    erased: [],         // 지워질 막대기 [{id,c,y,slant,points,user,owner}] — 동시 강조→일괄 탈락 대상
+    added: [],          // 새로 그릴 막대기 [{id,...}] — 펜 구슬 대상
+    preScramblePolylines: [],   // 연출 시작 화면(remaining ∪ erased) 폴리라인 캐시
+    erasedRender: [],   // erased 막대기의 {poly, color} (일괄 탈락)
+    addedRender: [],    // added 막대기의 {poly, color} (펜 구슬)
+    // ── 바닥 공개/폭탄 포인터 연출용 ──
+    bombPointerCol: -1, // 폭탄 포인터가 현재 가리키는 바닥칸(연출 중에만 ≥0). -1이면 미표시.
+    bombRevealed: false // 폭탄 포인터가 kkwangBottom에 멈춰 💀꽝 칸을 공개한 뒤 true(하강 전). loser는 하강 후 공개.
 };
+
+// 스크램블 연출 단계 타이머/RAF 핸들 — roundReset/gameAborted에서 정리(누수 방지)
+var ladderRevealTimers = [];
+var ladderRevealRAF = null;
+function clearLadderRevealTimers() {
+    ladderRevealTimers.forEach(function (t) { clearTimeout(t); });
+    ladderRevealTimers = [];
+    if (ladderRevealRAF) { cancelAnimationFrame(ladderRevealRAF); ladderRevealRAF = null; }
+}
 
 // 높이 비율 y(0~1) → reveal 캔버스 내부 픽셀 중심 y
 function revealCenterY(y) {
@@ -381,30 +435,39 @@ function rungToPolyline(rg, xOf, yOf, halfOf) {
     return [{ x: xL, y: yc - off }, { x: xR, y: yc + off }];
 }
 
-// reveal 시 각 rung의 세로 반(半)높이(px) — 자기 위치만으로 고정(이웃 막대기 변화에 영향 안 받음).
-// 위·아래 캔버스 끝을 넘지 않도록만 제한.
-function computeRungOffsets() {
-    var span = LADDER_REVEAL_BOTTOM - LADDER_REVEAL_TOP;
-    ladderState.rungs.forEach(function (rg) {
-        var yc = revealCenterY(rg.y);
-        rg._half = Math.min(span * LADDER_OFF_RATIO, yc - LADDER_REVEAL_TOP, LADDER_REVEAL_BOTTOM - yc);
-    });
-}
+// reveal 시 각 rung의 세로 반(半)높이(px)는 normalizeRevealRung에서 rung별로 산정한다.
 var ladderAnimRAF = null;
 
-// ── 이동 중 토큰 잔상(살짝) ── 동시 하강이라 토큰별로 최근 위치를 옅게 남겨 모션 느낌을 준다.
-var LADDER_TRAIL_LEN = 12;      // 토큰당 잔상으로 남길 최근 위치 개수 (6토큰 동시라 짧게)
+// ── 이동 중 토큰 잔상(살짝) ── 순차 하강이라 "지금 내려가는 토큰"만 최근 위치를 옅게 남겨 모션 느낌을 준다.
+var LADDER_TRAIL_LEN = 12;      // 토큰당 잔상으로 남길 최근 위치 개수
 var ladderTrails = [];          // [[{x,y}], ...] 토큰 인덱스별 최근 위치들 — startReveal에서 초기화
 
 // 빌드(막대기 배치 + 레인 선택) 단계 상태 — 서버 ladder:rungsUpdated 가 권위
 var buildState = {
-    numLanes: 0,         // = 준비한 사람 수 (동적)
-    userRungs: {},       // { [userName]: { c, y, slant } } — 가시 막대기(연속 좌표)
-    userLanes: {}        // { [userName]: laneIndex } — 가시 출발 레인 선택
+    numLanes: 0,         // 항상 6 (서버 고정)
+    userRungs: {},       // { [userName]: [ {id,c,y,slant,points}, ... ] } — 인당 최대 3개(배열맵)
+    userLanes: {},       // { [userName]: laneIndex } — 가시 출발 레인 선택
+    baseRungs: [],       // [ {id,c,y,slant} ] — 서버 기본(가시) 막대기 (owner 없음, 직선)
+    colorIndex: {}       // { [userName]: int } — drawer 색 인덱스 (서버 권위, 0부터)
 };
+
+// 빌드 캔버스 hover 라벨 — 막대기 위에 마우스를 올리면 그 owner 이름을 표시(드래그 아님). 시각만.
+var buildHoverName = null;
 
 function amIReady() {
     return (readyUsers || []).indexOf(currentUser) >= 0;
+}
+
+// 내 ready 상태를 가장 권위 있는 출처로 판정 — roundReset에서 emit 순서 레이스 없이 빌드 전환을 결정하는 데 사용.
+// ReadyModule._isReady는 서버 readyUsersUpdated로 갱신되는 모듈 내부 권위 상태(보존 ready 포함).
+// 모듈 미초기화 등 예외 시 로컬 readyUsers / roomUsers의 isReady로 폴백. (Math.random 무관 — 공정성 영향 없음)
+function amIReadyNow() {
+    if (typeof ReadyModule !== 'undefined' && ReadyModule.isCurrentUserReady) {
+        if (ReadyModule.isCurrentUserReady()) return true;
+    }
+    if (amIReady()) return true;
+    var ru = (window.roomUsers || users || []).find(function (u) { return u && u.name === currentUser; });
+    return !!(ru && ru.isReady);
 }
 
 // 준비하고 현재 방에 있는 사람 수 — 레인은 항상 6 고정이라 빌드 노출/시작 게이트는 이 값(≥2)으로 판단.
@@ -469,15 +532,29 @@ function dragConnection(N) {
     return { startPost: sp, endPost: ep, c: Math.min(sp, ep) };
 }
 
+// 유저 막대기 배열맵 + base 막대기를 flatten → [{name|null, id, c, y, slant, points, isBase}].
+// 현재 레인 수 범위(0..N-2) 밖 막대기는 렌더 스킵 — 인원 감소 직후 stale 막대기 캔버스 밖 방지(서버 트림과 이중 방어).
+// base 막대기(owner 없음)는 name=null, isBase=true로 회색 렌더.
 function buildRungList() {
-    // 현재 레인 수 범위(0..N-2) 밖 막대기는 렌더 스킵 — 인원 감소 직후 stale 막대기 캔버스 밖 방지(서버 트림과 이중 방어)
     var N = buildState.numLanes || 0;
-    return Object.keys(buildState.userRungs).map(function (n) {
-        var r = buildState.userRungs[n];
-        return (r && typeof r.c === 'number')
-            ? { name: n, c: r.c, y: r.y, slant: r.slant, points: r.points }
-            : null;
-    }).filter(function (r) { return r && r.c >= 0 && r.c <= N - 2; });
+    var inRange = function (c) { return typeof c === 'number' && c >= 0 && c <= N - 2; };
+    var out = [];
+    (buildState.baseRungs || []).forEach(function (r) {
+        if (r && inRange(r.c)) out.push({ name: null, id: r.id, c: r.c, y: r.y, slant: r.slant, points: null, isBase: true });
+    });
+    Object.keys(buildState.userRungs || {}).forEach(function (n) {
+        var arr = Array.isArray(buildState.userRungs[n]) ? buildState.userRungs[n] : [];
+        arr.forEach(function (r) {
+            if (r && inRange(r.c)) out.push({ name: n, id: r.id, c: r.c, y: r.y, slant: r.slant, points: r.points, isBase: false });
+        });
+    });
+    return out;
+}
+
+// 내 막대기 개수 (cap 표시/프리뷰 힌트용)
+function myRungCount() {
+    var arr = buildState.userRungs[currentUser];
+    return Array.isArray(arr) ? arr.length : 0;
 }
 
 // 캔버스 텍스트를 maxWidth에 맞게 잘라 '…' 처리 (현재 ctx.font 기준으로 측정 — 호출 전 font 설정 필요)
@@ -489,7 +566,7 @@ function fitCanvasText(ctx, text, maxWidth) {
 }
 
 // 막대기 시각 반높이(px) — 자기 위치만으로 고정(이웃 막대기와 무관 → 남의 막대기가 따라 움직이지 않음).
-// 위·아래 끝을 넘지 않도록만 제한. reveal computeRungOffsets와 동일 컨셉.
+// 위·아래 끝을 넘지 않도록만 제한. reveal normalizeRevealRung의 _half 산정과 동일 컨셉.
 function buildRungHalf(rg) {
     var span = BUILD_H - 2 * BUILD_TOP;
     var yc = buildYToPx(rg.y);
@@ -519,6 +596,9 @@ function renderBuildSection() {
     var progress = document.getElementById('ladderBuildProgress');
     if (!section || !grid) return;
 
+    // 결과 캔버스 유지 중(게임 종료 후 ~ 다음 판 준비 전)에는 빌드를 띄우지 않는다 — 결과 사다리를 계속 보여준다.
+    if (ladderState.showingResult) { section.style.display = 'none'; return; }
+
     // 빌드는 대기(idle) 단계에서만 노출
     if (ladderState.phase !== 'idle') { section.style.display = 'none'; return; }
 
@@ -528,11 +608,21 @@ function renderBuildSection() {
     var ready = amIReady();
 
     if (rc < 2 || N < 2) {
-        grid.innerHTML = '';
-        grid.style.display = 'none';
+        // 준비 <2: 선택/그리기 게이트(≥2)는 유지하되, base 사다리가 있으면 읽기전용 프리뷰로 즉시 보여준다
+        // (입장 즉시 사다리 표시). 레인 그리드·드래그 인터랙션은 ≥2에서만(아래 핸들러가 self-guard).
+        const hasBase = Array.isArray(buildState.baseRungs) && buildState.baseRungs.length > 0;
         if (laneGrid) laneGrid.innerHTML = '';
         if (progress) progress.style.display = 'none';
-        if (hint) hint.textContent = '준비한 사람이 2명 이상이면 내 번호(1~6)를 고르고 막대기를 놓을 수 있어요. (먼저 "준비" 버튼을 눌러주세요)';
+        if (hasBase && N >= 2) {
+            grid.style.display = 'block';
+            ensureBuildCanvas();
+            drawBuildCanvas(N, false);   // ready=false → 드래그 프리뷰·시작기둥 강조 안 뜸(읽기전용)
+            if (hint) hint.textContent = '준비한 사람이 2명 이상이면 내 번호(1~6)를 고르고 막대기를 놓을 수 있어요. (먼저 "준비" 버튼을 눌러주세요)';
+        } else {
+            grid.innerHTML = '';
+            grid.style.display = 'none';
+            if (hint) hint.textContent = '준비한 사람이 2명 이상이면 내 번호(1~6)를 고르고 막대기를 놓을 수 있어요. (먼저 "준비" 버튼을 눌러주세요)';
+        }
         return;
     }
 
@@ -550,8 +640,8 @@ function renderBuildSection() {
     }
     if (hint && !buildHintFlash.active) {   // 폐기 안내 플래시 중이면 평상 힌트로 덮지 않는다
         hint.textContent = ready
-            ? '① 내 번호(1~6)를 고르고 ② 한 기둥에서 옆 기둥까지 마우스/손가락으로 그어 막대기를 만드세요. 그은 궤적 그대로 곡선이 되고(초록=연결됨), 옆 기둥에 닿지 않으면 사라집니다. (내 막대기를 톡 누르면 제거)'
-            : '준비하면 내 번호(1~6)를 고르고 막대기를 자유롭게 그어 놓을 수 있어요. 다른 사람의 막대기가 실시간으로 보입니다.';
+            ? '① 내 번호(1~6)를 고르고 ② 한 기둥에서 옆 기둥까지 그어 막대기를 만드세요(최대 3개). 사람마다 색이 달라 누가 그렸는지 한눈에 보여요. 회색은 서버 기본 막대기예요. (내 막대기를 톡 누르면 제거)'
+            : '준비하면 내 번호(1~6)를 고르고 막대기를 최대 3개까지 그어 놓을 수 있어요. 사람별 색으로 구분되고, 서버 기본 막대기도 함께 보입니다.';
     }
     renderBuildLaneGrid(N, ready);
     ensureBuildCanvas();
@@ -638,14 +728,26 @@ function bindBuildCanvas(canvas) {
         drawBuildCanvas(buildState.numLanes, true);
     });
     canvas.addEventListener('pointermove', function (e) {
-        if (!buildDrag.active) return;
         var p = toCanvas(e);
+        if (!buildDrag.active) {
+            // 드래그 아님 → hover: 막대기 위면 owner 이름 라벨 표시(마우스만; 터치는 hover 개념이 없어 사실상 무동작)
+            var hit = rungHitAt(p.x, p.y, buildState.numLanes || 0);
+            var name = hit ? hit.name : null;
+            if (name !== buildHoverName) {
+                buildHoverName = name;
+                drawBuildCanvas(buildState.numLanes, amIReady());
+            }
+            return;
+        }
         var last = buildDrag.pts[buildDrag.pts.length - 1];
         // 최소 이동거리 이상일 때만 기록 → 점 과밀 방지(그림판 궤적 그대로)
         if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= LADDER_CURVE_MIN_DIST) {
             buildDrag.pts.push({ x: p.x, y: p.y });
             drawBuildCanvas(buildState.numLanes, true);
         }
+    });
+    canvas.addEventListener('pointerleave', function () {
+        if (buildHoverName !== null) { buildHoverName = null; drawBuildCanvas(buildState.numLanes, amIReady()); }
     });
     function finish() {
         if (!buildDrag.active) return;
@@ -655,16 +757,27 @@ function bindBuildCanvas(canvas) {
         var first = raw[0], last = raw[raw.length - 1];
         var dist = (first && last) ? Math.hypot(last.x - first.x, last.y - first.y) : 0;
         if (dist < 10) {
-            // 톡 = 내 막대기 제거(가까우면)
-            if (first && tapHitsMyRung(first.x, first.y, N)) {
-                socket.emit('ladder:removeRung');
-                playLadderSound('ladder_pick', 0.4);
+            // 톡 = 막대기 hit-test. 본인 것이면 그 id로 제거, 남의 것이면 owner 이름 짧게 안내.
+            if (first) {
+                var myId = tapHitMyRungId(first.x, first.y, N);
+                if (myId !== null) {
+                    socket.emit('ladder:removeRung', { id: myId });
+                    playLadderSound('ladder_pick', 0.4);
+                } else {
+                    var hit = rungHitAt(first.x, first.y, N);   // owner 무관 — 남의 막대기 탭
+                    if (hit && hit.name) flashBuildHint('🖊️ ' + hit.name + ' 님이 그린 막대기예요.', 1200);
+                }
             }
         } else {
             var rg = computeDragRung(N);
             if (rg) {
-                socket.emit('ladder:addRung', { c: rg.c, y: rg.y, slant: rg.slant, points: rg.points });
-                playLadderSound('ladder_pick', 0.5);
+                if (myRungCount() >= 3) {
+                    // 서버도 거부하지만(ladder:error), 클라에서 먼저 안내해 헛수고를 줄인다
+                    flashBuildHint('막대기는 한 사람당 최대 3개까지 놓을 수 있어요.', 1800);
+                } else {
+                    socket.emit('ladder:addRung', { c: rg.c, y: rg.y, slant: rg.slant, points: rg.points });
+                    playLadderSound('ladder_pick', 0.5);
+                }
             } else {
                 // 옆 기둥에 닿지 않아 폐기됨 — 짧은 안내 + 약한 효과음(기존 ladder_pick 재사용)
                 flashBuildHint('옆 기둥에 닿지 않아 막대기가 사라졌어요. 한 기둥에서 옆 기둥까지 그어주세요.', 1800);
@@ -708,16 +821,26 @@ function computeDragRung(N) {
     return { c: c, y: y, slant: slant, points: pts };
 }
 
-function tapHitsMyRung(px, py, N) {
-    var rg = buildState.userRungs[currentUser];
-    if (!rg || typeof rg.c !== 'number') return false;
-    var poly = rungToPolyline(
-        { c: rg.c, y: rg.y, slant: rg.slant, points: rg.points },
-        function (col) { return buildPostX(col, N); }, buildYToPx, buildRungHalf);
-    for (var i = 1; i < poly.length; i++) {
-        if (segDist(px, py, poly[i - 1].x, poly[i - 1].y, poly[i].x, poly[i].y) < 16) return true;
-    }
-    return false;
+// (px,py)에 가장 가까운 막대기를 hit-test. owner 필터를 주면 그 owner 막대기만 검사.
+// 반환: {id, name} (임계 16px 이내, 가장 가까운 것) 또는 null. id는 제거/식별용.
+function rungHitAt(px, py, N, ownerFilter) {
+    var xOf = function (col) { return buildPostX(col, N); };
+    var best = null, bestD = 16;   // 임계 16px
+    buildRungList().forEach(function (rg) {
+        if (ownerFilter !== undefined && rg.name !== ownerFilter) return;
+        var poly = rungToPolyline(rg, xOf, buildYToPx, buildRungHalf);
+        for (var i = 1; i < poly.length; i++) {
+            var d = segDist(px, py, poly[i - 1].x, poly[i - 1].y, poly[i].x, poly[i].y);
+            if (d < bestD) { bestD = d; best = { id: rg.id, name: rg.name }; }
+        }
+    });
+    return best;
+}
+
+// 본인 막대기 중 (px,py)에 가장 가까운 것의 id (없으면 null) — 톡 제거용
+function tapHitMyRungId(px, py, N) {
+    var hit = rungHitAt(px, py, N, currentUser);
+    return hit ? hit.id : null;
 }
 
 function segDist(px, py, ax, ay, bx, by) {
@@ -766,20 +889,41 @@ function drawBuildCanvas(N, ready) {
         }
     }
 
-    // 설치된 막대기 (내 것은 진하게) — 곡선 points가 있으면 곡선, 없으면 직선
+    // 설치된 막대기 — ① 서버 기본(base) 막대기 회색 얇게 먼저 ② 유저 막대기 drawer 색(내 것은 굵게).
+    // 곡선 points가 있으면 곡선, 없으면 직선. base가 먼저라 유저 막대기가 위에 또렷이 보인다.
     var list = buildRungList();
     var xOf = function (col) { return buildPostX(col, N); };
+    var hoverPoly = null;   // hover된 막대기 폴리라인(라벨 위치 산출용)
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    list.sort(function (a, b) { return (a.isBase ? 0 : 1) - (b.isBase ? 0 : 1); });   // base 먼저 그림
     list.forEach(function (rg) {
         var poly = rungToPolyline(rg, xOf, buildYToPx, buildRungHalf);
         var mine = rg.name === currentUser;
-        ctx.strokeStyle = mine ? '#d97706' : '#b8763a';
-        ctx.lineWidth = mine ? 7 : 5;
+        ctx.strokeStyle = rg.isBase ? LADDER_RUNG_COLOR_BASE : rungColor(rg.name);
+        ctx.lineWidth = rg.isBase ? 4 : (mine ? 7 : 5);
         ctx.beginPath();
         ctx.moveTo(poly[0].x, poly[0].y);
         for (var i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
         ctx.stroke();
+        if (!rg.isBase && rg.name === buildHoverName) hoverPoly = poly;
     });
+    // hover 라벨 — 마우스가 올라간 유저 막대기 위에 owner 이름을 캔버스로 표시(드래그 아님). textContent 미사용(캔버스 fillText는 XSS 안전).
+    if (buildHoverName && hoverPoly && hoverPoly.length) {
+        var mid = hoverPoly[Math.floor(hoverPoly.length / 2)];
+        var label = buildHoverName + (buildHoverName === currentUser ? '(나)' : '');
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        var tw = ctx.measureText(label).width + 12;
+        var lx = Math.max(tw / 2, Math.min(BUILD_W - tw / 2, mid.x));
+        var ly = Math.max(BUILD_TOP + 12, mid.y - 14);
+        ctx.fillStyle = 'rgba(17,24,39,0.85)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(lx - tw / 2, ly - 13, tw, 18, 6);
+        else ctx.rect(lx - tw / 2, ly - 13, tw, 18);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, lx, ly);
+    }
 
     // 드래그 프리뷰 — 그림판처럼 "그은 궤적 그대로"(시작점→현재 커서). 도착 기둥 자동 연결 안 함.
     //   도착 기둥에 닿으면 초록(설치됨), 아직 안 닿았으면 흐린 주황(놓으면 폐기)으로 피드백.
@@ -802,7 +946,26 @@ function drawBuildCanvas(N, ready) {
 
 // 테스트용 읽기 전용 헬퍼 (로컬에서만 노출)
 if (isLocalhost) {
-    window.__ladderRungCount = function () { return Object.keys(buildState.userRungs).length; };
+    // 막대기 총 개수(전 유저 합) — 배열맵 flatten. (인당 ≤3, 다중 막대기 의미 변경)
+    window.__ladderRungCount = function () {
+        return Object.values(buildState.userRungs).reduce(function (s, arr) {
+            return s + (Array.isArray(arr) ? arr.length : 0);
+        }, 0);
+    };
+    // 특정 유저(기본=나) 막대기 개수
+    window.__ladderUserRungCount = function (name) {
+        var arr = buildState.userRungs[name || currentUser];
+        return Array.isArray(arr) ? arr.length : 0;
+    };
+    // 본인 막대기 id 배열 (id 지정 제거 테스트용)
+    window.__ladderMyRungIds = function () {
+        var arr = buildState.userRungs[currentUser];
+        return Array.isArray(arr) ? arr.map(function (r) { return r.id; }) : [];
+    };
+    // id로 막대기 제거(emit)
+    window.__ladderRemoveRung = function (id) {
+        socket.emit('ladder:removeRung', { id: id });
+    };
     window.__ladderAddRung = function (c, y, slant, points) {
         socket.emit('ladder:addRung', { c: c, y: y, slant: slant, points: points || null });
     };
@@ -812,10 +975,15 @@ if (isLocalhost) {
         var yL = p.length ? p[0].y : 0.5, yR = p.length ? p[p.length - 1].y : 0.5;
         socket.emit('ladder:addRung', { c: c, y: (yL + yR) / 2, slant: 0, points: p });
     };
-    // 특정 유저(기본=나) 막대기의 곡선 점 개수 (0 = 직선/없음)
+    // 특정 유저(기본=나) "첫" 막대기의 곡선 점 개수 (0 = 직선/없음). 배열맵 [0].points.
     window.__ladderRungPoints = function (name) {
-        var r = buildState.userRungs[name || currentUser];
+        var arr = buildState.userRungs[name || currentUser];
+        var r = Array.isArray(arr) ? arr[0] : null;
         return (r && Array.isArray(r.points)) ? r.points.length : 0;
+    };
+    // base 막대기 개수 (서버 기본 가시 막대기)
+    window.__ladderBaseRungCount = function () {
+        return Array.isArray(buildState.baseRungs) ? buildState.baseRungs.length : 0;
     };
     // 드래그 궤적(캔버스 px 배열)을 주입해 설치 판정만 계산(emit/상태변경 없음).
     // 반환: 연결되면 {c, points}, 도착 기둥 미연결이면 null(폐기). buildPostX(i,N)로 좌표 산출.
@@ -883,16 +1051,49 @@ function pointAt(pts, t) {
     return pts[pts.length - 1];
 }
 
-// progress: 모든 토큰 공통 진행도(0~1). 동시 출발·동시 도착 — 토큰은 자기 경로를 호 길이 비례로 따라간다.
-// 경로 길이가 달라도 같은 progress면 같은 시각에 바닥에 닿는다(레인별 속도 자동 정규화).
-function drawLadderFrame(paths, progress) {
+// 바닥칸 라벨 그리기 — 꽝(💀) 칸은 폭탄 포인터가 착지한 "후"에만 보인다(빌드/대기 단계엔 비공개 — 누출 금지).
+//   · 폭탄 공개됨 + 그 칸이 kkwangBottom → 💀꽝(빨강)
+//   · 폭탄 포인터가 지금 가리키는 칸(공개 전) → 강조 배경(룰렛 느낌)
+//   · 그 외 칸 → 빈칸(라벨 없음). "??"/"도착" 마스킹은 제거됨(꽝이 선공개되어 긴장은 "누가 도착하나").
+// laneX 캔버스 폭(W)에 맞춰 그린다. drawLadderFrame / drawLadderBackground 공통.
+function drawBottomSlots(ctx, W) {
+    const bottomY = LADDER_REVEAL_BOTTOM;
+    const N = ladderState.numLanes;
+    ctx.textAlign = 'center';
+    for (let i = 0; i < N; i++) {
+        const x = laneX(W, i, N);
+        const isBomb = ladderState.bombRevealed && i === ladderState.kkwangBottom;
+        const isPointer = ladderState.bombPointerCol === i && !ladderState.bombRevealed;
+        // 포인터가 현재 가리키는 칸은 둥근 배경으로 강조(룰렛 하이라이트)
+        if (isPointer) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.28)';   // amber 강조 — CSS 변수 불가(캔버스), 라이트/다크 모두 보임
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(x - 26, bottomY + 8, 52, 28, 8);
+            else ctx.rect(x - 26, bottomY + 8, 52, 28);
+            ctx.fill();
+            ctx.restore();
+        }
+        if (isBomb) {
+            ctx.font = 'bold 20px sans-serif';
+            ctx.fillStyle = '#ef4444';
+            ctx.fillText('💀꽝', x, bottomY + 28);
+        }
+        // 그 외 칸은 라벨 없음(plain). 꽝 칸만 (포인터 착지 후) 💀꽝.
+    }
+}
+
+// tokenProgress: 토큰별 진행도 배열(0~1). 순차 하강 — 인덱스 순서로 한 명씩 0→1로 내려간다.
+// 토큰 k는 자기 경로(paths[k].pts)를 tokenProgress[k] 만큼 호 길이 비례로 따라간다. 경로 길이가
+// 달라도 같은 진행도면 같은 비율 지점에 위치한다(레인별 속도 자동 정규화). 도착한 토큰은 그 자리에 남고,
+// 아직 차례가 안 온 토큰(progress=0)은 출발(맨 위 레인)에서 대기 점으로 표시한다.
+function drawLadderFrame(paths, tokenProgress) {
     const canvas = document.getElementById('ladderCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const W = canvas.width;
     const topY = LADDER_REVEAL_TOP, bottomY = LADDER_REVEAL_BOTTOM;
     const N = ladderState.numLanes;
-    const arrived = progress >= 0.999;   // 동시 도착 시점 — 이름 라벨 노출(바닥칸이 서로 달라 안 겹침)
 
     ctx.clearRect(0, 0, W, canvas.height);
 
@@ -904,15 +1105,16 @@ function drawLadderFrame(paths, progress) {
         ctx.beginPath(); ctx.moveTo(x, topY); ctx.lineTo(x, bottomY); ctx.stroke();
     }
     // 가로줄 — 곡선 points가 있으면 곡선, 없으면 직선(/\). 토큰 경로(buildPath)와 동일 폴리라인.
-    // 유저가 직접 그린 막대기(user)는 비비드 앰버+굵게, 서버 기본(숨은) 막대기는 중립 회색+얇게 → 공개 시 한눈에 구분.
-    // rungPolylines는 startReveal에서 rungs와 같은 순서로 precompute(P3-3) → 인덱스로 rungs[i].user 매칭.
+    // 유저가 그린 막대기는 drawer 색(rungColor(owner))+굵게, 서버 기본 막대기는 중립 회색+얇게 → 공개 시 한눈에 구분.
+    // rungPolylines는 startReveal에서 rungs와 같은 순서로 precompute(P3-3) → 인덱스로 rungs[i] 매칭.
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     var polylines = ladderState.rungPolylines || [];
     for (let ri = 0; ri < polylines.length; ri++) {
         const poly = polylines[ri];
         if (!poly || !poly.length) continue;
-        const isUser = ladderState.rungs[ri] && ladderState.rungs[ri].user;
-        ctx.strokeStyle = isUser ? LADDER_RUNG_COLOR_USER : LADDER_RUNG_COLOR_BASE;
+        const rg = ladderState.rungs[ri];
+        const isUser = rg && rg.user;
+        ctx.strokeStyle = isUser ? rungColor(rg.owner) : LADDER_RUNG_COLOR_BASE;
         ctx.lineWidth = isUser ? 6 : 4;
         ctx.beginPath();
         ctx.moveTo(poly[0].x, poly[0].y);
@@ -927,24 +1129,17 @@ function drawLadderFrame(paths, progress) {
     for (let i = 0; i < N; i++) {
         ctx.fillText((i + 1) + '번', laneX(W, i, N), topY - 22);
     }
-    // 바닥 슬롯
-    ctx.font = 'bold 20px sans-serif';
-    for (let i = 0; i < N; i++) {
-        const x = laneX(W, i, N);
-        if (i === ladderState.kkwangBottom) {
-            ctx.fillStyle = '#ef4444';
-            ctx.fillText('💀꽝', x, bottomY + 28);
-        } else {
-            ctx.fillStyle = '#10b981';
-            ctx.fillText('✅', x, bottomY + 28);
-        }
-    }
-    // 토큰별 잔상(옅은 꼬리) — 동시 하강이라 토큰마다 자기 최근 위치를 짧게 남긴다. 도착 후엔 미표시.
+    // 바닥 슬롯 — 💀꽝(폭탄 포인터 착지 후만), 그 외 빈칸. 빌드/대기엔 💀 비공개(누출 방지).
+    drawBottomSlots(ctx, W);
+    // 토큰별 잔상(옅은 꼬리) — 순차 하강이라 "지금 내려가는 토큰"(0<progress<0.999)만 최근 위치를 짧게 남긴다.
+    // 대기(progress=0)·도착(progress≥0.999) 토큰은 잔상 없음.
     for (let k = 0; k < paths.length; k++) {
-        const pos = pointAt(paths[k].pts, progress);
+        const prog = tokenProgress[k] || 0;
+        const moving = prog > 0 && prog < 0.999;
+        const pos = pointAt(paths[k].pts, prog);
         let trail = ladderTrails[k];
         if (!trail) { trail = ladderTrails[k] = []; }
-        if (!arrived) {
+        if (moving) {
             trail.push({ x: pos.x, y: pos.y });
             if (trail.length > LADDER_TRAIL_LEN) trail.shift();
             for (let t = 0; t < trail.length - 1; t++) {   // 현재 위치는 토큰이 덮으므로 앞쪽만
@@ -959,17 +1154,24 @@ function drawLadderFrame(paths, progress) {
     }
     ctx.globalAlpha = 1;
 
-    // 토큰 — 모두 같은 progress로 동시에 이동. 이름은 도착 시점에만(바닥칸이 서로 달라 겹치지 않음).
+    // 토큰 — 각자 자기 진행도(tokenProgress[k])에 위치. 도착한 토큰은 그 자리(바닥), 대기 토큰은 출발(맨 위).
+    // 이름은 도착한 토큰에만 노출(바닥칸이 서로 달라 겹치지 않음). 💀칸은 폭탄 포인터에서 이미 공개됨.
     for (let k = 0; k < paths.length; k++) {
         const p = paths[k];
-        const pos = pointAt(p.pts, progress);
+        const prog = tokenProgress[k] || 0;
+        const arrived = prog >= 0.999;
+        const waiting = prog <= 0;
+        const pos = pointAt(p.pts, prog);
         ctx.beginPath();
         ctx.fillStyle = p.color;
-        ctx.arc(pos.x, pos.y, 11, 0, Math.PI * 2);
+        // 대기 토큰은 출발선에서 살짝 작게(아직 차례 전임을 시각 구분), 진행/도착 토큰은 기본 크기.
+        ctx.globalAlpha = waiting ? 0.55 : 1;
+        ctx.arc(pos.x, pos.y, waiting ? 8 : 11, 0, Math.PI * 2);
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#fff';
         ctx.stroke();
+        ctx.globalAlpha = 1;
         if (arrived) {
             ctx.font = 'bold 12px sans-serif';
             ctx.fillStyle = '#374151';
@@ -1024,120 +1226,480 @@ function clearLaneNames() {
     if (cont) cont.innerHTML = '';
 }
 
+// rung 객체(payload 형태) → reveal 캔버스 폴리라인. startReveal precompute / 연출에 공통.
+function revealRungPolyline(rg) {
+    const N = ladderState.numLanes;
+    const xOf = function (c) { return laneX(720, c, N); };
+    const halfOf = function (r) { return r._half || 0; };
+    return rungToPolyline(rg, xOf, revealCenterY, halfOf);
+}
+
+// reveal payload rung을 표시용으로 정규화(+_half 산정). 연출(erased/added)과 final 공통.
+function normalizeRevealRung(rg) {
+    const span = LADDER_REVEAL_BOTTOM - LADDER_REVEAL_TOP;
+    const r = {
+        c: rg.c, y: rg.y,
+        slant: (typeof rg.slant === 'number' ? rg.slant : 0),
+        points: sanitizeCurvePoints(rg.points),
+        user: !!rg.user,
+        owner: rg.owner || null,
+        _half: 0
+    };
+    const yc = revealCenterY(r.y);
+    r._half = Math.min(span * LADDER_OFF_RATIO, yc - LADDER_REVEAL_TOP, LADDER_REVEAL_BOTTOM - yc);
+    return r;
+}
+
+// 사다리 정적 배경(보드 클리어 + 기둥 + 레인번호 + 바닥칸). 스크램블 연출 프레임 공통.
+// 바닥칸은 drawBottomSlots가 💀꽝(폭탄 포인터 착지 후만)·그 외 빈칸을 통일 처리 — 빌드/대기엔 💀 누출 없음.
+function drawLadderBackground(ctx, W) {
+    const topY = LADDER_REVEAL_TOP, bottomY = LADDER_REVEAL_BOTTOM;
+    const N = ladderState.numLanes;
+    ctx.clearRect(0, 0, W, ctx.canvas.height);
+    ctx.lineWidth = 4; ctx.strokeStyle = '#d1a06a';
+    for (let i = 0; i < N; i++) {
+        const x = laneX(W, i, N);
+        ctx.beginPath(); ctx.moveTo(x, topY); ctx.lineTo(x, bottomY); ctx.stroke();
+    }
+    ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#b45309';
+    for (let i = 0; i < N; i++) ctx.fillText((i + 1) + '번', laneX(W, i, N), topY - 22);
+    drawBottomSlots(ctx, W);
+}
+
+// 폴리라인의 호 길이 구간 [from..to](0~1)만 그린다. 곡선/직선 공통.
+//   펜(그리기): [0, t] — 시작부터 t까지.  지우개(남는 부분): [t, 1] — 구슬이 t까지 지나가 뒤를 지움.
+function strokePolylineRange(ctx, poly, from, to, color, width) {
+    if (!poly || poly.length < 2 || to <= from) return;
+    let total = 0; const segs = [];
+    for (let i = 1; i < poly.length; i++) { const d = Math.hypot(poly[i].x - poly[i - 1].x, poly[i].y - poly[i - 1].y); segs.push(d); total += d; }
+    const a = Math.max(0, Math.min(1, from)) * total;
+    const b = Math.max(0, Math.min(1, to)) * total;
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    let acc = 0; let started = false;
+    ctx.beginPath();
+    for (let i = 1; i < poly.length; i++) {
+        const segLen = segs[i - 1];
+        const segStart = acc, segEnd = acc + segLen;
+        // 이 세그먼트가 [a,b]와 겹치면 겹치는 부분만 잇는다
+        if (segEnd >= a && segStart <= b && segLen > 0) {
+            const f0 = Math.max(0, (a - segStart) / segLen);
+            const f1 = Math.min(1, (b - segStart) / segLen);
+            const x0 = poly[i - 1].x + (poly[i].x - poly[i - 1].x) * f0, y0 = poly[i - 1].y + (poly[i].y - poly[i - 1].y) * f0;
+            const x1 = poly[i - 1].x + (poly[i].x - poly[i - 1].x) * f1, y1 = poly[i - 1].y + (poly[i].y - poly[i - 1].y) * f1;
+            if (!started) { ctx.moveTo(x0, y0); started = true; }
+            ctx.lineTo(x1, y1);
+        }
+        acc = segEnd;
+    }
+    if (started) ctx.stroke();
+    ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+}
+// 전체 그리기 단축
+function strokePolyline(ctx, poly, color, width) { strokePolylineRange(ctx, poly, 0, 1, color, width); }
+
+// 빛나는 구슬 — 지우개/펜 머리. radial gradient + shadowBlur. 색은 owner면 drawer색, base면 회색.
+function drawOrb(ctx, x, y, color) {
+    ctx.save();
+    ctx.shadowColor = color; ctx.shadowBlur = 16;
+    const g = ctx.createRadialGradient(x, y, 1, x, y, 10);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.4, color); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+// 점(호 길이 비율 t)에서 폴리라인 위 좌표 — 구슬 위치
+function polyPointAt(poly, t) { return pointAt(poly, t); }
+
+// ── 스크램블 연출 단계들 (카운트다운 → 지우개 → 펜 → 하강 → 바닥멈춤 → 결과) ──
+
+// 카운트다운: 오버레이에 3·2·1·셔플! 순차 표시 후 done()
+function runCountdownPhase(done) {
+    const overlay = document.getElementById('ladderScrambleOverlay');
+    const steps = ['3', '2', '1', '셔플!'];
+    const each = LADDER_COUNTDOWN_MS / steps.length;
+    // 연출 시작 화면(pre-scramble 사다리)을 그려둔다 — 지우개 0(전부 남음), 펜 0(아직 안 그림)
+    drawScrambleStatic(0, 0);
+    steps.forEach(function (s, i) {
+        ladderRevealTimers.push(setTimeout(function () {
+            if (overlay) { overlay.textContent = s; overlay.classList.add('show'); }
+            playLadderSound(i === steps.length - 1 ? 'ladder_result' : 'ladder_descend', 0.5);
+            ladderRevealTimers.push(setTimeout(function () {
+                if (overlay) overlay.classList.remove('show');
+            }, each * 0.7));
+        }, each * i));
+    });
+    ladderRevealTimers.push(setTimeout(function () {
+        if (overlay) { overlay.textContent = ''; overlay.classList.remove('show'); }
+        done();
+    }, LADDER_COUNTDOWN_MS));
+}
+
+// 스크램블 정적 사다리: remaining(=final - added) ∪ erased ∪ added를 그린다.
+//   erase(첫 인자): erased 막대기 렌더 상태 —
+//     · 0          → 전부 그대로 표시(pre-scramble / 카운트다운), 라벨 없음
+//     · {glow}     → 전부 표시 + 동시 강조(깜빡 발광, glow=0~1 강도) + "미사용" 라벨
+//     · {drop}     → 일괄 탈락 중: 아래로 translate + 페이드아웃(drop=0~1 진행), "미사용" 라벨 동반 낙하
+//     · 1          → 전부 사라짐(그리기/하강 단계)
+//   drawProgress(0~1): 펜 구슬이 그린 비율. added 막대기는 [0, drawProgress]만 보인다.
+function drawScrambleStatic(erase, drawProgress) {
+    const canvas = document.getElementById('ladderCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    drawLadderBackground(ctx, canvas.width);   // 바닥칸은 빈칸(꽝은 폭탄 포인터 착지 후 공개)
+    // remaining(지워지지 않을) 막대기 — 항상 전체
+    ladderState.remainingRender.forEach(function (r) {
+        strokePolyline(ctx, r.poly, r.color, r.width);
+    });
+    // erased 막대기 — 상태에 따라 표시/강조/탈락/제거. 강조/탈락 단계엔 "미사용" 라벨을 함께 얹어
+    // 곧 버려질 막대기임을 알린다(라벨도 같은 transform 안 → 탈락 시 막대기와 함께 낙하·페이드).
+    if (erase !== 1) {
+        const glow = (erase && typeof erase.glow === 'number') ? erase.glow : 0;
+        const drop = (erase && typeof erase.drop === 'number') ? erase.drop : 0;
+        const showUnused = glow > 0 || drop > 0;   // pre-scramble(둘 다 0)에선 라벨 없음
+        ladderState.erasedRender.forEach(function (r) {
+            ctx.save();
+            if (drop > 0) {
+                // 일괄 탈락: 아래로 떨어지며(가속) 페이드아웃 — 모든 erased가 함께
+                ctx.globalAlpha = Math.max(0, 1 - drop);
+                ctx.translate(0, drop * drop * 64);   // ease-in 낙하(거리 ~64px)
+            }
+            if (glow > 0) {
+                // 동시 강조: 빨강 발광 테두리(곧 사라질 막대기들)
+                ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
+                ctx.shadowBlur = 6 + 14 * glow;
+                strokePolyline(ctx, r.poly, '#ef4444', r.width + 2);
+            } else {
+                strokePolyline(ctx, r.poly, r.color, r.width);
+            }
+            // "미사용" 라벨 — 막대기 폴리라인 중앙 위에 작은 빨강 배지. 캔버스 fillText라 XSS 안전, 고정 hex(라이트/다크 가독).
+            if (showUnused && r.poly && r.poly.length) {
+                const mid = r.poly[Math.floor(r.poly.length / 2)];
+                ctx.shadowBlur = 0;
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                const tw = ctx.measureText('미사용').width + 8;
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.92)';   // 빨강 배지 바탕
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(mid.x - tw / 2, mid.y - 19, tw, 15, 5);
+                else ctx.rect(mid.x - tw / 2, mid.y - 19, tw, 15);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('미사용', mid.x, mid.y - 8);
+            }
+            ctx.restore();
+        });
+    }
+    // added 막대기 — 펜이 그린 [0, drawProgress]만 보임
+    ladderState.addedRender.forEach(function (r) {
+        strokePolylineRange(ctx, r.poly, 0, drawProgress, r.color, r.width);
+    });
+}
+
+// 지우기 = 동시 강조(+"미사용" 라벨) → 일괄 탈락. (기존 빛구슬 와이프 대체)
+//   ERASE_MS를 강조(HL_FRAC)와 탈락(나머지)으로 나눠, 지울 막대기를 한 박자 "미사용" 라벨과 함께 깜빡인 뒤 함께 떨어뜨린다.
+//   라벨은 drawScrambleStatic의 erased 렌더(glow/drop)에 얹으므로 추가 시간 0 — ERASE_MS 예산 안에서 처리(타이머 불변).
+//   대상이 0개여도 전체 ERASE_MS만큼 빈 지연을 채워 서버 종료 타이머와 길이를 맞춘다(빈 단계 조기 스킵 방지 — ladder.md lesson).
+function runErasePhase(done) {
+    const HL_FRAC = 0.42;   // 앞 42%는 동시 강조(깜빡), 나머지 58%는 일괄 탈락
+    if (!ladderState.erasedRender.length) {
+        // 지울 게 없어도 길이는 채운다(서버 11~타이머와 동기). pre-scramble 화면 유지.
+        drawScrambleStatic(0, 0);
+        ladderRevealTimers.push(setTimeout(done, LADDER_ERASE_MS));
+        return;
+    }
+    playLadderSound('ladder_erase', 0.5);
+    const start = performance.now();
+    const hlMs = LADDER_ERASE_MS * HL_FRAC;
+    const dropMs = LADDER_ERASE_MS - hlMs;
+    function frame(now) {
+        const elapsed = now - start;
+        if (elapsed < hlMs) {
+            // 강조 단계: 사인 깜빡임(0→1→...)으로 "곧 지울 막대기들"을 동시에 알림
+            const u = elapsed / hlMs;
+            const glow = 0.5 + 0.5 * Math.sin(u * Math.PI * 3);   // 1.5회 깜빡
+            drawScrambleStatic({ glow: glow }, 0);
+            ladderRevealRAF = requestAnimationFrame(frame);
+            return;
+        }
+        const d = Math.min(1, (elapsed - hlMs) / dropMs);
+        drawScrambleStatic({ drop: d }, 0);   // 일괄 탈락(아래로 + 페이드)
+        if (d >= 1) { ladderRevealRAF = null; done(); return; }
+        ladderRevealRAF = requestAnimationFrame(frame);
+    }
+    ladderRevealRAF = requestAnimationFrame(frame);
+}
+
+// 펜 구슬: added 막대기를 start→end로 그린다(drawProgress 0→1). DRAW_MS.
+//   대상이 0개여도 DRAW_MS만큼 빈 지연을 채워 서버 종료 타이머와 길이를 맞춘다(빈 단계 조기 스킵 방지 — ladder.md lesson).
+function runDrawPhase(done) {
+    if (!ladderState.addedRender.length) {
+        drawScrambleStatic(1, 0);   // erased 전부 사라진 화면 유지
+        ladderRevealTimers.push(setTimeout(done, LADDER_DRAW_MS));
+        return;
+    }
+    playLadderSound('ladder_draw', 0.5);
+    const start = performance.now();
+    function frame(now) {
+        const t = Math.min(1, (now - start) / LADDER_DRAW_MS);
+        drawScrambleStatic(1, t);   // erased 전부 지워진 상태(1) + added를 [0,t]
+        const canvas = document.getElementById('ladderCanvas');
+        const ctx = canvas && canvas.getContext('2d');
+        if (ctx) ladderState.addedRender.forEach(function (r) {
+            const pos = polyPointAt(r.poly, t);   // 펜 구슬은 그려지는 머리에 위치
+            drawOrb(ctx, pos.x, pos.y, r.color);
+        });
+        if (t >= 1) { ladderRevealRAF = null; done(); return; }
+        ladderRevealRAF = requestAnimationFrame(frame);
+    }
+    ladderRevealRAF = requestAnimationFrame(frame);
+}
+
 function startReveal(data) {
     ladderState.phase = 'revealing';
+    ladderState.showingResult = false;   // 새 reveal 시작 — 이전 판 결과 유지 상태 해제
     ladderState.numLanes = data.numLanes;
-    // 연속 좌표 rung — y 오름차순(서버와 동일 순서)으로 정렬해 저장
+    // 이전 판 결과 오버레이가 떠 있으면 제거(다음 reveal 화면을 가리지 않게)
+    const prevOverlay = document.getElementById('resultOverlay');
+    if (prevOverlay) prevOverlay.classList.remove('visible');
+
+    // drawer 색은 reveal payload colorIndex로 갱신 — rungColor(owner)가 빌드/공개 동일 팔레트를 쓰도록.
+    if (data.colorIndex) buildState.colorIndex = data.colorIndex;
+
+    // 연속 좌표 rung(final) — y 오름차순(서버와 동일 순서)으로 정렬해 저장. owner 포함(색·연출).
     ladderState.rungs = (data.rungs || [])
         .filter(function (rg) { return rg && typeof rg.c === 'number' && typeof rg.y === 'number'; })
-        .map(function (rg) {
-            return {
-                c: rg.c, y: rg.y,
-                slant: (typeof rg.slant === 'number' ? rg.slant : 0),
-                points: sanitizeCurvePoints(rg.points),   // 곡선 궤적(시각). 없으면 직선 폴백
-                user: !!rg.user,   // 유저가 그린 막대기 표식(공개 화면 색 구분). 기본 막대기는 false.
-                _half: 0
-            };
-        })
+        .map(normalizeRevealRung)
         .sort(function (a, b) { return a.y - b.y; });
-    computeRungOffsets();   // rung별 최대 대각선 크기 산정 (큰 움직임)
     // reveal 중 rung 폴리라인은 정적(좌표·곡선·_half 불변, 캔버스 폭 720 고정) → 1회만 계산해 캐시.
-    // drawLadderFrame이 매 RAF마다 rungToPolyline(곡선 최대 24점)을 재계산하던 것을 제거(P3-3 성능).
-    (function () {
-        const _N = ladderState.numLanes;
-        const _xOf = function (c) { return laneX(720, c, _N); };
-        const _halfOf = function (rg) { return rg._half || 0; };
-        ladderState.rungPolylines = ladderState.rungs.map(function (rg) {
-            return rungToPolyline(rg, _xOf, revealCenterY, _halfOf);
-        });
-    })();
+    ladderState.rungPolylines = ladderState.rungs.map(revealRungPolyline);
+
     ladderState.kkwangBottom = data.kkwangBottom;
     ladderState.laneToBottom = data.laneToBottom || [];
     ladderState.userLanes = data.userLanes || {};
     ladderState.loser = data.loser;
+    // 바닥 공개/폭탄 상태 초기화 — 새 판은 바닥 라벨 전부 빈칸으로 시작, 폭탄 미공개.
+    ladderState.bombPointerCol = -1;
+    ladderState.bombRevealed = false;
     isLadderActive = true;
+
+    // ── 스크램블 연출 집합 구성 ──
+    // erased: 지워질 막대기, added: 새로 그릴 막대기. preScramble = (final - added) ∪ erased.
+    // final에서 added id를 빼면 remaining(=스크램블 전부터 있던 것), 거기에 erased를 더하면 스크램블 직전 화면.
+    ladderState.erased = (data.erased || []).filter(function (rg) { return rg && typeof rg.c === 'number'; }).map(normalizeRevealRung);
+    ladderState.added = (data.added || []).filter(function (rg) { return rg && typeof rg.c === 'number'; }).map(normalizeRevealRung);
+    const addedIds = new Set((data.added || []).map(function (rg) { return rg && rg.id; }));
+    // remaining = 원본 final에서 added id를 제외(=스크램블 전부터 있던 막대기). 정규화 후 렌더 변환.
+    const remainingRender = (data.rungs || [])
+        .filter(function (rg) { return rg && typeof rg.c === 'number' && !addedIds.has(rg.id); })
+        .map(normalizeRevealRung);
+    const toRender = function (rg) {
+        return {
+            poly: revealRungPolyline(rg),
+            color: rg.user ? rungColor(rg.owner) : LADDER_RUNG_COLOR_BASE,
+            width: rg.user ? 6 : 4
+        };
+    };
+    ladderState.remainingRender = remainingRender.map(toRender);
+    ladderState.erasedRender = ladderState.erased.map(toRender);
+    ladderState.addedRender = ladderState.added.map(toRender);
 
     ladderTrails = [];   // 이전 판 잔상 초기화 (토큰별 꼬리)
     buildDrag.active = false;   // 진행 중 드래그 취소
-    // 스크롤 보존(경마식): 빌드 섹션 숨김 → 캔버스 표시로 인한 레이아웃 점프를 막아 보던 위치 유지
-    const scrollY = window.scrollY;
+    clearLadderRevealTimers();  // 이전 연출 타이머/RAF 정리
+    if (ladderAnimRAF) { cancelAnimationFrame(ladderAnimRAF); ladderAnimRAF = null; }
+    // 경마식 화면 고정: 빌드 섹션을 숨기면 그 높이만큼 아래 내용이 위로 밀려 화면이 튄다.
+    // 단순 scrollY 복원은 페이지 높이가 줄며 클램프돼 위로 튀므로, 공개 캔버스를 화면 중앙으로 끌어와 게임이 계속 보이게 한다.
     const buildSection = document.getElementById('ladderBuildSection');
     if (buildSection) buildSection.style.display = 'none';
     const canvasWrap = document.getElementById('ladderCanvasWrap');
-    if (canvasWrap) canvasWrap.style.display = 'block';
-    window.scrollTo(0, scrollY);
+    if (canvasWrap) {
+        canvasWrap.style.display = 'block';
+        try { canvasWrap.scrollIntoView({ behavior: 'auto', block: 'center' }); } catch (e) {}
+    }
 
     const status = document.getElementById('gameStatus');
-    if (status) { status.textContent = '🪜 모두 동시에 사다리를 타고 내려갑니다...'; status.className = 'game-status active'; }
+    if (status) { status.textContent = '🎲 사다리를 섞는 중...'; status.className = 'game-status active'; }
     const caption = document.getElementById('ladderResultCaption');
     if (caption) caption.textContent = '';
 
-    // 토큰 색 배정 순서 = 서버 revealOrder (모든 탭 동일, 서버 RNG). 없으면 userLanes 키 순서로 폴백.
-    // 동시 출발이라 순서는 색 배정에만 영향(연출 타이밍 무관).
+    // 토큰 색·경로 = 서버 revealOrder(없으면 userLanes 키). 색은 colorIndex 기반(서버 권위, 모든 탭 동일).
     const order = (Array.isArray(data.revealOrder) && data.revealOrder.length)
         ? data.revealOrder.filter(name => ladderState.userLanes[name] !== undefined)
         : Object.keys(ladderState.userLanes);
 
-    const paths = order.map((name, i) => ({
+    const paths = order.map(name => ({
         name: name,
         startLane: ladderState.userLanes[name],
-        color: LADDER_TOKEN_COLORS[i % LADDER_TOKEN_COLORS.length],
+        color: rungColor(name),   // drawer 색(colorIndex) — 빌드/막대기/토큰 색 일관
         pts: buildPath(ladderState.userLanes[name])
     }));
 
     renderLaneNames(paths);   // 출발 레인별 소유자 이름 (추적 내내 표시)
 
     const N = paths.length;
-    if (ladderAnimRAF) { cancelAnimationFrame(ladderAnimRAF); ladderAnimRAF = null; }
-    if (N === 0) { drawLadderFrame([], 0); return; }
+    if (N === 0) { drawScrambleStatic(1, 0); return; }
 
-    const DURATION = LADDER_REVEAL_DESCENT;   // 모든 토큰 공통 하강 시간 → 동시 도착
+    // ── 오케스트레이션(꽝 선결정): 카운트다운 → 지우기 → 그리기 → 바닥멈춤 → 폭탄 포인터(💀 즉시 공개)
+    //    → 순차 하강 → finishDescent(loser 토큰 도착 시 강조+캡션) ──
+    // 폭탄 포인터가 하강 "전"이라, 포인터 연출 동안 토큰은 전원 출발선(progress=0)에서 대기한다.
+    // 총합은 옛 순서와 동일(단계 동일·순서만 이동) → 서버 종료 타이머와 lockstep 유지.
+    const tokenProgress = new Array(N).fill(0);   // 포인터 단계 동안 전원 출발선 대기 표시용
+    runCountdownPhase(function () {
+        runErasePhase(function () {
+            runDrawPhase(function () {
+                // DRAW 완료 후 1박자 멈춤(BOTTOM_PAUSE) → 폭탄 포인터. (옛 순서의 "하강 후 포인터 전 멈춤"을 여기로 이동)
+                ladderRevealTimers.push(setTimeout(function () {
+                    runBombPointerPhase(paths, tokenProgress);
+                }, LADDER_BOTTOM_PAUSE_MS));
+            });
+        });
+    });
+}
 
-    // 속도 밸런스 측정(localhost 한정) — 경로 px 길이/체감속도(px/ms). 동시 도착이라 긴 경로일수록 빠르다.
+// 순차 하강 — 토큰을 revealOrder(=paths) 순서대로 한 명씩 SLOT_MS 동안 0→1로 내려보낸다.
+// 토큰 k가 끝까지 도착하면 다음 토큰(k+1)이 출발. 마지막 토큰까지 끝나면 finishDescent → 결과 캡션.
+// 💀(폭탄 칸)는 하강 "전" 폭탄 포인터에서 이미 공개됨 — 하강은 "누가 그 칸에 도착하나"를 보여준다.
+// 색은 drawer 색, 경로는 final rungs 기준 buildPath. 도착한 토큰은 그 자리에 계속 남는다(tokenProgress 누적).
+function runDescentPhase(paths) {
+    const N = paths.length;
+    // 토큰별 진행도 — 인덱스 순서 = paths(=서버 revealOrder). 0=대기, 1=도착.
+    const tokenProgress = new Array(N).fill(0);
+
     if (isLocalhost) {
         const lens = paths.map(function (p) {
             let L = 0;
             for (let i = 1; i < p.pts.length; i++) L += Math.hypot(p.pts[i].x - p.pts[i - 1].x, p.pts[i].y - p.pts[i - 1].y);
             return L;
         });
-        const speeds = lens.map(function (L) { return (L / DURATION).toFixed(3); });
-        addDebugLog('동시 reveal 경로px=[' + lens.map(function (l) { return Math.round(l); }).join(', ') +
-            '] DURATION=' + DURATION + 'ms 속도px/ms=[' + speeds.join(', ') + ']');
+        addDebugLog('순차 reveal N=' + N + ' SLOT=' + LADDER_TOKEN_SLOT_MS + 'ms 총하강=' + (N * LADDER_TOKEN_SLOT_MS) +
+            'ms 경로px=[' + lens.map(function (l) { return Math.round(l); }).join(', ') + ']');
     }
 
-    playLadderSound('ladder_descend', 0.7);
+    // 한 토큰(k)을 SLOT_MS 동안 0→1로 내려보낸다. 끝나면 다음 토큰 시작, 모두 끝나면 finishDescent().
+    function animateToken(k) {
+        const status = document.getElementById('gameStatus');
+        if (status) {
+            const nm = paths[k] && paths[k].name ? paths[k].name + ' 님 ' : '';
+            status.textContent = '🪜 한 명씩 사다리를 타고 내려갑니다... ' + nm + '(' + (k + 1) + '/' + N + ')';
+            status.className = 'game-status active';
+        }
+        playLadderSound('ladder_descend', 0.6);   // 한 명씩 내려갈 때마다 효과음
 
-    const start = performance.now();
-    function frame(now) {
-        const elapsed = now - start;
-        const t = Math.min(1, elapsed / DURATION);
-        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;  // ease-in-out (모든 토큰 공통)
+        const start = performance.now();
+        function frame(now) {
+            const t = Math.min(1, (now - start) / LADDER_TOKEN_SLOT_MS);
+            const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;  // ease-in-out
+            tokenProgress[k] = eased;
+            drawLadderFrame(paths, tokenProgress);
 
-        drawLadderFrame(paths, eased);
-
-        if (t >= 1) {                         // 전원 동시 도착
-            drawLadderFrame(paths, 1);
-            markLoserLaneName();
-            const cap = document.getElementById('ladderResultCaption');
-            if (cap) cap.textContent = ladderState.loser ? `💀 ${ladderState.loser} 님이 꽝에 도착!` : '결과 집계 중...';
-            playLadderSound('ladder_result', 1.0);
-            ladderAnimRAF = null;
-            return;
+            if (t >= 1) {
+                tokenProgress[k] = 1;             // 도착 — 그 자리에 계속 남음
+                drawLadderFrame(paths, tokenProgress);
+                ladderAnimRAF = null;
+                if (k + 1 < N) {
+                    animateToken(k + 1);          // 다음 토큰 출발
+                } else {
+                    finishDescent(paths, tokenProgress);
+                }
+                return;
+            }
+            ladderAnimRAF = requestAnimationFrame(frame);
         }
         ladderAnimRAF = requestAnimationFrame(frame);
     }
-    ladderAnimRAF = requestAnimationFrame(frame);
+
+    // 마지막 토큰 도착 후: loser 토큰이 (이미 공개된) 💀칸에 도착 → loser 이름 강조 + 결과 캡션.
+    // 폭탄(💀)은 하강 전 포인터에서 이미 공개됐으므로 여기선 "도착" 강조만 한다(BOTTOM_PAUSE는 하강 전으로 이동).
+    function finishDescent(paths, tokenProgress) {
+        drawLadderFrame(paths, tokenProgress);
+        markLoserLaneName();
+        const cap = document.getElementById('ladderResultCaption');
+        if (cap) cap.textContent = ladderState.loser ? `💀 ${ladderState.loser} 님이 꽝에 도착!` : '결과 집계 중...';
+        const status = document.getElementById('gameStatus');
+        if (status) { status.textContent = ladderState.loser ? `💀 ${ladderState.loser} 님 당첨!` : '게임 종료'; status.className = 'game-status active'; }
+        playLadderSound('ladder_result', 1.0);
+    }
+
+    if (N === 0) { drawScrambleStatic(1, 0); return; }
+    // 첫 프레임에서 전원 출발선(progress=0) 대기 점이 보이도록 한 번 그린 뒤 첫 토큰 출발.
+    drawLadderFrame(paths, tokenProgress);
+    animateToken(0);
+}
+
+// 폭탄 룰렛 포인터 — 순수 연출, 하강 "전"에 실행. 바닥칸(0..N-1)을 가속→감속하며 훑다 서버값 kkwangBottom에 정지.
+//   포인터 위치는 클라가 시각화만; 착지칸은 항상 ladderState.kkwangBottom(서버 권위). 클라 Math.random 0회.
+//   총 이동 = (몇 바퀴) + (kkwangBottom까지 거리) 칸을 ease-out(감속)으로 주파 → 끝 프레임에서 정확히 착지.
+//   끝나면 bombRevealed=true → drawBottomSlots가 💀꽝 표시(칸만 공개) → 곧바로 순차 하강 시작.
+//   loser 강조·결과 캡션은 하강 끝(finishDescent, loser 토큰이 💀칸 도착)으로 분리됨.
+function runBombPointerPhase(paths, tokenProgress) {
+    const N = ladderState.numLanes;
+    const target = ladderState.kkwangBottom;
+    // 꽝칸이 없거나(빈 판) 레인 1개뿐이면 포인터 스윕은 의미 없지만, 단계 "길이"는 채워야 한다.
+    // 서버 ladderRevealDelay는 N과 무관하게 BOMB_POINTER를 항상 합산하므로, 즉시 revealBomb하면
+    // 클라가 그만큼 일찍 끝나 dead-air가 생긴다 → erase/draw 빈-단계 fallback과 동일하게
+    // setTimeout(BOMB_POINTER_MS)로 감싸 길이를 보존(타이머는 clearLadderRevealTimers가 정리).
+    if (typeof target !== 'number' || target < 0 || N <= 1) {
+        ladderRevealTimers.push(setTimeout(function () {
+            revealBomb(paths, tokenProgress);
+        }, LADDER_BOMB_POINTER_MS));
+        return;
+    }
+    const status = document.getElementById('gameStatus');
+    if (status) { status.textContent = '💣 누가 꽝일까요...'; status.className = 'game-status active'; }
+    playLadderSound('ladder_descend', 0.5);
+
+    const LOOPS = 2;                                  // 최소 2바퀴 돈 뒤 착지(룰렛 느낌)
+    const totalSteps = LOOPS * N + ((target % N) + N) % N;   // 0칸에서 출발해 target에 멈추는 총 이동 칸 수
+    const start = performance.now();
+    let tickCol = -1;                                 // 칸이 바뀔 때마다 틱 사운드(과밀 방지용 추적)
+    function frame(now) {
+        const t = Math.min(1, (now - start) / LADDER_BOMB_POINTER_MS);
+        // ease-out cubic — 빠르게 시작해 점점 느려져 멈춤(감속 룰렛). t=1에서 pos=totalSteps(=target).
+        const eased = 1 - Math.pow(1 - t, 3);
+        const pos = eased * totalSteps;
+        const col = Math.round(pos) % N;
+        ladderState.bombPointerCol = col;
+        if (col !== tickCol) { tickCol = col; playLadderSound('ladder_pick', 0.25); }   // 칸 넘어갈 때 틱
+        drawLadderFrame(paths, tokenProgress);
+        if (t >= 1) {
+            ladderRevealRAF = null;
+            ladderState.bombPointerCol = target;   // 안전: 정확히 착지칸 고정
+            revealBomb(paths, tokenProgress);
+            return;
+        }
+        ladderRevealRAF = requestAnimationFrame(frame);
+    }
+    ladderRevealRAF = requestAnimationFrame(frame);
+}
+
+// 폭탄 착지 후 칸 공개 — 💀꽝 칸만 보인다(bombRevealed=true). loser·결과는 아직 숨김(하강 후 공개).
+//   바로 순차 하강을 시작해 "누가 이 💀칸에 도착하나"를 보여준다.
+function revealBomb(paths, tokenProgress) {
+    ladderState.bombRevealed = true;
+    ladderState.bombPointerCol = -1;
+    drawLadderFrame(paths, tokenProgress);
+    const cap = document.getElementById('ladderResultCaption');
+    if (cap) cap.textContent = '💀 꽝 칸이 정해졌어요 — 누가 도착할까요?';
+    const status = document.getElementById('gameStatus');
+    if (status) { status.textContent = '💀 꽝 칸 확정! 누가 도착할까요...'; status.className = 'game-status active'; }
+    playLadderSound('ladder_result', 0.7);
+    runDescentPhase(paths);   // 폭탄 칸 공개 후 순차 하강 시작
 }
 
 // ── 사다리 소켓 핸들러 ──
 socket.on('ladder:rungsUpdated', (data) => {
-    buildState.userRungs = (data && data.userRungs) || {};
+    buildState.userRungs = (data && data.userRungs) || {};   // 배열맵
     buildState.userLanes = (data && data.userLanes) || {};
+    buildState.baseRungs = (data && data.baseRungs) || [];   // 가시 base 막대기
+    buildState.colorIndex = (data && data.colorIndex) || {}; // drawer 색 인덱스(서버 권위)
     buildState.numLanes = (data && data.numLanes) || 0;
     renderBuildSection();
 });
 
 socket.on('ladder:reveal', (data) => {
+    if (isLocalhost) window.__ladderLastReveal = data;   // 테스트용: 스크램블 페이로드 검증
     startReveal(data);
     addDebugLog('공개: 패자=' + data.loser);
 });
@@ -1179,23 +1741,45 @@ socket.on('ladder:roundReset', () => {
     ladderState.userLanes = {};
     ladderState.participants = [];
     isLadderActive = false;
+
     // 빌드 상태 초기화 (다음 판 새 기본 틀). 인원 재준비 시 서버 rungsUpdated로 다시 채워짐.
-    buildState = { numLanes: 0, userRungs: {}, userLanes: {} };
+    buildState = { numLanes: 0, userRungs: {}, userLanes: {}, baseRungs: [], colorIndex: {} };
+    // 진행 중 RAF/타이머만 정리. 결과 캔버스의 마지막 프레임은 정적으로 남아 있어야 하므로 canvasWrap·lane 이름은 그대로 둔다.
     if (ladderAnimRAF) { cancelAnimationFrame(ladderAnimRAF); ladderAnimRAF = null; }
-    clearLaneNames();
-    const canvasWrap = document.getElementById('ladderCanvasWrap');
-    if (canvasWrap) canvasWrap.style.display = 'none';
-    const status = document.getElementById('gameStatus');
-    if (status) { status.textContent = '게임 대기 중...'; status.className = 'game-status waiting'; }
-    renderBuildSection();
+    clearLadderRevealTimers();
+
+    // 빠른 재준비(보존 ready) 직접 처리 — emit 순서(readyUsersUpdated↔roundReset) 레이스에 의존하지 않는다.
+    // 서버는 reset 시 결과창에서 이미 준비를 누른 유저의 ready를 보존하고 레인을 다시 자동 점유한다.
+    // 내가 그 보존 ready에 들어 있으면, 결과창을 닫지 않고 roundReset이 먼저 와도 즉시 빌드로 전환해야 한다
+    // (이전엔 showingResult=true 고정 → 양탭 모두 보존 ready라 onReadyChanged 미발화 → 빌드 영구 미노출 버그).
+    // 권위 출처: ReadyModule(내 ready 상태) → 로컬 readyUsers/roomUsers 폴백. 모두 서버 readyUsersUpdated로 갱신됨.
+    if (amIReadyNow()) {
+        // 이미 준비 상태 → 결과 닫고 빌드 열기 (onReadyChanged 경로와 동일한 화면 전환)
+        ladderState.showingResult = false;
+        closeResultOverlay();   // 전체화면 결과 모달(z-index:1000) 제거 — 안 닫으면 빌드의 시작 버튼이 가려져 소프트락
+        const canvasWrap = document.getElementById('ladderCanvasWrap');
+        if (canvasWrap) canvasWrap.style.display = 'none';
+        clearLaneNames();
+        const status = document.getElementById('gameStatus');
+        if (status) { status.textContent = '게임 대기 중...'; status.className = 'game-status waiting'; }
+    } else {
+        // 아직 "다음 판 준비" 미클릭 → 결과 캔버스를 준비 전까지 계속 노출(경마식).
+        // 이후 준비를 누르면 onReadyChanged가 showingResult를 풀고 빌드로 전환한다.
+        ladderState.showingResult = true;
+        const status = document.getElementById('gameStatus');
+        if (status) { status.textContent = '결과 — 다음 판을 준비하세요'; status.className = 'game-status finished'; }
+    }
+    renderBuildSection();   // ready면 빌드 노출, 아니면 showingResult 가드로 결과 캔버스 유지
     updateStartButton();
 });
 
 socket.on('ladder:gameAborted', (data) => {
     ladderState.phase = 'idle';
+    ladderState.showingResult = false;   // 중단은 결과가 아님 — 기존대로 캔버스 숨김 + 빌드 복귀
     isLadderActive = false;
-    buildState = { numLanes: 0, userRungs: {}, userLanes: {} };
+    buildState = { numLanes: 0, userRungs: {}, userLanes: {}, baseRungs: [], colorIndex: {} };
     if (ladderAnimRAF) { cancelAnimationFrame(ladderAnimRAF); ladderAnimRAF = null; }
+    clearLadderRevealTimers();
     clearLaneNames();
     const canvasWrap = document.getElementById('ladderCanvasWrap');
     if (canvasWrap) canvasWrap.style.display = 'none';
