@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>게임 DevTools 허브</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ===== 상단 바 ===== */
+.top-bar { display: flex; flex-wrap: wrap; background: #0f1629; border-bottom: 1px solid #333; padding: 10px 16px; align-items: center; gap: 10px; }
+.top-bar .title { font-size: 15px; color: #ffd479; font-weight: bold; white-space: nowrap; }
+.top-bar .spacer { flex: 1; }
+.top-bar input { padding: 7px 10px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 13px; width: 230px; }
+.top-bar .status { font-size: 11px; color: #888; min-width: 90px; text-align: right; }
+.top-bar .status.ok { color: #4CAF50; }
+.top-bar .status.err { color: #f44336; }
+
+/* ===== 게임 탭 ===== */
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 16px; background: #11182e; border-bottom: 1px solid #222; }
+.tab { padding: 7px 12px; border-radius: 6px 6px 0 0; font-size: 12.5px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.04); color: #aaa; border: 1px solid transparent; border-bottom: none; transition: 0.12s; white-space: nowrap; }
+.tab:hover { background: rgba(255,255,255,0.09); color: #ddd; }
+.tab.active { color: #fff; }
+
+.wrap { flex: 1; padding: 16px; max-width: 760px; width: 100%; margin: 0 auto; }
+
+/* ===== 공통 섹션 ===== */
+.section { background: #16213e; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+.section h2 { font-size: 13px; color: #888; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.section h2 .count { font-size: 11px; background: #0f3460; padding: 1px 6px; border-radius: 8px; color: #aaa; }
+.hint { font-size: 11px; color: #6a7a99; margin-top: 8px; line-height: 1.55; }
+.hint b { color: #9fb3d9; }
+label { font-size: 12px; color: #aaa; }
+input { padding: 7px 10px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 13px; }
+button { padding: 8px 14px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+button:hover { filter: brightness(1.15); }
+button:disabled { opacity: 0.35; cursor: not-allowed; filter: none; }
+.btn-green { background: #4CAF50; color: white; }
+.btn-blue { background: #2196F3; color: white; }
+.btn-orange { background: #FF9800; color: white; }
+.btn-red { background: #f44336; color: white; }
+.btn-purple { background: #9C27B0; color: white; }
+.btn-ghost { background: rgba(255,255,255,0.06); color: #aaa; border: 1px solid #333; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.flex-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* ===== 방/봇 ===== */
+.room-chip { display: inline-block; padding: 5px 10px; background: #0f3460; border-radius: 4px; margin: 2px; cursor: pointer; font-size: 12px; transition: 0.15s; }
+.room-chip:hover { background: #1a4a8a; }
+.room-chip.selected { background: #2196F3; color: white; }
+.bot-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot.connecting { background: #666; }
+.dot.connected { background: #FF9800; }
+.dot.joined { background: #4CAF50; }
+.dot.disconnected { background: #f44336; }
+.dot.error { background: #f44336; }
+.dot.timeout { background: #666; }
+.pip { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,0.4); vertical-align: middle; }
+.ready-yes { color: #81c784; }
+.ready-no { color: #777; }
+
+#debugLog { background: #0a0a1a; border-radius: 6px; padding: 10px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.5; }
+.log-info { color: #64b5f6; }
+.log-ok { color: #81c784; }
+.log-err { color: #e57373; }
+.log-event { color: #fff176; }
+.disabled-veil { opacity: 0.6; pointer-events: none; }
+
+/* 모바일 */
+@media (max-width: 640px) {
+    .top-bar input { flex: 1; min-width: 0; width: auto; }
+    .wrap { padding: 12px; max-width: 100%; }
+    .tab { padding: 9px 10px; }
+    #linkInput { min-width: 0; }
+    #debugLog { max-height: 160px; }
+    .bot-row { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="title">🛠️ 게임 DevTools 허브</div>
+    <label for="serverUrl" style="margin-left:8px">서버</label>
+    <input id="serverUrl" type="text" placeholder="http://localhost:5173" spellcheck="false">
+    <button class="btn-green btn-sm" id="connectBtn" onclick="toggleConnect()">접속</button>
+    <div class="spacer"></div>
+    <a href="horse-shop-cosmetic-tool.html" style="color:#ffd479; font-size:12px; text-decoration:none; margin-right:10px;">🛒 상점 코스메틱 미리보기</a>
+    <div class="status" id="connStatus">disconnected</div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="wrap" id="panel">
+    <div class="section">
+        <h2><span id="gameTitle">게임</span> 방 <span class="count" id="roomCount">0</span></h2>
+        <div id="roomList" style="margin-bottom:8px;min-height:24px"><span style="color:#555">접속하면 방 목록이 표시됩니다.</span></div>
+        <div class="flex-row" style="margin-bottom:6px">
+            <input id="linkInput" type="text" placeholder="초대 링크 또는 shortcode 붙여넣기" style="flex:1;min-width:220px">
+            <button class="btn-blue btn-sm" onclick="pickRoomFromLink()">링크로 선택</button>
+        </div>
+        <div class="flex-row">
+            <label>봇 수</label>
+            <input id="botCount" type="number" value="5" min="1" max="49" style="width:56px">
+            <button class="btn-ghost btn-sm" onclick="refreshRooms()">방 목록 새로고침</button>
+        </div>
+        <div class="hint" id="gameHint"></div>
+    </div>
+
+    <div class="section">
+        <h2>봇 <span class="count" id="botCountBadge">0</span></h2>
+        <div id="botList" style="min-height:20px"><span style="color:#555">봇 없음</span></div>
+        <div class="flex-row" style="margin-top:10px">
+            <button class="btn-green" onclick="joinBots()">입장</button>
+            <button class="btn-blue" onclick="readyAll()">전원 준비</button>
+            <button class="btn-ghost btn-sm" onclick="unreadyAll()">준비 해제</button>
+            <button class="btn-red btn-sm" onclick="disconnectAll()">전원 퇴장</button>
+        </div>
+        <div class="flex-row" id="gameActions" style="margin-top:8px"></div>
+    </div>
+
+    <div class="section">
+        <h2>빠른 실행</h2>
+        <div class="flex-row">
+            <button class="btn-green btn-sm" onclick="quickFlow()" id="quickBtn">⚡ 원클릭 (입장 + 준비)</button>
+        </div>
+        <div class="hint">봇은 게임을 <b>시작할 수 없습니다</b> (호스트만 시작 가능). 봇을 채운 뒤 내 브라우저 탭에서 게임을 시작하세요. 호스트가 되려면 dice 로비에서 직접 방을 만드세요.</div>
+    </div>
+
+    <div class="section">
+        <h2>로그 <button class="btn-ghost btn-sm" style="margin-left:auto" onclick="document.getElementById('debugLog').innerHTML=''">지우기</button></h2>
+        <div id="debugLog"></div>
+    </div>
+</div>
+
+<script>
+// ===================================================================
+//  게임 DevTools 허브 — 7개 게임의 "방 채우기 봇" 도구를 하나로 통합.
+//  - 상단 서버 주소 입력 + [접속]: file://로 열어도 입력한 서버의
+//    socket.io 클라이언트를 동적 로드하고 transports:['websocket']로 연결
+//    (CORS 무관). REST 초대 링크 해석은 동일 origin에서만 동작.
+//  - 게임 탭별로 방 목록 필터 + 전용 봇 액션을 데이터 기반으로 제공.
+//  게임 시작은 항상 호스트(실제 브라우저 탭). 봇은 게스트로 입장/준비/베팅만.
+//  공정성: 결과는 서버 결정. 여기 Math.random은 deviceId/tabId/clientSeed 등 비공정 영역만.
+// ===================================================================
+
+const BOT_NAMES = ['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel',
+    'India','Juliet','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo',
+    'Sierra','Tango','Uniform','Victor','Whiskey','Xray','Yankee','Zulu'];
+
+// 다리 건너기 6색 (js/bridge-cross 색상 팔레트와 동일)
+const BRIDGE_COLORS = [
+    { name: '빨강', hex: '#ef4444' }, { name: '주황', hex: '#f97316' },
+    { name: '노랑', hex: '#eab308' }, { name: '초록', hex: '#22c55e' },
+    { name: '파랑', hex: '#3b82f6' }, { name: '남색', hex: '#6366f1' },
+];
+// 회전 칼날 base tier1 스킨 (socket/spin-arena.js SPIN_SKINS 와 동일, 봇은 잠금 스킨 불가)
+const SPIN_SKINS = [
+    { id: 'crimson', name: '크림슨',   hex: '#e23b3b' },
+    { id: 'azure',   name: '애저',     hex: '#3b82e2' },
+    { id: 'emerald', name: '에메랄드', hex: '#2bb673' },
+    { id: 'amber',   name: '앰버',     hex: '#e2a23b' },
+    { id: 'violet',  name: '바이올렛', hex: '#9b59e2' },
+    { id: 'rose',    name: '로즈',     hex: '#e23b8f' },
+];
+function rouletteHue(i) { return `hsl(${Math.round((i % 16) * 360 / 16)} 70% 55%)`; }
+
+// ----- 공통 헬퍼 (게임 config에서 사용) -----
+function joined() { return bots.filter(b => b.status === 'joined'); }
+function isLead(bot) { return bots[0] === bot; }
+function chip(hex) { return `<span class="pip" style="background:${hex}"></span>`; }
+
+// ----- 게임 정의 -----
+// 각 게임: type(gameType), name, emoji, accent, maxBots, hint,
+//   actions[{label,cls,fn}], quick(입장+준비 후 자동 실행, optional),
+//   info(bot)→봇 행에 표시할 HTML, events{이벤트명:(bot,data)=>...} (상태 동기화 + 로그 + 자동행동)
+const GAMES = [
+    {
+        type: 'dice', name: '주사위', emoji: '🎲', accent: '#6366f1', maxBots: 49,
+        hint: '주사위는 베팅이 없습니다. 봇은 입장하면 자동 준비됩니다. 호스트가 게임을 시작하면 봇이 자동으로 주사위를 굴립니다(시작 전에도 "전원 굴리기"로 굴릴 수 있음).',
+        actions: [ { label: '전원 굴리기', cls: 'btn-orange', fn: () => diceRollAll() } ],
+        quick: null,
+        info: (b) => b.info.lastRoll != null ? `<span style="color:#ffd479">🎲 ${b.info.lastRoll}</span>` : '',
+        events: {
+            gameStarted: (b, d) => {
+                if (isLead(b)) dlog(`게임 시작 — 참가 ${d && d.totalPlayers || (d && d.players && d.players.length) || '?'}명`, 'event');
+                // 호스트 시작 시 봇 자동 굴림
+                const di = bots.indexOf(b); setTimeout(() => diceRollOne(b), (di < 0 ? 0 : di) * 120 + 200);
+            },
+            diceRolled: (b, d) => { if (d && d.user === b.name) { b.info.lastRoll = d.result; updateBotList(); } },
+            gameEnded: (b) => { if (isLead(b)) dlog('게임 종료', 'event'); },
+        },
+    },
+    {
+        type: 'roulette', name: '룰렛', emoji: '🎡', accent: '#e91e63', maxBots: 49,
+        hint: '봇마다 서로 다른 색(0~15)을 선택합니다. 같은 색은 서버가 거부하므로 16봇까지만 색이 구분됩니다. 색 선택 후 호스트가 룰렛을 돌리세요.',
+        actions: [ { label: '색상 선택', cls: 'btn-orange', fn: () => rouletteColorAll() } ],
+        quick: () => rouletteColorAll(),
+        info: (b) => b.info.colorIndex != null ? `${chip(rouletteHue(b.info.colorIndex))} 색 ${b.info.colorIndex}` : '',
+        events: {
+            userColorsUpdated: (b, d) => {
+                const map = (d && d.userColors) || d || {};
+                if (map[b.name] != null) { b.info.colorIndex = map[b.name]; updateBotList(); }
+            },
+            rouletteStarted: (b, d) => { if (isLead(b)) dlog(`룰렛 시작 — 당첨(예정)=${d && d.winner}`, 'event'); },
+            rouletteEnded: (b, d) => { if (isLead(b)) dlog(`룰렛 종료 — 당첨=${d && d.winner} (${d && d.finalizedBy})`, 'event'); },
+        },
+    },
+    {
+        type: 'horse-race', name: '경마', emoji: '🐎', accent: '#16a34a', maxBots: 49,
+        hint: '봇마다 서로 다른 말을 선택합니다(중복 허용). "N등 투표"로 등수도 분산 투표할 수 있습니다. 호스트가 경주를 시작하면 봇이 애니메이션 완료를 자동 보고합니다.',
+        actions: [
+            { label: '말 선택', cls: 'btn-orange', fn: () => horseSelectAll() },
+            { label: 'N등 투표(분산)', cls: 'btn-purple', fn: () => horseVoteAll() },
+        ],
+        quick: () => horseSelectAll(),
+        info: (b) => b.info.horseIndex != null ? `🐎 말 ${b.info.horseIndex}${b.info.rank ? ` / ${b.info.rank}등표` : ''}` : '',
+        events: {
+            horseSelectionReady: (b, d) => {
+                if (d && Array.isArray(d.availableHorses) && d.availableHorses.length) horseAvailable = d.availableHorses.slice();
+            },
+            horseRouletteStart: (b, d) => { if (isLead(b)) dlog(`등수 룰렛 — 당첨 등수=${d && d.winningRank}`, 'event'); },
+            horseRaceStarted: (b, d) => {
+                if (isLead(b)) dlog(`경주 시작 (round ${d && d.raceRound}) — 당첨 ${d && d.winners ? d.winners.join(', ') : '?'}`, 'event');
+                let delay = 16000;
+                try {
+                    const fins = (d && d.rankings || []).map(r => r.finishTime || 0).filter(Boolean);
+                    if (fins.length) delay = Math.min(Math.max(...fins) + 1500, 30000);
+                } catch (e) {}
+                setTimeout(() => { try { b.socket.emit('raceAnimationComplete'); } catch (e) {} }, delay);
+            },
+            horseRaceEnded: (b, d) => {
+                if (isLead(b)) dlog(`경주 종료 — 당첨=${d && (d.finalWinner || (d.tieWinners && d.tieWinners.join(', ')))}`, 'event');
+                b.info.horseIndex = null; b.info.rank = null; updateBotList();
+            },
+        },
+    },
+    {
+        type: 'crane-game', name: '인형뽑기', emoji: '🎰', accent: '#f59e0b', maxBots: 49,
+        hint: '인형뽑기는 사전 베팅이 없습니다. 봇은 입장 후 자동 준비만 하면 됩니다. 호스트가 시작하면 서버가 당첨자를 결정합니다.',
+        actions: [],
+        quick: null,
+        info: () => '',
+        events: {
+            craneGameStarted: (b, d) => { if (isLead(b)) dlog(`인형뽑기 시작 — 당첨(예정)=${d && d.winner}`, 'event'); },
+            craneGameEnded: (b, d) => { if (isLead(b)) dlog(`인형뽑기 종료 — 당첨=${d && d.winner}`, 'event'); },
+        },
+    },
+    {
+        type: 'bridge', name: '다리건너기', emoji: '🌉', accent: '#06b6d4', maxBots: 49,
+        hint: '봇마다 색(0~5)에 베팅합니다. "전원 같은 색"으로 한 색에 몰 수도 있습니다. 베팅된 색만 최종 도전자로 뽑힙니다. 베팅 후 호스트가 시작하세요.',
+        actions: [
+            { label: '순차 베팅', cls: 'btn-orange', fn: () => bridgeBetSeq() },
+            { label: '전원 같은 색', cls: 'btn-purple', fn: () => bridgeBetSame() },
+            { label: '베팅 취소', cls: 'btn-ghost btn-sm', fn: () => bridgeCancel() },
+        ],
+        quick: () => bridgeBetSeq(),
+        info: (b) => b.info.colorIndex != null ? `${chip(BRIDGE_COLORS[b.info.colorIndex].hex)} ${BRIDGE_COLORS[b.info.colorIndex].name}` : '',
+        events: {
+            'bridge-cross:selectionConfirm': (b, d) => { b.info.colorIndex = (d && typeof d.colorIndex === 'number') ? d.colorIndex : null; updateBotList(); },
+            'bridge-cross:gameStart': (b, d) => { if (isLead(b)) dlog(`게임 시작 — 도전자 M=${d && d.M}`, 'event'); },
+            'bridge-cross:gameEnd': (b, d) => {
+                if (isLead(b)) { const w = d && (Array.isArray(d.winnerColors) ? d.winnerColors.join(', ') : d.winnerColor); dlog(`게임 종료 — 통과색 ${w}, 당첨 ${d && d.winners ? d.winners.length : 0}명`, 'event'); }
+                b.info.colorIndex = null; updateBotList();
+            },
+            'bridge-cross:gameAborted': (b, d) => { if (isLead(b)) dlog(`게임 취소: ${d && d.reason || '?'}`, 'err'); b.info.colorIndex = null; updateBotList(); },
+            'bridge-cross:bettingReady': (b) => { b.info.colorIndex = null; updateBotList(); },
+        },
+    },
+    {
+        type: 'ladder', name: '사다리타기', emoji: '🪜', accent: '#a855f7', maxBots: 5,
+        hint: '최대 6명(호스트 포함)이라 봇은 5명까지입니다. 봇마다 막대기를 배치하고 서로 다른 출발 레인을 선택합니다. 호스트가 시작하면 꽝 1명이 결정됩니다.',
+        actions: [
+            { label: '막대기 배치', cls: 'btn-orange', fn: () => ladderRungAll() },
+            { label: '레인 선택', cls: 'btn-purple', fn: () => ladderLaneAll() },
+        ],
+        quick: () => { ladderRungAll(); setTimeout(ladderLaneAll, 300); },
+        info: (b) => b.info.lane != null ? `🪜 레인 ${b.info.lane}` : '',
+        events: {
+            'ladder:rungsUpdated': (b, d) => { const lanes = (d && d.userLanes) || {}; if (lanes[b.name] != null) { b.info.lane = lanes[b.name]; updateBotList(); } },
+            'ladder:reveal': (b, d) => { if (isLead(b)) dlog(`결과 공개 — 꽝 레인=${d && d.losingLane}, 패자=${d && d.loser}`, 'event'); },
+            'ladder:gameEnd': (b, d) => { if (isLead(b)) dlog(`게임 종료 — 패자=${d && d.loser} (round ${d && d.round})`, 'event'); },
+            'ladder:gameAborted': (b, d) => { if (isLead(b)) dlog(`게임 취소: ${d && d.reason || '?'}`, 'err'); },
+            'ladder:roundReset': (b) => { b.info.lane = null; updateBotList(); },
+        },
+    },
+    {
+        type: 'spin-arena', name: '회전칼날', emoji: '⚔️', accent: '#ef4444', maxBots: 23,
+        hint: '최대 24명(호스트 포함)이라 봇은 23명까지입니다. 스킨은 서버 자동 배정에 맡기면 24색이 구분됩니다("전원 스킨"은 base 6색만 반복). 5명 이상이면 몬스터 레이스, 4명 이하면 배틀로얄.',
+        actions: [ { label: '전원 스킨(base 6색)', cls: 'btn-orange', fn: () => spinSkinAll() } ],
+        quick: null,
+        info: (b) => b.info.skin ? `${chip(skinHex(b.info.skin))} ${skinName(b.info.skin)}` : '',
+        events: {
+            'spin-arena:skinsUpdated': (b, d) => { const map = (d && d.skins) || {}; if (map[b.name]) { b.info.skin = map[b.name]; updateBotList(); } },
+            'spin-arena:reveal': (b, d) => { if (isLead(b)) dlog(`공개 — 룰=${d && d.rule} / 당첨(벌칙)=${d && d.result && d.result.selected}`, 'event'); },
+            'spin-arena:gameEnd': (b, d) => { if (isLead(b)) dlog(`게임 종료 — 당첨=${d && d.selected} (round ${d && d.round})`, 'event'); },
+            'spin-arena:roundReset': (b) => { b.info.skin = null; updateBotList(); },
+        },
+    },
+];
+function skinName(id) { const s = SPIN_SKINS.find(x => x.id === id); return s ? s.name : id; }
+function skinHex(id) { const s = SPIN_SKINS.find(x => x.id === id); return s ? s.hex : '#888'; }
+
+// ===================================================================
+//  상태
+// ===================================================================
+let serverUrl = '';
+let controlSocket = null;
+let ioLoadedFor = null;
+let connected = false;
+let roomsCache = [];
+let activeGame = GAMES[0];
+let selectedRoomId = null;
+let selectedRoomName = null;
+let horseAvailable = [0, 1, 2, 3, 4, 5]; // 경마 availableHorses (이벤트로 갱신)
+let sameColorCounter = 0;                 // 다리건너기 "전원 같은 색" 회전용 (Math.random 회피)
+const bots = [];
+
+// ===================================================================
+//  연결
+// ===================================================================
+function defaultServer() {
+    return (location.protocol === 'http:' || location.protocol === 'https:') ? location.origin : 'http://localhost:5173';
+}
+function loadIoScript(url) {
+    return new Promise((resolve, reject) => {
+        if (window.io && ioLoadedFor === url) return resolve();
+        const s = document.createElement('script');
+        s.src = url.replace(/\/+$/, '') + '/socket.io/socket.io.js';
+        s.onload = () => { ioLoadedFor = url; resolve(); };
+        s.onerror = () => reject(new Error('socket.io 클라이언트를 불러오지 못했습니다 (서버 주소/실행 여부 확인)'));
+        document.head.appendChild(s);
+    });
+}
+function setConnUI() {
+    const el = document.getElementById('connStatus');
+    const btn = document.getElementById('connectBtn');
+    if (connected) {
+        el.textContent = 'connected'; el.className = 'status ok';
+        btn.textContent = '끊기'; btn.className = 'btn-red btn-sm';
+    } else {
+        el.textContent = 'disconnected'; el.className = 'status';
+        btn.textContent = '접속'; btn.className = 'btn-green btn-sm';
+    }
+    document.getElementById('panel').classList.toggle('disabled-veil', !connected);
+}
+async function toggleConnect() {
+    if (connected || controlSocket) { disconnectServer(); return; }
+    await connectServer();
+}
+async function connectServer() {
+    const raw = (document.getElementById('serverUrl').value || '').trim().replace(/\/+$/, '');
+    if (!raw) { dlog('서버 주소를 입력하세요', 'err'); return; }
+    serverUrl = raw;
+    localStorage.setItem('devtoolsHubServer', raw);
+    document.getElementById('connStatus').textContent = 'connecting...';
+    try { await loadIoScript(raw); }
+    catch (e) { dlog(e.message, 'err'); document.getElementById('connStatus').textContent = 'disconnected'; return; }
+
+    if (controlSocket) { try { controlSocket.removeAllListeners(); controlSocket.disconnect(); } catch (e) {} controlSocket = null; }
+    controlSocket = io(raw, { transports: ['websocket'], forceNew: true, reconnection: true, reconnectionAttempts: 5 });
+    controlSocket.on('connect', () => {
+        connected = true; setConnUI();
+        dlog(`서버 접속됨: ${raw}`, 'ok');
+        controlSocket.emit('getRooms');
+    });
+    controlSocket.on('disconnect', () => { connected = false; setConnUI(); });
+    controlSocket.on('connect_error', (e) => {
+        connected = false; setConnUI();
+        document.getElementById('connStatus').textContent = 'connect error';
+        dlog(`접속 실패: ${e && e.message || e}`, 'err');
+    });
+    controlSocket.on('roomsList', r => { roomsCache = r || []; renderRooms(); });
+    controlSocket.on('roomsListUpdated', r => { roomsCache = r || []; renderRooms(); });
+}
+function disconnectServer() {
+    disconnectAll();
+    if (controlSocket) { try { controlSocket.removeAllListeners(); controlSocket.disconnect(); } catch (e) {} controlSocket = null; }
+    connected = false; roomsCache = []; selectedRoomId = null; selectedRoomName = null;
+    renderRooms(); setConnUI();
+    dlog('서버 연결 해제', 'info');
+}
+function refreshRooms() { if (controlSocket && connected) controlSocket.emit('getRooms'); else dlog('먼저 접속하세요', 'err'); }
+
+// ===================================================================
+//  게임 탭
+// ===================================================================
+function renderTabs() {
+    const el = document.getElementById('tabs');
+    el.innerHTML = GAMES.map(g => {
+        const on = g === activeGame;
+        const style = on ? `background:${g.accent};border-color:${g.accent}` : '';
+        return `<div class="tab${on ? ' active' : ''}" style="${style}" onclick="selectGame('${g.type}')">${g.emoji} ${g.name}</div>`;
+    }).join('');
+}
+function selectGame(type) {
+    const g = GAMES.find(x => x.type === type);
+    if (!g || g === activeGame) return;
+    if (bots.length) { dlog(`게임 전환(${activeGame.name}→${g.name}) — 기존 봇 전원 퇴장`, 'info'); disconnectAll(); }
+    activeGame = g;
+    selectedRoomId = null; selectedRoomName = null;
+    renderTabs(); renderGamePanel(); renderRooms();
+}
+function renderGamePanel() {
+    const g = activeGame;
+    document.getElementById('gameTitle').innerHTML = `${g.emoji} ${g.name}`;
+    document.getElementById('gameHint').textContent = g.hint;
+    const bc = document.getElementById('botCount');
+    bc.max = g.maxBots;
+    if (parseInt(bc.value, 10) > g.maxBots) bc.value = Math.min(5, g.maxBots);
+    // 게임별 액션 버튼
+    const ga = document.getElementById('gameActions');
+    ga.innerHTML = g.actions.map((a, i) => `<button class="${a.cls}" onclick="runAction(${i})">${escapeHtml(a.label)}</button>`).join('');
+    document.getElementById('quickBtn').textContent = g.quick ? `⚡ 원클릭 (입장 + 준비 + ${g.actions[0] ? g.actions[0].label : '액션'})` : '⚡ 원클릭 (입장 + 준비)';
+}
+function runAction(i) { const a = activeGame.actions[i]; if (a) a.fn(); }
+
+// ===================================================================
+//  방 목록
+// ===================================================================
+function renderRooms() {
+    const el = document.getElementById('roomList');
+    if (!connected) { el.innerHTML = '<span style="color:#555">접속하면 방 목록이 표시됩니다.</span>'; document.getElementById('roomCount').textContent = 0; return; }
+    const rooms = roomsCache.filter(r => r.gameType === activeGame.type);
+    document.getElementById('roomCount').textContent = rooms.length;
+    if (!rooms.length) { el.innerHTML = `<span style="color:#555">${activeGame.name} 방 없음 (dice 로비에서 방을 만들어 호스트가 되세요)</span>`; return; }
+    el.innerHTML = rooms.map(r => {
+        const sel = r.roomId === selectedRoomId ? ' selected' : '';
+        const n = r.playerCount || 0;
+        const st = r.isGameActive ? '진행' : '대기';
+        const nm = r.roomName || ('방 #' + String(r.roomId || '').slice(0, 6));
+        return `<span class="room-chip${sel}" onclick="pickRoom(this.dataset.rid, this.dataset.nm)" data-rid="${escapeAttr(r.roomId)}" data-nm="${escapeAttr(nm)}"><b>${escapeHtml(nm)}</b> ${n}명 ${st}</span>`;
+    }).join('');
+}
+function pickRoom(id, name) {
+    selectedRoomId = id; selectedRoomName = name;
+    dlog(`방 선택: ${name}`, 'info');
+    renderRooms();
+}
+async function pickRoomFromLink() {
+    if (!connected) { dlog('먼저 접속하세요', 'err'); return; }
+    const raw = (document.getElementById('linkInput').value || '').trim();
+    if (!raw) { dlog('링크를 입력하세요', 'err'); return; }
+    const m = raw.match(/([A-Z0-9]{4,6})\/?(?:\?|#|$)/);
+    if (!m) { dlog('링크에서 shortcode를 찾을 수 없습니다', 'err'); return; }
+    const code = m[1];
+    const sameOrigin = serverUrl === location.origin;
+    try {
+        const r = await fetch(serverUrl.replace(/\/+$/, '') + '/api/free/resolve/' + encodeURIComponent(code), { headers: { 'Accept': 'application/json' } });
+        if (!r.ok) { dlog(`방을 찾을 수 없습니다 (HTTP ${r.status})`, 'err'); return; }
+        const info = await r.json();
+        if (!info.roomId) { dlog('잘못된 응답', 'err'); return; }
+        if (info.gameType !== activeGame.type) { dlog(`현재 탭(${activeGame.name})과 다른 게임입니다 (gameType: ${info.gameType}). 탭을 바꾸세요.`, 'err'); return; }
+        if (info.serverId) dlog('주의: 서버 방은 봇이 입장 거부될 수 있습니다 (봇은 서버 멤버 아님).', 'info');
+        selectedRoomId = info.roomId;
+        selectedRoomName = info.roomName || ('방 #' + code);
+        dlog(`링크 방 선택: ${selectedRoomName} (${code})`, 'info');
+        renderRooms();
+    } catch (e) {
+        if (!sameOrigin) dlog('초대 링크 해석은 도구를 그 서버에서 열었을 때만 동작합니다 (CORS). 위 방 목록에서 직접 선택하세요.', 'err');
+        else dlog(`링크 조회 실패: ${e.message}`, 'err');
+    }
+}
+
+// ===================================================================
+//  봇 — 입장 / 준비 / 퇴장
+// ===================================================================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function joinBots() {
+    if (!connected) { dlog('먼저 접속하세요', 'err'); return; }
+    if (!selectedRoomId) { dlog('방을 먼저 선택하세요', 'err'); return; }
+    const want = parseInt(document.getElementById('botCount').value, 10) || 1;
+    const room = roomsCache.find(r => r.roomId === selectedRoomId);
+    const max = activeGame.maxBots;
+    dlog(`봇 ${want}명 입장 시도 → ${selectedRoomName || selectedRoomId}`, 'info');
+    for (let i = 0; i < want; i++) {
+        if (bots.length >= max) { dlog(`봇 상한 ${max}명 도달`, 'err'); break; }
+        try { await joinOneBot(BOT_NAMES[bots.length] || ('Bot' + bots.length), room && room.isPrivate); }
+        catch (e) { dlog(`입장 실패: ${e}`, 'err'); }
+        if (i < want - 1) await sleep(400);
+    }
+}
+
+function joinOneBot(name, isPrivate) {
+    return new Promise((resolve, reject) => {
+        const s = io(serverUrl, { transports: ['websocket'], forceNew: true });
+        const bot = { socket: s, name, status: 'connecting', ready: false, info: {} };
+        bots.push(bot);
+        updateBotList();
+
+        const timeout = setTimeout(() => { bot.status = 'timeout'; dlog(`${name} 타임아웃`, 'err'); updateBotList(); reject('timeout'); }, 10000);
+
+        let password = '';
+        if (isPrivate) { password = window.prompt(`비공개 방 "${selectedRoomName}" 비밀번호 (${name})`, '') || ''; }
+
+        s.on('connect', () => {
+            bot.status = 'connected'; updateBotList();
+            s.emit('joinRoom', {
+                roomId: selectedRoomId, userName: name, isHost: false, password: password,
+                deviceId: 'bot-' + Math.random().toString(36).slice(2),
+                tabId: 'bot-' + Math.random().toString(36).slice(2),
+            });
+        });
+        s.on('roomJoined', (data) => {
+            clearTimeout(timeout);
+            if (data && data.userName) bot.name = data.userName;          // 서버가 중복 이름 변형 시 채택
+            bot.status = 'joined';
+            if (data && Array.isArray(data.readyUsers)) bot.ready = data.readyUsers.includes(bot.name);
+            else if (data && data.isReady != null) bot.ready = !!data.isReady;
+            dlog(`${bot.name} 입장${bot.ready ? ' (자동 준비)' : ''}`, 'ok');
+            updateBotList(); resolve();
+        });
+        s.on('roomError', m => { clearTimeout(timeout); bot.status = 'error'; dlog(`${name} 거부: ${typeof m === 'string' ? m : JSON.stringify(m)}`, 'err'); updateBotList(); reject(m); });
+        s.on('readyUsersUpdated', list => { const arr = Array.isArray(list) ? list : (list && list.readyUsers) || []; bot.ready = arr.includes(bot.name); updateBotList(); });
+        s.on('connect_error', e => { clearTimeout(timeout); bot.status = 'error'; dlog(`${name} 연결실패`, 'err'); updateBotList(); reject(e && e.message); });
+        s.on('disconnect', () => { bot.status = 'disconnected'; updateBotList(); });
+
+        // 게임별 이벤트 (상태 동기화 + 로그 + 자동행동)
+        const evs = activeGame.events || {};
+        Object.keys(evs).forEach(name2 => { s.on(name2, (data) => { try { evs[name2](bot, data); } catch (e) { dlog(`이벤트 ${name2} 처리 오류: ${e.message}`, 'err'); } }); });
+    });
+}
+
+function readyAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    let n = 0;
+    j.forEach(b => { if (!b.ready) { b.socket.emit('toggleReady'); n++; } });
+    dlog(n ? `${n}봇 준비 요청` : '모든 봇 이미 준비됨', 'ok');
+}
+function unreadyAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    let n = 0;
+    j.forEach(b => { if (b.ready) { b.socket.emit('toggleReady'); n++; } });
+    dlog(n ? `${n}봇 준비 해제 요청` : '준비된 봇 없음', 'info');
+}
+function disconnectAll() {
+    bots.forEach(b => { try { b.socket.removeAllListeners(); b.socket.disconnect(); } catch (e) {} });
+    bots.length = 0;
+    updateBotList();
+}
+async function quickFlow() {
+    await joinBots();
+    await sleep(400);
+    readyAll();
+    if (activeGame.quick) { await sleep(400); activeGame.quick(); }
+}
+
+// ===================================================================
+//  게임별 액션 구현
+// ===================================================================
+// 주사위
+function diceRollOne(b) {
+    if (b.status !== 'joined') return;
+    b.socket.emit('requestRoll', { userName: b.name, clientSeed: 'bot-' + Math.random().toString(36).slice(2), min: 1, max: 100 });
+}
+function diceRollAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    j.forEach((b, i) => setTimeout(() => diceRollOne(b), i * 120));
+    dlog(`${j.length}봇 주사위 굴림`, 'ok');
+}
+// 룰렛
+function rouletteColorAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    j.forEach((b, i) => { const c = i % 16; b.socket.emit('selectRouletteColor', { colorIndex: c }); b.info.colorIndex = c; });
+    dlog(`${j.length}봇 색상 선택 (16색 순환, 17번째부터 중복 거부됨)`, 'ok');
+    updateBotList();
+}
+// 경마
+function horseSelectAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const horses = horseAvailable.length ? horseAvailable : [0, 1, 2, 3, 4, 5];
+    j.forEach((b, i) => { const hi = horses[i % horses.length]; b.socket.emit('selectHorse', { horseIndex: hi }); b.info.horseIndex = hi; });
+    dlog(`${j.length}봇 말 선택`, 'ok');
+    updateBotList();
+}
+function horseVoteAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const maxRank = horseAvailable.length || 6;
+    j.forEach((b, i) => { const rank = (i % maxRank) + 1; b.socket.emit('voteRank', { rank }); b.info.rank = rank; });
+    dlog(`${j.length}봇 등수 투표 (1~${maxRank} 분산)`, 'ok');
+    updateBotList();
+}
+// 다리건너기
+function bridgeBetSeq() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    j.forEach((b, i) => { const c = i % 6; b.socket.emit('bridge-cross:select', { colorIndex: c }); b.info.colorIndex = c; });
+    dlog(`${j.length}봇 순차 베팅`, 'ok');
+    updateBotList();
+}
+function bridgeBetSame() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    const c = (sameColorCounter++) % 6;
+    j.forEach(b => { b.socket.emit('bridge-cross:select', { colorIndex: c }); b.info.colorIndex = c; });
+    dlog(`${j.length}봇 모두 ${BRIDGE_COLORS[c].name} 베팅`, 'ok');
+    updateBotList();
+}
+function bridgeCancel() {
+    const bettors = joined().filter(b => b.info.colorIndex != null);
+    if (!bettors.length) { dlog('베팅한 봇 없음', 'info'); return; }
+    bettors.forEach(b => { b.socket.emit('bridge-cross:select', { colorIndex: b.info.colorIndex }); b.info.colorIndex = null; }); // 같은 색 재전송 = 토글 취소
+    dlog(`${bettors.length}봇 베팅 취소`, 'info');
+    updateBotList();
+}
+// 사다리타기
+function ladderRungAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    j.forEach((b, i) => {
+        const c = i % 5;                              // 기둥 0~4 (레인 6 → 기둥 5개)
+        const y = Math.min(0.15 + i * 0.13, 0.92);   // 최소 간격 0.05 이상 확보
+        b.socket.emit('ladder:addRung', { c, y: +y.toFixed(2) });
+    });
+    dlog(`${j.length}봇 막대기 배치`, 'ok');
+}
+function ladderLaneAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    j.forEach((b, i) => { const lane = i % 6; b.socket.emit('ladder:pickLane', { lane }); b.info.lane = lane; });
+    dlog(`${j.length}봇 레인 선택`, 'ok');
+    updateBotList();
+}
+// 회전칼날
+function spinSkinAll() {
+    const ready = joined().filter(b => b.ready);
+    if (!ready.length) { dlog('준비된 봇 없음 (먼저 입장/준비)', 'err'); return; }
+    ready.forEach((b, i) => { const id = SPIN_SKINS[i % SPIN_SKINS.length].id; b.socket.emit('spin-arena:selectSkin', { skinId: id }); b.info.skin = id; });
+    dlog(`${ready.length}봇 스킨 선택 (base 6색 순환)`, 'ok');
+    updateBotList();
+}
+
+// ===================================================================
+//  렌더 / 로그 / 이스케이프
+// ===================================================================
+function updateBotList() {
+    const el = document.getElementById('botList');
+    document.getElementById('botCountBadge').textContent = bots.length;
+    if (!bots.length) { el.innerHTML = '<span style="color:#555">봇 없음</span>'; return; }
+    el.innerHTML = bots.map(b => {
+        const rdy = b.status === 'joined' ? (b.ready ? '<span class="ready-yes">준비✓</span>' : '<span class="ready-no">대기</span>') : '';
+        const extra = (activeGame.info && b.status === 'joined') ? activeGame.info(b) : '';
+        return `<div class="bot-row"><div class="dot ${b.status}"></div><span>${escapeHtml(b.name)}</span>` +
+            `<span style="color:#888;font-size:11px">${b.status}</span> ${rdy}` +
+            (extra ? `<span style="font-size:11px">${extra}</span>` : '') + `</div>`;
+    }).join('');
+}
+function dlog(msg, cls) {
+    const el = document.getElementById('debugLog');
+    const d = document.createElement('div');
+    d.className = 'log-' + (cls || 'info');
+    const t = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    d.textContent = `[${t}] ${msg}`;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
+
+// ===================================================================
+//  초기화
+// ===================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('devtoolsHubServer') || defaultServer();
+    document.getElementById('serverUrl').value = saved;
+    document.getElementById('serverUrl').addEventListener('keydown', e => { if (e.key === 'Enter') toggleConnect(); });
+    document.getElementById('linkInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pickRoomFromLink(); } });
+    renderTabs(); renderGamePanel(); setConnUI(); renderRooms();
+    connectServer().catch(() => {}); // 저장된/기본 주소로 자동 접속 시도 (에러는 내부에서 로깅)
+});
+</script>
+</body>
+</html>
