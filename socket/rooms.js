@@ -591,6 +591,15 @@ module.exports = (socket, io, ctx) => {
         io.to(roomId).emit('updateOrders', gameState.userOrders);
         io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
+        // 사다리타기 방 생성: 호스트도 입장 즉시 빈 레인(1~6) 하나를 서버 RNG로 자동 점유(경마식 "자리 선물").
+        // 입장(joinRoom) 경로와 동일 규칙 — 그곳엔 있었으나 createRoom엔 누락돼 호스트만 자동 점유가 빠지던 버그 수정.
+        // phase=idle이면 claimLadderFreeLane이 항상 emit → 이제 base(ensureBaseRungs 게이트 제거)도 함께
+        // 생성·broadcast되어 호스트 단독(준비 전)에도 사다리가 즉시 보인다. claimLadderFreeLane는 멱등·6 만석 안전.
+        if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
+            // 점유 성공 시 내부에서 emitLadderRungsUpdated를 호출한다(호스트 그리드에 pre-select + base 반영).
+            if (ctx.claimLadderFreeLane) ctx.claimLadderFreeLane(room, gameState, trimmedUserName);
+        }
+
         // 모든 클라이언트에게 방 목록 업데이트
         updateRoomsList();
     });
@@ -1126,6 +1135,10 @@ module.exports = (socket, io, ctx) => {
         // 사다리타기 빌드(대기) 재진입: 막대기/레인 수 복원 + 인원 증가 반영 (server-only 정보 미포함).
         // 입장자는 현재 상태를 받고, 기존 참가자는 늘어난 레인 수를 즉시 반영하도록 전체 브로드캐스트.
         if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
+            // 입장 즉시 빈 레인(1~6) 하나를 서버 RNG로 자동 점유(경마식 "자리 선물"). 6개 다 차 있으면 미배정.
+            // claimLadderFreeLane 내부에서 점유 성공 시 emitLadderRungsUpdated를 호출한다.
+            if (ctx.claimLadderFreeLane) ctx.claimLadderFreeLane(room, gameState, finalUserName);
+            // 자동 점유가 없었어도(또는 6명 만석) 막대기/레인 수/base를 항상 동기화 브로드캐스트.
             // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
             if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
         }
@@ -1177,16 +1190,20 @@ module.exports = (socket, io, ctx) => {
                 delete gameState.bridgeCross.userColorBets[socket.userName];
             }
 
-            // 🔧 퇴장한 사용자의 사다리타기 레인 선택 삭제
+            // 🔧 퇴장한 사용자의 사다리타기 레인 선택 + drawer 색 인덱스 삭제
             if (gameState.ladder && gameState.ladder.userLanes &&
                 gameState.ladder.userLanes[socket.userName] !== undefined) {
                 delete gameState.ladder.userLanes[socket.userName];
             }
-            // 🔧 퇴장한 사용자의 사다리타기 막대기 삭제 (빌드 단계) + 인원 변동 트림 후 브로드캐스트
+            if (gameState.ladder && gameState.ladder.colorIndex &&
+                gameState.ladder.colorIndex[socket.userName] !== undefined) {
+                delete gameState.ladder.colorIndex[socket.userName];
+            }
+            // 🔧 퇴장한 사용자의 사다리타기 막대기 배열 삭제 (빌드 단계) + 인원 변동 트림 후 브로드캐스트
             if (gameState.ladder && gameState.ladder.phase === 'idle' && gameState.ladder.userRungs) {
                 const ld = gameState.ladder;
                 if (ld.userRungs[socket.userName]) delete ld.userRungs[socket.userName];
-                // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
+                // 레인은 항상 6 고정 — 트림·브로드캐스트(가시 base/colorIndex 포함)는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
                 if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
             }
             // 🔧 퇴장한 사용자의 회전칼날 스킨 선택 삭제 + idle이면 동기화 재emit

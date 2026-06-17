@@ -85,9 +85,14 @@ function createRoomGameState() {
         ladder: {
             phase: 'idle',          // idle(로비/빌드) | selecting | revealing | finished
             numLanes: 0,
-            userRungs: {},          // { [userName]: { c, y, slant } } — 유저가 직접 놓은 막대기(연속 좌표, 가시)
-            baseRungs: [],          // server-only [{c,y,slant}] — 숨은 기본 막대기 (reveal까지 비공개)
-            rungs: [],              // server-only [{c,y,slant}] — 최종 결합 막대기(y정렬, reveal 시 전송)
+            userRungs: {},          // { [userName]: [{ id, c, y, slant, points }] } — 유저가 직접 놓은 막대기 배열(인당 ≤3, 가시)
+            baseRungs: [],          // 가시 [{ id, c, y, slant }] — 빌드 오픈 시 1회 생성, rungsUpdated로 공개
+            baseRungsGenerated: false, // base 막대기 1회 생성 가드 (멱등)
+            colorIndex: {},         // { [userName]: int } — drawer 색 인덱스(서버 권위, 결정적). 라운드마다 재배정
+            rungSeq: 0,             // 막대기 id 단조 카운터(서버 권위) — Math.random/timestamp 금지
+            rungs: [],              // server-only [{ id, c, y, slant, points, user, owner }] — 스크램블 후 final(y정렬, reveal 시 전송)
+            erased: [],             // server-only — 스크램블이 지운 막대기 (reveal 연출용)
+            added: [],              // server-only — 스크램블이 추가한 막대기 (reveal 연출용)
             kkwangBottom: -1,
             laneToBottom: [],       // server-only
             losingLane: -1,         // server-only
@@ -106,8 +111,8 @@ function createRoomGameState() {
             phase: 'idle',          // idle | playing | finished
             skins: {},              // { userName: skinId }
             participants: [],       // 시작 시점 사람 참가자 이름
-            timeline: null,         // server-only: { slots, frames, escapes, downs, bladeUps, decideMs, durationMs } (재진입 마스킹 대상)
-            result: null,           // server-only: { selected, rankings }
+            timeline: null,         // server-only: { slots, twoStage, frames, hpFrames, bladeFrames, hpMax, finalists, round1EndMs, decideMs, durationMs, items, pickups } (재진입 마스킹 대상)
+            result: null,           // server-only: { selected, rankings, successionList }
             seed: 0,                // server-only
             round: 0,
             history: [],
