@@ -5,6 +5,9 @@
     /* 게임 전용 그라데이션 (보라 + 청록 — 회전/날 느낌) */
     --spin-arena-gradient: linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%);
 
+    /* (feel-v5 V1) 라운드 종료 전환 페이드 한쪽(아웃/인) 길이 — JS SPIN_ROUNDEND_FADE_MS와 동기 */
+    --spin-roundend-fade-ms: 350ms;
+
     /* horse-race.css가 쓰는 var(--horse-*)를 spin-arena 색으로 alias (C-4) */
     --horse-500: var(--spin-arena-500);
     --horse-600: var(--spin-arena-600);
@@ -75,69 +78,25 @@ body.spin-running #spinArenaCanvas {
     body.spin-running #spinArenaCanvas { animation: none; }
 }
 
-/* ── 관전 카메라 전환(세그먼트 컨트롤) — 캔버스 위, 게임 중에만 노출 ── */
-#spinCameraBar {
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-    width: 100%;
-    max-width: 480px;
-    margin: 0 auto 8px;
-    padding: 4px;
-    background: rgba(13, 19, 38, 0.85);
-    border: 1px solid rgba(var(--spin-arena-500-rgb), 0.4);
-    border-radius: 12px;
-    box-sizing: border-box;
+/* (feel-v5 V1) 라운드 종료→다음 라운드 전환 풀스크린 암전.
+   유일한 풀스크린 블랙아웃(결승 전환 암전은 폐기). 캔버스 hide/idle 전환에 강건하도록 DOM 오버레이로 처리.
+   기본 투명 + pointer-events 차단(애니메이션 종료 후 JS가 제거). 색은 토큰화 어려운 순수 블랙이므로 rgba 허용. */
+#spinRoundEndFade {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;            /* LoadingScreen(9999) 아래, 그 외 위 */
+    background: rgba(0, 0, 0, 1);
+    opacity: 0;
+    pointer-events: none;     /* 종료 후 클릭 차단 방지(완전 제거 전에도 안전) */
+    transition: opacity var(--spin-roundend-fade-ms, 350ms) ease;
+}
+#spinRoundEndFade.visible { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+    /* 강모션 최소화: 트랜지션 제거(JS가 짧은 페이드 대신 즉시 전환) */
+    #spinRoundEndFade { transition: none; }
 }
 
-.spin-cam-btn {
-    flex: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    min-height: 44px;              /* 모바일 터치 타깃 */
-    padding: 6px 8px;
-    background: transparent;
-    color: var(--text-muted, #aeb6c2);
-    border: none;
-    border-radius: 9px;
-    font-weight: 700;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-}
-
-.spin-cam-btn .spin-cam-ic { font-size: 15px; line-height: 1; }
-
-.spin-cam-btn:hover {
-    background: rgba(var(--spin-arena-500-rgb), 0.14);
-    color: var(--text-bright, #eef2fb);
-}
-
-.spin-cam-btn.active {
-    background: var(--spin-arena-gradient);
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(var(--spin-arena-500-rgb), 0.4);
-}
-
-.spin-cam-btn.disabled,
-.spin-cam-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.spin-cam-btn.disabled:hover,
-.spin-cam-btn:disabled:hover {
-    background: transparent;
-    color: var(--text-muted, #aeb6c2);
-}
-
-/* 모바일: 라벨 축약(아이콘 우선) — 좁은 화면에서 3버튼 가독 */
-@media (max-width: 400px) {
-    .spin-cam-btn { font-size: 12px; padding: 6px 4px; }
-    .spin-cam-btn .spin-cam-lb { font-size: 11px; }
-}
 
 /* ── 스킨 피커 ── */
 #spinSkinPicker {

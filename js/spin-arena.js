@@ -1,28 +1,32 @@
 /* 회전 칼날(spin-arena) 클라이언트 로직.
    부트스트랩(방 생성/입장 + 공통 모듈 init)은 ladder 패턴 차용.
    게임 로직(스킨 피커 + Canvas 리플레이 + spin-arena:* 핸들러)은 회전 칼날 전용.
-   공정성: 서버가 모든 결과 결정. 클라는 frames 보간 + ringRadiusAt/bladeAngle만 t로 계산(리플레이).
-   Math.random은 deviceId/tabId 생성에만 사용(게임 결과와 무관). */
+   공정성: 서버가 모든 결과 결정. 클라는 frames/hpFrames 보간 + ringRadiusAt/bladeAngle만 t로 계산(리플레이).
+   Math.random은 deviceId/tabId 생성에만 사용(게임 결과와 무관).
+
+   모델(2026-06-17 lowest-damage 2단계 재단순화):
+   - 단일 단계(n<6): 30초 데미지 레이스 → 최저 누적 데미지(=당첨). 결승 없음(round1EndMs=null, finalists=[]).
+   - 2단계(n≥6): 30초 데미지 레이스 → 최저 데미지 하위 3명 결승(축소 링 서든데스, 첫 HP 0 = 당첨). 나머지는 안전(승자). */
 
 // ─── 공유 상수 (socket/spin-arena.js 상단과 반드시 동일 값) ───
 var ARENA_W = 480, ARENA_H = 480, ARENA_CX = 240, ARENA_CY = 240;
 var ARENA_R = 220;
-var MAX_SLOTS = 6;              // 최대 참가 슬롯(사람 n=2~6 가변, 봇 없음)
-var GAME_MS = 30000;
+var MAX_SLOTS = 24;             // 최대 참가 슬롯(사람 n=2~24 가변, 봇 없음)
+var GAME_MS = 70000;           // 하드 캡 — 서버와 동일(Stage1 40s + 인트로 8s + 결승 캡 18s + tail 2s 여유)
 var COUNTDOWN_MS = 4000;        // 3-2-1-START 카운트다운 실측(1000ms×4) — 서버 endTimeout 가산값과 동일
 var SAMPLE_MS = 100;
 var CHAR_RADIUS = 14;
-var BLADE_COUNT = 2;            // 시작 칼날 수
-var ESCAPE_BLADES = 5;          // 이 개수 도달 = 즉시 탈출 (서버와 동일)
+var BLADE_COUNT = 1;            // 칼날 수 base(feel-v5 S1: 자동 성장 폐기, 칼추가 아이템만으로 증가. 서버와 동일). 실시간 수는 bladeCountAt(bladeFrames)로 읽음.
 var BLADE_RADIUS = 46;
 var SWORD_LEN = 28;             // 도신(검 날) 길이 — 서버와 동일. 날 안쪽 끝 = BLADE_RADIUS - SWORD_LEN (보이는 검 = 맞는 검)
 var BLADE_EDGE_R = 3.5;         // 날 선분(캡슐) 반경 — 서버 판정 임계와 동일
-var BLADE_UP_DMG = 35;          // 받은 데미지 누적 임계당 칼 +1 (서버와 동일)
-var REVIVE_MS = 3000;           // 다운(HP 0) → 부활 시간 (서버와 동일 — 실제 부활 시각은 payload downs[].reviveMs가 권위)
+var HP_MAX = 100;              // 결승 결투 HP(Stage1은 HP 불변 — 탈락 없음). hpFrames 분모 = HP_MAX. 서버 HP_MAX 미러.
 var RING_R_START = 220;
-var RING_R_END = 60;            // 서버 socket/spin-arena.js 와 반드시 동일 (링 렌더 동기)
-var RING_PHASE1_MS = 10000;
-var RING_PHASE2_MS = 20000;
+var RING_R_END = 60;            // 결승 최종 반경 — 서버 socket/spin-arena.js 와 반드시 동일 (링 렌더 동기)
+var STAGE1_MS = 40000;          // Stage1 타임박스(고정 40초 데미지 레이스 — 탈락·조기종료 없음) — 서버 STAGE1_MS 미러
+var STAGE1_RING_END = 150;      // Stage1 종료 시점 링 반경(완만 수축으로 군집 압박) — 서버 STAGE1_RING_END 미러
+var ROUND2_INTRO_MS = 8000;    // Stage1→결승 전환(전투 정지·결승 집결·링 풀): 순위 요약 ≥5s + 3·2·1 3s — 서버 ROUND2_INTRO_MS 미러
+var RING2_SHRINK_MS = 6500;     // 결승 링 수축(인트로 종료부터) — 서버 RING2_SHRINK_MS 미러
 
 // 스킨 프리셋 (서버 socket/spin-arena.js 와 동일 값 계약 — 결과 무관, 순수 외형)
 // 24색 × (t1 + t2 스킨업). 자동 배정 풀 = base tier1 24색 전체(서버 거울 규칙 — 소유 무관, 24명 distinct).
@@ -89,12 +93,31 @@ function spinSkinTier(slotOrId) {
 // n≤6은 1(검증된 baseline 동결), n>6만 √(6/n) 축소 → 밀도 보존.
 function spinScale(n) { return n <= 6 ? 1 : Math.sqrt(6 / n); }
 
-// 링 반경 함수 (서버와 동일 구현 — 클라가 t로 계산)
-function ringRadiusAt(t) {
-    if (t <= RING_PHASE1_MS) return RING_R_START;
-    if (t >= RING_PHASE2_MS) return RING_R_END;
-    var k = (t - RING_PHASE1_MS) / (RING_PHASE2_MS - RING_PHASE1_MS);
-    return RING_R_START + (RING_R_END - RING_R_START) * k;
+// 링 반경 함수 (서버 ringRadiusAt와 비트 동일 구현 — 클라가 t로 계산) — 단계 인지.
+// round1EndMs === null : 단일 단계 전체 / 2단계 Stage1 진행 중 — Stage1 완만 수축(220→150, STAGE1_MS).
+// round1EndMs !== null : 2단계 — t<round1EndMs Stage1, 인트로(ROUND2_INTRO_MS) 동안 링 풀(220), 인트로 후 결승 수축(220→60).
+// round1EndMs는 payload로 전달 — 클라/서버 동일 입력이라 결정론.
+function ringRadiusAt(t, round1EndMs) {
+    if (round1EndMs === null || round1EndMs === undefined) {
+        var k0 = Math.min(1, Math.max(0, t / STAGE1_MS));
+        return RING_R_START + (STAGE1_RING_END - RING_R_START) * k0;
+    }
+    if (t < round1EndMs) {
+        var k1 = Math.min(1, Math.max(0, t / round1EndMs));
+        return RING_R_START + (STAGE1_RING_END - RING_R_START) * k1;
+    }
+    if (t < round1EndMs + ROUND2_INTRO_MS) return RING_R_START;   // 인트로(결승 3인 집결): 링 풀
+    var k2 = Math.min(1, (t - (round1EndMs + ROUND2_INTRO_MS)) / RING2_SHRINK_MS);   // 결승 수축
+    return RING_R_START + (RING_R_END - RING_R_START) * k2;
+}
+
+// 미션/상태 텍스트 — 단계별 평이한 한국어(2탭 동일, t·payload 파생). 당첨/안전/위험 표현.
+//   twoStage=false(단일): 30초 데미지 레이스 → 최하위가 당첨.
+//   twoStage=true(2단계): Stage1 → 최하위 3명 결승 → 결승은 먼저 쓰러지면 당첨.
+function spinMissionText(twoStage, round1EndMs, t) {
+    if (twoStage && round1EndMs != null && t >= round1EndMs) return '⚔️ 결승! 먼저 쓰러지면 당첨';
+    if (twoStage) return '💥 많이 칠수록 안전! 최하위 3명이 결승행';
+    return '💥 많이 칠수록 안전! 최하위가 당첨';
 }
 
 // localhost 체크
@@ -181,7 +204,7 @@ function getSpinVolume() {
     return isNaN(v) ? 1.0 : v;
 }
 function playSpinSound(key, vol) {
-    if (spinReplay && spinReplay.isReplayMode) return;   // 다시보기 중 효과음 음소거
+    if (spinReplay && spinReplay.isReplayMode) return;   // 다시보기 재생 중 효과음 음소거
     if (typeof SoundManager !== 'undefined' && SoundManager.playSound) {
         SoundManager.playSound(key, getSpinSoundEnabled(), vol != null ? vol : getSpinVolume());
     }
@@ -445,7 +468,7 @@ function renderSkinPicker() {
     } else if (!ready) {
         html += '<div class="spin-skin-hint">준비하면 칼날 스킨을 고를 수 있어요. 안 골라도 시작 시 자동 배정됩니다.</div>';
     } else {
-        html += '<div class="spin-skin-hint">마음에 드는 칼날 스킨을 골라주세요. 🔒 스킨은 상점에서 구매하면 열려요. (결과와 무관한 외형)</div>';
+        html += '<div class="spin-skin-hint">무료 스킨은 여기서 바로 골라요. 🔒 유료·스킨업 스킨은 🛍️ 상점에서 장착해요. (결과와 무관한 외형)</div>';
     }
 
     // 16색 스와치 — 색별로 보유 최고 티어를 자동 사용(t2 보유 시 Ⅱ 배지 + t2 선택).
@@ -455,9 +478,9 @@ function renderSkinPicker() {
         var sk = SPIN_SKIN_COLORS[i];
         var t2Id = sk.id + '_t2';
         var hasT2 = ownsSkin(t2Id);
-        var hasT1 = sk.free || ownsSkin(sk.id);
-        var useId = hasT2 ? t2Id : (hasT1 ? sk.id : null);   // 이 색을 고르면 쓰게 될 skinId
-        var locked = !useId;
+        // #11 피커(바깥)는 free 스킨만 직접 선택. 유료(소유 포함)·스킨업(t2)은 전부 상점에서 장착 → 클릭 시 상점 오픈.
+        var useId = sk.free ? sk.id : null;
+        var locked = !sk.free;
         // 이 색을 고른 사람들(닉네임 칩) — t1/t2 모두 같은 색으로 묶어 표시
         var owners = [];
         for (var name in spinSkins) {
@@ -534,7 +557,7 @@ function trySpinApplyEquippedSkin(force) {
 }
 
 // ── Canvas 리플레이 + 이펙트 레이어 ──
-// 모든 이펙트는 시각 전용이며 리플레이 t(서버 권위 frames/escapes/downs/bladeUps/result)에서 파생된다.
+// 모든 이펙트는 시각 전용이며 리플레이 t(서버 권위 frames/hpFrames/finalists/result)에서 파생된다.
 // 좌표·진행도·결과는 절대 변경하지 않는다(스케일펀치는 렌더 오프셋만). cosmetic jitter는
 // 결정론 해시 PRNG로 만들어 클라 Math.random을 0회로 유지(deviceId/tabId 제외) → 2탭 화면 동일.
 var spinReplay = {
@@ -543,56 +566,56 @@ var spinReplay = {
     startTs: 0,
     raf: null,
     lastNow: 0,             // 직전 프레임 시각(파티클 dt 적분용)
-    burstDone: {},          // { key: true } — 탈출/다운/부활 연출 1회 마커 (esc{id} / down{id}_{k} / rev{id}_{k})
-    bladeFlashDone: {},     // { bladeUpIndex: true } — 칼업 ⚔️+1 플래시 1회 마커
+    burstDone: {},          // { key: true } — 결승 전환/카운트다운 연출 1회 마커 (finaleStart / cd{n})
     lastDmgFrame: 0,        // 데미지 숫자: 마지막 처리 키프레임 인덱스
+    lastPickupT: -1,        // 픽업 연출: pickups.timeMs가 (lastPickupT, t]를 넘는 순간 1회 발화. 리플레이/시크 시 -1 리셋(initSpinFx).
     lastHitSoundT: -1e9,    // 타격음 throttle(리플레이 t 기준)
     shake: 0,               // 현재 화면 흔들림 진폭(px)
-    showdownStartT: null,   // 결판 줌 시작 시각(잔류 2명 진입 = (n−2)번째 탈출, n=2는 decideMs) — t 결정론 줌
     isReplayMode: false,    // 다시보기(로컬 재생) 중 — 사운드 음소거 + 라이브 reveal 시 즉시 중단
     pendingIdle: false,     // 다시보기 중 roundReset 도착 → 종료 후 idle 복귀 예약
     wasIdle: false,         // idle 상태에서 다시보기 시작(종료 후 idle 복귀)
     pendingReveal: null,    // 카운트다운 중인 reveal payload(취소 가드 토큰)
-    overflowSpectator: false, // 준비했지만 선착 6명 초과 — 관전 안내
+    _cdRaf: null,           // (feel-v5 V3) 3-2-1 카운트다운 중 칼날 회전 애니 raf 핸들(메인 raf와 별개 — 더블 raf 금지)
+    overflowSpectator: false, // 준비했지만 선착 MAX_SLOTS명 초과 — 관전 안내
     particles: [],          // 활성 파티클(스파크/파편)
     fx: [],                 // 활성 일회성 연출(충격파/플래시/플로팅텍스트)
     slotFx: [],             // 슬롯별 임시 연출 상태
     _slotState: [],         // 슬롯별 보간 상태(프레임마다 재사용)
-    _escapeMs: [],          // 슬롯별 탈출 시각(ms, 없으면 null — 프레임마다 재조회 방지)
-    _downs: [],             // 슬롯별 다운 이벤트 배열 [{timeMs, reviveMs, x, y}] — 다회 가능, 시간 오름차순
-    _bladeUpTimes: [],      // 슬롯별 칼업 시각 오름차순(bladeCountAt 산출용)
     _hpRows: [],            // 미션 패널 DOM 캐시
     _tips: [],              // 칼날 날 선분 버퍼(ix/iy~ox/oy, 프레임마다 재사용)
-    // ── 관전 카메라(뷰어 로컬 — 결과/시뮬 무관, 순수 시각). focus는 dt-정확 EMA 스무딩 상태를 갖되
-    //    고정 dt 재생 + 정의된 초기 focus로 재현 가능(결정서 §3-4/§3-8). 모드 전환은 뷰어 로컬. ──
+    _lastMissionT: null,    // #gameStatus 라이브 갱신 churn 방지(직전 적용 텍스트)
+    // ── 자동 카메라(뷰어 로컬 — 결과/시뮬 무관, 순수 시각). focus는 dt-정확 EMA 스무딩 상태를 갖되
+    //    고정 dt 재생 + 정의된 초기 focus로 재현 가능. 모드/토글 없음 — cameraFit이 단계별 타깃 산출. ──
     camera: {
-        mode: 'follow',     // follow | director | roam | overview
         focusX: ARENA_CX, focusY: ARENA_CY, zoom: 1,
-        _initialized: false,
-        _userOverride: false // 사용자가 수동 버튼으로 모드를 골랐는지(auto director 전환 억제 X — 기록용)
+        _initialized: false
     },
-    _mySlotIdx: -1,         // 내(currentUser) 슬롯 인덱스(없으면 -1 — follow 불가, director 폴백)
-    _cutSchedule: []        // 디렉터 컷 사전 계산 [{tStart, kind, fixedX, fixedY, slotRef, zoom}] — t 오름차순
+    _mySlotIdx: -1          // 내(currentUser) 슬롯 인덱스(없으면 -1 — 외곽선 미표시)
 };
 
 var savedReveal = null;     // 다시보기용 마지막 reveal payload(roundReset의 payload=null과 분리 보관)
 
-// ── 카메라 튜닝 상수(결정서 §3-5/§7) ──
-var FOLLOW_SMOOTH_TAU = 0.22;   // focus EMA 시간상수(초) — 1:1 추종 멀미 방지
-var FOLLOW_ZOOM = 2.0;          // 내 캐릭터 추적(논리 240 영역 = 아레나 절반)
-var DIRECTOR_ZOOM = 1.6;        // 이벤트 컷
-var ROAM_ZOOM = 1.4;            // 클러스터 로밍
-var CUT_MIN_MS = 1500;          // 컷 최소 유지(동급/하위 차단, 상위는 즉시)
+// ── 카메라 튜닝 상수(§7 단순화 — 단일 자동 줌, 모드/토글 없음) ──
+var FOLLOW_SMOOTH_TAU = 0.22;   // focus EMA 시간상수(초) — 줌/팬 글라이드 멀미 방지
+var STAGE1_ZOOM = 1;            // Stage1·결승 공통: 링 전체 오버뷰(와이드) — 기본 줌. 결승 타이트 줌 폐기.
 
 // 강한 모션 최소화 선호 시 흔들림/트레일/줌 약화(접근성 + 저사양 안전판)
 var prefersReducedMotion = (typeof window !== 'undefined' && window.matchMedia)
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+
+// 캔버스 HUD 색(CSS 변수는 canvas에 닿지 않음 — 미니맵/카드/HP바와 동일하게 리터럴 색을 한 곳에 모음)
+var HUD_TIME_DEFAULT = '#ffd24a';   // 남은시간 기본(골드)
+var HUD_TIME_WARN = '#ff8a5a';      // ≤10s 경고(주황) — "유력" 마커 색과 공용
+var HUD_TIME_DANGER = '#ff5b5b';    // ≤5s 위험(적색)
 
 // 이펙트 튜닝 상수
 var MAX_PARTICLES = 170;        // 파티클 예산(모바일 프레임 안정)
 var HIT_SPARK_INTERVAL = 55;    // 피격자 1명당 스파크 생성 간격(ms)
 var HIT_SOUND_INTERVAL = 90;    // 타격음 전역 throttle(ms) — 50회/초 난사 방지
 var SHAKE_DECAY = 32;           // 화면 흔들림 감쇠(amp/s)
+var FINALE_CRISIS_FRAC = 0.42;  // 결승 HP ≤ 이 비율 = 위기(내 캐릭터 적색 비네트)
+var TOMBSTONE_DROP_MS = 400;    // (feel-v5 V2) 당첨자 비석 낙하 길이(decideMs 기점). reduced-motion이면 즉시 안착.
+var TOMBSTONE_DROP_H = 64;      // 비석이 떨어지기 시작하는 높이(머리 위, ×scl)
 // 타격 판정 임계는 인원 가변 스케일을 반영해야 하므로 drawSpinFrame 내 per-frame hitThresh2로 산출
 // ((charR+bladeEdgeR)²). 서버 선분 판정 임계와 동일 스케일. (이전 고정 전역 HIT_THRESH2 대체)
 
@@ -601,17 +624,18 @@ function getSpinCanvas() { return document.getElementById('spinArenaCanvas'); }
 function lerp(a, b, t) { return a + (b - a) * t; }
 function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
-// 칼날 수(서버 거울 공식): bladeCount(si, t) = min(ESCAPE_BLADES, 2 + count(bladeUps where id===slots[si].id && timeMs < t))
-// strict `<` 기존 관례 유지 — 탈출 순간 t=timeMs에 핍이 4/5로 보이는 1틱 지연은 의도된 동작(결정서 CL-4).
-// 트레일/본체/타격감지/핍 HUD 전부 이 함수만 사용한다.
+// 칼날 수 — per-slot/per-time(B4 성장). bladeFrames[키프레임][슬롯] = 정수 칼날 수(서버 거울).
+// 트레일/본체/타격감지 전부 이 함수만 사용한다(시그니처 유지 → 호출부 무변경).
+// ⚠️ 정수 floor 인덱스 — 칼날 수는 절대 보간 금지(2.5개 → 칼날각 NaN / 서버-클라 불일치, 로그된 결정론 함정).
 function bladeCountAt(si, t) {
-    var bt = (spinReplay._bladeUpTimes && spinReplay._bladeUpTimes[si]) || [];
-    var ups = 0;
-    for (var i = 0; i < bt.length; i++) {
-        if (bt[i] < t) ups++; else break;
-    }
-    var bc = BLADE_COUNT + ups;
-    return bc > ESCAPE_BLADES ? ESCAPE_BLADES : bc;
+    var payload = spinReplay.payload;
+    var bf = payload && payload.bladeFrames;
+    if (!bf) return BLADE_COUNT;
+    var fi = Math.floor(t / ((payload && payload.sampleMs) || SAMPLE_MS));
+    if (fi < 0) fi = 0;
+    if (fi >= bf.length) fi = bf.length - 1;
+    var row = bf[fi];
+    return (row && row[si] != null) ? row[si] : BLADE_COUNT;
 }
 
 // 결정론 해시 PRNG(0~1) — cosmetic jitter 전용. 같은 seed → 같은 값(2탭 동일).
@@ -685,7 +709,7 @@ function drawParticles(ctx) {
 // ── 일회성 연출(충격파 링 / 플래시 / 플로팅 텍스트) ──
 function spawnRing(x, y, color, maxR, dur) { spinReplay.fx.push({ type: 'ring', x: x, y: y, color: color, maxR: maxR, life: 0, dur: dur }); }
 function spawnFlash(x, y, r, dur) { spinReplay.fx.push({ type: 'flash', x: x, y: y, r: r, life: 0, dur: dur }); }
-function spawnText(x, y, text, color, dur) { spinReplay.fx.push({ type: 'text', x: x, y: y, text: text, color: color, life: 0, dur: dur }); }
+function spawnText(x, y, text, color, dur, size) { spinReplay.fx.push({ type: 'text', x: x, y: y, text: text, color: color, life: 0, dur: dur, size: size }); }
 function updateFx(dt) {
     var fx = spinReplay.fx;
     for (var i = fx.length - 1; i >= 0; i--) {
@@ -712,7 +736,7 @@ function drawFx(ctx) {
         } else if (e.type === 'text') {
             var rise = 28 * k;
             ctx.globalAlpha = clamp(1 - k, 0, 1);
-            ctx.font = 'bold 16px sans-serif';
+            ctx.font = 'bold ' + (e.size || 16) + 'px sans-serif';
             ctx.textAlign = 'center';
             ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.55)';
             ctx.strokeText(e.text, e.x, e.y - rise);
@@ -1009,7 +1033,7 @@ function drawCharFace(ctx, scale) {
 // scl: 인원 가변 스케일, accent: 본인 강조 색(null이면 일반), dim: 미준비/관전 반투명(0~1).
 function drawSpinNameTag(ctx, x, y, label, scl, isMe, accent, prefix, dim) {
     if (!label) return;
-    var fontPx = Math.max(11 * scl, 9);
+    var fontPx = isMe ? Math.max(12.5 * scl, 10) : Math.max(11 * scl, 9);   // 본인은 약간 크게(#4 식별 강조)
     var txt = (prefix || '') + label;
     ctx.save();
     ctx.font = 'bold ' + fontPx + 'px sans-serif';
@@ -1029,56 +1053,19 @@ function drawSpinNameTag(ctx, x, y, label, scl, isMe, accent, prefix, dim) {
     ctx.arcTo(bx, by + pillH, bx, by, rad);
     ctx.arcTo(bx, by, bx + pillW, by, rad);
     ctx.closePath();
-    ctx.fillStyle = isMe ? 'rgba(8,12,24,0.78)' : 'rgba(8,12,24,0.62)';
+    ctx.fillStyle = isMe ? 'rgba(8,12,24,0.82)' : 'rgba(8,12,24,0.62)';
     ctx.fill();
-    if (isMe && accent) {
-        ctx.strokeStyle = accent;
-        ctx.lineWidth = Math.max(1.6 * scl, 1.4);
+    if (isMe) {   // 내 캐릭터 = 항상 노란 테두리(카메라 무관, #5)
+        ctx.strokeStyle = '#ffd24a';
+        ctx.lineWidth = Math.max(1.8 * scl, 1.5);
         ctx.stroke();
     }
-    // 텍스트 외곽선 + 본체
+    // 텍스트 외곽선 + 본체 — 내 캐릭터=노랑(항상), 상대=흰색 (#5)
     ctx.lineWidth = Math.max(3 * scl, 2.4);
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
     ctx.strokeText(txt, x, y);
-    ctx.fillStyle = isMe ? (accent || '#fff3c4') : '#eef2fb';
+    ctx.fillStyle = isMe ? '#ffe24a' : '#ffffff';
     ctx.fillText(txt, x, y);
-    ctx.restore();
-}
-
-// 비석(다운 상태) — 프로시저럴 드로잉(이모지 폰트 의존 회피): 둥근 상단 회색 비석 + 어두운 외곽 + 음각.
-// 등장 직후 드롭 스케일 펀치(220ms, t 파생 — 2탭 동일).
-function drawTombstone(ctx, x, y, t, downT, scale) {
-    var k = clamp((t - downT) / 220, 0, 1);
-    var s = scale || 1;
-    var sc = (1 + 0.25 * (1 - k)) * s;   // 드롭 펀치 × 인원 가변 스케일
-    var w = 20, h = 26;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(sc, sc);
-    // 본체(둥근 상단)
-    ctx.fillStyle = '#7d8694';
-    ctx.beginPath();
-    ctx.moveTo(-w / 2, h / 2);
-    ctx.lineTo(-w / 2, -h / 2 + w / 2);
-    ctx.arc(0, -h / 2 + w / 2, w / 2, Math.PI, 0);
-    ctx.lineTo(w / 2, h / 2);
-    ctx.closePath();
-    ctx.fill();
-    // 어두운 외곽
-    ctx.strokeStyle = '#3a4150';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    // 음각(가로줄 2개)
-    ctx.strokeStyle = 'rgba(40,46,60,0.8)';
-    ctx.lineWidth = 1.6;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-5, -1); ctx.lineTo(5, -1);
-    ctx.moveTo(-4, 4); ctx.lineTo(4, 4);
-    ctx.stroke();
-    // 받침
-    ctx.fillStyle = '#5b6473';
-    ctx.fillRect(-w / 2 - 2, h / 2 - 1, w + 4, 3);
     ctx.restore();
 }
 
@@ -1093,8 +1080,8 @@ function drawAtmosphere(ctx, cx, cy, showdownLevel) {
 }
 
 // ============================================
-// 관전 카메라 (결정서 §3-4/§3-5/§3-6) — 순수 시각, 결과/공정성 무관, Math.random 0회.
-// focus/zoom은 (mode, t, payload, frames, centroid)의 결정론 함수 + dt-정확 EMA 스무딩.
+// 자동 카메라 (§7 단순화) — 순수 시각, 결과/공정성 무관, Math.random 0회.
+// 단일 자동 줌: stage1=링 전체 오버뷰, finale=결승 3인 fit. 모드/토글 없음.
 // ============================================
 
 // 슬롯 si의 t 보간 위치(_slotState가 이미 프레임마다 갱신됨 — 카메라는 그 읽기만).
@@ -1103,135 +1090,45 @@ function spinSlotPos(si) {
     return s ? { x: s.x, y: s.y } : { x: ARENA_CX, y: ARENA_CY };
 }
 
-// 활성(탈출 X + 다운 X) 플레이어 centroid + 활성 수. 결정론(t·payload 파생).
-// 정의역 폴백(§3-5 ISSUE-9): 0명 → null(호출부가 직전 focus/중심 유지), 1명 → 그 좌표.
-function spinActiveCentroid() {
-    var S = spinReplay._slotState;
-    var sx = 0, sy = 0, n = 0, lastX = ARENA_CX, lastY = ARENA_CY;
-    for (var i = 0; i < S.length; i++) {
-        var s = S[i];
-        if (!s || s.escaped || s.downed) continue;
-        sx += s.x; sy += s.y; n++; lastX = s.x; lastY = s.y;
-    }
-    if (n === 0) return { x: ARENA_CX, y: ARENA_CY, count: 0 };
-    if (n === 1) return { x: lastX, y: lastY, count: 1 };
-    return { x: sx / n, y: sy / n, count: n };
+// 단계 판정 — 단일 단계는 항상 'stage1'. 2단계는 t로 stage1/intro/finale.
+//   r1=null → 단일 단계(전체 stage1). r1!=null → 2단계: t<r1 stage1, t<r1+introMs intro(집결+3·2·1), else finale.
+function spinStageAt(payload, t) {
+    var r1 = payload.round1EndMs;
+    if (r1 == null) return 'stage1';
+    if (t < r1) return 'stage1';
+    if (t < r1 + ROUND2_INTRO_MS) return 'intro';
+    return 'finale';
 }
 
-// 디렉터 컷 스케줄 사전 계산(§3-5 ISSUE-7) — CUT_MIN_MS 최소 유지를 생성 시점에 적용 → 매 프레임은 binary search만(상태 누적 0 = 결정론).
-// 우선순위(높을수록 상위): 결판(4) > 탈출(3) > 다운/부활(2) > 칼4임박(1) > 클러스터(0).
-// 상위 우선순위는 CUT_MIN 무시하고 즉시 컷, 동급/하위는 직전 컷 후 CUT_MIN_MS 내 차단.
-function buildCutSchedule(payload) {
-    var slots = payload.slots || [];
-    var cuts = [];
-    function slotIdxById(id) {
-        for (var i = 0; i < slots.length; i++) if (slots[i].id === id) return i;
-        return -1;
-    }
-    // 이벤트 → 후보 컷 수집(고정 좌표 우선, 없으면 슬롯 ref로 t 추종)
-    var ev = [];
-    var escapes = payload.escapes || [];
-    for (var e = 0; e < escapes.length; e++) {
-        ev.push({ t: escapes[e].timeMs, prio: 3, kind: 'escape', x: escapes[e].x, y: escapes[e].y, slot: slotIdxById(escapes[e].id), zoom: DIRECTOR_ZOOM });
-    }
-    var downs = payload.downs || [];
-    for (var d = 0; d < downs.length; d++) {
-        ev.push({ t: downs[d].timeMs, prio: 2, kind: 'down', x: downs[d].x, y: downs[d].y, slot: slotIdxById(downs[d].id), zoom: DIRECTOR_ZOOM });
-    }
-    // 칼 4개 임박(bcNow=4 도달 = ESCAPE_BLADES-1번째 칼업, 슬롯별 ups 카운트). bladeUps는 시간순.
-    var bladeUps = payload.bladeUps || [];
-    var upCount = {};
-    for (var b = 0; b < bladeUps.length; b++) {
-        var bid = bladeUps[b].id;
-        upCount[bid] = (upCount[bid] || 0) + 1;
-        // BLADE_COUNT(2) + ups = bcNow → bcNow = ESCAPE_BLADES-1(=4) 도달 시점
-        if (BLADE_COUNT + upCount[bid] === ESCAPE_BLADES - 1) {
-            ev.push({ t: bladeUps[b].timeMs, prio: 1, kind: 'imminent', x: null, y: null, slot: slotIdxById(bid), zoom: DIRECTOR_ZOOM });
-        }
-    }
-    // 결판(decideMs) — 최상위. 활성 centroid를 못 쓰므로 고정 중심 + 약한 줌아웃 맥락.
-    if (payload.decideMs != null) {
-        ev.push({ t: payload.decideMs, prio: 4, kind: 'decide', x: ARENA_CX, y: ARENA_CY, slot: -1, zoom: DIRECTOR_ZOOM });
-    }
-    ev.sort(function (a, b) { return a.t - b.t || b.prio - a.prio; });
-
-    // CUT_MIN 게이트: 상위 prio는 즉시, 동급/하위는 직전 컷 t+CUT_MIN_MS 이후만 채택.
-    var lastT = -1e9, lastPrio = -1;
-    for (var i = 0; i < ev.length; i++) {
-        var c = ev[i];
-        var allow = (c.prio > lastPrio) || (c.t - lastT >= CUT_MIN_MS);
-        if (!allow) continue;
-        cuts.push({ tStart: c.t, kind: c.kind, fixedX: c.x, fixedY: c.y, slotRef: c.slot, zoom: c.zoom });
-        lastT = c.t; lastPrio = c.prio;
-    }
-    return cuts;
+// 결승 진출 슬롯 id Set(payload.finalists 파생 — 2단계만, 단일 단계면 빈 Set).
+function spinFinalistSet(payload) {
+    var set = {};
+    var fin = payload.finalists || [];
+    for (var i = 0; i < fin.length; i++) set[fin[i]] = true;
+    return set;
 }
 
-// t 시점에 활성인 컷(가장 늦은 tStart ≤ t) — binary search. 없으면 null(공백 → roam).
-function activeCutAt(t) {
-    var cs = spinReplay._cutSchedule;
-    if (!cs.length || t < cs[0].tStart) return null;
-    var lo = 0, hi = cs.length - 1, ans = 0;
-    while (lo <= hi) {
-        var mid = (lo + hi) >> 1;
-        if (cs[mid].tStart <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
-    }
-    return cs[ans];
+// 단계별 카메라 타깃 산출 — {x, y, zoom} (결정론, t·payload 파생). null 좌표 없음(항상 유효 타깃).
+//   stage1·intro·finale 모두 링 전체 오버뷰(아레나 중앙, 줌 1) — 결승도 와이드 프레이밍(타이트 3인 줌 폐기).
+function cameraFit(t, stage, payload) {
+    void t; void stage; void payload;
+    return { x: ARENA_CX, y: ARENA_CY, zoom: STAGE1_ZOOM };
 }
 
-// 컷의 t 시점 타깃(고정 좌표 우선, 슬롯 ref면 그 보간 위치). 컷 인덱스도 반환(EMA 경계 리셋용).
-function cutTarget(cut) {
-    if (cut.slotRef >= 0 && cut.kind !== 'decide') {
-        var p = spinSlotPos(cut.slotRef);
-        return { x: p.x, y: p.y };
-    }
-    if (cut.fixedX != null) return { x: cut.fixedX, y: cut.fixedY };
-    return { x: ARENA_CX, y: ARENA_CY };
-}
-
-// 모드별 (target, zoom, hardCut) 산출. hardCut=true면 EMA 리셋(즉시 점프 — 컷 경계/showdown 등).
-// 반환 target이 null이면 직전 focus 유지(roam centroid 0명 폴백 등).
-function spinCameraTarget(mode, t, payload, showdownLevel) {
-    var cam = spinReplay.camera;
+// 카메라가 현재 프레이밍 중인 슬롯 인덱스(타깃 외곽선용) — 내 캐릭터가 활성(stage1 또는 결승 진출자)일 때만. 아니면 -1.
+function spinFramedSlot(payload, stage) {
     var myIdx = spinReplay._mySlotIdx;
-    if (mode === 'follow') {
-        if (myIdx < 0) return spinCameraTarget('director', t, payload, showdownLevel);
-        var ms = spinReplay._slotState[myIdx];
-        // 내가 탈출/다운이면 director 자동 전환(§3-5)
-        if (ms && (ms.escaped || ms.downed)) return spinCameraTarget('director', t, payload, showdownLevel);
-        var p = spinSlotPos(myIdx);
-        return { x: p.x, y: p.y, zoom: FOLLOW_ZOOM, hardCut: false };
-    }
-    if (mode === 'director') {
-        var cut = activeCutAt(t);
-        if (cut) {
-            var tg = cutTarget(cut);
-            // 컷 경계 = 즉시 컷(EMA 리셋). cam._activeCutT로 컷 진입 1회만 hardCut.
-            var hard = (cam._activeCutStart !== cut.tStart);
-            cam._activeCutStart = cut.tStart;
-            return { x: tg.x, y: tg.y, zoom: cut.zoom, hardCut: hard };
-        }
-        cam._activeCutStart = null;
-        // 컷 공백 → roam으로 충전
-        return spinCameraTarget('roam', t, payload, showdownLevel);
-    }
-    if (mode === 'roam') {
-        var c = spinActiveCentroid();
-        if (c.count === 0) return { x: null, y: null, zoom: ROAM_ZOOM, hardCut: false }; // 직전 focus 유지
-        // 완만한 t 해시 오프셋(1200ms 슬롯 보간 — Math.random 금지)
-        var slot = Math.floor(t / 1200);
-        var frac = (t / 1200) - slot;
-        var ox0 = (hash01(slot * 131 + 7) - 0.5) * 40, oy0 = (hash01(slot * 131 + 71) - 0.5) * 40;
-        var ox1 = (hash01((slot + 1) * 131 + 7) - 0.5) * 40, oy1 = (hash01((slot + 1) * 131 + 71) - 0.5) * 40;
-        var ox = lerp(ox0, ox1, frac), oy = lerp(oy0, oy1, frac);
-        var z = c.count === 1 ? 1.2 : ROAM_ZOOM;   // 1명 → 줌아웃(§3-5 ISSUE-9)
-        return { x: c.x + ox, y: c.y + oy, zoom: z, hardCut: false };
-    }
-    // overview — 현행 고정 뷰 폴백. showdown zoom(1.08)은 이 모드에서만.
-    return { x: ARENA_CX, y: ARENA_CY, zoom: 1 + 0.08 * (showdownLevel || 0), hardCut: false };
+    if (myIdx < 0) return -1;
+    var ms = spinReplay._slotState[myIdx];
+    if (!ms) return -1;
+    if (stage === 'stage1') return myIdx;
+    // 결승: 내가 결승 진출자(finalist)일 때만 강조
+    var slots = payload.slots || [];
+    if (myIdx < slots.length && spinFinalistSet(payload)[slots[myIdx].id]) return myIdx;
+    return -1;
 }
 
-// focus 클램프(§3-5 ISSUE-10): 뷰포트 월드 반폭 = (ARENA_W/2)/zoom. 벽 너머 빈 공간 차단.
+// focus 클램프: 뷰포트 월드 반폭 = (ARENA_W/2)/zoom. 벽 너머 빈 공간 차단.
 // halfW ≥ ARENA_R(줌아웃)이면 중심 고정(클램프 구간 음수 방지).
 function clampFocusAxis(v, zoom) {
     var halfW = (ARENA_W / 2) / zoom;
@@ -1240,24 +1137,62 @@ function clampFocusAxis(v, zoom) {
     return clamp(v, ARENA_CX - slack, ARENA_CX + slack);
 }
 
-// 매 프레임 카메라 갱신 — target 산출 → EMA(또는 hardCut 즉시) → 클램프. {focusX, focusY, zoom} 반환.
-function updateSpinCamera(t, dt, payload, showdownLevel) {
+// 매 프레임 카메라 갱신 — cameraFit 타깃 → EMA 글라이드 → 클램프. {focusX, focusY, zoom} 반환.
+function updateSpinCamera(t, dt, payload, stage) {
     var cam = spinReplay.camera;
-    var r = spinCameraTarget(cam.mode, t, payload, showdownLevel);
-    cam.zoom = r.zoom;
-    var tx = (r.x == null) ? cam.focusX : r.x;
-    var ty = (r.y == null) ? cam.focusY : r.y;
-    if (!cam._initialized || r.hardCut) {
-        cam.focusX = tx; cam.focusY = ty;
+    var r = cameraFit(t, stage, payload);
+    if (!cam._initialized) {
+        cam.focusX = r.x; cam.focusY = r.y; cam.zoom = r.zoom;
         cam._initialized = true;
     } else {
         var k = 1 - Math.exp(-dt / FOLLOW_SMOOTH_TAU);
-        cam.focusX += (tx - cam.focusX) * k;
-        cam.focusY += (ty - cam.focusY) * k;
+        cam.focusX += (r.x - cam.focusX) * k;
+        cam.focusY += (r.y - cam.focusY) * k;
+        cam.zoom += (r.zoom - cam.zoom) * k;   // 줌 EMA 글라이드(팝 방지)
     }
     cam.focusX = clampFocusAxis(cam.focusX, cam.zoom);
     cam.focusY = clampFocusAxis(cam.focusY, cam.zoom);
     return cam;
+}
+
+// ── A2/A3 Stage1 남은시간 HUD — 스크린 공간(카메라 밖), 상단 중앙(랭크=좌상단·미니맵=우상단 사이 빈 공간). ──
+//   Stage1에만 표시(인트로/결승은 녹아웃 종료라 숨김). 남은시간 = (round1EndMs ?? STAGE1_MS) - t.
+//   ≤10s 경고색, ≤5s 위험색 + 펄스. prefers-reduced-motion이면 정적 색(펄스 없음). 전부 t 파생(2탭 동일).
+function drawStage1Timer(ctx, t, payload, canvas) {
+    if (spinStageAt(payload, t) !== 'stage1') return;   // 단일 단계는 항상 stage1, 2단계는 t<round1EndMs
+    if (payload.decideMs != null && t >= payload.decideMs) return;   // 단일 단계: 결판 후 "⏱ 0" 잔류 방지
+    var stage1Total = (payload.round1EndMs != null) ? payload.round1EndMs : STAGE1_MS;   // B1의 40s 자동 반영
+    var remainingMs = Math.max(0, stage1Total - t);
+    var secs = Math.ceil(remainingMs / 1000);
+
+    var col = HUD_TIME_DEFAULT;
+    var urgent = false;
+    if (remainingMs <= 5000) { col = HUD_TIME_DANGER; urgent = true; }
+    else if (remainingMs <= 10000) { col = HUD_TIME_WARN; urgent = true; }
+
+    // 펄스(경고·위험에서만) — 스케일/알파를 sin으로 미세 변조. reduced-motion이면 정적.
+    var pulse = 1, alpha = 1;
+    if (urgent && !prefersReducedMotion) {
+        var p = 0.5 + 0.5 * Math.sin(t / 120);
+        pulse = 1 + 0.10 * p;
+        alpha = 0.78 + 0.22 * p;
+    }
+
+    var cxh = canvas.width / 2;   // 상단 중앙(ARENA_W/2 = 240)
+    var cyh = 26;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cxh, cyh);
+    ctx.scale(pulse, pulse);
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var txt = '⏱ ' + secs;
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.strokeText(txt, 0, 0);
+    ctx.fillStyle = col;
+    ctx.fillText(txt, 0, 0);
+    ctx.restore();
 }
 
 // ── 미니맵(§3-6) — 스크린 공간(카메라 밖). 우상단. 스포일러 가드: 결판 전 selected 무강조(내 점만). ──
@@ -1265,53 +1200,50 @@ function drawMinimap(ctx, t, payload, camZoom, camFocusX, camFocusY) {
     var slots = payload.slots || [];
     var S = spinReplay._slotState;
     var isMobile = (typeof window !== 'undefined' && window.innerWidth && window.innerWidth < 640);
-    var size = isMobile ? 84 : 110;
+    var size = isMobile ? 100 : 132;   // #2 가독: 84/110 → 100/132 확대
     var pad = 10;
     var mx = ARENA_W - size - pad, my = pad;     // 좌상단 코너 좌표(우상단 배치)
     var mcx = mx + size / 2, mcy = my + size / 2;
     var scale = (size / 2 - 4) / ARENA_R;        // 월드 반경 → 미니맵 반경
 
     ctx.save();
-    // 배경 패널
-    ctx.globalAlpha = 0.82;
-    ctx.fillStyle = 'rgba(8,12,26,0.9)';
-    ctx.strokeStyle = 'rgba(124,92,255,0.5)';
-    ctx.lineWidth = 1.5;
+    // 배경 패널 — #2 대비 강화
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = 'rgba(12,16,32,0.94)';
+    ctx.strokeStyle = 'rgba(150,120,255,0.9)';
+    ctx.lineWidth = 2;
     if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(mx, my, size, size, 8); ctx.fill(); ctx.stroke(); }
     else { ctx.fillRect(mx, my, size, size); ctx.strokeRect(mx, my, size, size); }
     ctx.globalAlpha = 1;
 
     // 아레나 외곽 원
-    ctx.strokeStyle = 'rgba(120,140,180,0.5)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(155,175,215,0.8)';
+    ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.arc(mcx, mcy, ARENA_R * scale, 0, Math.PI * 2); ctx.stroke();
     // 현 링
-    var ringR = ringRadiusAt(t);
-    ctx.strokeStyle = 'rgba(34,211,238,0.7)';
+    var ringR = ringRadiusAt(t, payload.round1EndMs);
+    ctx.strokeStyle = 'rgba(34,211,238,0.95)';
+    ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.arc(mcx, mcy, ringR * scale, 0, Math.PI * 2); ctx.stroke();
 
-    var decidedNow = payload.decideMs != null ? t >= payload.decideMs : t >= payload.durationMs;
-    var selected = (payload.result && payload.result.selected) || null;
+    // A5: 비결승(안전) 플레이어 점은 전환 암전(round1EndMs)부터 숨김 — 인트로·결승 내내 결승 3인만(아레나와 일치). stage1은 전원.
+    var hideNonFinMini = (payload.twoStage && payload.round1EndMs != null && t >= payload.round1EndMs);
+    var finSetMini = spinFinalistSet(payload);
 
-    // 플레이어 점 / 비석 마커
+    // 플레이어 점
     for (var i = 0; i < slots.length; i++) {
         var s = S[i]; if (!s) continue;
-        if (s.escaped) continue;   // 탈출자 미표시
+        if (hideNonFinMini && !finSetMini[slots[i].id]) continue;   // 안전자 미표시(인트로+결승)
         var px = mcx + (s.x - ARENA_CX) * scale;
         var py = mcy + (s.y - ARENA_CY) * scale;
         var isMe = (i === spinReplay._mySlotIdx);
-        if (s.downed) {
-            // 비석 마커(작은 회색 사각)
-            ctx.fillStyle = 'rgba(140,150,165,0.85)';
-            ctx.fillRect(px - 2, py - 2, 4, 4);
-        } else {
-            ctx.fillStyle = slots[i].color || '#9aa3ad';
-            ctx.beginPath(); ctx.arc(px, py, isMe ? 3.4 : 2.6, 0, Math.PI * 2); ctx.fill();
-        }
-        // 내 점 흰 테두리 강조(스포일러 가드: selected 강조는 결판 후에만, 그것도 별도 강조 안 함 — 내 점만)
+        ctx.beginPath(); ctx.arc(px, py, isMe ? 4.6 : 3.4, 0, Math.PI * 2);   // 점 + 어두운 외곽
+        ctx.fillStyle = slots[i].color || '#9aa3ad'; ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1; ctx.stroke();
+        // 내 점 = 노란 테두리 강조(미니맵에서도 즉시 식별). 스포일러 가드: selected 강조는 안 함 — 내 점만.
         if (isMe) {
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4;
-            ctx.beginPath(); ctx.arc(px, py, 4.4, 0, Math.PI * 2); ctx.stroke();
+            ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(px, py, 6.2, 0, Math.PI * 2); ctx.stroke();
         }
     }
 
@@ -1325,50 +1257,227 @@ function drawMinimap(ctx, t, payload, camZoom, camFocusX, camFocusY) {
         mcy + (camFocusY - halfH - ARENA_CY) * scale,
         2 * halfW * scale, 2 * halfH * scale
     );
-    // (스포일러 가드 근거: decidedNow는 위 미사용 — selected를 미니맵에서 어떤 모드에서도 강조하지 않음.
-    //  내 점만 흰 테두리. decidedNow는 후속 인디케이터 확장 대비 보존.)
-    void decidedNow; void selected;
+    // (스포일러 가드: 미니맵에서 selected를 강조하지 않는다 — 내 점만 노란 테두리.)
     ctx.restore();
 }
 
-// ── 수동 카메라 전환 UI(§3-5) — 캔버스 위 세그먼트 컨트롤 ──
-// 모드 설정 + EMA 리셋(즉시 점프). 사용자 선택은 _userOverride=true로 기록(다음 판 기본값을 덮지 않음 — initSpinFx가 라운드마다 _userOverride 존중).
-function setSpinCameraMode(mode) {
-    var cam = spinReplay.camera;
-    if (mode === 'follow' && spinReplay._mySlotIdx < 0) return;   // mySlot 없으면 follow 불가
-    cam._userOverride = true;
-    cam.mode = mode;
-    cam._initialized = false;        // 모드 전환 = 즉시 컷(팬 금지)
-    cam._activeCutStart = null;
-    updateSpinCameraButtons();
-}
-window.setSpinCameraMode = setSpinCameraMode;
+// ── 캔버스 내 랭크 패널(readability-v2 #9) — 스크린 공간(카메라 밖), 좌상단, top-N+나. ──
+// 미니맵(우상단)과 겹치지 않음. 24명도 아레나를 가리지 않게 top-5 + "나" 행만. 모바일은 폰트/폭 축소.
+// 데이터는 _slotState(t 파생)에서 직접 읽음 — DOM #spinHpPanel 대체. 스포일러 가드: 비탈출 최종순위 미표시(라이브 점수순위만),
+// 당첨(적색) 강조는 t≥decideMs 후에만.
+//   Stage1(+단일): dealt(=점수) 내림차순 — #순위·점수. 하위 FINALIST_DANGER명(최저 dealt)을 "위험"으로 강조(단일=최하위 1명).
+//   결승(finale): 결승 3인만 HP바(green→red, 분모 hpMax). selected 적색은 결판 후만.
+var RANK_DANGER_COUNT = 3;   // Stage1 하위 N명 위험 강조(2단계=3, 단일은 최하위 1명으로 클램프)
+function drawSpinRankPanel(ctx, t, payload, canvas) {
+    void canvas;
+    var slots = payload.slots || [];
+    if (!slots.length) return;
+    var S = spinReplay._slotState;
+    if (!S || !S.length) return;
+    var isMobile = (typeof window !== 'undefined' && window.innerWidth && window.innerWidth < 640);
+    var decideMs = payload.decideMs;
+    var decidedNow = (decideMs != null && t >= decideMs);
+    var selName = (payload.result && payload.result.selected) || null;
+    var stage = spinStageAt(payload, t);
+    var inFinale = (stage === 'finale' && payload.twoStage);
+    var finSet = spinFinalistSet(payload);
+    var hpMax = payload.hpMax || HP_MAX;
+    // A5: 비결승자는 전환 암전(round1EndMs)부터 패널에서도 제외 — 인트로+결승 내내 결승 3인만(아레나·미니맵과 일치).
+    var hideNonFin = (payload.twoStage && payload.round1EndMs != null && t >= payload.round1EndMs);
+    // 위험 강조 인원: 2단계=하위 3명, 단일=최하위 1명
+    var dangerCount = payload.twoStage ? RANK_DANGER_COUNT : 1;
 
-// 버튼 활성/하이라이트 동기 — mySlot 없으면 '내 캐릭터' 비활성, 현재 모드 .active.
-function updateSpinCameraButtons() {
-    var bar = document.getElementById('spinCameraBar');
-    if (!bar) return;
-    var cam = spinReplay.camera;
-    var btns = bar.querySelectorAll('.spin-cam-btn');
-    for (var i = 0; i < btns.length; i++) {
-        var m = btns[i].getAttribute('data-mode');
-        // director 버튼은 director/roam 모드 모두에서 활성 표시(roam은 director 공백 충전 = 같은 '디렉터' UX)
-        var on = (m === cam.mode) || (m === 'director' && cam.mode === 'roam');
-        btns[i].classList.toggle('active', on);
-        if (m === 'follow') {
-            var noFollow = spinReplay._mySlotIdx < 0;
-            btns[i].disabled = noFollow;
-            btns[i].classList.toggle('disabled', noFollow);
-        }
+    // 엔트리 — round1EndMs 이후(인트로+결승)면 결승 3인만, 그 외(Stage1/단일)는 전원
+    var ents = [];
+    for (var i = 0; i < slots.length && i < S.length; i++) {
+        var s = S[i]; if (!s) continue;
+        if (hideNonFin && !finSet[slots[i].id]) continue;
+        ents.push({ idx: i, name: slots[i].name || '', color: slots[i].color || '#9aa3ad',
+            cum: s.cum, hp: s.hp,
+            isMe: (i === spinReplay._mySlotIdx), isSel: (selName && slots[i].name === selName) });
     }
-}
-window.updateSpinCameraButtons = updateSpinCameraButtons;
+    if (!ents.length) return;
 
-// 전환 UI 표시/숨김 — 게임(카운트다운/재생/다시보기) 중에만 노출, idle 숨김.
-function setSpinCameraBarVisible(on) {
-    var bar = document.getElementById('spinCameraBar');
-    if (bar) bar.style.display = on ? '' : 'none';
+    // 라이브 순위(dealt DESC, 동점은 idx) — Stage1 #k + 하위 dangerCount명(최저 dealt) 위험 표시
+    var byScore = ents.slice().sort(function (a, b) { return (b.cum - a.cum) || (a.idx - b.idx); });
+    var liveRank = {}, isDanger = {};
+    for (var lr = 0; lr < byScore.length; lr++) {
+        liveRank[byScore[lr].idx] = lr + 1;
+        if (lr >= byScore.length - dangerCount) isDanger[byScore[lr].idx] = true;   // 하위 dangerCount명
+    }
+
+    // 결승은 HP 오름차순(위험한 사람 위), Stage1은 dealt 내림차순
+    if (inFinale) ents.sort(function (a, b) { return (a.hp - b.hp) || (a.idx - b.idx); });
+    else ents.sort(function (a, b) { return (b.cum - a.cum) || (a.idx - b.idx); });
+
+    // top-N + 나
+    var N = inFinale ? 3 : 5;
+    var pick = ents.slice(0, N);
+    var meEnt = null, meIncluded = false;
+    for (var mq = 0; mq < ents.length; mq++) { if (ents[mq].isMe) { meEnt = ents[mq]; break; } }
+    for (var pq = 0; pq < pick.length; pq++) { if (pick[pq].isMe) { meIncluded = true; break; } }
+    if (meEnt && !meIncluded) pick = pick.concat([meEnt]);
+    if (!pick.length) return;
+
+    // 레이아웃(좌상단)
+    var pad = 10;
+    var w = isMobile ? 132 : 168;
+    var rowH = isMobile ? 17 : 21;
+    var headH = isMobile ? 15 : 18;
+    var x = pad, y = pad;
+    var h = headH + pick.length * rowH + 5;
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle = 'rgba(8,12,26,0.9)';
+    ctx.strokeStyle = 'rgba(124,92,255,0.5)';
+    ctx.lineWidth = 1.5;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke(); }
+    else { ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); }
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold ' + (isMobile ? 10 : 11) + 'px sans-serif';
+    ctx.fillStyle = 'rgba(174,182,194,0.92)';
+    ctx.fillText(inFinale ? '⚔️ 결승' : '🏆 점수 순위', x + 8, y + headH / 2 + 1);
+
+    // 순위 변동 슬라이드 — 각 행 y를 현재 순위 목표로 부드럽게 보간(viewer-local HUD, 결정론 무관).
+    if (!spinReplay._rankRowY) spinReplay._rankRowY = {};
+    var rowYState = spinReplay._rankRowY, seenRows = {};
+    for (var ap = 0; ap < pick.length; ap++) {
+        var ae = pick[ap], aTargetY = y + headH + ap * rowH, aKey = ae.idx;
+        seenRows[aKey] = true;
+        if (rowYState[aKey] == null) rowYState[aKey] = aTargetY;                 // 첫 등장 = 즉시(슬라이드 없음)
+        else rowYState[aKey] += (aTargetY - rowYState[aKey]) * 0.2;              // 슬라이드 보간
+        ae._animY = rowYState[aKey];
+    }
+    for (var rkk in rowYState) { if (!seenRows[rkk]) delete rowYState[rkk]; }    // 패널에서 빠진 행 정리
+
+    for (var pi = 0; pi < pick.length; pi++) {
+        var e = pick[pi];
+        var ry0 = (e._animY != null) ? e._animY : (y + headH + pi * rowH);
+        var rcy = ry0 + rowH / 2 - 1;
+        if (e.isMe) { ctx.fillStyle = 'rgba(124,92,255,0.22)'; ctx.fillRect(x + 2, ry0, w - 4, rowH); }   // 내 행 강조 배경
+        var stuck = e.isSel && decidedNow;                        // 당첨 적색 — 결판 후만(스포일러 가드)
+        var frac, barCol, label, badge;
+        if (inFinale) {
+            // 결승 — HP바(green→red, 분모 hpMax)
+            frac = clamp((e.hp || 0) / hpMax, 0, 1);
+            if (stuck) { frac = 1; barCol = '#ff5b5b'; badge = '⚔️'; label = '당첨'; }
+            else {
+                barCol = 'rgb(' + Math.round(lerp(225, 80, frac)) + ',' + Math.round(lerp(70, 200, frac)) + ',70)';
+                badge = ''; label = String(Math.round(e.hp || 0));
+            }
+        } else {
+            // Stage1(+단일) — 점수(dealt) 순위. 하위 dangerCount명(최저 dealt) 위험 강조.
+            frac = 1; barCol = '#ffd24a';
+            badge = '#' + liveRank[e.idx]; label = String(Math.round(e.cum));
+            if (isDanger[e.idx]) { barCol = '#ff8a5a'; badge = '⚠️ 위험'; }
+        }
+        // 색 점
+        ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(x + 11, rcy, 3.2, 0, Math.PI * 2); ctx.fill();
+        // 배지(순위/상태) + 이름(truncate — 캔버스 fillText는 마크업 미해석이라 XSS 무관)
+        ctx.font = (isMobile ? 9 : 10) + 'px sans-serif';
+        ctx.fillStyle = e.isMe ? '#ffffff' : 'rgba(223,229,240,0.92)';
+        ctx.textAlign = 'left';
+        var nm = e.name.length > (isMobile ? 5 : 7) ? e.name.slice(0, isMobile ? 5 : 7) : e.name;
+        var leftTxt = (badge ? badge + ' ' : '') + nm;
+        ctx.fillText(leftTxt, x + 18, rcy);
+        // 값(점수/HP)
+        ctx.textAlign = 'right';
+        ctx.fillStyle = e.isMe ? '#ffffff' : 'rgba(200,208,222,0.85)';
+        ctx.fillText(label, x + w - 6, rcy);
+        // 진행 바(행 하단 얇은 줄)
+        var bx = x + 8, bw = w - 16, by = ry0 + rowH - 3.5, bh = 2.5;
+        ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = barCol; ctx.fillRect(bx, by, bw * frac, bh);
+    }
+    ctx.restore();
 }
+
+// 내 HP drain 비네트(readability-v2 #7) — 스크린 공간, 붉은 가장자리. reduced-motion이면 호출 안 됨(_myDrainFlash 0 유지).
+function drawMyDrainVignette(ctx, canvas, intensity) {
+    var w = canvas.width, h = canvas.height;
+    var g = ctx.createRadialGradient(w / 2, h / 2, h * 0.30, w / 2, h / 2, h * 0.72);
+    g.addColorStop(0, 'rgba(255,40,40,0)');
+    g.addColorStop(1, 'rgba(220,20,20,' + (0.5 * intensity).toFixed(3) + ')');
+    ctx.save(); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); ctx.restore();
+}
+
+// ── 결승 비주얼 프레임(§6) — 2단계만. 전부 t·payload(finalists) 파생, 스포일러세이프. ──
+var FINALE_RECAP_MS = 5000;     // 결승 전환 카드 구간(인트로 8000의 앞 5초). 이후 3·2·1 3초.
+
+// 결승 진출자 슬롯 idx 배열(payload.finalists 파생) — recap/intro 카드용.
+function spinFinalistIdxs(payload) {
+    var slots = payload.slots || [];
+    var finSet = spinFinalistSet(payload);
+    var out = [];
+    for (var i = 0; i < slots.length; i++) if (finSet[slots[i].id]) out.push(i);
+    return out;
+}
+
+// 결승 전환 카드(§6) — 스크린 공간. round1EndMs 종료 ~ +FINALE_RECAP_MS(≥5s).
+// "상위 N명 안전!" 요약 + 결승 3인 강조(이름·색). 단일 하이라이트 금지(당첨자 미정 스포일러 가드).
+function drawSpinFinaleCard(ctx, t, payload, canvas) {
+    if (!payload.twoStage || payload.round1EndMs == null) return;
+    if (t < payload.round1EndMs || t >= payload.round1EndMs + FINALE_RECAP_MS) return;
+    var prog = (t - payload.round1EndMs) / FINALE_RECAP_MS;   // 0~1
+    var fade = prefersReducedMotion ? 1 : clamp(Math.min(prog / 0.10, (1 - prog) / 0.10), 0, 1);
+    var slots = payload.slots || [];
+    var S = spinReplay._slotState;
+    var finIdxs = spinFinalistIdxs(payload);
+    var safeN = slots.length - finIdxs.length;
+
+    // 결승 3인 — 점수 낮은 순(=가장 위험한 진출자부터). 점수는 Stage1 동결값(S[].cum).
+    var fin = finIdxs.map(function (i) {
+        return { id: slots[i].id, name: slots[i].name || '', color: slots[i].color || '#9aa3ad',
+            score: S[i] ? S[i].cum : 0, isMe: (i === spinReplay._mySlotIdx) };
+    });
+    fin.sort(function (a, b) { return (a.score - b.score) || (a.id - b.id); });
+
+    var cw = canvas.width, ch = canvas.height;
+    var rowH = 22, headH = 56;
+    var cardW = Math.min(cw - 32, 280);
+    var cardH = Math.min(ch - 20, headH + fin.length * rowH + 16);
+    var cardX = (cw - cardW) / 2, cardY = (ch - cardH) / 2;
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = 'rgba(12,14,28,0.92)';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(cardX, cardY, cardW, cardH, 14); ctx.fill(); }
+    else ctx.fillRect(cardX, cardY, cardW, cardH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5;
+    if (ctx.roundRect) ctx.stroke(); else ctx.strokeRect(cardX, cardY, cardW, cardH);
+    // 헤더
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#dfe5f0'; ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('🏁 결승전', cw / 2, cardY + 26);
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#9fe0b0';
+    ctx.fillText('상위 ' + safeN + '명 안전!', cw / 2, cardY + 44);
+
+    // 결승 3인 행 — 슬롯색 점 + 이름 + 점수(동일 NEUTRAL 강조, 단일 하이라이트 금지)
+    ctx.textBaseline = 'middle';
+    var listX = cardX + 16, listW = cardW - 32;
+    for (var li = 0; li < fin.length; li++) {
+        var e = fin[li];
+        var rcy = cardY + headH + li * rowH + rowH / 2;
+        ctx.fillStyle = 'rgba(180,42,52,0.18)';   // 결승 3인 — 불길한 톤(전원 동일, 최종 미노출 가드)
+        ctx.fillRect(listX - 2, rcy - rowH / 2 + 1, listW + 4, rowH - 2);
+        if (e.isMe) { ctx.strokeStyle = 'rgba(124,92,255,0.85)'; ctx.lineWidth = 1.2; ctx.strokeRect(listX - 2, rcy - rowH / 2 + 1, listW + 4, rowH - 2); }
+        ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(listX + 8, rcy, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.textAlign = 'left'; ctx.font = (e.isMe ? 'bold ' : '') + '13px sans-serif';
+        ctx.fillStyle = '#ff9a8a';
+        var nm = e.name.length > 10 ? e.name.slice(0, 10) : e.name;
+        ctx.fillText('⚔️ ' + nm + (e.isMe ? ' (나)' : ''), listX + 18, rcy);
+        ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(207,214,226,0.9)';
+        ctx.fillText(String(Math.round(e.score)), listX + listW - 4, rcy);
+    }
+    ctx.restore();
+}
+
+// (feel-v5 V1) 결승 전환 암전(drawSpinFinaleBlackout)은 폐기 — 유일한 풀스크린 암전은 라운드 종료→다음 라운드 전환(round-end fade).
+// 비결승자는 round1EndMs부터 ~350ms 빠른 페이드아웃으로 사라지고, 집결 스냅은 결승 전환 카드(drawSpinFinaleCard)가 가린다.
+var NONFINALIST_FADE_MS = 350;   // 비결승자 페이드아웃 길이(round1EndMs 기점). reduced-motion이면 즉시 숨김.
 
 function drawSpinFrame(now) {
     var canvas = getSpinCanvas();
@@ -1381,6 +1490,13 @@ function drawSpinFrame(now) {
     var frames = payload.frames, slots = payload.slots;
     var cx = ARENA_CX, cy = ARENA_CY;
     var selected = (payload.result && payload.result.selected) || null;
+    // ⚠️ 보간 시각 t는 stage/ring 파생보다 반드시 위에서 선언(var 호이스팅 함정 — t=undefined면 stage가 조용히 'finale'로 굳음)
+    var t = clamp(now - spinReplay.startTs, 0, durationMs);
+    var dt = clamp((now - (spinReplay.lastNow || now)) / 1000, 0, 0.05);
+    spinReplay.lastNow = now;
+    var stage = spinStageAt(payload, t);    // 'stage1' | 'intro' | 'finale' (단일 단계는 항상 stage1)
+    var inFinale = (stage === 'finale' && payload.twoStage);
+    var finSet = spinFinalistSet(payload);
     // ── 인원 가변 시각 스케일(단일 소스) — geom.scale 권위. n≤6은 1이라 렌더 픽셀 동일(동결) ──
     // 변수명 scl: 아래 슬롯 보간 루프의 `var s = S[si]`(함수 스코프 var 호이스팅)와 충돌 방지.
     var scl = (payload.geom && payload.geom.scale) || 1;
@@ -1392,10 +1508,6 @@ function drawSpinFrame(now) {
     var swordLenS = (payload.geom && payload.geom.swordLen) || SWORD_LEN;   // 선분 길이²(서버 미러)
     var bladeRadS = (payload.geom && payload.geom.bladeRadius) || BLADE_RADIUS;
 
-    var t = clamp(now - spinReplay.startTs, 0, durationMs);
-    var dt = clamp((now - (spinReplay.lastNow || now)) / 1000, 0, 0.05);
-    spinReplay.lastNow = now;
-
     // 프레임 보간 인덱스
     var fi = t / sampleMs;
     var i0 = Math.floor(fi);
@@ -1403,112 +1515,120 @@ function drawSpinFrame(now) {
     var i1 = Math.min(i0 + 1, frames.length - 1);
     var a = fi - i0;
     var f0 = frames[i0], f1 = frames[i1];
+    var hpFrames = payload.hpFrames;                                   // 결승 HP바(stride 1, frames와 평행). Stage1=HP_MAX 불변.
+    var hf0 = hpFrames ? hpFrames[i0] : null, hf1 = hpFrames ? hpFrames[i1] : null;
 
-    var ringR = ringRadiusAt(t);
+    var ringR = ringRadiusAt(t, payload.round1EndMs);
     var S = spinReplay._slotState;
 
-    // 1) 슬롯별 보간 상태(DATA 좌표 = 충돌/감지 권위) — frames 3채널 = cumDmg(받은 데미지 누적, 단조)
-    //    상태 판정은 전부 t·페이로드 파생: escaped = t≥escapeMs, downed = ∃k: timeMs ≤ t < reviveMs
-    //    (reviveMs 정확히 그 시점은 부활 — 상한 미포함).
+    // 1) 슬롯별 보간 상태(DATA 좌표 = 충돌/감지 권위) — frames 3채널 = [x, y, c] (c = dealt = 입힌 누적 데미지 = 점수).
+    //    hpFrames(stride 1)는 결승 HP바 + 내 HP drain flash 감지(결승만 의미 — Stage1은 HP_MAX 불변).
     for (var si = 0; si < slots.length; si++) {
         var bx = si * 3, by = si * 3 + 1, bcum = si * 3 + 2;
         var s = S[si];
         s.x = lerp(f0[bx], f1[bx], a);
         s.y = lerp(f0[by], f1[by], a);
         s.cum = lerp(f0[bcum], f1[bcum], a);
-        s.dmgRise = (s.cum > s.prevCum + 0.02);   // 보간 cumDmg 상승 중 = 피격(기존 hpDrop 역할 — 부활 점프 오감지 없음)
+        s.dmgRise = (s.cum > s.prevCum + 0.02);   // 보간 dealt 상승 중 = 누군가를 침(스파크/플로터)
         s.prevCum = s.cum;
-        var escMs = spinReplay._escapeMs[si];
-        s.escaped = (escMs != null && t >= escMs);
-        s.downed = false;
-        s.downIdx = -1;
-        var dws = spinReplay._downs[si];
-        for (var dk = 0; dk < dws.length; dk++) {
-            if (t >= dws[dk].timeMs && t < dws[dk].reviveMs) { s.downed = true; s.downIdx = dk; break; }
+        // hpFrames 보간(stride 1) — 결승 HP바 + 내 HP drain flash/위기 비네트(결승 진출자만)
+        if (hf0) {
+            s.prevHp = s.hp;
+            s.hp = lerp(hf0[si], hf1[si], a);
+            var isMyFinalist = (si === spinReplay._mySlotIdx) && inFinale && finSet[slots[si].id];
+            if (isMyFinalist && !prefersReducedMotion && s.hp < s.prevHp - 0.05) {
+                spinReplay._myDrainFlash = clamp(spinReplay._myDrainFlash + (s.prevHp - s.hp) * 0.05, 0, 0.85);
+            }
+            // 내 캐릭터 위기 비네트 — 결승 내 HP 저하 시 sustained 적색 심박(저HP 내내 조마조마). reduced-motion 제외.
+            if (isMyFinalist && !prefersReducedMotion) {
+                var myHpFrac = clamp(s.hp / (payload.hpMax || HP_MAX), 0, 1);
+                if (myHpFrac > 0 && myHpFrac <= FINALE_CRISIS_FRAC) {
+                    var crisis = (FINALE_CRISIS_FRAC - myHpFrac) / FINALE_CRISIS_FRAC;   // 0~1
+                    var crisisFloor = 0.16 + 0.40 * crisis * (0.6 + 0.4 * Math.sin(t / 70));   // 심박 펄스
+                    if (spinReplay._myDrainFlash < crisisFloor) spinReplay._myDrainFlash = crisisFloor;
+                }
+            }
         }
 
         var fxs = spinReplay.slotFx[si];
         // 스프라이트 좌우 방향(이동 방향 — frame 데이터 기반 결정론)
         var ddx = f1[bx] - f0[bx];
         if (ddx > 0.6) fxs.faceDir = 1; else if (ddx < -0.6) fxs.faceDir = -1;
-
-        // 탈출 연출 1회 — 칼 5개 도달 = 탈출 성공(파편 + 충격파 + 플래시 + 골드 텍스트 + 사운드).
-        // selected는 이제 탈출 자체를 못 하므로(항상 최소 1명 잔류) 실패 분기 없음.
-        if (s.escaped && !spinReplay.burstDone['esc' + slots[si].id]) {
-            spinReplay.burstDone['esc' + slots[si].id] = true;
-            var dex = (fxs.escX != null) ? fxs.escX : s.x;
-            var dey = (fxs.escY != null) ? fxs.escY : s.y;
-            var dseed = (slots[si].id + 1) * 99991 + Math.floor(escMs);
-            var pcol = slots[si].color || '#c2c8cf';
-            spawnSparks(dex, dey, pcol, dseed, prefersReducedMotion ? 8 : 16, 40, 135, 4.2, 0.5, 60);
-            spawnSparks(dex, dey, '#ffffff', dseed + 17, prefersReducedMotion ? 3 : 6, 60, 150, 3, 0.38, 40);
-            spawnRing(dex, dey, slots[si].blade || '#ffffff', 48, 0.5);
-            spawnFlash(dex, dey, 52, 0.26);
-            spawnText(dex, dey - charR, '탈출!', '#ffd24a', 1.05);
-            addShake(6);
-            playSpinSound('spin-arena_eliminate', 0.6);
-        }
-
-        // 다운/부활 연출 — 슬롯당 다회 가능, 이벤트(인덱스)별 1회 트리거
-        for (var dk2 = 0; dk2 < dws.length; dk2++) {
-            if (t < dws[dk2].timeMs) break;
-            var dkey = 'down' + slots[si].id + '_' + dk2;
-            if (!spinReplay.burstDone[dkey]) {
-                // 다운: 비석 드롭(스케일 펀치는 drawTombstone이 t로 계산) + 흔들림 + 저볼륨 사운드
-                spinReplay.burstDone[dkey] = true;
-                addShake(9);
-                playSpinSound('spin-arena_eliminate', 0.4);
-            }
-            var rkey = 'rev' + slots[si].id + '_' + dk2;
-            if (t >= dws[dk2].reviveMs && !spinReplay.burstDone[rkey]) {
-                // 부활: 플래시 + 스킨색 링 + 사운드(기존 hit 재사용 — 결정서 3-6), 캐릭터는 동결 좌표에서 복귀
-                spinReplay.burstDone[rkey] = true;
-                spawnFlash(dws[dk2].x, dws[dk2].y, 42, 0.3);
-                spawnRing(dws[dk2].x, dws[dk2].y, slots[si].blade || '#ffffff', 38, 0.45);
-                playSpinSound('spin-arena_hit', 0.4);
-            }
-        }
     }
 
-    // 1.5) 칼업(⚔️+1) 플래시 — bladeUps 트리거(시각 전용, t·페이로드 파생). 칼날 각 스냅을 가린다.
-    //      5번째 칼(탈출)은 같은 t의 탈출 연출이 담당 — escaped 가드로 자동 스킵.
-    var bus = payload.bladeUps || [];
-    for (var bi = 0; bi < bus.length; bi++) {
-        var bu = bus[bi];
-        if (t < bu.timeMs || spinReplay.bladeFlashDone[bi]) continue;
-        spinReplay.bladeFlashDone[bi] = true;
-        var ki = -1;
-        for (var ks = 0; ks < slots.length; ks++) { if (slots[ks].id === bu.id) { ki = ks; break; } }
-        if (ki < 0 || S[ki].escaped) continue;
-        var kcol = slots[ki].blade || '#ffffff';
-        spawnRing(S[ki].x, S[ki].y, kcol, bladeRadS + 10 * scl, 0.45);
-        spawnFlash(S[ki].x, S[ki].y, bladeRadS, 0.3);
-        spawnText(S[ki].x, S[ki].y - charR - 18 * scl, '⚔️+1', kcol, 0.9);
-    }
-
-    // 1.6) 데미지 숫자 — 키프레임(100ms) 경계마다 cumDmg 증가량 합산 1개(반올림 정수, 0 미표시).
-    //      증가 = 진행 획득이므로 +N(골드). 위치/타이밍 전부 frames 파생(2탭 동일). 큰 점프 시 최근 3구간만.
+    // 1.6) 데미지 숫자 — 키프레임(100ms) 경계마다 dealt(점수) 증가량 합산 1개(반올림 정수, 0 미표시).
+    //      증가 = 점수 획득이므로 입힌 쪽 머리 위 +N(골드/시안). 위치/타이밍 전부 frames 파생(2탭 동일). 큰 점프 시 최근 3구간만.
     if (i0 > spinReplay.lastDmgFrame) {
         var fromJ = Math.max(spinReplay.lastDmgFrame + 1, i0 - 3);
         for (var dj = fromJ; dj <= i0; dj++) {
             var fp = frames[dj - 1], fc = frames[dj];
             for (var dsi = 0; dsi < slots.length; dsi++) {
                 var gainInt = Math.round(fc[dsi * 3 + 2] - fp[dsi * 3 + 2]);
-                if (gainInt <= 0) continue;
+                if (gainInt < 3) continue;   // 소량 틱 억제(화면 스팸 방지)
+                if (spinReplay.slotFx[dsi]) spinReplay.slotFx[dsi].pulseT = t;   // 점수 획득 타격감 — 입힌 캐릭터 스케일 펀치
                 var jx = (hash01(dj * 131 + dsi * 17) - 0.5) * 12;
-                spawnText(fc[dsi * 3] + jx, fc[dsi * 3 + 1] - charR - 10 * scl, '+' + gainInt, '#ffe27a', 0.8);
+                // 내 것 = 시안 강조(큰 폰트), 타인 = 골드(작고 흐리게). 크기 = 타격량 비례.
+                var isMine = (dsi === spinReplay._mySlotIdx);
+                var gainK = clamp((gainInt - 8) / 27, 0, 1);   // 8~35 → 0~1
+                var dmgBase = isMine ? 20 : 14;
+                var dmgAdd = (isMine ? 12 : 7) * gainK;
+                var fsize = (dmgBase + dmgAdd) * scl;
+                var dmgCol = isMine ? '#38e8ff' : 'rgba(255,226,122,0.78)';
+                spawnText(fc[dsi * 3] + jx, fc[dsi * 3 + 1] - charR - 10 * scl, '+' + gainInt, dmgCol, 0.8, fsize);
             }
         }
         spinReplay.lastDmgFrame = i0;
     }
 
+    // 1.7) 픽업 연출("연출 살짝") — pickups의 timeMs가 (lastPickupT, t]를 넘는 순간 1회. S[slotId] 위치에 flash+text.
+    //      전부 t·payload 파생(2탭 동일). lastPickupT는 다시보기/시크 시 -1 리셋(initSpinFx) → t=0 덤프 없음(픽업 timeMs>0).
+    var pkArr = payload.pickups || [];
+    for (var pkj = 0; pkj < pkArr.length; pkj++) {
+        var p = pkArr[pkj];
+        if (p.timeMs > spinReplay.lastPickupT && p.timeMs <= t) {
+            var pslot = S[p.slotId];
+            if (pslot) {
+                var plabel = p.type === 'double' ? '딜 ×2!' : p.type === 'heal' ? '회복!' : p.type === 'shield' ? '보호막!' : p.type === 'speed' ? '속도↑' : '칼날+1';
+                var pcol = p.type === 'double' ? '#ff7a5a' : p.type === 'heal' ? '#5fe39a' : p.type === 'shield' ? '#7ab0ff' : p.type === 'speed' ? '#ffe06a' : '#c79aff';
+                spawnFlash(pslot.x, pslot.y, charR * 2.2, 0.4);
+                spawnText(pslot.x, pslot.y - charR - 14 * scl, plabel, pcol, 0.9, 16 * scl);
+                if (spinReplay.slotFx[p.slotId]) spinReplay.slotFx[p.slotId].pulseT = t;
+            }
+        }
+    }
+    spinReplay.lastPickupT = t;
+
+    // 1.9) Stage1→결승 전환 FX(2단계) — t가 round1EndMs를 넘는 순간 1회: 플래시 + 충격파 + 인트로 시작음.
+    //       순수 t 파생(2탭 동일). 카드/3·2·1은 아래 인트로 블록이 담당.
+    if (payload.twoStage && payload.round1EndMs != null && t >= payload.round1EndMs && !spinReplay.burstDone['finaleStart']) {
+        spinReplay.burstDone['finaleStart'] = true;
+        spawnFlash(ARENA_CX, ARENA_CY, ARENA_R * 0.9, 0.5);
+        spawnRing(ARENA_CX, ARENA_CY, '#ffd24a', ARENA_R * 0.85, 0.7);
+        addShake(11);
+        playSpinSound('spin-arena_start', 0.6);
+    }
+
+    // 1.10) #gameStatus 라이브 갱신 — 단계가 바뀌면 미션 텍스트 전환. churn 방지: 직전 적용 텍스트와 다를 때만 DOM 쓰기.
+    var liveMission = spinMissionText(payload.twoStage, payload.round1EndMs, t);
+    if (spinReplay._lastMissionT !== liveMission && !spinReplay.isReplayMode && !spinReplay.overflowSpectator) {
+        var gsEl = document.getElementById('gameStatus');
+        if (gsEl) { gsEl.textContent = liveMission; gsEl.className = 'game-status active'; }
+        spinReplay._lastMissionT = liveMission;
+    }
+
+    // 결승에서 화면에 그릴 슬롯 게이트: stage1/intro=전원, finale=결승 3인만(안전자 숨김 — 칼날·타격·렌더 공통).
+    function spinSlotShown(si) {
+        if (!inFinale) return true;
+        return !!finSet[slots[si].id];
+    }
+
     // 2) 칼날 날 선분(DATA 좌표) — 타격 감지용(칼날 수는 bladeCountAt — 서버 거울)
     //    선분 = 허브에서 BLADE_RADIUS-SWORD_LEN(안쪽 끝)~BLADE_RADIUS(칼끝) 구간(서버와 동일).
-    //    활성(탈출 아님 + 다운 아님) 캐릭터만 칼날 생성(서버 ① 미러).
+    //    결승에서는 결승 3인만 칼날 생성(안전자는 숨김).
     var tips = spinReplay._tips; tips.length = 0;
     var baseT = t / 1000;
     for (var si2 = 0; si2 < slots.length; si2++) {
-        var s2 = S[si2]; if (s2.escaped || s2.downed) continue;
+        var s2 = S[si2]; if (!spinSlotShown(si2)) continue;
         var sl2 = slots[si2];
         var bc2 = bladeCountAt(si2, t);
         var two2 = 2 * Math.PI / bc2;
@@ -1529,7 +1649,7 @@ function drawSpinFrame(now) {
     var hitsThisFrame = 0;
     for (var vi = 0; vi < slots.length; vi++) {
         var v = S[vi];
-        if (v.escaped || v.downed || !v.dmgRise) continue;
+        if (!spinSlotShown(vi) || !v.dmgRise) continue;
         var bestD = hitThresh2, bestPx = 0, bestPy = 0, bestOwner = -1;
         for (var ti = 0; ti < tips.length; ti++) {
             var tp = tips[ti]; if (tp.owner === vi) continue;
@@ -1563,18 +1683,16 @@ function drawSpinFrame(now) {
         playSpinSound('spin-arena_hit', 0.16 + Math.min(hitsThisFrame, 3) * 0.05);
     }
 
-    // 4) 파티클/연출/줌/흔들림 진행
+    // 4) 파티클/연출/흔들림 진행
     updateParticles(dt);
     updateFx(dt);
     spinReplay.shake = Math.max(0, spinReplay.shake - SHAKE_DECAY * dt);
-    // 결판 집중 강도 — t의 결정론 함수(2탭 동일). 잔류 2명 진입(showdownStartT) 후 0.6s에 걸쳐 0→1.
-    // 줌(1.08)은 overview 모드의 camZoom 입력으로만 흡수(§3-4 ISSUE-6). 비네트 강도는 전 모드 유지.
-    var showdownLevel = (!prefersReducedMotion && spinReplay.showdownStartT != null)
-        ? clamp((t - spinReplay.showdownStartT) / 600, 0, 1) : 0;
+    spinReplay._myDrainFlash = Math.max(0, (spinReplay._myDrainFlash || 0) - 1.6 * dt);   // 내 HP drain 비네트 감쇠
 
-    // 카메라 갱신(focus EMA + 모드별 zoom). overview는 기존 고정 뷰 폴백(showdown 1.08 포함).
-    var cam = updateSpinCamera(t, dt, payload, showdownLevel);
+    // 카메라 갱신(focus EMA + 단계별 zoom). stage1=링 전체, finale=결승 3인 fit.
+    var cam = updateSpinCamera(t, dt, payload, stage);
     var camZoom = cam.zoom, camFocusX = cam.focusX, camFocusY = cam.focusY;
+    var framedSlot = spinFramedSlot(payload, stage);   // 카메라 타깃 외곽선 대상 슬롯(-1=없음)
 
     var shx = 0, shy = 0;
     if (spinReplay.shake > 0.15) {   // 흔들림 오프셋(t 해시 → 결정론, 2탭 동일) — 스크린 공간(카메라 위)
@@ -1583,7 +1701,7 @@ function drawSpinFrame(now) {
         shy = (hash01(fseed + 9173) - 0.5) * 2 * spinReplay.shake;
     }
 
-    // ── 렌더 (§3-4 카메라 합성: shake[스크린] → 캔버스중심 → camZoom → -camFocus → 월드 드로잉) ──
+    // ── 렌더 (카메라 합성: shake[스크린] → 캔버스중심 → camZoom → -camFocus → 월드 드로잉) ──
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ARENA_W, ARENA_H);
     ctx.save();
@@ -1596,97 +1714,131 @@ function drawSpinFrame(now) {
     drawOutsideShade(ctx, cx, cy, ringR);
     drawSafeRing(ctx, cx, cy, ringR, t);
 
+    // ── B5 픽업 아이템 스프라이트(시각 전용 — t·payload 파생, Math.random 없음) ──
+    //   소비된 아이템(픽업 timeMs ≤ t)은 즉시 제거. 활성 구간(spawnMs≤t<despawnMs)만 그린다. 작은 글리프 + 글로우 + t 파생 보빙.
+    if (payload.items && payload.items.length) {
+        var consumedItems = {};
+        var pkArr0 = payload.pickups || [];
+        for (var pci = 0; pci < pkArr0.length; pci++) { if (pkArr0[pci].timeMs <= t) consumedItems[pkArr0[pci].itemId] = true; }
+        var ITEM_GLYPH = { double: '⚔️', speed: '💨', blade: '🗡️', heal: '💚', shield: '🛡️' };
+        var ITEM_GLOW = { double: '#ff7a5a', speed: '#ffe06a', blade: '#c79aff', heal: '#5fe39a', shield: '#7ab0ff' };
+        for (var iti = 0; iti < payload.items.length; iti++) {
+            var itm = payload.items[iti];
+            if (t < itm.spawnMs || t >= itm.despawnMs) continue;
+            if (consumedItems[itm.id]) continue;
+            var bob = Math.sin(t / 300 + itm.id) * 3 * scl;
+            var iglow = ITEM_GLOW[itm.type] || '#ffffff';
+            ctx.save();
+            // 글로우 원
+            var ig = ctx.createRadialGradient(itm.x, itm.y + bob, 0, itm.x, itm.y + bob, 16 * scl);
+            ig.addColorStop(0, iglow);
+            ig.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 0.4 + 0.15 * (0.5 + 0.5 * Math.sin(t / 220 + itm.id));
+            ctx.fillStyle = ig;
+            ctx.beginPath(); ctx.arc(itm.x, itm.y + bob, 16 * scl, 0, Math.PI * 2); ctx.fill();
+            // 글리프(이모지)
+            ctx.globalAlpha = 1;
+            ctx.font = (18 * scl) + 'px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(ITEM_GLYPH[itm.type] || '?', itm.x, itm.y + bob);
+            ctx.restore();
+        }
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
+
     var nearEnd = t > durationMs - 2000;
-    // 결판 가드 — selected 식별 가능한 적색 연출은 결판 확정 후에만.
-    // decideMs > durationMs−2000(테일 캡 잘림)·캡 교착(decideMs null) 판에서 결판 전 스포일러 방지.
-    // 패널(updateSpinHpPanel stuck)·진행 바(blocked)와 동일 기준.
-    var decidedNow = payload.decideMs != null ? t >= payload.decideMs : t >= durationMs;
+    // 결판 가드 — selected 식별 가능한 적색 연출은 결판 확정 후에만(decideMs는 절대 null 아님).
+    var decidedNow = (payload.decideMs != null && t >= payload.decideMs);
 
-    // 탈출자 먼저 — 상승+페이드 700ms 퇴장(전부 t 파생 — 2탭 동일) 후 미표시.
-    // 탈출은 성공이므로 본인 스킨색 유지. selected는 탈출 자체를 못 하므로 시체 분기 없음.
     var spriteOn = spinSprites.ready;
-    for (var dii = 0; dii < slots.length; dii++) {
-        var sd = S[dii];
-        if (!sd.escaped) continue;
-        var sld = slots[dii];
-        var exitK = (t - spinReplay._escapeMs[dii]) / 700;   // 0→1 퇴장 진행도(t 파생, 결정론)
-        if (exitK >= 1) continue;                            // 퇴장 완료 — 미표시
-        if (exitK < 0) exitK = 0;
-        ctx.save();
-        ctx.globalAlpha = 1 - exitK;
-        ctx.translate(sd.x, sd.y - exitK * 60);              // 상승하며 페이드
-        if (spriteOn) {
-            drawCharSprite(ctx, spinSpriteVariantFor(sld), 0, spinReplay.slotFx[dii].faceDir, scl);
-        } else {
-            drawCharBody(ctx, spinReplay.slotFx[dii].rgb, scl);
-            drawCharFace(ctx, scl);
-        }
-        ctx.restore();
-    }
+    // (feel-v5 V1) 비결승자 페이드아웃: 풀스크린 암전을 폐기했으므로 round1EndMs 기점 ~350ms로 1→0 페이드 후 숨김.
+    //   집결 스냅은 결승 전환 카드(drawSpinFinaleCard, 앞 5초)가 가린다. reduced-motion이면 즉시 숨김(아래 nfFadeAlpha 참조).
+    // 비결승자가 round1EndMs부터 사라지는지 판정(미니맵·랭크패널과 동일 기준 — 이미 round1EndMs부터 숨김).
+    var hideNonFinalists = (payload.twoStage && payload.round1EndMs != null && t >= payload.round1EndMs);
+    // round1EndMs 이후 경과(ms) — 비결승자 페이드 진행도 산출용(-∞~). round1End 전이면 음수.
+    var sinceRound1End = (payload.twoStage && payload.round1EndMs != null) ? (t - payload.round1EndMs) : -1;
 
-    // 다운(비석) 캐릭터 — 캐릭터 본체 미표시, 비석 + 머리 위 3·2·1 카운트다운 + 이름표.
-    // selected가 다운 상태로 결판 비트에 들어가면 비석에 적색 강조(막판 KO 서사).
-    for (var tbi = 0; tbi < slots.length; tbi++) {
-        var td = S[tbi];
-        if (!td.downed) continue;
-        var dw = spinReplay._downs[tbi][td.downIdx];
-        var isSelDown = selected && slots[tbi].name === selected;
-        if (nearEnd && decidedNow && isSelDown) {
-            var gpd = 0.5 + 0.5 * Math.sin(t / 110);
-            ctx.save();
-            ctx.globalAlpha = 0.35 + 0.3 * gpd;
-            ctx.strokeStyle = '#ff5b5b';
-            ctx.lineWidth = 3;
-            ctx.shadowBlur = 14;
-            ctx.shadowColor = '#ff5b5b';
-            ctx.beginPath(); ctx.arc(dw.x, dw.y, (22 + gpd * 2) * scl, 0, Math.PI * 2); ctx.stroke();
-            ctx.restore();
+    // A4 "유력" 마커 — 라이브 하위 N명(최저 dealt)을 머리 위에 표시(현재 점수 기준 = 가변·스포일러 안전).
+    //   Stage1 한정 + t≥20s + 결판 전(!decidedNow)에만. 랭크 패널과 동일 정렬·인원(RANK_DANGER_COUNT 미러).
+    var showRiskMarker = (stage === 'stage1' && t >= 20000 && !decidedNow);
+    var bottomSet = null;
+    if (showRiskMarker) {
+        var riskCount = payload.twoStage ? RANK_DANGER_COUNT : 1;   // 2단계=하위 3명, 단일=최하위 1명
+        var riskEnts = [];
+        for (var ri = 0; ri < slots.length && ri < S.length; ri++) {
+            var rs = S[ri]; if (!rs) continue;
+            // stage1은 전원 활성. 방어적으로 이탈/탈락/영구다운 플래그가 있으면 제외.
+            if (rs.escaped || rs.finalist || rs.permaDead) continue;
+            riskEnts.push({ idx: ri, cum: rs.cum });
         }
-        drawTombstone(ctx, dw.x, dw.y, t, dw.timeMs, scl);
-        var revSecs = Math.ceil((dw.reviveMs - t) / 1000);   // 3·2·1 — t 파생(2탭 동일)
-        if (revSecs > 0) {
-            ctx.save();
-            ctx.font = 'bold ' + Math.max(14 * scl, 10) + 'px sans-serif'; ctx.textAlign = 'center';
-            ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-            ctx.strokeText(String(revSecs), dw.x, dw.y - 22 * scl);
-            ctx.fillStyle = '#eef2fb';
-            ctx.fillText(String(revSecs), dw.x, dw.y - 22 * scl);
-            ctx.restore();
-        }
-        var tbLabel = slots[tbi].name || '';
-        if (tbLabel) {
-            // 다운 상태도 식별 보조 — pill 배경 + 외곽선(다운은 약간 흐리게 dim 0.85). 본인은 강조.
-            var isMeTomb = (tbi === spinReplay._mySlotIdx);
-            drawSpinNameTag(ctx, dw.x, dw.y + 28 * scl, tbLabel, scl, isMeTomb, slots[tbi].blade || '#ffd24a', '', 0.85);
+        // 랭크 패널과 동일: dealt DESC(동점 idx) → 하위 riskCount명이 "위험".
+        riskEnts.sort(function (a, b) { return (b.cum - a.cum) || (a.idx - b.idx); });
+        bottomSet = {};
+        for (var rk = Math.max(0, riskEnts.length - riskCount); rk < riskEnts.length; rk++) {
+            bottomSet[riskEnts[rk].idx] = true;
         }
     }
 
-    // 활성 캐릭터(탈출 X + 다운 X)
-    for (var ci = 0; ci < slots.length; ci++) {
+    // 활성 캐릭터 — 내 캐릭터를 렌더 순서 맨 끝으로 보내 다른 캐릭터 위에 그린다(z-order 보정).
+    //   결승/인트로(t≥round1EndMs)에서는 결승 3인만. 순수 z-order 보정 — RNG 무관, 결정론 안전.
+    var _activeOrder = [];
+    for (var aoi = 0; aoi < slots.length; aoi++) if (aoi !== spinReplay._mySlotIdx) _activeOrder.push(aoi);
+    if (spinReplay._mySlotIdx >= 0 && spinReplay._mySlotIdx < slots.length) _activeOrder.push(spinReplay._mySlotIdx);
+    for (var aoo = 0; aoo < _activeOrder.length; aoo++) {
+        var ci = _activeOrder[aoo];
         var sc = S[ci];
-        if (sc.escaped || sc.downed) continue;
+        if (!spinSlotShown(ci)) continue;
         var sl = slots[ci];
+        // (feel-v5 V1) 비결승자 페이드아웃 — 풀스크린 암전 폐기 대체. round1EndMs 기점 ~350ms로 1→0 후 숨김.
+        //   reduced-motion이면 즉시 숨김(기존 hard-hide 동작 유지). nfFadeAlpha는 캐릭터 본체/그림자/칼날/HUD에 곱해 적용.
+        var nfFadeAlpha = 1;
+        if (hideNonFinalists && !finSet[sl.id]) {
+            if (prefersReducedMotion) continue;                                  // 강모션 최소화: 즉시 숨김
+            nfFadeAlpha = clamp(1 - sinceRound1End / NONFINALIST_FADE_MS, 0, 1);
+            if (nfFadeAlpha <= 0.001) continue;                                  // 완전히 사라짐 → 그리지 않음
+        }
         var fx = spinReplay.slotFx[ci];
         var rx = sc.x, ry = sc.y;   // 넉백은 frames 좌표에 이미 반영(서버 시뮬)
         var isSel = selected && sl.name === selected;
+        var isMeChar = (ci === spinReplay._mySlotIdx);   // #1/#4/#5 — 내 캐릭터 분기(블링크/마커/네임태그). 루프 상단 1회 정의.
 
         // 그림자(스프라이트는 발 위치가 더 아래)
         ctx.save();
-        ctx.globalAlpha = 0.28;
+        ctx.globalAlpha = 0.28 * nfFadeAlpha;
         ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.ellipse(rx, ry + (spriteOn ? spriteH * 0.42 : charR * 0.78), charR * 0.85, charR * 0.34, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
+        // #1/#5 카메라 타깃 외곽선 — 동그라미가 아니라 캐릭터 실루엣 글로우(시안). 본체 뒤에 흰 변형을 cyan shadow로 깔아 테두리만 발광(본체가 흰 채움을 덮음).
+        if (ci === framedSlot) {
+            ctx.save();
+            ctx.translate(rx, ry);
+            ctx.shadowColor = 'rgba(120,210,255,0.95)';
+            ctx.shadowBlur = 5 + 2.5 * (0.5 + 0.5 * Math.sin(t / 280));
+            if (spriteOn) {
+                var fIdxO = Math.floor(t / 1000 * SPRITE_IDLE_FPS + ci) % SPRITE_COLS;
+                for (var go = 0; go < 3; go++) drawCharSprite(ctx, spinSprites.variants.white, fIdxO, fx.faceDir, scl);
+            } else {
+                ctx.fillStyle = 'rgba(120,210,255,0.6)';
+                for (var go2 = 0; go2 < 3; go2++) { ctx.beginPath(); ctx.arc(0, 0, charR, 0, Math.PI * 2); ctx.fill(); }
+            }
+            ctx.restore();
+        }
+
         // 칼날(허브가 바디에 덮이도록 바디 전에) — 칼날 수는 bladeCountAt(데미지 임계 성장 반영)
-        var bcNow = bladeCountAt(ci, t);
-        drawBladeSet(ctx, sl, rx, ry, t, sl.blade || '#ffffff', fx.bladeRgb, bcNow);
+        //   (feel-v5 V1) 비결승자 페이드 중에는 칼날 생략(drawBladeSet은 내부 절대 alpha라 그룹 페이드 불가) — 본체 페이드가 사라짐을 담당.
+        if (nfFadeAlpha >= 0.999) {
+            var bcNow = bladeCountAt(ci, t);
+            drawBladeSet(ctx, sl, rx, ry, t, sl.blade || '#ffffff', fx.bladeRgb, bcNow);
+        }
 
         // 바디 + 피격 효과 (스케일 펀치 적용)
         var pulse = 1;
         if (t - fx.pulseT < 150) { var pk = (t - fx.pulseT) / 150; pulse = 1 + 0.22 * Math.sin(pk * Math.PI); }
         ctx.save();
+        ctx.globalAlpha = nfFadeAlpha;   // (feel-v5 V1) 비결승자 페이드(평상시 1) — 본체/스프라이트 그룹 페이드
         ctx.translate(rx, ry);
         ctx.scale(pulse, pulse);
         if (spriteOn) {
@@ -1694,19 +1846,19 @@ function drawSpinFrame(now) {
             var fIdx = Math.floor(t / 1000 * SPRITE_IDLE_FPS + ci) % SPRITE_COLS;
             drawCharSprite(ctx, spinSpriteVariantFor(sl), fIdx, fx.faceDir, scl);
             if (t - fx.hitT < 130) {  // 피격 플래시(흰 실루엣 오버레이)
-                ctx.globalAlpha = (1 - (t - fx.hitT) / 130) * 0.9;
+                ctx.globalAlpha = (1 - (t - fx.hitT) / 130) * 0.9 * nfFadeAlpha;
                 drawCharSprite(ctx, spinSprites.variants.white, fIdx, fx.faceDir, scl);
-                ctx.globalAlpha = 1;
+                ctx.globalAlpha = nfFadeAlpha;
             }
         } else {
             // 폴백: 프로시저럴 바디 + 표정
             drawCharBody(ctx, fx.rgb, scl);
             drawCharFace(ctx, scl);
             if (t - fx.hitT < 130) {
-                ctx.globalAlpha = (1 - (t - fx.hitT) / 130) * 0.85;
+                ctx.globalAlpha = (1 - (t - fx.hitT) / 130) * 0.85 * nfFadeAlpha;
                 ctx.fillStyle = '#ffffff';
                 ctx.beginPath(); ctx.arc(0, 0, charR, 0, Math.PI * 2); ctx.fill();
-                ctx.globalAlpha = 1;
+                ctx.globalAlpha = nfFadeAlpha;
             }
         }
         ctx.restore();
@@ -1716,21 +1868,10 @@ function drawSpinFrame(now) {
         var botOff = spriteOn ? spriteH * 0.42 : charR;
 
         // 스킨업(t2) 프리미엄 아우라 — 순수 시각(payload tier/skinId 파생, 결과 무관)
-        if (spinSkinTier(sl) === 2) {
+        // drawTierAura는 자체 절대 globalAlpha를 쓰므로 그룹 페이드(nfFadeAlpha)가 안 먹는다 →
+        // 비결승자 페이드 중(nfFadeAlpha<1)엔 칼날과 동일하게 생략(반쪽 페이드 아티팩트 방지).
+        if (spinSkinTier(sl) === 2 && nfFadeAlpha >= 0.999) {
             drawTierAura(ctx, rx, ry, sl.blade || '#ffffff', t, spriteOn ? 20 * scl : charR + 3 * scl);
-        }
-
-        // 임박 글로우(골드 펄스) — 칼 4개(N−1) 도달자: "곧 탈출" 텐션 (활성 루프라 탈출X+다운X 보장)
-        if (bcNow === ESCAPE_BLADES - 1) {
-            var gp4 = 0.5 + 0.5 * Math.sin(t / 140);
-            ctx.save();
-            ctx.globalAlpha = 0.3 + 0.3 * gp4;
-            ctx.strokeStyle = '#ffd24a';
-            ctx.lineWidth = 2.4;
-            ctx.shadowBlur = 12;
-            ctx.shadowColor = '#ffd24a';
-            ctx.beginPath(); ctx.arc(rx, ry, (spriteOn ? 22 * scl : charR + 4 * scl) + gp4 * 2 * scl, 0, Math.PI * 2); ctx.stroke();
-            ctx.restore();
         }
 
         // 막판 글로우: isSel(= 당첨자 = 못 나가는 사람)은 적색 위험 톤, 나머지 활성자는 흰색 유지.
@@ -1746,76 +1887,123 @@ function drawSpinFrame(now) {
             ctx.shadowColor = selRed ? '#ff5b5b' : '#ffffff';
             ctx.beginPath(); ctx.arc(rx, ry, (spriteOn ? 24 * scl : charR + 5 * scl) + gp * 2 * scl, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
-            if (selRed) {
-                ctx.save();
-                ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
-                ctx.fillText('⚠️', rx, ry - topOff - 8 * scl);
-                ctx.restore();
-            }
+            // (feel-v5 V2) ⚠️ 머리 위 마커는 비석 낙하(아래)로 대체 — 죽음 비트를 한 곳으로 통일.
         }
 
-        // 핍 HUD(기존 HP바 자리 — 모바일 가독): ◆ 5칸(채움 = bladeCountAt) +
-        // 바로 아래 얇은 진행 바 = "다음 칼까지" — 칼업 순간 리셋되며 다시 차는 게 정상 문법(잔상 없음).
-        // 탈출 차단자(decideMs 이후의 selected — 문이 닫힘)는 진행 바 적색 고정(가득).
-        // 위치(pipY)는 ×s로 캐릭터에 붙이되, 핍/바 자체 크기는 식별 하한 클램프(70%) — 작은 캐릭터에서도 5칸 식별.
-        var barW = Math.max(30 * scl, 30 * 0.7);
+        // (feel-v5 V2) 당첨자(permaDead) 비석 낙하 — 결판 후(decidedNow && isSel)에만(스포일러 가드).
+        //   decideMs 기점 위에서 떨어져 ~400ms에 머리 위 안착(ease-out). 안착 순간 1회 먼지 퍼프(t 파생, Math.random 0).
+        //   reduced-motion이면 낙하/먼지 없이 정적으로 안착 표시.
+        if (decidedNow && isSel) {
+            var tombRestY = ry - topOff - 6 * scl;   // 비석 바닥이 머리 살짝 위에 안착
+            var dropProg = prefersReducedMotion ? 1 : clamp((t - payload.decideMs) / TOMBSTONE_DROP_MS, 0, 1);
+            var dropEase = 1 - (1 - dropProg) * (1 - dropProg);   // ease-out(quad) — 낙하 가속 후 안착
+            var tombY = tombRestY - (1 - dropEase) * TOMBSTONE_DROP_H * scl;   // 위(작은 y)에서 안착 위치로
+            // 안착 순간 1회 먼지 퍼프 — burstDone 1회 가드(t 파생, 2탭 동일)
+            if (!prefersReducedMotion && dropProg >= 1 && !spinReplay.burstDone['tomb' + ci]) {
+                spinReplay.burstDone['tomb' + ci] = true;
+                spawnFlash(rx, tombRestY + 4 * scl, charR * 1.4, 0.3);
+                spawnSparks(rx, tombRestY + 6 * scl, 'rgba(190,190,200,0.9)', ci * 911 + Math.floor((payload.decideMs || 0) * 0.5), 6, 18, 60, 2.2, 0.4, 60);
+                addShake(4);   // (이 블록은 !prefersReducedMotion 가드 내부)
+            }
+            ctx.save();
+            ctx.font = (26 * Math.max(scl, 0.7)) + 'px sans-serif';   // 작은 스케일에서도 가독(하한 0.7)
+            ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+            ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6;
+            ctx.fillText('🪦', rx, tombY);
+            ctx.restore();
+        }
+
+        // 머리 위 미니 인디케이터(머리 위, 모바일 가독) — 단계별:
+        //   결승(finale): HP바(green→red, 분모 hpMax). HP=0은 decideMs 키프레임에서만 등장.
+        //   Stage1(+단일): 점수바(gold, dealt 누적 — "많이 칠수록 안전"). 분모는 라이브 최고 dealt(상대 게이지).
+        // 위치는 ×scl로 캐릭터에 붙이되, 바 크기는 식별 하한 클램프(70%) — 작은 캐릭터에서도 가독.
+        var indW = Math.max(30 * scl, 30 * 0.7);
+        var indH = Math.max(4 * scl, 4 * 0.7);
         var jit = 0;
         if (t - fx.hitT < 120) jit = (1 - (t - fx.hitT) / 120) * (hash01(Math.floor(t * 0.7)) - 0.5) * 3;
-        var pipGap = barW / ESCAPE_BLADES;
-        var pipY = ry - topOff - 10 * scl;
-        var pipX0 = rx - barW / 2 + pipGap / 2 + jit;
-        for (var pi = 0; pi < ESCAPE_BLADES; pi++) {
-            var pxp = pipX0 + pi * pipGap;
-            var pr = Math.max(2.6 * scl, 2.6 * 0.7);
-            ctx.beginPath();
-            ctx.moveTo(pxp, pipY - pr);
-            ctx.lineTo(pxp + pr, pipY);
-            ctx.lineTo(pxp, pipY + pr);
-            ctx.lineTo(pxp - pr, pipY);
-            ctx.closePath();
-            if (pi < bcNow) {
-                ctx.fillStyle = '#ffd24a';
-                ctx.fill();
+        var indX = rx - indW / 2 + jit;
+        var indY = ry - topOff - 8 * scl;
+        var blocked = (payload.decideMs != null && t >= payload.decideMs && isSel);   // 결판 후 selected만 적색(스포일러 가드)
+        ctx.save();
+        ctx.globalAlpha = nfFadeAlpha;   // (feel-v5 V1) 비결승자 페이드(평상시 1) — 머리 위 HUD도 본체와 함께 사라지게
+        if (inFinale) {
+            // 결승 — 머리 위 HP바(green→red, 분모 hpMax). HP=0은 decideMs 키프레임에서만 등장.
+            var hpMaxF = payload.hpMax || HP_MAX;
+            var hpFrac = clamp((sc.hp || 0) / hpMaxF, 0, 1);
+            var hpCol = 'rgb(' + Math.round(lerp(225, 80, 1 - hpFrac)) + ',' + Math.round(lerp(70, 200, hpFrac)) + ',70)';   // 满→green, 空→red
+            ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(indX, indY, indW, indH);
+            if (blocked) {
+                ctx.fillStyle = '#ff5b5b'; ctx.fillRect(indX, indY, indW, indH);   // 당첨 확정 = 적색 가득
             } else {
-                ctx.fillStyle = 'rgba(0,0,0,0.45)';
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                ctx.fillStyle = hpCol; ctx.fillRect(indX, indY, indW * hpFrac, indH);
             }
-        }
-        var barH = Math.max(3 * scl, 3 * 0.7);
-        var barX = rx - barW / 2 + jit, barY = pipY + 4 * scl;
-        var blocked = (payload.decideMs != null && t >= payload.decideMs && isSel);
-        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(barX, barY, barW, barH);
-        if (blocked) {
-            ctx.fillStyle = '#ff5b5b'; ctx.fillRect(barX, barY, barW, barH);
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
+            ctx.strokeRect(indX, indY, indW, indH);
         } else {
-            var prog = clamp((sc.cum - (bcNow - BLADE_COUNT) * BLADE_UP_DMG) / BLADE_UP_DMG, 0, 1);
-            ctx.fillStyle = '#ffd24a'; ctx.fillRect(barX, barY, barW * prog, barH);
+            // Stage1(+단일) 점수바 — gold, dealt 누적("많이 칠수록 안전"). 분모는 라이브 최고 dealt(없으면 1).
+            var topDealt = 1;
+            for (var ti2 = 0; ti2 < S.length; ti2++) { if (S[ti2] && S[ti2].cum > topDealt) topDealt = S[ti2].cum; }
+            var frac = clamp(sc.cum / topDealt, 0, 1);
+            var gr = Math.round(lerp(190, 255, frac)), gg = Math.round(lerp(118, 245, frac)), gb = Math.round(lerp(40, 168, frac));
+            var barCol = 'rgb(' + gr + ',' + gg + ',' + gb + ')';
+            ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(indX, indY, indW, indH);
+            if (blocked) { ctx.fillStyle = '#ff5b5b'; ctx.fillRect(indX, indY, indW, indH); }
+            else { ctx.fillStyle = barCol; ctx.fillRect(indX, indY, indW * frac, indH); }
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
+            ctx.strokeRect(indX, indY, indW, indH);
+        }
+        ctx.restore();   // (feel-v5 V1) 머리 위 HUD 페이드 그룹 종료
+
+        // A4 "유력" — 라이브 하위 N명(최저 dealt) 머리 위(점수바 위). t≥20s·Stage1·결판 전만(showRiskMarker 게이트).
+        //   현재 점수 기준이라 가변(최종 답 아님) → 스포일러 안전. decidedNow 가드는 showRiskMarker에 포함.
+        if (showRiskMarker && bottomSet && bottomSet[ci]) {
+            ctx.save();
+            ctx.font = 'bold ' + Math.max(13 * scl, 12) + 'px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+            var rmY = ry - topOff - 20 * scl;
+            ctx.lineWidth = Math.max(3 * scl, 2.6); ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+            ctx.strokeText('유력', rx, rmY);
+            ctx.fillStyle = HUD_TIME_WARN;
+            ctx.fillText('유력', rx, rmY);
+            ctx.restore();
+        }
+
+        // #4 내 캐릭터 머리 위 화살표 마커(항상 표시) — 24명 군중에서도 식별. 스킨 blade색 + 글로우 + t 파생 bob(공개 정보).
+        if (isMeChar) {
+            var akBob = Math.sin(t / 360) * 2.5 * scl;
+            var akX = rx, akTopY = ry - topOff - 34 * scl + akBob;
+            var akW = Math.max(7 * scl, 6), akH = Math.max(8 * scl, 7);
+            ctx.save();
+            ctx.fillStyle = sl.blade || '#ffd24a';
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = Math.max(1.4 * scl, 1.2);
+            ctx.shadowBlur = 6; ctx.shadowColor = sl.blade || '#ffd24a';
+            ctx.beginPath();
+            ctx.moveTo(akX - akW, akTopY);
+            ctx.lineTo(akX + akW, akTopY);
+            ctx.lineTo(akX, akTopY + akH);   // 아래 꼭짓점 = 내 머리 가리킴
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
         }
 
         // 이름표(닉네임, 식별 보조) — 위치는 ×s(botOff)로 캐릭터에 붙이되(핍 HUD는 머리 위라 충돌 없음),
         // pill 배경 + 외곽선으로 대비 확보. 본인은 스킨 blade 색 테두리로 강조.
-        // overview는 24명 전부 pill이면 빽빽 → 본인은 항상 강조, 그 외엔 일반 닉만(follow/director는 전원 강조).
-        var isMeChar = (ci === spinReplay._mySlotIdx);
+        // Stage1은 24명 전부 pill이면 빽빽 → 본인은 항상 강조, 그 외엔 일반 닉만. 결승은 3인뿐이라 전원 강조.
         var labelY = ry + botOff + 14 * scl;
-        if (cam.mode === 'overview' && !isMeChar) {
-            // overview 비본인 — 가벼운 일반 닉(빽빽함 완화)
+        if (!inFinale && !isMeChar) {
+            // Stage1 비본인 — 가벼운 일반 닉(빽빽함 완화)
             ctx.save();
+            ctx.globalAlpha = nfFadeAlpha;   // (feel-v5 V1) 비결승자 페이드(평상시 1)
             ctx.font = 'bold ' + Math.max(11 * scl, 9) + 'px sans-serif';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.lineWidth = Math.max(3 * scl, 2.4); ctx.strokeStyle = 'rgba(0,0,0,0.7)';
             ctx.strokeText(sl.name || '', rx, labelY);
-            ctx.fillStyle = '#dfe5f0'; ctx.fillText(sl.name || '', rx, labelY);
+            ctx.fillStyle = '#ffffff'; ctx.fillText(sl.name || '', rx, labelY);   // 상대 = 흰색
             ctx.restore();
         } else {
             drawSpinNameTag(ctx, rx, labelY, sl.name || '', scl, isMeChar, sl.blade || '#ffd24a', '', 1);
         }
     }
-
-    // 미션 패널(캔버스 밖) — 칼 수/진행도/상태 실시간 갱신(t 파생)
-    updateSpinHpPanel(t);
 
     // 스파크/충격파/플로팅 텍스트(캐릭터 위)
     drawParticles(ctx);
@@ -1823,110 +2011,130 @@ function drawSpinFrame(now) {
 
     ctx.restore();
 
-    // 미니맵(§3-6) — 스크린 공간(카메라 밖). 뷰포트 사각형으로 카메라 밖 상황 파악.
+    // DOM 패널 갱신 — 라이브 게임에선 _hpRows가 비어 즉시 return(무효과, 랭크 UI는 캔버스 내로 이동).
+    // 렌더 하네스(initSpinHpPanel 직접 호출)에서만 행이 존재 → panelState/mobileCheck 결정론 검증 보존.
+    updateSpinHpPanel(t);
+
+    // 랭크 패널 — 스크린 공간(카메라 밖). 좌상단, top-N+나. 미니맵(우상단)과 겹치지 않음.
+    drawSpinRankPanel(ctx, t, payload, canvas);
+    // 미니맵 — 스크린 공간(카메라 밖). 뷰포트 사각형으로 카메라 밖 상황 파악.
     drawMinimap(ctx, t, payload, camZoom, camFocusX, camFocusY);
+    // A2/A3 Stage1 남은시간 — 스크린 공간(카메라 밖), 상단 중앙(랭크·미니맵 사이 빈 공간).
+    drawStage1Timer(ctx, t, payload, canvas);
+    // 내 HP drain 비네트 — 스크린 공간, 결승 내 HP 감소 시 붉은 가장자리. reduced-motion이면 _myDrainFlash가 0 유지.
+    if (spinReplay._myDrainFlash > 0.01) drawMyDrainVignette(ctx, canvas, spinReplay._myDrainFlash);
 
     // 5) 대기권 비네트(화면 고정) — 링 밖 붉은 위험 비네트는 하드 월 채택으로 제거.
-    //    showdownLevel 비네트 강도는 전 모드 유지(§3-4 ISSUE-6).
-    drawAtmosphere(ctx, cx, cy, showdownLevel);
+    drawAtmosphere(ctx, cx, cy, 0);
+
+    // 5.5) 결승 전환 비트(§6, 2단계만, 스크린 공간) — 전환 카드(결승 3인) + 암전(집결 스냅 가림).
+    // S1: Stage1 종료 stinger(1회) — 카드의 "정지" 비트를 청각으로 마감. round1End 진입 1회만.
+    if (payload.twoStage && payload.round1EndMs != null && t >= payload.round1EndMs && !spinReplay.burstDone['stage1stop']) {
+        spinReplay.burstDone['stage1stop'] = true;
+        playSpinSound('spin-arena_round1_stop', 0.7);
+        if (!prefersReducedMotion) addShake(7);
+    }
+    drawSpinFinaleCard(ctx, t, payload, canvas);   // (feel-v5 V1) 풀스크린 암전 폐기 — 집결 스냅은 이 카드가 가린다
+
+    // 6) 결승 인트로 3·2·1 카운트다운(2단계) — 전환 카드(앞 5초) 종료 후부터 화면 중앙.
+    //    순수 t 파생(2탭 동일). 이 구간 서버는 전투 정지(중앙 집결)라 숫자 후 결투가 시작된다.
+    if (payload.twoStage && payload.round1EndMs != null) {
+        var introEndT = payload.round1EndMs + ROUND2_INTRO_MS;
+        var cdStartT = payload.round1EndMs + FINALE_RECAP_MS;   // 카드 끝난 뒤부터 카운트다운
+        if (t >= cdStartT && t < introEndT) {
+            var remainMs = introEndT - t;
+            var cdNum = Math.ceil(remainMs / 1000);        // 3, 2, 1
+            var cdProg = cdNum - remainMs / 1000;          // 0(등장) → 1(다음 숫자 직전)
+            // S1: 숫자 등장마다 tick(1회) — 결승 비트 청각 마감
+            if (!spinReplay.burstDone['cd' + cdNum]) {
+                spinReplay.burstDone['cd' + cdNum] = true;
+                playSpinSound('spin-arena_finalist_tick', 0.5);
+            }
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = 0.42 * (1 - cdProg * 0.25);
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, cy - 66, canvas.width, 132);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ffe27a';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillText('⚔️ 결승전', cx, cy - 40);
+            var cdScale = 1.7 - cdProg * 0.6;              // 등장 시 크게 → 작아짐(펄스)
+            ctx.translate(cx, cy + 14);
+            ctx.scale(cdScale, cdScale);
+            ctx.font = 'bold 60px sans-serif';
+            ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.strokeText(String(cdNum), 0, 20);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(String(cdNum), 0, 20);
+            ctx.restore();
+        }
+    }
 
     if (t < durationMs) {
         spinReplay.raf = requestAnimationFrame(drawSpinFrame);
     } else {
+        // 메인 리플레이 종료 — 바로 결과(near-miss/슬로모 재생 폐기, 결승 줌 프레이밍이 드라마 담당).
         spinReplay.raf = null;
-        if (document.body) document.body.classList.remove('spin-running');
-        hideSpinChatOverlay();
-        stopSpinBgm();
-        playSpinSound('spin-arena_result', 1.0);   // 다시보기 중엔 음소거 스킵
-        showSpinResult(payload.result);
-        if (spinReplay.isReplayMode) {
-            // 다시보기 자연 종료 — idle 복귀 예약이 있으면 즉시 복귀
-            spinReplay.isReplayMode = false;
-            spinReplay.payload = null;
-            if (spinReplay.pendingIdle || spinReplay.wasIdle) enterSpinIdle();
-            else updateReplayButton();
-        } else {
-            updateReplayButton();
-        }
+        endSpinReplayToResult(payload);
     }
 }
 
-// 리플레이 시작 시 이펙트 상태 초기화 + 슬롯별 정적 메타(색/탈출 좌표/다운·칼업 시각) 사전 계산
+// 리플레이 종료 → 결과 오버레이 + 정리.
+function endSpinReplayToResult(payload) {
+    if (document.body) document.body.classList.remove('spin-running');
+    hideSpinChatOverlay();
+    stopSpinBgm();
+    playSpinSound('spin-arena_result', 1.0);   // isReplayMode=false 설정 후 호출 → 음소거 안 됨
+    showSpinResult(payload.result);
+    if (spinReplay.isReplayMode) {
+        // 다시보기 자연 종료 — idle 복귀 예약이 있으면 즉시 복귀
+        spinReplay.isReplayMode = false;
+        spinReplay.payload = null;
+        if (spinReplay.pendingIdle || spinReplay.wasIdle) enterSpinIdle();
+        else updateReplayButton();
+    } else {
+        updateReplayButton();
+    }
+}
+
+// 리플레이 시작 시 이펙트 상태 초기화 + 슬롯별 정적 메타(색) 사전 계산
 function initSpinFx(payload) {
     var slots = payload.slots || [];
-    var escapes = payload.escapes || [];
-    var downs = payload.downs || [];
-    var bladeUps = payload.bladeUps || [];
     spinReplay.particles = [];
     spinReplay.fx = [];
     spinReplay.shake = 0;
+    spinReplay._myDrainFlash = 0;   // 내 HP 감소 시 붉은 비네트 강도(0~1, 감쇠) — 결승만
     spinReplay.lastNow = 0;
     spinReplay.lastHitSoundT = -1e9;
+    spinReplay._rankRowY = {};              // 랭크패널 행 슬라이드 애니 상태(새 판마다 리셋)
     spinReplay.burstDone = {};
-    spinReplay.bladeFlashDone = {};
     spinReplay.lastDmgFrame = 0;
+    spinReplay.lastPickupT = -1;   // B5 픽업 연출 발화 마커 리셋(새 판/다시보기 시작마다)
     spinReplay.slotFx = [];
-    spinReplay._escapeMs = [];
-    spinReplay._downs = [];
-    spinReplay._bladeUpTimes = [];
     spinReplay._slotState = [];
     spinReplay._tips = [];
-    // 결판 줌 시작 시각(t 결정론 — 2탭 동일):
-    //   n≥3: 잔류 2명 진입 = (n−2)번째 탈출(escapes[n-3]) — 캡 교착으로 그 탈출이 없으면 줌 생략(null)
-    //   n=2: decideMs(시작 즉시 줌 방지). decideMs null(캡 교착)이면 줌 생략.
-    var n = slots.length;
-    if (n >= 3) {
-        spinReplay.showdownStartT = (escapes.length >= n - 2) ? escapes[n - 3].timeMs : null;
-    } else {
-        spinReplay.showdownStartT = (payload.decideMs != null) ? payload.decideMs : null;
-    }
+    spinReplay._lastMissionT = null;
     for (var i = 0; i < slots.length; i++) {
         var sl = slots[i];
-        var em = null, ex = null, ey = null;
-        for (var e = 0; e < escapes.length; e++) {
-            if (escapes[e].id === sl.id) { em = escapes[e].timeMs; ex = escapes[e].x; ey = escapes[e].y; break; }
-        }
-        var dws = [];
-        for (var d = 0; d < downs.length; d++) {
-            if (downs[d].id === sl.id) dws.push(downs[d]);   // payload가 시간순 push라 정렬 유지
-        }
-        var bt = [];
-        for (var b = 0; b < bladeUps.length; b++) {
-            if (bladeUps[b].id === sl.id) bt.push(bladeUps[b].timeMs);
-        }
-        spinReplay._escapeMs.push(em);
-        spinReplay._downs.push(dws);
-        spinReplay._bladeUpTimes.push(bt);
         spinReplay.slotFx.push({
             rgb: hexToRgb(sl.color || '#9aa3ad'),
             bladeRgb: hexToRgb(sl.blade || '#c2c8cf'),
             hitT: -1e9, pulseT: -1e9, lastSparkT: -1e9,
-            faceDir: 1,
-            escX: ex, escY: ey
+            faceDir: 1
         });
         spinReplay._slotState.push({
             x: 0, y: 0, cum: 0, prevCum: 0, dmgRise: false,
-            escaped: false, downed: false, downIdx: -1
+            hp: HP_MAX, prevHp: HP_MAX            // 결승 HP바(hpFrames 보간). Stage1은 HP_MAX 불변.
         });
     }
 
-    // ── 카메라 초기화(§3-5) — 내 슬롯 해석 + 컷 스케줄 사전 계산 + 기본 모드 + EMA 리셋 ──
+    // ── 카메라 초기화 — 내 슬롯 해석 + EMA 리셋(첫 프레임 focus 즉시 세팅) ──
     spinReplay._mySlotIdx = -1;
     for (var mi = 0; mi < slots.length; mi++) {
         if (slots[mi].name === currentUser) { spinReplay._mySlotIdx = mi; break; }
     }
-    spinReplay._cutSchedule = buildCutSchedule(payload);
-    var cam = spinReplay.camera;
-    // 기본 모드: 참가자(mySlot 有 + 라이브) follow / 관전자·다시보기(mySlot 無 또는 replay) director.
-    // 사용자가 이미 수동 선택했으면 존중. mySlot 없는데 follow면 director로 강등.
-    if (!cam._userOverride) {
-        cam.mode = (spinReplay._mySlotIdx >= 0 && !spinReplay.isReplayMode) ? 'follow' : 'director';
-    } else if (cam.mode === 'follow' && spinReplay._mySlotIdx < 0) {
-        cam.mode = 'director';
-    }
-    cam._initialized = false;       // 첫 프레임에 focus 즉시 세팅(점프 없는 시작)
-    cam._activeCutStart = null;
-    updateSpinCameraButtons();      // 전환 UI 활성/하이라이트 동기
+    spinReplay.camera._initialized = false;
 }
 
 // 리플레이 종료/중단 시 잔여 이펙트 정리(다음 판 깨끗하게)
@@ -1934,7 +2142,6 @@ function clearSpinFx() {
     spinReplay.particles = [];
     spinReplay.fx = [];
     spinReplay.shake = 0;
-    spinReplay.showdownStartT = null;
 }
 
 // ── 대기(idle) 아레나 미리보기 — "입장 = 표시, 준비 = 참가" ──
@@ -2064,7 +2271,9 @@ function drawSpinIdleFrame(now) {
     spinIdleRaf = requestAnimationFrame(drawSpinIdleFrame);
 }
 
-// ── 미션 패널 (캔버스 아래, 참가자별 이름 + 다음 칼 진행 바 + 상태: 칼 k/5 / 🪦 3·2·1 / ✓ k위 탈출 / 못 나감) ──
+// ── 실시간 리더보드 DOM (#spinHpPanel — 렌더 하네스 전용; 라이브 게임은 캔버스 drawSpinRankPanel 사용) ──
+//    Stage1(+단일): 점수(dealt) 순위(#k · 점수) + 진행 바. 결승: HP 게이지 + ⚔️당첨.
+//    행은 슬롯 순서 고정(churn 방지), 순위는 라벨로만(lessons 2026-06-13).
 function initSpinHpPanel(payload) {
     var panel = document.getElementById('spinHpPanel');
     if (!panel) return;
@@ -2076,9 +2285,7 @@ function initSpinHpPanel(payload) {
     if (slots.length > 16) panel.classList.add('cols-3');
     else if (slots.length > 8) panel.classList.add('cols-2');
     var selName = (payload.result && payload.result.selected) || null;
-    var rankByName = {};
-    var rks = (payload.result && payload.result.rankings) || [];
-    for (var r = 0; r < rks.length; r++) rankByName[rks[r].name] = rks[r].rank;
+    var finSet = spinFinalistSet(payload);
     for (var i = 0; i < slots.length; i++) {
         var sl = slots[i];
         var row = document.createElement('div');
@@ -2094,16 +2301,16 @@ function initSpinHpPanel(payload) {
         var fill = document.createElement('div');
         fill.className = 'spin-hp-fill';
         fill.style.background = sl.color || '#9aa3ad';
-        fill.style.width = '0%';                    // 다음 칼까지 진행 바 — 칼업마다 리셋되며 다시 찬다
+        fill.style.width = '0%';                     // 진행 바: 점수(0→ 라이브 갱신)
         bar.appendChild(fill);
         var val = document.createElement('span');
         val.className = 'spin-hp-val';
-        val.textContent = '칼 ' + BLADE_COUNT + '/' + ESCAPE_BLADES;
+        val.textContent = '0';
         row.appendChild(dot); row.appendChild(name); row.appendChild(bar); row.appendChild(val);
         panel.appendChild(row);
         spinReplay._hpRows.push({
-            row: row, fill: fill, val: val,
-            rank: rankByName[sl.name] || null,
+            row: row, fill: fill, val: val, slotId: sl.id, name: sl.name || '',
+            isFinalist: !!finSet[sl.id],
             isSel: selName !== null && sl.name === selName
         });
     }
@@ -2124,28 +2331,58 @@ function updateSpinHpPanel(t) {
     if (!payload) return;
     var S = spinReplay._slotState;
     var decideMs = payload.decideMs;
-    var durationMs = payload.durationMs;
-    for (var i = 0; i < rows.length && i < S.length; i++) {
-        var s = S[i], r = rows[i];
-        var bcNow = bladeCountAt(i, t);
-        // 결판(decideMs 이후) 또는 캡 교착(decideMs null — 리플레이 끝)에서 selected만 "못 나감" 적색.
-        var stuck = r.isSel && ((decideMs != null && t >= decideMs) || (decideMs == null && t >= durationMs));
-        setRowClass(r, 'dead', s.escaped);
-        setRowClass(r, 'down', s.downed && !stuck);
-        setRowClass(r, 'stuck', stuck);
-        if (s.escaped) {
-            r.fill.style.width = '100%';
-            setRowText(r, r.rank ? ('✓ ' + r.rank + '위 탈출') : '✓ 탈출');
-        } else if (stuck) {
-            r.fill.style.width = '100%';   // 적색 가득(.stuck CSS) — 문이 닫혔다
-            setRowText(r, '못 나감');
-        } else if (s.downed) {
-            var dwp = spinReplay._downs[i][s.downIdx];
-            setRowText(r, '🪦 ' + Math.max(1, Math.ceil((dwp.reviveMs - t) / 1000)));
+    var decidedNow = (decideMs != null && t >= decideMs);
+    var stage = spinStageAt(payload, t);
+    var inFinale = (stage === 'finale' && payload.twoStage);
+    var hpMax = payload.hpMax || HP_MAX;
+
+    if (inFinale) {
+        // ── 결승: HP 게이지(결승 3인). 비결승(안전)은 "✅ 안전". selected 적색은 결판 후만. ──
+        for (var i = 0; i < rows.length && i < S.length; i++) {
+            var s = S[i], r = rows[i];
+            var stuck = r.isSel && decidedNow;
+            setRowClass(r, 'down', false);
+            setRowClass(r, 'stuck', stuck);
+            if (!r.isFinalist) {
+                setRowClass(r, 'dead', true);    // 안전(비결승) = 결투 제외 표시
+                r.fill.style.width = '100%';
+                setRowText(r, '✅ 안전');
+            } else if (stuck) {
+                setRowClass(r, 'dead', false);
+                r.fill.style.width = '100%';
+                setRowText(r, '⚔️ 당첨');
+            } else {
+                setRowClass(r, 'dead', false);
+                var hpFrac = clamp((s.hp || 0) / hpMax, 0, 1);
+                r.fill.style.width = (hpFrac * 100).toFixed(0) + '%';
+                setRowText(r, String(Math.round(s.hp || 0)));
+            }
+        }
+        return;
+    }
+
+    // ── Stage1(+단일): 점수(dealt) 라이브 순위(#k · 점수). 분모는 라이브 최고 dealt(상대 게이지). ──
+    var topDealt = 1;
+    for (var td = 0; td < S.length; td++) { if (S[td] && S[td].cum > topDealt) topDealt = S[td].cum; }
+    var order = [];
+    for (var oi = 0; oi < rows.length && oi < S.length; oi++) order.push(oi);
+    order.sort(function (a, b) { return (S[b].cum - S[a].cum) || (rows[a].slotId - rows[b].slotId); });
+    var rankOf = [];
+    for (var ri = 0; ri < order.length; ri++) rankOf[order[ri]] = ri + 1;
+
+    for (var j = 0; j < rows.length && j < S.length; j++) {
+        var sj = S[j], rj = rows[j];
+        var stuckJ = rj.isSel && decidedNow;
+        var frac = clamp(sj.cum / topDealt, 0, 1);
+        setRowClass(rj, 'dead', false);
+        setRowClass(rj, 'down', false);
+        setRowClass(rj, 'stuck', stuckJ);
+        if (stuckJ) {
+            rj.fill.style.width = '100%';
+            setRowText(rj, '⚔️ 당첨');
         } else {
-            var prog = clamp((s.cum - (bcNow - BLADE_COUNT) * BLADE_UP_DMG) / BLADE_UP_DMG, 0, 1);
-            r.fill.style.width = (prog * 100).toFixed(1) + '%';
-            setRowText(r, '칼 ' + bcNow + '/' + ESCAPE_BLADES);
+            rj.fill.style.width = (frac * 100).toFixed(0) + '%';
+            setRowText(rj, '#' + rankOf[j] + ' · ' + Math.round(sj.cum));
         }
     }
 }
@@ -2261,7 +2498,15 @@ function toggleSpinReplay() {
     closeResultOverlay();
     spinReplay.wasIdle = (spinReplay.phase === 'idle');
     stopSpinIdlePreview();
-    startSpinReplay(savedReveal, { replay: true });
+    // 라이브 reveal과 동일하게 3-2-1-START 카운트다운 후 재생(t=0 정지 프레임을 배경에 깔고).
+    // pendingReveal 토큰으로 도중 리셋/라이브 reveal 침범 시 stale 콜백 자가 취소(enterSpinIdle/reveal 핸들러가 overwrite).
+    renderSpinCountdownBackdrop(savedReveal);
+    spinReplay.pendingReveal = savedReveal;
+    showGameCountdown('spinCanvasBox', function () {
+        if (spinReplay.pendingReveal !== savedReveal) return;   // 리셋/라이브 reveal로 무효화됨
+        spinReplay.pendingReveal = null;
+        startSpinReplay(savedReveal, { replay: true });
+    });
 }
 window.toggleSpinReplay = toggleSpinReplay;
 
@@ -2270,6 +2515,7 @@ function stopSpinReplayPlayback() {
     if (!spinReplay.isReplayMode) return;
     spinReplay.isReplayMode = false;
     if (spinReplay.raf) { cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
+    stopSpinCountdownBackdrop();   // (feel-v5 V3) 잔여 카운트다운 raf 정리
     spinReplay.payload = null;
     clearSpinFx();
     hideSpinChatOverlay();
@@ -2285,6 +2531,34 @@ function stopSpinReplayPlayback() {
     }
 }
 
+// (feel-v5 V1) 라운드 종료→다음 라운드 전환 풀스크린 페이드. 검정으로 페이드 → midpoint 콜백(보통 enterSpinIdle) → 다시 페이드인.
+//   DOM 오버레이라 캔버스 hide/idle 전환에 강건. 종료 후 pointer 차단 없이 완전 제거. reduced-motion이면 즉시 전환(페이드 없음).
+//   중복 호출 가드: 이미 진행 중이면 콜백만 즉시 실행(이중 트리거 방지 — replay→pendingIdle 경로 안전).
+var SPIN_ROUNDEND_FADE_MS = 350;   // 한쪽(아웃/인) 길이 — 총 ~700ms. CSS --spin-roundend-fade-ms와 동기.
+var _spinRoundEndFading = false;
+function playSpinRoundEndFade(midpointCb) {
+    if (_spinRoundEndFading) { if (midpointCb) midpointCb(); return; }   // 이미 페이드 중 → 콜백만(이중 암전 방지)
+    if (prefersReducedMotion) { if (midpointCb) midpointCb(); return; }  // 강모션 최소화: 즉시 전환(페이드 없음)
+    _spinRoundEndFading = true;
+    var ov = document.getElementById('spinRoundEndFade');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'spinRoundEndFade';
+        if (document.body) document.body.appendChild(ov);
+    }
+    // 페이드아웃(→검정) 시작. transitionend는 누락 가능성이 있어 setTimeout 폴백으로 시퀀스 진행.
+    void ov.offsetWidth;   // reflow — opacity 0 → 1 트랜지션 발화 보장
+    ov.classList.add('visible');
+    setTimeout(function () {
+        if (midpointCb) midpointCb();        // 검정 화면 동안 idle 전환(스냅 가림)
+        ov.classList.remove('visible');      // 페이드인(검정 → 투명)
+        setTimeout(function () {
+            _spinRoundEndFading = false;
+            if (ov && ov.parentNode) ov.parentNode.removeChild(ov);   // 완전 제거(클릭 차단 잔존 방지)
+        }, SPIN_ROUNDEND_FADE_MS + 30);
+    }, SPIN_ROUNDEND_FADE_MS + 30);
+}
+
 // idle 복귀 공통 처리 (roundReset / abort / 다시보기 종료 후)
 function enterSpinIdle() {
     spinReplay.phase = 'idle';
@@ -2294,10 +2568,9 @@ function enterSpinIdle() {
     spinReplay.wasIdle = false;
     spinReplay.isReplayMode = false;
     spinReplay.overflowSpectator = false;
-    spinReplay.camera._userOverride = false;   // 다음 판은 참여 여부 기반 기본 모드로 복귀
     isSpinActive = false;
-    setSpinCameraBarVisible(false);
     if (spinReplay.raf) { cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
+    stopSpinCountdownBackdrop();   // (feel-v5 V3) 카운트다운 칼날 회전 루프 정리(leaked raf 방지)
     clearSpinFx();
     hideSpinChatOverlay();
     hideSpinHpPanel();
@@ -2311,37 +2584,105 @@ function enterSpinIdle() {
     startSpinIdlePreview();
 }
 
-// 카운트다운 동안 보일 정지 프레임(t=0) — 참가자만 표시(미준비자는 화면에서 사라짐)
+// (feel-v5 V3) 카운트다운 칼날 회전 루프 정리 — 모든 종료/시작 경로에서 호출(leaked raf 방지).
+function stopSpinCountdownBackdrop() {
+    if (spinReplay._cdRaf) { cancelAnimationFrame(spinReplay._cdRaf); spinReplay._cdRaf = null; }
+}
+
+// (feel-v5 V3) 카운트다운 동안의 한 프레임 — 위치는 t=0(frames[0]) 고정, 칼날만 실시간(realElapsed)으로 회전.
+//   와이드 카메라(아레나 중앙, 줌 1 = 항등 변환 — drawSpinIdleFrame과 동일 좌표계). 순수 시각, Math.random 0.
+function drawSpinCountdownFrame(payload, cdStart) {
+    var canvas = getSpinCanvas();
+    if (!canvas) { spinReplay._cdRaf = null; return; }
+    var ctx = canvas.getContext('2d');
+    var slots = payload.slots || [];
+    var frame0 = (payload.frames && payload.frames[0]) || null;
+    var cx = ARENA_CX, cy = ARENA_CY;
+    var spriteOn = spinSprites.ready;
+    var scl = (payload.geom && payload.geom.scale) || 1;
+    var charR = CHAR_RADIUS * scl, spriteH = SPRITE_TOKEN_H * scl;
+    // 칼날 회전 각용 실경과(초) — 위치 고정, 칼날만 회전(reduced-motion이면 0 = 정지).
+    var realSec = prefersReducedMotion ? 0 : (performance.now() - cdStart) / 1000;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, ARENA_W, ARENA_H);
+    drawArenaFloor(ctx, cx, cy);
+    drawSafeRing(ctx, cx, cy, RING_R_START, performance.now());   // 점선 회전은 자체 t — 정지여도 무방(시각 ambient)
+
+    for (var ci = 0; ci < slots.length; ci++) {
+        var sl = slots[ci];
+        var px = frame0 ? frame0[ci * 3] : cx;
+        var py = frame0 ? frame0[ci * 3 + 1] : cy;
+        var fxs = spinReplay.slotFx[ci];
+        var faceDir = (fxs && fxs.faceDir) || 1;
+
+        // 그림자
+        ctx.save();
+        ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.ellipse(px, py + (spriteOn ? spriteH * 0.42 : charR * 0.78), charR * 0.85, charR * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // 칼날(실시간 회전) — drawBladeSet은 t(ms)로 각을 산출하므로 realSec*1000을 t로 전달.
+        //   bladeCountAt(ci, 0) = t=0 키프레임의 base 칼날 수(feel-v5 base-1 반영).
+        var bcNow = bladeCountAt(ci, 0);
+        drawBladeSet(ctx, sl, px, py, realSec * 1000, sl.blade || '#ffffff', (fxs && fxs.bladeRgb), bcNow);
+
+        // 바디/스프라이트(정지 — idle 프레임 0 고정으로 위치·포즈 모두 freeze)
+        ctx.save();
+        ctx.translate(px, py);
+        if (spriteOn) {
+            drawCharSprite(ctx, spinSpriteVariantFor(sl), 0, faceDir, scl);
+        } else {
+            drawCharBody(ctx, (fxs && fxs.rgb), scl);
+            drawCharFace(ctx, scl);
+        }
+        ctx.restore();
+
+        // 이름표(식별)
+        var botOff = spriteOn ? spriteH * 0.42 : charR;
+        var labelY = py + botOff + 14 * scl;
+        var isMeChar = (ci === spinReplay._mySlotIdx);
+        drawSpinNameTag(ctx, px, labelY, sl.name || '', scl, isMeChar, sl.blade || '#ffd24a', '', 1);
+    }
+
+    // 미션 안내 1줄 — 카운트다운 숫자(중앙 오버레이)와 겹치지 않게 중앙 하단
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 15px sans-serif';
+    var mtxt = spinMissionText(payload.twoStage, payload.round1EndMs, 0);
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+    ctx.strokeText(mtxt, ARENA_CX, ARENA_CY + 90);
+    ctx.fillStyle = '#ffd24a';
+    ctx.fillText(mtxt, ARENA_CX, ARENA_CY + 90);
+    ctx.restore();
+}
+
+// 카운트다운 동안 보일 배경 — 위치는 t=0 고정, 칼날만 실시간 회전(feel-v5 V3). 참가자만 표시(미준비자 퇴장).
 function renderSpinCountdownBackdrop(payload) {
-    if (spinReplay.raf) { cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }   // 잔여 raf 정리(레이스 방지)
+    if (spinReplay.raf) { cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }   // 잔여 메인 raf 정리(레이스 방지)
+    stopSpinCountdownBackdrop();   // 잔여 카운트다운 raf 정리(연속 reveal/다시보기 재진입 안전)
     var wrap = document.getElementById('spinArenaWrap');
     if (wrap) wrap.style.display = 'block';
     var canvas = getSpinCanvas();
     if (canvas) { canvas.width = ARENA_W; canvas.height = ARENA_H; }
     spinReplay.payload = payload;
-    initSpinFx(payload);
-    initSpinHpPanel(payload);   // 이전 판 행(dead/순위) 잔존 방지 — 새 slots 기준 재구축
-    setSpinCameraBarVisible(true);
-    var now = performance.now();
-    spinReplay.startTs = now;
-    drawSpinFrame(now);   // t=0 1프레임만
-    if (spinReplay.raf) { cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
-    // 정지 프레임 위 미션 안내 1줄 — 카운트다운 숫자(중앙 오버레이)와 겹치지 않게 중앙 하단에 렌더
-    if (canvas) {
-        var mctx = canvas.getContext('2d');
-        mctx.save();
-        mctx.textAlign = 'center';
-        mctx.font = 'bold 15px sans-serif';
-        var mtxt = '⚔️ 칼 5개를 모으면 탈출! 끝까지 못 모은 1명이 당첨!';
-        mctx.lineWidth = 4; mctx.strokeStyle = 'rgba(0,0,0,0.65)';
-        mctx.strokeText(mtxt, ARENA_CX, ARENA_CY + 90);
-        mctx.fillStyle = '#ffd24a';
-        mctx.fillText(mtxt, ARENA_CX, ARENA_CY + 90);
-        mctx.restore();
+    initSpinFx(payload);   // slotFx/_slotState/_mySlotIdx 세팅(칼날색·내 슬롯 식별)
+    var cdStart = performance.now();
+    if (prefersReducedMotion) {
+        drawSpinCountdownFrame(payload, cdStart);   // 강모션 최소화: 정지 1프레임(칼날 회전 없음)
+        return;
     }
+    var cdLoop = function () {
+        drawSpinCountdownFrame(payload, cdStart);
+        spinReplay._cdRaf = requestAnimationFrame(cdLoop);
+    };
+    spinReplay._cdRaf = requestAnimationFrame(cdLoop);
 }
 
 function startSpinReplay(payload, opts) {
+    stopSpinCountdownBackdrop();   // (feel-v5 V3) 카운트다운 칼날 회전 루프 종료 — 메인 raf와 더블 raf 금지
     var isReplay = !!(opts && opts.replay);
     spinReplay.isReplayMode = isReplay;
     spinReplay.payload = payload;
@@ -2349,7 +2690,7 @@ function startSpinReplay(payload, opts) {
     if (!isReplay) isSpinActive = true;
     stopSpinIdlePreview();
     initSpinFx(payload);
-    initSpinHpPanel(payload);
+    // 랭크 UI는 캔버스 내(drawSpinRankPanel)로 이동(readability-v2 #9) — DOM #spinHpPanel 미사용.
     showSpinChatOverlay();
 
     // 스킨 피커 숨김, 캔버스 표시
@@ -2358,7 +2699,6 @@ function startSpinReplay(payload, opts) {
     var wrap = document.getElementById('spinArenaWrap');
     if (wrap) wrap.style.display = 'block';
     if (document.body) document.body.classList.add('spin-running');
-    setSpinCameraBarVisible(true);
 
     var canvas = getSpinCanvas();
     if (canvas) { canvas.width = ARENA_W; canvas.height = ARENA_H; }
@@ -2368,11 +2708,12 @@ function startSpinReplay(payload, opts) {
         if (isReplay) {
             status.textContent = '🎬 다시보기 재생 중...';
         } else if (spinReplay.overflowSpectator) {
-            status.textContent = '준비 선착 6명 초과 — 이번 판은 관전입니다';
+            status.textContent = '준비 선착 ' + MAX_SLOTS + '명 초과 — 이번 판은 관전입니다';
         } else {
-            status.textContent = '⚔️ 칼 5개를 모으면 탈출! 끝까지 못 모은 1명이 당첨!';
+            status.textContent = spinMissionText(payload.twoStage, payload.round1EndMs, 0);
         }
         status.className = 'game-status active';
+        spinReplay._lastMissionT = status.textContent;   // drawSpinFrame 라이브 갱신 churn 기준 동기
     }
 
     updateReplayButton();
@@ -2390,43 +2731,42 @@ function startSpinReplay(payload, opts) {
     spinReplay.raf = requestAnimationFrame(drawSpinFrame);
 }
 
-// 결과 오버레이 (selected = 당첨자/벌칙 = 끝까지 탈출 못 한 사람)
+// 결과 오버레이 (selected = 당첨자/벌칙 = 최저 데미지(단일) 또는 결승 패자(2단계). null 가능 — 당첨자 없음 안전 처리)
 function showSpinResult(result) {
     if (!result) return;
-    var selected = result.selected;
+    var selected = result.selected;   // null일 수 있음(2단계 결승 전원 이탈 등 극단 엣지)
     var rankings = Array.isArray(result.rankings) ? result.rankings : [];
 
-    // selected가 종료 시점 다운 상태인지(막판 KO) — downs/durationMs에서 파생(∃ down: timeMs ≤ durationMs < reviveMs)
     var pl = spinReplay.payload || savedReveal;
-    var selDownAtEnd = false;
-    if (pl && selected && pl.downs && pl.slots) {
-        var selSlotId = null;
-        for (var sli = 0; sli < pl.slots.length; sli++) {
-            if (pl.slots[sli].name === selected) { selSlotId = pl.slots[sli].id; break; }
-        }
-        if (selSlotId != null) {
-            for (var dni = 0; dni < pl.downs.length; dni++) {
-                var dn = pl.downs[dni];
-                if (dn.id === selSlotId && dn.timeMs <= pl.durationMs && pl.durationMs < dn.reviveMs) {
-                    selDownAtEnd = true; break;
-                }
-            }
-        }
-    }
+    var twoStage = !!(pl && pl.twoStage);
+    var finSet = (pl) ? spinFinalistSet(pl) : {};
+    // 이름→slotId(결승 진출 여부 판정용)
+    var slotIdByName = {};
+    if (pl && pl.slots) for (var si = 0; si < pl.slots.length; si++) slotIdByName[pl.slots[si].name] = pl.slots[si].id;
 
     var rankingsEl = document.getElementById('resultRankings');
     if (rankingsEl) {
-        // 탈출 성공자 먼저, 당첨자(selected = 끝까지 탈출 못 한 사람 = 벌칙)를 맨 아래로
+        // 안전/생존 먼저, 당첨자(selected = 벌칙)를 맨 아래로
         var ordered = rankings.slice().sort(function (a, b) {
             return (a.name === selected ? 1 : 0) - (b.name === selected ? 1 : 0);
         });
         rankingsEl.innerHTML = ordered.map(function (r) {
-            var isSel = r.name === selected;
-            // 비당첨: 탈출(escapeMs 존재) = "탈출 성공", 캡 교착 잔류(null) = 중립 "통과"
-            var escapedOk = r.escapeMs !== null && r.escapeMs !== undefined;
-            var tag = isSel
-                ? '<span class="spin-result-tag loser">' + (selDownAtEnd ? '⚔️ 막판 KO (당첨)' : '⚔️ 탈출 실패 (당첨)') + '</span>'
-                : '<span class="spin-result-tag pass">' + (escapedOk ? '✅ 탈출 성공' : '✅ 통과') + '</span>';
+            var isSel = selected && r.name === selected;
+            var tag;
+            if (twoStage) {
+                // 2단계: 안전(비결승) = 승자 / 결승 진출 비당첨 = 결승 생존 / 당첨 = 결승 패배
+                var wasFinalist = !!finSet[slotIdByName[r.name]];
+                tag = isSel
+                    ? '<span class="spin-result-tag loser">⚔️ 결승 패배 (당첨)</span>'
+                    : '<span class="spin-result-tag pass">' +
+                        (wasFinalist ? '✅ 결승 생존' : '✅ 안전') +
+                      '</span>';
+            } else {
+                // 단일: 당첨 = 최저 데미지 / 그 외 = 안전
+                tag = isSel
+                    ? '<span class="spin-result-tag loser">⚔️ 최저 데미지 (당첨)</span>'
+                    : '<span class="spin-result-tag pass">✅ 안전</span>';
+            }
             return '<div class="spin-result-row' + (isSel ? ' loser' : '') + '">' +
                 '<span class="spin-result-name">' + escapeHtml(r.name) + '</span>' + tag + '</div>';
         }).join('');
@@ -2436,7 +2776,7 @@ function showSpinResult(result) {
 
     var status = document.getElementById('gameStatus');
     if (status) {
-        status.textContent = selected ? '⚔️ ' + selected + ' 님 당첨!' : '게임 종료';
+        status.textContent = selected ? '⚔️ ' + selected + ' 님 당첨!' : '게임 종료 — 당첨자 없음';
         status.className = 'game-status finished';
     }
 }
@@ -2463,7 +2803,7 @@ socket.on('spin-arena:reveal', function (data) {
     spinReplay.phase = 'playing';
     isSpinActive = true;
     stopSpinIdlePreview();
-    // 준비했지만 선착 6명 초과 → 관전 안내 (서버 emit 없이 클라 판정)
+    // 준비했지만 선착 MAX_SLOTS명 초과 → 관전 안내 (서버 emit 없이 클라 판정)
     spinReplay.overflowSpectator = amIReady() && !(data.slots || []).some(function (s) {
         return s.name === currentUser;
     });
@@ -2504,11 +2844,12 @@ socket.on('spin-arena:roundReset', function () {
     mySkinId = null;
     isSpinActive = false;
     if (spinReplay.isReplayMode && spinReplay.raf) {
-        // 다시보기 진행 중 — 끊지 않고 종료/중단 후 idle 복귀 예약
+        // 다시보기 진행 중 — 끊지 않고 종료/중단 후 idle 복귀 예약(이 경로는 페이드 없음 — 재생이 계속됨)
         spinReplay.pendingIdle = true;
         return;
     }
-    enterSpinIdle();   // 다음 판 대기 — 아레나 미리보기로 복귀
+    // (feel-v5 V1) 결과 오버레이 → idle 복귀 사이에 풀스크린 페이드(검정) — 스냅 가림. reduced-motion이면 즉시.
+    playSpinRoundEndFade(function () { enterSpinIdle(); });   // 다음 판 대기 — 아레나 미리보기로 복귀
 });
 
 socket.on('spin-arena:gameAborted', function (data) {

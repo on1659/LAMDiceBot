@@ -1,18 +1,36 @@
-// QA: spin-arena 칼 수집 탈출 + 인원 가변 스케일링 — 결정론 / frames 정합 / 하드 월 / 칼업·탈출·다운 / geom 스케일 / 스폰 피격 0 / 200시드 결판률 게이트
+// QA: spin-arena 2단계 재단순화(2026-06-17 lowest-damage) — 결정론 / 구조 정합 / 단일 당첨자 / 200시드 게이트
 // (서버 모듈 직접 호출, DB 불필요)
-// 2026-06-12 개편(칼 수집 탈출): 받은 데미지 BLADE_UP_DMG마다 칼 +1(시작 2), 칼 5 = 탈출(좌표 동결·시뮬 이탈),
-//                 HP 0 = 다운 3초 후 부활(grace 800ms), 잔류 1명 = decideMs → durationMs 압축(최대 30초 캡).
-//                 eliminations/killerId 제거 — frames 3채널은 hp가 아니라 cumDmg(받은 데미지 누적, 단조 비감소).
-// 2026-06-12 확장(인원 가변 스케일링): MAX_SLOTS 24, s(n)=√(6/n) n≤6 동결, geom 페이로드(additive),
-//                 스폰반경 규칙으로 스폰 즉시 피격 0. n=[2..24] 결판률·decideMs 분포 측정(cap=24 생존 판정 권위 데이터).
-// 게이트(설계 §5): 결판률 n2/n3 >= 95%, n4~6 >= 88%, n8~24 >= 80% + 결정론/정합/하드 월/스폰피격 0건.
-//   ※ 결판률 미달이어도 테스트는 분포를 끝까지 출력(어디서 깨지는지 봐야 함).
+//
+// 모델: twoStage = n>=6.
+//   공통 Stage1(0~STAGE1_MS, 30초): 전원 칼날 난투, 탈락 없음. c채널 = dealt(다른 플레이어에게 입힌 누적 데미지=점수).
+//   단일 단계(n<6): Stage1 끝에서 최저 dealt = 당첨. round1EndMs=null, decideMs=STAGE1_MS.
+//   2단계(n>=6): 최저 dealt 하위 3명 결승(finalist), 나머지 안전(escaped). 결승 서든데스 첫 HP 0 = 당첨.
+//               미결판 시 HP-lowest fallback → decideMs는 절대 null 아님.
+// 불변: 모든 시드에서 정확히 1명 당첨(rankings 최하위). 결정론(시드→동일 산출). decideMs never null. durationMs<=GAME_MS.
 const path = require('path');
 const sa = require(path.join(__dirname, '..', 'socket', 'spin-arena.js'));
-const { simulate, rankHumans, ringRadiusAt } = sa;
+const { simulate, rankHumans, buildSuccession, ringRadiusAt } = sa;
 
-// 확장 인원 루프 (n≤6 동결 회귀 + n>6 스케일 검증)
-const N_LIST = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24];
+// ── socket/spin-arena.js 미러 상수 ──
+const GAME_MS = 70000;
+const STAGE1_MS = 40000;
+const ROUND2_INTRO_MS = 8000;
+const FINALE_MAX_MS = 18000;
+const FINALIST_COUNT = 3;
+const SPIN_TWO_STAGE_MIN = 6;
+const HP_MAX = 100;
+const BLADE_COUNT = 1;            // 칼날 수 base(feel-v5 S1 — 자동 성장 폐기, 칼추가 아이템만 증가). bladeFrames 범위 = [BLADE_COUNT, BLADE_CAP] = [1,5]
+const BLADE_CAP = 5;             // 칼날 수 하드캡
+const SAMPLE_MS = 100;           // 키프레임 간격(미러)
+const RING_R_START = 220;
+const RING_R_END = 60;
+const STAGE1_RING_END = 150;
+const RING2_SHRINK_MS = 6500;
+const FINALE_FALLBACK_MS = STAGE1_MS + ROUND2_INTRO_MS + FINALE_MAX_MS;   // 56000 — 이 시각 결판 = HP-lowest fallback
+
+const SINGLE_LIST = [2, 3, 4, 5];                  // 단일 단계
+const TWO_LIST = [6, 8, 10, 12, 16, 20, 24];       // 2단계
+const N_LIST = SINGLE_LIST.concat(TWO_LIST);
 
 (async () => {
   let fails = 0;
@@ -21,12 +39,14 @@ const N_LIST = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24];
     if (!ok) fails++;
   }
 
-  // --- ringRadiusAt boundary checks (RING 220→60, 10s~20s 수축) ---
-  const ring0 = ringRadiusAt(0), ring10 = ringRadiusAt(10000), ring15 = ringRadiusAt(15000), ring20 = ringRadiusAt(20000), ring30 = ringRadiusAt(30000);
-  console.log('ringRadiusAt: t0=' + ring0 + ' t10k=' + ring10 + ' t15k=' + ring15 + ' t20k=' + ring20 + ' t30k=' + ring30);
-  check('ring boundaries 220/220/140/60/60', ring0 === 220 && ring10 === 220 && ring15 === 140 && ring20 === 60 && ring30 === 60);
+  // --- ringRadiusAt: 단일/Stage1(완만 수축) + 2단계 결승(풀→수축) ---
+  const sgl0 = ringRadiusAt(0, null), sglMid = ringRadiusAt(STAGE1_MS / 2, null), sglEnd = ringRadiusAt(STAGE1_MS, null);
+  check('single/Stage1 ring 220/185/150', sgl0 === RING_R_START && sglMid === (RING_R_START + STAGE1_RING_END) / 2 && sglEnd === STAGE1_RING_END, `${sgl0}/${sglMid}/${sglEnd}`);
+  const twS1 = ringRadiusAt(8000, STAGE1_MS);                          // Stage1 진행 → 완만 수축 중
+  const twIntro = ringRadiusAt(STAGE1_MS + 1500, STAGE1_MS);           // 인트로(집결) → 풀(220)
+  const twShrunk = ringRadiusAt(STAGE1_MS + ROUND2_INTRO_MS + RING2_SHRINK_MS, STAGE1_MS);  // 인트로+수축 후 → 60
+  check('2단계 ring Stage1<220 / 인트로=220 / 결승수축=60', twS1 < RING_R_START && twS1 > STAGE1_RING_END && twIntro === RING_R_START && twShrunk === RING_R_END, `${twS1.toFixed(0)}/${twIntro}/${twShrunk}`);
 
-  // 봇 없음 — 사람 n명만 (가변 슬롯). 스킨 6종 순환(결과 무관).
   function mkSlots(n) {
     const slots = [];
     const skins = ['crimson', 'azure', 'emerald', 'amber', 'violet', 'rose'];
@@ -34,26 +54,37 @@ const N_LIST = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24];
     return slots;
   }
 
-  // 하드 월: 활성 캐릭터는 모든 키프레임에서 링 안 — 위반 키프레임 수를 센다.
-  // 제외 구간(좌표 동결 — 수축 링 밖 잔존이 정상):
-  //   탈출 후(t > escapeMs), 다운 구간(timeMs <= t <= reviveMs — 부활 틱 키프레임은 이동 클램프 이전 샘플이라 상한 포함).
-  // 한계 = ringRadiusAt(t) - charR(스케일 반영) + ε. ε 1.5 = 좌표 정수 반올림(최대 ~0.71) + 샘플이 직전 틱 클램프 기준이라 틱당 수축(0.32) 여유.
+  // 특정 시각(tMs)의 dealt 하위 k 슬롯ID 집합 — 키프레임 c채널(slot*3+2) 읽어 오름차순 정렬.
+  //   B4 lock-in floor 게이트용. t=20s 하위3 ≠ 최종 finalists면 "하위권이 아직 움직였다"(건강).
+  function bottomKByDealtAt(sim, tMs, k) {
+    let fi = Math.round(tMs / SAMPLE_MS);
+    if (fi < 0) fi = 0;
+    if (fi >= sim.frames.length) fi = sim.frames.length - 1;
+    const f = sim.frames[fi];
+    const n = f.length / 3;
+    const arr = [];
+    for (let s = 0; s < n; s++) arr.push({ id: s, dealt: f[s * 3 + 2] });
+    arr.sort((a, b) => (a.dealt - b.dealt) || (a.id - b.id));
+    return new Set(arr.slice(0, k).map(x => x.id));
+  }
+  function setsDiffer(a, b) {
+    if (a.size !== b.size) return true;
+    for (const v of a) if (!b.has(v)) return true;
+    return false;
+  }
+
+  // 하드 월: 활성(비안전·결판 전 비당첨자) 캐릭터는 모든 키프레임에서 링 안.
   function wallViolations(sim, n) {
     const CX = 240, CY = 240, EPS = 1.5;
-    const charR = sim.geom.charRadius;   // 스케일 반영 충돌 반경
-    const escMs = {};
-    for (const e of sim.escapes) escMs[e.id] = e.timeMs;
+    const charR = sim.geom.charRadius;
     let bad = 0;
     for (let j = 0; j < sim.frames.length; j++) {
       const t = j * 100;
-      const limit = ringRadiusAt(t) - charR + EPS;
+      const limit = ringRadiusAt(t, sim.round1EndMs) - charR + EPS;
       for (let s = 0; s < n; s++) {
-        if ((s in escMs) && t > escMs[s]) continue;
-        let frozen = false;
-        for (const d of sim.downs) {
-          if (d.id === s && d.timeMs <= t && t <= d.reviveMs) { frozen = true; break; }
-        }
-        if (frozen) continue;
+        const fs = sim.finalState[s];
+        if (fs.escaped) continue;                            // 안전(동결)
+        if (fs.permaDead && t >= sim.decideMs) continue;      // 당첨자(결판 후 동결)
         const dx = sim.frames[j][s * 3] - CX, dy = sim.frames[j][s * 3 + 1] - CY;
         if (Math.hypot(dx, dy) > limit) bad++;
       }
@@ -61,241 +92,258 @@ const N_LIST = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24];
     return bad;
   }
 
-  // 스폰 즉시 피격: 스폰 순간(frame 0~1 = 0~100ms) 전 슬롯 cumDmg(3번째 채널)가 0이어야 함(spawnR spacing 검증).
-  // ── 근거(200시드 측정): spawnR 규칙은 "스폰 순간 칼끝↔몸 미접촉"을 보장하는 frame-0 기하 성질이다.
-  //    전수 검증 결과 frame0/frame1은 n=2~24 전 구간 피격 0건. frame2(200ms)부터는 CENTER_PULL(30)+드리프트로
-  //    빠른 캐릭터가 정상 군집 접촉을 시작 — 이는 스폰 결함이 아니라 게임플레이(초기 교전 cascade)다.
-  //    따라서 "스폰 즉시" 게이트는 frame 0~1로 한정하고, 0~500ms 접촉 분포는 spawnSpacingStats로 별도 보고한다.
-  function spawnHitViolations(sim, n) {
-    let bad = 0;
-    const last = Math.min(1, sim.frames.length - 1);   // 스폰 순간 = frame 0~1
-    for (let j = 0; j <= last; j++) {
-      for (let s = 0; s < n; s++) {
-        if (sim.frames[j][s * 3 + 2] !== 0) bad++;
-      }
-    }
-    return bad;
-  }
-
-  // 보고용: 0~500ms(frame 0~5) 내 첫 피격이 발생한 frame 인덱스의 최소값(없으면 6 이상). 스폰 spacing 여유 가시화.
-  function earliestHitFrame(sim, n) {
-    const last = Math.min(5, sim.frames.length - 1);
-    let earliest = 99;
-    for (let s = 0; s < n; s++) {
-      for (let j = 0; j <= last; j++) {
-        if (sim.frames[j][s * 3 + 2] !== 0) { if (j < earliest) earliest = j; break; }
-      }
-    }
-    return earliest;
-  }
-
-  // 시뮬 1회분 구조 정합 검사 — 위반 사유 문자열 배열 반환(빈 배열 = OK)
+  // 구조 정합 — 위반 사유 배열(빈 배열=OK)
   function structuralIssues(sim, slots) {
     const n = slots.length;
     const issues = [];
-    // frames: 길이 = durationMs/100 + 1, 폭 n*3, cumDmg 단조 비감소
+    const twoStage = sim.twoStage;
+    const expTwo = n >= SPIN_TWO_STAGE_MIN;
+    if (twoStage !== expTwo) issues.push(`twoStage ${twoStage} != ${expTwo} (n=${n})`);
+    // frames
     if (sim.frames.length !== sim.durationMs / 100 + 1) issues.push(`frames.length ${sim.frames.length} != ${sim.durationMs / 100 + 1}`);
     if (sim.frames[0].length !== n * 3) issues.push(`frame width ${sim.frames[0].length} != ${n * 3}`);
+    // hpFrames (stride 1, length === frames.length, 폭 n)
+    if (!Array.isArray(sim.hpFrames) || sim.hpFrames.length !== sim.frames.length) issues.push(`hpFrames.length ${sim.hpFrames && sim.hpFrames.length} != ${sim.frames.length}`);
+    else if (sim.hpFrames[0].length !== n) issues.push(`hpFrame width ${sim.hpFrames[0].length} != ${n}`);
+    // bladeFrames (B4, stride 1, length === frames.length, 폭 n) — 정수 [BLADE_COUNT, BLADE_CAP] + per-slot 단조 비감소
+    if (!Array.isArray(sim.bladeFrames) || sim.bladeFrames.length !== sim.frames.length) issues.push(`bladeFrames.length ${sim.bladeFrames && sim.bladeFrames.length} != ${sim.frames.length}`);
+    else if (sim.bladeFrames[0].length !== n) issues.push(`bladeFrame width ${sim.bladeFrames[0].length} != ${n}`);
+    else {
+      for (let s = 0; s < n; s++) {
+        let prev = -Infinity;
+        for (let j = 0; j < sim.bladeFrames.length; j++) {
+          const bcv = sim.bladeFrames[j][s];
+          if (!Number.isInteger(bcv) || bcv < BLADE_COUNT || bcv > BLADE_CAP) { issues.push(`bladeCount 범위/정수밖 slot=${s} frame=${j} bc=${bcv}`); break; }
+          if (bcv < prev) { issues.push(`bladeCount 감소 slot=${s} frame=${j} (${prev}→${bcv})`); break; }
+          prev = bcv;
+        }
+      }
+    }
+    // 픽업 아이템(B5) — 배열, 타입 5종, 좌표 유한 + 아레나 안, spawnMs 정수/유한 + 0<=spawn<despawn + spawn<durationMs(tail 필터됨).
+    const ITEM_IDS = ['double', 'shield', 'speed', 'blade', 'heal'];
+    const ARENA_R_ITEM = 220, ITEM_EPS = 2;
+    if (!Array.isArray(sim.items)) issues.push('items 비배열');
+    else {
+      const itemIdSet = new Set();
+      for (const it of sim.items) {
+        itemIdSet.add(it.id);
+        if (ITEM_IDS.indexOf(it.type) < 0) { issues.push(`item type 밖 ${it.type}`); break; }
+        if (!Number.isFinite(it.x) || !Number.isFinite(it.y)) { issues.push(`item 좌표 비유한 id=${it.id}`); break; }
+        if (Math.hypot(it.x - 240, it.y - 240) > ARENA_R_ITEM + ITEM_EPS) { issues.push(`item 아레나 밖 id=${it.id} r=${Math.hypot(it.x - 240, it.y - 240).toFixed(1)}`); break; }
+        if (!Number.isInteger(it.spawnMs) || !Number.isFinite(it.despawnMs)) { issues.push(`item spawnMs/despawnMs 비정상 id=${it.id}`); break; }
+        if (!(it.spawnMs >= 0 && it.spawnMs < it.despawnMs)) { issues.push(`item 0<=spawn<despawn 위반 id=${it.id} ${it.spawnMs}/${it.despawnMs}`); break; }
+        if (!(it.spawnMs < sim.durationMs)) { issues.push(`item spawnMs>=durationMs(tail 미필터) id=${it.id} ${it.spawnMs}>=${sim.durationMs}`); break; }
+      }
+      // pickups — itemId가 실재 아이템 참조, slotId∈[0,n), timeMs>=spawnMs, itemId 중복 없음(한 명만)
+      if (!Array.isArray(sim.pickups)) issues.push('pickups 비배열');
+      else {
+        const itemById = new Map(sim.items.map(it => [it.id, it]));
+        const seenItem = new Set();
+        for (const pk of sim.pickups) {
+          const ref = itemById.get(pk.itemId);
+          if (!ref) { issues.push(`pickup itemId 미존재 ${pk.itemId}`); break; }
+          if (!(pk.slotId >= 0 && pk.slotId < n)) { issues.push(`pickup slotId 범위밖 ${pk.slotId}`); break; }
+          if (!(pk.timeMs >= ref.spawnMs)) { issues.push(`pickup timeMs<spawnMs item=${pk.itemId} ${pk.timeMs}<${ref.spawnMs}`); break; }
+          if (seenItem.has(pk.itemId)) { issues.push(`pickup itemId 중복(한 명만 위반) ${pk.itemId}`); break; }
+          seenItem.add(pk.itemId);
+        }
+      }
+    }
+    // c채널(dealt) 단조 비감소
     for (let s = 0; s < n; s++) {
       for (let j = 1; j < sim.frames.length; j++) {
-        if (sim.frames[j][s * 3 + 2] < sim.frames[j - 1][s * 3 + 2]) { issues.push(`cumDmg 감소 slot=${s} frame=${j}`); break; }
+        if (sim.frames[j][s * 3 + 2] < sim.frames[j - 1][s * 3 + 2]) { issues.push(`c감소 slot=${s} frame=${j}`); break; }
       }
     }
-    // durationMs: SAMPLE_MS 격자 + 캡 이내 + decideMs와 라운딩 규칙 일치
-    if (sim.durationMs % 100 !== 0 || sim.durationMs > 30000) issues.push(`durationMs 비정상 ${sim.durationMs}`);
-    if (sim.decideMs !== null) {
-      const expect = Math.min(30000, Math.ceil((sim.decideMs + 2000) / 100) * 100);
+    // hp 범위 [0, HP_MAX]
+    for (let s = 0; s < n; s++) {
+      for (let j = 0; j < sim.hpFrames.length; j++) {
+        const h = sim.hpFrames[j][s];
+        if (h < 0 || h > HP_MAX) { issues.push(`hp 범위밖 slot=${s} frame=${j} hp=${h}`); break; }
+      }
+    }
+    // durationMs 격자/캡 + decideMs never null
+    if (sim.durationMs % 100 !== 0 || sim.durationMs > GAME_MS) issues.push(`durationMs 비정상 ${sim.durationMs}`);
+    if (sim.decideMs === null) issues.push(`decideMs null (절대 null 불가)`);
+    else {
+      const expect = Math.min(GAME_MS, Math.ceil((sim.decideMs + 2000) / 100) * 100);
       if (sim.durationMs !== expect) issues.push(`durationMs ${sim.durationMs} != 라운딩 ${expect}`);
-    } else if (sim.durationMs !== 30000) issues.push(`decideMs null인데 durationMs ${sim.durationMs}`);
-    // escapes: 필드/순서/상한(항상 잔류자 >= 1), 좌표 동결
-    if (sim.escapes.length > n - 1) issues.push(`escapes ${sim.escapes.length} > n-1`);
-    let prevEsc = -1;
-    for (const e of sim.escapes) {
-      if (![e.id, e.timeMs, e.x, e.y].every(Number.isInteger)) issues.push(`escape 필드 비정상 ${JSON.stringify(e)}`);
-      if (e.timeMs < prevEsc) issues.push('escapes 시간 역순');
-      prevEsc = e.timeMs;
-      // 좌표 동결: 탈출 다음 키프레임부터 불변
-      const last = sim.frames.length - 1;
-      const fi = Math.min(last, Math.floor(e.timeMs / 100) + 1);
-      for (let j = fi; j <= last; j++) {
-        if (sim.frames[j][e.id * 3] !== sim.frames[fi][e.id * 3] ||
-            sim.frames[j][e.id * 3 + 1] !== sim.frames[fi][e.id * 3 + 1]) { issues.push(`탈출자 ${e.id} 좌표 동결 위반`); break; }
-      }
     }
-    // downs: 필드 + reviveMs = timeMs + 3000
-    for (const d of sim.downs) {
-      if (![d.id, d.timeMs, d.reviveMs, d.x, d.y].every(Number.isInteger) || d.reviveMs !== d.timeMs + 3000) {
-        issues.push(`down 필드 비정상 ${JSON.stringify(d)}`); break;
-      }
-    }
-    // bladeUps: 슬롯별 count = finalState.bladeCount - 2, 탈출자만 5, 비탈출자 2~4
-    const upCount = new Array(n).fill(0);
-    for (const b of sim.bladeUps) {
-      if (!Number.isInteger(b.id) || !Number.isInteger(b.timeMs)) { issues.push('bladeUp 필드 비정상'); break; }
-      upCount[b.id]++;
-    }
-    for (const f of sim.finalState) {
-      if (upCount[f.id] !== f.bladeCount - 2) issues.push(`bladeUps count slot=${f.id} ${upCount[f.id]} != ${f.bladeCount - 2}`);
-      if (f.escaped && f.bladeCount !== 5) issues.push(`탈출자 slot=${f.id} bladeCount ${f.bladeCount} != 5`);
-      if (!f.escaped && (f.bladeCount < 2 || f.bladeCount > 4)) issues.push(`비탈출자 slot=${f.id} bladeCount ${f.bladeCount} 범위 밖`);
+    // 단계별
+    const perma = sim.finalState.filter(f => f.permaDead);
+    const fin = sim.finalState.filter(f => f.finalist);
+    const esc = sim.finalState.filter(f => f.escaped);
+    if (twoStage) {
+      if (sim.round1EndMs !== STAGE1_MS) issues.push(`round1EndMs ${sim.round1EndMs} != ${STAGE1_MS}`);
+      if (sim.finalists.length !== FINALIST_COUNT) issues.push(`finalists ${sim.finalists.length} != ${FINALIST_COUNT}`);
+      if (fin.length !== FINALIST_COUNT) issues.push(`finalist flags ${fin.length} != ${FINALIST_COUNT}`);
+      if (esc.length !== n - FINALIST_COUNT) issues.push(`escaped(안전) ${esc.length} != ${n - FINALIST_COUNT}`);
+      if (perma.length !== 1) issues.push(`permaDead ${perma.length} != 1`);
+      if (perma.length && !perma[0].finalist) issues.push('당첨자가 결승 진출자가 아님');
+      const finSet = new Set(sim.finalists);
+      if (finSet.size !== FINALIST_COUNT) issues.push('finalists 중복');
+      for (const f of fin) if (!finSet.has(f.id)) issues.push(`finalist flag ${f.id} not in finalists array`);
+      // 최저 dealt 하위 3명 = finalist(선정 정확성): finalist의 최대 dealt ≤ 비결승 최소 dealt 부근(동점 허용)
+      // 결승 데미지가 dealt에 추가 누적되므로 엄밀 비교 대신 "선정 시점 정합"은 결정론으로 충분 — 여기선 플래그/개수만.
+      if (sim.decideMs < STAGE1_MS + ROUND2_INTRO_MS || sim.decideMs > FINALE_FALLBACK_MS) issues.push(`decideMs ${sim.decideMs} 결승창 밖`);
+    } else {
+      if (sim.round1EndMs !== null) issues.push(`single round1EndMs ${sim.round1EndMs} != null`);
+      if (sim.finalists.length !== 0) issues.push(`single finalists ${sim.finalists.length} != 0`);
+      if (fin.length) issues.push(`single finalist flags ${fin.length}`);
+      if (esc.length) issues.push(`single escaped ${esc.length}`);
+      if (perma.length) issues.push(`single permaDead ${perma.length}`);
+      if (sim.decideMs !== STAGE1_MS) issues.push(`single decideMs ${sim.decideMs} != ${STAGE1_MS}`);
     }
     // 하드 월
     const wv = wallViolations(sim, n);
     if (wv > 0) issues.push(`하드 월 위반 ${wv}건`);
-    // 스폰 즉시 피격 0 (frame 0~1 = 스폰 순간 — spawnR 기하 성질)
-    const sv = spawnHitViolations(sim, n);
-    if (sv > 0) issues.push(`스폰 순간(frame0~1) 피격 ${sv}건`);
-    // geom: scale = s(n) 정확, 파생 반경 = 전역 상수 × scale (시드 무관, n만의 함수)
-    if (!sim.geom) {
-      issues.push('geom 누락');
-    } else {
-      const expScale = n <= 6 ? 1 : Math.sqrt(6 / n);
-      if (n <= 6) {
-        if (sim.geom.scale !== 1) issues.push(`geom.scale n=${n} ${sim.geom.scale} != 1(동결)`);
-      } else if (Math.abs(sim.geom.scale - expScale) > 1e-9) {
-        issues.push(`geom.scale n=${n} ${sim.geom.scale} != √(6/n) ${expScale}`);
-      }
-    }
-    // rankings: rank 1 = 첫 탈출(= escapes 배열 순서), selected = 최하위 = 비탈출자
-    const ranks = rankHumans(slots, sim.finalState);
-    for (let i = 0; i < sim.escapes.length; i++) {
-      if (ranks[i].slotId !== sim.escapes[i].id || ranks[i].escapeMs !== sim.escapes[i].timeMs) {
-        issues.push(`rank${i + 1} != escapes[${i}]`); break;
-      }
-    }
-    const sel = ranks[ranks.length - 1];
-    if (sel.escapeMs !== null) issues.push('selected가 탈출자');
-    if (sim.escapes.some(e => e.id === sel.slotId)) issues.push('selected가 escapes에 존재');
+    // geom scale
+    const expScale = n <= 6 ? 1 : Math.sqrt(6 / n);
+    if (n <= 6) { if (sim.geom.scale !== 1) issues.push(`geom.scale n=${n} ${sim.geom.scale} != 1`); }
+    else if (Math.abs(sim.geom.scale - expScale) > 1e-9) issues.push(`geom.scale n=${n} != √(6/n)`);
+    // 단일 당첨자 + 승계
+    const ranks = rankHumans(slots, sim.finalState, twoStage);
+    if (ranks.length !== n) issues.push(`rankings ${ranks.length} != n`);
+    const rset = new Set(ranks.map(r => r.rank));
+    if (rset.size !== n) issues.push('rank 중복');
+    const succ = buildSuccession(slots, sim.finalState, twoStage);
+    if (!succ.length) issues.push('succession 비어있음');
+    else if (succ[0] !== ranks[ranks.length - 1].name) issues.push('succession[0] != rankings 최하위');
+    if (twoStage && succ.length !== FINALIST_COUNT) issues.push(`succession ${succ.length} != ${FINALIST_COUNT}(결승 한정)`);
     return issues;
   }
 
-  // --- 결정론 / 구조 정합 / geom (가변 n, 고정 시드) ---
-  console.log('--- 결정론 + 구조 정합 + geom (고정 시드 12345) ---');
+  // --- 결정론 + 구조 정합 (고정 시드) ---
+  console.log('--- 결정론 + 구조 정합 (고정 시드 12345) ---');
   for (const n of N_LIST) {
     const a = await simulate(mkSlots(n), 12345);
     const b = await simulate(mkSlots(n), 12345);
-    // 결정론: frames/escapes/downs/bladeUps/decideMs/durationMs + geom 동일
     check(`determinism same seed n=${n}`,
       JSON.stringify(a.frames) === JSON.stringify(b.frames) &&
-      JSON.stringify(a.escapes) === JSON.stringify(b.escapes) &&
-      JSON.stringify(a.downs) === JSON.stringify(b.downs) &&
-      JSON.stringify(a.bladeUps) === JSON.stringify(b.bladeUps) &&
-      a.decideMs === b.decideMs && a.durationMs === b.durationMs &&
-      JSON.stringify(a.geom) === JSON.stringify(b.geom));
-    // geom 시드 무관 결정론: 다른 시드라도 같은 n이면 geom 동일(n만의 함수)
-    const c = await simulate(mkSlots(n), 777);
-    const expScale = n <= 6 ? 1 : Math.sqrt(6 / n);
-    const scaleOk = n <= 6 ? (a.geom.scale === 1) : (Math.abs(a.geom.scale - expScale) <= 1e-9);
-    check(`geom 시드무관·scale=√(6/n) n=${n}`,
-      JSON.stringify(a.geom) === JSON.stringify(c.geom) && scaleOk,
-      `scale=${a.geom.scale.toFixed(6)} bladeR=${a.geom.bladeRadius.toFixed(2)} charR=${a.geom.charRadius.toFixed(2)} spawnR=${a.geom.spawnR.toFixed(1)}`);
+      JSON.stringify(a.hpFrames) === JSON.stringify(b.hpFrames) &&
+      JSON.stringify(a.bladeFrames) === JSON.stringify(b.bladeFrames) &&
+      JSON.stringify(a.items) === JSON.stringify(b.items) &&
+      JSON.stringify(a.pickups) === JSON.stringify(b.pickups) &&
+      JSON.stringify(a.finalists) === JSON.stringify(b.finalists) &&
+      a.decideMs === b.decideMs && a.round1EndMs === b.round1EndMs && a.durationMs === b.durationMs &&
+      a.twoStage === b.twoStage && JSON.stringify(a.geom) === JSON.stringify(b.geom));
     const issues = structuralIssues(a, mkSlots(n));
     check(`structural integrity n=${n}`, issues.length === 0, issues.join(' / '));
-    console.log(`  n=${n}: decideMs=${a.decideMs} durationMs=${a.durationMs} escapes=${a.escapes.length} downs=${a.downs.length} bladeUps=${a.bladeUps.length}`);
+    const fallback = a.decideMs >= FINALE_FALLBACK_MS;
+    console.log(`  n=${n} twoStage=${a.twoStage} decideMs=${a.decideMs}${a.twoStage && fallback ? '(fallback)' : ''} round1EndMs=${a.round1EndMs} dur=${a.durationMs} finalists=${JSON.stringify(a.finalists)}`);
   }
+  const d1 = await simulate(mkSlots(8), 12345), d2 = await simulate(mkSlots(8), 99999);
+  check('diff seed differs', JSON.stringify(d1.frames) !== JSON.stringify(d2.frames));
 
-  const s1 = await simulate(mkSlots(3), 12345);
-  const s3 = await simulate(mkSlots(3), 99999);
-  check('diff seed differs', JSON.stringify(s1.frames) !== JSON.stringify(s3.frames));
-
-  // --- 200시드 배치: 결판률(decideMs 확정) 게이트 + decideMs 분포 + 캡 도달률 ---
-  // cap=24 생존 판정의 권위 데이터. 미달 게이트도 분포를 끝까지 출력.
-  console.log('--- 200-seed batch: 결판률 + decideMs 분포 + 캡(30s) 도달률 ---');
-  console.log('게이트: n2/n3 >= 95%, n4~6 >= 88%, n8~24 >= 80%');
-  console.log('n     | 결판률        | decideMs avg/min/max | 캡도달  | durAvg | downs/인 | tie시드 | 칼업avg | 최이른피격f | selected편향');
+  // --- 200시드 배치: 결판률 + 분포 + 결승 결판방식 ---
+  console.log('--- 200-seed batch ---');
+  console.log('게이트: 결판률 100%(decideMs never null), 구조 0건, durationMs<=GAME_MS, 2단계 결승 HP-0 결판 >= 70%');
+  console.log('n   | stage   | 결판률 | decideMs avg/min/max | 캡  | dur   | dealt avg/min | fallback% | selected편향');
   const summary = [];
   for (const h of N_LIST) {
     const N = 200;
     let decided = 0, decideSum = 0, decideMin = Infinity, decideMax = -Infinity, capHit = 0;
-    let durSum = 0, downTotal = 0, tieSeeds = 0, upMsSum = 0, upTotal = 0;
-    let structBad = 0;
+    let durSum = 0, structBad = 0, fallbackCnt = 0;
+    let dealtAvgSum = 0, dealtMinSum = 0;   // 게임별 평균/최저 dealt의 합
+    let twoStageSeeds = 0, mob20 = 0, mob30 = 0;   // B4 lock-in floor: 하위3(t)≠finalists 빈도(움직였다=건강)
     const selCount = new Array(h).fill(0);
-    let firstIssue = '';
-    let minHitFrame = 99;   // 0~500ms 내 어떤 시드든 가장 이른 피격 frame(보고용 — 스폰 spacing 여유)
+    let firstIssue = '', stageSeen = '';
     for (let t = 0; t < N; t++) {
       const seed = ((t * 2654435761 + h * 40503) >>> 0) & 0x7fffffff;
       const slots = mkSlots(h);
       const sim = await simulate(slots, seed);
+      stageSeen = sim.twoStage ? 'two-stage' : 'single';
       const issues = structuralIssues(sim, slots);
       if (issues.length) { structBad++; if (!firstIssue) firstIssue = `seed=${seed}: ${issues[0]}`; }
-      const ehf = earliestHitFrame(sim, slots.length);
-      if (ehf < minHitFrame) minHitFrame = ehf;
-      if (sim.decideMs !== null) {
-        decided++;
-        decideSum += sim.decideMs;
-        if (sim.decideMs < decideMin) decideMin = sim.decideMs;
-        if (sim.decideMs > decideMax) decideMax = sim.decideMs;
-      }
-      if (sim.durationMs >= 30000) capHit++;   // 30초 캡 도달(교착)
+      if (sim.decideMs !== null) { decided++; decideSum += sim.decideMs; decideMin = Math.min(decideMin, sim.decideMs); decideMax = Math.max(decideMax, sim.decideMs); }
+      if (sim.durationMs >= GAME_MS) capHit++;
+      if (sim.twoStage && sim.decideMs >= FINALE_FALLBACK_MS) fallbackCnt++;
       durSum += sim.durationMs;
-      downTotal += sim.downs.length;
-      // 동시 탈출 tie: 같은 timeMs의 탈출이 2건 이상인 시드
-      for (let i = 1; i < sim.escapes.length; i++) {
-        if (sim.escapes[i].timeMs === sim.escapes[i - 1].timeMs) { tieSeeds++; break; }
-      }
-      for (const u of sim.bladeUps) { upMsSum += u.timeMs; upTotal++; }
-      const ranks = rankHumans(slots, sim.finalState);
+      // 최종 dealt(점수) 분포
+      const dealts = sim.finalState.map(f => f.dealt);
+      dealtAvgSum += dealts.reduce((a, b) => a + b, 0) / h;
+      dealtMinSum += Math.min(...dealts);
+      const ranks = rankHumans(slots, sim.finalState, sim.twoStage);
       selCount[ranks[ranks.length - 1].slotId]++;
+      // B4 lock-in floor — 2단계만: t=20s(및 t=30s) dealt 하위3 ≠ 최종 finalists면 하위권이 아직 움직인 것(건강).
+      if (sim.twoStage) {
+        twoStageSeeds++;
+        const finSet = new Set(sim.finalists);
+        if (setsDiffer(bottomKByDealtAt(sim, 20000, FINALIST_COUNT), finSet)) mob20++;
+        if (setsDiffer(bottomKByDealtAt(sim, 30000, FINALIST_COUNT), finSet)) mob30++;
+      }
     }
     const rate = decided / N;
-    const avgDec = decided ? Math.round(decideSum / decided) : 0;
-    const capRate = (capHit / N * 100).toFixed(1);
-    // selected 편향: 최대-최소 편차(균등이면 0에 근접). 슬롯 많으면 분포 대신 max/min만.
     const selMax = Math.max(...selCount), selMin = Math.min(...selCount);
     const selStr = h <= 8 ? `[${selCount.join(',')}]` : `max=${selMax} min=${selMin}`;
-    const minHitStr = minHitFrame === 99 ? '>5(none)' : `f${minHitFrame}(${minHitFrame * 100}ms)`;
+    const fallbackRate = stageSeen === 'two-stage' ? fallbackCnt / N : 0;
     console.log(
-      `n=${String(h).padEnd(3)} | ${decided}/${N} (${(rate * 100).toFixed(1).padStart(5)}%) | ` +
-      `${String(avgDec).padStart(5)}/${decided ? String(decideMin).padStart(5) : '    -'}/${decided ? String(decideMax).padStart(5) : '    -'} | ` +
-      `${capRate.padStart(5)}% | ${String(Math.round(durSum / N)).padStart(6)} | ${(downTotal / (N * h)).toFixed(2)} | ` +
-      `${String(tieSeeds).padStart(3)} | ${upTotal ? Math.round(upMsSum / upTotal) : 0}ms | ${minHitStr.padStart(9)} | ${selStr}`
+      `n=${String(h).padEnd(2)}| ${stageSeen.padEnd(7)} | ${(rate * 100).toFixed(0).padStart(4)}% | ` +
+      `${String(decided ? Math.round(decideSum / decided) : 0).padStart(5)}/${decided ? String(decideMin).padStart(5) : '    -'}/${decided ? String(decideMax).padStart(5) : '    -'} | ` +
+      `${(capHit / N * 100).toFixed(0).padStart(3)}% | ${String(Math.round(durSum / N)).padStart(5)} | ` +
+      `${String(Math.round(dealtAvgSum / N)).padStart(5)}/${String(Math.round(dealtMinSum / N)).padStart(5)} | ` +
+      `${(fallbackRate * 100).toFixed(1).padStart(6)}% | ${selStr}`
     );
-    summary.push({ h, rate, avgDec, capRate: capHit / N, structBad, firstIssue });
+    const mob20rate = twoStageSeeds ? mob20 / twoStageSeeds : null;
+    const mob30rate = twoStageSeeds ? mob30 / twoStageSeeds : null;
+    if (twoStageSeeds) {
+      console.log(`   ↳ lock-in mobility n=${h}: t=20s ${(mob20rate * 100).toFixed(1)}% / t=30s ${(mob30rate * 100).toFixed(1)}% (하위3≠finalists = 하위권이 아직 움직임)`);
+    }
+    summary.push({ h, stage: stageSeen, rate, capRate: capHit / N, structBad, firstIssue, fallbackRate, mob20rate, mob30rate });
   }
 
-  // 게이트 판정(분포 출력 후 일괄) — 미달이어도 위 분포는 이미 전량 출력됨.
   console.log('--- 게이트 판정 ---');
   for (const r of summary) {
-    const gate = (r.h <= 3) ? 0.95 : (r.h <= 6) ? 0.88 : 0.80;
-    check(`n${r.h} 결판률 >= ${(gate * 100).toFixed(0)}%`, r.rate >= gate, `(${(r.rate * 100).toFixed(1)}%)`);
-    check(`n${r.h} 구조 정합 0건`, r.structBad === 0, r.structBad ? `(${r.structBad}시드, 첫 위반: ${r.firstIssue})` : '');
-  }
-  // 보고용 경고: n=24 결판률 80% 미만 또는 평균 decideMs 26s 초과(후퇴/튜닝 판단은 오케스트레이터)
-  const r24 = summary.find(r => r.h === 24);
-  if (r24) {
-    if (r24.rate < 0.80) console.log(`*** 경고: n=24 결판률 ${(r24.rate * 100).toFixed(1)}% < 80% — cap=24 후퇴 검토 필요 ***`);
-    if (r24.avgDec > 26000) console.log(`*** 경고: n=24 평균 decideMs ${r24.avgDec}ms > 26s — T(n) 튜닝 검토 필요 ***`);
+    check(`n${r.h}(${r.stage}) 결판률 = 100%`, r.rate >= 1.0, `(${(r.rate * 100).toFixed(1)}%)`);
+    check(`n${r.h} 구조 정합 0건`, r.structBad === 0, r.structBad ? `(${r.structBad}시드, 첫: ${r.firstIssue})` : '');
+    check(`n${r.h} 캡 미초과(durationMs<=${GAME_MS})`, r.capRate === 0, r.capRate ? `(캡 ${(r.capRate * 100).toFixed(1)}%)` : '');
+    if (r.stage === 'two-stage') {
+      check(`n${r.h} 결승 HP-0 결판 >= 70% (fallback 의존 낮음)`, r.fallbackRate <= 0.30, `(fallback ${(r.fallbackRate * 100).toFixed(1)}%)`);
+      // lock-in floor — n≥8 2단계: t=20s 하위3 ≠ 최종 finalists 비율 ≥ 25%(하위권 미동결 = 컴백 여지).
+      //   feel-v5 S1: 칼날 자동 성장 폐기 후에도 하위권은 헌트 이동·아이템으로 계속 움직임(측정값 85~97%). 권위 = 이 배치.
+      if (r.h >= 8) {
+        check(`n${r.h} lock-in floor: t=20s mobility >= 25%`, r.mob20rate >= 0.25, `(t20=${(r.mob20rate * 100).toFixed(1)}% / t30=${(r.mob30rate * 100).toFixed(1)}%)`);
+      }
+    }
   }
 
-  // --- rankHumans 합성 엣지 (배치에서 드문 분기 직접 고정) ---
-  // 캡 교착(잔류 2 + 탈출 1): rank1 = 탈출자, 잔류자는 bladeCount desc → selected = 진행도 최하위
-  const synthA = rankHumans(mkSlots(3), [
-    { id: 0, escaped: false, escapeMs: null, bladeCount: 4, cumDmg: 150 },
-    { id: 1, escaped: false, escapeMs: null, bladeCount: 3, cumDmg: 100 },
-    { id: 2, escaped: true, escapeMs: 12000, bladeCount: 5, cumDmg: 140 }
-  ]);
-  check('synth 캡 교착: rank1 = 탈출자', synthA[0].name === 'P2' && synthA[0].escapeMs === 12000);
-  check('synth 캡 교착: selected = bladeCount 최하위', synthA[2].name === 'P1' && synthA[2].escapeMs === null);
-  // 잔류자 bladeCount 동률 → cumDmg desc → selected = cumDmg 낮은 쪽
-  const synthB = rankHumans(mkSlots(3), [
-    { id: 0, escaped: false, escapeMs: null, bladeCount: 3, cumDmg: 90 },
-    { id: 1, escaped: false, escapeMs: null, bladeCount: 3, cumDmg: 120 },
-    { id: 2, escaped: true, escapeMs: 9000, bladeCount: 5, cumDmg: 140 }
-  ]);
-  check('synth 칼 동률: selected = cumDmg 낮은 쪽', synthB[2].name === 'P0');
-  // 전부 동률 → slotId 큰 쪽이 selected
-  const synthC = rankHumans(mkSlots(2), [
-    { id: 0, escaped: false, escapeMs: null, bladeCount: 2, cumDmg: 0 },
-    { id: 1, escaped: false, escapeMs: null, bladeCount: 2, cumDmg: 0 }
-  ]);
-  check('synth 전부 동률: selected = slotId 큰 쪽', synthC[1].name === 'P1');
-  // 같은 틱 동시 탈출: cumDmg 내림차순(시뮬 ④ 순서 재현)
-  const synthD = rankHumans(mkSlots(3), [
-    { id: 0, escaped: true, escapeMs: 8000, bladeCount: 5, cumDmg: 137 },
-    { id: 1, escaped: true, escapeMs: 8000, bladeCount: 5, cumDmg: 142 },
-    { id: 2, escaped: false, escapeMs: null, bladeCount: 4, cumDmg: 130 }
-  ]);
-  check('synth 동시 탈출 tie: cumDmg 높은 쪽 rank1', synthD[0].name === 'P1' && synthD[1].name === 'P0');
+  // --- rankHumans / buildSuccession 합성 엣지 (새 계약) ---
+  // 단일 단계: 최저 dealt = 당첨(최하위)
+  const synA = rankHumans(mkSlots(3), [
+    { id: 0, dealt: 300, received: 40, hp: 100, finalist: false, escaped: false, permaDead: false },
+    { id: 1, dealt: 80, received: 100, hp: 100, finalist: false, escaped: false, permaDead: false },
+    { id: 2, dealt: 200, received: 20, hp: 100, finalist: false, escaped: false, permaDead: false }
+  ], false);
+  check('synth single: 최저 dealt(P1)=당첨(최하위)', synA[2].name === 'P1' && synA[0].name === 'P0');
+  // 단일 동점 dealt → received 오름차순(적게 맞은 쪽이 더 최하위)
+  const synAt = rankHumans(mkSlots(3), [
+    { id: 0, dealt: 100, received: 50, hp: 100, finalist: false, escaped: false, permaDead: false },
+    { id: 1, dealt: 100, received: 80, hp: 100, finalist: false, escaped: false, permaDead: false },
+    { id: 2, dealt: 100, received: 30, hp: 100, finalist: false, escaped: false, permaDead: false }
+  ], false);
+  check('synth single tie: dealt 동점→received↑(P2=최하위)', synAt[2].name === 'P2');
+  // 2단계: 안전(상위 dealt)=상위, 결승 패자(permaDead)=최하위, 생존자(hp 높은 쪽 위)
+  const synB = rankHumans(mkSlots(6), [
+    { id: 0, dealt: 500, received: 10, hp: 100, finalist: false, escaped: true, permaDead: false },
+    { id: 1, dealt: 450, received: 20, hp: 100, finalist: false, escaped: true, permaDead: false },
+    { id: 2, dealt: 400, received: 30, hp: 100, finalist: false, escaped: true, permaDead: false },
+    { id: 3, dealt: 120, received: 200, hp: 0, finalist: true, escaped: false, permaDead: true },   // 결승 패자
+    { id: 4, dealt: 110, received: 150, hp: 60, finalist: true, escaped: false, permaDead: false },  // 생존자(hp 60)
+    { id: 5, dealt: 100, received: 140, hp: 30, finalist: true, escaped: false, permaDead: false }   // 생존자(hp 30)
+  ], true);
+  check('synth two-stage: rank1=최고dealt(P0)', synB[0].name === 'P0');
+  check('synth two-stage: 당첨=permaDead(P3, 최하위)', synB[5].name === 'P3');
+  check('synth two-stage: 생존자 hp 높은 쪽(P4) > 낮은 쪽(P5)', synB[3].name === 'P4' && synB[4].name === 'P5');
+  // 승계: 2단계는 결승 진출자만(P3,P5,P4 — worst→best), 단일은 전원
+  const succB = buildSuccession(mkSlots(6), [
+    { id: 0, dealt: 500, received: 10, hp: 100, finalist: false, escaped: true, permaDead: false },
+    { id: 1, dealt: 450, received: 20, hp: 100, finalist: false, escaped: true, permaDead: false },
+    { id: 2, dealt: 400, received: 30, hp: 100, finalist: false, escaped: true, permaDead: false },
+    { id: 3, dealt: 120, received: 200, hp: 0, finalist: true, escaped: false, permaDead: true },
+    { id: 4, dealt: 110, received: 150, hp: 60, finalist: true, escaped: false, permaDead: false },
+    { id: 5, dealt: 100, received: 140, hp: 30, finalist: true, escaped: false, permaDead: false }
+  ], true);
+  check('synth succession two-stage: 결승 3인만 worst→best [P3,P5,P4]', JSON.stringify(succB) === JSON.stringify(['P3', 'P5', 'P4']));
 
   console.log(fails === 0 ? '=== ALL PASS ===' : `=== FAILURES: ${fails} ===`);
   process.exitCode = fails ? 1 : 0;

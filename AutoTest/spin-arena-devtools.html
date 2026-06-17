@@ -74,10 +74,10 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
         </div>
         <div class="flex-row">
             <label style="margin:0;font-size:11px">봇 수</label>
-            <input id="botCount" type="number" value="5" min="1" max="8" style="width:50px;margin:0">
+            <input id="botCount" type="number" value="5" min="1" max="23" style="width:50px;margin:0">
             <button class="btn-ghost btn-sm" onclick="refreshRooms()">새로고침</button>
         </div>
-        <div class="hint">먼저 브라우저에서 회전 칼날 방을 직접 만들어 호스트가 되고(또는 초대 링크 입력), 여기서 봇을 채운 뒤 내 화면에서 "게임 시작"을 누르세요. 입장하면 서버가 자동으로 준비 상태로 잡습니다. 준비 선착 6명만 참가하고 그 이상은 관전이에요.</div>
+        <div class="hint">먼저 브라우저에서 회전 칼날 방을 직접 만들어 호스트가 되고(또는 초대 링크 입력), 여기서 봇을 채운 뒤 내 화면에서 "게임 시작"을 누르세요. 입장하면 서버가 자동으로 준비 상태로 잡습니다. 준비 선착 24명까지 참가해요. <b>5명 이상이면 몬스터 레이스, 4명 이하면 배틀로얄</b> 규칙이 발동합니다(호스트 포함 인원 기준). 봇이 많을 땐 "전원 스킨"을 누르지 말고 서버 자동 배정에 맡기면 24색이 전부 구분돼요(잠금 스킨은 봇이 못 고름).</div>
     </div>
 
     <div class="section">
@@ -95,7 +95,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     <div class="section">
         <h2>Quick Actions</h2>
         <div class="flex-row">
-            <button class="btn-green btn-sm" onclick="quickFlow()">원클릭: 입장 + 스킨</button>
+            <button class="btn-green btn-sm" onclick="quickFlow()">원클릭: 입장 + 준비</button>
             <button class="btn-ghost btn-sm" onclick="refreshRooms()">방 목록 새로고침</button>
         </div>
         <div class="hint">봇은 게임을 시작할 수 없습니다(호스트만 시작 가능). 봇 채운 뒤 내 브라우저 탭에서 시작하세요.</div>
@@ -122,8 +122,10 @@ const SPIN_SKINS = [
     { id: 'violet',  name: '바이올렛', color: '#9b59e2' },
     { id: 'rose',    name: '로즈',     color: '#e23b8f' },
 ];
-const BOT_NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Fox', 'Golf', 'Hotel'];
-const MAX_BOTS = 8;
+const BOT_NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Fox', 'Golf', 'Hotel',
+    'India', 'Juliet', 'Kilo', 'Lima', 'Mike', 'November', 'Oscar', 'Papa',
+    'Quebec', 'Romeo', 'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey'];
+const MAX_BOTS = 23;   // 23봇 + 호스트(실 브라우저) = 24 = MAX_SLOTS
 
 const bots = [];
 let selectedRoomId = null;
@@ -302,7 +304,10 @@ function joinOneBot(name) {
         s.on('spin-arena:reveal', (d) => {
             if (bot === bots[0]) {
                 const sel = d && d.result ? d.result.selected : '?';
-                dlog(`공개됨 — 당첨(벌칙)=${sel}`, 'event');
+                const rule = (d && d.rule) || '?';
+                const r1 = d && d.round1EndMs != null ? `round1End=${d.round1EndMs}ms ` : '';
+                const mon = d && d.monsters ? `몬스터${d.monsters.count} ` : '';
+                dlog(`공개됨 — 룰=${rule} ${r1}${mon}당첨(벌칙)=${sel}`, 'event');
             }
         });
         s.on('spin-arena:gameEnd', (d) => {
@@ -355,12 +360,11 @@ function disconnectAll() {
     updateBotList();
 }
 
+// 입장 + 준비만 (스킨은 자동 배정에 맡겨 24색 distinct 유지). 색을 직접 돌리려면 "전원 스킨" 버튼 사용.
 async function quickFlow() {
     await joinBots();
     await sleep(400);
     ensureReadyAll();
-    await sleep(400);
-    selectSkinsAll();
 }
 </script>
 </body>
