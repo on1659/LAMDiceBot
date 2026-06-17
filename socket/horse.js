@@ -486,6 +486,9 @@ module.exports = (socket, io, ctx) => {
             io.to(room.roomId).emit('horseRaceCountdown', countdownPayload);
         };
 
+        // 유효표가 한 등수에만 몰리면(rouletteSegments 1개) 룰렛 스핀 스킵 — 결과가 이미 확정
+        const skipRouletteAnim = resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length === 1;
+        const rouletteHoldMs = skipRouletteAnim ? FALLBACK_HOLD_MS : (ROULETTE_ANIM_MS + ROULETTE_HOLD_MS);
         if (resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length > 0) {
             io.to(room.roomId).emit('horseRouletteStart', {
                 segments: rouletteSegments,
@@ -494,12 +497,13 @@ module.exports = (socket, io, ctx) => {
                 animDurationMs: ROULETTE_ANIM_MS,
                 userRankVotes: { ...gameState.userRankVotes },
                 runningHorseCount,
-                targetRankReason: targetRankReason
+                targetRankReason: targetRankReason,
+                skipAnim: skipRouletteAnim
             });
             gameState.horseRouletteTimeout = setTimeout(() => {
                 gameState.horseRouletteTimeout = null;
                 emitCountdown();
-            }, ROULETTE_ANIM_MS + ROULETTE_HOLD_MS);
+            }, rouletteHoldMs);
         } else {
             // fallback (투표 없음/모두 무효) — 사유 카드만 FALLBACK_HOLD_MS 보여준 뒤 카운트다운
             io.to(room.roomId).emit('horseRaceReasonHold', {
@@ -547,7 +551,7 @@ module.exports = (socket, io, ctx) => {
         };
 
         // 룰렛 있으면 룰렛 길이 + 카운트다운 4초 후 경주 시작, 없으면 4초 후 즉시
-        const startedDelayMs = (resolvedTargetRank !== null ? ROULETTE_ANIM_MS + ROULETTE_HOLD_MS : FALLBACK_HOLD_MS) + 4000;
+        const startedDelayMs = (resolvedTargetRank !== null ? rouletteHoldMs : FALLBACK_HOLD_MS) + 4000;
         gameState.horseRaceCountdownTimeout = setTimeout(() => {
             // 게임 종료로 취소된 경우 무시
             if (!gameState.isGameActive) {
