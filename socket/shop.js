@@ -15,10 +15,19 @@ const cosmetics = require('../db/cosmetics');
 // 카탈로그 1회 로드 (config/horse/race.json 로드 패턴과 동일) — 게임별 파일 병합.
 // cosmetic_id는 전 게임 전역 유일이어야 한다(user_cosmetics 단일 테이블).
 // spin-arena는 spin_ 접두로 네임스페이스 분리. 부팅 시 중복 ID 검사 — 중복은 스킵.
-const CATALOG_FILES = [
-    path.join(__dirname, '..', 'config', 'horse', 'cosmetics.json'),
-    path.join(__dirname, '..', 'config', 'spin-arena', 'cosmetics.json')
-];
+//
+// 데이터 주도 발견: config/{game}/cosmetics.json 을 자동 enumerate.
+// 새 게임은 폴더에 cosmetics.json 만 떨구면 socket/shop.js 수정 없이 등록된다.
+const CONFIG_DIR = path.join(__dirname, '..', 'config');
+let CATALOG_FILES = [];
+try {
+    CATALOG_FILES = fs.readdirSync(CONFIG_DIR)
+        .map(d => path.join(CONFIG_DIR, d, 'cosmetics.json'))
+        .filter(f => fs.existsSync(f))
+        .sort();
+} catch (e) {
+    console.warn('[상점] config 디렉토리 탐색 실패:', e.message);
+}
 let CATALOG = {};       // slot -> items[] (병합 — shop:catalog 표시용)
 let CATALOG_INDEX = {}; // id -> { slot, item }
 CATALOG_FILES.forEach(file => {

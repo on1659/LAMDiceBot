@@ -1,32 +1,36 @@
 /*
- * horse-shop.js — 경마 꾸미기 상점 (코인 + 인증 + 서버 인벤토리)
+ * horse-shop.js — 경마 꾸미기 상점 어댑터 (ShopModule 위에 얇은 게임 어댑터)
  *
- * 전역 `HorseShop`. 자기완결 모듈.
+ * 전역 `HorseShop`. 공통 셸(인증/지갑/모달/구매/장착/잔고연출)은 js/shared/shop-shared.js
+ * (window.ShopModule)이 담당. 이 어댑터는 경마 고유부만 보유:
+ *   - 차량 SVG 미리보기(buildPreview hook, getVehicleSVG 의존)
+ *   - 내 탈것에 장착 적용(applyToHorse / applyEquippedToHorse / applyToActiveHorses)
+ *   - 방 연출(track_theme 틴트 applyRoomCosmetics, finish_fx playFinishFx)
  *
- * 보안: 지갑/구매/장착은 모두 서버(socket.authedUserId) 권위. 이 모듈은
- *   socket:authenticate(token) → wallet:get → shop:buy/shop:equip 로만 동작한다.
- *   토큰 없는 게스트는 상점 이용 불가(구매/장착 없음).
+ * 공개 API(window.HorseShop.*)는 기존 그대로 유지(호출부: js/horse-race.js, HTML onclick).
  *
  * 공정성: cosmetic 데이터는 결과 계산이나 게임 emit에 진입하지 않는다.
- *   도색 필터는 .vehicle-sprite 에만(이벤트 연출이 .horse filter 점유).
- *   Math.random() 미사용.
+ *   도색 필터는 .vehicle-sprite 에만(이벤트 연출이 .horse filter 점유). Math.random() 미사용.
  */
 (function () {
     'use strict';
 
     var CATALOG_URL = '/config/horse/cosmetics.json';
     // 상점 탭(슬롯). track_theme/finish_fx는 방장 장착분만 방 전체 적용(개인은 소유/장착만).
-    var SLOTS = ['paint', 'trail', 'accessory', 'bib', 'track_theme', 'finish_fx'];
-    var TAB_LABELS = {
-        paint: '🎨 도색', trail: '✨ 트레일', accessory: '👑 액세서리',
-        bib: '🔢 마번', track_theme: '🏞️ 트랙테마', finish_fx: '🎆 결승연출'
-    };
-
-    var RARITY_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
+    var SLOTS = [
+        { key: 'paint', label: '🎨 도색' },
+        { key: 'trail', label: '✨ 트레일' },
+        { key: 'accessory', label: '👑 액세서리' },
+        { key: 'bib', label: '🔢 마번' },
+        { key: 'track_theme', label: '🏞️ 트랙테마' },
+        { key: 'finish_fx', label: '🎆 결승연출' }
+    ];
 
     // 카드 썸네일에 실제 탈것을 그려 꾸미기 적용 모습을 미리보기로 보여줄 슬롯
     var HORSE_PREVIEW_SLOTS = ['paint', 'trail', 'accessory', 'bib'];
     var PREVIEW_VEHICLE = 'car'; // 미리보기 샘플 탈것 (getVehicleSVG, horse-race-sprites.js)
+
+    // ── 미리보기 빌더 (getVehicleSVG 등 게임 전역 접근은 이 어댑터 안에서만) ──
 
     // 샘플 탈것 SVG 1프레임 HTML (없으면 빈 문자열)
     function sampleVehicleHTML() {
@@ -122,477 +126,28 @@
         return box;
     }
 
-    var catalog = null;
-    var catalogLoading = null;
-    var catalogIndex = {};   // id -> { slot, item }
-    var activeTab = 'paint';
-
-    var socketRef = null;
-    var socketWired = false;
-
-    // 서버 권위 지갑 상태
-    var wallet = { authed: false, balance: 0, owned: [], equipped: {} };
-
-    // ── 유틸 ──────────────────────────────────────────────
-
-    function getMount() { return document.getElementById('horseShopMount'); }
-
-    function getToken() {
-        try {
-            var auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
-            return (auth && auth.token) ? auth.token : null;
-        } catch (e) { return null; }
-    }
-
-    function findItem(slot, id) {
-        if (!catalog || !id) return null;
-        var list = catalog[slot] || [];
-        for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    // ShopModule이 카드 썸네일에 부를 미리보기 hook (slot별 분기). null이면 셸이 글리프 fallback.
+    function buildPreview(slot, item) {
+        if (slot === 'track_theme') return buildTrackThemePreview(item);
+        if (slot === 'finish_fx') return buildFinishFxPreview(item);
+        if (HORSE_PREVIEW_SLOTS.indexOf(slot) !== -1 && typeof getVehicleSVG === 'function') {
+            return buildItemPreview(slot, item);
+        }
         return null;
     }
 
-    function getCatalogItem(id) {
-        return catalogIndex[id] ? catalogIndex[id].item : null;
-    }
+    // ── 카탈로그 헬퍼 (ShopModule getter 위임) ──────────────
 
-    function owns(id) { return wallet.owned.indexOf(id) !== -1; }
+    function getCatalog() { return ShopModule.getCatalog(); }
+    function getEquipped() { return ShopModule.getEquipped(); }
+    function findItem(slot, id) { return ShopModule.findItem(slot, id); }
+    function getCatalogItem(id) { return ShopModule.getCatalogItem(id); }
 
-    // ── 카탈로그 로드 ──────────────────────────────────────
-
-    function loadCatalog() {
-        if (catalog) return Promise.resolve(catalog);
-        if (catalogLoading) return catalogLoading;
-        catalogLoading = fetch(CATALOG_URL)
-            .then(function (res) {
-                if (!res.ok) throw new Error('catalog load failed: ' + res.status);
-                return res.json();
-            })
-            .then(function (json) {
-                catalog = json;
-                catalogIndex = {};
-                Object.keys(json).forEach(function (slot) {
-                    (json[slot] || []).forEach(function (item) {
-                        if (item && item.id) catalogIndex[item.id] = { slot: slot, item: item };
-                    });
-                });
-                catalogLoading = null;
-                return catalog;
-            })
-            .catch(function (err) {
-                catalogLoading = null;
-                console.warn('[HorseShop] 카탈로그 로드 실패:', err.message);
-                throw err;
-            });
-        return catalogLoading;
-    }
-
-    // ── 소켓 연결/인증 ─────────────────────────────────────
-
-    // horse-race.js가 socket 정의 후 1회 호출.
-    function connect(socket) {
-        socketRef = socket;
-        if (socketWired || !socket) return;
-        socketWired = true;
-        socket.on('wallet:updated', function (data) {
-            if (data && typeof data.balance === 'number') {
-                var prev = wallet.balance;
-                wallet.balance = data.balance;
-                if (document.getElementById('hshopBalance')) animateBalanceDelta(prev, data.balance);
-                else updateBalanceLabel();
-            }
-        });
-    }
-
-    // 토큰으로 socket 인증 → 성공 시 지갑 동기화. 매 connect마다 호출 가능(멱등).
-    function authenticate(token, done) {
-        if (!socketRef || !token) {
-            console.log('[상점진단] authenticate 중단 — socketRef:', !!socketRef, '| token:', !!token);
-            if (done) done(false); return;
-        }
-        socketRef.emit('socket:authenticate', { token: token }, function (res) {
-            console.log('[상점진단] socket:authenticate 응답:', res);
-            if (res && res.ok) {
-                wallet.authed = true;
-                wallet.balance = (typeof res.balance === 'number') ? res.balance : 0;
-                refreshWallet(function () {
-                    applyToActiveHorses();
-                    if (done) done(true);
-                });
-            } else {
-                wallet.authed = false;
-                if (done) done(false);
-            }
-        });
-    }
-
-    // 지갑 상세(잔고+소유+장착) 동기화
-    function refreshWallet(done) {
-        if (!socketRef || !wallet.authed) { if (done) done(); return; }
-        socketRef.emit('wallet:get', {}, function (res) {
-            if (res && res.ok) {
-                wallet.balance = res.balance || 0;
-                wallet.owned = Array.isArray(res.owned) ? res.owned : [];
-                wallet.equipped = res.equipped || {};
-            }
-            if (done) done();
-        });
-    }
-
-    // ── 모달 렌더 ──────────────────────────────────────────
-
-    function updateBalanceLabel() {
-        var el = document.getElementById('hshopBalance');
-        if (el) el.textContent = '🪙 ' + wallet.balance;
-    }
-
-    // 잔고 숫자를 from→to 로 부드럽게 카운트(easeOutCubic). 최종값은 to 로 수렴(서버 권위).
-    function countBalanceTo(el, from, to) {
-        var DURATION = 480;
-        var startTs = null;
-        function step(ts) {
-            if (startTs === null) startTs = ts;
-            var p = Math.min(1, (ts - startTs) / DURATION);
-            var eased = 1 - Math.pow(1 - p, 3);
-            el.textContent = '🪙 ' + Math.round(from + (to - from) * eased);
-            if (p < 1) requestAnimationFrame(step);
-            else el.textContent = '🪙 ' + to;
-        }
-        requestAnimationFrame(step);
-    }
-
-    // 잔고 배지 근처에 떠오르며 사라지는 ±금액 (차감=빨강 −, 적립=초록 +).
-    function spawnBalanceDelta(badgeEl, delta) {
-        var rect = badgeEl.getBoundingClientRect();
-        var f = document.createElement('div');
-        f.className = 'hshop-delta ' + (delta < 0 ? 'is-spend' : 'is-earn');
-        f.textContent = (delta < 0 ? '−' : '+') + Math.abs(delta);
-        f.style.left = (rect.left + rect.width / 2) + 'px';
-        f.style.top = rect.top + 'px';
-        getShopLayer().appendChild(f);
-        setTimeout(function () { if (f.parentNode) f.remove(); }, 1100);
-    }
-
-    // 차감/적립 연출: ±금액 플로팅 + 잔고 카운트 + 짧은 플래시. 순수 시각, 값은 to 로 수렴.
-    function animateBalanceDelta(prev, next) {
-        var el = document.getElementById('hshopBalance');
-        if (!el) { updateBalanceLabel(); return; }
-        if (prev === next) { el.textContent = '🪙 ' + next; return; }
-        var dir = next < prev ? 'spend' : 'earn';
-        spawnBalanceDelta(el, next - prev);
-        el.classList.remove('hshop-balance--spend', 'hshop-balance--earn');
-        void el.offsetWidth; // reflow → 플래시 애니메이션 재시작
-        el.classList.add('hshop-balance--' + dir);
-        setTimeout(function () { el.classList.remove('hshop-balance--' + dir); }, 600);
-        countBalanceTo(el, prev, next);
-    }
-
-    // ── 상점 전용 팝업 레이어 (확인/토스트) ───────────────────
-    // 전역 showCustomAlert(z-index 10000)는 상점(.hshop-overlay 12000) 뒤에 가려지므로,
-    // 상점 위(12500+) 전용 레이어를 둔다. 전역 함수 미수정 → 크로스게임 회귀 없음.
-
-    function getShopLayer() {
-        var layer = document.getElementById('hshopLayer');
-        if (!layer) {
-            layer = document.createElement('div');
-            layer.id = 'hshopLayer';
-            layer.className = 'hshop-layer';
-            document.body.appendChild(layer);
-        }
-        return layer;
-    }
-
-    function clearShopLayer() {
-        var layer = document.getElementById('hshopLayer');
-        if (layer) layer.remove();
-    }
-
-    // 구매 확인 다이얼로그 (아이템명·가격). 확인 시에만 onConfirm 실행.
-    function showShopConfirm(item, onConfirm) {
-        var ov = document.createElement('div');
-        ov.className = 'hshop-confirm-overlay';
-
-        var card = document.createElement('div');
-        card.className = 'hshop-confirm';
-
-        var title = document.createElement('div');
-        title.className = 'hshop-confirm-title';
-        title.textContent = '정말로 구매하실래요?';
-
-        var line = document.createElement('div');
-        line.className = 'hshop-confirm-item';
-        var nm = document.createElement('span');
-        nm.className = 'hshop-confirm-name';
-        nm.textContent = item.name;
-        var pr = document.createElement('span');
-        pr.className = 'hshop-confirm-price';
-        pr.textContent = '🪙 ' + item.price;
-        line.appendChild(nm);
-        line.appendChild(pr);
-
-        var btns = document.createElement('div');
-        btns.className = 'hshop-confirm-btns';
-        var cancel = document.createElement('button');
-        cancel.type = 'button';
-        cancel.className = 'hshop-confirm-cancel';
-        cancel.textContent = '취소';
-        var ok = document.createElement('button');
-        ok.type = 'button';
-        ok.className = 'hshop-confirm-ok';
-        ok.textContent = '구매';
-
-        function close() { if (ov.parentNode) ov.remove(); }
-        cancel.addEventListener('click', close);
-        ok.addEventListener('click', function () { close(); if (onConfirm) onConfirm(); });
-        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-
-        btns.appendChild(cancel);
-        btns.appendChild(ok);
-        card.appendChild(title);
-        card.appendChild(line);
-        card.appendChild(btns);
-        ov.appendChild(card);
-        getShopLayer().appendChild(ov);
-    }
-
-    // 상점 위 토스트 (성공/실패). kind: 'success' | 'error'
-    function showShopToast(message, kind) {
-        var toast = document.createElement('div');
-        toast.className = 'hshop-toast' + (kind ? ' hshop-toast--' + kind : '');
-        toast.textContent = message;
-        getShopLayer().appendChild(toast);
-        requestAnimationFrame(function () { toast.classList.add('is-visible'); });
-        setTimeout(function () {
-            toast.classList.remove('is-visible');
-            setTimeout(function () { if (toast.parentNode) toast.remove(); }, 250);
-        }, 1800);
-    }
-
-    function renderCard(slot, item) {
-        var card = document.createElement('div');
-        card.className = 'hshop-card';
-
-        var rarity = item.rarity || 'common';
-        var preview = item.emoji || (slot === 'paint' ? '🎨' : slot === 'track_theme' ? '🏞️' : '🎁');
-
-        var thumb = document.createElement('div');
-        thumb.className = 'hshop-thumb hshop-thumb--' + rarity;
-        // 트랙테마는 그라데이션이 썸네일 배경
-        if (slot === 'track_theme' && item.bg) thumb.style.backgroundImage = item.bg;
-        var badge = document.createElement('span');
-        badge.className = 'hshop-rarity hshop-rarity--' + rarity;
-        badge.textContent = RARITY_LABEL[rarity] || rarity;
-        thumb.appendChild(badge);
-        // 슬롯별 미리보기: 트랙테마=미니 트랙 / 결승연출=이펙트 루프 / 탈것 슬롯=실제 탈것 / 그 외=글리프
-        if (slot === 'track_theme') {
-            thumb.appendChild(buildTrackThemePreview(item));
-        } else if (slot === 'finish_fx') {
-            thumb.appendChild(buildFinishFxPreview(item));
-        } else if (HORSE_PREVIEW_SLOTS.indexOf(slot) !== -1 && typeof getVehicleSVG === 'function') {
-            thumb.appendChild(buildItemPreview(slot, item));
-        } else {
-            var glyph = document.createElement('span');
-            glyph.className = 'hshop-glyph';
-            glyph.textContent = preview;
-            thumb.appendChild(glyph);
-        }
-
-        var nm = document.createElement('div');
-        nm.className = 'hshop-name';
-        nm.textContent = item.name;
-
-        var price = document.createElement('div');
-        price.className = 'hshop-price';
-        price.textContent = '🪙 ' + item.price;
-
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        var owned = owns(item.id);
-        var isEquipped = wallet.equipped[slot] === item.id;
-
-        if (!owned) {
-            btn.className = 'hshop-buy';
-            btn.textContent = '구매 (' + item.price + ')';
-            btn.addEventListener('click', function () { requestBuy(item, btn); });
-        } else {
-            btn.className = 'hshop-equip' + (isEquipped ? ' is-equipped' : '');
-            btn.textContent = isEquipped ? '✓ 장착중' : '장착';
-            btn.addEventListener('click', function () { doEquip(slot, isEquipped ? null : item.id); });
-        }
-
-        card.appendChild(thumb);
-        card.appendChild(nm);
-        if (!owned) card.appendChild(price);
-        card.appendChild(btn);
-        return card;
-    }
-
-    function renderTabBar() {
-        var bar = document.createElement('div');
-        bar.className = 'hshop-tabs';
-        SLOTS.forEach(function (slot) {
-            var tab = document.createElement('button');
-            tab.type = 'button';
-            tab.className = 'hshop-tab' + (activeTab === slot ? ' is-active' : '');
-            tab.textContent = TAB_LABELS[slot] || slot;
-            tab.addEventListener('click', function () { activeTab = slot; renderModal(); });
-            bar.appendChild(tab);
-        });
-        return bar;
-    }
-
-    function renderModal() {
-        var mount = getMount();
-        if (!mount || !catalog) return;
-        mount.innerHTML = '';
-
-        var overlay = document.createElement('div');
-        overlay.className = 'hshop-overlay';
-        overlay.addEventListener('click', function (e) { if (e.target === overlay) closeShop(); });
-
-        var panel = document.createElement('div');
-        panel.className = 'hshop-panel';
-
-        // 헤더 (제목 + 잔고 + 닫기)
-        var header = document.createElement('div');
-        header.className = 'hshop-header';
-        var titleWrap = document.createElement('div');
-        titleWrap.className = 'hshop-title';
-        titleWrap.innerHTML = '꾸미기 상점<small>경마 · 내 탈것</small>';
-        var bal = document.createElement('div');
-        bal.className = 'hshop-balance';
-        bal.id = 'hshopBalance';
-        bal.textContent = '🪙 ' + wallet.balance;
-        var closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'hshop-close';
-        closeBtn.setAttribute('aria-label', '닫기');
-        closeBtn.textContent = '✕';
-        closeBtn.addEventListener('click', closeShop);
-        header.appendChild(titleWrap);
-        header.appendChild(bal);
-        header.appendChild(closeBtn);
-
-        var notice = document.createElement('div');
-        notice.className = 'hshop-notice';
-        notice.textContent = (activeTab === 'track_theme' || activeTab === 'finish_fx')
-            ? '연출 꾸미기는 방장이 장착하면 방 전체에 적용돼요. 게임 결과엔 영향 없어요.'
-            : '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
-
-        var tabBar = renderTabBar();
-
-        var grid = document.createElement('div');
-        grid.className = 'hshop-grid';
-        var list = catalog[activeTab] || [];
-        if (list.length === 0) {
-            var empty = document.createElement('div');
-            empty.className = 'hshop-empty';
-            empty.textContent = '준비 중인 카테고리예요.';
-            grid.appendChild(empty);
-        } else {
-            list.forEach(function (item) { grid.appendChild(renderCard(activeTab, item)); });
-        }
-
-        panel.appendChild(header);
-        panel.appendChild(notice);
-        panel.appendChild(tabBar);
-        panel.appendChild(grid);
-        overlay.appendChild(panel);
-        mount.appendChild(overlay);
-    }
-
-    // ── 구매 / 장착 ────────────────────────────────────────
-
-    // 구매 버튼 → 확인 팝업 → 확인 시에만 emit
-    function requestBuy(item, btn) {
-        if (!socketRef || !wallet.authed) return;
-        showShopConfirm(item, function () { doBuy(item.id, btn); });
-    }
-
-    function doBuy(id, btn) {
-        if (!socketRef || !wallet.authed) return;
-        if (btn) { btn.disabled = true; btn.textContent = '구매 중…'; }
-        socketRef.emit('shop:buy', { cosmeticId: id }, function (res) {
-            if (res && res.ok) {
-                var prev = wallet.balance;
-                wallet.balance = res.balance;
-                wallet.owned = Array.isArray(res.owned) ? res.owned : wallet.owned;
-                renderModal(); // #hshopBalance 재생성 후 연출
-                animateBalanceDelta(prev, res.balance);
-                showShopToast('구매했습니다', 'success');
-            } else {
-                var msg = (res && res.reason === 'insufficient') ? '코인이 부족해요.'
-                        : (res && res.reason === 'owned') ? '이미 가지고 있어요.'
-                        : '구매에 실패했어요.';
-                showShopToast(msg, 'error');
-                renderModal();
-            }
-        });
-    }
-
-    function doEquip(slot, id) {
-        if (!socketRef || !wallet.authed) return;
-        socketRef.emit('shop:equip', { slot: slot, cosmeticId: id }, function (res) {
-            if (res && res.ok) {
-                wallet.equipped = res.equipped || {};
-                renderModal();
-                applyToActiveHorses();
-            } else {
-                showShopToast('장착에 실패했어요.', 'error');
-            }
-        });
-    }
-
-    // ── 모달 열기/닫기 ─────────────────────────────────────
-
-    function openShop() {
-        // [임시 진단] 상점 인증 게이트 디버그 — 원인 확인 후 제거
-        try {
-            var _raw = localStorage.getItem('userAuth');
-            var _a = null; try { _a = JSON.parse(_raw); } catch (e) {}
-            console.log('[상점진단] userAuth 있음:', !!_raw,
-                '| token 있음:', !!(_a && _a.token),
-                '| token 앞부분:', (_a && _a.token) ? String(_a.token).slice(0, 20) + '...' : null,
-                '| name:', _a && _a.name,
-                '| id:', _a && _a.id,
-                '| wallet.authed:', wallet.authed);
-        } catch (e) { console.log('[상점진단] 예외:', e && e.message); }
-
-        var token = getToken();
-        if (!token) {
-            if (typeof showCustomAlert === 'function') showCustomAlert('상점은 로그인 후 이용할 수 있어요.');
-            else alert('상점은 로그인 후 이용할 수 있어요.');
-            return;
-        }
-        loadCatalog().then(function () {
-            if (wallet.authed) {
-                refreshWallet(function () { renderModal(); document.body.classList.add('hshop-open'); });
-            } else {
-                authenticate(token, function (ok) {
-                    if (!ok) {
-                        if (typeof showCustomAlert === 'function') showCustomAlert('인증에 실패했어요. 다시 로그인해 주세요.');
-                        return;
-                    }
-                    renderModal();
-                    document.body.classList.add('hshop-open');
-                });
-            }
-        }).catch(function () {
-            if (typeof showCustomAlert === 'function') showCustomAlert('상점 정보를 불러오지 못했어요.');
-        });
-    }
-
-    function closeShop() {
-        var mount = getMount();
-        if (mount) mount.innerHTML = '';
-        clearShopLayer();
-        document.body.classList.remove('hshop-open');
-    }
-
-    // ── 탈것 꾸미기 적용 ───────────────────────────────────
+    // ── 탈것 꾸미기 적용 (경마 고유) ───────────────────────
 
     // 주어진 .horse 에 명시적 equipped 객체를 적용(멱등). catalog 필요.
     function applyEquippedToHorse(horseEl, equipped) {
-        if (!horseEl || !catalog) return;
+        if (!horseEl || !getCatalog()) return;
         equipped = equipped || {};
 
         // 멱등: 이전 cosmetic-* 자식 제거
@@ -646,8 +201,11 @@
     // 내 장착(서버 권위)을 .horse 에 적용.
     function applyToHorse(horseEl) {
         if (!horseEl) return;
-        if (!catalog) { loadCatalog().then(function () { applyToHorse(horseEl); }).catch(function () {}); return; }
-        applyEquippedToHorse(horseEl, wallet.equipped);
+        if (!getCatalog()) {
+            ShopModule.loadCatalog().then(function () { applyToHorse(horseEl); }).catch(function () {});
+            return;
+        }
+        applyEquippedToHorse(horseEl, getEquipped());
     }
 
     function applyToActiveHorses() {
@@ -702,22 +260,50 @@
         setTimeout(function () { if (layer && layer.parentNode) layer.remove(); }, 3500);
     }
 
-    // ── 공개 API ───────────────────────────────────────────
+    // ── ShopModule 설정 등록 ───────────────────────────────
+
+    ShopModule.init({
+        mountId: 'horseShopMount',
+        catalogUrl: CATALOG_URL,
+        title: '꾸미기 상점',
+        subtitle: '경마 · 내 탈것',
+        slots: SLOTS,
+        hooks: {
+            buildPreview: buildPreview,
+            // horse는 잠금/선행조건 없음 — 소유=owns(id), 항상 구매가능.
+            itemState: function (item) {
+                var owned = ShopModule.getWallet().owned.indexOf(item.id) !== -1;
+                return { owned: owned, buyable: true };
+            },
+            noticeText: function (activeSlot) {
+                return (activeSlot === 'track_theme' || activeSlot === 'finish_fx')
+                    ? '연출 꾸미기는 방장이 장착하면 방 전체에 적용돼요. 게임 결과엔 영향 없어요.'
+                    : '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
+            },
+            // 인증/지갑 동기화 직후 — 내 활성 말에 장착 반영
+            onWalletSynced: function () { applyToActiveHorses(); },
+            // 장착/해제 직후 — 내 활성 말에 장착 반영 (force 무관)
+            onEquipApplied: function () { applyToActiveHorses(); }
+            // onPurchased: no-op (구매만으로 외관 변화 없음 — 장착 시 반영)
+        }
+    });
+
+    // ── 공개 API (기존 시그니처 유지) ──────────────────────
 
     window.HorseShop = {
-        connect: connect,
-        authenticate: authenticate,
-        loadCatalog: loadCatalog,
-        openShop: openShop,
-        closeShop: closeShop,
+        connect: function (socket) { ShopModule.connect(socket); },
+        authenticate: function (token, done) { ShopModule.authenticate(token, done); },
+        loadCatalog: function () { return ShopModule.loadCatalog(); },
+        openShop: function () { ShopModule.openShop(); },
+        closeShop: function () { ShopModule.closeShop(); },
         applyToHorse: applyToHorse,
         applyEquippedToHorse: applyEquippedToHorse,
         applyToActiveHorses: applyToActiveHorses,
         applyRoomCosmetics: applyRoomCosmetics,
         clearRoomCosmetics: clearRoomCosmetics,
         playFinishFx: playFinishFx,
-        getEquipped: function () { return wallet.equipped; },
+        getEquipped: getEquipped,
         getCatalogItem: getCatalogItem,
-        isAuthed: function () { return wallet.authed; }
+        isAuthed: function () { return ShopModule.isAuthed(); }
     };
 })();

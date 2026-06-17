@@ -98,6 +98,26 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-8. 공유 모듈 추출 시 내부 DOM id 통일 → AutoTest 셀렉터가 조용히 깨짐
+
+- 게임별 미러 모듈을 공유 모듈로 추출하면서 게임마다 다르던 내부 DOM id를 하나로 통일하면(예: `sshopLayer`/`hshopLayer` → `shopLayer`, `sshopBalance`/`hshopBalance` → `shopBalance`), **그 id를 `waitForSelector`/`querySelector`로 쓰는 Puppeteer/Playwright AutoTest가 조용히 깨진다.**
+- CSS는 보통 클래스 기반(`.hshop-*`)이라 화면은 멀쩡한데, **테스트만 위양성으로 timeout 실패**한다 — 원인 추적이 어렵다(코드는 정상인데 셀렉터가 옛 id를 가리킴).
+- **해결:** 내부 id를 통일/변경할 때는 `js/`·`*.html`·`css/` 뿐 아니라 **`AutoTest/`까지 grep**해서 셀렉터를 동시 갱신한다. (CSS가 `#id` 셀렉터를 쓰는지도 함께 확인 — 클래스 기반이면 무해.)
+- **검증:** 통일한 신·구 id를 전 디렉토리에서 grep해 구 id 참조가 0건인지 확인.
+- (출처: 2026-06-17 전 게임 공유 상점 모듈(`js/shared/shop-shared.js`) 추출 작업)
+
+---
+
+## C-9. Playwright `waitForFunction(fn, options)` 시그니처 함정 — timeout이 조용히 무시됨
+
+- `page.waitForFunction(fn, options)`의 정식 시그니처는 **`(pageFunction, arg, options)`** 다. 두 번째 인자를 `{ timeout }`로 넘기면 그게 **`arg`로 해석**되어 함수에 전달되고, **`timeout` 옵션은 무시되어 기본 30000ms**가 적용된다.
+- arg가 필요 없을 때는 반드시 **`waitForFunction(fn, null, { timeout })`** 로 써야 한다. (`{ polling }` 등 다른 옵션도 동일.)
+- **연출/모션 시간을 늘리는 변경(예: 타이밍 상수 2× 스케일)이 이 잠복 결함을 노출시킨다** — 기존엔 대기 대상 이벤트가 우연히 30000ms 안에 들어와 가려졌지만, 시간이 늘면 30s를 넘겨 무관 테스트가 timeout으로 false-fail 한다(코드는 정상). 원인 추적이 어렵다.
+- **해결:** AutoTest 전체에서 `waitForFunction(`을 grep해 두 번째 인자가 옵션 객체인 호출을 `null, { timeout }` 형태로 교정. **검증:** 모션 시간을 키운 변경 뒤엔 늘어난 대상 이벤트 시각이 명시 timeout 안에 드는지 확인.
+- (출처: 2026-06-17 사다리타기 연출 2× 둔화 작업 — `ladder-edge-qa.js` E3b가 N=3 캡션 ~31s에서 노출)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

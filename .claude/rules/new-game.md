@@ -325,4 +325,5 @@ if (room.serverId) {
 - 공유 모듈 시그니처: `docs/GameGuide/02-shared-systems/shared-modules.md`
 - 주문 모듈 상세: `docs/GameGuide/02-shared-systems/ORDER-MODULE.md`
 - 사운드 추가: `docs/GameGuide/02-shared-systems/SOUND-SYSTEM.md`
+- 꾸미기 상점 추가 (선택): `docs/GameGuide/02-shared-systems/shared-modules.md` §ShopModule.init — `config/{game}/cosmetics.json` + 어댑터 + hook (셸 복사 불필요)
 - bridge-cross v2 작업 산출물 (실제 적용 예시): commit `17ff30c` (`feat/bridge-cross-v2`)

@@ -1,4 +1,30 @@
 ========================================
+📋 Summit Log - 2026-06-17 (추가 델타: ladder 연출 2× 둔화·중력 하강·룰렛 감속·그리기 FIFO + 공통 상점 모듈 추출 + lesson C-9)
+========================================
+
+## 커밋 분할 (이 번들 델타)
+- feat(ladder): socket/ladder.js + js/ladder.js + tests/test-ladder.js + AutoTest/ladder/* — 연출 모션 상수 2× + 중력 time-warp 하강 + 폭탄 룰렛 ease-out quint(5.2s) + 그리기 FIFO(거부→가장 오래된 제거).
+- refactor(shop): js/shared/shop-shared.js 신설 + js/horse-shop.js·js/spin-shop.js·socket/shop.js·spin-arena-multiplayer.html·horse-race-multiplayer.html·tools/spin-sweep.js·spin-arena 관련 — 게임별 미러 상점 → 공통 ShopModule 추출(ladder와 독립 작업, 동일 번들 포함).
+- docs/chore: docs/GameGuide/lessons/_common.md(C-9), .claude/rules/new-game.md, docs/GameGuide/02-shared-systems/shared-modules.md, docs/goal/applied/shared-shop-module.md 이동, docs/goal/spin-arena-tournament.md 신규(미구현 명세).
+
+## 상세 변경 내역
+
+### [ladder 연출 2× 둔화 + 중력 하강 + 룰렛 감속 + 그리기 FIFO]
+- **타이밍 2×(모션 상수만)** — socket/ladder.js·js/ladder.js byte-identical: COUNTDOWN 1600→3200, ERASE 1200→2400, DRAW 900→1800, TOKEN_SLOT 3000→6000, BOMB_POINTER 2600→5200. BOTTOM_PAUSE(500)/FINAL_HOLD(1800)은 모션 아니라 유지. ladderRevealDelay(N) 합산식 불변(단계 동일), N=1..6 서버=클라+HOLD 검산. 테스트 timeout budget 재산정.
+- **중력 time-warp** — js/ladder.js buildGravityWarp, 신규 상수 LADDER_GRAVITY_STRENGTH=0.6(클라 전용). 세그먼트 시간비용=호길이×(1−g·dirY)(dirY=세로 방향코사인, 하향+1→비용↓/상향−1→비용↑) 누적 정규화 → warp(t)가 선형시간 t를 호길이비율 p로 단조 재매핑. animateToken이 기존 ease-in-out 대신 warp(t)를 tokenProgress로 사용. w(0)=0·w(1)=1 정규화로 토큰당 총시간=TOKEN_SLOT(6000) 정확 보존 → 서버 타이머 lockstep 불변. 하향 가속/상향 감속(등속 아님). RNG/지터 0회.
+- **폭탄 포인터 ease** — 1−(1−t)³(cubic) → 1−(1−t)⁵(quint), 지속 5.2s. "팍 달리다 길게 천천히". t=1에서 pos=totalSteps → kkwangBottom 정확 착지(오버슈트 옆칸 불가, bombPointerCol=target 안전핀 유지). N≤1 fallback도 setTimeout으로 5.2s 예산 채움.
+- **addRung FIFO** — socket/ladder.js: cap 3(LADDER_MAX_RUNGS_PER_USER) 유지, 4번째 거부(ladder:error) 제거 → 가장 오래된([0]) shift 후 push. 무손실 원자성: spacing 검증 시 doomedId(밀려날 [0]) 제외 후 통과한 경우에만 shift+push(검증 실패 시 손실 0). 클라(js/ladder.js): cap 차단 flashBuildHint 제거, 항상 emit, 빌드 힌트 카피 갱신. removeRung(id-타깃)와 무충돌.
+- **공정성/비밀 불변**: loser=점유 레인 균등(occupiedLanes RNG)·kkwangBottom=laneToBottom[losingLane]·computeLaneToBottom(c+y정렬) 전부 미변경. 중력/룰렛/FIFO/상수는 시각/구조만. 클라 게임로직 Math.random 0회(tabId/deviceId만). 💀는 룰렛 착지(출발 후)에만, reveal-only 마스킹 불변.
+- **검증**: node -c 통과, 공정성 시뮬(loser 균등 60만회 편차 0.52%·bijection 0), 라이브 테스트 8종 통과(신규 ladder-motion-qa.js·ladder-static-qa.js 포함), 크로스게임 auto-order 18/0. ladder-edge-qa.js의 waitForFunction 시그니처 결함(2번째 인자가 arg로 먹혀 timeout 무시) 수정.
+
+### [공통 상점 모듈 추출 — ladder와 독립]
+- js/shared/shop-shared.js 신설: horse-shop/spin-shop의 미러 상점 로직을 공통 ShopModule로 추출. 게임별 파일(js/horse-shop.js, js/spin-shop.js)·socket/shop.js·각 HTML은 위임/배선으로 정리. (상세·내부 DOM id 통일 함정은 _common.md C-8, shared-modules.md 참조.) 이 작업은 사다리 변경과 무관하나 동일 워킹트리에 있어 본 번들에 함께 커밋됨(추후 커밋 분리 권장).
+
+### [문서/lesson]
+- docs/GameGuide/lessons/_common.md C-9: Playwright waitForFunction(fn, {timeout}) 시그니처 함정 — 2번째 인자가 arg로 해석돼 timeout 무시·기본 30000ms 적용. arg 없으면 waitForFunction(fn, null, {timeout}). 모션 시간 증가 변경이 이 잠복 결함을 노출(2× 둔화 작업에서 발견).
+- docs/goal/spin-arena-tournament.md: 토너먼트 모드 명세 초안(미구현).
+
+========================================
 📋 Summit Log - 2026-06-17 (feature/spin-arena-rework 누적 번들: spin-arena 리워크 + ladder 다중막대기/스크램블/히든리빌/꽝선공 + horse-race 투표/다시보기)
 ========================================
 

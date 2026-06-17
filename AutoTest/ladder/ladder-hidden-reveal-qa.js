@@ -153,7 +153,7 @@ async function run() {
         await test('H2-c 폭탄 공개(💀)가 하강 캡션(loser 도착)보다 먼저 일어난다', async () => {
             // 새 순서(꽝 선결정): 폭탄 포인터가 하강 "전"에 💀을 공개 → 그 다음 하강 → loser 도착 캡션("꽝에 도착").
             // bombRevealed가 true로 바뀌는 시점이 loser 도착 캡션보다 앞서야 한다(공개 → 그다음 캡션).
-            await host.waitForFunction(() => window.ladderState && window.ladderState.bombRevealed === true, { timeout: 20000 });
+            await host.waitForFunction(() => window.ladderState && window.ladderState.bombRevealed === true, { timeout: 22000 });
             const revealedAt = await host.evaluate(() => performance.now());
             // 폭탄 공개 시점엔 아직 loser 도착 캡션이 떠선 안 된다(있다면 안내 캡션 "누가 도착할까요?"뿐).
             const capAtReveal = await host.evaluate(() => {
@@ -165,7 +165,7 @@ async function run() {
             await host.waitForFunction(() => {
                 const c = document.getElementById('ladderResultCaption');
                 return c && /꽝에 도착/.test(c.textContent);
-            }, { timeout: 20000 });
+            }, { timeout: 32000 });
             const captionAt = await host.evaluate(() => performance.now());
             assert(captionAt >= revealedAt, `loser 도착 캡션이 폭탄 공개보다 먼저 옴(순서 위반): cap=${Math.round(captionAt)} reveal=${Math.round(revealedAt)}`);
         });
@@ -180,8 +180,8 @@ async function run() {
         await test('H3-b 폭탄 공개 후 bombRevealed=true + 양탭 동일 loser', async () => {
             // 캡션 표시까지 대기(폭탄 포인터 착지 시점에 안내 캡션이 뜸 — 이 시점에 이미 bombRevealed=true, loser 확정).
             // (loser 도착 캡션은 H2-c에서 별도로 순서 검증. 여기선 양탭 bombRevealed/loser 일치만 본다.)
-            await host.waitForFunction(() => { const c = document.getElementById('ladderResultCaption'); return c && c.textContent.trim().length > 0; }, { timeout: 20000 });
-            await guest.waitForFunction(() => { const c = document.getElementById('ladderResultCaption'); return c && c.textContent.trim().length > 0; }, { timeout: 20000 });
+            await host.waitForFunction(() => { const c = document.getElementById('ladderResultCaption'); return c && c.textContent.trim().length > 0; }, { timeout: 22000 });
+            await guest.waitForFunction(() => { const c = document.getElementById('ladderResultCaption'); return c && c.textContent.trim().length > 0; }, { timeout: 22000 });
             const hs = await host.evaluate(() => ({ rev: window.ladderState.bombRevealed, loser: window.ladderState.loser, pc: window.ladderState.bombPointerCol }));
             const gs = await guest.evaluate(() => ({ rev: window.ladderState.bombRevealed, loser: window.ladderState.loser, pc: window.ladderState.bombPointerCol }));
             assert(hs.rev === true && gs.rev === true, `폭탄 미공개: host=${hs.rev} guest=${gs.rev}`);
@@ -192,8 +192,8 @@ async function run() {
         console.log(col.cyan('\nH4: ★핵심★ 600ms finished 창 양탭 동시 "다음 판 준비" → 카운트=2'));
         await test('H4 gameEnd 직후 양탭 동시 즉시 ready → readyCount=2 (재클릭 불필요)', async () => {
             // gameEnd(결과 오버레이) 대기
-            await host.waitForFunction(() => { const o = document.getElementById('resultOverlay'); return o && o.classList.contains('visible'); }, { timeout: 24000 });
-            await guest.waitForFunction(() => { const o = document.getElementById('resultOverlay'); return o && o.classList.contains('visible'); }, { timeout: 24000 });
+            await host.waitForFunction(() => { const o = document.getElementById('resultOverlay'); return o && o.classList.contains('visible'); }, { timeout: 38000 });
+            await guest.waitForFunction(() => { const o = document.getElementById('resultOverlay'); return o && o.classList.contains('visible'); }, { timeout: 38000 });
             // finished phase(600ms 리셋 전)에 양탭 동시 "다음 판 준비"(readyForNextRound) 호출 — 레이스 재현
             await Promise.all([
                 host.evaluate(() => window.readyForNextRound()),

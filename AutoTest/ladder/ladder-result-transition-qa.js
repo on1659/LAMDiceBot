@@ -62,9 +62,9 @@ async function run() {
         await host.waitForFunction(() => { const b = document.getElementById('startLadderButton'); return b && !b.disabled; }, { timeout: 10000 });
         await host.click('#startLadderButton');
 
-        // 결과 오버레이까지 대기(2명 = 12s 종료 + 여유)
-        console.log(col.cyan('결과 도달 대기(순차 하강 ~12s)...'));
-        for (const p of [host, guest]) await p.waitForFunction(() => { const o = document.getElementById('resultOverlay'); return o && o.classList.contains('visible'); }, { timeout: 22000 });
+        // 결과 오버레이까지 대기(2명, 2배 둔화 = 26.9s 종료 + 여유)
+        console.log(col.cyan('결과 도달 대기(순차 하강 ~24s, 2배 둔화)...'));
+        for (const p of [host, guest]) await p.waitForFunction(() => { const o = document.getElementById('resultOverlay'); return o && o.classList.contains('visible'); }, { timeout: 38000 });
 
         // ── 신규 동작 전제 만들기 ──
         // ladder는 라운드 내내 readyUsers를 비우지 않으므로, 아무것도 안 하면 양탭 모두 "보존 ready"가 되어

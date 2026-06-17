@@ -149,19 +149,21 @@ async function run() {
 
             await test('마지막 토큰 도착 캡션이 결과 오버레이(gameEnd)보다 먼저 (연출 안 잘림)', async () => {
                 // loser 도착 캡션("꽝에 도착") 등장 시각 기록. 포인터 착지 안내 캡션("누가 도착할까요?")과 구분해 매칭.
+                // ⚠ waitForFunction(fn, arg, options): 두 번째 인자가 arg로 먹히므로 옵션을 주려면 arg(null) 필요.
+                //    null 없이 {timeout}을 두 번째로 주면 arg로 해석되고 기본 30000ms가 적용된다(N=3에서 캡션 ~31s라 false-fail).
                 await host.page.waitForFunction(() => {
                     const c = document.getElementById('ladderResultCaption');
                     if (c && /꽝에 도착/.test(c.textContent) && !window.__qa.captionAt) window.__qa.captionAt = performance.now();
                     return window.__qa.captionAt;
-                }, { timeout: 20000 });
-                await host.page.waitForFunction(() => window.__qa.gameEndAt, { timeout: 8000 });
+                }, null, { timeout: 32000 });
+                await host.page.waitForFunction(() => window.__qa.gameEndAt, null, { timeout: 8000 });
                 const q = await host.page.evaluate(() => window.__qa);
                 const descentMs = q.captionAt - q.revealAt;
                 const endMs = q.gameEndAt - q.revealAt;
                 console.log(col.yellow(`      reveal→캡션=${Math.round(descentMs)}ms, reveal→gameEnd=${Math.round(endMs)}ms (N=2)`));
-                // 캡션이 먼저(연출 완주), gameEnd가 나중. 서버 타이머(순서 무관 합 =COUNTDOWN1.6+ERASE1.2+DRAW0.9+BOTTOM0.5+BOMB_POINTER2.6+2*3.0+HOLD1.8=14.6s)
+                // 캡션이 먼저(연출 완주), gameEnd가 나중. 서버 타이머(2배 둔화, 순서 무관 합 =COUNTDOWN3.2+ERASE2.4+DRAW1.8+BOTTOM0.5+BOMB_POINTER5.2+2*6.0+HOLD1.8=26.9s)
                 assert(q.captionAt < q.gameEndAt, `gameEnd가 캡션보다 먼저 옴(연출 잘림): 캡션=${Math.round(descentMs)} gameEnd=${Math.round(endMs)}`);
-                // 새 순서: loser 도착 캡션 = reveal+1.6+1.2+0.9+0.5(BOTTOM)+2.6(POINTER)+6.0(descent) ≈ 12.8s 근처. 결과는 +HOLD 1.8s 후.
+                // 2배 둔화: loser 도착 캡션 = reveal+3.2+2.4+1.8+0.5(BOTTOM)+5.2(POINTER)+12.0(descent) ≈ 25.1s 근처. 결과는 +HOLD 1.8s 후.
                 assert(endMs - descentMs >= 1000, `캡션→gameEnd 간격이 너무 짧음(${Math.round(endMs - descentMs)}ms) — HOLD(1.8s) 잠식 의심`);
             });
 
@@ -183,12 +185,14 @@ async function run() {
                 assert(q.revealOrderLen === 3, `revealOrderLen=${q.revealOrderLen} (3 기대)`);
             });
             await test('자동배정 케이스도 캡션→gameEnd 순서 유지(연출 안 잘림)', async () => {
+                // ⚠ waitForFunction(fn, arg, options): null arg를 줘야 {timeout}이 옵션으로 적용된다(위 N=2 케이스 주석 참조).
+                //    N=3 캡션은 reveal+~31s(2× 둔화)라 기본 30000ms로는 false-fail.
                 await host.page.waitForFunction(() => {
                     const c = document.getElementById('ladderResultCaption');
                     if (c && /꽝에 도착/.test(c.textContent) && !window.__qa.captionAt) window.__qa.captionAt = performance.now();
                     return window.__qa.captionAt;
-                }, { timeout: 22000 });
-                await host.page.waitForFunction(() => window.__qa.gameEndAt, { timeout: 8000 });
+                }, null, { timeout: 40000 });
+                await host.page.waitForFunction(() => window.__qa.gameEndAt, null, { timeout: 8000 });
                 const q = await host.page.evaluate(() => window.__qa);
                 console.log(col.yellow(`      reveal→캡션=${Math.round(q.captionAt - q.revealAt)}ms, reveal→gameEnd=${Math.round(q.gameEndAt - q.revealAt)}ms (N=3)`));
                 assert(q.captionAt < q.gameEndAt, 'gameEnd가 캡션보다 먼저 옴(연출 잘림)');
@@ -208,11 +212,11 @@ async function run() {
             const guest = players[1];
             await pickLanesAndStart(players, host, [0, 1]);
             await guest.page.waitForFunction(() => window.__qa && window.__qa.revealAt, { timeout: 12000 });
-            // 새 순서: 하강 텍스트("내려갑니다")는 폭탄 포인터 후(reveal+~6.8s)에 등장 → 타임아웃 여유 상향(8s→12s).
+            // 2배 둔화: 하강 텍스트("내려갑니다")는 폭탄 포인터 후(reveal+~13.1s)에 등장 → 타임아웃 여유 상향(12s→18s).
             await guest.page.waitForFunction(() => {
                 const s = document.getElementById('gameStatus');
                 return s && /내려갑니다/.test(s.textContent);
-            }, { timeout: 12000 });
+            }, { timeout: 18000 });
             // 하강 도중 호스트가 방을 나간다 → 게스트로 호스트 위임, revealing은 자연 종료에 맡김
             await host.page.evaluate(() => window.socket.emit('leaveRoom'));
 
@@ -227,7 +231,7 @@ async function run() {
                 assert(visible, 'revealing 중 호스트 이탈로 캔버스가 사라짐(연출 잘림)');
             });
             await test('endTimeout 자연 종료 → 게스트가 정상 결과 오버레이 수신', async () => {
-                await guest.page.waitForFunction(() => window.__qa.gameEndAt, { timeout: 20000 });
+                await guest.page.waitForFunction(() => window.__qa.gameEndAt, { timeout: 32000 });
                 await guest.page.waitForFunction(() => {
                     const o = document.getElementById('resultOverlay');
                     return o && o.classList.contains('visible');
@@ -257,11 +261,11 @@ async function run() {
             const guest = players[1];
             await pickLanesAndStart(players, host, [0, 1]);
             await guest.page.waitForFunction(() => window.__qa && window.__qa.revealAt, { timeout: 12000 });
-            // 새 순서: 하강 텍스트는 폭탄 포인터 후(reveal+~6.8s) 등장 → 타임아웃 여유 상향(8s→12s).
+            // 2배 둔화: 하강 텍스트는 폭탄 포인터 후(reveal+~13.1s) 등장 → 타임아웃 여유 상향(12s→18s).
             await guest.page.waitForFunction(() => {
                 const s = document.getElementById('gameStatus');
                 return s && /내려갑니다/.test(s.textContent);
-            }, { timeout: 12000 });
+            }, { timeout: 18000 });
             await test('두 탭 모두 닫혀도 서버 크래시 없음(0명 가드) — 후속 통계 응답 정상', async () => {
                 await host.page.evaluate(() => window.socket.emit('leaveRoom'));
                 await guest.page.evaluate(() => window.socket.emit('leaveRoom'));

@@ -12,21 +12,22 @@
 var ARENA_W = 480, ARENA_H = 480, ARENA_CX = 240, ARENA_CY = 240;
 var ARENA_R = 220;
 var MAX_SLOTS = 24;             // 최대 참가 슬롯(사람 n=2~24 가변, 봇 없음)
-var GAME_MS = 70000;           // 하드 캡 — 서버와 동일(Stage1 40s + 인트로 8s + 결승 캡 18s + tail 2s 여유)
+// ⚠️ 2026-06-17 토너먼트 rework Slice 1: 서버는 새 브래킷 payload(bracket/rounds/duels)로 교체됨.
+//    이 클라(렌더)는 Slice 2에서 다시 작성됨 — 그 전까지 새 reveal payload와 맞지 않아 동작하지 않음(의도된 상태).
+//    아래 공유 타이밍/기하 상수만 서버 값으로 미러(Slice 2 시작 일관성). 렌더 로직은 미수정.
+var GAME_MS = 76000;           // 전체 브래킷 durationMs 하드 캡 — 서버와 동일(최악 n=24 5라운드 + 전환 + 여유)
 var COUNTDOWN_MS = 4000;        // 3-2-1-START 카운트다운 실측(1000ms×4) — 서버 endTimeout 가산값과 동일
 var SAMPLE_MS = 100;
 var CHAR_RADIUS = 14;
-var BLADE_COUNT = 1;            // 칼날 수 base(feel-v5 S1: 자동 성장 폐기, 칼추가 아이템만으로 증가. 서버와 동일). 실시간 수는 bladeCountAt(bladeFrames)로 읽음.
+var BLADE_COUNT = 1;            // 칼날 수 base(Slice 1: 듀얼 내 칼날 수 base 고정 — 아이템 후속 slice. 서버와 동일).
 var BLADE_RADIUS = 46;
 var SWORD_LEN = 28;             // 도신(검 날) 길이 — 서버와 동일. 날 안쪽 끝 = BLADE_RADIUS - SWORD_LEN (보이는 검 = 맞는 검)
 var BLADE_EDGE_R = 3.5;         // 날 선분(캡슐) 반경 — 서버 판정 임계와 동일
-var HP_MAX = 100;              // 결승 결투 HP(Stage1은 HP 불변 — 탈락 없음). hpFrames 분모 = HP_MAX. 서버 HP_MAX 미러.
-var RING_R_START = 220;
-var RING_R_END = 60;            // 결승 최종 반경 — 서버 socket/spin-arena.js 와 반드시 동일 (링 렌더 동기)
-var STAGE1_MS = 40000;          // Stage1 타임박스(고정 40초 데미지 레이스 — 탈락·조기종료 없음) — 서버 STAGE1_MS 미러
-var STAGE1_RING_END = 150;      // Stage1 종료 시점 링 반경(완만 수축으로 군집 압박) — 서버 STAGE1_RING_END 미러
-var ROUND2_INTRO_MS = 8000;    // Stage1→결승 전환(전투 정지·결승 집결·링 풀): 순위 요약 ≥5s + 3·2·1 3s — 서버 ROUND2_INTRO_MS 미러
-var RING2_SHRINK_MS = 6500;     // 결승 링 수축(인트로 종료부터) — 서버 RING2_SHRINK_MS 미러
+var HP_MAX = 100;              // 듀얼 HP. hpFrames 분모 = HP_MAX. 서버 HP_MAX 미러.
+var DUEL_RING_R = 64;           // 듀얼 전용 링 반경 — 서버 socket/spin-arena.js 와 반드시 동일 (링 렌더 동기)
+var DUEL_MAX_MS = 12000;        // 듀얼 캡 — 서버 DUEL_MAX_MS 미러
+var MIN_ROUND_MS = 3000;        // 라운드 최소 길이 — 서버 MIN_ROUND_MS 미러
+var ROUND_TRANSITION_MS = 1200; // 라운드 사이 전환 — 서버 ROUND_TRANSITION_MS 미러
 
 // 스킨 프리셋 (서버 socket/spin-arena.js 와 동일 값 계약 — 결과 무관, 순수 외형)
 // 24색 × (t1 + t2 스킨업). 자동 배정 풀 = base tier1 24색 전체(서버 거울 규칙 — 소유 무관, 24명 distinct).

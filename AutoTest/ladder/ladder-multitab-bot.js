@@ -240,9 +240,9 @@ async function run() {
             assert(visible, '연출 도중 캔버스가 사라짐');
         });
 
-        // 순차 하강: 종료 타이머 = COUNTDOWN1.6+ERASE1.2+DRAW0.9 + N×SLOT(3s) + BOTTOM0.5 + HOLD1.8.
+        // 순차 하강(2배 둔화): 종료 타이머 = COUNTDOWN3.2+ERASE2.4+DRAW1.8 + BOTTOM0.5 + BOMB_POINTER5.2 + N×SLOT(6s) + HOLD1.8.
         // N명 기준 합 + 머신 부하 여유(+8s).
-        const REVEAL_MS = 1600 + 1200 + 900 + PLAYERS * 3000 + 500 + 1800;
+        const REVEAL_MS = 3200 + 2400 + 1800 + 500 + 5200 + PLAYERS * 6000 + 1800;
         await test('마지막 토큰 도착 후 결과 캡션 표시', async () => {
             await host.page.waitForFunction(() => {
                 const cap = document.getElementById('ladderResultCaption');

@@ -313,13 +313,20 @@ var LADDER_TOKEN_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'
 // 새 순서(꽝 선결정): 카운트다운 → 지우기 → 그리기 → 바닥멈춤 → 폭탄 포인터(💀 공개) → 순차 하강 → 결과 캡션 유지.
 // (옛 순서 대비 BOTTOM_PAUSE+BOMB_POINTER가 하강 앞으로 이동 — 총합 불변.)
 // ── 스크램블 연출 시퀀스 타이밍 (socket/ladder.js와 동일 유지) ──
-var LADDER_COUNTDOWN_MS = 1600;     // "3·2·1 셔플!" 카운트다운 — socket/ladder.js와 동일 유지
-var LADDER_ERASE_MS = 1200;         // 지울 막대기 동시 강조(미사용 라벨) → 일괄 탈락(드롭/페이드) — socket/ladder.js와 동일 유지
-var LADDER_DRAW_MS = 900;           // 펜 구슬이 새 막대기를 그리는 시간 — socket/ladder.js와 동일 유지
-var LADDER_TOKEN_SLOT_MS = 3000;    // 토큰 한 명이 끝까지 내려가는 시간(아주 천천히) — socket/ladder.js와 동일 유지
-var LADDER_BOTTOM_PAUSE_MS = 500;   // 그리기 후 1박자 멈춤(폭탄 포인터 시작 전) — socket/ladder.js와 동일 유지
-var LADDER_BOMB_POINTER_MS = 2600;  // 폭탄 룰렛 포인터가 바닥칸을 가속→감속하며 훑다 kkwangBottom에 정지(하강 전) — socket/ladder.js와 동일 유지
-var LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — socket/ladder.js와 동일 유지
+// 모션 단계는 ~2배 느리게(차분히 감상). HOLD/PAUSE는 모션이 아니므로 유지. socket/ladder.js와 byte-identical.
+var LADDER_COUNTDOWN_MS = 3200;     // "3·2·1 셔플!" 카운트다운 (1600×2) — socket/ladder.js와 동일 유지
+var LADDER_ERASE_MS = 2400;         // 지울 막대기 동시 강조(미사용 라벨) → 일괄 탈락(드롭/페이드) (1200×2) — socket/ladder.js와 동일 유지
+var LADDER_DRAW_MS = 1800;          // 펜 구슬이 새 막대기를 그리는 시간 (900×2) — socket/ladder.js와 동일 유지
+var LADDER_TOKEN_SLOT_MS = 6000;    // 토큰 한 명이 끝까지 내려가는 시간(아주 천천히) (3000×2) — socket/ladder.js와 동일 유지
+var LADDER_BOTTOM_PAUSE_MS = 500;   // 그리기 후 1박자 멈춤(폭탄 포인터 시작 전) — 모션 아님, 유지 — socket/ladder.js와 동일 유지
+var LADDER_BOMB_POINTER_MS = 5200;  // 폭탄 룰렛 포인터가 바닥칸을 가속→감속하며 훑다 kkwangBottom에 정지(하강 전) (2600×2) — socket/ladder.js와 동일 유지
+var LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — 모션 아님, 유지 — socket/ladder.js와 동일 유지
+
+// 중력 time-warp 강도(클라 전용 시각 — 서버 불필요). 토큰 진행 파라미터 p(0→1)를 시간 t에 대해
+// 비등속 재매핑(w(t))한다. 하향(↓) 구간은 빠르게(가속), 상향(↑) slant 구간은 느리게(감속) 느껴지도록
+// arc-length 진행에 세로 부호 가중을 준다. w(0)=0,w(1)=1,단조. RNG/지터 없음(결정적).
+// 0=등속(기존 ease 제거), 클수록 중력감 강함. 토큰당 총시간은 LADDER_TOKEN_SLOT_MS로 정확히 보존된다.
+var LADDER_GRAVITY_STRENGTH = 0.6;
 
 // 가로줄(rung)은 연속 좌표 — 두 인접 기둥(c, c+1)을 높이 y(0~1)에서 잇고, slant(-1~1)로 비스듬히 그린다.
 // 빌드 단계에서 드래그로 위치(y)·기울기(slant)를 자유롭게 정한다. 모든 탭이 같은 값으로 보이도록 reveal로 전달.
@@ -551,12 +558,6 @@ function buildRungList() {
     return out;
 }
 
-// 내 막대기 개수 (cap 표시/프리뷰 힌트용)
-function myRungCount() {
-    var arr = buildState.userRungs[currentUser];
-    return Array.isArray(arr) ? arr.length : 0;
-}
-
 // 캔버스 텍스트를 maxWidth에 맞게 잘라 '…' 처리 (현재 ctx.font 기준으로 측정 — 호출 전 font 설정 필요)
 function fitCanvasText(ctx, text, maxWidth) {
     if (ctx.measureText(text).width <= maxWidth) return text;
@@ -640,7 +641,7 @@ function renderBuildSection() {
     }
     if (hint && !buildHintFlash.active) {   // 폐기 안내 플래시 중이면 평상 힌트로 덮지 않는다
         hint.textContent = ready
-            ? '① 내 번호(1~6)를 고르고 ② 한 기둥에서 옆 기둥까지 그어 막대기를 만드세요(최대 3개). 사람마다 색이 달라 누가 그렸는지 한눈에 보여요. 회색은 서버 기본 막대기예요. (내 막대기를 톡 누르면 제거)'
+            ? '① 내 번호(1~6)를 고르고 ② 한 기둥에서 옆 기둥까지 그어 막대기를 만드세요(최대 3개, 4번째를 그으면 가장 먼저 그린 게 빠져요). 사람마다 색이 달라 누가 그렸는지 한눈에 보여요. 회색은 서버 기본 막대기예요. (내 막대기를 톡 누르면 제거)'
             : '준비하면 내 번호(1~6)를 고르고 막대기를 최대 3개까지 그어 놓을 수 있어요. 사람별 색으로 구분되고, 서버 기본 막대기도 함께 보입니다.';
     }
     renderBuildLaneGrid(N, ready);
@@ -771,13 +772,9 @@ function bindBuildCanvas(canvas) {
         } else {
             var rg = computeDragRung(N);
             if (rg) {
-                if (myRungCount() >= 3) {
-                    // 서버도 거부하지만(ladder:error), 클라에서 먼저 안내해 헛수고를 줄인다
-                    flashBuildHint('막대기는 한 사람당 최대 3개까지 놓을 수 있어요.', 1800);
-                } else {
-                    socket.emit('ladder:addRung', { c: rg.c, y: rg.y, slant: rg.slant, points: rg.points });
-                    playLadderSound('ladder_pick', 0.5);
-                }
+                // cap(3) 초과 시 서버가 FIFO로 가장 오래된 막대기를 밀어내고 새 것을 추가한다(거부 없음).
+                socket.emit('ladder:addRung', { c: rg.c, y: rg.y, slant: rg.slant, points: rg.points });
+                playLadderSound('ladder_pick', 0.5);
             } else {
                 // 옆 기둥에 닿지 않아 폐기됨 — 짧은 안내 + 약한 효과음(기존 ladder_pick 재사용)
                 flashBuildHint('옆 기둥에 닿지 않아 막대기가 사라졌어요. 한 기둥에서 옆 기둥까지 그어주세요.', 1800);
@@ -1049,6 +1046,51 @@ function pointAt(pts, t) {
         target -= segs[i - 1];
     }
     return pts[pts.length - 1];
+}
+
+// 중력 time-warp — 토큰 진행을 비등속으로 재매핑(클라 전용 시각, 결정적·RNG 0회).
+// pointAt(pts, p)는 p를 "호 길이 비율"로 해석한다. 등속이면 p=t(선형 시간)이라 경로 전체를 일정 속도로 내려간다.
+// 중력감을 주려면: 하향(dy>0) 구간은 빠르게(같은 시간에 더 멀리), 상향(slant로 올라가는, dy<0) 구간은 느리게.
+// 구현: 세그먼트마다 "시간 비용" = 호길이 × (1 - g·dirY)를 매겨(dirY=세로방향코사인, g=GRAVITY_STRENGTH<1),
+//   하향이면 비용↓(빨리 지나감)·상향이면 비용↑(천천히). 누적 시간비용을 [0,1]로 정규화 → 단조 증가.
+//   반환 함수 warp(t): 정규화 시간 t∈[0,1] → 호 길이 비율 p∈[0,1]. w(0)=0, w(1)=1.
+//   ★ 토큰당 총시간은 항상 SLOT_MS — 정규화로 인해 t=1이면 항상 p=1(경로 끝). 속도 "분포"만 바뀌고 총길이 보존.
+//   g=0이면 모든 가중=1 → p=t(등속). 경로 길이 0(퇴화)이면 항상 항등(t) 반환.
+function buildGravityWarp(pts) {
+    const g = (typeof LADDER_GRAVITY_STRENGTH === 'number') ? Math.max(0, Math.min(0.95, LADDER_GRAVITY_STRENGTH)) : 0;
+    const n = pts.length;
+    // arc[i] = pts[0..i] 누적 호 길이, cost[i] = 누적 가중(시간) 비용. cumArcFrac/cumTimeFrac로 정규화.
+    const arc = new Array(n).fill(0);
+    const cost = new Array(n).fill(0);
+    for (let i = 1; i < n; i++) {
+        const dx = pts[i].x - pts[i - 1].x;
+        const dy = pts[i].y - pts[i - 1].y;
+        const len = Math.hypot(dx, dy);
+        arc[i] = arc[i - 1] + len;
+        const dirY = len > 0 ? dy / len : 0;          // +1=수직 하강, -1=수직 상승
+        const wgt = 1 - g * dirY;                       // 하향→<1(빠름), 상향→>1(느림). g<1이라 항상 >0.
+        cost[i] = cost[i - 1] + len * wgt;
+    }
+    const totalArc = arc[n - 1];
+    const totalCost = cost[n - 1];
+    if (!(totalArc > 0) || !(totalCost > 0)) {
+        return function (t) { return Math.max(0, Math.min(1, t)); };  // 퇴화 경로 → 등속 항등
+    }
+    // 정규화: timeFrac[i] = cost[i]/totalCost (시간축), arcFrac[i] = arc[i]/totalArc (호길이축).
+    // warp(t): timeFrac에서 t를 찾아 같은 세그먼트의 arcFrac로 선형 보간 → 호 길이 비율 반환.
+    return function (t) {
+        const tt = Math.max(0, Math.min(1, t));
+        const target = tt * totalCost;
+        for (let i = 1; i < n; i++) {
+            if (target <= cost[i] || i === n - 1) {
+                const span = cost[i] - cost[i - 1];
+                const f = span > 0 ? (target - cost[i - 1]) / span : 0;
+                const a = arc[i - 1] + (arc[i] - arc[i - 1]) * f;   // 보간된 호 길이
+                return a / totalArc;                                 // → 호 길이 비율(pointAt 입력)
+            }
+        }
+        return 1;
+    };
 }
 
 // 바닥칸 라벨 그리기 — 꽝(💀) 칸은 폭탄 포인터가 착지한 "후"에만 보인다(빌드/대기 단계엔 비공개 — 누출 금지).
@@ -1529,12 +1571,16 @@ function startReveal(data) {
         ? data.revealOrder.filter(name => ladderState.userLanes[name] !== undefined)
         : Object.keys(ladderState.userLanes);
 
-    const paths = order.map(name => ({
-        name: name,
-        startLane: ladderState.userLanes[name],
-        color: rungColor(name),   // drawer 색(colorIndex) — 빌드/막대기/토큰 색 일관
-        pts: buildPath(ladderState.userLanes[name])
-    }));
+    const paths = order.map(name => {
+        const pts = buildPath(ladderState.userLanes[name]);
+        return {
+            name: name,
+            startLane: ladderState.userLanes[name],
+            color: rungColor(name),   // drawer 색(colorIndex) — 빌드/막대기/토큰 색 일관
+            pts: pts,
+            warp: buildGravityWarp(pts)   // 중력 time-warp(결정적) — 총시간 보존, 속도분포만 비등속
+        };
+    });
 
     renderLaneNames(paths);   // 출발 레인별 소유자 이름 (추적 내내 표시)
 
@@ -1587,11 +1633,12 @@ function runDescentPhase(paths) {
         }
         playLadderSound('ladder_descend', 0.6);   // 한 명씩 내려갈 때마다 효과음
 
+        const warp = (paths[k] && typeof paths[k].warp === 'function') ? paths[k].warp : function (x) { return x; };
         const start = performance.now();
         function frame(now) {
             const t = Math.min(1, (now - start) / LADDER_TOKEN_SLOT_MS);
-            const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;  // ease-in-out
-            tokenProgress[k] = eased;
+            // 중력 time-warp: 선형 시간 t → 호 길이 비율(하향 가속·상향 감속). 토큰당 총시간은 SLOT_MS 그대로(t=1→1).
+            tokenProgress[k] = warp(t);
             drawLadderFrame(paths, tokenProgress);
 
             if (t >= 1) {
@@ -1656,8 +1703,8 @@ function runBombPointerPhase(paths, tokenProgress) {
     let tickCol = -1;                                 // 칸이 바뀔 때마다 틱 사운드(과밀 방지용 추적)
     function frame(now) {
         const t = Math.min(1, (now - start) / LADDER_BOMB_POINTER_MS);
-        // ease-out cubic — 빠르게 시작해 점점 느려져 멈춤(감속 룰렛). t=1에서 pos=totalSteps(=target).
-        const eased = 1 - Math.pow(1 - t, 3);
+        // ease-out quint — 팍 달리다 길고 부드럽게 감속해 멈춤(딱 멈춤 금지). t=1에서 pos=totalSteps(=target) 정확 착지.
+        const eased = 1 - Math.pow(1 - t, 5);
         const pos = eased * totalSteps;
         const col = Math.round(pos) % N;
         ladderState.bombPointerCol = col;

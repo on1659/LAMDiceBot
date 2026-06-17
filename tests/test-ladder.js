@@ -7,7 +7,8 @@
  *  1. 로비(/game)에 사다리타기 라디오 + 대표 게임(경마) 라디오 존재 / 선택 가능
  *  2. 사다리타기 방 생성 → 입장(2탭) → 준비 → 번호(1~6) 선택 → 시작(즉시 공개) → 순차 하강 → 결과/종료 도달
  *     레인은 항상 6개 고정(인원 6 미만이면 빈 레인). 꽝은 점유 레인에서만 결정(패자 항상 1명).
- *     토큰은 한 명씩 차례로 내려간다(SLOT 3s/명). 마지막 도착 후 폭탄 룰렛 포인터가 꽝칸에 정지(2.6s).
+ *     하강 전에 폭탄 룰렛 포인터가 팍 달리다 천천히 꽝칸(💀)에 먼저 정지(5.2s). 이어 토큰이 한 명씩 차례로
+ *     내려간다(SLOT 6s/명, 중력감 비등속 — 하향 가속/상향 감속). 💀칸에 도착한 사람이 꽝(패자 항상 1명).
  *     종료 후: 아직 준비 안 한 플레이어는 결과 캔버스 유지, 이미 준비된 플레이어는 roundReset에서 곧바로 다음 빌드로 전환(빠른 재준비).
  *  3. 콘솔 에러 없음 (광고/서드파티 노이즈 제외)
  *  4. 대표 게임(경마) 방 생성/로드 정상 (기존 모드 미파손)
@@ -230,21 +231,35 @@ async function run() {
             await guest.waitForFunction(() => window.__ladderRungPoints('HostA') >= 3, { timeout: 10000 });
         });
 
-        await test('다중 막대기 append: 인당 최대 3개, 4번째는 거부', async () => {
-            // 이미 1개(곡선). 직선 2개를 더 추가하면 총 3개. 4번째는 서버가 거부 → 여전히 3.
+        await test('다중 막대기 append: 인당 최대 3개, 4번째는 FIFO(가장 오래된 것 밀어내기)', async () => {
+            // 이미 1개(곡선=가장 오래됨). 직선 2개를 더 추가하면 총 3개. 4번째는 거부가 아니라 FIFO로
+            // 가장 먼저 그린(곡선) 막대기를 밀어내고 새 것을 추가 → 여전히 3개, 곡선은 사라짐.
             await host.evaluate(() => {
                 window.__ladderAddRung(0, 0.70, 0.0);   // 2번째 (충분히 떨어진 y)
                 window.__ladderAddRung(0, 0.90, 0.0);   // 3번째
             });
             await host.waitForFunction(() => window.__ladderUserRungCount('HostA') === 3, { timeout: 10000 });
             await guest.waitForFunction(() => window.__ladderUserRungCount('HostA') === 3, { timeout: 10000 });
-            // 4번째 시도 → cap(3) 유지(서버 ladder:error). 잠시 대기 후에도 3이어야 함.
+            // 가장 오래된 id(=곡선 막대기) 캡처 → 4번째 추가 후 이 id가 사라져야 한다(FIFO). 페이지에 주입해 비교.
+            const oldestId = await host.evaluate(() => window.__ladderMyRungIds()[0]);
+            const wasCurved = await host.evaluate(() => window.__ladderRungPoints('HostA') >= 3);
+            assert(wasCurved, '전제 위반: 첫(가장 오래된) 막대기가 곡선이 아님');
+            await host.evaluate(id => { window.__qaOldestId = id; }, oldestId);
+            // 4번째 시도 → cap(3) 유지하되 거부 없이 곡선(가장 오래된) 1개 제거 후 새 막대기 추가.
             await host.evaluate(() => window.__ladderAddRung(1, 0.50, 0.0));
-            await host.waitForTimeout(500);
+            await host.waitForFunction(() => {
+                const ids = window.__ladderMyRungIds();
+                return ids.length === 3 && !ids.includes(window.__qaOldestId);
+            }, { timeout: 10000 });
+            await guest.waitForFunction(() => window.__ladderUserRungCount('HostA') === 3, { timeout: 10000 });
             const cnt = await host.evaluate(() => window.__ladderUserRungCount('HostA'));
-            assert(cnt === 3, `4번째 막대기가 거부되지 않음(count=${cnt})`);
-            // ladder:error 알림(#customAlert)이 떴으면 닫는다 — 이후 시작 버튼 클릭을 가리지 않도록
-            await host.evaluate(() => { const a = document.getElementById('customAlert'); if (a) a.remove(); });
+            assert(cnt === 3, `FIFO 후 cap(3)이 유지되지 않음(count=${cnt})`);
+            // 가장 오래된 곡선 막대기가 밀려났으므로, 현재 첫 막대기(arr[0])는 더 이상 곡선이 아니어야 한다.
+            const firstStillCurved = await host.evaluate(() => window.__ladderRungPoints('HostA') >= 3);
+            assert(!firstStillCurved, 'FIFO가 가장 오래된 곡선 막대기를 밀어내지 않음(곡선이 그대로 남음)');
+            // FIFO는 거부가 아니므로 #customAlert(ladder:error)가 뜨지 않아야 한다(소프트락 회귀 방지).
+            const alertOpen = await host.evaluate(() => !!document.getElementById('customAlert'));
+            assert(!alertOpen, 'FIFO인데 거부 알림(#customAlert)이 떴음(거부 메시지 제거 누락)');
         });
 
         await test('id 지정 제거: 가운데 막대기 1개만 제거 → 2개 남음', async () => {
@@ -257,9 +272,6 @@ async function run() {
             assert(removed !== null, '제거할 id 확보 실패');
             await host.waitForFunction(() => window.__ladderUserRungCount('HostA') === 2, { timeout: 10000 });
             await guest.waitForFunction(() => window.__ladderUserRungCount('HostA') === 2, { timeout: 10000 });
-            // 첫 막대기(곡선)는 그대로 남아 있어야 함
-            const firstStillCurved = await host.evaluate(() => window.__ladderRungPoints('HostA') >= 3);
-            assert(firstStillCurved, 'id 지정 제거가 엉뚱한 막대기를 지움(첫 곡선 막대기 소실)');
         });
 
         await test('서버 기본(base) 막대기가 빌드 단계에 가시', async () => {
@@ -433,22 +445,22 @@ async function run() {
         });
 
         await test('마지막 토큰 도착 후 결과 캡션 표시', async () => {
-            // 새 순서(꽝 선결정): 카운트다운1.6+지우개1.2+펜0.9+바닥멈춤0.5+폭탄포인터2.6 + (2명 × 3s) ≈ 12.8s에 캡션 — 여유 타임아웃
+            // 2배 둔화 후(꽝 선결정): 카운트다운3.2+지우개2.4+펜1.8+바닥멈춤0.5+폭탄포인터5.2 + (2명 × 6s) ≈ 25.1s에 캡션 — 여유 타임아웃
             // "X 님이 꽝에 도착!" 캡션은 폭탄 포인터(💀 칸 공개) 후 "하강 끝"(loser 토큰 도착)에 뜬다.
             // (포인터 착지 시점의 안내 캡션 "누가 도착할까요?"와 구분하려고 "꽝에 도착"을 명시 매칭.)
             await host.waitForFunction(() => {
                 const c = document.getElementById('ladderResultCaption');
                 return c && /꽝에 도착/.test(c.textContent);
-            }, { timeout: 18000 });
+            }, { timeout: 32000 });
         });
 
         await test('게임 종료 → 결과 오버레이 + 순위 표시', async () => {
-            // 서버 종료 타이머(2명, 순서 무관 합) = COUNTDOWN1.6+ERASE1.2+DRAW0.9 + BOTTOM0.5 + BOMB_POINTER2.6 + 2×SLOT(3s) + HOLD1.8 = 14.6s
+            // 서버 종료 타이머(2명, 순서 무관 합) = COUNTDOWN3.2+ERASE2.4+DRAW1.8 + BOTTOM0.5 + BOMB_POINTER5.2 + 2×SLOT(6s) + HOLD1.8 = 26.9s
             await host.waitForFunction(() => {
                 const o = document.getElementById('resultOverlay');
                 const r = document.getElementById('resultRankings');
                 return o && o.classList.contains('visible') && r && r.children.length >= 2;
-            }, { timeout: 24000 });
+            }, { timeout: 38000 });
         });
 
         await test('게임 기록(history) 누적', async () => {

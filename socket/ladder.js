@@ -37,13 +37,14 @@ const LADDER_Y_MAX = 0.95;          // 막대기 높이 상한
 // 호 길이 비례 보간(pointAt)으로 끝까지 내려가면 다음 토큰이 출발한다. 경로 길이가 레인마다 달라도
 // 같은 시간(SLOT_MS)에 주파한다. 총 하강 시간 = 토큰 수(N) × SLOT_MS → 종료 타이머는 N에 비례.
 // 스크램블 연출 시퀀스 타이밍(reveal 시작 → 하강 시작 전 단계들). js/ladder.js와 반드시 동일 유지.
-const LADDER_COUNTDOWN_MS = 1600;     // "3·2·1 셔플!" 카운트다운
-const LADDER_ERASE_MS = 1200;         // 지울 막대기 동시 강조 → 일괄 탈락(드롭/페이드) 연출 시간
-const LADDER_DRAW_MS = 900;           // 펜 구슬이 새 막대기를 그리는 시간
-const LADDER_TOKEN_SLOT_MS = 3000;    // 토큰 한 명이 끝까지 내려가는 시간(아주 천천히) — js/ladder.js와 동일 유지
-const LADDER_BOTTOM_PAUSE_MS = 500;   // 그리기 후 1박자 멈춤(폭탄 포인터 시작 전) — js/ladder.js와 동일 유지
-const LADDER_BOMB_POINTER_MS = 2600;  // 폭탄 룰렛 포인터가 바닥칸을 가속→감속하며 훑다 kkwangBottom에 정지하는 시간(하강 전) — js/ladder.js와 동일 유지
-const LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — js/ladder.js와 동일 유지
+// 모션 단계는 ~2배 느리게(차분히 감상). HOLD/PAUSE는 모션이 아니므로 유지(과하게 늘리지 않음).
+const LADDER_COUNTDOWN_MS = 3200;     // "3·2·1 셔플!" 카운트다운 (1600×2)
+const LADDER_ERASE_MS = 2400;         // 지울 막대기 동시 강조 → 일괄 탈락(드롭/페이드) 연출 시간 (1200×2)
+const LADDER_DRAW_MS = 1800;          // 펜 구슬이 새 막대기를 그리는 시간 (900×2)
+const LADDER_TOKEN_SLOT_MS = 6000;    // 토큰 한 명이 끝까지 내려가는 시간(아주 천천히) (3000×2) — js/ladder.js와 동일 유지
+const LADDER_BOTTOM_PAUSE_MS = 500;   // 그리기 후 1박자 멈춤(폭탄 포인터 시작 전) — 모션 아님, 유지 — js/ladder.js와 동일 유지
+const LADDER_BOMB_POINTER_MS = 5200;  // 폭탄 룰렛 포인터가 바닥칸을 가속→감속하며 훑다 kkwangBottom에 정지하는 시간(하강 전) (2600×2) — js/ladder.js와 동일 유지
+const LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — 모션 아님, 유지 — js/ladder.js와 동일 유지
 
 // reveal 시작부터 자동 종료(결과 오버레이)까지 — 순차 하강이라 토큰 수(N)에 비례.
 // 시퀀스(꽝 선결정): 카운트다운 → 지우기(미사용 라벨→일괄탈락) → 그리기 → 바닥멈춤 → 폭탄 포인터(💀 공개) → 순차 하강(N×SLOT) → 결과 캡션 유지.
@@ -663,10 +664,6 @@ module.exports = (socket, io, ctx) => {
         }
 
         if (!Array.isArray(ld.userRungs[name])) ld.userRungs[name] = [];
-        if (ld.userRungs[name].length >= LADDER_MAX_RUNGS_PER_USER) {
-            socket.emit('ladder:error', `막대기는 한 사람당 최대 ${LADDER_MAX_RUNGS_PER_USER}개까지 놓을 수 있어요.`);
-            return;
-        }
 
         const N = ladderLaneCount();   // 항상 6 — 기둥 범위(0..N-2) 검증용
 
@@ -677,22 +674,36 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
+        // 인당 cap(3) 초과 시 FIFO 예정 — 거부하지 않고 가장 먼저 그린(가장 오래된, [0]) 1개를 밀어내고 새 것을 추가.
+        // 단, 실제 shift는 spacing 검증 통과 후에만 한다(검증 실패 시 막대기를 잃지 않도록 — 무손실 원자성).
+        // 그래서 spacing 검증에서는 "밀려날 예정인 가장 오래된 막대기"를 제외해, 그 자리에 새 막대기가 들어갈 수 있게 한다.
+        const atCap = ld.userRungs[name].length >= LADDER_MAX_RUNGS_PER_USER;
+        const doomedId = atCap && ld.userRungs[name].length ? ld.userRungs[name][0].id : null;
+
         // spacing 검증 — 유저 막대기끼리만 충돌 검사(본인+남). 기본(base) 막대기와의 근접은 막지 않는다:
         // 유저가 base 근처에도 자유롭게 그릴 수 있고, 시작 시 union에서 유저를 먼저 넣어 base가 양보하므로
         // 유저 막대기가 사라지지 않는다(buildLadder 참조). base까지 막으면 빌드가 과하게 빡빡해진다.
         const all = [];
         Object.keys(ld.userRungs).forEach(n => {
-            (Array.isArray(ld.userRungs[n]) ? ld.userRungs[n] : []).forEach(rg => all.push(rg));
+            (Array.isArray(ld.userRungs[n]) ? ld.userRungs[n] : []).forEach(rg => {
+                if (doomedId !== null && rg.id === doomedId) return;   // FIFO로 밀려날 막대기는 spacing 무시
+                all.push(rg);
+            });
         });
         if (rungTooClose(all, c, y)) {
             socket.emit('ladder:error', '다른 막대기와 너무 가까워요. 조금 떨어뜨려 놓아주세요.');
             return;
         }
 
+        // spacing 통과 — 이제 commit. cap 초과면 가장 오래된 1개를 shift(FIFO)한 뒤 새 막대기를 push.
+        while (ld.userRungs[name].length >= LADDER_MAX_RUNGS_PER_USER) {
+            ld.userRungs[name].shift();
+        }
+
         // 첫 등장이면 drawer 색 배정 (서버 권위, 결정적)
         assignColorIndex(ld, name);
 
-        // append (cap 3). id=단조 카운터, slant=기울기(시각), points=자유 곡선 궤적(시각). 둘 다 결과 무관.
+        // append (cap 3, 초과 시 위에서 FIFO shift됨). id=단조 카운터, slant=기울기(시각), points=자유 곡선 궤적(시각). 둘 다 결과 무관.
         ld.userRungs[name].push({ id: ld.rungSeq++, c, y, slant: clampSlant(data.slant), points: sanitizeCurvePoints(data.points) });
         emitRungsUpdated(room, gameState);
     });
