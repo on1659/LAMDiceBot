@@ -1,4 +1,70 @@
 ========================================
+📋 Summit Log - 2026-06-17 (feature/spin-arena-rework 누적 번들: spin-arena 리워크 + ladder 다중막대기/스크램블/히든리빌/꽝선공 + horse-race 투표/다시보기)
+========================================
+
+## 커밋 분할 (작업별)
+- chore(shared): utils/room-helpers.js, socket/rooms.js, socket/shared.js, assets/sounds/sound-config.json — 공통 gameState 필드 초기화(spinArena hp/items, ladder userRungs 배열·userLanes·baseRungs), 방 진입/재진입 자동 배선(ladder 입장 시 ensureBaseRungs + emitLadderRungsUpdated), reveal 마스킹 화이트리스트(phase/skins/round/history) 유지, 사운드 키 placeholder.
+- feat(spin-arena): socket/spin-arena.js + js/spin-arena.js + css/spin-arena.css + spin-arena-multiplayer.html — 2단계 lowest-damage 리워크(최종 모델), HUD/가독성, 아이템/충돌/이동 퍼스낼리티, 연출(블랙아웃 재배치·비석·카운트다운 칼회전·데스캠).
+- feat(ladder): socket/ladder.js + js/ladder.js + css/ladder.css + ladder-multiplayer.html — 다중 가로줄(최대 3, 배열화) + 시작시 스크램블 + 히든 바텀/도착 마스킹 → 꽝 선공 룰렛(꽝 먼저 공개) + "미사용" 콜아웃 + 즉시 사다리 표시 + 균형 생성 + 자동 레인 + 빠른 재준비.
+- feat(horse-race): socket/horse.js + js/horse-race.js — 등수투표 경고 카운트독립화, 단일등수 몰표시 룰렛 스킵(skipAnim), 놓친경기 다시보기 즉시 종료.
+- chore(AutoTest): AutoTest/devtools.html(통합 허브) + AutoTest/ladder/*(edge/hidden-reveal/result-transition QA) + spin-arena-*test.js 갱신; 옛 일회성 스크립트(horse-parse-check, diag-y-error*, qa-expired-* 등) 정리.
+
+## 상세 변경 내역
+
+### [spin-arena 리워크 — 최종 net 동작]
+반복 개선(dual-rule → readability v1 → readability v2 → resimplify-lowest-damage → feel-v4 → feel-v3-fixes → feel-v5)을 거쳤고, **최종적으로 플레이어가 보게 되는 상태**는 아래와 같다. (몬스터/탈출/부활/스태거/듀얼룰은 resimplify 단계에서 전부 제거됨 — dual-rule impl 시절의 monster-race/battle-royale 분기는 더 이상 존재하지 않는다.)
+
+- **승리 조건 = 2단계 lowest-damage (최종 확정 모델).**
+  - Stage1: 약 40초 데미지 레이스. 전원 참가, 탈락 없음. 점수 `c` = "다른 플레이어에게 입힌 누적 데미지(dealtToPlayers)" — 많이 칠수록 안전. `received`는 타이브레이크용으로만 추적. Stage1 동안 HP는 HP_MAX 고정.
+  - 결승(n≥6): 누적 dealt 최저 **하위 3명**이 축소 링 서든데스 → **첫 HP 0 = 단일 당첨자**. 나머지는 안전(승자). HP-lowest fallback으로 `decideMs`는 절대 null 아님. 타이브레이크 dealt↓ → received↑ → slotId.
+  - n<6: 결승 생략, Stage1 최저 dealt = 당첨.
+  - DB 시맨틱 불변: 당첨 = rank2/isWinner=false, 나머지 rank1.
+- **핵심 페이로드(reveal):** `twoStage`(bool, 기존 `rule` 대체), `round1EndMs`(단계 경계, 단일단계=null), `frames [x,y,c]`(c=dealt 단조증가), `hpFrames`(stride 1, length===frames.length, 결승 HP바용·Stage1=HP_MAX), `hpMax`, `finalists[]`(결승 슬롯ID), `result.successionList`(worst→best 당첨 승계 리스트 — gameEnd가 leaver 제외 후 첫 잔존자 선택, 2탭 동일). `ringRadiusAt(t, round1EndMs)` 서버↔클라 비트 동일.
+- **HUD/가독성 (feel-v4 + readability v2):** Stage1 남은시간 HUD(≤10s 경고색/≤5s 위험색+펄스), 다시보기 시작 전 3·2·1 카운트다운, 실시간 dealt 하위3 "유력" 마커(t≥20s, 공개정보 파생·스포일러 세이프), 라운드1 종료 시 전체 점수 순위 recap 카드 ≥5초 홀드(결승자 NEUTRAL 동일 스타일 — 당첨자 미노출), 결승 HP바(내 HP 드레인 플래시), 캔버스 내 top-N 랭크 UI(스크린 공간, 우상단 미니맵과 비충돌), 데미지 +N 플로터(내 것=시안 강조/크기=타격량).
+- **밸런스 핵심(readability v2 측정 결과):** 라운드1 몬스터 시절의 "고정 3마리 + discrete hit + SCORE_ESCAPE 재튜닝"은 measured였으나, **resimplify에서 몬스터 자체가 제거되어 net 상태에는 몬스터 경제가 없다.** 현재 funnel은 dealt 최저 하위3 선발로 단순화. lock-in 방지(하위3이 ~30초 전 조기 고착되지 않게)는 아이템(컴백 레버)으로 유지.
+- **싸움 분산·충돌·아이템 (feel-v5 = 최신 권위):**
+  - 이동: 강한 `CENTER_PULL` 모쉬 제거 → **hunt-nearest-opponent**(가장 가까운 활성 상대로 가속, rng-free, slotId 타이브레이크) + 약한 센터 바이어스. 캐릭터가 아레나 전역으로 흩어져 교전. 결승은 `FINALE_PULL` 유지(3인 집결).
+  - 충돌: `minD = 2*charR + COLLIDE_MARGIN` 넓힘 + `COLLIDE_RESTITUTION` 상향(팝 임펄스) → 접촉 시 크게 튕김. `clampSpeed` 런어웨이 가드 + 분리 후 링 재클램프(하드월 불변) 유지.
+  - 블레이드: base 1, **B4 자동성장(dealt-milestone + 8s ramp) 제거**. `bladeCount = min(BLADE_CAP, 1 + bladeBonus)`, bladeBonus는 칼추가 아이템에서만. `bladeFrames[]` per-slot monotonic.
+  - 아이템 5종: 딜두배·보호막/무적·속도·칼추가·회복. 서버 결정론 스폰(위치+시각)·소비(바디 오버랩) 인-심. RNG는 per-char 소비 루프 **뒤에** append하고 전체 순서 re-freeze. payload `items[]`/`pickups[]` additive.
+- **연출 (feel-v5 + readability v2 S4):**
+  - 블랙아웃: 결승 전환 풀스크린 블랙아웃 제거(`drawSpinFinaleBlackout` 호출 제거), 비결승자 ~300-400ms 페이드아웃 + recap 카드가 스냅 커버. 풀 블랙아웃은 **라운드 종료→다음 라운드 전환에만**(result overlay → roundReset/idle).
+  - 비석: 당첨자(permaDead) `decideMs`에 비석 드롭(~400ms), reduced-motion=정적.
+  - 카운트다운 칼회전: 3·2·1 동안 위치는 t=0 동결, 블레이드 회전만 실시간 진행(`renderSpinCountdownBackdrop` 애니 루프, pendingReveal 토큰으로 클린 취소).
+  - 데스캠/슬로모: 결승 마지막 일격(`decideMs`)에 줌+시간팽창 리플레이, reduced-motion=정적 홀드. (resimplify에서 일단 제거됐다가 readability v2 S4로 재도입.)
+  - 카메라: 단일 자동 줌 — Stage1=링 오버뷰, intro/finale=결승 3인 bbox 타이트. 카메라 모드 토글(follow/director/roam/overview 3버튼) 제거. FOLLOW_ZOOM은 v1 2.6 → v2 ~2.0-2.2로 완화.
+- **클라 제거된 죽은 코드:** 몬스터 렌더 전부(drawMonster/monster sprite/IIFE loader/monsterFrames·monsters·monsterKills 소비), escape FX, down/revive 묘비(구), stagger 프로그래스바, near-miss 자동 리플레이, 카메라 모드 토글 + #spinCameraBar 3버튼, monsters-base.png 로드. HTML 튜토리얼/메타/SEO 카피를 "30초 데미지 레이스 → 하위 3명 결승"으로 교체.
+- **핵심 파일:** `socket/spin-arena.js`(simulate 2단계 + hunt-nearest + 충돌 + 아이템 스폰/소비 + hpFrames sample + ringRadiusAt + RNG 순서 freeze), `js/spin-arena.js`(reveal 소비 재작성 + HUD + 연출 + cameraFit 단일함수 + 죽은코드 제거 + ?v= 범프), `css/spin-arena.css`, `spin-arena-multiplayer.html`. 테스트: `AutoTest/spin-arena-determinism-test.js`(200시드 배치 — 단일 당첨자/decideRate~1.0/capHit~0%/fallback≤30%/하드월0/lock-in floor/2탭 byte-identical, RNG 소비수 불변), `spin-arena-2tab-test.js`, `spin-arena-devtools.html`(봇 방채우기).
+
+### [ladder 다중 막대기·스크램블·히든 리빌·꽝 선공·자동 레인]
+세 goal(multi-rung-and-scramble → hidden-reveal-and-lane-claim → bomb-first-and-balanced-gen)의 누적 net 상태.
+
+- **다중 가로줄:** `userRungs[name]` 단일 객체 → 배열, `LADDER_MAX_RUNGS_PER_USER = 3`. `ladder:addRung` append(캡 초과 거부), 개별 제거(rung id/탭히트). per-user 안정 색상(name→color 결정론 파생), 탭/호버 시 그린 사람 이름. ready-cancel/leave/disconnect/N-trim이 배열+레인 정리(socket/shared.js, socket/rooms.js, socket/ladder.js 일관).
+- **즉시 사다리 표시:** `ensureBaseRungs`의 `readyCount<2` 게이트 제거 → idle(≥1명) 진입 시 base rungs 생성·broadcast(`ladder:rungsUpdated`). 시작 게이트는 여전히 ready≥2. socket/rooms.js join/create(idle) 경로에서 ensureBaseRungs + emitLadderRungsUpdated 보장. 재진입 시 복원.
+- **균형 생성:** `generateBaseRungs`(0~RAND extra)와 `buildLadder` 스크램블(erase K / add M / density fill)이 N−1 컬럼 × 수직 밴드(top/mid/bottom)에 균등 분포 — 한 영역 쏠림 방지. `rungTooClose` 간격 규칙 + 서버 RNG 유지. 당첨 분포는 placement와 독립(불변).
+- **시작시 스크램블 + "미사용" 콜아웃:** `ladder:start`에 서버 RNG로 K개 erase + M개 add. erase 단계(`runErasePhase`)에서 대상 가로줄을 먼저 "미사용" 표시(하이라이트 비트) 후 함께 드롭. erased/added/final rungs는 reveal payload 권위(클라 RNG 0). LADDER_ERASE_MS 예산 내 우선, 전용 비트 필요시 미러 상수 추가.
+- **히든 바텀 → 꽝 선공 룰렛:** (hidden-reveal에서) 카운트다운/스크램블/하강 동안 바텀을 "??"로 가리고 도착 시 "도착"으로 플립하던 모델 →, (bomb-first에서) **리빌 순서 재배치**: `countdown → erase → draw → 꽝-포인터(감속 룰렛이 서버 선택 kkwangBottom에 착지, 💀 선공개) → 하강 → 결과`. 바텀 "??"/"도착" 마스킹 제거(💀만 포인터 후 표시, 나머지 plain). 긴장감 = "누가 💀에 도착하느냐". `ladderRevealDelay(N)` 총합 불변(단계만 재배치) — 서버 auto-end 타이머와 클라 시퀀스 lockstep.
+- **자동 레인 + 빠른 재준비:** 입장 시 서버가 균등랜덤 빈 레인 자동 배정(변경 가능), leave/ready-cancel/disconnect에 해제. `LADDER_RESET_DELAY` 단축 → 결과 후 즉시 재준비(horse-race 스타일). density floor `LADDER_MIN_TOTAL_RUNGS`.
+- **불변:** 단일 당첨자 = 점유(준비) 레인 중 균등랜덤(`losingLane`), `kkwangBottom = laneToBottom[losingLane]`. 균형생성/스크램블/콜아웃/포인터는 cosmetic, 분포 무영향. reveal-only 비밀(rungs/laneToBottom/losingLane/kkwangBottom/loser/scramble plan)은 reveal 전 미전송 + 재진입 마스킹(`ladder: undefined`). lane→bottom는 `computeLaneToBottom`(c+y-sort)만. 서버↔클라 타이밍 상수 미러.
+- **핵심 파일:** `socket/ladder.js`(addRung/removeRung 배열, base 생성 ungate, 균형 생성, buildLadder 스크램블, doReveal 페이로드, ladderRevealDelay 재배치, 자동레인, density, reset 단축), `js/ladder.js`(빌드 멀티렁+색상, startReveal 재배치 erase→draw→bomb-pointer→descent→finish, drawBottomSlots ??/도착 제거 + 💀 선공, runErasePhase 미사용 콜아웃, 자동레인 pre-select, 빠른 재준비), `ladder-multiplayer.html`, `css/ladder.css`, `utils/room-helpers.js`, `socket/rooms.js`, `socket/shared.js`. 테스트: `tests/test-ladder.js`, `AutoTest/ladder/*`(edge-qa, hidden-reveal-qa, result-transition-qa), `ladder-multitab-bot.js`.
+
+### [horse-race 투표·다시보기 UX]
+세 papercut 수정.
+
+- **Item 1 — 등수투표 경고 카운트독립화:** 기존 `⚠ 현재 출전 N마리 …` 카피는 클라가 자기 베팅만 알아(`userHorseBets` own-bet-only → `runningHorseCount`≈항상 1) 종종 거짓이었음(6인 중 나만 픽 → "출전 1마리" 단언). → 항상 참인 한 줄 `🐎 선택된 말 수보다 높은 등수에 던진 표는 사라져요.`로 교체. `renderRankVoteSection`의 `runningHorseCount`/`activeMaxRank` 로컬 제거. 룰렛 시각화 동안 숨김(forceShow).
+- **Item 2 — 단일등수 몰표 룰렛 스킵:** 유효표가 한 등수로 수렴(서버 `tallyForReason` 키 1개, "N등 확정" 분기)하면 `horseRouletteStart` 페이로드에 `skipAnim: true` 추가 → 클라 `playRouletteAnimation`이 스핀 루프 단락하고 위너 바 + 확정 배너로 직행. 카운트다운/startedDelayMs는 짧은 hold 사용(ROULETTE_ANIM_MS+HOLD_MS 아님). winningRank/배너/무효등수 비활성은 유지. 2+ 등수면 기존대로 스핀. 레이스 결과는 today와 byte-identical(연출만 스킵).
+- **Item 3 — 놓친경기 다시보기 즉시 종료:** `replayMissedRace`의 "⏹ 다시보기 종료" 버튼을 첫 플레이스루부터 노출 → 경기 못 본 사람이 즉시 종료하고 준비 가능. `stopMidReplay` 복원 경로(selectedVehicleTypes/userHorseBets/availableHorses 스왑 복원) 재사용.
+- **불변:** 당첨 등수 결정은 서버만(vote tally + weighted random + seeded sequence). 스킵/즉시종료는 결정을 클라로 옮기지 않음. 익명성(자기 베팅만 노출) 유지. 한국어 평이 카피.
+- **핵심 파일:** `js/horse-race.js`(renderRankVoteSection, playRouletteAnimation, horseRouletteStart/Reason 핸들러, updateTargetRankBanner, replayMissedRace/MISSED_REPLAY_REQUIRED/showReplayStopButton/stopMidReplay), `socket/horse.js`(reason text, roulette vs reasonHold 분기, skipAnim 플래그, start delay).
+
+### [공정성 불변 — 전 게임 공통]
+- 클라 gameplay `Math.random` 실호출은 deviceId/tabId(+ cosmetic hash01)만. 결과·위치·당첨·스폰·레인·꽝·룰렛 착지·아이템 픽업은 전부 서버 결정론(seeded sim / 서버 RNG) 후 payload 파생. grep으로 0회 검증.
+- reveal 전 server-only(timeline/result/seed/scramble plan/kkwangBottom 등) 비노출, 재진입 마스킹 유지(spin: timeline 화이트리스트 누락으로 hpFrames 제외 / ladder: `ladder: undefined`).
+- 2탭 byte-identical: 모든 참가자·관전자가 같은 reveal로 같은 화면·같은 결말. 스핀아레나는 RNG 소비 순서 frozen(아이템 스폰 RNG는 per-char 루프 뒤 append) — 동일 시드 ⇒ frames/hpFrames/bladeFrames/items/pickups/ranking/winner 동일.
+- 단일 당첨자 = DB rank2/isWinner=false, 나머지 rank1; recordGamePlay/recordServerGame/recordGameSession 계약 유지. 소켓 이벤트명 불변·payload additive.
+========================================
+
+========================================
 📋 Summit Log - 2026-06-12 (spin-arena 4기능 번들: 칼 수집 탈출·부활·종료압축 / 꾸미기 상점 / 관전 카메라·24명 스케일링 / 24색 리소스 팩)
 ========================================
 
