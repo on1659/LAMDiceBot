@@ -14,7 +14,8 @@
  *   + noticeText. 게임 전역(getVehicleSVG 등)은 어댑터 hook 안에서만 접근한다.
  *
  * 보안: 지갑/구매/장착은 모두 서버(socket.authedUserId) 권위. 토큰 없는 게스트는 이용 불가.
- * 공정성: cosmetic 데이터는 결과/시뮬/emit에 진입하지 않는다. Math.random() 미사용.
+ * 공정성: cosmetic 데이터는 결과/시뮬/emit에 진입하지 않는다. 뽑기 결과는 서버 RNG(shop:gacha)가
+ *   결정하고 클라는 받은 결과만 연출한다 — 클라 Math.random()은 리빌 파티클 jitter(외관)에만 사용.
  */
 (function () {
     'use strict';
@@ -25,6 +26,12 @@
     var LAYER_ID = 'shopLayer';
 
     var RARITY_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
+
+    // ── 뽑기(가챠) 상수 — 서버(socket/shop.js)의 GACHA_* 와 표시상 일치(비용/확률 안내용) ──
+    // 결과 추첨은 서버 권위. 여기 값은 라벨/선검사(잔고)용 — 서버가 최종 판정한다.
+    var GACHA_COIN_COST = 100;
+    var GACHA_AD_COST = 40;
+    var GACHA_RARITY_WEIGHTS = { common: 0, rare: 70, epic: 30 }; // 확률 표시 동적 생성용
 
     // ── 임시 게이트: 코인샵 탭만 "준비 중 / 추후 오픈 예정" ──
     // 코인샵은 로그인(서버 인증) 필요한데 보안 로그인이 아직 준비 안 됨 → 코인샵 탭만 안내문으로 막는다.
@@ -82,6 +89,76 @@
     }
 
     function owns(id) { return _wallet.owned.indexOf(id) !== -1; }
+
+    // ── 뽑기(가챠) 게이트 / 게임 토큰 ──────────────────────
+    // 게임 토큰: catalogUrl(/config/<game>/cosmetics.json)에서 <game> 추출. 서버 화이트리스트와
+    // 동일 디렉터리명. emit({game}) 한 곳에서만 산출(어댑터 비대칭 회피). 못 뽑으면 null.
+    function gameToken() {
+        var url = (_config && _config.catalogUrl) || '';
+        var m = /\/config\/([^/]+)\/cosmetics\.json/.exec(url);
+        return m ? m[1] : null;
+    }
+
+    // 크로스게임 방어: 현재 카탈로그에 directBuy:true 아이템이 1개라도 있으면 가챠 게임.
+    // directBuy 플래그가 전무한 게임(spin)은 gameHasGacha()=false → 가챠 로직 전부 OFF,
+    // 모든 아이템이 기존 직접구매 그대로(회귀 방지). itemState 훅이 아니라 카탈로그 플래그로 판정.
+    function gameHasGacha() {
+        if (!_catalog) return false;
+        var slots = Object.keys(_catalog);
+        for (var i = 0; i < slots.length; i++) {
+            var list = _catalog[slots[i]] || [];
+            for (var j = 0; j < list.length; j++) {
+                if (list[j] && list[j].directBuy === true) return true;
+            }
+        }
+        return false;
+    }
+
+    // 가챠 전용 아이템 = 가챠 게임 && 직접구매 앵커 아님 && 기본제공 아님.
+    // 셸이 카탈로그 플래그로 직접 판정(horse/spin 어댑터 비대칭 회피).
+    function isGachaOnly(item) {
+        return gameHasGacha() && item && item.directBuy !== true && item.defaultOwned !== true;
+    }
+
+    // 주어진 경제(coin/ad)의 미보유 가챠 풀 id 목록. 풀 크기/비활성 판정·라벨용(클라 표시).
+    // 실제 추첨 후보는 서버가 다시 계산(서버 권위) — 여기는 표시 일치를 위한 동일 규칙 미러.
+    function gachaPoolIds(economy) {
+        if (!_catalog || !gameHasGacha()) return [];
+        var ids = [];
+        var slots = Object.keys(_catalog);
+        for (var i = 0; i < slots.length; i++) {
+            var list = _catalog[slots[i]] || [];
+            for (var j = 0; j < list.length; j++) {
+                var item = list[j];
+                if (!item || !item.id) continue;
+                var isAd = isAdItem(item);
+                if (economy === 'coin' && isAd) continue;
+                if (economy === 'ad' && !isAd) continue;
+                if (item.directBuy === true) continue;
+                if (item.defaultOwned === true) continue;
+                var ownedHere = (economy === 'ad') ? adOwns(item.id) : owns(item.id);
+                if (ownedHere) continue;
+                ids.push(item.id);
+            }
+        }
+        return ids;
+    }
+
+    // 확률 안내 문구("확률: rare 70% · epic 30%"). GACHA_RARITY_WEIGHTS에서 동적 생성(규제 위생).
+    function gachaOddsText() {
+        var entries = [];
+        var total = 0;
+        Object.keys(GACHA_RARITY_WEIGHTS).forEach(function (k) {
+            var w = GACHA_RARITY_WEIGHTS[k];
+            if (w > 0) { entries.push({ k: k, w: w }); total += w; }
+        });
+        if (!total) return '';
+        var parts = entries.map(function (e) {
+            var pct = Math.round((e.w / total) * 100);
+            return (RARITY_LABEL[e.k] || e.k) + ' ' + pct + '%';
+        });
+        return '확률: ' + parts.join(' · ');
+    }
 
     // ── 광고 지갑 (sessionStorage 권위 — 게스트/미인증도 사용, 탭 세션 한정) ──
 
@@ -450,6 +527,16 @@
         var state = itemStateFor(item);
         var isEquipped = _wallet.equipped[slot] === item.id;
 
+        // 가챠 전용(코인) + 미소유: 가격/구매 버튼 대신 "뽑기로 획득" 잠금 노드. 클릭 불가(가챠 버튼으로 유도).
+        // directBuy 앵커·소유 아이템·비-가챠 게임(spin)은 이 분기 미진입 → 기존 직접구매/장착 그대로.
+        if (isGachaOnly(item) && !state.owned) {
+            var lock = document.createElement('div');
+            lock.className = 'hshop-gacha-lock';
+            lock.textContent = '🎲 뽑기로 획득';
+            card.appendChild(lock);
+            return card;
+        }
+
         // 가격 노드는 미소유 + price가 유한할 때만 (D6: spin defaultOwned 무가격 대응)
         var price = null;
         if (!state.owned && Number.isFinite(item.price)) {
@@ -493,6 +580,16 @@
         var isEquipped = _adWallet.equipped[slot] === item.id;
         var adPrice = Number.isFinite(item.adPrice) ? item.adPrice : 0;
 
+        // 가챠 전용(광고) + 미소유: 광고코인 구매 버튼 대신 "뽑기로 획득" 잠금 노드.
+        // directBuy 광고 앵커는 이 분기 미진입 → 기존 광고코인 직접구매 그대로.
+        if (isGachaOnly(item) && !owned) {
+            var lock = document.createElement('div');
+            lock.className = 'hshop-gacha-lock hshop-gacha-lock--ad';
+            lock.textContent = '🎬 뽑기로 획득';
+            card.appendChild(lock);
+            return;
+        }
+
         var btn = document.createElement('button');
         btn.type = 'button';
 
@@ -511,6 +608,54 @@
             btn.addEventListener('click', function () { adEquip(slot, isEquipped ? null : item.id); });
         }
         card.appendChild(btn);
+    }
+
+    // ── 뽑기(가챠) 버튼 영역 ────────────────────────────────
+    // panel 직속(grid 직전). 메인샵별 1개 버튼 + 확률 안내. gameHasGacha() 가드 — spin은 미렌더.
+    //   coin: 코인샵('coin')에서만 + COIN_SHOP_COMING_SOON/coinShopLocked 잠금이 풀렸을 때만.
+    //         (잠금 시 비노출 — 잠금 region과 동일 조건으로 게이트해 코인샵이 잠겨 있으면 버튼·카드 모두 숨김.)
+    //   ad:   광고샵('ad')에서. live. 잔고 부족/풀 0이면 비활성.
+    function buildGachaArea(economy, coinLocked) {
+        if (!gameHasGacha()) return null;
+        if (economy === 'coin' && coinLocked) return null; // 코인샵 잠금 뒤에 대기(우회 금지)
+
+        var unowned = gachaPoolIds(economy).length;
+        var isAd = (economy === 'ad');
+        var cost = isAd ? GACHA_AD_COST : GACHA_COIN_COST;
+
+        var wrap = document.createElement('div');
+        wrap.className = 'hshop-gacha-area' + (isAd ? ' hshop-gacha-area--ad' : ' hshop-gacha-area--coin');
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'hshop-gacha-btn' + (isAd ? ' hshop-gacha-btn--ad' : ' hshop-gacha-btn--coin');
+
+        var disabled = false;
+        if (unowned === 0) {
+            btn.textContent = '🎉 다 모았어요';
+            disabled = true;
+        } else if (isAd) {
+            btn.textContent = '🎬 광고 뽑기 · ' + cost + '광고코인 · 미보유 ' + unowned + '개';
+            if (_adWallet.coins < cost) disabled = true; // 잔고 부족 비활성(선검사)
+        } else {
+            btn.textContent = '🎲 코인 뽑기 · ' + cost + '코인 · 미보유 ' + unowned + '개';
+            if (_wallet.balance < cost) disabled = true;
+        }
+        btn.disabled = disabled;
+        if (!disabled) {
+            btn.addEventListener('click', function () { isAd ? doAdGacha(btn) : doCoinGacha(btn); });
+        }
+        wrap.appendChild(btn);
+
+        // 확률 안내(규제 위생) — 동적 생성.
+        var odds = gachaOddsText();
+        if (odds) {
+            var oddsEl = document.createElement('div');
+            oddsEl.className = 'hshop-gacha-odds';
+            oddsEl.textContent = odds;
+            wrap.appendChild(oddsEl);
+        }
+        return wrap;
     }
 
     // 서브탭(카테고리) 바. 메인탭 활성 시 현재 메인샵에 아이템이 있는 슬롯만 노출.
@@ -773,11 +918,16 @@
             }
         }
 
+        // 가챠 버튼 영역(grid 직전): 현재 메인샵(coin/ad) 기준 1개. spin(가챠 없음)·잠긴 코인샵엔 미렌더.
+        // coinLockMsg가 truthy면 코인샵이 잠긴 상태 → coinLocked=true로 코인 가챠도 숨김(우회 금지).
+        var gachaArea = buildGachaArea(_activeMainShop, !!coinLockMsg);
+
         panel.appendChild(header);
         if (showMainTabs) panel.appendChild(renderMainTabBar());
         if (adRow) panel.appendChild(adRow);
         panel.appendChild(notice);
         if (!isSingleSlot() && !coinLockMsg) panel.appendChild(renderTabBar());
+        if (gachaArea) panel.appendChild(gachaArea);
         panel.appendChild(grid);
         overlay.appendChild(panel);
         mount.appendChild(overlay);
@@ -829,6 +979,192 @@
             } else {
                 showShopToast('장착에 실패했어요.', 'error');
             }
+        });
+    }
+
+    // ── 뽑기(가챠) emit + 리빌 ─────────────────────────────
+
+    // 코인 뽑기: 서버 추첨·DB 차감/적립. 더블클릭 가드(doBuy 패턴) → shop:gacha emit.
+    function doCoinGacha(btn) {
+        if (!_socket || !_wallet.authed) return;
+        if (btn) { btn.disabled = true; }
+        var game = gameToken();
+        _socket.emit('shop:gacha', { economy: 'coin', game: game }, function (res) {
+            if (res && res.ok) {
+                var prev = _wallet.balance;
+                _wallet.balance = (typeof res.balance === 'number') ? res.balance : _wallet.balance;
+                _wallet.owned = Array.isArray(res.owned) ? res.owned : _wallet.owned;
+                var item = getCatalogItem(res.drawnId);
+                var slot = res.slot;
+                renderModal();                         // 잔고/카드 갱신 후
+                animateBalanceDelta(prev, _wallet.balance);
+                if (item) playReveal(slot, item, item.rarity || 'common', function () {
+                    doEquip(slot, res.drawnId);        // 코인 장착 경로
+                });
+            } else {
+                var reason = res && res.reason;
+                var msg = (reason === 'insufficient') ? '코인이 부족해요.'
+                        : (reason === 'empty') ? '이미 다 모았어요.'
+                        : (reason === 'owned') ? '방금 그 아이템을 이미 받았어요.'
+                        : (reason === 'auth') ? '로그인 후 이용할 수 있어요.'
+                        : (reason === 'locked') ? '코인샵은 준비 중이에요. 추후 오픈 예정이에요.'
+                        : (reason === 'busy') ? '뽑기를 처리 중이에요. 잠시만요.'
+                        : '뽑기에 실패했어요.';
+                showShopToast(msg, 'error');
+                renderModal(); // 가챠 버튼 재생성 → disabled 복구(잔고·풀 기준 재평가)
+            }
+        });
+    }
+
+    // 광고 뽑기: 서버 추첨(DB 미진입) + 클라 adWallet 차감/적립. 잔고 선검사 후 emit.
+    function doAdGacha(btn) {
+        if (!_socket) return;
+        if (_adWallet.coins < GACHA_AD_COST) {
+            showShopToast('광고코인이 부족해요. 광고를 보고 모아보세요.', 'error');
+            return;
+        }
+        if (btn) { btn.disabled = true; }
+        var game = gameToken();
+        _socket.emit('shop:gacha', { economy: 'ad', game: game, ownedAdIds: _adWallet.owned.slice() }, function (res) {
+            if (res && res.ok) {
+                // 클라 권위 차감/적립(기존 adBuy 모델). 서버는 결과만 결정.
+                _adWallet.coins -= GACHA_AD_COST;
+                if (_adWallet.owned.indexOf(res.drawnId) === -1) _adWallet.owned.push(res.drawnId);
+                saveAdWallet();
+                var item = getCatalogItem(res.drawnId);
+                var slot = res.slot;
+                renderModal();
+                var badge = document.getElementById(AD_BALANCE_ID);
+                if (badge) spawnBalanceDelta(badge, -GACHA_AD_COST);
+                if (item) playReveal(slot, item, item.rarity || 'common', function () {
+                    adEquip(slot, res.drawnId);        // 광고 장착 경로
+                });
+            } else {
+                var reason = res && res.reason;
+                var msg = (reason === 'empty') ? '이미 다 모았어요.'
+                        : (reason === 'busy') ? '뽑기를 처리 중이에요. 잠시만요.'
+                        : '뽑기에 실패했어요.';
+                showShopToast(msg, 'error');
+                renderModal(); // 가챠 버튼 재생성 → disabled 복구(잔고·풀 기준 재평가)
+            }
+        });
+    }
+
+    // 리빌 오버레이: 빌드업→버스트→리빌(rarity 차등) + 장착/닫기 CTA. 탭 시 스킵.
+    // 아트는 어댑터 buildPreview(slot, item) 재사용. getShopLayer() 위(z-index 12600+).
+    // 파티클 위치/지연은 Math.random(외관 한정 — 결과는 이미 서버가 결정).
+    function playReveal(slot, item, rarity, onEquip) {
+        rarity = (rarity === 'epic' || rarity === 'legend') ? 'epic' : (rarity || 'common');
+
+        var soundOn = (typeof SoundManager !== 'undefined' && SoundManager.playSound);
+
+        var ov = document.createElement('div');
+        ov.className = 'hshop-reveal-overlay rarity-' + rarity;
+        ov.setAttribute('role', 'dialog');
+
+        var stage = document.createElement('div');
+        stage.className = 'hshop-reveal-stage';
+
+        // 빌드업 캡슐(흔들림)
+        var capsule = document.createElement('div');
+        capsule.className = 'hshop-reveal-capsule';
+        capsule.textContent = '🎁';
+        stage.appendChild(capsule);
+
+        // 버스트(라디얼 라이트) + 파티클 레이어
+        var burst = document.createElement('div');
+        burst.className = 'hshop-reveal-burst';
+        stage.appendChild(burst);
+
+        var particles = document.createElement('div');
+        particles.className = 'hshop-reveal-particles';
+        var pCount = (rarity === 'epic') ? 18 : 10;
+        for (var i = 0; i < pCount; i++) {
+            var p = document.createElement('span');
+            p.className = 'hshop-reveal-particle';
+            // 외관 jitter — 결과 무관(공정성: 서버가 이미 결정)
+            var ang = Math.random() * Math.PI * 2;
+            var dist = 40 + Math.random() * 80;
+            p.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(1) + 'px');
+            p.style.setProperty('--dy', (Math.sin(ang) * dist).toFixed(1) + 'px');
+            p.style.animationDelay = (Math.random() * 0.12).toFixed(2) + 's';
+            particles.appendChild(p);
+        }
+        stage.appendChild(particles);
+
+        // 리빌 카드(아이템 아트 + 이름 + 등급 배지)
+        var revealCard = document.createElement('div');
+        revealCard.className = 'hshop-reveal-card';
+
+        var art = document.createElement('div');
+        art.className = 'hshop-reveal-art hshop-thumb--' + rarity;
+        if (slot === 'track_theme' && item.bg) art.style.backgroundImage = item.bg;
+        var preview = null;
+        if (_config && _config.hooks && _config.hooks.buildPreview) {
+            try { preview = _config.hooks.buildPreview(slot, item); } catch (e) { preview = null; }
+        }
+        if (preview) art.appendChild(preview);
+        else {
+            var glyph = document.createElement('span');
+            glyph.className = 'hshop-glyph';
+            glyph.textContent = item.emoji || '🎁';
+            art.appendChild(glyph);
+        }
+        revealCard.appendChild(art);
+
+        var badge = document.createElement('span');
+        badge.className = 'hshop-rarity hshop-rarity--' + rarity + ' hshop-reveal-badge';
+        badge.textContent = RARITY_LABEL[rarity] || rarity;
+        revealCard.appendChild(badge);
+
+        var nm = document.createElement('div');
+        nm.className = 'hshop-reveal-name';
+        nm.textContent = item.name;          // 카탈로그 상수(유저입력 아님)
+        revealCard.appendChild(nm);
+
+        var ctas = document.createElement('div');
+        ctas.className = 'hshop-reveal-ctas';
+        var equipBtn = document.createElement('button');
+        equipBtn.type = 'button';
+        equipBtn.className = 'hshop-reveal-equip';
+        equipBtn.textContent = '장착하기';
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'hshop-reveal-close';
+        closeBtn.textContent = '닫기';
+        ctas.appendChild(equipBtn);
+        ctas.appendChild(closeBtn);
+        revealCard.appendChild(ctas);
+
+        stage.appendChild(revealCard);
+        ov.appendChild(stage);
+        getShopLayer().appendChild(ov);
+
+        function close() { if (ov.parentNode) ov.remove(); }
+
+        // 단계 진행: buildup → reveal. 탭(빈 공간) 시 buildup 스킵 → 즉시 reveal.
+        var revealed = false;
+        function toReveal() {
+            if (revealed) return;
+            revealed = true;
+            ov.classList.add('is-revealed');
+            // 사운드 키는 sound-config.json에 미정의면 무해하게 무시(playSound가 path 없으면 no-op).
+            if (soundOn) {
+                try { SoundManager.playSound(rarity === 'epic' ? 'gacha_reveal_epic' : 'gacha_reveal'); } catch (e) {}
+            }
+        }
+        if (soundOn) {
+            try { SoundManager.playSound('gacha_charge'); } catch (e) {}
+        }
+        var timer = setTimeout(toReveal, rarity === 'epic' ? 1400 : 1100);
+
+        equipBtn.addEventListener('click', function () { close(); if (onEquip) onEquip(); });
+        closeBtn.addEventListener('click', close);
+        // 빈 공간 탭 = 빌드업 스킵(리빌 전) 또는 닫기(리빌 후)
+        ov.addEventListener('click', function (e) {
+            if (e.target !== ov && e.target !== stage) return;
+            if (!revealed) { clearTimeout(timer); toReveal(); }
+            else close();
         });
     }
 

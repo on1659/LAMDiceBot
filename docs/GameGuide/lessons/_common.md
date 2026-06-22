@@ -140,6 +140,34 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-12. `coins.spend` 트랜잭션을 가챠(랜덤 지급)로 복사할 때의 함정 2가지
+
+상점 뽑기(`shop:gacha` + `db/coins.js drawAndGrant`)를 기존 `coins.spend` 골격으로 만들 때 나온 머니패스 함정.
+
+- **`ON CONFLICT (PK) DO NOTHING` 가드는 "같은 id 동시요청"만 막는다.** `spend(userId, price, id)`는 사용자가 **특정 id를 지정**해 동시 2요청이 같은 id로 수렴 → `user_cosmetics` PK 충돌 ROLLBACK이 이중과금을 막는다. 그러나 **가챠는 서버가 매 요청 다른 id를 뽑으므로**(X, Y) PK 충돌이 안 나서 둘 다 COMMIT → **코인 2회 차감·2개 획득**(더블클릭/멀티탭/직접 emit으로 의도치 않게 발생). `checkRateLimit`은 per-window 카운터일 뿐 직렬화 게이트가 아니다. → **같은 유저 추첨을 직렬화**하라: per-socket in-flight 플래그(`socket._gachaInFlight` + try/finally)로 같은 소켓 연타/동시 emit 차단, 또는 풀 계산까지 한 트랜잭션 + `user_coins` 행 `FOR UPDATE`. (멀티탭=다른 소켓은 의도적 2회 뽑기로 허용 가능.)
+- **`coin_ledger.reason`은 `VARCHAR(40)` — 가변 식별자를 붙이지 마라.** `reason = 'gacha:' + cosmeticId`(id 최대 40자) = 46자 → INSERT 실패. 어떤 아이템인지는 `user_cosmetics`가 권위이므로 **reason은 고정 문자열(`'gacha'`)**로 둔다.
+- (출처: 2026-06-22 상점 뽑기 작업 — `socket/shop.js`, `db/coins.js drawAndGrant`)
+
+---
+
+## C-13. 클라이언트 launch-gate는 서버 핸들러를 막지 않는다 — 돈/DB 경로엔 서버 측 짝 게이트 필수
+
+- 기능을 "다크십"(코드는 두되 잠가둠)할 때 클라 전용 플래그(`COIN_SHOP_COMING_SOON` 등)로 UI만 숨기면, **인증 유저가 콘솔에서 직접 `socket.emit('shop:gacha', {economy:'coin', ...})`** 하면 서버는 잠금을 몰라 실제 코인을 차감/지급한다. 클라 게이트는 방어선이 아니다(서버 권위 원칙).
+- **해결:** 돈/DB를 건드리는 핸들러에는 **서버 측 짝 상수**(`COIN_GACHA_ENABLED = false`)를 두고 분기 진입부에서 거부(`reason:'locked'`). 클라 잠금 해제 시 클라+서버 두 줄을 함께 푼다.
+- **검증:** 잠금 상태에서 콘솔 직접 emit → 차감 0 + `{ok:false, reason:'locked'}`.
+- (출처: 2026-06-22 상점 뽑기 코인 가챠 다크십 — `socket/shop.js COIN_GACHA_ENABLED`)
+
+---
+
+## C-14. 공유 상점 셸의 게임별 신기능은 어댑터 itemState가 아니라 카탈로그 플래그로 판별하라
+
+- `js/shared/shop-shared.js`(horse + spin 공용)에 게임마다 다른 신기능(가챠 등)을 넣을 때, **어댑터 `itemState` 훅으로 분기하면 horse/spin 어댑터 비대칭** 때문에 플래그 없는 게임에 기능이 새거나 누락된다.
+- **해결:** 신기능 적용 여부를 **카탈로그 플래그 존재**로 셸이 직접 판별한다. 예: `gameHasGacha()` = 현재 카탈로그에 `directBuy` 플래그가 1개라도 있으면 가챠 게임 → 없는 게임(spin)은 가챠 로직 전부 OFF, 기존 직접구매 경로 유지(회귀 0). gachaOnly 판정도 `item.directBuy` 카탈로그 플래그로.
+- **검증:** 플래그 없는 게임(spin)에서 신기능 UI/emit 0건 + 전 아이템 기존 동작.
+- (출처: 2026-06-22 상점 뽑기 — `js/shared/shop-shared.js gameHasGacha`)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

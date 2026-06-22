@@ -31,6 +31,15 @@
     --hshop-ad-dark:   #5b21b6;
     --hshop-locked:    #9ca3af;   /* 잠금 카드 회색 */
 
+    /* 뽑기(가챠) — 상점 전용 토큰 */
+    --hshop-gacha-coin:      #d97706;   /* 코인 뽑기 버튼(앰버) */
+    --hshop-gacha-coin-dark: #b45309;
+    --hshop-gacha-ad:        var(--hshop-ad);       /* 광고 뽑기 버튼(보라 — 광고경제 색) */
+    --hshop-gacha-ad-dark:   var(--hshop-ad-dark);
+    --hshop-reveal-bg:       rgba(12, 8, 20, 0.86); /* 리빌 오버레이 딤 */
+    --hshop-reveal-rare:     #3b82f6;
+    --hshop-reveal-epic:     #f59e0b;
+
     /* 인벤토리('내 아이템') 전용 토큰 */
     --hshop-inv-stage:    #1b2a4a;                 /* 큰 미리보기 무대 배경(어두워 도색 가시성↑) */
     --hshop-inv-stage-2:  #243a63;                 /* 무대 그라데이션 하단 */
@@ -524,6 +533,66 @@ body.hshop-open {
     cursor: pointer;
 }
 
+/* ── 뽑기(가챠) ── */
+/* 가챠 전용 미소유 카드의 잠금 노드("🎲/🎬 뽑기로 획득") — 가격/구매 버튼 대체 */
+.hshop-gacha-lock {
+    margin-top: 7px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 0;
+    border-radius: 10px;
+    border: 1.5px dashed var(--hshop-gacha-coin);
+    background: rgba(217, 119, 6, 0.10);
+    color: var(--hshop-gacha-coin-dark);
+    font-weight: 800;
+    font-size: 12px;
+    text-align: center;
+    cursor: default;
+}
+.hshop-gacha-lock--ad {
+    border-color: var(--hshop-gacha-ad);
+    background: rgba(124, 58, 237, 0.10);
+    color: var(--hshop-gacha-ad-dark);
+}
+
+/* 가챠 버튼 영역(grid 직전, panel 직속) */
+.hshop-gacha-area {
+    flex: none;
+    margin: 10px 16px 0;
+    text-align: center;
+}
+.hshop-gacha-btn {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 13px 12px;
+    border-radius: 14px;
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: -0.2px;
+    color: #fff;
+    cursor: pointer;
+    border: 2px solid var(--hshop-gacha-coin-dark);
+    background: linear-gradient(135deg, var(--hshop-gacha-coin) 0%, var(--hshop-gacha-coin-dark) 100%);
+    box-shadow: var(--hshop-shadow);
+    -webkit-tap-highlight-color: transparent;
+}
+.hshop-gacha-btn--ad {
+    border-color: var(--hshop-gacha-ad-dark);
+    background: linear-gradient(135deg, var(--hshop-gacha-ad) 0%, var(--hshop-gacha-ad-dark) 100%);
+}
+.hshop-gacha-btn:active { transform: translateY(1px); }
+.hshop-gacha-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+    transform: none;
+}
+.hshop-gacha-odds {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--hshop-ink-soft);
+}
+
 /* ── 빈 카테고리 안내 ── */
 .hshop-empty {
     grid-column: 1 / -1;
@@ -939,6 +1008,224 @@ body.hshop-open {
 .hshop-toast--success { background: var(--hshop-equipped, #4a7c3f); }
 .hshop-toast--error   { background: var(--red-500, #ef4444); }
 
+/* ── 뽑기(가챠) 리빌 오버레이 ── */
+/* 빌드업(캡슐 흔들림) → 버스트(라디얼 라이트 + 파티클) → 리빌(아이템 스케일인 + 샤인). */
+.hshop-reveal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 12600;            /* 모달(12000)·전용레이어(12500) 위 */
+    background: var(--hshop-reveal-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;           /* 빈 공간 탭 = 스킵/닫기 */
+}
+.hshop-reveal-stage {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+    display: grid;
+    place-items: center;
+    cursor: default;
+}
+
+/* 빌드업 캡슐 — 리빌 전 흔들리다 리빌 시 사라짐 */
+.hshop-reveal-capsule {
+    font-size: 72px;
+    line-height: 1;
+    animation: hshopRevealShake 0.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 14px var(--hshop-reveal-rare));
+}
+.hshop-reveal-overlay.rarity-epic .hshop-reveal-capsule {
+    filter: drop-shadow(0 0 18px var(--hshop-reveal-epic));
+}
+.hshop-reveal-overlay.is-revealed .hshop-reveal-capsule {
+    display: none;
+}
+@keyframes hshopRevealShake {
+    0%, 100% { transform: rotate(-8deg) scale(1); }
+    25%      { transform: rotate(8deg)  scale(1.06); }
+    50%      { transform: rotate(-6deg) scale(0.98); }
+    75%      { transform: rotate(6deg)  scale(1.04); }
+}
+
+/* 버스트 라디얼 라이트 — 리빌 순간 1회 확장 */
+.hshop-reveal-burst {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--hshop-reveal-rare) 0%, transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+}
+.hshop-reveal-overlay.rarity-epic .hshop-reveal-burst {
+    background: radial-gradient(circle, var(--hshop-reveal-epic) 0%, #fff 30%, transparent 72%);
+}
+.hshop-reveal-overlay.is-revealed .hshop-reveal-burst {
+    animation: hshopRevealBurst 0.6s ease-out forwards;
+}
+@keyframes hshopRevealBurst {
+    0%   { opacity: 0.9; transform: scale(0.3); }
+    100% { opacity: 0;   transform: scale(7); }
+}
+/* 에픽: 화면 풀 플래시 */
+.hshop-reveal-overlay.rarity-epic.is-revealed::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    animation: hshopRevealFlash 0.5s ease-out forwards;
+}
+@keyframes hshopRevealFlash {
+    0%   { opacity: 0.85; }
+    100% { opacity: 0; }
+}
+
+/* 파티클 — 리빌 순간 방사형으로 흩어짐(위치는 JS의 --dx/--dy) */
+.hshop-reveal-particles {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+.hshop-reveal-particle {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--hshop-reveal-rare);
+    opacity: 0;
+}
+.hshop-reveal-overlay.rarity-epic .hshop-reveal-particle {
+    background: var(--hshop-reveal-epic);
+    width: 8px;
+    height: 8px;
+}
+.hshop-reveal-overlay.is-revealed .hshop-reveal-particle {
+    animation: hshopRevealParticle 0.7s ease-out forwards;
+}
+@keyframes hshopRevealParticle {
+    0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx, 40px), var(--dy, 40px)) scale(0.3); }
+}
+
+/* 리빌 카드 — 리빌 순간 스케일인 + 샤인 스윕 */
+.hshop-reveal-card {
+    position: relative;
+    width: 100%;
+    background: var(--hshop-card);
+    border-radius: 18px;
+    padding: 18px 16px 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.6) rotate(-6deg);
+    pointer-events: none;
+}
+.hshop-reveal-overlay.is-revealed .hshop-reveal-card {
+    pointer-events: auto;
+    animation: hshopRevealCardIn 0.55s cubic-bezier(0.18, 0.9, 0.3, 1.3) forwards;
+}
+.hshop-reveal-overlay.rarity-epic.is-revealed .hshop-reveal-card {
+    box-shadow: 0 0 0 3px var(--hshop-reveal-epic), 0 12px 44px rgba(245, 158, 11, 0.5);
+}
+@keyframes hshopRevealCardIn {
+    0%   { opacity: 0; transform: scale(0.6) rotate(-6deg); }
+    100% { opacity: 1; transform: scale(1)   rotate(0deg); }
+}
+
+/* 아이템 아트 무대 */
+.hshop-reveal-art {
+    position: relative;
+    height: 130px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: var(--hshop-thumb-bg);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.hshop-reveal-art.hshop-thumb--rare,
+.hshop-reveal-art.hshop-thumb--epic {
+    background: var(--hshop-thumb-dark);
+}
+.hshop-reveal-art .hshop-preview-sprite svg { width: 84px; }
+/* 샤인 스윕 */
+.hshop-reveal-overlay.is-revealed .hshop-reveal-art::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    transform: skewX(-18deg);
+    animation: hshopRevealShine 0.9s ease-out 0.25s 1;
+}
+@keyframes hshopRevealShine {
+    0%   { left: -60%; }
+    100% { left: 130%; }
+}
+/* 에픽: 무지개 링 */
+.hshop-reveal-overlay.rarity-epic.is-revealed .hshop-reveal-art::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 12px;
+    padding: 2px;
+    background: conic-gradient(#ff2d55, #ffcc00, #34c759, #5ac8fa, #af52de, #ff2d55);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: hshopRevealRing 3s linear infinite;
+    pointer-events: none;
+}
+@keyframes hshopRevealRing {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.hshop-reveal-badge {
+    position: static;
+    display: inline-block;
+    margin-bottom: 4px;
+}
+.hshop-reveal-name {
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+    color: var(--hshop-ink);
+    margin-bottom: 14px;
+}
+.hshop-reveal-ctas {
+    display: flex;
+    gap: 10px;
+}
+.hshop-reveal-equip,
+.hshop-reveal-close {
+    flex: 1;
+    min-height: 46px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.hshop-reveal-equip {
+    background: var(--horse-500, #8B4513);
+    color: #fff;
+    border: 1.5px solid var(--horse-600, #a0522d);
+}
+.hshop-reveal-close {
+    background: var(--hshop-card);
+    color: var(--hshop-ink-soft);
+    border: 1.5px solid var(--hshop-line);
+}
+
 /* 모션 최소화 선호 시 카드 미리보기 애니메이션 정지 */
 @media (prefers-reduced-motion: reduce) {
     .hshop-track-runner,
@@ -946,6 +1233,22 @@ body.hshop-open {
     .hshop-fx-confetti { animation: none; }
     .hshop-track-runner { opacity: 1; }
     .hshop-fx-confetti { opacity: 0; }
+    /* 리빌: 흔들림/버스트/파티클/링 정지하되, 카드는 즉시 보이게(결과 노출은 보존) */
+    .hshop-reveal-capsule,
+    .hshop-reveal-burst,
+    .hshop-reveal-particle { animation: none; }
+    .hshop-reveal-overlay.is-revealed .hshop-reveal-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+    .hshop-reveal-overlay.rarity-epic.is-revealed .hshop-reveal-art::before,
+    .hshop-reveal-overlay.is-revealed .hshop-reveal-art::after { animation: none; }
+}
+
+/* 데스크톱: 리빌 카드 약간 넓게 */
+@media (min-width: 640px) {
+    .hshop-reveal-stage { max-width: 360px; }
 }
 
 /* ── 데스크톱: 중앙 다이얼로그 ── */

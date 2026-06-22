@@ -29,10 +29,15 @@ try {
     console.warn('[상점] config 디렉토리 탐색 실패:', e.message);
 }
 let CATALOG = {};       // slot -> items[] (병합 — shop:catalog 표시용)
-let CATALOG_INDEX = {}; // id -> { slot, item }
+let CATALOG_INDEX = {}; // id -> { slot, item, game }
+const KNOWN_GAMES = {}; // game(디렉터리명) -> true. 가챠 game 화이트리스트(클라 data.game 검증).
 CATALOG_FILES.forEach(file => {
     try {
         const cat = JSON.parse(fs.readFileSync(file, 'utf8'));
+        // 카탈로그가 속한 게임 = config/<game>/cosmetics.json 의 <game> 디렉터리명.
+        // 가챠 풀을 게임별로 스코프하고, 클라가 보낸 data.game을 이 화이트리스트로 검증한다.
+        const game = path.basename(path.dirname(file));
+        KNOWN_GAMES[game] = true;
         Object.keys(cat).forEach(slot => {
             if (!CATALOG[slot]) CATALOG[slot] = [];
             (cat[slot] || []).forEach(item => {
@@ -41,7 +46,7 @@ CATALOG_FILES.forEach(file => {
                     console.error(`[상점] 카탈로그 ID 충돌 — ${item.id} (${file}) 항목 스킵`);
                     return;
                 }
-                CATALOG_INDEX[item.id] = { slot, item };
+                CATALOG_INDEX[item.id] = { slot, item, game };
                 CATALOG[slot].push(item);
             });
         });
@@ -49,6 +54,74 @@ CATALOG_FILES.forEach(file => {
         console.warn('[상점] 카탈로그 로드 실패:', file, e.message);
     }
 });
+
+// ── 가챠(뽑기) 상수 (튜닝 가능) ──
+const GACHA_COIN_COST = 100;   // 코인 뽑기 1회 비용 (일반 코인 — 서버 권위 차감)
+const GACHA_AD_COST = 40;      // 광고 뽑기 1회 비용 (광고코인 — 클라 adWallet 차감)
+// 코인 가챠 서버 게이트(다크십): 코인 경제 정식 가동 전까지 서버에서도 코인 가챠를 막는다.
+// 클라 shop-shared.js의 COIN_SHOP_COMING_SOON(=true)과 짝 — 클라 게이트만으론 인증 유저가
+// 콘솔로 shop:gacha{economy:'coin'}를 직접 emit해 실제 차감/지급을 일으킬 수 있어 서버에서도 강제한다.
+// 코인 경제 정식 가동 시 이 한 줄을 true로(클라 COIN_SHOP_COMING_SOON=false와 함께 해제). 광고 가챠는 무관.
+const COIN_GACHA_ENABLED = false;
+// rarity 가중치(미보유 풀 안에서). common은 directBuy 앵커라 풀에 거의 없음.
+// 풀에 실제 존재하는 rarity에만 적용되고, 여기 없거나 0인 rarity는 weightedPick에서 최소 1로 보정.
+// (common은 전부 directBuy라 coin 풀에서 제외됨 — 확률 안내(rare 70%/epic 30%)는 rare/epic 전제.)
+const GACHA_RARITY_WEIGHTS = { common: 0, rare: 70, epic: 30 };
+
+// 가챠 풀 빌드: 주어진 게임 + 경제(coin/ad)에 해당하는 "미보유 + 뽑기전용" 후보.
+//   coin: item.adOnly !== true (비-광고)   /   ad: item.adOnly === true (광고전용)
+//   공통 제외: directBuy(앵커 직접구매) · defaultOwned(기본제공) · 이미 보유(ownedList)
+//   선행조건(requires): 선행 cosmetic 미충족 항목은 풀에서 제외(가챠가 shop:buy의 requires
+//     불변식을 우회해 선행 스킨 없이 상위 스킨을 주는 것을 차단 — 예 spin_skin_*_t2).
+// adOnly·directBuy·requires 판정은 서버 카탈로그(CATALOG_INDEX)만 신뢰 — 클라 데이터 미사용.
+// 반환: [{ id, rarity }]
+function buildPool(economy, game, ownedList) {
+    const owned = Array.isArray(ownedList) ? ownedList : [];
+    const pool = [];
+    Object.keys(CATALOG_INDEX).forEach(id => {
+        const entry = CATALOG_INDEX[id];
+        if (entry.game !== game) return;
+        const item = entry.item;
+        const isAd = item.adOnly === true;
+        if (economy === 'coin' && isAd) return;
+        if (economy === 'ad' && !isAd) return;
+        if (item.directBuy === true) return;
+        if (item.defaultOwned === true) return;
+        if (owned.indexOf(id) !== -1) return;
+        // 선행조건 게이트(shop:buy L201-211과 동일 의미): requires가 있으면 그 선행 cosmetic을
+        // 소유했거나(ownedList) 선행이 defaultOwned(기본제공)일 때만 후보 포함. 미충족이면 제외.
+        // (ad 경제는 현재 requires 쓰는 항목이 없지만 일괄 적용해 안전하게 둔다.)
+        const requires = item.requires;
+        if (requires) {
+            const reqEntry = CATALOG_INDEX[requires];
+            const reqDefault = !!(reqEntry && reqEntry.item.defaultOwned);
+            if (!reqDefault && owned.indexOf(requires) === -1) return;
+        }
+        pool.push({ id: id, rarity: item.rarity || 'common' });
+    });
+    return pool;
+}
+
+// rarity 가중 추첨 (서버 RNG). 가중치 0/미정 rarity는 최소 1로 보정(풀에 있으면 뽑힐 수 있게).
+// 풀은 비어있지 않다고 가정(호출부가 empty를 먼저 처리).
+// 주의: common은 전부 directBuy라 coin 풀에 들어오지 않는다(buildPool에서 제외) — 확률 안내
+//   (rare 70%/epic 30%)는 rare/epic만 풀에 있다는 전제. common이 풀에 섞이면 eff=1 보정으로
+//   안내와 어긋나니, common rarity를 비-directBuy로 추가할 땐 안내 문구도 함께 갱신할 것.
+function weightedPick(pool) {
+    let total = 0;
+    const weights = pool.map(p => {
+        const w = GACHA_RARITY_WEIGHTS[p.rarity];
+        const eff = (Number.isFinite(w) && w > 0) ? w : 1;
+        total += eff;
+        return eff;
+    });
+    let r = Math.random() * total; // 서버 RNG — 결과 결정(공정성: 클라 미진입)
+    for (let i = 0; i < pool.length; i++) {
+        r -= weights[i];
+        if (r < 0) return pool[i].id;
+    }
+    return pool[pool.length - 1].id; // 부동소수 안전망
+}
 
 // 로컬 개발 편의: 로컬(DATABASE_URL이 localhost)에서 방장(socket.isHost)에게만
 // 코인을 무한처럼 — 잔고를 큰 값까지 충전한다. 프로덕션 DATABASE_URL은 원격이라
@@ -232,6 +305,66 @@ function registerShopHandlers(socket, io, ctx) {
         room.adCosmetics[socket.id] = room.adCosmetics[socket.id] || {};
         room.adCosmetics[socket.id][slot] = cosmeticId;
         cb({ ok: true });
+    });
+
+    // ── 뽑기(가챠): 코인 경제(인증·DB) + 광고 경제(adWallet·클라) 두 풀 엄격 분리 ──
+    // 결과는 서버 RNG(weightedPick). 미보유 풀에서만 추첨(중복 0). 두 경제는 서로 무접촉:
+    //   coin = user_cosmetics/coin_ledger/coins.drawAndGrant (adWallet 미접촉)
+    //   ad   = DB 미진입(추첨 결과만 반환), 클라가 adWallet 차감/적립
+    socket.on('shop:gacha', async (data, callback) => {
+        if (!checkRateLimit()) return;
+        const cb = (typeof callback === 'function') ? callback : () => {};
+        const economy = data && data.economy;          // 'coin' | 'ad'
+        const game = data && data.game;
+        // 게임 화이트리스트: 클라가 보낸 game이 실제 로드된 카탈로그 디렉터리인지 검증.
+        if (!game || !KNOWN_GAMES[game]) return cb({ ok: false, reason: 'gametype' });
+
+        // 동시/연타 가드(이중차감 방지): checkRateLimit은 카운터일 뿐 직렬화가 아니다. 같은 소켓의
+        // 동시 2요청이 서로 다른 id를 추첨하면 drawAndGrant의 PK 가드(같은 id 충돌)로도 못 막아
+        // 둘 다 commit → 이중 차감. 같은 소켓 연타/동시 emit을 in-flight 플래그로 직렬화한다.
+        // (멀티탭=다른 소켓·같은 유저는 의도적 2회 뽑기로 허용 — 이 가드 범위 밖.)
+        // 추첨/차감 경로 전체를 try로 감싸고, 모든 early-return도 finally에서 플래그를 풀게 한다.
+        if (socket._gachaInFlight) return cb({ ok: false, reason: 'busy' });
+        socket._gachaInFlight = true;
+        try {
+            if (economy === 'coin') {
+                // ⚠️ 인증가드는 coin 분기 안에만 둔다(게스트 광고 dead-code 방지 — lessons 2026-06-20).
+                if (!socket.authedUserId) return cb({ ok: false, reason: 'auth' });
+                // 코인 가챠 서버 게이트(다크십): 코인 경제 정식 가동 전까지 서버에서도 차단.
+                // 클라 COIN_SHOP_COMING_SOON과 짝 — 인증 유저의 직접 emit도 막는다. 광고 가챠는 무관.
+                if (!COIN_GACHA_ENABLED) return cb({ ok: false, reason: 'locked' });
+                try {
+                    const owned = await cosmetics.getOwned(socket.authedUserId);
+                    const pool = buildPool('coin', game, owned); // 비-adOnly && !directBuy && !defaultOwned && !owned && requires충족
+                    if (!pool.length) return cb({ ok: false, reason: 'empty' });
+                    const drawnId = weightedPick(pool);          // 서버 RNG
+                    const r = await coins.drawAndGrant(socket.authedUserId, GACHA_COIN_COST, drawnId);
+                    if (!r.ok) return cb({ ok: false, reason: r.reason, balance: r.balance });
+                    await topUpLocalHost(socket); // 로컬 방장 코인 무한 (프로덕션 무영향)
+                    const ownedNow = await cosmetics.getOwned(socket.authedUserId);
+                    const balance = (LOCAL_HOST_INFINITE && socket.isHost)
+                        ? await coins.getBalance(socket.authedUserId)
+                        : r.balance;
+                    return cb({ ok: true, drawnId, slot: CATALOG_INDEX[drawnId].slot, balance, owned: ownedNow });
+                } catch (e) {
+                    console.warn('[상점] shop:gacha(coin) 실패:', e.message);
+                    return cb({ ok: false, reason: 'error' });
+                }
+            }
+
+            if (economy === 'ad') {
+                // 광고 뽑기는 게스트 허용(인증 불필요). adOnly 판정은 서버 카탈로그만 신뢰.
+                const ownedAd = Array.isArray(data.ownedAdIds) ? data.ownedAdIds : [];
+                const pool = buildPool('ad', game, ownedAd);  // adOnly===true && !directBuy && !ownedAd && requires충족
+                if (!pool.length) return cb({ ok: false, reason: 'empty' });
+                const drawnId = weightedPick(pool);            // 서버 RNG, DB 미진입
+                return cb({ ok: true, drawnId, slot: CATALOG_INDEX[drawnId].slot });
+            }
+
+            return cb({ ok: false, reason: 'invalid' });
+        } finally {
+            socket._gachaInFlight = false;
+        }
     });
 }
 

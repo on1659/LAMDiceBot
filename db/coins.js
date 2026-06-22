@@ -143,4 +143,62 @@ async function spend(userId, price, cosmeticId) {
     }
 }
 
-module.exports = { getBalance, ensureWallet, grant, spend, SEED_COINS };
+// 뽑기(가챠) 차감+적립. 특정 drawnId(서버가 RNG로 고른 미보유 아이템)를 코인으로
+// 사들여 인벤토리에 넣는 원자 트랜잭션. spend()와 동일 골격이되:
+//   - reason 은 'gacha' 고정. coin_ledger.reason 은 VARCHAR(40)이라 'gacha:'+id 는
+//     긴 id에서 오버플로 위험 → 고정 문자열로 둔다(어떤 아이템을 뽑았는지는 user_cosmetics가 권위).
+//   - 동시 더블드로우(같은 유저 2건이 같은 미보유 풀에서 동시 추첨) 가드는 spend와 동일:
+//     user_cosmetics INSERT 충돌(rowCount 0) 시 ROLLBACK → 'owned'.
+// 반환: { ok, reason?, balance }
+async function drawAndGrant(userId, cost, cosmeticId) {
+    const pool = getPool();
+    if (!pool || !Number.isInteger(userId) || !Number.isInteger(cost) || cost < 0 || !cosmeticId) {
+        return { ok: false, reason: 'invalid', balance: 0 };
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 원자 차감 (잔고 부족이면 rowCount 0)
+        const dec = await client.query(
+            `UPDATE user_coins SET balance = balance - $1, updated_at = NOW()
+             WHERE user_id = $2 AND balance >= $1 RETURNING balance`,
+            [cost, userId]
+        );
+        if (dec.rowCount === 0) {
+            await client.query('ROLLBACK');
+            const bal = await getBalance(userId);
+            return { ok: false, reason: 'insufficient', balance: bal };
+        }
+        const balance = dec.rows[0].balance;
+
+        await client.query(
+            `INSERT INTO coin_ledger (user_id, delta, reason, ref) VALUES ($1, $2, $3, $4)`,
+            [userId, -cost, 'gacha', null]
+        );
+        // 미보유 가드: 풀은 호출부(socket/shop.js)가 "미보유"로 좁혀 골랐지만, 동시 추첨이
+        // 둘 다 같은 id를 골랐을 수 있다. PK 충돌(rowCount 0)이면 다른 트랜잭션이 먼저 획득 →
+        // 이 트랜잭션 차감/원장을 되돌리고 owned로 응답(이중과금·중복 차단).
+        const ins = await client.query(
+            `INSERT INTO user_cosmetics (user_id, cosmetic_id) VALUES ($1, $2)
+             ON CONFLICT (user_id, cosmetic_id) DO NOTHING
+             RETURNING user_id`,
+            [userId, cosmeticId]
+        );
+        if (ins.rowCount === 0) {
+            await client.query('ROLLBACK');
+            const bal = await getBalance(userId);
+            return { ok: false, reason: 'owned', balance: bal };
+        }
+
+        await client.query('COMMIT');
+        return { ok: true, balance };
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+module.exports = { getBalance, ensureWallet, grant, spend, drawAndGrant, SEED_COINS };

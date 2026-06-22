@@ -1,4 +1,43 @@
 ========================================
+📋 Summit Log - 2026-06-22 (꾸미기 상점 뽑기(가챠) — 광고 뽑기 live·코인 뽑기 다크십)
+========================================
+
+## 변경 파일
+- config/horse/cosmetics.json: (슬롯,경제)별 최저등급 1개에 directBuy:true 10개 추가(코인 6: paint_dark/trail_splash/acc_sunglass/bib_gold/theme_snow/fx_confetti, 광고 4: paint_ad_aqua/trail_ad_meteor/acc_ad_party/bib_ad_ruby). 나머지 rare/epic = 뽑기 전용.
+- socket/shop.js: shop:gacha 핸들러(coin/ad), buildPool(미보유·경제·게임·requires·directBuy·defaultOwned 필터), weightedPick(서버 RNG, rarity 가중), GACHA_COIN_COST/GACHA_AD_COST/GACHA_RARITY_WEIGHTS 상수, CATALOG_INDEX[id].game 기록 + KNOWN_GAMES 화이트리스트, COIN_GACHA_ENABLED 서버 잠금, socket._gachaInFlight 직렬화.
+- db/coins.js: drawAndGrant(userId, cost, cosmeticId) 원자 트랜잭션(차감→coin_ledger(reason='gacha')→user_cosmetics, insufficient/owned ROLLBACK 3경로).
+- js/shared/shop-shared.js: gameHasGacha() 가드, gachaOnly 카드 상태(미소유=뽑기로 획득 잠금), 코인/광고 가챠 버튼+확률 표시, doCoinGacha/doAdGacha(shop:gacha emit), playReveal(등급 차등 리빌 오버레이), 'locked'/'busy' reason 처리.
+- css/horse-shop.css: 가챠 버튼/잠금 카드/리빌 오버레이(빌드업→버스트→리빌, rarity 단계별, prefers-reduced-motion).
+- AutoTest/qa-shop-gacha-pool-smoke.js: buildPool/weightedPick/requires 결정론 단위 스모크(18 단언).
+- docs/goal/shop-gacha.md → docs/goal/applied/shop-gacha.md (완료 아카이브).
+- docs/GameGuide/lessons/_common.md: C-12(spend 복사 가챠 함정: PK가드 이중차감+reason 40자), C-13(클라 launch-gate≠서버 게이트), C-14(공유 상점 게임별 기능은 카탈로그 플래그 판별).
+
+## 상세 변경 내역
+
+### [뽑기(가챠) 시스템 — 획득 구조 재편]
+- (슬롯,경제)별 최저등급 1개만 직접구매(directBuy), 나머지 rare/epic은 뽑기 전용. 미보유 풀에서만 추첨(중복 0), 풀 소진 시 "다 모았어요" 비활성.
+- 코인 뽑기: 인증·서버추첨·DB(user_cosmetics+coin_ledger), 비-adOnly 풀. 광고 뽑기: adWallet 클라 소비·서버추첨·DB 미진입, adOnly 풀(horse-only). 두 경제/풀 엄격 분리(교집합 0).
+
+### [공정성]
+- 추첨 결과는 서버 weightedPick(Math.random 서버)만 결정. 클라 Math.random은 리빌 파티클 jitter 한정(외관). cosmetic이 race 결과/sim/emit 경로 무진입(독립 추적 확인).
+
+### [머니패스 보안 — 리뷰 수정]
+- H-1: 같은 소켓 동시/연타 emit이 서로 다른 id 추첨 시 이중차감 → socket._gachaInFlight try/finally 직렬화로 차단(멀티탭=다른 소켓은 의도적 2회 허용).
+- H-2: buildPool에 requires(선행 스킨) 게이트 추가 — 선행 미소유 시 *_t2 제외(defaultOwned 베이스는 면제). crafted emit의 선행조건 우회 차단.
+- minor3: COIN_GACHA_ENABLED=false 서버 잠금 — 클라 COIN_SHOP_COMING_SOON과 짝. 인증 유저 콘솔 직접 emit도 'locked' 거부(차감 0).
+- coin_ledger.reason은 'gacha' 고정(VARCHAR(40) 오버플로 회피, 아이템 식별은 user_cosmetics 권위).
+
+### [런칭 게이팅]
+- 광고 뽑기만 live(광고 경제 가동 중). 코인 뽑기는 코드·서버까지 완성하되 클라(COIN_SHOP_COMING_SOON)+서버(COIN_GACHA_ENABLED) 이중 잠금으로 다크십 — 코인 경제 정식 가동 시 두 줄 해제.
+
+### [크로스게임 안전]
+- gameHasGacha()=카탈로그에 directBuy 플래그 존재 여부로 셸이 직접 판별(어댑터 itemState 훅 아님). spin(directBuy 0)은 가챠 전 분기 OFF → 전 아이템 기존 직접구매 유지(회귀 0).
+
+### [검증]
+- node -c socket/shop.js db/coins.js server.js OK. cosmetics.json JSON 유효. directBuy=10. shop:gacha 서버 on 1+클라 emit 2. 단위 스모크 18/18 + H-1 직렬화 시뮬 PASS. Reviewer approve / ReviewerCodex 지적 2건(H-1/H-2)+minor3 수정 반영. 라이브 2탭(광고 뽑기 리빌·실차감)은 dev 서버 재시작 후 수동 확인.
+- 유저 노출(update-log.md): 상점이 "준비 중" 프레이밍 + 가챠는 확률 기능이라 유저 로그 미기재(정식 오픈 시 일괄 안내).
+
+========================================
 📋 Summit Log - 2026-06-22 (feature/spin-arena-rework 누적: 경마 꾸미기 상점 — 광고/코인 2단탭·광고 보상 티어(세션 한정)·인벤토리·코인샵 준비중 게이트 + 같은말 꾸미기 랜덤표시 + 이름표 꾸미기)
 ========================================
 
