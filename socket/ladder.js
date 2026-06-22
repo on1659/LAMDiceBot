@@ -32,6 +32,7 @@ const LADDER_GEN_BANDS = 3;
 const LADDER_MIN_GAP_Y = 0.05;      // 같은 기둥을 공유하는 막대기 간 최소 세로 간격(비율) — 사다리 모호성 방지
 const LADDER_Y_MIN = 0.05;          // 막대기 높이 하한
 const LADDER_Y_MAX = 0.95;          // 막대기 높이 상한
+const LADDER_RUNG_HALF_RATIO = 0.2; // 끝점 높이 역산용(points 없을 때 폴백). = 클라 computeDragRung의 slant 제수 0.4의 절반(slant=(yR-yL)/0.4 → 한쪽 끝은 중심에서 ±0.2·slant). 그 0.4를 바꾸면 이 값도 같이 바꿔야 한다.
 // ─── 순차 하강(reveal) 연출 타이밍 — js/ladder.js 와 반드시 동기화 ───
 // 토큰은 한 명씩 차례로(revealOrder 순) 출발한다. 한 토큰이 자기 경로 전체를 SLOT_MS 동안
 // 호 길이 비례 보간(pointAt)으로 끝까지 내려가면 다음 토큰이 출발한다. 경로 길이가 레인마다 달라도
@@ -135,8 +136,38 @@ function clampY(y) {
 function sharesPost(c1, c2) { return Math.abs(c1 - c2) <= 1; }
 
 // (c, y)에 막대기를 놓으면 기존 막대기와 너무 가까운가 (같은 기둥 공유 + |Δy| < 최소간격)
+// base 생성/스크램블(generateBaseRungs/buildLadder)이 쓰는 중심-y 기준 판정 — 직선 base 전용으로 유지.
 function rungTooClose(rungList, c, y) {
     return (rungList || []).some(rg => rg && sharesPost(rg.c, c) && Math.abs(rg.y - y) < LADDER_MIN_GAP_Y);
+}
+
+// 막대기의 양 기둥 끝점 높이(절대 0~1)를 [왼쪽 c, 오른쪽 c+1] 순으로 산출.
+// points 있으면(정규화로 points[0]=왼쪽 기둥, points[last]=오른쪽 기둥) 그 y를 그대로 — 가장 정확(slant는 ±1 saturate되니 points 우선).
+// points 없으면 클라 산출식 역산: yLeft = y - HALF*slant, yRight = y + HALF*slant (클라: slant=(yR-yL)/0.4, y=(yL+yR)/2). 시각 판정용이라 범위 밖은 단순 clamp(null 방지).
+function userRungEndY(rg) {
+    if (rg && Array.isArray(rg.points) && rg.points.length >= 2) {
+        return { yLeft: rg.points[0].y, yRight: rg.points[rg.points.length - 1].y };
+    }
+    const y = rg ? rg.y : 0;
+    const slant = (rg && typeof rg.slant === 'number') ? rg.slant : 0;
+    const clamp = v => Math.max(LADDER_Y_MIN, Math.min(LADDER_Y_MAX, v));
+    return { yLeft: clamp(y - LADDER_RUNG_HALF_RATIO * slant), yRight: clamp(y + LADDER_RUNG_HALF_RATIO * slant) };
+}
+
+// 유저-유저 막대기 두 개(a 칸 cA, b 칸 cB)가 시각적으로 모호한가 — 중심 y가 아니라 "공유 기둥에서의 끝점 높이 차"로 판정.
+// 긴(가파른) 막대기라도 공유 기둥의 끝점 높이가 충분히 다르면 공존 가능(중심 쏠림 오탐 제거).
+function userRungConflict(a, b) {
+    const dc = Math.abs(a.c - b.c);
+    if (dc >= 2) return false;                  // 공유 기둥 없음
+    const ea = userRungEndY(a);
+    const eb = userRungEndY(b);
+    if (dc === 0) {                             // 같은 두 기둥 — 양쪽 기둥 모두 비교
+        return Math.abs(ea.yLeft - eb.yLeft) < LADDER_MIN_GAP_Y
+            || Math.abs(ea.yRight - eb.yRight) < LADDER_MIN_GAP_Y;
+    }
+    // dc === 1 — 기둥 하나만 공유(둘 사이 안쪽 기둥)
+    if (b.c === a.c + 1) return Math.abs(ea.yRight - eb.yLeft) < LADDER_MIN_GAP_Y;  // 공유 = 기둥 a.c+1
+    return Math.abs(ea.yLeft - eb.yRight) < LADDER_MIN_GAP_Y;                       // b.c === a.c-1, 공유 = 기둥 a.c
 }
 
 // ─── 균등(편향 없는) 배치 헬퍼 (서버 전용) ───
@@ -683,14 +714,18 @@ module.exports = (socket, io, ctx) => {
         // spacing 검증 — 유저 막대기끼리만 충돌 검사(본인+남). 기본(base) 막대기와의 근접은 막지 않는다:
         // 유저가 base 근처에도 자유롭게 그릴 수 있고, 시작 시 union에서 유저를 먼저 넣어 base가 양보하므로
         // 유저 막대기가 사라지지 않는다(buildLadder 참조). base까지 막으면 빌드가 과하게 빡빡해진다.
-        const all = [];
+        // 판정은 중심 y가 아니라 "공유 기둥에서의 끝점 높이 차"(userRungConflict) — 긴/가파른 막대기가 중심 쏠림으로 오탐되지 않게.
+        // points는 끝점 산출에 쓰므로 commit과 동일하게 한 번만 sanitize해 재사용(끝점 일치 보장).
+        const newPoints = sanitizeCurvePoints(data.points);
+        const newRung = { c, y, slant: clampSlant(data.slant), points: newPoints };
+        let conflict = false;
         Object.keys(ld.userRungs).forEach(n => {
             (Array.isArray(ld.userRungs[n]) ? ld.userRungs[n] : []).forEach(rg => {
                 if (doomedId !== null && rg.id === doomedId) return;   // FIFO로 밀려날 막대기는 spacing 무시
-                all.push(rg);
+                if (userRungConflict(newRung, rg)) conflict = true;
             });
         });
-        if (rungTooClose(all, c, y)) {
+        if (conflict) {
             socket.emit('ladder:error', '다른 막대기와 너무 가까워요. 조금 떨어뜨려 놓아주세요.');
             return;
         }
@@ -704,7 +739,7 @@ module.exports = (socket, io, ctx) => {
         assignColorIndex(ld, name);
 
         // append (cap 3, 초과 시 위에서 FIFO shift됨). id=단조 카운터, slant=기울기(시각), points=자유 곡선 궤적(시각). 둘 다 결과 무관.
-        ld.userRungs[name].push({ id: ld.rungSeq++, c, y, slant: clampSlant(data.slant), points: sanitizeCurvePoints(data.points) });
+        ld.userRungs[name].push({ id: ld.rungSeq++, c, y, slant: clampSlant(data.slant), points: newPoints });
         emitRungsUpdated(room, gameState);
     });
 

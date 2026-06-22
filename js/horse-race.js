@@ -58,6 +58,20 @@ if (!sessionStorage.getItem('tabId')) {
 }
 function getTabId() { return sessionStorage.getItem('tabId'); }
 
+// 내(me) 이름표 라벨 기본 스타일 cssText — 렌더 2곳(renderTrackForSelection/startRaceAnimation)의
+// isMe 분기와 refreshMyNameTags 복원(applyMyDefaultTagStyle)이 모두 이 상수를 공유(같은 파일 내 dedup).
+var ME_NAMETAG_CSS = 'background: linear-gradient(135deg, var(--yellow-500), var(--yellow-600));'
+    + 'color: var(--text-primary);'
+    + 'padding: 2px 6px;'
+    + 'border-radius: 4px;'
+    + 'font-size: 11px;'
+    + 'line-height: 16px;'
+    + 'font-weight: bold;'
+    + 'white-space: nowrap;'
+    + 'border: 2px solid var(--bg-white);'
+    + 'box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);'
+    + 'text-shadow: 0 1px 1px rgba(255,255,255,0.5);';
+
 // 상태 변수
 var currentRoomId = null;
 var currentUser = '';
@@ -90,6 +104,7 @@ var vehicleStatsData = []; // 탈것별 통계 데이터
 var missedHorseRace = false; // 경주를 놓쳤는지 여부 (화면 숨김 상태였는지)
 var lastHorseRaceData = null; // 마지막 경주 데이터 (다시보기용)
 var isReplayActive = false; // 다시보기 진행 중 여부
+var pendingHorseSelectionReady = null; // 다시보기 재생 중 도착한 다음 라운드 선택 이벤트(가드로 드롭되는 것)를 보관 → 종료 시 적용
 var raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
 var countdownVisibilityHandler = null; // 카운트다운 중 탭 복귀 감지 리스너
 var missedAtCountdown = false; // 카운트다운 시 화면 숨겨져 있었는지
@@ -323,7 +338,11 @@ function initAutoSelectHorseToggle() {
     const checkbox = document.getElementById('autoSelectHorseToggle');
     if (!wrap || !checkbox) return;
 
-    // 게스트(비로그인)는 토글 자체를 숨김
+    // 꾸미기 상점 진입 버튼은 모든 방-입장 유저에게 노출 (게스트는 광고 티어만 — 모달이 self-gating)
+    const shopBtn = document.querySelector('.hshop-open-btn');
+    if (shopBtn) shopBtn.style.display = 'inline-flex';
+
+    // 게스트(비로그인)는 자동선택 토글만 숨김 (상점 버튼은 위에서 이미 노출)
     let userAuth = null;
     try { userAuth = JSON.parse(localStorage.getItem('userAuth') || 'null'); } catch (e) {}
     if (!userAuth || !userAuth.name || userAuth.name !== currentUser) {
@@ -529,22 +548,12 @@ function renderTrackForSelection() {
             sortedUsers.forEach(userName => {
                 const nameTag = document.createElement('span');
                 const isMe = userName === currentUser;
+                nameTag.classList.add('race-name-tag');
+                nameTag.dataset.username = userName;
 
                 if (isMe) {
                     // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
-                    nameTag.style.cssText = `
-                        background: linear-gradient(135deg, var(--yellow-500), var(--yellow-600));
-                        color: var(--text-primary);
-                        padding: 2px 6px;
-                        border-radius: 4px;
-                        font-size: 11px;
-                        line-height: 16px;
-                        font-weight: bold;
-                        white-space: nowrap;
-                        border: 2px solid var(--bg-white);
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);
-                        text-shadow: 0 1px 1px rgba(255,255,255,0.5);
-                    `;
+                    nameTag.style.cssText = ME_NAMETAG_CSS;
                     nameTag.textContent = '⭐ ' + userName;
                 } else {
                     // 다른 사용자: 개선된 가독성
@@ -562,6 +571,7 @@ function renderTrackForSelection() {
                     `;
                     nameTag.textContent = userName;
                 }
+                applyLabelCosmetic(nameTag, userName, isMe, false);
                 namesContainer.appendChild(nameTag);
             });
 
@@ -569,6 +579,46 @@ function renderTrackForSelection() {
         }
     });
 }
+
+// 이름표(닉네임 라벨) 꾸미기 적용 — 색만 오버라이드(textContent/위치/폰트 불변).
+// useBroadcast=true(경주중): 서버 broadcast(labels, 전원) → 없으면 isMe일 때 내 로컬.
+// useBroadcast=false(선택화면): broadcast 무시(타인의 현재 이름표는 알 수 없음). isMe면 내 로컬, 타인은 기본 유지.
+function applyLabelCosmetic(nameTag, userName, isMe, useBroadcast) {
+    var bibId = null;
+    if (useBroadcast) {
+        var labels = window._raceCosmetics && window._raceCosmetics.labels;
+        if (labels && labels[userName]) bibId = labels[userName];
+        else if (isMe && window.HorseShop && window.HorseShop.getMyEquippedLabel) bibId = window.HorseShop.getMyEquippedLabel();
+    } else if (isMe && window.HorseShop && window.HorseShop.getMyEquippedLabel) {
+        bibId = window.HorseShop.getMyEquippedLabel();
+    }
+    if (bibId && window.HorseShop && window.HorseShop.getLabelStyle) {
+        var st = window.HorseShop.getLabelStyle(bibId);
+        if (st) {
+            if (st.bg) nameTag.style.background = st.bg;
+            if (st.color) nameTag.style.color = st.color;
+            if (st.border) nameTag.style.borderColor = st.border; // 기본 border-width/style 유지
+        }
+    }
+}
+
+// 내(me) 이름표 라벨의 기본 스타일을 다시 인라인 적용(해제 시 복원에 필수).
+function applyMyDefaultTagStyle(nameTag) {
+    nameTag.style.cssText = ME_NAMETAG_CSS;
+}
+
+// 내 이름표 라벨을 현재 화면(.race-name-tag)에 즉시 재적용 (장착/해제 라이브 반영).
+// 셀렉터엔 유저입력을 넣지 않고 JS로 dataset.username을 비교한다.
+function refreshMyNameTags() {
+    var tags = document.querySelectorAll('.race-name-tag');
+    for (var i = 0; i < tags.length; i++) {
+        var tag = tags[i];
+        if (tag.dataset.username !== currentUser) continue;
+        applyMyDefaultTagStyle(tag);                       // 기본 "내" 스타일 복원(해제 시 필수)
+        applyLabelCosmetic(tag, currentUser, true, false); // 내 로컬 장착 재적용(없으면 기본 유지)
+    }
+}
+window.refreshMyNameTags = refreshMyNameTags;
 
 // 탈것 선택 UI 렌더링
 function renderHorseSelection() {
@@ -1675,9 +1725,14 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             if (isMyHorse) {
                 window.HorseShop.applyToHorse(horse);
             } else {
-                var _hc = (window._raceCosmetics && window._raceCosmetics.horses)
+                // 타인/관전 말: 같은 말 고른 사람들의 꾸미기 배열. 클라가 랜덤으로 하나 골라 적용.
+                // Math.random은 외형 선택 전용 — 게임 결과/시뮬과 무관(공정성 영향 0).
+                var _list = (window._raceCosmetics && window._raceCosmetics.horses)
                     ? window._raceCosmetics.horses[horseIndex] : null;
-                if (_hc) window.HorseShop.applyEquippedToHorse(horse, _hc);
+                var _pick = Array.isArray(_list)
+                    ? (_list.length ? _list[Math.floor(Math.random() * _list.length)] : null)
+                    : _list; // 구버전 단일 객체 호환
+                if (_pick) window.HorseShop.applyEquippedToHorse(horse, _pick);
             }
         }
 
@@ -1708,22 +1763,12 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             sortedUsers.forEach(userName => {
                 const nameTag = document.createElement('span');
                 const isMe = userName === currentUser;
+                nameTag.classList.add('race-name-tag');
+                nameTag.dataset.username = userName;
 
                 if (isMe) {
                     // 내 탈것: 금색 배경 + 검은 글씨 + 테두리 + 큰 폰트
-                    nameTag.style.cssText = `
-                        background: linear-gradient(135deg, var(--yellow-500), var(--yellow-600));
-                        color: var(--text-primary);
-                        padding: 2px 6px;
-                        border-radius: 4px;
-                        font-size: 11px;
-                        line-height: 16px;
-                        font-weight: bold;
-                        white-space: nowrap;
-                        border: 2px solid var(--bg-white);
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.6);
-                        text-shadow: 0 1px 1px rgba(255,255,255,0.5);
-                    `;
+                    nameTag.style.cssText = ME_NAMETAG_CSS;
                     nameTag.textContent = '⭐ ' + userName;
                 } else {
                     // 다른 사용자: 개선된 가독성
@@ -1741,6 +1786,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     `;
                     nameTag.textContent = userName;
                 }
+                applyLabelCosmetic(nameTag, userName, isMe, true);
                 namesContainer.appendChild(nameTag);
             });
 
@@ -4501,6 +4547,7 @@ function playReplay(record) {
         selectedVehicleTypes = originalSelectedVehicleTypes;
         userHorseBets = originalUserHorseBets;
         availableHorses = originalAvailableHorses;
+        flushPendingHorseSelection();
         if (currentUsers.length > 0) updateUsers(currentUsers);
         if (replayBtn) {
             replayBtn.disabled = false;
@@ -4519,7 +4566,7 @@ function playReplay(record) {
         const ro = document.getElementById('resultOverlay');
         if (ro) ro.classList.remove('visible');
         cleanupReplay();
-        renderHorseSelection();
+        returnToSelectionAfterReplay(); // 종료 시 선택 섹션 .active 복원 + 렌더 (4518에서 해제됨)
     });
 
     showCountdown();
@@ -4602,6 +4649,7 @@ function replayMissedRace() {
             selectedVehicleTypes = originalSelectedVehicleTypes;
             userHorseBets = originalUserHorseBets;
             availableHorses = originalAvailableHorses;
+            returnToSelectionAfterReplay();
         }, 100);
     }
 
@@ -4621,7 +4669,7 @@ function replayMissedRace() {
         userHorseBets = originalUserHorseBets;
         availableHorses = originalAvailableHorses;
         if (currentUsers.length > 0) updateUsers(currentUsers);
-        document.getElementById('horseReplaySection').style.display = 'block';
+        returnToSelectionAfterReplay();
     }
 
     function playOnce() {
@@ -5022,6 +5070,9 @@ socket.on('roomCreated', (data) => {
     if (window.FreeInvite && data.shortcode) {
         window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
     }
+    // 광고 코스메틱 재장착: 서버 transient(room.adCosmetics)는 leave/disconnect로 정리되므로
+    // 방 (재)입장 시 sessionStorage 장착 상태로 shop:adEquip 재emit해 서버를 다시 채운다.
+    if (window.ShopModule && typeof ShopModule.reapplyAdEquips === 'function') ShopModule.reapplyAdEquips();
 });
 
 socket.on('roomJoined', (data) => {
@@ -5123,6 +5174,9 @@ socket.on('roomJoined', (data) => {
     if (window.FreeInvite && data.shortcode) {
         window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
     }
+    // 광고 코스메틱 재장착: 서버 transient(room.adCosmetics)는 leave/disconnect로 정리되므로
+    // 방 (재)입장 시 sessionStorage 장착 상태로 shop:adEquip 재emit해 서버를 다시 채운다.
+    if (window.ShopModule && typeof ShopModule.reapplyAdEquips === 'function') ShopModule.reapplyAdEquips();
 });
 
 socket.on('roomError', (message) => {
@@ -5140,12 +5194,49 @@ socket.on('horseRaceError', (message) => {
 // readyError는 ReadyModule에서 처리
 
 // 말 선택 준비 이벤트
-socket.on('horseSelectionReady', async (data) => {
-    // 🔧 경주 중이면 무시 (트랙 초기화 방지)
+// 다시보기 재생 중 보관해 둔 다음 라운드 선택 이벤트를 적용 (적용했으면 true)
+function flushPendingHorseSelection() {
+    if (pendingHorseSelectionReady && !isRaceActive) {
+        var d = pendingHorseSelectionReady;
+        pendingHorseSelectionReady = null;
+        applyHorseSelectionReady(d);
+        return true;
+    }
+    return false;
+}
+
+// 다시보기(놓친 경주) 종료 후 평소 준비/선택 화면으로 복귀 — 막다른 배너 닫기
+function returnToSelectionAfterReplay() {
+    var banner = document.getElementById('horseReplaySection');
+    if (banner) banner.style.display = 'none';
+    // 재생 중 열린 다음 라운드 선택이 있으면 적용 → 그리드 즉시 표시
+    if (flushPendingHorseSelection()) return;
+    // 보유한 선택 데이터로 탈것 선택 섹션을 다시 띄워 사용자가 고를 수 있게 한다.
+    // (놓친 경주는 라이브 showRaceResult(4088 .active 복원)가 안 돌아 섹션이 숨겨진 채 남음 — 여기서 복원)
+    var hss = document.getElementById('horseSelectionSection');
+    if (hss && !isRaceActive && availableHorses && availableHorses.length > 0) {
+        hss.classList.add('active');
+        renderHorseSelection();
+    }
+    if (typeof updateReadyButton === 'function') updateReadyButton();
+}
+
+socket.on('horseSelectionReady', (data) => {
+    // 🔧 경주/다시보기 중이면 트랙 초기화 방지 위해 즉시 처리하지 않음.
+    //    단, 다시보기 재생 중 도착분은 버려지면 종료 후 선택 그리드가 영영 안 뜨므로 보관 후 종료 시 적용.
     if (isRaceActive) {
-        console.log('[horseSelectionReady] 경주 중이므로 무시');
+        if (isReplayActive) pendingHorseSelectionReady = data;
+        else console.log('[horseSelectionReady] 경주 중이므로 무시');
         return;
     }
+    applyHorseSelectionReady(data);
+});
+
+async function applyHorseSelectionReady(data) {
+    // 새 선택 라운드 진입 → 놓침 배너/상태 해제 (이전 라운드 다시보기 안내는 더 이상 유효하지 않음)
+    missedHorseRace = false;
+    var _missedBanner = document.getElementById('horseReplaySection');
+    if (_missedBanner) _missedBanner.style.display = 'none';
 
     availableHorses = data.availableHorses || [];
     userHorseBets = data.userHorseBets || {};
@@ -5208,8 +5299,8 @@ socket.on('horseSelectionReady', async (data) => {
     setTimeout(() => {
         renderHorseSelection();
     }, 100);
-    
-});
+
+}
 
 // 트랙 길이 변경 이벤트
 socket.on('trackLengthChanged', (data) => {
@@ -5352,6 +5443,7 @@ socket.on('horseRaceCountdown', (data) => {
         if (resultOverlay) resultOverlay.classList.remove('visible');
         isRaceActive = false;
         isReplayActive = false;
+        pendingHorseSelectionReady = null; // 새 라운드 시작으로 다시보기 강제중단 — 보관된 선택 이벤트 폐기(stale 적용 방지)
     }
 
     addDebugLog(`카운트다운 시작: ${data.duration}초`, 'race');
@@ -5401,7 +5493,7 @@ socket.on('horseRaceStarted', (data) => {
     lastHorseRaceData = data;
 
     // 꾸미기 페이로드 저장 (말별 canonical + 방장 연출) — 시각 렌더용, 결과 무관
-    window._raceCosmetics = { room: data.roomCosmetics || null, horses: data.horseCosmetics || {} };
+    window._raceCosmetics = { room: data.roomCosmetics || null, horses: data.horseCosmetics || {}, labels: data.labelCosmetics || {} };
     if (window.HorseShop) {
         window.HorseShop.applyRoomCosmetics(window._raceCosmetics.room); // 트랙 테마(없으면 정리만)
     }
@@ -5430,6 +5522,7 @@ socket.on('horseRaceStarted', (data) => {
 
     // 다시보기 중이면 즉시 중단
     removeReplayStopButton();
+    pendingHorseSelectionReady = null; // 새 경주 시작으로 다시보기 강제중단(미관전·관전 양 분기 공통) — 보관된 선택 이벤트 폐기(stale 적용 방지)
     if (window._raceAnimFrameId) {
         cancelAnimationFrame(window._raceAnimFrameId);
         window._raceAnimFrameId = null;
@@ -5715,6 +5808,14 @@ socket.on('hostTransferred', (data) => {
 socket.on('kicked', (message) => {
     showCustomAlert(message, 'info');
     location.reload();
+});
+
+// 다른 곳에서 같은 닉네임으로 접속 → 이 세션 종료 (최신 접속 우선). reload 금지(핑퐁 방지).
+socket.on('sessionTakenOver', (message) => {
+    try { sessionStorage.removeItem('horseRaceActiveRoom'); } catch (e) {}
+    try { socket.disconnect(); } catch (e) {}  // 소켓 즉시 종료 → 재연결·재입장 차단(핑퐁 방지)
+    showCustomAlert(message || '다른 곳에서 접속하여 연결이 종료되었습니다.', 'info');
+    setTimeout(() => { window.location.replace('/game'); }, 2500);
 });
 
 // 호스트 변경 알림

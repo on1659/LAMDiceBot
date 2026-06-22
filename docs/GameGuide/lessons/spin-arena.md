@@ -234,6 +234,93 @@
 
 ---
 
+### 2026-06-17 — 듀얼 결판률은 링 반경에 가장 민감하다
+
+**상황:** spin-arena 토너먼트 듀얼 밸런싱. 소-N 서든데스(2인) 듀얼에서 fallback(타임아웃 무승부)률을 낮추려 여러 상수를 튜닝.
+
+**함정/실수:** HIT_DPS·FINALE_PULL을 만지는 것보다 DUEL_RING_R(듀얼 링 반경)이 압도적으로 효과가 컸다. 다른 상수 위주로 접근하면 헛돈다.
+
+**증상:** DUEL_RING_R 80→64 단일 변경만으로 fallback%가 ~30%에서 ~1%로 급락.
+
+**해결/예방:** 좁은 링 = 칼날이 상시 접촉 = HP-0 보장. 듀얼 결판률 문제는 먼저 링 반경부터 조인다. DPS/풀(pull) 튜닝은 그 다음.
+
+**관련:** `socket/spin-arena.js` DUEL_RING_R/simulateDuel
+
+---
+
+### 2026-06-17 — 결정론 sub-seed는 slotId 정렬쌍 기반으로 페어링 순서와 디커플하라
+
+**상황:** 라운드마다 두 명을 1v1 듀얼로 짝지을 때 각 듀얼의 결정론 sub-seed 생성.
+
+**함정/실수:** sub-seed를 페어링 인덱스/순서에 묶으면, 같은 두 명이라도 만난 경로에 따라 듀얼 결과가 달라진다. 또 `Math.imul`로 "최적화"하면 모든 시드가 깨진다.
+
+**증상:** (잠재) 2탭 불일치 / 시드 회귀.
+
+**해결/예방:** `(seed ^ roundIdx*0x9E3779B1 ^ min(a,b)*0x85EBCA77 ^ max(a,b)*0xC2B2AE35)>>>0` — slotId 정렬쌍(min/max) 기반이라 페어링 순서와 무관, 같은 두 명은 어느 경로로 만나도 같은 듀얼. n≤24에서 곱은 2^53 미만이라 float64 정확, `^`/`>>>0`의 ToInt32가 V8 간 byte-identical 보장. **Math.imul로 바꾸지 마라** — 곱 결과 비트가 달라져 전 시드 붕괴.
+
+**관련:** `socket/spin-arena.js` duelSubSeed
+
+---
+
+### 2026-06-17 — Slice 분리 시 직전 Slice가 미러 상수 정의를 미리 지우면 잠복 ReferenceError가 생긴다
+
+**상황:** 서버 Slice(1) → 클라 Slice(2) 분리 구현.
+
+**함정/실수:** 서버 Slice에서 (구 모델용) 미러 상수의 정의를 미리 제거했는데, 클라의 죽은 렌더 경로가 여전히 그 상수를 참조 → 런타임 ReferenceError가 잠복.
+
+**증상:** `node -c`(문법 체크)는 통과한다 — 런타임 미정의 참조를 못 잡는다. 가짜 ctx + 실제 payload로 렌더 루프를 구동하는 헤드리스 스모크 테스트에서만 드러난다.
+
+**해결/예방:** 서버/클라 슬라이스를 나눌 때 클라 슬라이스는 죽은 렌더 경로를 "리팩터"가 아니라 "제거"해야 한다. 문법 체크에 의존하지 말고 헤드리스 렌더 스모크로 검증.
+
+**관련:** `js/spin-arena.js` 렌더 경로, `node -c` 한계
+
+---
+
+### 2026-06-17 — 공정성 게이트는 200시드로는 거칠다
+
+**상황:** 토너먼트 bye/당첨 슬롯 분포의 공정성을 200시드 배치 게이트로 검증.
+
+**함정/실수:** bye/당첨 슬롯이 ~2배 편향돼도 N=200·3× slack 게이트를 통과한다 — 슬롯당 카운트가 작아 분산이 커서 편향이 노이즈에 묻힌다.
+
+**증상:** 배치 게이트 녹색인데 실제 슬롯 분포는 편향.
+
+**해결/예방:** 진짜 공정성 권위는 더 큰 N(10k+) 또는 chi-square 검정이다. 200시드 배치는 결정론·구조 검증용으로만 쓰고 공정성 판정 권위로 삼지 마라.
+
+**관련:** `AutoTest/spin-arena-determinism-test.js` 공정성 게이트
+
+---
+
+### 2026-06-17 — 기본 칼날 수↓ → 듀얼 fallback 비선형 폭증 + 캔버스 그룹 페이드는 alpha 덮어쓰기 헬퍼엔 안 먹는다 (feel-v5 잔여)
+
+**상황:** feel-v5 가독성/연출 튜닝 잔여 메모.
+
+**함정/실수:** (1) 기본 칼날 수를 줄이면 결승/듀얼 fallback이 비선형으로 폭증한다 — 칼날은 면적 판정이라 개수↓가 DPS에 직접 비례하지 않는다. (2) 캔버스 그룹 페이드(globalAlpha)는 내부에서 alpha를 절대값으로 덮어쓰는 헬퍼(`drawBladeSet`/`drawTierAura`)엔 안 먹는다.
+
+**증상:** (1) 칼날 줄였더니 무승부 급증. (2) 페이드 중인데 칼날/오라가 그대로 불투명.
+
+**해결/예방:** (1) fallback 회복은 HIT_DPS+FINALE_PULL 동시 상향, 권위는 배치 스윕. (2) 페이드 구간엔 해당 헬퍼 호출을 생략하거나 alpha 인자를 전달.
+
+**관련:** `js/spin-arena.js` drawBladeSet/drawTierAura, `socket/spin-arena.js` HIT_DPS/FINALE_PULL
+
+---
+
+### 2026-06-18 — 연출 비트 상수는 서버 durationMs·클라 세그타임라인·테스트 3곳 미러 + 헤드리스 스모크로 Σ===durationMs 강제
+
+**상황:** 토너먼트를 순차 중계연출(대진표→N강 인트로→듀얼 인트로/전투/아웃트로/암전→부전패 비트)로 전환. 전체 리플레이 길이가 듀얼 합이 아니라 모든 연출 비트의 합이 됐다.
+
+**함정/실수:** 서버는 `endTimeout = COUNTDOWN_MS + durationMs + RESULT_HOLD_MS`로 종료를 잡는데, `durationMs`는 서버가 산출하고 실제 재생 길이는 클라 세그먼트 타임라인이 만든다. 둘이 **같은 비트 상수·같은 합산식**으로 계산되지 않으면(예: 클라가 한 비트를 빼먹거나 상수 1ms 불일치) 결과 오버레이/gameEnd가 **조기 또는 지연 발화**한다. `node -c`(문법)·2탭 byte-identical(둘 다 같은 서버 payload를 받으므로 자기일관)로는 **안 잡힌다** — 클라 합산이 서버식과 다를 때만 어긋나는데 두 검증 모두 그 축을 안 본다.
+
+**증상:** (선제 회피) 헤드리스 스모크에서 `clientTimeline.total !== payload.durationMs`로만 잡힘. 라이브에선 "결과창이 마지막 듀얼 끝나기 전에 뜸" 또는 "끝났는데 한참 검은 화면"으로 나타날 것.
+
+**해결/예방:**
+- 연출 비트 상수(`BRACKET_OVERVIEW_MS`/`ROUND_INTRO_MS`/`DUEL_INTRO_MS`/`DUEL_OUTRO_MS`/`DUEL_BLACKOUT_MS`/`BYE_BEAT_MS`)를 **서버(`socket/spin-arena.js`) + 클라(`js/spin-arena.js`) + 양 테스트**에 verbatim 미러하고 "박제: 양쪽 동일" 주석.
+- 합산식도 **term-for-term 동형**: `overview + Σ_rounds[roundintro + Σ_duels(intro+duel.durationMs+outro+blackout) + byes×beat]`. `rounds.length>0` 가드까지 동일.
+- **헤드리스 렌더 스모크**(`AutoTest/spin-arena-render-smoke.js`: 가짜 2D ctx + 실제 `simulate()` payload)로 `clientSegTimeline.total === payload.durationMs`를 n별·reduced-motion별 단언 → off-by-one 즉시 검출. 4개 경로(서버/클라/2탭/스모크)가 동일 식으로 수렴해야 안전.
+
+**관련:** `socket/spin-arena.js` durationMs 산출, `js/spin-arena.js` spinBuildSegmentTimeline, `AutoTest/spin-arena-render-smoke.js`, `AutoTest/spin-arena-2tab-test.js`
+
+---
+
 ## 추가 형식
 
 ```markdown

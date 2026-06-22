@@ -13,16 +13,16 @@
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>LAM 회전 칼날 ⚔️</title>
-    <meta name="description" content="친구와 함께하는 실시간 회전 칼날 게임. 40초 동안 회전하는 검으로 서로를 많이 칠수록 안전! 적게 친 사람이 당첨(벌칙)이고, 여럿이면 최하위 3명이 결승에서 맞붙어 먼저 쓰러지면 당첨!">
+    <meta name="description" content="친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명.">
     <meta property="og:title" content="LAM 회전 칼날 ⚔️">
-    <meta property="og:description" content="친구와 함께하는 실시간 회전 칼날 게임. 40초 동안 회전하는 검으로 서로를 많이 칠수록 안전! 적게 친 사람이 당첨(벌칙)이고, 여럿이면 최하위 3명이 결승에서 맞붙어 먼저 쓰러지면 당첨!">
+    <meta property="og:description" content="친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/spin-arena">
     <meta property="og:site_name" content="LAMDice">
     <meta property="og:locale" content="ko_KR">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="LAM 회전 칼날 ⚔️">
-    <meta name="twitter:description" content="친구와 함께하는 실시간 회전 칼날 게임. 40초 동안 회전하는 검으로 서로를 많이 칠수록 안전! 적게 친 사람이 당첨(벌칙)이고, 여럿이면 최하위 3명이 결승에서 맞붙어 먼저 쓰러지면 당첨!">
+    <meta name="twitter:description" content="친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명.">
     <link rel="canonical" href="https://lamdice.com/spin-arena">
 
     <!-- FOUC Prevention: Always use light theme -->
@@ -51,7 +51,7 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "LAMDice 회전 칼날",
-      "description": "친구와 함께하는 실시간 회전 칼날 게임. 40초 동안 회전하는 검으로 서로를 많이 칠수록 안전! 적게 친 사람이 당첨(벌칙)이고, 여럿이면 최하위 3명이 결승에서 맞붙어 먼저 쓰러지면 당첨!",
+      "description": "친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명.",
       "url": "https://lamdice.com/spin-arena",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Web Browser",
@@ -64,7 +64,7 @@
         <div style="padding:40px; text-align:center; font-family:sans-serif;">
             <h1>LAMDice 회전 칼날</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
-            <p>친구와 함께하는 실시간 회전 칼날 게임. 40초 동안 회전하는 검으로 서로를 많이 칠수록 안전! 적게 친 사람이 당첨(벌칙)이고, 여럿이면 최하위 3명이 결승에서 맞붙어 먼저 쓰러지면 당첨! 회원가입 없이 무료로 플레이할 수 있습니다.</p>
+            <p>친구와 함께하는 실시간 1v1 회전 칼날 토너먼트. 둘씩 맞붙어 이기면 안전, 지면 다음 라운드로 — 끝까지 진 1명이 당첨(벌칙)! 최대 24명. 회원가입 없이 무료로 플레이할 수 있습니다.</p>
             <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
         </div>
     </noscript>
@@ -223,7 +223,7 @@
                     <!-- 리플레이 중 채팅 오버레이 (경마 raceChatOverlay CSS 재사용 — 페이지별 link라 경마 무영향) -->
                     <div id="raceChatOverlay"></div>
                 </div>
-                <!-- 랭크 UI는 캔버스 내(drawSpinRankPanel, 좌상단 top-N)로 이동 — readability-v2 #9. DOM #spinHpPanel 제거. -->
+                <!-- 토너먼트 리더보드는 캔버스 내(라운드 헤더 + 듀얼별 HP바)로 표시 — DOM #spinHpPanel 없음. -->
                 <button id="spinReplayBtn" onclick="toggleSpinReplay()" style="display: none;">🎬 다시보기</button>
             </section>
 
@@ -294,7 +294,7 @@
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/shared/shop-shared.js"></script>
     <script src="/js/spin-shop.js?v=1"></script>
-    <script src="/js/spin-arena.js?v=24"></script>
+    <script src="/js/spin-arena.js?v=27"></script>
 
     <script>
         // ============================================
@@ -411,7 +411,7 @@
     <!-- SEO Content Section (hidden, crawlers only) -->
     <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 회전 칼날 게임 안내</h2>
-        <p>LAMDice 회전 칼날은 친구들과 함께 즐기는 무료 온라인 게임입니다. 검을 단 캐릭터들이 원형 아레나에서 부딪칩니다. 40초 동안 회전하는 검으로 다른 플레이어를 많이 칠수록 안전하고, 가장 적게 친 사람이 당첨(벌칙)으로 정해져요. 참가 인원이 6명 이상이면 40초가 끝난 뒤 가장 적게 친 최하위 3명이 좁아지는 결승 링에서 맞붙어, 먼저 쓰러지는 1명이 당첨이 됩니다. 나머지는 모두 안전(승자)이에요. 최대 24명까지 함께 즐길 수 있고, 카메라가 단계에 맞춰 전장 전체와 결승 3인을 자동으로 비춰주며 미니맵으로 상황을 한눈에 볼 수 있습니다. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
+        <p>LAMDice 회전 칼날은 친구들과 함께 즐기는 무료 온라인 1v1 토너먼트 게임입니다. 검을 단 캐릭터들이 둘씩 좁은 링에서 맞붙어 회전하는 검으로 겨룹니다. 듀얼에서 이기면 그 자리에서 안전(탈출)하고, 지면 다음 라운드로 넘어가 다시 맞붙어요. 이렇게 라운드를 거듭하다 끝까지 진 마지막 1명이 당첨(벌칙)으로 정해집니다. 최대 24명까지 함께 즐길 수 있고, 카메라가 진행 중인 듀얼을 자동으로 비춰주며 미니맵으로 전체 토너먼트 상황을 한눈에 볼 수 있습니다. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
             <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
             <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>
@@ -479,28 +479,28 @@
         },
         {
             target: '#spinArenaWrap',
-            title: '4단계: 40초 데미지 레이스',
-            content: '40초 동안 회전하는 검으로 다른 플레이어를 많이 칠수록 안전해요! 머리 위 금색 바가 내 점수(누적 데미지)입니다. 가장 적게 친 사람이 당첨(벌칙)이에요.',
+            title: '4단계: 1v1 듀얼',
+            content: '둘씩 짝지어 좁은 링에서 회전하는 검으로 맞붙어요. 상대를 쓰러뜨리고 이기면 그 자리에서 안전(탈출)! 지면 다음 라운드로 넘어가 다시 듀얼합니다.',
             position: 'top',
             fallbackTarget: '#gameStatus'
         },
         {
             target: '#spinArenaWrap',
-            title: '5단계: 결승전 (6명 이상)',
-            content: '6명 이상이면 40초가 끝난 뒤 가장 적게 친 최하위 3명이 결승에 올라가요. 좁아지는 링에서 맞붙어 먼저 쓰러지는 1명이 당첨! 나머지는 모두 안전(승자)입니다.',
+            title: '5단계: 토너먼트 진행',
+            content: '이긴 사람은 안전하게 빠지고, 진 사람들끼리 라운드를 거듭하며 계속 맞붙어요. 끝까지 진 마지막 1명이 당첨(벌칙)입니다.',
             position: 'top',
             fallbackTarget: '#gameStatus'
         },
         {
             target: '#startSpinButton',
             title: '6단계: 게임 시작',
-            content: '호스트가 이 버튼을 누르면 3-2-1 카운트다운 후 시작됩니다. 카메라는 전장 전체와 결승 3인을 자동으로 비춰줘요. 결과는 서버에서 공정하게 결정됩니다.',
+            content: '호스트가 이 버튼을 누르면 3-2-1 카운트다운 후 시작됩니다. 카메라는 진행 중인 듀얼을 자동으로 비춰줘요. 결과는 서버에서 공정하게 결정됩니다.',
             position: 'top'
         },
         {
             target: '.chat-section',
             title: '7단계: 채팅과 결과',
-            content: '게임 중에는 채팅이 아레나 위로 올라옵니다. 가장 적게 친 사람(또는 결승 패자)이 당첨(벌칙)! 끝나면 다시보기로 명장면을 복습하세요.',
+            content: '게임 중에는 채팅이 아레나 위로 올라옵니다. 끝까지 진 1명이 당첨(벌칙)! 끝나면 다시보기로 명장면을 복습하세요.',
             position: 'top'
         }
     ];

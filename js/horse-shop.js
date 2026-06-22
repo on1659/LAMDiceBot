@@ -21,7 +21,7 @@
         { key: 'paint', label: '🎨 도색' },
         { key: 'trail', label: '✨ 트레일' },
         { key: 'accessory', label: '👑 액세서리' },
-        { key: 'bib', label: '🔢 마번' },
+        { key: 'bib', label: '🏷️ 이름표' },
         { key: 'track_theme', label: '🏞️ 트랙테마' },
         { key: 'finish_fx', label: '🎆 결승연출' }
     ];
@@ -73,7 +73,9 @@
             var bb = document.createElement('span');
             bb.className = 'hshop-preview-bib';
             bb.setAttribute('aria-hidden', 'true');
-            bb.textContent = '3';
+            var _nm = '이름';
+            try { var _a = JSON.parse(localStorage.getItem('userAuth') || 'null'); if (_a && _a.name) _nm = _a.name; } catch (e) {}
+            bb.textContent = _nm;   // 사용자 입력 → textContent (안전)
             if (item.color) bb.style.color = item.color;
             if (item.bg) bb.style.background = item.bg;
             if (item.border) bb.style.borderColor = item.border;
@@ -136,6 +138,85 @@
         return null;
     }
 
+    // ── 인벤토리 큰 미리보기 (내 탈것 + 현재 장착 전부 합성) ──
+    // 내가 고른 탈것을 알면 그걸, 모르면 'car'(상점은 탈것 선택 전에도 열림). 전역은 가드하며 읽음.
+    function myVehicleType() {
+        try {
+            var sel = window.selectedVehicleTypes;
+            var bets = window.userHorseBets;
+            var me = window.currentUser;
+            if (sel && bets && me != null) {
+                var idx = bets[me];
+                if (idx != null && sel[idx]) return sel[idx];
+            }
+        } catch (e) {}
+        return PREVIEW_VEHICLE;
+    }
+
+    // 지정 탈것 SVG 1프레임 HTML (없으면 빈 문자열) — sampleVehicleHTML의 vehicle 가변 버전.
+    function vehicleHTML(vehicleType) {
+        if (typeof getVehicleSVG !== 'function') return '';
+        try {
+            var svgs = getVehicleSVG(vehicleType);
+            if (!svgs) return '';
+            var data = svgs.idle || svgs.run || svgs.rest || svgs;
+            return (data && data.frame1) ? data.frame1 : (svgs.frame1 || '');
+        } catch (e) { return ''; }
+    }
+
+    // 인벤토리 상단 큰 미리보기 노드. mergedEquipped() 기준(실제 탈것에 보이는 것과 동일).
+    // paint=sprite filter, trail/accessory=오버레이, bib=이름 라벨. 장착 0개면 빈 탈것이 안전하게 나옴.
+    function buildInventoryPreview() {
+        var eq = mergedEquipped();
+
+        var box = document.createElement('div');
+        box.className = 'hshop-inv-preview';
+
+        if (eq.trail) {
+            var trail = findItem('trail', eq.trail);
+            if (trail && trail.emoji) {
+                var tr = document.createElement('span');
+                tr.className = 'hshop-inv-trail';
+                tr.setAttribute('aria-hidden', 'true');
+                tr.textContent = trail.emoji + trail.emoji + trail.emoji;
+                box.appendChild(tr);
+            }
+        }
+
+        var sprite = document.createElement('div');
+        sprite.className = 'hshop-inv-sprite';
+        sprite.innerHTML = vehicleHTML(myVehicleType()); // 상수 SVG (유저입력 없음)
+        var paint = eq.paint ? findItem('paint', eq.paint) : null;
+        if (paint && paint.filter) sprite.style.filter = paint.filter;
+        box.appendChild(sprite);
+
+        if (eq.accessory) {
+            var acc = findItem('accessory', eq.accessory);
+            if (acc && acc.emoji) {
+                var ac = document.createElement('span');
+                ac.className = 'hshop-inv-acc';
+                ac.setAttribute('aria-hidden', 'true');
+                ac.textContent = acc.emoji;
+                box.appendChild(ac);
+            }
+        }
+
+        var bb = document.createElement('span');
+        bb.className = 'hshop-inv-bib';
+        var _nm = '이름';
+        try { var _a = JSON.parse(localStorage.getItem('userAuth') || 'null'); if (_a && _a.name) _nm = _a.name; } catch (e) {}
+        bb.textContent = _nm;   // 사용자 입력 → textContent (안전)
+        var bib = eq.bib ? findItem('bib', eq.bib) : null;
+        if (bib) {
+            if (bib.color) bb.style.color = bib.color;
+            if (bib.bg) bb.style.background = bib.bg;
+            if (bib.border) bb.style.borderColor = bib.border;
+        }
+        box.appendChild(bb);
+
+        return box;
+    }
+
     // ── 카탈로그 헬퍼 (ShopModule getter 위임) ──────────────
 
     function getCatalog() { return ShopModule.getCatalog(); }
@@ -151,7 +232,7 @@
         equipped = equipped || {};
 
         // 멱등: 이전 cosmetic-* 자식 제거
-        var stale = horseEl.querySelectorAll('.cosmetic-accessory, .cosmetic-trail, .cosmetic-bib');
+        var stale = horseEl.querySelectorAll('.cosmetic-accessory, .cosmetic-trail');
         for (var i = 0; i < stale.length; i++) stale[i].remove();
 
         // paint → .vehicle-sprite filter (.horse가 아니라: 이벤트 연출이 .horse filter 점유)
@@ -180,32 +261,48 @@
             accEl.textContent = acc.emoji;
             horseEl.appendChild(accEl);
         }
+        // bib(이름표)는 .horse가 아니라 닉네임 라벨(.race-name-tag)에 적용 — getLabelStyle 참조.
+    }
 
-        // bib → 마번 배지 (탈것 번호 = horseIndex+1, 카탈로그 색상)
-        var bib = findItem('bib', equipped.bib);
-        if (bib) {
-            var num = '#';
-            var m = (horseEl.id || '').match(/horse_(\d+)/);
-            if (m) num = String(parseInt(m[1], 10) + 1);
-            var bibEl = document.createElement('span');
-            bibEl.className = 'cosmetic-bib';
-            bibEl.setAttribute('aria-hidden', 'true');
-            bibEl.textContent = num;
-            if (bib.color) bibEl.style.color = bib.color;
-            if (bib.bg) bibEl.style.background = bib.bg;
-            if (bib.border) bibEl.style.borderColor = bib.border;
-            horseEl.appendChild(bibEl);
+    // bibId → 이름표 라벨 스타일. 카탈로그 미로드/미존재 시 null.
+    function getLabelStyle(bibId) {
+        var item = bibId ? findItem('bib', bibId) : null;
+        if (!item) return null;
+        return { color: item.color || null, bg: item.bg || null, border: item.border || null };
+    }
+
+    // 내가 현재 장착한 이름표 id (선택화면 자기 미리보기용). 없으면 null.
+    function getMyEquippedLabel() { return mergedEquipped().bib || null; }
+    // 내 이름표 라벨의 라이브 재색칠 책임은 horse-race.js(window.refreshMyNameTags)로 일원화 —
+    // 스타일 소유권을 렌더 쪽에 두고, 셀렉터에 유저입력(닉네임)을 넣지 않기 위함.
+
+    // 미인증 시 일반 상품 클릭 → 로그인 모달 유도(셸은 게임 중립이라 typeof 가드 필수).
+    function promptLogin() {
+        if (typeof ServerSelectModule !== 'undefined' && ServerSelectModule.showLoginModal) {
+            ServerSelectModule.showLoginModal();
+        } else if (typeof showCustomAlert === 'function') {
+            showCustomAlert('로그인 후 이용할 수 있어요.');
         }
     }
 
-    // 내 장착(서버 권위)을 .horse 에 적용.
+    // 내 DB 장착 + 광고 장착(슬롯 단위로 광고가 우선)을 병합. 광고는 서버 broadcast와 동일 의미.
+    function mergedEquipped() {
+        var merged = {};
+        var dbEq = getEquipped() || {};
+        Object.keys(dbEq).forEach(function (slot) { merged[slot] = dbEq[slot]; });
+        var adEq = (ShopModule.getAdWallet && ShopModule.getAdWallet().equipped) || {};
+        Object.keys(adEq).forEach(function (slot) { merged[slot] = adEq[slot]; });
+        return merged;
+    }
+
+    // 내 장착(서버 권위 + 광고 transient)을 .horse 에 적용.
     function applyToHorse(horseEl) {
         if (!horseEl) return;
         if (!getCatalog()) {
             ShopModule.loadCatalog().then(function () { applyToHorse(horseEl); }).catch(function () {});
             return;
         }
-        applyEquippedToHorse(horseEl, getEquipped());
+        applyEquippedToHorse(horseEl, mergedEquipped());
     }
 
     function applyToActiveHorses() {
@@ -268,10 +365,21 @@
         title: '꾸미기 상점',
         subtitle: '경마 · 내 탈것',
         slots: SLOTS,
+        // 미인증(게스트/만료토큰)도 ad-티어로 상점 진입 허용 (v1 경마 한정). 스핀은 이 플래그 없음 → 토큰 필수.
+        allowGuestShop: true,
         hooks: {
             buildPreview: buildPreview,
-            // horse는 잠금/선행조건 없음 — 소유=owns(id), 항상 구매가능.
+            // 인벤토리('내 아이템') 메인탭 상단 큰 미리보기 — mergedEquipped 합성을 어댑터에서 빌드.
+            buildInventoryPreview: buildInventoryPreview,
+            // 인벤토리 카드 장착표시를 "실제 탈것에 보이는 것"과 일치시키기 위한 현재 장착(슬롯→id) 조회.
+            // 광고>코인(같은 슬롯 광고 우선). 셸은 이 단일 진실로 ✓를 1개에만 표시.
+            mergedEquipped: mergedEquipped,
+            // 일반(비-광고) 아이템 상태. ad 아이템은 셸이 ad-wallet 기준으로 별도 처리(여기 미진입).
+            // 미인증(게스트/만료토큰)이면 일반 상품은 잠금 → 클릭 시 로그인 유도.
             itemState: function (item) {
+                if (!ShopModule.isAuthed()) {
+                    return { owned: false, buyable: false, lockLabel: '로그인하세요', onLockedClick: promptLogin };
+                }
                 var owned = ShopModule.getWallet().owned.indexOf(item.id) !== -1;
                 return { owned: owned, buyable: true };
             },
@@ -280,10 +388,20 @@
                     ? '연출 꾸미기는 방장이 장착하면 방 전체에 적용돼요. 게임 결과엔 영향 없어요.'
                     : '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
             },
-            // 인증/지갑 동기화 직후 — 내 활성 말에 장착 반영
-            onWalletSynced: function () { applyToActiveHorses(); },
-            // 장착/해제 직후 — 내 활성 말에 장착 반영 (force 무관)
-            onEquipApplied: function () { applyToActiveHorses(); }
+            // free 서버(자유플레이·로그인 없음 → currentServerId === null)에서는 코인 경제가
+            // 실제로 돌지 않으므로 코인샵 카드 대신 안내문만 보여준다. 잠금이면 안내 카피 반환,
+            // 정규 서버면 null → 셸 기본 카드 렌더. 광고샵('ad')엔 영향 없음(셸이 'coin' 한정 호출).
+            coinShopLocked: function () {
+                return (window.currentServerId == null)
+                    ? '여기서는 코인샵을 사용할 수 없어요. 서버를 새로 만들어 진행해 주세요.'
+                    : null;
+            },
+            // 인증/지갑 동기화 직후 — 내 활성 말 + 이름표 라벨에 장착 반영
+            onWalletSynced: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 장착/해제 직후 — 내 활성 말 + 이름표 라벨에 장착 반영 (force 무관)
+            onEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 광고 코스메틱 장착/해제 직후 — 내 활성 말 + 이름표 라벨에 즉시 반영
+            onAdEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); }
             // onPurchased: no-op (구매만으로 외관 변화 없음 — 장착 시 반영)
         }
     });
@@ -304,6 +422,11 @@
         playFinishFx: playFinishFx,
         getEquipped: getEquipped,
         getCatalogItem: getCatalogItem,
+        getLabelStyle: getLabelStyle,
+        getMyEquippedLabel: getMyEquippedLabel,
         isAuthed: function () { return ShopModule.isAuthed(); }
     };
+
+    // 이름표 색 해석은 카탈로그가 로드돼야 한다. 레이스 전에 미리 캐시(멱등 — 중복 무해).
+    ShopModule.loadCatalog().catch(function () {});
 })();

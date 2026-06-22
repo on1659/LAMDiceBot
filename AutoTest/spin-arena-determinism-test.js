@@ -19,12 +19,18 @@ const sa = require(path.join(__dirname, '..', 'socket', 'spin-arena.js'));
 const { simulate, rankHumans, buildSuccession, duelSubSeed } = sa;
 
 // ── socket/spin-arena.js 미러 상수 ──
-const GAME_MS = 76000;
+const GAME_MS = 340000;
 const SAMPLE_MS = 100;
-const DUEL_MAX_MS = 12000;
+const DUEL_MAX_MS = 8000;
 const DECIDE_TAIL_MS = 1200;
 const MIN_ROUND_MS = 3000;
-const ROUND_TRANSITION_MS = 1200;
+// 연출 비트(SEQUENTIAL 브로드캐스트) — 서버 socket/spin-arena.js 와 동일 값
+const BRACKET_OVERVIEW_MS = 3500;
+const ROUND_INTRO_MS = 2000;
+const DUEL_INTRO_MS = 1500;
+const DUEL_OUTRO_MS = 1500;
+const DUEL_BLACKOUT_MS = 700;
+const BYE_BEAT_MS = 1500;
 const DUEL_RING_R = 64;
 const CHAR_RADIUS = 14;
 const ARENA_CX = 240, ARENA_CY = 240;
@@ -88,9 +94,21 @@ function expectedMainRngCount(bracket, n) {
     // (2) 풀 절반화 → 1
     let risk = b.poolOrder.length;
     const byeBySlot = {};   // 디버그
-    for (const r of b.rounds) {
+    for (let ri = 0; ri < b.rounds.length; ri++) {
+      const r = b.rounds[ri];
       const nd = r.duels.length, nb = r.byes.length;
       if (nd * 2 + nb !== risk) issues.push(`round ${r.roundIdx}: ${nd}*2+${nb} != at-risk ${risk}`);
+      // poolSize(라운드 진입 풀) — 존재/정수, [0]==n, 연속 ≈ ceil(prev/2)(loser-bracket 절반화), duels*2+byes 일치.
+      if (typeof r.poolSize !== 'number' || !Number.isInteger(r.poolSize)) issues.push(`round ${r.roundIdx} poolSize 비정상 (${r.poolSize})`);
+      else {
+        if (ri === 0 && r.poolSize !== n) issues.push(`round0 poolSize ${r.poolSize} != n ${n}`);
+        if (r.poolSize !== nd * 2 + nb) issues.push(`round ${r.roundIdx} poolSize ${r.poolSize} != duels*2+byes ${nd * 2 + nb}`);
+        if (ri > 0) {
+          const prev = b.rounds[ri - 1].poolSize;
+          const exp = Math.ceil(prev / 2);
+          if (r.poolSize !== exp) issues.push(`round ${r.roundIdx} poolSize ${r.poolSize} != ceil(prev/2) ${exp}`);
+        }
+      }
       // (3) 모든 듀얼 결판 + slot 유효
       for (const d of r.duels) {
         if (d.decideMs === null || d.decideMs === undefined) issues.push(`duel ${d.duelId} decideMs null`);
@@ -143,10 +161,18 @@ function expectedMainRngCount(bracket, n) {
       if (di < dj) { issues.push(`succession 순서 위반: ${succ[i - 1]}(d${di}) before ${succ[i]}(d${dj})`); break; }
     }
 
-    // 전체 durationMs
+    // 전체 durationMs — SEQUENTIAL 브로드캐스트: BRACKET_OVERVIEW_MS
+    //   + Σ_rounds[ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + d.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ], GAME_MS 캡.
+    //   rounds 없으면 0 유지(rounds.length>0 가드).
     let expTotal = 0;
-    for (const r of b.rounds) expTotal += r.durationMs;
-    if (b.rounds.length > 1) expTotal += ROUND_TRANSITION_MS * (b.rounds.length - 1);
+    if (b.rounds.length > 0) {
+      expTotal = BRACKET_OVERVIEW_MS;
+      for (const r of b.rounds) {
+        expTotal += ROUND_INTRO_MS;
+        for (const d of r.duels) expTotal += DUEL_INTRO_MS + d.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS;
+        expTotal += r.byes.length * BYE_BEAT_MS;
+      }
+    }
     expTotal = Math.min(GAME_MS, expTotal);
     if (sim.durationMs !== expTotal) issues.push(`durationMs ${sim.durationMs} != ${expTotal}`);
     if (sim.durationMs > GAME_MS) issues.push(`durationMs > GAME_MS`);

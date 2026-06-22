@@ -622,6 +622,12 @@ module.exports = (socket, io, ctx) => {
                         if (ladderChanged && ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
                     }
 
+                    // 광고 코스메틱(transient): 진짜 disconnect로 떠난 socket의 ad-장착 정리.
+                    // leaveRoom(rooms.js)에만 있던 정리를 실제 이탈 대다수 경로(탭 닫기/네트워크 끊김)에도 추가.
+                    if (room.adCosmetics && room.adCosmetics[socket.id]) {
+                        delete room.adCosmetics[socket.id];
+                    }
+
                     // 호스트가 나간 경우
                     if (wasHost) {
                         if (gameState.users.length > 0) {

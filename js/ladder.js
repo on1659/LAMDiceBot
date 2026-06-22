@@ -2011,6 +2011,14 @@ socket.on('kicked', (message) => {
     setTimeout(() => location.reload(), 800);
 });
 
+// 다른 곳에서 같은 닉네임으로 접속 → 이 세션 종료 (최신 접속 우선). reload 금지(핑퐁 방지).
+socket.on('sessionTakenOver', (message) => {
+    try { sessionStorage.removeItem('ladderActiveRoom'); } catch (e) {}
+    try { socket.disconnect(); } catch (e) {}  // 소켓 즉시 종료 → 재연결·재입장 차단(핑퐁 방지)
+    showCustomAlert(message || '다른 곳에서 접속하여 연결이 종료되었습니다.', 'info');
+    setTimeout(() => { window.location.replace('/game'); }, 2500);
+});
+
 socket.on('roomLeft', () => {
     sessionStorage.removeItem('ladderActiveRoom');
     if (roomExpiryInterval) { clearInterval(roomExpiryInterval); roomExpiryInterval = null; }

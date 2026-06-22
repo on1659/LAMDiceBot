@@ -118,6 +118,28 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-10. 중복 닉네임 인계(takeover) — dedent 필수 + 옛 탭 reload 금지
+
+같은 방에 이미 라이브로 연결된 닉네임과 같은 이름으로 새 접속이 들어올 때, `_1` 접미사 대신 **옛 접속을 끊고 새 접속이 슬롯을 인계**하도록 바꾼 작업에서 나온 함정 2가지.
+
+- **(서버) `if/else` 래핑 제거 시 재연결 본문 dedent를 빠뜨리면 슬롯이 사라진다.** `socket/rooms.js` joinRoom의 중복 판정은 `if (connectedUserWithSameName && !isSameTab) { _1 부여 } else { 재연결 슬롯 인계 …약 150줄… return; }` 구조였다. `_1` 분기를 없애고 "항상 인계"로 일반화하려면 **else 블록 본문을 `if (existingUser)` 직속으로 dedent**해야 `existingUser.id = socket.id`(슬롯 재바인딩)가 인계 케이스에서도 실행된다. dedent를 빠뜨리면 옛 socket.id로 슬롯이 남고, 1초 뒤 옛 소켓 disconnect 콜백(`socket/chat.js`)이 그 슬롯을 지워 **인계한 유저가 방에서 사라진다.** git diff만 보면 "왜 통째 dedent가 필수인지" 안 보이므로 특히 주의.
+  - 안전 계약: `existingUser.id = socket.id` 재할당은 **옛 소켓 `disconnect(true)`보다 먼저, 어떤 `await`보다도 먼저 동기 수행**해야 disconnect 콜백이 슬롯을 못 찾는다(보존). 옛 소켓 disconnect는 `setTimeout(…, 1000)`으로 지연해 emit 전달을 보장.
+- **(클라) 쫓겨난 옛 탭은 `location.reload()` 금지 — 핑퐁.** 옛 탭에 보내는 종료 안내는 **호스트 강퇴용 `kicked` 이벤트를 재사용하지 말고 별도 이벤트(`sessionTakenOver`)** 를 쓴다. `kicked` 핸들러는 `location.reload()`인데, 게임 진입 IIFE가 `sessionStorage['{game}ActiveRoom']`을 보고 **자동 재입장**하므로 reload하면 옛 탭이 다시 들어와 새 탭을 또 끊는 **무한 핑퐁**이 된다. 옛 탭 핸들러는 ① `sessionStorage.removeItem('{game}ActiveRoom')` ② 안내 ③ `location.replace('/game')`(reload 아님) 순으로 처리.
+  - 핑퐁 취약도는 게임별로 다르다: ladder/spin-arena/bridge-cross는 `runWhenSocketConnected`로 1회성 join이라 상대적 안전, **dice·horse-race는 `socket.off` 없는 영구 `connect` 리스너**가 있어 재연결마다 join을 재시도 → 가장 취약. → QA는 dice 또는 horse-race로 인계+재진입을 반드시 돌린다.
+- **검증:** `grep -rn "generateUniqueUserName"` 코드 사용처 0건, `grep -rn "sessionTakenOver"` 서버 emit 2 + 클라 핸들러 6(게임별 `*ActiveRoom` 키 정확, 특히 bridge는 `bridgeActiveRoom`) 매칭, 인계 후 `gameState.users`에 슬롯 1개 유지(2탭 같은 닉 → `_1` 없음·1명).
+- (출처: 2026-06-20 같은 방 중복 닉네임 인계 작업 — `docs/goal/duplicate-nickname-takeover.md`)
+
+---
+
+## C-11. 더티 워킹트리에서 `git diff` 라인 카운트로 공정성(Math.random 신규)을 판정하지 말 것
+
+- 공정성 검증("클라 `Math.random` 신규 0회")을 `git diff`의 추가 라인 수나 `grep -c` 라인 카운트로 판정하면, **작업 전부터 있던 미커밋 변경(working tree dirty)**·한 줄 다중 토큰·linter 재포맷 때문에 "신규 추가"를 **위양성**으로 본다 → 내 변경이 아닌 코드를 내 책임으로 오귀속(또는 그 반대로 위반을 놓침).
+- **해결:** 의심 토큰(`Math.random` 등)은 라인 카운트가 아니라 **발생 횟수 비교**(`git show HEAD:파일 | grep -o "Math.random" | wc -l` vs 현재 파일)와 **diff 헌크의 실제 컨텍스트**로 확정한다. 특히 더티 파일은 HEAD 대비 diff 전체가 내 변경이 아닐 수 있으니, 의심 헌크를 직접 읽어 "내 편집 영역 귀속"을 확인.
+- **검증:** 공정성 결론("신규 0")은 라인 수가 아니라 **호출 횟수 비교 + 헌크 귀속**으로 뒷받침한다.
+- (출처: 2026-06-22 경마 이름표 꾸미기 작업 — 기존 미커밋 외형선택 random이 diff에 섞여 위양성)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

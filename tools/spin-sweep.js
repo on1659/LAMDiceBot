@@ -12,7 +12,7 @@ const path = require('path');
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'socket', 'spin-arena.js'), 'utf8');
 
 // 고정 상수(스윕에서 직접 비교용)
-const DUEL_MAX_MS_DEFAULT = 12000;
+const DUEL_MAX_MS_DEFAULT = 8000;
 
 // 상수만 regex 치환(정수 또는 소수 — FINALE 같은 float 대응 [\d.]+).
 function patched(consts) {

@@ -1,4 +1,43 @@
 ========================================
+📋 Summit Log - 2026-06-22 (feature/spin-arena-rework 누적: 경마 꾸미기 상점 — 광고/코인 2단탭·광고 보상 티어(세션 한정)·인벤토리·코인샵 준비중 게이트 + 같은말 꾸미기 랜덤표시 + 이름표 꾸미기)
+========================================
+
+## 변경 파일 (이 번들 핵심 — 상점/꾸미기)
+- js/shared/shop-shared.js: 공통 ShopModule 위 — 광고샵/코인샵/인벤토리 메인탭 + 카테고리 서브탭, 광고 지갑(_adWallet=sessionStorage, 탭 세션 한정), watchAd 자리표시(3초+매클릭 랜덤 탈것 이모지, 쿨다운 10초), 코인샵 "준비 중" 게이트(COIN_SHOP_COMING_SOON=true), free서버 게이트(coinShopLocked hook), 게스트 게이팅(allowGuestShop).
+- js/horse-shop.js: 어댑터 — adOnly itemState, ad-equip/reapply hook, coinShopLocked(currentServerId===null), 인벤토리 미리보기.
+- socket/shop.js: shop:adEquip transient 채널(adOnly·슬롯·gameType 서버 검증), shop:buy adOnly 거부.
+- socket/horse.js: buildRaceCosmetics — 같은 말 고른 사람들 꾸미기를 배열로 수집(first-wins 폐기), 게스트 ad transient 병합(인증0 방도), 이름표 꾸미기.
+- socket/chat.js·socket/rooms.js: room.adCosmetics[socket.id] 정리(disconnect/leaveRoom).
+- js/horse-race.js: 상점 버튼 노출, 타인/관전 말 꾸미기 클라 랜덤 선택, roomJoined/roomCreated 시 ad 재emit, 이름표 꾸미기.
+- config/horse/cosmetics.json: adOnly 광고 전용 아이템 추가(오로라/별똥별/무지개/요정날개/홀로그램 등).
+- css/horse-shop.css: 메인탭/광고행/자리표시 오버레이/배지 스타일, 버튼 폭 수정(전역 button{width:100%} 무력화).
+
+## 상세 변경 내역
+
+### [경마 꾸미기 상점 — 광고/코인 2단 탭 + 인벤토리]
+- 메인탭 광고샵(🎬)/코인샵(🪙)/내아이템(인벤토리). 서브탭=카테고리(도색/트레일/액세서리/마번/트랙테마/결승연출), 현재 메인샵 타입 아이템 있는 것만. hasAdItems() false(스핀)면 메인탭 미렌더 — 기존 단일 상점 100% 보존(스핀 회귀 0).
+- 광고샵: "광고 보기"(자리표시 애니 3초, Date 기반 회전으로 매 클릭 다른 탈것 이모지, Math.random 미사용)로 광고코인 적립 → adOnly 아이템 구매/장착. _adWallet=sessionStorage(탭 세션 한정 — 방 이동/새 판엔 유지, 탭 닫으면 리셋). roomJoined/roomCreated 시 sessionStorage equipped를 shop:adEquip 재emit해 방 옮겨도 남에게 계속 보임.
+- 코인샵: 일반코인(경마 참여 10/1등 30, 서버 DB awardRaceCoins)으로 구매/장착(shop:buy/shop:equip, 로그인 필요). 현재 COIN_SHOP_COMING_SOON=true → 코인샵 탭만 "준비 중" 안내(보안 로그인 미비). 끄면 free서버(currentServerId===null) coinShopLocked hook이 다시 적용.
+- 인벤토리 탭: 소유 아이템(코인+광고) 모아보기 + 장착 + 차량 미리보기. 서브탭 없는 그룹 스크롤(_activeTab 미관여).
+
+### [광고 티어 보안/공정성]
+- adOnly 판정은 서버 카탈로그(CATALOG_INDEX[id].item.adOnly===true)만 — 클라 data.adOnly 무신뢰. adOnly는 price 없음 + shop:buy에서 거부(일반코인 구매 차단). 광고 경제는 클라(sessionStorage) — cosmetic-only라 위변조 최대 영향=공짜 외형뿐(게임 결과·일반경제·랭킹 무관). DB 경제/coins.spend/shop:equip 무수정.
+- ad-장착 broadcast = 신설 transient 채널: shop:adEquip → room.adCosmetics[socket.id](DB 미진입, 게스트도 가능, gameType==='horse-race' 가드, PUBLIC_HORSE_SLOTS만). disconnect(chat.js)/leaveRoom(rooms.js) 정리.
+
+### [같은 말 꾸미기 — 클라 랜덤 표시]
+- buildRaceCosmetics: 같은 말(horseIndex)을 고른 모든 플레이어의 공개 꾸미기(DB equip + 본인 ad)를 배열로 수집(이전 first-wins 1명 → 전원). horseCosmetics[hi] = [pub, ...].
+- 클라(horse-race.js): 내 말=내 장착, 타인/관전 말=배열에서 Math.random으로 하나 선택(외형 전용, 결과 무관). 단일 선택은 길이1 배열로 동작 불변. 구버전 단일 객체 호환.
+
+### [공정성 불변]
+- 꾸미기는 결과/시뮬(calculateHorseRaceResult/getWinnersByRule)/emit 미진입 — buildRaceCosmetics는 결과 계산 후 transient 페이로드 생성. 신규 클라 Math.random은 외형 선택 한정. 코인 적립(awardRaceCoins) 멱등·머니 경로 무수정.
+
+### [검증]
+- node -c 전 파일 통과. 라이브 Playwright 다수 PASS: 광고샵/코인샵 통화·타입 필터 누출 0, 서브탭 리셋, 스핀 광고 UI 미노출, 같은말 배열 수집(2명→길이2)·관전 랜덤픽 분포, 코인샵 준비중 게이트(모달 열림+탭만 안내+광고샵 정상), 게스트 broadcast.
+
+### [누적 — 비-상점(기존 작업트리 포함)]
+- 이 번들은 feature/spin-arena-rework 워킹트리 누적으로 spin-arena/ladder/dice/roulette/room-helpers 등 선행 미커밋 변경도 함께 포함(상세는 이전 2026-06-17 로그 참조). 중복 닉네임 인계(socket/rooms.js sessionTakenOver, lesson C-10)·이름표 꾸미기 포함.
+
+========================================
 📋 Summit Log - 2026-06-17 (추가 델타: ladder 연출 2× 둔화·중력 하강·룰렛 감속·그리기 FIFO + 공통 상점 모듈 추출 + lesson C-9)
 ========================================
 

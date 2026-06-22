@@ -1,11 +1,24 @@
-// QA: 2-client socket 통합 테스트 — 2단계 재단순화(2026-06-17 lowest-damage). 2인 게임 = 단일 단계 경로 검증.
-// 주의: 이 서버는 방 입장 시 자동 준비(rooms.js joinRoom) — 테스트는 그 사양을 전제로 한다.
-// 검증: 동일 reveal payload(frames/hpFrames/bladeFrames byte-identical), slots.length === 참가자 수, frames 길이 = durationMs/sampleMs+1 · 폭 n×3,
-//       twoStage=false(n=2) + round1EndMs=null + finalists 빈 배열 + decideMs=40000(STAGE1_MS),
-//       제거된 레거시 필드 부재(rule/monsterFrames/escapes/downs/staggers/monsterKills/monsters/bladeUps/eliminations),
-//       result.successionList(worst→best, [0]=selected) 동일, requestSkins → skinsUpdated(skins만), gameEnd 동일 당첨자, 엣지 3종
+// QA: 2-client(+관전) socket 통합 테스트 — 토너먼트 rework Slice 2 게이트.
+// 검증:
+//   - HOST/GUEST/OBS가 받는 reveal의 bracket이 byte-identical(JSON.stringify deep-equal), slots/geom/result.selected 동일
+//   - bracket 구조 sanity: rounds[].duels[] 필드(frames stride 6, decideMs/durationMs, loserSlot/winnerSlot, bladeA/bladeB), 풀이 1로 수렴, 정확히 1 finalLoser
+//   - durationMs = SEQUENTIAL 브로드캐스트(오버뷰 + 라운드인트로 + 듀얼인트로/아웃트로/암전 + bye비트), GAME_MS(340000) 캡, 100 배수, frames hp 채널 ≤ HP_MAX
+//   - 재진입 마스킹: roomJoined payload에 bracket/timeline/result/seed 없음(phase/skins/round/history만)
+//   - 제거된 레거시 reveal 필드 부재(frames/hpFrames/bladeFrames/items/pickups/twoStage/round1EndMs/finalists/decideMs at top-level / rule/monsterFrames)
+//   - result.successionList(worst→best, [0]=selected) 동일, gameEnd selected 동일·reveal과 일치, 엣지 3종
+// 주의: 이 서버는 방 입장 시 자동 준비(rooms.js joinRoom) — 테스트는 그 사양을 전제. 실행 전 dev 서버 재기동(socket/* 무리로드).
 const { io } = require('socket.io-client');
 const URL = 'http://localhost:5173';
+const GAME_MS = 340000;           // 서버/클라 미러 — durationMs 하드 캡(SEQUENTIAL 브로드캐스트)
+const HP_MAX = 100;               // 듀얼 HP 분모(frames hp 채널 상한)
+// 연출 비트(SEQUENTIAL 브로드캐스트) — 서버 socket/spin-arena.js 미러.
+//   durationMs = BRACKET_OVERVIEW_MS + Σ_rounds[ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + dur + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ]
+const BRACKET_OVERVIEW_MS = 3500;
+const ROUND_INTRO_MS = 2000;
+const DUEL_INTRO_MS = 1500;
+const DUEL_OUTRO_MS = 1500;
+const DUEL_BLACKOUT_MS = 700;
+const BYE_BEAT_MS = 1500;
 
 function mkClient(name) {
   const s = io(URL, { reconnection: false, transports: ['websocket'] });
@@ -24,7 +37,6 @@ function mkClient(name) {
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 function once(s, ev) { return new Promise(res => s.once(ev, res)); }
-// 자기 자신의 준비 상태를 원하는 값으로 토글 (입장 시 자동 준비 전제)
 async function setReady(s, name, want) {
   for (let i = 0; i < 3; i++) {
     const cur = (s._ready || []).includes(name);
@@ -77,17 +89,18 @@ async function setReady(s, name, want) {
   const lastHostSU = host._skinsUpdates[host._skinsUpdates.length - 1];
   check(lastHostSU && lastHostSU.skins.HOST === 'crimson' && lastHostSU.skins.GUEST === 'azure', 'selectSkin broadcast reflects both skins');
 
-  // ── 제3 클라이언트 입장(자동 준비됨 → 명시 해제) + requestSkins 동기화 ──
+  // ── 제3 클라이언트 입장(자동 준비됨 → 명시 해제) + requestSkins 동기화 + 재진입 마스킹 ──
   const obs = mkClient('OBS');
   await once(obs, 'connect');
   const obsJoined = once(obs, 'roomJoined');
   obs.emit('joinRoom', { roomId, userName: 'OBS', isHost: false, password: '', deviceId: 'devObs', tabId: 'tabObs' });
   const obsJoinData = await obsJoined;
   await wait(500);
-  // roomJoined payload에 server-only 데이터 누출 없는지 (공정성)
+  // roomJoined payload에 server-only 데이터 누출 없는지 (공정성 — bracket/timeline/result/seed 절대 비노출)
   const joinSA = obsJoinData && (obsJoinData.gameState ? obsJoinData.gameState.spinArena : obsJoinData.spinArena);
   if (joinSA) {
-    check(!('timeline' in joinSA) && !('result' in joinSA) && !('seed' in joinSA), 'roomJoined spinArena masked (no timeline/result/seed)');
+    check(!('timeline' in joinSA) && !('result' in joinSA) && !('seed' in joinSA) && !('bracket' in joinSA),
+      'roomJoined spinArena masked (no timeline/result/seed/bracket)');
   } else {
     console.log('note: roomJoined payload has no spinArena field (keys=' + JSON.stringify(Object.keys(obsJoinData || {})) + ')');
   }
@@ -114,55 +127,97 @@ async function setReady(s, name, want) {
 
   const revealAt = Date.now();
   if (host._reveal && guest._reveal) {
-    check(JSON.stringify(host._reveal.frames) === JSON.stringify(guest._reveal.frames), 'reveal frames identical across clients');
-    const hsel = host._reveal.result.selected, gsel = guest._reveal.result.selected;
-    check(hsel === gsel, 'reveal selected identical (HOST=' + hsel + ' GUEST=' + gsel + ')');
-    const n = host._reveal.slots.length;
+    const R = host._reveal, G = guest._reveal;
+
+    // ── byte-identical bracket / slots / geom / result across clients (공정성 핵심 게이트) ──
+    check(JSON.stringify(R.bracket) === JSON.stringify(G.bracket), 'bracket byte-identical HOST==GUEST');
+    if (obs._reveal) check(JSON.stringify(R.bracket) === JSON.stringify(obs._reveal.bracket), 'bracket byte-identical for OBS spectator');
+    check(JSON.stringify(R.slots) === JSON.stringify(G.slots), 'slots identical HOST==GUEST');
+    check(JSON.stringify(R.geom) === JSON.stringify(G.geom), 'geom identical HOST==GUEST');
+    const hsel = R.result.selected, gsel = G.result.selected;
+    check(hsel === gsel, 'result.selected identical (HOST=' + hsel + ' GUEST=' + gsel + ')');
+    if (obs._reveal) check(obs._reveal.result.selected === hsel, 'result.selected identical for OBS');
+
+    // ── slots ──
+    const n = R.slots.length;
     check(n === 2, 'slots.length === 2 (ready participants only), got ' + n);
-    check(!host._reveal.slots.some(s => s.name === 'OBS'), 'edge2 non-ready user excluded from slots');
-    const dur = host._reveal.durationMs, smp = host._reveal.sampleMs;
-    check(Number.isInteger(dur) && dur > 0 && dur <= 70000 && dur % 100 === 0, 'durationMs valid (0<d<=70000, 100배수), got ' + dur);
-    check(host._reveal.frames.length === dur / smp + 1, 'frames length === durationMs/sampleMs+1 (' + (dur / smp + 1) + '), got ' + host._reveal.frames.length);
-    check(host._reveal.frames.every(f => f.length === n * 3), 'every frame width === n*3 (' + (n * 3) + ')');
-    // hpFrames (additive 형제 배열, stride 1) — 결승 HP바. 단일 단계에도 존재(길이/폭 동일, 값=HP_MAX 불변).
-    const hpF = host._reveal.hpFrames;
-    check(Array.isArray(hpF) && hpF.length === host._reveal.frames.length && hpF.every(f => f.length === n), 'hpFrames present (length===frames.length, width n)');
-    check(Number.isInteger(host._reveal.hpMax) && host._reveal.hpMax > 0, 'hpMax present (' + host._reveal.hpMax + ')');
-    check(JSON.stringify(host._reveal.hpFrames) === JSON.stringify(guest._reveal.hpFrames), 'hpFrames identical across HOST/GUEST');
-    if (obs._reveal) check(JSON.stringify(host._reveal.hpFrames) === JSON.stringify(obs._reveal.hpFrames), 'hpFrames identical for OBS spectator');
-    // bladeFrames (feel-v5 S1, additive 형제 배열, stride 1) — per-slot/per-time 칼날 수(base 1 + 칼추가 아이템). n=2 단일 단계도 존재(정수 배열, 비어있지 않음).
-    const blF = host._reveal.bladeFrames;
-    check(Array.isArray(blF) && blF.length === host._reveal.frames.length && blF.every(f => f.length === n), 'bladeFrames present (length===frames.length, width n, non-empty)');
-    check(JSON.stringify(host._reveal.bladeFrames) === JSON.stringify(guest._reveal.bladeFrames), 'bladeFrames identical across HOST/GUEST');
-    if (obs._reveal) check(JSON.stringify(host._reveal.bladeFrames) === JSON.stringify(obs._reveal.bladeFrames), 'bladeFrames identical for OBS spectator');
-    // items/pickups (B5, additive — reveal/timeline 전용. 마스킹 화이트리스트 변경 없음 → 재진입 마스크 검사 유지).
-    check(Array.isArray(host._reveal.items) && Array.isArray(host._reveal.pickups), 'items/pickups present (arrays)');
-    check(JSON.stringify(host._reveal.items) === JSON.stringify(guest._reveal.items), 'items identical across HOST/GUEST');
-    check(JSON.stringify(host._reveal.pickups) === JSON.stringify(guest._reveal.pickups), 'pickups identical across HOST/GUEST');
-    if (obs._reveal) check(JSON.stringify(host._reveal.items) === JSON.stringify(obs._reveal.items), 'items identical for OBS spectator');
-    if (obs._reveal) check(JSON.stringify(host._reveal.pickups) === JSON.stringify(obs._reveal.pickups), 'pickups identical for OBS spectator');
-    // 2단계 분기 + 결승 메타 (n=2 → 단일 단계)
-    console.log('twoStage:', host._reveal.twoStage, '| round1EndMs:', host._reveal.round1EndMs, '| finalists:', JSON.stringify(host._reveal.finalists), '| decideMs:', host._reveal.decideMs);
-    check(host._reveal.twoStage === false, 'n=2 twoStage === false (단일 단계), got ' + host._reveal.twoStage);
-    check(host._reveal.round1EndMs === null, '단일 단계 round1EndMs === null');
-    check(Array.isArray(host._reveal.finalists) && host._reveal.finalists.length === 0, '단일 단계 finalists empty');
-    check(Number.isInteger(host._reveal.decideMs) && host._reveal.decideMs === 40000, '단일 단계 decideMs === 40000 (STAGE1_MS), got ' + host._reveal.decideMs);
-    // 제거된 레거시 필드 부재 (몬스터/탈출/부활/경직/듀얼룰)
-    check(!('rule' in host._reveal), 'reveal has NO legacy rule (twoStage로 대체)');
-    check(!('monsterFrames' in host._reveal) && !('escapes' in host._reveal) && !('downs' in host._reveal), 'reveal has NO monsterFrames/escapes/downs');
-    check(!('staggers' in host._reveal) && !('monsterKills' in host._reveal) && !('monsters' in host._reveal), 'reveal has NO staggers/monsterKills/monsters');
-    check(!('bladeUps' in host._reveal) && !('eliminations' in host._reveal), 'reveal has NO legacy bladeUps/eliminations');
-    // result.successionList (이탈자 대체용, worst→best, [0]=selected)
-    const succ = host._reveal.result.successionList;
-    check(Array.isArray(succ) && succ.length >= 1, 'result.successionList present');
-    check(JSON.stringify(succ) === JSON.stringify(guest._reveal.result.successionList), 'successionList identical across clients');
-    check(succ[0] === hsel, 'successionList[0] === selected (당첨자)');
-    check(host._reveal.result.rankings.every(r => 'name' in r && 'slotId' in r && 'rank' in r && 'escapeMs' in r), 'rankings entries have name/slotId/rank/escapeMs');
-    check(!('seed' in host._reveal) && !('timeline' in host._reveal), 'reveal has NO seed/timeline');
-    check(hsel === 'HOST' || hsel === 'GUEST', 'selected is a participant (' + hsel + ')');
-    const hostSlot = host._reveal.slots.find(s => s.name === 'HOST');
-    const guestSlot = host._reveal.slots.find(s => s.name === 'GUEST');
+    check(!R.slots.some(s => s.name === 'OBS'), 'edge2 non-ready user excluded from slots');
+    const hostSlot = R.slots.find(s => s.name === 'HOST');
+    const guestSlot = R.slots.find(s => s.name === 'GUEST');
     check(hostSlot && hostSlot.skinId === 'crimson' && guestSlot && guestSlot.skinId === 'azure', 'selected skins applied to slots');
+    check(R.slots.every(s => 'id' in s && 'name' in s && 'color' in s && 'blade' in s && 'tier' in s), 'slots have id/name/color/blade/tier');
+
+    // ── bracket 구조 sanity ──
+    const br = R.bracket;
+    check(br && Array.isArray(br.rounds) && br.rounds.length >= 1, 'bracket.rounds present');
+    check(Array.isArray(br.poolOrder) && br.poolOrder.length === n, 'bracket.poolOrder length === n');
+    check(Number.isInteger(br.finalLoser), 'bracket.finalLoser is a slotId (' + br.finalLoser + ')');
+    check(br.loserDepth && typeof br.loserDepth === 'object', 'bracket.loserDepth map present');
+    // finalLoser 이름 == result.selected
+    const finalLoserName = (R.slots.find(s => s.id === br.finalLoser) || {}).name;
+    check(finalLoserName === hsel, 'bracket.finalLoser name === result.selected (' + finalLoserName + ')');
+
+    // 풀이 1로 수렴(꼴찌전): 라운드별 LOSER 수가 절반씩 → 마지막 라운드는 듀얼 1개
+    let okHalving = true, okDuels = true;
+    // SEQUENTIAL 브로드캐스트 durationMs = BRACKET_OVERVIEW_MS
+    //   + Σ_rounds[ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + dur + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ] (rounds.length>0 가드)
+    let computedDur = 0;
+    for (let ri = 0; ri < br.rounds.length; ri++) {
+      const rd = br.rounds[ri];
+      if (!Array.isArray(rd.duels)) { okDuels = false; continue; }
+      for (const d of rd.duels) {
+        computedDur += DUEL_INTRO_MS + d.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS;
+        // 듀얼 필드 + frames stride 6 + 결판
+        const okFields = Number.isInteger(d.duelId) && Number.isInteger(d.slotA) && Number.isInteger(d.slotB)
+          && Array.isArray(d.frames) && d.frames.length % 6 === 0
+          && Number.isInteger(d.durationMs) && d.durationMs > 0
+          && Number.isInteger(d.decideMs)
+          && (d.loserSlot === d.slotA || d.loserSlot === d.slotB)
+          && (d.winnerSlot === d.slotA || d.winnerSlot === d.slotB)
+          && d.loserSlot !== d.winnerSlot
+          && d.bladeA && d.bladeB
+          && Number.isFinite(d.bladeA.baseAngle) && Number.isFinite(d.bladeA.spinSpeed)
+          && (d.bladeA.spinDir === 1 || d.bladeA.spinDir === -1);
+        if (!okFields) { okDuels = false; console.log('  bad duel:', JSON.stringify({ duelId: d.duelId, framesLen: (d.frames||[]).length, decideMs: d.decideMs, loserSlot: d.loserSlot, winnerSlot: d.winnerSlot })); }
+        // frames hp 채널(인덱스 2,5)이 0..HP_MAX 범위
+        for (let fi = 0; fi < d.frames.length; fi += 6) {
+          if (d.frames[fi + 2] < 0 || d.frames[fi + 2] > HP_MAX || d.frames[fi + 5] < 0 || d.frames[fi + 5] > HP_MAX) { okDuels = false; break; }
+        }
+        // frames 길이 == durationMs/100 + 1
+        if (d.frames.length / 6 !== d.durationMs / R.sampleMs + 1) { okDuels = false; console.log('  duel frames len mismatch:', d.frames.length / 6, 'vs', d.durationMs / R.sampleMs + 1); }
+      }
+      computedDur += ROUND_INTRO_MS;
+      computedDur += (Array.isArray(rd.byes) ? rd.byes.length : 0) * BYE_BEAT_MS;
+    }
+    if (br.rounds.length > 0) computedDur += BRACKET_OVERVIEW_MS;
+    // poolSize 라이트 sanity: 각 라운드 poolSize 정수 + round0 == n
+    check(br.rounds.every(r => Number.isInteger(r.poolSize)), 'every round has integer poolSize');
+    check(br.rounds[0].poolSize === n, 'bracket.rounds[0].poolSize === n (' + br.rounds[0].poolSize + ')');
+    check(okDuels, 'every duel: fields ok, frames stride6, hp in [0,HP_MAX], len==dur/sampleMs+1, decideMs!=null');
+    check(br.rounds[br.rounds.length - 1].duels.length === 1, 'last round has exactly 1 duel (풀→1 수렴)');
+    void okHalving;
+
+    // ── durationMs: SEQUENTIAL 브로드캐스트(오버뷰 + 라운드인트로 + 듀얼인트로/아웃트로/암전 + bye비트), GAME_MS 캡, 100 배수 ──
+    const dur = R.durationMs;
+    check(Number.isInteger(dur) && dur > 0 && dur <= GAME_MS && dur % 100 === 0, 'durationMs valid (0<d<=GAME_MS, 100배수), got ' + dur);
+    check(dur === Math.min(GAME_MS, computedDur), 'durationMs === min(GAME_MS, 브로드캐스트 비트 합) (computed=' + computedDur + ')');
+    check(dur === G.durationMs, 'durationMs identical HOST==GUEST');
+
+    // ── result.successionList (worst→best, [0]=selected) ──
+    const succ = R.result.successionList;
+    check(Array.isArray(succ) && succ.length >= 1, 'result.successionList present');
+    check(JSON.stringify(succ) === JSON.stringify(G.result.successionList), 'successionList identical across clients');
+    check(succ[0] === hsel, 'successionList[0] === selected (당첨자)');
+    check(R.result.rankings.every(r => 'name' in r && 'slotId' in r && 'rank' in r), 'rankings entries have name/slotId/rank');
+    check(R.result.rankings.length === n, 'rankings covers all participants');
+
+    // ── 제거된 레거시 필드 부재(이전 lowest-damage/2단계/몬스터 모델) ──
+    check(!('frames' in R) && !('hpFrames' in R) && !('bladeFrames' in R), 'reveal has NO top-level frames/hpFrames/bladeFrames (브래킷 내부로 이동)');
+    check(!('twoStage' in R) && !('round1EndMs' in R) && !('finalists' in R) && !('decideMs' in R), 'reveal has NO top-level twoStage/round1EndMs/finalists/decideMs');
+    check(!('items' in R) && !('pickups' in R), 'reveal has NO items/pickups (to너먼트 아이템 OFF)');
+    check(!('rule' in R) && !('monsterFrames' in R) && !('escapes' in R) && !('monsters' in R), 'reveal has NO legacy rule/monsterFrames/escapes/monsters');
+    check(!('seed' in R) && !('timeline' in R), 'reveal has NO seed/timeline (server-only)');
+    check(hsel === 'HOST' || hsel === 'GUEST', 'selected is a participant (' + hsel + ')');
   }
 
   // ── 엣지 3: playing 중 selectSkin → 거부 ──
@@ -171,10 +226,10 @@ async function setReady(s, name, want) {
   await wait(500);
   check(guest._errors.length > gErrBefore, 'edge3 selectSkin during playing rejected');
 
-  // gameEnd 대기: COUNTDOWN 4000 + durationMs + RESULT_HOLD 2200.
-  // 단일 단계 n=2 = decideMs 40000 → dur 42000 → reveal 후 ~48.2s. 예산 58s.
-  console.log('waiting for gameEnd (up to ~48s after reveal)...');
-  while (Date.now() - revealAt < 58000 && (!host._gameEnd || !guest._gameEnd)) await wait(1000);
+  // gameEnd 대기: COUNTDOWN 4000 + durationMs + RESULT_HOLD 2200. n=2 = 1 라운드(전환 없음).
+  const budget = (host._reveal ? host._reveal.durationMs : GAME_MS) + 4000 + 2200 + 8000;
+  console.log('waiting for gameEnd (up to ~' + Math.round(budget / 1000) + 's after reveal)...');
+  while (Date.now() - revealAt < budget && (!host._gameEnd || !guest._gameEnd)) await wait(1000);
   if (!host._gameEnd) fail('HOST no gameEnd'); else console.log('HOST gameEnd selected=' + host._gameEnd.selected + ' round=' + host._gameEnd.round);
   if (!guest._gameEnd) fail('GUEST no gameEnd'); else console.log('GUEST gameEnd selected=' + guest._gameEnd.selected);
   if (host._gameEnd && guest._gameEnd) {

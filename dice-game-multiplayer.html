@@ -1638,25 +1638,6 @@
                 </div>
             </div>
             
-            <!-- 방 유지 시간 설정 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <label style="display: block; margin-bottom: 10px; font-weight: 500;">⏰ 방 유지 시간</label>
-                <div style="display: flex; gap: 10px;">
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomExpiryTime" value="1" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>1시간</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomExpiryTime" value="3" checked style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>3시간 (기본)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomExpiryTime" value="6" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>6시간</span>
-                    </label>
-                </div>
-            </div>
-            
             <!-- 게임 타입 선택 -->
             <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
                 <label style="display: block; margin-bottom: 10px; font-weight: 500;">🎮 게임 타입</label>
@@ -3877,9 +3858,8 @@
                 }
             }
             
-            // 방 유지 시간 가져오기 (기본값: 3시간)
-            const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
-            const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
+            // 방 유지 시간 (3시간 고정)
+            const expiryHours = 3;
             
             // IP 차단 옵션 가져오기 (기본값: false)
             const ipBlockCheckbox = document.getElementById('createRoomIPBlockCheckbox');
@@ -4967,6 +4947,14 @@
             sessionStorage.removeItem('diceActiveRoom');
             showCustomAlert(message, 'info');
             location.reload(); // 강퇴당하면 페이지를 새로고침하여 로비로 이동
+        });
+
+        // 다른 곳에서 같은 닉네임으로 접속 → 이 세션 종료 (최신 접속 우선). reload 금지(핑퐁 방지).
+        socket.on('sessionTakenOver', (message) => {
+            try { sessionStorage.removeItem('diceActiveRoom'); } catch (e) {}
+            try { socket.disconnect(); } catch (e) {}  // 소켓 즉시 종료 → 재연결·재입장 차단(핑퐁 방지)
+            showCustomAlert(message || '다른 곳에서 접속하여 연결이 종료되었습니다.', 'info');
+            setTimeout(() => { window.location.replace('/game'); }, 2500);
         });
 
 

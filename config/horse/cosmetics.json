@@ -3,22 +3,32 @@
     { "id": "paint_gold",    "name": "황금 도색",   "price": 50, "rarity": "rare",   "filter": "drop-shadow(0 0 6px #ffd54a) saturate(1.3) hue-rotate(15deg)" },
     { "id": "paint_neon",    "name": "네온 도색",   "price": 50, "rarity": "rare",   "filter": "drop-shadow(0 0 7px #4ade80) saturate(1.6) brightness(1.1)" },
     { "id": "paint_rainbow", "name": "무지개 도색", "price": 90, "rarity": "epic",   "filter": "saturate(2) hue-rotate(120deg) brightness(1.1)" },
-    { "id": "paint_dark",    "name": "다크 도색",   "price": 50, "rarity": "common", "filter": "brightness(0.55) contrast(1.2) grayscale(0.4)" }
+    { "id": "paint_dark",    "name": "다크 도색",   "price": 50, "rarity": "common", "filter": "brightness(0.55) contrast(1.2) grayscale(0.4)" },
+    { "id": "paint_ad_aqua", "name": "아쿠아 도색", "rarity": "rare",   "adOnly": true, "adPrice": 30, "filter": "drop-shadow(0 0 7px #38bdf8) saturate(1.4) hue-rotate(-20deg)" },
+    { "id": "paint_ad_aurora", "name": "오로라 도색", "rarity": "epic", "adOnly": true, "adPrice": 40, "filter": "drop-shadow(0 0 8px #a78bfa) drop-shadow(0 0 12px #38bdf8) saturate(1.7) hue-rotate(210deg) brightness(1.1)" }
   ],
   "trail": [
     { "id": "trail_flame",   "name": "불꽃 트레일",   "price": 80, "rarity": "rare",   "emoji": "🔥" },
     { "id": "trail_star",    "name": "별가루 트레일", "price": 80, "rarity": "rare",   "emoji": "✨" },
-    { "id": "trail_splash",  "name": "물보라 트레일", "price": 60, "rarity": "common", "emoji": "💧" }
+    { "id": "trail_splash",  "name": "물보라 트레일", "price": 60, "rarity": "common", "emoji": "💧" },
+    { "id": "trail_ad_meteor", "name": "별똥별 트레일", "rarity": "rare", "adOnly": true, "adPrice": 35, "emoji": "💫" },
+    { "id": "trail_ad_rainbow", "name": "무지개 트레일", "rarity": "epic", "adOnly": true, "adPrice": 45, "emoji": "🌈" }
   ],
   "accessory": [
     { "id": "acc_crown",     "name": "왕관",       "price": 120, "rarity": "epic",   "emoji": "👑" },
     { "id": "acc_sunglass",  "name": "선글라스",   "price": 120, "rarity": "common", "emoji": "🕶️" },
-    { "id": "acc_cape",      "name": "망토",       "price": 120, "rarity": "rare",   "emoji": "🦸" }
+    { "id": "acc_cape",      "name": "망토",       "price": 120, "rarity": "rare",   "emoji": "🦸" },
+    { "id": "acc_ad_party",  "name": "파티 모자",  "rarity": "rare",   "adOnly": true, "adPrice": 30, "emoji": "🎉" },
+    { "id": "acc_ad_wing",   "name": "요정 날개",  "rarity": "epic",   "adOnly": true, "adPrice": 40, "emoji": "🧚" }
   ],
   "skin_premium": [],
   "bib": [
-    { "id": "bib_gold",   "name": "황금 마번",   "price": 40, "rarity": "common", "color": "#1a1a1a", "bg": "#ffd54a", "border": "#c79100" },
-    { "id": "bib_neon",   "name": "네온 마번",   "price": 40, "rarity": "rare",   "color": "#0b1020", "bg": "#4ade80", "border": "#16a34a" }
+    { "id": "bib_gold",   "name": "황금 이름표",   "price": 40, "rarity": "common", "color": "#1a1a1a", "bg": "#ffd54a", "border": "#c79100" },
+    { "id": "bib_neon",   "name": "네온 이름표",   "price": 40, "rarity": "rare",   "color": "#0b1020", "bg": "#4ade80", "border": "#16a34a" },
+    { "id": "bib_ad_holo", "name": "홀로그램 이름표", "rarity": "epic", "adOnly": true, "adPrice": 35, "color": "#ffffff", "bg": "linear-gradient(135deg,#a78bfa,#38bdf8,#f472b6)", "border": "#a78bfa" },
+    { "id": "bib_ad_ruby",     "name": "루비 이름표",     "rarity": "rare", "adOnly": true, "adPrice": 30, "color": "#fff5f5", "bg": "linear-gradient(135deg,#e11d48,#9f1239)", "border": "#7f1d1d" },
+    { "id": "bib_ad_sapphire", "name": "사파이어 이름표", "rarity": "rare", "adOnly": true, "adPrice": 30, "color": "#eef6ff", "bg": "linear-gradient(135deg,#2563eb,#1e3a8a)", "border": "#1e40af" },
+    { "id": "bib_ad_carbon",   "name": "카본 이름표",     "rarity": "epic", "adOnly": true, "adPrice": 40, "color": "#e5e7eb", "bg": "linear-gradient(135deg,#1f2937,#0b1020)", "border": "#94a3b8" }
   ],
   "track_theme": [
     { "id": "theme_space", "name": "우주 트랙",    "price": 150, "rarity": "epic",   "bg": "linear-gradient(180deg, #0b1026 0%, #1b2350 60%, #2a3470 100%)", "accent": "#8ab4ff" },

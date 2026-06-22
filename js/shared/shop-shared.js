@@ -21,9 +21,23 @@
 
     // 한 페이지 1인스턴스 — 내부 DOM id는 단일 상수로 통일(CSS는 .hshop-* 클래스 기반이라 무해).
     var BALANCE_ID = 'shopBalance';
+    var AD_BALANCE_ID = 'shopAdBalance';
     var LAYER_ID = 'shopLayer';
 
     var RARITY_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
+
+    // ── 임시 게이트: 코인샵 탭만 "준비 중 / 추후 오픈 예정" ──
+    // 코인샵은 로그인(서버 인증) 필요한데 보안 로그인이 아직 준비 안 됨 → 코인샵 탭만 안내문으로 막는다.
+    // 광고샵/인벤토리는 정상. 준비되면 false → 코인샵 그대로 열림(코드 전부 보존).
+    var COIN_SHOP_COMING_SOON = true;
+
+    // ── 광고 보상 티어 상수 (튜닝 가능 — v1 단순화: 실제 광고 SDK 없음) ──
+    var AD_WALLET_KEY = 'adWallet';   // sessionStorage 키 (일반 userAuth 지갑과 별개, 탭 세션 한정)
+    var AD_COIN_GRANT = 30;           // 광고 1회 시청당 지급 광고코인
+    var AD_COOLDOWN_MS = 10 * 1000;   // 광고 재시청 쿨다운 (가짜 광고 v1: 10초 — 실제 SDK 붙으면 상향)
+    var AD_WATCH_MS = 3 * 1000;       // 광고 자리표시(승인 대기) 시청 시간 — 끝까지 봐야 코인 지급
+    // 자리표시 러너: 우리 게임의 달리는 것들(이모지 근사). Date 기반 회전 = 매 클릭 다른 탈것(Math.random 미사용).
+    var AD_RUNNERS = ['🐎', '🏎️', '🦀', '🐢', '🚀', '🛴', '🚲'];
 
     // ── 상태 ──────────────────────────────────────────────
     var _config = null;
@@ -33,10 +47,17 @@
     var _catalog = null;          // slot -> items[]
     var _catalogLoading = null;
     var _catalogIndex = {};       // id -> { slot, item }
-    var _activeTab = null;        // 현재 탭(슬롯 key); slots[0]로 초기화
+    var _activeTab = null;        // 현재 서브탭(카테고리 슬롯 key)
+    // 메인샵: 'ad'(광고샵) | 'coin'(코인샵). 기본 'coin'(게임 코인 상점).
+    // 카탈로그에 adOnly 아이템이 있을 때만 메인탭 노출(없으면 코인샵 단독 — 기존 동작 보존).
+    var _activeMainShop = 'coin';
 
     // 서버 권위 지갑 상태
     var _wallet = { authed: false, balance: 0, owned: [], equipped: {} };
+
+    // 광고 지갑(클라 sessionStorage 권위 — 탭 세션 한정) — 일반 _wallet과 별개 객체(혼동 방지).
+    // 위변조 가능하나 cosmetic-only라 수용(무한 광고코인이 최대 악용 — 게임플레이 무관).
+    var _adWallet = { coins: 0, owned: [], equipped: {}, lastWatch: 0 };
 
     // ── 유틸 ──────────────────────────────────────────────
 
@@ -62,12 +83,85 @@
 
     function owns(id) { return _wallet.owned.indexOf(id) !== -1; }
 
+    // ── 광고 지갑 (sessionStorage 권위 — 게스트/미인증도 사용, 탭 세션 한정) ──
+
+    function loadAdWallet() {
+        // 의미가 "탭 세션 한정"으로 바뀌었으므로 옛 영구(localStorage) 잔재를 1회 청소.
+        try { localStorage.removeItem(AD_WALLET_KEY); } catch (e) {}
+        try {
+            var raw = JSON.parse(sessionStorage.getItem(AD_WALLET_KEY) || 'null');
+            if (raw && typeof raw === 'object') {
+                _adWallet.coins = (typeof raw.coins === 'number' && raw.coins >= 0) ? raw.coins : 0;
+                _adWallet.owned = Array.isArray(raw.owned) ? raw.owned : [];
+                _adWallet.equipped = (raw.equipped && typeof raw.equipped === 'object') ? raw.equipped : {};
+                _adWallet.lastWatch = (typeof raw.lastWatch === 'number') ? raw.lastWatch : 0;
+            }
+        } catch (e) { /* 손상 시 기본값 유지 */ }
+        return _adWallet;
+    }
+
+    function saveAdWallet() {
+        try { sessionStorage.setItem(AD_WALLET_KEY, JSON.stringify(_adWallet)); } catch (e) {}
+    }
+
+    function adOwns(id) { return _adWallet.owned.indexOf(id) !== -1; }
+
+    // 광고 아이템 여부(서버와 동일 판정 — 클라 카탈로그도 같은 파일이라 일치).
+    function isAdItem(item) { return !!(item && item.adOnly === true); }
+
+    // 광고 쿨다운 잔여(ms). 0이면 시청 가능.
+    function adCooldownRemaining() {
+        var elapsed = Date.now() - (_adWallet.lastWatch || 0);
+        return elapsed >= AD_COOLDOWN_MS ? 0 : (AD_COOLDOWN_MS - elapsed);
+    }
+
     function activeSlots() {
         return (_config && Array.isArray(_config.slots)) ? _config.slots : [];
     }
 
-    // 단일 탭바 미렌더 여부
-    function isSingleSlot() { return activeSlots().length <= 1; }
+    // ── 메인샵(광고샵/코인샵) 2단 탭 헬퍼 ──────────────────
+    // 메인샵 타입에 해당하는 아이템 여부: 광고샵='ad'=adOnly만, 코인샵='coin'=비-adOnly만.
+    function itemMatchesMainShop(item, mainShop) {
+        return mainShop === 'ad' ? isAdItem(item) : !isAdItem(item);
+    }
+
+    // 카탈로그에 adOnly 아이템이 하나라도 있으면 true(메인탭 노출 조건).
+    // false면(스핀처럼 ad 아이템 없음) 메인탭 미렌더 + 코인샵 단독 동작(기존 동작 보존).
+    function hasAdItems() {
+        if (!_catalog) return false;
+        var slots = Object.keys(_catalog);
+        for (var i = 0; i < slots.length; i++) {
+            var list = _catalog[slots[i]] || [];
+            for (var j = 0; j < list.length; j++) if (isAdItem(list[j])) return true;
+        }
+        return false;
+    }
+
+    // 현재(또는 지정) 메인샵 타입에서 length>0 인 카테고리 슬롯만 반환(서브탭 후보).
+    function slotsForMainShop(mainShop) {
+        return activeSlots().filter(function (slot) {
+            var list = (_catalog && _catalog[slot.key]) || [];
+            for (var k = 0; k < list.length; k++) if (itemMatchesMainShop(list[k], mainShop)) return true;
+            return false;
+        });
+    }
+
+    // 활성 서브탭이 현재 메인샵에 없으면 첫 번째 가능한 카테고리로 리셋(없으면 null).
+    // 인벤토리는 서브탭이 없는 그룹 스크롤이라 _activeTab을 건드리지 않는다(코인/광고 복귀 시 위치 보존).
+    function ensureActiveTabForMainShop() {
+        if (_activeMainShop === 'inventory') return;
+        var slots = slotsForMainShop(_activeMainShop);
+        var stillValid = slots.some(function (s) { return s.key === _activeTab; });
+        if (!stillValid) _activeTab = slots.length ? slots[0].key : null;
+    }
+
+    // 단일 탭바 미렌더 여부 — 현재 메인샵의 서브탭이 1개 이하면 탭바 숨김.
+    // 인벤토리는 서브탭 자체가 없으므로 항상 숨김(true).
+    function isSingleSlot() {
+        if (_activeMainShop === 'inventory') return true;
+        if (hasAdItems()) return slotsForMainShop(_activeMainShop).length <= 1;
+        return activeSlots().length <= 1;
+    }
 
     // ── 카탈로그 로드 ──────────────────────────────────────
 
@@ -153,6 +247,11 @@
     function updateBalanceLabel() {
         var el = document.getElementById(BALANCE_ID);
         if (el) el.textContent = '🪙 ' + _wallet.balance;
+    }
+
+    function updateAdBalanceLabel() {
+        var el = document.getElementById(AD_BALANCE_ID);
+        if (el) el.textContent = '🎬 ' + _adWallet.coins;
     }
 
     function animateEnabled() {
@@ -291,10 +390,11 @@
             return {
                 owned: !!st.owned,
                 buyable: st.buyable !== false,
-                lockLabel: st.lockLabel || null
+                lockLabel: st.lockLabel || null,
+                onLockedClick: (typeof st.onLockedClick === 'function') ? st.onLockedClick : null
             };
         }
-        return { owned: owns(item.id), buyable: true, lockLabel: null };
+        return { owned: owns(item.id), buyable: true, lockLabel: null, onLockedClick: null };
     }
 
     function renderCard(slot, item) {
@@ -326,9 +426,26 @@
             thumb.appendChild(glyph);
         }
 
+        // 광고 전용 아이템 배지(썸네일 우상단)
+        if (isAdItem(item)) {
+            var adBadge = document.createElement('span');
+            adBadge.className = 'hshop-ad-badge';
+            adBadge.textContent = '🎬 광고';
+            thumb.appendChild(adBadge);
+        }
+
         var nm = document.createElement('div');
         nm.className = 'hshop-name';
         nm.textContent = item.name;
+
+        card.appendChild(thumb);
+        card.appendChild(nm);
+
+        // 광고 아이템은 ad-wallet(클라) 기준 — 별도 경로(서버 shop:buy/equip 미진입)
+        if (isAdItem(item)) {
+            renderAdCardBody(card, slot, item);
+            return card;
+        }
 
         var state = itemStateFor(item);
         var isEquipped = _wallet.equipped[slot] === item.id;
@@ -347,8 +464,14 @@
         if (!state.owned) {
             btn.className = 'hshop-buy';
             if (!state.buyable) {
+                btn.className = 'hshop-buy hshop-locked';
                 btn.textContent = state.lockLabel || '구매 불가';
-                btn.disabled = true;
+                // 잠금(미인증)은 클릭 가능 — 로그인 유도(어댑터가 onLockedClick 제공 시)
+                if (typeof state.onLockedClick === 'function') {
+                    btn.addEventListener('click', state.onLockedClick);
+                } else {
+                    btn.disabled = true;
+                }
             } else {
                 btn.textContent = Number.isFinite(item.price) ? '구매 (' + item.price + ')' : '구매';
                 btn.addEventListener('click', function () { requestBuy(item, btn); });
@@ -359,17 +482,43 @@
             btn.addEventListener('click', function () { doEquip(slot, isEquipped ? null : item.id); });
         }
 
-        card.appendChild(thumb);
-        card.appendChild(nm);
         if (price) card.appendChild(price);
         card.appendChild(btn);
         return card;
     }
 
+    // 광고 아이템 카드 본문(가격/구매/장착) — ad-wallet 기준, 서버 미진입.
+    function renderAdCardBody(card, slot, item) {
+        var owned = adOwns(item.id);
+        var isEquipped = _adWallet.equipped[slot] === item.id;
+        var adPrice = Number.isFinite(item.adPrice) ? item.adPrice : 0;
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+
+        if (!owned) {
+            var price = document.createElement('div');
+            price.className = 'hshop-price hshop-price--ad';
+            price.textContent = '🎬 ' + adPrice;
+            card.appendChild(price);
+
+            btn.className = 'hshop-buy hshop-buy--ad';
+            btn.textContent = '광고코인 구매 (' + adPrice + ')';
+            btn.addEventListener('click', function () { adBuy(item, btn); });
+        } else {
+            btn.className = 'hshop-equip' + (isEquipped ? ' is-equipped' : '');
+            btn.textContent = isEquipped ? '✓ 장착중' : '장착';
+            btn.addEventListener('click', function () { adEquip(slot, isEquipped ? null : item.id); });
+        }
+        card.appendChild(btn);
+    }
+
+    // 서브탭(카테고리) 바. 메인탭 활성 시 현재 메인샵에 아이템이 있는 슬롯만 노출.
     function renderTabBar() {
         var bar = document.createElement('div');
         bar.className = 'hshop-tabs';
-        activeSlots().forEach(function (slot) {
+        var slots = hasAdItems() ? slotsForMainShop(_activeMainShop) : activeSlots();
+        slots.forEach(function (slot) {
             var tab = document.createElement('button');
             tab.type = 'button';
             tab.className = 'hshop-tab' + (_activeTab === slot.key ? ' is-active' : '');
@@ -380,17 +529,137 @@
         return bar;
     }
 
+    // 메인탭(🎬 광고샵 / 🪙 코인샵) 바. hasAdItems()일 때만 렌더.
+    function renderMainTabBar() {
+        var bar = document.createElement('div');
+        bar.className = 'hshop-maintabs';
+        var tabs = [
+            { type: 'ad',        label: '🎬 광고샵' },
+            { type: 'coin',      label: '🪙 코인샵' },
+            { type: 'inventory', label: '📦 내 아이템' }
+        ];
+        tabs.forEach(function (t) {
+            var tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = 'hshop-maintab' + (_activeMainShop === t.type ? ' is-active' : '');
+            tab.textContent = t.label;
+            tab.addEventListener('click', function () {
+                if (_activeMainShop === t.type) return;
+                _activeMainShop = t.type;
+                ensureActiveTabForMainShop(); // 서브탭 첫 항목으로 리셋
+                renderModal();
+            });
+            bar.appendChild(tab);
+        });
+        return bar;
+    }
+
     function noticeFor(slot) {
+        // 메인탭(광고샵/코인샵) 활성 시: 메인샵별 안내 문구.
+        if (hasAdItems()) {
+            return _activeMainShop === 'ad'
+                ? '광고 보고 모은 광고코인으로 한정 아이템을 사세요.'
+                : '게임하며 모은 코인으로 구매 후 장착하세요.';
+        }
+        // 메인탭 없을 때: 기존 동작(어댑터 noticeText hook).
         if (_config && _config.hooks && _config.hooks.noticeText) {
             return _config.hooks.noticeText(slot);
         }
         return _config.noticeText || '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
     }
 
+    // ── 인벤토리('내 아이템') 전용 렌더 ──────────────────────
+    // 소유 판정: 코인 소유 || 광고 소유 || defaultOwned(서버가 소유로 취급 — 미래 안전).
+    function ownsForInventory(item) {
+        return owns(item.id) || adOwns(item.id) || item.defaultOwned === true;
+    }
+
+    // 인벤토리 본문(큰 미리보기 + 슬롯별 소유 섹션). 기존 grid 가정(_catalog[_activeTab] 단일 슬롯)에
+    // 의존하지 않고 소유 기반으로 직접 필터·렌더. 빈 상태도 여기서 처리.
+    function buildInventoryBody() {
+        var body = document.createElement('div');
+        body.className = 'hshop-inv-body';
+
+        // 상단: 어댑터의 큰 합성 미리보기(getVehicleSVG 등 게임 전역 접근은 어댑터 안에서만).
+        if (_config && _config.hooks && _config.hooks.buildInventoryPreview) {
+            var preview = null;
+            try { preview = _config.hooks.buildInventoryPreview(); } catch (e) { preview = null; }
+            if (preview) {
+                var pwrap = document.createElement('div');
+                pwrap.className = 'hshop-inv-preview-wrap';
+                pwrap.appendChild(preview);
+                body.appendChild(pwrap);
+            }
+        }
+
+        // 본문: 슬롯 순서대로 소유 아이템을 섹션으로. 전 슬롯 소유 0개면 빈 상태.
+        var merged = (_config && _config.hooks && _config.hooks.mergedEquipped)
+            ? _config.hooks.mergedEquipped() : null;
+        var anyOwned = false;
+
+        activeSlots().forEach(function (slot) {
+            var list = (_catalog[slot.key] || []).filter(ownsForInventory);
+            if (list.length === 0) return;
+            anyOwned = true;
+
+            var section = document.createElement('div');
+            section.className = 'hshop-inv-section';
+            var head = document.createElement('div');
+            head.className = 'hshop-inv-section-head';
+            head.textContent = slot.label || slot.key;
+            section.appendChild(head);
+
+            var grid = document.createElement('div');
+            grid.className = 'hshop-grid hshop-inv-grid';
+            list.forEach(function (item) {
+                var card = renderCard(slot.key, item);
+                // 장착표시는 mergedEquipped 기준으로 일관화(코인+광고가 같은 슬롯에 둘 다 장착돼도
+                // 실제 탈것엔 광고 우선 1개만 보이므로, ✓도 그 1개에만). renderCard 본문 동작은 미변경 —
+                // 인벤토리에서만 사후 보정.
+                if (merged) syncEquipBadge(card, slot.key, item.id, merged);
+                grid.appendChild(card);
+            });
+            section.appendChild(grid);
+            body.appendChild(section);
+        });
+
+        if (!anyOwned) {
+            var empty = document.createElement('div');
+            empty.className = 'hshop-empty';
+            empty.textContent = '아직 보유한 꾸미기가 없어요.';
+            body.appendChild(empty);
+        }
+
+        return body;
+    }
+
+    // 카드의 장착 배지를 mergedEquipped 승자 기준으로 보정. 이 아이템이 슬롯 승자가 아니면
+    // '장착중' 표시를 '장착'으로 되돌린다(클릭 핸들러는 renderCard가 단 그대로 유지).
+    function syncEquipBadge(card, slot, id, merged) {
+        var btn = card.querySelector('.hshop-equip');
+        if (!btn) return;
+        var isEquipped = merged[slot] === id;
+        if (isEquipped) {
+            if (!btn.classList.contains('is-equipped')) {
+                btn.classList.add('is-equipped');
+                btn.textContent = '✓ 장착중';
+            }
+        } else {
+            if (btn.classList.contains('is-equipped')) {
+                btn.classList.remove('is-equipped');
+                btn.textContent = '장착';
+            }
+        }
+    }
+
     function renderModal() {
         var mount = getMount();
         if (!mount || !_catalog) return;
         mount.innerHTML = '';
+
+        var showMainTabs = hasAdItems();
+        // 메인탭 활성 시 활성 서브탭이 현재 메인샵에 유효한지 보장(첫 렌더/전환 안전망).
+        if (showMainTabs) ensureActiveTabForMainShop();
 
         var overlay = document.createElement('div');
         overlay.className = 'hshop-overlay';
@@ -411,19 +680,60 @@
             small.textContent = _config.subtitle;
             titleWrap.appendChild(small);
         }
-        var bal = document.createElement('div');
-        bal.className = 'hshop-balance';
-        bal.id = BALANCE_ID;
-        bal.textContent = '🪙 ' + _wallet.balance;
+        header.appendChild(titleWrap);
+        // 일반 코인 잔고는 인증 시에만(게스트는 일반 경제 미접근)
+        if (_wallet.authed) {
+            var bal = document.createElement('div');
+            bal.className = 'hshop-balance';
+            bal.id = BALANCE_ID;
+            bal.textContent = '🪙 ' + _wallet.balance;
+            header.appendChild(bal);
+        }
+        // 광고코인 잔고는 광고 아이템이 있는 게임(=광고샵 존재)에서만 표시. 스핀 등엔 미노출.
+        if (hasAdItems()) {
+            var adBal = document.createElement('div');
+            adBal.className = 'hshop-balance hshop-balance--ad';
+            adBal.id = AD_BALANCE_ID;
+            adBal.textContent = '🎬 ' + _adWallet.coins;
+            header.appendChild(adBal);
+        }
         var closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'hshop-close';
         closeBtn.setAttribute('aria-label', '닫기');
         closeBtn.textContent = '✕';
         closeBtn.addEventListener('click', closeShop);
-        header.appendChild(titleWrap);
-        header.appendChild(bal);
         header.appendChild(closeBtn);
+
+        // 인벤토리('내 아이템') 전용 경로 — 서브탭 바/코인 notice/광고행/일반 grid 미사용.
+        // 헤더 + 메인탭바는 유지하고, 그 아래에 큰 미리보기 + 슬롯별 소유 섹션을 그린다.
+        // (메인탭 게이트 안에서만 도달 — showMainTabs=hasAdItems()=true일 때만 inventory 진입 가능.)
+        if (showMainTabs && _activeMainShop === 'inventory') {
+            panel.appendChild(header);
+            panel.appendChild(renderMainTabBar());
+            panel.appendChild(buildInventoryBody());
+            overlay.appendChild(panel);
+            mount.appendChild(overlay);
+            return;
+        }
+
+        // 광고 보기 행 (광고코인 적립) — 광고샵(메인탭 'ad')일 때만. 광고 아이템 없는 게임(스핀)엔 미노출.
+        var showAdRow = showMainTabs && _activeMainShop === 'ad';
+        var adRow = null;
+        if (showAdRow) {
+            adRow = document.createElement('div');
+            adRow.className = 'hshop-ad-row';
+            var adInfo = document.createElement('span');
+            adInfo.className = 'hshop-ad-info';
+            adInfo.textContent = '광고를 보고 광고코인을 모아 한정 꾸미기를 받으세요.';
+            var adBtn = document.createElement('button');
+            adBtn.type = 'button';
+            adBtn.className = 'hshop-watch-ad';
+            adBtn.textContent = '🎬 광고 보고 코인 받기';
+            adBtn.addEventListener('click', function () { watchAd(); });
+            adRow.appendChild(adInfo);
+            adRow.appendChild(adBtn);
+        }
 
         var notice = document.createElement('div');
         notice.className = 'hshop-notice';
@@ -431,19 +741,43 @@
 
         var grid = document.createElement('div');
         grid.className = 'hshop-grid';
-        var list = _catalog[_activeTab] || [];
-        if (list.length === 0) {
-            var empty = document.createElement('div');
-            empty.className = 'hshop-empty';
-            empty.textContent = '준비 중인 카테고리예요.';
-            grid.appendChild(empty);
+        // 코인샵 게이팅: 코인샵('coin')에서만, 카드 대신 안내문 노드 1개만 그린다(서브탭도 숨김). 광고샵엔 무영향.
+        //  ① COIN_SHOP_COMING_SOON(임시 "준비 중") 우선 → 로그인 준비 전까지 코인샵 전체 잠금.
+        //  ② 아니면 어댑터 coinShopLocked hook(예: free 서버는 코인 경제 미가동).
+        var coinLockMsg = null;
+        if (_activeMainShop === 'coin') {
+            if (COIN_SHOP_COMING_SOON) {
+                coinLockMsg = '🛠️ 코인샵은 준비 중이에요. 추후 오픈 예정이니 조금만 기다려 주세요!';
+            } else if (_config.hooks && _config.hooks.coinShopLocked) {
+                coinLockMsg = _config.hooks.coinShopLocked();
+            }
+        }
+        if (coinLockMsg) {
+            var note = document.createElement('div');
+            note.className = 'hshop-empty';       // 전체폭 중앙 빈상태 스타일 재사용
+            note.textContent = coinLockMsg;        // textContent — XSS 안전
+            grid.appendChild(note);
         } else {
-            list.forEach(function (item) { grid.appendChild(renderCard(_activeTab, item)); });
+            // 그리드 아이템: 메인탭 활성 시 현재 메인샵 타입으로 필터(광고샵=adOnly만/코인샵=비-adOnly만).
+            var list = (_catalog[_activeTab] || []);
+            if (showMainTabs) {
+                list = list.filter(function (item) { return itemMatchesMainShop(item, _activeMainShop); });
+            }
+            if (list.length === 0) {
+                var empty = document.createElement('div');
+                empty.className = 'hshop-empty';
+                empty.textContent = '준비 중인 카테고리예요.';
+                grid.appendChild(empty);
+            } else {
+                list.forEach(function (item) { grid.appendChild(renderCard(_activeTab, item)); });
+            }
         }
 
         panel.appendChild(header);
+        if (showMainTabs) panel.appendChild(renderMainTabBar());
+        if (adRow) panel.appendChild(adRow);
         panel.appendChild(notice);
-        if (!isSingleSlot()) panel.appendChild(renderTabBar());
+        if (!isSingleSlot() && !coinLockMsg) panel.appendChild(renderTabBar());
         panel.appendChild(grid);
         overlay.appendChild(panel);
         mount.appendChild(overlay);
@@ -498,27 +832,204 @@
         });
     }
 
-    // ── 모달 열기/닫기 ─────────────────────────────────────
+    // ── 광고 보상 티어: 시청 / 구매 / 장착 (전부 클라 sessionStorage — 서버 미진입) ──
 
-    function openShop() {
-        var token = getToken();
-        if (!token) {
-            if (typeof showCustomAlert === 'function') showCustomAlert('상점은 로그인 후 이용할 수 있어요.');
-            else alert('상점은 로그인 후 이용할 수 있어요.');
+    // "광고 보기" — 쿨다운 체크 후, 자리표시 재생(승인 대기 안내 + 자체 애니)을 AD_WATCH_MS만큼
+    // 보여준 뒤 광고코인 지급. 실제 광고 SDK 승인 전까지의 placeholder다.
+    // ⚠️ 이건 애드센스 광고가 아니라 우리 자체 애니메이션이다 → 광고 클릭/시청 유도 정책과 무관.
+    function watchAd() {
+        var remain = adCooldownRemaining();
+        if (remain > 0) {
+            showShopToast('잠시 후 다시 볼 수 있어요 (' + Math.ceil(remain / 1000) + '초)', 'error');
             return;
         }
+        if (document.getElementById('shopAdPlay')) return; // 이미 재생 중
+        playAdPlaceholder(function () {
+            _adWallet.coins += AD_COIN_GRANT;
+            _adWallet.lastWatch = Date.now();
+            saveAdWallet();
+            renderModal(); // ad-잔고 배지 재생성 후 연출
+            var badge = document.getElementById(AD_BALANCE_ID);
+            if (badge) spawnBalanceDelta(badge, AD_COIN_GRANT);
+            showShopToast('광고코인 +' + AD_COIN_GRANT, 'success');
+        });
+    }
+
+    // 광고 자리표시 재생: "승인 대기 중" 안내 + 말이 달리는 애니 + N초 카운트다운/진행바.
+    // 끝까지 보면 onReward() 호출. 중간에 ✕로 닫으면 보상 없음(쿨다운도 소비 안 함).
+    // Math.random 미사용(애니는 CSS 결정론). 동적 텍스트는 전부 상수 → textContent.
+    function playAdPlaceholder(onReward) {
+        var secs = Math.round(AD_WATCH_MS / 1000);
+
+        var ov = document.createElement('div');
+        ov.id = 'shopAdPlay';
+        ov.className = 'shop-adplay-overlay';
+
+        var card = document.createElement('div');
+        card.className = 'shop-adplay-card';
+
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'shop-adplay-close';
+        close.textContent = '✕';
+        close.setAttribute('aria-label', '닫기 (보상 없음)');
+
+        var title = document.createElement('div');
+        title.className = 'shop-adplay-title';
+        title.textContent = '🎬 광고 준비 중 (승인 대기)';
+
+        var sub = document.createElement('div');
+        sub.className = 'shop-adplay-sub';
+        sub.textContent = '지금은 미리보기예요. 잠깐 보면 광고코인을 드려요!';
+
+        var track = document.createElement('div');
+        track.className = 'shop-adplay-track';
+        var runner = document.createElement('span');
+        runner.className = 'shop-adplay-runner';
+        runner.setAttribute('aria-hidden', 'true');
+        runner.textContent = AD_RUNNERS[Date.now() % AD_RUNNERS.length]; // 매 클릭 다른 탈것
+        track.appendChild(runner);
+
+        var barWrap = document.createElement('div');
+        barWrap.className = 'shop-adplay-barwrap';
+        var bar = document.createElement('div');
+        bar.className = 'shop-adplay-bar';
+        bar.style.animationDuration = AD_WATCH_MS + 'ms'; // 진행바를 정확히 시청시간만큼 채움
+        barWrap.appendChild(bar);
+
+        var count = document.createElement('div');
+        count.className = 'shop-adplay-count';
+        count.textContent = secs + '초';
+
+        card.appendChild(close);
+        card.appendChild(title);
+        card.appendChild(sub);
+        card.appendChild(track);
+        card.appendChild(barWrap);
+        card.appendChild(count);
+        ov.appendChild(card);
+        getShopLayer().appendChild(ov);
+
+        var done = false;
+        var tick = null;
+        var timer = null;
+        function cleanup() {
+            if (tick) { clearInterval(tick); tick = null; }
+            if (timer) { clearTimeout(timer); timer = null; }
+            if (ov.parentNode) ov.remove();
+        }
+
+        var left = secs;
+        tick = setInterval(function () {
+            left -= 1;
+            if (left <= 0) { count.textContent = '완료!'; clearInterval(tick); tick = null; }
+            else count.textContent = left + '초';
+        }, 1000);
+
+        timer = setTimeout(function () {
+            done = true;
+            cleanup();
+            if (onReward) onReward();
+        }, AD_WATCH_MS);
+
+        close.addEventListener('click', function () {
+            if (done) return;
+            cleanup();
+            showShopToast('끝까지 봐야 코인을 받아요.', 'error');
+        });
+    }
+
+    // 광고코인으로 ad-아이템 구매 (shop:buy emit 없음 — ad-wallet 차감).
+    function adBuy(item, btn) {
+        if (!item || !isAdItem(item)) return;
+        if (adOwns(item.id)) return;
+        var adPrice = Number.isFinite(item.adPrice) ? item.adPrice : 0;
+        if (_adWallet.coins < adPrice) {
+            showShopToast('광고코인이 부족해요. 광고를 보고 모아보세요.', 'error');
+            return;
+        }
+        var prev = _adWallet.coins;
+        _adWallet.coins -= adPrice;
+        _adWallet.owned.push(item.id);
+        saveAdWallet();
+        renderModal();
+        var badge = document.getElementById(AD_BALANCE_ID);
+        if (badge) spawnBalanceDelta(badge, -adPrice);
+        showShopToast('광고코인으로 받았어요', 'success');
+    }
+
+    // ad-아이템 장착/해제 — transient 소켓 채널로 방 broadcast(인증 불필요).
+    function adEquip(slot, id) {
+        if (id === null || id === undefined) {
+            delete _adWallet.equipped[slot];
+        } else {
+            _adWallet.equipped[slot] = id;
+        }
+        saveAdWallet();
+        // 서버 transient 채널(게스트 허용 — _wallet.authed 가드 우회)
+        if (_socket) _socket.emit('shop:adEquip', { slot: slot, cosmeticId: (id === undefined ? null : id) });
+        renderModal();
+        // 내 화면에 즉시 반영 (어댑터 hook)
+        if (_config && _config.hooks && _config.hooks.onAdEquipApplied) {
+            _config.hooks.onAdEquipApplied(_adWallet.equipped, true);
+        }
+    }
+
+    // 방 (재)입장 시 호출 — 서버 transient(room.adCosmetics[socket.id])는 leave/disconnect로
+    // 정리되므로, sessionStorage의 장착 상태로 채워(load) 각 슬롯을 shop:adEquip 으로 재emit해
+    // 서버를 다시 채운다. DB 미진입·새 채널 미신설(기존 adEquip emit 재사용). socket/장착 없으면 no-op.
+    function reapplyAdEquips() {
+        loadAdWallet();
+        if (!_socket) return;
+        var eq = _adWallet.equipped || {};
+        Object.keys(eq).forEach(function (slot) {
+            var id = eq[slot];
+            if (!id) return;
+            _socket.emit('shop:adEquip', { slot: slot, cosmeticId: id });
+        });
+    }
+
+    // ── 모달 열기/닫기 ─────────────────────────────────────
+
+    // 미인증(게스트/만료토큰) 게스트 진입 허용 여부 — 어댑터 config로 결정.
+    // true(경마 v1): ad-티어 모달을 연다. false(기본/스핀): 기존 동작(로그인 안내 후 미오픈).
+    function allowsGuestShop() {
+        return !!(_config && _config.allowGuestShop);
+    }
+
+    // 미인증인데 게스트 진입 불가일 때의 기존 동작: 로그인 안내 후 모달 미오픈.
+    function denyGuest() {
+        if (typeof showCustomAlert === 'function') showCustomAlert('로그인 후 이용할 수 있어요.');
+    }
+
+    // 상점 열기. 인증되면 전체 상점. 미인증/만료토큰은 allowGuestShop에 따라 분기:
+    //   - 허용(경마 v1): ad-티어만 구매 가능, 일반 상품은 잠금('로그인하세요').
+    //   - 불허(스핀 등): 모달을 열지 않고 로그인 안내(기존 토큰-필수 동작 유지).
+    function openShop() {
+        loadAdWallet();
+        var token = getToken();
         loadCatalog().then(function () {
+            function openWithModal() {
+                // 모달 열 때 메인탭이 있으면 활성 서브탭이 현재 메인샵에 유효한지 보장(첫 진입 안전망).
+                if (hasAdItems()) ensureActiveTabForMainShop();
+                renderModal();
+                document.body.classList.add('hshop-open');
+            }
             if (_wallet.authed) {
-                refreshWallet(function () { renderModal(); document.body.classList.add('hshop-open'); });
-            } else {
+                refreshWallet(openWithModal);
+            } else if (token) {
                 authenticate(token, function (ok) {
-                    if (!ok) {
-                        if (typeof showCustomAlert === 'function') showCustomAlert('인증에 실패했어요. 다시 로그인해 주세요.');
-                        return;
-                    }
-                    renderModal();
-                    document.body.classList.add('hshop-open');
+                    if (ok) { openWithModal(); return; }
+                    // 인증 실패(만료 토큰 등): 게스트 허용 시 ad-티어로 dead-end 방지, 아니면 로그인 안내.
+                    if (allowsGuestShop()) openWithModal();
+                    else denyGuest();
                 });
+            } else if (allowsGuestShop()) {
+                // 게스트(토큰 없음) + 허용: ad-티어만. _wallet.authed=false 유지.
+                openWithModal();
+            } else {
+                // 게스트 + 불허: 기존 동작 — 로그인 안내.
+                denyGuest();
             }
         }).catch(function () {
             if (typeof showCustomAlert === 'function') showCustomAlert('상점 정보를 불러오지 못했어요.');
@@ -558,9 +1069,11 @@
         loadCatalog: loadCatalog,
         openShop: openShop,
         closeShop: closeShop,
+        reapplyAdEquips: reapplyAdEquips,
         isAuthed: function () { return _wallet.authed; },
         // 어댑터가 게임별 메서드(applyToHorse 등) 구현에 쓰는 읽기 getter
         getWallet: function () { return _wallet; },
+        getAdWallet: function () { return _adWallet; },
         getEquipped: function () { return _wallet.equipped; },
         getCatalog: function () { return _catalog; },
         getCatalogItem: getCatalogItem,

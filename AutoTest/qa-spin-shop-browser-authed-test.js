@@ -102,7 +102,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await page.evaluate(() => SpinShop.closeShop());
     await wait(500);
 
-    // 피커: 시안 스와치 잠금 해제 + Ⅱ 배지. (장착 반영은 준비 후 selectSkin emit)
+    // 피커 설계(spin-arena.js renderSkinPicker): 유료색은 소유해도 피커에서 잠금 유지 —
+    // 클릭하면 상점이 열리고, 장착은 상점에서만(소유 포함). 소유가 피커에 주는 반영은 Ⅱ 배지뿐.
+    // 실제 장착 영속은 아래 서버 prefs.equipped 확인이 담당한다.
     const picker = await page.evaluate(() => {
         const swatches = Array.from(document.querySelectorAll('#spinSkinPicker .spin-skin-swatch'));
         const cyan = swatches.find(s => s.querySelector('.spin-skin-name') && s.querySelector('.spin-skin-name').textContent.indexOf('시안') === 0);
@@ -113,9 +115,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
             lockedTotal: document.querySelectorAll('#spinSkinPicker .spin-skin-swatch.locked').length
         } : null;
     });
-    check(picker && !picker.locked && picker.dataSkin === 'cyan_t2' && picker.tierBadge,
-        '피커 시안 잠금 해제 + t2 자동 사용 + Ⅱ 배지: ' + JSON.stringify(picker));
-    check(picker && picker.lockedTotal === 17, '잠금 스와치 18→17 (cyan 해제), got ' + (picker && picker.lockedTotal));
+    check(picker && picker.locked && picker.tierBadge,
+        '피커 시안: 유료색 잠금 유지 + cyan_t2 소유 → Ⅱ 배지 표시: ' + JSON.stringify(picker));
+    check(picker && picker.lockedTotal === 18, '잠금 스와치 18 유지 (유료색은 소유해도 피커 잠금), got ' + (picker && picker.lockedTotal));
 
     // 인원 1명이라 준비 게이트(rc<2)로 selectSkin 자동 반영은 불가 — 서버 권위 prefs 확인으로 대체
     const wallet = await page.evaluate(() => new Promise(res => {

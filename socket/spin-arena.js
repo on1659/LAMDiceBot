@@ -26,20 +26,36 @@ const SAMPLE_MS = 100;            // 키프레임 샘플 간격 → 듀얼 frame
 const SIM_YIELD_EVERY = 100;      // 이 스텝마다 await setImmediate (CPU 양보) — 듀얼 루프 합산 기준
 
 // ─ 듀얼/라운드 시간 (수치 권위 = 200시드 배치) ─
-const DUEL_MAX_MS = 12000;        // 듀얼 캡 — 이 시각까지 HP 0 미발생 시 HP 최저자 = LOSER(HP-lowest fallback → decideMs는 절대 null 아님)
+const DUEL_MAX_MS = 8000;         // 듀얼 캡 — 이 시각까지 HP 0 미발생 시 HP 최저자 = LOSER(HP-lowest fallback → decideMs는 절대 null 아님). 2칼날 + 좁은 DUEL_RING_R로 결판이 빨라 fallback ~0(배치 확인).
 const DECIDE_TAIL_MS = 1200;      // 듀얼 결판(decideMs) 후 결판 비트 길이 — durationMs = decideMs + tail (SAMPLE_MS 격자)
 const MIN_ROUND_MS = 3000;        // 라운드 최소 길이(가장 긴 듀얼이 짧아도 라운드는 이 길이 이상 — 오버뷰 가독)
-const ROUND_TRANSITION_MS = 1200; // 라운드 사이 전환(클라 브래킷 advance 연출). 전체 durationMs 합산에 포함.
-// ─ GAME_MS 재유도(하드 캡) ─
-//   최악 케이스 브래킷 길이: n=24 → 라운드 수 = ceil(log2(24)) = 5라운드.
-//   라운드당 최악 = DUEL_MAX_MS(12000) + DECIDE_TAIL_MS(1200) = 13200ms (모든 듀얼 fallback 가정).
-//   5라운드 × 13200 + 4라운드 전환(ROUND_TRANSITION_MS 1200) × 4 = 66000 + 4800 = 70800ms.
-//   여유 포함 GAME_MS = 76000 (전체 durationMs 상한, endTimeout 산정의 sanity 캡).
-const GAME_MS = 76000;            // 전체 브래킷 durationMs 하드 캡(여유 포함). 실제 durationMs는 라운드 길이 합산 — 보통 훨씬 짧음.
+
+// ─── 연출 비트 상수 (SEQUENTIAL 브로드캐스트 타임라인) ───
+// 박제: 클라 js/spin-arena.js 와 반드시 동일 값. 전체 durationMs = 이 비트들의 순차 합 →
+//   endTimeout = COUNTDOWN_MS + durationMs + RESULT_HOLD_MS. 하나라도 어긋나면 결과가 일찍/늦게 발화.
+const BRACKET_OVERVIEW_MS = 3500;  // 시작 브래킷 오버뷰(누가 누구와 싸우는지) — 전체에서 1회.
+const ROUND_INTRO_MS = 2000;       // "{poolSize}강 시작" 카드 — 라운드마다 1회.
+const DUEL_INTRO_MS = 1500;        // "{A} 대 {B} 게임시작" — 듀얼마다 1회.
+const DUEL_OUTRO_MS = 1500;        // "{loser} 패배" 콜아웃 + 이어지는 모션 — 듀얼마다 1회.
+const DUEL_BLACKOUT_MS = 700;      // 다음 듀얼로 가는 암전(절대 흰색 아님) — 듀얼마다 1회.
+const BYE_BEAT_MS = 1500;          // "부전패" 비트 — bye마다 1회.
+
+// ─ GAME_MS 재유도(하드 캡, SEQUENTIAL 브로드캐스트 모델) ─
+//   클라가 브래킷을 순차 브로드캐스트로 재생: [브래킷 오버뷰] → 라운드마다 [라운드 인트로 + 듀얼들 + bye 비트].
+//   전체 durationMs = BRACKET_OVERVIEW_MS
+//     + Σ_rounds [ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + duel.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ].
+//   최악 케이스: n=24 → totalDuels = 23(토너먼트는 n명 → n-1 듀얼), 라운드 수 = ceil(log2(24)) = 5라운드.
+//   듀얼당 최악 = DUEL_MAX_MS(8000) + DECIDE_TAIL_MS(1200) = 9200ms (모든 듀얼 fallback 가정).
+//   듀얼 연출당 최악 = DUEL_INTRO_MS(1500) + 9200 + DUEL_OUTRO_MS(1500) + DUEL_BLACKOUT_MS(700) = 12900ms.
+//   bye 최악(보수적): 라운드당 1 bye × 5라운드 × BYE_BEAT_MS(1500) = 7500ms.
+//   theoretical = BRACKET_OVERVIEW_MS(3500) + ROUND_INTRO_MS(2000)×5 + 12900×23 + 7500
+//               = 3500 + 10000 + 296700 + 7500 = 317700ms.
+//   여유 포함 GAME_MS = 340000 (전체 durationMs 상한, endTimeout 산정의 sanity 캡 — 317700 여유 22300ms).
+const GAME_MS = 340000;           // 전체 브래킷 durationMs 하드 캡(여유 포함). 실제 durationMs는 비트 순차 합(SEQUENTIAL) — 보통 훨씬 짧음.
 
 // ─ 캐릭터/칼날 ─
 const CHAR_RADIUS = 14;
-const BLADE_COUNT = 1;            // 칼날 수 base(Slice 1: 아이템 OFF — 듀얼 내 칼날 수는 base 고정. 아이템은 후속 slice).
+const BLADE_COUNT = 2;            // 칼날 수 base(듀얼 내 칼날 수는 base 고정. 2개 = 판정 면적↑ → 듀얼 결판 안정).
 const BLADE_RADIUS = 46;          // 캐릭터 중심 → 칼날 끝 거리
 const SWORD_LEN = 28;             // 도신(검 날) 길이 — 날 안쪽 끝 = BLADE_RADIUS - SWORD_LEN. 클라 검 그리기와 동일(보이는 검 = 맞는 검)
 const BLADE_EDGE_R = 3.5;         // 날 선분(캡슐) 반경 — 클라 도신 반폭(최대 3.4px) 정합. 판정 = 날 선분 vs 몸 원
@@ -365,6 +381,7 @@ async function simulate(slots, seed) {
 
     let duelIdSeq = 0;
     while (atRisk.length > 1) {
+        const poolSize = atRisk.length;   // 이 라운드에 진입하는 at-risk 풀 크기(=duels*2+byes). poolSize[0]=n, 이후 ≈ ceil(prev/2).
         const work = atRisk.slice();
         const byes = [];
         if (work.length % 2 === 1) {
@@ -388,17 +405,28 @@ async function simulate(slots, seed) {
             loserDepth[by] = roundIdx;            // bye는 안 싸우고 잔류 = 이 라운드 loser-depth로 카운트
         }
         const roundDurationMs = Math.max(MIN_ROUND_MS, ...duels.map(d => d.durationMs));
-        rounds.push({ roundIdx, durationMs: roundDurationMs, duels, byes });
+        rounds.push({ roundIdx, durationMs: roundDurationMs, poolSize, duels, byes });
         atRisk = nextRisk;
         roundIdx++;
     }
     const finalLoser = atRisk.length ? atRisk[0] : (n === 1 ? poolOrder[0] : null);
     if (n === 1) loserDepth[poolOrder[0]] = 0;   // 1인 방어(실서버 게이트는 n≥2 — sanity)
 
-    // 전체 durationMs = 라운드 길이 합 + 라운드 사이 전환(ROUND_TRANSITION_MS × (라운드 수 - 1)), GAME_MS 캡.
+    // 전체 durationMs = SEQUENTIAL 브로드캐스트 타임라인(클라가 브래킷을 순차 연출로 재생) —
+    //   BRACKET_OVERVIEW_MS + Σ_rounds[ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + duel.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ], GAME_MS 캡.
+    //   rounds가 없으면(n=1 sanity, totalDuels===0) BRACKET_OVERVIEW_MS도 더하지 않고 durationMs는 0 유지(rounds.length>0 가드).
+    //   라운드 객체의 roundDurationMs 필드는 그대로(브래킷 payload 모양 불변 — 2탭 테스트가 max(MIN_ROUND_MS, 듀얼 max) 단언).
     let durationMs = 0;
-    for (const r of rounds) durationMs += r.durationMs;
-    if (rounds.length > 1) durationMs += ROUND_TRANSITION_MS * (rounds.length - 1);
+    if (rounds.length > 0) {
+        durationMs = BRACKET_OVERVIEW_MS;
+        for (const r of rounds) {
+            durationMs += ROUND_INTRO_MS;
+            for (const d of r.duels) {
+                durationMs += DUEL_INTRO_MS + d.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS;
+            }
+            durationMs += r.byes.length * BYE_BEAT_MS;
+        }
+    }
     durationMs = Math.min(GAME_MS, durationMs);
 
     const finalState = slots.map(sl => ({ id: sl.id, loserDepth: loserDepth[sl.id] }));
@@ -655,7 +683,7 @@ module.exports = (socket, io, ctx) => {
             sampleMs: SAMPLE_MS,
             arena: { w: ARENA_W, h: ARENA_H, cx: ARENA_CX, cy: ARENA_CY, r: ARENA_R },
             slots: revealSlots,           // reveal 메타(id/name/color/blade/tier per slot)
-            bracket: sim.bracket,         // { poolOrder, rounds[{roundIdx,durationMs,duels[{duelId,slotA,slotB,frames,durationMs,decideMs,loserSlot,winnerSlot,bladeA,bladeB}],byes}], finalLoser, loserDepth }
+            bracket: sim.bracket,         // { poolOrder, rounds[{roundIdx,durationMs,poolSize,duels[{duelId,slotA,slotB,frames,durationMs,decideMs,loserSlot,winnerSlot,bladeA,bladeB}],byes}], finalLoser, loserDepth }
             geom: sim.geom,               // { scale, charRadius, bladeRadius, swordLen, bladeEdgeR, duelRingR }
             result: { selected, rankings, successionList }
         });

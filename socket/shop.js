@@ -137,6 +137,9 @@ function registerShopHandlers(socket, io, ctx) {
         const id = data && data.cosmeticId;
         const entry = id && CATALOG_INDEX[id];
         if (!entry) return cb({ ok: false, reason: 'notfound' });
+        // 광고 전용 아이템은 일반 코인으로 구매 불가(adPrice·ad-wallet 클라 경로 전용).
+        // adOnly 판정은 서버 카탈로그(entry.item)만 신뢰 — 클라 data.adOnly 무시.
+        if (entry.item.adOnly === true) return cb({ ok: false, reason: 'adonly' });
         const price = entry.item.price;
         if (!Number.isInteger(price)) return cb({ ok: false, reason: 'notfound' });
         try {
@@ -195,6 +198,40 @@ function registerShopHandlers(socket, io, ctx) {
             console.warn('[상점] shop:equip 실패:', e.message);
             cb({ ok: false, reason: 'error' });
         }
+    });
+
+    // ── 광고 코스메틱 장착/해제 (transient 채널 — DB·인증 무관, 게스트 허용) ──
+    // 일반 shop:equip(DB 소유 검증)과 완전 분리된 병렬 시스템. cosmetic-only라
+    // 클라 신뢰 허용(최악: 가짜 외관 표시). adOnly·슬롯 유효성만 서버 카탈로그로 검증.
+    // 저장은 방 메모리(room.adCosmetics[socket.id][slot]) — leaveRoom/방삭제 시 정리.
+    socket.on('shop:adEquip', (data, callback) => {
+        if (!checkRateLimit()) return;
+        const cb = (typeof callback === 'function') ? callback : () => {};
+        const slot = data && data.slot;
+        const cosmeticId = data && data.cosmeticId; // null/undefined면 해제
+        if (cosmetics.PUBLIC_HORSE_SLOTS.indexOf(slot) === -1) return cb({ ok: false, reason: 'slot' });
+        const room = ctx.getCurrentRoom && ctx.getCurrentRoom();
+        if (!room) return cb({ ok: false, reason: 'room' });
+        // v1 광고 코스메틱은 경마 전용 — 타 게임 방 메모리 오염 방지.
+        if (room.gameType !== 'horse-race') return cb({ ok: false, reason: 'gametype' });
+
+        // 해제: 해당 슬롯 제거
+        if (cosmeticId === null || cosmeticId === undefined) {
+            if (room.adCosmetics && room.adCosmetics[socket.id]) {
+                delete room.adCosmetics[socket.id][slot];
+            }
+            return cb({ ok: true });
+        }
+
+        // 장착: adOnly·슬롯일치를 서버 카탈로그(entry.item)에서만 판정 (클라 data.adOnly 무시)
+        const entry = CATALOG_INDEX[cosmeticId];
+        if (!entry || entry.item.adOnly !== true || entry.slot !== slot) {
+            return cb({ ok: false, reason: 'invalid' });
+        }
+        room.adCosmetics = room.adCosmetics || {};
+        room.adCosmetics[socket.id] = room.adCosmetics[socket.id] || {};
+        room.adCosmetics[socket.id][slot] = cosmeticId;
+        cb({ ok: true });
     });
 }
 

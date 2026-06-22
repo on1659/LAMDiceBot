@@ -59,41 +59,57 @@ async function awardRaceCoins(io, room, gameState, userHorseBets, winners, coinR
 
 // 레이스 시작 페이로드용 꾸미기 수집 (transient — gameState/leaveRoom 미오염).
 // - roomCosmetics: 방장(host)의 track_theme/finish_fx → 방 전체 broadcast
-// - horseCosmetics: 말별 공개 꾸미기(첫 인증 선택자 기준). 클라는 자기 말은 자기 것으로 덮어씀.
+// - horseCosmetics: 말 index -> [pub, ...] 배열. 같은 말을 고른 모든 플레이어의 공개 꾸미기.
+//   클라는 자기 말은 자기 것으로 덮어쓰고, 타인/관전 말은 배열에서 랜덤으로 하나 고른다(외형 전용).
 // 공정성: cosmetic은 결과 계산 경로(calculateHorseRaceResult/getWinnersByRule)에 진입하지 않는다.
 async function buildRaceCosmetics(gameState, room) {
-    const result = { roomCosmetics: null, horseCosmetics: {} };
+    const result = { roomCosmetics: null, horseCosmetics: {}, labelCosmetics: {} };
     try {
         const users = gameState.users || [];
         const userIds = users.filter(u => u.authedUserId).map(u => u.authedUserId);
-        if (userIds.length === 0) return result;
-        const equippedMap = await getEquippedMap(userIds); // { uid: equippedObj }
-        const equippedByName = {};
-        users.forEach(u => {
-            if (u.authedUserId && equippedMap[u.authedUserId]) equippedByName[u.name] = equippedMap[u.authedUserId];
-        });
+        const bets = gameState.userHorseBets || {};   // name -> horseIndex
+        const adCosmetics = (room && room.adCosmetics) || {}; // socket.id -> {slot: id} (광고 transient)
 
-        // 방장 연출 → roomCosmetics
-        const host = users.find(u => u.isHost);
-        if (host && equippedByName[host.name]) {
-            const eq = equippedByName[host.name];
-            const rc = {};
-            if (eq.track_theme) rc.track_theme = eq.track_theme;
-            if (eq.finish_fx) rc.finish_fx = eq.finish_fx;
-            if (Object.keys(rc).length) result.roomCosmetics = rc;
+        // 인증 유저 DB equip 조회 (없으면 스킵 — 게스트만 있는 방도 ad 경로로 동작).
+        let equippedByName = {};
+        if (userIds.length > 0) {
+            const equippedMap = await getEquippedMap(userIds); // { uid: equippedObj }
+            users.forEach(u => {
+                if (u.authedUserId && equippedMap[u.authedUserId]) equippedByName[u.name] = equippedMap[u.authedUserId];
+            });
+
+            // 방장 연출 → roomCosmetics (트랙 테마 / 결승 연출)
+            const host = users.find(u => u.isHost);
+            if (host && equippedByName[host.name]) {
+                const eq = equippedByName[host.name];
+                const rc = {};
+                if (eq.track_theme) rc.track_theme = eq.track_theme;
+                if (eq.finish_fx) rc.finish_fx = eq.finish_fx;
+                if (Object.keys(rc).length) result.roomCosmetics = rc;
+            }
         }
 
-        // 말별 공개 꾸미기 (users 순서 = 첫 인증 선택자 우선)
-        const bets = gameState.userHorseBets || {}; // name -> horseIndex
+        // 말별 공개 꾸미기 — 같은 말을 고른 모든 플레이어의 꾸미기를 "배열"로 수집한다.
+        //   각 플레이어 pub = DB equip(인증분) + 본인 ad-장착(socket.id) 슬롯 병합(본인 ad가 본인 DB 위 우선).
+        //   클라는 자기 말은 자기 것으로 덮어쓰고, 타인/관전 말은 이 배열에서 랜덤으로 하나 고른다(외형 전용, 결과 무관).
         users.forEach(u => {
+            // 이름표(닉네임 라벨) 꾸미기 — userName 키. DB equip + 본인 ad-장착(ad 우선).
+            // 인증-독립: userIds.length 가드 밖에 둬야 게스트 전용 방에서도 ad-장착이 broadcast됨.
+            const dbBib = equippedByName[u.name] && equippedByName[u.name].bib;
+            const adBib = adCosmetics[u.id] && adCosmetics[u.id].bib;
+            const labelBib = adBib || dbBib;
+            if (labelBib) result.labelCosmetics[u.name] = labelBib;
+
             const hi = bets[u.name];
             if (hi === undefined || hi === null) return;
-            if (result.horseCosmetics[hi]) return; // 이미 앞선 선택자가 채움
-            const eq = equippedByName[u.name];
-            if (!eq) return;
             const pub = {};
-            PUBLIC_HORSE_SLOTS.forEach(slot => { if (eq[slot]) pub[slot] = eq[slot]; });
-            if (Object.keys(pub).length) result.horseCosmetics[hi] = pub;
+            const eq = equippedByName[u.name];
+            if (eq) PUBLIC_HORSE_SLOTS.forEach(slot => { if (eq[slot]) pub[slot] = eq[slot]; });
+            const ad = adCosmetics[u.id];
+            if (ad) PUBLIC_HORSE_SLOTS.forEach(slot => { if (ad[slot]) pub[slot] = ad[slot]; });
+            if (Object.keys(pub).length === 0) return;
+            if (!result.horseCosmetics[hi]) result.horseCosmetics[hi] = [];
+            result.horseCosmetics[hi].push(pub);
         });
     } catch (e) {
         console.warn('[경마] 꾸미기 페이로드 생성 실패:', e.message);
@@ -520,7 +536,7 @@ module.exports = (socket, io, ctx) => {
         const roomId = room.roomId;
         const roomName = room.roomName;
         // 꾸미기 페이로드 (transient — 결과/공정성 무관, 시각 렌더용)
-        const { roomCosmetics, horseCosmetics } = await buildRaceCosmetics(gameState, room);
+        const { roomCosmetics, horseCosmetics, labelCosmetics } = await buildRaceCosmetics(gameState, room);
         const raceData = {
             availableHorses: gameState.availableHorses,
             players: players,
@@ -547,7 +563,8 @@ module.exports = (socket, io, ctx) => {
             targetRank: resolvedTargetRank,
             targetRankReason: targetRankReason,
             roomCosmetics: roomCosmetics,   // 방장 연출 (track_theme/finish_fx)
-            horseCosmetics: horseCosmetics  // 말별 공개 꾸미기 (paint/trail/accessory/bib)
+            horseCosmetics: horseCosmetics, // 말별 공개 꾸미기 (paint/trail/accessory)
+            labelCosmetics: labelCosmetics  // 이름표(닉네임 라벨) 꾸미기, userName 키
         };
 
         // 룰렛 있으면 룰렛 길이 + 카운트다운 4초 후 경주 시작, 없으면 4초 후 즉시

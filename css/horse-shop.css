@@ -25,6 +25,17 @@
     --hshop-overlay-bg: rgba(20, 12, 6, 0.55);
     --hshop-equipped:  #4a7c3f;
     --hshop-equipped-bg: #e8f3e3;
+
+    /* 광고 보상 티어 — 상점 전용 토큰 */
+    --hshop-ad:        #7c3aed;   /* 광고코인/배지 보라 */
+    --hshop-ad-dark:   #5b21b6;
+    --hshop-locked:    #9ca3af;   /* 잠금 카드 회색 */
+
+    /* 인벤토리('내 아이템') 전용 토큰 */
+    --hshop-inv-stage:    #1b2a4a;                 /* 큰 미리보기 무대 배경(어두워 도색 가시성↑) */
+    --hshop-inv-stage-2:  #243a63;                 /* 무대 그라데이션 하단 */
+    --hshop-inv-ground:   rgba(255, 255, 255, 0.5);/* 무대 지평선 */
+    --hshop-inv-bib-bg:   #333;                    /* 이름표 기본 배경(미장착 시) */
 }
 
 /* 모달 열림 시 배경(트랙) 스크롤 잠금 — 모바일 하단시트 뒤 페이지 스크롤 방지 */
@@ -112,7 +123,35 @@ body.hshop-open {
     box-shadow: var(--hshop-shadow);
 }
 
-/* ── 탭 ── */
+/* ── 메인탭 (광고샵 / 코인샵) — 서브탭보다 강조 ── */
+.hshop-maintabs {
+    flex: none;
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px 0;
+}
+.hshop-maintab {
+    flex: 1;
+    padding: 12px 0;
+    border-radius: 14px;
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: -0.2px;
+    background: var(--hshop-card);
+    color: var(--hshop-ink-soft);
+    border: 2px solid var(--hshop-line);
+    cursor: pointer;
+    transition: 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+.hshop-maintab.is-active {
+    background: var(--horse-500, #8B4513);
+    color: #fff;
+    border-color: var(--horse-600, #a0522d);
+    box-shadow: var(--hshop-shadow);
+}
+
+/* ── 서브탭(카테고리) ── */
 .hshop-tabs {
     flex: none;
     display: flex;
@@ -218,17 +257,21 @@ body.hshop-open {
     z-index: 3;
     pointer-events: none;
 }
+/* 이름표 미리보기: 스프라이트 아래 닉네임 라벨(가변폭) */
 .hshop-preview-bib {
     position: absolute;
     bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
-    min-width: 16px;
+    max-width: 80%;
     padding: 1px 5px;
     font-size: 11px;
     font-weight: 900;
     line-height: 1.3;
     text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     border-radius: 6px;
     border: 1.5px solid #000;
     background: #333;
@@ -313,6 +356,174 @@ body.hshop-open {
 }
 .hshop-buy:disabled { opacity: 0.6; cursor: default; }
 
+/* ── 광고 보상 티어 ── */
+/* 광고코인 잔고 배지 (헤더, 일반 잔고 옆) */
+.hshop-balance--ad {
+    margin-left: 6px;
+    background: rgba(124, 58, 237, 0.35);
+}
+
+/* 광고 배지 (썸네일 우상단) */
+.hshop-ad-badge {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+    background: var(--hshop-ad);
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.2px;
+    z-index: 5;
+}
+
+/* 광고 보기 행 (헤더 아래) */
+.hshop-ad-row {
+    flex: none;
+    margin: 10px 16px 0;
+    padding: 10px 12px;
+    background: var(--hshop-card);
+    border: 1px solid var(--hshop-line);
+    border-radius: 12px;
+    box-shadow: var(--hshop-shadow);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.hshop-ad-info {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--hshop-ink-soft);
+}
+.hshop-watch-ad {
+    flex: none;
+    width: auto;       /* 전역 button{width:100%} 무력화 — 풀폭이면 옆 info를 0폭으로 짓눌러 세로글자 깨짐 */
+    margin-top: 0;     /* 전역 button{margin-top:10px} 무력화 — flex row 정렬 보존 */
+    border: 1.5px solid var(--hshop-ad);
+    background: var(--hshop-ad);
+    color: #fff;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.hshop-watch-ad:active { background: var(--hshop-ad-dark); }
+
+/* 광고 자리표시 재생 (승인 대기 — 자체 애니, 애드센스 광고 아님) */
+.shop-adplay-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 12600;            /* 모달(12000)·전용레이어(12500) 위 */
+    background: rgba(20, 12, 6, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    -webkit-tap-highlight-color: transparent;
+}
+.shop-adplay-card {
+    position: relative;
+    width: 100%;
+    max-width: 340px;
+    background: var(--hshop-card);
+    color: var(--hshop-ink);
+    border-radius: 16px;
+    padding: 24px 18px 18px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    text-align: center;
+}
+.shop-adplay-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.12);
+    color: var(--hshop-ink-soft);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+.shop-adplay-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--hshop-ink);
+}
+.shop-adplay-sub {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--hshop-ink-soft);
+}
+.shop-adplay-track {
+    position: relative;
+    height: 56px;
+    margin: 16px 0 12px;
+    border-radius: 10px;
+    background: var(--hshop-thumb-bg);
+    overflow: hidden;
+}
+.shop-adplay-runner {
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    font-size: 30px;
+    line-height: 1;
+    animation: shopAdRun 1.8s linear infinite;
+}
+@keyframes shopAdRun {
+    from { transform: translateX(-44px); }
+    to   { transform: translateX(360px); }
+}
+.shop-adplay-barwrap {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--hshop-line);
+    overflow: hidden;
+}
+.shop-adplay-bar {
+    height: 100%;
+    width: 0;
+    background: var(--hshop-ad);
+    animation-name: shopAdFill;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+}
+@keyframes shopAdFill {
+    from { width: 0; }
+    to   { width: 100%; }
+}
+.shop-adplay-count {
+    margin-top: 9px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--hshop-ad-dark);
+}
+
+/* 광고코인 가격 + 구매 버튼 */
+.hshop-price--ad { color: var(--hshop-ad-dark); }
+.hshop-buy--ad {
+    border-color: var(--hshop-ad);
+    background: var(--hshop-ad);
+}
+.hshop-buy--ad:active { background: var(--hshop-ad-dark); }
+
+/* 잠금(미인증 일반 상품) 버튼 — 클릭 시 로그인 유도 */
+.hshop-buy.hshop-locked {
+    background: var(--hshop-locked);
+    border-color: var(--hshop-locked);
+    opacity: 1;
+    cursor: pointer;
+}
+
 /* ── 빈 카테고리 안내 ── */
 .hshop-empty {
     grid-column: 1 / -1;
@@ -320,6 +531,112 @@ body.hshop-open {
     color: var(--hshop-ink-soft);
     font-size: 13px;
     padding: 28px 8px;
+}
+
+/* ── 인벤토리('내 아이템') ── */
+/* 본문 = 스크롤 영역(패널이 flex column이므로 본문이 늘어나며 스크롤). */
+.hshop-inv-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+/* 큰 미리보기 무대(어두운 배경에 내 탈것 + 현재 장착 합성) */
+.hshop-inv-preview-wrap {
+    border-radius: 16px;
+    background: linear-gradient(180deg, var(--hshop-inv-stage) 0%, var(--hshop-inv-stage-2) 100%);
+    box-shadow: var(--hshop-shadow);
+    padding: 18px 12px 16px;
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+.hshop-inv-preview {
+    position: relative;
+    width: 100%;
+    height: 140px;
+    display: grid;
+    place-items: center;
+}
+/* 지평선 */
+.hshop-inv-preview::after {
+    content: "";
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: 30px;
+    border-top: 2px dashed var(--hshop-inv-ground);
+    pointer-events: none;
+}
+.hshop-inv-sprite {
+    position: relative;
+    z-index: 2;
+    line-height: 0;
+}
+.hshop-inv-sprite svg {
+    width: 120px;
+    height: auto;
+    display: block;
+}
+.hshop-inv-trail {
+    position: absolute;
+    left: 14%;
+    top: 50%;
+    transform: translateY(-30%);
+    font-size: 26px;
+    letter-spacing: -4px;
+    line-height: 1;
+    z-index: 1;
+    opacity: 0.9;
+    pointer-events: none;
+}
+.hshop-inv-acc {
+    position: absolute;
+    top: 14%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 32px;
+    line-height: 1;
+    z-index: 3;
+    pointer-events: none;
+}
+.hshop-inv-bib {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 76%;
+    padding: 2px 9px;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.3;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 7px;
+    border: 1.5px solid #000;
+    background: var(--hshop-inv-bib-bg);
+    color: #fff;
+    z-index: 3;
+    pointer-events: none;
+}
+
+/* 슬롯 섹션 (헤더 + 소유 카드 그리드) */
+.hshop-inv-section {
+    margin-bottom: 16px;
+}
+.hshop-inv-section-head {
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: -0.2px;
+    color: var(--hshop-ink);
+    margin-bottom: 8px;
+}
+/* 섹션 내부 그리드는 본문이 이미 스크롤·패딩을 가지므로 자체 스크롤·패딩 제거(레이아웃만 재사용) */
+.hshop-inv-grid {
+    overflow: visible;
+    padding: 0;
 }
 
 /* ── 상점 버튼 (경마 페이지 진입점) ── */
@@ -331,11 +648,20 @@ body.hshop-open {
     background: var(--bg-white, #fff);
     color: var(--horse-600, #a0522d);
     font-weight: 800;
-    font-size: 13px;
-    padding: 7px 13px;
+    font-size: 12px;
+    padding: 6px 11px;
     border-radius: 999px;
     cursor: pointer;
     box-shadow: var(--hshop-shadow);
+    white-space: nowrap;
+}
+
+/* 탈것 선택 헤더 안에서 풀폭으로 늘어나지 않게 — 내용폭 컴팩트 버튼 유지 */
+.horse-selection-header .hshop-open-btn {
+    display: inline-flex !important;
+    width: auto !important;
+    flex: 0 0 auto !important;
+    align-self: center;
 }
 
 /* ── 탈것에 적용되는 꾸미기 (트랙 내부) ── */
@@ -348,25 +674,6 @@ body.hshop-open {
     font-size: 20px;
     line-height: 1;
     z-index: 250;
-    pointer-events: none;
-}
-/* 마번 배지: 스프라이트 아래 작은 번호판 */
-.cosmetic-bib {
-    position: absolute;
-    bottom: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    min-width: 16px;
-    padding: 1px 5px;
-    font-size: 11px;
-    font-weight: 900;
-    line-height: 1.3;
-    text-align: center;
-    border-radius: 6px;
-    border: 1.5px solid #000;
-    background: #333;
-    color: #fff;
-    z-index: 240;
     pointer-events: none;
 }
 /* 트레일: 스프라이트 뒤(왼쪽) 잔상 — 달릴 때만 보이게 */
