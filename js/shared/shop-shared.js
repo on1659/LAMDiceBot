@@ -58,6 +58,8 @@
     // 메인샵: 'ad'(광고샵) | 'coin'(코인샵). 기본 'coin'(게임 코인 상점).
     // 카탈로그에 adOnly 아이템이 있을 때만 메인탭 노출(없으면 코인샵 단독 — 기존 동작 보존).
     var _activeMainShop = 'coin';
+    var _invPreviewVehicle = null; // 인벤토리 미리보기 탈것 id(null=어댑터 폴백: 내 탈것 또는 'car')
+    var _invFilter = 'all';        // 인벤토리 카테고리 필터(슬롯 key 또는 'all')
 
     // 서버 권위 지갑 상태
     var _wallet = { authed: false, balance: 0, owned: [], equipped: {} };
@@ -120,8 +122,10 @@
         return gameHasGacha() && item && item.directBuy !== true && item.defaultOwned !== true;
     }
 
-    // 주어진 경제(coin/ad)의 미보유 가챠 풀 id 목록. 풀 크기/비활성 판정·라벨용(클라 표시).
+    // 주어진 경제(coin/ad)의 가챠 풀 id 목록(전체 — 소유 포함). 풀 크기/비활성 판정·라벨용(클라 표시).
     // 실제 추첨 후보는 서버가 다시 계산(서버 권위) — 여기는 표시 일치를 위한 동일 규칙 미러.
+    // ⚠️ 중복환급 전환: 소유 self-exclude 제거(전체 풀 카운트). 풀이 0개(전부 directBuy/
+    //   defaultOwned/requires-미충족)일 때만 가챠 버튼 비활성.
     function gachaPoolIds(economy) {
         if (!_catalog || !gameHasGacha()) return [];
         var ids = [];
@@ -136,8 +140,7 @@
                 if (economy === 'ad' && !isAd) continue;
                 if (item.directBuy === true) continue;
                 if (item.defaultOwned === true) continue;
-                var ownedHere = (economy === 'ad') ? adOwns(item.id) : owns(item.id);
-                if (ownedHere) continue;
+                // (소유 self-exclude 없음 — 전체 풀, 중복은 50% 환급)
                 ids.push(item.id);
             }
         }
@@ -221,6 +224,17 @@
             for (var k = 0; k < list.length; k++) if (itemMatchesMainShop(list[k], mainShop)) return true;
             return false;
         });
+    }
+
+    // 인벤토리 미리보기 탈것 로스터(어댑터 hook). 없으면 'car' 단일 폴백(spin/미구현 안전).
+    function inventoryVehicleRoster() {
+        if (_config && _config.hooks && _config.hooks.inventoryVehicles) {
+            try {
+                var list = _config.hooks.inventoryVehicles();
+                if (Array.isArray(list) && list.length) return list;
+            } catch (e) {}
+        }
+        return [{ id: 'car', name: '자동차' }];
     }
 
     // 활성 서브탭이 현재 메인샵에 없으면 첫 번째 가능한 카테고리로 리셋(없으면 null).
@@ -619,7 +633,7 @@
         if (!gameHasGacha()) return null;
         if (economy === 'coin' && coinLocked) return null; // 코인샵 잠금 뒤에 대기(우회 금지)
 
-        var unowned = gachaPoolIds(economy).length;
+        var poolSize = gachaPoolIds(economy).length; // 전체 풀(소유 포함)
         var isAd = (economy === 'ad');
         var cost = isAd ? GACHA_AD_COST : GACHA_COIN_COST;
 
@@ -630,15 +644,16 @@
         btn.type = 'button';
         btn.className = 'hshop-gacha-btn' + (isAd ? ' hshop-gacha-btn--ad' : ' hshop-gacha-btn--coin');
 
+        // 전체 풀 추첨 + 중복환급 → "다 모았어요" 폐기. 풀 0개(전부 directBuy/defaultOwned)일 때만 비활성.
         var disabled = false;
-        if (unowned === 0) {
-            btn.textContent = '🎉 다 모았어요';
+        if (poolSize === 0) {
+            btn.textContent = '🎁 준비 중';
             disabled = true;
         } else if (isAd) {
-            btn.textContent = '🎬 광고 뽑기 · ' + cost + '광고코인 · 미보유 ' + unowned + '개';
+            btn.textContent = '🎬 광고 뽑기 · ' + cost + '광고코인 · ' + poolSize + '종';
             if (_adWallet.coins < cost) disabled = true; // 잔고 부족 비활성(선검사)
         } else {
-            btn.textContent = '🎲 코인 뽑기 · ' + cost + '코인 · 미보유 ' + unowned + '개';
+            btn.textContent = '🎲 코인 뽑기 · ' + cost + '코인 · ' + poolSize + '종';
             if (_wallet.balance < cost) disabled = true;
         }
         btn.disabled = disabled;
@@ -725,24 +740,91 @@
         var body = document.createElement('div');
         body.className = 'hshop-inv-body';
 
-        // 상단: 어댑터의 큰 합성 미리보기(getVehicleSVG 등 게임 전역 접근은 어댑터 안에서만).
+        // 탈것 로스터 + 현재 선택 인덱스(초기: 어댑터 폴백(내 탈것 — _invPreviewVehicle=null)).
+        var roster = inventoryVehicleRoster();
+        var curIdx = 0;
+        if (_invPreviewVehicle != null) {
+            for (var ri = 0; ri < roster.length; ri++) { if (roster[ri].id === _invPreviewVehicle) { curIdx = ri; break; } }
+        }
+        var curVehicle = roster[curIdx] || roster[0];
+
+        // 상단: 어댑터의 큰 합성 미리보기. 선택 탈것 id를 넘긴다(null이면 어댑터가 내 탈것 폴백).
         if (_config && _config.hooks && _config.hooks.buildInventoryPreview) {
-            var preview = null;
-            try { preview = _config.hooks.buildInventoryPreview(); } catch (e) { preview = null; }
-            if (preview) {
-                var pwrap = document.createElement('div');
-                pwrap.className = 'hshop-inv-preview-wrap';
-                pwrap.appendChild(preview);
-                body.appendChild(pwrap);
+            var pwrap = document.createElement('div');
+            pwrap.className = 'hshop-inv-preview-wrap';
+            appendInventoryPreviewNode(pwrap);
+
+            // ◀ [탈것이름] ▶ 스위처 — 로스터 2개+ 일 때만(단일이면 바꿀 게 없음).
+            if (roster.length > 1) {
+                var sw = document.createElement('div');
+                sw.className = 'hshop-inv-vsw';
+
+                var prev = document.createElement('button');
+                prev.type = 'button';
+                prev.className = 'hshop-inv-vsw-btn hshop-inv-vsw-prev';
+                prev.setAttribute('aria-label', '이전 탈것');
+                prev.textContent = '◀';
+
+                var nameEl = document.createElement('span');
+                nameEl.className = 'hshop-inv-vsw-name';
+                nameEl.textContent = (curVehicle && curVehicle.name) || '탈것';
+
+                var next = document.createElement('button');
+                next.type = 'button';
+                next.className = 'hshop-inv-vsw-btn hshop-inv-vsw-next';
+                next.setAttribute('aria-label', '다음 탈것');
+                next.textContent = '▶';
+
+                // ◀▶ → 인덱스 ±1(로스터 길이 wrap) → 미리보기 노드만 교체(전체 모달 재렌더 지양).
+                //   장착/소유/DB 무변경 — equip emit 없음(미리보기 스프라이트만).
+                function cycle(delta) {
+                    var n = roster.length;
+                    var ni = ((curIdx + delta) % n + n) % n;
+                    _invPreviewVehicle = roster[ni].id;
+                    curIdx = ni;
+                    curVehicle = roster[ni];
+                    nameEl.textContent = (curVehicle && curVehicle.name) || '탈것';
+                    // 미리보기 노드만 재빌드(장착 cosmetic은 mergedEquipped 그대로 — 탈것만 교체)
+                    appendInventoryPreviewNode(pwrap);
+                }
+                prev.addEventListener('click', function () { cycle(-1); });
+                next.addEventListener('click', function () { cycle(1); });
+
+                sw.appendChild(prev);
+                sw.appendChild(nameEl);
+                sw.appendChild(next);
+                pwrap.appendChild(sw);
             }
+            body.appendChild(pwrap);
         }
 
-        // 본문: 슬롯 순서대로 소유 아이템을 섹션으로. 전 슬롯 소유 0개면 빈 상태.
+        // 카테고리 필터 칩(전체 + 각 슬롯). 클릭 → _invFilter 갱신 → 인벤토리 본문 re-render.
+        var chips = document.createElement('div');
+        chips.className = 'hshop-inv-chips';
+        var chipDefs = [{ key: 'all', label: '전체' }].concat(activeSlots().map(function (s) {
+            return { key: s.key, label: s.label || s.key };
+        }));
+        chipDefs.forEach(function (cd) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'hshop-inv-chip' + (_invFilter === cd.key ? ' is-active' : '');
+            chip.textContent = cd.label;
+            chip.addEventListener('click', function () {
+                if (_invFilter === cd.key) return;
+                _invFilter = cd.key;
+                renderModal(); // 인벤토리 본문 re-render(필터 반영)
+            });
+            chips.appendChild(chip);
+        });
+        body.appendChild(chips);
+
+        // 본문: 슬롯 순서대로 소유 아이템을 섹션으로. 필터 활성 시 해당 슬롯만.
         var merged = (_config && _config.hooks && _config.hooks.mergedEquipped)
             ? _config.hooks.mergedEquipped() : null;
         var anyOwned = false;
 
         activeSlots().forEach(function (slot) {
+            if (_invFilter !== 'all' && slot.key !== _invFilter) return; // 필터 skip
             var list = (_catalog[slot.key] || []).filter(ownsForInventory);
             if (list.length === 0) return;
             anyOwned = true;
@@ -771,11 +853,29 @@
         if (!anyOwned) {
             var empty = document.createElement('div');
             empty.className = 'hshop-empty';
-            empty.textContent = '아직 보유한 꾸미기가 없어요.';
+            // 필터로 인해 빈 경우와 정말 0개인 경우를 구분(필터는 "이 카테고리" 안내).
+            empty.textContent = (_invFilter === 'all')
+                ? '아직 보유한 꾸미기가 없어요.'
+                : '이 카테고리에 보유한 꾸미기가 없어요.';
             body.appendChild(empty);
         }
 
         return body;
+    }
+
+    // 미리보기 노드(어댑터 buildInventoryPreview)를 wrap의 첫 자식으로 (재)삽입.
+    // 기존 미리보기 노드(.hshop-inv-preview)만 교체하고 스위처(.hshop-inv-vsw)는 보존.
+    // 장착 cosmetic은 어댑터가 mergedEquipped로 매번 합성 — 탈것 스프라이트만 바뀐다.
+    function appendInventoryPreviewNode(pwrap) {
+        var oldPreview = pwrap.querySelector('.hshop-inv-preview');
+        if (oldPreview) oldPreview.remove();
+        var preview = null;
+        try { preview = _config.hooks.buildInventoryPreview(_invPreviewVehicle); } catch (e) { preview = null; }
+        if (!preview) return;
+        // 스위처가 이미 있으면 그 앞에, 없으면 맨 끝(첫 진입)에 둔다 → 미리보기가 항상 스위처 위.
+        var sw = pwrap.querySelector('.hshop-inv-vsw');
+        if (sw) pwrap.insertBefore(preview, sw);
+        else pwrap.appendChild(preview);
     }
 
     // 카드의 장착 배지를 mergedEquipped 승자 기준으로 보정. 이 아이템이 슬롯 승자가 아니면
@@ -991,6 +1091,7 @@
         var game = gameToken();
         _socket.emit('shop:gacha', { economy: 'coin', game: game }, function (res) {
             if (res && res.ok) {
+                // 서버 balance가 환급까지 반영해 옴(신규=순차감, 중복=차감-환급) → 그대로 반영.
                 var prev = _wallet.balance;
                 _wallet.balance = (typeof res.balance === 'number') ? res.balance : _wallet.balance;
                 _wallet.owned = Array.isArray(res.owned) ? res.owned : _wallet.owned;
@@ -999,13 +1100,12 @@
                 renderModal();                         // 잔고/카드 갱신 후
                 animateBalanceDelta(prev, _wallet.balance);
                 if (item) playReveal(slot, item, item.rarity || 'common', function () {
-                    doEquip(slot, res.drawnId);        // 코인 장착 경로
-                });
+                    doEquip(slot, res.drawnId);        // 코인 장착 경로(신규일 때만 CTA 노출)
+                }, { isDupe: !!res.isDupe, refunded: res.refunded || 0 });
             } else {
                 var reason = res && res.reason;
                 var msg = (reason === 'insufficient') ? '코인이 부족해요.'
-                        : (reason === 'empty') ? '이미 다 모았어요.'
-                        : (reason === 'owned') ? '방금 그 아이템을 이미 받았어요.'
+                        : (reason === 'empty') ? '아직 뽑을 수 있는 꾸미기가 없어요.'
                         : (reason === 'auth') ? '로그인 후 이용할 수 있어요.'
                         : (reason === 'locked') ? '코인샵은 준비 중이에요. 추후 오픈 예정이에요.'
                         : (reason === 'busy') ? '뽑기를 처리 중이에요. 잠시만요.'
@@ -1025,23 +1125,35 @@
         }
         if (btn) { btn.disabled = true; }
         var game = gameToken();
+        // 클라 권위 차감(기존 adBuy 모델): emit 전 선차감, 실패면 롤백. 서버는 결과만 결정.
+        _adWallet.coins -= GACHA_AD_COST;
+        saveAdWallet();
+        var badge = document.getElementById(AD_BALANCE_ID);
+        if (badge) spawnBalanceDelta(badge, -GACHA_AD_COST);
         _socket.emit('shop:gacha', { economy: 'ad', game: game, ownedAdIds: _adWallet.owned.slice() }, function (res) {
             if (res && res.ok) {
-                // 클라 권위 차감/적립(기존 adBuy 모델). 서버는 결과만 결정.
-                _adWallet.coins -= GACHA_AD_COST;
-                if (_adWallet.owned.indexOf(res.drawnId) === -1) _adWallet.owned.push(res.drawnId);
+                var adRefund = 0;
+                if (res.isDupe) {
+                    // 중복: 지급 없이 50% 환급(owned 추가 X). 서버 판정(res.isDupe) 신뢰.
+                    adRefund = Math.floor(GACHA_AD_COST / 2);
+                    _adWallet.coins += adRefund;
+                } else {
+                    // 신규: owned 적립.
+                    if (_adWallet.owned.indexOf(res.drawnId) === -1) _adWallet.owned.push(res.drawnId);
+                }
                 saveAdWallet();
                 var item = getCatalogItem(res.drawnId);
                 var slot = res.slot;
                 renderModal();
-                var badge = document.getElementById(AD_BALANCE_ID);
-                if (badge) spawnBalanceDelta(badge, -GACHA_AD_COST);
                 if (item) playReveal(slot, item, item.rarity || 'common', function () {
-                    adEquip(slot, res.drawnId);        // 광고 장착 경로
-                });
+                    adEquip(slot, res.drawnId);        // 광고 장착 경로(신규일 때만 CTA 노출)
+                }, { isDupe: !!res.isDupe, refunded: adRefund });
             } else {
+                // 실패: 선차감 롤백(무료 손실 방지).
+                _adWallet.coins += GACHA_AD_COST;
+                saveAdWallet();
                 var reason = res && res.reason;
-                var msg = (reason === 'empty') ? '이미 다 모았어요.'
+                var msg = (reason === 'empty') ? '아직 뽑을 수 있는 꾸미기가 없어요.'
                         : (reason === 'busy') ? '뽑기를 처리 중이에요. 잠시만요.'
                         : '뽑기에 실패했어요.';
                 showShopToast(msg, 'error');
@@ -1053,22 +1165,27 @@
     // 리빌 오버레이: 빌드업→버스트→리빌(rarity 차등) + 장착/닫기 CTA. 탭 시 스킵.
     // 아트는 어댑터 buildPreview(slot, item) 재사용. getShopLayer() 위(z-index 12600+).
     // 파티클 위치/지연은 Math.random(외관 한정 — 결과는 이미 서버가 결정).
-    function playReveal(slot, item, rarity, onEquip) {
+    // opts.isDupe=true면 중복 변형(♻️ 모티프, 더 짧게, 환급 안내, 장착 CTA 없이 닫기만).
+    //   rarity 단계 색은 유지하되 dim 처리. opts.refunded = 환급된 통화량(코인/광고코인).
+    function playReveal(slot, item, rarity, onEquip, opts) {
         rarity = (rarity === 'epic' || rarity === 'legend') ? 'epic' : (rarity || 'common');
+        opts = opts || {};
+        var isDupe = !!opts.isDupe;
+        var refunded = opts.refunded || 0;
 
         var soundOn = (typeof SoundManager !== 'undefined' && SoundManager.playSound);
 
         var ov = document.createElement('div');
-        ov.className = 'hshop-reveal-overlay rarity-' + rarity;
+        ov.className = 'hshop-reveal-overlay rarity-' + rarity + (isDupe ? ' is-dupe' : '');
         ov.setAttribute('role', 'dialog');
 
         var stage = document.createElement('div');
         stage.className = 'hshop-reveal-stage';
 
-        // 빌드업 캡슐(흔들림)
+        // 빌드업 캡슐(흔들림). 중복은 ♻️ 모티프.
         var capsule = document.createElement('div');
         capsule.className = 'hshop-reveal-capsule';
-        capsule.textContent = '🎁';
+        capsule.textContent = isDupe ? '♻️' : '🎁';
         stage.appendChild(capsule);
 
         // 버스트(라디얼 라이트) + 파티클 레이어
@@ -1078,7 +1195,8 @@
 
         var particles = document.createElement('div');
         particles.className = 'hshop-reveal-particles';
-        var pCount = (rarity === 'epic') ? 18 : 10;
+        // 중복은 연출을 더 짧고 가볍게(파티클 수 축소).
+        var pCount = isDupe ? 6 : ((rarity === 'epic') ? 18 : 10);
         for (var i = 0; i < pCount; i++) {
             var p = document.createElement('span');
             p.className = 'hshop-reveal-particle';
@@ -1122,6 +1240,14 @@
         nm.textContent = item.name;          // 카탈로그 상수(유저입력 아님)
         revealCard.appendChild(nm);
 
+        // 중복: 환급 안내(이미 소유 → 50% 환급). 신규: 안내 없음.
+        if (isDupe) {
+            var dupeMsg = document.createElement('div');
+            dupeMsg.className = 'hshop-reveal-dupe-msg';
+            dupeMsg.textContent = '이미 가진 꾸미기 · 50% 환급 (+' + refunded + ')';
+            revealCard.appendChild(dupeMsg);
+        }
+
         var ctas = document.createElement('div');
         ctas.className = 'hshop-reveal-ctas';
         var equipBtn = document.createElement('button');
@@ -1132,7 +1258,8 @@
         closeBtn.type = 'button';
         closeBtn.className = 'hshop-reveal-close';
         closeBtn.textContent = '닫기';
-        ctas.appendChild(equipBtn);
+        // 중복은 이미 소유 → 장착 CTA 없이 닫기만. 신규는 장착하기 + 닫기.
+        if (!isDupe) ctas.appendChild(equipBtn);
         ctas.appendChild(closeBtn);
         revealCard.appendChild(ctas);
 
@@ -1156,7 +1283,8 @@
         if (soundOn) {
             try { SoundManager.playSound('gacha_charge'); } catch (e) {}
         }
-        var timer = setTimeout(toReveal, rarity === 'epic' ? 1400 : 1100);
+        // 중복은 더 짧게(이미 소유 — 빠르게 결과만). 신규는 rarity 차등.
+        var timer = setTimeout(toReveal, isDupe ? 700 : (rarity === 'epic' ? 1400 : 1100));
 
         equipBtn.addEventListener('click', function () { close(); if (onEquip) onEquip(); });
         closeBtn.addEventListener('click', close);
@@ -1346,7 +1474,14 @@
         var token = getToken();
         loadCatalog().then(function () {
             function openWithModal() {
-                // 모달 열 때 메인탭이 있으면 활성 서브탭이 현재 메인샵에 유효한지 보장(첫 진입 안전망).
+                // 상점 열 때 메인샵 정규화: 광고 아이템이 있으면 광고샵을 기본 탭으로(decision #1),
+                // 없으면(spin 등) 코인샵 단독 폴백. 'inventory'였던 잔존 상태도 매 오픈 시 리셋.
+                _activeMainShop = hasAdItems() ? 'ad' : 'coin';
+                // 인벤토리 미리보기/필터 상태도 매 오픈 시 초기화: 직전 세션의 탈것 선택
+                // (_invPreviewVehicle)이 새 로스터에 없으면 이름표↔스프라이트 불일치가 나므로
+                // null(어댑터 폴백=내 탈것)로, 필터는 '전체'로 되돌린다.
+                _invPreviewVehicle = null;
+                _invFilter = 'all';
                 if (hasAdItems()) ensureActiveTabForMainShop();
                 renderModal();
                 document.body.classList.add('hshop-open');

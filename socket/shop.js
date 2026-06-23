@@ -68,11 +68,13 @@ const COIN_GACHA_ENABLED = false;
 // (common은 전부 directBuy라 coin 풀에서 제외됨 — 확률 안내(rare 70%/epic 30%)는 rare/epic 전제.)
 const GACHA_RARITY_WEIGHTS = { common: 0, rare: 70, epic: 30 };
 
-// 가챠 풀 빌드: 주어진 게임 + 경제(coin/ad)에 해당하는 "미보유 + 뽑기전용" 후보.
+// 가챠 풀 빌드: 주어진 게임 + 경제(coin/ad)에 해당하는 "뽑기전용 전체" 후보(소유 포함).
 //   coin: item.adOnly !== true (비-광고)   /   ad: item.adOnly === true (광고전용)
-//   공통 제외: directBuy(앵커 직접구매) · defaultOwned(기본제공) · 이미 보유(ownedList)
+//   공통 제외: directBuy(앵커 직접구매) · defaultOwned(기본제공)
 //   선행조건(requires): 선행 cosmetic 미충족 항목은 풀에서 제외(가챠가 shop:buy의 requires
 //     불변식을 우회해 선행 스킨 없이 상위 스킨을 주는 것을 차단 — 예 spin_skin_*_t2).
+// ⚠️ 중복환급 전환: 소유 self-exclude를 제거(소유 아이템도 풀에 포함). 추첨 결과가 소유면
+//   drawAndGrant가 지급 없이 50% 환급한다. owned 인자는 requires 판정용으로만 계속 사용.
 // adOnly·directBuy·requires 판정은 서버 카탈로그(CATALOG_INDEX)만 신뢰 — 클라 데이터 미사용.
 // 반환: [{ id, rarity }]
 function buildPool(economy, game, ownedList) {
@@ -87,8 +89,8 @@ function buildPool(economy, game, ownedList) {
         if (economy === 'ad' && !isAd) return;
         if (item.directBuy === true) return;
         if (item.defaultOwned === true) return;
-        if (owned.indexOf(id) !== -1) return;
-        // 선행조건 게이트(shop:buy L201-211과 동일 의미): requires가 있으면 그 선행 cosmetic을
+        // (소유 self-exclude 없음 — 전체 풀 추첨, 중복은 환급으로 처리)
+        // 선행조건 게이트(shop:buy와 동일 의미): requires가 있으면 그 선행 cosmetic을
         // 소유했거나(ownedList) 선행이 defaultOwned(기본제공)일 때만 후보 포함. 미충족이면 제외.
         // (ad 경제는 현재 requires 쓰는 항목이 없지만 일괄 적용해 안전하게 둔다.)
         const requires = item.requires;
@@ -308,9 +310,9 @@ function registerShopHandlers(socket, io, ctx) {
     });
 
     // ── 뽑기(가챠): 코인 경제(인증·DB) + 광고 경제(adWallet·클라) 두 풀 엄격 분리 ──
-    // 결과는 서버 RNG(weightedPick). 미보유 풀에서만 추첨(중복 0). 두 경제는 서로 무접촉:
-    //   coin = user_cosmetics/coin_ledger/coins.drawAndGrant (adWallet 미접촉)
-    //   ad   = DB 미진입(추첨 결과만 반환), 클라가 adWallet 차감/적립
+    // 결과는 서버 RNG(weightedPick). 전체 풀에서 추첨(소유 포함) — 중복은 50% 환급. 두 경제 무접촉:
+    //   coin = user_cosmetics/coin_ledger/coins.drawAndGrant (adWallet 미접촉). 중복=환급 COMMIT.
+    //   ad   = DB 미진입(추첨 결과+isDupe만 반환), 클라가 adWallet 차감/적립/환급
     socket.on('shop:gacha', async (data, callback) => {
         if (!checkRateLimit()) return;
         const cb = (typeof callback === 'function') ? callback : () => {};
@@ -335,9 +337,10 @@ function registerShopHandlers(socket, io, ctx) {
                 if (!COIN_GACHA_ENABLED) return cb({ ok: false, reason: 'locked' });
                 try {
                     const owned = await cosmetics.getOwned(socket.authedUserId);
-                    const pool = buildPool('coin', game, owned); // 비-adOnly && !directBuy && !defaultOwned && !owned && requires충족
+                    const pool = buildPool('coin', game, owned); // 비-adOnly && !directBuy && !defaultOwned && requires충족 (소유 포함)
                     if (!pool.length) return cb({ ok: false, reason: 'empty' });
-                    const drawnId = weightedPick(pool);          // 서버 RNG
+                    const drawnId = weightedPick(pool);          // 서버 RNG (전체 풀)
+                    // 중복환급: drawAndGrant가 신규=지급, 소유=환급(둘 다 COMMIT)을 원자 처리.
                     const r = await coins.drawAndGrant(socket.authedUserId, GACHA_COIN_COST, drawnId);
                     if (!r.ok) return cb({ ok: false, reason: r.reason, balance: r.balance });
                     await topUpLocalHost(socket); // 로컬 방장 코인 무한 (프로덕션 무영향)
@@ -345,7 +348,7 @@ function registerShopHandlers(socket, io, ctx) {
                     const balance = (LOCAL_HOST_INFINITE && socket.isHost)
                         ? await coins.getBalance(socket.authedUserId)
                         : r.balance;
-                    return cb({ ok: true, drawnId, slot: CATALOG_INDEX[drawnId].slot, balance, owned: ownedNow });
+                    return cb({ ok: true, drawnId, slot: CATALOG_INDEX[drawnId].slot, balance, owned: ownedNow, isDupe: r.isDupe, refunded: r.refunded });
                 } catch (e) {
                     console.warn('[상점] shop:gacha(coin) 실패:', e.message);
                     return cb({ ok: false, reason: 'error' });
@@ -354,11 +357,14 @@ function registerShopHandlers(socket, io, ctx) {
 
             if (economy === 'ad') {
                 // 광고 뽑기는 게스트 허용(인증 불필요). adOnly 판정은 서버 카탈로그만 신뢰.
+                // ownedAdIds는 추첨 결정엔 미사용(서버가 전체 ad 풀에서 뽑음) — 중복 판정용만.
                 const ownedAd = Array.isArray(data.ownedAdIds) ? data.ownedAdIds : [];
-                const pool = buildPool('ad', game, ownedAd);  // adOnly===true && !directBuy && !ownedAd && requires충족
+                const pool = buildPool('ad', game, ownedAd);  // adOnly===true && !directBuy && requires충족 (소유 포함)
                 if (!pool.length) return cb({ ok: false, reason: 'empty' });
-                const drawnId = weightedPick(pool);            // 서버 RNG, DB 미진입
-                return cb({ ok: true, drawnId, slot: CATALOG_INDEX[drawnId].slot });
+                const drawnId = weightedPick(pool);            // 서버 RNG (전체 ad 풀), DB 미진입
+                // 중복 판정은 서버에서(클라 ownedAdIds 기준). 환급액(50%) 계산은 클라가 cost로.
+                const isDupe = ownedAd.indexOf(drawnId) !== -1;
+                return cb({ ok: true, drawnId, slot: CATALOG_INDEX[drawnId].slot, isDupe });
             }
 
             return cb({ ok: false, reason: 'invalid' });

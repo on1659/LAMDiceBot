@@ -62,6 +62,21 @@
 **해결/예방:** 상점 grid를 게이팅/치환할 땐 **grid + 서브탭 바(renderTabBar) + ad-row 세 군데의 노출 조건을 함께** 점검. 잠금 시 `if (!isSingleSlot() && !coinLockMsg)`로 서브탭 바도 숨긴다.
 **관련:** `js/shared/shop-shared.js`(renderModal: grid/renderTabBar/ad-row 노출 조건)
 
+## 2026-06-23 — directBuy 앵커는 그 (슬롯,경제) 풀의 *최저등급*이어야 한다
+
+**상황:** 가챠 상점 — (슬롯,경제)별로 최저등급 1개만 직접구매(directBuy), 나머지 rare/epic은 뽑기 전용.
+**함정/실수:** 광고 경제 풀에는 common 아이템이 없어 **최저등급이 rare**다. 신규 ad 슬롯(track_theme ad 등)을 만들 때 무심코 epic 아이템에 directBuy를 붙이면, 그 풀에서 **가장 희귀·고가 아이템이 가챠를 우회해 직접 구매**되어 "레어=뽑기 전용"이라는 가챠 설계가 깨진다.
+**증상:** Scout/Reviewer가 (슬롯,경제)별 `directBuy.rarity === min(pool.rarity)` 전수 검사로 식별.
+**해결/예방:** directBuy 앵커는 항상 그 (슬롯,경제) 풀의 최저등급(common 우선, 없으면 rare). 코인 경제는 `price`, 광고 경제는 `adPrice`로 동률 tie-break. 슬롯 추가/편집 시 (슬롯,경제)별 directBuy 정확히 1개 + 그게 최저등급인지 검증.
+**관련:** `config/horse/cosmetics.json`, `socket/shop.js buildPool`
+
+## 2026-06-23 — 노랑 계열 이름표는 기본 닉네임 태그(노랑)와 충돌 — 등급/색 추가 시 회피
+
+**상황:** 이름표(bib) 꾸미기 대량 추가. 내 닉네임 기본 태그는 노란색 그라데이션(`var(--yellow-500/600)`)이다.
+**함정/실수:** 노랑/금색 bib(`bib_gold` #ffd54a, `bib_ad_topaz` #fbbf24)를 추가하면 장착 시 기본 노랑 태그와 구분이 안 된다. `bib_gold`는 하필 (bib,coin) directBuy 앵커여서, 삭제 시 앵커 재선정(비-노랑 최저등급 rare = `bib_neon`)까지 필요했다.
+**해결/예방:** 이름표 색 추가 시 노랑/금색(#ffd54a/#fbbf24 계열) 회피. 노랑 앵커를 지우면 (bib,coin) directBuy를 비-노랑 최저등급으로 재선정.
+**관련:** `config/horse/cosmetics.json`(bib), `js/horse-race.js`(닉네임 태그 기본색)
+
 ---
 
 ## 추가 형식

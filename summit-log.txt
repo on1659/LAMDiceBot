@@ -1,4 +1,47 @@
 ========================================
+📋 Summit Log - 2026-06-23 (꾸미기 상점 가챠 확장 + 정리 — 대량 카탈로그·중복환급·신규 슬롯·인벤토리 UX·emote 삭제)
+========================================
+
+## 변경 파일
+- config/horse/cosmetics.json: 가챠 슬롯 대량 확장(8슬롯 coin/ad) → 신규 슬롯 aura(글로우 color) + (emote 추가 후 정리에서 삭제) → emote 슬롯 삭제, 🎗️ 2개(acc_ad_bow/fx_ribbon)·노랑 이름표 2개(bib_gold/bib_ad_topaz) 삭제, bib coin 앵커 bib_neon 재선정, epic 쇼피스 7개(가챠 전용). 최종 157 아이템, (슬롯,경제)별 directBuy 정확히 1개.
+- db/cosmetics.js: EQUIP_SLOTS/PUBLIC_HORSE_SLOTS에 aura 추가(emote는 정리에서 미포함).
+- db/coins.js: drawAndGrant 중복환급 — 전체 풀 추첨, 신규 grant / 중복 grant 없이 +floor(cost/2) 재적립(COMMIT, reason 'gacha-dup') / 부족 ROLLBACK. race 안전은 user_coins row lock + CHECK(balance>=0).
+- socket/shop.js: buildPool 전체풀(소유 self-exclude 제거, directBuy/defaultOwned/requires/economy/game 필터 유지), shop:gacha 응답 isDupe/refunded, ad는 DB 미진입+서버 isDupe 판정.
+- js/shared/shop-shared.js: 광고샵 기본탭(openShop 정규화), 중복 리빌(♻️ 50% 환급), ad 환급 선차감/롤백, "다 모았어요" 폐기, 인벤토리 ◀▶ 미리보기 탈것 스위처 + 카테고리 필터칩.
+- js/horse-shop.js: aura/emote 탭·렌더(정리에서 emote 제거) + stale 셀렉터, 인벤토리 미리보기 탈것 파라미터화, playFinishFxInto 헬퍼 추출 + finish_fx 카드 "▶ 미리보기".
+- css/horse-shop.css: aura/중복리빌/인벤토리 스위처·필터/finish_fx preview 스타일(emote 스타일 정리에서 제거), prefers-reduced-motion.
+- AutoTest: qa-gacha-moneypath-unit / qa-gacha-pool-expansion-unit / qa-gacha-shop-render-smoke / qa-stage-c-inventory-switcher-test 신규, qa-shop-gacha-pool-smoke(계약 역전으로 stale) 삭제.
+- docs/goal/applied/: shop-gacha-expansion.md, shop-gacha-polish.md 아카이브.
+- docs/GameGuide/lessons: _common.md C-15(전체풀 가챠 머니패스)·C-16(계약역전/슬롯삭제 stale 테스트)·C-17(삭제대상 git 대조), horse-race.md(directBuy 최저등급 앵커 + 노랑 이름표 회피).
+
+## 상세 변경 내역
+
+### [가챠 확장 — 대량 카탈로그 + 신규 슬롯]
+- 8 가챠 슬롯을 (슬롯,경제)별 coin/ad 다수로 확장(색배리·이모지 다양화). 신규 슬롯 aura(탈것 글로우 오라). 정리 단계에서 emote 슬롯(액세서리와 중복)·🎗️·노랑 이름표 제거 후 최종 157 아이템.
+- aura는 PUBLIC_HORSE_SLOTS에 추가돼 buildRaceCosmetics(socket/horse.js 무수정, 데이터 주도)로 자동 broadcast. applyEquippedToHorse에 .cosmetic-aura 별도 노드(paint filter 무간섭) + stale 셀렉터.
+
+### [중복 허용 + 50% 환급 (미보유-only 폐기)]
+- 전체 풀 rarity 가중 추첨. 코인: drawAndGrant가 신규=net -cost / 중복=net -(cost-floor(cost/2)) (차감 유지+50% 재적립 COMMIT) / 부족=ROLLBACK. 광고: adWallet 클라 소비, 서버 isDupe 판정, 중복 시 50% adWallet 환급.
+- 머니패스 정합: ledger delta 합 = user_coins 순델타, 음수 잔고 불가(CHECK + 차감 가드 선행), in-flight 직렬화로 연타 이중차감 차단. 코인 가챠는 COIN_GACHA_ENABLED=false 다크십 유지.
+
+### [인벤토리 UX]
+- 내 아이템 탭에 ◀▶ 미리보기 탈것 전환(window.ALL_VEHICLES 로스터, 장착/소유 무변경 — 미리보기 스프라이트만) + 카테고리 필터칩(전체/슬롯별). reopen 시 상태 리셋.
+
+### [정리 — emote 삭제 / 민감·충돌 색 제거 / 쇼피스 / finish_fx 미리보기]
+- emote 슬롯이 accessory와 기능 중복 → 카탈로그/EQUIP·PUBLIC slots/탭/렌더/CSS/테스트 11곳 한 세트 삭제(aura 보존). 기존 prefs.equipped.emote는 렌더 제거로 무시(마이그레이션 불필요).
+- 🎗️(세월호 추모 리본 연상) acc_ad_bow/fx_ribbon 삭제. 노랑 이름표(기본 노랑 닉네임 태그와 충돌) bib_gold/bib_ad_topaz 삭제 → bib coin 앵커 bib_neon(초록) 재선정.
+- 카테고리별 epic 쇼피스 7개(천상 도색/유성우/세라핌 날개/코스믹 이름표/코스모스 트랙/결승 봉황/프리즘 오라), 가챠 전용.
+- finish_fx in-race 낙하 로직을 playFinishFxInto(container,emoji)로 추출(in-race 경로 불변) → 상점 카드 "▶ 미리보기"로 실제 승리 연출 재생(어댑터 격리, spin 무영향).
+
+### [공정성]
+- 추첨 결과는 서버 RNG(weightedPick). 클라 Math.random은 리빌/연출 파티클 jitter만(외관). aura 포함 cosmetic은 결과/sim/emit 무진입(buildRaceCosmetics transient).
+
+### [검증]
+- node -c(socket/shop.js·db/coins.js·db/cosmetics.js·js/horse-shop.js·server.js). 단위: moneypath 31/0, pool-expansion 60/0. Reviewer×2 approve(머니패스 row lock + CHECK 안전, 두 경제 분리, 다크십 유지, spin 무회귀). directBuy (슬롯,경제)별 1개·id 유일·🎗️/노랑 0.
+- 라이브(광고 가챠 리빌·실차감·finish_fx 미리보기·인벤토리·2탭)는 dev 서버 재시작 후 수동 확인.
+- 유저 노출(update-log.md): 상점이 "준비 중" 프레이밍 + 가챠는 확률 기능이라 유저 로그 미기재(정식 오픈 시 일괄 안내).
+
+========================================
 📋 Summit Log - 2026-06-22 (꾸미기 상점 뽑기(가챠) — 광고 뽑기 live·코인 뽑기 다크십)
 ========================================
 

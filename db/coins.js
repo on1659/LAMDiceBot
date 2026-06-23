@@ -143,13 +143,16 @@ async function spend(userId, price, cosmeticId) {
     }
 }
 
-// 뽑기(가챠) 차감+적립. 특정 drawnId(서버가 RNG로 고른 미보유 아이템)를 코인으로
-// 사들여 인벤토리에 넣는 원자 트랜잭션. spend()와 동일 골격이되:
-//   - reason 은 'gacha' 고정. coin_ledger.reason 은 VARCHAR(40)이라 'gacha:'+id 는
-//     긴 id에서 오버플로 위험 → 고정 문자열로 둔다(어떤 아이템을 뽑았는지는 user_cosmetics가 권위).
-//   - 동시 더블드로우(같은 유저 2건이 같은 미보유 풀에서 동시 추첨) 가드는 spend와 동일:
-//     user_cosmetics INSERT 충돌(rowCount 0) 시 ROLLBACK → 'owned'.
-// 반환: { ok, reason?, balance }
+// 뽑기(가챠) 차감 + (신규)지급 / (중복)부분환급. drawnId(서버가 전체 풀에서 RNG로 고른
+// 아이템 — 소유/미소유 무관)를 코인으로 사들이는 원자 트랜잭션. spend()와 동일 골격이되:
+//   - reason 은 신규 'gacha' / 중복 'gacha-dup' 고정. coin_ledger.reason 은 VARCHAR(40)이라
+//     'gacha:'+id 는 긴 id에서 오버플로 위험 → 고정 문자열로 둔다(어떤 아이템을 뽑았는지는
+//     user_cosmetics가 권위).
+//   - 전체 풀 추첨이라 중복(이미 소유)이 정상 결과다. 기존(미보유 풀)은 중복=ROLLBACK 'owned'
+//     였지만, 이제는 중복=차감 유지 + 50% 재적립 후 COMMIT(중복 환급). dupe를 ROLLBACK하면
+//     환급분이 사라지므로 ROLLBACK 금지.
+// 반환: { ok, isDupe, refunded, balance, reason? } (소유 목록은 호출부 socket/shop.js가
+//   cosmetics.getOwned로 별도 조회 — 기존 패턴 유지, coins.js는 cosmetics 의존 안 둠).
 async function drawAndGrant(userId, cost, cosmeticId) {
     const pool = getPool();
     if (!pool || !Number.isInteger(userId) || !Number.isInteger(cost) || cost < 0 || !cosmeticId) {
@@ -159,7 +162,7 @@ async function drawAndGrant(userId, cost, cosmeticId) {
     try {
         await client.query('BEGIN');
 
-        // 원자 차감 (잔고 부족이면 rowCount 0)
+        // 1. 원자 차감 (잔고 부족이면 rowCount 0)
         const dec = await client.query(
             `UPDATE user_coins SET balance = balance - $1, updated_at = NOW()
              WHERE user_id = $2 AND balance >= $1 RETURNING balance`,
@@ -170,29 +173,47 @@ async function drawAndGrant(userId, cost, cosmeticId) {
             const bal = await getBalance(userId);
             return { ok: false, reason: 'insufficient', balance: bal };
         }
-        const balance = dec.rows[0].balance;
+        let balance = dec.rows[0].balance;
 
-        await client.query(
-            `INSERT INTO coin_ledger (user_id, delta, reason, ref) VALUES ($1, $2, $3, $4)`,
-            [userId, -cost, 'gacha', null]
-        );
-        // 미보유 가드: 풀은 호출부(socket/shop.js)가 "미보유"로 좁혀 골랐지만, 동시 추첨이
-        // 둘 다 같은 id를 골랐을 수 있다. PK 충돌(rowCount 0)이면 다른 트랜잭션이 먼저 획득 →
-        // 이 트랜잭션 차감/원장을 되돌리고 owned로 응답(이중과금·중복 차단).
+        // 2. 인벤토리 INSERT — rowCount로 신규/중복 판별(서버 권위, 클라 ownedAdIds 무신뢰).
+        //    동시 더블드로우(같은 유저 2건이 같은 id 추첨)는 PK ON CONFLICT로 자연 직렬화:
+        //    먼저 commit한 쪽만 신규, 나머지는 중복 환급 경로로 합류(이중획득 없음).
         const ins = await client.query(
             `INSERT INTO user_cosmetics (user_id, cosmetic_id) VALUES ($1, $2)
              ON CONFLICT (user_id, cosmetic_id) DO NOTHING
              RETURNING user_id`,
             [userId, cosmeticId]
         );
-        if (ins.rowCount === 0) {
-            await client.query('ROLLBACK');
-            const bal = await getBalance(userId);
-            return { ok: false, reason: 'owned', balance: bal };
+
+        let isDupe, refunded;
+        if (ins.rowCount > 0) {
+            // 3-a. 신규(미소유) — 지급 확정, 순차감 cost.
+            isDupe = false;
+            refunded = 0;
+            await client.query(
+                `INSERT INTO coin_ledger (user_id, delta, reason, ref) VALUES ($1, $2, $3, $4)`,
+                [userId, -cost, 'gacha', null]
+            );
+        } else {
+            // 3-b. 중복(이미 소유) — 지급 없음, 50% 재적립. 순차감 = cost - refund.
+            //      ROLLBACK 아님: 차감 유지 + 환급 후 COMMIT(전체 풀 가챠의 정상 결과).
+            isDupe = true;
+            refunded = Math.floor(cost / 2);
+            const ref = await client.query(
+                `UPDATE user_coins SET balance = balance + $1, updated_at = NOW()
+                 WHERE user_id = $2 RETURNING balance`,
+                [refunded, userId]
+            );
+            balance = ref.rows[0].balance;
+            // 음수 delta 1줄(순차감 = -(cost-refund)). coin_ledger.delta CHECK 없음(spend도 음수 INSERT).
+            await client.query(
+                `INSERT INTO coin_ledger (user_id, delta, reason, ref) VALUES ($1, $2, $3, $4)`,
+                [userId, -(cost - refunded), 'gacha-dup', null]
+            );
         }
 
         await client.query('COMMIT');
-        return { ok: true, balance };
+        return { ok: true, isDupe, refunded, balance };
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;

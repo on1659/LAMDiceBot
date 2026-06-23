@@ -39,12 +39,17 @@
     --hshop-reveal-bg:       rgba(12, 8, 20, 0.86); /* 리빌 오버레이 딤 */
     --hshop-reveal-rare:     #3b82f6;
     --hshop-reveal-epic:     #f59e0b;
+    --hshop-reveal-dupe:     #6b7280;   /* 중복 리빌(♻️ 환급) — 채도 낮은 회색 */
+    --hshop-reveal-refund:   #d97706;   /* 환급 강조(앰버 — 코인계열) */
 
     /* 인벤토리('내 아이템') 전용 토큰 */
     --hshop-inv-stage:    #1b2a4a;                 /* 큰 미리보기 무대 배경(어두워 도색 가시성↑) */
     --hshop-inv-stage-2:  #243a63;                 /* 무대 그라데이션 하단 */
     --hshop-inv-ground:   rgba(255, 255, 255, 0.5);/* 무대 지평선 */
     --hshop-inv-bib-bg:   #333;                    /* 이름표 기본 배경(미장착 시) */
+    --hshop-inv-chip-bg:     #ece6e0;                       /* 필터 칩 기본 배경 */
+    --hshop-inv-chip-active: var(--horse-500, #8B4513);     /* 활성 칩 */
+    --hshop-inv-vsw-bg:      rgba(255, 255, 255, 0.12);     /* 스위처 버튼(무대 위 — 밝은 글래스) */
 }
 
 /* 모달 열림 시 배경(트랙) 스크롤 잠금 — 모바일 하단시트 뒤 페이지 스크롤 방지 */
@@ -265,6 +270,21 @@ body.hshop-open {
     line-height: 1;
     z-index: 3;
     pointer-events: none;
+}
+/* 오라 미리보기: 스프라이트 뒤(z-index 1) 글로우 원. 색은 인라인 color → currentColor */
+.hshop-preview-aura {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(circle, currentColor 0%, transparent 68%);
+    opacity: 0.55;
+    box-shadow: 0 0 16px 6px currentColor;
 }
 /* 이름표 미리보기: 스프라이트 아래 닉네임 라벨(가변폭) */
 .hshop-preview-bib {
@@ -691,6 +711,77 @@ body.hshop-open {
     pointer-events: none;
 }
 
+/* 탈것 스위처(◀ [이름] ▶) — 큰 미리보기 무대 하단 */
+.hshop-inv-vsw {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+.hshop-inv-vsw-btn {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 999px;
+    background: var(--hshop-inv-vsw-bg);
+    color: #fff;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, transform 0.1s;
+}
+.hshop-inv-vsw-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.hshop-inv-vsw-btn:active { transform: scale(0.92); }
+.hshop-inv-vsw-name {
+    min-width: 84px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.2px;
+}
+
+/* 카테고리 필터 칩 — 좁은 화면 가로 스크롤 */
+.hshop-inv-chips {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0 2px 10px;
+    margin-bottom: 4px;
+}
+.hshop-inv-chips::-webkit-scrollbar { display: none; }
+.hshop-inv-chip {
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 999px;
+    background: var(--hshop-inv-chip-bg);
+    color: var(--hshop-ink-soft);
+    font-size: 12px;
+    font-weight: 800;
+    padding: 6px 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, color 0.15s;
+}
+.hshop-inv-chip.is-active {
+    background: var(--hshop-inv-chip-active);
+    color: #fff;
+}
+
+/* PC: 칩 살짝 키우고 스위처 버튼 hover 반응 강화 */
+@media (min-width: 640px) {
+    .hshop-inv-chip { font-size: 12.5px; padding: 7px 14px; }
+    .hshop-inv-vsw-name { font-size: 14px; }
+}
+
 /* 슬롯 섹션 (헤더 + 소유 카드 그리드) */
 .hshop-inv-section {
     margin-bottom: 16px;
@@ -764,6 +855,28 @@ body.hshop-open {
 .horse.racing .cosmetic-trail,
 .horse.running .cosmetic-trail {
     opacity: 0.85;
+}
+
+/* 오라: 탈것 뒤 글로우 링(절대배치 오버레이, 레이아웃 영향 0). 색은 인라인 color → currentColor.
+   z-index를 스프라이트(.vehicle-sprite)·다른 cosmetic보다 낮게 둬 paint filter와 무간섭. */
+.cosmetic-aura {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 52px;
+    height: 52px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(circle, currentColor 0%, transparent 66%);
+    opacity: 0.5;
+    box-shadow: 0 0 18px 7px currentColor;
+    animation: cosmeticAuraPulse 2.2s ease-in-out infinite;
+}
+@keyframes cosmeticAuraPulse {
+    0%, 100% { opacity: 0.42; transform: translate(-50%, -50%) scale(0.92); }
+    50%      { opacity: 0.6;  transform: translate(-50%, -50%) scale(1.06); }
 }
 
 /* ── 방 연출: 트랙 테마 (방장 장착분 방 전체 적용) ── */
@@ -868,6 +981,36 @@ body.hshop-open {
     15%  { opacity: 1; }
     100% { transform: translateY(360%) rotate(200deg); opacity: 0; }
 }
+/* 결승연출 실제 재생 무대: 카드 썸네일을 꽉 채우는 positioned ancestor(낙하 클리핑).
+   playFinishFxInto가 여기에 .cosmetic-finish-fx(낙하 조각)를 그린다. */
+.hshop-fx-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: inherit;
+    z-index: 2;
+}
+/* "▶ 미리보기" 버튼: 썸네일 하단 중앙(burst/낙하 위, 클릭 가능). */
+.hshop-fx-preview-btn {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.hshop-fx-preview-btn:hover { background: rgba(0, 0, 0, 0.72); }
+.hshop-fx-preview-btn:disabled { opacity: 0.55; cursor: default; }
 
 /* ── 잔고 차감/적립 연출 ── */
 .hshop-balance--spend { animation: hshopBalSpend 0.55s ease-out; }
@@ -1226,13 +1369,50 @@ body.hshop-open {
     border: 1.5px solid var(--hshop-line);
 }
 
+/* ── 중복 리빌(♻️ · 50% 환급) — rarity 단계 색은 유지하되 dim, 환급 안내 추가 ── */
+.hshop-reveal-overlay.is-dupe .hshop-reveal-capsule {
+    /* 중복 캡슐(♻️) — rarity 글로우 대신 회색 dim */
+    filter: drop-shadow(0 0 10px var(--hshop-reveal-dupe));
+    opacity: 0.85;
+}
+.hshop-reveal-overlay.is-dupe .hshop-reveal-burst {
+    /* 중복 버스트 — 회색(요란하지 않게) */
+    background: radial-gradient(circle, var(--hshop-reveal-dupe) 0%, transparent 70%);
+}
+.hshop-reveal-overlay.is-dupe .hshop-reveal-particle {
+    background: var(--hshop-reveal-dupe);
+}
+.hshop-reveal-overlay.is-dupe .hshop-reveal-art {
+    /* rarity 색은 유지(클래스 보존)하되 채도/밝기 낮춰 "이미 소유"를 시각화 */
+    filter: grayscale(0.4) brightness(0.92);
+}
+.hshop-reveal-overlay.is-dupe .hshop-reveal-name {
+    color: var(--hshop-ink-soft);
+    margin-bottom: 6px;
+}
+.hshop-reveal-dupe-msg {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--hshop-reveal-refund);
+    margin-bottom: 12px;
+}
+/* 에픽 풀플래시/링은 중복에서 끔(요란함 제거) */
+.hshop-reveal-overlay.is-dupe.rarity-epic.is-revealed::before { animation: none; opacity: 0; }
+.hshop-reveal-overlay.is-dupe.rarity-epic.is-revealed .hshop-reveal-card {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
 /* 모션 최소화 선호 시 카드 미리보기 애니메이션 정지 */
 @media (prefers-reduced-motion: reduce) {
     .hshop-track-runner,
     .hshop-fx-burst,
-    .hshop-fx-confetti { animation: none; }
+    .hshop-fx-confetti,
+    .cosmetic-aura { animation: none; }
     .hshop-track-runner { opacity: 1; }
     .hshop-fx-confetti { opacity: 0; }
+    /* 미리보기 재생 낙하 조각(.hshop-fx-stage 스코프)만 정지/숨김 — 버튼은 그대로 두고 모션만 제거.
+       (in-race 레이스 트랙의 결승 연출은 이 스코프 밖이라 영향 없음.) */
+    .hshop-fx-stage .cosmetic-fx-piece { animation: none; opacity: 0; }
     /* 리빌: 흔들림/버스트/파티클/링 정지하되, 카드는 즉시 보이게(결과 노출은 보존) */
     .hshop-reveal-capsule,
     .hshop-reveal-burst,

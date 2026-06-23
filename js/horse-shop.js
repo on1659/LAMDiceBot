@@ -22,12 +22,13 @@
         { key: 'trail', label: '✨ 트레일' },
         { key: 'accessory', label: '👑 액세서리' },
         { key: 'bib', label: '🏷️ 이름표' },
+        { key: 'aura', label: '🌟 오라' },
         { key: 'track_theme', label: '🏞️ 트랙테마' },
         { key: 'finish_fx', label: '🎆 결승연출' }
     ];
 
     // 카드 썸네일에 실제 탈것을 그려 꾸미기 적용 모습을 미리보기로 보여줄 슬롯
-    var HORSE_PREVIEW_SLOTS = ['paint', 'trail', 'accessory', 'bib'];
+    var HORSE_PREVIEW_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura'];
     var PREVIEW_VEHICLE = 'car'; // 미리보기 샘플 탈것 (getVehicleSVG, horse-race-sprites.js)
 
     // ── 미리보기 빌더 (getVehicleSVG 등 게임 전역 접근은 이 어댑터 안에서만) ──
@@ -54,6 +55,15 @@
             tr.setAttribute('aria-hidden', 'true');
             tr.textContent = item.emoji + item.emoji;
             box.appendChild(tr);
+        }
+
+        // aura → 스프라이트 뒤(z-index 낮음) 글로우. 색은 인라인(item.color), CSS가 box-shadow/링 형태.
+        if (slot === 'aura' && item.color) {
+            var au = document.createElement('span');
+            au.className = 'hshop-preview-aura';
+            au.setAttribute('aria-hidden', 'true');
+            au.style.color = item.color; // currentColor 기반 box-shadow (CSS)
+            box.appendChild(au);
         }
 
         var sprite = document.createElement('div');
@@ -105,26 +115,50 @@
         return box;
     }
 
-    // 결승연출 미리보기: 큰 이모지 펄스 + 작은 조각 낙하 루프.
+    // 결승연출 미리보기: 큰 이모지 펄스 + 작은 조각 낙하 루프 + "▶ 미리보기"(실제 승리 연출 재생).
+    //   미리보기 버튼 클릭 시 playFinishFxInto(stage, emoji)로 실제 in-race 결승 연출을 stage에 1회 재생.
+    //   stage는 position:relative + overflow:hidden(CSS)이라 낙하가 카드 안에 클리핑된다.
     function buildFinishFxPreview(item) {
         var emoji = (item && item.emoji) ? item.emoji : '🎆';
         var box = document.createElement('div');
         box.className = 'hshop-fx-mini';
-        box.setAttribute('aria-hidden', 'true');
 
         var burst = document.createElement('span');
         burst.className = 'hshop-fx-burst';
+        burst.setAttribute('aria-hidden', 'true');
         burst.textContent = emoji;
         box.appendChild(burst);
 
         for (var i = 0; i < 4; i++) {
             var p = document.createElement('span');
             p.className = 'hshop-fx-confetti';
+            p.setAttribute('aria-hidden', 'true');
             p.textContent = emoji;
             p.style.left = (18 + i * 20) + '%';
             p.style.animationDelay = (i * 0.3) + 's';
             box.appendChild(p);
         }
+
+        // 실제 결승 연출이 재생될 무대(빈 div). 낙하 클리핑은 CSS(.hshop-fx-stage)에서 보장.
+        var stage = document.createElement('div');
+        stage.className = 'hshop-fx-stage';
+        stage.setAttribute('aria-hidden', 'true');
+        box.appendChild(stage);
+
+        // "▶ 미리보기" 버튼 — 클릭 시 실제 승리 연출 1회 재생(재생 중 disable, ~3500ms 후 해제).
+        var playBtn = document.createElement('button');
+        playBtn.type = 'button';
+        playBtn.className = 'hshop-fx-preview-btn';
+        playBtn.textContent = '▶ 미리보기';
+        playBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (playBtn.disabled) return;
+            playBtn.disabled = true;
+            playFinishFxInto(stage, emoji);
+            setTimeout(function () { playBtn.disabled = false; }, 3500);
+        });
+        box.appendChild(playBtn);
+
         return box;
     }
 
@@ -139,6 +173,14 @@
     }
 
     // ── 인벤토리 큰 미리보기 (내 탈것 + 현재 장착 전부 합성) ──
+
+    // 인벤토리 미리보기 탈것 로스터(셸 ◀▶ 스위처용). ALL_VEHICLES(js/horse-race.js)에서
+    // id/name만 추려 노출. 아직 미로드/비었으면 'car' 단일 폴백(상점은 로스터 로드 전에도 열림).
+    function inventoryVehicles() {
+        var roster = (window.ALL_VEHICLES || []).map(function (v) { return { id: v.id, name: v.name }; });
+        return roster.length ? roster : [{ id: 'car', name: '자동차' }];
+    }
+
     // 내가 고른 탈것을 알면 그걸, 모르면 'car'(상점은 탈것 선택 전에도 열림). 전역은 가드하며 읽음.
     function myVehicleType() {
         try {
@@ -166,8 +208,9 @@
 
     // 인벤토리 상단 큰 미리보기 노드. mergedEquipped() 기준(실제 탈것에 보이는 것과 동일).
     // paint=sprite filter, trail/accessory=오버레이, bib=이름 라벨. 장착 0개면 빈 탈것이 안전하게 나옴.
-    function buildInventoryPreview() {
+    function buildInventoryPreview(vehicleId) {
         var eq = mergedEquipped();
+        var vt = vehicleId || myVehicleType();
 
         var box = document.createElement('div');
         box.className = 'hshop-inv-preview';
@@ -185,7 +228,7 @@
 
         var sprite = document.createElement('div');
         sprite.className = 'hshop-inv-sprite';
-        sprite.innerHTML = vehicleHTML(myVehicleType()); // 상수 SVG (유저입력 없음)
+        sprite.innerHTML = vehicleHTML(vt); // 상수 SVG (유저입력 없음)
         var paint = eq.paint ? findItem('paint', eq.paint) : null;
         if (paint && paint.filter) sprite.style.filter = paint.filter;
         box.appendChild(sprite);
@@ -232,8 +275,18 @@
         equipped = equipped || {};
 
         // 멱등: 이전 cosmetic-* 자식 제거
-        var stale = horseEl.querySelectorAll('.cosmetic-accessory, .cosmetic-trail');
+        var stale = horseEl.querySelectorAll('.cosmetic-accessory, .cosmetic-trail, .cosmetic-aura');
         for (var i = 0; i < stale.length; i++) stale[i].remove();
+
+        // aura → 탈것 뒤 글로우(별도 노드, z-index 낮게 — paint의 .vehicle-sprite filter와 무간섭)
+        var aura = findItem('aura', equipped.aura);
+        if (aura && aura.color) {
+            var auraEl = document.createElement('span');
+            auraEl.className = 'cosmetic-aura';
+            auraEl.setAttribute('aria-hidden', 'true');
+            auraEl.style.color = aura.color; // currentColor 기반 box-shadow (CSS)
+            horseEl.appendChild(auraEl);
+        }
 
         // paint → .vehicle-sprite filter (.horse가 아니라: 이벤트 연출이 .horse filter 점유)
         var sprite = horseEl.querySelector('.vehicle-sprite');
@@ -261,6 +314,7 @@
             accEl.textContent = acc.emoji;
             horseEl.appendChild(accEl);
         }
+
         // bib(이름표)는 .horse가 아니라 닉네임 라벨(.race-name-tag)에 적용 — getLabelStyle 참조.
     }
 
@@ -334,27 +388,32 @@
         for (var i = 0; i < prev.length; i++) prev[i].remove();
     }
 
-    // 결승 이펙트(폭죽/색종이) 1회 재생.
-    function playFinishFx(roomCosmetics) {
-        if (!roomCosmetics || !roomCosmetics.finish_fx) return;
-        var fx = getCatalogItem(roomCosmetics.finish_fx);
-        if (!fx || !fx.emoji) return;
-        var container = document.getElementById('raceTrackContainer');
-        if (!container) return;
+    // 결승 이펙트 1회 재생을 임의 컨테이너에 그리는 헬퍼(in-race·상점 미리보기 공용).
+    //   이모지 12개 낙하(위치/딜레이 결정적 — Math.random 미사용). ~3500ms 후 자동 정리.
+    //   containerEl은 position:relative + overflow:hidden 이어야 낙하가 그 안에 클리핑된다.
+    function playFinishFxInto(containerEl, emoji) {
+        if (!containerEl || !emoji) return;
         var layer = document.createElement('div');
         layer.className = 'cosmetic-finish-fx';
         layer.setAttribute('aria-hidden', 'true');
-        // 이모지 12개 낙하 (위치/딜레이는 결정적 — Math.random 미사용)
         for (var i = 0; i < 12; i++) {
             var p = document.createElement('span');
             p.className = 'cosmetic-fx-piece';
-            p.textContent = fx.emoji;
+            p.textContent = emoji;
             p.style.left = (5 + i * 8) + '%';
             p.style.animationDelay = (i * 0.12) + 's';
             layer.appendChild(p);
         }
-        container.appendChild(layer);
+        containerEl.appendChild(layer);
         setTimeout(function () { if (layer && layer.parentNode) layer.remove(); }, 3500);
+    }
+
+    // 결승 이펙트(폭죽/색종이) 1회 재생 (in-race: 방장 roomCosmetics 기준).
+    function playFinishFx(roomCosmetics) {
+        if (!roomCosmetics || !roomCosmetics.finish_fx) return;
+        var fx = getCatalogItem(roomCosmetics.finish_fx);
+        if (!fx || !fx.emoji) return;
+        playFinishFxInto(document.getElementById('raceTrackContainer'), fx.emoji);
     }
 
     // ── ShopModule 설정 등록 ───────────────────────────────
@@ -371,6 +430,8 @@
             buildPreview: buildPreview,
             // 인벤토리('내 아이템') 메인탭 상단 큰 미리보기 — mergedEquipped 합성을 어댑터에서 빌드.
             buildInventoryPreview: buildInventoryPreview,
+            // 인벤토리 ◀▶ 스위처용 탈것 로스터(id/name). ALL_VEHICLES에서 추림.
+            inventoryVehicles: inventoryVehicles,
             // 인벤토리 카드 장착표시를 "실제 탈것에 보이는 것"과 일치시키기 위한 현재 장착(슬롯→id) 조회.
             // 광고>코인(같은 슬롯 광고 우선). 셸은 이 단일 진실로 ✓를 1개에만 표시.
             mergedEquipped: mergedEquipped,
