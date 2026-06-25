@@ -96,6 +96,21 @@ function createRoomGameState() {
             endTimeout: null,
             resetTimeout: null
         },
+        pirate: {
+            phase: 'idle',          // idle | selecting | finished
+            claims: {},             // { [holeIndex]: userName }
+            triggerHole: null,      // server-only: 걸리는 구멍 (reveal 전 미노출)
+            seed: 0,                // server-only: 감사용 시드
+            timeLimitSec: 30,       // 호스트 설정 선택 제한시간(10~60)
+            deadlineTs: 0,          // 서버 권위 데드라인(epoch ms) — 클라 시계 재동기용
+            participants: [],       // 시작 시점 사람 참가자 이름
+            holeCount: 0,           // 이번 판 구멍 수 (= 참가자 수)
+            round: 0,
+            history: [],
+            isActive: false,
+            deadlineTimeout: null,
+            resetTimeout: null
+        },
     };
 }
 

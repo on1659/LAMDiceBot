@@ -179,6 +179,11 @@ module.exports = (socket, io, ctx) => {
                 spinArena: gameState.spinArena
                     ? { phase: gameState.spinArena.phase, skins: gameState.spinArena.skins, round: gameState.spinArena.round, history: gameState.spinArena.history }
                     : undefined,
+                // 보안: pirate.triggerHole / seed 등 결과 server-only 마스킹 (reveal 전 노출 = 공정성 위반 — 위험 구멍 누출).
+                // 재진입엔 선택 화면 복원용 phase/claims/holeCount/timeLimitSec/deadlineTs/round/history + participants(누가 참가자인지, 클릭 게이트용 — 비공정성)만 노출.
+                pirate: gameState.pirate
+                    ? { phase: gameState.pirate.phase, claims: gameState.pirate.claims, holeCount: gameState.pirate.holeCount, participants: gameState.pirate.participants, timeLimitSec: gameState.pirate.timeLimitSec, deadlineTs: gameState.pirate.deadlineTs, round: gameState.pirate.round, history: gameState.pirate.history }
+                    : undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
                 frequentMenus: gameState.frequentMenus
@@ -249,7 +254,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 게임 타입 검증 (dice, roulette, horse-race, crane-game, bridge, ladder 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge', 'ladder', 'spin-arena'].includes(gameType) ? gameType : 'dice';
+        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge', 'ladder', 'spin-arena', 'pirate'].includes(gameType) ? gameType : 'dice';
 
         // 방 유지 시간 검증 (1, 3, 6시간만 허용, 기본값: 1시간)
         const validExpiryHours = [1, 3, 6].includes(expiryHours) ? expiryHours : 1;
@@ -1216,6 +1221,17 @@ module.exports = (socket, io, ctx) => {
                 delete gameState.spinArena.skins[socket.userName];
                 if (gameState.spinArena.phase === 'idle') {
                     io.to(roomId).emit('spin-arena:skinsUpdated', { skins: { ...gameState.spinArena.skins } });
+                }
+            }
+            // 🔧 퇴장한 사용자의 해적룰렛 구멍 선점 해제 + idle/selecting이면 선점 상태 재브로드캐스트
+            if (gameState.pirate && gameState.pirate.claims) {
+                const pr = gameState.pirate;
+                let released = false;
+                for (const idx in pr.claims) {
+                    if (pr.claims[idx] === socket.userName) { delete pr.claims[idx]; released = true; }
+                }
+                if (released && (pr.phase === 'idle' || pr.phase === 'selecting')) {
+                    io.to(roomId).emit('pirate:claimsUpdated', { claims: { ...pr.claims }, holeCount: pr.holeCount });
                 }
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.

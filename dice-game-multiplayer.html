@@ -145,6 +145,7 @@
         .room-item.game-bridge { border-left-color: var(--bridge-500); }
         .room-item.game-ladder { border-left-color: var(--ladder-500); }
         .room-item.game-spin-arena { border-left-color: var(--spin-arena-500); }
+        .room-item.game-pirate { border-left-color: var(--pirate-500); }
 
         .room-item:hover {
             transform: translateY(-2px);
@@ -1676,6 +1677,12 @@
                         <span style="font-weight: 600;">회전 칼날</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
+                    <label id="pirateLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--pirate-500); position: relative;">
+                        <input type="radio" name="gameType" value="pirate" id="pirateRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🏴‍☠️</span>
+                        <span style="font-weight: 600;">해적 룰렛</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
                     <!-- 인형뽑기 (비공개 처리) -->
                     <!-- <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--crane-accent); position: relative;">
                         <input type="radio" name="gameType" value="crane-game" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
@@ -1691,7 +1698,7 @@
                 <script>
                     // 게임 타입 선택 시 시각적 강조 (은은한 틴트)
                     (function() {
-                        const colorMap = { dice: 'var(--game-type-dice)', roulette: 'var(--game-type-roulette)', 'horse-race': 'var(--game-type-horse)', 'crane-game': 'var(--game-type-crane)', bridge: 'var(--game-type-bridge)', ladder: 'var(--game-type-ladder)', 'spin-arena': 'var(--game-type-spin-arena)' };
+                        const colorMap = { dice: 'var(--game-type-dice)', roulette: 'var(--game-type-roulette)', 'horse-race': 'var(--game-type-horse)', 'crane-game': 'var(--game-type-crane)', bridge: 'var(--game-type-bridge)', ladder: 'var(--game-type-ladder)', 'spin-arena': 'var(--game-type-spin-arena)', 'pirate': 'var(--game-type-pirate)' };
                         function updateGameTypeStyle() {
                             document.querySelectorAll('input[name="gameType"]').forEach(radio => {
                                 const label = radio.closest('label');
@@ -2862,6 +2869,10 @@
                     gameTypeIcon = '🌀';
                     gameTypeLabel = '회전 칼날';
                     gameTypeColor = 'var(--spin-arena-500)';
+                } else if (room.gameType === 'pirate') {
+                    gameTypeIcon = '🏴‍☠️';
+                    gameTypeLabel = '해적 룰렛';
+                    gameTypeColor = 'var(--pirate-500)';
                 }
                 const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: var(--bg-white); padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
                 
@@ -3034,6 +3045,20 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/spin-arena?joinRoom=true';
+                return;
+            }
+
+            // 해적 룰렛 방이면 해적 룰렛 페이지로 이동
+            if (room && room.gameType === 'pirate') {
+                localStorage.setItem('pirateUserName', userName);
+                localStorage.setItem('pendingPirateJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/pirate?joinRoom=true';
                 return;
             }
 
@@ -3980,6 +4005,23 @@
                 return;
             }
 
+            // 해적 룰렛 게임이면 해적 룰렛 페이지로 이동
+            if (gameType === 'pirate') {
+                localStorage.setItem('pirateUserName', hostName);
+                localStorage.setItem('pendingPirateRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/pirate?createRoom=true';
+                return;
+            }
+
             // 인형뽑기 게임이면 인형뽑기 페이지로 이동
             if (gameType === 'crane-game') {
                 localStorage.setItem('craneGameUserName', hostName);
@@ -4098,6 +4140,20 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/spin-arena?joinRoom=true';
+                return;
+            }
+
+            // 해적 룰렛 방이면 해적 룰렛 페이지로 이동
+            if (room && room.gameType === 'pirate') {
+                localStorage.setItem('pirateUserName', userName);
+                localStorage.setItem('pendingPirateJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/pirate?joinRoom=true';
                 return;
             }
 

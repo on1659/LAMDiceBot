@@ -29,15 +29,16 @@ js/[game].js            ← 클라이언트 로직 (horse-race.js 진입 패턴 
 css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 ```
 
-## 2. 등록 (14곳)
+## 2. 등록 (16곳)
 
 ### 서버
 | 파일 | 할 일 |
 |------|-------|
 | `socket/index.js` | `require('./[game]')` import + setupSocketHandlers 내부 register 함수 호출 |
-| `socket/rooms.js` | gameType allowlist에 `'[game]'` 추가, leaveRoom 시 게임별 베팅/선택 데이터 cleanup |
+| `socket/rooms.js` | ① gameType allowlist에 `'[game]'` 추가 ② leaveRoom 시 게임별 베팅/선택 데이터 cleanup ③ **`getCurrentRoom` 재진입 마스킹**: server-only 필드(정답/trigger/seed 등)를 가진 게임은 화이트리스트에 명시 마스킹 필수 — 안 하면 reveal 전 평문 누출 (`lessons/_common.md` C-20) |
+| `socket/chat.js` | (진짜 disconnect 경로) leaveRoom과 **짝으로** 게임별 점유(claim/lane/skin) cleanup 추가 — 한쪽만 넣으면 유령 점유 잔존 (`lessons/_common.md` C-19) |
 | `utils/room-helpers.js` | `createRoomGameState()` 에 게임별 gameState 필드 초기화 |
-| `routes/api.js` | `/[game]` 라우트 + `/[game]-multiplayer.html` 301 리다이렉트 추가 |
+| `routes/api.js` | ① `/[game]` 라우트 ② `/[game]-multiplayer.html` 301 리다이렉트 ③ `defaultGameStats` 항목 ④ `FREE_GAME_SLUGS` 에 `'[game]'` ⑤ `SERVER_ROOM_DIRECT_PATHS` 에 `'/[game]'` (④⑤ 누락 시 방 공유 다이렉트 링크 미동작) |
 
 ### 클라이언트 진입점 (dice 로비)
 | 파일 | 할 일 |
@@ -49,7 +50,7 @@ css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 | 파일 | 할 일 |
 |------|-------|
 | `css/theme.css` | `--[game]-500/-600/-accent/-rgb` light + dark 양쪽, `--game-type-[game]` |
-| `js/shared/tutorial-shared.js` | `FLAG_BITS.[game]` = 다음 비트 (현재 다음 = 64) |
+| `js/shared/tutorial-shared.js` | `FLAG_BITS.[game]` = 다음 free 비트. **값은 코드에서 직접 확인** (현재: lobby1/dice2/roulette4/horse8/crane16/bridge32/ladder64/spin-arena128/pirate256 사용 → 다음 = 512) |
 | `js/shared/server-select-shared.js` | `localStorage.setItem('[game]UserName', name)` 동기화 |
 | `assets/sounds/sound-config.json` | `[game]_*` 사운드 키 placeholder |
 
@@ -292,20 +293,21 @@ if (room.serverId) {
 - [ ] `css/[game].css` (`--game-*` 토큰 + `--horse-*` alias + `.container !important` + `.game-section block`)
 - [ ] `socket/[game].js` (이벤트 핸들러 + DB 기록 + disconnect grace)
 
-### 등록 (14곳)
+### 등록 (16곳)
 - [ ] `socket/index.js` import + register
-- [ ] `socket/rooms.js` gameType allowlist + leaveRoom cleanup
+- [ ] `socket/rooms.js` gameType allowlist + leaveRoom cleanup + **getCurrentRoom server-only 마스킹** (C-20)
+- [ ] `socket/chat.js` disconnect 경로 점유 cleanup (leaveRoom과 짝, C-19)
 - [ ] `utils/room-helpers.js` gameState 초기화
-- [ ] `routes/api.js` 라우트 + 301 리다이렉트
+- [ ] `routes/api.js` 라우트 + 301 리다이렉트 + **FREE_GAME_SLUGS** + **SERVER_ROOM_DIRECT_PATHS**
 - [ ] `dice-game-multiplayer.html` 5개 hunk (CSS, 라디오, colorMap, 방카드, 3곳 redirect)
 - [ ] `css/theme.css` 색상 변수 light + dark
-- [ ] `js/shared/tutorial-shared.js` FLAG_BITS 비트
+- [ ] `js/shared/tutorial-shared.js` FLAG_BITS 비트 (다음 free 비트 — 코드 확인)
 - [ ] `js/shared/server-select-shared.js` localStorage 동기화
 
 ### Phase D (DB / 사운드 / 통계 / 랭킹)
 - [ ] `db/stats.js` DEFAULT_GAME_STATS
 - [ ] `routes/api.js` defaultGameStats
-- [ ] `db/ranking.js` getMyRank / getTop3Badges / getFullRanking
+- [ ] `db/ranking.js` **`getFullRanking`만** 추가 (최신 관례 — spin-arena/ladder는 getMyRank/getTop3Badges 미등록; per-game 쿼리 비용 커서 필요 시에만 추가)
 - [ ] `assets/sounds/sound-config.json` 사운드 키 + mp3 파일
 
 ### 검증

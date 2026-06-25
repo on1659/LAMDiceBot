@@ -622,6 +622,21 @@ module.exports = (socket, io, ctx) => {
                         if (ladderChanged && ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
                     }
 
+                    // 해적룰렛: 진짜 disconnect(탭 닫기/네트워크 끊김)로 떠난 유저의 구멍 선점 정리.
+                    // leaveRoom(rooms.js:1227-1236)에만 있던 정리가 이 경로엔 없어, 떠난 유저의 선점이
+                    // "유령 선점"으로 남아 해소 시 trigger가 그 빈 자리에 떨어지면 loser=null(패자 0명) 위반.
+                    // idle/selecting일 때만 선점 상태 재브로드캐스트(진행 중 reveal/finished는 손대지 않음).
+                    if (gameState.pirate && gameState.pirate.claims) {
+                        const pr = gameState.pirate;
+                        let pirateReleased = false;
+                        for (const idx in pr.claims) {
+                            if (pr.claims[idx] === userName) { delete pr.claims[idx]; pirateReleased = true; }
+                        }
+                        if (pirateReleased && (pr.phase === 'idle' || pr.phase === 'selecting')) {
+                            io.to(roomId).emit('pirate:claimsUpdated', { claims: { ...pr.claims }, holeCount: pr.holeCount });
+                        }
+                    }
+
                     // 광고 코스메틱(transient): 진짜 disconnect로 떠난 socket의 ad-장착 정리.
                     // leaveRoom(rooms.js)에만 있던 정리를 실제 이탈 대다수 경로(탭 닫기/네트워크 끊김)에도 추가.
                     if (room.adCosmetics && room.adCosmetics[socket.id]) {

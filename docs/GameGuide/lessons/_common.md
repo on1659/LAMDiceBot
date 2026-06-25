@@ -205,6 +205,26 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-19. 게임별 in-room 점유(claim/lane/skin) 정리는 leaveRoom + disconnect 양쪽에 짝으로 — 한쪽만 넣으면 유령 점유
+
+- 사용자가 방을 떠나는 경로는 **둘**이다: 명시적 `leaveRoom`(`socket/rooms.js`)과 **진짜 disconnect**(탭 닫기/네트워크 끊김 → `socket/chat.js`의 disconnect 핸들러). 게임별 점유 상태(해적 룰렛 `claims`, 회전칼날 `skins`, 경마 lane 등)를 `leaveRoom`에서만 정리하면, **탭 닫기로 떠난 유저의 점유가 `socket/chat.js` 경로에선 정리되지 않아 유령으로 남는다.** (`socket/chat.js`의 ladder 블록이 바로 이 함정을 주석으로 경고하고 있다.)
+- **해결:** `socket/chat.js`의 `if (!reconnected)` 블록 안에 `leaveRoom`과 **동일한 점유 cleanup**을 짝으로 추가한다(게임별 가드 `if (gameState.[game] && ...)` 안에서만 동작 → 타 게임 무영향). 점유 해제 후 진행 단계(idle/selecting)면 동기화 이벤트 재브로드캐스트.
+- **동시선점형(N칸=N인원) 게임의 2차 함정:** 게임 시작 시 고정한 `holeCount = 인원수`를 이탈 후에도 그대로 두고 그걸 trigger 모집단으로 쓰면(`crypto.randomInt(holeCount)`), 이탈로 빈 구멍이 생겨 **trigger가 빈 칸에 떨어지고 당첨자=null(꼴찌 없는 라운드)** 이 된다(해적 룰렛 3→2 이탈 시뮬에서 ~33% 재현). → trigger는 **항상 "생존자가 점유한 구멍"에서만** 뽑고(`Object.keys(claims)` 중 선택), resolve 직전 비-생존자 claim을 purge한다. 조기해소 게이트도 `picked >= holeCount`가 아니라 **생존자 전원 선점** 기준이어야 이탈 후 데드라인까지 끌려가지 않는다.
+- **검증:** "선점 후 탭 닫기 → 데드라인 해소"에서 유령 당첨자 0, zero-loser 0. 점유 키를 leaveRoom·disconnect 양 경로 후 grep해 이탈 유저 잔존 0.
+- (출처: 2026-06-25 해적 룰렛(pirate) 신규 게임 — Reviewer/Codex/QA 공통 적발)
+
+---
+
+## C-20. server-only 필드를 가진 새 게임은 `getCurrentRoom` 재진입 마스킹을 반드시 추가 — 안 하면 reveal 전 평문 누출
+
+- `socket/rooms.js`의 `getCurrentRoom`(재진입/룸상태 전송)은 `...gameState`를 **스프레드한 뒤 게임별로 명시 마스킹**하는 방식이다. 즉 **새 게임의 gameState 객체를 마스킹 화이트리스트에 추가하지 않으면 통째로 클라에 노출**된다.
+- 정답/당첨 위치/시드 등 **reveal 전에 알면 안 되는 server-only 필드**(해적 룰렛 `triggerHole`/`seed` 등)를 가진 게임은, 이 함수에 `[game]: gameState.[game] ? { /* 안전 필드만 */ } : undefined` 형태로 화이트리스트 마스킹을 추가해야 한다. spin-arena가 `{phase, skins, round, history}`만 노출하고 `timeline/result/seed`를 숨기는 게 표준 예시.
+- **이것은 new-game.md가 누락했던 가장 위험한 등록 누락점이다.** 마스킹을 빼면 reveal 전 DevTools network에서 정답이 평문으로 보여 공정성이 깨진다.
+- **검증:** selecting/진행 중 재입장 시 전송 payload에 server-only 필드 부재(DevTools network), 전 repo grep으로 해당 필드가 reveal emit 외 어떤 emit에도 없음 확인.
+- (출처: 2026-06-25 해적 룰렛(pirate) 신규 게임 — Scout 적발, Reviewer/QA 확인)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**
