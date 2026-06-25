@@ -98,9 +98,10 @@ function createRoomGameState() {
         },
         pirate: {
             phase: 'idle',          // idle | selecting | finished
-            claims: {},             // { [holeIndex]: userName }
-            triggerHole: null,      // server-only: 걸리는 구멍 (reveal 전 미노출)
+            claims: {},             // { [holeIndex]: userName } — 실시간 검 점유
+            triggerHole: null,      // server-only: 걸리는 구멍 (reveal 전 미노출, isPop으로만 노출)
             seed: 0,                // server-only: 감사용 시드
+            seq: 0,                 // server-only: 검 삽입 단조 카운터 (FIFO 순서 근거)
             timeLimitSec: 30,       // 호스트 설정 선택 제한시간(10~60)
             deadlineTs: 0,          // 서버 권위 데드라인(epoch ms) — 클라 시계 재동기용
             participants: [],       // 시작 시점 사람 참가자 이름

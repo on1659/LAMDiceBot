@@ -1,7 +1,7 @@
-/* 해적 룰렛(pirate) 클라이언트 로직.
+/* 해적 룰렛(pirate) 클라이언트 로직 — v2 실시간 검 꽂기.
    부트스트랩(방 생성/입장 + 공통 모듈 init)은 spin-arena/ladder 패턴 차용.
-   게임 로직(통+구멍 선점 + 원형 시계 + reveal)은 pirate 전용.
-   공정성: 서버가 모든 결과 결정(trigger 구멍/자동 배정). 클라는 시각화만.
+   게임 로직(통+측면 구멍 실시간 클릭 + 상단 시계 + FIFO 애니 큐 + 해적 팝업)은 pirate 전용.
+   공정성: 서버가 모든 결과 결정(trigger 구멍/자동 배정/순서/재선택). 클라는 FIFO 큐/시계 등 시각화만.
    Math.random은 deviceId/tabId 생성에만 사용(게임 결과와 무관) → 2탭 화면 동일. */
 
 // ─── 공유 상수 (socket/pirate.js 상단과 반드시 동일 값) ───
@@ -9,6 +9,11 @@ var PIRATE_MIN_PLAYERS = 2;
 var TIME_LIMIT_DEFAULT = 30;
 var TIME_LIMIT_MIN = 10;
 var TIME_LIMIT_MAX = 60;
+
+// FIFO 애니 타이밍 (시각 전용 — 결과 무관)
+var STAB_ANIM_MS = 420;        // 검 1자루 슬라이드 인 애니 길이
+var STAB_GAP_MS = 90;          // 연속 삽입 사이 간격
+var POP_ANIM_MS = 1100;        // 해적이 통 위로 팝업하는 애니 길이
 
 // localhost 체크
 var isLocalhost = window.location.hostname === 'localhost' ||
@@ -64,13 +69,23 @@ var pirateState = {
     phase: 'idle',            // idle | selecting | finished
     holeCount: 0,
     players: [],              // 이번 판 참가자 이름
-    claims: {},               // { [holeIndex]: userName }
+    claims: {},               // { [holeIndex]: userName } — 시각 반영용(렌더 상태)
+    iStabbed: false,          // 내가 이번 판에 검을 꽂았는지
     timeLimitSec: TIME_LIMIT_DEFAULT,
     deadlineTs: 0,
     durationSec: TIME_LIMIT_DEFAULT,
-    holePositions: []         // [{ left%, top% }] — 방사형 배치 (시각)
+    holePositions: []         // [{ left%, top% }] — 측면 배치 (시각)
 };
 var clockRaf = null;
+
+// ── FIFO 애니메이션 큐 (재작성 핵심) ──
+// 실시간 pirateSwordInserted / 데드라인 pirateAutoInsertSequence가 여기에 도착순으로 쌓인다.
+// 단일 소비자가 한 번에 하나씩 재생(먼저 누른 사람 먼저). isPop 항목은 해적 팝업 후 결과 표시.
+var animQueue = [];
+var animRunning = false;
+var heldResolve = null;       // pirateResolved 데이터(팝 애니가 끝난 뒤 결과 표시용)
+var lastInsertSeq = 0;        // 실시간 삽입 단조 seq — 재연결/리플레이 중복 삽입 방지(F4). 새 라운드마다 0으로 리셋.
+var pendingRerender = false;  // 애니 중 claims 변경 시 드레인 후 1회 재렌더 예약(F3)
 
 // 소켓 연결
 var socket = io({ reconnection: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
@@ -326,6 +341,9 @@ function readyCount() {
 function amIReady() {
     return (readyUsers || []).indexOf(currentUser) >= 0;
 }
+function amIParticipant() {
+    return pirateState.players.indexOf(currentUser) >= 0;
+}
 
 // 호스트 시작 버튼 + 제한시간 컨트롤 상태
 function updateStartButton() {
@@ -341,72 +359,212 @@ function updateStartButton() {
     if (slider) slider.disabled = (pirateState.phase === 'selecting' || isPirateActive);
 }
 
-// ── 통 위 N개 구멍 방사형 배치 (시각 — 결과 무관) ──
+// ── 통 측면 N개 구멍 배치 (시각 — 결과 무관) ──
+// 통은 중앙 정면. 구멍은 통 좌우 측면에 세로로 분산(작은 N은 1열씩, 큰 N은 2열로 균등).
 function computeHolePositions(n) {
     var positions = [];
     if (n <= 0) return positions;
-    // 통 본체(중앙 46%) 바깥, 둘레에 균등 배치. 반경 = 중심에서 38%.
-    var radius = 38;   // %
-    var startAngle = -90;   // 12시 방향부터
+    // 좌/우 측면에 번갈아 배치, 위→아래로 진행. 통 본체(가로 중앙 ~52%) 양옆 가장자리.
+    var perSide = Math.ceil(n / 2);
+    var leftX = 21;    // %
+    var rightX = 79;   // %
+    var topPad = 26;   // 위 여백 %
+    var botPad = 80;   // 아래 한계 %
+    function colY(i, count) {
+        if (count <= 1) return (topPad + botPad) / 2;
+        return topPad + (botPad - topPad) * (i / (count - 1));
+    }
+    var li = 0, ri = 0;
+    var leftCount = perSide;
+    var rightCount = n - perSide;
     for (var i = 0; i < n; i++) {
-        var ang = (startAngle + (360 / n) * i) * Math.PI / 180;
-        var left = 50 + radius * Math.cos(ang);
-        var top = 50 + radius * Math.sin(ang);
-        positions.push({ left: left, top: top });
+        if (i % 2 === 0 && li < leftCount) {
+            positions.push({ left: leftX, top: colY(li, leftCount), side: 'left' });
+            li++;
+        } else if (ri < rightCount) {
+            positions.push({ left: rightX, top: colY(ri, rightCount), side: 'right' });
+            ri++;
+        } else {
+            positions.push({ left: leftX, top: colY(li, leftCount), side: 'left' });
+            li++;
+        }
     }
     return positions;
 }
 
-// ── 구멍 렌더 ──
+// ── 구멍 렌더 (점유/클릭 가능 상태 반영) ──
 function renderHoles() {
     var holesEl = document.getElementById('pirateHoles');
     if (!holesEl) return;
     holesEl.innerHTML = '';
 
     var positions = pirateState.holePositions;
-    var locked = pirateState.phase !== 'selecting';
+    var selecting = pirateState.phase === 'selecting';
+    var canIStab = selecting && amIParticipant() && !pirateState.iStabbed;
 
     for (var i = 0; i < pirateState.holeCount; i++) {
-        var pos = positions[i] || { left: 50, top: 50 };
+        var pos = positions[i] || { left: 50, top: 50, side: 'left' };
         var owner = pirateState.claims[i] || null;
         var hole = document.createElement('div');
         hole.className = 'pirate-hole';
+        if (pos.side) hole.classList.add('side-' + pos.side);
         hole.style.left = pos.left + '%';
         hole.style.top = pos.top + '%';
         hole.setAttribute('data-hole', String(i));
 
         if (owner) {
-            hole.classList.add('claimed');
+            hole.classList.add('occupied');
             if (owner === currentUser) hole.classList.add('mine');
-            hole.innerHTML = '<span class="pirate-hole-name">' + escapeHtml(owner) + '</span>';
-        } else if (!locked) {
-            hole.classList.add('claimable');
-            hole.textContent = (i + 1) + '번';
-        } else {
-            hole.textContent = (i + 1) + '번';
+            // 검 + 주인 이름표 (이미 꽂힌 구멍은 즉시 표시; 신규 삽입 애니는 playInsert가 .stab-in 부여)
+            hole.innerHTML =
+                '<span class="pirate-sword">🗡️</span>' +
+                '<span class="pirate-hole-name">' + escapeHtml(owner) + '</span>';
+        } else if (canIStab) {
+            hole.classList.add('stabbable');
         }
 
-        // 선택 가능 + 내가 참가자일 때만 클릭(터치+마우스 동시 — click 이벤트로 통일)
-        if (!locked && amIReady() && pirateState.players.indexOf(currentUser) >= 0) {
+        // 빈 구멍 + 내가 참가자 + 아직 안 꽂음일 때만 클릭(터치+마우스 통일: click)
+        if (!owner && canIStab) {
             (function (idx) {
-                hole.addEventListener('click', function () { claimHole(idx); });
+                hole.addEventListener('click', function () { stabHole(idx); });
             })(i);
         }
         holesEl.appendChild(hole);
     }
 }
 
-function claimHole(holeIndex) {
+// 실시간 클릭 → 검 꽂기 emit (낙관적 차단만; 점유 반영은 서버 브로드캐스트 기준)
+function stabHole(holeIndex) {
     if (pirateState.phase !== 'selecting') return;
-    // 이미 다른 사람이 선점한 구멍은 클릭 무시(서버도 거부 — UX상 즉시 차단)
-    var owner = pirateState.claims[holeIndex];
-    if (owner && owner !== currentUser) return;
-    if (owner === currentUser) return;   // 멱등
-    socket.emit('claimPirateHole', { holeIndex: holeIndex });
+    if (!amIParticipant() || pirateState.iStabbed) return;
+    if (pirateState.claims[holeIndex]) return;   // 이미 점유 — 무시(서버도 거부)
+    socket.emit('insertPirateSword', { holeIndex: holeIndex });
     playPirateSound('pirate_claim', 0.5);
 }
 
-// ── 원형 시계 (서버 deadlineTs 기준 — 시각 전용) ──
+// ── FIFO 애니 큐 ──
+// item: { holeIndex, userName, isPop, alreadyPlaced? }
+function enqueueInsert(item) {
+    animQueue.push(item);
+    pumpQueue();
+}
+function pumpQueue() {
+    if (animRunning) return;
+    var item = animQueue.shift();
+    if (!item) {
+        // 드레인 완료(큐 비고 애니 정지) — 애니 중 보류된 claims 재렌더를 1회 반영(F3)
+        if (pendingRerender) {
+            pendingRerender = false;
+            if (pirateState.phase === 'selecting') renderHoles();
+        }
+        return;
+    }
+    animRunning = true;
+    if (item.isPop) {
+        playPop(item, function () { animRunning = false; pumpQueue(); });
+    } else {
+        playInsert(item, function () { animRunning = false; pumpQueue(); });
+    }
+}
+
+// 검 1자루 슬라이드 인 — 해당 구멍에 owner/검 표시 + .stab-in 발화
+// F1: 본문이 던져도 done()이 늘 호출되도록 try/finally — 큐(animRunning) 영구 고착 방지.
+function playInsert(item, done) {
+    try {
+        pirateState.claims[item.holeIndex] = item.userName;
+        var holesEl = document.getElementById('pirateHoles');
+        var holeEl = holesEl ? holesEl.querySelector('.pirate-hole[data-hole="' + item.holeIndex + '"]') : null;
+        if (holeEl) {
+            holeEl.classList.remove('stabbable');
+            holeEl.classList.add('occupied');
+            if (item.userName === currentUser) holeEl.classList.add('mine');
+            holeEl.innerHTML =
+                '<span class="pirate-sword">🗡️</span>' +
+                '<span class="pirate-hole-name">' + escapeHtml(item.userName) + '</span>';
+            // reflow 후 애니 클래스 부여
+            void holeEl.offsetWidth;
+            holeEl.classList.add('stab-in');
+            playPirateSound('pirate_claim', item.userName === currentUser ? 0.5 : 0.3);
+        }
+        // 내가 꽂은 게 반영되면 클릭 게이트 갱신
+        if (item.userName === currentUser) {
+            pirateState.iStabbed = true;
+            refreshStabGate();
+        }
+    } finally {
+        // 정상/예외 무관하게 timing 유지하며 다음 항목 펌프(done은 정확히 1회)
+        setTimeout(done, STAB_ANIM_MS + STAB_GAP_MS);
+    }
+}
+
+// 해적 팝업 — trigger 구멍에서 검 표시 후 해적이 통 위로 솟구침
+// F1: 동기 본문 + 지연 콜백(showResultOverlay) 어디서 던져도 done()이 늘 호출되도록 try/finally 이중 가드.
+//     showResultOverlay가 malformed heldResolve로 던져도 큐(animRunning)가 고착되지 않는다.
+function playPop(item, done) {
+    try {
+        // pop을 일으킨 검도 화면에 반영(자동삽입 마지막 항목). 실시간 점유분(alreadyPlaced)은 이미 반영됨.
+        if (!item.alreadyPlaced) {
+            pirateState.claims[item.holeIndex] = item.userName;
+            var holesEl = document.getElementById('pirateHoles');
+            var holeEl = holesEl ? holesEl.querySelector('.pirate-hole[data-hole="' + item.holeIndex + '"]') : null;
+            if (holeEl) {
+                holeEl.classList.remove('stabbable');
+                holeEl.classList.add('occupied');
+                holeEl.innerHTML =
+                    '<span class="pirate-sword">🗡️</span>' +
+                    '<span class="pirate-hole-name">' + escapeHtml(item.userName) + '</span>';
+                void holeEl.offsetWidth;
+                holeEl.classList.add('stab-in');
+            }
+        }
+
+        // trigger 구멍 강조
+        var holesEl2 = document.getElementById('pirateHoles');
+        var triggerEl = holesEl2 ? holesEl2.querySelector('.pirate-hole[data-hole="' + item.holeIndex + '"]') : null;
+        if (triggerEl) triggerEl.classList.add('trigger');
+
+        // 해적 팝업 발화
+        var barrel = document.getElementById('pirateBarrel');
+        if (barrel) barrel.classList.add('popped');
+        playPirateSound('pirate_pop', 0.8);
+    } finally {
+        // 동기 본문이 던져도 지연 콜백은 늘 예약(timing 유지)
+        setTimeout(function () {
+            try {
+                var loser = heldResolve ? heldResolve.loser : item.userName;
+                if (loser === currentUser) playPirateSound('pirate_lose', 0.9);
+                else playPirateSound('pirate_win', 0.6);
+                showResultOverlay(heldResolve || { loser: item.userName, survivors: [] });
+            } finally {
+                // overlay/사운드가 던져도 done은 정확히 1회 → 큐 고착 방지
+                done();
+            }
+        }, POP_ANIM_MS);
+    }
+}
+
+// 내가 꽂은 뒤(또는 게임 비활성) 빈 구멍 클릭 게이트 새로고침 — DOM 재렌더 없이 클래스만 정리
+function refreshStabGate() {
+    var holesEl = document.getElementById('pirateHoles');
+    if (!holesEl) return;
+    var canIStab = pirateState.phase === 'selecting' && amIParticipant() && !pirateState.iStabbed;
+    var holeEls = holesEl.querySelectorAll('.pirate-hole');
+    for (var i = 0; i < holeEls.length; i++) {
+        var el = holeEls[i];
+        if (!el.classList.contains('occupied')) {
+            if (canIStab) el.classList.add('stabbable');
+            else el.classList.remove('stabbable');
+        }
+    }
+    var status = document.getElementById('gameStatus');
+    if (status && pirateState.phase === 'selecting') {
+        if (!amIParticipant()) status.textContent = '관전 중 — 참가자들이 검을 꽂는 중...';
+        else if (pirateState.iStabbed) status.textContent = '검을 꽂았어요! 결과를 기다리세요.';
+        else status.textContent = '빈 구멍에 검을 꽂으세요!';
+    }
+}
+
+// ── 상단 시계 (서버 deadlineTs 기준 — 시각 전용) ──
 function startClock() {
     stopClock();
     var clock = document.getElementById('pirateClock');
@@ -416,7 +574,7 @@ function startClock() {
     var label = document.getElementById('pirateClockLabel');
     if (!clock || !hand || !num) return;
     clock.style.display = 'block';
-    if (label) label.textContent = '구멍을 골라주세요!';
+    if (label) label.textContent = '검을 꽂아주세요!';
 
     var lastUrgent = false;
     var lastTickSec = -1;
@@ -427,12 +585,10 @@ function startClock() {
         var totalMs = Math.max(1, pirateState.durationSec * 1000);
         var frac = remainMs / totalMs;          // 1 → 0
         var elapsedFrac = 1 - frac;             // 0 → 1
-        // 바늘: 한 바퀴(360°)를 전체 시간에 걸쳐 회전
         hand.style.transform = 'rotate(' + (elapsedFrac * 360) + 'deg)';
         var remainSec = Math.ceil(remainMs / 1000);
         num.textContent = String(remainSec);
 
-        // 임박(<=5s) 펄스 + 틱 사운드 (시각/청각 — 결과 무관)
         var urgent = remainSec <= 5 && remainSec > 0;
         if (face) {
             if (urgent && !lastUrgent) face.classList.add('urgent');
@@ -467,57 +623,15 @@ function showStage() {
     if (stage) stage.classList.add('active');
 }
 function resetStageVisual() {
-    // C-6: 진행 상태/오버레이 정리 — reveal 잔존 클래스 제거
+    // C-6: 진행 상태/오버레이 정리 — 잔존 클래스 제거
     var barrel = document.getElementById('pirateBarrel');
-    if (barrel) barrel.classList.remove('revealed');
-    var pirateIcon = document.getElementById('pirateBarrelPirate');
-    if (pirateIcon) pirateIcon.style.left = '';
+    if (barrel) barrel.classList.remove('popped');
     hideClock();
+    // FIFO 큐 비우기
+    animQueue = [];
+    animRunning = false;
+    heldResolve = null;
     if (document.body) document.body.classList.remove('pirate-running');
-}
-
-// ── reveal: 검 삽입 + 해적 팝업 ──
-function revealResult(data) {
-    // data: { triggerHole, claims, loser, survivors, autoAssigned, round }
-    pirateState.claims = data.claims || {};
-    pirateState.phase = 'finished';
-    renderHoles();   // 최종 선점 상태(자동 배정 포함) 반영
-
-    var barrel = document.getElementById('pirateBarrel');
-    var holesEl = document.getElementById('pirateHoles');
-    if (!barrel || !holesEl) return;
-
-    // 각 구멍에 검 삽입 표시
-    var holeEls = holesEl.querySelectorAll('.pirate-hole');
-    for (var i = 0; i < holeEls.length; i++) {
-        var sword = document.createElement('span');
-        sword.className = 'pirate-sword';
-        sword.textContent = '🗡️';
-        holeEls[i].appendChild(sword);
-    }
-
-    // trigger 구멍 강조 + 해적 위치를 그 구멍 쪽으로 이동(시각)
-    var triggerEl = holesEl.querySelector('.pirate-hole[data-hole="' + data.triggerHole + '"]');
-    var pos = pirateState.holePositions[data.triggerHole];
-    var pirateIcon = document.getElementById('pirateBarrelPirate');
-
-    // 검 삽입 애니메이션 발화
-    barrel.classList.add('revealed');
-    playPirateSound('pirate_pop', 0.7);
-
-    setTimeout(function () {
-        if (triggerEl) triggerEl.classList.add('trigger');
-        if (pirateIcon && pos) {
-            // 해적이 trigger 구멍 위로 튀어나오게 좌우 오프셋(시각)
-            pirateIcon.style.left = (pos.left - 50) + '%';
-            pirateIcon.style.position = 'relative';
-        }
-        if (data.loser === currentUser) playPirateSound('pirate_lose', 0.9);
-        else playPirateSound('pirate_win', 0.6);
-    }, 500);
-
-    // 결과 오버레이
-    setTimeout(function () { showResultOverlay(data); }, 1100);
 }
 
 function showResultOverlay(data) {
@@ -533,9 +647,6 @@ function showResultOverlay(data) {
         if (survivors.length) {
             var names = survivors.map(function (n) { return '<b>' + escapeHtml(n) + '</b>'; }).join(', ');
             html += '<div class="pirate-result-survivors">😌 안전: ' + names + '</div>';
-        }
-        if (data.autoAssigned && data.autoAssigned.length) {
-            html += '<div class="pirate-result-survivors" style="margin-top:8px; font-size:13px; color:var(--text-muted);">⏱️ 시간 초과 자동 배정: ' + data.autoAssigned.map(escapeHtml).join(', ') + '</div>';
         }
         box.innerHTML = html;
     }
@@ -600,7 +711,7 @@ socket.on('roomJoined', function (data) {
 
     pirateInitModules();
 
-    // 재진입 상태 복원 (서버 마스킹: phase/claims/holeCount/timeLimitSec/deadlineTs/round/history만)
+    // 재진입 상태 복원 (서버 마스킹: phase/claims/holeCount/participants/timeLimitSec/deadlineTs/round/history만)
     if (data.gameState && data.gameState.pirate) {
         var pr = data.gameState.pirate;
         if (pr.history) renderHistory(pr.history);
@@ -619,16 +730,40 @@ socket.on('roomJoined', function (data) {
             pirateState.deadlineTs = pr.deadlineTs || 0;
             pirateState.durationSec = pr.timeLimitSec || TIME_LIMIT_DEFAULT;
             pirateState.holePositions = computeHolePositions(pirateState.holeCount);
-            // 참가자 명단(participants)이 마스킹에서 노출됨(비공정성) — 클릭 게이트 복원용.
-            // 미선점 상태로 재입장한 참가자도 클릭 가능. 없으면 선점자 기준으로 fallback.
+            // participants 마스킹 노출(비공정성) — 클릭 게이트 복원용. 미꽂은 재입장 참가자도 클릭 가능.
             pirateState.players = (pr.participants && pr.participants.length)
                 ? pr.participants.slice()
                 : Object.values(pirateState.claims);
+            // 내가 이미 꽂았는지 = claims 값에 내 이름이 있는지
+            pirateState.iStabbed = Object.values(pirateState.claims).indexOf(currentUser) >= 0;
             isPirateActive = true;
+            if (document.body) document.body.classList.add('pirate-running');
             showStage();
             renderHoles();
             startClock();
+            refreshStabGate();
             updateStartButton();
+        } else if (pr.phase === 'finished') {
+            // F2: 결과 발표 직후(RESULT_HOLD 창) 재입장 — 빈 화면 방지.
+            //     survivors는 마스킹에 없으므로 [], loser는 history 마지막 라운드에서 복원.
+            pirateState.phase = 'finished';
+            pirateState.holeCount = pr.holeCount || 0;
+            pirateState.claims = pr.claims || {};
+            pirateState.holePositions = computeHolePositions(pirateState.holeCount);
+            isPirateActive = false;
+            showStage();
+            renderHoles();
+            var lastLoser = (pr.history && pr.history.length)
+                ? pr.history[pr.history.length - 1].loser
+                : null;
+            var fStatus = document.getElementById('gameStatus');
+            if (fStatus) {
+                fStatus.textContent = '결과 발표 직후예요';
+                fStatus.className = 'game-status active';
+            }
+            if (lastLoser) {
+                showResultOverlay({ loser: lastLoser, survivors: [] });
+            }
         }
     }
 
@@ -837,24 +972,32 @@ socket.on('pirateSelectionStarted', function (data) {
     pirateState.holeCount = data.holeCount || 0;
     pirateState.players = data.players || [];
     pirateState.claims = {};
+    pirateState.iStabbed = false;
     pirateState.durationSec = data.durationSec || TIME_LIMIT_DEFAULT;
     pirateState.deadlineTs = data.deadlineTs || (Date.now() + pirateState.durationSec * 1000);
     pirateState.holePositions = computeHolePositions(pirateState.holeCount);
     isPirateActive = true;
 
+    // FIFO 큐 + 잔존 연출 초기화
+    animQueue = [];
+    animRunning = false;
+    heldResolve = null;
+    lastInsertSeq = 0;        // F4: 새 라운드 — 실시간 삽입 seq 리셋
+    pendingRerender = false;
+
     if (document.body) document.body.classList.add('pirate-running');
 
-    // 결과 오버레이 닫기(이전 판 잔존 방지)
+    // 결과 오버레이/팝업 잔존 정리
     var overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
     var barrel = document.getElementById('pirateBarrel');
-    if (barrel) barrel.classList.remove('revealed');
+    if (barrel) barrel.classList.remove('popped');
 
     var status = document.getElementById('gameStatus');
     if (status) {
-        status.textContent = pirateState.players.indexOf(currentUser) >= 0
-            ? '구멍을 골라 선점하세요!'
-            : '관전 중 — 참가자들이 구멍을 고르는 중...';
+        status.textContent = amIParticipant()
+            ? '빈 구멍에 검을 꽂으세요!'
+            : '관전 중 — 참가자들이 검을 꽂는 중...';
         status.className = 'game-status active';
     }
     var hint = document.getElementById('pirateHint');
@@ -867,51 +1010,78 @@ socket.on('pirateSelectionStarted', function (data) {
     playPirateSound('pirate_claim', 0.3);
 });
 
-socket.on('pirateHoleClaimed', function (data) {
-    // data: { holeIndex, userName }
+// 실시간 검 삽입 — FIFO 큐로 한 번에 하나씩 애니. isPop이면 큐가 그 항목에 도달할 때 팝업.
+socket.on('pirateSwordInserted', function (data) {
     if (!data || typeof data.holeIndex !== 'number') return;
-    // 같은 유저의 기존 선점 해제(변경) — 한 명당 한 구멍
-    for (var idx in pirateState.claims) {
-        if (pirateState.claims[idx] === data.userName) delete pirateState.claims[idx];
+    // F4: seq 중복 제거 — 재연결/리플레이로 같은 삽입이 두 번 와도 1회만 애니.
+    //     seq가 없는 이벤트(이론상 없음)는 가드를 통과시켜 그대로 처리(과거 동작 보존).
+    if (typeof data.seq === 'number') {
+        if (data.seq <= lastInsertSeq) return;   // 이미 처리한 삽입 — 무시
+        lastInsertSeq = data.seq;
     }
-    pirateState.claims[data.holeIndex] = data.userName;
-    renderHoles();
-    if (data.userName !== currentUser) playPirateSound('pirate_claim', 0.3);
+    enqueueInsert({
+        holeIndex: data.holeIndex,
+        userName: data.userName,
+        isPop: !!data.isPop
+    });
 });
 
-socket.on('pirate:claimRejected', function (data) {
-    var reason = (data && data.reason) || '구멍을 고를 수 없습니다.';
-    showCustomAlert(reason, 'warning');
+// 데드라인 자동 삽입 시퀀스 — 도착순 그대로 큐에 push(마지막이 isPop)
+socket.on('pirateAutoInsertSequence', function (data) {
+    if (!data || !Array.isArray(data.inserts)) return;
+    data.inserts.forEach(function (ins) {
+        enqueueInsert({
+            holeIndex: ins.holeIndex,
+            userName: ins.userName,
+            isPop: !!ins.isPop,
+            alreadyPlaced: !!ins.alreadyPlaced
+        });
+    });
 });
 
-socket.on('piratePickProgress', function (data) {
-    if (!data) return;
+// 동일 구멍 경합 패배 등 거부 — 가벼운 안내(모달 X, 상태줄)
+socket.on('pirate:insertRejected', function (data) {
+    var reason = (data && data.reason) || '검을 꽂을 수 없습니다.';
     var status = document.getElementById('gameStatus');
-    if (status && pirateState.phase === 'selecting') {
-        var mine = pirateState.players.indexOf(currentUser) >= 0;
-        status.textContent = (mine ? '구멍을 골라 선점하세요! ' : '관전 중 — ') + '(' + data.picked + '/' + data.total + ' 선택 완료)';
+    if (status && pirateState.phase === 'selecting' && !pirateState.iStabbed) {
+        status.textContent = reason + ' 다른 구멍을 골라보세요.';
     }
 });
 
-// leaveRoom 등으로 선점 해제 시 서버 재브로드캐스트
+// leaveRoom/disconnect 등으로 점유 해제 시 서버 재브로드캐스트 (C-19)
 socket.on('pirate:claimsUpdated', function (data) {
     if (!data) return;
+    // 서버 권위 claims로 상태 갱신(항상 반영) — DOM 재렌더는 큐 idle일 때만.
     pirateState.claims = data.claims || {};
     if (typeof data.holeCount === 'number') pirateState.holeCount = data.holeCount;
-    renderHoles();
+    pirateState.iStabbed = Object.values(pirateState.claims).indexOf(currentUser) >= 0;
+    // F3: 애니 진행 중 renderHoles()는 in-flight .stab-in DOM을 지운다(플리커).
+    //     큐가 idle일 때만 즉시 재렌더, 진행 중이면 드레인 후 1회 재렌더 예약.
+    if (pirateState.phase === 'selecting') {
+        if (!animRunning && animQueue.length === 0) renderHoles();
+        else pendingRerender = true;
+    }
 });
 
+// 결과 — 팝 애니가 끝난 뒤 표시하도록 보류(heldResolve). 큐가 비어 팝이 이미 끝났으면 즉시 표시.
 socket.on('pirateResolved', function (data) {
-    // data: { triggerHole, claims, loser, survivors, autoAssigned, round }
+    // data: { loser, survivors, triggerHole, round }
     stopClock();
     hideClock();
     isPirateActive = false;
+    pirateState.phase = 'finished';
+    heldResolve = data;
     var status = document.getElementById('gameStatus');
     if (status) {
         status.textContent = '결과 발표!';
         status.className = 'game-status active';
     }
-    revealResult(data);
+    // 빈 구멍 클릭 차단(렌더 갱신)
+    refreshStabGate();
+    // 팝 항목이 큐에 아직 없고(실시간 팝이 이미 재생 완료) 큐도 비었으면 즉시 오버레이.
+    if (!animRunning && animQueue.length === 0) {
+        showResultOverlay(data);
+    }
     updateStartButton();
 });
 
@@ -936,6 +1106,7 @@ socket.on('pirate:roundReset', function () {
     pirateState.claims = {};
     pirateState.holeCount = 0;
     pirateState.players = [];
+    pirateState.iStabbed = false;
     isPirateActive = false;
     readyUsers = [];
     resetStageVisual();

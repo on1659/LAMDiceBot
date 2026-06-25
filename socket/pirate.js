@@ -1,10 +1,14 @@
-// 해적 룰렛(pirate) 게임 소켓 핸들러
-// 모델: 1회성 동시 위치 선점. N개 구멍(N = 게임 참가자 수). 각자 서로 다른 구멍을 클릭해 선점(배타·잠금 전 재선점 가능).
-//   호스트가 선택 제한시간(기본 30s, 10~60s)을 설정. 상단 원형 시계가 서버 권위 데드라인을 카운트다운.
-//   해소: 전원 선점 OR 데드라인 → 서버가 미선점자에게 빈 구멍 랜덤 자동 배정. 서버가 시드 RNG로 trigger 구멍 1개 선택.
-//   그 구멍의 플레이어 = 걸린 사람 = loser(벌칙), 나머지 = survivors(winner).
-// 공정성: 결과(trigger 구멍/자동 배정)는 전부 서버에서만 결정. 클라는 시각화만. trigger/seed는 reveal 전 절대 미노출.
-//   (socket/rooms.js getCurrentRoom 재진입 마스킹이 pirate.triggerHole/seed를 화이트리스트에서 제외 → 비노출)
+// 해적 룰렛(pirate) 게임 소켓 핸들러 — v2 실시간 검 꽂기.
+// 모델: N개 구멍(N = 게임 참가자 수). 시작 시 서버가 trigger 구멍 1개를 crypto로 선택(HIDDEN — reveal 전 절대 미노출).
+//   호스트가 선택 제한시간(기본 30s, 10~60s)을 설정. 상단 시계가 서버 권위 데드라인을 카운트다운.
+//   진행: 누구나 빈 구멍을 "실시간"으로 클릭해 검을 꽂는다(1인 1검, 도착순 처리, 동일 구멍 경합은 먼저 도착한 1명만).
+//     검이 꽂히면 즉시 pirateSwordInserted{isPop} LIVE 브로드캐스트 → 클라가 FIFO 큐로 한 번에 하나씩 애니.
+//     trigger 구멍이 채워지는 순간 isPop=true → 그 자리에서 라운드 종료(해적이 통 위로 팝업), 그 사람 = loser(벌칙).
+//   데드라인 도달 시 미꽂은 생존 참가자에게 빈 구멍을 crypto로 1개씩 자동 배정(순차 애니용 시퀀스로 emit).
+//     자동 배정 후 trigger가 "생존자가 채운 구멍" 밖이면(채울 사람이 이탈) → 생존자 점유 구멍 중에서 trigger 재선택(crypto).
+//     → loser는 항상 생존 참가자 1명(정확히 1명) 보장. (C-19 패자보장 불변식, 실시간판으로 적응.)
+// 공정성: 결과(trigger 구멍/자동 배정 구멍/배정 순서/재선택)는 전부 서버 crypto.randomInt. 클라는 시각화만.
+//   trigger/seed는 reveal(isPop) 전 절대 미노출 — getCurrentRoom(socket/rooms.js) 마스킹 화이트리스트가 제외(C-20).
 
 const crypto = require('crypto');
 const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
@@ -16,7 +20,7 @@ const PIRATE_MIN_PLAYERS = 2;
 const TIME_LIMIT_DEFAULT = 30;
 const TIME_LIMIT_MIN = 10;
 const TIME_LIMIT_MAX = 60;
-const RESULT_HOLD_MS = 3500;   // reveal(검 삽입 + 해적 팝업) 후 다음 라운드 리셋까지(서버)
+const RESULT_HOLD_MS = 4500;   // reveal(검 삽입 시퀀스 + 해적 팝업) 후 다음 라운드 리셋까지(서버)
 const HISTORY_MAX = 100;
 
 function clampTimeLimit(sec) {
@@ -36,17 +40,16 @@ module.exports = (socket, io, ctx) => {
         if (pr.resetTimeout) { clearTimeout(pr.resetTimeout); pr.resetTimeout = null; }
     }
 
-    // 시작 시점 참가자 중 "지금도 방에 있는" 사람 — 조기해소 게이트·trigger 선택의 단일 소스.
-    // 이탈자(leaveRoom/disconnect)는 여기서 제외 → holeCount(N 고정)와 무관하게 항상 생존자 기준으로 판정.
+    // 시작 시점 참가자 중 "지금도 방에 있는" 사람 — 자동배정 모집단·trigger 재선택의 단일 소스.
+    // 이탈자(leaveRoom/disconnect)는 여기서 제외 → 항상 생존자 기준으로 패자 1명 판정.
     function getLivePlayers(pr, gameState) {
         return (pr.participants || []).filter(name =>
             gameState.users.some(u => u.name === name));
     }
 
-    // 준비하고 현재 방에 있는 사람 수 — 시작 가능 게이트(≥2)
-    function readyCount(gameState) {
-        return (gameState.readyUsers || []).filter(name =>
-            gameState.users.some(u => u.name === name)).length;
+    // 이미 검을 꽂은(claims에 점유 있는) 사람 집합
+    function stabbedNames(pr) {
+        return new Set(Object.values(pr.claims));
     }
 
     // 호스트 제한시간 설정 (idle/finished 단계, 호스트만, 진행 중 차단)
@@ -73,7 +76,7 @@ module.exports = (socket, io, ctx) => {
         io.to(room.roomId).emit('pirateTimeLimitUpdated', { seconds: pr.timeLimitSec });
     });
 
-    // 게임 시작 (호스트) — 준비∩재실 → 게임 플레이어. N=참가자. 선택 단계 오픈 + 서버 데드라인 타이머.
+    // 게임 시작 (호스트) — 준비∩재실 → 게임 플레이어. N=참가자. trigger 1개 crypto 선택(HIDDEN) + 데드라인 타이머.
     socket.on('startPirateGame', () => {
         if (!checkRateLimit()) return;
 
@@ -115,15 +118,20 @@ module.exports = (socket, io, ctx) => {
         const durationSec = clampTimeLimit(pr.timeLimitSec);
         const deadlineTs = Date.now() + durationSec * 1000;
 
+        // trigger 구멍 — 시작 시 [0, holeCount) 중 crypto로 1개 선택. 절대 미노출(reveal 전).
+        const holeCount = participants.length;
+        const seed = crypto.randomInt(2147483647);
+
         pr.phase = 'selecting';
         pr.isActive = true;
         pr.participants = participants.slice();
-        pr.holeCount = participants.length;
+        pr.holeCount = holeCount;
         pr.claims = {};                 // { [holeIndex]: userName }
         pr.timeLimitSec = durationSec;
         pr.deadlineTs = deadlineTs;
-        pr.triggerHole = null;          // server-only — reveal까지 미결정
-        pr.seed = 0;                    // server-only
+        pr.seed = seed;                 // server-only (감사용)
+        pr.triggerHole = crypto.randomInt(holeCount);   // server-only — reveal 전 미노출
+        pr.seq = 0;                     // server-only — 삽입 단조 카운터(FIFO 순서 근거)
 
         io.to(room.roomId).emit('pirateSelectionStarted', {
             holeCount: pr.holeCount,
@@ -132,19 +140,19 @@ module.exports = (socket, io, ctx) => {
             deadlineTs: deadlineTs
         });
 
-        // 서버 권위 데드라인 — 미선점자 자동 배정 후 해소
+        // 서버 권위 데드라인 — 미꽂은 생존자 자동 배정 후 해소
         pr.deadlineTimeout = setTimeout(() => {
             const cur = ctx.rooms[room.roomId];
             if (!cur) return;
-            resolvePirate(cur, cur.gameState, true);
+            resolveByDeadline(cur, cur.gameState);
         }, durationSec * 1000);
 
         updateRoomsList();
         console.log(`[해적룰렛] 방 ${room.roomName} 선택 시작 - 참가자 ${participants.length}명 / 제한 ${durationSec}s`);
     });
 
-    // 구멍 선점 (플레이어) — phase/배타성/동일유저 재선점 검증
-    socket.on('claimPirateHole', (data) => {
+    // 실시간 검 꽂기 (플레이어) — phase/범위/빈구멍/참가자/1인1검 검증, 동일구멍 경합 도착순 처리.
+    socket.on('insertPirateSword', (data) => {
         if (!checkRateLimit()) return;
         if (!data || typeof data.holeIndex !== 'number') return;
 
@@ -154,7 +162,7 @@ module.exports = (socket, io, ctx) => {
 
         const pr = gameState.pirate;
         if (pr.phase !== 'selecting') {
-            socket.emit('pirate:claimRejected', { reason: '지금은 구멍을 고를 수 없습니다.' });
+            socket.emit('pirate:insertRejected', { reason: '지금은 검을 꽂을 수 없습니다.' });
             return;
         }
 
@@ -162,109 +170,164 @@ module.exports = (socket, io, ctx) => {
         if (!user) return;
         const name = user.name;
 
-        // 게임 참가자만 선점 가능 (준비 안 한 관전자 차단)
+        // 게임 참가자만 (준비 안 한 관전자 차단)
         if (!pr.participants.includes(name)) {
-            socket.emit('pirate:claimRejected', { reason: '이번 판 참가자만 구멍을 고를 수 있습니다.' });
+            socket.emit('pirate:insertRejected', { reason: '이번 판 참가자만 검을 꽂을 수 있습니다.' });
             return;
         }
 
         const holeIndex = data.holeIndex;
         if (!Number.isInteger(holeIndex) || holeIndex < 0 || holeIndex >= pr.holeCount) {
-            socket.emit('pirate:claimRejected', { reason: '없는 구멍입니다.' });
+            socket.emit('pirate:insertRejected', { reason: '없는 구멍입니다.' });
             return;
         }
 
-        // 이미 다른 사람이 선점한 구멍 → 거부
-        const occupant = pr.claims[holeIndex];
-        if (occupant && occupant !== name) {
-            socket.emit('pirate:claimRejected', { reason: '이미 다른 사람이 고른 구멍입니다.', holeIndex: holeIndex });
+        // 1인 1검 — 이미 꽂았으면 거부
+        const already = stabbedNames(pr);
+        if (already.has(name)) {
+            socket.emit('pirate:insertRejected', { reason: '이미 검을 꽂았습니다.' });
             return;
         }
-        // 같은 구멍 재선점(멱등) → 무동작
-        if (occupant === name) return;
 
-        // 내 기존 선점 해제(변경 — 잠금 전까지 자유) 후 새 구멍 선점
-        for (const idx in pr.claims) {
-            if (pr.claims[idx] === name) delete pr.claims[idx];
+        // 동일 구멍 경합 — 먼저 도착한 1명만 점유, 늦은 사람은 거부(다른 구멍 선택하도록).
+        if (pr.claims[holeIndex] != null) {
+            socket.emit('pirate:insertRejected', { reason: '이미 검이 꽂힌 구멍입니다.', holeIndex: holeIndex });
+            return;
         }
+
+        // 수락 — 점유 기록 + seq 증가 + pop 여부 판정
         pr.claims[holeIndex] = name;
+        pr.seq++;
+        const isPop = (holeIndex === pr.triggerHole);
 
-        io.to(room.roomId).emit('pirateHoleClaimed', { holeIndex: holeIndex, userName: name });
+        io.to(room.roomId).emit('pirateSwordInserted', {
+            holeIndex: holeIndex,
+            userName: name,
+            isPop: isPop,
+            seq: pr.seq
+        });
 
-        // 진행도 브로드캐스트 (선택, 시각용)
-        const picked = Object.keys(pr.claims).length;
-        io.to(room.roomId).emit('piratePickProgress', { picked: picked, total: pr.holeCount });
-
-        // 조기 해소 — 살아있는 참가자 "전원"이 선점하면 즉시(holeCount=N 고정에 묶이지 않음).
-        // 이탈자가 있어도 빈 구멍(holeCount > 생존자)에 막혀 데드라인까지 끌려가던 버그 차단.
-        const livePlayers = getLivePlayers(pr, gameState);
-        const claimedNames = new Set(Object.values(pr.claims));
-        if (livePlayers.length > 0 && livePlayers.every(name => claimedNames.has(name))) {
-            resolvePirate(room, gameState, false);
+        if (isPop) {
+            // 실시간 팝 — 즉시 라운드 종료. trigger를 채운 사람 = loser.
+            resolveByPop(room, gameState, name);
         }
+
+        updateRoomsList();
     });
 
-    // 해소 — 전원 선점 또는 데드라인. 미선점자에게 빈 구멍 랜덤 자동 배정 → trigger 서버 RNG 선택 → loser/survivors.
-    function resolvePirate(room, gameState, byDeadline) {
+    // 실시간 팝 해소 — trigger 구멍을 채운 검이 곧 패자. 데드라인 타이머 해제 + 결과.
+    function resolveByPop(room, gameState, loser) {
         const pr = gameState.pirate;
-        if (pr.phase !== 'selecting') return;   // 중복 호출 가드(데드라인 vs 전원선점 경합)
+        if (pr.phase !== 'selecting') return;   // 중복 해소 가드
 
         clearPirateTimers(pr);
 
-        // 시작 시점 참가자 중 "지금도 방에 있는" 사람만 (전원 이탈 abort 취지)
+        const livePlayers = getLivePlayers(pr, gameState);
+        const triggerHole = pr.triggerHole;
+        const survivors = livePlayers.filter(name => name !== loser);
+
+        finishRound(room, gameState, {
+            triggerHole: triggerHole,
+            loser: loser,
+            survivors: survivors,
+            livePlayers: livePlayers,
+            byDeadline: false
+        });
+    }
+
+    // 데드라인 해소 — 미꽂은 생존자에게 빈 구멍 crypto 자동 배정 → trigger 재선택 불변식 → 순차 삽입 시퀀스.
+    function resolveByDeadline(room, gameState) {
+        const pr = gameState.pirate;
+        if (pr.phase !== 'selecting') return;   // 이미 팝으로 끝났으면 무동작
+
+        clearPirateTimers(pr);
+
+        // 시작 참가자 중 현재 방 잔류자만 (전원 이탈 abort)
         const livePlayers = getLivePlayers(pr, gameState);
         if (livePlayers.length === 0) {
             pr.phase = 'idle';
             pr.isActive = false;
             pr.claims = {};
             pr.deadlineTs = 0;
+            pr.triggerHole = null;
+            pr.seed = 0;
+            pr.seq = 0;
             io.to(room.roomId).emit('pirate:gameAborted', { reason: '참가자가 모두 나갔습니다.' });
             updateRoomsList();
             return;
         }
 
-        // 유령 선점 제거 — 이탈자(leaveRoom/disconnect cleanup 누락 경합 등)가 남긴 비-생존자 선점을 비움.
-        // 이 구멍들은 다시 빈 구멍이 되어 trigger 후보에서 빠진다 → loser=null(패자 0명) 위반 차단.
+        // 유령 점유 제거 — 이탈자(cleanup 경합 등)가 남긴 비-생존자 claim을 비운다(빈 구멍으로 환원).
         const liveSet = new Set(livePlayers);
         for (const idx in pr.claims) {
             if (!liveSet.has(pr.claims[idx])) delete pr.claims[idx];
         }
 
-        // 미선점 생존자 자동 배정 — 서버 측 랜덤(빈 구멍 셔플). 결과 무관 클라 미관여.
-        // holeCount = 시작 N >= livePlayers 이므로 빈 구멍은 항상 충분하다.
-        const autoAssigned = [];
+        // 미꽂은 생존자 — participants 순서(결정적)대로 빈 구멍을 crypto로 1개씩 배정.
+        // 각 배정을 순차 삽입 시퀀스로 쌓는다(클라가 FIFO로 한 번에 하나씩 애니).
         const claimedHoles = new Set(Object.keys(pr.claims).map(k => parseInt(k, 10)));
-        const claimedNames = new Set(Object.values(pr.claims));
+        const alreadyStabbed = stabbedNames(pr);
         const emptyHoles = [];
         for (let i = 0; i < pr.holeCount; i++) {
             if (!claimedHoles.has(i)) emptyHoles.push(i);
         }
-        // crypto Fisher-Yates 셔플 (서버 권위)
-        for (let i = emptyHoles.length - 1; i >= 1; i--) {
-            const j = crypto.randomInt(i + 1);
-            const tmp = emptyHoles[i]; emptyHoles[i] = emptyHoles[j]; emptyHoles[j] = tmp;
-        }
-        let ei = 0;
-        for (const name of livePlayers) {
-            if (claimedNames.has(name)) continue;   // 이미 선점함
-            if (ei < emptyHoles.length) {
-                pr.claims[emptyHoles[ei++]] = name;
-                autoAssigned.push(name);
-            }
-        }
-        // 이 시점: 생존자 점유 구멍 수 === livePlayers.length, 모두 생존자 소유.
 
-        // trigger 구멍 — 생존자가 점유한 구멍 중에서만 균등 선택(빈/유령 구멍은 절대 trigger 안 됨).
-        // → loser = pr.claims[triggerHole] 는 항상 non-null·생존자 → "패자 정확히 1명" 보장.
-        // seed는 감사용 보관(클라 미노출).
-        const seed = crypto.randomInt(2147483647);
-        pr.seed = seed;
-        const occupied = Object.keys(pr.claims).map(Number);
-        const triggerHole = occupied[crypto.randomInt(occupied.length)];
-        pr.triggerHole = triggerHole;
+        // 자동 배정 — participants 순서 보존(서버 권위, 결정적 순서). 구멍은 빈 구멍 중 crypto 균등 추출.
+        const autoInserts = [];   // [{ holeIndex, userName }] — pop 판정 전 1차 시퀀스
+        for (const name of pr.participants) {
+            if (!liveSet.has(name)) continue;          // 이탈자 제외
+            if (alreadyStabbed.has(name)) continue;    // 이미 꽂음
+            if (emptyHoles.length === 0) break;        // 빈 구멍 소진(이론상 발생 안 함: holeCount>=생존자)
+            const pick = crypto.randomInt(emptyHoles.length);
+            const holeIndex = emptyHoles.splice(pick, 1)[0];
+            pr.claims[holeIndex] = name;
+            autoInserts.push({ holeIndex: holeIndex, userName: name });
+        }
+        // 이 시점: 생존자 전원이 정확히 1구멍씩 점유.
 
+        // 패자보장 불변식 — trigger가 "생존자가 채운 구멍" 밖이면(채울 사람이 이탈) 생존자 점유 구멍 중에서 재선택.
+        const liveFilledHoles = Object.keys(pr.claims)
+            .map(Number)
+            .filter(idx => liveSet.has(pr.claims[idx]));
+        if (liveFilledHoles.indexOf(pr.triggerHole) === -1) {
+            pr.triggerHole = liveFilledHoles[crypto.randomInt(liveFilledHoles.length)];
+        }
+        const triggerHole = pr.triggerHole;
         const loser = pr.claims[triggerHole];
+
+        // 순차 삽입 시퀀스 — trigger를 채우는 삽입까지만(그 삽입이 마지막·isPop:true). 그 뒤 배정은 잘라낸다.
+        const inserts = [];
+        for (const ins of autoInserts) {
+            pr.seq++;
+            const isPop = (ins.holeIndex === triggerHole);
+            inserts.push({ holeIndex: ins.holeIndex, userName: ins.userName, isPop: isPop });
+            if (isPop) break;   // trigger 채움 → 여기서 팝, 이후 삽입 중단
+        }
+        // trigger를 채운 사람이 실시간에 이미 꽂았던 경우(autoInserts에 trigger가 없음): 마지막 자동삽입에 pop 합류.
+        // → 이 경우 loser는 실시간 점유자이므로, 빈 inserts 또는 trigger 미포함 시 직접 pop 신호를 보강한다.
+        const sequenceHitsPop = inserts.length > 0 && inserts[inserts.length - 1].isPop;
+        if (!sequenceHitsPop) {
+            // trigger 구멍이 이미(실시간에) 채워져 있던 케이스 — 자동삽입 시퀀스엔 trigger가 없다.
+            // loser는 그 실시간 점유자. 시퀀스(있다면) 재생 후 클라가 pop을 일으키도록 마지막에 pop 마커를 단다.
+            inserts.push({ holeIndex: triggerHole, userName: loser, isPop: true, alreadyPlaced: true });
+        }
+
         const survivors = livePlayers.filter(name => name !== loser);
+
+        io.to(room.roomId).emit('pirateAutoInsertSequence', { inserts: inserts });
+
+        finishRound(room, gameState, {
+            triggerHole: triggerHole,
+            loser: loser,
+            survivors: survivors,
+            livePlayers: livePlayers,
+            byDeadline: true
+        });
+    }
+
+    // 공통 종료 — phase=finished, 히스토리, pirateResolved emit, DB 기록, 리셋 타이머.
+    function finishRound(room, gameState, res) {
+        const pr = gameState.pirate;
 
         pr.phase = 'finished';
         pr.isActive = false;
@@ -272,37 +335,36 @@ module.exports = (socket, io, ctx) => {
 
         pr.history.push({
             round: pr.round,
-            loser: loser,
+            loser: res.loser,
             timestamp: new Date().toISOString()
         });
         if (pr.history.length > HISTORY_MAX) pr.history = pr.history.slice(-HISTORY_MAX);
 
         io.to(room.roomId).emit('pirateResolved', {
-            triggerHole: triggerHole,
-            claims: { ...pr.claims },
-            loser: loser,
-            survivors: survivors,
-            autoAssigned: autoAssigned,
+            loser: res.loser,
+            survivors: res.survivors,
+            triggerHole: res.triggerHole,
             round: pr.round
         });
 
-        console.log(`[해적룰렛] 방 ${room.roomName} 해소 - trigger=${triggerHole} / loser=${loser} / 자동배정=${autoAssigned.length}명 / ${byDeadline ? '데드라인' : '전원선점'}`);
+        console.log(`[해적룰렛] 방 ${room.roomName} 해소 - trigger=${res.triggerHole} / loser=${res.loser} / ${res.byDeadline ? '데드라인' : '실시간팝'}`);
 
         // DB 기록 — 사람 참가자만(현재 방 잔류). loser = is_winner=false(꼴등), 나머지 = is_winner=true(1등).
+        const livePlayers = res.livePlayers;
         recordGamePlay('pirate', livePlayers.length, room.serverId || null);
 
         if (room.serverId) {
             const sessionId = generateSessionId('pirate', room.serverId);
             Promise.all(livePlayers.map(name => {
-                const isWinner = name !== loser;
+                const isWinner = name !== res.loser;
                 const rank = isWinner ? 1 : 2;
                 return recordServerGame(room.serverId, name, rank, 'pirate', isWinner, sessionId, rank);
             })).then(() => recordGameSession({
                 serverId: room.serverId,
                 sessionId,
                 gameType: 'pirate',
-                gameRules: 'one-shot',
-                winnerName: survivors[0] || null,
+                gameRules: 'realtime-stab',
+                winnerName: res.survivors[0] || null,
                 participantCount: livePlayers.length
             })).catch(e => console.warn('[해적룰렛] DB 기록 실패:', e.message));
         }
@@ -333,6 +395,7 @@ module.exports = (socket, io, ctx) => {
         pr.claims = {};
         pr.triggerHole = null;
         pr.seed = 0;
+        pr.seq = 0;
         pr.deadlineTs = 0;
         pr.holeCount = 0;
         pr.participants = [];
@@ -357,7 +420,7 @@ module.exports = (socket, io, ctx) => {
                 u.name === socket.userName && u.id !== socket.id);
             if (reconnected) return;
 
-            // selecting: deadlineTimeout이 자연 해소 — 개입 안 함.
+            // selecting: deadlineTimeout이 자연 해소(미꽂은 생존자 자동배정) — 개입 안 함.
             // idle: 진행 타이머 없음. finished: resetTimeout이 남은 참가자를 idle로 되돌림 — 개입 안 함.
         }, waitTime);
     });

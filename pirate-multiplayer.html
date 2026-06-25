@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/pirate.css?v=1">
+    <link rel="stylesheet" href="/css/pirate.css?v=2">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -225,18 +225,22 @@
                         <div class="pirate-clock-center"></div>
                         <div class="pirate-clock-num" id="pirateClockNum">30</div>
                     </div>
-                    <div class="pirate-clock-label" id="pirateClockLabel">구멍을 골라주세요!</div>
+                    <div class="pirate-clock-label" id="pirateClockLabel">검을 꽂아주세요!</div>
                 </div>
 
-                <!-- 통(barrel) + 구멍들 (JS가 N개 구멍을 방사형으로 배치) -->
+                <!-- 통(barrel): 측면 구멍에 검을 꽂고, 해적은 통 뚜껑(위)으로 팝업. JS가 N개 구멍을 측면 배치 -->
                 <div id="pirateBarrelWrap">
                     <div id="pirateBarrel">
+                        <!-- 통 위로 솟구치는 해적 (기본 숨김 — pop 시 popped 클래스) -->
+                        <div class="pirate-popup" id="pirateBarrelPirate">🏴‍☠️</div>
                         <div class="pirate-barrel-body">
-                            <div class="pirate-barrel-pirate" id="pirateBarrelPirate">🏴‍☠️</div>
+                            <div class="pirate-barrel-lid"></div>
+                            <div class="pirate-barrel-face">🛢️</div>
                         </div>
+                        <!-- 측면 구멍들 (JS 렌더) -->
                         <div id="pirateHoles"></div>
                     </div>
-                    <div id="pirateHint" class="pirate-hint">게임이 시작되면 통 위 구멍을 하나 골라 선점하세요.</div>
+                    <div id="pirateHint" class="pirate-hint">게임이 시작되면 통 측면 빈 구멍에 검을 꽂으세요. 한 사람당 한 자루!</div>
                 </div>
             </section>
 
@@ -304,7 +308,7 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/pirate.js?v=1"></script>
+    <script src="/js/pirate.js?v=2"></script>
 
     <script>
         // ============================================
@@ -482,22 +486,29 @@
         },
         {
             target: '#pirateStage',
-            title: '3단계: 구멍 선점',
-            content: '게임이 시작되면 통 위 구멍을 하나 클릭해 선점하세요. 한 구멍에는 한 명만! 잠기기 전까지 바꿀 수 있어요.',
+            title: '3단계: 실시간 검 꽂기',
+            content: '게임이 시작되면 통 측면 빈 구멍을 클릭해 검을 꽂으세요. 한 사람당 한 자루! 꽂는 즉시 모두의 화면에 검이 들어갑니다.',
             position: 'top',
             fallbackTarget: '#gameStatus'
         },
         {
             target: '#pirateStage',
-            title: '4단계: 제한시간 시계',
-            content: '상단 원형 시계가 남은 시간을 알려줘요. 시간이 다 되면 안 고른 사람에게 빈 구멍이 자동 배정됩니다.',
+            title: '4단계: 그 순간 해적이!',
+            content: '서버가 미리 정한 한 구멍에 검이 꽂히는 순간, 해적이 통 위로 튀어나옵니다. 그 검을 꽂은 사람이 당첨(벌칙)!',
+            position: 'top',
+            fallbackTarget: '#gameStatus'
+        },
+        {
+            target: '#pirateStage',
+            title: '5단계: 제한시간 시계',
+            content: '상단 시계가 남은 시간을 알려줘요. 시간이 다 되면 아직 안 꽂은 사람의 검이 하나씩 자동으로 꽂히다가 해적이 튀어나옵니다.',
             position: 'top',
             fallbackTarget: '#gameStatus'
         },
         {
             target: '#startPirateButton',
-            title: '5단계: 게임 시작 & 결과',
-            content: '호스트가 제한시간을 정하고 시작 버튼을 눌러요. 모두 정해지면 서버가 공정하게 한 구멍을 골라 해적이 튀어나옵니다. 그 구멍 주인이 당첨(벌칙)!',
+            title: '6단계: 게임 시작',
+            content: '호스트가 제한시간을 정하고 시작 버튼을 눌러요. 서버가 공정하게 한 구멍을 정하고, 결과는 누구도 미리 알 수 없어요!',
             position: 'top',
             fallbackTarget: '#gameStatus'
         }

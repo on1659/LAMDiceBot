@@ -1,109 +1,85 @@
-# goal: pirate-roulette
+# goal: pirate-roulette (v2 — real-time sword insertion)
 
 ## One-line Goal
-Add a new multiplayer game mode **"해적 룰렛" (Pop-Up Pirate / pirate barrel)** where every player simultaneously claims one hole on a barrel, a host-set countdown (shown as a rotating clock hand at the top) auto-assigns any absent player when it expires, and the single player sitting on the server-chosen trigger hole loses (벌칙).
+Rebuild the "해적 룰렛" (Pop-Up Pirate) game so swords are inserted **in real time, one animation at a time**: any player can stab an empty hole during a host-timed selection window, each stab animates live (FIFO-queued in click-arrival order), and the **instant** someone fills the server-chosen trigger hole the pirate pops out the top and that player loses (벌칙). When the clock ends, the players who never stabbed get their swords auto-inserted one-by-one (animated) until the pirate pops.
 
-## Background / Motivation
-The lobby already hosts dice / roulette / horse-race / bridge-cross / spin-arena. This adds a fast, luck-based "who gets caught" party round in the classic Pop-Up Pirate shape: pick your spot, sweat the clock, one person pops the pirate. It reuses the dice lobby entry flow and all shared systems (Ready / Order / Chat / Ranking / Sound / Tutorial), so the new surface is the game-specific mechanic + UI only.
+## Why this is a rewrite (what was wrong with v1)
+v1 was "everyone secretly picks → countdown → reveal all at once." The user rejected that as 폭탄돌리기 (bomb-passing): nothing happens, then everything at once. The real toy is the opposite — a stab is a **live, immediate** event and the pop happens the moment the trigger hole is hit. The lobby/registration/DB/theme scaffolding stays; only the in-game mechanic + barrel UI are rebuilt.
 
-## Game Model (decided)
-One-shot **simultaneous** position pick (NOT turn-based survival, NOT multi-round elimination):
+## Game Model (decided — implement exactly)
+**N holes where N = number of game players. One sword per player. One server-chosen trigger hole (hidden).**
 
-1. **Lobby → entry.** Player picks "해적 룰렛" radio in the dice lobby, gets redirected to `/pirate` (create or join), same pattern as other games.
-2. **Ready phase.** Players ready up via ReadyModule. Host sets a **selection time limit** (default **30s**, range **10–60s**) via a host-only control. Host starts the game.
-3. **Selection phase.** A barrel is rendered with **N holes where N = number of game players**. Each player clicks a hole to **claim** it. Claims are **exclusive** (one player per hole); a player may change their claim until the phase locks. A **circular clock at the top** shows the host-set limit with a **rotating hand depleting** toward 0 (server-authoritative timer).
-4. **Resolve trigger:**
-   - If **all game players have claimed** a hole → resolve immediately.
-   - Else when the **timer hits 0** → the server **auto-assigns a random remaining empty hole** to each player who has not picked (the "부재자"/absent or AFK players), then resolves.
-5. **Trigger determination (server-only).** The server selects the single **trigger hole** via seeded/crypto RNG (server seed; never sent to clients before reveal). Because N holes = N players and every hole is filled at resolve, **exactly one player** sits on the trigger.
-6. **Reveal.** Swords insert into the holes (animation), the **pirate pops out of the trigger hole**. The player on the trigger hole = 걸린 사람 = **loser (벌칙)**. All others survive (winners).
-7. **Result + history.** Result overlay highlights the loser + survivors. History accumulates. DB records the round.
-8. **Next round.** Host can start another round; gameState resets.
+1. **Start (host).** Host starts. Server sets `holeCount = playerCount`, picks one `triggerHole` via server crypto RNG (hidden — never sent to clients), sets a selection deadline from the host time limit, `phase = 'selecting'`. Broadcast `pirateSelectionStarted { holeCount, players, durationSec, deadlineTs }`. Top **clock hand** (시계바늘) shows the selection window, server-authoritative.
+2. **Real-time free stabbing (during the clock window).** Any player may click an **empty** hole to stab it (one sword per player; a player who already stabbed cannot stab again). The server processes clicks in **arrival order** (first-come-first-served on a hole; a losing race on the same hole is rejected so the racer can pick another).
+3. **One-at-a-time animation (FIFO stack).** Each accepted stab is broadcast live as `pirateSwordInserted { holeIndex, userName, isPop, seq }`. The client plays stab animations **one at a time through a FIFO queue**; stabs that arrive during an animation **stack** and play in arrival order. (먼저 누른 사람 먼저.)
+4. **Live pop.** When a stab fills the `triggerHole`, the server marks `isPop: true` on that insertion, ends the round immediately (`phase = 'finished'`), clears the deadline timer, and resolves: `loser = that player`, survivors = everyone else. The client, when the queue reaches the `isPop` insertion, plays the **pirate-pop-from-the-top** animation, then shows the result. Other players need not have stabbed.
+5. **Clock ends with no pop.** At the deadline, the players who never stabbed (안 꽂은 사람들 — absent/AFK or just slow) get their swords **auto-inserted one-by-one, in order**, each animated as a normal stab. The server emits the ordered auto-insertion sequence (ending at the pop). The client enqueues them so they animate sequentially. The trigger is guaranteed to be hit (see invariant) → pop → loser.
+6. **Result + history.** Result overlay: loser (벌칙) emphasized + survivors. History accumulates. DB records (loser `is_winner=false` last rank; survivors `is_winner=true` rank 1). Host starts a new round; state resets.
+
+### Loser-guarantee invariant (carry v1's fix, adapted)
+Because `holeCount = playerCount` and every player ends with exactly one sword, the trigger hole is always eventually filled → **exactly one loser**, EXCEPT when players leave mid-round (then live swords < holes). Handle exactly like v1:
+- The `triggerHole` is fixed at start for the live-pop common case.
+- **At the deadline auto-fill**, after assigning each live non-stabber a random empty hole, compute the set of holes filled by **live** players. If the original `triggerHole` is NOT among them (because the player who would have filled it left), **re-pick the trigger uniformly among the live-filled holes** (server crypto) before emitting the pop. This guarantees the loser is always a **live** player and exactly one. (Same spirit as v1 lessons C-19: never let the trigger land on an empty/orphaned hole.)
+- During the real-time phase, a live player hitting the fixed trigger pops normally (no leave involved yet).
 
 ## In-scope
-- New game-specific files: `pirate-multiplayer.html`, `js/pirate.js`, `socket/pirate.js`, `css/pirate.css` (HTML copied from `horse-race-multiplayer.html` base per `.claude/rules/new-game.md` §0, game markup replaced).
-- Barrel + N-hole selection UI (each hole shows claimer name/color), exclusive claim with change-until-lock.
-- **Top circular clock** component: rotating hand over the host-set duration, driven by a server-authoritative deadline (re-syncs on reconnect from remaining time). Cute styling.
-- **Host time-limit control** (10–60s, default 30s) before game start; host-only, blocked while game active; broadcast to room.
-- **Server-authoritative timeout** that auto-assigns absent players a random empty hole and resolves.
-- **Server-only trigger RNG** (seeded/crypto, fair, uniform over players, tamper-proof).
-- Reveal animation (sword insert + pirate pop) using emoji/CSS cute placeholders.
-- Result overlay (single loser emphasized, survivors listed) + history accumulation.
-- All 14 registration points from `.claude/rules/new-game.md` §2 (server 4 + lobby 2 + shared 4 + Phase D DB/sound/ranking 4).
-- DB recording: single-loser ranking (loser = last rank / `is_winner=false`; everyone else rank 1 / `is_winner=true`), via `recordGamePlay` + `recordServerGame` + `recordGameSession` like other games.
-- Mobile + PC responsive (barrel + clock scale; tap targets ≥ adequate on mobile).
+- Rewrite `socket/pirate.js` game logic: real-time `insertPirateSword` handler (arrival-order processing, exclusivity, one-per-player, participant check, rate-limit), live `pirateSwordInserted` broadcast with `isPop`, immediate resolve on pop, deadline auto-fill sequence with the re-pick invariant, hidden trigger revealed only on hit, DB record, disconnect/leave cleanup.
+- Rewrite `js/pirate.js` game logic: barrel render (N holes), real-time click → emit, **FIFO animation queue** for insertions (one stab animation at a time; concurrent stabs stack), pirate-pop-from-top animation, result overlay, clock visual (selection window, re-syncs from `deadlineTs` on reconnect), auto-fill sequence consumption.
+- Rebuild barrel UI in `pirate-multiplayer.html` + `css/pirate.css` to match the toy image: **pirate pops out the TOP**, swords inserted into **side holes**, cute emoji/CSS placeholders (🏴‍☠️ pirate, 🗡️ swords, barrel). Keep the top clock.
+- Mobile + PC responsive (barrel + clock scale; tap targets adequate).
 
 ## Out-of-scope
-- Real (non-placeholder) image art for pirate/barrel/swords — emoji+CSS placeholders only; real assets swapped in later (TODO).
-- Turn-based / multi-round elimination variant (explicitly not this game).
-- "Caught player wins" inverse rule, or host-configurable win/lose flip (decided: caught = loser).
-- New cosmetics/shop integration (ShopModule) for this game — not in first version.
-- Per-player turn timers (the only timer is the single room-level selection countdown).
+- Strict turn rotation (decided: free real-time with a FIFO animation queue, not enforced turns).
+- Removing the clock (decided: keep it as the selection window; the fix is making stabs live, not deleting the timer).
+- Multiple swords per player / fixed-larger-than-players barrel (decided: one sword per player, holeCount = playerCount).
+- "Caught player wins" inverse (decided: caught = loser).
+- Real (non-placeholder) art; new cosmetics/shop integration.
+- Re-doing the 16-point registration / DB / theme / lobby scaffolding (already done in v1 commit 28b96d6 — keep it).
 
 ## Acceptance Criteria
-- [ ] `/pirate` route serves the page; `/pirate-multiplayer.html` 301-redirects to `/pirate`.
-- [ ] Dice lobby shows a "해적 룰렛" radio with game color highlight; create/join redirects to `/pirate` and lands in-room (LoadingScreen closes).
-- [ ] `getComputedStyle(document.querySelector('.container')).width` === 800px on the game page (Tailwind override trap handled).
-- [ ] `#usersCount` updates on join/leave; Chat / Ready / Order all function.
-- [ ] Barrel renders exactly N holes for N game players; clicking a hole claims it; a second player cannot claim an occupied hole; a player can change their own claim before lock.
-- [ ] Host can set the time limit (10–60s) before start; non-hosts cannot; control is disabled while a game is active.
-- [ ] Top clock hand rotates and depletes over the host-set duration, server-synced.
-- [ ] If all players claim before the deadline, the round resolves immediately; otherwise at deadline the server auto-assigns empty holes to non-pickers and resolves.
-- [ ] Exactly one loser is determined; reveal pops the pirate at the trigger hole; result overlay shows loser + survivors.
-- [ ] Round result is written to DB (loser `is_winner=false` last rank; survivors `is_winner=true` rank 1); history accumulates; new round resets state.
-- [ ] Client `Math.random` count for game outcome = **0** (only deviceId/tabId/cosmetic jitter allowed); all outcome RNG is server-side.
-- [ ] `node -c` passes for every new/changed `.js`; mobile + PC layouts verified.
+- [ ] Barrel renders exactly N holes for N game players; a player can stab one empty hole; cannot stab an occupied hole; cannot stab twice.
+- [ ] Stabs animate **one at a time**; clicking during an animation queues the stab and it plays in arrival order (FIFO), not concurrently.
+- [ ] Stabbing the trigger hole pops the pirate **out the top immediately** and ends the round live — other players need not have acted.
+- [ ] If the clock ends with no pop, the non-stabbers' swords auto-insert **one-by-one, animated, in order**, until the pop.
+- [ ] The trigger hole / seed is **never** sent to any client before the pop (verify via `getCurrentRoom` mask + DevTools network); `isPop` is the only reveal.
+- [ ] Exactly one loser every round, including when a player leaves mid-round (re-pick-among-live invariant holds; QA simulation zero-loser = 0).
+- [ ] Clock hand rotates/depletes over the host-set duration, server-synced; re-syncs on reconnect; host can set 10–60s (default 30s); non-hosts cannot; disabled while active.
+- [ ] DB records loser `is_winner=false` last rank, survivors `is_winner=true` rank 1; history accumulates; new round resets.
+- [ ] Client `Math.random` for game outcome = 0 (only tabId/deviceId/cosmetic jitter); all outcome RNG server-side crypto.
+- [ ] `node -c` passes for changed JS; mobile + PC layouts verified; existing 6 games unaffected.
 
 ## Related Files / Modules
 | File | Role |
 |------|------|
-| `pirate-multiplayer.html` (new) | Client page — copy of horse-race base, pirate markup (barrel/holes/clock/reveal) swapped in |
-| `js/pirate.js` (new) | Client logic — entry IIFE, room join/create, module init, barrel render, claim, clock animation, reveal |
-| `socket/pirate.js` (new) | Socket handler — start, claim, host setTimeLimit, server timeout + auto-assign, trigger RNG, resolve, DB record, disconnect grace |
-| `css/pirate.css` (new) | Game-specific styles + `--horse-*` aliases + `.container !important` + `.game-section block` + cute palette/animations |
-| `socket/index.js` | `require('./pirate')` + register in setupSocketHandlers |
-| `socket/rooms.js` | gameType allowlist `'pirate'` + leaveRoom cleanup of pirate claim/selection data |
-| `utils/room-helpers.js` | `createRoomGameState()` pirate fields (claims map, triggerHole, timeLimitSec, phase, deadline, etc.) |
-| `routes/api.js` | `/pirate` route + `/pirate-multiplayer.html` 301 redirect + `defaultGameStats` pirate entry |
-| `dice-game-multiplayer.html` | 5 hunks: `.room-item.game-pirate` CSS, radio label, gameType colorMap, room-card branch, 3 redirect spots (`pendingPirateRoom`/`pendingPirateJoin` → `/pirate?createRoom`/`?joinRoom`) |
-| `css/theme.css` | `--pirate-500/-600/-accent/-rgb` (light+dark) + `--game-type-pirate` |
-| `js/shared/tutorial-shared.js` | `FLAG_BITS.pirate` = next free bit (verify current next bit at impl time; new-game.md said 64 but spin-arena may have consumed it) |
-| `js/shared/server-select-shared.js` | `localStorage 'pirateUserName'` sync |
-| `assets/sounds/sound-config.json` | `pirate_*` sound key placeholders (claim, tick, pop, win/lose) |
-| `db/stats.js` | `DEFAULT_GAME_STATS` pirate entry |
-| `db/ranking.js` | `getMyRank` / `getTop3Badges` / `getFullRanking` pirate branch |
-| `index.html` | game link (optional) |
-
-## Socket Contract (new events — follow horse-race game-specific naming)
-- Host → server: **`startPirateGame`** (host-only; converts ready → game players, picks N=players, opens selection, starts server deadline timer) → broadcasts **`pirateSelectionStarted`** `{ holeCount, players, durationSec, deadlineTs }`.
-- Host → server: **`setPirateTimeLimit`** `{ seconds }` (host-only, blocked if active, clamp 10–60) → broadcasts **`pirateTimeLimitUpdated`** `{ seconds }`.
-- Player → server: **`claimPirateHole`** `{ holeIndex }` (validate phase, exclusivity, allow re-claim by same user) → broadcasts **`pirateHoleClaimed`** `{ holeIndex, userName }` (+ rejection emit to claimer on conflict). Optional **`piratePickProgress`** `{ picked, total }`.
-- Server → room: **`pirateResolved`** `{ triggerHole, claims: { [holeIndex]: userName }, loser, survivors, autoAssigned: [userName...] }` (sent after immediate-all-picked or deadline auto-assign).
-- Server timer: `setTimeout(deadline)` stored on gameState; cleared on resolve / leave / disconnect / new round. Exact start-event reuse vs custom (`startPirateGame` vs generic `startGame`) to be confirmed by Scout against the current convention; default = game-specific event like `startHorseRace`.
+| `socket/pirate.js` | REWRITE — real-time insertion, live pop, deadline auto-fill + re-pick invariant, hidden trigger, DB, cleanup |
+| `js/pirate.js` | REWRITE — barrel render, real-time click, FIFO animation queue, pop-from-top, clock, result |
+| `pirate-multiplayer.html` | REBUILD game markup — barrel (side holes) + pirate-pop-top + top clock + reveal/result |
+| `css/pirate.css` | REBUILD barrel/pop/clock styles (cute) — keep `.container !important`, `.game-section block`, `--horse-*` aliases |
+| `utils/room-helpers.js` | Adjust `pirate` gameState fields if needed (claims map, triggerHole, holeCount, phase, deadline, seq counter) — keep additive |
+| `socket/rooms.js` | Keep `getCurrentRoom` pirate mask (triggerHole/seed hidden) + leaveRoom cleanup; update field list if gameState shape changes |
+| `socket/chat.js` | Keep disconnect-path pirate claim cleanup (C-19) |
+| (16-point registration, DB, theme, lobby, sounds) | UNCHANGED from v1 commit 28b96d6 |
 
 ## Must-Preserve
-- Shared module contracts unchanged: ReadyModule / OrderModule / ChatModule / RankingModule / SoundManager / TutorialModule init signatures and events (see `docs/GameGuide/02-shared-systems/`).
-- `updateUsers` payload shape and `renderUsersList` host/me-tag pattern (the C-3 trap).
-- `horse-race.css` dependency contract: pirate page aliases `--horse-*` tokens; must not affect the real horse-race page (per-page stylesheet link).
-- `socket/rooms.js` gameType allowlist gating; `utils/room-helpers.js` cross-game gameState init must not break dice/roulette/horse/bridge/spin.
-- DB recording APIs (`recordGamePlay`, `recordServerGame`, `recordGameSession`, `generateSessionId`) used exactly as other games.
-- main = production. New game is additive; do not alter existing games' behavior.
+- Shared module contracts (Ready/Order/Chat/Ranking/Sound/Tutorial) and `updateUsers`/`renderUsersList` (C-3).
+- `getCurrentRoom` masking: `triggerHole` and `seed` NEVER leave the server before the pop (C-20). Update the mask whitelist if new gameState fields are added, keeping server-only fields out.
+- leaveRoom + disconnect (chat.js) pirate cleanup pairing (C-19).
+- DB recording APIs used as other games; main = production; existing 6 games unaffected (changes confined to pirate game logic + UI).
+- `.container { max-width:800px !important }` (C-1), `.game-section { display:block }` (C-2), URL entry flow (C-5), running-class cleanup (C-6).
 
 ## Fairness Constraints
-- **Client `Math.random()` = 0 for any outcome** (trigger hole, auto-assignment). Only deviceId/tabId generation and purely-cosmetic jitter (e.g., shake) may use it.
-- **Trigger hole** is chosen on the server via seeded/crypto RNG (reuse `utils/crypto.js` seededRandom pattern from dice if suitable) and is **never sent to the client before reveal**.
-- **Auto-assignment** of absent players' holes is server-side random.
-- Hole claims are **server-validated**: cannot claim an occupied hole, cannot claim after lock, only the claiming socket's own user.
-- The countdown deadline is **server-authoritative**: the server fires resolve; the client clock is visual only and re-syncs from remaining time on reconnect (no client-side authority over when the round ends).
-- Verification: `grep -c "Math.random" js/pirate.js` → only deviceId/tabId/cosmetic occurrences.
+- Client `Math.random()` = 0 for outcome (trigger hole, auto-fill hole assignment, auto-fill order, deadline re-pick). Only tabId/deviceId/cosmetic jitter may use it.
+- Trigger hole + all auto-fill/ re-pick randomness via server `crypto` (reuse the v1 `crypto.randomInt` approach).
+- Trigger hole hidden in `getCurrentRoom` mask; revealed only via `isPop` on the specific insertion that fills it.
+- Each stab server-validated: hole empty, game in `selecting`, player is a participant, player has not already stabbed, arrival-order resolution of same-hole races.
+- Deadline is server-authoritative; the client clock + animation queue are visual only and re-sync from `deadlineTs` / server events on reconnect.
 
 ## Existing Integration Contract
-- Reuse dice-lobby entry flow verbatim: `pendingPirateRoom` / `pendingPirateJoin` localStorage handoff → `/pirate?createRoom=true` / `?joinRoom=true`; `pirateActiveRoom` sessionStorage for refresh re-entry; redirect to `/game` when entered without lobby context (per new-game.md §5-1).
-- HTML required element IDs and script/CSS link order per new-game.md §3 (ControlBar `controlBarMount`, Ready `readySection/readyUsersList/readyCount/readyButton`, Chat `chatMessages/chatInput`, Order per ORDER-MODULE.md, common `gameSection/usersSection/usersList/usersCount/dragHint/gameStatus/historySection/historyList/resultOverlay/resultRankings/passwordModal/loadingScreen`).
-- `.container { max-width: 800px !important; }` and `.game-section { display: block; }` traps (C-1, C-2) handled in `css/pirate.css`.
-- Read `docs/GameGuide/lessons/_common.md` (C-1…C-5 traps) before coding, per harness rule.
+- Reuse v1's lobby entry, sessionStorage `pirateActiveRoom`, `pendingPirateRoom`/`pendingPirateJoin`, `/pirate` routes, FREE_GAME_SLUGS/SERVER_ROOM_DIRECT_PATHS — all unchanged.
+- Socket event names change inside the pirate game only: replace v1's `claimPirateHole`/`pirateResolved`-only flow with `insertPirateSword` → `pirateSwordInserted { isPop }` (live, per stab) + `pirateAutoInsertSequence { inserts:[...] }` (deadline batch) + `pirateResolved { loser, survivors, triggerHole }` (after the pop). Keep `setPirateTimeLimit`/`pirateTimeLimitUpdated` and `startPirateGame`/`pirateSelectionStarted`. Scout/Coder confirm exact names against current code before wiring.
+- Read `docs/GameGuide/lessons/_common.md` (esp. C-1…C-6, C-19, C-20) before coding.
 
 ## Execution Notes
-- Recommended model: **Claude Opus 4.8** for the judgment-heavy items — game-mechanic wiring, server-authoritative timer + auto-assign correctness, fairness (server-only trigger RNG), and the new clock/reveal UI. This is a COMPLEX triage (new game, socket + DB, fairness). **Sonnet acceptable** for the mechanical registration hunks (theme.css tokens, tutorial FLAG_BITS, server-select localStorage, sound-config keys, lobby radio/colorMap) once the core is in place.
-- This document cannot enforce the model — the executing session's `/model` setting decides. If the session model is below the recommendation, surface it to the user and confirm before proceeding.
-- Execute through the project harness (`.claude/rules/harness.md`): Scout → Coder → Reviewer → QA. Carry Must-Preserve / Fairness Constraints / Existing Integration Contract into the Scout/Coder instructions verbatim. Do not bypass the pipeline.
+- Recommended model: **Claude Opus 4.8** for the judgment-heavy core — the real-time insertion/animation-queue protocol, server-authoritative live pop vs deadline auto-fill, the loser-guarantee re-pick invariant under leaves, and the hidden-trigger fairness. This is a COMPLEX rewrite (socket protocol change, fairness, real-time sync). **Sonnet acceptable** for the barrel/pop CSS and any mechanical wiring once the protocol is set.
+- This document cannot enforce the model — the executing session's `/model` setting decides. If below the recommendation, surface it and confirm before proceeding.
+- Execute through the project harness (`.claude/rules/harness.md`): Scout (map what to keep vs rewrite in v1) → Coder → Reviewer → QA. Carry Must-Preserve / Fairness / Integration into the instructions verbatim. Do not bypass the pipeline.
