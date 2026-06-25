@@ -10,8 +10,14 @@ const { getPool } = require('./pool');
 // 장착 슬롯 화이트리스트 (카탈로그 카테고리와 일치)
 // spin_skin = 회전 칼날 스킨 슬롯 (config/spin-arena/cosmetics.json) — 화이트리스트 방식 유지(동적 슬롯명 금지)
 const EQUIP_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura', 'skin_premium', 'track_theme', 'finish_fx', 'win_sound', 'win_emote', 'caster', 'spin_skin'];
-// 레이스 시작 시 타 플레이어에게 공개되는(broadcast) 슬롯
+// 레이스 시작 시 타 플레이어에게 공개되는(broadcast) 슬롯.
+// ⚠️ buildRaceCosmetics(socket/horse.js)의 말별 공개 꾸미기 루프가 이 상수를 순회한다.
+// finish_fx/track_theme는 "말 위 꾸미기"가 아니라 개인 연출이므로 여기 넣으면 말 위로 샌다 — 추가 금지.
 const PUBLIC_HORSE_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura', 'skin_premium'];
+// 광고(transient) 장착(shop:adEquip) 허용 슬롯 = 공개 말-슬롯 + 개인 연출(finish_fx/track_theme).
+// 개인 연출은 본인 화면 전용이라 broadcast(PUBLIC_HORSE_SLOTS)와 분리한다(말-루프 오염 방지).
+// 코인 장착(shop:equip)은 EQUIP_SLOTS가 이미 finish_fx/track_theme를 포함 → 서버 저장됨.
+const AD_EQUIP_SLOTS = [...PUBLIC_HORSE_SLOTS, 'finish_fx', 'track_theme'];
 
 // 소유 꾸미기 id 배열
 async function getOwned(userId) {
@@ -57,4 +63,4 @@ async function setEquipped(userId, slot, cosmeticId) {
     );
 }
 
-module.exports = { getOwned, getEquipped, getEquippedMap, setEquipped, EQUIP_SLOTS, PUBLIC_HORSE_SLOTS };
+module.exports = { getOwned, getEquipped, getEquippedMap, setEquipped, EQUIP_SLOTS, PUBLIC_HORSE_SLOTS, AD_EQUIP_SLOTS };

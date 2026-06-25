@@ -598,11 +598,8 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 게임 시작 시 이전 주문 cycle 가드 해제 — 다음 종료에서도 자동 주문이 다시 발동하도록 (ladder/경마 패턴)
-        const wasOrderActive = gameState.isOrderActive;
+        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
         gameState.orderAutoTriggered = false;
-        gameState.isOrderActive = false;
-        if (wasOrderActive) io.to(room.roomId).emit('orderEnded');
 
         // 스킨 배정(클라 미리보기와 거울 규칙): users 배열(입장 순서)을 순회하며
         // 명시 선택 스킨 우선, 없으면 base tier1 24색에서 이미 쓴 색 제외하고 순차 배정 — 미리보기 색 == 실제 게임 색 보장.

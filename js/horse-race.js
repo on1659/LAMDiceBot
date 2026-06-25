@@ -4570,12 +4570,16 @@ function playReplay(record) {
     });
 
     showCountdown();
+    // 다시보기 트랙에도 내 트랙테마(개인 연출) 적용 — 라이브와 일관되게 본인 화면 기준. 외관만, 결과 무관.
+    if (window.HorseShop && window.HorseShop.applyMyTrackTheme) window.HorseShop.applyMyTrackTheme();
     setTimeout(() => {
         // 다시보기 시 targetRank 임시 적용 (슬로우모션 일반화에 사용)
         const _prevTargetRank = window._targetRank;
         window._targetRank = (typeof record.targetRank === 'number') ? record.targetRank : null;
         updateTargetRankBanner(window._targetRank, true);
         startRaceAnimation(horseRankings, replaySpeeds, replayGimmicks, (actualFinishOrder) => {
+            // 결승 연출 — 본인 장착 finish_fx(개인 꾸미기). 다시보기에서도 본인 화면 기준이라 안전. 외관만, 결과 무관.
+            if (window.HorseShop) window.HorseShop.playFinishFx();
             showRaceResult({
                 winners: record.winners || [],
                 horseRankings: actualFinishOrder || horseRankings,
@@ -5495,7 +5499,8 @@ socket.on('horseRaceStarted', (data) => {
     // 꾸미기 페이로드 저장 (말별 canonical + 방장 연출) — 시각 렌더용, 결과 무관
     window._raceCosmetics = { room: data.roomCosmetics || null, horses: data.horseCosmetics || {}, labels: data.labelCosmetics || {} };
     if (window.HorseShop) {
-        window.HorseShop.applyRoomCosmetics(window._raceCosmetics.room); // 트랙 테마(없으면 정리만)
+        // 트랙테마는 개인 연출 — 내가 장착한 테마를 내 화면 트랙에 적용(인자는 호환용, 내부에서 무시). 없으면 정리만.
+        window.HorseShop.applyMyTrackTheme();
     }
     window._slowMotionConfig = data.slowMotionConfig || null;
     // N등 투표 결과 (null = fallback 'last')
@@ -5636,9 +5641,9 @@ socket.on('horseRaceStarted', (data) => {
 
     // 경주 트랙 표시 (서버에서 받은 기믹 데이터 전달) - 콜백으로 종료 처리
     startRaceAnimation(data.horseRankings, data.speeds, data.gimmicks, (actualFinishOrder) => {
-        // 방장 결승 연출(폭죽/색종이) 1회 재생 — 외관만, 결과 무관
-        if (window.HorseShop && window._raceCosmetics && window._raceCosmetics.room) {
-            window.HorseShop.playFinishFx(window._raceCosmetics.room);
+        // 결승 연출(폭죽/색종이) 1회 재생 — 본인이 장착한 finish_fx 를 본인 화면에서 (개인 꾸미기, 방장 무관). 외관만, 결과 무관.
+        if (window.HorseShop) {
+            window.HorseShop.playFinishFx();
         }
         // 사운드: 골인! 관중 최고조 → 환호 → 페이드아웃
         if (window.SoundManager) {

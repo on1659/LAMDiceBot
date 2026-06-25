@@ -272,13 +272,8 @@ module.exports = (socket, io, ctx) => {
         // 경주 시작
         gameState.isHorseRaceActive = true;
         gameState.isGameActive = true;
-        // 게임 시작 시 이전 주문 cycle 가드 해제 — 두 번째 게임 종료에서도 triggerAutoOrder 정상 발동
-        const wasOrderActive = gameState.isOrderActive;
+        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
         gameState.orderAutoTriggered = false;
-        gameState.isOrderActive = false;
-        if (wasOrderActive) {
-            io.to(room.roomId).emit('orderEnded');
-        }
         gameState.raceRound = (gameState.raceRound || 0) + 1;
         console.log(`[디버그] 경주 시작 - raceRound: ${gameState.raceRound}, horseRaceMode: ${gameState.horseRaceMode}, targetRank: ${resolvedTargetRank}`);
 

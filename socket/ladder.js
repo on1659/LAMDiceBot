@@ -67,16 +67,21 @@ const LADDER_CURVE_RAW_MAX = 256;   // 클라가 보낸 원시 점 허용 상한
 // 경로 길이를 일정 범위로 묶는다. points는 시각일 뿐 매핑(c+y정렬)과 무관 → 공정성 영향 0. js/ladder.js와 동기.
 const LADDER_CURVE_MAX_VTRAVEL = 1.0;
 
-function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+// 곡선이 두 기둥 사이 칸 밖으로 삐져나올 수 있는 마진(가운데 점만 — 양끝은 항상 기둥 스냅).
+// x: 칸 너비 대비, y: 전체 높이 대비. js/ladder.js의 같은 상수와 반드시 동일 값 유지. points는 시각만 — 결과 매핑(c+y정렬) 무관.
+const LADDER_CURVE_MARGIN_X = 0.35;
+const LADDER_CURVE_MARGIN_Y = 0.1;
+function clampCurveX(v) { return Math.max(-LADDER_CURVE_MARGIN_X, Math.min(1 + LADDER_CURVE_MARGIN_X, v)); }
+function clampCurveY(v) { return Math.max(-LADDER_CURVE_MARGIN_Y, Math.min(1 + LADDER_CURVE_MARGIN_Y, v)); }
 
 // 곡선 점 배열 정규화 (신뢰경계 — 클라 입력). 시각 장식일 뿐 결과에 영향 없음.
-// 비정상/빈약하면 null(→ 직선 폴백). 좌표 clamp(0~1), 개수 상한 다운샘플, 양끝을 두 기둥(x=0,1)에 스냅.
+// 비정상/빈약하면 null(→ 직선 폴백). 좌표 clamp(칸 밖 마진까지 허용), 개수 상한 다운샘플, 양끝을 두 기둥(x=0,1)에 스냅.
 function sanitizeCurvePoints(points) {
     if (!Array.isArray(points) || points.length < 2 || points.length > LADDER_CURVE_RAW_MAX) return null;
     let clean = [];
     for (const p of points) {
         if (!p || typeof p.x !== 'number' || typeof p.y !== 'number' || !isFinite(p.x) || !isFinite(p.y)) continue;
-        clean.push({ x: clamp01(p.x), y: clamp01(p.y) });
+        clean.push({ x: clampCurveX(p.x), y: clampCurveY(p.y) });
     }
     if (clean.length < 2) return null;
     if (clean.length > LADDER_CURVE_MAX_POINTS) {   // 상한으로 균등 다운샘플(양끝 보존)
@@ -101,7 +106,7 @@ function clampCurveVTravel(pts) {
     if (vtravel <= LADDER_CURVE_MAX_VTRAVEL) return pts;
     const meanY = pts.reduce((s, p) => s + p.y, 0) / pts.length;
     const k = LADDER_CURVE_MAX_VTRAVEL / vtravel;
-    return pts.map(p => ({ x: p.x, y: clamp01(meanY + (p.y - meanY) * k) }));
+    return pts.map(p => ({ x: p.x, y: clampCurveY(meanY + (p.y - meanY) * k) }));
 }
 
 // 상단 레인 → 바닥 열 매핑 (곡선·slant 무관: rg.c와 y정렬만 사용 → 결과 불변 보장 지점).
@@ -813,11 +818,8 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 게임 시작 시 이전 주문 cycle 가드 해제 — 다음 종료에서도 자동 주문이 다시 발동하도록 (경마 패턴)
-        const wasOrderActive = gameState.isOrderActive;
+        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
         gameState.orderAutoTriggered = false;
-        gameState.isOrderActive = false;
-        if (wasOrderActive) io.to(room.roomId).emit('orderEnded');
 
         const participants = ready.slice(0, LADDER_MAX_PLAYERS);
         const N = LADDER_LANES;   // 레인 항상 6 고정 — 참가자가 6 미만이면 일부는 빈 레인

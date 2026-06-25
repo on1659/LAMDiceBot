@@ -251,15 +251,17 @@ body.hshop-open {
 }
 .hshop-preview-trail {
     position: absolute;
-    left: 12%;
+    left: 8%;
     top: 50%;
     transform: translateY(-20%);
-    font-size: 16px;
-    letter-spacing: -3px;
+    font-size: 22px;
+    letter-spacing: -4px;
     line-height: 1;
     z-index: 1;
-    opacity: 0.9;
+    opacity: 0.92;
     pointer-events: none;
+    -webkit-mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
+    mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
 }
 .hshop-preview-acc {
     position: absolute;
@@ -669,21 +671,25 @@ body.hshop-open {
 }
 .hshop-inv-trail {
     position: absolute;
-    left: 14%;
+    left: 10%;
     top: 50%;
     transform: translateY(-30%);
-    font-size: 26px;
-    letter-spacing: -4px;
+    font-size: 34px;
+    letter-spacing: -6px;
     line-height: 1;
     z-index: 1;
-    opacity: 0.9;
+    opacity: 0.92;
     pointer-events: none;
+    -webkit-mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
+    mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
 }
 .hshop-inv-acc {
     position: absolute;
-    top: 14%;
-    left: 50%;
-    transform: translateX(-50%);
+    /* 스프라이트는 grid 중앙정렬(120px). 머리 앵커: 중앙(50%) + 가로오프셋(--acc-dx),
+       세로는 스프라이트 상단(약 50% - 45px) 에서 머리까지(--acc-y). JS가 탈것별 주입, 미주입 시 중앙 상단. */
+    top: calc(50% - 45px + var(--acc-y, 14px));
+    left: calc(50% + var(--acc-dx, 0px));
+    transform: translate(-50%, -100%) scale(var(--acc-scale, 1));
     font-size: 32px;
     line-height: 1;
     z-index: 3;
@@ -814,6 +820,44 @@ body.hshop-open {
     cursor: pointer;
     box-shadow: var(--hshop-shadow);
     white-space: nowrap;
+    position: relative;                 /* 회전 링 ::before 기준 */
+    animation: hshopOpenGlow 1.8s ease-in-out infinite;  /* 빛나는 글로우 펄스 */
+}
+
+/* 회전 무지개 테두리 링 — @property로 conic-gradient 각도만 회전(테두리만 표시) */
+@property --hshopRingAngle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+.hshop-open-btn::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;             /* 알약(999px) 모양 따라감 */
+    padding: 3px;
+    background: conic-gradient(from var(--hshopRingAngle), #ff2d55, #ffcc00, #34c759, #5ac8fa, #af52de, #ff2d55);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;     /* 가운데는 비우고 테두리만 표시 */
+    animation: hshopOpenRing 3.5s linear infinite;
+    pointer-events: none;
+}
+@keyframes hshopOpenRing {
+    to { --hshopRingAngle: 360deg; }
+}
+@keyframes hshopOpenGlow {
+    0%, 100% { box-shadow: var(--hshop-shadow), 0 0 0 0 rgba(255, 77, 148, 0); }
+    50%      { box-shadow: var(--hshop-shadow), 0 0 13px 2px rgba(255, 77, 148, 0.55); }
+}
+/* 모션 최소화: 회전/펄스 끄고 정적 글로우 + 무지개 테두리만 유지 */
+@media (prefers-reduced-motion: reduce) {
+    .hshop-open-btn {
+        animation: none;
+        box-shadow: var(--hshop-shadow), 0 0 10px 1px rgba(255, 77, 148, 0.45);
+    }
+    .hshop-open-btn::before { animation: none; }
 }
 
 /* 탈것 선택 헤더 안에서 풀폭으로 늘어나지 않게 — 내용폭 컴팩트 버튼 유지 */
@@ -825,36 +869,67 @@ body.hshop-open {
 }
 
 /* ── 탈것에 적용되는 꾸미기 (트랙 내부) ── */
-/* 액세서리: 스프라이트 위 오버레이 */
+/* 액세서리: 머리 위 오버레이. 위치/크기는 JS가 탈것별 앵커로 --acc-x/--acc-y/--acc-scale 주입.
+   값 미주입 시 기본값(중앙 상단)으로 폴백. 장식 기준점이 하단중앙이 되도록 translate(-50%,-100%). */
 .cosmetic-accessory {
     position: absolute;
-    top: -14px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: var(--acc-x, 50%);
+    top: var(--acc-y, -14px);
+    transform: translate(-50%, -100%) scale(var(--acc-scale, 1));
     font-size: 20px;
     line-height: 1;
     z-index: 250;
     pointer-events: none;
 }
-/* 트레일: 스프라이트 뒤(왼쪽) 잔상 — 달릴 때만 보이게 */
+/* 트레일: 스프라이트 뒤(왼쪽) 잔상 — 달릴 때만, 크고 또렷한 흐름 streak.
+   right:100% 로 스프라이트 뒤에 붙고, ::before 흐림 streak 가 모션감을 준다. */
 .cosmetic-trail {
     position: absolute;
     top: 50%;
     right: 100%;
     transform: translateY(-50%);
     margin-right: -2px;
-    font-size: 15px;
+    font-size: 32px;            /* 강화: 15 → 32 (크게) */
     line-height: 1;
-    letter-spacing: -3px;
+    letter-spacing: -6px;
     white-space: nowrap;
     opacity: 0;
     transition: opacity 0.2s;
     z-index: 90;
     pointer-events: none;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.35));
+    -webkit-mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
+    mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
+}
+/* 잔상 흐름 streak — 장식 이모지 뒤로 흐르는 반투명 모션 띠(순수 장식, DOM 추가 없음) */
+.cosmetic-trail::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -4px;
+    width: 46px;
+    height: 0.5em;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    background: linear-gradient(to left, currentColor, transparent);
+    opacity: 0.4;
+    pointer-events: none;
 }
 .horse.racing .cosmetic-trail,
 .horse.running .cosmetic-trail {
-    opacity: 0.85;
+    opacity: 0.95;             /* 강화: 0.85 → 0.95 (또렷하게) */
+    animation: cosmeticTrailDrift 0.5s ease-in-out infinite;
+}
+/* 달릴 때 가로로 늘었다 줄었다 — 흐르는 잔상 느낌(transform 전용, GPU 친화적) */
+@keyframes cosmeticTrailDrift {
+    0%, 100% { transform: translateY(-50%) scaleX(1); }
+    50%      { transform: translateY(-50%) scaleX(1.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .horse.racing .cosmetic-trail,
+    .horse.running .cosmetic-trail {
+        animation: none;       /* 모션 최소화: 확대된 정적 잔상만 유지 */
+    }
 }
 
 /* 오라: 탈것 뒤 글로우 링(절대배치 오버레이, 레이아웃 영향 0). 색은 인라인 color → currentColor.
@@ -902,16 +977,18 @@ body.hshop-open {
 }
 .cosmetic-fx-piece {
     position: absolute;
-    top: -8%;
-    font-size: 26px;
+    top: -10%;
+    font-size: 30px;           /* 기본값(JS가 조각별 24~42px 로 덮어씀) */
     line-height: 1;
     opacity: 0;
-    animation: hshopFxFall 2.4s ease-in forwards;
+    will-change: transform, opacity;
+    animation: hshopFxFall 3.6s ease-in forwards;  /* 강화: 2.4s → 3.6s (더 길게) */
 }
 @keyframes hshopFxFall {
     0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
-    10%  { opacity: 1; }
-    100% { transform: translateY(115%) rotate(220deg); opacity: 0; }
+    8%   { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(125%) rotate(300deg); opacity: 0; }
 }
 
 /* ── 카드 미리보기: 트랙테마 미니 썸네일 ── */

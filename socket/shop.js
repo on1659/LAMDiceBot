@@ -284,7 +284,10 @@ function registerShopHandlers(socket, io, ctx) {
         const cb = (typeof callback === 'function') ? callback : () => {};
         const slot = data && data.slot;
         const cosmeticId = data && data.cosmeticId; // null/undefined면 해제
-        if (cosmetics.PUBLIC_HORSE_SLOTS.indexOf(slot) === -1) return cb({ ok: false, reason: 'slot' });
+        // 광고 장착 허용 슬롯 = 공개 말-슬롯 + 개인 연출(finish_fx/track_theme).
+        // PUBLIC_HORSE_SLOTS만 허용하면 광고 finish_fx/track_theme가 reason:'slot'로 조용히 거부됐다.
+        // (말-루프 buildRaceCosmetics는 계속 PUBLIC_HORSE_SLOTS만 순회 — 개인 연출이 말 위로 새지 않음.)
+        if (cosmetics.AD_EQUIP_SLOTS.indexOf(slot) === -1) return cb({ ok: false, reason: 'slot' });
         const room = ctx.getCurrentRoom && ctx.getCurrentRoom();
         if (!room) return cb({ ok: false, reason: 'room' });
         // v1 광고 코스메틱은 경마 전용 — 타 게임 방 메모리 오염 방지.

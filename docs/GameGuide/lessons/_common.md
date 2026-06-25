@@ -196,6 +196,15 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-18. 인라인 style을 raw 카탈로그 문자열과 직접 비교하면 false FAIL — 브라우저가 정규화한다
+
+- 렌더 QA에서 "적용된 외형 == 카탈로그 값"을 단언할 때, `el.style.filter`/`el.style.backgroundImage`/`el.style.color`를 **카탈로그 raw 문자열과 `===` 비교하면 거짓 FAIL**이 난다. 브라우저는 인라인 style을 set/get하며 **정규화**하기 때문: `#ffd54a`→`rgb(255, 213, 74)`, `0`→`0px`, 함수 인자 공백/대소문자 정리, gradient 색 표기 변환 등. 카탈로그의 `drop-shadow(0 0 6px #ffd54a) ...`와 읽어온 `drop-shadow(rgb(255, 213, 74) 0px 0px 6px) ...`는 의미가 같아도 문자열이 다르다.
+- **해결:** 비교 기준(카탈로그 값)도 **같은 정규화를 거치게** 한다 — throwaway 요소에 카탈로그 값을 `style.filter = catalog.filter`로 세팅한 뒤 다시 읽어(`probe.style.filter`) 그 정규화된 문자열과 비교한다. 또는 정확값 대신 **distinct 집합 검사**(전 아이템의 적용값이 서로 다른가)로 대체한다.
+- **검증:** 렌더 단언이 통과/실패 양쪽을 실제로 가르는지 확인(항상-통과 vacuous 단언 방지). 정규화 일치 비교로 바꾼 뒤 전 아이템 PASS면서, 일부러 틀린 값엔 FAIL이 나야 한다.
+- (출처: 2026-06-24 상점 꾸미기 전 카탈로그 QA — `AutoTest/qa-shop-all-cosmetics-test.js` paint 슬롯이 23/23 거짓 FAIL로 노출)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

@@ -40,11 +40,22 @@
 
     // ── 광고 보상 티어 상수 (튜닝 가능 — v1 단순화: 실제 광고 SDK 없음) ──
     var AD_WALLET_KEY = 'adWallet';   // sessionStorage 키 (일반 userAuth 지갑과 별개, 탭 세션 한정)
-    var AD_COIN_GRANT = 30;           // 광고 1회 시청당 지급 광고코인
+    var AD_COIN_GRANT = 48;           // 광고 1회 시청당 지급 광고코인 (뽑기 비용 40 기준 → 광고 1회당 1.2뽑기)
     var AD_COOLDOWN_MS = 10 * 1000;   // 광고 재시청 쿨다운 (가짜 광고 v1: 10초 — 실제 SDK 붙으면 상향)
     var AD_WATCH_MS = 3 * 1000;       // 광고 자리표시(승인 대기) 시청 시간 — 끝까지 봐야 코인 지급
     // 자리표시 러너: 우리 게임의 달리는 것들(이모지 근사). Date 기반 회전 = 매 클릭 다른 탈것(Math.random 미사용).
     var AD_RUNNERS = ['🐎', '🏎️', '🦀', '🐢', '🚀', '🛴', '🚲'];
+
+    // 로컬(개발)에서는 광고코인 무제한 — 테스트 편의. 실서버(lamdice.com)는 정상 경제 그대로.
+    // 프로젝트 공통 isLocalhost 규약(localhost / 127.0.0.1 / 빈 호스트(file://))과 동일.
+    var IS_LOCAL = (function () {
+        try {
+            var h = window.location.hostname;
+            return h === 'localhost' || h === '127.0.0.1' || h === '';
+        } catch (e) { return false; }
+    })();
+    // 광고코인 잔고(선검사용). 로컬이면 무한 → 모든 잔고 검사를 통과(차감은 그대로 일어나도 무시됨).
+    function adBalance() { return IS_LOCAL ? Infinity : _adWallet.coins; }
 
     // ── 상태 ──────────────────────────────────────────────
     var _config = null;
@@ -342,7 +353,7 @@
 
     function updateAdBalanceLabel() {
         var el = document.getElementById(AD_BALANCE_ID);
-        if (el) el.textContent = '🎬 ' + _adWallet.coins;
+        if (el) el.textContent = '🎬 ' + (IS_LOCAL ? '∞' : _adWallet.coins);
     }
 
     function animateEnabled() {
@@ -651,7 +662,7 @@
             disabled = true;
         } else if (isAd) {
             btn.textContent = '🎬 광고 뽑기 · ' + cost + '광고코인 · ' + poolSize + '종';
-            if (_adWallet.coins < cost) disabled = true; // 잔고 부족 비활성(선검사)
+            if (adBalance() < cost) disabled = true; // 잔고 부족 비활성(선검사·로컬 무제한)
         } else {
             btn.textContent = '🎲 코인 뽑기 · ' + cost + '코인 · ' + poolSize + '종';
             if (_wallet.balance < cost) disabled = true;
@@ -939,7 +950,7 @@
             var adBal = document.createElement('div');
             adBal.className = 'hshop-balance hshop-balance--ad';
             adBal.id = AD_BALANCE_ID;
-            adBal.textContent = '🎬 ' + _adWallet.coins;
+            adBal.textContent = '🎬 ' + (IS_LOCAL ? '∞' : _adWallet.coins);
             header.appendChild(adBal);
         }
         var closeBtn = document.createElement('button');
@@ -1119,7 +1130,7 @@
     // 광고 뽑기: 서버 추첨(DB 미진입) + 클라 adWallet 차감/적립. 잔고 선검사 후 emit.
     function doAdGacha(btn) {
         if (!_socket) return;
-        if (_adWallet.coins < GACHA_AD_COST) {
+        if (adBalance() < GACHA_AD_COST) {
             showShopToast('광고코인이 부족해요. 광고를 보고 모아보세요.', 'error');
             return;
         }
@@ -1408,7 +1419,7 @@
         if (!item || !isAdItem(item)) return;
         if (adOwns(item.id)) return;
         var adPrice = Number.isFinite(item.adPrice) ? item.adPrice : 0;
-        if (_adWallet.coins < adPrice) {
+        if (adBalance() < adPrice) {
             showShopToast('광고코인이 부족해요. 광고를 보고 모아보세요.', 'error');
             return;
         }

@@ -5,18 +5,19 @@
  * (window.ShopModule)이 담당. 이 어댑터는 경마 고유부만 보유:
  *   - 차량 SVG 미리보기(buildPreview hook, getVehicleSVG 의존)
  *   - 내 탈것에 장착 적용(applyToHorse / applyEquippedToHorse / applyToActiveHorses)
- *   - 방 연출(track_theme 틴트 applyRoomCosmetics, finish_fx playFinishFx)
+ *   - 개인 연출(track_theme 틴트 applyMyTrackTheme, finish_fx playFinishFx) — 본인 장착을 본인 화면에서만
  *
  * 공개 API(window.HorseShop.*)는 기존 그대로 유지(호출부: js/horse-race.js, HTML onclick).
  *
  * 공정성: cosmetic 데이터는 결과 계산이나 게임 emit에 진입하지 않는다.
- *   도색 필터는 .vehicle-sprite 에만(이벤트 연출이 .horse filter 점유). Math.random() 미사용.
+ *   도색 필터는 .vehicle-sprite 에만(이벤트 연출이 .horse filter 점유).
+ *   Math.random()은 결승연출(playFinishFxInto) 조각의 외형(위치/딜레이/크기) 산개에만 사용 — 결과 무관.
  */
 (function () {
     'use strict';
 
     var CATALOG_URL = '/config/horse/cosmetics.json';
-    // 상점 탭(슬롯). track_theme/finish_fx는 방장 장착분만 방 전체 적용(개인은 소유/장착만).
+    // 상점 탭(슬롯). track_theme/finish_fx는 개인 연출 — 내가 장착하면 내 화면에만 적용(방장·우승 무관).
     var SLOTS = [
         { key: 'paint', label: '🎨 도색' },
         { key: 'trail', label: '✨ 트레일' },
@@ -30,6 +31,31 @@
     // 카드 썸네일에 실제 탈것을 그려 꾸미기 적용 모습을 미리보기로 보여줄 슬롯
     var HORSE_PREVIEW_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura'];
     var PREVIEW_VEHICLE = 'car'; // 미리보기 샘플 탈것 (getVehicleSVG, horse-race-sprites.js)
+
+    // 액세서리(머리 장식) 탈것별 앵커 — 외관 보정용(공정성 무관, Math.random 미사용).
+    //   .cosmetic-accessory 의 offset parent 는 .horse(80×80). 스프라이트(60×45)는 flex 중앙정렬이라
+    //   왼쪽 inset 10px, 위쪽 inset 17.5px. SVG viewBox(0..60, 0..45) head 좌표(vbX,vbY) →
+    //   left = 10 + vbX, top = 17.5 + vbY (px, .horse 기준). 장식은 머리 바로 위에 얹히도록 y를 살짝 띄움.
+    //   x = 머리의 가로 중심(화면 기준, helicopter 는 좌우반전 후 좌표). scale 은 폭 좁은 탈것에서 축소.
+    //   탈것 추가(addvehicle) 시 항목 없으면 ACC_ANCHOR_DEFAULT 로 안전 폴백(클리핑 방지).
+    var ACC_ANCHOR_DEFAULT = { x: 30, y: 6, scale: 1 };
+    var ACC_ANCHOR = {
+        car:        { x: 29, y: 8,  scale: 1 },   // 캐빈/앞유리 위, 중앙
+        rocket:     { x: 50, y: 10, scale: 1 },   // 노즈콘 우측 상단
+        bird:       { x: 48, y: 13, scale: 0.9 }, // 머리(원 cx48) 위, 우향
+        boat:       { x: 30, y: 6,  scale: 1 },   // 돛/마스트 꼭대기, 중앙
+        bicycle:    { x: 35, y: 7,  scale: 0.9 }, // 라이더 머리(cx35) 위
+        rabbit:     { x: 45, y: 1,  scale: 0.85 },// 귀 끝(y~3)보다 위, 우향
+        turtle:     { x: 30, y: 8,  scale: 1 },   // 등껍질 정수리
+        eagle:      { x: 48, y: 13, scale: 0.9 }, // 머리(원 cx48) 위, 우향
+        scooter:    { x: 25, y: 13, scale: 0.9 }, // 라이더 머리(cx25) 위
+        helicopter: { x: 20, y: 8,  scale: 0.9 }, // 좌우반전 → 화면상 콕핏 x~20
+        horse:      { x: 46, y: 8,  scale: 1 },   // 우측 머리(cx46-48, 귀끝 y~9) 위 — 말은 우향
+        knight:     { x: 30, y: 2,  scale: 0.9 }, // 깃털 장식(y~4-5)보다 위, 중앙
+        dinosaur:   { x: 41, y: 12, scale: 1 },   // 머리(x34-48) 위, 우중앙
+        ninja:      { x: 31, y: 9,  scale: 0.85 },// 머리/머리띠(y~11) 위, 폭 좁음
+        crab:       { x: 30, y: 16, scale: 1 }    // 눈자루(y~18) 위, 정면
+    };
 
     // ── 미리보기 빌더 (getVehicleSVG 등 게임 전역 접근은 이 어댑터 안에서만) ──
 
@@ -53,7 +79,7 @@
             var tr = document.createElement('span');
             tr.className = 'hshop-preview-trail';
             tr.setAttribute('aria-hidden', 'true');
-            tr.textContent = item.emoji + item.emoji;
+            tr.textContent = item.emoji + item.emoji + item.emoji + item.emoji;
             box.appendChild(tr);
         }
 
@@ -221,7 +247,7 @@
                 var tr = document.createElement('span');
                 tr.className = 'hshop-inv-trail';
                 tr.setAttribute('aria-hidden', 'true');
-                tr.textContent = trail.emoji + trail.emoji + trail.emoji;
+                tr.textContent = trail.emoji + trail.emoji + trail.emoji + trail.emoji + trail.emoji;
                 box.appendChild(tr);
             }
         }
@@ -240,6 +266,11 @@
                 ac.className = 'hshop-inv-acc';
                 ac.setAttribute('aria-hidden', 'true');
                 ac.textContent = acc.emoji;
+                // 인벤토리 스프라이트는 120px(=60px 의 2배) 렌더 → 앵커 px 도 2배. 중앙(left:50%) 기준 가로 오프셋만 적용.
+                var ia = ACC_ANCHOR[vt] || ACC_ANCHOR_DEFAULT;
+                ac.style.setProperty('--acc-dx', ((ia.x - 30) * 2) + 'px'); // 스프라이트 가로중심(x=30) 대비 오프셋
+                ac.style.setProperty('--acc-y', (ia.y * 2) + 'px');         // 스프라이트 상단부터 머리까지(2배)
+                ac.style.setProperty('--acc-scale', ia.scale);
                 box.appendChild(ac);
             }
         }
@@ -301,17 +332,24 @@
             var trailEl = document.createElement('span');
             trailEl.className = 'cosmetic-trail';
             trailEl.setAttribute('aria-hidden', 'true');
-            trailEl.textContent = trail.emoji + trail.emoji + trail.emoji;
+            // 5연 이모지로 잔상 질량 강화(크게·또렷하게). 유저입력 아님(카탈로그 상수) → textContent 유지.
+            trailEl.textContent = trail.emoji + trail.emoji + trail.emoji + trail.emoji + trail.emoji;
             horseEl.appendChild(trailEl);
         }
 
-        // accessory → 오버레이
+        // accessory → 머리 위 오버레이 (탈것별 앵커로 위치/크기 보정 — 외관만)
         var acc = findItem('accessory', equipped.accessory);
         if (acc && acc.emoji) {
             var accEl = document.createElement('span');
             accEl.className = 'cosmetic-accessory';
             accEl.setAttribute('aria-hidden', 'true');
             accEl.textContent = acc.emoji;
+            var vid = horseEl.dataset ? horseEl.dataset.vehicleId : null;
+            var a = (vid && ACC_ANCHOR[vid]) || ACC_ANCHOR_DEFAULT;
+            // CSS 커스텀 프로퍼티로 전달 → .cosmetic-accessory 가 left/top/scale 소비 (px = .horse 기준).
+            accEl.style.setProperty('--acc-x', (10 + a.x) + 'px');
+            accEl.style.setProperty('--acc-y', (17.5 + a.y) + 'px');
+            accEl.style.setProperty('--acc-scale', a.scale);
             horseEl.appendChild(accEl);
         }
 
@@ -364,23 +402,40 @@
         for (var i = 0; i < horses.length; i++) applyToHorse(horses[i]);
     }
 
-    // ── 방 연출 (track_theme / finish_fx) ──────────────────
+    // ── 개인 연출 (track_theme / finish_fx) ────────────────
+    //   둘 다 "개인 꾸미기": 각 플레이어가 본인 장착(코인 DB + 광고 transient)을 본인 화면에서 본다.
+    //   방장 무관·우승 무관. playFinishFx가 이미 이 모델(mergedEquipped) — track_theme도 동일하게.
 
-    // 방장 roomCosmetics 적용 (track_theme 배경 틴트). 멱등: 먼저 정리.
-    function applyRoomCosmetics(roomCosmetics) {
-        clearRoomCosmetics();
-        if (!roomCosmetics) return;
+    // 트랙테마 오버레이만 정리(멱등). 결승 폭죽 레이어(.cosmetic-finish-fx)는 자체 타이머(5.5s)로
+    //   정리되므로 건드리지 않는다 — 트랙테마 재적용이 진행 중인 결승 연출을 지우지 않게.
+    function clearMyTrackTheme() {
+        var prev = document.querySelectorAll('.cosmetic-track-theme');
+        for (var i = 0; i < prev.length; i++) prev[i].remove();
+    }
+
+    // 내가 장착한 트랙테마(mergedEquipped().track_theme) 배경 틴트를 라이브 트랙에 적용. 멱등(먼저 정리).
+    //   라이브 트랙(raceTrackContainer)이 없으면 no-op(상점에서 장착만 했을 땐 적용 대상 없음).
+    function applyMyTrackTheme() {
+        clearMyTrackTheme();
+        if (!getCatalog()) return;
         var container = document.getElementById('raceTrackContainer');
-        if (container && roomCosmetics.track_theme) {
-            var theme = getCatalogItem(roomCosmetics.track_theme);
-            if (theme && theme.bg) {
-                var ov = document.createElement('div');
-                ov.className = 'cosmetic-track-theme';
-                ov.setAttribute('aria-hidden', 'true');
-                ov.style.backgroundImage = theme.bg;
-                container.appendChild(ov);
-            }
+        if (!container) return;
+        var themeId = mergedEquipped().track_theme;
+        if (!themeId) return;
+        var theme = getCatalogItem(themeId);
+        if (theme && theme.bg) {
+            var ov = document.createElement('div');
+            ov.className = 'cosmetic-track-theme';
+            ov.setAttribute('aria-hidden', 'true');
+            ov.style.backgroundImage = theme.bg;
+            container.appendChild(ov);
         }
+    }
+
+    // 공개 API 호환 래퍼(호출부: js/horse-race.js horseRaceStarted). 인자(roomCosmetics)는 기존
+    //   시그니처 호환용으로 받기만 하고 무시한다 — 트랙테마는 방장 broadcast가 아니라 본인 장착 기준.
+    function applyRoomCosmetics(_roomCosmetics) {
+        applyMyTrackTheme();
     }
 
     function clearRoomCosmetics() {
@@ -389,29 +444,38 @@
     }
 
     // 결승 이펙트 1회 재생을 임의 컨테이너에 그리는 헬퍼(in-race·상점 미리보기 공용).
-    //   이모지 12개 낙하(위치/딜레이 결정적 — Math.random 미사용). ~3500ms 후 자동 정리.
+    //   이모지 28개 낙하(화면 전폭 커버 + 크기/딜레이 jitter). Math.random은 외형(위치/딜레이/크기)
+    //   전용 — 게임 결과·시뮬과 무관(공정성 영향 0). ~5500ms 후 자동 정리(레이어 leak 방지, 멱등).
     //   containerEl은 position:relative + overflow:hidden 이어야 낙하가 그 안에 클리핑된다.
+    var FINISH_FX_PIECES = 28;       // 강화: 12 → 28 (질량 ↑)
+    var FINISH_FX_LIFETIME = 5500;   // CSS hshopFxFall 3.6s + 최대 delay ~1.5s 보다 길게
     function playFinishFxInto(containerEl, emoji) {
         if (!containerEl || !emoji) return;
         var layer = document.createElement('div');
         layer.className = 'cosmetic-finish-fx';
         layer.setAttribute('aria-hidden', 'true');
-        for (var i = 0; i < 12; i++) {
+        for (var i = 0; i < FINISH_FX_PIECES; i++) {
             var p = document.createElement('span');
             p.className = 'cosmetic-fx-piece';
             p.textContent = emoji;
-            p.style.left = (5 + i * 8) + '%';
-            p.style.animationDelay = (i * 0.12) + 's';
+            // 전폭 균등 분포(1.5~98.5%) + 가로 jitter (외형 전용 random — 공정성 무관)
+            var base = 1.5 + (i / (FINISH_FX_PIECES - 1)) * 97;
+            p.style.left = Math.max(0, Math.min(99, base + (Math.random() - 0.5) * 6)) + '%';
+            p.style.animationDelay = (Math.random() * 1.5).toFixed(2) + 's'; // 0~1.5s 산개
+            p.style.fontSize = (24 + Math.random() * 18).toFixed(0) + 'px';  // 24~42px 크기 변주
             layer.appendChild(p);
         }
         containerEl.appendChild(layer);
-        setTimeout(function () { if (layer && layer.parentNode) layer.remove(); }, 3500);
+        setTimeout(function () { if (layer && layer.parentNode) layer.remove(); }, FINISH_FX_LIFETIME);
     }
 
-    // 결승 이펙트(폭죽/색종이) 1회 재생 (in-race: 방장 roomCosmetics 기준).
-    function playFinishFx(roomCosmetics) {
-        if (!roomCosmetics || !roomCosmetics.finish_fx) return;
-        var fx = getCatalogItem(roomCosmetics.finish_fx);
+    // 결승 이펙트(폭죽/색종이) 1회 재생 — 본인이 장착한 finish_fx 기준(개인 꾸미기, 방장 무관).
+    //   인자(roomCosmetics)는 기존 호출부 시그니처 호환용으로 유지하되 더 이상 사용하지 않는다.
+    //   mergedEquipped()로 본인 DB 장착 + 광고 장착(우선)을 읽어 모든 플레이어가 자기 화면에서 자기 연출을 본다.
+    function playFinishFx(_roomCosmetics) {
+        var id = mergedEquipped().finish_fx;
+        if (!id) return;
+        var fx = getCatalogItem(id);
         if (!fx || !fx.emoji) return;
         playFinishFxInto(document.getElementById('raceTrackContainer'), fx.emoji);
     }
@@ -446,7 +510,7 @@
             },
             noticeText: function (activeSlot) {
                 return (activeSlot === 'track_theme' || activeSlot === 'finish_fx')
-                    ? '연출 꾸미기는 방장이 장착하면 방 전체에 적용돼요. 게임 결과엔 영향 없어요.'
+                    ? '결승연출·트랙테마는 내가 장착하면 내 화면에 보여요. 게임 결과엔 영향 없어요.'
                     : '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
             },
             // free 서버(자유플레이·로그인 없음 → currentServerId === null)에서는 코인 경제가
@@ -457,12 +521,13 @@
                     ? '여기서는 코인샵을 사용할 수 없어요. 서버를 새로 만들어 진행해 주세요.'
                     : null;
             },
-            // 인증/지갑 동기화 직후 — 내 활성 말 + 이름표 라벨에 장착 반영
-            onWalletSynced: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
-            // 장착/해제 직후 — 내 활성 말 + 이름표 라벨에 장착 반영 (force 무관)
-            onEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
-            // 광고 코스메틱 장착/해제 직후 — 내 활성 말 + 이름표 라벨에 즉시 반영
-            onAdEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); }
+            // 인증/지갑 동기화 직후 — 내 활성 말 + 이름표 라벨 + 라이브 트랙테마에 장착 반영
+            onWalletSynced: function () { applyToActiveHorses(); applyMyTrackTheme(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 장착/해제 직후 — 내 활성 말 + 이름표 라벨 + 라이브 트랙테마 즉시 반영 (force 무관)
+            //   applyMyTrackTheme은 라이브 트랙(raceTrackContainer) 없으면 no-op — 상점에서 장착만 했을 땐 무해.
+            onEquipApplied: function () { applyToActiveHorses(); applyMyTrackTheme(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 광고 코스메틱 장착/해제 직후 — 내 활성 말 + 이름표 라벨 + 라이브 트랙테마 즉시 반영
+            onAdEquipApplied: function () { applyToActiveHorses(); applyMyTrackTheme(); if (window.refreshMyNameTags) window.refreshMyNameTags(); }
             // onPurchased: no-op (구매만으로 외관 변화 없음 — 장착 시 반영)
         }
     });
@@ -478,7 +543,8 @@
         applyToHorse: applyToHorse,
         applyEquippedToHorse: applyEquippedToHorse,
         applyToActiveHorses: applyToActiveHorses,
-        applyRoomCosmetics: applyRoomCosmetics,
+        applyRoomCosmetics: applyRoomCosmetics, // 호환 래퍼(인자 무시) → applyMyTrackTheme
+        applyMyTrackTheme: applyMyTrackTheme,
         clearRoomCosmetics: clearRoomCosmetics,
         playFinishFx: playFinishFx,
         getEquipped: getEquipped,
