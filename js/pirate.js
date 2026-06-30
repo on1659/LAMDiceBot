@@ -2,7 +2,8 @@
    부트스트랩(방 생성/입장 + 공통 모듈 init)은 spin-arena/ladder 패턴 차용.
    게임 로직(통+측면 구멍 실시간 클릭 + 상단 시계 + FIFO 애니 큐 + 해적 팝업)은 pirate 전용.
    공정성: 서버가 모든 결과 결정(trigger 구멍/자동 배정/순서/재선택). 클라는 FIFO 큐/시계 등 시각화만.
-   Math.random은 deviceId/tabId 생성에만 사용(게임 결과와 무관) → 2탭 화면 동일. */
+   Math.random은 ① deviceId/tabId 생성 ② 코스메틱 파티클(먼지/스파크/꽃가루) 분산·속도·회전 jitter
+   에만 사용(게임 결과와 무관). 결과 RNG는 100% 서버. */
 
 // ─── 공유 상수 (socket/pirate.js 상단과 반드시 동일 값) ───
 var PIRATE_MIN_PLAYERS = 2;
@@ -63,6 +64,7 @@ var roomExpiryInterval = null;
 
 var chatModuleInitialized = false;
 var readyModuleInitialized = false;
+var pirateSpriteLoadStarted = false;
 
 // 게임 진행 상태 (서버 권위 — 클라는 시각화)
 var pirateState = {
@@ -113,6 +115,230 @@ function playPirateSound(key, vol) {
     if (typeof SoundManager !== 'undefined' && SoundManager.playSound) {
         SoundManager.playSound(key, getPirateSoundEnabled(), vol != null ? vol : getPirateVolume());
     }
+}
+
+// ============================================
+// 비주얼 주스 유틸 (전부 시각 — 게임 결과 무관)
+// Math.random은 코스메틱 jitter(파티클 분산/속도/셰이크)에만 사용. 결과 RNG는 100% 서버.
+// ============================================
+
+// 모션 민감 사용자 — 파티클/스크린셰이크 비활성 (CSS @media와 이중 가드)
+function pirateReducedMotion() {
+    return typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// 플레이어별 결정적 hue (이름 해시 → 0~359). 검 손잡이 tint / 꽃가루 색 — 코스메틱.
+function pirateHueFor(name) {
+    var s = String(name || '');
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+        h = (h * 31 + s.charCodeAt(i)) % 360;
+    }
+    return h;
+}
+function pirateHiltColor(name) {
+    return 'hsl(' + pirateHueFor(name) + ', 70%, 52%)';
+}
+
+// 검(sword) SVG 마크업 — 칼끝이 좌상단(↖) 방향. hilt는 플레이어색으로 tint(코스메틱).
+// blade=url(#pirateBladeGrad) 그라데이션, guard=금색, hilt/pommel=플레이어 hue.
+function pirateSwordSvg(name) {
+    var hilt = pirateHiltColor(name);
+    return '<svg class="pirate-sword" viewBox="0 0 32 32" style="--sword-hilt:' + hilt + '" aria-hidden="true">' +
+        '<polygon class="blade" points="3,3 7,3 21,17 17,21"></polygon>' +     /* 칼날 */
+        '<rect class="guard" x="16.5" y="14.5" width="11" height="3.4" rx="1.6" transform="rotate(45 22 16.2)"></rect>' + /* 가드(crossguard) */
+        '<rect class="hilt" x="22" y="22" width="6.4" height="2.8" rx="1.4" transform="rotate(45 25 23)"></rect>' +       /* 손잡이(hilt) */
+        '<circle class="pommel" cx="29" cy="29" r="2.4"></circle>' +            /* 끝장식(pommel) */
+        '</svg>';
+}
+// 점유 구멍 내부 HTML(검 + 이름표) — renderHoles/playInsert/playPop 공용
+function pirateOccupiedHtml(name) {
+    return pirateSwordSvg(name) +
+        '<span class="pirate-hole-name">' + escapeHtml(name) + '</span>';
+}
+
+// ── 파티클 유틸 ── 캡(상한)·자동 제거·외부 라이브러리 없음. self-clean으로 큐를 막지 않음.
+var PIRATE_FX_CAP = 80;               // 동시 파티클 상한(레이어 과밀 방지)
+function pirateFxLayer() { return document.getElementById('pirateFxLayer'); }
+
+// hole(인덱스)의 화면 중심 좌표(파티클 레이어 기준 px) 계산
+function pirateHoleCenterPx(holeIndex) {
+    var layer = pirateFxLayer();
+    var holesEl = document.getElementById('pirateHoles');
+    if (!layer || !holesEl) return null;
+    var holeEl = holesEl.querySelector('.pirate-hole[data-hole="' + holeIndex + '"]');
+    if (!holeEl) return null;
+    var lr = layer.getBoundingClientRect();
+    var hr = holeEl.getBoundingClientRect();
+    return { x: (hr.left + hr.width / 2) - lr.left, y: (hr.top + hr.height / 2) - lr.top };
+}
+
+// 공통 파티클 스폰: count개 span을 레이어에 추가, life ms 뒤 제거. opts로 종류/색/분산 조절.
+function pirateSpawnParticles(x, y, count, opts) {
+    if (pirateReducedMotion()) return;
+    var layer = pirateFxLayer();
+    if (!layer) return;
+    opts = opts || {};
+    var cls = opts.cls || 'dust';
+    var spread = opts.spread || 34;        // 최대 이동 거리(px)
+    var life = opts.life || 650;           // 제거까지 ms (애니보다 약간 길게)
+    // 캡: 레이어가 너무 많으면 가장 오래된 것부터 제거
+    var existing = layer.childElementCount;
+    var room = Math.max(0, PIRATE_FX_CAP - existing);
+    var n = Math.min(count, room);
+    for (var i = 0; i < n; i++) {
+        var p = document.createElement('span');
+        p.className = 'pirate-particle ' + cls;
+        // 코스메틱 jitter (Math.random — 결과 무관)
+        var ang = Math.random() * Math.PI * 2;
+        var dist = spread * (0.4 + Math.random() * 0.6);
+        var px = Math.cos(ang) * dist;
+        var py = Math.sin(ang) * dist + (opts.gravity || 0);
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        p.style.setProperty('--px', px.toFixed(1) + 'px');
+        p.style.setProperty('--py', py.toFixed(1) + 'px');
+        p.style.setProperty('--rot', (Math.random() * 720 - 360).toFixed(0) + 'deg');
+        if (opts.color) p.style.background = opts.color;
+        if (opts.size) { p.style.width = opts.size + 'px'; p.style.height = opts.size + 'px'; }
+        layer.appendChild(p);
+        // self-clean: 애니 끝(또는 life) 뒤 제거 — done()/큐와 무관, 어떤 throw도 막지 않음
+        (function (node) {
+            setTimeout(function () { if (node && node.parentNode) node.parentNode.removeChild(node); }, life);
+        })(p);
+    }
+}
+
+// 검 박힘 임팩트: 먼지 + 스파크 (해당 구멍 위치)
+function pirateImpactBurst(holeIndex) {
+    if (pirateReducedMotion()) return;
+    var c = pirateHoleCenterPx(holeIndex);
+    if (!c) return;
+    pirateSpawnParticles(c.x, c.y, 7, { cls: 'dust', spread: 30, life: 650 });
+    pirateSpawnParticles(c.x, c.y, 4, { cls: 'spark', spread: 26, life: 520 });
+}
+
+// 팝 꽃가루/별 폭죽: 통 상단 중앙에서 위로 분출(플레이어 hue 색상들)
+function pirateConfettiBurst(loserName) {
+    if (pirateReducedMotion()) return;
+    var layer = pirateFxLayer();
+    if (!layer) return;
+    var lr = layer.getBoundingClientRect();
+    var cx = lr.width / 2;
+    var cy = lr.height * 0.16;              // 통 뚜껑 근처
+    var palette = ['#ff6f61', '#ffd54a', '#4dd0c4', '#7c6cff', '#ff8fab', '#9be15d'];
+    for (var i = 0; i < 22; i++) {
+        var color = palette[i % palette.length];
+        pirateSpawnParticles(cx, cy, 1, {
+            cls: 'confetti',
+            color: color,
+            spread: 70 + Math.random() * 50,
+            gravity: 60,                    // 아래로 떨어지는 경향
+            life: 1150
+        });
+    }
+}
+
+// 통 마이크로 셰이크 — 검 박힐 때(self-clean 클래스 토글)
+function pirateBarrelShake() {
+    if (pirateReducedMotion()) return;
+    var barrel = document.getElementById('pirateBarrel');
+    if (!barrel) return;
+    barrel.classList.remove('barrel-shake');
+    void barrel.offsetWidth;               // reflow로 애니 재시작
+    barrel.classList.add('barrel-shake');
+    setTimeout(function () { if (barrel) barrel.classList.remove('barrel-shake'); }, 360);
+}
+
+// 화면 흔들기 + 검 떨림 — 팝 순간(self-clean)
+function pirateScreenShake() {
+    if (pirateReducedMotion()) return;
+    var wrap = document.getElementById('pirateBarrelWrap');
+    var barrel = document.getElementById('pirateBarrel');
+    if (wrap) {
+        wrap.classList.remove('screen-shake');
+        void wrap.offsetWidth;
+        wrap.classList.add('screen-shake');
+        setTimeout(function () { if (wrap) wrap.classList.remove('screen-shake'); }, 480);
+    }
+    if (barrel) {
+        barrel.classList.remove('swords-jiggle');
+        void barrel.offsetWidth;
+        barrel.classList.add('swords-jiggle');
+        setTimeout(function () { if (barrel) barrel.classList.remove('swords-jiggle'); }, 820);
+    }
+}
+
+// ── 해적 스프라이트 슬롯 (매니페스트 + 이미지 로드 성공 시만 사용; 없으면 SVG fallback) ──
+// 기본 상태(pirate.png 없음)에서 throw/콘솔에러 없이 조용히 fallback. 게임 정상 동작.
+var pirateSprite = { ready: false, image: null, manifest: null, poses: { peek: 0, pop: 1, dizzy: 2 }, columns: 3 };
+function loadPirateSprite() {
+    var base = '/assets/pirate/sprites/';
+    // 매니페스트 fetch — 404/파싱 실패는 조용히 무시(fallback 유지)
+    fetch(base + 'pirate-sprites.manifest.json', { cache: 'no-store' })
+        .then(function (res) {
+            if (!res.ok) return null;       // 매니페스트 없음 → fallback (에러 throw 안 함)
+            return res.json();
+        })
+        .then(function (manifest) {
+            if (!manifest || !manifest.sheets || !manifest.sheets.pirate) return;
+            var sheet = manifest.sheets.pirate;
+            var grid = sheet.grid || {};
+            pirateSprite.manifest = sheet;
+            pirateSprite.columns = (grid.columns && grid.columns > 0) ? grid.columns : 3;
+            if (sheet.poses) pirateSprite.poses = sheet.poses;
+            var imgSrc = base + (sheet.image || 'pirate.png');
+            // 이미지 preload — onload 성공해야만 스프라이트 사용(파일 없으면 onerror → fallback)
+            var img = new Image();
+            img.onload = function () {
+                pirateSprite.image = img;
+                pirateSprite.ready = true;
+                var slot = document.getElementById('pirateBarrelPirateSprite');
+                if (slot) {
+                    slot.style.backgroundImage = 'url("' + imgSrc + '")';
+                    slot.style.backgroundSize = (pirateSprite.columns * 100) + '% 100%';
+                }
+            };
+            img.onerror = function () { /* 이미지 없음 — 조용히 fallback */ };
+            img.src = imgSrc;
+        })
+        .catch(function () { /* 매니페스트 fetch/파싱 실패 — 조용히 fallback */ });
+}
+
+// 라운드 리셋 — 스프라이트 슬롯을 peek(또는 숨김)으로 되돌림(직전 dizzy 잔존 방지).
+function pirateResetSprite() {
+    var slot = document.getElementById('pirateBarrelPirateSprite');
+    var art = document.getElementById('pirateBarrelPirateArt');
+    if (pirateSprite.ready && slot) {
+        // peek pose로 대기(통 위로 솟구치기 전 기본 자세)
+        var cols = pirateSprite.columns || 3;
+        var col = (pirateSprite.poses && typeof pirateSprite.poses.peek === 'number') ? pirateSprite.poses.peek : 0;
+        var posX = (cols > 1) ? (col / (cols - 1)) * 100 : 0;
+        slot.style.backgroundPosition = posX + '% 0';
+        slot.style.display = 'block';
+        if (art) art.style.display = 'none';
+    } else {
+        // 스프라이트 없음 — SVG fallback 표시(슬롯 숨김)
+        if (slot) slot.style.display = 'none';
+        if (art) art.style.display = 'block';
+    }
+}
+
+// 스프라이트 pose 적용 (ready일 때만). pose: 'peek' | 'pop' | 'dizzy'
+function pirateApplyPose(pose) {
+    if (!pirateSprite.ready) return;
+    var slot = document.getElementById('pirateBarrelPirateSprite');
+    var art = document.getElementById('pirateBarrelPirateArt');
+    if (!slot) return;
+    var col = (pirateSprite.poses && typeof pirateSprite.poses[pose] === 'number')
+        ? pirateSprite.poses[pose] : 1;
+    var cols = pirateSprite.columns || 3;
+    // 3열 시트: 0 → 0%, 1 → 50%, 2 → 100% (background-position-x = col/(cols-1)*100%)
+    var posX = (cols > 1) ? (col / (cols - 1)) * 100 : 0;
+    slot.style.backgroundPosition = posX + '% 0';
+    slot.style.display = 'block';
+    if (art) art.style.display = 'none';   // 스프라이트가 fallback SVG를 대체
 }
 
 // 직접 URL 접속 차단 + 새로고침 재입장 (C-5)
@@ -415,10 +641,8 @@ function renderHoles() {
         if (owner) {
             hole.classList.add('occupied');
             if (owner === currentUser) hole.classList.add('mine');
-            // 검 + 주인 이름표 (이미 꽂힌 구멍은 즉시 표시; 신규 삽입 애니는 playInsert가 .stab-in 부여)
-            hole.innerHTML =
-                '<span class="pirate-sword">🗡️</span>' +
-                '<span class="pirate-hole-name">' + escapeHtml(owner) + '</span>';
+            // 검(SVG) + 주인 이름표 (이미 꽂힌 구멍은 즉시 표시; 신규 삽입 애니는 playInsert가 .stab-in 부여)
+            hole.innerHTML = pirateOccupiedHtml(owner);
         } else if (canIStab) {
             hole.classList.add('stabbable');
         }
@@ -478,13 +702,14 @@ function playInsert(item, done) {
             holeEl.classList.remove('stabbable');
             holeEl.classList.add('occupied');
             if (item.userName === currentUser) holeEl.classList.add('mine');
-            holeEl.innerHTML =
-                '<span class="pirate-sword">🗡️</span>' +
-                '<span class="pirate-hole-name">' + escapeHtml(item.userName) + '</span>';
+            holeEl.innerHTML = pirateOccupiedHtml(item.userName);
             // reflow 후 애니 클래스 부여
             void holeEl.offsetWidth;
             holeEl.classList.add('stab-in');
             playPirateSound('pirate_claim', item.userName === currentUser ? 0.5 : 0.3);
+            // 임팩트 연출: 먼지/스파크 + 통 마이크로 셰이크 (파티클은 self-clean — done() 차단 안 함)
+            pirateImpactBurst(item.holeIndex);
+            pirateBarrelShake();
         }
         // 내가 꽂은 게 반영되면 클릭 게이트 갱신
         if (item.userName === currentUser) {
@@ -510,11 +735,10 @@ function playPop(item, done) {
             if (holeEl) {
                 holeEl.classList.remove('stabbable');
                 holeEl.classList.add('occupied');
-                holeEl.innerHTML =
-                    '<span class="pirate-sword">🗡️</span>' +
-                    '<span class="pirate-hole-name">' + escapeHtml(item.userName) + '</span>';
+                holeEl.innerHTML = pirateOccupiedHtml(item.userName);
                 void holeEl.offsetWidth;
                 holeEl.classList.add('stab-in');
+                pirateImpactBurst(item.holeIndex);
             }
         }
 
@@ -523,9 +747,12 @@ function playPop(item, done) {
         var triggerEl = holesEl2 ? holesEl2.querySelector('.pirate-hole[data-hole="' + item.holeIndex + '"]') : null;
         if (triggerEl) triggerEl.classList.add('trigger');
 
-        // 해적 팝업 발화
+        // 해적 팝업 발화: 뚜껑 burst + 해적 launch(스프라이트 pop pose) + 꽃가루 + 화면 흔들기 + 검 jiggle
+        pirateApplyPose('pop');
         var barrel = document.getElementById('pirateBarrel');
         if (barrel) barrel.classList.add('popped');
+        pirateConfettiBurst(item.userName);
+        pirateScreenShake();
         playPirateSound('pirate_pop', 0.8);
     } finally {
         // 동기 본문이 던져도 지연 콜백은 늘 예약(timing 유지)
@@ -534,6 +761,7 @@ function playPop(item, done) {
                 var loser = heldResolve ? heldResolve.loser : item.userName;
                 if (loser === currentUser) playPirateSound('pirate_lose', 0.9);
                 else playPirateSound('pirate_win', 0.6);
+                pirateApplyPose('dizzy');   // 솟구친 해적이 결과 시점엔 어지러운 표정(스프라이트 dizzy)
                 showResultOverlay(heldResolve || { loser: item.userName, survivors: [] });
             } finally {
                 // overlay/사운드가 던져도 done은 정확히 1회 → 큐 고착 방지
@@ -625,7 +853,18 @@ function showStage() {
 function resetStageVisual() {
     // C-6: 진행 상태/오버레이 정리 — 잔존 클래스 제거
     var barrel = document.getElementById('pirateBarrel');
-    if (barrel) barrel.classList.remove('popped');
+    if (barrel) {
+        barrel.classList.remove('popped');
+        barrel.classList.remove('barrel-shake');
+        barrel.classList.remove('swords-jiggle');
+    }
+    var wrap = document.getElementById('pirateBarrelWrap');
+    if (wrap) wrap.classList.remove('screen-shake');
+    // 파티클 레이어 비우기(잔존 파티클 제거)
+    var fx = document.getElementById('pirateFxLayer');
+    if (fx) fx.innerHTML = '';
+    // 스프라이트 슬롯을 peek/fallback으로 되돌림(직전 dizzy 잔존 방지)
+    pirateResetSprite();
     hideClock();
     // FIFO 큐 비우기
     animQueue = [];
@@ -790,6 +1029,12 @@ function pirateInitModules() {
     }
     if (typeof SoundManager !== 'undefined' && SoundManager.loadConfig) SoundManager.loadConfig();
     if (typeof TutorialModule !== 'undefined' && TutorialModule.setUser) TutorialModule.setUser(socket, currentUser);
+
+    // 해적 스프라이트 1회 로드 시도(없으면 조용히 SVG fallback)
+    if (!pirateSpriteLoadStarted) {
+        pirateSpriteLoadStarted = true;
+        loadPirateSprite();
+    }
 
     var hostControls = document.getElementById('hostControls');
     if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
@@ -991,7 +1236,13 @@ socket.on('pirateSelectionStarted', function (data) {
     var overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
     var barrel = document.getElementById('pirateBarrel');
-    if (barrel) barrel.classList.remove('popped');
+    if (barrel) {
+        barrel.classList.remove('popped');
+        barrel.classList.remove('swords-jiggle');
+    }
+    var fxLayer = document.getElementById('pirateFxLayer');
+    if (fxLayer) fxLayer.innerHTML = '';
+    pirateResetSprite();   // 새 라운드: 해적 스프라이트 peek/fallback 자세로
 
     var status = document.getElementById('gameStatus');
     if (status) {

@@ -7,10 +7,15 @@
 //   [F2-4] 광고샵은 free서버에서도 정상(F2-2와 동일 상태로 확인)
 //   [F2-회귀] spin-arena 상점 — 게이팅 없음(코인샵 단일 슬롯 정상, 콘솔 에러 0)
 //   [공정성] 게이팅 경로에서 결과/시뮬 emit 없음(코드 정적 + DOM 상호작용으로 outcome emit 미발생)
+//
+//   양면 검증(2026-06 코인샵 "준비 중" 게이트 추가):
+//     [F2-0] 플래그 ON(기본 COIN_SHOP_COMING_SOON=true) → 코인샵 탭 = "🛠️ 준비 중" 안내, 카드 0
+//     이후 ShopModule.__setComingSoon(false)로 코인샵 활성화 → 아래 기존 free 게이팅 단언(F2-1~3) 수행
 const { chromium } = require('playwright');
 const URL = 'http://localhost:5173';
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const NOTICE = '여기서는 코인샵을 사용할 수 없어요. 서버를 새로 만들어 진행해 주세요.';
+const COMING_SOON = '🛠️ 코인샵은 준비 중이에요. 추후 오픈 예정이니 조금만 기다려 주세요!';
 
 (async () => {
     let pass = true;
@@ -66,12 +71,56 @@ const NOTICE = '여기서는 코인샵을 사용할 수 없어요. 서버를 새
     console.log('메인탭:', JSON.stringify(tabs));
     check(tabs.some(t => t.indexOf('코인샵') >= 0) && tabs.some(t => t.indexOf('광고샵') >= 0), '[전제] 광고샵/코인샵 메인탭 노출');
 
+    // 코인샵 탭 클릭 헬퍼 (재렌더마다 메인탭이 새로 생성되므로 클릭 시점에 매번 조회)
+    //   renderMainTabBar는 이미 활성인 메인탭 재클릭 시 조기 반환(재렌더 안 함) → 광고샵을 경유해
+    //   강제로 코인샵 재렌더를 유발(토글 OFF 반영 등 상태 변경 후 그리드 갱신 보장).
+    async function clickCoinTab() {
+        await pageH.evaluate(() => {
+            function tab(name) { return Array.from(document.querySelectorAll('#horseShopMount .hshop-maintab')).find(b => b.textContent.indexOf(name) >= 0); }
+            const cur = document.querySelector('#horseShopMount .hshop-maintab.is-active');
+            if (cur && cur.textContent.indexOf('코인샵') >= 0) { const ad = tab('광고샵'); if (ad) ad.click(); } // 경유
+            const coin = tab('코인샵'); if (coin) coin.click();
+        });
+        await wait(600);
+    }
+
+    // 토글 훅 존재 + localhost 가드 동작 확인(테스트 전제)
+    const toggleReady = await pageH.evaluate(() => ({
+        hasSet: !!(window.ShopModule && window.ShopModule.__setComingSoon),
+        hasGet: !!(window.ShopModule && window.ShopModule.__getComingSoon),
+        initial: window.ShopModule && window.ShopModule.__getComingSoon && window.ShopModule.__getComingSoon()
+    }));
+    check(toggleReady.hasSet && toggleReady.hasGet, '[전제] ShopModule.__setComingSoon/__getComingSoon 토글 훅 노출');
+    check(toggleReady.initial === true, '[전제] 기본 COIN_SHOP_COMING_SOON=true (운영 게이트 보존), got ' + toggleReady.initial);
+
     // 코인샵 탭 클릭
-    await pageH.evaluate(() => {
-        const tab = Array.from(document.querySelectorAll('#horseShopMount .hshop-maintab')).find(b => b.textContent.indexOf('코인샵') >= 0);
-        if (tab) tab.click();
+    await clickCoinTab();
+
+    // ── F2-0: 플래그 ON(기본) → 코인샵 = "준비 중" 안내, 카드 0 ──
+    const comingSoon = await pageH.evaluate(() => {
+        const grid = document.querySelector('#horseShopMount .hshop-grid');
+        const empties = grid ? Array.from(grid.querySelectorAll('.hshop-empty')) : [];
+        const cards = grid ? grid.querySelectorAll('.hshop-card') : [];
+        const gridButtons = grid ? grid.querySelectorAll('button') : [];
+        return {
+            emptyTexts: empties.map(e => e.textContent.trim()),
+            cardCount: cards.length,
+            gridButtonCount: gridButtons.length
+        };
     });
-    await wait(600);
+    console.log('코인샵(준비 중) 그리드:', JSON.stringify(comingSoon));
+    check(comingSoon.emptyTexts.length === 1 && comingSoon.emptyTexts[0] === COMING_SOON,
+        '[F2-0] 코인샵 "준비 중" 안내 정확 일치(플래그 ON): "' + (comingSoon.emptyTexts[0] || '') + '"');
+    check(comingSoon.cardCount === 0, '[F2-0] 준비 중 코인샵 카드 0개 (got ' + comingSoon.cardCount + ')');
+    check(comingSoon.gridButtonCount === 0, '[F2-0] 준비 중 안내영역 버튼 0개 (got ' + comingSoon.gridButtonCount + ')');
+
+    // ── 코인샵 활성화(플래그 OFF) → 보존된 free 게이팅 로직 검증으로 진입 ──
+    const toggledOff = await pageH.evaluate(() => {
+        window.ShopModule.__setComingSoon(false);
+        return window.ShopModule.__getComingSoon();
+    });
+    check(toggledOff === false, '[전제] __setComingSoon(false) 적용 → 코인샵 활성화 (got ' + toggledOff + ')');
+    await clickCoinTab(); // 코인샵 재렌더 (플래그 OFF 반영)
 
     // ── F2-1: free 코인샵 → 안내 카피만, 카드 0, 버튼 0 ──
     const coinFree = await pageH.evaluate(() => {
@@ -147,6 +196,13 @@ const NOTICE = '여기서는 코인샵을 사용할 수 없어요. 서버를 새
     const outcomeEmits = fairnessProbe.filter(ev => /start|result|simulate|reveal|gameEnd|spin|roll|race/i.test(ev));
     console.log('탭전환 중 emit:', JSON.stringify(fairnessProbe), ' / outcome계열:', JSON.stringify(outcomeEmits));
     check(outcomeEmits.length === 0, '[공정성] 게이팅/탭전환 중 결과·시뮬 계열 emit 0 (got ' + JSON.stringify(outcomeEmits) + ')');
+
+    // ── 토글 복원: 기본값(준비 중=true)으로 되돌림 → 코인샵이 다시 "준비 중" 게이트로 잠김 ──
+    const restored = await pageH.evaluate(() => {
+        window.ShopModule.__setComingSoon(true);
+        return window.ShopModule.__getComingSoon();
+    });
+    check(restored === true, '[복원] __setComingSoon(true) → 운영 기본 게이트 복원 (got ' + restored + ')');
 
     // ── 회귀: spin-arena 상점 게이팅 없음 ──
     const ctxS = await browser.newContext();

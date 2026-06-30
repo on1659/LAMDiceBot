@@ -1559,6 +1559,14 @@
         getEquipped: function () { return _wallet.equipped; },
         getCatalog: function () { return _catalog; },
         getCatalogItem: getCatalogItem,
-        findItem: findItem
+        findItem: findItem,
+        // ── 테스트 전용 토글 (코인샵 "준비 중" 게이트 on/off) ──
+        // 운영 구매/장착은 서버 인증(socket.authedUserId)으로 별도 보호 — 이 플래그는 클라 UI 게이트일 뿐.
+        // 안전 가드: localhost / 127.0.0.1 에서만 동작. 운영 도메인에선 no-op(콘솔로 못 풂).
+        __setComingSoon: function (v) {
+            if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+            COIN_SHOP_COMING_SOON = !!v;
+        },
+        __getComingSoon: function () { return COIN_SHOP_COMING_SOON; }
     };
 })();

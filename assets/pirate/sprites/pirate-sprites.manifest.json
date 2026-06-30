@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "baseStyle": "pirate-lamdice-coral-teal-cartoon-v1",
+  "sheets": {
+    "pirate": {
+      "label": "Pop-Up Pirate Character (peek / pop / dizzy)",
+      "image": "pirate.png",
+      "grid": {
+        "columns": 3,
+        "rows": 1
+      },
+      "anchor": {
+        "x": 0.5,
+        "y": 0.92,
+        "mode": "normalized"
+      },
+      "defaultScale": 0.85,
+      "poses": {
+        "peek": 0,
+        "pop": 1,
+        "dizzy": 2
+      }
+    }
+  }
+}
