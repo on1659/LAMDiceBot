@@ -1,8 +1,10 @@
-/* 해적 룰렛(pirate) 전용 스타일 — v2 실시간 검 꽂기.
-   통: 측면 구멍에 검(🗡️)을 꽂고, 해적(🏴‍☠️)은 통 뚜껑(위)으로 솟구침.
+/* 해적 룰렛(pirate) 전용 스타일 — v2 실시간 검 꽂기 + 비주얼 주스 패키지.
+   통: 측면 구멍에 검(SVG)을 꽂고, 해적은 통 뚜껑(위)으로 솟구침.
+   props(통/뚜껑/테/스테이브/검/구멍)는 전부 SVG/CSS로 직접 제작 — 이모지/그라데이션 소품 대체.
    공통 레이아웃은 horse-race.css에 의존(.container, .users-section, .chat-section, .history-section, .result-overlay 등) →
    horse-race.css가 쓰는 var(--horse-*)를 pirate 색으로 alias. 페이지별 stylesheet link라 경마 페이지엔 무영향.
-   모바일 퍼스트: 기본 모바일 → @media (min-width)로 데스크톱 확장. 터치+마우스 동시 대응. */
+   모바일 퍼스트: 기본 모바일 → @media (min-width)로 데스크톱 확장. 터치+마우스 동시 대응.
+   애니/파티클/스크린셰이크는 prefers-reduced-motion에서 축소·정지(게임은 그대로 플레이 가능). */
 
 :root {
     /* 게임 전용 토큰 */
@@ -12,11 +14,21 @@
     --pirate-200: rgba(var(--pirate-500-rgb), 0.24);
 
     /* 통 나무결 색 (시각 — 결과 무관) */
-    --pirate-wood-light: #c9954f;
+    --pirate-wood-light: #d6a261;
+    --pirate-wood-mid: #b87d3c;
     --pirate-wood-dark: #8a5a2e;
     --pirate-wood-edge: #6f4520;
+    --pirate-wood-shadow: #5a3517;
     --pirate-hoop: #b9bcc2;
+    --pirate-hoop-light: #eef0f3;
+    --pirate-hoop-dark: #8a8e95;
     --pirate-hole-dark: #21130a;
+    /* 검 기본 색 (시각 — hilt는 플레이어별 --sword-hilt로 inline override) */
+    --pirate-blade-light: #f4f6f9;
+    --pirate-blade-dark: #aeb6c2;
+    --pirate-blade-edge: #7c8694;
+    --pirate-guard: #d4af37;
+    --pirate-guard-dark: #9c7d1e;
 
     /* horse-race.css가 사용하는 var(--horse-*)를 pirate 색으로 alias */
     --horse-500: var(--pirate-500);
@@ -132,9 +144,36 @@
 #pirateBarrel {
     position: absolute;
     inset: 0;
+    /* ambient: 통이 살짝 숨쉬듯 위아래로 흔들림 (idle bob) */
+    animation: pirateBarrelBob 3.4s ease-in-out infinite;
+    transform-origin: 50% 100%;
+}
+/* 검 삽입 시 통 마이크로 셰이크 (JS가 .barrel-shake 토글, self-clean) */
+#pirateBarrel.barrel-shake {
+    animation: pirateBarrelShake 0.32s ease;
+}
+/* 팝 순간 통 전체가 들썩(셰이크보다 큰 진폭) */
+#pirateBarrel.popped {
+    animation: pirateBarrelHeave 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pirateBarrelBob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-4px) rotate(-0.4deg); }
+}
+@keyframes pirateBarrelShake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    20% { transform: translateX(-4px) rotate(-1deg); }
+    50% { transform: translateX(3px) rotate(0.8deg); }
+    80% { transform: translateX(-2px) rotate(-0.5deg); }
+}
+@keyframes pirateBarrelHeave {
+    0% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(6px) scaleY(0.94) scaleX(1.05); }
+    60% { transform: translateY(-5px) scaleY(1.05) scaleX(0.97); }
+    100% { transform: translateY(0) scale(1); }
 }
 
-/* 통 본체 — 중앙 세로 배럴 (가로 52%) */
+/* 통 본체 — 중앙 세로 배럴 (가로 52%). 나무 스테이브(세로 널판) + 위/아래 곡면 명암 */
 .pirate-barrel-body {
     position: absolute;
     left: 50%;
@@ -143,82 +182,152 @@
     height: 78%;
     transform: translateX(-50%);
     border-radius: 26% 26% 22% 22% / 12% 12% 14% 14%;
+    /* 세로 스테이브(나무 널): 밝은 면 → 결마다 어두운 골 → 가장자리 음영의 원통 명암 */
     background:
         repeating-linear-gradient(90deg,
-            var(--pirate-wood-light) 0 16%,
-            var(--pirate-wood-dark) 16% 18%),
+            rgba(0,0,0,0.18) 0 1.5%,
+            rgba(255,255,255,0.10) 1.5% 3%,
+            transparent 3% 11.5%,
+            rgba(0,0,0,0.16) 11.5% 12.5%),
+        linear-gradient(90deg,
+            var(--pirate-wood-shadow) 0%,
+            var(--pirate-wood-mid) 14%,
+            var(--pirate-wood-light) 50%,
+            var(--pirate-wood-mid) 86%,
+            var(--pirate-wood-shadow) 100%),
         linear-gradient(180deg, var(--pirate-wood-light) 0%, var(--pirate-wood-dark) 100%);
     border: 4px solid var(--pirate-wood-edge);
     box-shadow: inset 0 -14px 22px rgba(0,0,0,0.30), inset 0 10px 16px rgba(255,255,255,0.18), 0 8px 18px rgba(0,0,0,0.22);
     overflow: visible;
     z-index: 2;
 }
-/* 통 테(metal hoops) — 위/아래 2줄 */
+/* 통 테(metal hoops) — 위/아래 2줄, 금속 하이라이트 */
 .pirate-barrel-body::before,
 .pirate-barrel-body::after {
     content: '';
     position: absolute;
     left: -5px;
     right: -5px;
-    height: 9px;
-    background: linear-gradient(180deg, #e3e5e8, var(--pirate-hoop));
+    height: 10px;
+    background: linear-gradient(180deg, var(--pirate-hoop-light) 0%, var(--pirate-hoop) 45%, var(--pirate-hoop-dark) 100%);
     border-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.6);
 }
 .pirate-barrel-body::before { top: 20%; }
 .pirate-barrel-body::after { bottom: 18%; }
 
-/* 통 뚜껑(lid) — 해적이 여기서 솟구침 */
+/* 통 뚜껑(lid) — 해적이 여기서 솟구침. 나무 결 + 가장자리 테 */
 .pirate-barrel-lid {
     position: absolute;
     left: -6px;
     right: -6px;
     top: -10px;
-    height: 16px;
+    height: 18px;
     border-radius: 50%;
-    background: linear-gradient(180deg, var(--pirate-wood-light), var(--pirate-wood-dark));
+    background:
+        radial-gradient(ellipse 60% 120% at 50% 30%, rgba(255,255,255,0.35), transparent 60%),
+        repeating-radial-gradient(circle at 50% 120%,
+            var(--pirate-wood-mid) 0 4px,
+            var(--pirate-wood-dark) 4px 7px),
+        linear-gradient(180deg, var(--pirate-wood-light), var(--pirate-wood-dark));
     border: 3px solid var(--pirate-wood-edge);
-    box-shadow: inset 0 3px 6px rgba(255,255,255,0.25);
+    box-shadow: inset 0 3px 6px rgba(255,255,255,0.25), 0 2px 4px rgba(0,0,0,0.25);
     transform-origin: 50% 100%;
     transition: transform 0.25s ease;
     z-index: 4;
 }
-#pirateBarrel.popped .pirate-barrel-lid {
-    transform: translateY(-10px) rotateX(38deg);
+/* 뚜껑 경첩 점 (좌하단) — 회전 중심 시각화 */
+.pirate-barrel-lid::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    bottom: 1px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--pirate-wood-edge);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);
 }
-/* 통 정면 장식(배럴 이모지 — 은은하게) */
+#pirateBarrel.popped .pirate-barrel-lid {
+    animation: pirateLidBurst 0.6s cubic-bezier(0.34, 1.7, 0.5, 1) forwards;
+}
+@keyframes pirateLidBurst {
+    0% { transform: translateY(0) rotateX(0deg) rotateZ(0deg); }
+    30% { transform: translateY(-26px) rotateX(62deg) rotateZ(-14deg); }
+    100% { transform: translateY(-16px) rotateX(46deg) rotateZ(-8deg); }
+}
+/* 통 정면 장식 — SVG 닻/별 마크(은은하게). 이모지 대체. */
 .pirate-barrel-face {
     position: absolute;
-    left: 0; right: 0; bottom: 14%;
-    text-align: center;
-    font-size: 30px;
-    opacity: 0.28;
+    left: 0; right: 0; bottom: 16%;
+    display: flex;
+    justify-content: center;
     pointer-events: none;
     user-select: none;
+    opacity: 0.55;
+}
+.pirate-barrel-face .pirate-emblem {
+    width: 38%;
+    max-width: 64px;
+    height: auto;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35));
 }
 
-/* 통 위로 솟구치는 해적 (기본 숨김 — popped 시 점프업) */
+/* 통 위로 솟구치는 해적 (기본 숨김 — popped 시 점프업).
+   .pirate-popup 안의 .pirate-popup-art(SVG/이모지) 또는 .pirate-sprite(스프라이트)가 실제 그림. */
 .pirate-popup {
     position: absolute;
     left: 50%;
     top: 14%;
     transform: translate(-50%, 10%) scale(0.4);
-    font-size: 52px;
+    width: 64px;
+    height: 64px;
     line-height: 1;
     opacity: 0;
     pointer-events: none;
     z-index: 6;
     filter: drop-shadow(0 6px 8px rgba(0,0,0,0.35));
 }
+.pirate-popup .pirate-popup-art {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.pirate-popup .pirate-popup-emoji {
+    font-size: 52px;
+    line-height: 64px;
+    text-align: center;
+}
+/* 스프라이트 슬롯 — 매니페스트+이미지 로드 성공 시 JS가 표시(없으면 fallback 그림 유지) */
+.pirate-popup .pirate-sprite {
+    width: 100%;
+    height: 100%;
+    background-repeat: no-repeat;
+    background-size: 300% 100%;     /* 3열 1행 시트 */
+    background-position: 50% 0;     /* JS가 pose별 0/-50/-100% 로 변경 */
+    image-rendering: auto;
+}
 #pirateBarrel.popped .pirate-popup {
     animation: piratePopUp 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
+/* 솟구친 뒤 살짝 흔들 — pop 정착 후 어지러운 듯 (자식 art에 부여) */
+#pirateBarrel.popped .pirate-popup .pirate-popup-art,
+#pirateBarrel.popped .pirate-popup .pirate-popup-emoji {
+    animation: piratePopWobble 0.9s ease-in-out 1.0s 2;
+}
 @keyframes piratePopUp {
-    0%   { transform: translate(-50%, 10%) scale(0.4) rotate(0deg); opacity: 0; }
-    35%  { transform: translate(-50%, -78%) scale(1.25) rotate(-8deg); opacity: 1; }
-    55%  { transform: translate(-50%, -64%) scale(1.15) rotate(6deg); opacity: 1; }
-    75%  { transform: translate(-50%, -72%) scale(1.2) rotate(-4deg); opacity: 1; }
-    100% { transform: translate(-50%, -68%) scale(1.18) rotate(0deg); opacity: 1; }
+    0%   { transform: translate(-50%, 12%) scale(0.35) rotate(0deg); opacity: 0; }
+    18%  { transform: translate(-50%, -20%) scale(0.7) scaleY(1.25) rotate(-4deg); opacity: 1; }  /* stretch 상승 */
+    38%  { transform: translate(-50%, -86%) scale(1.32) scaleY(0.88) rotate(-9deg); opacity: 1; }  /* squash 최고점 */
+    55%  { transform: translate(-50%, -62%) scale(1.12) rotate(7deg); opacity: 1; }
+    72%  { transform: translate(-50%, -74%) scale(1.22) rotate(-4deg); opacity: 1; }
+    88%  { transform: translate(-50%, -66%) scale(1.16) rotate(2deg); opacity: 1; }
+    100% { transform: translate(-50%, -70%) scale(1.18) rotate(0deg); opacity: 1; }
+}
+@keyframes piratePopWobble {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-7deg); }
+    75% { transform: rotate(7deg); }
 }
 
 /* ── 측면 구멍 (JS가 left/top %로 배치, side-left/side-right) ── */
@@ -229,9 +338,15 @@
     height: 46px;
     margin: -23px 0 0 -23px;   /* 중심 정렬 (JS는 구멍 중심 좌표만 지정) */
     border-radius: 50%;
-    background: radial-gradient(circle at 50% 42%, #4a3018 0%, var(--pirate-hole-dark) 82%);
+    /* 림 하이라이트(상단 빛) + 안쪽 어둠 → 입체 구멍감 */
+    background:
+        radial-gradient(circle at 50% 30%, rgba(255,255,255,0.18) 0%, transparent 32%),
+        radial-gradient(circle at 50% 58%, #4a3018 0%, var(--pirate-hole-dark) 78%);
     border: 3px solid #7a5226;
-    box-shadow: inset 0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.25);
+    box-shadow:
+        inset 0 5px 9px rgba(0,0,0,0.65),
+        inset 0 -2px 3px rgba(255,255,255,0.12),
+        0 2px 4px rgba(0,0,0,0.25);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -270,49 +385,76 @@
 .pirate-hole.mine {
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.45), 0 0 0 4px var(--pirate-accent), 0 0 14px rgba(var(--pirate-500-rgb), 0.6);
 }
-/* 검(sword) — 측면 방향에 따라 안쪽을 향하게 꽂힘 */
+/* 검(sword) — SVG. 측면 방향에 따라 안쪽을 향하게 꽂힘. hilt는 --sword-hilt(플레이어색)로 tint.
+   SVG는 칼끝이 좌상단(↖)을 가리키도록 그려짐 → side별 회전으로 통 안쪽을 향하게. */
 .pirate-hole .pirate-sword {
     position: absolute;
-    font-size: 24px;
-    line-height: 1;
+    width: 30px;
+    height: 30px;
     pointer-events: none;
-    /* 기본(좌측 구멍): 검이 오른쪽(통 안쪽)을 향함 */
-    transform: rotate(45deg);
+    overflow: visible;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.45));
+    /* 기본(좌측 구멍): 칼끝이 오른쪽 위(통 안쪽)를 향하도록 미러 */
+    transform: rotate(90deg);
 }
 .pirate-hole.side-left .pirate-sword {
-    right: -10px;
-    transform: rotate(135deg);   /* 통 안쪽(오른쪽 위) 향함 */
+    right: -12px;
+    transform: scaleX(-1) rotate(0deg);   /* 좌측 구멍: 칼이 오른쪽(통 안쪽) 향함 */
 }
 .pirate-hole.side-right .pirate-sword {
-    left: -10px;
-    transform: rotate(-135deg);  /* 통 안쪽(왼쪽 위) 향함 */
+    left: -12px;
+    transform: rotate(0deg);              /* 우측 구멍: 칼이 왼쪽(통 안쪽) 향함 */
 }
-/* 검 슬라이드 인 애니 (FIFO 큐 1자루) — playInsert가 .stab-in 부여 */
-.pirate-hole.stab-in .pirate-sword {
-    animation: pirateStabIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
+/* 칼날/가드/손잡이 색 (SVG class 훅) */
+.pirate-sword .blade { fill: var(--pirate-blade-dark); fill: url(#pirateBladeGrad); stroke: var(--pirate-blade-edge); stroke-width: 0.6; }
+.pirate-sword .guard { fill: var(--pirate-guard); stroke: var(--pirate-guard-dark); stroke-width: 0.5; }
+.pirate-sword .hilt { fill: var(--sword-hilt, var(--pirate-600)); }
+.pirate-sword .pommel { fill: var(--sword-hilt, var(--pirate-600)); stroke: rgba(0,0,0,0.3); stroke-width: 0.4; }
+
+/* 검 슬라이드 인 애니 (FIFO 큐 1자루) — playInsert가 .stab-in 부여. 오버슈트 + 깊이감(scale) */
 .pirate-hole.side-left.stab-in .pirate-sword {
-    animation-name: pirateStabInLeft;
+    animation: pirateStabInLeft 0.42s cubic-bezier(0.5, 1.8, 0.5, 1);
 }
 .pirate-hole.side-right.stab-in .pirate-sword {
-    animation-name: pirateStabInRight;
+    animation: pirateStabInRight 0.42s cubic-bezier(0.5, 1.8, 0.5, 1);
 }
 @keyframes pirateStabInLeft {
-    0%   { transform: translate(-26px, -14px) rotate(135deg); opacity: 0; }
-    100% { transform: translate(0, 0) rotate(135deg); opacity: 1; }
+    0%   { transform: scaleX(-1) translate(-30px, -18px) scale(1.25) rotate(0deg); opacity: 0; }
+    70%  { transform: scaleX(-1) translate(2px, 1px) scale(0.92) rotate(0deg); opacity: 1; }   /* 살짝 박힘(오버슈트) */
+    100% { transform: scaleX(-1) translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
 }
 @keyframes pirateStabInRight {
-    0%   { transform: translate(26px, -14px) rotate(-135deg); opacity: 0; }
-    100% { transform: translate(0, 0) rotate(-135deg); opacity: 1; }
+    0%   { transform: translate(30px, -18px) scale(1.25) rotate(0deg); opacity: 0; }
+    70%  { transform: translate(-2px, 1px) scale(0.92) rotate(0deg); opacity: 1; }
+    100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
 }
-/* 점유 시 구멍 자체 살짝 튀는 피드백 */
+/* 점유 시 구멍 자체 살짝 튀고 림이 흔들리는 피드백(thunk) */
 .pirate-hole.stab-in {
     animation: pirateHolePop 0.42s ease;
 }
 @keyframes pirateHolePop {
-    0% { transform: scale(0.9); }
-    55% { transform: scale(1.12); }
+    0% { transform: scale(0.88); }
+    45% { transform: scale(1.16); box-shadow: inset 0 5px 9px rgba(0,0,0,0.65), 0 0 0 5px rgba(var(--pirate-500-rgb), 0.4); }
+    72% { transform: scale(0.97); }
     100% { transform: scale(1); }
+}
+
+/* 팝 순간 — 모든 검이 좌우로 떨림(jiggle). JS가 #pirateBarrel.swords-jiggle 토글, self-clean */
+#pirateBarrel.swords-jiggle .pirate-hole.side-left .pirate-sword {
+    animation: pirateSwordJiggleLeft 0.4s ease-in-out 2;
+}
+#pirateBarrel.swords-jiggle .pirate-hole.side-right .pirate-sword {
+    animation: pirateSwordJiggleRight 0.4s ease-in-out 2;
+}
+@keyframes pirateSwordJiggleLeft {
+    0%, 100% { transform: scaleX(-1) rotate(0deg); }
+    30% { transform: scaleX(-1) rotate(8deg); }
+    70% { transform: scaleX(-1) rotate(-8deg); }
+}
+@keyframes pirateSwordJiggleRight {
+    0%, 100% { transform: rotate(0deg); }
+    30% { transform: rotate(8deg); }
+    70% { transform: rotate(-8deg); }
 }
 /* 이름표 */
 .pirate-hole .pirate-hole-name {
@@ -327,17 +469,81 @@
     font-size: 11px;
     text-shadow: 0 1px 3px rgba(0,0,0,0.85);
 }
-/* trigger 구멍 — 걸린 사람(loser) 강조 */
+/* trigger 구멍 — 걸린 사람(loser) 강조 + 빨강 플래시 */
 .pirate-hole.trigger {
     background: radial-gradient(circle at 50% 42%, var(--red-500) 0%, var(--pirate-hole-dark) 90%);
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.45), 0 0 0 4px var(--red-500), 0 0 18px rgba(239,83,80,0.75);
-    animation: pirateTriggerShake 0.5s ease-in-out;
+    animation: pirateTriggerShake 0.5s ease-in-out, pirateTriggerFlash 0.45s ease-in-out 2;
     z-index: 5;
 }
 @keyframes pirateTriggerShake {
     0%, 100% { transform: scale(1.14) translateX(0); }
     25% { transform: scale(1.14) translateX(-4px); }
     75% { transform: scale(1.14) translateX(4px); }
+}
+@keyframes pirateTriggerFlash {
+    0%, 100% { box-shadow: inset 0 3px 6px rgba(0,0,0,0.45), 0 0 0 4px var(--red-500), 0 0 18px rgba(239,83,80,0.75); }
+    50% { box-shadow: inset 0 3px 6px rgba(0,0,0,0.45), 0 0 0 7px var(--red-500), 0 0 34px rgba(239,83,80,1); }
+}
+
+/* ── 파티클 레이어 (먼지/스파크/꽃가루) — JS가 span을 동적 생성 후 자동 제거 ── */
+.pirate-fx-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 7;
+}
+.pirate-particle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    will-change: transform, opacity;
+    /* 개별 이동 거리/방향은 JS가 --px/--py/--rot CSS 변수로 주입(코스메틱 jitter) */
+    transform: translate(-50%, -50%);
+}
+.pirate-particle.dust {
+    background: radial-gradient(circle, rgba(255,238,200,0.95) 0%, rgba(199,149,79,0.65) 60%, transparent 75%);
+    animation: pirateDustFly 0.6s ease-out forwards;
+}
+.pirate-particle.spark {
+    width: 4px;
+    height: 10px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #fff3c4, var(--pirate-accent));
+    animation: pirateSparkFly 0.5s ease-out forwards;
+}
+.pirate-particle.confetti {
+    width: 9px;
+    height: 13px;
+    border-radius: 2px;
+    /* 색은 JS가 background로 주입(플레이어 팔레트 hue) */
+    animation: pirateConfettiFall 1.1s cubic-bezier(0.2, 0.6, 0.4, 1) forwards;
+}
+@keyframes pirateDustFly {
+    0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.95; }
+    100% { transform: translate(calc(-50% + var(--px, 0px)), calc(-50% + var(--py, 0px))) scale(1.3); opacity: 0; }
+}
+@keyframes pirateSparkFly {
+    0% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scaleY(0.6); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--px, 0px)), calc(-50% + var(--py, 0px))) rotate(var(--rot, 0deg)) scaleY(1); opacity: 0; }
+}
+@keyframes pirateConfettiFall {
+    0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--px, 0px)), calc(-50% + var(--py, 0px))) rotate(var(--rot, 540deg)); opacity: 0; }
+}
+/* 팝 시 화면 흔들기 — JS가 #pirateBarrelWrap.screen-shake 토글, self-clean */
+#pirateBarrelWrap.screen-shake {
+    animation: pirateScreenShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+@keyframes pirateScreenShake {
+    10%, 90% { transform: translate(-2px, 1px); }
+    20%, 80% { transform: translate(4px, -2px); }
+    30%, 50%, 70% { transform: translate(-6px, 2px); }
+    40%, 60% { transform: translate(6px, -1px); }
 }
 
 .pirate-hint {
@@ -375,10 +581,37 @@
         margin: -27px 0 0 -27px;
         font-size: 13px;
     }
-    .pirate-hole .pirate-sword { font-size: 28px; }
+    .pirate-hole .pirate-sword { width: 36px; height: 36px; }
     .pirate-hole .pirate-hole-name { max-width: 74px; font-size: 12px; }
-    .pirate-popup { font-size: 60px; }
-    .pirate-barrel-face { font-size: 36px; }
+    .pirate-popup { width: 76px; height: 76px; }
+    .pirate-popup .pirate-popup-emoji { font-size: 60px; line-height: 76px; }
     .pirate-clock-face { width: 96px; height: 96px; }
     .pirate-clock-hand { height: 38px; }
+}
+
+/* ===== 접근성: 모션 민감 사용자 — 파티클·스크린셰이크·격한 모션 축소/정지 (게임은 그대로 플레이 가능) ===== */
+@media (prefers-reduced-motion: reduce) {
+    #pirateBarrel { animation: none; }
+    #pirateBarrel.barrel-shake,
+    #pirateBarrel.popped { animation: none; }
+    #pirateBarrelWrap.screen-shake { animation: none; }
+    #pirateBarrel.swords-jiggle .pirate-hole .pirate-sword { animation: none; }
+    /* 팝 자체는 보이되 과한 흔들림 제거(페이드+상승만) */
+    #pirateBarrel.popped .pirate-popup {
+        animation: piratePopUpReduced 0.5s ease-out forwards;
+    }
+    #pirateBarrel.popped .pirate-popup .pirate-popup-art,
+    #pirateBarrel.popped .pirate-popup .pirate-popup-emoji { animation: none; }
+    @keyframes piratePopUpReduced {
+        0% { transform: translate(-50%, 10%) scale(0.6); opacity: 0; }
+        100% { transform: translate(-50%, -70%) scale(1.18); opacity: 1; }
+    }
+    /* 검 삽입은 즉시 표시(슬라이드 생략) */
+    .pirate-hole.side-left.stab-in .pirate-sword,
+    .pirate-hole.side-right.stab-in .pirate-sword { animation: none; }
+    .pirate-hole.stab-in { animation: none; }
+    /* 점멸/펄스 진정 */
+    .pirate-hole.stabbable { animation: none; }
+    .pirate-clock-face.urgent { animation: none; }
+    .pirate-particle { display: none; }   /* JS도 파티클 자체를 생성 안 함(이중 가드) */
 }
