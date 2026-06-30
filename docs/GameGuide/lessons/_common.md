@@ -225,6 +225,33 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-21. 외부 repo에서 게임 로직 포팅 시 `require` 의존성이 타겟 repo에 있는지 먼저 grep
+
+- 외부 standalone repo(예: `D:\Work\vibe\ladder`)의 socket/게임 파일을 우리 repo로 이식할 때, 그 파일 상단의 `require(...)`가 우리 repo에 **존재하지 않는 모듈/함수**를 가리키면 부팅 즉시 크래시한다. 예: vibe socket이 `require('../db/stats') { recordLadderRun, recordLadderEvent }` + `require('../utils/daily-counter')`를 import하는데 우리 `db/stats.js`엔 그 export가 없고 `utils/daily-counter.js` 파일 자체가 없다 → `node -c`는 통과해도 `node server.js`가 `recordLadderEvent is not a function` 또는 모듈 not found로 죽는다.
+- **해결:** 포팅 착수 전 이식 대상 파일의 모든 `require(...)` + 구조분해 심볼을 **타겟 repo에 grep으로 1차 대조**한다. 없는 건 떼어내고 우리 기존 동등 함수로 대체(예: vibe stat 호출 제거 → 우리 `recordGamePlay`/`recordServerGame` 유지).
+- **검증:** `node -c`만 믿지 말고 `node server.js`로 **실제 부팅**까지 확인(require 체인은 런타임에만 터진다).
+- (출처: 2026-06-30 사다리타기 vibe-rework — vibe socket의 recordLadderRun/daily-counter require가 우리 repo에 부재)
+
+---
+
+## C-22. in-place 게임 교체 시 이식 핸들러의 stat 카운터 쓰기는 gameState 필드와 짝을 맞춰라
+
+- 외부 repo에서 게임 핸들러를 이식하면 곳곳에 `ld.errors_total++` / `rungs_added_total++` 같은 **통계 카운터 쓰기**가 흩어져 있는데, 그건 원본 repo의 gameState 통계 필드에 의존한다. 타겟 repo의 `createRoomGameState()`에 그 필드를 **안 두면 `undefined++` → `NaN`** 이 조용히 쌓인다(크래시가 안 나서 더 위험 — 통계만 오염).
+- **해결:** 이식 시 `xxx_total` 같은 카운터 쓰기를 grep해 ① room-helpers에 필드를 추가하든 ② 쓰기를 strip하든 **짝을 맞춘다.** 통계를 안 쓸 거면 strip이 깔끔(미사용 데드필드도 만들지 않게).
+- **검증:** 이식 후 `grep -n "_total" socket/[game].js`로 카운터 쓰기를 세고, 각각 대응 필드가 room-helpers 초기화에 있는지(또는 전부 strip됐는지) 대조.
+- (출처: 2026-06-30 사다리타기 vibe-rework — vibe 핸들러의 redraws_total/rungs_added_total 등을 strip)
+
+---
+
+## C-23. 게임 메커니즘 교체 시 카피 갱신 범위 = 튜토리얼 + 메타/OG/JSON-LD/SEO 본문 전부
+
+- 게임 메커니즘(규칙/결과 방식)을 바꾸면 인라인 튜토리얼 step뿐 아니라 페이지의 **`<meta name="description">` · OpenGraph · JSON-LD · 하단 SEO 본문**에도 옛 규칙 설명이 박혀 있다(예: "레인을 고르고 꽝을 피하세요"). 튜토리얼만 고치면 검색결과·링크 미리보기·SEO 본문이 새 게임과 모순된다(코드/테스트가 안 잡아줌).
+- **해결:** 메커니즘 변경 체크리스트에 **옛 규칙 키워드(게임별: 꽝/레인/폭탄/번호 등) 전역 grep**(`*.html`의 메타·JSON-LD·SEO 포함)을 넣어 잔존 0까지 교체. ladder.md 2026-06-17 "튜토리얼 카피 동기화" lesson의 범위를 메타/SEO로 확장한 것.
+- **검증:** `grep -rn "옛키워드" *-multiplayer.html`로 메타/JSON-LD/SEO/튜토리얼 전 구역 잔존 0.
+- (출처: 2026-06-30 사다리타기 vibe-rework — 튜토리얼 외 meta/OG/JSON-LD/SEO 4곳에 옛 "꽝/레인" 카피 잔존 발견)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

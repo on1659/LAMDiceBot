@@ -47,20 +47,15 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
     }
     ctx.triggerAutoOrder = triggerAutoOrder;
 
-    // 사다리타기 빌드 동기화 — 준비 인원(=레인 수) 변동 시 막대기/레인 정리 후 브로드캐스트.
-    // removedUserName: 준비 취소한 사용자(있으면 그 사람 막대기·레인 제거). 빌드(phase idle)에서만 동작.
+    // 사다리타기 빌드 동기화 — 준비 변동 시 현재 빌드 상태를 재브로드캐스트(빌드 정합성 유지).
+    // vibe 메커니즘: 빌드(칸/라벨/막대기)는 협업이라 ready 무관 → 준비 취소가 협업 막대기를 삭제하지 않는다.
+    //   (removedUserName 인자는 호환 위해 받지만 사용하지 않음 — 준비취소로 빌드 상태를 깨지 않는다.)
+    // 빌드(phase idle)에서만 동작. 막대기/색 정리는 실제 이탈(leaveRoom / disconnect)에서만 한다.
     function syncLadderBuildOnReadyChange(gameState, room, removedUserName) {
         if (!room || room.gameType !== 'ladder' || !gameState.ladder) return;
         const ld = gameState.ladder;
         if (ld.phase !== 'idle') return;
-
-        if (removedUserName) {
-            // 막대기 배열 전체 + 레인 + drawer 색 인덱스 정리 (준비 취소 → 빌드에서 완전 이탈)
-            if (ld.userRungs[removedUserName]) delete ld.userRungs[removedUserName];
-            if (ld.userLanes[removedUserName] !== undefined) delete ld.userLanes[removedUserName];
-            if (ld.colorIndex && ld.colorIndex[removedUserName] !== undefined) delete ld.colorIndex[removedUserName];
-        }
-        // 레인은 항상 6 고정 — 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
+        // 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로. 협업 막대기는 보존.
         if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
     }
 
@@ -392,9 +387,9 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         }
 
         // 사다리타기 전용 게이트(크로스게임 무영향 — ladder일 때만 동작):
-        // 사다리는 isGameActive를 켜지 않고 ld.phase로 진행을 추적한다. 공개 연출(selecting/revealing)
-        // 도중의 stray toggleReady가 readyUsers를 흔들면 reset 보존/카운트와 어긋나므로 무시한다.
-        // idle(빌드)·finished(결과창에서 다음 판 빠른 재준비)에서는 허용.
+        // 사다리는 isGameActive를 켜지 않고 ld.phase로 진행을 추적한다(phase 집합: idle | revealing | finished).
+        // 공개 연출(revealing) 도중의 stray toggleReady가 readyUsers를 흔들면 카운트/시작 게이트와 어긋나므로 무시한다.
+        // idle(빌드)·finished(결과창)에서는 허용. (selecting phase는 폐기됨.)
         if (room.gameType === 'ladder' && gameState.ladder
             && gameState.ladder.phase !== 'idle' && gameState.ladder.phase !== 'finished') {
             socket.emit('readyError', '사다리 진행 중에는 준비 상태를 바꿀 수 없어요. 결과가 끝난 뒤 다시 시도해주세요.');

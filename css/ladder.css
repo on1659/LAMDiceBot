@@ -1,12 +1,17 @@
 /* 사다리타기(ladder) 전용 스타일 + 공통 변수 alias.
-   페이지별 stylesheet link라 horse-race 페이지엔 무영향. */
+   페이지별 stylesheet link라 horse-race 페이지엔 무영향.
+   vibe(D:\Work\vibe\ladder) 메커니즘 이식(Phase B) — 칸 수 스테퍼 + 라벨 편집 + 드래그 막대기 + 셔플/하강 연출. */
 
 :root {
     /* 게임 전용 그라데이션 (amber/gold) */
     --ladder-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 
-    /* 내 채팅 말풍선 — 라이트/다크 무관하게 항상 밝은 배경(어두운 #333 텍스트 가독 확보)
-       + 진한 이름색(배경과 충분히 대비). roulette의 green-50/green-800 패턴과 동일 의도. */
+    /* 사다리 게임 뷰 최대 폭 — 캔버스/라벨행/상태/시작버튼이 같은 폭으로 정렬되게 단일 토큰으로 관리.
+       backing store(720×560)는 불변; 표시 크기만 키운다(좌표/공정성 무관, 720:560 종횡비 유지).
+       LAMDice 셸 .container는 800px 고정이라 view-max도 그 안(720)에 들어가게 유지(데스크톱 확장 없음). */
+    --ladder-view-max: 720px;
+
+    /* 내 채팅 말풍선 — 라이트/다크 무관하게 항상 밝은 배경(어두운 텍스트 가독) + 진한 이름색. */
     --ladder-chat-bg: #fef3c7;     /* 밝은 amber, 모드 불변 */
     --ladder-chat-name: #92400e;   /* 진한 amber, 모드 불변 */
 
@@ -21,123 +26,305 @@
     --horse-700: var(--ladder-600);
 }
 
-/* ⚠️ Tailwind CDN .container responsive(1280px)가 horse-race.css 800px override → 강제 */
+/* ⚠️ Tailwind CDN .container responsive(1280px)가 horse-race.css 800px override → 강제 (C-1) */
 .container {
     max-width: 800px !important;
 }
 
-/* ⚠️ horse-race.css는 .game-section{display:none}+.active 토글. 진입 즉시 표시 */
+/* ⚠️ horse-race.css는 .game-section{display:none}+.active 토글. 진입 즉시 표시 (C-2) */
 .game-section {
     display: block;
 }
 
-/* ── 선택 단계 ── */
-.ladder-select-section {
-    background: var(--bg-white);
-    border: 2px solid var(--ladder-500);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-}
+/* ══════════════════════════════════════════════════════════════════
+   게임 영역 (칸 수 스테퍼 + 라벨 편집 + 미리보기)
+   ══════════════════════════════════════════════════════════════════ */
 
-.ladder-select-title {
-    font-weight: bold;
-    color: var(--ladder-accent);
-    font-size: 16px;
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
+/* 줄 수 행 — 3슬롯 그리드: [빈 1fr][가운데 main auto][우측 1fr]. main이 진짜 중앙. */
+.ladder-setup-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-}
-
-.ladder-select-hint {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-}
-
-.ladder-lane-grid {
-    display: flex;
-    flex-wrap: wrap;
     gap: 8px;
+    margin: 4px 0 16px;
+}
+.ladder-setup-main {
+    display: flex;
+    align-items: center;
     justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+/* 좌·우 빈 슬롯 — 가운데 main을 중앙에 두기 위한 1fr 스페이서 */
+.ladder-bar-spacer { display: block; min-width: 0; }
+
+/* 우측 슬롯 — Phase C 상점 버튼 자리. 좌측 스페이서(1fr)와 대칭이라 main이 중앙 유지. */
+.ladder-shop-slot {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-width: 0;
 }
 
-.ladder-lane-btn {
-    flex: 1 1 0;
-    min-width: 52px;   /* 6레인 고정 — 좁은 폰에서도 1~6이 한두 줄에 들어가게 */
-    max-width: 110px;
-    padding: 14px 6px;
+/* 상점 진입 버튼 (spin-arena .spin-shop-btn 패턴 — 사다리 색) */
+.ladder-shop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1.5px solid var(--ladder-500);
+    background: var(--bg-white);
+    color: var(--ladder-accent);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(var(--ladder-500-rgb), 0.18);
+    white-space: nowrap;
+}
+.ladder-shop-btn:hover {
+    background: rgba(var(--ladder-500-rgb), 0.10);
+}
+
+/* 상점 카드 썸네일 — 스킨 이모지 미리보기(buildPreview hook) */
+.lshop-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+}
+.lshop-glyph {
+    font-size: 30px;
+    line-height: 1;
+}
+
+.ladder-setup-label {
+    font-weight: 700;
+    color: var(--ladder-accent);
+    font-size: 15px;
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+}
+
+.ladder-stepper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 스테퍼 버튼 — 터치 타겟 ≥40px */
+.ladder-step-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
     border: 2px solid var(--ladder-500);
     border-radius: 10px;
     background: var(--bg-white);
     color: var(--ladder-accent);
+    font-size: 24px;
     font-weight: 700;
-    font-size: 18px;
+    line-height: 1;
     cursor: pointer;
     transition: transform 0.1s, background 0.15s;
-    text-align: center;
-    line-height: 1.3;
 }
-
-.ladder-lane-btn .lane-owner {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-top: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ladder-lane-btn:hover:not(.taken):not(.mine) {
-    transform: translateY(-2px);
+.ladder-step-btn:hover:not(:disabled) {
     background: rgba(var(--ladder-500-rgb), 0.12);
+    transform: translateY(-2px);
 }
-
-/* 키보드 포커스 가시 — 레인 선택을 키보드로도 할 수 있게(P3-2) */
-.ladder-lane-btn:focus-visible {
+.ladder-step-btn:active:not(:disabled) { transform: translateY(0); }
+.ladder-step-btn:focus-visible {
     outline: 3px solid var(--ladder-600);
     outline-offset: 2px;
 }
-
-.ladder-lane-btn.mine {
-    background: var(--ladder-gradient);
-    color: #fff;
-    border-color: var(--ladder-600);
-}
-
-.ladder-lane-btn.mine .lane-owner {
-    color: #fff;
-}
-
-.ladder-lane-btn.taken {
-    background: var(--gray-100, #f3f4f6);
-    color: var(--text-muted, #9ca3af);
+.ladder-step-btn:disabled {
     border-color: var(--gray-300, #d1d5db);
+    color: var(--text-muted, #9ca3af);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.ladder-col-count {
+    min-width: 40px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ladder-600);
+}
+
+/* 라벨 행 — 캔버스 폭에 맞춰 N개 입력을 균등 분할 */
+.ladder-labels-row {
+    display: flex;
+    gap: 6px;
+    max-width: var(--ladder-view-max);
+    margin: 0 auto;
+    padding: 0 4px;
+    box-sizing: border-box;
+}
+.ladder-label-input {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 4px;
+    font-size: 13px;
+    text-align: center;
+    border: 2px solid var(--gray-300, #d1d5db);
+    border-radius: 8px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    box-sizing: border-box;
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+}
+.ladder-label-input:focus {
+    outline: none;
+    border-color: var(--ladder-500);
+}
+.ladder-label-input::placeholder {
+    color: var(--text-muted, #9ca3af);
+}
+/* 라벨 편집 소프트락 — 남이 편집 중인 칸(readonly) 시각 표시 */
+.ladder-label-input.ladder-label-locked {
+    border-color: var(--ladder-accent);
+    border-style: dashed;
+    background: rgba(var(--ladder-500-rgb), 0.06);
     cursor: not-allowed;
 }
+.ladder-label-input[readonly] { cursor: not-allowed; }
+.ladder-label-input.ladder-label-locked::placeholder { color: var(--ladder-600); opacity: 0.85; }
 
-/* 주인 없는 빈 레인(인원 6 미만) — 점선 테두리 + 흐리게. 선택 가능(내가 고를 수 있음)하나 비어 있음을 표시. */
-.ladder-lane-btn.empty {
-    border-style: dashed;
-    border-color: var(--gray-300, #d1d5db);
-    color: var(--text-muted, #9ca3af);
-    background: var(--bg-white);
+/* 위쪽 라벨 행은 캔버스 위, 아래쪽은 캔버스 아래 — 약간의 세로 간격 */
+#topLabelsRow { margin-bottom: 8px; }
+#bottomLabelsRow { margin-top: 8px; margin-bottom: 16px; }
+
+/* ── 옵션 바: 칸 채우기 권한 + 내려가기 방식 토글 + 남은 그리기 예산 ── */
+/* 3슬롯 그리드: [빈 1fr][가운데 토글 main][우측 남은그리기 1fr]. */
+.ladder-edit-mode-bar {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;
+    max-width: var(--ladder-view-max); margin: 0 auto 10px;
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
 }
-.ladder-lane-btn.empty .lane-owner {
-    color: var(--text-muted, #9ca3af);
+.ladder-edit-mode-main {
+    display: flex; align-items: center; justify-content: center; gap: 8px 18px; flex-wrap: wrap;
+}
+/* 한 줄 안의 옵션 그룹(권한 / 내려가기) */
+.ladder-mode-group { display: inline-flex; align-items: center; gap: 8px; }
+.ladder-mode-group + .ladder-mode-group {
+    border-left: 1px solid var(--gray-300, #d1d5db); padding-left: 18px;
+}
+.ladder-edit-mode-label {
+    font-weight: 700;
+    color: var(--ladder-accent);
+}
+.ladder-edit-mode-bar .ladder-draw-budget { justify-self: end; }
+
+/* 모바일 — 좁은 폭에선 3열 그리드를 flex-wrap으로 바꿔 main(전폭) 아래 줄에 pill 우측 정렬. */
+@media (max-width: 480px) {
+    .ladder-setup-bar,
+    .ladder-edit-mode-bar {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+        column-gap: 8px; row-gap: 6px;
+    }
+    .ladder-bar-spacer { display: none; }
+    .ladder-setup-main,
+    .ladder-edit-mode-main { flex: 1 1 100%; }
+    /* 상점 슬롯은 main 아래 줄에 전폭으로 내려와 버튼을 가운데 정렬(스페이서와 달리 숨기지 않음). */
+    .ladder-shop-slot { flex: 1 1 100%; justify-content: center; }
+    .ladder-edit-mode-bar .ladder-draw-budget { margin-left: auto; white-space: nowrap; }
+    .ladder-mode-group + .ladder-mode-group { border-left: none; padding-left: 0; }
 }
 
-.ladder-pick-status {
-    text-align: center;
-    margin-top: 12px;
-    color: var(--text-secondary);
+/* 글쓰기 권한/내려가기 ON/OFF 토글 스위치 */
+.ladder-mode-toggle-wrap { display: inline-flex; align-items: center; }
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+    flex: none;
+    margin: 0;
+    cursor: pointer;
+}
+.toggle-switch input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.toggle-slider {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--gray-300, #d1d5db);
+    border-radius: 28px;
+    transition: background 0.2s ease;
+    pointer-events: none;
+}
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 22px; width: 22px;
+    left: 3px; bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
+}
+.toggle-switch input:checked + .toggle-slider {
+    background: var(--ladder-accent);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(22px);
+}
+.toggle-switch input:focus-visible + .toggle-slider {
+    outline: 2px solid var(--ladder-600);
+    outline-offset: 2px;
+}
+.toggle-switch input:disabled + .toggle-slider { opacity: 0.5; cursor: not-allowed; }
+
+/* 공유 그리기 예산 표시 — 모든 참가자 합산 남은 그리기 수(서버 권위). 빌드(idle)에서만 표시. */
+.ladder-draw-budget {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ladder-accent);
+    background: rgba(var(--ladder-500-rgb), 0.12);
+    border: 1px solid var(--ladder-500);
+    border-radius: 8px;
+    padding: 4px 10px;
+    line-height: 1.4;
+}
+.ladder-draw-budget.exhausted {
+    color: var(--red-600);
+    background: var(--red-50);
+    border-color: var(--red-500);
+}
+
+/* 빌드 힌트 (드래그로 막대기 추가) */
+.ladder-build-hint {
     font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 auto 12px;
+    max-width: var(--ladder-view-max);
+    line-height: 1.5;
+    text-align: center;
+}
+/* 미연결 드래그 폐기 시 일시 강조 */
+.ladder-build-hint.ladder-build-hint-flash {
+    color: var(--ladder-accent);
+    font-weight: 600;
 }
 
-/* ── 캔버스(사다리 추적) ── */
+/* 데스크톱: 라벨 입력을 약간 키워 가독성 확보 */
+@media (min-width: 640px) {
+    .ladder-label-input {
+        font-size: 14px;
+        padding: 9px 6px;
+    }
+    .ladder-labels-row { gap: 8px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   캔버스 (idle: 드래그 빌드 · revealing: 셔플/하강 연출)
+   ══════════════════════════════════════════════════════════════════ */
 .ladder-canvas-wrap {
     margin: 0 auto 20px;
     text-align: center;
@@ -145,186 +332,66 @@
 
 #ladderCanvas {
     width: 100%;
-    max-width: 720px;
+    max-width: var(--ladder-view-max);
     height: auto;
+    aspect-ratio: 720 / 560;   /* backing store 종횡비 유지 — height:auto와 함께 좌표 매핑 정확 */
+    max-height: 72vh;          /* 세로로 긴 캔버스가 뷰포트를 넘지 않게 (모바일 스케일) */
     /* 캔버스 내부 텍스트·막대기 색이 하드코딩(어두운 갈색/회색)이라, 다크모드에서 페이지 그라데이션이
-       비치면 대비가 나빠진다. 불투명 웜화이트 "보드"로 고정해 라이트·다크 모두 가독 확보(꽝/통과는 색+이모지). */
+       비치면 대비가 나빠진다. 불투명 웜화이트 "보드"로 고정해 라이트·다크 모두 가독 확보. */
     background: #fbf6ec;
     border: 2px solid var(--ladder-500);
     border-radius: 12px;
     display: block;
     margin: 0 auto;
+    cursor: crosshair;
+    touch-action: none;   /* 터치 드래그가 페이지 스크롤로 새지 않게 */
 }
 
+/* 캔버스 결과 캡션은 제거(결과 팝업이 정식 결과 목록) — 빈 자리 gap 없이 숨김. */
 .ladder-result-caption {
-    text-align: center;
-    margin: 10px 0;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--ladder-accent);
-    min-height: 22px;
+    display: none;
 }
 
-/* 캔버스 + 레인 이름 라벨 정렬 래퍼 (캔버스와 같은 폭) */
+/* 캔버스 정렬 래퍼 (캔버스와 같은 폭, 오버레이 absolute 기준) */
 .ladder-canvas-inner {
     position: relative;
-    max-width: 720px;
+    max-width: var(--ladder-view-max);
     margin: 0 auto;
 }
 
-/* 스크램블 카운트다운/"셔플!" 오버레이 — 캔버스 위에 큰 글자로 페이드 인/아웃.
-   캔버스 표시크기(반응형) 기준 절대배치(부모 .ladder-canvas-inner가 relative + 캔버스와 같은 폭). */
+/* 셔플 카운트다운/"시작!" 오버레이 — 캔버스 위에 큰 글자로 페이드 인/아웃. */
 .ladder-scramble-overlay {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    bottom: 22px;   /* 캔버스 영역(레인 이름 라벨 22px 제외)의 세로 중앙에 오도록 */
+    bottom: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Jua', 'Segoe UI', Tahoma, sans-serif;
-    font-size: clamp(48px, 16vw, 110px);   /* 모바일~데스크톱 가변 — 작은 화면에서도 또렷 */
+    font-size: clamp(48px, 16vw, 110px);   /* 모바일~데스크톱 가변 */
     font-weight: 900;
     color: var(--ladder-accent);
     text-shadow: 0 2px 12px rgba(var(--ladder-500-rgb), 0.55), 0 0 4px rgba(255, 255, 255, 0.9);
-    pointer-events: none;       /* 캔버스/구슬 위에 떠 있되 입력은 통과 */
+    pointer-events: none;
     opacity: 0;
     transform: scale(0.7);
     transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+    z-index: 3;
 }
-
-/* JS가 단계마다 .show 토글 — 숫자가 커지며 나타났다 사라짐 */
 .ladder-scramble-overlay.show {
     opacity: 1;
     transform: scale(1);
 }
 
-/* 출발 레인별 소유자 이름 — 캔버스 바로 아래, 각 레인 x좌표에 맞춰 고정 */
-.ladder-lane-names {
-    position: relative;
-    width: 100%;
-    height: 22px;
-    margin-top: 2px;
-}
+/* 게임 상태(셔플/하강 단계 안내) — 공통 .game-status 위에 ladder 톤 보강 */
+.game-status.active { color: var(--ladder-600); }
+.game-status.finished { color: var(--ladder-accent); }
 
-.ladder-lane-name {
-    position: absolute;
-    top: 0;
-    transform: translateX(-50%);
-    max-width: 13%;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--ladder-accent);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
-    transition: color 0.15s, text-shadow 0.15s;
-}
-
-/* 현재 내려가는 중인 레인 강조 */
-.ladder-lane-name.active {
-    color: var(--ladder-600);
-    text-shadow: 0 0 7px rgba(var(--ladder-500-rgb), 0.7);
-}
-
-/* 꽝(패자) 레인 강조 */
-.ladder-lane-name.loser {
-    color: var(--red-500, #ef4444);
-    text-shadow: 0 0 7px rgba(239, 68, 68, 0.5);
-}
-
-/* 모바일: 레인 많을 때 이름 겹침 회피 */
-@media (max-width: 480px) {
-    .ladder-lane-name {
-        font-size: 10px;
-        max-width: 12%;
-    }
-    /* 좁은 화면에선 height:auto(2:1)로 캔버스가 너무 낮아짐(8인 곡선 그리기 답답) → 최소 높이 확보.
-       toCanvas가 rect.height로 매핑하므로 종횡비가 늘어도 좌표는 정확. */
-    .ladder-build-canvas {
-        min-height: 220px;
-    }
-}
-
-/* ── 빌드(막대기 배치) 단계 ── */
-.ladder-build-section {
-    background: var(--bg-white);
-    border: 2px solid var(--ladder-500);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-}
-
-.ladder-build-title {
-    font-weight: bold;
-    color: var(--ladder-accent);
-    font-size: 16px;
-    margin-bottom: 6px;
-}
-
-.ladder-build-hint {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-    line-height: 1.5;
-}
-
-/* 미연결 드래그 폐기 시 일시 강조 — 안내가 눈에 들어오게 (1.8s 후 평상 힌트로 복원) */
-.ladder-build-hint.ladder-build-hint-flash {
-    color: var(--ladder-accent);
-    font-weight: 600;
-}
-
-/* 빌드 진행 표시 — 레인/막대기 고른 인원 카운트 (호스트 시작 타이밍 판단용) */
-.ladder-build-progress {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ladder-accent);
-    background: rgba(var(--ladder-500-rgb), 0.10);
-    border-radius: 8px;
-    padding: 6px 10px;
-    margin-bottom: 12px;
-    line-height: 1.5;
-}
-.ladder-build-progress .muted {
-    color: var(--text-muted);
-    font-weight: 400;
-}
-
-/* 빌드 단계 출발 레인 선택 */
-.ladder-build-lane-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ladder-accent);
-    margin: 4px 0 8px;
-}
-
-#ladderBuildLaneGrid {
-    margin-bottom: 16px;
-}
-
-.ladder-build-grid {
-    position: relative;
-    width: 100%;
-    background: rgba(var(--ladder-500-rgb), 0.06);
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-/* 빌드 캔버스 — 두 기둥 사이를 드래그해 막대기를 자유롭게 긋는다.
-   touch-action:none → 터치 드래그가 페이지 스크롤로 새지 않게 한다. */
-.ladder-build-canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: 10px;
-    cursor: crosshair;
-    touch-action: none;
-}
-
-/* ── 결과 오버레이 순위 행 (공통 .result-overlay 안에서 사용) ── */
+/* ══════════════════════════════════════════════════════════════════
+   결과 오버레이 순위 행 (공통 .result-overlay 안에서 사용)
+   ══════════════════════════════════════════════════════════════════ */
 .ladder-result-row {
     display: flex;
     justify-content: space-between;
@@ -333,11 +400,6 @@
     border-radius: 8px;
     border-bottom: 1px solid var(--gray-200, #e5e7eb);
 }
-/* 꽝(패자) 행 — 텍스트 색만이 아니라 배경 틴트로 또렷이 강조 */
-.ladder-result-row.loser {
-    background: rgba(239, 68, 68, 0.10);
-    border-bottom-color: rgba(239, 68, 68, 0.25);
-}
 .ladder-result-name { font-weight: 600; }
 .ladder-result-lane {
     color: var(--text-muted, #9ca3af);
@@ -345,8 +407,7 @@
     font-weight: 400;
 }
 .ladder-result-tag { font-weight: bold; white-space: nowrap; }
-.ladder-result-tag.loser { color: #ef4444; }
-.ladder-result-tag.pass { color: #10b981; }
+.ladder-result-tag.pass { color: var(--ladder-600); }
 
 /* ── 빠른 재준비(경마식) — 결과 카드 안 버튼들 ── */
 .ladder-result-actions {
@@ -382,4 +443,54 @@
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   게임 기록(history)
+   ══════════════════════════════════════════════════════════════════ */
+.ladder-history-item {
+    padding: 12px 14px;
+    border: 1px solid rgba(var(--ladder-500-rgb), 0.18);
+    border-radius: 12px;
+    background: rgba(var(--ladder-500-rgb), 0.05);
+    margin-bottom: 10px;
+}
+.ladder-history-round {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.lh-round-badge {
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    color: var(--ladder-accent);
+    background: rgba(var(--ladder-500-rgb), 0.16);
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+.lh-round-meta {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+}
+.ladder-history-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+    padding: 3px 0;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+.lh-from { color: var(--text-secondary); font-weight: 600; }
+.lh-arrow { color: var(--ladder-accent); }
+.lh-to {
+    color: var(--ladder-600);
+    font-weight: 700;
+    background: rgba(var(--ladder-500-rgb), 0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
 }

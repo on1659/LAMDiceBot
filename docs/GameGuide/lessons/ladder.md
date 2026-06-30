@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-06-30 — ⚠️ v2(vibe-rework)로 아래 "빠른 재준비(fast re-ready)" 클러스터의 실패 모드는 대부분 도달 불가
+
+사다리타기를 `D:\Work\vibe\ladder` 메커니즘으로 in-place 교체(v2)하면서 **"빠른 재준비" 기능 자체를 제거**했다. 이제:
+
+- `endGame`은 자동 리셋하지 않는다 — phase는 `finished`로 유지.
+- `finished → idle` 전이는 호스트의 명시적 `ladder:reset` **단일 경로**로만(메인 시작 버튼이 finished에서 `ladderReset`로 분기 — `js/ladder.js startLadder`).
+- `ladder:start`는 `phase !== 'idle'`이면 거부 → carry-over 원천 차단.
+
+→ 아래 2026-06-17 클러스터 중 **자동 재준비/600ms 창/`onReadyChanged` 레이스/carry-over에 기인한 실패 모드는 현재 코드에서 도달 불가**(메커니즘이 사라짐). 단 다음 설계 가이드는 **여전히 유효**하다: ① ladder는 `isGameActive`를 안 켜고 phase 게이트로 `toggleReady`를 막는다 ② 클라 연출 단계 합 == 서버 `ladderRevealDelay` byte-identical(빈 단계도 지연 채움) ③ 전체화면 `resultOverlay` 닫기를 모든 전환 경로(보존-ready 포함)에서 호출. (출처: 2026-06-30 vibe-rework — ReviewerCodex 제안)
+
+---
+
 ## 2026-06-17 — userRungs 모양을 객체→배열로 바꾸면 서버·클라를 한 배포로 묶어라
 
 **상황:** 막대기를 인당 1개 → 최대 3개로 늘리면서, 빌드 동기화 메시지(`ladder:rungsUpdated`)의 `userRungs`를 `{ 이름: 막대기 }`에서 `{ 이름: [막대기, ...] }`(배열)로 바꿨다.
@@ -130,3 +142,15 @@
 **해결/예방:** 전체화면 오버레이를 닫는 책임이 여러 전환 경로에 있으면 **모든 경로에서 닫기를 호출**한다. 닫기 호출 지점을 grep으로 세고 전환 경로 수와 맞는지 대조. 테스트가 오버레이를 수동 정리하면 진짜 누락이 가려지니 주의.
 
 **관련 파일:** `js/ladder.js`(`ladder:roundReset`/`closeResultOverlay`/`amIReadyNow`).
+
+---
+
+## 2026-07-01 — colorIndex 폴백이 있는 토큰에 단일-슬롯 emoji 스킨을 흡수할 땐 "기본" 항목 emoji를 비워라
+
+**상황:** vibe 하강 토큰 스킨을 우리 ShopModule(단일 슬롯 `ladder_skin`)로 흡수하면서 카탈로그에 기본 항목을 넣었다. 토큰은 원래 colorIndex 기반 색 원으로 그려진다(스킨 미장착 폴백).
+
+**함정/실수:** 기본 항목에 emoji(예 ⬤)를 채우면, 그 "기본 스킨"을 장착했을 때 `getEquippedEmoji()`가 그 글리프를 반환 → `tokenMarkerFor`가 colorIndex 색 원 대신 평범한 글리프로 **덮어쓴다.** "기본을 골랐는데 기본 외형이 사라지는" 모순.
+
+**해결/예방:** 기본/클래식 항목은 **emoji 필드를 비워** `getEquippedEmoji()`가 null을 반환하게 한다 → `tokenMarkerFor`가 null이면 기존 colorIndex 폴백 렌더 유지. 폴백 외형이 있는 토큰에 emoji 스킨을 얹는 모든 게임에 적용.
+
+**관련 파일:** `config/ladder/cosmetics.json`(기본 항목 emoji 빈값), `js/ladder.js`(`tokenMarkerFor` null 폴백), `js/ladder-shop.js`(`getEquippedEmoji`).

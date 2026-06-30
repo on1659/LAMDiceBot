@@ -58,27 +58,30 @@ function createRoomGameState() {
             winners: []
         },
         ladder: {
-            phase: 'idle',          // idle(로비/빌드) | selecting | revealing | finished
-            numLanes: 0,
-            userRungs: {},          // { [userName]: [{ id, c, y, slant, points }] } — 유저가 직접 놓은 막대기 배열(인당 ≤3, 가시)
-            baseRungs: [],          // 가시 [{ id, c, y, slant }] — 빌드 오픈 시 1회 생성, rungsUpdated로 공개
+            // vibe(D:\Work\vibe\ladder) 메커니즘 — 추상 칸(2~8) + 협업 라벨 + 서버 셔플 매핑 + physical descent.
+            phase: 'idle',          // idle(로비/빌드) | revealing | finished  (selecting 폐기)
+            numColumns: 4,          // 칸(세로 줄) 수 [2..8] — setColumns로 동적 변경
+            topLabels: [],          // 위 라벨 배열(길이 numColumns) — 협업 편집
+            bottomLabels: [],       // 아래 라벨 배열(길이 numColumns) — 협업 편집
+            labelEditMode: 'all',   // 'all'(누구나) | 'host'(방장만) 라벨 편집 권한
+            descentMode: 'sequential', // 'sequential'(한명씩 living-rungs) | 'simultaneous'(동시에)
+            labelLocks: {},         // { 'side:index': { name, timer } } — 라벨 편집 소프트락(서버 전용 timer, 클라 미전송)
+            userRungs: {},          // { [userName]: [{ id, c, y, slant, points }] } — 유저가 직접 놓은 막대기 배열(인당 최대 3개, 초과 시 FIFO 교체, 가시)
+            baseRungs: [],          // 가시 [{ id, c, y, slant, points }] — 빌드 오픈 시 1회 생성, rungsUpdated로 공개
             baseRungsGenerated: false, // base 막대기 1회 생성 가드 (멱등)
             colorIndex: {},         // { [userName]: int } — drawer 색 인덱스(서버 권위, 결정적). 라운드마다 재배정
             rungSeq: 0,             // 막대기 id 단조 카운터(서버 권위) — Math.random/timestamp 금지
-            rungs: [],              // server-only [{ id, c, y, slant, points, user, owner }] — 스크램블 후 final(y정렬, reveal 시 전송)
+            rungs: [],              // server-only [{ id, c, y, slant, points, user, owner }] — 최종 보드(reveal 후 DB/gameEnd용)
+            initialRungs: [],       // server-only — 초기 보드(reveal payload, 클라 시작 상태)
+            mutationScript: [],     // server-only — living-rungs 변형 스크립트(길이 max(0,N-2))
+            landings: [],           // server-only — 토큰 i 최종 착지칸
+            results: [],            // server-only — 권위 결과(상단 칸 i → 최종 바닥 라벨)
+            laneToBottom: [],       // server-only — physical descent 초기 매핑(회귀 테스트 호환)
             erased: [],             // server-only — 스크램블이 지운 막대기 (reveal 연출용)
             added: [],              // server-only — 스크램블이 추가한 막대기 (reveal 연출용)
-            kkwangBottom: -1,
-            laneToBottom: [],       // server-only
-            losingLane: -1,         // server-only
-            userLanes: {},          // { [userName]: laneIndex }
-            participants: [],
-            revealOrder: [],        // reveal 시 서버가 셔플한 하강 순서 (시각 효과, 결과 무관)
-            loser: null,
             ladderHistory: [],
             round: 0,
             isLadderActive: false,
-            revealTimeout: null,
             endTimeout: null,
             resetTimeout: null
         },

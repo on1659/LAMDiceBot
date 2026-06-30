@@ -606,19 +606,22 @@ module.exports = (socket, io, ctx) => {
                         });
                     }
 
-                    // 사다리타기: 진짜 disconnect(브라우저 닫기 등)로 떠난 유저의 빌드 점유 정리.
-                    // leaveRoom(rooms.js)·준비취소(shared.js)와 달리 이 경로엔 ladder 정리가 없어,
-                    // 자동 레인 점유로 더 자주 차는 레인이 "유령"으로 남아 다른 사람이 그 레인을 못 고른다.
-                    // idle(빌드)일 때만 정리(진행 중 reveal/selecting은 손대지 않음 — 기존 동작 보존).
-                    // 공정성 영향 0(시작 시 participants 필터로 어차피 제거됨) — UX 회귀만 닫는다.
+                    // 사다리타기: 진짜 disconnect(브라우저 닫기 등)로 떠난 유저의 빌드 상태 + 라벨 락 정리.
+                    // leaveRoom(rooms.js)·준비취소(shared.js)와 짝(C-19) — 이 경로 누락 시 탭 닫은 유저의
+                    // 라벨 소프트락이 blur 없이 영구 고착된다(탭 닫으면 labelBlur가 안 옴).
+                    // 라벨 락 해제는 진행 단계 무관(본인 락은 어느 phase든 해제 안전 — releaseLabelLock이 idle 죽은방도 방어).
+                    if (room.gameType === 'ladder' && gameState.ladder && ctx.releaseLadderLocksByUser) {
+                        ctx.releaseLadderLocksByUser(room, gameState, userName);
+                    }
+                    // 빌드(idle) 점유(색/막대기)는 idle일 때만 정리(진행 중 reveal은 손대지 않음). 칸은 익명(userLanes 폐기).
+                    // 공정성 영향 0(결과는 시작 시점 buildLadder가 권위) — UX 회귀만 닫는다.
                     if (room.gameType === 'ladder' && gameState.ladder
                         && gameState.ladder.phase === 'idle') {
                         const ld = gameState.ladder;
                         let ladderChanged = false;
-                        if (ld.userLanes && ld.userLanes[userName] !== undefined) { delete ld.userLanes[userName]; ladderChanged = true; }
                         if (ld.colorIndex && ld.colorIndex[userName] !== undefined) { delete ld.colorIndex[userName]; ladderChanged = true; }
                         if (ld.userRungs && ld.userRungs[userName] !== undefined) { delete ld.userRungs[userName]; ladderChanged = true; }
-                        // 레인은 항상 6 고정 — 트림·브로드캐스트(가시 base 포함)는 ladder.js 단일 소스로.
+                        // 칸은 익명 — 트림·브로드캐스트(가시 base 포함)는 ladder.js 단일 소스로.
                         if (ladderChanged && ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
                     }
 

@@ -9,7 +9,8 @@ const { getPool } = require('./pool');
 
 // 장착 슬롯 화이트리스트 (카탈로그 카테고리와 일치)
 // spin_skin = 회전 칼날 스킨 슬롯 (config/spin-arena/cosmetics.json) — 화이트리스트 방식 유지(동적 슬롯명 금지)
-const EQUIP_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura', 'skin_premium', 'track_theme', 'finish_fx', 'win_sound', 'win_emote', 'caster', 'spin_skin'];
+// ladder_skin = 사다리타기 하강 토큰 스킨 슬롯 (config/ladder/cosmetics.json) — per-viewer 외형 전용
+const EQUIP_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura', 'skin_premium', 'track_theme', 'finish_fx', 'win_sound', 'win_emote', 'caster', 'spin_skin', 'ladder_skin'];
 // 레이스 시작 시 타 플레이어에게 공개되는(broadcast) 슬롯.
 // ⚠️ buildRaceCosmetics(socket/horse.js)의 말별 공개 꾸미기 루프가 이 상수를 순회한다.
 // finish_fx/track_theme는 "말 위 꾸미기"가 아니라 개인 연출이므로 여기 넣으면 말 위로 샌다 — 추가 금지.
