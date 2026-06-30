@@ -154,3 +154,15 @@
 **해결/예방:** 기본/클래식 항목은 **emoji 필드를 비워** `getEquippedEmoji()`가 null을 반환하게 한다 → `tokenMarkerFor`가 null이면 기존 colorIndex 폴백 렌더 유지. 폴백 외형이 있는 토큰에 emoji 스킨을 얹는 모든 게임에 적용.
 
 **관련 파일:** `config/ladder/cosmetics.json`(기본 항목 emoji 빈값), `js/ladder.js`(`tokenMarkerFor` null 폴백), `js/ladder-shop.js`(`getEquippedEmoji`).
+
+---
+
+## 2026-07-01 — 멀티 인플라이트 broadcast 이벤트를 소켓 테스트에서 "첫 수신"으로 단정하면 stale로 false-fail
+
+**상황:** ladder 신규 메커니즘 소켓 프로토콜 테스트(`tests/test-ladder.js`)를 작성하며 setColumns/setLabel/addRung 후 `ladder:rungsUpdated`를 검증했다.
+
+**함정/실수:** `ladder:rungsUpdated`는 빌드 중 여러 번 push되는 broadcast다. 액션 직후 "다음 1건"을 받아 단정하면, 직전 액션의 stale rungsUpdated(또는 입장 시 서버가 자동 push하는 동기화분)를 잡아 false-fail한다(서버 버그 아님 — 테스트 동기화 결함).
+
+**해결/예방:** 기대 상태를 **predicate로 매칭**하는 헬퍼(`waitForMatch(evt, p => p.numColumns===6 && p.remaining===10)`)로 조건을 만족하는 payload가 올 때까지 흘려보낸다. 또 join 직후 서버가 push하는 동기화 이벤트는 **emit 전에 리스너를 먼저 걸어** 누락을 막는다.
+
+**관련 파일:** `tests/test-ladder.js`(`waitForMatch`).
