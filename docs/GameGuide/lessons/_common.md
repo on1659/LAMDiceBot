@@ -252,6 +252,24 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-24. 공유 방 생성/입장은 자동 ready — 소켓 테스트에서 `toggleReady`가 오히려 준비를 취소한다
+
+- LAMDiceBot 공유 셸은 `createRoom`/`joinRoom` 시 유저를 **자동 ready** 상태로 넣는다. 소켓 프로토콜 테스트에서 시작 게이트(ready≥2)를 맞추려고 `toggleReady`를 호출하면, 이미 ready인 유저가 **준비 취소**되어 `readyCount<2`가 되고 `start`가 **조용히 거부**된다(에러 없이 reveal/시작 타임아웃으로만 드러나 추적 어려움).
+- **해결:** 신규 게임 소켓 테스트는 "시작 게이트용 ready는 create/join으로 이미 충족"을 전제로 작성한다. 정말 토글이 필요하면 현재 ready 상태를 먼저 조회 후 분기.
+- **검증:** `start` emit 직전 서버 `readyUsers`/`readyCount`가 기대값인지 단언.
+- (출처: 2026-07-02 사다리타기 pick-elimination QA)
+
+---
+
+## C-25. `getCurrentRoom`(재진입 복구)은 `joinRoom`이 아니다 — C-20 마스킹 테스트의 정확한 트리거
+
+- C-20 재진입 마스킹(server-only 필드 숨김)을 테스트할 때, **새 탭 `joinRoom`으로는 마스킹된 룸상태 payload가 오지 않는다.** 마스킹 payload는 **이미 방에 있는 유저가 `getCurrentRoom {roomId, userName, deviceId}`를 emit**할 때 돌아온다(새로고침 재진입 복구 경로). joinRoom은 신규 입장이라 다른 응답이다.
+- **해결:** 마스킹 검증 테스트는 `getCurrentRoom`을 트리거로 쓰고, 그 응답 payload에서 server-only 필드(정답/시드/landings/routing 등) 부재를 단언한다.
+- **검증:** revealing/진행 중 `getCurrentRoom` 응답에 server-only 필드 0개.
+- (출처: 2026-07-02 사다리타기 pick-elimination QA)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

@@ -58,27 +58,30 @@ function createRoomGameState() {
             winners: []
         },
         ladder: {
-            // vibe(D:\Work\vibe\ladder) 메커니즘 — 추상 칸(2~8) + 협업 라벨 + 서버 셔플 매핑 + physical descent.
-            phase: 'idle',          // idle(로비/빌드) | revealing | finished  (selecting 폐기)
-            numColumns: 4,          // 칸(세로 줄) 수 [2..8] — setColumns로 동적 변경
-            topLabels: [],          // 위 라벨 배열(길이 numColumns) — 협업 편집
-            bottomLabels: [],       // 아래 라벨 배열(길이 numColumns) — 협업 편집
-            labelEditMode: 'all',   // 'all'(누구나) | 'host'(방장만) 라벨 편집 권한
-            descentMode: 'sequential', // 'sequential'(한명씩 living-rungs) | 'simultaneous'(동시에)
-            labelLocks: {},         // { 'side:index': { name, timer } } — 라벨 편집 소프트락(서버 전용 timer, 클라 미전송)
-            userRungs: {},          // { [userName]: [{ id, c, y, slant, points }] } — 유저가 직접 놓은 막대기 배열(인당 최대 3개, 초과 시 FIFO 교체, 가시)
+            // pick-elimination 룰 — 6 고정 칸 중 1택(경마식, 여러 명 같은 top 공유) + 고정 "당첨" 바닥칸(winSlot) + 숨김 막대기 + 토너먼트.
+            phase: 'idle',          // idle(로비/빌드/sub-round pick) | revealing | finished
+            winSlot: null,          // 당첨 바닥칸 인덱스(0..5) — 서버 RNG, 시작부터 위치 공개. routing은 server-only.
+            userTops: {},           // { [userName]: 0..5 } — 경마식 top 선택(여러 명 같은 top 공유 가능). 미선택 top은 inert.
+            userRungs: {},          // { [userName]: [{ id, c, y, slant, points }] } — 유저 막대기(인당 최대 3개, FIFO 교체)
+            publicRungByDrawer: {}, // server-only { [userName]: rungId } — 남에게 보이는 public 막대기 1개(server RNG 선택)
             baseRungs: [],          // 가시 [{ id, c, y, slant, points }] — 빌드 오픈 시 1회 생성, rungsUpdated로 공개
             baseRungsGenerated: false, // base 막대기 1회 생성 가드 (멱등)
             colorIndex: {},         // { [userName]: int } — drawer 색 인덱스(서버 권위, 결정적). 라운드마다 재배정
             rungSeq: 0,             // 막대기 id 단조 카운터(서버 권위) — Math.random/timestamp 금지
-            rungs: [],              // server-only [{ id, c, y, slant, points, user, owner }] — 최종 보드(reveal 후 DB/gameEnd용)
+            rungs: [],              // server-only [{ id, c, y, slant, points, user, owner }] — 최종 보드(reveal 후 DB용)
             initialRungs: [],       // server-only — 초기 보드(reveal payload, 클라 시작 상태)
             mutationScript: [],     // server-only — living-rungs 변형 스크립트(길이 max(0,N-2))
             landings: [],           // server-only — 토큰 i 최종 착지칸
-            results: [],            // server-only — 권위 결과(상단 칸 i → 최종 바닥 라벨)
             laneToBottom: [],       // server-only — physical descent 초기 매핑(회귀 테스트 호환)
-            erased: [],             // server-only — 스크램블이 지운 막대기 (reveal 연출용)
-            added: [],              // server-only — 스크램블이 추가한 막대기 (reveal 연출용)
+            erased: [],             // server-only — 사라짐(스크램블 erase + 겹침 dedup) 연출용 막대기
+            added: [],              // server-only — 서버 그리기(스크램블 add + balance add) 연출용 막대기
+            roundParticipants: [],  // server-only — 이번 라운드 참가자(픽한 사람)
+            roundLoserNames: [],    // server-only — 이번 라운드 winSlot에 떨어진 패자(이름)
+            loserTop: [],           // server-only — 발표 loser들의 top(reveal에 실어 패자 토큰 강조)
+            // ── 토너먼트 상태 ──
+            tournamentActive: false, // sub-round 진행 중 여부(loserPool만 재준비/재pick)
+            loserPool: [],          // 다음 sub-round 진행 대상(이전 라운드 패자들)
+            tournamentParticipants: [], // server-only — 토너먼트 첫 라운드 참가자(DB 기록용)
             ladderHistory: [],
             round: 0,
             isLadderActive: false,

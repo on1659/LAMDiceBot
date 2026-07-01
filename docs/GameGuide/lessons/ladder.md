@@ -165,4 +165,30 @@
 
 **해결/예방:** 기대 상태를 **predicate로 매칭**하는 헬퍼(`waitForMatch(evt, p => p.numColumns===6 && p.remaining===10)`)로 조건을 만족하는 payload가 올 때까지 흘려보낸다. 또 join 직후 서버가 push하는 동기화 이벤트는 **emit 전에 리스너를 먼저 걸어** 누락을 막는다.
 
-**관련 파일:** `tests/test-ladder.js`(`waitForMatch`).
+**관련 파일:** `tests/test-ladder.js`(`waitForMatch`). (주: 이 v2 vibe 프로토콜 테스트는 2026-07-02 pick-elimination 교체로 제거됨 — 신규 테스트는 `AutoTest/qa-ladder-pick-elimination-test.js`. predicate-match 원칙은 동일하게 유효.)
+
+---
+
+## 2026-07-02 — 하강 중 보드가 변하는 게임은 발표 패자/순위를 "최종 landings 단일 소스"에서만 도출하라
+
+**상황:** pick-elimination 리워크는 리빙럼(하강 중 add/remove)으로 보드가 변형된다. 초기 구현은 발표 꼴등을 **변형 전(자연) 보드**로, 애니메이션/`landings`는 **변형 후 보드**로 각각 산출했다.
+
+**함정/실수:** 변형 전 loser-top이 변형 후엔 winSlot에 안 떨어질 수 있다. 그때 자연-이름 폴백이 발동해 **당첨칸에 안 떨어진 사람이 꼴등으로 발표**된다(독립 시뮬 ~28%). 클라는 `landings`대로 애니를 재생하므로 "화면이 결과를 설명 못 하는" 신뢰 결함 — 공정성(서버 권위)은 안 깨지지만 튜토리얼 약속과 정면 모순.
+
+**증상:** 결과 오버레이 꼴등 ≠ 실제 당첨칸 착지 토큰. 폴백 경로에서만 재현돼 추적 어려움.
+
+**해결/예방:** 발표 결과/순위는 **애니가 참조하는 최종 상태(변형 후 `landings`) 하나에서만** 도출한다. 보정(zero-loser guarantee)·안전망·shrink도 그 최종 상태 기준. 변형 후보 채택 조건에 winSlot-routing 불변식(picked top ≥1개가 변형 후에도 winSlot 유지)을 넣어 폴백 자체를 제거. 검증: "발표 loser의 top이 landings에서 winSlot 착지"를 수천 회 시뮬해 불일치 0.
+
+**관련 파일:** `socket/ladder.js`(loser 산출을 mutation 후 `landings`로 이동, `routeGuard`/`simulateMutation`), `js/ladder.js`(패자 토큰 강조도 같은 landings 소스).
+
+---
+
+## 2026-07-02 — 단일-패자 사다리에서 0-꼴등 안전망 발동률은 "픽 분포"에 강하게 의존 + N 의미(칸수↔토큰수) 분리
+
+**상황:** 6칸 고정 + picked top만 꼴등 후보. bijection이라 정확히 1 top이 winSlot에 routing. 그 top이 unpicked면 꼴등 0명 → 서버가 최소 막대기로 picked top 하나를 winSlot에 연결(group-random 보정), 그래도 안 되면 안전망.
+
+**함정/실수:** "자연 보드가 결과를 결정한다"는 가치는 **distinct picked tops가 칸수(6)보다 작을수록** 약해진다. distinct=6이면 0-꼴등이 **구조적으로 불가능**(보정 미발동)하지만, distinct=2에선 보정/안전망이 ~14%까지 발동한다(토너먼트 후반 loserPool이 2~3으로 줄면 이 구간). 성공률을 단일 수치("~80%")로 말하면 픽 분포를 고정 안 한 평균이라 **과장**이다. 또 시각/타이밍의 `N`은 **칸수(6, 항상 6토큰 하강)** 이고 결과의 유효 단위는 **토큰수(distinct picked)** — 혼동해 `ladderRevealDelay(N)`/descent/bijection을 토큰수로 바꾸면 타이밍 lockstep이 깨진다.
+
+**해결/예방:** 칸수 고정(타이밍 안정) + 결과는 picked만 필터로 **분리**. 안전망은 개인이 아니라 **top(그룹) 단위 group-random**(distinct=1 degenerate에서만 개인 부분집합 — 종료성 필수). 성공률 주장은 **distinct 분포를 고정하고** 측정. 미픽 top 토큰은 시각적으로 inert 렌더.
+
+**관련 파일:** `socket/ladder.js`(`forceRouteToWin`, `shrinkByTop`, `LADDER_COLUMNS=6`, `ladderRevealDelay`).

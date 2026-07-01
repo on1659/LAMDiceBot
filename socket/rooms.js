@@ -172,9 +172,13 @@ module.exports = (socket, io, ctx) => {
                 // 보안: bridgeCross.safeRows / scenarios 등 server-only 정보 평문 누출 방지.
                 // 재진입 시 클라가 bridgeCross 정보 없어도 무방 (v2 정책).
                 bridgeCross: undefined,
-                // 보안: ladder.rungs / initialRungs / mutationScript / landings / results / laneToBottom 등
-                // 사다리 결과 server-only 마스킹(통째 숨김). 재진입 빌드 복원은 emitLadderRungsUpdated가 담당.
-                ladder: undefined,
+                // 보안: ladder 결과 server-only 마스킹(C-20, pirate 패턴 — 부분 화이트리스트).
+                // reveal 전 노출 = 공정성 위반. 재진입엔 픽 화면 복원용 phase/winSlot/userTops/colorIndex/round/history만.
+                // 타인 hidden rung·landings·mutationScript·initialRungs·publicRungByDrawer·balance routing은 절대 노출 금지.
+                // 본인 private 막대기는 emitLadderPrivateRungs(개인 emit)로 별도 복원.
+                ladder: gameState.ladder
+                    ? { phase: gameState.ladder.phase, winSlot: gameState.ladder.winSlot, userTops: gameState.ladder.userTops, colorIndex: gameState.ladder.colorIndex, round: gameState.ladder.round, tournamentActive: gameState.ladder.tournamentActive, loserPool: gameState.ladder.loserPool, ladderHistory: gameState.ladder.ladderHistory }
+                    : undefined,
                 // 보안: spinArena.timeline / result / seed 등 결과 server-only 마스킹.
                 // reveal 전 결과 노출 = 공정성 위반. 재진입엔 스킨 피커 복원용 phase/skins/round/history만 노출.
                 spinArena: gameState.spinArena
@@ -597,8 +601,8 @@ module.exports = (socket, io, ctx) => {
         io.to(roomId).emit('updateOrders', gameState.userOrders);
         io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
-        // 사다리타기 방 생성: 칸은 익명(레인 점유 폐기) — 입장 즉시 base + 라벨만 broadcast해 사다리가 바로 보이게.
-        // emitLadderRungsUpdated가 phase=idle이면 base(ensureBaseRungs) 생성 + 현재 막대기/라벨/예산을 전파한다.
+        // 사다리타기 방 생성: 입장 즉시 base + winSlot + 현재 픽/공개 막대기를 broadcast해 픽 화면이 바로 보이게.
+        // emitLadderRungsUpdated가 phase=idle이면 base/winSlot(ensureBaseRungs) 생성 + 픽/막대기/public set을 전파한다.
         if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
             if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
         }
@@ -1134,8 +1138,8 @@ module.exports = (socket, io, ctx) => {
         io.to(roomId).emit('updateOrders', gameState.userOrders);
         io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
-        // 사다리타기 빌드(대기) 재진입: 막대기/칸 수/라벨/base 복원 (server-only 정보 미포함).
-        // 칸은 익명(레인 점유 폐기) — 자동 점유 없이 현재 빌드 상태만 동기화 브로드캐스트.
+        // 사다리타기 빌드(대기) 재진입: 픽/public 막대기/winSlot/base + 본인 private 막대기(개인 emit) 복원 (server-only 정보 미포함).
+        // emitLadderRungsUpdated가 public set 브로드캐스트 + 각자 본인 막대기 개인 emit까지 수행.
         if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
             if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
         }
@@ -1192,21 +1196,19 @@ module.exports = (socket, io, ctx) => {
                 delete gameState.bridgeCross.userColorBets[socket.userName];
             }
 
-            // 🔧 퇴장한 사용자의 사다리타기 drawer 색 인덱스 + 라벨 편집 소프트락 해제 (레인 점유 폐기 — userLanes 없음)
-            if (gameState.ladder && gameState.ladder.colorIndex &&
-                gameState.ladder.colorIndex[socket.userName] !== undefined) {
-                delete gameState.ladder.colorIndex[socket.userName];
-            }
-            // 라벨 락 3경로 정리 중 leaveRoom 경로(C-19) — disconnect(chat.js)와 짝. 진행 단계 무관하게 본인 락 해제.
-            if (gameState.ladder && ctx.releaseLadderLocksByUser) {
-                ctx.releaseLadderLocksByUser(room, gameState, socket.userName);
-            }
-            // 🔧 퇴장한 사용자의 사다리타기 막대기 배열 삭제 (빌드 단계) + 인원 변동 트림 후 브로드캐스트
-            if (gameState.ladder && gameState.ladder.phase === 'idle' && gameState.ladder.userRungs) {
+            // 🔧 퇴장한 사용자의 사다리타기 빌드 상태 정리 (3경로 중 leaveRoom — C-19, disconnect(chat.js)/ready-cancel(shared.js)와 짝)
+            // 빌드(idle)에서만 정리(진행 중 reveal은 손대지 않음). top 선택/막대기/색/public/loserPool 멤버십.
+            if (gameState.ladder && gameState.ladder.phase === 'idle') {
                 const ld = gameState.ladder;
-                if (ld.userRungs[socket.userName]) delete ld.userRungs[socket.userName];
-                // 칸은 익명 — 트림·브로드캐스트(가시 base/colorIndex 포함)는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
-                if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+                let ladderChanged = false;
+                if (ld.colorIndex && ld.colorIndex[socket.userName] !== undefined) { delete ld.colorIndex[socket.userName]; ladderChanged = true; }
+                if (ld.userTops && ld.userTops[socket.userName] !== undefined) { delete ld.userTops[socket.userName]; ladderChanged = true; }
+                if (ld.userRungs && ld.userRungs[socket.userName] !== undefined) { delete ld.userRungs[socket.userName]; ladderChanged = true; }
+                if (ld.publicRungByDrawer && ld.publicRungByDrawer[socket.userName] !== undefined) { delete ld.publicRungByDrawer[socket.userName]; }
+                if (Array.isArray(ld.loserPool) && ld.loserPool.indexOf(socket.userName) !== -1) {
+                    ld.loserPool = ld.loserPool.filter(n => n !== socket.userName); ladderChanged = true;
+                }
+                if (ladderChanged && ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
             }
             // 🔧 퇴장한 사용자의 회전칼날 스킨 선택 삭제 + idle이면 동기화 재emit
             if (gameState.spinArena && gameState.spinArena.skins &&

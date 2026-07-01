@@ -13,16 +13,16 @@
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1608259764663412" crossorigin="anonymous"></script>
     <title>LAM 사다리타기 🪜</title>
-    <meta name="description" content="친구와 함께하는 실시간 사다리타기. 위·아래 칸을 채우고 사다리를 타 결과를 매칭하세요.">
+    <meta name="description" content="친구와 함께하는 실시간 사다리타기. 6칸 중 하나를 고르고 숨김 막대기를 그려, 당첨 칸에 걸린 사람을 가립니다. 동률이면 토너먼트로 끝까지 한 명을 가려요.">
     <meta property="og:title" content="LAM 사다리타기 🪜">
-    <meta property="og:description" content="친구와 함께하는 실시간 사다리타기. 위·아래 칸을 채우고 사다리를 타 결과를 매칭하세요.">
+    <meta property="og:description" content="친구와 함께하는 실시간 사다리타기. 6칸 중 하나를 고르고 숨김 막대기를 그려, 당첨 칸에 걸린 꼴등을 가립니다. 동률이면 토너먼트로 끝까지 한 명을 가려요.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lamdice.com/ladder">
     <meta property="og:site_name" content="LAMDice">
     <meta property="og:locale" content="ko_KR">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="LAM 사다리타기 🪜">
-    <meta name="twitter:description" content="친구와 함께하는 실시간 사다리타기. 위·아래 칸을 채우고 사다리를 타 결과를 매칭하세요.">
+    <meta name="twitter:description" content="6칸 중 하나를 고르고 숨김 막대기를 그려, 당첨 칸에 걸린 꼴등을 가리는 실시간 사다리타기. 동률이면 토너먼트로 한 명을 끝까지 가려요.">
     <link rel="canonical" href="https://lamdice.com/ladder">
 
     <!-- FOUC Prevention: Always use light theme -->
@@ -51,7 +51,7 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "LAMDice 사다리타기",
-      "description": "친구와 함께하는 실시간 사다리타기. 위·아래 칸을 채우고 사다리를 타 결과를 매칭하세요.",
+      "description": "친구와 함께하는 실시간 사다리타기. 6칸 중 하나를 고르고 숨김 막대기를 그려, 당첨 칸에 걸린 꼴등을 가립니다. 동률이면 토너먼트로 끝까지 한 명을 가려요.",
       "url": "https://lamdice.com/ladder",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Web Browser",
@@ -64,7 +64,7 @@
         <div style="padding:40px; text-align:center; font-family:sans-serif;">
             <h1>LAMDice 사다리타기</h1>
             <p>이 게임은 JavaScript가 필요합니다.</p>
-            <p>친구와 함께하는 실시간 사다리타기 게임. 위·아래 칸을 자유롭게 채우고 사다리를 타 누가 어떤 결과에 매칭되는지 확인하세요. 회원가입 없이 무료로 플레이할 수 있습니다.</p>
+            <p>친구와 함께하는 실시간 사다리타기 게임. 6칸 중 하나를 고르고 숨김 막대기를 그린 뒤 사다리를 타, 당첨 칸에 걸린 꼴등을 가립니다. 같은 칸을 고른 사람이 여럿 걸리면 토너먼트로 끝까지 한 명을 가려요. 회원가입 없이 무료로 플레이할 수 있습니다.</p>
             <p><a href="/">홈으로 돌아가기</a> · <a href="/pages/game-guides.html">전체 게임 가이드</a></p>
         </div>
     </noscript>
@@ -137,69 +137,40 @@
                 </div>
             </div>
 
-            <!-- 사다리 게임 영역 (칸 수 스테퍼 + 라벨 편집 + 드래그 막대기 + 셔플/하강 연출) -->
+            <!-- 사다리 게임 영역 (6택1 lane-pick + 당첨 슬롯 + 드래그 막대기 + 시작 시퀀스 연출) -->
             <div id="gameArea" class="ladder-game-area">
-                <!-- 칸 수 스테퍼(가운데) — 3슬롯 그리드(1fr auto 1fr). 우측 슬롯은 Phase C 상점 자리(이번엔 빈 스페이서). -->
+                <!-- 상단 바(가운데 안내 + 우측 상점) — 3슬롯 그리드(1fr auto 1fr). -->
                 <div class="ladder-setup-bar">
                     <span class="ladder-bar-spacer" aria-hidden="true"></span>
                     <div class="ladder-setup-main">
-                        <span class="ladder-setup-label">사다리 줄 수</span>
-                        <div class="ladder-stepper">
-                            <button type="button" class="ladder-step-btn" id="colDecBtn" onclick="ladderStepColumns(-1)" aria-label="줄 줄이기">−</button>
-                            <span class="ladder-col-count" id="colCount">4</span>
-                            <button type="button" class="ladder-step-btn" id="colIncBtn" onclick="ladderStepColumns(1)" aria-label="줄 늘리기">+</button>
-                        </div>
+                        <span class="ladder-setup-label">🪜 내려갈 칸을 고르세요</span>
                     </div>
-                    <!-- Phase C 상점 버튼 — 하강 토큰 스킨(per-viewer 외형). spin-arena .spin-shop-btn 패턴 -->
+                    <!-- 상점 버튼 — 하강 토큰 스킨(per-viewer 외형). spin-arena .spin-shop-btn 패턴 -->
                     <span class="ladder-shop-slot">
                         <button type="button" class="ladder-shop-btn" onclick="if(window.LadderShop)LadderShop.openShop()" title="토큰 스킨 구매/장착">🛍️ 토큰 스킨</button>
                     </span>
                 </div>
                 <!-- 꾸미기 상점 모달 마운트 (js/ladder-shop.js가 채움) -->
                 <div id="ladderShopMount"></div>
-                <!-- 옵션 바: [칸 채우기 권한][내려가기] 2그룹 가운데 + 남은 그리기 우측 — 3슬롯 그리드 -->
-                <div class="ladder-edit-mode-bar" id="ladderEditModeBar">
-                    <span class="ladder-bar-spacer" aria-hidden="true"></span>
-                    <div class="ladder-edit-mode-main">
-                        <span class="ladder-mode-group">
-                            <span class="ladder-edit-mode-label">✍ 칸 채우기 권한</span>
-                            <span class="ladder-mode-toggle-wrap" id="ladderEditModeToggleWrap" style="display:none;">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="ladderEditModeToggle" onchange="ladderSetEditMode(this.checked ? 'all' : 'host')" aria-label="모두 쓰기 켜기/끄기">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </span>
-                            <span id="ladderEditModeText" style="display:none;">모두 가능</span>
-                        </span>
-                        <span class="ladder-mode-group" id="ladderDescentModeBar">
-                            <span class="ladder-edit-mode-label">🪜 내려가기</span>
-                            <span class="ladder-mode-toggle-wrap" id="ladderDescentModeToggleWrap" style="display:none;">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="ladderDescentModeToggle" onchange="ladderSetDescentMode(this.checked ? 'simultaneous' : 'sequential')" aria-label="동시에 내려가기 켜기/끄기">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </span>
-                            <span id="ladderDescentModeText" style="display:none;">한명씩</span>
-                        </span>
-                    </div>
-                    <!-- 공유 그리기 예산(서버 권위, idle에서만 표시) -->
-                    <div class="ladder-draw-budget" id="ladderDrawBudget" style="display:none;">남은 그리기 0개</div>
-                </div>
-                <!-- 위쪽 라벨 행(입력 1~N) -->
-                <div class="ladder-labels-row" id="topLabelsRow"></div>
-                <!-- 빌드 힌트 (드래그로 막대기 추가) -->
-                <div class="ladder-build-hint" id="ladderBuildHint">한 기둥에서 옆 기둥까지 드래그해 막대기를 만드세요(1인 최대 3개). 막대기를 톡 누르면 내 것을 제거할 수 있어요.</div>
-                <!-- 사다리 캔버스 (idle: 드래그 빌드 · revealing: 셔플/하강 연출) -->
+
+                <!-- 토너먼트 재대결 배너 (서버 권위, sub-round에서만 표시) -->
+                <div class="ladder-tournament-banner" id="ladderTournamentBanner" style="display:none;"></div>
+
+                <!-- 6택1 lane-pick (경마식) — js/ladder.js가 6 버튼 렌더 -->
+                <div class="ladder-lane-pick" id="laneButtonsRow"></div>
+                <div class="ladder-pick-hint" id="ladderPickHint">내려갈 칸을 하나 골라주세요. 여러 명이 같은 칸을 골라도 됩니다(운명 공유).</div>
+
+                <!-- 빌드 힌트 (드래그로 숨김 막대기 추가) -->
+                <div class="ladder-build-hint" id="ladderBuildHint">한 기둥에서 옆 기둥까지 드래그해 숨김 막대기를 만드세요(1인 최대 3개). 내 막대기는 나만 전부 보이고, 남에겐 그중 하나만 보여요. 막대기를 톡 누르면 내 것을 제거할 수 있어요.</div>
+
+                <!-- 사다리 캔버스 (idle: 픽/드래그 빌드 · revealing: 인지창→사라짐→그리기→하강 연출) -->
                 <div class="ladder-canvas-wrap">
-                    <div class="ladder-result-caption" id="ladderResultCaption"></div>
                     <div class="ladder-canvas-inner" id="ladderCanvasInner">
                         <canvas id="ladderCanvas" width="720" height="560" aria-label="사다리타기 게임 캔버스"></canvas>
-                        <!-- 셔플 카운트다운/"시작!" 오버레이 (캔버스 중앙, 표시크기 기준 절대배치) -->
+                        <!-- 카운트다운/"시작!" 오버레이 (캔버스 중앙, 표시크기 기준 절대배치) -->
                         <div class="ladder-scramble-overlay" id="ladderScrambleOverlay" aria-hidden="true"></div>
                     </div>
                 </div>
-                <!-- 아래쪽 라벨 행 -->
-                <div class="ladder-labels-row" id="bottomLabelsRow"></div>
             </div>
 
             <!-- 호스트 컨트롤 -->
@@ -463,7 +434,7 @@
         {
             target: '#usersSection',
             title: '1단계: 참여자 목록',
-            content: '방에 참여한 플레이어들이 표시됩니다. 사다리 줄 수는 인원과 상관없이 2~8칸으로 자유롭게 정할 수 있어요.',
+            content: '방에 참여한 플레이어들이 표시됩니다. 사다리는 항상 6칸으로 고정이에요.',
             position: 'bottom'
         },
         {
@@ -473,30 +444,30 @@
             position: 'bottom'
         },
         {
-            target: '.ladder-setup-bar',
-            title: '3단계: 줄 수 정하고 위·아래 칸 채우기',
-            content: '＋ / − 버튼으로 사다리 줄 수(2~8)를 정해요. 위 칸에는 사람·항목을, 아래 칸에는 결과(예: 당첨, 청소, 커피 등)를 자유롭게 적습니다. "칸 채우기 권한"을 끄면 방장만 적을 수 있고, 켜면 모두 함께 적을 수 있어요(같은 칸은 먼저 누른 사람만 편집).',
+            target: '#laneButtonsRow',
+            title: '3단계: 내려갈 칸 고르기 (6택1)',
+            content: '6개 칸 중 내려갈 칸을 하나 골라요. 여러 명이 같은 칸을 골라도 됩니다(운명 공유). 아무도 고르지 않은 칸은 아무 일도 일어나지 않아요.',
             position: 'bottom',
             fallbackTarget: '#readySection'
         },
         {
             target: '#ladderBuildHint',
-            title: '4단계: 막대기 그리기 (선택)',
-            content: '캔버스에서 한 기둥에서 옆 기둥까지 드래그하면 가로 막대기가 생겨요(한 사람당 최대 3개, 전체 공유 한도 안에서). 사람마다 색이 달라 누가 그렸는지 한눈에 보이고, 회색은 서버가 처음부터 깔아둔 기본 막대기예요. 내 막대기를 톡 누르면 제거됩니다.',
+            title: '4단계: 숨김 막대기 그리기 (선택)',
+            content: '캔버스에서 한 기둥에서 옆 기둥까지 드래그하면 가로 막대기가 생겨요(한 사람당 최대 3개). 내 막대기는 나에게만 전부 보이고, 다른 사람에게는 그중 하나만 보입니다. 회색은 서버가 깔아둔 기본 막대기예요. 내 막대기를 톡 누르면 제거됩니다.',
             position: 'bottom',
             fallbackTarget: '#readySection'
         },
         {
-            target: '#ladderDescentModeBar',
-            title: '5단계: 내려가는 방식',
-            content: '"내려가기"를 끄면 한 명씩 차례로 내려가며 중간중간 사다리 줄이 생기거나 사라지고, 켜면 모두 동시에 내려갑니다. 방장이 정할 수 있어요.',
-            position: 'bottom',
+            target: '.ladder-canvas-wrap',
+            title: '5단계: 당첨 칸 확인',
+            content: '바닥에 빨간 "당첨" 칸이 처음부터 보입니다. 사다리를 타고 내려가 당첨 칸에 도착한 칸을 고른 사람이 이 라운드의 꼴등이 돼요. 당첨에 걸린 사람이 여럿이면 그 인원만 다시 칸을 골라 토너먼트로 끝까지 한 명을 가립니다.',
+            position: 'top',
             fallbackTarget: '#readySection'
         },
         {
             target: '#hostControls',
             title: '6단계: 사다리 시작 (방장)',
-            content: '방장이 "🪜 사다리 시작"을 누르면 사다리를 한 번 섞은 뒤 공개됩니다. 「3·2·1 시작!」과 함께 위 칸의 토큰들이 사다리를 따라 내려가, 각자 어느 아래 칸에 도착하는지(어떤 결과에 매칭되는지) 정해집니다. 결과는 서버가 공정하게 섞어 정해요.',
+            content: '방장이 "🪜 사다리 시작"을 누르면, 모두가 그린 사다리를 잠깐 보여준 뒤 막대기가 사라지고 다시 그려집니다. 「3·2·1 시작!」과 함께 고른 칸의 토큰들이 내려가며 사다리가 중간중간 바뀌고, 당첨 칸에 걸린 꼴등이 정해져요. 당첨 위치와 결과는 서버가 공정하게 정합니다.',
             position: 'bottom',
             fallbackTarget: '#readySection'
         }
@@ -553,7 +524,7 @@
     <!-- SEO Content Section (hidden, crawlers only) -->
     <section style="max-width:800px; margin:40px auto; padding:20px 24px; background:rgba(255,255,255,0.95); border-radius:12px; color:var(--text-primary); line-height:1.7; position:absolute; left:-9999px;">
         <h2 style="font-size:1.3em; margin-bottom:12px; color:var(--heading-brand);">LAMDice 사다리타기 게임 안내</h2>
-        <p>LAMDice 사다리타기는 친구들과 함께 즐기는 무료 온라인 게임입니다. 사다리 줄 수(2~8칸)를 정하고 위·아래 칸을 함께 채운 뒤, 사다리 가로줄을 따라 누가 어떤 결과 칸에 도착하는지 관전하세요. 게임 결과는 서버에서 결정되므로 공정하며, 모든 기록이 투명하게 저장됩니다.</p>
+        <p>LAMDice 사다리타기는 친구들과 함께 즐기는 무료 온라인 게임입니다. 6칸 중 내려갈 칸을 하나 고르고(여러 명이 같은 칸을 골라 운명을 함께할 수 있어요) 숨김 막대기를 그린 뒤, 사다리를 타고 내려가 처음부터 보이는 "당첨" 칸에 걸린 꼴등을 가립니다. 당첨에 걸린 사람이 여럿이면 그 인원만 다시 칸을 골라 토너먼트로 끝까지 한 명의 꼴등을 가려요. 막대기는 본인에게만 전부 보이고 남에게는 하나만 보이며, 당첨 위치·막대기 정리·사다리 변형은 모두 서버가 공정하게 결정합니다. 모든 기록이 투명하게 저장됩니다.</p>
         <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
             <a href="/pages/fairness-rng.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">🔒 공정성 원리</a>
             <a href="/pages/game-guides.html" style="color:var(--link-brand); text-decoration:none; border-bottom:1px solid var(--link-brand-border);">📚 전체 게임 가이드</a>

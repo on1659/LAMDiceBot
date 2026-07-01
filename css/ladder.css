@@ -37,16 +37,16 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   게임 영역 (칸 수 스테퍼 + 라벨 편집 + 미리보기)
+   게임 영역 (6택1 lane-pick + 당첨 슬롯 + 드래그 막대기 + 시작 시퀀스)
    ══════════════════════════════════════════════════════════════════ */
 
-/* 줄 수 행 — 3슬롯 그리드: [빈 1fr][가운데 main auto][우측 1fr]. main이 진짜 중앙. */
+/* 상단 바 — 3슬롯 그리드: [빈 1fr][가운데 안내 main][우측 상점 1fr]. main이 진짜 중앙. */
 .ladder-setup-bar {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 8px;
-    margin: 4px 0 16px;
+    margin: 4px 0 12px;
 }
 .ladder-setup-main {
     display: flex;
@@ -58,7 +58,7 @@
 /* 좌·우 빈 슬롯 — 가운데 main을 중앙에 두기 위한 1fr 스페이서 */
 .ladder-bar-spacer { display: block; min-width: 0; }
 
-/* 우측 슬롯 — Phase C 상점 버튼 자리. 좌측 스페이서(1fr)와 대칭이라 main이 중앙 유지. */
+/* 우측 슬롯 — 상점 버튼 자리. 좌측 스페이서(1fr)와 대칭이라 main이 중앙 유지. */
 .ladder-shop-slot {
     display: flex;
     justify-content: flex-end;
@@ -105,221 +105,114 @@
     font-family: 'Jua', 'Segoe UI', sans-serif;
 }
 
-.ladder-stepper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+/* ── 토너먼트 재대결 배너 (sub-round) ── */
+.ladder-tournament-banner {
+    max-width: var(--ladder-view-max);
+    margin: 0 auto 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.10);
+    border: 1.5px solid rgba(239, 68, 68, 0.5);
+    color: var(--red-600, #dc2626);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.5;
+    word-break: keep-all;
 }
 
-/* 스테퍼 버튼 — 터치 타겟 ≥40px */
-.ladder-step-btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    padding: 0;
+/* ── 6택1 lane-pick (경마식) ── */
+.ladder-lane-pick {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    max-width: var(--ladder-view-max);
+    margin: 0 auto 8px;
+    padding: 0 4px;
+    box-sizing: border-box;
+}
+.ladder-lane-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 48px;          /* 터치 타겟 ≥44px */
+    padding: 6px 2px;
     border: 2px solid var(--ladder-500);
     border-radius: 10px;
     background: var(--bg-white);
     color: var(--ladder-accent);
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1;
     cursor: pointer;
-    transition: transform 0.1s, background 0.15s;
+    transition: transform 0.1s, background 0.15s, border-color 0.15s;
 }
-.ladder-step-btn:hover:not(:disabled) {
-    background: rgba(var(--ladder-500-rgb), 0.12);
+.ladder-lane-btn:hover:not(:disabled) {
+    background: rgba(var(--ladder-500-rgb), 0.10);
     transform: translateY(-2px);
 }
-.ladder-step-btn:active:not(:disabled) { transform: translateY(0); }
-.ladder-step-btn:focus-visible {
+.ladder-lane-btn:active:not(:disabled) { transform: translateY(0); }
+.ladder-lane-btn:focus-visible {
     outline: 3px solid var(--ladder-600);
     outline-offset: 2px;
 }
-.ladder-step-btn:disabled {
-    border-color: var(--gray-300, #d1d5db);
-    color: var(--text-muted, #9ca3af);
+.ladder-lane-btn:disabled {
     cursor: not-allowed;
-    opacity: 0.6;
+    opacity: 0.55;
 }
-
-.ladder-col-count {
-    min-width: 40px;
-    text-align: center;
-    font-size: 22px;
+/* 내가 고른 칸 */
+.ladder-lane-btn.selected {
+    background: var(--ladder-gradient);
+    color: var(--bg-white);
+    border-color: var(--ladder-600);
+    box-shadow: 0 3px 10px rgba(var(--ladder-500-rgb), 0.4);
+}
+/* 당첨 칸 표시(빨강 테두리) — 위치만 공개, routing은 숨김 */
+.ladder-lane-btn.is-win {
+    border-color: #ef4444;
+    box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+.ladder-lane-btn.is-win.selected {
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.5);
+}
+.ladder-lane-num {
+    font-size: 20px;
     font-weight: 800;
-    color: var(--ladder-600);
-}
-
-/* 라벨 행 — 캔버스 폭에 맞춰 N개 입력을 균등 분할 */
-.ladder-labels-row {
-    display: flex;
-    gap: 6px;
-    max-width: var(--ladder-view-max);
-    margin: 0 auto;
-    padding: 0 4px;
-    box-sizing: border-box;
-}
-.ladder-label-input {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 8px 4px;
-    font-size: 13px;
-    text-align: center;
-    border: 2px solid var(--gray-300, #d1d5db);
-    border-radius: 8px;
-    background: var(--bg-white);
-    color: var(--text-primary);
-    box-sizing: border-box;
+    line-height: 1;
     font-family: 'Jua', 'Segoe UI', sans-serif;
 }
-.ladder-label-input:focus {
-    outline: none;
-    border-color: var(--ladder-500);
-}
-.ladder-label-input::placeholder {
-    color: var(--text-muted, #9ca3af);
-}
-/* 라벨 편집 소프트락 — 남이 편집 중인 칸(readonly) 시각 표시 */
-.ladder-label-input.ladder-label-locked {
-    border-color: var(--ladder-accent);
-    border-style: dashed;
-    background: rgba(var(--ladder-500-rgb), 0.06);
-    cursor: not-allowed;
-}
-.ladder-label-input[readonly] { cursor: not-allowed; }
-.ladder-label-input.ladder-label-locked::placeholder { color: var(--ladder-600); opacity: 0.85; }
-
-/* 위쪽 라벨 행은 캔버스 위, 아래쪽은 캔버스 아래 — 약간의 세로 간격 */
-#topLabelsRow { margin-bottom: 8px; }
-#bottomLabelsRow { margin-top: 8px; margin-bottom: 16px; }
-
-/* ── 옵션 바: 칸 채우기 권한 + 내려가기 방식 토글 + 남은 그리기 예산 ── */
-/* 3슬롯 그리드: [빈 1fr][가운데 토글 main][우측 남은그리기 1fr]. */
-.ladder-edit-mode-bar {
-    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;
-    max-width: var(--ladder-view-max); margin: 0 auto 10px;
-    font-size: 13px; font-weight: 600; color: var(--text-secondary);
-}
-.ladder-edit-mode-main {
-    display: flex; align-items: center; justify-content: center; gap: 8px 18px; flex-wrap: wrap;
-}
-/* 한 줄 안의 옵션 그룹(권한 / 내려가기) */
-.ladder-mode-group { display: inline-flex; align-items: center; gap: 8px; }
-.ladder-mode-group + .ladder-mode-group {
-    border-left: 1px solid var(--gray-300, #d1d5db); padding-left: 18px;
-}
-.ladder-edit-mode-label {
+.ladder-lane-count {
+    font-size: 11px;
     font-weight: 700;
-    color: var(--ladder-accent);
-}
-.ladder-edit-mode-bar .ladder-draw-budget { justify-self: end; }
-
-/* 모바일 — 좁은 폭에선 3열 그리드를 flex-wrap으로 바꿔 main(전폭) 아래 줄에 pill 우측 정렬. */
-@media (max-width: 480px) {
-    .ladder-setup-bar,
-    .ladder-edit-mode-bar {
-        display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
-        column-gap: 8px; row-gap: 6px;
-    }
-    .ladder-bar-spacer { display: none; }
-    .ladder-setup-main,
-    .ladder-edit-mode-main { flex: 1 1 100%; }
-    /* 상점 슬롯은 main 아래 줄에 전폭으로 내려와 버튼을 가운데 정렬(스페이서와 달리 숨기지 않음). */
-    .ladder-shop-slot { flex: 1 1 100%; justify-content: center; }
-    .ladder-edit-mode-bar .ladder-draw-budget { margin-left: auto; white-space: nowrap; }
-    .ladder-mode-group + .ladder-mode-group { border-left: none; padding-left: 0; }
+    opacity: 0.9;
 }
 
-/* 글쓰기 권한/내려가기 ON/OFF 토글 스위치 */
-.ladder-mode-toggle-wrap { display: inline-flex; align-items: center; }
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 50px;
-    height: 28px;
-    flex: none;
-    margin: 0;
-    cursor: pointer;
-}
-.toggle-switch input {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    opacity: 0;
-    cursor: pointer;
-}
-.toggle-slider {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: var(--gray-300, #d1d5db);
-    border-radius: 28px;
-    transition: background 0.2s ease;
-    pointer-events: none;
-}
-.toggle-slider::before {
-    content: "";
-    position: absolute;
-    height: 22px; width: 22px;
-    left: 3px; bottom: 3px;
-    background: #fff;
-    border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-    transition: transform 0.2s ease;
-}
-.toggle-switch input:checked + .toggle-slider {
-    background: var(--ladder-accent);
-}
-.toggle-switch input:checked + .toggle-slider::before {
-    transform: translateX(22px);
-}
-.toggle-switch input:focus-visible + .toggle-slider {
-    outline: 2px solid var(--ladder-600);
-    outline-offset: 2px;
-}
-.toggle-switch input:disabled + .toggle-slider { opacity: 0.5; cursor: not-allowed; }
-
-/* 공유 그리기 예산 표시 — 모든 참가자 합산 남은 그리기 수(서버 권위). 빌드(idle)에서만 표시. */
-.ladder-draw-budget {
-    display: inline-block;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ladder-accent);
-    background: rgba(var(--ladder-500-rgb), 0.12);
-    border: 1px solid var(--ladder-500);
-    border-radius: 8px;
-    padding: 4px 10px;
-    line-height: 1.4;
-}
-.ladder-draw-budget.exhausted {
-    color: var(--red-600);
-    background: var(--red-50);
-    border-color: var(--red-500);
-}
-
-/* 빌드 힌트 (드래그로 막대기 추가) */
+/* 픽 안내 + 빌드 힌트 */
+.ladder-pick-hint,
 .ladder-build-hint {
     font-size: 13px;
     color: var(--text-secondary);
-    margin: 0 auto 12px;
+    margin: 0 auto 10px;
     max-width: var(--ladder-view-max);
     line-height: 1.5;
     text-align: center;
 }
-/* 미연결 드래그 폐기 시 일시 강조 */
+.ladder-pick-hint { color: var(--ladder-accent); font-weight: 600; }
 .ladder-build-hint.ladder-build-hint-flash {
     color: var(--ladder-accent);
     font-weight: 600;
 }
 
-/* 데스크톱: 라벨 입력을 약간 키워 가독성 확보 */
-@media (min-width: 640px) {
-    .ladder-label-input {
-        font-size: 14px;
-        padding: 9px 6px;
+/* 모바일 — 좁은 폭에선 상단 바를 flex-wrap으로, 상점 슬롯은 아래 줄 전폭 가운데. */
+@media (max-width: 480px) {
+    .ladder-setup-bar {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+        column-gap: 8px; row-gap: 6px;
     }
-    .ladder-labels-row { gap: 8px; }
+    .ladder-bar-spacer { display: none; }
+    .ladder-setup-main { flex: 1 1 100%; }
+    .ladder-shop-slot { flex: 1 1 100%; justify-content: center; }
+    .ladder-lane-btn { min-height: 44px; }
+    .ladder-lane-num { font-size: 17px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -345,11 +238,6 @@
     margin: 0 auto;
     cursor: crosshair;
     touch-action: none;   /* 터치 드래그가 페이지 스크롤로 새지 않게 */
-}
-
-/* 캔버스 결과 캡션은 제거(결과 팝업이 정식 결과 목록) — 빈 자리 gap 없이 숨김. */
-.ladder-result-caption {
-    display: none;
 }
 
 /* 캔버스 정렬 래퍼 (캔버스와 같은 폭, 오버레이 absolute 기준) */
@@ -390,8 +278,16 @@
 .game-status.finished { color: var(--ladder-accent); }
 
 /* ══════════════════════════════════════════════════════════════════
-   결과 오버레이 순위 행 (공통 .result-overlay 안에서 사용)
+   결과 오버레이 — 당첨 패자(꼴등/재대결) 표시 (공통 .result-overlay 안에서 사용)
    ══════════════════════════════════════════════════════════════════ */
+.ladder-result-headline {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--ladder-accent);
+    text-align: center;
+    margin-bottom: 12px;
+    word-break: keep-all;
+}
 .ladder-result-row {
     display: flex;
     justify-content: space-between;
@@ -401,13 +297,8 @@
     border-bottom: 1px solid var(--gray-200, #e5e7eb);
 }
 .ladder-result-name { font-weight: 600; }
-.ladder-result-lane {
-    color: var(--text-muted, #9ca3af);
-    font-size: 12px;
-    font-weight: 400;
-}
 .ladder-result-tag { font-weight: bold; white-space: nowrap; }
-.ladder-result-tag.pass { color: var(--ladder-600); }
+.ladder-result-tag.loser { color: var(--red-600, #dc2626); }
 
 /* ── 빠른 재준비(경마식) — 결과 카드 안 버튼들 ── */
 .ladder-result-actions {
