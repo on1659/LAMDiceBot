@@ -51,9 +51,10 @@ const LADDER_DRAW_MS = 1800;          // 서버 그리기 연출(클라 ladderRu
 const LADDER_TOKEN_SLOT_MS = 6000;    // 토큰 한 칸이 끝까지 내려가는 시간(아주 천천히) (3000×2)
 const LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — 모션 아님
 const LADDER_MUTATION_MS = 1400;      // 변형 1단계(add/remove/none) 애니 시간 — 솔로 토큰 사이 max(0,N-2)회
+const LADDER_WINSLOT_SHUFFLE_MS = 2600; // 당첨 칸 섞기 연출 — 시작 시 winSlot 재추첨 공개(시퀀스 맨 앞). js/ladder.js와 byte-identical.
 
 // reveal 시작부터 자동 종료(결과 오버레이)까지 — 순차 하강 + 토큰 사이 변형이라 토큰 수(N=칸 수=LADDER_COLUMNS)에 비례.
-// 시퀀스: 인지창 → 사라짐(erase) → 서버 그리기(draw) → 카운트다운 → [토큰0 하강 → 변형0 → … → 토큰N-3 하강 → 변형N-3 → (토큰N-2·N-1 동시 하강)] → 결과 캡션 유지.
+// 시퀀스: 당첨 칸 섞기(winSlot 재추첨 공개) → 인지창 → 사라짐(erase) → 서버 그리기(draw) → 카운트다운 → [토큰0 하강 → 변형0 → … → 토큰N-3 하강 → 변형N-3 → (토큰N-2·N-1 동시 하강)] → 결과 캡션 유지.
 //   descentSlots = (N<=1 ? N : N-1) — 마지막 둘이 한 슬롯 공유. mutations = max(0, N-2) — 토큰 사이 변형은 솔로 N-2개.
 // 단계 합이 같아야 서버 endGame이 클라 연출 도중에 끼어들지 않는다(서버↔클라 타이밍 동기 불변). N = 상단 칸(하강 토큰) 수.
 // ⚠ js/ladder.js의 클라 단계 합과 byte-identical(인지창 포함).
@@ -63,7 +64,7 @@ function ladderRevealDelay(N) {
     const mutations = Math.max(0, n - 2);            // 변형은 솔로 토큰 사이 max(0,N-2)개
     const descent = descentSlots * LADDER_TOKEN_SLOT_MS;
     const scramble = LADDER_ERASE_MS + LADDER_DRAW_MS;          // 사라짐 + 서버 그리기
-    return LADDER_RECOGNITION_MS + scramble + LADDER_COUNTDOWN_MS + descent + mutations * LADDER_MUTATION_MS + LADDER_FINAL_HOLD;
+    return LADDER_WINSLOT_SHUFFLE_MS + LADDER_RECOGNITION_MS + scramble + LADDER_COUNTDOWN_MS + descent + mutations * LADDER_MUTATION_MS + LADDER_FINAL_HOLD;
 }
 
 const LADDER_SLANT_MAX = 1;         // rung 기울기(slant) 절대값 상한 (js/ladder.js와 동기 — 시각 효과)
@@ -819,8 +820,12 @@ module.exports = (socket, io, ctx) => {
         let L = built.rungs.slice();
         let extraBalanceAdded = [];   // zero-loser guarantee 또는 shrink로 추가된 balance 막대기
 
-        // ── 자연 보드 landings 계산 → winSlot에 떨어지는 top 판정 ──
-        const winSlot = (typeof ld.winSlot === 'number') ? ld.winSlot : pickWinSlot(N);
+        // ── winSlot 재추첨(시작 시) — 빌드 중 보이던 winSlot은 임시. 시작 시 균등 재추첨(같은 칸 재선정 허용, 룰렛식). ──
+        // winSlotPrev = 빌드 값(클라 "당첨 칸 섞기" 연출 시작점) — reveal payload로만 전달, gameState 저장 금지.
+        // ⚠️ 재추첨은 반드시 이 위치(모든 소비자 — natWin/chooseGuaranteeTop/forceRouteToWin/routeGuard/sim/loser — 보다 앞).
+        //    뒤로 밀면 "발표 loser ≡ landings winSlot 착지" 단일 소스 불변식이 깨진다(lesson 2026-07-02 BLOCKER).
+        const winSlotPrev = (typeof ld.winSlot === 'number') ? ld.winSlot : pickWinSlot(N);
+        const winSlot = pickWinSlot(N);
         ld.winSlot = winSlot;
 
         // 토너먼트 shrink 보장: sub-round(loserPool 진행 중)는 풀을 반드시 줄여야 한다.
@@ -934,6 +939,7 @@ module.exports = (socket, io, ctx) => {
         io.to(room.roomId).emit('ladder:reveal', {
             numColumns: N,
             winSlot: winSlot,
+            winSlotPrev: winSlotPrev,   // 빌드 중 보이던 임시 winSlot — 클라 섞기 연출 시작점(gameState 미저장)
             initialRungs: (ld.initialRungs || []).slice(),
             rungs: (ld.initialRungs || []).slice(),
             erased: (ld.erased || []).slice(),
@@ -947,7 +953,7 @@ module.exports = (socket, io, ctx) => {
             tournamentActive: !!ld.tournamentActive
         });
 
-        console.log(`[사다리타기] 방 ${room.roomName} 공개 - winSlot=${winSlot}, landings=[${landings.join(',')}], loser=[${finalLoserNames.join(',')}]`);
+        console.log(`[사다리타기] 방 ${room.roomName} 공개 - winSlot=${winSlotPrev}→${winSlot}(재추첨), landings=[${landings.join(',')}], loser=[${finalLoserNames.join(',')}]`);
 
         clearLadderTimers(ld);
         ld.endTimeout = setTimeout(() => {

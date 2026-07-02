@@ -478,6 +478,7 @@ var LADDER_DRAW_MS = 1800;          // 서버 그리기 연출(ladderRunDraw, ba
 var LADDER_TOKEN_SLOT_MS = 6000;    // 토큰 한 칸이 끝까지 내려가는 시간
 var LADDER_FINAL_HOLD = 1800;       // 결과 캡션/팝업 노출 전 대기
 var LADDER_MUTATION_MS = 1400;      // 변형 1단계(add/remove/none) 애니
+var LADDER_WINSLOT_SHUFFLE_MS = 2600; // 당첨 칸 섞기 연출 — 시작 시 winSlot 재추첨 공개(시퀀스 맨 앞). socket/ladder.js와 byte-identical.
 
 // 클라 단계 합이 서버와 동일함을 보장하는 헬퍼(검증/콘솔 측정용). 서버 식과 byte-identical.
 function ladderRevealDelay(N) {
@@ -486,7 +487,7 @@ function ladderRevealDelay(N) {
     var mutations = Math.max(0, n - 2);
     var descent = descentSlots * LADDER_TOKEN_SLOT_MS;
     var scramble = LADDER_ERASE_MS + LADDER_DRAW_MS;
-    return LADDER_RECOGNITION_MS + scramble + LADDER_COUNTDOWN_MS + descent + mutations * LADDER_MUTATION_MS + LADDER_FINAL_HOLD;
+    return LADDER_WINSLOT_SHUFFLE_MS + LADDER_RECOGNITION_MS + scramble + LADDER_COUNTDOWN_MS + descent + mutations * LADDER_MUTATION_MS + LADDER_FINAL_HOLD;
 }
 
 // 연출 상태 (reveal payload에서 채움)
@@ -508,6 +509,8 @@ var ladderRevealTimers = [];
 var ladderRevealRAF = null;
 var ladderAnimRAF = null;
 var ladderMutationRAF = null;
+// 당첨 칸 섞기 연출 상태 — active 동안 바닥 마커/버튼 표시가 이 slot을 따라간다(ladderWinSlot 오버라이드).
+var ladderWinShuffle = { active: false, slot: -1 };
 // 종료(finished) 보드 영속 — 마지막 하강 프레임을 저장해 finished 동안 재렌더가 idle 빌드를 덮어쓰지 않게.
 var ladderFinishedPaths = null;
 var ladderFinishedProgress = null;
@@ -521,6 +524,7 @@ function clearLadderRevealTimers() {
     if (ladderAnimRAF) { cancelAnimationFrame(ladderAnimRAF); ladderAnimRAF = null; }
     if (ladderMutationRAF) { cancelAnimationFrame(ladderMutationRAF); ladderMutationRAF = null; }
     if (ladderBlinkRAF) { cancelAnimationFrame(ladderBlinkRAF); ladderBlinkRAF = null; }
+    ladderWinShuffle.active = false;   // 섞기 중단 시 stale 오버라이드 제거(모든 정리 경로 공통)
 }
 
 // 기둥 col의 x px
@@ -648,9 +652,14 @@ function ladderEnsureBlink() {
 }
 
 // ── 바닥 당첨(winSlot) 마커 그리기 — 시작부터 모두에게 보임(위치만). ──
+// 섞기 연출(ladderWinShuffle.active) 동안은 애니 slot을 따라간다 — 최종값 조기 노출 방지.
+function ladderWinMarkerSlot() {
+    return ladderWinShuffle.active ? ladderWinShuffle.slot : ladderWinSlot;
+}
 function ladderDrawWinMarker(ctx, W) {
-    if (typeof ladderWinSlot !== 'number' || ladderWinSlot < 0 || ladderWinSlot >= ladderNumColumns) return;
-    var x = laneX(W, ladderWinSlot, ladderNumColumns);
+    var slot = ladderWinMarkerSlot();
+    if (typeof slot !== 'number' || slot < 0 || slot >= ladderNumColumns) return;
+    var x = laneX(W, slot, ladderNumColumns);
     var y = LADDER_REVEAL_BOTTOM;
     ctx.save();
     // 당첨 슬롯 강조 — 빨간 원 + "당첨" 라벨
@@ -671,9 +680,10 @@ function ladderDrawWinMarker(ctx, W) {
 function ladderDrawBottomSlots(ctx, W) {
     var N = ladderNumColumns;
     var y = LADDER_REVEAL_BOTTOM;
+    var winSlotNow = ladderWinMarkerSlot();
     ctx.save();
     for (var c = 0; c < N; c++) {
-        if (c === ladderWinSlot) continue;
+        if (c === winSlotNow) continue;
         var x = laneX(W, c, N);
         ctx.beginPath();
         ctx.fillStyle = 'rgba(120, 90, 50, 0.10)';
@@ -1449,6 +1459,47 @@ function ladderDrawScramble(erase, drawProgress) {
     ladderRun.addedRender.forEach(function (r) { ladderStrokeRange(ctx, r.poly, 0, drawProgress, r.color, r.width); });
     ladderDrawPoles(ctx, canvas.width);
 }
+// 당첨 칸 섞기: 시작 시 서버가 winSlot을 재추첨 — 마커가 prevSlot에서 출발해 바닥 칸을 순회(감속)하다
+// finalSlot에 정착(룰렛 하이라이트 느낌). 경로는 prev→final에서 결정적 산출(Math.random 금지):
+// 고정 2바퀴 + 잔여 스텝, easeOutCubic 감속. 어떤 경우든 SHUFFLE_MS를 채운다(빈 단계 lockstep 패턴).
+// 백드롭은 빌드 뷰(renderLadderStatic) — 전체 막대기 공개는 다음 인지창 단계의 몫(공개 시점 보존).
+function ladderRunWinShuffle(prevSlot, finalSlot, done) {
+    setGameStatus('🎲 당첨 칸이 섞입니다!', 'active');
+    var N = ladderNumColumns;
+    var validFinal = (typeof finalSlot === 'number' && finalSlot >= 0 && finalSlot < N);
+    function settle() {
+        ladderWinShuffle.active = false;
+        if (validFinal) ladderWinSlot = finalSlot;   // 최종값은 정착 시점에만 반영(조기 노출 방지)
+        renderLaneButtons();                          // lane 버튼 .is-win 을 최종 칸으로 갱신
+        renderLadderStatic();
+        done();
+    }
+    if (!validFinal || N < 2) {
+        // 연출 대상이 없어도 시간은 채운다(서버 ladderRevealDelay와 lockstep).
+        ladderRevealTimers.push(setTimeout(settle, LADDER_WINSLOT_SHUFFLE_MS));
+        return;
+    }
+    var startSlot = (typeof prevSlot === 'number' && prevSlot >= 0 && prevSlot < N) ? prevSlot : finalSlot;
+    // 결정적 경로: 고정 2바퀴 + prev→final 잔여 스텝(0..N-1). 같은 칸 재선정이면 정확히 2바퀴.
+    var steps = 2 * N + (((finalSlot - startSlot) % N) + N) % N;
+    ladderWinShuffle.active = true;
+    ladderWinShuffle.slot = startSlot;
+    playLadderSound('ladder_pick', 0.35);
+    var start = performance.now();
+    function frame(now) {
+        var t = Math.min(1, (now - start) / LADDER_WINSLOT_SHUFFLE_MS);
+        var eased = 1 - Math.pow(1 - t, 3);   // easeOutCubic — 빠르게 돌다 감속 정착
+        var slot = (startSlot + Math.min(steps, Math.floor(steps * eased))) % N;
+        if (slot !== ladderWinShuffle.slot) {
+            ladderWinShuffle.slot = slot;
+            playLadderSound('ladder_pick', 0.2);
+        }
+        renderLadderStatic();
+        if (t >= 1) { ladderRevealRAF = null; settle(); return; }
+        ladderRevealRAF = requestAnimationFrame(frame);
+    }
+    ladderRevealRAF = requestAnimationFrame(frame);
+}
 // 인지창: 전체 막대기(initial 보드)를 동시에 보여준다. RECOGNITION_MS 채움(lockstep).
 function ladderRunRecognition(done) {
     setGameStatus('👀 모두가 그린 사다리를 확인하세요...', 'active');
@@ -1804,13 +1855,17 @@ function ladderStartReveal(data) {
     ladderPhase = 'revealing';
     ladderStartPending = false;
     ladderNumColumns = data.numColumns;
-    if (typeof data.winSlot === 'number') ladderWinSlot = data.winSlot;
+    // 조기 노출 방지(핵심): 최종 winSlot을 여기서 바로 반영하면 배경 렌더가 섞기도 전에 정답을 그린다.
+    // 마커는 빌드 값(winSlotPrev)에서 출발 — 최종값은 섞기 정착 시점(ladderRunWinShuffle settle)에만 반영.
+    var winSlotFinal = (typeof data.winSlot === 'number') ? data.winSlot : ladderWinSlot;
+    if (typeof data.winSlotPrev === 'number') ladderWinSlot = data.winSlotPrev;
+    // (winSlotPrev 부재 시 기존 로컬 값 유지 — 빌드 중 받은 winSlot이 곧 시작점)
     closeResultOverlay();
     ladderFinishedPaths = null; ladderFinishedProgress = null;
     if (data.colorIndex) ladderColorIndex = data.colorIndex;
     if (data.userTops) ladderUserTops = data.userTops;
 
-    ladderRun.winSlot = ladderWinSlot;
+    ladderRun.winSlot = winSlotFinal;
     ladderRun.userTops = data.userTops || ladderUserTops;
     ladderRun.loserTop = (data.loserTop || []).slice();
     ladderRun.landings = (data.landings || []).slice();
@@ -1854,13 +1909,15 @@ function ladderStartReveal(data) {
     var N = ladderNumColumns;
     if (N === 0) { renderLadderStatic(); return; }
 
-    // 오케스트레이션: 인지창 → 사라짐(erase) → 서버 그리기(draw) → 카운트다운 → living descent → 결과.
-    // 합 = RECOGNITION + ERASE + DRAW + COUNTDOWN + descentSlots×SLOT + mutations×MUTATION + FINAL_HOLD = ladderRevealDelay(N) (lockstep).
-    ladderRunRecognition(function () {
-        ladderRunErase(function () {
-            ladderRunDraw(function () {
-                ladderRunCountdown(function () {
-                    ladderRunLiving();
+    // 오케스트레이션: 당첨 칸 섞기 → 인지창 → 사라짐(erase) → 서버 그리기(draw) → 카운트다운 → living descent → 결과.
+    // 합 = WINSLOT_SHUFFLE + RECOGNITION + ERASE + DRAW + COUNTDOWN + descentSlots×SLOT + mutations×MUTATION + FINAL_HOLD = ladderRevealDelay(N) (lockstep).
+    ladderRunWinShuffle(ladderWinSlot, winSlotFinal, function () {
+        ladderRunRecognition(function () {
+            ladderRunErase(function () {
+                ladderRunDraw(function () {
+                    ladderRunCountdown(function () {
+                        ladderRunLiving();
+                    });
                 });
             });
         });

@@ -14,6 +14,9 @@
  *  T8  재진입 마스킹(C-20) — revealing 중 새 탭 currentRoomInfo에 server-only 부재
  *  T9  phase 게이트 — 시작 후 재start 거부, idle 아닐 때 pickTop 거부
  *  T10 3경로 정리 일부 — idle에서 leaveRoom 시 그 유저 top/색 정리(rungsUpdated 반영)
+ *  T11 winSlot 재추첨(시작 시) — reveal.winSlotPrev(빌드 값) 존재(0..N-1 정수) + rungsUpdated 빌드
+ *      winSlot과 일치, 최종 winSlot 정수·landings 착지 top 존재(loser 일치는 T6이 최종 winSlot 기준 검증),
+ *      토너먼트 sub-round reveal에도 동일 적용(T7 경로), 재진입 payload에 winSlotPrev 부재(T8 leaked 목록)
  *
  * 사용법: PORT=5199 node AutoTest/qa-ladder-pick-elimination-test.js
  *   (신 코드 테스트 인스턴스 포트 지정. 미지정 시 config PORT.)
@@ -86,6 +89,10 @@ async function main() {
     // 캡처 리스너를 걸어 레이스를 방지한다(once로 나중에 걸면 첫 브로드캐스트를 놓칠 수 있음).
     let hostFirstRU = null;
     host.on('ladder:rungsUpdated', d => { if (!hostFirstRU) hostFirstRU = d; });
+    // T11: 빌드 중 최신 winSlot 추적 — reveal.winSlotPrev(재추첨 전 빌드 값)와 대조.
+    // 같은 소켓의 emit 순서는 보존되므로, reveal 수신 시점의 이 값 = 그 라운드 빌드 winSlot.
+    let hostBuildWinSlot = null;
+    host.on('ladder:rungsUpdated', d => { if (typeof d.winSlot === 'number') hostBuildWinSlot = d.winSlot; });
     let created;
     try {
         created = await makeRoom(host, 'basic');
@@ -165,6 +172,19 @@ async function main() {
     else fail('T5 landings 비전단사', JSON.stringify(reveal.landings));
     if (typeof reveal.winSlot === 'number') info(`T5 reveal winSlot=${reveal.winSlot}, loserTop=[${(reveal.loserTop || []).join(',')}]`);
 
+    // T11 winSlot 재추첨(시작 시) — winSlotPrev(빌드 값)는 reveal payload에만, 클라 섞기 연출 시작점.
+    // 재추첨은 같은 칸 재선정 허용(룰렛식) — prev === winSlot 도 유효.
+    if (Number.isInteger(reveal.winSlotPrev) && reveal.winSlotPrev >= 0 && reveal.winSlotPrev < reveal.numColumns)
+        pass(`T11 reveal.winSlotPrev 존재(0..${reveal.numColumns - 1} 정수, =${reveal.winSlotPrev})`);
+    else fail('T11 reveal.winSlotPrev 부재/범위 밖', String(reveal.winSlotPrev));
+    if (reveal.winSlotPrev === hostBuildWinSlot)
+        pass(`T11 winSlotPrev ≡ 빌드 winSlot(rungsUpdated=${hostBuildWinSlot}) — 섞기 연출 시작점 정합`);
+    else fail('T11 winSlotPrev ≠ 빌드 winSlot(rungsUpdated)', `prev=${reveal.winSlotPrev} build=${hostBuildWinSlot}`);
+    if (Number.isInteger(reveal.winSlot) && reveal.winSlot >= 0 && reveal.winSlot < reveal.numColumns
+        && reveal.landings.indexOf(reveal.winSlot) >= 0)
+        pass(`T11 최종 winSlot 정수(=${reveal.winSlot}) + landings 착지 top(${reveal.landings.indexOf(reveal.winSlot)}) 존재 — loser 일치는 T6이 최종 winSlot 기준으로 검증`);
+    else fail('T11 최종 winSlot 무효/착지 top 부재', `winSlot=${reveal.winSlot} landings=[${(reveal.landings || []).join(',')}]`);
+
     // gameEnd(연출 종료 후) — loser pool
     const gameEndP = once(host, 'ladder:gameEnd', 60000);
     let gameEnd;
@@ -233,6 +253,12 @@ async function main() {
     {
         const h = await connect(); const g1 = await connect(); const g2 = await connect(); const g3 = await connect();
         try {
+            // T11 추적 리스너는 makeRoom 전에 부착 — 늦게 붙이면 첫 라운드 빌드 rungsUpdated를 전부 놓쳐
+            // build=null false-fail (lesson 2026-07-01: 서버 push 이벤트는 emit 전에 리스너부터).
+            let t7BuildWinSlot = null;
+            const t7Reveals = [];
+            h.on('ladder:rungsUpdated', d => { if (typeof d.winSlot === 'number') t7BuildWinSlot = d.winSlot; });
+            h.on('ladder:reveal', rv => t7Reveals.push({ prev: rv.winSlotPrev, build: t7BuildWinSlot, win: rv.winSlot, N: rv.numColumns }));
             const cr = await makeRoom(h, 'tour');
             const rid = cr.roomId;
             await once(h, 'ladder:rungsUpdated', 3000).catch(() => null);
@@ -247,7 +273,13 @@ async function main() {
             // 자동 ready — toggleReady 호출 금지.
 
             let finalLoser = null, subRounds = 0;
-            const tEndP = once(h, 'ladder:tournamentEnd', 240000);
+            // 타임아웃 300000: winSlot 섞기 +2600ms/라운드로 ladderRevealDelay(6)=50400ms.
+            // degenerate 최악 4 reveal(4→3→2→1) ≈ 202s + 라운드 간 오버헤드 — 기존 240000은 여유가 얇아져 상향.
+            const tEndP = once(h, 'ladder:tournamentEnd', 300000);
+            // T11(sub-round): 각 reveal의 winSlotPrev가 그 라운드 빌드 winSlot과 일치 + 최종 winSlot 유효 확인.
+            // 주의: tournamentRound.winSlot은 resetLadderRound 직후라 null — 기준은 직후 emitRungsUpdated의
+            // rungsUpdated.winSlot(새 빌드 값). 같은 소켓 emit 순서 보존이라 reveal 수신 시점의 최신 값이 그 라운드 빌드 값.
+            // (추적 리스너 자체는 위 makeRoom 전에 부착됨)
             // sub-round 진행 자동화: tournamentRound 오면 loserPool만 재pick + host가 재start.
             const nameToSock = { 'H_tour': h, 'G_toura': g1, 'G_tourb': g2, 'G_tourc': g3 };
             h.on('ladder:tournamentRound', async (tr) => {
@@ -268,6 +300,12 @@ async function main() {
             finalLoser = tEnd.loser;
             if (finalLoser) pass(`T7 토너먼트 수렴 — 최종 꼴등=${finalLoser} (sub-round ${subRounds}회, 무한루프 없음)`);
             else fail('T7 최종 꼴등 null(수렴 실패)');
+            // T11(sub-round): 첫 라운드 + sub-round 최소 1회의 reveal 전부에서 winSlotPrev/재추첨 정합.
+            const t7Bad = t7Reveals.filter(r => !(Number.isInteger(r.prev) && r.prev >= 0 && r.prev < r.N
+                && r.prev === r.build && Number.isInteger(r.win) && r.win >= 0 && r.win < r.N));
+            if (t7Reveals.length >= 2 && t7Bad.length === 0)
+                pass(`T11 토너먼트 sub-round reveal에도 winSlotPrev/재추첨 적용 (reveal ${t7Reveals.length}회 전부 정합: ${t7Reveals.map(r => `${r.prev}→${r.win}`).join(', ')})`);
+            else fail('T11 sub-round winSlotPrev 부정합', JSON.stringify(t7Bad.length ? t7Bad : t7Reveals));
         } catch (e) { fail('T7 토너먼트 예외/타임아웃', e.message); }
         finish([h, g1, g2, g3]); await sleep(200);
     }
@@ -299,7 +337,8 @@ async function main() {
                 const ld = cri.gameState && cri.gameState.ladder;
                 if (!ld) { fail('T8 currentRoomInfo.gameState.ladder 부재'); }
                 else {
-                    const leaked = ['rungs', 'initialRungs', 'mutationScript', 'landings', 'laneToBottom', 'erased', 'added', 'loserTop', 'publicRungByDrawer', 'roundLoserNames', 'baseRungs']
+                    // winSlotPrev: 재추첨 전 빌드 값 — reveal payload 전용, gameState 미저장이라 재진입 payload에도 부재해야(T11).
+                    const leaked = ['rungs', 'initialRungs', 'mutationScript', 'landings', 'laneToBottom', 'erased', 'added', 'loserTop', 'publicRungByDrawer', 'roundLoserNames', 'baseRungs', 'winSlotPrev']
                         .filter(k => ld[k] !== undefined);
                     if (leaked.length === 0) pass(`T8 revealing 재진입 payload에 server-only 부재 (keys=${Object.keys(ld).join(',')})`);
                     else fail('T8 server-only 필드 누출', leaked.join(','));
