@@ -1665,19 +1665,20 @@
                         <span style="font-weight: 600;">Untitle</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
-                    <label id="ladderLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--ladder-500); position: relative;">
+                    <!-- 미출시 게임 방생성 비노출 — 출시 시 아래 3개 라벨(ladder/spin-arena/pirate)의 display를 none→flex로 되돌리면 됨 -->
+                    <label id="ladderLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--ladder-500); position: relative;">
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🪜</span>
                         <span style="font-weight: 600;">사다리타기</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label id="spinArenaLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--spin-arena-500); position: relative;">
+                    <label id="spinArenaLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--spin-arena-500); position: relative;">
                         <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🌀</span>
                         <span style="font-weight: 600;">회전 칼날</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label id="pirateLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--pirate-500); position: relative;">
+                    <label id="pirateLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--pirate-500); position: relative;">
                         <input type="radio" name="gameType" value="pirate" id="pirateRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
                         <span style="font-size: 24px; margin-right: 8px;">🏴‍☠️</span>
                         <span style="font-weight: 600;">해적 룰렛</span>
