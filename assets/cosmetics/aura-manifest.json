@@ -1,0 +1,22 @@
+{
+  "note": "Horse-race aura cosmetic sprite atlas. Runtime row mapping is hardcoded in js/horse-shop.js (AURA_ATLAS_ROWS); this manifest documents the atlas layout. Row order = this rowOrder (NOT config/horse/cosmetics.json array order).",
+  "sheets": {
+    "aura": {
+      "label": "LAMDiceBot Horse Aura Cosmetics",
+      "image": "aura-atlas.png",
+      "grid": { "columns": 4, "rows": 23 },
+      "cell": { "width": 128, "height": 128 },
+      "canvas": { "width": 512, "height": 2944 },
+      "anchor": { "x": 64, "y": 64, "mode": "pixel" },
+      "defaultScale": 1,
+      "frames": { "columns": [0, 1, 2, 3], "fps": 8, "loop": true, "meaning": "pulse: base / peak / decay / base" },
+      "rowOrder": [
+        "aura_red", "aura_blue", "aura_green", "aura_gold", "aura_violet",
+        "aura_cyan", "aura_pink", "aura_orange", "aura_lime", "aura_white",
+        "aura_indigo", "aura_ad_aqua", "aura_ad_flame", "aura_ad_mint", "aura_ad_amber",
+        "aura_ad_rose", "aura_ad_teal", "aura_ad_silver", "aura_ad_cobalt", "aura_ad_neon",
+        "aura_ad_plasma", "aura_rainbow", "aura_prism"
+      ]
+    }
+  }
+}

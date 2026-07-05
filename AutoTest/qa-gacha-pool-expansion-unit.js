@@ -83,7 +83,7 @@ Object.keys(raw).forEach(slot => (raw[slot] || []).forEach(it => { if (it && it.
 ok(dup === 0, 'all raw catalog ids unique (total=' + totalRaw + ', dup=' + dup + ')');
 note('horse catalog total items = ' + totalRaw + ' (post-polish: emote slot removed)');
 
-const gachaSlots = ['paint', 'trail', 'accessory', 'bib', 'track_theme', 'finish_fx', 'aura'];
+const gachaSlots = ['paint', 'trail', 'accessory', 'bib', 'finish_fx', 'aura'];
 gachaSlots.forEach(slot => {
   ['coin', 'ad'].forEach(econ => {
     const items = (raw[slot] || []).filter(it => { const a = it.adOnly === true; return econ === 'coin' ? !a : a; });

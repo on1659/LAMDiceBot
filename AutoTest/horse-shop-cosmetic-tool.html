@@ -106,15 +106,6 @@ button:hover { filter: brightness(1.15); }
                 </div>
                 <div class="field"><label>border (테두리)</label><input id="f_border" type="color" value="#c79100"></div>
             </div>
-            <!-- track_theme -->
-            <div class="slot-only" data-slot="track_theme">
-                <div class="field"><label>bg (CSS gradient)</label>
-                    <input id="f_bgcss" placeholder="linear-gradient(180deg, #0b1026 0%, #2a3470 100%)">
-                </div>
-                <div class="field"><label>accent</label><input id="f_accent" type="color" value="#8ab4ff"></div>
-                <div class="presets" id="themePresets"></div>
-            </div>
-
             <div class="jsonbar">
                 <button class="btn-green" id="copyBtn">📋 JSON 복사</button>
                 <button class="btn-ghost" id="resetBtn">초기화</button>
@@ -152,7 +143,6 @@ button:hover { filter: brightness(1.15); }
         { key: 'trail',       label: '✨ 트레일',   editor: 'emoji' },
         { key: 'accessory',   label: '👑 악세서리', editor: 'emoji' },
         { key: 'bib',         label: '🔢 마번',     editor: 'bib' },
-        { key: 'track_theme', label: '🏞️ 트랙테마', editor: 'track_theme' },
         { key: 'finish_fx',   label: '🎆 결승연출', editor: 'emoji' }
     ];
 
@@ -177,13 +167,6 @@ button:hover { filter: brightness(1.15); }
         bib: [
             { id:'bib_gold', name:'황금 마번', price:40, rarity:'common', color:'#1a1a1a', bg:'#ffd54a', border:'#c79100' },
             { id:'bib_neon', name:'네온 마번', price:40, rarity:'rare', color:'#0b1020', bg:'#4ade80', border:'#16a34a' }
-        ],
-        track_theme: [
-            { id:'theme_space', name:'우주 트랙', price:150, rarity:'epic', bg:'linear-gradient(180deg, #0b1026 0%, #1b2350 60%, #2a3470 100%)', accent:'#8ab4ff' },
-            { id:'theme_desert', name:'사막 트랙', price:150, rarity:'rare', bg:'linear-gradient(180deg, #f6d59b 0%, #e8b06a 60%, #cf8f47 100%)', accent:'#7a4a1e' },
-            { id:'theme_beach', name:'해변 트랙', price:150, rarity:'rare', bg:'linear-gradient(180deg, #aee9ff 0%, #5fc8e8 55%, #f2e2b6 100%)', accent:'#1d7fa3' },
-            { id:'theme_neon', name:'네온시티 트랙', price:150, rarity:'epic', bg:'linear-gradient(180deg, #16002b 0%, #3a006e 55%, #ff2db0 120%)', accent:'#39e6ff' },
-            { id:'theme_snow', name:'설원 트랙', price:150, rarity:'common', bg:'linear-gradient(180deg, #eaf4ff 0%, #cfe3f5 55%, #aebfd6 100%)', accent:'#5b7aa8' }
         ],
         finish_fx: [
             { id:'fx_firework', name:'결승 폭죽', price:200, rarity:'epic', emoji:'🎆' },
@@ -223,7 +206,6 @@ button:hover { filter: brightness(1.15); }
         if (slot === 'paint') it.filter = el('f_filter').value.trim();
         else if (slot === 'trail' || slot === 'accessory' || slot === 'finish_fx') it.emoji = el('f_emoji').value.trim();
         else if (slot === 'bib') { it.color = el('f_color').value; it.bg = el('f_bg').value; it.border = el('f_border').value; }
-        else if (slot === 'track_theme') { it.bg = el('f_bgcss').value.trim(); it.accent = el('f_accent').value; }
         return it;
     }
 
@@ -233,13 +215,7 @@ button:hover { filter: brightness(1.15); }
         stage.innerHTML = '';
         stage.style.background = '#0c1430';
 
-        if (slot === 'track_theme') {
-            stage.style.background = it.bg || '#0c1430';
-            var g = document.createElement('div'); g.className = 'ground';
-            g.style.borderTopColor = it.accent || '#46527a'; stage.appendChild(g);
-        } else {
-            var g2 = document.createElement('div'); g2.className = 'ground'; stage.appendChild(g2);
-        }
+        var g2 = document.createElement('div'); g2.className = 'ground'; stage.appendChild(g2);
 
         if (slot === 'finish_fx') {
             var burst = document.createElement('div'); burst.className = 'fx-burst';
@@ -282,7 +258,6 @@ button:hover { filter: brightness(1.15); }
             trail: '트레일은 탈것 <b>뒤(왼쪽)</b>에 이모지가 따라붙습니다.',
             accessory: '악세서리는 탈것 <b>위</b>에 이모지가 얹힙니다.',
             bib: '마번은 탈것 <b>아래</b> 번호 배지입니다. color/bg/border 3색.',
-            track_theme: '트랙테마는 <b>방 배경 전체</b>(방장 적용). bg=그라데이션, accent=결승선/포인트 색.',
             finish_fx: '결승연출은 1등 결승 시 <b>화면 이모지 버스트</b>(방장 적용).'
         };
         el('previewHint').innerHTML = hints[slot] || '';
@@ -301,9 +276,9 @@ button:hover { filter: brightness(1.15); }
     function renderPresets(slot) {
         // paint / emoji / theme 프리셋 영역
         var list = PRESETS[slot] || [];
-        var paintBox = el('paintPresets'), emojiBox = el('emojiPresets'), themeBox = el('themePresets');
-        paintBox.innerHTML = ''; emojiBox.innerHTML = ''; themeBox.innerHTML = '';
-        var box = slot === 'paint' ? paintBox : slot === 'track_theme' ? themeBox : emojiBox;
+        var paintBox = el('paintPresets'), emojiBox = el('emojiPresets');
+        paintBox.innerHTML = ''; emojiBox.innerHTML = '';
+        var box = slot === 'paint' ? paintBox : emojiBox;
         list.forEach(function (it) {
             var b = document.createElement('span'); b.className = 'preset';
             b.textContent = it.name; b.title = '클릭 = 이 값 불러오기';
@@ -330,8 +305,6 @@ button:hover { filter: brightness(1.15); }
         if (it.color != null) el('f_color').value = it.color;
         if (it.bg != null && slot === 'bib') el('f_bg').value = it.bg;
         if (it.border != null) el('f_border').value = it.border;
-        if (it.bg != null && slot === 'track_theme') el('f_bgcss').value = it.bg;
-        if (it.accent != null) el('f_accent').value = it.accent;
         showEditorFor(slot);
         syncTabs();
         renderPreview();
@@ -342,7 +315,6 @@ button:hover { filter: brightness(1.15); }
         return Object.assign({ id: slot + '_new', name: '새 ' + slot, price: 50, rarity: 'common' },
             slot === 'paint' ? { filter: '' } :
             slot === 'bib' ? { color: '#1a1a1a', bg: '#ffd54a', border: '#c79100' } :
-            slot === 'track_theme' ? { bg: 'linear-gradient(180deg,#0b1026,#2a3470)', accent: '#8ab4ff' } :
             { emoji: '' });
     }
 
@@ -372,7 +344,7 @@ button:hover { filter: brightness(1.15); }
         });
 
         // 입력 → 실시간 미리보기
-        ['f_id','f_name','f_price','f_rarity','f_filter','f_emoji','f_color','f_bg','f_border','f_bgcss','f_accent']
+        ['f_id','f_name','f_price','f_rarity','f_filter','f_emoji','f_color','f_bg','f_border']
             .forEach(function (id) {
                 var n = el(id); if (n) n.addEventListener('input', renderPreview);
             });

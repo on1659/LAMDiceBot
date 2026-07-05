@@ -58,7 +58,7 @@ async function awardRaceCoins(io, room, gameState, userHorseBets, winners, coinR
 }
 
 // 레이스 시작 페이로드용 꾸미기 수집 (transient — gameState/leaveRoom 미오염).
-// - roomCosmetics: 방장(host)의 track_theme/finish_fx → 방 전체 broadcast
+// - roomCosmetics: 방장(host)의 finish_fx → 방 전체 broadcast
 // - horseCosmetics: 말 index -> [pub, ...] 배열. 같은 말을 고른 모든 플레이어의 공개 꾸미기.
 //   클라는 자기 말은 자기 것으로 덮어쓰고, 타인/관전 말은 배열에서 랜덤으로 하나 고른다(외형 전용).
 // 공정성: cosmetic은 결과 계산 경로(calculateHorseRaceResult/getWinnersByRule)에 진입하지 않는다.
@@ -78,12 +78,11 @@ async function buildRaceCosmetics(gameState, room) {
                 if (u.authedUserId && equippedMap[u.authedUserId]) equippedByName[u.name] = equippedMap[u.authedUserId];
             });
 
-            // 방장 연출 → roomCosmetics (트랙 테마 / 결승 연출)
+            // 방장 연출 → roomCosmetics (결승 연출)
             const host = users.find(u => u.isHost);
             if (host && equippedByName[host.name]) {
                 const eq = equippedByName[host.name];
                 const rc = {};
-                if (eq.track_theme) rc.track_theme = eq.track_theme;
                 if (eq.finish_fx) rc.finish_fx = eq.finish_fx;
                 if (Object.keys(rc).length) result.roomCosmetics = rc;
             }
@@ -557,7 +556,7 @@ module.exports = (socket, io, ctx) => {
             fakeEvolutionTargets: verifiedFakeEvolutionTargets,
             targetRank: resolvedTargetRank,
             targetRankReason: targetRankReason,
-            roomCosmetics: roomCosmetics,   // 방장 연출 (track_theme/finish_fx)
+            roomCosmetics: roomCosmetics,   // 방장 연출 (finish_fx)
             horseCosmetics: horseCosmetics, // 말별 공개 꾸미기 (paint/trail/accessory)
             labelCosmetics: labelCosmetics  // 이름표(닉네임 라벨) 꾸미기, userName 키
         };

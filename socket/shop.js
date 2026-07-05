@@ -284,8 +284,8 @@ function registerShopHandlers(socket, io, ctx) {
         const cb = (typeof callback === 'function') ? callback : () => {};
         const slot = data && data.slot;
         const cosmeticId = data && data.cosmeticId; // null/undefined면 해제
-        // 광고 장착 허용 슬롯 = 공개 말-슬롯 + 개인 연출(finish_fx/track_theme).
-        // PUBLIC_HORSE_SLOTS만 허용하면 광고 finish_fx/track_theme가 reason:'slot'로 조용히 거부됐다.
+        // 광고 장착 허용 슬롯 = 공개 말-슬롯 + 개인 연출(finish_fx).
+        // PUBLIC_HORSE_SLOTS만 허용하면 광고 finish_fx가 reason:'slot'로 조용히 거부됐다.
         // (말-루프 buildRaceCosmetics는 계속 PUBLIC_HORSE_SLOTS만 순회 — 개인 연출이 말 위로 새지 않음.)
         if (cosmetics.AD_EQUIP_SLOTS.indexOf(slot) === -1) return cb({ ok: false, reason: 'slot' });
         const room = ctx.getCurrentRoom && ctx.getCurrentRoom();

@@ -507,8 +507,6 @@
 
         var thumb = document.createElement('div');
         thumb.className = 'hshop-thumb hshop-thumb--' + rarity;
-        // 트랙테마 등 그라데이션 썸네일 배경(어댑터가 item.bg를 줄 때만)
-        if (slot === 'track_theme' && item.bg) thumb.style.backgroundImage = item.bg;
         var badge = document.createElement('span');
         badge.className = 'hshop-rarity hshop-rarity--' + rarity;
         badge.textContent = RARITY_LABEL[rarity] || rarity;
@@ -1227,7 +1225,6 @@
 
         var art = document.createElement('div');
         art.className = 'hshop-reveal-art hshop-thumb--' + rarity;
-        if (slot === 'track_theme' && item.bg) art.style.backgroundImage = item.bg;
         var preview = null;
         if (_config && _config.hooks && _config.hooks.buildPreview) {
             try { preview = _config.hooks.buildPreview(slot, item); } catch (e) { preview = null; }

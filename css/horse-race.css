@@ -296,6 +296,11 @@ input[type="text"]:focus, input[type="password"]:focus {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+@keyframes iceShiver {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-1px); }
+    75% { transform: translateX(1px); }
+}
 @keyframes finishLinePulse {
     0%, 100% {
         opacity: 1;

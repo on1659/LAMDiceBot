@@ -1,13 +1,13 @@
 // QA: 꾸미기 상점 전 카탈로그 렌더/적용 종합 검증 — Playwright (headless)
 //
-//   목적: horse-race 7슬롯(paint/trail/accessory/bib/aura/track_theme/finish_fx)과
+//   목적: horse-race 6슬롯(paint/trail/accessory/bib/aura/finish_fx)과
 //         spin-arena spin_skin 의 "모든" 카탈로그 아이템을 한 개씩 적용/렌더해
 //         (1) 기대 DOM 노드가 생성되고 (2) 가시(non-zero box)이며 (3) 아이템별 distinct 하게
 //         렌더되는지 단언한다. "throw 안 남"이 아니라 "실제로 그 아이템이 보이는가"를 검증.
 //         각 슬롯마다 전 아이템을 나란히 그린 contact-sheet PNG 를 사람이 눈으로 확인하도록 저장.
 //
 //   공정성: 결과/시뮬/winner 경로 미접근. 순수 외형 render/apply 공개 API 만 호출
-//           (HorseShop.applyEquippedToHorse / applyMyTrackTheme / playFinishFx / getLabelStyle,
+//           (HorseShop.applyEquippedToHorse / playFinishFx / getLabelStyle,
 //            spin 피커 renderSkinPicker 산출 DOM). 서버 소유권/selectSkin 위조 없음 —
 //            spin_skin 은 인증 host 로 잠금만 해제(소유 위조 아님), 색/blade 는 클라 SPIN_SKIN_COLORS 거울.
 //
@@ -57,7 +57,7 @@ function rec(slot, id, ok, reason) {
     const browser = await chromium.launch();
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PART 1 — HORSE: paint / trail / accessory / bib / aura / track_theme / finish_fx
+    // PART 1 — HORSE: paint / trail / accessory / bib / aura / finish_fx
     // ─────────────────────────────────────────────────────────────────────────
     const hErrs = [];
     const hPage = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
@@ -77,7 +77,7 @@ function rec(slot, id, ok, reason) {
             var cat = (window.ShopModule && ShopModule.getCatalog && ShopModule.getCatalog()) || null;
             if (!cat) return null;
             var out = {};
-            ['paint', 'trail', 'accessory', 'bib', 'aura', 'track_theme', 'finish_fx'].forEach(function (slot) {
+            ['paint', 'trail', 'accessory', 'bib', 'aura', 'finish_fx'].forEach(function (slot) {
                 out[slot] = (cat[slot] || []).map(function (it) { return it.id; });
             });
             return out;
@@ -311,62 +311,6 @@ function rec(slot, id, ok, reason) {
             await shoot('accessory');
         }
 
-        // ── TRACK_THEME ── 각 아이템: getAdWallet override → applyMyTrackTheme → .cosmetic-track-theme, bg 적용, distinct
-        //   contact-sheet 는 #raceTrackContainer 가 비-경주화면에서 display:none 일 수 있어 측정 어려움 →
-        //   별도 합성 그리드(각 cell 에 bg 직접 칠한 미니 트랙)로 시각화하되, 단언은 실제 applyMyTrackTheme 산출로 한다.
-        {
-            // 1) 단언: 실제 applyMyTrackTheme 경로
-            const applyRes = await hPage.evaluate((ids) => {
-                var cont = document.getElementById('raceTrackContainer');
-                if (!cont) return { err: '#raceTrackContainer 없음' };
-                var origAd = window.ShopModule.getAdWallet;
-                var out = [];
-                ids.forEach(function (id) {
-                    cont.querySelectorAll('.cosmetic-track-theme').forEach(function (n) { n.remove(); });
-                    window.ShopModule.getAdWallet = function () { return { equipped: { track_theme: id } }; };
-                    var err = null;
-                    try { window.HorseShop.applyMyTrackTheme(); } catch (e) { err = String(e); }
-                    var ov = cont.querySelector('.cosmetic-track-theme');
-                    var item = window.HorseShop.getCatalogItem(id);
-                    if (!ov) { out.push({ id: id, ok: false, reason: err || '.cosmetic-track-theme 미생성', bg: '' }); return; }
-                    var bg = ov.style.backgroundImage || '';
-                    // 멱등: 정확히 1개
-                    var count = cont.querySelectorAll('.cosmetic-track-theme').length;
-                    var hasBg = bg && bg !== 'none' && /gradient/.test(bg);
-                    out.push({ id: id, ok: !!hasBg && count === 1, reason: (!hasBg ? 'bg 미적용("' + bg + '")' : '') + (count !== 1 ? ' dup=' + count : ''), bg: bg });
-                });
-                window.ShopModule.getAdWallet = origAd;
-                cont.querySelectorAll('.cosmetic-track-theme').forEach(function (n) { n.remove(); });
-                return { out: out };
-            }, catalog.track_theme);
-            if (applyRes.err) {
-                catalog.track_theme.forEach(id => rec('track_theme', id, false, applyRes.err));
-            } else {
-                applyRes.out.forEach(r => rec('track_theme', r.id, r.ok, r.ok ? null : r.reason));
-                const seen = {}; const dups = [];
-                applyRes.out.forEach(r => { if (r.bg && seen[r.bg]) dups.push(seen[r.bg] + '==' + r.id); if (r.bg) seen[r.bg] = r.id; });
-                if (dups.length) console.log('  [track_theme 관찰] 동일 bg 중복:', dups.join(', '));
-            }
-            // 2) contact-sheet: 합성 그리드(각 칸에 catalog.bg 직접 칠) — 눈으로 23종 테마 일별
-            await clearSandbox();
-            await hPage.evaluate((ids) => {
-                ids.forEach(function (id) {
-                    var item = window.HorseShop.getCatalogItem(id);
-                    var cell = document.createElement('div');
-                    cell.className = 'qa-cell';
-                    cell.style.cssText = 'display:inline-block;position:relative;width:150px;height:80px;margin:6px;border-radius:8px;overflow:hidden;vertical-align:top;border:1px solid #111;';
-                    cell.style.backgroundImage = (item && item.bg) || '';
-                    cell.style.backgroundSize = 'cover';
-                    var cap = document.createElement('div'); cap.className = 'qa-cap';
-                    cap.textContent = id.replace('theme_', '');
-                    cell.appendChild(cap);
-                    window.__qaSandbox.appendChild(cell);
-                });
-            }, catalog.track_theme);
-            await captionCells();
-            await shoot('track_theme');
-        }
-
         // ── FINISH_FX ── 각 아이템: getAdWallet override → playFinishFx → .cosmetic-finish-fx(28조각), emoji 일치, tofu 아님
         {
             const fxRes = await hPage.evaluate((ids) => {
@@ -486,7 +430,7 @@ function rec(slot, id, ok, reason) {
 
     } catch (e) {
         console.log('HORSE 파트 예외:', e.message);
-        ['paint', 'trail', 'accessory', 'bib', 'aura', 'track_theme', 'finish_fx'].forEach(s => {
+        ['paint', 'trail', 'accessory', 'bib', 'aura', 'finish_fx'].forEach(s => {
             if (!results[s]) rec(s, '(part-error)', false, e.message);
         });
     }
@@ -664,7 +608,7 @@ function rec(slot, id, ok, reason) {
     // ─────────────────────────────────────────────────────────────────────────
     console.log('\n========== 슬롯별 렌더 요약 ==========');
     let anyFail = false;
-    const ORDER = ['paint', 'trail', 'accessory', 'bib', 'aura', 'track_theme', 'finish_fx', 'spin_skin', 'idempotent'];
+    const ORDER = ['paint', 'trail', 'accessory', 'bib', 'aura', 'finish_fx', 'spin_skin', 'idempotent'];
     ORDER.forEach(slot => {
         const r = results[slot];
         if (!r) { console.log(slot + ': (미실행)'); anyFail = true; return; }
@@ -677,7 +621,7 @@ function rec(slot, id, ok, reason) {
     });
 
     console.log('\n========== contact-sheet PNG ==========');
-    ['paint', 'trail', 'accessory', 'bib', 'aura', 'track_theme', 'finish_fx', 'spin_skin'].forEach(slot => {
+    ['paint', 'trail', 'accessory', 'bib', 'aura', 'finish_fx', 'spin_skin'].forEach(slot => {
         const p = path.join(SHOT_DIR, slot + '.png');
         if (fs.existsSync(p)) {
             const sz = fs.statSync(p).size;

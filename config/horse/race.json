@@ -84,6 +84,18 @@
           "durationRange": [2000, 3000],
           "speedMultiplierRange": [1.8, 2.5]
         }
+      },
+      "item_rocket": {
+        "category": "boost",
+        "probability": 0.06,
+        "durationRange": [400, 700],
+        "speedMultiplierRange": [1.9, 2.3]
+      },
+      "item_ice": {
+        "category": "stop",
+        "probability": 0.06,
+        "durationRange": [800, 1400],
+        "speedMultiplier": 0.15
       }
     }
   },

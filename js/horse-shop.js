@@ -5,7 +5,7 @@
  * (window.ShopModule)이 담당. 이 어댑터는 경마 고유부만 보유:
  *   - 차량 SVG 미리보기(buildPreview hook, getVehicleSVG 의존)
  *   - 내 탈것에 장착 적용(applyToHorse / applyEquippedToHorse / applyToActiveHorses)
- *   - 개인 연출(track_theme 틴트 applyMyTrackTheme, finish_fx playFinishFx) — 본인 장착을 본인 화면에서만
+ *   - 개인 연출(finish_fx playFinishFx) — 본인 장착을 본인 화면에서만
  *
  * 공개 API(window.HorseShop.*)는 기존 그대로 유지(호출부: js/horse-race.js, HTML onclick).
  *
@@ -17,20 +17,59 @@
     'use strict';
 
     var CATALOG_URL = '/config/horse/cosmetics.json';
-    // 상점 탭(슬롯). track_theme/finish_fx는 개인 연출 — 내가 장착하면 내 화면에만 적용(방장·우승 무관).
+    // 상점 탭(슬롯). finish_fx는 개인 연출 — 내가 장착하면 내 화면에만 적용(방장·우승 무관).
     var SLOTS = [
         { key: 'paint', label: '🎨 도색' },
         { key: 'trail', label: '✨ 트레일' },
         { key: 'accessory', label: '👑 액세서리' },
         { key: 'bib', label: '🏷️ 이름표' },
         { key: 'aura', label: '🌟 오라' },
-        { key: 'track_theme', label: '🏞️ 트랙테마' },
         { key: 'finish_fx', label: '🎆 결승연출' }
     ];
 
     // 카드 썸네일에 실제 탈것을 그려 꾸미기 적용 모습을 미리보기로 보여줄 슬롯
     var HORSE_PREVIEW_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura'];
     var PREVIEW_VEHICLE = 'car'; // 미리보기 샘플 탈것 (getVehicleSVG, horse-race-sprites.js)
+
+    // ── 오라 스프라이트 아틀라스 (SpriteMake: horse-aura-cosmetics) ──
+    //   /assets/cosmetics/aura-atlas.png : 512×2944, 4열(펄스 프레임) × 23행(오라별), 셀 128×128.
+    //   행 순서는 매니페스트 rowOrder 기준 — 카탈로그 배열 순서와 다르다(rainbow=21, prism=22).
+    //   아틀라스 로드 성공 시에만 data-aura-atlas 부여 → CSS가 스프라이트로 렌더.
+    //   로드 실패(미배포 등) 시 data-aura-atlas 미부여 → 기존 currentColor 글로우로 안전 폴백.
+    //   공정성: 순수 외관. 결과/속도/기믹/소켓 페이로드에 진입하지 않는다.
+    var AURA_ATLAS_URL = '/assets/cosmetics/aura-atlas.png';
+    var AURA_ATLAS_ROWS = {
+        aura_red: 0, aura_blue: 1, aura_green: 2, aura_gold: 3, aura_violet: 4,
+        aura_cyan: 5, aura_pink: 6, aura_orange: 7, aura_lime: 8, aura_white: 9,
+        aura_indigo: 10, aura_ad_aqua: 11, aura_ad_flame: 12, aura_ad_mint: 13,
+        aura_ad_amber: 14, aura_ad_rose: 15, aura_ad_teal: 16, aura_ad_silver: 17,
+        aura_ad_cobalt: 18, aura_ad_neon: 19, aura_ad_plasma: 20,
+        aura_rainbow: 21, aura_prism: 22
+    };
+    var auraAtlasReady = false;
+    (function preloadAuraAtlas() {
+        try {
+            var img = new Image();
+            img.onload = function () {
+                auraAtlasReady = true;
+                // 아틀라스가 늦게 로드되면 이미 그려진 내 탈것을 즉시 업그레이드(미리보기는 상점 재오픈 시 갱신).
+                try { applyToActiveHorses(); } catch (e) {}
+            };
+            img.src = AURA_ATLAS_URL;
+        } catch (e) {}
+    })();
+
+    // 오라 span에 시각효과 주입: currentColor 글로우 폴백 색 + (아틀라스 준비 시) 스프라이트 행 선택.
+    //   auraItem = 카탈로그 오라 항목({ id, color, ... }). el = 빈 span(장식, aria-hidden).
+    function applyAuraVisual(el, auraItem) {
+        if (!el || !auraItem) return;
+        if (auraItem.color) el.style.color = auraItem.color; // 폴백 글로우(currentColor 기반)
+        var row = AURA_ATLAS_ROWS[auraItem.id];
+        if (auraAtlasReady && row != null) {
+            el.style.setProperty('--aura-row', String(row));
+            el.setAttribute('data-aura-atlas', '');
+        }
+    }
 
     // 액세서리(머리 장식) 탈것별 앵커 — 외관 보정용(공정성 무관, Math.random 미사용).
     //   .cosmetic-accessory 의 offset parent 는 .horse(80×80). 스프라이트(60×45)는 flex 중앙정렬이라
@@ -88,7 +127,7 @@
             var au = document.createElement('span');
             au.className = 'hshop-preview-aura';
             au.setAttribute('aria-hidden', 'true');
-            au.style.color = item.color; // currentColor 기반 box-shadow (CSS)
+            applyAuraVisual(au, item); // 스프라이트(로드 시) 또는 currentColor 글로우 폴백
             box.appendChild(au);
         }
 
@@ -116,27 +155,6 @@
             if (item.bg) bb.style.background = item.bg;
             if (item.border) bb.style.borderColor = item.border;
             box.appendChild(bb);
-        }
-        return box;
-    }
-
-    // 트랙테마 미니 썸네일: (그라데이션은 thumb 배경이 이미 깔림) 지평선 + 달리는 탈것 실루엣.
-    function buildTrackThemePreview(item) {
-        var box = document.createElement('div');
-        box.className = 'hshop-track-mini';
-        box.setAttribute('aria-hidden', 'true');
-
-        var ground = document.createElement('div');
-        ground.className = 'hshop-track-ground';
-        if (item && item.accent) ground.style.borderTopColor = item.accent;
-        box.appendChild(ground);
-
-        var svg = sampleVehicleHTML(); // 상수 SVG (유저입력 없음)
-        if (svg) {
-            var runner = document.createElement('div');
-            runner.className = 'hshop-track-runner';
-            runner.innerHTML = svg;
-            box.appendChild(runner);
         }
         return box;
     }
@@ -190,7 +208,6 @@
 
     // ShopModule이 카드 썸네일에 부를 미리보기 hook (slot별 분기). null이면 셸이 글리프 fallback.
     function buildPreview(slot, item) {
-        if (slot === 'track_theme') return buildTrackThemePreview(item);
         if (slot === 'finish_fx') return buildFinishFxPreview(item);
         if (HORSE_PREVIEW_SLOTS.indexOf(slot) !== -1 && typeof getVehicleSVG === 'function') {
             return buildItemPreview(slot, item);
@@ -240,6 +257,18 @@
 
         var box = document.createElement('div');
         box.className = 'hshop-inv-preview';
+
+        // 오라: 스프라이트 뒤 글로우. (기존 버그: 인벤토리 미리보기가 오라를 전혀 안 그려 "적용 안 됨"으로 보임 — 여기서 수정)
+        if (eq.aura) {
+            var invAura = findItem('aura', eq.aura);
+            if (invAura && invAura.color) {
+                var iau = document.createElement('span');
+                iau.className = 'hshop-inv-aura';
+                iau.setAttribute('aria-hidden', 'true');
+                applyAuraVisual(iau, invAura);
+                box.appendChild(iau); // 스프라이트 append 전에 넣어 뒤에 깔리게(z-index로도 보장)
+            }
+        }
 
         if (eq.trail) {
             var trail = findItem('trail', eq.trail);
@@ -315,7 +344,7 @@
             var auraEl = document.createElement('span');
             auraEl.className = 'cosmetic-aura';
             auraEl.setAttribute('aria-hidden', 'true');
-            auraEl.style.color = aura.color; // currentColor 기반 box-shadow (CSS)
+            applyAuraVisual(auraEl, aura); // 스프라이트(로드 시) 또는 currentColor 글로우 폴백
             horseEl.appendChild(auraEl);
         }
 
@@ -402,46 +431,9 @@
         for (var i = 0; i < horses.length; i++) applyToHorse(horses[i]);
     }
 
-    // ── 개인 연출 (track_theme / finish_fx) ────────────────
-    //   둘 다 "개인 꾸미기": 각 플레이어가 본인 장착(코인 DB + 광고 transient)을 본인 화면에서 본다.
-    //   방장 무관·우승 무관. playFinishFx가 이미 이 모델(mergedEquipped) — track_theme도 동일하게.
-
-    // 트랙테마 오버레이만 정리(멱등). 결승 폭죽 레이어(.cosmetic-finish-fx)는 자체 타이머(5.5s)로
-    //   정리되므로 건드리지 않는다 — 트랙테마 재적용이 진행 중인 결승 연출을 지우지 않게.
-    function clearMyTrackTheme() {
-        var prev = document.querySelectorAll('.cosmetic-track-theme');
-        for (var i = 0; i < prev.length; i++) prev[i].remove();
-    }
-
-    // 내가 장착한 트랙테마(mergedEquipped().track_theme) 배경 틴트를 라이브 트랙에 적용. 멱등(먼저 정리).
-    //   라이브 트랙(raceTrackContainer)이 없으면 no-op(상점에서 장착만 했을 땐 적용 대상 없음).
-    function applyMyTrackTheme() {
-        clearMyTrackTheme();
-        if (!getCatalog()) return;
-        var container = document.getElementById('raceTrackContainer');
-        if (!container) return;
-        var themeId = mergedEquipped().track_theme;
-        if (!themeId) return;
-        var theme = getCatalogItem(themeId);
-        if (theme && theme.bg) {
-            var ov = document.createElement('div');
-            ov.className = 'cosmetic-track-theme';
-            ov.setAttribute('aria-hidden', 'true');
-            ov.style.backgroundImage = theme.bg;
-            container.appendChild(ov);
-        }
-    }
-
-    // 공개 API 호환 래퍼(호출부: js/horse-race.js horseRaceStarted). 인자(roomCosmetics)는 기존
-    //   시그니처 호환용으로 받기만 하고 무시한다 — 트랙테마는 방장 broadcast가 아니라 본인 장착 기준.
-    function applyRoomCosmetics(_roomCosmetics) {
-        applyMyTrackTheme();
-    }
-
-    function clearRoomCosmetics() {
-        var prev = document.querySelectorAll('.cosmetic-track-theme, .cosmetic-finish-fx');
-        for (var i = 0; i < prev.length; i++) prev[i].remove();
-    }
+    // ── 개인 연출 (finish_fx) ──────────────────────────────
+    //   "개인 꾸미기": 각 플레이어가 본인 장착(코인 DB + 광고 transient)을 본인 화면에서 본다.
+    //   방장 무관·우승 무관. 결승 폭죽 레이어(.cosmetic-finish-fx)는 자체 타이머(5.5s)로 정리된다.
 
     // 결승 이펙트 1회 재생을 임의 컨테이너에 그리는 헬퍼(in-race·상점 미리보기 공용).
     //   이모지 28개 낙하(화면 전폭 커버 + 크기/딜레이 jitter). Math.random은 외형(위치/딜레이/크기)
@@ -509,8 +501,8 @@
                 return { owned: owned, buyable: true };
             },
             noticeText: function (activeSlot) {
-                return (activeSlot === 'track_theme' || activeSlot === 'finish_fx')
-                    ? '결승연출·트랙테마는 내가 장착하면 내 화면에 보여요. 게임 결과엔 영향 없어요.'
+                return (activeSlot === 'finish_fx')
+                    ? '결승연출은 내가 장착하면 내 화면에 보여요. 게임 결과엔 영향 없어요.'
                     : '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
             },
             // free 서버(자유플레이·로그인 없음 → currentServerId === null)에서는 코인 경제가
@@ -521,13 +513,12 @@
                     ? '여기서는 코인샵을 사용할 수 없어요. 서버를 새로 만들어 진행해 주세요.'
                     : null;
             },
-            // 인증/지갑 동기화 직후 — 내 활성 말 + 이름표 라벨 + 라이브 트랙테마에 장착 반영
-            onWalletSynced: function () { applyToActiveHorses(); applyMyTrackTheme(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
-            // 장착/해제 직후 — 내 활성 말 + 이름표 라벨 + 라이브 트랙테마 즉시 반영 (force 무관)
-            //   applyMyTrackTheme은 라이브 트랙(raceTrackContainer) 없으면 no-op — 상점에서 장착만 했을 땐 무해.
-            onEquipApplied: function () { applyToActiveHorses(); applyMyTrackTheme(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
-            // 광고 코스메틱 장착/해제 직후 — 내 활성 말 + 이름표 라벨 + 라이브 트랙테마 즉시 반영
-            onAdEquipApplied: function () { applyToActiveHorses(); applyMyTrackTheme(); if (window.refreshMyNameTags) window.refreshMyNameTags(); }
+            // 인증/지갑 동기화 직후 — 내 활성 말 + 이름표 라벨에 장착 반영
+            onWalletSynced: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 장착/해제 직후 — 내 활성 말 + 이름표 라벨 즉시 반영 (force 무관)
+            onEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 광고 코스메틱 장착/해제 직후 — 내 활성 말 + 이름표 라벨 즉시 반영
+            onAdEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); }
             // onPurchased: no-op (구매만으로 외관 변화 없음 — 장착 시 반영)
         }
     });
@@ -543,9 +534,6 @@
         applyToHorse: applyToHorse,
         applyEquippedToHorse: applyEquippedToHorse,
         applyToActiveHorses: applyToActiveHorses,
-        applyRoomCosmetics: applyRoomCosmetics, // 호환 래퍼(인자 무시) → applyMyTrackTheme
-        applyMyTrackTheme: applyMyTrackTheme,
-        clearRoomCosmetics: clearRoomCosmetics,
         playFinishFx: playFinishFx,
         getEquipped: getEquipped,
         getCatalogItem: getCatalogItem,

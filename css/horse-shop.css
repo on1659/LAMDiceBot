@@ -288,6 +288,21 @@ body.hshop-open {
     opacity: 0.55;
     box-shadow: 0 0 16px 6px currentColor;
 }
+/* 카드 오라 — 아틀라스 스프라이트(로드 성공 시). JS가 data-aura-atlas + --aura-row 주입.
+   실패 시 위 currentColor 글로우로 폴백. 44px 셀: background-size = 44*4 × 44*23. */
+.hshop-preview-aura[data-aura-atlas] {
+    width: 96px;                /* 차(62px)보다 크게 — 작으면 글로우가 차 뒤에 완전히 가려짐 */
+    height: 96px;
+    background: url('/assets/cosmetics/aura-atlas.png') no-repeat;
+    background-size: 384px 2208px;   /* 96*4 × 96*23 */
+    background-position-x: 0;
+    background-position-y: calc(var(--aura-row, 0) * -96px);
+    border-radius: 0;
+    opacity: 1;
+    box-shadow: none;
+    animation: auraSprite96 0.5s steps(4) infinite;
+}
+@keyframes auraSprite96 { from { background-position-x: 0; } to { background-position-x: -384px; } }
 /* 이름표 미리보기: 스프라이트 아래 닉네임 라벨(가변폭) */
 .hshop-preview-bib {
     position: absolute;
@@ -695,6 +710,37 @@ body.hshop-open {
     z-index: 3;
     pointer-events: none;
 }
+/* 인벤토리("내 아이템") 미리보기 오라 — 스프라이트 뒤 글로우. 카드/인레이스와 동일 렌더.
+   기존엔 이 노드 자체가 없어 오라가 미리보기에서 "적용 안 됨"으로 보였다(버그). 120px 스프라이트 뒤 ~108px. */
+.hshop-inv-aura {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 108px;
+    height: 108px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    z-index: 1;                 /* 스프라이트(.hshop-inv-sprite z-index:2) 뒤 */
+    pointer-events: none;
+    background: radial-gradient(circle, currentColor 0%, transparent 66%);
+    opacity: 0.5;
+    box-shadow: 0 0 26px 10px currentColor;
+    animation: cosmeticAuraPulse 2.2s ease-in-out infinite;
+}
+/* 아틀라스 스프라이트(로드 성공 시). 108px 셀: background-size = 108*4 × 108*23. */
+.hshop-inv-aura[data-aura-atlas] {
+    width: 180px;               /* 차(120px)보다 크게 — 무대(140px)는 세로 클리핑되나 색 링은 또렷 */
+    height: 180px;
+    background: url('/assets/cosmetics/aura-atlas.png') no-repeat;
+    background-size: 720px 4140px;   /* 180*4 × 180*23 */
+    background-position-x: 0;
+    background-position-y: calc(var(--aura-row, 0) * -180px);
+    border-radius: 0;
+    opacity: 1;
+    box-shadow: none;
+    animation: auraSprite180 0.5s steps(4) infinite;
+}
+@keyframes auraSprite180 { from { background-position-x: 0; } to { background-position-x: -720px; } }
 .hshop-inv-bib {
     position: absolute;
     bottom: 6px;
@@ -953,19 +999,23 @@ body.hshop-open {
     0%, 100% { opacity: 0.42; transform: translate(-50%, -50%) scale(0.92); }
     50%      { opacity: 0.6;  transform: translate(-50%, -50%) scale(1.06); }
 }
-
-/* ── 방 연출: 트랙 테마 (방장 장착분 방 전체 적용) ── */
-/* 가독성 보호: 낮은 불투명도 틴트 + pointer-events none, 트랙/말보다 뒤(z-index 0) */
-.cosmetic-track-theme {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    opacity: 0.28;
-    background-size: cover;
-    background-position: center;
-    pointer-events: none;
-    border-radius: inherit;
+/* 인레이스 오라 — 아틀라스 스프라이트(로드 성공 시). 60px 셀: background-size = 60*4 × 60*23.
+   z-index를 스프라이트 아래(-1)로 내린다: 반투명 글로우와 달리 스프라이트 프레임은 불투명부가 있어
+   .vehicle-sprite(z-index:auto=0) 위에 그리면 탈것을 가린다. transform은 base의 translate(-50%,-50%) 유지. */
+.cosmetic-aura[data-aura-atlas] {
+    width: 84px;                /* 탈것(60px)보다 크게 — 말 박스(80px) 약간 넘지만 클리핑 없음 */
+    height: 84px;
+    background: url('/assets/cosmetics/aura-atlas.png') no-repeat;
+    background-size: 336px 1932px;   /* 84*4 × 84*23 */
+    background-position-x: 0;
+    background-position-y: calc(var(--aura-row, 0) * -84px);
+    border-radius: 0;
+    opacity: 1;
+    box-shadow: none;
+    z-index: -1;
+    animation: auraSprite84 0.5s steps(4) infinite;
 }
+@keyframes auraSprite84 { from { background-position-x: 0; } to { background-position-x: -336px; } }
 
 /* ── 방 연출: 결승 이펙트 (폭죽/색종이) ── */
 .cosmetic-finish-fx {
@@ -989,42 +1039,6 @@ body.hshop-open {
     8%   { opacity: 1; }
     90%  { opacity: 1; }
     100% { transform: translateY(125%) rotate(300deg); opacity: 0; }
-}
-
-/* ── 카드 미리보기: 트랙테마 미니 썸네일 ── */
-/* (그라데이션 배경은 .hshop-thumb backgroundImage 로 이미 적용됨) */
-.hshop-track-mini {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-}
-.hshop-track-ground {
-    position: absolute;
-    left: 6%;
-    right: 6%;
-    bottom: 24%;
-    border-top: 2px dashed rgba(255, 255, 255, 0.55);
-}
-.hshop-track-runner {
-    position: absolute;
-    bottom: 24%;
-    left: 6%;
-    width: 38px;
-    line-height: 0;
-    transform-origin: left bottom;
-    animation: hshopTrackRun 2.6s linear infinite;
-}
-.hshop-track-runner svg {
-    width: 38px;
-    height: auto;
-    display: block;
-    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
-}
-@keyframes hshopTrackRun {
-    0%   { transform: translateX(0);    opacity: 0; }
-    12%  { opacity: 1; }
-    85%  { opacity: 1; }
-    100% { transform: translateX(230%); opacity: 0; }
 }
 
 /* ── 카드 미리보기: 결승연출 (펄스 + 낙하 조각) ── */
@@ -1481,11 +1495,13 @@ body.hshop-open {
 
 /* 모션 최소화 선호 시 카드 미리보기 애니메이션 정지 */
 @media (prefers-reduced-motion: reduce) {
-    .hshop-track-runner,
     .hshop-fx-burst,
     .hshop-fx-confetti,
-    .cosmetic-aura { animation: none; }
-    .hshop-track-runner { opacity: 1; }
+    .cosmetic-aura,
+    .cosmetic-aura[data-aura-atlas],
+    .hshop-preview-aura[data-aura-atlas],
+    .hshop-inv-aura,
+    .hshop-inv-aura[data-aura-atlas] { animation: none; }
     .hshop-fx-confetti { opacity: 0; }
     /* 미리보기 재생 낙하 조각(.hshop-fx-stage 스코프)만 정지/숨김 — 버튼은 그대로 두고 모션만 제거.
        (in-race 레이스 트랙의 결승 연출은 이 스코프 밖이라 영향 없음.) */

@@ -1,8 +1,9 @@
-// QA: 경마 결승연출/트랙테마 발화 재현 — 사용자 버그("광고 결승연출 장착해도 안 터짐") 해소 검증.
+// QA: 경마 결승연출 발화 재현 — 사용자 버그("광고 결승연출 장착해도 안 터짐") 해소 검증.
 //
 // 핵심: 장착한 finish_fx 가 실제로 raceTrackContainer 에 .cosmetic-finish-fx(28조각)를 그리는가.
-//   전체 레이스(30s+)는 brittle 하므로 "발화 경로 단위"를 직접 호출(window.HorseShop.playFinishFx/applyMyTrackTheme)로
+//   전체 레이스(30s+)는 brittle 하므로 "발화 경로 단위"를 직접 호출(window.HorseShop.playFinishFx)로
 //   재현 — 바로 이 함수가 in-race 콜백에서 호출되는 그 함수다(js/horse-race.js horseRaceStarted/playReplay).
+//   (트랙테마 슬롯은 제거됨 — finish_fx 발화만 검증한다.)
 //
 // 전제: 로컬 서버(5173) + 로컬 DB (방장 코인 자동충전).
 // 실행: node AutoTest/qa-horse-finish-fx-fire-test.js
@@ -30,12 +31,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
     page.on('pageerror', e => errs.push(String(e)));
 
-    // 광고 지갑(sessionStorage)에 광고 finish_fx + 광고 track_theme 를 미리 장착 상태로 심는다.
+    // 광고 지갑(sessionStorage)에 광고 finish_fx 를 미리 장착 상태로 심는다.
     //   roomCreated → reapplyAdEquips() → loadAdWallet() 가 이걸 _adWallet.equipped 로 로드한다.
     const ADWALLET = {
         coins: 9999,
-        owned: ['fx_ad_party', 'theme_ad_galaxy'],
-        equipped: { finish_fx: 'fx_ad_party', track_theme: 'theme_ad_galaxy' },
+        owned: ['fx_ad_party'],
+        equipped: { finish_fx: 'fx_ad_party' },
         lastWatch: 0
     };
     await page.addInitScript(args => {
@@ -63,7 +64,6 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
         return { ad, db };
     });
     check(merged.ad.finish_fx === 'fx_ad_party', '광고 finish_fx(fx_ad_party) 가 adWallet.equipped 에 로드됨 (reapplyAdEquips→loadAdWallet): ' + JSON.stringify(merged.ad));
-    check(merged.ad.track_theme === 'theme_ad_galaxy', '광고 track_theme(theme_ad_galaxy) 가 adWallet.equipped 에 로드됨');
 
     // raceTrackContainer 가 페이지에 존재하고 position:relative 인지 (낙하 클리핑/absolute 기준)
     const containerOk = await page.evaluate(() => {
@@ -101,34 +101,6 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     check(adFx.display !== 'none' && adFx.visibility !== 'hidden', '기준1: 레이어 가시 (display=' + adFx.display + ', visibility=' + adFx.visibility + ')');
     check(parseInt(adFx.zIndex, 10) >= 100, '기준1: z-index 높음(트랙/말 위), got ' + adFx.zIndex);
     check(adFx.emoji === '🎊', '기준1: 조각 이모지 = fx_ad_party(🎊): "' + adFx.emoji + '"');
-
-    // ── 기준3: 광고 트랙테마 발화 ── applyMyTrackTheme() → .cosmetic-track-theme(배경 틴트) ──
-    const adTheme = await page.evaluate(() => {
-        window.HorseShop.applyMyTrackTheme();
-        const c = document.getElementById('raceTrackContainer');
-        const ov = c && c.querySelector('.cosmetic-track-theme');
-        if (!ov) return { overlay: false };
-        const cs = getComputedStyle(ov);
-        return { overlay: true, hasBg: !!ov.style.backgroundImage && ov.style.backgroundImage !== 'none', zIndex: cs.zIndex, opacity: cs.opacity, bgSnippet: (ov.style.backgroundImage || '').slice(0, 40) };
-    });
-    check(adTheme.overlay, '기준3: applyMyTrackTheme() → .cosmetic-track-theme 오버레이 생성 (광고 테마)');
-    check(adTheme.hasBg, '기준3: 트랙테마 backgroundImage 적용: ' + adTheme.bgSnippet);
-    check(parseInt(adTheme.zIndex, 10) === 0, '기준3: 트랙테마 z-index 0 (트랙/말 뒤 — 가독성), got ' + adTheme.zIndex);
-
-    // ── 기준6: clearMyTrackTheme 이 결승 폭죽(.cosmetic-finish-fx)을 안 지운다 ──
-    const clearTest = await page.evaluate(() => {
-        // 폭죽 + 테마 둘 다 발화 상태에서 applyMyTrackTheme(내부에서 clearMyTrackTheme 호출)
-        document.querySelectorAll('.cosmetic-finish-fx, .cosmetic-track-theme').forEach(n => n.remove());
-        window.HorseShop.playFinishFx();        // 폭죽
-        window.HorseShop.applyMyTrackTheme();    // 테마(clearMyTrackTheme 내부 호출 — 폭죽 보존해야)
-        const c = document.getElementById('raceTrackContainer');
-        return {
-            fxAfter: c.querySelectorAll('.cosmetic-finish-fx').length,
-            themeAfter: c.querySelectorAll('.cosmetic-track-theme').length
-        };
-    });
-    check(clearTest.fxAfter === 1, '기준6: applyMyTrackTheme 후에도 결승 폭죽(.cosmetic-finish-fx) 보존 (clearMyTrackTheme 이 .cosmetic-track-theme 만 정리), fx=' + clearTest.fxAfter);
-    check(clearTest.themeAfter === 1, '기준6: 트랙테마는 멱등 — 1개만 (재적용 시 중복 안 쌓임), theme=' + clearTest.themeAfter);
 
     // ── 기준2: 코인 결승연출 발화 ── 광고 지갑 비우고 DB 코인 fx 구매/장착 → playFinishFx ──
     // 광고 슬롯을 비워 mergedEquipped 가 DB(코인) fx 를 읽도록.
@@ -189,14 +161,6 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     });
     check(noFx.dbFx == null && noFx.adFx == null, '엣지1-전제: finish_fx 양쪽 캐시 모두 해제됨 (db=' + noFx.dbFx + ', ad=' + noFx.adFx + ')');
     check(noFx.layers === 0, '엣지1: finish_fx 미장착 시 playFinishFx no-op (레이어 0), got ' + noFx.layers);
-
-    // ── 엣지2: track_theme 미장착 → applyMyTrackTheme 이 기존 테마만 정리 (오버레이 0) ──
-    const noTheme = await page.evaluate(() => {
-        if (window.ShopModule && ShopModule.getAdWallet) { delete ShopModule.getAdWallet().equipped.track_theme; }
-        window.HorseShop.applyMyTrackTheme();
-        return document.querySelectorAll('.cosmetic-track-theme').length;
-    });
-    check(noTheme === 0, '엣지2: track_theme 미장착 시 applyMyTrackTheme 오버레이 0 (정리만), got ' + noTheme);
 
     // ── 엣지3: 연타 멱등 — playFinishFx 3회 → 레이어 3개(각자 5.5s 후 자동정리)지만 조각 누적 폭주 없음 ──
     //   (finish_fx 다시 장착 후) 레이어는 누적되나 각 28개로 일정, leak 타이머 존재 확인.
