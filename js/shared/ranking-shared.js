@@ -651,6 +651,7 @@ const RankingModule = (function () {
                 case 'dice': renderGame(el, _cache.dice, '주사위'); break;
                 case 'horse': renderHorse(el); break;
                 case 'roulette': renderGame(el, _cache.roulette, '룰렛'); break;
+                case 'ladder': renderGame(el, _cache.ladder, '사다리타기'); break;
                 case 'orders': renderOrders(el); break;
             }
         });
@@ -755,7 +756,8 @@ const RankingModule = (function () {
         const gameTabs = [
             { label: '🎲 주사위', key: 'dice', color: '#667eea' },
             { label: '🐎 경마', key: 'horse', color: '#e67e22' },
-            { label: '🎰 룰렛', key: 'roulette', color: '#7c4dff' }
+            { label: '🎰 룰렛', key: 'roulette', color: '#7c4dff' },
+            { label: '🪜 사다리타기', key: 'ladder', color: '#f59e0b' }
         ];
         if (data.orders) {
             gameTabs.push({ label: '🍜 주문', key: 'orders', color: '#e91e63' });
@@ -828,7 +830,7 @@ const RankingModule = (function () {
     }
 
     function renderGame(el, d, label) {
-        if (!d.winners.length) {
+        if (!d || !d.winners || !d.winners.length) {
             el.innerHTML = emptyMsg(`아직 ${label} 기록이 없습니다.`) + myRankBlock() + searchResultBlock();
             return;
         }
@@ -1021,7 +1023,7 @@ const RankingModule = (function () {
     // ─── 스와이프 제스처 ───
 
     function getGameTabKeys() {
-        const keys = ['dice', 'horse', 'roulette'];
+        const keys = ['dice', 'horse', 'roulette', 'ladder'];
         if (_cache && _cache.orders) keys.push('orders');
         return keys;
     }

@@ -39,6 +39,8 @@ const limiter = rateLimit({
     message: '너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.',
     standardHeaders: true,
     legacyHeaders: false,
+    // 로컬 개발(localhost)은 레이트리밋 제외 — 모든 탭이 127.0.0.1 한 버킷을 공유해 2탭 테스트가 막히는 문제 회피. 운영(외부 IP)엔 무영향.
+    skip: (req) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.ip),
 });
 console.log('ℹ️  Rate Limiting 설정 완료:', RATE_WINDOW_MS, 'ms 윈도우,', RATE_MAX, '회/분');
 app.use(limiter);

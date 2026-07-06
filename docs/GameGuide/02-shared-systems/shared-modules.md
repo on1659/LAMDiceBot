@@ -15,6 +15,7 @@
 | `countdown-shared.js` | 3-2-1-START 오버레이 | 경마 |
 | `page-history-shared.js` | 브라우저 뒤로가기 관리 | 전체 |
 | `tutorial-shared.js` | 튜토리얼 하이라이트, 비트 플래그 | 전체 |
+| `shop-shared.js` | 꾸미기 상점 셸 (인증/지갑/모달/구매/장착) | 경마, 회전 칼날 |
 
 ## HTML 포함 순서
 
@@ -95,6 +96,51 @@ ChatModule.init(socket, currentUser, {
 ### OrderModule.init(socket, currentUser, options)
 
 → 상세: `ORDER-MODULE.md`
+
+### ShopModule.init(config) — 꾸미기 상점 셸
+
+전 게임 공용 상점 셸(`js/shared/shop-shared.js`, `window.ShopModule`). 게임별 어댑터
+(`js/horse-shop.js` = `window.HorseShop`, `js/spin-shop.js` = `window.SpinShop`)가 config + hook만
+공급하고, 공통(인증/지갑/모달/구매/장착/잔고연출)은 셸이 담당.
+
+2단계 초기화 — `init(config)`로 설정 등록 후, 소켓이 늦게 들어오면 `connect(socket)`로 주입
+(`socket.on('connect')` 시점). `init(socket, config)` 형태도 허용(socket nullable).
+
+```javascript
+ShopModule.init({
+    mountId: 'horseShopMount',          // 모달 마운트 div id (페이지별 고유)
+    catalogUrl: '/config/horse/cosmetics.json',
+    title: '꾸미기 상점',
+    subtitle: '경마 · 내 탈것',          // 헤더 <small> (선택)
+    slots: [{ key: 'paint', label: '🎨 도색' }, ...],  // 길이 1이면 탭바 미렌더
+    noticeText: '...',                  // 단일 안내문 (slots 1개일 때, 선택)
+    animateBalance: true,               // 잔고 증감 애니 (기본 true)
+    hooks: {
+        buildPreview: (slot, item) => Node | null,  // 카드 썸네일 미리보기 (게임 전역 접근은 여기서만)
+        itemState: (item) => ({ owned, buyable, lockLabel }),  // 소유/구매가능/잠금 라벨
+        noticeText: (activeSlot) => '...',          // 탭별 안내문 (slots 다중일 때)
+        onWalletSynced: (wallet) => {},             // 인증/지갑동기화 직후
+        onPurchased: (wallet) => {},                // 구매 성공 직후
+        onEquipApplied: (equipped, force) => {}     // 장착/해제 직후
+    }
+});
+```
+
+어댑터가 게임별 메서드 구현에 쓰는 읽기 getter: `getWallet()`, `getEquipped()`,
+`getCatalog()`, `getCatalogItem(id)`, `findItem(slot, id)`, `isAuthed()`.
+
+공개 메서드: `init`, `connect`, `authenticate`, `loadCatalog`, `openShop`, `closeShop`.
+
+소켓 계약(불변): `socket:authenticate`, `wallet:get`, `wallet:updated`, `shop:buy`, `shop:equip`.
+카탈로그는 `shop:catalog` 대신 `fetch(catalogUrl)`로 로드. 가격·소유는 서버 권위(클라 가격 무시).
+
+#### 새 게임에 상점 추가 (셸 복사 불필요)
+
+1. `config/{game}/cosmetics.json` 작성 (서버가 자동 enumerate — `socket/shop.js` 무수정).
+2. `db/cosmetics.js` `EQUIP_SLOTS`에 새 슬롯 key 1줄 추가 (보안 화이트리스트 — 미지 슬롯 reject 유지).
+3. 게임 HTML에 마운트 div(`<div id="{game}ShopMount"></div>`) + `shop-shared.js` → 어댑터 순 script 태그.
+4. 어댑터 파일(`js/{game}-shop.js`) 작성: `ShopModule.init({...})` + `window.{Game}Shop` 파사드(thin wrapper).
+   게임 고유 미리보기/적용은 hook으로만.
 
 ### SoundManager
 

@@ -1,0 +1,387 @@
+/* 사다리타기(ladder) 전용 스타일 + 공통 변수 alias.
+   페이지별 stylesheet link라 horse-race 페이지엔 무영향.
+   vibe(D:\Work\vibe\ladder) 메커니즘 이식(Phase B) — 칸 수 스테퍼 + 라벨 편집 + 드래그 막대기 + 셔플/하강 연출. */
+
+:root {
+    /* 게임 전용 그라데이션 (amber/gold) */
+    --ladder-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+
+    /* 사다리 게임 뷰 최대 폭 — 캔버스/라벨행/상태/시작버튼이 같은 폭으로 정렬되게 단일 토큰으로 관리.
+       backing store(720×560)는 불변; 표시 크기만 키운다(좌표/공정성 무관, 720:560 종횡비 유지).
+       LAMDice 셸 .container는 800px 고정이라 view-max도 그 안(720)에 들어가게 유지(데스크톱 확장 없음). */
+    --ladder-view-max: 720px;
+
+    /* 내 채팅 말풍선 — 라이트/다크 무관하게 항상 밝은 배경(어두운 텍스트 가독) + 진한 이름색. */
+    --ladder-chat-bg: #fef3c7;     /* 밝은 amber, 모드 불변 */
+    --ladder-chat-name: #92400e;   /* 진한 amber, 모드 불변 */
+
+    /* horse-race.css가 쓰는 var(--horse-*)를 ladder 색으로 alias */
+    --horse-500: var(--ladder-500);
+    --horse-600: var(--ladder-600);
+    --horse-accent: var(--ladder-accent);
+    --horse-gradient: var(--ladder-gradient);
+    --horse-50: rgba(var(--ladder-500-rgb), 0.08);
+    --horse-100: rgba(var(--ladder-500-rgb), 0.16);
+    --horse-200: rgba(var(--ladder-500-rgb), 0.24);
+    --horse-700: var(--ladder-600);
+}
+
+/* ⚠️ Tailwind CDN .container responsive(1280px)가 horse-race.css 800px override → 강제 (C-1) */
+.container {
+    max-width: 800px !important;
+}
+
+/* ⚠️ horse-race.css는 .game-section{display:none}+.active 토글. 진입 즉시 표시 (C-2) */
+.game-section {
+    display: block;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   게임 영역 (6택1 lane-pick + 당첨 슬롯 + 드래그 막대기 + 시작 시퀀스)
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 상단 바 — 3슬롯 그리드: [빈 1fr][가운데 안내 main][우측 상점 1fr]. main이 진짜 중앙. */
+.ladder-setup-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 12px;
+}
+.ladder-setup-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+/* 좌·우 빈 슬롯 — 가운데 main을 중앙에 두기 위한 1fr 스페이서 */
+.ladder-bar-spacer { display: block; min-width: 0; }
+
+/* 우측 슬롯 — 상점 버튼 자리. 좌측 스페이서(1fr)와 대칭이라 main이 중앙 유지. */
+.ladder-shop-slot {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-width: 0;
+}
+
+/* 상점 진입 버튼 (spin-arena .spin-shop-btn 패턴 — 사다리 색) */
+.ladder-shop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1.5px solid var(--ladder-500);
+    background: var(--bg-white);
+    color: var(--ladder-accent);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(var(--ladder-500-rgb), 0.18);
+    white-space: nowrap;
+}
+.ladder-shop-btn:hover {
+    background: rgba(var(--ladder-500-rgb), 0.10);
+}
+
+/* 상점 카드 썸네일 — 스킨 이모지 미리보기(buildPreview hook) */
+.lshop-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+}
+.lshop-glyph {
+    font-size: 30px;
+    line-height: 1;
+}
+
+.ladder-setup-label {
+    font-weight: 700;
+    color: var(--ladder-accent);
+    font-size: 15px;
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+}
+
+/* ── 토너먼트 재대결 배너 (sub-round) ── */
+.ladder-tournament-banner {
+    max-width: var(--ladder-view-max);
+    margin: 0 auto 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.10);
+    border: 1.5px solid rgba(239, 68, 68, 0.5);
+    color: var(--red-600, #dc2626);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.5;
+    word-break: keep-all;
+}
+
+/* ── 6택1 lane-pick (경마식) ── */
+.ladder-lane-pick {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    max-width: var(--ladder-view-max);
+    margin: 0 auto 8px;
+    padding: 0 4px;
+    box-sizing: border-box;
+}
+.ladder-lane-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 48px;          /* 터치 타겟 ≥44px */
+    padding: 6px 2px;
+    border: 2px solid var(--ladder-500);
+    border-radius: 10px;
+    background: var(--bg-white);
+    color: var(--ladder-accent);
+    cursor: pointer;
+    transition: transform 0.1s, background 0.15s, border-color 0.15s;
+}
+.ladder-lane-btn:hover:not(:disabled) {
+    background: rgba(var(--ladder-500-rgb), 0.10);
+    transform: translateY(-2px);
+}
+.ladder-lane-btn:active:not(:disabled) { transform: translateY(0); }
+.ladder-lane-btn:focus-visible {
+    outline: 3px solid var(--ladder-600);
+    outline-offset: 2px;
+}
+.ladder-lane-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+/* 내가 고른 칸 */
+.ladder-lane-btn.selected {
+    background: var(--ladder-gradient);
+    color: var(--bg-white);
+    border-color: var(--ladder-600);
+    box-shadow: 0 3px 10px rgba(var(--ladder-500-rgb), 0.4);
+}
+/* 당첨 칸 표시(빨강 테두리) — 위치만 공개, routing은 숨김 */
+.ladder-lane-btn.is-win {
+    border-color: #ef4444;
+    box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+.ladder-lane-btn.is-win.selected {
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.5);
+}
+.ladder-lane-num {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+}
+.ladder-lane-count {
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.9;
+}
+
+/* 픽 안내 + 빌드 힌트 */
+.ladder-pick-hint,
+.ladder-build-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 auto 10px;
+    max-width: var(--ladder-view-max);
+    line-height: 1.5;
+    text-align: center;
+}
+.ladder-pick-hint { color: var(--ladder-accent); font-weight: 600; }
+.ladder-build-hint.ladder-build-hint-flash {
+    color: var(--ladder-accent);
+    font-weight: 600;
+}
+
+/* 모바일 — 좁은 폭에선 상단 바를 flex-wrap으로, 상점 슬롯은 아래 줄 전폭 가운데. */
+@media (max-width: 480px) {
+    .ladder-setup-bar {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+        column-gap: 8px; row-gap: 6px;
+    }
+    .ladder-bar-spacer { display: none; }
+    .ladder-setup-main { flex: 1 1 100%; }
+    .ladder-shop-slot { flex: 1 1 100%; justify-content: center; }
+    .ladder-lane-btn { min-height: 44px; }
+    .ladder-lane-num { font-size: 17px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   캔버스 (idle: 드래그 빌드 · revealing: 셔플/하강 연출)
+   ══════════════════════════════════════════════════════════════════ */
+.ladder-canvas-wrap {
+    margin: 0 auto 20px;
+    text-align: center;
+}
+
+#ladderCanvas {
+    width: 100%;
+    max-width: var(--ladder-view-max);
+    height: auto;
+    aspect-ratio: 720 / 560;   /* backing store 종횡비 유지 — height:auto와 함께 좌표 매핑 정확 */
+    max-height: 72vh;          /* 세로로 긴 캔버스가 뷰포트를 넘지 않게 (모바일 스케일) */
+    /* 캔버스 내부 텍스트·막대기 색이 하드코딩(어두운 갈색/회색)이라, 다크모드에서 페이지 그라데이션이
+       비치면 대비가 나빠진다. 불투명 웜화이트 "보드"로 고정해 라이트·다크 모두 가독 확보. */
+    background: #fbf6ec;
+    border: 2px solid var(--ladder-500);
+    border-radius: 12px;
+    display: block;
+    margin: 0 auto;
+    cursor: crosshair;
+    touch-action: none;   /* 터치 드래그가 페이지 스크롤로 새지 않게 */
+}
+
+/* 캔버스 정렬 래퍼 (캔버스와 같은 폭, 오버레이 absolute 기준) */
+.ladder-canvas-inner {
+    position: relative;
+    max-width: var(--ladder-view-max);
+    margin: 0 auto;
+}
+
+/* 셔플 카운트다운/"시작!" 오버레이 — 캔버스 위에 큰 글자로 페이드 인/아웃. */
+.ladder-scramble-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Jua', 'Segoe UI', Tahoma, sans-serif;
+    font-size: clamp(48px, 16vw, 110px);   /* 모바일~데스크톱 가변 */
+    font-weight: 900;
+    color: var(--ladder-accent);
+    text-shadow: 0 2px 12px rgba(var(--ladder-500-rgb), 0.55), 0 0 4px rgba(255, 255, 255, 0.9);
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+    z-index: 3;
+}
+.ladder-scramble-overlay.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* 게임 상태(셔플/하강 단계 안내) — 공통 .game-status 위에 ladder 톤 보강 */
+.game-status.active { color: var(--ladder-600); }
+.game-status.finished { color: var(--ladder-accent); }
+
+/* ══════════════════════════════════════════════════════════════════
+   결과 오버레이 — 당첨 패자(꼴등/재대결) 표시 (공통 .result-overlay 안에서 사용)
+   ══════════════════════════════════════════════════════════════════ */
+.ladder-result-headline {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--ladder-accent);
+    text-align: center;
+    margin-bottom: 12px;
+    word-break: keep-all;
+}
+.ladder-result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-bottom: 1px solid var(--gray-200, #e5e7eb);
+}
+.ladder-result-name { font-weight: 600; }
+.ladder-result-tag { font-weight: bold; white-space: nowrap; }
+.ladder-result-tag.loser { color: var(--red-600, #dc2626); }
+
+/* ── 빠른 재준비(경마식) — 결과 카드 안 버튼들 ── */
+.ladder-result-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+}
+.ladder-next-round-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: var(--ladder-gradient);
+    color: var(--text-primary);
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.ladder-next-round-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(var(--ladder-500-rgb), 0.4);
+}
+.ladder-next-round-btn:active { transform: translateY(0); }
+.ladder-result-close-btn {
+    width: 100%;
+    padding: 10px 20px;
+    background: var(--btn-neutral, #e5e7eb);
+    color: var(--text-secondary);
+    border: 1px solid var(--gray-300, #d1d5db);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   게임 기록(history)
+   ══════════════════════════════════════════════════════════════════ */
+.ladder-history-item {
+    padding: 12px 14px;
+    border: 1px solid rgba(var(--ladder-500-rgb), 0.18);
+    border-radius: 12px;
+    background: rgba(var(--ladder-500-rgb), 0.05);
+    margin-bottom: 10px;
+}
+.ladder-history-round {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.lh-round-badge {
+    font-family: 'Jua', 'Segoe UI', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    color: var(--ladder-accent);
+    background: rgba(var(--ladder-500-rgb), 0.16);
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+.lh-round-meta {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+}
+.ladder-history-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+    padding: 3px 0;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+.lh-from { color: var(--text-secondary); font-weight: 600; }
+.lh-arrow { color: var(--ladder-accent); }
+.lh-to {
+    color: var(--ladder-600);
+    font-weight: 700;
+    background: rgba(var(--ladder-500-rgb), 0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
+}

@@ -1,32 +1,102 @@
 /*
- * horse-shop.js — 경마 꾸미기 상점 (코인 + 인증 + 서버 인벤토리)
+ * horse-shop.js — 경마 꾸미기 상점 어댑터 (ShopModule 위에 얇은 게임 어댑터)
  *
- * 전역 `HorseShop`. 자기완결 모듈.
+ * 전역 `HorseShop`. 공통 셸(인증/지갑/모달/구매/장착/잔고연출)은 js/shared/shop-shared.js
+ * (window.ShopModule)이 담당. 이 어댑터는 경마 고유부만 보유:
+ *   - 차량 SVG 미리보기(buildPreview hook, getVehicleSVG 의존)
+ *   - 내 탈것에 장착 적용(applyToHorse / applyEquippedToHorse / applyToActiveHorses)
+ *   - 개인 연출(finish_fx playFinishFx) — 본인 장착을 본인 화면에서만
  *
- * 보안: 지갑/구매/장착은 모두 서버(socket.authedUserId) 권위. 이 모듈은
- *   socket:authenticate(token) → wallet:get → shop:buy/shop:equip 로만 동작한다.
- *   토큰 없는 게스트는 상점 이용 불가(구매/장착 없음).
+ * 공개 API(window.HorseShop.*)는 기존 그대로 유지(호출부: js/horse-race.js, HTML onclick).
  *
  * 공정성: cosmetic 데이터는 결과 계산이나 게임 emit에 진입하지 않는다.
  *   도색 필터는 .vehicle-sprite 에만(이벤트 연출이 .horse filter 점유).
- *   Math.random() 미사용.
+ *   Math.random()은 결승연출(playFinishFxInto) 조각의 외형(위치/딜레이/크기) 산개에만 사용 — 결과 무관.
  */
 (function () {
     'use strict';
 
     var CATALOG_URL = '/config/horse/cosmetics.json';
-    // 상점 탭(슬롯). track_theme/finish_fx는 방장 장착분만 방 전체 적용(개인은 소유/장착만).
-    var SLOTS = ['paint', 'trail', 'accessory', 'bib', 'track_theme', 'finish_fx'];
-    var TAB_LABELS = {
-        paint: '🎨 도색', trail: '✨ 트레일', accessory: '👑 액세서리',
-        bib: '🔢 마번', track_theme: '🏞️ 트랙테마', finish_fx: '🎆 결승연출'
-    };
-
-    var RARITY_LABEL = { common: '일반', rare: '레어', epic: '에픽', legend: '전설' };
+    // 상점 탭(슬롯). finish_fx는 개인 연출 — 내가 장착하면 내 화면에만 적용(방장·우승 무관).
+    var SLOTS = [
+        { key: 'paint', label: '🎨 도색' },
+        { key: 'trail', label: '✨ 트레일' },
+        { key: 'accessory', label: '👑 액세서리' },
+        { key: 'bib', label: '🏷️ 이름표' },
+        { key: 'aura', label: '🌟 오라' },
+        { key: 'finish_fx', label: '🎆 결승연출' }
+    ];
 
     // 카드 썸네일에 실제 탈것을 그려 꾸미기 적용 모습을 미리보기로 보여줄 슬롯
-    var HORSE_PREVIEW_SLOTS = ['paint', 'trail', 'accessory', 'bib'];
+    var HORSE_PREVIEW_SLOTS = ['paint', 'trail', 'accessory', 'bib', 'aura'];
     var PREVIEW_VEHICLE = 'car'; // 미리보기 샘플 탈것 (getVehicleSVG, horse-race-sprites.js)
+
+    // ── 오라 스프라이트 아틀라스 (SpriteMake: horse-aura-cosmetics) ──
+    //   /assets/cosmetics/aura-atlas.png : 512×2944, 4열(펄스 프레임) × 23행(오라별), 셀 128×128.
+    //   행 순서는 매니페스트 rowOrder 기준 — 카탈로그 배열 순서와 다르다(rainbow=21, prism=22).
+    //   아틀라스 로드 성공 시에만 data-aura-atlas 부여 → CSS가 스프라이트로 렌더.
+    //   로드 실패(미배포 등) 시 data-aura-atlas 미부여 → 기존 currentColor 글로우로 안전 폴백.
+    //   공정성: 순수 외관. 결과/속도/기믹/소켓 페이로드에 진입하지 않는다.
+    var AURA_ATLAS_URL = '/assets/cosmetics/aura-atlas.png';
+    var AURA_ATLAS_ROWS = {
+        aura_red: 0, aura_blue: 1, aura_green: 2, aura_gold: 3, aura_violet: 4,
+        aura_cyan: 5, aura_pink: 6, aura_orange: 7, aura_lime: 8, aura_white: 9,
+        aura_indigo: 10, aura_ad_aqua: 11, aura_ad_flame: 12, aura_ad_mint: 13,
+        aura_ad_amber: 14, aura_ad_rose: 15, aura_ad_teal: 16, aura_ad_silver: 17,
+        aura_ad_cobalt: 18, aura_ad_neon: 19, aura_ad_plasma: 20,
+        aura_rainbow: 21, aura_prism: 22
+    };
+    var auraAtlasReady = false;
+    (function preloadAuraAtlas() {
+        try {
+            var img = new Image();
+            img.onload = function () {
+                auraAtlasReady = true;
+                // 아틀라스가 늦게 로드되면 이미 그려진 내 탈것을 즉시 업그레이드(미리보기는 상점 재오픈 시 갱신).
+                try { applyToActiveHorses(); } catch (e) {}
+            };
+            img.src = AURA_ATLAS_URL;
+        } catch (e) {}
+    })();
+
+    // 오라 span에 시각효과 주입: currentColor 글로우 폴백 색 + (아틀라스 준비 시) 스프라이트 행 선택.
+    //   auraItem = 카탈로그 오라 항목({ id, color, ... }). el = 빈 span(장식, aria-hidden).
+    function applyAuraVisual(el, auraItem) {
+        if (!el || !auraItem) return;
+        if (auraItem.color) el.style.color = auraItem.color; // 폴백 글로우(currentColor 기반)
+        var row = AURA_ATLAS_ROWS[auraItem.id];
+        if (auraAtlasReady && row != null) {
+            el.style.setProperty('--aura-row', String(row));
+            el.setAttribute('data-aura-atlas', '');
+        }
+    }
+
+    // 액세서리(머리 장식) 탈것별 앵커 — 외관 보정용(공정성 무관, Math.random 미사용).
+    //   .cosmetic-accessory 의 offset parent 는 .horse(80×80). 스프라이트(60×45)는 flex 중앙정렬이라
+    //   왼쪽 inset 10px, 위쪽 inset 17.5px. SVG viewBox(0..60, 0..45) head 좌표(vbX,vbY) →
+    //   left = 10 + vbX, top = 17.5 + vbY (px, .horse 기준). 장식은 머리 바로 위에 얹히도록 y를 살짝 띄움.
+    //   x = 머리의 가로 중심(화면 기준, helicopter 는 좌우반전 후 좌표). scale 은 폭 좁은 탈것에서 축소.
+    //   탈것 추가(addvehicle) 시 항목 없으면 ACC_ANCHOR_DEFAULT 로 안전 폴백(클리핑 방지).
+    var ACC_ANCHOR_DEFAULT = { x: 30, y: 6, scale: 1 };
+    var ACC_ANCHOR = {
+        car:        { x: 29, y: 8,  scale: 1 },   // 캐빈/앞유리 위, 중앙
+        rocket:     { x: 50, y: 10, scale: 1 },   // 노즈콘 우측 상단
+        bird:       { x: 48, y: 13, scale: 0.9 }, // 머리(원 cx48) 위, 우향
+        boat:       { x: 30, y: 6,  scale: 1 },   // 돛/마스트 꼭대기, 중앙
+        bicycle:    { x: 35, y: 7,  scale: 0.9 }, // 라이더 머리(cx35) 위
+        rabbit:     { x: 45, y: 1,  scale: 0.85 },// 귀 끝(y~3)보다 위, 우향
+        turtle:     { x: 30, y: 8,  scale: 1 },   // 등껍질 정수리
+        eagle:      { x: 48, y: 13, scale: 0.9 }, // 머리(원 cx48) 위, 우향
+        scooter:    { x: 25, y: 13, scale: 0.9 }, // 라이더 머리(cx25) 위
+        helicopter: { x: 20, y: 8,  scale: 0.9 }, // 좌우반전 → 화면상 콕핏 x~20
+        horse:      { x: 46, y: 8,  scale: 1 },   // 우측 머리(cx46-48, 귀끝 y~9) 위 — 말은 우향
+        knight:     { x: 30, y: 2,  scale: 0.9 }, // 깃털 장식(y~4-5)보다 위, 중앙
+        dinosaur:   { x: 41, y: 12, scale: 1 },   // 머리(x34-48) 위, 우중앙
+        ninja:      { x: 31, y: 9,  scale: 0.85 },// 머리/머리띠(y~11) 위, 폭 좁음
+        crab:       { x: 30, y: 16, scale: 1 }    // 눈자루(y~18) 위, 정면
+    };
+
+    // ── 미리보기 빌더 (getVehicleSVG 등 게임 전역 접근은 이 어댑터 안에서만) ──
 
     // 샘플 탈것 SVG 1프레임 HTML (없으면 빈 문자열)
     function sampleVehicleHTML() {
@@ -48,8 +118,17 @@
             var tr = document.createElement('span');
             tr.className = 'hshop-preview-trail';
             tr.setAttribute('aria-hidden', 'true');
-            tr.textContent = item.emoji + item.emoji;
+            tr.textContent = item.emoji + item.emoji + item.emoji + item.emoji;
             box.appendChild(tr);
+        }
+
+        // aura → 스프라이트 뒤(z-index 낮음) 글로우. 색은 인라인(item.color), CSS가 box-shadow/링 형태.
+        if (slot === 'aura' && item.color) {
+            var au = document.createElement('span');
+            au.className = 'hshop-preview-aura';
+            au.setAttribute('aria-hidden', 'true');
+            applyAuraVisual(au, item); // 스프라이트(로드 시) 또는 currentColor 글로우 폴백
+            box.appendChild(au);
         }
 
         var sprite = document.createElement('div');
@@ -69,7 +148,9 @@
             var bb = document.createElement('span');
             bb.className = 'hshop-preview-bib';
             bb.setAttribute('aria-hidden', 'true');
-            bb.textContent = '3';
+            var _nm = '이름';
+            try { var _a = JSON.parse(localStorage.getItem('userAuth') || 'null'); if (_a && _a.name) _nm = _a.name; } catch (e) {}
+            bb.textContent = _nm;   // 사용자 입력 → textContent (안전)
             if (item.color) bb.style.color = item.color;
             if (item.bg) bb.style.background = item.bg;
             if (item.border) bb.style.borderColor = item.border;
@@ -78,555 +159,194 @@
         return box;
     }
 
-    // 트랙테마 미니 썸네일: (그라데이션은 thumb 배경이 이미 깔림) 지평선 + 달리는 탈것 실루엣.
-    function buildTrackThemePreview(item) {
-        var box = document.createElement('div');
-        box.className = 'hshop-track-mini';
-        box.setAttribute('aria-hidden', 'true');
-
-        var ground = document.createElement('div');
-        ground.className = 'hshop-track-ground';
-        if (item && item.accent) ground.style.borderTopColor = item.accent;
-        box.appendChild(ground);
-
-        var svg = sampleVehicleHTML(); // 상수 SVG (유저입력 없음)
-        if (svg) {
-            var runner = document.createElement('div');
-            runner.className = 'hshop-track-runner';
-            runner.innerHTML = svg;
-            box.appendChild(runner);
-        }
-        return box;
-    }
-
-    // 결승연출 미리보기: 큰 이모지 펄스 + 작은 조각 낙하 루프.
+    // 결승연출 미리보기: 큰 이모지 펄스 + 작은 조각 낙하 루프 + "▶ 미리보기"(실제 승리 연출 재생).
+    //   미리보기 버튼 클릭 시 playFinishFxInto(stage, emoji)로 실제 in-race 결승 연출을 stage에 1회 재생.
+    //   stage는 position:relative + overflow:hidden(CSS)이라 낙하가 카드 안에 클리핑된다.
     function buildFinishFxPreview(item) {
         var emoji = (item && item.emoji) ? item.emoji : '🎆';
         var box = document.createElement('div');
         box.className = 'hshop-fx-mini';
-        box.setAttribute('aria-hidden', 'true');
 
         var burst = document.createElement('span');
         burst.className = 'hshop-fx-burst';
+        burst.setAttribute('aria-hidden', 'true');
         burst.textContent = emoji;
         box.appendChild(burst);
 
         for (var i = 0; i < 4; i++) {
             var p = document.createElement('span');
             p.className = 'hshop-fx-confetti';
+            p.setAttribute('aria-hidden', 'true');
             p.textContent = emoji;
             p.style.left = (18 + i * 20) + '%';
             p.style.animationDelay = (i * 0.3) + 's';
             box.appendChild(p);
         }
+
+        // 실제 결승 연출이 재생될 무대(빈 div). 낙하 클리핑은 CSS(.hshop-fx-stage)에서 보장.
+        var stage = document.createElement('div');
+        stage.className = 'hshop-fx-stage';
+        stage.setAttribute('aria-hidden', 'true');
+        box.appendChild(stage);
+
+        // "▶ 미리보기" 버튼 — 클릭 시 실제 승리 연출 1회 재생(재생 중 disable, ~3500ms 후 해제).
+        var playBtn = document.createElement('button');
+        playBtn.type = 'button';
+        playBtn.className = 'hshop-fx-preview-btn';
+        playBtn.textContent = '▶ 미리보기';
+        playBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (playBtn.disabled) return;
+            playBtn.disabled = true;
+            playFinishFxInto(stage, emoji);
+            setTimeout(function () { playBtn.disabled = false; }, 3500);
+        });
+        box.appendChild(playBtn);
+
         return box;
     }
 
-    var catalog = null;
-    var catalogLoading = null;
-    var catalogIndex = {};   // id -> { slot, item }
-    var activeTab = 'paint';
-
-    var socketRef = null;
-    var socketWired = false;
-
-    // 서버 권위 지갑 상태
-    var wallet = { authed: false, balance: 0, owned: [], equipped: {} };
-
-    // ── 유틸 ──────────────────────────────────────────────
-
-    function getMount() { return document.getElementById('horseShopMount'); }
-
-    function getToken() {
-        try {
-            var auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
-            return (auth && auth.token) ? auth.token : null;
-        } catch (e) { return null; }
-    }
-
-    // 토큰이 있으면 그대로 반환. 없는데 로그인 상태(userAuth.name)면 PIN 없이
-    // 토큰을 부트스트랩 발급받아 userAuth에 저장한다 — 상점 도입 전 로그인
-    // 사용자의 재로그인 방지. 비로그인(name 없음)이면 null.
-    // (발급 토큰은 플레이머니 전용 신뢰 등급 — 현금화는 별도 게이트)
-    function ensureToken(done) {
-        var existing = getToken();
-        if (existing) { done(existing); return; }
-        var name = null;
-        try { var a = JSON.parse(localStorage.getItem('userAuth') || 'null'); name = a && a.name; } catch (e) {}
-        if (!name) { done(null); return; }
-        fetch('/api/auth/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: name })
-        }).then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (res) {
-            if (res && res.token) {
-                try {
-                    var a2 = JSON.parse(localStorage.getItem('userAuth') || '{}') || {};
-                    a2.token = res.token;
-                    if (res.user) { a2.id = res.user.id; a2.name = res.user.name; }
-                    localStorage.setItem('userAuth', JSON.stringify(a2));
-                } catch (e) {}
-                done(res.token);
-            } else { done(null); }
-          }).catch(function () { done(null); });
-    }
-
-    function findItem(slot, id) {
-        if (!catalog || !id) return null;
-        var list = catalog[slot] || [];
-        for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    // ShopModule이 카드 썸네일에 부를 미리보기 hook (slot별 분기). null이면 셸이 글리프 fallback.
+    function buildPreview(slot, item) {
+        if (slot === 'finish_fx') return buildFinishFxPreview(item);
+        if (HORSE_PREVIEW_SLOTS.indexOf(slot) !== -1 && typeof getVehicleSVG === 'function') {
+            return buildItemPreview(slot, item);
+        }
         return null;
     }
 
-    function getCatalogItem(id) {
-        return catalogIndex[id] ? catalogIndex[id].item : null;
+    // ── 인벤토리 큰 미리보기 (내 탈것 + 현재 장착 전부 합성) ──
+
+    // 인벤토리 미리보기 탈것 로스터(셸 ◀▶ 스위처용). ALL_VEHICLES(js/horse-race.js)에서
+    // id/name만 추려 노출. 아직 미로드/비었으면 'car' 단일 폴백(상점은 로스터 로드 전에도 열림).
+    function inventoryVehicles() {
+        var roster = (window.ALL_VEHICLES || []).map(function (v) { return { id: v.id, name: v.name }; });
+        return roster.length ? roster : [{ id: 'car', name: '자동차' }];
     }
 
-    function owns(id) { return wallet.owned.indexOf(id) !== -1; }
-
-    // ── 카탈로그 로드 ──────────────────────────────────────
-
-    function loadCatalog() {
-        if (catalog) return Promise.resolve(catalog);
-        if (catalogLoading) return catalogLoading;
-        catalogLoading = fetch(CATALOG_URL)
-            .then(function (res) {
-                if (!res.ok) throw new Error('catalog load failed: ' + res.status);
-                return res.json();
-            })
-            .then(function (json) {
-                catalog = json;
-                catalogIndex = {};
-                Object.keys(json).forEach(function (slot) {
-                    (json[slot] || []).forEach(function (item) {
-                        if (item && item.id) catalogIndex[item.id] = { slot: slot, item: item };
-                    });
-                });
-                catalogLoading = null;
-                return catalog;
-            })
-            .catch(function (err) {
-                catalogLoading = null;
-                console.warn('[HorseShop] 카탈로그 로드 실패:', err.message);
-                throw err;
-            });
-        return catalogLoading;
-    }
-
-    // ── 소켓 연결/인증 ─────────────────────────────────────
-
-    // horse-race.js가 socket 정의 후 1회 호출.
-    function connect(socket) {
-        socketRef = socket;
-        if (socketWired || !socket) return;
-        socketWired = true;
-        socket.on('wallet:updated', function (data) {
-            if (data && typeof data.balance === 'number') {
-                var prev = wallet.balance;
-                wallet.balance = data.balance;
-                if (document.getElementById('hshopBalance')) animateBalanceDelta(prev, data.balance);
-                else updateBalanceLabel();
-            }
-        });
-    }
-
-    // 토큰으로 socket 인증 → 성공 시 지갑 동기화. 매 connect마다 호출 가능(멱등).
-    function authenticate(token, done) {
-        if (!socketRef || !token) {
-            console.log('[상점진단] authenticate 중단 — socketRef:', !!socketRef, '| token:', !!token);
-            if (done) done(false); return;
-        }
-        socketRef.emit('socket:authenticate', { token: token }, function (res) {
-            console.log('[상점진단] socket:authenticate 응답:', res);
-            if (res && res.ok) {
-                wallet.authed = true;
-                wallet.balance = (typeof res.balance === 'number') ? res.balance : 0;
-                refreshWallet(function () {
-                    applyToActiveHorses();
-                    if (done) done(true);
-                });
-            } else {
-                wallet.authed = false;
-                if (done) done(false);
-            }
-        });
-    }
-
-    // 지갑 상세(잔고+소유+장착) 동기화
-    function refreshWallet(done) {
-        if (!socketRef || !wallet.authed) { if (done) done(); return; }
-        socketRef.emit('wallet:get', {}, function (res) {
-            if (res && res.ok) {
-                wallet.balance = res.balance || 0;
-                wallet.owned = Array.isArray(res.owned) ? res.owned : [];
-                wallet.equipped = res.equipped || {};
-            }
-            if (done) done();
-        });
-    }
-
-    // ── 모달 렌더 ──────────────────────────────────────────
-
-    function updateBalanceLabel() {
-        var el = document.getElementById('hshopBalance');
-        if (el) el.textContent = '🪙 ' + wallet.balance;
-    }
-
-    // 잔고 숫자를 from→to 로 부드럽게 카운트(easeOutCubic). 최종값은 to 로 수렴(서버 권위).
-    function countBalanceTo(el, from, to) {
-        var DURATION = 480;
-        var startTs = null;
-        function step(ts) {
-            if (startTs === null) startTs = ts;
-            var p = Math.min(1, (ts - startTs) / DURATION);
-            var eased = 1 - Math.pow(1 - p, 3);
-            el.textContent = '🪙 ' + Math.round(from + (to - from) * eased);
-            if (p < 1) requestAnimationFrame(step);
-            else el.textContent = '🪙 ' + to;
-        }
-        requestAnimationFrame(step);
-    }
-
-    // 잔고 배지 근처에 떠오르며 사라지는 ±금액 (차감=빨강 −, 적립=초록 +).
-    function spawnBalanceDelta(badgeEl, delta) {
-        var rect = badgeEl.getBoundingClientRect();
-        var f = document.createElement('div');
-        f.className = 'hshop-delta ' + (delta < 0 ? 'is-spend' : 'is-earn');
-        f.textContent = (delta < 0 ? '−' : '+') + Math.abs(delta);
-        f.style.left = (rect.left + rect.width / 2) + 'px';
-        f.style.top = rect.top + 'px';
-        getShopLayer().appendChild(f);
-        setTimeout(function () { if (f.parentNode) f.remove(); }, 1100);
-    }
-
-    // 차감/적립 연출: ±금액 플로팅 + 잔고 카운트 + 짧은 플래시. 순수 시각, 값은 to 로 수렴.
-    function animateBalanceDelta(prev, next) {
-        var el = document.getElementById('hshopBalance');
-        if (!el) { updateBalanceLabel(); return; }
-        if (prev === next) { el.textContent = '🪙 ' + next; return; }
-        var dir = next < prev ? 'spend' : 'earn';
-        spawnBalanceDelta(el, next - prev);
-        el.classList.remove('hshop-balance--spend', 'hshop-balance--earn');
-        void el.offsetWidth; // reflow → 플래시 애니메이션 재시작
-        el.classList.add('hshop-balance--' + dir);
-        setTimeout(function () { el.classList.remove('hshop-balance--' + dir); }, 600);
-        countBalanceTo(el, prev, next);
-    }
-
-    // ── 상점 전용 팝업 레이어 (확인/토스트) ───────────────────
-    // 전역 showCustomAlert(z-index 10000)는 상점(.hshop-overlay 12000) 뒤에 가려지므로,
-    // 상점 위(12500+) 전용 레이어를 둔다. 전역 함수 미수정 → 크로스게임 회귀 없음.
-
-    function getShopLayer() {
-        var layer = document.getElementById('hshopLayer');
-        if (!layer) {
-            layer = document.createElement('div');
-            layer.id = 'hshopLayer';
-            layer.className = 'hshop-layer';
-            document.body.appendChild(layer);
-        }
-        return layer;
-    }
-
-    function clearShopLayer() {
-        var layer = document.getElementById('hshopLayer');
-        if (layer) layer.remove();
-    }
-
-    // 구매 확인 다이얼로그 (아이템명·가격). 확인 시에만 onConfirm 실행.
-    function showShopConfirm(item, onConfirm) {
-        var ov = document.createElement('div');
-        ov.className = 'hshop-confirm-overlay';
-
-        var card = document.createElement('div');
-        card.className = 'hshop-confirm';
-
-        var title = document.createElement('div');
-        title.className = 'hshop-confirm-title';
-        title.textContent = '정말로 구매하실래요?';
-
-        var line = document.createElement('div');
-        line.className = 'hshop-confirm-item';
-        var nm = document.createElement('span');
-        nm.className = 'hshop-confirm-name';
-        nm.textContent = item.name;
-        var pr = document.createElement('span');
-        pr.className = 'hshop-confirm-price';
-        pr.textContent = '🪙 ' + item.price;
-        line.appendChild(nm);
-        line.appendChild(pr);
-
-        var btns = document.createElement('div');
-        btns.className = 'hshop-confirm-btns';
-        var cancel = document.createElement('button');
-        cancel.type = 'button';
-        cancel.className = 'hshop-confirm-cancel';
-        cancel.textContent = '취소';
-        var ok = document.createElement('button');
-        ok.type = 'button';
-        ok.className = 'hshop-confirm-ok';
-        ok.textContent = '구매';
-
-        function close() { if (ov.parentNode) ov.remove(); }
-        cancel.addEventListener('click', close);
-        ok.addEventListener('click', function () { close(); if (onConfirm) onConfirm(); });
-        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-
-        btns.appendChild(cancel);
-        btns.appendChild(ok);
-        card.appendChild(title);
-        card.appendChild(line);
-        card.appendChild(btns);
-        ov.appendChild(card);
-        getShopLayer().appendChild(ov);
-    }
-
-    // 상점 위 토스트 (성공/실패). kind: 'success' | 'error'
-    function showShopToast(message, kind) {
-        var toast = document.createElement('div');
-        toast.className = 'hshop-toast' + (kind ? ' hshop-toast--' + kind : '');
-        toast.textContent = message;
-        getShopLayer().appendChild(toast);
-        requestAnimationFrame(function () { toast.classList.add('is-visible'); });
-        setTimeout(function () {
-            toast.classList.remove('is-visible');
-            setTimeout(function () { if (toast.parentNode) toast.remove(); }, 250);
-        }, 1800);
-    }
-
-    function renderCard(slot, item) {
-        var card = document.createElement('div');
-        card.className = 'hshop-card';
-
-        var rarity = item.rarity || 'common';
-        var preview = item.emoji || (slot === 'paint' ? '🎨' : slot === 'track_theme' ? '🏞️' : '🎁');
-
-        var thumb = document.createElement('div');
-        thumb.className = 'hshop-thumb hshop-thumb--' + rarity;
-        // 트랙테마는 그라데이션이 썸네일 배경
-        if (slot === 'track_theme' && item.bg) thumb.style.backgroundImage = item.bg;
-        var badge = document.createElement('span');
-        badge.className = 'hshop-rarity hshop-rarity--' + rarity;
-        badge.textContent = RARITY_LABEL[rarity] || rarity;
-        thumb.appendChild(badge);
-        // 슬롯별 미리보기: 트랙테마=미니 트랙 / 결승연출=이펙트 루프 / 탈것 슬롯=실제 탈것 / 그 외=글리프
-        if (slot === 'track_theme') {
-            thumb.appendChild(buildTrackThemePreview(item));
-        } else if (slot === 'finish_fx') {
-            thumb.appendChild(buildFinishFxPreview(item));
-        } else if (HORSE_PREVIEW_SLOTS.indexOf(slot) !== -1 && typeof getVehicleSVG === 'function') {
-            thumb.appendChild(buildItemPreview(slot, item));
-        } else {
-            var glyph = document.createElement('span');
-            glyph.className = 'hshop-glyph';
-            glyph.textContent = preview;
-            thumb.appendChild(glyph);
-        }
-
-        var nm = document.createElement('div');
-        nm.className = 'hshop-name';
-        nm.textContent = item.name;
-
-        var price = document.createElement('div');
-        price.className = 'hshop-price';
-        price.textContent = '🪙 ' + item.price;
-
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        var owned = owns(item.id);
-        var isEquipped = wallet.equipped[slot] === item.id;
-
-        if (!owned) {
-            btn.className = 'hshop-buy';
-            btn.textContent = '구매 (' + item.price + ')';
-            btn.addEventListener('click', function () { requestBuy(item, btn); });
-        } else {
-            btn.className = 'hshop-equip' + (isEquipped ? ' is-equipped' : '');
-            btn.textContent = isEquipped ? '✓ 장착중' : '장착';
-            btn.addEventListener('click', function () { doEquip(slot, isEquipped ? null : item.id); });
-        }
-
-        card.appendChild(thumb);
-        card.appendChild(nm);
-        if (!owned) card.appendChild(price);
-        card.appendChild(btn);
-        return card;
-    }
-
-    function renderTabBar() {
-        var bar = document.createElement('div');
-        bar.className = 'hshop-tabs';
-        SLOTS.forEach(function (slot) {
-            var tab = document.createElement('button');
-            tab.type = 'button';
-            tab.className = 'hshop-tab' + (activeTab === slot ? ' is-active' : '');
-            tab.textContent = TAB_LABELS[slot] || slot;
-            tab.addEventListener('click', function () { activeTab = slot; renderModal(); });
-            bar.appendChild(tab);
-        });
-        return bar;
-    }
-
-    function renderModal() {
-        var mount = getMount();
-        if (!mount || !catalog) return;
-        mount.innerHTML = '';
-
-        var overlay = document.createElement('div');
-        overlay.className = 'hshop-overlay';
-        overlay.addEventListener('click', function (e) { if (e.target === overlay) closeShop(); });
-
-        var panel = document.createElement('div');
-        panel.className = 'hshop-panel';
-
-        // 헤더 (제목 + 잔고 + 닫기)
-        var header = document.createElement('div');
-        header.className = 'hshop-header';
-        var titleWrap = document.createElement('div');
-        titleWrap.className = 'hshop-title';
-        titleWrap.innerHTML = '꾸미기 상점<small>경마 · 내 탈것</small>';
-        var bal = document.createElement('div');
-        bal.className = 'hshop-balance';
-        bal.id = 'hshopBalance';
-        bal.textContent = '🪙 ' + wallet.balance;
-        var closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'hshop-close';
-        closeBtn.setAttribute('aria-label', '닫기');
-        closeBtn.textContent = '✕';
-        closeBtn.addEventListener('click', closeShop);
-        header.appendChild(titleWrap);
-        header.appendChild(bal);
-        header.appendChild(closeBtn);
-
-        var notice = document.createElement('div');
-        notice.className = 'hshop-notice';
-        notice.textContent = (activeTab === 'track_theme' || activeTab === 'finish_fx')
-            ? '연출 꾸미기는 방장이 장착하면 방 전체에 적용돼요. 게임 결과엔 영향 없어요.'
-            : '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
-
-        var tabBar = renderTabBar();
-
-        var grid = document.createElement('div');
-        grid.className = 'hshop-grid';
-        var list = catalog[activeTab] || [];
-        if (list.length === 0) {
-            var empty = document.createElement('div');
-            empty.className = 'hshop-empty';
-            empty.textContent = '준비 중인 카테고리예요.';
-            grid.appendChild(empty);
-        } else {
-            list.forEach(function (item) { grid.appendChild(renderCard(activeTab, item)); });
-        }
-
-        panel.appendChild(header);
-        panel.appendChild(notice);
-        panel.appendChild(tabBar);
-        panel.appendChild(grid);
-        overlay.appendChild(panel);
-        mount.appendChild(overlay);
-    }
-
-    // ── 구매 / 장착 ────────────────────────────────────────
-
-    // 구매 버튼 → 확인 팝업 → 확인 시에만 emit
-    function requestBuy(item, btn) {
-        if (!socketRef || !wallet.authed) return;
-        showShopConfirm(item, function () { doBuy(item.id, btn); });
-    }
-
-    function doBuy(id, btn) {
-        if (!socketRef || !wallet.authed) return;
-        if (btn) { btn.disabled = true; btn.textContent = '구매 중…'; }
-        socketRef.emit('shop:buy', { cosmeticId: id }, function (res) {
-            if (res && res.ok) {
-                var prev = wallet.balance;
-                wallet.balance = res.balance;
-                wallet.owned = Array.isArray(res.owned) ? res.owned : wallet.owned;
-                renderModal(); // #hshopBalance 재생성 후 연출
-                animateBalanceDelta(prev, res.balance);
-                showShopToast('구매했습니다', 'success');
-            } else {
-                var msg = (res && res.reason === 'insufficient') ? '코인이 부족해요.'
-                        : (res && res.reason === 'owned') ? '이미 가지고 있어요.'
-                        : '구매에 실패했어요.';
-                showShopToast(msg, 'error');
-                renderModal();
-            }
-        });
-    }
-
-    function doEquip(slot, id) {
-        if (!socketRef || !wallet.authed) return;
-        socketRef.emit('shop:equip', { slot: slot, cosmeticId: id }, function (res) {
-            if (res && res.ok) {
-                wallet.equipped = res.equipped || {};
-                renderModal();
-                applyToActiveHorses();
-            } else {
-                showShopToast('장착에 실패했어요.', 'error');
-            }
-        });
-    }
-
-    // ── 모달 열기/닫기 ─────────────────────────────────────
-
-    function openShop() {
-        // [임시 진단] 상점 인증 게이트 디버그 — 원인 확인 후 제거
+    // 내가 고른 탈것을 알면 그걸, 모르면 'car'(상점은 탈것 선택 전에도 열림). 전역은 가드하며 읽음.
+    function myVehicleType() {
         try {
-            var _raw = localStorage.getItem('userAuth');
-            var _a = null; try { _a = JSON.parse(_raw); } catch (e) {}
-            console.log('[상점진단] userAuth 있음:', !!_raw,
-                '| token 있음:', !!(_a && _a.token),
-                '| token 앞부분:', (_a && _a.token) ? String(_a.token).slice(0, 20) + '...' : null,
-                '| name:', _a && _a.name,
-                '| id:', _a && _a.id,
-                '| wallet.authed:', wallet.authed);
-        } catch (e) { console.log('[상점진단] 예외:', e && e.message); }
-
-        ensureToken(function (token) {
-            if (!token) {
-                if (typeof showCustomAlert === 'function') showCustomAlert('상점은 로그인 후 이용할 수 있어요.');
-                else alert('상점은 로그인 후 이용할 수 있어요.');
-                return;
+            var sel = window.selectedVehicleTypes;
+            var bets = window.userHorseBets;
+            var me = window.currentUser;
+            if (sel && bets && me != null) {
+                var idx = bets[me];
+                if (idx != null && sel[idx]) return sel[idx];
             }
-            loadCatalog().then(function () {
-                if (wallet.authed) {
-                    refreshWallet(function () { renderModal(); document.body.classList.add('hshop-open'); });
-                } else {
-                    authenticate(token, function (ok) {
-                        if (!ok) {
-                            if (typeof showCustomAlert === 'function') showCustomAlert('인증에 실패했어요. 다시 로그인해 주세요.');
-                            return;
-                        }
-                        renderModal();
-                        document.body.classList.add('hshop-open');
-                    });
-                }
-            }).catch(function () {
-                if (typeof showCustomAlert === 'function') showCustomAlert('상점 정보를 불러오지 못했어요.');
-            });
-        });
+        } catch (e) {}
+        return PREVIEW_VEHICLE;
     }
 
-    function closeShop() {
-        var mount = getMount();
-        if (mount) mount.innerHTML = '';
-        clearShopLayer();
-        document.body.classList.remove('hshop-open');
+    // 지정 탈것 SVG 1프레임 HTML (없으면 빈 문자열) — sampleVehicleHTML의 vehicle 가변 버전.
+    function vehicleHTML(vehicleType) {
+        if (typeof getVehicleSVG !== 'function') return '';
+        try {
+            var svgs = getVehicleSVG(vehicleType);
+            if (!svgs) return '';
+            var data = svgs.idle || svgs.run || svgs.rest || svgs;
+            return (data && data.frame1) ? data.frame1 : (svgs.frame1 || '');
+        } catch (e) { return ''; }
     }
 
-    // ── 탈것 꾸미기 적용 ───────────────────────────────────
+    // 인벤토리 상단 큰 미리보기 노드. mergedEquipped() 기준(실제 탈것에 보이는 것과 동일).
+    // paint=sprite filter, trail/accessory=오버레이, bib=이름 라벨. 장착 0개면 빈 탈것이 안전하게 나옴.
+    function buildInventoryPreview(vehicleId) {
+        var eq = mergedEquipped();
+        var vt = vehicleId || myVehicleType();
+
+        var box = document.createElement('div');
+        box.className = 'hshop-inv-preview';
+
+        // 오라: 스프라이트 뒤 글로우. (기존 버그: 인벤토리 미리보기가 오라를 전혀 안 그려 "적용 안 됨"으로 보임 — 여기서 수정)
+        if (eq.aura) {
+            var invAura = findItem('aura', eq.aura);
+            if (invAura && invAura.color) {
+                var iau = document.createElement('span');
+                iau.className = 'hshop-inv-aura';
+                iau.setAttribute('aria-hidden', 'true');
+                applyAuraVisual(iau, invAura);
+                box.appendChild(iau); // 스프라이트 append 전에 넣어 뒤에 깔리게(z-index로도 보장)
+            }
+        }
+
+        if (eq.trail) {
+            var trail = findItem('trail', eq.trail);
+            if (trail && trail.emoji) {
+                var tr = document.createElement('span');
+                tr.className = 'hshop-inv-trail';
+                tr.setAttribute('aria-hidden', 'true');
+                tr.textContent = trail.emoji + trail.emoji + trail.emoji + trail.emoji + trail.emoji;
+                box.appendChild(tr);
+            }
+        }
+
+        var sprite = document.createElement('div');
+        sprite.className = 'hshop-inv-sprite';
+        sprite.innerHTML = vehicleHTML(vt); // 상수 SVG (유저입력 없음)
+        var paint = eq.paint ? findItem('paint', eq.paint) : null;
+        if (paint && paint.filter) sprite.style.filter = paint.filter;
+        box.appendChild(sprite);
+
+        if (eq.accessory) {
+            var acc = findItem('accessory', eq.accessory);
+            if (acc && acc.emoji) {
+                var ac = document.createElement('span');
+                ac.className = 'hshop-inv-acc';
+                ac.setAttribute('aria-hidden', 'true');
+                ac.textContent = acc.emoji;
+                // 인벤토리 스프라이트는 120px(=60px 의 2배) 렌더 → 앵커 px 도 2배. 중앙(left:50%) 기준 가로 오프셋만 적용.
+                var ia = ACC_ANCHOR[vt] || ACC_ANCHOR_DEFAULT;
+                ac.style.setProperty('--acc-dx', ((ia.x - 30) * 2) + 'px'); // 스프라이트 가로중심(x=30) 대비 오프셋
+                ac.style.setProperty('--acc-y', (ia.y * 2) + 'px');         // 스프라이트 상단부터 머리까지(2배)
+                ac.style.setProperty('--acc-scale', ia.scale);
+                box.appendChild(ac);
+            }
+        }
+
+        var bb = document.createElement('span');
+        bb.className = 'hshop-inv-bib';
+        var _nm = '이름';
+        try { var _a = JSON.parse(localStorage.getItem('userAuth') || 'null'); if (_a && _a.name) _nm = _a.name; } catch (e) {}
+        bb.textContent = _nm;   // 사용자 입력 → textContent (안전)
+        var bib = eq.bib ? findItem('bib', eq.bib) : null;
+        if (bib) {
+            if (bib.color) bb.style.color = bib.color;
+            if (bib.bg) bb.style.background = bib.bg;
+            if (bib.border) bb.style.borderColor = bib.border;
+        }
+        box.appendChild(bb);
+
+        return box;
+    }
+
+    // ── 카탈로그 헬퍼 (ShopModule getter 위임) ──────────────
+
+    function getCatalog() { return ShopModule.getCatalog(); }
+    function getEquipped() { return ShopModule.getEquipped(); }
+    function findItem(slot, id) { return ShopModule.findItem(slot, id); }
+    function getCatalogItem(id) { return ShopModule.getCatalogItem(id); }
+
+    // ── 탈것 꾸미기 적용 (경마 고유) ───────────────────────
 
     // 주어진 .horse 에 명시적 equipped 객체를 적용(멱등). catalog 필요.
     function applyEquippedToHorse(horseEl, equipped) {
-        if (!horseEl || !catalog) return;
+        if (!horseEl || !getCatalog()) return;
         equipped = equipped || {};
 
         // 멱등: 이전 cosmetic-* 자식 제거
-        var stale = horseEl.querySelectorAll('.cosmetic-accessory, .cosmetic-trail, .cosmetic-bib');
+        var stale = horseEl.querySelectorAll('.cosmetic-accessory, .cosmetic-trail, .cosmetic-aura');
         for (var i = 0; i < stale.length; i++) stale[i].remove();
+
+        // aura → 탈것 뒤 글로우(별도 노드, z-index 낮게 — paint의 .vehicle-sprite filter와 무간섭)
+        var aura = findItem('aura', equipped.aura);
+        if (aura && aura.color) {
+            var auraEl = document.createElement('span');
+            auraEl.className = 'cosmetic-aura';
+            auraEl.setAttribute('aria-hidden', 'true');
+            applyAuraVisual(auraEl, aura); // 스프라이트(로드 시) 또는 currentColor 글로우 폴백
+            horseEl.appendChild(auraEl);
+        }
 
         // paint → .vehicle-sprite filter (.horse가 아니라: 이벤트 연출이 .horse filter 점유)
         var sprite = horseEl.querySelector('.vehicle-sprite');
@@ -641,42 +361,69 @@
             var trailEl = document.createElement('span');
             trailEl.className = 'cosmetic-trail';
             trailEl.setAttribute('aria-hidden', 'true');
-            trailEl.textContent = trail.emoji + trail.emoji + trail.emoji;
+            // 5연 이모지로 잔상 질량 강화(크게·또렷하게). 유저입력 아님(카탈로그 상수) → textContent 유지.
+            trailEl.textContent = trail.emoji + trail.emoji + trail.emoji + trail.emoji + trail.emoji;
             horseEl.appendChild(trailEl);
         }
 
-        // accessory → 오버레이
+        // accessory → 머리 위 오버레이 (탈것별 앵커로 위치/크기 보정 — 외관만)
         var acc = findItem('accessory', equipped.accessory);
         if (acc && acc.emoji) {
             var accEl = document.createElement('span');
             accEl.className = 'cosmetic-accessory';
             accEl.setAttribute('aria-hidden', 'true');
             accEl.textContent = acc.emoji;
+            var vid = horseEl.dataset ? horseEl.dataset.vehicleId : null;
+            var a = (vid && ACC_ANCHOR[vid]) || ACC_ANCHOR_DEFAULT;
+            // CSS 커스텀 프로퍼티로 전달 → .cosmetic-accessory 가 left/top/scale 소비 (px = .horse 기준).
+            accEl.style.setProperty('--acc-x', (10 + a.x) + 'px');
+            accEl.style.setProperty('--acc-y', (17.5 + a.y) + 'px');
+            accEl.style.setProperty('--acc-scale', a.scale);
             horseEl.appendChild(accEl);
         }
 
-        // bib → 마번 배지 (탈것 번호 = horseIndex+1, 카탈로그 색상)
-        var bib = findItem('bib', equipped.bib);
-        if (bib) {
-            var num = '#';
-            var m = (horseEl.id || '').match(/horse_(\d+)/);
-            if (m) num = String(parseInt(m[1], 10) + 1);
-            var bibEl = document.createElement('span');
-            bibEl.className = 'cosmetic-bib';
-            bibEl.setAttribute('aria-hidden', 'true');
-            bibEl.textContent = num;
-            if (bib.color) bibEl.style.color = bib.color;
-            if (bib.bg) bibEl.style.background = bib.bg;
-            if (bib.border) bibEl.style.borderColor = bib.border;
-            horseEl.appendChild(bibEl);
+        // bib(이름표)는 .horse가 아니라 닉네임 라벨(.race-name-tag)에 적용 — getLabelStyle 참조.
+    }
+
+    // bibId → 이름표 라벨 스타일. 카탈로그 미로드/미존재 시 null.
+    function getLabelStyle(bibId) {
+        var item = bibId ? findItem('bib', bibId) : null;
+        if (!item) return null;
+        return { color: item.color || null, bg: item.bg || null, border: item.border || null };
+    }
+
+    // 내가 현재 장착한 이름표 id (선택화면 자기 미리보기용). 없으면 null.
+    function getMyEquippedLabel() { return mergedEquipped().bib || null; }
+    // 내 이름표 라벨의 라이브 재색칠 책임은 horse-race.js(window.refreshMyNameTags)로 일원화 —
+    // 스타일 소유권을 렌더 쪽에 두고, 셀렉터에 유저입력(닉네임)을 넣지 않기 위함.
+
+    // 미인증 시 일반 상품 클릭 → 로그인 모달 유도(셸은 게임 중립이라 typeof 가드 필수).
+    function promptLogin() {
+        if (typeof ServerSelectModule !== 'undefined' && ServerSelectModule.showLoginModal) {
+            ServerSelectModule.showLoginModal();
+        } else if (typeof showCustomAlert === 'function') {
+            showCustomAlert('로그인 후 이용할 수 있어요.');
         }
     }
 
-    // 내 장착(서버 권위)을 .horse 에 적용.
+    // 내 DB 장착 + 광고 장착(슬롯 단위로 광고가 우선)을 병합. 광고는 서버 broadcast와 동일 의미.
+    function mergedEquipped() {
+        var merged = {};
+        var dbEq = getEquipped() || {};
+        Object.keys(dbEq).forEach(function (slot) { merged[slot] = dbEq[slot]; });
+        var adEq = (ShopModule.getAdWallet && ShopModule.getAdWallet().equipped) || {};
+        Object.keys(adEq).forEach(function (slot) { merged[slot] = adEq[slot]; });
+        return merged;
+    }
+
+    // 내 장착(서버 권위 + 광고 transient)을 .horse 에 적용.
     function applyToHorse(horseEl) {
         if (!horseEl) return;
-        if (!catalog) { loadCatalog().then(function () { applyToHorse(horseEl); }).catch(function () {}); return; }
-        applyEquippedToHorse(horseEl, wallet.equipped);
+        if (!getCatalog()) {
+            ShopModule.loadCatalog().then(function () { applyToHorse(horseEl); }).catch(function () {});
+            return;
+        }
+        applyEquippedToHorse(horseEl, mergedEquipped());
     }
 
     function applyToActiveHorses() {
@@ -684,69 +431,117 @@
         for (var i = 0; i < horses.length; i++) applyToHorse(horses[i]);
     }
 
-    // ── 방 연출 (track_theme / finish_fx) ──────────────────
+    // ── 개인 연출 (finish_fx) ──────────────────────────────
+    //   "개인 꾸미기": 각 플레이어가 본인 장착(코인 DB + 광고 transient)을 본인 화면에서 본다.
+    //   방장 무관·우승 무관. 결승 폭죽 레이어(.cosmetic-finish-fx)는 자체 타이머(5.5s)로 정리된다.
 
-    // 방장 roomCosmetics 적용 (track_theme 배경 틴트). 멱등: 먼저 정리.
-    function applyRoomCosmetics(roomCosmetics) {
-        clearRoomCosmetics();
-        if (!roomCosmetics) return;
-        var container = document.getElementById('raceTrackContainer');
-        if (container && roomCosmetics.track_theme) {
-            var theme = getCatalogItem(roomCosmetics.track_theme);
-            if (theme && theme.bg) {
-                var ov = document.createElement('div');
-                ov.className = 'cosmetic-track-theme';
-                ov.setAttribute('aria-hidden', 'true');
-                ov.style.backgroundImage = theme.bg;
-                container.appendChild(ov);
-            }
-        }
-    }
-
-    function clearRoomCosmetics() {
-        var prev = document.querySelectorAll('.cosmetic-track-theme, .cosmetic-finish-fx');
-        for (var i = 0; i < prev.length; i++) prev[i].remove();
-    }
-
-    // 결승 이펙트(폭죽/색종이) 1회 재생.
-    function playFinishFx(roomCosmetics) {
-        if (!roomCosmetics || !roomCosmetics.finish_fx) return;
-        var fx = getCatalogItem(roomCosmetics.finish_fx);
-        if (!fx || !fx.emoji) return;
-        var container = document.getElementById('raceTrackContainer');
-        if (!container) return;
+    // 결승 이펙트 1회 재생을 임의 컨테이너에 그리는 헬퍼(in-race·상점 미리보기 공용).
+    //   이모지 28개 낙하(화면 전폭 커버 + 크기/딜레이 jitter). Math.random은 외형(위치/딜레이/크기)
+    //   전용 — 게임 결과·시뮬과 무관(공정성 영향 0). ~5500ms 후 자동 정리(레이어 leak 방지, 멱등).
+    //   containerEl은 position:relative + overflow:hidden 이어야 낙하가 그 안에 클리핑된다.
+    var FINISH_FX_PIECES = 28;       // 강화: 12 → 28 (질량 ↑)
+    var FINISH_FX_LIFETIME = 5500;   // CSS hshopFxFall 3.6s + 최대 delay ~1.5s 보다 길게
+    function playFinishFxInto(containerEl, emoji) {
+        if (!containerEl || !emoji) return;
         var layer = document.createElement('div');
         layer.className = 'cosmetic-finish-fx';
         layer.setAttribute('aria-hidden', 'true');
-        // 이모지 12개 낙하 (위치/딜레이는 결정적 — Math.random 미사용)
-        for (var i = 0; i < 12; i++) {
+        for (var i = 0; i < FINISH_FX_PIECES; i++) {
             var p = document.createElement('span');
             p.className = 'cosmetic-fx-piece';
-            p.textContent = fx.emoji;
-            p.style.left = (5 + i * 8) + '%';
-            p.style.animationDelay = (i * 0.12) + 's';
+            p.textContent = emoji;
+            // 전폭 균등 분포(1.5~98.5%) + 가로 jitter (외형 전용 random — 공정성 무관)
+            var base = 1.5 + (i / (FINISH_FX_PIECES - 1)) * 97;
+            p.style.left = Math.max(0, Math.min(99, base + (Math.random() - 0.5) * 6)) + '%';
+            p.style.animationDelay = (Math.random() * 1.5).toFixed(2) + 's'; // 0~1.5s 산개
+            p.style.fontSize = (24 + Math.random() * 18).toFixed(0) + 'px';  // 24~42px 크기 변주
             layer.appendChild(p);
         }
-        container.appendChild(layer);
-        setTimeout(function () { if (layer && layer.parentNode) layer.remove(); }, 3500);
+        containerEl.appendChild(layer);
+        setTimeout(function () { if (layer && layer.parentNode) layer.remove(); }, FINISH_FX_LIFETIME);
     }
 
-    // ── 공개 API ───────────────────────────────────────────
+    // 결승 이펙트(폭죽/색종이) 1회 재생 — 본인이 장착한 finish_fx 기준(개인 꾸미기, 방장 무관).
+    //   인자(roomCosmetics)는 기존 호출부 시그니처 호환용으로 유지하되 더 이상 사용하지 않는다.
+    //   mergedEquipped()로 본인 DB 장착 + 광고 장착(우선)을 읽어 모든 플레이어가 자기 화면에서 자기 연출을 본다.
+    function playFinishFx(_roomCosmetics) {
+        var id = mergedEquipped().finish_fx;
+        if (!id) return;
+        var fx = getCatalogItem(id);
+        if (!fx || !fx.emoji) return;
+        playFinishFxInto(document.getElementById('raceTrackContainer'), fx.emoji);
+    }
+
+    // ── ShopModule 설정 등록 ───────────────────────────────
+
+    ShopModule.init({
+        mountId: 'horseShopMount',
+        catalogUrl: CATALOG_URL,
+        title: '꾸미기 상점',
+        subtitle: '경마 · 내 탈것',
+        slots: SLOTS,
+        // 미인증(게스트/만료토큰)도 ad-티어로 상점 진입 허용 (v1 경마 한정). 스핀은 이 플래그 없음 → 토큰 필수.
+        allowGuestShop: true,
+        hooks: {
+            buildPreview: buildPreview,
+            // 인벤토리('내 아이템') 메인탭 상단 큰 미리보기 — mergedEquipped 합성을 어댑터에서 빌드.
+            buildInventoryPreview: buildInventoryPreview,
+            // 인벤토리 ◀▶ 스위처용 탈것 로스터(id/name). ALL_VEHICLES에서 추림.
+            inventoryVehicles: inventoryVehicles,
+            // 인벤토리 카드 장착표시를 "실제 탈것에 보이는 것"과 일치시키기 위한 현재 장착(슬롯→id) 조회.
+            // 광고>코인(같은 슬롯 광고 우선). 셸은 이 단일 진실로 ✓를 1개에만 표시.
+            mergedEquipped: mergedEquipped,
+            // 일반(비-광고) 아이템 상태. ad 아이템은 셸이 ad-wallet 기준으로 별도 처리(여기 미진입).
+            // 미인증(게스트/만료토큰)이면 일반 상품은 잠금 → 클릭 시 로그인 유도.
+            itemState: function (item) {
+                if (!ShopModule.isAuthed()) {
+                    return { owned: false, buyable: false, lockLabel: '로그인하세요', onLockedClick: promptLogin };
+                }
+                var owned = ShopModule.getWallet().owned.indexOf(item.id) !== -1;
+                return { owned: owned, buyable: true };
+            },
+            noticeText: function (activeSlot) {
+                return (activeSlot === 'finish_fx')
+                    ? '결승연출은 내가 장착하면 내 화면에 보여요. 게임 결과엔 영향 없어요.'
+                    : '꾸미기는 게임 결과에 영향을 주지 않아요. 코인으로 구매 후 장착하세요.';
+            },
+            // free 서버(자유플레이·로그인 없음 → currentServerId === null)에서는 코인 경제가
+            // 실제로 돌지 않으므로 코인샵 카드 대신 안내문만 보여준다. 잠금이면 안내 카피 반환,
+            // 정규 서버면 null → 셸 기본 카드 렌더. 광고샵('ad')엔 영향 없음(셸이 'coin' 한정 호출).
+            coinShopLocked: function () {
+                return (window.currentServerId == null)
+                    ? '여기서는 코인샵을 사용할 수 없어요. 서버를 새로 만들어 진행해 주세요.'
+                    : null;
+            },
+            // 인증/지갑 동기화 직후 — 내 활성 말 + 이름표 라벨에 장착 반영
+            onWalletSynced: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 장착/해제 직후 — 내 활성 말 + 이름표 라벨 즉시 반영 (force 무관)
+            onEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); },
+            // 광고 코스메틱 장착/해제 직후 — 내 활성 말 + 이름표 라벨 즉시 반영
+            onAdEquipApplied: function () { applyToActiveHorses(); if (window.refreshMyNameTags) window.refreshMyNameTags(); }
+            // onPurchased: no-op (구매만으로 외관 변화 없음 — 장착 시 반영)
+        }
+    });
+
+    // ── 공개 API (기존 시그니처 유지) ──────────────────────
 
     window.HorseShop = {
-        connect: connect,
-        authenticate: authenticate,
-        loadCatalog: loadCatalog,
-        openShop: openShop,
-        closeShop: closeShop,
+        connect: function (socket) { ShopModule.connect(socket); },
+        authenticate: function (token, done) { ShopModule.authenticate(token, done); },
+        loadCatalog: function () { return ShopModule.loadCatalog(); },
+        openShop: function () { ShopModule.openShop(); },
+        closeShop: function () { ShopModule.closeShop(); },
         applyToHorse: applyToHorse,
         applyEquippedToHorse: applyEquippedToHorse,
         applyToActiveHorses: applyToActiveHorses,
-        applyRoomCosmetics: applyRoomCosmetics,
-        clearRoomCosmetics: clearRoomCosmetics,
         playFinishFx: playFinishFx,
-        getEquipped: function () { return wallet.equipped; },
+        getEquipped: getEquipped,
         getCatalogItem: getCatalogItem,
-        isAuthed: function () { return wallet.authed; }
+        getLabelStyle: getLabelStyle,
+        getMyEquippedLabel: getMyEquippedLabel,
+        isAuthed: function () { return ShopModule.isAuthed(); }
     };
+
+    // 이름표 색 해석은 카탈로그가 로드돼야 한다. 레이스 전에 미리 캐시(멱등 — 중복 무해).
+    ShopModule.loadCatalog().catch(function () {});
 })();

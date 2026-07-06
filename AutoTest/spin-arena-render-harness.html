@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>spin-arena render harness (칼 수집 탈출 QA)</title>
+<link rel="stylesheet" href="../css/spin-arena.css">
+<style>
+:root{--spin-arena-500:#7c5cff;--spin-arena-500-rgb:124,92,255;--spin-arena-600:#6344e6;--spin-arena-accent:#22d3ee;--bg-white:#fff;}
+body{margin:0;background:#0a0f1e;font-family:sans-serif;color:#cdd}
+#spinArenaWrap{margin:10px auto;width:480px}
+#spinArenaCanvas{display:block;background:#0d1326;border-radius:16px}
+#log{font-size:12px;padding:8px;white-space:pre-wrap}
+#resultOverlay{display:none}
+#resultOverlay.visible{display:block;background:#1a2238;margin:8px auto;width:480px;padding:10px;border-radius:8px}
+.spin-result-row{color:#eef2fb}
+</style></head><body>
+<div id="loadingScreen" style="display:none"></div>
+<div id="gameStatus"></div>
+<section id="spinArenaWrap" style="display:none">
+  <div id="spinCanvasBox" style="position:relative"><canvas id="spinArenaCanvas" width="480" height="480"></canvas><div id="raceChatOverlay"></div></div>
+  <div id="spinHpPanel" style="display:none"></div>
+  <button id="spinReplayBtn" style="display:none"></button>
+</section>
+<div id="spinSkinPicker" style="display:none"></div>
+<div id="historyList"></div>
+<div id="resultOverlay"><div id="resultRankings"></div></div>
+<div id="log">harness loading...</div>
+<script>
+window.__errors=[];
+window.addEventListener("error",function(e){window.__errors.push(String((e&&e.message)||e));});
+window.addEventListener("unhandledrejection",function(e){window.__errors.push("rejection:"+String(e.reason));});
+window.io=function(){var h={};return {connected:true,id:"sock1",on:function(n,f){h[n]=f;},off:function(){},emit:function(){},_handlers:h};};
+sessionStorage.setItem("spinArenaActiveRoom", JSON.stringify({roomId:"r1",userName:"이영희",serverId:null,serverName:null}));
+</script>
+<script src="qa-escape-payload.js"></script>
+<script src="../js/spin-arena.js"></script>
+<script>
+// ── 결정론 렌더 드라이버: 고정 base + 20ms 스텝 (2회 호출 시 동일 픽셀이어야 함) ──
+var FIXED_BASE = 100000;
+function renderTo(targetMs, payload, mode){
+  payload = payload || window.__PAYLOAD;
+  spinReplay.isReplayMode = false;
+  spinReplay.phase = "playing";
+  spinReplay.payload = payload;
+  document.getElementById("spinArenaWrap").style.display = "block";
+  var c = document.getElementById("spinArenaCanvas"); c.width = 480; c.height = 480;
+  // follow 검증: currentUser를 슬롯 이름으로 세팅(소켓 roomJoined가 하네스엔 없음).
+  // initSpinFx가 currentUser로 _mySlotIdx를 해석하므로 initSpinFx 전에 지정.
+  if(typeof window.__forceUser === "string") currentUser = window.__forceUser;
+  initSpinFx(payload);
+  initSpinHpPanel(payload);
+  // 카메라 모드 강제(고정 dt 재생 결정론 검증용). 미지정 시 initSpinFx 기본값 유지.
+  if(mode){ spinReplay.camera._userOverride = true; spinReplay.camera.mode = mode; spinReplay.camera._initialized = false; spinReplay.camera._activeCutStart = null; }
+  spinReplay.startTs = FIXED_BASE;
+  for(var tt = 0; tt <= targetMs; tt += 20){
+    drawSpinFrame(FIXED_BASE + tt);
+    if(spinReplay.raf){ cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
+  }
+  if(targetMs % 20 !== 0){
+    drawSpinFrame(FIXED_BASE + targetMs);
+    if(spinReplay.raf){ cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
+  }
+  document.getElementById("log").textContent = "rendered t=" + targetMs + "ms | errors=" + window.__errors.length;
+}
+function canvasHash(){
+  var c = document.getElementById("spinArenaCanvas");
+  var d = c.getContext("2d").getImageData(0,0,c.width,c.height).data;
+  var h = 5381;
+  for(var i = 0; i < d.length; i += 7) h = ((h * 33) ^ d[i]) >>> 0;
+  return h.toString(16);
+}
+function fxTexts(){
+  return spinReplay.fx.filter(function(e){return e.type==="text";}).map(function(e){return e.text;});
+}
+function panelState(){
+  var rows = spinReplay._hpRows || [];
+  return rows.map(function(r){
+    return { val: r.val.textContent, fillW: r.fill.style.width, dead: r.row.classList.contains("dead") };
+  });
+}
+// 모바일 폭 검증: 패널 클론을 지정 폭 컨테이너에 넣고 행 overflow 측정 (2열 모바일 레이아웃 강제)
+function mobileCheck(w){
+  var src = document.getElementById("spinHpPanel");
+  var box = document.createElement("div");
+  box.style.cssText = "position:absolute;left:0;top:600px;width:" + w + "px;";
+  var clone = src.cloneNode(true);
+  clone.id = "";
+  clone.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:6px 12px;padding:10px 12px;border:1px solid #555;box-sizing:border-box;width:100%;background:#0d1326;";
+  box.appendChild(clone); document.body.appendChild(box);
+  var rows = clone.querySelectorAll(".spin-hp-row");
+  var overflow = 0, widths = [];
+  rows.forEach(function(r){ widths.push(r.clientWidth + "/" + r.scrollWidth); if(r.scrollWidth > r.clientWidth + 1) overflow++; });
+  var vw = 0;
+  clone.querySelectorAll(".spin-hp-val").forEach(function(v){ vw = Math.max(vw, v.scrollWidth); });
+  document.body.removeChild(box);
+  return { overflow: overflow, rows: widths, maxValW: vw };
+}
+
+// ── QA 배터리 ──
+// 페이로드·검사 모두 신구조(escapes/downs/bladeUps/decideMs, 가변 durationMs) 기준.
+// 구 HP UI 검사(게이지 인버트, selElim 회색 시체)는 신 핍 HUD/미션 패널('칼 N/5' + 다음 칼 진행 바)로 대체됨.
+// 구 T7(selected를 탈출자로 합성)은 신설계 불변("selected는 탈출 불가")과 모순이라 제거.
+async function runQA(){
+  var R = { checks: [], errors: [] };
+  function ck(name, ok, extra){ R.checks.push({ name: name, ok: !!ok, extra: extra || "" }); }
+  var t0 = Date.now();
+  while(!spinSprites.ready && Date.now() - t0 < 4000) await new Promise(function(r){ setTimeout(r, 100); });
+  ck("sprites loaded", spinSprites.ready);
+
+  var P = window.__PAYLOAD;
+  var els = P.escapes.slice().sort(function(a,b){ return a.timeMs - b.timeMs; });   // eliminations 제거 — 탈출 이벤트 기준
+  var e1 = els[0];                                    // 첫 탈출 {id,timeMs,x,y}
+  var tEnd = P.durationMs;                            // 가변(결판 압축) — 30000 하드코딩 금지
+  var tAfterAll = els[els.length - 1].timeMs + 800;   // 마지막 탈출 + 퇴장 애니(700ms) 이후
+  var sel = P.result.selected;
+
+  // T1: 탈출 → '탈출!' 골드 텍스트
+  renderTo(e1.timeMs + 200);
+  var texts1 = fxTexts();
+  ck("T1 '탈출!' text on escape", texts1.indexOf("탈출!") >= 0, JSON.stringify(texts1));
+
+  // T2: 퇴장 애니 — escaped 플래그(t 파생 상태)
+  renderTo(e1.timeMs + 350);
+  ck("T2 escaped flag at escape+350", spinReplay._slotState[e1.id].escaped === true);
+
+  // T3: 미션 패널(생존) — val == '칼 N/5'(N = bladeCountAt), fill == 다음 칼 진행도
+  //     prog = clamp((cumDmg − (N − BLADE_COUNT) × BLADE_UP_DMG) / BLADE_UP_DMG, 0, 1)
+  renderTo(8000);
+  var st = spinReplay._slotState, rows = panelState();
+  var ok3 = true, det3 = [];
+  for(var i = 0; i < st.length; i++){
+    if(st[i].escaped || st[i].downed) continue;
+    var bc3 = bladeCountAt(i, 8000);
+    var expV = "칼 " + bc3 + "/" + ESCAPE_BLADES;
+    var prog3 = Math.max(0, Math.min(1, (st[i].cum - (bc3 - BLADE_COUNT) * BLADE_UP_DMG) / BLADE_UP_DMG));
+    var expW = (prog3 * 100).toFixed(1) + "%";
+    det3.push(rows[i].val + "==" + expV + "," + rows[i].fillW + "==" + expW);
+    if(rows[i].val !== expV || rows[i].fillW !== expW) ok3 = false;
+  }
+  ck("T3 panel '칼 N/5' + next-blade progress", ok3, det3.join(" | "));
+
+  // T3b: 탈출 후 패널 — '✓ N위 탈출' / selected(slot0)는 decideMs 후 '못 나감'(stuck) / fill 100%
+  renderTo(tAfterAll);
+  rows = panelState();
+  ck("T3b row[slot2]='✓ 1위 탈출'", rows[2].val === "✓ 1위 탈출", rows[2].val);
+  ck("T3b row[slot1]='✓ 2위 탈출'", rows[1].val === "✓ 2위 탈출", rows[1].val);
+  ck("T3b selected row '못 나감'", rows[0].val === "못 나감", rows[0].val);
+  ck("T3b fill=100% (dead+stuck)", rows[2].fillW === "100%" && rows[1].fillW === "100%" && rows[0].fillW === "100%",
+     rows[0].fillW + "," + rows[1].fillW + "," + rows[2].fillW);
+  ck("T3b dead class (selected는 dead 아님)", rows[2].dead && rows[1].dead && !rows[0].dead);
+
+  // T5: 종료 — 결과 오버레이 문구/순서/상태
+  renderTo(tEnd);
+  var rk = document.getElementById("resultRankings").innerHTML;
+  ck("T5 '⚔️ 탈출 실패 (당첨)' for selected", rk.indexOf("⚔️ 탈출 실패 (당첨)") >= 0);
+  ck("T5 '✅ 탈출 성공' x2", (rk.match(/✅ 탈출 성공/g) || []).length === 2);
+  var rowEls = document.querySelectorAll("#resultRankings .spin-result-row");
+  ck("T5 selected last row", rowEls.length === 3 && rowEls[2].textContent.indexOf(sel) >= 0,
+     rowEls.length ? rowEls[rowEls.length-1].textContent : "no rows");
+  ck("T5 status 당첨", document.getElementById("gameStatus").textContent.indexOf(sel) >= 0,
+     document.getElementById("gameStatus").textContent);
+  ck("T5 overlay visible", document.getElementById("resultOverlay").classList.contains("visible"));
+
+  // T6: 같은 t 2회 렌더 픽셀 동일 (결정론)
+  renderTo(12000); var hA = canvasHash();
+  renderTo(12000); var hB = canvasHash();
+  ck("T6 same-t pixel determinism", hA === hB, hA + " vs " + hB);
+
+  // (구 T7 selElim 합성 검사 제거 — 신설계에서 selected는 탈출 자체가 불가능해 합성 페이로드가 모순)
+
+  // T8: result null(마스킹 방어 경로) — throw 없이 렌더, 전원 '탈출!' 처리
+  var P3 = JSON.parse(JSON.stringify(P)); P3.result = null;
+  var errBefore = window.__errors.length;
+  renderTo(e1.timeMs + 200, P3);
+  ck("T8 null result: '탈출!' (no selected)", fxTexts().indexOf("탈출!") >= 0);
+  renderTo(tEnd, P3);
+  ck("T8 null result: no errors", window.__errors.length === errBefore);
+
+  // T9: 스프라이트 미로드 폴백(drawCharBody/Face 퇴장 경로) — throw 없음
+  var was = spinSprites.ready; spinSprites.ready = false;
+  var errBefore9 = window.__errors.length;
+  renderTo(e1.timeMs + 350);
+  ck("T9 fallback procedural exit anim no errors", window.__errors.length === errBefore9);
+  spinSprites.ready = was;
+
+  // T10: 모바일 패널 폭 (290px=360vp 환산, 250px=320vp 환산) — 행 overflow 0
+  renderTo(tAfterAll);   // '✓ 1위 탈출' 최장 라벨 노출 상태
+  var m1 = mobileCheck(290), m2 = mobileCheck(250);
+  ck("T10 290px rows no overflow", m1.overflow === 0, JSON.stringify(m1));
+  ck("T10 250px rows no overflow", m2.overflow === 0, JSON.stringify(m2));
+
+  // ── 카메라 QA(관전 카메라 — §3-4/3-5/3-6) ──
+  // overview 모드 = 기존 고정 뷰 폴백(camFocus 중심·camZoom≈1)인지 + 4모드 에러 0 + 결정론 + 미니맵 에러 0.
+  var camErrBefore = window.__errors.length;
+  var camModes = ["follow", "director", "roam", "overview"];
+  for(var cm = 0; cm < camModes.length; cm++){
+    renderTo(12000, P, camModes[cm]);
+    ck("CAM " + camModes[cm] + " renders no errors", window.__errors.length === camErrBefore, window.__errors.slice(camErrBefore).join(" | "));
+    // 결정론: 같은 모드·같은 t 2회 = 동일 픽셀(고정 dt 재생)
+    renderTo(12000, P, camModes[cm]); var ch1 = canvasHash();
+    renderTo(12000, P, camModes[cm]); var ch2 = canvasHash();
+    ck("CAM " + camModes[cm] + " same-t determinism", ch1 === ch2, ch1 + " vs " + ch2);
+  }
+  // overview = 기존 고정 뷰 폴백: camFocus가 아레나 중심, camZoom이 showdown(1.0~1.08) 범위
+  renderTo(5000, P, "overview");
+  var ovCam = spinReplay.camera;
+  ck("CAM overview focus=center", Math.abs(ovCam.focusX - 240) < 0.5 && Math.abs(ovCam.focusY - 240) < 0.5,
+     ovCam.focusX.toFixed(1) + "," + ovCam.focusY.toFixed(1));
+  ck("CAM overview zoom in [1,1.08]", ovCam.zoom >= 1 - 1e-6 && ovCam.zoom <= 1.08 + 1e-6, String(ovCam.zoom));
+  window.__forceUser = "이영희";   // 내 슬롯(slot2) 지정 — follow 타깃 해석용
+  // follow: 내 슬롯(이영희=slot2)이 활성인 t=7000에서 zoom=FOLLOW_ZOOM·focus 클램프 내.
+  // (t=12000은 이영희가 down 9440~12440 구간이라 follow가 director로 자동전환 = 의도된 동작이라 회피)
+  renderTo(7000, P, "follow");
+  ck("CAM follow active→zoom 2.0", Math.abs(spinReplay.camera.zoom - 2.0) < 1e-6, String(spinReplay.camera.zoom));
+  ck("CAM follow focus clamped in-arena", spinReplay.camera.focusX >= 140 - 1e-6 && spinReplay.camera.focusX <= 340 + 1e-6,
+     String(spinReplay.camera.focusX));
+  // follow 자동전환: 내가 down인 t=12000 → director(1.6)로 전환되는지(설계 §3-5)
+  renderTo(12000, P, "follow");
+  ck("CAM follow auto→director when down", Math.abs(spinReplay.camera.zoom - 1.6) < 1e-6, String(spinReplay.camera.zoom));
+
+  R.errors = window.__errors.slice();
+  ck("console/runtime errors = 0", R.errors.length === 0, R.errors.join(" | "));
+
+  var fails = R.checks.filter(function(c){ return !c.ok; });
+  R.summary = fails.length === 0 ? "ALL PASS (" + R.checks.length + ")" : "FAIL " + fails.length + "/" + R.checks.length;
+  document.getElementById("log").textContent = R.summary + "\n" +
+    R.checks.map(function(c){ return (c.ok ? "PASS " : "FAIL ") + c.name + (c.extra ? "  [" + c.extra + "]" : ""); }).join("\n");
+  window.qaResults = R;
+  return R;
+}
+window.renderTo = renderTo; window.runQA = runQA; window.canvasHash = canvasHash;
+document.getElementById("log").textContent = "harness ready. call runQA() or renderTo(ms[,payload])";
+</script></body></html>

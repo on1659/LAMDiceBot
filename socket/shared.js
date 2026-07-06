@@ -47,6 +47,18 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
     }
     ctx.triggerAutoOrder = triggerAutoOrder;
 
+    // 사다리타기 빌드 동기화 — 준비 변동 시 현재 빌드 상태를 재브로드캐스트(빌드 정합성 유지).
+    // pick-elimination: 빌드(top 선택/막대기)는 ready 무관 → 준비 취소가 선택/막대기를 삭제하지 않는다.
+    //   (removedUserName 인자는 호환 위해 받지만 사용하지 않음 — 준비취소로 빌드 상태를 깨지 않는다.)
+    // 빌드(phase idle)에서만 동작. top/막대기/색 정리는 실제 이탈(leaveRoom / disconnect)에서만 한다.
+    function syncLadderBuildOnReadyChange(gameState, room, removedUserName) {
+        if (!room || room.gameType !== 'ladder' || !gameState.ladder) return;
+        const ld = gameState.ladder;
+        if (ld.phase !== 'idle') return;
+        // 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로. 협업 막대기는 보존.
+        if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+    }
+
     // 주문받기 시작
     socket.on('startOrder', () => {
         if (!checkRateLimit()) return;
@@ -374,6 +386,16 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             return;
         }
 
+        // 사다리타기 전용 게이트(크로스게임 무영향 — ladder일 때만 동작):
+        // 사다리는 isGameActive를 켜지 않고 ld.phase로 진행을 추적한다(phase 집합: idle | revealing | finished).
+        // 공개 연출(revealing) 도중의 stray toggleReady가 readyUsers를 흔들면 카운트/시작 게이트와 어긋나므로 무시한다.
+        // idle(빌드 + 토너먼트 sub-round pick)·finished(결과창)에서는 허용 — sub-round 재준비도 phase=idle이라 통과.
+        if (room.gameType === 'ladder' && gameState.ladder
+            && gameState.ladder.phase !== 'idle' && gameState.ladder.phase !== 'finished') {
+            socket.emit('readyError', '사다리 진행 중에는 준비 상태를 바꿀 수 없어요. 결과가 끝난 뒤 다시 시도해주세요.');
+            return;
+        }
+
         // 사용자 확인
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user) {
@@ -411,6 +433,9 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
 
         // 같은 방의 모든 클라이언트에게 준비 목록 업데이트
         io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+        // 사다리타기: 준비 인원 변동 → 막대기 정리/브로드캐스트 (준비 취소 시 본인 막대기 제거)
+        syncLadderBuildOnReadyChange(gameState, room, isReady ? userName : null);
 
         console.log(`방 ${room.roomName}: ${userName} ${isReady ? '준비 취소' : '준비 완료'} (준비 인원: ${gameState.readyUsers.length}명)`);
     });
@@ -502,6 +527,9 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
             // 같은 방의 모든 클라이언트에게 준비 목록 업데이트 (동기화를 위해)
             io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
         }
+
+        // 사다리타기: 호스트 강제 준비 취소 시 해당 유저 막대기 제거 + 인원 변동 동기화
+        syncLadderBuildOnReadyChange(gameState, room, (!isReady && currentlyReady) ? trimmedUserName : null);
 
         console.log(`방 ${room.roomName}: 호스트가 ${trimmedUserName}을(를) ${isReady ? '준비 상태로' : '준비 취소로'} 설정 (준비 인원: ${gameState.readyUsers.length}명)`);
     });

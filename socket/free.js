@@ -13,7 +13,9 @@ const GAME_TYPE_BY_SLUG = {
     'dice':     'dice',
     'roulette': 'roulette',
     'horse':    'horse-race',
-    'bridge':   'bridge'
+    'bridge':   'bridge',
+    'ladder':   'ladder',
+    'spin-arena': 'spin-arena'
 };
 const ALLOWED_GAME_TYPES = Object.values(GAME_TYPE_BY_SLUG);
 

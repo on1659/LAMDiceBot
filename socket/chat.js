@@ -606,6 +606,45 @@ module.exports = (socket, io, ctx) => {
                         });
                     }
 
+                    // 사다리타기: 진짜 disconnect(브라우저 닫기 등)로 떠난 유저의 빌드 상태 정리.
+                    // leaveRoom(rooms.js)·준비취소(shared.js)와 짝(C-19) — 이 경로 누락 시 탭 닫은 유저의
+                    // top 선택/막대기/색/loserPool 멤버십이 유령으로 남는다(탭 닫으면 leaveRoom이 안 옴).
+                    // 빌드(idle) 점유는 idle일 때만 정리(진행 중 reveal은 손대지 않음). 공정성 영향 0(결과는 runLadder가 권위).
+                    if (room.gameType === 'ladder' && gameState.ladder
+                        && gameState.ladder.phase === 'idle') {
+                        const ld = gameState.ladder;
+                        let ladderChanged = false;
+                        if (ld.colorIndex && ld.colorIndex[userName] !== undefined) { delete ld.colorIndex[userName]; ladderChanged = true; }
+                        if (ld.userTops && ld.userTops[userName] !== undefined) { delete ld.userTops[userName]; ladderChanged = true; }
+                        if (ld.userRungs && ld.userRungs[userName] !== undefined) { delete ld.userRungs[userName]; ladderChanged = true; }
+                        if (ld.publicRungByDrawer && ld.publicRungByDrawer[userName] !== undefined) { delete ld.publicRungByDrawer[userName]; }
+                        if (Array.isArray(ld.loserPool) && ld.loserPool.indexOf(userName) !== -1) {
+                            ld.loserPool = ld.loserPool.filter(n => n !== userName); ladderChanged = true;
+                        }
+                        if (ladderChanged && ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+                    }
+
+                    // 해적룰렛: 진짜 disconnect(탭 닫기/네트워크 끊김)로 떠난 유저의 구멍 선점 정리.
+                    // leaveRoom(rooms.js:1227-1236)에만 있던 정리가 이 경로엔 없어, 떠난 유저의 선점이
+                    // "유령 선점"으로 남아 해소 시 trigger가 그 빈 자리에 떨어지면 loser=null(패자 0명) 위반.
+                    // idle/selecting일 때만 선점 상태 재브로드캐스트(진행 중 reveal/finished는 손대지 않음).
+                    if (gameState.pirate && gameState.pirate.claims) {
+                        const pr = gameState.pirate;
+                        let pirateReleased = false;
+                        for (const idx in pr.claims) {
+                            if (pr.claims[idx] === userName) { delete pr.claims[idx]; pirateReleased = true; }
+                        }
+                        if (pirateReleased && (pr.phase === 'idle' || pr.phase === 'selecting')) {
+                            io.to(roomId).emit('pirate:claimsUpdated', { claims: { ...pr.claims }, holeCount: pr.holeCount });
+                        }
+                    }
+
+                    // 광고 코스메틱(transient): 진짜 disconnect로 떠난 socket의 ad-장착 정리.
+                    // leaveRoom(rooms.js)에만 있던 정리를 실제 이탈 대다수 경로(탭 닫기/네트워크 끊김)에도 추가.
+                    if (room.adCosmetics && room.adCosmetics[socket.id]) {
+                        delete room.adCosmetics[socket.id];
+                    }
+
                     // 호스트가 나간 경우
                     if (wasHost) {
                         if (gameState.users.length > 0) {

@@ -1,6 +1,395 @@
 ========================================
-📋 Summit Log - 2026-06-02 (디폴트 주문 캐시 버그픽스 + 직접입력 UX)
+📋 Summit Log - 2026-06-23 (꾸미기 상점 가챠 확장 + 정리 — 대량 카탈로그·중복환급·신규 슬롯·인벤토리 UX·emote 삭제)
 ========================================
+
+## 변경 파일
+- config/horse/cosmetics.json: 가챠 슬롯 대량 확장(8슬롯 coin/ad) → 신규 슬롯 aura(글로우 color) + (emote 추가 후 정리에서 삭제) → emote 슬롯 삭제, 🎗️ 2개(acc_ad_bow/fx_ribbon)·노랑 이름표 2개(bib_gold/bib_ad_topaz) 삭제, bib coin 앵커 bib_neon 재선정, epic 쇼피스 7개(가챠 전용). 최종 157 아이템, (슬롯,경제)별 directBuy 정확히 1개.
+- db/cosmetics.js: EQUIP_SLOTS/PUBLIC_HORSE_SLOTS에 aura 추가(emote는 정리에서 미포함).
+- db/coins.js: drawAndGrant 중복환급 — 전체 풀 추첨, 신규 grant / 중복 grant 없이 +floor(cost/2) 재적립(COMMIT, reason 'gacha-dup') / 부족 ROLLBACK. race 안전은 user_coins row lock + CHECK(balance>=0).
+- socket/shop.js: buildPool 전체풀(소유 self-exclude 제거, directBuy/defaultOwned/requires/economy/game 필터 유지), shop:gacha 응답 isDupe/refunded, ad는 DB 미진입+서버 isDupe 판정.
+- js/shared/shop-shared.js: 광고샵 기본탭(openShop 정규화), 중복 리빌(♻️ 50% 환급), ad 환급 선차감/롤백, "다 모았어요" 폐기, 인벤토리 ◀▶ 미리보기 탈것 스위처 + 카테고리 필터칩.
+- js/horse-shop.js: aura/emote 탭·렌더(정리에서 emote 제거) + stale 셀렉터, 인벤토리 미리보기 탈것 파라미터화, playFinishFxInto 헬퍼 추출 + finish_fx 카드 "▶ 미리보기".
+- css/horse-shop.css: aura/중복리빌/인벤토리 스위처·필터/finish_fx preview 스타일(emote 스타일 정리에서 제거), prefers-reduced-motion.
+- AutoTest: qa-gacha-moneypath-unit / qa-gacha-pool-expansion-unit / qa-gacha-shop-render-smoke / qa-stage-c-inventory-switcher-test 신규, qa-shop-gacha-pool-smoke(계약 역전으로 stale) 삭제.
+- docs/goal/applied/: shop-gacha-expansion.md, shop-gacha-polish.md 아카이브.
+- docs/GameGuide/lessons: _common.md C-15(전체풀 가챠 머니패스)·C-16(계약역전/슬롯삭제 stale 테스트)·C-17(삭제대상 git 대조), horse-race.md(directBuy 최저등급 앵커 + 노랑 이름표 회피).
+
+## 상세 변경 내역
+
+### [가챠 확장 — 대량 카탈로그 + 신규 슬롯]
+- 8 가챠 슬롯을 (슬롯,경제)별 coin/ad 다수로 확장(색배리·이모지 다양화). 신규 슬롯 aura(탈것 글로우 오라). 정리 단계에서 emote 슬롯(액세서리와 중복)·🎗️·노랑 이름표 제거 후 최종 157 아이템.
+- aura는 PUBLIC_HORSE_SLOTS에 추가돼 buildRaceCosmetics(socket/horse.js 무수정, 데이터 주도)로 자동 broadcast. applyEquippedToHorse에 .cosmetic-aura 별도 노드(paint filter 무간섭) + stale 셀렉터.
+
+### [중복 허용 + 50% 환급 (미보유-only 폐기)]
+- 전체 풀 rarity 가중 추첨. 코인: drawAndGrant가 신규=net -cost / 중복=net -(cost-floor(cost/2)) (차감 유지+50% 재적립 COMMIT) / 부족=ROLLBACK. 광고: adWallet 클라 소비, 서버 isDupe 판정, 중복 시 50% adWallet 환급.
+- 머니패스 정합: ledger delta 합 = user_coins 순델타, 음수 잔고 불가(CHECK + 차감 가드 선행), in-flight 직렬화로 연타 이중차감 차단. 코인 가챠는 COIN_GACHA_ENABLED=false 다크십 유지.
+
+### [인벤토리 UX]
+- 내 아이템 탭에 ◀▶ 미리보기 탈것 전환(window.ALL_VEHICLES 로스터, 장착/소유 무변경 — 미리보기 스프라이트만) + 카테고리 필터칩(전체/슬롯별). reopen 시 상태 리셋.
+
+### [정리 — emote 삭제 / 민감·충돌 색 제거 / 쇼피스 / finish_fx 미리보기]
+- emote 슬롯이 accessory와 기능 중복 → 카탈로그/EQUIP·PUBLIC slots/탭/렌더/CSS/테스트 11곳 한 세트 삭제(aura 보존). 기존 prefs.equipped.emote는 렌더 제거로 무시(마이그레이션 불필요).
+- 🎗️(세월호 추모 리본 연상) acc_ad_bow/fx_ribbon 삭제. 노랑 이름표(기본 노랑 닉네임 태그와 충돌) bib_gold/bib_ad_topaz 삭제 → bib coin 앵커 bib_neon(초록) 재선정.
+- 카테고리별 epic 쇼피스 7개(천상 도색/유성우/세라핌 날개/코스믹 이름표/코스모스 트랙/결승 봉황/프리즘 오라), 가챠 전용.
+- finish_fx in-race 낙하 로직을 playFinishFxInto(container,emoji)로 추출(in-race 경로 불변) → 상점 카드 "▶ 미리보기"로 실제 승리 연출 재생(어댑터 격리, spin 무영향).
+
+### [공정성]
+- 추첨 결과는 서버 RNG(weightedPick). 클라 Math.random은 리빌/연출 파티클 jitter만(외관). aura 포함 cosmetic은 결과/sim/emit 무진입(buildRaceCosmetics transient).
+
+### [검증]
+- node -c(socket/shop.js·db/coins.js·db/cosmetics.js·js/horse-shop.js·server.js). 단위: moneypath 31/0, pool-expansion 60/0. Reviewer×2 approve(머니패스 row lock + CHECK 안전, 두 경제 분리, 다크십 유지, spin 무회귀). directBuy (슬롯,경제)별 1개·id 유일·🎗️/노랑 0.
+- 라이브(광고 가챠 리빌·실차감·finish_fx 미리보기·인벤토리·2탭)는 dev 서버 재시작 후 수동 확인.
+- 유저 노출(update-log.md): 상점이 "준비 중" 프레이밍 + 가챠는 확률 기능이라 유저 로그 미기재(정식 오픈 시 일괄 안내).
+
+========================================
+📋 Summit Log - 2026-06-22 (꾸미기 상점 뽑기(가챠) — 광고 뽑기 live·코인 뽑기 다크십)
+========================================
+
+## 변경 파일
+- config/horse/cosmetics.json: (슬롯,경제)별 최저등급 1개에 directBuy:true 10개 추가(코인 6: paint_dark/trail_splash/acc_sunglass/bib_gold/theme_snow/fx_confetti, 광고 4: paint_ad_aqua/trail_ad_meteor/acc_ad_party/bib_ad_ruby). 나머지 rare/epic = 뽑기 전용.
+- socket/shop.js: shop:gacha 핸들러(coin/ad), buildPool(미보유·경제·게임·requires·directBuy·defaultOwned 필터), weightedPick(서버 RNG, rarity 가중), GACHA_COIN_COST/GACHA_AD_COST/GACHA_RARITY_WEIGHTS 상수, CATALOG_INDEX[id].game 기록 + KNOWN_GAMES 화이트리스트, COIN_GACHA_ENABLED 서버 잠금, socket._gachaInFlight 직렬화.
+- db/coins.js: drawAndGrant(userId, cost, cosmeticId) 원자 트랜잭션(차감→coin_ledger(reason='gacha')→user_cosmetics, insufficient/owned ROLLBACK 3경로).
+- js/shared/shop-shared.js: gameHasGacha() 가드, gachaOnly 카드 상태(미소유=뽑기로 획득 잠금), 코인/광고 가챠 버튼+확률 표시, doCoinGacha/doAdGacha(shop:gacha emit), playReveal(등급 차등 리빌 오버레이), 'locked'/'busy' reason 처리.
+- css/horse-shop.css: 가챠 버튼/잠금 카드/리빌 오버레이(빌드업→버스트→리빌, rarity 단계별, prefers-reduced-motion).
+- AutoTest/qa-shop-gacha-pool-smoke.js: buildPool/weightedPick/requires 결정론 단위 스모크(18 단언).
+- docs/goal/shop-gacha.md → docs/goal/applied/shop-gacha.md (완료 아카이브).
+- docs/GameGuide/lessons/_common.md: C-12(spend 복사 가챠 함정: PK가드 이중차감+reason 40자), C-13(클라 launch-gate≠서버 게이트), C-14(공유 상점 게임별 기능은 카탈로그 플래그 판별).
+
+## 상세 변경 내역
+
+### [뽑기(가챠) 시스템 — 획득 구조 재편]
+- (슬롯,경제)별 최저등급 1개만 직접구매(directBuy), 나머지 rare/epic은 뽑기 전용. 미보유 풀에서만 추첨(중복 0), 풀 소진 시 "다 모았어요" 비활성.
+- 코인 뽑기: 인증·서버추첨·DB(user_cosmetics+coin_ledger), 비-adOnly 풀. 광고 뽑기: adWallet 클라 소비·서버추첨·DB 미진입, adOnly 풀(horse-only). 두 경제/풀 엄격 분리(교집합 0).
+
+### [공정성]
+- 추첨 결과는 서버 weightedPick(Math.random 서버)만 결정. 클라 Math.random은 리빌 파티클 jitter 한정(외관). cosmetic이 race 결과/sim/emit 경로 무진입(독립 추적 확인).
+
+### [머니패스 보안 — 리뷰 수정]
+- H-1: 같은 소켓 동시/연타 emit이 서로 다른 id 추첨 시 이중차감 → socket._gachaInFlight try/finally 직렬화로 차단(멀티탭=다른 소켓은 의도적 2회 허용).
+- H-2: buildPool에 requires(선행 스킨) 게이트 추가 — 선행 미소유 시 *_t2 제외(defaultOwned 베이스는 면제). crafted emit의 선행조건 우회 차단.
+- minor3: COIN_GACHA_ENABLED=false 서버 잠금 — 클라 COIN_SHOP_COMING_SOON과 짝. 인증 유저 콘솔 직접 emit도 'locked' 거부(차감 0).
+- coin_ledger.reason은 'gacha' 고정(VARCHAR(40) 오버플로 회피, 아이템 식별은 user_cosmetics 권위).
+
+### [런칭 게이팅]
+- 광고 뽑기만 live(광고 경제 가동 중). 코인 뽑기는 코드·서버까지 완성하되 클라(COIN_SHOP_COMING_SOON)+서버(COIN_GACHA_ENABLED) 이중 잠금으로 다크십 — 코인 경제 정식 가동 시 두 줄 해제.
+
+### [크로스게임 안전]
+- gameHasGacha()=카탈로그에 directBuy 플래그 존재 여부로 셸이 직접 판별(어댑터 itemState 훅 아님). spin(directBuy 0)은 가챠 전 분기 OFF → 전 아이템 기존 직접구매 유지(회귀 0).
+
+### [검증]
+- node -c socket/shop.js db/coins.js server.js OK. cosmetics.json JSON 유효. directBuy=10. shop:gacha 서버 on 1+클라 emit 2. 단위 스모크 18/18 + H-1 직렬화 시뮬 PASS. Reviewer approve / ReviewerCodex 지적 2건(H-1/H-2)+minor3 수정 반영. 라이브 2탭(광고 뽑기 리빌·실차감)은 dev 서버 재시작 후 수동 확인.
+- 유저 노출(update-log.md): 상점이 "준비 중" 프레이밍 + 가챠는 확률 기능이라 유저 로그 미기재(정식 오픈 시 일괄 안내).
+
+========================================
+📋 Summit Log - 2026-06-22 (feature/spin-arena-rework 누적: 경마 꾸미기 상점 — 광고/코인 2단탭·광고 보상 티어(세션 한정)·인벤토리·코인샵 준비중 게이트 + 같은말 꾸미기 랜덤표시 + 이름표 꾸미기)
+========================================
+
+## 변경 파일 (이 번들 핵심 — 상점/꾸미기)
+- js/shared/shop-shared.js: 공통 ShopModule 위 — 광고샵/코인샵/인벤토리 메인탭 + 카테고리 서브탭, 광고 지갑(_adWallet=sessionStorage, 탭 세션 한정), watchAd 자리표시(3초+매클릭 랜덤 탈것 이모지, 쿨다운 10초), 코인샵 "준비 중" 게이트(COIN_SHOP_COMING_SOON=true), free서버 게이트(coinShopLocked hook), 게스트 게이팅(allowGuestShop).
+- js/horse-shop.js: 어댑터 — adOnly itemState, ad-equip/reapply hook, coinShopLocked(currentServerId===null), 인벤토리 미리보기.
+- socket/shop.js: shop:adEquip transient 채널(adOnly·슬롯·gameType 서버 검증), shop:buy adOnly 거부.
+- socket/horse.js: buildRaceCosmetics — 같은 말 고른 사람들 꾸미기를 배열로 수집(first-wins 폐기), 게스트 ad transient 병합(인증0 방도), 이름표 꾸미기.
+- socket/chat.js·socket/rooms.js: room.adCosmetics[socket.id] 정리(disconnect/leaveRoom).
+- js/horse-race.js: 상점 버튼 노출, 타인/관전 말 꾸미기 클라 랜덤 선택, roomJoined/roomCreated 시 ad 재emit, 이름표 꾸미기.
+- config/horse/cosmetics.json: adOnly 광고 전용 아이템 추가(오로라/별똥별/무지개/요정날개/홀로그램 등).
+- css/horse-shop.css: 메인탭/광고행/자리표시 오버레이/배지 스타일, 버튼 폭 수정(전역 button{width:100%} 무력화).
+
+## 상세 변경 내역
+
+### [경마 꾸미기 상점 — 광고/코인 2단 탭 + 인벤토리]
+- 메인탭 광고샵(🎬)/코인샵(🪙)/내아이템(인벤토리). 서브탭=카테고리(도색/트레일/액세서리/마번/트랙테마/결승연출), 현재 메인샵 타입 아이템 있는 것만. hasAdItems() false(스핀)면 메인탭 미렌더 — 기존 단일 상점 100% 보존(스핀 회귀 0).
+- 광고샵: "광고 보기"(자리표시 애니 3초, Date 기반 회전으로 매 클릭 다른 탈것 이모지, Math.random 미사용)로 광고코인 적립 → adOnly 아이템 구매/장착. _adWallet=sessionStorage(탭 세션 한정 — 방 이동/새 판엔 유지, 탭 닫으면 리셋). roomJoined/roomCreated 시 sessionStorage equipped를 shop:adEquip 재emit해 방 옮겨도 남에게 계속 보임.
+- 코인샵: 일반코인(경마 참여 10/1등 30, 서버 DB awardRaceCoins)으로 구매/장착(shop:buy/shop:equip, 로그인 필요). 현재 COIN_SHOP_COMING_SOON=true → 코인샵 탭만 "준비 중" 안내(보안 로그인 미비). 끄면 free서버(currentServerId===null) coinShopLocked hook이 다시 적용.
+- 인벤토리 탭: 소유 아이템(코인+광고) 모아보기 + 장착 + 차량 미리보기. 서브탭 없는 그룹 스크롤(_activeTab 미관여).
+
+### [광고 티어 보안/공정성]
+- adOnly 판정은 서버 카탈로그(CATALOG_INDEX[id].item.adOnly===true)만 — 클라 data.adOnly 무신뢰. adOnly는 price 없음 + shop:buy에서 거부(일반코인 구매 차단). 광고 경제는 클라(sessionStorage) — cosmetic-only라 위변조 최대 영향=공짜 외형뿐(게임 결과·일반경제·랭킹 무관). DB 경제/coins.spend/shop:equip 무수정.
+- ad-장착 broadcast = 신설 transient 채널: shop:adEquip → room.adCosmetics[socket.id](DB 미진입, 게스트도 가능, gameType==='horse-race' 가드, PUBLIC_HORSE_SLOTS만). disconnect(chat.js)/leaveRoom(rooms.js) 정리.
+
+### [같은 말 꾸미기 — 클라 랜덤 표시]
+- buildRaceCosmetics: 같은 말(horseIndex)을 고른 모든 플레이어의 공개 꾸미기(DB equip + 본인 ad)를 배열로 수집(이전 first-wins 1명 → 전원). horseCosmetics[hi] = [pub, ...].
+- 클라(horse-race.js): 내 말=내 장착, 타인/관전 말=배열에서 Math.random으로 하나 선택(외형 전용, 결과 무관). 단일 선택은 길이1 배열로 동작 불변. 구버전 단일 객체 호환.
+
+### [공정성 불변]
+- 꾸미기는 결과/시뮬(calculateHorseRaceResult/getWinnersByRule)/emit 미진입 — buildRaceCosmetics는 결과 계산 후 transient 페이로드 생성. 신규 클라 Math.random은 외형 선택 한정. 코인 적립(awardRaceCoins) 멱등·머니 경로 무수정.
+
+### [검증]
+- node -c 전 파일 통과. 라이브 Playwright 다수 PASS: 광고샵/코인샵 통화·타입 필터 누출 0, 서브탭 리셋, 스핀 광고 UI 미노출, 같은말 배열 수집(2명→길이2)·관전 랜덤픽 분포, 코인샵 준비중 게이트(모달 열림+탭만 안내+광고샵 정상), 게스트 broadcast.
+
+### [누적 — 비-상점(기존 작업트리 포함)]
+- 이 번들은 feature/spin-arena-rework 워킹트리 누적으로 spin-arena/ladder/dice/roulette/room-helpers 등 선행 미커밋 변경도 함께 포함(상세는 이전 2026-06-17 로그 참조). 중복 닉네임 인계(socket/rooms.js sessionTakenOver, lesson C-10)·이름표 꾸미기 포함.
+
+========================================
+📋 Summit Log - 2026-06-17 (추가 델타: ladder 연출 2× 둔화·중력 하강·룰렛 감속·그리기 FIFO + 공통 상점 모듈 추출 + lesson C-9)
+========================================
+
+## 커밋 분할 (이 번들 델타)
+- feat(ladder): socket/ladder.js + js/ladder.js + tests/test-ladder.js + AutoTest/ladder/* — 연출 모션 상수 2× + 중력 time-warp 하강 + 폭탄 룰렛 ease-out quint(5.2s) + 그리기 FIFO(거부→가장 오래된 제거).
+- refactor(shop): js/shared/shop-shared.js 신설 + js/horse-shop.js·js/spin-shop.js·socket/shop.js·spin-arena-multiplayer.html·horse-race-multiplayer.html·tools/spin-sweep.js·spin-arena 관련 — 게임별 미러 상점 → 공통 ShopModule 추출(ladder와 독립 작업, 동일 번들 포함).
+- docs/chore: docs/GameGuide/lessons/_common.md(C-9), .claude/rules/new-game.md, docs/GameGuide/02-shared-systems/shared-modules.md, docs/goal/applied/shared-shop-module.md 이동, docs/goal/spin-arena-tournament.md 신규(미구현 명세).
+
+## 상세 변경 내역
+
+### [ladder 연출 2× 둔화 + 중력 하강 + 룰렛 감속 + 그리기 FIFO]
+- **타이밍 2×(모션 상수만)** — socket/ladder.js·js/ladder.js byte-identical: COUNTDOWN 1600→3200, ERASE 1200→2400, DRAW 900→1800, TOKEN_SLOT 3000→6000, BOMB_POINTER 2600→5200. BOTTOM_PAUSE(500)/FINAL_HOLD(1800)은 모션 아니라 유지. ladderRevealDelay(N) 합산식 불변(단계 동일), N=1..6 서버=클라+HOLD 검산. 테스트 timeout budget 재산정.
+- **중력 time-warp** — js/ladder.js buildGravityWarp, 신규 상수 LADDER_GRAVITY_STRENGTH=0.6(클라 전용). 세그먼트 시간비용=호길이×(1−g·dirY)(dirY=세로 방향코사인, 하향+1→비용↓/상향−1→비용↑) 누적 정규화 → warp(t)가 선형시간 t를 호길이비율 p로 단조 재매핑. animateToken이 기존 ease-in-out 대신 warp(t)를 tokenProgress로 사용. w(0)=0·w(1)=1 정규화로 토큰당 총시간=TOKEN_SLOT(6000) 정확 보존 → 서버 타이머 lockstep 불변. 하향 가속/상향 감속(등속 아님). RNG/지터 0회.
+- **폭탄 포인터 ease** — 1−(1−t)³(cubic) → 1−(1−t)⁵(quint), 지속 5.2s. "팍 달리다 길게 천천히". t=1에서 pos=totalSteps → kkwangBottom 정확 착지(오버슈트 옆칸 불가, bombPointerCol=target 안전핀 유지). N≤1 fallback도 setTimeout으로 5.2s 예산 채움.
+- **addRung FIFO** — socket/ladder.js: cap 3(LADDER_MAX_RUNGS_PER_USER) 유지, 4번째 거부(ladder:error) 제거 → 가장 오래된([0]) shift 후 push. 무손실 원자성: spacing 검증 시 doomedId(밀려날 [0]) 제외 후 통과한 경우에만 shift+push(검증 실패 시 손실 0). 클라(js/ladder.js): cap 차단 flashBuildHint 제거, 항상 emit, 빌드 힌트 카피 갱신. removeRung(id-타깃)와 무충돌.
+- **공정성/비밀 불변**: loser=점유 레인 균등(occupiedLanes RNG)·kkwangBottom=laneToBottom[losingLane]·computeLaneToBottom(c+y정렬) 전부 미변경. 중력/룰렛/FIFO/상수는 시각/구조만. 클라 게임로직 Math.random 0회(tabId/deviceId만). 💀는 룰렛 착지(출발 후)에만, reveal-only 마스킹 불변.
+- **검증**: node -c 통과, 공정성 시뮬(loser 균등 60만회 편차 0.52%·bijection 0), 라이브 테스트 8종 통과(신규 ladder-motion-qa.js·ladder-static-qa.js 포함), 크로스게임 auto-order 18/0. ladder-edge-qa.js의 waitForFunction 시그니처 결함(2번째 인자가 arg로 먹혀 timeout 무시) 수정.
+
+### [공통 상점 모듈 추출 — ladder와 독립]
+- js/shared/shop-shared.js 신설: horse-shop/spin-shop의 미러 상점 로직을 공통 ShopModule로 추출. 게임별 파일(js/horse-shop.js, js/spin-shop.js)·socket/shop.js·각 HTML은 위임/배선으로 정리. (상세·내부 DOM id 통일 함정은 _common.md C-8, shared-modules.md 참조.) 이 작업은 사다리 변경과 무관하나 동일 워킹트리에 있어 본 번들에 함께 커밋됨(추후 커밋 분리 권장).
+
+### [문서/lesson]
+- docs/GameGuide/lessons/_common.md C-9: Playwright waitForFunction(fn, {timeout}) 시그니처 함정 — 2번째 인자가 arg로 해석돼 timeout 무시·기본 30000ms 적용. arg 없으면 waitForFunction(fn, null, {timeout}). 모션 시간 증가 변경이 이 잠복 결함을 노출(2× 둔화 작업에서 발견).
+- docs/goal/spin-arena-tournament.md: 토너먼트 모드 명세 초안(미구현).
+
+========================================
+📋 Summit Log - 2026-06-17 (feature/spin-arena-rework 누적 번들: spin-arena 리워크 + ladder 다중막대기/스크램블/히든리빌/꽝선공 + horse-race 투표/다시보기)
+========================================
+
+## 커밋 분할 (작업별)
+- chore(shared): utils/room-helpers.js, socket/rooms.js, socket/shared.js, assets/sounds/sound-config.json — 공통 gameState 필드 초기화(spinArena hp/items, ladder userRungs 배열·userLanes·baseRungs), 방 진입/재진입 자동 배선(ladder 입장 시 ensureBaseRungs + emitLadderRungsUpdated), reveal 마스킹 화이트리스트(phase/skins/round/history) 유지, 사운드 키 placeholder.
+- feat(spin-arena): socket/spin-arena.js + js/spin-arena.js + css/spin-arena.css + spin-arena-multiplayer.html — 2단계 lowest-damage 리워크(최종 모델), HUD/가독성, 아이템/충돌/이동 퍼스낼리티, 연출(블랙아웃 재배치·비석·카운트다운 칼회전·데스캠).
+- feat(ladder): socket/ladder.js + js/ladder.js + css/ladder.css + ladder-multiplayer.html — 다중 가로줄(최대 3, 배열화) + 시작시 스크램블 + 히든 바텀/도착 마스킹 → 꽝 선공 룰렛(꽝 먼저 공개) + "미사용" 콜아웃 + 즉시 사다리 표시 + 균형 생성 + 자동 레인 + 빠른 재준비.
+- feat(horse-race): socket/horse.js + js/horse-race.js — 등수투표 경고 카운트독립화, 단일등수 몰표시 룰렛 스킵(skipAnim), 놓친경기 다시보기 즉시 종료.
+- chore(AutoTest): AutoTest/devtools.html(통합 허브) + AutoTest/ladder/*(edge/hidden-reveal/result-transition QA) + spin-arena-*test.js 갱신; 옛 일회성 스크립트(horse-parse-check, diag-y-error*, qa-expired-* 등) 정리.
+
+## 상세 변경 내역
+
+### [spin-arena 리워크 — 최종 net 동작]
+반복 개선(dual-rule → readability v1 → readability v2 → resimplify-lowest-damage → feel-v4 → feel-v3-fixes → feel-v5)을 거쳤고, **최종적으로 플레이어가 보게 되는 상태**는 아래와 같다. (몬스터/탈출/부활/스태거/듀얼룰은 resimplify 단계에서 전부 제거됨 — dual-rule impl 시절의 monster-race/battle-royale 분기는 더 이상 존재하지 않는다.)
+
+- **승리 조건 = 2단계 lowest-damage (최종 확정 모델).**
+  - Stage1: 약 40초 데미지 레이스. 전원 참가, 탈락 없음. 점수 `c` = "다른 플레이어에게 입힌 누적 데미지(dealtToPlayers)" — 많이 칠수록 안전. `received`는 타이브레이크용으로만 추적. Stage1 동안 HP는 HP_MAX 고정.
+  - 결승(n≥6): 누적 dealt 최저 **하위 3명**이 축소 링 서든데스 → **첫 HP 0 = 단일 당첨자**. 나머지는 안전(승자). HP-lowest fallback으로 `decideMs`는 절대 null 아님. 타이브레이크 dealt↓ → received↑ → slotId.
+  - n<6: 결승 생략, Stage1 최저 dealt = 당첨.
+  - DB 시맨틱 불변: 당첨 = rank2/isWinner=false, 나머지 rank1.
+- **핵심 페이로드(reveal):** `twoStage`(bool, 기존 `rule` 대체), `round1EndMs`(단계 경계, 단일단계=null), `frames [x,y,c]`(c=dealt 단조증가), `hpFrames`(stride 1, length===frames.length, 결승 HP바용·Stage1=HP_MAX), `hpMax`, `finalists[]`(결승 슬롯ID), `result.successionList`(worst→best 당첨 승계 리스트 — gameEnd가 leaver 제외 후 첫 잔존자 선택, 2탭 동일). `ringRadiusAt(t, round1EndMs)` 서버↔클라 비트 동일.
+- **HUD/가독성 (feel-v4 + readability v2):** Stage1 남은시간 HUD(≤10s 경고색/≤5s 위험색+펄스), 다시보기 시작 전 3·2·1 카운트다운, 실시간 dealt 하위3 "유력" 마커(t≥20s, 공개정보 파생·스포일러 세이프), 라운드1 종료 시 전체 점수 순위 recap 카드 ≥5초 홀드(결승자 NEUTRAL 동일 스타일 — 당첨자 미노출), 결승 HP바(내 HP 드레인 플래시), 캔버스 내 top-N 랭크 UI(스크린 공간, 우상단 미니맵과 비충돌), 데미지 +N 플로터(내 것=시안 강조/크기=타격량).
+- **밸런스 핵심(readability v2 측정 결과):** 라운드1 몬스터 시절의 "고정 3마리 + discrete hit + SCORE_ESCAPE 재튜닝"은 measured였으나, **resimplify에서 몬스터 자체가 제거되어 net 상태에는 몬스터 경제가 없다.** 현재 funnel은 dealt 최저 하위3 선발로 단순화. lock-in 방지(하위3이 ~30초 전 조기 고착되지 않게)는 아이템(컴백 레버)으로 유지.
+- **싸움 분산·충돌·아이템 (feel-v5 = 최신 권위):**
+  - 이동: 강한 `CENTER_PULL` 모쉬 제거 → **hunt-nearest-opponent**(가장 가까운 활성 상대로 가속, rng-free, slotId 타이브레이크) + 약한 센터 바이어스. 캐릭터가 아레나 전역으로 흩어져 교전. 결승은 `FINALE_PULL` 유지(3인 집결).
+  - 충돌: `minD = 2*charR + COLLIDE_MARGIN` 넓힘 + `COLLIDE_RESTITUTION` 상향(팝 임펄스) → 접촉 시 크게 튕김. `clampSpeed` 런어웨이 가드 + 분리 후 링 재클램프(하드월 불변) 유지.
+  - 블레이드: base 1, **B4 자동성장(dealt-milestone + 8s ramp) 제거**. `bladeCount = min(BLADE_CAP, 1 + bladeBonus)`, bladeBonus는 칼추가 아이템에서만. `bladeFrames[]` per-slot monotonic.
+  - 아이템 5종: 딜두배·보호막/무적·속도·칼추가·회복. 서버 결정론 스폰(위치+시각)·소비(바디 오버랩) 인-심. RNG는 per-char 소비 루프 **뒤에** append하고 전체 순서 re-freeze. payload `items[]`/`pickups[]` additive.
+- **연출 (feel-v5 + readability v2 S4):**
+  - 블랙아웃: 결승 전환 풀스크린 블랙아웃 제거(`drawSpinFinaleBlackout` 호출 제거), 비결승자 ~300-400ms 페이드아웃 + recap 카드가 스냅 커버. 풀 블랙아웃은 **라운드 종료→다음 라운드 전환에만**(result overlay → roundReset/idle).
+  - 비석: 당첨자(permaDead) `decideMs`에 비석 드롭(~400ms), reduced-motion=정적.
+  - 카운트다운 칼회전: 3·2·1 동안 위치는 t=0 동결, 블레이드 회전만 실시간 진행(`renderSpinCountdownBackdrop` 애니 루프, pendingReveal 토큰으로 클린 취소).
+  - 데스캠/슬로모: 결승 마지막 일격(`decideMs`)에 줌+시간팽창 리플레이, reduced-motion=정적 홀드. (resimplify에서 일단 제거됐다가 readability v2 S4로 재도입.)
+  - 카메라: 단일 자동 줌 — Stage1=링 오버뷰, intro/finale=결승 3인 bbox 타이트. 카메라 모드 토글(follow/director/roam/overview 3버튼) 제거. FOLLOW_ZOOM은 v1 2.6 → v2 ~2.0-2.2로 완화.
+- **클라 제거된 죽은 코드:** 몬스터 렌더 전부(drawMonster/monster sprite/IIFE loader/monsterFrames·monsters·monsterKills 소비), escape FX, down/revive 묘비(구), stagger 프로그래스바, near-miss 자동 리플레이, 카메라 모드 토글 + #spinCameraBar 3버튼, monsters-base.png 로드. HTML 튜토리얼/메타/SEO 카피를 "30초 데미지 레이스 → 하위 3명 결승"으로 교체.
+- **핵심 파일:** `socket/spin-arena.js`(simulate 2단계 + hunt-nearest + 충돌 + 아이템 스폰/소비 + hpFrames sample + ringRadiusAt + RNG 순서 freeze), `js/spin-arena.js`(reveal 소비 재작성 + HUD + 연출 + cameraFit 단일함수 + 죽은코드 제거 + ?v= 범프), `css/spin-arena.css`, `spin-arena-multiplayer.html`. 테스트: `AutoTest/spin-arena-determinism-test.js`(200시드 배치 — 단일 당첨자/decideRate~1.0/capHit~0%/fallback≤30%/하드월0/lock-in floor/2탭 byte-identical, RNG 소비수 불변), `spin-arena-2tab-test.js`, `spin-arena-devtools.html`(봇 방채우기).
+
+### [ladder 다중 막대기·스크램블·히든 리빌·꽝 선공·자동 레인]
+세 goal(multi-rung-and-scramble → hidden-reveal-and-lane-claim → bomb-first-and-balanced-gen)의 누적 net 상태.
+
+- **다중 가로줄:** `userRungs[name]` 단일 객체 → 배열, `LADDER_MAX_RUNGS_PER_USER = 3`. `ladder:addRung` append(캡 초과 거부), 개별 제거(rung id/탭히트). per-user 안정 색상(name→color 결정론 파생), 탭/호버 시 그린 사람 이름. ready-cancel/leave/disconnect/N-trim이 배열+레인 정리(socket/shared.js, socket/rooms.js, socket/ladder.js 일관).
+- **즉시 사다리 표시:** `ensureBaseRungs`의 `readyCount<2` 게이트 제거 → idle(≥1명) 진입 시 base rungs 생성·broadcast(`ladder:rungsUpdated`). 시작 게이트는 여전히 ready≥2. socket/rooms.js join/create(idle) 경로에서 ensureBaseRungs + emitLadderRungsUpdated 보장. 재진입 시 복원.
+- **균형 생성:** `generateBaseRungs`(0~RAND extra)와 `buildLadder` 스크램블(erase K / add M / density fill)이 N−1 컬럼 × 수직 밴드(top/mid/bottom)에 균등 분포 — 한 영역 쏠림 방지. `rungTooClose` 간격 규칙 + 서버 RNG 유지. 당첨 분포는 placement와 독립(불변).
+- **시작시 스크램블 + "미사용" 콜아웃:** `ladder:start`에 서버 RNG로 K개 erase + M개 add. erase 단계(`runErasePhase`)에서 대상 가로줄을 먼저 "미사용" 표시(하이라이트 비트) 후 함께 드롭. erased/added/final rungs는 reveal payload 권위(클라 RNG 0). LADDER_ERASE_MS 예산 내 우선, 전용 비트 필요시 미러 상수 추가.
+- **히든 바텀 → 꽝 선공 룰렛:** (hidden-reveal에서) 카운트다운/스크램블/하강 동안 바텀을 "??"로 가리고 도착 시 "도착"으로 플립하던 모델 →, (bomb-first에서) **리빌 순서 재배치**: `countdown → erase → draw → 꽝-포인터(감속 룰렛이 서버 선택 kkwangBottom에 착지, 💀 선공개) → 하강 → 결과`. 바텀 "??"/"도착" 마스킹 제거(💀만 포인터 후 표시, 나머지 plain). 긴장감 = "누가 💀에 도착하느냐". `ladderRevealDelay(N)` 총합 불변(단계만 재배치) — 서버 auto-end 타이머와 클라 시퀀스 lockstep.
+- **자동 레인 + 빠른 재준비:** 입장 시 서버가 균등랜덤 빈 레인 자동 배정(변경 가능), leave/ready-cancel/disconnect에 해제. `LADDER_RESET_DELAY` 단축 → 결과 후 즉시 재준비(horse-race 스타일). density floor `LADDER_MIN_TOTAL_RUNGS`.
+- **불변:** 단일 당첨자 = 점유(준비) 레인 중 균등랜덤(`losingLane`), `kkwangBottom = laneToBottom[losingLane]`. 균형생성/스크램블/콜아웃/포인터는 cosmetic, 분포 무영향. reveal-only 비밀(rungs/laneToBottom/losingLane/kkwangBottom/loser/scramble plan)은 reveal 전 미전송 + 재진입 마스킹(`ladder: undefined`). lane→bottom는 `computeLaneToBottom`(c+y-sort)만. 서버↔클라 타이밍 상수 미러.
+- **핵심 파일:** `socket/ladder.js`(addRung/removeRung 배열, base 생성 ungate, 균형 생성, buildLadder 스크램블, doReveal 페이로드, ladderRevealDelay 재배치, 자동레인, density, reset 단축), `js/ladder.js`(빌드 멀티렁+색상, startReveal 재배치 erase→draw→bomb-pointer→descent→finish, drawBottomSlots ??/도착 제거 + 💀 선공, runErasePhase 미사용 콜아웃, 자동레인 pre-select, 빠른 재준비), `ladder-multiplayer.html`, `css/ladder.css`, `utils/room-helpers.js`, `socket/rooms.js`, `socket/shared.js`. 테스트: `tests/test-ladder.js`, `AutoTest/ladder/*`(edge-qa, hidden-reveal-qa, result-transition-qa), `ladder-multitab-bot.js`.
+
+### [horse-race 투표·다시보기 UX]
+세 papercut 수정.
+
+- **Item 1 — 등수투표 경고 카운트독립화:** 기존 `⚠ 현재 출전 N마리 …` 카피는 클라가 자기 베팅만 알아(`userHorseBets` own-bet-only → `runningHorseCount`≈항상 1) 종종 거짓이었음(6인 중 나만 픽 → "출전 1마리" 단언). → 항상 참인 한 줄 `🐎 선택된 말 수보다 높은 등수에 던진 표는 사라져요.`로 교체. `renderRankVoteSection`의 `runningHorseCount`/`activeMaxRank` 로컬 제거. 룰렛 시각화 동안 숨김(forceShow).
+- **Item 2 — 단일등수 몰표 룰렛 스킵:** 유효표가 한 등수로 수렴(서버 `tallyForReason` 키 1개, "N등 확정" 분기)하면 `horseRouletteStart` 페이로드에 `skipAnim: true` 추가 → 클라 `playRouletteAnimation`이 스핀 루프 단락하고 위너 바 + 확정 배너로 직행. 카운트다운/startedDelayMs는 짧은 hold 사용(ROULETTE_ANIM_MS+HOLD_MS 아님). winningRank/배너/무효등수 비활성은 유지. 2+ 등수면 기존대로 스핀. 레이스 결과는 today와 byte-identical(연출만 스킵).
+- **Item 3 — 놓친경기 다시보기 즉시 종료:** `replayMissedRace`의 "⏹ 다시보기 종료" 버튼을 첫 플레이스루부터 노출 → 경기 못 본 사람이 즉시 종료하고 준비 가능. `stopMidReplay` 복원 경로(selectedVehicleTypes/userHorseBets/availableHorses 스왑 복원) 재사용.
+- **불변:** 당첨 등수 결정은 서버만(vote tally + weighted random + seeded sequence). 스킵/즉시종료는 결정을 클라로 옮기지 않음. 익명성(자기 베팅만 노출) 유지. 한국어 평이 카피.
+- **핵심 파일:** `js/horse-race.js`(renderRankVoteSection, playRouletteAnimation, horseRouletteStart/Reason 핸들러, updateTargetRankBanner, replayMissedRace/MISSED_REPLAY_REQUIRED/showReplayStopButton/stopMidReplay), `socket/horse.js`(reason text, roulette vs reasonHold 분기, skipAnim 플래그, start delay).
+
+### [공정성 불변 — 전 게임 공통]
+- 클라 gameplay `Math.random` 실호출은 deviceId/tabId(+ cosmetic hash01)만. 결과·위치·당첨·스폰·레인·꽝·룰렛 착지·아이템 픽업은 전부 서버 결정론(seeded sim / 서버 RNG) 후 payload 파생. grep으로 0회 검증.
+- reveal 전 server-only(timeline/result/seed/scramble plan/kkwangBottom 등) 비노출, 재진입 마스킹 유지(spin: timeline 화이트리스트 누락으로 hpFrames 제외 / ladder: `ladder: undefined`).
+- 2탭 byte-identical: 모든 참가자·관전자가 같은 reveal로 같은 화면·같은 결말. 스핀아레나는 RNG 소비 순서 frozen(아이템 스폰 RNG는 per-char 루프 뒤 append) — 동일 시드 ⇒ frames/hpFrames/bladeFrames/items/pickups/ranking/winner 동일.
+- 단일 당첨자 = DB rank2/isWinner=false, 나머지 rank1; recordGamePlay/recordServerGame/recordGameSession 계약 유지. 소켓 이벤트명 불변·payload additive.
+========================================
+
+========================================
+📋 Summit Log - 2026-06-12 (spin-arena 4기능 번들: 칼 수집 탈출·부활·종료압축 / 꾸미기 상점 / 관전 카메라·24명 스케일링 / 24색 리소스 팩)
+========================================
+
+## 커밋 범위 주의
+- 한 워킹트리에 4개 독립 기능이 미커밋 누적 → 파일(특히 js/spin-arena.js 1279줄)이 엉켜 기능별 분리 커밋 불가 → 사용자 승인하에 한 커밋으로 정리.
+- **이번 세션(Claude) 직접 구현·리뷰·QA 완료**: ① 칼 수집 탈출+부활+종료압축. **다른 세션 산출물(이번 세션 미검증)**: ② 꾸미기 상점 ③ 관전 카메라+인원 스케일링 ④ 24색 리소스 팩. ②③④는 각 design/goal 문서·update-log에 완료 처리돼 있어 신뢰하되, 코드 검증 책임은 작성 세션에 있음.
+
+## 변경 파일
+- socket/spin-arena.js (401줄): [①] simulate 재작성 — 받은 데미지 누적 BLADE_UP_DMG(35)당 칼 +1, 칼 5(ESCAPE_BLADES) 도달=탈출, HP0=비석+3초 부활(grace 800ms), 잔류 1명=decideMs, durationMs 가변(min(30000, ceil((decideMs+2000)/100)*100)). reveal 페이로드 eliminations→escapes/downs/bladeUps/decideMs, frames 3채널 hp→cumDmg. rankHumans 재작성. endTimeout 가변화. [②④] 스킨 카탈로그 확장 연동.
+- js/spin-arena.js (1279줄): [①] 핍 HUD/진행 바(cumDmg 파생)/비석·부활·탈출 연출/미션 패널/스포일러 가드(decidedNow). [③] 관전 카메라 3모드(내 캐릭터·전체·디렉터)+미니맵+인원 가변 뷰포트. [④] 24색 스킨 렌더+이름표 가독.
+- js/spin-shop.js (신규): [②] 스핀 아레나 꾸미기 상점 클라(경마 상점 패턴 — 구매/장착/스킨업).
+- socket/shop.js (61줄), db/coins.js (16줄), db/cosmetics.js (3줄): [②] 스핀 스킨 카탈로그·소유/장착·코인 지갑(경마 상점 공유).
+- config/spin-arena/cosmetics.json (신규, 8KB): [②④] 스킨 카탈로그(기본 6색+구매 색)·24색 정의.
+- css/spin-arena.css (216줄): [①] 핍/미션 패널/적색 강조 [③] 카메라 버튼·미니맵 [④] 패널 다열 그리드.
+- spin-arena-multiplayer.html (51줄): [①③④] 메타/튜토리얼 문구, 캐시버스트 ?v=5→?v=6.
+- utils/room-helpers.js (2줄): [①] timeline 주석 필드명 동기화.
+- AutoTest: spin-arena-determinism-test.js(361줄 재작성, 200시드 게이트), spin-arena-2tab-test.js(26줄, 가변 durationMs·새 페이로드 단언), qa-escape-payload-gen.js/.js/.json·qa-spin-cluster-metric.js·spin-arena-render-harness.html·sample-reveal.json [①]. qa-spin-shop-browser-test.js·browser-authed-test.js·security-test.js(신규) [②].
+- docs: dev-cycle 2026-06-12-blade-escape-design[①]·2026-06-12-camera-scaling-design[③]·2026-06-11-resource-pack-design[②④], goal/applied blade-escape-and-revive[①]·cosmetic-shop[②], goal spectator-camera-and-scaling·temperament-choice(차기 후보), GameGuide/lessons/spin-arena.md(신규).
+- .claude/commands/goaldoc.md 삭제(스킬로 이관).
+
+## 상세 변경 내역
+
+### [① 칼 수집 탈출 + 부활 + 종료 압축 — 이번 세션 구현]
+- 설계: office-hours 빌더 모드 → Codex 콜드 리드 + 적대적 스펙 리뷰 2라운드(최종 8.5/10) → 결정서 docs/dev-cycle/2026-06-12-spin-arena-blade-escape-design.md.
+- 메커니즘: "그냥 버티다 보니"라는 수동성 + "이겼는데 지는 느낌" 해소 위해 능동 목표(칼 5개 수집=탈출) 도입. 죽음=영구 탈락→3초 부활(진행도 유지, 입력0이라 악용 불가). 결판 후 dead air(최대 ~20초) 제거 — decideMs 종료 압축.
+- 틱 순서 명문화(2탭 동기): ①칼날 스냅샷(활성만) ②피격/cumDmg 적산/넉백 ③칼업 후보(5번째 보류) ④탈출(cumDmg desc→slotId asc, 최소 1명 잔류 규칙=차단자 5번째 bladeUp 미발행→칼4) ⑤다운 ⑥부활(grace 800ms, 하드월 재진입) ⑦이동 ⑧결판. decideMs 후 피격 판정 스킵.
+- frames 3채널 hp→cumDmg 교체: HP UI 제거로 hp 유일 소비자가 진행 바인데 grace 클램프·부활 리셋으로 hp로 cumDmg 파생 불가 → 단조 cumDmg 채널화(스펙 리뷰 F-1).
+- 200시드 배치 튜닝: T=45/40은 h2 결판률 91%/90.5% FAIL → T=35에서 h2 97.5%·h3 99.5%·h4~6 100% 전부 PASS. 평균 decideMs 16.7~22.5초(권장 12~26).
+- 리뷰: Reviewer request-changes(스포일러 가드 decideMs 미적용 등 Minor 3) → 수정. ReviewerCodex approve(1000판 프로브 "decideMs 후 이벤트 0건" 증명). QA: 라이브 2탭+봇, 렌더 하네스 21/21, 엣지 — pass.
+
+### [② 꾸미기 상점 — 다른 세션, git diff 기반 개요]
+- 스핀 아레나 스킨 구매/장착/스킨업(Ⅱ). 경마 상점 선례(서버 권위 카탈로그 + owned/equipped 검증) 답습. db/coins.js 코인 지갑 경마와 공유, db/cosmetics.js·socket/shop.js 스핀 스킨 카탈로그 연동. js/spin-shop.js 신규 클라. 잠금 스킨 🔒 표시→상점 진입. 결과 무관 외형(스킨업 아우라).
+- 검증: 작성 세션 AutoTest qa-spin-shop-browser/authed/security 3종(이번 세션 미실행).
+
+### [③ 관전 카메라 + 인원 스케일링 — 다른 세션, git diff 기반 개요]
+- 결정서 docs/dev-cycle/2026-06-12-spin-arena-camera-scaling-design.md. 카메라 3모드(🎯 내 캐릭터 추적·🗺️ 전체·🎬 디렉터 자동 컷[탈출/다운/부활/칼4 임박]) + 우측 상단 미니맵(링·생존·다운·뷰포트). 참가자 기본=내 캐릭터, 관전/다시보기=디렉터. 인원 가변 스케일로 최대 24명. "2탭 동일"을 "동일 시뮬 상태"로 재정의(시점은 뷰어 로컬, t·페이로드 파생).
+- 검증: 작성 세션(이번 세션 미검증).
+
+### [④ 24색 리소스 팩 — 다른 세션, ②와 한 파이프라인]
+- 결정서 docs/dev-cycle/2026-06-11-spin-arena-resource-pack-design.md("리소스 팩 + 꾸미기 상점 파이프라인"). 기본 6색→24색 확장(자동 배정으로 24명까지 색 비충돌), config/spin-arena/cosmetics.json 카탈로그. 이름표 반투명 배경+외곽선 가독, 내 캐릭터 색 테두리 강조.
+- 검증: 작성 세션(이번 세션 미검증).
+
+### [공정성 — 4기능 공통 불변]
+- 결과는 서버 결정론 시뮬에서만. 클라 Math.random 실호출 2회(deviceId/tabId)만 — 카메라 로밍·연출 전부 t/hash01/페이로드 파생(2탭 동일). reveal 전 server-only(timeline/result/seed/이벤트) 비노출·재진입 마스킹 유지. 스킨·상점·카메라는 결과 영향 0. selected=DB rank2/isWinner false 시맨틱 유지.
+
+### [범위 밖 / 알려진 사항]
+- ②③④는 이번 세션(Claude)이 리뷰·QA하지 않음 — 검증 책임은 작성 세션. update-log·design/goal 문서상 완료 처리됨.
+- 차기 후보 goal: spin-arena-temperament-choice(기질 선택 — office-hours D5=B 균형 트레이드오프), spin-arena-spectator-camera-and-scaling(상한 16 재검토 분).
+- 재입장자는 마스킹으로 막판 KO 라벨이 "탈출 실패"로 표시(구조적 트레이드오프). 재입장 시 히스토리 미복원(기존 동작).
+
+========================================
+📋 Summit Log - 2026-06-11 2차 (spin-arena·ladder 다이렉트 링크 클라이언트 배선)
+========================================
+
+## 변경 파일
+- js/free.js: 맵 8종(GAME_LABELS/EMOJI/GRADIENT/GAME_PATH_BY_TYPE/PENDING_KEY/USERNAME_KEY/SESSION_KEY/GAME_PATH_TO_SLUG)에 ladder·spin-arena 키 추가
+- js/shared/free-invite.js: PATH_TO_SLUG / SLUG_TO_GAME_PATH 키 추가
+- spin-arena-multiplayer.html: free-invite.js 로드 + spin-arena.js ?v=3→?v=4
+- ladder-multiplayer.html: free-invite.js 로드 + ladder.js ?v=2 신규 부여
+- js/spin-arena.js / js/ladder.js: roomCreated/roomJoined 끝에 FreeInvite.init({shortcode, serverId}) — opts 방식(horse-race 패턴, IIFE 쿼리 스트립 때문에 URL 자동 추출 불가)
+- socket/free.js: GAME_TYPE_BY_SLUG에 ladder·spin-arena 추가 (만료 모달 "새 방 만들기" 막다른 길 해소 — 리뷰 후속)
+- AutoTest/spin-ladder-direct-link-test.js (신규 E2E), AutoTest/qa-expired-newroom-oneoff.js (QA 검증), docs/dev-cycle 지시서
+
+## 상세 변경 내역
+
+### [원인 — 4계층 클라 배선 누락]
+- 서버(routes/api.js FREE_GAME_SLUGS·SERVER_ROOM_DIRECT_PATHS, shortcode 발급·resolve·joinServer 우회)는 게임 무관으로 이미 동작
+- ladder는 출시 시점(f27adc6)부터 api.js만 등록되고 free.js/free-invite.js 미배선 → 다이렉트 링크가 한 번도 동작한 적 없음. spin-arena가 ladder 베이스 복제로 같은 구멍 상속
+- 수리: 맵 키 추가만(기존 게임 키/로직 무변경) + 스크립트 로드 + init 호출. 서버 게임 로직·시뮬·페이로드 무변경 (git diff 확인)
+
+### [검증]
+- 신규 E2E 16/16: 생성+URL 교체, 초대 바, /free/{slug}/CODE·/{game}/CODE 양형식 게스트 합류, 3자 동기화, 만료 모달 (spin-arena·ladder 각각)
+- 만료 모달 새 방 만들기 20/20 (socket/free.js 반영 후, dev 서버 재시작)
+- horse-race 회귀(생성→초대 바→게스트 합류) 통과, 전 게임 라우트 200, node -c 전부 OK
+- 모바일 390x844 초대 바 표시 확인. Math.random 실호출 2회·shortcode 정규식 4곳 불변
+- 파이프라인: Scout+ScoutCodex → Coder → Reviewer+ReviewerCodex approve → QA pass
+
+### [범위 밖 / 알려진 사항]
+- bridge-cross: 맵은 있으나 페이지가 free-invite.js 미로드(호스트 초대 바만 안 뜸) — 기존 결함, 미수정
+- 비공개 방 다이렉트 링크: 전 게임 공통 미지원(room password 우회 없음) — 기존 한계
+- AutoTest/free-multitab-test.js stale(/free/horse 404 + #freeInviteFab 구식 셀렉터) — 현행화 필요
+- AdSense TagError(enable_page_level_ads 중복)가 기존 페이지에도 발생 — 이번 변경 무관, 별도 확인 가치
+- 배포 시 free-invite.js는 무버전 로드라 구캐시 브라우저에서 초대 바만 잠시 안 뜰 수 있음(기능 오류 없음)
+
+========================================
+📋 Summit Log - 2026-06-11 (신규 게임 「회전 칼날」 spin-arena — 신규 추가 + 타격 연출 + 게임성 개편 + 중앙 군집/하드 월/선분 판정 번들)
+========================================
+
+## 변경 파일
+
+### 신규 게임 본체
+- socket/spin-arena.js: 서버 결정론 시뮬(시드 mulberry32, 30초 사전 계산) + 소켓 핸들러 9이벤트 + DB 기록 (신규)
+- js/spin-arena.js: 클라 리플레이 렌더러(키프레임 보간) + 타격/탈락 연출 + 검 그래픽 + 튜토리얼/BGM/다시보기 (신규)
+- spin-arena-multiplayer.html / css/spin-arena.css / assets/spin-arena/: 페이지 + 스타일 + 스프라이트 1장 (신규)
+
+### 등록 (new-game.md 14곳 패턴)
+- socket/index.js(register) / socket/rooms.js(allowlist+cleanup+재진입 마스킹) / utils/room-helpers.js(gameState) / routes/api.js(/spin-arena 라우트+301)
+- dice-game-multiplayer.html(로비 라디오/방카드/redirect) / css/theme.css(색 변수) / js/shared/tutorial-shared.js(FLAG_BITS 128) / js/shared/server-select-shared.js(닉네임 동기) / assets/sounds/sound-config.json(사운드 키, 기존 음원 재활용)
+- db/stats.js(DEFAULT_GAME_STATS) / db/ranking.js(랭킹 게임 목록)
+
+### 테스트/문서
+- AutoTest/spin-arena-determinism-test.js: 결정론 회귀 + 200시드 배치 게이트 (신규)
+- AutoTest/spin-arena-2tab-test.js / qa-spin-slot-bias.js / qa-spin-cluster-metric.js / spin-arena-render-harness.html / spin-arena-sample-reveal.json / gen-juice-report.js / spin-arena-juice-verification-report.html (신규)
+- docs/goal/applied/ 4건(spin-arena, juice, gameplay-rework, center-gather) + docs/meeting/applied/2026-06-10-spin-arena-impl.md + docs/dev-cycle/ 지시서 2건
+- update-log.md: 유저 공개 기록 3건 (06-10 신규+연출, 06-11 개편 2건)
+
+## 상세 변경 내역
+
+### [게임 규칙 — 최종 상태]
+- 준비 2~6명 사람만 참가(봇 없음, 7명+ 선착 6명), 30초 생존전, 최후 1인 = 당첨(벌칙)
+- 킬당 칼날 +1(상한 5), 킬러 크레딧 killerId, 넉백은 서버 실좌표(kvx/kvy)
+- 충돌 판정 = 검 날 선분(허브 18~46px, SWORD_LEN=28) vs 몸 원, 캡슐 반경 14+3.5(BLADE_EDGE_R) — 보이는 검 = 타격 범위(서버·클라 공유 상수)
+- 중앙 군집: CENTER_PULL=30 상시 중심 인력 + SPIN_DRAG=0.45 선형 감쇠(영구 진동 방지, 나선 수렴)
+- 링 = 하드 월 채택: 링 밖 HP 감소(RING_DPS) 제거, 경계 클램프+법선 반사(WALL_BOUNCE 0.9, 넉백은 kdot>0만 반사), 시체는 클램프 제외(사망 좌표 동결). INWARD_ACCEL 데드코드 정리
+- 튜닝 최종: HIT_DPS 110 / KNOCK 70·110·3.0 / 링 220→60 (10s~20s 수축) / DRIFT 50
+
+### [공정성]
+- 결과는 서버 시뮬 전용(시드 PRNG). 시뮬 내 Math.random/Date.now 0건, 클라 Math.random 실호출 2회(deviceId/tabId)뿐
+- reveal 페이로드에 seed/timeline 미포함, 재진입 시 phase/skins/round/history만 노출(rooms.js 마스킹)
+- frames 계약: 301 키프레임 × 폭 n×3(정수), 동일 시드 = 동일 frames/eliminations/result — 2탭 픽셀 동일
+
+### [검증 — 전부 실행 통과]
+- 200시드 배치: 정확히 1명 생존 h2 99.5% / h3 100% / h4 99.5% / h5 99.5% / h6 99.5% (게이트 h2/h3≥95, h6≥88), 칼날킬 100%, alive 링 밖 0건/1000판
+- 군집 지표: 생존자 평균 중심거리 t=15s 95~99px→26~35px, 첫 피해(h2) 10.6s→4.0s
+- 슬롯 편향 카이제곱 전 구간 임계 미만 / 2탭 동일 reveal·당첨자 / 렌더 하네스 에러 0 + 같은 t 2회 픽셀 일치
+- 파이프라인: Scout+ScoutCodex → Coder → Reviewer+ReviewerCodex approve → QA pass
+
+### [알려진 비차단 이슈 (후속 후보)]
+- 링 벽 반사가 dot≤0(수축 침투로 안쪽 이동 중)도 반전 — 벽 들러붙음 증가, 에너지 폭주 없음. 수정 시 전 시드 재튜닝 필요
+- 최후 2인 동시 사망(0.4~0.5%) 시 slotId tie-break로 슬롯 0 당첨 — rankHumans는 goal 불변 계약이라 유지
+- 클라 스파크 누락 12.2%(100ms 키프레임 보간 한계, 데미지 숫자는 별도 경로) — 코스메틱
+- docs/goal/ladder-freehand-curved-rung.md가 applied/와 양쪽에 중복 존재(과거 아카이브 훅 불완전) — ladder 건이라 이번 커밋 미정리
+
+========================================
+📋 Summit Log - 2026-06-10 (사다리 경마화 — 6레인 고정 + 번호 고르기 + 동시 출발/도착)
+========================================
+
+## 변경 파일
+- socket/ladder.js: 레인 6 고정 + 동시 reveal + 꽝 점유레인 선택 (핵심)
+- socket/shared.js / socket/rooms.js: ladder:rungsUpdated emit 3곳 → ctx.emitLadderRungsUpdated 단일 소스 통일 (numLanes=6 일관)
+- js/ladder.js: 동시 하강 애니 + readyCount 게이트 + 빈 레인 + dead code 제거
+- css/ladder.css: 빈 레인(.empty) 스타일 + 레인버튼 min-width 52px (6버튼 모바일)
+- ladder-multiplayer.html: 빌드 라벨 "번호 선택(1~6)" 문구
+- tests/test-ladder.js: 6레인·동시도착 사양으로 갱신 (37/37 통과)
+- update-log.md: 유저 공개 업데이트 기록
+- (번들 WIP) horse-race-multiplayer.html / css/horse-shop.css: 경마 "꾸미기 상점" 버튼 임시 비활성화(준비 중)
+
+## 상세 변경 내역
+
+### [6레인 고정 — 번호 1~6]
+- LADDER_LANES=6 신설, LADDER_MAX_PLAYERS=6. buildLaneCount → ladderLaneCount()=6 (레인은 인원과 무관 고정)
+- readyCount(gameState) 신설 → 막대기 배치/번호 선택 ≥2 게이트는 이 값으로 분리(레인 수와 분리)
+- ladder:start의 N = LADDER_LANES (기존 participants.length → 고정 6). 인원<6이면 빈 레인
+- emitRungsUpdated가 numLanes=6 송신. shared.js/rooms.js 인라인 emit(numLanes=readyCount) 3곳을 ctx.emitLadderRungsUpdated로 치환 → 6 일관(이전엔 이벤트마다 numLanes가 2/6으로 흔들릴 위험)
+- 클라 renderBuildSection 게이트를 readyCount()로, renderBuildLaneGrid는 항상 6버튼 렌더, 빈 레인 .empty 클래스
+
+### [공정성 — 꽝은 점유 레인 중에서만]
+- doReveal: 미선택자 RNG 레인 배정 후, occupiedLanes 중 균등 랜덤으로 losingLane 선택 → kkwangBottom = laneToBottom[losingLane]
+- 빈 레인엔 꽝이 절대 안 떨어짐 → 패자 항상 정확히 1명(endGame/DB/주문 가정 유지)
+- computeLaneToBottom 매핑 불변. buildLadder는 그대로(테스트 호환), start의 kkwang/losingLane dead write 제거
+- 만석(6명)이면 기존과 동일 분포 → 공정성 불변. 클라 Math.random 게임결과 0회, reveal 전 server-only 마스킹 유지
+
+### [동시 출발 → 동시 도착 reveal]
+- 순차 하강 폐기. 클라 drawLadderFrame(paths, progress) 모든 토큰 공통 progress로 동시 이동
+- pointAt(호 길이 비례 보간) 덕에 경로 길이 달라도 동일 progress=동시 도착(레인별 속도 자동 정규화)
+- 서버 ladderRevealDelay()=상수 LADDER_REVEAL_DESCENT(5000)+LADDER_FINAL_HOLD(1800)=6800ms. 클라 DURATION=5000ms 동기
+- 제거: LADDER_DESCENT_BUDGET/MIN/MAX/GAP, laneColAt, setLaneNameActive, trail/cross 펄스 변수 (동시 하강에 불필요)
+- 토큰별 잔상(ladderTrails)·도착 시점에만 이름 라벨(바닥칸 bijection이라 안 겹침)
+
+### [검증]
+- node -c 전 파일 통과, node tests/test-ladder.js 37/37 통과 (소켓 변경 → dev 서버 재시작 후)
+- Reviewer / ReviewerCodex 둘 다 approve. 차단 이슈 없음
+
+### [번들 WIP — 경마 꾸미기 상점 임시 비활성화]
+- horse-race-multiplayer.html: hshop-open-btn에 disabled + title="준비 중입니다"
+- css/horse-shop.css: .hshop-open-btn:disabled (opacity 0.45, not-allowed) 추가
+
+
 
 ## 변경 파일 (주문 디폴트 기능)
 - socket/rooms.js: createRoom 핸들러에 getDefaultOrder 캐시 로드 추가 (핵심 버그픽스)

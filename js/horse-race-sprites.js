@@ -53,16 +53,16 @@ function getVehicleSVG(vehicleId) {
                     <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
                     <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
                     <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
-                    <polygon points="8,22 2,18 2,26" fill="#f39c12"/>
-                    <polygon points="2,22 -3,20 -3,24" fill="#e67e22"/>
+                    <polygon points="8,22 2,18 2,26" fill="#f39c12" fill-opacity="0.8"/>
+                    <polygon points="2,22 -3,20 -3,24" fill="#e67e22" fill-opacity="0.5"/>
                 </svg>`,
                 frame2: `<svg viewBox="0 0 60 45" width="60" height="45">
                     <ellipse cx="35" cy="22" rx="18" ry="10" fill="#3498db"/>
                     <polygon points="53,22 60,15 60,29" fill="#e74c3c"/>
                     <circle cx="50" cy="22" r="4" fill="#87CEEB"/>
                     <rect x="8" y="18" width="10" height="8" fill="#e74c3c"/>
-                    <polygon points="8,22 0,16 0,28" fill="#f1c40f"/>
-                    <polygon points="0,22 -5,19 -5,25" fill="#f39c12"/>
+                    <polygon points="8,22 0,16 0,28" fill="#f1c40f" fill-opacity="0.8"/>
+                    <polygon points="0,22 -5,19 -5,25" fill="#f39c12" fill-opacity="0.5"/>
                 </svg>`
             },
             rest: {

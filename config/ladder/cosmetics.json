@@ -1,0 +1,11 @@
+{
+  "ladder_skin": [
+    { "id": "ladder_skin_classic",  "name": "기본 토큰",   "rarity": "common", "defaultOwned": true },
+    { "id": "ladder_skin_cat",      "name": "고양이",      "rarity": "common", "emoji": "🐱", "price": 60 },
+    { "id": "ladder_skin_star",     "name": "별",          "rarity": "common", "emoji": "⭐", "price": 60 },
+    { "id": "ladder_skin_rocket",   "name": "로켓",        "rarity": "rare",   "emoji": "🚀", "price": 90 },
+    { "id": "ladder_skin_crown",    "name": "왕관",        "rarity": "rare",   "emoji": "👑", "price": 90 },
+    { "id": "ladder_skin_ghost",    "name": "유령",        "rarity": "rare",   "emoji": "👻", "price": 90 },
+    { "id": "ladder_skin_diamond",  "name": "다이아",      "rarity": "epic",   "emoji": "💎", "price": 130 }
+  ]
+}

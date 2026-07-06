@@ -824,6 +824,9 @@ const ServerSelectModule = (function () {
         localStorage.setItem('horseRaceUserName', name);
         localStorage.setItem('rouletteUserName', name);
         localStorage.setItem('bridgeUserName', name);
+        localStorage.setItem('ladderUserName', name);
+        localStorage.setItem('spinArenaUserName', name);
+        localStorage.setItem('pirateUserName', name);
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) globalInput.value = name;
         const nicknameInput = document.getElementById('nickname-input');

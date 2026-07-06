@@ -143,6 +143,9 @@
         .room-item.game-horse-race { border-left-color: var(--game-type-horse); }
         .room-item.game-crane-game { border-left-color: var(--game-type-crane); }
         .room-item.game-bridge { border-left-color: var(--bridge-500); }
+        .room-item.game-ladder { border-left-color: var(--ladder-500); }
+        .room-item.game-spin-arena { border-left-color: var(--spin-arena-500); }
+        .room-item.game-pirate { border-left-color: var(--pirate-500); }
 
         .room-item:hover {
             transform: translateY(-2px);
@@ -1636,25 +1639,6 @@
                 </div>
             </div>
             
-            <!-- 방 유지 시간 설정 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <label style="display: block; margin-bottom: 10px; font-weight: 500;">⏰ 방 유지 시간</label>
-                <div style="display: flex; gap: 10px;">
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomExpiryTime" value="1" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>1시간</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomExpiryTime" value="3" checked style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>3시간 (기본)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1;">
-                        <input type="radio" name="roomExpiryTime" value="6" style="width: 20px; height: 20px; margin-right: 8px; cursor: pointer;" />
-                        <span>6시간</span>
-                    </label>
-                </div>
-            </div>
-            
             <!-- 게임 타입 선택 -->
             <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
                 <label style="display: block; margin-bottom: 10px; font-weight: 500;">🎮 게임 타입</label>
@@ -1681,6 +1665,25 @@
                         <span style="font-weight: 600;">Untitle</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
+                    <!-- 미출시 게임 방생성 비노출 — 출시 시 아래 3개 라벨(ladder/spin-arena/pirate)의 display를 none→flex로 되돌리면 됨 -->
+                    <label id="ladderLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--ladder-500); position: relative;">
+                        <input type="radio" name="gameType" value="ladder" id="ladderRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🪜</span>
+                        <span style="font-weight: 600;">사다리타기</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
+                    <label id="spinArenaLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--spin-arena-500); position: relative;">
+                        <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🌀</span>
+                        <span style="font-weight: 600;">회전 칼날</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
+                    <label id="pirateLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--pirate-500); position: relative;">
+                        <input type="radio" name="gameType" value="pirate" id="pirateRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
+                        <span style="font-size: 24px; margin-right: 8px;">🏴‍☠️</span>
+                        <span style="font-weight: 600;">해적 룰렛</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
                     <!-- 인형뽑기 (비공개 처리) -->
                     <!-- <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--crane-accent); position: relative;">
                         <input type="radio" name="gameType" value="crane-game" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
@@ -1696,7 +1699,7 @@
                 <script>
                     // 게임 타입 선택 시 시각적 강조 (은은한 틴트)
                     (function() {
-                        const colorMap = { dice: 'var(--game-type-dice)', roulette: 'var(--game-type-roulette)', 'horse-race': 'var(--game-type-horse)', 'crane-game': 'var(--game-type-crane)', bridge: 'var(--game-type-bridge)' };
+                        const colorMap = { dice: 'var(--game-type-dice)', roulette: 'var(--game-type-roulette)', 'horse-race': 'var(--game-type-horse)', 'crane-game': 'var(--game-type-crane)', bridge: 'var(--game-type-bridge)', ladder: 'var(--game-type-ladder)', 'spin-arena': 'var(--game-type-spin-arena)', 'pirate': 'var(--game-type-pirate)' };
                         function updateGameTypeStyle() {
                             document.querySelectorAll('input[name="gameType"]').forEach(radio => {
                                 const label = radio.closest('label');
@@ -2859,6 +2862,18 @@
                     gameTypeIcon = '🌉';
                     gameTypeLabel = 'Untitle';
                     gameTypeColor = 'var(--bridge-500)';
+                } else if (room.gameType === 'ladder') {
+                    gameTypeIcon = '🪜';
+                    gameTypeLabel = '사다리타기';
+                    gameTypeColor = 'var(--ladder-500)';
+                } else if (room.gameType === 'spin-arena') {
+                    gameTypeIcon = '🌀';
+                    gameTypeLabel = '회전 칼날';
+                    gameTypeColor = 'var(--spin-arena-500)';
+                } else if (room.gameType === 'pirate') {
+                    gameTypeIcon = '🏴‍☠️';
+                    gameTypeLabel = '해적 룰렛';
+                    gameTypeColor = 'var(--pirate-500)';
                 }
                 const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: var(--bg-white); padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
                 
@@ -3003,6 +3018,48 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/bridge-cross?joinRoom=true';
+                return;
+            }
+
+            // 사다리타기 방이면 사다리타기 페이지로 이동
+            if (room && room.gameType === 'ladder') {
+                localStorage.setItem('ladderUserName', userName);
+                localStorage.setItem('pendingLadderJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/ladder?joinRoom=true';
+                return;
+            }
+
+            // 회전 칼날 방이면 회전 칼날 페이지로 이동
+            if (room && room.gameType === 'spin-arena') {
+                localStorage.setItem('spinArenaUserName', userName);
+                localStorage.setItem('pendingSpinArenaJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/spin-arena?joinRoom=true';
+                return;
+            }
+
+            // 해적 룰렛 방이면 해적 룰렛 페이지로 이동
+            if (room && room.gameType === 'pirate') {
+                localStorage.setItem('pirateUserName', userName);
+                localStorage.setItem('pendingPirateJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/pirate?joinRoom=true';
                 return;
             }
 
@@ -3827,9 +3884,8 @@
                 }
             }
             
-            // 방 유지 시간 가져오기 (기본값: 3시간)
-            const expiryTimeRadio = document.querySelector('input[name="roomExpiryTime"]:checked');
-            const expiryHours = expiryTimeRadio ? parseInt(expiryTimeRadio.value) : 3;
+            // 방 유지 시간 (3시간 고정)
+            const expiryHours = 3;
             
             // IP 차단 옵션 가져오기 (기본값: false)
             const ipBlockCheckbox = document.getElementById('createRoomIPBlockCheckbox');
@@ -3913,6 +3969,57 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/bridge-cross?createRoom=true';
+                return;
+            }
+
+            // 사다리타기 게임이면 사다리타기 페이지로 이동
+            if (gameType === 'ladder') {
+                localStorage.setItem('ladderUserName', hostName);
+                localStorage.setItem('pendingLadderRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/ladder?createRoom=true';
+                return;
+            }
+
+            // 회전 칼날 게임이면 회전 칼날 페이지로 이동
+            if (gameType === 'spin-arena') {
+                localStorage.setItem('spinArenaUserName', hostName);
+                localStorage.setItem('pendingSpinArenaRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/spin-arena?createRoom=true';
+                return;
+            }
+
+            // 해적 룰렛 게임이면 해적 룰렛 페이지로 이동
+            if (gameType === 'pirate') {
+                localStorage.setItem('pirateUserName', hostName);
+                localStorage.setItem('pendingPirateRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/pirate?createRoom=true';
                 return;
             }
 
@@ -4006,6 +4113,48 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/bridge-cross?joinRoom=true';
+                return;
+            }
+
+            // 사다리타기 방이면 사다리타기 페이지로 이동
+            if (room && room.gameType === 'ladder') {
+                localStorage.setItem('ladderUserName', userName);
+                localStorage.setItem('pendingLadderJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/ladder?joinRoom=true';
+                return;
+            }
+
+            // 회전 칼날 방이면 회전 칼날 페이지로 이동
+            if (room && room.gameType === 'spin-arena') {
+                localStorage.setItem('spinArenaUserName', userName);
+                localStorage.setItem('pendingSpinArenaJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/spin-arena?joinRoom=true';
+                return;
+            }
+
+            // 해적 룰렛 방이면 해적 룰렛 페이지로 이동
+            if (room && room.gameType === 'pirate') {
+                localStorage.setItem('pirateUserName', userName);
+                localStorage.setItem('pendingPirateJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/pirate?joinRoom=true';
                 return;
             }
 
@@ -4855,6 +5004,14 @@
             sessionStorage.removeItem('diceActiveRoom');
             showCustomAlert(message, 'info');
             location.reload(); // 강퇴당하면 페이지를 새로고침하여 로비로 이동
+        });
+
+        // 다른 곳에서 같은 닉네임으로 접속 → 이 세션 종료 (최신 접속 우선). reload 금지(핑퐁 방지).
+        socket.on('sessionTakenOver', (message) => {
+            try { sessionStorage.removeItem('diceActiveRoom'); } catch (e) {}
+            try { socket.disconnect(); } catch (e) {}  // 소켓 즉시 종료 → 재연결·재입장 차단(핑퐁 방지)
+            showCustomAlert(message || '다른 곳에서 접속하여 연결이 종료되었습니다.', 'info');
+            setTimeout(() => { window.location.replace('/game'); }, 2500);
         });
 
 

@@ -143,6 +143,24 @@
   --bridge-600: #1ec8da;
   --bridge-accent: #0891b2;
 
+  /* 사다리타기 게임 - amber/gold (기존 게임과 비충돌) */
+  --ladder-500: #f59e0b;
+  --ladder-500-rgb: 245, 158, 11;
+  --ladder-600: #d97706;
+  --ladder-accent: #b45309;
+
+  /* 회전 칼날 게임 - 보라+청록 (회전/날 느낌) */
+  --spin-arena-500: #7c5cff;
+  --spin-arena-500-rgb: 124, 92, 255;
+  --spin-arena-600: #6344e6;
+  --spin-arena-accent: #22d3ee;
+
+  /* 해적 룰렛 게임 - 코랄+청록 (해적/보물 느낌, 기존 보라 계열과 비충돌) */
+  --pirate-500: #ff6f61;
+  --pirate-500-rgb: 255, 111, 97;
+  --pirate-600: #e8533f;
+  --pirate-accent: #0f8a8a;
+
   /* ============================================
      게임 타입 식별용 색상
      게임 선택 UI, 방 목록 등에서 사용
@@ -152,6 +170,9 @@
   --game-type-crane: var(--crane-500);
   --game-type-horse: var(--horse-accent);
   --game-type-bridge: var(--bridge-500);
+  --game-type-ladder: var(--ladder-500);
+  --game-type-spin-arena: var(--spin-arena-500);
+  --game-type-pirate: var(--pirate-500);
 
   /* ============================================
      게임별 파스텔 배경 토큰
@@ -335,6 +356,24 @@
   --bridge-500-rgb: 90, 242, 255;
   --bridge-600: #38d4e6;
   --bridge-accent: #67e8f9;
+
+  /* 사다리타기: 다크 모드 명도 높임 */
+  --ladder-500: #fbbf24;
+  --ladder-500-rgb: 251, 191, 36;
+  --ladder-600: #f59e0b;
+  --ladder-accent: #fcd34d;
+
+  /* 회전 칼날: 다크 모드 명도 높임 */
+  --spin-arena-500: #9b7dff;
+  --spin-arena-500-rgb: 155, 125, 255;
+  --spin-arena-600: #7c5cff;
+  --spin-arena-accent: #67e8f9;
+
+  /* 해적 룰렛: 다크 모드 명도 높임 */
+  --pirate-500: #ff8a7d;
+  --pirate-500-rgb: 255, 138, 125;
+  --pirate-600: #ff6f61;
+  --pirate-accent: #2dd4bf;
 
   /* RGB 채널 변수 (다크 모드) */
   --dice-500-rgb: 156, 127, 255;
