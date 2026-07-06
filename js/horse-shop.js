@@ -20,7 +20,7 @@
     // 상점 탭(슬롯). finish_fx는 개인 연출 — 내가 장착하면 내 화면에만 적용(방장·우승 무관).
     var SLOTS = [
         { key: 'paint', label: '🎨 도색' },
-        { key: 'trail', label: '✨ 트레일' },
+        { key: 'trail', label: '✨ 잔상' },
         { key: 'accessory', label: '👑 액세서리' },
         { key: 'bib', label: '🏷️ 이름표' },
         { key: 'aura', label: '🌟 오라' },
@@ -114,11 +114,11 @@
         var box = document.createElement('div');
         box.className = 'hshop-preview';
 
-        if (slot === 'trail' && item.emoji) {
+        if (slot === 'trail') {
             var tr = document.createElement('span');
             tr.className = 'hshop-preview-trail';
             tr.setAttribute('aria-hidden', 'true');
-            tr.textContent = item.emoji + item.emoji + item.emoji + item.emoji;
+            applyTrailStreakVisual(tr, item);
             box.appendChild(tr);
         }
 
@@ -272,11 +272,11 @@
 
         if (eq.trail) {
             var trail = findItem('trail', eq.trail);
-            if (trail && trail.emoji) {
+            if (trail) {
                 var tr = document.createElement('span');
                 tr.className = 'hshop-inv-trail';
                 tr.setAttribute('aria-hidden', 'true');
-                tr.textContent = trail.emoji + trail.emoji + trail.emoji + trail.emoji + trail.emoji;
+                applyTrailStreakVisual(tr, trail);
                 box.appendChild(tr);
             }
         }
@@ -327,6 +327,132 @@
     function findItem(slot, id) { return ShopModule.findItem(slot, id); }
     function getCatalogItem(id) { return ShopModule.getCatalogItem(id); }
 
+    // ── 잔상(trail) 시각 헬퍼 ──────────────────────────────
+
+    // 잔상 streak 시각 주입 — 색 글로우 띠(rainbow는 CSS 그라데이션 클래스),
+    // 이모지 머리는 data-emoji 로 전달해 CSS ::after 가 그린다(아이템 정체성).
+    function applyTrailStreakVisual(el, item) {
+        if (!el || !item) return;
+        if (item.color === 'rainbow') el.classList.add('rainbow');
+        else if (item.color) el.style.color = item.color;
+        if (item.emoji) el.setAttribute('data-emoji', item.emoji);
+    }
+
+    // ── 잔상(afterimage) 스포너 — 경주 중 과거 위치에 빛 오브를 남긴다 ──
+    //   ladder 프로젝트의 캔버스 잔상(additive 글로우 혜성, 연속 hue rainbow)을 DOM으로 이식.
+    //   순수 외관: .horse 위치를 읽기만 하고(레이스 상태 무접촉), 오브는 track에 append 후 자기 제거.
+    //   결정적: rAF 타임스탬프 + per-horse 카운터만 사용, Math.random 0회.
+    //   좌표계 주의: 말은 화면 좌표(track), 월드 스크롤은 레인 backgroundPosition 시뮬레이션 —
+    //   카메라 lock 구간에서 말이 화면상 정지하므로, 오브를 .finish-line inline left(=finishLine+
+    //   bgScrollOffset, horse-race.js가 매 프레임 갱신) 차분으로 역보정해 월드에 앵커한다.
+    var AFTERIMAGE_SPAWN_MS = 85;    // 오브 스폰 간격 — 수명(550ms)÷간격 ≈ 6개 겹침으로 연속 리본
+    var AFTERIMAGE_EMOJI_EVERY = 3;  // N번째 스폰마다 이모지 유령 1개(빛 혼성 — 아이템 정체성 유지)
+    var AFTERIMAGE_LIFE_MS = 800;    // 자기 제거 안전 타이머(fade 애니메이션 550/600ms + 여유)
+    var afterimageReg = [];          // { horse, item, lastSpawn, n } — applyEquippedToHorse 가 등록
+    var afterimageOrbs = [];         // { el, baseX, ref } — 살아있는 오브(월드 스크롤 역보정 대상)
+    var afterimageRaf = null;
+
+    // 월드 앵커 기준값: track 안 .finish-line 의 inline left. 카메라 스크롤만큼 변하므로
+    // (스폰 시 ref) - (현재 값) 차분이 곧 그동안의 월드 이동량. 없으면(선택화면 등) null → 보정 생략.
+    function afterimageScrollRef(host) {
+        var fl = host && host.querySelector ? host.querySelector('.finish-line') : null;
+        var v = fl ? parseFloat(fl.style.left) : NaN;
+        return isNaN(v) ? null : v;
+    }
+    var reducedMotion = false;
+    try { reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+    function unregisterAfterimage(horseEl) {
+        for (var i = afterimageReg.length - 1; i >= 0; i--) {
+            if (afterimageReg[i].horse === horseEl) afterimageReg.splice(i, 1);
+        }
+    }
+
+    function registerAfterimage(horseEl, item) {
+        if (reducedMotion) return;          // 모션 최소화: 부착 streak만 남긴다
+        unregisterAfterimage(horseEl);      // 멱등(재장착 시 중복 방지)
+        afterimageReg.push({ horse: horseEl, item: item, lastSpawn: 0, n: 0 });
+        if (!afterimageRaf) afterimageRaf = requestAnimationFrame(afterimageTick);
+    }
+
+    function afterimageTick(now) {
+        var anyRacing = false;
+        for (var i = afterimageReg.length - 1; i >= 0; i--) {
+            var r = afterimageReg[i];
+            if (!r.horse.isConnected) { afterimageReg.splice(i, 1); continue; } // 트랙 재구성 → 자동 해제
+            var cls = r.horse.classList;
+            if (!(cls.contains('racing') || cls.contains('running'))) continue; // 달릴 때만
+            anyRacing = true;
+            if (r.horse.style.visibility === 'hidden') continue;                // 화면 밖 컬링 제외
+            if (now - r.lastSpawn < AFTERIMAGE_SPAWN_MS) continue;
+            r.lastSpawn = now;
+            r.n++;
+            spawnAfterimageOrb(r);
+        }
+        // 살아있는 오브 월드 스크롤 역보정 — 카메라가 흐른 만큼 뒤(왼쪽)로 밀어 "과거 위치"에 남긴다
+        if (afterimageOrbs.length) {
+            afterimageOrbs = afterimageOrbs.filter(function (o) { return o.el.isConnected; });
+            if (afterimageOrbs.length) {
+                var cur = afterimageScrollRef(afterimageOrbs[0].el.parentElement);
+                if (cur != null) {
+                    for (var j = 0; j < afterimageOrbs.length; j++) {
+                        var o = afterimageOrbs[j];
+                        if (o.ref != null) o.el.style.left = (o.baseX + (cur - o.ref)) + 'px';
+                    }
+                }
+            }
+        }
+        if (!afterimageReg.length && !afterimageOrbs.length) { afterimageRaf = null; return; }
+        if (anyRacing || afterimageOrbs.length) {
+            afterimageRaf = requestAnimationFrame(afterimageTick);
+        } else {
+            // 대기(선택화면/경주 종료) 중엔 저빈도 폴링 — 상시 rAF 낭비 방지
+            setTimeout(function () { afterimageRaf = requestAnimationFrame(afterimageTick); }, 300);
+        }
+    }
+
+    function spawnAfterimageOrb(r) {
+        var host = r.horse.parentElement; // = track (말은 track 직속 자식 — 레인은 형제)
+        if (!host) return;
+        // 현재 "시각" 위치(track 좌표) — 점프/흔들림 transform까지 반영되게 rect 기반으로 읽는다
+        var hr = r.horse.getBoundingClientRect();
+        var lr = host.getBoundingClientRect();
+        if (!hr.width || !lr.width) return;
+        var x = hr.left - lr.left + hr.width * 0.32;  // 꼬리 쪽(왼쪽 1/3 지점)
+        var y = hr.top - lr.top + hr.height * 0.55;   // 몸통 중심 살짝 아래
+        var ref = afterimageScrollRef(host);          // 월드 역보정 기준(카메라 스크롤 차분용)
+        var orb = document.createElement('span');
+        orb.className = 'cosmetic-afterimage';
+        orb.setAttribute('aria-hidden', 'true');
+        var color = r.item.color;
+        if (color === 'rainbow') color = 'hsl(' + ((r.n * 22) % 360) + ', 92%, 62%)'; // 연속 hue 사이클(결정적)
+        orb.style.color = color || '#ffd54a';
+        orb.style.left = x + 'px';
+        orb.style.top = y + 'px';
+        host.appendChild(orb);
+        afterimageOrbs.push({ el: orb, baseX: x, ref: ref });
+        scheduleAfterimageRemoval(orb);
+        // N번째마다 이모지 유령 — 빛 잔상 속에 희미하게 남는 아이템 정체성(rainbow 는 순수 빛)
+        if (r.item.emoji && r.item.color !== 'rainbow' && r.n % AFTERIMAGE_EMOJI_EVERY === 0) {
+            var ghost = document.createElement('span');
+            ghost.className = 'cosmetic-afterimage-emoji';
+            ghost.setAttribute('aria-hidden', 'true');
+            ghost.textContent = r.item.emoji;  // 카탈로그 상수 → textContent
+            ghost.style.left = x + 'px';
+            ghost.style.top = (y - 6) + 'px';
+            host.appendChild(ghost);
+            afterimageOrbs.push({ el: ghost, baseX: x, ref: ref });
+            scheduleAfterimageRemoval(ghost);
+        }
+    }
+
+    function scheduleAfterimageRemoval(el) {
+        var done = false;
+        function rm() { if (!done) { done = true; el.remove(); } }
+        el.addEventListener('animationend', rm);
+        setTimeout(rm, AFTERIMAGE_LIFE_MS); // 애니메이션 미발화(탭 숨김 등) 안전판
+    }
+
     // ── 탈것 꾸미기 적용 (경마 고유) ───────────────────────
 
     // 주어진 .horse 에 명시적 equipped 객체를 적용(멱등). catalog 필요.
@@ -355,15 +481,17 @@
             sprite.style.filter = (paint && paint.filter) ? paint.filter : '';
         }
 
-        // trail → 스프라이트 뒤 잔상
+        // trail(잔상) → 부착 streak(빛 띠) + 경주 중 과거 위치 오브 스포너 등록
         var trail = findItem('trail', equipped.trail);
-        if (trail && trail.emoji) {
+        if (trail) {
             var trailEl = document.createElement('span');
             trailEl.className = 'cosmetic-trail';
             trailEl.setAttribute('aria-hidden', 'true');
-            // 5연 이모지로 잔상 질량 강화(크게·또렷하게). 유저입력 아님(카탈로그 상수) → textContent 유지.
-            trailEl.textContent = trail.emoji + trail.emoji + trail.emoji + trail.emoji + trail.emoji;
+            applyTrailStreakVisual(trailEl, trail);
             horseEl.appendChild(trailEl);
+            registerAfterimage(horseEl, trail);
+        } else {
+            unregisterAfterimage(horseEl); // 잔상 해제 재적용 시 스포너도 해제
         }
 
         // accessory → 머리 위 오버레이 (탈것별 앵커로 위치/크기 보정 — 외관만)

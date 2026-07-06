@@ -531,6 +531,10 @@ module.exports = (socket, io, ctx) => {
         const roomName = room.roomName;
         // 꾸미기 페이로드 (transient — 결과/공정성 무관, 시각 렌더용)
         const { roomCosmetics, horseCosmetics, labelCosmetics } = await buildRaceCosmetics(gameState, room);
+        // 카운트다운(3-2-1)부터 이름표를 입히도록 labelCosmetics를 카운트다운 payload에도 동봉.
+        // hold 타이머(≥3s)가 이 await(DB 수 ms)보다 뒤에 발화하므로 emit 시점엔 채워져 있다.
+        // 만에 하나 조회가 hold보다 늦으면 필드 없이 나가고, 클라는 기존처럼 경주 시작 시 입힌다(안전 폴백).
+        countdownPayload.labelCosmetics = labelCosmetics;
         const raceData = {
             availableHorses: gameState.availableHorses,
             players: players,

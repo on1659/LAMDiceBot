@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Lab — 프로토타입 모음</title>
+<meta name="description" content="LAMDiceBot Game Lab: 10개의 실시간 멀티플레이어 미니게임 프로토타입">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 32px 20px 60px;
+    }
+    header {
+        max-width: 960px;
+        margin: 0 auto 32px;
+        text-align: center;
+    }
+    header h1 {
+        font-size: 28px;
+        margin: 0 0 8px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    header p {
+        margin: 0;
+        color: #9aa1b4;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    .grid {
+        max-width: 960px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+    }
+    .card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 20px;
+        border-radius: 14px;
+        background: #171a23;
+        border: 1px solid #262b38;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .card { transition: none; }
+    }
+    .card:hover, .card:focus-visible {
+        transform: translateY(-3px);
+        border-color: #4d5875;
+        background: #1c2029;
+    }
+    .card-name {
+        font-size: 17px;
+        font-weight: 700;
+    }
+    .card-slug {
+        font-size: 11px;
+        color: #6b7284;
+        font-family: 'Consolas', 'Courier New', monospace;
+    }
+    .card-pitch {
+        font-size: 13px;
+        color: #b6bccb;
+        line-height: 1.5;
+        flex: 1;
+    }
+    .card-players {
+        font-size: 12px;
+        color: #8fa1ff;
+        font-weight: 600;
+    }
+    footer {
+        max-width: 960px;
+        margin: 40px auto 0;
+        text-align: center;
+        font-size: 12px;
+        color: #565c6e;
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>Game Lab</h1>
+    <p>실시간 멀티플레이어 미니게임 프로토타입 10종. 매 라운드 전원이 동시에 행동하고, 서버가 결과를 결정합니다.<br>
+    카드를 눌러 각 게임의 방 생성/참여 화면으로 이동하세요.</p>
+</header>
+
+<div class="grid">
+    <a class="card" href="/game-lab/chair-grab/index.html">
+        <div class="card-name">의자 뺏기</div>
+        <div class="card-slug">chair-grab</div>
+        <div class="card-pitch">숨겨진 타이밍에 의자를 향해 탭! 도착 순서로 승부가 갈리는 서바이벌.</div>
+        <div class="card-players">2–12명</div>
+    </a>
+    <a class="card" href="/game-lab/never-say-number/index.html">
+        <div class="card-name">눈치게임</div>
+        <div class="card-slug">never-say-number</div>
+        <div class="card-pitch">숫자를 부를 타이밍을 눈치껏. 같은 순간 겹치면 전원 탈락.</div>
+        <div class="card-players">2–12명</div>
+    </a>
+    <a class="card" href="/game-lab/rps-majority/index.html">
+        <div class="card-name">가위바위보 다수결 서바이벌</div>
+        <div class="card-slug">rps-majority</div>
+        <div class="card-pitch">전원이 동시에 낸 가위바위보 중 가장 적게 나온 선택이 탈락.</div>
+        <div class="card-players">3–12명</div>
+    </a>
+    <a class="card" href="/game-lab/mine-tile-grid/index.html">
+        <div class="card-name">지뢰 타일 서바이벌</div>
+        <div class="card-slug">mine-tile-grid</div>
+        <div class="card-pitch">타일 그리드에서 지뢰를 피해 한 칸을 선택. 걸리면 탈락, 그리드는 점점 좁아진다.</div>
+        <div class="card-players">2–12명</div>
+    </a>
+    <a class="card" href="/game-lab/lowest-unique-number/index.html">
+        <div class="card-name">최저 유니크 숫자 게임</div>
+        <div class="card-slug">lowest-unique-number</div>
+        <div class="card-pitch">아무도 겹치지 않은 가장 낮은 숫자를 쓴 사람이 득점.</div>
+        <div class="card-players">3–10명</div>
+    </a>
+    <a class="card" href="/game-lab/hot-potato-pass/index.html">
+        <div class="card-name">폭탄 돌리기</div>
+        <div class="card-slug">hot-potato-pass</div>
+        <div class="card-pitch">숨겨진 도화선이 다 타는 순간 폭탄을 쥐고 있으면 탈락.</div>
+        <div class="card-players">3–10명</div>
+    </a>
+    <a class="card" href="/game-lab/guess-the-number/index.html">
+        <div class="card-name">프라이스 이즈 라이트</div>
+        <div class="card-slug">guess-the-number</div>
+        <div class="card-pitch">서버가 정한 숫자를 넘지 않는 선에서 가장 가깝게 맞히기.</div>
+        <div class="card-players">2–10명</div>
+    </a>
+    <a class="card" href="/game-lab/odd-even-chain/index.html">
+        <div class="card-name">홀짝 체인 배팅</div>
+        <div class="card-slug">odd-even-chain</div>
+        <div class="card-pitch">홀/짝을 찍고 서버 주사위 결과와 맞으면 생존, 틀리면 즉시 탈락.</div>
+        <div class="card-players">2–12명</div>
+    </a>
+    <a class="card" href="/game-lab/stopwatch-zone/index.html">
+        <div class="card-name">스톱워치 룰렛</div>
+        <div class="card-slug">stopwatch-zone</div>
+        <div class="card-pitch">모두에게 똑같이 도는 다이얼, 숨겨진 구간 안에서 STOP을 누르면 생존.</div>
+        <div class="card-players">2–12명</div>
+    </a>
+    <a class="card" href="/game-lab/push-your-luck-cashout/index.html">
+        <div class="card-name">계속하기 눈덩이 베팅</div>
+        <div class="card-slug">push-your-luck-cashout</div>
+        <div class="card-pitch">계속할수록 배율은 커지지만 탈락 확률도 커진다. 언제 멈출 것인가.</div>
+        <div class="card-players">2–12명</div>
+    </a>
+</div>
+
+<footer>
+    Game Lab 프로토타입 — 기존 로비/랭킹/상점과 무관한 독립 실험 공간입니다.
+</footer>
+</body>
+</html>

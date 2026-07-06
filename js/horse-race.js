@@ -330,11 +330,11 @@ function initAutoSelectHorseToggle() {
     const checkbox = document.getElementById('autoSelectHorseToggle');
     if (!wrap || !checkbox) return;
 
-    // 꾸미기 상점 진입 버튼은 모든 방-입장 유저에게 노출 (게스트는 광고 티어만 — 모달이 self-gating)
+    // 꾸미기 상점 진입 버튼은 로컬 환경(localhost)에서만 노출 — 실서버에서는 숨김 (HTML 기본값 display:none 유지)
     const shopBtn = document.querySelector('.hshop-open-btn');
-    if (shopBtn) shopBtn.style.display = 'inline-flex';
+    if (shopBtn && isLocalhost) shopBtn.style.display = 'inline-flex';
 
-    // 게스트(비로그인) 또는 무료방(serverId 없음)은 자동선택 토글 숨김 (상점 버튼은 위에서 이미 노출)
+    // 게스트(비로그인) 또는 무료방(serverId 없음)은 자동선택 토글 숨김 (상점 버튼은 위에서 로컬 한정 노출)
     // early-return이 아래 getUserPrefs 로드를 건너뛰므로 무료방에선 autoSelectHorseEnabled=false 유지
     // → tryAutoSelectHorse의 자동 픽도 발동하지 않음 (서버방에서 켠 pref가 무료방에서 새는 것 차단)
     let userAuth = null;
@@ -565,7 +565,8 @@ function renderTrackForSelection() {
                     `;
                     nameTag.textContent = userName;
                 }
-                applyLabelCosmetic(nameTag, userName, isMe, false);
+                // 평소 선택화면은 내 로컬만(false) — 카운트다운부터는 fresh broadcast로 전원 이름표 적용
+                applyLabelCosmetic(nameTag, userName, isMe, raceLabelsFresh);
                 namesContainer.appendChild(nameTag);
             });
 
@@ -574,8 +575,13 @@ function renderTrackForSelection() {
     });
 }
 
+// 카운트다운~경주 시작 사이 "이번 라운드" 이름표 broadcast 도착 여부.
+// horseRaceCountdown(labelCosmetics 동봉)에서 true → horseRaceStarted에서 false.
+// 선택화면 태그 렌더가 이전 라운드 stale labels를 쓰지 않게 게이팅한다(lesson 2026-06-22).
+var raceLabelsFresh = false;
+
 // 이름표(닉네임 라벨) 꾸미기 적용 — 색만 오버라이드(textContent/위치/폰트 불변).
-// useBroadcast=true(경주중): 서버 broadcast(labels, 전원) → 없으면 isMe일 때 내 로컬.
+// useBroadcast=true(경주중/카운트다운 fresh): 서버 broadcast(labels, 전원) → 없으면 isMe일 때 내 로컬.
 // useBroadcast=false(선택화면): broadcast 무시(타인의 현재 이름표는 알 수 없음). isMe면 내 로컬, 타인은 기본 유지.
 function applyLabelCosmetic(nameTag, userName, isMe, useBroadcast) {
     var bibId = null;
@@ -5248,6 +5254,7 @@ socket.on('roomJoined', (data) => {
         // 다시보기 뒷정리 (horseRaceStarted 취소 블록과 대칭) — 죽은 다시보기의 종료 버튼·stale 선택 버퍼 잔존 방지
         removeReplayStopButton();
         pendingHorseSelectionReady = null;
+        raceLabelsFresh = false; // 순단 재접속: 카운트다운~시작 창에서 started 유실 시 fresh 고착 방지
         // 로컬 레이스 상태 정리 — 아래에서 서버 payload(isHorseRaceActive) 기준으로 재동기화됨
         isRaceActive = false;
         isReplayActive = false;
@@ -5415,6 +5422,9 @@ socket.on('horseSelectionReady', (data) => {
 });
 
 async function applyHorseSelectionReady(data) {
+    // 새 선택 페이즈 진입 = 이름표 fresh 창 종료 — 모든 경로(정상 라운드 종료/중단/재접속)의
+    // 공통 수렴점에서 닫아 stale labels가 선택화면에 적용되는 것을 방지(lesson 2026-06-22).
+    raceLabelsFresh = false;
     availableHorses = data.availableHorses || [];
     userHorseBets = data.userHorseBets || {};
     selectedUsersFromServer = data.selectedUsers || [];  // 선택 완료자 목록
@@ -5624,6 +5634,16 @@ socket.on('horseRaceCountdown', (data) => {
 
     addDebugLog(`카운트다운 시작: ${data.duration}초`, 'race');
 
+    // 카운트다운부터 이름표 적용 — 서버가 동봉한 이번 라운드 labelCosmetics 저장.
+    // labels만 fresh로 교체하고 room/horses는 보존 — 이 창에서 경주가 무산되면(호스트 종료 등)
+    // 직전 라운드 다시보기가 horses 꾸미기를 계속 읽기 때문(통째 재대입 금지).
+    // 필드 없으면(서버 구버전/조회 지연 폴백) 기존처럼 경주 시작 시점에 입힌다.
+    if (data.labelCosmetics) {
+        var _rc = window._raceCosmetics || {};
+        window._raceCosmetics = { room: _rc.room || null, horses: _rc.horses || {}, labels: data.labelCosmetics };
+        raceLabelsFresh = true;
+    }
+
     // 카운트다운 시작 시 모든 선택 공개
     if (data.userHorseBets) {
         userHorseBets = data.userHorseBets;
@@ -5660,6 +5680,7 @@ socket.on('horseRaceStarted', (data) => {
 
     // 꾸미기 페이로드 저장 (말별 canonical + 방장 연출) — 시각 렌더용, 결과 무관
     window._raceCosmetics = { room: data.roomCosmetics || null, horses: data.horseCosmetics || {}, labels: data.labelCosmetics || {} };
+    raceLabelsFresh = false; // fresh 창 종료 — 다음 라운드 선택화면은 다시 내 로컬만(stale 누출 방지)
     window._slowMotionConfig = data.slowMotionConfig || null;
     // 날씨 설정 저장 — 히스토리 다시보기(playReplay)가 읽음 (record에는 weatherConfig가 없음)
     window._weatherConfig = data.weatherConfig || {};
@@ -5875,6 +5896,7 @@ socket.on('horseRaceEnded', (data) => {
 
 // 게임 완전 리셋 이벤트 (호스트가 게임 종료 버튼을 누른 경우)
 socket.on('horseRaceGameReset', (data) => {
+    raceLabelsFresh = false; // 카운트다운~시작 창에서 게임 종료 시 fresh 고착 방지
     removeQuickRaceOverlay();
     // 🔧 경주 애니메이션 정리 (경주 중 리셋 시 화면 깨짐 방지)
     if (window._raceAnimFrameId) {
@@ -6139,6 +6161,7 @@ function clearHorseRaceData() {
 
 // 데이터 삭제 완료 수신
 socket.on('horseRaceDataCleared', () => {
+    raceLabelsFresh = false; // 카운트다운~시작 창에서 데이터 초기화 시 fresh 고착 방지
     horseRaceHistory = [];
     ordersData = {};
     isOrderActive = false;

@@ -111,43 +111,41 @@ const VEHICLES = ['car', 'rocket', 'bird', 'rabbit', 'helicopter', 'horse', 'cra
       'A6: 전 탈것 accessory 가시 + transform 매트릭스 발현(앵커 보정 실동작)',
       VEHICLES.map(function (v) { return v + ':' + (accResult[v].transformMatrix ? 'T' : 'F') + '/' + (accResult[v].visible ? 'V' : 'x'); }).join(' '));
 
-    // ── B. trail 강화: font-size ≥ 30px, 5연 이모지, racing 시 opacity 발현 + ::before streak ──
+    // ── B. 잔상(trail) streak: 색 글로우 띠 + data-emoji 머리 + racing 시 opacity/stream 발현 ──
     const trailResult = await page.evaluate(function () {
       var horse = document.querySelector('.qa-horse-wrap .horse[data-vehicle-id="car"]');
       window.HorseShop.applyEquippedToHorse(horse, { trail: 'trail_flame' });
       var el = horse.querySelector('.cosmetic-trail');
       if (!el) return null;
       var cs = getComputedStyle(el);
-      var before = getComputedStyle(el, '::before');
       return {
-        text: el.textContent,
-        emojiCount: (el.textContent.match(/🔥/g) || []).length,
-        fontPx: parseFloat(cs.fontSize),
+        inlineColor: el.style.color,
+        dataEmoji: el.getAttribute('data-emoji'),
+        heightPx: parseFloat(cs.height),
         opacity: parseFloat(cs.opacity),
         animation: cs.animationName,
-        beforeContent: before.content,
-        beforeWidth: parseFloat(before.width)
+        bg: cs.backgroundImage
       };
     });
     check(!!trailResult, 'B0: .cosmetic-trail 렌더');
-    check(trailResult.emojiCount === 5, 'B1: trail 5연 이모지(질량 강화)', 'count=' + trailResult.emojiCount);
-    check(trailResult.fontPx >= 30, 'B2: trail font-size ≥ 30px(크게)', 'fontPx=' + trailResult.fontPx);
+    check(!!trailResult.inlineColor, 'B1: 잔상 색 인라인 주입(카탈로그 color)', 'color=' + trailResult.inlineColor);
+    check(trailResult.dataEmoji === '🔥', 'B2: data-emoji 머리(아이템 정체성)', 'emoji=' + trailResult.dataEmoji);
     check(trailResult.opacity >= 0.9, 'B3: racing 시 trail opacity ≥ 0.9(또렷)', 'opacity=' + trailResult.opacity);
-    check(/cosmeticTrailDrift/.test(trailResult.animation), 'B4: racing 시 drift 애니메이션 발현', 'anim=' + trailResult.animation);
-    check(trailResult.beforeWidth > 0 && trailResult.beforeContent !== 'none', 'B5: ::before streak 띠 존재', 'beforeW=' + trailResult.beforeWidth);
+    check(/cosmeticTrailStream/.test(trailResult.animation), 'B4: racing 시 stream 애니메이션 발현', 'anim=' + trailResult.animation);
+    check(/gradient/.test(trailResult.bg), 'B5: 색 글로우 띠(linear-gradient) 존재', 'bg=' + trailResult.bg.slice(0, 40));
 
-    // 두 trail 타입이 시각적으로 다른지 — 이모지 텍스트가 다르면 명백히 다름(switch 가 보임)
+    // 두 잔상 타입이 시각적으로 다른지 — 색이 다르면 명백히 다름(switch 가 보임)
     const trailSwitch = await page.evaluate(function () {
       var horse = document.querySelector('.qa-horse-wrap .horse[data-vehicle-id="car"]');
       window.HorseShop.applyEquippedToHorse(horse, { trail: 'trail_flame' });
-      var a = horse.querySelector('.cosmetic-trail').textContent;
+      var a = horse.querySelector('.cosmetic-trail').style.color;
       window.HorseShop.applyEquippedToHorse(horse, { trail: 'trail_star' });
-      var b = horse.querySelector('.cosmetic-trail').textContent;
+      var b = horse.querySelector('.cosmetic-trail').style.color;
       // 멱등 재적용: cosmetic-trail 이 정확히 1개여야 함(stale 제거)
       var count = horse.querySelectorAll('.cosmetic-trail').length;
       return { a: a, b: b, count: count };
     });
-    check(trailSwitch.a !== trailSwitch.b, 'B6: trail 타입 전환 시 시각적으로 다름(🔥 vs ✨)', trailSwitch.a + ' → ' + trailSwitch.b);
+    check(trailSwitch.a !== trailSwitch.b, 'B6: 잔상 타입 전환 시 색이 다름(flame vs star)', trailSwitch.a + ' → ' + trailSwitch.b);
     check(trailSwitch.count === 1, 'B7: trail 멱등 재적용(stale 제거, .cosmetic-trail 1개)', 'count=' + trailSwitch.count);
 
     // ── C. finish_fx 개인화: playFinishFx() 무인자 호출이 본인 장착 기준으로 raceTrackContainer 에 28조각 레이어 ──

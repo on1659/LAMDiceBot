@@ -249,19 +249,32 @@ body.hshop-open {
     height: auto;
     display: block;
 }
+/* 잔상 미리보기: 스프라이트 뒤로 흐르는 색 글로우 띠(ladder 잔상 이식). 색은 인라인 color →
+   currentColor, rainbow는 .rainbow 그라데이션. 이모지 머리는 ::after(content: attr(data-emoji)). */
 .hshop-preview-trail {
     position: absolute;
-    left: 8%;
+    left: 4%;
     top: 50%;
-    transform: translateY(-20%);
-    font-size: 22px;
-    letter-spacing: -4px;
-    line-height: 1;
+    width: 46%;
+    height: 10px;
+    transform: translateY(-50%);
+    transform-origin: right center;
+    border-radius: 999px;
     z-index: 1;
-    opacity: 0.92;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
-    mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.7), currentColor 30%, transparent 95%);
+    filter: blur(0.4px) drop-shadow(0 0 5px currentColor);
+    animation: cosmeticTrailStream 0.85s ease-in-out infinite;
+}
+.hshop-preview-trail::after {
+    content: attr(data-emoji);
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0.85;
 }
 .hshop-preview-acc {
     position: absolute;
@@ -272,6 +285,7 @@ body.hshop-open {
     line-height: 1;
     z-index: 3;
     pointer-events: none;
+    animation: cosmeticAccBob 1.8s ease-in-out infinite;
 }
 /* 오라 미리보기: 스프라이트 뒤(z-index 1) 글로우 원. 색은 인라인 color → currentColor */
 .hshop-preview-aura {
@@ -686,17 +700,28 @@ body.hshop-open {
 }
 .hshop-inv-trail {
     position: absolute;
-    left: 10%;
+    left: 5%;
     top: 50%;
-    transform: translateY(-30%);
-    font-size: 34px;
-    letter-spacing: -6px;
-    line-height: 1;
+    width: 42%;
+    height: 15px;
+    transform: translateY(-50%);
+    transform-origin: right center;
+    border-radius: 999px;
     z-index: 1;
-    opacity: 0.92;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
-    mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.7), currentColor 30%, transparent 95%);
+    filter: blur(0.5px) drop-shadow(0 0 7px currentColor);
+    animation: cosmeticTrailStream 0.85s ease-in-out infinite;
+}
+.hshop-inv-trail::after {
+    content: attr(data-emoji);
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 19px;
+    line-height: 1;
+    opacity: 0.85;
 }
 .hshop-inv-acc {
     position: absolute;
@@ -709,6 +734,7 @@ body.hshop-open {
     line-height: 1;
     z-index: 3;
     pointer-events: none;
+    animation: cosmeticAccBob 1.8s ease-in-out infinite;
 }
 /* 인벤토리("내 아이템") 미리보기 오라 — 스프라이트 뒤 글로우. 카드/인레이스와 동일 렌더.
    기존엔 이 노드 자체가 없어 오라가 미리보기에서 "적용 안 됨"으로 보였다(버그). 120px 스프라이트 뒤 ~108px. */
@@ -908,7 +934,6 @@ body.hshop-open {
 
 /* 탈것 선택 헤더 안에서 풀폭으로 늘어나지 않게 — 내용폭 컴팩트 버튼 유지 */
 .horse-selection-header .hshop-open-btn {
-    display: inline-flex !important;
     width: auto !important;
     flex: 0 0 auto !important;
     align-self: center;
@@ -926,56 +951,78 @@ body.hshop-open {
     line-height: 1;
     z-index: 250;
     pointer-events: none;
+    animation: cosmeticAccBob 1.8s ease-in-out infinite;
 }
-/* 트레일: 스프라이트 뒤(왼쪽) 잔상 — 달릴 때만, 크고 또렷한 흐름 streak.
-   right:100% 로 스프라이트 뒤에 붙고, ::before 흐림 streak 가 모션감을 준다. */
+/* 잔상(trail) 부착 streak: 스프라이트 뒤(왼쪽) 색 글로우 띠. 달릴 때만 보이고,
+   과거 위치의 빛 오브(.cosmetic-afterimage, JS 스폰)와 함께 잔상을 이룬다. */
 .cosmetic-trail {
     position: absolute;
     top: 50%;
     right: 100%;
+    width: 54px;
+    height: 12px;
     transform: translateY(-50%);
-    margin-right: -2px;
-    font-size: 32px;            /* 강화: 15 → 32 (크게) */
-    line-height: 1;
-    letter-spacing: -6px;
-    white-space: nowrap;
+    transform-origin: right center;   /* 말 쪽(오른쪽) 고정 → 꼬리만 뒤로 늘어남 */
+    margin-right: -4px;
+    border-radius: 999px;
     opacity: 0;
     transition: opacity 0.2s;
     z-index: 90;
     pointer-events: none;
-    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.35));
-    -webkit-mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
-    mask-image: linear-gradient(to left, #000 0%, #000 65%, transparent 100%);
-}
-/* 잔상 흐름 streak — 장식 이모지 뒤로 흐르는 반투명 모션 띠(순수 장식, DOM 추가 없음) */
-.cosmetic-trail::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    right: -4px;
-    width: 46px;
-    height: 0.5em;
-    transform: translateY(-50%);
-    border-radius: 999px;
-    background: linear-gradient(to left, currentColor, transparent);
-    opacity: 0.4;
-    pointer-events: none;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.75), currentColor 30%, transparent 95%);
+    filter: blur(0.5px) drop-shadow(0 0 6px currentColor);
 }
 .horse.racing .cosmetic-trail,
 .horse.running .cosmetic-trail {
-    opacity: 0.95;             /* 강화: 0.85 → 0.95 (또렷하게) */
-    animation: cosmeticTrailDrift 0.5s ease-in-out infinite;
+    opacity: 0.9;
+    animation: cosmeticTrailStream 0.6s ease-in-out infinite;
 }
-/* 달릴 때 가로로 늘었다 줄었다 — 흐르는 잔상 느낌(transform 전용, GPU 친화적) */
-@keyframes cosmeticTrailDrift {
-    0%, 100% { transform: translateY(-50%) scaleX(1); }
-    50%      { transform: translateY(-50%) scaleX(1.18); }
+/* 잔상 오브 — 과거 위치에 남는 빛 방울: white-hot 코어 + 색 글로우 (ladder 잔상 이식).
+   JS(horse-shop.js 스포너)가 레인 좌표에 스폰, fade 애니메이션 종료 시 자기 제거. */
+.cosmetic-afterimage {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    margin: -13px 0 0 -13px;    /* left/top = 중심점 */
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 5;                  /* 말 아래(인레이스 말은 inline z-index 100-laneIndex, 선택화면은 10), 레인 배경 위 */
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, currentColor 38%, transparent 70%);
+    mix-blend-mode: screen;      /* additive 글로우 느낌(겹칠수록 밝게) */
+    animation: cosmeticAfterimageFade 0.55s ease-out forwards;
+}
+@keyframes cosmeticAfterimageFade {
+    0%   { opacity: 0.85; scale: 1; }
+    100% { opacity: 0;    scale: 0.35; }
+}
+/* 이모지 유령 — N번째 오브마다 희미하게 남는 아이템 정체성(빛 혼성) */
+.cosmetic-afterimage-emoji {
+    position: absolute;
+    margin: -8px 0 0 -8px;
+    font-size: 16px;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 6;
+    animation: cosmeticAfterimageGhost 0.6s ease-out forwards;
+}
+@keyframes cosmeticAfterimageGhost {
+    0%   { opacity: 0.55; translate: 0 0;       scale: 1; }
+    100% { opacity: 0;    translate: -10px 4px; scale: 0.8; }
+}
+/* 무지개 잔상 — streak 3맥락 공통 그라데이션(오브는 JS가 연속 hue 인라인) */
+.hshop-preview-trail.rainbow,
+.hshop-inv-trail.rainbow,
+.cosmetic-trail.rainbow {
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.8), #f43f5e 12%, #f59e0b 30%, #22c55e 50%, #3b82f6 70%, #a855f7 88%, transparent);
+    filter: blur(0.4px) drop-shadow(0 0 6px #a78bfa);
 }
 @media (prefers-reduced-motion: reduce) {
     .horse.racing .cosmetic-trail,
     .horse.running .cosmetic-trail {
-        animation: none;       /* 모션 최소화: 확대된 정적 잔상만 유지 */
+        animation: none;       /* 모션 최소화: 정적 streak만 유지 */
     }
+    /* 오브는 JS(reducedMotion 가드)가 스폰하지 않음 — CSS는 이중 안전판 */
+    .cosmetic-afterimage, .cosmetic-afterimage-emoji { display: none; }
 }
 
 /* 오라: 탈것 뒤 글로우 링(절대배치 오버레이, 레이아웃 영향 0). 색은 인라인 color → currentColor.
@@ -1016,6 +1063,49 @@ body.hshop-open {
     animation: auraSprite84 0.5s steps(4) infinite;
 }
 @keyframes auraSprite84 { from { background-position-x: 0; } to { background-position-x: -336px; } }
+
+/* ── 꾸미기 애니메이션 (트레일 / 악세서리 / 이름표) ──
+   오라만 살아있고 나머지가 정적이라 대비돼 보이던 문제 해소. 개별 transform
+   프로퍼티(scale/translate/rotate)를 써서 각 요소의 위치 transform과 합성 →
+   앵커(중앙정렬·머리 오프셋)를 깨지 않는다. */
+/* 잔상 streak 숨쉬기: 뒤(말 반대쪽)로 늘었다 줄며 흐르는 느낌.
+   transform-origin:right center 라 머리 쪽은 고정되고 꼬리만 뒤로 늘어난다.
+   filter/opacity는 base 선언을 유지하기 위해 keyframe에서 건드리지 않는다
+   (애니메이션 값이 base를 덮어 computed-style 단정(QA B3)이 깨지는 것 방지). */
+@keyframes cosmeticTrailStream {
+    0%, 100% { scale: 1 1; }
+    50%      { scale: 1.35 1; }
+}
+/* 악세서리: 살짝 떠오르며 좌우로 흔들 (bob + sway) */
+@keyframes cosmeticAccBob {
+    0%, 100% { translate: 0 0;    rotate: -4deg; }
+    50%      { translate: 0 -3px; rotate: 4deg; }
+}
+/* 이름표: 표면을 훑고 지나가는 광택 (shine sweep). 이름표는 overflow:hidden 이라 넘치는 부분 클리핑됨 */
+.hshop-preview-bib::after,
+.hshop-inv-bib::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.5) 50%, transparent 68%);
+    transform: translateX(-120%);
+    animation: cosmeticBibShine 2.6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+@keyframes cosmeticBibShine {
+    0%        { transform: translateX(-120%); }
+    55%, 100% { transform: translateX(120%); }
+}
+/* 모션 최소화 선호 시 정적으로 (기존 트레일 drift 가드와 동일 방침) */
+@media (prefers-reduced-motion: reduce) {
+    .hshop-preview-trail, .hshop-inv-trail,
+    .hshop-preview-acc, .hshop-inv-acc, .cosmetic-accessory {
+        animation: none;
+    }
+    .hshop-preview-bib::after, .hshop-inv-bib::after { animation: none; opacity: 0; }
+}
 
 /* ── 방 연출: 결승 이펙트 (폭죽/색종이) ── */
 .cosmetic-finish-fx {

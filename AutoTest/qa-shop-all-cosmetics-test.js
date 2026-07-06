@@ -231,7 +231,8 @@ function rec(slot, id, ok, reason) {
             await shoot('aura');
         }
 
-        // ── TRAIL ── 각 아이템: trail 적용 → .cosmetic-trail, textContent == emoji×5, racing opacity>0.9, tofu 아님
+        // ── TRAIL(잔상) ── 각 아이템: 적용 → .cosmetic-trail 색 글로우 띠(색 주입 또는 rainbow 클래스),
+        //    data-emoji 머리 == item.emoji, racing 시 가시(opacity>0.5), 그라데이션 배경 존재
         {
             await clearSandbox();
             const res = await hPage.evaluate((ids) => {
@@ -249,24 +250,24 @@ function rec(slot, id, ok, reason) {
                     if (!el) { out.push({ id: id, ok: false, reason: '.cosmetic-trail 미생성' }); return; }
                     var cs = getComputedStyle(el);
                     var r = el.getBoundingClientRect();
-                    var emoji = item && item.emoji;
-                    // emoji×5 (Array.from 로 코드포인트 단위 카운트 — surrogate/ZWJ 안전)
-                    var expected = emoji ? Array(5).fill(emoji).join('') : '';
-                    var textOk = el.textContent === expected;
+                    // 색 계약: rainbow 아이템은 .rainbow 클래스, 그 외엔 인라인 color 주입
+                    var colorOk = (item && item.color === 'rainbow')
+                        ? el.classList.contains('rainbow')
+                        : !!el.style.color;
+                    var emojiOk = !item.emoji || el.getAttribute('data-emoji') === item.emoji;
                     var visible = r.width > 0 && r.height > 0 && parseFloat(cs.opacity) > 0.5;
-                    // tofu 탐지: 텍스트가 비었거나 U+FFFD(replacement) 포함이면 깨짐
-                    var tofu = !el.textContent || /�/.test(el.textContent);
-                    out.push({ id: id, ok: textOk && visible && !tofu,
-                        reason: (!textOk ? 'text!=emoji×5 ' : '') + (!visible ? 'box0/opacity ' : '') + (tofu ? 'tofu' : ''),
-                        text: el.textContent });
+                    var hasGradient = /gradient/.test(cs.backgroundImage);
+                    out.push({ id: id, ok: colorOk && emojiOk && visible && hasGradient,
+                        reason: (!colorOk ? 'color/rainbow 미주입 ' : '') + (!emojiOk ? 'data-emoji 불일치 ' : '') + (!visible ? 'box0/opacity ' : '') + (!hasGradient ? 'gradient 없음' : ''),
+                        color: item && item.color });
                 });
                 return out;
             }, catalog.trail);
             res.forEach(r => rec('trail', r.id, r.ok, r.ok ? null : r.reason));
-            // distinct: trail emoji 텍스트가 서로 다른가 (동일 emoji 두 아이템이면 관찰 보고)
+            // distinct: 잔상 색이 서로 다른가 (동일 색 두 아이템이면 관찰 보고 — 룩어라이크)
             const seen = {}; const dups = [];
-            res.forEach(r => { if (r.text && seen[r.text]) dups.push(seen[r.text] + '==' + r.id); if (r.text) seen[r.text] = r.id; });
-            if (dups.length) console.log('  [trail 관찰] 동일 이모지 중복(룩어라이크):', dups.join(', '));
+            res.forEach(r => { if (r.color && seen[r.color]) dups.push(seen[r.color] + '==' + r.id); if (r.color) seen[r.color] = r.id; });
+            if (dups.length) console.log('  [trail 관찰] 동일 색 중복(룩어라이크):', dups.join(', '));
             await captionCells();
             await shoot('trail');
         }

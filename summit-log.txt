@@ -1,4 +1,45 @@
 ========================================
+📋 Summit Log - 2026-07-07 (상점 버튼 로컬 전용 노출 + 트레일→잔상 리워크 + game-lab 프로토타입 허브 스캐폴드)
+========================================
+
+## 변경 파일
+- js/horse-race.js: 상점 버튼 노출을 isLocalhost 게이트(333~335) + 이웃 주석 갱신 / (기존 작업분) 잔상 리워크 연동 헌크
+- css/horse-shop.css: `.horse-selection-header .hshop-open-btn`의 `display: inline-flex !important` 삭제 / (기존 작업분) 잔상 오브·streak·rainbow·reduced-motion 스타일
+- config/horse/cosmetics.json: trail 23종 "X 트레일" → "X 잔상" 리네임 + per-item color 필드(rainbow 포함). id 무변경
+- js/horse-shop.js: 잔상 스포너(rAF, 85ms 간격 오브 + 3회마다 emoji 고스트, rainbow 연속 hue), applyTrailStreakVisual 헬퍼, 슬롯 탭 "✨ 잔상"
+- socket/horse.js: 카운트다운(3-2-1) payload에 labelCosmetics 동봉 — 경주 시작 전부터 이름표 코스메틱 적용 (안전 폴백 유지)
+- AutoTest/qa-horse-cosmetic-apply-test.js, qa-shop-all-cosmetics-test.js: 잔상 계약 반영 갱신
+- server.js: `require('./socket/proto-hub')(io);` 1줄 — /proto 네임스페이스 연결
+- socket/proto-hub.js (신규): 완전 격리 프로토타입 허브 — 자체 in-memory room store, crypto 방코드, 로컬 rate limit, production 모듈 무import
+- game-lab/index.html, game-lab/shared/proto-client.js (신규): 프로토타입 허브 페이지 + 공용 클라이언트 (WIP 스캐폴드 — 개별 게임 페이지 미구현)
+- docs/goal/horse-trail-to-afterimage.md, docs/goal/game-lab-multiplayer-prototypes.md (신규): goal 명세
+
+## 상세 변경 내역
+
+### [상점 버튼 로컬 전용 노출] (이번 세션, Scout→Coder→Reviewer 2루프)
+- 목적: 꾸미기 상점 미출시 상태라 실서버(lamdice.com)에서 🛒 진입 버튼 비노출, 로컬(localhost)에서만 노출.
+- JS 게이트만으론 no-op이었음 — css/horse-shop.css의 `display: inline-flex !important`가 인라인 `display:none`을 이겨 실서버에서도 강제 노출(Reviewer 발견). 해당 1줄 삭제로 display 결정권을 인라인(HTML 기본 none → localhost에서만 JS가 inline-flex)에 반환. 컴팩트 폭(`width/flex !important`)은 유지.
+- ShopModule.init/HorseShop.connect/authenticate/코스메틱 렌더링 경로 무변경 — 실서버에서 기존 장착 코스메틱 표시는 계속 동작. window.HorseShop.openShop API 유지(AutoTest 직접 호출 경로).
+- 검증: node --check 통과, `.hshop-open-btn` display !important 전 CSS 0건, Reviewer approve.
+
+### [경마 트레일 → 잔상(afterimage) 리워크] (goal: horse-trail-to-afterimage.md)
+- emoji-follow 트레일을 ladder식 빛 잔상으로 교체: 경주 중 과거 위치에 글로우 오브(85ms 간격, ~550ms 페이드)를 남기고 3회마다 아이템 emoji 고스트로 정체성 유지. rainbow는 per-horse 카운터 기반 연속 hue(결정론).
+- 유저 노출 용어 트레일 → 잔상(카탈로그 23종 리네임 + 슬롯 탭). id/가격/rarity/directBuy 앵커 무변경 — DB·broadcast 계약(PUBLIC_HORSE_SLOTS) 유지, color 필드는 additive.
+- 스포너는 DOM read-only(경주 로직/소켓/DB 무접촉), prefers-reduced-motion 시 오브 미생성.
+- socket/horse.js: 카운트다운 payload에 labelCosmetics 동봉 — hold 타이머(≥3s)가 DB 조회(수 ms)보다 늦게 발화하므로 emit 시점 보장, 늦으면 기존 경주 시작 시 적용 폴백.
+
+### [game-lab 멀티플레이어 프로토타입 허브 — 스캐폴드] (goal: game-lab-multiplayer-prototypes.md, WIP)
+- /proto Socket.IO 네임스페이스(socket/proto-hub.js) — production(socket/rooms.js, utils/room-helpers.js, db/*) 어느 것도 import하지 않는 완전 격리. server.js 연결 1줄이 유일한 접점.
+- 허브 페이지(game-lab/index.html) + 공용 클라이언트(proto-client.js)까지 완성. 10개 개별 게임 페이지는 미구현 — goal 문서 아카이브 보류.
+
+### [공정성]
+- 잔상/스포너는 순수 시각(카운터·시간 기반 결정론). proto-hub 결과 난수는 crypto.randomInt만 사용.
+
+### [검증]
+- node --check: server.js / socket/horse.js / socket/proto-hub.js / js/horse-shop.js / js/horse-race.js 전부 통과, cosmetics.json 파스 OK.
+- 유저 노출(update-log.md): 미기재 — 상점 "준비 중" 프레이밍 유지(2026-06-23 원칙), game-lab은 내부 프로토타입, 상점 버튼 숨김은 미출시 기능 은닉이라 안내 대상 아님.
+
+========================================
 📋 Summit Log - 2026-06-23 (꾸미기 상점 가챠 확장 + 정리 — 대량 카탈로그·중복환급·신규 슬롯·인벤토리 UX·emote 삭제)
 ========================================
 
