@@ -908,7 +908,6 @@ body.hshop-open {
 
 /* 탈것 선택 헤더 안에서 풀폭으로 늘어나지 않게 — 내용폭 컴팩트 버튼 유지 */
 .horse-selection-header .hshop-open-btn {
-    display: inline-flex !important;
     width: auto !important;
     flex: 0 0 auto !important;
     align-self: center;

@@ -330,11 +330,11 @@ function initAutoSelectHorseToggle() {
     const checkbox = document.getElementById('autoSelectHorseToggle');
     if (!wrap || !checkbox) return;
 
-    // 꾸미기 상점 진입 버튼은 모든 방-입장 유저에게 노출 (게스트는 광고 티어만 — 모달이 self-gating)
+    // 꾸미기 상점 진입 버튼은 로컬 환경(localhost)에서만 노출 — 실서버에서는 숨김 (HTML 기본값 display:none 유지)
     const shopBtn = document.querySelector('.hshop-open-btn');
-    if (shopBtn) shopBtn.style.display = 'inline-flex';
+    if (shopBtn && isLocalhost) shopBtn.style.display = 'inline-flex';
 
-    // 게스트(비로그인) 또는 무료방(serverId 없음)은 자동선택 토글 숨김 (상점 버튼은 위에서 이미 노출)
+    // 게스트(비로그인) 또는 무료방(serverId 없음)은 자동선택 토글 숨김 (상점 버튼은 위에서 로컬 한정 노출)
     // early-return이 아래 getUserPrefs 로드를 건너뛰므로 무료방에선 autoSelectHorseEnabled=false 유지
     // → tryAutoSelectHorse의 자동 픽도 발동하지 않음 (서버방에서 켠 pref가 무료방에서 새는 것 차단)
     let userAuth = null;
