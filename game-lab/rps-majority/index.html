@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>가위바위보 다수결 서바이벌 — Game Lab</title>
+<meta name="description" content="진영은 처음 딱 한 번만 고르고, 이후엔 서버가 매 라운드 자동으로 소수 진영을 탈락시키는 실시간 서바이벌 프로토타입">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 60px;
+    }
+    a { color: #8fa1ff; }
+    .back-link {
+        display: inline-block;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: #8fa1ff;
+        text-decoration: none;
+    }
+    header {
+        max-width: 480px;
+        margin: 0 auto 20px;
+    }
+    header h1 {
+        font-size: 22px;
+        margin: 0 0 6px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    header p {
+        margin: 0;
+        color: #9aa1b4;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    main {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .panel {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    label {
+        display: block;
+        font-size: 13px;
+        color: #b6bccb;
+        margin-bottom: 6px;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #2d3342;
+        background: #0f1117;
+        color: #eef0f5;
+        font-size: 15px;
+        margin-bottom: 14px;
+    }
+    input[type="text"]:focus { outline: 2px solid #7c9cff; }
+    button {
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        border: none;
+        border-radius: 10px;
+        padding: 13px 18px;
+        cursor: pointer;
+        color: #0f1117;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        transition: transform 0.12s ease, opacity 0.12s ease;
+        width: 100%;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:not(:disabled):active { transform: scale(0.98); }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row button { width: auto; flex: 1; }
+    .btn-secondary {
+        background: #232838;
+        color: #eef0f5;
+        border: 1px solid #333a4d;
+    }
+    .error-text {
+        color: #ff8080;
+        font-size: 13px;
+        min-height: 18px;
+        margin: 0 0 6px;
+    }
+    .room-code-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        font-size: 14px;
+    }
+    .room-code-row strong {
+        font-size: 20px;
+        letter-spacing: 2px;
+        color: #b98cff;
+    }
+    .room-code-row button { width: auto; padding: 8px 14px; font-size: 13px; }
+    ul.player-list {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .proto-player {
+        background: #0f1117;
+        border: 1px solid #2d3342;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    .proto-player.host { border-color: #b98cff; color: #d9c4ff; }
+    .proto-player.me { border-color: #7c9cff; }
+    .section-label {
+        font-size: 13px;
+        color: #b6bccb;
+        margin: 0 0 10px;
+        text-align: center;
+    }
+    #startHint, #restartHint, #soloTestHint {
+        font-size: 12px;
+        color: #9aa1b4;
+        margin: 8px 0 0;
+        text-align: center;
+    }
+    #roundLabel {
+        text-align: center;
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0 0 12px;
+    }
+    .choice-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .choice-btn {
+        background: #0f1117;
+        border: 2px solid #2d3342;
+        color: #eef0f5;
+        border-radius: 12px;
+        padding: 18px 6px;
+        font-size: 14px;
+        line-height: 1.6;
+        min-height: 88px;
+    }
+    .choice-btn span { display: block; font-size: 30px; }
+    .choice-btn.selected { border-color: #7c9cff; background: #1c2237; }
+    #pickStatus {
+        text-align: center;
+        font-size: 13px;
+        color: #b6bccb;
+        margin: 0 0 6px;
+    }
+    #pickCountLabel {
+        text-align: center;
+        font-size: 12px;
+        color: #9aa1b4;
+        margin: 0 0 14px;
+    }
+    .my-status-bar {
+        text-align: center;
+        font-size: 14px;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin: 0 0 14px;
+        background: #1c2237;
+        border: 1px solid #333a4d;
+    }
+    .my-status-bar.alive { border-color: #7c9cff; color: #cdd7ff; }
+    .my-status-bar.out { border-color: #ff6b6b; color: #ffb0b0; }
+    .camp-board {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .camp-col {
+        flex: 1 1 0;
+        min-width: 0;
+        background: #0f1117;
+        border: 1px solid #2d3342;
+        border-radius: 10px;
+        padding: 10px 6px;
+    }
+    .camp-head {
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+    .camp-count {
+        display: block;
+        font-size: 11px;
+        font-weight: 400;
+        color: #9aa1b4;
+        margin-top: 2px;
+    }
+    ul.camp-members {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+    .camp-member {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 6px;
+        padding: 5px 6px;
+        font-size: 12px;
+        text-align: center;
+        word-break: break-all;
+    }
+    .camp-member.me { border-color: #7c9cff; color: #cdd7ff; }
+    .camp-member.out {
+        border-color: #3a2a2a;
+        color: #7a6a6a;
+        text-decoration: line-through;
+    }
+    #revealBanner {
+        text-align: center;
+        font-size: 13px;
+        color: #d9c4ff;
+        min-height: 18px;
+        margin: 0;
+    }
+    #finishedPanel { text-align: center; }
+    #winnerLabel {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 8px 0 18px;
+    }
+    [hidden] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+    }
+</style>
+</head>
+<body>
+<a class="back-link" href="/game-lab/index.html">← Game Lab으로</a>
+<header>
+    <h1>가위바위보 다수결 서바이벌</h1>
+    <p>진영은 처음 딱 한 번만 고릅니다. 경기가 시작되면 이후 모든 라운드는 서버가 자동으로 진행해요.<br>
+    가장 적은 인원인 진영이 매 라운드 탈락하고, 마지막엔 한 진영 안에서 한 명씩 걸러집니다.</p>
+</header>
+
+<main>
+    <section id="lobbyPanel" class="panel">
+        <label for="nameInput">닉네임</label>
+        <input type="text" id="nameInput" maxlength="20" placeholder="이름을 입력하세요">
+
+        <div class="btn-row">
+            <button id="createBtn">방 만들기</button>
+        </div>
+        <div style="height:14px;"></div>
+        <label for="codeInput">방 코드로 참여</label>
+        <input type="text" id="codeInput" maxlength="4" placeholder="예: A2C9">
+        <div class="btn-row">
+            <button id="joinBtn" class="btn-secondary">참여하기</button>
+        </div>
+        <p id="lobbyError" class="error-text"></p>
+    </section>
+
+    <section id="roomPanel" class="panel" hidden>
+        <div class="room-code-row">
+            <span>방 코드: <strong id="protoRoomCode">----</strong></span>
+            <button id="leaveBtn" class="btn-secondary">나가기</button>
+        </div>
+        <ul id="protoPlayerList" class="player-list"></ul>
+
+        <div id="pickPanel">
+            <p class="section-label">당신의 진영을 선택하세요 (한 번만 선택합니다 — 시작 전까지 다른 사람에게 보이지 않아요)</p>
+            <div class="choice-grid">
+                <button class="choice-btn" data-choice="scissors"><span>✌️</span>가위</button>
+                <button class="choice-btn" data-choice="rock"><span>✊</span>바위</button>
+                <button class="choice-btn" data-choice="paper"><span>🖐️</span>보</button>
+            </div>
+            <p id="pickStatus"></p>
+            <p id="pickCountLabel"></p>
+
+            <div id="hostStartRow">
+                <button id="startBtn" hidden>게임 시작</button>
+                <p id="startHint"></p>
+            </div>
+            <div id="soloTestRow">
+                <button id="soloTestBtn" class="btn-secondary" style="margin-top:10px;" hidden>🤖 혼자 테스트</button>
+                <p id="soloTestHint"></p>
+            </div>
+        </div>
+
+        <div id="campPanel" hidden>
+            <p id="roundLabel"></p>
+            <div id="myStatusBar" class="my-status-bar"></div>
+
+            <div class="camp-board">
+                <div class="camp-col">
+                    <p class="camp-head">✌️ 가위<span class="camp-count" id="countScissors"></span></p>
+                    <ul class="camp-members" id="membersScissors"></ul>
+                </div>
+                <div class="camp-col">
+                    <p class="camp-head">✊ 바위<span class="camp-count" id="countRock"></span></p>
+                    <ul class="camp-members" id="membersRock"></ul>
+                </div>
+                <div class="camp-col">
+                    <p class="camp-head">🖐️ 보<span class="camp-count" id="countPaper"></span></p>
+                    <ul class="camp-members" id="membersPaper"></ul>
+                </div>
+            </div>
+
+            <p id="revealBanner"></p>
+        </div>
+
+        <div id="finishedPanel" class="panel" hidden style="margin:0; padding:0; border:none; background:none;">
+            <p id="winnerLabel"></p>
+            <button id="restartBtn" hidden>다시 하기</button>
+            <p id="restartHint"></p>
+        </div>
+    </section>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var SLUG = 'rps-majority';
+    var MIN_PLAYERS = 3;
+    var CHOICES = ['scissors', 'rock', 'paper'];
+    var CHOICE_EMOJI = { scissors: '✌️', rock: '✊', paper: '🖐️' };
+    var CHOICE_LABEL = { scissors: '가위', rock: '바위', paper: '보' };
+    var CHOICE_ID = { scissors: 'Scissors', rock: 'Rock', paper: 'Paper' };
+
+    var lobbyPanel = document.getElementById('lobbyPanel');
+    var roomPanel = document.getElementById('roomPanel');
+    var nameInput = document.getElementById('nameInput');
+    var codeInput = document.getElementById('codeInput');
+    var createBtn = document.getElementById('createBtn');
+    var joinBtn = document.getElementById('joinBtn');
+    var lobbyError = document.getElementById('lobbyError');
+    var leaveBtn = document.getElementById('leaveBtn');
+
+    var pickPanel = document.getElementById('pickPanel');
+    var choiceButtons = document.querySelectorAll('.choice-btn');
+    var pickStatus = document.getElementById('pickStatus');
+    var pickCountLabel = document.getElementById('pickCountLabel');
+    var startBtn = document.getElementById('startBtn');
+    var startHint = document.getElementById('startHint');
+    var soloTestBtn = document.getElementById('soloTestBtn');
+    var soloTestHint = document.getElementById('soloTestHint');
+
+    var campPanel = document.getElementById('campPanel');
+    var roundLabel = document.getElementById('roundLabel');
+    var myStatusBar = document.getElementById('myStatusBar');
+    var revealBanner = document.getElementById('revealBanner');
+
+    var finishedPanel = document.getElementById('finishedPanel');
+    var winnerLabel = document.getElementById('winnerLabel');
+    var restartBtn = document.getElementById('restartBtn');
+    var restartHint = document.getElementById('restartHint');
+
+    var currentPhase = 'lobby';
+    var lastPlayerCount = 0;
+    var myPickLocked = false;
+    var botsSpawned = false;
+
+    function showLobbyError(msg) {
+        lobbyError.textContent = msg || '';
+    }
+
+    createBtn.addEventListener('click', function () {
+        var name = nameInput.value.trim();
+        if (!name) { showLobbyError('이름을 입력해주세요.'); return; }
+        showLobbyError('');
+        ProtoClient.init({ onRoomState: onRoomState, onError: onProtoError, onDisconnect: onProtoDisconnect });
+        ProtoClient.createRoom(SLUG, name, function (res) {
+            if (!res || !res.success) { showLobbyError((res && res.error) || '방 생성에 실패했습니다.'); return; }
+            enterRoomView();
+        });
+    });
+
+    joinBtn.addEventListener('click', function () {
+        var name = nameInput.value.trim();
+        var code = codeInput.value.trim();
+        if (!name) { showLobbyError('이름을 입력해주세요.'); return; }
+        if (!code) { showLobbyError('방 코드를 입력해주세요.'); return; }
+        showLobbyError('');
+        ProtoClient.init({ onRoomState: onRoomState, onError: onProtoError, onDisconnect: onProtoDisconnect });
+        ProtoClient.joinRoom(code, name, function (res) {
+            if (!res || !res.success) { showLobbyError((res && res.error) || '참여에 실패했습니다.'); return; }
+            enterRoomView();
+        });
+    });
+
+    function enterRoomView() {
+        lobbyPanel.hidden = true;
+        roomPanel.hidden = false;
+        var socket = ProtoClient.getSocket();
+        socket.on('proto:rps-majority:state', onGameState);
+        socket.on('proto:rps-majority:reveal', onGameReveal);
+    }
+
+    function onRoomState(room) {
+        lastPlayerCount = room.players.length;
+        updateStartAvailability();
+    }
+
+    function updateStartAvailability() {
+        updateSoloTestAvailability();
+        if (currentPhase !== 'lobby') {
+            startBtn.hidden = true;
+            startHint.textContent = '';
+            return;
+        }
+        var isHost = ProtoClient.getIsHost();
+        if (!isHost) {
+            startBtn.hidden = true;
+            startHint.textContent = '호스트가 게임을 시작하기를 기다리는 중...';
+            return;
+        }
+        startBtn.hidden = false;
+        var count = lastPlayerCount;
+        if (count < 3) startHint.textContent = '최소 3명이 필요합니다. (현재 ' + count + '명)';
+        else if (count > 16) startHint.textContent = '최대 16명까지 가능합니다. (현재 ' + count + '명)';
+        else startHint.textContent = count + '명 참가 중 — 시작할 수 있습니다.';
+        startBtn.disabled = count < 3 || count > 16;
+    }
+
+    function updateSoloTestAvailability() {
+        if (currentPhase !== 'lobby' || !ProtoClient.getIsHost() || botsSpawned || lastPlayerCount >= MIN_PLAYERS) {
+            soloTestBtn.hidden = true;
+            return;
+        }
+        soloTestBtn.hidden = false;
+        soloTestBtn.disabled = false;
+    }
+
+    soloTestBtn.addEventListener('click', function () {
+        var neededBots = Math.max(0, MIN_PLAYERS - lastPlayerCount);
+        soloTestBtn.disabled = true;
+        soloTestHint.textContent = '봇을 참가시키는 중...';
+        ProtoClient.spawnBots(neededBots).then(function (bots) {
+            botsSpawned = true;
+            soloTestHint.textContent = bots.length + '명의 봇이 참가했습니다.';
+            bots.forEach(function (bot) {
+                var choice = CHOICES[Math.floor(Math.random() * CHOICES.length)];
+                bot.socket.emit('proto:rps-majority:pick', { choice: choice });
+            });
+            updateSoloTestAvailability();
+        }).catch(function (err) {
+            soloTestBtn.disabled = false;
+            soloTestHint.textContent = (err && err.message) || '봇 추가에 실패했습니다.';
+        });
+    });
+
+    startBtn.addEventListener('click', function () {
+        startBtn.disabled = true;
+        ProtoClient.getSocket().emit('proto:rps-majority:start', {}, function (res) {
+            if (!res || !res.success) {
+                startHint.textContent = (res && res.error) || '시작할 수 없습니다.';
+                updateStartAvailability();
+            }
+        });
+    });
+
+    restartBtn.addEventListener('click', function () {
+        restartBtn.disabled = true;
+        ProtoClient.getSocket().emit('proto:rps-majority:backToLobby', {}, function (res) {
+            restartBtn.disabled = false;
+            if (!res || !res.success) {
+                restartHint.textContent = (res && res.error) || '되돌릴 수 없습니다.';
+            }
+        });
+    });
+
+    leaveBtn.addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        location.reload();
+    });
+
+    choiceButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (myPickLocked || currentPhase !== 'lobby') return;
+            var choice = btn.getAttribute('data-choice');
+            myPickLocked = true;
+            setChoiceButtonsDisabled(true);
+            highlightChoice(choice);
+            pickStatus.textContent = '선택 완료 — 경기 시작을 기다리는 중...';
+            ProtoClient.getSocket().emit('proto:rps-majority:pick', { choice: choice }, function (res) {
+                if (!res || !res.success) {
+                    myPickLocked = false;
+                    setChoiceButtonsDisabled(false);
+                    highlightChoice(null);
+                    pickStatus.textContent = (res && res.error) || '선택 실패, 다시 시도해주세요.';
+                }
+            });
+        });
+    });
+
+    function setChoiceButtonsDisabled(disabled) {
+        choiceButtons.forEach(function (btn) { btn.disabled = disabled; });
+    }
+
+    function highlightChoice(choice) {
+        choiceButtons.forEach(function (btn) {
+            btn.classList.toggle('selected', btn.getAttribute('data-choice') === choice);
+        });
+    }
+
+    function onGameState(state) {
+        currentPhase = state.phase;
+
+        if (state.phase === 'lobby') {
+            pickPanel.hidden = false;
+            campPanel.hidden = true;
+            finishedPanel.hidden = true;
+            pickCountLabel.textContent = state.pickedCount + ' / ' + state.totalCount + '명 선택 완료';
+            updateStartAvailability();
+            return;
+        }
+
+        pickPanel.hidden = true;
+
+        if (state.phase === 'active') {
+            campPanel.hidden = false;
+            finishedPanel.hidden = true;
+            roundLabel.textContent = state.round > 0 ? ('라운드 ' + state.round) : '진영이 공개되었습니다 — 곧 시작합니다';
+            if (state.round === 0) revealBanner.textContent = '잠시 후 첫 라운드가 자동으로 시작됩니다...';
+            renderCampBoard(state.players);
+            updateMyStatusBar(state.players);
+        } else if (state.phase === 'finished') {
+            campPanel.hidden = true;
+            finishedPanel.hidden = false;
+            var iWon = state.winnerName && state.winnerName === ProtoClient.getUserName();
+            winnerLabel.textContent = state.winnerName
+                ? (iWon ? '🏆 당신이 승리했습니다!' : '🏆 승자: ' + state.winnerName)
+                : '게임이 종료되었습니다.';
+            var isHost = ProtoClient.getIsHost();
+            restartBtn.hidden = !isHost;
+            restartBtn.disabled = false;
+            restartHint.textContent = isHost ? '' : '호스트가 다시 시작하기를 기다리는 중...';
+        }
+
+        updateStartAvailability();
+    }
+
+    function renderCampBoard(players) {
+        var groups = { scissors: [], rock: [], paper: [] };
+        players.forEach(function (p) { groups[p.choice].push(p); });
+
+        CHOICES.forEach(function (choice) {
+            var listEl = document.getElementById('members' + CHOICE_ID[choice]);
+            var countEl = document.getElementById('count' + CHOICE_ID[choice]);
+            var members = groups[choice];
+            var aliveCount = members.filter(function (p) { return !p.eliminated; }).length;
+            countEl.textContent = aliveCount + '명 생존';
+
+            listEl.innerHTML = '';
+            members.forEach(function (p) {
+                var li = document.createElement('li');
+                li.className = 'camp-member'
+                    + (p.eliminated ? ' out' : '')
+                    + (p.name === ProtoClient.getUserName() ? ' me' : '');
+                li.textContent = p.name + (p.eliminated ? ' (탈락)' : '');
+                listEl.appendChild(li);
+            });
+        });
+    }
+
+    function updateMyStatusBar(players) {
+        var mine = players.filter(function (p) { return p.name === ProtoClient.getUserName(); })[0];
+        if (!mine) {
+            myStatusBar.textContent = '관전 중';
+            myStatusBar.className = 'my-status-bar';
+            return;
+        }
+        myStatusBar.textContent = '나: ' + CHOICE_EMOJI[mine.choice] + ' ' + CHOICE_LABEL[mine.choice]
+            + ' 진영 · ' + (mine.eliminated ? '탈락' : '생존 중');
+        myStatusBar.className = 'my-status-bar ' + (mine.eliminated ? 'out' : 'alive');
+    }
+
+    function onGameReveal(data) {
+        var text;
+        if (data.stage === 'sudden-death') {
+            text = '마지막 진영(' + CHOICE_LABEL[data.finalCamp] + ') 내부 탈락: ' + data.eliminated.join(', ');
+        } else if (data.tieBreak) {
+            text = '동률이 계속되어 무작위로 ' + CHOICE_LABEL[data.campChoice] + ' 진영이 탈락했습니다: ' + data.eliminated.join(', ');
+        } else if (data.tie) {
+            text = '동률! 이번 라운드는 탈락자가 없습니다. 같은 라운드를 다시 진행합니다.';
+        } else {
+            text = data.round + '라운드: ' + CHOICE_LABEL[data.campChoice] + ' 진영 탈락 — ' + data.eliminated.join(', ');
+        }
+        revealBanner.textContent = text;
+    }
+
+    function onProtoError(message) {
+        showLobbyError(message);
+    }
+
+    function onProtoDisconnect() {
+        showLobbyError('서버와의 연결이 끊어졌습니다.');
+    }
+})();
+</script>
+</body>
+</html>

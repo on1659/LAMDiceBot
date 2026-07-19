@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>눈치게임 — Game Lab</title>
+<meta name="description" content="서버가 자동으로 숫자를 부릅니다. 같은 순간 겹치면 전원 탈락 — 지켜만 보는 눈치게임.">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 48px;
+        display: flex;
+        justify-content: center;
+    }
+    .wrap { width: 100%; max-width: 480px; }
+    a.back {
+        display: inline-block;
+        color: #8fa1ff;
+        text-decoration: none;
+        font-size: 13px;
+        margin-bottom: 16px;
+    }
+    h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .subtitle { color: #9aa1b4; font-size: 13px; margin: 0 0 20px; line-height: 1.5; }
+
+    .screen { display: none; flex-direction: column; gap: 14px; }
+    .screen.active { display: flex; }
+
+    .card {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+    }
+    label { font-size: 13px; color: #b6bccb; display: block; margin-bottom: 6px; }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #313749;
+        background: #10131b;
+        color: #eef0f5;
+        font-size: 16px;
+        margin-bottom: 14px;
+    }
+    input[type="text"]:focus { outline: 2px solid #7c9cff; }
+
+    .mode-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+    .mode-toggle button {
+        flex: 1;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #313749;
+        background: #10131b;
+        color: #9aa1b4;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    .mode-toggle button.active { background: #2a3352; color: #eef0f5; border-color: #7c9cff; }
+
+    button.primary {
+        width: 100%;
+        padding: 14px;
+        border-radius: 12px;
+        border: none;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        color: #10131b;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary {
+        width: 100%;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid #313749;
+        background: transparent;
+        color: #b6bccb;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    button.secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error-text { color: #ff8a8a; font-size: 13px; min-height: 18px; margin: -6px 0 8px; }
+
+    .room-code-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .room-code { font-size: 26px; font-weight: 700; letter-spacing: 4px; font-family: 'Consolas', 'Courier New', monospace; }
+    .room-hint { font-size: 12px; color: #6b7284; }
+
+    #protoPlayerList { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+    #protoPlayerList li {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #1c2029;
+        border: 1px solid #262b38;
+        font-size: 13px;
+    }
+    #protoPlayerList li.me { border-color: #7c9cff; }
+    #protoPlayerList li.host { color: #ffd28a; }
+
+    .lobby-hint { font-size: 13px; color: #9aa1b4; margin-bottom: 14px; line-height: 1.5; }
+
+    /* ── 플레이 화면 (완전 자동 진행 — 탭할 것이 없다) ── */
+    .counter-box { text-align: center; margin: 8px 0 16px; }
+    .counter-label { font-size: 13px; color: #9aa1b4; margin-bottom: 4px; }
+    .counter-number { font-size: 64px; font-weight: 800; line-height: 1; }
+    @media (prefers-reduced-motion: no-preference) {
+        .counter-number.tense { animation: pulse 1.1s ease-in-out infinite; }
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); text-shadow: 0 0 0 rgba(124,156,255,0); }
+        50% { transform: scale(1.04); text-shadow: 0 0 22px rgba(124,156,255,0.6); }
+    }
+
+    .my-status {
+        text-align: center;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: #16241d;
+        border: 1px solid #2e7d5b;
+        color: #8dffc2;
+        margin: 0 auto 18px;
+        width: fit-content;
+    }
+    .my-status.eliminated {
+        background: #1a1518;
+        border-color: #3a2626;
+        color: #ff9d9d;
+    }
+
+    .board { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; justify-content: center; }
+    .chip {
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        background: #1c2029;
+        border: 1px solid #2e7d5b;
+        color: #8dffc2;
+    }
+    .chip.me { border-width: 2px; border-color: #7c9cff; }
+    .chip.out {
+        background: #1a1518;
+        border-color: #3a2626;
+        color: #6b5a5a;
+        text-decoration: line-through;
+    }
+
+    .finished-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .finished-sub { text-align: center; color: #9aa1b4; font-size: 13px; margin-bottom: 18px; }
+
+    #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        background: #232838;
+        border: 1px solid #3a4362;
+        color: #eef0f5;
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        max-width: 90vw;
+        text-align: center;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        #toast { transition: none; }
+    }
+    #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <a class="back" href="/game-lab/index.html">← Game Lab으로</a>
+    <h1>눈치게임</h1>
+    <p class="subtitle">시작하면 서버가 자동으로 숫자를 부릅니다. 같은 순간 두 명 이상이 겹치면 그 사람들은 전부 탈락. 당신은 그저 끝까지 살아남기를 지켜보기만 하면 됩니다!</p>
+
+    <!-- 입장 화면 -->
+    <div class="screen active" id="screenEntry">
+        <div class="card">
+            <label for="nameInput">닉네임</label>
+            <input type="text" id="nameInput" maxlength="20" placeholder="닉네임을 입력하세요">
+
+            <div class="mode-toggle">
+                <button type="button" id="modeCreateBtn" class="active">방 만들기</button>
+                <button type="button" id="modeJoinBtn">방 참가하기</button>
+            </div>
+
+            <div id="joinCodeRow" style="display:none;">
+                <label for="codeInput">방 코드</label>
+                <input type="text" id="codeInput" maxlength="4" placeholder="예: A7K3" style="text-transform:uppercase;">
+            </div>
+
+            <div class="error-text" id="entryError"></div>
+            <button class="primary" id="entrySubmitBtn">방 만들기</button>
+        </div>
+    </div>
+
+    <!-- 대기실 화면 -->
+    <div class="screen" id="screenLobby">
+        <div class="card">
+            <div class="room-code-row">
+                <div>
+                    <div class="room-hint">방 코드</div>
+                    <div class="room-code" id="protoRoomCode">----</div>
+                </div>
+                <div class="room-hint" id="lobbyCountHint"></div>
+            </div>
+            <ul id="protoPlayerList"></ul>
+            <div class="lobby-hint" id="lobbyHint">3명 이상 모이면 방장이 시작할 수 있어요 (최대 10명). 시작 후에는 탭할 것 없이 자동으로 진행됩니다.</div>
+            <button class="primary" id="startBtn" style="display:none;">게임 시작</button>
+            <button class="secondary" id="soloTestBtn" style="display:none; margin-top:10px;">🤖 혼자 테스트</button>
+        </div>
+    </div>
+
+    <!-- 플레이 화면 (자동 진행 — 조작 없음) -->
+    <div class="screen" id="screenPlay">
+        <div class="card">
+            <div class="counter-box">
+                <div class="counter-label">지금 이 순간의 숫자</div>
+                <div class="counter-number tense" id="counterNumber">1</div>
+            </div>
+            <div class="my-status" id="myStatus">생존 중</div>
+            <div class="board" id="board"></div>
+        </div>
+    </div>
+
+    <!-- 종료 화면 -->
+    <div class="screen" id="screenFinished">
+        <div class="card">
+            <div class="finished-title" id="finishedTitle">게임 종료</div>
+            <div class="finished-sub" id="finishedSub"></div>
+            <button class="primary" id="replayBtn" style="display:none;">다시 시작</button>
+            <button class="secondary" id="leaveBtn" style="margin-top:10px;">나가기</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var SLUG = 'never-say-number';
+    var EVT_START = 'proto:' + SLUG + ':start';
+    var EVT_STATE = 'proto:' + SLUG + ':state';
+    var MIN_PLAYERS = 3; // socket/proto-games/never-say-number.js의 MIN_PLAYERS와 동일
+
+    var myName = '';
+    var mode = 'create';
+    var toastTimer = null;
+    var stateWired = false;
+    var latestPlayerCount = 0;
+    var botsSpawned = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(function (el) { el.classList.remove('active'); });
+        $(id).classList.add('active');
+    }
+
+    function showToast(msg) {
+        var el = $('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+    }
+
+    // ── 입장 화면 ──
+    $('modeCreateBtn').addEventListener('click', function () {
+        mode = 'create';
+        $('modeCreateBtn').classList.add('active');
+        $('modeJoinBtn').classList.remove('active');
+        $('joinCodeRow').style.display = 'none';
+        $('entrySubmitBtn').textContent = '방 만들기';
+        $('entryError').textContent = '';
+    });
+    $('modeJoinBtn').addEventListener('click', function () {
+        mode = 'join';
+        $('modeJoinBtn').classList.add('active');
+        $('modeCreateBtn').classList.remove('active');
+        $('joinCodeRow').style.display = 'block';
+        $('entrySubmitBtn').textContent = '방 참가하기';
+        $('entryError').textContent = '';
+    });
+
+    $('entrySubmitBtn').addEventListener('click', function () {
+        var name = $('nameInput').value.trim();
+        if (!name) {
+            $('entryError').textContent = '닉네임을 입력해주세요.';
+            return;
+        }
+        myName = name;
+        $('entryError').textContent = '';
+
+        ProtoClient.init({
+            onRoomState: onRoomState,
+            onError: function (message) { showToast(message || '요청이 너무 많습니다.'); },
+            onDisconnect: function () { showToast('연결이 끊어졌습니다.'); }
+        });
+
+        if (mode === 'create') {
+            ProtoClient.createRoom(SLUG, name, function (res) {
+                if (!res || !res.success) {
+                    $('entryError').textContent = (res && res.error) || '방 생성에 실패했습니다.';
+                    return;
+                }
+                enterLobby();
+            });
+        } else {
+            var code = $('codeInput').value.trim().toUpperCase();
+            if (!code) {
+                $('entryError').textContent = '방 코드를 입력해주세요.';
+                return;
+            }
+            ProtoClient.joinRoom(code, name, function (res) {
+                if (!res || !res.success) {
+                    $('entryError').textContent = (res && res.error) || '참가에 실패했습니다.';
+                    return;
+                }
+                enterLobby();
+            });
+        }
+    });
+
+    function enterLobby() {
+        showScreen('screenLobby');
+        wireGameSocket();
+        refreshHostUI();
+    }
+
+    function wireGameSocket() {
+        if (stateWired) return;
+        stateWired = true;
+        var socket = ProtoClient.getSocket();
+        socket.on(EVT_STATE, onGameState);
+    }
+
+    function refreshHostUI() {
+        var isHost = ProtoClient.getIsHost();
+        $('startBtn').style.display = isHost ? 'block' : 'none';
+        $('replayBtn').style.display = isHost ? 'block' : 'none';
+        refreshSoloTestBtn();
+    }
+
+    // 호스트 전용 "혼자 테스트" 버튼: 대기실 화면에서, 인원이 최소치 미만이고,
+    // 아직 봇을 소환하지 않았을 때만 노출한다 — 중복 소환 방지.
+    function refreshSoloTestBtn() {
+        var isHost = ProtoClient.getIsHost();
+        var inLobby = $('screenLobby').classList.contains('active');
+        var show = isHost && inLobby && !botsSpawned && latestPlayerCount < MIN_PLAYERS;
+        $('soloTestBtn').style.display = show ? 'block' : 'none';
+    }
+
+    $('soloTestBtn').addEventListener('click', function () {
+        var needed = Math.max(0, MIN_PLAYERS - latestPlayerCount);
+        if (needed <= 0) return;
+        $('soloTestBtn').disabled = true;
+        ProtoClient.spawnBots(needed).then(function () {
+            botsSpawned = true;
+            refreshSoloTestBtn();
+        }).catch(function (err) {
+            $('soloTestBtn').disabled = false;
+            showToast((err && err.message) || '봇 추가에 실패했습니다.');
+        });
+    });
+
+    function onRoomState(room) {
+        var count = room.players.length;
+        latestPlayerCount = count;
+        $('lobbyCountHint').textContent = count + '명 참가 중';
+        if (count < 3) {
+            $('lobbyHint').textContent = '최소 3명이 필요해요 (앞으로 ' + (3 - count) + '명 더).';
+        } else if (count > 10) {
+            $('lobbyHint').textContent = '인원이 너무 많아요 (최대 10명, 방장이 시작할 수 없어요).';
+        } else {
+            $('lobbyHint').textContent = '3명 이상 모였어요. 방장이 시작할 수 있어요 (최대 10명). 시작 후에는 자동으로 진행됩니다.';
+        }
+        refreshHostUI();
+    }
+
+    $('startBtn').addEventListener('click', function () {
+        ProtoClient.getSocket().emit(EVT_START, {}, function (res) {
+            if (!res || !res.success) showToast((res && res.error) || '시작할 수 없습니다.');
+        });
+    });
+    $('replayBtn').addEventListener('click', function () {
+        ProtoClient.getSocket().emit(EVT_START, {}, function (res) {
+            if (!res || !res.success) showToast((res && res.error) || '시작할 수 없습니다.');
+        });
+    });
+
+    $('leaveBtn').addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        window.location.href = '/game-lab/index.html';
+    });
+
+    function renderBoard(state) {
+        var board = $('board');
+        board.innerHTML = '';
+        state.alivePlayers.forEach(function (name) {
+            var chip = document.createElement('span');
+            chip.className = 'chip' + (name === myName ? ' me' : '');
+            chip.textContent = name;
+            board.appendChild(chip);
+        });
+        state.eliminatedPlayers.forEach(function (name) {
+            var chip = document.createElement('span');
+            chip.className = 'chip out';
+            chip.textContent = name;
+            board.appendChild(chip);
+        });
+    }
+
+    // 내 상태(생존/탈락)는 자동 진행 내내 계속 눈에 보여야 한다 — 매 상태 갱신마다 갱신.
+    function updateMyStatus(state) {
+        var el = $('myStatus');
+        var amAlive = state.alivePlayers.indexOf(myName) !== -1;
+        el.textContent = amAlive ? '생존 중' : '탈락했습니다';
+        el.classList.toggle('eliminated', !amAlive);
+    }
+
+    function onGameState(state) {
+        $('counterNumber').textContent = state.counter;
+        renderBoard(state);
+        updateMyStatus(state);
+
+        if (state.phase === 'playing') {
+            showScreen('screenPlay');
+        } else if (state.phase === 'finished') {
+            showScreen('screenFinished');
+            refreshHostUI();
+            if (state.winner) {
+                $('finishedTitle').textContent = state.winner === myName ? '승리했습니다!' : state.winner + '님 승리';
+                $('finishedSub').textContent = '끝까지 살아남았어요.';
+            } else {
+                $('finishedTitle').textContent = '무승부';
+                $('finishedSub').textContent = '마지막 순간 모두 함께 탈락했어요.';
+            }
+        }
+
+        if (state.lastEvent) handleLastEvent(state.lastEvent);
+    }
+
+    function handleLastEvent(evt) {
+        if (evt.type === 'start') {
+            showToast('게임 시작! 자동으로 숫자가 올라갑니다.');
+        } else if (evt.type === 'claim') {
+            showToast((evt.name === myName ? '나' : evt.name) + '님이 ' + evt.number + '을 무사히 통과!');
+        } else if (evt.type === 'collision') {
+            showToast(evt.names.join(', ') + ' 동시에 겹쳐서 탈락!');
+        } else if (evt.type === 'tension') {
+            showToast('분위기가 점점 팽팽해집니다...');
+        } else if (evt.type === 'left') {
+            showToast(evt.names.join(', ') + ' 님이 나갔습니다.');
+        }
+    }
+})();
+</script>
+</body>
+</html>

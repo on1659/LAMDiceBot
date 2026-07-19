@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>의자 뺏기 — Game Lab</title>
+<meta name="description" content="방에 들어가기만 하면 나머지는 전부 자동으로 진행되는 실시간 멀티플레이어 의자 뺏기 서바이벌">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 60px;
+    }
+    .page-wrap {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .back-link {
+        display: inline-block;
+        margin-bottom: 16px;
+        color: #8fa1ff;
+        font-size: 13px;
+        text-decoration: none;
+    }
+    .back-link:hover, .back-link:focus-visible { text-decoration: underline; }
+    .page-header { text-align: center; margin-bottom: 20px; }
+    .page-header h1 {
+        font-size: 24px;
+        margin: 0 0 6px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .page-header p { margin: 0; color: #9aa1b4; font-size: 13px; line-height: 1.5; }
+
+    .panel {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 13px; color: #b6bccb; }
+    .field input {
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #2f3546;
+        background: #0f1117;
+        color: #eef0f5;
+        font-size: 15px;
+    }
+    .field input:focus { outline: 2px solid #7c9cff; outline-offset: 1px; }
+
+    .entry-actions { display: flex; flex-direction: column; gap: 10px; }
+    .join-row { display: flex; gap: 8px; }
+    .join-row input { flex: 1; min-width: 0; }
+
+    .btn {
+        padding: 11px 16px;
+        border-radius: 9px;
+        border: 1px solid #2f3546;
+        background: #1c2029;
+        color: #eef0f5;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .btn:hover, .btn:focus-visible { border-color: #4d5875; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.primary {
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        border: none;
+        color: #12131a;
+    }
+    .btn.ghost { background: transparent; }
+    .btn.small { padding: 7px 12px; font-size: 12px; }
+
+    .error-text { color: #ff8a8a; font-size: 13px; min-height: 18px; margin: 8px 0 0; }
+
+    .room-info { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .room-info strong { font-family: 'Consolas', 'Courier New', monospace; font-size: 18px; letter-spacing: 2px; color: #b98cff; }
+
+    .player-list { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .player-list li {
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #1c2029;
+        border: 1px solid #2f3546;
+        font-size: 12px;
+    }
+    .player-list li.host { border-color: #d8b45c; }
+    .player-list li.me { border-color: #7c9cff; }
+
+    .host-controls { margin-bottom: 12px; }
+    .host-controls .btn { width: 100%; }
+    .host-controls .btn + .btn { margin-top: 8px; }
+
+    .status-text {
+        text-align: center;
+        font-size: 15px;
+        font-weight: 600;
+        min-height: 22px;
+        margin: 0 0 8px;
+        color: #dfe3ee;
+    }
+    .round-text {
+        text-align: center;
+        font-size: 12px;
+        color: #7d84a0;
+        margin: 0 0 16px;
+    }
+
+    /* 의자 열 — 순수 연출용, 클릭 불가 */
+    .chair-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        min-height: 40px;
+    }
+    .chair-row .chair {
+        font-size: 26px;
+        line-height: 1;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .chair-row.scramble .chair {
+            animation: chairShake 0.35s ease-in-out infinite;
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .chair-row.scramble .chair {
+            filter: drop-shadow(0 0 4px #ffd76a);
+        }
+    }
+    @keyframes chairShake {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-3px) rotate(-4deg); }
+    }
+
+    /* 참가자 토큰 — 매 라운드 본인 상태가 계속 보이는 자리 */
+    .token-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .token {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 6px;
+        border-radius: 10px;
+        border: 2px solid #2f3546;
+        background: #1c2029;
+        transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+    .token .token-face { font-size: 22px; }
+    .token .token-name {
+        font-size: 11px;
+        color: #c6cbdb;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .token.me { border-color: #7c9cff; }
+    .token.me .token-name { color: #a9bcff; font-weight: 700; }
+    .token.eliminated {
+        opacity: 0.45;
+        border-color: #4a2b2b;
+    }
+    .token.eliminated .token-face { filter: grayscale(1); }
+    @media (prefers-reduced-motion: no-preference) {
+        .token-grid.scramble .token:not(.eliminated) {
+            animation: tokenRush 0.3s ease-in-out infinite;
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .token-grid.scramble .token:not(.eliminated) {
+            border-color: #ffd76a;
+        }
+    }
+    @keyframes tokenRush {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+    }
+
+    .round-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .round-log li {
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        background: #1c2029;
+        border: 1px solid #2f3546;
+        color: #ff9d9d;
+    }
+
+    footer { max-width: 480px; margin: 24px auto 0; text-align: center; font-size: 12px; color: #565c6e; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+    <a class="back-link" href="/game-lab/index.html">← Game Lab</a>
+    <header class="page-header">
+        <h1>의자 뺏기</h1>
+        <p>방에 들어가기만 하면 끝! 방장이 시작을 누르면 이후는 전부 자동으로 진행되는 서바이벌입니다.</p>
+    </header>
+
+    <section id="screenEntry" class="panel">
+        <label class="field">
+            <span>이름</span>
+            <input id="nameInput" type="text" maxlength="20" placeholder="닉네임 (최대 20자)">
+        </label>
+        <div class="entry-actions">
+            <button id="createBtn" type="button" class="btn primary">방 만들기</button>
+            <div class="join-row">
+                <input id="joinCodeInput" type="text" maxlength="4" placeholder="방 코드 4자리">
+                <button id="joinBtn" type="button" class="btn">참여하기</button>
+            </div>
+        </div>
+        <p id="entryError" class="error-text" role="alert"></p>
+    </section>
+
+    <section id="screenGame" class="panel" hidden>
+        <div class="room-info">
+            <div>방 코드 <strong id="protoRoomCode">----</strong></div>
+            <button id="leaveBtn" type="button" class="btn ghost small">나가기</button>
+        </div>
+        <ul id="protoPlayerList" class="player-list"></ul>
+
+        <div id="hostControls" class="host-controls">
+            <button id="actionBtn" type="button" class="btn primary">게임 시작</button>
+            <button id="soloTestBtn" type="button" class="btn">🤖 혼자 테스트</button>
+        </div>
+
+        <p id="statusMessage" class="status-text">플레이어를 기다리는 중...</p>
+        <p id="roundText" class="round-text"></p>
+
+        <div id="chairRow" class="chair-row" aria-hidden="true"></div>
+
+        <div id="tokenGrid" class="token-grid"></div>
+
+        <ul id="roundLog" class="round-log"></ul>
+    </section>
+</div>
+
+<footer>Game Lab 프로토타입 — 기존 로비/랭킹/상점과 무관한 독립 실험 공간입니다.</footer>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var GAME_SLUG = 'chair-grab';
+    var MIN_PLAYERS = 3; // socket/proto-games/chair-grab.js MIN_PLAYERS와 동일 — 혼자 테스트 시 필요한 봇 수 계산용
+    var currentPhase = 'lobby'; // lobby | music | scramble | reveal | ended
+    var rosterOrder = [];       // 이번 매치 참가자 이름 순서 (라운드 1 시작 시 고정)
+    var statusMap = {};         // name -> 'alive' | 'eliminated'
+    var lastPlayerCount = 0;    // 가장 최근 roomState의 플레이어 수 (혼자 테스트 필요 봇 수 계산용)
+    var botsSpawned = false;    // 혼자 테스트 버튼 중복 클릭 방지
+
+    var els = {
+        screenEntry: document.getElementById('screenEntry'),
+        screenGame: document.getElementById('screenGame'),
+        nameInput: document.getElementById('nameInput'),
+        joinCodeInput: document.getElementById('joinCodeInput'),
+        createBtn: document.getElementById('createBtn'),
+        joinBtn: document.getElementById('joinBtn'),
+        entryError: document.getElementById('entryError'),
+        hostControls: document.getElementById('hostControls'),
+        actionBtn: document.getElementById('actionBtn'),
+        soloTestBtn: document.getElementById('soloTestBtn'),
+        leaveBtn: document.getElementById('leaveBtn'),
+        statusMessage: document.getElementById('statusMessage'),
+        roundText: document.getElementById('roundText'),
+        chairRow: document.getElementById('chairRow'),
+        tokenGrid: document.getElementById('tokenGrid'),
+        roundLog: document.getElementById('roundLog')
+    };
+
+    function showEntryError(msg) { els.entryError.textContent = msg || ''; }
+    function setStatus(text) { els.statusMessage.textContent = text || ''; }
+    function setRoundText(text) { els.roundText.textContent = text || ''; }
+
+    function enterGameScreen() {
+        els.screenEntry.hidden = true;
+        els.screenGame.hidden = false;
+    }
+
+    function updateHostButton(phase) {
+        if (!ProtoClient.getIsHost()) {
+            els.actionBtn.style.display = 'none';
+            els.soloTestBtn.style.display = 'none';
+            return;
+        }
+        if (phase === 'lobby') {
+            els.actionBtn.style.display = 'block';
+            els.actionBtn.textContent = '게임 시작';
+            // 봇을 이미 소환했거나 실제 인원만으로 최소 인원을 채웠으면 숨긴다 (중복 소환 방지).
+            els.soloTestBtn.style.display = (botsSpawned || lastPlayerCount >= MIN_PLAYERS) ? 'none' : 'block';
+        } else if (phase === 'ended') {
+            els.actionBtn.style.display = 'block';
+            els.actionBtn.textContent = '다시 시작';
+            els.soloTestBtn.style.display = 'none';
+        } else {
+            els.actionBtn.style.display = 'none';
+            els.soloTestBtn.style.display = 'none';
+        }
+    }
+
+    function renderChairs(chairCount) {
+        els.chairRow.innerHTML = '';
+        for (var i = 0; i < chairCount; i++) {
+            var span = document.createElement('span');
+            span.className = 'chair';
+            span.textContent = '🪑';
+            els.chairRow.appendChild(span);
+        }
+    }
+
+    function renderTokens() {
+        var myName = ProtoClient.getUserName();
+        els.tokenGrid.innerHTML = '';
+        rosterOrder.forEach(function (name) {
+            var isEliminated = statusMap[name] === 'eliminated';
+            var token = document.createElement('div');
+            token.className = 'token' + (isEliminated ? ' eliminated' : '') + (name === myName ? ' me' : '');
+            var face = document.createElement('div');
+            face.className = 'token-face';
+            face.textContent = isEliminated ? '💤' : '🙂';
+            var label = document.createElement('div');
+            label.className = 'token-name';
+            label.textContent = name + (name === myName ? ' (나)' : '');
+            token.appendChild(face);
+            token.appendChild(label);
+            els.tokenGrid.appendChild(token);
+        });
+    }
+
+    function setScrambling(active) {
+        els.chairRow.classList.toggle('scramble', active);
+        els.tokenGrid.classList.toggle('scramble', active);
+    }
+
+    var socket = ProtoClient.init({
+        onRoomState: function (room) {
+            lastPlayerCount = room.players.length;
+            updateHostButton(currentPhase);
+            if (currentPhase === 'lobby') {
+                setStatus('플레이어 ' + room.players.length + '명 대기 중 (3~16명, 방장이 시작)');
+            }
+        },
+        onError: function (message) { setStatus(message); },
+        onDisconnect: function () { setStatus('서버와 연결이 끊어졌습니다.'); }
+    });
+
+    socket.on('proto:chair-grab:error', function (message) {
+        setStatus(message);
+    });
+
+    socket.on('proto:chair-grab:roundStart', function (data) {
+        // 라운드 1 = 새 매치 시작 (최초 또는 "다시 시작" 이후) — 참가자 명단을 새로 고정한다.
+        if (data.round === 1) {
+            rosterOrder = data.alive.slice();
+            statusMap = {};
+            els.roundLog.innerHTML = '';
+        }
+
+        currentPhase = 'music';
+        setScrambling(false);
+        renderChairs(data.chairCount);
+        renderTokens();
+        setRoundText('라운드 ' + data.round + ' · 의자 ' + data.chairCount + '개');
+
+        var myName = ProtoClient.getUserName();
+        if (statusMap[myName] === 'eliminated') {
+            setStatus('관전 중입니다. 생존자들을 지켜보세요.');
+        } else {
+            setStatus('음악이 흐르는 중... 곧 의자를 향해 달려갑니다!');
+        }
+        updateHostButton(currentPhase);
+    });
+
+    socket.on('proto:chair-grab:scramble', function (data) {
+        currentPhase = 'scramble';
+        setScrambling(true);
+        var myName = ProtoClient.getUserName();
+        if (statusMap[myName] === 'eliminated') {
+            setStatus('생존자들이 의자로 달려가고 있어요!');
+        } else {
+            setStatus('지금이에요! 다들 의자로 달려갑니다!');
+        }
+    });
+
+    socket.on('proto:chair-grab:reveal', function (data) {
+        currentPhase = 'reveal';
+        setScrambling(false);
+
+        var myName = ProtoClient.getUserName();
+        var wasAlreadyOut = statusMap[myName] === 'eliminated';
+
+        data.eliminated.forEach(function (name) {
+            statusMap[name] = 'eliminated';
+            var li = document.createElement('li');
+            li.textContent = '라운드 ' + data.round + ' — ' + name + ' 탈락 (의자를 얻지 못했습니다)';
+            els.roundLog.insertBefore(li, els.roundLog.firstChild);
+        });
+
+        renderTokens();
+
+        if (wasAlreadyOut) {
+            setStatus('관전 중입니다.');
+        } else if (data.eliminated.indexOf(myName) !== -1) {
+            setStatus('탈락했습니다.');
+        } else {
+            setStatus('생존했습니다! 다음 라운드를 준비합니다.');
+        }
+    });
+
+    socket.on('proto:chair-grab:gameOver', function (data) {
+        currentPhase = 'ended';
+        setScrambling(false);
+        setRoundText('게임 종료');
+        var myName = ProtoClient.getUserName();
+        if (data.winner) {
+            statusMap = {};
+            rosterOrder.forEach(function (name) {
+                if (name !== data.winner) statusMap[name] = 'eliminated';
+            });
+            renderTokens();
+            setStatus(data.winner === myName ? '🎉 우승했습니다!' : data.winner + '님이 우승했습니다.');
+        } else {
+            setStatus('생존자가 없습니다. 무승부.');
+        }
+        updateHostButton(currentPhase);
+    });
+
+    els.createBtn.addEventListener('click', function () {
+        var name = els.nameInput.value.trim();
+        if (!name) { showEntryError('이름을 입력해주세요.'); return; }
+        showEntryError('');
+        els.createBtn.disabled = true;
+        ProtoClient.createRoom(GAME_SLUG, name, function (res) {
+            els.createBtn.disabled = false;
+            if (!res || !res.success) { showEntryError((res && res.error) || '방 생성에 실패했습니다.'); return; }
+            enterGameScreen();
+        });
+    });
+
+    els.joinBtn.addEventListener('click', function () {
+        var name = els.nameInput.value.trim();
+        var code = els.joinCodeInput.value.trim().toUpperCase();
+        if (!name) { showEntryError('이름을 입력해주세요.'); return; }
+        if (!code) { showEntryError('방 코드를 입력해주세요.'); return; }
+        showEntryError('');
+        els.joinBtn.disabled = true;
+        ProtoClient.joinRoom(code, name, function (res) {
+            els.joinBtn.disabled = false;
+            if (!res || !res.success) { showEntryError((res && res.error) || '입장에 실패했습니다.'); return; }
+            enterGameScreen();
+        });
+    });
+
+    els.actionBtn.addEventListener('click', function () {
+        var s = ProtoClient.getSocket();
+        if (s) s.emit('proto:chair-grab:start');
+    });
+
+    // 혼자 테스트: 부족한 인원만큼 봇을 소환해 같은 방에 합류시킨다.
+    // chair-grab은 업프론트 입력이 없는 게임이라 봇은 참가만 하면 끝 — 추가로 시킬 동작이 없다.
+    els.soloTestBtn.addEventListener('click', function () {
+        var needed = Math.max(0, MIN_PLAYERS - lastPlayerCount);
+        if (needed <= 0) return;
+        els.soloTestBtn.disabled = true;
+        els.soloTestBtn.textContent = '봇 참가 중...';
+        ProtoClient.spawnBots(needed).then(function () {
+            botsSpawned = true;
+            updateHostButton(currentPhase);
+        }).catch(function (err) {
+            els.soloTestBtn.disabled = false;
+            els.soloTestBtn.textContent = '🤖 혼자 테스트';
+            setStatus((err && err.message) || '봇 추가에 실패했습니다.');
+        });
+    });
+
+    els.leaveBtn.addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        window.location.reload();
+    });
+})();
+</script>
+</body>
+</html>

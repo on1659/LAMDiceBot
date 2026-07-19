@@ -58,7 +58,6 @@ setupRoutes(app);
 
 // WebSocket 핸들러 설정
 setupSocketHandlers(io, rooms);
-require('./socket/proto-hub')(io);
 
 // 서버 시작    
 async function startServer() {

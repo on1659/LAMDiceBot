@@ -139,8 +139,79 @@ async function getPopularVehicles(serverId, topN = 2) {
     return qualified.slice(0, topN).map(s => s.vehicle_id);
 }
 
+/**
+ * 경기 종료 시 시즌별 탈것 통계 저장 (비공개 서버 전용)
+ * 시즌은 upsert 시점의 servers.current_season을 서브셀렉트로 읽어 기록.
+ * DB 미연결 또는 serverId 없음(자유방) → 조용히 skip (파일 fallback 없음)
+ * @param {number} serverId - servers.id (INTEGER)
+ * @param {Array} rankings - [{horseIndex, rank, ...}]
+ * @param {Array} selectedVehicleTypes - horseIndex별 vehicleId 배열
+ * @param {Object} userHorseBets - {playerName: horseIndex}
+ */
+async function recordVehicleSeasonResult(serverId, rankings, selectedVehicleTypes, userHorseBets) {
+    const pool = getPool();
+    if (!pool || !serverId) return;
+
+    // 각 탈것별 선택 횟수 계산
+    const pickCounts = {};
+    if (userHorseBets) {
+        Object.values(userHorseBets).forEach(horseIndex => {
+            const vid = selectedVehicleTypes[horseIndex];
+            if (vid) pickCounts[vid] = (pickCounts[vid] || 0) + 1;
+        });
+    }
+
+    try {
+        for (const r of rankings) {
+            const vid = selectedVehicleTypes[r.horseIndex];
+            if (!vid) continue;
+            const rankCol = r.rank >= 1 && r.rank <= 6 ? `rank_${r.rank}` : null;
+            const picks = pickCounts[vid] || 0;
+
+            await pool.query(
+                `INSERT INTO vehicle_season_stats (server_id, season, vehicle_id, appearance_count, pick_count${rankCol ? `, ${rankCol}` : ''})
+                 SELECT $1, s.current_season, $2, 1, $3${rankCol ? ', 1' : ''} FROM servers s WHERE s.id = $1
+                 ON CONFLICT (server_id, season, vehicle_id) DO UPDATE SET
+                   appearance_count = vehicle_season_stats.appearance_count + 1,
+                   pick_count = vehicle_season_stats.pick_count + $3
+                   ${rankCol ? `, ${rankCol} = vehicle_season_stats.${rankCol} + 1` : ''}`,
+                [serverId, vid, picks]
+            );
+        }
+    } catch (e) {
+        console.warn('vehicle_season_stats DB 저장 실패:', e.message);
+    }
+}
+
+/**
+ * 시즌별 탈것 통계 조회 (1위 횟수 내림차순, 동률 시 승률 내림차순)
+ * @param {number} serverId - servers.id (INTEGER)
+ * @param {number} season
+ * @returns {Array} [{vehicle_id, appearance_count, pick_count, rank_1..rank_6}]
+ */
+async function getSeasonVehicleStats(serverId, season) {
+    const pool = getPool();
+    if (!pool || !serverId || !season) return [];
+
+    try {
+        const res = await pool.query(
+            `SELECT vehicle_id, appearance_count, pick_count, rank_1, rank_2, rank_3, rank_4, rank_5, rank_6
+             FROM vehicle_season_stats
+             WHERE server_id = $1 AND season = $2
+             ORDER BY rank_1 DESC, (rank_1::float / NULLIF(appearance_count, 0)) DESC NULLS LAST`,
+            [serverId, season]
+        );
+        return res.rows || [];
+    } catch (e) {
+        console.warn('vehicle_season_stats DB 조회 실패:', e.message);
+        return [];
+    }
+}
+
 module.exports = {
     recordVehicleRaceResult,
     getVehicleStats,
-    getPopularVehicles
+    getPopularVehicles,
+    recordVehicleSeasonResult,
+    getSeasonVehicleStats
 };

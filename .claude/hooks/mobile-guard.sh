@@ -4,11 +4,9 @@ INPUT=$(cat)
 FILE=$(echo "$INPUT" | node -e "
   let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
     try{const j=JSON.parse(d);console.log(j.tool_input?.file_path||'')}catch{}
-  })")
-CONTENT=$(echo "$INPUT" | node -e "
-  let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
-    try{const j=JSON.parse(d);console.log(j.tool_input?.content||'')}catch{}
-  })")
+  })" | tr '\\' '/')
+# Edit 입력엔 tool_input.content가 없음(맹점) — 편집 후 디스크 파일을 직접 읽어 검사
+CONTENT=$(cat "$FILE" 2>/dev/null)
 
 WARNINGS=""
 

@@ -6,22 +6,17 @@
       "Bash(python3 -c \":*)",
       "Bash(git fetch *)"
     ],
+    "deny": [
+      "mcp__filesystem__write_file",
+      "mcp__filesystem__edit_file",
+      "mcp__filesystem__move_file"
+    ],
     "additionalDirectories": [
       "d:\\Work\\LAMDiceBot\\.claude",
       "d:\\Work\\LAMDiceBot\\docs"
     ]
   },
   "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/audit-counter.sh\""
-          }
-        ]
-      }
-    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -47,11 +42,15 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-push-branch.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-shell-write.sh\""
           }
         ]
       }

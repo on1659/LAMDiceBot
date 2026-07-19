@@ -338,18 +338,25 @@
         if (item.emoji) el.setAttribute('data-emoji', item.emoji);
     }
 
-    // ── 잔상(afterimage) 스포너 — 경주 중 과거 위치에 빛 오브를 남긴다 ──
-    //   ladder 프로젝트의 캔버스 잔상(additive 글로우 혜성, 연속 hue rainbow)을 DOM으로 이식.
-    //   순수 외관: .horse 위치를 읽기만 하고(레이스 상태 무접촉), 오브는 track에 append 후 자기 제거.
-    //   결정적: rAF 타임스탬프 + per-horse 카운터만 사용, Math.random 0회.
+    // ── 잔상(afterimage) 스포너 — 경주 중 과거 위치에 탈것 실루엣 사본을 남긴다 ──
+    //   탈것 스프라이트(현재 프레임 SVG)의 단색 실루엣이 크기 그대로 옅어지며 사라지는 방식
+    //   (소닉/드래곤볼식). 빛 오브/맥동 streak 는 부스터 기믹(item_boost 등)과 시각 언어가
+    //   충돌해 폐기 — 실루엣은 "속도 부여"가 아니라 "지나간 자취"로 읽힌다.
+    //   순수 외관: .horse/.vehicle-sprite 를 읽기만 하고(레이스 상태 무접촉), 실루엣은 track에
+    //   append 후 자기 제거. 결정적: rAF 타임스탬프 + per-horse 카운터만 사용, Math.random 0회.
     //   좌표계 주의: 말은 화면 좌표(track), 월드 스크롤은 레인 backgroundPosition 시뮬레이션 —
-    //   카메라 lock 구간에서 말이 화면상 정지하므로, 오브를 .finish-line inline left(=finishLine+
+    //   카메라 lock 구간에서 말이 화면상 정지하므로, 실루엣을 .finish-line inline left(=finishLine+
     //   bgScrollOffset, horse-race.js가 매 프레임 갱신) 차분으로 역보정해 월드에 앵커한다.
-    var AFTERIMAGE_SPAWN_MS = 85;    // 오브 스폰 간격 — 수명(550ms)÷간격 ≈ 6개 겹침으로 연속 리본
-    var AFTERIMAGE_EMOJI_EVERY = 3;  // N번째 스폰마다 이모지 유령 1개(빛 혼성 — 아이템 정체성 유지)
-    var AFTERIMAGE_LIFE_MS = 800;    // 자기 제거 안전 타이머(fade 애니메이션 550/600ms + 여유)
-    var afterimageReg = [];          // { horse, item, lastSpawn, n } — applyEquippedToHorse 가 등록
-    var afterimageOrbs = [];         // { el, baseX, ref } — 살아있는 오브(월드 스크롤 역보정 대상)
+    var AFTERIMAGE_SPAWN_MS = 130;   // 실루엣 스폰 간격 — 오브보다 시각 밀도 높아 낱개 도장 느낌 + 노드 수 절감(fade 0.65s÷130ms ≈ 5개 겹침)
+    var AFTERIMAGE_MIN_MOVE_PX = 6;  // 스폰 간 최소 월드 이동량 — 정지한 말(완주 후 racing 클래스 잔존)의 제자리 스폰 방지
+    var AFTERIMAGE_EMOJI_EVERY = 3;  // N번째 스폰마다 이모지 유령 1개(실루엣 혼성 — 아이템 정체성 유지)
+    var AFTERIMAGE_LIFE_MS = 1000;   // 자기 제거 안전 타이머(fade 애니메이션 0.65s + 여유)
+    // afterimageReg 항목: { horse, item, lastSpawn, lastMeasure, lastWorldX, n }
+    //   lastSpawn   = 마지막 "실제 스폰"(모든 게이트 통과) 시각 — 스폰 밀도(간격) 제어
+    //   lastMeasure = 마지막 rect 측정 시각 — 게이트 skip(정지 말)이어도 측정을 스폰 간격으로 스로틀
+    //                 (이동 재개 시 최대 130ms 지연 — 체감 무해, 매 프레임 rect 읽기 방지)
+    var afterimageReg = [];          // applyEquippedToHorse 가 등록
+    var afterimageOrbs = [];         // { el, baseX, ref } — 살아있는 잔상 노드(월드 스크롤 역보정 대상)
     var afterimageRaf = null;
 
     // 월드 앵커 기준값: track 안 .finish-line 의 inline left. 카메라 스크롤만큼 변하므로
@@ -371,7 +378,7 @@
     function registerAfterimage(horseEl, item) {
         if (reducedMotion) return;          // 모션 최소화: 부착 streak만 남긴다
         unregisterAfterimage(horseEl);      // 멱등(재장착 시 중복 방지)
-        afterimageReg.push({ horse: horseEl, item: item, lastSpawn: 0, n: 0 });
+        afterimageReg.push({ horse: horseEl, item: item, lastSpawn: 0, lastMeasure: 0, lastWorldX: null, n: 0 });
         if (!afterimageRaf) afterimageRaf = requestAnimationFrame(afterimageTick);
     }
 
@@ -384,10 +391,23 @@
             if (!(cls.contains('racing') || cls.contains('running'))) continue; // 달릴 때만
             anyRacing = true;
             if (r.horse.style.visibility === 'hidden') continue;                // 화면 밖 컬링 제외
-            if (now - r.lastSpawn < AFTERIMAGE_SPAWN_MS) continue;
+            if (now - r.lastSpawn < AFTERIMAGE_SPAWN_MS) continue;    // 스폰 간격 게이트
+            if (now - r.lastMeasure < AFTERIMAGE_SPAWN_MS) continue;  // 측정 스로틀 — 아래 게이트/실패로 skip 돼도 rect 읽기는 스폰 간격으로 제한
+            r.lastMeasure = now;
+            // 측정(rect 읽기 1회) → 월드 이동량 게이트 → 통과 시에만 스폰 (rect 이중 읽기 방지)
+            var spot = measureAfterimageSpot(r.horse);
+            if (!spot) continue; // 구조 미비/레이아웃 0 — lastMeasure 가 재시도를 스로틀
+            // 월드 좌표 이동량 게이트: 완주해 정지한 말(racing 클래스는 라운드 끝까지 유지)이
+            // 제자리에서 실루엣을 계속 뿜는 것을 막는다. 화면 좌표가 아니라 월드 좌표인 이유 —
+            // 카메라 lock 구간에서 선두 말은 화면상 정지하지만 월드는 이동 중(.finish-line inline
+            // left 가 매 프레임 변함)이라, 화면 델타로 게이트하면 lock 구간에서 잔상이 끊긴다.
+            // 월드 델타는 lock 구간에도 계속 스폰되고, 진짜 정지(스크롤도 정지) 시에만 멎는다.
+            // lastSpawn 은 갱신하지 않는다("실제 스폰 시각" 유지) — 이동 재개 시 다음 측정에서 즉시 스폰.
+            if (r.lastWorldX != null && Math.abs(spot.worldX - r.lastWorldX) < AFTERIMAGE_MIN_MOVE_PX) continue;
             r.lastSpawn = now;
+            r.lastWorldX = spot.worldX;
             r.n++;
-            spawnAfterimageOrb(r);
+            spawnAfterimageGhost(r, spot);
         }
         // 살아있는 오브 월드 스크롤 역보정 — 카메라가 흐른 만큼 뒤(왼쪽)로 밀어 "과거 위치"에 남긴다
         if (afterimageOrbs.length) {
@@ -411,38 +431,80 @@
         }
     }
 
-    function spawnAfterimageOrb(r) {
-        var host = r.horse.parentElement; // = track (말은 track 직속 자식 — 레인은 형제)
-        if (!host) return;
-        // 현재 "시각" 위치(track 좌표) — 점프/흔들림 transform까지 반영되게 rect 기반으로 읽는다
-        var hr = r.horse.getBoundingClientRect();
+    // 스폰 지점 측정 — sprite/host rect 를 1회만 읽어 화면 좌표 + 월드 x 를 계산(tick 의 이동량
+    // 게이트와 실제 스폰이 공유). 반환: { host, sprite, x, y, w, h, ref, worldX } 또는 null.
+    // worldX = 화면x - 카메라 스크롤 기준(ref). ref 없음(선택화면/합성 픽스처)이면 화면x 그대로.
+    function measureAfterimageSpot(horseEl) {
+        var host = horseEl.parentElement; // = track (말은 track 직속 자식 — 레인은 형제)
+        if (!host) return null;
+        var sprite = horseEl.querySelector('.vehicle-sprite');
+        if (!sprite) return null; // 합성 테스트/미구성 방어
+        // 현재 "시각" 위치/크기(track 좌표) — 점프/흔들림 transform·모바일 축소까지 반영되게 rect 기반
+        var sr = sprite.getBoundingClientRect();
         var lr = host.getBoundingClientRect();
-        if (!hr.width || !lr.width) return;
-        var x = hr.left - lr.left + hr.width * 0.32;  // 꼬리 쪽(왼쪽 1/3 지점)
-        var y = hr.top - lr.top + hr.height * 0.55;   // 몸통 중심 살짝 아래
+        if (!sr.width || !lr.width) return null;
+        var x = sr.left - lr.left;                    // 실루엣은 스프라이트가 있던 자리 그대로
+        var y = sr.top - lr.top;
         var ref = afterimageScrollRef(host);          // 월드 역보정 기준(카메라 스크롤 차분용)
-        var orb = document.createElement('span');
-        orb.className = 'cosmetic-afterimage';
-        orb.setAttribute('aria-hidden', 'true');
+        return {
+            host: host, sprite: sprite,
+            x: x, y: y, w: sr.width, h: sr.height,
+            ref: ref,
+            worldX: x - (ref != null ? ref : 0)
+        };
+    }
+
+    function spawnAfterimageGhost(r, spot) {
+        var host = spot.host;
+        var x = spot.x;
+        var y = spot.y;
+        var ref = spot.ref;
+        // 질주 포즈 스냅샷: frame1/frame2 를 카운터로 교차 선택 → 갤럽 잔상.
+        // 선택 프레임이 비면 다른 프레임(lose 상태 background-image 모드 등), 둘 다 비면 스폰 생략.
+        var f1 = spot.sprite.querySelector('.vehicle-active-layer .frame1');
+        var f2 = spot.sprite.querySelector('.vehicle-active-layer .frame2');
+        var pick = (r.n % 2 === 0) ? f1 : f2;
+        var alt = (pick === f1) ? f2 : f1;
+        var markup = (pick && pick.innerHTML) || (alt && alt.innerHTML) || '';
+        if (!markup) return;
+        var ghost = document.createElement('span');
+        ghost.className = 'cosmetic-afterimage';
+        ghost.setAttribute('aria-hidden', 'true');
+        // innerHTML 허용: markup 출처는 horse-race-sprites.js 하드코딩 상수 SVG (사용자 입력 아님)
+        ghost.innerHTML = markup;
+        // 새니타이즈 — power 변신 variant 는 defs(radialGradient/filter id) + url(#...) 참조를 품는다.
+        // 그대로 복제하면 문서 내 id 충돌·죽은 url 참조로 요소 미렌더/타 스프라이트 def 오참조.
+        // base variant 는 해당 없음(no-op).
+        var strip = ghost.querySelectorAll('defs, [fill^="url("]');
+        for (var s = 0; s < strip.length; s++) strip[s].remove();
+        var filtered = ghost.querySelectorAll('[filter]');
+        for (var f = 0; f < filtered.length; f++) filtered[f].removeAttribute('filter');
         var color = r.item.color;
         if (color === 'rainbow') color = 'hsl(' + ((r.n * 22) % 360) + ', 92%, 62%)'; // 연속 hue 사이클(결정적)
-        orb.style.color = color || '#ffd54a';
-        orb.style.left = x + 'px';
-        orb.style.top = y + 'px';
-        host.appendChild(orb);
-        afterimageOrbs.push({ el: orb, baseX: x, ref: ref });
-        scheduleAfterimageRemoval(orb);
-        // N번째마다 이모지 유령 — 빛 잔상 속에 희미하게 남는 아이템 정체성(rainbow 는 순수 빛)
+        ghost.style.color = color || '#ffd54a';       // CSS가 fill/stroke 를 currentColor 로 강제 → 단색 실루엣
+        ghost.style.left = x + 'px';
+        ghost.style.top = y + 'px';
+        ghost.style.width = spot.w + 'px';
+        ghost.style.height = spot.h + 'px';
+        // reverse 기믹(.horse inline scaleX(-1)) 대응 — 읽기만, 반전은 별도 노드인 ghost 에만 적용
+        if ((r.horse.style.transform || '').indexOf('scaleX(-1)') !== -1) {
+            ghost.style.transform = 'scaleX(-1)';
+        }
+        host.appendChild(ghost);
+        afterimageOrbs.push({ el: ghost, baseX: x, ref: ref });
+        scheduleAfterimageRemoval(ghost);
+        // N번째마다 이모지 유령 — 실루엣 위(상단 중앙)에 희미하게 남는 아이템 정체성(rainbow 는 순수 실루엣)
         if (r.item.emoji && r.item.color !== 'rainbow' && r.n % AFTERIMAGE_EMOJI_EVERY === 0) {
-            var ghost = document.createElement('span');
-            ghost.className = 'cosmetic-afterimage-emoji';
-            ghost.setAttribute('aria-hidden', 'true');
-            ghost.textContent = r.item.emoji;  // 카탈로그 상수 → textContent
-            ghost.style.left = x + 'px';
-            ghost.style.top = (y - 6) + 'px';
-            host.appendChild(ghost);
-            afterimageOrbs.push({ el: ghost, baseX: x, ref: ref });
-            scheduleAfterimageRemoval(ghost);
+            var emojiX = x + spot.w * 0.5;
+            var em = document.createElement('span');
+            em.className = 'cosmetic-afterimage-emoji';
+            em.setAttribute('aria-hidden', 'true');
+            em.textContent = r.item.emoji;  // 카탈로그 상수 → textContent
+            em.style.left = emojiX + 'px';
+            em.style.top = (y - 6) + 'px';
+            host.appendChild(em);
+            afterimageOrbs.push({ el: em, baseX: emojiX, ref: ref });
+            scheduleAfterimageRemoval(em);
         }
     }
 

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홀짝 체인 배팅 — Game Lab</title>
+<meta name="description" content="시작 전 홀/짝을 딱 한 번만 고르면, 그 다음은 서버가 굴리는 결과를 지켜보기만 하는 서든데스 미니게임">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 16px 48px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+    }
+    .wrap { width: 100%; max-width: 420px; }
+    .back-link { color: #8fa1ff; font-size: 13px; text-decoration: none; }
+    h1 { font-size: 22px; margin: 12px 0 4px; }
+    .sub { color: #9aa1b4; font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+
+    .panel {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    .hidden { display: none !important; }
+
+    label { display: block; font-size: 13px; color: #b6bccb; margin-bottom: 6px; }
+    input[type=text] {
+        width: 100%;
+        padding: 11px 12px;
+        border-radius: 8px;
+        border: 1px solid #2f3547;
+        background: #10131b;
+        color: #eef0f5;
+        font-size: 15px;
+        margin-bottom: 12px;
+    }
+    input[type=text]:focus { outline: 2px solid #7c9cff; }
+
+    .btn {
+        width: 100%;
+        padding: 13px;
+        border-radius: 10px;
+        border: none;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform .12s ease, opacity .12s ease;
+        color: #10131b;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-primary { background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%); }
+    .btn-ghost {
+        background: transparent;
+        color: #b6bccb;
+        border: 1px solid #2f3547;
+    }
+    .divider { text-align: center; color: #565c6e; font-size: 12px; margin: 14px 0; }
+
+    #protoRoomCode { font-family: 'Consolas', 'Courier New', monospace; font-size: 26px; letter-spacing: 4px; color: #7c9cff; font-weight: 700; }
+    .room-code-label { font-size: 12px; color: #9aa1b4; margin-bottom: 4px; }
+    #protoPlayerList { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    #protoPlayerList li {
+        background: #20242f;
+        border: 1px solid #2f3547;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+    #protoPlayerList li.me { border-color: #7c9cff; color: #b8c6ff; }
+    #protoPlayerList li.host { color: #ffd479; }
+
+    .lobby-hint { font-size: 13px; color: #9aa1b4; text-align: center; padding: 10px 0 4px; }
+
+    /* 사전 선택(pick) 영역 — 시작 전 로비 화면에 그대로 붙어있다 */
+    .pick-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid #262b38; }
+    .pick-title { font-size: 13px; color: #b6bccb; text-align: center; margin-bottom: 10px; }
+    .pick-progress { font-size: 12px; color: #6b7284; text-align: center; margin-top: 8px; }
+
+    .choice-row { display: flex; gap: 12px; margin-top: 8px; }
+    .choice-btn {
+        flex: 1;
+        padding: 26px 0;
+        border-radius: 14px;
+        border: 2px solid #2f3547;
+        background: #171a23;
+        color: #eef0f5;
+        font-size: 22px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .choice-btn:active { transform: scale(0.96); }
+    .choice-btn.selected { border-color: #7c9cff; background: #1c2233; }
+    .choice-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .choice-btn .emoji { display: block; font-size: 30px; margin-bottom: 4px; }
+
+    .toast {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #2a2032;
+        border: 1px solid #4a3a5a;
+        color: #f0e3ff;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        z-index: 50;
+        max-width: 90vw;
+        text-align: center;
+    }
+
+    /* 내 선택/생존 상태 — 자동 진행 내내 계속 보이는 고정 배지 (라운드가 바뀌어도 화면에서 사라지지 않는다) */
+    .my-pick-bar {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: #171a23;
+        border: 1px solid #2f3547;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        font-size: 14px;
+    }
+    .my-pick-bar .choice-tag {
+        font-weight: 800;
+        padding: 2px 10px;
+        border-radius: 20px;
+        background: #20242f;
+        border: 1px solid #2f3547;
+    }
+    .my-pick-bar .dot { color: #565c6e; }
+    .my-pick-bar .status-tag { color: #9aa1b4; }
+    .my-pick-bar.alive .status-tag { color: #7cd996; }
+    .my-pick-bar.out .status-tag { color: #ff9d9d; }
+    .my-pick-bar.won .status-tag { color: #ffd479; font-weight: 700; }
+
+    .round-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+    .round-number { font-size: 13px; color: #9aa1b4; }
+    .round-alive-note { font-size: 12px; color: #6b7284; }
+
+    .roll-suspense { text-align: center; padding: 18px 0 6px; }
+    .roll-suspense-num {
+        font-size: 46px;
+        font-weight: 800;
+        color: #eef0f5;
+        font-variant-numeric: tabular-nums;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .roll-suspense-num.rolling { animation: pulse 0.5s ease-in-out infinite; }
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .55; }
+    }
+    .roll-suspense-caption { font-size: 13px; color: #9aa1b4; margin-top: 6px; }
+
+    .reveal-roll { text-align: center; margin-bottom: 10px; }
+    .reveal-roll .num { font-size: 40px; font-weight: 800; color: #eef0f5; }
+    .reveal-roll .parity { font-size: 14px; color: #9aa1b4; }
+    .reveal-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
+    .reveal-list li {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 12px; border-radius: 8px; font-size: 14px;
+        background: #1c2029; border: 1px solid #262b38;
+    }
+    .reveal-list li.survivor { border-color: #3a8f5c; background: #142219; }
+    .reveal-list li.eliminated { border-color: #8f3a3a; color: #c99; background: #221414; }
+    .reveal-next { text-align: center; font-size: 12px; color: #6b7284; margin-top: 14px; }
+
+    .ended-title { font-size: 20px; font-weight: 800; text-align: center; margin: 4px 0 6px; }
+    .ended-winners { text-align: center; color: #b6bccb; font-size: 14px; margin-bottom: 16px; }
+    .ended-tie { color: #ffd479; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <a class="back-link" href="/game-lab/index.html">← Game Lab</a>
+    <h1>홀짝 체인 배팅</h1>
+    <p class="sub">시작 전 홀/짝을 딱 한 번만 고르세요. 이후엔 서버가 1~100을 자동으로 굴리며 결과를 지켜보기만 하면 됩니다. 맞으면 생존, 틀리면 바로 탈락 — 최후의 1인이 남을 때까지.</p>
+
+    <div class="toast hidden" id="toast"></div>
+
+    <div class="my-pick-bar hidden" id="myPickBar">
+        <span class="choice-tag" id="myPickBarChoice">-</span>
+        <span class="dot">·</span>
+        <span class="status-tag" id="myPickBarStatus">대기 중</span>
+    </div>
+
+    <!-- 입장: 이름 + 방 생성/참가 -->
+    <div class="panel" id="screenEntry">
+        <label for="nameInput">닉네임</label>
+        <input type="text" id="nameInput" maxlength="20" placeholder="닉네임 입력 (최대 20자)">
+
+        <button class="btn btn-primary" id="createBtn">새 방 만들기</button>
+
+        <div class="divider">또는</div>
+
+        <label for="codeInput">방 코드</label>
+        <input type="text" id="codeInput" maxlength="4" placeholder="4자리 코드" style="text-transform:uppercase;">
+        <button class="btn btn-ghost" id="joinBtn">참가하기</button>
+    </div>
+
+    <!-- 로비: 방 코드 + 인원 목록 + 사전 홀/짝 선택 -->
+    <div class="panel hidden" id="screenLobby">
+        <div class="room-code-label">방 코드</div>
+        <div id="protoRoomCode">----</div>
+        <ul id="protoPlayerList"></ul>
+
+        <div class="pick-section">
+            <div class="pick-title">내 선택 — 한 판에 딱 한 번, 게임 내내 고정됩니다</div>
+            <div class="choice-row" id="choiceButtons">
+                <button class="choice-btn" id="btnOdd" data-choice="odd"><span class="emoji">🌗</span>홀</button>
+                <button class="choice-btn" id="btnEven" data-choice="even"><span class="emoji">🌕</span>짝</button>
+            </div>
+            <div class="pick-progress" id="pickProgressLabel">0/0명 선택 완료 (미선택자는 자동 배정)</div>
+        </div>
+
+        <div class="lobby-hint" id="lobbyHint">인원을 기다리는 중...</div>
+        <button class="btn btn-ghost hidden" id="soloTestBtn">🤖 혼자 테스트</button>
+        <button class="btn btn-primary hidden" id="startBtn">게임 시작</button>
+    </div>
+
+    <!-- 라운드 진행: 자동 굴림 연출 (입력 없음) -->
+    <div class="panel hidden" id="screenRound">
+        <div class="round-header">
+            <span class="round-number" id="roundNumberLabel">1라운드</span>
+            <span class="round-alive-note" id="roundAliveNote">생존자 0명</span>
+        </div>
+        <div class="roll-suspense">
+            <div class="roll-suspense-num rolling" id="suspenseNum">--</div>
+            <div class="roll-suspense-caption" id="suspenseCaption">굴리는 중...</div>
+        </div>
+    </div>
+
+    <!-- 라운드 결과 공개 -->
+    <div class="panel hidden" id="screenReveal">
+        <div class="reveal-roll">
+            <div class="num" id="revealRoll">--</div>
+            <div class="parity" id="revealParity">-</div>
+        </div>
+        <ul class="reveal-list" id="revealList"></ul>
+        <div class="reveal-next" id="revealNext">다음 라운드 준비 중...</div>
+    </div>
+
+    <!-- 게임 종료 -->
+    <div class="panel hidden" id="screenEnded">
+        <div class="ended-title" id="endedTitle">게임 종료</div>
+        <div class="ended-winners" id="endedWinners"></div>
+        <button class="btn btn-primary hidden" id="restartBtn">다시 시작</button>
+        <button class="btn btn-ghost" id="leaveBtn">나가기</button>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var GAME_SLUG = 'odd-even-chain';
+    var MIN_PLAYERS = 3; // 로비 시작 버튼(updateLobby)과 동일한 기준
+    var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    var screens = {
+        entry: document.getElementById('screenEntry'),
+        lobby: document.getElementById('screenLobby'),
+        round: document.getElementById('screenRound'),
+        reveal: document.getElementById('screenReveal'),
+        ended: document.getElementById('screenEnded')
+    };
+
+    function showScreen(name) {
+        Object.keys(screens).forEach(function (key) {
+            screens[key].classList.toggle('hidden', key !== name);
+        });
+    }
+
+    function showToast(message) {
+        var toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.remove('hidden');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(function () { toast.classList.add('hidden'); }, 3200);
+    }
+
+    var isHost = false;
+    var amIActive = true;
+    var hasPicked = false;
+    var myName = '';
+    var myChoiceValue = null;
+    var lastRoomState = null;
+    var suspenseFlickerTimer = null;
+    var botsSpawned = false; // 🤖 혼자 테스트로 봇을 이미 소환했는지 (중복 소환 방지)
+
+    function choiceLabel(choice) {
+        return choice === 'odd' ? '홀' : (choice === 'even' ? '짝' : '-');
+    }
+
+    function updateLobby(room) {
+        lastRoomState = room;
+        isHost = ProtoClient.getIsHost();
+        var count = room.players.length;
+        var startBtn = document.getElementById('startBtn');
+        var hint = document.getElementById('lobbyHint');
+        var soloTestBtn = document.getElementById('soloTestBtn');
+
+        if (isHost) {
+            startBtn.classList.remove('hidden');
+            if (count < MIN_PLAYERS) {
+                startBtn.disabled = true;
+                hint.textContent = '최소 ' + MIN_PLAYERS + '명이 필요합니다 (현재 ' + count + '명)';
+            } else if (count > 20) {
+                startBtn.disabled = true;
+                hint.textContent = '최대 20명까지 참여할 수 있습니다 (현재 ' + count + '명)';
+            } else {
+                startBtn.disabled = false;
+                hint.textContent = '준비되면 시작을 눌러주세요 (' + count + '명 참여 중)';
+            }
+            soloTestBtn.classList.toggle('hidden', botsSpawned || count >= MIN_PLAYERS);
+        } else {
+            startBtn.classList.add('hidden');
+            soloTestBtn.classList.add('hidden');
+            hint.textContent = '방장이 시작하길 기다리는 중... (' + count + '명 참여 중)';
+        }
+    }
+
+    function resetPickUI(totalHint) {
+        hasPicked = false;
+        var btnOdd = document.getElementById('btnOdd');
+        var btnEven = document.getElementById('btnEven');
+        [btnOdd, btnEven].forEach(function (b) {
+            b.disabled = false;
+            b.classList.remove('selected');
+        });
+        document.getElementById('pickProgressLabel').textContent =
+            '0/' + (totalHint || 0) + '명 선택 완료 (미선택자는 자동 배정)';
+    }
+
+    function setMyPickBar(mode, choice, status) {
+        var bar = document.getElementById('myPickBar');
+        bar.classList.remove('hidden', 'alive', 'out', 'won');
+        if (mode) bar.classList.add(mode);
+        document.getElementById('myPickBarChoice').textContent = choiceLabel(choice);
+        document.getElementById('myPickBarStatus').textContent = status;
+    }
+
+    function hideMyPickBar() {
+        document.getElementById('myPickBar').classList.add('hidden');
+    }
+
+    function startSuspenseFlicker() {
+        clearInterval(suspenseFlickerTimer);
+        var numEl = document.getElementById('suspenseNum');
+        var captionEl = document.getElementById('suspenseCaption');
+        captionEl.textContent = '굴리는 중...';
+        if (prefersReducedMotion) {
+            numEl.classList.remove('rolling');
+            numEl.textContent = '?';
+            return;
+        }
+        numEl.classList.add('rolling');
+        suspenseFlickerTimer = setInterval(function () {
+            // 순수 연출용 지터 — 결과에는 전혀 영향을 주지 않는다 (실제 결과는 서버가 crypto로 결정)
+            numEl.textContent = Math.floor(Math.random() * 100) + 1;
+        }, 80);
+    }
+
+    function stopSuspenseFlicker() {
+        clearInterval(suspenseFlickerTimer);
+        suspenseFlickerTimer = null;
+        document.getElementById('suspenseNum').classList.remove('rolling');
+    }
+
+    function initGameSocketHandlers(socket) {
+        socket.on('proto:odd-even-chain:error', function (message) {
+            showToast(message);
+        });
+
+        socket.on('proto:odd-even-chain:pickProgress', function (data) {
+            document.getElementById('pickProgressLabel').textContent =
+                data.picked + '/' + data.total + '명 선택 완료 (미선택자는 자동 배정)';
+        });
+
+        socket.on('proto:odd-even-chain:pickPhaseReset', function () {
+            amIActive = true;
+            myChoiceValue = null;
+            hideMyPickBar();
+            resetPickUI(lastRoomState ? lastRoomState.players.length : 0);
+            if (lastRoomState) updateLobby(lastRoomState);
+            showScreen('lobby');
+        });
+
+        socket.on('proto:odd-even-chain:matchStart', function (data) {
+            amIActive = true;
+            myChoiceValue = data.myChoice;
+            setMyPickBar('alive', data.myChoice, '생존 중');
+        });
+
+        socket.on('proto:odd-even-chain:roundStart', function (data) {
+            document.getElementById('roundNumberLabel').textContent = data.roundNumber + '라운드';
+            document.getElementById('roundAliveNote').textContent = '생존자 ' + data.aliveNames.length + '명';
+            startSuspenseFlicker();
+            showScreen('round');
+        });
+
+        socket.on('proto:odd-even-chain:roundVoided', function () {
+            showToast('전원 탈락 판정이라 무효 처리! 다시 굴립니다...');
+            startSuspenseFlicker();
+        });
+
+        socket.on('proto:odd-even-chain:roundResult', function (data) {
+            stopSuspenseFlicker();
+
+            var iWasActive = amIActive;
+            if (data.eliminatedNames.indexOf(myName) !== -1) amIActive = false;
+
+            document.getElementById('revealRoll').textContent = data.roll;
+            document.getElementById('revealParity').textContent = data.rollParity === 'odd' ? '홀' : '짝';
+
+            var list = document.getElementById('revealList');
+            list.innerHTML = '';
+            var survivorSet = {};
+            data.survivorNames.forEach(function (n) { survivorSet[n] = true; });
+
+            Object.keys(data.picks).forEach(function (name) {
+                var choice = data.picks[name];
+                var li = document.createElement('li');
+                li.className = survivorSet[name] ? 'survivor' : 'eliminated';
+                var nameLabel = name === myName ? name + ' (나)' : name;
+                li.textContent = nameLabel + ' — ' + choiceLabel(choice) + (survivorSet[name] ? ' 생존' : ' 탈락');
+                list.appendChild(li);
+            });
+
+            if (iWasActive) {
+                if (!amIActive) {
+                    setMyPickBar('out', data.picks[myName], '탈락 — 관전 중');
+                } else {
+                    setMyPickBar('alive', data.picks[myName], '생존 중');
+                }
+            }
+
+            document.getElementById('revealNext').textContent = data.tieDeclared
+                ? '전원 공동 우승으로 게임이 종료됩니다.'
+                : '잠시 후 다음 라운드가 시작됩니다...';
+
+            showScreen('reveal');
+        });
+
+        socket.on('proto:odd-even-chain:gameEnded', function (data) {
+            stopSuspenseFlicker();
+
+            var title = document.getElementById('endedTitle');
+            var winners = document.getElementById('endedWinners');
+            var restartBtn = document.getElementById('restartBtn');
+            var iWon = data.winners.indexOf(myName) !== -1;
+
+            if (data.tie) {
+                title.textContent = '공동 우승!';
+                title.classList.add('ended-tie');
+            } else {
+                title.textContent = '게임 종료';
+                title.classList.remove('ended-tie');
+            }
+
+            if (data.winners.length === 0) {
+                winners.textContent = '생존자가 없습니다.';
+            } else {
+                winners.textContent = '우승: ' + data.winners.join(', ') + (iWon ? ' (나!)' : '');
+            }
+
+            if (iWon) {
+                setMyPickBar('won', myChoiceValue, data.tie ? '공동 우승!' : '우승!');
+            }
+
+            restartBtn.classList.toggle('hidden', !isHost);
+            showScreen('ended');
+        });
+    }
+
+    function wireChoiceButtons(socket) {
+        ['btnOdd', 'btnEven'].forEach(function (id) {
+            document.getElementById(id).addEventListener('click', function () {
+                if (hasPicked) return;
+                hasPicked = true;
+                var choice = this.getAttribute('data-choice');
+                document.getElementById('btnOdd').disabled = true;
+                document.getElementById('btnEven').disabled = true;
+                this.classList.add('selected');
+                socket.emit('proto:odd-even-chain:pick', { choice: choice });
+            });
+        });
+    }
+
+    function enterRoom(room) {
+        myName = ProtoClient.getUserName();
+        updateLobby(room);
+        showScreen('lobby');
+    }
+
+    document.getElementById('createBtn').addEventListener('click', function () {
+        var name = document.getElementById('nameInput').value.trim();
+        if (!name) { showToast('닉네임을 입력해주세요.'); return; }
+
+        var socket = ProtoClient.init({
+            onRoomState: function (room) {
+                lastRoomState = room;
+                if (screens.entry.classList.contains('hidden')) {
+                    updateLobby(room);
+                } else {
+                    enterRoom(room);
+                }
+            },
+            onError: showToast,
+            onDisconnect: function () { showToast('서버와 연결이 끊어졌습니다.'); }
+        });
+
+        ProtoClient.createRoom(GAME_SLUG, name, function (res) {
+            if (!res || !res.success) {
+                showToast((res && res.error) || '방 생성에 실패했습니다.');
+                return;
+            }
+            initGameSocketHandlers(socket);
+            wireChoiceButtons(socket);
+            enterRoom(res.room);
+        });
+    });
+
+    document.getElementById('joinBtn').addEventListener('click', function () {
+        var name = document.getElementById('nameInput').value.trim();
+        var code = document.getElementById('codeInput').value.trim().toUpperCase();
+        if (!name) { showToast('닉네임을 입력해주세요.'); return; }
+        if (!code) { showToast('방 코드를 입력해주세요.'); return; }
+
+        var socket = ProtoClient.init({
+            onRoomState: function (room) {
+                lastRoomState = room;
+                if (screens.entry.classList.contains('hidden')) {
+                    updateLobby(room);
+                } else {
+                    enterRoom(room);
+                }
+            },
+            onError: showToast,
+            onDisconnect: function () { showToast('서버와 연결이 끊어졌습니다.'); }
+        });
+
+        ProtoClient.joinRoom(code, name, function (res) {
+            if (!res || !res.success) {
+                showToast((res && res.error) || '참가에 실패했습니다.');
+                return;
+            }
+            initGameSocketHandlers(socket);
+            wireChoiceButtons(socket);
+            enterRoom(res.room);
+        });
+    });
+
+    document.getElementById('startBtn').addEventListener('click', function () {
+        var socket = ProtoClient.getSocket();
+        if (socket) socket.emit('proto:odd-even-chain:start');
+    });
+
+    document.getElementById('soloTestBtn').addEventListener('click', function () {
+        if (!lastRoomState || botsSpawned) return;
+        var needed = Math.max(0, MIN_PLAYERS - lastRoomState.players.length);
+        if (needed <= 0) return;
+
+        var btn = this;
+        botsSpawned = true;
+        btn.disabled = true;
+
+        ProtoClient.spawnBots(needed).then(function (bots) {
+            bots.forEach(function (bot) {
+                // 실제 플레이어의 pick UI와 동일한 이벤트/페이로드 — 유효한 무작위 값
+                var choice = Math.random() < 0.5 ? 'odd' : 'even';
+                bot.socket.emit('proto:odd-even-chain:pick', { choice: choice });
+            });
+            btn.classList.add('hidden');
+        }).catch(function (err) {
+            showToast((err && err.message) || '봇 추가에 실패했습니다.');
+            botsSpawned = false;
+            btn.disabled = false;
+        });
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', function () {
+        var socket = ProtoClient.getSocket();
+        if (socket) socket.emit('proto:odd-even-chain:reset');
+    });
+
+    document.getElementById('leaveBtn').addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        window.location.href = '/game-lab/index.html';
+    });
+})();
+</script>
+</body>
+</html>

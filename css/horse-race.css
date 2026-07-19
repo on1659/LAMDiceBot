@@ -2416,3 +2416,124 @@ input[type="text"]:focus, input[type="password"]:focus {
         font-size: 12px;
     }
 }
+
+/* ── 탈것 통계 모달 ── */
+
+/* 탈것 선택 헤더 안에서 풀폭으로 늘어나지 않게 — 내용폭 컴팩트 버튼 유지 (hshop-open-btn 관례) */
+.horse-selection-header .vehicle-stats-open-btn {
+    width: auto;
+    flex: 0 0 auto;
+    align-self: center;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: linear-gradient(135deg, var(--horse-500) 0%, var(--horse-600) 100%);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.vehicle-stats-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.vehicle-stats-overlay.visible {
+    display: flex;
+}
+
+.vehicle-stats-card {
+    background: var(--bg-white);
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    animation: popup 0.5s ease-out;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 20px;
+}
+
+.vehicle-stats-title {
+    margin: 0 0 15px;
+    font-size: 22px;
+    color: var(--text-primary);
+}
+
+.vehicle-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.vehicle-stats-table th,
+.vehicle-stats-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--gray-300);
+    white-space: nowrap;
+}
+
+.vehicle-stats-table th {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.vehicle-stats-table td:first-child {
+    text-align: left;
+}
+
+.vehicle-stats-table tr.vstats-low-sample td {
+    opacity: 0.5;
+}
+
+.vstats-low-label {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.vehicle-stats-empty {
+    padding: 20px 10px;
+    margin-bottom: 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .vehicle-stats-card {
+        padding: 20px 15px;
+        max-height: 80vh;
+    }
+
+    .vehicle-stats-title {
+        font-size: 18px;
+    }
+
+    .vehicle-stats-table {
+        font-size: 12px;
+    }
+
+    .vehicle-stats-table th,
+    .vehicle-stats-table td {
+        padding: 6px 6px;
+    }
+
+    .horse-selection-header .vehicle-stats-open-btn {
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+}

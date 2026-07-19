@@ -231,8 +231,10 @@ function rec(slot, id, ok, reason) {
             await shoot('aura');
         }
 
-        // ── TRAIL(잔상) ── 각 아이템: 적용 → .cosmetic-trail 색 글로우 띠(색 주입 또는 rainbow 클래스),
-        //    data-emoji 머리 == item.emoji, racing 시 가시(opacity>0.5), 그라데이션 배경 존재
+        // ── TRAIL(잔상) ── 각 아이템: 적용 → .cosmetic-trail 부착 띠(색 주입 또는 rainbow 클래스),
+        //    data-emoji 머리 == item.emoji, racing 시 가시(opacity>0.2 — 은은한 정적 띠 0.45), 그라데이션 배경 존재
+        //    (실루엣 스포너 .cosmetic-afterimage 는 이 합성 sprite 에 .vehicle-active-layer 프레임이
+        //    없어 스폰되지 않음 — 스폰 스모크는 qa-horse-cosmetic-apply-test.js B8 담당)
         {
             await clearSandbox();
             const res = await hPage.evaluate((ids) => {
@@ -255,7 +257,7 @@ function rec(slot, id, ok, reason) {
                         ? el.classList.contains('rainbow')
                         : !!el.style.color;
                     var emojiOk = !item.emoji || el.getAttribute('data-emoji') === item.emoji;
-                    var visible = r.width > 0 && r.height > 0 && parseFloat(cs.opacity) > 0.5;
+                    var visible = r.width > 0 && r.height > 0 && parseFloat(cs.opacity) > 0.2;
                     var hasGradient = /gradient/.test(cs.backgroundImage);
                     out.push({ id: id, ok: colorOk && emojiOk && visible && hasGradient,
                         reason: (!colorOk ? 'color/rainbow 미주입 ' : '') + (!emojiOk ? 'data-emoji 불일치 ' : '') + (!visible ? 'box0/opacity ' : '') + (!hasGradient ? 'gradient 없음' : ''),

@@ -22,6 +22,15 @@ const RankingModule = (function () {
     let _isPulling = false;
     let _searchResult = null; // { found, userName, myRank } | null
 
+    // 시즌 우승 탈것 — 탈것 이름/이모지 메타 (1회 로드 후 모듈 캐시, 패널 열 때마다 재요청 금지)
+    let _vehicleThemes = null;         // { id: { name, emoji, ... } } | null
+    let _vehicleThemesPromise = null;
+    const VEHICLE_NAME_MAP = {
+        'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
+        'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
+        'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게'
+    };
+
     function init(serverId, userName) {
         _serverId = serverId;
         _userName = userName;
@@ -514,6 +523,29 @@ const RankingModule = (function () {
             color: var(--rk-text-dim);
             font-size: 0.8em;
         }
+
+        /* ── 시즌 우승 탈것 ── */
+        .rk-vchamp-bar {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--rk-surface);
+            font-size: 0.8em;
+        }
+        .rk-vchamp-label {
+            color: var(--rk-text-dim);
+            flex-shrink: 0;
+        }
+        .rk-vchamp-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 999px;
+            background: var(--rk-surface);
+            border: 1px solid var(--rk-border-light);
+            color: var(--rk-text);
+            white-space: nowrap;
+        }
+        .rk-vchamp-1 { border-color: var(--rk-gold); color: var(--rk-gold); }
+        .rk-vchamp-2 { border-color: var(--rk-silver); color: var(--rk-silver); }
+        .rk-vchamp-3 { border-color: var(--rk-bronze); color: var(--rk-bronze); }
     `;
 
     // ─── 오버레이 생성 ───
@@ -530,6 +562,7 @@ const RankingModule = (function () {
             </div>
             <div id="ranking-confirm-slot"></div>
             <div id="ranking-season-bar"></div>
+            <div id="ranking-vehicle-champs"></div>
             <div class="rk-tabs" id="ranking-tabs"></div>
             <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
             <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
@@ -784,6 +817,9 @@ const RankingModule = (function () {
         } else {
             renderOverall(content);
         }
+
+        // 시즌 우승 탈것 (메인 렌더 후 — _currentSeason 갱신 이후 시점, 모든 갱신 경로 공통 커버)
+        renderVehicleChamps();
     }
 
     // ─── 렌더러 ───
@@ -1243,6 +1279,62 @@ const RankingModule = (function () {
             updateResetBtnVisibility();
             fetchAndRender();
         });
+    }
+
+    // ─── 시즌 우승 탈것 ───
+
+    function loadVehicleThemesOnce() {
+        if (_vehicleThemes) return Promise.resolve(_vehicleThemes);
+        if (!_vehicleThemesPromise) {
+            _vehicleThemesPromise = fetch('/assets/vehicle-themes.json')
+                .then(r => r.json())
+                .then(data => {
+                    _vehicleThemes = (data && data.vehicleThemes) || {};
+                    return _vehicleThemes;
+                })
+                .catch(() => {
+                    _vehicleThemesPromise = null; // 실패 결과는 캐시하지 않음 — 다음 열람 때 재시도
+                    return {}; // 이번 렌더는 하드코딩 이름 맵 사용
+                });
+        }
+        return _vehicleThemesPromise;
+    }
+
+    async function renderVehicleChamps() {
+        const slot = document.getElementById('ranking-vehicle-champs');
+        if (!slot) return;
+        if (!_serverId) { slot.innerHTML = ''; return; } // 자유 랭킹은 시즌 탈것 데이터 없음
+        const viewing = _viewingSeason || _currentSeason;
+        // 응답 대기 중 시즌이 바뀌었거나 패널이 닫혔으면 stale — DOM을 건드리지 않는다 (늦은 응답이 새 화면을 덮지 않게)
+        const isStale = () => !_overlay || viewing !== (_viewingSeason || _currentSeason);
+        try {
+            const res = await fetch(`/api/ranking/${_serverId}/vehicles?season=${viewing}`);
+            if (isStale()) return;
+            if (!res.ok) { slot.innerHTML = ''; return; }
+            const data = await res.json();
+            const vehicles = (data && data.success && Array.isArray(data.vehicles)) ? data.vehicles : [];
+            if (isStale()) return;
+            if (!vehicles.length) { slot.innerHTML = ''; return; }
+            const themes = await loadVehicleThemesOnce();
+            if (isStale()) return;
+            const medals = ['🥇', '🥈', '🥉'];
+            const chips = vehicles.slice(0, 3).map((v, i) => {
+                const t = themes ? themes[v.vehicle_id] : null;
+                const name = (t && t.name) || VEHICLE_NAME_MAP[v.vehicle_id] || v.vehicle_id;
+                const emoji = (t && t.emoji) || '';
+                const wins = Number(v.rank_1) || 0;
+                return `<span class="rk-vchamp-chip rk-vchamp-${i + 1}">${medals[i]} ${esc(emoji + name)} ${wins}승</span>`;
+            });
+            slot.innerHTML = `
+                <div class="rk-vchamp-bar">
+                    <span class="rk-vchamp-label">시즌 우승 탈것</span>
+                    ${chips.join('')}
+                </div>`;
+        } catch (e) {
+            if (isStale()) return;
+            const s = document.getElementById('ranking-vehicle-champs');
+            if (s) s.innerHTML = ''; // 조회 실패 시 섹션 숨김 — 랭킹 본문에는 영향 없음
+        }
     }
 
     return {

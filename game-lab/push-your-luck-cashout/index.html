@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>계속하기 눈덩이 베팅 — Game Lab</title>
+<meta name="description" content="실시간 멀티플레이어 프로토타입: 플레이 스타일을 한 번만 고르면, 그다음은 서버가 알아서 눈덩이를 굴려줍니다.">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 60px;
+    }
+    a { color: #8fa1ff; }
+    header {
+        max-width: 480px;
+        margin: 0 auto 20px;
+        text-align: center;
+    }
+    header h1 {
+        font-size: 22px;
+        margin: 0 0 6px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    header p {
+        margin: 0;
+        color: #9aa1b4;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    main {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .card {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 14px;
+    }
+    label {
+        display: block;
+        font-size: 13px;
+        color: #9aa1b4;
+        margin-bottom: 6px;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #2b3040;
+        background: #0f1117;
+        color: #eef0f5;
+        font-size: 15px;
+        margin-bottom: 14px;
+    }
+    input[type="text"]:focus { outline: 2px solid #7c9cff; }
+    button {
+        appearance: none;
+        border: none;
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+        color: #0f1117;
+        background: #eef0f5;
+        transition: transform 0.1s ease, opacity 0.1s ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        button, .card, .odds-badge, .rolling-dot { transition: none; animation: none !important; }
+    }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary {
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        color: #0f1117;
+    }
+    button.ghost {
+        background: transparent;
+        border: 1px solid #2b3040;
+        color: #eef0f5;
+    }
+    .error-msg {
+        color: #ff8a8a;
+        font-size: 13px;
+        min-height: 18px;
+        margin: -6px 0 10px;
+    }
+    .room-code-row {
+        text-align: center;
+        margin-bottom: 14px;
+    }
+    .room-code-row .code {
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: 4px;
+        font-family: 'Consolas', 'Courier New', monospace;
+    }
+    .room-code-row .hint {
+        font-size: 12px;
+        color: #9aa1b4;
+    }
+    ul#protoPlayerList {
+        list-style: none;
+        margin: 0 0 14px;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    #protoPlayerList li {
+        background: #20242f;
+        border: 1px solid #2b3040;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    #protoPlayerList li.me { border-color: #7c9cff; }
+    #waitingMsg { color: #9aa1b4; font-size: 13px; text-align: center; }
+
+    /* ─── 플레이 스타일 픽 카드 (업프론트 1회 입력) ─── */
+    .style-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-bottom: 6px;
+    }
+    .style-btn {
+        text-align: left;
+        background: #20242f;
+        border: 1px solid #2b3040;
+        color: #eef0f5;
+        padding: 14px 16px;
+    }
+    .style-btn .style-name { display: block; font-size: 15px; font-weight: 800; margin-bottom: 3px; }
+    .style-btn .style-desc { display: block; font-size: 12px; color: #9aa1b4; font-weight: 400; }
+    .style-btn.picked {
+        border-color: #7c9cff;
+        background: rgba(124, 156, 255, 0.14);
+    }
+    .style-btn.picked .style-desc { color: #c3cbe6; }
+    #pickConfirmMsg {
+        text-align: center;
+        font-size: 13px;
+        color: #b6bccb;
+        margin: 4px 0 2px;
+    }
+    #pickProgress {
+        text-align: center;
+        font-size: 12px;
+        color: #6b7284;
+        margin-top: 4px;
+    }
+
+    .round-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .round-header .round-num { font-size: 14px; color: #9aa1b4; }
+    .odds-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: #2a2010;
+        color: #ffcf7a;
+    }
+    .odds-badge.danger {
+        background: #2a1414;
+        color: #ff8a8a;
+        animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.55; }
+    }
+    .my-status {
+        text-align: center;
+        padding: 16px 0 20px;
+    }
+    .my-status .multiplier {
+        font-size: 36px;
+        font-weight: 800;
+        color: #eef0f5;
+    }
+    .my-status .policy-tag {
+        display: inline-block;
+        margin-top: 6px;
+        font-size: 12px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: #20242f;
+        color: #b6bccb;
+    }
+    .my-status .predicted {
+        font-size: 13px;
+        color: #9aa1b4;
+        margin-top: 6px;
+    }
+    .auto-indicator {
+        text-align: center;
+        color: #9aa1b4;
+        font-size: 13px;
+        padding: 4px 0 8px;
+    }
+    .rolling-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #7c9cff;
+        margin-right: 6px;
+        animation: pulse 0.9s ease-in-out infinite;
+    }
+    .spectator-msg {
+        text-align: center;
+        color: #9aa1b4;
+        font-size: 13px;
+        padding: 8px 0;
+    }
+    .active-list, .finished-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 13px;
+    }
+    .active-list li, .finished-list li {
+        display: flex;
+        justify-content: space-between;
+        padding: 7px 4px;
+        border-bottom: 1px solid #21242f;
+    }
+    .active-list li:last-child, .finished-list li:last-child { border-bottom: none; }
+    .section-title {
+        font-size: 12px;
+        color: #6b7284;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 16px 0 6px;
+    }
+    .tag {
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        margin-left: 6px;
+    }
+    .tag.cashed { background: #123024; color: #63d19c; }
+    .tag.eliminated { background: #301212; color: #ff8a8a; }
+    .tag.disconnected { background: #24242c; color: #9aa1b4; }
+    #roundLog {
+        max-height: 160px;
+        overflow-y: auto;
+        font-size: 12px;
+        color: #b6bccb;
+    }
+    #roundLog .log-entry {
+        border-bottom: 1px solid #21242f;
+        padding: 6px 2px;
+    }
+    #roundLog .log-entry:last-child { border-bottom: none; }
+    .rank-list {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+    }
+    .rank-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 8px;
+        border-bottom: 1px solid #21242f;
+        font-size: 14px;
+    }
+    .rank-list li.me { background: rgba(124, 156, 255, 0.1); border-radius: 8px; }
+    .rank-num {
+        width: 24px;
+        text-align: center;
+        font-weight: 700;
+        color: #9aa1b4;
+    }
+    .rank-name { flex: 1; }
+    .rank-score { font-weight: 700; }
+    footer {
+        max-width: 480px;
+        margin: 24px auto 0;
+        text-align: center;
+    }
+    footer a { font-size: 12px; color: #6b7284; text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+    <h1>계속하기 눈덩이 베팅</h1>
+    <p>플레이 스타일을 한 번만 고르면, 그다음부터는 서버가 알아서 눈덩이를 굴립니다.<br>내가 고른 전략이 나 대신 매 라운드 판단해요.</p>
+</header>
+
+<main>
+    <section id="screenLobby" class="screen active">
+        <div class="card">
+            <label for="nameInput">닉네임</label>
+            <input type="text" id="nameInput" maxlength="20" placeholder="닉네임을 입력하세요">
+            <div class="error-msg" id="lobbyError"></div>
+            <button class="primary" id="createBtn" type="button">방 만들기</button>
+        </div>
+        <div class="card">
+            <label for="codeInput">방 코드로 참가</label>
+            <input type="text" id="codeInput" maxlength="4" placeholder="예: AB12" style="text-transform:uppercase;">
+            <button class="ghost" id="joinBtn" type="button">참가하기</button>
+        </div>
+    </section>
+
+    <section id="screenRoom" class="screen">
+        <div class="card">
+            <div class="room-code-row">
+                <div class="code" id="protoRoomCode">----</div>
+                <div class="hint">이 코드를 다른 플레이어에게 공유하세요</div>
+            </div>
+            <ul id="protoPlayerList"></ul>
+        </div>
+
+        <div class="card">
+            <div class="section-title">플레이 스타일 선택 (매치당 1회)</div>
+            <div class="style-grid" id="styleGrid">
+                <button class="style-btn" type="button" data-style="safe">
+                    <span class="style-name">안전형</span>
+                    <span class="style-desc">2라운드 성공하면 바로 자동으로 멈춰요</span>
+                </button>
+                <button class="style-btn" type="button" data-style="balanced">
+                    <span class="style-name">균형형</span>
+                    <span class="style-desc">4라운드 성공 또는 생존율 60% 미만이면 자동으로 멈춰요</span>
+                </button>
+                <button class="style-btn" type="button" data-style="aggressive">
+                    <span class="style-name">공격형</span>
+                    <span class="style-desc">탈락하거나 라운드 상한까지 계속 밀어붙여요</span>
+                </button>
+            </div>
+            <div class="error-msg" id="pickError"></div>
+            <div id="pickConfirmMsg" style="display:none;">선택 완료: <strong id="pickedStyleLabel"></strong> — 나머지는 서버가 자동으로 진행해요.</div>
+            <div id="pickProgress"></div>
+        </div>
+
+        <div class="card">
+            <div id="hostStartArea" style="display:none;">
+                <button class="ghost" id="soloTestBtn" type="button" style="display:none;margin-bottom:10px;">🤖 혼자 테스트</button>
+                <button class="primary" id="startBtn" type="button" disabled>게임 시작</button>
+                <div class="error-msg" id="startError"></div>
+                <div style="font-size:12px;color:#6b7284;text-align:center;margin-top:6px;">3~16명이 모이면 시작할 수 있어요. 스타일을 안 고른 플레이어는 균형형으로 자동 배정됩니다.</div>
+            </div>
+            <div id="waitingMsg">호스트가 게임을 시작하기를 기다리는 중...</div>
+        </div>
+    </section>
+
+    <section id="screenGame" class="screen">
+        <div class="card">
+            <div class="round-header">
+                <span class="round-num" id="roundNum">라운드 1</span>
+                <span class="odds-badge" id="oddsBadge">탈락 확률 8%</span>
+            </div>
+
+            <div id="myStatusArea" class="my-status">
+                <div class="multiplier" id="myMultiplier">x1.00</div>
+                <div class="policy-tag" id="myPolicyTag">균형형</div>
+                <div class="predicted" id="myPredicted">계속하면 성공 시 x1.25</div>
+            </div>
+
+            <div class="auto-indicator" id="autoIndicator"><span class="rolling-dot"></span>서버가 자동으로 진행 중입니다...</div>
+            <div class="spectator-msg" id="spectatorMsg" style="display:none;">이번 게임에서는 관전 중입니다.</div>
+
+            <div class="section-title">생존자 (<span id="activeCount">0</span>)</div>
+            <ul class="active-list" id="activeList"></ul>
+
+            <div class="section-title">정산 완료</div>
+            <ul class="finished-list" id="finishedList"></ul>
+
+            <div class="section-title">라운드 기록</div>
+            <div id="roundLog"></div>
+        </div>
+    </section>
+
+    <section id="screenOver" class="screen">
+        <div class="card">
+            <div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:12px;">최종 순위</div>
+            <ul class="rank-list" id="rankList"></ul>
+            <button class="primary" id="restartBtn" type="button" style="display:none;">다시 하기</button>
+            <div id="restartWaitMsg" style="display:none;text-align:center;color:#9aa1b4;font-size:13px;">호스트가 다시 시작하기를 기다리는 중...</div>
+        </div>
+    </section>
+
+    <footer><a href="/game-lab/index.html">← Game Lab으로 돌아가기</a></footer>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var myName = '';
+    var initialized = false;
+    var gameStarted = false;
+    var myPick = null; // 로컬 UI 표시용 (서버가 authoritative)
+    var lastRoomState = null;
+    var botsSpawned = false;
+
+    var STYLE_LABELS = { safe: '안전형', balanced: '균형형', aggressive: '공격형' };
+    var STYLE_KEYS = ['safe', 'balanced', 'aggressive'];
+    var MIN_PLAYERS = 3; // handleRoomState의 "count < 3" (게임 시작 최소 인원)과 동일
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(function (el) { el.classList.remove('active'); });
+        document.getElementById(id).classList.add('active');
+    }
+
+    function setLobbyError(msg) {
+        document.getElementById('lobbyError').textContent = msg || '';
+    }
+
+    function setStartError(msg) {
+        document.getElementById('startError').textContent = msg || '';
+    }
+
+    function setPickError(msg) {
+        document.getElementById('pickError').textContent = msg || '';
+    }
+
+    function resetPickUI() {
+        myPick = null;
+        setPickError('');
+        document.getElementById('pickConfirmMsg').style.display = 'none';
+        document.getElementById('pickProgress').textContent = '';
+        document.querySelectorAll('.style-btn').forEach(function (btn) {
+            btn.disabled = false;
+            btn.classList.remove('picked');
+        });
+    }
+
+    function ensureInit() {
+        if (initialized) return;
+        initialized = true;
+        ProtoClient.init({
+            onRoomState: handleRoomState,
+            onError: function (message) { setStartError(message); },
+            onDisconnect: function () {
+                setStartError('서버와 연결이 끊어졌습니다. 새로고침 해주세요.');
+            }
+        });
+        var socket = ProtoClient.getSocket();
+        socket.on('proto:push-your-luck:pickStatus', handlePickStatus);
+        socket.on('proto:push-your-luck:state', handleGameState);
+        socket.on('proto:push-your-luck:roundResult', handleRoundResult);
+        socket.on('proto:push-your-luck:gameOver', handleGameOver);
+        socket.on('proto:push-your-luck:error', function (payload) {
+            setStartError(payload && payload.message ? payload.message : '오류가 발생했습니다.');
+        });
+    }
+
+    document.getElementById('createBtn').addEventListener('click', function () {
+        myName = document.getElementById('nameInput').value.trim();
+        if (!myName) { setLobbyError('닉네임을 입력해주세요.'); return; }
+        setLobbyError('');
+        ensureInit();
+        ProtoClient.createRoom('push-your-luck-cashout', myName, function (res) {
+            if (!res || !res.success) { setLobbyError((res && res.error) || '방 생성에 실패했습니다.'); return; }
+            showScreen('screenRoom');
+        });
+    });
+
+    document.getElementById('joinBtn').addEventListener('click', function () {
+        myName = document.getElementById('nameInput').value.trim();
+        var code = document.getElementById('codeInput').value.trim().toUpperCase();
+        if (!myName) { setLobbyError('닉네임을 입력해주세요.'); return; }
+        if (!code) { setLobbyError('방 코드를 입력해주세요.'); return; }
+        setLobbyError('');
+        ensureInit();
+        ProtoClient.joinRoom(code, myName, function (res) {
+            if (!res || !res.success) { setLobbyError((res && res.error) || '참가에 실패했습니다.'); return; }
+            showScreen('screenRoom');
+        });
+    });
+
+    document.querySelectorAll('.style-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (myPick) return; // 이미 선택함 — 재선택 불가 (클라이언트 가드, 서버도 별도 거부)
+            var style = btn.getAttribute('data-style');
+            myPick = style;
+            setPickError('');
+            document.querySelectorAll('.style-btn').forEach(function (b) {
+                b.disabled = true;
+                b.classList.toggle('picked', b === btn);
+            });
+            document.getElementById('pickedStyleLabel').textContent = STYLE_LABELS[style];
+            document.getElementById('pickConfirmMsg').style.display = 'block';
+            ProtoClient.getSocket().emit('proto:push-your-luck:pickStyle', { style: style });
+        });
+    });
+
+    function handlePickStatus(payload) {
+        document.getElementById('pickProgress').textContent =
+            '스타일 선택 완료 ' + payload.pickedCount + ' / ' + payload.totalCount + '명';
+    }
+
+    function handleRoomState(room) {
+        lastRoomState = room;
+        var isHost = ProtoClient.getIsHost();
+        var count = room.players.length;
+        document.getElementById('hostStartArea').style.display = isHost ? 'block' : 'none';
+        document.getElementById('waitingMsg').style.display = isHost ? 'none' : 'block';
+        var startBtn = document.getElementById('startBtn');
+        startBtn.disabled = (count < 3 || count > 16) || gameStarted;
+        updateSoloTestBtnVisibility(isHost, count);
+        if (!gameStarted) {
+            showScreen('screenRoom');
+        }
+
+        var restartBtn = document.getElementById('restartBtn');
+        var restartWaitMsg = document.getElementById('restartWaitMsg');
+        if (restartBtn) restartBtn.style.display = isHost ? 'block' : 'none';
+        if (restartWaitMsg) restartWaitMsg.style.display = isHost ? 'none' : 'block';
+    }
+
+    // 호스트가 혼자서도 테스트할 수 있도록, 부족한 인원만큼 봇을 소환해 방에 채워 넣는다.
+    function updateSoloTestBtnVisibility(isHost, count) {
+        var btn = document.getElementById('soloTestBtn');
+        if (!btn) return;
+        btn.style.display = (isHost && !gameStarted && !botsSpawned && count < MIN_PLAYERS) ? 'block' : 'none';
+    }
+
+    document.getElementById('soloTestBtn').addEventListener('click', function () {
+        var btn = this;
+        var count = lastRoomState ? lastRoomState.players.length : 0;
+        var neededBots = Math.max(0, MIN_PLAYERS - count);
+        if (neededBots <= 0) return;
+        btn.disabled = true;
+        setStartError('');
+        ProtoClient.spawnBots(neededBots).then(function (bots) {
+            botsSpawned = true;
+            updateSoloTestBtnVisibility(ProtoClient.getIsHost(), lastRoomState ? lastRoomState.players.length : count);
+            bots.forEach(function (bot) {
+                var style = STYLE_KEYS[Math.floor(Math.random() * STYLE_KEYS.length)];
+                setTimeout(function () {
+                    bot.socket.emit('proto:push-your-luck:pickStyle', { style: style });
+                }, 200 + Math.floor(Math.random() * 600));
+            });
+        }).catch(function (err) {
+            btn.disabled = false;
+            setStartError((err && err.message) || '봇 생성에 실패했습니다.');
+        });
+    });
+
+    document.getElementById('startBtn').addEventListener('click', function () {
+        setStartError('');
+        ProtoClient.getSocket().emit('proto:push-your-luck:start');
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', function () {
+        gameStarted = false;
+        botsSpawned = false;
+        document.getElementById('soloTestBtn').disabled = false;
+        document.getElementById('roundLog').innerHTML = '';
+        resetPickUI();
+        showScreen('screenRoom');
+    });
+
+    function formatMultiplier(n) {
+        return 'x' + Number(n).toFixed(2);
+    }
+
+    function handleGameState(state) {
+        gameStarted = true;
+        showScreen('screenGame');
+
+        document.getElementById('roundNum').textContent = '라운드 ' + state.round;
+        var pct = Math.round(state.eliminationChance * 100);
+        var oddsBadge = document.getElementById('oddsBadge');
+        oddsBadge.textContent = '탈락 확률 ' + pct + '%';
+        oddsBadge.className = 'odds-badge' + (pct >= 50 ? ' danger' : '');
+
+        var myName2 = ProtoClient.getUserName();
+        var me = state.activePlayers.filter(function (p) { return p.name === myName2; })[0];
+
+        var autoIndicator = document.getElementById('autoIndicator');
+        var spectatorMsg = document.getElementById('spectatorMsg');
+        var myStatusArea = document.getElementById('myStatusArea');
+
+        if (!me) {
+            myStatusArea.style.display = 'none';
+            autoIndicator.style.display = 'none';
+            spectatorMsg.style.display = 'block';
+        } else {
+            myStatusArea.style.display = 'block';
+            autoIndicator.style.display = 'block';
+            document.getElementById('myMultiplier').textContent = formatMultiplier(me.multiplier);
+            document.getElementById('myPolicyTag').textContent = STYLE_LABELS[me.policy] || me.policy;
+            document.getElementById('myPredicted').textContent =
+                '계속하면 성공 시 ' + formatMultiplier(me.multiplier * state.growthFactor) + ', 실패하면 0점';
+            spectatorMsg.style.display = 'none';
+        }
+
+        document.getElementById('activeCount').textContent = state.activePlayers.length;
+        var activeList = document.getElementById('activeList');
+        activeList.innerHTML = '';
+        state.activePlayers.forEach(function (p) {
+            var li = document.createElement('li');
+            var nameSpan = document.createElement('span');
+            nameSpan.textContent = p.name + (p.name === myName2 ? ' (나)' : '') + ' · ' + (STYLE_LABELS[p.policy] || p.policy);
+            var scoreSpan = document.createElement('span');
+            scoreSpan.textContent = formatMultiplier(p.multiplier);
+            li.appendChild(nameSpan);
+            li.appendChild(scoreSpan);
+            activeList.appendChild(li);
+        });
+
+        renderFinishedList(state.finished, myName2);
+    }
+
+    function renderFinishedList(finished, myName2) {
+        var finishedList = document.getElementById('finishedList');
+        finishedList.innerHTML = '';
+        finished.forEach(function (f) {
+            var li = document.createElement('li');
+            var nameSpan = document.createElement('span');
+            nameSpan.textContent = f.name + (f.name === myName2 ? ' (나)' : '');
+            var tag = document.createElement('span');
+            tag.className = 'tag ' + f.status;
+            tag.textContent = f.status === 'cashed' ? '멈춤' : (f.status === 'eliminated' ? '탈락' : '이탈');
+            nameSpan.appendChild(tag);
+            var scoreSpan = document.createElement('span');
+            scoreSpan.textContent = formatMultiplier(f.score);
+            li.appendChild(nameSpan);
+            li.appendChild(scoreSpan);
+            finishedList.appendChild(li);
+        });
+    }
+
+    function handleRoundResult(payload) {
+        var log = document.getElementById('roundLog');
+        var wrap = document.createElement('div');
+        wrap.className = 'log-entry';
+        var pct = Math.round(payload.eliminationChance * 100);
+        var lines = ['라운드 ' + payload.round + ' 공개 (탈락 확률 ' + pct + '%)'];
+        payload.results.forEach(function (r) {
+            var actionLabel = r.action === 'cashout' ? '자동 멈춤' : '자동 계속';
+            var outcomeLabel;
+            if (r.action === 'cashout') {
+                outcomeLabel = formatMultiplier(r.multiplierAfter) + ' 확정';
+            } else if (r.eliminated) {
+                outcomeLabel = '탈락 (0점)';
+            } else {
+                outcomeLabel = '생존 → ' + formatMultiplier(r.multiplierAfter);
+            }
+            lines.push('· ' + r.name + ' — ' + actionLabel + ' — ' + outcomeLabel);
+        });
+        wrap.textContent = lines.join('\n');
+        wrap.style.whiteSpace = 'pre-line';
+        log.insertBefore(wrap, log.firstChild);
+    }
+
+    function handleGameOver(payload) {
+        showScreen('screenOver');
+        var myName2 = ProtoClient.getUserName();
+        var rankList = document.getElementById('rankList');
+        rankList.innerHTML = '';
+        payload.ranking.forEach(function (r, i) {
+            var li = document.createElement('li');
+            if (r.name === myName2) li.className = 'me';
+            var rankNum = document.createElement('span');
+            rankNum.className = 'rank-num';
+            rankNum.textContent = String(i + 1);
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'rank-name';
+            nameSpan.textContent = r.name + (r.name === myName2 ? ' (나)' : '');
+            var scoreSpan = document.createElement('span');
+            scoreSpan.className = 'rank-score';
+            scoreSpan.textContent = formatMultiplier(r.score);
+            li.appendChild(rankNum);
+            li.appendChild(nameSpan);
+            li.appendChild(scoreSpan);
+            rankList.appendChild(li);
+        });
+
+        var isHost = ProtoClient.getIsHost();
+        document.getElementById('restartBtn').style.display = isHost ? 'block' : 'none';
+        document.getElementById('restartWaitMsg').style.display = isHost ? 'none' : 'block';
+    }
+})();
+</script>
+</body>
+</html>

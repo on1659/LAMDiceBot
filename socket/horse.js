@@ -16,7 +16,7 @@ const EVOLUTION_CONFIG = _horseRaceConfig.evolution;
 const FAKE_EVOLUTION_CONFIG = _horseRaceConfig.fakeEvolution;
 // ────────────────────────
 const { ALL_VEHICLE_IDS, NEW_VEHICLE_IDS, NEW_VEHICLE_WEIGHT, VEHICLE_NAMES, weightedShuffleVehicles } = require('../utils/vehicle-helpers');
-const { recordVehicleRaceResult, getVehicleStats } = require('../db/vehicle-stats');
+const { recordVehicleRaceResult, getVehicleStats, recordVehicleSeasonResult } = require('../db/vehicle-stats');
 const { recordVehiclePicks } = require('../db/vehicle-picks');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getServerId } = require('../routes/api');
@@ -158,6 +158,17 @@ module.exports = (socket, io, ctx) => {
         for (const [k, v] of Object.entries(TRACK_PRESETS)) trackPresetsInfo[k] = v.meters;
         io.to(room.roomId).emit('trackLengthChanged', { trackLength: option, trackDistanceMeters: preset.meters, trackPresets: trackPresetsInfo });
         console.log(`[경마] 방 ${room.roomName} 트랙 길이 설정: ${option} (${preset.meters}m)`);
+    });
+
+    // 탈것 통계 조회 (통계 모달 — 표시 전용, 집계 데이터만 반환)
+    socket.on('horse:requestVehicleStats', (data, callback) => {
+        if (!checkRateLimit()) return;
+        const cb = (typeof callback === 'function') ? callback : () => {};
+        const room = getCurrentRoom();
+        if (!room || room.gameType !== 'horse-race') return cb({ ok: false });
+        getVehicleStats(getServerId())
+            .then(stats => cb({ ok: true, stats }))
+            .catch(() => cb({ ok: false }));
     });
 
     // 경마 게임 시작 (방장만 가능)
@@ -473,6 +484,16 @@ module.exports = (socket, io, ctx) => {
             gameState.userHorseBets,
             gameState.availableHorses
         ).catch(e => console.warn('탈것 통계 저장 실패:', e.message));
+
+        // 시즌별 탈것 통계 저장 (비공개 서버 방만)
+        if (room.serverId) {
+            recordVehicleSeasonResult(
+                room.serverId,
+                rankings,
+                gameState.selectedVehicleTypes || [],
+                gameState.userHorseBets
+            ).catch(e => console.warn('탈것 시즌 통계 기록 실패:', e.message));
+        }
 
         // ─── 룰렛 단계 (유효 투표 있을 때만) ───
         // 유효 투표 있으면 horseRouletteStart 먼저 보내고, ROULETTE_ANIM_MS 후 카운트다운 시작.
@@ -1140,6 +1161,16 @@ module.exports = (socket, io, ctx) => {
                 gameState.userHorseBets,
                 gameState.availableHorses
             ).catch(e => console.warn('탈것 통계 저장 실패:', e.message));
+
+            // 시즌별 탈것 통계 저장 (비공개 서버 방만)
+            if (room.serverId) {
+                recordVehicleSeasonResult(
+                    room.serverId,
+                    rankings,
+                    gameState.selectedVehicleTypes || [],
+                    gameState.userHorseBets
+                ).catch(e => console.warn('탈것 시즌 통계 기록 실패:', e.message));
+            }
 
             // 경주 종료: 결과 전송 직후 상태를 false로 설정
             gameState.isHorseRaceActive = false;

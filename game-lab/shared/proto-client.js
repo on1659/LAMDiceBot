@@ -24,6 +24,9 @@ var ProtoClient = (function () {
     var onErrorCb = null;
     var onDisconnectCb = null;
 
+    var lastRoomPlayers = []; // 가장 최근 proto:roomState의 players (봇 이름 중복 회피용)
+    var botSockets = []; // spawnBots()로 만든 { socket, name } 목록
+
     function renderRoomState(room) {
         var codeEl = document.getElementById('protoRoomCode');
         if (codeEl) codeEl.textContent = room.roomCode;
@@ -53,6 +56,7 @@ var ProtoClient = (function () {
         socket.on('proto:roomState', function (room) {
             roomCode = room.roomCode;
             gameSlug = room.gameSlug;
+            lastRoomPlayers = room.players || [];
             var me = room.players.filter(function (p) { return p.name === userName; })[0];
             isHost = !!(me && me.isHost);
 
@@ -103,6 +107,61 @@ var ProtoClient = (function () {
     function getGameSlug() { return gameSlug; }
     function getIsHost() { return isHost; }
 
+    // 현재 방(lastRoomPlayers) + 이번 배치에서 이미 배정한 이름을 피해 "봇1", "봇2", ... 중 빈 번호를 고른다.
+    function generateBotName(takenNames) {
+        var idx = 1;
+        while (takenNames.indexOf('봇' + idx) !== -1) idx++;
+        return '봇' + idx;
+    }
+
+    // 봇 전용 소켓 하나를 열어 실제 클라이언트와 동일한 proto:joinRoom 경로로 참가시킨다.
+    function spawnOneBot(code, botName) {
+        return new Promise(function (resolve, reject) {
+            var botSocket = io('/proto');
+            botSocket.emit('proto:joinRoom', { roomCode: code, userName: botName }, function (res) {
+                if (res && res.success) {
+                    var entry = { socket: botSocket, name: botName };
+                    botSockets.push(entry);
+                    resolve(entry);
+                } else {
+                    botSocket.disconnect();
+                    reject(new Error((res && res.error) || '봇 참가에 실패했습니다.'));
+                }
+            });
+        });
+    }
+
+    // 호스트 자신의 ProtoClient 연결과는 별개로, 같은 방에 참가하는 raw 소켓 count개를 추가로 연다.
+    // 반환된 { socket, name } 배열 위에 각 게임 페이지가 자신의 픽 제출 로직을 이어 붙이면 된다.
+    function spawnBots(count) {
+        count = Number(count) || 0;
+        if (count <= 0) return Promise.resolve([]);
+        var code = roomCode;
+        if (!code) return Promise.reject(new Error('아직 방에 참가하지 않았습니다.'));
+
+        var takenNames = lastRoomPlayers.map(function (p) { return p.name; })
+            .concat(botSockets.map(function (b) { return b.name; }));
+
+        var joinPromises = [];
+        for (var i = 0; i < count; i++) {
+            var botName = generateBotName(takenNames);
+            takenNames.push(botName);
+            joinPromises.push(spawnOneBot(code, botName));
+        }
+        return Promise.all(joinPromises);
+    }
+
+    function disconnectBots() {
+        botSockets.forEach(function (b) {
+            if (b.socket) b.socket.disconnect();
+        });
+        botSockets = [];
+    }
+
+    window.addEventListener('beforeunload', function () {
+        disconnectBots();
+    });
+
     return {
         init: init,
         createRoom: createRoom,
@@ -112,6 +171,8 @@ var ProtoClient = (function () {
         getRoomCode: getRoomCode,
         getUserName: getUserName,
         getGameSlug: getGameSlug,
-        getIsHost: getIsHost
+        getIsHost: getIsHost,
+        spawnBots: spawnBots,
+        disconnectBots: disconnectBots
     };
 })();

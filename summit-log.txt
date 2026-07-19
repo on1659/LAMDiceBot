@@ -1,5 +1,37 @@
 ========================================
-📋 Summit Log - 2026-07-07 (상점 버튼 로컬 전용 노출 + 트레일→잔상 리워크 + game-lab 프로토타입 허브 스캐폴드)
+📋 Summit Log - 2026-07-19 (탈것 통계·꾸미기 적용 수정·game-lab 프로토 9종 + 하네스 재구조화)
+========================================
+
+## 변경 파일 (게임)
+- db/init.js: vehicle_season_stats 테이블 신설 — (server_id FK, season, vehicle_id, appearance/pick/rank_1~6, UNIQUE(server_id,season,vehicle_id)) + (server_id,season) 인덱스
+- db/vehicle-stats.js: 시즌 스코프 upsert 추가 — 경기 종료 시 room.serverId 있으면 servers.current_season 기준 기록 (파라미터화 SQL, DB-less 모드는 조용히 스킵)
+- socket/horse.js: 탈것 통계 조회 소켓 이벤트 신설 (첫 줄 checkRateLimit) + 경기 종료 시즌 기록 호출
+- routes/server.js: GET /api/ranking/:serverId/vehicles?season=N — rank_1 DESC(동률 시 승률) TOP 탈것 반환
+- js/shared/ranking-shared.js: 시즌 뷰에 "🏇 시즌 우승 탈것" TOP3 섹션 (금은동, 데이터 없으면 섹션 숨김, vehicle-themes.json 지연 로드로 주사위/룰렛 페이지 호환)
+- js/horse-race.js + horse-race-multiplayer.html: "탈것 통계" 버튼/모달 — 승률 내림차순 표, 표본 5회 미만 저표본 표시, horseSelectionReady 캐시 폴백
+- js/horse-shop.js, css/horse-shop.css: 꾸미기 적용 3종 수정 — finish_fx 호스트 전용 게이트 제거+연출 강화, 잔상 크기/식별성 확대, 머리 장식 per-vehicle 위치·크기 보정 (goal: horse-cosmetic-apply-fixes → applied)
+- css/horse-race.css: 잔상 후속 튜닝 (goal: horse-trail-to-afterimage 진행 중)
+- socket/proto-games/ (신규 9종): chair-grab, guess-the-number, hot-potato-pass, lowest-unique-number, mine-tile-grid, never-say-number, odd-even-chain, push-your-luck-cashout, rps-majority, stopwatch-zone + game-lab/ 개별 페이지·로컬 server.js·start.bat — 프로토 허브 전용, production 모듈 무import
+- AutoTest: qa-vehicle-season-stats-db-test.js, qa-vehicle-stats-ui-browser-test.js, qa-trail-afterimage-live-race-test.js 신규 + 꾸미기 테스트 2종 갱신
+- server.js: 프로토 허브 연결 정리 1줄
+
+## 변경 파일 (하네스 재구조화 — 4관점 패널+교차심문 감사 근거)
+- .claude/hooks/check-triage.sh: 위험 경로 regex (^|/) 앵커 — 상대경로 우회 봉쇄
+- .claude/hooks/check-shell-write.sh (신규): Bash/PowerShell 쓰기 게이트 — 위험 경로+쓰기 지시자+SIMPLE 조합만 차단
+- .claude/hooks/security/fairness/mobile-guard.sh: 경로 \→/ 정규화 + 편집 후 디스크 실검사 — security-guard는 백슬래시 버그로 발동 이력 0회(사망 상태)였음, mobile-guard 가짜 viewport 경고 제거. 재현 테스트 13/13
+- .claude/settings.json: mcp filesystem 쓰기 3종 deny, Bash|PowerShell 매처 확장, audit-counter SessionStart 등록 제거
+- .claude/rules/harness.md: "검증 팬아웃 규칙" 신설 — 검증 단계 한정 Workflow 적대 리뷰 허용(6조: git status 선확인·지시서 스코프 펜스·읽기 전용·판정 수렴·트리아지/lessons 전파·agents 갱신 확인), 쓰기 경로 직렬 명문화
+- CLAUDE.md: /autogoal 단일 진입문 선언 (LIGHT/HEAVY 라우팅은 사용자 레벨 스킬 ~/.claude/skills/autogoal/), Brain 테이블 정리
+- 아카이브 (git mv, 삭제 0): /build·/dev-cycle·meeting 역할극 5종+profiles → docs/harness/archive/commands/, audit-counter.sh → archive/hooks/, 완료 impl 16건 → docs/meeting/applied/
+- .claude/skills/harness/SKILL.md(name build→harness)·skills/README.md·harness-audit.md·memory-audit.md: 참조 동기화
+- docs/harness/harness-restructure-2026-07-19.html: 전후 비교 보고서 (훅 실발동 실측, 패널 판정, 남은 A/B 파일럿 지표)
+- docs/goal/applied/harness-autogoal-entry.md: goal 명세 (Stop 훅이 자동 아카이브 — 신규 흐름 첫 실작동)
+
+## 변경 이유
+- 탈것 통계: 배지("추천/인기")로만 쓰이던 기존 기록을 유저가 직접 볼 수 있게 + 시즌 우승 탈것은 시즌 키 기록이 없어 지금부터 신규 테이블로 적재
+- 꾸미기 수정: 구매한 꾸미기가 "적용 안 되는 것처럼" 보이던 3개 원인 제거 (상점은 아직 로컬 게이트 — 유저 로그 미기재)
+- 하네스: ultracode 시대 유효성 감사 결과 반영 — "하네스 제거"가 아니라 autogoal=문/하네스=엔진/훅=안전층으로 역할 재배치, 죽어 있던 가드 소생이 최대 성과
+
 ========================================
 
 ## 변경 파일

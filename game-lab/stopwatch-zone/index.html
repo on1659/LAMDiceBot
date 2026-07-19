@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스톱워치 룰렛 — Game Lab</title>
+<meta name="description" content="모두에게 똑같이 도는 다이얼, 각자의 자동 정지 지점이 숨겨진 구간 안에 들면 생존하는 실시간 멀티플레이어 관전 프로토타입">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 60px;
+    }
+    .wrap { max-width: 480px; margin: 0 auto; }
+    a.back {
+        display: inline-block;
+        color: #8fa1ff;
+        text-decoration: none;
+        font-size: 13px;
+        margin-bottom: 16px;
+    }
+    h1 {
+        font-size: 22px;
+        margin: 0 0 6px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .pitch { margin: 0 0 20px; color: #9aa1b4; font-size: 13px; line-height: 1.6; }
+
+    .panel {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    label { display: block; font-size: 12px; color: #9aa1b4; margin-bottom: 6px; }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #2c3242;
+        background: #0f1117;
+        color: #eef0f5;
+        font-size: 15px;
+        margin-bottom: 14px;
+    }
+    input[type="text"]:focus { outline: 2px solid #7c9cff; }
+
+    button {
+        appearance: none;
+        border: none;
+        border-radius: 10px;
+        padding: 14px 18px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+    }
+    .btn-primary { background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%); color: #10121a; }
+    .btn-secondary { background: #232838; color: #eef0f5; margin-top: 10px; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row button { flex: 1; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .error-toast {
+        display: none;
+        background: #3a1d24;
+        border: 1px solid #6b2b38;
+        color: #ff9fb0;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+        margin-bottom: 14px;
+    }
+
+    .room-code-label { font-size: 12px; color: #9aa1b4; }
+    .room-code-value { font-size: 26px; font-weight: 800; letter-spacing: 4px; color: #b98cff; margin: 4px 0 16px; }
+
+    #protoPlayerList { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    #protoPlayerList li {
+        background: #232838;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+    #protoPlayerList li.me { border: 1px solid #7c9cff; }
+    #protoPlayerList li.host { color: #ffd97a; }
+
+    .dial-area { display: flex; flex-direction: column; align-items: center; }
+    .dial-svg-wrap { position: relative; width: min(80vw, 260px); height: min(80vw, 260px); margin: 6px auto 18px; }
+    svg.dial { width: 100%; height: 100%; display: block; }
+    .dial-hand {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 3px;
+        height: 42%;
+        background: #ff5d73;
+        transform-origin: bottom center;
+        transform: translate(-50%, -100%) rotate(0deg);
+        border-radius: 3px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .dial-hand { display: none; }
+    }
+    .angle-readout {
+        display: none;
+        font-size: 30px;
+        font-weight: 800;
+        color: #ff5d73;
+        margin: 6px 0 18px;
+    }
+
+    .round-info { display: flex; justify-content: space-between; font-size: 13px; color: #9aa1b4; margin-bottom: 10px; }
+    .status-label { text-align: center; font-size: 14px; font-weight: 700; min-height: 20px; margin-bottom: 6px; }
+    .progress-label { text-align: center; font-size: 12px; color: #6b7284; margin-bottom: 14px; min-height: 16px; }
+
+    .my-status-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #0f1117;
+        border: 1px solid #2c3242;
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 14px;
+    }
+    .my-status-name { font-size: 14px; font-weight: 700; color: #eef0f5; }
+    .my-status-value { font-size: 13px; color: #9aa1b4; text-align: right; }
+    .my-status-value.survived { color: #7ee0a8; }
+    .my-status-value.eliminated { color: #ff9fb0; }
+
+    .result-panel { display: none; }
+    .result-panel h3 { font-size: 14px; margin: 0 0 10px; color: #eef0f5; }
+    #resultList { list-style: none; margin: 0; padding: 0; }
+    #resultList li {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        padding: 6px 0;
+        border-bottom: 1px solid #232838;
+    }
+    #resultList li.survived { color: #7ee0a8; }
+    #resultList li.eliminated { color: #ff9fb0; }
+
+    .final-banner {
+        display: none;
+        text-align: center;
+        font-size: 18px;
+        font-weight: 800;
+        padding: 16px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        color: #10121a;
+        margin-bottom: 14px;
+    }
+
+    .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <a class="back" href="/game-lab/index.html">← Game Lab으로</a>
+    <h1>스톱워치 룰렛</h1>
+    <p class="pitch">참여만 하면 끝! 다이얼과 각자의 정지 지점은 전부 서버가 자동으로 결정합니다. 숨겨진 당첨 구간 안에 내 정지 지점이 들어오면 생존이에요. 라운드가 지날수록 다이얼은 빨라지고 구간은 좁아집니다.</p>
+
+    <div id="errorToast" class="error-toast"></div>
+
+    <!-- 입장 화면 -->
+    <div id="joinScreen" class="panel">
+        <label for="nameInput">닉네임</label>
+        <input type="text" id="nameInput" maxlength="20" placeholder="닉네임 입력 (최대 20자)">
+
+        <label for="codeInput">방 코드 (참여할 때만 입력)</label>
+        <input type="text" id="codeInput" maxlength="4" placeholder="예: 8FQK">
+
+        <button id="createBtn" class="btn-primary">새 방 만들기</button>
+        <button id="joinBtn" class="btn-secondary">코드로 참여하기</button>
+    </div>
+
+    <!-- 대기실 화면 -->
+    <div id="lobbyScreen" class="panel hidden">
+        <div class="room-code-label">방 코드</div>
+        <div class="room-code-value" id="protoRoomCode">----</div>
+        <ul id="protoPlayerList"></ul>
+        <button id="startBtn" class="btn-primary hidden" style="margin-top:16px;">게임 시작</button>
+        <button id="soloTestBtn" class="btn-secondary hidden">🤖 혼자 테스트</button>
+        <button id="leaveBtn" class="btn-secondary">나가기</button>
+    </div>
+
+    <!-- 게임 화면 -->
+    <div id="gameScreen" class="panel hidden">
+        <div class="round-info">
+            <span id="roundLabel">라운드 1</span>
+            <span id="aliveLabel">생존자 -명</span>
+        </div>
+
+        <div class="dial-area">
+            <div class="dial-svg-wrap">
+                <svg class="dial" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="92" fill="#0f1117" stroke="#2c3242" stroke-width="2"></circle>
+                    <path id="zoneArc" fill="rgba(126,224,168,0.35)" stroke="#7ee0a8" stroke-width="1.5"></path>
+                    <circle cx="100" cy="100" r="4" fill="#eef0f5"></circle>
+                </svg>
+                <div class="dial-hand" id="dialHand"></div>
+            </div>
+            <div class="angle-readout" id="angleReadout">0°</div>
+        </div>
+
+        <div class="my-status-card">
+            <span class="my-status-name" id="myStatusName"></span>
+            <span class="my-status-value" id="myStatusValue">대기 중...</span>
+        </div>
+
+        <div class="status-label" id="statusLabel">대기 중...</div>
+        <div class="progress-label" id="progressLabel"></div>
+
+        <div class="result-panel" id="resultPanel">
+            <div class="final-banner" id="finalBanner"></div>
+            <h3>이번 라운드 결과</h3>
+            <ul id="resultList"></ul>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var socket = null;
+    var userName = null;
+    var dialState = null;
+    var rafId = null;
+    var intervalId = null;
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    var MIN_PLAYERS = 2; // socket/proto-games/stopwatch-zone.js의 MIN_PLAYERS와 동일 (혼자 테스트 봇 투입 수 계산용)
+    var currentPlayerCount = 0;
+    var botsSpawning = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    function showScreen(name) {
+        $('joinScreen').classList.toggle('hidden', name !== 'join');
+        $('lobbyScreen').classList.toggle('hidden', name !== 'lobby');
+        $('gameScreen').classList.toggle('hidden', name !== 'game');
+    }
+
+    function showError(message) {
+        var el = $('errorToast');
+        el.textContent = message;
+        el.style.display = 'block';
+        clearTimeout(showError._t);
+        showError._t = setTimeout(function () { el.style.display = 'none'; }, 3500);
+    }
+
+    function ensureSocket() {
+        if (socket) return;
+        socket = ProtoClient.init({
+            onRoomState: onRoomState,
+            onError: showError,
+            onDisconnect: function () { showError('연결이 끊어졌습니다.'); }
+        });
+        socket.on('proto:stopwatch-zone:error', showError);
+        socket.on('proto:stopwatch-zone:roundStart', onRoundStart);
+        socket.on('proto:stopwatch-zone:yourStop', onYourStop);
+        socket.on('proto:stopwatch-zone:autoStopProgress', onAutoStopProgress);
+        socket.on('proto:stopwatch-zone:roundResult', onRoundResult);
+    }
+
+    function updateSoloTestBtn() {
+        var soloBtn = $('soloTestBtn');
+        var isHost = ProtoClient.getIsHost();
+        var show = isHost && !botsSpawning && currentPlayerCount < MIN_PLAYERS;
+        soloBtn.classList.toggle('hidden', !show);
+    }
+
+    function onRoomState(room) {
+        currentPlayerCount = room.players.length;
+        var isHost = ProtoClient.getIsHost();
+        $('startBtn').classList.toggle('hidden', !isHost);
+        updateSoloTestBtn();
+    }
+
+    $('createBtn').addEventListener('click', function () {
+        var name = $('nameInput').value.trim();
+        if (!name) { showError('닉네임을 입력해주세요.'); return; }
+        ensureSocket();
+        ProtoClient.createRoom('stopwatch-zone', name, function (res) {
+            if (!res || !res.success) { showError((res && res.error) || '방 생성에 실패했습니다.'); return; }
+            userName = name;
+            showScreen('lobby');
+        });
+    });
+
+    $('joinBtn').addEventListener('click', function () {
+        var name = $('nameInput').value.trim();
+        var code = $('codeInput').value.trim().toUpperCase();
+        if (!name || !code) { showError('닉네임과 방 코드를 입력해주세요.'); return; }
+        ensureSocket();
+        ProtoClient.joinRoom(code, name, function (res) {
+            if (!res || !res.success) { showError((res && res.error) || '참여에 실패했습니다.'); return; }
+            userName = name;
+            showScreen('lobby');
+        });
+    });
+
+    $('startBtn').addEventListener('click', function () {
+        if (socket) socket.emit('proto:stopwatch-zone:start');
+    });
+
+    $('soloTestBtn').addEventListener('click', function () {
+        if (!socket || botsSpawning) return;
+        var needed = Math.max(0, MIN_PLAYERS - currentPlayerCount);
+        if (needed <= 0) return;
+        botsSpawning = true;
+        updateSoloTestBtn();
+        ProtoClient.spawnBots(needed).then(function () {
+            botsSpawning = false;
+            updateSoloTestBtn();
+        }, function (err) {
+            botsSpawning = false;
+            showError((err && err.message) || '봇 투입에 실패했습니다.');
+            updateSoloTestBtn();
+        });
+    });
+
+    $('leaveBtn').addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        location.reload();
+    });
+
+    function currentAngle() {
+        var elapsed = Date.now() - dialState.startTimestamp;
+        var e = Math.max(elapsed, 0);
+        return (e * dialState.speedDegPerSec / 1000) % 360;
+    }
+
+    function renderHand(angle) {
+        $('dialHand').style.transform = 'translate(-50%, -100%) rotate(' + angle + 'deg)';
+    }
+
+    function stopDialLoop() {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    }
+
+    function startDialLoop() {
+        stopDialLoop();
+        if (reducedMotion) {
+            $('angleReadout').style.display = 'block';
+            intervalId = setInterval(function () {
+                var a = currentAngle();
+                $('angleReadout').textContent = a.toFixed(0) + '°';
+                if (Date.now() >= dialState.startTimestamp) {
+                    $('statusLabel').textContent = '진행 중 — 각자 자동으로 정지합니다...';
+                }
+            }, 250);
+        } else {
+            $('angleReadout').style.display = 'none';
+            var frame = function () {
+                renderHand(currentAngle());
+                if (Date.now() >= dialState.startTimestamp && $('statusLabel').dataset.running !== '1') {
+                    $('statusLabel').textContent = '진행 중 — 각자 자동으로 정지합니다...';
+                    $('statusLabel').dataset.running = '1';
+                }
+                rafId = requestAnimationFrame(frame);
+            };
+            rafId = requestAnimationFrame(frame);
+        }
+    }
+
+    function polarToXY(cx, cy, r, angleDeg) {
+        var rad = (angleDeg - 90) * Math.PI / 180;
+        return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    }
+
+    function renderZoneArc(zoneStartDeg, zoneSizeDeg) {
+        var cx = 100, cy = 100, r = 92;
+        var p1 = polarToXY(cx, cy, r, zoneStartDeg);
+        var p2 = polarToXY(cx, cy, r, zoneStartDeg + zoneSizeDeg);
+        var largeArc = zoneSizeDeg > 180 ? 1 : 0;
+        var d = 'M ' + cx + ' ' + cy + ' L ' + p1.x.toFixed(2) + ' ' + p1.y.toFixed(2) +
+            ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + p2.x.toFixed(2) + ' ' + p2.y.toFixed(2) + ' Z';
+        $('zoneArc').setAttribute('d', d);
+    }
+
+    function onRoundStart(data) {
+        showScreen('game');
+        dialState = data;
+        $('roundLabel').textContent = '라운드 ' + data.round;
+        $('aliveLabel').textContent = '생존자 ' + data.alive.length + '명';
+        $('statusLabel').textContent = '곧 다이얼이 움직입니다...';
+        $('statusLabel').dataset.running = '0';
+        $('progressLabel').textContent = '';
+        $('myStatusName').textContent = userName || '';
+        $('myStatusValue').textContent = '대기 중...';
+        $('myStatusValue').className = 'my-status-value';
+        $('resultPanel').style.display = 'none';
+        $('finalBanner').style.display = 'none';
+        $('zoneArc').setAttribute('d', '');
+        startDialLoop();
+    }
+
+    function onYourStop(data) {
+        $('myStatusValue').textContent = '내 정지 각도 ' + data.angleDeg.toFixed(1) + '° — 결과를 기다리는 중';
+    }
+
+    function onAutoStopProgress(data) {
+        $('progressLabel').textContent = data.name + '님 자동 정지! (' + data.landed + ' / ' + data.total + '명)';
+    }
+
+    function onRoundResult(data) {
+        stopDialLoop();
+        renderZoneArc(data.zoneStartDeg, data.zoneSizeDeg);
+
+        var list = $('resultList');
+        list.innerHTML = '';
+        var myResult = null;
+        data.results.forEach(function (r) {
+            if (r.name === userName) myResult = r;
+            var li = document.createElement('li');
+            li.className = r.survived ? 'survived' : 'eliminated';
+            var left = document.createElement('span');
+            left.textContent = r.name;
+            var right = document.createElement('span');
+            right.textContent = r.angleDeg.toFixed(1) + '° · ' + (r.survived ? '생존' : '탈락');
+            li.appendChild(left);
+            li.appendChild(right);
+            list.appendChild(li);
+        });
+        $('resultPanel').style.display = 'block';
+
+        if (myResult) {
+            $('myStatusValue').textContent = myResult.angleDeg.toFixed(1) + '° · ' + (myResult.survived ? '생존!' : '탈락');
+            $('myStatusValue').className = 'my-status-value ' + (myResult.survived ? 'survived' : 'eliminated');
+        }
+
+        var banner = $('finalBanner');
+        if (data.voided) {
+            $('statusLabel').textContent = '전원 탈락! 구간을 다시 뽑습니다...';
+            banner.style.display = 'none';
+        } else if (data.gameOver) {
+            banner.style.display = 'block';
+            if (data.winner) {
+                banner.textContent = '🏆 ' + data.winner + ' 님 우승!';
+            } else if (data.tie && data.tie.length) {
+                banner.textContent = '무승부: ' + data.tie.join(', ');
+            } else {
+                banner.textContent = '게임 종료';
+            }
+            $('statusLabel').textContent = '게임이 끝났습니다.';
+        } else {
+            $('statusLabel').textContent = '다음 라운드 준비 중...';
+            banner.style.display = 'none';
+        }
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,12 +1,13 @@
 ---
-name: build
+name: harness
 description: 이더(Ether) 오케스트레이터 — 트리아지 후 Scout→Coder→Reviewer→QA 파이프라인 실행
 user-invocable: true
 ---
 
-# /build — 이더(Ether) 오케스트레이션 파이프라인
+# 이더(Ether) 오케스트레이션 파이프라인 — 하네스 실행 상세
 
 사용자의 요청을 받아 트리아지 판정 후 적절한 수준의 파이프라인을 실행한다.
+(진입은 보통 `/autogoal` Phase 6 또는 채팅 직접 요청 — 구 `/build` 커맨드는 `docs/harness/archive/`로 아카이브됨)
 
 ## 트리아지 판정
 

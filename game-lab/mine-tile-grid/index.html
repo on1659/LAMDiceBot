@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>지뢰 타일 서바이벌 — Game Lab</title>
+<meta name="description" content="내 칸을 한 번만 고르면 그 다음부터는 자동으로 진행되는 실시간 멀티플레이어 지뢰 서바이벌 프로토타입">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 60px;
+    }
+    .wrap {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    header h1 {
+        font-size: 24px;
+        margin: 0 0 6px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    header p {
+        margin: 0;
+        color: #9aa1b4;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .back-link {
+        display: inline-block;
+        margin-top: 10px;
+        color: #6b7284;
+        font-size: 12px;
+        text-decoration: none;
+    }
+    .back-link:hover { color: #9aa1b4; }
+
+    .panel {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+
+    label {
+        display: block;
+        font-size: 13px;
+        color: #b6bccb;
+        margin-bottom: 6px;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #2f3546;
+        background: #0f1117;
+        color: #eef0f5;
+        font-size: 15px;
+        margin-bottom: 14px;
+    }
+    input[type="text"]:focus { outline: 2px solid #7c9cff; }
+
+    .btn-row { display: flex; gap: 10px; }
+    button {
+        font: inherit;
+        cursor: pointer;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 600;
+        min-height: 48px;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .primary-btn {
+        width: 100%;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        color: #14161f;
+    }
+    .secondary-btn {
+        flex: 1;
+        background: #232735;
+        color: #eef0f5;
+    }
+    #setupError {
+        display: none;
+        color: #ff8a8a;
+        font-size: 13px;
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .room-code-row {
+        text-align: center;
+        font-size: 14px;
+        color: #9aa1b4;
+        margin-bottom: 12px;
+    }
+    .room-code-row strong {
+        font-size: 22px;
+        letter-spacing: 3px;
+        color: #eef0f5;
+        font-family: 'Consolas', 'Courier New', monospace;
+    }
+    .leave-link {
+        display: block;
+        text-align: center;
+        color: #6b7284;
+        font-size: 12px;
+        margin-top: -4px;
+        margin-bottom: 16px;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    #protoPlayerList {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+    #protoPlayerList li {
+        background: #232735;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    #protoPlayerList li.me { border: 1px solid #7c9cff; }
+
+    #lobbyStatusText {
+        text-align: center;
+        font-size: 13px;
+        color: #b6bccb;
+        margin: 0 0 14px;
+        line-height: 1.5;
+    }
+
+    /* 업프론트 레인 선택 — 매치당 딱 한 번만 */
+    .lane-picker-title {
+        text-align: center;
+        font-size: 13px;
+        color: #9aa1b4;
+        margin: 0 0 12px;
+    }
+    .lane-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .lane-btn {
+        min-height: 44px;
+        padding: 8px;
+        background: #232735;
+        color: #eef0f5;
+        border: 2px solid #2f3546;
+        border-radius: 10px;
+        font-weight: 700;
+    }
+    .lane-btn.picked {
+        border-color: #7c9cff;
+        background: #2a2f45;
+        color: #b8c4ff;
+    }
+    .lane-status {
+        text-align: center;
+        font-size: 13px;
+        color: #9aa1b4;
+        margin-bottom: 14px;
+        min-height: 16px;
+    }
+
+    /* 호스트 전용 혼자 테스트 버튼 — 로비 화면에서만 노출 */
+    .solo-test-btn {
+        width: 100%;
+        background: #232735;
+        color: #b8c4ff;
+        border: 2px dashed #7c9cff77;
+        margin-bottom: 6px;
+    }
+    .solo-test-status {
+        text-align: center;
+        font-size: 12px;
+        color: #9aa1b4;
+        margin: 0 0 12px;
+        min-height: 14px;
+    }
+
+    .round-info {
+        text-align: center;
+        font-size: 13px;
+        color: #9aa1b4;
+        margin-bottom: 12px;
+    }
+    .round-info span { color: #eef0f5; font-weight: 700; }
+
+    /* 내 상태 배지 — 자동으로 굴러가는 동안에도 내 칸/생존 여부가 항상 보이게 고정 표시 */
+    .my-status {
+        text-align: center;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin-bottom: 14px;
+        background: #1c2030;
+        color: #b6bccb;
+        border: 1px solid #2f3546;
+    }
+    .my-status.danger { background: #3a1a1a; color: #ffb199; border-color: #ff7a59; }
+    .my-status.eliminated { background: #1a1a1a; color: #6b7284; border-color: #262b38; }
+    .my-status.winner { background: #1a2f1f; color: #8cffb0; border-color: #3aff7a55; }
+
+    .toast {
+        display: none;
+        text-align: center;
+        background: #2a2130;
+        border: 1px solid #7c4dff55;
+        color: #d9c8ff;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        margin-bottom: 14px;
+    }
+
+    .countdown-track {
+        height: 6px;
+        border-radius: 3px;
+        background: #232838;
+        overflow: hidden;
+        margin-bottom: 14px;
+    }
+    .countdown-bar {
+        height: 100%;
+        width: 100%;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        transition: width linear;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .countdown-bar { transition: none !important; }
+        .tile { transition: none !important; }
+    }
+
+    .tile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .tile {
+        position: relative;
+        aspect-ratio: 1;
+        border-radius: 10px;
+        border: 2px solid #333a4d;
+        background: #232838;
+        color: #eef0f5;
+        font-size: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 4px;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .tile.safe { background: #163a2c; border-color: #22c55e; }
+    .tile.mine { background: #3a1620; border-color: #ef4444; }
+    .tile-mark {
+        font-size: 18px;
+    }
+    .token {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #3a4058;
+        color: #eef0f5;
+        font-size: 9px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .token.me {
+        background: #7c9cff;
+        color: #14161f;
+        box-shadow: 0 0 0 2px #b98cff;
+    }
+
+    .result-log {
+        font-size: 12px;
+        color: #9aa1b4;
+        text-align: center;
+        line-height: 1.6;
+        min-height: 16px;
+        margin-bottom: 8px;
+    }
+
+    .winner-text {
+        text-align: center;
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>💣 지뢰 타일 서바이벌</h1>
+        <p>시작 전 내 칸 번호를 한 번만 고르세요.<br>시작하면 그 다음부터는 자동으로 진행됩니다.</p>
+        <a class="back-link" href="/game-lab/index.html">← Game Lab으로</a>
+    </header>
+
+    <div id="setupScreen" class="panel">
+        <label for="nameInput">닉네임</label>
+        <input type="text" id="nameInput" maxlength="20" placeholder="닉네임을 입력하세요">
+
+        <label for="codeInput">방 코드 (참가 시에만 입력)</label>
+        <input type="text" id="codeInput" maxlength="4" placeholder="예: AB12">
+
+        <div class="btn-row">
+            <button id="createBtn" class="secondary-btn">새 방 만들기</button>
+            <button id="joinBtn" class="secondary-btn">코드로 참가</button>
+        </div>
+        <div id="setupError"></div>
+    </div>
+
+    <div id="roomScreen" style="display:none;">
+        <div class="panel">
+            <div class="room-code-row">방 코드<br><strong id="protoRoomCode"></strong></div>
+            <div class="leave-link" id="leaveLink">방 나가기</div>
+            <ul id="protoPlayerList"></ul>
+
+            <div id="lobbyPanel">
+                <p class="lane-picker-title">내 칸 번호를 한 번만 골라주세요 (안 고르면 자동 배정돼요)</p>
+                <div class="lane-grid" id="laneGrid"></div>
+                <div class="lane-status" id="laneStatus"></div>
+                <p id="lobbyStatusText"></p>
+                <button id="soloTestBtn" class="solo-test-btn" style="display:none;">🤖 혼자 테스트</button>
+                <p class="solo-test-status" id="soloTestStatus"></p>
+                <button id="startBtn" class="primary-btn" style="display:none;">게임 시작</button>
+            </div>
+
+            <div id="gamePanel" style="display:none;">
+                <div class="round-info">라운드 <span id="roundNumber">1</span> · 생존 <span id="aliveCount">0</span>명 · 지뢰 <span id="mineCount">0</span>개</div>
+                <div id="myStatus" class="my-status">대기 중...</div>
+                <div id="toast" class="toast"></div>
+                <div class="countdown-track"><div class="countdown-bar" id="countdownBar"></div></div>
+                <div class="tile-grid" id="tileGrid"></div>
+                <div class="result-log" id="resultLog"></div>
+                <div id="endPanel" style="display:none;">
+                    <div id="winnerText" class="winner-text"></div>
+                    <button id="restartBtn" class="primary-btn" style="display:none;">다시 하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var GAME_SLUG = 'mine-tile-grid';
+    var LANE_COUNT = 12;
+    var MIN_PLAYERS = 2;  // socket/proto-games/mine-tile-grid.js의 MIN_PLAYERS와 동일 — 시작 가능 최소 인원
+    var MAX_PLAYERS = 20; // 위 서버 파일의 MAX_PLAYERS와 동일
+    var latestPlayers = [];
+    var toastTimeout = null;
+    var myLane = null; // 로컬에만 보관하는 내 선택 여부 표시용 (서버가 실제 값을 갖고 판정)
+    var amIEliminated = false; // 한 번 탈락하면 매치가 끝날 때까지 유지 — roundStart/reveal이 매번 새로 온 상태를 덮어쓰지 않게 고정
+    var soloTestPending = false; // 혼자 테스트 봇 투입 중 중복 클릭 방지
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function $(id) { return document.getElementById(id); }
+
+    function showSetupError(msg) {
+        var el = $('setupError');
+        el.textContent = msg;
+        el.style.display = msg ? 'block' : 'none';
+    }
+
+    function showToast(text) {
+        var el = $('toast');
+        el.textContent = text;
+        el.style.display = 'block';
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(function () { el.style.display = 'none'; }, 2200);
+    }
+
+    function buildLaneGrid() {
+        var grid = $('laneGrid');
+        grid.innerHTML = '';
+        for (var i = 1; i <= LANE_COUNT; i++) {
+            (function (lane) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'lane-btn';
+                btn.textContent = String(lane);
+                btn.addEventListener('click', function () {
+                    if (myLane !== null) return; // 한 번 고르면 끝 — 재제출 불가
+                    myLane = lane;
+                    var buttons = grid.querySelectorAll('.lane-btn');
+                    for (var j = 0; j < buttons.length; j++) {
+                        buttons[j].disabled = true;
+                        buttons[j].classList.toggle('picked', buttons[j] === btn);
+                    }
+                    $('laneStatus').textContent = lane + '번으로 확정했습니다.';
+                    ProtoClient.getSocket().emit('proto:mine-tile-grid:pickLane', { lane: lane });
+                });
+                grid.appendChild(btn);
+            })(i);
+        }
+    }
+
+    function resetLanePickUI() {
+        myLane = null;
+        buildLaneGrid();
+        $('laneStatus').textContent = '';
+    }
+
+    function updateLobbyPanel() {
+        var count = latestPlayers.length;
+        var isHost = ProtoClient.getIsHost();
+        var inRange = count >= MIN_PLAYERS && count <= MAX_PLAYERS;
+
+        $('startBtn').style.display = isHost ? 'inline-block' : 'none';
+        $('startBtn').disabled = !inRange;
+
+        // 혼자 테스트 버튼: 호스트 + 아직 최소 인원 미달 + 투입 진행 중이 아닐 때만 노출.
+        // 봇이 들어와 인원이 채워지거나(needBots === 0) 투입 중이면 자동으로 숨는다.
+        var needBots = Math.max(0, MIN_PLAYERS - count);
+        $('soloTestBtn').style.display = (isHost && !soloTestPending && needBots > 0) ? 'block' : 'none';
+
+        if (isHost) {
+            $('lobbyStatusText').textContent = inRange
+                ? ('인원이 모였습니다 (현재 ' + count + '명). 시작할 수 있어요.')
+                : ('2~20명이 모이면 시작할 수 있어요. (현재 ' + count + '명)');
+        } else {
+            $('lobbyStatusText').textContent = '호스트가 게임을 시작하길 기다리는 중... (현재 ' + count + '명)';
+        }
+    }
+
+    function startCountdown(durationMs) {
+        var bar = $('countdownBar');
+        if (reduceMotion) {
+            bar.style.transition = 'none';
+            bar.style.width = '100%';
+            return;
+        }
+        bar.style.transition = 'none';
+        bar.style.width = '100%';
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                bar.style.transition = 'width ' + durationMs + 'ms linear';
+                bar.style.width = '0%';
+            });
+        });
+    }
+
+    function renderTileGrid(tileCount, mapped, myName) {
+        var grid = $('tileGrid');
+        grid.innerHTML = '';
+
+        // 어느 타일에 누가 있는지 미리 묶어둔다 (여러 명이 같은 칸에 있을 수 있음).
+        var occupants = {};
+        Object.keys(mapped).forEach(function (name) {
+            var idx = mapped[name];
+            if (!occupants[idx]) occupants[idx] = [];
+            occupants[idx].push(name);
+        });
+
+        for (var i = 0; i < tileCount; i++) {
+            var tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.setAttribute('data-index', String(i));
+
+            var names = occupants[i] || [];
+            names.forEach(function (name) {
+                var token = document.createElement('div');
+                token.className = 'token' + (name === myName ? ' me' : '');
+                token.textContent = name.slice(0, 2);
+                token.title = name;
+                tile.appendChild(token);
+            });
+            grid.appendChild(tile);
+        }
+    }
+
+    function updateMyStatus(text, cls) {
+        var el = $('myStatus');
+        el.classList.remove('danger', 'eliminated', 'winner');
+        if (cls) el.classList.add(cls);
+        el.textContent = text;
+    }
+
+    ProtoClient.init({
+        onRoomState: function (room) {
+            latestPlayers = room.players;
+            $('setupScreen').style.display = 'none';
+            $('roomScreen').style.display = 'block';
+            updateLobbyPanel();
+        },
+        onError: function (message) {
+            showSetupError(message);
+        },
+        onDisconnect: function () {
+            showSetupError('서버와 연결이 끊어졌습니다. 새로고침 해주세요.');
+        }
+    });
+
+    buildLaneGrid();
+
+    $('createBtn').addEventListener('click', function () {
+        var name = $('nameInput').value.trim();
+        if (!name) { showSetupError('닉네임을 입력해주세요.'); return; }
+        showSetupError('');
+        ProtoClient.createRoom(GAME_SLUG, name, function (res) {
+            if (!res.success) showSetupError(res.error || '방 생성에 실패했습니다.');
+        });
+    });
+
+    $('joinBtn').addEventListener('click', function () {
+        var name = $('nameInput').value.trim();
+        var code = $('codeInput').value.trim().toUpperCase();
+        if (!name) { showSetupError('닉네임을 입력해주세요.'); return; }
+        if (!code) { showSetupError('방 코드를 입력해주세요.'); return; }
+        showSetupError('');
+        ProtoClient.joinRoom(code, name, function (res) {
+            if (!res.success) showSetupError(res.error || '참가에 실패했습니다.');
+        });
+    });
+
+    $('leaveLink').addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        location.reload();
+    });
+
+    $('startBtn').addEventListener('click', function () {
+        ProtoClient.getSocket().emit('proto:mine-tile-grid:start');
+    });
+
+    // 호스트 전용 — 실제 플레이어가 모자랄 때 봇 소켓을 투입해 혼자서도 매치를 진행해볼 수 있게 한다.
+    // 봇은 proto:joinRoom으로 실제 플레이어와 동일하게 참가하고, 이 게임의 업프론트 픽 이벤트(pickLane)를
+    // 그대로 흉내 낸다 — 서버(socket/proto-games/mine-tile-grid.js)는 전혀 수정하지 않는다.
+    $('soloTestBtn').addEventListener('click', function () {
+        if (soloTestPending) return;
+        var needBots = Math.max(0, MIN_PLAYERS - latestPlayers.length);
+        if (needBots <= 0) return;
+
+        soloTestPending = true;
+        updateLobbyPanel();
+        $('soloTestStatus').textContent = '봇 ' + needBots + '명 투입 중...';
+
+        ProtoClient.spawnBots(needBots).then(function (bots) {
+            bots.forEach(function (bot) {
+                var lane = 1 + Math.floor(Math.random() * LANE_COUNT);
+                bot.socket.emit('proto:mine-tile-grid:pickLane', { lane: lane });
+            });
+            $('soloTestStatus').textContent = '봇 ' + bots.length + '명이 참가했습니다.';
+            soloTestPending = false;
+            updateLobbyPanel();
+        }).catch(function (err) {
+            soloTestPending = false;
+            $('soloTestStatus').textContent = (err && err.message) || '봇 투입에 실패했습니다.';
+            updateLobbyPanel();
+        });
+    });
+
+    $('restartBtn').addEventListener('click', function () {
+        // 서버 매치 상태는 이미 'ended' — 다음 시작 전까지는 새 로비(레인 재선택)로 돌아간다.
+        $('endPanel').style.display = 'none';
+        $('gamePanel').style.display = 'none';
+        $('lobbyPanel').style.display = 'block';
+        amIEliminated = false; // 새 매치이므로 지난 매치의 탈락 상태를 지운다
+        resetLanePickUI();
+        updateLobbyPanel();
+    });
+
+    var socket = ProtoClient.getSocket();
+
+    socket.on('proto:mine-tile-grid:lanePickProgress', function (data) {
+        $('laneStatus').textContent = (myLane !== null)
+            ? (myLane + '번으로 확정했습니다. (전체 ' + data.pickedCount + ' / ' + data.totalCount + '명 선택 완료)')
+            : ('전체 ' + data.pickedCount + ' / ' + data.totalCount + '명 선택 완료');
+    });
+
+    socket.on('proto:mine-tile-grid:roundStart', function (data) {
+        $('lobbyPanel').style.display = 'none';
+        $('gamePanel').style.display = 'block';
+        $('endPanel').style.display = 'none';
+
+        $('roundNumber').textContent = data.round;
+        $('aliveCount').textContent = data.alive.length;
+        $('mineCount').textContent = data.mineCount;
+        $('resultLog').textContent = '';
+
+        var myName = ProtoClient.getUserName();
+        renderTileGrid(data.tileCount, data.mapped, myName);
+
+        var myTile = data.mapped[myName];
+        if (amIEliminated) {
+            updateMyStatus('탈락한 상태로 관전 중입니다.', 'eliminated');
+        } else if (typeof myTile === 'number') {
+            updateMyStatus('내 칸은 ' + (myTile + 1) + '번 — 지뢰 확인 중...', 'danger');
+        } else {
+            updateMyStatus('이번 라운드는 관전 중입니다.');
+        }
+
+        startCountdown(data.suspenseMs);
+    });
+
+    socket.on('proto:mine-tile-grid:reveal', function (data) {
+        var mineSet = {};
+        data.mineIndices.forEach(function (i) { mineSet[i] = true; });
+
+        var tiles = $('tileGrid').children;
+        for (var i = 0; i < tiles.length; i++) {
+            var idx = Number(tiles[i].getAttribute('data-index'));
+            var mark = document.createElement('div');
+            mark.className = 'tile-mark';
+            if (mineSet[idx]) {
+                tiles[i].classList.add('mine');
+                mark.textContent = '💣';
+            } else {
+                tiles[i].classList.add('safe');
+                mark.textContent = '✅';
+            }
+            tiles[i].appendChild(mark);
+        }
+
+        var myName = ProtoClient.getUserName();
+        var myTile = data.mapped[myName];
+        var iSurvived = data.survivors.indexOf(myName) !== -1;
+        var iEliminated = data.eliminated.indexOf(myName) !== -1;
+        var tileLabel = (typeof myTile === 'number') ? (myTile + 1) + '번 칸' : '';
+
+        if (iSurvived) {
+            updateMyStatus('생존했습니다! (' + tileLabel + ')');
+        } else if (iEliminated) {
+            amIEliminated = true;
+            updateMyStatus('지뢰를 밟았습니다... (' + tileLabel + ')', 'eliminated');
+            showToast('지뢰를 밟아 탈락했습니다.');
+        } else if (amIEliminated) {
+            updateMyStatus('탈락한 상태로 관전 중입니다.', 'eliminated');
+        } else {
+            updateMyStatus('이번 라운드는 관전했습니다.');
+        }
+
+        if (data.eliminated.length) showToast(data.eliminated.join(', ') + ' 탈락!');
+        $('resultLog').textContent = '탈락: ' + (data.eliminated.length ? data.eliminated.join(', ') : '없음') + ' · 생존: ' + data.survivors.join(', ');
+    });
+
+    socket.on('proto:mine-tile-grid:roundVoid', function () {
+        $('resultLog').textContent = '전원 탈락 위기라 이번 라운드는 무효 처리됐어요. 잠시 후 다시 시작합니다.';
+    });
+
+    socket.on('proto:mine-tile-grid:gameOver', function (data) {
+        var myName = ProtoClient.getUserName();
+        $('endPanel').style.display = 'block';
+        if (data.winner) {
+            $('winnerText').textContent = (data.winner === myName)
+                ? '🏆 내가 우승했습니다!'
+                : ('🏆 ' + data.winner + '님 승리!');
+            if (data.winner === myName) updateMyStatus('🏆 내가 우승했습니다!', 'winner');
+        } else {
+            $('winnerText').textContent = '게임이 종료되었습니다.';
+        }
+        $('restartBtn').style.display = 'inline-block';
+    });
+
+    socket.on('proto:mine-tile-grid:error', function (message) {
+        showToast(message);
+    });
+})();
+</script>
+</body>
+</html>

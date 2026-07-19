@@ -20,6 +20,12 @@ const VEHICLES = ['car', 'rocket', 'bird', 'rabbit', 'helicopter', 'horse', 'cra
   page.on('pageerror', e => pageErrors.push(String(e)));
 
   try {
+    // 환경 고정: OS/CI 가 prefers-reduced-motion: reduce 를 강제하면 js/horse-shop.js 의
+    // reducedMotion 가드(registerAfterimage no-op)로 B8 실루엣 스폰이 전부 막힌다.
+    // 이 가드는 스크립트 로드 시점 1회 matchMedia 평가 → 반드시 goto "이전"에 걸어야 효력.
+    // (Playwright 는 puppeteer 의 emulateMediaFeatures 가 아니라 emulateMedia 를 쓴다.)
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+
     // 진입 IIFE(C-5): 파라미터 없으면 /game redirect. ?createRoom=true → fromDice=true 라
     // 두 redirect 분기를 모두 건너뛰고 페이지가 유지된다. createRoom emit 은 무응답이어도 무방
     // (HorseShop 정의·카탈로그 로드는 socket 응답과 무관 — cosmetic 렌더 테스트엔 충분).
@@ -130,9 +136,23 @@ const VEHICLES = ['car', 'rocket', 'bird', 'rabbit', 'helicopter', 'horse', 'cra
     check(!!trailResult, 'B0: .cosmetic-trail 렌더');
     check(!!trailResult.inlineColor, 'B1: 잔상 색 인라인 주입(카탈로그 color)', 'color=' + trailResult.inlineColor);
     check(trailResult.dataEmoji === '🔥', 'B2: data-emoji 머리(아이템 정체성)', 'emoji=' + trailResult.dataEmoji);
-    check(trailResult.opacity >= 0.9, 'B3: racing 시 trail opacity ≥ 0.9(또렷)', 'opacity=' + trailResult.opacity);
-    check(/cosmeticTrailStream/.test(trailResult.animation), 'B4: racing 시 stream 애니메이션 발현', 'anim=' + trailResult.animation);
+    check(trailResult.opacity >= 0.3, 'B3: racing 시 trail opacity ≥ 0.3(은은한 정적 띠 0.45)', 'opacity=' + trailResult.opacity);
+    check(!/cosmeticTrailStream/.test(trailResult.animation), 'B4: racing 시 부착 띠 애니메이션 부재(부스터 맥동 제거)', 'anim=' + trailResult.animation);
     check(/gradient/.test(trailResult.bg), 'B5: 색 글로우 띠(linear-gradient) 존재', 'bg=' + trailResult.bg.slice(0, 40));
+
+    // B5r: 인레이스 rainbow 띠 — 프리뷰와 규칙 분리 후에도 gradient 는 유지되되,
+    //      white-hot/drop-shadow 글로우 제거 방침이 rainbow 에도 적용됐는지(부스터 오독 소거 계약 고정)
+    const rainbowTrail = await page.evaluate(function () {
+      var horse = document.querySelector('.qa-horse-wrap .horse[data-vehicle-id="rocket"]');
+      window.HorseShop.applyEquippedToHorse(horse, { trail: 'trail_ad_rainbow' });
+      var el = horse.querySelector('.cosmetic-trail');
+      if (!el) return null;
+      var cs = getComputedStyle(el);
+      return { rainbow: el.classList.contains('rainbow'), filter: cs.filter, bg: cs.backgroundImage };
+    });
+    check(!!rainbowTrail && rainbowTrail.rainbow && /gradient/.test(rainbowTrail.bg) && !/drop-shadow/.test(rainbowTrail.filter),
+      'B5r: 인레이스 rainbow 띠 — rainbow 클래스 + gradient 유지 + drop-shadow(글로우) 부재',
+      rainbowTrail ? 'filter=' + rainbowTrail.filter : 'null');
 
     // 두 잔상 타입이 시각적으로 다른지 — 색이 다르면 명백히 다름(switch 가 보임)
     const trailSwitch = await page.evaluate(function () {
@@ -147,6 +167,72 @@ const VEHICLES = ['car', 'rocket', 'bird', 'rabbit', 'helicopter', 'horse', 'cra
     });
     check(trailSwitch.a !== trailSwitch.b, 'B6: 잔상 타입 전환 시 색이 다름(flame vs star)', trailSwitch.a + ' → ' + trailSwitch.b);
     check(trailSwitch.count === 1, 'B7: trail 멱등 재적용(stale 제거, .cosmetic-trail 1개)', 'count=' + trailSwitch.count);
+
+    // ── B8. 실루엣 스포너 스모크: 실전 frame 구조(.vehicle-active-layer > .frame1/.frame2) 주입 후
+    //    racing 유지 + "이동" → .cosmetic-afterimage(스프라이트 SVG 단색 사본)가 horse.parentElement 에 스폰.
+    //    스포너는 rAF 기반 — racing 클래스 + fixture 가시(document 연결) 상태여야 스폰됨
+    //    (#qa-acc-sandbox 는 body 직속 가시 컨테이너라 충족). 실루엣은 .horse 내부가 아니라
+    //    horse.parentElement(.qa-horse-wrap)에 붙어 B7 등 horse 내부 노드 카운트 단언과 무충돌.
+    //    이동량 게이트(월드 좌표 ≥6px): 합성 환경엔 .finish-line 이 없어 ref=null → worldX=화면x.
+    //    실계약("움직이는 말만 잔상")에 맞춰 fixture 말을 rAF 마다 이동시키며 스폰을 검증한다.
+    await page.evaluate(function () {
+      var horse = document.querySelector('.qa-horse-wrap .horse[data-vehicle-id="car"]');
+      var sprite = horse.querySelector('.vehicle-sprite');
+      // 실전 DOM 구조 모사: 진짜 car run 프레임(getVehicleSVG, 페이지 전역)을 frame1/frame2 에 주입
+      var v = getVehicleSVG('car');
+      var d = (v && (v.run || v.idle)) || v;
+      var layer = document.createElement('div');
+      layer.className = 'vehicle-active-layer';
+      var f1 = document.createElement('div'); f1.className = 'frame1'; f1.innerHTML = d.frame1;
+      var f2 = document.createElement('div'); f2.className = 'frame2'; f2.innerHTML = d.frame2 || d.frame1;
+      layer.appendChild(f1); layer.appendChild(f2);
+      sprite.appendChild(layer);
+      window.HorseShop.applyEquippedToHorse(horse, { trail: 'trail_flame' }); // 스포너 (재)등록
+      // fixture 는 position:relative — left 로 시각 위치만 이동 (~150px/s, 스폰간격 130ms당 ≥6px 보장)
+      var moved = 0;
+      window.__qaB8Move = function () {
+        moved += 2.5;
+        horse.style.left = moved + 'px';
+        window.__qaB8MoveRaf = requestAnimationFrame(window.__qaB8Move);
+      };
+      window.__qaB8MoveRaf = requestAnimationFrame(window.__qaB8Move);
+    });
+    // 스폰 대기(간격 130ms → ~600ms 면 수 개). C-9: waitForFunction 옵션은 반드시 3번째 인자.
+    // 실루엣은 ~1s 내 자기 제거되므로 발견 시점에 정보를 함께 반환(별도 evaluate 재조회 race 회피).
+    let ghostInfo = null;
+    try {
+      const gh = await page.waitForFunction(function () {
+        var horse = document.querySelector('.qa-horse-wrap .horse[data-vehicle-id="car"]');
+        var g = horse && horse.parentElement.querySelector('.cosmetic-afterimage');
+        if (!g) return null;
+        return {
+          count: horse.parentElement.querySelectorAll('.cosmetic-afterimage').length,
+          hasSvg: !!g.querySelector('svg'),
+          color: g.style.color || ''
+        };
+      }, null, { timeout: 6000 });
+      ghostInfo = await gh.jsonValue();
+    } catch (e) { /* timeout → 미스폰, 아래 check 가 FAIL 보고 */ }
+    check(!!ghostInfo && ghostInfo.count >= 1, 'B8a: 실루엣 스포너 — racing+이동 중 .cosmetic-afterimage ≥ 1 스폰', ghostInfo ? 'count=' + ghostInfo.count : 'timeout');
+    check(!!ghostInfo && ghostInfo.hasSvg, 'B8b: 실루엣 내부 svg 존재(스프라이트 프레임 사본)');
+    check(!!ghostInfo && !!ghostInfo.color, 'B8c: 실루엣 inline color 주입(아이템 색 → currentColor 단색)', ghostInfo ? 'color=' + ghostInfo.color : '');
+
+    // B8d: 이동 정지 → 월드 이동량 게이트가 스폰을 멈추고 기존 실루엣은 자기 제거(≤1s)
+    //      (완주해 정지한 말의 제자리 스폰 방지 계약 — racing 클래스는 그대로인데 잔상만 멎어야 함)
+    let gateOk = false;
+    try {
+      await page.evaluate(function () { cancelAnimationFrame(window.__qaB8MoveRaf); });
+      await page.waitForFunction(function () {
+        var horse = document.querySelector('.qa-horse-wrap .horse[data-vehicle-id="car"]');
+        return horse.parentElement.querySelectorAll('.cosmetic-afterimage').length === 0;
+      }, null, { timeout: 4000 });
+      await new Promise(function (res) { setTimeout(res, 300); }); // 정지 상태 300ms 추가 관찰
+      gateOk = await page.evaluate(function () {
+        var horse = document.querySelector('.qa-horse-wrap .horse[data-vehicle-id="car"]');
+        return horse.parentElement.querySelectorAll('.cosmetic-afterimage').length === 0;
+      });
+    } catch (e) { /* 4s 내 0 미도달 = 정지 후에도 계속 스폰 → FAIL */ }
+    check(gateOk, 'B8d: 정지 시 스폰 중단(이동량 게이트) — 실루엣 0 유지, racing 클래스 무관');
 
     // ── C. finish_fx 개인화: playFinishFx() 무인자 호출이 본인 장착 기준으로 raceTrackContainer 에 28조각 레이어 ──
     const fxResult = await page.evaluate(function () {

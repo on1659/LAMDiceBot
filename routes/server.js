@@ -11,6 +11,7 @@ const { register: authRegister, login: authLogin, getUserByName } = require('../
 const { issueToken } = require('../db/auth-tokens');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 const { getFullRanking, getMyRank, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking } = require('../db/ranking');
+const { getSeasonVehicleStats } = require('../db/vehicle-stats');
 
 // Rate Limiting (Server API 전용)
 let rateLimit;
@@ -565,6 +566,33 @@ router.get('/ranking/:serverId(\\d+)/season/:season(\\d+)', async (req, res) => 
         res.json({ overall: ranking, season });
     } catch (e) {
         res.status(500).json({ error: '시즌 랭킹 조회 실패' });
+    }
+});
+
+// 시즌별 탈것 통계 조회 (상위 3개 — 시즌 우승 탈것 표시용)
+router.get('/ranking/:serverId(\\d+)/vehicles', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        }
+        let season;
+        if (req.query.season !== undefined) {
+            season = parseInt(req.query.season);
+            if (isNaN(season) || season <= 0) {
+                return res.status(400).json({ error: '유효하지 않은 시즌 번호' });
+            }
+        } else {
+            season = await getCurrentSeason(serverId);
+        }
+        const rows = await getSeasonVehicleStats(serverId, season);
+        const vehicles = rows.slice(0, 3).map(v => ({
+            ...v,
+            win_rate: v.appearance_count > 0 ? v.rank_1 / v.appearance_count : 0
+        }));
+        res.json({ success: true, season, vehicles });
+    } catch (e) {
+        res.status(500).json({ error: '탈것 통계 조회 실패' });
     }
 });
 

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>폭탄 돌리기 — Game Lab</title>
+<meta name="description" content="숨겨진 도화선이 다 타는 순간 폭탄을 쥐고 있으면 탈락. 시작 후에는 그냥 지켜보기만 하면 되는 실시간 멀티플레이어 프로토타입.">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 60px;
+    }
+    .wrap {
+        max-width: 420px;
+        margin: 0 auto;
+    }
+    header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    header h1 {
+        font-size: 24px;
+        margin: 0 0 6px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    header p {
+        margin: 0;
+        color: #9aa1b4;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .back-link {
+        display: inline-block;
+        margin-top: 10px;
+        color: #6b7284;
+        font-size: 12px;
+        text-decoration: none;
+    }
+    .back-link:hover { color: #9aa1b4; }
+
+    .panel {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+
+    label {
+        display: block;
+        font-size: 13px;
+        color: #b6bccb;
+        margin-bottom: 6px;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #2f3546;
+        background: #0f1117;
+        color: #eef0f5;
+        font-size: 15px;
+        margin-bottom: 14px;
+    }
+    input[type="text"]:focus { outline: 2px solid #7c9cff; }
+
+    .btn-row {
+        display: flex;
+        gap: 10px;
+    }
+    button {
+        font: inherit;
+        cursor: pointer;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 600;
+        min-height: 48px;
+    }
+    button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    .primary-btn {
+        width: 100%;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        color: #14161f;
+    }
+    .secondary-btn {
+        flex: 1;
+        background: #232735;
+        color: #eef0f5;
+    }
+    #setupError {
+        display: none;
+        color: #ff8a8a;
+        font-size: 13px;
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .room-code-row {
+        text-align: center;
+        font-size: 14px;
+        color: #9aa1b4;
+        margin-bottom: 12px;
+    }
+    .room-code-row strong {
+        font-size: 22px;
+        letter-spacing: 3px;
+        color: #eef0f5;
+        font-family: 'Consolas', 'Courier New', monospace;
+    }
+    .leave-link {
+        display: block;
+        text-align: center;
+        color: #6b7284;
+        font-size: 12px;
+        margin-top: -4px;
+        margin-bottom: 16px;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    #protoPlayerList {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+    #protoPlayerList li {
+        background: #232735;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    #protoPlayerList li.me { border: 1px solid #7c9cff; }
+    #protoPlayerList li.eliminated { opacity: 0.4; text-decoration: line-through; }
+
+    #lobbyStatusText {
+        text-align: center;
+        font-size: 13px;
+        color: #b6bccb;
+        margin: 0 0 14px;
+        line-height: 1.5;
+    }
+
+    .round-info {
+        text-align: center;
+        font-size: 13px;
+        color: #9aa1b4;
+        margin-bottom: 12px;
+    }
+    .round-info span { color: #eef0f5; font-weight: 700; }
+
+    /* 내 상태 배지 — 자동으로 굴러가는 동안에도 내 생존 여부/폭탄 보유 여부가 항상 보이게 고정 표시 */
+    .my-status {
+        text-align: center;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin-bottom: 14px;
+        background: #1c2030;
+        color: #b6bccb;
+        border: 1px solid #2f3546;
+    }
+    .my-status.holding {
+        background: #3a1a1a;
+        color: #ffb199;
+        border-color: #ff7a59;
+    }
+    .my-status.eliminated {
+        background: #1a1a1a;
+        color: #6b7284;
+        border-color: #262b38;
+    }
+    .my-status.winner {
+        background: #1a2f1f;
+        color: #8cffb0;
+        border-color: #3aff7a55;
+    }
+
+    .toast {
+        display: none;
+        text-align: center;
+        background: #2a2130;
+        border: 1px solid #7c4dff55;
+        color: #d9c8ff;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        margin-bottom: 14px;
+    }
+
+    .bomb-stage {
+        text-align: center;
+    }
+    .bomb-icon {
+        font-size: 72px;
+        line-height: 1;
+        margin-bottom: 12px;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .bomb-icon.is-holder {
+            animation: bomb-pulse 0.5s ease-in-out infinite;
+        }
+    }
+    @keyframes bomb-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.14); }
+    }
+    #holderText {
+        font-size: 15px;
+        color: #b6bccb;
+        margin-bottom: 4px;
+        min-height: 20px;
+        font-weight: 600;
+    }
+    #spectacleHint {
+        font-size: 12px;
+        color: #6b7284;
+        margin-bottom: 18px;
+    }
+
+    .winner-text {
+        text-align: center;
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>💣 폭탄 돌리기</h1>
+        <p>시작하면 폭탄이 저절로 이 사람 저 사람에게 넘어갑니다.<br>숨겨진 도화선이 다 타는 순간 폭탄을 쥔 사람이 탈락해요.</p>
+        <a class="back-link" href="/game-lab/index.html">← Game Lab으로</a>
+    </header>
+
+    <div id="setupScreen" class="panel">
+        <label for="nameInput">닉네임</label>
+        <input type="text" id="nameInput" maxlength="20" placeholder="닉네임을 입력하세요">
+
+        <label for="codeInput">방 코드 (참가 시에만 입력)</label>
+        <input type="text" id="codeInput" maxlength="4" placeholder="예: AB12">
+
+        <div class="btn-row">
+            <button id="createBtn" class="secondary-btn">새 방 만들기</button>
+            <button id="joinBtn" class="secondary-btn">코드로 참가</button>
+        </div>
+        <div id="setupError"></div>
+    </div>
+
+    <div id="roomScreen" style="display:none;">
+        <div class="panel">
+            <div class="room-code-row">방 코드<br><strong id="protoRoomCode"></strong></div>
+            <div class="leave-link" id="leaveLink">방 나가기</div>
+            <ul id="protoPlayerList"></ul>
+
+            <div id="lobbyPanel">
+                <p id="lobbyStatusText"></p>
+                <button id="soloTestBtn" class="secondary-btn" style="display:none; width:100%; margin-bottom:10px;">🤖 혼자 테스트</button>
+                <button id="startBtn" class="primary-btn" style="display:none;">게임 시작</button>
+            </div>
+
+            <div id="gamePanel" style="display:none;">
+                <div class="round-info">라운드 <span id="roundNumber">1</span> · 생존 <span id="aliveCount">0</span>명</div>
+                <div id="myStatus" class="my-status">대기 중...</div>
+                <div id="toast" class="toast"></div>
+                <div class="bomb-stage">
+                    <div id="bombIcon" class="bomb-icon">💣</div>
+                    <div id="holderText"></div>
+                    <div id="spectacleHint">시작하면 아무것도 누르지 않아도 자동으로 진행됩니다.</div>
+                </div>
+                <div id="endPanel" style="display:none;">
+                    <div id="winnerText" class="winner-text"></div>
+                    <button id="restartBtn" class="primary-btn" style="display:none;">다시 시작</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var GAME_SLUG = 'hot-potato-pass';
+    var MIN_PLAYERS = 3;
+    var latestPlayers = [];
+    var toastTimeout = null;
+    var spawningBots = false; // 혼자 테스트 봇 스폰 진행 중 — 완료 전 중복 클릭 방지
+
+    function $(id) { return document.getElementById(id); }
+
+    function showSetupError(msg) {
+        var el = $('setupError');
+        el.textContent = msg;
+        el.style.display = msg ? 'block' : 'none';
+    }
+
+    function showToast(text) {
+        var el = $('toast');
+        el.textContent = text;
+        el.style.display = 'block';
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(function () { el.style.display = 'none'; }, 2200);
+    }
+
+    function updateLobbyPanel() {
+        var count = latestPlayers.length;
+        var isHost = ProtoClient.getIsHost();
+        var inRange = count >= MIN_PLAYERS && count <= 12;
+
+        $('startBtn').style.display = isHost ? 'inline-block' : 'none';
+        $('startBtn').disabled = !inRange;
+
+        var soloTestBtn = $('soloTestBtn');
+        if (soloTestBtn) {
+            soloTestBtn.style.display = (isHost && !spawningBots && count < MIN_PLAYERS) ? 'inline-block' : 'none';
+        }
+
+        if (isHost) {
+            $('lobbyStatusText').textContent = inRange
+                ? ('인원이 모였습니다 (현재 ' + count + '명). 시작할 수 있어요.')
+                : ('3~12명이 모이면 시작할 수 있어요. (현재 ' + count + '명)');
+        } else {
+            $('lobbyStatusText').textContent = '호스트가 게임을 시작하길 기다리는 중... (현재 ' + count + '명)';
+        }
+    }
+
+    // #protoPlayerList의 <li>는 proto-client.js가 room.players 순서 그대로 렌더링하므로,
+    // 같은 순서로 캐시해둔 latestPlayers와 인덱스를 맞춰 생존 여부(aliveNames)를 표시한다.
+    function updateEliminatedMarks(aliveNames) {
+        var aliveSet = {};
+        aliveNames.forEach(function (n) { aliveSet[n] = true; });
+        var items = document.querySelectorAll('#protoPlayerList li');
+        for (var i = 0; i < items.length && i < latestPlayers.length; i++) {
+            items[i].classList.toggle('eliminated', !aliveSet[latestPlayers[i].name]);
+        }
+    }
+
+    // 자동으로 굴러가는 동안에도 내 생존/보유 상태가 항상 눈에 보이게 갱신한다.
+    function updateMyStatus(state, socket) {
+        var el = $('myStatus');
+        var myName = ProtoClient.getUserName();
+        var amAlive = state.aliveNames.indexOf(myName) !== -1;
+
+        el.classList.remove('holding', 'eliminated', 'winner');
+
+        if (state.phase === 'ended') {
+            if (state.winnerName === myName) {
+                el.textContent = '🏆 내가 우승했습니다!';
+                el.classList.add('winner');
+            } else if (amAlive) {
+                el.textContent = '게임 종료';
+            } else {
+                el.textContent = '탈락했습니다';
+                el.classList.add('eliminated');
+            }
+            return;
+        }
+
+        if (!amAlive) {
+            el.textContent = '탈락했습니다 — 남은 사람들을 구경해보세요';
+            el.classList.add('eliminated');
+            return;
+        }
+
+        var isHolder = state.holderSocketId === socket.id;
+        if (isHolder) {
+            el.textContent = '내가 폭탄을 들고 있습니다!';
+            el.classList.add('holding');
+        } else {
+            el.textContent = '생존 중 — 폭탄이 자동으로 돌아다니는 중';
+        }
+    }
+
+    ProtoClient.init({
+        onRoomState: function (room) {
+            latestPlayers = room.players;
+            $('setupScreen').style.display = 'none';
+            $('roomScreen').style.display = 'block';
+            updateLobbyPanel();
+        },
+        onError: function (message) {
+            showSetupError(message);
+        },
+        onDisconnect: function () {
+            showSetupError('서버와 연결이 끊어졌습니다. 새로고침 해주세요.');
+        }
+    });
+
+    $('createBtn').addEventListener('click', function () {
+        var name = $('nameInput').value.trim();
+        if (!name) { showSetupError('닉네임을 입력해주세요.'); return; }
+        showSetupError('');
+        ProtoClient.createRoom(GAME_SLUG, name, function (res) {
+            if (!res.success) showSetupError(res.error || '방 생성에 실패했습니다.');
+        });
+    });
+
+    $('joinBtn').addEventListener('click', function () {
+        var name = $('nameInput').value.trim();
+        var code = $('codeInput').value.trim().toUpperCase();
+        if (!name) { showSetupError('닉네임을 입력해주세요.'); return; }
+        if (!code) { showSetupError('방 코드를 입력해주세요.'); return; }
+        showSetupError('');
+        ProtoClient.joinRoom(code, name, function (res) {
+            if (!res.success) showSetupError(res.error || '참가에 실패했습니다.');
+        });
+    });
+
+    $('leaveLink').addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        location.reload();
+    });
+
+    // 호스트 전용 — 부족한 인원만큼 봇을 방에 참가시켜 혼자서도 바로 시작할 수 있게 한다.
+    // 폭탄 돌리기는 업프론트 입력이 없는 게임이라 봇은 참가만 하면 되고 추가 동작이 필요 없다.
+    $('soloTestBtn').addEventListener('click', function () {
+        var needed = Math.max(0, MIN_PLAYERS - latestPlayers.length);
+        if (needed <= 0 || spawningBots) return;
+        spawningBots = true;
+        updateLobbyPanel();
+        ProtoClient.spawnBots(needed).then(function () {
+            spawningBots = false;
+            updateLobbyPanel();
+        }).catch(function (err) {
+            spawningBots = false;
+            updateLobbyPanel();
+            showToast((err && err.message) || '테스트 봇 추가에 실패했습니다.');
+        });
+    });
+
+    $('startBtn').addEventListener('click', function () {
+        ProtoClient.getSocket().emit('proto:hot-potato-pass:start');
+    });
+
+    $('restartBtn').addEventListener('click', function () {
+        ProtoClient.getSocket().emit('proto:hot-potato-pass:start');
+    });
+
+    var socket = ProtoClient.getSocket();
+
+    socket.on('proto:hot-potato-pass:roundState', function (state) {
+        $('lobbyPanel').style.display = 'none';
+        $('gamePanel').style.display = 'block';
+
+        $('roundNumber').textContent = state.round;
+        $('aliveCount').textContent = state.aliveNames.length;
+        updateEliminatedMarks(state.aliveNames);
+        updateMyStatus(state, socket);
+
+        if (state.justEliminated) {
+            showToast(state.justEliminated + '님 탈락!');
+        }
+
+        if (state.phase === 'ended') {
+            $('endPanel').style.display = 'block';
+            $('bombIcon').classList.remove('is-holder');
+            $('holderText').textContent = '';
+            $('spectacleHint').style.display = 'none';
+            $('winnerText').textContent = state.winnerName ? ('🏆 ' + state.winnerName + '님 승리!') : '게임 종료';
+            $('restartBtn').style.display = ProtoClient.getIsHost() ? 'inline-block' : 'none';
+            return;
+        }
+
+        $('endPanel').style.display = 'none';
+        $('spectacleHint').style.display = 'block';
+
+        var isHolder = state.holderSocketId === socket.id;
+        $('holderText').textContent = isHolder
+            ? '내가 폭탄을 들고 있습니다!'
+            : (state.holderName + '님이 폭탄을 들고 있습니다.');
+        $('bombIcon').classList.toggle('is-holder', isHolder);
+    });
+
+    socket.on('proto:hot-potato-pass:error', function (message) {
+        showToast(message);
+    });
+})();
+</script>
+</body>
+</html>

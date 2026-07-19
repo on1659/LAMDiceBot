@@ -359,6 +359,27 @@ async function initDatabase() {
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_vehicle_picks_user ON vehicle_picks(server_id, user_name, picked_at DESC)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_vehicle_picks_vehicle ON vehicle_picks(server_id, vehicle_id, picked_at DESC)`);
 
+        // ─── 시즌별 탈것 통계 테이블 (비공개 서버 시즌 단위 집계) ───
+        // 기존 vehicle_stats(배포 단위 전체 누적, VARCHAR server_id)와 별개 — 시즌 우승 탈것 표시용
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS vehicle_season_stats (
+                id SERIAL PRIMARY KEY,
+                server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+                season INTEGER NOT NULL,
+                vehicle_id VARCHAR(20) NOT NULL,
+                appearance_count INT NOT NULL DEFAULT 0,
+                pick_count INT NOT NULL DEFAULT 0,
+                rank_1 INT NOT NULL DEFAULT 0,
+                rank_2 INT NOT NULL DEFAULT 0,
+                rank_3 INT NOT NULL DEFAULT 0,
+                rank_4 INT NOT NULL DEFAULT 0,
+                rank_5 INT NOT NULL DEFAULT 0,
+                rank_6 INT NOT NULL DEFAULT 0,
+                UNIQUE(server_id, season, vehicle_id)
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_vss_server_season ON vehicle_season_stats(server_id, season)`);
+
         // ─── 태그라인 테이블 ───
         await pool.query(`
             CREATE TABLE IF NOT EXISTS taglines (

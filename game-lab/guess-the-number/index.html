@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프라이스 이즈 라이트 — Game Lab</title>
+<meta name="description" content="딱 한 번 숫자를 고르면, 그 다음부터는 결과가 자동으로 펼쳐지는 실시간 멀티플레이어 게임">
+<meta name="robots" content="noindex, nofollow">
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        background: #0f1117;
+        color: #eef0f5;
+        padding: 24px 16px 48px;
+    }
+    .wrap {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .back-link {
+        display: inline-block;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: #8fa1ff;
+        text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    h1 {
+        font-size: 24px;
+        margin: 0 0 6px;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .rule-text {
+        font-size: 13px;
+        color: #9aa1b4;
+        line-height: 1.6;
+        margin: 0 0 20px;
+    }
+    .panel {
+        background: #171a23;
+        border: 1px solid #262b38;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    label {
+        display: block;
+        font-size: 13px;
+        color: #b6bccb;
+        margin-bottom: 6px;
+    }
+    input[type="text"], input[type="number"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #333a4a;
+        background: #0f1117;
+        color: #eef0f5;
+        font-size: 16px;
+        margin-bottom: 14px;
+    }
+    input[type="text"]:focus, input[type="number"]:focus {
+        outline: none;
+        border-color: #7c9cff;
+    }
+    #roomCodeInput { text-transform: uppercase; letter-spacing: 2px; }
+    .btn-row { display: flex; gap: 10px; }
+    button {
+        appearance: none;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 13px 16px;
+        cursor: pointer;
+        transition: transform 0.1s ease, opacity 0.15s ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        button { transition: none; }
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .primary-btn {
+        width: 100%;
+        background: linear-gradient(135deg, #7c9cff 0%, #b98cff 100%);
+        color: #10121a;
+    }
+    .secondary-btn {
+        flex: 1;
+        background: #262b38;
+        color: #eef0f5;
+    }
+
+    #entryScreen, #lobbyScreen, #gameScreen { display: none; }
+    #entryScreen.active, #lobbyScreen.active, #gameScreen.active { display: block; }
+
+    .room-code-display {
+        text-align: center;
+        margin-bottom: 16px;
+    }
+    .room-code-display .code {
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: 6px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: #eef0f5;
+    }
+    .room-code-display .hint {
+        font-size: 12px;
+        color: #6b7284;
+        margin-top: 4px;
+    }
+    #protoPlayerList {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    #protoPlayerList li {
+        background: #1f2430;
+        border: 1px solid #2f3648;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    #protoPlayerList li.host { border-color: #ffcf6b; color: #ffd98a; }
+    #protoPlayerList li.me { border-color: #7c9cff; }
+
+    .status-line {
+        text-align: center;
+        font-size: 13px;
+        color: #9aa1b4;
+        margin: 8px 0 4px;
+    }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 10px;
+        color: #cdd2e0;
+    }
+
+    .guess-value {
+        text-align: center;
+        font-size: 48px;
+        font-weight: 800;
+        margin: 6px 0 14px;
+        color: #eef0f5;
+    }
+    input[type="range"] {
+        width: 100%;
+        margin: 4px 0 18px;
+        accent-color: #7c9cff;
+    }
+    input[type="range"]:disabled { opacity: 0.4; }
+
+    .submit-confirm {
+        text-align: center;
+        padding: 14px 12px;
+        border-radius: 10px;
+        background: rgba(107, 227, 163, 0.1);
+        border: 1px solid #3d6b56;
+    }
+    .submit-confirm .label { font-size: 12px; color: #9aa1b4; }
+    .submit-confirm .value { font-size: 30px; font-weight: 800; color: #6be3a3; margin-top: 2px; }
+
+    .progress-text {
+        text-align: center;
+        font-size: 12px;
+        color: #6b7284;
+        margin-top: 10px;
+    }
+
+    /* ── 매치 화면: 내 상태 패널 (항상 표시) ── */
+    .my-status-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(124,156,255,0.12) 0%, rgba(185,140,255,0.12) 100%);
+        border: 1px solid #4d5875;
+        margin-bottom: 14px;
+    }
+    .my-status-panel.eliminated {
+        background: #1c1f29;
+        border-color: #333a4a;
+        opacity: 0.75;
+    }
+    .my-status-panel .my-label { font-size: 12px; color: #9aa1b4; }
+    .my-status-panel .my-name { font-size: 14px; font-weight: 700; margin-top: 2px; }
+    .my-status-panel .my-guess-value {
+        font-size: 32px;
+        font-weight: 800;
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: #eef0f5;
+    }
+    .my-status-panel .my-tag {
+        font-size: 11px;
+        color: #ff9d7a;
+        display: block;
+        margin-top: 2px;
+    }
+
+    .round-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 10px;
+    }
+    .round-header .round-label { font-size: 15px; font-weight: 700; }
+    .round-header .alive-label { font-size: 13px; color: #9aa1b4; }
+
+    .suspense-wrap {
+        text-align: center;
+        padding: 22px 12px;
+    }
+    .suspense-dots {
+        font-size: 28px;
+        letter-spacing: 6px;
+        color: #7c9cff;
+    }
+    .suspense-dots span {
+        display: inline-block;
+        animation: suspense-bounce 1.1s ease-in-out infinite;
+    }
+    .suspense-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .suspense-dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes suspense-bounce {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+        40% { transform: translateY(-8px); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .suspense-dots span { animation: none; opacity: 1; }
+    }
+    .suspense-text {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #9aa1b4;
+    }
+
+    .reveal-target {
+        text-align: center;
+        margin-bottom: 14px;
+    }
+    .reveal-target .label { font-size: 12px; color: #9aa1b4; }
+    .reveal-target .value { font-size: 40px; font-weight: 800; color: #ffd98a; }
+
+    .result-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 9px 12px;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        background: #1f2430;
+        font-size: 14px;
+    }
+    .result-row.self-row { border: 1px solid #7c9cff; }
+    .result-row.eliminated { opacity: 0.45; text-decoration: line-through; }
+    .result-row.round-winner { border: 1px solid #6be3a3; }
+    .result-row .r-name { font-weight: 600; }
+    .result-row .r-guess { font-family: 'Consolas', 'Courier New', monospace; }
+    .auto-tag { font-size: 11px; color: #ff9d7a; margin-left: 6px; }
+
+    .next-round-text {
+        text-align: center;
+        font-size: 13px;
+        color: #9aa1b4;
+        margin-top: 12px;
+    }
+
+    .winner-banner {
+        text-align: center;
+        padding: 18px 12px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(124,156,255,0.18) 0%, rgba(185,140,255,0.18) 100%);
+        border: 1px solid #4d5875;
+        margin-bottom: 14px;
+    }
+    .winner-banner .trophy { font-size: 30px; }
+    .winner-banner .name { font-size: 20px; font-weight: 800; margin-top: 4px; }
+
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        background: #2a2f3d;
+        border: 1px solid #3a4256;
+        color: #eef0f5;
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        max-width: 90vw;
+        text-align: center;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .toast { transition: none; }
+    }
+    .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <a class="back-link" href="/game-lab/index.html">← Game Lab으로</a>
+    <h1>프라이스 이즈 라이트</h1>
+    <p class="rule-text">시작 전에 딱 한 번, 0~100 사이 숫자를 골라두세요. 매치가 시작되면 더 이상 할 일은 없어요 — 매 라운드 서버가 몰래 새 정답을 뽑아 내 숫자와 자동으로 비교해줘요. 정답을 넘지 않으면서 가장 가깝게 쓴 사람이 그 라운드 1등 (전원이 넘겼다면 가장 낮은 숫자를 쓴 사람이 1등). 매 라운드 하위권은 자동으로 탈락하고, 최후의 1인이 남으면 게임이 끝나요.</p>
+
+    <div id="entryScreen" class="active">
+        <div class="panel">
+            <label for="nameInput">닉네임</label>
+            <input type="text" id="nameInput" maxlength="20" placeholder="닉네임을 입력하세요">
+
+            <div id="joinCodeRow" style="display:none;">
+                <label for="roomCodeInput">방 코드</label>
+                <input type="text" id="roomCodeInput" maxlength="4" placeholder="예: AB12">
+            </div>
+
+            <div class="btn-row">
+                <button type="button" id="createBtn" class="secondary-btn">방 만들기</button>
+                <button type="button" id="joinBtn" class="secondary-btn">참가하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lobbyScreen">
+        <div class="panel">
+            <div class="room-code-display">
+                <div class="code" id="protoRoomCode">----</div>
+                <div class="hint">이 코드를 친구에게 공유하세요</div>
+            </div>
+            <ul id="protoPlayerList"></ul>
+            <div class="status-line" id="playerCountText">0명 참가 중</div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">내 숫자 정하기 (한 번만 가능)</div>
+            <div id="guessPickWrap">
+                <div class="guess-value" id="guessValueText">50</div>
+                <input type="range" id="guessSlider" min="0" max="100" step="1" value="50">
+                <input type="number" id="guessNumber" min="0" max="100" step="1" value="50">
+                <button type="button" id="submitGuessBtn" class="primary-btn">이 숫자로 확정하기</button>
+                <div class="status-line" id="pickHintText">한 번 확정하면 매치가 끝날 때까지 바꿀 수 없어요. 고르지 않으면 시작할 때 무작위로 배정돼요.</div>
+            </div>
+            <div id="guessConfirmedWrap" style="display:none;">
+                <div class="submit-confirm">
+                    <div class="label">확정된 내 숫자</div>
+                    <div class="value" id="confirmedGuessText">-</div>
+                </div>
+            </div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
+
+        <div class="panel">
+            <button type="button" id="soloTestBtn" class="secondary-btn" style="display:none; width:100%; margin-bottom:10px;">🤖 혼자 테스트</button>
+            <button type="button" id="startBtn" class="primary-btn" style="display:none;">게임 시작</button>
+            <div class="status-line" id="startHint"></div>
+            <div class="status-line" id="waitingHostText" style="display:none;">방장이 시작하기를 기다리는 중...</div>
+        </div>
+    </div>
+
+    <div id="gameScreen">
+        <div class="panel">
+            <div class="my-status-panel" id="myStatusPanel">
+                <div>
+                    <div class="my-label">내 상태</div>
+                    <div class="my-name" id="myStatusName">-</div>
+                    <span class="my-tag" id="myStatusTag" style="display:none;"></span>
+                </div>
+                <div class="my-guess-value" id="myGuessValueText">-</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="round-header">
+                <span class="round-label" id="roundNumberText">라운드 1</span>
+                <span class="alive-label" id="aliveCountText">- 명 생존</span>
+            </div>
+
+            <div id="suspensePanel" class="suspense-wrap" style="display:none;">
+                <div class="suspense-dots"><span>●</span><span>●</span><span>●</span></div>
+                <div class="suspense-text">서버가 정답을 뽑는 중...</div>
+            </div>
+
+            <div id="revealPanel" style="display:none;">
+                <div id="winnerBannerWrap"></div>
+                <div class="reveal-target">
+                    <div class="label">정답</div>
+                    <div class="value" id="targetValueText">-</div>
+                </div>
+                <div id="resultsList"></div>
+                <div class="next-round-text" id="nextRoundText"></div>
+                <button type="button" id="leaveAfterGameBtn" class="primary-btn" style="display:none; margin-top:10px;">나가기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game-lab/shared/proto-client.js"></script>
+<script>
+(function () {
+    var GAME_SLUG = 'guess-the-number';
+    var MIN_PLAYERS = 3;
+    var MAX_PLAYERS = 16;
+    var isHost = false;
+    var hasSubmittedGuess = false;
+    var myGuess = null;
+    var myGuessAuto = false;
+    var amEliminated = false;
+    var eliminatedRound = null;
+    var toastTimeout = null;
+    var botsSpawned = false;
+    var lastPlayerCount = 0;
+
+    function $(id) { return document.getElementById(id); }
+
+    function showScreen(id) {
+        ['entryScreen', 'lobbyScreen', 'gameScreen'].forEach(function (s) {
+            $(s).classList.toggle('active', s === id);
+        });
+    }
+
+    function showToast(message) {
+        var el = $('toast');
+        el.textContent = message;
+        el.classList.add('show');
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(function () { el.classList.remove('show'); }, 2600);
+    }
+
+    // ── 소켓 연결 (페이지 진입 시 1회) ──
+    var socket = ProtoClient.init({
+        onRoomState: onRoomState,
+        onError: showToast,
+        onDisconnect: function () {
+            showToast('서버와 연결이 끊어졌습니다.');
+        }
+    });
+
+    function onRoomState(room) {
+        isHost = ProtoClient.getIsHost();
+        var count = room.players.length;
+        lastPlayerCount = count;
+        $('playerCountText').textContent = count + '명 참가 중';
+
+        var eligible = count >= MIN_PLAYERS && count <= MAX_PLAYERS;
+        $('startBtn').style.display = isHost ? 'inline-block' : 'none';
+        $('startBtn').disabled = !eligible;
+        $('waitingHostText').style.display = isHost ? 'none' : 'block';
+        $('startHint').textContent = eligible ? '' : ('3~16명이 모이면 시작할 수 있어요. (현재 ' + count + '명)');
+
+        updateSoloTestBtnVisibility();
+    }
+
+    // 호스트에게만, 로비에서 아직 인원이 부족할 때만 노출 — 봇을 이미 소환했으면 다시 보이지 않는다.
+    function updateSoloTestBtnVisibility() {
+        $('soloTestBtn').style.display = (isHost && !botsSpawned && lastPlayerCount < MIN_PLAYERS) ? 'block' : 'none';
+    }
+
+    // ── 입장 화면 ──
+    $('joinBtn').addEventListener('click', function () {
+        var showing = $('joinCodeRow').style.display !== 'none';
+        if (!showing) {
+            $('joinCodeRow').style.display = 'block';
+            return;
+        }
+        var name = ($('nameInput').value || '').trim();
+        var code = ($('roomCodeInput').value || '').trim();
+        if (!name) { showToast('닉네임을 입력해주세요.'); return; }
+        if (!code) { showToast('방 코드를 입력해주세요.'); return; }
+        ProtoClient.joinRoom(code, name, function (res) {
+            if (!res || !res.success) { showToast((res && res.error) || '참가에 실패했습니다.'); return; }
+            showScreen('lobbyScreen');
+        });
+    });
+
+    $('createBtn').addEventListener('click', function () {
+        var name = ($('nameInput').value || '').trim();
+        if (!name) { showToast('닉네임을 입력해주세요.'); return; }
+        ProtoClient.createRoom(GAME_SLUG, name, function (res) {
+            if (!res || !res.success) { showToast((res && res.error) || '방 생성에 실패했습니다.'); return; }
+            showScreen('lobbyScreen');
+        });
+    });
+
+    // ── 로비: 숫자 확정 (한 번만) ──
+    function setGuessValue(v) {
+        v = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+        $('guessSlider').value = v;
+        $('guessNumber').value = v;
+        $('guessValueText').textContent = v;
+    }
+    $('guessSlider').addEventListener('input', function () { setGuessValue(this.value); });
+    $('guessNumber').addEventListener('input', function () { setGuessValue(this.value); });
+
+    $('submitGuessBtn').addEventListener('click', function () {
+        if (hasSubmittedGuess) return;
+        var guess = Math.round(Number($('guessNumber').value));
+        $('submitGuessBtn').disabled = true;
+        socket.emit('proto:guess-the-number:submitGuess', { guess: guess }, function (res) {
+            if (!res || !res.success) {
+                showToast((res && res.error) || '제출에 실패했습니다.');
+                $('submitGuessBtn').disabled = false;
+                return;
+            }
+            hasSubmittedGuess = true;
+            myGuess = res.guess;
+            myGuessAuto = false;
+            $('guessPickWrap').style.display = 'none';
+            $('guessConfirmedWrap').style.display = 'block';
+            $('confirmedGuessText').textContent = res.guess;
+        });
+    });
+
+    socket.on('proto:guess-the-number:submissionUpdate', function (payload) {
+        $('progressText').textContent = payload.submitted + ' / ' + payload.total + '명 확정';
+    });
+
+    // ── 로비: 혼자 테스트 (호스트 전용) — 부족한 인원만큼 봇을 소환하고, 각 봇의 숫자를 자동 제출 ──
+    $('soloTestBtn').addEventListener('click', function () {
+        if (botsSpawned) return;
+        var needed = Math.max(0, MIN_PLAYERS - lastPlayerCount);
+        if (needed <= 0) return;
+        botsSpawned = true;
+        updateSoloTestBtnVisibility();
+
+        ProtoClient.spawnBots(needed).then(function (bots) {
+            bots.forEach(function (bot) {
+                var guess = Math.floor(Math.random() * 101); // 0~100
+                bot.socket.emit('proto:guess-the-number:submitGuess', { guess: guess }, function (res) {
+                    if (!res || !res.success) {
+                        showToast('봇 ' + bot.name + ' 숫자 제출 실패: ' + ((res && res.error) || ''));
+                    }
+                });
+            });
+        }).catch(function (err) {
+            botsSpawned = false;
+            updateSoloTestBtnVisibility();
+            showToast((err && err.message) || '봇 소환에 실패했습니다.');
+        });
+    });
+
+    // ── 로비: 매치 시작 ──
+    $('startBtn').addEventListener('click', function () {
+        socket.emit('proto:guess-the-number:start', {}, function (res) {
+            if (!res || !res.success) showToast((res && res.error) || '시작할 수 없습니다.');
+        });
+    });
+
+    $('leaveAfterGameBtn').addEventListener('click', function () {
+        ProtoClient.leaveRoom();
+        ProtoClient.disconnectBots();
+        botsSpawned = false;
+        lastPlayerCount = 0;
+        hasSubmittedGuess = false;
+        myGuess = null;
+        myGuessAuto = false;
+        amEliminated = false;
+        eliminatedRound = null;
+        $('guessPickWrap').style.display = 'block';
+        $('guessConfirmedWrap').style.display = 'none';
+        $('submitGuessBtn').disabled = false;
+        setGuessValue(50);
+        showScreen('entryScreen');
+    });
+
+    // ── 매치 시작: 내 고정 숫자 개별 통지 ──
+    socket.on('proto:guess-the-number:yourGuess', function (payload) {
+        myGuess = payload.guess;
+        myGuessAuto = !!payload.auto;
+        renderMyStatus();
+    });
+
+    socket.on('proto:guess-the-number:matchStart', function () {
+        amEliminated = false;
+        eliminatedRound = null;
+        showScreen('gameScreen');
+        $('myStatusName').textContent = ProtoClient.getUserName();
+        renderMyStatus();
+    });
+
+    function renderMyStatus() {
+        var panel = $('myStatusPanel');
+        panel.classList.toggle('eliminated', amEliminated);
+        $('myGuessValueText').textContent = (myGuess === null || myGuess === undefined) ? '-' : myGuess;
+        var tagEl = $('myStatusTag');
+        if (amEliminated) {
+            tagEl.style.display = 'block';
+            tagEl.textContent = eliminatedRound ? ('라운드 ' + eliminatedRound + '에서 탈락 — 관전 중') : '탈락 — 관전 중';
+        } else if (myGuessAuto) {
+            tagEl.style.display = 'block';
+            tagEl.textContent = '무작위로 자동 배정된 숫자예요';
+        } else {
+            tagEl.style.display = 'none';
+        }
+    }
+
+    // ── 서버 이벤트: 라운드 진행 (전부 자동) ──
+    socket.on('proto:guess-the-number:roundStart', function (payload) {
+        $('roundNumberText').textContent = '라운드 ' + payload.round;
+        $('aliveCountText').textContent = payload.players.length + '명 생존';
+        $('revealPanel').style.display = 'none';
+        $('suspensePanel').style.display = 'block';
+        renderMyStatus();
+    });
+
+    socket.on('proto:guess-the-number:reveal', function (payload) {
+        $('suspensePanel').style.display = 'none';
+        $('revealPanel').style.display = 'block';
+
+        $('targetValueText').textContent = (payload.target === null || payload.target === undefined) ? '-' : payload.target;
+
+        var myName = ProtoClient.getUserName();
+        var listEl = $('resultsList');
+        listEl.innerHTML = '';
+        (payload.results || []).forEach(function (r, idx) {
+            var row = document.createElement('div');
+            row.className = 'result-row' + (r.eliminated ? ' eliminated' : '') + (idx === 0 ? ' round-winner' : '') + (r.name === myName ? ' self-row' : '');
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'r-name';
+            nameSpan.textContent = r.name + (idx === 0 ? ' 👑' : '');
+            var guessSpan = document.createElement('span');
+            guessSpan.className = 'r-guess';
+            guessSpan.textContent = r.guess;
+            if (r.auto) {
+                var autoTag = document.createElement('span');
+                autoTag.className = 'auto-tag';
+                autoTag.textContent = '(자동배정)';
+                nameSpan.appendChild(autoTag);
+            }
+            row.appendChild(nameSpan);
+            row.appendChild(guessSpan);
+            listEl.appendChild(row);
+
+            if (r.name === myName) {
+                myGuess = r.guess;
+                myGuessAuto = !!r.auto;
+                if (r.eliminated) {
+                    amEliminated = true;
+                    eliminatedRound = payload.round;
+                }
+            }
+        });
+        renderMyStatus();
+
+        var bannerWrap = $('winnerBannerWrap');
+        bannerWrap.innerHTML = '';
+        if (payload.gameOver) {
+            var banner = document.createElement('div');
+            banner.className = 'winner-banner';
+            var trophy = document.createElement('div');
+            trophy.className = 'trophy';
+            trophy.textContent = '🏆';
+            var nameEl = document.createElement('div');
+            nameEl.className = 'name';
+            nameEl.textContent = payload.winner ? (payload.winner + ' 우승!') : '승자를 가릴 수 없습니다';
+            banner.appendChild(trophy);
+            banner.appendChild(nameEl);
+            bannerWrap.appendChild(banner);
+            $('nextRoundText').textContent = '';
+            $('leaveAfterGameBtn').style.display = 'block';
+        } else {
+            $('leaveAfterGameBtn').style.display = 'none';
+            var delaySec = Math.round((payload.nextRoundDelayMs || 0) / 1000);
+            $('nextRoundText').textContent = delaySec > 0 ? ('다음 라운드까지 ' + delaySec + '초...') : '다음 라운드를 준비하는 중...';
+        }
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 # 역할별 전문 스킬셋
 
-`meeting-team` 및 `dev-cycle` 커맨드 실행 시 각 팀원 에이전트에 자동 주입되는 역할별 도메인 지식 파일.
+하네스 에이전트(Scout/Coder/Reviewer/QA — `agents/*.md` frontmatter 참조)와 이더 오케스트레이터(`skills/harness/SKILL.md` 참조 스킬)가 주입받는 역할별 도메인 지식 파일.
+(과거 meeting-team/dev-cycle 커맨드용으로 만들어졌으나, 해당 커맨드는 `docs/harness/archive/`로 아카이브됨 — 표의 팀원 이름은 그 시절 흔적)
 
 ## 파일 목록
 
@@ -18,19 +19,16 @@
 ## 작동 원리
 
 ```
-meeting-team / dev-cycle 실행
+하네스 파이프라인 실행 (autogoal Phase 6 / 채팅 직접 요청)
   │
-  ├── meeting-team-profiles.md 로드 (이름, 경력, 말투)
-  ├── skill-*.md 로드 (역할별 프레임워크)
-  │
-  └── 각 에이전트 = 프로필 + 스킬 주입
-        → 페르소나로 말하면서
-        → 전문 체크리스트로 분석
+  ├── agents/*.md frontmatter의 skills: 목록 → 해당 에이전트에 주입
+  │     (예: reviewer.md → skill-backend/frontend/ui/ux)
+  └── 이더 지시서 작성 시 → skill-pd/ui/ux 판단 프레임워크 참조
 ```
 
 ## 스킬 파일 수정 방법
 
-각 스킬 파일을 직접 수정하면 다음 회의부터 적용됩니다.
+각 스킬 파일을 직접 수정하면 다음 파이프라인 실행부터 적용됩니다.
 
 추가할 수 있는 내용:
 - 프로젝트 특화 체크리스트

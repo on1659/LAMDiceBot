@@ -1,0 +1,262 @@
+<title>하네스 재구조화 보고서 — 2026-07-19</title>
+<style>
+  :root {
+    --paper: #FAFBFA;
+    --ink: #1C2422;
+    --ink-soft: #4A5450;
+    --line: #DDE4E1;
+    --card: #FFFFFF;
+    --accent: #0E7268;        /* guard teal — 안전층/이후 */
+    --accent-soft: #E3F0EE;
+    --before: #A85B18;        /* amber — 이전/경고 */
+    --before-soft: #F6EBDD;
+    --dead: #B3372E;
+    --dead-soft: #F7E7E5;
+    --live: #2A7A3B;
+    --live-soft: #E5F1E7;
+    --code-bg: #EFF3F1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #131917; --ink: #E6ECE9; --ink-soft: #9DA9A4;
+      --line: #2A3330; --card: #1A211E;
+      --accent: #4FB3A6; --accent-soft: #16302C;
+      --before: #D69A5B; --before-soft: #33271A;
+      --dead: #E07A6F; --dead-soft: #38201D;
+      --live: #7CC88A; --live-soft: #1D2F20;
+      --code-bg: #222B27;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #131917; --ink: #E6ECE9; --ink-soft: #9DA9A4;
+    --line: #2A3330; --card: #1A211E;
+    --accent: #4FB3A6; --accent-soft: #16302C;
+    --before: #D69A5B; --before-soft: #33271A;
+    --dead: #E07A6F; --dead-soft: #38201D;
+    --live: #7CC88A; --live-soft: #1D2F20;
+    --code-bg: #222B27;
+  }
+  :root[data-theme="light"] {
+    --paper: #FAFBFA; --ink: #1C2422; --ink-soft: #4A5450;
+    --line: #DDE4E1; --card: #FFFFFF;
+    --accent: #0E7268; --accent-soft: #E3F0EE;
+    --before: #A85B18; --before-soft: #F6EBDD;
+    --dead: #B3372E; --dead-soft: #F7E7E5;
+    --live: #2A7A3B; --live-soft: #E5F1E7;
+    --code-bg: #EFF3F1;
+  }
+
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.65; margin: 0;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  h1 {
+    font-size: clamp(26px, 4.5vw, 36px); font-weight: 800; letter-spacing: -.02em;
+    line-height: 1.25; margin: 8px 0 6px; text-wrap: balance;
+  }
+  .meta { color: var(--ink-soft); font-size: 14px; margin: 0 0 8px; }
+  .meta code { font-size: 12.5px; }
+  h2 {
+    font-size: 20px; font-weight: 800; letter-spacing: -.01em;
+    margin: 56px 0 6px; padding-top: 20px; border-top: 1px solid var(--line);
+    text-wrap: balance;
+  }
+  h2 .no { font-family: ui-monospace, Consolas, monospace; color: var(--accent); font-size: 15px; margin-right: 8px; }
+  .lede { color: var(--ink-soft); margin: 0 0 20px; font-size: 15px; max-width: 62ch; }
+  p { max-width: 68ch; }
+
+  code, .path {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 13px; background: var(--code-bg); padding: 1px 6px; border-radius: 4px;
+  }
+
+  /* 헤드라인 스탯 */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 28px 0 0; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+  .stat b { display: block; font-size: 24px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13px; color: var(--ink-soft); }
+
+  /* 이전/이후 다이어그램 */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  @media (max-width: 640px) { .compare { grid-template-columns: 1fr; } }
+  .col { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .col-head { padding: 10px 16px; font-weight: 700; font-size: 14px; letter-spacing: .02em; }
+  .col.before .col-head { background: var(--before-soft); color: var(--before); }
+  .col.after  .col-head { background: var(--accent-soft); color: var(--accent); }
+  .layers { display: flex; flex-direction: column; gap: 0; }
+  .layer { padding: 14px 16px; border-top: 1px solid var(--line); }
+  .layer b { display: block; font-size: 14px; }
+  .layer small { color: var(--ink-soft); font-size: 12.5px; line-height: 1.55; display: block; margin-top: 2px; }
+  .arrow { text-align: center; color: var(--ink-soft); font-size: 12px; padding: 2px 0; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--card) 60%, var(--paper)); }
+
+  /* 표 */
+  .tbl-scroll { overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; background: var(--card); }
+  th {
+    text-align: left; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase;
+    font-family: ui-monospace, Consolas, monospace; color: var(--ink-soft);
+    padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill {
+    display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 9px;
+    border-radius: 99px; white-space: nowrap; letter-spacing: .02em;
+  }
+  .pill.dead { background: var(--dead-soft); color: var(--dead); }
+  .pill.live { background: var(--live-soft); color: var(--live); }
+  .pill.warn { background: var(--before-soft); color: var(--before); }
+  .pill.keep { background: var(--code-bg); color: var(--ink-soft); }
+
+  ul { padding-left: 20px; max-width: 70ch; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--accent); }
+
+  .verdict {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 20px 0; max-width: 66ch;
+  }
+  .verdict b { color: var(--accent); }
+
+  .foot { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 12.5px; }
+  .foot code { font-size: 11.5px; }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">LAMDiceBot · Harness Engineering Report</div>
+  <h1>하네스 재구조화 — 무엇이, 왜, 얼마나 달라졌나</h1>
+  <p class="meta">2026-07-19 · 판정 방법: 4관점 적대 패널 + 교차 심문(에이전트 5) → 훅 하드닝 → autogoal 단일 진입문 전환 · 근거는 전부 이 리포의 transcript/git 실측</p>
+
+  <div class="stats">
+    <div class="stat"><b>0회 → 작동</b><span>백슬래시 버그로 발동 이력이 없던 보안 가드 소생 (재현 테스트 13/13)</span></div>
+    <div class="stat"><b>진입점 8+ → 1</b><span>기능 개발 진입은 /autogoal 하나 — 커맨드 6종+지원파일 아카이브</span></div>
+    <div class="stat"><b>우회로 4개 봉쇄</b><span>상대경로 · 셸 쓰기 · mcp 쓰기 · Edit 맹점 — 전부 재현 입력으로 검증</span></div>
+    <div class="stat"><b>−1,540줄</b><span>활성 .claude 문서 5,478 → 3,938줄 (아카이브 이동, 삭제 없음)</span></div>
+  </div>
+
+  <h2><span class="no">01</span>구조 — 세 층이 명확해졌다</h2>
+  <p class="lede">이전에는 진입점이 난립하고 각자 파이프라인을 따로 정의했다. 이후에는 문(autogoal) · 엔진(하네스) · 안전벨트(훅)가 한 방향으로 흐른다.</p>
+
+  <div class="compare">
+    <div class="col before">
+      <div class="col-head">이전</div>
+      <div class="layers">
+        <div class="layer"><b>진입점 난립</b><small>/build · /dev-cycle · meeting 역할극 5종 · /goaldoc · /autogoal · 채팅 직접 요청 — 어떤 세션이 어느 흐름을 탈지 비결정적. 6/17 이후 meeting·dev-cycle 실사용 0건인데 문서는 공식 흐름으로 잔존</small></div>
+        <div class="arrow">▼</div>
+        <div class="layer"><b>직렬 파이프라인 단일 경로</b><small>Scout→Coder→Reviewer(→QA)만 정의 — ultracode(Workflow 검증 팬아웃)와의 관계 미정의, 세션마다 즉흥 판단</small></div>
+        <div class="arrow">▼</div>
+        <div class="layer"><b>훅 — 절반만 실재</b><small>트리아지 게이트만 실작동(~9회 차단). 보안 가드는 사망, 모바일 가드는 오탐 발신, 셸/mcp 쓰기는 비게이트</small></div>
+      </div>
+    </div>
+    <div class="col after">
+      <div class="col-head">이후</div>
+      <div class="layers">
+        <div class="layer"><b>autogoal = 단일 진입문</b><small>캐묻기 → LIGHT/HEAVY 자체 라우팅(Phase 0) → HEAVY만 계획 패널(Phase 3.5, 읽기 전용) → goal 명세 → 하네스로 구현 위임. 규모 구분을 사용자에게 요구하지 않음</small></div>
+        <div class="arrow">▼</div>
+        <div class="layer"><b>하네스 = 실행 엔진</b><small>트리아지 + 쓰기 경로 항상 직렬(단일 Coder·worktree) + 검증 단계만 Workflow 적대 팬아웃 허용 — 관계가 harness.md "검증 팬아웃 규칙" 6개 조항으로 명문화</small></div>
+        <div class="arrow">▼</div>
+        <div class="layer"><b>훅 = 전원 실작동 안전층</b><small>6종 전부 재현 입력으로 검증. 어떤 진입 경로로 와도(autogoal이든 채팅이든) 동일 적용</small></div>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="no">02</span>훅 하드닝 — 믿고 있던 것과 실재의 간극</h2>
+  <p class="lede">과거 세션 transcript 전수 grep으로 "실제 발동 기록"을 실측했다. 결론: 지켜주고 있던 건 트리아지 게이트 하나였다.</p>
+
+  <div class="tbl-scroll"><table>
+    <tr><th>장치</th><th>이전 (실측)</th><th>이후</th><th>상태</th></tr>
+    <tr>
+      <td><code>check-triage.sh</code></td>
+      <td class="num">실차단 ~9회 — 유일하게 작동</td>
+      <td>상대경로 우회 봉쇄 (<code>(^|/)</code> 앵커), 절대경로 회귀 테스트 통과</td>
+      <td><span class="pill live">강화</span></td>
+    </tr>
+    <tr>
+      <td><code>security-guard.sh</code></td>
+      <td class="num">발동 0회 — 백슬래시 경로에 <code>socket/</code> 매칭 불가로 사망 상태</td>
+      <td>경로 정규화 + 편집 후 디스크 실검사 — rate-limit 누락 Edit 차단 확인</td>
+      <td><span class="pill dead">사망</span> → <span class="pill live">소생</span></td>
+    </tr>
+    <tr>
+      <td><code>mobile-guard.sh</code></td>
+      <td class="num">~35회 발동 — 상당수가 Edit 빈 content로 인한 가짜 viewport 경고</td>
+      <td>디스크 실검사로 오탐 제거 (viewport 있는 html Edit → 경고 없음 확인)</td>
+      <td><span class="pill warn">오탐</span> → <span class="pill live">정상</span></td>
+    </tr>
+    <tr>
+      <td><code>fairness-guard.sh</code></td>
+      <td class="num">Write에서만 간헐 발동 — Edit 맹목</td>
+      <td>Edit 포함 전체 파일 검사</td>
+      <td><span class="pill live">확장</span></td>
+    </tr>
+    <tr>
+      <td><code>check-shell-write.sh</code></td>
+      <td class="num">없음 — 셸 리다이렉트/Set-Content로 위험 경로 쓰기 자유</td>
+      <td>신규 — 위험 경로 + 쓰기 지시자 + SIMPLE 조합만 차단, 순수 조회는 통과</td>
+      <td><span class="pill live">신규</span></td>
+    </tr>
+    <tr>
+      <td>mcp filesystem 쓰기</td>
+      <td class="num">비게이트 (어떤 훅에도 안 걸림)</td>
+      <td><code>permissions.deny</code> — Write/Edit 도구가 있어 기능 손실 없음</td>
+      <td><span class="pill live">봉쇄</span></td>
+    </tr>
+  </table></div>
+
+  <h2><span class="no">03</span>harness.md — ultracode와의 관계를 규칙으로</h2>
+  <p class="lede">"하네스 vs ultracode"가 아니라 하네스가 ultracode를 검증 엔진으로 쓴다. 범위와 조건이 문서에 박혔다.</p>
+  <ul>
+    <li><b>쓰기 경로는 항상 직렬</b> — 근거 명기: STANDARD급 단일 컨텍스트 실측 ~60k 토큰(최악 경마 풀셋 ~150k), 상시 미커밋 트리에서 병렬 쓰기가 사용자 작업을 삭제한 실사고 1건</li>
+    <li><b>검증 팬아웃 규칙 6조</b> — 호출 전 git status · 지시서를 스코프 펜스로 · 읽기 전용 · approve/request-changes 판정으로 수렴(루프 max 3 유지) · 트리아지/lessons 스테이지 전파 · agents 문서 재활용 전 갱신 확인</li>
+    <li><b>검증은 읽기 전용이라 훅 결합 문제가 원천 부재</b> — 패널 최대 쟁점이었던 "Workflow 워커 훅 미발화" 리스크가 이 범위 한정으로 소멸</li>
+  </ul>
+  <div class="verdict"><b>패널 판정 요약</b> — 원안(Hands층 전면 Workflow 교체)은 4/4 기각: 유지론 DISAGREE, 축소론·컨텍스트·실증감사 PARTIAL. 교차 심문이 유지론의 "분리 불가" 논거를 실물 transcript로 반증(현행도 트리아지 마커를 서브에이전트에 전파 중). 최종: <b>검증 한정 하이브리드 + 훅 하드닝 선행</b>, 확신도 HIGH. 참고 실측 — Workflow 리뷰 1회분: 17건 발견 → verify가 오탐 13건 자체 기각 → 확정 4건.</div>
+
+  <h2><span class="no">04</span>autogoal — 규모 라우팅을 내장한 진입문</h2>
+  <p class="lede">크고 작음을 사용자가 나누지 않는다. 두 축을 분리한 것이 설계의 핵심.</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>축</th><th>판정 주체</th><th>의미</th></tr>
+    <tr><td><b>LIGHT / HEAVY</b></td><td>autogoal Phase 0 (정찰 후 상향 가능, 하향 없음)</td><td>계획의 무게 — HEAVY만 계획 패널(Workflow 다관점, 대체: /meeting-codex)을 거쳐 <code>Design Decisions</code>(재론 금지 + 반려 대안 병기)를 goal 문서에 고정</td></tr>
+    <tr><td><b>SIMPLE / STANDARD / COMPLEX</b></td><td>하네스 트리아지 (Phase 6)</td><td>구현의 무게 — 패널 결과가 선점하지 못함. 계획은 가볍고 구현은 COMPLEX인 작업(등록 16곳짜리 신규 게임)이 실제로 흔하기 때문</td></tr>
+  </table></div>
+  <p style="color:var(--ink-soft); font-size:13.5px;">Design Decisions 고정은 bridge-cross 재설계 표류(구현 중 재론으로 메커니즘이 통째로 갈리던 사고)의 재발 방지 장치다.</p>
+
+  <h2><span class="no">05</span>다이어트 — 아카이브로 옮긴 것 (삭제 0)</h2>
+  <div class="tbl-scroll"><table>
+    <tr><th>항목</th><th>규모</th><th>행선지</th><th>사유</th></tr>
+    <tr><td>/build · /dev-cycle · meeting 역할극 5종 + profiles</td><td class="num">7파일 · 1,540줄</td><td><code>docs/harness/archive/commands/</code></td><td>6/17 이후 사용 0건, goal 흐름(applied 47건)이 대체. 역할극 회의는 진짜 독립 에이전트 패널로 대체</td></tr>
+    <tr><td>완료된 impl 문서</td><td class="num">16파일</td><td><code>docs/meeting/applied/</code></td><td>사문화된 아카이브 규칙의 밀린 정리 (applied 7→23건)</td></tr>
+    <tr><td>audit-counter 훅</td><td class="num">1파일 + 등록 1건</td><td><code>docs/harness/archive/hooks/</code></td><td>10세션 감사 리마인더 — 감사를 감사하는 트레드밀 폐지. /harness-audit·/memory-audit 수동 호출은 유지</td></tr>
+    <tr><td><b>보존</b> — meeting-codex · harness.md · workflow.md · agents · lessons · skill-*.md</td><td class="num">—</td><td>제자리</td><td>meeting-codex는 HEAVY 패널 대체 실행으로 현역 편입. 나머지는 엔진/계약층</td></tr>
+  </table></div>
+
+  <h2><span class="no">06</span>바뀌지 않은 것</h2>
+  <ul>
+    <li>매 턴 <code>[트리아지: …]</code> 1줄 선언과 위험 경로(socket/db/js-shared) SIMPLE 불가 게이트 — 신뢰 항목, 그대로</li>
+    <li>Scout→Coder→Reviewer(→QA) 직렬 쓰기 파이프라인과 루프 상한 3회, Coder worktree 격리</li>
+    <li>lessons 자동 조회·후보 제안 플라이휠(C-1~C-29), new-game 등록 체크리스트, goal 완료 시 자동 아카이브(Stop 훅)</li>
+  </ul>
+
+  <h2><span class="no">07</span>남은 것</h2>
+  <ul>
+    <li><b>A/B 파일럿</b> — 다음 COMPLEX 1~2건에서 5지표 기록: 적발 건수 / 사용자 도달 오탐 / 루프 횟수 / 소요 / 타깃 밖 diff 0건. 이 숫자가 나와야 "얼마나 좋아졌나"가 추정 없이 닫힌다</li>
+    <li><b>agents/*.md 갱신</b> — 게임 목록 4종→9종, 포트 3000→5173. 검증 팬아웃이 프롬프트 재료로 쓰기 전 선행 권장</li>
+    <li><b>사용자 레벨 전역 커맨드</b> — <code>~/.claude/commands/</code>의 meeting-agent/multi/team은 범위 밖 잔존 (다른 프로젝트 사용 가능성)</li>
+    <li>settings.json의 신규 훅 등록(check-shell-write, PowerShell 매처, deny)은 <b>다음 세션부터</b> 온전 적용</li>
+  </ul>
+
+  <div class="foot">
+    산출물 — 명세: <code>docs/goal/harness-autogoal-entry.md</code> (완료 큐 등록, Stop 시 applied/ 이동) · 규칙: <code>.claude/rules/harness.md</code> · 훅: <code>.claude/hooks/check-triage.sh</code> <code>check-shell-write.sh</code> <code>security/fairness/mobile-guard.sh</code> · 진입문: <code>~/.claude/skills/autogoal/SKILL.md</code> · 아카이브: <code>docs/harness/archive/</code><br>
+    판정 근거 세션: 4관점 패널+교차심문(에이전트 5 · 도구 호출 127회), 훅 재현 테스트 13/13, transcript 전수 grep. 이 보고서의 모든 수치는 해당 실측에서 나왔다.
+  </div>
+</div>

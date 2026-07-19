@@ -4951,6 +4951,89 @@ function closeResultOverlay() {
     // 순위 이펙트는 제거하지 않음 → 비석이 남음. 새 경주 시작 시 clearFinishEffects()로 정리됨
 }
 
+// ── 탈것 통계 모달 ──
+var vehicleStatsOverlayBound = false; // 오버레이 클릭 닫기 중복 바인딩 방지
+
+function openVehicleStatsModal() {
+    var overlay = document.getElementById('vehicleStatsOverlay');
+    if (!overlay) return;
+
+    // 오버레이 바깥 클릭으로 닫기 (최초 1회만 바인딩)
+    if (!vehicleStatsOverlayBound) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeVehicleStatsModal();
+        });
+        vehicleStatsOverlayBound = true;
+    }
+
+    // 보유한 통계(horseSelectionReady 수신분)로 즉시 렌더 후 표시
+    renderVehicleStatsTable();
+    overlay.classList.add('visible');
+
+    // 최신 통계 1회 요청 (모달 열 때만 — 반복 요청 없음)
+    socket.emit('horse:requestVehicleStats', {}, function(res) {
+        if (res && res.ok) {
+            vehicleStatsData = res.stats || [];
+            renderVehicleStatsTable();
+        }
+    });
+}
+
+function closeVehicleStatsModal() {
+    var overlay = document.getElementById('vehicleStatsOverlay');
+    if (overlay) overlay.classList.remove('visible');
+}
+
+function renderVehicleStatsTable() {
+    var body = document.getElementById('vehicleStatsBody');
+    if (!body) return;
+
+    var render = function() {
+        var stats = (vehicleStatsData || []).slice();
+        if (stats.length === 0) {
+            body.innerHTML = '<div class="vehicle-stats-empty">아직 집계된 기록이 없습니다.</div>';
+            return;
+        }
+
+        // 승률 내림차순 정렬 (동률 시 출전 많은 순)
+        stats.sort(function(a, b) {
+            var wa = a.appearance_count > 0 ? a.rank_1 / a.appearance_count : 0;
+            var wb = b.appearance_count > 0 ? b.rank_1 / b.appearance_count : 0;
+            if (wb !== wa) return wb - wa;
+            return (b.appearance_count || 0) - (a.appearance_count || 0);
+        });
+
+        var html = '<table class="vehicle-stats-table">' +
+            '<thead><tr><th>탈것</th><th>출전</th><th>선택률</th><th>1위</th><th>승률</th></tr></thead><tbody>';
+        stats.forEach(function(st) {
+            var vehicle = ALL_VEHICLES.find(function(v) { return v.id === st.vehicle_id; });
+            var label = vehicle ? (vehicle.emoji + ' ' + vehicle.name) : String(st.vehicle_id);
+            var appearance = Number(st.appearance_count) || 0;
+            var wins = Number(st.rank_1) || 0;
+            var picks = Number(st.pick_count) || 0;
+            var lowSample = appearance < 5; // 추천 배지와 동일 기준 (최소 등장 5회)
+            var winRate = appearance > 0 ? Math.round((wins / appearance) * 100) : 0;
+            var pickRate = appearance > 0 ? Math.round((picks / appearance) * 100) : 0;
+            html += '<tr' + (lowSample ? ' class="vstats-low-sample"' : '') + '>' +
+                '<td>' + escapeHtmlText(label) + '</td>' +
+                '<td>' + appearance + '</td>' +
+                '<td>' + pickRate + '%</td>' +
+                '<td>' + wins + '</td>' +
+                '<td>' + winRate + '%' + (lowSample ? '<span class="vstats-low-label">기록 부족</span>' : '') + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table>';
+        body.innerHTML = html;
+    };
+
+    // 탈것 이름/이모지 데이터가 아직 없으면 로드 후 렌더 (horseSelectionReady 가드 관례)
+    if (ALL_VEHICLES.length === 0) {
+        loadVehicleThemes().then(render);
+    } else {
+        render();
+    }
+}
+
 // 방 폭파 카운트다운
 function startRoomExpiryCountdown(createdAt, expiryHours) {
     if (roomExpiryInterval) {

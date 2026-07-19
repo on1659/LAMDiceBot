@@ -270,6 +270,43 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-26. 모듈 변수에 promise를 캐시하는 lazy-load는 실패한 promise도 캐시한다
+
+- 정적 에셋/설정을 `if (_p) return _p; _p = fetch(...)` 패턴으로 1회만 로드할 때, 첫 요청이 실패하면 `.catch()`로 settle된 promise가 그대로 캐시되어 **세션 내내 재시도 없이 실패 결과가 고착**된다 — 일시적 네트워크 장애가 영구 장애로 변한다.
+- **해결:** catch에서 캐시 변수를 `null`로 리셋한 뒤 폴백 값을 반환 — 이번 렌더는 폴백으로 처리하고, 다음 호출 때 재fetch가 시도되게 한다. 성공 경로의 캐시는 그대로 유지.
+- **검증:** fetch를 1회 강제 실패시킨 뒤 재호출 시 네트워크 요청이 다시 나가는지 확인.
+- (출처: 2026-07-15 탈것 통계 UI — `js/shared/ranking-shared.js` loadVehicleThemesOnce, ReviewerCodex 적발)
+
+---
+
+## C-27. 늦은 fetch 응답(stale-response) 가드는 DOM을 건드리는 모든 경로에 걸어라
+
+- 시즌/탭 전환형 UI에서 "요청 시점 컨텍스트 ≠ 현재 컨텍스트면 무시" 가드를 **성공 경로에만** 넣으면, 늦게 도착한 실패 응답(429/500)의 클리어 코드가 방금 그린 새 화면을 지우는 **역방향 레이스**가 남는다. catch 클리어, 중간 `await`(부가 리소스 로드) 이후 경로도 동일하게 노출된다.
+- **해결:** 함수 상단에 `const isStale = () => !_overlay || viewing !== (현재 컨텍스트);` 헬퍼 하나를 두고, ① 성공 렌더 직전 ② 비정상 응답 클리어 직전 ③ catch 클리어 직전 ④ 모든 중간 await 직후 — DOM을 건드리는 전 경로에 동일 적용한다.
+- **검증:** 연속 전환(시즌 셀렉터 빠른 변경, pull-to-refresh 연타 → 429 유발)으로 늦은 응답을 만들어 새 화면이 지워지지 않는지 확인.
+- (출처: 2026-07-15 탈것 통계 UI — `js/shared/ranking-shared.js` renderVehicleChamps, Reviewer 적발)
+
+---
+
+## C-28. 경마 튜토리얼 억제 localStorage 키는 `tutorialSeen_horse`다 (`tutorialSeen_horse-race` 아님)
+
+- 경마의 gameType은 `'horse'`라서 튜토리얼 억제 키도 `tutorialSeen_horse`다. AutoTest에서 잘못된 키(`tutorialSeen_horse-race`)를 심으면 `evaluate` 기반 단언은 통과하지만, **Playwright 실클릭은 `tutorial-click-blocker` 오버레이에 가로막혀 timeout** 한다 — 코드는 멀쩡한데 테스트만 죽어 원인 추적이 어렵다.
+- 기존 `AutoTest/qa-trail-afterimage-live-race-test.js`도 잘못된 키를 쓰고 있다(실클릭이 없어 우연히 통과 중) — 실클릭을 추가하는 순간 터진다.
+- **해결:** 게임별 키를 추측하지 말고 코드(`js/shared/tutorial-shared.js`, 해당 게임의 gameType 문자열)에서 직접 확인해 쓴다.
+- **검증:** 테스트 시작 직후 튜토리얼 오버레이/click-blocker 부재를 단언하고 진행한다.
+- (출처: 2026-07-15 탈것 통계 UI QA)
+
+---
+
+## C-29. RankingModule 오버레이를 여닫는 테스트는 history 조작 레이스를 피하라
+
+- `RankingModule.show()`는 `history.pushState`를 쌓고, `hide()`는 **비동기 `history.back()`** 으로 닫는다. 테스트에서 `forceHide()`로 닫으면 state가 스택에 잔존하고, `hide()` 직후 연속 history 조작(재show, 페이지 이동)을 하면 back 트래버설과 레이스해 **컨텍스트 파괴형 플레이크**(execution context destroyed)가 난다 — 제품 버그가 아니라 테스트 하니스 문제라 오진하기 쉽다.
+- **해결:** 랭킹 오버레이를 여닫는 테스트는 `hide()` 후 ~1초 안착 대기를 넣고, 연속 show/hide를 금지한다.
+- **검증:** 여닫기 반복 시나리오가 플레이크 없이 통과하는지 확인.
+- (출처: 2026-07-15 탈것 통계 UI QA — `AutoTest/qa-vehicle-stats-ui-browser-test.js` 플레이크 해소 과정)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**
