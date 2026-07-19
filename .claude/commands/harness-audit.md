@@ -163,8 +163,7 @@ find "$CLAUDE_PROJECT_DIR/.claude/agents" -name "*.md" -mtime +60 \
 
 ## 트리거
 
-- 수동: `/harness-audit` 입력
-- 자동 알림: SessionStart 카운터(`audit-counter.sh`)가 10세션마다 안내. 메시지에 `/harness-audit`과 `/memory-audit` 모두 포함.
+- 수동: `/harness-audit` 입력 (자동 알림은 2026-07-19 폐지 — 구 `audit-counter.sh`는 `docs/harness/archive/hooks/`에 보관)
 
 ## 참고
 

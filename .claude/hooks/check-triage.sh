@@ -39,7 +39,7 @@ fi
 file_path=$(printf '%s' "$input" | grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | sed -E 's/.*"file_path"[[:space:]]*:[[:space:]]*"([^"]*)"/\1/' | head -1)
 norm_path=$(printf '%s' "$file_path" | tr '\\' '/' 2>/dev/null)
 
-if printf '%s' "$norm_path" | grep -qE '/(socket|db)/|/js/shared/|/utils/room-helpers'; then
+if printf '%s' "$norm_path" | grep -qE '(^|/)(socket|db)/|(^|/)js/shared/|(^|/)utils/room-helpers'; then
     # 계약-위험 구역 → STANDARD 또는 COMPLEX 선언이 있어야 통과
     if printf '%s' "$after_user" | grep -qE '\[\s*트리아지\s*[:：]\s*(STANDARD|COMPLEX)\s*\]'; then
         exit 0

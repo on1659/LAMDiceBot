@@ -102,10 +102,7 @@ git log --all --oneline --since="<파일 frontmatter 날짜>" | grep -iE "<관�
 
 ## 트리거
 
-- 수동: `/memory-audit` 입력
-- 자동 알림: SessionStart 카운터(`audit-counter.sh`)가 10세션마다 안내 메시지 출력
-- 카운터 위치: `~/.claude/projects/d--Work-LAMDiceBot/memory/.audit-counter`
-- 카운터 리셋이 필요하면 해당 파일 삭제
+- 수동: `/memory-audit` 입력 (자동 알림은 2026-07-19 폐지 — 구 `audit-counter.sh`는 `docs/harness/archive/hooks/`에 보관)
 
 ## 참고
 

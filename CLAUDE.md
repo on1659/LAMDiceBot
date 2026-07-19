@@ -18,12 +18,12 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마).
 | 파일 | 역할 |
 |------|------|
 | `CLAUDE.md` (이 파일) | 진입점, 전체 지도 |
-| [harness.md](.claude/rules/harness.md) | 트리아지 판정 + 재트리아지 규칙 |
+| `/autogoal` (사용자 레벨 스킬) | **기능 개발 단일 진입문** — 캐묻기 → LIGHT/HEAVY 라우팅 → goal 명세 → 하네스 구현 |
+| [harness.md](.claude/rules/harness.md) | 트리아지 판정 + 재트리아지 규칙 + 검증 팬아웃 |
 | [workflow.md](.claude/rules/workflow.md) | 상태 전이, 루프, 에스컬레이션 |
-| [build.md](.claude/commands/build.md) | /build 진입점 |
-| [meeting-codex.md](.claude/commands/meeting-codex.md) | /meeting-codex 계획 토론 |
-| [commands/meeting*.md](.claude/commands/) | /meeting, /meeting-multi, /meeting-team |
-| [dev-cycle.md](.claude/commands/dev-cycle.md) | /dev-cycle 전체 개발 사이클 |
+| [meeting-codex.md](.claude/commands/meeting-codex.md) | /meeting-codex 계획 토론 (autogoal HEAVY 패널의 대체 실행) |
+
+> 구 진입점(/build, /dev-cycle, meeting 역할극 변형)은 2026-07-19 `docs/harness/archive/`로 아카이브 — autogoal이 역할 흡수.
 
 ### 2. Hands — 실제 실행
 
@@ -66,8 +66,8 @@ Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마).
 
 ## 항상 적용
 
-- 구현 요청 시 파일 3개+ 또는 DB 변경 → impl 문서 먼저 만들지 확인
+- 구현 요청 시 파일 3개+ 또는 DB 변경 → goal/impl 문서 먼저 만들지 확인 (`/autogoal`이 이 확인을 겸한다)
 - 숫자 상수 → `config/` 또는 파일 상단 `const` 블록에 정의
 - 개발 도구/봇 코드 → 게임 서버(`server.js`, `routes/`, `socket/`)에 삽입 금지
-- 대규모 기능 → `/dev-cycle` 또는 `/meeting-team` 활용 권장
+- **기능 개발 진입점은 `/autogoal`** — 크고 작음 구분 없이 단일 진입, 규모 라우팅(LIGHT/HEAVY) 내장. HEAVY는 계획 패널(Workflow 다관점 또는 `/meeting-codex`)을 거쳐 goal 문서를 만든 뒤 하네스로 구현
 - **goal 완료 시 아카이브**: `docs/goal/*.md` 명세의 작업을 끝냈으면, 그 파일 경로(프로젝트 루트 기준, 예 `docs/goal/foo.md`)를 `.claude/.goal-applied-queue`에 한 줄로 append 한다. Stop 훅(`goal-archive.sh`)이 멈출 때 큐의 파일을 `docs/goal/applied/`로 옮기고 큐를 비운다. (미완 상태에서는 적지 않는다 — 조기 이동 방지)
