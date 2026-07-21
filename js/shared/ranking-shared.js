@@ -4,6 +4,7 @@ const RankingModule = (function () {
     let _userName = null;
     let _isHost = false;
     let _overlay = null;
+    let _closing = false; // hide() 재진입 가드 — 백드롭 더블클릭 시 history.back() 2회 방지
     let _cache = null;
     let _cacheTime = 0;
     const CACHE_TTL = 10000; // 10초
@@ -20,7 +21,6 @@ const RankingModule = (function () {
     let _touchStartY = 0;
     let _pullStartY = 0;
     let _isPulling = false;
-    let _searchResult = null; // { found, userName, myRank } | null
 
     // 시즌 우승 탈것 — 탈것 이름/이모지 메타 (1회 로드 후 모듈 캐시, 패널 열 때마다 재요청 금지)
     let _vehicleThemes = null;         // { id: { name, emoji, ... } } | null
@@ -77,6 +77,7 @@ const RankingModule = (function () {
 
     function show(gameType) {
         if (_overlay) { _overlay.remove(); _overlay = null; }
+        _closing = false;
         if (gameType) {
             _currentMainTab = 'games';
             _currentGameTab = gameType;
@@ -84,7 +85,6 @@ const RankingModule = (function () {
             _currentMainTab = 'overall';
             _currentGameTab = 'dice';
         }
-        _searchResult = null;
         _viewingSeason = null;
         if (typeof PageHistoryManager !== 'undefined') PageHistoryManager.pushPage('ranking');
         createOverlay();
@@ -92,10 +92,12 @@ const RankingModule = (function () {
     }
 
     function hide() {
-        if (_overlay) {
-            _overlay.style.opacity = '0';
-            setTimeout(() => { if (_overlay) { _overlay.remove(); _overlay = null; } }, 250);
-        }
+        if (!_overlay || _closing) return;
+        _closing = true;
+        // 타이머는 지역 캡처 — 250ms 안에 재오픈돼도 새 오버레이를 지우지 않는다
+        const el = _overlay;
+        el.style.opacity = '0';
+        setTimeout(() => { el.remove(); if (_overlay === el) _overlay = null; }, 250);
         // UI 버튼으로 닫을 때 히스토리도 되돌리기
         if (history.state && history.state.page === 'ranking') {
             history.back();
@@ -105,8 +107,9 @@ const RankingModule = (function () {
     // popstate 핸들러에서 호출 (history.back 없이 DOM만 정리)
     function forceHide() {
         if (_overlay) {
-            _overlay.style.opacity = '0';
-            setTimeout(() => { if (_overlay) { _overlay.remove(); _overlay = null; } }, 250);
+            const el = _overlay;
+            el.style.opacity = '0';
+            setTimeout(() => { el.remove(); if (_overlay === el) _overlay = null; }, 250);
         }
     }
 
@@ -134,18 +137,28 @@ const RankingModule = (function () {
             --rk-btn-hover: rgba(255,255,255,0.3);
 
             position: fixed; inset: 0; z-index: 9999;
-            background: linear-gradient(180deg, var(--rk-bg-start) 0%, var(--rk-bg-end) 100%);
-            display: flex; flex-direction: column;
+            background: rgba(0,0,0,0.8); /* 백드롭 — 구 탈것 통계 모달 패리티, 페이지 라이트/다크 무관 고정 */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             opacity: 0; transition: opacity 0.25s ease;
         }
         #ranking-overlay.rk-visible { opacity: 1; }
+
+        /* ── 패널 (모바일 = 풀스크린, PC = 중앙 카드) ── */
+        .rk-panel {
+            width: 100%; height: 100%;
+            background: linear-gradient(180deg, var(--rk-bg-start) 0%, var(--rk-bg-end) 100%);
+            display: flex; flex-direction: column;
+        }
         @media (min-width: 768px) {
-            .rk-content {
-                max-width: 640px;
-                margin-left: auto;
-                margin-right: auto;
-                width: 100%;
+            #ranking-overlay {
+                display: flex; align-items: center; justify-content: center;
+            }
+            .rk-panel {
+                width: min(640px, 92vw);
+                height: auto;
+                max-height: 85vh;
+                border-radius: 20px;
+                overflow: hidden;
             }
         }
 
@@ -168,8 +181,9 @@ const RankingModule = (function () {
             background: rgba(255,255,255,0.08);
         }
         .rk-back-btn {
+            /* margin-top:0 로 전역 button{margin-top:10px}(horse-race.css) 상쇄 — 안 하면 헤더에서 아래로 밀려 제목과 어긋남 */
             background: var(--rk-btn-bg); border: none; color: white;
-            width: 38px; height: 38px; border-radius: 12px;
+            width: 38px; height: 38px; border-radius: 12px; margin-top: 0;
             font-size: 1.15em; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s; z-index: 1;
@@ -240,42 +254,20 @@ const RankingModule = (function () {
         }
         .rk-game-chip:active { transform: scale(0.95); }
 
-        /* ── 검색 ── */
-        .rk-search-wrap {
-            display: flex; gap: 8px; padding: 10px 16px 12px;
-            background: rgba(255,255,255,0.02);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            flex-shrink: 0;
-        }
-        .rk-search-input {
-            flex: 1; padding: 10px 14px; border-radius: 12px;
-            border: 1px solid var(--rk-border-light);
-            background: var(--rk-surface);
-            color: rgba(255,255,255,0.9);
-            font-size: 0.95em;
-        }
-        .rk-search-input::placeholder { color: var(--rk-text-muted); }
-        .rk-search-btn {
-            padding: 10px 18px; border-radius: 12px; border: none;
-            background: linear-gradient(135deg, var(--rk-accent), var(--rk-accent-purple));
-            color: white; font-weight: 600; cursor: pointer;
-            white-space: nowrap;
-        }
-        .rk-search-btn:active { transform: scale(0.97); }
         .rk-top10-label {
             font-family: 'Jua', sans-serif; font-size: 1em;
             color: var(--rk-accent-light); margin: 0 0 8px 4px; padding: 0;
         }
-        .rk-my-rank-card, .rk-search-result-card {
+        .rk-my-rank-card {
             margin: 16px 0; padding: 14px 16px;
             border-radius: 16px; border: 1px solid var(--rk-border);
             background: var(--rk-surface);
         }
-        .rk-my-rank-title, .rk-search-result-title {
+        .rk-my-rank-title {
             font-family: 'Jua', sans-serif; font-size: 0.95em;
             color: var(--rk-accent-light); margin-bottom: 8px;
         }
-        .rk-my-rank-body, .rk-search-result-body {
+        .rk-my-rank-body {
             color: var(--rk-text); font-size: 0.9em; line-height: 1.6;
         }
 
@@ -409,7 +401,11 @@ const RankingModule = (function () {
             font-size: 0.85em; transition: opacity 0.2s;
         }
 
-        /* ── 탈것 등수 테이블 ── */
+        /* ── 탈것 통계 테이블 ── */
+        .rk-table-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .rk-vehicle-table {
             width: 100%; border-collapse: collapse;
             font-size: 0.85em;
@@ -417,13 +413,13 @@ const RankingModule = (function () {
         .rk-vehicle-table th {
             padding: 10px 6px; text-align: center;
             color: var(--rk-text-muted); font-weight: 600;
-            font-size: 0.85em;
+            font-size: 0.85em; white-space: nowrap;
             border-bottom: 2px solid var(--rk-border);
         }
         .rk-vehicle-table th:first-child { text-align: left; padding-left: 14px; }
         .rk-vehicle-table td {
             padding: 10px 6px; text-align: center;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.6); white-space: nowrap;
             border-bottom: 1px solid rgba(255,255,255,0.04);
         }
         .rk-vehicle-table td:first-child {
@@ -439,6 +435,11 @@ const RankingModule = (function () {
         }
         .rk-rank-1 { background: rgba(255,215,0,0.15); color: var(--rk-gold); }
         .rk-rank-6 { background: rgba(239,68,68,0.15); color: var(--red-500, #ef4444); } /* --red-500 */
+        .rk-vehicle-table tr.rk-low-sample td { opacity: 0.5; }
+        .rk-low-label {
+            display: inline-block; margin-left: 4px;
+            font-size: 0.8em; color: var(--rk-text-muted);
+        }
 
         /* ── 애니메이션 ── */
         @keyframes rkSpin { to { transform: rotate(360deg); } }
@@ -461,8 +462,9 @@ const RankingModule = (function () {
 
         /* ── 새 시즌 버튼 ── */
         .rk-reset-btn {
+            /* margin-top:0 로 전역 button{margin-top:10px}(horse-race.css) 상쇄 — 헤더 정렬 */
             background: var(--rk-btn-bg); border: none; color: white;
-            width: 38px; height: 38px; border-radius: 12px;
+            width: 38px; height: 38px; border-radius: 12px; margin-top: 0;
             font-size: 1.15em; cursor: pointer;
             display: none; align-items: center; justify-content: center;
             transition: background 0.2s; z-index: 1;
@@ -555,61 +557,37 @@ const RankingModule = (function () {
         _overlay.id = 'ranking-overlay';
         _overlay.innerHTML = `
             <style>${CSS}</style>
-            <div class="rk-header">
-                <button class="rk-back-btn" onclick="RankingModule.hide()">&#8592;</button>
-                <span class="rk-header-title">🏆 랭킹 · 시즌 ${_currentSeason}</span>
-                <button class="rk-reset-btn" style="display:${(_isHost && _serverId && !_viewingSeason) ? 'flex' : 'none'}" onclick="RankingModule._showConfirm()">&#128260;</button>
+            <div class="rk-panel">
+                <div class="rk-header">
+                    <button class="rk-back-btn" onclick="RankingModule.hide()">&#8592;</button>
+                    <span class="rk-header-title">🏆 랭킹 · 시즌 ${_currentSeason}</span>
+                    <button class="rk-reset-btn" style="display:${(_isHost && _serverId && !_viewingSeason) ? 'flex' : 'none'}" onclick="RankingModule._showConfirm()">&#128260;</button>
+                </div>
+                <div id="ranking-confirm-slot"></div>
+                <div id="ranking-season-bar"></div>
+                <div id="ranking-vehicle-champs"></div>
+                <div class="rk-tabs" id="ranking-tabs"></div>
+                <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
+                <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
+                <div class="rk-content" id="ranking-content"></div>
             </div>
-            <div id="ranking-confirm-slot"></div>
-            <div id="ranking-season-bar"></div>
-            <div id="ranking-vehicle-champs"></div>
-            <div class="rk-tabs" id="ranking-tabs"></div>
-            <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
-            <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
-            <div class="rk-search-wrap" id="ranking-search-wrap">
-                <input type="text" class="rk-search-input" id="ranking-search-input" placeholder="닉네임 검색" maxlength="32" autocomplete="off">
-                <button type="button" class="rk-search-btn" id="ranking-search-btn">검색</button>
-            </div>
-            <div class="rk-content" id="ranking-content"></div>
         `;
+
+        // 백드롭 클릭 닫기 (PC 카드 모드 전용 — 모바일은 panel이 전면 커버라 e.target이 루트가 될 수 없음)
+        // press-release 양쪽이 모두 백드롭일 때만 닫는다 — 카드 안 드래그(텍스트 선택)가 백드롭에서 끝나도 닫히지 않게
+        let pressOnBackdrop = false;
+        _overlay.addEventListener('pointerdown', function (e) {
+            pressOnBackdrop = (e.target === _overlay);
+        });
+        _overlay.addEventListener('click', function (e) {
+            if (e.target === _overlay && pressOnBackdrop) hide();
+            pressOnBackdrop = false;
+        });
 
         document.body.appendChild(_overlay);
         requestAnimationFrame(() => _overlay.classList.add('rk-visible'));
-        setupSearch();
         setupGestures();
         setupPullToRefresh();
-    }
-
-    function setupSearch() {
-        const wrap = document.getElementById('ranking-search-wrap');
-        const input = document.getElementById('ranking-search-input');
-        const btn = document.getElementById('ranking-search-btn');
-        if (!wrap || !input || !btn) return;
-        function doSearch() {
-            const q = (input.value || '').trim();
-            if (!q) return;
-            _searchResult = null;
-            const url = _serverId
-                ? `/api/ranking/${_serverId}/search?userName=${encodeURIComponent(q)}`
-                : `/api/ranking/free/search?userName=${encodeURIComponent(q)}`;
-            fetch(url).then(r => r.json()).then(data => {
-                _searchResult = data;
-                const content = document.getElementById('ranking-content');
-                if (content && _overlay) {
-                    if (_currentMainTab === 'overall') renderOverall(content);
-                    else renderGameContent(_currentGameTab);
-                }
-            }).catch(() => {
-                _searchResult = { found: false, userName: q };
-                const content = document.getElementById('ranking-content');
-                if (content && _overlay) {
-                    if (_currentMainTab === 'overall') renderOverall(content);
-                    else renderGameContent(_currentGameTab);
-                }
-            });
-        }
-        btn.addEventListener('click', doSearch);
-        input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
     }
 
     // ─── 탭 전환 ───
@@ -836,7 +814,7 @@ const RankingModule = (function () {
     function renderOverallRank(el) {
         const d = _cache.overall;
         if (!d.mostWins.length && !d.winRate.length && (!d.avgRank || !d.avgRank.length)) {
-            el.innerHTML = emptyMsg('아직 순위 기록이 없습니다.') + myRankBlock() + searchResultBlock();
+            el.innerHTML = emptyMsg('아직 순위 기록이 없습니다.') + myRankBlock();
             return;
         }
         let html = top10Label();
@@ -848,26 +826,26 @@ const RankingModule = (function () {
             const avgRanks = assignDisplayRanks(d.avgRank, r => r.avgRank);
             html += section('평균 등수 TOP', d.avgRank.map((r, i) => row(avgRanks[i], r.name, `${r.avgRank}등 (TOP3: ${r.top3}회)`)));
         }
-        html += myRankBlock() + searchResultBlock();
+        html += myRankBlock();
         el.innerHTML = html;
     }
 
     function renderOverallParticipant(el) {
         const d = _cache.overall;
         if (!d.mostPlayed.length) {
-            el.innerHTML = emptyMsg('아직 참여 기록이 없습니다.') + myRankBlock() + searchResultBlock();
+            el.innerHTML = emptyMsg('아직 참여 기록이 없습니다.') + myRankBlock();
             return;
         }
         let html = top10Label();
         const ranks = assignDisplayRanks(d.mostPlayed, r => r.games);
         html += section('게임 참여 TOP', d.mostPlayed.map((r, i) => row(ranks[i], r.name, `${r.games}게임`)));
-        html += myRankBlock() + searchResultBlock();
+        html += myRankBlock();
         el.innerHTML = html;
     }
 
     function renderGame(el, d, label) {
         if (!d || !d.winners || !d.winners.length) {
-            el.innerHTML = emptyMsg(`아직 ${label} 기록이 없습니다.`) + myRankBlock() + searchResultBlock();
+            el.innerHTML = emptyMsg(`아직 ${label} 기록이 없습니다.`) + myRankBlock();
             return;
         }
         let html = top10Label();
@@ -875,12 +853,14 @@ const RankingModule = (function () {
         const playRanks = assignDisplayRanks(d.players, r => r.games);
         html += section(`${label} 승리 TOP`, d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
         html += section(`${label} 참여 TOP`, d.players.map((r, i) => row(playRanks[i], r.name, `${r.games}게임`)));
-        html += myRankBlock() + searchResultBlock();
+        html += myRankBlock();
         el.innerHTML = html;
     }
 
     function renderHorse(el) {
-        const d = _cache.horseRace;
+        const d = _cache && _cache.horseRace;
+        // 시즌 뷰 payload에는 horseRace가 없음 — 스와이프로 도달 시 TypeError 방지
+        if (!d) { el.innerHTML = emptyMsg('아직 경마 기록이 없습니다.'); return; }
         const VN = {
             'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
             'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
@@ -897,32 +877,61 @@ const RankingModule = (function () {
         html += section('경마 승리 TOP', d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
 
         if (d.vehicles && d.vehicles.length > 0) {
+            // 승률 내림차순, 동률 시 출전 많은 순 (서버는 rank_1 DESC — 클라에서 재정렬 필수)
+            const vehicles = d.vehicles.slice().sort((a, b) => {
+                const wa = a.appearances > 0 ? a.ranks[0] / a.appearances : 0;
+                const wb = b.appearances > 0 ? b.ranks[0] / b.appearances : 0;
+                if (wb !== wa) return wb - wa;
+                return (b.appearances || 0) - (a.appearances || 0);
+            });
             let tableHtml = `
                 <div class="rk-section" style="animation: rkFadeInUp 0.35s ease 0.1s both;">
-                    <div class="rk-section-title">탈것 등수 분포</div>
+                    <div class="rk-section-title">탈것 통계</div>
                     <div class="rk-card" style="padding:0;">
+                        <div class="rk-table-scroll">
                         <table class="rk-vehicle-table">
                             <thead><tr>
-                                <th>탈것</th>
+                                <th>탈것</th><th>출전</th><th>선택률</th><th>승률</th>
                                 <th>1등</th><th>2등</th><th>3등</th>
                                 <th>4등</th><th>5등</th><th>6등</th>
                             </tr></thead>
                             <tbody>`;
-            d.vehicles.forEach(v => {
-                const name = VN[v.id] || v.id;
-                const r = v.ranks;
-                tableHtml += `<tr>
-                    <td>${esc(name)}</td>
+            vehicles.forEach(v => {
+                const t = _vehicleThemes ? _vehicleThemes[v.id] : null;
+                const label = t ? ((t.emoji || '') + ' ' + (t.name || VN[v.id] || v.id)).trim() : (VN[v.id] || v.id);
+                const appearances = Number(v.appearances) || 0;
+                const picks = Number(v.picks) || 0;
+                const r = v.ranks || [0, 0, 0, 0, 0, 0];
+                const winRate = appearances > 0 ? Math.round((r[0] / appearances) * 100) : 0;
+                const pickRate = appearances > 0 ? Math.round((picks / appearances) * 100) : 0;
+                const lowSample = appearances < 5; // 추천 배지와 동일 기준 (최소 등장 5회)
+                tableHtml += `<tr${lowSample ? ' class="rk-low-sample"' : ''}>
+                    <td>${esc(label)}</td>
+                    <td>${appearances}</td>
+                    <td>${pickRate}%</td>
+                    <td>${winRate}%${lowSample ? '<span class="rk-low-label">기록 부족</span>' : ''}</td>
                     <td><span class="rk-rank-cell${r[0] > 0 ? ' rk-rank-1' : ''}">${r[0]}</span></td>
                     <td>${r[1]}</td><td>${r[2]}</td>
                     <td>${r[3]}</td><td>${r[4]}</td>
                     <td><span class="rk-rank-cell${r[5] > 0 ? ' rk-rank-6' : ''}">${r[5]}</span></td>
                 </tr>`;
             });
-            tableHtml += '</tbody></table></div></div>';
+            tableHtml += '</tbody></table></div></div></div>';
             html += tableHtml;
+
+            // 테마 미로드 시 이름 맵으로 먼저 동기 렌더 후, 로드 성공 시에만 1회 재렌더
+            // (실패 시 _vehicleThemes가 null로 남으므로 재렌더 루프 없음 — C-26/C-27 stale 가드)
+            if (!_vehicleThemes) {
+                loadVehicleThemesOnce().then(() => {
+                    if (_vehicleThemes && _overlay && _currentMainTab === 'games' && _currentGameTab === 'horse' && _cache && _cache.horseRace) {
+                        // 트랜지션 재사용 금지 — 스크롤 보존 제자리 패치 (이모지/이름만 갱신되므로 충분)
+                        const el2 = document.getElementById('ranking-content');
+                        if (el2) { const st = el2.scrollTop; renderHorse(el2); el2.scrollTop = st; }
+                    }
+                });
+            }
         }
-        html += myRankBlock() + searchResultBlock();
+        html += myRankBlock();
         el.innerHTML = html;
     }
 
@@ -930,7 +939,7 @@ const RankingModule = (function () {
         const d = _cache.orders;
         if (!d) { el.innerHTML = emptyMsg('주문 데이터가 없습니다.'); return; }
         if (!(d.myTopMenus && d.myTopMenus.length) && !(d.popularMenus && d.popularMenus.length)) {
-            el.innerHTML = emptyMsg('아직 주문 기록이 없습니다.') + myRankBlock() + searchResultBlock();
+            el.innerHTML = emptyMsg('아직 주문 기록이 없습니다.') + myRankBlock();
             return;
         }
         let html = '';
@@ -943,7 +952,7 @@ const RankingModule = (function () {
             const popularRanks = assignDisplayRanks(d.popularMenus, r => r.orders);
             html += section('인기 메뉴', d.popularMenus.map((r, i) => row(popularRanks[i], r.menu, `${r.orders}회`)));
         }
-        html += myRankBlock() + searchResultBlock();
+        html += myRankBlock();
         el.innerHTML = html || emptyMsg('아직 주문 기록이 없습니다.');
     }
 
@@ -1024,33 +1033,6 @@ const RankingModule = (function () {
             </div>`;
     }
 
-    function searchResultBlock() {
-        if (!_searchResult) return '';
-        const s = _searchResult;
-        if (!s.found || !s.myRank) {
-            return `
-            <div class="rk-section">
-                <div class="rk-search-result-card">
-                    <div class="rk-search-result-title">검색 결과</div>
-                    <div class="rk-search-result-body">"${esc(s.userName || '')}" 님의 랭킹 기록이 없습니다.</div>
-                </div>
-            </div>`;
-        }
-        const parts = [];
-        const m = s.myRank;
-        if (m.overall && m.overall.mostPlayed) parts.push(`참여 ${m.overall.mostPlayed.rank}등`);
-        if (m.overall && m.overall.mostWins) parts.push(`승리 ${m.overall.mostWins.rank}등`);
-        if (m.overall && m.overall.winRate) parts.push(`승률 ${m.overall.winRate.rank}등`);
-        if (m.overall && m.overall.avgRank) parts.push(`평균등수 ${m.overall.avgRank.rank}등`);
-        return `
-            <div class="rk-section">
-                <div class="rk-search-result-card">
-                    <div class="rk-search-result-title">검색 결과: ${esc(s.userName)}</div>
-                    <div class="rk-search-result-body">${esc(parts.join(' · ') || '기록 없음')}</div>
-                </div>
-            </div>`;
-    }
-
     function esc(str) {
         if (!str) return '';
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1074,6 +1056,9 @@ const RankingModule = (function () {
         }, { passive: true });
 
         content.addEventListener('touchend', function (e) {
+            // 가로 스크롤 테이블 안에서 시작한 터치는 탭 전환 스와이프로 해석하지 않음
+            // (터치 이벤트의 target은 터치 시작 요소로 고정됨)
+            if (e.target && e.target.closest && e.target.closest('.rk-table-scroll')) return;
             const dx = e.changedTouches[0].clientX - _touchStartX;
             const dy = e.changedTouches[0].clientY - _touchStartY;
 
@@ -1116,6 +1101,8 @@ const RankingModule = (function () {
         let pullIndicator = null;
 
         content.addEventListener('touchstart', function (e) {
+            // 가로 스크롤 테이블 안에서 시작한 터치는 PTR 대상 아님 (스와이프 스킵과 동일 기준)
+            if (e.target && e.target.closest && e.target.closest('.rk-table-scroll')) return;
             if (content.scrollTop <= 0) {
                 _pullStartY = e.touches[0].clientY;
                 _isPulling = true;

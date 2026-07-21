@@ -211,9 +211,9 @@ function registerServerHandlers(socket, io, ctx) {
 
     // 현재 서버 ID 설정 (세션 복원 시 룸 재조인 + 온라인 등록)
     // 2026-05-17 보안 패치: userName이 함께 오면 멤버십을 강하게 검증.
-    // userName 없이 오는 호출(현재 horse/roulette/bridge)은 약한 신뢰로 임시 호환.
+    // 2026-07-19 클라이언트 통일 완료: 전 게임 페이지가 userName을 함께 보낸다.
+    // userName 없이 오는 호출은 구버전 캐시 클라이언트 호환용 약한 신뢰 폴스루 (아래 warn 로그).
     // joinRoom 핸들러에서 최종 멤버십 재검증되므로 우회 진입은 불가.
-    // TODO: 모든 게임이 userName 함께 보내도록 통일 후 강제 검증으로 일원화.
     socket.on('setServerId', async (data) => {
         if (!checkRateLimit()) return;
         const rawServerId = data && data.serverId;
@@ -241,6 +241,9 @@ function registerServerHandlers(socket, io, ctx) {
             }
         }
         // userName이 없으면 약한 신뢰 (joinRoom에서 최종 검증)
+        if (!userName) {
+            console.warn('[setServerId] userName 미포함 legacy 클라이언트 (soc ' + socket.id + ') — 강검증 생략');
+        }
 
         socket.serverId = serverId;
         socket.join(`server:${serverId}`);

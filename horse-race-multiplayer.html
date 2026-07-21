@@ -157,7 +157,6 @@
             <div class="horse-selection-section" id="horseSelectionSection">
                 <div class="horse-selection-header">
                     <div class="users-title" style="margin: 0;">🏁 탈것 선택</div>
-                    <button type="button" class="vehicle-stats-open-btn" onclick="openVehicleStatsModal()" title="탈것별 승률 통계 보기">📊 탈것 통계</button>
                     <button type="button" class="hshop-open-btn" onclick="HorseShop.openShop()" title="내 탈것 꾸미기" style="display:none;">🛒 꾸미기 상점</button>
                     <label id="autoSelectHorseToggleWrap" class="auto-select-toggle" style="display:none;" title="다음 방 입장부터 자동으로 탈것을 골라줍니다">
                         <input type="checkbox" id="autoSelectHorseToggle">
@@ -368,15 +367,6 @@
         </div>
     </div>
 
-    <!-- 탈것 통계 오버레이 -->
-    <div class="vehicle-stats-overlay" id="vehicleStatsOverlay">
-        <div class="vehicle-stats-card">
-            <h2 class="vehicle-stats-title">📊 탈것 통계</h2>
-            <div id="vehicleStatsBody"></div>
-            <button onclick="closeVehicleStatsModal()" style="width: auto; padding: 12px 30px; color: var(--text-primary); font-weight: 600;">닫기</button>
-        </div>
-    </div>
-
     <!-- 비밀번호 입력 모달 -->
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
@@ -413,95 +403,8 @@
         // Custom Popup Functions
         // ============================================
 
-        // 커스텀 얼럿 함수
-        function showCustomAlert(message, type = 'info') {
-            const existingAlert = document.getElementById('customAlert');
-            if (existingAlert) {
-                existingAlert.remove();
-            }
-
-            let borderColor, icon;
-            switch(type) {
-                case 'error':
-                    borderColor = 'rgb(239, 68, 68)';
-                    icon = '⚠️';
-                    break;
-                case 'warning':
-                    borderColor = 'rgb(234, 179, 8)';
-                    icon = '⚠️';
-                    break;
-                case 'success':
-                    borderColor = 'rgb(34, 197, 94)';
-                    icon = '✅';
-                    break;
-                default:
-                    borderColor = 'rgb(147, 51, 234)';
-                    icon = 'ℹ️';
-            }
-
-            const alertOverlay = document.createElement('div');
-            alertOverlay.id = 'customAlert';
-            alertOverlay.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0, 0, 0, 0.4); z-index: 10001;
-                display: flex; justify-content: center; align-items: center;
-                animation: fadeIn 0.2s ease-out;
-            `;
-
-            const alertContent = document.createElement('div');
-            alertContent.style.cssText = `
-                background: white; border-radius: 16px; padding: 20px;
-                max-width: 450px; width: calc(100vw - 40px);
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-                border: 2px solid ${borderColor};
-                animation: slideDown 0.3s ease-out;
-                box-sizing: border-box;
-            `;
-
-            const messageDiv = document.createElement('div');
-            messageDiv.style.cssText = `
-                font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
-                white-space: pre-wrap; word-wrap: break-word;
-                word-break: keep-all; overflow-wrap: break-word;
-                text-align: center; margin-bottom: 20px;
-                max-width: 100%;
-            `;
-            messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
-
-            const confirmButton = document.createElement('button');
-            confirmButton.textContent = '확인';
-            confirmButton.style.cssText = `
-                padding: 10px 30px;
-                background: ${borderColor};
-                color: white; border: none; border-radius: 8px;
-                font-size: 16px; font-weight: 600; cursor: pointer;
-                width: 100%; transition: transform 0.1s, box-shadow 0.1s;
-            `;
-            confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
-            confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
-            confirmButton.onclick = () => { alertOverlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => alertOverlay.remove(), 200); };
-
-            const handleEsc = (e) => {
-                if (e.key === 'Escape') {
-                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
-                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
-                }
-            };
-            document.addEventListener('keydown', handleEsc);
-
-            alertOverlay.onclick = (e) => {
-                if (e.target === alertOverlay) {
-                    alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
-                    setTimeout(() => { alertOverlay.remove(); document.removeEventListener('keydown', handleEsc); }, 200);
-                }
-            };
-
-            alertContent.appendChild(messageDiv);
-            alertContent.appendChild(confirmButton);
-            alertOverlay.appendChild(alertContent);
-            document.body.appendChild(alertOverlay);
-            confirmButton.focus();
-        }
+        // 커스텀 얼럿 — 단일 정의는 js/horse-race.js의 showCustomAlert (#customAlert 계약 동일 + title/onClose 지원).
+        // 여기 있던 인라인 중복 정의는 나중 선언이 js판을 가려 onClose가 죽는 문제로 제거됨 (2026-07-19).
 
         // 커스텀 확인 다이얼로그
         function showCustomConfirm(message, type = 'warning') {

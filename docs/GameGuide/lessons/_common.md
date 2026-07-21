@@ -307,6 +307,49 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-30. js 공용 함수 개조 전 HTML 인라인 이중 정의를 grep — 나중 선언이 개조를 조용히 죽인다
+
+- 게임 HTML은 `<script src="/js/[game].js">` **뒤에** 인라인 `<script>` 블록이 온다. 같은 이름의 함수가 양쪽에 선언돼 있으면 **나중에 평가되는 인라인판이 이긴다** — js 파일의 함수를 개조(파라미터 추가 등)해도 런타임에는 인라인판이 살아서 개조가 조용히 데드 코드가 된다. 경마의 `showCustomAlert`에 onClose를 추가했다가 html:407 인라인판에 가려 "확인 클릭 즉시 이동"이 통째로 무동작한 사례.
+- **해결:** js 공용 함수를 개조하기 전 `grep -n "function 이름" [game]-multiplayer.html`로 인라인 중복 선언을 확인하고, 있으면 **정의를 하나로 통합**(렌더 계약 — id/클래스/애니메이션 — 을 살리는 쪽으로 이식)한다.
+- **검증:** 라이브에서 `String(window.함수명)`에 개조 내용(새 파라미터 등)이 보이는지 확인.
+- (출처: 2026-07-19 room-entry-hardening QA — `showCustomAlert` 섀도잉으로 T3-5 FAIL)
+
+---
+
+## C-31. setServerId는 fire-and-forget — 거부는 serverError→roomError로 이중 도착한다
+
+- 클라이언트는 `setServerId` 결과를 기다리지 않고 곧바로 `createRoom`/`joinRoom`을 emit한다. 서버 강검증이 거부하면 **serverError와 roomError가 연달아 도착** — entry 전용 리스너를 새로 달 때 자기 리스너만 settle하고 내리면, **기존 인게임 roomError 핸들러**(알림+즉시 이동형)가 두 번째 이벤트를 받아 알림 2개+이동 경합이 난다 (룰렛은 같은 틱 이동이라 새 알림의 가독 창을 통째로 무력화).
+- **해결:** entry 리스너는 settled 플래그+`socket.off`로 진입 구간에 스코프하고, settle 시 **1회용 억제 플래그**를 세워 기존 roomError 핸들러 첫 줄에서 소비(조기 return, 소비 즉시 해제). 입장 성공 레이스는 `once('roomCreated'/'roomJoined')`가 타이머·플래그를 회수. 새 에러 리스너를 달 땐 같은 실패가 기존 리스너로도 도착하는지 **서버 emit 지점부터 역추적**하라.
+- **검증:** 비멤버 진입 시 알림 정확히 1개 + 이동 1회(지연), 인게임 단계 roomError는 그대로 동작.
+- (출처: 2026-07-19 room-entry-hardening — ReviewerCodex 적발, 위성 4페이지 수정)
+
+---
+
+## C-32. security-guard 훅은 `ctx.checkRateLimit(` 패턴만 센다 — 구조분해 스타일 소켓 파일은 위양성 차단
+
+- 소켓 파일 편집을 검사하는 security-guard 훅이 rate limit 가드 존재를 `ctx.checkRateLimit(` 문자열로 판정하는데, `socket/server.js`처럼 상단에서 `const { checkRateLimit } = ctx`로 구조분해해 `checkRateLimit()`로 호출하는 파일은 **실제 가드가 있어도 패턴에 안 걸려 정당한 편집(주석 1줄 포함)이 차단**된다.
+- **해결:** 이 위양성을 만나면 가드가 실제로 있는지(구조분해 선언+첫 줄 호출) 확인 후 진행하고, 훅 개선 시 두 호출 스타일을 모두 세도록 패턴을 넓힌다. 훅 차단 메시지를 "가드 누락"으로 그대로 믿지 말 것.
+- (출처: 2026-07-19 room-entry-hardening — socket/server.js 주석 편집 차단 위양성 2회)
+
+---
+
+## C-33. loadingScreen(z-index 9999)이 떠 있는 진입 구간에 여는 모달은 z-index부터 확인
+
+- 게임 페이지 로딩 화면은 z-index 9999로 전체를 덮고 roomCreated/roomJoined에서만 닫힌다. 진입 구간(로딩 중)에 여는 모달이 그보다 낮으면(예: passwordModal z 1000) **모달이 로딩 화면 뒤에 묻혀 사용자에게는 "무한 스피너"로 보인다** — 비공개방 비밀번호 입력이 대표 사례. horse base를 복사하는 새 게임에 그대로 전파되는 함정.
+- **해결:** 진입 구간에서 열리는 모달은 z-index를 loadingScreen보다 높게 잡거나, 모달을 열 때 로딩 화면을 잠시 숨긴다.
+- **검증:** 비공개방 로비 경유 입장에서 비밀번호 모달이 실제로 보이는지 라이브 확인.
+- (출처: 2026-07-19 room-entry-hardening — Coder/QA 공통 관찰, 기존 결함으로 후속 칩 발행)
+
+---
+
+## C-34. (AutoTest) Playwright로 socket.io를 차단할 때 `**/socket.io/**` 글롭 금지 — transport만 pathname으로 차단
+
+- "서버 다운" 시나리오를 만들 때 `context.route('**/socket.io/**', abort)`를 쓰면 **`/socket.io/socket.io.js` 라이브러리 로드까지 차단**되어 페이지 스크립트가 통째로 죽는다(테스트가 제품 결함처럼 보임). 차단은 `u.pathname === '/socket.io/'` 프레디킷으로 **transport 요청(폴링/웹소켓 핸드셰이크)만** 골라서 한다.
+- 부속: 로컬 Chromium은 페이지 로드 burst에서 폴링 transport가 `400 "Session ID unknown"`으로 끊기며 in-flight emit이 유실되는 플레이크가 간헐 재현된다(Node 클라이언트는 면역). AutoTest는 이를 재시도 루프가 아니라 **제품의 [다시 시도] 버튼으로 복구**하는 패턴으로 흡수하라 — 실사용자 유실 시나리오를 그대로 검증하는 효과도 있다.
+- (출처: 2026-07-19 room-entry-hardening QA — `qa-room-entry-hardening-test.js` 작성 과정)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

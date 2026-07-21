@@ -367,6 +367,31 @@ const ServerSelectModule = (function () {
                 _showMembersDot();
             }
         });
+
+        // 세션 복원 재동기화 — 재로그인 없이도 게임별 이름 키 드리프트 자동 교정 (1회)
+        let _authRestore = null;
+        try {
+            _authRestore = JSON.parse(localStorage.getItem('userAuth') || 'null');
+        } catch (e) {}
+        if (_authRestore && _authRestore.name) {
+            _saveName(_authRestore.name);
+        }
+
+        // 토큰 만료 감지 — token 필드가 있는 userAuth만 1회 검증.
+        // token 없는 구세대 userAuth는 만료 취급하지 않는다. 자동 재발급(/api/auth/token) 사용 금지.
+        // 콜백 성공/무응답이면 아무것도 하지 않는다 (오탐 로그아웃 방지).
+        if (_authRestore && _authRestore.token) {
+            _socket.emit('socket:authenticate', { token: _authRestore.token }, function (res) {
+                if (res && res.ok === false && res.reason === 'auth') {
+                    localStorage.removeItem('userAuth'); // 로그아웃 처리 (이름 키는 유지)
+                    const expiredInput = document.getElementById('globalUserNameInput');
+                    if (expiredInput) expiredInput.readOnly = false; // 로그인 잠금 해제 (logout()과 대칭)
+                    _updateLoginBtn(null);
+                    _showToast('로그인이 만료되었어요. 다시 로그인해주세요.');
+                    showLoginModal();
+                }
+            });
+        }
     }
 
     // ─── CSS ───
@@ -827,8 +852,14 @@ const ServerSelectModule = (function () {
         localStorage.setItem('ladderUserName', name);
         localStorage.setItem('spinArenaUserName', name);
         localStorage.setItem('pirateUserName', name);
+        localStorage.setItem('craneGameUserName', name);
+        localStorage.setItem('freeUserName', name);
         const globalInput = document.getElementById('globalUserNameInput');
-        if (globalInput) globalInput.value = name;
+        if (globalInput) {
+            globalInput.value = name;
+            // 잠금 대칭: 서버 모드 + 로그인일 때만 잠금, 그 외(자유 모드·비로그인)는 항상 편집 가능 보장
+            globalInput.readOnly = !!(_isLoggedIn() && _currentServer && _currentServer.id);
+        }
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) nicknameInput.value = name;
         const hostInput = document.getElementById('createRoomHostNameInput');
@@ -896,13 +927,23 @@ const ServerSelectModule = (function () {
 
     function logout() {
         localStorage.removeItem('userAuth');
+        // _saveName이 쓰는 11키와 대칭으로 제거 (드리프트 잔존 방지)
         localStorage.removeItem('userName');
         localStorage.removeItem('diceUserName');
         localStorage.removeItem('diceGameUserName');
         localStorage.removeItem('horseRaceUserName');
         localStorage.removeItem('rouletteUserName');
+        localStorage.removeItem('bridgeUserName');
+        localStorage.removeItem('ladderUserName');
+        localStorage.removeItem('spinArenaUserName');
+        localStorage.removeItem('pirateUserName');
+        localStorage.removeItem('craneGameUserName');
+        localStorage.removeItem('freeUserName');
         const globalInput = document.getElementById('globalUserNameInput');
-        if (globalInput) globalInput.value = '';
+        if (globalInput) {
+            globalInput.value = '';
+            globalInput.readOnly = false; // 로그인 잠금 해제 — 자유 모드 입력 복원
+        }
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) nicknameInput.value = '';
         _updateLoginBtn(null);
@@ -963,7 +1004,8 @@ const ServerSelectModule = (function () {
                 if (result.token) authData.token = result.token;
                 localStorage.setItem('userAuth', JSON.stringify(authData));
                 modal.remove();
-                _saveName(name);
+                // 서버 응답의 정규화 이름으로 저장 (입력값 표기 편차가 게임 키에 남지 않게)
+                _saveName((result.user && result.user.name) || name);
                 _showToast(title.includes('회원') ? '회원가입 성공!' : '로그인 성공!');
                 if (typeof TutorialModule !== 'undefined' && _socket) {
                     TutorialModule.setUser(_socket, name);
@@ -1131,7 +1173,17 @@ const ServerSelectModule = (function () {
             const name = nameInput.value.trim();
             if (!name) { nameInput.style.borderColor = 'var(--red-500)'; return; }
             modal.remove();
-            _saveName(name);
+            if (_isLoggedIn()) {
+                // 로그인 상태의 자유 플레이 별명 — 계정 연동 키(게임별 *UserName)를 오염시키지 않게 2키만 기록
+                localStorage.setItem('freeUserName', name);
+                localStorage.setItem('userName', name);
+                const globalInput = document.getElementById('globalUserNameInput');
+                if (globalInput) globalInput.value = name;
+                const nicknameInput = document.getElementById('nickname-input');
+                if (nicknameInput) nicknameInput.value = name;
+            } else {
+                _saveName(name);
+            }
             hide();
             PageHistoryManager.pushPage('lobby');
             if (_onSelect) _onSelect({ serverId: null, serverName: null });

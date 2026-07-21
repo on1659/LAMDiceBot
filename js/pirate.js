@@ -352,7 +352,7 @@ function pirateApplyPose(pose) {
             var rd = JSON.parse(activeRoom);
             currentServerId = rd.serverId || null;
             currentServerName = rd.serverName || null;
-            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId });
+            if (currentServerId) socket.emit('setServerId', { serverId: currentServerId, userName: rd.userName });
             if (rd.serverName) document.title = rd.serverName + ' - 해적 룰렛';
             runWhenSocketConnected(function () {
                 socket.emit('joinRoom', {
@@ -383,11 +383,51 @@ function pirateApplyPose(pose) {
             currentServerId = pd.serverId || null;
             currentServerName = pd.serverName || null;
             if (currentServerId) {
-                socket.emit('setServerId', { serverId: currentServerId });
+                socket.emit('setServerId', { serverId: currentServerId, userName: pd.userName });
                 if (pd.serverName) document.title = pd.serverName + ' - 해적 룰렛';
             }
         } catch (e) {}
     }
+})();
+
+// 진입 거부 serverError와 짝으로 오는 roomError 1회 억제 플래그 (이중 알림·이동 경합 방지)
+var entrySuppressRoomError = false;
+
+// 진입 구간 serverError 가시화 — setServerId 강검증 거부(멤버십 없음 등) 대응.
+// 입장이 성공/실패로 끝나면 리스너를 내린다 (인게임 재연결 중 순단 serverError로 화면 튕김 방지).
+(function () {
+    var entryServerErrorSettled = false;
+    var entryFailRedirectTimer = null;
+    function settleEntryServerError() {
+        if (entryServerErrorSettled) return;
+        entryServerErrorSettled = true;
+        socket.off('serverError', onEntryServerError);
+        socket.off('roomCreated', settleEntryServerError);
+        socket.off('roomJoined', settleEntryServerError);
+        socket.off('roomError', settleEntryServerError);
+    }
+    function cancelEntryFailRedirect() {
+        if (entryFailRedirectTimer) {
+            clearTimeout(entryFailRedirectTimer);
+            entryFailRedirectTimer = null;
+        }
+        entrySuppressRoomError = false;
+    }
+    function onEntryServerError(message) {
+        if (entryServerErrorSettled) return;
+        settleEntryServerError();
+        entrySuppressRoomError = true; // 짝 roomError 1회 억제 — roomError 핸들러가 소비 후 즉시 해제
+        showCustomAlert((typeof message === 'string' && message) ? message : '서버에 들어가지 못했어요.', 'error');
+        try { sessionStorage.removeItem('pirateActiveRoom'); } catch (e) {}
+        // 3초 뒤 로비 이동 — 그 사이 입장이 성공하면(레이스) 이동·억제 취소
+        entryFailRedirectTimer = setTimeout(function () { window.location.replace('/game'); }, 3000);
+        socket.once('roomCreated', cancelEntryFailRedirect);
+        socket.once('roomJoined', cancelEntryFailRedirect);
+    }
+    socket.on('serverError', onEntryServerError);
+    socket.on('roomCreated', settleEntryServerError);
+    socket.on('roomJoined', settleEntryServerError);
+    socket.on('roomError', settleEntryServerError);
 })();
 
 // URL 파라미터 처리: 방 생성 / 입장 emit
@@ -1192,6 +1232,8 @@ socket.on('joinError', function (data) {
 });
 
 socket.on('roomError', function (message) {
+    // 진입 거부 serverError와 짝으로 온 roomError 1회 억제 (소비 후 즉시 해제 — 인게임 roomError 무영향)
+    if (entrySuppressRoomError) { entrySuppressRoomError = false; return; }
     showCustomAlert(typeof message === 'string' ? message : '방 입장에 실패했습니다.', 'error');
     sessionStorage.removeItem('pirateActiveRoom');
     setTimeout(function () { window.location.replace('/game'); }, 1500);

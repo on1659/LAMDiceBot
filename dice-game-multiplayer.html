@@ -2047,6 +2047,14 @@
         }
         function getTabId() { return sessionStorage.getItem('tabId'); }
 
+        // 로그인 상태면 계정 이름 반환, 아니면 null — 방 생성/입장 payload의 정체성 드리프트 방지
+        function getAuthedName() {
+            try {
+                const auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
+                return (auth && auth.name) ? auth.name : null;
+            } catch (e) { return null; }
+        }
+
         // 서버 선택 모듈 초기화
         ServerSelectModule.init(socket, (selection) => {
             const serverData = JSON.stringify({
@@ -2148,7 +2156,15 @@
             }
             const globalInput = document.getElementById('globalUserNameInput');
             if (globalInput) {
-                if (userName && !globalInput.value) globalInput.value = userName;
+                const _authedNm = getAuthedName();
+                if (currentServerId && _authedNm) {
+                    // 서버 모드 + 로그인 — 계정 이름 무조건 대입 + 잠금 (정체성 드리프트 방지)
+                    globalInput.value = _authedNm;
+                    globalInput.readOnly = true;
+                } else if (userName && !globalInput.value) {
+                    // 자유 모드 — 프리필만, 로그인해도 편집 가능 (readonly 금지)
+                    globalInput.value = userName;
+                }
                 // 자유 모드 닉네임 변경 시 localStorage + diceSession 동기화
                 globalInput.addEventListener('change', () => {
                     const v = globalInput.value.trim();
@@ -2955,9 +2971,10 @@
         // 방 바로 입장
         function joinRoomDirectly(roomId) {
             selectedRoomId = roomId;
-            
+
             const globalNameInput = document.getElementById('globalUserNameInput');
-            const userName = globalNameInput ? globalNameInput.value.trim() : '';
+            // 서버 모드 + 로그인 상태면 계정 이름 우선 (자유 모드는 로그인해도 입력값 사용)
+            const userName = (currentServerId && getAuthedName()) || (globalNameInput ? globalNameInput.value.trim() : '');
             
             if (userName === '') {
                 showCustomAlert('이름을 입력해야 입장할 수 있습니다.', 'warning');
@@ -3658,9 +3675,9 @@
         
         // 방 생성 페이지로 이동
         function showCreateRoomPage() {
-            // 전역 이름 입력값 검증 (방 생성 전 필수 입력)
+            // 전역 이름 입력값 검증 (방 생성 전 필수 입력) — 서버 모드 + 로그인 상태면 계정 이름 우선
             const globalNameInput = document.getElementById('globalUserNameInput');
-            const hostName = globalNameInput ? globalNameInput.value.trim() : '';
+            const hostName = (currentServerId && getAuthedName()) || (globalNameInput ? globalNameInput.value.trim() : '');
             
             if (hostName === '') {
                 showCustomAlert('이름을 먼저 입력해주세요!', 'warning');
@@ -3843,7 +3860,8 @@
         function finalizeRoomCreation() {
             const globalNameInput = document.getElementById('globalUserNameInput');
             const roomNameInput = document.getElementById('createRoomNameInput');
-            const hostName = globalNameInput ? globalNameInput.value.trim() : '';
+            // 서버 모드 + 로그인 상태면 계정 이름 우선 — 스테일 저장 닉네임이 서버 방 생성에 새는 것 방지 (자유 모드는 입력값)
+            const hostName = (currentServerId && getAuthedName()) || (globalNameInput ? globalNameInput.value.trim() : '');
             const roomName = roomNameInput ? roomNameInput.value.trim() : '';
             
             if (hostName === '') {
@@ -4063,8 +4081,9 @@
             }
             
             const globalNameInput = document.getElementById('globalUserNameInput');
-            const userName = globalNameInput.value.trim();
-            
+            // 서버 모드 + 로그인 상태면 계정 이름 우선 (자유 모드는 로그인해도 입력값 사용)
+            const userName = (currentServerId && getAuthedName()) || globalNameInput.value.trim();
+
             if (userName === '') {
                 showCustomAlert('이름을 입력해야 입장할 수 있습니다.', 'warning');
                 globalNameInput.focus();
@@ -4194,12 +4213,19 @@
             const userNameError = document.getElementById('userNameError');
             
             if (globalNameInput) {
-                // localStorage에서 이름 불러오기
-                const savedName = localStorage.getItem('diceGameUserName');
-                if (savedName) {
-                    globalNameInput.value = savedName;
+                // 서버 모드 + 로그인 상태면 계정 이름 고정 (diceGameUserName 스테일 값이 auth 프리필을 덮는 순서 버그 방지)
+                const authedName = getAuthedName();
+                if (currentServerId && authedName) {
+                    globalNameInput.value = authedName;
+                    globalNameInput.readOnly = true;
+                } else {
+                    // localStorage에서 이름 불러오기 (자유 모드 — 로그인해도 편집 가능, 기존 동작 유지)
+                    const savedName = localStorage.getItem('diceGameUserName');
+                    if (savedName) {
+                        globalNameInput.value = savedName;
+                    }
                 }
-                
+
                 // 이름이 변경될 때마다 유효성 검사 및 localStorage에 저장
                 globalNameInput.addEventListener('input', () => {
                     const userName = globalNameInput.value.trim();

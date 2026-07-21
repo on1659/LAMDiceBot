@@ -160,17 +160,6 @@ module.exports = (socket, io, ctx) => {
         console.log(`[경마] 방 ${room.roomName} 트랙 길이 설정: ${option} (${preset.meters}m)`);
     });
 
-    // 탈것 통계 조회 (통계 모달 — 표시 전용, 집계 데이터만 반환)
-    socket.on('horse:requestVehicleStats', (data, callback) => {
-        if (!checkRateLimit()) return;
-        const cb = (typeof callback === 'function') ? callback : () => {};
-        const room = getCurrentRoom();
-        if (!room || room.gameType !== 'horse-race') return cb({ ok: false });
-        getVehicleStats(getServerId())
-            .then(stats => cb({ ok: true, stats }))
-            .catch(() => cb({ ok: false }));
-    });
-
     // 경마 게임 시작 (방장만 가능)
     socket.on('startHorseRace', async () => {
         if (!checkRateLimit()) return;

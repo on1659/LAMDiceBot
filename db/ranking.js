@@ -110,15 +110,17 @@ async function getHorseRaceStats(serverId) {
     // 기본 게임 랭킹
     const gameRanking = await getGameRanking(serverId, 'horse');
 
-    // vehicle_stats에서 전체 탈것 등수 분포 (server_id는 VARCHAR)
-    const serverIdStr = serverId ? String(serverId) : 'default';
+    // vehicle_stats는 배포 전역 누적 테이블 (server_id는 VARCHAR).
+    // 기록은 recordVehicleRaceResult(getServerId(), ...) = process.env.SERVER_ID||'default' 키로만 쌓이므로,
+    // 방/멤버십 serverId로 조회하면 항상 비어 있다 → 기록과 동일한 배포 전역 키로 읽는다 (구 탈것 통계 모달과 동일 동작).
+    const vehicleServerId = process.env.SERVER_ID || 'default';
     const vehicleResult = await pool.query(`
         SELECT vehicle_id, appearance_count, pick_count,
                rank_1, rank_2, rank_3, rank_4, rank_5, rank_6
         FROM vehicle_stats
         WHERE server_id = $1 AND appearance_count > 0
         ORDER BY rank_1 DESC, appearance_count DESC
-    `, [serverIdStr]);
+    `, [vehicleServerId]);
 
     const vehicles = vehicleResult.rows.map(r => ({
         id: r.vehicle_id,

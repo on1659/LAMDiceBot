@@ -204,7 +204,7 @@ var currentServerName = null;
             currentServerId = rd.serverId || null;
             currentServerName = rd.serverName || null;
             if (currentServerId) {
-                socket.emit('setServerId', { serverId: currentServerId });
+                socket.emit('setServerId', { serverId: currentServerId, userName: rd.userName });
             }
             if (rd.serverName) {
                 document.title = rd.serverName + ' - Horse Race';
@@ -238,7 +238,7 @@ var currentServerName = null;
             currentServerId = pd.serverId || null;
             currentServerName = pd.serverName || null;
             if (currentServerId) {
-                socket.emit('setServerId', { serverId: currentServerId });
+                socket.emit('setServerId', { serverId: currentServerId, userName: pd.userName });
                 if (pd.serverName) {
                     document.title = pd.serverName + ' - Horse Race';
                 }
@@ -246,6 +246,201 @@ var currentServerName = null;
         } catch(e) {}
     }
 })();
+
+// ═══ 진입(생성/입장) 상태 머신 — 사용자 개시 entry에만 적용 ═══
+// 자동 재입장 경로(위 IIFE의 onReconnect, 아래 전역 connect 핸들러)에는 절대 걸지 않는다 (C-10 핑퐁 방지).
+var ENTRY_WATCHDOG_MS = 10000;      // 워치독: 응답 없으면 실패 UI 전환
+var ROOM_ERROR_REDIRECT_MS = 3000;  // roomError 알림 후 로비 이동 대기
+
+var entryInFlight = false;      // 사용자 개시 생성/입장 진행 중
+var entrySettled = false;       // 현재 시도의 첫 settle 이후 중복 알림/이동 무시 (serverError→roomError 이중 도착 dedupe)
+var entryWatchdogTimer = null;  // 10초 워치독 타이머
+var entryRetryData = null;      // [다시 시도]용 pending payload ({ kind: 'create'|'join', data })
+var entryConnectHandler = null; // entry용 once('connect') 핸들러 (재시도 시 off 대상)
+var entryLoadingHTML = null;    // loadingScreen 원본 마크업 (재시도 시 스피너 복원용)
+var entryErrorNavPending = false; // roomError 실패 알림→이동 대기 창 (이 창의 중복 roomError 알림 스택 금지, A-2 첫 settle만 유효)
+
+// 워치독/in-flight/entry용 connect 핸들러 해제 (settle 공통)
+function disarmEntry() {
+    entryInFlight = false;
+    if (entryWatchdogTimer) {
+        clearTimeout(entryWatchdogTimer);
+        entryWatchdogTimer = null;
+    }
+    if (entryConnectHandler) {
+        socket.off('connect', entryConnectHandler);
+        entryConnectHandler = null;
+    }
+}
+
+function armEntryWatchdog() {
+    if (entryWatchdogTimer) clearTimeout(entryWatchdogTimer);
+    entryWatchdogTimer = setTimeout(onEntryWatchdogTimeout, ENTRY_WATCHDOG_MS);
+}
+
+function onEntryWatchdogTimeout() {
+    entryWatchdogTimer = null;
+    if (entrySettled) return;
+    disarmEntry();
+    entrySettled = true;
+    showEntryFailureUI('네트워크 상태를 확인하고 다시 시도해주세요.');
+}
+
+// 진입 성공 settle — pending 소비 + 쿼리 스트립은 성공 시점에만 (실패/타임아웃 시 재시도 가능하게)
+function settleEntrySuccess() {
+    disarmEntry();
+    entrySettled = true;
+    entryRetryData = null;
+    try {
+        localStorage.removeItem('pendingHorseRaceRoom');
+        localStorage.removeItem('pendingHorseRaceJoin');
+    } catch (e) {}
+    stripEntryQuery();
+}
+
+function stripEntryQuery() {
+    try {
+        var u = new URL(window.location.href);
+        if (!u.searchParams.has('createRoom') && !u.searchParams.has('joinRoom')) return;
+        u.searchParams.delete('createRoom');
+        u.searchParams.delete('joinRoom');
+        window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
+    } catch (e) {}
+}
+
+function isEntryFailureVisible() {
+    return !!document.getElementById('entryFailNotice');
+}
+
+function updateEntryFailureReason(msg) {
+    var el = document.getElementById('entryFailReason');
+    if (el) el.textContent = msg;
+}
+
+// 실패 UI — loadingScreen 내부 교체. 마크업은 하드코딩 상수만, 사유 텍스트는 textContent 주입.
+function showEntryFailureUI(reason) {
+    var ls = document.getElementById('loadingScreen');
+    if (!ls) return;
+    if (entryLoadingHTML === null) entryLoadingHTML = ls.innerHTML;
+    ls.innerHTML = '' +
+        '<div id="entryFailNotice" style="text-align: center; color: white; padding: 0 20px; max-width: 400px;">' +
+            '<div style="font-size: 60px; margin-bottom: 16px;">🐎</div>' +
+            '<h2 style="font-size: 22px; margin-bottom: 10px;">방에 들어가지 못했어요</h2>' +
+            '<p id="entryFailReason" style="font-size: 15px; opacity: 0.9; margin-bottom: 24px; line-height: 1.5; word-break: keep-all;"></p>' +
+            '<div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">' +
+                '<button id="entryRetryBtn" type="button" style="padding: 12px 24px; background: var(--bg-white); color: var(--text-primary); border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer;">다시 시도</button>' +
+                '<button id="entryLobbyBtn" type="button" style="padding: 12px 24px; background: transparent; color: white; border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer;">로비로</button>' +
+            '</div>' +
+        '</div>';
+    updateEntryFailureReason(reason || '네트워크 상태를 확인하고 다시 시도해주세요.');
+    var retryBtn = document.getElementById('entryRetryBtn');
+    var lobbyBtn = document.getElementById('entryLobbyBtn');
+    if (retryBtn) {
+        if (entryRetryData) {
+            retryBtn.addEventListener('click', retryEntry);
+        } else {
+            // 재시도 데이터 없음(수동 URL 진입/이미 소비) — 재시도 불가
+            retryBtn.style.display = 'none';
+        }
+    }
+    if (lobbyBtn) lobbyBtn.addEventListener('click', goLobbyFromEntryFailure);
+    ls.style.display = 'flex';
+}
+
+function restoreEntryLoadingUI() {
+    var ls = document.getElementById('loadingScreen');
+    if (!ls) return;
+    if (entryLoadingHTML !== null) ls.innerHTML = entryLoadingHTML;
+    ls.style.display = 'flex';
+}
+
+// [다시 시도] — in-flight 무시 → 스피너 복원 → 안전 재발사
+function retryEntry() {
+    if (entryInFlight) return;
+    if (!entryRetryData) {
+        goLobbyFromEntryFailure();
+        return;
+    }
+    restoreEntryLoadingUI();
+    fireUserEntry();
+}
+
+// [로비로] — 스테일 pending의 자동 재생성 방지 위해 pending 2키 명시 삭제 후 이동
+function goLobbyFromEntryFailure() {
+    try {
+        localStorage.removeItem('pendingHorseRaceRoom');
+        localStorage.removeItem('pendingHorseRaceJoin');
+    } catch (e) {}
+    window.location.replace('/game');
+}
+
+// 사용자 개시 진입 발사 — emit은 항상 "connected면 즉시, 아니면 once('connect')" 경로만 (오프라인 버퍼링 금지)
+function fireUserEntry() {
+    if (!entryRetryData) return;
+    var kind = entryRetryData.kind;
+    var d = entryRetryData.data;
+
+    // 비공개방 입장 — 비밀번호 모달 경유 (emit·워치독은 submitPassword에서. 입력 중 워치독 오발 방지)
+    if (kind === 'join' && d.isPrivate) {
+        pendingRoomId = d.roomId;
+        pendingUserName = d.userName;
+        document.getElementById('passwordModal').style.display = 'flex';
+        document.getElementById('roomPasswordInput').focus();
+        return;
+    }
+
+    entryInFlight = true;
+    entrySettled = false;
+    var fire = function () {
+        entryConnectHandler = null;
+        if (kind === 'create') {
+            socket.emit('createRoom', {
+                userName: d.userName,
+                roomName: d.roomName,
+                isPrivate: d.isPrivate,
+                password: d.password,
+                gameType: 'horse-race',
+                expiryHours: d.expiryHours,
+                blockIPPerUser: d.blockIPPerUser,
+                deviceId: getDeviceId(),
+                serverId: d.serverId || currentServerId,
+                serverName: d.serverName || currentServerName,
+                tabId: getTabId()
+            });
+        } else {
+            socket.emit('joinRoom', {
+                roomId: d.roomId,
+                userName: d.userName,
+                isHost: false,
+                password: '',
+                deviceId: getDeviceId(),
+                tabId: getTabId()
+            });
+        }
+    };
+    dispatchEntryEmit(fire);
+}
+
+// 사용자 개시 emit 공통 발사기 — connected면 즉시, 아니면 once('connect') 단일 등록 + 명시 connect.
+// (미연결 raw emit 버퍼링 금지 규율의 단일 경로 — fireUserEntry/submitPassword 공용)
+function dispatchEntryEmit(fire) {
+    // 이전 entry용 connect 핸들러 제거 — 재시도/재발사 시 이중 발사 방지
+    if (entryConnectHandler) {
+        socket.off('connect', entryConnectHandler);
+        entryConnectHandler = null;
+    }
+    armEntryWatchdog();
+    if (socket.connected) {
+        fire();
+    } else {
+        entryConnectHandler = function onEntryConnect() {
+            entryConnectHandler = null;
+            fire();
+        };
+        socket.once('connect', entryConnectHandler);
+        socket.connect(); // 재연결 시도(reconnectionAttempts 10) 소진 대비 명시 재연결
+    }
+}
 
 
 // 비밀번호 모달 닫기
@@ -259,18 +454,26 @@ function closePasswordModal() {
 // 비밀번호 제출
 function submitPassword() {
     const password = document.getElementById('roomPasswordInput').value;
-    
+
     if (pendingRoomId && pendingUserName) {
-        socket.emit('joinRoom', {
-            roomId: pendingRoomId,
-            userName: pendingUserName,
-            isHost: false,
-            password: password,
-            deviceId: getDeviceId(),
-            tabId: getTabId()
+        // closePasswordModal()이 pending*을 null로 만들기 전에 캡처 (once('connect') 지연 발사 대비)
+        var joinRoomId = pendingRoomId;
+        var joinUserName = pendingUserName;
+        // 사용자 개시 입장 — 공통 발사기 경유 (미연결 raw emit 버퍼링 금지) + 워치독 arm
+        entryInFlight = true;
+        entrySettled = false;
+        dispatchEntryEmit(function () {
+            socket.emit('joinRoom', {
+                roomId: joinRoomId,
+                userName: joinUserName,
+                isHost: false,
+                password: password,
+                deviceId: getDeviceId(),
+                tabId: getTabId()
+            });
         });
     }
-    
+
     closePasswordModal();
 }
 
@@ -4951,89 +5154,6 @@ function closeResultOverlay() {
     // 순위 이펙트는 제거하지 않음 → 비석이 남음. 새 경주 시작 시 clearFinishEffects()로 정리됨
 }
 
-// ── 탈것 통계 모달 ──
-var vehicleStatsOverlayBound = false; // 오버레이 클릭 닫기 중복 바인딩 방지
-
-function openVehicleStatsModal() {
-    var overlay = document.getElementById('vehicleStatsOverlay');
-    if (!overlay) return;
-
-    // 오버레이 바깥 클릭으로 닫기 (최초 1회만 바인딩)
-    if (!vehicleStatsOverlayBound) {
-        overlay.addEventListener('click', function(e) {
-            if (e.target === overlay) closeVehicleStatsModal();
-        });
-        vehicleStatsOverlayBound = true;
-    }
-
-    // 보유한 통계(horseSelectionReady 수신분)로 즉시 렌더 후 표시
-    renderVehicleStatsTable();
-    overlay.classList.add('visible');
-
-    // 최신 통계 1회 요청 (모달 열 때만 — 반복 요청 없음)
-    socket.emit('horse:requestVehicleStats', {}, function(res) {
-        if (res && res.ok) {
-            vehicleStatsData = res.stats || [];
-            renderVehicleStatsTable();
-        }
-    });
-}
-
-function closeVehicleStatsModal() {
-    var overlay = document.getElementById('vehicleStatsOverlay');
-    if (overlay) overlay.classList.remove('visible');
-}
-
-function renderVehicleStatsTable() {
-    var body = document.getElementById('vehicleStatsBody');
-    if (!body) return;
-
-    var render = function() {
-        var stats = (vehicleStatsData || []).slice();
-        if (stats.length === 0) {
-            body.innerHTML = '<div class="vehicle-stats-empty">아직 집계된 기록이 없습니다.</div>';
-            return;
-        }
-
-        // 승률 내림차순 정렬 (동률 시 출전 많은 순)
-        stats.sort(function(a, b) {
-            var wa = a.appearance_count > 0 ? a.rank_1 / a.appearance_count : 0;
-            var wb = b.appearance_count > 0 ? b.rank_1 / b.appearance_count : 0;
-            if (wb !== wa) return wb - wa;
-            return (b.appearance_count || 0) - (a.appearance_count || 0);
-        });
-
-        var html = '<table class="vehicle-stats-table">' +
-            '<thead><tr><th>탈것</th><th>출전</th><th>선택률</th><th>1위</th><th>승률</th></tr></thead><tbody>';
-        stats.forEach(function(st) {
-            var vehicle = ALL_VEHICLES.find(function(v) { return v.id === st.vehicle_id; });
-            var label = vehicle ? (vehicle.emoji + ' ' + vehicle.name) : String(st.vehicle_id);
-            var appearance = Number(st.appearance_count) || 0;
-            var wins = Number(st.rank_1) || 0;
-            var picks = Number(st.pick_count) || 0;
-            var lowSample = appearance < 5; // 추천 배지와 동일 기준 (최소 등장 5회)
-            var winRate = appearance > 0 ? Math.round((wins / appearance) * 100) : 0;
-            var pickRate = appearance > 0 ? Math.round((picks / appearance) * 100) : 0;
-            html += '<tr' + (lowSample ? ' class="vstats-low-sample"' : '') + '>' +
-                '<td>' + escapeHtmlText(label) + '</td>' +
-                '<td>' + appearance + '</td>' +
-                '<td>' + pickRate + '%</td>' +
-                '<td>' + wins + '</td>' +
-                '<td>' + winRate + '%' + (lowSample ? '<span class="vstats-low-label">기록 부족</span>' : '') + '</td>' +
-                '</tr>';
-        });
-        html += '</tbody></table>';
-        body.innerHTML = html;
-    };
-
-    // 탈것 이름/이모지 데이터가 아직 없으면 로드 후 렌더 (horseSelectionReady 가드 관례)
-    if (ALL_VEHICLES.length === 0) {
-        loadVehicleThemes().then(render);
-    } else {
-        render();
-    }
-}
-
 // 방 폭파 카운트다운
 function startRoomExpiryCountdown(createdAt, expiryHours) {
     if (roomExpiryInterval) {
@@ -5217,7 +5337,7 @@ socket.on('connect', () => {
             try {
                 const ar = JSON.parse(activeRoom);
                 if (currentServerId) {
-                    socket.emit('setServerId', { serverId: currentServerId });
+                    socket.emit('setServerId', { serverId: currentServerId, userName: ar.userName });
                 }
                 socket.emit('joinRoom', {
                     roomId: ar.roomId,
@@ -5238,6 +5358,8 @@ socket.on('disconnect', () => {
 });
 
 socket.on('roomCreated', (data) => {
+    // 진입 성공 — pending 소비 + 쿼리 스트립 (실패 재시도용으로 미뤄뒀던 것)
+    settleEntrySuccess();
     currentRoomId = data.roomId;
     currentUser = data.userName || '';
     // 새로고침 시 재입장을 위해 방 정보 저장
@@ -5308,6 +5430,8 @@ socket.on('roomCreated', (data) => {
 });
 
 socket.on('roomJoined', (data) => {
+    // 진입 성공 — pending 소비 + 쿼리 스트립 (자동 재입장 재호출에도 멱등)
+    settleEntrySuccess();
     sessionStorage.removeItem('horseRaceFromDice');
     document.getElementById('loadingScreen').style.display = 'none';
 
@@ -5455,10 +5579,41 @@ socket.on('roomJoined', (data) => {
 });
 
 socket.on('roomError', (message) => {
+    // A-2 첫 settle만 유효 — 실패 알림→이동 대기 중 도착한 중복 roomError는 무시 (알림 스택 방지).
+    // 진입 성공 후의 인게임 roomError(방제목 변경 실패 등)는 이 플래그가 false라 정상 표시된다.
+    if (entryErrorNavPending) return;
     sessionStorage.removeItem('horseRaceFromDice');
+    var msg = (typeof message === 'string' && message) ? message : '방에 들어가지 못했어요.';
+    // 실패 UI가 먼저 떠 있으면(워치독/serverError 선발) 사유 텍스트만 갱신 — 이중 알림/이동 방지
+    if (isEntryFailureVisible()) {
+        disarmEntry();
+        entrySettled = true;
+        updateEntryFailureReason(msg);
+        return;
+    }
+    disarmEntry();
+    entrySettled = true;
+    entryErrorNavPending = true;
     sessionStorage.removeItem('horseRaceActiveRoom');
-    showCustomAlert(message, 'error');
-    window.location.href = '/game';
+    // 사유를 읽을 수 있게: 알림 확인(닫기) 또는 3초 중 먼저 오는 쪽에 로비 이동 (중복 이동 가드)
+    var moved = false;
+    var goLobby = function () {
+        if (moved) return;
+        moved = true;
+        window.location.href = '/game';
+    };
+    showCustomAlert(msg, 'error', '', goLobby);
+    setTimeout(goLobby, ROOM_ERROR_REDIRECT_MS);
+});
+
+// 서버 진입 거부(setServerId 강검증 등) — 사용자 개시 진입 구간에만 반응.
+// 인게임 재연결 중 순단 serverError(DB 오류 등)로 게임 화면이 튕기지 않게 스코프를 제한한다.
+socket.on('serverError', (message) => {
+    if (!entryInFlight || entrySettled) return;
+    disarmEntry();
+    entrySettled = true;
+    var msg = (typeof message === 'string' && message) ? message : '서버에 들어가지 못했어요.';
+    showEntryFailureUI(msg);
 });
 
 socket.on('horseRaceError', (message) => {
@@ -6086,6 +6241,9 @@ socket.on('kicked', (message) => {
 
 // 다른 곳에서 같은 닉네임으로 접속 → 이 세션 종료 (최신 접속 우선). reload 금지(핑퐁 방지).
 socket.on('sessionTakenOver', (message) => {
+    // 진입 워치독 무조건 해제 — 인계(C-10) 흐름에 실패 UI가 끼어들지 않게 (기존 흐름 무변경)
+    disarmEntry();
+    entrySettled = true;
     try { sessionStorage.removeItem('horseRaceActiveRoom'); } catch (e) {}
     try { socket.disconnect(); } catch (e) {}  // 소켓 즉시 종료 → 재연결·재입장 차단(핑퐁 방지)
     showCustomAlert(message || '다른 곳에서 접속하여 연결이 종료되었습니다.', 'info');
@@ -6105,48 +6263,109 @@ socket.on('newSeason', (data) => {
 
 // 주문받기 이벤트/함수는 OrderModule에서 처리
 
-// 커스텀 알림창
-function showCustomAlert(message, type = 'info', title = '') {
-    const overlay = document.createElement('div');
-    overlay.className = 'custom-alert-overlay';
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;';
-    
-    const colors = {
-        info: 'var(--horse-accent)',
-        warning: 'var(--yellow-500)',
-        error: 'var(--red-500)',
-        success: 'var(--green-500)'
+// 커스텀 알림창 — 이 페이지의 단일 정의 (horse-race-multiplayer.html 인라인판을 이곳으로 통합).
+// 구 인라인판의 #customAlert DOM 계약(AutoTest C-7 셀렉터)·아이콘·애니메이션을 유지하고
+// title(3번째)·onClose(4번째, 닫힘 시 1회 콜백) 파라미터를 지원한다. 기존 1~2인자 호출부 하위호환.
+function showCustomAlert(message, type = 'info', title = '', onClose) {
+    // 기존 알림 대체 (#customAlert 1개 유지)
+    const existingAlert = document.getElementById('customAlert');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+
+    let borderColor, icon;
+    switch (type) {
+        case 'error':
+            borderColor = 'rgb(239, 68, 68)';
+            icon = '⚠️';
+            break;
+        case 'warning':
+            borderColor = 'rgb(234, 179, 8)';
+            icon = '⚠️';
+            break;
+        case 'success':
+            borderColor = 'rgb(34, 197, 94)';
+            icon = '✅';
+            break;
+        default:
+            borderColor = 'rgb(147, 51, 234)';
+            icon = 'ℹ️';
+    }
+
+    const alertOverlay = document.createElement('div');
+    alertOverlay.id = 'customAlert';
+    alertOverlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.4); z-index: 10001;
+        display: flex; justify-content: center; align-items: center;
+        animation: fadeIn 0.2s ease-out;
+    `;
+
+    const alertContent = document.createElement('div');
+    alertContent.style.cssText = `
+        background: white; border-radius: 16px; padding: 20px;
+        max-width: 450px; width: calc(100vw - 40px);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        border: 2px solid ${borderColor};
+        animation: slideDown 0.3s ease-out;
+        box-sizing: border-box;
+    `;
+
+    // 닫기 공통 경로 — 버튼/Esc/배경 어느 쪽이든 onClose 1회 보장 + Esc 리스너 정리
+    let alertClosed = false;
+    const closeAlert = () => {
+        if (alertClosed) return;
+        alertClosed = true;
+        document.removeEventListener('keydown', handleEsc);
+        alertOverlay.style.animation = 'fadeOut 0.2s ease-out';
+        setTimeout(() => alertOverlay.remove(), 200);
+        if (typeof onClose === 'function') onClose();
     };
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `background: var(--bg-white); padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border-top: 4px solid ${colors[type] || colors.info};`;
-    
-    const confirmBtn = document.createElement('button');
-    confirmBtn.textContent = '확인';
-    confirmBtn.style.cssText = `width: 100%; padding: 12px; background: ${colors[type] || colors.info}; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;`;
-    confirmBtn.addEventListener('click', () => overlay.remove());
-    
-    const contentDiv = document.createElement('div');
+    const handleEsc = (e) => {
+        if (e.key === 'Escape') closeAlert();
+    };
+
     if (title) {
         const titleDiv = document.createElement('div');
-        titleDiv.style.cssText = `font-size: 18px; font-weight: bold; margin-bottom: 15px; color: ${colors[type] || colors.info};`;
+        titleDiv.style.cssText = `font-size: 17px; font-weight: bold; text-align: center; margin-bottom: 10px; color: ${borderColor};`;
         titleDiv.textContent = title;
-        contentDiv.appendChild(titleDiv);
+        alertContent.appendChild(titleDiv);
     }
-    
+
     const messageDiv = document.createElement('div');
-    messageDiv.style.cssText = 'margin-bottom: 20px; line-height: 1.6;';
-    messageDiv.innerHTML = message;
-    contentDiv.appendChild(messageDiv);
-    
-    modal.appendChild(contentDiv);
-    modal.appendChild(confirmBtn);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
+    messageDiv.style.cssText = `
+        font-size: 15px; line-height: 1.6; color: rgb(17, 24, 39);
+        white-space: pre-wrap; word-wrap: break-word;
+        word-break: keep-all; overflow-wrap: break-word;
+        text-align: center; margin-bottom: 20px;
+        max-width: 100%;
+    `;
+    messageDiv.innerHTML = `<span style="font-size: 24px; margin-right: 8px;">${icon}</span>${message}`;
+
+    const confirmButton = document.createElement('button');
+    confirmButton.textContent = '확인';
+    confirmButton.style.cssText = `
+        padding: 10px 30px;
+        background: ${borderColor};
+        color: white; border: none; border-radius: 8px;
+        font-size: 16px; font-weight: 600; cursor: pointer;
+        width: 100%; transition: transform 0.1s, box-shadow 0.1s;
+    `;
+    confirmButton.onmouseenter = () => { confirmButton.style.transform = 'scale(1.02)'; confirmButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'; };
+    confirmButton.onmouseleave = () => { confirmButton.style.transform = 'scale(1)'; confirmButton.style.boxShadow = 'none'; };
+    confirmButton.onclick = closeAlert;
+
+    document.addEventListener('keydown', handleEsc);
+
+    alertOverlay.onclick = (e) => {
+        if (e.target === alertOverlay) closeAlert();
+    };
+
+    alertContent.appendChild(messageDiv);
+    alertContent.appendChild(confirmButton);
+    alertOverlay.appendChild(alertContent);
+    document.body.appendChild(alertOverlay);
+    confirmButton.focus();
 }
 
 // 확인 다이얼로그
@@ -6368,83 +6587,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // URL 파라미터로 방 생성/입장 요청이 왔는지 확인
     const urlParams = new URLSearchParams(window.location.search);
     
-    // 방 생성 요청
+    // 방 생성 요청 — pending 소비/쿼리 스트립은 roomCreated 성공 시점으로 이월 (실패 시 [다시 시도] 가능)
     if (urlParams.get('createRoom') === 'true') {
         const pendingRoom = localStorage.getItem('pendingHorseRaceRoom');
-        if (pendingRoom) {
-            const roomData = JSON.parse(pendingRoom);
-            localStorage.removeItem('pendingHorseRaceRoom');
-
-            function doCreateRoom() {
-                socket.emit('createRoom', {
-                    userName: roomData.userName,
-                    roomName: roomData.roomName,
-                    isPrivate: roomData.isPrivate,
-                    password: roomData.password,
-                    gameType: 'horse-race',
-                    expiryHours: roomData.expiryHours,
-                    blockIPPerUser: roomData.blockIPPerUser,
-                    deviceId: getDeviceId(),
-                    serverId: roomData.serverId || currentServerId,
-                    serverName: roomData.serverName || currentServerName,
-                    tabId: getTabId()
-                });
-            }
-            if (socket.connected) {
-                doCreateRoom();
-            } else {
-                socket.once('connect', doCreateRoom);
-            }
-
-            (function() {
-                var u = new URL(window.location.href);
-                u.searchParams.delete('createRoom');
-                u.searchParams.delete('joinRoom');
-                window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
-            })();
+        let roomData = null;
+        try {
+            roomData = pendingRoom ? JSON.parse(pendingRoom) : null;
+        } catch (e) {}
+        if (roomData) {
+            entryRetryData = { kind: 'create', data: roomData };
+            fireUserEntry();
+        } else {
+            // 수동 URL 진입/이미 소비/손상 — 무한 스피너 대신 즉시 실패 안내
+            showEntryFailureUI('진입 정보가 없어요. 로비에서 다시 들어와주세요.');
         }
     }
 
-    // 방 입장 요청
+    // 방 입장 요청 — pending 소비/쿼리 스트립은 roomJoined 성공 시점으로 이월
     if (urlParams.get('joinRoom') === 'true') {
         const pendingJoin = localStorage.getItem('pendingHorseRaceJoin');
-        if (pendingJoin) {
-            const joinData = JSON.parse(pendingJoin);
-            localStorage.removeItem('pendingHorseRaceJoin');
-
+        let joinData = null;
+        try {
+            joinData = pendingJoin ? JSON.parse(pendingJoin) : null;
+        } catch (e) {}
+        if (joinData) {
             sessionStorage.setItem('horseRaceFromDice', 'true');
 
             document.getElementById('globalUserNameInput').value = joinData.userName;
 
-            function doJoinRoom() {
-                if (joinData.isPrivate) {
-                    pendingRoomId = joinData.roomId;
-                    pendingUserName = joinData.userName;
-                    document.getElementById('passwordModal').style.display = 'flex';
-                    document.getElementById('roomPasswordInput').focus();
-                } else {
-                    socket.emit('joinRoom', {
-                        roomId: joinData.roomId,
-                        userName: joinData.userName,
-                        isHost: false,
-                        password: '',
-                        deviceId: getDeviceId(),
-                        tabId: getTabId()
-                    });
-                }
-            }
-            if (socket.connected) {
-                doJoinRoom();
-            } else {
-                socket.once('connect', doJoinRoom);
-            }
-
-            (function() {
-                var u = new URL(window.location.href);
-                u.searchParams.delete('createRoom');
-                u.searchParams.delete('joinRoom');
-                window.history.replaceState({}, document.title, u.pathname + (u.search || ''));
-            })();
+            entryRetryData = { kind: 'join', data: joinData };
+            fireUserEntry();
+        } else {
+            showEntryFailureUI('진입 정보가 없어요. 로비에서 다시 들어와주세요.');
         }
     }
 });

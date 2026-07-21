@@ -120,7 +120,7 @@ function runWhenSocketConnected(callback) {
             currentServerId = rd.serverId || null;
             currentServerName = rd.serverName || null;
             if (currentServerId) {
-                socket.emit('setServerId', { serverId: currentServerId });
+                socket.emit('setServerId', { serverId: currentServerId, userName: rd.userName });
             }
             if (rd.serverName) {
                 document.title = rd.serverName + ' - Bridge Cross';
@@ -154,13 +154,48 @@ function runWhenSocketConnected(callback) {
             currentServerId = pd.serverId || null;
             currentServerName = pd.serverName || null;
             if (currentServerId) {
-                socket.emit('setServerId', { serverId: currentServerId });
+                socket.emit('setServerId', { serverId: currentServerId, userName: pd.userName });
                 if (pd.serverName) {
                     document.title = pd.serverName + ' - Bridge Cross';
                 }
             }
         } catch (e) {}
     }
+})();
+
+// 진입 구간 serverError 가시화 — setServerId 강검증 거부(멤버십 없음 등) 대응.
+// 입장이 성공/실패로 끝나면 리스너를 내린다 (인게임 재연결 중 순단 serverError로 화면 튕김 방지).
+(function () {
+    var entryServerErrorSettled = false;
+    var entryFailRedirectTimer = null;
+    function settleEntryServerError() {
+        if (entryServerErrorSettled) return;
+        entryServerErrorSettled = true;
+        socket.off('serverError', onEntryServerError);
+        socket.off('roomCreated', settleEntryServerError);
+        socket.off('roomJoined', settleEntryServerError);
+        socket.off('roomError', settleEntryServerError);
+    }
+    function cancelEntryFailRedirect() {
+        if (entryFailRedirectTimer) {
+            clearTimeout(entryFailRedirectTimer);
+            entryFailRedirectTimer = null;
+        }
+    }
+    function onEntryServerError(message) {
+        if (entryServerErrorSettled) return;
+        settleEntryServerError();
+        showCustomAlert((typeof message === 'string' && message) ? message : '서버에 들어가지 못했어요.', 'error');
+        try { sessionStorage.removeItem('bridgeActiveRoom'); } catch (e) {}
+        // 3초 뒤 로비 이동 — 그 사이 입장이 성공하면(레이스) 이동 취소
+        entryFailRedirectTimer = setTimeout(function () { window.location.replace('/game'); }, 3000);
+        socket.once('roomCreated', cancelEntryFailRedirect);
+        socket.once('roomJoined', cancelEntryFailRedirect);
+    }
+    socket.on('serverError', onEntryServerError);
+    socket.on('roomCreated', settleEntryServerError);
+    socket.on('roomJoined', settleEntryServerError);
+    socket.on('roomError', settleEntryServerError);
 })();
 
 // URL 파라미터 처리: 방 생성 / 입장 emit
