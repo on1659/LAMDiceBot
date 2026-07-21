@@ -77,6 +77,14 @@
 **해결/예방:** 이름표 색 추가 시 노랑/금색(#ffd54a/#fbbf24 계열) 회피. 노랑 앵커를 지우면 (bib,coin) directBuy를 비-노랑 최저등급으로 재선정.
 **관련:** `config/horse/cosmetics.json`(bib), `js/horse-race.js`(닉네임 태그 기본색)
 
+## 2026-07-21 — vehicle_stats는 배포 전역 키(SERVER_ID env)로만 누적 — 방 serverId로 조회하면 서버 방에서 항상 빈다
+
+**상황:** 탈것 통계를 구 📊 모달에서 랭킹 오버레이 경마 탭으로 통합(`docs/goal/applied/ranking-popup-vehicle-stats.md`). 랭킹 payload가 이미 주는 `horseRace.vehicles`를 그대로 렌더.
+**함정/실수:** `vehicle_stats`는 **배포 전역 누적 테이블**이다 — 기록이 `recordVehicleRaceResult(getServerId(), ...)`이고 `getServerId()`(`routes/api.js`)는 방/멤버십 serverId가 아니라 `process.env.SERVER_ID || 'default'` 전역 상수다. 그런데 새 통합 테이블은 랭킹 뷰의 방 serverId로 `getHorseRaceStats(serverId)` → `WHERE server_id='<숫자id>'`를 돌려서 **로그인 서버 방에선 항상 0행**(free/'default'에선 정상). 구 모달은 같은 `getServerId()`='default'로 읽어 어느 방에서든 데이터를 보여줬기에, 통합하면서 서버 방 표시가 사라지는 회귀가 생겼다.
+**증상:** 사용자가 시즌4 서버 방에서 "탈것통계 어디감?" — free 랭킹은 vehicles 15개, 서버 랭킹(id 70/87)은 vehicles 0개로 확인. DB 직접 질의로 `vehicle_stats`에 `server_id='default'`(15종) 외 행이 없음을 확정.
+**해결/예방:** `getHorseRaceStats`의 vehicles 조회만 **기록과 동일한 배포 전역 키**(`process.env.SERVER_ID || 'default'`)로 읽는다. winners(서버별 순위)는 방 serverId 유지. 일반 규칙: 배포 전역 통계 테이블(`vehicle_stats` 등)을 랭킹류에서 읽을 땐 **기록에 쓴 키와 짝을 맞춰라** — 방/멤버십 serverId로 조회하지 말 것. 시즌별 통계는 별도 테이블(`vehicle_season_stats`, champ 칩용)로 분리돼 있음.
+**관련:** `db/ranking.js getHorseRaceStats`, `db/vehicle-stats.js`(record/get), `routes/api.js getServerId`, 커밋 `45b9c73`
+
 ---
 
 ## 추가 형식
