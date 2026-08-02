@@ -421,7 +421,8 @@ function fireUserEntry() {
     dispatchEntryEmit(fire);
 }
 
-// 사용자 개시 emit 공통 발사기 — connected면 즉시, 아니면 once('connect') 단일 등록 + 명시 connect.
+// 사용자 개시 emit 공통 발사기 — connected면 즉시, 아니면 once('connect') 단일 등록
+// (+ 엔진이 죽어 있을 때만 명시 connect).
 // (미연결 raw emit 버퍼링 금지 규율의 단일 경로 — fireUserEntry/submitPassword 공용)
 function dispatchEntryEmit(fire) {
     // 이전 entry용 connect 핸들러 제거 — 재시도/재발사 시 이중 발사 방지
@@ -438,7 +439,15 @@ function dispatchEntryEmit(fire) {
             fire();
         };
         socket.once('connect', entryConnectHandler);
-        socket.connect(); // 재연결 시도(reconnectionAttempts 10) 소진 대비 명시 재연결
+        // 명시 재연결은 "엔진이 실제로 죽은 경우"에만 — reconnectionAttempts(10) 소진 대비.
+        // 엔진이 open/opening인데 부르면(= 페이지 진입 직후 네임스페이스 CONNECT 진행 중 구간)
+        // socket.connect()가 onopen()을 다시 태워 중복 CONNECT 패킷을 폴링 POST로 한 번 더 쏜다.
+        // 그 POST가 웹소켓 업그레이드와 엇갈리면 서버가 400(TRANSPORT_MISMATCH) → 세션 강제
+        // 재접속 → 진행 중이던 createRoom/joinRoom이 통째로 유실된다(2026-07-31 실측).
+        var eng = socket.io && socket.io.engine;
+        if (!eng || (eng.readyState !== 'open' && eng.readyState !== 'opening')) {
+            socket.connect();
+        }
     }
 }
 
