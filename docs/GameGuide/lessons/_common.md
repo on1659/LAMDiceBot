@@ -350,6 +350,30 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-35. 권한 프롬프트형 async API의 resolve 게이트는 boolean 플래그가 아니라 "지금도 그 상태인가" 재검증
+
+- `documentPictureInPicture.requestWindow` 같은 브라우저 프롬프트형 API는 promise가 수십 초 뒤에 resolve될 수 있다. 그 사이 게임 라이프사이클이 넘어가는데, `isRaceActive` 같은 **광폭 플래그는 종료 연출/카운트다운 갭에서도 true**라 게이트 역할을 못 한다 — 경마 PiP에서는 결승 직전 클릭 → 종료 후 resolve로 죽은 트랙 창이 다음 라운드까지 잔존하는 홀이 됐다.
+- **해결:** 호출 시점에 세대 값(`window._raceGen` 류)을 캡처하고, `.then`에서 `gen 일치 + 실제 구동 신호(_raceAnimFrameId != null 등)`를 재검증. abort 분기에서는 방금 생성된 리소스(창)를 반드시 close하고 opening 플래그를 정리한다.
+- (출처: 2026-08-11 horse-race-track-pip — Reviewer·ReviewerCodex 독립 동시 발견)
+
+---
+
+## C-36. (AutoTest) 헤드리스 Chromium에도 `documentPictureInPicture`가 존재한다 — 미지원 경로는 API 강제 삭제로 테스트
+
+- "헤드리스 = API 부재"라고 가정하면 미지원 브라우저(Firefox/모바일) 경로 테스트가 애초에 실행되지 않는다. 헤드리스 Chromium에 API 객체는 **존재**하고, 단 `requestWindow`가 resolve/reject 없이 pending으로 남는다(실창 UI 필요).
+- **해결:** 미지원 경로는 `page.addInitScript(() => delete window.documentPictureInPicture)`로 강제해서 검증한다. pending 특성은 역으로 "detach 실패 시 graceful degradation" 실측에 쓸 수 있다.
+- (출처: 2026-08-11 horse-race-track-pip QA — `qa-horse-track-pip-test.js`)
+
+---
+
+## C-37. (AutoTest) AdSense가 localhost e2e에서 스택 없는 `Y` pageerror를 던진다 — 콘솔 계측 시 광고 도메인 차단 필수
+
+- localhost에서 AdSense 스니펫이 403과 함께 스택 없는 `Y` pageerror를 발생시킨다. 콘솔/페이지 에러를 계측하는 e2e는 이 잡음을 제품 결함으로 오인하거나, "에러 0건" 어서션이 위양성으로 깨진다. 기존 e2e들도 노출돼 있다.
+- **해결:** 에러를 계측하는 테스트는 `googlesyndication`/`doubleclick` 라우트를 차단하고 시작한다 (차단 시 잡음 소멸을 실측으로 확인함).
+- (출처: 2026-08-11 horse-race-track-pip QA)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

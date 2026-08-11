@@ -85,6 +85,14 @@
 **해결/예방:** `getHorseRaceStats`의 vehicles 조회만 **기록과 동일한 배포 전역 키**(`process.env.SERVER_ID || 'default'`)로 읽는다. winners(서버별 순위)는 방 serverId 유지. 일반 규칙: 배포 전역 통계 테이블(`vehicle_stats` 등)을 랭킹류에서 읽을 땐 **기록에 쓴 키와 짝을 맞춰라** — 방/멤버십 serverId로 조회하지 말 것. 시즌별 통계는 별도 테이블(`vehicle_season_stats`, champ 칩용)로 분리돼 있음.
 **관련:** `db/ranking.js getHorseRaceStats`, `db/vehicle-stats.js`(record/get), `routes/api.js getServerId`, 커밋 `45b9c73`
 
+## 2026-08-11 — rAF는 예약한 창에서만 취소된다 — 창 이관(PiP) 기능은 드라이버 창을 원시 참조로 추적하라
+
+**상황:** 트랙을 Document PiP 창으로 분리하며 레이스 rAF 루프를 PiP 창으로 이관(`window._raceAnimWin` 신설, 취소 7곳·예약 4곳을 드라이버 창 경유로 전환).
+**함정/실수:** ① rAF id는 창별 카운터라 예약한 창에서만 취소된다 — 메인 창에서 PiP 발급 id를 취소하면 no-op(유령 루프), 반대로 stale id를 메인에서 취소하면 무관한 rAF(룰렛/잔상)를 오취소. ② 이관 함수에서 "닫힌 창이면 window로 정규화"하는 헬퍼를 쓰면, pagehide 시점에 `closed === true`인 경우 oldWin===newWin으로 조기 return → 취소도 재예약도 안 되어 **경주 화면 영구 동결**.
+**증상:** 리뷰에서 재현 경로 추적으로 발견 (PiP 창 X 닫기 → 복귀 후 트랙 정지).
+**해결/예방:** 이관 함수 내부는 `window._raceAnimWin || window` **원시 참조 비교**(정규화 금지), 취소는 try/catch(닫힌 창 안전). 정규화 헬퍼(`raceAnimWin()`)는 취소/예약 지점에만 사용. PiP를 타 게임으로 확장하면 이 항목을 `_common.md`로 승격.
+**관련:** `js/horse-race.js` migrateRaceDriver, `docs/goal/horse-race-track-pip.md`, C-35/C-36(_common)
+
 ---
 
 ## 추가 형식
