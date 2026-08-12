@@ -201,15 +201,21 @@ function racePipOpen() {
         });
         var themeAttr = document.documentElement.getAttribute('data-theme');
         if (themeAttr) pipWin.document.documentElement.setAttribute('data-theme', themeAttr);
-        // PiP 전용 보정 — 상단 버튼(-32px) 노출 여백 + 스크롤 방지
+        // PiP 전용 보정 — 상단 버튼(-32px) 노출 여백 + 스크롤 방지 + 스케일 루트 수평 중앙 정렬.
+        // flex 중앙: 창을 가로로만 늘려도(k가 세로 비율/캡에 걸린 상태) 고정폭 루트가 가운데 유지되고
+        // 좌우 대칭 여백만 생긴다 (좌측 치우침 버그 수정).
         var pipFix = pipWin.document.createElement('style');
-        pipFix.textContent = 'body{margin:0;padding:40px 8px 8px;overflow:hidden;}';
+        pipFix.textContent = 'body{margin:0;padding:40px 8px 8px;overflow:hidden;display:flex;justify-content:center;align-items:flex-start;}';
         pipWin.document.head.appendChild(pipFix);
 
         // 스케일 루트 — fit transform은 이 컨테이너에 건다. 래퍼는 이 안에 들어가므로
         // insertBefore(x, wrapper)로 오는 형제(canvasResultCenter 등)도 함께 스케일된다.
+        // 폭은 open 시점 자연폭으로 고정(flex-shrink 차단) — 유동 100% 폭이면 창 확대 시 트랙이
+        // 재배치로 넓어져 init 캡처 trackWidth 기준 카메라 좌표계가 왼쪽으로 쏠린다(원인 확정).
+        // transform-origin(top center)은 레이아웃 박스 중앙 기준 대칭 스케일이라 flex 중앙과 조합 시 정확히 가운데.
         var scaleRoot = pipWin.document.createElement('div');
         scaleRoot.id = 'pipScaleRoot';
+        scaleRoot.style.cssText = 'width:' + Math.max(1, (pipWin.innerWidth || pipW) - 16) + 'px;flex:0 0 auto;';
         pipWin.document.body.appendChild(scaleRoot);
 
         // 닫힘 처리 — attach면 트랙 복귀(reattach). attach가 실패한 창이면 참조 정리만.
@@ -245,9 +251,10 @@ function racePipAttachTrack() {
     var host;
     try {
         host = pipWin.document.getElementById('pipScaleRoot');
-        if (!host) { // 방어 — open이 만들지만 유실 시 재생성
+        if (!host) { // 방어 — open이 만들지만 유실 시 재생성 (open과 동일 스타일: 고정폭 + flex-shrink 차단)
             host = pipWin.document.createElement('div');
             host.id = 'pipScaleRoot';
+            host.style.cssText = 'width:' + Math.max(1, pipWin.innerWidth - 16) + 'px;flex:0 0 auto;';
             pipWin.document.body.appendChild(host);
         }
     } catch (e) {
