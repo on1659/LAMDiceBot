@@ -106,6 +106,293 @@ var raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
 var userRankVotes = {};        // { [userName]: 1-based rank } — N등 투표 (서버 broadcast 동기화)
 var rouletteAnimFrameId = null; // 룰렛 애니메이션 rAF id
 
+// ═══ 경주 트랙 PiP (Document Picture-in-Picture) — 데스크톱 Chromium 전용, 시각 전용 ═══
+// 개정3(2026-08-12) 상시 attach — 단일 규칙: "열면 래퍼가 들어가고, 닫으면 나온다".
+//  - 버튼은 래퍼가 보이는 동안 상시 노출 (pipSupported 게이트만). 2-상태 라벨.
+//  - 클릭 → requestWindow resolve 즉시 attach — 모든 단계(선택/룰렛/투표/카운트다운/레이스/종료 후) 유효.
+//    대기 화면 없음: 창이 열려 있는 동안 래퍼는 전 단계에서 PiP 문서에 산다 (메인 페이지에는 트랙 부재).
+//  - 창을 닫는 경로만 래퍼를 메인으로 복귀: 사용자 닫기(X/토글) 또는 페이지 unload(브라우저 자동 닫힘).
+//    레이스 종료/중단/리셋은 창·래퍼를 건드리지 않는다 (멈춘 트랙도 창에 그대로 보이는 것이 의도).
+//  - 이식 UI(룰렛/투표/배너)는 기존 placeholder 프로토콜 그대로 래퍼를 따라 PiP를 왕복 —
+//    placeholder는 항상 메인 문서에 남는다.
+// 공정성 영향 0 — 물리는 Date.now() 기반 서버 결정 시뮬 그대로, 렌더 문서만 옮긴다.
+var pipSupported = 'documentPictureInPicture' in window;
+window._racePipWin = null;      // 열린 PiP 창 (대기 또는 attach 상태. 닫히면 null)
+window._raceAnimWin = window;   // 현재 rAF 드라이버 창 — 예약한 창에서 취소해야 한다 (유령 루프 방지)
+var _racePipPlaceholder = null; // 래퍼 원위치 comment placeholder (moveResultUiToCanvas 패턴)
+var _racePipWrapperEl = null;   // attach 시 캡처한 래퍼 참조 — pip 문서 조회가 실패해도 복원 가능. null = 미이동(대기)
+var _racePipOpening = false;    // requestWindow 진행 중 재클릭 가드
+var _raceDriverHooks = null;    // 현재 레이스 init이 등록 — { gen, reschedule, rearmPause } (클로저 내부 제어 통로)
+
+// 트랙이 실제로 PiP 창에 이동해 있는가 — 개정3에선 "창 열림 + 래퍼 이동됨"과 사실상 동치.
+// (예외: requestWindow 진행 중/attach 실패 창은 열려 있어도 미이동) raceDoc 분기·pause/mute 우회의 단일 판정.
+function racePipAttached() {
+    return !!(_racePipWrapperEl && window._racePipWin && !window._racePipWin.closed);
+}
+
+// 래퍼(트랙)를 소유한 문서 — attach 상태면 PiP 문서, 아니면 메인 문서.
+// 래퍼 내부/전속 요소의 런타임 조회는 이 헬퍼를 쓴다 (캡처 참조는 문서 입양 후에도 유효하므로 그대로 둠).
+function raceDoc() {
+    return racePipAttached() ? window._racePipWin.document : document;
+}
+
+// 이식(transplant) UI 조회 — 배너/투표/canvasResultCenter처럼 래퍼를 "따라다니는" 요소는
+// 시점에 따라 PiP에 있을 수도(이식 중) 메인에 있을 수도(원위치) 있다. 래퍼 문서 우선, 메인 폴백.
+// (미attach면 raceDoc()===document라 단일 조회와 동일)
+function anyDocGetById(id) {
+    return raceDoc().getElementById(id) || document.getElementById(id);
+}
+
+// 현재 rAF 드라이버 창 — 닫힌 PiP 창이 잔존해도 메인 창으로 수렴 (닫힌 창 예약 사고 방지)
+function raceAnimWin() {
+    var w = window._raceAnimWin;
+    return (w && w !== window && !w.closed) ? w : window;
+}
+
+// rAF 드라이버 이관 — 예약했던 창에서 취소 후 새 창에서 재예약 (현재 레이스 훅 경유, _raceGen 세대 가드)
+function migrateRaceDriver(newWin) {
+    // ⚠️ 원시 참조 비교 — raceAnimWin()(닫힌 창→메인 정규화) 금지.
+    // pagehide 시점에 pipWin.closed면 정규화가 oldWin을 window로 수렴시켜 oldWin===newWin 조기 return
+    // → 재예약 누락(경주 영구 동결) + stale frameId가 이후 메인 창의 무관한 rAF를 오취소(id는 창별 카운터).
+    var oldWin = window._raceAnimWin || window;
+    window._raceAnimWin = newWin;
+    if (oldWin === newWin) return; // 드라이버 창 무변경 — pending rAF 그대로 유효
+    if (window._raceAnimFrameId != null) {
+        try { oldWin.cancelAnimationFrame(window._raceAnimFrameId); } catch (e) {}
+        window._raceAnimFrameId = null;
+        if (_raceDriverHooks && _raceDriverHooks.gen === window._raceGen) {
+            _raceDriverHooks.reschedule();
+        }
+    }
+}
+
+function updatePipButtonLabel() {
+    // 버튼은 래퍼와 함께 이동 — attach면 raceDoc()=PiP 문서, 아니면 메인 문서 (같은 헬퍼로 수렴). 2-상태.
+    var btn = raceDoc().getElementById('racePipBtn');
+    if (!btn) return;
+    btn.textContent = racePipAttached() ? '↩ 원래 화면으로' : '📺 작은 창으로';
+}
+
+// PiP 창 열기 — 클릭 시 즉시 requestWindow(제스처 소비는 미룰 수 없음) → resolve 즉시 attach.
+// 개정3: 대기 모드/레이스 상태 게이트 없음 — 어느 단계든 열면 래퍼가 들어간다 (단일 규칙).
+// 스타일만 복제하고 <script>/AdSense는 절대 복사하지 않는다.
+function racePipOpen() {
+    if (!pipSupported || _racePipOpening) return;
+    if (window._racePipWin && !window._racePipWin.closed) return; // 이미 열림
+    var wrapper = document.getElementById('raceTrackWrapper'); // open 시점은 항상 미attach — 메인 조회
+    var trackContainer = document.getElementById('raceTrackContainer');
+    if (!wrapper || !trackContainer) return;
+
+    // 폭 = 캡처된 trackWidth 기준. 모바일 미디어쿼리(768px) 경계 위로 클램프해 데스크톱 레이아웃 유지
+    // (카메라 산식은 init 시점 캡처값을 쓰므로 소폭 확대는 무해 — goal 수용 한계)
+    var pipW = Math.max(trackContainer.offsetWidth || 700, 780);
+    // 높이 = 래퍼 + 상단 버튼 여백 (버튼 행 top:-32px 감안 ~48px)
+    var pipH = (wrapper.offsetHeight || 440) + 48;
+
+    _racePipOpening = true;
+    documentPictureInPicture.requestWindow({ width: pipW, height: pipH }).then(function (pipWin) {
+        _racePipOpening = false;
+        window._racePipWin = pipWin;
+
+        // 라이브 head의 stylesheet/style 전부 복제 — theme/horse-race/horse-shop cascade,
+        // Google Fonts(Jua/Yeon Sung), Tailwind 런타임 주입 style 포함.
+        document.head.querySelectorAll('link[rel="stylesheet"], style').forEach(function (node) {
+            pipWin.document.head.appendChild(node.cloneNode(true));
+        });
+        var themeAttr = document.documentElement.getAttribute('data-theme');
+        if (themeAttr) pipWin.document.documentElement.setAttribute('data-theme', themeAttr);
+        // PiP 전용 보정 — 상단 버튼(-32px) 노출 여백 + 스크롤 방지
+        var pipFix = pipWin.document.createElement('style');
+        pipFix.textContent = 'body{margin:0;padding:40px 8px 8px;overflow:hidden;}';
+        pipWin.document.head.appendChild(pipFix);
+
+        // 스케일 루트 — fit transform은 이 컨테이너에 건다. 래퍼는 이 안에 들어가므로
+        // insertBefore(x, wrapper)로 오는 형제(canvasResultCenter 등)도 함께 스케일된다.
+        var scaleRoot = pipWin.document.createElement('div');
+        scaleRoot.id = 'pipScaleRoot';
+        pipWin.document.body.appendChild(scaleRoot);
+
+        // 닫힘 처리 — attach면 트랙 복귀(reattach). attach가 실패한 창이면 참조 정리만.
+        pipWin.addEventListener('pagehide', function () {
+            racePipReattach();
+            if (window._racePipWin === pipWin) { // reattach가 no-op이었던 예외 상태(attach 실패 창) 정리
+                window._racePipWin = null;
+                updatePipButtonLabel();
+            }
+        });
+        // 창 크기 변경 시 fit-to-window 재계산 — 창 수명당 1회 바인딩
+        pipWin.addEventListener('resize', racePipApplyScale);
+
+        // 개정3: 무조건 즉시 attach — 모든 단계 유효 (열면 들어간다).
+        racePipAttachTrack();
+        if (racePipAttached()) racePipResumeIfPaused(); // 레이스 중 open + 클릭~resolve 사이 탭 숨김 코너 해제
+        updatePipButtonLabel();
+    }).catch(function (err) {
+        _racePipOpening = false;
+        console.warn('[경마 PiP] 창 열기 실패:', err && err.message);
+    });
+}
+
+// 열린 PiP 창으로 트랙 이동 — 스케일 루트(#pipScaleRoot) 안에 래퍼를 넣는다. 멱등.
+// 호출처: ① racePipOpen resolve(즉시 attach — 유일한 정규 경로) ② 레이스 init(attach 실패 창 재시도 방어)
+function racePipAttachTrack() {
+    var pipWin = window._racePipWin;
+    if (!pipWin || pipWin.closed) return;
+    if (_racePipWrapperEl || _racePipPlaceholder) return; // 이미 attach됨
+    var wrapper = document.getElementById('raceTrackWrapper');
+    if (!wrapper) return;
+    // 스케일 루트 확보 + pip 문서 접근성 확인 — 접근 불가면 attach 포기 (트랙은 메인에 남아 정상 진행)
+    var host;
+    try {
+        host = pipWin.document.getElementById('pipScaleRoot');
+        if (!host) { // 방어 — open이 만들지만 유실 시 재생성
+            host = pipWin.document.createElement('div');
+            host.id = 'pipScaleRoot';
+            pipWin.document.body.appendChild(host);
+        }
+    } catch (e) {
+        return;
+    }
+
+    // 원위치 comment placeholder(#targetRankReason 뒤·#replaySection 앞 계약 유지) 남기고 래퍼 이동
+    if (!_racePipPlaceholder || !_racePipPlaceholder.parentNode) {
+        _racePipPlaceholder = document.createComment('raceTrackWrapper-pip-placeholder');
+        wrapper.parentNode.insertBefore(_racePipPlaceholder, wrapper);
+    }
+    _racePipWrapperEl = wrapper;
+    host.appendChild(wrapper);
+
+    // rAF 드라이버 이관: 메인 pending 취소 → PiP 창에서 재예약 (메인 탭 숨김에도 경주 지속).
+    // 레이스 없는 단계에서는 pending이 없어 창 교체만 일어난다.
+    migrateRaceDriver(pipWin);
+
+    // 이식이 먼저 일어난 뒤 open한 경우 재앵커 — canvasResultCenter(타깃 배너 컨테이너)는 래퍼의
+    // "형제"라 래퍼 이동만으로는 메인에 잔류한다(barsOverlay는 래퍼 내부라 자동 동행).
+    // moveResultUiToCanvas는 멱등: placeholder는 !_canvasPlaceholder 가드로 이중 생성 없고,
+    // center만 스케일 루트 안(래퍼 앞)으로 옮겨 배너를 재부착한다.
+    // 'fading-out' 가드: offCanvas 600ms 페이드 중 open이 복원을 부활시키는 역엣지 차단
+    // (center 요소는 활성 이식/페이드 중에만 존재 — 정상 선-open 경로에서는 null이라 no-op).
+    var activeCenter = document.getElementById('canvasResultCenter');
+    if (activeCenter && !activeCenter.classList.contains('fading-out')) {
+        moveResultUiToCanvas();
+    }
+
+    // resume(일시정지 해제)은 호출처가 racePipResumeIfPaused()로 따로 수행 (attach는 훅 없이 성립).
+
+    racePipApplyScale(); // fit-to-window (시각 전용 transform — 재앵커 후라 center 높이도 자연 크기에 포함)
+    updatePipButtonLabel();
+}
+
+// attach 후 일시정지 해제 — 현재 레이스 훅 경유(gen 가드). attach 성공(racePipAttached()) 시에만 호출할 것 —
+// 미attach 상태에서 부르면 숨김 메인 탭의 정상 pause/catch-up을 오해제한다.
+// 숨김 탭 init·"클릭~resolve 사이 숨김" 코너의 시작선 동결 방지 (가시 탭이면 pausedAt=0 no-op).
+function racePipResumeIfPaused() {
+    if (_raceDriverHooks && _raceDriverHooks.gen === window._raceGen && _raceDriverHooks.resumeIfPaused) {
+        _raceDriverHooks.resumeIfPaused();
+    }
+}
+
+// fit-to-window 스케일 — 스케일 루트(#pipScaleRoot)에 transform을 걸어 래퍼와 이식 형제
+// (canvasResultCenter 등)를 통째로 PiP 뷰포트에 맞춘다 (개정3).
+// transform은 offsetWidth/Height 레이아웃 값에 영향 없음 → 카메라/물리 산식 무영향(시각 전용).
+var RACE_PIP_SCALE_MAX = 1.25; // 과확대 캡 (1.0~1.5 권장 범위 내 — 배경 비트맵 블러 방지)
+function racePipApplyScale() {
+    if (!racePipAttached()) return;
+    var pipWin = window._racePipWin;
+    try {
+        var root = pipWin.document.getElementById('pipScaleRoot');
+        if (!root) return;
+        var natW = root.offsetWidth || 1;   // 자연(레이아웃) 크기 — 자기 transform 무영향 값
+        var natH = root.offsetHeight || 1;
+        var availW = Math.max(1, pipWin.innerWidth - 16);  // pip body padding(40px 8px 8px) 제외 가용 영역
+        var availH = Math.max(1, pipWin.innerHeight - 48);
+        var k = Math.min(availW / natW, availH / natH, RACE_PIP_SCALE_MAX);
+        root.style.transformOrigin = 'top center';
+        root.style.transform = (isFinite(k) && Math.abs(k - 1) > 0.01) ? 'scale(' + k + ')' : '';
+    } catch (e) {}
+}
+
+// 트랙 복귀 + 창 닫기 — 래퍼를 메인으로 되돌리는 유일한 경로 (사용자 X/pagehide, attach 상태 토글).
+// 개정3: 레이스 종료/중단은 창·래퍼를 건드리지 않으므로(teardown 폐기) 이 함수가 전부다.
+// 몇 번을 불려도 안전한 멱등 함수 (사용자 X와 pagehide 경로가 겹칠 수 있다).
+function racePipReattach() {
+    if (!_racePipWrapperEl && !_racePipPlaceholder) return; // 미이동 — 복귀 대상 없음
+    var pipWin = window._racePipWin;
+    var wrapper = _racePipWrapperEl;
+    var placeholder = _racePipPlaceholder;
+    window._racePipWin = null;      // 이후 raceDoc()/pause/mute는 즉시 메인 문서 기준
+    _racePipWrapperEl = null;
+    _racePipPlaceholder = null;
+
+    // 래퍼 복원 — attach 때 캡처한 참조 우선 (pip 문서가 이미 닫혀도 노드 참조는 유효)
+    if (!wrapper && pipWin) {
+        try { wrapper = pipWin.document.getElementById('raceTrackWrapper'); } catch (e) {}
+    }
+    if (wrapper && placeholder && placeholder.parentNode) {
+        var pipHost = (wrapper.ownerDocument !== document) ? wrapper.parentNode : null;
+        if (pipHost) {
+            // 스케일 루트의 자식 전부를 순서대로 원위치 앞에 복귀 — 래퍼뿐 아니라 이식된 형제
+            // (canvasResultCenter 등)도 함께 돌아와야 배너류가 창과 함께 유실되지 않는다.
+            while (pipHost.firstChild) {
+                placeholder.parentNode.insertBefore(pipHost.firstChild, placeholder);
+            }
+        } else {
+            placeholder.parentNode.insertBefore(wrapper, placeholder);
+        }
+    }
+    if (placeholder && placeholder.parentNode) {
+        placeholder.parentNode.removeChild(placeholder);
+    }
+
+    // 드라이버 메인 복귀 — 레이스 진행 중이면 메인에서 재예약.
+    // 닫힌 PiP 창의 pending rAF는 발화하지 않으므로 이중 예약 없음 (+ _raceGen 세대 가드).
+    migrateRaceDriver(window);
+
+    // pause 게이트 재무장 — 복귀 순간 메인 탭이 숨김이면 기존 catch-up 경로에 태움
+    if (_raceDriverHooks && _raceDriverHooks.gen === window._raceGen) {
+        _raceDriverHooks.rearmPause();
+    }
+
+    // 사운드 정책 원복 — attach 동안 우회했던 숨김/블러 음소거를 즉시 재적용.
+    // (복귀로 메인 창이 포커스를 되찾는 경우엔 기존 focus 핸들러가 곧바로 unmute — 부작용 없음)
+    if ((document.hidden || !document.hasFocus()) && window.SoundManager) SoundManager.muteAll();
+
+    if (pipWin) {
+        try { if (!pipWin.closed) pipWin.close(); } catch (e) {}
+    }
+    updatePipButtonLabel();
+}
+
+function toggleRacePip() {
+    var pipWin = window._racePipWin;
+    if (pipWin && !pipWin.closed) {
+        if (racePipAttached()) {
+            racePipReattach(); // 트랙 복귀 + 창 닫기
+        } else {
+            // attach 실패로 빈 창만 남은 예외 상태 — 닫고 참조 정리
+            try { pipWin.close(); } catch (e) {}
+            window._racePipWin = null;
+            updatePipButtonLabel();
+        }
+    } else {
+        racePipOpen();
+    }
+}
+
+// 버튼 바인딩 — 인라인 onclick 금지: 문서 입양 후 인라인 핸들러는 PiP 전역을 참조해 죽는다.
+// addEventListener 클로저는 원 실행 컨텍스트(메인 창)를 유지한다. (터치는 click으로 수렴 — 별도 처리 불필요)
+// 개정(2026-08-12): 지원 브라우저에서 상시 노출 — 실제 표시 여부는 래퍼(display) 가시성이 게이트한다.
+if (pipSupported) {
+    (function () {
+        var btn = document.getElementById('racePipBtn');
+        if (btn) {
+            btn.addEventListener('click', toggleRacePip);
+            btn.style.display = 'block';
+            updatePipButtonLabel();
+        }
+    })();
+}
+
 
 // 경마 사운드 볼륨 관리 (ControlBar 위임)
 function getHorseSoundEnabled() {
@@ -606,16 +893,18 @@ function tryAutoSelectHorse() {
 
 // 탈것 선택 화면에 트랙 표시 (초기 상태)
 function renderTrackForSelection() {
-    const track = document.getElementById('raceTrack');
-    const trackContainer = document.getElementById('raceTrackContainer');
-    
+    // 개정3: 상시 PiP — 선택 화면 트랙 미리보기도 래퍼가 있는 문서(raceDoc)에 렌더.
+    // 픽 UI(horseSelectionSection)는 래퍼 밖이라 메인 유지.
+    const track = raceDoc().getElementById('raceTrack');
+    const trackContainer = raceDoc().getElementById('raceTrackContainer');
+
     if (!track || !trackContainer) {
         console.warn('[renderTrackForSelection] track 또는 trackContainer를 찾을 수 없음');
         return;
     }
-    
+
     trackContainer.style.display = 'block';
-    const wrapper = document.getElementById('raceTrackWrapper');
+    const wrapper = raceDoc().getElementById('raceTrackWrapper');
     if (wrapper) wrapper.style.display = 'block';
     track.innerHTML = '';
     track.style.width = '100%';
@@ -822,7 +1111,7 @@ function applyMyDefaultTagStyle(nameTag) {
 // 내 이름표 라벨을 현재 화면(.race-name-tag)에 즉시 재적용 (장착/해제 라이브 반영).
 // 셀렉터엔 유저입력을 넣지 않고 JS로 dataset.username을 비교한다.
 function refreshMyNameTags() {
-    var tags = document.querySelectorAll('.race-name-tag');
+    var tags = raceDoc().querySelectorAll('.race-name-tag'); // 이름표는 트랙 내부 — 상시 PiP 대응
     for (var i = 0; i < tags.length; i++) {
         var tag = tags[i];
         if (tag.dataset.username !== currentUser) continue;
@@ -1267,17 +1556,19 @@ function escapeHtmlAttr(str) {
 var _resultUiFadeTimeout = null;
 
 function moveResultUiToCanvas() {
-    var wrapper = document.getElementById('raceTrackWrapper');
+    // 개정3: 래퍼 앵커는 raceDoc() — attach 상태면 룰렛/투표 UI가 래퍼를 따라 PiP로 이식된다
+    // (Document PiP는 실제 창이라 그 안에서 클릭 가능). placeholder는 아래에서 메인 문서에 남는다.
+    var wrapper = raceDoc().getElementById('raceTrackWrapper');
     var gameStatus = document.getElementById('gameStatus');
-    if (!wrapper || !gameStatus || !gameStatus.parentNode) return;
+    if (!wrapper || !wrapper.parentNode || !gameStatus) return;
 
     if (_resultUiFadeTimeout) {
         clearTimeout(_resultUiFadeTimeout);
         _resultUiFadeTimeout = null;
     }
 
-    // 배너용 컨테이너 (캔버스 위쪽 빈 공간에 인라인 배치)
-    var center = document.getElementById('canvasResultCenter');
+    // 배너용 컨테이너 (캔버스 위쪽 빈 공간에 인라인 배치) — 이식 가능 요소라 anyDoc 조회
+    var center = anyDocGetById('canvasResultCenter');
     if (!center) {
         center = document.createElement('div');
         center.id = 'canvasResultCenter';
@@ -1285,12 +1576,13 @@ function moveResultUiToCanvas() {
     }
     center.classList.remove('fading-out');
     center.style.opacity = '';
-    if (center.parentNode !== gameStatus.parentNode || center.previousSibling !== gameStatus) {
-        gameStatus.parentNode.insertBefore(center, wrapper);
+    // 앵커를 래퍼의 실제 부모로 — attach 상태면 스케일 루트 안(래퍼 형제)으로 들어가 함께 스케일된다
+    if (center.parentNode !== wrapper.parentNode || center.nextSibling !== wrapper) {
+        wrapper.parentNode.insertBefore(center, wrapper);
     }
 
     // 투표 섹션용 오버레이 컨테이너 (캔버스 내부 중앙 absolute)
-    var barsOverlay = document.getElementById('canvasBarsOverlay');
+    var barsOverlay = anyDocGetById('canvasBarsOverlay');
     if (!barsOverlay) {
         barsOverlay = document.createElement('div');
         barsOverlay.id = 'canvasBarsOverlay';
@@ -1299,9 +1591,9 @@ function moveResultUiToCanvas() {
     barsOverlay.classList.remove('fading-out');
     if (!wrapper.contains(barsOverlay)) wrapper.appendChild(barsOverlay);
 
-    var banner = document.getElementById('targetRankBanner');
-    var reasonEl = document.getElementById('targetRankReason');
-    var voteSection = document.getElementById('rankVoteSection');
+    var banner = anyDocGetById('targetRankBanner');
+    var reasonEl = anyDocGetById('targetRankReason');
+    var voteSection = anyDocGetById('rankVoteSection');
 
     // 배너 → 캔버스 위쪽 컨테이너
     if (banner && !banner._canvasPlaceholder) {
@@ -1340,9 +1632,10 @@ function moveResultUiToCanvas() {
 // barsOverlay만 페이드 아웃 (배너는 캔버스 위 컨테이너에 잔존)
 // 카운트다운 시작 시 호출 — reason/막대를 화면에서 비워서 "3,2,1" 시작 자리 확보
 function fadeBarsOverlayOnly() {
-    var barsOverlay = document.getElementById('canvasBarsOverlay');
-    var voteSection = document.getElementById('rankVoteSection');
-    var reasonEl = document.getElementById('targetRankReason');
+    // 이식 가능 요소들 — 래퍼를 따라 PiP에 있을 수 있어 anyDoc 조회 (placeholder 복원은 메인 기준 그대로)
+    var barsOverlay = anyDocGetById('canvasBarsOverlay');
+    var voteSection = anyDocGetById('rankVoteSection');
+    var reasonEl = anyDocGetById('targetRankReason');
     if (!barsOverlay && !voteSection?._canvasPlaceholder && !reasonEl?._canvasPlaceholder) return;
     if (barsOverlay) barsOverlay.classList.add('fading-out');
     setTimeout(function() {
@@ -1369,11 +1662,12 @@ function fadeBarsOverlayOnly() {
 }
 
 function moveResultUiOffCanvas() {
-    var center = document.getElementById('canvasResultCenter');
-    var barsOverlay = document.getElementById('canvasBarsOverlay');
-    var banner = document.getElementById('targetRankBanner');
-    var reasonEl = document.getElementById('targetRankReason');
-    var voteSection = document.getElementById('rankVoteSection');
+    // 이식 가능 요소들 — 래퍼를 따라 PiP에 있을 수 있어 anyDoc 조회. 복원처(placeholder)는 메인 문서.
+    var center = anyDocGetById('canvasResultCenter');
+    var barsOverlay = anyDocGetById('canvasBarsOverlay');
+    var banner = anyDocGetById('targetRankBanner');
+    var reasonEl = anyDocGetById('targetRankReason');
+    var voteSection = anyDocGetById('rankVoteSection');
 
     var anyOnCanvas = (banner && banner._canvasPlaceholder) || (voteSection && voteSection._canvasPlaceholder) || (reasonEl && reasonEl._canvasPlaceholder);
     if (!anyOnCanvas) return;
@@ -1423,9 +1717,10 @@ function moveResultUiOffCanvas() {
 // 타깃 등수 배너 + 결정 사유 토글
 // reasonText: 문자열 명시 시에만 reason 표시. 안 넘기면 숨김 (게임 진행 중 중복 표시 방지)
 function updateTargetRankBanner(targetRank, show, reasonText) {
-    var banner = document.getElementById('targetRankBanner');
-    var numEl = document.getElementById('targetRankBannerNum');
-    var reasonEl = document.getElementById('targetRankReason');
+    // 배너/사유는 이식 가능 요소 — 룰렛~레이스 동안 PiP(canvasResultCenter)에 있을 수 있다
+    var banner = anyDocGetById('targetRankBanner');
+    var numEl = anyDocGetById('targetRankBannerNum');
+    var reasonEl = anyDocGetById('targetRankReason');
     if (!banner || !numEl) return;
     if (!show) {
         banner.style.display = 'none';
@@ -1467,14 +1762,18 @@ function playRouletteAnimation(data) {
     // 막대가 화면에 그려져 있는지 보장 (룰렛 시각화는 readyUsers/isRaceActive 무관하게 강제 표시)
     if (typeof renderRankVoteSection === 'function') renderRankVoteSection({ forceShow: true });
 
+    // 개정3: 투표 섹션 요소 기준으로 조회 — 아래 moveResultUiToCanvas가 섹션을 PiP로 이식해도
+    // 요소 참조는 문서 이동에 유효하므로 이후 막대 수집/타깃 조회가 어느 문서에서든 성립한다.
+    var voteHost = anyDocGetById('rankVoteSection');
+
     // 룰렛 단계에서 불가능한 등수 disable — 실제 출주 마릿수보다 높은 등수는 invalid 표시
     // 서버가 horseRouletteStart payload로 보내는 runningHorseCount를 신뢰 (익명성 보호로 클라 글로벌은 본인 베팅만 가짐).
     // 서버 값이 없는 경우에만 클라 자체 계산을 fallback으로 사용.
     var runningHorseCount = (typeof data.runningHorseCount === 'number')
         ? data.runningHorseCount
         : new Set(Object.values(userHorseBets || {})).size;
-    if (runningHorseCount > 0) {
-        var rankBoxes = document.querySelectorAll('.rank-vote-box[data-rank]');
+    if (runningHorseCount > 0 && voteHost) {
+        var rankBoxes = voteHost.querySelectorAll('.rank-vote-box[data-rank]');
         rankBoxes.forEach(function(box) {
             var rank = parseInt(box.getAttribute('data-rank'), 10);
             if (rank > runningHorseCount) {
@@ -1487,13 +1786,14 @@ function playRouletteAnimation(data) {
     moveResultUiToCanvas();
 
     // DOM 순서대로 활성 막대만 수집 — invalid(비활성) 박스 막대는 표시만 하고 룰렛 순회에서 제외
-    var allBars = Array.prototype.slice.call(
-        document.querySelectorAll('.rank-vote-box:not(.invalid) .rank-vote-bar')
-    );
+    // (voteHost 요소 스코프 조회 — 위 이식 후 PiP 문서에 있어도 동작)
+    var allBars = voteHost ? Array.prototype.slice.call(
+        voteHost.querySelectorAll('.rank-vote-box:not(.invalid) .rank-vote-bar')
+    ) : [];
     if (allBars.length === 0) return;
 
     // 타깃 = 우승 등수 박스의 첫 막대
-    var targetBox = document.querySelector('.rank-vote-box[data-rank="' + winningRank + '"]');
+    var targetBox = voteHost.querySelector('.rank-vote-box[data-rank="' + winningRank + '"]');
     if (!targetBox) return;
     var targetBar = targetBox.querySelector('.rank-vote-bar');
     if (!targetBar) return;
@@ -1585,7 +1885,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
     // 🔧 기존 경주 애니메이션 정리 (중복 호출 방지)
     if (window._raceAnimFrameId) {
-        cancelAnimationFrame(window._raceAnimFrameId);
+        raceAnimWin().cancelAnimationFrame(window._raceAnimFrameId); // 예약한 창에서 취소 (PiP 이관 대응)
         window._raceAnimFrameId = null;
         console.log('[경주] 기존 animationFrame 정리됨');
     }
@@ -1606,9 +1906,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     const myRaceGen = window._raceGen;
     // 이전 경주의 순위 이펙트 정리
     clearFinishEffects();
-    
-    const track = document.getElementById('raceTrack');
-    const trackContainer = document.getElementById('raceTrackContainer');
+
+    // 개정2: 카운트다운 시점 attach로 init이 래퍼가 PiP에 있는 상태에서 돌 수 있다 — doc-aware 캡처
+    const track = raceDoc().getElementById('raceTrack');
+    const trackContainer = raceDoc().getElementById('raceTrackContainer');
     
     if (!track || !trackContainer) {
         console.error('트랙 컨테이너를 찾을 수 없습니다');
@@ -1623,7 +1924,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     }
 
     trackContainer.style.display = 'block';
-    const wrapper = document.getElementById('raceTrackWrapper');
+    const wrapper = raceDoc().getElementById('raceTrackWrapper');
     if (wrapper) wrapper.style.display = 'block';
     track.innerHTML = '';
 
@@ -2132,17 +2433,18 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         }
     }
     
-    // 미니맵 초기화 및 표시
-    const minimapEl = document.getElementById('raceMinimap');
+    // 미니맵 초기화 및 표시 (개정2: attach 상태 init 대응 — doc-aware)
+    const minimapEl = raceDoc().getElementById('raceMinimap');
     if (minimapEl) minimapEl.style.display = 'block';
 
     // 미니맵에 사용할 색상 팔레트
     const minimapColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#ff6b6b', '#4ecdc4', '#a29bfe', '#fd79a8', '#00cec9', '#e17055', '#636e72'];
 
     function updateMinimap(horseStatesRef, startPos, totalDist, finishLinePx, trackMeters, vInfoMap) {
-        const minimapTrack = document.getElementById('minimapTrack');
-        const minimapMarkers = document.getElementById('minimapMarkers');
-        const minimapDots = document.getElementById('minimapDots');
+        // 매 프레임 조회 — 래퍼가 PiP 문서로 이동해 있으면 그쪽에서 찾는다
+        const minimapTrack = raceDoc().getElementById('minimapTrack');
+        const minimapMarkers = raceDoc().getElementById('minimapMarkers');
+        const minimapDots = raceDoc().getElementById('minimapDots');
         if (!minimapTrack) return;
 
         const trackW = minimapTrack.offsetWidth;
@@ -2279,7 +2581,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     let cameraModeOverlay = null;
     let cameraModeOverlayTimer = null;
     function showCameraModeOverlay(text, color) {
-        const trackContainer = document.getElementById('raceTrackContainer');
+        const trackContainer = raceDoc().getElementById('raceTrackContainer'); // 경주 중 호출 — PiP 문서 대응
         if (!trackContainer) return;
         if (!cameraModeOverlay) {
             cameraModeOverlay = document.createElement('div');
@@ -2301,8 +2603,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         }, 2000);
     }
 
-    // 카메라 버튼 UI 동기화 함수 (루프 내에서도 호출)
-    const cameraSwitchBtn = document.getElementById('cameraSwitchBtn');
+    // 카메라 버튼 UI 동기화 함수 (루프 내에서도 호출) — 개정2: attach 상태 init 대응 doc-aware 캡처
+    const cameraSwitchBtn = raceDoc().getElementById('cameraSwitchBtn');
     let prevCameraMode = null;
     function updateCameraBtnUI() {
         if (!cameraSwitchBtn) return;
@@ -2486,6 +2788,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         function onVisChange() {
             if (myRaceGen !== window._raceGen) return; // 무효화된 레이스의 stale 리스너 (카운트다운→새 init 리스너 갭)
             if (!animationFrameId) return; // 경주 끝났으면 무시
+            // 트랙이 PiP에 붙어 시청 중 — 메인 탭 숨김/복귀와 무관하게 경주 계속 (pausedAt 미세팅).
+            // attach 판정 기준: 미attach(창 없음/attach 실패)면 기존 pause/catch-up 유지.
+            // attach 중 pausedAt=0은 가정이 아니라 호출처의 racePipResumeIfPaused가 보장
+            // (숨김 탭 init 포함) — 복귀 분기 스킵 무해. 재무장은 reattach의 rearmPause가 담당.
+            if (racePipAttached()) return;
             if (document.hidden) {
                 pausedAt = Date.now();
                 return;
@@ -2565,7 +2872,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         // catch-up 종료 후 화면 상태 재구성 — 억제된 연출을 "최종 상태" 기준으로 1회 반영 (레이스 미종료 시에만)
         function reconcileAfterCatchUp() {
             // 1) 슬로우모션 최종 상태 (트리거/해제 비주얼·사운드는 catch-up 중 억제됨)
-            let vignette = document.getElementById('slowmoVignette');
+            let vignette = raceDoc().getElementById('slowmoVignette');
             if (slowMotionActive || loserSlowMotionActive) {
                 if (!vignette) {
                     vignette = document.createElement('div');
@@ -2919,7 +3226,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         // JavaScript 기반 애니메이션 루프 (rAF로 vsync 동기화) — 프레임 타이밍 + stepRace 호출 + 재예약만 담당
         function animLoop() {
             if (pausedAt > 0) {
-                animationFrameId = window._raceAnimFrameId = requestAnimationFrame(animLoop);
+                animationFrameId = window._raceAnimFrameId = raceAnimWin().requestAnimationFrame(animLoop);
                 return; // 일시정지 중 (숨김 탭)
             }
             const now = Date.now();
@@ -2928,7 +3235,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const elapsed = now - startTime;
             stepRace(deltaTime, elapsed);
             if (raceEnded) return; // 종료 블록 실행됨 — 재예약 중단 (기존 흐름과 동일)
-            animationFrameId = window._raceAnimFrameId = requestAnimationFrame(animLoop);
+            animationFrameId = window._raceAnimFrameId = raceAnimWin().requestAnimationFrame(animLoop);
         }
 
         // 물리/판정 1스텝 — 라이브 rAF(가변 dt≤50ms)와 catch-up 동기 루프(고정 16ms)가 공유.
@@ -2953,7 +3260,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         slowMotionFactor = smConf.leader.factor; // 물리 — catch-up에서도 반드시 적용
                         if (!isCatchingUp) { // 비주얼/사운드는 억제 → reconcile이 최종 상태 반영
                             // 비네팅(가장자리 어둡게) + 필터 효과
-                            let vignette = document.getElementById('slowmoVignette');
+                            let vignette = raceDoc().getElementById('slowmoVignette');
                             if (!vignette) {
                                 vignette = document.createElement('div');
                                 vignette.id = 'slowmoVignette';
@@ -3018,7 +3325,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 if (!isCatchingUp) { // 비주얼/사운드는 억제 → reconcile이 최종 상태(비활성) 반영
                     track.style.filter = '';
                     // vignette는 remove하지 않고 숨김만 (꼴등 슬로우모션이 재사용)
-                    const vignette = document.getElementById('slowmoVignette');
+                    const vignette = raceDoc().getElementById('slowmoVignette');
                     if (vignette) {
                         vignette.style.opacity = '0';
                     }
@@ -3110,7 +3417,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             }
                         }
                         if (!isCatchingUp) { // 비네트/필터/사운드는 억제 → reconcile이 최종 상태 반영
-                            let vignette = document.getElementById('slowmoVignette');
+                            let vignette = raceDoc().getElementById('slowmoVignette');
                             if (!vignette) {
                                 vignette = document.createElement('div');
                                 vignette.id = 'slowmoVignette';
@@ -3171,7 +3478,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     }
                     if (!isCatchingUp) { // 비주얼/사운드는 억제 → reconcile이 최종 상태(비활성) 반영
                         track.style.filter = '';
-                        const vignette = document.getElementById('slowmoVignette');
+                        const vignette = raceDoc().getElementById('slowmoVignette');
                         if (vignette) {
                             vignette.style.opacity = '0';
                             setTimeout(() => vignette.remove(), 500);
@@ -3692,11 +3999,13 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     snapCameraToTarget();
                     renderFrame();
                 }
-                cancelAnimationFrame(animationFrameId);
+                raceAnimWin().cancelAnimationFrame(animationFrameId); // 예약한 창(PiP 가능)에서 취소
                 animationFrameId = null;
                 window._raceAnimFrameId = null;
                 document.removeEventListener('visibilitychange', onVisChange);
                 if (window._raceVisHandler === onVisChange) window._raceVisHandler = null;
+                // 개정3: 레이스 종료는 PiP를 건드리지 않는다 — 래퍼는 창이 열려 있는 한 PiP에 남고,
+                // 멈춘 트랙이 창에 그대로 보인다. 사망 연출 오버레이는 doc-aware(raceDoc().body)로 생성.
                 removeQuickRaceOverlay();
 
                 // 슬로우모션 강제 해제
@@ -3707,7 +4016,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 loserCameraTarget = null;
                 if (cameraModeBefore) { cameraMode = cameraModeBefore; cameraModeBefore = null; }
                 track.style.filter = '';
-                const vignetteCleanup = document.getElementById('slowmoVignette');
+                const vignetteCleanup = raceDoc().getElementById('slowmoVignette');
                 if (vignetteCleanup) {
                     vignetteCleanup.style.opacity = '0';
                     setTimeout(() => vignetteCleanup.remove(), 500);
@@ -3717,9 +4026,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     SoundManager.stopLoop('horse-race_slowmo_cheer');
                 }
 
-                // 날씨 요소 정리
-                const weatherOverlayCleanup = document.getElementById('weatherOverlay');
-                const weatherBannerCleanup = document.getElementById('weatherBanner');
+                // 날씨 요소 정리 (raceDoc — 복귀 실패 등 어느 문서에 있어도 잔존 없이)
+                const weatherOverlayCleanup = raceDoc().getElementById('weatherOverlay');
+                const weatherBannerCleanup = raceDoc().getElementById('weatherBanner');
                 if (weatherOverlayCleanup) {
                     weatherOverlayCleanup.style.opacity = '0';
                     setTimeout(() => weatherOverlayCleanup.remove(), 800);
@@ -3729,7 +4038,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                     setTimeout(() => weatherBannerCleanup.remove(), 800);
                 }
                 // 버프/디버프 인디케이터 제거
-                document.querySelectorAll('.weather-indicator').forEach(el => el.remove());
+                raceDoc().querySelectorAll('.weather-indicator').forEach(el => el.remove());
 
                 // 미완주 말들 전부 찾기 (비석 대상) - 결승선에 닿지 않은 말만
                 const unfinishedStates = horseStates.filter(s => !s.finishJudged);
@@ -3777,7 +4086,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             if (liveRankingPanel) {
                                 liveRankingPanel.style.display = 'none';
                             }
-                            const minimap = document.getElementById('raceMinimap');
+                            const minimap = raceDoc().getElementById('raceMinimap');
                             if (minimap) minimap.style.display = 'none';
                             // 채팅 오버레이 해제
                             if (typeof window.hideRaceChatOverlay === 'function') {
@@ -3816,7 +4125,45 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 return; // 레이스 종료 — 스텝 탈출 (재예약 중단은 raceEnded 플래그로 래퍼/catch-up 루프가 처리)
             }
         }
-        animationFrameId = window._raceAnimFrameId = requestAnimationFrame(animLoop);
+        // PiP 드라이버 훅 등록 — detach/reattach가 클로저 내부(animLoop/pausedAt)를 제어할 유일한 통로.
+        // _raceGen 세대 가드로 stale 레이스의 훅 오발화를 차단한다 (전역 계약은 _raceAnimWin만 신설).
+        _raceDriverHooks = {
+            gen: myRaceGen,
+            reschedule: function () {
+                if (raceEnded) return;
+                if (myRaceGen !== window._raceGen) return;
+                animationFrameId = window._raceAnimFrameId = raceAnimWin().requestAnimationFrame(animLoop);
+            },
+            rearmPause: function () {
+                if (raceEnded) return;
+                if (window._raceAnimFrameId == null) return; // 중단된 레이스 — 재무장 불필요
+                if (document.hidden) pausedAt = Date.now();  // 복귀 시 onVisChange가 catch-up으로 따라잡음
+            },
+            // attach 순간 일시정지 해제 — onVisChange 복귀 분기와 동일 산식(새 산식 발명 금지).
+            // 숨김 탭에서 init이 발화해 pausedAt이 세팅된 채 자동 attach되는 케이스의 유일한 해제 경로
+            // (attach 후 onVisChange는 attached 우회로 복귀 분기에 못 들어간다).
+            resumeIfPaused: function () {
+                if (raceEnded) return;
+                if (myRaceGen !== window._raceGen) return;
+                if (pausedAt === 0) return;
+                if (isReplay) {
+                    // 다시보기: 동기화할 라이브 시점이 없음 — 멈춘 지점부터 재생 (기존 동작 유지)
+                    startTime += (Date.now() - pausedAt);
+                    lastFrameTime = Date.now();
+                    pausedAt = 0;
+                } else {
+                    // 라이브: 숨김 구간을 즉시 시뮬레이션해 전원과 같은 진행 지점으로 점프
+                    pausedAt = 0;
+                    catchUpToLive();
+                }
+            }
+        };
+        // 개정3: 창이 열려 있으면 래퍼는 이미 상시 attach — attachTrack은 attach 실패 창의 재시도 방어(멱등).
+        // resumeIfPaused는 필수: attach 상태에서 init이 숨김 탭에서 발화하면 pausedAt이 세팅되는데,
+        // onVisChange가 attached 우회라 여기서 해제하지 않으면 시작선 동결이 된다 (미attach면 정상 pause 유지).
+        racePipAttachTrack();
+        if (racePipAttached()) racePipResumeIfPaused();
+        animationFrameId = window._raceAnimFrameId = raceAnimWin().requestAnimationFrame(animLoop);
 
         // 실시간 순위 업데이트 시작 (100ms 간격)
         rankingInterval = window._raceRankingInterval = setInterval(() => updateLiveRanking(horseStates), 100);
@@ -3838,8 +4185,17 @@ var finishEffectsOverlay = null;
 var finishEffectElements = new Map(); // horseIndex -> effectElement
 
 function getOrCreateFinishEffectsOverlay() {
+    // 개정3: 트랙이 있는 문서의 body에 생성 — attach 상태면 PiP body (유령 좌표가 트랙 뷰포트 기준이 되게).
+    // fixed 오버레이는 스케일 루트 밖(body 직속)이라 transform 미적용 → gBCR(시각 좌표)과 정확히 일치.
+    var doc = raceDoc();
+    if (finishEffectsOverlay && finishEffectsOverlay.ownerDocument !== doc) {
+        // 창 열기/닫기로 트랙 문서가 바뀜 — 이전 문서의 오버레이는 버리고 재생성
+        try { finishEffectsOverlay.remove(); } catch (e) {}
+        finishEffectsOverlay = null;
+        finishEffectElements.clear();
+    }
     if (!finishEffectsOverlay) {
-        finishEffectsOverlay = document.createElement('div');
+        finishEffectsOverlay = doc.createElement('div');
         finishEffectsOverlay.id = 'finishEffectsOverlay';
         finishEffectsOverlay.style.cssText = `
             position: fixed;
@@ -3850,7 +4206,7 @@ function getOrCreateFinishEffectsOverlay() {
             pointer-events: none;
             z-index: 99999;
         `;
-        document.body.appendChild(finishEffectsOverlay);
+        doc.body.appendChild(finishEffectsOverlay);
     }
     return finishEffectsOverlay;
 }
@@ -3910,7 +4266,7 @@ function showFinishAnimation(horseElement, finishOrder, horseIndex) {
 
 // 꼴등 사망 애니메이션 (시체 페이드 아웃 + 영혼만 오버레이, 비석은 트랙 안쪽에 그려서 스크롤과 함께 유지)
 function showDeathAnimation(horseElement, horseIndex, finishRank, onComplete) {
-    const track = document.getElementById('raceTrack');
+    const track = raceDoc().getElementById('raceTrack'); // 정상 흐름은 복귀 후(메인) — 방어적 doc-aware
     const overlay = getOrCreateFinishEffectsOverlay();
     const horseRect = horseElement.getBoundingClientRect();
     
@@ -4595,22 +4951,69 @@ function showRaceResult(data, isReplay = false) {
     }
 }
 
-// 3-2-1 카운트다운 표시 (경마맵 영역 안에) — countdown-shared.js 사용
+// 3-2-1 카운트다운 표시 (경마맵 영역 안에) — 미이동 시 countdown-shared.js, PiP attach 시 로컬 렌더러(개정2)
 function showCountdown() {
-    // 레이스 트랙 컨테이너 표시
-    const trackContainer = document.getElementById('raceTrackContainer');
+    // 레이스 트랙 컨테이너 표시 (attach 상태면 PiP 문서에서 조회)
+    const trackContainer = raceDoc().getElementById('raceTrackContainer');
     if (trackContainer) {
         trackContainer.style.display = 'block';
-        const wrapper = document.getElementById('raceTrackWrapper');
+        const wrapper = raceDoc().getElementById('raceTrackWrapper');
         if (wrapper) wrapper.style.display = 'block';
     }
 
+    // attach 상태: countdown-shared는 메인 문서 전용 조회(컨테이너 미발견 시 메인 풀스크린 폴백)라
+    // PiP에는 아무것도 안 보인다 — 크로스게임 계약상 shared 수정 금지, 동일 연출의 로컬 렌더러 사용.
+    if (racePipAttached()) {
+        showPipCountdown(trackContainer);
+        return;
+    }
     showGameCountdown('raceTrackContainer');
 }
 
-// 전원 동일 베팅 시 빠른 레이스 오버레이 (뒤에서 레이스 진행)
+// PiP 전용 카운트다운 — countdown-shared.js의 연출을 그대로 미러(3-2-1-START!, 1초 간격, 동일 색 변수,
+// countPop 키프레임, 완료 콜백 없음 — 기존 호출부도 콜백 미사용). 정적 문자열만 innerHTML에 사용.
+function showPipCountdown(container) {
+    if (!container) return;
+    var doc = raceDoc();
+    try {
+        // countPop 키프레임 주입 — PiP 문서 head에 창당 1회 (countdown-shared와 동일 내용)
+        if (!doc.getElementById('countdownSharedStyles')) {
+            var kfStyle = doc.createElement('style');
+            kfStyle.id = 'countdownSharedStyles';
+            kfStyle.textContent = '@keyframes countPop{0%{transform:scale(.3);opacity:0}50%{transform:scale(1.2);opacity:1}70%{transform:scale(.95)}100%{transform:scale(1);opacity:1}}';
+            doc.head.appendChild(kfStyle);
+        }
+        var existing = doc.getElementById('countdownOverlay');
+        if (existing) existing.remove();
+
+        var overlay = doc.createElement('div');
+        overlay.id = 'countdownOverlay';
+        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:100;display:flex;justify-content:center;align-items:center;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;';
+        container.style.position = 'relative';
+        container.appendChild(overlay);
+
+        var nums = ['3', '2', '1', 'START!'];
+        var colors = ['var(--red-500)', 'var(--yellow-500)', 'var(--green-500)', 'var(--blue-500)'];
+        var idx = 0;
+        function showNext() {
+            if (idx >= nums.length) {
+                overlay.remove();
+                return;
+            }
+            overlay.innerHTML = '<div style="font-size:' + (nums[idx] === 'START!' ? '60px' : '90px')
+                + ';font-weight:900;color:' + colors[idx]
+                + ';text-shadow:0 0 30px ' + colors[idx] + ',0 0 60px ' + colors[idx] + '40'
+                + ';animation:countPop 0.8s ease-out">' + nums[idx] + '</div>';
+            idx++;
+            setTimeout(showNext, 1000);
+        }
+        showNext();
+    } catch (e) {}
+}
+
+// 전원 동일 베팅 시 빠른 레이스 오버레이 (뒤에서 레이스 진행) — 개정2: attach 상태 대응 doc-aware
 function showQuickRaceOverlay() {
-    const trackContainer = document.getElementById('raceTrackContainer');
+    const trackContainer = raceDoc().getElementById('raceTrackContainer');
 
     const overlay = document.createElement('div');
     overlay.id = 'quickRaceOverlay';
@@ -4646,7 +5049,7 @@ function showQuickRaceOverlay() {
 }
 
 function removeQuickRaceOverlay() {
-    const overlay = document.getElementById('quickRaceOverlay');
+    const overlay = raceDoc().getElementById('quickRaceOverlay'); // 트랙 컨테이너 내부 — PiP 문서 대응
     if (overlay) overlay.remove();
 }
 
@@ -4956,7 +5359,7 @@ function showReplayStopButton(onStop) {
     btn.textContent = '⏹ 다시보기 종료';
     btn.style.cssText = 'position:absolute;top:8px;right:8px;z-index:200;width:auto;margin:0;padding:6px 14px;background:rgba(0,0,0,0.7);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer;font-family:"Jua",sans-serif;';
     btn.onclick = onStop;
-    const wrapper = document.getElementById('raceTrackWrapper');
+    const wrapper = raceDoc().getElementById('raceTrackWrapper'); // 상시 PiP — 래퍼가 있는 문서에 부착
     if (wrapper) {
         wrapper.appendChild(btn);
     } else {
@@ -4965,7 +5368,7 @@ function showReplayStopButton(onStop) {
 }
 
 function removeReplayStopButton() {
-    const btn = document.getElementById('replayStopBtn');
+    const btn = anyDocGetById('replayStopBtn'); // 래퍼 내부(래퍼 문서) 또는 메인 body 폴백 — 양쪽 커버
     if (btn) btn.remove();
 }
 
@@ -5031,7 +5434,7 @@ function playReplay(record) {
 
     showReplayStopButton(function() {
         if (window._raceAnimFrameId) {
-            cancelAnimationFrame(window._raceAnimFrameId);
+            raceAnimWin().cancelAnimationFrame(window._raceAnimFrameId); // 예약한 창(PiP 가능)에서 취소
             window._raceAnimFrameId = null;
         }
         if (window.SoundManager) SoundManager.stopAll();
@@ -5455,7 +5858,7 @@ socket.on('roomJoined', (data) => {
         // 다른 라운드/서버 기록 없음/로컬 record 없음 — 진행 중이던 로컬 레이스·다시보기 완전 무효화
         window._raceGen = (window._raceGen || 0) + 1;
         if (window._raceAnimFrameId) {
-            cancelAnimationFrame(window._raceAnimFrameId);
+            raceAnimWin().cancelAnimationFrame(window._raceAnimFrameId); // 예약한 창(PiP 가능)에서 취소
             window._raceAnimFrameId = null;
         }
         if (window._raceRankingInterval) {
@@ -5862,7 +6265,7 @@ socket.on('horseRaceCountdown', (data) => {
     if (isReplayActive) {
         removeReplayStopButton();
         if (window._raceAnimFrameId) {
-            cancelAnimationFrame(window._raceAnimFrameId);
+            raceAnimWin().cancelAnimationFrame(window._raceAnimFrameId); // 예약한 창(PiP 가능)에서 취소
             window._raceAnimFrameId = null;
         }
         if (window.SoundManager) SoundManager.stopAll();
@@ -5915,6 +6318,7 @@ socket.on('horseRaceCountdown', (data) => {
     // 다시보기/게임종료 섹션 숨기기
     document.getElementById('replaySection').style.display = 'none';
     document.getElementById('endGameSection').style.display = 'none';
+    // 개정3: 별도 attach 불필요 — 창이 열려 있으면 래퍼는 이미 상시 PiP, showCountdown이 그 문서에 렌더한다.
     showCountdown();
 });
 
@@ -5957,12 +6361,13 @@ socket.on('horseRaceStarted', (data) => {
     removeReplayStopButton();
     pendingHorseSelectionReady = null; // 새 경주 시작으로 다시보기 강제중단 — 보관된 선택 이벤트 폐기(stale 적용 방지)
     if (window._raceAnimFrameId) {
-        cancelAnimationFrame(window._raceAnimFrameId);
+        raceAnimWin().cancelAnimationFrame(window._raceAnimFrameId); // 예약한 창(PiP 가능)에서 취소
         window._raceAnimFrameId = null;
     }
     // 직전 레이스/다시보기의 종료 시퀀스 tail 무효화 — rAF가 이미 끝나 tail만 대기 중인 경우도
     // 커버해야 하므로 무조건 실행 (지연 완주 클라이언트의 stale raceAnimationComplete 방지)
     window._raceGen = (window._raceGen || 0) + 1;
+    // 개정3: PiP는 건드리지 않는다 — 래퍼는 창이 열려 있는 한 상시 PiP, 새 레이스도 그 안에서 init된다.
     if (window.SoundManager) SoundManager.stopAll();
     const resultOverlay = document.getElementById('resultOverlay');
     if (resultOverlay) resultOverlay.classList.remove('visible');
@@ -6147,7 +6552,7 @@ socket.on('horseRaceGameReset', (data) => {
     removeQuickRaceOverlay();
     // 🔧 경주 애니메이션 정리 (경주 중 리셋 시 화면 깨짐 방지)
     if (window._raceAnimFrameId) {
-        cancelAnimationFrame(window._raceAnimFrameId);
+        raceAnimWin().cancelAnimationFrame(window._raceAnimFrameId); // 예약한 창(PiP 가능)에서 취소
         window._raceAnimFrameId = null;
         console.log('[horseRaceGameReset] animationFrame 정리됨');
     }
@@ -6165,6 +6570,7 @@ socket.on('horseRaceGameReset', (data) => {
     window._raceGen = (window._raceGen || 0) + 1;
     pendingHorseSelectionReady = null;
     window._raceRecordId = null; // 리셋된 라운드는 재연결 "같은 라운드" 판별 대상 아님
+    // 개정3: PiP는 건드리지 않는다 — 리셋 후 선택 화면 재렌더도 raceDoc() 경유로 창 안에서 이어진다.
 
     if (window.SoundManager) {
         SoundManager.stopAll();
@@ -6506,10 +6912,10 @@ socket.on('horseRaceDataCleared', () => {
         rouletteAnimFrameId = null;
     }
 
-    // 트랙 숨기기 + 이펙트 정리
+    // 트랙 숨기기 + 이펙트 정리 (개정3: 래퍼가 PiP에 있어도 그 문서에서 숨김 — 창은 건드리지 않음)
     const trackContainer = document.getElementById('trackContainer');
     if (trackContainer) trackContainer.style.display = 'none';
-    const trackWrapper = document.getElementById('raceTrackWrapper');
+    const trackWrapper = raceDoc().getElementById('raceTrackWrapper');
     if (trackWrapper) trackWrapper.style.display = 'none';
     clearFinishEffects();
 
@@ -6569,7 +6975,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
 
     // 탭 포커스 잃으면 소리 음소거, 복귀하면 다시 재생
+    // (트랙 PiP 시청 중에는 우회 — 사용자가 경주를 보고 있으므로 사운드 유지. 복귀 시 reattach가 원복)
     document.addEventListener('visibilitychange', function() {
+        if (racePipAttached()) return; // 트랙이 PiP에 붙어 있는 동안 우회 (창 없으면 일반 정책)
         if (window.SoundManager) {
             if (document.hidden) {
                 SoundManager.muteAll();
@@ -6579,6 +6987,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     window.addEventListener('blur', function() {
+        if (racePipAttached()) return; // 트랙이 PiP에 붙어 있는 동안 음소거 우회 (창 없으면 일반 정책)
         if (window.SoundManager) SoundManager.muteAll();
     });
     window.addEventListener('focus', function() {
@@ -6733,8 +7142,8 @@ function toggleDebugLog() {
     }
 
     window.showRaceChatOverlay = function() {
-        const overlay = document.getElementById('raceChatOverlay');
-        const chatMessages = document.getElementById('chatMessages');
+        const overlay = raceDoc().getElementById('raceChatOverlay'); // 개정2: attach 상태 init 대응 (래퍼 내부 요소)
+        const chatMessages = document.getElementById('chatMessages'); // 채팅 원본은 항상 메인 문서
         if (!overlay || !chatMessages) return;
 
         // 기존 observer 정리 (중복 등록 방지)
@@ -6771,7 +7180,7 @@ function toggleDebugLog() {
     };
 
     window.hideRaceChatOverlay = function() {
-        const overlay = document.getElementById('raceChatOverlay');
+        const overlay = raceDoc().getElementById('raceChatOverlay'); // 래퍼가 PiP에 있어도 정리되도록
         if (overlay) {
             overlay.style.display = 'none';
             overlay.innerHTML = '';

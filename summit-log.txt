@@ -1,4 +1,25 @@
 ========================================
+📋 Summit Log - 2026-08-12 (경마 트랙 Document PiP)
+========================================
+
+## 변경 파일
+- js/horse-race.js: Document PiP 코어 신설 — racePipOpen/racePipReattach/toggleRacePip, 창별 rAF 드라이버 이관(migrateRaceDriver, 원시 참조 비교), pause 게이트/사운드 mute PiP 우회(racePipAttached), fit-to-window 스케일(#pipScaleRoot, racePipApplyScale), PiP 로컬 3-2-1 카운트다운 렌더러(showPipCountdown, countdown-shared.js 비수정), 이식 UI(moveResultUiToCanvas 등) doc-aware 전환 + 재앵커, 20여 곳 doc-aware 조회(raceDoc()/anyDocGetById)
+- horse-race-multiplayer.html: PiP 토글 버튼(#racePipBtn)을 카메라 버튼과 한 flex row(.track-top-btn-row)로 묶어 좌측 밀착 배치
+- css/horse-race.css: .race-pip-btn, .track-top-btn-row 신규 클래스만 추가 (기존 셀렉터 무수정 — 공용 layout 파일)
+- AutoTest/qa-horse-track-pip-test.js: 신규 e2e (mock PiP 창 주입 패턴으로 헤드리스에서 attach 수명주기 검증, 최종 99 PASS)
+- docs/goal/applied/horse-race-track-pip.md: goal 명세 + 개정 3건(대기 창 도입 → 창 영속화 → 대기 모드 폐기·상시 attach로 최종 수렴)
+
+## 변경 이유
+- 경마 레이스가 길어서 다른 탭을 보면서 관전하고 싶다는 요청 → Document Picture-in-Picture API로 트랙 DOM을 별도 떠있는 창으로 분리
+- 요구사항이 3차례 반복 조정됨: (1) 레이스 중에만 분리 가능 → (2) 레이스 전부터 대기 창으로 열어둘 수 있게 → (3) 완주 후에도 창 유지(재사용) → (4) 최종적으로 "창을 열어두면 어느 단계든 지금 화면 그대로" 상시 attach로 단순화 (대기 화면 개념 자체를 폐기)
+- 데스크톱 Chrome/Edge 전용 (Document PiP API 미지원 브라우저는 버튼 자체 비노출)
+
+## 구현 상세
+- 리뷰(Reviewer/ReviewerCodex) 다회 루프에서 잡은 버그: 창 간 rAF 취소가 예약한 창에서만 유효한 문제(원시 참조 비교로 해결), 권한 프롬프트 지연 중 레이스 상태 변화(gen+frameId 재검증 게이트), 숨김 탭 중 자동 attach 시 pause 게이트 미해제로 인한 트랙 동결(resumeIfPaused 훅 신설), 무조건 teardown이 카운트다운 attach를 되돌리는 문제(isRaceActive/isReplayActive 가드), 이식-선행 open 시 배너 잔류(attachTrack 재앵커)
+- 공정성 영향 없음: Math.random 발생 횟수 무변경(27), stepRace 물리 로직 무접촉, 소켓 이벤트 신규/변경 0
+- 결승 컨페티(HorseShop.playFinishFx)는 attach 중 손실 수용 — horse-shop.js 비수정 범위 제약 (playFinishFxInto 공개 API 미노출)
+
+========================================
 📋 Summit Log - 2026-07-19 (탈것 통계·꾸미기 적용 수정·game-lab 프로토 9종 + 하네스 재구조화)
 ========================================
 
