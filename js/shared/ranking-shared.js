@@ -15,6 +15,7 @@ const RankingModule = (function () {
     let _currentMainTab = 'overall';
     let _currentGameTab = 'dice';
     let _currentOverallSubTab = 'rank'; // 'rank' | 'participant'
+    let _horseSubTab = 'rank'; // 'rank' | 'vehicles' — 경마 게임 탭 내부 서브탭
 
     // 제스처 상태
     let _touchStartX = 0;
@@ -86,6 +87,7 @@ const RankingModule = (function () {
             _currentGameTab = 'dice';
         }
         _viewingSeason = null;
+        _horseSubTab = 'rank';
         if (typeof PageHistoryManager !== 'undefined') PageHistoryManager.pushPage('ranking');
         createOverlay();
         fetchAndRender().then(() => fetchSeasonList());
@@ -155,8 +157,7 @@ const RankingModule = (function () {
             }
             .rk-panel {
                 width: min(640px, 92vw);
-                height: auto;
-                max-height: 85vh;
+                height: min(85vh, 720px);
                 border-radius: 20px;
                 overflow: hidden;
             }
@@ -569,6 +570,7 @@ const RankingModule = (function () {
                 <div class="rk-tabs" id="ranking-tabs"></div>
                 <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
                 <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
+                <div class="rk-game-tabs" id="ranking-horse-sub-tabs" style="display:none;"></div>
                 <div class="rk-content" id="ranking-content"></div>
             </div>
         `;
@@ -610,6 +612,7 @@ const RankingModule = (function () {
                 renderOverall(document.getElementById('ranking-content'));
             });
         }
+        updateHorseSubTabsVisibility();
     }
 
     function switchOverallSubTab(key) {
@@ -652,6 +655,39 @@ const RankingModule = (function () {
             }
         });
         renderGameContent(key);
+        updateHorseSubTabsVisibility();
+    }
+
+    // 경마 게임 탭 진입 시에만 경마 서브탭 바를 노출하고 활성칩을 스타일링.
+    // (overall-sub/game/horse-sub 칩이 rk-game-chip 클래스를 공유 → switchGameSubTab의
+    //  광역 셀렉터가 horse-sub 칩 인라인 스타일을 지우므로, show 시 항상 재적용해 하이라이트 유지)
+    function updateHorseSubTabsVisibility() {
+        const el = document.getElementById('ranking-horse-sub-tabs');
+        if (!el) return;
+        const show = (_currentMainTab === 'games' && _currentGameTab === 'horse');
+        el.style.display = show ? 'flex' : 'none';
+        if (!show) return;
+        el.querySelectorAll('.rk-game-chip').forEach(c => {
+            const active = c.dataset.horseSub === _horseSubTab;
+            c.classList.toggle('active', active);
+            if (active && c.dataset.color) {
+                c.style.background = c.dataset.color;
+                c.style.borderColor = c.dataset.color;
+                c.style.color = 'white';
+            } else {
+                c.style.background = '';
+                c.style.borderColor = '';
+                c.style.color = '';
+            }
+        });
+    }
+
+    function switchHorseSubTab(key) {
+        _horseSubTab = key;
+        updateHorseSubTabsVisibility(); // 활성칩 스타일 재적용
+        // renderGameContent가 내부에서 setContentWithTransition으로 감싸므로 직접 호출
+        // (switchGameSubTab 패턴 — 이중 래핑 시 페이드 이중 플래시 발생)
+        renderGameContent('horse');
     }
 
     function renderGameContent(key) {
@@ -660,7 +696,7 @@ const RankingModule = (function () {
         setContentWithTransition(el, () => {
             switch (key) {
                 case 'dice': renderGame(el, _cache.dice, '주사위'); break;
-                case 'horse': renderHorse(el); break;
+                case 'horse': _horseSubTab === 'vehicles' ? renderHorseVehicles(el) : renderHorseRank(el); break;
                 case 'roulette': renderGame(el, _cache.roulette, '룰렛'); break;
                 case 'ladder': renderGame(el, _cache.ladder, '사다리타기'); break;
                 case 'orders': renderOrders(el); break;
@@ -789,6 +825,32 @@ const RankingModule = (function () {
             gameTabsEl.appendChild(chip);
         });
 
+        // 경마 서브탭 생성 (경마 순위 | 탈것 통계)
+        const horseSubTabsEl = document.getElementById('ranking-horse-sub-tabs');
+        if (horseSubTabsEl) {
+            horseSubTabsEl.innerHTML = '';
+            const horseSubTabs = [
+                { label: '🏆 경마 순위', key: 'rank', color: '#e67e22' },
+                { label: '📊 탈것 통계', key: 'vehicles', color: '#e67e22' }
+            ];
+            horseSubTabs.forEach((t) => {
+                const chip = document.createElement('button');
+                chip.className = 'rk-game-chip';
+                chip.textContent = t.label;
+                chip.dataset.horseSub = t.key;
+                chip.dataset.color = t.color;
+                if (t.key === _horseSubTab) {
+                    chip.classList.add('active');
+                    chip.style.background = t.color;
+                    chip.style.borderColor = t.color;
+                    chip.style.color = 'white';
+                }
+                chip.onclick = () => switchHorseSubTab(t.key);
+                horseSubTabsEl.appendChild(chip);
+            });
+            horseSubTabsEl.style.display = (_currentMainTab === 'games' && _currentGameTab === 'horse') ? 'flex' : 'none';
+        }
+
         // 기본 탭 렌더링
         if (_currentMainTab === 'games') {
             renderGameContent(_currentGameTab);
@@ -857,82 +919,89 @@ const RankingModule = (function () {
         el.innerHTML = html;
     }
 
-    function renderHorse(el) {
+    // 경마 순위 서브탭 — 승리 TOP + 내 랭킹 (탈것 표는 renderHorseVehicles로 분리)
+    function renderHorseRank(el) {
         const d = _cache && _cache.horseRace;
         // 시즌 뷰 payload에는 horseRace가 없음 — 스와이프로 도달 시 TypeError 방지
         if (!d) { el.innerHTML = emptyMsg('아직 경마 기록이 없습니다.'); return; }
+        if (!d.winners || !d.winners.length) {
+            el.innerHTML = emptyMsg('아직 경마 기록이 없습니다.') + myRankBlock();
+            return;
+        }
+        const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
+        let html = top10Label();
+        html += section('경마 승리 TOP', d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
+        html += myRankBlock();
+        el.innerHTML = html;
+    }
+
+    // 탈것 통계 서브탭 — 표만 (섹션 제목은 서브탭 라벨과 중복이라 제거, myRankBlock 없음)
+    function renderHorseVehicles(el) {
+        const d = _cache && _cache.horseRace;
+        // 시즌 뷰 payload에는 horseRace가 없음 — 스와이프로 도달 시 TypeError 방지
+        if (!d) { el.innerHTML = emptyMsg('아직 경마 기록이 없습니다.'); return; }
+        if (!d.vehicles || !d.vehicles.length) {
+            el.innerHTML = emptyMsg('아직 탈것 기록이 없습니다.');
+            return;
+        }
         const VN = {
             'car': '자동차', 'rocket': '로켓', 'bird': '새', 'boat': '보트', 'bicycle': '자전거',
             'rabbit': '토끼', 'turtle': '거북이', 'eagle': '독수리', 'scooter': '킥보드', 'helicopter': '헬리콥터', 'horse': '말',
             'knight': '기사', 'dinosaur': '공룡', 'ninja': '닌자', 'crab': '게'
         };
 
-        if (!d.winners.length && (!d.vehicles || !d.vehicles.length)) {
-            el.innerHTML = emptyMsg('아직 경마 기록이 없습니다.');
-            return;
-        }
+        // 승률 내림차순, 동률 시 출전 많은 순 (서버는 rank_1 DESC — 클라에서 재정렬 필수)
+        const vehicles = d.vehicles.slice().sort((a, b) => {
+            const wa = a.appearances > 0 ? a.ranks[0] / a.appearances : 0;
+            const wb = b.appearances > 0 ? b.ranks[0] / b.appearances : 0;
+            if (wb !== wa) return wb - wa;
+            return (b.appearances || 0) - (a.appearances || 0);
+        });
+        let tableHtml = `
+            <div class="rk-section" style="animation: rkFadeInUp 0.35s ease 0.1s both;">
+                <div class="rk-card" style="padding:0;">
+                    <div class="rk-table-scroll">
+                    <table class="rk-vehicle-table">
+                        <thead><tr>
+                            <th>탈것</th><th>출전</th><th>선택률</th><th>승률</th>
+                            <th>1등</th><th>2등</th><th>3등</th>
+                            <th>4등</th><th>5등</th><th>6등</th>
+                        </tr></thead>
+                        <tbody>`;
+        vehicles.forEach(v => {
+            const t = _vehicleThemes ? _vehicleThemes[v.id] : null;
+            const label = t ? ((t.emoji || '') + ' ' + (t.name || VN[v.id] || v.id)).trim() : (VN[v.id] || v.id);
+            const appearances = Number(v.appearances) || 0;
+            const picks = Number(v.picks) || 0;
+            const r = v.ranks || [0, 0, 0, 0, 0, 0];
+            const winRate = appearances > 0 ? Math.round((r[0] / appearances) * 100) : 0;
+            const pickRate = appearances > 0 ? Math.round((picks / appearances) * 100) : 0;
+            const lowSample = appearances < 5; // 추천 배지와 동일 기준 (최소 등장 5회)
+            tableHtml += `<tr${lowSample ? ' class="rk-low-sample"' : ''}>
+                <td>${esc(label)}</td>
+                <td>${appearances}</td>
+                <td>${pickRate}%</td>
+                <td>${winRate}%${lowSample ? '<span class="rk-low-label">기록 부족</span>' : ''}</td>
+                <td><span class="rk-rank-cell${r[0] > 0 ? ' rk-rank-1' : ''}">${r[0]}</span></td>
+                <td>${r[1]}</td><td>${r[2]}</td>
+                <td>${r[3]}</td><td>${r[4]}</td>
+                <td><span class="rk-rank-cell${r[5] > 0 ? ' rk-rank-6' : ''}">${r[5]}</span></td>
+            </tr>`;
+        });
+        tableHtml += '</tbody></table></div></div></div>';
+        el.innerHTML = tableHtml;
 
-        const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
-        let html = top10Label();
-        html += section('경마 승리 TOP', d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
-
-        if (d.vehicles && d.vehicles.length > 0) {
-            // 승률 내림차순, 동률 시 출전 많은 순 (서버는 rank_1 DESC — 클라에서 재정렬 필수)
-            const vehicles = d.vehicles.slice().sort((a, b) => {
-                const wa = a.appearances > 0 ? a.ranks[0] / a.appearances : 0;
-                const wb = b.appearances > 0 ? b.ranks[0] / b.appearances : 0;
-                if (wb !== wa) return wb - wa;
-                return (b.appearances || 0) - (a.appearances || 0);
+        // 테마 미로드 시 이름 맵으로 먼저 동기 렌더 후, 로드 성공 시에만 1회 재렌더
+        // (실패 시 _vehicleThemes가 null로 남으므로 재렌더 루프 없음 — C-26/C-27 stale 가드)
+        if (!_vehicleThemes) {
+            loadVehicleThemesOnce().then(() => {
+                if (_vehicleThemes && _overlay && _currentMainTab === 'games' && _currentGameTab === 'horse' && _horseSubTab === 'vehicles' && _cache && _cache.horseRace) {
+                    // 트랜지션 재사용 금지 — 스크롤 보존 제자리 패치 (이모지/이름만 갱신되므로 충분)
+                    const el2 = document.getElementById('ranking-content');
+                    if (el2) { const st = el2.scrollTop; renderHorseVehicles(el2); el2.scrollTop = st; }
+                }
             });
-            let tableHtml = `
-                <div class="rk-section" style="animation: rkFadeInUp 0.35s ease 0.1s both;">
-                    <div class="rk-section-title">탈것 통계</div>
-                    <div class="rk-card" style="padding:0;">
-                        <div class="rk-table-scroll">
-                        <table class="rk-vehicle-table">
-                            <thead><tr>
-                                <th>탈것</th><th>출전</th><th>선택률</th><th>승률</th>
-                                <th>1등</th><th>2등</th><th>3등</th>
-                                <th>4등</th><th>5등</th><th>6등</th>
-                            </tr></thead>
-                            <tbody>`;
-            vehicles.forEach(v => {
-                const t = _vehicleThemes ? _vehicleThemes[v.id] : null;
-                const label = t ? ((t.emoji || '') + ' ' + (t.name || VN[v.id] || v.id)).trim() : (VN[v.id] || v.id);
-                const appearances = Number(v.appearances) || 0;
-                const picks = Number(v.picks) || 0;
-                const r = v.ranks || [0, 0, 0, 0, 0, 0];
-                const winRate = appearances > 0 ? Math.round((r[0] / appearances) * 100) : 0;
-                const pickRate = appearances > 0 ? Math.round((picks / appearances) * 100) : 0;
-                const lowSample = appearances < 5; // 추천 배지와 동일 기준 (최소 등장 5회)
-                tableHtml += `<tr${lowSample ? ' class="rk-low-sample"' : ''}>
-                    <td>${esc(label)}</td>
-                    <td>${appearances}</td>
-                    <td>${pickRate}%</td>
-                    <td>${winRate}%${lowSample ? '<span class="rk-low-label">기록 부족</span>' : ''}</td>
-                    <td><span class="rk-rank-cell${r[0] > 0 ? ' rk-rank-1' : ''}">${r[0]}</span></td>
-                    <td>${r[1]}</td><td>${r[2]}</td>
-                    <td>${r[3]}</td><td>${r[4]}</td>
-                    <td><span class="rk-rank-cell${r[5] > 0 ? ' rk-rank-6' : ''}">${r[5]}</span></td>
-                </tr>`;
-            });
-            tableHtml += '</tbody></table></div></div></div>';
-            html += tableHtml;
-
-            // 테마 미로드 시 이름 맵으로 먼저 동기 렌더 후, 로드 성공 시에만 1회 재렌더
-            // (실패 시 _vehicleThemes가 null로 남으므로 재렌더 루프 없음 — C-26/C-27 stale 가드)
-            if (!_vehicleThemes) {
-                loadVehicleThemesOnce().then(() => {
-                    if (_vehicleThemes && _overlay && _currentMainTab === 'games' && _currentGameTab === 'horse' && _cache && _cache.horseRace) {
-                        // 트랜지션 재사용 금지 — 스크롤 보존 제자리 패치 (이모지/이름만 갱신되므로 충분)
-                        const el2 = document.getElementById('ranking-content');
-                        if (el2) { const st = el2.scrollTop; renderHorse(el2); el2.scrollTop = st; }
-                    }
-                });
-            }
         }
-        html += myRankBlock();
-        el.innerHTML = html;
     }
 
     function renderOrders(el) {
