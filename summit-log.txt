@@ -1,4 +1,62 @@
 ========================================
+📋 Summit Log - 2026-08-12 (main 머지 — 랭킹 팝업 개편·방 입장 수정·PiP 정렬)
+========================================
+
+## 배경
+feature/ladder-vibe-rework를 main에 머지하며, 그동안 로그에 누락돼 있던 커밋 3건
+(45b9c73 랭킹 팝업 개편, 8be6753 방 입장 유실 수정, 79fddea 경마 서브탭)과
+이번 세션 신규 커밋 2건을 함께 기록한다. origin/main 기준 5058f9e → 4de0e8c (11커밋).
+
+## 변경 파일 (이번 세션 신규 커밋)
+- js/horse-race.js (bbed046): PiP 트랙 좌측 쏠림 수정 — pipScaleRoot에 open 시점
+  자연폭 고정(width 인라인 + flex:0 0 auto), PiP body를 flex 중앙 정렬(justify-content:center,
+  align-items:flex-start). racePipAttachTrack의 방어적 host 재생성 경로에도 동일 스타일 적용
+- js/shared/ranking-shared.js (79fddea): 경마 탭 서브탭 분리 — _horseSubTab 상태 신설,
+  renderHorse를 renderHorseRank/renderHorseVehicles로 분할, #ranking-horse-sub-tabs 바 +
+  updateHorseSubTabsVisibility/switchHorseSubTab, 패널 height를 min(85vh,720px)로 고정
+- docs/goal/ (514a270): horse-race-chat-fade-overlay.md, horse-race-chat-mode-toggle.md
+  (2026-07-22 REVERTED 기록), mobile-app-android-ios.md (설계·견적)
+
+## 상세 변경 내역
+
+### [PiP 좌측 쏠림 — 원인 확정]
+- 증상: PiP 창을 가로로만 넓히면 트랙이 좌측으로 쏠림
+- 원인: scaleRoot가 유동 100% 폭이면 창 확대 시 트랙이 재배치로 넓어지는데,
+  카메라 좌표계는 init 시점에 캡처한 trackWidth 기준이라 어긋남
+- 수정: open 시점 자연폭으로 고정해 재배치 차단 + flex 중앙으로 좌우 대칭 여백.
+  transform-origin(top center)이 레이아웃 박스 중앙 기준이라 flex 중앙과 정확히 합치
+- 공정성 영향 없음 (렌더 좌표만, stepRace 무접촉)
+
+### [랭킹 경마 서브탭 — 클래스 공유 함정]
+- overall-sub/game/horse-sub 칩이 rk-game-chip 클래스를 공유 → switchGameSubTab의
+  광역 셀렉터가 horse-sub 칩의 인라인 스타일을 지움. show 시점에 활성칩 스타일을
+  항상 재적용하는 방식으로 해결(updateHorseSubTabsVisibility)
+- switchHorseSubTab은 renderGameContent를 직접 호출 — renderGameContent가 내부에서
+  setContentWithTransition으로 감싸므로 이중 래핑 시 페이드 이중 플래시 발생
+- 탈것 테마 지연 로드 재렌더 가드에 _horseSubTab === 'vehicles' 조건 추가 (C-26/C-27 유지)
+- js/shared/* 공유 모듈 — 주사위/룰렛/사다리/해적/스핀아레나/다리건너기/경마 전 게임 영향
+
+### [머지 처리]
+- origin/main에 로컬 미반영 커밋 5058f9e(하네스 재구조화)가 있었음 — 브랜치 95d5a29와
+  내용 중복이나 ort 전략으로 충돌 없이 자동 머지 (css/horse-shop.css, js/horse-race.js auto-merge)
+- 꾸미기 상점 버튼 은닉 3중 가드 머지 후 검증: HTML 인라인 display:none 1건,
+  CSS 헤더 블록 display 선언 0건, JS isLocalhost 게이트 1건 — 실서버 비노출 유지 확인
+- 머지 후 문법 검증 10파일 통과 (server.js, routes/server.js, routes/api.js, socket/horse.js,
+  socket/index.js, db/init.js, db/auth.js, js/horse-race.js, js/shared/ranking-shared.js, js/horse-shop.js)
+
+## 보류 (커밋하지 않음)
+- admin.html / db/auth.js / routes/server.js: 관리자 "채팅 레이아웃 분포" 패널 +
+  GET /api/admin/chat-layout-stats + getChatLayoutStats(). 측정 대상인 prefs.chatLayout을
+  쓰는 코드가 저장소에 없음(채팅 모드 토글 2026-07-22 revert) → 지금 올리면 항상 0/0/0.
+  채팅 토글 복원 시 함께 올릴 것. 워킹트리에 유지 중
+
+## 배포 시 유의
+- vehicle_season_stats 테이블이 db/init.js에서 자동 생성됨 (CREATE TABLE IF NOT EXISTS)
+- game-lab 프로토 10종이 routes/api.js:48의 저장소 루트 정적 서빙 대상 → /game-lab/* 공개 접근 가능.
+  socket/proto-hub.js는 프로덕션 socket/index.js에 미등록이라 페이지는 열리되 게임은 미동작.
+  색인 차단 여부 미결정
+
+========================================
 📋 Summit Log - 2026-08-12 (경마 트랙 Document PiP)
 ========================================
 
