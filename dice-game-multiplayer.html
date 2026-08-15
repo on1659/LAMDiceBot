@@ -99,7 +99,21 @@
             text-align: center;
             color: var(--dice-500);
             margin-bottom: 30px;
-            font-size: 2.5em;
+            font-size: clamp(1.6em, 6vw, 2.5em);
+        }
+
+        #visitorStats {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        #visitorStats > div {
+            white-space: nowrap;
+        }
+
+        #visitorStats strong {
+            color: var(--text-secondary);
         }
 
         .lobby-section, .game-section, .create-room-section {
@@ -116,40 +130,42 @@
             min-height: 200px;
             overflow-y: auto;
             background: var(--bg-primary);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 10px;
         }
         
         .room-item {
+            /* 게임 액센트 기본값 — game-* 클래스가 게임별로 재정의 */
+            --accent: var(--dice-500);
+            --accent-rgb: var(--dice-500-rgb);
             background: var(--bg-white);
-            border: 1px solid var(--purple-200);
-            border-left: 4px solid var(--purple-200);
-            border-radius: 8px;
-            padding: 15px;
+            border: 1.5px solid var(--border-light);
+            border-radius: 12px;
+            padding: 14px 16px;
             margin-bottom: 10px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: border-color 0.15s, box-shadow 0.15s;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 14px;
         }
 
         .room-item:active {
             transform: scale(0.98);
         }
 
-        .room-item.game-dice { border-left-color: var(--game-type-dice); }
-        .room-item.game-roulette { border-left-color: var(--game-type-roulette); }
-        .room-item.game-horse-race { border-left-color: var(--game-type-horse); }
-        .room-item.game-crane-game { border-left-color: var(--game-type-crane); }
-        .room-item.game-bridge { border-left-color: var(--bridge-500); }
-        .room-item.game-ladder { border-left-color: var(--ladder-500); }
-        .room-item.game-spin-arena { border-left-color: var(--spin-arena-500); }
-        .room-item.game-pirate { border-left-color: var(--pirate-500); }
+        .room-item.game-dice { --accent: var(--game-type-dice); --accent-rgb: var(--dice-500-rgb); }
+        .room-item.game-roulette { --accent: var(--game-type-roulette); --accent-rgb: var(--roulette-500-rgb); }
+        .room-item.game-horse-race { --accent: var(--game-type-horse); --accent-rgb: var(--game-type-horse-rgb); }
+        .room-item.game-crane-game { --accent: var(--game-type-crane); --accent-rgb: var(--crane-500-rgb); }
+        .room-item.game-bridge { --accent: var(--game-type-bridge); --accent-rgb: var(--bridge-500-rgb); }
+        .room-item.game-ladder { --accent: var(--game-type-ladder); --accent-rgb: var(--ladder-500-rgb); }
+        .room-item.game-spin-arena { --accent: var(--game-type-spin-arena); --accent-rgb: var(--spin-arena-500-rgb); }
+        .room-item.game-pirate { --accent: var(--game-type-pirate); --accent-rgb: var(--pirate-500-rgb); }
 
         .room-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(var(--dice-500-rgb),0.3);
+            border-color: var(--accent);
+            box-shadow: 0 2px 10px rgba(var(--accent-rgb), 0.15);
         }
         
         /* 경마 버튼 툴팁 */
@@ -198,8 +214,8 @@
         }
         
         .room-item.active {
-            background: var(--status-info-bg);
-            border-color: var(--purple-500);
+            border-color: var(--accent);
+            background: rgba(var(--accent-rgb), 0.05);
         }
         
         .room-item.my-room {
@@ -219,67 +235,105 @@
             margin-left: 8px;
         }
         
+        .room-game-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: none;
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            font-size: 22px;
+            background: rgba(var(--accent-rgb), 0.1);
+        }
+
         .room-info {
             flex: 1;
+            min-width: 0;
         }
-        
+
         .room-name {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--dice-500);
-            margin-bottom: 5px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
         }
-        
+
+        .room-lock {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
         .room-details {
-            font-size: 14px;
-            color: var(--text-secondary);
+            font-size: 12.5px;
+            color: var(--text-muted);
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             gap: 4px;
         }
 
+        .room-game-name {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
         .room-detail-sep {
             color: var(--text-muted);
         }
 
-        .room-actions-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .room-status {
+            flex: none;
+            font-size: 12px;
+            padding: 5px 11px;
+            border-radius: 999px;
+            font-weight: 700;
         }
 
-        .room-status {
-            font-size: 13px;
-            padding: 5px 12px;
-            border-radius: 8px;
-            font-weight: 600;
-            margin-top: 5px;
-            display: inline-block;
-        }
-        
-        .room-status.playing {
-            background: var(--status-success-bg);
-            color: var(--status-success-text);
-        }
-        
-        .room-status.ordering {
-            background: var(--panel-attention);
-            color: var(--status-warning-text);
-        }
-        
         .room-status.waiting {
-            background: var(--border-light);
+            background: rgba(var(--green-500-rgb), 0.12);
+            color: var(--status-success);
+        }
+
+        .room-status.playing {
+            background: rgba(var(--yellow-500-rgb), 0.15);
+            color: var(--yellow-700);
+        }
+
+        .room-status.ordering {
+            background: rgba(var(--yellow-500-rgb), 0.28);
+            color: var(--yellow-700);
+        }
+
+        .room-enter-btn {
+            flex: none;
+            width: auto;
+            background: var(--bg-white);
+            border: 1.5px solid var(--accent);
+            color: var(--accent);
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .room-enter-btn:hover {
+            transform: none;
+            box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.2);
+        }
+
+        .room-enter-btn.busy {
+            border-color: var(--gray-300);
             color: var(--text-secondary);
         }
-        
-        .room-action {
-            margin-left: 15px;
-        }
-        
-        .room-action button {
-            width: auto;
-            padding: 10px 20px;
+
+        .room-enter-btn.busy:hover {
+            box-shadow: none;
         }
 
         /* Unified header bar */
@@ -293,13 +347,14 @@
 
         .room-header h2 {
             margin: 0;
-            color: var(--dice-500);
-            font-size: 18px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 800;
             flex: 1;
         }
 
         .room-header .count {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: normal;
             color: var(--text-muted);
         }
@@ -315,58 +370,270 @@
             background: var(--dice-gradient);
             color: white;
             border: none;
-            border-radius: 8px;
-            padding: 7px 14px;
-            font-size: 13px;
+            border-radius: 10px;
+            height: 40px;
+            padding: 0 14px;
+            font-size: 14px;
             font-weight: 700;
             cursor: pointer;
             white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(var(--dice-500-rgb), 0.25);
         }
 
         .room-header .btn-ranking {
             background: var(--bg-white);
-            border: 1.5px solid var(--purple-200);
-            color: var(--dice-500);
-            border-radius: 8px;
-            padding: 6px 12px;
+            border: 1.5px solid var(--border-light);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            height: 40px;
+            padding: 0 12px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
         }
 
+        .room-header .btn-ranking:hover {
+            border-color: var(--dice-500);
+            color: var(--dice-500);
+            transform: none;
+            box-shadow: none;
+        }
+
         .room-header .btn-refresh {
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
-            min-height: 44px;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
-            background: var(--bg-primary);
+            font-size: 20px;
+            background: var(--bg-white);
             color: var(--text-secondary);
             border: 1.5px solid var(--border-light);
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             padding: 0;
         }
+
+        .room-header .btn-refresh:hover {
+            border-color: var(--dice-500);
+            color: var(--dice-500);
+            transform: none;
+            box-shadow: none;
+        }
         
         .create-room-section {
-            background: var(--bg-primary);
-            border: 2px solid var(--dice-500);
-            border-radius: 12px;
-            padding: 20px;
+            background: none;
+            border: none;
+            padding: 0;
             margin-bottom: 20px;
         }
 
         .create-room-button-section {
-            background: var(--bg-primary);
-            border: 2px solid var(--dice-500);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
+            background: none;
+            border: none;
+            padding: 0;
+            margin-bottom: 16px;
         }
+
+        /* ===== 로비/방 만들기 리스타일 — 첫 화면(서버 선택) 카드 톤 ===== */
+
+        /* 고스트/보조 버튼 (뒤로가기 등 조용한 보조 액션) */
+        .btn-ghost {
+            width: auto;
+            background: var(--bg-white);
+            border: 1.5px solid var(--border-light);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--dice-500);
+            color: var(--dice-500);
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 방 만들기 페이지 — 제목 행 (h2 + 연결 상태) */
+        .create-room-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .create-room-title-row h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        /* 폼 그룹 라벨: 박스 대신 여백 + 라벨로 구분 */
+        #createRoomSection .input-group > label,
+        #createRoomSection .field-label,
+        #freeCreateRoomBox .input-group > label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        /* 입력 필드 */
+        #createRoomSection input[type="text"],
+        #createRoomSection input[type="password"],
+        #freeCreateRoomBox input[type="text"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            font-size: 16px;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #createRoomSection input[type="text"]:focus,
+        #createRoomSection input[type="password"]:focus,
+        #freeCreateRoomBox input[type="text"]:focus {
+            outline: none;
+            border-color: var(--dice-500);
+            box-shadow: 0 0 0 3px rgba(var(--dice-500-rgb), 0.12);
+        }
+
+        /* 비공개 방 체크박스 행 */
+        #createRoomSection .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #createRoomSection .checkbox-row input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--dice-500);
+            margin: 0;
+        }
+
+        #createRoomSection .checkbox-row label {
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        #createRoomSection #createRoomPasswordContainer .input-group {
+            margin-top: 14px;
+            margin-bottom: 0;
+        }
+
+        /* 게임 타입 선택 카드 */
+        .game-type-grid {
+            display: grid;
+            /* 96px: 모바일(375px, 컨테이너 패딩 제외 내용폭 ~316px)에서 3열 확보 */
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 10px;
+            overflow: visible;
+        }
+
+        .game-type-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 14px 8px;
+            border: 2px solid var(--border-light);
+            border-radius: 14px;
+            background: var(--bg-white);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s;
+            margin: 0;
+        }
+
+        .game-type-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .game-type-option .gt-emoji {
+            font-size: 26px;
+        }
+
+        .game-type-option .gt-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .game-type-option.gt-selected {
+            border-color: var(--gt-color);
+            background: rgba(var(--gt-rgb), 0.08);
+            box-shadow: 0 2px 8px rgba(var(--gt-rgb), 0.18);
+        }
+
+        #createRoomSection #gameTypeInfo {
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* 방 생성하기 버튼 */
+        #createRoomSection .btn-create-submit {
+            width: 100%;
+            margin-top: 28px;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 14px;
+            box-shadow: 0 4px 15px rgba(var(--dice-500-rgb), 0.3);
+        }
+
+        /* 서버 정보 바 — 투명, 여백만 (자유 모드에선 뒤로가기만 보임) */
+        #serverInfoBar {
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        #serverInfoBar #serverInfoName {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--dice-600);
+        }
+
+        #serverInfoBar #serverInfoUserName {
+            font-weight: 600;
+            color: var(--dice-600);
+        }
+
+        #serverInfoBar #serverMembersBtn {
+            width: auto;
+            padding: 8px 14px;
+            font-size: 13px;
+            background: var(--dice-500);
+            color: var(--bg-white);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        /* ===== /로비/방 만들기 리스타일 ===== */
 
         .create-room-button-section h2 {
             color: var(--dice-500);
@@ -394,34 +661,35 @@
             margin-bottom: 20px;
         }
 
-        /* 업데이트 내역 섹션 */
+        /* 업데이트 내역 섹션 — 조용한 카드 (상단 구분선 + 라벨) */
         .update-log-section {
-            background: linear-gradient(145deg, var(--purple-50) 0%, var(--purple-100) 100%);
-            border: 1px solid rgba(var(--dice-500-rgb),0.35);
-            border-radius: 16px;
-            padding: 24px;
+            background: none;
+            border: none;
+            border-top: 1px solid var(--border-light);
+            border-radius: 0;
+            padding: 20px 0 0;
             margin-top: 24px;
-            box-shadow: 0 4px 20px rgba(var(--dice-500-rgb),0.12);
+            box-shadow: none;
         }
         .update-log-section h2 {
-            margin-bottom: 16px;
-            color: var(--dice-500);
-            font-size: 1.25rem;
-            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 800;
             display: flex;
             align-items: center;
             gap: 8px;
         }
         .update-log-content {
-            background: var(--bg-white);
-            border-radius: 12px;
-            padding: 20px;
+            background: none;
+            border-radius: 0;
+            padding: 0;
             max-height: 320px;
             overflow-y: auto;
-            line-height: 1.85;
-            color: var(--text-primary);
-            font-size: 14px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+            line-height: 1.8;
+            color: var(--text-secondary);
+            font-size: 13px;
+            box-shadow: none;
         }
         .update-log-content::-webkit-scrollbar {
             width: 8px;
@@ -431,11 +699,11 @@
             border-radius: 4px;
         }
         .update-log-content::-webkit-scrollbar-thumb {
-            background: var(--dice-500);
+            background: var(--gray-300);
             border-radius: 4px;
         }
         .update-log-content::-webkit-scrollbar-thumb:hover {
-            background: var(--purple-600);
+            background: var(--text-muted);
         }
         .update-log-content b,
         .update-log-content strong {
@@ -443,18 +711,19 @@
             font-weight: 700;
         }
         .update-log-content h2 {
-            color: var(--dice-500);
-            font-size: 1rem;
+            color: var(--text-primary);
+            font-size: 14px;
             font-weight: 700;
-            margin: 1em 0 0.5em;
+            margin: 1.2em 0 0.4em;
         }
         .update-log-content h2:first-child { margin-top: 0; }
-        .update-log-content ul { margin: 0.25em 0; padding-left: 1.2em; }
+        .update-log-content ul { margin: 0.25em 0; padding-left: 1.2em; color: var(--text-muted); }
+        .update-log-content li { font-size: 13px; }
         .update-log-content p { margin: 0.25em 0; }
         .update-log-content .update-log-divider {
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(var(--dice-500-rgb), 0.25), transparent);
-            margin: 18px 0;
+            background: var(--border-light);
+            margin: 16px 0;
             border: none;
         }
         
@@ -1141,41 +1410,84 @@
                 max-height: calc(100vh - 280px);
             }
 
+            /* 방 카드: 1행 = 칩 + 정보, 2행 = 상태 필 + 입장 버튼 */
             .room-item {
-                flex-direction: column;
-                align-items: stretch;
-                padding: 10px;
-                margin-bottom: 6px;
-                gap: 8px;
+                flex-wrap: wrap;
+                padding: 12px;
+                margin-bottom: 8px;
+                gap: 10px;
+            }
+
+            .room-game-chip {
+                width: 40px;
+                height: 40px;
+                font-size: 19px;
+                border-radius: 10px;
+            }
+
+            /* 칩(40px)+gap(10px)을 뺀 나머지를 강제 점유 → 상태/버튼이 둘째 줄로 */
+            .room-info {
+                min-width: calc(100% - 50px);
             }
 
             .room-name {
-                font-size: 15px;
+                font-size: 14px;
             }
 
             .room-details {
-                font-size: 13px;
+                font-size: 12px;
             }
 
-            .room-actions-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                width: 100%;
-            }
-
-            .room-action {
+            .room-enter-btn {
                 margin-left: auto;
-            }
-
-            .room-action button {
-                padding: 8px 14px;
+                min-width: auto;
+                min-height: 44px;
+                padding: 0 16px;
                 font-size: 14px;
             }
 
             /* Mobile header: ranking icon only */
             .room-header .btn-ranking .btn-ranking-text {
                 display: none;
+            }
+
+            /* Mobile header: 버튼 3종 — 전역 16px/44px min-width 규칙에서 스코프 해제 ("+ 방 만들기" 잘림 방지).
+               터치 타겟 세로 44px는 유지, 가로 부족분은 create/ranking padding + gap 축소로 흡수 (refresh 수축 금지) */
+            .room-header-actions {
+                gap: 4px;
+            }
+
+            .room-header .btn-create,
+            .room-header .btn-ranking {
+                min-width: auto;
+                min-height: 44px;
+                white-space: nowrap;
+            }
+
+            .room-header .btn-create {
+                font-size: 14px;
+                padding: 0 10px;
+            }
+
+            .room-header .btn-ranking {
+                font-size: 13px;
+                padding: 0 8px;
+            }
+
+            .room-header .btn-refresh {
+                min-width: 36px;
+                min-height: 44px;
+                flex-shrink: 0;
+            }
+
+            /* 헤더: 브랜드 축소(목업 모바일 20px) + 방문자 통계 축소 — 375px 한 줄 공존 */
+            .brand-title {
+                font-size: 20px;
+            }
+
+            #visitorStats {
+                font-size: 11px;
+                line-height: 1.6;
             }
         }
         
@@ -1538,24 +1850,23 @@
         </nav>
     </header>
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-            <h1 style="margin: 0;">🎲 LAM Dice :)</h1>
-            <div id="visitorStats" style="text-align: right; color: var(--dice-500); font-size: 14px; line-height: 1.6;">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">전체 서버 통합</div>
-                <div>오늘 방문자 수: <strong id="todayVisitorCount">0</strong>명</div>
-                <div>오늘 플레이 횟수: <strong id="todayPlayCount">0</strong>회</div>
-                <div>총 플레이 횟수: <strong id="totalPlayCount">0</strong>회</div>
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 30px;">
+            <h1 class="brand-title" style="margin: 0; white-space: nowrap;">🎲 LAM Dice :)</h1>
+            <div id="visitorStats" style="text-align: right;">
+                <div style="font-size:11px;margin-bottom:2px;">전체 서버 통합</div>
+                <div>오늘 방문자 <strong id="todayVisitorCount">0</strong>명 &middot; 플레이 <strong id="todayPlayCount">0</strong>회</div>
+                <div>총 플레이 <strong id="totalPlayCount">0</strong>회</div>
             </div>
         </div>
 
         <!-- 대기실 섹션 -->
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
-            <div id="serverInfoBar" style="display:none; background: linear-gradient(135deg, rgba(var(--dice-500-rgb),0.1), rgba(var(--dice-600-rgb),0.1)); border: 1px solid var(--dice-500); border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; align-items: center; justify-content: space-between;">
-                <button onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--btn-neutral); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">← 서버 목록</button>
-                <span id="serverInfoName" style="font-weight: bold; color: var(--dice-500);"></span>
-                <span id="serverInfoUserName" style="font-weight: 600; color: var(--dice-600); display: none;">👤 </span>
-                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()" style="width: auto; padding: 6px 12px; font-size: 13px; background: var(--dice-500); color: var(--bg-white); border: none; border-radius: 6px; cursor: pointer;">👥 멤버</button>
+            <div id="serverInfoBar" style="display:none;">
+                <button class="btn-ghost" onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();">← 서버 목록</button>
+                <span id="serverInfoName"></span>
+                <span id="serverInfoUserName" style="display: none;">👤 </span>
+                <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()">👥 멤버</button>
             </div>
             <div id="freeCreateRoomBox" class="create-room-button-section" style="display: none;">
                 <div class="input-group">
@@ -1603,36 +1914,28 @@
 
         <!-- 방 생성 페이지 -->
         <div class="create-room-section" id="createRoomSection">
-            <div style="margin-bottom: 20px;">
-                <button onclick="goBackToLobby()" style="width: auto; padding: 10px 20px; margin-bottom: 15px; background: var(--btn-neutral);">← 대기실로 돌아가기</button>
-                <h2 style="margin-bottom: 20px; color: var(--dice-500);">방 만들기</h2>
-            </div>
-            
-            <!-- 로고 및 연결 상태 -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <div style="display: inline-flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 24px;">🎲</span>
-                    <span style="font-size: 20px; font-weight: 600; color: var(--dice-500);">LAM Dice :)</span>
+            <div style="margin-bottom: 24px;">
+                <button class="btn-ghost" onclick="goBackToLobby()">← 대기실로 돌아가기</button>
+                <div class="create-room-title-row">
+                    <h2>방 만들기</h2>
                     <span class="connection-status connected" id="createRoomConnectionStatus">● 연결됨</span>
                 </div>
             </div>
-            
+
             <!-- 방 제목 입력 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div class="input-group" style="margin-bottom: 0;">
-                    <label for="createRoomNameInput">방 제목</label>
-                    <input type="text" id="createRoomNameInput" placeholder="방 제목 입력" maxlength="30" />
-                </div>
+            <div class="input-group">
+                <label for="createRoomNameInput">방 제목</label>
+                <input type="text" id="createRoomNameInput" placeholder="방 제목 입력" maxlength="30" />
             </div>
-            
+
             <!-- 공개/비공개 설정 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                    <input type="checkbox" id="createRoomPrivateCheckbox" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                    <label for="createRoomPrivateCheckbox" style="cursor: pointer; font-weight: 500; margin: 0;">비공개 방</label>
+            <div class="input-group">
+                <div class="checkbox-row">
+                    <input type="checkbox" id="createRoomPrivateCheckbox" />
+                    <label for="createRoomPrivateCheckbox">비공개 방</label>
                 </div>
                 <div id="createRoomPasswordContainer" style="display: none;">
-                    <div class="input-group" style="margin-bottom: 0;">
+                    <div class="input-group">
                         <label for="createRoomPasswordInput">비밀번호</label>
                         <input type="password" id="createRoomPasswordInput" placeholder="비밀번호 입력 (4~20자)" maxlength="20" />
                     </div>
@@ -1640,85 +1943,69 @@
             </div>
             
             <!-- 게임 타입 선택 -->
-            <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--dice-500);">
-                <label style="display: block; margin-bottom: 10px; font-weight: 500;">🎮 게임 타입</label>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--dice-500);">
-                        <input type="radio" name="gameType" value="dice" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🎲</span>
-                        <span style="font-weight: 600;">주사위</span>
+            <div class="input-group">
+                <label class="field-label">🎮 게임 타입</label>
+                <div class="game-type-grid">
+                    <label class="game-type-option" style="--gt-color: var(--game-type-dice); --gt-rgb: var(--dice-500-rgb);">
+                        <input type="radio" name="gameType" value="dice" />
+                        <span class="gt-emoji">🎲</span>
+                        <span class="gt-name">주사위</span>
                     </label>
-                    <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--roulette-accent);">
-                        <input type="radio" name="gameType" value="roulette" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🎰</span>
-                        <span style="font-weight: 600;">룰렛</span>
+                    <label class="game-type-option" style="--gt-color: var(--game-type-roulette); --gt-rgb: var(--roulette-500-rgb);">
+                        <input type="radio" name="gameType" value="roulette" />
+                        <span class="gt-emoji">🎰</span>
+                        <span class="gt-name">룰렛</span>
                     </label>
-                    <label id="horseRaceLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--game-type-horse); position: relative;">
-                        <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🐎</span>
-                        <span style="font-weight: 600;">경마</span>
+                    <label id="horseRaceLabel" class="game-type-option" style="--gt-color: var(--game-type-horse); --gt-rgb: var(--game-type-horse-rgb);">
+                        <input type="radio" name="gameType" value="horse-race" id="horseRaceRadio" checked />
+                        <span class="gt-emoji">🐎</span>
+                        <span class="gt-name">경마</span>
                         <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label id="bridgeLabel" style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--bridge-500); position: relative; opacity: 0.6;">
-                        <input type="radio" name="gameType" value="bridge" id="bridgeRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🌉</span>
-                        <span style="font-weight: 600;">Untitle</span>
+                    <label id="bridgeLabel" class="game-type-option" style="--gt-color: var(--game-type-bridge); --gt-rgb: var(--bridge-500-rgb); opacity: 0.6;">
+                        <input type="radio" name="gameType" value="bridge" id="bridgeRadio" />
+                        <span class="gt-emoji">🌉</span>
+                        <span class="gt-name">Untitle</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
-                    <!-- 미출시 게임 방생성 비노출 — 출시 시 아래 3개 라벨(ladder/spin-arena/pirate)의 display를 none→flex로 되돌리면 됨 -->
-                    <label id="ladderLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--ladder-500); position: relative;">
-                        <input type="radio" name="gameType" value="ladder" id="ladderRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🪜</span>
-                        <span style="font-weight: 600;">사다리타기</span>
+                    <!-- 미출시 게임 방생성 비노출 — 출시 시 아래 3개 라벨(ladder/spin-arena/pirate)의 인라인 display:none을 제거하면 됨 -->
+                    <label id="ladderLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb);">
+                        <input type="radio" name="gameType" value="ladder" id="ladderRadio" />
+                        <span class="gt-emoji">🪜</span>
+                        <span class="gt-name">사다리타기</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label id="spinArenaLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--spin-arena-500); position: relative;">
-                        <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🌀</span>
-                        <span style="font-weight: 600;">회전 칼날</span>
+                    <label id="spinArenaLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb);">
+                        <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" />
+                        <span class="gt-emoji">🌀</span>
+                        <span class="gt-name">회전 칼날</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label id="pirateLabel" style="display: none; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--pirate-500); position: relative;">
-                        <input type="radio" name="gameType" value="pirate" id="pirateRadio" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🏴‍☠️</span>
-                        <span style="font-weight: 600;">해적 룰렛</span>
+                    <label id="pirateLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-pirate); --gt-rgb: var(--pirate-500-rgb);">
+                        <input type="radio" name="gameType" value="pirate" id="pirateRadio" />
+                        <span class="gt-emoji">🏴‍☠️</span>
+                        <span class="gt-name">해적 룰렛</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                     <!-- 인형뽑기 (비공개 처리) -->
-                    <!-- <label style="display: flex; align-items: center; cursor: pointer; flex: 1; min-width: 120px; padding: 15px; background: var(--bg-white); border-radius: 8px; border: 2px solid var(--crane-accent); position: relative;">
-                        <input type="radio" name="gameType" value="crane-game" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;" />
-                        <span style="font-size: 24px; margin-right: 8px;">🪄</span>
-                        <span style="font-weight: 600;">인형뽑기</span>
+                    <!-- <label class="game-type-option" style="--gt-color: var(--game-type-crane); --gt-rgb: var(--crane-500-rgb);">
+                        <input type="radio" name="gameType" value="crane-game" />
+                        <span class="gt-emoji">🪄</span>
+                        <span class="gt-name">인형뽑기</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label> -->
 
                 </div>
-                <div id="gameTypeInfo" style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                <div id="gameTypeInfo">
                     룰렛/경마를 선택하면 전용 페이지로 이동합니다.
                 </div>
                 <script>
-                    // 게임 타입 선택 시 시각적 강조 (은은한 틴트)
+                    // 게임 타입 선택 시 시각적 강조 — 선택 라벨에 gt-selected 클래스 토글 (색상은 CSS의 --gt-color/--gt-rgb)
                     (function() {
-                        const colorMap = { dice: 'var(--game-type-dice)', roulette: 'var(--game-type-roulette)', 'horse-race': 'var(--game-type-horse)', 'crane-game': 'var(--game-type-crane)', bridge: 'var(--game-type-bridge)', ladder: 'var(--game-type-ladder)', 'spin-arena': 'var(--game-type-spin-arena)', 'pirate': 'var(--game-type-pirate)' };
                         function updateGameTypeStyle() {
                             document.querySelectorAll('input[name="gameType"]').forEach(radio => {
                                 const label = radio.closest('label');
-                                const color = colorMap[radio.value] || 'var(--dice-500)';
-                                if (radio.checked) {
-                                    label.style.background = `${color}12`;
-                                    label.style.color = '';
-                                    label.style.borderColor = color;
-                                    label.style.borderWidth = '2.5px';
-                                    label.style.boxShadow = `0 2px 8px ${color}20`;
-                                    label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '');
-                                } else {
-                                    label.style.background = 'white';
-                                    label.style.color = '';
-                                    label.style.borderColor = 'var(--border-light)';
-                                    label.style.borderWidth = '1px';
-                                    label.style.boxShadow = 'none';
-                                    label.querySelectorAll('span:not([id])').forEach(s => s.style.color = '');
-                                }
+                                if (label) label.classList.toggle('gt-selected', radio.checked);
                             });
                         }
                         document.querySelectorAll('input[name="gameType"]').forEach(r => r.addEventListener('change', updateGameTypeStyle));
@@ -1740,7 +2027,7 @@
             </div>
             
             <!-- 방 생성하기 버튼 (맨 아래) -->
-            <button onclick="finalizeRoomCreation()" style="background: var(--dice-gradient); margin-top: 30px; width: 100%;">방 생성하기</button>
+            <button class="btn-create-submit" onclick="finalizeRoomCreation()">방 생성하기</button>
         </div>
 
         <!-- 게임 섹션 -->
@@ -2854,44 +3141,35 @@
                 }
                 
                 // 비공개 방 표시
-                const privateBadge = room.isPrivate 
-                    ? '<span style="color: var(--red-400); font-weight: bold; margin-left: 5px;">🔒 비공개</span>' 
+                const privateBadge = room.isPrivate
+                    ? '<span class="room-lock">🔒 비공개</span>'
                     : '';
-                
-                // 게임 타입 태그 표시
+
+                // 게임 타입 태그 표시 (액센트 색은 .game-* 클래스의 --accent 변수가 담당)
                 let gameTypeIcon = '🎲';
                 let gameTypeLabel = '주사위';
-                let gameTypeColor = 'var(--dice-500)';
                 if (room.gameType === 'roulette') {
                     gameTypeIcon = '🎰';
                     gameTypeLabel = '룰렛';
-                    gameTypeColor = 'var(--roulette-accent)';
                 } else if (room.gameType === 'horse-race') {
                     gameTypeIcon = '🐎';
                     gameTypeLabel = '경마';
-                    gameTypeColor = 'var(--game-type-horse)';
                 } else if (room.gameType === 'crane-game') {
                     gameTypeIcon = '🪄';
                     gameTypeLabel = '인형뽑기';
-                    gameTypeColor = 'var(--crane-accent)';
                 } else if (room.gameType === 'bridge') {
                     gameTypeIcon = '🌉';
                     gameTypeLabel = 'Untitle';
-                    gameTypeColor = 'var(--bridge-500)';
                 } else if (room.gameType === 'ladder') {
                     gameTypeIcon = '🪜';
                     gameTypeLabel = '사다리타기';
-                    gameTypeColor = 'var(--ladder-500)';
                 } else if (room.gameType === 'spin-arena') {
                     gameTypeIcon = '🌀';
                     gameTypeLabel = '회전 칼날';
-                    gameTypeColor = 'var(--spin-arena-500)';
                 } else if (room.gameType === 'pirate') {
                     gameTypeIcon = '🏴‍☠️';
                     gameTypeLabel = '해적 룰렛';
-                    gameTypeColor = 'var(--pirate-500)';
                 }
-                const gameTypeBadge = `<span style="display: inline-flex; align-items: center; background: ${gameTypeColor}; color: var(--bg-white); padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px;">${gameTypeIcon} ${gameTypeLabel}</span>`;
                 
                 // 남은 시간 표시
                 let remainingTimeText = '';
@@ -2913,31 +3191,21 @@
                     }
                 }
                 
-                // 게임 진행 중인 방 vs 대기 중인 방 버튼 스타일 분화
-                let buttonStyle = '';
-                if (room.isGameActive) {
-                    buttonStyle = 'background: var(--bg-white); border: 2px solid var(--gray-300); color: var(--text-secondary);';
-                } else {
-                    buttonStyle = 'background: var(--btn-ready); color: white; font-weight: 700;';
-                }
-
                 roomItem.innerHTML = `
+                    <span class="room-game-chip">${gameTypeIcon}</span>
                     <div class="room-info">
                         <div class="room-name">${room.roomName}${privateBadge}</div>
                         <div class="room-details">
+                            <span class="room-game-name">${gameTypeLabel}</span>
+                            <span class="room-detail-sep">&middot;</span>
                             <span>👤 ${room.hostName}</span>
                             <span class="room-detail-sep">&middot;</span>
                             <span>👥 ${room.playerCount}명</span>
                             ${remainingTimeText ? `<span class="room-detail-sep">&middot;</span><span>⏱ ${remainingTimeText}</span>` : ''}
                         </div>
-                        <span class="room-status ${statusClass}">${statusText}</span>
                     </div>
-                    <div class="room-actions-row">
-                        ${gameTypeBadge}
-                        <div class="room-action">
-                            <button style="${buttonStyle}" onclick="joinRoomDirectly('${room.roomId}')">입장하기</button>
-                        </div>
-                    </div>
+                    <span class="room-status ${statusClass}">${statusText}</span>
+                    <button class="room-enter-btn${room.isGameActive ? ' busy' : ''}" onclick="joinRoomDirectly('${room.roomId}')">입장하기</button>
                 `;
 
                 // Card full-tap entry

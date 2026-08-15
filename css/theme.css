@@ -169,6 +169,7 @@
   --game-type-roulette: var(--roulette-500);
   --game-type-crane: var(--crane-500);
   --game-type-horse: var(--horse-accent);
+  --game-type-horse-rgb: 139, 69, 19;
   --game-type-bridge: var(--bridge-500);
   --game-type-ladder: var(--ladder-500);
   --game-type-spin-arena: var(--spin-arena-500);
@@ -382,6 +383,7 @@
   --yellow-500-rgb: 255, 213, 79;
   --crane-500-rgb: 186, 104, 200;
   --roulette-500-rgb: 149, 117, 205;
+  --game-type-horse-rgb: 139, 69, 19;
 }
 
 /* ============================================
