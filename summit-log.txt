@@ -1,4 +1,39 @@
 ========================================
+📋 Summit Log - 2026-08-16 (전체 서밋 — 로비 리스타일 2건 + 경마 누적 작업)
+========================================
+
+## 배경
+미커밋으로 쌓여 있던 작업 전체를 논리 단위 3커밋으로 반영.
+① 이전 세션 누적: 경마 트랙 전체화면 + 탈것 통계 연동 등
+② 이번 세션: 로비/방 만들기 + 방 카드 리스타일 (Scout→Coder→Reviewer 하네스 검증)
+③ 로그 문서
+
+## 변경 파일
+
+### ① 경마 누적 작업 (이전 세션 산출물 — 이번 세션 미검증, 일괄 반영)
+- horse-race-multiplayer.html / js/horse-race.js / css/horse-race.css:
+  트랙 전체화면(⛶) — Fullscreen API + iPhone CSS 폴백, fit-scale, orientation lock,
+  PiP 상호배제 (명세: docs/goal/horse-race-track-fullscreen.md)
+- AutoTest/qa-horse-track-fullscreen-test.js (신규) + qa-horse-track-pip-test.js /
+  qa-ranking-popup-card-test.js 갱신
+- config/vehicle-stats.json (신규) + config/horse/race.json + db/vehicle-stats.js +
+  js/shared/ranking-shared.js: 탈것 통계 설정 분리·연동
+- admin.html / db/auth.js / routes/server.js / socket/chat.js / socket/horse.js: 부속 변경
+
+### ② 로비 리스타일 (이번 세션, Reviewer approve 2회)
+- dice-game-multiplayer.html:
+  (a) 방 만들기·로비 프레임 — 반복 2px 테두리 박스 제거, 흰 카드 + 라벨/여백 그룹,
+      게임 타입 선택 카드(라디오 시각 숨김 + gt-selected 클래스 토글, var()12 무효 색상 버그 해소),
+      고스트 버튼, 연결 배지 이동, 모바일 refresh 수축/iOS 확대/터치 타겟 수정
+  (b) 방 목록 카드 — game-* 클래스를 border-left에서 --accent/--accent-rgb 변수 선언으로
+      전환(8게임), 틴트 칩 + 조용한 상태 필(대기=초록/진행·주문=앰버), 업데이트 내역
+      조용한 리스트화, 헤더 통계 2줄 압축(strong id 3종 보존)
+  - 불변 검증: AdSense 4곳 바이트 보존, id/onclick/AutoTest 계약, XSS 현상 유지
+    (roomName/hostName 비이스케이프는 기존 결함 — 별도 칩 task_c5294b79)
+- css/theme.css: --game-type-horse-rgb 토큰 light+dark 추가 (2줄)
+- docs/goal/applied/: dice-lobby-create-room-restyle.md, dice-lobby-room-cards-restyle.md
+
+========================================
 📋 Summit Log - 2026-08-16 (첫 화면 로그인/회원가입 버튼 정렬 — 선택 커밋)
 ========================================
 
