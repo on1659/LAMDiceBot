@@ -511,8 +511,12 @@ const ServerSelectModule = (function () {
         .ss-login-prompt-icon { font-size: 2.5em; margin-bottom: 12px; }
         .ss-login-prompt h3 { color: var(--text-primary); margin: 0 0 8px 0; font-size: 1.05em; }
         .ss-login-prompt p { color: var(--text-muted); font-size: 0.9em; margin: 0 0 20px 0; }
+        .ss-login-prompt-actions {
+            display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+        }
         .ss-login-prompt-btn {
-            padding: 12px 32px; border: none; border-radius: 10px;
+            width: auto; min-width: 110px;
+            padding: 12px 24px; border: none; border-radius: 10px;
             background: var(--brand-primary); color: white; font-size: 0.95em;
             font-weight: 600; cursor: pointer; transition: all 0.2s;
         }
@@ -823,8 +827,10 @@ const ServerSelectModule = (function () {
         return `
             <div class="ss-login-prompt" style="padding:16px 20px;">
                 <p style="margin:0 0 10px;color:var(--text-muted);font-size:0.85em;">서버 참여는 로그인이 필요합니다</p>
-                <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showLoginModal()">로그인</button>
-                <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showRegisterModal()" style="margin-left:8px;background:var(--green-500);">회원가입</button>
+                <div class="ss-login-prompt-actions">
+                    <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showLoginModal()">로그인</button>
+                    <button class="ss-login-prompt-btn" onclick="ServerSelectModule.showRegisterModal()" style="background:var(--green-500);">회원가입</button>
+                </div>
             </div>
         `;
     }

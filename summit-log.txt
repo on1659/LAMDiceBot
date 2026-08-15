@@ -1,4 +1,31 @@
 ========================================
+📋 Summit Log - 2026-08-16 (첫 화면 로그인/회원가입 버튼 정렬 — 선택 커밋)
+========================================
+
+## 변경 파일
+- js/shared/server-select-shared.js: .ss-login-prompt-btn에 width:auto + min-width:110px
+  + padding 12px 24px, .ss-login-prompt-actions flex 래퍼 신설(gap 8px·중앙·wrap),
+  _loginPromptHTML의 버튼 2개를 래퍼로 감싸고 회원가입 인라인 margin-left:8px 제거
+
+## 상세 변경 내역
+
+### [첫 화면 버튼 정렬]
+- 증상: 서버 선택 화면 "서버 참여는 로그인이 필요합니다" 박스의 로그인/회원가입 버튼이
+  풀폭 두 줄로 쌓이고 둘째 줄(회원가입)이 8px 오른쪽으로 밀려 보임
+- 원인: .ss-login-prompt-btn에 width 미선언 → 호스트 페이지(dice-game-multiplayer.html)의
+  전역 button{width:100%} 규칙 상속. 나란히 배치용이던 인라인 margin-left:8px가
+  줄바꿈 후 오프셋으로 노출
+- 수정: 클래스 특이도로 width:auto 선언해 전역 상속 차단, 간격은 인라인 margin 대신
+  flex 래퍼 gap으로 이전. onclick/텍스트/클래스명 불변
+- 영향 범위: 임포터 2곳(dice-game-multiplayer.html, index.html) — index.html은 전역
+  width 규칙이 없어 no-op. .ss-login-prompt* 외부 참조(JS/CSS/AutoTest) 0건,
+  튜토리얼 타깃(.ss-login-btn)과 별개 클래스
+- 검증: 1280/375px 실측 나란히+중앙 정렬(가로 스크롤 0, 버튼 높이 46px ≥ 터치 44px),
+  node -c 통과, Reviewer approve
+- 주의: 선택 커밋 — 같은 날 작업한 로비 리스타일(dice-game-multiplayer.html,
+  css/theme.css)은 의도적으로 미커밋 상태로 남김 (별도 서밋 예정)
+
+========================================
 📋 Summit Log - 2026-08-12 (main 머지 — 랭킹 팝업 개편·방 입장 수정·PiP 정렬)
 ========================================
 
