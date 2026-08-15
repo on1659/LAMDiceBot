@@ -2429,6 +2429,80 @@ input[type="text"]:focus, input[type="password"]:focus {
     align-items: stretch;
 }
 
+/* 전체화면 토글 버튼 — PiP 버튼과 동일 관례 (행 내 첫 아이템) */
+.race-fullscreen-btn {
+    width: auto;
+    margin: 0;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.65);
+    color: var(--bg-white);
+    font-size: 11px;
+    font-weight: normal;
+    cursor: pointer;
+    font-family: 'Jua', sans-serif;
+}
+
+/* 전체화면 스테이지 — 전체화면 요소(또는 의사 전체화면 오버레이). 뷰포트를 채우고 내용을 중앙 정렬.
+   비활성 시엔 존재하지 않는 컨테이너라 일반 레이아웃에 영향 없음 */
+.race-fs-stage {
+    display: flex;
+    flex-direction: column;
+    /* ⚠️ 세로(main축)는 flex-start — PiP body(align-items:flex-start)와 동일 규약.
+       raceFsApplyScale의 transform-origin이 'top center'라 레이아웃 상단을 고정한 채 아래로 확대되므로,
+       미스케일 박스를 세로 중앙에 두면(justify-content:center) 확대분이 그대로 화면 아래로 넘쳐
+       하위 레인·미니맵이 잘린다(overflow:hidden이라 스크롤도 불가). flex-start면
+       하단 = padding(40) + k·natH ≤ 40 + availH = 뷰포트높이 − 16 으로 항상 수납된다. */
+    justify-content: flex-start;
+    align-items: center; /* 가로 중앙 (cross축) */
+}
+
+/* Fullscreen API 경로 — UA가 fixed/100%를 주고, 여기서는 배경·여백만 얹는다 */
+.race-fs-stage.race-fs-api:fullscreen {
+    padding-top: 40px; /* 상단 버튼 행(top:-32px) 노출 여백 */
+    background: var(--horse-gradient);
+    overflow: hidden;
+}
+
+/* CSS 의사 전체화면 폴백 — 뷰포트를 덮는 고정 오버레이 (아이폰 사파리 등 API 미지원/거부) */
+.race-fs-stage.race-fs-css {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    padding-top: 40px; /* 상단 버튼 행(top:-32px) 노출 여백 */
+    background: var(--horse-gradient);
+    overflow: hidden;
+}
+
+/* 스케일 루트 — 래퍼(+이식 결과 UI)를 담아 fit transform을 받는 고정폭 박스.
+   폭은 JS가 자연폭으로 고정하고, 스테이지의 flex가 수평 중앙 정렬을 담당 */
+.race-fs-scale-root {
+    flex: 0 0 auto;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 가로 회전 안내 (세로 화면에서 진입 + orientation lock 실패 시 3초) */
+.race-fs-rotate-hint {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10001;
+    padding: 8px 16px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.75);
+    color: var(--bg-white);
+    font-size: 13px;
+    font-family: 'Jua', sans-serif;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
 /* PiP 토글 버튼 — 색/테두리 값은 같은 파일 #cameraSwitchBtn 관례를 그대로 미러링 */
 .race-pip-btn {
     width: auto;
@@ -2446,8 +2520,9 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 @media (max-width: 768px) {
     /* 좁은 창에서 카메라 버튼 확대(min-height 44px)와 균형 맞춤 — 터치 타겟 확대.
-       모바일 기기에서는 Document PiP 미지원이라 버튼 자체가 렌더되지 않음 */
-    .race-pip-btn {
+       모바일 기기에서는 Document PiP 미지원이라 PiP 버튼 자체가 렌더되지 않음 */
+    .race-pip-btn,
+    .race-fullscreen-btn {
         min-height: 44px;
         font-size: 14px;
         padding: 8px 12px;

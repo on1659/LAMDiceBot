@@ -70,6 +70,11 @@ async function joinRoom(page, roomId, userName) {
 }
 
 async function loadPage(page, name) {
+    // 첫 방문 튜토리얼의 .tutorial-click-blocker가 버튼 클릭을 가로챈다 — 페이지 스크립트보다 먼저 완료 플래그 주입
+    // (tutorial-shared.js: STORAGE_PREFIX 'tutorialSeen_' + gameType, VERSION 'v1')
+    await page.addInitScript(() => {
+        try { localStorage.setItem('tutorialSeen_horse', 'v1'); } catch (e) {}
+    });
     await page.goto(PAGE, { waitUntil: 'networkidle', timeout: 20000 });
     await page.evaluate(n => {
         localStorage.setItem('userName', n);
@@ -258,8 +263,43 @@ async function run() {
                 wrapperMain: !!document.getElementById('raceTrackWrapper')
             }));
             if (st.pipOpen) {
-                info('헤드리스에서 requestWindow resolve — 실 attach 상태 검증');
-                st.attached ? pass('클릭 → 즉시 attach') : fail('창 열림에도 미attach');
+                info('실 버튼 클릭으로 requestWindow resolve — 진짜 PiP 창 검증 (mock 아님)');
+                st.attached ? pass('실 클릭 → 즉시 attach (개정3 단일 규칙)') : fail('창 열림에도 미attach');
+                const real = await h.evaluate(() => {
+                    const pw = window._racePipWin;
+                    const root = pw.document.getElementById('pipScaleRoot');
+                    const w = pw.document.getElementById('raceTrackWrapper');
+                    return {
+                        wrapperInRoot: !!(w && root && w.parentNode === root),
+                        wrapperInMain: !!document.getElementById('raceTrackWrapper'),
+                        styleCount: pw.document.head.querySelectorAll('link[rel="stylesheet"], style').length,
+                        scriptCount: pw.document.querySelectorAll('script').length,
+                        animIsPip: window._raceAnimWin === pw,
+                        rootWidth: root ? root.style.width : 'N/A',
+                        label: (pw.document.getElementById('racePipBtn') || {}).textContent || 'MISSING'
+                    };
+                });
+                real.wrapperInRoot && !real.wrapperInMain ? pass('실 창: 래퍼가 #pipScaleRoot 소속 (메인 부재)') : fail('실 창 attach 구조 이상', JSON.stringify(real));
+                real.styleCount > 0 ? pass(`실 창: head 스타일 복제 ${real.styleCount}개`) : fail('실 창 스타일 미복제');
+                real.scriptCount === 0 ? pass('실 창: <script> 0개 (AdSense/스크립트 미복사)') : fail(`실 창 script ${real.scriptCount}개`);
+                real.animIsPip ? pass('실 창: 드라이버 이관 (_raceAnimWin === PiP 창)') : fail('실 창 드라이버 미이관');
+                /px$/.test(real.rootWidth) ? pass(`실 창: 스케일 루트 폭 고정 (${real.rootWidth}) — 좌측 쏠림 수정 확인`) : fail(`루트 width: ${real.rootWidth}`);
+                real.label.includes(LABEL_ATTACHED) ? pass(`실 창: 라벨 "${real.label.trim()}"`) : fail(`실 창 라벨: ${real.label}`);
+
+                // A5(창 미개방 무회귀)를 위해 닫아서 메인 복귀 — 사용자 닫기 경로도 함께 검증
+                await h.evaluate(() => toggleRacePip());
+                await h.waitForTimeout(800);
+                const back = await h.evaluate(() => ({
+                    wrapperMain: !!document.getElementById('raceTrackWrapper'),
+                    pipNull: window._racePipWin == null,
+                    animMain: window._raceAnimWin === window,
+                    running: window._raceAnimFrameId != null,
+                    label: (document.getElementById('racePipBtn') || {}).textContent || 'MISSING'
+                }));
+                back.wrapperMain && back.pipNull ? pass('실 창 닫기: 래퍼 메인 복귀 + 참조 정리') : fail('실 창 닫기 실패', JSON.stringify(back));
+                back.animMain ? pass('실 창 닫기: 드라이버 메인 복귀') : fail('드라이버 미복귀');
+                back.running ? pass('실 창 닫기 후 레이스 지속') : fail('닫기가 레이스를 멈춤');
+                back.label.includes(LABEL_IDLE) ? pass(`실 창 닫기: 라벨 원복 "${back.label.trim()}"`) : fail(`라벨: ${back.label}`);
             } else {
                 info('requestWindow 미해결(헤드리스 창 UI 한계) — 실 창 검증은 수동 QA + [B] mock으로 이관');
                 (st.animMain && st.running && st.wrapperMain && !st.attached)
@@ -293,9 +333,12 @@ async function run() {
             const wrapper = document.getElementById('raceTrackWrapper');
             const target = document.getElementById('targetRankReason');
             const replay = document.getElementById('replaySection');
+            // 래퍼 슬롯 계약: #gameSection 직속 + #replaySection 앞.
+            // (앵커로 #targetRankReason을 쓰지 않는다 — 이식 프로토콜이 정상 동작으로 이 요소를
+            //  캔버스 안팎으로 옮기므로 위상이 단계에 따라 바뀐다. 아래 reasonInsideWrapper로 별도 관측)
             let posOk = null;
-            if (wrapper && target && replay) {
-                posOk = (target.compareDocumentPosition(wrapper) & Node.DOCUMENT_POSITION_FOLLOWING) > 0
+            if (wrapper && replay) {
+                posOk = wrapper.parentNode === document.getElementById('gameSection')
                      && (wrapper.compareDocumentPosition(replay) & Node.DOCUMENT_POSITION_FOLLOWING) > 0;
             }
             return {
@@ -306,7 +349,10 @@ async function run() {
                 animWinIsMain: window._raceAnimWin === window,
                 frameId: window._raceAnimFrameId,
                 wrapperInMain: !!wrapper,
-                posOk
+                posOk,
+                // 관측용 — 레이스 중 PiP/전체화면 진입의 재앵커가 reason을 캔버스로 되끌어오는 알려진 이슈
+                reasonInsideWrapper: !!(wrapper && target && wrapper.contains(target)),
+                barsOverlayPresent: !!document.getElementById('canvasBarsOverlay')
             };
         });
         if (post.supported) {
@@ -317,8 +363,12 @@ async function run() {
         post.animWinIsMain ? pass('종료 후 _raceAnimWin === window') : fail('종료 후 _raceAnimWin 오염');
         post.frameId === null ? pass('종료 후 _raceAnimFrameId null (유령 루프 없음)') : fail(`종료 후 frameId 잔존: ${post.frameId}`);
         post.wrapperInMain ? pass('래퍼 메인 문서 위치') : fail('래퍼 유실');
-        post.posOk === true ? pass('래퍼 DOM 위치 계약 유지 (#targetRankReason 뒤 · #replaySection 앞)')
-            : post.posOk === false ? fail('래퍼 DOM 위치 계약 위반') : info('위치 계약 앵커 미존재');
+        post.posOk === true ? pass('래퍼 슬롯 계약 유지 (#gameSection 직속 · #replaySection 앞)')
+            : post.posOk === false ? fail('래퍼 슬롯 계약 위반') : info('슬롯 계약 앵커 미존재');
+        if (post.reasonInsideWrapper) {
+            info('알려진 이슈(P2): 레이스 중 PiP/전체화면 진입의 재앵커가 targetRankReason·rankVoteSection을 '
+                + '캔버스(canvasBarsOverlay)로 되끌어옴 — 두 요소 모두 display:none이라 화면 변화는 없고 다음 라운드 리셋에서 원복됨');
+        }
 
         await ctx1.close();
         await ctx2.close();

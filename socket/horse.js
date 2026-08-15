@@ -414,11 +414,9 @@ module.exports = (socket, io, ctx) => {
         console.log(`[경마] 날씨 스케줄:`, weatherSchedule.map(w => `${Math.round(w.progress*100)}%=${w.weather}`).join(' → '));
 
         // 경주 결과 계산 (기믹 + 날씨 반영 시뮬레이션)
-        const forcePhotoFinish = gameState.forcePhotoFinish || false;
-        gameState.forcePhotoFinish = false; // 사용 후 리셋
         const trackLengthOption = gameState.trackLength || 'medium';
         const vehicleTypes = gameState.selectedVehicleTypes || [];
-        const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets: verifiedFakeEvolutionTargets } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
+        const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets: verifiedFakeEvolutionTargets } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
 
         // 트랙 정보 계산
         const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -1716,7 +1714,7 @@ module.exports = (socket, io, ctx) => {
     }
 
     // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
-    async function calculateHorseRaceResult(horseCount, gimmicksData, forcePhotoFinish, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false) {
+    async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false) {
         // 트랙 길이 설정
         const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
         const trackDistanceMeters = preset.meters;
@@ -1749,16 +1747,6 @@ module.exports = (socket, io, ctx) => {
         const baseDurations = [];
         for (let i = 0; i < horseCount; i++) {
             baseDurations.push(minDuration + Math.random() * (maxDuration - minDuration));
-        }
-
-        // 접전 강제: 1등과 2등의 도착 시간을 거의 동일하게 조정
-        if (forcePhotoFinish && horseCount >= 2) {
-            baseDurations.sort((a, b) => a - b);
-            const pfConf = horseConfig.photoFinish || { gapPercent: [0.01, 0.02] };
-            const [pfMin, pfMax] = pfConf.gapPercent;
-            const fastest = baseDurations[0];
-            baseDurations[1] = fastest + fastest * (pfMin + Math.random() * (pfMax - pfMin));
-            console.log(`[서버시뮬] 접전 강제! 1등=${Math.round(fastest)}ms, 2등=${Math.round(baseDurations[1])}ms`);
         }
 
         // 모든 말의 상태 초기화 (동시 시뮬레이션용)

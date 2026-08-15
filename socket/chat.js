@@ -129,18 +129,6 @@ module.exports = (socket, io, ctx) => {
                 return;
             }
 
-            if (trimmedMsg === '/슬로모션') {
-                gameState.forcePhotoFinish = true;
-                const systemMsg = {
-                    userName: '🎮 시스템',
-                    message: '🎬 다음 경주에서 접전 슬로모션이 발동됩니다!',
-                    time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
-                    isSystem: true
-                };
-                io.to(room.roomId).emit('newMessage', systemMsg);
-                return;
-            }
-
             // 날씨 명령어 처리
             if (trimmedMsg === '/날씨' || trimmedMsg === '/날씨 ') {
                 // 현재 날씨 확률 표시

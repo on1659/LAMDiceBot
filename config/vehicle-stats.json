@@ -1,0 +1,154 @@
+{
+  "default": {
+    "crab": {
+      "appearance_count": 6,
+      "pick_count": 3,
+      "rank_1": 2,
+      "rank_2": 1,
+      "rank_3": 1,
+      "rank_4": 1,
+      "rank_5": 1,
+      "rank_6": 0
+    },
+    "boat": {
+      "appearance_count": 2,
+      "pick_count": 2,
+      "rank_1": 0,
+      "rank_2": 2,
+      "rank_3": 0,
+      "rank_4": 0,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "helicopter": {
+      "appearance_count": 1,
+      "pick_count": 0,
+      "rank_1": 0,
+      "rank_2": 0,
+      "rank_3": 1,
+      "rank_4": 0,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "eagle": {
+      "appearance_count": 3,
+      "pick_count": 1,
+      "rank_1": 1,
+      "rank_2": 0,
+      "rank_3": 0,
+      "rank_4": 2,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "turtle": {
+      "appearance_count": 6,
+      "pick_count": 3,
+      "rank_1": 3,
+      "rank_2": 0,
+      "rank_3": 0,
+      "rank_4": 2,
+      "rank_5": 1,
+      "rank_6": 0
+    },
+    "horse": {
+      "appearance_count": 4,
+      "pick_count": 2,
+      "rank_1": 1,
+      "rank_2": 1,
+      "rank_3": 0,
+      "rank_4": 0,
+      "rank_5": 0,
+      "rank_6": 2
+    },
+    "ninja": {
+      "appearance_count": 5,
+      "pick_count": 2,
+      "rank_1": 1,
+      "rank_2": 1,
+      "rank_3": 2,
+      "rank_4": 1,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "dinosaur": {
+      "appearance_count": 6,
+      "pick_count": 2,
+      "rank_1": 1,
+      "rank_2": 1,
+      "rank_3": 3,
+      "rank_4": 1,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "knight": {
+      "appearance_count": 5,
+      "pick_count": 4,
+      "rank_1": 1,
+      "rank_2": 3,
+      "rank_3": 1,
+      "rank_4": 0,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "scooter": {
+      "appearance_count": 2,
+      "pick_count": 1,
+      "rank_1": 1,
+      "rank_2": 0,
+      "rank_3": 0,
+      "rank_4": 1,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "rocket": {
+      "appearance_count": 3,
+      "pick_count": 0,
+      "rank_1": 0,
+      "rank_2": 0,
+      "rank_3": 1,
+      "rank_4": 0,
+      "rank_5": 2,
+      "rank_6": 0
+    },
+    "rabbit": {
+      "appearance_count": 5,
+      "pick_count": 2,
+      "rank_1": 0,
+      "rank_2": 2,
+      "rank_3": 1,
+      "rank_4": 1,
+      "rank_5": 1,
+      "rank_6": 0
+    },
+    "bicycle": {
+      "appearance_count": 4,
+      "pick_count": 1,
+      "rank_1": 1,
+      "rank_2": 0,
+      "rank_3": 0,
+      "rank_4": 3,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "bird": {
+      "appearance_count": 2,
+      "pick_count": 1,
+      "rank_1": 0,
+      "rank_2": 1,
+      "rank_3": 1,
+      "rank_4": 0,
+      "rank_5": 0,
+      "rank_6": 0
+    },
+    "car": {
+      "appearance_count": 2,
+      "pick_count": 0,
+      "rank_1": 0,
+      "rank_2": 0,
+      "rank_3": 1,
+      "rank_4": 0,
+      "rank_5": 0,
+      "rank_6": 1
+    }
+  }
+}

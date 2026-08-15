@@ -111,4 +111,17 @@ async function setUserPref(name, key, value) {
     );
 }
 
-module.exports = { register, login, getUserByName, getUserFlags, setFlag, getUserPrefs, setUserPref };
+// 채팅 레이아웃(rail/overlay) 사용 분포 집계 — chatLayout을 설정한 로그인 유저만.
+// 예: { rail: 12, overlay: 3 }
+async function getChatLayoutStats() {
+    const pool = getPool();
+    if (!pool) return {};
+    const r = await pool.query(
+        "SELECT prefs->>'chatLayout' AS layout, COUNT(*)::int AS cnt FROM users WHERE prefs ? 'chatLayout' GROUP BY 1"
+    );
+    const out = {};
+    r.rows.forEach(row => { out[row.layout] = row.cnt; });
+    return out;
+}
+
+module.exports = { register, login, getUserByName, getUserFlags, setFlag, getUserPrefs, setUserPref, getChatLayoutStats };

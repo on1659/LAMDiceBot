@@ -282,9 +282,12 @@
 
             <!-- 경주 트랙 래퍼 (카메라 버튼 + 트랙) -->
             <div id="raceTrackWrapper" style="position: relative; display: none;">
-                <!-- 트랙 상단 버튼 행 (트랙 바깥 우상단) — [PiP][카메라]를 flex로 묶어
-                     카메라 버튼 라벨 폭이 변해도 PiP 버튼이 항상 왼쪽에 밀착된다 -->
+                <!-- 트랙 상단 버튼 행 (트랙 바깥 우상단) — [전체화면][PiP][카메라]를 flex로 묶어
+                     각 버튼 라벨 폭이 변해도 서로 밀착된다 (PiP 버튼이 없는 기기에서는 [전체화면][카메라]) -->
                 <div class="track-top-btn-row">
+                    <!-- 트랙 전체화면 토글 — 기능 감지로 숨기지 않는다(미지원 브라우저는 CSS 의사 전체화면 폴백).
+                         PiP로 트랙이 다른 창에 가 있는 동안에는 JS가 숨긴다. 핸들러는 js/horse-race.js가 바인딩 -->
+                    <button id="raceFullscreenBtn" class="race-fullscreen-btn" type="button">⛶ 전체화면</button>
                     <!-- 트랙 PiP(작은 창) 토글 — Document PiP 지원 데스크톱 브라우저에서 상시 노출(래퍼 표시 구간).
                          열면 트랙이 창으로 들어가 전 단계(선택/룰렛/카운트다운/레이스)를 그대로 보여주고, 닫으면 본 화면으로 복귀.
                          인라인 onclick 금지: 문서 입양 후 인라인 핸들러는 PiP 전역을 참조 — js/horse-race.js가 addEventListener로 바인딩 -->

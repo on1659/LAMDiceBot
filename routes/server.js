@@ -7,7 +7,7 @@ const {
     getMembers, updateMemberApproval, removeMember, checkMember,
     getServerRecords, comparePassword
 } = require('../db/servers');
-const { register: authRegister, login: authLogin, getUserByName } = require('../db/auth');
+const { register: authRegister, login: authLogin, getUserByName, getChatLayoutStats } = require('../db/auth');
 const { issueToken } = require('../db/auth-tokens');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
 const { getFullRanking, getMyRank, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking } = require('../db/ranking');
@@ -155,6 +155,16 @@ router.post('/admin/servers/bulk-delete', adminAuth, async (req, res) => {
         res.json({ success: true, deleted });
     } catch (e) {
         res.status(500).json({ error: '일괄 삭제 실패' });
+    }
+});
+
+// 채팅 레이아웃(rail/overlay) 사용 분포 (관리자)
+router.get('/admin/chat-layout-stats', adminAuth, async (req, res) => {
+    try {
+        const stats = await getChatLayoutStats();
+        res.json({ success: true, stats });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 

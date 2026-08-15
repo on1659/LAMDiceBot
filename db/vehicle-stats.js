@@ -46,6 +46,10 @@ async function recordVehicleRaceResult(serverId, rankings, selectedVehicleTypes,
         });
     }
 
+    // 픽 수는 탈것당 1회만 가산 — 같은 탈것이 여러 레인에 배치되면 루프가 그만큼 돌아
+    // pickCounts[vid](그 탈것 전체 픽 수)가 중복으로 더해진다
+    const pickCounted = new Set();
+
     const pool = getPool();
     if (pool) {
         try {
@@ -53,7 +57,8 @@ async function recordVehicleRaceResult(serverId, rankings, selectedVehicleTypes,
                 const vid = selectedVehicleTypes[r.horseIndex];
                 if (!vid) continue;
                 const rankCol = r.rank >= 1 && r.rank <= 6 ? `rank_${r.rank}` : null;
-                const picks = pickCounts[vid] || 0;
+                const picks = pickCounted.has(vid) ? 0 : (pickCounts[vid] || 0);
+                pickCounted.add(vid);
 
                 await pool.query(
                     `INSERT INTO vehicle_stats (server_id, vehicle_id, appearance_count, pick_count${rankCol ? `, ${rankCol}` : ''})
@@ -72,6 +77,9 @@ async function recordVehicleRaceResult(serverId, rankings, selectedVehicleTypes,
     }
 
     // 파일 기반 fallback
+    // DB 경로가 중간에 실패했을 수 있으므로 픽 가산 기록을 새로 시작한다
+    pickCounted.clear();
+
     const stats = loadStatsFromFile();
     if (!stats[sid]) stats[sid] = {};
 
@@ -83,7 +91,8 @@ async function recordVehicleRaceResult(serverId, rankings, selectedVehicleTypes,
         }
         const s = stats[sid][vid];
         s.appearance_count += 1;
-        s.pick_count += (pickCounts[vid] || 0);
+        s.pick_count += pickCounted.has(vid) ? 0 : (pickCounts[vid] || 0);
+        pickCounted.add(vid);
         if (r.rank >= 1 && r.rank <= 6) {
             s[`rank_${r.rank}`] += 1;
         }
@@ -161,12 +170,16 @@ async function recordVehicleSeasonResult(serverId, rankings, selectedVehicleType
         });
     }
 
+    // 픽 수는 탈것당 1회만 가산 (recordVehicleRaceResult와 동일 이유)
+    const pickCounted = new Set();
+
     try {
         for (const r of rankings) {
             const vid = selectedVehicleTypes[r.horseIndex];
             if (!vid) continue;
             const rankCol = r.rank >= 1 && r.rank <= 6 ? `rank_${r.rank}` : null;
-            const picks = pickCounts[vid] || 0;
+            const picks = pickCounted.has(vid) ? 0 : (pickCounts[vid] || 0);
+            pickCounted.add(vid);
 
             await pool.query(
                 `INSERT INTO vehicle_season_stats (server_id, season, vehicle_id, appearance_count, pick_count${rankCol ? `, ${rankCol}` : ''})

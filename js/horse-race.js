@@ -179,6 +179,8 @@ function updatePipButtonLabel() {
 function racePipOpen() {
     if (!pipSupported || _racePipOpening) return;
     if (window._racePipWin && !window._racePipWin.closed) return; // 이미 열림
+    // 상호배타 — 전체화면 중이면 먼저 끄고 연다 (래퍼가 두 모드에 동시에 걸리지 않게)
+    if (typeof raceFsExit === 'function') raceFsExit();
     var wrapper = document.getElementById('raceTrackWrapper'); // open 시점은 항상 미attach — 메인 조회
     var trackContainer = document.getElementById('raceTrackContainer');
     if (!wrapper || !trackContainer) return;
@@ -228,6 +230,10 @@ function racePipOpen() {
         });
         // 창 크기 변경 시 fit-to-window 재계산 — 창 수명당 1회 바인딩
         pipWin.addEventListener('resize', racePipApplyScale);
+
+        // requestWindow await 사이에 전체화면이 다시 켜졌을 수 있다 — attach가 래퍼만 빼가면
+        // 빈 스테이지(+CSS 폴백이면 오버레이·스크롤 잠금)가 남는다. 멱등이라 비활성 시 no-op.
+        if (typeof raceFsExit === 'function') raceFsExit();
 
         // 개정3: 무조건 즉시 attach — 모든 단계 유효 (열면 들어간다).
         racePipAttachTrack();
@@ -288,6 +294,7 @@ function racePipAttachTrack() {
 
     racePipApplyScale(); // fit-to-window (시각 전용 transform — 재앵커 후라 center 높이도 자연 크기에 포함)
     updatePipButtonLabel();
+    if (typeof updateFullscreenButtonAvailability === 'function') updateFullscreenButtonAvailability(); // 상호배타: 전체화면 버튼 숨김
 }
 
 // attach 후 일시정지 해제 — 현재 레이스 훅 경유(gen 가드). attach 성공(racePipAttached()) 시에만 호출할 것 —
@@ -368,6 +375,7 @@ function racePipReattach() {
         try { if (!pipWin.closed) pipWin.close(); } catch (e) {}
     }
     updatePipButtonLabel();
+    if (typeof updateFullscreenButtonAvailability === 'function') updateFullscreenButtonAvailability(); // 트랙 복귀 — 전체화면 버튼 재노출
 }
 
 function toggleRacePip() {
@@ -399,6 +407,296 @@ if (pipSupported) {
         }
     })();
 }
+
+// ═══ 경주 트랙 전체화면(최대화) — 전 기기 지원, 시각 전용 ═══
+// 2단 구현: ① Fullscreen API(데스크톱 전 브라우저·안드로이드 크롬·iPadOS) ② CSS 의사 전체화면 폴백(아이폰 사파리).
+// 두 경로 모두 같은 fit 스케일 + 수평 중앙 정렬을 적용해 시각 결과가 같다.
+// PiP와 상호배타 — 래퍼가 PiP 문서에 있으면 버튼 숨김, 전체화면 중 PiP 열기는 전체화면을 먼저 끈다.
+// 공정성 영향 0 — transform은 레이아웃 값(offsetWidth)에 영향이 없어 카메라·물리 산식 불변.
+var _raceFsActive = false;      // 전체화면 모드 진행 중 (API/CSS 폴백 공통)
+var _raceFsCssFallback = false; // CSS 의사 전체화면으로 진입했는가
+var _raceFsPrevBodyOverflow = null; // CSS 폴백 진입 전 body overflow 원복용
+var _raceFsHintTimer = null;    // 가로 회전 힌트 제거 타이머
+// 전체화면 스케일 상한 — PiP(1.25)보다 크게 허용하되 배경이 비트맵(PNG)이라 과확대 블러를 고려해 2.0에서 컷.
+// (트랙 자연폭 ~700~800px 기준 1600px 안팎 — 일반적인 FHD 화면을 가로로 채우는 수준)
+var RACE_FS_SCALE_MAX = 2.0;
+// 트랙 상단 버튼 행이 래퍼 위로 돌출하는 높이(px). css/horse-race.css의
+// `.track-top-btn-row { top: -32px }`와 짝이다 — CSS 값을 바꾸면 이 상수도 함께 바꿔야 한다.
+// 스케일 시 이 돌출분도 k배로 커지므로(origin: top center) 높이 예산과 스테이지 상단 패딩에 반영한다.
+var RACE_TRACK_BTN_ROW_OVERHANG_PX = 32;
+
+function raceFsSupported() {
+    var el = document.getElementById('raceTrackWrapper');
+    return !!(el && el.requestFullscreen && document.exitFullscreen);
+}
+
+// 브라우저가 실제 전체화면 상태인가 (Escape/브라우저 자체 종료 감지용)
+function raceFsApiActive() {
+    return !!(document.fullscreenElement);
+}
+
+function updateFullscreenButtonLabel() {
+    // 버튼은 래퍼 안이라 PiP attach 시 PiP 문서로 함께 이동한다 — 메인만 조회하면 null(데드 클릭)
+    var btn = anyDocGetById('raceFullscreenBtn');
+    if (!btn) return;
+    btn.textContent = _raceFsActive ? '⛶ 전체화면 종료' : '⛶ 전체화면';
+}
+
+// PiP 상호배타 — 래퍼가 PiP 문서에 있으면 이 페이지엔 트랙이 없으므로 버튼을 숨긴다.
+// (PiP attach/detach·전체화면 진입/종료 시 호출)
+function updateFullscreenButtonAvailability() {
+    var btn = anyDocGetById('raceFullscreenBtn'); // PiP 문서로 이동한 버튼도 잡아 실제로 숨긴다
+    if (!btn) return;
+    var blocked = racePipAttached();
+    btn.style.display = blocked ? 'none' : 'block';
+    btn.disabled = blocked;
+    updateFullscreenButtonLabel();
+}
+
+// fit-to-viewport 스케일 — PiP와 같은 접근(고정 자연폭 + min 비율 + 중앙)이지만 상한·가용영역 산식이
+// 달라(PiP는 창 padding 16/48 기준, 전체화면은 뷰포트 전체) 별도 함수로 둔다. PiP 함수는 무접촉.
+// ⚠️ transform은 스테이지가 아니라 내부 스케일 루트에 건다 — 전체화면 요소(스테이지)는 top layer로
+// 승격돼 조상 transform이 무시되고 UA가 width/height를 100% !important로 덮는다.
+function raceFsApplyScale() {
+    if (!_raceFsActive) return;
+    var root = document.getElementById('raceFsScaleRoot');
+    if (!root) return;
+    // 자연(레이아웃) 크기 — 자기 transform 무영향 값
+    var natW = root.offsetWidth || 1;
+    var natH = root.offsetHeight || 1;
+    var overhang = RACE_TRACK_BTN_ROW_OVERHANG_PX;
+    var availW = Math.max(1, window.innerWidth - 16);
+    var availH = Math.max(1, window.innerHeight - 16); // 하단 여백만 (상단 돌출분은 아래 분모에 반영)
+    // 높이 예산에 버튼 행 돌출분을 포함 — 스케일되면 돌출도 k배라 natH만 보면 k>1.25에서 행이 잘린다
+    var k = Math.min(availW / natW, availH / (natH + overhang), RACE_FS_SCALE_MAX);
+    root.style.transformOrigin = 'top center';
+    root.style.transform = (isFinite(k) && Math.abs(k - 1) > 0.01) ? 'scale(' + k + ')' : '';
+    // 스테이지 상단 패딩을 k에 연동 — 확대된 돌출분(32k)을 정확히 수용해 행 상단이 화면 밖으로 안 나간다.
+    // 총 시각 높이 = 32k + k·natH = k·(natH+32) ≤ availH 로 상·하단 동시 수납.
+    // (CSS의 padding-top:40px는 마운트 직후 첫 fit 전까지의 초기값. 스테이지는 exit/unmount에서 DOM
+    //  제거되므로 인라인 잔존은 없다 — 다만 스테이지를 재사용하는 경로를 추가한다면 여기서 클리어할 것)
+    var stage = document.getElementById('raceFsStage');
+    if (stage) stage.style.paddingTop = Math.ceil(overhang * k) + 'px';
+}
+
+// 세로 화면에서 진입 시 가로 고정 시도 — 실패/미지원(iOS)은 조용히 무시하고 안내만 1회.
+function raceFsTryLandscape() {
+    if (window.innerWidth >= window.innerHeight) return; // 이미 가로
+    var locked = false;
+    try {
+        if (screen.orientation && typeof screen.orientation.lock === 'function') {
+            var p = screen.orientation.lock('landscape');
+            locked = true;
+            if (p && typeof p.catch === 'function') {
+                p.catch(function () { raceFsShowRotateHint(); }); // reject(iOS/데스크톱) — 안내로 폴백
+            }
+        }
+    } catch (e) {
+        locked = false;
+    }
+    if (!locked) raceFsShowRotateHint();
+}
+
+function raceFsShowRotateHint() {
+    // 스테이지에 붙인다 — 전체화면에서는 전체화면 요소(스테이지) 하위만 렌더되고, 스케일 루트에 붙이면
+    // fit transform까지 같이 먹어 크기가 흔들린다.
+    var host = document.getElementById('raceFsStage') || document.getElementById('raceTrackWrapper');
+    if (!host) return;
+    if (document.getElementById('raceFsRotateHint')) return;
+    var hint = document.createElement('div');
+    hint.id = 'raceFsRotateHint';
+    hint.className = 'race-fs-rotate-hint';
+    hint.textContent = '가로로 돌리면 더 크게 볼 수 있어요';
+    host.appendChild(hint);
+    if (_raceFsHintTimer) clearTimeout(_raceFsHintTimer);
+    _raceFsHintTimer = setTimeout(raceFsRemoveRotateHint, 3000);
+}
+
+function raceFsRemoveRotateHint() {
+    if (_raceFsHintTimer) {
+        clearTimeout(_raceFsHintTimer);
+        _raceFsHintTimer = null;
+    }
+    var hint = document.getElementById('raceFsRotateHint');
+    if (hint) hint.remove();
+}
+
+// 스테이지 + 스케일 루트 마운트 (PiP와 동일한 2단 구조: 뷰포트 스테이지 > 고정폭 스케일 루트 > 래퍼).
+// 래퍼 자리에 스테이지를 끼우고 그 안으로 옮기는 부모-삽입 방식이라 DOM 순서
+// (#targetRankReason 뒤·#replaySection 앞)가 그대로 보존된다 — placeholder 불필요.
+// 이식 UI(canvasResultCenter)가 래퍼 앞 형제면 루트 안에 함께 담아 같은 스케일을 받게 한다.
+function raceFsMount(wrapper) {
+    var stage = document.getElementById('raceFsStage');
+    if (!stage) {
+        stage = document.createElement('div');
+        stage.id = 'raceFsStage';
+        stage.className = 'race-fs-stage';
+    }
+    var root = document.getElementById('raceFsScaleRoot');
+    if (!root) {
+        root = document.createElement('div');
+        root.id = 'raceFsScaleRoot';
+        root.className = 'race-fs-scale-root';
+    }
+    if (wrapper.parentNode !== root) {
+        var natW = wrapper.offsetWidth || 800; // 이동 전 자연폭 측정
+        wrapper.parentNode.insertBefore(stage, wrapper); // 래퍼 자리에 스테이지 삽입
+        // 이식 UI(canvasResultCenter) 동반은 여기서 하지 않는다 — 위 insertBefore로 center의
+        // nextSibling이 이미 stage가 되어 형제 판별이 불가능하다. 마운트 후 호출처가
+        // moveResultUiToCanvas()로 재앵커한다 (PiP attach와 동일 관례).
+        root.appendChild(wrapper);
+        stage.appendChild(root);
+        // 자연폭 고정 — 유동 100% 폭이면 화면이 넓어질 때 트랙이 재배치로 넓어져
+        // init 캡처 trackWidth 기준 카메라 좌표계가 좌측으로 쏠린다 (PiP 가로확대 버그와 동일 원인)
+        root.style.width = natW + 'px';
+    }
+    return { stage: stage, root: root };
+}
+
+// 해체 — 스케일 루트의 자식(래퍼 + 이식 UI)을 스테이지 자리로 되돌리고 두 컨테이너 제거. 멱등.
+function raceFsUnmount() {
+    var stage = document.getElementById('raceFsStage');
+    var root = document.getElementById('raceFsScaleRoot');
+    if (root) {
+        root.style.transform = '';
+        root.style.transformOrigin = '';
+        root.style.width = '';
+    }
+    if (!stage || !stage.parentNode) return;
+    if (root) {
+        while (root.firstChild) {
+            stage.parentNode.insertBefore(root.firstChild, stage); // 순서 보존 복귀
+        }
+        if (root.parentNode) root.parentNode.removeChild(root);
+    }
+    stage.parentNode.removeChild(stage);
+}
+
+function raceFsEnter() {
+    if (_raceFsActive) return;
+    if (racePipAttached()) return; // 상호배타 — 트랙이 PiP 문서에 있으면 이 페이지에서 전체화면 불가
+    var wrapper = document.getElementById('raceTrackWrapper');
+    if (!wrapper) return;
+
+    _raceFsActive = true;
+    var mounted = raceFsMount(wrapper);
+    var stage = mounted.stage;
+
+    // 활성 이식(룰렛/투표/배너)이 있으면 재앵커 — 스케일 루트 안(래퍼 앞)으로 끌어와 함께 스케일되게.
+    // 안 하면 배너가 스테이지 밖에 남아 API 경로에서 top layer에 가려진다.
+    // 'fading-out' 가드는 offCanvas 페이드 중 진입이 복원을 부활시키는 역엣지 차단 (PiP attach와 동일 관례).
+    var activeCenterFs = document.getElementById('canvasResultCenter');
+    if (activeCenterFs && !activeCenterFs.classList.contains('fading-out')) {
+        moveResultUiToCanvas();
+    }
+
+    // 전체화면 요소는 스테이지 — 래퍼를 직접 전체화면으로 만들면 UA가 width/height를 100% !important로
+    // 덮어 트랙 컨테이너가 화면폭으로 재배치되고(카메라 좌표계 좌측 쏠림), top layer 승격으로
+    // 조상 transform(fit 스케일)도 무시된다.
+    if (raceFsSupported()) {
+        _raceFsCssFallback = false;
+        stage.classList.add('race-fs-api');
+        var req;
+        try {
+            req = stage.requestFullscreen({ navigationUI: 'hide' });
+        } catch (e) {
+            req = null;
+        }
+        if (req && typeof req.catch === 'function') {
+            req.catch(function () {
+                // 권한 거부/제스처 소실 등 — CSS 폴백으로 즉시 전환 (사용자 입장에선 동일 결과)
+                if (!_raceFsActive) return;
+                stage.classList.remove('race-fs-api');
+                raceFsApplyCssFallback(stage);
+                raceFsApplyScale();
+            });
+        } else if (!req) {
+            stage.classList.remove('race-fs-api');
+            raceFsApplyCssFallback(stage);
+        }
+    } else {
+        raceFsApplyCssFallback(stage);
+    }
+
+    raceFsApplyScale();
+    raceFsTryLandscape();
+    updateFullscreenButtonLabel();
+}
+
+// CSS 의사 전체화면 — 고정 오버레이로 뷰포트를 채우고 페이지 스크롤 잠금 (아이폰 사파리 등)
+function raceFsApplyCssFallback(stage) {
+    _raceFsCssFallback = true;
+    stage.classList.add('race-fs-css');
+    if (_raceFsPrevBodyOverflow === null) {
+        _raceFsPrevBodyOverflow = document.body.style.overflow || '';
+    }
+    document.body.style.overflow = 'hidden';
+}
+
+// 종료 — 버튼 토글 / Escape·브라우저 자체 종료 / 페이지 이탈이 모두 수렴하는 멱등 정리 루틴
+function raceFsExit() {
+    if (!_raceFsActive) return;
+    _raceFsActive = false;
+
+    // 실제 전체화면 상태면 해제 (Escape 경유 호출이면 이미 해제돼 있어 스킵)
+    try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+            var p = document.exitFullscreen();
+            if (p && typeof p.catch === 'function') p.catch(function () {});
+        }
+    } catch (e) {}
+
+    try {
+        if (screen.orientation && typeof screen.orientation.unlock === 'function') {
+            screen.orientation.unlock();
+        }
+    } catch (e) {}
+
+    raceFsRemoveRotateHint();
+
+    var stage = document.getElementById('raceFsStage');
+    if (stage) stage.classList.remove('race-fs-api', 'race-fs-css');
+    if (_raceFsCssFallback) {
+        document.body.style.overflow = (_raceFsPrevBodyOverflow === null) ? '' : _raceFsPrevBodyOverflow;
+    }
+    _raceFsPrevBodyOverflow = null;
+    _raceFsCssFallback = false;
+
+    raceFsUnmount();
+    updateFullscreenButtonLabel();
+}
+
+function toggleRaceFullscreen() {
+    if (_raceFsActive) {
+        raceFsExit();
+    } else {
+        raceFsEnter();
+    }
+}
+
+// 버튼 바인딩 + 라이프사이클 리스너 (기능 감지로 숨기지 않는다 — 미지원은 CSS 폴백)
+(function () {
+    var btn = document.getElementById('raceFullscreenBtn');
+    if (btn) btn.addEventListener('click', toggleRaceFullscreen);
+
+    // Escape·브라우저 자체 종료 → 상태 동기화 (API 경로에서만 발화)
+    document.addEventListener('fullscreenchange', function () {
+        if (_raceFsActive && !_raceFsCssFallback && !raceFsApiActive()) {
+            raceFsExit();
+        } else if (_raceFsActive) {
+            raceFsApplyScale(); // 진입 완료 직후 실제 뷰포트 크기로 재fit
+        }
+    });
+
+    // 리사이즈/방향전환 재계산 (미사용 시 _raceFsActive=false 가드로 no-op)
+    window.addEventListener('resize', raceFsApplyScale);
+    window.addEventListener('orientationchange', function () {
+        setTimeout(raceFsApplyScale, 200); // 방향전환 후 뷰포트 확정 대기
+    });
+
+    // 페이지 이탈 — 스크롤 잠금/orientation 잔존 방지
+    window.addEventListener('pagehide', function () { raceFsExit(); });
+})();
 
 
 // 경마 사운드 볼륨 관리 (ControlBar 위임)
@@ -4192,11 +4490,19 @@ var finishEffectsOverlay = null;
 var finishEffectElements = new Map(); // horseIndex -> effectElement
 
 function getOrCreateFinishEffectsOverlay() {
-    // 개정3: 트랙이 있는 문서의 body에 생성 — attach 상태면 PiP body (유령 좌표가 트랙 뷰포트 기준이 되게).
-    // fixed 오버레이는 스케일 루트 밖(body 직속)이라 transform 미적용 → gBCR(시각 좌표)과 정확히 일치.
+    // 트랙이 있는 문서의 body에 생성 — PiP attach면 PiP body (유령 좌표가 트랙 뷰포트 기준이 되게).
+    // 전체화면(API)에서는 전체화면 요소(스테이지) 하위만 렌더되므로 body 직속이면 이펙트가 안 보인다
+    // → 활성 시 스테이지를 부모로. ⚠️ 스케일 루트가 아니라 스테이지에 붙인다 — 루트는 transform이 걸려
+    // fixed의 컨테이닝 블록이 되어 getBoundingClientRect(뷰포트 좌표)와 어긋난다.
+    // fixed 오버레이는 스테이지에 transform이 없으므로 뷰포트 기준 유지 → gBCR과 정확히 일치.
     var doc = raceDoc();
-    if (finishEffectsOverlay && finishEffectsOverlay.ownerDocument !== doc) {
-        // 창 열기/닫기로 트랙 문서가 바뀜 — 이전 문서의 오버레이는 버리고 재생성
+    var host = doc.body;
+    if (_raceFsActive && doc === document) {
+        var fsStage = document.getElementById('raceFsStage');
+        if (fsStage) host = fsStage;
+    }
+    if (finishEffectsOverlay && (finishEffectsOverlay.ownerDocument !== doc || finishEffectsOverlay.parentNode !== host)) {
+        // 창 열기/닫기 또는 전체화면 진입/종료로 부모가 바뀜 — 이전 오버레이는 버리고 재생성
         try { finishEffectsOverlay.remove(); } catch (e) {}
         finishEffectsOverlay = null;
         finishEffectElements.clear();
@@ -4213,7 +4519,7 @@ function getOrCreateFinishEffectsOverlay() {
             pointer-events: none;
             z-index: 99999;
         `;
-        doc.body.appendChild(finishEffectsOverlay);
+        host.appendChild(finishEffectsOverlay);
     }
     return finishEffectsOverlay;
 }

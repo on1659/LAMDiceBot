@@ -122,9 +122,6 @@
     "progressMin": 0.40,
     "progressMax": 0.70
   },
-  "photoFinish": {
-    "gapPercent": [0.01, 0.02]
-  },
   "weather": {
     "schedule": {
       "changePoints": [0.3, 0.5, 0.7],

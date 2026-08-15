@@ -441,6 +441,11 @@ const RankingModule = (function () {
             display: inline-block; margin-left: 4px;
             font-size: 0.8em; color: var(--rk-text-muted);
         }
+        .rk-table-note {
+            margin: 0; padding: 10px 14px 12px;
+            font-size: 0.78em; line-height: 1.5;
+            color: var(--rk-text-muted);
+        }
 
         /* ── 애니메이션 ── */
         @keyframes rkSpin { to { transform: rotate(360deg); } }
@@ -963,7 +968,7 @@ const RankingModule = (function () {
                     <div class="rk-table-scroll">
                     <table class="rk-vehicle-table">
                         <thead><tr>
-                            <th>탈것</th><th>출전</th><th>선택률</th><th>승률</th>
+                            <th>탈것</th><th>출전</th><th>경기당 선택</th><th>승률</th>
                             <th>1등</th><th>2등</th><th>3등</th>
                             <th>4등</th><th>5등</th><th>6등</th>
                         </tr></thead>
@@ -975,12 +980,13 @@ const RankingModule = (function () {
             const picks = Number(v.picks) || 0;
             const r = v.ranks || [0, 0, 0, 0, 0, 0];
             const winRate = appearances > 0 ? Math.round((r[0] / appearances) * 100) : 0;
-            const pickRate = appearances > 0 ? Math.round((picks / appearances) * 100) : 0;
+            // 같은 탈것에 여러 명이 베팅할 수 있어 1을 넘을 수 있다 → 비율(%)이 아니라 인원수로 표시
+            const pickAvg = appearances > 0 ? (picks / appearances).toFixed(1) : '0.0';
             const lowSample = appearances < 5; // 추천 배지와 동일 기준 (최소 등장 5회)
             tableHtml += `<tr${lowSample ? ' class="rk-low-sample"' : ''}>
                 <td>${esc(label)}</td>
                 <td>${appearances}</td>
-                <td>${pickRate}%</td>
+                <td>${pickAvg}명</td>
                 <td>${winRate}%${lowSample ? '<span class="rk-low-label">기록 부족</span>' : ''}</td>
                 <td><span class="rk-rank-cell${r[0] > 0 ? ' rk-rank-1' : ''}">${r[0]}</span></td>
                 <td>${r[1]}</td><td>${r[2]}</td>
@@ -988,7 +994,10 @@ const RankingModule = (function () {
                 <td><span class="rk-rank-cell${r[5] > 0 ? ' rk-rank-6' : ''}">${r[5]}</span></td>
             </tr>`;
         });
-        tableHtml += '</tbody></table></div></div></div>';
+        tableHtml += '</tbody></table></div>'
+            + '<p class="rk-table-note">경기당 선택 = 그 탈것이 나온 경기에서 평균 몇 명이 골랐는지입니다. '
+            + '같은 탈것에 여러 명이 걸 수 있어 1명을 넘을 수 있습니다.</p>'
+            + '</div></div>';
         el.innerHTML = tableHtml;
 
         // 테마 미로드 시 이름 맵으로 먼저 동기 렌더 후, 로드 성공 시에만 1회 재렌더

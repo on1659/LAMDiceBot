@@ -126,6 +126,15 @@
                 <h2>유저 관리 <button class="refresh-btn" onclick="loadUsers()">새로고침</button></h2>
                 <div id="userList"><div class="empty-state">로딩 중...</div></div>
             </div>
+
+            <div class="section">
+                <h2>채팅 레이아웃 분포 <button class="refresh-btn" onclick="loadChatLayoutStats()">새로고침</button></h2>
+                <div class="stats-row" id="chatLayoutStats">
+                    <div class="stat-box"><div class="num" id="chatLayoutRail">-</div><div class="label">사이드 채팅 (레일)</div></div>
+                    <div class="stat-box"><div class="num" id="chatLayoutHybrid">-</div><div class="label">혼합 채팅 (하이브리드)</div></div>
+                    <div class="stat-box"><div class="num" id="chatLayoutOverlay">-</div><div class="label">기존 채팅 (오버레이)</div></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -174,6 +183,7 @@
             loadRooms();
             loadServers();
             loadUsers();
+            loadChatLayoutStats();
             startRoomsAutoRefresh();
         }
 
@@ -377,6 +387,18 @@
                             </tr>`).join('')}
                         </tbody>
                     </table>`;
+            } catch (e) {}
+        }
+
+        async function loadChatLayoutStats() {
+            try {
+                const res = await fetch('/api/admin/chat-layout-stats', { headers: { 'x-admin-token': adminToken } });
+                if (!res.ok) return;
+                const data = await res.json();
+                const stats = (data && data.stats) || {};
+                document.getElementById('chatLayoutRail').textContent = stats.rail || 0;
+                document.getElementById('chatLayoutHybrid').textContent = stats.hybrid || 0;
+                document.getElementById('chatLayoutOverlay').textContent = stats.overlay || 0;
             } catch (e) {}
         }
 

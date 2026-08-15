@@ -169,8 +169,8 @@ async function waitEntry(page, label) {
     check(tbl.hasNewTitle, '[5] "탈것 통계" 섹션 제목 존재');
     check(!tbl.hasOldTitle, '[5] 구 "탈것 등수 분포" 제목 부재');
     check(tbl.scrollWrapsTable, '[5] .rk-table-scroll 이 테이블 래핑');
-    check(tbl.ths.length === 10, '[5] 컬럼 10개 (탈것/출전/선택률/승률/1~6등)', tbl.ths.join('|'));
-    check(tbl.ths[1] === '출전' && tbl.ths[2] === '선택률' && tbl.ths[3] === '승률', '[5] 신규 컬럼 헤더 순서', tbl.ths.slice(0, 4).join('|'));
+    check(tbl.ths.length === 10, '[5] 컬럼 10개 (탈것/출전/경기당 선택/승률/1~6등)', tbl.ths.join('|'));
+    check(tbl.ths[1] === '출전' && tbl.ths[2] === '경기당 선택' && tbl.ths[3] === '승률', '[5] 신규 컬럼 헤더 순서', tbl.ths.slice(0, 4).join('|'));
     check(tbl.rows.length > 0, '[5] 데이터 행 존재', String(tbl.rows.length));
     let sorted = true;
     for (let i = 1; i < tbl.rows.length; i++) {
@@ -180,7 +180,7 @@ async function waitEntry(page, label) {
       tbl.rows.slice(0, 3).map(r => r.label + '=' + r.win + '%').join(', '));
     const anyLowMislabel = tbl.rows.some(r => (r.app >= 5) === /기록 부족/.test(r.label + r.win));
     check(tbl.rows.every(r => (r.app < 5) === r.low), '[5] 기록 부족(출전<5) 판정 일치', 'lowRows=' + tbl.rows.filter(r => r.low).length);
-    check(tbl.rows.every(r => /%$/.test(r.pick)), '[5] 선택률 % 표기', tbl.rows[0] && tbl.rows[0].pick);
+    check(tbl.rows.every(r => /^\d+\.\d명$/.test(r.pick)), '[5] 경기당 선택 인원수 표기', tbl.rows[0] && tbl.rows[0].pick);
 
     // ── 항목 2: 백드롭 닫기 / 카드 내부 클릭 / 드래그 아웃 ──
     // 카드 내부 클릭 → 안 닫힘
