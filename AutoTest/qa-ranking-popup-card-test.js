@@ -17,6 +17,28 @@ function check(cond, label, extra) {
 }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// ── 트랙 단위 예외 격리 ──
+// 한 구간의 예외가 뒤따르는 단언 전체를 조용히 삼키지 않게 한다.
+// (보정 전: Part 1 의 .rk-vehicle-table 타임아웃 1건이 카드/닫기/모바일/소켓 34건을 스킵시켰고,
+//  집계는 PASS 18/FAIL 3 으로 보여 커버리지 급감이 드러나지 않았다)
+let skipCount = 0;
+const skippedTracks = [];
+async function track(name, fn, precond) {
+  if (precond === false) { skipTrack(name, '선행 트랙 실패로 실행 불가'); return; }
+  try {
+    await fn();
+  } catch (e) {
+    check(false, name + ' 트랙 예외 — 이 트랙의 잔여 단언 스킵', String(e).slice(0, 200));
+    skipCount++;
+    skippedTracks.push(name + ' (예외: ' + String(e).slice(0, 80) + ')');
+  }
+}
+function skipTrack(name, reason) {
+  console.log('SKIP: ' + name + '  [' + reason + ']');
+  skipCount++;
+  skippedTracks.push(name + ' (' + reason + ')');
+}
+
 // 페이지별 에러 수집 (favicon/사운드/광고 등 무관 404는 필터)
 // TagError = AdSense(adsbygoogle) 로컬 환경 노이즈 — 이번 변경과 무관 (실서버 광고 슬롯 없음)
 function attachErrorCollectors(page, store) {
@@ -91,10 +113,14 @@ async function waitEntry(page, label) {
   const errsA = [];
   attachErrorCollectors(pageA, errsA);
 
-  try {
+  let entered = false;
+  let headerBox = null;
+  let roomId = null;
+
+  await track('[Part1-A] 진입 + 구 모달 제거', async () => {
     await pageA.goto(BASE + '/horse-race?createRoom=true', { waitUntil: 'domcontentloaded', timeout: 20000 });
     // roomCreated 후 URL 이 /free/horse/{code} 로 replaceState 됨 — 존재(attached) 기준으로 대기
-    const entered = await waitEntry(pageA, '호스트');
+    entered = await waitEntry(pageA, '호스트');
     if (!entered) throw new Error('경마 방 생성 실패 (재시도 포함)');
     check(true, '[1전제] 경마 방 생성 성공 (roomCreated → #rankingBtn 주입)');
 
@@ -117,14 +143,21 @@ async function waitEntry(page, label) {
     check(!removal.overlay, '[6] #vehicleStatsOverlay 부재');
     check(removal.fnOpen === 'undefined' && removal.fnClose === 'undefined' && removal.fnRender === 'undefined',
       '[6] 모달 함수 3종 undefined', JSON.stringify(removal));
+  });
 
+  await track('[Part1-B] PC 카드 + 탈것 통계 테이블', async () => {
     // ── 항목 1: PC 카드 ──
     // 실클릭 시도 → 뷰포트 밖/가림이면 JS click 폴백 (리스너는 addEventListener라 동일 경로)
     const btnBox = await pageA.locator('#rankingBtn').boundingBox().catch(() => null);
     if (btnBox) await pageA.click('#rankingBtn');
     else await pageA.evaluate(() => document.getElementById('rankingBtn').click());
     await pageA.waitForSelector('#ranking-overlay .rk-panel', { timeout: 8000 });
-    await pageA.waitForSelector('.rk-vehicle-table', { timeout: 8000 }); // show('horse') → 경마 탭 즉시
+    // 서브탭 분리(79fddea) 이후 경마 탭 기본 서브탭은 '경마 순위'다.
+    // show()가 열 때마다 _horseSubTab='rank' 로 리셋하므로(ranking-shared.js:90)
+    // 탈것 통계 테이블은 칩을 명시적으로 눌러야 렌더된다 — 실사용자 경로 그대로.
+    await pageA.waitForSelector('#ranking-horse-sub-tabs button[data-horse-sub="vehicles"]', { timeout: 8000 });
+    await pageA.click('#ranking-horse-sub-tabs button[data-horse-sub="vehicles"]');
+    await pageA.waitForSelector('.rk-vehicle-table', { timeout: 8000 });
     await sleep(700); // 테마 재렌더 안착
 
     const pc = await pageA.evaluate(() => {
@@ -159,15 +192,27 @@ async function waitEntry(page, label) {
         const tds = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
         return { label: tds[0], app: parseInt(tds[1], 10), pick: tds[2], win: parseInt(tds[3], 10), low: tr.classList.contains('rk-low-sample') };
       }) : [];
+      // "탈것 통계" 라벨은 79fddea 에서 섹션 제목 → 서브탭 칩으로 이동했고,
+      // 칩 컨테이너(#ranking-horse-sub-tabs)는 #ranking-content 바깥이다.
+      // 따라서 라벨 존재는 오버레이 기준으로 확인한다 (구 제목 부재도 오버레이 전체로 확대 = 더 강한 단언).
+      const overlay = document.getElementById('ranking-overlay');
+      const subTabs = document.getElementById('ranking-horse-sub-tabs');
+      const chip = subTabs && subTabs.querySelector('button[data-horse-sub="vehicles"]');
       return {
-        hasNewTitle: html.includes('탈것 통계'),
-        hasOldTitle: html.includes('탈것 등수 분포'),
+        chipLabel: chip ? chip.textContent.trim() : null,
+        chipActive: !!(chip && chip.classList.contains('active')),
+        chipVisible: !!(subTabs && getComputedStyle(subTabs).display !== 'none'),
+        chipOutsideContent: !!(subTabs && content && !content.contains(subTabs)),
+        hasOldTitleAnywhere: overlay ? overlay.innerHTML.includes('탈것 등수 분포') : true,
         scrollWrapsTable: !!(scroll && scroll.contains(table)),
         ths, rows
       };
     });
-    check(tbl.hasNewTitle, '[5] "탈것 통계" 섹션 제목 존재');
-    check(!tbl.hasOldTitle, '[5] 구 "탈것 등수 분포" 제목 부재');
+    check(!!tbl.chipLabel && tbl.chipLabel.includes('탈것 통계') && tbl.chipVisible,
+      '[5] "탈것 통계" 라벨 노출 (서브탭 칩 — 섹션 제목에서 이동)',
+      JSON.stringify({ label: tbl.chipLabel, visible: tbl.chipVisible, outsideContent: tbl.chipOutsideContent }));
+    check(tbl.chipActive, '[5] 탈것 통계 서브탭 활성 상태 (클릭 반영)', String(tbl.chipActive));
+    check(!tbl.hasOldTitleAnywhere, '[5] 구 "탈것 등수 분포" 제목 부재 (오버레이 전체 기준)');
     check(tbl.scrollWrapsTable, '[5] .rk-table-scroll 이 테이블 래핑');
     check(tbl.ths.length === 10, '[5] 컬럼 10개 (탈것/출전/경기당 선택/승률/1~6등)', tbl.ths.join('|'));
     check(tbl.ths[1] === '출전' && tbl.ths[2] === '경기당 선택' && tbl.ths[3] === '승률', '[5] 신규 컬럼 헤더 순서', tbl.ths.slice(0, 4).join('|'));
@@ -181,10 +226,17 @@ async function waitEntry(page, label) {
     const anyLowMislabel = tbl.rows.some(r => (r.app >= 5) === /기록 부족/.test(r.label + r.win));
     check(tbl.rows.every(r => (r.app < 5) === r.low), '[5] 기록 부족(출전<5) 판정 일치', 'lowRows=' + tbl.rows.filter(r => r.low).length);
     check(tbl.rows.every(r => /^\d+\.\d명$/.test(r.pick)), '[5] 경기당 선택 인원수 표기', tbl.rows[0] && tbl.rows[0].pick);
+  }, entered);
+
+  await track('[Part1-C] 닫기 상호작용 (내부클릭/드래그아웃/백드롭)', async () => {
+    // 선행 트랙이 실패해 오버레이가 닫혀 있어도 이 트랙은 독립 실행되도록 보정
+    await pageA.evaluate(() => { if (!document.getElementById('ranking-overlay')) RankingModule.show('horse'); });
+    await pageA.waitForSelector('#ranking-overlay .rk-panel', { timeout: 8000 });
+    await sleep(600);
 
     // ── 항목 2: 백드롭 닫기 / 카드 내부 클릭 / 드래그 아웃 ──
     // 카드 내부 클릭 → 안 닫힘
-    const headerBox = await pageA.locator('#ranking-overlay .rk-header-title').boundingBox();
+    headerBox = await pageA.locator('#ranking-overlay .rk-header-title').boundingBox();
     await pageA.mouse.click(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
     await sleep(500);
     check(!(await overlayGone(pageA)), '[2] 카드 내부 클릭 → 안 닫힘');
@@ -201,7 +253,9 @@ async function waitEntry(page, label) {
     await pageA.mouse.click(30, 400);
     await sleep(SETTLE);
     check(await overlayGone(pageA), '[2] 백드롭 클릭 → 닫힘');
+  }, entered);
 
+  await track('[Part1-D] 더블클릭 안전 + 250ms 재오픈', async () => {
     // ── 항목 3: 백드롭 더블클릭 안전 ──
     const urlBeforeDbl = await pageA.evaluate(() => location.pathname);
     await pageA.evaluate(() => { window.__qaAlive = true; RankingModule.show('horse'); });
@@ -233,6 +287,13 @@ async function waitEntry(page, label) {
     });
     check(rapid.exists && rapid.visible, '[2b] 250ms 내 재오픈 → 새 오버레이 생존', JSON.stringify(rapid));
     await sleep(500);
+  }, entered);
+
+  await track('[Part1-E] 모바일 풀스크린 + 라이브 리사이즈', async () => {
+    // 선행 트랙 실패로 오버레이가 닫혀 있을 수 있으므로 보장 후 진행
+    await pageA.evaluate(() => { if (!document.getElementById('ranking-overlay')) RankingModule.show('horse'); });
+    await pageA.waitForSelector('#ranking-overlay .rk-panel', { timeout: 8000 });
+    await sleep(600);
 
     // ── 항목 4 + 리사이즈 라이브 전환: PC 카드 ↔ 모바일 풀스크린 ──
     await pageA.setViewportSize({ width: 375, height: 812 });
@@ -253,7 +314,9 @@ async function waitEntry(page, label) {
     check(backToPc <= 640, '[4] 라이브 리사이즈 복귀 → 다시 카드', String(backToPc));
     await pageA.evaluate(() => RankingModule.hide());
     await sleep(SETTLE);
+  }, entered);
 
+  await track('[Part1-F] 소켓 계약 + 2탭 vehicleStats', async () => {
     // ── 항목 7: socket 계약 ──
     const ackTest = await pageA.evaluate(() => new Promise(resolve => {
       let answered = false;
@@ -264,7 +327,7 @@ async function waitEntry(page, label) {
     check(!ackTest.answered, '[7] horse:requestVehicleStats ack 미응답 (핸들러 제거 확인)');
 
     // ── 항목 7b: 2탭 → 게임 시작 → horseSelectionReady 에 vehicleStats 포함 ──
-    const roomId = await pageA.evaluate(() => window.currentRoomId);
+    roomId = await pageA.evaluate(() => window.currentRoomId);
     check(!!roomId, '[7b전제] roomId 확보', String(roomId));
     if (roomId) {
       const ctxB = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -279,25 +342,36 @@ async function waitEntry(page, label) {
       const joined = await waitEntry(pageB, '게스트');
       check(joined, '[7b전제] 2번 탭 방 입장 성공');
 
-      // C-24: 생성/입장 자동 ready. 경마 방은 입장 시점에 서버가 horseSelectionReady 를 보내고
-      // (서버 로그: "[새 사용자 입장] ...horseSelectionReady 전송"), 클라 핸들러가
-      // vehicleStatsData = data.vehicleStats || [] 로 저장한다 (js/horse-race.js:5659).
-      // → 게스트 페이지의 vehicleStatsData 가 배열이면 vehicleStats 필드 E2E 생존 증명.
+      // C-24: 생성/입장 자동 ready. 입장 경로의 horseSelectionReady 는 socket/rooms.js:1101 에서
+      // emit 되는데, 이 payload 에는 vehicleStats / popularVehicles 가 실려 있지 않다 (확인: 2026-08-16).
+      // vehicleStats 를 싣는 emit 은 socket/horse.js 쪽(voteRank/selectHorse 의 needsInitialization,
+      // 게임 종료)뿐이다. 따라서 입장 직후 len 은 0 이 정상이며, 여기서 len>0 을 단언하면
+      // 제품이 약속한 적 없는 계약을 검사하는 셈이 된다.
+      // → 단언은 두 갈래로 강화한다:
+      //    (a) 클라 파싱 경로 생존 (배열로 초기화/저장)
+      //    (b) 값이 실린 경우 배지 계산에 필요한 스키마를 갖출 것 (vehicle_id/appearance_count)
       await pageB.waitForFunction(() => Array.isArray(window.vehicleStatsData), null, { timeout: 8000 }).catch(() => {});
       const sel = await pageB.evaluate(() => ({
         isArray: Array.isArray(window.vehicleStatsData),
         len: Array.isArray(window.vehicleStatsData) ? window.vehicleStatsData.length : -1,
-        sample: Array.isArray(window.vehicleStatsData) && window.vehicleStatsData[0] ? Object.keys(window.vehicleStatsData[0]).join(',') : null
+        sample: Array.isArray(window.vehicleStatsData) && window.vehicleStatsData[0] ? Object.keys(window.vehicleStatsData[0]).join(',') : null,
+        popularIsArray: Array.isArray(window.popularVehicles)
       }));
       check(sel.isArray, '[7b] 입장 시 horseSelectionReady.vehicleStats → 클라 vehicleStatsData 저장 (추천 배지 경로 생존)', JSON.stringify(sel));
+      check(sel.popularIsArray, '[7b] popularVehicles 배열 초기화 (인기 배지 입력 경로)', String(sel.popularIsArray));
+      const schemaOk = sel.len <= 0 ? true : !!(sel.sample && /vehicle_id/.test(sel.sample) && /appearance_count/.test(sel.sample));
+      check(schemaOk, '[7b] vehicleStats 스키마 (vehicle_id/appearance_count) — 배지 계산 입력 유효', 'len=' + sel.len + ' keys=' + sel.sample);
+      console.log('INFO: [7b] 입장 직후 vehicleStatsData.len=' + sel.len
+        + ' — 입장 emit(socket/rooms.js:1101)은 vehicleStats 미포함이라 0 이 정상. 값은 게임 종료 emit(socket/horse.js:1490)에서 채워진다.');
       check(errsB.length === 0, '[9] 2번 탭 콘솔/페이지 에러 0', errsB.slice(0, 3).join(' | '));
       await ctxB.close();
     }
+  }, entered);
 
+  await track('[Part1-G] 경마 페이지 콘솔 에러', async () => {
     check(errsA.length === 0, '[9] 경마 페이지 콘솔/페이지 에러 0', errsA.slice(0, 3).join(' | '));
-  } catch (e) {
-    check(false, 'Part 1 예외', String(e).slice(0, 300));
-  }
+  }, entered);
+
   await ctxA.close();
 
   // ═══════════ Part 2. dice 로비 스팟체크 (PC 카드 + history.back 닫기) ═══════════
@@ -305,7 +379,7 @@ async function waitEntry(page, label) {
   const pageD = await ctxD.newPage();
   const errsD = [];
   attachErrorCollectors(pageD, errsD);
-  try {
+  await track('[Part2] dice 로비 카드 + history 닫기', async () => {
     await pageD.goto(BASE + '/game', { waitUntil: 'domcontentloaded', timeout: 20000 });
     await pageD.waitForFunction(() => typeof RankingModule !== 'undefined', null, { timeout: 10000 });
     // 로그인 후 로비 상태 시뮬레이션 — 실사용 로비는 replacePage('lobby') 상태에서 랭킹을 연다.
@@ -365,9 +439,7 @@ async function waitEntry(page, label) {
     check(diceDbl.gone && diceDbl.alive && diceDbl.url === '/game', '[8] dice: 백드롭 더블클릭 → 1회만 닫힘/이탈 없음', JSON.stringify(diceDbl));
     check(!diceDbl.histRanking, '[8] dice: 더블클릭 후 history 정합 (ranking 상태 해소)');
     check(errsD.length === 0, '[9] dice 로비 콘솔/페이지 에러 0', errsD.slice(0, 3).join(' | '));
-  } catch (e) {
-    check(false, 'Part 2 예외', String(e).slice(0, 300));
-  }
+  });
   await ctxD.close();
 
   // ═══════════ Part 3. renderHorse 분기 (fetch 스텁 — ladder 페이지에서 모듈 재사용) ═══════════
@@ -376,7 +448,7 @@ async function waitEntry(page, label) {
     const page = await ctx.newPage();
     const errs = [];
     attachErrorCollectors(page, errs);
-    try {
+    await track(label, async () => {
       await page.goto(BASE + '/ladder?createRoom=true', { waitUntil: 'domcontentloaded', timeout: 20000 });
       await page.waitForFunction(() => typeof RankingModule !== 'undefined', null, { timeout: 10000 });
       await page.evaluate((stub) => {
@@ -391,11 +463,20 @@ async function waitEntry(page, label) {
       }, stubPayload);
       await page.waitForSelector('#ranking-overlay', { timeout: 8000 });
       await sleep(1000);
+      // 서브탭 분리 이후 show('horse')는 '경마 순위'를 렌더한다 —
+      // 탈것 표 분기(renderHorseVehicles)를 검사하려면 칩을 눌러 서브탭을 전환해야 한다.
+      // (칩이 없는 payload 분기도 있으므로 존재할 때만 클릭하고, 클릭 여부를 기록해 무음 통과를 막는다)
+      const switched = await page.evaluate(() => {
+        const b = document.querySelector('#ranking-horse-sub-tabs button[data-horse-sub="vehicles"]');
+        if (!b) return false;
+        b.click();
+        return true;
+      });
+      check(switched, label + ' 탈것 통계 서브탭 진입', 'chipFound=' + switched);
+      await sleep(1200);
       const result = await page.evaluate(() => document.getElementById('ranking-content') ? document.getElementById('ranking-content').innerHTML : '');
       assertFn(result, errs);
-    } catch (e) {
-      check(false, label + ' 예외', String(e).slice(0, 200));
-    }
+    });
     await ctx.close();
   }
 
@@ -427,6 +508,9 @@ async function waitEntry(page, label) {
     '[5c] 빈 vehicles',
     (html, errs) => {
       check(!html.includes('rk-vehicle-table'), '[5c] 빈 vehicles → 테이블 미표시');
+      // 서브탭에 진입한 상태에서의 단언이므로 "테이블 없음"만으로는 공허하다 —
+      // 탈것 전용 빈 안내가 실제로 렌더되는지까지 확인한다.
+      check(html.includes('아직 탈것 기록이 없습니다'), '[5c] 빈 vehicles → 탈것 전용 빈 안내 표시');
       check(errs.length === 0, '[5c] 빈 vehicles 렌더 에러 0', errs.slice(0, 2).join(' | '));
     }
   );
@@ -443,7 +527,11 @@ async function waitEntry(page, label) {
 
   await browser.close();
 
-  console.log('\n===== 결과: PASS ' + passCount + ' / FAIL ' + failCount + ' =====');
+  console.log('\n===== 결과: PASS ' + passCount + ' / FAIL ' + failCount + ' / 스킵된 트랙 ' + skipCount + ' =====');
+  if (skippedTracks.length) {
+    console.log('스킵된 트랙 (이 구간의 단언은 실행되지 않았다 — 커버리지 손실):');
+    skippedTracks.forEach(s => console.log(' - ' + s));
+  }
   if (failures.length) { console.log('실패 목록:'); failures.forEach(f => console.log(' - ' + f)); }
   process.exit(failCount > 0 ? 1 : 0);
 })().catch(e => { console.error('테스트 러너 예외:', e); process.exit(2); });
