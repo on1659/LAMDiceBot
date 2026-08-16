@@ -36,7 +36,6 @@
 | `trackPresets` | short=500m, medium=700m, long=1000m (speed 85~95) |
 | `slowMotion` | 리더/패자 슬로모 설정 |
 | `gimmicks` | 10종 기믹 확률/지속시간/속도배율 |
-| `photoFinish` | 1~2% 동시 도착 판정 |
 | `weather` | 4종 (sunny/rain/wind/fog) + 탈것별 보정 |
 
 ## 환경변수 (`.env`)

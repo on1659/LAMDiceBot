@@ -127,7 +127,6 @@ function makeBaseGameState() {
         chatHistory: [],
         pendingRaceResult: null,
         forcedWeather: null,
-        forcePhotoFinish: false,
         horseRaceCountdownTimeout: null,
     };
 }
@@ -192,7 +191,6 @@ async function runOneRound() {
     gameState.isGameActive           = false;
     gameState.pendingRaceResult      = null;
     gameState.forcedWeather          = null;
-    gameState.forcePhotoFinish       = false;
 
     fakeSocket.id = 'fake-socket-id';
     await fakeSocket.handlers['startHorseRace']();

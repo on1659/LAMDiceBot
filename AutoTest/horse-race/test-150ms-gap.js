@@ -4,10 +4,9 @@
  * 검증 항목:
  *   1. gap 로직: baseDuration 간격 >= 150ms 보장
  *   2. 순서 일치: baseDuration 재매핑 후 서버 시뮬 순위 = baseDuration 오름차순
- *   3. forcePhotoFinish 예외: gap 강제 미적용 확인
- *   4. seed 결정론: 같은 seed → 같은 speedFactor 시퀀스
- *   5. 클라이언트 시뮬 순위 일치: 조정된 speeds로 재시뮬 → 서버 순위와 동일
- *   6. 다시보기 순위 일치: speeds 배열 재사용 시 동일 순위
+ *   3. seed 결정론: 같은 seed → 같은 speedFactor 시퀀스
+ *   4. 클라이언트 시뮬 순위 일치: 조정된 speeds로 재시뮬 → 서버 순위와 동일
+ *   5. 다시보기 순위 일치: speeds 배열 재사용 시 동일 순위
  *
  * Usage: node AutoTest/horse-race/test-150ms-gap.js
  */
@@ -20,9 +19,7 @@ const FRAME_MS          = 16;
 const DELTA_TIME_CAP_MS = 50; // 클라이언트 deltaTime 상한
 
 // ─── 서버 gap 로직 (socket/horse.js에서 추출) ─────────────────────
-function applyGapGuarantee(simResults, forcePhotoFinish) {
-    if (forcePhotoFinish) return simResults;
-
+function applyGapGuarantee(simResults) {
     const sortedBase = simResults.map(r => r.baseDuration).sort((a, b) => a - b);
     simResults.forEach((r, i) => { r.baseDuration = sortedBase[i]; });
 
@@ -175,7 +172,7 @@ section('TEST 1 — gap 로직: 간격 >= 150ms 보장');
 
     for (const tc of cases) {
         const results = tc.input.map(r => ({ ...r })); // 복사
-        applyGapGuarantee(results, false);
+        applyGapGuarantee(results);
 
         let gapOk = true;
         let orderOk = true;
@@ -201,29 +198,8 @@ section('TEST 1 — gap 로직: 간격 >= 150ms 보장');
     }
 }
 
-// ─── 테스트 2: forcePhotoFinish 예외 ─────────────────────────────
-section('TEST 2 — forcePhotoFinish: gap 강제 미적용');
-
-{
-    const input = [
-        { horseIndex: 0, simFinishJudgedTime: 3000, baseDuration: 3000 },
-        { horseIndex: 1, simFinishJudgedTime: 3080, baseDuration: 3080 }, // gap=80ms < 150ms
-        { horseIndex: 2, simFinishJudgedTime: 4000, baseDuration: 4000 },
-    ];
-    const results = input.map(r => ({ ...r }));
-    applyGapGuarantee(results, true); // forcePhotoFinish=true
-
-    const gapUnchanged = results[1].baseDuration === 3080;
-    check('forcePhotoFinish=true → baseDuration 미변경', gapUnchanged,
-        `baseDuration[1]=${results[1].baseDuration} (expected 3080)`);
-
-    // gap이 150ms 미만이어야 정상 (접전 UX 보존 확인)
-    const gapBelow150 = (results[1].baseDuration - results[0].baseDuration) < MIN_FINISH_GAP_MS;
-    check('forcePhotoFinish=true → gap < 150ms (접전 UX 보존)', gapBelow150);
-}
-
-// ─── 테스트 3: seed 결정론 검증 ──────────────────────────────────
-section('TEST 3 — seed 결정론: 같은 seed → 동일 speedFactor 시퀀스');
+// ─── 테스트 2: seed 결정론 검증 ──────────────────────────────────
+section('TEST 2 — seed 결정론: 같은 seed → 동일 speedFactor 시퀀스');
 
 {
     // 같은 seed + 같은 interval → 항상 동일 값
@@ -311,7 +287,7 @@ function runServerSimulation(horseConfigs, trackDistanceMeters) {
         simFinishJudgedTime: s.finishJudgedTime < 0 ? MAX_MS : s.finishJudgedTime,
         baseDuration:        s.baseDuration,
     }));
-    applyGapGuarantee(simResults, false);
+    applyGapGuarantee(simResults);
 
     return simResults.map((r, i) => ({
         horseIndex: r.horseIndex,
@@ -320,8 +296,8 @@ function runServerSimulation(horseConfigs, trackDistanceMeters) {
     }));
 }
 
-// ─── 테스트 4: end-to-end 서버 시뮬 → gap 적용 → 클라 간 순위 일치 ───
-section('TEST 4 — end-to-end: 서버 시뮬 → gap 적용 → 클라 간 시각 순위 일치');
+// ─── 테스트 3: end-to-end 서버 시뮬 → gap 적용 → 클라 간 순위 일치 ───
+section('TEST 3 — end-to-end: 서버 시뮬 → gap 적용 → 클라 간 시각 순위 일치');
 
 // ⚠️  보장 범위 주의:
 //   - 150ms gap은 "클라이언트 간 시각 순위 일치"를 보장함
@@ -389,8 +365,8 @@ section('TEST 4 — end-to-end: 서버 시뮬 → gap 적용 → 클라 간 시�
     }
 }
 
-// ─── 테스트 5: deltaTime cap 최악 조건 시뮬 ─────────────────────
-section('TEST 5 — deltaTime cap 50ms 조건에서 순위 일치');
+// ─── 테스트 4: deltaTime cap 최악 조건 시뮬 ─────────────────────
+section('TEST 4 — deltaTime cap 50ms 조건에서 순위 일치');
 
 {
     // deltaTime이 50ms로 고정된 클라이언트 (탭 전환 등으로 느린 클라)
@@ -416,8 +392,8 @@ section('TEST 5 — deltaTime cap 50ms 조건에서 순위 일치');
         `normal=[${normalOrder}] slow=[${slowOrder}]`);
 }
 
-// ─── 테스트 6: 다시보기(speeds) 재사용 순위 일치 ─────────────────
-section('TEST 6 — 다시보기: speeds 재사용 시 동일 순위');
+// ─── 테스트 5: 다시보기(speeds) 재사용 순위 일치 ─────────────────
+section('TEST 5 — 다시보기: speeds 재사용 시 동일 순위');
 
 {
     // 서버가 emit하는 raceRecord.speeds = rankings.map(r => r.finishTime)

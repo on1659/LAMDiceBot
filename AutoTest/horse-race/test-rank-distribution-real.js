@@ -102,7 +102,6 @@ function makeBaseGameState() {
         chatHistory: [],
         pendingRaceResult: null,
         forcedWeather: null,
-        forcePhotoFinish: false,
         horseRaceCountdownTimeout: null,
     };
 }
@@ -161,7 +160,6 @@ async function runOneRound() {
     gameState.isGameActive = false;
     gameState.pendingRaceResult = null;
     gameState.forcedWeather = null;
-    gameState.forcePhotoFinish = false;
 
     // startHorseRace 호출 (방장이 호출)
     fakeSocket.id = 'fake-socket-id';
