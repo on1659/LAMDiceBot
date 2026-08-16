@@ -457,10 +457,37 @@ function updateFullscreenButtonAvailability() {
 // 달라(PiP는 창 padding 16/48 기준, 전체화면은 뷰포트 전체) 별도 함수로 둔다. PiP 함수는 무접촉.
 // ⚠️ transform은 스테이지가 아니라 내부 스케일 루트에 건다 — 전체화면 요소(스테이지)는 top layer로
 // 승격돼 조상 transform이 무시되고 UA가 width/height를 100% !important로 덮는다.
+// 스케일 루트에 고정할 자연폭 = "래퍼가 지금 인페이지에 있었다면 가졌을 폭".
+// raceFsMount가 래퍼 자리에 스테이지를 끼우므로 stage.parentNode가 곧 원래 페이지 부모다 →
+// 그 콘텐츠 폭이 인페이지 레이아웃 폭과 같다(래퍼는 블록 요소로 부모를 채운다).
+// API 전체화면(top layer)·CSS 폴백(position:fixed) 모두 이 부모는 정상 레이아웃을 유지해 측정이 유효하다.
+// 실패 시 0을 반환해 호출부가 기존 고정폭을 그대로 두게 한다(회귀 안전).
+function raceFsPageNaturalWidth() {
+    var stage = document.getElementById('raceFsStage');
+    var host = stage && stage.parentNode;
+    if (!host || host.nodeType !== 1) return 0;
+    var w = host.clientWidth || 0;
+    if (!w) return 0;
+    try {
+        var cs = window.getComputedStyle(host);
+        w -= (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    } catch (e) {}
+    return w > 0 ? Math.round(w) : 0;
+}
+
 function raceFsApplyScale() {
     if (!_raceFsActive) return;
     var root = document.getElementById('raceFsScaleRoot');
     if (!root) return;
+    // 자연폭 재동결 — 진입 시점 폭을 영구 동결하면 세로로 진입 후 가로로 돌렸을 때 좁은 세로 폭(약 370px)이
+    // 그대로 남아 전체화면이 인페이지보다 작아진다(높이 항이 k를 누르므로 폭 손실이 그대로 렌더 폭 손실).
+    // 매 fit마다 현재 방향의 페이지 자연폭으로 다시 고정한다 — "유동 100% 폭 금지"(카메라 좌표계 보호)는
+    // 그대로 지키면서(항상 px 고정) 값만 현재 뷰포트 기준으로 갱신하는 것이라, 결과가 그 방향에서
+    // 처음부터 진입한 경우와 동일해진다.
+    var pageW = raceFsPageNaturalWidth();
+    if (pageW > 0 && Math.abs(pageW - (parseFloat(root.style.width) || 0)) >= 1) {
+        root.style.width = pageW + 'px';
+    }
     // 자연(레이아웃) 크기 — 자기 transform 무영향 값
     var natW = root.offsetWidth || 1;
     var natH = root.offsetHeight || 1;
@@ -5217,6 +5244,11 @@ function showRaceResult(data, isReplay = false) {
         finishEffectsOverlay.style.display = 'none';
     }
     
+    // 전체화면 스테이지(API=top layer / 폴백=z-index 10000 고정 오버레이)는 본문서의 #resultOverlay(z-index 1000)를
+    // 덮는다 — 오버레이는 래퍼 밖 형제라 스테이지 안으로 들어가지도 않는다. 순위 발표를 놓치면(그 사이 다음 라운드가
+    // 시작되면 영영 못 본다) 안 되므로 표시 직전에 전체화면을 종료한다. raceFsExit은 멱등 — 미사용 경주는 no-op.
+    if (typeof raceFsExit === 'function') raceFsExit();
+
     console.log('[resultOverlay] visible 추가', { isReplay, stack: new Error().stack });
     document.getElementById('resultOverlay').classList.add('visible');
 
