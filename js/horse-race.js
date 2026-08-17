@@ -1513,6 +1513,14 @@ function renderHorseSelection() {
                 btn.style.boxShadow = '0 0 8px ' + activeColor + '80';
                 socket.emit('setTrackLength', { trackLength: btn.dataset.length });
 
+                // 로그인 유저면 마지막 선택 트랙을 계정 pref로 저장 — 다음 방 생성 시 서버가 시딩해 자동선택.
+                // 게이트는 계정(userAuth)이지 방 종류가 아님 — 무료방에서도 저장 (currentServerId 게이트 금지)
+                let userAuth = null;
+                try { userAuth = JSON.parse(localStorage.getItem('userAuth') || 'null'); } catch (e) {}
+                if (userAuth && userAuth.name && userAuth.name === currentUser) {
+                    socket.emit('setUserPref', { name: currentUser, key: 'horseTrackLength', value: btn.dataset.length });
+                }
+
                 // 트랙 미리보기 즉시 갱신
                 renderTrackForSelection();
             };
@@ -2865,11 +2873,22 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
     let evolutionCutawayTarget = null;
 
     // 컷어웨이 상수
-    const LEADER_FOCUS_DURATION = 3000;        // 1등 고정 시간 (3초)
+    const LEADER_FOCUS_DURATION = 6000;        // 1등 고정 시간 (6초 — 랜덤 컷어웨이는 저빈도 fallback)
     const CUTAWAY_DURATION_DEFAULT = 3000;     // 기본 컷어웨이 시간 (3초)
     const CUTAWAY_DURATION_CLOSE = 1500;       // 접전 시 컷어웨이 (1.5초)
     const CUTAWAY_DURATION_RUNAWAY = 4000;     // 단독 질주 시 컷어웨이 (4초)
     const FINISH_LOCK_DISTANCE_M = 50;         // 결승선 강제 복귀 거리 (50m)
+
+    // 이벤트 컷어웨이 (기믹 발동 순간포착 — goal: horse-race-event-camera)
+    let activeEventCut = null;   // { gimmick, state, priority, startWall, label, maxHoldMs }
+    let lastEventCutEnd = 0;     // 이벤트 컷 종료 시각 (쿨다운 기준)
+    const EVENT_CUT_CONFIG = {
+        item_rocket:   { priority: 80, label: '🚀 로켓 발사',   maxHoldMs: 3000 },
+        reverse_boost: { priority: 70, label: '🔥 맹추격',      maxHoldMs: 3000 },
+        sprint:        { priority: 60, label: '💨 스퍼트',      maxHoldMs: 2500 },
+        item_trap:     { priority: 50, label: '🍌 함정에 빠짐', maxHoldMs: 2500 }
+    };
+    const EVENT_CUT_COOLDOWN = 2000; // 이벤트 컷 종료 후 다음 컷까지 최소 간격
 
     // 경기 상황 분석 → 컷어웨이 시간 결정
     function getCutawayDuration(horseStates, finishLine) {
@@ -2907,6 +2926,32 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             if (roll <= 0) return wc.state;
         }
         return sorted[0];
+    }
+
+    // 이벤트 컷 시작 판정 (기믹 트리거 순간 호출 — goal: horse-race-event-camera)
+    // 오버레이/사운드를 직접 호출하지 않는다 — updateCameraBtnUI가 renderFrame에서만 돌아 catch-up 중 자동 억제됨.
+    function maybeStartEventCut(gimmick, state) {
+        const config = EVENT_CUT_CONFIG[gimmick.type];
+        if (!config) return;
+        if (isEvolutionCutaway) return; // evolution 컷어웨이 최우선
+        if (state.finished) return;
+        if (activeEventCut) {
+            // 진행 중 컷은 strictly higher priority만 교체 (큐 없음)
+            if (config.priority <= activeEventCut.priority) return;
+        } else if (Date.now() - lastEventCutEnd < EVENT_CUT_COOLDOWN) {
+            return;
+        }
+        activeEventCut = {
+            gimmick: gimmick,
+            state: state,
+            priority: config.priority,
+            startWall: Date.now(),
+            label: config.label,
+            maxHoldMs: config.maxHoldMs
+        };
+        // 진행 중인 랜덤 컷어웨이 취소 (이벤트 컷 우선)
+        isRandomCutaway = false;
+        randomCutawayTarget = null;
     }
 
     // 카메라 모드 오버레이 표시 함수
@@ -2950,6 +2995,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             const _trLabel = (typeof _tr === 'number' && _tr >= 1) ? (_tr + '등') : '꼴등';
             label = '📷 ' + _trLabel + ' 추적중';
             bg = 'rgba(233,69,96,0.4)';
+        } else if (activeEventCut) {
+            label = '📷 ' + activeEventCut.label;
+            bg = 'rgba(255,140,0,0.45)';
         } else if (isRandomCutaway) {
             label = '📷 다른말 구경중';
             bg = 'rgba(100,200,255,0.4)';
@@ -2960,7 +3008,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         cameraSwitchBtn.textContent = label;
         cameraSwitchBtn.style.background = bg;
         // 모드 변경 시 오버레이 표시
-        const currentMode = cameraMode + (isRandomCutaway ? '_cutaway' : '') + (panningToLoser ? '_panning' : '');
+        const currentMode = cameraMode + (isRandomCutaway ? '_cutaway' : '') + (panningToLoser ? '_panning' : '') + (activeEventCut && cameraMode === 'leader' && !panningToLoser ? '_event_' + activeEventCut.gimmick.type : '');
         if (prevCameraMode !== null && prevCameraMode !== currentMode) {
             showCameraModeOverlay(label.replace('📷 ', ''), bg);
         }
@@ -3177,6 +3225,18 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             isRandomCutaway = false;
             randomCutawayStartTime = null;
             randomCutawayTarget = null;
+            // 만료된 이벤트 컷 정리 — renderFrame의 만료/킬 조건과 동일 술어 유지
+            // (한쪽에만 조건이 있으면 snap 직후 renderFrame이 컷을 죽여 lerp 스윕 발생)
+            if (activeEventCut) {
+                const _snapLeader = horseStates.reduce((l, s) => s.currentPos > l.currentPos ? s : l, horseStates[0]);
+                const _snapRemainM = (finishLine - _snapLeader.currentPos) / PIXELS_PER_METER;
+                if (!activeEventCut.gimmick.active || activeEventCut.state.finished ||
+                    (Date.now() - activeEventCut.startWall >= activeEventCut.maxHoldMs) ||
+                    _snapRemainM <= FINISH_LOCK_DISTANCE_M) {
+                    activeEventCut = null;
+                    lastEventCutEnd = Date.now();
+                }
+            }
             // 현재 카메라 모드의 대상 결정 (renderFrame과 동일한 우선순위)
             let camTarget = null;
             if (isEvolutionCutaway && evolutionCutawayTarget) {
@@ -3186,6 +3246,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
             } else if (cameraMode === 'myHorse') {
                 const myIdx = userHorseBets[currentUser];
                 camTarget = horseStates.find(s => s.horseIndex === myIdx) || null;
+            } else if (activeEventCut) {
+                // 이벤트 컷은 leader 모드에서만 유효 (renderFrame과 동일 서열)
+                camTarget = activeEventCut.state;
             }
             if (!camTarget) {
                 camTarget = horseStates.reduce((l, s) => s.currentPos > l.currentPos ? s : l, horseStates[0]);
@@ -3273,6 +3336,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         randomCutawayStartTime = null;
         randomCutawayTarget = null;
         cutawayDisabled = false;
+        activeEventCut = null;
+        lastEventCutEnd = 0;
 
         // 렌더 프레임: 카메라/스크롤/말 화면 위치/미니맵 — 기존 animLoop 렌더 섹션을 함수로 추출 (내용 무변경).
         // 라이브 스텝에서 매 프레임 호출되고, catch-up 완료 시 reconcile이 1회 호출해 최종 상태를 화면에 반영한다.
@@ -3362,9 +3427,28 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             isRandomCutaway = false;
                             randomCutawayTarget = null;
                         }
+                        if (activeEventCut) {
+                            activeEventCut = null;
+                            lastEventCutEnd = now;
+                        }
                         cutawayDisabled = true;
                         leaderFocusStartTime = null;
                         cameraTarget = leaderState;
+                    }
+                    // 이벤트 컷 (기믹 순간포착 — 랜덤 컷어웨이보다 우선, goal: horse-race-event-camera)
+                    else if (activeEventCut) {
+                        const ec = activeEventCut;
+                        // 만료 1차 판정은 시뮬 시간 기반 !gimmick.active — catch-up 중 발동+종료된 기믹도 reconcile 시 자동 수렴.
+                        // maxHoldMs는 벽시계 상한 보조.
+                        const expired = !ec.gimmick.active || ec.state.finished || (now - ec.startWall >= ec.maxHoldMs);
+                        if (expired) {
+                            activeEventCut = null;
+                            lastEventCutEnd = now;
+                            leaderFocusStartTime = now; // 리더 복귀 후 최소 고정 (재컷 쿨다운)
+                            cameraTarget = leaderState;
+                        } else {
+                            cameraTarget = ec.state;
+                        }
                     }
                     // 컷어웨이가 비활성화되지 않았을 때만 처리
                     else if (!cutawayDisabled) {
@@ -3398,7 +3482,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             if (leaderFocusStartTime === null) {
                                 leaderFocusStartTime = now;
                             }
-                            // 3초 이상 1등 고정 시 랜덤 컷어웨이 시작
+                            // LEADER_FOCUS_DURATION 이상 1등 고정 시 랜덤 컷어웨이 시작
                             if (now - leaderFocusStartTime >= LEADER_FOCUS_DURATION) {
                                 const target = selectRandomCutawayTarget(horseStates, leaderState.horseIndex);
                                 if (target) {
@@ -3841,6 +3925,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             // 카메라 강제 컷어웨이
                             isEvolutionCutaway = true;
                             evolutionCutawayTarget = state;
+                            // evolution이 이벤트 컷을 선점
+                            if (activeEventCut) {
+                                activeEventCut = null;
+                                lastEventCutEnd = Date.now();
+                            }
                         }
                     }
 
@@ -3849,6 +3938,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         gimmick.triggered = true;
                         gimmick.active = true;
                         gimmick.endTime = elapsed + gimmick.duration;
+                        maybeStartEventCut(gimmick, state); // 이벤트 컷어웨이 (goal: horse-race-event-camera)
 
                         // 기믹 시작 효과 및 이펙트 추가
                         if (gimmick.type === 'stop') {
@@ -4033,6 +4123,11 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             if (!isEvolutionCutaway) {
                                 isEvolutionCutaway = true;
                                 evolutionCutawayTarget = state;
+                                // evolution이 이벤트 컷을 선점
+                                if (activeEventCut) {
+                                    activeEventCut = null;
+                                    lastEventCutEnd = Date.now();
+                                }
                                 }
                         }
                     }
@@ -4059,9 +4154,10 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         if (gimmick.type === 'evolution_boost' || gimmick.type === 'evolution_fake_boost') {
                             state.horse.classList.remove('evolution-run', 'evolution-charge', 'evolution-burst');
                             state.horse.style.filter = '';
-                            // 카메라 해제
+                            // 카메라 해제 — 리더 복귀 후 최소 고정 (stale 타임스탬프로 즉시 랜덤 컷 방지)
                             isEvolutionCutaway = false;
                             evolutionCutawayTarget = null;
+                            leaderFocusStartTime = Date.now();
                             if (state._evolutionActive) {
                                 state._evolutionActive = false;
                                 const vid = state.horse.dataset.vehicleId;
@@ -4123,6 +4219,8 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                                 rBoostEffect.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px;';
                                 state.horse.appendChild(rBoostEffect);
                                 chainGimmick.effectElement = rBoostEffect;
+                                // 체인 기믹은 triggered:true로 push되어 트리거 블록을 안 탐 — 이벤트 컷 훅을 여기서 직접 호출
+                                maybeStartEventCut(chainGimmick, state);
                             }
                         }
                     }
@@ -4346,6 +4444,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 loserSlowMotionActive = false;
                 loserReleaseTarget = null;
                 loserCameraTarget = null;
+                activeEventCut = null; // 이벤트 컷 방어적 정리
                 if (cameraModeBefore) { cameraMode = cameraModeBefore; cameraModeBefore = null; }
                 track.style.filter = '';
                 const vignetteCleanup = raceDoc().getElementById('slowmoVignette');

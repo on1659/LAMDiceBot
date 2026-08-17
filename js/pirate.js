@@ -911,9 +911,12 @@ function resetStageVisual() {
     animRunning = false;
     heldResolve = null;
     if (document.body) document.body.classList.remove('pirate-running');
+    if (document.body) document.body.classList.remove('race-running');
 }
 
 function showResultOverlay(data) {
+    // 결과 오버레이 표시 — 스티키 광고 복원(pirate:roundReset 자동 도착까지 광고가 계속 숨는 것 방지)
+    if (document.body) document.body.classList.remove('race-running');
     var box = document.getElementById('resultRankings');
     if (box) {
         var html = '';
@@ -1017,6 +1020,7 @@ socket.on('roomJoined', function (data) {
             pirateState.iStabbed = Object.values(pirateState.claims).indexOf(currentUser) >= 0;
             isPirateActive = true;
             if (document.body) document.body.classList.add('pirate-running');
+            if (document.body) document.body.classList.add('race-running'); // 진행 중 재입장 — 스티키 광고 숨김 유지
             showStage();
             renderHoles();
             startClock();
@@ -1273,6 +1277,7 @@ socket.on('pirateSelectionStarted', function (data) {
     pendingRerender = false;
 
     if (document.body) document.body.classList.add('pirate-running');
+    if (document.body) document.body.classList.add('race-running'); // 게임 진행 중 스티키 광고 숨김
 
     // 결과 오버레이/팝업 잔존 정리
     var overlay = document.getElementById('resultOverlay');

@@ -44,14 +44,14 @@ function snapToSlotY(y) {
 // ─── 순차 하강(reveal) 연출 타이밍 — js/ladder.js 와 반드시 동기화 ───
 // 시작 시퀀스: 인지창(전체 막대기 동시 표시) → 사라짐(겹침 dedup + 스크램블 erase) → 서버 그리기(balance add)
 //   → 카운트다운 3·2·1 → 리빙럼 하강(매 스텝 변형) → 착지 공개.
-const LADDER_RECOGNITION_MS = 3000;   // 인지창 — 전체 막대기 동시 표시(누가 뭘 그렸는지 인지). 신규 단계.
-const LADDER_COUNTDOWN_MS = 3200;     // "3·2·1 시작!" 카운트다운 (1600×2)
-const LADDER_ERASE_MS = 2400;         // 사라짐 연출(클라 ladderRunErase) — "사다리 사라집니다". js/ladder.js와 byte-identical.
-const LADDER_DRAW_MS = 1800;          // 서버 그리기 연출(클라 ladderRunDraw, balance add). js/ladder.js와 byte-identical.
-const LADDER_TOKEN_SLOT_MS = 6000;    // 토큰 한 칸이 끝까지 내려가는 시간(아주 천천히) (3000×2)
-const LADDER_FINAL_HOLD = 1800;       // 결과 캡션 유지(ms) — 모션 아님
-const LADDER_MUTATION_MS = 1400;      // 변형 1단계(add/remove/none) 애니 시간 — 솔로 토큰 사이 max(0,N-2)회
-const LADDER_WINSLOT_SHUFFLE_MS = 2600; // 당첨 칸 섞기 연출 — 시작 시 winSlot 재추첨 공개(시퀀스 맨 앞). js/ladder.js와 byte-identical.
+const LADDER_RECOGNITION_MS = 2000;   // 인지창 — 전체 막대기 동시 표시(누가 뭘 그렸는지 인지). 신규 단계.
+const LADDER_COUNTDOWN_MS = 1600;     // "3·2·1 시작!" 카운트다운
+const LADDER_ERASE_MS = 1600;         // 사라짐 연출(클라 ladderRunErase) — "사다리 사라집니다". js/ladder.js와 byte-identical.
+const LADDER_DRAW_MS = 1200;          // 서버 그리기 연출(클라 ladderRunDraw, balance add). js/ladder.js와 byte-identical.
+const LADDER_TOKEN_SLOT_MS = 3000;    // 토큰 한 칸이 끝까지 내려가는 시간
+const LADDER_FINAL_HOLD = 1200;       // 결과 캡션 유지(ms) — 모션 아님
+const LADDER_MUTATION_MS = 900;       // 변형 1단계(add/remove/none) 애니 시간 — 솔로 토큰 사이 max(0,N-2)회
+const LADDER_WINSLOT_SHUFFLE_MS = 1600; // 당첨 칸 섞기 연출 — 시작 시 winSlot 재추첨 공개(시퀀스 맨 앞). js/ladder.js와 byte-identical.
 
 // reveal 시작부터 자동 종료(결과 오버레이)까지 — 순차 하강 + 토큰 사이 변형이라 토큰 수(N=칸 수=LADDER_COLUMNS)에 비례.
 // 시퀀스: 당첨 칸 섞기(winSlot 재추첨 공개) → 인지창 → 사라짐(erase) → 서버 그리기(draw) → 카운트다운 → [토큰0 하강 → 변형0 → … → 토큰N-3 하강 → 변형N-3 → (토큰N-2·N-1 동시 하강)] → 결과 캡션 유지.

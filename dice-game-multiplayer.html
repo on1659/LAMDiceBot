@@ -1962,14 +1962,14 @@
                         <span class="gt-name">경마</span>
                         <span id="horseRaceNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <label id="bridgeLabel" class="game-type-option" style="--gt-color: var(--game-type-bridge); --gt-rgb: var(--bridge-500-rgb); opacity: 0.6;">
+                    <label id="bridgeLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-bridge); --gt-rgb: var(--bridge-500-rgb); opacity: 0.6;">
                         <input type="radio" name="gameType" value="bridge" id="bridgeRadio" />
                         <span class="gt-emoji">🌉</span>
                         <span class="gt-name">Untitle</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
-                    <!-- 미출시 게임 방생성 비노출 — 출시 시 아래 3개 라벨(ladder/spin-arena/pirate)의 인라인 display:none을 제거하면 됨 -->
-                    <label id="ladderLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb);">
+                    <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate)의 인라인 display:none을 제거하면 됨 -->
+                    <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb);">
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" />
                         <span class="gt-emoji">🪜</span>
                         <span class="gt-name">사다리타기</span>
@@ -1997,7 +1997,7 @@
 
                 </div>
                 <div id="gameTypeInfo">
-                    룰렛/경마를 선택하면 전용 페이지로 이동합니다.
+                    룰렛/경마/사다리타기를 선택하면 전용 페이지로 이동합니다.
                 </div>
                 <script>
                     // 게임 타입 선택 시 시각적 강조 — 선택 라벨에 gt-selected 클래스 토글 (색상은 CSS의 --gt-color/--gt-rgb)
@@ -8089,7 +8089,7 @@
       <ins class="adsbygoogle"
            style="display:block"
            data-ad-client="ca-pub-1608259764663412"
-           data-ad-slot="STICKY_SLOT_ID"
+           data-ad-slot="3703259052"
            data-ad-format="horizontal"
            data-full-width-responsive="true"></ins>
     </div>

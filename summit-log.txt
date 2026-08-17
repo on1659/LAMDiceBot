@@ -1,4 +1,50 @@
 ========================================
+📋 Summit Log - 2026-08-18 (사다리 로비 공개 + 경마 트랙 pref/이벤트 카메라 + 스티키 광고 활성화)
+========================================
+
+## 변경 파일
+- dice-game-multiplayer.html: 사다리 라디오 노출(display:none 제거), bridge 라벨 숨김 전환, 안내 문구 갱신 + 스티키 슬롯 ID
+- js/ladder.js: 연출 타이밍 상수 단축(서버와 byte-identical 유지) + race-running 토글 5지점
+- socket/ladder.js: 연출 타이밍 상수 단축 (js/ladder.js와 lockstep 동기)
+- socket/rooms.js: ① 경마 트랙 pref 사전 로드·시딩(createRoom) ② 사다리 빌드(idle) 재연결 복원 — emitLadderRungsUpdated 재emit
+- js/horse-race.js: ① 트랙 선택 시 계정 pref 저장 emit(로그인 유저만) ② 이벤트 컷어웨이 카메라(item_rocket/reverse_boost/sprint/item_trap, 우선순위·쿨다운·evolution 양보), LEADER_FOCUS 3s→6s
+- js/pirate.js: race-running 토글 4지점 / js/spin-arena.js: 토글 8지점 (기존 pirate-running/spin-running 라인 무변경 병기)
+- 7개 게임 HTML: 스티키 data-ad-slot STICKY_SLOT_ID → 3703259052 (신규 AdSense 디스플레이 단위 "로딩")
+- AutoTest: qa-horse-track-pref-test.js, qa-sticky-ad-race-toggle-test.js, qa-sticky-ad-mobile-pad-test.js 신규
+- docs/goal/applied/: horse-race-track-pref, horse-race-event-camera, lobby-ladder-release, sticky-ad-go-live 4건 아카이브
+
+## 상세 변경 내역
+
+### [사다리타기 로비 정식 공개] (goal: lobby-ladder-release)
+- 로비 방 만들기 라디오에서 ladder display:none 제거 → 정식 진입. bridge(개발 중)는 비노출 전환.
+- 연출 타이밍 전면 단축: 인지 3000→2000, 카운트다운 3200→1600, erase 2400→1600, draw 1800→1200,
+  토큰 하강 6000→3000, FINAL_HOLD 1800→1200, 변형 1400→900, 당첨칸 섞기 2600→1600.
+  서버(socket/ladder.js)·클라(js/ladder.js) 상수 byte-identical 계약 유지 — ladderRevealDelay(N) 합 동기.
+- 빌드(대기) 중 새로고침 재입장 시 슬롯 인계 분기에서 emitLadderRungsUpdated 재호출 —
+  winSlot/base/픽/public set + 본인 private 막대기 복원 (server-only 필드 미포함, C-20 준수).
+
+### [경마 트랙 길이 계정 pref] (goal: horse-race-track-pref)
+- 방장이 트랙 길이 버튼 선택 시 setUserPref(horseTrackLength) emit — 게이트는 userAuth 계정 일치(무료방 포함).
+- createRoom 시 getUserPrefs를 방 등록 전 await로 로드해 gameState.trackLength 동기 시딩 —
+  로비 노출 창과의 트랙 표시 desync 방지. 무효값/게스트는 기존 undefined 의미론 보존.
+
+### [경마 이벤트 컷어웨이 카메라] (goal: horse-race-event-camera)
+- 기믹 발동 순간 자동 컷: 로켓(80)/맹추격(70)/스퍼트(60)/함정(50) 우선순위, 진행 중 컷은 strictly-higher만 교체,
+  종료 후 2s 쿨다운, evolution 컷어웨이 최우선 양보. 랜덤 컷 의존 줄이려 LEADER_FOCUS 3s→6s.
+- 오버레이/사운드는 renderFrame 경유(updateCameraBtnUI)라 catch-up 중 자동 억제.
+
+### [스티키 광고 go-live] (goal: sticky-ad-go-live, 이번 세션 풀 파이프라인)
+- 배경: 2026-05-22 스티키 마크업이 STICKY_SLOT_ID placeholder라 js/ads.js 숫자 가드에 걸려 미송출 상태였음.
+  유저 진입이 다이렉트 링크→방 상주 패턴이라 로비/푸터 광고 노출이 없던 문제의 해소.
+- 신규 AdSense 디스플레이 단위 "로딩"(3703259052) 생성(사용자) 후 7개 게임 HTML 치환.
+- ladder/pirate/spin-arena에 body.race-running 토글 신설(총 17지점) — 원조 4게임과 동일한
+  "게임 연출 중 무광고" 패리티. spin은 3-2-1 카운트다운 창부터 숨김(레이아웃 점프 방지).
+- 검증: Scout×2 → Coder → Reviewer×2(approve) → QA 실행검증(Playwright 2탭 자동화,
+  ladder 12/12·pirate 8/9·spin 11/11·경마 회귀 4/4·모바일 패딩 6/6). 유일 FAIL(P2)은
+  기존 서버 버그(roomJoined 페이로드에 pirate 필드 부재 → 재입장 복원 분기 죽은 코드)로 분리 —
+  별도 작업 예정. 스코프 밖 기존 결함 1건(spin 다시보기 카운트다운 중 라이브 reveal 모드 글리치)도 분리.
+
+========================================
 📋 Summit Log - 2026-08-16 (경마 전체화면 사후 검증 + 차단 결함 2건 수정)
 ========================================
 

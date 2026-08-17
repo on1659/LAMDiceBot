@@ -1744,6 +1744,7 @@ function _featPrevHitReset() { spinReplay._featHit = false; }
 // 리플레이 종료 → 결과 오버레이 + 정리.
 function endSpinReplayToResult(payload) {
     if (document.body) document.body.classList.remove('spin-running');
+    if (document.body) document.body.classList.remove('race-running');
     hideSpinChatOverlay();
     stopSpinBgm();
     playSpinSound('spin-arena_result', 1.0);   // isReplayMode=false 설정 후 호출 → 음소거 안 됨
@@ -2041,6 +2042,7 @@ function toggleSpinReplay() {
     closeResultOverlay();
     spinReplay.wasIdle = (spinReplay.phase === 'idle');
     stopSpinIdlePreview();
+    if (document.body) document.body.classList.add('race-running'); // 다시보기 카운트다운부터 스티키 광고 숨김
     // 라이브 reveal과 동일하게 3-2-1-START 카운트다운 후 재생(t=0 정지 프레임을 배경에 깔고).
     // pendingReveal 토큰으로 도중 리셋/라이브 reveal 침범 시 stale 콜백 자가 취소(enterSpinIdle/reveal 핸들러가 overwrite).
     renderSpinCountdownBackdrop(savedReveal);
@@ -2064,6 +2066,7 @@ function stopSpinReplayPlayback() {
     hideSpinChatOverlay();
     hideSpinHpPanel();
     if (document.body) document.body.classList.remove('spin-running');
+    if (document.body) document.body.classList.remove('race-running');
     if (spinReplay.pendingIdle || spinReplay.wasIdle) {
         enterSpinIdle();
     } else {
@@ -2119,6 +2122,7 @@ function enterSpinIdle() {
     hideSpinHpPanel();
     stopSpinBgm();
     if (document.body) document.body.classList.remove('spin-running');
+    if (document.body) document.body.classList.remove('race-running');
     var status = document.getElementById('gameStatus');
     if (status) { status.textContent = '게임 대기 중...'; status.className = 'game-status waiting'; }
     renderSkinPicker();
@@ -2264,6 +2268,7 @@ function startSpinReplay(payload, opts) {
     var wrap = document.getElementById('spinArenaWrap');
     if (wrap) wrap.style.display = 'block';
     if (document.body) document.body.classList.add('spin-running');
+    if (document.body) document.body.classList.add('race-running'); // 연출 중 스티키 광고 숨김
 
     var canvas = getSpinCanvas();
     if (canvas) { canvas.width = ARENA_W; canvas.height = ARENA_H; }
@@ -2343,7 +2348,10 @@ socket.on('spin-arena:reveal', function (data) {
         hideSpinChatOverlay();
         hideSpinHpPanel();
         if (document.body) document.body.classList.remove('spin-running');
+        if (document.body) document.body.classList.remove('race-running');
     }
+    // 인터럽트 remove 뒤에 add — 3-2-1 카운트다운도 풀 연출이므로 스티키 광고 숨김(카운트다운 중 레이아웃 점프 방지)
+    if (document.body) document.body.classList.add('race-running');
     savedReveal = data;   // 다시보기용 보관(roundReset의 payload=null과 분리)
     spinReplay.pendingIdle = false;
     spinReplay.wasIdle = false;
@@ -2432,6 +2440,7 @@ function spinInitModules() {
 
     // C-6 방어: reconnect 재발신 대비 진행 상태 클래스/오버레이 정리
     if (document.body) document.body.classList.remove('spin-running');
+    if (document.body) document.body.classList.remove('race-running');
     hideSpinChatOverlay();
     hideSpinHpPanel();
     stopSpinBgm();

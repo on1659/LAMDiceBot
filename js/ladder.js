@@ -410,6 +410,7 @@ function ladderEnterRoom(data, asHost) {
 
     // 픽 UI 즉시 렌더 — 첫 ladder:rungsUpdated 도착 전에도 레인/캔버스가 보이게.
     ladderPhase = 'idle';
+    document.body.classList.remove('race-running'); // 재입장(reconnect 포함)은 항상 비-연출 화면 — 잔존 시 스티키 광고 영구 숨김 (C-6)
     renderLaneButtons();
     updateStartButton();
     ladderBindCanvas();
@@ -511,14 +512,14 @@ function ladderSnapNodeY(y) {
 }
 
 // ─── 연출 타이밍 상수 — socket/ladder.js와 byte-identical(lockstep). 합 = 서버 ladderRevealDelay(N) ───
-var LADDER_RECOGNITION_MS = 3000;   // 인지창 — 전체 막대기 동시 표시(신규)
-var LADDER_COUNTDOWN_MS = 3200;     // "3·2·1 시작!" 카운트다운
-var LADDER_ERASE_MS = 2400;         // 사라짐 연출(ladderRunErase)
-var LADDER_DRAW_MS = 1800;          // 서버 그리기 연출(ladderRunDraw, balance add)
-var LADDER_TOKEN_SLOT_MS = 6000;    // 토큰 한 칸이 끝까지 내려가는 시간
-var LADDER_FINAL_HOLD = 1800;       // 결과 캡션/팝업 노출 전 대기
-var LADDER_MUTATION_MS = 1400;      // 변형 1단계(add/remove/none) 애니
-var LADDER_WINSLOT_SHUFFLE_MS = 2600; // 당첨 칸 섞기 연출 — 시작 시 winSlot 재추첨 공개(시퀀스 맨 앞). socket/ladder.js와 byte-identical.
+var LADDER_RECOGNITION_MS = 2000;   // 인지창 — 전체 막대기 동시 표시(신규)
+var LADDER_COUNTDOWN_MS = 1600;     // "3·2·1 시작!" 카운트다운
+var LADDER_ERASE_MS = 1600;         // 사라짐 연출(ladderRunErase)
+var LADDER_DRAW_MS = 1200;          // 서버 그리기 연출(ladderRunDraw, balance add)
+var LADDER_TOKEN_SLOT_MS = 3000;    // 토큰 한 칸이 끝까지 내려가는 시간
+var LADDER_FINAL_HOLD = 1200;       // 결과 캡션/팝업 노출 전 대기
+var LADDER_MUTATION_MS = 900;       // 변형 1단계(add/remove/none) 애니
+var LADDER_WINSLOT_SHUFFLE_MS = 1600; // 당첨 칸 섞기 연출 — 시작 시 winSlot 재추첨 공개(시퀀스 맨 앞). socket/ladder.js와 byte-identical.
 
 // 클라 단계 합이 서버와 동일함을 보장하는 헬퍼(검증/콘솔 측정용). 서버 식과 byte-identical.
 function ladderRevealDelay(N) {
@@ -1840,6 +1841,7 @@ function ladderPathEndColumn(pts) {
 // 결과 발표 팝업 — winSlot에 떨어진 패자(들) 강조. ladder:gameEnd가 채운다(서버 권위).
 var ladderPendingResult = null;   // ladder:gameEnd payload 보관(연출 종료 후 표시)
 function ladderShowResultOverlay() {
+    document.body.classList.remove('race-running'); // 연출 종료(결과 팝업) — 스티키 광고 복원. 조기 return보다 앞(항상 실행)
     var overlay = document.getElementById('resultOverlay');
     var box = document.getElementById('resultRankings');
     if (!overlay || !box) return;
@@ -1893,6 +1895,7 @@ function ladderShowResultOverlay() {
 // reveal 시작 — payload 저장 + 연출 집합 구성 + 오케스트레이션
 function ladderStartReveal(data) {
     ladderPhase = 'revealing';
+    document.body.classList.add('race-running'); // 리빌 연출 중 스티키 광고 숨김
     ladderStartPending = false;
     ladderNumColumns = data.numColumns;
     // 조기 노출 방지(핵심): 최종 winSlot을 여기서 바로 반영하면 배경 렌더가 섞기도 전에 정답을 그린다.
@@ -2006,6 +2009,7 @@ socket.on('ladder:tournamentRound', function (data) {
     ladderFinishedPaths = null; ladderFinishedProgress = null;
     ladderRun.mutationScript = []; ladderRun.landings = [];
     clearLadderRevealTimers();
+    document.body.classList.remove('race-running'); // gameEnd와 같은 틱 도착 시 popupTimer가 죽어 오버레이 remove 미도달 — 광고 복원 가드
     ladderDrag.active = false; ladderDrag.pts = [];
     ladderTouchPointers = {}; ladderMultiTouch = false;
     // 새 라운드 — 내 막대기/픽은 서버 리셋(rungsUpdated가 빈 상태로 재동기). 로컬 캐시 비움.
@@ -2030,6 +2034,7 @@ socket.on('ladder:roundReset', function () {
     ladderUserTops = {};
     ladderPendingResult = null;
     clearLadderRevealTimers();
+    document.body.classList.remove('race-running'); // 전체 리셋 — 스티키 광고 복원
     ladderDrag.active = false; ladderDrag.pts = [];
     ladderTouchPointers = {}; ladderMultiTouch = false;
     setGameStatus('', '');

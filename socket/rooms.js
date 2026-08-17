@@ -12,6 +12,7 @@ const { getServerId } = require('../routes/api');
 const { getServerById, checkMember } = require('../db/servers');
 const { getTop3Badges } = require('../db/ranking');
 const { getDefaultOrder } = require('../db/default-orders');
+const { getUserPrefs } = require('../db/auth');
 const path = require('path');
 const fs = require('fs');
 
@@ -313,6 +314,21 @@ module.exports = (socket, io, ctx) => {
             await leaveRoom(socket);
         }
 
+        // 경마: 방장 계정의 마지막 트랙 길이 pref 사전 로드.
+        // 방 등록(rooms[roomId] 대입) 전에 await로 받아두고 동기로 시딩해야
+        // 로비 노출 창에 입장한 유저와의 트랙 표시 desync가 없다.
+        // 게스트/무pref/유효하지 않은 값이면 세팅하지 않음 (기존 undefined 의미론 보존).
+        let horseTrackPref = null;
+        if (validGameType === 'horse-race') {
+            try {
+                const prefs = await getUserPrefs(userName.trim());
+                const p = prefs && prefs.horseTrackLength;
+                if (p && Object.prototype.hasOwnProperty.call(trackMetersFromConfig, p)) horseTrackPref = p;
+            } catch (e) {
+                console.warn('경마 트랙 pref 로드 실패(createRoom):', e.message);
+            }
+        }
+
         const roomId = generateRoomId();
         const finalRoomName = roomName.trim();
 
@@ -320,6 +336,7 @@ module.exports = (socket, io, ctx) => {
         const validTurboAnimation = turboAnimation !== false;
 
         const gameStateNew = createRoomGameState();
+        if (horseTrackPref) gameStateNew.trackLength = horseTrackPref;
         rooms[roomId] = {
             roomId,
             hostId: socket.id,
@@ -879,6 +896,12 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('updateUsers', gameState.users);
             io.to(roomId).emit('updateOrders', gameState.userOrders);
             io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+            // 사다리타기 빌드(대기) 재연결 복원: 새로고침 재입장은 이 분기(슬롯 인계)로 온다 — 일반 입장 분기와 짝.
+            // emitLadderRungsUpdated가 winSlot/base/픽/public set 브로드캐스트 + 본인 private 막대기 개인 emit까지 수행 (server-only 미포함).
+            if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
+                if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+            }
 
             console.log(`${userName.trim()}이(가) 방 ${room.roomName} (${roomId})에 재연결`);
             return;
