@@ -1033,6 +1033,7 @@
             case 'invalid_name':       return '이름을 다시 확인해주세요.';
             case 'already_in_room':    return '이미 다른 방에 입장해 있어요. 먼저 나가주세요.';
             case 'shortcode_exhausted':return '잠시 후 다시 시도해주세요.';
+            case 'game_not_released':  return '사다리타기는 아직 준비 중이에요. 곧 만나요!';
             default:                   return '방을 만들지 못했어요. 다시 시도해주세요.';
         }
     }

@@ -6,6 +6,7 @@
 const { generateRoomId, createRoomGameState } = require('../utils/room-helpers');
 const { issueShortcode } = require('../utils/shortcode');
 const { recordVisitor } = require('../db/stats');
+const { IS_LOCAL_DEV } = require('../config');
 
 // URL slug → gameType (서버 내부 표기)
 // ⚠️ socket/rooms.js:218 allowlist는 'bridge' (NOT 'bridge-cross')
@@ -76,6 +77,10 @@ module.exports = (socket, io, ctx) => {
         const gameType = GAME_TYPE_BY_SLUG[gameSlug];
         if (!gameType || !ALLOWED_GAME_TYPES.includes(gameType)) {
             return safeAck({ error: 'invalid_game' });
+        }
+        // 사다리타기는 로컬 개발 서버에서만 방을 만들 수 있다 (실서버 미출시)
+        if (gameType === 'ladder' && !IS_LOCAL_DEV) {
+            return safeAck({ error: 'game_not_released' });
         }
         if (!userName || typeof userName !== 'string' || userName.trim().length === 0) {
             return safeAck({ error: 'invalid_name' });

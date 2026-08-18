@@ -374,6 +374,38 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-38. 미출시 게임을 실서버에서 잠글 땐 방 생성 경로 **2곳**을 짝으로 막아라
+
+- 방을 만드는 경로는 `createRoom`(`socket/rooms.js`)과 **`free:createRoom`(`socket/free.js`)** 둘이다. `rooms[roomId] = {}` 대입 지점이 코드베이스에 정확히 이 2곳뿐이며, `socket/free.js`의 `GAME_TYPE_BY_SLUG`에는 `free.html`에 카드가 없는 게임도 등록돼 있다 → **UI에 없어도 콘솔에서 `socket.emit('free:createRoom', {gameSlug:'ladder'})` 하면 실서버에 방이 생긴다.** C-13(클라 게이트는 서버를 못 막는다)의 게임-생성 판.
+- **거부 방식이 경로마다 다르다**: `createRoom`은 `socket.emit('roomError', 문구)` + return, `free:createRoom`은 **ack 객체**(`safeAck({ error: 'code' })`). ack 코드를 새로 만들면 `js/free.js`의 `translateError`에 케이스를 추가해야 유저가 제대로 된 안내를 본다(없으면 "방을 만들지 못했어요" 제네릭).
+- **게이트 위치**: `validGameType` 정규화 **직후**, `socket.deviceId`/`socket.tabId` 대입과 **`await leaveRoom(socket)`보다 앞**. 늦게 넣으면 "거부당했는데 기존 방에서는 쫓겨나는" 사고가 난다. 정규화 후 값으로 비교해야 대소문자·공백 우회(`Ladder`/`" ladder"`)가 막힌다. **allowlist 배열에서 게임을 빼는 것으로 대체하지 마라** — 요청이 조용히 `'dice'` 방으로 변질된다.
+- 두 경로를 다 막으면 그 게임 방은 존재할 수 없으므로 **`joinRoom` 게이트는 불필요**하다(방은 인메모리 전용, 배포=재시작=전 방 소멸). 8게임 공유 경로에 분기를 더하는 회귀 위험만 산다.
+- **환경 판정은 서버에서 내려 클라에 전달**하라. 서버가 `DATABASE_URL`로 판정하는데 클라가 `window.location.hostname`으로 따로 판정하면, **폰에서 LAN IP로 로컬 서버에 붙을 때** 서버는 허용하는데 UI만 막혀 모바일 테스트가 불가능해진다. `getDevFlags` → `devFlags` 같은 소켓 쌍 1개로 내려주고, 마크업 기본값은 **제한 상태(fail-closed)**로 둬 응답 지연 시 released UI가 새지 않게 한다. 판정식은 `config/index.js` 한 곳에만 정의.
+- **`DATABASE_URL` 미설정을 어느 쪽으로 볼지는 용도에 따라 갈린다.** `.env`는 gitignore이고 DB 없는 로컬 개발이 공식 지원 모드이므로 **기능 게이팅은 "미설정=로컬"**이 맞다(실서버는 `DATABASE_URL`이 필수라 오판 없음). 반면 `socket/shop.js`의 `LOCAL_HOST_INFINITE`는 머니패스라 fail-closed(미설정=실서버)가 의도된 설계다 — 같은 정규식을 쓰되 판단을 복사하지 마라.
+- **검증:** 실서버 모사(원격 `DATABASE_URL` + 별도 포트)에서 콘솔 직접 emit 2종이 모두 거부되고 방 0개인지, 나머지 게임은 양 경로 정상인지.
+- (출처: 2026-08-19 ladder-local-only-gate — `docs/goal/applied/ladder-local-only-gate.md`)
+
+---
+
+## C-39. (AutoTest) Playwright `page.click()`은 disabled 입력을 감싼 `<label>`을 클릭하지 못한다
+
+- 이 리포의 라디오는 `input[type="radio"] { opacity:0; pointer-events:none }`로 숨기고 **래핑 `<label>` 클릭으로만 선택**한다. 라디오를 `disabled`로 잠근 상태에서 `page.click('#someLabel')`을 쓰면 Playwright actionability가 "element is not enabled"로 판정해 **30초 타임아웃**이 난다 — 제품은 멀쩡한데 테스트만 FAIL(원인 추적이 어렵다).
+- 실제 마우스·터치 입력은 정상 발화한다(클릭 타깃이 disabled 입력이 아니라 label/자식 span이므로). **`page.mouse.click(box.x + w/2, box.y + h/2)` 또는 `touchscreen.tap`으로 계측하라.**
+- 부수: 비활성 라벨에 안내 문구를 띄우려면 `pointer-events: none`이 아니라 **`disabled`를 써야 한다** — `pointer-events:none`은 클릭 이벤트 자체를 죽여 안내가 불가능해진다.
+- (출처: 2026-08-19 ladder-local-only-gate QA — 오탐 FAIL 1회 발생)
+
+---
+
+## C-40. 게임 페이지 진입부는 `roomError` 수신 시 `loadingScreen`을 반드시 해제하라
+
+- 로비는 **서버 응답을 기다리지 않고** 게임 페이지로 리다이렉트한다(`localStorage`에 pending 정보를 넣고 이동). 따라서 서버가 방 생성/입장을 거부하면 그 거부는 **게임 페이지에서** `roomError`로 도착한다. 이때 진입 IIFE가 띄워둔 `#loadingScreen`(z-index 9999 전체화면)을 해제하지 않으면, 사용자는 안내 확인 후에도 **주황 스피너에 영구히 갇힌다**(뒤로가기로만 탈출, pending 정보는 stale로 잔존).
+- 서버 측 게이트를 새로 추가하거나 거부 조건을 늘리는 변경이 이 잠복 결함을 노출시킨다 — **구버전 탭이 열려 있는 배포 창**에서 실제로 도달한다.
+- **해결:** `roomError` 핸들러에서 ① `loadingScreen` 해제 ② stale pending(`pending{Game}Room`/`{game}ActiveRoom`) 정리 ③ 안내 후 `/game` 복귀. 경마·룰렛에 이미 자동 복귀 관례가 있으니 그대로 따른다.
+- C-5(진입 파라미터 없으면 `/game` 리다이렉트)는 **파라미터가 있는 채 거부당하는 경우**를 덮지 못한다 — 두 경로를 별개로 챙겨라.
+- (출처: 2026-08-19 ladder-local-only-gate QA — 실서버 모사에서 실측 재현)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

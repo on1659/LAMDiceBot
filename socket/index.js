@@ -16,6 +16,7 @@ const registerBoardHandlers = require('./board');
 const { registerServerHandlers } = require('./server');
 const registerShopHandlers = require('./shop');
 const { getUserFlags, setFlag, getUserPrefs, setUserPref } = require('../db/auth');
+const { IS_LOCAL_DEV } = require('../config');
 
 function setupSocketHandlers(io, rooms) {
     // 방 목록 브로드캐스트 디바운싱 (200ms leading + trailing)
@@ -176,6 +177,12 @@ function setupSocketHandlers(io, rooms) {
             if (!checkRateLimit()) return;
             const stats = getVisitorStats();
             socket.emit('visitorStats', stats);
+        });
+
+        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 여부)
+        socket.on('getDevFlags', () => {
+            if (!checkRateLimit()) return;
+            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV });
         });
 
         // 각 핸들러 등록

@@ -1969,11 +1969,13 @@
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
                     <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate)의 인라인 display:none을 제거하면 됨 -->
-                    <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb);">
-                        <input type="radio" name="gameType" value="ladder" id="ladderRadio" />
+                    <!-- 사다리타기: 기본은 선택 불가(개발 중). 서버가 devFlags로 로컬 개발 서버라고 알려줄 때만 해제 -->
+                    <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
+                        <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
                         <span class="gt-emoji">🪜</span>
                         <span class="gt-name">사다리타기</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
                     <label id="spinArenaLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb);">
                         <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" />
@@ -1996,8 +1998,9 @@
                     </label> -->
 
                 </div>
+                <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
                 <div id="gameTypeInfo">
-                    룰렛/경마/사다리타기를 선택하면 전용 페이지로 이동합니다.
+                    룰렛/경마를 선택하면 전용 페이지로 이동합니다.
                 </div>
                 <script>
                     // 게임 타입 선택 시 시각적 강조 — 선택 라벨에 gt-selected 클래스 토글 (색상은 CSS의 --gt-color/--gt-rgb)
@@ -3020,7 +3023,10 @@
                 createRoomConnectionStatus.textContent = '● 연결됨';
                 createRoomConnectionStatus.className = 'connection-status connected';
             }
-            
+
+            // 서버 환경 플래그 요청 (사다리타기 방 만들기 허용 여부) — 방 만들기 화면은 로비 활성 여부와 무관하게 필요
+            socket.emit('getDevFlags');
+
             // 방 목록 요청 및 초기 body 클래스 설정
             if (document.getElementById('lobbySection').classList.contains('active')) {
                 document.body.classList.add('lobby-active');
@@ -3422,7 +3428,41 @@
             document.getElementById('todayPlayCount').textContent = stats.todayPlays ?? 0;
             document.getElementById('totalPlayCount').textContent = stats.totalPlays ?? 0;
         });
-        
+
+        // 서버 환경 플래그 수신 — 사다리타기는 로컬 개발 서버에서만 방을 만들 수 있다.
+        // 마크업 기본값이 이미 제한 상태라 허용일 때만 되돌린다.
+        const LADDER_NOT_READY_MESSAGE = '사다리타기는 아직 준비 중이에요. 곧 만나요!';
+
+        socket.on('devFlags', (flags) => {
+            if (!flags || !flags.ladderEnabled) return;
+
+            const ladderLabel = document.getElementById('ladderLabel');
+            if (ladderLabel) {
+                ladderLabel.style.opacity = '';
+                ladderLabel.style.cursor = '';
+            }
+            const ladderRadio = document.getElementById('ladderRadio');
+            if (ladderRadio) ladderRadio.disabled = false;
+            const ladderDevBadge = document.getElementById('ladderDevBadge');
+            if (ladderDevBadge) ladderDevBadge.style.display = 'none';
+            const ladderNewBadge = document.getElementById('ladderNewBadge');
+            if (ladderNewBadge) ladderNewBadge.style.display = '';
+            const gameTypeInfo = document.getElementById('gameTypeInfo');
+            if (gameTypeInfo) gameTypeInfo.textContent = '룰렛/경마/사다리타기를 선택하면 전용 페이지로 이동합니다.';
+        });
+
+        // 선택 불가 상태에서 사다리타기를 누르면 안내 (라디오가 disabled여도 라벨 클릭은 발생)
+        (function() {
+            const ladderLabel = document.getElementById('ladderLabel');
+            if (!ladderLabel) return;
+            ladderLabel.addEventListener('click', () => {
+                const ladderRadio = document.getElementById('ladderRadio');
+                if (ladderRadio && ladderRadio.disabled) {
+                    showCustomAlert(LADDER_NOT_READY_MESSAGE, 'info');
+                }
+            });
+        })();
+
         // 커스텀 얼럿 함수
         function showCustomAlert(message, type = 'info') {
             // 기존 얼럿이 있으면 제거
