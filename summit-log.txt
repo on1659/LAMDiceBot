@@ -1,4 +1,101 @@
 ========================================
+📋 Summit Log - 2026-08-23 (경마 PiP 수리 + 이탈 게이트 + 링크 미리보기 OG + 사다리 실플레이 4건 + 하네스 정리)
+========================================
+
+## 변경 파일
+- js/horse-race.js: PiP 스케일 루트 자연폭 고정, PiP 전용 스코프 스타일, 룰렛 tick 창 이관, 높이 변화 재fit, horseSelectionCancelled 클라 2차 가드
+- js/horse-shop.js: 잔상 rAF/폭죽/장착 조회를 raceAnimWin()·raceDoc() 기준으로 (PiP 문서 인지)
+- assets/sounds/sound-manager.js: setFocusBypass() 신설 — 포커스 게이트 우회 통로 (미등록 게임 영향 0)
+- socket/chat.js: disconnect 이탈 정리에 경주 중 게이트 + 검증용 판정 로그
+- socket/horse.js: 리셋 2지점에 pendingRaceResult = null (게이트 stale 차단)
+- utils/og-meta.js (신규): free.html의 OG-ROOM-META 마커 블록을 방 정보로 치환
+- routes/api.js: /free/:game/:shortcode 응답을 renderFreeHtml 경유로, 실패 시 정적 폴백
+- free.html: OG-ROOM-META 마커 + og:image / summary_large_image
+- scripts/generate-og-cards.js (신규), assets/og/*.jpg 7장 (신규)
+- js/ladder.js, css/ladder.css, socket/ladder.js: 실플레이 결함 4건 수리
+- .claude/ → docs/harness/archive/: 트리아지 파이프라인 제거 잔재 정리
+- docs/goal/: ranking-winner-calendar, scheduled-game-start 명세 신규
+- AutoTest/: qa-horse-pip-bugfix, qa-horse-disconnect-during-race, qa-free-link-preview 신규
+
+## 상세 변경 내역
+
+### [경마 작은 창(PiP) 관전 결함 수리]
+- 소리 전멸: visibilitychange/blur의 muteAll 우회만 있고 hasSoundFocus() 게이트 우회가 없어,
+  PiP 창을 클릭해 메인 문서가 hasFocus()=false가 되는 순간 신규 사운드가 전부 차단됐다.
+  SoundManager.setFocusBypass(racePipAttached)로 통로 신설 — 경마만 등록, 나머지 게임 정책 무변경.
+- 하단 잘림: pipScaleRoot 폭을 pipWin.innerWidth 기준으로 잡아, attach/detach 때 width:100% 트랙
+  컨테이너의 trackWidth가 바뀌고 init 1회 캡처인 카메라 좌표계가 라운드 내내 어긋났다.
+  → 래퍼의 인페이지 자연폭(wrapper.offsetWidth) 고정으로 교체 (전체화면 raceFsPageNaturalWidth와 같은 관례).
+- 창 축소 시 레이아웃 붕괴: 미디어쿼리가 PiP 창 자신의 폭으로 평가돼 768px 아래에서 모바일 규칙이
+  걸리고 트랙 높이가 400→300으로 줄어 아래 레인이 잘렸다. #pipScaleRoot 하위로 스코프된 데스크톱
+  고정 스타일을 PiP 문서에만 주입하고, 좁아지는 폭은 fit 스케일(k)이 흡수하게 했다.
+- 룰렛 정지: rouletteAnimFrameId는 setTimeout id인데 예약 창과 취소 창이 어긋나면 창을 닫는 순간
+  예약이 사라져 당첨 막대 도달 전에 얼어붙는다. rouletteAnimWin/_rouletteReschedule +
+  clearRouletteTick()/migrateRouletteTimer()로 rAF 드라이버 이관과 같은 계약을 적용.
+- 룰렛 배너 삽입 시 재fit: canvasResultCenter가 래퍼 앞 형제로 끼어들면 루트가 ~60px 높아지는데
+  재fit이 없어 body{overflow:hidden}에 미니맵·최하단 레인이 조용히 잘린 채 유지됐다.
+- 장착 효과 반쪽: horse-shop의 applyToActiveHorses가 document 전용 조회라 PiP 문서의 말에 닿지
+  못해 이름표만 바뀌었다. 잔상 rAF도 메인 창 예약이라 탭 숨김 시 잔상이 트랙 위에 얼어붙었다.
+  raceDoc()/raceAnimWin() 경유로 통일, 미로드 페이지(상점 툴)는 document/window 폴백.
+
+### [경주 중 이탈 정리 게이트] (2026-08-21 전원 렌더링 정지 사고 후속)
+- 원인: 경주 중 disconnect → chat.js가 userHorseBets/userRankVotes를 지우고 horseSelectionCancelled를
+  broadcast → 클라 핸들러의 renderHorseSelection이 진행 중인 트랙 DOM을 선택 미리보기로 갈아엎어
+  그 방 전원의 렌더링이 정지. 베팅 삭제는 경주 종료 판정(뒤에서 두 번째 완주)까지 흔들었다.
+- 서버 게이트: isHorseRaceActive || pendingRaceResult 이면 삭제·broadcast 모두 건너뛴다.
+  결과는 시작 시점 스냅샷으로 정산되고 베팅/투표는 라운드 종료 시 통째 리셋되므로 삭제 실익 없음.
+- 클라 2차 가드: isRaceActive면 cancelled를 폐기. 다음 선택 페이즈의 applyHorseSelectionReady가
+  서버 상태로 전체 재동기화하므로 유실 없음.
+- stale 차단: horse.js 리셋 2지점에서 pendingRaceResult = null — 미소비 결과가 남아 게이트를
+  영구히 켜두는 상태 방지.
+- 검증용 로그 2건 유지: chat.js `[경마][이탈정리]` (정리 실행 시점의 판정 기록),
+  horse-race.js `[경마][가드]` (서버 게이트를 통과한 cancelled를 클라가 막은 경우).
+  재현 조건 확인용이며, 확인 끝나면 제거 대상.
+
+### [자유 방 링크 미리보기 OG 주입]
+- 배경: free.html이 정적 파일이라 모든 방 링크가 동일한 미리보기("친구랑 같이 놀기")로 보였다.
+  카톡/텔레그램 크롤러는 JS를 실행하지 않으므로 서버가 응답 HTML을 치환해야 한다.
+- free.html에 OG-ROOM-META:START/END 마커 블록 도입. 마커 문자열 변경 시 치환이 조용히 실패하므로
+  free.html과 utils/og-meta.js는 lockstep.
+- 방 이름은 socket/free.js가 "{닉네임}의 방"으로 자동 생성한 값, 설명은 현재 인원수.
+  mtime 기반 HTML 캐시로 dev 편집 즉시 반영.
+- 보안: room.serverId가 있으면(서버 방) 치환하지 않고 기본 메타로 내린다 — roomName/hostName은
+  2026-05-17 패치로 비인증 호출자에게 마스킹되는 값이라 미리보기 노출 시 비공개 서버 방 이름이 샌다.
+  /{game}/:shortcode 라우트는 아예 정적 sendFile 유지.
+- renderFreeHtml 예외 시 정적 free.html 폴백 — 미리보기 실패가 방 입장을 막지 않게.
+- 카드 이미지는 scripts/generate-og-cards.js로 생성(1200×630), assets/og/*.jpg 7장 커밋.
+
+### [사다리타기 실플레이 결함 4건] (goal: ladder-playfix-4)
+- 프로덕션 미도달 경로 — 사다리 방 생성은 로컬 개발 서버 전용으로 막혀 있다(socket/rooms.js, socket/free.js).
+  유저 공개 로그에는 기재하지 않음.
+- socket/ladder.js: buildLadder의 union 항목에서 points 깊은 복사. resolveContacts가 points를
+  in-place로 재배정하는데 원본 참조를 공유해 ld.userRungs[owner][k].points가 실제로 바뀌었다
+  ("내가 그린 선이 달라졌다"의 한 축).
+- js/ladder.js(+425): 인지창→사라짐 경계의 렌더 팝 제거, 다중 픽 배지/이름 표시 개선(11px·"12명"
+  오독 수정), 캔버스 ×N 겹침 해소, 결과 오버레이 유실 수정, 백그라운드 탭 rAF 정지 대응.
+- 규칙은 유지 — 숨김 막대기·스크램블·하강 중 변형·재대결 모두 존치(2026-08-18 사용자 결정).
+
+### [하네스 정리]
+- 트리아지 게이트·Scout→Coder→Reviewer→QA 파이프라인 제거 잔재 정리.
+- 훅 3개 삭제(check-shell-write / check-triage / triage-prompt) + settings.json에서 등록 제거.
+  UserPromptSubmit 블록 전체 소멸. 잔여 참조 grep 0건 확인.
+- agents 7 + rules 2 + skills 1 → docs/harness/archive/. .claude/rules/new-game.md →
+  docs/GameGuide/NEW-GAME.md (규칙이 아니라 게임 가이드라서 위치 정정).
+- CLAUDE.md 재작성 — 규칙 문서 표, 온디맨드 문서 표, 주의 경로, 가드 훅 목록, 이력.
+
+### [goal 명세 신규 2건 — 코드 변경 없음]
+- ranking-winner-calendar: 랭킹 팝업에 월간 승자 달력 탭. server_game_records/season_archives의
+  is_winner 활용, 스키마 변경 없음. /api/ranking/:serverId/calendar 쌍 신설 예정.
+- scheduled-game-start: 방장이 N분 후 시작을 예약, 서버가 발화. 주사위/룰렛/경마 3종만
+  (나머지는 프로덕션에서 방 생성 경로가 닫혀 있음). 1초 전역 스위퍼 모델, 영속성 없음.
+
+## 검증
+- node --check: 변경/신규 JS 14개 전부 통과.
+- 브라우저 QA 미실행 (본 세션은 커밋 분리·배포만 수행).
+
+========================================
+
+========================================
 📋 Summit Log - 2026-08-18 (사다리 로비 공개 + 경마 트랙 pref/이벤트 카메라 + 스티키 광고 활성화)
 ========================================
 
