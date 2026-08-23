@@ -169,4 +169,4 @@ find "$CLAUDE_PROJECT_DIR/.claude/agents" -name "*.md" -mtime +60 \
 
 - 자세 가이드: `docs/harness/harness-audit.html`
 - 짝꿍: `.claude/commands/memory-audit.md`
-- 하네스 룰 본체: `.claude/rules/harness.md`, `.claude/rules/workflow.md`
+- 하네스 룰 본체: `CLAUDE.md` (구 `rules/harness.md`·`rules/workflow.md`는 2026-08-19 `docs/harness/archive/rules/`로 아카이브)

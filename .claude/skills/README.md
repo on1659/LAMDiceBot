@@ -1,6 +1,6 @@
 # 역할별 전문 스킬셋
 
-하네스 에이전트(Scout/Coder/Reviewer/QA — `agents/*.md` frontmatter 참조)와 이더 오케스트레이터(`skills/harness/SKILL.md` 참조 스킬)가 주입받는 역할별 도메인 지식 파일.
+역할별 도메인 지식 참고 파일. **현재 자동으로 주입되는 곳은 없다** — 2026-08-19 Scout/Coder/Reviewer/QA 파이프라인이 `docs/harness/archive/agents/`로 아카이브되면서 소비처가 사라졌다. 서브에이전트를 띄울 때 프롬프트에 직접 붙이거나, 사람이 체크리스트로 읽는 용도로만 남아 있다.
 (과거 meeting-team/dev-cycle 커맨드용으로 만들어졌으나, 해당 커맨드는 `docs/harness/archive/`로 아카이브됨 — 표의 팀원 이름은 그 시절 흔적)
 
 ## 파일 목록
@@ -19,7 +19,7 @@
 ## 작동 원리
 
 ```
-하네스 파이프라인 실행 (autogoal Phase 6 / 채팅 직접 요청)
+(과거) 하네스 파이프라인 실행 — 現 아카이브됨
   │
   ├── agents/*.md frontmatter의 skills: 목록 → 해당 에이전트에 주입
   │     (예: reviewer.md → skill-backend/frontend/ui/ux)

@@ -116,11 +116,11 @@ css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 
 ## 4. 함정 (반드시 체크)
 
-모든 게임 공통 함정 5개(C-1 Tailwind override, C-2 `.game-section.active`, C-3 `updateUsers` 형식, C-4 `horse-race.css` 의존, C-5 URL 진입 흐름)는 [`docs/GameGuide/lessons/_common.md`](../../docs/GameGuide/lessons/_common.md)로 이동했다.
+모든 게임 공통 함정 5개(C-1 Tailwind override, C-2 `.game-section.active`, C-3 `updateUsers` 형식, C-4 `horse-race.css` 의존, C-5 URL 진입 흐름)는 [`docs/GameGuide/lessons/_common.md`](lessons/_common.md)로 이동했다.
 
 **새 게임 작업 시작 전 반드시 읽어라.** Claude는 자동으로 lessons 폴더를 읽지만, 사용자가 직접 검토하면 함정을 더 빨리 인지할 수 있다.
 
-게임별 함정/lesson은 [`docs/GameGuide/lessons/{game}.md`](../../docs/GameGuide/lessons/) 참조 (horse-race / bridge-cross / dice / roulette).
+게임별 함정/lesson은 [`docs/GameGuide/lessons/{game}.md`](lessons/) 참조 (horse-race / bridge-cross / dice / roulette).
 
 새 함정을 발견하면:
 - 모든 게임에 적용되면 → `_common.md`에 C-6, C-7… 으로 추가

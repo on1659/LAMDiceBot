@@ -1,73 +1,77 @@
 # LAMDiceBot
 
-Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마).
+Express + Socket.IO 멀티플레이어 게임 서버 (주사위/룰렛/경마/사다리/다리건너기 등).
 순수 HTML, PostgreSQL, 상대 경로 API (`/api/...`).
 
-> **🚦 모든 턴 첫 응답은 `[트리아지: SIMPLE|STANDARD|COMPLEX] 한 줄 사유`로 시작.**
-> 조사·분석만 요청돼도 선언 필수. 판정 기준은 [.claude/rules/harness.md](.claude/rules/harness.md).
-> `UserPromptSubmit` 훅이 매 턴 리마인더를 주입하고, `check-triage.sh`가 Edit/Write 직전에 형식을 강제한다.
+**main = 실서버.** main에 푸시하면 즉시 배포된다. 작업은 feature 브랜치에서.
 
-## 문서 역할 구조
+## 규칙 문서
 
-`.claude` 문서는 3개 층으로 나뉜다.
+| 파일 | 로드 방식 | 역할 |
+|------|-----------|------|
+| [guidelines.md](.claude/rules/guidelines.md) | 항상 | 코드 수정 공통 규칙 |
+| [docs.md](.claude/rules/docs.md) | 항상 | 문서 작성 규칙 |
+| [backend.md](.claude/rules/backend.md) | `socket/` `db/` `routes/` `utils/` 편집 시 | 백엔드 규칙 |
+| [frontend.md](.claude/rules/frontend.md) | `*.html` `css/` `js/` 편집 시 | 프론트엔드 규칙 |
+| [horse-app.md](.claude/rules/horse-app.md) | `horse-app/` 편집 시 | horse-app (React) 규칙 |
 
-### 1. Brain — 오케스트레이션 / 판단 / 흐름 제어
+`.claude/rules/*.md`는 frontmatter `paths:`가 있으면 해당 경로 편집 시에만 로드되고,
+없으면 매 세션 로드된다. 새 규칙을 추가할 땐 항상-로드가 정말 필요한지 먼저 따져라.
 
-작업을 어떤 파이프라인으로 처리할지 결정하는 문서들.
+## 온디맨드로 읽을 것 (작업 시작 전)
 
-| 파일 | 역할 |
+| 상황 | 읽을 문서 |
+|------|-----------|
+| 새 게임 추가 / 새 모드 | [docs/GameGuide/NEW-GAME.md](docs/GameGuide/NEW-GAME.md) — 등록 16곳 체크리스트 |
+| 게임별 파일 작업 (`*-multiplayer.html`, `js/{game}.js`, `socket/{game}.js`, `css/{game}.css`) | [lessons/_common.md](docs/GameGuide/lessons/_common.md) + 해당 게임 [lessons/{game}.md](docs/GameGuide/lessons/) |
+| 아키텍처 / 공유 모듈 / 소켓 계약 | [docs/GameGuide/README.md](docs/GameGuide/README.md) |
+| 계획 토론이 필요할 때 | `/meeting-codex` |
+
+## 기능 개발 진입점
+
+**`/autogoal`** — 크고 작음 구분 없이 단일 진입. 캐묻기 → 규모 라우팅(LIGHT/HEAVY) →
+`docs/goal/*.md` 명세 작성 → 구현까지 이어진다. 문서만 필요하면 `/goaldoc`.
+
+파일 3개+ 또는 DB 변경이 예상되면 goal 문서를 먼저 만들지 확인해라.
+
+## 주의 경로 (가정-오류 위험 구역)
+
+아래는 크로스게임 계약·공정성·영속성에 걸리는 구역이다. 손대기 전에 호출부와
+기존 패턴을 먼저 읽어라. 훅이 막지는 않지만, 사고가 반복적으로 나온 곳이다.
+
+| 경로 | 이유 |
 |------|------|
-| `CLAUDE.md` (이 파일) | 진입점, 전체 지도 |
-| `/autogoal` (사용자 레벨 스킬) | **기능 개발 단일 진입문** — 캐묻기 → LIGHT/HEAVY 라우팅 → goal 명세 → 하네스 구현 |
-| [harness.md](.claude/rules/harness.md) | 트리아지 판정 + 재트리아지 규칙 + 검증 팬아웃 |
-| [workflow.md](.claude/rules/workflow.md) | 상태 전이, 루프, 에스컬레이션 |
-| [meeting-codex.md](.claude/commands/meeting-codex.md) | /meeting-codex 계획 토론 (autogoal HEAVY 패널의 대체 실행) |
+| `socket/*` | 소켓 이벤트 계약 — 멀티플레이어 동기화 |
+| `db/*` | 스키마/쿼리 — 신뢰경계·SQL·영속성 |
+| `js/shared/*` | 크로스게임 공유 모듈 — 전 게임 영향 |
+| `utils/room-helpers.js` | gameState 초기화 — 전 게임 공통 |
 
-> 구 진입점(/build, /dev-cycle, meeting 역할극 변형)은 2026-07-19 `docs/harness/archive/`로 아카이브 — autogoal이 역할 흡수.
+## 자동 가드 (훅)
 
-### 2. Hands — 실제 실행
+수동으로 챙길 필요 없이 동작한다. 경고가 뜨면 무시하지 말고 판단해라.
 
-정찰, 구현, 리뷰, QA를 수행하는 에이전트 문서들.
-
-| 파일 | 역할 |
-|------|------|
-| [scout.md](.claude/agents/scout.md) | 코드베이스 정찰 |
-| [scout-codex.md](.claude/agents/scout-codex.md) | Codex 추가 정찰 |
-| [coder.md](.claude/agents/coder.md) | 코드 구현 |
-| [reviewer.md](.claude/agents/reviewer.md) | 코드 리뷰 |
-| [reviewer-codex.md](.claude/agents/reviewer-codex.md) | Codex 추가 리뷰 |
-| [qa.md](.claude/agents/qa.md) | 품질 검증 |
-| [codex-planner.md](.claude/agents/codex-planner.md) | Codex 계획 토론 파트너 |
-
-### 3. Session / Contracts — 불변조건 / 참조 / 기록
-
-작업 중 지켜야 할 규칙과 세션 간 이어지는 기록.
-
-| 파일 | 역할 |
-|------|------|
-| [guidelines.md](.claude/rules/guidelines.md) | 코드 수정 공통 규칙 |
-| [backend.md](.claude/rules/backend.md) | 백엔드 규칙 |
-| [frontend.md](.claude/rules/frontend.md) | 프론트엔드 규칙 |
-| [horse-app.md](.claude/rules/horse-app.md) | horse-app (React) 규칙 |
-| [new-game.md](.claude/rules/new-game.md) | 새 게임 추가 절차 |
-| [docs.md](.claude/rules/docs.md) | 문서 작성 규칙 |
-| [skills/*.md](.claude/skills/) | 역할별 프레임워크 |
-| [GameGuide](docs/GameGuide/README.md) | 아키텍처, 게임별 상세, QA |
-| `docs/meeting/`, `docs/dev-cycle/` | 산출물 보관 |
-
-### 문서 사용 원칙
-
-- **Brain**은 "무엇을 할지, 어떤 흐름으로 갈지"를 결정한다.
-- **Hands**는 "실제로 어떻게 수행할지"를 정의한다.
-- **Session / Contracts**는 "무엇을 지켜야 하는지, 무엇이 이미 결정됐는지"를 보존한다.
-- Brain은 Hands의 세부 구현 규칙을 과도하게 품지 않는다.
-- Hands는 Session / Contracts의 불변조건을 절대 깨뜨리지 않는다.
-- 작업 기록은 대화 기억에만 의존하지 말고 `docs/` 산출물로 남긴다.
+- `security-guard` — `socket.on()`에 `ctx.checkRateLimit()` 누락 시 **차단**
+- `fairness-guard` — 클라이언트 JS의 `Math.random()` 경고 (게임 결과는 서버에서만 결정)
+- `mobile-guard` — viewport 누락, 고정 너비, `@media` 부재 경고
+- `check-main-branch` / `check-push-branch` — main 브랜치 편집·푸시 경고
+- `ui-check` / `file-type-reminder` — UI·파일 타입 리마인더
+- `goal-archive` (Stop) — 아래 큐를 비우며 goal 문서를 `applied/`로 이동
 
 ## 항상 적용
 
-- 구현 요청 시 파일 3개+ 또는 DB 변경 → goal/impl 문서 먼저 만들지 확인 (`/autogoal`이 이 확인을 겸한다)
 - 숫자 상수 → `config/` 또는 파일 상단 `const` 블록에 정의
 - 개발 도구/봇 코드 → 게임 서버(`server.js`, `routes/`, `socket/`)에 삽입 금지
-- **기능 개발 진입점은 `/autogoal`** — 크고 작음 구분 없이 단일 진입, 규모 라우팅(LIGHT/HEAVY) 내장. HEAVY는 계획 패널(Workflow 다관점 또는 `/meeting-codex`)을 거쳐 goal 문서를 만든 뒤 하네스로 구현
-- **goal 완료 시 아카이브**: `docs/goal/*.md` 명세의 작업을 끝냈으면, 그 파일 경로(프로젝트 루트 기준, 예 `docs/goal/foo.md`)를 `.claude/.goal-applied-queue`에 한 줄로 append 한다. Stop 훅(`goal-archive.sh`)이 멈출 때 큐의 파일을 `docs/goal/applied/`로 옮기고 큐를 비운다. (미완 상태에서는 적지 않는다 — 조기 이동 방지)
+- 모바일/PC 화면 대응을 계획 단계부터 포함
+- 게임 결과는 **서버에서만** 결정. 클라이언트는 시각화만
+- 공유 모듈 변경 시 크로스게임 검증 (주사위/룰렛/경마 전부)
+- 작업 중 새 함정·실수를 발견하면 보고 말미에 "💡 lesson 후보:"로 정리하고
+  `docs/GameGuide/lessons/`에 추가할지 사용자에게 물어라
+- **goal 완료 시 아카이브**: `docs/goal/*.md` 명세의 작업을 끝냈으면 그 파일 경로를
+  (프로젝트 루트 기준, 예 `docs/goal/foo.md`) `.claude/.goal-applied-queue`에 한 줄 append.
+  Stop 훅이 `docs/goal/applied/`로 옮기고 큐를 비운다. 미완 상태에서는 적지 않는다
+
+## 이력
+
+- 2026-08-19: 트리아지 게이트·Scout→Coder→Reviewer→QA 파이프라인 제거.
+  가드 훅·goal 흐름·lessons는 유지. 아카이브: `docs/harness/archive/`
+- 2026-07-19: `/build`·`/dev-cycle`·meeting 변형을 autogoal이 흡수

@@ -30,7 +30,7 @@ user-invocable: true
 - 이 스킬은 **goal 문서 생성까지만** 한다. 절대 구현(코드 수정)으로 넘어가지 마라 — 실행은 사용자가 `/goal`로 한다.
 - 경로는 풀(절대) 경로로 보여준다(전역 CLAUDE.md). 단 첫 프롬프트의 `/goal` 인자는 워크스페이스 상대경로(`docs/goal/...`)로 — `/goal`이 그 형식으로 동작한다.
 - 회의록/impl 문서 규칙(`.claude/rules/docs.md`)과 충돌하지 않게: goal 문서는 `docs/goal/`에만 만든다(meeting/plan, impl과 별개).
-- 새 게임/게임 파일이 대상이면 명세에 `.claude/rules/new-game.md`와 `docs/GameGuide/lessons/` 참조를 넣어라.
+- 새 게임/게임 파일이 대상이면 명세에 `docs/GameGuide/NEW-GAME.md`와 `docs/GameGuide/lessons/` 참조를 넣어라.
 
 ## goal 명세 템플릿
 
