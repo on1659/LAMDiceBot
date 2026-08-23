@@ -1,4 +1,97 @@
 ========================================
+📋 Summit Log - 2026-08-24 (시작 시간 예약)
+========================================
+
+## 변경 파일
+- socket/scheduled-start.js: [신규] 스위퍼·발화·등록/취소·벽시계 환산·방 알림
+- config/index.js: SCHEDULE_PRESET_MINUTES / _TIMEZONE / _MIN_LEAD_MS / _SWEEP_MS / _NOTICE_MS, HORSE_SETTLE_GRACE_MS
+- utils/room-helpers.js: gameState.scheduledStartAt 추가
+- socket/index.js: startScheduler(io, rooms, { rooms, updateRoomsList }) — 프로세스당 1회
+- socket/shared.js: scheduleStart / cancelScheduledStart 핸들러 2개 (gameType 디스패치)
+- socket/rooms.js: 입장 페이로드에 scheduledStartLabel 파생 주입, checkRateLimit 별칭 → ctx 경유
+- socket/dice.js: canStartDice/startDice 추출 + isGameActive 재진입 가드 신설
+- socket/roulette.js: canStartRoulette/startRoulette 추출 (finalize 헬퍼 모듈 스코프로)
+- socket/horse.js: canStartHorse/startHorse 추출, 탈것 자동 배정(예약 한정), settleRace 추출 + 워치독
+- dice/roulette/horse 클라: 알약 버튼 + 예약 팝업 + 시/분 드롭다운 + 초 카운트다운
+- AutoTest/qa-scheduled-start-test.js, qa-scheduled-start-horse-test.js: [신규]
+- docs/goal/scheduled-game-start.md: 명세 (D4 절대시각으로 정정, UI 결정 추가)
+
+## 상세 변경 내역
+
+### [타이머 모델 — setTimeout 대신 1초 전역 스위퍼]
+- socket/pirate.js:143 패턴(클로저에 room 캡처)을 복사하지 않았다. 60초 데드라인에선 무해하지만
+  분 단위 예약에선 삭제된 방의 room→gameState→chatHistory(최대 100건, 이미지 4MB)를 통째로 붙잡는다.
+  deleteRoom(utils/room-helpers.js)은 타이머를 정리해주지 않아 고아 핸들이 남는다.
+- 스위퍼는 gameState.scheduledStartAt <= now인 방만 훑는다. 상태는 최상위 스칼라 하나라
+  socket/rooms.js의 gameState 전량 spread를 그대로 통과 — 마스킹 allowlist 편집 불필요.
+  (Node Timeout을 gameState에 두면 순환 참조로 입장 페이로드 직렬화가 깨진다.)
+- fire()는 scheduledStartAt을 첫 await 이전에 동기로 비운다 → 스위퍼가 겹쳐 돌아도 이중 발화 없음.
+
+### [절대 시각 — 환산은 100% 서버]
+- 클라는 "HH:MM" 문자열만 보낸다. resolveWallClock()이 Intl.DateTimeFormat(SCHEDULE_TIMEZONE)로
+  서버 벽시계를 읽어 델타 초를 구한다 — 서버 프로세스 TZ와 무관하게 같은 값이 나온다.
+- 기기 시계 오차·기기 타임존이 발화 시각에 끼어들 수 없다. 표기(scheduledStartLabel)도 서버가 만들어
+  전원이 같은 시각을 본다(클라가 각자 그리면 해외 접속자에게 다른 시각).
+- 이미 지난 시각 → 다음 날로 롤오버. 최소 여유 검사는 여기서 하지 않는다 —
+  함께 처리하면 "2분 뒤" 예약이 내일로 밀려 방 수명 초과라는 엉뚱한 사유로 거절된다.
+
+### [최소 여유 3분 — 분 단위 절삭 방어]
+- 입력이 분 단위라 초가 절삭된다. 23:24:50에 "23:25"를 고르면 실제 10초 뒤.
+- armSchedule이 now를 한 번만 읽어 전 구간 재사용. 구간마다 Date.now()를 다시 부르면
+  프리셋 3분이 179999ms로 계산돼 자기 검사에 걸린다(실제로 발생 → 수정).
+- 클라 프리셋은 다음 분으로 올림(scheduleTargetAfter). 안 하면 +3분이 최소 여유에 걸린다.
+- "너무 가까움"과 "이미 지남/방 수명 초과"를 별도 문구로 분리.
+
+### [게임별 시작 로직 추출]
+- 소켓 핸들러 = 검문(rate limit → 방 조회 → 호스트 확인 → canStart) + 위임.
+  본문 start(room, gameState, io, ctx, opts)는 socket을 참조하지 않는다.
+- 호스트 확인은 canStart에 넣지 않았다 — 타이머엔 응답할 소켓이 없다.
+- 룰렛: finalizeRouletteRound/scheduleRouletteFinalization을 registrar 클로저에서 모듈 스코프로 이동
+  (io, ctx를 인자로). 기존 타이머·절대시각 로직은 무변경.
+- 경마: generateWeatherSchedule/getWinnersByRule 등 시뮬 헬퍼를 모듈 스코프로 이동.
+  부작용 — race.json이 연결당 1회가 아니라 프로세스당 1회만 읽힌다(핫에딧 시 재시작 필요).
+
+### [경마 자동 배정 — 예약 발화 한정]
+- opts.scheduled 플래그로 분기. 수동 시작은 종전대로 "모든 사람이 말을 선택해야" 거절.
+  플래그 없이 만들면 예약을 안 쓰는 사용자의 수동 시작 동작까지 바뀐다(초안이 그랬고 되돌림).
+- 배정은 runningHorseCount를 늘려 참가자 전원의 당첨 확률과 N등 투표 유효범위를 바꾼다.
+  사용자 확정 정책이라 진행하되 코드에 주석으로 명시.
+
+### [함께 고친 기존 결함 — 예약이 드러낸 것들]
+- 주사위 재진입 가드: startGame에 isGameActive 검사가 없어 진행 중 재시작 시
+  history 강등 + rolledUsers 초기화로 이미 굴린 기록이 소실. 나머지 6게임엔 전부 있던 가드.
+- 경마 정산 워치독: 코인·기록 확정이 클라 raceAnimationComplete에만 의존.
+  settleRace(room, gameState, io, ctx) 추출, pendingRaceResult 선소비로 멱등.
+  ctx.triggerAutoOrder는 예약 경로 ctx에 없어 옵셔널 가드(예약 발화+워치독 정산 시 자동주문 미발동).
+- 수동 시작이 예약을 조용히 삭제 → "예약했는데 왜 지금 시작하지?"로 보임. 방 전체 알림 추가.
+- 서버 로그에서 예약 발화와 수동 시작이 구분 불가 → [예약 시작] 발화/건너뜀 로그 추가.
+  (실제 사용자 문의 "16분 예약인데 15분에 시작"의 원인 판별이 이 로그 없이는 불가능했다.)
+
+### [클라이언트 UI]
+- 알약 버튼(호스트 컨트롤 위 자체 행, 우측 정렬) + 팝업. 인라인 프리셋 행에서 전환 —
+  시작 버튼과 같은 줄이라 어색하고, 어느 시각으로 걸었는지 보여줄 자리가 없었다.
+- input[type=time] 폐기 → 시(24)·분(60) select 2개. 네이티브 스피너가 조작이 느리다.
+- 프리셋은 시각 칸을 채울 뿐(emit 안 함). [예약]이 커밋.
+- 방 만료 이후가 되는 프리셋은 숨김(data-schedule-minutes + roomExpiresAtMs).
+- 카운트다운과 발화 안내가 같은 DOM 요소를 돌려쓴다 — 나누면 발화 순간
+  배지 소멸 + 토스트 + 3-2-1 오버레이가 3중으로 겹친다.
+- 주사위 버그 수정: 안내 5초 후 카운트다운으로 복귀하지 않아 남은 시간이 영영 안 보이던 문제
+  (룰렛·경마는 정상이었음).
+
+## 알려진 미해결
+- 비방장에게 방 전체 카운트다운 배지가 보이지 않는다. 서버 브로드캐스트와 배지 요소 위치는
+  정상 확인, 클라 렌더 경로에서 막히는 것으로 추정. 다음 작업으로 이관.
+- 배지 위치를 트랙 좌상단 → 가운데로 옮기는 요청도 함께 이관.
+
+## 함께 커밋된 다른 작업
+- 로비 방목록 서버 격리 + 랭킹 승자 달력 마무리
+  (js/shared/ranking-shared.js, socket/server.js, server.js,
+   AutoTest/qa-lobby-room-list-isolation-test.js, goal 문서 applied 이동)
+- socket/index.js에서 두 작업의 변경이 겹쳐 분리하지 않음.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-08-23 (랭킹 승자 달력)
 ========================================
 

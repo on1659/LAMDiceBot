@@ -16,6 +16,7 @@ const registerBoardHandlers = require('./board');
 const { registerServerHandlers } = require('./server');
 const registerShopHandlers = require('./shop');
 const { getUserFlags, setFlag, getUserPrefs, setUserPref } = require('../db/auth');
+const { startScheduler } = require('./scheduled-start');
 const { IS_LOCAL_DEV } = require('../config');
 
 function setupSocketHandlers(io, rooms) {
@@ -33,7 +34,10 @@ function setupSocketHandlers(io, rooms) {
         isOrderActive: room.gameState.isOrderActive,
         isPrivate: room.isPrivate || false,
         gameType: room.gameType || 'dice',
-        serverId: room.serverId || null
+        serverId: room.serverId || null,
+        serverName: room.serverName || null,
+        createdAt: room.createdAt,
+        expiryHours: room.expiryHours || 1
     }));
 
     const filterRoomsForSocket = (allRooms, socket) => {
@@ -43,8 +47,8 @@ function setupSocketHandlers(io, rooms) {
 
         for (const room of allRooms) {
             if (room.isPrivate) {
-                // 비공개방: 같은 서버 멤버만 볼 수 있음
-                if (userServerId && room.serverId === userServerId) {
+                // 비공개방: 같은 서버(또는 둘 다 자유플레이)일 때만 노출 — 입장은 비밀번호로 막는다
+                if ((userServerId || null) === (room.serverId || null)) {
                     filtered.push(room);
                 }
             } else {
@@ -83,6 +87,10 @@ function setupSocketHandlers(io, rooms) {
             broadcastFilteredRooms();
         }, DEBOUNCE_MS);
     };
+
+    // 예약 시작 스위퍼 — 연결당이 아니라 프로세스당 하나.
+    // 타이머 경로에는 소켓이 없으므로 ctx도 소켓과 무관한 것만 넘긴다.
+    startScheduler(io, rooms, { rooms, updateRoomsList });
 
     io.on('connection', (socket) => {
         console.log('새 사용자 연결:', socket.id);
@@ -162,6 +170,13 @@ function setupSocketHandlers(io, rooms) {
             return normalized;
         };
 
+        // 이 소켓의 서버 소속에 맞춰 방 목록을 즉시 내려준다.
+        // setServerId가 async라서 클라이언트가 보낸 getRooms가 serverId 확정보다
+        // 먼저 처리될 수 있다 — 확정된 뒤 서버가 직접 밀어주는 경로가 필요하다.
+        const sendRoomsList = () => {
+            socket.emit('roomsList', filterRoomsForSocket(buildRoomsList(), socket));
+        };
+
         // 공유 컨텍스트
         const ctx = {
             checkRateLimit,
@@ -169,6 +184,7 @@ function setupSocketHandlers(io, rooms) {
             getCurrentRoomGameState,
             normalizeTo100,
             updateRoomsList,
+            sendRoomsList,
             rooms
         };
 
@@ -246,6 +262,9 @@ function setupSocketHandlers(io, rooms) {
             }
         });
     });
+
+    // 방 만료 스위퍼(server.js)처럼 소켓 밖에서도 필터된 브로드캐스트가 필요하다
+    return { updateRoomsList };
 }
 
 module.exports = { setupSocketHandlers };

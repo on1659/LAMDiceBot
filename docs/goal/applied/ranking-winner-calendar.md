@@ -11,7 +11,7 @@ All required data already exists in `server_game_records` / `season_archives`: t
 ## In-scope
 - An on/off toggle labelled `📅 달력`, right-aligned in a dedicated bar that sits directly above the scrolling content — visually just above the `1~10등까지 랭킹` caption, where the user pointed. Off = today's leaderboards (unchanged). On = the winner calendar. The main tab bar is not a candidate location: its two buttons already fill the panel width.
 - Monthly calendar grid (Sun–Sat, 7 columns) for the season currently being viewed.
-- Day cell contents: day number, the day's most frequent winner name, and a `+N` badge for the remaining distinct winners that day.
+- Day cell contents: day number, then up to **two** winner names stacked (most wins first, ties broken by name), then a bare `+` when a third distinct winner exists. The `+` carries no count — the exact list is one tap away in the detail panel.
 - Tapping a day opens an inline detail panel directly below the calendar (not a nested overlay) listing every game played that day in order:
   `1차 · 🎲 주사위 · 👑 철수` / `2차 · 🪜 사다리타기 · 👑 영희, 민수`
   The 회차 number (1차, 2차, …) is per-day, counted from the first game of that day.
@@ -39,7 +39,8 @@ All required data already exists in `server_game_records` / `season_archives`: t
 - [ ] Turning it on replaces the leaderboard content with the month grid and hides the game sub-tab bars; turning it off restores the previous leaderboard view and its active tab.
 - [ ] The toggle is present and functional inside a past-season view, and that calendar shows only that season's games.
 - [ ] Days are bucketed by **Asia/Seoul** calendar date, so a game played at 00:30 KST lands on the correct day.
-- [ ] A day with games shows the most frequent winner's name; when more distinct winners exist that day, a `+N` badge shows the remaining count.
+- [ ] A day with games shows up to two winner names; a bare `+` appears only when a third distinct winner exists.
+- [ ] Two stacked names plus the `+` fit the cell without clipping the grid, down to a 320px viewport.
 - [ ] Days with no games render as empty/dimmed and are not tappable.
 - [ ] Tapping a day shows every game of that day in order with a per-day 회차 number, the game label, and the winner name(s).
 - [ ] A game with multiple winners (사다리·경마 can have several) lists all of them in the detail and counts each of them toward the cell's distinct-winner count.
@@ -125,4 +126,4 @@ Fetch the calendar separately from the main ranking payload — do not enlarge `
 
 ## Open Questions
 - Toggle state is not persisted; reopening the popup starts on the leaderboards. If the calendar turns out to be the view players want by default, persisting it in `localStorage` (as the horse-race auto-select toggle does) is a small follow-up.
-- The `+N` badge counts distinct winners for the day. If days routinely have 4–5 different winners, the cell may be better served by a count-only summary (`5판`) with all names in the detail — decide during QA against real data.
+- Two names per cell was chosen after seeing real data (2026-08-23). Cells measure 45.6px wide at 375px and 37.7px at 320px, so names beyond 3 Korean characters ellipsis-clip — a third stacked name would be unreadable, hence the bare `+`.

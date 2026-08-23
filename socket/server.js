@@ -11,7 +11,10 @@ const { resolveShortcode } = require('../utils/shortcode');
 const onlineMembers = new Map();
 
 function registerServerHandlers(socket, io, ctx) {
-    const { checkRateLimit, rooms } = ctx;
+    // checkRateLimit은 별칭 대신 ctx 경유로 감싼다 — security-guard 훅이 `ctx.checkRateLimit(`
+    // 리터럴을 요구한다. index.js의 화살표 클로저라 this를 안 써서 동작은 동일하다.
+    const checkRateLimit = () => ctx.checkRateLimit();
+    const { rooms, sendRoomsList } = ctx;
 
     // 서버 생성
     socket.on('createServer', async (data) => {
@@ -192,6 +195,9 @@ function registerServerHandlers(socket, io, ctx) {
                 pendingCount
             });
 
+            // 새 소속 기준 방 목록 재전송
+            sendRoomsList();
+
             // 서버 내 멤버에게 접속 알림
             io.to(`server:${serverId}`).emit('memberUpdated', {
                 type: 'online',
@@ -207,6 +213,8 @@ function registerServerHandlers(socket, io, ctx) {
     // 서버 퇴장
     socket.on('leaveServer', () => {
         handleServerLeave(socket, io);
+        // 소속이 풀렸으니 자유플레이 기준 목록으로 교체
+        sendRoomsList();
     });
 
     // 현재 서버 ID 설정 (세션 복원 시 룸 재조인 + 온라인 등록)
@@ -221,6 +229,7 @@ function registerServerHandlers(socket, io, ctx) {
         const userName = (data && data.userName) || null;
         if (!serverId) {
             socket.serverId = null;
+            sendRoomsList();
             return;
         }
 
@@ -231,12 +240,14 @@ function registerServerHandlers(socket, io, ctx) {
                 if (!member || !member.is_approved) {
                     socket.serverId = null;
                     socket.emit('serverError', '서버 멤버십이 없거나 승인 대기 중입니다.');
+                    sendRoomsList();
                     return;
                 }
             } catch (e) {
                 console.warn('[setServerId] 멤버 확인 실패:', e.message);
                 socket.serverId = null;
                 socket.emit('serverError', '서버 확인 중 오류가 발생했습니다.');
+                sendRoomsList();
                 return;
             }
         }
@@ -247,6 +258,10 @@ function registerServerHandlers(socket, io, ctx) {
 
         socket.serverId = serverId;
         socket.join(`server:${serverId}`);
+
+        // 서버 소속이 확정된 시점에 방 목록을 다시 내려준다 —
+        // 클라이언트의 getRooms가 이 async 검증보다 먼저 처리되면 남의 서버 목록이 남는다
+        sendRoomsList();
 
         if (userName) {
             socket.serverUserName = userName;

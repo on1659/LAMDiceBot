@@ -567,6 +567,120 @@
             background: var(--gray-300);
         }
 
+        /* 예약 열기 줄 (방장 전용) — 호스트 컨트롤 바로 위, 오른쪽 정렬 알약 버튼.
+           예약 중이면 글자가 "⏰ 22:45"로 바뀌고 색이 붉어져 걸려 있다는 게 보인다. */
+        .schedule-open-row {
+            display: none;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+
+        .schedule-open-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            width: auto;
+            margin-top: 0;
+            padding: 6px 11px;
+            border: 1.5px solid var(--roulette-accent);
+            border-radius: 999px;
+            background: var(--bg-white);
+            color: var(--roulette-accent);
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .schedule-open-button.is-armed {
+            border-color: var(--btn-danger);
+            color: var(--btn-danger);
+        }
+
+        .schedule-preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .schedule-preset-button {
+            width: auto;
+            flex: 1 1 60px;
+            min-width: 60px;
+            margin-top: 0;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: linear-gradient(135deg, var(--btn-neutral) 0%, var(--btn-neutral-hover) 100%);
+        }
+
+        /* 절대 시각 예약 — 좁은 화면에서는 드롭다운과 버튼이 각각 줄바꿈된다 */
+        .schedule-time-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .schedule-time-select {
+            flex: 1 1 80px;
+            min-width: 0;
+            min-height: 44px;
+            padding: 10px 8px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            font-size: 16px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .schedule-time-select:focus {
+            border-color: var(--roulette-accent);
+            outline: none;
+        }
+
+        .schedule-time-colon {
+            flex: 0 0 auto;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .schedule-time-button {
+            width: auto;
+            flex: 0 1 90px;
+            min-width: 60px;
+            margin-top: 0;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: linear-gradient(135deg, var(--btn-neutral) 0%, var(--btn-neutral-hover) 100%);
+        }
+
+        /* 팝업 안 [예약 취소] — 표시 여부는 JS가 정한다 */
+        .schedule-cancel-button {
+            width: auto;
+            margin-top: 0;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: linear-gradient(135deg, var(--btn-danger) 0%, var(--btn-danger-hover) 100%);
+        }
+
+        /* 남은 시간과 안내 문구를 한 요소에서 번갈아 보여준다 (배지·토스트 겹침 방지) */
+        .schedule-status {
+            display: none;
+            margin-bottom: 20px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            background: var(--panel-secondary);
+            border: 2px solid var(--roulette-accent);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: bold;
+            text-align: center;
+            word-break: keep-all;
+        }
+
         .end-button {
             background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%);
         }
@@ -1035,9 +1149,17 @@
                 </div>
             </div>
 
+            <!-- 예약 시작 표시 — 남은 시간과 안내 문구가 이 요소 하나를 번갈아 쓴다 (방 전원에게 보임) -->
+            <div class="schedule-status" id="rouletteScheduleStatus"></div>
+
+            <!-- 예약 — 누르면 팝업에서 시각을 정한다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
+            <div class="schedule-open-row" id="scheduleOpenRow">
+                <button type="button" class="schedule-open-button" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
+            </div>
+
             <!-- 호스트 컨트롤 -->
-            <div class="host-controls" id="hostControls" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled style="grid-column: 1 / -1;">
+            <div class="host-controls" id="hostControls" style="display: none; grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px;">
+                <button class="start-button" id="startRouletteButton" onclick="startRoulette()" disabled>
                     🎰 룰렛 시작 (최소 2명 준비 필요)
                 </button>
                 <button onclick="OrderModule.startOrder()" id="startOrderButton" style="display: none; background: linear-gradient(135deg, var(--btn-ready) 0%, var(--green-400) 100%);">주문받기 시작</button>
@@ -1200,6 +1322,43 @@
     </div>
 
     <!-- 비밀번호 입력 모달 -->
+    <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
+            <h3 style="margin-bottom: 6px;">⏰ 시작 시간 예약</h3>
+            <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
+
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
+            </div>
+
+            <div id="scheduleModalPickers">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">몇 분 뒤로 채우기</div>
+                <div class="schedule-preset-row" style="margin-bottom: 16px;">
+                    <button class="schedule-preset-button" data-schedule-minutes="3" onclick="setScheduleTimeFromNow(3)">+3분</button>
+                    <button class="schedule-preset-button" data-schedule-minutes="5" onclick="setScheduleTimeFromNow(5)">+5분</button>
+                    <button class="schedule-preset-button" data-schedule-minutes="10" onclick="setScheduleTimeFromNow(10)">+10분</button>
+                    <button class="schedule-preset-button" data-schedule-minutes="30" onclick="setScheduleTimeFromNow(30)">+30분</button>
+                </div>
+
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">시작 시각</div>
+                <!-- 옵션은 JS가 채운다. 서버로는 항상 "HH:MM"만 보내고 환산은 서버가 한다 -->
+                <div class="schedule-time-row" style="margin-bottom: 18px;">
+                    <select class="schedule-time-select" id="scheduleHourSelect" aria-label="예약 시"></select>
+                    <span class="schedule-time-colon">:</span>
+                    <select class="schedule-time-select" id="scheduleMinuteSelect" aria-label="예약 분"></select>
+                    <button class="schedule-time-button" onclick="scheduleRouletteStartAtTime()">예약</button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
+                <button type="button" class="schedule-cancel-button" id="scheduleModalCancelButton" onclick="cancelRouletteScheduledStart()" style="display: none; flex: 1;">예약 취소</button>
+            </div>
+        </div>
+    </div>
+
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: var(--bg-white); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
             <h3 style="color: var(--roulette-accent); margin-bottom: 15px;">🔒 비공개 방</h3>
@@ -2154,6 +2313,12 @@
         let rouletteHistory = [];
         let isSpinning = false;
         let roomExpiryInterval = null;
+        let roomExpiresAtMs = null; // 방이 사라지는 시각(epoch ms) — 예약 프리셋 노출 판단용
+        const SCHEDULE_NOTICE_MS = 5000;  // 안내 문구 표시 시간 (서버 config/index.js와 동일)
+        let scheduledStartAt = null;      // 예약 발화 시각(epoch ms) — 서버가 준 절대 시각
+        let scheduledStartLabel = null;   // 벽시계 표기("15:30") — 서버가 만들어 준 문자열만 쓴다
+        let scheduleTickInterval = null;  // 남은 시간 1초 갱신
+        let scheduleNoticeTimer = null;   // 안내 문구 표시 타이머
         let pendingRoomId = null;
         let isOrderActive = false;
         let pendingRouletteData = null; // 포커스를 기다리는 룰렛 데이터
@@ -2448,6 +2613,7 @@
 
             updateTurboSettingUI();
             updateStartButton();
+            updateScheduleButtons();
         }
 
         // 룰렛 시작
@@ -2458,6 +2624,201 @@
             }
             RouletteSound.ensureContext();
             socket.emit('startRoulette');
+        }
+
+        // === 예약 시작 ===
+        // 예약은 방장의 "시작" 버튼을 대신 눌러줄 뿐이다. 준비 상태나 시작 이후 진행에는 개입하지 않는다.
+
+        // 남은 시간 문구. 서버가 준 절대 시각에서 현재 시각을 빼서 계산한다 (서버 폴링 없음).
+        function formatScheduleRemaining(remainMs) {
+            const totalSeconds = Math.max(0, Math.ceil(remainMs / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) {
+                return `${minutes}분 ${seconds}초 후 시작`;
+            }
+            return `${seconds}초 후 시작`;
+        }
+
+        // 남은 시간을 안내 요소에 그린다. 안내 문구가 떠 있는 동안에는 덮어쓰지 않는다.
+        function renderScheduleStatus() {
+            const box = document.getElementById('rouletteScheduleStatus');
+            if (!box || scheduleNoticeTimer) return;
+
+            if (!scheduledStartAt) {
+                box.style.display = 'none';
+                box.textContent = '';
+                return;
+            }
+
+            box.style.display = 'block';
+            const remaining = formatScheduleRemaining(scheduledStartAt - Date.now());
+            // 시각 표기는 서버가 준 문자열만 쓴다. 기기 타임존으로 다시 그리면 접속자마다 달라진다.
+            box.textContent = scheduledStartLabel
+                ? `⏰ ${remaining} (${scheduledStartLabel} 예정)`
+                : `⏰ ${remaining}`;
+            updateScheduleButtons(); // 버튼의 초 카운트다운과 팝업 남은 시간을 같이 흐르게
+        }
+
+        function stopScheduleTick() {
+            if (scheduleTickInterval) {
+                clearInterval(scheduleTickInterval);
+                scheduleTickInterval = null;
+            }
+        }
+
+        // 방을 떠날 때 예약 관련 타이머를 모두 정리한다.
+        function clearScheduleTimers() {
+            stopScheduleTick();
+            if (scheduleNoticeTimer) {
+                clearTimeout(scheduleNoticeTimer);
+                scheduleNoticeTimer = null;
+            }
+        }
+
+        // 서버가 알려준 예약 시각을 반영. null이면 인터벌을 정리하고 숨긴다.
+        // label은 서버가 만든 벽시계 표기. 없으면(재입장 복원 등) 남은 시간만 보여준다.
+        function applyScheduledStartAt(at, label) {
+            const wasArmed = !!scheduledStartAt;
+            scheduledStartAt = (typeof at === 'number' && at > 0) ? at : null;
+            scheduledStartLabel = (scheduledStartAt && typeof label === 'string' && label) ? label : null;
+            stopScheduleTick();
+            if (scheduledStartAt) {
+                scheduleTickInterval = setInterval(renderScheduleStatus, 1000);
+            }
+            renderScheduleStatus();
+            updateScheduleButtons();
+            // 방금 예약이 잡혔으면 팝업은 할 일이 끝났다. 취소는 열어둔 채 다시 고를 수 있게 둔다.
+            if (!wasArmed && scheduledStartAt) closeScheduleModal();
+        }
+
+        // 안내 문구를 같은 요소에 잠깐 띄운다. 문구에 이름이 들어가므로 textContent만 쓴다.
+        function showScheduleNotice(message) {
+            const box = document.getElementById('rouletteScheduleStatus');
+            if (!box || !message) return;
+
+            if (scheduleNoticeTimer) clearTimeout(scheduleNoticeTimer);
+            box.style.display = 'block';
+            box.textContent = message;
+            scheduleNoticeTimer = setTimeout(() => {
+                scheduleNoticeTimer = null;
+                renderScheduleStatus();  // 예약이 남아 있으면 남은 시간 표시로 되돌아간다
+            }, SCHEDULE_NOTICE_MS);
+        }
+
+        // 프리셋·시각 입력 ↔ 예약 취소 전환. 방장이 아니면 컨트롤 자체를 내린다.
+        // 예약 중이면 버튼 글자에 걸어둔 시각을 박는다 — 팝업을 열지 않아도 언제인지 보이게.
+        function updateScheduleButtons() {
+            const openRow = document.getElementById('scheduleOpenRow');
+            const openButton = document.getElementById('scheduleOpenButton');
+            if (openRow) openRow.style.display = isHost ? 'flex' : 'none';
+            if (openButton) {
+                // 1분 미만 남으면 초 카운트다운을 오른쪽에 덧붙인다
+                let label = '⏰ 예약';
+                if (scheduledStartAt) {
+                    label = `⏰ ${scheduledStartLabel || '예약됨'}`;
+                    const remainMs = scheduledStartAt - Date.now();
+                    if (remainMs < 60 * 1000) {
+                        label += ` · 시작 ${Math.max(0, Math.ceil(remainMs / 1000))}초 전`;
+                    }
+                }
+                openButton.textContent = label;
+                openButton.classList.toggle('is-armed', !!scheduledStartAt);
+            }
+            updateScheduleModal();
+        }
+
+        // ── 예약 팝업 ──
+        function openScheduleModal() {
+            if (!isHost) return;
+            // 딱 현재 시각을 넣으면 그 분이 이미 지나는 중이라 그대로 [예약]을 눌렀을 때
+            // 서버가 "이미 지났다"고 거절한다 — 1분 뒤로 채워 바로 눌러도 되게 한다.
+            setScheduleTimeFromNow(SCHEDULE_PREFILL_OFFSET_MIN);
+            updateSchedulePresetVisibility();
+            updateScheduleModal();
+            const modal = document.getElementById('scheduleModal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeScheduleModal() {
+            const modal = document.getElementById('scheduleModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // 예약 중이면 걸어둔 시각과 남은 시간을 보여주고 [예약 취소]를 띄운다.
+        function updateScheduleModal() {
+            const current = document.getElementById('scheduleModalCurrent');
+            const pickers = document.getElementById('scheduleModalPickers');
+            const cancelButton = document.getElementById('scheduleModalCancelButton');
+            const timeEl = document.getElementById('scheduleModalTime');
+            const remainEl = document.getElementById('scheduleModalRemain');
+            const armed = !!scheduledStartAt;
+
+            if (current) current.style.display = armed ? 'block' : 'none';
+            if (pickers) pickers.style.display = armed ? 'none' : 'block';
+            if (cancelButton) cancelButton.style.display = armed ? 'block' : 'none';
+            if (armed && timeEl) timeEl.textContent = scheduledStartLabel || '예약됨';
+            if (armed && remainEl) remainEl.textContent = formatScheduleRemaining(scheduledStartAt - Date.now());
+        }
+
+        // 시·분 드롭다운은 처음 열 때 한 번만 채운다.
+        // 분은 60개 전부 — 프리셋이 "22:53" 같은 임의 분을 넣기 때문에 5분 단위로는 표현할 수 없다.
+        function ensureScheduleTimeOptions() {
+            const hourSelect = document.getElementById('scheduleHourSelect');
+            const minuteSelect = document.getElementById('scheduleMinuteSelect');
+            if (!hourSelect || !minuteSelect || hourSelect.options.length) return;
+
+            const addOption = (select, value) => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                select.appendChild(option);
+            };
+            for (let hour = 0; hour < 24; hour++) addOption(hourSelect, String(hour).padStart(2, '0'));
+            for (let minute = 0; minute < 60; minute++) addOption(minuteSelect, String(minute).padStart(2, '0'));
+        }
+
+        // 프리셋은 빠른 입력 도우미다 — 지금부터 offsetMinutes 뒤의 시각을 드롭다운에 채우기만 하고
+        // 예약을 걸지는 않는다. 실제 예약은 [예약] 버튼이 한다.
+        // 팝업을 열 때 채워두는 여유. 0으로 두면 현재 분이 이미 지나는 중이라 즉시 거절된다.
+        const SCHEDULE_PREFILL_OFFSET_MIN = 3;
+
+        // "지금 + N분"을 다음 분으로 올린다.
+        // 입력이 분 단위라 초가 절삭된다 — 23:49:44에 +3분을 그냥 쓰면 23:52(=2분16초)가 되어
+        // 서버 최소 여유(3분)에 걸린다. 올림하면 항상 N분 이상이 보장된다.
+        function scheduleRoundUpMinutes(offsetMinutes) {
+            const t = new Date(Date.now() + offsetMinutes * 60 * 1000);
+            if (t.getSeconds() > 0 || t.getMilliseconds() > 0) {
+                t.setSeconds(0, 0);
+                t.setMinutes(t.getMinutes() + 1);
+            }
+            return t;
+        }
+
+        function setScheduleTimeFromNow(offsetMinutes) {
+            ensureScheduleTimeOptions();
+            const hourSelect = document.getElementById('scheduleHourSelect');
+            const minuteSelect = document.getElementById('scheduleMinuteSelect');
+            if (!hourSelect || !minuteSelect) return;
+
+            const target = scheduleRoundUpMinutes(offsetMinutes);
+            hourSelect.value = String(target.getHours()).padStart(2, '0');
+            minuteSelect.value = String(target.getMinutes()).padStart(2, '0');
+        }
+
+        // 절대 시각 예약. 드롭다운 값이 "HH"·"MM"이라 붙이기만 하면 되고,
+        // 지난 시각 검증은 서버가 한다.
+        function scheduleRouletteStartAtTime() {
+            if (!isHost) return;
+            const hourSelect = document.getElementById('scheduleHourSelect');
+            const minuteSelect = document.getElementById('scheduleMinuteSelect');
+            if (!hourSelect || !minuteSelect || !hourSelect.value || !minuteSelect.value) return;
+            socket.emit('scheduleStart', { at: `${hourSelect.value}:${minuteSelect.value}` });
+        }
+
+        function cancelRouletteScheduledStart() {
+            if (!isHost) return;
+            socket.emit('cancelScheduledStart');
         }
 
         function ensureRouletteCommentaryElements(commentary) {
@@ -3314,7 +3675,20 @@
         }
 
         // 방 폭파 카운트다운
+
+        // 방이 사라진 뒤가 되는 프리셋은 숨긴다 — 눌러봐야 서버가 거절할 뿐이다.
+        // 방 만료 시각을 모르면(아직 못 받았으면) 그대로 둔다.
+        function updateSchedulePresetVisibility() {
+            var buttons = document.querySelectorAll('[data-schedule-minutes]');
+            for (var i = 0; i < buttons.length; i++) {
+                var minutes = parseInt(buttons[i].getAttribute('data-schedule-minutes'), 10);
+                var tooLate = roomExpiresAtMs && (Date.now() + minutes * 60 * 1000 >= roomExpiresAtMs);
+                buttons[i].style.display = tooLate ? 'none' : '';
+            }
+        }
+
         function startRoomExpiryCountdown(createdAt, expiryHours) {
+            roomExpiresAtMs = new Date(createdAt).getTime() + expiryHours * 60 * 60 * 1000;
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
@@ -3432,7 +3806,10 @@
             
             // 호스트 UI 설정
             applyRouletteHostUiState();
-            
+
+            // 예약 시작 복원 — 재입장·재접속 때 서버가 준 절대 시각으로 카운트다운을 이어간다
+            applyScheduledStartAt(data.gameState && data.gameState.scheduledStartAt);
+
             // 주문받기 섹션 표시
             if (isOrderActive) {
                 document.getElementById('ordersSection').style.display = 'block';
@@ -3588,6 +3965,20 @@
         });
 
         socket.on('rouletteError', (message) => {
+            showCustomAlert(message, 'error');
+        });
+
+        // ========== 예약 시작 이벤트 ==========
+
+        socket.on('scheduledStartUpdated', (data) => {
+            applyScheduledStartAt(data && data.scheduledStartAt, data && data.scheduledStartLabel);
+        });
+
+        socket.on('scheduledStartNotice', (data) => {
+            showScheduleNotice(data && data.message);
+        });
+
+        socket.on('scheduledStartError', (message) => {
             showCustomAlert(message, 'error');
         });
 
@@ -3965,6 +4356,7 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
+            clearScheduleTimers();
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
@@ -3973,6 +4365,7 @@
         socket.on('sessionTakenOver', (message) => {
             try { sessionStorage.removeItem('rouletteActiveRoom'); } catch (e) {}
             try { socket.disconnect(); } catch (e) {}  // 소켓 즉시 종료 → 재연결·재입장 차단(핑퐁 방지)
+            clearScheduleTimers();
             showCustomAlert(message || '다른 곳에서 접속하여 연결이 종료되었습니다.', 'info');
             setTimeout(() => { window.location.replace('/game'); }, 2500);
         });
@@ -3983,6 +4376,7 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
+            clearScheduleTimers();
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });
@@ -3993,6 +4387,7 @@
             if (roomExpiryInterval) {
                 clearInterval(roomExpiryInterval);
             }
+            clearScheduleTimers();
             sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
             window.location.replace('/game');
         });

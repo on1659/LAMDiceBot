@@ -651,9 +651,10 @@ const RankingModule = (function () {
         }
         .rk-cal-wd.sun { color: rgba(239,68,68,0.75); } /* --red-500 */
         .rk-cal-cell {
-            min-height: 54px; border-radius: 10px;
+            /* 날짜 + 이름 2줄 + "+" 까지 4줄이 들어간다 */
+            min-height: 62px; border-radius: 10px;
             padding: 4px 2px 5px;
-            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            display: flex; flex-direction: column; align-items: center; gap: 1px;
             background: rgba(255,255,255,0.03);
             border: 1px solid transparent;
             overflow: hidden;
@@ -675,6 +676,14 @@ const RankingModule = (function () {
             border-color: var(--rk-gold);
             box-shadow: 0 0 10px rgba(255,215,0,0.25); /* --rk-gold */
         }
+        /* 날짜 숫자 아래 남은 높이를 전부 차지하고 그 안에서 세로 가운데 정렬.
+           1명이면 칸 가운데, 2명+"+"면 공간이 꽉 차 날짜 바로 아래로 붙는다 */
+        .rk-cal-names {
+            flex: 1; width: 100%; min-height: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 1px;
+            overflow: hidden;
+        }
         .rk-cal-winner {
             font-size: 0.68em; line-height: 1.25;
             color: var(--rk-gold); font-weight: 600;
@@ -682,8 +691,8 @@ const RankingModule = (function () {
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .rk-cal-more {
-            font-size: 0.62em; color: var(--rk-text-muted);
-            line-height: 1.1;
+            font-size: 0.7em; color: var(--rk-text-muted);
+            line-height: 1; font-weight: 700;
         }
         .rk-cal-nowin { font-size: 0.66em; color: var(--rk-text-muted); }
 
@@ -719,7 +728,7 @@ const RankingModule = (function () {
         }
 
         @media (max-width: 360px) {
-            .rk-cal-cell { min-height: 48px; }
+            .rk-cal-cell { min-height: 56px; }
             .rk-cal-winner { font-size: 0.62em; }
             .rk-cal-title { min-width: 108px; font-size: 0.95em; }
         }
@@ -1658,14 +1667,17 @@ const RankingModule = (function () {
         return { days: days, months: Object.keys(monthSet).sort() };
     }
 
-    // 칸에 넣을 대표 당첨자 — 그 날 가장 많이 걸린 사람, 동률이면 이름순
+    // 칸에 넣을 당첨자 — 많이 걸린 순, 동률이면 이름순.
+    // 이름은 2명까지 적고 3명째부터는 + 하나로 접는다 (칸 폭이 모바일에서 46px라 그 이상은 안 들어간다)
+    const CAL_CELL_NAMES = 2;
+
     function calDaySummary(list) {
         const counts = {};
         list.forEach(s => (s.winners || []).forEach(n => { counts[n] = (counts[n] || 0) + 1; }));
         const names = Object.keys(counts);
         if (!names.length) return null;
         names.sort((a, b) => (counts[b] - counts[a]) || a.localeCompare(b));
-        return { top: names[0], extra: names.length - 1 };
+        return { shown: names.slice(0, CAL_CELL_NAMES), hasMore: names.length > CAL_CELL_NAMES };
     }
 
     async function fetchCalendar(key) {
@@ -1735,10 +1747,12 @@ const RankingModule = (function () {
             let inner = '';
             if (list) {
                 const sum = calDaySummary(list);
-                inner = sum
-                    ? `<span class="rk-cal-winner">${esc(sum.top)}</span>`
-                        + (sum.extra > 0 ? `<span class="rk-cal-more">+${sum.extra}</span>` : '')
+                const body = sum
+                    ? sum.shown.map(n => `<span class="rk-cal-winner">${esc(n)}</span>`).join('')
+                        + (sum.hasMore ? '<span class="rk-cal-more">+</span>' : '')
                     : '<span class="rk-cal-nowin">-</span>';
+                // 날짜 아래 남은 공간에 가운데 정렬 — 1명이면 가운데, 2명+ 는 꽉 차서 위로 붙는다
+                inner = `<div class="rk-cal-names">${body}</div>`;
             }
             cells += `<div class="${cls.join(' ')}"${list ? ` data-cal-day="${dayKey}"` : ''}>`
                 + `<span class="rk-cal-daynum">${d}</span>${inner}</div>`;

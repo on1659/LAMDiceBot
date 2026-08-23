@@ -57,6 +57,106 @@
             from { transform: translateY(-30px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+
+        /* ═══ 예약 시작 ═══
+           css/horse-race.css는 타 게임과 공용이라 이 페이지 전용 규칙은 여기에 둔다.
+           배지는 #raceTrackWrapper 안에 있어 전체화면·PiP로 트랙이 옮겨가도 함께 따라간다
+           (두 모드에서는 래퍼 하위만 렌더돼 페이지 상단 배너는 보이지 않는다). */
+        #scheduledStartBadge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            max-width: calc(100% - 16px);
+            z-index: 110;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--yellow-400);
+            background: rgba(0, 0, 0, 0.72);
+            color: var(--bg-white);
+            font-family: 'Jua', sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: keep-all;
+            pointer-events: none;
+        }
+        /* 예약 진입 버튼 — 시작 버튼들과 성격이 달라 그 줄에서 빼고 위에 자체 줄을 준다.
+           크기·모양은 꾸미기 상점 버튼(.hshop-open-btn)과 같은 결의 알약형.
+           예약 중이면 글자가 "⏰ 22:45"로 바뀌고 색이 채워져 걸려 있다는 게 보인다. */
+        .schedule-open-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+        .schedule-open-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            width: auto;
+            margin: 0;
+            padding: 6px 11px;
+            border: 1.5px solid var(--horse-accent);
+            border-radius: 999px;
+            background: var(--bg-white);
+            color: var(--horse-accent);
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .schedule-open-btn.is-armed {
+            border-color: var(--btn-danger);
+            background: var(--btn-danger);
+            color: var(--bg-white);
+        }
+        /* 기본 button 규칙(width:100%; margin-top:10px)을 걷어내고 한 줄에 나란히 놓는다 */
+        .schedule-preset-btn {
+            width: auto;
+            margin: 0;
+            flex: 1 1 auto;
+            min-width: 64px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--horse-gradient);
+            color: var(--bg-white);
+        }
+        /* 시각 선택 — 시/분을 네이티브 드롭다운으로 고른다(시간 스피너보다 빠르다).
+           둘이 폭을 반씩 나눠 갖고, 좁은 화면에서는 [예약] 버튼이 아래 줄로 흘러내린다.
+           font-size 16px 미만이면 iOS에서 포커스 시 화면이 확대된다. */
+        .schedule-time-select {
+            flex: 1 1 0;
+            min-width: 0;
+            margin: 0;
+            padding: 8px 10px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 16px;
+        }
+        .schedule-time-select:focus {
+            border-color: var(--horse-accent);
+            outline: none;
+        }
+        .schedule-time-colon {
+            flex: 0 0 auto;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 700;
+        }
+        @media (max-width: 480px) {
+            #scheduledStartBadge {
+                font-size: 12px;
+                padding: 5px 10px;
+            }
+            .schedule-preset-btn {
+                font-size: 13px;
+                padding: 9px 8px;
+            }
+        }
     </style>
     <script type="application/ld+json">
     {
@@ -189,6 +289,12 @@
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
+                <!-- 예약 — 정한 시간이 되면 서버가 [게임 시작]을 대신 눌러준다.
+                     예약 중이면 버튼 글자가 "⏰ 22:45"로 바뀌어 언제로 걸었는지 버튼만 봐도 안다.
+                     시작 버튼들과 성격이 달라 같은 줄에 세우지 않고 위에 오른쪽 정렬로 둔다. -->
+                <div class="schedule-open-row">
+                    <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
+                </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startHorseRaceButton" onclick="startHorseRace()" disabled style="flex: 1;">
                         게임 시작
@@ -295,6 +401,10 @@
                     <!-- 카메라 전환 버튼 (JS가 display 토글 — 행 내 flex 아이템) -->
                     <button id="cameraSwitchBtn" style="display: none; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.65); color: var(--bg-white); font-size: 11px; cursor: pointer; font-family: 'Jua', sans-serif;">📷 시스템 카메라</button>
                 </div>
+                <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소.
+                     둘을 나누면 발화 순간 배지 소멸 + 토스트 + 3-2-1 오버레이가 세 겹으로 겹친다.
+                     래퍼 안(트랙 좌상단)이라 전체화면·PiP에서도 그대로 보인다. -->
+                <div id="scheduledStartBadge" style="display: none;"></div>
                 <div class="race-track-container" id="raceTrackContainer" style="position: relative;">
                     <div class="race-track" id="raceTrack">
                     <!-- 말들이 여기에 동적으로 생성됨 -->
@@ -379,6 +489,41 @@
     </div>
 
     <!-- 비밀번호 입력 모달 -->
+    <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
+            <h3 style="color: var(--horse-accent); margin-bottom: 6px;">⏰ 시작 시간 예약</h3>
+            <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 게임을 대신 시작합니다.</p>
+
+            <!-- 예약이 걸려 있을 때만 보인다 -->
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
+            </div>
+
+            <div id="scheduleModalPickers">
+                <!-- 프리셋은 빠른 입력 도우미다 — 누르면 아래 시/분만 채우고, 예약은 [예약] 버튼으로만 걸린다 -->
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">빠른 입력 (지금부터)</div>
+                <div id="scheduleModalPresets" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;"></div>
+
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">시작 시각</div>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;">
+                        <select id="scheduleHourSelect" class="schedule-time-select" aria-label="시작할 시"></select>
+                        <span class="schedule-time-colon">:</span>
+                        <select id="scheduleMinuteSelect" class="schedule-time-select" aria-label="시작할 분"></select>
+                    </div>
+                    <button type="button" class="schedule-preset-btn" onclick="scheduleStartAtTime()" style="flex: 0 0 auto;">예약</button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600;">예약 취소</button>
+            </div>
+        </div>
+    </div>
+
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
             <h3 style="color: var(--horse-accent); margin-bottom: 15px;">🔒 비공개 방</h3>

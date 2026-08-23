@@ -57,7 +57,7 @@ app.set('rooms', rooms);
 setupRoutes(app);
 
 // WebSocket 핸들러 설정
-setupSocketHandlers(io, rooms);
+const { updateRoomsList } = setupSocketHandlers(io, rooms);
 
 // 서버 시작    
 async function startServer() {
@@ -105,19 +105,9 @@ async function startServer() {
                         });
                     }
                     deleteRoom(rooms, roomId);
-                    const roomsList = Object.entries(rooms).map(([id, r]) => ({
-                        roomId: id,
-                        roomName: r.roomName,
-                        hostName: r.hostName,
-                        playerCount: r.gameState.users.length,
-                        isGameActive: r.gameState.isGameActive,
-                        isOrderActive: r.gameState.isOrderActive,
-                        isPrivate: r.isPrivate || false,
-                        gameType: r.gameType || 'dice',
-                        createdAt: r.createdAt,
-                        expiryHours: r.expiryHours || 1
-                    }));
-                    io.emit('roomsListUpdated', roomsList);
+                    // 소켓별 서버 소속으로 필터해서 보낸다 —
+                    // 전체 목록을 그대로 뿌리면 남의 서버 방이 로비에 뜬다
+                    updateRoomsList();
                 }
             }
         });

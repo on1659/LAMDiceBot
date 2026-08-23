@@ -17,4 +17,22 @@ const DISCONNECT_WAIT_DEFAULT = parseInt(process.env.DISCONNECT_WAIT_DEFAULT, 10
 // 실서버는 DATABASE_URL이 필수 환경변수라 미설정이 곧 로컬을 뜻한다.
 const IS_LOCAL_DEV = !process.env.DATABASE_URL || /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
 
-module.exports = { PORT, BASE_URL, ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, IS_LOCAL_DEV };
+// 예약 시작 (.env로 재정의 가능)
+// 상대 시간 프리셋과 절대 시각(HH:MM) 둘 다 받는다.
+// 절대 시각은 클라가 계산하지 않는다 — "15:30" 문자열만 보내고 서버가 자기 시계로
+// 환산한다. 그래야 기기 시계 오차·기기 타임존이 결과에 끼어들지 못한다.
+const SCHEDULE_PRESET_MINUTES = [3, 5, 10, 30];
+const SCHEDULE_TIMEZONE = process.env.SCHEDULE_TIMEZONE || 'Asia/Seoul';
+// 예약 최소 여유. 입력이 분 단위라 초가 절삭된다 — 23:24:50에 "23:25"를 고르면 실제로는 10초 뒤다.
+// 최소 3분을 요구해서 "1분 뒤로 걸었는데 10초 만에 터지는" 상황을 막는다.
+const SCHEDULE_MIN_LEAD_MS = parseInt(process.env.SCHEDULE_MIN_LEAD_MS, 10) || 3 * 60 * 1000;
+const SCHEDULE_SWEEP_MS = parseInt(process.env.SCHEDULE_SWEEP_MS, 10) || 1000;
+const SCHEDULE_NOTICE_MS = parseInt(process.env.SCHEDULE_NOTICE_MS, 10) || 5000;
+// 경마 정산 워치독 — 클라 애니메이션 완료 신호가 끝내 오지 않을 때 서버가 대신 확정하기까지의 여유
+const HORSE_SETTLE_GRACE_MS = parseInt(process.env.HORSE_SETTLE_GRACE_MS, 10) || 30000;
+
+module.exports = {
+    PORT, BASE_URL, ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, IS_LOCAL_DEV,
+    SCHEDULE_PRESET_MINUTES, SCHEDULE_TIMEZONE, SCHEDULE_MIN_LEAD_MS,
+    SCHEDULE_SWEEP_MS, SCHEDULE_NOTICE_MS, HORSE_SETTLE_GRACE_MS
+};

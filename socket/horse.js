@@ -9,6 +9,7 @@ const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
 const ROULETTE_ANIM_MS = 5500;   // N등 투표 룰렛 애니메이션 길이 (ms)
 const ROULETTE_HOLD_MS = 3000;   // 룰렛 결과 인지/감상 시간 (ms)
 const FALLBACK_HOLD_MS = 3000;   // fallback(투표 없음/모두 무효) 사유 표시 시간 (ms)
+const HORSE_RACE_SIM_MAX_MS = 60000; // 서버 시뮬 경주 길이 상한 (calculateHorseRaceResult 루프 상한과 동일) — 정산 워치독의 예상 종료 기준
 
 // Evolution / Fake Evolution 기믹 설정 — config/horse/race.json 의 evolution / fakeEvolution 섹션 참조
 const _horseRaceConfig = require('../config/horse/race.json');
@@ -23,6 +24,7 @@ const { getServerId } = require('../routes/api');
 const { getTop3Badges } = require('../db/ranking');
 const { grant: grantCoins, getBalance: getCoinBalance } = require('../db/coins');
 const { getEquippedMap, PUBLIC_HORSE_SLOTS } = require('../db/cosmetics');
+const { HORSE_SETTLE_GRACE_MS } = require('../config');
 
 // 코인 경제 (config/horse/race.json 의 coinEconomy 로 조정 가능, 없으면 기본값)
 const COIN_RACE_JOIN = (_horseRaceConfig.coinEconomy && _horseRaceConfig.coinEconomy.raceJoin) || 10; // 참여 적립
@@ -129,17 +131,1237 @@ function getPostPosition(word, type) {
     return cases[type] || '';
 }
 
+// ========== Helper Functions ==========
+// (모듈 스코프 — 예약 스위퍼가 소켓 없이 startHorse를 호출해야 해서 registrar 밖으로 올렸다)
+
+// 거리 시스템 상수
+// 설정 파일 로드
+const path = require('path');
+const horseConfig = JSON.parse(require('fs').readFileSync(path.join(__dirname, '..', 'config', 'horse', 'race.json'), 'utf8'));
+const PIXELS_PER_METER = horseConfig.pixelsPerMeter || 10;
+
+// speedRange(km/h) → durationRange(ms) 변환
+function buildTrackPresets(config) {
+    const presets = {};
+    for (const [key, val] of Object.entries(config.trackPresets)) {
+        const meters = val.meters;
+        const [minSpeed, maxSpeed] = val.speedRange; // km/h
+        // 빠른 속도 → 짧은 시간, 느린 속도 → 긴 시간
+        const minDuration = Math.round((meters / (maxSpeed / 3.6)) * 1000);
+        const maxDuration = Math.round((meters / (minSpeed / 3.6)) * 1000);
+        presets[key] = { meters, durationRange: [minDuration, maxDuration] };
+    }
+    return presets;
+}
+const TRACK_PRESETS = buildTrackPresets(horseConfig);
+
+// ========== 날씨 시스템 ==========
+const weatherConfig = horseConfig.weather || {};
+
+// 날씨 스케줄 생성 (레이스 시작 전 호출)
+function generateWeatherSchedule(forcedWeather = null) {
+    const schedule = [];
+    const types = weatherConfig.types || ['sunny', 'rain', 'wind', 'fog'];
+    const probs = weatherConfig.defaultProbabilities || { sunny: 0.25, rain: 0.25, wind: 0.25, fog: 0.25 };
+    const changePoints = weatherConfig.schedule?.changePoints || [0.3, 0.5, 0.7];
+    const changeProb = weatherConfig.schedule?.changeProbability || 0.4;
+
+    // 초기 날씨 선택
+    let currentWeather = forcedWeather || selectWeatherByProbability(types, probs);
+    schedule.push({ progress: 0, weather: currentWeather });
+
+    // 강제 날씨가 설정되면 변경 없이 유지
+    if (forcedWeather) {
+        return schedule;
+    }
+
+    // 각 changePoint에서 확률적으로 날씨 변경
+    changePoints.forEach(point => {
+        if (Math.random() < changeProb) {
+            // 현재 날씨와 다른 날씨 선택
+            let newWeather;
+            let attempts = 0;
+            do {
+                newWeather = selectWeatherByProbability(types, probs);
+                attempts++;
+            } while (newWeather === currentWeather && attempts < 5);
+
+            currentWeather = newWeather;
+            schedule.push({ progress: point, weather: currentWeather });
+        }
+    });
+
+    return schedule;
+}
+
+// 확률에 따라 날씨 선택
+function selectWeatherByProbability(types, probs) {
+    const roll = Math.random();
+    let cumulative = 0;
+    for (const type of types) {
+        cumulative += probs[type] || 0.25;
+        if (roll < cumulative) return type;
+    }
+    return types[0] || 'sunny';
+}
+
+// 현재 진행률의 날씨 반환
+function getCurrentWeather(schedule, progress) {
+    let current = schedule[0]?.weather || 'sunny';
+    for (const entry of schedule) {
+        if (progress >= entry.progress) {
+            current = entry.weather;
+        } else {
+            break;
+        }
+    }
+    return current;
+}
+
+// 탈것의 날씨 보정값 반환
+function getVehicleWeatherModifier(vehicleType, weather) {
+    const modifiers = weatherConfig.vehicleModifiers || {};
+    const vehicleMods = modifiers[vehicleType];
+    if (!vehicleMods) return 1.0;
+    return vehicleMods[weather] || 1.0;
+}
+
+// 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
+async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false) {
+    // 트랙 길이 설정
+    const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
+    const trackDistanceMeters = preset.meters;
+    const [minDuration, maxDuration] = preset.durationRange;
+
+    // 클라이언트와 동일한 상수
+    const startPosition = 10;
+    const finishLine = trackDistanceMeters * PIXELS_PER_METER;
+    const totalDistance = finishLine - startPosition;
+    const frameInterval = HORSE_FRAME_INTERVAL;
+
+    // 슬로우모션 설정 (클라이언트와 동일)
+    const smConf = horseConfig.slowMotion || {
+        leader: { triggerDistanceM: 15, factor: 0.4 },
+        loser: { triggerDistanceM: 10, factor: 0.4 }
+    };
+
+    // visualWidth 맵 (클라이언트와 동일)
+    const VISUAL_WIDTHS = {
+        'car': 50, 'rocket': 60, 'bird': 60, 'boat': 50, 'bicycle': 56,
+        'rabbit': 53, 'turtle': 58, 'eagle': 60, 'kickboard': 54,
+        'helicopter': 48, 'horse': 56,
+        'knight': 48, 'dinosaur': 56, 'ninja': 44, 'crab': 54
+    };
+    function getVisualWidth(vehicleId) {
+        return VISUAL_WIDTHS[vehicleId] || 60;
+    }
+
+    // 각 말의 기본 도착 시간 랜덤 생성
+    const baseDurations = [];
+    for (let i = 0; i < horseCount; i++) {
+        baseDurations.push(minDuration + Math.random() * (maxDuration - minDuration));
+    }
+
+    // 모든 말의 상태 초기화 (동시 시뮬레이션용)
+    const horseStates = [];
+    for (let i = 0; i < horseCount; i++) {
+        const duration = baseDurations[i];
+        const baseSpeed = totalDistance / duration;
+        const initialSpeedFactor = 0.8 + Math.random() * 0.4;
+        const speedChangeSeed = Math.floor(Math.random() * 2147483647);
+
+        // 기믹 상태 초기화
+        const gimmicks = (gimmicksData[i] || []).map(g => ({
+            progressTrigger: g.progressTrigger,
+            type: g.type,
+            duration: g.duration,
+            speedMultiplier: g.speedMultiplier,
+            nextGimmick: g.nextGimmick || null,
+            triggered: false,
+            active: false,
+            endTime: 0
+        }));
+
+        // 탈것별 visualWidth
+        const vehicleId = vehicleTypes[i] || 'horse';
+        const visualWidth = getVisualWidth(vehicleId);
+
+        horseStates.push({
+            horseIndex: i,
+            currentPos: startPosition,
+            baseSpeed,
+            currentSpeed: baseSpeed * initialSpeedFactor,
+            targetSpeed: baseSpeed,
+            lastSpeedChange: 0,
+            speedChangeSeed,
+            initialSpeedFactor,
+            gimmicks,
+            finished: false,
+            finishJudged: false,  // 오른쪽 끝 기준 도착 판정 (클라이언트와 동일)
+            finishTime: 0,
+            finishJudgedTime: 0,
+            baseDuration: Math.round(baseDurations[i]),
+            visualWidth
+        });
+    }
+
+    // 슬로우모션 상태 (Leader + Loser)
+    let slowMotionFactor = 1;
+    let slowMotionTriggered = false;      // Leader 슬로우모션 발동 여부
+    let slowMotionActive = false;         // Leader 슬로우모션 활성 상태
+    let loserSlowMotionTriggered = false; // Loser 슬로우모션 발동 여부
+    let loserSlowMotionActive = false;    // Loser 슬로우모션 활성 상태
+    let loserCameraTargetIndex = -1;      // Loser 카메라 타겟
+    let elapsed = 0;
+
+    // 배팅된 말 인덱스 (시뮬레이션 종료 조건 + Loser 슬로우모션 필터용)
+    const bettedIndices = new Set(Object.values(bettedHorsesMap || {}));
+
+    // Evolution 기믹 상태
+    let evolutionChecked = false;
+    let evolutionTargets = [];
+    // Fake Evolution 기믹 상태 (진짜와 별도 추첨, 결과를 크게 안 바꾸는 페이크)
+    let fakeEvolutionTargets = [];
+
+    // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
+    let frameCount = 0;
+    while (elapsed < 60000) {
+        elapsed += frameInterval;
+        frameCount++;
+
+        // 매 100프레임마다 이벤트 루프에 양보 (CPU 블로킹 방지)
+        if (frameCount % 100 === 0) {
+            await new Promise(resolve => setImmediate(resolve));
+        }
+
+        // 배팅된 말이 모두 도착했는지 확인 (배팅 안 된 말은 멈춰있으므로 무시)
+        const allBettedFinished = horseStates.every(s => s.finished || (bettedIndices.size > 0 && !bettedIndices.has(s.horseIndex)));
+        if (allBettedFinished) break;
+
+        // 1등(가장 앞선 말) 찾기 - finishJudged 기준 (클라이언트와 동일)
+        const unfinishedJudged = horseStates.filter(s => !s.finishJudged);
+        const leader = unfinishedJudged.length > 0
+            ? unfinishedJudged.reduce((a, b) => a.currentPos > b.currentPos ? a : b)
+            : null;
+
+        // Leader 슬로우모션 발동: 1등의 오른쪽 끝이 결승선 15m 이내면 발동
+        if (!slowMotionTriggered && leader) {
+            const leaderRightEdge = leader.currentPos + leader.visualWidth;
+            const remainingPx = finishLine - leaderRightEdge;
+            const remainingM = remainingPx / PIXELS_PER_METER;
+            if (remainingM <= smConf.leader.triggerDistanceM) {
+                slowMotionTriggered = true;
+                slowMotionActive = true;
+                slowMotionFactor = smConf.leader.factor;
+                console.log(`[서버시뮬] Leader 슬로우모션 발동! 남은거리=${remainingM.toFixed(1)}m, factor=${slowMotionFactor}`);
+            }
+        }
+
+        // Leader 슬로우모션 해제: 1등이 finishJudged 되면 (클라이언트와 동일)
+        if (slowMotionActive && horseStates.some(s => s.finishJudged)) {
+            slowMotionActive = false;
+            slowMotionFactor = 1;
+            console.log(`[서버시뮬] Leader 슬로우모션 해제!`);
+        }
+
+        // Loser 슬로우모션 발동: Leader 슬로우모션 해제 후, 배팅된 말 중 꼴등 직전이 결승선 10m 이내
+        if (!loserSlowMotionTriggered && !slowMotionActive && smConf.loser) {
+            const unfinished = horseStates
+                .filter(s => !s.finished && (bettedIndices.size === 0 || bettedIndices.has(s.horseIndex)))
+                .sort((a, b) => a.currentPos - b.currentPos);  // 느린 순
+
+            if (unfinished.length >= 2) {
+                const lastHorse = unfinished[0];        // 꼴등
+                const secondLastHorse = unfinished[1];  // 꼴등 직전
+
+                const slRemainingM = (finishLine - secondLastHorse.currentPos) / PIXELS_PER_METER;
+                if (slRemainingM <= smConf.loser.triggerDistanceM) {
+                    loserSlowMotionTriggered = true;
+                    loserSlowMotionActive = true;
+                    slowMotionFactor = smConf.loser.factor;
+                    loserCameraTargetIndex = secondLastHorse.horseIndex;
+                    console.log(`[서버시뮬] Loser 슬로우모션 발동! target=말${loserCameraTargetIndex}, 남은거리=${slRemainingM.toFixed(1)}m`);
+                }
+            }
+        }
+
+        // Loser 슬로우모션 해제: 카메라 타겟이 finished 되면
+        if (loserSlowMotionActive) {
+            const target = horseStates.find(s => s.horseIndex === loserCameraTargetIndex);
+            if (!target || target.finished) {
+                loserSlowMotionActive = false;
+                slowMotionFactor = 1;
+                console.log(`[서버시뮬] Loser 슬로우모션 해제!`);
+            }
+        }
+
+        // Evolution 기믹: 진행률 50% 도달 시 꼴찌 판별 (1회만)
+        if (!evolutionChecked && !allSameBet) {
+            const bettedStates = horseStates.filter(s => bettedIndices.has(s.horseIndex) && !s.finished);
+            if (bettedStates.length >= 2) {
+                const maxProgress = Math.max(...bettedStates.map(s => (s.currentPos - startPosition) / totalDistance));
+                if (maxProgress >= EVOLUTION_CONFIG.checkProgress) {
+                    evolutionChecked = true;
+                    const sorted = [...bettedStates].sort((a, b) => a.currentPos - b.currentPos); // 느린 순
+                    const count = Math.abs(EVOLUTION_CONFIG.rankThreshold);
+                    const candidates = sorted.slice(0, count);
+
+                    candidates.forEach(candidate => {
+                        if (Math.random() < EVOLUTION_CONFIG.probability) {
+                            const evoGimmick = {
+                                type: 'evolution',
+                                progressTrigger: EVOLUTION_CONFIG.checkProgress + 0.05,
+                                speedMultiplier: EVOLUTION_CONFIG.transformMultiplier,
+                                duration: EVOLUTION_CONFIG.transformDurationMs,
+                                nextGimmick: {
+                                    type: 'evolution_boost',
+                                    duration: EVOLUTION_CONFIG.boostDurationMs,
+                                    speedMultiplier: EVOLUTION_CONFIG.boostMultiplier
+                                },
+                                triggered: false,
+                                active: false,
+                                endTime: 0
+                            };
+                            candidate.gimmicks.push(evoGimmick);
+
+                            // 40~70% 구간 기존 기믹 비활성화 (충돌 방지)
+                            candidate.gimmicks.forEach(g => {
+                                if (g !== evoGimmick && g.type !== 'evolution' &&
+                                    g.progressTrigger >= EVOLUTION_CONFIG.progressMin &&
+                                    g.progressTrigger <= EVOLUTION_CONFIG.progressMax) {
+                                    g.disabled = true;
+                                }
+                            });
+
+                            evolutionTargets.push(candidate.horseIndex);
+                            console.log(`[서버시뮬] Evolution 대상: 말${candidate.horseIndex} (progressTrigger=0.55)`);
+                        } else if (Math.random() < FAKE_EVOLUTION_CONFIG.probability) {
+                            // 진짜 변신 추첨 실패 시 가짜 변신 별도 추첨
+                            const fakeGimmick = {
+                                type: 'evolution_fake',
+                                progressTrigger: FAKE_EVOLUTION_CONFIG.progressTrigger,
+                                speedMultiplier: FAKE_EVOLUTION_CONFIG.transformMultiplier,
+                                duration: FAKE_EVOLUTION_CONFIG.transformDurationMs,
+                                nextGimmick: {
+                                    type: 'evolution_fake_boost',
+                                    duration: FAKE_EVOLUTION_CONFIG.fakeBoostDurationMs,
+                                    speedMultiplier: FAKE_EVOLUTION_CONFIG.fakeBoostSpeedMultiplier
+                                },
+                                triggered: false,
+                                active: false,
+                                endTime: 0
+                            };
+                            candidate.gimmicks.push(fakeGimmick);
+
+                            // 진짜 evolution과 동일한 보호 구간(progressMin~progressMax)에서 다른 기믹 비활성화
+                            // — fakeBoost 종료 시 filter='' 클리어가 sprint brightness/saturate를 같이 지우는 충돌 방지
+                            candidate.gimmicks.forEach(g => {
+                                if (g !== fakeGimmick && g.type !== 'evolution' && g.type !== 'evolution_fake' &&
+                                    g.progressTrigger >= FAKE_EVOLUTION_CONFIG.progressMin &&
+                                    g.progressTrigger <= FAKE_EVOLUTION_CONFIG.progressMax) {
+                                    g.disabled = true;
+                                }
+                            });
+
+                            fakeEvolutionTargets.push(candidate.horseIndex);
+                            console.log(`[서버시뮬] Fake Evolution 대상: 말${candidate.horseIndex} (progressTrigger=${FAKE_EVOLUTION_CONFIG.progressTrigger})`);
+                        }
+                    });
+                }
+            }
+        }
+
+        // 각 말 업데이트
+        horseStates.forEach(state => {
+            if (state.finished) return;
+
+            const progress = (state.currentPos - startPosition) / totalDistance;
+
+            // 기믹 트리거 체크
+            state.gimmicks.forEach(gimmick => {
+                if (!gimmick.triggered && !gimmick.disabled && progress >= gimmick.progressTrigger) {
+                    gimmick.triggered = true;
+                    gimmick.active = true;
+                    gimmick.endTime = elapsed + gimmick.duration;
+                }
+                if (gimmick.active && elapsed >= gimmick.endTime) {
+                    gimmick.active = false;
+                    // 연쇄 기믹 활성화
+                    if (gimmick.nextGimmick && !gimmick.chainTriggered) {
+                        gimmick.chainTriggered = true;
+                        state.gimmicks.push({
+                            progressTrigger: 0,
+                            type: gimmick.nextGimmick.type,
+                            duration: gimmick.nextGimmick.duration,
+                            speedMultiplier: gimmick.nextGimmick.speedMultiplier,
+                            nextGimmick: null,
+                            triggered: true,
+                            active: true,
+                            endTime: elapsed + gimmick.nextGimmick.duration
+                        });
+                    }
+                }
+            });
+
+            // 속도 계산
+            let speedMultiplier = 1;
+            let hasActiveGimmick = false;
+            state.gimmicks.forEach(gimmick => {
+                if (gimmick.active) {
+                    hasActiveGimmick = true;
+                    speedMultiplier = gimmick.speedMultiplier;
+                }
+            });
+
+            if (!hasActiveGimmick) {
+                const changeInterval = 500;
+                const currentInterval = Math.floor(elapsed / changeInterval);
+                const lastInterval = Math.floor(state.lastSpeedChange / changeInterval);
+
+                if (currentInterval > lastInterval) {
+                    state.lastSpeedChange = elapsed;
+                    const seedVal = (state.speedChangeSeed + currentInterval) * 16807 % 2147483647;
+                    const speedFactor = 0.7 + (seedVal % 600) / 1000;
+                    state.targetSpeed = state.baseSpeed * speedFactor;
+                }
+
+                const speedDiff = state.targetSpeed - state.currentSpeed;
+                state.currentSpeed += speedDiff * 0.05;
+                speedMultiplier = state.currentSpeed / state.baseSpeed;
+            }
+
+            // 날씨 보정 적용
+            if (weatherSchedule.length > 0 && vehicleTypes[state.horseIndex]) {
+                const currentWeather = getCurrentWeather(weatherSchedule, progress);
+                const weatherMod = getVehicleWeatherModifier(vehicleTypes[state.horseIndex], currentWeather);
+                speedMultiplier *= weatherMod;
+            }
+
+            // 위치 업데이트 (슬로우모션 팩터 적용!)
+            // finishJudged 후 감속 이동 (클라이언트와 동일)
+            let movement;
+            if (state.finishJudged) {
+                const finishSpeedFactor = 0.35;
+                movement = state.baseSpeed * finishSpeedFactor * (frameInterval / 1000) * 1000 * slowMotionFactor;
+            } else {
+                movement = state.baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000 * slowMotionFactor;
+            }
+            state.currentPos = Math.max(startPosition, state.currentPos + movement);
+
+            // 1단계: 오른쪽 끝 기준 도착 판정 (finishJudged) - 순위 확정
+            const horseRightEdge = state.currentPos + state.visualWidth;
+            if (horseRightEdge >= finishLine && !state.finishJudged) {
+                state.finishJudged = true;
+                state.finishJudgedTime = elapsed;
+            }
+
+            // 2단계: 왼쪽 끝 기준 완전 정지 (finished)
+            if (state.finishJudged && state.currentPos >= finishLine && !state.finished) {
+                state.finished = true;
+                state.finishTime = elapsed;
+            }
+        });
+    }
+
+    // 시뮬레이션 결과로 순위 결정 (finishJudgedTime 기준 - 클라이언트와 동일)
+    const simResults = horseStates.map(s => ({
+        horseIndex: s.horseIndex,
+        simFinishJudgedTime: s.finishJudgedTime || 60000,
+        simFinishTime: s.finishTime || 60000,
+        baseDuration: s.baseDuration
+    }));
+    simResults.sort((a, b) => a.simFinishJudgedTime - b.simFinishJudgedTime);
+
+    const rankings = simResults.map((result, rank) => ({
+        horseIndex: result.horseIndex,
+        rank: rank + 1,
+        finishTime: result.baseDuration,
+        speed: parseFloat((0.8 + Math.random() * 0.7).toFixed(2))
+    }));
+
+    console.log(`[서버시뮬] 순위 결정 완료:`, rankings.map(r => `${r.rank}등=말${r.horseIndex}`).join(', '));
+
+    // Evolution 이펙트 대상 필터링: 실제로 순위가 상승한 말만
+    const verifiedEvolutionTargets = evolutionTargets.filter(horseIndex => {
+        const finalRank = rankings.find(r => r.horseIndex === horseIndex)?.rank;
+        // 발동 시점에 꼴찌였으므로, 최종 순위가 꼴찌보다 높으면 역전 성공
+        return finalRank !== undefined && finalRank < horseStates.filter(s => bettedIndices.has(s.horseIndex)).length;
+    });
+
+    // 모든 evolution 대상 (역전 성공/실패 무관)의 40~70% 구간 기존 기믹 제거
+    // → 시뮬레이션에서 disabled된 기믹은 클라이언트에도 보내지 않는다
+    evolutionTargets.forEach(horseIndex => {
+        if (gimmicksData[horseIndex]) {
+            gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g =>
+                g.progressTrigger < EVOLUTION_CONFIG.progressMin ||
+                g.progressTrigger > EVOLUTION_CONFIG.progressMax
+            );
+        }
+    });
+
+    // evolution 기믹을 gimmicksData에 역삽입 (클라이언트 전달용)
+    verifiedEvolutionTargets.forEach(horseIndex => {
+        const state = horseStates.find(s => s.horseIndex === horseIndex);
+        const evoGimmick = state.gimmicks.find(g => g.type === 'evolution');
+        if (evoGimmick && gimmicksData[horseIndex]) {
+            gimmicksData[horseIndex].push({
+                type: 'evolution',
+                progressTrigger: evoGimmick.progressTrigger,
+                speedMultiplier: evoGimmick.speedMultiplier,
+                duration: evoGimmick.duration,
+                nextGimmick: evoGimmick.nextGimmick || null
+            });
+            // disabled 기믹 제거 (클라이언트에 보내지 않음)
+            gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g => !g.disabled);
+        }
+    });
+
+    if (verifiedEvolutionTargets.length > 0) {
+        console.log(`[서버시뮬] Evolution 이펙트 대상: 말${verifiedEvolutionTargets.join(', 말')}`);
+    }
+
+    // ─── Fake Evolution 기믹 클라이언트 전달 처리 ───
+    // 가짜 변신은 "성공한 케이스만 필터"하지 않음 → 모든 발동 케이스를 그대로 전달
+    // 진짜 evolution과 동일한 보호 구간(0.40~0.70)을 적용 — sprint filter 클리어 충돌 차단
+    const fakeEvoMin = FAKE_EVOLUTION_CONFIG.progressMin;
+    const fakeEvoMax = FAKE_EVOLUTION_CONFIG.progressMax;
+    fakeEvolutionTargets.forEach(horseIndex => {
+        // 보호 구간(progressMin~progressMax) 기존 기믹 제거
+        if (gimmicksData[horseIndex]) {
+            gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g =>
+                g.progressTrigger < fakeEvoMin ||
+                g.progressTrigger > fakeEvoMax
+            );
+        }
+        // 가짜 변신 기믹을 gimmicksData에 역삽입 (클라이언트 전달용)
+        const state = horseStates.find(s => s.horseIndex === horseIndex);
+        const fakeGimmick = state && state.gimmicks.find(g => g.type === 'evolution_fake');
+        if (fakeGimmick && gimmicksData[horseIndex]) {
+            gimmicksData[horseIndex].push({
+                type: 'evolution_fake',
+                progressTrigger: fakeGimmick.progressTrigger,
+                speedMultiplier: fakeGimmick.speedMultiplier,
+                duration: fakeGimmick.duration,
+                nextGimmick: fakeGimmick.nextGimmick || null
+            });
+            // disabled 기믹 제거 (클라이언트에 보내지 않음)
+            gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g => !g.disabled);
+        }
+    });
+
+    if (fakeEvolutionTargets.length > 0) {
+        console.log(`[서버시뮬] Fake Evolution 이펙트 대상: 말${fakeEvolutionTargets.join(', 말')}`);
+    }
+
+    // 클라이언트 동기화용 시드 정보
+    const speedSeeds = horseStates.map(s => ({
+        changeSeed: s.speedChangeSeed,
+        initialFactor: s.initialSpeedFactor
+    }));
+
+    return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets };
+}
+
+// 룰에 맞는 당첨자 확인 함수
+function getWinnersByRule(gameState, rankings, playersList) {
+    const userHorseBets = gameState.userHorseBets;
+    const players = playersList || gameState.readyUsers;
+
+    // ─── N등 투표 룰렛 결과가 있으면 그 등수가 source of truth ───
+    const votedTargetRank = gameState.targetRank;
+    if (typeof votedTargetRank === 'number' && votedTargetRank >= 1) {
+        const targetHorse = rankings.find(r => r.rank === votedTargetRank);
+        console.log(`[디버그] getWinnersByRule - voted targetRank: ${votedTargetRank}, targetHorse: ${targetHorse ? targetHorse.horseIndex : 'none'}`);
+        if (!targetHorse) return [];
+        return players.filter(p => userHorseBets[p] === targetHorse.horseIndex);
+    }
+
+    // ─── fallback: 기존 horseRaceMode ('first' / 'last') ───
+    const mode = gameState.horseRaceMode || 'last';
+    let targetRank;
+    if (mode === 'first') {
+        targetRank = 1; // 1등 찾기
+    } else {
+        // 꼴등 찾기: 배팅된 말 중 가장 느린 말 (배팅 안 된 멈춘 말 제외)
+        const bettedHorseSet = new Set(Object.values(userHorseBets));
+        const bettedRankings = rankings.filter(r => bettedHorseSet.has(r.horseIndex));
+        targetRank = bettedRankings.length > 0 ? Math.max(...bettedRankings.map(r => r.rank)) : rankings.length;
+    }
+    console.log(`[디버그] getWinnersByRule - mode: ${mode}, targetRank: ${targetRank}, rankings.length: ${rankings.length}`);
+
+    // 해당 순위의 말 찾기
+    const targetHorse = rankings.find(r => r.rank === targetRank);
+    if (!targetHorse) return [];
+
+    // 해당 말을 선택한 사람들 찾기
+    const winners = players.filter(player =>
+        userHorseBets[player] === targetHorse.horseIndex
+    );
+
+    return winners;
+}
+
+// 시작 검문 — 소켓 없이 판정할 수 있어야 한다(예약 스위퍼가 그대로 호출한다).
+// 호스트 확인은 여기 넣지 않는다: 타이머에는 응답할 소켓이 없다.
+// opts.scheduled — 예약 발화 여부. 예약이면 탈것 미선택자를 자동 배정하므로 전원 선택을 요구하지 않는다.
+function canStartHorse(room, gameState, opts = {}) {
+    if (room.gameType !== 'horse-race') return '경마 게임 방이 아닙니다!';
+    if (gameState.isHorseRaceActive) return '이미 경주가 진행 중입니다!';
+    if ((gameState.readyUsers || []).length < 2) return '최소 2명 이상이 필요합니다!';
+    // 수동 시작은 종전대로 전원 선택을 요구한다 — 방장이 안 고른 사람을 챙길 수 있어야 한다.
+    if (!opts.scheduled) {
+        const allSelected = (gameState.readyUsers || []).every(p => gameState.userHorseBets[p] !== undefined);
+        if (!allSelected) return '모든 사람이 말을 선택해야 시작할 수 있습니다!';
+    }
+    return null;
+}
+
+// 시작 실행 — socket을 참조하지 않는다. 수동 시작(socket.on)과 예약 발화(스위퍼)가 같은 경로를 탄다.
+// ctx는 { rooms, updateRoomsList }만 보장된다(예약 발화 경로) — 그 이상을 기대하지 마라.
+async function startHorse(room, gameState, io, ctx, opts = {}) {
+    // 수동 시작이 예약을 앞질렀으면 예약을 해제한다 — 나중에 유령 발화가 나지 않게.
+    // 조용히 지우면 "예약해뒀는데 왜 지금 시작하지?"로 보인다. 방 전체에 알린다.
+    // (예약 발화 경로는 fire()가 이미 비우고 들어오므로 여기 걸리지 않는다 = 수동 시작 전용)
+    if (gameState.scheduledStartAt) {
+        const scheduled = require('./scheduled-start');
+        const label = scheduled.formatWallClock(gameState.scheduledStartAt);
+        gameState.scheduledStartAt = null;
+        io.to(room.roomId).emit('scheduledStartUpdated', { scheduledStartAt: null });
+        scheduled.roomNotice(io, room, gameState, `${label} 예약을 취소하고 지금 바로 시작합니다.`);
+    }
+
+    // 준비한 사용자가 참여자
+    const players = [...gameState.readyUsers];
+
+    // 탈것을 고르지 않은 준비자에게 서버가 대신 배정한다 (선택 UI의 랜덤 픽과 같은 서버 RNG 경로).
+    // ⚠ 자동 배정은 달리는 탈것 수(runningHorseCount)를 늘려 참가자 전원의 당첨 확률을 바꾼다.
+    //    사용자가 확정한 정책이다 — 안 고른 사람 때문에 시작이 막히는 것보다 낫다고 판단.
+    // 예약 발화일 때만 배정한다. 수동 시작은 canStartHorse가 전원 선택을 이미 요구했으므로 여기 걸릴 일이 없다.
+    const unpickedPlayers = opts.scheduled
+        ? players.filter(p => gameState.userHorseBets[p] === undefined)
+        : [];
+    const availableForAutoPick = gameState.availableHorses || [];
+    if (unpickedPlayers.length > 0 && availableForAutoPick.length > 0) {
+        unpickedPlayers.forEach(name => {
+            gameState.userHorseBets[name] = availableForAutoPick[Math.floor(Math.random() * availableForAutoPick.length)];
+        });
+        require('./scheduled-start').roomNotice(io, room, gameState,
+            `${unpickedPlayers.join(', ')}님이 탈것을 고르지 않아 자동으로 배정했어요.`);
+    }
+
+    // ─── N등 투표 → 룰렛 결정 (서버 가중 랜덤) ───
+    // 달리는 말 = 베팅된 unique 말 수. 투표가 그 수보다 크면 그 표만 무효
+    const runningHorseCount = new Set(Object.values(gameState.userHorseBets)).size;
+    const validVotes = Object.entries(gameState.userRankVotes || {})
+        .filter(([, rank]) => Number.isInteger(rank) && rank >= 1 && rank <= runningHorseCount);
+
+    let rouletteSegments = null;
+    let rouletteWinningRank = null;
+    let resolvedTargetRank = null;
+    let rouletteRankOrder = null;   // 셔플된 등수 시퀀스 (1표 = 1요소)
+    if (validVotes.length > 0) {
+        const tally = {};
+        for (const [, rank] of validVotes) tally[rank] = (tally[rank] || 0) + 1;
+        rouletteSegments = Object.entries(tally)
+            .map(([rank, count]) => ({ rank: Number(rank), count }))
+            .sort((a, b) => a.rank - b.rank);
+        // 득표 비례 가중 랜덤
+        const totalVotes = validVotes.length;
+        let pick = Math.floor(Math.random() * totalVotes);
+        for (const seg of rouletteSegments) {
+            if (pick < seg.count) { rouletteWinningRank = seg.rank; break; }
+            pick -= seg.count;
+        }
+        resolvedTargetRank = rouletteWinningRank;
+
+        // 표 단위 시퀀스를 생성한 뒤 Fisher-Yates 셔플 → 모든 클라가 같은 순서로 표시
+        rouletteRankOrder = [];
+        for (const seg of rouletteSegments) {
+            for (let i = 0; i < seg.count; i++) rouletteRankOrder.push(seg.rank);
+        }
+        for (let i = rouletteRankOrder.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = rouletteRankOrder[i];
+            rouletteRankOrder[i] = rouletteRankOrder[j];
+            rouletteRankOrder[j] = tmp;
+        }
+    }
+    gameState.targetRank = resolvedTargetRank;
+    gameState.rouletteResult = (resolvedTargetRank !== null)
+        ? { segments: rouletteSegments, rankOrder: rouletteRankOrder, winningRank: rouletteWinningRank, animDurationMs: ROULETTE_ANIM_MS }
+        : null;
+
+    // 결정 사유 텍스트 (왜 이 등수로 정해졌는지 사용자에게 설명)
+    // 룰렛은 항상 득표 비례 가중 랜덤 — "확정"은 한 등수에만 표가 몰린 경우만, 그 외엔 모두 확률 추첨.
+    const totalVoteCount = Object.keys(gameState.userRankVotes || {}).length;
+    let targetRankReason;
+    if (totalVoteCount === 0) {
+        targetRankReason = '아무도 투표하지 않아 기본 꼴등 찾기로 진행됩니다';
+    } else if (validVotes.length === 0) {
+        targetRankReason = `베팅된 말이 ${runningHorseCount}마리뿐이라 ${runningHorseCount + 1}등 이상 투표는 무효 처리되어 꼴등 찾기로 진행됩니다`;
+    } else {
+        const tallyForReason = {};
+        for (const [, rank] of validVotes) tallyForReason[rank] = (tallyForReason[rank] || 0) + 1;
+        if (Object.keys(tallyForReason).length === 1) {
+            // 한 등수에만 모든 유효 표 → 룰렛 의미 X
+            targetRankReason = `투표가 ${rouletteWinningRank}등에만 몰려 ${rouletteWinningRank}등 확정`;
+        } else {
+            // 2개 이상 등수 → 룰렛 추첨
+            targetRankReason = `룰렛 추첨 결과 ${rouletteWinningRank}등 당첨`;
+        }
+    }
+    gameState.targetRankReason = targetRankReason;
+
+    // 경주 시작
+    gameState.isHorseRaceActive = true;
+    gameState.isGameActive = true;
+    // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
+    gameState.orderAutoTriggered = false;
+    gameState.raceRound = (gameState.raceRound || 0) + 1;
+    console.log(`[디버그] 경주 시작 - raceRound: ${gameState.raceRound}, horseRaceMode: ${gameState.horseRaceMode}, targetRank: ${resolvedTargetRank}`);
+
+    // 준비 리스트 초기화 (게임 시작 후 비워야 함)
+    gameState.readyUsers = [];
+    io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+    // 탈것 타입은 이미 말 선택 UI가 표시될 때 설정되었으므로 절대 다시 설정하지 않음
+    // 사용자가 선택 화면에서 본 탈것과 동일하게 유지되어야 함
+    if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
+        console.warn(`[경마 시작] selectedVehicleTypes가 설정되지 않음. 말 선택 UI에서 설정되어야 함.`);
+        const horseCount = gameState.availableHorses.length;
+        gameState.selectedVehicleTypes = [];
+        // 예외 상황: 랜덤으로 설정
+        const shuffled = weightedShuffleVehicles();
+        for (let i = 0; i < horseCount; i++) {
+            gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
+        }
+    } else {
+        console.log(`[경마 시작] selectedVehicleTypes 유지:`, gameState.selectedVehicleTypes);
+    }
+
+    // 말 수는 이미 결정되어 있음 (selectHorse에서 결정됨)
+    if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
+        gameState.availableHorses = Array.from({ length: gameState.selectedVehicleTypes.length }, (_, i) => i);
+    }
+
+    // 게임 참여자들을 누적 참여자 목록에 추가
+    players.forEach(player => {
+        if (!gameState.everPlayedUsers.includes(player)) {
+            gameState.everPlayedUsers.push(player);
+        }
+    });
+
+    // 기믹 데이터 먼저 생성 (순위 계산에 필요)
+    const trackLenForGimmick = gameState.trackLength || 'medium';
+    const gimmicksData = {};
+    const gConf = horseConfig.gimmicks || {};
+    const gCountConf = (gConf.countByTrack || {})[trackLenForGimmick] || { min: 3, max: 5 };
+    const [trigMin, trigMax] = gConf.progressTriggerRange || [0.10, 0.85];
+    const gTypes = gConf.types || {};
+
+    // probability 기반 누적 테이블 빌드
+    const gTypeEntries = Object.entries(gTypes);
+    let cumProb = 0;
+    const gTypeLookup = gTypeEntries.map(([name, conf]) => {
+        cumProb += conf.probability || 0;
+        return { name, conf, cumProb };
+    });
+
+    gameState.availableHorses.forEach(horseIndex => {
+        const gimmickCount = gCountConf.min + Math.floor(Math.random() * (gCountConf.max - gCountConf.min + 1));
+        const gimmicks = [];
+        let lastTwoCategories = [null, null]; // 최근 2개 카테고리 추적 (A-B-A 패턴 방지)
+        const minGap = 0.08; // 기믹 간 최소 8% progress 간격
+        for (let i = 0; i < gimmickCount; i++) {
+            // 기믹 간 최소 간격 보장
+            let progressTrigger;
+            let gapAttempts = 0;
+            do {
+                progressTrigger = trigMin + Math.random() * (trigMax - trigMin);
+                gapAttempts++;
+            } while (gapAttempts < 10 && gimmicks.some(g => Math.abs(g.progressTrigger - progressTrigger) < minGap));
+
+            // 같은 category 연속 방지 (최대 5회 재뽑기, 최근 2개 체크)
+            let entry, tc, type;
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const roll = Math.random() * cumProb;
+                entry = gTypeLookup.find(e => roll < e.cumProb) || gTypeLookup[gTypeLookup.length - 1];
+                tc = entry.conf;
+                type = entry.name;
+                if (!lastTwoCategories.includes(tc.category)) break;
+            }
+            lastTwoCategories.shift();
+            lastTwoCategories.push(tc.category || null);
+
+            const [durMin, durMax] = tc.durationRange || [500, 1000];
+            const duration = durMin + Math.random() * (durMax - durMin);
+
+            let speedMultiplier;
+            if (tc.speedMultiplierRange) {
+                const [smMin, smMax] = tc.speedMultiplierRange;
+                speedMultiplier = smMin + Math.random() * (smMax - smMin);
+            } else {
+                speedMultiplier = tc.speedMultiplier ?? 1;
+            }
+
+            const gimmick = { progressTrigger, type, duration, speedMultiplier };
+
+            if (tc.chainGimmick) {
+                const cc = tc.chainGimmick;
+                const [cdMin, cdMax] = cc.durationRange || [1500, 2500];
+                const [csMin, csMax] = cc.speedMultiplierRange || [2.0, 3.0];
+                gimmick.nextGimmick = {
+                    type: cc.type,
+                    duration: cdMin + Math.random() * (cdMax - cdMin),
+                    speedMultiplier: csMin + Math.random() * (csMax - csMin)
+                };
+            }
+
+            gimmicks.push(gimmick);
+        }
+        gimmicksData[horseIndex] = gimmicks;
+    });
+
+    // 배팅 안 된 말: 즉시 정지 기믹으로 교체
+    const bettedHorseIndices = new Set(Object.values(gameState.userHorseBets));
+    gameState.availableHorses.forEach(horseIndex => {
+        if (!bettedHorseIndices.has(horseIndex)) {
+            gimmicksData[horseIndex] = [{
+                progressTrigger: 0,
+                type: 'unbetted_stop',
+                duration: 999999,
+                speedMultiplier: 0
+            }];
+        }
+    });
+
+    // 전원 동일 베팅: 모든 말에 최고속도 부스터 기믹 부착
+    const uniqueBets = [...new Set(Object.values(gameState.userHorseBets))];
+    const allSameBet = uniqueBets.length === 1 && Object.keys(gameState.userHorseBets).length > 1;
+    if (allSameBet) {
+        gameState.availableHorses.forEach(horseIndex => {
+            if (bettedHorseIndices.has(horseIndex)) {
+                gimmicksData[horseIndex] = [{
+                    progressTrigger: 0,
+                    type: 'item_boost',
+                    duration: 999999,
+                    speedMultiplier: 5
+                }];
+            }
+        });
+    }
+
+    // 날씨 스케줄 생성
+    const forcedWeather = gameState.forcedWeather || null;
+    const weatherSchedule = generateWeatherSchedule(forcedWeather);
+    gameState.currentWeatherSchedule = weatherSchedule;
+    console.log(`[경마] 날씨 스케줄:`, weatherSchedule.map(w => `${Math.round(w.progress*100)}%=${w.weather}`).join(' → '));
+
+    // 경주 결과 계산 (기믹 + 날씨 반영 시뮬레이션)
+    const trackLengthOption = gameState.trackLength || 'medium';
+    const vehicleTypes = gameState.selectedVehicleTypes || [];
+    const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets: verifiedFakeEvolutionTargets } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
+
+    // 트랙 정보 계산
+    const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
+    const trackDistanceMeters = trackPreset.meters;
+    const trackFinishLine = trackDistanceMeters * PIXELS_PER_METER;
+
+    // 순위별 말 인덱스 배열 생성 (클라이언트 애니메이션용)
+    const horseRankings = rankings.map(r => r.horseIndex);
+    const speeds = rankings.map(r => r.finishTime);
+
+    // 결과 저장
+    gameState.horseRankings = horseRankings;
+
+    // 룰에 맞는 사람 확인
+    console.log(`[디버그] 당첨자 계산 전 - horseRaceMode: ${gameState.horseRaceMode}`);
+    const winners = getWinnersByRule(gameState, rankings, players);
+
+    // 경주 기록 생성
+    const raceRecord = {
+        id: Date.now(), // 고유 ID (다시보기용)
+        round: gameState.raceRound,
+        players: players,
+        userHorseBets: { ...gameState.userHorseBets },
+        rankings: horseRankings, // 순위별 말 인덱스 배열
+        speeds: speeds, // 속도 데이터 추가
+        gimmicks: gimmicksData, // 기믹 데이터 추가
+        weatherSchedule: weatherSchedule, // 날씨 스케줄 추가
+        winners: winners,
+        mode: gameState.horseRaceMode,
+        selectedVehicleTypes: gameState.selectedVehicleTypes ? [...gameState.selectedVehicleTypes] : null,
+        availableHorses: [...gameState.availableHorses],
+        trackDistanceMeters: trackDistanceMeters,
+        speedSeeds: speedSeeds,
+        evolutionTargets: verifiedEvolutionTargets,
+        fakeEvolutionTargets: verifiedFakeEvolutionTargets,
+        targetRank: resolvedTargetRank,
+        targetRankReason: targetRankReason,
+        timestamp: new Date().toISOString()
+    };
+
+    // 기록 저장
+    gameState.horseRaceHistory.push(raceRecord);
+    if (gameState.horseRaceHistory.length > HORSE_HISTORY_MAX) {
+        gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-HORSE_HISTORY_MAX);
+    }
+
+    // 탈것 통계 저장
+    recordVehicleRaceResult(
+        getServerId(),
+        rankings,
+        gameState.selectedVehicleTypes || [],
+        gameState.userHorseBets,
+        gameState.availableHorses
+    ).catch(e => console.warn('탈것 통계 저장 실패:', e.message));
+
+    // 시즌별 탈것 통계 저장 (비공개 서버 방만)
+    if (room.serverId) {
+        recordVehicleSeasonResult(
+            room.serverId,
+            rankings,
+            gameState.selectedVehicleTypes || [],
+            gameState.userHorseBets
+        ).catch(e => console.warn('탈것 시즌 통계 기록 실패:', e.message));
+    }
+
+    // ─── 룰렛 단계 (유효 투표 있을 때만) ───
+    // 유효 투표 있으면 horseRouletteStart 먼저 보내고, ROULETTE_ANIM_MS 후 카운트다운 시작.
+    // 투표 없으면 즉시 카운트다운 → 기존 흐름과 동일.
+    const countdownPayload = {
+        duration: HORSE_COUNTDOWN_SEC,
+        raceRound: gameState.raceRound,
+        // 경기 시작 시 모든 선택 공개
+        userHorseBets: { ...gameState.userHorseBets },
+        selectedUsers: Object.keys(gameState.userHorseBets),
+        selectedHorseIndices: Object.values(gameState.userHorseBets),
+        targetRank: resolvedTargetRank,
+        targetRankReason: targetRankReason
+    };
+    const emitCountdown = () => {
+        // 게임 종료로 취소된 경우 무시
+        if (!gameState.isGameActive) {
+            console.log(`방 ${room.roomName} 룰렛 후 카운트다운 취소됨 (게임 종료)`);
+            return;
+        }
+        io.to(room.roomId).emit('horseRaceCountdown', countdownPayload);
+    };
+
+    // 유효표가 한 등수에만 몰리면(rouletteSegments 1개) 룰렛 스핀 스킵 — 결과가 이미 확정
+    const skipRouletteAnim = resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length === 1;
+    const rouletteHoldMs = skipRouletteAnim ? FALLBACK_HOLD_MS : (ROULETTE_ANIM_MS + ROULETTE_HOLD_MS);
+    if (resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length > 0) {
+        io.to(room.roomId).emit('horseRouletteStart', {
+            segments: rouletteSegments,
+            rankOrder: rouletteRankOrder,
+            winningRank: rouletteWinningRank,
+            animDurationMs: ROULETTE_ANIM_MS,
+            userRankVotes: { ...gameState.userRankVotes },
+            runningHorseCount,
+            targetRankReason: targetRankReason,
+            skipAnim: skipRouletteAnim
+        });
+        gameState.horseRouletteTimeout = setTimeout(() => {
+            gameState.horseRouletteTimeout = null;
+            emitCountdown();
+        }, rouletteHoldMs);
+    } else {
+        // fallback (투표 없음/모두 무효) — 사유 카드만 FALLBACK_HOLD_MS 보여준 뒤 카운트다운
+        io.to(room.roomId).emit('horseRaceReasonHold', {
+            targetRankReason: targetRankReason,
+            durationMs: FALLBACK_HOLD_MS
+        });
+        gameState.horseRouletteTimeout = setTimeout(() => {
+            gameState.horseRouletteTimeout = null;
+            emitCountdown();
+        }, FALLBACK_HOLD_MS);
+    }
+
+    // 카운트다운 후 경주 데이터 전송 (룰렛 + 카운트다운 4초 대기)
+    const roomId = room.roomId;
+    const roomName = room.roomName;
+    // 꾸미기 페이로드 (transient — 결과/공정성 무관, 시각 렌더용)
+    const { roomCosmetics, horseCosmetics, labelCosmetics } = await buildRaceCosmetics(gameState, room);
+    // 카운트다운(3-2-1)부터 이름표를 입히도록 labelCosmetics를 카운트다운 payload에도 동봉.
+    // hold 타이머(≥3s)가 이 await(DB 수 ms)보다 뒤에 발화하므로 emit 시점엔 채워져 있다.
+    // 만에 하나 조회가 hold보다 늦으면 필드 없이 나가고, 클라는 기존처럼 경주 시작 시 입힌다(안전 폴백).
+    countdownPayload.labelCosmetics = labelCosmetics;
+    const raceData = {
+        availableHorses: gameState.availableHorses,
+        players: players,
+        raceRound: gameState.raceRound,
+        horseRaceMode: gameState.horseRaceMode || 'last',
+        everPlayedUsers: gameState.everPlayedUsers,
+        rankings: rankings,
+        horseRankings: horseRankings,
+        speeds: speeds,
+        gimmicks: gimmicksData,
+        weatherSchedule: weatherSchedule, // 날씨 스케줄 추가
+        winners: winners,
+        userHorseBets: { ...gameState.userHorseBets },
+        selectedVehicleTypes: gameState.selectedVehicleTypes || null,
+        trackDistanceMeters: trackDistanceMeters,
+        trackFinishLine: trackFinishLine,
+        speedSeeds: speedSeeds,
+        record: raceRecord,
+        slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } },
+        weatherConfig: weatherConfig.vehicleModifiers || {}, // 탈것별 날씨 보정값 (클라이언트 표시용)
+        allSameBet: allSameBet,
+        evolutionTargets: verifiedEvolutionTargets,
+        fakeEvolutionTargets: verifiedFakeEvolutionTargets,
+        targetRank: resolvedTargetRank,
+        targetRankReason: targetRankReason,
+        roomCosmetics: roomCosmetics,   // 방장 연출 (finish_fx)
+        horseCosmetics: horseCosmetics, // 말별 공개 꾸미기 (paint/trail/accessory)
+        labelCosmetics: labelCosmetics  // 이름표(닉네임 라벨) 꾸미기, userName 키
+    };
+
+    // 룰렛 있으면 룰렛 길이 + 카운트다운 4초 후 경주 시작, 없으면 4초 후 즉시
+    const startedDelayMs = (resolvedTargetRank !== null ? rouletteHoldMs : FALLBACK_HOLD_MS) + 4000;
+    gameState.horseRaceCountdownTimeout = setTimeout(() => {
+        // 게임 종료로 취소된 경우 무시
+        if (!gameState.isGameActive) {
+            console.log(`방 ${roomName} 경마 카운트다운 취소됨 (게임 종료)`);
+            return;
+        }
+
+        io.to(roomId).emit('horseRaceStarted', raceData);
+
+        // 경마 참여자 방문자 통계 기록
+        gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
+        io.emit('visitorStats', getVisitorStats());
+        recordGamePlay('horse-race', players.length, room.serverId || null);
+
+        // 경주 결과 전송 후 상태를 false로 설정
+        gameState.isHorseRaceActive = false;
+
+        console.log(`방 ${roomName} 경마 시작 - 말 수: ${gameState.availableHorses.length}, 참가자: ${players.length}명, 라운드: ${gameState.raceRound}`);
+
+        // 결과 데이터를 gameState에 저장 (클라이언트 애니메이션 완료 후 사용)
+        gameState.pendingRaceResult = {
+            winners: winners,
+            rankings: rankings,
+            raceData: raceData,
+            roomId: roomId,
+            roomName: roomName,
+            // 코인 적립 멱등 ref: 레이스당 1회 생성(서버 전용). 재처리돼도 동일 → 이중적립 차단.
+            coinRef: generateSessionId('horsecoin', room.serverId || roomId)
+        };
+        console.log(`[경마] 결과 데이터 저장 완료 - 클라이언트 애니메이션 완료 대기`);
+
+        // 정산 워치독 — 모든 탭이 백그라운드면 raceAnimationComplete가 오지 않아
+        // isGameActive가 true로 고착되고 방이 잠긴다. 그때는 서버가 대신 마감한다.
+        // 타이머 핸들은 gameState에 두지 않는다(Node Timeout은 순환 참조 → 입장 페이로드 직렬화가 깨진다).
+        // 대신 이 레이스의 pendingRaceResult 객체 동일성으로 판별해서 다음 레이스를 오소비하지 않는다.
+        const watchdogTarget = gameState.pendingRaceResult;
+        setTimeout(() => {
+            const laterRoom = ctx && ctx.rooms && ctx.rooms[roomId];
+            if (!laterRoom || !laterRoom.gameState) return;                              // 방이 사라짐 → 조용히 종료
+            if (laterRoom.gameState.pendingRaceResult !== watchdogTarget) return;         // 이미 정산됐거나 다음 레이스 것
+            console.log(`[경마] 정산 워치독 발동 - 클라이언트 완료 신호 없음 (방 ${roomName})`);
+            Promise.resolve(settleRace(laterRoom, laterRoom.gameState, io, ctx))
+                .catch(e => console.error('[경마] 정산 워치독 실패:', e));
+        }, HORSE_RACE_SIM_MAX_MS + HORSE_SETTLE_GRACE_MS);
+    }, startedDelayMs);
+}
+
+// 정산 — 코인·DB 기록·결과 채팅 확정. 클라이언트 완료 신호와 서버 워치독이 함께 호출한다.
+// pendingRaceResult 소비가 1회 표식이라 두 경로가 겹쳐도 안전하다.
+async function settleRace(room, gameState, io, ctx) {
+    // 중복 처리 방지 (이미 처리된 경우)
+    if (!gameState.pendingRaceResult) {
+        console.log(`[경마] 이미 처리된 결과 또는 데이터 없음`);
+        return;
+    }
+
+    const { winners, rankings, raceData, roomId, roomName, coinRef } = gameState.pendingRaceResult;
+    gameState.pendingRaceResult = null; // 처리 후 삭제
+
+    console.log(`[경마] 클라이언트 애니메이션 완료 신호 수신 - 결과 처리 시작`);
+
+    if (!gameState.isGameActive) return; // 이미 게임 종료됨
+
+    // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
+    // Player stats: per-game only (recorded when single winner found)
+    // Vehicle stats (recordVehicleRaceResult at line 303): per-round (every race)
+    // Vehicle picks (recordVehiclePicks): 시계열 픽 이력 — 우승자 수와 무관하게 항상 기록
+    if (room.serverId && raceData.userHorseBets) {
+        let sessionId = null;
+        const horseRankMap = {};
+        rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
+
+        if (winners.length === 1) {
+            sessionId = generateSessionId('horse', room.serverId);
+            const winnerName = winners[0];
+            const bettors = Object.entries(raceData.userHorseBets);
+
+            await Promise.all(bettors.map(([userName, horseIndex]) => {
+                const rank = horseRankMap[horseIndex] || 0;
+                const isWinner = winners.includes(userName);
+                return recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId, rank);
+            }));
+            await recordGameSession({
+                serverId: room.serverId,
+                sessionId,
+                gameType: 'horse',
+                gameRules: gameState.horseRaceMode || 'last',
+                winnerName: winnerName,
+                participantCount: bettors.length
+            });
+        }
+
+        // vehicle_picks 이력 (winners 분기와 무관, sessionId만 조건부)
+        const picks = Object.entries(raceData.userHorseBets).map(([userName, horseIndex]) => ({
+            userName,
+            vehicleId: (gameState.selectedVehicleTypes || [])[horseIndex] || null,
+            rank: horseRankMap[horseIndex] ?? null,
+            isWinner: winners.includes(userName),
+            gameSessionId: sessionId
+        })).filter(p => p.vehicleId);
+        recordVehiclePicks(room.serverId, picks);
+    }
+
+    // 코인 적립 (serverId 가드 밖 = 자유플레이 포함, 인증 유저만, 멱등 ref)
+    await awardRaceCoins(io, room, gameState, raceData.userHorseBets, winners, coinRef);
+
+    if (winners.length === 1) {
+        // 타깃 등수 캡처 (cleanup 이전)
+        const winningTargetRank = raceData.targetRank || null;
+        const targetRankLabel = (typeof winningTargetRank === 'number' && winningTargetRank >= 1)
+            ? `${winningTargetRank}등` : '꼴등';
+
+        // 단독 당첨 → 게임 종료
+        gameState.isGameActive = false;
+        gameState.userHorseBets = {};
+        gameState.userRankVotes = {};
+        gameState.targetRank = null;
+        gameState.rouletteResult = null;
+
+        // 승자가 배팅한 탈것 이름 가져오기 (배팅 안 된 말이 꼴등일 수 있으므로 rankings 대신 직접 조회)
+        const winnerHorseIndex = raceData.userHorseBets[winners[0]];
+        const lastVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[winnerHorseIndex] ? gameState.selectedVehicleTypes[winnerHorseIndex] : 'horse';
+        const lastVehicleName = VEHICLE_NAMES[lastVehicleId] || lastVehicleId;
+
+        const now = new Date();
+        const koreaOffset = 9 * 60;
+        const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
+        const resultMessage = {
+            userName: '시스템',
+            message: `🎊🎉 축하합니다! ${winners[0]}님이 고르신 ${lastVehicleName}${getPostPosition(lastVehicleName, '이가')} ${targetRankLabel}에 걸렸습니다! 🎉🎊`,
+            timestamp: koreaTime.toISOString(),
+            isSystem: true,
+            isHorseRaceWinner: true
+        };
+        gameState.chatHistory.push(resultMessage);
+        if (gameState.chatHistory.length > HORSE_HISTORY_MAX) gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
+        io.to(roomId).emit('newMessage', resultMessage);
+        io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
+        io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+        if (ctx && ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
+
+        // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+        if (room.serverId) {
+            getTop3Badges(room.serverId).then(updatedBadges => {
+                room.userBadges = updatedBadges;
+            }).catch(() => {});
+        }
+
+        console.log(`방 ${roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`);
+    } else {
+        // 동점 또는 당첨자 없음 → 자동 준비
+        gameState.isGameActive = false;
+        gameState.userHorseBets = {};
+        gameState.userRankVotes = {};
+        gameState.targetRank = null;
+        gameState.rouletteResult = null;
+
+        let autoReadyPlayers = winners;
+        let systemMsg;
+
+        if (winners.length === 0) {
+            // 당첨자 없음 → 가장 높은 순위에 베팅한 사람들 자동 준비
+            let bestRank = -1;
+            let bestBetters = [];
+            let bestHorseIndex = -1;
+            const horseRankings = rankings.map(r => r.horseIndex);
+            Object.entries(raceData.userHorseBets).forEach(([username, horseIndex]) => {
+                const rank = horseRankings.indexOf(horseIndex);
+                if (rank !== -1) {
+                    if (bestRank === -1 || rank < bestRank) {
+                        bestRank = rank;
+                        bestBetters = [username];
+                        bestHorseIndex = horseIndex;
+                    } else if (rank === bestRank) {
+                        bestBetters.push(username);
+                    }
+                }
+            });
+            autoReadyPlayers = bestBetters;
+            const bestVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[bestHorseIndex] ? gameState.selectedVehicleTypes[bestHorseIndex] : 'horse';
+            const bestVehicleName = VEHICLE_NAMES[bestVehicleId] || bestVehicleId;
+            systemMsg = autoReadyPlayers.length > 0
+                ? `${autoReadyPlayers.join(', ')}님이 고르신 ${bestVehicleName}${getPostPosition(bestVehicleName, '이가')} 가장 순위가 낮습니다! 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`
+                : '당첨자가 없습니다.';
+        } else {
+            systemMsg = `동점!! ${winners.join(', ')}님 편하게 한 판 더 하시라고 자동준비 해 드렸어요~`;
+        }
+
+        const now = new Date();
+        const koreaOffset = 9 * 60;
+        const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
+        const resultMessage = {
+            userName: '시스템',
+            message: systemMsg,
+            timestamp: koreaTime.toISOString(),
+            isSystem: true,
+            isHorseRaceWinner: true
+        };
+        gameState.chatHistory.push(resultMessage);
+        if (gameState.chatHistory.length > HORSE_HISTORY_MAX) gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
+        io.to(roomId).emit('newMessage', resultMessage);
+
+        io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, tieWinners: autoReadyPlayers });
+
+        // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
+        if (room.serverId) {
+            getTop3Badges(room.serverId).then(updatedBadges => {
+                room.userBadges = updatedBadges;
+            }).catch(() => {});
+        }
+
+        // 자동 준비 설정
+        gameState.readyUsers = [];
+        autoReadyPlayers.forEach(player => {
+            if (!gameState.readyUsers.includes(player)) {
+                gameState.readyUsers.push(player);
+            }
+        });
+        io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+        // 개별 클라이언트에게 준비 상태 알림
+        autoReadyPlayers.forEach(player => {
+            const playerUser = gameState.users.find(u => u.name === player);
+            if (playerUser) {
+                io.to(playerUser.id).emit('readyStateChanged', { isReady: true });
+            }
+        });
+
+        console.log(`방 ${roomName} 경마 라운드 종료 - 자동 준비: ${autoReadyPlayers.join(', ')}`);
+    }
+}
+
 /**
  * Horse race game event handlers
  * @param {Socket} socket - Socket.io socket instance
  * @param {Server} io - Socket.io server instance
  * @param {Object} ctx - Context object with helper functions
  */
-module.exports = (socket, io, ctx) => {
+module.exports = function registerHorseHandlers(socket, io, ctx) {
     const { updateRoomsList, getCurrentRoom, getCurrentRoomGameState } = ctx;
 
     // Helper function: Rate limit check (if available in context)
-    const checkRateLimit = ctx.checkRateLimit || (() => true);
+    const checkRateLimit = ctx.checkRateLimit ? () => ctx.checkRateLimit() : () => true;
 
     // ========== 경마 게임 이벤트 핸들러 ==========
 
@@ -171,441 +1393,20 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 경마 게임 방인지 확인
-        if (room.gameType !== 'horse-race') {
-            socket.emit('horseRaceError', '경마 게임 방이 아닙니다!');
-            return;
-        }
-
-        // Host 권한 확인
+        // Host 권한 확인 (소켓이 있는 이 경로에만 남는다)
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user || !user.isHost) {
             socket.emit('horseRaceError', '방장만 경마를 시작할 수 있습니다!');
             return;
         }
 
-        // 이미 경주 진행 중인지 확인
-        if (gameState.isHorseRaceActive) {
-            socket.emit('horseRaceError', '이미 경주가 진행 중입니다!');
+        const reason = canStartHorse(room, gameState);
+        if (reason) {
+            socket.emit('horseRaceError', reason);
             return;
         }
 
-        // 준비한 사용자가 참여자
-        const players = [...gameState.readyUsers];
-
-        if (!players || players.length < 2) {
-            socket.emit('horseRaceError', '최소 2명 이상이 필요합니다!');
-            return;
-        }
-
-        // 모든 사람이 말을 선택했는지 확인
-        const allSelected = players.every(player => gameState.userHorseBets[player] !== undefined);
-        if (!allSelected) {
-            socket.emit('horseRaceError', '모든 사람이 말을 선택해야 시작할 수 있습니다!');
-            return;
-        }
-
-        // ─── N등 투표 → 룰렛 결정 (서버 가중 랜덤) ───
-        // 달리는 말 = 베팅된 unique 말 수. 투표가 그 수보다 크면 그 표만 무효
-        const runningHorseCount = new Set(Object.values(gameState.userHorseBets)).size;
-        const validVotes = Object.entries(gameState.userRankVotes || {})
-            .filter(([, rank]) => Number.isInteger(rank) && rank >= 1 && rank <= runningHorseCount);
-
-        let rouletteSegments = null;
-        let rouletteWinningRank = null;
-        let resolvedTargetRank = null;
-        let rouletteRankOrder = null;   // 셔플된 등수 시퀀스 (1표 = 1요소)
-        if (validVotes.length > 0) {
-            const tally = {};
-            for (const [, rank] of validVotes) tally[rank] = (tally[rank] || 0) + 1;
-            rouletteSegments = Object.entries(tally)
-                .map(([rank, count]) => ({ rank: Number(rank), count }))
-                .sort((a, b) => a.rank - b.rank);
-            // 득표 비례 가중 랜덤
-            const totalVotes = validVotes.length;
-            let pick = Math.floor(Math.random() * totalVotes);
-            for (const seg of rouletteSegments) {
-                if (pick < seg.count) { rouletteWinningRank = seg.rank; break; }
-                pick -= seg.count;
-            }
-            resolvedTargetRank = rouletteWinningRank;
-
-            // 표 단위 시퀀스를 생성한 뒤 Fisher-Yates 셔플 → 모든 클라가 같은 순서로 표시
-            rouletteRankOrder = [];
-            for (const seg of rouletteSegments) {
-                for (let i = 0; i < seg.count; i++) rouletteRankOrder.push(seg.rank);
-            }
-            for (let i = rouletteRankOrder.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                const tmp = rouletteRankOrder[i];
-                rouletteRankOrder[i] = rouletteRankOrder[j];
-                rouletteRankOrder[j] = tmp;
-            }
-        }
-        gameState.targetRank = resolvedTargetRank;
-        gameState.rouletteResult = (resolvedTargetRank !== null)
-            ? { segments: rouletteSegments, rankOrder: rouletteRankOrder, winningRank: rouletteWinningRank, animDurationMs: ROULETTE_ANIM_MS }
-            : null;
-
-        // 결정 사유 텍스트 (왜 이 등수로 정해졌는지 사용자에게 설명)
-        // 룰렛은 항상 득표 비례 가중 랜덤 — "확정"은 한 등수에만 표가 몰린 경우만, 그 외엔 모두 확률 추첨.
-        const totalVoteCount = Object.keys(gameState.userRankVotes || {}).length;
-        let targetRankReason;
-        if (totalVoteCount === 0) {
-            targetRankReason = '아무도 투표하지 않아 기본 꼴등 찾기로 진행됩니다';
-        } else if (validVotes.length === 0) {
-            targetRankReason = `베팅된 말이 ${runningHorseCount}마리뿐이라 ${runningHorseCount + 1}등 이상 투표는 무효 처리되어 꼴등 찾기로 진행됩니다`;
-        } else {
-            const tallyForReason = {};
-            for (const [, rank] of validVotes) tallyForReason[rank] = (tallyForReason[rank] || 0) + 1;
-            if (Object.keys(tallyForReason).length === 1) {
-                // 한 등수에만 모든 유효 표 → 룰렛 의미 X
-                targetRankReason = `투표가 ${rouletteWinningRank}등에만 몰려 ${rouletteWinningRank}등 확정`;
-            } else {
-                // 2개 이상 등수 → 룰렛 추첨
-                targetRankReason = `룰렛 추첨 결과 ${rouletteWinningRank}등 당첨`;
-            }
-        }
-        gameState.targetRankReason = targetRankReason;
-
-        // 경주 시작
-        gameState.isHorseRaceActive = true;
-        gameState.isGameActive = true;
-        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
-        gameState.orderAutoTriggered = false;
-        gameState.raceRound = (gameState.raceRound || 0) + 1;
-        console.log(`[디버그] 경주 시작 - raceRound: ${gameState.raceRound}, horseRaceMode: ${gameState.horseRaceMode}, targetRank: ${resolvedTargetRank}`);
-
-        // 준비 리스트 초기화 (게임 시작 후 비워야 함)
-        gameState.readyUsers = [];
-        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
-
-        // 탈것 타입은 이미 말 선택 UI가 표시될 때 설정되었으므로 절대 다시 설정하지 않음
-        // 사용자가 선택 화면에서 본 탈것과 동일하게 유지되어야 함
-        if (!gameState.selectedVehicleTypes || gameState.selectedVehicleTypes.length === 0) {
-            console.warn(`[경마 시작] selectedVehicleTypes가 설정되지 않음. 말 선택 UI에서 설정되어야 함.`);
-            const horseCount = gameState.availableHorses.length;
-            gameState.selectedVehicleTypes = [];
-            // 예외 상황: 랜덤으로 설정
-            const shuffled = weightedShuffleVehicles();
-            for (let i = 0; i < horseCount; i++) {
-                gameState.selectedVehicleTypes[i] = shuffled[i % shuffled.length];
-            }
-        } else {
-            console.log(`[경마 시작] selectedVehicleTypes 유지:`, gameState.selectedVehicleTypes);
-        }
-
-        // 말 수는 이미 결정되어 있음 (selectHorse에서 결정됨)
-        if (!gameState.availableHorses || gameState.availableHorses.length === 0) {
-            gameState.availableHorses = Array.from({ length: gameState.selectedVehicleTypes.length }, (_, i) => i);
-        }
-
-        // 게임 참여자들을 누적 참여자 목록에 추가
-        players.forEach(player => {
-            if (!gameState.everPlayedUsers.includes(player)) {
-                gameState.everPlayedUsers.push(player);
-            }
-        });
-
-        // 기믹 데이터 먼저 생성 (순위 계산에 필요)
-        const trackLenForGimmick = gameState.trackLength || 'medium';
-        const gimmicksData = {};
-        const gConf = horseConfig.gimmicks || {};
-        const gCountConf = (gConf.countByTrack || {})[trackLenForGimmick] || { min: 3, max: 5 };
-        const [trigMin, trigMax] = gConf.progressTriggerRange || [0.10, 0.85];
-        const gTypes = gConf.types || {};
-
-        // probability 기반 누적 테이블 빌드
-        const gTypeEntries = Object.entries(gTypes);
-        let cumProb = 0;
-        const gTypeLookup = gTypeEntries.map(([name, conf]) => {
-            cumProb += conf.probability || 0;
-            return { name, conf, cumProb };
-        });
-
-        gameState.availableHorses.forEach(horseIndex => {
-            const gimmickCount = gCountConf.min + Math.floor(Math.random() * (gCountConf.max - gCountConf.min + 1));
-            const gimmicks = [];
-            let lastTwoCategories = [null, null]; // 최근 2개 카테고리 추적 (A-B-A 패턴 방지)
-            const minGap = 0.08; // 기믹 간 최소 8% progress 간격
-            for (let i = 0; i < gimmickCount; i++) {
-                // 기믹 간 최소 간격 보장
-                let progressTrigger;
-                let gapAttempts = 0;
-                do {
-                    progressTrigger = trigMin + Math.random() * (trigMax - trigMin);
-                    gapAttempts++;
-                } while (gapAttempts < 10 && gimmicks.some(g => Math.abs(g.progressTrigger - progressTrigger) < minGap));
-
-                // 같은 category 연속 방지 (최대 5회 재뽑기, 최근 2개 체크)
-                let entry, tc, type;
-                for (let attempt = 0; attempt < 5; attempt++) {
-                    const roll = Math.random() * cumProb;
-                    entry = gTypeLookup.find(e => roll < e.cumProb) || gTypeLookup[gTypeLookup.length - 1];
-                    tc = entry.conf;
-                    type = entry.name;
-                    if (!lastTwoCategories.includes(tc.category)) break;
-                }
-                lastTwoCategories.shift();
-                lastTwoCategories.push(tc.category || null);
-
-                const [durMin, durMax] = tc.durationRange || [500, 1000];
-                const duration = durMin + Math.random() * (durMax - durMin);
-
-                let speedMultiplier;
-                if (tc.speedMultiplierRange) {
-                    const [smMin, smMax] = tc.speedMultiplierRange;
-                    speedMultiplier = smMin + Math.random() * (smMax - smMin);
-                } else {
-                    speedMultiplier = tc.speedMultiplier ?? 1;
-                }
-
-                const gimmick = { progressTrigger, type, duration, speedMultiplier };
-
-                if (tc.chainGimmick) {
-                    const cc = tc.chainGimmick;
-                    const [cdMin, cdMax] = cc.durationRange || [1500, 2500];
-                    const [csMin, csMax] = cc.speedMultiplierRange || [2.0, 3.0];
-                    gimmick.nextGimmick = {
-                        type: cc.type,
-                        duration: cdMin + Math.random() * (cdMax - cdMin),
-                        speedMultiplier: csMin + Math.random() * (csMax - csMin)
-                    };
-                }
-
-                gimmicks.push(gimmick);
-            }
-            gimmicksData[horseIndex] = gimmicks;
-        });
-
-        // 배팅 안 된 말: 즉시 정지 기믹으로 교체
-        const bettedHorseIndices = new Set(Object.values(gameState.userHorseBets));
-        gameState.availableHorses.forEach(horseIndex => {
-            if (!bettedHorseIndices.has(horseIndex)) {
-                gimmicksData[horseIndex] = [{
-                    progressTrigger: 0,
-                    type: 'unbetted_stop',
-                    duration: 999999,
-                    speedMultiplier: 0
-                }];
-            }
-        });
-
-        // 전원 동일 베팅: 모든 말에 최고속도 부스터 기믹 부착
-        const uniqueBets = [...new Set(Object.values(gameState.userHorseBets))];
-        const allSameBet = uniqueBets.length === 1 && Object.keys(gameState.userHorseBets).length > 1;
-        if (allSameBet) {
-            gameState.availableHorses.forEach(horseIndex => {
-                if (bettedHorseIndices.has(horseIndex)) {
-                    gimmicksData[horseIndex] = [{
-                        progressTrigger: 0,
-                        type: 'item_boost',
-                        duration: 999999,
-                        speedMultiplier: 5
-                    }];
-                }
-            });
-        }
-
-        // 날씨 스케줄 생성
-        const forcedWeather = gameState.forcedWeather || null;
-        const weatherSchedule = generateWeatherSchedule(forcedWeather);
-        gameState.currentWeatherSchedule = weatherSchedule;
-        console.log(`[경마] 날씨 스케줄:`, weatherSchedule.map(w => `${Math.round(w.progress*100)}%=${w.weather}`).join(' → '));
-
-        // 경주 결과 계산 (기믹 + 날씨 반영 시뮬레이션)
-        const trackLengthOption = gameState.trackLength || 'medium';
-        const vehicleTypes = gameState.selectedVehicleTypes || [];
-        const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets: verifiedFakeEvolutionTargets } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
-
-        // 트랙 정보 계산
-        const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
-        const trackDistanceMeters = trackPreset.meters;
-        const trackFinishLine = trackDistanceMeters * PIXELS_PER_METER;
-
-        // 순위별 말 인덱스 배열 생성 (클라이언트 애니메이션용)
-        const horseRankings = rankings.map(r => r.horseIndex);
-        const speeds = rankings.map(r => r.finishTime);
-
-        // 결과 저장
-        gameState.horseRankings = horseRankings;
-
-        // 룰에 맞는 사람 확인
-        console.log(`[디버그] 당첨자 계산 전 - horseRaceMode: ${gameState.horseRaceMode}`);
-        const winners = getWinnersByRule(gameState, rankings, players);
-
-        // 경주 기록 생성
-        const raceRecord = {
-            id: Date.now(), // 고유 ID (다시보기용)
-            round: gameState.raceRound,
-            players: players,
-            userHorseBets: { ...gameState.userHorseBets },
-            rankings: horseRankings, // 순위별 말 인덱스 배열
-            speeds: speeds, // 속도 데이터 추가
-            gimmicks: gimmicksData, // 기믹 데이터 추가
-            weatherSchedule: weatherSchedule, // 날씨 스케줄 추가
-            winners: winners,
-            mode: gameState.horseRaceMode,
-            selectedVehicleTypes: gameState.selectedVehicleTypes ? [...gameState.selectedVehicleTypes] : null,
-            availableHorses: [...gameState.availableHorses],
-            trackDistanceMeters: trackDistanceMeters,
-            speedSeeds: speedSeeds,
-            evolutionTargets: verifiedEvolutionTargets,
-            fakeEvolutionTargets: verifiedFakeEvolutionTargets,
-            targetRank: resolvedTargetRank,
-            targetRankReason: targetRankReason,
-            timestamp: new Date().toISOString()
-        };
-
-        // 기록 저장
-        gameState.horseRaceHistory.push(raceRecord);
-        if (gameState.horseRaceHistory.length > HORSE_HISTORY_MAX) {
-            gameState.horseRaceHistory = gameState.horseRaceHistory.slice(-HORSE_HISTORY_MAX);
-        }
-
-        // 탈것 통계 저장
-        recordVehicleRaceResult(
-            getServerId(),
-            rankings,
-            gameState.selectedVehicleTypes || [],
-            gameState.userHorseBets,
-            gameState.availableHorses
-        ).catch(e => console.warn('탈것 통계 저장 실패:', e.message));
-
-        // 시즌별 탈것 통계 저장 (비공개 서버 방만)
-        if (room.serverId) {
-            recordVehicleSeasonResult(
-                room.serverId,
-                rankings,
-                gameState.selectedVehicleTypes || [],
-                gameState.userHorseBets
-            ).catch(e => console.warn('탈것 시즌 통계 기록 실패:', e.message));
-        }
-
-        // ─── 룰렛 단계 (유효 투표 있을 때만) ───
-        // 유효 투표 있으면 horseRouletteStart 먼저 보내고, ROULETTE_ANIM_MS 후 카운트다운 시작.
-        // 투표 없으면 즉시 카운트다운 → 기존 흐름과 동일.
-        const countdownPayload = {
-            duration: HORSE_COUNTDOWN_SEC,
-            raceRound: gameState.raceRound,
-            // 경기 시작 시 모든 선택 공개
-            userHorseBets: { ...gameState.userHorseBets },
-            selectedUsers: Object.keys(gameState.userHorseBets),
-            selectedHorseIndices: Object.values(gameState.userHorseBets),
-            targetRank: resolvedTargetRank,
-            targetRankReason: targetRankReason
-        };
-        const emitCountdown = () => {
-            // 게임 종료로 취소된 경우 무시
-            if (!gameState.isGameActive) {
-                console.log(`방 ${room.roomName} 룰렛 후 카운트다운 취소됨 (게임 종료)`);
-                return;
-            }
-            io.to(room.roomId).emit('horseRaceCountdown', countdownPayload);
-        };
-
-        // 유효표가 한 등수에만 몰리면(rouletteSegments 1개) 룰렛 스핀 스킵 — 결과가 이미 확정
-        const skipRouletteAnim = resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length === 1;
-        const rouletteHoldMs = skipRouletteAnim ? FALLBACK_HOLD_MS : (ROULETTE_ANIM_MS + ROULETTE_HOLD_MS);
-        if (resolvedTargetRank !== null && rouletteSegments && rouletteSegments.length > 0) {
-            io.to(room.roomId).emit('horseRouletteStart', {
-                segments: rouletteSegments,
-                rankOrder: rouletteRankOrder,
-                winningRank: rouletteWinningRank,
-                animDurationMs: ROULETTE_ANIM_MS,
-                userRankVotes: { ...gameState.userRankVotes },
-                runningHorseCount,
-                targetRankReason: targetRankReason,
-                skipAnim: skipRouletteAnim
-            });
-            gameState.horseRouletteTimeout = setTimeout(() => {
-                gameState.horseRouletteTimeout = null;
-                emitCountdown();
-            }, rouletteHoldMs);
-        } else {
-            // fallback (투표 없음/모두 무효) — 사유 카드만 FALLBACK_HOLD_MS 보여준 뒤 카운트다운
-            io.to(room.roomId).emit('horseRaceReasonHold', {
-                targetRankReason: targetRankReason,
-                durationMs: FALLBACK_HOLD_MS
-            });
-            gameState.horseRouletteTimeout = setTimeout(() => {
-                gameState.horseRouletteTimeout = null;
-                emitCountdown();
-            }, FALLBACK_HOLD_MS);
-        }
-
-        // 카운트다운 후 경주 데이터 전송 (룰렛 + 카운트다운 4초 대기)
-        const roomId = room.roomId;
-        const roomName = room.roomName;
-        // 꾸미기 페이로드 (transient — 결과/공정성 무관, 시각 렌더용)
-        const { roomCosmetics, horseCosmetics, labelCosmetics } = await buildRaceCosmetics(gameState, room);
-        // 카운트다운(3-2-1)부터 이름표를 입히도록 labelCosmetics를 카운트다운 payload에도 동봉.
-        // hold 타이머(≥3s)가 이 await(DB 수 ms)보다 뒤에 발화하므로 emit 시점엔 채워져 있다.
-        // 만에 하나 조회가 hold보다 늦으면 필드 없이 나가고, 클라는 기존처럼 경주 시작 시 입힌다(안전 폴백).
-        countdownPayload.labelCosmetics = labelCosmetics;
-        const raceData = {
-            availableHorses: gameState.availableHorses,
-            players: players,
-            raceRound: gameState.raceRound,
-            horseRaceMode: gameState.horseRaceMode || 'last',
-            everPlayedUsers: gameState.everPlayedUsers,
-            rankings: rankings,
-            horseRankings: horseRankings,
-            speeds: speeds,
-            gimmicks: gimmicksData,
-            weatherSchedule: weatherSchedule, // 날씨 스케줄 추가
-            winners: winners,
-            userHorseBets: { ...gameState.userHorseBets },
-            selectedVehicleTypes: gameState.selectedVehicleTypes || null,
-            trackDistanceMeters: trackDistanceMeters,
-            trackFinishLine: trackFinishLine,
-            speedSeeds: speedSeeds,
-            record: raceRecord,
-            slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } },
-            weatherConfig: weatherConfig.vehicleModifiers || {}, // 탈것별 날씨 보정값 (클라이언트 표시용)
-            allSameBet: allSameBet,
-            evolutionTargets: verifiedEvolutionTargets,
-            fakeEvolutionTargets: verifiedFakeEvolutionTargets,
-            targetRank: resolvedTargetRank,
-            targetRankReason: targetRankReason,
-            roomCosmetics: roomCosmetics,   // 방장 연출 (finish_fx)
-            horseCosmetics: horseCosmetics, // 말별 공개 꾸미기 (paint/trail/accessory)
-            labelCosmetics: labelCosmetics  // 이름표(닉네임 라벨) 꾸미기, userName 키
-        };
-
-        // 룰렛 있으면 룰렛 길이 + 카운트다운 4초 후 경주 시작, 없으면 4초 후 즉시
-        const startedDelayMs = (resolvedTargetRank !== null ? rouletteHoldMs : FALLBACK_HOLD_MS) + 4000;
-        gameState.horseRaceCountdownTimeout = setTimeout(() => {
-            // 게임 종료로 취소된 경우 무시
-            if (!gameState.isGameActive) {
-                console.log(`방 ${roomName} 경마 카운트다운 취소됨 (게임 종료)`);
-                return;
-            }
-
-            io.to(roomId).emit('horseRaceStarted', raceData);
-
-            // 경마 참여자 방문자 통계 기록
-            gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
-            io.emit('visitorStats', getVisitorStats());
-            recordGamePlay('horse-race', players.length, room.serverId || null);
-
-            // 경주 결과 전송 후 상태를 false로 설정
-            gameState.isHorseRaceActive = false;
-
-            console.log(`방 ${roomName} 경마 시작 - 말 수: ${gameState.availableHorses.length}, 참가자: ${players.length}명, 라운드: ${gameState.raceRound}`);
-
-            // 결과 데이터를 gameState에 저장 (클라이언트 애니메이션 완료 후 사용)
-            gameState.pendingRaceResult = {
-                winners: winners,
-                rankings: rankings,
-                raceData: raceData,
-                roomId: roomId,
-                roomName: roomName,
-                // 코인 적립 멱등 ref: 레이스당 1회 생성(서버 전용). 재처리돼도 동일 → 이중적립 차단.
-                coinRef: generateSessionId('horsecoin', room.serverId || roomId)
-            };
-            console.log(`[경마] 결과 데이터 저장 완료 - 클라이언트 애니메이션 완료 대기`);
-        }, startedDelayMs);
+        await startHorse(room, gameState, io, ctx);
     });
 
     // 경주 애니메이션 완료 (클라이언트에서 전송)
@@ -614,186 +1415,7 @@ module.exports = (socket, io, ctx) => {
         const room = getCurrentRoom();
         if (!gameState || !room) return;
 
-        // 중복 처리 방지 (이미 처리된 경우)
-        if (!gameState.pendingRaceResult) {
-            console.log(`[경마] 이미 처리된 결과 또는 데이터 없음`);
-            return;
-        }
-
-        const { winners, rankings, raceData, roomId, roomName, coinRef } = gameState.pendingRaceResult;
-        gameState.pendingRaceResult = null; // 처리 후 삭제
-
-        console.log(`[경마] 클라이언트 애니메이션 완료 신호 수신 - 결과 처리 시작`);
-
-        if (!gameState.isGameActive) return; // 이미 게임 종료됨
-
-        // 서버: 경마 결과 DB 기록 (server_game_records + game_sessions)
-        // Player stats: per-game only (recorded when single winner found)
-        // Vehicle stats (recordVehicleRaceResult at line 303): per-round (every race)
-        // Vehicle picks (recordVehiclePicks): 시계열 픽 이력 — 우승자 수와 무관하게 항상 기록
-        if (room.serverId && raceData.userHorseBets) {
-            let sessionId = null;
-            const horseRankMap = {};
-            rankings.forEach(r => { horseRankMap[r.horseIndex] = r.rank; });
-
-            if (winners.length === 1) {
-                sessionId = generateSessionId('horse', room.serverId);
-                const winnerName = winners[0];
-                const bettors = Object.entries(raceData.userHorseBets);
-
-                await Promise.all(bettors.map(([userName, horseIndex]) => {
-                    const rank = horseRankMap[horseIndex] || 0;
-                    const isWinner = winners.includes(userName);
-                    return recordServerGame(room.serverId, userName, rank, 'horse', isWinner, sessionId, rank);
-                }));
-                await recordGameSession({
-                    serverId: room.serverId,
-                    sessionId,
-                    gameType: 'horse',
-                    gameRules: gameState.horseRaceMode || 'last',
-                    winnerName: winnerName,
-                    participantCount: bettors.length
-                });
-            }
-
-            // vehicle_picks 이력 (winners 분기와 무관, sessionId만 조건부)
-            const picks = Object.entries(raceData.userHorseBets).map(([userName, horseIndex]) => ({
-                userName,
-                vehicleId: (gameState.selectedVehicleTypes || [])[horseIndex] || null,
-                rank: horseRankMap[horseIndex] ?? null,
-                isWinner: winners.includes(userName),
-                gameSessionId: sessionId
-            })).filter(p => p.vehicleId);
-            recordVehiclePicks(room.serverId, picks);
-        }
-
-        // 코인 적립 (serverId 가드 밖 = 자유플레이 포함, 인증 유저만, 멱등 ref)
-        await awardRaceCoins(io, room, gameState, raceData.userHorseBets, winners, coinRef);
-
-        if (winners.length === 1) {
-            // 타깃 등수 캡처 (cleanup 이전)
-            const winningTargetRank = raceData.targetRank || null;
-            const targetRankLabel = (typeof winningTargetRank === 'number' && winningTargetRank >= 1)
-                ? `${winningTargetRank}등` : '꼴등';
-
-            // 단독 당첨 → 게임 종료
-            gameState.isGameActive = false;
-            gameState.userHorseBets = {};
-            gameState.userRankVotes = {};
-            gameState.targetRank = null;
-            gameState.rouletteResult = null;
-
-            // 승자가 배팅한 탈것 이름 가져오기 (배팅 안 된 말이 꼴등일 수 있으므로 rankings 대신 직접 조회)
-            const winnerHorseIndex = raceData.userHorseBets[winners[0]];
-            const lastVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[winnerHorseIndex] ? gameState.selectedVehicleTypes[winnerHorseIndex] : 'horse';
-            const lastVehicleName = VEHICLE_NAMES[lastVehicleId] || lastVehicleId;
-
-            const now = new Date();
-            const koreaOffset = 9 * 60;
-            const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
-            const resultMessage = {
-                userName: '시스템',
-                message: `🎊🎉 축하합니다! ${winners[0]}님이 고르신 ${lastVehicleName}${getPostPosition(lastVehicleName, '이가')} ${targetRankLabel}에 걸렸습니다! 🎉🎊`,
-                timestamp: koreaTime.toISOString(),
-                isSystem: true,
-                isHorseRaceWinner: true
-            };
-            gameState.chatHistory.push(resultMessage);
-            if (gameState.chatHistory.length > HORSE_HISTORY_MAX) gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
-            io.to(roomId).emit('newMessage', resultMessage);
-            io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, finalWinner: winners[0] });
-            io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
-            ctx.triggerAutoOrder(gameState, room);
-
-            // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-            if (room.serverId) {
-                getTop3Badges(room.serverId).then(updatedBadges => {
-                    room.userBadges = updatedBadges;
-                }).catch(() => {});
-            }
-
-            console.log(`방 ${roomName} 경마 게임 종료 - 최종 당첨자: ${winners[0]}`);
-        } else {
-            // 동점 또는 당첨자 없음 → 자동 준비
-            gameState.isGameActive = false;
-            gameState.userHorseBets = {};
-            gameState.userRankVotes = {};
-            gameState.targetRank = null;
-            gameState.rouletteResult = null;
-
-            let autoReadyPlayers = winners;
-            let systemMsg;
-
-            if (winners.length === 0) {
-                // 당첨자 없음 → 가장 높은 순위에 베팅한 사람들 자동 준비
-                let bestRank = -1;
-                let bestBetters = [];
-                let bestHorseIndex = -1;
-                const horseRankings = rankings.map(r => r.horseIndex);
-                Object.entries(raceData.userHorseBets).forEach(([username, horseIndex]) => {
-                    const rank = horseRankings.indexOf(horseIndex);
-                    if (rank !== -1) {
-                        if (bestRank === -1 || rank < bestRank) {
-                            bestRank = rank;
-                            bestBetters = [username];
-                            bestHorseIndex = horseIndex;
-                        } else if (rank === bestRank) {
-                            bestBetters.push(username);
-                        }
-                    }
-                });
-                autoReadyPlayers = bestBetters;
-                const bestVehicleId = gameState.selectedVehicleTypes && gameState.selectedVehicleTypes[bestHorseIndex] ? gameState.selectedVehicleTypes[bestHorseIndex] : 'horse';
-                const bestVehicleName = VEHICLE_NAMES[bestVehicleId] || bestVehicleId;
-                systemMsg = autoReadyPlayers.length > 0
-                    ? `${autoReadyPlayers.join(', ')}님이 고르신 ${bestVehicleName}${getPostPosition(bestVehicleName, '이가')} 가장 순위가 낮습니다! 재경기를 하고싶으실거같아서 자동준비 해드렸어요~`
-                    : '당첨자가 없습니다.';
-            } else {
-                systemMsg = `동점!! ${winners.join(', ')}님 편하게 한 판 더 하시라고 자동준비 해 드렸어요~`;
-            }
-
-            const now = new Date();
-            const koreaOffset = 9 * 60;
-            const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
-            const resultMessage = {
-                userName: '시스템',
-                message: systemMsg,
-                timestamp: koreaTime.toISOString(),
-                isSystem: true,
-                isHorseRaceWinner: true
-            };
-            gameState.chatHistory.push(resultMessage);
-            if (gameState.chatHistory.length > HORSE_HISTORY_MAX) gameState.chatHistory = gameState.chatHistory.slice(-HORSE_HISTORY_MAX);
-            io.to(roomId).emit('newMessage', resultMessage);
-
-            io.to(roomId).emit('horseRaceEnded', { horseRaceHistory: gameState.horseRaceHistory, tieWinners: autoReadyPlayers });
-
-            // 배지 캐시 갱신 (비공개 서버만, 다음 채팅에 반영)
-            if (room.serverId) {
-                getTop3Badges(room.serverId).then(updatedBadges => {
-                    room.userBadges = updatedBadges;
-                }).catch(() => {});
-            }
-
-            // 자동 준비 설정
-            gameState.readyUsers = [];
-            autoReadyPlayers.forEach(player => {
-                if (!gameState.readyUsers.includes(player)) {
-                    gameState.readyUsers.push(player);
-                }
-            });
-            io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
-
-            // 개별 클라이언트에게 준비 상태 알림
-            autoReadyPlayers.forEach(player => {
-                const playerUser = gameState.users.find(u => u.name === player);
-                if (playerUser) {
-                    io.to(playerUser.id).emit('readyStateChanged', { isReady: true });
-                }
-            });
-
-            console.log(`방 ${roomName} 경마 라운드 종료 - 자동 준비: ${autoReadyPlayers.join(', ')}`);
-        }
+        await settleRace(room, gameState, io, ctx);
     });
 
     // N등 투표 — 라운드 시작 전 등수 룰렛에 한 표 던지기
@@ -1621,574 +2243,9 @@ module.exports = (socket, io, ctx) => {
         console.log(`방 ${room.roomName} 경마 게임 데이터 삭제됨 (맵 선택 상태로 복귀)`);
     });
 
-    // ========== Helper Functions ==========
-
-    // 거리 시스템 상수
-    // 설정 파일 로드
-    const path = require('path');
-    const horseConfig = JSON.parse(require('fs').readFileSync(path.join(__dirname, '..', 'config', 'horse', 'race.json'), 'utf8'));
-    const PIXELS_PER_METER = horseConfig.pixelsPerMeter || 10;
-
-    // speedRange(km/h) → durationRange(ms) 변환
-    function buildTrackPresets(config) {
-        const presets = {};
-        for (const [key, val] of Object.entries(config.trackPresets)) {
-            const meters = val.meters;
-            const [minSpeed, maxSpeed] = val.speedRange; // km/h
-            // 빠른 속도 → 짧은 시간, 느린 속도 → 긴 시간
-            const minDuration = Math.round((meters / (maxSpeed / 3.6)) * 1000);
-            const maxDuration = Math.round((meters / (minSpeed / 3.6)) * 1000);
-            presets[key] = { meters, durationRange: [minDuration, maxDuration] };
-        }
-        return presets;
-    }
-    const TRACK_PRESETS = buildTrackPresets(horseConfig);
-
-    // ========== 날씨 시스템 ==========
-    const weatherConfig = horseConfig.weather || {};
-
-    // 날씨 스케줄 생성 (레이스 시작 전 호출)
-    function generateWeatherSchedule(forcedWeather = null) {
-        const schedule = [];
-        const types = weatherConfig.types || ['sunny', 'rain', 'wind', 'fog'];
-        const probs = weatherConfig.defaultProbabilities || { sunny: 0.25, rain: 0.25, wind: 0.25, fog: 0.25 };
-        const changePoints = weatherConfig.schedule?.changePoints || [0.3, 0.5, 0.7];
-        const changeProb = weatherConfig.schedule?.changeProbability || 0.4;
-
-        // 초기 날씨 선택
-        let currentWeather = forcedWeather || selectWeatherByProbability(types, probs);
-        schedule.push({ progress: 0, weather: currentWeather });
-
-        // 강제 날씨가 설정되면 변경 없이 유지
-        if (forcedWeather) {
-            return schedule;
-        }
-
-        // 각 changePoint에서 확률적으로 날씨 변경
-        changePoints.forEach(point => {
-            if (Math.random() < changeProb) {
-                // 현재 날씨와 다른 날씨 선택
-                let newWeather;
-                let attempts = 0;
-                do {
-                    newWeather = selectWeatherByProbability(types, probs);
-                    attempts++;
-                } while (newWeather === currentWeather && attempts < 5);
-
-                currentWeather = newWeather;
-                schedule.push({ progress: point, weather: currentWeather });
-            }
-        });
-
-        return schedule;
-    }
-
-    // 확률에 따라 날씨 선택
-    function selectWeatherByProbability(types, probs) {
-        const roll = Math.random();
-        let cumulative = 0;
-        for (const type of types) {
-            cumulative += probs[type] || 0.25;
-            if (roll < cumulative) return type;
-        }
-        return types[0] || 'sunny';
-    }
-
-    // 현재 진행률의 날씨 반환
-    function getCurrentWeather(schedule, progress) {
-        let current = schedule[0]?.weather || 'sunny';
-        for (const entry of schedule) {
-            if (progress >= entry.progress) {
-                current = entry.weather;
-            } else {
-                break;
-            }
-        }
-        return current;
-    }
-
-    // 탈것의 날씨 보정값 반환
-    function getVehicleWeatherModifier(vehicleType, weather) {
-        const modifiers = weatherConfig.vehicleModifiers || {};
-        const vehicleMods = modifiers[vehicleType];
-        if (!vehicleMods) return 1.0;
-        return vehicleMods[weather] || 1.0;
-    }
-
-    // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
-    async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false) {
-        // 트랙 길이 설정
-        const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
-        const trackDistanceMeters = preset.meters;
-        const [minDuration, maxDuration] = preset.durationRange;
-
-        // 클라이언트와 동일한 상수
-        const startPosition = 10;
-        const finishLine = trackDistanceMeters * PIXELS_PER_METER;
-        const totalDistance = finishLine - startPosition;
-        const frameInterval = HORSE_FRAME_INTERVAL;
-
-        // 슬로우모션 설정 (클라이언트와 동일)
-        const smConf = horseConfig.slowMotion || {
-            leader: { triggerDistanceM: 15, factor: 0.4 },
-            loser: { triggerDistanceM: 10, factor: 0.4 }
-        };
-
-        // visualWidth 맵 (클라이언트와 동일)
-        const VISUAL_WIDTHS = {
-            'car': 50, 'rocket': 60, 'bird': 60, 'boat': 50, 'bicycle': 56,
-            'rabbit': 53, 'turtle': 58, 'eagle': 60, 'kickboard': 54,
-            'helicopter': 48, 'horse': 56,
-            'knight': 48, 'dinosaur': 56, 'ninja': 44, 'crab': 54
-        };
-        function getVisualWidth(vehicleId) {
-            return VISUAL_WIDTHS[vehicleId] || 60;
-        }
-
-        // 각 말의 기본 도착 시간 랜덤 생성
-        const baseDurations = [];
-        for (let i = 0; i < horseCount; i++) {
-            baseDurations.push(minDuration + Math.random() * (maxDuration - minDuration));
-        }
-
-        // 모든 말의 상태 초기화 (동시 시뮬레이션용)
-        const horseStates = [];
-        for (let i = 0; i < horseCount; i++) {
-            const duration = baseDurations[i];
-            const baseSpeed = totalDistance / duration;
-            const initialSpeedFactor = 0.8 + Math.random() * 0.4;
-            const speedChangeSeed = Math.floor(Math.random() * 2147483647);
-
-            // 기믹 상태 초기화
-            const gimmicks = (gimmicksData[i] || []).map(g => ({
-                progressTrigger: g.progressTrigger,
-                type: g.type,
-                duration: g.duration,
-                speedMultiplier: g.speedMultiplier,
-                nextGimmick: g.nextGimmick || null,
-                triggered: false,
-                active: false,
-                endTime: 0
-            }));
-
-            // 탈것별 visualWidth
-            const vehicleId = vehicleTypes[i] || 'horse';
-            const visualWidth = getVisualWidth(vehicleId);
-
-            horseStates.push({
-                horseIndex: i,
-                currentPos: startPosition,
-                baseSpeed,
-                currentSpeed: baseSpeed * initialSpeedFactor,
-                targetSpeed: baseSpeed,
-                lastSpeedChange: 0,
-                speedChangeSeed,
-                initialSpeedFactor,
-                gimmicks,
-                finished: false,
-                finishJudged: false,  // 오른쪽 끝 기준 도착 판정 (클라이언트와 동일)
-                finishTime: 0,
-                finishJudgedTime: 0,
-                baseDuration: Math.round(baseDurations[i]),
-                visualWidth
-            });
-        }
-
-        // 슬로우모션 상태 (Leader + Loser)
-        let slowMotionFactor = 1;
-        let slowMotionTriggered = false;      // Leader 슬로우모션 발동 여부
-        let slowMotionActive = false;         // Leader 슬로우모션 활성 상태
-        let loserSlowMotionTriggered = false; // Loser 슬로우모션 발동 여부
-        let loserSlowMotionActive = false;    // Loser 슬로우모션 활성 상태
-        let loserCameraTargetIndex = -1;      // Loser 카메라 타겟
-        let elapsed = 0;
-
-        // 배팅된 말 인덱스 (시뮬레이션 종료 조건 + Loser 슬로우모션 필터용)
-        const bettedIndices = new Set(Object.values(bettedHorsesMap || {}));
-
-        // Evolution 기믹 상태
-        let evolutionChecked = false;
-        let evolutionTargets = [];
-        // Fake Evolution 기믹 상태 (진짜와 별도 추첨, 결과를 크게 안 바꾸는 페이크)
-        let fakeEvolutionTargets = [];
-
-        // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
-        let frameCount = 0;
-        while (elapsed < 60000) {
-            elapsed += frameInterval;
-            frameCount++;
-
-            // 매 100프레임마다 이벤트 루프에 양보 (CPU 블로킹 방지)
-            if (frameCount % 100 === 0) {
-                await new Promise(resolve => setImmediate(resolve));
-            }
-
-            // 배팅된 말이 모두 도착했는지 확인 (배팅 안 된 말은 멈춰있으므로 무시)
-            const allBettedFinished = horseStates.every(s => s.finished || (bettedIndices.size > 0 && !bettedIndices.has(s.horseIndex)));
-            if (allBettedFinished) break;
-
-            // 1등(가장 앞선 말) 찾기 - finishJudged 기준 (클라이언트와 동일)
-            const unfinishedJudged = horseStates.filter(s => !s.finishJudged);
-            const leader = unfinishedJudged.length > 0
-                ? unfinishedJudged.reduce((a, b) => a.currentPos > b.currentPos ? a : b)
-                : null;
-
-            // Leader 슬로우모션 발동: 1등의 오른쪽 끝이 결승선 15m 이내면 발동
-            if (!slowMotionTriggered && leader) {
-                const leaderRightEdge = leader.currentPos + leader.visualWidth;
-                const remainingPx = finishLine - leaderRightEdge;
-                const remainingM = remainingPx / PIXELS_PER_METER;
-                if (remainingM <= smConf.leader.triggerDistanceM) {
-                    slowMotionTriggered = true;
-                    slowMotionActive = true;
-                    slowMotionFactor = smConf.leader.factor;
-                    console.log(`[서버시뮬] Leader 슬로우모션 발동! 남은거리=${remainingM.toFixed(1)}m, factor=${slowMotionFactor}`);
-                }
-            }
-
-            // Leader 슬로우모션 해제: 1등이 finishJudged 되면 (클라이언트와 동일)
-            if (slowMotionActive && horseStates.some(s => s.finishJudged)) {
-                slowMotionActive = false;
-                slowMotionFactor = 1;
-                console.log(`[서버시뮬] Leader 슬로우모션 해제!`);
-            }
-
-            // Loser 슬로우모션 발동: Leader 슬로우모션 해제 후, 배팅된 말 중 꼴등 직전이 결승선 10m 이내
-            if (!loserSlowMotionTriggered && !slowMotionActive && smConf.loser) {
-                const unfinished = horseStates
-                    .filter(s => !s.finished && (bettedIndices.size === 0 || bettedIndices.has(s.horseIndex)))
-                    .sort((a, b) => a.currentPos - b.currentPos);  // 느린 순
-
-                if (unfinished.length >= 2) {
-                    const lastHorse = unfinished[0];        // 꼴등
-                    const secondLastHorse = unfinished[1];  // 꼴등 직전
-
-                    const slRemainingM = (finishLine - secondLastHorse.currentPos) / PIXELS_PER_METER;
-                    if (slRemainingM <= smConf.loser.triggerDistanceM) {
-                        loserSlowMotionTriggered = true;
-                        loserSlowMotionActive = true;
-                        slowMotionFactor = smConf.loser.factor;
-                        loserCameraTargetIndex = secondLastHorse.horseIndex;
-                        console.log(`[서버시뮬] Loser 슬로우모션 발동! target=말${loserCameraTargetIndex}, 남은거리=${slRemainingM.toFixed(1)}m`);
-                    }
-                }
-            }
-
-            // Loser 슬로우모션 해제: 카메라 타겟이 finished 되면
-            if (loserSlowMotionActive) {
-                const target = horseStates.find(s => s.horseIndex === loserCameraTargetIndex);
-                if (!target || target.finished) {
-                    loserSlowMotionActive = false;
-                    slowMotionFactor = 1;
-                    console.log(`[서버시뮬] Loser 슬로우모션 해제!`);
-                }
-            }
-
-            // Evolution 기믹: 진행률 50% 도달 시 꼴찌 판별 (1회만)
-            if (!evolutionChecked && !allSameBet) {
-                const bettedStates = horseStates.filter(s => bettedIndices.has(s.horseIndex) && !s.finished);
-                if (bettedStates.length >= 2) {
-                    const maxProgress = Math.max(...bettedStates.map(s => (s.currentPos - startPosition) / totalDistance));
-                    if (maxProgress >= EVOLUTION_CONFIG.checkProgress) {
-                        evolutionChecked = true;
-                        const sorted = [...bettedStates].sort((a, b) => a.currentPos - b.currentPos); // 느린 순
-                        const count = Math.abs(EVOLUTION_CONFIG.rankThreshold);
-                        const candidates = sorted.slice(0, count);
-
-                        candidates.forEach(candidate => {
-                            if (Math.random() < EVOLUTION_CONFIG.probability) {
-                                const evoGimmick = {
-                                    type: 'evolution',
-                                    progressTrigger: EVOLUTION_CONFIG.checkProgress + 0.05,
-                                    speedMultiplier: EVOLUTION_CONFIG.transformMultiplier,
-                                    duration: EVOLUTION_CONFIG.transformDurationMs,
-                                    nextGimmick: {
-                                        type: 'evolution_boost',
-                                        duration: EVOLUTION_CONFIG.boostDurationMs,
-                                        speedMultiplier: EVOLUTION_CONFIG.boostMultiplier
-                                    },
-                                    triggered: false,
-                                    active: false,
-                                    endTime: 0
-                                };
-                                candidate.gimmicks.push(evoGimmick);
-
-                                // 40~70% 구간 기존 기믹 비활성화 (충돌 방지)
-                                candidate.gimmicks.forEach(g => {
-                                    if (g !== evoGimmick && g.type !== 'evolution' &&
-                                        g.progressTrigger >= EVOLUTION_CONFIG.progressMin &&
-                                        g.progressTrigger <= EVOLUTION_CONFIG.progressMax) {
-                                        g.disabled = true;
-                                    }
-                                });
-
-                                evolutionTargets.push(candidate.horseIndex);
-                                console.log(`[서버시뮬] Evolution 대상: 말${candidate.horseIndex} (progressTrigger=0.55)`);
-                            } else if (Math.random() < FAKE_EVOLUTION_CONFIG.probability) {
-                                // 진짜 변신 추첨 실패 시 가짜 변신 별도 추첨
-                                const fakeGimmick = {
-                                    type: 'evolution_fake',
-                                    progressTrigger: FAKE_EVOLUTION_CONFIG.progressTrigger,
-                                    speedMultiplier: FAKE_EVOLUTION_CONFIG.transformMultiplier,
-                                    duration: FAKE_EVOLUTION_CONFIG.transformDurationMs,
-                                    nextGimmick: {
-                                        type: 'evolution_fake_boost',
-                                        duration: FAKE_EVOLUTION_CONFIG.fakeBoostDurationMs,
-                                        speedMultiplier: FAKE_EVOLUTION_CONFIG.fakeBoostSpeedMultiplier
-                                    },
-                                    triggered: false,
-                                    active: false,
-                                    endTime: 0
-                                };
-                                candidate.gimmicks.push(fakeGimmick);
-
-                                // 진짜 evolution과 동일한 보호 구간(progressMin~progressMax)에서 다른 기믹 비활성화
-                                // — fakeBoost 종료 시 filter='' 클리어가 sprint brightness/saturate를 같이 지우는 충돌 방지
-                                candidate.gimmicks.forEach(g => {
-                                    if (g !== fakeGimmick && g.type !== 'evolution' && g.type !== 'evolution_fake' &&
-                                        g.progressTrigger >= FAKE_EVOLUTION_CONFIG.progressMin &&
-                                        g.progressTrigger <= FAKE_EVOLUTION_CONFIG.progressMax) {
-                                        g.disabled = true;
-                                    }
-                                });
-
-                                fakeEvolutionTargets.push(candidate.horseIndex);
-                                console.log(`[서버시뮬] Fake Evolution 대상: 말${candidate.horseIndex} (progressTrigger=${FAKE_EVOLUTION_CONFIG.progressTrigger})`);
-                            }
-                        });
-                    }
-                }
-            }
-
-            // 각 말 업데이트
-            horseStates.forEach(state => {
-                if (state.finished) return;
-
-                const progress = (state.currentPos - startPosition) / totalDistance;
-
-                // 기믹 트리거 체크
-                state.gimmicks.forEach(gimmick => {
-                    if (!gimmick.triggered && !gimmick.disabled && progress >= gimmick.progressTrigger) {
-                        gimmick.triggered = true;
-                        gimmick.active = true;
-                        gimmick.endTime = elapsed + gimmick.duration;
-                    }
-                    if (gimmick.active && elapsed >= gimmick.endTime) {
-                        gimmick.active = false;
-                        // 연쇄 기믹 활성화
-                        if (gimmick.nextGimmick && !gimmick.chainTriggered) {
-                            gimmick.chainTriggered = true;
-                            state.gimmicks.push({
-                                progressTrigger: 0,
-                                type: gimmick.nextGimmick.type,
-                                duration: gimmick.nextGimmick.duration,
-                                speedMultiplier: gimmick.nextGimmick.speedMultiplier,
-                                nextGimmick: null,
-                                triggered: true,
-                                active: true,
-                                endTime: elapsed + gimmick.nextGimmick.duration
-                            });
-                        }
-                    }
-                });
-
-                // 속도 계산
-                let speedMultiplier = 1;
-                let hasActiveGimmick = false;
-                state.gimmicks.forEach(gimmick => {
-                    if (gimmick.active) {
-                        hasActiveGimmick = true;
-                        speedMultiplier = gimmick.speedMultiplier;
-                    }
-                });
-
-                if (!hasActiveGimmick) {
-                    const changeInterval = 500;
-                    const currentInterval = Math.floor(elapsed / changeInterval);
-                    const lastInterval = Math.floor(state.lastSpeedChange / changeInterval);
-
-                    if (currentInterval > lastInterval) {
-                        state.lastSpeedChange = elapsed;
-                        const seedVal = (state.speedChangeSeed + currentInterval) * 16807 % 2147483647;
-                        const speedFactor = 0.7 + (seedVal % 600) / 1000;
-                        state.targetSpeed = state.baseSpeed * speedFactor;
-                    }
-
-                    const speedDiff = state.targetSpeed - state.currentSpeed;
-                    state.currentSpeed += speedDiff * 0.05;
-                    speedMultiplier = state.currentSpeed / state.baseSpeed;
-                }
-
-                // 날씨 보정 적용
-                if (weatherSchedule.length > 0 && vehicleTypes[state.horseIndex]) {
-                    const currentWeather = getCurrentWeather(weatherSchedule, progress);
-                    const weatherMod = getVehicleWeatherModifier(vehicleTypes[state.horseIndex], currentWeather);
-                    speedMultiplier *= weatherMod;
-                }
-
-                // 위치 업데이트 (슬로우모션 팩터 적용!)
-                // finishJudged 후 감속 이동 (클라이언트와 동일)
-                let movement;
-                if (state.finishJudged) {
-                    const finishSpeedFactor = 0.35;
-                    movement = state.baseSpeed * finishSpeedFactor * (frameInterval / 1000) * 1000 * slowMotionFactor;
-                } else {
-                    movement = state.baseSpeed * speedMultiplier * (frameInterval / 1000) * 1000 * slowMotionFactor;
-                }
-                state.currentPos = Math.max(startPosition, state.currentPos + movement);
-
-                // 1단계: 오른쪽 끝 기준 도착 판정 (finishJudged) - 순위 확정
-                const horseRightEdge = state.currentPos + state.visualWidth;
-                if (horseRightEdge >= finishLine && !state.finishJudged) {
-                    state.finishJudged = true;
-                    state.finishJudgedTime = elapsed;
-                }
-
-                // 2단계: 왼쪽 끝 기준 완전 정지 (finished)
-                if (state.finishJudged && state.currentPos >= finishLine && !state.finished) {
-                    state.finished = true;
-                    state.finishTime = elapsed;
-                }
-            });
-        }
-
-        // 시뮬레이션 결과로 순위 결정 (finishJudgedTime 기준 - 클라이언트와 동일)
-        const simResults = horseStates.map(s => ({
-            horseIndex: s.horseIndex,
-            simFinishJudgedTime: s.finishJudgedTime || 60000,
-            simFinishTime: s.finishTime || 60000,
-            baseDuration: s.baseDuration
-        }));
-        simResults.sort((a, b) => a.simFinishJudgedTime - b.simFinishJudgedTime);
-
-        const rankings = simResults.map((result, rank) => ({
-            horseIndex: result.horseIndex,
-            rank: rank + 1,
-            finishTime: result.baseDuration,
-            speed: parseFloat((0.8 + Math.random() * 0.7).toFixed(2))
-        }));
-
-        console.log(`[서버시뮬] 순위 결정 완료:`, rankings.map(r => `${r.rank}등=말${r.horseIndex}`).join(', '));
-
-        // Evolution 이펙트 대상 필터링: 실제로 순위가 상승한 말만
-        const verifiedEvolutionTargets = evolutionTargets.filter(horseIndex => {
-            const finalRank = rankings.find(r => r.horseIndex === horseIndex)?.rank;
-            // 발동 시점에 꼴찌였으므로, 최종 순위가 꼴찌보다 높으면 역전 성공
-            return finalRank !== undefined && finalRank < horseStates.filter(s => bettedIndices.has(s.horseIndex)).length;
-        });
-
-        // 모든 evolution 대상 (역전 성공/실패 무관)의 40~70% 구간 기존 기믹 제거
-        // → 시뮬레이션에서 disabled된 기믹은 클라이언트에도 보내지 않는다
-        evolutionTargets.forEach(horseIndex => {
-            if (gimmicksData[horseIndex]) {
-                gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g =>
-                    g.progressTrigger < EVOLUTION_CONFIG.progressMin ||
-                    g.progressTrigger > EVOLUTION_CONFIG.progressMax
-                );
-            }
-        });
-
-        // evolution 기믹을 gimmicksData에 역삽입 (클라이언트 전달용)
-        verifiedEvolutionTargets.forEach(horseIndex => {
-            const state = horseStates.find(s => s.horseIndex === horseIndex);
-            const evoGimmick = state.gimmicks.find(g => g.type === 'evolution');
-            if (evoGimmick && gimmicksData[horseIndex]) {
-                gimmicksData[horseIndex].push({
-                    type: 'evolution',
-                    progressTrigger: evoGimmick.progressTrigger,
-                    speedMultiplier: evoGimmick.speedMultiplier,
-                    duration: evoGimmick.duration,
-                    nextGimmick: evoGimmick.nextGimmick || null
-                });
-                // disabled 기믹 제거 (클라이언트에 보내지 않음)
-                gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g => !g.disabled);
-            }
-        });
-
-        if (verifiedEvolutionTargets.length > 0) {
-            console.log(`[서버시뮬] Evolution 이펙트 대상: 말${verifiedEvolutionTargets.join(', 말')}`);
-        }
-
-        // ─── Fake Evolution 기믹 클라이언트 전달 처리 ───
-        // 가짜 변신은 "성공한 케이스만 필터"하지 않음 → 모든 발동 케이스를 그대로 전달
-        // 진짜 evolution과 동일한 보호 구간(0.40~0.70)을 적용 — sprint filter 클리어 충돌 차단
-        const fakeEvoMin = FAKE_EVOLUTION_CONFIG.progressMin;
-        const fakeEvoMax = FAKE_EVOLUTION_CONFIG.progressMax;
-        fakeEvolutionTargets.forEach(horseIndex => {
-            // 보호 구간(progressMin~progressMax) 기존 기믹 제거
-            if (gimmicksData[horseIndex]) {
-                gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g =>
-                    g.progressTrigger < fakeEvoMin ||
-                    g.progressTrigger > fakeEvoMax
-                );
-            }
-            // 가짜 변신 기믹을 gimmicksData에 역삽입 (클라이언트 전달용)
-            const state = horseStates.find(s => s.horseIndex === horseIndex);
-            const fakeGimmick = state && state.gimmicks.find(g => g.type === 'evolution_fake');
-            if (fakeGimmick && gimmicksData[horseIndex]) {
-                gimmicksData[horseIndex].push({
-                    type: 'evolution_fake',
-                    progressTrigger: fakeGimmick.progressTrigger,
-                    speedMultiplier: fakeGimmick.speedMultiplier,
-                    duration: fakeGimmick.duration,
-                    nextGimmick: fakeGimmick.nextGimmick || null
-                });
-                // disabled 기믹 제거 (클라이언트에 보내지 않음)
-                gimmicksData[horseIndex] = gimmicksData[horseIndex].filter(g => !g.disabled);
-            }
-        });
-
-        if (fakeEvolutionTargets.length > 0) {
-            console.log(`[서버시뮬] Fake Evolution 이펙트 대상: 말${fakeEvolutionTargets.join(', 말')}`);
-        }
-
-        // 클라이언트 동기화용 시드 정보
-        const speedSeeds = horseStates.map(s => ({
-            changeSeed: s.speedChangeSeed,
-            initialFactor: s.initialSpeedFactor
-        }));
-
-        return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets };
-    }
-
-    // 룰에 맞는 당첨자 확인 함수
-    function getWinnersByRule(gameState, rankings, playersList) {
-        const userHorseBets = gameState.userHorseBets;
-        const players = playersList || gameState.readyUsers;
-
-        // ─── N등 투표 룰렛 결과가 있으면 그 등수가 source of truth ───
-        const votedTargetRank = gameState.targetRank;
-        if (typeof votedTargetRank === 'number' && votedTargetRank >= 1) {
-            const targetHorse = rankings.find(r => r.rank === votedTargetRank);
-            console.log(`[디버그] getWinnersByRule - voted targetRank: ${votedTargetRank}, targetHorse: ${targetHorse ? targetHorse.horseIndex : 'none'}`);
-            if (!targetHorse) return [];
-            return players.filter(p => userHorseBets[p] === targetHorse.horseIndex);
-        }
-
-        // ─── fallback: 기존 horseRaceMode ('first' / 'last') ───
-        const mode = gameState.horseRaceMode || 'last';
-        let targetRank;
-        if (mode === 'first') {
-            targetRank = 1; // 1등 찾기
-        } else {
-            // 꼴등 찾기: 배팅된 말 중 가장 느린 말 (배팅 안 된 멈춘 말 제외)
-            const bettedHorseSet = new Set(Object.values(userHorseBets));
-            const bettedRankings = rankings.filter(r => bettedHorseSet.has(r.horseIndex));
-            targetRank = bettedRankings.length > 0 ? Math.max(...bettedRankings.map(r => r.rank)) : rankings.length;
-        }
-        console.log(`[디버그] getWinnersByRule - mode: ${mode}, targetRank: ${targetRank}, rankings.length: ${rankings.length}`);
-
-        // 해당 순위의 말 찾기
-        const targetHorse = rankings.find(r => r.rank === targetRank);
-        if (!targetHorse) return [];
-
-        // 해당 말을 선택한 사람들 찾기
-        const winners = players.filter(player =>
-            userHorseBets[player] === targetHorse.horseIndex
-        );
-
-        return winners;
-    }
-
     // ========== 경마 게임 이벤트 핸들러 끝 ==========
 };
+
+// 예약 스위퍼(socket/scheduled-start.js)가 소켓 없이 호출하는 진입점.
+module.exports.canStart = canStartHorse;
+module.exports.start = startHorse;

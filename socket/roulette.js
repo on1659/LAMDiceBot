@@ -42,116 +42,307 @@ function clearRouletteFinalizeTimer(room, ctx) {
     room.rouletteFinalizeTimer = null;
 }
 
-function registerRouletteHandlers(socket, io, ctx) {
-    async function finalizeRouletteRound(gameState, room, options = {}) {
-        if (!gameState || !room) return false;
-        if (ctx.rooms && ctx.rooms[room.roomId] !== room) return false;
+async function finalizeRouletteRound(gameState, room, io, ctx, options = {}) {
+    if (!gameState || !room) return false;
+    if (ctx.rooms && ctx.rooms[room.roomId] !== room) return false;
 
-        const pendingRound = gameState.pendingRouletteRound || null;
-        const requestedRoundId = options.roundId || null;
-        const requestedWinner = options.winner || null;
+    const pendingRound = gameState.pendingRouletteRound || null;
+    const requestedRoundId = options.roundId || null;
+    const requestedWinner = options.winner || null;
 
-        if (pendingRound) {
-            if (requestedRoundId && requestedRoundId !== pendingRound.roundId) return false;
-            if (requestedWinner && requestedWinner !== pendingRound.winner) {
-                console.warn(`룰렛 결과 무시 - 서버 결과(${pendingRound.winner})와 클라이언트 결과(${requestedWinner}) 불일치`);
-                return false;
-            }
+    if (pendingRound) {
+        if (requestedRoundId && requestedRoundId !== pendingRound.roundId) return false;
+        if (requestedWinner && requestedWinner !== pendingRound.winner) {
+            console.warn(`룰렛 결과 무시 - 서버 결과(${pendingRound.winner})와 클라이언트 결과(${requestedWinner}) 불일치`);
+            return false;
         }
-
-        if (!gameState.isRouletteSpinning) return false;
-
-        const winner = pendingRound ? pendingRound.winner : requestedWinner;
-        if (!winner) return false;
-
-        const participants = pendingRound
-            ? [...pendingRound.participants]
-            : [...(gameState.gamePlayers || [])];
-        const roundId = pendingRound ? pendingRound.roundId : requestedRoundId;
-
-        clearRouletteFinalizeTimer(room, ctx);
-
-        gameState.isRouletteSpinning = false;
-        gameState.isGameActive = false;
-        gameState.readyUsers = [];
-        gameState.pendingRouletteRound = null;
-
-        // ?쒕쾭 寃뚯엫 湲곕줉 ???
-        if (room.serverId && participants.length > 0) {
-            try {
-                const sessionId = generateSessionId('roulette', room.serverId);
-                await recordGameSession({
-                    serverId: room.serverId,
-                    sessionId,
-                    gameType: 'roulette',
-                    winnerName: winner,
-                    participantCount: participants.length
-                });
-                await Promise.all(participants.map(name =>
-                    recordServerGame(room.serverId, name, 0, 'roulette', name === winner, sessionId)
-                ));
-            } catch (error) {
-                console.warn('룰렛 서버 기록 저장 실패:', error.message);
-            }
-        }
-
-        io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
-
-        const nowResult = new Date();
-        const koreaOffsetResult = 9 * 60;
-        const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
-        const resultMessage = {
-            userName: '시스템',
-            message: `🎊🎉 축하합니다! ${winner}님이 당첨되었습니다! 🎉🎊`,
-            timestamp: koreaTimeResult.toISOString(),
-            isSystem: true,
-            isRouletteWinner: true
-        };
-        gameState.chatHistory.push(resultMessage);
-        if (gameState.chatHistory.length > 100) {
-            gameState.chatHistory = gameState.chatHistory.slice(-100);
-        }
-        io.to(room.roomId).emit('newMessage', resultMessage);
-
-        io.to(room.roomId).emit('rouletteEnded', {
-            winner,
-            roundId: roundId || null,
-            finalizedBy: options.source || 'server'
-        });
-        if (ctx.triggerAutoOrder) {
-            ctx.triggerAutoOrder(gameState, room);
-        }
-
-        if (room.serverId) {
-            getTop3Badges(room.serverId).then(updatedBadges => {
-                room.userBadges = updatedBadges;
-            }).catch(() => {});
-        }
-
-        ctx.updateRoomsList();
-
-        console.log(`방 ${room.roomName} 룰렛 결과 확정(${options.source || 'server'}) - 당첨자: ${winner}`);
-        return true;
     }
 
-    function scheduleRouletteFinalization(gameState, room, roundId) {
-        const pendingRound = gameState.pendingRouletteRound;
-        if (!pendingRound || pendingRound.roundId !== roundId) return;
+    if (!gameState.isRouletteSpinning) return false;
 
-        clearRouletteFinalizeTimer(room, ctx);
+    const winner = pendingRound ? pendingRound.winner : requestedWinner;
+    if (!winner) return false;
 
-        const setTimer = ctx.setTimeout || setTimeout;
-        const delay = Math.max(0, pendingRound.serverEndAt - Date.now());
-        room.rouletteFinalizeTimer = setTimer(() => {
-            finalizeRouletteRound(gameState, room, {
-                source: 'serverTimer',
-                roundId
-            }).catch(error => {
-                console.error('룰렛 서버 자동 확정 실패:', error);
+    const participants = pendingRound
+        ? [...pendingRound.participants]
+        : [...(gameState.gamePlayers || [])];
+    const roundId = pendingRound ? pendingRound.roundId : requestedRoundId;
+
+    clearRouletteFinalizeTimer(room, ctx);
+
+    gameState.isRouletteSpinning = false;
+    gameState.isGameActive = false;
+    gameState.readyUsers = [];
+    gameState.pendingRouletteRound = null;
+
+    // ?쒕쾭 寃뚯엫 湲곕줉 ???
+    if (room.serverId && participants.length > 0) {
+        try {
+            const sessionId = generateSessionId('roulette', room.serverId);
+            await recordGameSession({
+                serverId: room.serverId,
+                sessionId,
+                gameType: 'roulette',
+                winnerName: winner,
+                participantCount: participants.length
             });
-        }, delay);
+            await Promise.all(participants.map(name =>
+                recordServerGame(room.serverId, name, 0, 'roulette', name === winner, sessionId)
+            ));
+        } catch (error) {
+            console.warn('룰렛 서버 기록 저장 실패:', error.message);
+        }
     }
 
+    io.to(room.roomId).emit('readyUsersUpdated', gameState.readyUsers);
+
+    const nowResult = new Date();
+    const koreaOffsetResult = 9 * 60;
+    const koreaTimeResult = new Date(nowResult.getTime() + (koreaOffsetResult - nowResult.getTimezoneOffset()) * 60000);
+    const resultMessage = {
+        userName: '시스템',
+        message: `🎊🎉 축하합니다! ${winner}님이 당첨되었습니다! 🎉🎊`,
+        timestamp: koreaTimeResult.toISOString(),
+        isSystem: true,
+        isRouletteWinner: true
+    };
+    gameState.chatHistory.push(resultMessage);
+    if (gameState.chatHistory.length > 100) {
+        gameState.chatHistory = gameState.chatHistory.slice(-100);
+    }
+    io.to(room.roomId).emit('newMessage', resultMessage);
+
+    io.to(room.roomId).emit('rouletteEnded', {
+        winner,
+        roundId: roundId || null,
+        finalizedBy: options.source || 'server'
+    });
+    if (ctx.triggerAutoOrder) {
+        ctx.triggerAutoOrder(gameState, room);
+    }
+
+    if (room.serverId) {
+        getTop3Badges(room.serverId).then(updatedBadges => {
+            room.userBadges = updatedBadges;
+        }).catch(() => {});
+    }
+
+    ctx.updateRoomsList();
+
+    console.log(`방 ${room.roomName} 룰렛 결과 확정(${options.source || 'server'}) - 당첨자: ${winner}`);
+    return true;
+}
+
+function scheduleRouletteFinalization(gameState, room, io, ctx, roundId) {
+    const pendingRound = gameState.pendingRouletteRound;
+    if (!pendingRound || pendingRound.roundId !== roundId) return;
+
+    clearRouletteFinalizeTimer(room, ctx);
+
+    const setTimer = ctx.setTimeout || setTimeout;
+    const delay = Math.max(0, pendingRound.serverEndAt - Date.now());
+    room.rouletteFinalizeTimer = setTimer(() => {
+        finalizeRouletteRound(gameState, room, io, ctx, {
+            source: 'serverTimer',
+            roundId
+        }).catch(error => {
+            console.error('룰렛 서버 자동 확정 실패:', error);
+        });
+    }, delay);
+}
+
+// 룰렛 시작 검문 - 거절이면 사유 문자열, 시작 가능하면 null.
+// 방장 확인은 여기 두지 않는다(예약 시작 타이머 경로에는 소켓이 없다).
+function canStartRoulette(room, gameState) {
+    if (room.gameType !== 'roulette') {
+        return '룰렛 게임 방이 아닙니다!';
+    }
+
+    if (gameState.isRouletteSpinning) {
+        return '이미 룰렛이 회전 중입니다!';
+    }
+
+    if (!gameState.readyUsers || gameState.readyUsers.length < 2) {
+        return '최소 2명 이상이 준비해야 시작할 수 있습니다!';
+    }
+
+    return null;
+}
+
+// 룰렛 시작 - 소켓 핸들러와 예약 시작 타이머가 함께 쓴다.
+// ctx 는 { rooms, updateRoomsList } 만 보장된다.
+async function startRoulette(room, gameState, io, ctx) {
+    // 수동 시작이 예약을 앞질렀으면 예약을 해제한다 — 나중에 유령 발화가 나지 않게.
+    // 조용히 지우면 "예약해뒀는데 왜 지금 시작하지?"로 보인다. 방 전체에 알린다.
+    // (예약 발화 경로는 fire()가 이미 비우고 들어오므로 여기 걸리지 않는다 = 수동 시작 전용)
+    if (gameState.scheduledStartAt) {
+        const scheduled = require('./scheduled-start');
+        const label = scheduled.formatWallClock(gameState.scheduledStartAt);
+        gameState.scheduledStartAt = null;
+        io.to(room.roomId).emit('scheduledStartUpdated', { scheduledStartAt: null });
+        scheduled.roomNotice(io, room, gameState, `${label} 예약을 취소하고 지금 바로 시작합니다.`);
+    }
+
+    gameState.isRouletteSpinning = true;
+    gameState.isGameActive = true;
+    // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
+    gameState.orderAutoTriggered = false;
+
+    const participants = [...gameState.readyUsers];
+    gameState.gamePlayers = participants;
+
+    participants.forEach(player => {
+        if (!gameState.everPlayedUsers.includes(player)) {
+            gameState.everPlayedUsers.push(player);
+        }
+    });
+
+    const winnerIndex = Math.floor(Math.random() * participants.length);
+    const winner = participants[winnerIndex];
+
+    const spinDuration = 10000 + Math.random() * 4000;
+    const totalRotation = 1800 + Math.random() * 1080;
+
+    const segmentAngle = 360 / participants.length;
+    const winnerCenterAngle = (winnerIndex + 0.5) * segmentAngle;
+    const neededRotation = 360 - winnerCenterAngle;
+    const fullRotations = Math.floor(totalRotation / 360);
+    const finalAngle = fullRotations * 360 + neededRotation;
+
+    console.log(`\n========== 룰렛 시작 ==========`);
+    console.log(`참가자 (${participants.length}명): ${participants.join(', ')}`);
+    console.log(`당첨자: ${winner} (index: ${winnerIndex})`);
+    console.log(`segmentAngle: ${segmentAngle.toFixed(2)}°`);
+    console.log(`winnerCenterAngle: ${winnerCenterAngle.toFixed(2)}° (당첨자 중앙)`);
+    console.log(`neededRotation: ${neededRotation.toFixed(2)}° (= 360 - ${winnerCenterAngle.toFixed(2)})`);
+    console.log(`fullRotations: ${fullRotations}바퀴`);
+    console.log(`finalAngle: ${finalAngle.toFixed(2)}° (= ${fullRotations} * 360 + ${neededRotation.toFixed(2)})`);
+    console.log(`검증 - 화살표 위치: ${(360 - (finalAngle % 360)).toFixed(2)}° → 당첨자 중앙(${winnerCenterAngle.toFixed(2)}°)과 일치해야 함`);
+    console.log(`================================\n`);
+
+    const now = new Date();
+    const koreaOffset = 9 * 60;
+    const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
+    const record = {
+        round: gameState.rouletteHistory.length + 1,
+        participants: participants,
+        winner: winner,
+        timestamp: koreaTime.toISOString(),
+        date: koreaTime.toISOString().split('T')[0],
+        time: now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' })
+    };
+
+    gameState.rouletteHistory.push(record);
+
+    // 마무리 효과 결정
+    let effectType, effectParams;
+
+    if (room.turboAnimation === false) {
+        effectType = 'normal';
+        effectParams = {};
+        console.log(`🎰 룰렛 효과 결정: ${effectType} (터보 애니메이션 비활성화)`);
+    } else {
+        const effectRoll = Math.random();
+
+        if (effectRoll < 0.20) {
+            effectType = 'normal';
+            effectParams = {};
+        } else if (effectRoll < 0.40) {
+            effectType = 'bounce';
+            effectParams = {
+                overshootDeg: 8 + Math.random() * 12,
+                bounceDuration: 400 + Math.random() * 200
+            };
+        } else if (effectRoll < 0.60) {
+            effectType = 'shake';
+            effectParams = {
+                shakeCount: 2 + Math.floor(Math.random() * 2),
+                shakeAmplitudes: [6 + Math.random() * 4, 3 + Math.random() * 2, 1 + Math.random()],
+                shakeDuration: 150 + Math.random() * 100
+            };
+        } else if (effectRoll < 0.75) {
+            effectType = 'slowCrawl';
+            effectParams = {
+                crawlDistance: 30 + Math.random() * 60,
+                crawlDuration: 1500 + Math.random() * 1000
+            };
+        } else {
+            effectType = 'nearMiss';
+            effectParams = {
+                teaseDistance: 35 + Math.random() * 35,
+                teaseDuration: 1700 + Math.random() * 600,
+                holdDuration: 700 + Math.random() * 500,
+                holdOffsetDeg: 1.2 + Math.random() * 2.4,
+                recoilDistance: 8 + Math.random() * 8,
+                recoilDuration: 340 + Math.random() * 220,
+                settleDuration: 800 + Math.random() * 450
+            };
+        }
+
+        console.log(`🎰 룰렛 효과 결정: ${effectType}`, effectParams);
+    }
+
+    const roundId = createRouletteRoundId(room.roomId);
+    const serverStartedAt = Date.now();
+    const displayDurationMs = calculateRouletteDisplayDurationMs(spinDuration, effectType, effectParams);
+    const resultGraceMs = Number.isFinite(ctx.rouletteResultGraceMs)
+        ? Math.max(0, ctx.rouletteResultGraceMs)
+        : ROULETTE_RESULT_GRACE_MS;
+    const serverEndAt = serverStartedAt + displayDurationMs + resultGraceMs;
+
+    gameState.pendingRouletteRound = {
+        roundId,
+        participants: [...participants],
+        winnerIndex,
+        winner,
+        record,
+        serverStartedAt,
+        displayDurationMs,
+        resultGraceMs,
+        serverEndAt,
+        clientResultReceivedAt: null
+    };
+    scheduleRouletteFinalization(gameState, room, io, ctx, roundId);
+
+    io.to(room.roomId).emit('rouletteStarted', {
+        roundId: roundId,
+        participants: participants,
+        spinDuration: spinDuration,
+        totalRotation: totalRotation,
+        winnerIndex: winnerIndex,
+        winner: winner,
+        record: record,
+        everPlayedUsers: gameState.everPlayedUsers,
+        effectType: effectType,
+        effectParams: effectParams,
+        serverStartedAt: serverStartedAt,
+        displayDurationMs: displayDurationMs,
+        resultGraceMs: resultGraceMs,
+        serverEndAt: serverEndAt
+    });
+
+    gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
+    io.emit('visitorStats', getVisitorStats());
+    recordGamePlay('roulette', participants.length, room.serverId || null);
+
+    const startMessage = {
+        userName: '시스템',
+        message: `🎰 룰렛 게임 시작! 참가자: ${participants.join(', ')}`,
+        timestamp: koreaTime.toISOString(),
+        isSystem: true
+    };
+    gameState.chatHistory.push(startMessage);
+    if (gameState.chatHistory.length > 100) {
+        gameState.chatHistory = gameState.chatHistory.slice(-100);
+    }
+    io.to(room.roomId).emit('newMessage', startMessage);
+
+    ctx.updateRoomsList();
+
+    console.log(`방 ${room.roomName} 룰렛 시작 - 참가자: ${participants.join(', ')}, 당첨자: ${winner}`);
+}
+
+function registerRouletteHandlers(socket, io, ctx) {
     // 터보 애니메이션 설정 변경 (호스트만 가능)
     socket.on('updateTurboAnimation', (data) => {
         if (!ctx.checkRateLimit()) return;
@@ -184,7 +375,7 @@ function registerRouletteHandlers(socket, io, ctx) {
     });
 
     // 룰렛 게임 시작
-    socket.on('startRoulette', () => {
+    socket.on('startRoulette', async () => {
         if (!ctx.checkRateLimit()) return;
 
         const gameState = ctx.getCurrentRoomGameState();
@@ -194,184 +385,19 @@ function registerRouletteHandlers(socket, io, ctx) {
             return;
         }
 
-        if (room.gameType !== 'roulette') {
-            socket.emit('rouletteError', '룰렛 게임 방이 아닙니다!');
-            return;
-        }
-
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user || !user.isHost) {
             socket.emit('rouletteError', '방장만 룰렛을 시작할 수 있습니다!');
             return;
         }
 
-        if (gameState.isRouletteSpinning) {
-            socket.emit('rouletteError', '이미 룰렛이 회전 중입니다!');
+        const reason = canStartRoulette(room, gameState);
+        if (reason) {
+            socket.emit('rouletteError', reason);
             return;
         }
 
-        if (!gameState.readyUsers || gameState.readyUsers.length < 2) {
-            socket.emit('rouletteError', '최소 2명 이상이 준비해야 시작할 수 있습니다!');
-            return;
-        }
-
-        gameState.isRouletteSpinning = true;
-        gameState.isGameActive = true;
-        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
-        gameState.orderAutoTriggered = false;
-
-        const participants = [...gameState.readyUsers];
-        gameState.gamePlayers = participants;
-
-        participants.forEach(player => {
-            if (!gameState.everPlayedUsers.includes(player)) {
-                gameState.everPlayedUsers.push(player);
-            }
-        });
-
-        const winnerIndex = Math.floor(Math.random() * participants.length);
-        const winner = participants[winnerIndex];
-
-        const spinDuration = 10000 + Math.random() * 4000;
-        const totalRotation = 1800 + Math.random() * 1080;
-
-        const segmentAngle = 360 / participants.length;
-        const winnerCenterAngle = (winnerIndex + 0.5) * segmentAngle;
-        const neededRotation = 360 - winnerCenterAngle;
-        const fullRotations = Math.floor(totalRotation / 360);
-        const finalAngle = fullRotations * 360 + neededRotation;
-
-        console.log(`\n========== 룰렛 시작 ==========`);
-        console.log(`참가자 (${participants.length}명): ${participants.join(', ')}`);
-        console.log(`당첨자: ${winner} (index: ${winnerIndex})`);
-        console.log(`segmentAngle: ${segmentAngle.toFixed(2)}°`);
-        console.log(`winnerCenterAngle: ${winnerCenterAngle.toFixed(2)}° (당첨자 중앙)`);
-        console.log(`neededRotation: ${neededRotation.toFixed(2)}° (= 360 - ${winnerCenterAngle.toFixed(2)})`);
-        console.log(`fullRotations: ${fullRotations}바퀴`);
-        console.log(`finalAngle: ${finalAngle.toFixed(2)}° (= ${fullRotations} * 360 + ${neededRotation.toFixed(2)})`);
-        console.log(`검증 - 화살표 위치: ${(360 - (finalAngle % 360)).toFixed(2)}° → 당첨자 중앙(${winnerCenterAngle.toFixed(2)}°)과 일치해야 함`);
-        console.log(`================================\n`);
-
-        const now = new Date();
-        const koreaOffset = 9 * 60;
-        const koreaTime = new Date(now.getTime() + (koreaOffset - now.getTimezoneOffset()) * 60000);
-        const record = {
-            round: gameState.rouletteHistory.length + 1,
-            participants: participants,
-            winner: winner,
-            timestamp: koreaTime.toISOString(),
-            date: koreaTime.toISOString().split('T')[0],
-            time: now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' })
-        };
-
-        gameState.rouletteHistory.push(record);
-
-        // 마무리 효과 결정
-        let effectType, effectParams;
-
-        if (room.turboAnimation === false) {
-            effectType = 'normal';
-            effectParams = {};
-            console.log(`🎰 룰렛 효과 결정: ${effectType} (터보 애니메이션 비활성화)`);
-        } else {
-            const effectRoll = Math.random();
-
-            if (effectRoll < 0.20) {
-                effectType = 'normal';
-                effectParams = {};
-            } else if (effectRoll < 0.40) {
-                effectType = 'bounce';
-                effectParams = {
-                    overshootDeg: 8 + Math.random() * 12,
-                    bounceDuration: 400 + Math.random() * 200
-                };
-            } else if (effectRoll < 0.60) {
-                effectType = 'shake';
-                effectParams = {
-                    shakeCount: 2 + Math.floor(Math.random() * 2),
-                    shakeAmplitudes: [6 + Math.random() * 4, 3 + Math.random() * 2, 1 + Math.random()],
-                    shakeDuration: 150 + Math.random() * 100
-                };
-            } else if (effectRoll < 0.75) {
-                effectType = 'slowCrawl';
-                effectParams = {
-                    crawlDistance: 30 + Math.random() * 60,
-                    crawlDuration: 1500 + Math.random() * 1000
-                };
-            } else {
-                effectType = 'nearMiss';
-                effectParams = {
-                    teaseDistance: 35 + Math.random() * 35,
-                    teaseDuration: 1700 + Math.random() * 600,
-                    holdDuration: 700 + Math.random() * 500,
-                    holdOffsetDeg: 1.2 + Math.random() * 2.4,
-                    recoilDistance: 8 + Math.random() * 8,
-                    recoilDuration: 340 + Math.random() * 220,
-                    settleDuration: 800 + Math.random() * 450
-                };
-            }
-
-            console.log(`🎰 룰렛 효과 결정: ${effectType}`, effectParams);
-        }
-
-        const roundId = createRouletteRoundId(room.roomId);
-        const serverStartedAt = Date.now();
-        const displayDurationMs = calculateRouletteDisplayDurationMs(spinDuration, effectType, effectParams);
-        const resultGraceMs = Number.isFinite(ctx.rouletteResultGraceMs)
-            ? Math.max(0, ctx.rouletteResultGraceMs)
-            : ROULETTE_RESULT_GRACE_MS;
-        const serverEndAt = serverStartedAt + displayDurationMs + resultGraceMs;
-
-        gameState.pendingRouletteRound = {
-            roundId,
-            participants: [...participants],
-            winnerIndex,
-            winner,
-            record,
-            serverStartedAt,
-            displayDurationMs,
-            resultGraceMs,
-            serverEndAt,
-            clientResultReceivedAt: null
-        };
-        scheduleRouletteFinalization(gameState, room, roundId);
-
-        io.to(room.roomId).emit('rouletteStarted', {
-            roundId: roundId,
-            participants: participants,
-            spinDuration: spinDuration,
-            totalRotation: totalRotation,
-            winnerIndex: winnerIndex,
-            winner: winner,
-            record: record,
-            everPlayedUsers: gameState.everPlayedUsers,
-            effectType: effectType,
-            effectParams: effectParams,
-            serverStartedAt: serverStartedAt,
-            displayDurationMs: displayDurationMs,
-            resultGraceMs: resultGraceMs,
-            serverEndAt: serverEndAt
-        });
-
-        gameState.users.forEach(u => recordParticipantVisitor(io, u.id));
-        io.emit('visitorStats', getVisitorStats());
-        recordGamePlay('roulette', participants.length, room.serverId || null);
-
-        const startMessage = {
-            userName: '시스템',
-            message: `🎰 룰렛 게임 시작! 참가자: ${participants.join(', ')}`,
-            timestamp: koreaTime.toISOString(),
-            isSystem: true
-        };
-        gameState.chatHistory.push(startMessage);
-        if (gameState.chatHistory.length > 100) {
-            gameState.chatHistory = gameState.chatHistory.slice(-100);
-        }
-        io.to(room.roomId).emit('newMessage', startMessage);
-
-        ctx.updateRoomsList();
-
-        console.log(`방 ${room.roomName} 룰렛 시작 - 참가자: ${participants.join(', ')}, 당첨자: ${winner}`);
+        await startRoulette(room, gameState, io, ctx);
     });
 
     // 룰렛 결과 처리
@@ -548,6 +574,8 @@ function registerRouletteHandlers(socket, io, ctx) {
 }
 
 module.exports = registerRouletteHandlers;
+module.exports.canStart = canStartRoulette;
+module.exports.start = startRoulette;
 module.exports._test = {
     calculateRouletteDisplayDurationMs
 };

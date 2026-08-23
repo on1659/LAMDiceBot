@@ -12,6 +12,10 @@ function createRoomGameState() {
         users: [],
         isGameActive: false,
         isOrderActive: false,
+        // 예약 시작 발화 시각(epoch ms) 또는 null. 최상위 스칼라라 rooms.js의 gameState 전량 spread를
+        // 그대로 통과한다 — 결과를 흘리지 않으므로 마스킹 대상이 아니다.
+        // 타이머 핸들은 여기 두지 않는다(Node Timeout은 순환 참조 → 입장 페이로드 직렬화가 깨진다).
+        scheduledStartAt: null,
         orderAutoTriggered: false,
         diceMax: 100,
         history: [],

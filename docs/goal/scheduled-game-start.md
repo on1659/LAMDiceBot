@@ -1,7 +1,7 @@
 # goal: scheduled-game-start
 
 ## One-line Goal
-Let a room host arm a countdown ("start in N minutes") so the server itself starts the game when it fires, for the three games that are actually reachable in production.
+Let a room host pick a start time so the server itself starts the game when that time arrives, for the three games that are actually reachable in production.
 
 ## Background / Motivation
 Today every game starts only when a human presses Start, and that press is what carries the socket identity used for the host check. Groups that agree on "let's go in five minutes" have no way to hold the room to it. This adds a server-authoritative countdown.
@@ -10,7 +10,7 @@ Two variants were considered. The one built here is the **in-room reservation**:
 
 ## In-scope
 - Dice, roulette, horse-race only.
-- Arm a scheduled start (preset minutes) and cancel it. Host-only, same authority as pressing Start.
+- Arm a scheduled start (absolute HH:MM, with relative presets as a fill helper) and cancel it. Host-only, same authority as pressing Start.
 - Room-wide countdown display; the same element carries the fire-time notice.
 - Auto-assign for players who have not picked when the timer fires, announced in chat and on screen. In practice this applies to horse-race only, since dice and roulette have no pre-start pick.
 - Broadcast a room-wide notice when a scheduled fire is refused, because a timer has no socket to reply to.
@@ -20,7 +20,6 @@ Two variants were considered. The one built here is the **in-room reservation**:
 ## Out-of-scope
 - Ladder, bridge-cross, spin-arena, pirate. Their room-creation paths are closed in production: ladder is server-blocked outside local dev (`socket/rooms.js:266-271`, `socket/free.js:81-84`), the other three have `display: none` on their create-room radios (`dice-game-multiplayer.html:1965/1974/1980/1986`), and `free.html`'s card grid is hidden (`free.html:78`). Add a "scheduled start" line to each game's launch checklist instead.
 - Empty-room / multi-hour reservation. No DB changes, no persistence, no boot rehydration.
-- Absolute HH:MM as an *input*. It may appear only as a parenthetical hint in the badge text.
 - Surviving a server restart. A reservation is lost on deploy; this is accepted, not worked around.
 
 ## Design Decisions (panel-settled — do not relitigate during implementation)
@@ -31,9 +30,13 @@ Two variants were considered. The one built here is the **in-room reservation**:
 
 - **State is one top-level scalar: `gameState.scheduledStartAt` (epoch ms)** — a plain number passes the `socket/rooms.js:172` spread safely, so the fairness masking allowlist needs no edit. Nothing server-only is added.
 
-- **Time input is relative presets only: 1 / 3 / 5 / 10 minutes** — server validation is `[1,3,5,10].includes(minutes)`. Absolute HH:MM may be shown as a hint ("3분 12초 후 시작 (15:04 예정)") but never parsed from the client. A reservation exceeding the room's remaining lifetime is refused at arm time. (Rejected: HH:MM input — server-side formatting hardcodes Asia/Seoul at `socket/rooms.js:1447` while client parsing would use the device timezone, there is no clock-skew correction anywhere in the repo, and midnight rollover interacts with the 6-hour room cap. Rejected: free-form minute entry — invites typos on mobile and a validation essay; presets delete the NaN / negative / 32-bit-overflow defenses entirely.)
+- **Time input is absolute HH:MM, entered through hour/minute dropdowns, with relative presets as a fill helper** — the client sends only the string `{ at: "15:30" }`; the server converts it against its own clock (`resolveWallClock` in `socket/scheduled-start.js`, timezone from `SCHEDULE_TIMEZONE`, default Asia/Seoul). The device clock never determines the firing instant, and the server also formats the display string (`scheduledStartLabel`) so every viewer sees the same time regardless of their timezone. Already-past times roll to the next day. (Rejected: client-side conversion — a device in another timezone would resolve "15:30" to a different instant, and the server would then have to trust a client-supplied epoch. Rejected: `<input type="time">` — its native spinner is slow to operate; two `<select>`s are faster on both mobile and desktop. Rejected: presets that reserve immediately — they now only fill the field, and `[예약]` commits.)
+
+- **Minimum lead is 3 minutes; presets are +3 / +5 / +10 / +30** — minute-granularity input truncates seconds, so "23:25" chosen at 23:24:50 would fire in 10 seconds. `SCHEDULE_MIN_LEAD_MS` (config, `.env`-overridable) refuses anything closer with its own message, kept distinct from the "already past / after the room dies" refusal. Client presets round **up** to the next whole minute so `+3분` always clears the 3-minute floor. Presets whose target would land after the room expires are hidden rather than shown and refused.
 
 - **Two shared socket handlers, not per-game ones** — `scheduleStart` and `cancelScheduledStart` in `socket/shared.js`, dispatching on `room.gameType`. Failure of a scheduled fire is broadcast room-wide on the same channel. (Rejected: per-game events — eleven existing refusal paths are already lone `socket.emit` calls with no room-wide channel; adding seven more of the same shape widens the gap instead of closing it.)
+
+- **Host controls carry a single pill button; the pickers live in a popup** — the pill sits on its own row above the start buttons (not beside them), reads `⏰ 예약` when idle and `⏰ 22:45` once armed, and adds `· 시작 12초 전` inside the final minute. Clicking it opens a modal holding the presets, the hour/minute dropdowns, and — when armed — the current reservation plus `[예약 취소]`. (Rejected: an inline preset row — it crowded the start buttons and left no room to show *which* time was reserved, which was the first thing users asked for.)
 
 - **One DOM element for countdown and notice** — before firing it shows remaining time; at fire it becomes the auto-assign notice in the same place for ~5 seconds, then disappears. (Rejected: a separate toast module — at the fire instant the badge disappearing, a new toast, and the existing 3-2-1 overlay at `js/shared/countdown-shared.js:17` would collide in the same spot. Rejected: a `#roomTitle` sibling banner — it does not render in horse-race fullscreen or PiP, as `js/horse-race.js:4721` already notes. Rejected: the control-bar `extraBadges` slot — its only consumer, the roulette turbo badge, is already dead code (`roulette-game-multiplayer.html:3396` clears children before `:3405` queries).)
 
@@ -75,7 +78,10 @@ Two variants were considered. The one built here is the **in-room reservation**:
 - Reconnect masking at `socket/rooms.js:172-197` must keep hiding server-only game state. Adding a scalar must not require loosening it.
 - System chat notices must push to `gameState.chatHistory`; skipping it desynchronizes emoji-reaction indices (`socket/chat.js:379-384` vs `js/shared/chat-shared.js:532-536`). Set both `isSystemMessage` and `isSystem`; the dice renderer reads only one (`dice-game-multiplayer.html:6966`). No `isHtml` — notices interpolate user names.
 - Horse coin idempotency via `coinRef` (`socket/horse.js:605`) must not be weakened.
-- Existing manual Start behavior must be unchanged when no reservation is armed.
+- Existing manual Start behavior must be unchanged when no reservation is armed. When one IS armed, a manual
+  Start clears it and must say so in room chat — silently discarding it reads as "the reservation fired early".
+- Scheduled fires must be distinguishable from manual starts in the server log; otherwise a report of
+  "it started at the wrong time" cannot be diagnosed at all.
 
 ## Fairness Constraints
 - Auto-assignment uses the server's existing RNG path only. No client-supplied seed may influence an auto-assigned pick.

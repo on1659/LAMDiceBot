@@ -1,6 +1,7 @@
 const { generateRoomId, createRoomGameState, deleteRoom } = require('../utils/room-helpers');
 const { issueShortcode } = require('../utils/shortcode');
 const { weightedShuffleVehicles } = require('../utils/vehicle-helpers');
+const { formatWallClock } = require('./scheduled-start');
 const { IS_LOCAL_DEV } = require('../config');
 
 // ─── 조정 가능한 상수 ───
@@ -31,39 +32,16 @@ for (const [k, v] of Object.entries(horseRaceConfig.trackPresets)) {
  * @param {Object} ctx - 컨텍스트 (checkRateLimit, getCurrentRoom, getCurrentRoomGameState, updateRoomsList, rooms)
  */
 module.exports = (socket, io, ctx) => {
-    const { checkRateLimit, getCurrentRoom, getCurrentRoomGameState, updateRoomsList, rooms } = ctx;
+    // checkRateLimit은 별칭 대신 ctx 경유로 감싼다 — security-guard 훅이 `ctx.checkRateLimit(`
+    // 리터럴을 요구한다. index.js의 화살표 클로저라 this를 안 써서 동작은 동일하다.
+    const checkRateLimit = () => ctx.checkRateLimit();
+    const { getCurrentRoom, getCurrentRoomGameState, updateRoomsList, rooms } = ctx;
 
-    // 방 목록 조회
-    const PUBLIC_ROOMS_LIMIT = 10;
-
+    // 방 목록 조회 — 필터는 index.js의 sendRoomsList 한 곳에서만 관리한다
+    // (조회 결과와 실시간 갱신(roomsListUpdated)이 서로 다른 목록을 주지 않도록)
     socket.on('getRooms', () => {
         if (!checkRateLimit()) return;
-
-        const userServerId = socket.serverId || null;
-        const allRooms = Object.entries(rooms).map(([roomId, room]) => ({
-            roomId,
-            roomName: room.roomName,
-            hostName: room.hostName,
-            playerCount: room.gameState.users.length,
-            isGameActive: room.gameState.isGameActive,
-            isOrderActive: room.gameState.isOrderActive,
-            isPrivate: room.isPrivate || false,
-            gameType: room.gameType || 'dice',
-            serverId: room.serverId || null,
-            serverName: room.serverName || null,
-            createdAt: room.createdAt,
-            expiryHours: room.expiryHours || 1
-        }));
-
-        // 같은 서버(또는 자유플레이) 방만 표시
-        const filtered = [];
-        for (const room of allRooms) {
-            // 서버가 다르면 표시하지 않음
-            if ((userServerId || null) !== (room.serverId || null)) continue;
-            filtered.push(room);
-        }
-
-        socket.emit('roomsList', filtered);
+        ctx.sendRoomsList();
     });
 
     // 현재 방 정보 조회 (리다이렉트 후 방 정보 복구용)
@@ -193,7 +171,12 @@ module.exports = (socket, io, ctx) => {
                     : undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
-                frequentMenus: gameState.frequentMenus
+                frequentMenus: gameState.frequentMenus,
+                // 예약 시각 표기는 저장하지 않고 매번 서버가 만든다(파생값이라 두 필드가 어긋날 일이 없다).
+                // 이게 없으면 재입장 직후 카운트다운에 "(15:30 예정)"이 다음 브로드캐스트까지 안 붙는다.
+                scheduledStartLabel: gameState.scheduledStartAt
+                    ? formatWallClock(gameState.scheduledStartAt)
+                    : null
             }
         });
 

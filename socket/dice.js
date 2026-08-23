@@ -3,9 +3,111 @@ const { getVisitorStats, recordVisitor, recordGamePlay } = require('../db/stats'
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
 const { getTop3Badges } = require('../db/ranking');
 
-module.exports = (socket, io, ctx) => {
+// 시작 검문 — 예약 스위퍼도 호출하므로 socket을 참조하지 않는다.
+// 거절이면 한국어 사유 문자열, 시작 가능이면 null. (호스트 확인은 소켓 핸들러에만 둔다)
+function canStartDice(room, gameState) {
+    // 진행 중인 판 위에 시작이 또 들어오면 이미 굴린 기록이 조용히 강등된다
+    if (gameState.isGameActive) {
+        return '이미 게임이 진행 중이에요.';
+    }
+
+    // 참여자가 2명 미만이면 게임 시작 불가
+    if (gameState.readyUsers.length < 2) {
+        return '최소 2명 이상 준비해야 게임을 시작할 수 있습니다.';
+    }
+
+    return null;
+}
+
+// 게임 시작 본문 — socket 없이 io / room / gameState / ctx만 쓴다(예약 스위퍼가 직접 호출한다)
+async function startDice(room, gameState, io, ctx) {
+    // 수동 시작이 예약을 앞질렀으면 예약을 해제한다 — 나중에 유령 발화가 나지 않게.
+    // 조용히 지우면 "예약해뒀는데 왜 지금 시작하지?"로 보인다. 방 전체에 알린다.
+    // (예약 발화 경로는 fire()가 이미 비우고 들어오므로 여기 걸리지 않는다 = 수동 시작 전용)
+    if (gameState.scheduledStartAt) {
+        const scheduled = require('./scheduled-start');
+        const label = scheduled.formatWallClock(gameState.scheduledStartAt);
+        gameState.scheduledStartAt = null;
+        io.to(room.roomId).emit('scheduledStartUpdated', { scheduledStartAt: null });
+        scheduled.roomNotice(io, room, gameState, `${label} 예약을 취소하고 지금 바로 시작합니다.`);
+    }
+
+    // 게임 시작 시 현재 룰 텍스트 영역의 값을 자동 저장 (저장 버튼을 누르지 않았어도)
+    // 클라이언트에서 최신 룰을 받아와서 저장하는 것이 아니므로,
+    // 서버의 현재 gameRules 값을 그대로 유지하고 모든 클라이언트에 동기화
+
+    // 게임 시작 시 준비한 사용자들을 참여자 목록으로 설정
+    gameState.gamePlayers = [...gameState.readyUsers];
+
+    // 게임 참여자들을 누적 참여자 목록에 추가 (중복 제거)
+    gameState.gamePlayers.forEach(player => {
+        if (!gameState.everPlayedUsers.includes(player)) {
+            gameState.everPlayedUsers.push(player);
+        }
+    });
+
+    gameState.isGameActive = true;
+    // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
+    gameState.orderAutoTriggered = false;
+    // history는 초기화하지 않음 (통계를 위해 누적 기록 유지)
+    // 대신 이전 게임의 기록을 isGameActive: false로 표시하여 현재 게임과 구분
+    gameState.history.forEach(record => {
+        if (record.isGameActive === true) {
+            record.isGameActive = false; // 이전 게임 기록 비활성화
+        }
+    });
+    gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
+    gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
+
+    // 게임 시작 시 같은 방의 모든 클라이언트에게 현재 룰을 동기화 (게임 시작 = 룰 확정)
+    io.to(room.roomId).emit('gameRulesUpdated', gameState.gameRules);
+
+    io.to(room.roomId).emit('gameStarted', {
+        players: gameState.gamePlayers,
+        totalPlayers: gameState.gamePlayers.length
+    });
+
+    recordGamePlay(room.gameType || 'dice', gameState.gamePlayers.length, room.serverId || null);
+
+    // 게임 시작 시 채팅에 게임 시작 메시지와 룰 전송
+    const gameStartMessage = {
+        userName: '시스템',
+        message: `---------------------------------------\n------------- 게임시작 --------------\n${gameState.gameRules || '게임 룰이 설정되지 않았습니다.'}\n---------------------------------------`,
+        time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        isHost: false,
+        isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
+    };
+
+    // 채팅 기록에 저장
+    gameState.chatHistory.push(gameStartMessage);
+    if (gameState.chatHistory.length > 100) {
+        gameState.chatHistory.shift();
+    }
+
+    io.to(room.roomId).emit('newMessage', gameStartMessage);
+
+    // 게임 시작 시 초기 진행 상황 전송 (아직 굴리지 않은 사람 목록 포함)
+    if (gameState.gamePlayers.length > 0) {
+        const notRolledYet = gameState.gamePlayers.filter(
+            player => !gameState.rolledUsers.includes(player)
+        );
+
+        io.to(room.roomId).emit('rollProgress', {
+            rolled: gameState.rolledUsers.length,
+            total: gameState.gamePlayers.length,
+            notRolledYet: notRolledYet
+        });
+    }
+
+    // 방 목록 업데이트 (게임 상태 변경)
+    ctx.updateRoomsList();
+
+    console.log(`방 ${room.roomName} 게임 시작 - 참여자:`, gameState.gamePlayers.join(', '));
+}
+
+function registerDiceHandlers(socket, io, ctx) {
     // 게임 시작
-    socket.on('startGame', () => {
+    socket.on('startGame', async () => {
         if (!ctx.checkRateLimit()) return;
 
         const gameState = ctx.getCurrentRoomGameState();
@@ -22,83 +124,13 @@ module.exports = (socket, io, ctx) => {
             return;
         }
 
-        // 게임 시작 시 현재 룰 텍스트 영역의 값을 자동 저장 (저장 버튼을 누르지 않았어도)
-        // 클라이언트에서 최신 룰을 받아와서 저장하는 것이 아니므로,
-        // 서버의 현재 gameRules 값을 그대로 유지하고 모든 클라이언트에 동기화
-
-        // 게임 시작 시 준비한 사용자들을 참여자 목록으로 설정
-        gameState.gamePlayers = [...gameState.readyUsers];
-
-        // 참여자가 2명 미만이면 게임 시작 불가
-        if (gameState.gamePlayers.length < 2) {
-            socket.emit('gameError', '최소 2명 이상 준비해야 게임을 시작할 수 있습니다.');
+        const reason = canStartDice(room, gameState);
+        if (reason) {
+            socket.emit('gameError', reason);
             return;
         }
 
-        // 게임 참여자들을 누적 참여자 목록에 추가 (중복 제거)
-        gameState.gamePlayers.forEach(player => {
-            if (!gameState.everPlayedUsers.includes(player)) {
-                gameState.everPlayedUsers.push(player);
-            }
-        });
-
-        gameState.isGameActive = true;
-        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
-        gameState.orderAutoTriggered = false;
-        // history는 초기화하지 않음 (통계를 위해 누적 기록 유지)
-        // 대신 이전 게임의 기록을 isGameActive: false로 표시하여 현재 게임과 구분
-        gameState.history.forEach(record => {
-            if (record.isGameActive === true) {
-                record.isGameActive = false; // 이전 게임 기록 비활성화
-            }
-        });
-        gameState.rolledUsers = []; // 굴린 사용자 목록 초기화
-        gameState.allPlayersRolledMessageSent = false; // 메시지 전송 플래그 초기화
-
-        // 게임 시작 시 같은 방의 모든 클라이언트에게 현재 룰을 동기화 (게임 시작 = 룰 확정)
-        io.to(room.roomId).emit('gameRulesUpdated', gameState.gameRules);
-
-        io.to(room.roomId).emit('gameStarted', {
-            players: gameState.gamePlayers,
-            totalPlayers: gameState.gamePlayers.length
-        });
-
-        recordGamePlay(room.gameType || 'dice', gameState.gamePlayers.length, room.serverId || null);
-
-        // 게임 시작 시 채팅에 게임 시작 메시지와 룰 전송
-        const gameStartMessage = {
-            userName: '시스템',
-            message: `---------------------------------------\n------------- 게임시작 --------------\n${gameState.gameRules || '게임 룰이 설정되지 않았습니다.'}\n---------------------------------------`,
-            time: new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' }),
-            isHost: false,
-            isSystemMessage: true // 시스템 메시지 표시를 위한 플래그
-        };
-
-        // 채팅 기록에 저장
-        gameState.chatHistory.push(gameStartMessage);
-        if (gameState.chatHistory.length > 100) {
-            gameState.chatHistory.shift();
-        }
-
-        io.to(room.roomId).emit('newMessage', gameStartMessage);
-
-        // 게임 시작 시 초기 진행 상황 전송 (아직 굴리지 않은 사람 목록 포함)
-        if (gameState.gamePlayers.length > 0) {
-            const notRolledYet = gameState.gamePlayers.filter(
-                player => !gameState.rolledUsers.includes(player)
-            );
-
-            io.to(room.roomId).emit('rollProgress', {
-                rolled: gameState.rolledUsers.length,
-                total: gameState.gamePlayers.length,
-                notRolledYet: notRolledYet
-            });
-        }
-
-        // 방 목록 업데이트 (게임 상태 변경)
-        ctx.updateRoomsList();
-
-        console.log(`방 ${room.roomName} 게임 시작 - 참여자:`, gameState.gamePlayers.join(', '));
+        await startDice(room, gameState, io, ctx);
     });
 
     // 게임 종료
@@ -582,7 +614,7 @@ module.exports = (socket, io, ctx) => {
             console.log(`방 ${room.roomName}: ${userName}이(가) ${result} 굴림 (시드: ${clientSeed.substring(0, 8)}..., 범위: ${diceMin}~${diceMax})`);
         }
     });
-};
+}
 
 // 주사위 등수 판별 (비공개서버 랭킹용) - 동점은 같은 등수
 function determineDiceRanks(gameHistory, gameRules) {
@@ -599,3 +631,7 @@ function determineDiceRanks(gameHistory, gameRules) {
     }
     return ranks;
 }
+
+module.exports = registerDiceHandlers;
+module.exports.canStart = canStartDice;
+module.exports.start = startDice;

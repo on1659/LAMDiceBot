@@ -8,6 +8,7 @@ const { recordOrder, getMyOrderedMenus } = require('../db/ranking');
 const { recordOrderHistory } = require('../db/order-history');
 const { setDefaultOrder, removeDefaultOrder } = require('../db/default-orders');
 const { createRoomGameState } = require('../utils/room-helpers');
+const { armSchedule, cancelSchedule, broadcastSchedule, roomNotice } = require('./scheduled-start');
 
 // updateRange용 레거시 전역 gameState
 let gameState = createRoomGameState();
@@ -60,6 +61,64 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
     }
 
     // 주문받기 시작
+    // ─── 예약 시작 ───
+    // 방장이 건 카운트다운을 시간이 되면 서버가 대신 눌러준다. 게임별 핸들러를 따로 두지 않고
+    // room.gameType으로 디스패치한다 (socket/scheduled-start.js).
+    socket.on('scheduleStart', (data) => {
+        if (!ctx.checkRateLimit()) return;
+
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+
+        // Host 권한 확인 — 예약은 시작 버튼을 대신 누르는 것이므로 시작과 같은 권한을 요구한다
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('permissionError', 'Host만 시작 시간을 예약할 수 있습니다!');
+            return;
+        }
+
+        // { minutes: 3 } 또는 { at: '15:30' }. 절대 시각 환산은 서버가 한다.
+        const result = armSchedule(room, gameState, data);
+        if (!result.ok) {
+            socket.emit('scheduledStartError', result.error);
+            return;
+        }
+
+        broadcastSchedule(io, room, gameState);
+        roomNotice(io, room, gameState, `${user.name}님이 ${result.label} 시작을 예약했어요.`);
+        console.log(`방 ${room.roomName} 예약 시작 등록 - ${result.label} (${new Date(result.at).toISOString()})`);
+    });
+
+    socket.on('cancelScheduledStart', () => {
+        if (!ctx.checkRateLimit()) return;
+
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
+
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user || !user.isHost) {
+            socket.emit('permissionError', 'Host만 예약을 취소할 수 있습니다!');
+            return;
+        }
+
+        if (!cancelSchedule(gameState)) {
+            socket.emit('scheduledStartError', '취소할 예약이 없어요.');
+            return;
+        }
+
+        broadcastSchedule(io, room, gameState);
+        roomNotice(io, room, gameState, `${user.name}님이 예약된 시작을 취소했어요.`);
+        console.log(`방 ${room.roomName} 예약 시작 취소`);
+    });
+
     socket.on('startOrder', () => {
         if (!checkRateLimit()) return;
 
