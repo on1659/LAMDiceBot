@@ -10,6 +10,7 @@
     var masterVolumeGetter = null; // 게임별 마스터 볼륨 getter 함수
     var loopBaseVolumes = {}; // 각 루프의 원래 볼륨 저장
     var isMuted = false; // 탭 포커스 음소거 상태
+    var focusBypass = null; // 포커스 게이트 우회 판정 함수 (setFocusBypass로 등록한 게임만 사용)
 
     /**
      * 마스터 볼륨 getter 함수 등록
@@ -57,10 +58,24 @@
     }
 
     /**
+     * 포커스 게이트 우회 조건 등록 (선택). 미등록이면 기존 동작 그대로.
+     * "메인 문서는 포커스를 잃었지만 사용자는 여전히 보고 있는" 상태를 게임 쪽에서 알려주기 위한 통로.
+     * (예: 경마 작은 창 = Document PiP — 창을 클릭하면 메인 문서의 hasFocus()가 false가 된다)
+     * @param {function} fn - true를 반환하면 포커스 게이트를 통과시킨다. null로 해제.
+     */
+    function setFocusBypass(fn) {
+        focusBypass = (typeof fn === 'function') ? fn : null;
+    }
+
+    /**
      * 탭이 포커스(visible + hasFocus)일 때만 재생. 백그라운드에서 트리거된 사운드는 무시.
+     * 단, setFocusBypass로 등록된 조건이 참이면 통과시킨다.
      */
     function hasSoundFocus() {
         if (typeof document === 'undefined') return false;
+        if (focusBypass) {
+            try { if (focusBypass()) return true; } catch (e) {}
+        }
         return document.visibilityState === 'visible' && document.hasFocus();
     }
 
@@ -204,6 +219,7 @@
         stopAll: stopAll,
         setVolume: setVolume,
         hasSoundFocus: hasSoundFocus,
+        setFocusBypass: setFocusBypass,
         setMasterVolumeGetter: setMasterVolumeGetter,
         applyMasterVolume: applyMasterVolume,
         muteAll: muteAll,

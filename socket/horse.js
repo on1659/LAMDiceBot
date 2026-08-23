@@ -1460,6 +1460,7 @@ module.exports = (socket, io, ctx) => {
         gameState.userRankVotes = {};
         gameState.targetRank = null;
         gameState.rouletteResult = null;
+        gameState.pendingRaceResult = null; // 미소비 결과 폐기 — disconnect 정리 게이트(chat.js)의 stale 차단
 
         // 모든 클라이언트에게 게임 종료 이벤트 전송
         io.to(room.roomId).emit('horseRaceGameReset', {
@@ -1555,6 +1556,7 @@ module.exports = (socket, io, ctx) => {
         gameState.userRankVotes = {};
         gameState.targetRank = null;
         gameState.rouletteResult = null;
+        gameState.pendingRaceResult = null; // 미소비 결과 폐기 — disconnect 정리 게이트(chat.js)의 stale 차단
 
         // 진행 중이던 카운트다운/룰렛 timeout 정리 (clear 시 잔여 emit 방지)
         if (gameState.horseRaceCountdownTimeout) {

@@ -375,11 +375,19 @@
         }
     }
 
+    // 잔상 루프의 예약 창 — 작은 창(PiP) 모드에선 트랙이 그 창에 있어 메인 창 rAF는 탭 숨김 시 멈춘다
+    // (경주 본체는 raceAnimWin으로 이관되는데 이 루프만 남아 잔상이 트랙 위에 얼어붙었다).
+    // raceAnimWin은 js/horse-race.js의 전역이며 닫힌 창을 메인으로 정규화한다. 미로드 페이지는 window.
+    // 이 루프는 cancelAnimationFrame을 쓰지 않으므로(afterimageRaf는 중복예약 방지 플래그) 창별 id 불일치 위험 없음.
+    function afterimageWin() {
+        return (typeof raceAnimWin === 'function') ? raceAnimWin() : window;
+    }
+
     function registerAfterimage(horseEl, item) {
         if (reducedMotion) return;          // 모션 최소화: 부착 streak만 남긴다
         unregisterAfterimage(horseEl);      // 멱등(재장착 시 중복 방지)
         afterimageReg.push({ horse: horseEl, item: item, lastSpawn: 0, lastMeasure: 0, lastWorldX: null, n: 0 });
-        if (!afterimageRaf) afterimageRaf = requestAnimationFrame(afterimageTick);
+        if (!afterimageRaf) afterimageRaf = afterimageWin().requestAnimationFrame(afterimageTick);
     }
 
     function afterimageTick(now) {
@@ -423,11 +431,12 @@
             }
         }
         if (!afterimageReg.length && !afterimageOrbs.length) { afterimageRaf = null; return; }
+        var w = afterimageWin();
         if (anyRacing || afterimageOrbs.length) {
-            afterimageRaf = requestAnimationFrame(afterimageTick);
+            afterimageRaf = w.requestAnimationFrame(afterimageTick);
         } else {
             // 대기(선택화면/경주 종료) 중엔 저빈도 폴링 — 상시 rAF 낭비 방지
-            setTimeout(function () { afterimageRaf = requestAnimationFrame(afterimageTick); }, 300);
+            w.setTimeout(function () { afterimageRaf = afterimageWin().requestAnimationFrame(afterimageTick); }, 300);
         }
     }
 
@@ -617,7 +626,11 @@
     }
 
     function applyToActiveHorses() {
-        var horses = document.querySelectorAll('.horse.my-horse');
+        // 트랙은 작은 창(PiP) 모드에서 다른 문서에 산다 — 메인 전용 조회면 빈 NodeList가 되어
+        // 이름표(refreshMyNameTags, 이미 doc-aware)만 바뀌는 "반쪽 장착"이 된다.
+        // raceDoc은 js/horse-race.js의 전역. 미로드 페이지(상점 툴)에서는 document 폴백.
+        var doc = (typeof raceDoc === 'function') ? raceDoc() : document;
+        var horses = doc.querySelectorAll('.horse.my-horse');
         for (var i = 0; i < horses.length; i++) applyToHorse(horses[i]);
     }
 
@@ -659,7 +672,10 @@
         if (!id) return;
         var fx = getCatalogItem(id);
         if (!fx || !fx.emoji) return;
-        playFinishFxInto(document.getElementById('raceTrackContainer'), fx.emoji);
+        // 작은 창(PiP) 모드에서는 트랙 컨테이너가 다른 문서에 있다 — 메인 조회는 null이라
+        // playFinishFxInto가 조용히 return하고 폭죽이 한 조각도 안 나온다.
+        var doc = (typeof raceDoc === 'function') ? raceDoc() : document;
+        playFinishFxInto(doc.getElementById('raceTrackContainer'), fx.emoji);
     }
 
     // ── ShopModule 설정 등록 ───────────────────────────────

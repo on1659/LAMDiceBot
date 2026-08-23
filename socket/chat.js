@@ -577,14 +577,29 @@ module.exports = (socket, io, ctx) => {
                     gameState.rolledUsers = gameState.rolledUsers.filter(name => name !== userName);
 
                     // 경마: 떠난 유저의 베팅/투표 정리 (다음 라운드 가중치/공정성 보호)
+                    // 단, 경주 중(카운트다운 isHorseRaceActive ~ 애니메이션 pendingRaceResult 미소비)에는
+                    // 건드리지 않는다 — 결과는 시작 시점 스냅샷으로 정산되고 베팅/투표는 라운드 종료 시
+                    // 통째로 리셋되므로 삭제 실익이 없고, 경주 중 horseSelectionCancelled broadcast는
+                    // 전 클라이언트의 트랙 DOM을 선택 미리보기로 갈아엎는다 (2026-08-21 전원 렌더링 정지 사고)
+                    const horseRaceRunning = gameState.isHorseRaceActive || gameState.pendingRaceResult;
                     let horseStateChanged = false;
-                    if (gameState.userHorseBets && gameState.userHorseBets[userName] !== undefined) {
-                        delete gameState.userHorseBets[userName];
-                        horseStateChanged = true;
+                    if (room.gameType === 'horse-race') {
+                        // 검증용 — 이탈 정리가 "실제로 실행된 시점"의 판정을 남긴다.
+                        // 로그가 아예 없으면 정리 자체가 안 돈 것(재접속/방 삭제)이므로 재현 조건 미충족.
+                        const hadBet = !!(gameState.userHorseBets && gameState.userHorseBets[userName] !== undefined);
+                        console.log(`[경마][이탈정리] ${userName} — 경주중=${!!horseRaceRunning} `
+                            + `(isHorseRaceActive=${!!gameState.isHorseRaceActive}, pendingRaceResult=${!!gameState.pendingRaceResult}), `
+                            + `베팅보유=${hadBet} → ${horseRaceRunning ? '베팅/투표 유지 + cancelled 미전송 (게이트 발동)' : '기존대로 정리'}`);
                     }
-                    if (gameState.userRankVotes && gameState.userRankVotes[userName] !== undefined) {
-                        delete gameState.userRankVotes[userName];
-                        horseStateChanged = true;
+                    if (!horseRaceRunning) {
+                        if (gameState.userHorseBets && gameState.userHorseBets[userName] !== undefined) {
+                            delete gameState.userHorseBets[userName];
+                            horseStateChanged = true;
+                        }
+                        if (gameState.userRankVotes && gameState.userRankVotes[userName] !== undefined) {
+                            delete gameState.userRankVotes[userName];
+                            horseStateChanged = true;
+                        }
                     }
                     if (horseStateChanged && room.gameType === 'horse-race') {
                         io.to(roomId).emit('horseSelectionCancelled', { userName });
