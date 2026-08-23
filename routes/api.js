@@ -5,6 +5,7 @@ const { getPool } = require('../db/pool');
 const { loadFrequentMenus, getMergedFrequentMenus, loadEmojiConfigBase, getMergedEmojiConfig } = require('../db/menus');
 const { getVisitorStats, getGameStatsByType, getRecentPlaysList } = require('../db/stats');
 const { resolveShortcode } = require('../utils/shortcode');
+const { renderFreeHtml } = require('../utils/og-meta');
 const { getServerById } = require('../db/servers');
 
 // /free shortcode rate limiter — IP당 분당 15회 (shortcode 무차별 대입 방지).
@@ -123,6 +124,8 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'pirate-multiplayer.html'));
     });
 
+    const freeHtmlPath = path.join(__dirname, '..', 'free.html');
+
     // /free — 메인 페이지 [바로 플레이]와 동일한 흐름.
     // dice-game-multiplayer.html이 path === '/free' 감지 시 자유 모드 자동 진입.
     app.get('/free', (req, res) => {
@@ -144,7 +147,18 @@ function setupRoutes(app) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-        res.sendFile(path.join(__dirname, '..', 'free.html'));
+
+        // 링크 미리보기(카톡/텔레그램 등)용 OG 메타를 방 정보로 교체해서 내려준다.
+        // 자유 방만 대상 — 서버 방은 renderFreeHtml이 기본 메타로 넘긴다.
+        const rooms = req.app.get('rooms') || {};
+        const roomId = resolveShortcode(shortcode);
+        const room = roomId ? rooms[roomId] : null;
+        try {
+            return res.type('html').send(renderFreeHtml(freeHtmlPath, { game, shortcode, room }));
+        } catch (e) {
+            console.warn('[/free/:game/:shortcode] OG 메타 주입 실패:', e.message);
+            return res.sendFile(freeHtmlPath);
+        }
     });
 
     // /{game}/:shortcode — 비공개/공개 서버 방 다이렉트 링크 진입 (게임 경로 직접 사용).
@@ -156,7 +170,8 @@ function setupRoutes(app) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
-            res.sendFile(path.join(__dirname, '..', 'free.html'));
+            // 서버 방은 방 이름·호스트를 미리보기에 노출하지 않는다 (기본 메타 유지).
+            res.sendFile(freeHtmlPath);
         });
     });
 
