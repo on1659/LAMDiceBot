@@ -346,7 +346,13 @@ function buildLadder(N, baseRungs, userRungsMap, nextId, pickedTops) {
             if (!rg || !Number.isInteger(rg.c) || rg.c < 0 || rg.c > N - 2) return;
             const yy = clampY(rg.y);
             if (yy === null) return;
-            union.push({ id: rg.id, c: rg.c, y: yy, slant: clampSlant(rg.slant), points: rg.points || null, user: true, owner });
+            // points는 깊은 복사 — union 항목을 resolveContacts가 in-place로 재배정(points[0]/[last] 교체)하므로,
+            // 원본을 참조 공유하면 ld.userRungs[owner][k].points가 실제로 바뀐다("내가 그린 선이 달라졌다"의 한 축).
+            union.push({
+                id: rg.id, c: rg.c, y: yy, slant: clampSlant(rg.slant),
+                points: rg.points ? rg.points.map(p => ({ x: p.x, y: p.y })) : null,
+                user: true, owner
+            });
         });
     });
     (baseRungs || []).forEach(rg => {

@@ -15,6 +15,14 @@
     --ladder-chat-bg: #fef3c7;     /* 밝은 amber, 모드 불변 */
     --ladder-chat-name: #92400e;   /* 진한 amber, 모드 불변 */
 
+    /* 레인 픽 배지 — 버튼 배경이 모드 불변(--bg-white는 다크 오버라이드 없음 / selected는 amber 그라데이션)이라
+       배지 색도 모드 불변으로 고정한다. --ladder-accent는 다크에서 밝은 노랑이 되어 흰 버튼 위 대비가 무너진다
+       (말풍선과 같은 이유). 남의 픽 = 밝은 칩, 내 픽 = 반전 칩으로 구분. */
+    --ladder-pick-bg: #fef3c7;        /* 밝은 amber, 모드 불변 */
+    --ladder-pick-text: #92400e;      /* 진한 amber, 모드 불변 */
+    --ladder-pick-me-bg: #92400e;     /* 내 픽 — 반전 */
+    --ladder-pick-me-text: #fffbeb;
+
     /* horse-race.css가 쓰는 var(--horse-*)를 ladder 색으로 alias */
     --horse-500: var(--ladder-500);
     --horse-600: var(--ladder-600);
@@ -138,6 +146,7 @@
     justify-content: center;
     gap: 2px;
     min-height: 48px;          /* 터치 타겟 ≥44px */
+    min-width: 0;              /* 긴 이름 배지가 그리드 트랙을 밀어내지 않게 */
     padding: 6px 2px;
     border: 2px solid var(--ladder-500);
     border-radius: 10px;
@@ -180,10 +189,45 @@
     line-height: 1;
     font-family: 'Jua', 'Segoe UI', sans-serif;
 }
+/* 이 칸을 고른 사람 칩 — 숫자만 두면 위 번호와 붙어 "1"+"2명" = "12명"으로 오독된다(C2).
+   번호와 시각적으로 분리되도록 알약 배경 + 명시 색 대비를 준다. 이름이 길면 말줄임(줄바꿈 금지).
+   pointer-events:none — 배지는 별도 클릭 타겟이 아니다(onLanePick은 버튼의 dataset.top에 의존). */
 .ladder-lane-count {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 2px;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 1px 6px;
+    border-radius: 999px;
     font-size: 11px;
     font-weight: 700;
-    opacity: 0.9;
+    line-height: 1.35;
+    background: var(--ladder-pick-bg);
+    color: var(--ladder-pick-text);
+    border: 1px solid rgba(var(--ladder-500-rgb), 0.45);
+    overflow: hidden;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* 이름만 말줄임 — 좁은 화면에서 줄어드는 건 이름이고, 인원수(+N)는 절대 잘리지 않는다 */
+.ladder-lane-pickname {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ladder-lane-more {
+    flex: 0 0 auto;
+}
+/* 내 픽이 포함된 칸 — 남의 픽과 한눈에 구분되게 반전 칩 */
+.ladder-lane-count.is-me {
+    background: var(--ladder-pick-me-bg);
+    color: var(--ladder-pick-me-text);
+    border-color: var(--ladder-pick-me-bg);
 }
 
 /* 픽 안내 + 빌드 힌트 */
@@ -211,8 +255,10 @@
     .ladder-bar-spacer { display: none; }
     .ladder-setup-main { flex: 1 1 100%; }
     .ladder-shop-slot { flex: 1 1 100%; justify-content: center; }
-    .ladder-lane-btn { min-height: 44px; }
+    .ladder-lane-btn { min-height: 44px; padding: 5px 1px; }
     .ladder-lane-num { font-size: 17px; }
+    /* 375px 폭 기준 버튼 ~55px — 배지가 눌리지 않게 여백/글자를 한 단계 줄인다(C4) */
+    .ladder-lane-count { font-size: 10px; padding: 1px 4px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════

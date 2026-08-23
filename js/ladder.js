@@ -353,6 +353,7 @@ function toggleReady() { ReadyModule.toggleReady(); }
 function updateReadyButton() { ReadyModule.updateReadyButton(); }
 function renderReadyUsers() { ReadyModule.renderReadyUsers(); }
 function closeResultOverlay() {
+    if (typeof ladderClearResultAutoClose === 'function') ladderClearResultAutoClose();   // 손으로 닫았으면 예약된 자동 닫기는 불필요
     const overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
 }
@@ -411,6 +412,11 @@ function ladderEnterRoom(data, asHost) {
     // 픽 UI 즉시 렌더 — 첫 ladder:rungsUpdated 도착 전에도 레인/캔버스가 보이게.
     ladderPhase = 'idle';
     document.body.classList.remove('race-running'); // 재입장(reconnect 포함)은 항상 비-연출 화면 — 잔존 시 스티키 광고 영구 숨김 (C-6)
+    // 재입장은 연출 밖 화면 — 지난 라운드의 결과 예약/타임라인이 남아 있으면 끊는다.
+    ladderClearResultPopupTimer();
+    ladderResultShown = false;
+    ladderRevealStartAt = 0; ladderRevealTotalMs = 0;
+    ladderLiving = null;
     renderLaneButtons();
     updateStartButton();
     ladderBindCanvas();
@@ -550,6 +556,21 @@ var ladderRevealTimers = [];
 var ladderRevealRAF = null;
 var ladderAnimRAF = null;
 var ladderMutationRAF = null;
+// 결과 오버레이 표시 타이머 — 연출 타이머 배열과 분리(A3).
+// 같은 틱에 도착하는 ladder:tournamentRound의 clearLadderRevealTimers()가 이 타이머까지 죽여
+// "재대결 사유를 설명하는 결과 오버레이를 아무도 못 보는" 결함이 있었다. 수명 주체를 분리한다.
+var ladderResultPopupTimer = null;
+var ladderResultShown = false;   // 이번 라운드 결과 오버레이를 이미 띄웠는가(중복/유실 판정)
+// 재대결 결과 오버레이 자동 닫기 — 결과는 반드시 보여주되(A3), 아무도 안 닫아 라운드가 멎지 않게 한다.
+// 최종 결과(finished)에는 걸지 않는다: 그건 게임의 끝이라 사용자가 직접 닫는 게 맞다.
+// ⚠️ 연출 lockstep(ladderRevealDelay)과 무관한 순수 UI 대기값이다 — 서버와 맞출 필요 없다.
+var LADDER_RESULT_AUTOCLOSE_MS = 5000;
+var ladderResultAutoCloseTimer = null;
+// 리빌 타임라인 원점/총길이 — 백그라운드 탭 복귀 catch-up(A1)의 벽시계 기준.
+var ladderRevealStartAt = 0;
+var ladderRevealTotalMs = 0;
+// 하강 실행 상태 { N, paths, tokenProgress, unit } — seek이 뒤로 되감지 않게 현재 세그먼트 비교용.
+var ladderLiving = null;
 // 당첨 칸 섞기 연출 상태 — active 동안 바닥 마커/버튼 표시가 이 slot을 따라간다(ladderWinSlot 오버라이드).
 var ladderWinShuffle = { active: false, slot: -1 };
 // 종료(finished) 보드 영속 — 마지막 하강 프레임을 저장해 finished 동안 재렌더가 idle 빌드를 덮어쓰지 않게.
@@ -566,6 +587,28 @@ function clearLadderRevealTimers() {
     if (ladderMutationRAF) { cancelAnimationFrame(ladderMutationRAF); ladderMutationRAF = null; }
     if (ladderBlinkRAF) { cancelAnimationFrame(ladderBlinkRAF); ladderBlinkRAF = null; }
     ladderWinShuffle.active = false;   // 섞기 중단 시 stale 오버라이드 제거(모든 정리 경로 공통)
+}
+// 결과 팝업 타이머는 연출 타이머와 수명이 다르다 — 라운드 전환(reveal/roundReset)에서만 취소한다(A3).
+function ladderClearResultPopupTimer() {
+    if (ladderResultPopupTimer) { clearTimeout(ladderResultPopupTimer); ladderResultPopupTimer = null; }
+    ladderClearResultAutoClose();   // 자동 닫기도 라운드 전환에서 함께 정리 — 안 그러면 다음 라운드 오버레이를 닫아버린다
+}
+function ladderClearResultAutoClose() {
+    if (ladderResultAutoCloseTimer) { clearTimeout(ladderResultAutoCloseTimer); ladderResultAutoCloseTimer = null; }
+}
+function ladderScheduleResultOverlay(delayMs) {
+    ladderClearResultPopupTimer();
+    ladderResultPopupTimer = setTimeout(function () {
+        ladderResultPopupTimer = null;
+        // 서버 ladder:gameEnd가 아직 안 왔으면 여기서 띄우지 않는다 — payload 없이 띄우면 빈 결과가 된다.
+        // (연출 종료와 서버 종료 타이머가 같은 시각이라 도착 순서가 갈린다.) gameEnd 핸들러가 표시를 이어받는다.
+        if (!ladderPendingResult) {
+            // 표시는 미루더라도 연출은 끝났다 — 진행 중 표식은 여기서 정리(C-6: 잔존 시 스티키 광고 영구 숨김).
+            document.body.classList.remove('race-running');
+            return;
+        }
+        ladderShowResultOverlay();
+    }, Math.max(0, delayMs || 0));
 }
 
 // 기둥 col의 x px
@@ -837,22 +880,48 @@ function renderLadderStatic() {
             ctx.fill();
         }
     }
-    // 같은 top에 여럿이면 숫자 배지
-    ctx.font = "bold 11px 'Jua', sans-serif"; ctx.fillStyle = '#fff';
+    // 같은 top에 여럿이면 숫자 배지 — 토큰 원(r=8)/스킨 이모지와 같은 좌표에 겹쳐 그리면
+    // 이모지 장착 시 판독 불가가 된다(C3). 우상단으로 오프셋 + 자체 배경 원 위에 그린다.
     for (var s2 = 0; s2 < N; s2++) {
-        if (topCounts[s2] > 1) ctx.fillText('×' + topCounts[s2], laneX(W, s2, N), topY - 2);
+        if (topCounts[s2] <= 1) continue;
+        var bx = laneX(W, s2, N) + 13;
+        var by = topY - 13;
+        ctx.beginPath();
+        ctx.fillStyle = (ladderUserTops[currentUser] === s2) ? '#dc2626' : '#4b5563';
+        ctx.arc(bx, by, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.font = "bold 11px 'Jua', sans-serif"; ctx.fillStyle = '#fff';
+        ctx.fillText('×' + topCounts[s2], bx, by);
     }
     ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
 }
 
+// top별 픽한 사람 이름 배열 — 이번 라운드 참가자만(C1).
+// ladderUserTops의 모든 키를 세면 준비를 해제한 사람/이번 sub-round 비대상자의 stale 픽까지 잡힌다.
+function ladderTopPickers() {
+    var out = [];
+    for (var i = 0; i < ladderNumColumns; i++) out.push([]);
+    var seen = {};
+    ladderRoundParticipants().forEach(function (n) {
+        if (seen[n]) return;
+        seen[n] = true;
+        var t = (ladderUserTops || {})[n];
+        if (typeof t === 'number' && t >= 0 && t < out.length) out[t].push(n);
+    });
+    return out;
+}
 // top별 픽 인원 수.
 function ladderTopPickCounts() {
-    var counts = new Array(ladderNumColumns).fill(0);
-    Object.keys(ladderUserTops || {}).forEach(function (n) {
-        var t = ladderUserTops[n];
-        if (typeof t === 'number' && t >= 0 && t < counts.length) counts[t]++;
-    });
-    return counts;
+    return ladderTopPickers().map(function (names) { return names.length; });
+}
+
+// 레인 배지 라벨 — 1명이면 이름 그대로, 여럿이면 "이름 +N"(축약). 내가 껴 있으면 내 이름을 앞에 둔다.
+// 폭 초과분은 CSS ellipsis가 처리(줄바꿈 없음). 전체 명단은 title 속성으로 보강.
+// 배지에 앞세울 이름 — 내가 고른 칸이면 내 이름을 앞에 둬 내 픽임을 즉시 알아보게 한다.
+function ladderPickerHead(names) {
+    if (!names.length) return '';
+    return (names.indexOf(currentUser) !== -1) ? currentUser : names[0];
 }
 
 // ── 6택1 lane-pick UI (경마식) — laneButtonsRow에 6 버튼 렌더 ──
@@ -860,7 +929,7 @@ function renderLaneButtons() {
     var row = document.getElementById('laneButtonsRow');
     if (!row) return;
     var N = LADDER_COLUMNS;
-    var counts = ladderTopPickCounts();
+    var pickers = ladderTopPickers();
     var myTop = ladderUserTops[currentUser];
     var canPick = (ladderPhase === 'idle') && ladderAmIInRound();
     row.innerHTML = '';
@@ -876,11 +945,27 @@ function renderLaneButtons() {
         num.className = 'ladder-lane-num';
         num.textContent = (i + 1);
         btn.appendChild(num);
-        // 이 top을 고른 인원 수 표시(여럿 공유 시)
-        if (counts[i] > 0) {
+        // 이 top을 고른 사람 표시 — 숫자만 쓰면 번호와 붙어 "1"+"2명" = "12명"으로 오독된다(C2).
+        // 이름 칩으로 바꾸고 내 픽은 별도 클래스로 구분. 배지는 CSS pointer-events:none —
+        // 클릭은 항상 버튼(e.currentTarget.dataset.top)으로만 들어간다(레인 클릭 계약 보존).
+        var names = pickers[i] || [];
+        if (names.length) {
             var badge = document.createElement('span');
             badge.className = 'ladder-lane-count';
-            badge.textContent = counts[i] + '명';
+            if (names.indexOf(currentUser) !== -1) badge.classList.add('is-me');
+            // 이름과 "+N"을 분리한다 — 한 덩어리면 좁은 화면 말줄임이 끝을 잘라 하필 인원수가 먼저
+            // 사라진다("스테파니김 +2" → "스테…"). 이름만 줄고 인원수는 항상 남아야 한다.
+            var nameEl = document.createElement('span');
+            nameEl.className = 'ladder-lane-pickname';
+            nameEl.textContent = ladderPickerHead(names);   // textContent만(XSS 금지 계약)
+            badge.appendChild(nameEl);
+            if (names.length > 1) {
+                var moreEl = document.createElement('span');
+                moreEl.className = 'ladder-lane-more';
+                moreEl.textContent = '+' + (names.length - 1);
+                badge.appendChild(moreEl);
+            }
+            btn.title = names.join(', ');   // 배지는 pointer-events:none이라 툴팁이 안 뜬다 — 히트테스트되는 버튼에 붙인다
             btn.appendChild(badge);
         }
         btn.addEventListener('click', onLanePick);
@@ -1541,10 +1626,14 @@ function ladderRunWinShuffle(prevSlot, finalSlot, done) {
     }
     ladderRevealRAF = requestAnimationFrame(frame);
 }
-// 인지창: 전체 막대기(initial 보드)를 동시에 보여준다. RECOGNITION_MS 채움(lockstep).
+// 인지창: 스크램블 *전* 사다리(remaining + erased)를 그대로 보여준다. RECOGNITION_MS 채움(lockstep).
+// 이전에는 initialRungs(= remaining + added)를 그려서, 이어지는 사라짐 단계(remaining + erased)로 넘어갈 때
+// added가 통째로 증발하고 erased가 부활하는 렌더 팝이 났다(B). 캡션("모두가 그린 사다리")과도 모순.
+// ladderDrawScramble(0, 0)은 사라짐 단계의 첫 프레임과 byte-identical이라 경계에서 팝이 0이 된다.
+// (ladderRun.rungs/rungPolylines는 initialRungs 그대로 유지 — 하강 path와 mutation replay가 의존.)
 function ladderRunRecognition(done) {
     setGameStatus('👀 모두가 그린 사다리를 확인하세요...', 'active');
-    ladderDrawFrame([], []);   // 초기 보드 전체(토큰 없음)
+    ladderDrawScramble(0, 0);   // 스크램블 전 union(remaining + erased), 토큰 없음
     ladderRevealTimers.push(setTimeout(done, LADDER_RECOGNITION_MS));
 }
 // 사라짐: glow → 빛 쓸기. 대상 0개여도 ERASE_MS 채움(lockstep). 캡션 "사다리 사라집니다".
@@ -1621,12 +1710,86 @@ function ladderRunCountdown(done) {
     }, LADDER_COUNTDOWN_MS));
 }
 
+// ── 하강 구간 타임라인(세그먼트) — 백그라운드 탭 복귀 seek(A1)의 좌표계 ──
+// 시퀀스: [solo0, mut0, solo1, mut1, …, solo(N-3), mut(N-3), pair]. N<=2면 세그먼트 1개.
+// 합 = descentSlots×TOKEN_SLOT + mutations×MUTATION — ladderRevealDelay(N)의 하강 항과 동일(타이밍 상수 불변).
+function ladderDescentSegments(N) {
+    var segs = [];
+    if (N <= 0) return segs;
+    if (N === 1) { segs.push({ kind: 'single', k: 0, ms: LADDER_TOKEN_SLOT_MS }); return segs; }
+    if (N === 2) { segs.push({ kind: 'pair', k: -1, ms: LADDER_TOKEN_SLOT_MS }); return segs; }
+    for (var k = 0; k <= N - 3; k++) {
+        segs.push({ kind: 'solo', k: k, ms: LADDER_TOKEN_SLOT_MS });
+        segs.push({ kind: 'mut', k: k, ms: LADDER_MUTATION_MS });
+    }
+    segs.push({ kind: 'pair', k: -1, ms: LADDER_TOKEN_SLOT_MS });
+    return segs;
+}
+// 하강 시작으로부터 tDescent(ms) 지점의 세그먼트 인덱스/오프셋. 하강 구간을 지났으면 null.
+function ladderDescentUnitAt(N, tDescent) {
+    var segs = ladderDescentSegments(N);
+    var acc = 0;
+    for (var i = 0; i < segs.length; i++) {
+        if (tDescent < acc + segs[i].ms) return { unit: i, offset: tDescent - acc };
+        acc += segs[i].ms;
+    }
+    return null;
+}
+// 리빌 시작부터 하강 시작까지(= 섞기 + 인지창 + 사라짐 + 그리기 + 카운트다운).
+function ladderPreDescentMs() {
+    return LADDER_WINSLOT_SHUFFLE_MS + LADDER_RECOGNITION_MS + LADDER_ERASE_MS + LADDER_DRAW_MS + LADDER_COUNTDOWN_MS;
+}
+// 벽시계 기준 "지금 하강이 있어야 할 지점". 선행 단계가 숨김 탭에서 늦게 끝났으면 그만큼 앞당겨 시작한다.
+function ladderDescentSeekFromClock() {
+    if (!ladderRevealStartAt) return 0;
+    return Math.max(0, (Date.now() - ladderRevealStartAt) - ladderPreDescentMs());
+}
+// 변형 1스텝을 애니 없이 보드에 반영(멱등 — id 기준). catch-up/seek 전용.
+// 서버 simulateMutation은 이미 착지한 토큰의 landings를 이후 변형에서 보존하므로,
+// 스크립트를 통째로 선반영해도 지나간 토큰의 착지칸은 바뀌지 않는다.
+function ladderApplyMutationStep(step) {
+    if (!step || step.type === 'none') return;
+    var i;
+    if (step.type === 'add') {
+        if (!step.rung) return;
+        var rg = ladderNormalizeRung(step.rung);
+        for (i = 0; i < ladderRun.rungs.length; i++) {
+            if (ladderRun.rungs[i].id === rg.id) return;   // 애니가 이미 반영함
+        }
+        ladderRun.rungs.push(rg);
+        ladderRun.rungs.sort(function (a, b) { return a.y - b.y; });
+        ladderRun.rungPolylines = ladderRun.rungs.map(ladderRungPolyline);
+        return;
+    }
+    for (i = 0; i < ladderRun.rungs.length; i++) {
+        if (ladderRun.rungs[i].id === step.rungId) {
+            ladderRun.rungs.splice(i, 1);
+            ladderRun.rungPolylines.splice(i, 1);
+            return;
+        }
+    }
+}
+// 건너뛴 토큰의 경로 끝점을 서버 landings에 맞춘다 — 앞당겨도 화면이 결과를 설명해야 한다(불변조건 4).
+function ladderSnapPathToLanding(path, k) {
+    var land = (ladderRun.landings || [])[k];
+    if (typeof land !== 'number' || land < 0 || land >= ladderNumColumns) return;
+    var pts = path && path.pts;
+    if (!pts || !pts.length) return;
+    var last = pts[pts.length - 1];
+    var x = laneX(LADDER_CANVAS_W, land, ladderNumColumns);
+    if (Math.abs(last.x - x) > 0.5) pts[pts.length - 1] = { x: x, y: last.y };
+}
+
 // living-rungs 오케스트레이션: 솔로 토큰 0..N-3(각 사이 변형) → 마지막 쌍 동시 하강 → 결과.
-function ladderRunLiving() {
+// seekMs > 0이면 하강 구간의 그 지점부터 시작한다(탭 복귀 catch-up) — 지나간 세그먼트는
+// 순서대로 결과 상태만 선반영(변형 적용 + 토큰 착지)해 보드/착지칸이 정상 재생과 동일해진다.
+function ladderRunLiving(seekMs) {
     var N = ladderNumColumns;
     if (N <= 0) { renderLadderStatic(); return; }
     var tokenProgress = new Array(N).fill(0);
     var paths = new Array(N);
+    var segs = ladderDescentSegments(N);
+    ladderLiving = { N: N, paths: paths, tokenProgress: tokenProgress, unit: -1 };
 
     function buildPathFor(k) {
         paths[k] = {
@@ -1641,83 +1804,72 @@ function ladderRunLiving() {
             }
         }
     }
-    function descendSolo(k) {
+    // seek으로 건너뛴 토큰 — 착지 상태로 즉시 확정. built는 항상 0..builtCount-1 조밀(ladderDrawFrame이 위치=칸 가정).
+    var builtCount = 0;
+    function settlePathFor(k) {
         buildPathFor(k);
-        setGameStatus('🪜 ' + (k + 1) + '번 칸이 내려갑니다... (' + (k + 1) + '/' + N + ')', 'active');
+        ladderSnapPathToLanding(paths[k], k);
+        tokenProgress[k] = 1;
+        if (k + 1 > builtCount) builtCount = k + 1;
+    }
+    function descendTokens(cols, label, offsetMs, next) {
+        cols.forEach(buildPathFor);
+        var visibleUpto = cols[cols.length - 1] + 1;
+        setGameStatus(label, 'active');
         playLadderSound('ladder_descend', 0.6);
-        var start = performance.now();
+        var now0 = performance.now();
+        var start = now0 - Math.max(0, offsetMs || 0);
         function frame(now) {
             var t = Math.min(1, (now - start) / LADDER_TOKEN_SLOT_MS);
-            tokenProgress[k] = t;
-            ladderDrawFrame(paths.slice(0, k + 1), tokenProgress);
+            cols.forEach(function (c) { tokenProgress[c] = t; });
+            ladderDrawFrame(paths.slice(0, visibleUpto), tokenProgress);
             if (t >= 1) {
-                tokenProgress[k] = 1;
-                ladderDrawFrame(paths.slice(0, k + 1), tokenProgress);
+                cols.forEach(function (c) { tokenProgress[c] = 1; });
+                ladderDrawFrame(paths.slice(0, visibleUpto), tokenProgress);
                 ladderAnimRAF = null;
-                if (k < N - 3) mutateThen(k, function () { descendSolo(k + 1); });
-                else mutateThen(k, descendPair);
+                next();
                 return;
             }
             ladderAnimRAF = requestAnimationFrame(frame);
         }
         ladderAnimRAF = requestAnimationFrame(frame);
     }
-    function descendPair() {
-        var a = N - 2, b = N - 1;
-        buildPathFor(a); buildPathFor(b);
-        setGameStatus('🪜 마지막 두 칸이 동시에 내려갑니다... (' + N + '/' + N + ')', 'active');
-        playLadderSound('ladder_descend', 0.6);
-        var start = performance.now();
-        function frame(now) {
-            var t = Math.min(1, (now - start) / LADDER_TOKEN_SLOT_MS);
-            tokenProgress[a] = t; tokenProgress[b] = t;
-            ladderDrawFrame(paths.slice(0, N), tokenProgress);
-            if (t >= 1) {
-                tokenProgress[a] = 1; tokenProgress[b] = 1;
-                ladderDrawFrame(paths.slice(0, N), tokenProgress);
-                ladderAnimRAF = null;
-                finishLiving(paths, tokenProgress);
-                return;
-            }
-            ladderAnimRAF = requestAnimationFrame(frame);
+    function runSegment(i, offsetMs) {
+        if (i >= segs.length) { finishLiving(paths, tokenProgress); return; }
+        ladderLiving.unit = i;
+        var sg = segs[i];
+        var next = function () { runSegment(i + 1, 0); };
+        if (sg.kind === 'mut') {
+            ladderRunMutation(ladderRun.mutationScript[sg.k], paths, tokenProgress, sg.k, next, offsetMs);
+            return;
         }
-        ladderAnimRAF = requestAnimationFrame(frame);
-    }
-    function descendSingleThenFinish(k) {
-        buildPathFor(k);
-        setGameStatus('🪜 ' + (k + 1) + '번 칸이 내려갑니다... (' + (k + 1) + '/' + N + ')', 'active');
-        playLadderSound('ladder_descend', 0.6);
-        var start = performance.now();
-        function frame(now) {
-            var t = Math.min(1, (now - start) / LADDER_TOKEN_SLOT_MS);
-            tokenProgress[k] = t;
-            ladderDrawFrame(paths.slice(0, k + 1), tokenProgress);
-            if (t >= 1) {
-                tokenProgress[k] = 1;
-                ladderDrawFrame(paths.slice(0, k + 1), tokenProgress);
-                ladderAnimRAF = null;
-                finishLiving(paths, tokenProgress);
-                return;
-            }
-            ladderAnimRAF = requestAnimationFrame(frame);
+        if (sg.kind === 'pair') {
+            descendTokens([N - 2, N - 1], '🪜 마지막 두 칸이 동시에 내려갑니다... (' + N + '/' + N + ')', offsetMs, next);
+            return;
         }
-        ladderAnimRAF = requestAnimationFrame(frame);
-    }
-    function mutateThen(k, next) {
-        var step = ladderRun.mutationScript[k];
-        ladderRunMutation(step, paths, tokenProgress, k, next);
+        descendTokens([sg.k], '🪜 ' + (sg.k + 1) + '번 칸이 내려갑니다... (' + (sg.k + 1) + '/' + N + ')', offsetMs, next);
     }
 
-    ladderDrawFrame([], tokenProgress);   // 현재 보드(초기 보드)만 1프레임(토큰 없음)
-    if (N === 1) { descendSingleThenFinish(0); }
-    else if (N === 2) { descendPair(); }
-    else { descendSolo(0); }
+    // seek 해석 — 지나간 세그먼트를 타임라인 순서대로 선반영(변형 → 토큰 착지 → 변형 …).
+    var seek = ladderDescentUnitAt(N, Math.max(0, seekMs || 0));
+    var startUnit = seek ? seek.unit : segs.length;
+    var startOffset = seek ? seek.offset : 0;
+    for (var pi = 0; pi < startUnit; pi++) {
+        var sg0 = segs[pi];
+        if (sg0.kind === 'mut') ladderApplyMutationStep(ladderRun.mutationScript[sg0.k]);
+        else if (sg0.kind === 'pair') { settlePathFor(N - 2); settlePathFor(N - 1); }
+        else settlePathFor(sg0.k);
+    }
+    ladderDrawFrame(paths.slice(0, builtCount), tokenProgress);   // 현재 보드 + 이미 착지한 토큰 1프레임
+    runSegment(startUnit, startOffset);
 }
 
 // living-rungs 변형 1단계 — add(펜 구슬), remove(glow→빛쓸기), none(정지 대기). 전부 LADDER_MUTATION_MS 안(lockstep).
-function ladderRunMutation(step, paths, tokenProgress, kArrived, done) {
+// offsetMs > 0이면 그만큼 이미 지난 것으로 보고 중간부터 재생한다(탭 복귀 seek — A1).
+function ladderRunMutation(step, paths, tokenProgress, kArrived, done, offsetMs) {
     var visible = paths.slice(0, kArrived + 1);
-    var start = performance.now();
+    var now0 = performance.now();
+    var start = now0 - Math.max(0, offsetMs || 0);
     var canvas = document.getElementById('ladderCanvas');
     var ctx = canvas && canvas.getContext('2d');
 
@@ -1726,7 +1878,7 @@ function ladderRunMutation(step, paths, tokenProgress, kArrived, done) {
             ladderDrawFrame(visible, tokenProgress);
             if (now - start >= LADDER_MUTATION_MS) { ladderMutationRAF = null; done(); return; }
             ladderMutationRAF = requestAnimationFrame(frameN);
-        })(start);
+        })(now0);
         return;
     }
 
@@ -1755,7 +1907,7 @@ function ladderRunMutation(step, paths, tokenProgress, kArrived, done) {
                 return;
             }
             ladderMutationRAF = requestAnimationFrame(frameA);
-        })(start);
+        })(now0);
         return;
     }
 
@@ -1767,7 +1919,7 @@ function ladderRunMutation(step, paths, tokenProgress, kArrived, done) {
             ladderDrawFrame(visible, tokenProgress);
             if (now - start >= LADDER_MUTATION_MS) { ladderMutationRAF = null; done(); return; }
             ladderMutationRAF = requestAnimationFrame(frameR0);
-        })(start);
+        })(now0);
         return;
     }
     var victimRg = ladderRun.rungs[idx];
@@ -1812,19 +1964,83 @@ function ladderRunMutation(step, paths, tokenProgress, kArrived, done) {
             return;
         }
         ladderMutationRAF = requestAnimationFrame(frameR);
-    })(start);
+    })(now0);
 }
 
 // 모든 토큰 하강 + 변형 종료 → finished 보드 영속 + 결과 팝업.
-function finishLiving(paths, tokenProgress) {
+// holdMs 생략 시 LADDER_FINAL_HOLD(정상 재생). catch-up으로 앞당겨 도달했으면 남은 시간만 기다린다.
+// 결과 타이머는 ladderRevealTimers가 아니라 전용 핸들에 둔다 — 같은 틱의 tournamentRound가 죽이면
+// 재대결 사유를 설명하는 오버레이가 통째로 유실된다(A3).
+function finishLiving(paths, tokenProgress, holdMs) {
     ladderDrawFrame(paths, tokenProgress);
     ladderFinishedPaths = paths;
     ladderFinishedProgress = tokenProgress.slice();
     setGameStatus('🎊 결과 발표!', 'finished');
     playLadderSound('ladder_result', 1.0);
-    var popupTimer = setTimeout(ladderShowResultOverlay, LADDER_FINAL_HOLD);
-    ladderRevealTimers.push(popupTimer);
+    ladderScheduleResultOverlay(holdMs == null ? LADDER_FINAL_HOLD : holdMs);
 }
+
+// 섞기 RAF가 숨김 탭에서 얼어 settle()을 못 밟았을 때의 보정 — 최종 winSlot 확정 + 카운트다운 오버레이 정리.
+// jump(A2)와 seek(A1) 양쪽 진입점에서 호출해야 한다. 한쪽만 보정하면 나머지 경로가 stale winSlot을 들고 가
+// 바닥 "당첨" 링·레인 is-win 표시가 실제 착지칸과 어긋난다(2026-07-02 "화면이 결과를 설명해야 한다" 계약).
+function ladderSettleRevealChrome() {
+    var N = ladderNumColumns;
+    if (typeof ladderRun.winSlot === 'number' && ladderRun.winSlot >= 0 && ladderRun.winSlot < N) {
+        ladderWinSlot = ladderRun.winSlot;
+    }
+    ladderWinShuffle.active = false;
+    var overlay = document.getElementById('ladderScrambleOverlay');
+    if (overlay) { overlay.textContent = ''; overlay.classList.remove('show'); }
+    renderLaneButtons();
+}
+
+// 서버가 이미 라운드 종료를 알렸는데 로컬 연출이 뒤처졌을 때 — 남은 변형을 전부 반영하고
+// landings대로 최종 프레임을 렌더한 뒤 결과로 넘어간다(A2). 화면이 결과를 설명해야 한다는
+// 2026-07-02 신뢰 계약 때문에 "결과만 띄우고 캔버스는 버리는" 처리는 금지.
+function ladderJumpToFinal(holdMs) {
+    var N = ladderNumColumns;
+    if (ladderPhase !== 'revealing' || N <= 0) return false;
+    clearLadderRevealTimers();   // 진행 중 연출 RAF/타이머 중단 (결과 타이머는 별도 핸들이라 생존)
+    ladderSettleRevealChrome();  // 섞기 미정착 시 최종 winSlot 확정 + "시작!" 오버레이 정리
+    (ladderRun.mutationScript || []).forEach(ladderApplyMutationStep);   // 멱등 — 이미 반영된 스텝은 무시
+    var paths = new Array(N);
+    var tokenProgress = new Array(N).fill(1);
+    for (var k = 0; k < N; k++) {
+        paths[k] = {
+            startCol: k,
+            color: LADDER_TOKEN_COLORS[k % LADDER_TOKEN_COLORS.length],
+            pts: ladderBuildPath(k)
+        };
+        ladderSnapPathToLanding(paths[k], k);
+    }
+    ladderLiving = null;
+    finishLiving(paths, tokenProgress, holdMs);   // 레인 버튼은 ladderSettleRevealChrome에서 이미 갱신됨
+    return true;
+}
+
+// ── 백그라운드 탭 복귀 catch-up (A1) ──
+// 리빌 연출은 전부 RAF 체인이라 숨김 탭에서 정지하는데 서버 endTimeout은 그대로 발화한다.
+// 복귀 시 벽시계 위치로 재동기하지 않으면 이미 끝난 게임의 하강이 멈춘 지점부터 재생된다.
+// (js/horse-race.js의 visibilitychange catch-up/reconcile 패턴을 사다리 세그먼트 타임라인에 맞춘 것.)
+function ladderOnVisibilityChange() {
+    if (document.hidden) return;
+    if (ladderPhase !== 'revealing' || !ladderRevealStartAt) return;
+    var elapsed = Date.now() - ladderRevealStartAt;
+    if (elapsed >= ladderRevealTotalMs - LADDER_FINAL_HOLD) {
+        // 하강이 끝나 있어야 할 시각 — 최종 프레임으로 점프하고 남은 홀드만 기다린다.
+        if (!ladderFinishedPaths) ladderJumpToFinal(Math.max(0, ladderRevealTotalMs - elapsed));
+        return;
+    }
+    var pre = ladderPreDescentMs();
+    if (elapsed < pre) return;   // 하강 전 구간은 setTimeout 기반이라 자체 수렴 — 개입하지 않는다
+    var target = ladderDescentUnitAt(ladderNumColumns, elapsed - pre);
+    if (!target) return;
+    if (ladderLiving && target.unit <= ladderLiving.unit) return;   // 뒤로 되감지 않는다
+    clearLadderRevealTimers();
+    ladderSettleRevealChrome();   // 섞기 RAF가 얼어 settle()을 못 밟았을 수 있다 — jump 경로와 동일하게 보정
+    ladderRunLiving(elapsed - pre);
+}
+document.addEventListener('visibilitychange', ladderOnVisibilityChange);
 
 // desync 가드용 — path 마지막 점 x → 가장 가까운 칸 인덱스(isLocalhost에서만 호출).
 function ladderPathEndColumn(pts) {
@@ -1890,6 +2106,15 @@ function ladderShowResultOverlay() {
         }
     }
     overlay.classList.add('visible');
+    ladderResultShown = true;   // 이번 라운드 결과는 실제로 노출됨(tournamentRound 보장 표시의 판정 기준)
+    // 재대결 안내는 읽을 시간만 주고 스스로 닫힌다 — 누가 방치해도 다음 라운드가 멎지 않게.
+    ladderClearResultAutoClose();
+    if (!finished) {
+        ladderResultAutoCloseTimer = setTimeout(function () {
+            ladderResultAutoCloseTimer = null;
+            closeResultOverlay();
+        }, LADDER_RESULT_AUTOCLOSE_MS);
+    }
 }
 
 // reveal 시작 — payload 저장 + 연출 집합 구성 + 오케스트레이션
@@ -1904,6 +2129,11 @@ function ladderStartReveal(data) {
     if (typeof data.winSlotPrev === 'number') ladderWinSlot = data.winSlotPrev;
     // (winSlotPrev 부재 시 기존 로컬 값 유지 — 빌드 중 받은 winSlot이 곧 시작점)
     closeResultOverlay();
+    // 새 라운드 — 지난 라운드의 결과 예약/표시 상태를 확실히 끊는다(stale 결과 재노출 방지).
+    ladderClearResultPopupTimer();
+    ladderResultShown = false;
+    ladderPendingResult = null;
+    ladderLiving = null;
     ladderFinishedPaths = null; ladderFinishedProgress = null;
     if (data.colorIndex) ladderColorIndex = data.colorIndex;
     if (data.userTops) ladderUserTops = data.userTops;
@@ -1952,6 +2182,10 @@ function ladderStartReveal(data) {
     var N = ladderNumColumns;
     if (N === 0) { renderLadderStatic(); return; }
 
+    // 타임라인 원점/총길이 — 탭 복귀 catch-up(A1)이 "지금 어디까지 재생됐어야 하는지" 판단하는 기준.
+    ladderRevealStartAt = Date.now();
+    ladderRevealTotalMs = ladderRevealDelay(N);
+
     // 오케스트레이션: 당첨 칸 섞기 → 인지창 → 사라짐(erase) → 서버 그리기(draw) → 카운트다운 → living descent → 결과.
     // 합 = WINSLOT_SHUFFLE + RECOGNITION + ERASE + DRAW + COUNTDOWN + descentSlots×SLOT + mutations×MUTATION + FINAL_HOLD = ladderRevealDelay(N) (lockstep).
     ladderRunWinShuffle(ladderWinSlot, winSlotFinal, function () {
@@ -1959,7 +2193,8 @@ function ladderStartReveal(data) {
             ladderRunErase(function () {
                 ladderRunDraw(function () {
                     ladderRunCountdown(function () {
-                        ladderRunLiving();
+                        // 선행 단계가 숨김 탭에서 늦게 끝났으면 그 지연만큼 하강을 앞당겨 시작(벽시계 동기).
+                        ladderRunLiving(ladderDescentSeekFromClock());
                     });
                 });
             });
@@ -1979,6 +2214,14 @@ socket.on('ladder:gameEnd', function (data) {
     ladderPendingResult = data || null;
     if (data) {
         ladderRound = data.round;
+    }
+    // A2: 서버가 이미 종료를 알렸는데 로컬 연출이 남아 있으면(백그라운드 탭 RAF 정지·프레임 드랍 등)
+    //     최종 프레임까지 앞당긴 뒤 결과로 넘어간다. 앞당겨도 landings대로 최종 프레임은 반드시 렌더된다.
+    if (ladderPhase === 'revealing' && !ladderFinishedPaths) {
+        ladderJumpToFinal(0);
+    } else if (!ladderResultShown && !ladderResultPopupTimer) {
+        // 연출은 끝났는데 예약된 표시가 없다(타이머가 이미 정리됨) — 결과 유실 방지로 즉시 표시.
+        ladderShowResultOverlay();
     }
     updateStartButton();
 });
@@ -2005,11 +2248,17 @@ socket.on('ladder:tournamentRound', function (data) {
     ladderLoserPool = (data.loserPool || []).slice();
     if (typeof data.round === 'number') ladderRound = data.round;
     if (typeof data.winSlot === 'number') ladderWinSlot = data.winSlot;
-    closeResultOverlay();
+    // A3: 이 이벤트는 ladder:gameEnd와 같은 서버 틱에 emit된다 → 예전에는 여기서 closeResultOverlay() +
+    //     clearLadderRevealTimers()가 결과 팝업 타이머를 죽여 "재대결 사유를 아무도 못 보는" 상태가 됐다.
+    //     이제 빌드로 전환하기 전에 결과 오버레이를 먼저 보장 표시한다(닫기는 사용자 몫 — 오버레이에 버튼 있음).
+    ladderClearResultPopupTimer();
+    if (!ladderResultShown) ladderShowResultOverlay();
+    ladderRevealStartAt = 0; ladderRevealTotalMs = 0;
+    ladderLiving = null;
     ladderFinishedPaths = null; ladderFinishedProgress = null;
     ladderRun.mutationScript = []; ladderRun.landings = [];
     clearLadderRevealTimers();
-    document.body.classList.remove('race-running'); // gameEnd와 같은 틱 도착 시 popupTimer가 죽어 오버레이 remove 미도달 — 광고 복원 가드
+    document.body.classList.remove('race-running'); // 결과 오버레이 경로와 무관하게 스티키 광고 복원 보장(C-6)
     ladderDrag.active = false; ladderDrag.pts = [];
     ladderTouchPointers = {}; ladderMultiTouch = false;
     // 새 라운드 — 내 막대기/픽은 서버 리셋(rungsUpdated가 빈 상태로 재동기). 로컬 캐시 비움.
@@ -2019,7 +2268,11 @@ socket.on('ladder:tournamentRound', function (data) {
     renderTournamentBanner();
     updateStartButton();
     renderLadderStatic();
-    if (ladderAmIInRound()) showCustomAlert('재대결! 다시 칸을 고르고 막대기를 그려주세요.', 'info');
+    // 결과 오버레이가 재대결 사유·대상자를 이미 설명한다. 그 위에 모달(#customAlert, z-index 10001)을 또 쌓으면
+    // 방금 보장 표시한 오버레이의 버튼을 가려버린다 → 오버레이를 못 띄운 경우에만 안내를 대신 띄운다.
+    if (ladderAmIInRound() && !ladderResultShown) {
+        showCustomAlert('재대결! 다시 칸을 고르고 막대기를 그려주세요.', 'info');
+    }
 });
 
 // 전체 리셋(새 토너먼트) — finished → idle.
@@ -2033,6 +2286,10 @@ socket.on('ladder:roundReset', function () {
     ladderMyRungs = [];
     ladderUserTops = {};
     ladderPendingResult = null;
+    ladderClearResultPopupTimer();
+    ladderResultShown = false;
+    ladderRevealStartAt = 0; ladderRevealTotalMs = 0;
+    ladderLiving = null;
     clearLadderRevealTimers();
     document.body.classList.remove('race-running'); // 전체 리셋 — 스티키 광고 복원
     ladderDrag.active = false; ladderDrag.pts = [];
