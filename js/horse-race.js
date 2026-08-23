@@ -6361,7 +6361,7 @@ function initializeGameScreen(data) {
     }
 
     // 예약 시작 복원 — 재접속해도 걸려 있던 카운트다운이 이어진다 (입장 페이로드에 실려 온다)
-    applyScheduledStart(data.gameState && data.gameState.scheduledStartAt);
+    applyScheduledStart(data.gameState && data.gameState.scheduledStartAt, data.gameState && data.gameState.scheduledStartLabel);
 }
 
 // === 소켓 이벤트 핸들러 ===

@@ -501,6 +501,10 @@ module.exports = (socket, io, ctx) => {
                 horseRankings: gameState.horseRankings || [],
                 trackLength: gameState.trackLength || 'medium',
                 // 추가 정보
+                // 예약 시작 복원 — 방 안 전원에게(방장만이 아니라) 걸려 있는 예약을 보여줘야 한다.
+                // 파생값이라 저장하지 않고 매번 만든다 — scheduledStartAt과 표기가 어긋날 일이 없다.
+                scheduledStartAt: gameState.scheduledStartAt || null,
+                scheduledStartLabel: gameState.scheduledStartAt ? formatWallClock(gameState.scheduledStartAt) : null,
                 hasRolled: false,
                 myResult: null
             }
@@ -560,6 +564,10 @@ module.exports = (socket, io, ctx) => {
                 horseRaceHistory: gameState.horseRaceHistory || [],
                 horseRankings: gameState.horseRankings || [],
                 trackLength: gameState.trackLength || 'medium',
+                // 예약 시작 복원 — 방 안 전원에게(방장만이 아니라) 걸려 있는 예약을 보여줘야 한다.
+                // 파생값이라 저장하지 않고 매번 만든다 — scheduledStartAt과 표기가 어긋날 일이 없다.
+                scheduledStartAt: gameState.scheduledStartAt || null,
+                scheduledStartLabel: gameState.scheduledStartAt ? formatWallClock(gameState.scheduledStartAt) : null,
                 hasRolled: false,
                 myResult: null
             }
@@ -832,6 +840,10 @@ module.exports = (socket, io, ctx) => {
                     userRankVotes: gameState.userRankVotes || {},
                     targetRank: gameState.targetRank || null,
                     // 추가 정보
+                    // 예약 시작 복원 — 방 안 전원에게(방장만이 아니라) 걸려 있는 예약을 보여줘야 한다.
+                    // 파생값이라 저장하지 않고 매번 만든다 — scheduledStartAt과 표기가 어긋날 일이 없다.
+                    scheduledStartAt: gameState.scheduledStartAt || null,
+                    scheduledStartLabel: gameState.scheduledStartAt ? formatWallClock(gameState.scheduledStartAt) : null,
                     hasRolled: gameState.rolledUsers.includes(userName.trim()),
                     myResult: myResult
                 }
@@ -1079,6 +1091,10 @@ module.exports = (socket, io, ctx) => {
                 userRankVotes: gameState.userRankVotes || {},
                 targetRank: gameState.targetRank || null,
                 // 추가 정보
+                // 예약 시작 복원 — 방 안 전원에게(방장만이 아니라) 걸려 있는 예약을 보여줘야 한다.
+                // 파생값이라 저장하지 않고 매번 만든다 — scheduledStartAt과 표기가 어긋날 일이 없다.
+                scheduledStartAt: gameState.scheduledStartAt || null,
+                scheduledStartLabel: gameState.scheduledStartAt ? formatWallClock(gameState.scheduledStartAt) : null,
                 hasRolled: gameState.rolledUsers.includes(finalUserName),
                 myResult: myResult
             }

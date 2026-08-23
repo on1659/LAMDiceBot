@@ -3808,7 +3808,7 @@
             applyRouletteHostUiState();
 
             // 예약 시작 복원 — 재입장·재접속 때 서버가 준 절대 시각으로 카운트다운을 이어간다
-            applyScheduledStartAt(data.gameState && data.gameState.scheduledStartAt);
+            applyScheduledStartAt(data.gameState && data.gameState.scheduledStartAt, data.gameState && data.gameState.scheduledStartLabel);
 
             // 주문받기 섹션 표시
             if (isOrderActive) {

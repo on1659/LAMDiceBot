@@ -4925,7 +4925,7 @@
             }
 
             // 예약 시작 복원 (재입장·재접속 포함) — 서버가 준 절대 시각을 그대로 쓴다
-            applyScheduledStart(data.gameState && data.gameState.scheduledStartAt);
+            applyScheduledStart(data.gameState && data.gameState.scheduledStartAt, data.gameState && data.gameState.scheduledStartLabel);
 
             // 주문받기가 활성화된 상태면 주문하지 않은 사람 목록도 표시
             if (isOrderActive) {
