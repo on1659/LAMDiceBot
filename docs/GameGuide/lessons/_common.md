@@ -406,6 +406,45 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-41. 항상 보여야 하는 컨트롤을 렌더러가 그리는 콘텐츠 안에 두지 마라
+
+- 공유 팝업의 렌더러들은 데이터가 없으면 **본문을 그리기 전에 조기 반환**한다. `ranking-shared.js`의 `renderOverallRank`/`renderOverallParticipant`/`renderGame`/`renderHorseRank`/`renderOrders`는 전부 `emptyMsg(...)`로 빠져나가므로, 그 뒤에 오는 `top10Label()` 캡션 줄은 **기록이 없을 때 아예 존재하지 않는다.**
+- 그 줄에 보기 전환 토글 같은 컨트롤을 얹으면 **빈 시즌에서 컨트롤이 통째로 사라져** 다른 뷰로 넘어갈 길이 막힌다. "비어 있을 때야말로 다른 뷰를 보고 싶은 순간"이라 정확히 반대로 동작한다.
+- 콘텐츠 영역 안에 두면 **스크롤과 함께 밀려 올라가는** 문제도 같이 생긴다.
+- **해결:** 패널 크롬(고정 영역)에 전용 슬롯을 만들어 거기 붙인다. `.rk-panel`은 `flex-direction: column`이므로 `flex-shrink: 0` 행을 하나 추가하면 된다. 렌더러 6곳을 고칠 필요도 없어진다.
+- **검증:** 기록이 0건인 시즌(또는 fetch를 빈 배열로 스텁)에서 컨트롤이 남아 있는지, 본문을 끝까지 스크롤해도 컨트롤이 화면에 붙어 있는지.
+- (출처: 2026-08-23 ranking-winner-calendar — `docs/goal/ranking-winner-calendar.md`)
+
+---
+
+## C-42. 공유 팝업에 `<button>`·`<input>`을 추가할 땐 호스트 페이지의 전역 규칙을 상쇄하라
+
+- `js/shared/ranking-shared.js`의 오버레이는 `document.body`에 append되므로 **호스트 페이지의 전역 셀렉터가 그대로 뚫고 들어온다.** `#ranking-overlay` 안을 막아주는 blanket reset은 **없다.**
+- `css/horse-race.css`의 `button { width: 100%; margin-top: 10px; padding: 12px 25px; background: var(--horse-gradient); ... }`가 대표적이다. 이 시트를 로드하는 페이지는 **경마·사다리·해적·회전칼날·다리건너기 5개**. 요소 셀렉터(0,0,1)는 클래스(0,1,0)에 지므로 **모듈이 선언한 속성만** 이긴다 — 선언하지 않은 `width`/`margin-top`/`padding`은 그대로 샌다.
+- 그래서 주사위·룰렛·free에서는 멀쩡한데 **저 5개 페이지에서만 버튼이 폭 100%로 늘어지고 아래로 밀린다.** 기존 `.rk-back-btn`(:204)·`.rk-reset-btn`(:490)은 `margin-top:0`을 손으로 넣어 이미 상쇄 중이고, `.rk-tab`·`.rk-game-chip`·`.rk-confirm-yes/no`는 아직 새고 있다.
+- `<input>`도 같다. `css/theme.css`의 `input, select, textarea { background: var(--bg-white) }`가 **모든 순수 HTML 소비 페이지**에 걸려 있어, 다크 팝업 안에 밝은 상자가 뜬다. 스위치용 체크박스는 `position:absolute; opacity:0; width:0; height:0`로 완전히 숨겨야 안전하다.
+- **해결:** 새 버튼에 `width`·`margin-top`·`padding`·`background`를 **전부 명시**한다.
+- **검증:** 하니스 페이지에 `css/horse-race.css`와 `css/theme.css`를 얹은 뒤 `getComputedStyle`로 실측 — 시트 유무와 무관하게 같은 값이 나와야 한다.
+- (출처: 2026-08-23 ranking-winner-calendar — 정찰에서 발견, 실측으로 확인)
+
+---
+
+## C-43. 날짜 단위 집계를 SQL에서 자르지 마라
+
+- `server_game_records.created_at` 등은 **타임존 없는 `TIMESTAMP`**(`CURRENT_TIMESTAMP` 기본값)이고, **배포 호스트 타임존이 이 저장소 어디에도 고정돼 있지 않다.** `db/stats.js`는 아예 `new Date().toISOString()`으로 UTC 기준 "오늘"을 쓴다.
+- 이 상태에서 `created_at::date`나 `DATE_TRUNC('day', ...)`로 날짜를 자르면, 호스트가 UTC일 때 **밤 9시 이후 한국 시각의 판이 전날로 밀린다.** 자정 넘겨 한 판은 특히 확실히 틀린다.
+- **해결:** 원본 시각을 그대로 내려보내고 **클라이언트가 Asia/Seoul 기준으로 묶는다.** 한국은 서머타임이 없어 UTC+9 고정 오프셋이 안전하다:
+  ```javascript
+  const k = new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString();
+  const dayKey = k.slice(0, 10);  // 'YYYY-MM-DD' (KST 달력 날짜)
+  ```
+- 이렇게 만든 날짜 라벨로 달력 격자를 그릴 땐 **`Date.UTC` 계열로만 연산**하라(`new Date(Date.UTC(y, m-1, 1)).getUTCDay()`). 로컬 생성자를 쓰면 브라우저 타임존에 따라 요일이 하루 밀린다.
+- 전제: DB와 Node 프로세스가 같은 호스트 타임존을 공유해야 시각 자체가 맞다. 이건 앱의 모든 타임스탬프가 이미 깔고 있는 가정이다.
+- **검증:** `15:30Z`(= KST 다음날 00:30) 기록이 **다음 날** 칸에 들어가고 당일 칸은 비는지 확인.
+- (출처: 2026-08-23 ranking-winner-calendar — 하니스 검증 항목으로 상시화)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

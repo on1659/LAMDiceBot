@@ -10,7 +10,7 @@ const {
 const { register: authRegister, login: authLogin, getUserByName, getChatLayoutStats } = require('../db/auth');
 const { issueToken } = require('../db/auth-tokens');
 const { getOnlineMembers, getSocketIdByUser } = require('../socket/server');
-const { getFullRanking, getMyRank, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking } = require('../db/ranking');
+const { getFullRanking, getMyRank, startNewSeason, getCurrentSeason, getSeasonList, getSeasonRanking, getWinnerCalendar } = require('../db/ranking');
 const { getSeasonVehicleStats } = require('../db/vehicle-stats');
 
 // Rate Limiting (Server API 전용)
@@ -603,6 +603,38 @@ router.get('/ranking/:serverId(\\d+)/vehicles', async (req, res) => {
         res.json({ success: true, season, vehicles });
     } catch (e) {
         res.status(500).json({ error: '탈것 통계 조회 실패' });
+    }
+});
+
+// 날짜별 당첨자 달력 (현재 시즌)
+router.get('/ranking/:serverId(\\d+)/calendar', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        }
+        const data = await getWinnerCalendar(serverId, null);
+        res.json({ success: true, ...data });
+    } catch (e) {
+        res.status(500).json({ error: '달력 조회 실패' });
+    }
+});
+
+// 날짜별 당첨자 달력 (지난 시즌)
+router.get('/ranking/:serverId(\\d+)/season/:season(\\d+)/calendar', async (req, res) => {
+    try {
+        const serverId = parseInt(req.params.serverId);
+        const season = parseInt(req.params.season);
+        if (isNaN(serverId) || serverId <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 서버 ID' });
+        }
+        if (isNaN(season) || season <= 0) {
+            return res.status(400).json({ error: '유효하지 않은 시즌 번호' });
+        }
+        const data = await getWinnerCalendar(serverId, season);
+        res.json({ success: true, season, ...data });
+    } catch (e) {
+        res.status(500).json({ error: '달력 조회 실패' });
     }
 });
 

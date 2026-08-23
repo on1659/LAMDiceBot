@@ -9,7 +9,7 @@ The ranking popup currently answers only "who is best overall" — overall top 1
 All required data already exists in `server_game_records` / `season_archives`: the winner of a game is the row with `is_winner = true`. No schema change.
 
 ## In-scope
-- An on/off toggle labelled `📅 달력`, right-aligned on the same row as the existing `1~10등까지 랭킹` caption (`top10Label()`, `ranking-shared.js` :1092). Off = today's leaderboards (unchanged). On = the winner calendar. The main tab bar is not a candidate location — its two buttons already fill the panel width.
+- An on/off toggle labelled `📅 달력`, right-aligned in a dedicated bar that sits directly above the scrolling content — visually just above the `1~10등까지 랭킹` caption, where the user pointed. Off = today's leaderboards (unchanged). On = the winner calendar. The main tab bar is not a candidate location: its two buttons already fill the panel width.
 - Monthly calendar grid (Sun–Sat, 7 columns) for the season currently being viewed.
 - Day cell contents: day number, the day's most frequent winner name, and a `+N` badge for the remaining distinct winners that day.
 - Tapping a day opens an inline detail panel directly below the calendar (not a nested overlay) listing every game played that day in order:
@@ -34,7 +34,8 @@ All required data already exists in `server_game_records` / `season_archives`: t
 - Persisting the toggle state across popup opens (see Open Questions).
 
 ## Acceptance Criteria
-- [ ] `📅 달력` toggle appears right-aligned on the `1~10등까지 랭킹` caption row for server rankings, and is hidden for free play.
+- [ ] `📅 달력` toggle appears right-aligned in the bar directly above the content for server rankings, and is hidden for free play.
+- [ ] The toggle stays visible when the leaderboard is empty, so an empty season is not a dead end.
 - [ ] Turning it on replaces the leaderboard content with the month grid and hides the game sub-tab bars; turning it off restores the previous leaderboard view and its active tab.
 - [ ] The toggle is present and functional inside a past-season view, and that calendar shows only that season's games.
 - [ ] Days are bucketed by **Asia/Seoul** calendar date, so a game played at 00:30 KST lands on the correct day.
@@ -64,7 +65,11 @@ All required data already exists in `server_game_records` / `season_archives`: t
 ### Toggle component
 The user asked for the same feel as the horse-race 자동선택 switch (`horse-race-multiplayer.html` :161-165, CSS at `css/horse-race.css` :2362-2418). `ranking-shared.js` is loaded by every game and carries its own inlined `CSS` string, so **port the styles into that block under `rk-` prefixed class names** rather than depending on `horse-race.css`. Use a neutral accent (the popup's `#667eea`), not `--horse-500`.
 
-`top10Label()` (`ranking-shared.js` :1092) is called from six render paths (:887, :906, :918, :937, :1029). Turn that helper into a caption row that carries the toggle on its right, so all six inherit it from one place — do not paste the toggle markup into each renderer. The helper currently returns a bare `<div>`; it becomes a flex row (caption left, toggle right) and its `.rk-top10-label` styling (:258) must be kept intact for the caption itself.
+Put the toggle in its own bar in the panel chrome (a `#ranking-view-bar` slot between the sub-tab bars and `.rk-content`), **not** inside `top10Label()`. The caption looked like the natural host, but every leaderboard renderer returns early with `emptyMsg(...)` before it ever calls `top10Label()` — so a toggle living there would disappear exactly when a season has no records, which is precisely when someone wants to switch views. A chrome-level bar also keeps the toggle from scrolling away with the content, and it needs one insertion point instead of six.
+
+Any `<button>` added inside the popup must set `margin-top`, `width`, `padding`, and `background` explicitly. `css/horse-race.css` declares a global `button { width: 100%; margin-top: 10px; padding: 12px 25px; background: var(--horse-gradient); }` and is loaded by five of the nine consumer pages (horse-race, ladder, pirate, spin-arena, bridge-cross); there is no blanket `#ranking-overlay button` reset. The existing `.rk-back-btn` and `.rk-reset-btn` already compensate by hand.
+
+The toggle's `<input type="checkbox">` must stay `position:absolute; opacity:0; width:0; height:0` — `css/theme.css` forces `input { background: var(--bg-white) }` on all plain-HTML consumers, which would otherwise paint a light box inside the dark panel.
 
 ### Session grouping
 One played game is one `game_session_id`. Group with a NULL-tolerant key so unsessioned records become singletons instead of collapsing together:

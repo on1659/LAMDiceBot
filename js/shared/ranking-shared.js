@@ -17,6 +17,25 @@ const RankingModule = (function () {
     let _currentOverallSubTab = 'rank'; // 'rank' | 'participant'
     let _horseSubTab = 'rank'; // 'rank' | 'vehicles' — 경마 게임 탭 내부 서브탭
 
+    // 달력 뷰 (날짜별 당첨자) — 등수 랭킹과 배타적으로 전환
+    let _calendarOn = false;
+    let _calCache = {};   // { [시즌키]: { sessions, truncated } } — 시즌별 분리 (셀렉터로 바꿔도 안 섞이게)
+    let _calMonth = null; // 'YYYY-MM' 보고 있는 달
+    let _calDay = null;   // 'YYYY-MM-DD' 펼쳐 놓은 날
+
+    // server_game_records에 실제로 기록되는 8종 전부 (팝업 게임 탭은 4종만 커버해서 재사용 불가)
+    const CAL_GAME_LABELS = {
+        'dice': '🎲 주사위',
+        'horse': '🐎 경마',
+        'roulette': '🎰 룰렛',
+        'ladder': '🪜 사다리타기',
+        'pirate': '🏴‍☠️ 해적 룰렛',
+        'spin-arena': '🌀 회전 칼날',
+        'bridge': '🌉 다리 건너기',
+        'crane-game': '🪄 인형뽑기'
+    };
+    const CAL_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
     // 제스처 상태
     let _touchStartX = 0;
     let _touchStartY = 0;
@@ -48,6 +67,7 @@ const RankingModule = (function () {
     function invalidateCache() {
         _cache = null;
         _cacheTime = 0;
+        _calCache = {}; // 달력도 같이 버린다 — 당겨서 새로고침·시즌 시작이 이 함수 하나만 부른다
     }
 
     async function fetchRanking() {
@@ -88,6 +108,9 @@ const RankingModule = (function () {
         }
         _viewingSeason = null;
         _horseSubTab = 'rank';
+        _calendarOn = false;
+        _calMonth = null;
+        _calDay = null;
         if (typeof PageHistoryManager !== 'undefined') PageHistoryManager.pushPage('ranking');
         createOverlay();
         fetchAndRender().then(() => fetchSeasonList());
@@ -554,6 +577,152 @@ const RankingModule = (function () {
         .rk-vchamp-1 { border-color: var(--rk-gold); color: var(--rk-gold); }
         .rk-vchamp-2 { border-color: var(--rk-silver); color: var(--rk-silver); }
         .rk-vchamp-3 { border-color: var(--rk-bronze); color: var(--rk-bronze); }
+
+        /* ── 보기 전환 바 (등수 ↔ 달력) ── */
+        /* 콘텐츠 밖의 고정 행이라 기록이 없어 본문이 빈 상태여도 토글이 사라지지 않는다 */
+        .rk-viewbar {
+            display: flex; align-items: center; justify-content: flex-end;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--rk-surface);
+            flex-shrink: 0;
+        }
+        /* 경마 자동선택 스위치(css/horse-race.css)와 같은 형태 — 이 모듈은 전 게임 공용이라 스타일을 여기로 이식 */
+        .rk-cal-toggle {
+            display: inline-flex; align-items: center; gap: 8px;
+            cursor: pointer; user-select: none;
+            font-size: 0.82em; color: var(--rk-text-dim);
+            font-family: 'Jua', sans-serif;
+        }
+        .rk-cal-toggle input[type="checkbox"] {
+            position: absolute; opacity: 0; width: 0; height: 0;
+        }
+        .rk-cal-toggle-slider {
+            position: relative; display: inline-block;
+            width: 36px; height: 20px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 999px; transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .rk-cal-toggle-slider::before {
+            content: ""; position: absolute; top: 2px; left: 2px;
+            width: 16px; height: 16px;
+            background: white; border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .rk-cal-toggle input[type="checkbox"]:checked ~ .rk-cal-toggle-slider {
+            background: var(--rk-accent);
+        }
+        .rk-cal-toggle input[type="checkbox"]:checked ~ .rk-cal-toggle-slider::before {
+            transform: translateX(16px);
+        }
+        .rk-cal-toggle input[type="checkbox"]:checked ~ .rk-cal-toggle-label {
+            color: var(--rk-accent-light);
+        }
+        .rk-cal-toggle-label { font-weight: 600; }
+
+        /* ── 달력 ── */
+        .rk-cal-nav {
+            display: flex; align-items: center; justify-content: center; gap: 14px;
+            margin-bottom: 12px;
+        }
+        .rk-cal-nav-btn {
+            /* 전역 button{width:100%;margin-top:10px;padding:12px 25px}(horse-race.css) 상쇄 —
+               경마·사다리·해적·회전칼날·다리건너기 5개 페이지가 그 시트를 로드한다 */
+            background: var(--rk-surface); border: 1px solid var(--rk-border-light);
+            color: var(--rk-text); margin-top: 0; padding: 0;
+            width: 32px; height: 32px; border-radius: 10px;
+            font-size: 0.95em; cursor: pointer; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+        .rk-cal-nav-btn:hover:not(:disabled) { background: var(--rk-btn-bg); }
+        .rk-cal-nav-btn:disabled { opacity: 0.25; cursor: default; }
+        .rk-cal-title {
+            font-family: 'Jua', sans-serif; font-size: 1.02em;
+            color: var(--rk-accent-light); min-width: 130px; text-align: center;
+        }
+        .rk-cal-wdrow, .rk-cal-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+        }
+        .rk-cal-wdrow { margin-bottom: 4px; }
+        .rk-cal-wd {
+            text-align: center; font-size: 0.72em;
+            color: var(--rk-text-muted); padding: 2px 0;
+        }
+        .rk-cal-wd.sun { color: rgba(239,68,68,0.75); } /* --red-500 */
+        .rk-cal-cell {
+            min-height: 54px; border-radius: 10px;
+            padding: 4px 2px 5px;
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid transparent;
+            overflow: hidden;
+        }
+        .rk-cal-blank { background: none; }
+        .rk-cal-daynum {
+            font-size: 0.7em; color: var(--rk-text-muted);
+            line-height: 1.2; flex-shrink: 0;
+        }
+        .rk-cal-has {
+            background: var(--rk-surface);
+            border-color: var(--rk-border);
+            cursor: pointer;
+        }
+        .rk-cal-has:hover { background: var(--rk-btn-bg); }
+        .rk-cal-has .rk-cal-daynum { color: var(--rk-text); }
+        .rk-cal-today { border-color: rgba(102,126,234,0.55); } /* --rk-accent */
+        .rk-cal-sel {
+            border-color: var(--rk-gold);
+            box-shadow: 0 0 10px rgba(255,215,0,0.25); /* --rk-gold */
+        }
+        .rk-cal-winner {
+            font-size: 0.68em; line-height: 1.25;
+            color: var(--rk-gold); font-weight: 600;
+            max-width: 100%;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .rk-cal-more {
+            font-size: 0.62em; color: var(--rk-text-muted);
+            line-height: 1.1;
+        }
+        .rk-cal-nowin { font-size: 0.66em; color: var(--rk-text-muted); }
+
+        /* ── 날짜 상세 (달력 아래 인라인 — 팝업 위 팝업은 뒤로가기가 꼬여서 안 씀) ── */
+        .rk-cal-drow {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .rk-cal-drow:last-child { border-bottom: none; }
+        .rk-cal-seq {
+            flex-shrink: 0; min-width: 30px;
+            font-size: 0.78em; font-weight: 700;
+            color: var(--rk-accent-light);
+        }
+        .rk-cal-game {
+            flex-shrink: 0; font-size: 0.85em;
+            color: var(--rk-text);
+        }
+        .rk-cal-win {
+            flex: 1; text-align: right;
+            font-size: 0.85em; color: var(--rk-gold); font-weight: 600;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .rk-cal-hint {
+            text-align: center; padding: 14px 10px 0;
+            font-size: 0.78em; color: var(--rk-text-muted);
+        }
+        .rk-cal-note {
+            margin: 12px 0 0; padding: 10px 14px;
+            border-radius: 10px; background: var(--rk-surface);
+            font-size: 0.76em; line-height: 1.5; color: var(--rk-text-muted);
+        }
+
+        @media (max-width: 360px) {
+            .rk-cal-cell { min-height: 48px; }
+            .rk-cal-winner { font-size: 0.62em; }
+            .rk-cal-title { min-width: 108px; font-size: 0.95em; }
+        }
     `;
 
     // ─── 오버레이 생성 ───
@@ -576,6 +745,7 @@ const RankingModule = (function () {
                 <div class="rk-game-tabs" id="ranking-overall-sub-tabs" style="display:none;"></div>
                 <div class="rk-game-tabs" id="ranking-game-tabs" style="display:none;"></div>
                 <div class="rk-game-tabs" id="ranking-horse-sub-tabs" style="display:none;"></div>
+                <div id="ranking-view-bar"></div>
                 <div class="rk-content" id="ranking-content"></div>
             </div>
         `;
@@ -669,7 +839,7 @@ const RankingModule = (function () {
     function updateHorseSubTabsVisibility() {
         const el = document.getElementById('ranking-horse-sub-tabs');
         if (!el) return;
-        const show = (_currentMainTab === 'games' && _currentGameTab === 'horse');
+        const show = (!_calendarOn && _currentMainTab === 'games' && _currentGameTab === 'horse');
         el.style.display = show ? 'flex' : 'none';
         if (!show) return;
         el.querySelectorAll('.rk-game-chip').forEach(c => {
@@ -856,8 +1026,14 @@ const RankingModule = (function () {
             horseSubTabsEl.style.display = (_currentMainTab === 'games' && _currentGameTab === 'horse') ? 'flex' : 'none';
         }
 
+        // 보기 전환 바 (등수 ↔ 달력) — 탭 생성 이후에 붙여야 탭 표시 상태를 함께 정리할 수 있다
+        renderViewBar();
+        applyTabBarsVisibility();
+
         // 기본 탭 렌더링
-        if (_currentMainTab === 'games') {
+        if (_calendarOn) {
+            renderCalendarView(content);
+        } else if (_currentMainTab === 'games') {
             renderGameContent(_currentGameTab);
         } else {
             renderOverall(content);
@@ -1141,6 +1317,8 @@ const RankingModule = (function () {
             const dy = e.changedTouches[0].clientY - _touchStartY;
 
             if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                // 달력에서는 탭이 숨겨져 있다 — 가로 스와이프를 달 이동으로 돌린다
+                if (_calendarOn) { stepCalMonth(dx < 0 ? 1 : -1); return; }
                 if (_currentMainTab === 'overall') {
                     if (dx < 0) {
                         if (_currentOverallSubTab === 'rank') switchOverallSubTab('participant');
@@ -1339,6 +1517,8 @@ const RankingModule = (function () {
         if (sel) sel.addEventListener('change', function () {
             const val = parseInt(this.value, 10);
             _viewingSeason = val === _currentSeason ? null : val;
+            _calMonth = null; // 시즌마다 기록이 있는 달이 달라 이월시키면 빈 달을 보게 된다
+            _calDay = null;
             invalidateCache();
             updateSeasonTitle();
             updateResetBtnVisibility();
@@ -1400,6 +1580,251 @@ const RankingModule = (function () {
             const s = document.getElementById('ranking-vehicle-champs');
             if (s) s.innerHTML = ''; // 조회 실패 시 섹션 숨김 — 랭킹 본문에는 영향 없음
         }
+    }
+
+    // ─── 날짜별 당첨자 달력 ───
+
+    // 보기 전환 바 — 콘텐츠 밖 고정 행이라 본문이 빈 상태여도 토글이 남는다
+    function renderViewBar() {
+        const bar = document.getElementById('ranking-view-bar');
+        if (!bar) return;
+        // 자유 랭킹은 배포 전역 기록이라 "누가 걸렸나"가 의미 없음 → 토글 미노출
+        if (!_serverId) { bar.innerHTML = ''; return; }
+        bar.innerHTML = `
+            <div class="rk-viewbar">
+                <label class="rk-cal-toggle" title="날짜별로 누가 당첨됐는지 봅니다">
+                    <input type="checkbox" id="ranking-cal-toggle"${_calendarOn ? ' checked' : ''}>
+                    <span class="rk-cal-toggle-slider"></span>
+                    <span class="rk-cal-toggle-label">📅 달력</span>
+                </label>
+            </div>`;
+        const cb = document.getElementById('ranking-cal-toggle');
+        if (cb) cb.addEventListener('change', function () { setCalendarMode(this.checked); });
+    }
+
+    // 달력은 게임 구분 없이 전체를 보여주므로 탭 바를 모두 접는다
+    function applyTabBarsVisibility() {
+        const tabsEl = document.getElementById('ranking-tabs');
+        const overallSubTabsEl = document.getElementById('ranking-overall-sub-tabs');
+        const gameTabsEl = document.getElementById('ranking-game-tabs');
+        if (tabsEl) tabsEl.style.display = _calendarOn ? 'none' : 'flex';
+        if (overallSubTabsEl) overallSubTabsEl.style.display = (!_calendarOn && _currentMainTab === 'overall') ? 'flex' : 'none';
+        if (gameTabsEl) gameTabsEl.style.display = (!_calendarOn && _currentMainTab === 'games') ? 'flex' : 'none';
+        updateHorseSubTabsVisibility();
+    }
+
+    function setCalendarMode(on) {
+        _calendarOn = !!on;
+        _calDay = null;
+        applyTabBarsVisibility();
+        const content = document.getElementById('ranking-content');
+        if (!content) return;
+        // switchMainTab과 같은 규칙 — renderGameContent는 내부에서 트랜지션을 걸므로 이중 래핑 금지
+        if (_calendarOn) {
+            setContentWithTransition(content, () => renderCalendarView(content));
+        } else if (_currentMainTab === 'games') {
+            renderGameContent(_currentGameTab);
+        } else {
+            setContentWithTransition(content, () => renderOverall(content));
+        }
+    }
+
+    function calKey() {
+        return _viewingSeason ? ('s' + _viewingSeason) : 'current';
+    }
+
+    // 한국은 서머타임이 없어 UTC+9 고정 오프셋으로 KST 달력 날짜를 안전하게 얻는다.
+    // 서버 created_at은 타임존 없는 TIMESTAMP라 SQL에서 날짜를 자르면 호스트 타임존에 끌려간다.
+    function kstParts(iso) {
+        const t = new Date(iso).getTime();
+        if (!isFinite(t)) return null;
+        const k = new Date(t + 9 * 3600 * 1000).toISOString();
+        return { day: k.slice(0, 10), month: k.slice(0, 7) };
+    }
+
+    function buildCalIndex(sessions) {
+        const days = {};
+        const monthSet = {};
+        (sessions || []).forEach(s => {
+            const p = kstParts(s.playedAt);
+            if (!p) return;
+            (days[p.day] = days[p.day] || []).push(s);
+            monthSet[p.month] = true;
+        });
+        // 회차(1차·2차)는 그 날 이른 판부터 매긴다
+        Object.keys(days).forEach(d => {
+            days[d].sort((a, b) => new Date(a.playedAt) - new Date(b.playedAt));
+        });
+        return { days: days, months: Object.keys(monthSet).sort() };
+    }
+
+    // 칸에 넣을 대표 당첨자 — 그 날 가장 많이 걸린 사람, 동률이면 이름순
+    function calDaySummary(list) {
+        const counts = {};
+        list.forEach(s => (s.winners || []).forEach(n => { counts[n] = (counts[n] || 0) + 1; }));
+        const names = Object.keys(counts);
+        if (!names.length) return null;
+        names.sort((a, b) => (counts[b] - counts[a]) || a.localeCompare(b));
+        return { top: names[0], extra: names.length - 1 };
+    }
+
+    async function fetchCalendar(key) {
+        if (_calCache[key]) return _calCache[key];
+        const url = _viewingSeason
+            ? `/api/ranking/${_serverId}/season/${_viewingSeason}/calendar`
+            : `/api/ranking/${_serverId}/calendar`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            const parsed = {
+                sessions: Array.isArray(data.sessions) ? data.sessions : [],
+                truncated: !!data.truncated
+            };
+            _calCache[key] = parsed; // 실패는 캐시하지 않는다 — 다음 열람 때 재시도
+            return parsed;
+        } catch (e) {
+            console.warn('달력 조회 실패:', e);
+            return { sessions: [], truncated: false, failed: true };
+        }
+    }
+
+    function renderCalendarView(el) {
+        if (!el) return;
+        const key = calKey();
+        const cached = _calCache[key];
+        if (cached) { paintCalendar(el, cached); return; }
+        el.innerHTML = skeletonHTML();
+        fetchCalendar(key).then(data => {
+            // 응답 대기 중 모드나 시즌이 바뀌었으면 stale — 늦은 응답이 새 화면을 덮지 않게
+            if (!_overlay || !_calendarOn || calKey() !== key) return;
+            const el2 = document.getElementById('ranking-content');
+            if (el2) paintCalendar(el2, data);
+        });
+    }
+
+    function paintCalendar(el, data) {
+        if (data.failed) { el.innerHTML = emptyMsg('달력을 불러올 수 없습니다.'); return; }
+        const idx = buildCalIndex(data.sessions);
+        if (!idx.months.length) { el.innerHTML = emptyMsg('아직 기록이 없습니다.'); return; }
+        if (!_calMonth || idx.months.indexOf(_calMonth) === -1) {
+            _calMonth = idx.months[idx.months.length - 1]; // 기록이 있는 가장 최근 달
+        }
+        const pos = idx.months.indexOf(_calMonth);
+        const y = parseInt(_calMonth.slice(0, 4), 10);
+        const m = parseInt(_calMonth.slice(5, 7), 10);
+        // KST 달력 라벨을 그대로 쓰므로 UTC 날짜 연산으로 로컬 타임존 영향을 없앤다
+        const startWd = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+        const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        const today = kstParts(new Date().toISOString()).day;
+
+        let wds = '';
+        CAL_WEEKDAYS.forEach((w, i) => {
+            wds += `<div class="rk-cal-wd${i === 0 ? ' sun' : ''}">${w}</div>`;
+        });
+
+        let cells = '';
+        for (let i = 0; i < startWd; i++) cells += '<div class="rk-cal-cell rk-cal-blank"></div>';
+        for (let d = 1; d <= lastDay; d++) {
+            const dayKey = `${_calMonth}-${String(d).padStart(2, '0')}`;
+            const list = idx.days[dayKey];
+            const cls = ['rk-cal-cell'];
+            if (list) cls.push('rk-cal-has');
+            if (dayKey === today) cls.push('rk-cal-today');
+            if (dayKey === _calDay) cls.push('rk-cal-sel');
+            let inner = '';
+            if (list) {
+                const sum = calDaySummary(list);
+                inner = sum
+                    ? `<span class="rk-cal-winner">${esc(sum.top)}</span>`
+                        + (sum.extra > 0 ? `<span class="rk-cal-more">+${sum.extra}</span>` : '')
+                    : '<span class="rk-cal-nowin">-</span>';
+            }
+            cells += `<div class="${cls.join(' ')}"${list ? ` data-cal-day="${dayKey}"` : ''}>`
+                + `<span class="rk-cal-daynum">${d}</span>${inner}</div>`;
+        }
+
+        el.innerHTML = `
+            <div class="rk-section">
+                <div class="rk-cal-nav">
+                    <button type="button" class="rk-cal-nav-btn" id="rk-cal-prev"${pos <= 0 ? ' disabled' : ''}>&#8249;</button>
+                    <span class="rk-cal-title">${y}년 ${m}월</span>
+                    <button type="button" class="rk-cal-nav-btn" id="rk-cal-next"${pos >= idx.months.length - 1 ? ' disabled' : ''}>&#8250;</button>
+                </div>
+                <div class="rk-cal-wdrow">${wds}</div>
+                <div class="rk-cal-grid">${cells}</div>
+                ${_calDay ? '' : '<div class="rk-cal-hint">날짜를 누르면 그 날 기록을 봅니다</div>'}
+            </div>
+            ${renderCalDetail(idx)}
+            ${data.truncated ? '<p class="rk-cal-note">기록이 많아 최근 것만 표시합니다. 오래된 날짜 일부는 달력에 나오지 않습니다.</p>' : ''}
+        `;
+        bindCalendarEvents();
+    }
+
+    // 상세는 달력 아래 인라인 — 팝업 위에 팝업을 겹치면 뒤로가기 히스토리가 꼬인다
+    function renderCalDetail(idx) {
+        if (!_calDay) return '';
+        const list = idx.days[_calDay];
+        if (!list || !list.length) return '';
+        const yy = parseInt(_calDay.slice(0, 4), 10);
+        const mm = parseInt(_calDay.slice(5, 7), 10);
+        const dd = parseInt(_calDay.slice(8, 10), 10);
+        const wd = CAL_WEEKDAYS[new Date(Date.UTC(yy, mm - 1, dd)).getUTCDay()];
+        const rows = list.map((s, i) => {
+            const label = CAL_GAME_LABELS[s.gameType] || '🎮 기타 게임';
+            const winners = (s.winners && s.winners.length)
+                ? `<span class="rk-cal-win">👑 ${esc(s.winners.join(', '))}</span>`
+                : '<span class="rk-cal-win rk-cal-nowin">당첨자 없음</span>';
+            return `<div class="rk-cal-drow">
+                <span class="rk-cal-seq">${i + 1}차</span>
+                <span class="rk-cal-game">${label}</span>
+                ${winners}
+            </div>`;
+        }).join('');
+        return `
+            <div class="rk-section">
+                <div class="rk-section-title">${mm}월 ${dd}일 (${wd}) · ${list.length}판</div>
+                <div class="rk-card">${rows}</div>
+            </div>`;
+    }
+
+    function bindCalendarEvents() {
+        const prev = document.getElementById('rk-cal-prev');
+        const next = document.getElementById('rk-cal-next');
+        if (prev) prev.addEventListener('click', () => stepCalMonth(-1));
+        if (next) next.addEventListener('click', () => stepCalMonth(1));
+        const el = document.getElementById('ranking-content');
+        if (!el) return;
+        el.querySelectorAll('[data-cal-day]').forEach(cell => {
+            cell.addEventListener('click', function () {
+                const key = this.getAttribute('data-cal-day');
+                _calDay = (_calDay === key) ? null : key; // 같은 날 다시 누르면 접는다
+                repaintCalendar();
+            });
+        });
+    }
+
+    // 트랜지션 없이 제자리 갱신 — 날짜를 누를 때마다 페이드가 들어가면 눈이 아프다
+    function repaintCalendar() {
+        const el = document.getElementById('ranking-content');
+        const data = _calCache[calKey()];
+        if (!el || !data) return;
+        const st = el.scrollTop;
+        paintCalendar(el, data);
+        el.scrollTop = st;
+    }
+
+    function stepCalMonth(dir) {
+        const data = _calCache[calKey()];
+        if (!data) return;
+        const idx = buildCalIndex(data.sessions);
+        const pos = idx.months.indexOf(_calMonth);
+        const nextPos = pos + dir;
+        if (pos < 0 || nextPos < 0 || nextPos >= idx.months.length) return;
+        _calMonth = idx.months[nextPos];
+        _calDay = null;
+        const el = document.getElementById('ranking-content');
+        if (el) setContentWithTransition(el, () => paintCalendar(el, data));
     }
 
     return {

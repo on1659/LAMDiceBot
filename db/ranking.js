@@ -543,6 +543,65 @@ async function getSeasonRanking(serverId, season) {
     };
 }
 
+// ─── 날짜별 당첨자 (달력 뷰) ───
+
+// 한 판 = game_session_id 하나. sessionId 없이 기록되는 경로(socket/horse.js 등)가 있어
+// NULL은 id로 대체 키를 만든다 — 안 그러면 서로 무관한 기록이 한 판으로 뭉친다.
+//
+// created_at은 타임존 없는 TIMESTAMP고 배포 호스트 타임존이 이 저장소 어디에도 고정돼 있지 않다.
+// 그래서 날짜 경계를 SQL에서 자르지 않는다 (자정 넘긴 판이 전날로 밀림).
+// 원본 시각을 그대로 내려보내고 클라이언트가 Asia/Seoul 기준으로 날짜를 묶는다.
+const CALENDAR_SESSION_LIMIT = 1000;
+
+// 테이블명은 파라미터화할 수 없어 보간 대신 완성된 쿼리 2개를 상수로 둔다 (사용자 입력 미개입)
+const CALENDAR_COLUMNS = `
+        COALESCE(game_session_id, 'row:' || id) AS session_key,
+        MIN(created_at) AS played_at,
+        MIN(game_type) AS game_type,
+        COUNT(*) AS participants,
+        COALESCE(ARRAY_AGG(user_name ORDER BY user_name) FILTER (WHERE is_winner = true), ARRAY[]::text[]) AS winners`;
+
+const CALENDAR_SQL_LIVE = `
+    SELECT ${CALENDAR_COLUMNS}
+    FROM server_game_records
+    WHERE server_id = $1
+    GROUP BY session_key
+    ORDER BY played_at DESC
+    LIMIT $2
+`;
+
+const CALENDAR_SQL_ARCHIVE = `
+    SELECT ${CALENDAR_COLUMNS}
+    FROM season_archives
+    WHERE server_id = $1 AND season = $2
+    GROUP BY session_key
+    ORDER BY played_at DESC
+    LIMIT $3
+`;
+
+// season=null → 현재 시즌(라이브 테이블), season=N → 아카이브된 그 시즌
+async function getWinnerCalendar(serverId, season) {
+    const pool = getPool();
+    if (!pool || !serverId) return { sessions: [], truncated: false };
+
+    // 상한을 1건 넘겨 받아 잘렸는지 판단 (조용한 절단 방지)
+    const probe = CALENDAR_SESSION_LIMIT + 1;
+    const result = season
+        ? await pool.query(CALENDAR_SQL_ARCHIVE, [serverId, season, probe])
+        : await pool.query(CALENDAR_SQL_LIVE, [serverId, probe]);
+
+    const rows = result.rows;
+    return {
+        sessions: rows.slice(0, CALENDAR_SESSION_LIMIT).map(r => ({
+            playedAt: r.played_at,
+            gameType: r.game_type,
+            participants: parseInt(r.participants, 10),
+            winners: r.winners || []
+        })),
+        truncated: rows.length > CALENDAR_SESSION_LIMIT
+    };
+}
+
 module.exports = {
     recordOrder,
     getMyOrderedMenus,
@@ -557,5 +616,6 @@ module.exports = {
     startNewSeason,
     getCurrentSeason,
     getSeasonList,
-    getSeasonRanking
+    getSeasonRanking,
+    getWinnerCalendar
 };

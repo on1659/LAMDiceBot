@@ -1,4 +1,52 @@
 ========================================
+📋 Summit Log - 2026-08-23 (랭킹 승자 달력)
+========================================
+
+## 변경 파일
+- db/ranking.js: getWinnerCalendar(serverId, season) 신설 — 세션 단위 당첨자 조회
+- routes/server.js: GET /api/ranking/:serverId/calendar, /season/:season/calendar 라우트 2개
+- js/shared/ranking-shared.js: 📅 달력 토글 + 월 달력 + 날짜 상세 패널 (+429줄)
+- docs/goal/ranking-winner-calendar.md: 명세 (토글 위치·구현 노트 실측 반영)
+- docs/GameGuide/02-shared-systems/ranking-and-stats.md: getWinnerCalendar·라우트 표 갱신
+- docs/GameGuide/lessons/_common.md: C-41~C-43 신규
+
+## 상세 변경 내역
+
+### [DB — getWinnerCalendar]
+- 한 판 = game_session_id 하나로 GROUP BY. NULL 세션은 COALESCE(game_session_id, 'row:'||id)로
+  개별 판 처리 (경마 등 일부 경로가 sessionId 없이 기록 → 무관한 기록이 한 판으로 뭉치는 것 방지).
+- season=null → server_game_records(현재 시즌), season=N → season_archives(지난 시즌). 스키마 변경 없음.
+- 상한 1000판 + 1건 프로브로 truncated 플래그 (조용한 절단 금지). 반환:
+  { sessions: [{playedAt, gameType, participants, winners[]}], truncated }
+- 날짜 경계를 SQL에서 자르지 않음 — created_at이 타임존 없는 TIMESTAMP고 호스트 TZ 미고정이라
+  자정 넘긴 판이 전날로 밀림. 원본 시각 전달, 클라이언트가 KST(UTC+9 고정)로 버킷팅. → lesson C-43
+
+### [클라이언트 — ranking-shared.js]
+- 토글은 콘텐츠 밖 고정 바(#ranking-view-bar). 렌더러들이 emptyMsg()로 조기 반환해
+  캡션 행(top10Label)에 두면 빈 시즌에서 토글이 사라짐. → lesson C-41
+- 자유 랭킹(_serverId 없음)은 토글 미노출 — 시즌 없고 배포 전역 기록이라 무의미.
+- 달력 켜면 메인/서브 탭 바 전부 숨김, 가로 스와이프는 탭 전환 대신 달 이동으로 라우팅.
+- 칸 = 그 날 최다 당첨자 + +N (동률은 이름순). 날짜 탭 → 인라인 상세 (1차·2차 회차, 시간순).
+  팝업 위 팝업은 PageHistoryManager 뒤로가기가 꼬여서 인라인 채택.
+- 상세 열고닫기는 트랜지션 없이 제자리 갱신(scrollTop 보존), 달 이동만 페이드.
+- 캐시는 시즌키별(_calCache), invalidateCache()에서 함께 무효화 (당겨서 새로고침·새 시즌 경로 공통).
+- stale 가드: fetch 응답 시점에 모드/시즌이 바뀌었으면 DOM 미접촉 (renderVehicleChamps와 동일 관례).
+- 게임 라벨 8종 전맵(CAL_GAME_LABELS) — 기존 gameTabs는 4종만 커버. 미지 타입은 "🎮 기타 게임".
+- 전역 CSS 누수 상쇄: 새 버튼에 width/margin-top/padding/background 전부 명시
+  (horse-race.css의 button{width:100%...}가 5개 페이지에서 샘), 체크박스는 완전 숨김
+  (theme.css의 input{background:var(--bg-white)}). → lesson C-42
+
+### [검증]
+- 합성 데이터 브라우저 하니스 18항목 전부 통과: 자정 경계(15:30Z→KST 익일 칸), 요일 정렬(8/1=토),
+  회차 시간순, 다중/무 당첨자, 미지 게임 타입, 월 이동·경계 비활성, 토글 on/off 복원,
+  모바일 375px 무가로스크롤, 긴 닉네임 말줄임.
+- 실 DB(server_id 70, 58행→29세션 + 아카이브 시즌3 2세션) 쿼리 검증.
+- 주의: node server.js는 자동 리로드 없음 — routes/* 변경도 재시작 필요 (클라 JS만 갱신되고
+  라우트는 404 나는 엇갈림 발생, 실기기에서 실제 재현).
+
+========================================
+
+========================================
 📋 Summit Log - 2026-08-23 (경마 PiP 수리 + 이탈 게이트 + 링크 미리보기 OG + 사다리 실플레이 4건 + 하네스 정리)
 ========================================
 

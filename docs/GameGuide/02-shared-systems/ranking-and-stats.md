@@ -40,6 +40,19 @@
 | `getCurrentSeason(serverId)` | 현재 시즌 번호 조회 |
 | `getSeasonList(serverId)` | 과거 시즌 목록 (경기 수, 기간) |
 | `getSeasonRanking(serverId, season)` | 특정 시즌 랭킹 |
+| `getWinnerCalendar(serverId, season)` | 날짜별 당첨자 달력용 세션 목록 (season=null이면 현재 시즌) |
+
+### 승자 달력 (`getWinnerCalendar`)
+
+랭킹 팝업의 `📅 달력` 토글이 쓰는 데이터. 한 판 = `game_session_id` 하나로 묶고,
+`game_session_id`가 NULL인 기록은 `id`로 대체 키를 만들어 개별 판으로 센다
+(경마 등 일부 경로가 sessionId 없이 기록 → 안 그러면 무관한 기록이 한 판으로 뭉친다).
+
+- 반환: `{ sessions: [{ playedAt, gameType, participants, winners[] }], truncated }`
+- 상한 1000판, 초과 시 `truncated: true` (조용한 절단 금지)
+- **날짜 경계를 SQL에서 자르지 않는다.** `created_at`은 타임존 없는 `TIMESTAMP`고
+  배포 호스트 타임존이 고정돼 있지 않아, 자정 넘긴 판이 전날로 밀린다.
+  원본 시각을 내려보내고 클라이언트가 Asia/Seoul 기준으로 묶는다
 
 플로우:
 ```
@@ -86,4 +99,6 @@ servers.current_season = 2
 | POST | `/api/ranking/:serverId/new-season` | 새 시즌 시작 (호스트) |
 | GET | `/api/ranking/:serverId/seasons` | 시즌 목록 |
 | GET | `/api/ranking/:serverId/season/:season` | 특정 시즌 랭킹 |
+| GET | `/api/ranking/:serverId/calendar` | 날짜별 당첨자 (현재 시즌) |
+| GET | `/api/ranking/:serverId/season/:season/calendar` | 날짜별 당첨자 (지난 시즌) |
 | GET | `/api/server/:id/records` | 게임 기록 (페이지네이션) |
