@@ -11,7 +11,9 @@ All required data already exists in `server_game_records` / `season_archives`: t
 ## In-scope
 - An on/off toggle labelled `📅 달력`, right-aligned in a dedicated bar that sits directly above the scrolling content — visually just above the `1~10등까지 랭킹` caption, where the user pointed. Off = today's leaderboards (unchanged). On = the winner calendar. The main tab bar is not a candidate location: its two buttons already fill the panel width.
 - Monthly calendar grid (Sun–Sat, 7 columns) for the season currently being viewed.
-- Day cell contents: day number, then up to **two** winner names stacked (most wins first, ties broken by name), then a bare `+` when a third distinct winner exists. The `+` carries no count — the exact list is one tap away in the detail panel.
+- Day cell contents: day number, then up to **two** winner names stacked in the order they first won that day, then a bare `+` when a third distinct winner exists. The `+` carries no count — the exact list is one tap away in the detail panel.
+- Cell ordering must match the detail panel. Ranking the cell by win count instead puts the same day in two different orders on one screen, which reads as a bug.
+- With one winner the name sits vertically centred in the cell; with two names plus the `+` the block fills the space and sits directly under the day number.
 - Tapping a day opens an inline detail panel directly below the calendar (not a nested overlay) listing every game played that day in order:
   `1차 · 🎲 주사위 · 👑 철수` / `2차 · 🪜 사다리타기 · 👑 영희, 민수`
   The 회차 number (1차, 2차, …) is per-day, counted from the first game of that day.
@@ -39,7 +41,8 @@ All required data already exists in `server_game_records` / `season_archives`: t
 - [ ] Turning it on replaces the leaderboard content with the month grid and hides the game sub-tab bars; turning it off restores the previous leaderboard view and its active tab.
 - [ ] The toggle is present and functional inside a past-season view, and that calendar shows only that season's games.
 - [ ] Days are bucketed by **Asia/Seoul** calendar date, so a game played at 00:30 KST lands on the correct day.
-- [ ] A day with games shows up to two winner names; a bare `+` appears only when a third distinct winner exists.
+- [ ] A day with games shows up to two winner names in first-win order; a bare `+` appears only when a third distinct winner exists.
+- [ ] On a day where win-count order and chronological order differ (e.g. 1차 철수, 2~4차 영희), the cell reads `철수 / 영희` — the same order as the detail panel.
 - [ ] Two stacked names plus the `+` fit the cell without clipping the grid, down to a 320px viewport.
 - [ ] Days with no games render as empty/dimmed and are not tappable.
 - [ ] Tapping a day shows every game of that day in order with a per-day 회차 number, the game label, and the winner name(s).

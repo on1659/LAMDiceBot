@@ -1667,17 +1667,18 @@ const RankingModule = (function () {
         return { days: days, months: Object.keys(monthSet).sort() };
     }
 
-    // 칸에 넣을 당첨자 — 많이 걸린 순, 동률이면 이름순.
+    // 칸에 넣을 당첨자 — 그 날 먼저 한 판의 당첨자가 위로 (list는 buildCalIndex에서 playedAt 오름차순).
+    // 승수 순으로 정렬하면 아래 상세 패널의 1차·2차 순서와 어긋나 같은 날을 두 가지 순서로 보게 된다.
     // 이름은 2명까지 적고 3명째부터는 + 하나로 접는다 (칸 폭이 모바일에서 46px라 그 이상은 안 들어간다)
     const CAL_CELL_NAMES = 2;
 
     function calDaySummary(list) {
-        const counts = {};
-        list.forEach(s => (s.winners || []).forEach(n => { counts[n] = (counts[n] || 0) + 1; }));
-        const names = Object.keys(counts);
-        if (!names.length) return null;
-        names.sort((a, b) => (counts[b] - counts[a]) || a.localeCompare(b));
-        return { shown: names.slice(0, CAL_CELL_NAMES), hasMore: names.length > CAL_CELL_NAMES };
+        const order = [];
+        list.forEach(s => (s.winners || []).forEach(n => {
+            if (order.indexOf(n) === -1) order.push(n); // 같은 사람이 여러 판 이겨도 첫 등장 순서 유지
+        }));
+        if (!order.length) return null;
+        return { shown: order.slice(0, CAL_CELL_NAMES), hasMore: order.length > CAL_CELL_NAMES };
     }
 
     async function fetchCalendar(key) {
