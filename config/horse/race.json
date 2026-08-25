@@ -23,7 +23,7 @@
       "medium": { "min": 3, "max": 5 },
       "long":   { "min": 5, "max": 8 }
     },
-    "progressTriggerRange": [0.10, 0.85],
+    "progressTriggerRange": [0.10, 0.95],
     "types": {
       "stop": {
         "category": "stop",

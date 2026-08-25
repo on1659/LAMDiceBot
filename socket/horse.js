@@ -9,7 +9,7 @@ const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
 const ROULETTE_ANIM_MS = 5500;   // N등 투표 룰렛 애니메이션 길이 (ms)
 const ROULETTE_HOLD_MS = 3000;   // 룰렛 결과 인지/감상 시간 (ms)
 const FALLBACK_HOLD_MS = 3000;   // fallback(투표 없음/모두 무효) 사유 표시 시간 (ms)
-const HORSE_RACE_SIM_MAX_MS = 60000; // 서버 시뮬 경주 길이 상한 (calculateHorseRaceResult 루프 상한과 동일) — 정산 워치독의 예상 종료 기준
+const HORSE_RACE_SIM_MAX_MS = 90000; // 서버 시뮬 경주 길이 상한 (calculateHorseRaceResult 루프 상한과 동일) — 정산 워치독의 예상 종료 기준. 막판 기믹 창 확장(trigger 0.95)으로 60s→90s
 
 // Evolution / Fake Evolution 기믹 설정 — config/horse/race.json 의 evolution / fakeEvolution 섹션 참조
 const _horseRaceConfig = require('../config/horse/race.json');
@@ -325,7 +325,7 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
 
     // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
     let frameCount = 0;
-    while (elapsed < 60000) {
+    while (elapsed < HORSE_RACE_SIM_MAX_MS) {
         elapsed += frameInterval;
         frameCount++;
 
@@ -566,8 +566,8 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
     // 시뮬레이션 결과로 순위 결정 (finishJudgedTime 기준 - 클라이언트와 동일)
     const simResults = horseStates.map(s => ({
         horseIndex: s.horseIndex,
-        simFinishJudgedTime: s.finishJudgedTime || 60000,
-        simFinishTime: s.finishTime || 60000,
+        simFinishJudgedTime: s.finishJudgedTime || HORSE_RACE_SIM_MAX_MS,
+        simFinishTime: s.finishTime || HORSE_RACE_SIM_MAX_MS,
         baseDuration: s.baseDuration
     }));
     simResults.sort((a, b) => a.simFinishJudgedTime - b.simFinishJudgedTime);
