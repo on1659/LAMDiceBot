@@ -4466,6 +4466,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         state.currentPos = finishLine - state.visualWidth - stunBuffer - earlyStunDistance;
                         if (!state.finishStunned) {
                             state.finishStunned = true;
+                            console.log(`[DEBUG] 말 ${state.horseIndex} 결승 대기 자빠짐! rank=${state.rank}, pos=${state.currentPos.toFixed(0)}`);
                             const vid = state.horse.dataset.vehicleId;
                             if (vid) {
                                 // catch-up 중엔 낙하 전환 연출(타이머) 대신 직접 스왑 — 반복 토글 churn/스테일 타이머 방지
