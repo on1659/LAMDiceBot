@@ -238,17 +238,6 @@ const GAMES = [
         },
     },
     {
-        type: 'crane-game', name: '인형뽑기', emoji: '🎰', accent: '#f59e0b', maxBots: 49,
-        hint: '인형뽑기는 사전 베팅이 없습니다. 봇은 입장 후 자동 준비만 하면 됩니다. 호스트가 시작하면 서버가 당첨자를 결정합니다.',
-        actions: [],
-        quick: null,
-        info: () => '',
-        events: {
-            craneGameStarted: (b, d) => { if (isLead(b)) dlog(`인형뽑기 시작 — 당첨(예정)=${d && d.winner}`, 'event'); },
-            craneGameEnded: (b, d) => { if (isLead(b)) dlog(`인형뽑기 종료 — 당첨=${d && d.winner}`, 'event'); },
-        },
-    },
-    {
         type: 'bridge', name: '다리건너기', emoji: '🌉', accent: '#06b6d4', maxBots: 49,
         hint: '봇마다 색(0~5)에 베팅합니다. "전원 같은 색"으로 한 색에 몰 수도 있습니다. 베팅된 색만 최종 도전자로 뽑힙니다. 베팅 후 호스트가 시작하세요.',
         actions: [

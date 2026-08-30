@@ -302,8 +302,6 @@ const ReadyModule = (function () {
         init,
         toggleReady,
         setUserReady,
-        getReadyUsers: () => [..._readyUsers],
-        isCurrentUserReady: () => _isReady,
         renderReadyUsers,
         setupDragAndDrop,
         setReadyUsers: (users) => {

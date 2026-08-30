@@ -12,7 +12,6 @@ var TutorialModule = (function() {
         dice: 2,
         roulette: 4,
         horse: 8,
-        crane: 16,
         bridge: 32,
         ladder: 64,
         'spin-arena': 128,

@@ -445,6 +445,17 @@ socket.on('updateUsers', (data) => {
 
 ---
 
+## C-44. 게임을 삭제해도 튜토리얼 `FLAG_BITS` 비트값은 영구 예약이다
+
+- `js/shared/tutorial-shared.js`의 `FLAG_BITS`는 그냥 상수 맵처럼 보이지만, 켜진 비트는 `setGuideComplete` → `socket/index.js`의 핸들러 → `db/auth.js`의 `setFlag`(`UPDATE users SET flags = flags | $1`)를 거쳐 **`users.flags` 정수 하나에 영구 저장**된다. localStorage가 아니라 DB다.
+- 그래서 게임을 삭제하며 `FLAG_BITS`에서 그 항목을 지워도 **이미 그 비트가 켜진 유저 행은 그대로 남는다.** 나중에 새 게임에 그 비트를 재할당하면 `_hasSeen()`이 `(_serverFlags & bit)`로 true를 리턴 → `start()`가 조기 반환 → **옛 유저에게만 튜토리얼이 아무 에러 없이 안 뜬다.** 신규 유저·비로그인은 정상이라 재현이 어렵다.
+- **해결:** 삭제된 게임의 비트는 회수하지 말고 **영구 예약**한다. 새 게임은 항상 현재 최대값의 2배(다음 free 비트)를 쓰고, `docs/GameGuide/NEW-GAME.md`의 비트 목록에 "N은 재사용 금지" 사유를 남긴다.
+- 같은 논리가 DB에 영속되는 다른 비트마스크·enum 문자열에도 그대로 적용된다. **삭제된 값의 자리를 재사용하지 마라.**
+- **검증:** 새 비트를 배정하기 전에 `SELECT count(*) FROM users WHERE flags & <새비트> > 0`이 0인지 확인. 0이 아니면 그 비트는 과거에 쓰인 적이 있는 값이다.
+- (출처: 2026-08-30 인형뽑기(crane-game) 삭제 — 비트 16을 회수 직전에 발견)
+
+---
+
 ## 누적 규칙
 
 새로운 공통 함정 발견 시 다음 번호(C-6, C-7…)로 추가. **게임 한정 함정은 해당 게임 lesson 파일에 작성.**

@@ -10,7 +10,6 @@ const registerLadderHandlers = require('./ladder');
 const registerSpinArenaHandlers = require('./spin-arena');
 const registerPirateHandlers = require('./pirate');
 const registerFreeHandlers = require('./free');
-// const registerCraneGameHandlers = require('./crane-game'); // 비공개 처리
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
 const { registerServerHandlers } = require('./server');
@@ -212,7 +211,6 @@ function setupSocketHandlers(io, rooms) {
         registerSpinArenaHandlers(socket, io, ctx);
         registerPirateHandlers(socket, io, ctx);
         registerFreeHandlers(socket, io, ctx);
-        // registerCraneGameHandlers(socket, io, ctx); // 비공개 처리
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);
         registerServerHandlers(socket, io, ctx);

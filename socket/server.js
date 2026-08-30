@@ -1,8 +1,7 @@
 // Server 소켓 이벤트 핸들러
 const {
     createServer, getServers, getServerById, joinServer,
-    getMembers, updateMemberApproval, removeMember, checkMember, updateLastSeen,
-    getServerRecords
+    getMembers, updateMemberApproval, removeMember, checkMember, updateLastSeen
 } = require('../db/servers');
 const { resolveShortcode } = require('../utils/shortcode');
 
@@ -210,13 +209,6 @@ function registerServerHandlers(socket, io, ctx) {
         }
     });
 
-    // 서버 퇴장
-    socket.on('leaveServer', () => {
-        handleServerLeave(socket, io);
-        // 소속이 풀렸으니 자유플레이 기준 목록으로 교체
-        sendRoomsList();
-    });
-
     // 현재 서버 ID 설정 (세션 복원 시 룸 재조인 + 온라인 등록)
     // 2026-05-17 보안 패치: userName이 함께 오면 멤버십을 강하게 검증.
     // 2026-07-19 클라이언트 통일 완료: 전 게임 페이지가 userName을 함께 보낸다.
@@ -281,25 +273,6 @@ function registerServerHandlers(socket, io, ctx) {
                     }
                 }
             } catch (e) {}
-        }
-    });
-
-    // 서버 게임 기록 요청
-    socket.on('getServerRecords', async (data) => {
-        if (!checkRateLimit()) return;
-        const { serverId, limit, offset, gameType } = data || {};
-
-        if (!serverId) {
-            socket.emit('serverError', '서버 ID가 필요합니다.');
-            return;
-        }
-
-        try {
-            const result = await getServerRecords(serverId, { limit, offset, gameType });
-            socket.emit('serverRecords', result);
-        } catch (e) {
-            console.error('서버 기록 조회 오류:', e.message);
-            socket.emit('serverError', '기록 조회 중 오류가 발생했습니다.');
         }
     });
 

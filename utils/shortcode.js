@@ -49,9 +49,4 @@ function releaseShortcode(code) {
     if (code) delete shortcodeIndex[code];
 }
 
-// 디버깅/관리용
-function getActiveCount() {
-    return Object.keys(shortcodeIndex).length;
-}
-
-module.exports = { issueShortcode, resolveShortcode, releaseShortcode, getActiveCount };
+module.exports = { issueShortcode, resolveShortcode, releaseShortcode };

@@ -106,11 +106,4 @@ function verifyToken(token) {
     return { userId: payload.u, name: payload.n };
 }
 
-// 무저장 토큰이라 서버 측에서 즉시 무효화할 수단이 없다(서명만 검증).
-// 인터페이스는 유지해 호출부가 깨지지 않게 한다. 현금화 도입 시 토큰을
-// DB/Redis 세션 스토어로 승격하면 바로 이 함수에서 실제 무효화를 구현한다.
-function revokeToken(token) {
-    // no-op (stateless) — 승격 시 여기서 세션 레코드 삭제
-}
-
-module.exports = { issueToken, verifyToken, revokeToken, initAuthSecret };
+module.exports = { issueToken, verifyToken, initAuthSecret };

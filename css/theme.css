@@ -127,13 +127,6 @@
   /* 경마 게임 - 갈색 (로비용 fallback) */
   --horse-accent: #8B4513;
 
-  /* 뽑기 게임 - 회색 배경 + 보라색 강조 */
-  --crane-50:   #F5F7F8;
-  --crane-500:  #9c27b0;  /* 보라색 강조 (h1, 버튼) */
-  --crane-600:  #7b1fa2;
-  --crane-700:  #6a1b9a;
-  --crane-bg:   #8e99a4;  /* 룰렛과 동일한 회색 */
-
   /* 다리건너기 게임 - 시안 (인게임 캔버스 톤과 일치)
      -500: 캐릭터/UI 시각 강조 (밝은 cyan)
      -600: 진한 캔버스 cyan
@@ -167,7 +160,6 @@
   ============================================ */
   --game-type-dice: var(--dice-500);
   --game-type-roulette: var(--roulette-500);
-  --game-type-crane: var(--crane-500);
   --game-type-horse: var(--horse-accent);
   --game-type-horse-rgb: 139, 69, 19;
   --game-type-bridge: var(--bridge-500);
@@ -290,9 +282,6 @@
   --roulette-gradient: linear-gradient(135deg, #1a5c3a 0%, #22693f 50%, #2d7a52 100%);
   --roulette-accent: var(--roulette-500);
 
-  --crane-gradient: linear-gradient(135deg, var(--crane-bg) 0%, #7a8b99 50%, #6b7c8a 100%);
-  --crane-accent: var(--crane-500);
-
   /* ============================================
      버튼 텍스트 색상
   ============================================ */
@@ -312,7 +301,6 @@
   --red-500-rgb: 220, 53, 69;
   --yellow-500-rgb: 255, 193, 7;
   --yellow-gold-rgb: 255, 215, 0;
-  --crane-500-rgb: 156, 39, 176;
   --roulette-500-rgb: 124, 77, 255;
   --roulette-pointer: #ff1744;
 }
@@ -350,7 +338,6 @@
   /* 게임별: 채도 감소 */
   --dice-500: #9C7FFF;
   --roulette-500: #9575cd;
-  --crane-500: #ba68c8;
 
   /* 다리건너기: 명도 약간 높임 */
   --bridge-500: #5af2ff;
@@ -381,7 +368,6 @@
   --green-500-rgb: 102, 187, 106;
   --red-500-rgb: 239, 83, 80;
   --yellow-500-rgb: 255, 213, 79;
-  --crane-500-rgb: 186, 104, 200;
   --roulette-500-rgb: 149, 117, 205;
   --game-type-horse-rgb: 139, 69, 19;
 }

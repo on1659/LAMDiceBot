@@ -1,6 +1,5 @@
-// 게시판 & Gemini AI 소켓 핸들러
+// 게시판 소켓 핸들러
 const { loadSuggestions, saveSuggestion, deleteSuggestion } = require('../db/suggestions');
-const geminiService = require('../utils/gemini-utils');
 
 module.exports = function registerBoardHandlers(socket, io, ctx) {
     // 게시판 조회
@@ -107,20 +106,4 @@ module.exports = function registerBoardHandlers(socket, io, ctx) {
         }
     });
 
-    // Gemini AI 채팅
-    socket.on('geminiChat', async (data) => {
-        const { prompt } = data;
-        if (!prompt || prompt.trim().length === 0) {
-            socket.emit('geminiResponse', { error: '메시지를 입력해주세요.' });
-            return;
-        }
-
-        try {
-            const response = await geminiService.generateResponse(prompt);
-            socket.emit('geminiResponse', { text: response });
-        } catch (error) {
-            console.error('Gemini API 오류:', error);
-            socket.emit('geminiResponse', { error: 'AI 응답을 가져오는 중 오류가 발생했습니다.' });
-        }
-    });
 };

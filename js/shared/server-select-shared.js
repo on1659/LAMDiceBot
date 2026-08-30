@@ -858,7 +858,6 @@ const ServerSelectModule = (function () {
         localStorage.setItem('ladderUserName', name);
         localStorage.setItem('spinArenaUserName', name);
         localStorage.setItem('pirateUserName', name);
-        localStorage.setItem('craneGameUserName', name);
         localStorage.setItem('freeUserName', name);
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) {
@@ -933,7 +932,7 @@ const ServerSelectModule = (function () {
 
     function logout() {
         localStorage.removeItem('userAuth');
-        // _saveName이 쓰는 11키와 대칭으로 제거 (드리프트 잔존 방지)
+        // _saveName이 쓰는 10키와 대칭으로 제거 (드리프트 잔존 방지)
         localStorage.removeItem('userName');
         localStorage.removeItem('diceUserName');
         localStorage.removeItem('diceGameUserName');
@@ -943,7 +942,6 @@ const ServerSelectModule = (function () {
         localStorage.removeItem('ladderUserName');
         localStorage.removeItem('spinArenaUserName');
         localStorage.removeItem('pirateUserName');
-        localStorage.removeItem('craneGameUserName');
         localStorage.removeItem('freeUserName');
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) {
@@ -1640,10 +1638,6 @@ const ServerSelectModule = (function () {
         return null;
     }
 
-    function getCurrentServer() {
-        return _currentServer;
-    }
-
     function setCurrentServer(server) {
         _currentServer = server;
     }
@@ -1698,11 +1692,6 @@ const ServerSelectModule = (function () {
         if (_socket) _socket.emit('getServers', { userName: _getUserName() });
     }
 
-    function refreshServers() {
-        _emitGetServers();
-        if (_socket) _socket.emit('getRooms');
-    }
-
     return {
         init,
         show,
@@ -1710,7 +1699,6 @@ const ServerSelectModule = (function () {
         showLoginModal,
         showRegisterModal,
         logout,
-        refreshServers,
         onSearch,
         selectFree,
         selectServer,
@@ -1726,7 +1714,6 @@ const ServerSelectModule = (function () {
         closeMyServersModal,
         showServerMembersManage,
         deleteMyServer,
-        getCurrentServer,
         setCurrentServer,
         _startTutorial: function() {
             if (typeof TutorialModule !== 'undefined') {

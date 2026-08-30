@@ -1,12 +1,16 @@
-// 자유 방 다이렉트 링크(/free/:game/:shortcode)의 OG 메타 서버 주입.
+// 방 다이렉트 링크의 링크 미리보기(OG 메타) 서버 주입.
 //
-// free.html은 정적 파일이라 모든 방 링크가 같은 미리보기("친구랑 같이 놀기")로 보인다.
-// 카톡/텔레그램 등 링크 크롤러는 JS를 실행하지 않으므로, 응답 HTML의
-// OG-ROOM-META 마커 블록을 서버가 방 정보로 교체해서 내려준다.
+// free.html은 정적 파일이라 그대로 두면 모든 방 링크가 같은 미리보기
+// ("친구랑 같이 놀기")로 보인다. 카톡/텔레그램 등 링크 크롤러는 JS를
+// 실행하지 않으므로, 응답 HTML의 OG-ROOM-META 마커 블록을 서버가
+// 방 정보로 교체해서 내려준다.
 //
-// ⚠️ 서버 방(room.serverId)에는 절대 사용하지 않는다.
-//    roomName/hostName은 2026-05-17 보안 패치로 비인증 호출자에게 마스킹되는 값이라
-//    미리보기에 노출하면 비공개 서버의 방 이름·호스트가 그대로 새어나간다.
+// 자유 방(/free/{game}/{code})과 서버 방(/{game}/{code}) 모두 방 이름을 노출한다.
+// 2026-08-24 결정: 서버 방도 자유 방과 동일하게 방 제목을 보여준다.
+//   링크 미리보기는 링크 소지자를 대상으로 하므로 방 제목까지 보여주기로 했다.
+//   비공개 서버 방 이름도 링크를 가진 사람에게는 보인다는 뜻이다.
+//   /api/free/resolve도 같은 판단으로 roomName을 함께 공개한다 —
+//   여전히 마스킹하는 것은 서버의 hostName/serverName 두 개다.
 
 const fs = require('fs');
 
@@ -23,7 +27,8 @@ const GAME_LABELS = {
     horse:        '경마',
     bridge:       '다리건너기',
     ladder:       '사다리타기',
-    'spin-arena': '회전 칼날'
+    'spin-arena': '회전 칼날',
+    pirate:       '해적 룰렛'
 };
 const GAME_EMOJI = {
     dice:         '🎲',
@@ -31,7 +36,8 @@ const GAME_EMOJI = {
     horse:        '🐎',
     bridge:       '🌉',
     ladder:       '🪜',
-    'spin-arena': '⚔️'
+    'spin-arena': '⚔️',
+    pirate:       '🏴‍☠️'
 };
 
 // free.html 캐시 — mtime이 바뀌면 다시 읽는다 (dev에서 편집 즉시 반영).
@@ -78,16 +84,13 @@ function buildMetaBlock({ title, description, url, image }) {
     ].join('\n');
 }
 
-/**
- * 자유 방 하나에 대한 OG 메타 문구를 만든다.
- * room은 반드시 serverId가 없는 자유 방이어야 한다.
- */
-function buildRoomMeta(game, shortcode, room) {
+function buildRoomMeta(game, urlPath, room) {
     const label = GAME_LABELS[game];
     const emoji = GAME_EMOJI[game] || '';
-    const roomName = (room.roomName || '').trim();
 
-    // roomName은 socket/free.js에서 "{닉네임}의 방"으로 자동 생성된다.
+    // 자유 방은 "{닉네임}의 방"으로 자동 생성(socket/free.js),
+    // 서버 방은 방을 만들 때 사용자가 직접 입력한 제목(socket/rooms.js).
+    const roomName = (room.roomName || '').trim();
     const title = roomName
         ? `${emoji} ${roomName} · ${label} - LAMDice`
         : `${emoji} ${label} 방 - LAMDice`;
@@ -100,25 +103,30 @@ function buildRoomMeta(game, shortcode, room) {
     return {
         title,
         description,
-        url: `${SITE_ORIGIN}/free/${game}/${shortcode}`,
+        url: `${SITE_ORIGIN}${urlPath}`,
         image: `${SITE_ORIGIN}/assets/og/${game}.jpg`
     };
 }
 
 /**
  * free.html을 읽어 OG 메타를 방 정보로 교체한 HTML을 돌려준다.
- * 방이 없거나(만료), 서버 방이거나, 모르는 게임이면 기본 메타 그대로 돌려준다.
+ *
+ * @param {string} htmlPath  free.html 절대 경로
+ * @param {object} opts
+ * @param {string} opts.game     게임 슬러그 (dice/roulette/horse/...)
+ * @param {string} opts.urlPath  이 방의 링크 경로 (예: /free/horse/AB12C, /horse-race/AB12C)
+ * @param {object|null} opts.room  메모리상의 방 객체. 없으면(만료) 기본 메타 유지.
  */
-function renderFreeHtml(htmlPath, { game, shortcode, room }) {
+function renderFreeHtml(htmlPath, { game, urlPath, room }) {
     const html = readHtml(htmlPath);
 
-    if (!room || room.serverId || !GAME_LABELS[game]) return html;
+    if (!room || !GAME_LABELS[game]) return html;
 
     const startIdx = html.indexOf(META_START);
     const endIdx = html.indexOf(META_END);
     if (startIdx === -1 || endIdx === -1) return html;
 
-    const block = buildMetaBlock(buildRoomMeta(game, shortcode, room));
+    const block = buildMetaBlock(buildRoomMeta(game, urlPath, room));
     return html.slice(0, startIdx) + block.trimStart() + html.slice(endIdx + META_END.length);
 }
 

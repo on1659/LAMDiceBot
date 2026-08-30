@@ -41,36 +41,6 @@ async function loadSuggestions() {
     return [];
 }
 
-async function loadSuggestionsWithPassword(id) {
-    const pool = getPool();
-    try {
-        if (pool) {
-            const result = await pool.query(
-                'SELECT id::text, password FROM suggestions WHERE id = $1',
-                [id]
-            );
-            if (result.rows.length > 0) {
-                return result.rows[0].password;
-            }
-            return null;
-        }
-    } catch (error) {
-        console.error('Postgres 비밀번호 조회 오류, 파일 시스템으로 폴백:', error);
-    }
-
-    try {
-        if (fs.existsSync(BOARD_FILE)) {
-            const data = fs.readFileSync(BOARD_FILE, 'utf8');
-            const suggestions = JSON.parse(data);
-            const suggestion = suggestions.find(s => s.id === id);
-            return suggestion ? suggestion.password : null;
-        }
-    } catch (error) {
-        console.error('게시판 파일 읽기 오류:', error);
-    }
-    return null;
-}
-
 async function saveSuggestion(suggestion) {
     const pool = getPool();
     try {
@@ -156,4 +126,4 @@ async function deleteSuggestion(id, password) {
     }
 }
 
-module.exports = { loadSuggestions, loadSuggestionsWithPassword, saveSuggestion, deleteSuggestion };
+module.exports = { loadSuggestions, saveSuggestion, deleteSuggestion };

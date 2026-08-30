@@ -23,7 +23,8 @@ const CARDS = [
     { slug: 'horse',       emoji: '🐎', label: '경마',             gradient: ['#d2691e', '#8B4513'] },
     { slug: 'bridge',      emoji: '🌉', label: '다리건너기',       gradient: ['#42edff', '#1ec8da'] },
     { slug: 'ladder',      emoji: '🪜', label: '사다리타기',       gradient: ['#f59e0b', '#d97706'] },
-    { slug: 'spin-arena',  emoji: '⚔️', label: '회전 칼날',        gradient: ['#7c5cff', '#22d3ee'] }
+    { slug: 'spin-arena',  emoji: '⚔️', label: '회전 칼날',        gradient: ['#7c5cff', '#22d3ee'] },
+    { slug: 'pirate',      emoji: '🏴‍☠️', label: '해적 룰렛',        gradient: ['#0ea5e9', '#0f4c81'] }
 ];
 
 function cardHtml({ emoji, label, gradient }) {

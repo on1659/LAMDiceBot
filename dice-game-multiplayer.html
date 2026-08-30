@@ -157,7 +157,6 @@
         .room-item.game-dice { --accent: var(--game-type-dice); --accent-rgb: var(--dice-500-rgb); }
         .room-item.game-roulette { --accent: var(--game-type-roulette); --accent-rgb: var(--roulette-500-rgb); }
         .room-item.game-horse-race { --accent: var(--game-type-horse); --accent-rgb: var(--game-type-horse-rgb); }
-        .room-item.game-crane-game { --accent: var(--game-type-crane); --accent-rgb: var(--crane-500-rgb); }
         .room-item.game-bridge { --accent: var(--game-type-bridge); --accent-rgb: var(--bridge-500-rgb); }
         .room-item.game-ladder { --accent: var(--game-type-ladder); --accent-rgb: var(--ladder-500-rgb); }
         .room-item.game-spin-arena { --accent: var(--game-type-spin-arena); --accent-rgb: var(--spin-arena-500-rgb); }
@@ -2082,14 +2081,6 @@
                         <span class="gt-name">해적 룰렛</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
-                    <!-- 인형뽑기 (비공개 처리) -->
-                    <!-- <label class="game-type-option" style="--gt-color: var(--game-type-crane); --gt-rgb: var(--crane-500-rgb);">
-                        <input type="radio" name="gameType" value="crane-game" />
-                        <span class="gt-emoji">🪄</span>
-                        <span class="gt-name">인형뽑기</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
-                    </label> -->
-
                 </div>
                 <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
                 <div id="gameTypeInfo">
@@ -2423,7 +2414,6 @@
     <script src="/js/tagline-roller.js"></script>
     <script src="/js/shared/server-select-shared.js"></script>
     <script src="/js/shared/chat-shared.js"></script>
-    <script src="/js/shared/ready-shared.js"></script>
     <script src="/js/shared/order-shared.js"></script>
     <script src="/js/shared/ranking-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
@@ -3272,9 +3262,6 @@
                 } else if (room.gameType === 'horse-race') {
                     gameTypeIcon = '🐎';
                     gameTypeLabel = '경마';
-                } else if (room.gameType === 'crane-game') {
-                    gameTypeIcon = '🪄';
-                    gameTypeLabel = '인형뽑기';
                 } else if (room.gameType === 'bridge') {
                     gameTypeIcon = '🌉';
                     gameTypeLabel = 'Untitle';
@@ -3466,20 +3453,6 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/pirate?joinRoom=true';
-                return;
-            }
-
-            // 인형뽑기 방이면 인형뽑기 페이지로 이동
-            if (room && room.gameType === 'crane-game') {
-                localStorage.setItem('craneGameUserName', userName);
-                localStorage.setItem('pendingCraneGameJoin', JSON.stringify({
-                    roomId: roomId,
-                    userName: userName,
-                    isPrivate: room.isPrivate,
-                    serverId: currentServerId,
-                    serverName: currentServerName
-                }));
-                window.location.href = '/crane-game-multiplayer.html?joinRoom=true';
                 return;
             }
 
@@ -4464,23 +4437,6 @@
                 return;
             }
 
-            // 인형뽑기 게임이면 인형뽑기 페이지로 이동
-            if (gameType === 'crane-game') {
-                localStorage.setItem('craneGameUserName', hostName);
-                localStorage.setItem('pendingCraneGameRoom', JSON.stringify({
-                    userName: hostName,
-                    roomName: roomName,
-                    isPrivate: isPrivate,
-                    password: isPrivate ? password : '',
-                    expiryHours: expiryHours,
-                    blockIPPerUser: blockIPPerUser,
-                    serverId: currentServerId,
-                    serverName: currentServerName
-                }));
-                window.location.href = '/crane-game-multiplayer.html?createRoom=true';
-                return;
-            }
-            
             // 방 생성 (방 제목은 클라이언트 입력)
             socket.emit('createRoom', {
                 userName: hostName,
@@ -4597,20 +4553,6 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/pirate?joinRoom=true';
-                return;
-            }
-
-            // 인형뽑기 방이면 인형뽑기 페이지로 이동
-            if (room && room.gameType === 'crane-game') {
-                localStorage.setItem('craneGameUserName', userName);
-                localStorage.setItem('pendingCraneGameJoin', JSON.stringify({
-                    roomId: selectedRoomId,
-                    userName: userName,
-                    isPrivate: room.isPrivate,
-                    serverId: currentServerId,
-                    serverName: currentServerName
-                }));
-                window.location.href = '/crane-game-multiplayer.html?joinRoom=true';
                 return;
             }
 

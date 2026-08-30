@@ -243,8 +243,8 @@ module.exports = (socket, io, ctx) => {
             roomPassword = password.trim();
         }
 
-        // 게임 타입 검증 (dice, roulette, horse-race, crane-game, bridge, ladder 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'crane-game', 'bridge', 'ladder', 'spin-arena', 'pirate'].includes(gameType) ? gameType : 'dice';
+        // 게임 타입 검증 (dice, roulette, horse-race, bridge, ladder 허용, 기본값은 'dice')
+        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate'].includes(gameType) ? gameType : 'dice';
 
         // 사다리타기는 로컬 개발 서버에서만 방을 만들 수 있다 (실서버 미출시)
         // 아래 leaveRoom(socket)보다 반드시 앞 — 거부하면서 기존 방에서 내보내면 안 된다
@@ -646,17 +646,18 @@ module.exports = (socket, io, ctx) => {
         const room = rooms[roomId];
         const gameState = room.gameState;
 
-        // 서버 격리: 다른 서버의 방에는 입장 불가
+        // 서버 격리: 방의 소속 서버를 기준으로 판정한다.
+        // socket.serverId는 setServerId의 async 멤버십 검증이 끝나야 채워진다. 다이렉트 링크
+        // 진입이나 재접속처럼 setServerId와 joinRoom이 붙어서 오면 여기 도달 시점에 아직
+        // 비어 있을 수 있어, 그 값만 믿고 튕기면 정상 멤버가 자기 서버 방에서 거부된다.
+        // 서버 방은 아래 DB 멤버십 검증이 권위 있는 게이트이므로 그것으로 판정하고,
+        // 통과하면 소켓 소속을 방 기준으로 확정한다 (방 목록 필터가 같은 값을 쓴다).
         const userServerId = socket.serverId || null;
         const roomServerId = room.serverId || null;
-        if (userServerId !== roomServerId) {
-            socket.emit('roomError', '다른 서버의 방에는 입장할 수 없습니다.');
-            return;
-        }
 
-        // 2026-05-17 보안 패치: 서버 방은 멤버 승인 재검증 (방어적 layering).
-        // setServerId가 userName 없이 호출된 약한 신뢰 케이스를 여기서 최종 차단.
         if (roomServerId) {
+            // 2026-05-17 보안 패치: 서버 방은 멤버 승인 재검증 (방어적 layering).
+            // setServerId가 userName 없이 호출된 약한 신뢰 케이스를 여기서 최종 차단.
             try {
                 const member = await checkMember(roomServerId, userName.trim());
                 if (!member || !member.is_approved) {
@@ -669,6 +670,12 @@ module.exports = (socket, io, ctx) => {
                 socket.emit('roomError', '서버 확인 중 오류가 발생했습니다.');
                 return;
             }
+            socket.serverId = roomServerId;
+            socket.join(`server:${roomServerId}`);
+        } else if (userServerId) {
+            // 서버 소속 소켓은 자유플레이 방에 들어갈 수 없다 (기존 격리 규칙 유지)
+            socket.emit('roomError', '다른 서버의 방에는 입장할 수 없습니다.');
+            return;
         }
 
         // 비공개 방 비밀번호 확인
@@ -1724,88 +1731,6 @@ module.exports = (socket, io, ctx) => {
             });
         }
     }
-
-    // 사용자 로그인 (하위 호환성 유지, 하지만 이제는 사용하지 않음)
-    socket.on('login', (data) => {
-        if (!checkRateLimit()) return;
-
-        // Legacy gameState for compatibility
-        let gameState = createRoomGameState();
-
-        const { name, isHost } = data;
-
-        // 입력값 검증
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
-            socket.emit('loginError', '올바른 이름을 입력해주세요!');
-            return;
-        }
-
-        // 이름 길이 제한
-        if (name.trim().length > 20) {
-            socket.emit('loginError', '이름은 20자 이하로 입력해주세요!');
-            return;
-        }
-
-        // 중복 이름 체크
-        if (gameState.users.some(user => user.name === name)) {
-            socket.emit('loginError', '이미 사용 중인 이름입니다!');
-            return;
-        }
-
-        // 호스트 중복 체크
-        if (isHost && gameState.users.some(user => user.isHost === true)) {
-            socket.emit('loginError', '이미 호스트가 있습니다! 일반 사용자로 입장해주세요.');
-            return;
-        }
-
-        const user = {
-            id: socket.id,
-            name: name.trim(),
-            isHost: isHost,
-            joinTime: new Date()
-        };
-
-        gameState.users.push(user);
-
-        // 사용자별 주사위 설정 초기화 (없으면 기본값, 최소값은 항상 1 고정)
-        if (!gameState.userDiceSettings[name.trim()]) {
-            gameState.userDiceSettings[name.trim()] = {
-                max: 100
-            };
-        }
-
-        // 사용자별 주문 초기화
-        if (!gameState.userOrders[name.trim()]) {
-            gameState.userOrders[name.trim()] = '';
-        }
-
-        console.log(`${name} 입장 (${isHost ? 'HOST' : '일반'})`);
-
-        // 재접속 시 이미 굴렸는지 확인
-        const hasRolled = gameState.rolledUsers.includes(name.trim());
-        const myResult = gameState.history.find(r => r.user === name.trim());
-
-        // 로그인 성공 응답과 함께 재접속 정보 전송
-        socket.emit('loginSuccess', {
-            userName: name.trim(),
-            isHost: isHost,
-            hasRolled: hasRolled,
-            myResult: myResult,
-            isGameActive: gameState.isGameActive,
-            isOrderActive: gameState.isOrderActive,
-            isGamePlayer: gameState.gamePlayers.includes(name.trim()),
-            diceSettings: gameState.userDiceSettings[name.trim()],
-            myOrder: gameState.userOrders[name.trim()] || '',
-            gameRules: gameState.gameRules,
-            frequentMenus: gameState.frequentMenus
-        });
-
-        // 모든 클라이언트에게 업데이트된 사용자 목록 전송
-        io.emit('updateUsers', gameState.users);
-
-        // 모든 클라이언트에게 업데이트된 주문 목록 전송
-        io.emit('updateOrders', gameState.userOrders);
-    });
 
     // ctx에 leaveRoom과 checkAndEndGame 추가 (다른 모듈에서 사용할 수 있도록)
     ctx.leaveRoom = leaveRoom;

@@ -30,8 +30,8 @@
         .login-box button:hover { background: var(--purple-600); }
 
         .admin-panel { display: none; }
-        .stats-row { display: flex; gap: 16px; margin-bottom: 20px; }
-        .stat-box { flex: 1; background: var(--purple-50); padding: 16px; border-radius: 8px; text-align: center; }
+        .stats-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+        .stat-box { flex: 1 1 120px; background: var(--purple-50); padding: 16px; border-radius: 8px; text-align: center; }
         .stat-box .num { font-size: 2em; font-weight: bold; color: var(--dice-accent); }
         .stat-box .label { font-size: 0.85em; color: var(--text-secondary); }
 
@@ -52,7 +52,6 @@
         .badge-game.dice { background: var(--dice-accent); color: white; }
         .badge-game.roulette { background: #c2185b; color: white; }
         .badge-game.horse-race { background: #f57c00; color: white; }
-        .badge-game.crane-game { background: #00897b; color: white; }
         .badge-game.bridge { background: #5e35b1; color: white; }
         .badge-phase { background: var(--gray-200); color: var(--text-secondary); }
         .badge-phase.playing,
@@ -95,6 +94,7 @@
             <div class="stats-row" id="statsRow">
                 <div class="stat-box"><div class="num" id="totalServers">-</div><div class="label">전체 서버</div></div>
                 <div class="stat-box"><div class="num" id="activeServers">-</div><div class="label">활성 서버</div></div>
+                <div class="stat-box"><div class="num" id="recentPlayServers">-</div><div class="label">최근 7일 게임</div></div>
                 <div class="stat-box"><div class="num" id="totalUsers">-</div><div class="label">전체 유저</div></div>
                 <div class="stat-box"><div class="num" id="totalRooms">-</div><div class="label">활성 방</div></div>
                 <div class="stat-box"><div class="num" id="playingRooms">-</div><div class="label">게임 중</div></div>
@@ -267,13 +267,26 @@
 
         // ─── 서버 관리 ───
 
+        const RECENT_PLAY_DAYS = 7;
+
+        function fmtLastGame(ts) {
+            if (!ts) return '<span style="color:var(--text-muted);">기록 없음</span>';
+            const d = new Date(ts);
+            const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+            const rel = days <= 0 ? '오늘' : days + '일 전';
+            return `${d.toLocaleDateString('ko')} <span style="color:var(--text-muted); font-size:0.85em;">(${rel})</span>`;
+        }
+
         async function loadServers() {
             try {
                 const res = await fetch('/api/admin/servers', { headers: { 'x-admin-token': adminToken } });
                 if (!res.ok) return;
                 const servers = await res.json();
+                const recentSince = Date.now() - RECENT_PLAY_DAYS * 86400000;
                 document.getElementById('totalServers').textContent = servers.length;
                 document.getElementById('activeServers').textContent = servers.filter(s => s.is_active).length;
+                document.getElementById('recentPlayServers').textContent =
+                    servers.filter(s => s.last_game_at && new Date(s.last_game_at).getTime() >= recentSince).length;
 
                 if (servers.length === 0) {
                     document.getElementById('serverList').innerHTML = '<div class="empty-state">서버가 없습니다</div>';
@@ -281,7 +294,7 @@
                 }
                 document.getElementById('serverList').innerHTML = `
                     <table>
-                        <thead><tr><th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th><th>ID</th><th>이름</th><th>호스트</th><th>멤버</th><th>상태</th><th>생성일</th><th>관리</th></tr></thead>
+                        <thead><tr><th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th><th>ID</th><th>이름</th><th>호스트</th><th>멤버</th><th>총 게임</th><th>마지막 게임</th><th>상태</th><th>생성일</th><th>관리</th></tr></thead>
                         <tbody>${servers.map(s => `
                             <tr>
                                 <td><input type="checkbox" class="server-check" value="${s.id}" onchange="updateBulkBar()"></td>
@@ -289,6 +302,8 @@
                                 <td>${esc(s.name)}</td>
                                 <td>${esc(s.host_name)}</td>
                                 <td>${s.member_count || 0}명</td>
+                                <td>${Number(s.game_count || 0).toLocaleString('ko')}판${s.play_days ? `<div style="color:var(--text-muted); font-size:0.85em;">${s.play_days}일 플레이</div>` : ''}</td>
+                                <td>${fmtLastGame(s.last_game_at)}</td>
                                 <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? '활성' : '비활성'}</span></td>
                                 <td>${new Date(s.created_at).toLocaleDateString('ko')}</td>
                                 <td>

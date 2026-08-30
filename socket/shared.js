@@ -7,11 +7,7 @@ const { getServerId } = require('../routes/api');
 const { recordOrder, getMyOrderedMenus } = require('../db/ranking');
 const { recordOrderHistory } = require('../db/order-history');
 const { setDefaultOrder, removeDefaultOrder } = require('../db/default-orders');
-const { createRoomGameState } = require('../utils/room-helpers');
 const { armSchedule, cancelSchedule, broadcastSchedule, roomNotice } = require('./scheduled-start');
-
-// updateRange용 레거시 전역 gameState
-let gameState = createRoomGameState();
 
 // 랜덤 메뉴 픽 — frequentMenus 풀에서 1개. 공정성 무관(게임 결과 아님)이라 서버 Math.random 허용
 function pickRandomMenu(gameState) {
@@ -317,56 +313,6 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         } else {
             socket.emit('orderError', '디폴트 주문 해제에 실패했습니다!');
         }
-    });
-
-
-    // 개인 주사위 설정 업데이트 (최소값은 항상 1)
-    socket.on('updateUserDiceSettings', (data) => {
-        if (!checkRateLimit()) return;
-
-        const gameState = getCurrentRoomGameState();
-        if (!gameState) {
-            socket.emit('roomError', '방에 입장하지 않았습니다!');
-            return;
-        }
-
-        const { userName, max } = data;
-
-        // 사용자 검증
-        const user = gameState.users.find(u => u.id === socket.id);
-        if (!user || user.name !== userName) {
-            socket.emit('settingsError', '잘못된 사용자입니다!');
-            return;
-        }
-
-        // 입력값 검증
-        if (typeof max !== 'number' || max < 2 || max > 100000) {
-            socket.emit('settingsError', '올바른 범위를 입력해주세요! (2~100000)');
-            return;
-        }
-
-        // 설정 저장 (최소값은 항상 1)
-        gameState.userDiceSettings[userName] = {
-            max: Math.floor(max)
-        };
-
-        socket.emit('settingsUpdated', gameState.userDiceSettings[userName]);
-        console.log(`${userName}의 주사위 설정 변경: 1 ~ ${max}`);
-    });
-
-    // 주사위 범위 업데이트 (전역 - 하위 호환성)
-    socket.on('updateRange', (range) => {
-        if (!checkRateLimit()) return;
-
-        // 입력값 검증
-        if (typeof range !== 'number' || range < 2 || range > 10000) {
-            socket.emit('rangeError', '주사위 범위는 2 이상 10000 이하로 설정해주세요!');
-            return;
-        }
-
-        gameState.diceMax = Math.floor(range);
-        io.emit('rangeUpdated', gameState.diceMax);
-        console.log('주사위 범위 변경:', gameState.diceMax);
     });
 
     // 게임 룰 업데이트 (호스트만, 게임 시작 전만 가능)

@@ -10,7 +10,8 @@
 //   1. 자유 방 링크 → 방 이름·게임·게임별 og:image가 주입된다
 //   2. 참가자 수가 description에 반영된다
 //   3. 만료/없는 방 → 기본 메타로 폴백
-//   4. 서버 방 경로(/{game}/{code}) → 방 이름 노출 없음 (2026-05-17 보안 패치 유지)
+//   4. 서버 방 경로(/{game}/{code})에서도 방 이름과 게임별 카드가 나온다
+//      (2026-08-24 결정 — 비공개 서버 방 이름도 링크 소지자에게는 보인다)
 //   5. 닉네임의 HTML 특수문자가 escape 된다
 
 const http = require('http');
@@ -88,10 +89,14 @@ function createRoom(socket, gameSlug, userName) {
     html = await get(`${BASE}/free/horse/ZZZZZ`);
     check('없는 방 — 기본 메타로 폴백', isDefaultMeta(html) && ogTitle(html) === '친구랑 같이 놀기 - LAMDice');
 
-    // ── 4) 서버 방 다이렉트 경로 → 방 이름 노출 금지
+    // ── 4) 서버 방 다이렉트 경로에서도 주입된다
+    // (shortcode resolve는 경로와 무관하므로 자유 방 코드로 서버 방 경로를 검증할 수 있다)
     html = await get(`${BASE}/horse-race/${room.shortcode}`);
-    check('서버 방 경로 — 방 이름·호스트가 미리보기에 노출되지 않는다',
-        isDefaultMeta(html) && !ogTitle(html).includes('민수'), ogTitle(html));
+    check('서버 방 경로 — 방 이름이 미리보기에 나온다',
+        !isDefaultMeta(html) && ogTitle(html).includes('민수의 방'), ogTitle(html));
+    check('서버 방 경로 — og:url이 해당 경로를 가리킨다',
+        meta(html, /property="og:url" content="([^"]*)"/).endsWith(`/horse-race/${room.shortcode}`),
+        meta(html, /property="og:url" content="([^"]*)"/));
 
     // ── 5) 닉네임 HTML escape
     // 이미 방에 들어간 socket은 free:createRoom이 거부되므로(already_in_room) 새 소켓을 쓴다.

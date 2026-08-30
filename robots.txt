@@ -3,5 +3,6 @@ Allow: /
 Disallow: /admin
 Disallow: /prototype/
 Disallow: /api/
+Disallow: /game-lab/
 
 Sitemap: https://lamdice.com/sitemap.xml

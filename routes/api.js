@@ -74,14 +74,6 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'roulette-game-multiplayer.html'));
     });
 
-    // 인형뽑기 게임 (비공개 처리)
-    // app.get('/crane-game', (req, res) => {
-    //     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    //     res.setHeader('Pragma', 'no-cache');
-    //     res.setHeader('Expires', '0');
-    //     res.sendFile(path.join(__dirname, '..', 'crane-game-multiplayer.html'));
-    // });
-
     // 경마 (레거시 HTML)
     const legacyHorseHtml = path.join(__dirname, '..', 'horse-race-multiplayer.html');
 
@@ -126,6 +118,20 @@ function setupRoutes(app) {
 
     const freeHtmlPath = path.join(__dirname, '..', 'free.html');
 
+    // 방 링크(자유 방·서버 방 공통) — free.html의 OG 메타를 방 정보로 교체해 내려준다.
+    // 방이 만료됐거나 주입에 실패하면 기본 메타 그대로 나간다.
+    function sendRoomHtml(req, res, game, urlPath, shortcode) {
+        const rooms = req.app.get('rooms') || {};
+        const roomId = resolveShortcode(shortcode);
+        const room = roomId ? rooms[roomId] : null;
+        try {
+            return res.type('html').send(renderFreeHtml(freeHtmlPath, { game, urlPath, room }));
+        } catch (e) {
+            console.warn(`[${urlPath}] OG 메타 주입 실패:`, e.message);
+            return res.sendFile(freeHtmlPath);
+        }
+    }
+
     // /free — 메인 페이지 [바로 플레이]와 동일한 흐름.
     // dice-game-multiplayer.html이 path === '/free' 감지 시 자유 모드 자동 진입.
     app.get('/free', (req, res) => {
@@ -149,29 +155,29 @@ function setupRoutes(app) {
         res.setHeader('Expires', '0');
 
         // 링크 미리보기(카톡/텔레그램 등)용 OG 메타를 방 정보로 교체해서 내려준다.
-        // 자유 방만 대상 — 서버 방은 renderFreeHtml이 기본 메타로 넘긴다.
-        const rooms = req.app.get('rooms') || {};
-        const roomId = resolveShortcode(shortcode);
-        const room = roomId ? rooms[roomId] : null;
-        try {
-            return res.type('html').send(renderFreeHtml(freeHtmlPath, { game, shortcode, room }));
-        } catch (e) {
-            console.warn('[/free/:game/:shortcode] OG 메타 주입 실패:', e.message);
-            return res.sendFile(freeHtmlPath);
-        }
+        return sendRoomHtml(req, res, game, `/free/${game}/${shortcode}`, shortcode);
     });
 
     // /{game}/:shortcode — 비공개/공개 서버 방 다이렉트 링크 진입 (게임 경로 직접 사용).
     // 자유 방은 /free/:game/:shortcode 그대로, 서버 방은 /{game}/:shortcode 형식.
     // shortcode 정규식이 4-6자 영문대문자+숫자라 일반 페이지 URL과 충돌 없음.
-    const SERVER_ROOM_DIRECT_PATHS = ['/game', '/roulette', '/horse-race', '/bridge-cross', '/ladder', '/spin-arena', '/pirate'];
-    SERVER_ROOM_DIRECT_PATHS.forEach(gamePath => {
+    // 게임 페이지 경로 → OG 카드/문구에 쓸 게임 슬러그.
+    const SERVER_ROOM_DIRECT_PATHS = {
+        '/game':         'dice',
+        '/roulette':     'roulette',
+        '/horse-race':   'horse',
+        '/bridge-cross': 'bridge',
+        '/ladder':       'ladder',
+        '/spin-arena':   'spin-arena',
+        '/pirate':       'pirate'
+    };
+    Object.entries(SERVER_ROOM_DIRECT_PATHS).forEach(([gamePath, game]) => {
         app.get(`${gamePath}/:shortcode([A-Z0-9]{4,6})`, freeShortcodeLimiter, (req, res) => {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
-            // 서버 방은 방 이름·호스트를 미리보기에 노출하지 않는다 (기본 메타 유지).
-            res.sendFile(freeHtmlPath);
+            const { shortcode } = req.params;
+            return sendRoomHtml(req, res, game, `${gamePath}/${shortcode}`, shortcode);
         });
     });
 
@@ -199,8 +205,11 @@ function setupRoutes(app) {
 
         // 서버 방이면 isPrivateServer만 조회 (참여코드 모달 분기에 필요).
         // 2026-05-17 보안 패치: 비공개 서버 정보 노출 방지를 위해
-        //   서버 방의 hostName/roomName/serverName은 비인증 호출자에게 마스킹.
+        //   서버 방의 hostName/serverName은 비인증 호출자에게 마스킹.
         //   serverName은 멤버 확인 통과 후 serverJoined.name으로 권위 있게 받는다.
+        // roomName은 2026-08-24부터 마스킹하지 않는다 — 링크 미리보기(utils/og-meta.js)가
+        //   같은 shortcode로 서버 방 제목을 이미 보여주므로, 여기서만 가려도
+        //   링크 소지자에게는 아무것도 막지 못한다.
         let isPrivateServer = false;
         if (room.serverId) {
             try {
@@ -220,16 +229,16 @@ function setupRoutes(app) {
             isGameActive,
             playerCount: Array.isArray(gs.users) ? gs.users.length : 0,
             serverId: room.serverId || null,
-            isPrivateServer
+            isPrivateServer,
+            roomName: room.roomName || null
         };
 
         if (room.serverId) {
-            // 서버 방 — 비공개/공개 서버의 존재·이름·호스트가 외부에 누설되지 않도록 마스킹.
+            // 서버 방 — 서버의 존재·이름·호스트가 외부에 누설되지 않도록 마스킹.
             // 클라이언트는 check-member 통과 후 joinServer → serverJoined 응답에서 serverName 획득.
             res.json({
                 ...baseResponse,
                 hostName: null,
-                roomName: null,
                 serverName: null
             });
         } else {
@@ -237,7 +246,6 @@ function setupRoutes(app) {
             res.json({
                 ...baseResponse,
                 hostName: room.hostName,
-                roomName: room.roomName || null,
                 serverName: null
             });
         }
@@ -312,7 +320,7 @@ function setupRoutes(app) {
 
     // SEO 페이지 구 URL 301 리디렉트 (루트 → /pages/)
     const seoPages = [
-        'about-us', 'changelog', 'contact', 'crane-game-guide',
+        'about-us', 'changelog', 'contact',
         'dice-history', 'dice-rules-guide', 'disclaimer', 'faq',
         'fairness-rng', 'game-guides', 'horse-race-guide',
         'privacy-policy', 'probability-analysis', 'probability-education',
@@ -398,7 +406,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, 'crane-game': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {
@@ -483,180 +491,6 @@ function setupRoutes(app) {
         } catch (e) {
             console.error('통계 API 오류:', e);
             res.status(500).json({ error: '통계를 불러올 수 없습니다.' });
-        }
-    });
-
-    // GPT API를 통한 커스텀 룰 당첨자 판단
-    app.post('/api/calculate-custom-winner', async (req, res) => {
-        try {
-            const { gameRules, gameHistory } = req.body;
-
-            if (!gameRules || !gameHistory || !Array.isArray(gameHistory) || gameHistory.length === 0) {
-                return res.status(400).json({ error: '게임 룰과 기록이 필요합니다.' });
-            }
-
-            const openaiApiKey = process.env.OPENAI_API_KEY;
-            if (!openaiApiKey) {
-                return res.status(500).json({ error: 'OpenAI API 키가 설정되지 않았습니다.' });
-            }
-
-            const historyText = gameHistory.map(r => `${r.user}:${r.result}`).join(',');
-            const prompt = `룰:"${gameRules}" 결과:${historyText} 적용 JSON:{"winners":[],"reason":""}`;
-
-            const requestStartTime = Date.now();
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('🤖 GPT API 요청 시작');
-            console.log(`📋 게임 룰: "${gameRules}"`);
-            console.log(`🎲 주사위 결과: ${gameHistory.map(r => `${r.user}(${r.result})`).join(', ')}`);
-            console.log(`👥 참여자 수: ${gameHistory.length}명`);
-            console.log(`📝 프롬프트 길이: ${prompt.length}자`);
-            console.log(`📄 입력 프롬프트:`);
-            console.log(prompt);
-
-            const models = ['gpt-5-nano', 'gpt-4o-mini'];
-            let lastError = null;
-
-            for (const model of models) {
-                try {
-                    console.log(`\n🔄 ${model} 모델 시도 중...`);
-
-                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${openaiApiKey}`
-                        },
-                        body: JSON.stringify({
-                            model: model,
-                            messages: [{ role: 'user', content: prompt }],
-                            temperature: 0,
-                            max_tokens: 50,
-                            response_format: { type: "json_object" }
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        lastError = errorData;
-                        const responseTime = Date.now() - requestStartTime;
-
-                        if (errorData.error?.code === 'model_not_found' ||
-                            errorData.error?.message?.includes('model') ||
-                            errorData.error?.message?.includes('not found')) {
-                            console.log(`❌ ${model} 모델을 찾을 수 없습니다. (${responseTime}ms)`);
-                            console.log(`   → 다음 모델로 시도합니다.`);
-                            continue;
-                        }
-
-                        console.error(`❌ OpenAI API 오류 (${model}):`, errorData.error?.message || errorData.error?.code);
-                        console.error(`   응답 시간: ${responseTime}ms`);
-                        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
-                        return res.status(500).json({
-                            error: 'GPT API 호출에 실패했습니다.',
-                            details: errorData.error?.message,
-                            model: model
-                        });
-                    }
-
-                    const data = await response.json();
-                    const gptResponse = data.choices[0]?.message?.content || '';
-                    const responseTime = Date.now() - requestStartTime;
-                    const usage = data.usage || {};
-
-                    const pricing = {
-                        'gpt-5-nano': { input: 0.05, output: 0.40 },
-                        'gpt-4o-mini': { input: 0.15, output: 0.60 },
-                        'gpt-4o': { input: 2.50, output: 10.00 }
-                    };
-
-                    const modelPricing = pricing[model] || pricing['gpt-4o-mini'];
-                    const inputTokens = usage.prompt_tokens || 0;
-                    const outputTokens = usage.completion_tokens || 0;
-                    const totalTokens = usage.total_tokens || 0;
-                    const inputCost = (inputTokens / 1000000) * modelPricing.input;
-                    const outputCost = (outputTokens / 1000000) * modelPricing.output;
-                    const totalCost = inputCost + outputCost;
-
-                    console.log(`✅ ${model} 모델 사용 성공`);
-                    console.log(`⏱️  응답 시간: ${responseTime}ms`);
-                    console.log(`💰 토큰 사용량:`);
-                    console.log(`   - 입력: ${inputTokens.toLocaleString()} 토큰`);
-                    console.log(`   - 출력: ${outputTokens.toLocaleString()} 토큰`);
-                    console.log(`   - 총합: ${totalTokens.toLocaleString()} 토큰`);
-                    console.log(`💵 예상 비용:`);
-                    console.log(`   - 입력: $${inputCost.toFixed(6)}`);
-                    console.log(`   - 출력: $${outputCost.toFixed(6)}`);
-                    console.log(`   - 총합: $${totalCost.toFixed(6)} (약 ${(totalCost * 1000).toFixed(3)}원)`);
-
-                    let result;
-                    try {
-                        result = JSON.parse(gptResponse);
-                    } catch (error) {
-                        const winnerMatch = gptResponse.match(/당첨자[:\s]+(.+?)(?:\n|이유|$)/i);
-                        const reasonMatch = gptResponse.match(/이유[:\s]+(.+?)(?:\n|$)/i);
-                        const winners = winnerMatch ? winnerMatch[1].trim().split(',').map(w => w.trim()) : [];
-                        const reason = reasonMatch ? reasonMatch[1].trim() : 'GPT가 판단한 결과';
-                        result = { winners, reason };
-                    }
-
-                    let winners = [];
-                    if (Array.isArray(result.winners)) {
-                        winners = result.winners.map(w => {
-                            if (typeof w === 'string') {
-                                const match = w.match(/^([^:]+)/);
-                                return match ? match[1].trim() : w.trim();
-                            }
-                            return w.name || w;
-                        });
-                    } else if (result.winner) {
-                        if (typeof result.winner === 'string') {
-                            const match = result.winner.match(/^([^:]+)/);
-                            winners = [match ? match[1].trim() : result.winner.trim()];
-                        } else {
-                            winners = [result.winner.name || result.winner];
-                        }
-                    }
-
-                    const reason = result.reason || result.이유 || 'GPT가 판단한 결과';
-
-                    console.log(`🏆 당첨자: ${winners.length > 0 ? winners.join(', ') : '없음'}`);
-                    console.log(`💡 이유: ${reason.substring(0, 100)}${reason.length > 100 ? '...' : ''}`);
-                    console.log(`📊 응답 길이: ${gptResponse.length}자`);
-                    console.log(`📄 응답 내용:`);
-                    console.log(gptResponse);
-                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
-                    return res.json({
-                        success: true,
-                        winners: winners,
-                        reason: reason,
-                        rawResponse: gptResponse,
-                        model: model
-                    });
-                } catch (error) {
-                    const responseTime = Date.now() - requestStartTime;
-                    console.error(`❌ ${model} 모델 호출 중 예외 발생:`, error.message);
-                    console.error(`   응답 시간: ${responseTime}ms`);
-                    lastError = error;
-                    continue;
-                }
-            }
-
-            const totalTime = Date.now() - requestStartTime;
-            console.error(`❌ 모든 GPT 모델 호출 실패`);
-            console.error(`   총 시도 시간: ${totalTime}ms`);
-            console.error(`   마지막 오류: ${lastError?.error?.message || lastError?.message || '알 수 없는 오류'}`);
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
-            return res.status(500).json({
-                error: '모든 GPT 모델 호출에 실패했습니다.',
-                details: lastError?.error?.message || lastError?.message
-            });
-
-        } catch (error) {
-            console.error('GPT API 호출 오류:', error);
-            res.status(500).json({ error: '서버 오류가 발생했습니다.' });
         }
     });
 

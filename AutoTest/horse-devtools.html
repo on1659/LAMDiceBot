@@ -638,7 +638,7 @@ async function pickRoomFromLink() {
             return dlog(`경마 방이 아닙니다 (gameType: ${info.gameType})`, 'err');
         }
         selectedRoomId = info.roomId;
-        // 서버 방은 roomName이 마스킹되어 null → shortcode로 fallback
+        // 방 제목이 비어 있으면 shortcode로 대체
         selectedRoomName = info.roomName || ('방 #' + shortcode);
         const tag = info.serverId ? '[서버 방]' : '[자유 방]';
         dlog(`링크 방 선택: ${selectedRoomName} ${tag} (${shortcode})`, 'info');

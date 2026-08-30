@@ -42,8 +42,6 @@ function createRoomGameState() {
         rouletteResult: null,     // { segments, winningRank, animDurationMs } — 클라 애니용
         horseRankings: [],
         horseRaceMode: 'last',
-        craneGameHistory: [],
-        isCraneGameActive: false,
         bridgeCross: {
             // history-v1 (오징어게임 방식 + 병렬진행, 2026-04-30) — feat/bridge-cross-history-v1 복원
             phase: 'idle',

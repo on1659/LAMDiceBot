@@ -23,7 +23,7 @@ const RankingModule = (function () {
     let _calMonth = null; // 'YYYY-MM' 보고 있는 달
     let _calDay = null;   // 'YYYY-MM-DD' 펼쳐 놓은 날
 
-    // server_game_records에 실제로 기록되는 8종 전부 (팝업 게임 탭은 4종만 커버해서 재사용 불가)
+    // server_game_records에 실제로 기록되는 7종 전부 (팝업 게임 탭은 4종만 커버해서 재사용 불가)
     const CAL_GAME_LABELS = {
         'dice': '🎲 주사위',
         'horse': '🐎 경마',
@@ -31,8 +31,7 @@ const RankingModule = (function () {
         'ladder': '🪜 사다리타기',
         'pirate': '🏴‍☠️ 해적 룰렛',
         'spin-arena': '🌀 회전 칼날',
-        'bridge': '🌉 다리 건너기',
-        'crane-game': '🪄 인형뽑기'
+        'bridge': '🌉 다리 건너기'
     };
     const CAL_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -783,20 +782,9 @@ const RankingModule = (function () {
         const tabs = _overlay.querySelectorAll('.rk-tab');
         tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === key));
 
-        const overallSubTabsEl = document.getElementById('ranking-overall-sub-tabs');
-        const gameTabsEl = document.getElementById('ranking-game-tabs');
-        if (key === 'games') {
-            if (overallSubTabsEl) overallSubTabsEl.style.display = 'none';
-            gameTabsEl.style.display = 'flex';
-            renderGameContent(_currentGameTab);
-        } else {
-            gameTabsEl.style.display = 'none';
-            if (overallSubTabsEl) overallSubTabsEl.style.display = 'flex';
-            setContentWithTransition(document.getElementById('ranking-content'), () => {
-                renderOverall(document.getElementById('ranking-content'));
-            });
-        }
-        updateHorseSubTabsVisibility();
+        // 달력이 켜져 있으면 종합↔게임별 전환이 달력의 범위(전체 ↔ 해당 게임)를 바꾼다
+        refreshChrome();
+        renderCurrentView();
     }
 
     function switchOverallSubTab(key) {
@@ -838,8 +826,26 @@ const RankingModule = (function () {
                 c.style.color = '';
             }
         });
-        renderGameContent(key);
-        updateHorseSubTabsVisibility();
+        refreshChrome();
+        renderCurrentView();
+    }
+
+    // 탭이 바뀌면 크롬(토글 바 + 탭 줄)을 다시 맞춘다.
+    // 토글 노출 여부가 탭에 달려 있어(주문 탭은 숨김) 달력이 꺼져 있을 때도 반드시 거쳐야 한다 —
+    // 안 그러면 주문 탭에서 숨긴 토글이 다른 탭으로 돌아와도 안 돌아온다.
+    function refreshChrome() {
+        if (_calendarOn) {
+            _calMonth = null; // 범위가 바뀌면 기록 있는 달도 달라진다
+            _calDay = null;
+        }
+        syncCalendarAvailability();
+        renderViewBar();
+        applyTabBarsVisibility();
+    }
+
+    // 달력을 켤 수 없는 탭(주문)으로 이동하면 자동으로 끈다 — 토글이 숨겨진 채 켜져 있으면 되돌릴 방법이 없다
+    function syncCalendarAvailability() {
+        if (_calendarOn && !calAvailableHere()) _calendarOn = false;
     }
 
     // 경마 게임 탭 진입 시에만 경마 서브탭 바를 노출하고 활성칩을 스타일링.
@@ -1035,7 +1041,9 @@ const RankingModule = (function () {
             horseSubTabsEl.style.display = (_currentMainTab === 'games' && _currentGameTab === 'horse') ? 'flex' : 'none';
         }
 
-        // 보기 전환 바 (등수 ↔ 달력) — 탭 생성 이후에 붙여야 탭 표시 상태를 함께 정리할 수 있다
+        // 보기 전환 바 (등수 ↔ 달력) — 탭 생성 이후에 붙여야 탭 표시 상태를 함께 정리할 수 있다.
+        // 여기서는 달 선택을 초기화하지 않는다 (당겨서 새로고침이 보던 달을 유지하도록)
+        syncCalendarAvailability();
         renderViewBar();
         applyTabBarsVisibility();
 
@@ -1597,8 +1605,8 @@ const RankingModule = (function () {
     function renderViewBar() {
         const bar = document.getElementById('ranking-view-bar');
         if (!bar) return;
-        // 자유 랭킹은 배포 전역 기록이라 "누가 걸렸나"가 의미 없음 → 토글 미노출
-        if (!_serverId) { bar.innerHTML = ''; return; }
+        // 자유 랭킹은 배포 전역 기록이라 "누가 걸렸나"가 의미 없고, 주문은 게임 기록이 아니다 → 토글 미노출
+        if (!calAvailableHere()) { bar.innerHTML = ''; return; }
         bar.innerHTML = `
             <div class="rk-viewbar">
                 <label class="rk-cal-toggle" title="날짜별로 누가 당첨됐는지 봅니다">
@@ -1611,24 +1619,42 @@ const RankingModule = (function () {
         if (cb) cb.addEventListener('change', function () { setCalendarMode(this.checked); });
     }
 
-    // 달력은 게임 구분 없이 전체를 보여주므로 탭 바를 모두 접는다
+    // 달력 중에도 종합/게임별·게임 칩은 남긴다 — 달력이 어느 게임 것인지 보여주고 바꿀 수단이라서.
+    // 서브탭 줄(순위|참여, 경마순위|탈것통계)만 접는다 — 등수 화면 두 종류를 고르는 줄이라 달력엔 대응이 없다.
     function applyTabBarsVisibility() {
         const tabsEl = document.getElementById('ranking-tabs');
         const overallSubTabsEl = document.getElementById('ranking-overall-sub-tabs');
         const gameTabsEl = document.getElementById('ranking-game-tabs');
-        if (tabsEl) tabsEl.style.display = _calendarOn ? 'none' : 'flex';
+        if (tabsEl) tabsEl.style.display = 'flex';
         if (overallSubTabsEl) overallSubTabsEl.style.display = (!_calendarOn && _currentMainTab === 'overall') ? 'flex' : 'none';
-        if (gameTabsEl) gameTabsEl.style.display = (!_calendarOn && _currentMainTab === 'games') ? 'flex' : 'none';
+        if (gameTabsEl) gameTabsEl.style.display = (_currentMainTab === 'games') ? 'flex' : 'none';
         updateHorseSubTabsVisibility();
+    }
+
+    // 지금 화면이 어느 게임의 달력인지 — null이면 전체(종합)
+    function calGameFilter() {
+        if (_currentMainTab !== 'games') return null;
+        return _currentGameTab;
+    }
+
+    // 주문은 게임 기록이 아니라 당첨자 개념이 없다 → 달력 대상 아님
+    function calAvailableHere() {
+        return !!_serverId && calGameFilter() !== 'orders';
     }
 
     function setCalendarMode(on) {
         _calendarOn = !!on;
         _calDay = null;
+        _calMonth = null; // 필터가 바뀌면 기록 있는 달도 달라진다
         applyTabBarsVisibility();
+        renderCurrentView();
+    }
+
+    // 달력이 켜져 있으면 달력을, 아니면 원래 탭 화면을 그린다.
+    // switchMainTab과 같은 규칙 — renderGameContent는 내부에서 트랜지션을 걸므로 이중 래핑 금지
+    function renderCurrentView() {
         const content = document.getElementById('ranking-content');
         if (!content) return;
-        // switchMainTab과 같은 규칙 — renderGameContent는 내부에서 트랜지션을 걸므로 이중 래핑 금지
         if (_calendarOn) {
             setContentWithTransition(content, () => renderCalendarView(content));
         } else if (_currentMainTab === 'games') {
@@ -1651,10 +1677,14 @@ const RankingModule = (function () {
         return { day: k.slice(0, 10), month: k.slice(0, 7) };
     }
 
+    // 지금 고른 탭 범위로 걸러서 날짜별로 묶는다. 달력을 그리는 모든 경로(paintCalendar·stepCalMonth)가
+    // 이 함수를 거치므로 필터를 여기 한 곳에만 둔다 — 달 목록·칸·상세가 같은 기준으로 계산된다.
     function buildCalIndex(sessions) {
         const days = {};
         const monthSet = {};
+        const only = calGameFilter(); // null이면 전체(종합)
         (sessions || []).forEach(s => {
+            if (only && s.gameType !== only) return;
             const p = kstParts(s.playedAt);
             if (!p) return;
             (days[p.day] = days[p.day] || []).push(s);
@@ -1719,7 +1749,13 @@ const RankingModule = (function () {
     function paintCalendar(el, data) {
         if (data.failed) { el.innerHTML = emptyMsg('달력을 불러올 수 없습니다.'); return; }
         const idx = buildCalIndex(data.sessions);
-        if (!idx.months.length) { el.innerHTML = emptyMsg('아직 기록이 없습니다.'); return; }
+        if (!idx.months.length) {
+            // 어느 범위가 비었는지 알려준다 — 전체가 빈 건지 이 게임만 빈 건지 구분이 안 되면 고장으로 읽힌다
+            const only = calGameFilter();
+            const what = only ? (CAL_GAME_LABELS[only] || '이 게임') : '';
+            el.innerHTML = emptyMsg(only ? `아직 ${what} 기록이 없습니다.` : '아직 기록이 없습니다.');
+            return;
+        }
         if (!_calMonth || idx.months.indexOf(_calMonth) === -1) {
             _calMonth = idx.months[idx.months.length - 1]; // 기록이 있는 가장 최근 달
         }

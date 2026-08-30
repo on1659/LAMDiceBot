@@ -136,19 +136,6 @@ async function getVehicleStats(serverId) {
 }
 
 /**
- * 인기말 vehicle_id 목록 반환 (pick_rate 상위, 최소 등장 5회)
- * @param {string} serverId
- * @param {number} topN - 상위 몇 개 (기본 2)
- * @returns {Array} ['rocket', 'car']
- */
-async function getPopularVehicles(serverId, topN = 2) {
-    const allStats = await getVehicleStats(serverId);
-    const qualified = allStats.filter(s => s.appearance_count >= 5);
-    qualified.sort((a, b) => b.pick_rate - a.pick_rate);
-    return qualified.slice(0, topN).map(s => s.vehicle_id);
-}
-
-/**
  * 경기 종료 시 시즌별 탈것 통계 저장 (비공개 서버 전용)
  * 시즌은 upsert 시점의 servers.current_season을 서브셀렉트로 읽어 기록.
  * DB 미연결 또는 serverId 없음(자유방) → 조용히 skip (파일 fallback 없음)
@@ -224,7 +211,6 @@ async function getSeasonVehicleStats(serverId, season) {
 module.exports = {
     recordVehicleRaceResult,
     getVehicleStats,
-    getPopularVehicles,
     recordVehicleSeasonResult,
     getSeasonVehicleStats
 };

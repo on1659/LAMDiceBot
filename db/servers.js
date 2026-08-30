@@ -83,10 +83,20 @@ async function getServers({ activeOnly = true, userName = null } = {}) {
         const result = userName ? await pool.query(query, [userName]) : await pool.query(query);
         return result.rows;
     } else {
+        // 관리자 목록 — 서버별 게임 활동(누적 판 수 / 플레이한 날짜 수 / 마지막 게임) 포함.
+        // game_sessions는 시즌 리셋 때 지워지지 않으므로 누적 지표 소스로 사용한다.
         const result = await pool.query(
             `SELECT s.id, s.name, s.description, s.host_name, s.created_at, s.is_active,
-             (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count
-             FROM servers s ORDER BY s.created_at DESC`
+             (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id AND sm.is_approved = true) AS member_count,
+             g.game_count, g.play_days, g.last_game_at
+             FROM servers s
+             LEFT JOIN LATERAL (
+                 SELECT COUNT(*) AS game_count,
+                        COUNT(DISTINCT COALESCE(gs.ended_at, gs.started_at)::date) AS play_days,
+                        MAX(COALESCE(gs.ended_at, gs.started_at)) AS last_game_at
+                 FROM game_sessions gs WHERE gs.server_id = s.id
+             ) g ON true
+             ORDER BY g.last_game_at DESC NULLS LAST, s.created_at DESC`
         );
         return result.rows;
     }

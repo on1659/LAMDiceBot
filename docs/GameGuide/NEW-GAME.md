@@ -50,7 +50,7 @@ css/[game].css          ← 게임 전용 스타일 + 공통 변수 alias
 | 파일 | 할 일 |
 |------|-------|
 | `css/theme.css` | `--[game]-500/-600/-accent/-rgb` light + dark 양쪽, `--game-type-[game]` |
-| `js/shared/tutorial-shared.js` | `FLAG_BITS.[game]` = 다음 free 비트. **값은 코드에서 직접 확인** (현재: lobby1/dice2/roulette4/horse8/crane16/bridge32/ladder64/spin-arena128/pirate256 사용 → 다음 = 512) |
+| `js/shared/tutorial-shared.js` | `FLAG_BITS.[game]` = 다음 free 비트. **값은 코드에서 직접 확인** (현재: lobby1/dice2/roulette4/horse8/bridge32/ladder64/spin-arena128/pirate256 사용 → 다음 = 512). **16은 재사용 금지** — 삭제된 인형뽑기가 쓰던 비트라 `users.flags`에 과거 값이 남아 있고, 재사용하면 해당 유저에게 튜토리얼이 이미 본 것으로 처리된다 |
 | `js/shared/server-select-shared.js` | `localStorage.setItem('[game]UserName', name)` 동기화 |
 | `assets/sounds/sound-config.json` | `[game]_*` 사운드 키 placeholder |
 

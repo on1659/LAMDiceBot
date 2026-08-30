@@ -1200,10 +1200,7 @@ const OrderModule = (function () {
         toggleMenuManager: toggleMenuManager,
         openDefaultModal: openDefaultModal,
         // 상태 접근
-        getOrdersData: function () { return _ordersData; },
-        isOrderActive: function () { return _isOrderActive; },
         setOrdersData: function (data) { _ordersData = data; },
         setIsOrderActive: function (active) { _isOrderActive = active; },
-        getFrequentMenus: function () { return _frequentMenus; },
     };
 })();
