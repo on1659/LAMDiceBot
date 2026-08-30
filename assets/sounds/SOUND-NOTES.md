@@ -13,10 +13,14 @@
 | ⚠️ 파일 없음 | config에 등록되었으나 파일 자체가 없음 |
 | 🔇 미사용 | 파일은 있으나 코드에서 호출하지 않음 |
 
-> 2026-08-27 데드코드 정리: 미사용 파일 7개 삭제 (roulette spin/stop/winner,
-> horse-race result, common button_click.wav/nosound, team/bgm) 및 해당 config 키
-> 5개 제거 (roulette_spin, roulette_stop, roulette_winner, horse-race_result, team_bgm).
-> team/ 폴더 자체가 사라짐.
+> 2026-08-27 데드코드 정리: 미사용 파일 7개 삭제 및 config 키 5개 제거.
+>
+> 2026-08-30 되돌림: 그중 실제 오디오가 든 파일 5개(roulette spin/stop/winner,
+> horse-race result, common button_click.wav)와 config 키 4개를 복원했다.
+> 미연결 키는 데드코드가 아니라 나중에 실제 mp3로 바꿔 끼우려고 미리 걸어둔
+> 자리표시자다. "코드에서 호출하지 않음"을 삭제 기준으로 삼지 않는다.
+> nosound.mp3와 team/bgm.mp3는 무음 더미였고 gacha/charge.mp3·gacha/reveal.mp3로
+> 이름이 바뀌어 내용은 그대로 남아 있다 (team/ 폴더는 사라짐).
 
 > 2026-08-30 가챠 키 등록: 코드에서 호출하지만 config에 없던 gacha_charge/reveal/reveal_epic
 > 3키 추가 + placeholder 생성 — 실제 mp3로 교체 필요.
@@ -39,9 +43,14 @@
 
 | 키 | 파일 경로 | 재생 시점 | 코드 위치 | 상태 |
 |----|-----------|-----------|-----------|------|
+| `roulette_spin` | `assets/sounds/roulette/spin.mp3` | 룰렛 회전 시작 시 | 미연결 | 🔇 미사용 (3.7MB, 교체 대기) |
+| `roulette_stop` | `assets/sounds/roulette/stop.mp3` | 룰렛 정지 시 | 미연결 | 🔇 미사용 (19KB, 교체 대기) |
+| `roulette_winner` | `assets/sounds/roulette/winner.mp3` | 룰렛 당첨자 발표 시 | 미연결 | 🔇 미사용 (157KB, 교체 대기) |
 | `roulette_bgm` | `assets/sounds/roulette/bgm.mp3` | 룰렛 회전 중 (루프) | roulette-game-multiplayer.html:4216,4237 | ✅ 실제 파일 (4.4MB) |
 
 > 참고: 룰렛 효과음(회전/정지/당첨)은 `RouletteSound` 객체(Web Audio API)로 합성 재생.
+> spin/stop/winner mp3는 등록만 되어 있고 코드가 부르지 않는다 — 합성음을 실제
+> 파일로 바꾸고 싶어질 때를 위한 자리표시자.
 
 ---
 
@@ -56,6 +65,7 @@
 | `horse-race_slowmo_cheer` | `assets/sounds/horse-race/slowmo.mp3` | 슬로우모션 중 환호성 (루프) | js/horse-race.js:3447 외 다수 | ✅ 실제 파일 (57KB) |
 | `horse-race_cheer_burst` | `assets/sounds/horse-race/cheer_burst.mp3` | 골인 시 환호 (단발) | js/horse-race.js:3905,7112 | ✅ 실제 파일 (18KB) |
 | `horse-race_finish` | `assets/sounds/horse-race/finish.mp3` | 1등 결승선 통과 시 팡파레 | js/horse-race.js:7111 | ❌ 에셋 없음 |
+| `horse-race_result` | `assets/sounds/horse-race/result.mp3` | 결과 오버레이 표시 시 | 미연결 | 🔇 미사용 (157KB, roulette_winner와 동일 파일) |
 
 ---
 
@@ -119,10 +129,10 @@
 
 | 구분 | 개수 | 비고 |
 |------|------|------|
-| 전체 키 | 34 | sound-config.json 등록 (2026-08-30 실측 — 종전 문서의 33은 오기, 실제 31이었음) |
+| 전체 키 | 38 | sound-config.json 등록 (2026-08-30 삭제분 4키 복원 반영) |
 | ✅ 실제 에셋 + 코드 연결 | 7 | dice_roll, roulette_bgm, horse-race_gunshot/crowd/bgm/slowmo_cheer/cheer_burst |
 | ❌ placeholder + 코드 연결 (교체 필요) | 10 | dice_result, dice_win, dice_bgm, horse-race_countdown, horse-race_finish, common_notification, spin-arena_bgm, gacha_charge/reveal/reveal_epic |
-| 🔇 미연결 | 17 | ladder 5, spin-arena 5, pirate 5, common_button, common_countdown |
+| 🔇 미연결 | 21 | ladder 5, spin-arena 5, pirate 5, common_button, common_countdown, roulette_spin/stop/winner, horse-race_result (뒤 4개는 실제 오디오 보유) |
 
 ---
 
