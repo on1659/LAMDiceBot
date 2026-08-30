@@ -3,6 +3,7 @@ const { getVisitorStats, recordParticipantVisitor, recordGamePlay } = require('.
 // ─── 조정 가능한 상수 ───
 const HORSE_COUNT_MIN = 4;       // 경마 최소 말 수
 const HORSE_COUNT_MAX = 6;       // 경마 최대 말 수
+const MIN_RACE_PLAYERS = 2;      // 경주 시작 최소 인원 (= 나올 수 있는 등수 상한의 하한)
 const HORSE_COUNTDOWN_SEC = 4;   // 카운트다운 시간 (초)
 const HORSE_FRAME_INTERVAL = 16; // 레이스 프레임 인터벌 (~60fps, ms)
 const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
@@ -707,7 +708,7 @@ function getWinnersByRule(gameState, rankings, playersList) {
 function canStartHorse(room, gameState, opts = {}) {
     if (room.gameType !== 'horse-race') return '경마 게임 방이 아닙니다!';
     if (gameState.isHorseRaceActive) return '이미 경주가 진행 중입니다!';
-    if ((gameState.readyUsers || []).length < 2) return '최소 2명 이상이 필요합니다!';
+    if ((gameState.readyUsers || []).length < MIN_RACE_PLAYERS) return `최소 ${MIN_RACE_PLAYERS}명 이상이 필요합니다!`;
     // 수동 시작은 종전대로 전원 선택을 요구한다 — 방장이 안 고른 사람을 챙길 수 있어야 한다.
     if (!opts.scheduled) {
         const allSelected = (gameState.readyUsers || []).every(p => gameState.userHorseBets[p] !== undefined);
@@ -1464,9 +1465,12 @@ module.exports = function registerHorseHandlers(socket, io, ctx) {
             }
         }
 
-        // rank 유효성 검사: 1 <= rank <= availableHorses.length
+        // rank 유효성 검사: 1 <= rank <= maxRank
         const rank = (data && typeof data.rank === 'number') ? data.rank : null;
-        const maxRank = gameState.availableHorses.length;
+        // 출주자 = readyUsers이고 1인 1마리라 달리는 말 수는 준비 인원을 넘지 못한다.
+        // 나올 수 없는 등수는 애초에 받지 않는다 (클라 회색 처리와 같은 기준).
+        const readyCount = (gameState.readyUsers || []).length;
+        const maxRank = Math.min(gameState.availableHorses.length, Math.max(readyCount, MIN_RACE_PLAYERS));
         if (!Number.isInteger(rank) || rank < 1 || rank > maxRank) {
             socket.emit('horseRaceError', '유효하지 않은 등수입니다!');
             return;
