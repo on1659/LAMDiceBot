@@ -1209,7 +1209,7 @@ module.exports = (socket, io, ctx) => {
             gameState.rolledUsers = gameState.rolledUsers.filter(name => name !== socket.userName);
 
             // 🔧 퇴장한 사용자의 말 선택 정보 삭제
-            if (gameState.userHorseBets && gameState.userHorseBets[socket.userName]) {
+            if (gameState.userHorseBets && gameState.userHorseBets[socket.userName] !== undefined) {
                 delete gameState.userHorseBets[socket.userName];
             }
 
