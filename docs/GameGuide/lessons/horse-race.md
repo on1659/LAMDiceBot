@@ -93,6 +93,30 @@
 **해결/예방:** 이관 함수 내부는 `window._raceAnimWin || window` **원시 참조 비교**(정규화 금지), 취소는 try/catch(닫힌 창 안전). 정규화 헬퍼(`raceAnimWin()`)는 취소/예약 지점에만 사용. PiP를 타 게임으로 확장하면 이 항목을 `_common.md`로 승격.
 **관련:** `js/horse-race.js` migrateRaceDriver, `docs/goal/horse-race-track-pip.md`, C-35/C-36(_common)
 
+## 2026-08-31 — 인덱스 0은 falsy다 — 같은 정리를 하는 코드가 여러 곳이면 한 곳만 어긋난다
+
+**상황:** 추첨 단계에서 무효 등수 회색 처리(`.invalid`)가 어떤 판에서는 안 붙는다는 신고.
+**함정/실수:** `leaveRoom`의 베팅 정리가 `if (gameState.userHorseBets[socket.userName])` — **truthy 검사**였다. 0번 탈것을 고른 사람이 나가면 `0`이 falsy라 `delete`를 건너뛰고 유령 베팅이 남는다. 같은 일을 하는 나머지 세 곳(`chat.js:595` 이탈 정리, `shared.js:421` 준비 취소, `shared.js:506` 강제 unready)은 전부 `!== undefined`였다 — 이 한 곳만 달랐다.
+**증상:** 유령 베팅이 `runningHorseCount`(= 베팅된 유니크 말 수)를 부풀려 무효여야 할 등수가 유효로 남는다. 사람이 나간 판에서만, 그것도 그 사람이 0번 탈것을 골랐을 때만 재현되어 "가끔 안 된다"로 보였다. 회색 로직 자체는 정독해도 멀쩡했고, 실브라우저로 `runningHorseCount` 값을 찍어서야 원인이 상류에 있다는 게 드러났다.
+**해결/예방:** 인덱스·개수처럼 **0이 정상값인 맵**을 정리·조회할 땐 반드시 `!== undefined`. 같은 상태를 정리하는 코드가 여러 경로(퇴장/이탈/준비취소/강제unready)에 흩어져 있으면, 하나를 고칠 때 나머지를 grep해 검사 방식이 같은지 확인하라. 유령 베팅은 회색 표시뿐 아니라 `getWinnersByRule` 당첨 판정과 코인 정산에도 섞여 들어갔다.
+**관련:** `socket/rooms.js:1212`, `socket/horse.js:754` runningHorseCount, 커밋 5af3e3b
+
+## 2026-08-31 — 상태 초기화는 "화면이 실제로 읽는 변수"를 기준으로 하라
+
+**상황:** 재경기(게임 종료를 누르지 않고 준비만 다시 하고 시작) 시 탈것 선택 UI가 이전 라운드 선택을 그대로 보여주는데 서버는 미선택으로 판정.
+**함정/실수:** 서버는 정산 때 `gameState.userHorseBets`를 비우고(`socket/horse.js:1236,1274`), 클라의 `horseRaceEnded` 핸들러는 `mySelectedHorse = null`만 했다. 그런데 선택 그리드가 "내 선택"을 칠하는 기준은 `mySelectedHorse`가 아니라 `userHorseBets[currentUser]`(`js/horse-race.js:1687`)다. 초기화한 변수와 화면이 읽는 변수가 달라 리셋이 무효였다.
+**증상:** 시작 버튼에 "모든 사람이 말을 선택해야 시작할 수 있습니다!". 게임 종료(`endHorseRace`)를 누르면 `horseSelectionReady`가 새로 와서 전체 재동기화되므로 **그 경로로 테스트하면 재현되지 않는다** — 종료를 건너뛰는 흐름에서만 나온다.
+**해결/예방:** 리셋 코드를 추가·수정할 땐 그 상태를 렌더가 실제로 읽는 곳을 grep해서 확인하라(같은 의미의 상태가 둘로 갈라져 있으면 둘 다). 재생 중 도착한 종료의 초기화는 즉시 적용하지 말고 재생 완료 시점으로 미룬다 — 중간에 비우면 미니맵의 "내 말 ▼" 표식(`:2995`)이 경주 도중 풀린다. `pendingHorseSelectionReady`와 같은 보관 패턴을 쓴다.
+**관련:** `js/horse-race.js` clearRoundBets / horseRaceEnded, 커밋 695881c
+
+## 2026-08-31 — "안 된다"는 신고는 코드 정독보다 실측이 빠르다
+
+**상황:** 룰렛 단계 회색 처리 신고를 받고 클라·서버 코드를 반복해서 읽었지만 로직상 결함이 없었다. 잘못된 가설(투표 시점에 등수를 막아야 한다)로 한 번 배포했다가 되돌렸다.
+**함정/실수:** 증상만 듣고 원인을 추측해 코드를 고쳤다. 실제로는 회색 로직이 정상이었고, 그 입력값(`runningHorseCount`)을 만드는 상류가 오염돼 있었다.
+**증상:** 정적 분석으로는 끝까지 안 잡혔다. `AutoTest/qa-horse-render-vs-server-test.js`를 복제해 Playwright로 방을 만들고 `horseRouletteStart` payload와 `.rank-vote-box` 클래스를 찍자 15분 만에 값이 어긋나는 지점이 드러났다.
+**해결/예방:** 멀티플레이 상태 버그는 **재현 프로브부터** 만들어라. 기존 하네스(방 생성 + 소켓 게스트 + 브라우저 1)를 복사해 확인하려는 값 하나만 찍으면 된다. 수정 후 같은 프로브로 A/B를 남기면 커밋 메시지의 근거가 된다.
+**관련:** `AutoTest/qa-horse-render-vs-server-test.js`(하네스 원본), 커밋 5af3e3b·695881c
+
 ---
 
 ## 추가 형식
