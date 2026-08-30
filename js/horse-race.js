@@ -103,6 +103,7 @@ var NEW_VEHICLES = []; // 신규 탈것 (NEW 배지)
 var vehicleStatsData = []; // 탈것별 통계 데이터
 var isReplayActive = false; // 다시보기 진행 중 여부
 var pendingHorseSelectionReady = null; // 경주/다시보기 재생 중 도착한 다음 라운드 선택 이벤트(가드로 드롭되는 것)를 보관 → 종료 시 적용
+var pendingRoundBetsClear = false; // 재생 중 도착한 라운드 종료의 베팅 초기화를 보관 → 재생 끝나고 적용
 var raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
 var userRankVotes = {};        // { [userName]: 1-based rank } — N등 투표 (서버 broadcast 동기화)
 var rouletteAnimFrameId = null; // 룰렛 애니메이션 rAF id
@@ -6682,6 +6683,15 @@ function flushPendingHorseSelection() {
     return false;
 }
 
+// 라운드 종료 = 서버가 userHorseBets를 비운 시점(socket/horse.js:1236,1274). 클라도 같이 비운다.
+// 선택 그리드는 mySelectedHorse가 아니라 userHorseBets로 내 선택을 칠하므로(:1687),
+// 이걸 안 비우면 다음 라운드에 "이미 고른 것처럼" 보이는데 서버는 미선택으로 판정한다.
+function clearRoundBets() {
+    userHorseBets = {};
+    selectedUsersFromServer = [];
+    if (!isRaceActive && document.querySelector('#horseSelectionSection.active')) renderHorseSelection();
+}
+
 // 다시보기 중단 후 평소 준비/선택 화면으로 복귀
 function returnToSelectionAfterReplay() {
     // 재생 중 열린 다음 라운드 선택이 있으면 적용 → 그리드 즉시 표시
@@ -7146,6 +7156,9 @@ socket.on('horseRaceStarted', (data) => {
             };
         }
 
+        // 재생 중 도착했던 라운드 종료의 베팅 초기화 — flush보다 먼저 해야 새 라운드 payload를 덮지 않는다
+        if (pendingRoundBetsClear) { pendingRoundBetsClear = false; clearRoundBets(); }
+
         // 숨김 탭 지연 재생 클라이언트: 경주 중 버퍼된 다음 라운드 선택 이벤트 적용
         // (showRaceResult가 isRaceActive=false로 만든 뒤라 flush 조건 충족, 버퍼 없으면 no-op)
         flushPendingHorseSelection();
@@ -7178,6 +7191,9 @@ socket.on('horseRaceEnded', (data) => {
 
     // 말 선택만 초기화 (준비 상태는 서버의 readyUsersUpdated 이벤트가 처리)
     mySelectedHorse = null;
+    // 아직 이 클라가 경주를 재생 중이면(느린 탭) 미니맵의 "내 말" 표식(:2995)이 풀리므로
+    // 재생이 끝나는 시점으로 미룬다.
+    if (isRaceActive) pendingRoundBetsClear = true; else clearRoundBets();
     // 동점자 자동준비 / 다음 라운드 자동선택을 위해 시도 플래그 리셋
     // (서버가 horseRaceEnded 직후 readyUsersUpdated를 보내면 onReadyChanged가 tryAutoSelectHorse 호출)
     autoSelectAttempted = false;
