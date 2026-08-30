@@ -239,6 +239,13 @@ async function runRoom(browser, roomNo, agg) {
 
             if (race < RACES_PER_ROOM) await sleep(3000); // 다음 판 준비 여유
         }
+    } catch (e) {
+        // "Execution context was destroyed" = 페이지가 도중에 이동했다는 뜻.
+        // 어디로 갔는지가 곧 원인(로비 이동이면 roomError/roomDeleted/sessionTakenOver 계열).
+        let where = '(unknown)';
+        try { where = page.url(); } catch (_) {}
+        e.message = e.message + '  [page=' + where + ']';
+        throw e;
     } finally {
         try { host.close(); } catch (e) {}
         guests.forEach(g => { try { g.close(); } catch (e) {} });
@@ -257,8 +264,13 @@ async function runRoom(browser, roomNo, agg) {
     try {
         for (let i = 1; i <= ROOMS; i++) {
             console.log('\n─── 방 ' + i + '/' + ROOMS + ' ───');
-            try { await runRoom(browser, i, agg); }
-            catch (e) { fail('방' + i + ' 실행 실패', e.message); }
+            try {
+                await runRoom(browser, i, agg);
+            } catch (e) {
+                info('방' + i + ' 1차 실패 → 재시도: ' + e.message);
+                try { await runRoom(browser, i, agg); }
+                catch (e2) { fail('방' + i + ' 실행 실패(재시도 후)', e2.message); }
+            }
         }
     } finally {
         await browser.close();
