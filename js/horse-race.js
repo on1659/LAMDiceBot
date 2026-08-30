@@ -105,7 +105,6 @@ var isReplayActive = false; // 다시보기 진행 중 여부
 var pendingHorseSelectionReady = null; // 경주/다시보기 재생 중 도착한 다음 라운드 선택 이벤트(가드로 드롭되는 것)를 보관 → 종료 시 적용
 var raceResultShown = false; // 현재 라운드 결과 이미 표시 여부
 var userRankVotes = {};        // { [userName]: 1-based rank } — N등 투표 (서버 broadcast 동기화)
-var MIN_RACE_PLAYERS = 2;      // 서버 canStartHorse와 같은 최소 인원 — 등수 상한의 하한
 var rouletteAnimFrameId = null; // 룰렛 애니메이션 rAF id
 // 룰렛 tick을 예약한 창 — PiP attach 중엔 PiP 창에 예약해야 메인 탭 숨김 스로틀(1초)을 피한다.
 // 타이머 id는 창별 카운터라 반드시 예약한 창에서 취소해야 한다 (rAF의 migrateRaceDriver와 같은 함정).
@@ -1974,12 +1973,6 @@ function renderRankVoteSection(opts) {
 
     section.style.display = 'block';
 
-    // 나올 수 있는 등수의 상한 — 출주자는 준비한 사람(readyUsers)이고 1인 1마리라
-    // 달리는 말 수가 준비 인원을 넘지 못한다. 준비 인원은 이미 공개 정보라 이 상한은
-    // 남의 픽을 노출하지 않는다. 같은 탈것을 골라 실제 마릿수가 더 줄어드는 경우는
-    // 선택이 블라인드라 여기서 알 수 없다 — 그건 출발 시 서버가 무효 처리한다.
-    var rankCap = Math.min(availableHorses.length, Math.max((readyUsers || []).length, MIN_RACE_PLAYERS));
-
     // 등수별 표 수 집계 (익명 — 이름 비공개)
     var tallyByRank = {};
     Object.values(userRankVotes || {}).forEach(function(rank) {
@@ -1995,8 +1988,6 @@ function renderRankVoteSection(opts) {
         box.className = 'rank-vote-box';
         box.dataset.rank = String(r);
         if (myVote === r) box.classList.add('selected');
-        var overCap = r > rankCap;
-        if (overCap) box.classList.add('invalid');
 
         var count = tallyByRank[r] || 0;
         // 익명 처리: 투표자 이름 숨기고 막대(=표)로 표시
@@ -2005,17 +1996,8 @@ function renderRankVoteSection(opts) {
         box.innerHTML =
             '<div class="rank-vote-rank">' + r + '등</div>' +
             '<div class="rank-vote-bars">' + barsHtml + '</div>';
-        (function(rankVal, disabled) {
+        (function(rankVal) {
             box.addEventListener('click', function() {
-                if (disabled) {
-                    var msg = '준비한 사람이 ' + readyUsers.length + '명이라 이 등수는 나올 수 없어요!';
-                    if (racePipAttached()) {
-                        showTrackToast(msg);
-                    } else if (typeof showCustomAlert === 'function') {
-                        showCustomAlert(msg, 'warning');
-                    }
-                    return;
-                }
                 if (!readyUsers.includes(currentUser)) {
                     // 이 박스는 룰렛 구간에 래퍼를 따라 작은 창으로 이식된다 — 그 안에서 누른 경고를
                     // 메인 문서에 띄우면 사용자에겐 무반응으로 보인다.
@@ -2028,7 +2010,7 @@ function renderRankVoteSection(opts) {
                 }
                 socket.emit('voteRank', { rank: rankVal });
             });
-        })(r, overCap);
+        })(r);
         boxesEl.appendChild(box);
     }
 
@@ -2039,9 +2021,7 @@ function renderRankVoteSection(opts) {
             // 룰렛 시각화 단계 — 투표가 끝났으므로 규칙 안내 숨김
             warnEl.style.display = 'none';
         } else {
-            warnEl.textContent = (rankCap < availableHorses.length)
-                ? '🐎 지금 준비 인원으로는 ' + rankCap + '등까지만 나와요. 같은 탈것을 고르면 더 줄어요.'
-                : '🐎 선택된 말 수보다 높은 등수에 던진 표는 사라져요.';
+            warnEl.textContent = '🐎 선택된 말 수보다 높은 등수에 던진 표는 사라져요.';
             warnEl.style.display = 'block';
         }
     }
@@ -6150,8 +6130,6 @@ function initReadyModule() {
         onReadyChanged: (users) => {
             readyUsers = users;
             tryAutoSelectHorse();
-            // 준비 인원이 바뀌면 나올 수 있는 등수 상한도 바뀐다 — 투표 박스 갱신
-            if (typeof renderRankVoteSection === 'function') renderRankVoteSection();
             // 말 선택 UI가 활성화되어 있으면 "선택 안 한 사람" 목록 갱신
             const selectionSection = document.getElementById('horseSelectionSection');
             if (selectionSection && selectionSection.classList.contains('active')) {
