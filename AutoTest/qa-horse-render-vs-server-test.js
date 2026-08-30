@@ -10,8 +10,16 @@
  * 클라가 이미 찍는 [DEBUG] 콘솔 로그를 page.on('console')로 수집해 서버 payload와 대조.
  * 재구현이 없으므로 test-150ms-gap.js류의 "테스트가 자기 자신을 검사" 함정이 없다.
  *
- * 사용법: node AutoTest/qa-horse-render-vs-server-test.js [판수]
- *         HEADED=1 을 붙이면 브라우저를 띄워서 눈으로 확인
+ * ⚠️ 말 수는 인원과 무관하게 4~6마리 고정이다 (socket/horse.js HORSE_COUNT_MIN/MAX).
+ * 중복 베팅은 항상 허용(:1624 canSelectDuplicate = true)이라 인원이 말보다 많으면
+ * 여러 명이 같은 말에 겹쳐 건다. 즉 레이스를 좌우하는 건 인원이 아니라
+ * **러너 수(= 서로 다른 말에 걸린 수, 최대 6)** 다. 이 스크립트는 둘 다 기록한다.
+ *
+ * 사용법:
+ *   node AutoTest/qa-horse-render-vs-server-test.js [방 수]
+ *   USERS=10 RACES=3 node AutoTest/qa-horse-render-vs-server-test.js 5
+ *     → 10명 방에서 3판씩, 방 5개 = 15판
+ *   HEADED=1 을 붙이면 브라우저를 띄워서 눈으로 확인
  */
 const { chromium } = require('playwright');
 const { io } = require('socket.io-client');
@@ -23,8 +31,9 @@ const URL = 'http://127.0.0.1:' + PORT;
 // C-5: 파라미터 없이 접속하면 /game으로 리다이렉트된다 — 진입 플래그 필수
 const PAGE = URL + '/horse-race-multiplayer.html?createRoom=true';
 const HEADED = !!process.env.HEADED;
-const ROUNDS = parseInt(process.argv[2] || '3', 10);
-const EXTRA_GUESTS = parseInt(process.env.GUESTS || '3', 10); // 러너 수 확보용
+const ROOMS = parseInt(process.argv[2] || '5', 10);
+const USERS = parseInt(process.env.USERS || '5', 10);          // 방 전체 인원 (브라우저 1명 포함)
+const RACES_PER_ROOM = parseInt(process.env.RACES || '1', 10); // 한 방에서 연속으로 돌릴 판 수
 
 const R = { pass: 0, fail: 0 };
 const pass = m => { R.pass++; console.log('  PASS ' + m); };
@@ -78,8 +87,9 @@ async function browserJoin(page, roomId, userName) {
     }), { id: roomId, u: userName });
 }
 
-async function runRound(browser, roundNo, agg) {
-    const tag = Date.now().toString(36).slice(-4) + roundNo;
+// 한 방에서 RACES_PER_ROOM 판을 연속으로 돌린다 (같은 방 반복 = 실사용 패턴)
+async function runRoom(browser, roomNo, agg) {
+    const tag = Date.now().toString(36).slice(-4) + roomNo;
     const HOST = 'RVS방장_' + tag;
     const VIEWER = 'RVS관전_' + tag;
 
@@ -89,19 +99,15 @@ async function runRound(browser, roundNo, agg) {
     await ctx.route('**doubleclick**', r => r.abort());
     const page = await ctx.newPage();
 
-    // 클라가 찍는 [DEBUG] 로그 수집
+    // 클라가 찍는 [DEBUG] 로그 수집 (판별로 슬라이스해 쓴다)
     const finishLog = [];
     const stunLog = [];
-    const allLog = [];
-    const t0 = Date.now();
-    page.on('pageerror', e => allLog.push('PAGEERROR: ' + e.message));
     page.on('console', msg => {
         const txt = msg.text();
-        allLog.push(txt);
         let m = txt.match(/\[DEBUG\] 말 (\d+) 도착 판정!/);
-        if (m) { finishLog.push({ horseIndex: +m[1], at: Date.now() - t0 }); return; }
+        if (m) { finishLog.push({ horseIndex: +m[1] }); return; }
         m = txt.match(/\[DEBUG\] 말 (\d+) 결승 대기 자빠짐! rank=(\d+)/);
-        if (m) { stunLog.push({ horseIndex: +m[1], rank: +m[2], at: Date.now() - t0 }); }
+        if (m) { stunLog.push({ horseIndex: +m[1], rank: +m[2] }); }
     });
 
     const host = await connect();
@@ -109,12 +115,14 @@ async function runRound(browser, roundNo, agg) {
     try {
         await loadPage(page, VIEWER);
 
-        // 호스트는 소켓 직결로 방 생성 (빠르고 결정적)
-        const createdP = once(host, 'roomCreated', 12000).catch(() => null);
         // 참가자가 늘 때마다 재전송되므로 마지막 payload를 보관 (초기 스냅샷을 쓰면
         // availableHorses가 낡아 없는 말에 베팅 → 서버 거부 → 레이스가 시작되지 않는다)
         let lastSel = null;
         host.on('horseSelectionReady', d => { lastSel = d; });
+        let lastStartErr = null;
+        host.on('horseRaceError', e => { lastStartErr = e; });
+
+        const createdP = once(host, 'roomCreated', 12000).catch(() => null);
         host.emit('createRoom', Object.assign({
             userName: HOST, roomName: 'rvs-' + tag, isPrivate: false, password: '',
             gameType: 'horse-race', expiryHours: 1, blockIPPerUser: false,
@@ -126,8 +134,9 @@ async function runRound(browser, roundNo, agg) {
 
         await browserJoin(page, roomId, VIEWER);
 
-        // 러너(=베팅된 말) 수를 늘려야 접전·자빠짐이 관찰된다 — 소켓 게스트 추가
-        for (let g = 0; g < EXTRA_GUESTS; g++) {
+        // 나머지 인원(소켓 게스트) — 말이 4~6마리로 고정이라 인원이 넘쳐도 내보내지 않는다.
+        // 중복 베팅이 허용되므로 전원이 베팅할 수 있고, 그래야 "전원 선택" 게이트가 채워진다.
+        for (let g = 0; g < USERS - 2; g++) {
             const gs = await connect();
             guests.push(gs);
             const jp = once(gs, 'roomJoined', 10000);
@@ -136,88 +145,100 @@ async function runRound(browser, roundNo, agg) {
             }, ids()));
             await jp;
         }
+        info('방' + roomNo + ' 참가 ' + USERS + '명 (소켓 ' + (1 + guests.length) + ' + 브라우저 1)');
 
-        // 전원 입장 후 최신 선택 목록이 도착할 때까지 대기
-        const expectRunners = 1 + guests.length + 1; // host + guests + browser
-        const selDeadline = Date.now() + 12000;
-        while (Date.now() < selDeadline) {
-            if (lastSel && (lastSel.availableHorses || []).length >= expectRunners) break;
-            await sleep(300);
+        for (let race = 1; race <= RACES_PER_ROOM; race++) {
+            const label = '방' + roomNo + '-' + race;
+            const finishBase = finishLog.length;
+            const stunBase = stunLog.length;
+
+            // 2판째부터는 세션을 리셋해야 다음 선택 단계가 열린다.
+            // 정산 시 isGameActive=false + 베팅 초기화만 하고 선택 단계는 자동으로 안 열린다 —
+            // horseSelectionReady를 다시 쏘는 건 endHorseRace(socket/horse.js:1959)뿐이다.
+            if (race > 1) {
+                lastSel = null;
+                host.emit('endHorseRace');
+                await sleep(900);
+                // 정산 시 readyUsers가 비워진다(socket/horse.js:1334) — 실제 게임도 매 판 후
+                // 다시 "준비"를 눌러야 한다. C-24(create/join 자동 ready)는 첫 판에만 해당.
+                [host].concat(guests).forEach(sk => sk.emit('toggleReady'));
+                await page.evaluate(() => socket.emit('toggleReady'));
+                await sleep(800);
+            }
+
+            // 선택 목록 대기 (판마다 새로 온다)
+            const selDeadline = Date.now() + 20000;
+            while (!lastSel && Date.now() < selDeadline) await sleep(300);
+            const horses = (lastSel && lastSel.availableHorses) || [];
+            if (horses.length < 2) { fail(label + ' availableHorses 부족', String(horses.length)); break; }
+
+            // 전원 베팅 — 인원 > 말 수면 중복으로 겹친다(서버 허용). 러너 = 서로 다른 말 수.
+            const bettors = [host].concat(guests);
+            const used = new Set();
+            for (let i = 0; i < bettors.length; i++) {
+                const h = horses[i % horses.length];
+                used.add(h);
+                bettors[i].emit('selectHorse', { horseIndex: h });
+                await sleep(120);
+            }
+            const browserHorse = horses[bettors.length % horses.length];
+            used.add(browserHorse);
+            await page.evaluate(h => socket.emit('selectHorse', { horseIndex: h }), browserHorse);
+            await sleep(600);
+            const runnerCount = used.size;
+            info(label + ' 말 ' + horses.length + '마리 / 러너 ' + runnerCount + '마리');
+
+            // 시작 — 거부 사유는 horseRaceError로 온다(socket/horse.js:1405). 듣고 재시도.
+            lastStartErr = null;
+            lastSel = null; // 다음 판 선택 목록과 구분
+            const startedP = once(host, 'horseRaceStarted', 60000).catch(() => null);
+            const endedP = once(host, 'horseRaceEnded', 120000).catch(() => null);
+            host.emit('startHorseRace');
+            let raceData = null;
+            const startDeadline = Date.now() + 45000;
+            while (!raceData && Date.now() < startDeadline) {
+                raceData = await Promise.race([startedP, sleep(5000).then(() => null)]);
+                if (!raceData) {
+                    if (lastStartErr) { info(label + ' 시작 거부: ' + lastStartErr + ' → 재시도'); lastStartErr = null; }
+                    host.emit('startHorseRace');
+                }
+            }
+            if (!raceData) { fail(label + ' 시작 실패', 'timeout:horseRaceStarted'); break; }
+
+            const serverOrder = raceData.horseRankings || (raceData.rankings || []).map(r => r.horseIndex);
+
+            await endedP;
+            // 러너 전원의 도착 로그가 모일 때까지 (마지막 말은 정산 후에도 달리는 중일 수 있다)
+            const collectDeadline = Date.now() + 25000;
+            while (finishLog.length - finishBase < runnerCount && Date.now() < collectDeadline) await sleep(500);
+            await sleep(800);
+
+            const renderOrder = finishLog.slice(finishBase).map(f => f.horseIndex);
+            const stuns = stunLog.slice(stunBase);
+            info(label + ' 서버 [' + serverOrder.join(',') + '] / 화면 [' + renderOrder.join(',') + ']' +
+                ' / 자빠짐 ' + stuns.length + '회');
+
+            if (renderOrder.length === 0) {
+                fail(label + ' 도착 로그 0건');
+            } else {
+                const serverFiltered = serverOrder.filter(h => renderOrder.indexOf(h) !== -1);
+                if (JSON.stringify(serverFiltered) === JSON.stringify(renderOrder)) {
+                    pass(label + ' 화면 순서 == 서버 순위 (러너 ' + runnerCount + ')');
+                } else {
+                    fail(label + ' 순서 불일치', '서버 [' + serverFiltered + '] vs 화면 [' + renderOrder + ']');
+                }
+                agg.races++;
+                agg.stunEvents += stuns.length;
+                if (stuns.length) agg.racesWithStun++;
+                const key = String(runnerCount);
+                agg.byRunner[key] = agg.byRunner[key] || { n: 0, withStun: 0, events: 0 };
+                agg.byRunner[key].n++;
+                agg.byRunner[key].events += stuns.length;
+                if (stuns.length) agg.byRunner[key].withStun++;
+            }
+
+            if (race < RACES_PER_ROOM) await sleep(3000); // 다음 판 준비 여유
         }
-        let horses = (lastSel && lastSel.availableHorses) || [];
-        if (horses.length < 2) throw new Error('availableHorses 부족: ' + horses.length);
-
-        // 인원 > 말 수면 한 명이 베팅을 못 해 "전원 선택" 게이트가 영영 안 채워진다
-        // (서버는 전원 선택 후에야 레이스를 시작 → startHorseRace가 조용히 무동작).
-        // 남는 게스트를 내보내 인원을 말 수에 맞춘다.
-        while (1 + guests.length + 1 > horses.length && guests.length > 0) {
-            const drop = guests.pop();
-            try { drop.close(); } catch (e) {}
-            await sleep(300);
-        }
-        // 이탈 후 선택 목록이 재전송되면 말 구성이 바뀐다 — 최신본으로 갱신
-        await sleep(700);
-        if (lastSel && (lastSel.availableHorses || []).length >= 2) horses = lastSel.availableHorses;
-        info('R' + roundNo + ' 참가 ' + (2 + guests.length) + '명 / 말 ' + horses.length + '마리');
-
-        // 서로 다른 말에 베팅 (allSameBet 독주 경로 회피)
-        const bettors = [host].concat(guests);
-        const runnerCount = Math.min(bettors.length + 1, horses.length);
-        for (let i = 0; i < runnerCount - 1; i++) {
-            bettors[i].emit('selectHorse', { horseIndex: horses[i] });
-            await sleep(150);
-        }
-        await page.evaluate(h => socket.emit('selectHorse', { horseIndex: h }), horses[runnerCount - 1]);
-        await sleep(600);
-        info('R' + roundNo + ' 러너 ' + runnerCount + '마리 / 전체 ' + horses.length + '마리');
-
-        const startedP = once(host, 'horseRaceStarted', 30000);
-        host.emit('startHorseRace');
-        const raceData = await startedP;
-
-        // 서버가 준 순위 (rankings = 순위별 말 인덱스 배열)
-        const serverOrder = raceData.horseRankings || (raceData.rankings || []).map(r => r.horseIndex);
-        info('R' + roundNo + ' 서버 순위: [' + serverOrder.join(', ') + ']');
-
-        // 레이스 종료까지 대기 + 러너 전원의 도착 로그 수집
-        await once(host, 'horseRaceEnded', 90000).catch(() => null);
-        const deadline = Date.now() + 25000;
-        while (finishLog.length < runnerCount && Date.now() < deadline) {
-            await sleep(500);
-        }
-        await sleep(800);
-
-        // ── 검증 ──
-        const renderOrder = finishLog.map(f => f.horseIndex);
-        info('R' + roundNo + ' 화면 도착 순서: [' + renderOrder.join(', ') + ']');
-        info('R' + roundNo + ' 자빠짐: ' + stunLog.length + '회' +
-            (stunLog.length ? ' (말 ' + stunLog.map(s => s.horseIndex).join(', ') + ')' : ''));
-
-        if (renderOrder.length === 0) {
-            fail('R' + roundNo + ' 도착 로그 0건', '클라가 레이스를 재생하지 않았거나 로그 포맷 변경');
-            console.log('  --- 페이지 콘솔 마지막 25줄 ---');
-            allLog.slice(-25).forEach(l => console.log('      | ' + l.slice(0, 160)));
-            const diag = await page.evaluate(() => ({
-                hasTrack: !!document.getElementById('raceTrackContainer'),
-                gameSectionActive: !!document.querySelector('.game-section.active'),
-                animId: typeof window._raceAnimFrameId !== 'undefined' ? String(window._raceAnimFrameId) : 'undef',
-                raceGen: typeof window._raceGen !== 'undefined' ? String(window._raceGen) : 'undef',
-                bodyClasses: document.body.className
-            })).catch(e => ({ err: e.message }));
-            console.log('  --- 페이지 상태: ' + JSON.stringify(diag));
-        } else {
-            // 화면에 등장한 말들의 순서가 서버 순위의 부분수열과 일치하는지
-            const serverFiltered = serverOrder.filter(h => renderOrder.indexOf(h) !== -1);
-            const match = JSON.stringify(serverFiltered) === JSON.stringify(renderOrder);
-            if (match) pass('R' + roundNo + ' 화면 도착 순서 == 서버 순위');
-            else fail('R' + roundNo + ' 순서 불일치', '서버 [' + serverFiltered + '] vs 화면 [' + renderOrder + ']');
-        }
-
-        agg.races++;
-        agg.stunEvents += stunLog.length;
-        if (stunLog.length) agg.racesWithStun++;
-        agg.finishesSeen += renderOrder.length;
-
     } finally {
         try { host.close(); } catch (e) {}
         guests.forEach(g => { try { g.close(); } catch (e) {} });
@@ -226,31 +247,36 @@ async function runRound(browser, roundNo, agg) {
 }
 
 (async () => {
-    console.log('='.repeat(64));
+    console.log('='.repeat(66));
     console.log(' 클라 렌더 vs 서버 순위 — 실브라우저 헤드리스 검증');
-    console.log(' 서버 ' + URL + ' / ' + ROUNDS + '판 / ' + (HEADED ? 'headed' : 'headless'));
-    console.log('='.repeat(64));
+    console.log(' 서버 ' + URL + ' | 방 ' + ROOMS + '개 x ' + RACES_PER_ROOM + '판 | 인원 ' + USERS + '명');
+    console.log('='.repeat(66));
 
     const browser = await chromium.launch({ headless: !HEADED });
-    const agg = { races: 0, stunEvents: 0, racesWithStun: 0, finishesSeen: 0 };
+    const agg = { races: 0, stunEvents: 0, racesWithStun: 0, byRunner: {} };
     try {
-        for (let i = 1; i <= ROUNDS; i++) {
-            console.log('\n─── Round ' + i + '/' + ROUNDS + ' ───');
-            try { await runRound(browser, i, agg); }
-            catch (e) { fail('R' + i + ' 실행 실패', e.message); }
+        for (let i = 1; i <= ROOMS; i++) {
+            console.log('\n─── 방 ' + i + '/' + ROOMS + ' ───');
+            try { await runRoom(browser, i, agg); }
+            catch (e) { fail('방' + i + ' 실행 실패', e.message); }
         }
     } finally {
         await browser.close();
     }
 
-    console.log('\n' + '='.repeat(64));
-    console.log(' 판수 ' + agg.races + ' | 도착 로그 ' + agg.finishesSeen + '건');
+    console.log('\n' + '='.repeat(66));
+    console.log(' 유효 판수 ' + agg.races + ' | 인원 ' + USERS + '명 | 방당 ' + RACES_PER_ROOM + '판');
     if (agg.races) {
         console.log(' 자빠짐 발생 판: ' + agg.racesWithStun + '/' + agg.races +
             ' (' + (agg.racesWithStun / agg.races * 100).toFixed(0) + '%)  총 ' + agg.stunEvents + '회');
-        console.log(' ※ 자빠짐 = 클라의 자연 움직임이 서버 순위와 어긋나려 해 강제 교정된 횟수');
+        console.log(' 러너 수별:');
+        Object.keys(agg.byRunner).sort().forEach(k => {
+            const b = agg.byRunner[k];
+            console.log('   러너 ' + k + '마리: ' + b.n + '판 중 ' + b.withStun + '판 자빠짐 (' +
+                (b.withStun / b.n * 100).toFixed(0) + '%), 총 ' + b.events + '회');
+        });
     }
     console.log(' PASS ' + R.pass + ' / FAIL ' + R.fail);
-    console.log('='.repeat(64));
+    console.log('='.repeat(66));
     process.exit(R.fail === 0 ? 0 : 1);
 })();
