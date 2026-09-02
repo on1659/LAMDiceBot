@@ -8,13 +8,18 @@
  *   4. ★ 정산 워치독 — 아무도 raceAnimationComplete 를 보내지 않아도 서버가 스스로 마감한다
  *      (이 테스트는 브라우저가 없으므로 그 신호가 원천적으로 오지 않는다)
  *
- * 최소 여유 3분 + 워치독 90초(시뮬 상한 60s + HORSE_SETTLE_GRACE_MS 30s)로 전체 5분쯤 걸린다.
+ * 최소 여유 3분 + 워치독(HORSE_RACE_SIM_MAX_MS + HORSE_SETTLE_GRACE_MS, 현재 90s + 30s)로 전체 6분쯤 걸린다.
+ * 워치독 대기는 리터럴이 아니라 서버 상수에서 파생한다 — 상수가 바뀌면 테스트도 따라간다.
  *
  * 사용법: node AutoTest/qa-scheduled-start-horse-test.js --url=http://127.0.0.1:5299
  */
 const io = require('socket.io-client');
 const path = require('path');
-const { PORT } = require(path.join(__dirname, '..', 'config', 'index.js'));
+const { PORT, HORSE_SETTLE_GRACE_MS } = require(path.join(__dirname, '..', 'config', 'index.js'));
+const { HORSE_RACE_SIM_MAX_MS } = require(path.join(__dirname, '..', 'socket', 'horse.js'));
+
+// 워치독은 horseRaceStarted 시점부터 "시뮬 상한 + 여유" 뒤에 발동한다 — 여기에 네트워크 여유를 더한다
+const WATCHDOG_WAIT_MS = HORSE_RACE_SIM_MAX_MS + HORSE_SETTLE_GRACE_MS + 15000;
 
 const URL = process.argv.find(a => a.startsWith('--url='))?.split('=')[1] || `http://127.0.0.1:${PORT}`;
 const R = { pass: 0, fail: 0, errors: [] };
@@ -113,9 +118,9 @@ async function main() {
     if (started && !started._err) pass('예약으로 경주 시작됨 (horseRaceStarted)');
     else fail('예약 시각이 됐는데 경주가 시작되지 않았다', started && started._err);
 
-    console.log('\n── 3. 정산 워치독 (클라이언트 완주 신호 없음, 최대 100초 대기) ──');
+    console.log(`\n── 3. 정산 워치독 (클라이언트 완주 신호 없음, 최대 ${Math.round(WATCHDOG_WAIT_MS / 1000)}초 대기) ──`);
     console.log('  ⏳ 대기 중... (이 테스트는 raceAnimationComplete 를 절대 보내지 않는다)');
-    const ended = await once(guest, 'horseRaceEnded', 105000).catch(e => ({ _err: e.message }));
+    const ended = await once(guest, 'horseRaceEnded', WATCHDOG_WAIT_MS).catch(e => ({ _err: e.message }));
     if (ended && !ended._err) {
         pass('워치독이 서버에서 정산 완료 (horseRaceEnded)');
         if (ended.finalWinner || ended.tieWinners) pass(`우승자 확정: ${JSON.stringify(ended.finalWinner || ended.tieWinners).slice(0, 80)}`);

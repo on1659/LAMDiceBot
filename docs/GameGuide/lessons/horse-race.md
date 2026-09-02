@@ -117,6 +117,22 @@
 **해결/예방:** 멀티플레이 상태 버그는 **재현 프로브부터** 만들어라. 기존 하네스(방 생성 + 소켓 게스트 + 브라우저 1)를 복사해 확인하려는 값 하나만 찍으면 된다. 수정 후 같은 프로브로 A/B를 남기면 커밋 메시지의 근거가 된다.
 **관련:** `AutoTest/qa-horse-render-vs-server-test.js`(하네스 원본), 커밋 5af3e3b·695881c
 
+## 2026-09-03 — 테스트 대기 시간은 리터럴이 아니라 서버 상수에서 파생하라
+
+**상황:** 재경기 자동 시작 작업의 회귀 확인으로 `AutoTest/qa-scheduled-start-horse-test.js`를 돌렸더니 3번 항목(정산 워치독)만 timeout FAIL.
+**함정/실수:** 테스트가 `horseRaceEnded`를 `105000`ms 리터럴로 기다렸다. 그 사이 `socket/horse.js`의 `HORSE_RACE_SIM_MAX_MS`가 60s→90s로 늘어(막판 기믹 창 확장) 워치독 발동이 시작 후 120초(90s + `HORSE_SETTLE_GRACE_MS` 30s)로 밀렸는데, 테스트의 숫자는 아무도 따라 고치지 않았다.
+**증상:** 서버 로그에는 `[경마] 정산 워치독 발동`이 정상으로 찍히는데 테스트만 "방이 잠긴 채로 남는다"고 보고해 회귀로 오판할 뻔했다.
+**해결/예방:** 대기 시간을 `HORSE_RACE_SIM_MAX_MS + HORSE_SETTLE_GRACE_MS + 여유`로 파생(`socket/horse.js`가 테스트용으로 상수를 export). 규칙: 서버 타이머를 기다리는 테스트는 그 타이머를 만드는 상수를 require해서 계산하라 — 숫자를 베껴 적으면 상수가 바뀔 때 조용히 스테일이 된다. 회귀로 판정하기 전에 서버 로그에서 그 동작이 실제로 일어났는지 먼저 본다.
+**관련:** `AutoTest/qa-scheduled-start-horse-test.js`, `socket/horse.js HORSE_RACE_SIM_MAX_MS`, `config/index.js HORSE_SETTLE_GRACE_MS`
+
+## 2026-09-03 — 서버가 스스로 예약을 걸 땐 armSchedule을 타지 않는다
+
+**상황:** 동점/당첨자 없음 재경기에서 서버가 30초 뒤 예약 시작을 자동으로 걸도록 추가(`docs/goal/applied/horse-race-rematch-auto-start.md`).
+**함정/실수:** `socket/scheduled-start.js armSchedule`은 방장 입력 검증기다 — 프리셋 분 목록(3/5/10/30)과 최소 여유 3분을 강제해서 30초를 넣으면 "최소 3분 뒤부터"로 거절된다. 또 예약은 준비(readyUsers)를 대신 눌러주지 않으므로, 준비자가 2명 미만인 상태에서 걸면 발화 시 `canStartHorse`가 "최소 2명"으로 거절해 "건너뛰었어요" 알림만 남긴다.
+**증상:** 정찰에서 armSchedule의 검증 목록과 `fire()`의 canStart 재검사를 읽고 사전에 회피.
+**해결/예방:** 서버 내부 예약은 `gameState.scheduledStartAt`을 직접 쓰고 `broadcastSchedule` + `roomNotice`만 부른다(`startHorse`가 예약을 지울 때 이미 직접 쓰는 선례). 걸기 전에 발화 조건(준비자 ≥2)이 그 시점에 성립하는지 확인하고 아니면 걸지 않는다. 방장 리셋(`endHorseRace`/`clearHorseRaceData`)에서는 예약을 풀어 유령 발화를 막는다. 방장이 먼저 [시작]을 누르면 `startHorse`가 예약을 해제하고 알린다 — 예약은 시작 버튼을 대신 누를 뿐이라는 원칙 그대로.
+**관련:** `socket/horse.js settleRace / dropScheduledStart`, `socket/scheduled-start.js armSchedule / fire`
+
 ---
 
 ## 추가 형식
