@@ -24,7 +24,7 @@ const { getServerId } = require('../routes/api');
 const { getTop3Badges } = require('../db/ranking');
 const { grant: grantCoins, getBalance: getCoinBalance } = require('../db/coins');
 const { getEquippedMap, PUBLIC_HORSE_SLOTS } = require('../db/cosmetics');
-const { HORSE_SETTLE_GRACE_MS } = require('../config');
+const { HORSE_SETTLE_GRACE_MS, HORSE_REMATCH_AUTO_START_MS } = require('../config');
 
 // 코인 경제 (config/horse/race.json 의 coinEconomy 로 조정 가능, 없으면 기본값)
 const COIN_RACE_JOIN = (_horseRaceConfig.coinEconomy && _horseRaceConfig.coinEconomy.raceJoin) || 10; // 참여 적립
@@ -701,6 +701,14 @@ function getWinnersByRule(gameState, rankings, playersList) {
     return winners;
 }
 
+// 걸려 있는 예약 시작을 풀고 방 전체에 알린다.
+// 방장이 라운드를 리셋(endHorseRace/clearHorseRaceData)하면 재경기 자동 시작 카운트다운도 같이 사라져야 한다 —
+// 리셋했는데 타이머가 경주를 시작하면 놀란다.
+function dropScheduledStart(io, room, gameState) {
+    const scheduled = require('./scheduled-start');
+    if (scheduled.cancelSchedule(gameState)) scheduled.broadcastSchedule(io, room, gameState);
+}
+
 // 시작 검문 — 소켓 없이 판정할 수 있어야 한다(예약 스위퍼가 그대로 호출한다).
 // 호스트 확인은 여기 넣지 않는다: 타이머에는 응답할 소켓이 없다.
 // opts.scheduled — 예약 발화 여부. 예약이면 탈것 미선택자를 자동 배정하므로 전원 선택을 요구하지 않는다.
@@ -1346,6 +1354,18 @@ async function settleRace(room, gameState, io, ctx) {
                 io.to(playerUser.id).emit('readyStateChanged', { isReady: true });
             }
         });
+
+        // 재경기 자동 시작 — 준비는 방금 서버가 눌러줬으니 남은 건 탈것 선택뿐이다.
+        // 예약 발화(socket/scheduled-start.js)가 [시작]을 대신 누르고, 안 고른 사람은 자동 배정한다.
+        // 2명 미만이면 걸지 않는다 — canStartHorse가 "최소 2명"으로 거절해 건너뛰기 알림만 남는다.
+        // 방장은 ⏰ 버튼의 [예약 취소]로 풀거나, 그냥 [시작]을 눌러 앞지를 수 있다(startHorse가 예약을 해제).
+        if (autoReadyPlayers.length >= 2) {
+            const scheduled = require('./scheduled-start');
+            gameState.scheduledStartAt = Date.now() + HORSE_REMATCH_AUTO_START_MS;
+            scheduled.broadcastSchedule(io, room, gameState);
+            scheduled.roomNotice(io, room, gameState,
+                `재경기를 ${Math.round(HORSE_REMATCH_AUTO_START_MS / 1000)}초 뒤 자동으로 시작해요. 탈것을 고르지 않으면 자동으로 배정돼요.`);
+        }
 
         console.log(`방 ${roomName} 경마 라운드 종료 - 자동 준비: ${autoReadyPlayers.join(', ')}`);
     }
@@ -1996,6 +2016,7 @@ module.exports = function registerHorseHandlers(socket, io, ctx) {
         gameState.targetRank = null;
         gameState.rouletteResult = null;
         gameState.pendingRaceResult = null; // 미소비 결과 폐기 — disconnect 정리 게이트(chat.js)의 stale 차단
+        dropScheduledStart(io, room, gameState); // 재경기 자동 시작 카운트다운 해제
 
         // 모든 클라이언트에게 게임 종료 이벤트 전송
         io.to(room.roomId).emit('horseRaceGameReset', {
@@ -2102,6 +2123,7 @@ module.exports = function registerHorseHandlers(socket, io, ctx) {
             clearTimeout(gameState.horseRouletteTimeout);
             gameState.horseRouletteTimeout = null;
         }
+        dropScheduledStart(io, room, gameState); // 재경기 자동 시작 카운트다운 해제
 
         // 탈것 새로 랜덤 설정 (맵 선택 상태로 복귀)
         const horseCount = HORSE_COUNT_MIN + Math.floor(Math.random() * (HORSE_COUNT_MAX - HORSE_COUNT_MIN + 1));
@@ -2162,3 +2184,4 @@ module.exports = function registerHorseHandlers(socket, io, ctx) {
 // 예약 스위퍼(socket/scheduled-start.js)가 소켓 없이 호출하는 진입점.
 module.exports.canStart = canStartHorse;
 module.exports.start = startHorse;
+module.exports.HORSE_RACE_SIM_MAX_MS = HORSE_RACE_SIM_MAX_MS; // 테스트용 — 워치독 대기 시간을 리터럴 대신 여기서 파생한다

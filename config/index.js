@@ -30,9 +30,12 @@ const SCHEDULE_SWEEP_MS = parseInt(process.env.SCHEDULE_SWEEP_MS, 10) || 1000;
 const SCHEDULE_NOTICE_MS = parseInt(process.env.SCHEDULE_NOTICE_MS, 10) || 5000;
 // 경마 정산 워치독 — 클라 애니메이션 완료 신호가 끝내 오지 않을 때 서버가 대신 확정하기까지의 여유
 const HORSE_SETTLE_GRACE_MS = parseInt(process.env.HORSE_SETTLE_GRACE_MS, 10) || 30000;
+// 경마 재경기 자동 시작 — 동점/당첨자 없음으로 서버가 자동 준비시킨 뒤, 이 시간이 지나면 예약 발화로 시작한다.
+// 준비는 이미 돼 있고 탈것만 안 고른 상태라 예약 발화의 자동 배정이 그대로 맞는다.
+const HORSE_REMATCH_AUTO_START_MS = parseInt(process.env.HORSE_REMATCH_AUTO_START_MS, 10) || 30000;
 
 module.exports = {
     PORT, BASE_URL, ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, IS_LOCAL_DEV,
     SCHEDULE_PRESET_MINUTES, SCHEDULE_TIMEZONE, SCHEDULE_MIN_LEAD_MS,
-    SCHEDULE_SWEEP_MS, SCHEDULE_NOTICE_MS, HORSE_SETTLE_GRACE_MS
+    SCHEDULE_SWEEP_MS, SCHEDULE_NOTICE_MS, HORSE_SETTLE_GRACE_MS, HORSE_REMATCH_AUTO_START_MS
 };

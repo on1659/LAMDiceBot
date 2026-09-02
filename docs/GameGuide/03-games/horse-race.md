@@ -32,6 +32,7 @@
 - 동점이 나면 서버가 `raceRound`를 증가시킵니다.
 - 다음 라운드용 `horseSelectionReady`를 다시 보냅니다.
 - 남은 참가자 기준으로 선택 단계가 반복됩니다.
+- 자동 준비된 사람이 2명 이상이면 서버가 `scheduledStartAt`을 `HORSE_REMATCH_AUTO_START_MS`(기본 30초) 뒤로 걸어 예약 발화로 자동 시작합니다. 발화 시 안 고른 사람은 자동 배정되고, 방장은 예약 취소나 직접 시작으로 앞지를 수 있습니다. `endHorseRace`/`clearHorseRaceData`는 이 예약을 풉니다.
 
 즉, 재경주는 "별도 이벤트 세트"가 아니라 "다음 선택 라운드"로 모델링되어 있습니다.
 
