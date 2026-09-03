@@ -133,6 +133,22 @@
 **해결/예방:** 서버 내부 예약은 `gameState.scheduledStartAt`을 직접 쓰고 `broadcastSchedule` + `roomNotice`만 부른다(`startHorse`가 예약을 지울 때 이미 직접 쓰는 선례). 걸기 전에 발화 조건(준비자 ≥2)이 그 시점에 성립하는지 확인하고 아니면 걸지 않는다. 방장 리셋(`endHorseRace`/`clearHorseRaceData`)에서는 예약을 풀어 유령 발화를 막는다. 방장이 먼저 [시작]을 누르면 `startHorse`가 예약을 해제하고 알린다 — 예약은 시작 버튼을 대신 누를 뿐이라는 원칙 그대로.
 **관련:** `socket/horse.js settleRace / dropScheduledStart`, `socket/scheduled-start.js armSchedule / fire`
 
+## 2026-09-03 — 레인 편향은 실데이터로 검증할 수 없다 (vehicle_picks에 horseIndex가 없다)
+
+**상황:** "특정 몇 명이 자꾸 걸리는 것 같다"는 신고로 경마 확률 공정성을 실서버 데이터로 검증했다(about-us 페이지 공개용).
+**함정/실수:** `vehicle_picks`는 참가자별 `vehicle_id`/`rank`/`is_winner`만 남기고 레인 번호(`horseIndex`)를 저장하지 않는다. 레인 편향(동일 프레임 도착 시 낮은 인덱스가 앞서는 stable sort, 탈것 화면 폭 44~60px이 도착 판정에 더해지는 것)은 데이터로는 볼 수 없고, `calculateHorseRaceResult`를 직접 호출하는 몬테카를로로만 확인 가능하다.
+**증상:** 사람별·탈것별 통계는 나오는데 레인별 표를 만들 방법이 없었다. 서버 함수를 그대로 3만 판 돌려 레인 카이제곱이 우연 범위임을 확인했다.
+**해결/예방:** 경주 단위 그룹핑은 `(server_id, picked_at)` — 한 경주의 행은 단일 INSERT라 `picked_at`이 완전히 같다. 실서버 DB는 `railway variables --service Postgres --json`의 `DATABASE_PUBLIC_URL`로 읽되 `SET default_transaction_read_only = on`을 건다. 실데이터에 없는 축(레인)은 서버 함수 몬테카를로로 보완한다.
+**관련:** `db/vehicle-picks.js`, `socket/horse.js calculateHorseRaceResult`, `pages/about-us.html` 경마 공정성 섹션
+
+## 2026-09-03 — 개인별 z만 보면 다중검정 때문에 항상 누군가는 튄다
+
+**상황:** 위 공정성 검증에서 참가자 31명의 걸린 횟수를 각자의 기대치(참가한 각 경주의 1/달리는 탈것 수 합)와 비교했다.
+**함정/실수:** 5판 참가해 5번 다 걸린 사람(p=0.009)이 보이면 "편향"으로 읽기 쉽다. 31명을 동시에 보면 그 정도 극단이 한 명은 나올 확률이 30%에 가깝다.
+**증상:** 개인 표에서는 |z|≥2가 한 명 있었지만, 참가자 전체의 z² 합(카이제곱 34.9, 자유도 31)과 20판 이상 참가자 16명(15.97, 자유도 16)은 모두 기대치 근처였다.
+**해결/예방:** 공정성 판정은 전체 분산 통계(z² 합, 카이제곱)를 먼저 보고, 개인은 참가 횟수가 충분한 사람만(20판+) 본다. "특정 사람이 자주 걸린다"는 인상은 대개 참가 횟수 차이다 — 상위 3명이 참가 27%·걸림 29%였다. 공개 문서에는 개인 이름을 넣지 않는다.
+**관련:** `pages/about-us.html` 경마 공정성 섹션, 분석 스크립트는 세션 스크래치(저장소 밖)
+
 ---
 
 ## 추가 형식
