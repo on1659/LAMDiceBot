@@ -152,8 +152,8 @@ module.exports = (socket, io, ctx) => {
                 // 보안: bridgeCross.safeRows / scenarios 등 server-only 정보 평문 누출 방지.
                 // 재진입 시 클라가 bridgeCross 정보 없어도 무방 (v2 정책).
                 bridgeCross: undefined,
-                // 보안: ladder.rungs / initialRungs / mutationScript / landings / results / laneToBottom /
-                // labelLocks(서버 Timer 핸들) / revealPayload 등 server-only 마스킹(통째 숨김 — C-20, v2 계약).
+                // 보안: ladder.rungs / laneToBottom / winLane / winBottom / revealPayload 등 server-only 마스킹
+                // (통째 숨김 — C-20). 공개 전 당첨 위치가 새면 게임이 끝난다.
                 // 재진입 빌드 복원은 emitLadderRungsUpdated, 진행/결과 복원은 emitLadderStateSync(개인 emit)가 담당.
                 ladder: undefined,
                 // 보안: spinArena.timeline / result / seed 등 결과 server-only 마스킹.
@@ -614,9 +614,11 @@ module.exports = (socket, io, ctx) => {
         io.to(roomId).emit('updateOrders', gameState.userOrders);
         io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
-        // 사다리타기 방 생성: 입장 즉시 base + winSlot + 현재 픽/공개 막대기를 broadcast해 픽 화면이 바로 보이게.
-        // emitLadderRungsUpdated가 phase=idle이면 base/winSlot(ensureBaseRungs) 생성 + 픽/막대기/public set을 전파한다.
+        // 사다리타기 방 생성: 입장 즉시 빈 번호 하나를 자동 점유해주고 base + 현재 픽/막대기를 broadcast한다.
+        // 자리를 먼저 주고 마음에 안 들면 옮기는 방식(9f82a1c). claimLadderFreeLane는 멱등이고,
+        // 점유에 성공하면 내부에서 emitLadderRungsUpdated를 호출한다(호스트 그리드에 pre-select + base 반영).
         if (room.gameType === 'ladder' && gameState.ladder && gameState.ladder.phase === 'idle') {
+            if (ctx.claimLadderFreeLane) ctx.claimLadderFreeLane(room, gameState, userName);
             if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
         }
 
@@ -905,9 +907,12 @@ module.exports = (socket, io, ctx) => {
             io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
             // 사다리타기 재연결 복원: 새로고침/자동 재입장은 이 분기(슬롯 인계)로 온다 — 일반 입장 분기와 짝.
-            // idle이면 빌드 broadcast, 모든 phase에서 stateSync(권한 모드+기록, 비-idle은 reveal 정밀 복구까지).
+            // idle이면 빈 번호 자동 점유 + 빌드 broadcast, 모든 phase에서 stateSync(기록, 비-idle은 reveal 정밀 복구까지).
             if (room.gameType === 'ladder' && gameState.ladder) {
-                if (gameState.ladder.phase === 'idle' && ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+                if (gameState.ladder.phase === 'idle') {
+                    if (ctx.claimLadderFreeLane) ctx.claimLadderFreeLane(room, gameState, socket.userName);
+                    if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+                }
                 if (ctx.emitLadderStateSync) ctx.emitLadderStateSync(room, gameState, socket.id);
             }
 
@@ -1173,10 +1178,13 @@ module.exports = (socket, io, ctx) => {
         io.to(roomId).emit('updateOrders', gameState.userOrders);
         io.to(roomId).emit('readyUsersUpdated', gameState.readyUsers);
 
-        // 사다리타기 입장 동기화: idle이면 빌드 broadcast, 모든 phase에서 stateSync 개인 emit
-        // (편집 권한 모드 + 게임 기록 복원, 진행/결과 중이면 reveal+elapsedMs 정밀 복구까지 — server-only 미포함).
+        // 사다리타기 입장 동기화: idle이면 빈 번호 하나를 자동 점유해주고 빌드 broadcast,
+        // 모든 phase에서 stateSync 개인 emit(게임 기록 복원, 진행/결과 중이면 reveal+elapsedMs 정밀 복구까지).
         if (room.gameType === 'ladder' && gameState.ladder) {
-            if (gameState.ladder.phase === 'idle' && ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+            if (gameState.ladder.phase === 'idle') {
+                if (ctx.claimLadderFreeLane) ctx.claimLadderFreeLane(room, gameState, finalUserName);
+                if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
+            }
             if (ctx.emitLadderStateSync) ctx.emitLadderStateSync(room, gameState, socket.id);
         }
 
@@ -1238,9 +1246,11 @@ module.exports = (socket, io, ctx) => {
                 gameState.ladder.colorIndex && gameState.ladder.colorIndex[socket.userName] !== undefined) {
                 delete gameState.ladder.colorIndex[socket.userName];
             }
-            // 라벨 락 해제는 진행 단계 무관(락 잔존 방지 — 8초 idle 타이머가 있지만 즉시 해제가 정석)
-            if (gameState.ladder && ctx.releaseLadderLocksByUser) {
-                ctx.releaseLadderLocksByUser(room, gameState, socket.userName);
+            // 고른 번호도 함께 정리(빌드 단계) — 나간 사람의 번호가 남아 있으면 그 레인이 계속 점유로 잡혀
+            // 당첨 후보에 들어간다(주인 없는 레인이 당첨되는 것과 같아진다).
+            if (gameState.ladder && gameState.ladder.phase === 'idle' &&
+                gameState.ladder.userLanes && gameState.ladder.userLanes[socket.userName] !== undefined) {
+                delete gameState.ladder.userLanes[socket.userName];
             }
             // 막대기 배열 삭제 (빌드 단계) + 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로
             if (gameState.ladder && gameState.ladder.phase === 'idle' && gameState.ladder.userRungs) {

@@ -1,4 +1,89 @@
 ========================================
+📋 Summit Log - 2026-09-05 (오후) (사다리 5레인 경마화 — 9f82a1c 복원 + 중복 선택/당첨/재경기)
+========================================
+
+## 변경 파일
+- socket/ladder.js: 9f82a1c(경마화 사다리) 기준으로 재작성. 엔진(createLadderEngine)을 모듈 레벨로 분리하고
+  예약 발화 계약(module.exports.canStart / .start) 노출
+- js/ladder.js: 셸(진입 IIFE·비밀번호 재입장·ladderEnterRoom)은 현재 것 유지 + 게임 로직만 9f82a1c에서 이식.
+  캐시버스터 v4→v5
+- ladder-multiplayer.html: 줄 수 스테퍼/라벨 입력/권한 토글 제거 → 번호 고르기 그리드 + 공개 캔버스.
+  튜토리얼 문구 전면 교체, SEO 문구 갱신, 결과창에 재경기 안내줄(resultNote) 추가
+- css/ladder.css: 9f82a1c 기준으로 교체 + 이후 추가분(게임 상태/상점 버튼) 이식 + 신규(shared 레인/당첨 강조/재경기 안내)
+- socket/rooms.js: 입장(신규·슬롯 인계) 경로에 빈 번호 자동 점유 추가, 퇴장 시 userLanes 정리, 라벨 락 소비부 제거
+- socket/chat.js: disconnect 정리에 userLanes 추가, 라벨 락 소비부 제거
+- socket/shared.js: 준비 취소 시 막대기/번호/색 정리 복원
+- socket/scheduled-start.js: SUPPORTED_GAME_TYPES 에 ladder 등록(재경기 자동 시작용)
+- config/index.js: LADDER_REMATCH_AUTO_START_MS 추가(기본 30000)
+- utils/room-helpers.js: ladder gameState 를 새 필드로 교체
+- tests/test-ladder.js: 5레인 룰 소켓 프로토콜 테스트로 재작성(19케이스)
+- AutoTest/qa-ladder-5lane-fairness-test.js: [신규] 판정 공정성 회귀(빈 레인 금지·레인 균등·타이밍 동기)
+- AutoTest/qa-ladder-5lane-ui-test.js: [신규] 2탭 브라우저 실주행 QA(번호 고르기~재경기 안내)
+- AutoTest/qa-sticky-ad-race-toggle-test.js: 사다리 구간을 새 클라 타이밍 함수로 갱신, ladder:reset 제거
+- docs/goal/ladder-horse-style-5lane.md: [신규] 명세
+- docs/GameGuide/lessons/ladder.md: L-1~L-5 추가
+- docs/GameGuide/lessons/_common.md: C-28 확장 2건 + C-45~C-47 추가
+- .gitignore: .qa-shots/ 제외
+
+## 상세 변경 내역
+
+### [룰 교체: v2 네이버식 → 5레인 경마화]
+- 배경: 소유자 판정 — "우린 경마같은 거야. 경마인데 그 과정이 사다리인 것뿐이야. 아래 선택지에 이름 쓰는 거?
+  사람들이 자기 위치 고르는 거? 그런 거 없음. 이미 5개가 세팅되어 있고, 사람들은 몇 번에서 시작할지 고르는 거야."
+- 이력을 뒤져 소유자가 기억하는 버전을 9f82a1c(2026-06-17)로 특정하고 그 메커니즘을 복원했다.
+  그 뒤 53656e1(v2) → f7cafa1(pick-elimination) → dbd8f2a(v2 복원)로 세 번 갈아엎힌 구간이다.
+- 9f82a1c 대비 변경 4가지: 레인 6→5, 번호 중복 선택 허용, 인원 상한 없음(LADDER_MAX_PLAYERS 삭제),
+  「꽝」→「당첨」. 중복 허용 때문에 재경기가 새로 필요해졌다.
+
+### [판정: 빈 레인은 당첨될 수 없다]
+- 최종 보드로 laneToBottom 을 먼저 구한 뒤, **사람이 고른 레인 중에서** 서버 RNG 균등 추첨으로 winLane 을 뽑고
+  winBottom = laneToBottom[winLane] 에 당첨 카드를 놓는다. 막대기는 한 개도 조작하지 않는다.
+- 후보는 반드시 유니크 레인 집합이어야 한다 — Object.values 를 그대로 쓰면 3명 몰린 번호의 당첨 확률이 3배가 된다.
+- 확률은 점유 레인 단위 균등(1/k). 막대기를 어떻게 그려도 분포는 불변(테스트로 고정).
+
+### [재경기: 동시 당첨 → 그 사람들끼리 30초 자동 시작]
+- 당첨자가 2명 이상이면 서버가 그들만 readyUsers 로 세팅하고 scheduledStartAt 을 걸어 예약 발화가 시작을 대신 누른다.
+  경마(socket/horse.js:1358)와 같은 구조. 나머지는 준비가 풀려 관전이 된다.
+- 재경기가 걸린 판에서는 주문받기 자동 시작을 열지 않는다(아직 최종 결과가 아니므로).
+- scheduled-start 의 SUPPORTED_GAME_TYPES 에 ladder 를 등록해야 발화한다 — 등록 없이는 require(undefined) 로
+  조용히 죽고 예약만 사라진다.
+
+### [구조: 엔진을 모듈 레벨로 분리]
+- 예약 스위퍼가 넘기는 ctx 는 { rooms, updateRoomsList } 뿐이라(socket/index.js) 소켓 클로저의 헬퍼에 기댈 수 없다.
+  게임 로직을 createLadderEngine(io, ctx) 로 빼고 module.exports.canStart / .start 를 노출했다.
+- 주의: 엔진 멤버를 일부만 구조분해하면 빠뜨린 이름이 핸들러 실행 시점에 ReferenceError 로 터지고,
+  소켓 핸들러의 예외는 프로세스를 죽인다 — 증상이 "핸들러가 조용히 아무것도 안 함"으로 보여 추적이 어렵다.
+  (실제로 readyCount 하나가 빠져 전 핸들러가 죽었다.)
+
+### [DB 기록 정책 반전]
+- v2 시절엔 승자가 없어 세션 1행만 남겼다(전원 is_winner=false 는 크로스게임 승률 분모를 오염시킨다).
+- 이제 「당첨자」가 생겼으므로 경마와 같은 규칙으로 기록한다: 매 판 recordServerGame(개인 행, result=`N번`) +
+  recordGameSession(winnerName 은 단독 당첨일 때만). 비어 있던 사다리 랭킹 탭이 채워진다.
+
+### [회귀 수정]
+- 스티키 광고: 9f82a1c 는 스티키 광고(2026-08-18) 이전 버전이라 body.race-running 토글이 없었다.
+  연출 중 광고가 캔버스를 덮는 회귀 → reveal/gameEnd/roundReset/gameAborted 4곳에 토글 복원.
+- isLadderActive: 셸은 함수(ladderPhase 파생), 9f82a1c 는 변수였다. 이식하면서 함수가 boolean 으로 덮여
+  renderUsersList 에서 "isLadderActive is not a function" 이 났다 → 변수 대입을 ladderPhase 미러 갱신으로 교체.
+- 빈 번호 자동 점유가 방 생성 경로에만 있어 게스트가 번호를 못 받던 문제 → 입장 2경로에도 추가.
+
+### [테스트]
+- tests/test-ladder.js 19케이스 전부 통과(4회 반복 안정). 플레이키 2건을 원인까지 잡아 제거:
+  pickLane 은 토글이라 하드코딩 emit 이 자동 배정값과 겹치면 반대로 동작하고, 스냅샷 폴링이 직전 상태로
+  즉시 통과해 다음 단계가 어긋난다 → 멱등 setLane 으로 교체.
+- AutoTest/qa-ladder-5lane-ui-test.js 10/10, 콘솔 에러 0(2탭 실주행: 번호 고르기 → 중복 → 폭탄 포인터 → 재경기 안내).
+- 크로스게임 회귀: 사다리 게이트 20/20, 예약 시작 19/19, 경마 재경기 14/14, 스티키 광고 사다리 구간 10/10.
+- 스티키 테스트의 남은 FAIL 2건(해적 P2 + 해적 404 콘솔 5건)은 기존 이슈 — 해적 파일 무변경으로 확인.
+
+### [주의]
+- js/ladder.js 캐시버스터 v4→v5. 안 올리면 낡은 v2 클라가 새 서버 프로토콜과 만나 완전 desync.
+- 사다리는 실서버에서 방 생성이 여전히 막혀 있다(socket/rooms.js — IS_LOCAL_DEV). 이번 변경도
+  유저 공개용 update-log.md 에 기재하지 않는다. 공개는 별도 요청 시.
+- 튜토리얼 억제 VERSION 은 올리지 않았다 — 전 게임 공용 상수라 올리면 주사위·룰렛·경마까지 다시 뜬다.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-05 (사다리 v2 복원 — pick-elimination 폐기, 실제 사다리타기 메커니즘 되돌림)
 ========================================
 

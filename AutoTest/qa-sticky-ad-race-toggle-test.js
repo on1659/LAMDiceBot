@@ -189,11 +189,11 @@ async function testLadder(browser) {
                  : fail(`L0(${who}) 초기 화면 표시 아님`, fmt(r.snap));
         }
 
-        // L1 시작(자동 준비 2명 — v2는 픽 없음) → 리빌 중 숨김
-        // 리빌 연출 총 길이 = 클라 ladderRevealDelay(N, 'simultaneous') — 서버 상수와 byte-identical(하드코딩 금지)
+        // L1 시작(자동 준비 2명) → 리빌 중 숨김
+        // 리빌 연출 총 길이 = 클라 상수에서 파생(하드코딩 금지). 토큰 수는 점유 레인 수(최대 5)로 상한 산정.
         const revealTotalMs = await A.h.evaluate(() =>
-            ladderRevealDelay(ladderNumColumns, ladderDescentMode || 'simultaneous'));
-        await armCapture(A.h, ['ladder:reveal', 'ladder:gameEnd', 'ladder:roundReset', 'ladder:error']);
+            ladderPreDescentMs() + ladderDescentSlots(5) * LADDER_TOKEN_SLOT_MS + LADDER_FINAL_HOLD);
+        await armCapture(A.h, ['ladder:reveal', 'ladder:gameEnd', 'ladder:roundReset', 'ladder:error']);   // roundReset 은 자동 발생 — 미리 무장
         await armCapture(A.g, ['ladder:reveal']);
         await A.h.evaluate(() => socket.emit('ladder:start'));
         const r1 = await waitCapture(A.h, 'ladder:reveal', 15000);
@@ -227,9 +227,8 @@ async function testLadder(browser) {
                  : fail('L2(G) 결과 후 잔존', fmt(r.snap));
         }
 
-        // L3 새 게임(ladder:reset → roundReset) → 복원 유지
-        await armCapture(A.h, ['ladder:roundReset']);
-        await A.h.evaluate(() => socket.emit('ladder:reset'));
+        // L3 새 게임(roundReset) → 복원 유지
+        // 5레인 복원판은 gameEnd 후 서버가 스스로 리셋한다(LADDER_RESET_DELAY) — ladder:reset 이벤트는 없다.
         const rrRes = await waitCapture(A.h, 'ladder:roundReset', 15000);
         if (!rrRes.ok) throw new Error('ladder:roundReset 미수신 — ' + rrRes.err);
         for (const [pg, who] of [[A.h, 'H'], [A.g, 'G']]) {
@@ -251,7 +250,7 @@ async function testLadder(browser) {
         await joinRoom(B.g, room.roomId, 'LadGuest2');
         await B.h.waitForTimeout(600);
         const l5TotalMs = await B.h.evaluate(() =>
-            ladderRevealDelay(ladderNumColumns, ladderDescentMode || 'simultaneous'));
+            ladderPreDescentMs() + ladderDescentSlots(5) * LADDER_TOKEN_SLOT_MS + LADDER_FINAL_HOLD);
         await armCapture(B.h, ['ladder:reveal', 'ladder:gameEnd', 'ladder:error']);
         await B.h.evaluate(() => socket.emit('ladder:start'));
         const revRes = await waitCapture(B.h, 'ladder:reveal', 15000);

@@ -60,31 +60,27 @@ function createRoomGameState() {
             winners: []
         },
         ladder: {
-            // vibe(D:\Work\vibe\ladder) 메커니즘 — 추상 칸(2~8) + 협업 라벨 + 서버 셔플 매핑 + physical descent.
-            // (v2 복원 2026-09-05 — docs/goal/ladder-v2-restore.md. pick-elimination 필드 폐기.)
-            phase: 'idle',          // idle(로비/빌드) | revealing | finished
-            numColumns: 4,          // 칸(세로 줄) 수 [2..8] — setColumns로 동적 변경
-            topLabels: [],          // 위 라벨 배열(길이 numColumns) — 협업 편집
-            bottomLabels: [],       // 아래 라벨 배열(길이 numColumns) — 협업 편집
-            labelEditMode: 'all',   // 'all'(누구나) | 'host'(방장만) 라벨 편집 권한
-            descentMode: 'simultaneous', // 'simultaneous'(동시에, 기본) | 'sequential'(한명씩 living-rungs)
-            labelLocks: {},         // { 'side:index': { name, timer } } — 라벨 편집 소프트락(서버 전용 timer, 클라 미전송)
-            userRungs: {},          // { [userName]: [{ id, c, y, slant, points }] } — 유저 막대기(인당 최대 3개, FIFO 교체, 전원 가시)
-            baseRungs: [],          // 가시 [{ id, c, y, slant, points }] — 빌드 오픈 시 1회 생성, rungsUpdated로 공개
+            // "경마인데 과정이 사다리" — 레인 5개 고정(번호 1~5), 번호 중복 선택 허용, 바닥에 「당첨」 1칸.
+            // 기준점 9f82a1c 복원 + 5레인/중복허용/당첨/재경기. 명세: docs/goal/ladder-horse-style-5lane.md
+            phase: 'idle',          // idle(빌드) | selecting(전이) | revealing | finished
+            numLanes: 0,            // 이번 판의 레인 수 — 시작 시 LADDER_LANES(5)로 확정
+            userLanes: {},          // { [userName]: 0..4 } — 각자 고른 출발 번호. 중복 허용(여러 이름이 같은 값)
+            userRungs: {},          // { [userName]: [{ id, c, y, slant, points }] } — 유저 막대기(인당 3개, 전원 가시)
+            baseRungs: [],          // 가시 기본 막대기 — 빌드 오픈 시 1회 생성, rungsUpdated로 공개
             baseRungsGenerated: false, // base 막대기 1회 생성 가드 (멱등)
-            colorIndex: {},         // { [userName]: int } — drawer 색 인덱스(서버 권위, 결정적). 라운드마다 재배정
+            colorIndex: {},         // { [userName]: int } — drawer 색(서버 권위, 결정적). 라운드마다 재배정
             rungSeq: 0,             // 막대기 id 단조 카운터(서버 권위) — Math.random/timestamp 금지
-            rungs: [],              // server-only [{ id, c, y, slant, points, user, owner }] — 최종 보드(reveal 후 DB/gameEnd용)
-            initialRungs: [],       // server-only — 초기 보드(reveal payload, 클라 시작 상태)
-            mutationScript: [],     // server-only — living-rungs 변형 스크립트(길이 max(0,N-2))
-            landings: [],           // server-only — 토큰 i 최종 착지칸
-            results: [],            // server-only — 권위 결과(상단 칸 i → 최종 바닥 라벨)
-            laneToBottom: [],       // server-only — physical descent 초기 매핑(회귀 테스트 호환)
-            erased: [],             // server-only — 스크램블이 지운 막대기 (reveal 연출용)
-            added: [],              // server-only — 스크램블이 추가한 막대기 (reveal 연출용)
+            rungs: [],              // server-only — 스크램블 후 최종 보드(reveal에서만 전송)
+            erased: [],             // server-only — 스크램블이 지운 막대기(reveal 연출용)
+            added: [],              // server-only — 스크램블이 추가한 막대기(reveal 연출용)
+            laneToBottom: [],       // server-only — 레인 → 도착 바닥칸 매핑
+            winLane: -1,            // server-only — 당첨 레인(사람이 고른 레인 중 균등 추첨)
+            winBottom: -1,          // server-only — 당첨 바닥칸(= laneToBottom[winLane])
+            winners: [],            // 당첨자 — winLane을 고른 사람 전원. 2명 이상이면 재경기
+            revealOrder: [],        // 하강 순서(레인 인덱스) — 마지막 두 개는 같이 내려간다
+            participants: [],       // 시작 시점 참가자 스냅샷
             revealStartAt: 0,       // server-only — reveal 브로드캐스트 벽시계 원점(재진입 seek용)
-            revealPayload: null,    // server-only — reveal payload 보관(재진입 개인 재전송용, resetLadder가 폐기)
-            participantsAtStart: [],// server-only — DB 기록용 시작 시점 참가자 스냅샷(연출 중 입장/이탈 오염 방지)
+            revealPayload: null,    // server-only — reveal payload 보관(재진입 개인 재전송용)
             ladderHistory: [],
             round: 0,
             isLadderActive: false,

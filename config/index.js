@@ -33,9 +33,13 @@ const HORSE_SETTLE_GRACE_MS = parseInt(process.env.HORSE_SETTLE_GRACE_MS, 10) ||
 // 경마 재경기 자동 시작 — 동점/당첨자 없음으로 서버가 자동 준비시킨 뒤, 이 시간이 지나면 예약 발화로 시작한다.
 // 준비는 이미 돼 있고 탈것만 안 고른 상태라 예약 발화의 자동 배정이 그대로 맞는다.
 const HORSE_REMATCH_AUTO_START_MS = parseInt(process.env.HORSE_REMATCH_AUTO_START_MS, 10) || 30000;
+// 사다리 재경기 자동 시작 — 같은 번호를 고른 사람들이 함께 당첨되면 그 사람들만 자동 준비시킨 뒤,
+// 이 시간이 지나면 예약 발화로 시작한다. 번호를 안 고르면 시작 시점에 자동 배정된다(경마와 동일).
+const LADDER_REMATCH_AUTO_START_MS = parseInt(process.env.LADDER_REMATCH_AUTO_START_MS, 10) || 30000;
 
 module.exports = {
     PORT, BASE_URL, ROOM_GRACE_PERIOD, DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT, IS_LOCAL_DEV,
     SCHEDULE_PRESET_MINUTES, SCHEDULE_TIMEZONE, SCHEDULE_MIN_LEAD_MS,
-    SCHEDULE_SWEEP_MS, SCHEDULE_NOTICE_MS, HORSE_SETTLE_GRACE_MS, HORSE_REMATCH_AUTO_START_MS
+    SCHEDULE_SWEEP_MS, SCHEDULE_NOTICE_MS, HORSE_SETTLE_GRACE_MS, HORSE_REMATCH_AUTO_START_MS,
+    LADDER_REMATCH_AUTO_START_MS
 };

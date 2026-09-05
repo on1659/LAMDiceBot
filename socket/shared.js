@@ -52,7 +52,15 @@ module.exports = function setupSharedHandlers(socket, io, ctx) {
         if (!room || room.gameType !== 'ladder' || !gameState.ladder) return;
         const ld = gameState.ladder;
         if (ld.phase !== 'idle') return;
-        // 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로. 협업 막대기는 보존.
+
+        if (removedUserName) {
+            // 준비 취소 = 빌드에서 완전 이탈 — 막대기·고른 번호·drawer 색을 함께 정리한다.
+            // 번호가 남으면 준비도 안 한 사람의 레인이 "사람 있는 레인"으로 잡혀 당첨 후보에 들어간다.
+            if (ld.userRungs && ld.userRungs[removedUserName]) delete ld.userRungs[removedUserName];
+            if (ld.userLanes && ld.userLanes[removedUserName] !== undefined) delete ld.userLanes[removedUserName];
+            if (ld.colorIndex && ld.colorIndex[removedUserName] !== undefined) delete ld.colorIndex[removedUserName];
+        }
+        // 트림·브로드캐스트는 ladder.js 단일 소스(emitLadderRungsUpdated)로.
         if (ctx.emitLadderRungsUpdated) ctx.emitLadderRungsUpdated(room, gameState);
     }
 

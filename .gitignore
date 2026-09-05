@@ -65,3 +65,4 @@ assets/backgrounds/vehicle-generated/
 
 # docs/는 협업 추적 폴더라 이그노어 X
 # AutoTest/는 dev 도구 폴더라 이그노어 X — 필요한 것만 git add
+.qa-shots/
