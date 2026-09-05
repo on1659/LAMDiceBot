@@ -1,10 +1,14 @@
-/* 사다리타기(ladder) 클라이언트 — pick-elimination 새 룰(in-place 리워크).
+/* 사다리타기(ladder) 클라이언트 로직 — vibe(D:\Work\vibe\ladder) 메커니즘 (v2 복원, 2026-09-05).
+   이력: v2(53656e1) → pick-elimination 교체 → 실플레이 판정으로 v2 복원(docs/goal/ladder-v2-restore.md).
+   복원 반영: 그리기 예산 제거(인당 cap3만) / 바닥 라벨 셔플 연출(vibe 현재 기준, perm payload) /
+     동시 하강 기본값 / 백그라운드 탭 catch-up(A1)·gameEnd 점프(A2)·결과 타이머 수명 분리(A3) /
+     소켓 재연결 자동 재입장 + 진행 중 재진입 seek(ladder:reveal + elapsedMs).
    [셸 배선 보존] dice-lobby 진입 IIFE / 비밀번호 모달 / leaveRoom / Chat·Ready·Order·Ranking·Tutorial init /
-     renderUsersList / 글로벌 onclick / room·error 핸들러 / tokenMarkerFor 스킨 hook.
-   [게임 로직] 6택1 lane-pick(경마식) + 고정 당첨 슬롯(winSlot) + 숨김 막대기(본인 전체 / 남은 public 1개) +
-     시작 시퀀스(인지창 → 사라짐 → 서버 그리기 → 카운트다운 → 리빙럼 하강 → 착지 공개) + 토너먼트 재pick.
-   결과(landings·mutationScript·winSlot routing·loser pool)는 전적으로 서버 페이로드로만 구동 — 클라 재계산 0(공정성).
-   타이밍 단계 합은 서버 ladderRevealDelay(N)와 byte-identical(lockstep, 인지창 포함). */
+     renderUsersList / 글로벌 onclick / room·error 핸들러 / 진입 serverError 하드닝(C-31) / 스티키 광고 race-running(C-6).
+   [게임 로직] 칸 수 스테퍼(2~8) / 협업 라벨 편집(소프트락) / 드래그 막대기(인당 cap3, 전원 실시간 공개) /
+     내려가기 방식(simultaneous 기본 / sequential living-rungs) / reveal 연출(scramble→shuffle→countdown→living descent).
+   결과(perm·landings·mutationScript·results·initialRungs)는 전적으로 서버 페이로드로만 구동 — 클라 재계산 0(공정성).
+   타이밍 단계 합은 서버 ladderRevealDelay(N, descentMode)와 byte-identical(lockstep). */
 
 // localhost 체크
 var isLocalhost = window.location.hostname === 'localhost' ||
@@ -50,39 +54,38 @@ var isOrderActive = false;
 var pendingRoomId = null;
 var pendingUserName = null;
 var roomExpiryInterval = null;
+// 비공개 방 재입장용 비밀번호 기억 — 자동 재입장/새로고침이 password '' 로 joinRoom을 보내면
+// 서버가 슬롯 인계 이전의 비밀번호 검사에서 거부해 고아가 된다(적대 리뷰 F3).
+var ladderRoomPassword = '';
 
 var chatModuleInitialized = false;
 var readyModuleInitialized = false;
 
-// ── 게임 상태 변수 (pick-elimination — 서버 권위, ladder:rungsUpdated/reveal로 갱신) ──
-var LADDER_COLUMNS = 6;         // 고정 칸(세로 줄) 수 — 서버와 동기.
-var ladderNumColumns = 6;       // 현재 칸 수(서버 권위, 항상 6)
-var ladderWinSlot = -1;         // 당첨 바닥칸(서버 RNG) — 시작부터 공개
-var ladderUserTops = {};        // { [name]: 0..5 } — 픽 맵(여러 명 같은 top 공유 가능)
-var ladderBaseRungs = [];       // 가시 base 막대기(서버 생성)
-var ladderPublicRungs = [];     // 남에게 보이는 public 막대기(드로어당 1개) — [{id,c,y,slant,points,owner}]
-var ladderMyRungs = [];         // 내가 그린 막대기 전체(개인 emit ladder:myRungs로 수신)
+// ── 게임 상태 변수 (vibe 메커니즘 — 서버 권위, ladder:rungsUpdated/reveal로 갱신) ──
+var ladderNumColumns = 4;       // 현재 칸 수(서버 권위)
+var ladderTopLabels = [];       // 위쪽 라벨 배열(길이 = numColumns)
+var ladderBottomLabels = [];    // 아래쪽 라벨 배열
+var ladderBaseRungs = [];       // 가시 base 막대기(서버 생성) — 미리보기 렌더용
+var ladderUserRungs = {};       // { [name]: [{id,c,y,slant,points}] } — 유저 막대기(서버 권위)
 var ladderColorIndex = {};      // { [name]: int } — drawer 색 인덱스(서버 권위)
-var ladderPhase = 'idle';       // idle | revealing | finished (클라 미러)
-var ladderRound = 0;            // 현재 라운드(서버 권위)
-var ladderTournamentActive = false;  // 토너먼트 sub-round 진행 여부
-var ladderLoserPool = [];       // sub-round 대상(이전 라운드 패자들)
-var ladderMaxRungs = 3;         // 인당 막대기 캡(서버 권위)
-var ladderHistory = [];         // [{round, winSlot, loser}] (최신이 앞)
+var labelDebounceTimers = {};   // `${side}:${index}` -> setTimeout 핸들(입력 디바운스)
+var ladderPhase = 'idle';       // idle | revealing | finished (클라 미러 — 드래그/시작 게이트)
+var ladderLabelEditMode = 'all';   // 라벨 글쓰기 권한 모드(서버 권위)
+var ladderDescentMode = 'simultaneous';   // 내려가기 방식(서버 권위) — 'simultaneous' 동시에(기본) | 'sequential' 한명씩
+var ladderPrevEditMode = 'all';    // 직전 글쓰기 권한 모드 — host 전환 1회 안내 감지용
+var ladderLabelLocks = {};         // "side:index" -> name (남이 편집 중인 칸) — readonly + 인디케이터
+var ladderHistory = [];         // [{round, numColumns, topLabels, bottomLabels, results}] (최신이 앞)
 
-// OrderModule의 isGameActive는 phase에서 파생(서버 gameState.isGameActive는 ladder가 안 켬).
+// OrderModule의 isGameActive는 phase에서 파생(서버 gameState.isGameActive는 ladder가 안 켬 — Phase A 결정).
+// idle = 빌드(대기), 그 외(revealing/finished) = 진행으로 간주.
 function isLadderActive() { return ladderPhase !== 'idle'; }
-// 이번 라운드 대상인가 — sub-round면 loser pool에 속해야 픽/그리기 가능.
-function ladderAmIInRound() {
-    if (!ladderTournamentActive) return true;
-    return (ladderLoserPool || []).indexOf(currentUser) !== -1;
-}
 
 // 소켓 연결
 var socket = io({ reconnection: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
 window.socket = socket;
 
 // 꾸미기 상점: 소켓 연결 + 토큰 인증 (spin-arena.js 패턴 — 매 연결 멱등, 지갑/장착 서버 동기화).
+// 스킨은 per-viewer 외형 전용이라 게임 emit과 무관 — 지갑/소유/장착만 서버와 동기화한다.
 socket.on('connect', function () {
     if (window.LadderShop) {
         LadderShop.connect(socket);
@@ -117,10 +120,14 @@ function playLadderSound(key, vol) {
         SoundManager.playSound(key, getLadderSoundEnabled(), vol != null ? vol : getLadderVolume());
     }
 }
+// 막대기 그리기/제거 효과음 — 기존 사운드 키 재사용(별도 모티프 톤은 Phase B에서 생략, 공정성 무관 외관).
 function ladderPlayDrawNote() { playLadderSound('ladder_pick', 0.5); }
 function ladderPlayUndoNote() { playLadderSound('ladder_pick', 0.4); }
 
-// ── 상점 hook — 하강 토큰 스킨(per-viewer 클라 렌더 전용). 미장착이면 null → colorIndex 색 원 폴백. ──
+// ── Phase C 상점 hook — 하강 토큰 스킨(per-viewer 클라 렌더 전용) ──
+// 내가 장착한 스킨 이모지를 반환한다. per-viewer 잠금 결정: col/name과 무관하게 "내 화면의 모든
+// 하강 토큰"에 동일 이모지가 보이고, 남에겐 기본(colorIndex 색 원). 미장착/기본 토큰이면 null →
+// 호출부는 colorIndex 기반 원형 토큰으로 폴백. 서버는 스킨을 전혀 모른다(emit·결과 영향 0).
 function tokenMarkerFor(/* col, name */) {
     return (window.LadderShop && LadderShop.getEquippedEmoji) ? LadderShop.getEquippedEmoji() : null;
 }
@@ -138,12 +145,13 @@ function tokenMarkerFor(/* col, name */) {
             currentServerName = rd.serverName || null;
             if (currentServerId) socket.emit('setServerId', { serverId: currentServerId, userName: rd.userName });
             if (rd.serverName) document.title = rd.serverName + ' - 사다리타기';
+            ladderRoomPassword = rd.password || '';   // 비공개 방 새로고침 재입장(F3)
             runWhenSocketConnected(function () {
                 socket.emit('joinRoom', {
                     roomId: rd.roomId,
                     userName: rd.userName,
                     isHost: false,
-                    password: '',
+                    password: ladderRoomPassword,
                     deviceId: getDeviceId(),
                     tabId: getTabId()
                 });
@@ -174,7 +182,7 @@ function tokenMarkerFor(/* col, name */) {
     }
 })();
 
-// 진입 거부 serverError와 짝으로 오는 roomError 1회 억제 플래그 (이중 알림 경합 방지)
+// 진입 거부 serverError와 짝으로 오는 roomError 1회 억제 플래그 (이중 알림 경합 방지 — C-31)
 var entrySuppressRoomError = false;
 
 // 진입 구간 serverError 가시화 — setServerId 강검증 거부(멤버십 없음 등) 대응.
@@ -214,6 +222,22 @@ var entrySuppressRoomError = false;
     socket.on('roomError', settleEntryServerError);
 })();
 
+// 소켓 재연결 시 자동 재입장 — 게임 중 소켓이 죽으면(모바일 화면 꺼짐/네트워크 순단) 방 밖 고아가 되어
+// 이후 gameEnd 포함 아무 이벤트도 못 받는다("멈춤"의 직접 원인). 재연결에 joinRoom을 재발신하면
+// 서버 슬롯 인계 분기가 수신해 빌드(idle)면 rungsUpdated, 진행/결과면 stateSync(reveal + elapsedMs)로 복구한다.
+// 첫 연결에는 currentRoomId가 없어 no-op — 진입 IIFE/DOMContentLoaded 경로와 중복 join 없음.
+socket.on('connect', function () {
+    if (!currentRoomId || !currentUser) return;
+    socket.emit('joinRoom', {
+        roomId: currentRoomId,
+        userName: currentUser,
+        isHost: false,
+        password: ladderRoomPassword,   // 비공개 방도 재입장되게(F3) — 서버 비밀번호 검사가 인계보다 앞선다
+        deviceId: getDeviceId(),
+        tabId: getTabId()
+    });
+});
+
 // URL 파라미터 처리: 방 생성 / 입장 emit
 window.addEventListener('DOMContentLoaded', () => {
     const savedName = localStorage.getItem('ladderUserName');
@@ -229,6 +253,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (pendingRoom) {
             const roomData = JSON.parse(pendingRoom);
             localStorage.removeItem('pendingLadderRoom');
+            ladderRoomPassword = roomData.password || '';   // 비공개 방 자동 재입장용 기억(F3)
             runWhenSocketConnected(function () {
                 socket.emit('createRoom', {
                     userName: roomData.userName,
@@ -287,6 +312,7 @@ function closePasswordModal() {
 }
 function submitPassword() {
     const password = document.getElementById('roomPasswordInput').value;
+    ladderRoomPassword = password || '';   // 비공개 방 자동 재입장용 기억(F3)
     if (pendingRoomId && pendingUserName) {
         socket.emit('joinRoom', {
             roomId: pendingRoomId,
@@ -353,11 +379,10 @@ function toggleReady() { ReadyModule.toggleReady(); }
 function updateReadyButton() { ReadyModule.updateReadyButton(); }
 function renderReadyUsers() { ReadyModule.renderReadyUsers(); }
 function closeResultOverlay() {
-    if (typeof ladderClearResultAutoClose === 'function') ladderClearResultAutoClose();   // 손으로 닫았으면 예약된 자동 닫기는 불필요
     const overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.remove('visible');
 }
-// 빠른 재준비: 결과 오버레이를 닫고, 아직 준비 안 했으면 준비를 켠다.
+// 빠른 재준비(경마식): 결과 오버레이를 닫고, 아직 준비 안 했으면 준비를 켠다.
 function readyForNextRound() {
     closeResultOverlay();
     if (!amIReady()) ReadyModule.toggleReady();
@@ -375,8 +400,31 @@ function amIReady() {
     return (readyUsers || []).indexOf(currentUser) >= 0;
 }
 
+// 입력 라이브 타이핑 throttle (leading) — vibe ladderThrottleLeading verbatim
+function ladderThrottleLeading(fn, wait) {
+    var last = 0, timer = null, lastArgs = null;
+    return function () {
+        lastArgs = arguments;
+        var now = Date.now();
+        var remaining = wait - (now - last);
+        if (remaining <= 0) {
+            if (timer) { clearTimeout(timer); timer = null; }
+            last = now;
+            fn.apply(null, lastArgs);
+        } else if (!timer) {
+            timer = setTimeout(function () {
+                last = Date.now(); timer = null;
+                fn.apply(null, lastArgs);
+            }, remaining);
+        }
+    };
+}
+var ladderEmitTyping = ladderThrottleLeading(function (side, index, text) {
+    socket.emit('ladder:labelTyping', { side: side, index: index, text: text });
+}, 300);
+
 // ============================================
-// 방 진입 (roomCreated / roomJoined) — 셸 배선 + 게임 UI 초기화
+// 방 진입 (roomCreated / roomJoined) — 셸 배선(LAMDice 보존) + 게임 UI 초기화(vibe enterRoom 게임 부분)
 // ============================================
 function ladderEnterRoom(data, asHost) {
     currentRoomId = data.roomId;
@@ -388,7 +436,8 @@ function ladderEnterRoom(data, asHost) {
     readyUsers = data.readyUsers || [];
 
     sessionStorage.setItem('ladderActiveRoom', JSON.stringify({
-        roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName
+        roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName,
+        password: ladderRoomPassword   // 비공개 방 새로고침 재입장(F3). 세션 스코프 — 탭 닫으면 소멸
     }));
 
     document.getElementById('loadingScreen').style.display = 'none';
@@ -409,19 +458,25 @@ function ladderEnterRoom(data, asHost) {
     const hostControls = document.getElementById('hostControls');
     if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
 
-    // 픽 UI 즉시 렌더 — 첫 ladder:rungsUpdated 도착 전에도 레인/캔버스가 보이게.
+    // 글쓰기 권한 모드는 입장 직후 도착하는 ladder:stateSync(개인 emit)가 복원한다 —
+    // roomJoined.gameState.ladder는 통째 마스킹이라 여기선 읽을 값이 없다(적대 리뷰 F10).
+    ladderPrevEditMode = ladderLabelEditMode;
+
+    // 설정 UI 즉시 렌더 — 첫 ladder:rungsUpdated 도착 전에도 입력/캔버스가 보이게.
+    // 진행(revealing)/결과(finished) 중 재진입이면 직후 도착하는 ladder:reveal(+elapsedMs) stateSync가 이어받는다.
     ladderPhase = 'idle';
-    document.body.classList.remove('race-running'); // 재입장(reconnect 포함)은 항상 비-연출 화면 — 잔존 시 스티키 광고 영구 숨김 (C-6)
-    // 재입장은 연출 밖 화면 — 지난 라운드의 결과 예약/타임라인이 남아 있으면 끊는다.
-    ladderClearResultPopupTimer();
+    document.body.classList.remove('race-running'); // 재입장(reconnect 포함)은 일단 비-연출 화면 — 잔존 시 스티키 광고 영구 숨김(C-6)
+    ladderClearResultPopupTimer();   // 지난 라운드의 결과 예약이 남아 있으면 끊는다(A3)
     ladderResultShown = false;
     ladderRevealStartAt = 0; ladderRevealTotalMs = 0;
     ladderLiving = null;
-    renderLaneButtons();
+    ladderShuffleSettled = false;
+    updateStepperUI();
     updateStartButton();
+    renderLabelInputs();
+    applyLabelLockState();
     ladderBindCanvas();
     renderLadderStatic();
-
     addDebugLog((asHost ? '방 생성: ' : '방 입장: ') + data.roomId + ' (host=' + isHost + ')');
     if (window.FreeInvite && data.shortcode) {
         window.FreeInvite.init({ shortcode: data.shortcode, serverId: data.serverId });
@@ -475,16 +530,21 @@ socket.on('updateUsers', (data) => {
     }
     if (typeof ChatModule !== 'undefined' && ChatModule.updateConnectedUsers) ChatModule.updateConnectedUsers(userArray);
     renderUsersList(userArray);
+    // isHost가 여기서 바뀔 수 있으므로 host-block readonly + 글쓰기/내려가기 권한 바 + 스테퍼 재적용
+    applyLabelLockState();
+    ladderRenderEditModeBar();
+    ladderRenderDescentModeBar();
+    updateStepperUI();
     updateStartButton();
 });
 
 // ============================================
-// 사다리 렌더 + lane-pick + 드래그 빌드 + 시작 시퀀스 연출
-// 서버가 winSlot/픽/막대기/landings/mutationScript를 결정 → 클라는 그리고 연출만(결과 재계산 금지).
-// 캔버스 색은 CSS 변수 직접 사용 불가 → 고정 hex 유지(#d1a06a 기둥, #b45309 번호, #9ca3af 막대기).
+// 사다리 렌더 + 드래그 빌드 + 셔플/하강 연출 (vibe 이식 — 칸=토큰, 레인 선택 없음)
+// 서버가 칸 수/라벨/막대기/perm/매핑/results를 결정 → 클라는 캔버스에 그리고 연출만(결과 재계산 금지).
+// 캔버스 색은 CSS 변수 직접 사용 불가 → 소스의 고정 hex 유지(#d1a06a 기둥, #b45309 번호, #9ca3af 막대기).
 // ============================================
 
-// 렌더 상수 (캔버스 720×560 기준)
+// 렌더 상수 (캔버스 720×560 기준 — 세로로 긴 사다리, 상하 여백 56 대칭)
 var LADDER_REVEAL_TOP = 56;
 var LADDER_REVEAL_BOTTOM = 504;
 var LADDER_OFF_RATIO = 0.2;
@@ -494,17 +554,18 @@ var LADDER_CURVE_MAX_POINTS = 24;   // 곡선 막대기 점 개수 상한(서버
 var LADDER_CURVE_MIN_DIST = 3;      // 드래그 중 점 기록 최소 이동거리(px)
 var LADDER_CURVE_MAX_VTRAVEL = 8.0; // 곡선 누적 세로 이동 상한(서버와 동기)
 
-// 토큰 색 팔레트 (서버 colorIndex로 결정적 산출 — Math.random 0회).
+// 토큰 색 팔레트 (서버 colorIndex로 결정적 산출 — Math.random 0회). 빌드/공개 공통.
 var LADDER_TOKEN_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 function ladderRungColor(name) {
     var i = ladderColorIndex ? ladderColorIndex[name] : undefined;
     return (typeof i === 'number') ? LADDER_TOKEN_COLORS[i % LADDER_TOKEN_COLORS.length] : LADDER_RUNG_COLOR_BASE;
 }
 
-// ── 연결 슬롯(스냅 그리드) — socket/ladder.js LADDER_SLOT_ROWS와 동기. ──
-var LADDER_SLOT_ROWS = 11;
+// ── 연결 슬롯(스냅 그리드) — 막대기는 정해진 슬롯 높이에만 붙는다. socket/ladder.js LADDER_SLOT_ROWS와 동기. ──
+var LADDER_SLOT_ROWS = 11;          // 슬롯 줄 수(0.05~0.95를 0.09 간격으로 → 11줄)
 var LADDER_SLOT_Y_MIN = 0.05;
 var LADDER_SLOT_Y_MAX = 0.95;
+var LADDER_MAX_RUNGS_PER_USER = 3;  // 인당 막대기 캡(서버와 동기) — 초과 시 가장 오래된 본인 막대기 FIFO 교체
 var LADDER_RUNG_SNAP_PX = 30;       // 막대기 연결 인정 거리(px, 720-space)
 function ladderSlotY(r) {
     return LADDER_SLOT_Y_MIN + (LADDER_SLOT_Y_MAX - LADDER_SLOT_Y_MIN) * r / (LADDER_SLOT_ROWS - 1);
@@ -517,38 +578,41 @@ function ladderSnapNodeY(y) {
     return ladderSlotY(ladderNearestSlotIndex(y));
 }
 
-// ─── 연출 타이밍 상수 — socket/ladder.js와 byte-identical(lockstep). 합 = 서버 ladderRevealDelay(N) ───
-var LADDER_RECOGNITION_MS = 2000;   // 인지창 — 전체 막대기 동시 표시(신규)
-var LADDER_COUNTDOWN_MS = 1600;     // "3·2·1 시작!" 카운트다운
-var LADDER_ERASE_MS = 1600;         // 사라짐 연출(ladderRunErase)
-var LADDER_DRAW_MS = 1200;          // 서버 그리기 연출(ladderRunDraw, balance add)
-var LADDER_TOKEN_SLOT_MS = 3000;    // 토큰 한 칸이 끝까지 내려가는 시간
-var LADDER_FINAL_HOLD = 1200;       // 결과 캡션/팝업 노출 전 대기
-var LADDER_MUTATION_MS = 900;       // 변형 1단계(add/remove/none) 애니
-var LADDER_WINSLOT_SHUFFLE_MS = 1600; // 당첨 칸 섞기 연출 — 시작 시 winSlot 재추첨 공개(시퀀스 맨 앞). socket/ladder.js와 byte-identical.
+// ─── 연출 타이밍 상수 — socket/ladder.js와 byte-identical(lockstep). 합 = 서버 ladderRevealDelay(N, descentMode) ───
+var LADDER_COUNTDOWN_MS = 3200;     // "3·2·1 시작!" 카운트다운 (하강 직전)
+var LADDER_ERASE_MS = 2400;         // 스크램블 지우기 연출(ladderRunErase)
+var LADDER_DRAW_MS = 1800;          // 스크램블 그리기 연출(ladderRunDraw)
+var LADDER_TOKEN_SLOT_MS = 6000;    // 토큰 한 칸이 끝까지 내려가는 시간(아주 천천히)
+var LADDER_FINAL_HOLD = 1800;       // 결과 캡션/팝업 노출 전 대기
+var LADDER_MUTATION_MS = 1400;      // 변형 1단계(add/remove/none) 애니 — 솔로 토큰 사이 max(0,N-2)회(마지막 쌍 앞엔 없음)
+var LADDER_SHUFFLE_MS = 3200;       // 바닥 라벨 셔플(ladderRunShuffle) — 스크램블 뒤·카운트다운 앞 직렬 phase. socket/ladder.js와 byte-identical.
 
-// 클라 단계 합이 서버와 동일함을 보장하는 헬퍼(검증/콘솔 측정용). 서버 식과 byte-identical.
-function ladderRevealDelay(N) {
+// 클라 단계 합이 서버와 동일함을 보장하는 헬퍼(검증/콘솔 측정용 — 실제 연출 분기와 같은 식).
+// 서버 식: descentSlots = simul ? 1 : (n<=1 ? n : n-1); mutations = simul ? 0 : max(0, n-2).
+function ladderRevealDelay(N, descentMode) {
     var n = Math.max(1, N | 0);
-    var descentSlots = (n <= 1) ? n : (n - 1);
-    var mutations = Math.max(0, n - 2);
+    var simul = descentMode === 'simultaneous';
+    var descentSlots = simul ? 1 : ((n <= 1) ? n : (n - 1));
+    var mutations = simul ? 0 : Math.max(0, n - 2);
     var descent = descentSlots * LADDER_TOKEN_SLOT_MS;
     var scramble = LADDER_ERASE_MS + LADDER_DRAW_MS;
-    return LADDER_WINSLOT_SHUFFLE_MS + LADDER_RECOGNITION_MS + scramble + LADDER_COUNTDOWN_MS + descent + mutations * LADDER_MUTATION_MS + LADDER_FINAL_HOLD;
+    return scramble + LADDER_SHUFFLE_MS + LADDER_COUNTDOWN_MS + descent + mutations * LADDER_MUTATION_MS + LADDER_FINAL_HOLD;
 }
 
 // 연출 상태 (reveal payload에서 채움)
 var ladderRun = {
     rungs: [],          // 현재 보드(living-rungs: 변형 스텝마다 in-place 갱신)
     rungPolylines: [],  // rungs와 같은 순서로 precompute한 캔버스 폴리라인(현재 보드)
-    remainingRender: [], // 사라짐: 그대로 남는 막대기 렌더셋(remaining = initialRungs - added)
-    erasedRender: [],   // 사라짐: glow→빛쓸기로 지워지는 막대기 렌더셋(스크램블 erase + 겹침 dedup)
-    addedRender: [],    // 서버 그리기: 펜 orb로 새로 그려지는 막대기 렌더셋(스크램블 add + balance add)
+    remainingRender: [], // 스크램블: 그대로 남는 막대기 렌더셋(remaining = initialRungs - added)
+    erasedRender: [],   // 스크램블: glow→빛쓸기로 지워지는 막대기 렌더셋
+    addedRender: [],    // 스크램블: 펜 orb로 새로 그려지는 막대기 렌더셋
     mutationScript: [], // living-rungs: 변형 스크립트(길이 max(0,N-2))
     landings: [],       // living-rungs: 토큰 i 최종 착지칸(desync 가드)
-    loserTop: [],       // winSlot에 떨어지는 picked top(들) — 강조용
-    winSlot: -1,
-    userTops: {}
+    results: [],        // 상단 칸 i → 최종 바닥 라벨(서버 권위)
+    topLabels: [],
+    bottomLabels: [],   // 셔플된 라벨(서버가 이미 섞어 보냄 — perm 재적용 금지)
+    perm: [],           // 셔플 표시용 순열(슬롯 j ← 원본 라벨 인덱스 perm[j]) — 위치 이동 전용, 결과 재계산 금지
+    descentMode: 'simultaneous'
 };
 
 // 연출 타이머/RAF 핸들 — roundReset/leave/reveal에서 정리(누수 방지)
@@ -556,23 +620,18 @@ var ladderRevealTimers = [];
 var ladderRevealRAF = null;
 var ladderAnimRAF = null;
 var ladderMutationRAF = null;
-// 결과 오버레이 표시 타이머 — 연출 타이머 배열과 분리(A3).
-// 같은 틱에 도착하는 ladder:tournamentRound의 clearLadderRevealTimers()가 이 타이머까지 죽여
-// "재대결 사유를 설명하는 결과 오버레이를 아무도 못 보는" 결함이 있었다. 수명 주체를 분리한다.
+// 셔플 연출 상태 — settle은 멱등 단일 지점(ladderShuffleSettleNow), RAF 핸들은 별도 취소.
+var ladderShuffleSettled = false;
+var ladderShuffleRAF = null;
+// 결과 오버레이 표시 타이머 — 연출 타이머 배열과 수명 분리(A3). clearLadderRevealTimers가 못 죽인다.
 var ladderResultPopupTimer = null;
-var ladderResultShown = false;   // 이번 라운드 결과 오버레이를 이미 띄웠는가(중복/유실 판정)
-// 재대결 결과 오버레이 자동 닫기 — 결과는 반드시 보여주되(A3), 아무도 안 닫아 라운드가 멎지 않게 한다.
-// 최종 결과(finished)에는 걸지 않는다: 그건 게임의 끝이라 사용자가 직접 닫는 게 맞다.
-// ⚠️ 연출 lockstep(ladderRevealDelay)과 무관한 순수 UI 대기값이다 — 서버와 맞출 필요 없다.
-var LADDER_RESULT_AUTOCLOSE_MS = 5000;
-var ladderResultAutoCloseTimer = null;
-// 리빌 타임라인 원점/총길이 — 백그라운드 탭 복귀 catch-up(A1)의 벽시계 기준.
+var ladderResultShown = false;   // 이번 라운드 결과 오버레이를 이미 띄웠는가(유실/중복 판정)
+var ladderLastShownRound = -1;   // 이 페이지에서 결과를 보여준 마지막 라운드 — 재연결 stateSync의 gameEnd 재전달 dedup(F5)
+// 리빌 타임라인 원점/총길이 — 백그라운드 탭 catch-up(A1)·재진입 seek의 벽시계 기준.
 var ladderRevealStartAt = 0;
 var ladderRevealTotalMs = 0;
 // 하강 실행 상태 { N, paths, tokenProgress, unit } — seek이 뒤로 되감지 않게 현재 세그먼트 비교용.
 var ladderLiving = null;
-// 당첨 칸 섞기 연출 상태 — active 동안 바닥 마커/버튼 표시가 이 slot을 따라간다(ladderWinSlot 오버라이드).
-var ladderWinShuffle = { active: false, slot: -1 };
 // 종료(finished) 보드 영속 — 마지막 하강 프레임을 저장해 finished 동안 재렌더가 idle 빌드를 덮어쓰지 않게.
 var ladderFinishedPaths = null;
 var ladderFinishedProgress = null;
@@ -586,29 +645,11 @@ function clearLadderRevealTimers() {
     if (ladderAnimRAF) { cancelAnimationFrame(ladderAnimRAF); ladderAnimRAF = null; }
     if (ladderMutationRAF) { cancelAnimationFrame(ladderMutationRAF); ladderMutationRAF = null; }
     if (ladderBlinkRAF) { cancelAnimationFrame(ladderBlinkRAF); ladderBlinkRAF = null; }
-    ladderWinShuffle.active = false;   // 섞기 중단 시 stale 오버라이드 제거(모든 정리 경로 공통)
+    if (ladderShuffleRAF) { cancelAnimationFrame(ladderShuffleRAF); ladderShuffleRAF = null; }
 }
-// 결과 팝업 타이머는 연출 타이머와 수명이 다르다 — 라운드 전환(reveal/roundReset)에서만 취소한다(A3).
+// 결과 팝업 타이머는 연출 타이머와 수명이 다르다(A3) — 라운드 전환(reveal/roundReset/enterRoom)에서만 취소.
 function ladderClearResultPopupTimer() {
     if (ladderResultPopupTimer) { clearTimeout(ladderResultPopupTimer); ladderResultPopupTimer = null; }
-    ladderClearResultAutoClose();   // 자동 닫기도 라운드 전환에서 함께 정리 — 안 그러면 다음 라운드 오버레이를 닫아버린다
-}
-function ladderClearResultAutoClose() {
-    if (ladderResultAutoCloseTimer) { clearTimeout(ladderResultAutoCloseTimer); ladderResultAutoCloseTimer = null; }
-}
-function ladderScheduleResultOverlay(delayMs) {
-    ladderClearResultPopupTimer();
-    ladderResultPopupTimer = setTimeout(function () {
-        ladderResultPopupTimer = null;
-        // 서버 ladder:gameEnd가 아직 안 왔으면 여기서 띄우지 않는다 — payload 없이 띄우면 빈 결과가 된다.
-        // (연출 종료와 서버 종료 타이머가 같은 시각이라 도착 순서가 갈린다.) gameEnd 핸들러가 표시를 이어받는다.
-        if (!ladderPendingResult) {
-            // 표시는 미루더라도 연출은 끝났다 — 진행 중 표식은 여기서 정리(C-6: 잔존 시 스티키 광고 영구 숨김).
-            document.body.classList.remove('race-running');
-            return;
-        }
-        ladderShowResultOverlay();
-    }, Math.max(0, delayMs || 0));
 }
 
 // 기둥 col의 x px
@@ -617,14 +658,17 @@ function laneX(canvasW, idx, numLanes) {
     if (numLanes <= 1) return canvasW / 2;
     return pad + (canvasW - pad * 2) * (idx / (numLanes - 1));
 }
+// 높이 비율 y(0~1) → 캔버스 내부 픽셀 중심 y
 function revealCenterY(y) {
     return LADDER_REVEAL_TOP + y * (LADDER_REVEAL_BOTTOM - LADDER_REVEAL_TOP);
 }
+// 캔버스 내부 픽셀 y → 높이 비율(0~1)
 function revealPxToY(py) {
     return Math.max(0, Math.min(1, (py - LADDER_REVEAL_TOP) / (LADDER_REVEAL_BOTTOM - LADDER_REVEAL_TOP)));
 }
 
 // rung → 캔버스 폴리라인 px 점 배열. base=직선(양 끝점), 유저=그린 대로 곡선(모든 points).
+// 결과(착지)는 physical descent(접점 leftY/rightY = 폴리라인 양 끝) — 곡선 가운데는 무관(공정성=서버권위).
 function rungToPolyline(rg, xOf, yOf, halfOf) {
     var xL = xOf(rg.c), xR = xOf(rg.c + 1);
     if (rg.points && rg.points.length >= 2) {
@@ -683,41 +727,37 @@ function downsamplePoints(pts, max) {
     return out;
 }
 
-// idle 빌드용 막대기 목록 (base + public 막대기 + 내 막대기 전체). 범위밖 스킵.
-// 가시성: 본인은 자기 막대기 전부, 남은 드로어당 public 1개(서버가 골라준 publicRungs).
+// idle 빌드용 막대기 목록 (base + 전 유저 막대기). 범위밖 스킵.
 function ladderBuildRungList() {
     var N = ladderNumColumns || 0;
     var inRange = function (c) { return typeof c === 'number' && c >= 0 && c <= N - 2; };
     var out = [];
-    var seen = {};   // id 중복 방지(내 public이 내 full set에도 있으니 own이 우선)
     (ladderBaseRungs || []).forEach(function (r) {
         if (r && inRange(r.c)) out.push({ name: null, id: r.id, c: r.c, y: r.y, slant: r.slant, points: r.points || null, isBase: true });
     });
-    // 내 막대기 전체(본인만 보임)
-    (ladderMyRungs || []).forEach(function (r) {
-        if (r && inRange(r.c)) { out.push({ name: currentUser, id: r.id, c: r.c, y: r.y, slant: r.slant, points: r.points, isBase: false }); seen[r.id] = true; }
-    });
-    // 남의 public 막대기(드로어당 1개) — 내 것은 제외(이미 full set으로 그림)
-    (ladderPublicRungs || []).forEach(function (r) {
-        if (!r || !inRange(r.c)) return;
-        if (r.owner === currentUser) return;
-        if (seen[r.id]) return;
-        out.push({ name: r.owner, id: r.id, c: r.c, y: r.y, slant: r.slant, points: r.points, isBase: false });
+    Object.keys(ladderUserRungs || {}).forEach(function (n) {
+        var arr = Array.isArray(ladderUserRungs[n]) ? ladderUserRungs[n] : [];
+        arr.forEach(function (r) {
+            if (r && inRange(r.c)) out.push({ name: n, id: r.id, c: r.c, y: r.y, slant: r.slant, points: r.points, isBase: false });
+        });
     });
     return out;
 }
 function ladderMyRungCount() {
-    return Array.isArray(ladderMyRungs) ? ladderMyRungs.length : 0;
+    var arr = ladderUserRungs[currentUser];
+    return Array.isArray(arr) ? arr.length : 0;
 }
 
-// '다음에 사라질 막대기' 깜박임 — 내 막대기가 캡 도달 + 드래그 중이면 가장 오래된 본인 막대기를 pulse.
+// '다음에 사라질 막대기' 깜박임 — 내 막대기가 캡(3개) 도달 + 드래그 중이면 가장 오래된 본인 막대기를 pulse.
 var ladderBlinkRAF = null;
 function ladderShouldBlink() {
-    return ladderDrag.active && ladderPhase === 'idle' && ladderMyRungCount() >= ladderMaxRungs;
+    var arr = ladderUserRungs[currentUser];
+    return ladderDrag.active && ladderPhase === 'idle' && Array.isArray(arr) && arr.length >= LADDER_MAX_RUNGS_PER_USER;
 }
 function ladderDoomedRungId() {
     if (!ladderShouldBlink()) return null;
-    return ladderMyRungs[0] ? ladderMyRungs[0].id : null;
+    var arr = ladderUserRungs[currentUser];
+    return arr[0] ? arr[0].id : null;
 }
 function ladderBlinkAlpha() {
     var t = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -735,52 +775,11 @@ function ladderEnsureBlink() {
     }
 }
 
-// ── 바닥 당첨(winSlot) 마커 그리기 — 시작부터 모두에게 보임(위치만). ──
-// 섞기 연출(ladderWinShuffle.active) 동안은 애니 slot을 따라간다 — 최종값 조기 노출 방지.
-function ladderWinMarkerSlot() {
-    return ladderWinShuffle.active ? ladderWinShuffle.slot : ladderWinSlot;
-}
-function ladderDrawWinMarker(ctx, W) {
-    var slot = ladderWinMarkerSlot();
-    if (typeof slot !== 'number' || slot < 0 || slot >= ladderNumColumns) return;
-    var x = laneX(W, slot, ladderNumColumns);
-    var y = LADDER_REVEAL_BOTTOM;
-    ctx.save();
-    // 당첨 슬롯 강조 — 빨간 원 + "당첨" 라벨
-    ctx.beginPath();
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.18)';
-    ctx.arc(x, y, 22, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = '#ef4444';
-    ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2); ctx.stroke();
-    ctx.font = "bold 13px 'Jua', sans-serif";
-    ctx.fillStyle = '#dc2626';
-    ctx.textAlign = 'center';
-    ctx.fillText('당첨', x, y + 38);
-    ctx.restore();
-    ctx.textAlign = 'left';
-}
-// 다른 바닥칸 — 안전(blank) 표시.
-function ladderDrawBottomSlots(ctx, W) {
-    var N = ladderNumColumns;
-    var y = LADDER_REVEAL_BOTTOM;
-    var winSlotNow = ladderWinMarkerSlot();
-    ctx.save();
-    for (var c = 0; c < N; c++) {
-        if (c === winSlotNow) continue;
-        var x = laneX(W, c, N);
-        ctx.beginPath();
-        ctx.fillStyle = 'rgba(120, 90, 50, 0.10)';
-        ctx.arc(x, y, 9, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.restore();
-}
-
-// 정적 사다리 렌더(idle) — 기둥 + base/public/내 막대기(색 구분) + 위쪽 번호 + 당첨 마커 + 드래그 프리뷰.
+// 정적 사다리 렌더(idle) — 기둥 + base/유저 막대기(색 구분) + 위쪽 번호 + 드래그 프리뷰.
 function renderLadderStatic() {
     var canvas = document.getElementById('ladderCanvas');
     if (!canvas) return;
+    // finished 중에는 결과 사다리를 유지(어떤 경로로 불려도 idle 빌드뷰로 덮어쓰지 않음).
     if (ladderPhase === 'finished' && ladderFinishedPaths) { ladderRedrawFinished(); return; }
     var ctx = canvas.getContext('2d');
     var W = canvas.width;
@@ -817,10 +816,8 @@ function renderLadderStatic() {
     });
     ctx.globalAlpha = 1;
     ladderDrawPoles(ctx, W);
-    ladderDrawBottomSlots(ctx, W);
-    ladderDrawWinMarker(ctx, W);
 
-    // 드래그 프리뷰
+    // 드래그 프리뷰 — 그은 궤적 그대로 + 양 끝 노드 스냅(자석). 연결=초록, 미연결=흐린 주황.
     if (ladderDrag.active && (ladderDrag.pts || []).length >= 1) {
         var raw = ladderDrag.pts;
         var conn = ladderDragConnection(N);
@@ -847,7 +844,7 @@ function renderLadderStatic() {
             ctx.beginPath(); ctx.arc(pEndX, pEndY, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         }
     }
-    // hover 미리보기(PC/마우스 전용)
+    // hover 미리보기(PC/마우스 전용) — 안 그릴 때 커서가 기둥 스냅 사정거리 안이면 가장 가까운 노드 1개만.
     if (!ladderDrag.active && ladderHover.active && ladderPhase === 'idle' && N >= 2) {
         var hPost = ladderNearestPost(ladderHover.x, N);
         var hPx = laneX(W, hPost, N);
@@ -860,132 +857,17 @@ function renderLadderStatic() {
     }
     ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
 
-    // 위쪽 칸 번호 + 내가 고른 top 강조 + 픽한 사람 토큰
-    ctx.font = "bold 15px 'Jua', sans-serif"; ctx.textAlign = 'center';
-    for (var k = 0; k < N; k++) {
-        ctx.fillStyle = (ladderUserTops[currentUser] === k) ? '#dc2626' : '#b45309';
-        ctx.fillText((k + 1), laneX(W, k, N), topY - 22);
-    }
+    // 위쪽 칸 번호
+    ctx.font = "bold 15px 'Jua', sans-serif"; ctx.textAlign = 'center'; ctx.fillStyle = '#b45309';
+    for (var k = 0; k < N; k++) ctx.fillText((k + 1), laneX(W, k, N), topY - 22);
 
-    // 각 top에 픽한 인원 수 표시 + 상점 마커
+    // Phase C 상점 hook — 각 상단 칸의 장착 마커가 있으면 이모지를 칸 위에 미리보기. 기본(null)이면 표시 없음.
     ctx.font = "22px 'Jua', sans-serif"; ctx.textBaseline = 'middle';
-    var topCounts = ladderTopPickCounts();
     for (var s = 0; s < N; s++) {
         var em = tokenMarkerFor(s, null);
-        if (em && topCounts[s] > 0) ctx.fillText(em, laneX(W, s, N), topY - 2);
-        else if (topCounts[s] > 0) {
-            ctx.beginPath();
-            ctx.fillStyle = (ladderUserTops[currentUser] === s) ? '#dc2626' : '#6b7280';
-            ctx.arc(laneX(W, s, N), topY - 2, 8, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        if (em) ctx.fillText(em, laneX(W, s, N), topY - 2);
     }
-    // 같은 top에 여럿이면 숫자 배지 — 토큰 원(r=8)/스킨 이모지와 같은 좌표에 겹쳐 그리면
-    // 이모지 장착 시 판독 불가가 된다(C3). 우상단으로 오프셋 + 자체 배경 원 위에 그린다.
-    for (var s2 = 0; s2 < N; s2++) {
-        if (topCounts[s2] <= 1) continue;
-        var bx = laneX(W, s2, N) + 13;
-        var by = topY - 13;
-        ctx.beginPath();
-        ctx.fillStyle = (ladderUserTops[currentUser] === s2) ? '#dc2626' : '#4b5563';
-        ctx.arc(bx, by, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
-        ctx.font = "bold 11px 'Jua', sans-serif"; ctx.fillStyle = '#fff';
-        ctx.fillText('×' + topCounts[s2], bx, by);
-    }
-    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-}
-
-// top별 픽한 사람 이름 배열 — 이번 라운드 참가자만(C1).
-// ladderUserTops의 모든 키를 세면 준비를 해제한 사람/이번 sub-round 비대상자의 stale 픽까지 잡힌다.
-function ladderTopPickers() {
-    var out = [];
-    for (var i = 0; i < ladderNumColumns; i++) out.push([]);
-    var seen = {};
-    ladderRoundParticipants().forEach(function (n) {
-        if (seen[n]) return;
-        seen[n] = true;
-        var t = (ladderUserTops || {})[n];
-        if (typeof t === 'number' && t >= 0 && t < out.length) out[t].push(n);
-    });
-    return out;
-}
-// top별 픽 인원 수.
-function ladderTopPickCounts() {
-    return ladderTopPickers().map(function (names) { return names.length; });
-}
-
-// 레인 배지 라벨 — 1명이면 이름 그대로, 여럿이면 "이름 +N"(축약). 내가 껴 있으면 내 이름을 앞에 둔다.
-// 폭 초과분은 CSS ellipsis가 처리(줄바꿈 없음). 전체 명단은 title 속성으로 보강.
-// 배지에 앞세울 이름 — 내가 고른 칸이면 내 이름을 앞에 둬 내 픽임을 즉시 알아보게 한다.
-function ladderPickerHead(names) {
-    if (!names.length) return '';
-    return (names.indexOf(currentUser) !== -1) ? currentUser : names[0];
-}
-
-// ── 6택1 lane-pick UI (경마식) — laneButtonsRow에 6 버튼 렌더 ──
-function renderLaneButtons() {
-    var row = document.getElementById('laneButtonsRow');
-    if (!row) return;
-    var N = LADDER_COLUMNS;
-    var pickers = ladderTopPickers();
-    var myTop = ladderUserTops[currentUser];
-    var canPick = (ladderPhase === 'idle') && ladderAmIInRound();
-    row.innerHTML = '';
-    for (var i = 0; i < N; i++) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'ladder-lane-btn';
-        if (myTop === i) btn.classList.add('selected');
-        if (i === ladderWinSlot) btn.classList.add('is-win');
-        btn.disabled = !canPick;
-        btn.dataset.top = String(i);
-        var num = document.createElement('span');
-        num.className = 'ladder-lane-num';
-        num.textContent = (i + 1);
-        btn.appendChild(num);
-        // 이 top을 고른 사람 표시 — 숫자만 쓰면 번호와 붙어 "1"+"2명" = "12명"으로 오독된다(C2).
-        // 이름 칩으로 바꾸고 내 픽은 별도 클래스로 구분. 배지는 CSS pointer-events:none —
-        // 클릭은 항상 버튼(e.currentTarget.dataset.top)으로만 들어간다(레인 클릭 계약 보존).
-        var names = pickers[i] || [];
-        if (names.length) {
-            var badge = document.createElement('span');
-            badge.className = 'ladder-lane-count';
-            if (names.indexOf(currentUser) !== -1) badge.classList.add('is-me');
-            // 이름과 "+N"을 분리한다 — 한 덩어리면 좁은 화면 말줄임이 끝을 잘라 하필 인원수가 먼저
-            // 사라진다("스테파니김 +2" → "스테…"). 이름만 줄고 인원수는 항상 남아야 한다.
-            var nameEl = document.createElement('span');
-            nameEl.className = 'ladder-lane-pickname';
-            nameEl.textContent = ladderPickerHead(names);   // textContent만(XSS 금지 계약)
-            badge.appendChild(nameEl);
-            if (names.length > 1) {
-                var moreEl = document.createElement('span');
-                moreEl.className = 'ladder-lane-more';
-                moreEl.textContent = '+' + (names.length - 1);
-                badge.appendChild(moreEl);
-            }
-            btn.title = names.join(', ');   // 배지는 pointer-events:none이라 툴팁이 안 뜬다 — 히트테스트되는 버튼에 붙인다
-            btn.appendChild(badge);
-        }
-        btn.addEventListener('click', onLanePick);
-        row.appendChild(btn);
-    }
-    // 픽 안내
-    var hint = document.getElementById('ladderPickHint');
-    if (hint) {
-        if (!canPick && ladderTournamentActive) hint.textContent = '이번 라운드 대상이 아니에요. 결과를 기다려주세요.';
-        else if (typeof myTop === 'number') hint.textContent = '내가 고른 칸: ' + (myTop + 1) + '번. 다른 칸을 눌러 바꿀 수 있어요.';
-        else hint.textContent = '내려갈 칸을 하나 골라주세요. 여러 명이 같은 칸을 골라도 됩니다(운명 공유).';
-    }
-}
-function onLanePick(e) {
-    var btn = e.currentTarget;
-    if (!btn || btn.disabled) return;
-    var top = parseInt(btn.dataset.top, 10);
-    if (!Number.isInteger(top)) return;
-    socket.emit('ladder:pickTop', { top: top });
-    ladderPlayDrawNote();
+    ctx.textBaseline = 'alphabetic';
 }
 
 // ── 드래그로 막대기 추가 (idle 단계) ──
@@ -996,6 +878,7 @@ var ladderHover = { active: false, x: 0, y: 0 };
 var ladderHintFlash = { active: false, timer: null };
 var ladderCanvasBound = false;
 
+// 표시 배율 = backing store 폭(720) / 화면 표시 폭(px). hit-test/스냅 임계를 화면 기준 일정하게.
 function ladderDisplayScale() {
     var canvas = document.getElementById('ladderCanvas');
     if (!canvas) return 1;
@@ -1052,7 +935,6 @@ function ladderComputeDragRung(N) {
     var slant = Math.max(-1, Math.min(1, (rightY - leftY) / 0.4));
     return { c: c, y: y, slant: slant, points: pts };
 }
-// 막대기 hit-test — 본인 막대기만(제거용) 또는 전체. public/내 막대기 모두 대상.
 function ladderRungHitAt(px, py, N, ownerFilter) {
     var xOf = function (col) { return laneX(LADDER_CANVAS_W, col, N); };
     var best = null, bestD = 16 * ladderDisplayScale();
@@ -1111,7 +993,7 @@ function ladderBindCanvas() {
             }
         }
         if (ladderMultiTouch) return;
-        if (ladderPhase !== 'idle' || !ladderAmIInRound() || (ladderNumColumns || 0) < 2) return;
+        if (ladderPhase !== 'idle' || (ladderNumColumns || 0) < 2) return;
         e.preventDefault();
         var p = toCanvas(e);
         ladderDrag.active = true; ladderDrag.pts = [{ x: p.x, y: p.y }];
@@ -1158,7 +1040,7 @@ function ladderBindCanvas() {
                 }
             }
         } else {
-            // 그리기 — 캡(3)은 서버가 FIFO로 처리(클라는 그대로 emit).
+            // 그리기 — 캡(3)은 서버가 FIFO로 처리(클라는 그대로 emit). 공유 예산 제거(명세 결정).
             var rg = ladderComputeDragRung(N);
             if (rg) {
                 socket.emit('ladder:addRung', { c: rg.c, y: rg.y, slant: rg.slant, points: rg.points });
@@ -1194,7 +1076,122 @@ function ladderBindCanvas() {
     }
 }
 
-// 시작 (호스트, idle에서만) — 더블클릭 가드(서버도 phase 가드 + 게이트).
+// ── 라벨 입력 (위 N개 + 아래 N개) ──
+function renderLabelInputs() {
+    buildLabelRow('topLabelsRow', 'top', ladderTopLabels);
+    buildLabelRow('bottomLabelsRow', 'bottom', ladderBottomLabels);
+    setLabelInputsEnabled(ladderPhase === 'idle');
+    applyLabelLockState();
+    ladderRenderEditModeBar();
+    ladderRenderDescentModeBar();
+}
+function applyLabelLockState() {
+    ['topLabelsRow', 'bottomLabelsRow'].forEach(function (rid) {
+        var row = document.getElementById(rid); if (!row) return;
+        var side = (rid === 'topLabelsRow') ? 'top' : 'bottom';
+        row.querySelectorAll('.ladder-label-input').forEach(function (el) {
+            var idx = parseInt(el.dataset.index, 10);
+            var key = side + ':' + idx;
+            var lockName = (ladderLabelLocks[key] && ladderLabelLocks[key] !== currentUser) ? ladderLabelLocks[key] : null;
+            var hostBlocked = (ladderLabelEditMode === 'host' && !isHost);
+            var ro = !!(lockName || hostBlocked);
+            el.readOnly = ro;
+            el.classList.toggle('ladder-label-locked', !!lockName);
+            if (lockName) {
+                el.title = lockName + ' 님이 입력 중';
+                if (!el.value) el.placeholder = '✍ ' + lockName + ' 입력 중';
+                else el.placeholder = el.dataset.basePlaceholder || '';
+            } else {
+                el.title = '';
+                el.placeholder = el.dataset.basePlaceholder || '';
+            }
+        });
+    });
+}
+function ladderCheckEditModeTransition() {
+    var was = ladderPrevEditMode;
+    ladderPrevEditMode = ladderLabelEditMode;
+    if (was === 'host' || ladderLabelEditMode !== 'host' || isHost) return;
+    var ae = document.activeElement;
+    var editingFocus = !!(ae && ae.classList && ae.classList.contains('ladder-label-input'));
+    var heldLock = Object.keys(ladderLabelLocks).some(function (k) { return ladderLabelLocks[k] === currentUser; });
+    if (editingFocus || heldLock) {
+        showCustomAlert('방장이 글쓰기를 제한했어요. (방장만 입력 가능)', 'info');
+    }
+}
+function setLabelInputsEnabled(enabled) {
+    ['topLabelsRow', 'bottomLabelsRow'].forEach(function (rid) {
+        var row = document.getElementById(rid);
+        if (!row) return;
+        row.querySelectorAll('.ladder-label-input').forEach(function (el) { el.disabled = !enabled; });
+    });
+}
+function buildLabelRow(containerId, side, values) {
+    var row = document.getElementById(containerId);
+    if (!row) return;
+    var N = ladderNumColumns;
+    var existing = row.querySelectorAll('.ladder-label-input');
+    if (existing.length !== N) {
+        row.innerHTML = '';
+        for (var i = 0; i < N; i++) {
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.className = 'ladder-label-input';
+            inp.maxLength = 24;
+            inp.dataset.side = side;
+            inp.dataset.index = String(i);
+            inp.placeholder = (side === 'top' ? '입력 ' : '결과 ') + (i + 1);
+            inp.dataset.basePlaceholder = inp.placeholder;
+            inp.value = (values && values[i]) || '';
+            inp.addEventListener('input', onLabelInput);
+            inp.addEventListener('focus', onLabelFocus);
+            inp.addEventListener('blur', onLabelBlur);
+            row.appendChild(inp);
+        }
+    } else {
+        for (var k = 0; k < existing.length; k++) {
+            var el = existing[k];
+            if (el === document.activeElement) continue;
+            var lockKey = side + ':' + parseInt(el.dataset.index, 10);
+            var lockedByOther = ladderLabelLocks[lockKey] && ladderLabelLocks[lockKey] !== currentUser;
+            if (lockedByOther) continue;
+            var v = (values && values[k]) || '';
+            if (el.value !== v) el.value = v;
+        }
+    }
+}
+function onLabelFocus(e) {
+    var el = e.target;
+    if (el.readOnly) return;
+    socket.emit('ladder:labelFocus', { side: el.dataset.side, index: parseInt(el.dataset.index, 10) });
+}
+function onLabelBlur(e) {
+    var el = e.target;
+    socket.emit('ladder:labelBlur', { side: el.dataset.side, index: parseInt(el.dataset.index, 10) });
+}
+function onLabelInput(e) {
+    var el = e.target;
+    var side = el.dataset.side;
+    var index = parseInt(el.dataset.index, 10);
+    var text = el.value;
+    var key = side + ':' + index;
+    ladderEmitTyping(side, index, text);
+    if (labelDebounceTimers[key]) clearTimeout(labelDebounceTimers[key]);
+    labelDebounceTimers[key] = setTimeout(function () {
+        socket.emit('ladder:setLabel', { side: side, index: index, text: text });
+    }, 300);
+}
+
+// ── 칸 수 스테퍼 (HTML onclick) ──
+function ladderStepColumns(delta) {
+    if (ladderLabelEditMode === 'host' && !isHost) return;   // 방장만 편집 모드 — 서버도 거부(F4), UI 선차단
+    var n = ladderNumColumns + delta;
+    if (n < 2 || n > 8) return;
+    socket.emit('ladder:setColumns', { n: n });
+}
+window.ladderStepColumns = ladderStepColumns;
+
+// 시작 (호스트, idle에서만) — 더블클릭 가드(서버도 phase 가드 + 준비 ≥2 게이트).
 var ladderStartPending = false;
 function ladderStart() {
     if (ladderPhase !== 'idle' || ladderStartPending) return;
@@ -1205,7 +1202,9 @@ function ladderStart() {
     setTimeout(function () { ladderStartPending = false; updateStartButton(); }, 700);
 }
 window.ladderStart = ladderStart;
-// 메인 버튼 디스패처(HTML onclick) — finished면 새 토너먼트(reset), 그 외(idle)면 시작.
+// 메인 버튼 디스패처(HTML onclick) — finished면 새 사다리(reset), 그 외(idle)면 시작.
+// finished에서 ladderStart는 phase 가드로 early-return하므로, 여기서 명시적으로 ladderReset로 분기해야
+// 결과 후 다음 판이 시작된다(라운드 루프).
 function startLadder() {
     if (ladderPhase === 'finished') { ladderReset(); return; }
     ladderStart();
@@ -1219,52 +1218,36 @@ function ladderReset() {
 }
 window.ladderReset = ladderReset;
 
+// 스테퍼 카운트/버튼 활성 상태 갱신 (idle 외엔 잠금. 방장만 편집 모드에선 비방장 잠금 — F4)
+function updateStepperUI() {
+    var canStep = ladderPhase === 'idle' && !(ladderLabelEditMode === 'host' && !isHost);
+    var cc = document.getElementById('colCount'); if (cc) cc.textContent = ladderNumColumns;
+    var dec = document.getElementById('colDecBtn'); if (dec) dec.disabled = !canStep || ladderNumColumns <= 2;
+    var inc = document.getElementById('colIncBtn'); if (inc) inc.disabled = !canStep || ladderNumColumns >= 8;
+}
+
 // 준비하고 방에 있는 사람 수 — 호스트 시작 게이트(≥2).
 function readyCount() {
     return (readyUsers || []).filter(function (n) {
         return (currentUsers || []).some(function (u) { return u.name === n; });
     }).length;
 }
-// 라운드 참가자(첫 라운드=준비한 사람, sub-round=loser pool).
-function ladderRoundParticipants() {
-    if (ladderTournamentActive) return (ladderLoserPool || []).slice();
-    return (readyUsers || []).filter(function (n) {
-        return (currentUsers || []).some(function (u) { return u.name === n; });
-    });
-}
-// 참가자 전원이 top을 골랐는가.
-function ladderAllPicked() {
-    var parts = ladderRoundParticipants();
-    if (!parts.length) return false;
-    return parts.every(function (n) { return typeof ladderUserTops[n] === 'number'; });
-}
 
-// 호스트 시작 버튼 상태 — phase별.
+// 호스트 시작 버튼 상태 — phase별. idle=시작(준비≥2 활성) / revealing=진행중 / finished=새 사다리.
 function updateStartButton() {
     var btn = document.getElementById('startLadderButton');
     if (!btn) return;
     if (ladderPhase === 'finished') {
         btn.disabled = !isHost;
-        btn.textContent = '🔄 새 게임';
+        btn.textContent = '🔄 새 사다리';
     } else if (ladderPhase === 'revealing') {
         btn.disabled = true;
         btn.textContent = '진행 중...';
     } else {   // idle
-        var subRound = ladderTournamentActive;
         var rc = readyCount();
-        var allPicked = ladderAllPicked();
-        if (subRound) {
-            // sub-round — loser pool만 재pick. 준비 게이트는 첫 라운드만 적용.
-            var canStartSub = isHost && !ladderStartPending && allPicked && (ladderLoserPool || []).length >= 1;
-            btn.disabled = !canStartSub;
-            btn.textContent = allPicked ? '🪜 다음 라운드 시작' : '대상자가 칸을 고르는 중...';
-        } else {
-            var canStart = isHost && !ladderStartPending && rc >= 2 && allPicked;
-            btn.disabled = !canStart;
-            if (rc < 2) btn.textContent = '게임 시작 (2명 이상 준비)';
-            else if (!allPicked) btn.textContent = '모두 칸을 골라야 시작';
-            else btn.textContent = '🪜 사다리 시작';
-        }
+        var canStart = isHost && !ladderStartPending && rc >= 2;
+        btn.disabled = !canStart;
+        btn.textContent = rc < 2 ? '게임 시작 (2명 이상 준비)' : '🪜 사다리 시작';
     }
 }
 
@@ -1275,52 +1258,139 @@ function setGameStatus(text, cls) {
     el.className = 'game-status' + (cls ? ' ' + cls : '');
 }
 
-// ── 토너먼트 풀 안내 배너 ──
-function renderTournamentBanner() {
-    var el = document.getElementById('ladderTournamentBanner');
-    if (!el) return;
-    if (ladderTournamentActive && (ladderLoserPool || []).length > 0) {
-        el.style.display = '';
-        var names = (ladderLoserPool || []).map(escapeHtml).join(', ');
-        el.textContent = '⚔️ 재대결! 당첨에 걸린 ' + ladderLoserPool.length + '명이 다시 칸을 고릅니다: ' + names;
+// 글쓰기 권한 바 (방장 토글, 비방장 읽기전용 표시)
+function ladderRenderEditModeBar() {
+    var bar = document.getElementById('ladderEditModeBar');
+    if (!bar) return;
+    var modeLabel = (ladderLabelEditMode === 'host') ? '방장만' : '모두 가능';
+    var toggleWrap = document.getElementById('ladderEditModeToggleWrap');
+    var toggle = document.getElementById('ladderEditModeToggle');
+    var txt = document.getElementById('ladderEditModeText');
+    var idle = (ladderPhase === 'idle');
+    if (isHost) {
+        if (toggleWrap) toggleWrap.style.display = '';
+        if (toggle) { toggle.checked = (ladderLabelEditMode === 'all'); toggle.disabled = !idle; }
+        if (txt) { txt.style.display = ''; txt.textContent = modeLabel; }
     } else {
-        el.style.display = 'none';
-        el.textContent = '';
+        if (toggleWrap) toggleWrap.style.display = 'none';
+        if (txt) { txt.style.display = ''; txt.textContent = modeLabel; }
     }
 }
+function ladderSetEditMode(mode) {
+    if (!isHost || ladderPhase !== 'idle') return;
+    if (mode !== 'all' && mode !== 'host') return;
+    if (mode === ladderLabelEditMode) return;
+    socket.emit('ladder:setEditMode', { mode: mode });
+}
+window.ladderSetEditMode = ladderSetEditMode;
 
-// 서버 빌드 상태 수신(idle) → 상태 저장 + UI 렌더
+// 내려가기 방식 바 (방장 토글, 비방장 읽기전용 표시)
+function ladderRenderDescentModeBar() {
+    var bar = document.getElementById('ladderDescentModeBar');
+    if (!bar) return;
+    var modeLabel = (ladderDescentMode === 'simultaneous') ? '동시에' : '한명씩';
+    var toggleWrap = document.getElementById('ladderDescentModeToggleWrap');
+    var toggle = document.getElementById('ladderDescentModeToggle');
+    var txt = document.getElementById('ladderDescentModeText');
+    var idle = (ladderPhase === 'idle');
+    if (isHost) {
+        if (toggleWrap) toggleWrap.style.display = '';
+        if (toggle) { toggle.checked = (ladderDescentMode === 'simultaneous'); toggle.disabled = !idle; }
+        if (txt) { txt.style.display = ''; txt.textContent = modeLabel; }
+    } else {
+        if (toggleWrap) toggleWrap.style.display = 'none';
+        if (txt) { txt.style.display = ''; txt.textContent = modeLabel; }
+    }
+}
+function ladderSetDescentMode(mode) {
+    if (!isHost || ladderPhase !== 'idle') return;
+    if (mode !== 'sequential' && mode !== 'simultaneous') return;
+    if (mode === ladderDescentMode) return;
+    socket.emit('ladder:setDescentMode', { mode: mode });
+}
+window.ladderSetDescentMode = ladderSetDescentMode;
+
+// 서버 사다리 상태 수신(idle 빌드) → 상태 저장 + UI 렌더
 socket.on('ladder:rungsUpdated', function (data) {
     if (!data) return;
     if (typeof data.numColumns === 'number') ladderNumColumns = data.numColumns;
-    if (typeof data.winSlot === 'number') ladderWinSlot = data.winSlot;
-    if (data.userTops && typeof data.userTops === 'object') ladderUserTops = data.userTops;
+    if (Array.isArray(data.topLabels)) ladderTopLabels = data.topLabels;
+    if (Array.isArray(data.bottomLabels)) ladderBottomLabels = data.bottomLabels;
     if (Array.isArray(data.baseRungs)) ladderBaseRungs = data.baseRungs;
-    if (Array.isArray(data.publicRungs)) ladderPublicRungs = data.publicRungs;
+    if (data.userRungs && typeof data.userRungs === 'object') ladderUserRungs = data.userRungs;
     if (data.colorIndex && typeof data.colorIndex === 'object') ladderColorIndex = data.colorIndex;
-    if (typeof data.round === 'number') ladderRound = data.round;
-    if (typeof data.tournamentActive === 'boolean') ladderTournamentActive = data.tournamentActive;
-    if (Array.isArray(data.loserPool)) ladderLoserPool = data.loserPool;
-    if (typeof data.maxRungs === 'number') ladderMaxRungs = data.maxRungs;
+    if (typeof data.labelEditMode === 'string') ladderLabelEditMode = data.labelEditMode;
+    if (typeof data.descentMode === 'string') ladderDescentMode = data.descentMode;
+    ladderCheckEditModeTransition();
     // rungsUpdated는 idle에서만 온다(서버) → phase 미러를 idle로 보정
     ladderPhase = 'idle';
-    renderLaneButtons();
-    renderTournamentBanner();
+    updateStepperUI();
     updateStartButton();
+    renderLabelInputs();
     ladderBindCanvas();
     renderLadderStatic();
     ladderEnsureBlink();
 });
 
-// 본인 막대기 전체(개인 보충 emit) 수신 — public ∪ own 렌더용.
-socket.on('ladder:myRungs', function (data) {
-    if (!data || data.owner !== currentUser) return;
-    ladderMyRungs = Array.isArray(data.rungs) ? data.rungs.slice() : [];
-    if (ladderPhase === 'idle') renderLadderStatic();
+// ── 라벨 편집 소프트락/라이브 타이핑 수신 ──
+socket.on('ladder:labelLocked', function (d) {
+    if (!d || (d.side !== 'top' && d.side !== 'bottom')) return;
+    var key = d.side + ':' + parseInt(d.index, 10);
+    ladderLabelLocks[key] = d.name;
+    applyLabelLockState();
+});
+socket.on('ladder:labelUnlocked', function (d) {
+    if (!d || (d.side !== 'top' && d.side !== 'bottom')) return;
+    var idx = parseInt(d.index, 10);
+    var key = d.side + ':' + idx;
+    delete ladderLabelLocks[key];
+    applyLabelLockState();
+    // 타이핑 미리보기 잔상 제거(적대 리뷰 F6) — 타이퍼가 디바운스 커밋 전에 이탈하면 남들 화면에
+    // 서버가 저장한 적 없는 텍스트가 남는다. 락 해제 시 서버 권위 값(마지막 rungsUpdated)으로 복원.
+    // 커밋이 이미 갔다면 직후 rungsUpdated가 새 값을 다시 그린다(순간 되돌림은 허용 오차).
+    var row = document.getElementById(d.side === 'top' ? 'topLabelsRow' : 'bottomLabelsRow');
+    if (row && ladderPhase === 'idle') {
+        var inputs = row.querySelectorAll('.ladder-label-input');
+        for (var i = 0; i < inputs.length; i++) {
+            if (parseInt(inputs[i].dataset.index, 10) !== idx) continue;
+            if (inputs[i] === document.activeElement) break;
+            var v = ((d.side === 'top' ? ladderTopLabels : ladderBottomLabels)[idx]) || '';
+            if (inputs[i].value !== v) inputs[i].value = v;
+            break;
+        }
+    }
+});
+socket.on('ladder:labelLockDenied', function (d) {
+    if (!d) return;
+    var side = d.side, idx = parseInt(d.index, 10);
+    var key = side + ':' + idx;
+    // hostOnly deny는 실제 락이 아니다 — 락으로 저장하면 unlock이 영영 안 와 그 칸이 고착된다(적대 리뷰 F9).
+    if (d.name && !d.hostOnly) ladderLabelLocks[key] = d.name;
+    applyLabelLockState();
+    if (document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains('ladder-label-input') &&
+        document.activeElement.dataset.side === side &&
+        parseInt(document.activeElement.dataset.index, 10) === idx) {
+        document.activeElement.blur();
+    }
+    showCustomAlert(d.hostOnly ? '방장만 입력할 수 있어요.' : (escapeHtml(d.name || '다른 사용자') + ' 님이 입력 중이에요.'), 'info');
+});
+socket.on('ladder:labelTyping', function (d) {
+    if (!d || (d.side !== 'top' && d.side !== 'bottom')) return;
+    if (d.name === currentUser) return;
+    var side = d.side, idx = parseInt(d.index, 10);
+    var rowId = (side === 'top') ? 'topLabelsRow' : 'bottomLabelsRow';
+    var row = document.getElementById(rowId); if (!row) return;
+    var inputs = row.querySelectorAll('.ladder-label-input');
+    var el = null;
+    for (var i = 0; i < inputs.length; i++) { if (parseInt(inputs[i].dataset.index, 10) === idx) { el = inputs[i]; break; } }
+    if (!el) return;
+    if (el === document.activeElement) return;
+    el.value = (typeof d.text === 'string') ? d.text : '';
 });
 
 // ============================================
-// 시작 시퀀스 연출 — physical descent (서버 descendOne과 동일 추적, 칸 0..N-1 각각이 토큰)
+// 셔플/하강 연출 — physical descent (서버 descendOne과 동일 추적, 칸 0..N-1 각각이 토큰)
 // ============================================
 function ladderRungLeftY(rg)  { return (rg.points && rg.points.length >= 2) ? rg.points[0].y : rg.y; }
 function ladderRungRightY(rg) { return (rg.points && rg.points.length >= 2) ? rg.points[rg.points.length - 1].y : rg.y; }
@@ -1414,6 +1484,7 @@ function ladderStrokeRange(ctx, poly, from, to, color, width) {
     ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
 }
 function ladderStroke(ctx, poly, color, width) { ladderStrokeRange(ctx, poly, 0, 1, color, width); }
+// 폴리라인을 부드러운 곡선으로 잇는다 — 중점 경유 2차 베지어(다운샘플 막대기도 매끄럽게). 양 끝점 정확 통과(접점 불변).
 function ladderTracePath(ctx, poly) {
     var n = poly ? poly.length : 0;
     if (n < 2) return;
@@ -1441,9 +1512,6 @@ function ladderDrawBackground(ctx, W) {
     ctx.clearRect(0, 0, W, ctx.canvas.height);
     ctx.font = "bold 15px 'Jua', sans-serif"; ctx.textAlign = 'center'; ctx.fillStyle = '#b45309';
     for (var k = 0; k < N; k++) ctx.fillText((k + 1), laneX(W, k, N), topY - 22);
-    ctx.textAlign = 'left';
-    ladderDrawBottomSlots(ctx, W);
-    ladderDrawWinMarker(ctx, W);
 }
 function ladderDrawPoles(ctx, W) {
     var topY = LADDER_REVEAL_TOP, bottomY = LADDER_REVEAL_BOTTOM;
@@ -1456,13 +1524,14 @@ function ladderDrawPoles(ctx, W) {
     }
 }
 
-// 하강 프레임 — paths[k]를 tokenProgress[k]만큼 따라간 토큰을 그린다. 픽한 top만 토큰을 그린다(미선택 top은 inert).
+// 하강 프레임 — paths[k]를 tokenProgress[k]만큼 따라간 토큰을 그린다. 도착 토큰엔 결과(칸 번호 → 결과 라벨).
 function ladderDrawFrame(paths, tokenProgress) {
     var canvas = document.getElementById('ladderCanvas');
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
     var W = canvas.width;
     ladderDrawBackground(ctx, W);
+    // 막대기(현재 보드) — 유저=drawer색 굵게, base=회색 얇게
     var polylines = ladderRun.rungPolylines || [];
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (var ri = 0; ri < polylines.length; ri++) {
@@ -1477,31 +1546,14 @@ function ladderDrawFrame(paths, tokenProgress) {
     }
     ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
     ladderDrawPoles(ctx, W);
-    var pickedSet = ladderPickedTopSet();
-    var loserSet = ladderLoserTopSet();
+    // 토큰 — Phase C 상점 마커(있으면 이모지)·없으면 원형 색 토큰(colorIndex 기반).
     for (var k = 0; k < paths.length; k++) {
         var p = paths[k];
-        if (!pickedSet[p.startCol]) continue;   // 미선택 top은 토큰 없음(inert)
         var prog = tokenProgress[k] || 0;
+        var arrived = prog >= 0.999;
         var waiting = prog <= 0;
         var pos = ladderPointAt(p.pts, prog);
-        var marker = tokenMarkerFor(p.startCol, null);
-        var isLoser = loserSet[p.startCol];
-
-        // 패자 토큰 강조 — winSlot에 도착해 꼴등이 된 토큰을 시각적으로 부각(MINOR).
-        // "이 칸이 당첨에 떨어져서 꼴등"을 읽히게: 하강 시작 후 점점 강해지는 붉은 후광 ring.
-        if (isLoser && !waiting) {
-            ctx.save();
-            ctx.globalAlpha = 0.35 + 0.45 * Math.min(1, prog);   // 착지에 가까울수록 진하게
-            ctx.shadowColor = 'rgba(239, 68, 68, 0.95)';
-            ctx.shadowBlur = 10 + 14 * Math.min(1, prog);
-            ctx.beginPath();
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 3;
-            ctx.arc(pos.x, pos.y, 15, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-        }
+        var marker = tokenMarkerFor(p.startCol, null);   // Phase B: 항상 null → 원형 폴백
 
         if (marker) {
             ctx.save();
@@ -1521,6 +1573,7 @@ function ladderDrawFrame(paths, tokenProgress) {
             ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
             ctx.globalAlpha = 1;
         }
+
         // 토큰 아래 칸 번호(대기 중 아닐 때)
         if (!waiting) {
             ctx.save();
@@ -1530,29 +1583,17 @@ function ladderDrawFrame(paths, tokenProgress) {
             ctx.fillText((p.startCol + 1) + '번', pos.x, pos.y + 20);
             ctx.restore();
         }
+        // 도착 토큰 위에 결과 라벨
+        if (arrived) {
+            ctx.font = "bold 12px 'Jua', sans-serif";
+            ctx.fillStyle = '#374151';
+            ctx.textAlign = 'center';
+            ctx.fillText('→ ' + (p.resultText || ''), pos.x, pos.y - 16);
+        }
     }
-    ctx.textAlign = 'left';
-}
-// 픽된 top 집합(불린 배열) — 미선택 top은 토큰 없음.
-function ladderPickedTopSet() {
-    var set = new Array(ladderNumColumns).fill(false);
-    var src = (ladderRun.userTops && Object.keys(ladderRun.userTops).length) ? ladderRun.userTops : ladderUserTops;
-    Object.keys(src || {}).forEach(function (n) {
-        var t = src[n];
-        if (typeof t === 'number' && t >= 0 && t < set.length) set[t] = true;
-    });
-    return set;
-}
-// 패자 top 집합(불린 배열) — reveal payload loserTop(발표 loser들의 top, 서버 권위)으로 토큰 강조.
-function ladderLoserTopSet() {
-    var set = new Array(ladderNumColumns).fill(false);
-    (ladderRun.loserTop || []).forEach(function (t) {
-        if (typeof t === 'number' && t >= 0 && t < set.length) set[t] = true;
-    });
-    return set;
 }
 
-// ── 사라짐/서버그리기 연출 단계 ──
+// ── 스크램블 연출 단계 ──
 function ladderDrawScramble(erase, drawProgress) {
     var canvas = document.getElementById('ladderCanvas');
     if (!canvas) return;
@@ -1585,60 +1626,8 @@ function ladderDrawScramble(erase, drawProgress) {
     ladderRun.addedRender.forEach(function (r) { ladderStrokeRange(ctx, r.poly, 0, drawProgress, r.color, r.width); });
     ladderDrawPoles(ctx, canvas.width);
 }
-// 당첨 칸 섞기: 시작 시 서버가 winSlot을 재추첨 — 마커가 prevSlot에서 출발해 바닥 칸을 순회(감속)하다
-// finalSlot에 정착(룰렛 하이라이트 느낌). 경로는 prev→final에서 결정적 산출(Math.random 금지):
-// 고정 2바퀴 + 잔여 스텝, easeOutCubic 감속. 어떤 경우든 SHUFFLE_MS를 채운다(빈 단계 lockstep 패턴).
-// 백드롭은 빌드 뷰(renderLadderStatic) — 전체 막대기 공개는 다음 인지창 단계의 몫(공개 시점 보존).
-function ladderRunWinShuffle(prevSlot, finalSlot, done) {
-    setGameStatus('🎲 당첨 칸이 섞입니다!', 'active');
-    var N = ladderNumColumns;
-    var validFinal = (typeof finalSlot === 'number' && finalSlot >= 0 && finalSlot < N);
-    function settle() {
-        ladderWinShuffle.active = false;
-        if (validFinal) ladderWinSlot = finalSlot;   // 최종값은 정착 시점에만 반영(조기 노출 방지)
-        renderLaneButtons();                          // lane 버튼 .is-win 을 최종 칸으로 갱신
-        renderLadderStatic();
-        done();
-    }
-    if (!validFinal || N < 2) {
-        // 연출 대상이 없어도 시간은 채운다(서버 ladderRevealDelay와 lockstep).
-        ladderRevealTimers.push(setTimeout(settle, LADDER_WINSLOT_SHUFFLE_MS));
-        return;
-    }
-    var startSlot = (typeof prevSlot === 'number' && prevSlot >= 0 && prevSlot < N) ? prevSlot : finalSlot;
-    // 결정적 경로: 고정 2바퀴 + prev→final 잔여 스텝(0..N-1). 같은 칸 재선정이면 정확히 2바퀴.
-    var steps = 2 * N + (((finalSlot - startSlot) % N) + N) % N;
-    ladderWinShuffle.active = true;
-    ladderWinShuffle.slot = startSlot;
-    playLadderSound('ladder_pick', 0.35);
-    var start = performance.now();
-    function frame(now) {
-        var t = Math.min(1, (now - start) / LADDER_WINSLOT_SHUFFLE_MS);
-        var eased = 1 - Math.pow(1 - t, 3);   // easeOutCubic — 빠르게 돌다 감속 정착
-        var slot = (startSlot + Math.min(steps, Math.floor(steps * eased))) % N;
-        if (slot !== ladderWinShuffle.slot) {
-            ladderWinShuffle.slot = slot;
-            playLadderSound('ladder_pick', 0.2);
-        }
-        renderLadderStatic();
-        if (t >= 1) { ladderRevealRAF = null; settle(); return; }
-        ladderRevealRAF = requestAnimationFrame(frame);
-    }
-    ladderRevealRAF = requestAnimationFrame(frame);
-}
-// 인지창: 스크램블 *전* 사다리(remaining + erased)를 그대로 보여준다. RECOGNITION_MS 채움(lockstep).
-// 이전에는 initialRungs(= remaining + added)를 그려서, 이어지는 사라짐 단계(remaining + erased)로 넘어갈 때
-// added가 통째로 증발하고 erased가 부활하는 렌더 팝이 났다(B). 캡션("모두가 그린 사다리")과도 모순.
-// ladderDrawScramble(0, 0)은 사라짐 단계의 첫 프레임과 byte-identical이라 경계에서 팝이 0이 된다.
-// (ladderRun.rungs/rungPolylines는 initialRungs 그대로 유지 — 하강 path와 mutation replay가 의존.)
-function ladderRunRecognition(done) {
-    setGameStatus('👀 모두가 그린 사다리를 확인하세요...', 'active');
-    ladderDrawScramble(0, 0);   // 스크램블 전 union(remaining + erased), 토큰 없음
-    ladderRevealTimers.push(setTimeout(done, LADDER_RECOGNITION_MS));
-}
-// 사라짐: glow → 빛 쓸기. 대상 0개여도 ERASE_MS 채움(lockstep). 캡션 "사다리 사라집니다".
+// 지우기: glow → 빛 쓸기. 대상 0개여도 ERASE_MS 채움(빈 단계 조기 스킵 방지 — lockstep).
 function ladderRunErase(done) {
-    setGameStatus('🌫️ 사다리 사라집니다...', 'active');
     var HL_FRAC = 0.30;
     if (!ladderRun.erasedRender.length) {
         ladderDrawScramble(0, 0);
@@ -1665,9 +1654,8 @@ function ladderRunErase(done) {
     }
     ladderRevealRAF = requestAnimationFrame(frame);
 }
-// 서버 그리기: added(balance 포함)를 펜 구슬로 [0,t]. 대상 0개여도 DRAW_MS 채움(lockstep).
+// 그리기: added를 펜 구슬로 [0,t]. 대상 0개여도 DRAW_MS 채움(lockstep).
 function ladderRunDraw(done) {
-    setGameStatus('✏️ 사다리를 다시 그립니다...', 'active');
     if (!ladderRun.addedRender.length) {
         ladderDrawScramble(1, 0);
         ladderRevealTimers.push(setTimeout(done, LADDER_DRAW_MS));
@@ -1689,7 +1677,7 @@ function ladderRunDraw(done) {
     }
     ladderRevealRAF = requestAnimationFrame(frame);
 }
-// 카운트다운: 3·2·1·시작! 오버레이.
+// 카운트다운: 3·2·1·시작! 오버레이. 하강 직전. 현재 보드(초기 보드)를 정적으로 그린 위에 올린다.
 function ladderRunCountdown(done) {
     var overlay = document.getElementById('ladderScrambleOverlay');
     var steps = ['3', '2', '1', '시작!'];
@@ -1710,12 +1698,13 @@ function ladderRunCountdown(done) {
     }, LADDER_COUNTDOWN_MS));
 }
 
-// ── 하강 구간 타임라인(세그먼트) — 백그라운드 탭 복귀 seek(A1)의 좌표계 ──
-// 시퀀스: [solo0, mut0, solo1, mut1, …, solo(N-3), mut(N-3), pair]. N<=2면 세그먼트 1개.
-// 합 = descentSlots×TOKEN_SLOT + mutations×MUTATION — ladderRevealDelay(N)의 하강 항과 동일(타이밍 상수 불변).
-function ladderDescentSegments(N) {
+// ── 하강 구간 타임라인(세그먼트) — 백그라운드 탭 catch-up(A1)·재진입 seek의 좌표계 ──
+// sequential: [solo0, mut0, solo1, mut1, …, solo(N-3), mut(N-3), pair]. N==1: single, N==2: pair.
+// simultaneous: 단일 'all' 세그먼트(변형 0). 합 = ladderRevealDelay의 하강 항과 동일(타이밍 상수 불변).
+function ladderDescentSegments(N, mode) {
     var segs = [];
     if (N <= 0) return segs;
+    if (mode === 'simultaneous') { segs.push({ kind: 'all', k: -1, ms: LADDER_TOKEN_SLOT_MS }); return segs; }
     if (N === 1) { segs.push({ kind: 'single', k: 0, ms: LADDER_TOKEN_SLOT_MS }); return segs; }
     if (N === 2) { segs.push({ kind: 'pair', k: -1, ms: LADDER_TOKEN_SLOT_MS }); return segs; }
     for (var k = 0; k <= N - 3; k++) {
@@ -1726,8 +1715,8 @@ function ladderDescentSegments(N) {
     return segs;
 }
 // 하강 시작으로부터 tDescent(ms) 지점의 세그먼트 인덱스/오프셋. 하강 구간을 지났으면 null.
-function ladderDescentUnitAt(N, tDescent) {
-    var segs = ladderDescentSegments(N);
+function ladderDescentUnitAt(N, mode, tDescent) {
+    var segs = ladderDescentSegments(N, mode);
     var acc = 0;
     for (var i = 0; i < segs.length; i++) {
         if (tDescent < acc + segs[i].ms) return { unit: i, offset: tDescent - acc };
@@ -1735,18 +1724,18 @@ function ladderDescentUnitAt(N, tDescent) {
     }
     return null;
 }
-// 리빌 시작부터 하강 시작까지(= 섞기 + 인지창 + 사라짐 + 그리기 + 카운트다운).
+// 리빌 시작부터 하강 시작까지(= 지우기 + 그리기 + 셔플 + 카운트다운).
 function ladderPreDescentMs() {
-    return LADDER_WINSLOT_SHUFFLE_MS + LADDER_RECOGNITION_MS + LADDER_ERASE_MS + LADDER_DRAW_MS + LADDER_COUNTDOWN_MS;
+    return LADDER_ERASE_MS + LADDER_DRAW_MS + LADDER_SHUFFLE_MS + LADDER_COUNTDOWN_MS;
 }
 // 벽시계 기준 "지금 하강이 있어야 할 지점". 선행 단계가 숨김 탭에서 늦게 끝났으면 그만큼 앞당겨 시작한다.
 function ladderDescentSeekFromClock() {
     if (!ladderRevealStartAt) return 0;
     return Math.max(0, (Date.now() - ladderRevealStartAt) - ladderPreDescentMs());
 }
-// 변형 1스텝을 애니 없이 보드에 반영(멱등 — id 기준). catch-up/seek 전용.
-// 서버 simulateMutation은 이미 착지한 토큰의 landings를 이후 변형에서 보존하므로,
-// 스크립트를 통째로 선반영해도 지나간 토큰의 착지칸은 바뀌지 않는다.
+// 변형 1스텝을 애니 없이 보드에 반영(멱등 — id 기준). catch-up/seek/jump 전용.
+// 서버 시뮬은 이미 착지한 토큰의 landings를 이후 변형에서 보존하므로(arrived invariant),
+// 스크립트를 순서대로 선반영해도 지나간 토큰의 착지칸은 바뀌지 않는다.
 function ladderApplyMutationStep(step) {
     if (!step || step.type === 'none') return;
     var i;
@@ -1769,7 +1758,7 @@ function ladderApplyMutationStep(step) {
         }
     }
 }
-// 건너뛴 토큰의 경로 끝점을 서버 landings에 맞춘다 — 앞당겨도 화면이 결과를 설명해야 한다(불변조건 4).
+// 건너뛴 토큰의 경로 끝점을 서버 landings에 맞춘다 — 앞당겨도 화면이 결과를 설명해야 한다.
 function ladderSnapPathToLanding(path, k) {
     var land = (ladderRun.landings || [])[k];
     if (typeof land !== 'number' || land < 0 || land >= ladderNumColumns) return;
@@ -1780,20 +1769,24 @@ function ladderSnapPathToLanding(path, k) {
     if (Math.abs(last.x - x) > 0.5) pts[pts.length - 1] = { x: x, y: last.y };
 }
 
-// living-rungs 오케스트레이션: 솔로 토큰 0..N-3(각 사이 변형) → 마지막 쌍 동시 하강 → 결과.
-// seekMs > 0이면 하강 구간의 그 지점부터 시작한다(탭 복귀 catch-up) — 지나간 세그먼트는
-// 순서대로 결과 상태만 선반영(변형 적용 + 토큰 착지)해 보드/착지칸이 정상 재생과 동일해진다.
+// living-rungs 오케스트레이션 — 세그먼트 기반(runSegment). seekMs > 0이면 하강 구간의 그 지점부터
+// 시작한다(탭 복귀 catch-up·재진입 정밀 복구) — 지나간 세그먼트는 순서대로 결과 상태만 선반영
+// (변형 적용 + 토큰 착지)해 보드/착지칸이 정상 재생과 동일해진다.
+//   simultaneous(기본): 'all' 단일 세그먼트 — 전원이 같은 초기 보드에서 동시에 하강(변형 0).
+//   sequential: 솔로 토큰 0..N-3(각 사이 변형) → 마지막 쌍 동시 하강.
 function ladderRunLiving(seekMs) {
     var N = ladderNumColumns;
     if (N <= 0) { renderLadderStatic(); return; }
+    var mode = (ladderRun.descentMode || 'simultaneous');
     var tokenProgress = new Array(N).fill(0);
     var paths = new Array(N);
-    var segs = ladderDescentSegments(N);
+    var segs = ladderDescentSegments(N, mode);
     ladderLiving = { N: N, paths: paths, tokenProgress: tokenProgress, unit: -1 };
 
     function buildPathFor(k) {
         paths[k] = {
             startCol: k,
+            resultText: ladderRun.results[k] || '',
             color: LADDER_TOKEN_COLORS[k % LADDER_TOKEN_COLORS.length],
             pts: ladderBuildPath(k)
         };
@@ -1804,7 +1797,7 @@ function ladderRunLiving(seekMs) {
             }
         }
     }
-    // seek으로 건너뛴 토큰 — 착지 상태로 즉시 확정. built는 항상 0..builtCount-1 조밀(ladderDrawFrame이 위치=칸 가정).
+    // seek으로 건너뛴 토큰 — 착지 상태로 즉시 확정. built는 항상 0..builtCount-1 조밀.
     var builtCount = 0;
     function settlePathFor(k) {
         buildPathFor(k);
@@ -1817,8 +1810,7 @@ function ladderRunLiving(seekMs) {
         var visibleUpto = cols[cols.length - 1] + 1;
         setGameStatus(label, 'active');
         playLadderSound('ladder_descend', 0.6);
-        var now0 = performance.now();
-        var start = now0 - Math.max(0, offsetMs || 0);
+        var start = performance.now() - Math.max(0, offsetMs || 0);
         function frame(now) {
             var t = Math.min(1, (now - start) / LADDER_TOKEN_SLOT_MS);
             cols.forEach(function (c) { tokenProgress[c] = t; });
@@ -1843,21 +1835,29 @@ function ladderRunLiving(seekMs) {
             ladderRunMutation(ladderRun.mutationScript[sg.k], paths, tokenProgress, sg.k, next, offsetMs);
             return;
         }
+        if (sg.kind === 'all') {
+            var all = [];
+            for (var c = 0; c < N; c++) all.push(c);
+            descendTokens(all, '🪜 모두 동시에 내려갑니다!', offsetMs, next);
+            return;
+        }
         if (sg.kind === 'pair') {
             descendTokens([N - 2, N - 1], '🪜 마지막 두 칸이 동시에 내려갑니다... (' + N + '/' + N + ')', offsetMs, next);
             return;
         }
+        // solo / single
         descendTokens([sg.k], '🪜 ' + (sg.k + 1) + '번 칸이 내려갑니다... (' + (sg.k + 1) + '/' + N + ')', offsetMs, next);
     }
 
     // seek 해석 — 지나간 세그먼트를 타임라인 순서대로 선반영(변형 → 토큰 착지 → 변형 …).
-    var seek = ladderDescentUnitAt(N, Math.max(0, seekMs || 0));
+    var seek = ladderDescentUnitAt(N, mode, Math.max(0, seekMs || 0));
     var startUnit = seek ? seek.unit : segs.length;
     var startOffset = seek ? seek.offset : 0;
     for (var pi = 0; pi < startUnit; pi++) {
         var sg0 = segs[pi];
         if (sg0.kind === 'mut') ladderApplyMutationStep(ladderRun.mutationScript[sg0.k]);
         else if (sg0.kind === 'pair') { settlePathFor(N - 2); settlePathFor(N - 1); }
+        else if (sg0.kind === 'all') { for (var ai = 0; ai < N; ai++) settlePathFor(ai); }
         else settlePathFor(sg0.k);
     }
     ladderDrawFrame(paths.slice(0, builtCount), tokenProgress);   // 현재 보드 + 이미 착지한 토큰 1프레임
@@ -1865,7 +1865,7 @@ function ladderRunLiving(seekMs) {
 }
 
 // living-rungs 변형 1단계 — add(펜 구슬), remove(glow→빛쓸기), none(정지 대기). 전부 LADDER_MUTATION_MS 안(lockstep).
-// offsetMs > 0이면 그만큼 이미 지난 것으로 보고 중간부터 재생한다(탭 복귀 seek — A1).
+// offsetMs > 0이면 그만큼 이미 지난 것으로 보고 중간부터 재생한다(탭 복귀/재진입 seek — A1).
 function ladderRunMutation(step, paths, tokenProgress, kArrived, done, offsetMs) {
     var visible = paths.slice(0, kArrived + 1);
     var now0 = performance.now();
@@ -1968,60 +1968,55 @@ function ladderRunMutation(step, paths, tokenProgress, kArrived, done, offsetMs)
 }
 
 // 모든 토큰 하강 + 변형 종료 → finished 보드 영속 + 결과 팝업.
-// holdMs 생략 시 LADDER_FINAL_HOLD(정상 재생). catch-up으로 앞당겨 도달했으면 남은 시간만 기다린다.
-// 결과 타이머는 ladderRevealTimers가 아니라 전용 핸들에 둔다 — 같은 틱의 tournamentRound가 죽이면
-// 재대결 사유를 설명하는 오버레이가 통째로 유실된다(A3).
+// holdMs 생략 시 LADDER_FINAL_HOLD(정상 재생). catch-up/jump로 앞당겨 도달했으면 남은 시간만 기다린다.
+// 결과 타이머는 ladderRevealTimers가 아니라 전용 핸들(A3) — 라운드 전환에서만 취소돼 결과 유실이 없다.
 function finishLiving(paths, tokenProgress, holdMs) {
+    ladderShuffleSettleNow();   // 백그라운드 탭 throttle 레이스 — 셔플이 못 안착했으면 강제 완결(멱등)
     ladderDrawFrame(paths, tokenProgress);
     ladderFinishedPaths = paths;
     ladderFinishedProgress = tokenProgress.slice();
+    ladderLiving = null;
     setGameStatus('🎊 결과 발표!', 'finished');
     playLadderSound('ladder_result', 1.0);
-    ladderScheduleResultOverlay(holdMs == null ? LADDER_FINAL_HOLD : holdMs);
+    ladderClearResultPopupTimer();
+    ladderResultPopupTimer = setTimeout(function () {
+        ladderResultPopupTimer = null;
+        ladderShowResultOverlay();
+    }, Math.max(0, holdMs == null ? LADDER_FINAL_HOLD : holdMs));
 }
 
-// 섞기 RAF가 숨김 탭에서 얼어 settle()을 못 밟았을 때의 보정 — 최종 winSlot 확정 + 카운트다운 오버레이 정리.
-// jump(A2)와 seek(A1) 양쪽 진입점에서 호출해야 한다. 한쪽만 보정하면 나머지 경로가 stale winSlot을 들고 가
-// 바닥 "당첨" 링·레인 is-win 표시가 실제 착지칸과 어긋난다(2026-07-02 "화면이 결과를 설명해야 한다" 계약).
-function ladderSettleRevealChrome() {
-    var N = ladderNumColumns;
-    if (typeof ladderRun.winSlot === 'number' && ladderRun.winSlot >= 0 && ladderRun.winSlot < N) {
-        ladderWinSlot = ladderRun.winSlot;
-    }
-    ladderWinShuffle.active = false;
-    var overlay = document.getElementById('ladderScrambleOverlay');
-    if (overlay) { overlay.textContent = ''; overlay.classList.remove('show'); }
-    renderLaneButtons();
-}
-
-// 서버가 이미 라운드 종료를 알렸는데 로컬 연출이 뒤처졌을 때 — 남은 변형을 전부 반영하고
-// landings대로 최종 프레임을 렌더한 뒤 결과로 넘어간다(A2). 화면이 결과를 설명해야 한다는
-// 2026-07-02 신뢰 계약 때문에 "결과만 띄우고 캔버스는 버리는" 처리는 금지.
+// 서버가 이미 라운드 종료를 알렸거나 벽시계가 하강 종료를 지났는데 로컬 연출이 뒤처졌을 때 —
+// 남은 변형을 전부 멱등 반영하고 landings대로 최종 프레임을 렌더한 뒤 결과로 넘어간다(A2).
+// "화면이 결과를 설명해야 한다" 계약 — 결과만 띄우고 캔버스를 버리는 처리는 금지.
 function ladderJumpToFinal(holdMs) {
     var N = ladderNumColumns;
     if (ladderPhase !== 'revealing' || N <= 0) return false;
-    clearLadderRevealTimers();   // 진행 중 연출 RAF/타이머 중단 (결과 타이머는 별도 핸들이라 생존)
-    ladderSettleRevealChrome();  // 섞기 미정착 시 최종 winSlot 확정 + "시작!" 오버레이 정리
+    clearLadderRevealTimers();   // 진행 중 연출 RAF/타이머 중단 (결과 타이머는 전용 핸들이라 생존)
+    ladderShuffleSettleNow();    // 셔플 미안착이면 라벨 강제 안착
+    var overlay = document.getElementById('ladderScrambleOverlay');
+    if (overlay) { overlay.textContent = ''; overlay.classList.remove('show'); }
     (ladderRun.mutationScript || []).forEach(ladderApplyMutationStep);   // 멱등 — 이미 반영된 스텝은 무시
     var paths = new Array(N);
     var tokenProgress = new Array(N).fill(1);
     for (var k = 0; k < N; k++) {
         paths[k] = {
             startCol: k,
+            resultText: ladderRun.results[k] || '',
             color: LADDER_TOKEN_COLORS[k % LADDER_TOKEN_COLORS.length],
             pts: ladderBuildPath(k)
         };
         ladderSnapPathToLanding(paths[k], k);
     }
     ladderLiving = null;
-    finishLiving(paths, tokenProgress, holdMs);   // 레인 버튼은 ladderSettleRevealChrome에서 이미 갱신됨
+    finishLiving(paths, tokenProgress, holdMs);
     return true;
 }
 
 // ── 백그라운드 탭 복귀 catch-up (A1) ──
-// 리빌 연출은 전부 RAF 체인이라 숨김 탭에서 정지하는데 서버 endTimeout은 그대로 발화한다.
+// 리빌 하강은 RAF 체인이라 숨김 탭에서 정지하는데 서버 endTimeout은 그대로 발화한다.
 // 복귀 시 벽시계 위치로 재동기하지 않으면 이미 끝난 게임의 하강이 멈춘 지점부터 재생된다.
-// (js/horse-race.js의 visibilitychange catch-up/reconcile 패턴을 사다리 세그먼트 타임라인에 맞춘 것.)
+// 하강 전 구간(지우기/그리기/셔플/카운트다운)은 각 단계가 벽시계 경과(t) 기반이라 복귀 프레임에서
+// 자체 수렴하고, 카운트다운 끝의 ladderDescentSeekFromClock()이 누적 지연을 흡수한다 — 개입하지 않는다.
 function ladderOnVisibilityChange() {
     if (document.hidden) return;
     if (ladderPhase !== 'revealing' || !ladderRevealStartAt) return;
@@ -2032,12 +2027,15 @@ function ladderOnVisibilityChange() {
         return;
     }
     var pre = ladderPreDescentMs();
-    if (elapsed < pre) return;   // 하강 전 구간은 setTimeout 기반이라 자체 수렴 — 개입하지 않는다
-    var target = ladderDescentUnitAt(ladderNumColumns, elapsed - pre);
+    if (elapsed < pre) return;   // 하강 전 구간 — 자체 수렴(위 주석)
+    var mode = (ladderRun.descentMode || 'simultaneous');
+    var target = ladderDescentUnitAt(ladderNumColumns, mode, elapsed - pre);
     if (!target) return;
     if (ladderLiving && target.unit <= ladderLiving.unit) return;   // 뒤로 되감지 않는다
     clearLadderRevealTimers();
-    ladderSettleRevealChrome();   // 섞기 RAF가 얼어 settle()을 못 밟았을 수 있다 — jump 경로와 동일하게 보정
+    ladderShuffleSettleNow();
+    var ov = document.getElementById('ladderScrambleOverlay');
+    if (ov) { ov.textContent = ''; ov.classList.remove('show'); }
     ladderRunLiving(elapsed - pre);
 }
 document.addEventListener('visibilitychange', ladderOnVisibilityChange);
@@ -2054,95 +2052,225 @@ function ladderPathEndColumn(pts) {
     return best;
 }
 
-// 결과 발표 팝업 — winSlot에 떨어진 패자(들) 강조. ladder:gameEnd가 채운다(서버 권위).
-var ladderPendingResult = null;   // ladder:gameEnd payload 보관(연출 종료 후 표시)
+// 결과 발표 팝업 — 상단 라벨(또는 N번) → 최종 결과 라벨을 한 행씩(서버 권위 ladderRun). textContent — XSS 안전.
 function ladderShowResultOverlay() {
-    document.body.classList.remove('race-running'); // 연출 종료(결과 팝업) — 스티키 광고 복원. 조기 return보다 앞(항상 실행)
+    document.body.classList.remove('race-running'); // 연출 종료(결과 팝업) — 스티키 광고 복원(C-6). 조기 return보다 앞(항상 실행)
+    ladderResultShown = true;   // 이번 라운드 결과 노출 확정(gameEnd 유실 방지 판정 기준)
     var overlay = document.getElementById('resultOverlay');
     var box = document.getElementById('resultRankings');
     if (!overlay || !box) return;
     box.innerHTML = '';
-    var data = ladderPendingResult || {};
-    var loserPool = data.loserPool || [];
-    var finished = !!data.finished;
-
-    var title = document.createElement('div');
-    title.className = 'ladder-result-headline';
-    if (finished) {
-        title.textContent = loserPool.length ? ('🏴 최종 꼴등: ' + loserPool[0]) : '결과';
-    } else {
-        title.textContent = '⚔️ 당첨에 걸린 ' + loserPool.length + '명 — 재대결!';
-    }
-    box.appendChild(title);
-
-    loserPool.forEach(function (name) {
+    var N = ladderNumColumns;
+    for (var i = 0; i < N; i++) {
+        var topLabel = (ladderRun.topLabels[i] && ladderRun.topLabels[i].length) ? ladderRun.topLabels[i] : ((i + 1) + '번');
+        var resultText = ladderRun.results[i] || '';
         var row = document.createElement('div');
         row.className = 'ladder-result-row';
-        var left = document.createElement('span');
-        left.className = 'ladder-result-name';
-        left.textContent = name;
+        var left = document.createElement('div');
+        var name = document.createElement('span');
+        name.className = 'ladder-result-name';
+        name.textContent = topLabel;
+        var lane = document.createElement('span');
+        lane.className = 'ladder-result-lane';
+        lane.textContent = ' ' + (i + 1) + '번';
+        left.appendChild(name); left.appendChild(lane);
         var tag = document.createElement('span');
-        tag.className = 'ladder-result-tag loser';
-        tag.textContent = finished ? '🏴 꼴등' : '⚔️ 재대결';
+        tag.className = 'ladder-result-tag pass';
+        tag.textContent = '→ ' + (resultText || '-');
         row.appendChild(left); row.appendChild(tag);
         box.appendChild(row);
-    });
-    if (!loserPool.length) {
-        var none = document.createElement('div');
-        none.className = 'ladder-result-row';
-        none.textContent = '결과를 불러오지 못했어요.';
-        box.appendChild(none);
-    }
-
-    // 다음 라운드 버튼 — finished면 새 게임(reset), sub-round면 재준비 안내.
-    var nextBtn = document.getElementById('ladderNextRoundBtn');
-    if (nextBtn) {
-        if (finished) {
-            nextBtn.textContent = isHost ? '🔄 새 게임' : '결과 닫기';
-            nextBtn.onclick = function () { if (isHost) { closeResultOverlay(); ladderReset(); } else closeResultOverlay(); };
-        } else {
-            nextBtn.textContent = '⚔️ 재대결 준비';
-            nextBtn.onclick = function () { closeResultOverlay(); };
-        }
     }
     overlay.classList.add('visible');
-    ladderResultShown = true;   // 이번 라운드 결과는 실제로 노출됨(tournamentRound 보장 표시의 판정 기준)
-    // 재대결 안내는 읽을 시간만 주고 스스로 닫힌다 — 누가 방치해도 다음 라운드가 멎지 않게.
-    ladderClearResultAutoClose();
-    if (!finished) {
-        ladderResultAutoCloseTimer = setTimeout(function () {
-            ladderResultAutoCloseTimer = null;
-            closeResultOverlay();
-        }, LADDER_RESULT_AUTOCLOSE_MS);
+}
+
+// 모션 줄이기 선호 — 셔플 애니를 즉시 안착으로 대체(최종 상태 동일, 순수 외관).
+function ladderReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+// 셔플 최종 안착 — 멱등 헬퍼(공정성 수렴 단일 지점). DOM을 perm 순서로 재배열 + 값/dataset 하드셋 + 클래스/transform 정리.
+//   최종 표시 라벨 = 서버가 보낸 "이미 셔플된" bottomLabels[j] 그대로 — perm 재적용 금지(이중 치환 함정:
+//   bottomLabels[perm[j]]는 payload가 엔트리 순서였던 시절의 식. 지금 적용하면 라벨이 다시 어긋난다).
+//   호출 경로: 셔플 타임라인 종점(SHUFFLE_MS) / 모션 줄이기 즉시 / finishLiving·jump·catch-up 강제 완결.
+function ladderShuffleSettleNow() {
+    if (ladderShuffleSettled) return;
+    ladderShuffleSettled = true;
+    // 백그라운드 탭 레이스 차단: pending FLIP rAF가 정리 후 늦게 발화해 transform을 재주입하지 못하게 취소.
+    if (ladderShuffleRAF) { cancelAnimationFrame(ladderShuffleRAF); ladderShuffleRAF = null; }
+    var row = document.getElementById('bottomLabelsRow');
+    if (!row) return;
+    var inputs = Array.prototype.slice.call(row.querySelectorAll('.ladder-label-input'));
+    var perm = ladderRun.perm || [];
+    var N = ladderNumColumns;
+    // 클래스/인라인 정리는 재배열 가능 여부와 무관하게 항상.
+    inputs.forEach(function (el) {
+        el.classList.remove('ladder-shuffling');
+        el.style.transition = '';
+        el.style.transform = '';
+    });
+    if (perm.length !== N || inputs.length !== N) return;   // payload/행 불일치 — 재배열 스킵(엔트리 순서 유지)
+    // 슬롯 j ← 원본 인덱스 perm[j] 순으로 DOM 재배열. 안착 전 dataset.index = 원본 인덱스(buildLabelRow가 부여).
+    var byIndex = {};
+    inputs.forEach(function (el) { byIndex[parseInt(el.dataset.index, 10)] = el; });
+    var ordered = [];
+    for (var j = 0; j < N; j++) {
+        var el = byIndex[perm[j]];
+        if (!el) return;   // dataset 손상 방어 — 재배열 포기(클래스 정리는 위에서 이미 완료)
+        ordered.push(el);
     }
+    ordered.forEach(function (el) { row.appendChild(el); });
+    // 표시 라벨 하드셋: 슬롯 j = 서버 셔플 배열 bottomLabels[j]. dataset.index = 슬롯 위치로 갱신 →
+    // DOM 위치 = dataset.index 정합 유지(buildLabelRow 같은-N positional sync 계약 보존).
+    for (var j2 = 0; j2 < N; j2++) {
+        ordered[j2].value = (ladderRun.bottomLabels[j2] || '');
+        ordered[j2].dataset.index = String(j2);
+    }
+}
+
+// 셔플: 바닥 라벨 카드(#bottomLabelsRow 입력)를 여러 번 눈에 보이게 위치 교환한 뒤 서버 perm 순서로 안착.
+//   스크램블 뒤·카운트다운 앞 직렬 phase(SHUFFLE_MS) — 서버 ladderRevealDelay가 SHUFFLE_MS를 합산(lockstep).
+//   콜백 없음: 다음 단계 진행은 오직 오케스트레이션의 카운트다운 예약 타이머가 담당(하강 이중 시작 차단).
+//   중간 교환은 transform-only(translateX) 시각 효과 — DOM 순서/el.value를 건드리지 않는다(결정적, 랜덤 0회).
+//   모든 콜백은 idle 가드 — idle(재연결/roundReset 강제)만 중단하고 finished는 진행(gameEnd 선착 시나리오).
+function ladderRunShuffle() {
+    if (ladderPhase === 'idle') return;
+    var row = document.getElementById('bottomLabelsRow');
+    var perm = ladderRun.perm || [];
+    var N = ladderNumColumns;
+    if (!row || perm.length !== N) return;   // payload 없음 등 — 연출 스킵 폴백(안착은 settle이 담당)
+    var inputs = Array.prototype.slice.call(row.querySelectorAll('.ladder-label-input'));
+    if (inputs.length !== N) return;
+
+    setGameStatus('🔀 결과를 섞는 중...', 'active');
+
+    // 모션 줄이기: 애니 없이 즉시 안착(최종 상태는 동일).
+    if (ladderReducedMotion()) { ladderShuffleSettleNow(); return; }
+
+    // phase 이탈(재연결 강제 idle 등) 시 정리.
+    function shuffleBail() {
+        if (ladderShuffleRAF) { cancelAnimationFrame(ladderShuffleRAF); ladderShuffleRAF = null; }
+        inputs.forEach(function (el) {
+            el.classList.remove('ladder-shuffling');
+            el.style.transition = '';
+            el.style.transform = '';
+        });
+    }
+
+    // 각 슬롯의 화면상 left(원래 순서) — 카드 폭이 같아 슬롯 s의 x좌표 = firstLeft[s].
+    var firstLeft = inputs.map(function (el) { return el.getBoundingClientRect().left; });
+    inputs.forEach(function (el) { el.classList.add('ladder-shuffling'); });
+
+    // ── 1) 중간 시각 교환(transform-only) ── DOM 순서는 그대로, translateX로만 자리바꿈. 결정적 배치(회전/반전).
+    function rotationPlace(step) {
+        var p = new Array(N);
+        for (var i = 0; i < N; i++) p[i] = (i + step) % N;
+        return p;
+    }
+    function reversePlace() {
+        var p = new Array(N);
+        for (var i = 0; i < N; i++) p[i] = N - 1 - i;
+        return p;
+    }
+    var midStates = [];
+    if (N === 2) {
+        midStates.push([1, 0]);
+        midStates.push([0, 1]);
+        midStates.push([1, 0]);
+    } else if (N > 2) {
+        midStates.push(rotationPlace(1));
+        midStates.push(reversePlace());
+        midStates.push(rotationPlace(2));
+        if (N > 3) midStates.push(rotationPlace(N - 1));
+    }
+    // 시간 배분: 중간 교환 ~62%, 최종 안착(FLIP) ~38%. 둘 합 = LADDER_SHUFFLE_MS.
+    var settleMs = Math.max(700, Math.round(LADDER_SHUFFLE_MS * 0.38));
+    var midTotalMs = LADDER_SHUFFLE_MS - settleMs;
+    var stepMs = midStates.length ? (midTotalMs / midStates.length) : midTotalMs;
+
+    function applyMidState(place) {
+        inputs.forEach(function (el, i) {
+            var dx = firstLeft[place[i]] - firstLeft[i];
+            el.style.transition = 'transform ' + Math.max(180, Math.round(stepMs * 0.85)) + 'ms cubic-bezier(0.5, 0, 0.5, 1)';
+            el.style.transform = 'translateX(' + dx + 'px)';
+        });
+    }
+    midStates.forEach(function (place, si) {
+        ladderRevealTimers.push(setTimeout(function () {
+            if (ladderShuffleSettled) return;
+            if (ladderPhase === 'idle') { shuffleBail(); return; }
+            applyMidState(place);
+            playLadderSound('ladder_pick', 0.25);
+        }, Math.round(stepMs * si)));
+    });
+
+    // ── 2) FLIP 재배열 + 슬라이드 ── 중간 transform을 즉시 0으로 되돌린 뒤 DOM을 perm 순서로 재배열,
+    // 시작위치로 invert → slide. 값 하드셋은 최종 안착 타이머(ladderShuffleSettleNow)가 담당.
+    ladderRevealTimers.push(setTimeout(function () {
+        if (ladderShuffleSettled) return;   // 강제 완결이 먼저였으면(백그라운드 탭) 재애니 금지
+        if (ladderPhase === 'idle') { shuffleBail(); return; }
+        inputs.forEach(function (el) { el.style.transition = 'none'; el.style.transform = ''; });
+
+        var byIndex = inputs.slice();   // inputs[i] = 원래 인덱스 i의 카드
+        var ordered = [];
+        for (var j = 0; j < N; j++) ordered.push(byIndex[perm[j]]);
+        ordered.forEach(function (el) { row.appendChild(el); });
+
+        ordered.forEach(function (el, j) {
+            var lastLeft = el.getBoundingClientRect().left;
+            var origIdx = perm[j];
+            var dx = firstLeft[origIdx] - lastLeft;
+            el.style.transition = 'none';
+            el.style.transform = 'translateX(' + dx + 'px)';
+        });
+        var slideMs = Math.max(300, settleMs - 250);
+        ladderShuffleRAF = requestAnimationFrame(function () {
+            if (ladderShuffleSettled) { ladderShuffleRAF = null; return; }
+            if (ladderPhase === 'idle') { ladderShuffleRAF = null; shuffleBail(); return; }
+            ladderShuffleRAF = requestAnimationFrame(function () {
+                ladderShuffleRAF = null;
+                if (ladderShuffleSettled) return;
+                if (ladderPhase === 'idle') { shuffleBail(); return; }
+                ordered.forEach(function (el) {
+                    el.style.transition = 'transform ' + slideMs + 'ms cubic-bezier(0.22, 1, 0.36, 1)';
+                    el.style.transform = 'translateX(0)';
+                });
+            });
+        });
+    }, midTotalMs));
+
+    // ── 3) 최종 안착 ── 오케스트레이션의 카운트다운 시작 예약과 같은 마감(SHUFFLE_MS)이지만 이 타이머가
+    // 먼저 등록 → 먼저 발화 → 라벨 안착 후 3·2·1 시작. 안착은 멱등.
+    ladderRevealTimers.push(setTimeout(function () {
+        if (ladderShuffleSettled) return;
+        if (ladderPhase === 'idle') { shuffleBail(); return; }
+        ladderShuffleSettleNow();
+    }, LADDER_SHUFFLE_MS));
 }
 
 // reveal 시작 — payload 저장 + 연출 집합 구성 + 오케스트레이션
 function ladderStartReveal(data) {
     ladderPhase = 'revealing';
-    document.body.classList.add('race-running'); // 리빌 연출 중 스티키 광고 숨김
+    document.body.classList.add('race-running');   // 리빌 연출 중 스티키 광고 숨김(C-6)
     ladderStartPending = false;
     ladderNumColumns = data.numColumns;
-    // 조기 노출 방지(핵심): 최종 winSlot을 여기서 바로 반영하면 배경 렌더가 섞기도 전에 정답을 그린다.
-    // 마커는 빌드 값(winSlotPrev)에서 출발 — 최종값은 섞기 정착 시점(ladderRunWinShuffle settle)에만 반영.
-    var winSlotFinal = (typeof data.winSlot === 'number') ? data.winSlot : ladderWinSlot;
-    if (typeof data.winSlotPrev === 'number') ladderWinSlot = data.winSlotPrev;
-    // (winSlotPrev 부재 시 기존 로컬 값 유지 — 빌드 중 받은 winSlot이 곧 시작점)
-    closeResultOverlay();
-    // 새 라운드 — 지난 라운드의 결과 예약/표시 상태를 확실히 끊는다(stale 결과 재노출 방지).
+    closeResultOverlay();   // 직전 판 결과 팝업이 떠 있으면 닫는다(새 연출 시작) — 모든 전환 경로에서 닫기(소프트락 방지).
+    // 새 라운드 — 지난 라운드의 결과 예약/표시 상태를 확실히 끊는다(A3, stale 결과 재노출 방지).
     ladderClearResultPopupTimer();
     ladderResultShown = false;
-    ladderPendingResult = null;
     ladderLiving = null;
+    ladderShuffleSettled = false;
     ladderFinishedPaths = null; ladderFinishedProgress = null;
     if (data.colorIndex) ladderColorIndex = data.colorIndex;
-    if (data.userTops) ladderUserTops = data.userTops;
 
-    ladderRun.winSlot = winSlotFinal;
-    ladderRun.userTops = data.userTops || ladderUserTops;
-    ladderRun.loserTop = (data.loserTop || []).slice();
+    // 라벨/결과/landings/변형스크립트/perm 저장(서버 권위 — 클라 재계산 0)
+    ladderRun.topLabels = (data.topLabels || []).slice();
+    ladderRun.bottomLabels = (data.bottomLabels || []).slice();
+    ladderRun.results = (data.results || []).slice();
     ladderRun.landings = (data.landings || []).slice();
     ladderRun.mutationScript = (data.mutationScript || []).slice();
+    ladderRun.perm = (data.perm || []).slice();   // 셔플 표시용 순열 — 위치 이동 전용(결과 재계산 금지)
+    // 기본값 simultaneous — payload 누락 시에도 서버 기본과 일치(반쪽 표류 방지, 명세 결정 2)
+    ladderRun.descentMode = (data.descentMode === 'sequential') ? 'sequential' : 'simultaneous';
 
     // 초기 보드로 현재 보드 시작 — y정렬 + precompute 폴리라인. 변형 스텝마다 in-place 갱신.
     ladderRun.rungs = (data.initialRungs || [])
@@ -2151,7 +2279,7 @@ function ladderStartReveal(data) {
         .sort(function (a, b) { return a.y - b.y; });
     ladderRun.rungPolylines = ladderRun.rungs.map(ladderRungPolyline);
 
-    // 사라짐/서버그리기 연출 집합 (remaining = initialRungs - added). data.rungs === data.initialRungs(서버 동일 전송).
+    // 스크램블 연출 집합 (remaining = initialRungs - added). data.rungs === data.initialRungs(서버 동일 전송).
     var erased = (data.erased || []).filter(function (rg) { return rg && typeof rg.c === 'number'; }).map(ladderNormalizeRung);
     var added = (data.added || []).filter(function (rg) { return rg && typeof rg.c === 'number'; }).map(ladderNormalizeRung);
     var addedIds = {};
@@ -2175,128 +2303,149 @@ function ladderStartReveal(data) {
     ladderTouchPointers = {}; ladderMultiTouch = false;
     clearLadderRevealTimers();
 
-    setGameStatus('👀 사다리를 확인하세요...', 'active');
-    renderLaneButtons();
+    // 라벨 락 정리(roundReset와 대칭) — 서버는 시작 시 unlock 브로드캐스트 없이 labelLocks를 비운다.
+    ladderLabelLocks = {};
+    applyLabelLockState();
+
+    setGameStatus('🎲 사다리를 섞는 중...', 'active');
+    updateStepperUI();
     updateStartButton();
+    setLabelInputsEnabled(false);
 
     var N = ladderNumColumns;
     if (N === 0) { renderLadderStatic(); return; }
 
-    // 타임라인 원점/총길이 — 탭 복귀 catch-up(A1)이 "지금 어디까지 재생됐어야 하는지" 판단하는 기준.
-    ladderRevealStartAt = Date.now();
-    ladderRevealTotalMs = ladderRevealDelay(N);
+    // 타임라인 원점/총길이 — 탭 복귀 catch-up(A1)·재진입 seek이 "지금 어디까지 재생됐어야 하는지" 판단하는 기준.
+    // 재진입(stateSync)이면 payload elapsedMs만큼 과거로 원점을 당긴다 — 서버 endTimeout과 같은 벽시계.
+    var elapsedMs = (typeof data.elapsedMs === 'number' && isFinite(data.elapsedMs)) ? Math.max(0, data.elapsedMs) : 0;
+    ladderRevealStartAt = Date.now() - elapsedMs;
+    ladderRevealTotalMs = ladderRevealDelay(N, ladderRun.descentMode);
 
-    // 오케스트레이션: 당첨 칸 섞기 → 인지창 → 사라짐(erase) → 서버 그리기(draw) → 카운트다운 → living descent → 결과.
-    // 합 = WINSLOT_SHUFFLE + RECOGNITION + ERASE + DRAW + COUNTDOWN + descentSlots×SLOT + mutations×MUTATION + FINAL_HOLD = ladderRevealDelay(N) (lockstep).
-    ladderRunWinShuffle(ladderWinSlot, winSlotFinal, function () {
-        ladderRunRecognition(function () {
-            ladderRunErase(function () {
-                ladderRunDraw(function () {
-                    ladderRunCountdown(function () {
-                        // 선행 단계가 숨김 탭에서 늦게 끝났으면 그 지연만큼 하강을 앞당겨 시작(벽시계 동기).
-                        ladderRunLiving(ladderDescentSeekFromClock());
-                    });
+    if (elapsedMs > 0) {
+        // ── 재진입 정밀 복구(진행 중 방에 입장/재연결) — 연출을 처음부터가 아니라 벽시계 지점부터 잇는다. ──
+        // 라벨은 최종(셔플된) 상태로 즉시 구성 — 셔플 연출은 건너뛴다(이미 지난 단계).
+        ladderTopLabels = ladderRun.topLabels.slice();
+        ladderBottomLabels = ladderRun.bottomLabels.slice();
+        renderLabelInputs();
+        setLabelInputsEnabled(false);
+        ladderShuffleSettled = true;   // 재진입은 셔플 애니 없이 최종 라벨로 시작(위에서 이미 구성)
+        var pre = ladderPreDescentMs();
+        if (elapsedMs >= ladderRevealTotalMs - LADDER_FINAL_HOLD) {
+            // 하강까지 끝난 시각 — 최종 프레임 + 남은 홀드 후 결과(gameEnd/stateSync 스냅샷이 이어받음).
+            ladderJumpToFinal(Math.max(0, ladderRevealTotalMs - elapsedMs));
+        } else if (elapsedMs < pre) {
+            // 하강 전 — 초기 보드를 정적으로 보여주고, 하강 시작 시각까지 남은 시간만 기다린다(lockstep 유지).
+            setGameStatus('🪜 진행 중인 판에 합류했어요. 곧 내려갑니다...', 'active');
+            ladderDrawFrame([], []);
+            ladderRevealTimers.push(setTimeout(function () {
+                ladderRunLiving(ladderDescentSeekFromClock());
+            }, pre - elapsedMs));
+        } else {
+            // 하강 중 — 그 지점부터 이어 재생(지나간 세그먼트는 선반영).
+            ladderRunLiving(elapsedMs - pre);
+        }
+        return;
+    }
+
+    // 오케스트레이션: 스크램블(지우기→그리기) → 바닥 라벨 셔플 → 카운트다운(3·2·1·시작!) → living descent → 결과.
+    // 합 = ERASE + DRAW + SHUFFLE + COUNTDOWN + descentSlots×SLOT + mutations×MUTATION + FINAL_HOLD
+    //    = ladderRevealDelay(N, mode) (lockstep). 셔플 내부 안착 타이머(SHUFFLE_MS)가 아래 카운트다운 예약보다
+    //   먼저 등록 → 같은 마감이어도 안착이 먼저 발화 → 라벨 안착 후 3·2·1.
+    ladderRunErase(function () {
+        ladderRunDraw(function () {
+            ladderRunShuffle();
+            ladderRevealTimers.push(setTimeout(function () {
+                if (ladderPhase === 'idle') return;   // 재연결 강제 idle — 얼었던 예약이 늦게 발화 시 연출 중단(finished는 계속)
+                ladderRunCountdown(function () {
+                    // 선행 단계가 숨김 탭에서 늦게 끝났으면 그 지연만큼 하강을 앞당겨 시작(벽시계 동기 — A1의 절반).
+                    ladderRunLiving(ladderDescentSeekFromClock());
                 });
-            });
+            }, LADDER_SHUFFLE_MS));
         });
     });
 }
 
-// ── 사다리 reveal/gameEnd/tournamentRound/tournamentEnd/reset 소켓 핸들러 ──
+// ── 사다리 reveal/end/reset 소켓 핸들러 ──
 socket.on('ladder:reveal', function (data) {
     if (!data) return;
     if (isLocalhost) window.__ladderLastReveal = data;
     ladderStartReveal(data);
 });
 
-// 라운드 종료(연출 끝 시점) — loser pool 표시용 payload 보관. 결과 팝업은 연출 종료 후 ladderShowResultOverlay가 표시.
 socket.on('ladder:gameEnd', function (data) {
-    ladderPendingResult = data || null;
-    if (data) {
-        ladderRound = data.round;
-    }
-    // A2: 서버가 이미 종료를 알렸는데 로컬 연출이 남아 있으면(백그라운드 탭 RAF 정지·프레임 드랍 등)
+    // A2: 서버가 종료를 알렸는데 로컬 연출이 남아 있으면(백그라운드 탭 RAF 정지·프레임 드랍 등)
     //     최종 프레임까지 앞당긴 뒤 결과로 넘어간다. 앞당겨도 landings대로 최종 프레임은 반드시 렌더된다.
     if (ladderPhase === 'revealing' && !ladderFinishedPaths) {
         ladderJumpToFinal(0);
-    } else if (!ladderResultShown && !ladderResultPopupTimer) {
-        // 연출은 끝났는데 예약된 표시가 없다(타이머가 이미 정리됨) — 결과 유실 방지로 즉시 표시.
-        ladderShowResultOverlay();
     }
-    updateStartButton();
-});
-
-// 토너먼트 종료(최종 꼴등 확정) — phase finished, 히스토리.
-socket.on('ladder:tournamentEnd', function (data) {
     ladderPhase = 'finished';
-    if (data) {
+    var round = (data && typeof data.round === 'number') ? data.round : null;
+    // 기록 dedup(적대 리뷰 F5) — 같은 라운드가 이미 맨 앞이면 적재 스킵. stateSync가 history를 먼저
+    // 복원한 새로고침 재진입, 소켓 순단 재연결의 gameEnd 재전달이 N중 적재되지 않게 한다.
+    var histDup = round !== null && ladderHistory[0] && ladderHistory[0].round === round;
+    if (data && !histDup) {
         ladderHistory.unshift({
             round: data.round,
-            winSlot: data.winSlot,
-            loser: data.loser || null
+            numColumns: data.numColumns,
+            topLabels: (data.topLabels || []).slice(),
+            bottomLabels: (data.bottomLabels || []).slice(),
+            results: (data.results || []).slice()
         });
         renderLadderHistory();
     }
+    // 팝업 dedup(F5) — 이 페이지에서 이미 보여준 라운드의 재전달(소켓 순단 재연결 stateSync)이면
+    // 결과 팝업을 다시 밀어올리지 않는다(사용자가 닫은 오버레이 강제 재오픈 방지). 새로고침(새 페이지)은
+    // ladderLastShownRound=-1 이라 정상 표시된다.
+    if (round !== null && round === ladderLastShownRound) {
+        ladderClearResultPopupTimer();
+        document.body.classList.remove('race-running');   // 팝업을 건너뛰므로 스티키 복원도 여기서(C-6)
+    } else {
+        // 결과 유실 방지 — 연출은 끝났는데 표시도 예약도 없으면 즉시 표시(팝업은 reveal payload 자급이라 안전).
+        if (!ladderResultShown && !ladderResultPopupTimer && ladderFinishedPaths) {
+            ladderShowResultOverlay();
+        }
+        if (round !== null) ladderLastShownRound = round;
+    }
     updateStartButton();
 });
 
-// 다음 sub-round — loser pool만 재준비 + 재pick.
-socket.on('ladder:tournamentRound', function (data) {
-    if (!data) return;
-    ladderPhase = 'idle';
-    ladderTournamentActive = true;
-    ladderLoserPool = (data.loserPool || []).slice();
-    if (typeof data.round === 'number') ladderRound = data.round;
-    if (typeof data.winSlot === 'number') ladderWinSlot = data.winSlot;
-    // A3: 이 이벤트는 ladder:gameEnd와 같은 서버 틱에 emit된다 → 예전에는 여기서 closeResultOverlay() +
-    //     clearLadderRevealTimers()가 결과 팝업 타이머를 죽여 "재대결 사유를 아무도 못 보는" 상태가 됐다.
-    //     이제 빌드로 전환하기 전에 결과 오버레이를 먼저 보장 표시한다(닫기는 사용자 몫 — 오버레이에 버튼 있음).
-    ladderClearResultPopupTimer();
-    if (!ladderResultShown) ladderShowResultOverlay();
-    ladderRevealStartAt = 0; ladderRevealTotalMs = 0;
-    ladderLiving = null;
-    ladderFinishedPaths = null; ladderFinishedProgress = null;
-    ladderRun.mutationScript = []; ladderRun.landings = [];
-    clearLadderRevealTimers();
-    document.body.classList.remove('race-running'); // 결과 오버레이 경로와 무관하게 스티키 광고 복원 보장(C-6)
-    ladderDrag.active = false; ladderDrag.pts = [];
-    ladderTouchPointers = {}; ladderMultiTouch = false;
-    // 새 라운드 — 내 막대기/픽은 서버 리셋(rungsUpdated가 빈 상태로 재동기). 로컬 캐시 비움.
-    ladderMyRungs = [];
-    setGameStatus('', '');
-    renderLaneButtons();
-    renderTournamentBanner();
-    updateStartButton();
-    renderLadderStatic();
-    // 결과 오버레이가 재대결 사유·대상자를 이미 설명한다. 그 위에 모달(#customAlert, z-index 10001)을 또 쌓으면
-    // 방금 보장 표시한 오버레이의 버튼을 가려버린다 → 오버레이를 못 띄운 경우에만 안내를 대신 띄운다.
-    if (ladderAmIInRound() && !ladderResultShown) {
-        showCustomAlert('재대결! 다시 칸을 고르고 막대기를 그려주세요.', 'info');
+// 입장/재연결 개인 동기화 — 편집 권한 모드 + 게임 기록 복원(적대 리뷰 F8/F10).
+// history는 서버가 최신 우선으로 뒤집어 보낸다(클라 표시 계약과 동일).
+socket.on('ladder:stateSync', function (d) {
+    if (!d) return;
+    if (typeof d.labelEditMode === 'string') {
+        ladderLabelEditMode = d.labelEditMode;
+        ladderPrevEditMode = d.labelEditMode;   // 재진입은 "전환"이 아니다 — host 전환 안내 오발화 방지
+        applyLabelLockState();
+        ladderRenderEditModeBar();
+        updateStepperUI();
+    }
+    if (Array.isArray(d.history) && d.history.length) {
+        ladderHistory = d.history.slice();
+        renderLadderHistory();
     }
 });
 
-// 전체 리셋(새 토너먼트) — finished → idle.
 socket.on('ladder:roundReset', function () {
     ladderPhase = 'idle';
-    ladderTournamentActive = false;
-    ladderLoserPool = [];
-    closeResultOverlay();
-    ladderFinishedPaths = null; ladderFinishedProgress = null;
-    ladderRun.mutationScript = []; ladderRun.landings = [];
-    ladderMyRungs = [];
-    ladderUserTops = {};
-    ladderPendingResult = null;
-    ladderClearResultPopupTimer();
+    closeResultOverlay();   // 새 라운드: 결과 팝업 닫기(모든 전환 경로에서 — 소프트락 방지).
+    document.body.classList.remove('race-running');   // 스티키 광고 복원(C-6)
+    ladderClearResultPopupTimer();   // 지난 라운드 결과 예약 폐기(A3)
     ladderResultShown = false;
     ladderRevealStartAt = 0; ladderRevealTotalMs = 0;
     ladderLiving = null;
+    ladderShuffleSettled = false;
+    ladderFinishedPaths = null; ladderFinishedProgress = null;
+    ladderRun.mutationScript = []; ladderRun.landings = []; ladderRun.perm = [];
+    ladderLabelLocks = {};
     clearLadderRevealTimers();
-    document.body.classList.remove('race-running'); // 전체 리셋 — 스티키 광고 복원
     ladderDrag.active = false; ladderDrag.pts = [];
     ladderTouchPointers = {}; ladderMultiTouch = false;
+    // 셔플로 DOM 순서가 어긋난 바닥 라벨 행을 통째로 비운다 → 직후 rungsUpdated가 원래 순서로 재생성.
+    var row = document.getElementById('bottomLabelsRow');
+    if (row) row.innerHTML = '';
     setGameStatus('', '');
-    renderLaneButtons();
-    renderTournamentBanner();
+    updateStepperUI();
     updateStartButton();
     renderLadderStatic();
 });
@@ -2321,30 +2470,39 @@ function renderLadderHistory() {
         var badge = document.createElement('span');
         badge.className = 'lh-round-badge';
         badge.textContent = (h.round || '?') + '판';
+        var meta = document.createElement('span');
+        meta.className = 'lh-round-meta';
+        meta.textContent = (h.numColumns || (h.results || []).length) + '줄';
         head.appendChild(badge);
+        head.appendChild(meta);
         wrap.appendChild(head);
 
-        var line = document.createElement('div');
-        line.className = 'ladder-history-line';
-        var from = document.createElement('span');
-        from.className = 'lh-from';
-        from.textContent = '꼴등';
-        var arrow = document.createElement('span');
-        arrow.className = 'lh-arrow';
-        arrow.textContent = '→';
-        var to = document.createElement('span');
-        to.className = 'lh-to';
-        to.textContent = h.loser || '-';
-        line.appendChild(from);
-        line.appendChild(arrow);
-        line.appendChild(to);
-        wrap.appendChild(line);
+        var results = h.results || [];
+        var tops = h.topLabels || [];
+        results.forEach(function (res, i) {
+            var line = document.createElement('div');
+            line.className = 'ladder-history-line';
+            var topLabel = (tops[i] && tops[i].length) ? tops[i] : ((i + 1) + '번');
+            var from = document.createElement('span');
+            from.className = 'lh-from';
+            from.textContent = topLabel;
+            var arrow = document.createElement('span');
+            arrow.className = 'lh-arrow';
+            arrow.textContent = '→';
+            var to = document.createElement('span');
+            to.className = 'lh-to';
+            to.textContent = (res || '');
+            line.appendChild(from);
+            line.appendChild(arrow);
+            line.appendChild(to);
+            wrap.appendChild(line);
+        });
         list.appendChild(wrap);
     });
 }
 
 // ============================================
-// 방 이벤트 / 에러 핸들러 (셸)
+// 방 이벤트 / 에러 핸들러 (셸 — LAMDice 보존)
 // ============================================
 socket.on('ladder:error', (msg) => {
     showCustomAlert(typeof msg === 'string' ? msg : '오류가 발생했습니다.', 'error');
@@ -2353,7 +2511,7 @@ socket.on('ladder:error', (msg) => {
 });
 
 socket.on('roomError', (msg) => {
-    // 진입 거부 serverError와 짝으로 온 roomError 1회 억제 (소비 후 즉시 해제 — 인게임 roomError 무영향)
+    // 진입 거부 serverError와 짝으로 온 roomError 1회 억제 (소비 후 즉시 해제 — 인게임 roomError 무영향, C-31)
     if (entrySuppressRoomError) { entrySuppressRoomError = false; return; }
     showCustomAlert(typeof msg === 'string' ? msg : '방 오류가 발생했습니다.', 'error');
 });
@@ -2368,7 +2526,7 @@ socket.on('kicked', (message) => {
     setTimeout(() => location.reload(), 800);
 });
 
-// 다른 곳에서 같은 닉네임으로 접속 → 이 세션 종료. reload 금지(핑퐁 방지 — C-10).
+// 다른 곳에서 같은 닉네임으로 접속 → 이 세션 종료 (최신 접속 우선). reload 금지(핑퐁 방지 — C-10).
 socket.on('sessionTakenOver', (message) => {
     try { sessionStorage.removeItem('ladderActiveRoom'); } catch (e) {}
     try { socket.disconnect(); } catch (e) {}
@@ -2394,6 +2552,10 @@ socket.on('hostDelegated', (data) => {
         const hostControls = document.getElementById('hostControls');
         if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
         updateStartButton();
+        ladderRenderEditModeBar();
+        ladderRenderDescentModeBar();
+        updateStepperUI();
+        applyLabelLockState();
         if (!wasHost && isHost) showCustomAlert('호스트 권한을 받았습니다!', 'success');
     }
 });

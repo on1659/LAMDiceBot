@@ -8,7 +8,7 @@
  *   pad  = getComputedStyle(body).paddingBottom                (96px ↔ 0px, 데스크톱 뷰포트)
  *
  * 시나리오:
- *   [L] ladder  — L0 초기 표시 / L1 리빌 중 숨김 / L2 재대결(tournamentRound) 복원
+ *   [L] ladder  — L0 초기 표시 / L1 리빌 중 숨김 / L2 결과 복원 / L3 리셋 유지 (v2 매핑 룰)
  *                 L3 결과 팝업 복원 / L4 새 게임(roundReset) 복원 / L5 리빌 도중 새로고침 재입장 복원
  *   [P] pirate  — P0 초기 표시 / P1 시작(selecting) 숨김 / P2 진행 중 재입장 → 숨김 유지(복원 true)
  *                 P3 결과 오버레이 시 복원(자동 roundReset 이전) / P4 호스트 이탈 후 자연 해소 복원
@@ -171,8 +171,9 @@ async function newPair(browser, tag) {
 // toggleReady를 호출하면 오히려 준비가 해제되므로 호출하지 않는다.
 
 // ───────────────────────── LADDER ─────────────────────────
+// v2 복원(2026-09-05, docs/goal/ladder-v2-restore.md) — 픽/토너먼트 제거, 시작 직행 → 매핑 결과 → 리셋.
 async function testLadder(browser) {
-    section('[L] ladder — 리빌/재대결/결과/리셋 토글');
+    section('[L] ladder — 리빌/결과/리셋 토글 (v2 매핑 룰)');
     const A = await newPair(browser, 'L');
     try {
         await loadPage(A.h, 'ladder-multiplayer.html', 'LadHost');
@@ -188,13 +189,12 @@ async function testLadder(browser) {
                  : fail(`L0(${who}) 초기 화면 표시 아님`, fmt(r.snap));
         }
 
-        // L1 동일 top(퇴화) 픽 → 시작 → 리빌 중 숨김 (입장 시 자동 준비 상태)
-        // 리빌 연출 총 길이 ≈ ladderRevealDelay(6) = 50.4s (socket/ladder.js:61) — 타임아웃 여유 필수
-        await armCapture(A.h, ['ladder:reveal', 'ladder:tournamentRound', 'ladder:gameEnd', 'ladder:roundReset', 'ladder:error']);
+        // L1 시작(자동 준비 2명 — v2는 픽 없음) → 리빌 중 숨김
+        // 리빌 연출 총 길이 = 클라 ladderRevealDelay(N, 'simultaneous') — 서버 상수와 byte-identical(하드코딩 금지)
+        const revealTotalMs = await A.h.evaluate(() =>
+            ladderRevealDelay(ladderNumColumns, ladderDescentMode || 'simultaneous'));
+        await armCapture(A.h, ['ladder:reveal', 'ladder:gameEnd', 'ladder:roundReset', 'ladder:error']);
         await armCapture(A.g, ['ladder:reveal']);
-        await A.h.evaluate(() => socket.emit('ladder:pickTop', { top: 2 }));
-        await A.g.evaluate(() => socket.emit('ladder:pickTop', { top: 2 }));
-        await A.h.waitForTimeout(300);
         await A.h.evaluate(() => socket.emit('ladder:start'));
         const r1 = await waitCapture(A.h, 'ladder:reveal', 15000);
         const r2v = await waitCapture(A.g, 'ladder:reveal', 15000);
@@ -208,61 +208,41 @@ async function testLadder(browser) {
                  : fail(`L1(${who}) 리빌 중 숨김 아님`, fmt(r.snap));
         }
 
-        // L2 재대결(tournamentRound) 진입 → 복원
-        const trRes = await waitCapture(A.h, 'ladder:tournamentRound', 120000);
-        if (!trRes.ok) throw new Error('ladder:tournamentRound 미수신 — ' + trRes.err);
-        for (const [pg, who] of [[A.h, 'H'], [A.g, 'G']]) {
-            const r = await pollState(pg, false, 8000);
-            r.ok ? pass(`L2(${who}) 재대결 진입 — 복원 (${fmt(r.snap)})`)
-                 : fail(`L2(${who}) 재대결 진입 후 잔존`, fmt(r.snap));
-        }
-
-        // L3 sub-round: 서로 다른 top → 최종 결과 팝업 시 복원
-        await A.h.evaluate(() => socket.emit('ladder:pickTop', { top: 0 }));
-        await A.g.evaluate(() => socket.emit('ladder:pickTop', { top: 5 }));
-        await A.h.waitForTimeout(300);
-        await armCapture(A.h, ['ladder:reveal', 'ladder:gameEnd', 'ladder:error']);
-        await A.h.evaluate(() => socket.emit('ladder:start'));
-        const rev2Res = await waitCapture(A.h, 'ladder:reveal', 15000);
-        if (!rev2Res.ok) throw new Error('L3 ladder:reveal 미수신 — ' + rev2Res.err);
-        {
-            const r = await pollState(A.h, true, 5000);
-            r.ok ? pass(`L3(H) sub-round 리빌 중 숨김 (${fmt(r.snap)})`)
-                 : fail('L3(H) sub-round 리빌 중 숨김 아님', fmt(r.snap));
-        }
-        const geRes = await waitCapture(A.h, 'ladder:gameEnd', 120000);
+        // L2 결과(gameEnd → 결과 팝업) 시 복원 — v2는 단일 라운드(재대결 없음)
+        const geRes = await waitCapture(A.h, 'ladder:gameEnd', revealTotalMs + 15000);
         if (!geRes.ok) throw new Error('ladder:gameEnd 미수신 — ' + geRes.err);
         // 결과 팝업은 연출 종료 후 표시 — 팝업 visible && race=false 동시 대기
         try {
             await A.h.waitForFunction(() => {
                 const ov = document.getElementById('resultOverlay');
                 return ov && ov.classList.contains('visible') && !document.body.classList.contains('race-running');
-            }, null, { timeout: 120000, polling: 150 });
+            }, null, { timeout: revealTotalMs + 15000, polling: 150 });
             const s = await snap(A.h);
-            (s.disp === 'block') ? pass(`L3(H) 결과 팝업 시 복원 (${fmt(s)})`)
-                                 : fail('L3(H) 결과 팝업 시 스티키 미표시', fmt(s));
-        } catch (e) { fail('L3(H) 결과 팝업/복원 타임아웃', fmt(await snap(A.h))); }
+            (s.disp === 'block') ? pass(`L2(H) 결과 팝업 시 복원 (${fmt(s)})`)
+                                 : fail('L2(H) 결과 팝업 시 스티키 미표시', fmt(s));
+        } catch (e) { fail('L2(H) 결과 팝업/복원 타임아웃', fmt(await snap(A.h))); }
         {
             const r = await pollState(A.g, false, 10000);
-            r.ok ? pass(`L3(G) 결과 후 복원 (${fmt(r.snap)})`)
-                 : fail('L3(G) 결과 후 잔존', fmt(r.snap));
+            r.ok ? pass(`L2(G) 결과 후 복원 (${fmt(r.snap)})`)
+                 : fail('L2(G) 결과 후 잔존', fmt(r.snap));
         }
 
-        // L4 새 게임(ladder:reset → roundReset) → 복원 유지
+        // L3 새 게임(ladder:reset → roundReset) → 복원 유지
         await armCapture(A.h, ['ladder:roundReset']);
         await A.h.evaluate(() => socket.emit('ladder:reset'));
         const rrRes = await waitCapture(A.h, 'ladder:roundReset', 15000);
         if (!rrRes.ok) throw new Error('ladder:roundReset 미수신 — ' + rrRes.err);
         for (const [pg, who] of [[A.h, 'H'], [A.g, 'G']]) {
             const r = await pollState(pg, false, 5000);
-            r.ok ? pass(`L4(${who}) 새 게임 리셋 — 복원 유지 (${fmt(r.snap)})`)
-                 : fail(`L4(${who}) 리셋 후 잔존`, fmt(r.snap));
+            r.ok ? pass(`L3(${who}) 새 게임 리셋 — 복원 유지 (${fmt(r.snap)})`)
+                 : fail(`L3(${who}) 리셋 후 잔존`, fmt(r.snap));
         }
     } catch (e) {
         fail('[L] 시나리오 실행 오류', e.message);
     } finally { await A.close(); }
 
-    // L5 — 리빌 도중 새로고침 재입장(별도 방; ready 상태 보존 가정 배제)
+    // L5 — 리빌 도중 새로고침 재입장(별도 방). v2 복원의 정밀 복구(stateSync)로 재입장자는
+    // 진행 중인 연출을 이어본다 → race-running ON(스티키 숨김)이 새 정상. 결과 팝업에서 복원 확인.
     const B = await newPair(browser, 'L5');
     try {
         await loadPage(B.h, 'ladder-multiplayer.html', 'LadHost2');
@@ -270,16 +250,15 @@ async function testLadder(browser) {
         const room = await createRoom(B.h, 'ladder', 'LadHost2', 'StickyQA-L5방');
         await joinRoom(B.g, room.roomId, 'LadGuest2');
         await B.h.waitForTimeout(600);
-        await armCapture(B.h, ['ladder:reveal', 'ladder:error']);
-        await B.h.evaluate(() => socket.emit('ladder:pickTop', { top: 1 }));
-        await B.g.evaluate(() => socket.emit('ladder:pickTop', { top: 4 }));
-        await B.h.waitForTimeout(300);
+        const l5TotalMs = await B.h.evaluate(() =>
+            ladderRevealDelay(ladderNumColumns, ladderDescentMode || 'simultaneous'));
+        await armCapture(B.h, ['ladder:reveal', 'ladder:gameEnd', 'ladder:error']);
         await B.h.evaluate(() => socket.emit('ladder:start'));
         const revRes = await waitCapture(B.h, 'ladder:reveal', 15000);
         if (!revRes.ok) throw new Error('L5 ladder:reveal 미수신 — ' + revRes.err);
         const rHid = await pollState(B.g, true, 5000);
         if (!rHid.ok) fail('L5(G) 리빌 진입 확인 실패', fmt(rHid.snap));
-        // 게스트 새로고침(쿼리 제거 → sessionStorage 재입장 경로)
+        // 게스트 새로고침(쿼리 제거 → sessionStorage 재입장 경로) — stateSync 로 연출을 이어받는다
         await B.g.goto(`${URL}/ladder-multiplayer.html`, { waitUntil: 'domcontentloaded', timeout: 25000 });
         await B.g.waitForFunction(() => typeof socket !== 'undefined' && socket.connected, null, { timeout: 15000 });
         try {
@@ -287,10 +266,18 @@ async function testLadder(browser) {
                 const ls = document.getElementById('loadingScreen');
                 return ls && ls.style.display === 'none';
             }, null, { timeout: 15000, polling: 150 });
-            const r = await pollState(B.g, false, 5000);
-            r.ok ? pass(`L5(G) 리빌 도중 새로고침 재입장 — race-running 없음/스티키 표시 (${fmt(r.snap)})`)
-                 : fail('L5(G) 재입장 후 상태 이상', fmt(r.snap));
-        } catch (e) { fail('L5(G) 재입장 타임아웃', e.message); }
+            const r = await pollState(B.g, true, 8000);
+            r.ok ? pass(`L5(G) 리빌 도중 재입장 — 연출 이어보기(race-running/스티키 숨김) (${fmt(r.snap)})`)
+                 : fail('L5(G) 재입장 후 연출 미복구(race-running 없음)', fmt(r.snap));
+            // 연출 종료 → 결과 팝업 시 스티키 복원까지 확인(C-6 잔존 방지)
+            await B.g.waitForFunction(() => {
+                const ov = document.getElementById('resultOverlay');
+                return ov && ov.classList.contains('visible') && !document.body.classList.contains('race-running');
+            }, null, { timeout: l5TotalMs + 15000, polling: 150 });
+            const r2 = await pollState(B.g, false, 5000);
+            r2.ok ? pass(`L5(G) 재입장 후 결과 팝업 — 스티키 복원 (${fmt(r2.snap)})`)
+                  : fail('L5(G) 결과 후 잔존', fmt(r2.snap));
+        } catch (e) { fail('L5(G) 재입장/결과 타임아웃', e.message); }
     } catch (e) {
         fail('[L5] 시나리오 실행 오류', e.message);
     } finally { await B.close(); }

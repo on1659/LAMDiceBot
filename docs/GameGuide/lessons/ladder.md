@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-09-05 — ⚠️ v2(매핑 룰) 복원 — pick-elimination 시대 lesson 대부분 도달 불가
+
+실플레이 판정("원래 v2가 잘 되던 것")으로 pick-elimination(6택1 픽·winSlot·숨김 막대기·토너먼트)을
+걷어내고 **v2(vibe식 네이버 사다리: 전원 막대기 실시간 공개·라벨 매핑·동시 하강 기본)를 복원**했다
+(명세: `docs/goal/applied/ladder-v2-restore.md`, 베이스: 커밋 53656e1 + vibe 현재 기준 셔플 연출).
+
+- 아래 2026-07-02 lesson들(landings 단일 소스, 0-꼴등 안전망, distinct top)은 **현재 코드에서 도달 불가**
+  (winSlot/loser 메커니즘 자체가 사라짐). 단 "발표 결과는 단일 소스에서만 도출" 원칙 자체는 여전히 유효.
+- **공정성 권위는 perm(shufflePermutation) 한 곳이다** — `results[i] = shuffledLabels[landings[i]]`이고
+  perm이 landings와 독립 균등이라 막대기 배치/변형 선호가 결과 분포를 못 비튼다. 클라가 라벨을
+  재정렬하거나 landings+원본 라벨로 결과를 재계산하면 그 순간 깨진다 — 절대 금지.
+- **reveal 시작 시 내 선의 접점이 한 슬롯(화면 ~10-20px) 이동해 보일 수 있는 것은 설계다** —
+  resolveContacts가 겹친 접점을 distinct 슬롯으로 비켜놓는 전단사 보장 비용. 버그 리포트 아님.
+- **buildLadder union의 points는 양 사이트(user/base) 모두 깊은 복사** — 참조 공유 시 resolveContacts의
+  in-place 재배정이 원본 ld.userRungs/baseRungs를 변조("내가 그린 선이 달라졌다"). fef0280은 pick-elim에서
+  user 사이트만 고쳤었다 — 복원 때 양 사이트로 확장. 단 union 내부의 added↔rungs 참조 공유는 유지해야
+  스크램블 그리기 연출과 최종 보드가 동기된다(새 객체로 교체 금지).
+- **재진입 정밀 복구는 C-20의 의도된 예외** — reveal payload는 브로드캐스트 순간부터 방 전체 공개
+  정보라, revealing/finished 중 (재)입장자에게 `ladder:reveal + elapsedMs`를 개인 재전송해도 누출이
+  아니다(`ctx.emitLadderStateSync`). getCurrentRoom의 ladder 통째 마스킹은 그대로다.
+- 회귀 테스트: `tests/test-ladder.js`(32 assert — 깊은 복사·perm·sequential lockstep 포함).
+  pick-elim 전용 `AutoTest/qa-ladder-pick-elimination-test.js`는 은퇴.
+
+---
+
 ## 2026-06-30 — ⚠️ v2(vibe-rework)로 아래 "빠른 재준비(fast re-ready)" 클러스터의 실패 모드는 대부분 도달 불가
 
 사다리타기를 `D:\Work\vibe\ladder` 메커니즘으로 in-place 교체(v2)하면서 **"빠른 재준비" 기능 자체를 제거**했다. 이제:

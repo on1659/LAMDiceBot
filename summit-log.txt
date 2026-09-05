@@ -1,4 +1,75 @@
 ========================================
+📋 Summit Log - 2026-09-05 (사다리 v2 복원 — pick-elimination 폐기, 실제 사다리타기 메커니즘 되돌림)
+========================================
+
+## 변경 파일
+- socket/ladder.js: pick-elimination(숨은 막대기 + 6픽 + 토너먼트) 전면 폐기 → v2(53656e1) 메커니즘 복원. 바닥 라벨 셔플 단계 신규 이식
+- js/ladder.js: 서버와 짝을 이루는 클라 payload/연출 교체. 캐시버스터 v3→v4
+- ladder-multiplayer.html: 칸 수 스테퍼 / 위·아래 라벨 행 / 칸 채우기 권한·내려가기 토글 복원, 튜토리얼 문구 갱신
+- css/ladder.css: 라벨 카드·셔플 애니 스타일 복원
+- socket/rooms.js: ctx.releaseLadderLocksByUser 소비부 복원(leaveRoom + disconnect), 슬롯 인계 재접속 분기 유지
+- socket/chat.js: editMode 방장 이양 시 라벨 락 해제 경로 복원
+- utils/room-helpers.js: ladder gameState를 v2 필드로 초기화, descentMode 기본값 'simultaneous'
+- tests/test-ladder.js: [신규] Playwright 2탭 시나리오
+- AutoTest/qa-ladder-pick-elimination-test.js: 삭제(대상 메커니즘 소멸)
+- AutoTest/qa-sticky-ad-race-toggle-test.js: 사다리 셀렉터 갱신
+- docs/GameGuide/lessons/ladder.md: 이번 작업에서 나온 함정 기록
+- docs/goal/applied/ladder-v2-restore.md, -review.md, ladder-vibe-rework.md: 명세/리뷰 아카이브 이동
+
+## 상세 변경 내역
+
+### [메커니즘 교체: pick-elimination → v2 실제 사다리타기]
+- 배경: 실플레이 판정에서 "남의 그림이 안 보인다 / 하강이 동기가 안 맞는다 / 게임이 진행이 안 된다"가 보고됨.
+  조사 결과 "남의 그림이 안 보임"은 pick-elimination의 숨은 막대기 설계 자체였고(의도된 동작),
+  나머지는 실제 버그였다. 소유자 결정: v2를 복원한다.
+- 복원 범위: 모든 참가자의 막대기가 실시간으로 서로 보이고, 위·아래 칸 라벨을 함께 편집하며,
+  서버가 바닥 라벨을 셔플(perm)해 결과를 정한다. 라우트 /ladder와 등록 지점은 전부 그대로.
+
+### [버그 수정: 내가 그린 선이 제멋대로 변형되던 문제]
+- 원인: buildLadder의 union이 points 배열 참조를 ld.userRungs / ld.baseRungs와 공유했고,
+  resolveContacts가 그 배열을 제자리에서 변형해 원본까지 오염시켰다.
+- 기존 커밋 fef0280은 user 분기 한쪽만, 그것도 pick-elimination에서만 고쳤다 — 절반짜리 수정.
+- 조치: user 분기와 base 분기 양쪽 모두에서 points를 깊은 복사. added↔rungs 참조 공유 계약(내부 생성 객체)은
+  그대로 두고, 원본과의 aliasing만 끊었다. buildLadder+reveal 후 원본이 바이트 단위로 불변인지 회귀 assert 추가.
+
+### [동시 하강을 기본값으로 — 전 지점 일괄 전환]
+- descentMode 기본값을 'sequential' → 'simultaneous'로. room-helpers 초기화, 서버 폴백 전부,
+  클라 초기 미러 2곳·폴백 2곳, 토글 UI 초기 상태, 테스트 assert까지 한 커밋에서 함께 뒤집었다.
+- 검증: grep 'sequential' 전수. 토글(방장 전용)과 순차+living-rungs 경로는 남긴다 —
+  다리건너기 교훈("선택지를 없애지 말 것") 적용.
+
+### [연출: 바닥 라벨 셔플 단계 신규 이식]
+- 스크램블(지우기→그리기) 뒤, 카운트다운 앞에 SHUFFLE 3200ms 단계를 직렬로 넣었다.
+- reveal payload에 perm을 실어 보내고 클라는 라벨 카드를 섞는 애니메이션만 재생한다.
+- 서버 종료 타이머와 클라 애니 길이 합은 반드시 일치해야 한다(끼어들기 방지) — ladderRevealDelay에 합산.
+
+### [재진입/재접속 정밀 복구]
+- getCurrentRoom이 gameState.ladder를 통째로 마스킹(ladder: undefined)하고, idle일 때만
+  emitLadderRungsUpdated로 복구한다. pick-elimination이 넣었던 화이트리스트는 제거.
+- 소켓 재연결 시 자동 재입장. reveal 진행 중 재진입자는 개인 emit으로 reveal payload + 경과 ms를
+  받아 하강 중간으로 seek한다. 이미 끝난 판에 들어온 사람은 결과 스냅샷을 받는다.
+- ctx.releaseLadderLocksByUser는 ladder.js가 정의하고 rooms.js·chat.js가 소비한다(3경로 정리:
+  leaveRoom / disconnect / editMode 방장 이양) → 세 파일을 한 커밋에 원자적으로 교체해야 한다.
+
+### [백그라운드 탭 대응]
+- gameEnd → jumpToFinal: 변형 스크립트를 멱등하게 적용하고 착지 최종 프레임을 그린다.
+- seek 머신에 descentMode를 관통시켰다(ladderRevealDelay(N, mode), ladderDescentSegments).
+  simultaneous는 'all' 세그먼트 하나. preDescentMs = ERASE + DRAW + SHUFFLE + COUNTDOWN.
+
+### [DB 기록: 승패 없는 게임의 처리]
+- 사다리는 승자/패자가 없다(어느 칸이 좋은 결과인지는 유저가 정한다).
+- 전원 is_winner=false 행을 넣으면 게임 타입 필터가 없는 크로스게임 승률(win/COUNT(*))의 분모만
+  오염된다 → recordGamePlay + recordGameSession(세션)만 기록하고 참가자 승패 행은 넣지 않는다.
+
+### [주의]
+- js/ladder.js 캐시버스터를 v3→v4로 올렸다. 안 올리면 낡은 pick-elimination 클라가 v2 서버 프로토콜과
+  만나 완전 desync 된다.
+- 사다리는 실서버에서 방 생성이 막혀 있다(socket/rooms.js:248, socket/free.js:82 — IS_LOCAL_DEV).
+  따라서 이번 변경은 유저 공개용 update-log.md에 기재하지 않는다.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-08-30 (서버 방 다이렉트 링크 입장 거부 수정 + crane-game 잔재/데드코드 정리)
 ========================================
 
