@@ -139,6 +139,8 @@
 
             <!-- 사다리 빌드 영역 — 번호 1~5 고르기 + 막대기 놓기 (경마식) -->
             <div id="ladderBuildSection" class="ladder-build-section" style="display: none;">
+                <!-- 직전 판 요약 — 동시 당첨 재경기는 보드를 지우고 새로 그리므로, "왜 한 판 더인지"를 여기 남긴다 -->
+                <div id="ladderLastResultBanner" class="ladder-last-result" style="display: none;"></div>
                 <div class="ladder-build-title">🏁 번호 고르고 막대기 놓기</div>
                 <div id="ladderBuildHint" class="ladder-build-hint">
                     준비한 사람이 2명 이상이면 내 번호(1~5)를 고르고 막대기를 놓을 수 있어요.
@@ -277,6 +279,8 @@
             <div id="resultRankings" style="margin-bottom: 12px;"></div>
             <!-- 같은 번호로 동시 당첨 → 재경기 안내 (채팅 안내와 짝) -->
             <div id="resultNote" class="ladder-result-note" style="display:none;"></div>
+            <!-- 재경기 자동 시작까지 남은 시간 (서버 scheduledStartAt 기준, 1초마다 갱신) -->
+            <div id="resultRematchCountdown" class="ladder-result-countdown" style="display:none;"></div>
             <!-- 빠른 재준비(경마식): 결과 위에서 바로 다음 판 준비 → 4초 대기 없이 라운드 연속 -->
             <div class="ladder-result-actions">
                 <button id="ladderNextRoundBtn" onclick="readyForNextRound()" class="ladder-next-round-btn">🪜 다음 판 준비</button>

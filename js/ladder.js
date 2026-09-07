@@ -66,6 +66,16 @@ var readyModuleInitialized = false;
 var ladderPhase = 'idle';       // idle(빌드) | revealing | finished (클라 미러 — 드래그/시작 게이트)
 var ladderHistory = [];         // [{round, winners, winLane, winBottom, picks}] (최신이 앞)
 
+// ── 재경기 문맥(직전 판 요약 + 자동 시작 카운트다운) ──
+// 동시 당첨이면 서버가 당첨자의 ready를 대신 눌러준다. 그 ready가 roundReset의 "빠른 재준비" 경로를 타면
+// 결과 오버레이가 0.6초 만에 닫히고 보드도 지워져, 정작 재경기 당사자만 직전 결과를 못 본다.
+// 아래 두 값이 그 문맥을 다음 판 화면까지 들고 간다: 결과창은 열어둔 채 카운트다운을 붙이고(A),
+// 빌드 화면 상단에는 "왜 한 판 더인지"를 배너로 남긴다(B).
+var ladderLastResult = null;        // {round, winners, winLane, rematch} — 직전 판 요약
+var ladderRematchDeadline = null;   // 재경기 자동 시작 예정 시각(ms, 서버 scheduledStartAt)
+var ladderRematchTicker = null;     // 남은 초 갱신 인터벌
+var LADDER_REMATCH_TICK_MS = 1000;  // 카운트다운 갱신 주기
+
 // OrderModule의 isGameActive는 phase에서 파생(서버 gameState.isGameActive는 ladder가 안 켬 — Phase A 결정).
 // idle = 빌드(대기), 그 외(revealing/finished) = 진행으로 간주.
 function isLadderActive() { return ladderPhase !== 'idle'; }
@@ -379,6 +389,70 @@ function readyForNextRound() {
 }
 window.readyForNextRound = readyForNextRound;
 
+// ── 재경기 문맥 렌더 ──
+// 지금 재경기 대기 중인가 — 직전 판이 동시 당첨이었고 아직 그 재경기가 시작되지 않았다.
+function isRematchPending() { return !!(ladderLastResult && ladderLastResult.rematch); }
+
+// 자동 시작까지 남은 초. 예약이 없으면 null(카운트다운 줄을 숨긴다).
+function rematchSecondsLeft() {
+    if (!ladderRematchDeadline) return null;
+    return Math.max(0, Math.ceil((ladderRematchDeadline - Date.now()) / 1000));
+}
+
+function startRematchTicker() {
+    stopRematchTicker();
+    if (!ladderRematchDeadline) return;
+    ladderRematchTicker = setInterval(renderRematchCountdown, LADDER_REMATCH_TICK_MS);
+}
+
+function stopRematchTicker() {
+    if (ladderRematchTicker) { clearInterval(ladderRematchTicker); ladderRematchTicker = null; }
+}
+
+// 재경기 문맥 소멸 — 재경기 판이 실제로 시작됐거나(reveal), 중단됐거나, 단독 당첨으로 끝났을 때.
+// 인터벌이 남으면 방을 나간 뒤에도 계속 돌므로 여기서 반드시 끊는다.
+function clearRematchContext() {
+    stopRematchTicker();
+    ladderRematchDeadline = null;
+    if (ladderLastResult) ladderLastResult.rematch = false;
+    renderRematchCountdown();
+    renderLastResultBanner();
+}
+
+// 결과 오버레이 안의 카운트다운 줄 + 빌드 배너 꼬리를 함께 갱신(같은 남은 초를 두 곳이 쓴다).
+function renderRematchCountdown() {
+    const el = document.getElementById('resultRematchCountdown');
+    const left = rematchSecondsLeft();
+    const show = isRematchPending() && left !== null;
+    if (el) {
+        el.textContent = show
+            ? (left > 0 ? `⏱ ${left}초 뒤 자동으로 한 판 더 시작해요` : '⏱ 곧 시작해요')
+            : '';
+        el.style.display = show ? 'block' : 'none';
+    }
+    renderLastResultBanner();
+}
+
+// 빌드 화면 상단 배너 — 보드가 지워진 뒤에도 "직전 판에 무슨 일이 있었고 왜 한 판 더인지"를 남긴다.
+// 재경기 대기 중일 때만 노출한다(평상 라운드의 직전 결과는 📜 게임 기록이 담당).
+function renderLastResultBanner() {
+    const el = document.getElementById('ladderLastResultBanner');
+    if (!el) return;
+    if (!isRematchPending()) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+    const names = (ladderLastResult.winners || []).map(escapeHtml).join(', ');
+    const lane = (typeof ladderLastResult.winLane === 'number') ? (ladderLastResult.winLane + 1) + '번' : '같은 번호';
+    const left = rematchSecondsLeft();
+    const tail = (left === null)
+        ? ''
+        : (left > 0
+            ? ` <span class="ladder-last-result-timer">⏱ ${left}초 뒤 자동 시작</span>`
+            : ' <span class="ladder-last-result-timer">⏱ 곧 시작</span>');
+    el.innerHTML = `<span class="ladder-last-result-badge">직전 ${ladderLastResult.round|0}판</span>`
+        + ` ${lane}에서 <strong>${names}</strong> 님 동시 당첨 → 두 분끼리 한 판 더${tail}`;
+    el.style.display = 'block';
+}
+
 function escapeHtml(str) {
     if (str == null) return '';
     return String(str)
@@ -449,6 +523,12 @@ function ladderEnterRoom(data, asHost) {
     ladderPhase = 'idle';
     document.body.classList.remove('race-running'); // 재입장(reconnect 포함)은 일단 비-연출 화면 — 잔존 시 스티키 광고 영구 숨김(C-6)
     clearLadderRevealTimers();       // 지난 라운드의 연출 예약이 남아 있으면 끊는다
+    // 재경기 대기 중 (재)입장이면 서버가 입장 페이로드에 예약 시각을 실어준다(socket/rooms.js).
+    // 직전 판 요약은 뒤이어 오는 ladder:stateSync가 채운다(그때 이 시각이 이미 잡혀 있어야 한다).
+    clearRematchContext();
+    ladderLastResult = null;         // 다른 방/이전 세션의 직전 판이 새 방으로 새지 않게
+    ladderRematchDeadline = (typeof data.scheduledStartAt === 'number' && data.scheduledStartAt > 0) ? data.scheduledStartAt : null;
+    if (ladderRematchDeadline) startRematchTicker();
     updateStartButton();
     renderBuildSection();
     addDebugLog((asHost ? '방 생성: ' : '방 입장: ') + data.roomId + ' (host=' + isHost + ')');
@@ -818,6 +898,7 @@ function renderBuildSection() {
     if (ladderState.phase !== 'idle') { section.style.display = 'none'; return; }
 
     section.style.display = 'block';
+    renderLastResultBanner();   // 재경기 대기 중이면 "직전 판 요약 + 남은 초"를 빌드 위에 남긴다
     var N = buildState.numLanes || 0;   // 항상 6 (서버 고정)
     var rc = readyCount();              // 준비 인원 — 빌드 노출 게이트(≥2)
     var ready = amIReady();
@@ -1736,6 +1817,7 @@ function startReveal(data) {
     ladderState.phase = 'revealing';
     document.body.classList.add('race-running');   // 리빌 연출 중 스티키 광고 숨김(C-6)
     ladderState.showingResult = false;   // 새 reveal 시작 — 이전 판 결과 유지 상태 해제
+    clearRematchContext();   // 재경기가 실제로 시작됨 — 직전 판 배너/카운트다운은 여기서 끝(인터벌도 정리)
     ladderState.numLanes = data.numLanes;
     // 이전 판 결과 오버레이가 떠 있으면 제거(다음 reveal 화면을 가리지 않게)
     const prevOverlay = document.getElementById('resultOverlay');
@@ -2103,6 +2185,11 @@ socket.on('ladder:gameEnd', (data) => {
     const winners = Array.isArray(data.winners) ? data.winners : [];
     const rematch = winners.length >= 2;   // 같은 번호로 동시 당첨 → 그 사람들끼리 한 판 더
 
+    // 직전 판 요약 — roundReset이 보드를 지운 뒤에도 결과창(A)·빌드 배너(B)가 이 값으로 문맥을 유지한다.
+    // 단독 당첨이면 재경기가 없으니 남아 있던 문맥(이전 판의 배너/카운트다운)을 여기서 끊는다.
+    ladderLastResult = { round: data.round, winners: winners.slice(), winLane: data.winLane, rematch: rematch };
+    if (!rematch) clearRematchContext();
+
     // 히스토리 누적
     ladderHistory.unshift({ round: data.round, winners: winners, winLane: data.winLane });
     renderLadderHistory();
@@ -2127,6 +2214,12 @@ socket.on('ladder:gameEnd', (data) => {
             : '';
         noteEl.style.display = rematch ? 'block' : 'none';
     }
+    // 버튼은 기본 라벨로 되돌린다. 재경기 당사자용 라벨은 roundReset에서 붙인다 — 여기선 아직
+    // readyUsersUpdated가 도착 전이라(서버는 gameEnd → readyUsersUpdated 순) 당사자와 관전자를 구분할 수 없다.
+    const nextBtn = document.getElementById('ladderNextRoundBtn');
+    if (nextBtn) nextBtn.textContent = '🪜 다음 판 준비';
+    renderRematchCountdown();
+
     const overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.add('visible');
 
@@ -2162,12 +2255,27 @@ socket.on('ladder:roundReset', () => {
     if (amIReadyNow()) {
         // 이미 준비 상태 → 결과 닫고 빌드 열기 (onReadyChanged 경로와 동일한 화면 전환)
         ladderState.showingResult = false;
-        closeResultOverlay();   // 전체화면 결과 모달(z-index:1000) 제거 — 안 닫으면 빌드의 시작 버튼이 가려져 소프트락
+        // 단, 재경기의 ready는 "내가 누른 준비"가 아니라 서버가 대신 눌러준 것이다. 그걸 자발적 준비와
+        // 똑같이 취급하면, 결과를 볼지 말지 고른 적 없는 당첨자만 0.6초 만에 결과창을 뺏긴다.
+        // 그래서 재경기 대기 중에는 자동으로 닫지 않는다 — 유저가 [번호 고르러 가기]로 직접 닫는다.
+        // (빌드는 이 아래 renderBuildSection으로 뒤에 미리 그려져 있어, 닫는 즉시 번호를 고를 수 있다.)
+        if (isRematchPending()) {
+            // 여기 온 사람은 재경기 당사자다(관전자는 ready가 풀려 아래 else로 간다). 버튼도 그에 맞게 —
+            // 준비는 이미 서버가 눌러줬으니 남은 건 결과를 다 보고 빌드로 넘어가는 것뿐(readyForNextRound가 닫기만 수행).
+            const nextBtn = document.getElementById('ladderNextRoundBtn');
+            if (nextBtn) nextBtn.textContent = '🔢 번호 고르러 가기';
+            renderRematchCountdown();
+        } else {
+            closeResultOverlay();   // 전체화면 결과 모달(z-index:1000) 제거 — 안 닫으면 빌드의 시작 버튼이 가려져 소프트락
+        }
         const canvasWrap = document.getElementById('ladderCanvasWrap');
         if (canvasWrap) canvasWrap.style.display = 'none';
         clearLaneNames();
         const status = document.getElementById('gameStatus');
-        if (status) { status.textContent = '게임 대기 중...'; status.className = 'game-status waiting'; }
+        if (status) {
+            if (isRematchPending()) { status.textContent = '동시 당첨 — 재경기 번호를 고르세요'; status.className = 'game-status finished'; }
+            else { status.textContent = '게임 대기 중...'; status.className = 'game-status waiting'; }
+        }
     } else {
         // 아직 "다음 판 준비" 미클릭 → 결과 캔버스를 준비 전까지 계속 노출(경마식).
         // 이후 준비를 누르면 onReadyChanged가 showingResult를 풀고 빌드로 전환한다.
@@ -2185,7 +2293,25 @@ socket.on('ladder:stateSync', (d) => {
     if (d && Array.isArray(d.history)) {
         ladderHistory = d.history;
         renderLadderHistory();
+        // 재경기 대기 중에 (재)입장했다면 직전 판 요약도 되살린다 — roomJoined의 scheduledStartAt이
+        // 먼저 도착해(socket/rooms.js) 예약이 잡혀 있고, 최신 기록이 동시 당첨이면 그 재경기가 아직 안 끝난 것.
+        if (ladderRematchDeadline && d.history.length) {
+            const last = d.history[0];   // 서버가 최신 우선으로 뒤집어 보낸다
+            if (last && Array.isArray(last.winners) && last.winners.length >= 2) {
+                ladderLastResult = { round: last.round, winners: last.winners.slice(), winLane: last.winLane, rematch: true };
+                renderRematchCountdown();
+            }
+        }
     }
+});
+
+// 재경기 자동 시작 예약 — 사다리는 이 이벤트를 동시 당첨 재경기에만 쓴다(socket/ladder.js endGame).
+// 이 핸들러가 없던 동안엔 30초 카운트다운이 채팅 안내 한 줄로만 존재해 화면에 남지 않았다.
+socket.on('scheduledStartUpdated', (data) => {
+    const at = data && data.scheduledStartAt;
+    ladderRematchDeadline = (typeof at === 'number' && isFinite(at) && at > 0) ? at : null;
+    if (ladderRematchDeadline) startRematchTicker(); else stopRematchTicker();
+    renderRematchCountdown();
 });
 
 socket.on('ladder:gameAborted', (data) => {
@@ -2193,6 +2319,7 @@ socket.on('ladder:gameAborted', (data) => {
     ladderState.phase = 'idle';
     ladderState.showingResult = false;   // 중단은 결과가 아님 — 기존대로 캔버스 숨김 + 빌드 복귀
     ladderPhase = (ladderState.phase === 'finished') ? 'finished' : 'idle';   // 셸 미러 갱신(함수 덮어쓰기 금지)
+    clearRematchContext();   // 중단되면 예약도 서버가 푼다 — 배너/카운트다운도 같이 끝낸다
     buildState = { numLanes: 0, userRungs: {}, userLanes: {}, baseRungs: [], colorIndex: {} };
     if (ladderAnimRAF) { cancelAnimationFrame(ladderAnimRAF); ladderAnimRAF = null; }
     clearLadderRevealTimers();
@@ -2214,11 +2341,14 @@ function renderLadderHistory() {
     const list = document.getElementById('historyList');
     if (!list) return;
     if (!ladderHistory.length) { list.innerHTML = ''; return; }
-    list.innerHTML = ladderHistory.slice(0, 30).map(h =>
-        `<div style="padding:8px 12px;border-bottom:1px solid var(--gray-200,#e5e7eb);">
+    list.innerHTML = ladderHistory.slice(0, 30).map(h => {
+        // 당첨자가 2명 이상인 판은 그 자리에서 끝난 게 아니라 재경기로 이어진 판이다 — 기록에서도 구분되게 표시.
+        const tie = h.winners && h.winners.length >= 2;
+        const tieTag = tie ? ' <span class="ladder-history-tie">동시 당첨 → 한 판 더</span>' : '';
+        return `<div style="padding:8px 12px;border-bottom:1px solid var(--gray-200,#e5e7eb);">
             <span style="color:var(--ladder-accent);font-weight:bold;">${h.round}판</span>
-            — 🎯 <span style="font-weight:600;">${escapeHtml((h.winners && h.winners.length ? h.winners.join(', ') : '없음'))}</span>${typeof h.winLane === 'number' && h.winLane >= 0 ? ' (' + (h.winLane + 1) + '번)' : ''} 당첨</div>`
-    ).join('');
+            — 🎯 <span style="font-weight:600;">${escapeHtml((h.winners && h.winners.length ? h.winners.join(', ') : '없음'))}</span>${typeof h.winLane === 'number' && h.winLane >= 0 ? ' (' + (h.winLane + 1) + '번)' : ''} 당첨${tieTag}</div>`;
+    }).join('');
 }
 
 // ============================================

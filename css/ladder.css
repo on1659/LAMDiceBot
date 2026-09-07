@@ -10,6 +10,12 @@
     --ladder-chat-bg: #fef3c7;     /* 밝은 amber, 모드 불변 */
     --ladder-chat-name: #92400e;   /* 진한 amber, 모드 불변 */
 
+    /* 재경기 안내 계열 — 결과창 카운트다운·빌드 배너·기록 태그가 공유. 채팅 말풍선과 같은 이유로 모드 불변
+       (밝은 배경 + 진한 글자라 라이트/다크 어디서도 대비가 확보된다). */
+    --ladder-notice-bg: #fffbeb;
+    --ladder-notice-border: #fde68a;
+    --ladder-notice-text: #92400e;
+
     /* horse-race.css가 쓰는 var(--horse-*)를 ladder 색으로 alias */
     --horse-500: var(--ladder-500);
     --horse-600: var(--ladder-600);
@@ -443,6 +449,58 @@
     font-size: 14px;
     line-height: 1.5;
     text-align: center;
+}
+
+/* 결과창의 재경기 카운트다운 — 안내 줄(ladder-result-note) 바로 아래, 같은 호박색 계열 */
+.ladder-result-countdown {
+    margin: -8px 0 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ladder-notice-text);
+    text-align: center;
+    font-variant-numeric: tabular-nums;   /* 초가 줄어도 폭이 흔들리지 않게 */
+}
+
+/* 빌드 화면 상단 직전 판 배너 — 보드가 지워진 뒤에도 재경기 문맥을 남긴다(결과창과 같은 호박색 계열) */
+.ladder-last-result {
+    background: var(--ladder-notice-bg);
+    border: 1px solid var(--ladder-notice-border);
+    color: var(--ladder-notice-text);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.ladder-last-result-badge {
+    display: inline-block;
+    background: var(--ladder-notice-border);
+    border-radius: 6px;
+    padding: 1px 7px;
+    margin-right: 4px;
+    font-weight: 700;
+    font-size: 12px;
+}
+.ladder-last-result-timer {
+    display: inline-block;
+    margin-left: 4px;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 게임 기록의 동시 당첨(재경기로 이어진) 판 표시 */
+.ladder-history-tie {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: var(--ladder-notice-bg);
+    border: 1px solid var(--ladder-notice-border);
+    color: var(--ladder-notice-text);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 /* 여러 명이 같은 번호를 고른 레인 — 잠기지 않는다(선택 가능), 색으로만 구분 */
