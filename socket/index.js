@@ -16,7 +16,7 @@ const { registerServerHandlers } = require('./server');
 const registerShopHandlers = require('./shop');
 const { getUserFlags, setFlag, getUserPrefs, setUserPref } = require('../db/auth');
 const { startScheduler } = require('./scheduled-start');
-const { IS_LOCAL_DEV } = require('../config');
+const { DEV_GAMES_ENABLED } = require('../config');
 
 function setupSocketHandlers(io, rooms) {
     // 방 목록 브로드캐스트 디바운싱 (200ms leading + trailing)
@@ -197,7 +197,7 @@ function setupSocketHandlers(io, rooms) {
         // 서버 환경 플래그 조회 (사다리타기·회전 칼날 방 만들기 허용 여부 — 로컬 개발 서버에서만 열림)
         socket.on('getDevFlags', () => {
             if (!checkRateLimit()) return;
-            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV, spinArenaEnabled: IS_LOCAL_DEV });
+            socket.emit('devFlags', { ladderEnabled: DEV_GAMES_ENABLED, spinArenaEnabled: DEV_GAMES_ENABLED });
         });
 
         // 각 핸들러 등록

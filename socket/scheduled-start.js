@@ -59,9 +59,9 @@ function formatWallClock(epochMs) {
 }
 
 // 예약을 지원하는 게임.
-// 사다리는 실서버 방 생성이 아직 막혀 있지만(socket/rooms.js — IS_LOCAL_DEV), 중복 당첨 시 재경기를
-// 이 예약 발화로 자동 시작하므로 등록해 둔다. 로컬 개발 방에서 실제로 쓰인다.
-// 다리건너기·회전칼날·해적은 방 만들기 라디오가 display:none이라 실서버 사용자가 도달할 수 없다.
+// 사다리·회전 칼날은 실서버 방 생성이 막혀 있지만(config — DEV_GAMES_ENABLED), 중복 당첨 시 재경기를
+// 이 예약 발화로 자동 시작하므로 등록해 둔다. 로컬·DEV_GAMES 서버에서 실제로 쓰인다.
+// 다리건너기·해적은 방 만들기 라디오가 display:none이라 실서버 사용자가 도달할 수 없다.
 const SUPPORTED_GAME_TYPES = {
     'dice': './dice',
     'roulette': './roulette',

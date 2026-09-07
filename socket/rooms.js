@@ -2,7 +2,7 @@ const { generateRoomId, createRoomGameState, deleteRoom } = require('../utils/ro
 const { issueShortcode } = require('../utils/shortcode');
 const { weightedShuffleVehicles } = require('../utils/vehicle-helpers');
 const { formatWallClock } = require('./scheduled-start');
-const { IS_LOCAL_DEV } = require('../config');
+const { DEV_GAMES_ENABLED, DEV_GATED_GAMES } = require('../config');
 
 // ─── 조정 가능한 상수 ───
 const HORSE_COUNT_MIN = 4;  // 경마 최소 말 수
@@ -243,10 +243,10 @@ module.exports = (socket, io, ctx) => {
         // 게임 타입 검증 (dice, roulette, horse-race, bridge, ladder 허용, 기본값은 'dice')
         const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate'].includes(gameType) ? gameType : 'dice';
 
-        // 사다리타기는 로컬 개발 서버에서만 방을 만들 수 있다 (실서버 미출시)
+        // 미출시 게임은 DEV_GAMES가 열린 서버에서만 방을 만들 수 있다 (config/index.js)
         // 아래 leaveRoom(socket)보다 반드시 앞 — 거부하면서 기존 방에서 내보내면 안 된다
-        if (validGameType === 'ladder' && !IS_LOCAL_DEV) {
-            socket.emit('roomError', '사다리타기는 아직 준비 중이에요. 곧 만나요!');
+        if (DEV_GATED_GAMES[validGameType] && !DEV_GAMES_ENABLED) {
+            socket.emit('roomError', DEV_GATED_GAMES[validGameType]);
             return;
         }
 
