@@ -13,30 +13,27 @@
 // ─── 공유 상수 (socket/spin-arena.js 상단과 반드시 동일 값) ───
 var ARENA_W = 480, ARENA_H = 480, ARENA_CX = 240, ARENA_CY = 240;
 var ARENA_R = 220;
-var MAX_SLOTS = 24;             // 최대 참가 슬롯(사람 n=2~24 가변, 봇 없음)
+var FINALIST_COUNT = 4;         // 「최후의 4인」 — 서버 FINALIST_COUNT 미러
+var SPIN_MAX_PLAYERS = 24;      // 참가 상한 — 서버 SPIN_MAX_PLAYERS 미러
 // 타이밍/기하 미러 — 서버 socket/spin-arena.js 상단 값과 반드시 동일(하나만 바꾸면 2탭/타이머 어긋남).
-var GAME_MS = 340000;           // 전체 브래킷 durationMs 하드 캡 — 서버와 동일(SEQUENTIAL 브로드캐스트 최악 n=24 ≈ 317700 + 여유)
 var COUNTDOWN_MS = 4000;        // 3-2-1-START 카운트다운 실측(1000ms×4) — 서버 endTimeout 가산값과 동일
-var SAMPLE_MS = 100;            // 듀얼 frames 키프레임 간격(서버 SAMPLE_MS 미러)
+var SAMPLE_MS = 100;            // 전투 frames 키프레임 간격(서버 SAMPLE_MS 미러)
 var CHAR_RADIUS = 14;
-var BLADE_COUNT = 2;            // 칼날 수 base(듀얼 내 base 고정 — 서버와 동일)
+var BLADE_COUNT = 2;            // 칼날 수(캐릭터당 고정 — 서버와 동일)
 var BLADE_RADIUS = 46;
 var SWORD_LEN = 28;             // 도신(검 날) 길이 — 서버와 동일. 날 안쪽 끝 = BLADE_RADIUS - SWORD_LEN (보이는 검 = 맞는 검)
 var BLADE_EDGE_R = 3.5;         // 날 선분(캡슐) 반경 — 서버 판정 임계와 동일
-var HP_MAX = 100;              // 듀얼 HP. frames hp 채널 분모 = HP_MAX. 서버 HP_MAX 미러.
-var DUEL_RING_R = 64;           // 듀얼 전용 링 반경 — 서버 socket/spin-arena.js 와 반드시 동일 (링 렌더 동기)
-var DUEL_MAX_MS = 8000;         // 듀얼 캡 — 서버 DUEL_MAX_MS 미러
-var DECIDE_TAIL_MS = 1200;      // 듀얼 결판(decideMs) 후 비트 길이 — 서버 DECIDE_TAIL_MS 미러
-var MIN_ROUND_MS = 3000;        // 라운드 최소 길이 — 서버 MIN_ROUND_MS 미러
-// 박제: 서버 socket/spin-arena.js 와 동일 — SEQUENTIAL 브로드캐스트 비트(전체 durationMs 합산).
-var BRACKET_OVERVIEW_MS = 3500; // 시작 브래킷 오버뷰(1회)
-var ROUND_INTRO_MS = 2000;      // "{poolSize}강 시작" 카드(라운드마다)
-var DUEL_INTRO_MS = 1500;       // "{A} 대 {B} 게임시작"(듀얼마다)
-var DUEL_OUTRO_MS = 1500;       // "{loser} 패배" + 모션(듀얼마다)
-var DUEL_BLACKOUT_MS = 700;     // 암전 전환(듀얼마다)
-var BYE_BEAT_MS = 1500;         // "부전패" 비트(bye마다)
-// (위 6비트가 전체 durationMs를 구성. 서버 socket/spin-arena.js 와 동일 순서·값으로 클라가 세그먼트 타임라인을 합산 →
-//  총합 === payload.durationMs. 하나라도 어긋나면 endTimeout이 결과를 일찍/늦게 발화시킨다.)
+var HP_MAX = 350;               // frames hp 채널 분모 = HP_MAX. 서버 HP_MAX 미러.
+// 링 스케줄 — 서버 socket/spin-arena.js 와 반드시 동일. ringRadiusAt이 이 값들로 반경을 계산한다.
+var RING_R_START = 220;         // 시작 반경 = 바깥벽
+var RING_R_END = 60;            // 결승 최종 반경
+var RING2_SHRINK_MS = 20000;    // 결승 수축(결승 시작 기준, 220 → 60) — 서버 미러
+var ROULETTE_ANIM_MS = 5500;    // 등수 룰렛 애니 길이 — 서버 ROULETTE_ANIM_MS 미러
+var ROULETTE_HOLD_MS = 1200;    // 룰렛 정지 후 결과를 읽는 시간 — 서버 ROULETTE_HOLD_MS 미러
+// (서버 endTimeout = ROULETTE_ANIM_MS + ROULETTE_HOLD_MS + COUNTDOWN_MS + durationMs + 결과 여유.
+//  클라 재생 순서도 정확히 이 순서 — 하나라도 어긋나면 결과가 일찍/늦게 발화한다.)
+// ── 캔버스 HUD 레이아웃(클라 전용 — 서버와 무관) ──
+var SPIN_HUD_H = 44;            // 상단 HUD 높이(한 줄) — 캐릭터별 이름·HP는 각자 머리 위에 그린다
 
 // 스킨 프리셋 (서버 socket/spin-arena.js 와 동일 값 계약 — 결과 무관, 순수 외형)
 // 24색 × (t1 + t2 스킨업). 자동 배정 풀 = base tier1 24색 전체(서버 거울 규칙 — 소유 무관, 24명 distinct).
@@ -105,7 +102,7 @@ function spinScale(n) { return n <= 6 ? 1 : Math.sqrt(6 / n); }
 
 // 미션/상태 텍스트 — 토너먼트 평이한 한국어(2탭 동일). 이긴 사람=안전, 진 사람=다음 라운드, 끝까지 진 1명=당첨.
 function spinMissionText() {
-    return '⚔️ 듀얼에서 이기면 안전 · 끝까지 지면 당첨';
+    return '⚔️ 최후의 ' + FINALIST_COUNT + '인까지 살아남아라 · 벌칙 등수는 투표로';
 }
 
 // localhost 체크
@@ -409,6 +406,7 @@ function initReadyModule() {
             readyUsers = rUsers;
             updateStartButton();
             renderSkinPicker();   // 준비 상태 변동 → 스킨 피커 활성화 갱신
+            renderRankVote();
             trySpinApplyEquippedSkin(false);   // 준비 완료 시 상점 장착 스킨 자동 적용(미선택일 때만)
         }
     });
@@ -473,6 +471,67 @@ function updateStartButton() {
 }
 
 // ── 스킨 피커 (#spinSkinPicker) ──
+var spinRankVotes = {};    // { userName: rank } — 서버 rankVotesUpdated 미러
+
+// 투표 전송 — 박스 클릭 리스너(renderRankVote)가 부른다.
+function voteSpinRank(rank) {
+    if (!amIReady()) { showCustomAlert('먼저 준비를 해주세요!', 'warning'); return; }
+    socket.emit('spin-arena:voteRank', { rank: rank });
+}
+
+// 등수 투표 — 「몇 등이 벌칙인지」. 후보는 결승 진출 등수(1~FINALIST_COUNT).
+// DOM·상호작용은 경마 renderRankVoteSection(js/horse-race.js)과 동일하게 맞췄다:
+//   박스 하나에 "N등" + 표 개수만큼의 막대(익명 — 누가 던졌는지 안 보인다), 내 표는 .selected.
+function renderRankVote() {
+    var section = document.getElementById('spinRankVote');
+    var boxesEl = document.getElementById('spinRankVoteBoxes');
+    if (!section || !boxesEl) return;
+
+    if (!amIReady() || spinReplay.phase === 'playing') { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    // 등수별 표 수 집계 (익명 — 이름 비공개)
+    var tallyByRank = {};
+    Object.keys(spinRankVotes).forEach(function (nm) {
+        var r = spinRankVotes[nm];
+        if (!Number.isInteger(r)) return;
+        tallyByRank[r] = (tallyByRank[r] || 0) + 1;
+    });
+
+    var myVote = spinRankVotes[currentUser];
+    var maxRank = Math.min(FINALIST_COUNT, Math.max(readyCount(), 1));
+    boxesEl.innerHTML = '';
+
+    for (var r = 1; r <= FINALIST_COUNT; r++) {
+        var box = document.createElement('div');
+        box.className = 'rank-vote-box';
+        box.dataset.rank = String(r);
+        if (myVote === r) box.classList.add('selected');
+        // 준비 인원이 적으면 그 등수는 아예 안 생긴다 — 시작 시 무효 처리되므로 미리 흐리게.
+        if (r > maxRank) box.classList.add('dim');
+
+        var count = tallyByRank[r] || 0;
+        var barsHtml = '';
+        for (var bi = 0; bi < count; bi++) barsHtml += '<div class="rank-vote-bar"></div>';
+        box.innerHTML =
+            '<div class="rank-vote-rank">' + r + '등</div>' +
+            '<div class="rank-vote-bars">' + barsHtml + '</div>';
+        (function (rankVal) {
+            box.addEventListener('click', function () {
+                if (!amIReady()) {
+                    showCustomAlert('먼저 준비를 해주세요!', 'warning');
+                    return;
+                }
+                socket.emit('spin-arena:voteRank', { rank: rankVal });
+            });
+        })(r);
+        boxesEl.appendChild(box);
+    }
+
+    var warnEl = document.getElementById('spinRankVoteWarn');
+    if (warnEl) warnEl.textContent = '⚔️ 1등(끝까지 살아남은 사람)도 벌칙에 걸릴 수 있어요.';
+}
+
 function renderSkinPicker() {
     var picker = document.getElementById('spinSkinPicker');
     if (!picker) return;
@@ -487,6 +546,19 @@ function renderSkinPicker() {
     var ownedSkins = (window.SpinShop && SpinShop.getOwnedSkinIds) ? SpinShop.getOwnedSkinIds() : [];
     function ownsSkin(id) { return ownedSkins.indexOf(id) >= 0; }
 
+    // 고를 수 있는 색만 남긴다 — 무료 스킨 + 내가 산 스킨(t1/t2 어느 쪽이든 보유하면 그 색).
+    // 예전엔 24색을 다 뿌리고 18개를 🔒로 막아 놔서, 못 고르는 색이 화면의 대부분이었다.
+    // 상점에서 더 사면 여기 자동으로 늘어난다.
+    var pickable = [];
+    for (var pi = 0; pi < SPIN_SKIN_COLORS.length; pi++) {
+        var c = SPIN_SKIN_COLORS[pi];
+        var ownsT2 = ownsSkin(c.id + '_t2');
+        var ownsT1 = ownsSkin(c.id);
+        if (!c.free && !ownsT1 && !ownsT2) continue;
+        // 같은 색을 t2까지 갖고 있으면 더 높은 티어를 쓴다(스킨업 반영).
+        pickable.push({ sk: c, useId: ownsT2 ? (c.id + '_t2') : c.id, hasT2: ownsT2 });
+    }
+
     var html = '<div class="spin-skin-head">' +
         '<div class="spin-skin-title">⚔️ 내 칼날 스킨 고르기</div>' +
         '<button type="button" class="spin-shop-btn" onclick="SpinShop.openShop()" title="스킨 구매/스킨업">🛍️ 스킨 상점</button>' +
@@ -496,38 +568,32 @@ function renderSkinPicker() {
     } else if (!ready) {
         html += '<div class="spin-skin-hint">준비하면 칼날 스킨을 고를 수 있어요. 안 골라도 시작 시 자동 배정됩니다.</div>';
     } else {
-        html += '<div class="spin-skin-hint">무료 스킨은 여기서 바로 골라요. 🔒 유료·스킨업 스킨은 🛍️ 상점에서 장착해요. (결과와 무관한 외형)</div>';
+        html += '<div class="spin-skin-hint">가진 스킨만 보여요. 새 색은 🛍️ 상점에서 살 수 있어요. (결과와 무관한 외형)</div>';
     }
 
-    // 16색 스와치 — 색별로 보유 최고 티어를 자동 사용(t2 보유 시 Ⅱ 배지 + t2 선택).
-    // 미소유 색(신규 10색 중 미구매)은 잠금 — 클릭하면 상점이 열린다.
     html += '<div class="spin-skin-grid">';
-    for (var i = 0; i < SPIN_SKIN_COLORS.length; i++) {
-        var sk = SPIN_SKIN_COLORS[i];
-        var t2Id = sk.id + '_t2';
-        var hasT2 = ownsSkin(t2Id);
-        // #11 피커(바깥)는 free 스킨만 직접 선택. 유료(소유 포함)·스킨업(t2)은 전부 상점에서 장착 → 클릭 시 상점 오픈.
-        var useId = sk.free ? sk.id : null;
-        var locked = !sk.free;
+    for (var i = 0; i < pickable.length; i++) {
+        var sk = pickable[i].sk;
+        var useId = pickable[i].useId;
+        var hasT2 = pickable[i].hasT2;
         // 이 색을 고른 사람들(닉네임 칩) — t1/t2 모두 같은 색으로 묶어 표시
         var owners = [];
         for (var name in spinSkins) {
             if (spinSkinBaseId(spinSkins[name]) === sk.id) owners.push(name);
         }
         var mySel = spinSkins[currentUser];
-        var mine = mySel === sk.id || mySel === t2Id;
-        var cls = 'spin-skin-swatch' + (mine ? ' mine' : '') + (locked ? ' locked' : '');
+        var mine = mySel === sk.id || mySel === (sk.id + '_t2');
+        var cls = 'spin-skin-swatch' + (mine ? ' mine' : '');
         var ownersHtml = '';
         for (var o = 0; o < owners.length; o++) {
             ownersHtml += '<span class="spin-skin-owner">' + escapeHtml(owners[o]) + (owners[o] === currentUser ? ' (나)' : '') + '</span>';
         }
         var nameHtml = escapeHtml(sk.name) + (hasT2 ? ' <span class="spin-skin-tier">Ⅱ</span>' : '');
         var dotShadow = '0 0 0 3px ' + sk.blade + (hasT2 ? ',0 0 12px ' + sk.blade : '');
-        html += '<div class="' + cls + '" data-skin="' + (useId || '') + '" data-locked="' + (locked ? '1' : '0') + '" role="button" tabindex="' + ((ready || locked) ? '0' : '-1') + '" ' +
-            'aria-label="' + escapeHtml(sk.name) + ' 스킨' + (mine ? ' 선택됨' : '') + (locked ? ' 잠금 — 상점에서 구매' : '') + '">' +
+        html += '<div class="' + cls + '" data-skin="' + useId + '" role="button" tabindex="' + (ready ? '0' : '-1') + '" ' +
+            'aria-label="' + escapeHtml(sk.name) + ' 스킨' + (mine ? ' 선택됨' : '') + '">' +
             '<span class="spin-skin-dot" style="background:' + sk.color + ';box-shadow:' + dotShadow + ';"></span>' +
             '<span class="spin-skin-name">' + nameHtml + '</span>' +
-            (locked ? '<span class="spin-skin-lock">🔒 상점</span>' : '') +
             '<span class="spin-skin-owners">' + ownersHtml + '</span>' +
             '</div>';
     }
@@ -538,13 +604,7 @@ function renderSkinPicker() {
     for (var s = 0; s < swatches.length; s++) {
         (function (el) {
             var skinId = el.getAttribute('data-skin');
-            var locked = el.getAttribute('data-locked') === '1';
             function pick() {
-                if (locked) {
-                    // 미소유 — 상점으로 안내 (선택 emit 없음)
-                    if (window.SpinShop && SpinShop.openShop) SpinShop.openShop();
-                    return;
-                }
                 if (!ready) return;   // 미준비 — 기존 게이트 유지(서버도 거부)
                 mySkinId = skinId;
                 socket.emit('spin-arena:selectSkin', { skinId: skinId });
@@ -602,15 +662,17 @@ var spinReplay = {
     wasIdle: false,         // idle 상태에서 다시보기 시작(종료 후 idle 복귀)
     pendingReveal: null,    // 카운트다운 중인 reveal payload(취소 가드 토큰)
     _cdRaf: null,           // 3-2-1 카운트다운 중 칼날 회전 애니 raf 핸들(메인 raf와 별개 — 더블 raf 금지)
-    overflowSpectator: false, // 준비했지만 선착 MAX_SLOTS명 초과 — 관전 안내
     particles: [],          // 활성 파티클(스파크/파편)
     fx: [],                 // 활성 일회성 연출(충격파/플래시/플로팅텍스트)
     _hpRows: [],            // (render-harness 전용 DOM 캐시 — 라이브는 캔버스)
-    // ── 토너먼트 브래킷 렌더 상태(뷰어 로컬 — 결과/시뮬 무관, 순수 시각) ──
-    _slotById: null,        // slotId -> reveal slot 메타(색/blade/tier/name) — initSpinFx 1회 빌드
-    _duelFx: {},            // slotId -> 듀얼 FX 상태(피격/펄스/스파크/이전HP/얼굴방향)
-    _seqTL: null,           // SEQUENTIAL 연출 세그먼트 타임라인(spinBuildSegmentTimeline) — startReplay에서 빌드(총합 === durationMs)
-    _featHit: false         // 이번 프레임 단일 듀얼 피격(사운드/흔들림 트리거)
+    _rouRaf: null,          // 등수 룰렛 애니 raf 핸들(전투 raf와 별개)
+    // ── 전투 렌더 상태(뷰어 로컬 — 결과/시뮬 무관, 순수 시각) ──
+    _slotById: null,        // slotId -> reveal players 메타(이름/색/blade/tier) — initSpinFx 1회 빌드
+    _charFx: {},            // slotId -> FX 상태(피격/펄스/스파크/이전HP/얼굴방향)
+    _elimAt: {},            // slotId -> 탈락 시각(ms). 최후 생존자는 없음(undefined)
+    _rankBySlot: {},        // slotId -> 등수
+    _finalistSet: {},       // slotId -> true (결승 진출자)
+    _featHit: false         // 이번 프레임 피격(사운드/흔들림 트리거)
 };
 
 var savedReveal = null;     // 다시보기용 마지막 reveal payload(roundReset의 payload=null과 분리 보관)
@@ -1058,134 +1120,118 @@ function drawSpinNameTag(ctx, x, y, label, scl, isMe, accent, prefix, dim) {
 }
 
 // ============================================
-// 토너먼트 브래킷 렌더 (2026-06-18 SEQUENTIAL 브로드캐스트) — 순수 시각, 결과/공정성 무관, Math.random 0회.
-//   중계방송: 시작에 대진표(오버뷰) → 라운드마다 "N강 시작" → 듀얼마다 "A 대 B" 인트로 → 풀스크린 듀얼(+KOF HUD)
-//     → "{패자} 패배" 아웃트로(캐릭터 모션 유지) → 암전(다크) → 다음. bye는 "부전패" 비트.
-//   세그먼트 타임라인 총합 === 서버 payload.durationMs(동일 6비트·동일 순서·동일 식). GAME_MS 캡은 서버 쪽에서만(클라는
-//     gt를 payload.durationMs로 클램프하므로 자동 일치). 좌표/HP/당첨/라벨 전부 bracket payload·t 파생 → 2탭 동일.
+// 전투 렌더 (5캐릭터 프리포올) — 순수 시각, 결과/공정성 무관, Math.random 0회.
+//   흐름: 등수 룰렛(당첨 등수 추첨) → 3-2-1 카운트다운 → 프리포올 전투 → 결과.
+//   좌표/HP/등수/라벨 전부 서버 reveal payload와 t에서만 파생 → 모든 탭이 같은 화면.
+//   전투 길이는 서버 payload.durationMs가 권위(클라는 gt를 거기에 클램프).
 // ============================================
-
-// 라운드 라벨 — at-risk 풀 크기 기반. 풀 2 = "결승", 그 외 = "{poolSize}강".
-function spinRoundLabel(poolSize) {
-    return (poolSize === 2) ? '결승' : (poolSize + '강');
-}
-
-// ── SEQUENTIAL 연출 세그먼트 타임라인 빌드 — 전역 t를 연출 비트 세그먼트로 매핑(서버 durationMs 식과 동일 순서/합) ──
-//   세그먼트 종류(서버 durationMs 누적 순서와 1:1):
-//     { kind:'overview', start, end }                                  — 시작 대진표(BRACKET_OVERVIEW_MS, 1회)
-//     { kind:'roundintro', roundIdx, poolSize, start, end }            — "{N강} 시작"(ROUND_INTRO_MS, 라운드마다)
-//     { kind:'duelintro', roundIdx, duelIdx, duel, start, end }        — "{A} 대 {B} 게임시작"(DUEL_INTRO_MS, 듀얼마다)
-//     { kind:'duel', roundIdx, duelIdx, duel, start, end }             — 듀얼 전투(duel.durationMs)
-//     { kind:'dueloutro', roundIdx, duelIdx, duel, start, end }        — "{패자} 패배" + 모션(DUEL_OUTRO_MS, 듀얼마다)
-//     { kind:'blackout', roundIdx, duelIdx, duel, start, end }         — 암전 페이드(DUEL_BLACKOUT_MS, 듀얼마다)
-//     { kind:'bye', roundIdx, byeName, start, end }                    — "부전패"(BYE_BEAT_MS, bye마다)
-//   총합 = BRACKET_OVERVIEW_MS + Σ_rounds[ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + dur + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ]
-//     (rounds.length>0 가드 — 비면 0). 서버 simulate durationMs와 동일.
-function spinBuildSegmentTimeline(bracket) {
-    var rounds = (bracket && bracket.rounds) || [];
-    var segs = [];
-    var acc = 0;
-    if (rounds.length > 0) {
-        segs.push({ kind: 'overview', start: acc, end: acc + BRACKET_OVERVIEW_MS });
-        acc += BRACKET_OVERVIEW_MS;
-        for (var ri = 0; ri < rounds.length; ri++) {
-            var round = rounds[ri];
-            var poolSize = round.poolSize || ((round.duels ? round.duels.length * 2 : 0) + ((round.byes && round.byes.length) || 0));
-            segs.push({ kind: 'roundintro', roundIdx: ri, poolSize: poolSize, start: acc, end: acc + ROUND_INTRO_MS });
-            acc += ROUND_INTRO_MS;
-            var duels = round.duels || [];
-            for (var di = 0; di < duels.length; di++) {
-                var duel = duels[di];
-                var dur = duel.durationMs || 0;
-                segs.push({ kind: 'duelintro', roundIdx: ri, duelIdx: di, duel: duel, start: acc, end: acc + DUEL_INTRO_MS });
-                acc += DUEL_INTRO_MS;
-                segs.push({ kind: 'duel', roundIdx: ri, duelIdx: di, duel: duel, start: acc, end: acc + dur });
-                acc += dur;
-                segs.push({ kind: 'dueloutro', roundIdx: ri, duelIdx: di, duel: duel, start: acc, end: acc + DUEL_OUTRO_MS });
-                acc += DUEL_OUTRO_MS;
-                segs.push({ kind: 'blackout', roundIdx: ri, duelIdx: di, duel: duel, start: acc, end: acc + DUEL_BLACKOUT_MS });
-                acc += DUEL_BLACKOUT_MS;
-            }
-            var byes = round.byes || [];
-            for (var bi = 0; bi < byes.length; bi++) {
-                var byeName = spinSlotMeta(byes[bi]).name || '';
-                segs.push({ kind: 'bye', roundIdx: ri, byeName: byeName, start: acc, end: acc + BYE_BEAT_MS });
-                acc += BYE_BEAT_MS;
-            }
-        }
-    }
-    return { segs: segs, total: acc };
-}
-
-// 전역 t → 현재 세그먼트 + 로컬 정보. duel은 localT(자기 durationMs 클램프). 그 외 비트는 segProg(0~1) + duel hold용 메타.
-function spinSeqAt(seqTL, t) {
-    var segs = seqTL.segs;
-    for (var i = 0; i < segs.length; i++) {
-        var s = segs[i];
-        if (t < s.end || i === segs.length - 1) {
-            var span = (s.end - s.start) || 1;
-            var localT = clamp(t - s.start, 0, span);
-            return {
-                kind: s.kind, roundIdx: s.roundIdx, duelIdx: s.duelIdx, duel: s.duel,
-                poolSize: s.poolSize, byeName: s.byeName,
-                localT: (s.kind === 'duel') ? clamp(t - s.start, 0, (s.duel && s.duel.durationMs) || 0) : localT,
-                segProg: clamp((t - s.start) / span, 0, 1)
-            };
-        }
-    }
-    return { kind: 'overview', localT: 0, segProg: 1 };
-}
-
-// 듀얼이 localT 시점에 결판났는가(LOSER 비석 / WINNER 안전 비트 게이트)
-function spinDuelDecided(duel, localT) {
-    return duel.decideMs != null && localT >= duel.decideMs;
-}
-
-// 듀얼의 localT 시점 두 캐릭터 보간 상태(stride 6 = [ax,ay,ahp, bx,by,bhp], 자기 durationMs로 클램프 = 결판 후 동결).
-//   좌표는 서버 로컬(ARENA_CX/CY 중심). 반환 {ax,ay,ahp, bx,by,bhp}.
-function spinDuelInterp(duel, localT) {
-    var frames = duel.frames || [];
-    var dur = duel.durationMs || 0;
-    var ct = clamp(localT, 0, dur);
-    var fi = ct / SAMPLE_MS;
-    var i0 = Math.floor(fi);
-    var maxI = (frames.length / 6) - 1;
-    if (i0 > maxI) i0 = maxI; if (i0 < 0) i0 = 0;
-    var i1 = Math.min(i0 + 1, maxI);
-    var a = fi - i0; if (a < 0) a = 0; if (a > 1) a = 1;
-    var b0 = i0 * 6, b1 = i1 * 6;
-    return {
-        ax: lerp(frames[b0], frames[b1], a), ay: lerp(frames[b0 + 1], frames[b1 + 1], a), ahp: lerp(frames[b0 + 2], frames[b1 + 2], a),
-        bx: lerp(frames[b0 + 3], frames[b1 + 3], a), by: lerp(frames[b0 + 4], frames[b1 + 4], a), bhp: lerp(frames[b0 + 5], frames[b1 + 5], a)
-    };
-}
-
-// 슬롯 id → reveal slot 메타(색/blade/tier/name) 조회 맵 캐시(initSpinFx에서 1회).
+// ── 슬롯 메타 조회 (reveal payload.players — 슬롯 번호 오름차순, frames 순서와 1:1) ──
+// ── 슬롯 메타 조회 (reveal payload.players — 슬롯 번호 오름차순, frames 순서와 1:1) ──
 function spinSlotMeta(slotId) {
     var m = spinReplay._slotById;
-    return (m && m[slotId]) || { id: slotId, name: '', color: '#9aa3ad', blade: '#c2c8cf', tier: 1 };
+    return (m && m[slotId]) || { slotId: slotId, name: '', color: '#9aa3ad', blade: '#c2c8cf', tier: 1 };
 }
-// ── 듀얼 1개 렌더(재사용 가능 셀) — featured(크게/풀 FX) + 스트립(작게/경량 FX) 공통 ──
-//   vp = { cx, cy, scale }: 듀얼 로컬 좌표(ARENA_CX/CY 중심)를 이 사각형 중심·배율로 매핑.
-//   localT: 라운드 로컬 시각(ms). 자기 durationMs로 클램프(결판 후 동결). isFeatured: 풀 사이즈 + 스파크/사운드.
-//   전부 t·payload 파생(2탭 동일). Math.random 없음(스파크 seed는 t·인덱스 해시).
-function drawDuel(ctx, duel, localT, vp, isFeatured) {
-    var sc = vp.scale;
-    var st = spinDuelInterp(duel, localT);
-    var metaA = spinSlotMeta(duel.slotA), metaB = spinSlotMeta(duel.slotB);
-    var decided = spinDuelDecided(duel, localT);
-    var loserIsA = (duel.loserSlot === duel.slotA);
 
-    // 듀얼 로컬(중심 ARENA_CX/CY) → 뷰포트 좌표
+// 슬롯이 탈락한 시각(ms). 최후 생존자는 null. reveal payload.result.rankings의 atMs가 권위.
+function spinSlotElimAt(slotId) {
+    var m = spinReplay._elimAt;
+    return (m && m[slotId] !== undefined) ? m[slotId] : null;
+}
+
+// ── 단계 판정 — 492a8c7의 spinStageAt과 같은 구조 ──
+//   twoStage=false → 항상 'finale'(단일 단계는 결승 스케줄로만 돈다)
+//   t < stage1EndMs        → 'stage1'
+//   t < finaleStartMs      → 'transition' (전투 정지 + 「최후의 4인!」 낙하)
+//   그 외                  → 'finale'
+function spinStageAt(payload, t) {
+    if (!payload || !payload.twoStage || payload.stage1EndMs == null) return 'finale';
+    if (t < payload.stage1EndMs) return 'stage1';
+    if (t < payload.finaleStartMs) return 'transition';
+    return 'finale';
+}
+
+// 링 반경 — 서버 socket/spin-arena.js 의 ringRadiusAt과 반드시 동일 식.
+// twoStage를 반드시 넘긴다 — stage1EndMs === null 이 "단일 단계"와 "Stage1 진행 중" 둘 다를 뜻한다.
+// 서버 socket/spin-arena.js 의 ringRadiusAt과 반드시 동일 식.
+function ringRadiusAt(t, stage1EndMs, finaleStartMs, twoStage) {
+    if (twoStage && (stage1EndMs === null || stage1EndMs === undefined || t < stage1EndMs)) {
+        return RING_R_START;
+    }
+    if (stage1EndMs === null || stage1EndMs === undefined) {
+        var k0 = Math.min(1, Math.max(0, t / RING2_SHRINK_MS));
+        return RING_R_START + (RING_R_END - RING_R_START) * k0;
+    }
+    if (t < finaleStartMs) return RING_R_START;
+    var k2 = Math.min(1, Math.max(0, (t - finaleStartMs) / RING2_SHRINK_MS));
+    return RING_R_START + (RING_R_END - RING_R_START) * k2;
+}
+
+// 결승 진출 슬롯 Set (payload.finalists 파생)
+function spinFinalistSet(payload) {
+    var set = {};
+    var fin = (payload && payload.finalists) || [];
+    for (var i = 0; i < fin.length; i++) set[fin[i]] = true;
+    return set;
+}
+
+// 전투 t 시점 전체 슬롯 보간 상태 — frames stride = 3×n, 슬롯 번호 오름차순.
+//   좌표는 서버 로컬(ARENA_CX/CY 중심). 반환 [{x,y,hp}] (payload.players와 같은 순서).
+function spinBattleInterp(payload, t) {
+    var frames = payload.frames || [];
+    var n = (payload.players || []).length;
+    var dur = payload.durationMs || 0;
+    var sampleMs = payload.sampleMs || SAMPLE_MS;
+    var out = [];
+    if (!n || !frames.length) return out;
+    var stride = n * 3;
+    var maxI = (frames.length / stride) - 1;
+    var ct = clamp(t, 0, dur);
+    var fi = ct / sampleMs;
+    var i0 = Math.floor(fi);
+    if (i0 > maxI) i0 = maxI; if (i0 < 0) i0 = 0;
+    var i1 = Math.min(i0 + 1, maxI);
+    var a = clamp(fi - i0, 0, 1);
+    var b0 = i0 * stride, b1 = i1 * stride;
+    for (var k = 0; k < n; k++) {
+        out.push({
+            x: lerp(frames[b0 + k * 3], frames[b1 + k * 3], a),
+            y: lerp(frames[b0 + k * 3 + 1], frames[b1 + k * 3 + 1], a),
+            hp: lerp(frames[b0 + k * 3 + 2], frames[b1 + k * 3 + 2], a)
+        });
+    }
+    return out;
+}
+
+// 전투 풀스크린 vp — HUD 아래 중앙. 링은 t에 따라 변하므로 항상 최대 반경(RING_R_START) 기준으로 잡아
+//   화면이 단계마다 출렁이지 않게 한다(카메라 고정 = 492a8c7의 와이드 프레이밍 결정과 동일).
+function spinBattleVP(canvas) {
+    var top = SPIN_HUD_H;
+    var cx = canvas.width / 2;
+    var cy = top + (canvas.height - top) / 2;
+    var avail = Math.min(canvas.width, canvas.height - top) - 16;
+    var scale = clamp(avail / (RING_R_START * 2 + CHAR_RADIUS * 2 + 20), 0.4, 1.4);
+    return { cx: cx, cy: cy, scale: scale };
+}
+
+// ── 전투 렌더 — 살아있으면 칼날+바디, 탈락했으면 그 자리에 비석 ──
+//   결승 단계에서는 진출자만 그린다(장면 전환 = "4명만 한 화면").
+//   전부 t·payload 파생(2탭 동일). Math.random 없음(스파크 seed는 t·인덱스 해시).
+function drawBattleScene(ctx, payload, t, vp, live, stage) {
+    var sc = vp.scale;
+    var metaList = payload.players || [];
+    var states = spinBattleInterp(payload, t);
+    var ringR = ringRadiusAt(t, payload.stage1EndMs, payload.finaleStartMs, payload.twoStage) * sc;
+    var finalists = spinReplay._finalistSet || {};
+    var finaleOnly = (stage === 'finale' && payload.twoStage);
+
     function vx(x) { return vp.cx + (x - ARENA_CX) * sc; }
     function vy(y) { return vp.cy + (y - ARENA_CY) * sc; }
 
     var charR = CHAR_RADIUS * sc;
     var spriteH = SPRITE_TOKEN_H * sc;
     var spriteOn = spinSprites.ready;
-    var ringR = DUEL_RING_R * sc;
 
-    // 링(고정 반경) + 바닥 디스크(셀 구분)
+    // 링 + 바닥 디스크
     ctx.save();
     var disk = ctx.createRadialGradient(vp.cx, vp.cy, ringR * 0.2, vp.cx, vp.cy, ringR * 1.25);
     disk.addColorStop(0, 'rgba(28,39,72,0.55)');
@@ -1193,20 +1239,21 @@ function drawDuel(ctx, duel, localT, vp, isFeatured) {
     ctx.fillStyle = disk;
     ctx.beginPath(); ctx.arc(vp.cx, vp.cy, ringR * 1.18, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-    drawSafeRing(ctx, vp.cx, vp.cy, ringR, localT);
+    drawSafeRing(ctx, vp.cx, vp.cy, ringR, t);
 
-    // 두 캐릭터를 z-order(내 캐릭터 위로) 없이 A,B 순서로. 패배자는 결판 후 비석.
-    var pts = [
-        { meta: metaA, x: st.ax, y: st.ay, hp: st.ahp, blade: duel.bladeA, slot: duel.slotA, isLoser: loserIsA },
-        { meta: metaB, x: st.bx, y: st.by, hp: st.bhp, blade: duel.bladeB, slot: duel.slotB, isLoser: !loserIsA }
-    ];
+    for (var k = 0; k < metaList.length; k++) {
+        var meta = metaList[k];
+        var st = states[k];
+        if (!st) continue;
+        // 결승에서는 진출자만 화면에 남긴다.
+        if (finaleOnly && !finalists[meta.slotId]) continue;
 
-    for (var pi = 0; pi < pts.length; pi++) {
-        var pt = pts[pi];
-        var rx = vx(pt.x), ry = vy(pt.y);
-        var isMe = (pt.meta.name === currentUser);
-        var fx = spinReplay._duelFx[pt.slot] || null;
-        var deadHere = decided && pt.isLoser;   // 이 캐릭터가 이 듀얼의 패배자(결판 후) = 비석
+        var blade = (payload.blades || [])[k] || { baseAngle: 0, spinSpeed: 4, spinDir: 1, bladeCount: BLADE_COUNT };
+        var rx = vx(st.x), ry = vy(st.y);
+        var isMe = (meta.name === currentUser);
+        var fx = spinReplay._charFx[meta.slotId] || null;
+        var elimAt = spinSlotElimAt(meta.slotId);
+        var deadHere = (elimAt != null && t >= elimAt);
 
         // 그림자
         ctx.save();
@@ -1217,432 +1264,265 @@ function drawDuel(ctx, duel, localT, vp, isFeatured) {
         ctx.restore();
 
         if (deadHere) {
-            // 패배자 비석(머리 위 낙하 → 안착). reduced-motion이면 즉시 안착.
             var topOff = spriteOn ? spriteH * 0.58 : charR;
             var restY = ry - topOff - 6 * sc;
-            var dp = prefersReducedMotion ? 1 : clamp((localT - duel.decideMs) / TOMBSTONE_DROP_MS, 0, 1);
+            var dp = prefersReducedMotion ? 1 : clamp((t - elimAt) / TOMBSTONE_DROP_MS, 0, 1);
             var ease = 1 - (1 - dp) * (1 - dp);
             var tombY = restY - (1 - ease) * TOMBSTONE_DROP_H * sc;
             ctx.save();
-            ctx.font = (26 * Math.max(sc, 0.6)) + 'px sans-serif';
+            ctx.font = (24 * Math.max(sc, 0.6)) + 'px sans-serif';
             ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
             ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 6;
             ctx.fillText('🪦', rx, tombY);
             ctx.restore();
-            // 비석은 회색 폴백 바디(작게)로 바닥 표시 — 사라지지 않게 라운드 내 잔류
             ctx.save();
-            ctx.globalAlpha = 0.5;
+            ctx.globalAlpha = 0.45;
             ctx.translate(rx, ry);
             if (spriteOn) drawCharSprite(ctx, spinSprites.variants.gray, 0, fx ? fx.faceDir : 1, sc);
             else { drawCharBody(ctx, hexToRgb('#5a6472'), sc); }
             ctx.restore();
         } else {
-            // 칼날(허브가 바디에 덮이게 바디 전에). blade 파라미터는 duel.bladeA/B(서버 권위).
-            var bp = { baseAngle: pt.blade.baseAngle, spinDir: pt.blade.spinDir, spinSpeed: pt.blade.spinSpeed, bladeRadius: BLADE_RADIUS * sc };
-            var bc = (pt.blade.bladeCount) || BLADE_COUNT;
-            drawBladeSet(ctx, bp, rx, ry, localT, pt.meta.blade || '#ffffff', fx ? fx.bladeRgb : hexToRgb(pt.meta.blade), bc);
+            var bp = { baseAngle: blade.baseAngle, spinDir: blade.spinDir, spinSpeed: blade.spinSpeed, bladeRadius: BLADE_RADIUS * sc };
+            drawBladeSet(ctx, bp, rx, ry, t, meta.blade || '#ffffff', fx ? fx.bladeRgb : hexToRgb(meta.blade), blade.bladeCount || BLADE_COUNT);
 
-            // 바디 + 피격 스케일 펀치
             var pulse = 1;
-            if (fx && localT - fx.pulseT < 150) { var pk = (localT - fx.pulseT) / 150; pulse = 1 + 0.22 * Math.sin(pk * Math.PI); }
+            if (fx && t - fx.pulseT < 150) { var pk = (t - fx.pulseT) / 150; pulse = 1 + 0.22 * Math.sin(pk * Math.PI); }
             ctx.save();
             ctx.translate(rx, ry);
             ctx.scale(pulse, pulse);
-            if (spriteOn) {
-                var fIdx = Math.floor(localT / 1000 * SPRITE_IDLE_FPS + pi) % SPRITE_COLS;
-                var variant = spinSprites.variants['skin_' + spinSkinBaseId(pt.meta.skinId)] || spinSprites.variants.gray;
-                drawCharSprite(ctx, variant, fIdx, fx ? fx.faceDir : 1, sc);
-                if (fx && localT - fx.hitT < 130) {
-                    ctx.globalAlpha = (1 - (localT - fx.hitT) / 130) * 0.9;
-                    drawCharSprite(ctx, spinSprites.variants.white, fIdx, fx.faceDir, sc);
-                    ctx.globalAlpha = 1;
-                }
-            } else {
-                drawCharBody(ctx, fx ? fx.rgb : hexToRgb(pt.meta.color), sc);
-                drawCharFace(ctx, sc);
-            }
+            if (spriteOn) drawCharSprite(ctx, spinSpriteVariantFor(meta), 0, fx ? fx.faceDir : 1, sc);
+            else { drawCharBody(ctx, fx ? fx.rgb : hexToRgb(meta.color), sc); drawCharFace(ctx, sc); }
             ctx.restore();
-
-            // 스킨업(t2) 아우라
-            if ((pt.meta.tier || 1) === 2) {
-                drawTierAura(ctx, rx, ry, pt.meta.blade || '#ffffff', localT, spriteOn ? 20 * sc : charR + 3 * sc);
-            }
+            if ((meta.tier || 1) >= 2) drawTierAura(ctx, rx, ry, meta.blade || '#ffffff', t, charR * 1.5);
         }
 
-        // 머리 위 HP바(green→red, 분모 HP_MAX). 패배자는 결판 후 적색 가득.
-        var topOff2 = spriteOn ? spriteH * 0.58 : charR;
-        var indW = Math.max(34 * sc, isFeatured ? 30 : 18);
-        var indH = Math.max(5 * sc, isFeatured ? 4 : 3);
-        var indX = rx - indW / 2, indY = ry - topOff2 - 8 * sc;
-        var hpFrac = clamp((pt.hp || 0) / HP_MAX, 0, 1);
-        var hpCol = 'rgb(' + Math.round(lerp(225, 80, hpFrac)) + ',' + Math.round(lerp(70, 200, hpFrac)) + ',70)';
-        ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(indX, indY, indW, indH);
-        if (deadHere) { ctx.fillStyle = HUD_DANGER; ctx.fillRect(indX, indY, indW, indH); }
-        else { ctx.fillStyle = hpCol; ctx.fillRect(indX, indY, indW * hpFrac, indH); }
-        ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
-        ctx.strokeRect(indX, indY, indW, indH);
-        ctx.restore();
+        // 머리 위 이름 + HP 바. 탈락자도 남겨 누가 어디서 죽었는지 읽히게 한다.
+        drawCharLabel(ctx, rx, ry, meta, clamp(st.hp / HP_MAX, 0, 1), sc, isMe, deadHere);
 
-        // 승자 안전 비트(결판 직후 ~600ms) — 머리 위 "안전" + 1회 플래시(featured만 플래시).
-        if (decided && !pt.isLoser && (localT - duel.decideMs) < 900) {
-            ctx.save();
-            ctx.font = 'bold ' + Math.max(13 * sc, isFeatured ? 13 : 9) + 'px sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-            var safeY = ry - topOff2 - 16 * sc;
-            ctx.lineWidth = Math.max(3 * sc, 2.4); ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-            ctx.strokeText('안전', rx, safeY);
-            ctx.fillStyle = HUD_SAFE; ctx.fillText('안전', rx, safeY);
-            ctx.restore();
-        }
-
-        // 이름표 — featured/스트립 공통. 내 캐릭터 강조.
-        var botOff = spriteOn ? spriteH * 0.42 : charR;
-        var labelY = ry + botOff + 13 * sc;
-        if (isFeatured) {
-            drawSpinNameTag(ctx, rx, labelY, pt.meta.name || '', sc, isMe, pt.meta.blade || '#ffd24a', '', 1);
-        } else {
-            // 스트립 셀 — 작은 닉(가벼움). 내 셀은 노란색.
-            ctx.save();
-            ctx.font = 'bold ' + Math.max(10 * sc, 9) + 'px sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            var nm = (pt.meta.name || '');
-            if (nm.length > 6) nm = nm.slice(0, 6);
-            ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-            ctx.strokeText(nm, rx, labelY);
-            ctx.fillStyle = isMe ? '#ffe24a' : '#ffffff';
-            ctx.fillText(nm, rx, labelY);
-            ctx.restore();
-        }
-    }
-
-    // featured 듀얼 — 피격 스파크/사운드/흔들림(경량 FX는 메인 루프가 dt로 진행). HP 하락 감지로 펄스/스파크.
-    if (isFeatured && !decided) {
-        for (var qi = 0; qi < pts.length; qi++) {
-            var q = pts[qi];
-            var qfx = spinReplay._duelFx[q.slot];
-            if (!qfx) continue;
-            if (q.hp < qfx.prevHp - 0.05) {
-                qfx.hitT = localT; qfx.pulseT = localT;
-                var qx = vx(q.x), qy = vy(q.y);
-                if (localT - qfx.lastSparkT >= HIT_SPARK_INTERVAL) {
-                    qfx.lastSparkT = localT;
-                    var acol = (qi === 0 ? metaB.blade : metaA.blade) || '#ffffff';   // 상대(공격자) 칼날색
-                    spawnSparks(qx, qy, acol, q.slot * 1313 + Math.floor(localT * 0.5),
-                        prefersReducedMotion ? 2 : 4, 24, 80, 2.4, 0.32, 0);
+        // 피격 FX
+        if (live && fx && !deadHere) {
+            if (st.hp < fx.prevHp - 0.5) {
+                fx.pulseT = t;
+                if (t - fx.lastSparkT > 60) {
+                    fx.lastSparkT = t;
+                    spawnSparks(rx, ry, meta.blade || '#ffffff', Math.floor(t) + meta.slotId * 977, 3, 40, 120, 2.2, 0.32, 180);
                 }
                 spinReplay._featHit = true;
             }
-            qfx.prevHp = q.hp;
-        }
-    } else {
-        // 비-featured/결판 후엔 prevHp만 추적(스파크 없음 — 가벼움)
-        for (var ri = 0; ri < pts.length; ri++) {
-            var rfx = spinReplay._duelFx[pts[ri].slot];
-            if (rfx) rfx.prevHp = pts[ri].hp;
+            fx.prevHp = st.hp;
         }
     }
 }
 
-// ── KOF 스타일 상단 HUD (스크린 공간, 듀얼 인트로/전투/아웃트로 공용) ──
-//   좌측 = slotA(이름 + 스킨색 스와치 + 좌→우 소진 HP바), 우측 = slotB(미러, 우→좌 소진), 중앙 = "VS"(+ 라운드 라벨).
-//   HP는 보간 프레임(ahp/bhp). HP 0인 패자는 결판 시 적색 플래시. 모바일 480 폭에서도 가독.
-//   hpA/hpB는 0~HP_MAX. decided=true면 패자(loserIsA)는 0 강제 + 적색. label = 라운드 라벨(결승/N강).
-function drawKofHud(ctx, canvas, duel, hpA, hpB, decided, label) {
-    var W = canvas.width;
-    var metaA = spinSlotMeta(duel.slotA), metaB = spinSlotMeta(duel.slotB);
-    var loserIsA = (duel.loserSlot === duel.slotA);
-    var fa = clamp((hpA || 0) / HP_MAX, 0, 1), fb = clamp((hpB || 0) / HP_MAX, 0, 1);
-    if (decided) { if (loserIsA) fa = 0; else fb = 0; }
-    var topH = 48;
-    // 상단 다크 밴드(절대 흰색 아님 — 듀얼 위 가독 보장)
+// 캐릭터 머리 위 라벨 — 이름 + HP 바. 24명이 겹쳐도 읽히게 작고 외곽선을 준다.
+function drawCharLabel(ctx, rx, ry, meta, hpFrac, sc, isMe, dead) {
+    var spriteOn = spinSprites.ready;
+    var headTop = ry - (spriteOn ? SPRITE_TOKEN_H * sc * 0.58 : CHAR_RADIUS * sc * 1.1);
+    var barW = Math.max(22, 34 * sc), barH = Math.max(3, 4 * sc);
+    var barY = headTop - barH - 3 * sc;
+    var nameY = barY - 3 * sc;
+
     ctx.save();
-    var bg = ctx.createLinearGradient(0, 0, 0, topH);
-    bg.addColorStop(0, 'rgba(8,12,24,0.92)');
-    bg.addColorStop(1, 'rgba(8,12,24,0.55)');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, topH);
-    ctx.restore();
-
-    var pad = 8;
-    var barH = 9, barY = 26;
-    var swatch = 11;
-    var centerW = 56;                         // 중앙 VS 영역 폭
-    var sideW = (W - centerW) / 2 - pad * 2;   // 한쪽 바 폭
-
-    // 한 쪽 fighter 패널(side: 'L'|'R'). 이름(스와치 옆) + HP바(소진 방향은 side에 따라).
-    function drawSide(side, meta, frac, isLoser) {
-        var isLeft = (side === 'L');
-        var x0 = isLeft ? pad : (W - pad - sideW);
-        var nameX = isLeft ? x0 + swatch + 6 : x0 + sideW - swatch - 6;
-        var isMe = (meta.name === currentUser);
-        // 스킨 스와치
-        ctx.save();
-        ctx.fillStyle = meta.color || '#9aa3ad';
-        ctx.strokeStyle = (meta.blade || '#ffffff');
-        ctx.lineWidth = 1.5;
-        var swX = isLeft ? x0 : (x0 + sideW - swatch);
-        ctx.beginPath(); ctx.arc(swX + swatch / 2, barY - 12, swatch / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.restore();
-        // 이름(외곽선) — 본인 노랑
-        ctx.save();
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = isLeft ? 'left' : 'right';
-        var nm = meta.name || '';
-        if (nm.length > 10) nm = nm.slice(0, 10);
-        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-        ctx.strokeText(nm, nameX, barY - 12);
-        ctx.fillStyle = isMe ? '#ffe24a' : '#ffffff';
-        ctx.fillText(nm, nameX, barY - 12);
-        ctx.restore();
-        // HP바 트랙 + 채움(좌측은 좌→우 소진 = 좌측 정렬 채움, 우측은 우→좌 = 우측 정렬 채움)
-        ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(x0, barY, sideW, barH);
-        var fillW = sideW * frac;
-        var fillX = isLeft ? x0 : (x0 + sideW - fillW);
-        var hpCol = isLoser && (frac <= 0)
-            ? HUD_DANGER
-            : 'rgb(' + Math.round(lerp(225, 80, frac)) + ',' + Math.round(lerp(70, 200, frac)) + ',70)';
-        ctx.fillStyle = hpCol;
-        ctx.fillRect(fillX, barY, fillW, barH);
-        ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1;
-        ctx.strokeRect(x0, barY, sideW, barH);
-        ctx.restore();
-    }
-    drawSide('L', metaA, fa, loserIsA);
-    drawSide('R', metaB, fb, !loserIsA);
-
-    // 중앙 VS + 라운드 라벨
-    ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.strokeText('VS', W / 2, 18);
-    ctx.fillStyle = HUD_GOLD; ctx.fillText('VS', W / 2, 18);
-    if (label) {
-        ctx.font = 'bold 11px sans-serif';
-        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-        ctx.strokeText(label, W / 2, 36);
-        ctx.fillStyle = 'rgba(223,229,240,0.92)'; ctx.fillText(label, W / 2, 36);
-    }
-    ctx.restore();
-}
-
-// ── 시작 대진표(오버뷰) — 라운드1 매치업 목록(A vs B + 스킨색) + bye. n≤24(12쌍) 2열 그리드. ~BRACKET_OVERVIEW_MS. ──
-//   순수 시각(글랜스용). progress(0~1)는 페이드/스태거용. 절대 흰 풀스크린 없음(다크 카드).
-function drawBracketOverview(ctx, canvas, bracket, progress) {
-    var round0 = bracket && bracket.rounds && bracket.rounds[0];
-    if (!round0) return;
-    var W = canvas.width, H = canvas.height;
-    var fade = prefersReducedMotion ? 1 : clamp(Math.min(progress / 0.12, (1 - progress) / 0.12), 0, 1);
-    ctx.save();
-    ctx.globalAlpha = fade;
-    // 제목
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = 'bold 26px sans-serif';
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.strokeText('대진표', W / 2, 34);
-    ctx.fillStyle = HUD_GOLD; ctx.fillText('대진표', W / 2, 34);
-
-    var duels = round0.duels || [];
-    var byes = round0.byes || [];
-    var rowsTotal = duels.length + byes.length;
-    var cols = rowsTotal > 6 ? 2 : 1;          // 7행 이상이면 2열
-    var perCol = Math.ceil(rowsTotal / cols);
-    var top = 64, bottom = H - 24;
-    var rowH = clamp((bottom - top) / perCol, 16, 30);
-    var colW = (W - 24) / cols;
-
-    // 한 행: "A  ⚔  B" (스킨색 dot + 이름). bye는 "name  부전패".
-    function cellXY(idx) {
-        var c = Math.floor(idx / perCol), r = idx % perCol;
-        return { x: 12 + c * colW, y: top + r * rowH + rowH / 2, w: colW };
-    }
-    function nameWithDot(meta, cx, cy, align) {
-        ctx.save();
-        ctx.fillStyle = meta.color || '#9aa3ad';
-        ctx.strokeStyle = meta.blade || '#ffffff'; ctx.lineWidth = 1.2;
-        var dotX = align === 'left' ? cx : cx;
-        ctx.beginPath(); ctx.arc(dotX, cy, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.restore();
-        ctx.save();
-        ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'middle';
-        ctx.textAlign = 'left';
-        var isMe = (meta.name === currentUser);
-        var nm = meta.name || '';
-        if (nm.length > 7) nm = nm.slice(0, 7);
-        ctx.lineWidth = 2.6; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-        ctx.strokeText(nm, dotX + 8, cy);
-        ctx.fillStyle = isMe ? '#ffe24a' : '#eef2fb';
-        ctx.fillText(nm, dotX + 8, cy);
-        ctx.restore();
-    }
-    var di = 0;
-    for (; di < duels.length; di++) {
-        var d = duels[di];
-        var p = cellXY(di);
-        var mA = spinSlotMeta(d.slotA), mB = spinSlotMeta(d.slotB);
-        // 좌측 이름(dot+nm), 중앙 ⚔, 우측 이름
-        nameWithDot(mA, p.x + 6, p.y, 'left');
-        ctx.save();
-        ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = HUD_GOLD; ctx.fillText('⚔', p.x + p.w * 0.5, p.y);
-        ctx.restore();
-        nameWithDot(mB, p.x + p.w * 0.58, p.y, 'left');
-    }
-    for (var bi = 0; bi < byes.length; bi++) {
-        var pp = cellXY(di + bi);
-        var mBye = spinSlotMeta(byes[bi]);
-        nameWithDot(mBye, pp.x + 6, pp.y, 'left');
-        ctx.save();
-        ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = HUD_DANGER; ctx.fillText('부전패', pp.x + pp.w * 0.5, pp.y);
-        ctx.restore();
-    }
-    ctx.restore();
-}
-
-// ── 라운드 인트로 카드 — 중앙 "{N강/결승} 시작"(다크 밴드 + 골드). segProg(0~1) 페이드. ──
-function drawRoundIntroCard(ctx, canvas, poolSize, segProg) {
-    var fade = prefersReducedMotion ? 1 : clamp(Math.min(segProg / 0.18, (1 - segProg) / 0.18), 0, 1);
-    var cx = canvas.width / 2, cy = canvas.height / 2;
-    ctx.save();
-    ctx.globalAlpha = fade * 0.6;
-    ctx.fillStyle = '#0a0a1a';
-    ctx.fillRect(0, cy - 56, canvas.width, 112);
-    ctx.globalAlpha = fade;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = HUD_GOLD; ctx.font = 'bold 42px sans-serif';
-    ctx.fillText(spinRoundLabel(poolSize) + ' 시작', cx, cy);
-    ctx.restore();
-}
-
-// ── 듀얼 인트로 카드 — 중앙 "{A} 대 {B} 게임시작~"(다크 밴드 + 스킨색 강조). segProg(0~1) 페이드. ──
-function drawDuelIntroCard(ctx, canvas, duel, segProg) {
-    var fade = prefersReducedMotion ? 1 : clamp(Math.min(segProg / 0.2, (1 - segProg) / 0.2), 0, 1);
-    var cx = canvas.width / 2, cy = canvas.height / 2;
-    var mA = spinSlotMeta(duel.slotA), mB = spinSlotMeta(duel.slotB);
-    ctx.save();
-    ctx.globalAlpha = fade * 0.6;
-    ctx.fillStyle = '#0a0a1a';
-    ctx.fillRect(0, cy - 50, canvas.width, 100);
-    ctx.globalAlpha = fade;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    // "{A} 대 {B}" 한 줄(이름은 스킨 blade 색), 아래 "게임시작~"
-    ctx.font = 'bold 22px sans-serif';
-    var nmA = (mA.name || ''); if (nmA.length > 8) nmA = nmA.slice(0, 8);
-    var nmB = (mB.name || ''); if (nmB.length > 8) nmB = nmB.slice(0, 8);
-    var midGap = 8;
-    var wA = ctx.measureText(nmA).width, wVs = ctx.measureText(' 대 ').width, wB = ctx.measureText(nmB).width;
-    var totalW = wA + wVs + wB;
-    var startX = cx - totalW / 2;
-    ctx.textAlign = 'left';
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.strokeText(nmA, startX, cy - 8);
-    ctx.fillStyle = mA.blade || '#ffffff'; ctx.fillText(nmA, startX, cy - 8);
-    ctx.strokeText(' 대 ', startX + wA, cy - 8);
-    ctx.fillStyle = '#eef2fb'; ctx.fillText(' 대 ', startX + wA, cy - 8);
-    ctx.strokeText(nmB, startX + wA + wVs, cy - 8);
-    ctx.fillStyle = mB.blade || '#ffffff'; ctx.fillText(nmB, startX + wA + wVs, cy - 8);
-    void midGap;
     ctx.textAlign = 'center';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.strokeText('게임시작~', cx, cy + 22);
-    ctx.fillStyle = HUD_GOLD; ctx.fillText('게임시작~', cx, cy + 22);
+
+    // 이름
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = 'bold ' + Math.max(9, Math.round(11 * sc)) + 'px sans-serif';
+    var nm = meta.name || '';
+    if (nm.length > 6) nm = nm.slice(0, 5) + '…';
+    ctx.lineWidth = Math.max(2.5, 3 * sc);
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeText(nm, rx, nameY);
+    ctx.fillStyle = dead ? 'rgba(190,196,206,0.55)' : (isMe ? '#ffe24a' : '#ffffff');
+    ctx.fillText(nm, rx, nameY);
+
+    // HP 바 — 탈락자는 빈 회색 바로 남겨 "여기 누가 있었다"가 읽히게
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(rx - barW / 2 - 1, barY - 1, barW + 2, barH + 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.fillRect(rx - barW / 2, barY, barW, barH);
+    if (!dead && hpFrac > 0) {
+        ctx.fillStyle = hpFrac > 0.35 ? (meta.color || '#7ab0ff') : '#ff6b6b';
+        ctx.fillRect(rx - barW / 2, barY, barW * hpFrac, barH);
+    }
     ctx.restore();
 }
 
-// ── 듀얼 아웃트로 콜아웃 — 중앙 "{패자} 패배"(적색). segProg 페이드. 캐릭터 모션은 drawSpinFrame이 별도 유지. ──
-function drawDuelOutroCallout(ctx, canvas, duel, segProg) {
-    var fade = prefersReducedMotion ? 1 : clamp(segProg / 0.15, 0, 1);   // 등장만(유지) — 끝에서 blackout이 받음
-    var cx = canvas.width / 2, cy = canvas.height / 2;
-    var loserMeta = spinSlotMeta(duel.loserSlot);
-    var nm = (loserMeta.name || ''); if (nm.length > 10) nm = nm.slice(0, 10);
+// ── 상단 HUD — 한 줄 요약만. 캐릭터별 이름·HP는 drawCharLabel이 머리 위에 그린다 ──
+function drawBattleHud(ctx, canvas, payload, t, stage) {
+    var metaList = payload.players || [];
+    var states = spinBattleInterp(payload, t);
+    var rankBySlot = spinReplay._rankBySlot || {};
+
+    // 생존자 수 + 내 상태 한 줄. 캐릭터별 HP는 머리 위에 있으므로 여기서 반복하지 않는다.
+    var alive = 0, meIdx = -1;
+    for (var i = 0; i < metaList.length; i++) {
+        var e = spinSlotElimAt(metaList[i].slotId);
+        if (e == null || t < e) alive++;
+        if (metaList[i].name === currentUser) meIdx = i;
+    }
+
     ctx.save();
-    ctx.globalAlpha = fade * 0.55;
-    ctx.fillStyle = '#1a0808';
-    ctx.fillRect(0, cy - 40, canvas.width, 80);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    var head = (stage === 'finale' && payload.twoStage) ? '결승 · 생존 ' + alive + '명' : '생존 ' + alive + '명';
+    ctx.strokeText(head, canvas.width / 2, 15);
+    ctx.fillStyle = HUD_GOLD;
+    ctx.fillText(head, canvas.width / 2, 15);
+
+    // 두 번째 줄 — Stage1이면 남은 목표, 아니면 내 상태
+    ctx.font = '11px sans-serif';
+    var sub = '';
+    if (stage === 'stage1') {
+        sub = FINALIST_COUNT + '명이 남으면 「최후의 ' + FINALIST_COUNT + '인」';
+    }
+    if (meIdx >= 0) {
+        var meElim = spinSlotElimAt(metaList[meIdx].slotId);
+        if (meElim != null && t >= meElim) {
+            sub = '내 캐릭터 탈락 — ' + (rankBySlot[metaList[meIdx].slotId] || '?') + '등';
+        }
+    }
+    if (sub) {
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+        ctx.strokeText(sub, canvas.width / 2, 33);
+        ctx.fillStyle = 'rgba(232,237,245,0.85)';
+        ctx.fillText(sub, canvas.width / 2, 33);
+    }
+    ctx.restore();
+    void states;
+}
+
+// ── 「최후의 4인!」 전환 연출 — 텍스트가 위에서 중앙으로 낙하 후 정지 ──
+//   segProg 0~1 = 전환 구간 진행도. 낙하(0~0.35) → 홀드(~0.75) → 페이드아웃(~1).
+function drawFinalFourBanner(ctx, canvas, payload, segProg) {
+    var W = canvas.width, H = canvas.height;
+    var count = (payload.finalists || []).length || FINALIST_COUNT;
+
+    // 전체 암전 — 전환임을 분명히 (흰색 절대 금지)
+    ctx.save();
+    ctx.fillStyle = 'rgba(6,10,20,' + (0.35 + 0.35 * Math.min(1, segProg / 0.35)) + ')';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+
+    var dropP = prefersReducedMotion ? 1 : clamp(segProg / 0.35, 0, 1);
+    var ease = 1 - Math.pow(1 - dropP, 3);            // ease-out cubic
+    var targetY = H * 0.44;
+    var y = -60 + (targetY + 60) * ease;
+    var fade = segProg > 0.78 ? clamp((1 - segProg) / 0.22, 0, 1) : 1;
+
+    ctx.save();
     ctx.globalAlpha = fade;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = 'bold 34px sans-serif';
-    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.strokeText(nm + ' 패배', cx, cy);
-    ctx.fillStyle = HUD_DANGER; ctx.fillText(nm + ' 패배', cx, cy);
+
+    // 뒤 밴드
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, y - 34, W, 68);
+
+    ctx.font = 'bold 40px sans-serif';
+    ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    var txt = '최후의 ' + count + '인!';
+    ctx.strokeText(txt, W / 2, y);
+    ctx.fillStyle = HUD_GOLD;
+    ctx.fillText(txt, W / 2, y);
+
+    // 착지 후 진출자 이름 노출
+    if (dropP >= 1) {
+        var namesArr = [];
+        var fin = payload.finalists || [];
+        for (var i = 0; i < fin.length; i++) namesArr.push(spinSlotMeta(fin[i]).name || '');
+        ctx.font = 'bold 14px sans-serif';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        var line = namesArr.join('  ·  ');
+        ctx.strokeText(line, W / 2, y + 44);
+        ctx.fillStyle = '#e8edf5';
+        ctx.fillText(line, W / 2, y + 44);
+    }
     ctx.restore();
 }
 
-// ── bye 비트 — 중앙 "{name} — 아무도 없어서 부전패!"(다크 밴드). segProg 페이드. ──
-function drawByeBeat(ctx, canvas, byeName, segProg) {
-    var fade = prefersReducedMotion ? 1 : clamp(Math.min(segProg / 0.18, (1 - segProg) / 0.18), 0, 1);
-    var cx = canvas.width / 2, cy = canvas.height / 2;
-    var nm = (byeName || ''); if (nm.length > 12) nm = nm.slice(0, 12);
+// ── 벌칙 등수 룰렛 — 「몇 등이 벌칙인지」를 뽑는 연출. 표 단위 칩이 흘러가다 감속 정지 ──
+function drawRouletteFrame(ctx, canvas, payload, t) {
+    var rl = payload.roulette || {};
+    var order = rl.rankOrder || [];
+    var animMs = rl.animDurationMs || ROULETTE_ANIM_MS;
+    var W = canvas.width, H = canvas.height;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    drawArenaFloor(ctx, ARENA_CX, ARENA_CY);
+
     ctx.save();
-    ctx.globalAlpha = fade * 0.6;
-    ctx.fillStyle = '#0a0a1a';
-    ctx.fillRect(0, cy - 44, canvas.width, 88);
-    ctx.globalAlpha = fade;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.strokeText(nm, cx, cy - 14);
-    ctx.fillStyle = HUD_GOLD; ctx.fillText(nm, cx, cy - 14);
-    ctx.font = 'bold 16px sans-serif';
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.strokeText('아무도 없어서 부전패!', cx, cy + 16);
-    ctx.fillStyle = HUD_DANGER; ctx.fillText('아무도 없어서 부전패!', cx, cy + 16);
-    ctx.restore();
-}
+    ctx.font = 'bold 17px sans-serif';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.strokeText('몇 등이 벌칙?', W / 2, 40);
+    ctx.fillStyle = HUD_GOLD; ctx.fillText('몇 등이 벌칙?', W / 2, 40);
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = 'rgba(232,237,245,0.7)';
+    ctx.fillText('결승 진출자의 등수 중에서 뽑아요', W / 2, 62);
 
-// ── 암전 페이드(다크 — 절대 흰색 아님) — 캔버스 위에 검정을 0→1→0 삼각으로 덮어 다음 듀얼로 전환. ──
-//   segProg 0~0.5 페이드인(검정 짙어짐), 0.5~1 페이드아웃. reduced-motion이면 짙은 검정 유지(즉시).
-function drawBlackoutOverlay(ctx, canvas, segProg) {
-    var a = prefersReducedMotion ? 1 : clamp(1 - Math.abs(segProg - 0.5) * 2, 0, 1);
-    if (a <= 0) return;
+    if (!order.length) { ctx.restore(); return; }
+
+    var p = clamp(t / animMs, 0, 1);
+    var eased = 1 - Math.pow(1 - p, 5);
+    var chipW = 84, gap = 10, pitch = chipW + gap;
+    var winIdx = order.indexOf(rl.winningRank);
+    if (winIdx < 0) winIdx = 0;
+    var totalSteps = order.length * 3 + winIdx;
+    var offset = eased * totalSteps * pitch;
+
+    var cy = H / 2;
     ctx.save();
-    ctx.globalAlpha = a;
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.beginPath(); ctx.rect(20, cy - 34, W - 40, 68); ctx.clip();
+    for (var i = -2; i < Math.ceil(W / pitch) + 3; i++) {
+        var slotIdx = i + Math.floor(offset / pitch);
+        var rank = order[((slotIdx % order.length) + order.length) % order.length];
+        var x = W / 2 + i * pitch - (offset % pitch) - chipW / 2;
+        var isCenter = Math.abs(x + chipW / 2 - W / 2) < pitch / 2;
+        ctx.fillStyle = isCenter ? 'rgba(255,210,74,0.92)' : 'rgba(255,255,255,0.14)';
+        ctx.fillRect(x, cy - 26, chipW, 52);
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillStyle = isCenter ? '#0b1020' : '#e8edf5';
+        ctx.fillText(rank + '등', x + chipW / 2, cy + 1);
+    }
     ctx.restore();
-}
 
-// 단일 듀얼 풀스크린 vp(KOF HUD 영역 아래 중앙) — 듀얼/카운트다운 공통 계산.
-//   featAvail = min(canvas.width, canvas.height - 54) - 24, scale = clamp(featAvail/(링지름+캐릭+여유), 0.6, 1.7).
-function spinFullscreenVP(canvas) {
-    var cx = canvas.width / 2;
-    var cy = 54 + (canvas.height - 54) / 2;   // 라운드 헤더(상단 ~48px) 아래 중앙
-    var avail = Math.min(canvas.width, canvas.height - 54) - 24;
-    var scale = clamp(avail / (DUEL_RING_R * 2 + CHAR_RADIUS * 2 + 40), 0.6, 1.7);
-    return { cx: cx, cy: cy, scale: scale };
+    ctx.fillStyle = HUD_GOLD;
+    ctx.beginPath();
+    ctx.moveTo(W / 2, cy - 40); ctx.lineTo(W / 2 - 8, cy - 52); ctx.lineTo(W / 2 + 8, cy - 52);
+    ctx.closePath(); ctx.fill();
+
+    if (p >= 1) {
+        ctx.font = 'bold 20px sans-serif';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx.strokeText(rl.winningRank + '등이 벌칙!', W / 2, cy + 66);
+        ctx.fillStyle = HUD_GOLD; ctx.fillText(rl.winningRank + '등이 벌칙!', W / 2, cy + 66);
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = 'rgba(232,237,245,0.85)';
+        ctx.fillText(rl.reason || '', W / 2, cy + 92);
+    }
+    ctx.restore();
 }
 
 function drawSpinFrame(now) {
     var canvas = getSpinCanvas();
     if (!canvas) { spinReplay.raf = null; return; }
     var payload = spinReplay.payload;
-    if (!payload) { spinReplay.raf = null; return; }
-    var bracket = payload.bracket;
-    if (!bracket || !bracket.rounds || !bracket.rounds.length) { spinReplay.raf = null; return; }
+    if (!payload || !payload.players || !payload.players.length) { spinReplay.raf = null; return; }
 
     var ctx = canvas.getContext('2d');
     var durationMs = payload.durationMs;
-    // ⚠️ var 호이스팅: gt/dt/pos 등은 루프/헬퍼 변수와 충돌하지 않는 고유명만 사용(s/i/f 단일자 미사용).
-    var gt = clamp(now - spinReplay.startTs, 0, durationMs);   // 전역 리플레이 시각
+    var gt = clamp(now - spinReplay.startTs, 0, durationMs);
     var dt = clamp((now - (spinReplay.lastNow || now)) / 1000, 0, 0.05);
     spinReplay.lastNow = now;
+    var stage = spinStageAt(payload, gt);
 
-    var rounds = bracket.rounds;
-    var seqTL = spinReplay._seqTL || spinBuildSegmentTimeline(bracket);
-    var pos = spinSeqAt(seqTL, gt);
-
-    // FX/파티클/흔들림 진행(실 dt)
     updateParticles(dt);
     updateFx(dt);
     spinReplay.shake = Math.max(0, spinReplay.shake - SHAKE_DECAY * dt);
 
-    // 화면 흔들림(결정론 — t 해시). 듀얼 전투 세그에서만 의미(연출 카드 구간은 0).
     var shx = 0, shy = 0;
     if (spinReplay.shake > 0.15) {
         var fseed = Math.floor(gt * 0.5);
@@ -1654,79 +1534,49 @@ function drawSpinFrame(now) {
     ctx.clearRect(0, 0, ARENA_W, ARENA_H);
     ctx.save();
     ctx.translate(shx, shy);
-
-    // 배경(전체 아레나 톤) — 매 프레임 다크 바닥. 절대 흰/투명 프레임 없음.
     drawArenaFloor(ctx, ARENA_CX, ARENA_CY);
 
-    var vp = spinFullscreenVP(canvas);
+    var vp = spinBattleVP(canvas);
     _featPrevHitReset();
+    // 전환 구간은 서버가 프레임을 동결시켜 두었다 — stage1 마지막 화면 그대로 두고 그 위에 배너를 올린다.
+    var sceneT = (stage === 'transition') ? payload.stage1EndMs : gt;
+    var sceneStage = (stage === 'transition') ? 'stage1' : stage;
+    drawBattleScene(ctx, payload, sceneT, vp, stage !== 'transition', sceneStage);
 
-    // ── 세그먼트 종류별 렌더 ──
-    if (pos.kind === 'overview') {
-        // 시작 대진표(아레나 위 카드). 듀얼/HUD 없음.
-        drawBracketOverview(ctx, canvas, bracket, pos.segProg);
-        if (!spinReplay.burstDone['ov']) { spinReplay.burstDone['ov'] = true; playSpinSound('spin-arena_round1_stop', 0.5); }
-    } else if (pos.kind === 'roundintro') {
-        drawRoundIntroCard(ctx, canvas, pos.poolSize, pos.segProg);
-        if (!spinReplay.burstDone['ri' + pos.roundIdx]) { spinReplay.burstDone['ri' + pos.roundIdx] = true; playSpinSound('spin-arena_round1_stop', 0.6); }
-    } else if (pos.kind === 'duelintro') {
-        // 듀얼 시작 배치 hold(칼날 회전 — gt로) + 인트로 카드 + KOF HUD(만HP).
-        drawDuel(ctx, pos.duel, 0, vp, false);
-        drawDuelIntroCard(ctx, canvas, pos.duel, pos.segProg);
-        if (!spinReplay.burstDone['di' + pos.duel.duelId]) { spinReplay.burstDone['di' + pos.duel.duelId] = true; playSpinSound('spin-arena_start', 0.5); }
-    } else if (pos.kind === 'duel') {
-        // 단일 듀얼 풀스크린(풀 FX/사운드/HP바/이름표). isFeatured=true.
-        drawDuel(ctx, pos.duel, pos.localT, vp, true);
-        if (spinReplay._featHit) {
-            addShake(2.0);
-            if (gt - spinReplay.lastHitSoundT >= HIT_SOUND_INTERVAL) {
-                spinReplay.lastHitSoundT = gt;
-                playSpinSound('spin-arena_hit', 0.18);
-            }
+    if (stage !== 'transition' && spinReplay._featHit) {
+        addShake(1.6);
+        if (gt - spinReplay.lastHitSoundT >= HIT_SOUND_INTERVAL) {
+            spinReplay.lastHitSoundT = gt;
+            playSpinSound('spin-arena_hit', 0.16);
         }
-        if (spinDuelDecided(pos.duel, pos.localT) && !spinReplay.burstDone['dec' + pos.duel.duelId]) {
-            spinReplay.burstDone['dec' + pos.duel.duelId] = true;
-            playSpinSound('spin-arena_finalist_tick', 0.4);
-            addShake(5);
-        }
-    } else if (pos.kind === 'dueloutro') {
-        // 패자 확정 — 위치는 동결(durationMs 클램프)이되 모션 클럭은 계속 흘려 스프라이트/칼날 idle 유지(하드 프리즈 금지).
-        var motionT = (pos.duel.durationMs || 0) + (prefersReducedMotion ? 0 : pos.localT);
-        drawDuel(ctx, pos.duel, motionT, vp, false);
-    } else if (pos.kind === 'blackout') {
-        // 듀얼 마지막 프레임을 hold하고 그 위에 검정 페이드(다크 — 흰색 금지).
-        drawDuel(ctx, pos.duel, pos.duel.durationMs || 0, vp, false);
-    } else if (pos.kind === 'bye') {
-        drawByeBeat(ctx, canvas, pos.byeName, pos.segProg);
-        if (!spinReplay.burstDone['by' + pos.roundIdx + '_' + pos.byeName]) { spinReplay.burstDone['by' + pos.roundIdx + '_' + pos.byeName] = true; playSpinSound('spin-arena_round1_stop', 0.5); }
     }
 
-    // 스파크/플로팅 텍스트(듀얼 위)
+    // 탈락 순간 사운드/흔들림 (슬롯마다 1회)
+    var ranks = (payload.result && payload.result.rankings) || [];
+    for (var r = 0; r < ranks.length; r++) {
+        var e = ranks[r];
+        if (e.atMs == null) continue;
+        if (gt >= e.atMs && !spinReplay.burstDone['el' + e.slotId]) {
+            spinReplay.burstDone['el' + e.slotId] = true;
+            playSpinSound('spin-arena_finalist_tick', 0.32);
+            addShake(3);
+        }
+    }
+
     drawParticles(ctx);
     drawFx(ctx);
+    ctx.restore();   // 흔들림 해제 — HUD/배너는 스크린 공간
 
-    ctx.restore();   // 흔들림 transform 해제 — HUD/카드/암전은 스크린 공간(흔들림 무관)
-
-    // KOF 상단 HUD — 듀얼 인트로/전투/아웃트로에서. 라벨 = 라운드 풀 라벨(결승/N강).
-    if (pos.kind === 'duelintro' || pos.kind === 'duel' || pos.kind === 'dueloutro') {
-        var hudRound = rounds[pos.roundIdx];
-        var hudLabel = hudRound ? spinRoundLabel(hudRound.poolSize || ((hudRound.duels ? hudRound.duels.length * 2 : 0) + ((hudRound.byes && hudRound.byes.length) || 0))) : '';
-        var hudHp = (pos.kind === 'duel') ? spinDuelInterp(pos.duel, pos.localT)
-                  : (pos.kind === 'duelintro') ? spinDuelInterp(pos.duel, 0)
-                  : spinDuelInterp(pos.duel, pos.duel.durationMs || 0);
-        var hudDecided = (pos.kind === 'dueloutro') || (pos.kind === 'duel' && spinDuelDecided(pos.duel, pos.localT));
-        drawKofHud(ctx, canvas, pos.duel, hudHp.ahp, hudHp.bhp, hudDecided, hudLabel);
-    }
-
-    // 아웃트로 콜아웃("{패자} 패배")은 HUD 위(전투 화면 유지하며 중앙 강조)
-    if (pos.kind === 'dueloutro') {
-        drawDuelOutroCallout(ctx, canvas, pos.duel, pos.segProg);
-        if (!spinReplay.burstDone['out' + pos.duel.duelId]) { spinReplay.burstDone['out' + pos.duel.duelId] = true; playSpinSound('spin-arena_finalist_tick', 0.5); }
-    }
-
-    // 암전 페이드는 모든 것(HUD 포함) 위에 — 다음 듀얼로 가는 다크 전환.
-    if (pos.kind === 'blackout') {
-        drawBlackoutOverlay(ctx, canvas, pos.segProg);
+    if (stage === 'transition') {
+        var segProg = clamp((gt - payload.stage1EndMs) / Math.max(1, payload.finaleStartMs - payload.stage1EndMs), 0, 1);
+        drawFinalFourBanner(ctx, canvas, payload, segProg);
+        if (!spinReplay.burstDone['ff']) {
+            spinReplay.burstDone['ff'] = true;
+            playSpinSound('spin-arena_round1_stop', 0.7);
+            addShake(6);
+        }
+    } else {
+        drawBattleHud(ctx, canvas, payload, gt, stage);
     }
 
     if (gt < durationMs) {
@@ -1737,8 +1587,9 @@ function drawSpinFrame(now) {
     }
 }
 
-// 단일 듀얼 drawDuel 호출 직전 _featHit 플래그 리셋(프레임당 1회)
+// drawBattleScene 호출 직전 _featHit 플래그 리셋(프레임당 1회)
 function _featPrevHitReset() { spinReplay._featHit = false; }
+
 
 
 // 리플레이 종료 → 결과 오버레이 + 정리.
@@ -1762,7 +1613,7 @@ function endSpinReplayToResult(payload) {
 
 // 리플레이 시작 시 이펙트 상태 초기화 + 슬롯 메타 맵 + 듀얼 FX + 라운드 타임라인 사전 계산
 function initSpinFx(payload) {
-    var slots = payload.slots || [];
+    var metaList = (payload && payload.players) || [];
     spinReplay.particles = [];
     spinReplay.fx = [];
     spinReplay.shake = 0;
@@ -1770,23 +1621,29 @@ function initSpinFx(payload) {
     spinReplay.lastHitSoundT = -1e9;
     spinReplay.burstDone = {};
 
-    // slotId -> 메타 맵(색/blade/tier/name/skinId) + 듀얼 FX 상태
+    // slotId -> 메타 맵 + 슬롯별 FX 상태
     spinReplay._slotById = {};
-    spinReplay._duelFx = {};
-    for (var i = 0; i < slots.length; i++) {
-        var sl = slots[i];
-        spinReplay._slotById[sl.id] = sl;
-        spinReplay._duelFx[sl.id] = {
-            rgb: hexToRgb(sl.color || '#9aa3ad'),
-            bladeRgb: hexToRgb(sl.blade || '#c2c8cf'),
+    spinReplay._charFx = {};
+    for (var i = 0; i < metaList.length; i++) {
+        var pm = metaList[i];
+        spinReplay._slotById[pm.slotId] = pm;
+        spinReplay._charFx[pm.slotId] = {
+            rgb: hexToRgb(pm.color || '#9aa3ad'),
+            bladeRgb: hexToRgb(pm.blade || '#c2c8cf'),
             hitT: -1e9, pulseT: -1e9, lastSparkT: -1e9,
             prevHp: HP_MAX, faceDir: 1
         };
     }
 
-    // SEQUENTIAL 연출 세그먼트 타임라인 + 단일 듀얼 피격 플래그 리셋.
-    //   (spinBuildSegmentTimeline은 spinSlotMeta로 bye 이름을 채우므로 _slotById 빌드 후 호출.)
-    spinReplay._seqTL = payload.bracket ? spinBuildSegmentTimeline(payload.bracket) : null;
+    // 등수/탈락 시각/결승 진출 맵 — 서버 payload가 권위(atMs null = 최후 생존자)
+    spinReplay._elimAt = {};
+    spinReplay._rankBySlot = {};
+    var ranks = (payload && payload.result && payload.result.rankings) || [];
+    for (var r = 0; r < ranks.length; r++) {
+        spinReplay._rankBySlot[ranks[r].slotId] = ranks[r].rank;
+        if (ranks[r].atMs != null) spinReplay._elimAt[ranks[r].slotId] = ranks[r].atMs;
+    }
+    spinReplay._finalistSet = spinFinalistSet(payload);
     spinReplay._featHit = false;
 }
 
@@ -1918,7 +1775,7 @@ function drawSpinIdleFrame(now) {
     ctx.fillText(mainMsg, cx, cy - 4);
     ctx.font = '12px sans-serif';
     ctx.fillStyle = 'rgba(174,182,194,0.8)';
-    ctx.fillText('준비하면 참가 · 최대 ' + MAX_SLOTS + '명 (현재 준비 ' + rc + '명)', cx, cy + 16);
+    ctx.fillText('준비하면 참가 · 인원 제한 없음 (현재 준비 ' + rc + '명)', cx, cy + 16);
     ctx.restore();
 
     spinIdleRaf = requestAnimationFrame(drawSpinIdleFrame);
@@ -2113,11 +1970,12 @@ function enterSpinIdle() {
     spinReplay.pendingIdle = false;
     spinReplay.wasIdle = false;
     spinReplay.isReplayMode = false;
-    spinReplay.overflowSpectator = false;
     isSpinActive = false;
     if (spinReplay.raf) { cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }
     stopSpinCountdownBackdrop();   // (feel-v5 V3) 카운트다운 칼날 회전 루프 정리(leaked raf 방지)
+    stopSpinRoulette();            // 등수 룰렛 루프 정리(leaked raf 방지)
     clearSpinFx();
+    renderRankVote();
     hideSpinChatOverlay();
     hideSpinHpPanel();
     stopSpinBgm();
@@ -2142,28 +2000,27 @@ function drawSpinCountdownFrame(payload, cdStart) {
     var canvas = getSpinCanvas();
     if (!canvas) { spinReplay._cdRaf = null; return; }
     var ctx = canvas.getContext('2d');
-    var bracket = payload.bracket;
-    var round0 = bracket && bracket.rounds && bracket.rounds[0];
-    // 칼날 실시간 회전을 위해 drawDuel에 넘길 가짜 localT — 위치는 frames[0]으로 고정(0 클램프), 칼날만 realSec.
+    // 위치는 t=0(시작 배치)로 고정하고 칼날만 실시간 회전 — 결판/HP 변동 없이 "대치 중" 프레임만(스포일러 없음).
     var realMs = prefersReducedMotion ? 0 : (performance.now() - cdStart);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ARENA_W, ARENA_H);
     drawArenaFloor(ctx, ARENA_CX, ARENA_CY);
 
-    if (round0 && round0.duels && round0.duels.length) {
-        // SEQUENTIAL: 라이브 첫 화면과 동일하게 round0의 첫 듀얼(duels[0])만 풀스크린 프리뷰(한 번에 하나).
-        var vp = spinFullscreenVP(canvas);
-        drawCountdownDuel(ctx, round0.duels[0], realMs, vp, true);
+    if (payload && payload.players && payload.players.length) {
+        var vp = spinBattleVP(canvas);
+        drawCountdownArena(ctx, payload, realMs, vp);
     }
 
-    // ROUND 1 타이틀(상단) + 미션 안내(하단 — 카운트다운 숫자 오버레이와 겹치지 않게)
+    // 당첨 등수 리마인더(상단) + 미션 안내(하단 — 카운트다운 숫자 오버레이와 겹치지 않게)
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var target = (payload && payload.result && payload.result.targetRank) || null;
+    var head = target ? (target + '등이 벌칙!') : '전투 준비';
     ctx.font = 'bold 18px sans-serif';
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.strokeText('ROUND 1', canvas.width / 2, 20);
-    ctx.fillStyle = HUD_GOLD; ctx.fillText('ROUND 1', canvas.width / 2, 20);
+    ctx.strokeText(head, canvas.width / 2, SPIN_HUD_H + 14);
+    ctx.fillStyle = HUD_GOLD; ctx.fillText(head, canvas.width / 2, SPIN_HUD_H + 14);
     ctx.font = 'bold 14px sans-serif';
     var mtxt = spinMissionText();
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.65)';
@@ -2172,63 +2029,94 @@ function drawSpinCountdownFrame(payload, cdStart) {
     ctx.restore();
 }
 
-// 카운트다운 전용 듀얼 프리뷰 — 위치는 localT=0(시작 배치) 고정, 칼날만 realMs로 회전. drawDuel을 쓰지 않고
-//   별도로 그려 결판/스파크/HP 변동 없이 "대치 중" 프레임만 보여준다(스포일러·연출 없음).
-function drawCountdownDuel(ctx, duel, realMs, vp, isFeatured) {
+// 카운트다운 전용 아레나 — 위치는 t=0 고정, 칼날만 realMs로 회전. drawBattleScene을 쓰지 않고
+//   별도로 그려 탈락/스파크/HP 변동 없이 대치 프레임만 보여준다(스포일러·연출 없음).
+function drawCountdownArena(ctx, payload, realMs, vp) {
     var sc = vp.scale;
-    var st = spinDuelInterp(duel, 0);   // 시작 배치
-    var metaA = spinSlotMeta(duel.slotA), metaB = spinSlotMeta(duel.slotB);
+    var metaList = payload.players || [];
+    var states = spinBattleInterp(payload, 0);
+    var ringR = RING_R_START * sc;
+    var charR = CHAR_RADIUS * sc;
+    var spriteH = SPRITE_TOKEN_H * sc;
+    var spriteOn = spinSprites.ready;
+
     function vx(x) { return vp.cx + (x - ARENA_CX) * sc; }
     function vy(y) { return vp.cy + (y - ARENA_CY) * sc; }
-    var charR = CHAR_RADIUS * sc, spriteH = SPRITE_TOKEN_H * sc, spriteOn = spinSprites.ready;
-    var ringR = DUEL_RING_R * sc;
 
+    ctx.save();
+    var disk = ctx.createRadialGradient(vp.cx, vp.cy, ringR * 0.2, vp.cx, vp.cy, ringR * 1.25);
+    disk.addColorStop(0, 'rgba(28,39,72,0.55)');
+    disk.addColorStop(1, 'rgba(13,20,38,0.15)');
+    ctx.fillStyle = disk;
+    ctx.beginPath(); ctx.arc(vp.cx, vp.cy, ringR * 1.18, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
     drawSafeRing(ctx, vp.cx, vp.cy, ringR, realMs);
-    var pts = [
-        { meta: metaA, x: st.ax, y: st.ay, blade: duel.bladeA, slot: duel.slotA },
-        { meta: metaB, x: st.bx, y: st.by, blade: duel.bladeB, slot: duel.slotB }
-    ];
-    for (var pi = 0; pi < pts.length; pi++) {
-        var pt = pts[pi];
-        var rx = vx(pt.x), ry = vy(pt.y);
-        var fx = spinReplay._duelFx[pt.slot] || null;
-        var isMe = (pt.meta.name === currentUser);
-        // 그림자
+
+    for (var k = 0; k < metaList.length; k++) {
+        var meta = metaList[k];
+        var st = states[k];
+        if (!st) continue;
+        var blade = (payload.blades || [])[k] || { baseAngle: 0, spinSpeed: 4, spinDir: 1, bladeCount: BLADE_COUNT };
+        var rx = vx(st.x), ry = vy(st.y);
+        var isMe = (meta.name === currentUser);
+
         ctx.save();
         ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.ellipse(rx, ry + (spriteOn ? spriteH * 0.42 : charR * 0.78), charR * 0.85, charR * 0.34, 0, 0, Math.PI * 2);
-        ctx.fill(); ctx.restore();
-        // 칼날(실시간 회전)
-        var bp = { baseAngle: pt.blade.baseAngle, spinDir: pt.blade.spinDir, spinSpeed: pt.blade.spinSpeed, bladeRadius: BLADE_RADIUS * sc };
-        drawBladeSet(ctx, bp, rx, ry, realMs, pt.meta.blade || '#ffffff', fx ? fx.bladeRgb : hexToRgb(pt.meta.blade), (pt.blade.bladeCount) || BLADE_COUNT);
-        // 바디(정지)
+        ctx.fill();
+        ctx.restore();
+
+        var bp = { baseAngle: blade.baseAngle, spinDir: blade.spinDir, spinSpeed: blade.spinSpeed, bladeRadius: BLADE_RADIUS * sc };
+        drawBladeSet(ctx, bp, rx, ry, realMs, meta.blade || '#ffffff', hexToRgb(meta.blade), blade.bladeCount || BLADE_COUNT);
+
         ctx.save();
         ctx.translate(rx, ry);
-        if (spriteOn) {
-            var variant = spinSprites.variants['skin_' + spinSkinBaseId(pt.meta.skinId)] || spinSprites.variants.gray;
-            drawCharSprite(ctx, variant, 0, fx ? fx.faceDir : 1, sc);
-        } else { drawCharBody(ctx, fx ? fx.rgb : hexToRgb(pt.meta.color), sc); drawCharFace(ctx, sc); }
+        if (spriteOn) drawCharSprite(ctx, spinSpriteVariantFor(meta), 0, 1, sc);
+        else { drawCharBody(ctx, hexToRgb(meta.color), sc); drawCharFace(ctx, sc); }
         ctx.restore();
-        // 이름표(featured만 pill, 스트립은 작은 닉)
-        var botOff = spriteOn ? spriteH * 0.42 : charR;
-        var labelY = ry + botOff + 13 * sc;
-        if (isFeatured) {
-            drawSpinNameTag(ctx, rx, labelY, pt.meta.name || '', sc, isMe, pt.meta.blade || '#ffd24a', '', 1);
-        } else {
-            ctx.save();
-            ctx.font = 'bold ' + Math.max(10 * sc, 9) + 'px sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            var nm = (pt.meta.name || ''); if (nm.length > 6) nm = nm.slice(0, 6);
-            ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-            ctx.strokeText(nm, rx, labelY);
-            ctx.fillStyle = isMe ? '#ffe24a' : '#ffffff'; ctx.fillText(nm, rx, labelY);
-            ctx.restore();
-        }
+        if ((meta.tier || 1) >= 2) drawTierAura(ctx, rx, ry, meta.blade || '#ffffff', realMs, charR * 1.5);
+
+        // 전투와 같은 머리 위 라벨 — 시작하는 순간 표시가 바뀌지 않게 한다(만HP).
+        drawCharLabel(ctx, rx, ry, meta, 1, sc, isMe, false);
     }
 }
 
-// 카운트다운 동안 보일 배경 — round1 듀얼 프리뷰(위치 고정, 칼날 실시간 회전). 참가자만 표시(미준비자 퇴장).
+// 카운트다운 동안 보일 배경 — 전투 시작 배치 프리뷰(위치 고정, 칼날 실시간 회전).
+// 등수 룰렛 재생 — animDurationMs 회전 + holdMs 정지 후 done(). 전투 raf와 별개 루프.
+function stopSpinRoulette() {
+    if (spinReplay._rouRaf) { cancelAnimationFrame(spinReplay._rouRaf); spinReplay._rouRaf = null; }
+}
+
+function renderSpinRoulette(payload, done) {
+    stopSpinRoulette();
+    var wrap = document.getElementById('spinArenaWrap');
+    if (wrap) wrap.style.display = 'block';
+    var canvas = getSpinCanvas();
+    if (canvas) { canvas.width = ARENA_W; canvas.height = ARENA_H; }
+    var rl = payload.roulette || {};
+    var total = (rl.animDurationMs || ROULETTE_ANIM_MS) + (rl.holdMs || ROULETTE_HOLD_MS);
+    var startTs = performance.now();
+    var status = document.getElementById('gameStatus');
+    if (status) { status.textContent = '🎯 몇 등이 당첨인지 뽑는 중...'; status.className = 'game-status active'; }
+
+    if (prefersReducedMotion) {
+        // 강모션 최소화: 회전 없이 결과만 1프레임 표시하고 홀드만 준다.
+        if (canvas) drawRouletteFrame(canvas.getContext('2d'), canvas, payload, rl.animDurationMs || ROULETTE_ANIM_MS);
+        setTimeout(done, rl.holdMs || ROULETTE_HOLD_MS);
+        return;
+    }
+    var loop = function (now) {
+        var c = getSpinCanvas();
+        if (!c) { spinReplay._rouRaf = null; done(); return; }
+        var t = now - startTs;
+        drawRouletteFrame(c.getContext('2d'), c, payload, t);
+        if (t < total) { spinReplay._rouRaf = requestAnimationFrame(loop); }
+        else { spinReplay._rouRaf = null; done(); }
+    };
+    spinReplay._rouRaf = requestAnimationFrame(loop);
+}
+
 function renderSpinCountdownBackdrop(payload) {
     if (spinReplay.raf) { cancelAnimationFrame(spinReplay.raf); spinReplay.raf = null; }   // 잔여 메인 raf 정리(레이스 방지)
     stopSpinCountdownBackdrop();   // 잔여 카운트다운 raf 정리(연속 reveal/다시보기 재진입 안전)
@@ -2237,7 +2125,7 @@ function renderSpinCountdownBackdrop(payload) {
     var canvas = getSpinCanvas();
     if (canvas) { canvas.width = ARENA_W; canvas.height = ARENA_H; }
     spinReplay.payload = payload;
-    initSpinFx(payload);   // _slotById/_duelFx/_seqTL 세팅(칼날색·슬롯 메타·듀얼 SEQUENCE 타임라인)
+    initSpinFx(payload);   // _slotById/_charFx/_elimAt/_rankBySlot/_finalistSet 세팅
     var cdStart = performance.now();
     if (prefersReducedMotion) {
         drawSpinCountdownFrame(payload, cdStart);   // 강모션 최소화: 정지 1프레임(칼날 회전 없음)
@@ -2259,12 +2147,14 @@ function startSpinReplay(payload, opts) {
     if (!isReplay) isSpinActive = true;
     stopSpinIdlePreview();
     initSpinFx(payload);
-    // 라이브 리더보드는 캔버스(라운드 헤더 + 듀얼별 HP바) — DOM #spinHpPanel 미사용.
+    // 라이브 리더보드는 캔버스 HUD(캐릭터별 HP바) — DOM #spinHpPanel 미사용.
     showSpinChatOverlay();
 
-    // 스킨 피커 숨김, 캔버스 표시
-    var picker = document.getElementById('spinSkinPicker');
-    if (picker) picker.style.display = 'none';
+    // 빌드 UI(스킨/캐릭터/투표) 숨김, 캔버스 표시
+    ['spinSkinPicker', 'spinRankVote'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
     var wrap = document.getElementById('spinArenaWrap');
     if (wrap) wrap.style.display = 'block';
     if (document.body) document.body.classList.add('spin-running');
@@ -2277,8 +2167,6 @@ function startSpinReplay(payload, opts) {
     if (status) {
         if (isReplay) {
             status.textContent = '🎬 다시보기 재생 중...';
-        } else if (spinReplay.overflowSpectator) {
-            status.textContent = '준비 선착 ' + MAX_SLOTS + '명 초과 — 이번 판은 관전입니다';
         } else {
             status.textContent = spinMissionText();
         }
@@ -2302,33 +2190,51 @@ function startSpinReplay(payload, opts) {
 
 // 결과 오버레이 (토너먼트) — selected = 당첨자/벌칙 = finalLoser(끝까지 진 1명). null 가능(전원 이탈 엣지 → 안전 처리).
 //   rankings = [{name, slotId, rank, loserDepth}] (rank 1 = 가장 먼저 안전 … 최하위 = 당첨). 당첨만 적색, 나머지 안전.
+// 결과 오버레이 — 벌칙 걸린 사람 하나만 크게. 1등은 옆에 작게 🏆. 나머지는 hover로 자세히.
 function showSpinResult(result) {
     if (!result) return;
-    var selected = result.selected;   // null일 수 있음(극단 엣지)
     var rankings = Array.isArray(result.rankings) ? result.rankings : [];
+    var targetRank = result.targetRank || null;
+    var targetName = result.targetName || null;
+    var championName = result.championName || null;
 
     var rankingsEl = document.getElementById('resultRankings');
     if (rankingsEl) {
-        // 안전(rank 오름차순) 먼저, 당첨자(selected = 벌칙)를 맨 아래로(rank 최하위라 자연 정렬되지만 안전망으로 push)
-        var ordered = rankings.slice().sort(function (a, b) {
-            var aSel = (a.name === selected) ? 1 : 0, bSel = (b.name === selected) ? 1 : 0;
-            return (aSel - bSel) || ((a.rank || 0) - (b.rank || 0));
-        });
-        rankingsEl.innerHTML = ordered.map(function (r) {
-            var isSel = selected && r.name === selected;
-            var tag = isSel
-                ? '<span class="spin-result-tag loser">⚔️ 당첨 (끝까지 패배)</span>'
-                : '<span class="spin-result-tag pass">✅ 안전</span>';
-            return '<div class="spin-result-row' + (isSel ? ' loser' : '') + '">' +
-                '<span class="spin-result-name">' + escapeHtml(r.name) + '</span>' + tag + '</div>';
+        var ordered = rankings.slice().sort(function (a, b) { return (a.rank || 0) - (b.rank || 0); });
+        var rows = ordered.map(function (r) {
+            var meta = spinSlotMeta(r.slotId);
+            var nm = meta.name || '';
+            var isTarget = (targetName && nm === targetName);
+            var isChamp = (championName && nm === championName);
+            var cls = 'spin-rank-row' + (isTarget ? ' target' : '') + (isChamp ? ' champ' : '');
+            return '<div class="' + cls + '" title="' + escapeHtml(nm) + ' · ' + r.rank + '등">' +
+                '<span class="spin-rank-no">' + r.rank + '</span>' +
+                '<span class="spin-rank-dot" style="background:' + (meta.color || '#9aa3ad') + '"></span>' +
+                '<span class="spin-rank-name">' + escapeHtml(nm) + '</span>' +
+                (isChamp ? '<span class="spin-rank-badge">🏆</span>' : '') +
+                (isTarget ? '<span class="spin-rank-badge">⚔️</span>' : '') +
+                '</div>';
         }).join('');
+
+        rankingsEl.innerHTML =
+            '<div class="spin-result-hero">' +
+                '<div class="spin-hero-label">' + (targetRank ? targetRank + '등 — 벌칙' : '벌칙') + '</div>' +
+                '<div class="spin-hero-name">' + escapeHtml(targetName || '없음') + '</div>' +
+            '</div>' +
+            (championName
+                ? '<div class="spin-result-champ">🏆 1등 <b>' + escapeHtml(championName) + '</b></div>'
+                : '') +
+            '<div class="spin-rank-list">' + rows + '</div>';
     }
+
     var overlay = document.getElementById('resultOverlay');
     if (overlay) overlay.classList.add('visible');
 
     var status = document.getElementById('gameStatus');
     if (status) {
-        status.textContent = selected ? '⚔️ ' + selected + ' 님 당첨!' : '게임 종료 — 당첨자 없음';
+        status.textContent = targetName
+            ? ('⚔️ ' + targetName + ' 님 벌칙! (' + targetRank + '등)')
+            : '게임 종료';
         status.className = 'game-status finished';
     }
 }
@@ -2337,6 +2243,11 @@ function showSpinResult(result) {
 socket.on('spin-arena:skinsUpdated', function (data) {
     spinSkins = (data && data.skins) || {};
     renderSkinPicker();
+});
+
+socket.on('spin-arena:rankVotesUpdated', function (data) {
+    spinRankVotes = (data && data.rankVotes) || {};
+    renderRankVote();
 });
 
 socket.on('spin-arena:reveal', function (data) {
@@ -2358,29 +2269,29 @@ socket.on('spin-arena:reveal', function (data) {
     spinReplay.phase = 'playing';
     isSpinActive = true;
     stopSpinIdlePreview();
-    // 준비했지만 선착 MAX_SLOTS명 초과 → 관전 안내 (서버 emit 없이 클라 판정)
-    spinReplay.overflowSpectator = amIReady() && !(data.slots || []).some(function (s) {
-        return s.name === currentUser;
-    });
-    renderSpinCountdownBackdrop(data);   // 참가자만 t=0 정지 표시(미준비자 퇴장)
     renderSkinPicker();
+    renderRankVote();
     updateStartButton();
     updateReplayButton();
-    // 3-2-1 카운트다운 후 리플레이 시작 (서버 endTimeout이 COUNTDOWN_MS만큼 가산돼 침범 없음)
+    // 재생 순서 = 서버 endTimeout 가산 순서와 동일: 등수 룰렛 → 3-2-1 카운트다운 → 전투.
     spinReplay.pendingReveal = data;
-    showGameCountdown('spinCanvasBox', function () {
+    renderSpinRoulette(data, function () {
         if (spinReplay.pendingReveal !== data) return;   // 중간에 리셋/중단됨
-        spinReplay.pendingReveal = null;
-        startSpinReplay(data);
+        renderSpinCountdownBackdrop(data);
+        showGameCountdown('spinCanvasBox', function () {
+            if (spinReplay.pendingReveal !== data) return;
+            spinReplay.pendingReveal = null;
+            startSpinReplay(data);
+        });
     });
-    addDebugLog('공개: 당첨=' + (data.result && data.result.selected));
+    addDebugLog('공개: ' + (data.result && data.result.targetRank) + '등 벌칙 → ' + (data.result && data.result.targetName));
 });
 
 socket.on('spin-arena:gameEnd', function (data) {
     if (!spinReplay.isReplayMode) spinReplay.phase = 'finished';
     isSpinActive = false;
 
-    spinHistory.unshift({ round: data.round, selected: data.selected });
+    spinHistory.unshift({ round: data.round, targetName: data.targetName, targetRank: data.targetRank, championName: data.championName });
     renderSpinHistory();
 
     if (spinReplay.payload && !spinReplay.isReplayMode) savedReveal = spinReplay.payload;
@@ -2388,7 +2299,7 @@ socket.on('spin-arena:gameEnd', function (data) {
     // 리플레이가 아직 진행 중이면 오버레이는 리플레이 종료 시 표시(showSpinResult).
     // 리플레이가 이미 끝났거나 늦게 도착하면 여기서 보강 표시.
     if (!spinReplay.raf) {
-        showSpinResult({ selected: data.selected, rankings: data.rankings });
+        showSpinResult({ rankings: data.rankings, targetRank: data.targetRank, targetName: data.targetName, championName: data.championName });
     }
     updateStartButton();
     updateReplayButton();
@@ -2396,6 +2307,7 @@ socket.on('spin-arena:gameEnd', function (data) {
 
 socket.on('spin-arena:roundReset', function () {
     spinSkins = {};
+    spinRankVotes = {};
     mySkinId = null;
     isSpinActive = false;
     if (spinReplay.isReplayMode && spinReplay.raf) {
@@ -2409,6 +2321,7 @@ socket.on('spin-arena:roundReset', function () {
 
 socket.on('spin-arena:gameAborted', function (data) {
     spinSkins = {};
+    spinRankVotes = {};
     mySkinId = null;
     isSpinActive = false;
     enterSpinIdle();
@@ -2424,9 +2337,13 @@ function renderSpinHistory() {
     if (!list) return;
     if (!spinHistory.length) { list.innerHTML = ''; return; }
     list.innerHTML = spinHistory.slice(0, 30).map(function (h) {
+        var who = h.targetName || '없음';
+        var extra = (h.targetRank ? h.targetRank + '등' : '') +
+                    (h.championName ? ' · 🏆 ' + h.championName : '');
         return '<div style="padding:8px 12px;border-bottom:1px solid var(--gray-200,#e5e7eb);">' +
             '<span style="color:var(--spin-arena-accent);font-weight:bold;">' + h.round + '판</span>' +
-            ' — ⚔️ <span style="font-weight:600;">' + escapeHtml(h.selected || '없음') + '</span> 당첨</div>';
+            ' — ⚔️ <span style="font-weight:600;">' + escapeHtml(who) + '</span> 벌칙' +
+            (extra ? ' <span style="color:var(--text-muted);font-size:12px;">(' + escapeHtml(extra) + ')</span>' : '') + '</div>';
     }).join('');
 }
 
@@ -2458,8 +2375,9 @@ function spinInitModules() {
 
     var hostControls = document.getElementById('hostControls');
     if (hostControls) hostControls.style.display = isHost ? 'block' : 'none';
-    socket.emit('spin-arena:requestSkins');   // 입장/재입장 시 기존 유저 스킨 선택 동기화(미리보기 색 == 게임 색)
+    socket.emit('spin-arena:requestSkins');   // 입장/재입장 시 스킨·캐릭터·투표 동기화(미리보기 색 == 게임 색)
     renderSkinPicker();
+    renderRankVote();
     updateStartButton();
     startSpinIdlePreview();   // 경마처럼 입장 직후부터 아레나(게임판) 표시
 }

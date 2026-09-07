@@ -277,14 +277,14 @@ const GAMES = [
     },
     {
         type: 'spin-arena', name: '회전칼날', emoji: '⚔️', accent: '#ef4444', maxBots: 23,
-        hint: '최대 24명(호스트 포함)이라 봇은 23명까지입니다. 스킨은 서버 자동 배정에 맡기면 24색이 구분됩니다("전원 스킨"은 base 6색만 반복). 5명 이상이면 몬스터 레이스, 4명 이하면 배틀로얄.',
+        hint: '인원 제한 없음. 캐릭터 5개 중 하나를 고르고(중복 가능) 고른 캐릭터만 출전합니다. 당첨 등수는 등수 투표 룰렛이 정하고, 그 등수 캐릭터를 고른 사람이 당첨 — 여러 명이면 그들끼리 재경기. 봇은 캐릭터 미선택이라 시작 시 서버가 자동 배정합니다.',
         actions: [ { label: '전원 스킨(base 6색)', cls: 'btn-orange', fn: () => spinSkinAll() } ],
         quick: null,
         info: (b) => b.info.skin ? `${chip(skinHex(b.info.skin))} ${skinName(b.info.skin)}` : '',
         events: {
             'spin-arena:skinsUpdated': (b, d) => { const map = (d && d.skins) || {}; if (map[b.name]) { b.info.skin = map[b.name]; updateBotList(); } },
-            'spin-arena:reveal': (b, d) => { if (isLead(b)) dlog(`공개 — 룰=${d && d.rule} / 당첨(벌칙)=${d && d.result && d.result.selected}`, 'event'); },
-            'spin-arena:gameEnd': (b, d) => { if (isLead(b)) dlog(`게임 종료 — 당첨=${d && d.selected} (round ${d && d.round})`, 'event'); },
+            'spin-arena:reveal': (b, d) => { if (isLead(b)) { const R = (d && d.result) || {}; dlog(`공개 — ${d && d.twoStage ? '2스테이지(결승 ' + ((d.finalists || []).length) + '인)' : '단일단계'} / 벌칙 ${R.targetRank}등=${R.targetName} / 1등=${R.championName} / 길이 ${d && d.durationMs}ms`, 'event'); } },
+            'spin-arena:gameEnd': (b, d) => { if (isLead(b)) dlog(`게임 종료 — 벌칙=${d && d.targetName} (${d && d.targetRank}등) / 1등=${d && d.championName} (round ${d && d.round})`, 'event'); },
             'spin-arena:roundReset': (b) => { b.info.skin = null; updateBotList(); },
         },
     },

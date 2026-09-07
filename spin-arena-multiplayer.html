@@ -137,6 +137,15 @@
                 </div>
             </div>
 
+            <!-- 등수 투표 (준비자만, idle 단계) — 「몇 등이 벌칙인지」. 후보는 결승 진출 등수(1~4).
+                 구조·상호작용은 경마(horse-race-multiplayer.html #rankVoteSection)와 동일: 박스 + 익명 표 막대. -->
+            <div class="rank-vote-section" id="spinRankVote" style="display: none;">
+                <div class="rank-vote-title">🎯 벌칙 등수 투표</div>
+                <div class="rank-vote-hint">벌칙이 될 등수에 한 표 던지세요. 시작하면 룰렛이 결정합니다.</div>
+                <div id="spinRankVoteBoxes" class="rank-vote-boxes"></div>
+                <div id="spinRankVoteWarn" class="rank-vote-warn"></div>
+            </div>
+
             <!-- 회전 칼날 스킨 피커 (준비자만, idle 단계) -->
             <div id="spinSkinPicker" style="display: none;"></div>
 

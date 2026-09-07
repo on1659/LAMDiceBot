@@ -90,6 +90,7 @@ function createRoomGameState() {
         spinArena: {
             phase: 'idle',          // idle | playing | finished
             skins: {},              // { userName: skinId }
+            rankVotes: {},          // { userName: rank } — 「몇 등이 벌칙인지」 등수 투표(1~4)
             participants: [],       // 시작 시점 사람 참가자 이름
             timeline: null,         // server-only: 토너먼트 브래킷 { slots, bracket:{ poolOrder, rounds[{roundIdx,durationMs,duels[{duelId,slotA,slotB,frames,durationMs,decideMs,loserSlot,winnerSlot,bladeA,bladeB}],byes}], finalLoser, loserDepth }, geom, sampleMs, durationMs } (재진입 마스킹 대상 — bracket은 timeline에만, reveal 1회 외 비노출)
             result: null,           // server-only: { selected, rankings, successionList } (selected = finalLoser = 당첨)

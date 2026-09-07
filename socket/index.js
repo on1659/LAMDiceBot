@@ -194,10 +194,10 @@ function setupSocketHandlers(io, rooms) {
             socket.emit('visitorStats', stats);
         });
 
-        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 여부)
+        // 서버 환경 플래그 조회 (사다리타기·회전 칼날 방 만들기 허용 여부 — 로컬 개발 서버에서만 열림)
         socket.on('getDevFlags', () => {
             if (!checkRateLimit()) return;
-            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV });
+            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV, spinArenaEnabled: IS_LOCAL_DEV });
         });
 
         // 각 핸들러 등록

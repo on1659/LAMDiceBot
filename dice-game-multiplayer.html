@@ -1955,7 +1955,7 @@
         <div class="lobby-section" id="lobbySection">
             <!-- 서버 정보 바 (서버 선택 시 표시) -->
             <div id="serverInfoBar" style="display:none;">
-                <button class="btn-ghost" onclick="sessionStorage.removeItem('diceSession'); sessionStorage.removeItem('diceActiveRoom'); window.location.reload();">← 서버 목록</button>
+                <button class="btn-ghost" onclick="exitToServerSelect()">← 서버 목록</button>
                 <span id="serverInfoName"></span>
                 <span id="serverInfoUserName" style="display: none;">👤 </span>
                 <button id="serverMembersBtn" onclick="ServerSelectModule.showMembersModal()">👥 멤버</button>
@@ -2069,11 +2069,13 @@
                         <span id="ladderNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                         <span id="ladderDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
-                    <label id="spinArenaLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb);">
-                        <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" />
+                    <!-- 회전 칼날: 기본은 선택 불가(개발 중). 서버가 devFlags로 로컬 개발 서버라고 알려줄 때만 해제 -->
+                    <label id="spinArenaLabel" class="game-type-option" style="--gt-color: var(--game-type-spin-arena); --gt-rgb: var(--spin-arena-500-rgb); opacity: 0.6; cursor: not-allowed;">
+                        <input type="radio" name="gameType" value="spin-arena" id="spinArenaRadio" disabled />
                         <span class="gt-emoji">🌀</span>
                         <span class="gt-name">회전 칼날</span>
-                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="spinArenaNewBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                        <span id="spinArenaDevBadge" style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
                     <label id="pirateLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-pirate); --gt-rgb: var(--pirate-500-rgb);">
                         <input type="radio" name="gameType" value="pirate" id="pirateRadio" />
@@ -2082,7 +2084,7 @@
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                 </div>
-                <!-- 사다리타기가 선택 가능해지면 devFlags 핸들러가 안내 문구에 사다리타기를 다시 넣는다 -->
+                <!-- 사다리타기·회전 칼날이 선택 가능해지면 devFlags 핸들러(refreshGameTypeInfo)가 문구에 다시 넣는다 -->
                 <div id="gameTypeInfo">
                     룰렛/경마를 선택하면 전용 페이지로 이동합니다.
                 </div>
@@ -2436,6 +2438,19 @@
             } catch (e) { return null; }
         }
 
+        // 서버 목록으로 나가기 — /free는 세션이 비어도 자유모드로 강제 진입하는 경로라
+        // 그 자리에서 새로고침만 하면 다시 자유모드로 돌아온다. 실제 서버 선택 화면을 보려면 /game으로 이동해야 한다.
+        function exitToServerSelect() {
+            sessionStorage.removeItem('diceSession');
+            sessionStorage.removeItem('diceActiveRoom');
+            sessionStorage.removeItem('returnToLobby');
+            if (window.location.pathname === '/free') {
+                window.location.href = '/game';
+            } else {
+                window.location.reload();
+            }
+        }
+
         // 서버 선택 모듈 초기화
         ServerSelectModule.init(socket, (selection) => {
             const serverData = JSON.stringify({
@@ -2448,11 +2463,7 @@
         }, () => {});
         // 히스토리 매니저 초기화
         PageHistoryManager.init({
-            onServerSelect: function () {
-                sessionStorage.removeItem('diceSession');
-                sessionStorage.removeItem('diceActiveRoom');
-                window.location.reload();
-            },
+            onServerSelect: exitToServerSelect,
             onLobby: function () {
                 document.getElementById('createRoomSection').classList.remove('active');
                 document.getElementById('gameSection').classList.remove('active');
@@ -3520,24 +3531,61 @@
         // 서버 환경 플래그 수신 — 사다리타기는 로컬 개발 서버에서만 방을 만들 수 있다.
         // 마크업 기본값이 이미 제한 상태라 허용일 때만 되돌린다.
         const LADDER_NOT_READY_MESSAGE = '사다리타기는 아직 준비 중이에요. 곧 만나요!';
+        const SPIN_ARENA_NOT_READY_MESSAGE = '회전 칼날은 아직 준비 중이에요. 곧 만나요!';
+
+        // 잠금이 풀린 게임까지 포함해 안내 문구를 다시 만든다(둘이 따로 열릴 수 있다).
+        function refreshGameTypeInfo() {
+            const extra = [];
+            const ladderRadio = document.getElementById('ladderRadio');
+            const spinArenaRadio = document.getElementById('spinArenaRadio');
+            if (ladderRadio && !ladderRadio.disabled) extra.push('사다리타기');
+            if (spinArenaRadio && !spinArenaRadio.disabled) extra.push('회전 칼날');
+            const names = ['룰렛', '경마'].concat(extra);
+            // 목적격 조사는 마지막 이름의 받침에 따라 갈린다("경마를" / "회전 칼날을").
+            const last = names[names.length - 1];
+            const code = last.charCodeAt(last.length - 1) - 0xAC00;
+            const hasFinalConsonant = code >= 0 && code <= 11171 && (code % 28) !== 0;
+            const gameTypeInfo = document.getElementById('gameTypeInfo');
+            if (gameTypeInfo) {
+                gameTypeInfo.textContent = names.join('/') + (hasFinalConsonant ? '을' : '를') + ' 선택하면 전용 페이지로 이동합니다.';
+            }
+        }
+
+        // 라벨 하나를 "개발 중 잠금" → "선택 가능"으로 푼다 (사다리·회전 칼날 공통).
+        function unlockDevGatedGame(labelId, radioId, devBadgeId, newBadgeId) {
+            const label = document.getElementById(labelId);
+            if (label) { label.style.opacity = ''; label.style.cursor = ''; }
+            const radio = document.getElementById(radioId);
+            if (radio) radio.disabled = false;
+            const devBadge = document.getElementById(devBadgeId);
+            if (devBadge) devBadge.style.display = 'none';
+            const newBadge = document.getElementById(newBadgeId);
+            if (newBadge) newBadge.style.display = '';
+        }
 
         socket.on('devFlags', (flags) => {
-            if (!flags || !flags.ladderEnabled) return;
+            if (!flags) return;
 
-            const ladderLabel = document.getElementById('ladderLabel');
-            if (ladderLabel) {
-                ladderLabel.style.opacity = '';
-                ladderLabel.style.cursor = '';
+            if (flags.spinArenaEnabled) {
+                unlockDevGatedGame('spinArenaLabel', 'spinArenaRadio', 'spinArenaDevBadge', 'spinArenaNewBadge');
             }
-            const ladderRadio = document.getElementById('ladderRadio');
-            if (ladderRadio) ladderRadio.disabled = false;
-            const ladderDevBadge = document.getElementById('ladderDevBadge');
-            if (ladderDevBadge) ladderDevBadge.style.display = 'none';
-            const ladderNewBadge = document.getElementById('ladderNewBadge');
-            if (ladderNewBadge) ladderNewBadge.style.display = '';
-            const gameTypeInfo = document.getElementById('gameTypeInfo');
-            if (gameTypeInfo) gameTypeInfo.textContent = '룰렛/경마/사다리타기를 선택하면 전용 페이지로 이동합니다.';
+            if (flags.ladderEnabled) {
+                unlockDevGatedGame('ladderLabel', 'ladderRadio', 'ladderDevBadge', 'ladderNewBadge');
+            }
+            refreshGameTypeInfo();
         });
+
+        // 선택 불가 상태에서 회전 칼날을 누르면 안내 (라디오가 disabled여도 라벨 클릭은 발생)
+        (function() {
+            const spinArenaLabel = document.getElementById('spinArenaLabel');
+            if (!spinArenaLabel) return;
+            spinArenaLabel.addEventListener('click', () => {
+                const spinArenaRadio = document.getElementById('spinArenaRadio');
+                if (spinArenaRadio && spinArenaRadio.disabled) {
+                    showCustomAlert(SPIN_ARENA_NOT_READY_MESSAGE, 'info');
+                }
+            });
+        })();
 
         // 선택 불가 상태에서 사다리타기를 누르면 안내 (라디오가 disabled여도 라벨 클릭은 발생)
         (function() {

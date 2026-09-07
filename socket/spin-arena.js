@@ -1,5 +1,15 @@
-// 회전 칼날(spin-arena) 게임 소켓 핸들러
-// ladder.js / horse.js 패턴 차용. 결과는 서버에서만 결정(결정론 시드 PRNG), 클라는 리플레이만.
+// 회전 칼날(spin-arena) 게임 소켓 핸들러 — "경마인데 과정이 칼싸움" 메커니즘.
+// 명세: docs/goal/spin-arena-horse-style-5char.md
+//
+// 규칙: 캐릭터 5개 고정(1~5) → 각자 하나 고르기(중복 허용, 인원 상한 없음)
+//   → 사람이 고른 캐릭터만 아레나에 출전(2~5) → 프리포올 전투 → 쓰러진 역순으로 등수(1등 = 최후 생존자)
+//   → 「몇 등이 당첨인지」를 등수 투표 룰렛으로 결정 → 그 등수 캐릭터를 고른 사람(들)이 당첨
+//   → 당첨자가 2명 이상이면 그 사람들끼리 재경기(한 명이 남을 때까지).
+// 경마와 다른 점: 무투표 시 꼴등 fallback이 없다. 유효표가 0이면 1..n 균등 추첨으로 "무조건 룰렛을 돌린다".
+//
+// 폐기: 1v1 듀얼 브래킷 토너먼트(~2026-09-06). MAX_SLOTS(24)·bye·라운드 연출 비트도 함께 폐기.
+// 유지: 전투 코어(칼날 선분 판정·HP 드레인·넉백·탄성 충돌·링 하드월·중앙 인력·시드 PRNG).
+// 결과(등수·당첨 등수·자동 배정·인원 분할)는 전적으로 서버가 결정 — 클라는 받은 값으로 연출만(공정성).
 const { DISCONNECT_WAIT_REDIRECT, DISCONNECT_WAIT_DEFAULT } = require('../config');
 const { recordGamePlay } = require('../db/stats');
 const { recordServerGame, recordGameSession, generateSessionId } = require('../db/servers');
@@ -8,67 +18,85 @@ const { getOwned } = require('../db/cosmetics');   // 스킨 소유 검증(꾸�
 // ─── 공유 상수 (js/spin-arena.js 상단과 반드시 동일 값) ───
 // ─ 아레나(논리 좌표 고정, CSS 반응형) ─
 const ARENA_W = 480, ARENA_H = 480, ARENA_CX = 240, ARENA_CY = 240;
-const ARENA_R = 220;              // 바깥벽 반경
+const ARENA_R = 220;              // 바깥벽 반경 (= RING_R_START)
 
-// ─ 슬롯/인원 (봇 없음 — 사람 n=2~24 가변) ─
-const MAX_SLOTS = 24;             // 최대 참가 슬롯(준비 선착 최대 24명)
-const SPIN_MIN_PLAYERS = 2;
-
-// ─ 토너먼트(2026-06-17 rework, Slice 1: 서버 결정론 코어) ─
-// 순수 단판 토너먼트(LOSER 브래킷): 풀 = 전원. 매 라운드 풀을 짝지어 1v1 듀얼.
-//   듀얼 WINNER = 안전(safe, 풀에서 이탈). LOSER = 풀 잔류(다음 라운드 진출). 풀이 1명 = 당첨(벌칙).
-//   라운드 내 모든 듀얼은 한 타임라인을 공유(parallel). 전부 서버에서 한 시드로 사전 계산.
+// ─ 캐릭터/인원 ─
+const SPIN_MIN_PLAYERS = 2;       // 시작 최소 인원
+const SPIN_MAX_PLAYERS = 24;      // 참가 상한(준비 선착) — 전원 참가 모델이라 상한이 다시 필요하다
+const FINALIST_COUNT = 4;         // 「최후의 4인」 — Stage1은 이 인원이 남는 순간 멈춘다
 
 // ─ 시간축 ─
 const COUNTDOWN_MS = 4000;        // 클라 3-2-1-START 카운트다운 실측(1000ms×4) — js/spin-arena.js 와 동일 값
 const SIM_DT_MS = 20;             // 내부 시뮬 스텝(50fps)
-const SAMPLE_MS = 100;            // 키프레임 샘플 간격 → 듀얼 frames 길이 = durationMs/SAMPLE_MS + 1
-const SIM_YIELD_EVERY = 100;      // 이 스텝마다 await setImmediate (CPU 양보) — 듀얼 루프 합산 기준
+const SAMPLE_MS = 100;            // 키프레임 샘플 간격 → frames 길이 = (durationMs/SAMPLE_MS + 1) × n × 3
+const SIM_YIELD_EVERY = 200;      // 이 스텝마다 await setImmediate (CPU 양보)
 
-// ─ 듀얼/라운드 시간 (수치 권위 = 200시드 배치) ─
-const DUEL_MAX_MS = 8000;         // 듀얼 캡 — 이 시각까지 HP 0 미발생 시 HP 최저자 = LOSER(HP-lowest fallback → decideMs는 절대 null 아님). 2칼날 + 좁은 DUEL_RING_R로 결판이 빨라 fallback ~0(배치 확인).
-const DECIDE_TAIL_MS = 1200;      // 듀얼 결판(decideMs) 후 결판 비트 길이 — durationMs = decideMs + tail (SAMPLE_MS 격자)
-const MIN_ROUND_MS = 3000;        // 라운드 최소 길이(가장 긴 듀얼이 짧아도 라운드는 이 길이 이상 — 오버뷰 가독)
+// ─ 전투 시간(2스테이지) ─
+const STAGE1_MAX_MS = 45000;      // Stage1 캡 — 이 시각까지 FINALIST_COUNT명에 못 닿으면 HP 낮은 순으로 강제 탈락
+const TRANSITION_MS = 3200;       // Stage1 종료 → 결승 시작. 전투·이동 정지 구간. 클라가 「최후의 4인!」 낙하 연출.
+const FINALE_MAX_MS = 38000;      // 결승 캡(결승 시작 기준) — 이 시각까지 1명이 안 남으면 HP 낮은 순으로 강제 탈락.
+                                  // HP를 올리면 이 값도 같이 올려야 한다. 안 그러면 KO 전에 캡이 먼저 온다.
+const ELIM_TAIL_MS = 1600;        // 마지막 탈락 후 결판 비트 길이 — durationMs = lastElimMs + tail (SAMPLE_MS 격자)
+const GAME_MS = 95000;            // durationMs 하드 캡(sanity) — Stage1 45s + 전환 3.2s + 결승 32s + tail 여유
 
-// ─── 연출 비트 상수 (SEQUENTIAL 브로드캐스트 타임라인) ───
-// 박제: 클라 js/spin-arena.js 와 반드시 동일 값. 전체 durationMs = 이 비트들의 순차 합 →
-//   endTimeout = COUNTDOWN_MS + durationMs + RESULT_HOLD_MS. 하나라도 어긋나면 결과가 일찍/늦게 발화.
-const BRACKET_OVERVIEW_MS = 3500;  // 시작 브래킷 오버뷰(누가 누구와 싸우는지) — 전체에서 1회.
-const ROUND_INTRO_MS = 2000;       // "{poolSize}강 시작" 카드 — 라운드마다 1회.
-const DUEL_INTRO_MS = 1500;        // "{A} 대 {B} 게임시작" — 듀얼마다 1회.
-const DUEL_OUTRO_MS = 1500;        // "{loser} 패배" 콜아웃 + 이어지는 모션 — 듀얼마다 1회.
-const DUEL_BLACKOUT_MS = 700;      // 다음 듀얼로 가는 암전(절대 흰색 아님) — 듀얼마다 1회.
-const BYE_BEAT_MS = 1500;          // "부전패" 비트 — bye마다 1회.
+// ─ 룰렛(등수 추첨) 연출 — 경마(socket/horse.js)와 같은 값·같은 순서 ─
+const ROULETTE_ANIM_MS = 5500;    // 등수 룰렛 애니메이션 길이
+const ROULETTE_HOLD_MS = 1200;    // 룰렛 정지 후 결과를 읽는 시간
 
-// ─ GAME_MS 재유도(하드 캡, SEQUENTIAL 브로드캐스트 모델) ─
-//   클라가 브래킷을 순차 브로드캐스트로 재생: [브래킷 오버뷰] → 라운드마다 [라운드 인트로 + 듀얼들 + bye 비트].
-//   전체 durationMs = BRACKET_OVERVIEW_MS
-//     + Σ_rounds [ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + duel.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ].
-//   최악 케이스: n=24 → totalDuels = 23(토너먼트는 n명 → n-1 듀얼), 라운드 수 = ceil(log2(24)) = 5라운드.
-//   듀얼당 최악 = DUEL_MAX_MS(8000) + DECIDE_TAIL_MS(1200) = 9200ms (모든 듀얼 fallback 가정).
-//   듀얼 연출당 최악 = DUEL_INTRO_MS(1500) + 9200 + DUEL_OUTRO_MS(1500) + DUEL_BLACKOUT_MS(700) = 12900ms.
-//   bye 최악(보수적): 라운드당 1 bye × 5라운드 × BYE_BEAT_MS(1500) = 7500ms.
-//   theoretical = BRACKET_OVERVIEW_MS(3500) + ROUND_INTRO_MS(2000)×5 + 12900×23 + 7500
-//               = 3500 + 10000 + 296700 + 7500 = 317700ms.
-//   여유 포함 GAME_MS = 340000 (전체 durationMs 상한, endTimeout 산정의 sanity 캡 — 317700 여유 22300ms).
-const GAME_MS = 340000;           // 전체 브래킷 durationMs 하드 캡(여유 포함). 실제 durationMs는 비트 순차 합(SEQUENTIAL) — 보통 훨씬 짧음.
+// ─ 연출 타이밍 ─
+const RESULT_HOLD_MS = 2200;      // 리플레이 끝난 뒤 결과 오버레이 전 여유(클라 자체 처리)
+const SPIN_RESET_DELAY = 4500;    // gameEnd 후 다음 판 리셋까지(서버)
+const HISTORY_MAX = 100;
 
 // ─ 캐릭터/칼날 ─
 const CHAR_RADIUS = 14;
-const BLADE_COUNT = 2;            // 칼날 수 base(듀얼 내 칼날 수는 base 고정. 2개 = 판정 면적↑ → 듀얼 결판 안정).
+const BLADE_COUNT = 2;            // 칼날 수(캐릭터당 고정)
 const BLADE_RADIUS = 46;          // 캐릭터 중심 → 칼날 끝 거리
 const SWORD_LEN = 28;             // 도신(검 날) 길이 — 날 안쪽 끝 = BLADE_RADIUS - SWORD_LEN. 클라 검 그리기와 동일(보이는 검 = 맞는 검)
-const BLADE_EDGE_R = 3.5;         // 날 선분(캡슐) 반경 — 클라 도신 반폭(최대 3.4px) 정합. 판정 = 날 선분 vs 몸 원
-const BLADE_SPIN_MIN = 3.5, BLADE_SPIN_MAX = 6.0;   // rad/s (듀얼 sub-seed PRNG 파생)
+const BLADE_EDGE_R = 3.5;         // 날 선분(캡슐) 반경 — 클라 도신 반폭 정합. 판정 = 날 선분 vs 몸 원
+const BLADE_SPIN_MIN = 3.5, BLADE_SPIN_MAX = 6.0;   // rad/s (시드 PRNG 파생)
 
-// ─ 체력/데미지 (수치 권위 = 200시드 배치) ─
-const HP_MAX = 100;               // 듀얼 HP. hpFrames(듀얼 frames에 포함) 분모 = HP_MAX
-const HIT_DPS = 300;              // 듀얼: 칼날→상대 HP 초당 데미지. 권위 = 200시드 배치(스윕: ring64·pull320·dps300 → fallback ~1%)
+// ─ 체력/데미지 ─
+// 전투 길이 튜닝(2026-09-06 실측) — 이전 HP 100에서는 2명 방이 7.9s, 4명이 6.9s로 너무 빨리 끝났다.
+// HP만 크게 올리면(400+) 2명 판의 92%가 결승 캡에 걸려 KO가 아니라 강제 판정으로 끝나므로,
+// HP·결승 링 수축·결승 캡을 함께 올려야 한다. 아래 조합은 25판×8가지 인원 측정에서 강제 판정 0건.
+//   결과: 2명 18.5s / 4명 14.0s / 6~24명 전체 34.6~38.2s (Stage1 ~18-20s + 결승 ~14s)
+const HP_MAX = 350;               // hpFrames 분모 = HP_MAX
+const HIT_DPS = 300;              // 결승 칼날→상대 HP 초당 데미지. 2인 듀얼 시절 200시드 배치로 잡은 값 — 그대로 유지.
+// Stage1은 인원이 많아 칼날이 사방에 있다 → 결승과 같은 DPS면 24명이 3초 만에 정리된다(측정).
+// 492a8c7도 Stage1 전용 DPS(80)를 따로 뒀다. 여기서는 탈락형이라 그보다 조금 더 낮춘다.
+// Stage1은 넓은 아레나를 로밍하며 스쳐 지나가는 교전이라, 결승처럼 오래 붙어 있지 않는다.
+// DPS가 낮으면(60) 아무도 안 죽어 Stage1이 45s 캡에 100% 걸렸다 — 한 번의 클래시가 유효타가 되게 올렸다.
+// 이 값에서 실측: n=6 11.3s / n=10 16.4s / n=24 23.9s, 캡 0건, 퍼짐 158~186px.
+const STAGE1_HIT_DPS = 600;       // Stage1 칼날→상대 HP 초당 데미지(기준 인원에서)
+// 인원이 늘면 한 사람이 동시에 맞는 칼날 수도 같이 늘어 실효 피해가 중첩된다 → 그대로 두면
+// 인원이 많을수록 Stage1이 짧아진다(측정: 24명 5.5s < 5명 9s). 기준 인원으로 정규화해 뒤집는다.
+const STAGE1_DPS_REF_N = 6;       // 이 인원에서 STAGE1_HIT_DPS를 그대로 쓴다
+const STAGE1_DPS_MIN_SCALE = 0.3; // 정규화 하한 — 너무 낮추면 타격이 안 먹는 느낌이 된다
+function stage1DpsFor(n) {
+    return STAGE1_HIT_DPS * Math.max(STAGE1_DPS_MIN_SCALE, Math.min(1, STAGE1_DPS_REF_N / n));
+}
 
-// ─ 듀얼 링/이동 ─
-const DUEL_RING_R = 64;           // 듀얼 전용 링 반경(고정 — 듀얼은 단계 수축 없음). 두 칼날이 상시 접촉하게 좁힘. 권위 = 스윕(80=fallback 30%↑ → 64=~1%)
-const DUEL_START_R = 44;          // 듀얼 시작 시 두 캐릭터를 중심에서 ±이 반경(angle 0, π)에 배치(결정론). DUEL_RING_R-charR-여유 안쪽
-const FINALE_PULL = 320;          // 듀얼 중앙 인력(강) — 2인을 중앙에 밀착시켜 칼날 상시 접촉 → HP-0 결판 보장. 권위 = 200시드 배치
+// ─ 링/이동 — 단계별 반경 스케줄. 기준값은 492a8c7(2스테이지 시절)에서 가져왔다. ─
+// Stage1은 탈락형이라 종료 시점을 미리 알 수 없다 → 수축을 "경과 시간" 기준으로 돌린다.
+// 페이싱이 어긋나면 시드 배치로 재튜닝할 것(이 값들은 배치 스윕이 아니라 설계 판단).
+const RING_R_START = 220;         // 시작 반경 = 바깥벽
+const RING_R_END = 60;            // 결승 최종 반경 — 4인이라도 강제 교전이 일어나게 좁힘
+const RING2_SHRINK_MS = 20000;    // 결승 수축(결승 시작 기준, 220 → 60). 느릴수록 초반에 거리를 두고 붙는다.
+const START_R_MARGIN = 6;         // 배치 반경 = ring - charR - 이 값
+// ─ Stage1 이동 = 로밍(wander) ─
+// 여기서 시도했다 버린 것들(전부 측정으로 기각):
+//   · 중앙 인력  → 전원이 한 점 blob으로 뭉친다.
+//   · 동심 궤도  → 원끼리 교차하지 않아 서로 못 만나고 Stage1이 캡(45s)까지 늘어졌다(12/12).
+// 각자 고유 방향으로 아레나를 가로지르고 벽에서 튕긴다 → 경로가 교차하며 자연히 교전이 생긴다.
+// 방향/회전율/속도는 전부 이미 소비한 시드 필드에서 파생 → rng 추가 소비 0회(FROZEN 소비 순서 불변).
+const WANDER_SPEED = 78;          // 로밍 순항 속도(px/s) — 아레나(반경 220) 횡단에 ~5s
+const WANDER_ACCEL = 2.4;         // 순항 속도로 복귀하는 가속(1/s) — 넉백 후 다시 제 갈 길로
+const WANDER_TURN_MIN = 0.10, WANDER_TURN_MAX = 0.42;   // 진행 방향 회전율(rad/s) — 직선만 달리지 않게
+const WANDER_CENTER_BIAS = 26;    // 아주 약한 중앙 복귀(px/s²) — 전원이 벽에만 붙어 도는 걸 막는 정도
+const SPEED_MUL_MIN = 0.75, SPEED_MUL_MAX = 1.25;    // 드리프트 속도 배율(spinSpeed 정규화)
+const PULL_MUL_MIN = 0.80, PULL_MUL_MAX = 1.20;      // 중앙 인력 배율(baseAngle 정규화) — 경로 다양화
+const FINALE_PULL = 200;          // 결승 중앙 인력 — 4인을 붙여 결판을 보장하되, 즉시 뭉개지지는 않게
 const SPIN_DRAG = 0.45;           // 드리프트 선형 감쇠(/s) — 인력만 있으면 보존계 영구 진동 → 나선 수렴
 const WALL_BOUNCE = 0.9;          // 벽(링 하드 월) 반사 감쇠
 
@@ -78,17 +106,37 @@ const COLLIDE_RESTITUTION = 1.3;  // 반발 계수 — 드리프트 속도(vx/vy
 const COLLIDE_POP = 10;           // 최소 분리 임펄스(px/s) — rel≈0(느린 접촉)에도 법선 방향으로 팝을 줘 가시적 분리
 
 // ─ 넉백(서버 시뮬 실제 반영 — 칼끝→몸 임펄스, 전부 결정론) ─
-const KNOCK_IMPULSE = 70;         // 피격 틱당 가산 속도(px/s)
+const KNOCK_IMPULSE = 80;         // 피격 틱당 가산 속도(px/s) — 맞으면 좀 더 튕겨 나가 교전이 끊겼다 이어진다
 const KNOCK_MAX = 110;            // 넉백 속도 크기 상한(px/s)
 const KNOCK_DECAY = 3.0;          // 지수 감쇠(/s)
 
-// ─ 연출 타이밍 ─
-const RESULT_HOLD_MS = 2200;      // 리플레이 끝난 뒤 결과 오버레이 전 여유(클라 자체 처리)
-const SPIN_RESET_DELAY = 4500;    // gameEnd 후 다음 판 리셋까지(서버)
-const HISTORY_MAX = 100;
 
+// ─── 링 반경 스케줄 (클라 js/spin-arena.js 의 동명 함수와 반드시 동일 식) ───
+// 492a8c7의 ringRadiusAt(t, round1EndMs) 구조를 그대로 가져오되, Stage1이 타임박스가 아니라
+// 탈락형이라 Stage1 수축은 "경과 시간" 기준으로 돈다(종료 시점을 미리 알 수 없으므로).
+// ⚠ twoStage를 반드시 넘겨라. stage1EndMs === null 은 뜻이 둘이다 —
+//   "단일 단계 매치"이기도 하고 "2스테이지인데 Stage1이 아직 안 끝났다"이기도 하다.
+//   구분하지 않아서 Stage1 내내 결승 스케줄로 벽이 220→60까지 조여들었다(2026-09-07 측정으로 발견).
+//   twoStage && (stage1EndMs 미정 || t < stage1EndMs) → Stage1: 수축 없음(RING_R_START 고정)
+//   !twoStage                                         → 단일 단계: 처음부터 결승 스케줄
+//   전환 구간                                          → 링 풀(RING_R_START)
+//   그 이후                                            → 결승: RING_R_START → RING_R_END
+function ringRadiusAt(t, stage1EndMs, finaleStartMs, twoStage) {
+    // Stage1은 수축하지 않는다 — 넓은 맵에서 흩어져 싸우게 둔다(소유자 결정 2026-09-07).
+    // 종반은 링이 아니라 탈락으로 만들어진다: 4명이 남는 순간 Stage1이 끝난다.
+    if (twoStage && (stage1EndMs === null || stage1EndMs === undefined || t < stage1EndMs)) {
+        return RING_R_START;
+    }
+    if (stage1EndMs === null || stage1EndMs === undefined) {
+        const k = Math.min(1, Math.max(0, t / RING2_SHRINK_MS));
+        return RING_R_START + (RING_R_END - RING_R_START) * k;
+    }
+    if (t < finaleStartMs) return RING_R_START;
+    const k = Math.min(1, Math.max(0, (t - finaleStartMs) / RING2_SHRINK_MS));
+    return RING_R_START + (RING_R_END - RING_R_START) * k;
+}
 // ─── 스킨 프리셋 (js/spin-arena.js 와 동일 값 계약 — 결과 무관, 순수 외형) ───
-// 24색 × (t1 + t2 스킨업). 자동 배정 풀 = base tier1 24색 전체(소유 무관 — 식별색≠소유). 상점/명시선택은 free/소유 검증 적용.
+// 24색 × (t1 + t2 스킨업). 캐릭터 색 = 그 캐릭터 첫 소유자의 스킨, 없으면 base tier1 팔레트를 번호순으로.
 // t2는 같은 색 + tier:2 플래그(클라가 강화 비주얼만 추가). 티어는 skinId에 인코딩('{color}_t2') — 새 gameState 필드 없음.
 // 색/이름 변경 시 3곳 동기: 여기 + js/spin-arena.js SPIN_SKIN_COLORS + config/spin-arena/cosmetics.json.
 const SPIN_SKIN_COLORS = [
@@ -123,7 +171,7 @@ SPIN_SKIN_COLORS.forEach(c => {
     SPIN_SKINS.push({ id: c.id, name: c.name, color: c.color, blade: c.blade, tier: 1, free: !!c.free });
     SPIN_SKINS.push({ id: c.id + '_t2', name: c.name + ' Ⅱ', color: c.color, blade: c.blade, tier: 2, free: false });
 });
-// 자동 배정 풀 = base tier1 24색 전체 (소유 무관 — 24명 distinct 무중복 분배로 식별 보장. 클라 previewRoster 거울 규칙과 동일 값)
+// 캐릭터 기본 팔레트 = base tier1 (캐릭터는 최대 5개 — 번호순으로 앞 5색이 기본값)
 const BASE_SKINS = SPIN_SKINS.filter(s => s.tier === 1);
 function skinById(id) { return SPIN_SKINS.find(s => s.id === id) || null; }
 function isValidSkinId(id) { return SPIN_SKINS.some(s => s.id === id); }
@@ -138,62 +186,96 @@ function mulberry32(seed) {
     };
 }
 
-// ─── 듀얼 sub-seed 파생 (메인 시드/페어링/브래킷 모양과 디커플) ───
-// 같은 두 슬롯은 페어링 순서와 무관하게 같은 sub-seed → 정렬된 슬롯 쌍(min,max) 사용.
-// 메인 rng 스트림과 독립 → 듀얼 내부가 브래킷 구조 변화에 흔들리지 않음(2탭 + 200시드 안정).
-function duelSubSeed(seed, roundIdx, a, b) {
-    const lo = Math.min(a, b), hi = Math.max(a, b);
-    return (seed ^ (roundIdx * 0x9E3779B1) ^ (lo * 0x85EBCA77) ^ (hi * 0xC2B2AE35)) >>> 0;
-}
-
 /**
- * 단판 듀얼 시뮬레이션 (2인 서든데스) — 메인 rng() 0회 소비. 듀얼 내부 PRNG는 sub-seed에서만.
+ * 2스테이지 매치 시뮬레이션 — 참고 구현: 492a8c7(Stage1 → 전환 → 결승).
+ * async로 주기적 setImmediate 양보(CPU). 결과는 한 시드로 전부 사전 계산, 클라는 리플레이만.
  *
- * 2인을 DUEL_RING_R 작은 링 안 양 끝(±DUEL_START_R, angle 0/π)에 결정론 배치.
- * 각 캐릭터 칼날 파라미터(baseAngle→spinSpeed→spinDir 고정 순서)를 듀얼 PRNG에서 소비.
- * 루프(SIM_DT_MS 스텝, SAMPLE_MS 키프레임): FINALE_PULL 중앙 인력 → buildBlades → 칼날 선분 vs 몸 판정(HP 드레인 + 넉백)
- *   → separateChars(2인) → integrate 링 하드월 클램프.
- * 첫 HP≤0 = LOSER(듀얼 결과), 상대 = WINNER(안전). DUEL_MAX_MS까지 미결판이면 LOSER = HP 최저자
- *   (동률: hp → received↑ → slotId) → decideMs는 절대 null 아님(모든 듀얼 결판).
- * durationMs = decideMs + DECIDE_TAIL_MS (SAMPLE_MS 격자). frames = 키프레임 [ax,ay,ahp, bx,by,bhp](stride 6, ARENA_CX/CY 중심 로컬 좌표).
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │ 박제(FROZEN) — rng() 소비 순서. 재배열하면 모든 시드가 깨진다. 변경 금지.      │
+ * │  1) 좌석 셔플: Fisher-Yates(슬롯 0..n-1), 정확히 n-1회.                       │
+ * │  2) 슬롯마다 baseAngle → spinSpeed → spinDir, **좌석 순서로** 3n회.           │
+ * │  3) 결승 진출자 재배치 각도 오프셋 1회(2스테이지일 때만).                      │
+ * │  → 총 소비 = (n-1) + 3n + (2스테이지면 1).                                    │
+ * └─────────────────────────────────────────────────────────────────────────────┘
  *
- * @returns { duelId, roundIdx, slotA, slotB, frames, durationMs, decideMs, loserSlot, winnerSlot, bladeA, bladeB }
+ * 배열은 **좌석 순서**로 만든다. 슬롯 번호 순으로 만들면 separateChars의 인덱스 편향과
+ * PRNG 스트림 위치가 슬롯 번호에 붙어 실제로 불공정해진다(측정: chi²=15.4, p<.01 — 이전 goal 참조).
+ *
+ * 흐름:
+ *   n > FINALIST_COUNT (2스테이지):
+ *     Stage1  0 ~ stage1EndMs      전원 난투. HP 0 = 탈락. 정확히 FINALIST_COUNT명 남으면 즉시 종료.
+ *     전환    stage1EndMs ~ finaleStartMs   전투·이동 정지(프레임 동결) — 클라가 「최후의 4인!」 연출.
+ *     결승    finaleStartMs ~      진출자만 재배치 후 좁아지는 링에서 난투. 마지막 생존자 = 1등.
+ *   n <= FINALIST_COUNT (단일 단계): 전환 없이 결승 스케줄로 바로 최후 1인까지.
+ *
+ * 등수: 최후 생존자 1등, 먼저 탈락할수록 낮은 등수(n등부터 역순).
+ * @returns { n, seats, frames, blades, elimOrder, rankings, stage1EndMs, finaleStartMs,
+ *            finalists, twoStage, durationMs, sampleMs, geom }
  */
-function simulateDuel(duelId, slotA, slotB, subSeed, roundIdx) {
-    const rng = mulberry32(subSeed);
-    const charR = CHAR_RADIUS, bladeR = BLADE_RADIUS, swordLen = SWORD_LEN, bladeEdgeR = BLADE_EDGE_R;
+async function simulateMatch(n, seed) {
+    const rng = mulberry32(seed);
     const dt = SIM_DT_MS / 1000;
-    const ring = DUEL_RING_R;
+    const charR = CHAR_RADIUS, bladeR = BLADE_RADIUS, swordLen = SWORD_LEN, bladeEdgeR = BLADE_EDGE_R;
+    const twoStage = n > FINALIST_COUNT;
+    const finaleCount = twoStage ? FINALIST_COUNT : n;
+    const stage1Dps = stage1DpsFor(n);   // 인원 정규화 — 많을수록 한 방이 약해져 Stage1 길이가 유지된다
 
-    // 칼날 파라미터 — 캐릭터당 3회(baseAngle→spinSpeed→spinDir) 고정 순서. 듀얼 PRNG만 소비(메인 rng 0회).
-    function mkChar(slotId, ang0) {
+    // 1) 좌석 셔플 — seats[k] = k번 자리에 앉을 슬롯 번호
+    const seats = [];
+    for (let i = 0; i < n; i++) seats.push(i);
+    for (let i = n - 1; i >= 1; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = seats[i]; seats[i] = seats[j]; seats[j] = tmp;
+    }
+
+    // 2) 좌석 순서로 캐릭터 생성 — 각도는 좌석 균등, 반경은 각자의 궤도(2스테이지일 때).
+    //    전원을 링 가장자리에 세우면 자기 궤도로 끌려오면서 중앙까지 오버슛한다(측정: 2초 만에 53px).
+    const edgeR = Math.max(0, RING_R_START - charR - START_R_MARGIN);
+    const chars = seats.map((slotId, seatIdx) => {
+        const ang0 = (2 * Math.PI * seatIdx) / n;
         const baseAngle = rng() * 2 * Math.PI;
         const spinSpeed = BLADE_SPIN_MIN + rng() * (BLADE_SPIN_MAX - BLADE_SPIN_MIN);
         const spinDir = rng() < 0.5 ? 1 : -1;
+        // 시작 반경도 흩뿌린다 — 전원 가장자리에 세우면 첫 몇 초가 텅 빈 원처럼 보인다.
+        const startR = (n > FINALIST_COUNT) ? edgeR * (0.45 + (baseAngle / (2 * Math.PI)) * 0.5) : edgeR;
         return {
-            id: slotId, hp: HP_MAX, received: 0,
-            x: ARENA_CX + Math.cos(ang0) * DUEL_START_R, y: ARENA_CY + Math.sin(ang0) * DUEL_START_R,
+            slotId, seat: seatIdx, hp: HP_MAX, received: 0,
+            x: ARENA_CX + Math.cos(ang0) * startR, y: ARENA_CY + Math.sin(ang0) * startR,
             vx: 0, vy: 0, kvx: 0, kvy: 0, dead: false,
-            baseAngle, spinSpeed, spinDir
+            baseAngle, spinSpeed, spinDir,
+            // ↓ 전부 위 세 필드에서 파생 — rng 추가 소비 0회(FROZEN 소비 순서 불변)
+            // 로밍 — 진행 방향은 배치 각도에서 90° 튼 값(곧장 벽으로 나가지 않게), 회전율은 spinSpeed 파생.
+            heading: ang0 + Math.PI / 2 + baseAngle * 0.5,
+            turnRate: spinDir * (WANDER_TURN_MIN + ((spinSpeed - BLADE_SPIN_MIN) / (BLADE_SPIN_MAX - BLADE_SPIN_MIN)) * (WANDER_TURN_MAX - WANDER_TURN_MIN)),
+            speedMul: SPEED_MUL_MIN + ((spinSpeed - BLADE_SPIN_MIN) / (BLADE_SPIN_MAX - BLADE_SPIN_MIN)) * (SPEED_MUL_MAX - SPEED_MUL_MIN),
+            pullMul: PULL_MUL_MIN + (baseAngle / (2 * Math.PI)) * (PULL_MUL_MAX - PULL_MUL_MIN)
         };
-    }
-    const cA = mkChar(slotA, 0);          // 0 위치
-    const cB = mkChar(slotB, Math.PI);    // π 위치(반대편)
-    const chars = [cA, cB];
+    });
+    // 3) 결승 재배치 각도 오프셋 — 진출자가 늘 같은 자리에 서지 않게(2스테이지만 소비)
+    const finaleAngle0 = twoStage ? rng() * 2 * Math.PI : 0;
+
+    // 클라로 나가는 frames/blades는 **슬롯 번호 오름차순 고정** — 클라는 위치로 매핑한다.
+    const emitOrder = chars.slice().sort((a, b) => a.slotId - b.slotId);
 
     const frames = [];
-    let decideMs = null;
-    let loserSlot = null, winnerSlot = null;
-    let endMs = DUEL_MAX_MS;   // 결판 전 잠정 캡(결판 시 압축)
+    const elimOrder = [];
+    let aliveCount = n;
+    let stage1EndMs = null;
+    let finaleStartMs = 0;      // 단일 단계는 0부터 결승 스케줄
+    let endMs = null;           // 확정 전 null
     let nextSampleMs = 0;
 
     function sample() {
-        frames.push(
-            Math.round(cA.x), Math.round(cA.y), Math.max(0, Math.round(cA.hp)),
-            Math.round(cB.x), Math.round(cB.y), Math.max(0, Math.round(cB.hp))
-        );
+        for (const c of emitOrder) {
+            frames.push(Math.round(c.x), Math.round(c.y), Math.max(0, Math.round(c.hp)));
+        }
     }
-    function buildBlades(tMs) {
+    // 링 반경 — t와 stage1EndMs만으로 결정(클라 미러 함수와 반드시 동일 식).
+    function ringAt(tMs) {
+        return ringRadiusAt(tMs, stage1EndMs, finaleStartMs, twoStage);
+    }
+    function buildBlades(tMs, wallR) {
+        void wallR;
         const blades = [];
         for (const c of chars) {
             if (c.dead) continue;
@@ -201,7 +283,7 @@ function simulateDuel(duelId, slotA, slotB, subSeed, roundIdx) {
                 const a = c.baseAngle + c.spinDir * c.spinSpeed * (tMs / 1000) + k * (2 * Math.PI / BLADE_COUNT);
                 const ca = Math.cos(a), sa = Math.sin(a);
                 blades.push({
-                    owner: c.id,
+                    owner: c.slotId,
                     ix: c.x + ca * (bladeR - swordLen), iy: c.y + sa * (bladeR - swordLen),
                     ox: c.x + ca * bladeR, oy: c.y + sa * bladeR
                 });
@@ -219,11 +301,11 @@ function simulateDuel(duelId, slotA, slotB, subSeed, roundIdx) {
         const sm = Math.hypot(c.vx, c.vy);
         if (sm > KNOCK_MAX) { c.vx *= KNOCK_MAX / sm; c.vy *= KNOCK_MAX / sm; }
     }
-    function integrate(c) {
+    function integrate(c, wallR, speedMul) {
+        const sm = speedMul || 1;
         c.vx -= c.vx * SPIN_DRAG * dt; c.vy -= c.vy * SPIN_DRAG * dt;
-        c.x += (c.vx + c.kvx) * dt; c.y += (c.vy + c.kvy) * dt;
+        c.x += (c.vx * sm + c.kvx) * dt; c.y += (c.vy * sm + c.kvy) * dt;
         const nd = Math.hypot(c.x - ARENA_CX, c.y - ARENA_CY);
-        const wallR = ring - charR;
         if (nd > wallR) {
             const nx = (c.x - ARENA_CX) / nd, ny = (c.y - ARENA_CY) / nd;
             c.x = ARENA_CX + nx * wallR; c.y = ARENA_CY + ny * wallR;
@@ -235,34 +317,38 @@ function simulateDuel(duelId, slotA, slotB, subSeed, roundIdx) {
         const kdecay = Math.exp(-KNOCK_DECAY * dt);
         c.kvx *= kdecay; c.kvy *= kdecay;
     }
-    // 2인 디오버랩 + 탄성 바운스 + 링 재클램프. rng 0회.
-    function separateChars() {
-        const wallR = ring - charR;
+    // 살아있는 모든 쌍의 디오버랩 + 탄성 바운스 + 링 재클램프. rng 0회.
+    function separateChars(wallR) {
         const minD = 2 * charR + COLLIDE_MARGIN;
-        const ci = cA, cj = cB;
-        if (!ci.dead && !cj.dead) {
-            const dx = cj.x - ci.x, dy = cj.y - ci.y;
-            const d = Math.hypot(dx, dy);
-            if (d > 0 && d < minD) {
-                const overlap = minD - d;
-                const nx = dx / d, ny = dy / d;
-                const half = overlap / 2;
-                ci.x -= nx * half; ci.y -= ny * half;
-                cj.x += nx * half; cj.y += ny * half;
-                const rel = (cj.vx - ci.vx) * nx + (cj.vy - ci.vy) * ny;
-                if (rel < 0) {
-                    const imp = -(1 + COLLIDE_RESTITUTION) * rel / 2;
-                    ci.vx -= imp * nx; ci.vy -= imp * ny;
-                    cj.vx += imp * nx; cj.vy += imp * ny;
-                } else {
-                    const pop = COLLIDE_POP / 2;
-                    ci.vx -= pop * nx; ci.vy -= pop * ny;
-                    cj.vx += pop * nx; cj.vy += pop * ny;
+        for (let i = 0; i < chars.length; i++) {
+            const ci = chars[i];
+            if (ci.dead) continue;
+            for (let j = i + 1; j < chars.length; j++) {
+                const cj = chars[j];
+                if (cj.dead) continue;
+                const dx = cj.x - ci.x, dy = cj.y - ci.y;
+                const d = Math.hypot(dx, dy);
+                if (d > 0 && d < minD) {
+                    const overlap = minD - d;
+                    const nx = dx / d, ny = dy / d;
+                    const half = overlap / 2;
+                    ci.x -= nx * half; ci.y -= ny * half;
+                    cj.x += nx * half; cj.y += ny * half;
+                    const rel = (cj.vx - ci.vx) * nx + (cj.vy - ci.vy) * ny;
+                    if (rel < 0) {
+                        const imp = -(1 + COLLIDE_RESTITUTION) * rel / 2;
+                        ci.vx -= imp * nx; ci.vy -= imp * ny;
+                        cj.vx += imp * nx; cj.vy += imp * ny;
+                    } else {
+                        const pop = COLLIDE_POP / 2;
+                        ci.vx -= pop * nx; ci.vy -= pop * ny;
+                        cj.vx += pop * nx; cj.vy += pop * ny;
+                    }
+                    clampSpeed(ci); clampSpeed(cj);
+                } else if (d === 0) {
+                    const half = minD / 2;
+                    ci.x -= half; cj.x += half;
                 }
-                clampSpeed(ci); clampSpeed(cj);
-            } else if (d === 0) {
-                const half = minD / 2;
-                ci.x -= half; cj.x += half;
             }
         }
         for (const c of chars) {
@@ -274,203 +360,231 @@ function simulateDuel(duelId, slotA, slotB, subSeed, roundIdx) {
             }
         }
     }
-    function setDecide(tMs, loser) {
-        decideMs = tMs;
-        loserSlot = loser.id;
-        winnerSlot = (loser.id === cA.id) ? cB.id : cA.id;
-        endMs = Math.min(DUEL_MAX_MS + DECIDE_TAIL_MS, Math.ceil((decideMs + DECIDE_TAIL_MS) / SAMPLE_MS) * SAMPLE_MS);
+    function eliminate(c, tMs) {
+        c.hp = 0; c.dead = true;
+        c.vx = 0; c.vy = 0; c.kvx = 0; c.kvy = 0;
+        elimOrder.push({ slotId: c.slotId, atMs: tMs });
+        aliveCount--;
     }
+    // worst-first — hp↑ → received↑ → 좌석↑. 마지막 키를 슬롯 번호로 두면 편향이 된다.
+    function worstFirst(list) {
+        return list.slice().sort((a, b) => (a.hp - b.hp) || (a.received - b.received) || (a.seat - b.seat));
+    }
+    // 결승 진출자를 링 가장자리에 균등 재배치 — 장면 전환("4명만 한 화면")의 실체.
+    function seatFinalists() {
+        const alive = chars.filter(c => !c.dead);
+        const r = Math.max(0, RING_R_START - charR - START_R_MARGIN);
+        // 좌석 순서로 배치 — 슬롯 번호와 자리의 상관을 끊는다.
+        const ordered = alive.slice().sort((a, b) => a.seat - b.seat);
+        ordered.forEach((c, i) => {
+            const ang = finaleAngle0 + (2 * Math.PI * i) / ordered.length;
+            c.x = ARENA_CX + Math.cos(ang) * r;
+            c.y = ARENA_CY + Math.sin(ang) * r;
+            c.vx = 0; c.vy = 0; c.kvx = 0; c.kvy = 0;
+            c.hp = HP_MAX; c.received = 0;   // 결승은 만HP에서 새로 시작 — Stage1 피해가 결승을 좌우하지 않게
+        });
+    }
+
+    let finalistsSeated = false;
 
     for (let step = 0; ; step++) {
         const tMs = step * SIM_DT_MS;
         if (tMs >= nextSampleMs) { sample(); nextSampleMs += SAMPLE_MS; }
-        if (tMs >= endMs) break;
+        if (endMs !== null && tMs >= endMs) break;
 
-        if (decideMs === null) {
-            const blades = buildBlades(tMs);
-            // 칼날 → 상대 몸: HP 드레인 + received 누적 + 넉백
+        const inTransition = (stage1EndMs !== null && tMs >= stage1EndMs && tMs < finaleStartMs);
+        // 전환 구간: 전투·이동 전부 정지(프레임 동결). 클라가 이 구간에 「최후의 4인!」을 연출한다.
+        if (inTransition) {
+            if (step > 0 && (step % SIM_YIELD_EVERY) === 0) await new Promise(r => setImmediate(r));
+            continue;
+        }
+        // 전환이 막 끝난 첫 스텝에 진출자를 재배치한다(장면 전환).
+        if (stage1EndMs !== null && !finalistsSeated && tMs >= finaleStartMs) {
+            seatFinalists();
+            finalistsSeated = true;
+        }
+
+        const wallR = ringAt(tMs) - charR;
+        const inStage1 = (stage1EndMs === null && twoStage);
+        const target = inStage1 ? FINALIST_COUNT : 1;   // 이 단계에서 몇 명 남으면 멈추는가
+        const pull = FINALE_PULL;   // Stage1은 궤도 스프링을 쓰므로 중앙 인력을 안 쓴다
+        const dps = inStage1 ? stage1Dps : HIT_DPS;
+        const phaseCapMs = inStage1 ? STAGE1_MAX_MS : (finaleStartMs + FINALE_MAX_MS);
+
+        if (aliveCount > target) {
+            const blades = buildBlades(tMs, wallR);
             for (const c of chars) {
                 if (c.dead) continue;
-                let d = 0;
+                let dmgSum = 0;
                 for (const bl of blades) {
-                    if (bl.owner === c.id) continue;
+                    if (bl.owner === c.slotId) continue;
                     const sx = bl.ox - bl.ix, sy = bl.oy - bl.iy;
                     let tt = ((c.x - bl.ix) * sx + (c.y - bl.iy) * sy) / (swordLen * swordLen);
                     if (tt < 0) tt = 0; else if (tt > 1) tt = 1;
                     const dx = c.x - (bl.ix + sx * tt), dy = c.y - (bl.iy + sy * tt);
                     if (dx * dx + dy * dy < (charR + bladeEdgeR) * (charR + bladeEdgeR)) {
-                        const dmg = HIT_DPS * dt;
-                        d += dmg;
+                        dmgSum += dps * dt;
                         applyKnock(c, dx, dy);
                     }
                 }
-                if (d > 0) { c.received += d; c.hp -= d; }
+                if (dmgSum > 0) { c.received += dmgSum; c.hp -= dmgSum; }
             }
-            // 첫 HP 0 = LOSER. 둘이 같은 틱에 0이면 HP 낮은 쪽(동률 hp→received↑→slotId) = LOSER.
+
             const downed = chars.filter(c => !c.dead && c.hp <= 0);
-            if (downed.length === 1) {
-                downed[0].hp = 0; downed[0].dead = true; setDecide(tMs, downed[0]);
-            } else if (downed.length === 2) {
-                downed.sort((a, b) => (a.hp - b.hp) || (a.received - b.received) || (a.id - b.id));
-                downed[0].hp = 0; downed[0].dead = true; setDecide(tMs, downed[0]);
+            if (downed.length > 0) {
+                const order = worstFirst(downed);
+                // 목표 인원 아래로는 절대 안 내려간다 — 같은 틱에 여럿이 쓰러져도 target명은 남긴다.
+                const maxKill = aliveCount - target;
+                const killCount = Math.min(downed.length, maxKill);
+                for (let i = 0; i < killCount; i++) eliminate(order[i], tMs);
             }
-            // HP-lowest fallback — 캡까지 미결판이면 HP 최저자 = LOSER(decideMs는 절대 null 아님)
-            if (decideMs === null && tMs >= DUEL_MAX_MS - SIM_DT_MS) {
-                const order = chars.slice().sort((a, b) => (a.hp - b.hp) || (a.received - b.received) || (a.id - b.id));
-                setDecide(tMs, order[0]);
+            // 단계 캡 — 이 시각까지 목표 인원에 못 닿으면 HP 낮은 순으로 강제 탈락
+            if (aliveCount > target && tMs >= phaseCapMs - SIM_DT_MS) {
+                const rest = worstFirst(chars.filter(c => !c.dead));
+                const need = aliveCount - target;
+                for (let i = 0; i < need; i++) eliminate(rest[i], tMs);
             }
         }
-        // 이동 — 강한 중앙 인력(FINALE_PULL). 결판 후엔 LOSER만 동결(WINNER은 계속 회전 — 외관).
+
+        // 단계 종료 판정
+        if (aliveCount <= target) {
+            if (inStage1) {
+                // 정확히 이 시각에 끊는다. SAMPLE_MS 격자로 올림하면 그 사이 스텝이 이미 결승 규칙(target=1)으로
+                // 돌아 전환 전에 탈락자가 생긴다(측정: n=5~24에서 결승 진출자가 Stage1 구간에 탈락).
+                stage1EndMs = tMs;
+                finaleStartMs = stage1EndMs + TRANSITION_MS;
+            } else if (endMs === null) {
+                endMs = Math.min(GAME_MS, Math.ceil((tMs + ELIM_TAIL_MS) / SAMPLE_MS) * SAMPLE_MS);
+            }
+        }
+
+        // 이동 — 중앙 인력(+ Stage1은 공전) + 링 클램프. 탈락자는 그 자리에 동결.
         for (const c of chars) {
             if (c.dead) continue;
             const cdx = c.x - ARENA_CX, cdy = c.y - ARENA_CY;
             const cdist = Math.hypot(cdx, cdy) || 1;
-            c.vx += (-cdx / cdist) * FINALE_PULL * dt; c.vy += (-cdy / cdist) * FINALE_PULL * dt;
-            integrate(c);
-        }
-        separateChars();
-    }
-
-    return {
-        duelId, roundIdx, slotA, slotB, frames,
-        durationMs: endMs, decideMs, loserSlot, winnerSlot,
-        bladeA: { baseAngle: cA.baseAngle, spinSpeed: cA.spinSpeed, spinDir: cA.spinDir, bladeCount: BLADE_COUNT },
-        bladeB: { baseAngle: cB.baseAngle, spinSpeed: cB.spinSpeed, spinDir: cB.spinDir, bladeCount: BLADE_COUNT }
-    };
-}
-
-/**
- * 결정론 토너먼트 시뮬레이션 (2026-06-17 rework Slice 1) — 순수 단판 LOSER 브래킷.
- * async로 듀얼 사이마다 setImmediate 양보(CPU). 결과는 한 시드로 전부 사전 계산, 클라는 리플레이만.
- *
- * 모델: 풀 = 전원. 매 라운드 풀을 인접 페어링 → 각 듀얼 WINNER = 안전(safe, 풀 이탈), LOSER = 풀 잔류(다음 라운드).
- *   풀이 1명 = finalLoser = 당첨(벌칙). 라운드 내 모든 듀얼은 한 타임라인 공유(parallel, 클라).
- *
- * ┌─────────────────────────────────────────────────────────────────────────────────┐
- * │ 박제(FROZEN) — 메인 rng() 소비 순서. 어떤 재배열도 모든 시드를 깬다. 변경 금지.    │
- * │  Phase A — 풀 셔플: Fisher-Yates(slotIds [0..n-1]), 정확히 n-1회.                  │
- * │    for (let i=n-1;i>=1;i--){ const j=Math.floor(rng()*(i+1)); swap(pool[i],pool[j]); } │
- * │  Per round — 현재 풀 길이가 홀수면 정확히 1회 소비(bye 선택):                       │
- * │    byeIdx = Math.floor(rng()*pool.length). 짝수면 0회.                              │
- * │  페어링 = 인접(pool[0]vs[1], [2]vs[3], …) — rng 0회.                                │
- * │  듀얼 sim = 메인 rng() 0회 — duelSubSeed에서 파생한 듀얼 전용 PRNG만 사용.          │
- * │  → 메인 rng 총소비 = (n-1) + (홀수 라운드 수).                                       │
- * └─────────────────────────────────────────────────────────────────────────────────┘
- *
- * slots: [{ id, isBot, name, skinId }] (id == 배열 인덱스, 전원 사람). seed: 32bit int.
- * @returns { bracket:{ poolOrder, rounds, finalLoser, loserDepth }, finalLoser, succession, rankings, geom, slots, sampleMs, durationMs }
- */
-async function simulate(slots, seed) {
-    const rng = mulberry32(seed);
-    const n = slots.length;
-
-    // ── Phase A: 풀 셔플(Fisher-Yates, 정확히 n-1회 rng). poolOrder 저장. ──
-    const poolOrder = [];
-    for (let i = 0; i < n; i++) poolOrder.push(i);
-    for (let i = n - 1; i >= 1; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        const tmp = poolOrder[i]; poolOrder[i] = poolOrder[j]; poolOrder[j] = tmp;
-    }
-
-    // ── 브래킷 빌드 ──
-    let atRisk = poolOrder.slice();      // 당첨 후보 풀(LOSER가 잔류)
-    let roundIdx = 0;
-    const rounds = [];
-    const loserDepth = {};               // slotId -> 마지막으로 진 라운드(승자/무패는 -1)
-    for (let i = 0; i < n; i++) loserDepth[i] = -1;   // 기본 -1(라운드1 승자/무패는 그대로)
-
-    let duelIdSeq = 0;
-    while (atRisk.length > 1) {
-        const poolSize = atRisk.length;   // 이 라운드에 진입하는 at-risk 풀 크기(=duels*2+byes). poolSize[0]=n, 이후 ≈ ceil(prev/2).
-        const work = atRisk.slice();
-        const byes = [];
-        if (work.length % 2 === 1) {
-            const bi = Math.floor(rng() * work.length);   // 홀수 라운드 — 정확히 1회 rng 소비(bye 선택)
-            byes.push(work.splice(bi, 1)[0]);
-        }
-        const duels = [];
-        const nextRisk = [];
-        for (let k = 0; k < work.length; k += 2) {
-            const a = work[k], b = work[k + 1];
-            const sub = duelSubSeed(seed, roundIdx, a, b);
-            const d = simulateDuel(duelIdSeq++, a, b, sub, roundIdx);
-            duels.push(d);
-            nextRisk.push(d.loserSlot);          // LOSER 잔류(다음 라운드 진출)
-            loserDepth[d.loserSlot] = roundIdx;   // 이 라운드에 졌다
-            // 듀얼 사이 CPU 양보
-            if ((duelIdSeq % SIM_YIELD_EVERY) === 0) await new Promise(r => setImmediate(r));
-        }
-        for (const by of byes) {
-            nextRisk.push(by);
-            loserDepth[by] = roundIdx;            // bye는 안 싸우고 잔류 = 이 라운드 loser-depth로 카운트
-        }
-        const roundDurationMs = Math.max(MIN_ROUND_MS, ...duels.map(d => d.durationMs));
-        rounds.push({ roundIdx, durationMs: roundDurationMs, poolSize, duels, byes });
-        atRisk = nextRisk;
-        roundIdx++;
-    }
-    const finalLoser = atRisk.length ? atRisk[0] : (n === 1 ? poolOrder[0] : null);
-    if (n === 1) loserDepth[poolOrder[0]] = 0;   // 1인 방어(실서버 게이트는 n≥2 — sanity)
-
-    // 전체 durationMs = SEQUENTIAL 브로드캐스트 타임라인(클라가 브래킷을 순차 연출로 재생) —
-    //   BRACKET_OVERVIEW_MS + Σ_rounds[ ROUND_INTRO_MS + Σ_duels(DUEL_INTRO_MS + duel.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS) + #byes×BYE_BEAT_MS ], GAME_MS 캡.
-    //   rounds가 없으면(n=1 sanity, totalDuels===0) BRACKET_OVERVIEW_MS도 더하지 않고 durationMs는 0 유지(rounds.length>0 가드).
-    //   라운드 객체의 roundDurationMs 필드는 그대로(브래킷 payload 모양 불변 — 2탭 테스트가 max(MIN_ROUND_MS, 듀얼 max) 단언).
-    let durationMs = 0;
-    if (rounds.length > 0) {
-        durationMs = BRACKET_OVERVIEW_MS;
-        for (const r of rounds) {
-            durationMs += ROUND_INTRO_MS;
-            for (const d of r.duels) {
-                durationMs += DUEL_INTRO_MS + d.durationMs + DUEL_OUTRO_MS + DUEL_BLACKOUT_MS;
+            const nx = cdx / cdist, ny = cdy / cdist;
+            let ax, ay;
+            if (inStage1) {
+                // 로밍 — 진행 방향으로 순항하고 방향은 천천히 돈다. 경계는 벽 반사(integrate)가 만든다.
+                c.heading += c.turnRate * dt;
+                const wantVx = Math.cos(c.heading) * WANDER_SPEED * c.speedMul;
+                const wantVy = Math.sin(c.heading) * WANDER_SPEED * c.speedMul;
+                ax = (wantVx - c.vx) * WANDER_ACCEL;
+                ay = (wantVy - c.vy) * WANDER_ACCEL;
+                ax += -nx * WANDER_CENTER_BIAS;   // 전원이 벽에만 붙어 도는 걸 막는 정도의 약한 복귀
+                ay += -ny * WANDER_CENTER_BIAS;
+            } else {
+                ax = -nx * pull * c.pullMul;
+                ay = -ny * pull * c.pullMul;
             }
-            durationMs += r.byes.length * BYE_BEAT_MS;
+            c.vx += ax * dt; c.vy += ay * dt;
+            integrate(c, wallR, c.speedMul);
         }
-    }
-    durationMs = Math.min(GAME_MS, durationMs);
+        separateChars(wallR);
 
-    const finalState = slots.map(sl => ({ id: sl.id, loserDepth: loserDepth[sl.id] }));
-    const rankings = rankHumans(slots, finalState);
-    const succession = buildSuccession(slots, finalState);   // worst→best(이탈자 대체용)
+        if (step > 0 && (step % SIM_YIELD_EVERY) === 0) await new Promise(r => setImmediate(r));
+    }
+
+    // 등수 — 최후 생존자 1등, 먼저 탈락할수록 낮은 등수(n등부터 역순).
+    const rankings = elimOrder.map((e, i) => ({ slotId: e.slotId, rank: n - i, atMs: e.atMs }));
+    const survivor = chars.find(c => !c.dead);
+    if (survivor) rankings.push({ slotId: survivor.slotId, rank: 1, atMs: null });
+    rankings.sort((a, b) => a.rank - b.rank);
+
+    // 결승 진출자 = 상위 finaleCount명(등수 1..finaleCount)
+    const finalists = rankings.filter(r => r.rank <= finaleCount).map(r => r.slotId);
 
     return {
-        bracket: { poolOrder, rounds, finalLoser, loserDepth },
-        finalLoser, succession, rankings,
-        slots, sampleMs: SAMPLE_MS, durationMs,
-        geom: { scale: 1, charRadius: CHAR_RADIUS, bladeRadius: BLADE_RADIUS, swordLen: SWORD_LEN, bladeEdgeR: BLADE_EDGE_R, duelRingR: DUEL_RING_R }
+        n, seats, frames, elimOrder, rankings,
+        stage1EndMs, finaleStartMs, finalists, twoStage,
+        blades: emitOrder.map(c => ({
+            slotId: c.slotId, baseAngle: c.baseAngle, spinSpeed: c.spinSpeed,
+            spinDir: c.spinDir, bladeCount: BLADE_COUNT
+        })),
+        durationMs: endMs, sampleMs: SAMPLE_MS,
+        geom: {
+            charRadius: CHAR_RADIUS, bladeRadius: BLADE_RADIUS, swordLen: SWORD_LEN,
+            bladeEdgeR: BLADE_EDGE_R, ringStart: RING_R_START, ringEnd: RING_R_END,
+            transitionMs: TRANSITION_MS
+        }
     };
 }
 
-// 사람 슬롯 순위 — loser-depth 기반. rank 1 = 가장 먼저 안전(safe) … 최하위 = finalLoser(당첨/벌칙).
-//   best→worst = loserDepth 오름차순(빨리 진/안전한 쪽이 위) → slotId 오름차순.
-//   loserDepth -1(라운드1 승자/무패)은 가장 작아 항상 best 쪽. finalLoser는 loserDepth 최대 → 마지막(당첨).
-//   finalState = [{ id, loserDepth }] (simulate가 brackt loser-depth로 산출).
-function rankHumans(slots, finalState) {
-    const fsById = {};
-    for (const f of finalState) fsById[f.id] = f;
-    const humans = slots.map(sl => ({
-        name: sl.name, slotId: sl.id,
-        loserDepth: fsById[sl.id] ? fsById[sl.id].loserDepth : -1
-    }));
-    // best→worst: loserDepth↑ → slotId↑. (-1 = 가장 일찍 안전 = best, depth 최대 = finalLoser = worst)
-    const order = humans.slice().sort((a, b) => (a.loserDepth - b.loserDepth) || (a.slotId - b.slotId));
-    return order.map((h, i) => ({ name: h.name, slotId: h.slotId, rank: i + 1, loserDepth: h.loserDepth }));
+// ─── 벌칙 등수 추첨 ───
+// 경마(socket/horse.js)의 득표 비례 가중 랜덤을 그대로 쓰되, 무투표 fallback만 다르다.
+// 경마: 표가 없으면 룰렛을 건너뛰고 꼴등 확정. 회전 칼날: 표가 없으면 균등 추첨 — 룰렛은 항상 돈다.
+// 후보 등수는 **결승 진출자의 등수(1..FINALIST_COUNT)** 뿐이다. 1등도 후보에 포함된다(소유자 결정).
+// 인원이 FINALIST_COUNT보다 적으면 후보도 그만큼 줄어든다(n명 방 = 1..n등).
+// rankOrder = 표 단위 시퀀스를 셔플한 것(모든 클라가 같은 순서로 룰렛을 그린다).
+// @returns { targetRank, segments, rankOrder, reason }
+function resolveTargetRank(rankVotes, readyNames, n, rnd) {
+    const validVotes = readyNames
+        .map(name => rankVotes[name])
+        .filter(rank => Number.isInteger(rank) && rank >= 1 && rank <= n);
+    const totalVoteCount = readyNames.filter(name => rankVotes[name] !== undefined).length;
+
+    let segments;
+    let targetRank;
+    let reason;
+
+    if (validVotes.length > 0) {
+        const tally = {};
+        for (const rank of validVotes) tally[rank] = (tally[rank] || 0) + 1;
+        segments = Object.entries(tally)
+            .map(([rank, count]) => ({ rank: Number(rank), count }))
+            .sort((a, b) => a.rank - b.rank);
+
+        let pick = Math.floor(rnd() * validVotes.length);
+        for (const seg of segments) {
+            if (pick < seg.count) { targetRank = seg.rank; break; }
+            pick -= seg.count;
+        }
+        reason = (segments.length === 1)
+            ? `투표가 ${targetRank}등에만 몰려 ${targetRank}등 확정`
+            : `룰렛 추첨 결과 ${targetRank}등 당첨`;
+    } else {
+        // 유효표 0 — 모두가 한 표씩 넣은 셈 치고 1..n 균등 추첨(꼴등 fallback 없음)
+        segments = Array.from({ length: n }, (_, i) => ({ rank: i + 1, count: 1 }));
+        targetRank = 1 + Math.floor(rnd() * n);
+        reason = (totalVoteCount === 0)
+            ? `아무도 투표하지 않아 1~${n}등을 균등 추첨했어요`
+            : `출전 캐릭터가 ${n}개뿐이라 ${n + 1}등 이상 투표는 무효 — 1~${n}등을 균등 추첨했어요`;
+    }
+
+    // 표(또는 균등 후보) 단위 시퀀스 → Fisher-Yates 셔플
+    const rankOrder = [];
+    for (const seg of segments) {
+        for (let i = 0; i < seg.count; i++) rankOrder.push(seg.rank);
+    }
+    for (let i = rankOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        const tmp = rankOrder[i]; rankOrder[i] = rankOrder[j]; rankOrder[j] = tmp;
+    }
+
+    return { targetRank, segments, rankOrder, reason };
 }
 
-// 당첨 승계 목록(이탈자 대체용) — worst→best. 결정론. gameEnd가 "지금도 방에 있는 첫 항목"을 당첨자로 선택.
-//   loserDepth 내림차순(가장 깊이 진 쪽 먼저) → slotId 오름차순. succession[0] = finalLoser.
-//   라운드1 승자(loserDepth -1)는 항상 마지막 → 더 깊은 패자가 전부 이탈하지 않는 한 당첨이 안 됨(leaver-safe).
-function buildSuccession(slots, finalState) {
-    const ranks = rankHumans(slots, finalState);   // best→worst
-    return ranks.slice().reverse().map(r => r.name);   // worst→best = finalLoser부터
+// ─── 예약 발화 계약 (socket/scheduled-start.js) ───
+// canStart는 순수 판정(거절 사유 문자열 또는 null). 회전 칼날은 중복 당첨 재경기를 이 경로로 자동 시작한다.
+function canStartSpin(room, gameState) {
+    if (!room || room.gameType !== 'spin-arena') return '회전 칼날 방이 아니에요.';
+    const sa = gameState && gameState.spinArena;
+    if (!sa) return '회전 칼날 상태가 없어요.';
+    if (sa.phase === 'finished') return '결과 정리 중이에요. 잠시 후 다음 판을 시작해주세요.';
+    // idle(빌드)에서만 시작. finished 직후엔 곧 roundReset(resetTimeout)이 phase를 idle로 되돌리며
+    // 캐릭터 선택·투표를 새로 초기화한다. finished에서 바로 시작하면 clearSpinTimers가 그 resetTimeout을
+    // 취소해 이전 라운드 선택이 그대로 넘어온다(사다리와 같은 함정).
+    if (sa.phase !== 'idle') return '이미 게임이 진행 중이에요.';
+    const ready = (gameState.readyUsers || []).filter(name =>
+        gameState.users.some(u => u.name === name));
+    if (ready.length < SPIN_MIN_PLAYERS) return `준비한 인원이 ${SPIN_MIN_PLAYERS}명 이상이어야 해요.`;
+    return null;
 }
 
-/**
- * 회전 칼날 게임 이벤트 핸들러
- */
-module.exports = (socket, io, ctx) => {
-    const { updateRoomsList, getCurrentRoom, getCurrentRoomGameState } = ctx;
-    const checkRateLimit = ctx.checkRateLimit || (() => true);
+// ─── 라운드 엔진 — 소켓 핸들러(방장 [시작])와 예약 발화(재경기 자동 시작)가 같은 경로를 쓴다 ───
+function createSpinEngine(io, ctx) {
+    const { updateRoomsList } = ctx;
 
     function clearSpinTimers(sa) {
         if (sa.playTimeout) { clearTimeout(sa.playTimeout); sa.playTimeout = null; }
@@ -478,10 +592,305 @@ module.exports = (socket, io, ctx) => {
         if (sa.resetTimeout) { clearTimeout(sa.resetTimeout); sa.resetTimeout = null; }
     }
 
-    // 준비하고 현재 방에 있는 사람 수 — 시작 가능 게이트(≥2)에 사용 (ladder readyCount와 동일)
-    function readyCount(gameState) {
-        return (gameState.readyUsers || []).filter(name =>
-            gameState.users.some(u => u.name === name)).length;
+    function resetSpin(sa) {
+        clearSpinTimers(sa);
+        sa.phase = 'idle';
+        sa.skins = {};
+        sa.rankVotes = {};
+        sa.participants = [];
+        sa.timeline = null;
+        sa.result = null;
+        sa.seed = 0;
+        sa.isActive = false;
+    }
+
+    // 준비하고 현재 방에 있는 사람 이름 — 입장 순서(gameState.users 순).
+    // 캐릭터 "첫 소유자"(색/스킨 결정)도 이 순서를 따른다.
+    function readyNamesInOrder(gameState) {
+        return gameState.users
+            .filter(u => (gameState.readyUsers || []).includes(u.name))
+            .map(u => u.name);
+    }
+
+    // 출전 캐릭터의 표시 정보 — 색/칼날색은 그 캐릭터를 고른 첫 소유자의 스킨, 없으면 번호순 기본 팔레트.
+    // 사다리 레인 토큰(js/ladder.js)의 "owners[0] 기준" 규칙과 같은 결이다. 시뮬/판정과는 무관(순수 외형).
+    function buildCharMeta(entrants, chars, gameState, skins) {
+        return entrants.map(ci => {
+            const owners = gameState.users.filter(u => chars[u.name] === ci).map(u => u.name);
+            const firstSkinId = owners.map(nm => skins[nm]).find(id => isValidSkinId(id));
+            const sk = skinById(firstSkinId) || BASE_SKINS[ci % BASE_SKINS.length];
+            return {
+                charIndex: ci,
+                owners,
+                label: owners.length > 1 ? `${owners[0]} 외 ${owners.length - 1}명` : (owners[0] || ''),
+                skinId: sk.id, color: sk.color, blade: sk.blade, tier: sk.tier || 1,
+                bladeCount: BLADE_COUNT
+            };
+        });
+    }
+
+    // 준비자 → 참가 슬롯. 입장 순서로 선착 SPIN_MAX_PLAYERS명. 슬롯 번호 = 이 배열의 인덱스.
+    // 스킨은 명시 선택 우선, 없으면 base 팔레트에서 아직 안 쓴 색을 순차 배정(24명까지 전부 구분).
+    function buildPlayers(readyNames, gameState) {
+        const sa = gameState.spinArena;
+        const names = readyNames.slice(0, SPIN_MAX_PLAYERS);
+        const used = new Set();
+        names.forEach(nm => { if (isValidSkinId(sa.skins[nm])) used.add(sa.skins[nm]); });
+        const autoPool = BASE_SKINS.filter(sk => !used.has(sk.id)).map(sk => sk.id);
+        let api = 0;
+        return names.map((nm, i) => {
+            const sel = sa.skins[nm];
+            const skinId = isValidSkinId(sel)
+                ? sel
+                : (api < autoPool.length ? autoPool[api++] : BASE_SKINS[i % BASE_SKINS.length].id);
+            const sk = skinById(skinId) || BASE_SKINS[0];
+            return {
+                slotId: i, name: nm, skinId: sk.id,
+                color: sk.color, blade: sk.blade, tier: sk.tier || 1,
+                bladeCount: BLADE_COUNT
+            };
+        });
+    }
+
+    // 한 라운드 시작 — 벌칙 등수 룰렛 → 2스테이지 전투 사전계산 → reveal.
+    // 실패하면 사유 문자열, 성공하면 null. (예약 발화는 소켓이 없으므로 emit이 아니라 반환값으로 알린다)
+    async function startRound(room, gameState) {
+        const gate = canStartSpin(room, gameState);
+        if (gate) return gate;
+
+        const sa = gameState.spinArena;
+        const readyNames = readyNamesInOrder(gameState);
+        const rnd = Math.random;   // 서버 RNG — 결과 결정은 전부 여기서만 일어난다
+
+        // 1) 참가 슬롯 확정 — 준비한 사람 전원(선착 상한까지). 고르는 것 없음.
+        const players = buildPlayers(readyNames, gameState);
+        const n = players.length;
+
+        // 2) 벌칙 등수 추첨 — 후보는 결승 진출 등수(1..min(FINALIST_COUNT, n)). 유효표 0이어도 룰렛은 돈다.
+        const voteMax = Math.min(FINALIST_COUNT, n);
+        const roulette = resolveTargetRank(sa.rankVotes, readyNames, voteMax, rnd);
+
+        // 3) 전투 사전계산
+        const seed = Math.floor(rnd() * 2147483647);
+        clearSpinTimers(sa);
+        sa.phase = 'playing';
+        sa.isActive = true;
+        sa.participants = players.map(pl => pl.name);
+        sa.seed = seed;
+        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다
+        gameState.orderAutoTriggered = false;
+
+        let sim;
+        try {
+            sim = await simulateMatch(n, seed);
+        } catch (e) {
+            console.warn('[회전칼날] 시뮬 실패:', e.message);
+            sa.phase = 'idle';
+            sa.isActive = false;
+            updateRoomsList();
+            return '게임 준비 중 오류가 발생했습니다. 다시 시도해주세요.';
+        }
+
+        // 비동기 시뮬 도중 방이 사라졌으면 중단
+        if (!ctx.rooms[room.roomId]) return null;
+
+        const nameBySlot = {};
+        players.forEach(pl => { nameBySlot[pl.slotId] = pl.name; });
+        const targetEntry = sim.rankings.find(r => r.rank === roulette.targetRank);
+        const targetSlot = targetEntry ? targetEntry.slotId : null;
+        const targetName = targetSlot !== null ? nameBySlot[targetSlot] : null;
+        const champEntry = sim.rankings.find(r => r.rank === 1);
+        const championSlot = champEntry ? champEntry.slotId : null;
+        const championName = championSlot !== null ? nameBySlot[championSlot] : null;
+
+        sa.timeline = {   // server-only (socket/rooms.js 재진입 마스킹 화이트리스트에 없어 자동 비노출)
+            frames: sim.frames, blades: sim.blades, seats: sim.seats,
+            sampleMs: sim.sampleMs, durationMs: sim.durationMs, geom: sim.geom
+        };
+        sa.result = {     // server-only
+            targetRank: roulette.targetRank, targetSlot, targetName,
+            championSlot, championName,
+            rankings: sim.rankings, players: players.map(pl => ({ slotId: pl.slotId, name: pl.name }))
+        };
+
+        io.to(room.roomId).emit('spin-arena:reveal', {
+            players,                          // 슬롯 메타(번호/이름/색) — frames와 같은 슬롯 순서
+            arena: { w: ARENA_W, h: ARENA_H, cx: ARENA_CX, cy: ARENA_CY, r: ARENA_R },
+            geom: sim.geom,                   // { charRadius, bladeRadius, swordLen, bladeEdgeR, ringStart, ringEnd, transitionMs }
+            blades: sim.blades,               // 슬롯별 칼날 파라미터(클라가 각도를 t로 계산 — 프레임에 없음)
+            frames: sim.frames,               // 키프레임 [x,y,hp] × n (슬롯 번호 오름차순)
+            sampleMs: sim.sampleMs,
+            durationMs: sim.durationMs,
+            countdownMs: COUNTDOWN_MS,
+            // 2스테이지 계약 — 클라가 stage1 / 전환 / 결승을 이 값들로 가른다(492a8c7과 같은 모양).
+            twoStage: sim.twoStage,
+            stage1EndMs: sim.stage1EndMs,
+            finaleStartMs: sim.finaleStartMs,
+            finalists: sim.finalists,
+            finalistCount: FINALIST_COUNT,
+            roulette: {
+                segments: roulette.segments, rankOrder: roulette.rankOrder,
+                winningRank: roulette.targetRank, reason: roulette.reason,
+                animDurationMs: ROULETTE_ANIM_MS, holdMs: ROULETTE_HOLD_MS
+            },
+            result: {
+                targetRank: roulette.targetRank, targetSlot, targetName,
+                championSlot, championName, rankings: sim.rankings
+            }
+        });
+
+        console.log(`[회전칼날] 방 ${room.roomName} 공개 - 참가 ${n}명 / ${sim.twoStage ? '2스테이지(stage1End=' + sim.stage1EndMs + ')' : '단일단계'} / 1등 ${championName} / 벌칙 ${roulette.targetRank}등 = ${targetName} / 길이 ${sim.durationMs}ms`);
+
+        clearSpinTimers(sa);
+        // 클라 재생 순서: 룰렛 → 홀드 → 3-2-1 카운트다운 → 전투(Stage1+전환+결승) → 결과.
+        // 하나라도 어긋나면 결과가 일찍/늦게 발화하므로 클라 상수와 반드시 같이 움직인다.
+        sa.endTimeout = setTimeout(() => {
+            if (!ctx.rooms[room.roomId]) return;
+            endGame(room, gameState);
+        }, ROULETTE_ANIM_MS + ROULETTE_HOLD_MS + COUNTDOWN_MS + sim.durationMs + RESULT_HOLD_MS);
+
+        updateRoomsList();
+        return null;
+    }
+
+    function endGame(room, gameState) {
+        const sa = gameState.spinArena;
+        clearSpinTimers(sa);
+
+        // 결과는 reveal 시점에 확정된 server-only result(결정론) — 여기서 재계산하지 않는다(2탭 동일 보장).
+        const result = sa.result || {
+            targetRank: null, targetSlot: null, targetName: null,
+            championSlot: null, championName: null, rankings: [], players: []
+        };
+        const rankByName = {};
+        const slotToName = {};
+        (result.players || []).forEach(pl => { slotToName[pl.slotId] = pl.name; });
+        (result.rankings || []).forEach(r => {
+            const nm = slotToName[r.slotId];
+            if (nm) rankByName[nm] = r.rank;
+        });
+
+        // DB·집계는 시작 시점 참가자 중 "지금도 방에 있는" 사람만 (사다리와 동일).
+        const players = (sa.participants || []).filter(name =>
+            gameState.users.some(u => u.name === name));
+        if (players.length === 0) {
+            sa.phase = 'idle';
+            sa.isActive = false;
+            io.to(room.roomId).emit('spin-arena:gameAborted', { reason: '참가자가 모두 나갔습니다.' });
+            updateRoomsList();
+            return;
+        }
+
+        sa.phase = 'finished';
+        sa.isActive = false;
+        sa.round++;
+
+        sa.history.push({
+            round: sa.round,
+            targetName: result.targetName,
+            targetRank: result.targetRank,
+            championName: result.championName,
+            timestamp: new Date().toISOString()
+        });
+        if (sa.history.length > HISTORY_MAX) sa.history = sa.history.slice(-HISTORY_MAX);
+
+        io.to(room.roomId).emit('spin-arena:gameEnd', {
+            targetRank: result.targetRank,
+            targetSlot: result.targetSlot,
+            targetName: result.targetName,
+            championSlot: result.championSlot,
+            championName: result.championName,
+            rankings: result.rankings,
+            round: sa.round
+        });
+
+        recordGamePlay('spin-arena', players.length, room.serverId || null);
+
+        if (room.serverId) {
+            // 경마·사다리와 같은 시점·같은 규칙. 등수가 1인 1값이라 벌칙 대상은 항상 정확히 한 명이다.
+            // is_winner = 벌칙에 안 걸린 사람. rank는 실제 최종 등수를 그대로 남긴다.
+            const sessionId = generateSessionId('spin-arena', room.serverId);
+            const targetName = result.targetName;
+            Promise.all(players.map(name => {
+                const isWinner = name !== targetName;
+                const rank = rankByName[name] || players.length;
+                return recordServerGame(room.serverId, name, `${rank}등`, 'spin-arena', isWinner, sessionId, rank);
+            })).then(() => recordGameSession({
+                serverId: room.serverId,
+                sessionId,
+                gameType: 'spin-arena',
+                gameRules: 'final-four',
+                winnerName: result.championName || null,   // 끝까지 살아남은 1등
+                participantCount: players.length
+            })).catch(e => console.warn('[회전칼날] DB 기록 실패:', e.message));
+        }
+
+        console.log(`[회전칼날] 방 ${room.roomName} 종료 - 1등=${result.championName} / 벌칙=${result.targetName} (${result.targetRank}등)`);
+
+        // 게임 종료 → 바로 주문받기 자동 시작. 등수가 1인 1값이라 동시 당첨이 없어 재경기가 필요 없다.
+        if (ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
+
+        // 다음 판 리셋 (결과 표시 시간 확보 후)
+        sa.resetTimeout = setTimeout(() => {
+            const currentRoom = ctx.rooms[room.roomId];
+            if (!currentRoom) return;
+            const cur = currentRoom.gameState.spinArena;
+            resetSpin(cur);
+            const cg = currentRoom.gameState;
+            cg.readyUsers = [];
+            cg.users.forEach(u => { u.isReady = false; });
+            io.to(room.roomId).emit('readyUsersUpdated', cg.readyUsers);
+            io.to(room.roomId).emit('spin-arena:roundReset');
+            updateRoomsList();
+        }, SPIN_RESET_DELAY);
+
+        updateRoomsList();
+    }
+
+    return { startRound };
+}
+
+// 걸려 있는 예약 시작을 풀고 방 전체에 알린다 (경마·사다리와 동일).
+function dropScheduledStart(io, room, gameState) {
+    const scheduled = require('./scheduled-start');
+    if (scheduled.cancelSchedule(gameState)) scheduled.broadcastSchedule(io, room, gameState);
+}
+
+/**
+ * 회전 칼날 게임 이벤트 핸들러
+ */
+module.exports = (socket, io, ctx) => {
+    const { getCurrentRoom, getCurrentRoomGameState } = ctx;
+    // horse.js/ladder.js와 동일 패턴 — ctx가 주면 그걸 쓰고, 없으면 통과. (security-guard 훅이 ctx.checkRateLimit() 리터럴을 요구)
+    const checkRateLimit = ctx.checkRateLimit ? () => ctx.checkRateLimit() : () => true;
+    const engine = createSpinEngine(io, ctx);
+
+    // idle 단계 공통 검문 — 방/게임타입/유저/단계/준비 확인. 통과하면 { gameState, room, userName }.
+    function idlePrecheck() {
+        const gameState = getCurrentRoomGameState();
+        const room = getCurrentRoom();
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return null;
+        }
+        if (room.gameType !== 'spin-arena') {
+            socket.emit('spin-arena:error', '회전 칼날 방이 아닙니다!');
+            return null;
+        }
+        const user = gameState.users.find(u => u.id === socket.id);
+        if (!user) {
+            socket.emit('spin-arena:error', '사용자 정보를 찾을 수 없습니다!');
+            return null;
+        }
+        if (gameState.spinArena.phase !== 'idle') {
+            socket.emit('spin-arena:error', '게임 시작 전(대기 중)에만 바꿀 수 있습니다.');
+            return null;
+        }
+        if (!(gameState.readyUsers || []).includes(user.name)) {
+            socket.emit('spin-arena:error', '먼저 준비를 해주세요!');
+            return null;
+        }
+        return { gameState, room, userName: user.name };
     }
 
     // idle 단계 스킨 선택 동기화 브로드캐스트 (server-only 정보 미포함)
@@ -491,6 +900,32 @@ module.exports = (socket, io, ctx) => {
         });
     }
     ctx.emitSpinArenaSkinsUpdated = emitSkinsUpdated;
+
+    // 「몇 등이 벌칙인지」 등수 투표 (idle 단계, 준비자만) — 같은 등수 재클릭 = 취소. 경마 voteRank와 같은 규칙.
+    // 후보는 결승 진출 등수(1~FINALIST_COUNT). 준비 인원이 그보다 적으면 시작할 때 초과분이 무효 처리되고
+    // 그 사유를 유저에게 알린다(경마와 동일).
+    socket.on('spin-arena:voteRank', (data) => {
+        if (!checkRateLimit()) return;
+
+        const pre = idlePrecheck();
+        if (!pre) return;
+        const { gameState, room, userName } = pre;
+
+        const rank = (data && typeof data.rank === 'number') ? data.rank : null;
+        if (!Number.isInteger(rank) || rank < 1 || rank > FINALIST_COUNT) {
+            socket.emit('spin-arena:error', '유효하지 않은 등수입니다.');
+            return;
+        }
+
+        const sa = gameState.spinArena;
+        if (sa.rankVotes[userName] === rank) delete sa.rankVotes[userName];
+        else sa.rankVotes[userName] = rank;
+
+        io.to(room.roomId).emit('spin-arena:rankVotesUpdated', {
+            rankVotes: { ...sa.rankVotes },
+            maxRank: FINALIST_COUNT
+        });
+    });
 
     // 스킨 선택 (idle 단계, 준비자만)
     // 잠금 스킨(신규 색/t2)은 인증 계정(socket.authedUserId)의 소유(user_cosmetics) 검증 후에만 허용.
@@ -551,8 +986,8 @@ module.exports = (socket, io, ctx) => {
         emitSkinsUpdated(room, gameState);
     });
 
-    // 입장/재입장 시점 스킨 동기화 — 요청 소켓에만 현재 skins 응답 (순수 additive 이벤트).
-    // server-only 데이터(timeline/result/seed)는 절대 포함하지 않는다 — skins만.
+    // 입장/재입장 시점 빌드 상태 동기화 — 요청 소켓에만 스킨/투표 응답 (순수 additive 이벤트).
+    // server-only 데이터(timeline/result/seed)는 절대 포함하지 않는다.
     socket.on('spin-arena:requestSkins', () => {
         if (!checkRateLimit()) return;
 
@@ -560,232 +995,36 @@ module.exports = (socket, io, ctx) => {
         const room = getCurrentRoom();
         if (!gameState || !room || room.gameType !== 'spin-arena') return;
 
-        socket.emit('spin-arena:skinsUpdated', {
-            skins: { ...gameState.spinArena.skins }
-        });
+        const sa = gameState.spinArena;
+        socket.emit('spin-arena:skinsUpdated', { skins: { ...sa.skins } });
+        socket.emit('spin-arena:rankVotesUpdated', { rankVotes: { ...sa.rankVotes }, maxRank: FINALIST_COUNT });
     });
 
-    // 게임 시작 (호스트) — 슬롯 배정 + 시뮬 사전계산 + reveal
+    // 게임 시작 (호스트) — 출전 캐릭터 확정 + 등수 룰렛 + 전투 사전계산 + reveal.
+    // 예약 발화(재경기 자동 시작)는 이 핸들러가 아니라 module.exports.start로 같은 엔진을 부른다.
     socket.on('spin-arena:start', async () => {
         if (!checkRateLimit()) return;
 
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
-        if (!gameState || !room) return;
+        if (!gameState || !room) {
+            socket.emit('roomError', '방에 입장하지 않았습니다!');
+            return;
+        }
         if (room.gameType !== 'spin-arena') {
             socket.emit('spin-arena:error', '회전 칼날 방이 아닙니다!');
             return;
         }
-
-        const user = gameState.users.find(u => u.id === socket.id);
-        if (!user || !user.isHost) {
+        if (!socket.isHost) {
             socket.emit('spin-arena:error', '방장만 게임을 시작할 수 있습니다!');
             return;
         }
+        // 방장이 직접 시작하면 걸려 있던 재경기 예약은 해제한다(경마·사다리와 동일 — 앞지르기 허용).
+        dropScheduledStart(io, room, gameState);
 
-        const sa = gameState.spinArena;
-        if (sa.phase !== 'idle' && sa.phase !== 'finished') {
-            socket.emit('spin-arena:error', '이미 게임이 진행 중입니다!');
-            return;
-        }
-
-        // 참가자 = 현재 방에 있고 준비한 사용자
-        const ready = (gameState.readyUsers || []).filter(name =>
-            gameState.users.some(u => u.name === name)
-        );
-        if (ready.length < SPIN_MIN_PLAYERS) {
-            socket.emit('spin-arena:error', `준비한 인원이 ${SPIN_MIN_PLAYERS}명 이상이어야 합니다!`);
-            return;
-        }
-
-        // 게임 시작 시 자동 주문 cycle 가드만 해제 — 진행 중인 주문받기는 닫지 않는다(호스트가 종료 버튼을 누를 때까지 유지)
-        gameState.orderAutoTriggered = false;
-
-        // 스킨 배정(클라 미리보기와 거울 규칙): users 배열(입장 순서)을 순회하며
-        // 명시 선택 스킨 우선, 없으면 base tier1 24색에서 이미 쓴 색 제외하고 순차 배정 — 미리보기 색 == 실제 게임 색 보장.
-        // 자동 배정 풀은 base 24색 전체(소유 무관 — 식별색≠소유) — 24명까지 전부 distinct. 명시 픽의 소유 검증만 유지.
-        const usedSkinIds = new Set();
-        gameState.users.forEach(u => {
-            const sel = sa.skins[u.name];
-            if (isValidSkinId(sel)) usedSkinIds.add(sel);
-        });
-        const autoPool = BASE_SKINS.filter(s => !usedSkinIds.has(s.id)).map(s => s.id);
-        let api = 0;
-        const assignedSkin = {};   // name -> skinId
-        gameState.users.forEach((u, idx) => {
-            const sel = sa.skins[u.name];
-            assignedSkin[u.name] = isValidSkinId(sel)
-                ? sel
-                : (api < autoPool.length ? autoPool[api++] : BASE_SKINS[idx % BASE_SKINS.length].id);
-        });
-
-        // 게임 슬롯 = 준비자를 users 배열(입장 순서)로 정렬해 선착 최대 MAX_SLOTS명 (봇 없음)
-        const humanNames = gameState.users
-            .filter(u => ready.includes(u.name))
-            .map(u => u.name)
-            .slice(0, MAX_SLOTS);
-        const humanCount = humanNames.length;
-
-        const slots = humanNames.map((name, i) => ({
-            id: i, isBot: false, name, skinId: assignedSkin[name]
-        }));
-
-        const seed = Math.floor(Math.random() * 2147483647);   // 서버 RNG 허용(시드 생성)
-
-        clearSpinTimers(sa);
-        sa.phase = 'playing';
-        sa.isActive = true;
-        sa.participants = humanNames.slice();
-        sa.seed = seed;
-
-        let sim;
-        try {
-            sim = await simulate(slots, seed);
-        } catch (e) {
-            console.warn('[회전칼날] 시뮬 실패:', e.message);
-            sa.phase = 'idle';
-            sa.isActive = false;
-            socket.emit('spin-arena:error', '게임 준비 중 오류가 발생했습니다. 다시 시도해주세요.');
-            updateRoomsList();
-            return;
-        }
-
-        // 비동기 시뮬 도중 방이 사라졌으면 중단
-        if (!ctx.rooms[room.roomId]) return;
-
-        const rankings = sim.rankings;
-        const successionList = sim.succession;   // worst→best(이탈자 대체용). succession[0] = finalLoser.
-        // selected(당첨자) = finalLoser = 승계 목록 첫 항목 = rankings 최하위
-        const selected = successionList.length ? successionList[0] : null;
-
-        // 공개 슬롯 meta — id/name/color/blade/tier per slot(클라 리플레이 식별). 칼날 파라미터는 브래킷 듀얼 안에 있음.
-        const revealSlots = slots.map((s) => {
-            const sk = skinById(s.skinId) || SPIN_SKINS[0];
-            return {
-                id: s.id, isBot: false, name: s.name, skinId: sk.id,
-                color: sk.color, blade: sk.blade,
-                tier: sk.tier || 1,   // 스킨업 시각 전용(클라 아우라) — 시뮬/판정/순위와 무관 (additive)
-                bladeCount: BLADE_COUNT, bladeRadius: sim.geom.bladeRadius
-            };
-        });
-
-        sa.timeline = {   // server-only (socket/rooms.js 재진입 마스킹은 phase/skins/round/history 화이트리스트라 자동 비노출 — bracket은 timeline에만)
-            slots: revealSlots, bracket: sim.bracket, geom: sim.geom,
-            sampleMs: SAMPLE_MS, durationMs: sim.durationMs
-        };
-        sa.result = { selected, rankings, successionList };   // server-only
-
-        io.to(room.roomId).emit('spin-arena:reveal', {
-            durationMs: sim.durationMs,   // 전체 브래킷 길이(라운드 합 + 전환). 듀얼별 decide는 bracket 내부.
-            sampleMs: SAMPLE_MS,
-            arena: { w: ARENA_W, h: ARENA_H, cx: ARENA_CX, cy: ARENA_CY, r: ARENA_R },
-            slots: revealSlots,           // reveal 메타(id/name/color/blade/tier per slot)
-            bracket: sim.bracket,         // { poolOrder, rounds[{roundIdx,durationMs,poolSize,duels[{duelId,slotA,slotB,frames,durationMs,decideMs,loserSlot,winnerSlot,bladeA,bladeB}],byes}], finalLoser, loserDepth }
-            geom: sim.geom,               // { scale, charRadius, bladeRadius, swordLen, bladeEdgeR, duelRingR }
-            result: { selected, rankings, successionList }
-        });
-
-        console.log(`[회전칼날] 방 ${room.roomName} 공개 - 참가자 ${humanCount}명 / 라운드=${sim.bracket.rounds.length} / 당첨=${selected} / 길이=${sim.durationMs}ms`);
-
-        clearSpinTimers(sa);
-        // 클라가 3-2-1 카운트다운(COUNTDOWN_MS)만큼 늦게 리플레이를 시작하므로 종료 타이머도 그만큼 가산.
-        // durationMs는 시뮬 산출(결판 압축) — 시드 결정론이라 모든 클라와 동일 시점 종료.
-        sa.endTimeout = setTimeout(() => {
-            if (!ctx.rooms[room.roomId]) return;
-            endGame(room, gameState);
-        }, COUNTDOWN_MS + sim.durationMs + RESULT_HOLD_MS);
-
-        updateRoomsList();
+        const err = await engine.startRound(room, gameState);
+        if (err) socket.emit('spin-arena:error', err);
     });
-
-    function endGame(room, gameState) {
-        const sa = gameState.spinArena;
-        clearSpinTimers(sa);
-
-        // 결과는 reveal 시점에 확정된 server-only result(결정론). 단, 당첨자가 이탈했으면 승계 목록의
-        // "지금도 방에 있는 첫 항목"으로 대체(재계산 없음 → 2탭 동일). 2단계는 승계가 결승 진출자로 한정되어
-        // 비결승(안전 승자)이 당첨자가 되는 일은 없다(승계가 비면 selected=null).
-        const result = sa.result || { selected: null, rankings: [], successionList: [] };
-        const rankings = result.rankings || [];
-        const succession = result.successionList || (result.selected ? [result.selected] : []);
-        const selected = succession.find(name => gameState.users.some(u => u.name === name)) || null;
-
-        // DB·집계는 시작 시점 참가자 중 "지금도 방에 있는" 사람만 (ladder의 전원이탈 abort 취지와 동일).
-        const dbPlayers = (sa.participants || []).filter(name =>
-            gameState.users.some(u => u.name === name));
-        if (dbPlayers.length === 0) {
-            sa.phase = 'idle';
-            sa.isActive = false;
-            io.to(room.roomId).emit('spin-arena:gameAborted', { reason: '참가자가 모두 나갔습니다.' });
-            updateRoomsList();
-            return;
-        }
-
-        sa.phase = 'finished';
-        sa.isActive = false;
-        sa.round++;
-
-        sa.history.push({
-            round: sa.round,
-            selected,
-            timestamp: new Date().toISOString()
-        });
-        if (sa.history.length > HISTORY_MAX) sa.history = sa.history.slice(-HISTORY_MAX);
-
-        io.to(room.roomId).emit('spin-arena:gameEnd', { selected, rankings, round: sa.round });
-
-        // DB: 사람 참가자만 (봇 제외, 위에서 현재 방 잔류자로 필터). selected = 당첨자 = 끝까지 탈출 못 한 사람 = ladder loser 의미.
-        recordGamePlay('spin-arena', dbPlayers.length, room.serverId || null);
-
-        if (room.serverId) {
-            const sessionId = generateSessionId('spin-arena', room.serverId);
-            Promise.all(dbPlayers.map(name => {
-                const isSelected = name === selected;     // 당첨 = 끝까지 탈출 못 한 사람 = ladder loser 의미
-                const isWinner = !isSelected;
-                const rank = isWinner ? 1 : 2;
-                return recordServerGame(room.serverId, name, rank, 'spin-arena', isWinner, sessionId, rank);
-            })).then(() => recordGameSession({
-                serverId: room.serverId,
-                sessionId,
-                gameType: 'spin-arena',
-                gameRules: 'tournament',
-                winnerName: dbPlayers.find(n => n !== selected) || null,
-                participantCount: dbPlayers.length
-            })).catch(e => console.warn('[회전칼날] DB 기록 실패:', e.message));
-        }
-
-        console.log(`[회전칼날] 방 ${room.roomName} 종료 - 당첨=${selected}`);
-
-        // 게임 종료 → 바로 주문받기 자동 시작 (ladder/경마 단일 당첨자 패턴과 동일)
-        if (ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
-
-        // 다음 판 리셋 (결과 표시 시간 확보 후)
-        sa.resetTimeout = setTimeout(() => {
-            const currentRoom = ctx.rooms[room.roomId];
-            if (!currentRoom) return;
-            const cur = currentRoom.gameState.spinArena;
-            resetSpin(cur);
-            const cg = currentRoom.gameState;
-            cg.readyUsers = [];
-            cg.users.forEach(u => { u.isReady = false; });
-            io.to(room.roomId).emit('readyUsersUpdated', cg.readyUsers);
-            io.to(room.roomId).emit('spin-arena:roundReset');
-            updateRoomsList();
-        }, SPIN_RESET_DELAY);
-
-        updateRoomsList();
-    }
-
-    function resetSpin(sa) {
-        clearSpinTimers(sa);
-        sa.phase = 'idle';
-        sa.skins = {};
-        sa.participants = [];
-        sa.timeline = null;
-        sa.result = null;
-        sa.seed = 0;
-        sa.isActive = false;
-    }
 
     // 호스트 이탈 감지 → grace 후 phase 분기 (ladder disconnect 복제)
     socket.on('disconnect', (reason) => {
@@ -816,8 +1055,10 @@ module.exports = (socket, io, ctx) => {
 };
 
 // 테스트용 export (공정성/결정론 회귀). 핸들러 호출에는 영향 없음.
-module.exports.simulate = simulate;
-module.exports.rankHumans = rankHumans;
-module.exports.buildSuccession = buildSuccession;
-module.exports.simulateDuel = simulateDuel;
-module.exports.duelSubSeed = duelSubSeed;
+module.exports.simulateMatch = simulateMatch;
+module.exports.resolveTargetRank = resolveTargetRank;
+module.exports.ringRadiusAt = ringRadiusAt;
+module.exports.FINALIST_COUNT = FINALIST_COUNT;
+module.exports.HP_MAX = HP_MAX;
+module.exports.TRANSITION_MS = TRANSITION_MS;
+module.exports.SPIN_MAX_PLAYERS = SPIN_MAX_PLAYERS;

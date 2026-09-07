@@ -159,7 +159,7 @@ module.exports = (socket, io, ctx) => {
                 // 보안: spinArena.timeline / result / seed 등 결과 server-only 마스킹.
                 // reveal 전 결과 노출 = 공정성 위반. 재진입엔 스킨 피커 복원용 phase/skins/round/history만 노출.
                 spinArena: gameState.spinArena
-                    ? { phase: gameState.spinArena.phase, skins: gameState.spinArena.skins, round: gameState.spinArena.round, history: gameState.spinArena.history }
+                    ? { phase: gameState.spinArena.phase, skins: gameState.spinArena.skins, rankVotes: gameState.spinArena.rankVotes, round: gameState.spinArena.round, history: gameState.spinArena.history }
                     : undefined,
                 // 보안: pirate.triggerHole / seed 등 결과 server-only 마스킹 (reveal 전 노출 = 공정성 위반 — 위험 구멍 누출).
                 // 재진입엔 선택 화면 복원용 phase/claims/holeCount/timeLimitSec/deadlineTs/round/history + participants(누가 참가자인지, 클릭 게이트용 — 비공정성)만 노출.
