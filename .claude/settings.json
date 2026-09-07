@@ -12,8 +12,8 @@
       "mcp__filesystem__move_file"
     ],
     "additionalDirectories": [
-      "d:\\Work\\LAMDiceBot\\.claude",
-      "d:\\Work\\LAMDiceBot\\docs"
+      "/Users/radar/Work/LAMDiceBot/.claude",
+      "/Users/radar/Work/LAMDiceBot/docs"
     ]
   },
   "hooks": {
