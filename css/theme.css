@@ -256,6 +256,8 @@
 
   /* 게임 페이지 스티키 하단 광고 — 본문 하단 확보 여백 */
   --ad-sticky-reserve: 96px;
+  /* 광고를 접었을 때 화면에 남는 손잡이 탭 높이 */
+  --ad-sticky-handle: 24px;
 
   /* ============================================
      패널 계층 구조 (팔레트 사용)
@@ -671,6 +673,7 @@ body.premium .ad-container {
   border-top: 1px solid var(--border-color);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
   z-index: 900; /* 모달(1000) 미만 — 결과/비번 모달이 위를 덮음 */
+  transition: transform 0.22s ease;
 }
 /* 레이스(결과 애니메이션) 진행 중에는 숨김 */
 body.race-running .ad-container.ad-sticky {
@@ -681,11 +684,41 @@ body.race-running .ad-container.ad-sticky {
 body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running) {
   padding-bottom: var(--ad-sticky-reserve);
 }
+/* 접기/펼치기 손잡이 — 광고 바 위쪽에 붙은 탭. 바가 내려가도 화면에 남는다 */
+.ad-sticky-toggle {
+  position: absolute;
+  top: calc(-1 * var(--ad-sticky-handle));
+  right: 8px;
+  width: 48px;
+  height: var(--ad-sticky-handle);
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+/* 접힌 상태 — 바를 화면 밖으로 내리고 확보 여백도 손잡이 높이만 남긴다 */
+body.ad-sticky-collapsed .ad-container.ad-sticky {
+  transform: translateY(100%);
+  box-shadow: none;
+}
+body.ad-sticky-collapsed {
+  --ad-sticky-reserve: var(--ad-sticky-handle);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ad-container.ad-sticky {
+    transition: none;
+  }
+}
 @media (max-width: 480px) {
   .ad-container.ad-sticky {
     padding: 2px 4px;
   }
-  body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running) {
+  body:has(.ad-container.ad-sticky:not(.ad-hidden)):not(.race-running):not(.ad-sticky-collapsed) {
     padding-bottom: 64px;
   }
 }
