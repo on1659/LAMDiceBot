@@ -729,6 +729,38 @@ input[type="text"]:focus, input[type="password"]:focus {
     50% { transform: translateX(-50%) rotate(10deg); }
 }
 
+/* 낮잠 기믹 — 원인이 보이는 연출. 💤 두 개가 시차를 두고 떠오른다. */
+.gimmick-effect-nap {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 3;
+    font-size: 15px;
+    white-space: nowrap;
+}
+.gimmick-effect-nap .zzz {
+    display: inline-block;
+    animation: napFloat 1.8s ease-in-out infinite;
+}
+.gimmick-effect-nap .z2 {
+    animation-delay: 0.9s;
+    font-size: 11px;
+}
+
+@keyframes napFloat {
+    0%   { transform: translate(0, 4px) scale(0.7); opacity: 0; }
+    30%  { opacity: 1; }
+    100% { transform: translate(10px, -14px) scale(1.15); opacity: 0; }
+}
+
+/* 자는 동안 몸이 천천히 오르내린다 (숨) */
+@keyframes napBob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-3px) rotate(-1.5deg); }
+}
+
 /* ===== Evolution 기믹 ===== */
 .evolution-charge {
     animation: evo-pulse 0.4s infinite alternate !important;

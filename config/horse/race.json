@@ -17,6 +17,16 @@
       "gapThresholdM": 15
     }
   },
+  "drama": {
+    "nap": {
+      "enabled": true,
+      "fireRate": 0.33,
+      "durationMs": 2200,
+      "probeRange": [0.72, 0.88],
+      "targetPolicy": "random",
+      "minRunners": 2
+    }
+  },
   "gimmicks": {
     "countByTrack": {
       "short":  { "min": 3, "max": 5 },

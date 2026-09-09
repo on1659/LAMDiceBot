@@ -227,7 +227,88 @@ function getVehicleWeatherModifier(vehicleType, weather) {
 }
 
 // 경주 결과 계산 함수 (기믹 + 날씨 + 슬로우모션 반영 동시 시뮬레이션)
-async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false) {
+// 말별 난수 파라미터를 한 번 뽑는다. 같은 판을 조건만 바꿔 다시 돌리려면 이게 밖에 있어야 한다.
+function createRaceParams(horseCount, minDuration, maxDuration) {
+    const out = [];
+    for (let i = 0; i < horseCount; i++) {
+        out.push({
+            duration: minDuration + Math.random() * (maxDuration - minDuration),
+            initialSpeedFactor: 0.8 + Math.random() * 0.4,
+            speedChangeSeed: Math.floor(Math.random() * 2147483647)
+        });
+    }
+    return out;
+}
+
+// ========== 드라마 연출 (D1 경계 낮잠) ==========
+// 결과를 먼저 정하지 않는다. 같은 판을 낮잠 기믹 하나만 더해 다시 돌리고, 그 결과가 최종이다.
+// 대상 선택 규칙이 "그 시점 경계 보유자"라 말 인덱스와 무관 = 대칭 → 등수 분포 균등성 보존.
+//
+// 왜 필요한가 (AutoTest/horse-race/measure-*.js 실측):
+//   · 실주자 2마리 판은 진행 0.32에 승부가 갈린다 — 친구방 기본 크기가 여기다
+//   · 그 판의 1·2착 격차 6.5%는 약 1.7초인데 현행 정지 기믹은 300~800ms — 못 뒤집는 크기다
+//   · 낮잠 2.2초면 발동 시 역전율 44~52%, 확정 시점이 2마리 0.35→0.50 / 3마리 0.60→0.75
+const DRAMA_CONFIG = horseConfig.drama || {};
+
+// 낮잠을 넣을 대상과 지점을 고른다. 못 고르면 null(그 판은 드라마 없음).
+function planNapDrama(probes, stakeRank, runnerCount) {
+    const cfg = DRAMA_CONFIG.nap || {};
+    if (!cfg.enabled) return null;
+    if (runnerCount < (cfg.minRunners || 2)) return null;
+    if (Math.random() >= (cfg.fireRate || 0)) return null;
+    if (!probes || probes.length === 0) return null;
+
+    // 발동 지점은 매번 흔든다 — 고정이면 "또 그 지점이네"로 읽힌다
+    const [lo, hi] = cfg.probeRange || [0.72, 0.88];
+    const at = lo + Math.random() * (hi - lo);
+    // at 이하 프로브 중 가장 늦은 것
+    let probe = null;
+    for (const pr of probes) if (pr.at <= at && (!probe || pr.at > probe.at)) probe = pr;
+    if (!probe) return null;
+
+    // 재울 등수를 고른다.
+    //
+    //  targetPolicy = 'random'(기본) — 등수 투표를 보지 않는다. 1~(n-1)등 중 무작위.
+    //    게임이 유저 투표를 읽고 그 자리에 장난친다는 읽힘 자체를 없앤다. 실측 손해는 작다:
+    //    실주자 4·경계 4등에서 확정 0.80→0.75, 발동 시 역전율 47%→42% (measure-nap-drama.js).
+    //
+    //  targetPolicy = 'stake' — 판돈이 갈리는 등수 기준. 드라마가 가장 잘 꽂히지만 투표를 읽는다.
+    //    낮잠은 말을 뒤로만 보내므로, 경계가 마지막 등수면(꼴등 찾기) 경계 보유자가 아니라
+    //    그 앞 말을 재워야 한다 — 꼴등을 재워봐야 계속 꼴등이라 아무 일도 안 일어난다.
+    //
+    //  어느 쪽이든 "그 시점 n등을 차지한 말"이라 말 인덱스와 무관 = 대칭 → 등수 분포 균등 보존.
+    const policy = cfg.targetPolicy || 'random';
+    let targetRank;
+    if (policy === 'stake') {
+        targetRank = (stakeRank < runnerCount) ? stakeRank : stakeRank - 1;
+    } else {
+        targetRank = 1 + Math.floor(Math.random() * Math.max(1, runnerCount - 1));
+    }
+    if (targetRank < 1) return null;
+
+    const holder = probe.order[targetRank - 1];
+    if (!holder) return null;
+    // 이미 결승선을 눈앞에 둔 말을 재우면 그림이 어색하다
+    if (holder.progress >= 0.97) return null;
+
+    return {
+        horseIndex: holder.horseIndex,
+        progressTrigger: holder.progress,
+        durationMs: cfg.durationMs || 2200
+    };
+}
+
+// 각질: 자기 진행률 u에서의 속도 배율. a>0 = 추입(막판형), a<0 = 선행(초반형), a=0 = 평지.
+// f(u) = 1 + a*(2u-1) 을 조화평균 1로 정규화 → g(u) = T*f(u), T = ∫du/f = ln((1+a)/(1-a)) / (2a).
+// 정규화 덕분에 각질이 완주 시간의 기대값을 바꾸지 않는다 = 어떤 각질도 유리하지 않다.
+function runningStyleShape(a, u) {
+    if (!a) return 1;
+    const T = Math.log((1 + a) / (1 - a)) / (2 * a);
+    const uu = u < 0 ? 0 : (u > 1 ? 1 : u);
+    return T * (1 + a * (2 * uu - 1));
+}
+
+async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false, raceParams = null, probeAtLeaderProgress = null, runningStyles = null) {
     // 트랙 길이 설정
     const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
     const trackDistanceMeters = preset.meters;
@@ -256,19 +337,17 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
         return VISUAL_WIDTHS[vehicleId] || 60;
     }
 
-    // 각 말의 기본 도착 시간 랜덤 생성
-    const baseDurations = [];
-    for (let i = 0; i < horseCount; i++) {
-        baseDurations.push(minDuration + Math.random() * (maxDuration - minDuration));
-    }
+    // 말별 난수 파라미터. 드라마 연출은 "같은 판을 기믹 하나만 더해서 다시 돌린다"이므로
+    // 여기서 뽑지 않고 밖에서 받은 걸 그대로 쓸 수 있어야 한다 (없으면 새로 뽑는다).
+    const params = raceParams || createRaceParams(horseCount, minDuration, maxDuration);
 
     // 모든 말의 상태 초기화 (동시 시뮬레이션용)
     const horseStates = [];
     for (let i = 0; i < horseCount; i++) {
-        const duration = baseDurations[i];
+        const duration = params[i].duration;
         const baseSpeed = totalDistance / duration;
-        const initialSpeedFactor = 0.8 + Math.random() * 0.4;
-        const speedChangeSeed = Math.floor(Math.random() * 2147483647);
+        const initialSpeedFactor = params[i].initialSpeedFactor;
+        const speedChangeSeed = params[i].speedChangeSeed;
 
         // 기믹 상태 초기화
         const gimmicks = (gimmicksData[i] || []).map(g => ({
@@ -300,7 +379,7 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
             finishJudged: false,  // 오른쪽 끝 기준 도착 판정 (클라이언트와 동일)
             finishTime: 0,
             finishJudgedTime: 0,
-            baseDuration: Math.round(baseDurations[i]),
+            baseDuration: Math.round(params[i].duration),
             visualWidth
         });
     }
@@ -323,6 +402,13 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
     // Fake Evolution 기믹 상태 (진짜와 별도 추첨, 결과를 크게 안 바꾸는 페이크)
     let fakeEvolutionTargets = [];
 
+    // 드라마 프로브 — 선두가 지정 진행률을 처음 넘는 순간의 위치 순서를 찍는다.
+    // 낮잠 대상(경계를 차지한 말)을 고르려면 "그 시점에 누가 몇 번째였나"가 필요하다.
+    const probeThresholds = probeAtLeaderProgress === null ? []
+        : (Array.isArray(probeAtLeaderProgress) ? probeAtLeaderProgress.slice().sort((a, b) => a - b) : [probeAtLeaderProgress]);
+    const probes = [];
+    let nextProbeIdx = 0;
+
     // 동시 시뮬레이션: 모든 말을 한 프레임씩 동시에
     let frameCount = 0;
     while (elapsed < HORSE_RACE_SIM_MAX_MS) {
@@ -343,6 +429,27 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
         const leader = unfinishedJudged.length > 0
             ? unfinishedJudged.reduce((a, b) => a.currentPos > b.currentPos ? a : b)
             : null;
+
+        // 프로브: 선두가 각 임계 진행률을 처음 넘는 프레임마다 1회
+        while (nextProbeIdx < probeThresholds.length && leader) {
+            const leaderProgress = (leader.currentPos - startPosition) / totalDistance;
+            if (leaderProgress < probeThresholds[nextProbeIdx]) break;
+            probes.push({
+                at: probeThresholds[nextProbeIdx],
+                elapsed,
+                leaderProgress,
+                // 위치 내림차순 = 그 순간의 등수 순서
+                order: horseStates
+                    .filter(st => bettedIndices.size === 0 || bettedIndices.has(st.horseIndex))
+                    .slice()
+                    .sort((a, b) => b.currentPos - a.currentPos)
+                    .map(st => ({
+                        horseIndex: st.horseIndex,
+                        progress: (st.currentPos - startPosition) / totalDistance
+                    }))
+            });
+            nextProbeIdx++;
+        }
 
         // Leader 슬로우모션 발동: 1등의 오른쪽 끝이 결승선 15m 이내면 발동
         if (!slowMotionTriggered && leader) {
@@ -530,6 +637,12 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
                 speedMultiplier = state.currentSpeed / state.baseSpeed;
             }
 
+            // 각질(러닝 스타일) 보정 — baseSpeed를 판 안에서 변하게 하는 유일한 지점.
+            // shape는 조화평균 1로 정규화돼 있어 완주 시간 기대값이 보존된다(공정성).
+            if (runningStyles && runningStyles[state.horseIndex]) {
+                speedMultiplier *= runningStyleShape(runningStyles[state.horseIndex], progress);
+            }
+
             // 날씨 보정 적용
             if (weatherSchedule.length > 0 && vehicleTypes[state.horseIndex]) {
                 const currentWeather = getCurrentWeather(weatherSchedule, progress);
@@ -659,7 +772,7 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
         initialFactor: s.initialSpeedFactor
     }));
 
-    return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets };
+    return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets, raceParams: params, probes };
 }
 
 // 룰에 맞는 당첨자 확인 함수
@@ -968,7 +1081,32 @@ async function startHorse(room, gameState, io, ctx, opts = {}) {
     // 경주 결과 계산 (기믹 + 날씨 반영 시뮬레이션)
     const trackLengthOption = gameState.trackLength || 'medium';
     const vehicleTypes = gameState.selectedVehicleTypes || [];
-    const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets: verifiedFakeEvolutionTargets } = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet);
+
+    // stakeRank = 판돈이 갈리는 등수. 룰렛 투표가 있으면 그 등수, 없으면 모드 기본값.
+    // (1등 찾기 = 1, 꼴등 찾기 = 달리는 말 수)
+    const runnerCount = new Set(Object.values(gameState.userHorseBets || {})).size;
+    const stakeRank = (typeof resolvedTargetRank === 'number' && resolvedTargetRank >= 1)
+        ? resolvedTargetRank
+        : ((gameState.horseRaceMode || 'last') === 'first' ? 1 : Math.max(1, runnerCount));
+
+    // 1패스 — 종반 경계 보유자를 알아내기 위한 프로브를 함께 찍는다
+    const DRAMA_PROBES = [0.70, 0.75, 0.80, 0.85];
+    let raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, null, DRAMA_PROBES);
+
+    // 2패스 — 낮잠 하나를 더해 같은 파라미터로 다시 돌린다. 이 결과가 최종.
+    const nap = planNapDrama(raceResult.probes, stakeRank, runnerCount);
+    if (nap) {
+        gimmicksData[nap.horseIndex] = (gimmicksData[nap.horseIndex] || []).concat([{
+            progressTrigger: nap.progressTrigger,
+            type: 'nap',
+            duration: nap.durationMs,
+            speedMultiplier: 0
+        }]);
+        raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, raceResult.raceParams, DRAMA_PROBES);
+        console.log(`[경마] 드라마 D1 낮잠 — 말${nap.horseIndex} @진행 ${nap.progressTrigger.toFixed(2)} ${nap.durationMs}ms (stakeRank ${stakeRank})`);
+    }
+
+    const { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets: verifiedFakeEvolutionTargets } = raceResult;
 
     // 트랙 정보 계산
     const trackPreset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
@@ -2184,4 +2322,7 @@ module.exports = function registerHorseHandlers(socket, io, ctx) {
 // 예약 스위퍼(socket/scheduled-start.js)가 소켓 없이 호출하는 진입점.
 module.exports.canStart = canStartHorse;
 module.exports.start = startHorse;
+module.exports.planNapDrama = planNapDrama; // 측정/테스트용
+module.exports.calculateHorseRaceResult = calculateHorseRaceResult; // 측정/테스트용 직접 호출 진입점
+module.exports.runningStyleShape = runningStyleShape;
 module.exports.HORSE_RACE_SIM_MAX_MS = HORSE_RACE_SIM_MAX_MS; // 테스트용 — 워치독 대기 시간을 리터럴 대신 여기서 파생한다

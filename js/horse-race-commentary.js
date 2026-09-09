@@ -58,6 +58,16 @@ const EVOLUTION_COMMENTARY = {
         '{subject}가 선두를 잡습니다. Evolution 효과가 제대로 터졌습니다.',
         '{subject}, 각성 질주로 판을 뒤집고 있습니다!'
     ],
+    nap: [
+        '{subject}… 잠들었습니다! 이걸 이렇게 놓칩니까!',
+        '{subject} 갑자기 드러눕습니다! 뒤에서 따라옵니다!',
+        '{subject}, 여기서 낮잠입니까! 판이 뒤집힙니다!',
+        '아니 {subject} 자고 있습니다! 지금 자면 어떡합니까!'
+    ],
+    napWake: [
+        '{subject} 깼습니다! 늦었나요!',
+        '{subject} 정신 차렸습니다 — 따라붙습니다!'
+    ],
     evolutionWin: [
         '{subject} 그대로 결승선 통과! Evolution이 판을 뒤집었습니다.',
         '{subject}, 각성 질주 끝에 1등입니다!',
@@ -81,6 +91,15 @@ function announceEvolutionCommentary(stage, subject = '해당 말', holdMs = 320
     const comments = EVOLUTION_COMMENTARY[stage] || [];
     if (comments.length === 0) return;
 
+    const comment = comments[Math.floor(Math.random() * comments.length)]
+        .replace(/\{subject\}/g, subject);
+    showRaceCommentaryOnce(comment, holdMs);
+}
+
+// 낮잠 중계. 하강 연출이라 호명은 탈것명만 쓴다(실명 호명은 각본 굴욕이 된다).
+function announceNapCommentary(stage, subject = '선두', holdMs = 3200) {
+    const comments = EVOLUTION_COMMENTARY[stage] || [];
+    if (comments.length === 0) return;
     const comment = comments[Math.floor(Math.random() * comments.length)]
         .replace(/\{subject\}/g, subject);
     showRaceCommentaryOnce(comment, holdMs);

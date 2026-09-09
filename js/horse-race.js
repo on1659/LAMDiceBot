@@ -3257,6 +3257,14 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         return vehicleName;
     }
 
+    // 낮잠 중계 — 탈것명만 (하강 연출에 실명 호명은 하지 않는다)
+    function announceNap(stage, state, holdMs) {
+        if (isReplay || isCatchingUp || typeof announceNapCommentary !== 'function' || !state) return;
+        const info = vehicleInfoMap[state.horseIndex];
+        const vehicleName = info && info.vehicle && info.vehicle.name ? info.vehicle.name : '선두';
+        announceNapCommentary(stage, vehicleName, holdMs);
+    }
+
     function announceEvolutionStage(stage, state, holdMs) {
         if (isReplay || isCatchingUp || typeof announceEvolutionCommentary !== 'function' || !state) return;
         announceEvolutionCommentary(stage, getEvolutionCommentarySubject(state.horseIndex), holdMs);
@@ -4158,6 +4166,19 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                             wobbleEffect.textContent = '💫';
                             state.horse.appendChild(wobbleEffect);
                             gimmick.effectElement = wobbleEffect;
+                        } else if (gimmick.type === 'nap') {
+                            // 낮잠 — 원인이 화면에 보여야 한다. 💤 + 쉬는 자세로 완전히 멈춘다.
+                            state.horse.style.filter = 'brightness(0.75) saturate(0.7)';
+                            state.horse.classList.remove('racing');
+                            state.horse.classList.add('rest');
+                            setVehicleState(state.horse, state.horse.dataset.vehicleId, 'rest');
+                            state.horse.style.animation = 'napBob 1.6s ease-in-out infinite';
+                            const napEffect = document.createElement('div');
+                            napEffect.className = 'gimmick-effect-nap';
+                            napEffect.innerHTML = '<span class="zzz z1">💤</span><span class="zzz z2">💤</span>';
+                            state.horse.appendChild(napEffect);
+                            gimmick.effectElement = napEffect;
+                            announceNap('nap', state);
                         } else if (gimmick.type === 'obstacle') {
                             // 장애물 — 쉬는 애니메이션 + 점프
                             state.horse.style.filter = 'brightness(0.6)';
@@ -4295,8 +4316,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         if (gimmick.type === 'reverse') {
                             state.horse.style.transform = '';
                         }
-                        // stop/obstacle/item_ice 기믹 종료 시 다시 달리기 상태로
-                        if (gimmick.type === 'stop' || gimmick.type === 'obstacle' || gimmick.type === 'item_ice') {
+                        if (gimmick.type === 'nap') announceNap('napWake', state, 2200);
+                        // stop/obstacle/item_ice/nap 기믹 종료 시 다시 달리기 상태로
+                        if (gimmick.type === 'stop' || gimmick.type === 'obstacle' || gimmick.type === 'item_ice' || gimmick.type === 'nap') {
                             state.horse.classList.remove('rest');
                             state.horse.classList.add('racing');
                             setVehicleState(state.horse, state.horse.dataset.vehicleId, 'run');
