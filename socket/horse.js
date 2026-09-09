@@ -9,6 +9,9 @@ const HORSE_HISTORY_MAX = 100;   // 레이스 히스토리 최대 보관 수
 const ROULETTE_ANIM_MS = 5500;   // N등 투표 룰렛 애니메이션 길이 (ms)
 const ROULETTE_HOLD_MS = 3000;   // 룰렛 결과 인지/감상 시간 (ms)
 const FALLBACK_HOLD_MS = 3000;   // fallback(투표 없음/모두 무효) 사유 표시 시간 (ms)
+// 클라 완료 신호를 "정상 완주"로 볼 최소 경과 비율 (서버가 계산한 실제 경주 길이 대비).
+// 1.0이 아닌 이유: 클라 프레임 타이밍·슬로모션 오차로 정상 클라도 몇 % 일찍 끝날 수 있다.
+const RACE_COMPLETE_MIN_RATIO = 0.8;
 const HORSE_RACE_SIM_MAX_MS = 90000; // 서버 시뮬 경주 길이 상한 (calculateHorseRaceResult 루프 상한과 동일) — 정산 워치독의 예상 종료 기준. 막판 기믹 창 확장(trigger 0.95)으로 60s→90s
 
 // Evolution / Fake Evolution 기믹 설정 — config/horse/race.json 의 evolution / fakeEvolution 섹션 참조
@@ -685,6 +688,12 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
     }));
     simResults.sort((a, b) => a.simFinishJudgedTime - b.simFinishJudgedTime);
 
+    // 실제 경주 길이 — 베팅된 말 중 마지막 완주 시각. 정산 조기 수용 가드의 기준이 된다.
+    // baseDuration은 기믹 없는 명목값이라 쓸 수 없다(기믹·슬로모션으로 실제는 더 길다).
+    const raceDurationMs = Math.max(...horseStates
+        .filter(st => bettedIndices.size === 0 || bettedIndices.has(st.horseIndex))
+        .map(st => st.finishJudgedTime || st.finishTime || 0), 0);
+
     const rankings = simResults.map((result, rank) => ({
         horseIndex: result.horseIndex,
         rank: rank + 1,
@@ -772,7 +781,7 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
         initialFactor: s.initialSpeedFactor
     }));
 
-    return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets, raceParams: params, probes };
+    return { rankings, speedSeeds, evolutionTargets: verifiedEvolutionTargets, fakeEvolutionTargets, raceParams: params, probes, raceDurationMs };
 }
 
 // 룰에 맞는 당첨자 확인 함수
@@ -1089,20 +1098,35 @@ async function startHorse(room, gameState, io, ctx, opts = {}) {
         ? resolvedTargetRank
         : ((gameState.horseRaceMode || 'last') === 'first' ? 1 : Math.max(1, runnerCount));
 
-    // 1패스 — 종반 경계 보유자를 알아내기 위한 프로브를 함께 찍는다
+    // ⚠️ calculateHorseRaceResult는 gimmicksData를 **변형한다** (evolution/fake를 역삽입하고
+    //    보호 구간 기믹을 지운다). 그래서 2패스에 1패스가 오염시킨 배열을 넘기면 evolution이
+    //    중복 주입되고, 2패스 시뮬이 쓰지 않은 기믹이 클라로 가서 재생이 어긋난다.
+    //    → 2패스는 반드시 오염 전 원본 사본에서 다시 시작한다.
+    const pristineGimmicks = {};
+    for (const k of Object.keys(gimmicksData)) pristineGimmicks[k] = gimmicksData[k].map(g => ({ ...g }));
+
+    // 1패스 — 종반 위치 순서를 알아내기 위한 프로브를 함께 찍는다 (이 결과는 버려질 수 있다)
     const DRAMA_PROBES = [0.70, 0.75, 0.80, 0.85];
     let raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, null, DRAMA_PROBES);
 
-    // 2패스 — 낮잠 하나를 더해 같은 파라미터로 다시 돌린다. 이 결과가 최종.
+    // 2패스 — 원본 + 낮잠 하나로 같은 난수 파라미터에서 다시 돌린다. 이 결과가 최종.
     const nap = planNapDrama(raceResult.probes, stakeRank, runnerCount);
     if (nap) {
-        gimmicksData[nap.horseIndex] = (gimmicksData[nap.horseIndex] || []).concat([{
+        const napGimmicks = {};
+        for (const k of Object.keys(pristineGimmicks)) napGimmicks[k] = pristineGimmicks[k].map(g => ({ ...g }));
+        napGimmicks[nap.horseIndex] = (napGimmicks[nap.horseIndex] || []).concat([{
             progressTrigger: nap.progressTrigger,
             type: 'nap',
             duration: nap.durationMs,
             speedMultiplier: 0
         }]);
-        raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, raceResult.raceParams, DRAMA_PROBES);
+        raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, napGimmicks, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, raceResult.raceParams, DRAMA_PROBES);
+
+        // 클라에 보내는 기믹은 2패스가 실제로 쓴 것이어야 한다 — gimmicksData 내용을 통째로 교체.
+        // (const 바인딩 유지: 아래 raceRecord.gimmicks가 같은 객체를 참조한다)
+        for (const k of Object.keys(gimmicksData)) delete gimmicksData[k];
+        Object.assign(gimmicksData, napGimmicks);
+
         console.log(`[경마] 드라마 D1 낮잠 — 말${nap.horseIndex} @진행 ${nap.progressTrigger.toFixed(2)} ${nap.durationMs}ms (stakeRank ${stakeRank})`);
     }
 
@@ -1294,7 +1318,14 @@ async function startHorse(room, gameState, io, ctx, opts = {}) {
             // 코인 적립 멱등 ref: 레이스당 1회 생성(서버 전용). 재처리돼도 동일 → 이중적립 차단.
             coinRef: generateSessionId('horsecoin', room.serverId || roomId)
         };
-        console.log(`[경마] 결과 데이터 저장 완료 - 클라이언트 애니메이션 완료 대기`);
+        // 조기 정산 가드용 — 애니메이션이 실제로 시작한 시각과 서버가 계산한 경주 길이.
+        // 숫자 두 개뿐이라 입장 페이로드 직렬화에 안전하다(Timeout 핸들과 달리 순환 참조 없음).
+        gameState.raceAnimStartAt = Date.now();
+        gameState.raceExpectedMs = raceResult.raceDurationMs || 0;
+        gameState.raceCompleteReporters = [];
+        gameState.raceSettleDeferred = false;
+
+        console.log(`[경마] 결과 데이터 저장 완료 - 클라이언트 애니메이션 완료 대기 (예상 ${Math.round((raceResult.raceDurationMs||0)/1000)}s)`);
 
         // 정산 워치독 — 모든 탭이 백그라운드면 raceAnimationComplete가 오지 않아
         // isGameActive가 true로 고착되고 방이 잠긴다. 그때는 서버가 대신 마감한다.
@@ -1569,9 +1600,59 @@ module.exports = function registerHorseHandlers(socket, io, ctx) {
 
     // 경주 애니메이션 완료 (클라이언트에서 전송)
     socket.on('raceAnimationComplete', async () => {
+        if (!checkRateLimit()) return;
+
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
         if (!gameState || !room) return;
+
+        // 조기 정산 가드 — 이 이벤트는 원래 "먼저 보낸 한 명"이 방 전체의 경주를 끝냈다.
+        // 백그라운드 탭·catch-up이 일찍 보내면 남들이 아직 보는 중에 정산이 돌고
+        // "재경기 30초 뒤" 안내까지 떠버린다.
+        //
+        // 거절이 아니라 **미룬다**: 아직 이른 신호면 보낸 사람만 기록해두고,
+        //   · 방의 모든 사람이 보고했으면  → 바로 정산 (전원이 다 봤으니 미룰 이유가 없다)
+        //   · 아니면 경주가 끝날 시각에 1회 정산 예약 → 아무도 손해 보지 않는다
+        // 거절이 아니라 지연이라 "완료를 즉시 쏘는" 테스트/자동화도 그대로 동작한다.
+        const startedAt = gameState.raceAnimStartAt || 0;
+        const expected = gameState.raceExpectedMs || 0;
+        const user = gameState.users && gameState.users.find(u => u.id === socket.id);
+
+        if (startedAt && expected && gameState.pendingRaceResult) {
+            const elapsed = Date.now() - startedAt;
+            const isEarly = elapsed < expected * RACE_COMPLETE_MIN_RATIO;
+
+            if (isEarly) {
+                if (!Array.isArray(gameState.raceCompleteReporters)) gameState.raceCompleteReporters = [];
+                if (user && !gameState.raceCompleteReporters.includes(user.name)) {
+                    gameState.raceCompleteReporters.push(user.name);
+                }
+                const everyone = (gameState.users || []).map(u => u.name);
+                const allReported = everyone.length > 0 &&
+                    everyone.every(n => gameState.raceCompleteReporters.includes(n));
+
+                if (!allReported) {
+                    // 경주가 실제로 끝나는 시각에 1회만 예약. pendingRaceResult 동일성으로
+                    // 다음 라운드를 오소비하지 않는다(정산 워치독과 같은 방식).
+                    if (!gameState.raceSettleDeferred) {
+                        gameState.raceSettleDeferred = true;
+                        const deferTarget = gameState.pendingRaceResult;
+                        const roomIdNow = room.roomId;
+                        setTimeout(() => {
+                            const later = ctx && ctx.rooms && ctx.rooms[roomIdNow];
+                            if (!later || !later.gameState) return;
+                            if (later.gameState.pendingRaceResult !== deferTarget) return;
+                            console.log('[경마] 조기 완료 신호 → 경주 종료 시각에 정산');
+                            Promise.resolve(settleRace(later, later.gameState, io, ctx))
+                                .catch(e => console.error('[경마] 지연 정산 실패:', e));
+                        }, Math.max(0, expected - elapsed));
+                    }
+                    console.log(`[경마] 조기 완료 신호 보류 - ${Math.round(elapsed / 1000)}s / 예상 ${Math.round(expected / 1000)}s (보고 ${gameState.raceCompleteReporters.length}/${everyone.length})`);
+                    return;
+                }
+                console.log(`[경마] 조기 완료지만 전원(${everyone.length}명) 보고 완료 → 즉시 정산`);
+            }
+        }
 
         await settleRace(room, gameState, io, ctx);
     });
