@@ -10,8 +10,13 @@ const ROULETTE_ANIM_MS = 5500;   // N등 투표 룰렛 애니메이션 길이 (m
 const ROULETTE_HOLD_MS = 3000;   // 룰렛 결과 인지/감상 시간 (ms)
 const FALLBACK_HOLD_MS = 3000;   // fallback(투표 없음/모두 무효) 사유 표시 시간 (ms)
 // 클라 완료 신호를 "정상 완주"로 볼 최소 경과 비율 (서버가 계산한 실제 경주 길이 대비).
-// 1.0이 아닌 이유: 클라 프레임 타이밍·슬로모션 오차로 정상 클라도 몇 % 일찍 끝날 수 있다.
-const RACE_COMPLETE_MIN_RATIO = 0.8;
+// 1.0인 이유: 한 명의 보고만으로는 경주가 실제로 끝나기 전에 절대 마감하지 않는다.
+// 클라는 완주 후 결과 표시까지 마치고 보내므로 정상 보고는 이 값을 자연히 넘긴다.
+// 낮게 잡으면(예: 0.8) 한 클라가 85%에 보고했을 때 통과해버려, 남은 15%를 보고 있던
+// 사람이 "재경기 30초 뒤"를 보게 된다 — 이 버그의 원래 증상이 정확히 그것이다.
+// 지연 방식이라 보수적으로 잡는 비용은 거의 없다: 전원이 보고하면 어차피 즉시 마감하고,
+// 아니면 경주가 실제로 끝나는 시각에 마감한다.
+const RACE_COMPLETE_MIN_RATIO = 1.0;
 const HORSE_RACE_SIM_MAX_MS = 90000; // 서버 시뮬 경주 길이 상한 (calculateHorseRaceResult 루프 상한과 동일) — 정산 워치독의 예상 종료 기준. 막판 기믹 창 확장(trigger 0.95)으로 60s→90s
 
 // Evolution / Fake Evolution 기믹 설정 — config/horse/race.json 의 evolution / fakeEvolution 섹션 참조
