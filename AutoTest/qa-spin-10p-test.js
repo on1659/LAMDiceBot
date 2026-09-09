@@ -46,6 +46,11 @@ function mk(name) {
     await wait(1200);
     ck(host._ready.length === N, `준비 인원 ${N}명`, `실제 ${host._ready.length}명`);
 
+    // 성향 — 절반씩 나눠 고른다(미선택자는 서버가 자동 배정)
+    host.emit('spin-arena:selectDisposition', { cat: 'atk' });
+    bots.forEach((b, i) => b.emit('spin-arena:selectDisposition', { cat: i % 2 ? 'def' : 'atk' }));
+    await wait(700);
+
     // 투표 몇 개 (선택 사항 — 없으면 균등 추첨)
     host.emit('spin-arena:voteRank', { rank: 1 });
     bots[0].emit('spin-arena:voteRank', { rank: 3 });
@@ -75,6 +80,11 @@ function mk(name) {
     console.log(`     전환    ${((R.finaleStartMs - R.stage1EndMs) / 1000).toFixed(1)}s  「최후의 4인!」`);
     console.log(`     결승    ${((R.durationMs - R.finaleStartMs) / 1000).toFixed(1)}s`);
     console.log(`     전투 합 ${(R.durationMs / 1000).toFixed(1)}s   (+ 룰렛 6.7s + 카운트다운 4s)`);
+    const byCat = { atk: [], def: [] };
+    R.players.forEach(pl => { if (byCat[pl.dispCat]) byCat[pl.dispCat].push(pl.name + '(' + (pl.dispSubLabel || '?') + ')'); });
+    console.log(`  ── 성향 ──`);
+    console.log(`     ⚔️ 공격형: ${byCat.atk.join(', ')}`);
+    console.log(`     🛡️ 방어형: ${byCat.def.join(', ')}`);
     console.log(`  ── 결과 ──`);
     console.log(`     결승 진출: ${R.finalists.map(s => nameBySlot[s]).join(', ')}`);
     console.log(`     1등: ${R.result.championName}   벌칙: ${R.result.targetRank}등 = ${R.result.targetName}`);

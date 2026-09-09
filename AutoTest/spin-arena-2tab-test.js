@@ -19,10 +19,12 @@ function mkClient(name) {
   s._reveal = null;
   s._gameEnd = null;
   s._votes = [];
+  s._disps = [];
   s._errors = [];
   s.on('spin-arena:reveal', d => { s._reveal = d; });
   s.on('spin-arena:gameEnd', d => { s._gameEnd = d; });
   s.on('spin-arena:rankVotesUpdated', d => { s._votes.push(d); });
+  s.on('spin-arena:dispositionsUpdated', d => { s._disps.push(d); });
   s.on('spin-arena:error', m => { s._errors.push(m); });
   s.on('readyUsersUpdated', u => { s._ready = u; });
   return s;
@@ -64,6 +66,18 @@ async function setReady(s, name, want) {
   await wait(600);
   check(host._errors.length > errBefore && !host._reveal, '준비 2명 미만 시작 거부');
   check(await setReady(guest, 'GUEST', true), 'guest re-ready toggled');
+
+  // ── 성향 선택 브로드캐스트 ──
+  host.emit('spin-arena:selectDisposition', { cat: 'atk' });
+  guest.emit('spin-arena:selectDisposition', { cat: 'def' });
+  await wait(500);
+  const lastDisp = host._disps[host._disps.length - 1];
+  check(lastDisp && lastDisp.dispositions.HOST === 'atk' && lastDisp.dispositions.GUEST === 'def',
+        'selectDisposition 브로드캐스트가 양쪽 성향을 반영');
+  const dispBad = host._errors.length;
+  host.emit('spin-arena:selectDisposition', { cat: 'nope' });
+  await wait(400);
+  check(host._errors.length > dispBad, '없는 성향 거부');
 
   // ── 등수 투표 브로드캐스트 + 재클릭 취소 ──
   host.emit('spin-arena:voteRank', { rank: 2 });
@@ -138,6 +152,12 @@ async function setReady(s, name, want) {
     check(champ && nameBySlot[champ.slotId] === R.result.championName, `1등 = ${R.result.championName}`);
     check(R.roulette.winningRank === R.result.targetRank, 'roulette.winningRank === targetRank');
     check(R.roulette.rankOrder.indexOf(R.result.targetRank) >= 0, 'rankOrder에 벌칙 등수 포함');
+
+    // 성향이 슬롯 메타에 실려 오는가 — 세부 성향은 서버가 굴린다
+    check(R.players.every(pl => pl.dispCat === 'atk' || pl.dispCat === 'def'), '슬롯마다 성향 카테고리');
+    check(R.players.every(pl => !!pl.dispSub), '슬롯마다 서버가 굴린 세부 성향');
+    const hostPl = R.players.find(pl => pl.name === 'HOST');
+    check(hostPl && hostPl.dispCat === 'atk', 'HOST가 고른 공격형이 그대로 반영');
 
     // 폐기된 필드가 남아 있지 않은가
     for (const k of ['bracket', 'slots', 'chars', 'charCount']) {

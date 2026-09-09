@@ -84,7 +84,41 @@ const RING_R_START = 220;         // 시작 반경 = 바깥벽
 const RING_R_END = 60;            // 결승 최종 반경 — 4인이라도 강제 교전이 일어나게 좁힘
 const RING2_SHRINK_MS = 20000;    // 결승 수축(결승 시작 기준, 220 → 60). 느릴수록 초반에 거리를 두고 붙는다.
 const START_R_MARGIN = 6;         // 배치 반경 = ring - charR - 이 값
-// ─ Stage1 이동 = 로밍(wander) ─
+// ─ 성향(disposition) ─
+// 유저는 카테고리(공격형/방어형)만 고르고, 세부 성향은 서버가 굴린다.
+// 세부 성향은 "목표 지점"을 고르는 규칙만 다르다 — 이동 물리는 전부 공통이다.
+const DISP_ATTACK = 'atk', DISP_DEFEND = 'def';
+const DISP_CATEGORIES = [DISP_ATTACK, DISP_DEFEND];
+const DISP_SUBS = {
+    atk: ['rusher', 'hunter', 'brawler'],   // 돌격 / 사냥 / 난입
+    def: ['evader', 'drifter', 'stalker']   // 회피 / 배회 / 관망
+};
+const DISP_SUB_LABEL = {
+    rusher: '돌격', hunter: '사냥', brawler: '난입',
+    evader: '회피', drifter: '배회', stalker: '관망'
+};
+const DISP_CAT_LABEL = { atk: '공격형', def: '방어형' };
+const STALKER_KEEP_R = 95;        // 관망 — 유지하려는 거리(px)
+const RETARGET_MS = 600;          // 목표 재계산 주기 — 매 스텝 고르면 목표가 떨려 움직임이 지저분해진다
+const STEER_SPEED = 96;           // 목표를 향한 순항 속도(px/s)
+const STEER_ACCEL = 3.2;          // 목표 방향으로 붙는 가속(1/s)
+// 도주는 추격보다 느리다 — 안 그러면 방어형끼리 있는 방에서 아무도 안 잡혀 Stage1이 캡(45s)까지 간다(측정).
+const FLEE_SPEED_MUL = 0.78;
+// 후반 압박 — 맵(링)은 그대로 두고, 시간이 갈수록 전원을 중앙으로 약하게 민다.
+// 방어형만 있는 방도 결국 붙게 만드는 장치. 링을 줄이지 않으므로 화면은 계속 넓다.
+const PRESSURE_START_MS = 10000;  // 이 시각부터 압박이 붙기 시작
+const PRESSURE_FULL_MS = 34000;   // 이 시각에 최대
+const PRESSURE_MAX = 150;         // 최대 중앙 가속(px/s²)
+const FLEE_CHOKE = 0.65;          // 압박이 최대일 때 도주 속도를 이만큼 깎는다 — 방어형만 있는 방도 결국 붙게
+// ─ 밸런스 노브 ─ 오직 성향별 벌칙 확률을 맞추기 위한 값이다(연출이 아니다).
+// 회피는 그 자체로 생존을 낳아서, 손대지 않으면 방어형 결승진출 73% vs 공격형 7%가 나온다(측정).
+// 그래서 Stage1에서만 "공격형은 버티고 방어형은 약하다"를 준다 — 읽히는 트레이드오프이면서
+// 결승 진출 확률을 맞추는 유일한 레버다. **결승은 배율 없이 공정한 맞대결**로 둬서
+// 1등 확률을 따로 맞춘다(둘을 한 노브로 맞추려 하면 한쪽이 반드시 깨진다 — 측정으로 확인).
+const DISP_DMG_TAKEN_MUL = { atk: 0.4, def: 2.6 };   // Stage1 전용
+const DISP_DMG_DEALT_MUL = { atk: 1.0, def: 1.0 };   // Stage1 전용
+
+// ─ Stage1 이동 = 로밍(wander) — 이제는 목표가 없을 때만 쓰는 폴백이다 ─
 // 여기서 시도했다 버린 것들(전부 측정으로 기각):
 //   · 중앙 인력  → 전원이 한 점 blob으로 뭉친다.
 //   · 동심 궤도  → 원끼리 교차하지 않아 서로 못 만나고 Stage1이 캡(45s)까지 늘어졌다(12/12).
@@ -186,6 +220,66 @@ function mulberry32(seed) {
     };
 }
 
+// 세부 성향별 목표 지점. 반환 { tx, ty, flee } — flee면 그 지점에서 멀어진다.
+// alive는 자기 자신을 제외한 살아있는 캐릭터 배열. 없으면 null(폴백 로밍).
+function pickSteerTarget(c, alive) {
+    if (alive.length === 0) return null;
+    let best = null, bestScore = Infinity;
+    switch (c.dispSub) {
+        case 'rusher': {   // 가장 가까운 상대
+            for (const o of alive) {
+                const d = Math.hypot(o.x - c.x, o.y - c.y);
+                if (d < bestScore) { bestScore = d; best = o; }
+            }
+            return { tx: best.x, ty: best.y, flee: false };
+        }
+        case 'hunter': {   // HP 낮은 상대 우선(거리로 가중 — 지구 반대편까지 쫓지는 않게)
+            for (const o of alive) {
+                const d = Math.hypot(o.x - c.x, o.y - c.y);
+                const score = o.hp * 2 + d;
+                if (score < bestScore) { bestScore = score; best = o; }
+            }
+            return { tx: best.x, ty: best.y, flee: false };
+        }
+        case 'brawler': {   // 사람이 가장 많이 모인 쪽 — 이웃 밀도가 가장 높은 캐릭터의 위치
+            for (const o of alive) {
+                let near = 0;
+                for (const q of alive) if (q !== o && Math.hypot(q.x - o.x, q.y - o.y) < 120) near++;
+                const score = -near * 100 + Math.hypot(o.x - c.x, o.y - c.y) * 0.3;
+                if (score < bestScore) { bestScore = score; best = o; }
+            }
+            return { tx: best.x, ty: best.y, flee: false };
+        }
+        case 'evader': {   // 가장 가까운 상대에게서 멀어진다
+            for (const o of alive) {
+                const d = Math.hypot(o.x - c.x, o.y - c.y);
+                if (d < bestScore) { bestScore = d; best = o; }
+            }
+            return { tx: best.x, ty: best.y, flee: true };
+        }
+        case 'drifter': {   // 사람이 가장 적은 빈 공간 — 후보 지점 중 최근접 상대가 가장 먼 곳
+            let bx = ARENA_CX, by = ARENA_CY, bd = -1;
+            for (let k = 0; k < 8; k++) {
+                const a = (2 * Math.PI * k) / 8 + c.baseAngle;
+                const rr = (RING_R_START - CHAR_RADIUS) * 0.62;
+                const px = ARENA_CX + Math.cos(a) * rr, py = ARENA_CY + Math.sin(a) * rr;
+                let nd = Infinity;
+                for (const o of alive) nd = Math.min(nd, Math.hypot(o.x - px, o.y - py));
+                if (nd > bd) { bd = nd; bx = px; by = py; }
+            }
+            return { tx: bx, ty: by, flee: false };
+        }
+        case 'stalker':
+        default: {   // 중간 거리 유지 — 가까우면 물러나고 멀면 붙는다
+            for (const o of alive) {
+                const d = Math.hypot(o.x - c.x, o.y - c.y);
+                if (d < bestScore) { bestScore = d; best = o; }
+            }
+            return { tx: best.x, ty: best.y, flee: bestScore < STALKER_KEEP_R };
+        }
+    }
+}
+
 /**
  * 2스테이지 매치 시뮬레이션 — 참고 구현: 492a8c7(Stage1 → 전환 → 결승).
  * async로 주기적 setImmediate 양보(CPU). 결과는 한 시드로 전부 사전 계산, 클라는 리플레이만.
@@ -194,8 +288,9 @@ function mulberry32(seed) {
  * │ 박제(FROZEN) — rng() 소비 순서. 재배열하면 모든 시드가 깨진다. 변경 금지.      │
  * │  1) 좌석 셔플: Fisher-Yates(슬롯 0..n-1), 정확히 n-1회.                       │
  * │  2) 슬롯마다 baseAngle → spinSpeed → spinDir, **좌석 순서로** 3n회.           │
+ * │  2b) 슬롯마다 세부 성향 1회(좌석 순서) — n회. 기존 소비 뒤라 앞 순서 불변.  │
  * │  3) 결승 진출자 재배치 각도 오프셋 1회(2스테이지일 때만).                      │
- * │  → 총 소비 = (n-1) + 3n + (2스테이지면 1).                                    │
+ * │  → 총 소비 = (n-1) + 3n + n + (2스테이지면 1).                                 │
  * └─────────────────────────────────────────────────────────────────────────────┘
  *
  * 배열은 **좌석 순서**로 만든다. 슬롯 번호 순으로 만들면 separateChars의 인덱스 편향과
@@ -209,10 +304,11 @@ function mulberry32(seed) {
  *   n <= FINALIST_COUNT (단일 단계): 전환 없이 결승 스케줄로 바로 최후 1인까지.
  *
  * 등수: 최후 생존자 1등, 먼저 탈락할수록 낮은 등수(n등부터 역순).
- * @returns { n, seats, frames, blades, elimOrder, rankings, stage1EndMs, finaleStartMs,
+ * @param dispCats 슬롯별 성향 카테고리 배열('atk'|'def'). 없으면 전원 'atk'(테스트 편의).
+ * @returns { n, seats, frames, blades, elimOrder, rankings, stage1EndMs, finaleStartMs, dispSubs,
  *            finalists, twoStage, durationMs, sampleMs, geom }
  */
-async function simulateMatch(n, seed) {
+async function simulateMatch(n, seed, dispCats) {
     const rng = mulberry32(seed);
     const dt = SIM_DT_MS / 1000;
     const charR = CHAR_RADIUS, bladeR = BLADE_RADIUS, swordLen = SWORD_LEN, bladeEdgeR = BLADE_EDGE_R;
@@ -244,6 +340,10 @@ async function simulateMatch(n, seed) {
             vx: 0, vy: 0, kvx: 0, kvy: 0, dead: false,
             baseAngle, spinSpeed, spinDir,
             // ↓ 전부 위 세 필드에서 파생 — rng 추가 소비 0회(FROZEN 소비 순서 불변)
+            dispCat: (dispCats && dispCats[slotId]) || DISP_ATTACK,
+            dispSub: null,          // 아래에서 좌석 순서로 굴린다
+            steerT: -1e9,           // 목표 재계산 시각
+            steerTx: 0, steerTy: 0, steerFlee: false,
             // 로밍 — 진행 방향은 배치 각도에서 90° 튼 값(곧장 벽으로 나가지 않게), 회전율은 spinSpeed 파생.
             heading: ang0 + Math.PI / 2 + baseAngle * 0.5,
             turnRate: spinDir * (WANDER_TURN_MIN + ((spinSpeed - BLADE_SPIN_MIN) / (BLADE_SPIN_MAX - BLADE_SPIN_MIN)) * (WANDER_TURN_MAX - WANDER_TURN_MIN)),
@@ -254,8 +354,17 @@ async function simulateMatch(n, seed) {
     // 3) 결승 재배치 각도 오프셋 — 진출자가 늘 같은 자리에 서지 않게(2스테이지만 소비)
     const finaleAngle0 = twoStage ? rng() * 2 * Math.PI : 0;
 
+    // 2b) 세부 성향 — 고른 카테고리 안에서 서버가 굴린다(유저는 카테고리만 고른다).
+    for (const c of chars) {
+        const subs = DISP_SUBS[c.dispCat] || DISP_SUBS[DISP_ATTACK];
+        c.dispSub = subs[Math.floor(rng() * subs.length)];
+    }
+
     // 클라로 나가는 frames/blades는 **슬롯 번호 오름차순 고정** — 클라는 위치로 매핑한다.
     const emitOrder = chars.slice().sort((a, b) => a.slotId - b.slotId);
+
+    const charBySlot = {};
+    for (const c of chars) charBySlot[c.slotId] = c;
 
     const frames = [];
     const elimOrder = [];
@@ -382,6 +491,14 @@ async function simulateMatch(n, seed) {
             c.y = ARENA_CY + Math.sin(ang) * r;
             c.vx = 0; c.vy = 0; c.kvx = 0; c.kvy = 0;
             c.hp = HP_MAX; c.received = 0;   // 결승은 만HP에서 새로 시작 — Stage1 피해가 결승을 좌우하지 않게
+            // 칼날도 새로 굴린다. Stage1은 특정 칼날 특성(회전 속도 등)을 가진 캐릭터를 골라 올려보내는데,
+            // 그 특성이 결승에서도 유리하게 작용해 성향별 1등 확률에 ~1pp 기울기가 생겼다(4트라이얼 전부 공격형 우세).
+            // 여기서 새로 굴리면 Stage1의 선택 효과가 결승으로 새지 않는다 — 결승은 진짜 새 판이다.
+            c.baseAngle = rng() * 2 * Math.PI;
+            c.spinSpeed = BLADE_SPIN_MIN + rng() * (BLADE_SPIN_MAX - BLADE_SPIN_MIN);
+            c.spinDir = rng() < 0.5 ? 1 : -1;
+            c.speedMul = SPEED_MUL_MIN + ((c.spinSpeed - BLADE_SPIN_MIN) / (BLADE_SPIN_MAX - BLADE_SPIN_MIN)) * (SPEED_MUL_MAX - SPEED_MUL_MIN);
+            c.pullMul = PULL_MUL_MIN + (c.baseAngle / (2 * Math.PI)) * (PULL_MUL_MAX - PULL_MUL_MIN);
         });
     }
 
@@ -423,11 +540,18 @@ async function simulateMatch(n, seed) {
                     if (tt < 0) tt = 0; else if (tt > 1) tt = 1;
                     const dx = c.x - (bl.ix + sx * tt), dy = c.y - (bl.iy + sy * tt);
                     if (dx * dx + dy * dy < (charR + bladeEdgeR) * (charR + bladeEdgeR)) {
-                        dmgSum += dps * dt;
+                        // 때린 쪽 성향의 가한 피해 배율 — 밸런스 노브
+                        const attacker = charBySlot[bl.owner];
+                        const dealtMul = (inStage1 && attacker) ? (DISP_DMG_DEALT_MUL[attacker.dispCat] || 1) : 1;
+                        dmgSum += dps * dt * dealtMul;
                         applyKnock(c, dx, dy);
                     }
                 }
-                if (dmgSum > 0) { c.received += dmgSum; c.hp -= dmgSum; }
+                if (dmgSum > 0) {
+                    // 밸런스 노브는 Stage1에만. 결승은 배율 없는 공정한 맞대결.
+                    if (inStage1) dmgSum *= (DISP_DMG_TAKEN_MUL[c.dispCat] || 1);
+                    c.received += dmgSum; c.hp -= dmgSum;
+                }
             }
 
             const downed = chars.filter(c => !c.dead && c.hp <= 0);
@@ -465,18 +589,49 @@ async function simulateMatch(n, seed) {
             const cdist = Math.hypot(cdx, cdy) || 1;
             const nx = cdx / cdist, ny = cdy / cdist;
             let ax, ay;
-            if (inStage1) {
-                // 로밍 — 진행 방향으로 순항하고 방향은 천천히 돈다. 경계는 벽 반사(integrate)가 만든다.
+            // 성향 조종은 **Stage1에서만**. 결승은 성향 없는 공정한 맞대결이다 —
+            // 좁아지는 링에 갇힌 4인에겐 도망칠 곳이 없다는 뜻이기도 하고,
+            // 결승에서도 회피가 통하면 1등 확률이 방어형 86% vs 공격형 14%로 무너진다(측정).
+            if (inStage1 && tMs - c.steerT >= RETARGET_MS) {
+                c.steerT = tMs;
+                const others = chars.filter(o => !o.dead && o !== c);
+                const tgt = pickSteerTarget(c, others);
+                if (tgt) { c.steerTx = tgt.tx; c.steerTy = tgt.ty; c.steerFlee = tgt.flee; c.hasSteer = true; }
+                else { c.hasSteer = false; }
+            }
+            if (inStage1 && c.hasSteer) {
+                const sdx = c.steerTx - c.x, sdy = c.steerTy - c.y;
+                const sd = Math.hypot(sdx, sdy) || 1;
+                const sign = c.steerFlee ? -1 : 1;
+                // 도주 속도는 후반 압박이 커질수록 깎인다(몰린다).
+                const pk0 = (inStage1 && tMs > PRESSURE_START_MS)
+                    ? Math.min(1, (tMs - PRESSURE_START_MS) / (PRESSURE_FULL_MS - PRESSURE_START_MS)) : 0;
+                const fleeMul = FLEE_SPEED_MUL * (1 - FLEE_CHOKE * pk0);
+                const spd = STEER_SPEED * c.speedMul * (c.steerFlee ? fleeMul : 1);
+                const wantVx = (sdx / sd) * sign * spd;
+                const wantVy = (sdy / sd) * sign * spd;
+                ax = (wantVx - c.vx) * STEER_ACCEL;
+                ay = (wantVy - c.vy) * STEER_ACCEL;
+                // 도망칠 때 벽에 몰리지 않게 중앙 쪽으로 약하게 되돌린다.
+                if (c.steerFlee) { ax += -nx * WANDER_CENTER_BIAS * 2; ay += -ny * WANDER_CENTER_BIAS * 2; }
+            } else if (inStage1) {
+                // 폴백 로밍 — 목표가 없을 때만(사실상 혼자 남았을 때).
                 c.heading += c.turnRate * dt;
                 const wantVx = Math.cos(c.heading) * WANDER_SPEED * c.speedMul;
                 const wantVy = Math.sin(c.heading) * WANDER_SPEED * c.speedMul;
                 ax = (wantVx - c.vx) * WANDER_ACCEL;
                 ay = (wantVy - c.vy) * WANDER_ACCEL;
-                ax += -nx * WANDER_CENTER_BIAS;   // 전원이 벽에만 붙어 도는 걸 막는 정도의 약한 복귀
+                ax += -nx * WANDER_CENTER_BIAS;
                 ay += -ny * WANDER_CENTER_BIAS;
             } else {
                 ax = -nx * pull * c.pullMul;
                 ay = -ny * pull * c.pullMul;
+            }
+            // 후반 압박 — Stage1에서만. 맵은 안 줄이고 전원을 중앙으로 약하게 민다.
+            if (inStage1 && tMs > PRESSURE_START_MS) {
+                const pk = Math.min(1, (tMs - PRESSURE_START_MS) / (PRESSURE_FULL_MS - PRESSURE_START_MS));
+                ax += -nx * PRESSURE_MAX * pk;
+                ay += -ny * PRESSURE_MAX * pk;
             }
             c.vx += ax * dt; c.vy += ay * dt;
             integrate(c, wallR, c.speedMul);
@@ -502,6 +657,7 @@ async function simulateMatch(n, seed) {
             slotId: c.slotId, baseAngle: c.baseAngle, spinSpeed: c.spinSpeed,
             spinDir: c.spinDir, bladeCount: BLADE_COUNT
         })),
+        dispSubs: emitOrder.map(c => ({ slotId: c.slotId, cat: c.dispCat, sub: c.dispSub })),
         durationMs: endMs, sampleMs: SAMPLE_MS,
         geom: {
             charRadius: CHAR_RADIUS, bladeRadius: BLADE_RADIUS, swordLen: SWORD_LEN,
@@ -597,6 +753,7 @@ function createSpinEngine(io, ctx) {
         sa.phase = 'idle';
         sa.skins = {};
         sa.rankVotes = {};
+        sa.dispositions = {};
         sa.participants = [];
         sa.timeline = null;
         sa.result = null;
@@ -644,10 +801,12 @@ function createSpinEngine(io, ctx) {
                 ? sel
                 : (api < autoPool.length ? autoPool[api++] : BASE_SKINS[i % BASE_SKINS.length].id);
             const sk = skinById(skinId) || BASE_SKINS[0];
+            const cat = (sa.dispositions[nm] === DISP_DEFEND) ? DISP_DEFEND : DISP_ATTACK;
             return {
                 slotId: i, name: nm, skinId: sk.id,
                 color: sk.color, blade: sk.blade, tier: sk.tier || 1,
-                bladeCount: BLADE_COUNT
+                bladeCount: BLADE_COUNT,
+                dispCat: cat, dispCatLabel: DISP_CAT_LABEL[cat]
             };
         });
     }
@@ -662,7 +821,20 @@ function createSpinEngine(io, ctx) {
         const readyNames = readyNamesInOrder(gameState);
         const rnd = Math.random;   // 서버 RNG — 결과 결정은 전부 여기서만 일어난다
 
-        // 1) 참가 슬롯 확정 — 준비한 사람 전원(선착 상한까지). 고르는 것 없음.
+        // 1) 성향 미선택자 자동 배정 — 경마/사다리의 미선택 자동 배정과 같은 결.
+        const autoDisp = [];
+        for (const nm of readyNames.slice(0, SPIN_MAX_PLAYERS)) {
+            if (sa.dispositions[nm] !== DISP_ATTACK && sa.dispositions[nm] !== DISP_DEFEND) {
+                sa.dispositions[nm] = DISP_CATEGORIES[Math.floor(rnd() * DISP_CATEGORIES.length)];
+                autoDisp.push(nm);
+            }
+        }
+        if (autoDisp.length > 0) {
+            require('./scheduled-start').roomNotice(io, room, gameState,
+                `${autoDisp.join(', ')}님이 성향을 고르지 않아 자동으로 배정했어요.`);
+        }
+
+        // 2) 참가 슬롯 확정 — 준비한 사람 전원(선착 상한까지).
         const players = buildPlayers(readyNames, gameState);
         const n = players.length;
 
@@ -682,7 +854,7 @@ function createSpinEngine(io, ctx) {
 
         let sim;
         try {
-            sim = await simulateMatch(n, seed);
+            sim = await simulateMatch(n, seed, players.map(pl => pl.dispCat));
         } catch (e) {
             console.warn('[회전칼날] 시뮬 실패:', e.message);
             sa.phase = 'idle';
@@ -693,6 +865,14 @@ function createSpinEngine(io, ctx) {
 
         // 비동기 시뮬 도중 방이 사라졌으면 중단
         if (!ctx.rooms[room.roomId]) return null;
+
+        // 서버가 굴린 세부 성향을 슬롯 메타에 실어 클라가 보여줄 수 있게 한다.
+        const subBySlot = {};
+        (sim.dispSubs || []).forEach(d => { subBySlot[d.slotId] = d.sub; });
+        players.forEach(pl => {
+            pl.dispSub = subBySlot[pl.slotId] || null;
+            pl.dispSubLabel = pl.dispSub ? DISP_SUB_LABEL[pl.dispSub] : '';
+        });
 
         const nameBySlot = {};
         players.forEach(pl => { nameBySlot[pl.slotId] = pl.name; });
@@ -901,6 +1081,25 @@ module.exports = (socket, io, ctx) => {
     }
     ctx.emitSpinArenaSkinsUpdated = emitSkinsUpdated;
 
+    // 성향 고르기 (idle 단계, 준비자만) — 공격형/방어형만 고른다. 세부 성향은 시작할 때 서버가 굴린다.
+    socket.on('spin-arena:selectDisposition', (data) => {
+        if (!checkRateLimit()) return;
+
+        const pre = idlePrecheck();
+        if (!pre) return;
+        const { gameState, room, userName } = pre;
+
+        const cat = data && data.cat;
+        if (cat !== DISP_ATTACK && cat !== DISP_DEFEND) {
+            socket.emit('spin-arena:error', '없는 성향입니다.');
+            return;
+        }
+        gameState.spinArena.dispositions[userName] = cat;
+        io.to(room.roomId).emit('spin-arena:dispositionsUpdated', {
+            dispositions: { ...gameState.spinArena.dispositions }
+        });
+    });
+
     // 「몇 등이 벌칙인지」 등수 투표 (idle 단계, 준비자만) — 같은 등수 재클릭 = 취소. 경마 voteRank와 같은 규칙.
     // 후보는 결승 진출 등수(1~FINALIST_COUNT). 준비 인원이 그보다 적으면 시작할 때 초과분이 무효 처리되고
     // 그 사유를 유저에게 알린다(경마와 동일).
@@ -998,6 +1197,7 @@ module.exports = (socket, io, ctx) => {
         const sa = gameState.spinArena;
         socket.emit('spin-arena:skinsUpdated', { skins: { ...sa.skins } });
         socket.emit('spin-arena:rankVotesUpdated', { rankVotes: { ...sa.rankVotes }, maxRank: FINALIST_COUNT });
+        socket.emit('spin-arena:dispositionsUpdated', { dispositions: { ...sa.dispositions } });
     });
 
     // 게임 시작 (호스트) — 출전 캐릭터 확정 + 등수 룰렛 + 전투 사전계산 + reveal.
@@ -1059,6 +1259,8 @@ module.exports.simulateMatch = simulateMatch;
 module.exports.resolveTargetRank = resolveTargetRank;
 module.exports.ringRadiusAt = ringRadiusAt;
 module.exports.FINALIST_COUNT = FINALIST_COUNT;
+module.exports.DISP_SUBS = DISP_SUBS;
+module.exports.DISP_CATEGORIES = DISP_CATEGORIES;
 module.exports.HP_MAX = HP_MAX;
 module.exports.TRANSITION_MS = TRANSITION_MS;
 module.exports.SPIN_MAX_PLAYERS = SPIN_MAX_PLAYERS;

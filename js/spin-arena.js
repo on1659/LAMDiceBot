@@ -407,6 +407,7 @@ function initReadyModule() {
             updateStartButton();
             renderSkinPicker();   // 준비 상태 변동 → 스킨 피커 활성화 갱신
             renderRankVote();
+            renderDispPicker();
             trySpinApplyEquippedSkin(false);   // 준비 완료 시 상점 장착 스킨 자동 적용(미선택일 때만)
         }
     });
@@ -472,6 +473,70 @@ function updateStartButton() {
 
 // ── 스킨 피커 (#spinSkinPicker) ──
 var spinRankVotes = {};    // { userName: rank } — 서버 rankVotesUpdated 미러
+var spinDispositions = {}; // { userName: 'atk'|'def' } — 서버 dispositionsUpdated 미러
+
+// 성향 — 유저는 카테고리만 고른다. 세부 성향(돌격/사냥/난입, 회피/배회/관망)은 서버가 굴린다.
+var DISP_CARDS = [
+    { cat: 'atk', emoji: '⚔️', title: '공격형', desc: '먼저 달려든다', subs: '돌격 · 사냥 · 난입' },
+    { cat: 'def', emoji: '🛡️', title: '방어형', desc: '거리를 두고 버틴다', subs: '회피 · 배회 · 관망' }
+];
+
+function selectSpinDisposition(cat) {
+    if (!amIReady()) { showCustomAlert('먼저 준비를 해주세요!', 'warning'); return; }
+    socket.emit('spin-arena:selectDisposition', { cat: cat });
+}
+
+function renderDispPicker() {
+    var box = document.getElementById('spinDispPicker');
+    var bar = document.getElementById('spinSkinBar');
+    if (!box) return;
+    var show = amIReady() && spinReplay.phase !== 'playing';
+    box.style.display = show ? 'block' : 'none';
+    if (bar) bar.style.display = show ? 'flex' : 'none';
+    if (!show) return;
+
+    var tally = { atk: 0, def: 0 };
+    Object.keys(spinDispositions).forEach(function (nm) {
+        var c = spinDispositions[nm];
+        if (tally[c] !== undefined) tally[c]++;
+    });
+    var mine = spinDispositions[currentUser];
+
+    var html = '<div class="disp-title">🎯 성향 고르기 <span class="disp-hint">세부 성향은 시작할 때 무작위로 정해져요</span></div><div class="disp-grid">';
+    for (var i = 0; i < DISP_CARDS.length; i++) {
+        var d = DISP_CARDS[i];
+        html += '<button type="button" class="disp-card' + (mine === d.cat ? ' picked' : '') + '" data-cat="' + d.cat + '"' +
+            ' onclick="selectSpinDisposition(\'' + d.cat + '\')">' +
+            '<span class="disp-emoji">' + d.emoji + '</span>' +
+            '<span class="disp-name">' + d.title + '</span>' +
+            '<span class="disp-desc">' + d.desc + '</span>' +
+            '<span class="disp-subs">' + d.subs + '</span>' +
+            '<span class="disp-count">' + tally[d.cat] + '명</span>' +
+            '</button>';
+    }
+    html += '</div>';
+    html += '<div class="disp-note">성향은 움직이는 방식만 바꿔요 — 벌칙에 걸릴 확률은 양쪽이 같습니다.</div>';
+    box.innerHTML = html;
+
+    var cur = document.getElementById('spinSkinCurrent');
+    if (cur) {
+        var sk = spinSkinById(spinSkins[currentUser]);
+        cur.textContent = sk ? sk.name : '자동 배정';
+    }
+}
+
+function openSpinSkinModal() {
+    if (!amIReady()) { showCustomAlert('먼저 준비를 해주세요!', 'warning'); return; }
+    var m = document.getElementById('spinSkinModal');
+    if (m) m.style.display = 'block';
+    renderSkinPicker();
+}
+
+function closeSpinSkinModal() {
+    var m = document.getElementById('spinSkinModal');
+    if (m) m.style.display = 'none';
+    renderDispPicker();   // 현재 스킨 이름 갱신
+}
 
 // 투표 전송 — 박스 클릭 리스너(renderRankVote)가 부른다.
 function voteSpinRank(rank) {
@@ -536,9 +601,8 @@ function renderSkinPicker() {
     var picker = document.getElementById('spinSkinPicker');
     if (!picker) return;
 
-    // 리플레이 중에는 숨김
-    if (spinReplay.phase !== 'idle') { picker.style.display = 'none'; return; }
-    picker.style.display = 'block';
+    // 팝업 안에 있으므로 표시 제어는 모달이 한다. 진행 중이면 모달을 닫는다.
+    if (spinReplay.phase === 'playing') { closeSpinSkinModal(); return; }
 
     var ready = amIReady();
     var rc = readyCount();
@@ -2079,6 +2143,19 @@ function drawCountdownArena(ctx, payload, realMs, vp) {
 
         // 전투와 같은 머리 위 라벨 — 시작하는 순간 표시가 바뀌지 않게 한다(만HP).
         drawCharLabel(ctx, rx, ry, meta, 1, sc, isMe, false);
+        // 시작 전에만 세부 성향을 보여준다(전투 중엔 24명이면 과밀).
+        if (meta.dispSubLabel) {
+            ctx.save();
+            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            ctx.font = Math.max(9, Math.round(10 * sc)) + 'px sans-serif';
+            var subY = ry + (spriteOn ? spriteH * 0.5 : charR) + 4 * sc;
+            ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+            var txt = (meta.dispCat === 'def' ? '🛡️ ' : '⚔️ ') + meta.dispSubLabel;
+            ctx.strokeText(txt, rx, subY);
+            ctx.fillStyle = 'rgba(232,237,245,0.9)';
+            ctx.fillText(txt, rx, subY);
+            ctx.restore();
+        }
     }
 }
 
@@ -2151,7 +2228,7 @@ function startSpinReplay(payload, opts) {
     showSpinChatOverlay();
 
     // 빌드 UI(스킨/캐릭터/투표) 숨김, 캔버스 표시
-    ['spinSkinPicker', 'spinRankVote'].forEach(function (id) {
+    ['spinSkinModal', 'spinSkinBar', 'spinDispPicker', 'spinRankVote'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
@@ -2207,10 +2284,14 @@ function showSpinResult(result) {
             var isTarget = (targetName && nm === targetName);
             var isChamp = (championName && nm === championName);
             var cls = 'spin-rank-row' + (isTarget ? ' target' : '') + (isChamp ? ' champ' : '');
-            return '<div class="' + cls + '" title="' + escapeHtml(nm) + ' · ' + r.rank + '등">' +
+            var dispTxt = meta.dispSubLabel
+                ? ((meta.dispCat === 'def' ? '🛡️' : '⚔️') + ' ' + meta.dispSubLabel)
+                : '';
+            return '<div class="' + cls + '" title="' + escapeHtml(nm) + ' · ' + r.rank + '등' + (dispTxt ? ' · ' + dispTxt : '') + '">' +
                 '<span class="spin-rank-no">' + r.rank + '</span>' +
                 '<span class="spin-rank-dot" style="background:' + (meta.color || '#9aa3ad') + '"></span>' +
                 '<span class="spin-rank-name">' + escapeHtml(nm) + '</span>' +
+                (dispTxt ? '<span class="spin-rank-disp">' + dispTxt + '</span>' : '') +
                 (isChamp ? '<span class="spin-rank-badge">🏆</span>' : '') +
                 (isTarget ? '<span class="spin-rank-badge">⚔️</span>' : '') +
                 '</div>';
@@ -2245,6 +2326,11 @@ socket.on('spin-arena:skinsUpdated', function (data) {
     renderSkinPicker();
 });
 
+socket.on('spin-arena:dispositionsUpdated', function (data) {
+    spinDispositions = (data && data.dispositions) || {};
+    renderDispPicker();
+});
+
 socket.on('spin-arena:rankVotesUpdated', function (data) {
     spinRankVotes = (data && data.rankVotes) || {};
     renderRankVote();
@@ -2271,6 +2357,7 @@ socket.on('spin-arena:reveal', function (data) {
     stopSpinIdlePreview();
     renderSkinPicker();
     renderRankVote();
+    renderDispPicker();
     updateStartButton();
     updateReplayButton();
     // 재생 순서 = 서버 endTimeout 가산 순서와 동일: 등수 룰렛 → 3-2-1 카운트다운 → 전투.
@@ -2308,6 +2395,7 @@ socket.on('spin-arena:gameEnd', function (data) {
 socket.on('spin-arena:roundReset', function () {
     spinSkins = {};
     spinRankVotes = {};
+    spinDispositions = {};
     mySkinId = null;
     isSpinActive = false;
     if (spinReplay.isReplayMode && spinReplay.raf) {
@@ -2322,6 +2410,7 @@ socket.on('spin-arena:roundReset', function () {
 socket.on('spin-arena:gameAborted', function (data) {
     spinSkins = {};
     spinRankVotes = {};
+    spinDispositions = {};
     mySkinId = null;
     isSpinActive = false;
     enterSpinIdle();
@@ -2378,6 +2467,7 @@ function spinInitModules() {
     socket.emit('spin-arena:requestSkins');   // 입장/재입장 시 스킨·캐릭터·투표 동기화(미리보기 색 == 게임 색)
     renderSkinPicker();
     renderRankVote();
+    renderDispPicker();
     updateStartButton();
     startSpinIdlePreview();   // 경마처럼 입장 직후부터 아레나(게임판) 표시
 }

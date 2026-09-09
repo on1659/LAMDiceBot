@@ -273,6 +273,29 @@ function mkPayload(sim, targetRank) {
             } catch (e) { uiErr = e; }
             check(!uiErr, `${tag} renderRankVote 0-throw` + (uiErr ? ' — ' + uiErr.message : ''));
 
+            // 성향 패널 — 카드 2개(공격형/방어형), 내 선택에 .picked
+            let dispErr = null;
+            try {
+                ctx.currentUser = 'P0';
+                ctx.readyUsers = ['P0', 'P1'];
+                ctx.spinReplay.phase = 'idle';
+                ctx.spinDispositions = { P0: 'atk', P1: 'def' };
+                getEl('spinDispPicker').innerHTML = '';
+                ctx.renderDispPicker();
+            } catch (e) { dispErr = e; }
+            check(!dispErr, `${tag} renderDispPicker 0-throw` + (dispErr ? ' — ' + dispErr.message : ''));
+            if (!dispErr) {
+                const dh = getEl('spinDispPicker').innerHTML || '';
+                check((dh.match(/disp-card/g) || []).length === 2, `${tag} 성향 카드 2개`);
+                check(dh.indexOf('picked') >= 0, `${tag} 내 성향에 .picked`);
+                check(dh.indexOf('공격형') >= 0 && dh.indexOf('방어형') >= 0, `${tag} 공격형/방어형 표기`);
+            }
+
+            // 스킨 팝업 열고 닫기 — 모달 경로
+            let modalErr = null;
+            try { ctx.openSpinSkinModal(); ctx.closeSpinSkinModal(); } catch (e) { modalErr = e; }
+            check(!modalErr, `${tag} 스킨 팝업 open/close 0-throw` + (modalErr ? ' — ' + modalErr.message : ''));
+
             // 스킨 피커 — 고를 수 있는 색만 보여야 한다. 상점 모듈이 없으면 소유 0 → 무료 6색만.
             let skinErr = null;
             try {

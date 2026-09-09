@@ -146,8 +146,21 @@
                 <div id="spinRankVoteWarn" class="rank-vote-warn"></div>
             </div>
 
-            <!-- 회전 칼날 스킨 피커 (준비자만, idle 단계) -->
-            <div id="spinSkinPicker" style="display: none;"></div>
+            <!-- 성향 고르기 (준비자만, idle 단계) — 유저가 고르는 건 이것뿐. 세부 성향은 서버가 굴린다. -->
+            <div class="disp-section" id="spinDispPicker" style="display: none;"></div>
+
+            <!-- 스킨은 팝업으로 뺀다 — 빌드 화면에서 성향 선택과 시선을 다투지 않게. -->
+            <div id="spinSkinBar" style="display: none;">
+                <button type="button" class="spin-skin-open-btn" onclick="openSpinSkinModal()">🎨 스킨 고르기</button>
+                <span id="spinSkinCurrent" class="spin-skin-current"></span>
+            </div>
+            <div class="spin-modal" id="spinSkinModal" style="display: none;" role="dialog" aria-modal="true" aria-label="스킨 고르기">
+                <div class="spin-modal-backdrop" onclick="closeSpinSkinModal()"></div>
+                <div class="spin-modal-box">
+                    <button type="button" class="spin-modal-close" onclick="closeSpinSkinModal()" aria-label="닫기">✕</button>
+                    <div id="spinSkinPicker"></div>
+                </div>
+            </div>
 
             <!-- 꾸미기 상점 모달 마운트 (js/spin-shop.js가 채움) -->
             <div id="spinShopMount"></div>
