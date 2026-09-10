@@ -3295,6 +3295,7 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         // 라이브 진행 지점까지 고정 16ms 스텝으로 따라잡는다(catch-up).
         let pausedAt = document.hidden ? Date.now() : 0;
         let simulatedUpTo = 0;        // 시뮬레이션 커서 (마지막으로 stepRace가 처리한 elapsed)
+        let renderThisStep = true;    // 라이브 누적 스텝 중 마지막 스텝에서만 렌더 (animLoop가 세팅)
         let raceEnded = false;        // 종료 블록 1회 실행 보장 + catch-up 동기 루프 즉시 탈출 신호
         let weatherVisualDirty = false; // catch-up 중 날씨 변화 발생 — reconcile에서 최종 비주얼 1회 적용
         let finishOrderCounter = 0; // 도착 순서 카운터
@@ -3803,17 +3804,30 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
         }
 
         // JavaScript 기반 애니메이션 루프 (rAF로 vsync 동기화) — 프레임 타이밍 + stepRace 호출 + 재예약만 담당
+        // 라이브 루프도 catch-up과 같은 **고정 16ms 누적 스텝**으로 돈다.
+        // 예전엔 rAF 가변 dt(≤50ms)로 적분했는데, 서버는 16ms 고정이라 위치가 조금씩 어긋났고
+        // 그 오차가 결승선 순서를 뒤집어 finishStun(결승선 앞 자빠짐)을 판의 67%+에서 발동시켰다.
+        // 따라붙기(catch-up)로 접전이 잦아지면 이 오차가 더 자주 결승선을 가른다 — 그래서 없앤다.
+        // 16ms 스텝이면 lerp(1-0.95^1=0.05)·이동(×16)이 서버 산식과 동일해 드리프트가 0에 수렴한다.
+        // 렌더는 프레임당 1회(마지막 스텝)만. 스텝 상한은 예전 dt 상한(50ms)과 같은 뜻의 안전장치 —
+        // 더 긴 정지는 기존 숨김탭 pause/catch-up 경로가 맡는다.
+        const LIVE_STEPS_PER_FRAME_MAX = 4;
         function animLoop() {
             if (pausedAt > 0) {
                 animationFrameId = window._raceAnimFrameId = raceAnimWin().requestAnimationFrame(animLoop);
                 return; // 일시정지 중 (숨김 탭)
             }
             const now = Date.now();
-            const deltaTime = Math.min(now - lastFrameTime, 50);
-            lastFrameTime = now;
             const elapsed = now - startTime;
-            stepRace(deltaTime, elapsed);
-            if (raceEnded) return; // 종료 블록 실행됨 — 재예약 중단 (기존 흐름과 동일)
+            let steps = 0;
+            let t = simulatedUpTo + 16;
+            for (; t <= elapsed && steps < LIVE_STEPS_PER_FRAME_MAX; t += 16, steps++) {
+                renderThisStep = (t + 16 > elapsed) || (steps + 1 >= LIVE_STEPS_PER_FRAME_MAX);
+                stepRace(16, t);
+                if (raceEnded) return; // 종료 블록 실행됨 — 재예약 중단 (기존 흐름과 동일)
+            }
+            renderThisStep = true;
+            lastFrameTime = now;
             animationFrameId = window._raceAnimFrameId = raceAnimWin().requestAnimationFrame(animLoop);
         }
 
@@ -4068,6 +4082,15 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         }
                     }
                 }
+            }
+
+            // 따라붙기용 선두 — 서버(socket/horse.js)와 같은 정의: finishJudged 안 된 말 중 최대 위치.
+            // 말 루프 **전에** 한 번 잡는다. 루프 안에서 잡으면 먼저 움직인 말 기준이 돼 서버와 어긋난다.
+            const catchupConf = window._catchupConfig || null;
+            let catchupLeader = null;
+            if (catchupConf) {
+                const unj = horseStates.filter(s => !s.finishJudged);
+                catchupLeader = unj.length > 0 ? unj.reduce((a, b) => a.currentPos > b.currentPos ? a : b) : null;
             }
 
             horseStates.forEach(state => {
@@ -4442,7 +4465,12 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                         state.lastSpeedChange = state.simElapsed;
                         // 시드 기반 속도 변화 (0.7 ~ 1.3 범위)
                         const speedSeed = (state.speedChangeSeed + currentInterval) * 16807 % 2147483647;
-                        const speedFactor = 0.7 + (speedSeed % 600) / 1000;
+                        let speedFactor = 0.7 + (speedSeed % 600) / 1000;
+                        // 따라붙기 — 서버와 동일 식. 뒤처질수록 목표 속도가 올라간다 (선두는 0).
+                        if (catchupConf && catchupLeader && catchupLeader !== state) {
+                            const gapFrac = (catchupLeader.currentPos - state.currentPos) / totalDistance;
+                            if (gapFrac > 0) speedFactor *= 1 + Math.min(gapFrac * catchupConf.k, catchupConf.max);
+                        }
                         state.targetSpeed = state.baseSpeed * speedFactor;
                     }
 
@@ -4478,7 +4506,13 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
                 // 상위 순위 말이 아직 결승선 미통과 시 결승선 앞에서 fallen 연출
                 // 버퍼는 탈것별 동적 — 최종 정착 위치가 모든 탈것에서 finishLine - FALL_FINAL_GAP_PX 로 정렬됨
                 if (!state.finishJudged) {
-                    const higherRankedPending = horseStates.some(s => s.rank < state.rank && !s.finishJudged);
+                    // 상위 순위 말이 아직 판정 안 됐고 **나보다 뒤에 있을 때만** 자빠진다.
+                    // 예전엔 "판정 안 됨"만 봐서, 상위 말이 바로 앞에서 잘 달리는 중인데도 내가 120px 존에
+                    // 먼저 들어오면 넘어졌다 — 순서가 이미 맞는데도. 따라붙기로 접전이 잦아지자 판마다 발동했다.
+                    // 상위 말이 앞에 있으면 자연히 먼저 판정되므로 개입할 이유가 없다.
+                    const myEdge = state.currentPos + state.visualWidth;
+                    const higherRankedPending = horseStates.some(s =>
+                        s.rank < state.rank && !s.finishJudged && (s.currentPos + s.visualWidth) < myEdge);
                     const stunBuffer = (typeof getFinishStunBuffer === 'function')
                         ? getFinishStunBuffer(state.visualWidth)
                         : ((typeof FINISH_STUN_BUFFER_PX === 'number') ? FINISH_STUN_BUFFER_PX : 20);
@@ -4588,8 +4622,9 @@ function startRaceAnimation(horseRankings, speeds, serverGimmicks, onComplete, t
 
             maybeAnnounceEvolutionLead(horseStates);
 
-            // 렌더(카메라/스크롤/말 위치/미니맵) — catch-up 동기 루프 중에는 스킵하고 물리만 진행
-            if (!isCatchingUp) renderFrame();
+            // 렌더(카메라/스크롤/말 위치/미니맵) — catch-up 동기 루프 중에는 스킵하고 물리만 진행.
+            // 라이브 누적 스텝에서는 프레임의 마지막 스텝에서만 그린다.
+            if (!isCatchingUp && renderThisStep) renderFrame();
 
             // 종료 조건: 베팅된 말 중 뒤에서 두 번째가 완주하면 종료
             const totalHorses = horseStates.length;
@@ -7009,6 +7044,7 @@ socket.on('horseRaceStarted', (data) => {
     window._raceCosmetics = { room: data.roomCosmetics || null, horses: data.horseCosmetics || {}, labels: data.labelCosmetics || {} };
     raceLabelsFresh = false; // fresh 창 종료 — 다음 라운드 선택화면은 다시 내 로컬만(stale 누출 방지)
     window._slowMotionConfig = data.slowMotionConfig || null;
+    window._catchupConfig = data.catchupConfig || null; // 따라붙기 — 서버 물리와 동일 식으로 미러링
     // 날씨 설정 저장 — 히스토리 다시보기(playReplay)가 읽음 (record에는 weatherConfig가 없음)
     window._weatherConfig = data.weatherConfig || {};
     // N등 투표 결과 (null = fallback 'last')

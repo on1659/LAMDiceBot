@@ -258,6 +258,20 @@ function createRaceParams(horseCount, minDuration, maxDuration) {
 //   · 낮잠 2.2초면 발동 시 역전율 44~52%, 확정 시점이 2마리 0.35→0.50 / 3마리 0.60→0.75
 const DRAMA_CONFIG = horseConfig.drama || {};
 
+// ========== 따라붙기 (catch-up) ==========
+// "압도적 차이가 자꾸 나온다"의 직접 처방. 격차의 출처는 ±30% 요동 누적 + 기믹인데,
+// 요동은 고정 평균(baseSpeed)으로 되돌아오는 노이즈라 벌어진 격차를 좁힐 힘이 없다.
+// 따라붙기는 요동의 평균을 "선두와의 거리"에 건다: 뒤처질수록 목표 속도가 올라간다.
+//   speedFactor *= 1 + min(gapFrac * k, max)
+// 뒤처진 말이 누구든 똑같이 받으므로 대칭 = 등수 분포 균등 보존(공정성).
+// 실측(AutoTest/horse-race/measure-catchup.js, k=6 max 0.30):
+//   실주자 2  압도적 판(0.7 시점 격차≥5%) 63% → 26%, 확정 시점 0.30 → 0.70
+//   실주자 3  52% → 13%   실주자 4  38% → 11%
+// 클라(js/horse-race.js stepRace)가 같은 식을 같은 선두 정의로 계산한다 — 한쪽만 바꾸면 순위가 어긋난다.
+const CATCHUP_CONFIG = (horseConfig.catchup && horseConfig.catchup.enabled)
+    ? { k: horseConfig.catchup.k, max: horseConfig.catchup.max }
+    : null;
+
 // 낮잠을 넣을 대상과 지점을 고른다. 못 고르면 null(그 판은 드라마 없음).
 function planNapDrama(probes, stakeRank, runnerCount) {
     const cfg = DRAMA_CONFIG.nap || {};
@@ -316,7 +330,7 @@ function runningStyleShape(a, u) {
     return T * (1 + a * (2 * uu - 1));
 }
 
-async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false, raceParams = null, probeAtLeaderProgress = null, runningStyles = null) {
+async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOption, vehicleTypes = [], weatherSchedule = [], bettedHorsesMap = {}, allSameBet = false, raceParams = null, probeAtLeaderProgress = null, runningStyles = null, catchup = null) {
     // 트랙 길이 설정
     const preset = TRACK_PRESETS[trackLengthOption] || TRACK_PRESETS.medium;
     const trackDistanceMeters = preset.meters;
@@ -636,7 +650,13 @@ async function calculateHorseRaceResult(horseCount, gimmicksData, trackLengthOpt
                 if (currentInterval > lastInterval) {
                     state.lastSpeedChange = elapsed;
                     const seedVal = (state.speedChangeSeed + currentInterval) * 16807 % 2147483647;
-                    const speedFactor = 0.7 + (seedVal % 600) / 1000;
+                    let speedFactor = 0.7 + (seedVal % 600) / 1000;
+                    // 따라붙기 — 요동의 평균을 고정값이 아니라 "선두와의 거리"에 건다.
+                    // 뒤처진 말이 누구든 똑같이 받으므로 대칭 = 등수 분포 균등 보존.
+                    if (catchup && leader && leader !== state) {
+                        const gapFrac = (leader.currentPos - state.currentPos) / totalDistance;
+                        if (gapFrac > 0) speedFactor *= 1 + Math.min(gapFrac * catchup.k, catchup.max);
+                    }
                     state.targetSpeed = state.baseSpeed * speedFactor;
                 }
 
@@ -1112,7 +1132,7 @@ async function startHorse(room, gameState, io, ctx, opts = {}) {
 
     // 1패스 — 종반 위치 순서를 알아내기 위한 프로브를 함께 찍는다 (이 결과는 버려질 수 있다)
     const DRAMA_PROBES = [0.70, 0.75, 0.80, 0.85];
-    let raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, null, DRAMA_PROBES);
+    let raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, gimmicksData, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, null, DRAMA_PROBES, null, CATCHUP_CONFIG);
 
     // 2패스 — 원본 + 낮잠 하나로 같은 난수 파라미터에서 다시 돌린다. 이 결과가 최종.
     const nap = planNapDrama(raceResult.probes, stakeRank, runnerCount);
@@ -1125,7 +1145,7 @@ async function startHorse(room, gameState, io, ctx, opts = {}) {
             duration: nap.durationMs,
             speedMultiplier: 0
         }]);
-        raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, napGimmicks, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, raceResult.raceParams, DRAMA_PROBES);
+        raceResult = await calculateHorseRaceResult(gameState.availableHorses.length, napGimmicks, trackLengthOption, vehicleTypes, weatherSchedule, gameState.userHorseBets, allSameBet, raceResult.raceParams, DRAMA_PROBES, null, CATCHUP_CONFIG);
 
         // 클라에 보내는 기믹은 2패스가 실제로 쓴 것이어야 한다 — gimmicksData 내용을 통째로 교체.
         // (const 바인딩 유지: 아래 raceRecord.gimmicks가 같은 객체를 참조한다)
@@ -1281,6 +1301,7 @@ async function startHorse(room, gameState, io, ctx, opts = {}) {
         speedSeeds: speedSeeds,
         record: raceRecord,
         slowMotionConfig: horseConfig.slowMotion || { leader: { triggerDistanceM: 15, factor: 0.4 }, loser: { triggerDistanceM: 10, factor: 0.4 } },
+        catchupConfig: CATCHUP_CONFIG, // 클라 물리 미러링용 — null이면 꺼짐
         weatherConfig: weatherConfig.vehicleModifiers || {}, // 탈것별 날씨 보정값 (클라이언트 표시용)
         allSameBet: allSameBet,
         evolutionTargets: verifiedEvolutionTargets,
@@ -2409,6 +2430,7 @@ module.exports = function registerHorseHandlers(socket, io, ctx) {
 module.exports.canStart = canStartHorse;
 module.exports.start = startHorse;
 module.exports.planNapDrama = planNapDrama; // 측정/테스트용
+module.exports.CATCHUP_CONFIG = CATCHUP_CONFIG; // 측정/테스트용 — 게이트가 실제 설정으로 돌게
 module.exports.calculateHorseRaceResult = calculateHorseRaceResult; // 측정/테스트용 직접 호출 진입점
 module.exports.runningStyleShape = runningStyleShape;
 module.exports.HORSE_RACE_SIM_MAX_MS = HORSE_RACE_SIM_MAX_MS; // 테스트용 — 워치독 대기 시간을 리터럴 대신 여기서 파생한다

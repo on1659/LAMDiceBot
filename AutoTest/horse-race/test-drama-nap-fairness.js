@@ -13,6 +13,7 @@
 
 const horse = require('../../socket/horse.js');
 const calc = horse.calculateHorseRaceResult;
+const CATCHUP = horse.CATCHUP_CONFIG || null;   // 실제 설정 그대로 — 따라붙기가 켜져 있으면 켠 채로 잰다
 
 const RACES = parseInt(process.argv[2] || '1200', 10);
 const HORSE_COUNT = 6;
@@ -63,7 +64,7 @@ async function trial(runners, stakeRank) {
 
     for (let n = 0; n < RACES; n++) {
         const gimmicks = makeGimmicks(runners);
-        const p1 = await calc(HORSE_COUNT, gimmicks, 'medium', [], [], bets, false, null, PROBES);
+        const p1 = await calc(HORSE_COUNT, gimmicks, 'medium', [], [], bets, false, null, PROBES, null, CATCHUP);
         if (p1.probes.length === 0) continue;
         let final = p1;
 
@@ -82,7 +83,7 @@ async function trial(runners, stakeRank) {
                 g2[holder.horseIndex] = g2[holder.horseIndex].concat([{
                     progressTrigger: holder.progress, type: 'nap', duration: NAP_MS, speedMultiplier: 0
                 }]);
-                const p2 = await calc(HORSE_COUNT, g2, 'medium', [], [], bets, false, p1.raceParams, PROBES);
+                const p2 = await calc(HORSE_COUNT, g2, 'medium', [], [], bets, false, p1.raceParams, PROBES, null, CATCHUP);
                 if (p2.probes.length > 0) { final = p2; fired++; }
             }
         }
@@ -113,7 +114,7 @@ async function trial(runners, stakeRank) {
 }
 
 (async () => {
-    console.log(`=== D1 낮잠 공정성 게이트 (${RACES}판/조건, 낮잠 ${NAP_MS}ms, 발동률 ${FIRE_RATE}, 타깃 ${POLICY}) ===`);
+    console.log(`=== D1 낮잠 공정성 게이트 (${RACES}판/조건, 낮잠 ${NAP_MS}ms, 발동률 ${FIRE_RATE}, 타깃 ${POLICY}, 따라붙기 ${CATCHUP ? `k=${CATCHUP.k} max=${CATCHUP.max}` : '꺼짐'}) ===`);
     let ok = true;
     ok = await trial(2, 1) && ok;
     ok = await trial(3, 1) && ok;

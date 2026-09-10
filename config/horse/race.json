@@ -17,6 +17,11 @@
       "gapThresholdM": 15
     }
   },
+  "catchup": {
+    "enabled": true,
+    "k": 6,
+    "max": 0.30
+  },
   "drama": {
     "nap": {
       "enabled": true,
