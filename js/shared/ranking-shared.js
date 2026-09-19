@@ -159,6 +159,8 @@ const RankingModule = (function () {
             --rk-surface-hover: rgba(255,255,255,0.03);
             --rk-btn-bg: rgba(255,255,255,0.2);
             --rk-btn-hover: rgba(255,255,255,0.3);
+            --rk-me-line: rgba(255,215,0,0.6); /* --rk-gold 외곽선 */
+            --rk-me-bg: rgba(255,215,0,0.07);
 
             position: fixed; inset: 0; z-index: 9999;
             background: rgba(0,0,0,0.8); /* 백드롭 — 구 탈것 통계 모달 패리티, 페이지 라이트/다크 무관 고정 */
@@ -349,6 +351,20 @@ const RankingModule = (function () {
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .rk-top3 .rk-name { font-weight: 600; color: rgba(255,255,255,0.95); }
+        /* 내 행 — 남들과 같은 회색 행 사이에서 한눈에 찾히게 */
+        .rk-row.rk-me, .rk-cal-drow.rk-me {
+            background: var(--rk-me-bg);
+            box-shadow: inset 0 0 0 1px var(--rk-me-line);
+        }
+        .rk-row.rk-me:hover { background: var(--rk-me-bg); }
+        .rk-row.rk-me .rk-name { color: var(--rk-gold); font-weight: 700; }
+        .rk-me-badge {
+            display: inline-block; margin-left: 6px; padding: 0 6px;
+            border-radius: 8px; vertical-align: 1px;
+            border: 1px solid var(--rk-me-line);
+            font-size: 0.7em; font-weight: 700; line-height: 1.5;
+            color: var(--rk-gold); background: transparent;
+        }
         .rk-value {
             color: var(--rk-gold); font-size: 0.88em; font-weight: 600;
             white-space: nowrap;
@@ -688,6 +704,10 @@ const RankingModule = (function () {
             color: var(--rk-gold); font-weight: 600;
             max-width: 100%;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .rk-cal-winner.rk-cal-me, .rk-cal-more.rk-cal-me, .rk-cal-win .rk-cal-me {
+            padding: 0 3px; border-radius: 4px;
+            box-shadow: 0 0 0 1px var(--rk-me-line);
         }
         .rk-cal-more {
             font-size: 0.7em; color: var(--rk-text-muted);
@@ -1079,12 +1099,12 @@ const RankingModule = (function () {
         }
         let html = top10Label();
         const winsRanks = assignDisplayRanks(d.mostWins, r => r.wins);
-        html += section('승리 TOP', d.mostWins.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승`)));
+        html += section('승리 TOP', d.mostWins.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승`, isMe(r.name))));
         const rateRanks = assignDisplayRanks(d.winRate, r => r.winRate);
-        html += section('승률 TOP (5게임+)', d.winRate.map((r, i) => row(rateRanks[i], r.name, `${r.winRate}% (${r.wins}/${r.games})`)));
+        html += section('승률 TOP (5게임+)', d.winRate.map((r, i) => row(rateRanks[i], r.name, `${r.winRate}% (${r.wins}/${r.games})`, isMe(r.name))));
         if (d.avgRank && d.avgRank.length > 0) {
             const avgRanks = assignDisplayRanks(d.avgRank, r => r.avgRank);
-            html += section('평균 등수 TOP', d.avgRank.map((r, i) => row(avgRanks[i], r.name, `${r.avgRank}등 (TOP3: ${r.top3}회)`)));
+            html += section('평균 등수 TOP', d.avgRank.map((r, i) => row(avgRanks[i], r.name, `${r.avgRank}등 (TOP3: ${r.top3}회)`, isMe(r.name))));
         }
         html += myRankBlock();
         el.innerHTML = html;
@@ -1098,7 +1118,7 @@ const RankingModule = (function () {
         }
         let html = top10Label();
         const ranks = assignDisplayRanks(d.mostPlayed, r => r.games);
-        html += section('게임 참여 TOP', d.mostPlayed.map((r, i) => row(ranks[i], r.name, `${r.games}게임`)));
+        html += section('게임 참여 TOP', d.mostPlayed.map((r, i) => row(ranks[i], r.name, `${r.games}게임`, isMe(r.name))));
         html += myRankBlock();
         el.innerHTML = html;
     }
@@ -1111,8 +1131,8 @@ const RankingModule = (function () {
         let html = top10Label();
         const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
         const playRanks = assignDisplayRanks(d.players, r => r.games);
-        html += section(`${label} 승리 TOP`, d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
-        html += section(`${label} 참여 TOP`, d.players.map((r, i) => row(playRanks[i], r.name, `${r.games}게임`)));
+        html += section(`${label} 승리 TOP`, d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`, isMe(r.name))));
+        html += section(`${label} 참여 TOP`, d.players.map((r, i) => row(playRanks[i], r.name, `${r.games}게임`, isMe(r.name))));
         html += myRankBlock();
         el.innerHTML = html;
     }
@@ -1128,7 +1148,7 @@ const RankingModule = (function () {
         }
         const winsRanks = assignDisplayRanks(d.winners, r => r.wins);
         let html = top10Label();
-        html += section('경마 승리 TOP', d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`)));
+        html += section('경마 승리 TOP', d.winners.map((r, i) => row(winsRanks[i], r.name, `${r.wins}승 / ${r.games}게임`, isMe(r.name))));
         html += myRankBlock();
         el.innerHTML = html;
     }
@@ -1254,7 +1274,7 @@ const RankingModule = (function () {
         `;
     }
 
-    function row(rank, name, value) {
+    function row(rank, name, value, me) {
         let medal;
         if (rank === 1) {
             medal = '<span class="rk-medal rk-gold">1</span>';
@@ -1266,10 +1286,12 @@ const RankingModule = (function () {
             medal = `<span class="rk-rank-num">${rank}</span>`;
         }
         const top3Class = rank <= 3 ? ' rk-top3' : '';
+        const meClass = me ? ' rk-me' : '';
+        const meBadge = me ? '<span class="rk-me-badge">나</span>' : '';
         return `
-            <div class="rk-row${top3Class}">
+            <div class="rk-row${top3Class}${meClass}">
                 <span class="rk-rank">${medal}</span>
-                <span class="rk-name">${esc(name)}</span>
+                <span class="rk-name">${esc(name)}${meBadge}</span>
                 <span class="rk-value">${esc(value)}</span>
             </div>
         `;
@@ -1302,6 +1324,10 @@ const RankingModule = (function () {
                     <div class="rk-my-rank-body">${esc(parts.join(' · '))}</div>
                 </div>
             </div>`;
+    }
+
+    function isMe(name) {
+        return !!_userName && name === _userName;
     }
 
     function esc(str) {
@@ -1708,7 +1734,8 @@ const RankingModule = (function () {
             if (order.indexOf(n) === -1) order.push(n); // 같은 사람이 여러 판 이겨도 첫 등장 순서 유지
         }));
         if (!order.length) return null;
-        return { shown: order.slice(0, CAL_CELL_NAMES), hasMore: order.length > CAL_CELL_NAMES };
+        // 내 이름이 "+" 뒤로 접히면 "+"를 내 색으로 — 그 날 이긴 걸 칸에서도 알 수 있게
+        return { shown: order.slice(0, CAL_CELL_NAMES), hasMore: order.length > CAL_CELL_NAMES, hiddenMe: order.slice(CAL_CELL_NAMES).some(isMe) };
     }
 
     async function fetchCalendar(key) {
@@ -1785,8 +1812,8 @@ const RankingModule = (function () {
             if (list) {
                 const sum = calDaySummary(list);
                 const body = sum
-                    ? sum.shown.map(n => `<span class="rk-cal-winner">${esc(n)}</span>`).join('')
-                        + (sum.hasMore ? '<span class="rk-cal-more">+</span>' : '')
+                    ? sum.shown.map(n => `<span class="rk-cal-winner${isMe(n) ? ' rk-cal-me' : ''}">${esc(n)}</span>`).join('')
+                        + (sum.hasMore ? `<span class="rk-cal-more${sum.hiddenMe ? ' rk-cal-me' : ''}">+</span>` : '')
                     : '<span class="rk-cal-nowin">-</span>';
                 // 날짜 아래 남은 공간에 가운데 정렬 — 1명이면 가운데, 2명+ 는 꽉 차서 위로 붙는다
                 inner = `<div class="rk-cal-names">${body}</div>`;
@@ -1823,10 +1850,11 @@ const RankingModule = (function () {
         const wd = CAL_WEEKDAYS[new Date(Date.UTC(yy, mm - 1, dd)).getUTCDay()];
         const rows = list.map((s, i) => {
             const label = CAL_GAME_LABELS[s.gameType] || '🎮 기타 게임';
+            const won = !!(s.winners && s.winners.some(isMe));
             const winners = (s.winners && s.winners.length)
-                ? `<span class="rk-cal-win">👑 ${esc(s.winners.join(', '))}</span>`
+                ? `<span class="rk-cal-win">👑 ${s.winners.map(n => `<span${isMe(n) ? ' class="rk-cal-me"' : ''}>${esc(n)}</span>`).join(', ')}</span>`
                 : '<span class="rk-cal-win rk-cal-nowin">당첨자 없음</span>';
-            return `<div class="rk-cal-drow">
+            return `<div class="rk-cal-drow${won ? ' rk-me' : ''}">
                 <span class="rk-cal-seq">${i + 1}차</span>
                 <span class="rk-cal-game">${label}</span>
                 ${winners}
