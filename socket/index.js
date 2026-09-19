@@ -9,6 +9,7 @@ const registerBridgeCrossHandlers = require('./bridge-cross');
 const registerLadderHandlers = require('./ladder');
 const registerSpinArenaHandlers = require('./spin-arena');
 const registerPirateHandlers = require('./pirate');
+const registerMarbleHandlers = require('./marble');
 const registerFreeHandlers = require('./free');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
@@ -210,6 +211,7 @@ function setupSocketHandlers(io, rooms) {
         registerLadderHandlers(socket, io, ctx);
         registerSpinArenaHandlers(socket, io, ctx);
         registerPirateHandlers(socket, io, ctx);
+        registerMarbleHandlers(socket, io, ctx);
         registerFreeHandlers(socket, io, ctx);
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);

@@ -28,7 +28,8 @@ const GAME_LABELS = {
     bridge:       '다리건너기',
     ladder:       '사다리타기',
     'spin-arena': '회전 칼날',
-    pirate:       '해적 룰렛'
+    pirate:       '해적 룰렛',
+    marble:       '마블런'
 };
 const GAME_EMOJI = {
     dice:         '🎲',
@@ -37,7 +38,8 @@ const GAME_EMOJI = {
     bridge:       '🌉',
     ladder:       '🪜',
     'spin-arena': '⚔️',
-    pirate:       '🏴‍☠️'
+    pirate:       '🏴‍☠️',
+    marble:       '🐾'
 };
 
 // free.html 캐시 — mtime이 바뀌면 다시 읽는다 (dev에서 편집 즉시 반영).

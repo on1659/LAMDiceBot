@@ -120,6 +120,20 @@ function createRoomGameState() {
             deadlineTimeout: null,
             resetTimeout: null
         },
+        marble: {
+            phase: 'idle',          // idle | playing | finished
+            picks: {},              // { userName: creatureId }  creatureId ∈ hedgehog|armadillo|pillbug|turtle|panda
+            ballsPerPlayer: 3,      // 호스트 설정 인당 공 수(1~10)
+            participants: [],       // 시작 시점 사람 참가자 이름
+            timeline: null,         // server-only: 시뮬 타임라인 { track, sampleMs, frames, events, finishOrder, simEndMs } (재진입 마스킹 대상 — reveal 1회 외 비노출)
+            result: null,           // server-only: { selected, rankings, successionList } (selected = 마지막 공 주인 = 당첨)
+            seed: 0,                // server-only
+            round: 0,
+            history: [],
+            isActive: false,
+            endTimeout: null,
+            resetTimeout: null
+        },
     };
 }
 

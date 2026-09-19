@@ -21,7 +21,7 @@ const freeShortcodeLimiter = _rateLimit ? _rateLimit({
     message: { error: 'too_many_requests' }
 }) : (req, res, next) => next();
 
-const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'bridge', 'ladder', 'spin-arena', 'pirate'];
+const FREE_GAME_SLUGS = ['dice', 'roulette', 'horse', 'bridge', 'ladder', 'spin-arena', 'pirate', 'marble'];
 
 // 광고 노출 측정 — IP당 분당 60회 제한 (Phase D)
 // 페이지 진입 시 1회 ping이지만 봇/연속 새로고침 등 대비.
@@ -116,6 +116,14 @@ function setupRoutes(app) {
         res.sendFile(path.join(__dirname, '..', 'pirate-multiplayer.html'));
     });
 
+    // 마블런 (marble)
+    app.get('/marble', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(path.join(__dirname, '..', 'marble-multiplayer.html'));
+    });
+
     const freeHtmlPath = path.join(__dirname, '..', 'free.html');
 
     // 방 링크(자유 방·서버 방 공통) — free.html의 OG 메타를 방 정보로 교체해 내려준다.
@@ -169,7 +177,8 @@ function setupRoutes(app) {
         '/bridge-cross': 'bridge',
         '/ladder':       'ladder',
         '/spin-arena':   'spin-arena',
-        '/pirate':       'pirate'
+        '/pirate':       'pirate',
+        '/marble':       'marble'
     };
     Object.entries(SERVER_ROOM_DIRECT_PATHS).forEach(([gamePath, game]) => {
         app.get(`${gamePath}/:shortcode([A-Z0-9]{4,6})`, freeShortcodeLimiter, (req, res) => {
@@ -200,7 +209,8 @@ function setupRoutes(app) {
             gs.isHorseRaceActive ||
             (gs.bridgeCross && gs.bridgeCross.phase && gs.bridgeCross.phase !== 'idle' && gs.bridgeCross.phase !== 'finished') ||
             (gs.ladder && gs.ladder.phase && gs.ladder.phase !== 'idle' && gs.ladder.phase !== 'finished') ||
-            (gs.spinArena && gs.spinArena.phase === 'playing')
+            (gs.spinArena && gs.spinArena.phase === 'playing') ||
+            (gs.marble && gs.marble.phase === 'playing')
         );
 
         // 서버 방이면 isPrivateServer만 조회 (참여코드 모달 분기에 필요).
@@ -318,6 +328,11 @@ function setupRoutes(app) {
         return res.redirect(301, `/pirate${query}`);
     });
 
+    app.get('/marble-multiplayer.html', (req, res) => {
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        return res.redirect(301, `/marble${query}`);
+    });
+
     // SEO 페이지 구 URL 301 리디렉트 (루트 → /pages/)
     const seoPages = [
         'about-us', 'changelog', 'contact',
@@ -406,7 +421,7 @@ function setupRoutes(app) {
         try {
             const pool = getPool();
             const visitorStats = getVisitorStats();
-            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 } };
+            const defaultGameStats = { dice: { count: 0, totalParticipants: 0 }, roulette: { count: 0, totalParticipants: 0 }, 'horse-race': { count: 0, totalParticipants: 0 }, ladder: { count: 0, totalParticipants: 0 }, 'spin-arena': { count: 0, totalParticipants: 0 }, 'pirate': { count: 0, totalParticipants: 0 }, 'marble': { count: 0, totalParticipants: 0 } };
             let gameStats = { ...defaultGameStats };
             let recentPlays = [];
             if (pool) {

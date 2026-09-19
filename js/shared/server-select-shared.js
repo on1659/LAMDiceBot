@@ -858,6 +858,7 @@ const ServerSelectModule = (function () {
         localStorage.setItem('ladderUserName', name);
         localStorage.setItem('spinArenaUserName', name);
         localStorage.setItem('pirateUserName', name);
+        localStorage.setItem('marbleUserName', name);
         localStorage.setItem('freeUserName', name);
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) {
@@ -942,6 +943,7 @@ const ServerSelectModule = (function () {
         localStorage.removeItem('ladderUserName');
         localStorage.removeItem('spinArenaUserName');
         localStorage.removeItem('pirateUserName');
+        localStorage.removeItem('marbleUserName');
         localStorage.removeItem('freeUserName');
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) {

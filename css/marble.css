@@ -1,0 +1,336 @@
+/* 마블런(marble) 전용 스타일 + 공통 변수 alias.
+   공통 레이아웃은 horse-race.css에 의존(.container, .users-section, .chat-section, .history-section, .result-overlay 등) →
+   horse-race.css가 쓰는 var(--horse-*)를 marble 색으로 alias. 페이지별 stylesheet link라 경마 페이지엔 무영향.
+   색 토큰(--marble-500/-600/-accent/-500-rgb)은 theme.css(라이트/다크)에 정의. */
+
+:root {
+    /* 게임 전용 토큰 */
+    --marble-gradient: linear-gradient(135deg, #6cbf5a 0%, #2f9e6b 100%);
+    --marble-50: rgba(var(--marble-500-rgb), 0.08);
+    --marble-100: rgba(var(--marble-500-rgb), 0.16);
+    --marble-200: rgba(var(--marble-500-rgb), 0.24);
+    --marble-sky: #bfe7ff;
+
+    /* horse-race.css가 사용하는 var(--horse-*)를 marble 색으로 alias (C-4) */
+    --horse-500: var(--marble-500);
+    --horse-600: var(--marble-600);
+    --horse-700: var(--marble-600);
+    --horse-accent: var(--marble-accent);
+    --horse-gradient: var(--marble-gradient);
+    --horse-50: var(--marble-50);
+    --horse-100: var(--marble-100);
+    --horse-200: var(--marble-200);
+}
+
+/* ⚠️ C-1: Tailwind CDN의 .container responsive(데스크톱 1280px)가 horse-race.css 800px override → 강제 */
+.container {
+    max-width: 800px !important;
+}
+
+/* ⚠️ C-2: horse-race.css는 .game-section { display:none } + .active 토글. 진입 즉시 표시 강제(LoadingScreen z-index 9999가 가림). */
+.game-section {
+    display: block;
+}
+
+/* ===== 동물 선택 (대기 중) ===== */
+#marblePickSection {
+    margin: 0 0 20px;
+    padding: 14px 12px 12px;
+    background: var(--bg-primary);
+    border: 2px solid var(--marble-100);
+    border-radius: 12px;
+}
+
+.marble-pick-title {
+    font-weight: bold;
+    color: var(--marble-accent);
+    font-size: 16px;
+    margin-bottom: 10px;
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.marble-pick-title #marblePickHint {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: normal;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
+.marble-picker {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.marble-creature-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    min-width: 92px;
+    flex: 1 1 0;
+    max-width: 140px;
+    margin: 0;
+    padding: 10px 8px 8px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    border: 2px solid var(--gray-300);
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.marble-creature-btn:hover {
+    border-color: var(--marble-500);
+    transform: translateY(-2px);
+}
+.marble-creature-btn:focus-visible {
+    outline: 3px solid var(--marble-accent);
+    outline-offset: 2px;
+}
+.marble-creature-btn.selected {
+    border-color: var(--marble-500);
+    background: var(--marble-50);
+    box-shadow: 0 0 0 3px var(--marble-200), 0 6px 16px rgba(var(--marble-500-rgb), 0.28);
+}
+.marble-creature-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.marble-creature-icon {
+    width: 56px;
+    height: 56px;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* 같은 동물을 고른 사람 수 배지 (JS가 채움) */
+.marble-creature-btn .pick-count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: var(--marble-accent);
+    color: var(--bg-white);
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 22px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.marble-pick-status {
+    margin-top: 10px;
+    min-height: 18px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* ===== 호스트 설정 (1인당 동물 수) ===== */
+.marble-host-settings {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    background: var(--marble-50);
+    border-radius: 8px;
+}
+.marble-host-settings label {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.marble-host-settings label strong {
+    color: var(--marble-accent);
+    font-size: 16px;
+}
+.marble-host-settings input[type="range"] {
+    flex: 1 1 100%;
+    width: 100%;
+    margin: 0;
+    accent-color: var(--marble-500);
+    cursor: pointer;
+}
+.marble-balls-note {
+    flex: 1 1 100%;
+    font-size: 12px;
+    color: var(--text-muted);
+    min-height: 14px;
+}
+
+/* ===== 경주 캔버스 ===== */
+#marbleStage {
+    margin: 0 0 20px;
+}
+
+#marbleCanvasBox {
+    position: relative;
+    width: 100%;
+}
+
+#marbleCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 12px;
+    background: var(--marble-sky);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* 캔버스 위 HUD (JS가 채움) — 클릭은 캔버스로 통과 */
+#marbleHud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    color: var(--bg-white);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#marbleFullscreenBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 18px;
+    line-height: 36px;
+    text-align: center;
+    cursor: pointer;
+    z-index: 2;
+    transition: background 0.15s ease;
+}
+#marbleFullscreenBtn:hover {
+    background: rgba(0, 0, 0, 0.65);
+}
+#marbleFullscreenBtn:focus-visible {
+    outline: 2px solid var(--marble-accent);
+}
+
+/* 전체화면: 캔버스가 화면을 채우되 비율 유지 */
+#marbleCanvasBox:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#marbleCanvasBox:fullscreen #marbleCanvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0;
+    box-shadow: none;
+}
+#marbleCanvasBox:fullscreen #marbleFullscreenBtn {
+    top: 12px;
+    right: 12px;
+}
+/* Safari(-webkit-) */
+#marbleCanvasBox:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#marbleCanvasBox:-webkit-full-screen #marbleCanvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* ===== 모바일 ===== */
+@media (max-width: 600px) {
+    #marblePickSection {
+        padding: 12px 8px 10px;
+    }
+    .marble-pick-title {
+        font-size: 15px;
+    }
+    .marble-pick-title #marblePickHint {
+        display: block;
+        margin: 2px 0 0;
+        font-size: 11px;
+    }
+    /* 3 + 2 줄바꿈 */
+    .marble-picker {
+        gap: 8px;
+    }
+    .marble-creature-btn {
+        flex: 0 0 calc((100% - 16px) / 3);
+        min-width: 0;
+        max-width: none;
+        padding: 8px 4px 6px;
+        font-size: 12px;
+    }
+    .marble-creature-icon {
+        width: 44px;
+        height: 44px;
+    }
+    .marble-host-settings label {
+        font-size: 13px;
+    }
+    #marbleFullscreenBtn {
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        font-size: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .marble-creature-btn,
+    #marbleFullscreenBtn {
+        transition: none;
+    }
+    .marble-creature-btn:hover {
+        transform: none;
+    }
+}
+
+/* 결과 오버레이 */
+.marble-result-selected {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--red-500);
+    margin-bottom: 10px;
+}
+.marble-result-safe {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+.marble-result-safe b {
+    color: var(--marble-600);
+}

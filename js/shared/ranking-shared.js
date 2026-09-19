@@ -31,7 +31,8 @@ const RankingModule = (function () {
         'ladder': '🪜 사다리타기',
         'pirate': '🏴‍☠️ 해적 룰렛',
         'spin-arena': '🌀 회전 칼날',
-        'bridge': '🌉 다리 건너기'
+        'bridge': '🌉 다리 건너기',
+        'marble': '🐾 마블런'
     };
     const CAL_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
