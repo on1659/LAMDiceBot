@@ -783,6 +783,17 @@ const ServerSelectModule = (function () {
         PageHistoryManager.replacePage('serverSelect');
         if (loggedIn) _emitGetServers();
 
+        // 서버 방 링크에서 미로그인으로 넘어온 경우 — 로그인 모달을 바로 띄운다 (성공 시 doApiCall이 링크로 복귀).
+        // 이미 로그인돼 있으면(다른 탭에서 로그인 등) 묵은 링크만 버린다.
+        if (_hasReturnLink()) {
+            if (loggedIn) {
+                _takeReturnLink();
+            } else {
+                _showToast('서버 방 링크는 로그인이 필요해요. 계정이 없으면 회원가입 후 자동으로 이동해요.');
+                _authModal({ title: '🔑 로그인하면 방으로 들어가요', confirmText: '로그인', apiUrl: '/api/auth/login' });
+            }
+        }
+
         // 튜토리얼 — 로그인: 서버 flags로 자동 시작, 비로그인: ? 버튼 애니메이션 유도
         if (typeof TutorialModule !== 'undefined') {
             if (loggedIn && _socket) {
@@ -847,6 +858,8 @@ const ServerSelectModule = (function () {
 
     // ─── 이름(로그인) 관리 ───
 
+    // 계정 이름 미러 — userName + 게임별 키(페이지 진입 프리필 계약).
+    // 자유 별명 freeUserName은 여기서도 logout()에서도 절대 건드리지 않는다 (두 정체성 완전 분리).
     function _saveName(name) {
         if (!name) return;
         localStorage.setItem('userName', name);
@@ -858,12 +871,12 @@ const ServerSelectModule = (function () {
         localStorage.setItem('ladderUserName', name);
         localStorage.setItem('spinArenaUserName', name);
         localStorage.setItem('pirateUserName', name);
-        localStorage.setItem('freeUserName', name);
         const globalInput = document.getElementById('globalUserNameInput');
-        if (globalInput) {
+        // 서버 모드에서만 계정 이름 대입 + 잠금. 자유 모드 입력란은 자유 별명이라 손대지 않는다
+        // (세션 복원 시점엔 _currentServer가 아직 null — 서버 모드 잠금은 dice 페이지 IIFE가 맡는다).
+        if (globalInput && _isLoggedIn() && _currentServer && _currentServer.id) {
             globalInput.value = name;
-            // 잠금 대칭: 서버 모드 + 로그인일 때만 잠금, 그 외(자유 모드·비로그인)는 항상 편집 가능 보장
-            globalInput.readOnly = !!(_isLoggedIn() && _currentServer && _currentServer.id);
+            globalInput.readOnly = true;
         }
         const nicknameInput = document.getElementById('nickname-input');
         if (nicknameInput) nicknameInput.value = name;
@@ -932,7 +945,7 @@ const ServerSelectModule = (function () {
 
     function logout() {
         localStorage.removeItem('userAuth');
-        // _saveName이 쓰는 10키와 대칭으로 제거 (드리프트 잔존 방지)
+        // _saveName이 쓰는 9키와 대칭으로 제거 (드리프트 잔존 방지). freeUserName은 자유 별명이라 유지
         localStorage.removeItem('userName');
         localStorage.removeItem('diceUserName');
         localStorage.removeItem('diceGameUserName');
@@ -942,7 +955,6 @@ const ServerSelectModule = (function () {
         localStorage.removeItem('ladderUserName');
         localStorage.removeItem('spinArenaUserName');
         localStorage.removeItem('pirateUserName');
-        localStorage.removeItem('freeUserName');
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) {
             globalInput.value = '';
@@ -1010,6 +1022,12 @@ const ServerSelectModule = (function () {
                 modal.remove();
                 // 서버 응답의 정규화 이름으로 저장 (입력값 표기 편차가 게임 키에 남지 않게)
                 _saveName((result.user && result.user.name) || name);
+                // 서버 방 링크에서 미로그인으로 넘어온 경우 — 로그인/가입 성공 즉시 그 링크로 복귀 (free.js가 저장)
+                const returnLink = _takeReturnLink();
+                if (returnLink) {
+                    window.location.href = returnLink;
+                    return;
+                }
                 _showToast(title.includes('회원') ? '회원가입 성공!' : '로그인 성공!');
                 if (typeof TutorialModule !== 'undefined' && _socket) {
                     TutorialModule.setUser(_socket, name);
@@ -1063,6 +1081,22 @@ const ServerSelectModule = (function () {
 
     function _isLoggedIn() {
         return !!localStorage.getItem('userAuth');
+    }
+
+    // 서버 방 링크 복귀 — js/free.js가 미로그인 진입 시 sessionStorage.lamdice_returnAfterLogin에 경로를 저장한다.
+    // 같은 오리진 경로만 인정(`/`로 시작, `//` 제외). 읽는 즉시 지운다 (1회용).
+    function _takeReturnLink() {
+        let link = null;
+        try {
+            link = sessionStorage.getItem('lamdice_returnAfterLogin');
+            sessionStorage.removeItem('lamdice_returnAfterLogin');
+        } catch (e) {}
+        if (!link || link.charAt(0) !== '/' || link.charAt(1) === '/') return null;
+        return link;
+    }
+
+    function _hasReturnLink() {
+        try { return !!sessionStorage.getItem('lamdice_returnAfterLogin'); } catch (e) { return false; }
     }
 
     function _requireName() {
@@ -1151,50 +1185,6 @@ const ServerSelectModule = (function () {
     function selectFree() {
         // 자유 모드 — /free 페이지로 이동해 별도 자유 로비로 진입한다.
         window.location.href = '/free';
-    }
-
-    function _showNameModal() {
-        const existingName = _getUserName() || '';
-        const modal = document.createElement('div');
-        modal.className = 'ss-name-modal';
-        modal.id = 'ss-name-modal';
-        modal.innerHTML = `
-            <div class="ss-name-box">
-                <h3>🎲 자유 플레이</h3>
-                <input type="text" id="ss-name-input" placeholder="닉네임 입력" maxlength="20" value="${escapeStr(existingName)}" />
-                <div class="ss-name-btns">
-                    <button class="ss-name-cancel" onclick="document.getElementById('ss-name-modal').remove()">취소</button>
-                    <button class="ss-name-confirm" id="ss-name-confirm">시작!</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        const nameInput = document.getElementById('ss-name-input');
-        nameInput.focus();
-        nameInput.select();
-
-        function doStart() {
-            const name = nameInput.value.trim();
-            if (!name) { nameInput.style.borderColor = 'var(--red-500)'; return; }
-            modal.remove();
-            if (_isLoggedIn()) {
-                // 로그인 상태의 자유 플레이 별명 — 계정 연동 키(게임별 *UserName)를 오염시키지 않게 2키만 기록
-                localStorage.setItem('freeUserName', name);
-                localStorage.setItem('userName', name);
-                const globalInput = document.getElementById('globalUserNameInput');
-                if (globalInput) globalInput.value = name;
-                const nicknameInput = document.getElementById('nickname-input');
-                if (nicknameInput) nicknameInput.value = name;
-            } else {
-                _saveName(name);
-            }
-            hide();
-            PageHistoryManager.pushPage('lobby');
-            if (_onSelect) _onSelect({ serverId: null, serverName: null });
-        }
-
-        nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doStart(); });
-        document.getElementById('ss-name-confirm').addEventListener('click', doStart);
     }
 
     function selectServer(id, name, isPrivate, isMember, isPending) {

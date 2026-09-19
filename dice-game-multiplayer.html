@@ -2504,9 +2504,10 @@
                     } catch(e2) {}
                 }
             } catch(e) {}
-            // 유저 이름 (auth 우선, localStorage 폴백)
-            const _authData = localStorage.getItem('userAuth');
-            const userName = _authData ? (JSON.parse(_authData).name || '') : (localStorage.getItem('userName') || '');
+            // 유저 이름 — 서버 모드는 계정 이름(userAuth), 자유 모드는 자유 별명(freeUserName). 두 정체성은 섞지 않는다
+            const userName = currentServerId
+                ? (getAuthedName() || localStorage.getItem('userName') || '')
+                : (localStorage.getItem('freeUserName') || '');
             // 소켓에 서버 ID 설정 (방 목록 필터링 + 입장 검증용)
             if (currentServerId) {
                 socket.emit('setServerId', { serverId: currentServerId, userName });
@@ -2547,11 +2548,11 @@
                     // 자유 모드 — 프리필만, 로그인해도 편집 가능 (readonly 금지)
                     globalInput.value = userName;
                 }
-                // 자유 모드 닉네임 변경 시 localStorage + diceSession 동기화
+                // 자유 모드 닉네임 변경 시 freeUserName + diceSession 동기화 (서버 모드는 readOnly라 발생하지 않음)
                 globalInput.addEventListener('change', () => {
                     const v = globalInput.value.trim();
                     if (!v) return;
-                    localStorage.setItem('userName', v);
+                    localStorage.setItem('freeUserName', v);
                     try {
                         const ds = JSON.parse(sessionStorage.getItem('diceSession') || '{}');
                         ds.hostName = v;
@@ -4584,15 +4585,16 @@
                     globalNameInput.value = authedName;
                     globalNameInput.readOnly = true;
                 } else {
-                    // localStorage에서 이름 불러오기 (자유 모드 — 로그인해도 편집 가능, 기존 동작 유지)
-                    const savedName = localStorage.getItem('diceGameUserName');
+                    // 자유 모드 — 자유 별명(freeUserName) 프리필 (로그인해도 편집 가능, 계정 이름과 무관)
+                    const savedName = localStorage.getItem('freeUserName');
                     if (savedName) {
                         globalNameInput.value = savedName;
                     }
                 }
 
-                // 이름이 변경될 때마다 유효성 검사 및 localStorage에 저장
+                // 이름이 변경될 때마다 유효성 검사 및 freeUserName 저장 (자유 모드 전용 — 서버 모드는 계정 이름 고정)
                 globalNameInput.addEventListener('input', () => {
+                    if (currentServerId) return;
                     const userName = globalNameInput.value.trim();
                     
                     // 유효성 검사
@@ -4608,22 +4610,23 @@
                         }
                         globalNameInput.style.borderColor = '';
                         
-                        // 유효한 이름만 localStorage에 저장
+                        // 유효한 이름만 저장
                         if (userName) {
-                            localStorage.setItem('diceGameUserName', userName);
+                            localStorage.setItem('freeUserName', userName);
                         }
                     }
                 });
-                
-                // 포커스 아웃 시 유효하지 않은 문자 자동 제거 (사용자 편의)
+
+                // 포커스 아웃 시 유효하지 않은 문자 자동 제거 (사용자 편의, 자유 모드 전용)
                 globalNameInput.addEventListener('blur', () => {
+                    if (currentServerId) return;
                     const userName = globalNameInput.value.trim();
                     if (userName && !validateUserId(userName)) {
                         // 유효하지 않은 문자 제거 (한글+자모음, 영문 소문자, 숫자, _, - 유지)
                         const cleaned = userName.toLowerCase().replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-z0-9_-]/g, '');
                         globalNameInput.value = cleaned;
                         if (cleaned) {
-                            localStorage.setItem('diceGameUserName', cleaned);
+                            localStorage.setItem('freeUserName', cleaned);
                         }
                         if (userNameError) {
                             userNameError.style.display = 'none';
@@ -4688,8 +4691,8 @@
             const originalName = globalNameInput ? globalNameInput.value.trim() : '';
             if (originalName && originalName !== data.userName) {
                 showCustomAlert(`중복된 이름이 있어 "${data.userName}"(으)로 입장합니다.`, 'info');
-                // 로컬 저장소에도 변경된 이름 저장
-                localStorage.setItem('diceGameUserName', data.userName);
+                // 자유 모드만 별명 저장 — 서버 모드 정체성은 계정 이름이라 변형 이름을 남기지 않는다
+                if (!currentServerId) localStorage.setItem('freeUserName', data.userName);
                 if (globalNameInput) {
                     globalNameInput.value = data.userName;
                 }

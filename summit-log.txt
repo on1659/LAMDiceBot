@@ -1,4 +1,83 @@
 ========================================
+📋 Summit Log - 2026-09-20 (자유 별명·계정 이름 완전 분리 + 서버 방 링크 로그인 복귀 + 랭킹 내 행 강조)
+========================================
+
+## 변경 파일
+- js/shared/server-select-shared.js: _saveName/logout이 freeUserName을 건드리지 않음, _saveName 입력란 대입은 서버 모드 한정, 죽은 _showNameModal 삭제, show()에서 복귀 링크 감지 시 로그인 모달 자동 오픈, doApiCall 성공 시 링크 복귀 (_takeReturnLink/_hasReturnLink 추가)
+- js/free.js: 서버 방 링크는 userAuth.name만 사용(미로그인 → 로비 로그인 후 복귀), getStoredUserName은 freeUserName만, userName·게임별 *UserName 기록 제거(USERNAME_KEY_BY_TYPE 삭제), "다른 이름"은 afterNameConfirmed로 같은 방 합류, #freeDirectLoading z-index 50→40
+- dice-game-multiplayer.html: 로비 복원 시 서버 모드=계정명 / 자유 모드=freeUserName, 자유 모드 입력란 프리필·input·blur·change·중복개명 저장을 freeUserName으로, 서버 모드에선 입력 핸들러 early-return
+- js/shared/ranking-shared.js: 내 행 강조(.rk-me, 「나」 배지), 승자 달력 내 이름/접힌 "+"/상세 행 강조 (isMe)
+- AutoTest/qa-identity-separation-test.js: [신규] Playwright + DB 시드 라이브 테스트 6 시나리오
+- docs/goal/applied/identity-separation.md: [신규] 명세 (Stop 훅이 applied/로 이동)
+- .claude/hooks/check-main-branch.sh: CRLF → LF (bash 문법 오류로 Write/Edit 훅이 매번 실패하던 것)
+
+## 상세 변경 내역
+
+### [버그 수정: 로그인 유저의 서버 방 다이렉트 링크가 비멤버로 튕기던 문제]
+- 증상(2026-09-07 안성훈): 로그인한 유저가 자유 플레이에서 별명 "안"을 쓴 뒤 서버 방 링크(/horse-race/CODE)를
+  열면 「아직 이 서버의 멤버가 아니에요」 → 가입 신청 모달 → 취소 → /game. 방은 살아 있고 그 사람만 실패,
+  서버 로그 무흔적, 재로그인하면 해결.
+- 원인: js/free.js getStoredUserName이 `freeUserName || userName`을 읽어 그 별명으로 check-member를 호출.
+  별명은 로비 자유 플레이 진입과 free.js 자유 흐름이 freeUserName/userName에 남긴 것.
+  더 큰 누수: ServerSelectModule.init의 세션 복원이 매 로비 로드마다 _saveName(계정명)을 호출해
+  freeUserName과 자유 로비 입력란까지 계정명으로 덮음(로그인 시점만이 아님). 즉 두 정체성이 양방향으로 섞였다.
+- 결정(사용자, 2026-09-19): 동기화가 아니라 완전 분리. 서버 정체성 = userAuth.name 하나, 자유 별명 = freeUserName 하나.
+
+### [정체성 규칙 — 코드 주석에도 동일하게 기재]
+- 서버 모드(로비·서버 방 생성/입장·서버 방 링크): userAuth.name만 읽는다. free.js handleDirectLink는
+  info.serverId != null이면 getAuthedName()으로 즉시 handleServerRoomLink — 이름 토스트/"다른 이름" 없음
+  (서버 정체성은 바꿀 수 있는 게 아니다).
+- 자유 모드: freeUserName만 읽고 쓴다. _saveName(로그인·세션 복원)과 logout은 freeUserName을 건드리지 않는다.
+  _saveName의 globalUserNameInput 대입+잠금은 `_currentServer && _currentServer.id`(서버 모드)일 때만 —
+  세션 복원 시점엔 _currentServer가 null이라 자유 로비 입력란이 보존되고, 서버 모드 잠금은 dice IIFE가 맡는다.
+- userName + 게임별 *UserName 키는 계정 미러/페이지 진입 프리필 캐시이지 정체성 원천이 아니다.
+  로비의 게임 런치는 두 모드 모두 이 키를 쓰므로 유지(경마 페이지 방 생성 흐름이 horseRaceUserName을
+  currentUser로 읽는 계약). free.js의 기록은 전부 중복이라 제거 — 모든 게임 페이지 join 분기가 pending
+  payload 이름으로 입력란을 덮는다. diceGameUserName은 이제 write-only(vestigial; 기존 테스트 T4-3이 단언해 유지).
+- dice 페이지: 로비 복원 블록 `userName = currentServerId ? (getAuthedName() || localStorage.userName || '')
+  : (localStorage.freeUserName || '')`. 이 값이 setServerId·이름 span·자유 프리필·RankingModule.init/setHost로 간다
+  → 자유 모드에서 랭킹 "나" 판정과 방장 판정이 자유 별명 기준으로 맞는다.
+
+### [미로그인 서버 방 링크 → 로비 로그인 → 링크 복귀]
+- free.js: 미로그인이면 sessionStorage.lamdice_returnAfterLogin = location.pathname 저장,
+  sessionStorage.diceSession/returnToLobby 제거(캐시된 자유 로비 대신 서버 선택 화면이 뜨게), location.replace('/game').
+- server-select-shared.js show(): _hasReturnLink()이고 미로그인이면 토스트 + _authModal(제목 '🔑 로그인하면 방으로 들어가요').
+  이미 로그인돼 있으면(다른 탭 로그인 등) 묵은 키만 버린다.
+- doApiCall(로그인·회원가입 공통): userAuth 저장 + _saveName 직후 _takeReturnLink() → 있으면 location.href로 이동 후 return.
+  _takeReturnLink는 `/`로 시작하고 `//`가 아닌 같은 오리진 경로만 인정, 읽는 즉시 삭제(1회용).
+- 계정 없는 승인 멤버(실DB 5명)는 그동안 링크가 로그인 우회 통로였다 — 이제 로비에서 같은 이름으로 가입하면 복귀 후 승인 멤버로 입장(T3로 검증).
+
+### [자유 방 링크 "다른 이름" — 같은 방 합류 + 버튼 노출]
+- 기존: nameToastChange 핸들러가 completeAfterName(새 방 생성)을 하드코딩 → 링크에서 이름을 바꾸면 초대받은 방이 아니라 새 자유 방.
+  게다가 #freeDirectLoading(z-index 50)이 .name-toast(z-index 50)보다 나중에 붙어 토스트를 덮어 버튼을 누를 수도 없었다
+  (아무 클릭이나 toastInterruptHandler가 잡아 저장된 이름으로 진행).
+- 변경: 진입 경로가 afterNameConfirmed(카드: completeAfterName / 링크: joinExistingRoom)를 세팅하고 토스트·모달·"다른 이름"이 그것을 잇는다.
+  로딩 오버레이 z-index 40 (토스트 50, 모달 1000 아래).
+
+### [랭킹 내 행 강조 — ranking-shared.js]
+- row(rank, name, value, me): me면 .rk-me(금색 외곽선+옅은 배경) + 「나」 배지. 승리/승률/평균 등수/참여/게임별/경마 섹션 전부 isMe(r.name) 전달.
+- 승자 달력: 칸 이름 .rk-cal-me, CAL_CELL_NAMES 뒤로 접힌 이름에 내가 있으면 "+"에 .rk-cal-me(calDaySummary.hiddenMe), 날짜 상세 행 .rk-me + 당첨자 이름 개별 강조.
+- isMe는 init(serverId, userName)의 _userName만 본다(localStorage 미참조) — 위 정체성 분리로 자유 모드에선 자유 별명, 서버 모드에선 계정명이 들어온다.
+
+### [테스트]
+- AutoTest/qa-identity-separation-test.js (로컬 5173 + 로컬 PG): T1 로그인+freeUserName=안 → 서버 방 링크 check-member=계정명·토스트 없음·복원이 freeUserName 안 덮음 /
+  T2 미로그인 → 로비 모달 → 로그인 → 링크 복귀 입장 / T3 계정 없는 승인 멤버 가입 → 복귀 입장 / T4 로그아웃·로그인 무간섭 /
+  T5 자유 로비 프리필=freeUserName, 계정명 프리필 금지, 입력이 미러 키를 안 덮음 / T6 "다른 이름" 같은 roomId 합류 — ALL PASS.
+- 기존 qa-room-entry-server-mode-test.js ALL PASS, spin-ladder-direct-link-test.js 16/16.
+- free-multitab-test.js는 /free/:game 라우트 폐기(5944e17)로 실패하는 스테일 테스트 — 회귀 아님.
+- 함정: Playwright addInitScript는 광고 about:blank iframe에서도 재실행되어 로그아웃 뒤 userAuth가 되살아난다 → `window === window.top` 가드.
+  브라우저 테스트 연속 실행 시 shortcode rate limit(15/분) 429 → 1분 쉬고 재실행.
+
+### [훅]
+- .claude/hooks/check-main-branch.sh가 CRLF라 bash 문법 오류 → PreToolUse 훅이 Write/Edit를 매번 차단하던 것. LF로 변환(내용 변경 없음).
+
+## 남긴 것
+- 해적 룰렛 다이렉트 링크(/pirate/CODE)는 free.js 게임 매핑에 pirate가 없어 이번 작업과 무관하게 원래 빈 화면 — 별도 작업.
+- _saveName/logout의 #nickname-input·#createRoomHostNameInput 참조는 존재하지 않는 요소(데드 참조) — 미수정.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-08-30 (서버 방 다이렉트 링크 입장 거부 수정 + crane-game 잔재/데드코드 정리)
 ========================================
 
