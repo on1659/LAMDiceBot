@@ -34,6 +34,9 @@ var MarbleRender = (function () {
     var EAGLE_ARC = 140;             // 독수리 비행 곡선 높이 — socket/marble-sim.js EAGLE_ARC 와 동일(그림자 자리 계산)
     var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
     var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
+    var SPRING_SNAP_MS = 260;        // 발사 순간 판이 젖혀져 있는 시간
+    var EAGLE_SWOOP_MS = 900, EAGLE_RETURN_MS = 1200;   // 순찰 → 목표로 급강하 / 놓고 순찰로 복귀
+    var EAGLE_PATROL_W = 210, EAGLE_PATROL_ABOVE = 90;   // 구멍밭 위 좌우 순찰 폭·높이
     var DAM_WATER_MS = 180, BEAVER_TAP_MS = 300, PIT_SURFACE_MS = 220;   // 루프 프레임 간격(댐 수면 4·비버 두드리기 2·웅덩이 3)
     var BEAVER_FLEE_MS = 1400;       // 터진 뒤 비버가 도망쳐 사라지는 시간
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
@@ -146,14 +149,6 @@ var MarbleRender = (function () {
         return 0;
     }
     function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
-    // 스프링 널빤지 — socket/marble-sim.js springAngle()/springSnapping() 과 동일식 (+=아래로 처짐)
-    function springPhase(sp, t) { return (((t + sp.phase) % sp.period + sp.period) % sp.period) / sp.period; }
-    function springAngle(sp, t) {
-        var p = springPhase(sp, t), bend = sp.bendDeg * Math.PI / 180, up = -sp.upDeg * Math.PI / 180;
-        if (p < sp.chargeEnd) { var k = p / sp.chargeEnd; return bend * k * k; }
-        if (p < sp.snapEnd) { var k2 = (p - sp.chargeEnd) / (sp.snapEnd - sp.chargeEnd); return bend + (up - bend) * Math.min(1, k2 * 1.6); }
-        var k3 = (p - sp.snapEnd) / (1 - sp.snapEnd); return up * (1 - k3);
-    }
     // 주기 장치(두더지·선풍기) 켜짐 판정 — socket/marble-sim.js deviceOn 과 같은 식
     function deviceOn(d, t) { var c = ((t + d.phase) % d.period + d.period) % d.period; return c < (d.on != null ? d.on : d.up); }
     function devicePhase(d, t) { return (((t + d.phase) % d.period + d.period) % d.period) / (d.on != null ? d.on : d.up); }   // 켜진 창 안 진행도(0~1, 꺼져 있으면 >1)
@@ -244,7 +239,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -255,7 +250,8 @@ var MarbleRender = (function () {
                     case 'pitFall': b.state = 'pit'; b.pitAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitErupt': fxList.push({ type: 'geyser', x: e.x, y: e.y, count: e.count || 1, t0: e.t, dur: GEYSER_FX_MS }); break;
                     case 'mole': fxList.push({ type: 'mole', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
-                    case 'spring': fxList.push({ type: 'spring', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
+                    case 'spring': fxList.push({ type: 'spring', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160;
+                        (pieces.spring || []).forEach(function (sp) { if (Math.abs(sp.x + Math.cos(sp.angle) * sp.len - e.x) < 3) { sp.firedAt = e.t; sp.readyAt = e.readyAt || (e.t + sp.cooldown); } }); break;
                     case 'flip': ffDir = e.dir; break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
@@ -530,30 +526,33 @@ var MarbleRender = (function () {
             });
             (pieces.wall || []).forEach(function (w) { if (!w.hidden && visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });   // hidden = 장치 몸통 벽(워프 파이프)
             // 끊긴 경사로의 틈(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
-            (pieces.spring || []).forEach(function (sp) {   // 스프링 널빤지: 경첩(sp.x, sp.y)에 매달린 판. 에셋(4셀: 평평/살짝/많이 휨/튕김)이 오면 그 프레임, 없으면 각도대로 그린 코드 도형
+            (pieces.spring || []).forEach(function (sp) {   // 스프링 널빤지: 장전(평평) → 밟으면 즉시 발사(젖혀짐) → 쿨타임 3·2·1(눌린 판) → 다시 장전. 에셋 4셀, 없으면 코드 도형
                 if (!visible(sp.y, 80)) return;
-                var tt = Math.max(0, t), p = springPhase(sp, tt), a = sp.angle + springAngle(sp, tt);
-                var frame = p < 0.3 ? 0 : p < 0.6 ? 1 : p < sp.chargeEnd ? 2 : p < sp.snapEnd + 0.06 ? 3 : 0;
-                var snapping = p >= sp.chargeEnd && p < sp.snapEnd;
+                var tt = Math.max(0, t), fired = sp.firedAt != null ? sp.firedAt : -1e9, readyAt = sp.readyAt || 0;
+                var snapping = tt - fired < SPRING_SNAP_MS, cooling = !snapping && tt < readyAt;
+                var frame = snapping ? 3 : cooling ? 2 : 0, bendA = snapping ? -0.45 : cooling ? 0.3 : 0;   // 코드 도형용 각도(+=아래)
                 var im = img('pieces', 'spring-plank');
                 ctx.save(); ctx.translate(sp.x, toScreenY(sp.y));
-                if (im) {   // 셀 왼쪽 끝 세로 중앙 = 경첩(의뢰서 §2-2). 경사로 각도로만 회전 — 휨은 프레임이 표현
+                if (im) {   // 셀 왼쪽 끝 세로 중앙 = 경첩(0,32). 경사로 각도로만 회전 — 휨은 프레임
                     ctx.rotate(sp.angle);
                     var cw = 240 * SRC_SCALE, ch = 64 * SRC_SCALE;
-                    ctx.drawImage(im, frame * 240, 0, 240, 64, 0, -ch / 2, cw, ch);   // 경첩 축 = 셀 (0,32) (배치 QA 확정)
+                    ctx.drawImage(im, frame * 240, 0, 240, 64, 0, -ch / 2, cw, ch);
                 } else {
-                    ctx.rotate(a);
+                    ctx.rotate(sp.angle + bendA);
                     ctx.fillStyle = '#6b4420'; ctx.fillRect(-4, -12, 8, 24);                                  // 경첩 기둥
-                    ctx.fillStyle = '#c8873a'; ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 1.5;
+                    ctx.fillStyle = cooling ? '#a8733a' : '#c8873a'; ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 1.5;
                     roundRect(0, -4, sp.len, 8, 3); ctx.fill(); ctx.stroke();                                 // 판
-                    ctx.strokeStyle = '#8a9aa2'; ctx.lineWidth = 2; ctx.beginPath();                          // 스프링(지그재그, 처질수록 눌림)
-                    var sx = sp.len * 0.6, sh = 16 - Math.max(0, springAngle(sp, tt)) * 20;
+                    ctx.strokeStyle = '#8a9aa2'; ctx.lineWidth = 2; ctx.beginPath();                          // 스프링(지그재그, 쿨타임엔 눌림)
+                    var sx = sp.len * 0.6, sh = cooling ? 8 : 16;
                     for (var zi = 0; zi <= 6; zi++) ctx.lineTo(sx + ((zi % 2) ? 5 : -5), 4 + sh * zi / 6); ctx.stroke();
                     ctx.fillStyle = '#5a3416'; ctx.fillRect(sx - 8, 4 + sh, 16, 3);                          // 스프링 받침
                 }
                 ctx.restore();
-                if (snapping) { ctx.save(); ctx.strokeStyle = 'rgba(255,240,160,0.8)'; ctx.lineWidth = 2; var ex = sp.x + Math.cos(a) * sp.len, ey = toScreenY(sp.y) + Math.sin(a) * sp.len; ctx.beginPath(); ctx.moveTo(ex - 6, ey - 14); ctx.lineTo(ex - 14, ey - 30); ctx.moveTo(ex + 4, ey - 16); ctx.lineTo(ex + 2, ey - 32); ctx.stroke(); ctx.restore(); }   // 튕김 속도선
-                label('스프링', sp.x + Math.cos(sp.angle) * sp.len * 0.5, sp.y + Math.sin(sp.angle) * sp.len * 0.5 + 26, '#ffe08a', 11);
+                var ex = sp.x + Math.cos(sp.angle) * sp.len, ey = sp.y + Math.sin(sp.angle) * sp.len;
+                if (snapping) { ctx.save(); ctx.strokeStyle = 'rgba(255,240,160,0.8)'; ctx.lineWidth = 2; var sey = toScreenY(ey); ctx.beginPath(); ctx.moveTo(ex - 6, sey - 14); ctx.lineTo(ex - 14, sey - 30); ctx.moveTo(ex + 4, sey - 16); ctx.lineTo(ex + 2, sey - 32); ctx.stroke(); ctx.restore(); }   // 발사 속도선
+                var mx = sp.x + Math.cos(sp.angle) * sp.len * 0.5, my = sp.y + Math.sin(sp.angle) * sp.len * 0.5;
+                if (cooling) label(String(Math.ceil((readyAt - tt) / 1000)), mx, my - 30, '#ffb347', 20);   // 3·2·1
+                else label(snapping ? '발사!' : '스프링', mx, my + 26, '#ffe08a', snapping ? 14 : 11);
             });
             (pieces.zzhole || []).forEach(function (h) {
                 if (!visible(h.y, 40)) return;
@@ -826,7 +825,8 @@ var MarbleRender = (function () {
                 if (!drawSprite('stage', d.decor, d.x, d.y, sz[0], sz[1], { anchor: 'bottom' })) { ctx.fillStyle = '#4f9d4a'; ctx.beginPath(); ctx.arc(d.x, toScreenY(d.y) - 8, 10, 0, Math.PI * 2); ctx.fill(); }
             });
         }
-        function drawBasketFront() {
+        function drawBasketFront(t) {
+            drawEagleFree(t);
             // 워프 파이프 — 공 위에 그려서 들어갈 때 파이프 속으로 사라지고 나올 때 파이프 안에서 솟는다. 몸통 48×56, 입구 위. 짝은 같은 색 띠 + 번호
             (pieces.warp || []).forEach(function (q) {
                 if (!visible(q.y, 80)) return;
@@ -913,25 +913,52 @@ var MarbleRender = (function () {
         // 독수리에 잡혀 가는 공: 땅 그림자(곡선 높이만큼 아래) + 공(말린 채) + 발톱이 공을 쥔 독수리(날갯짓 4프레임, 왼쪽으로 갈 땐 반전). 에셋 없으면 코드 실루엣
         function drawEagleCarry(b, t, mine) {
             var c = b.carry, k = c ? clamp((t - c.t0) / c.dur, 0, 1) : 0.5, lift = Math.sin(k * Math.PI) * EAGLE_ARC;
-            var faceLeft = c ? c.x1 < c.x0 : false, wing = Math.floor(Math.max(0, t) / EAGLE_WING_MS) % 4;
+            var faceLeft = c ? c.x1 < c.x0 : false;
             var gy = b.y + lift;   // 땅 자리
             if (!drawSprite('fx', 'eagle-shadow', b.x, gy, 128, 48, { alpha: 0.35 + 0.3 * (1 - lift / EAGLE_ARC), scale: 1 - 0.3 * lift / EAGLE_ARC })) drawShadow(b.x, gy, BALL_R + 6);
             drawCreatureFrame(b, 2, 0, b.x, b.y + 4, Math.sin(t / 120) * 0.15, 1);
             drawRing(b, b.x, b.y + 4, BALL_R + 1, mine);
-            ctx.save(); ctx.translate(b.x, toScreenY(b.y - 8)); if (faceLeft) ctx.scale(-1, 1);
+            drawEagleSprite(b.x, b.y - 8, faceLeft, t);   // 발톱(아래에서 16px 소스 = 4px) 이 공 위
+            drawNameTag(b, b.x, toScreenY(b.y) - 44, mine);
+            if (k < 0.35) label('채 갔다!', b.x, b.y - 58, '#fff', 13);
+        }
+        // 독수리 자유 비행(공을 안 쥔 동안): 구멍밭 위를 좌우로 순찰하다 잡기 EAGLE_SWOOP_MS 전에 목표로 급강하, 놓은 뒤 순찰로 복귀. 잡기 이벤트는 재생 데이터에 있어 미리 안다
+        function eaglePatrol(tt) {
+            var hf = (pieces.holefield || [])[0]; if (!hf) return null;
+            var px = TRACK_W / 2 + EAGLE_PATROL_W * Math.sin(tt / 1500), py = hf.zone.y - EAGLE_PATROL_ABOVE + 10 * Math.sin(tt / 700);
+            return { x: px, y: py, left: Math.cos(tt / 1500) < 0 };
+        }
+        function drawEagleSprite(x, y, faceLeft, tt) {
+            var wing = Math.floor(Math.max(0, tt) / EAGLE_WING_MS) % 4;
+            ctx.save(); ctx.translate(x, toScreenY(y)); if (faceLeft) ctx.scale(-1, 1);
             var im = img('pieces', 'eagle');
-            if (im) { var ew = 256 * SRC_SCALE, eh = 160 * SRC_SCALE; ctx.drawImage(im, wing * 256, 0, 256, 160, -ew / 2, -eh + 4, ew, eh); }   // 발톱(아래에서 16px 소스 = 4px) 이 공 위
+            if (im) { var ew = 256 * SRC_SCALE, eh = 160 * SRC_SCALE; ctx.drawImage(im, wing * 256, 0, 256, 160, -ew / 2, -eh + 4, ew, eh); }
             else {
                 var flap = (wing === 0 || wing === 2) ? -10 : wing === 1 ? -2 : -16;
                 ctx.fillStyle = '#7a4b23'; ctx.strokeStyle = '#3b2412'; ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.ellipse(0, -14, 14, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();                       // 몸
-                ctx.beginPath(); ctx.moveTo(-6, -16); ctx.lineTo(-30, flap - 14); ctx.lineTo(-4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();   // 왼 날개
-                ctx.beginPath(); ctx.moveTo(6, -16); ctx.lineTo(30, flap - 14); ctx.lineTo(4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();      // 오른 날개
-                ctx.fillStyle = '#f2c014'; ctx.beginPath(); ctx.moveTo(14, -15); ctx.lineTo(21, -13); ctx.lineTo(14, -11); ctx.closePath(); ctx.fill();   // 부리
+                ctx.beginPath(); ctx.ellipse(0, -14, 14, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-6, -16); ctx.lineTo(-30, flap - 14); ctx.lineTo(-4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(6, -16); ctx.lineTo(30, flap - 14); ctx.lineTo(4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#f2c014'; ctx.beginPath(); ctx.moveTo(14, -15); ctx.lineTo(21, -13); ctx.lineTo(14, -11); ctx.closePath(); ctx.fill();
             }
             ctx.restore();
-            drawNameTag(b, b.x, toScreenY(b.y) - 44, mine);
-            if (k < 0.35) label('채 갔다!', b.x, b.y - 58, '#fff', 13);
+        }
+        function drawEagleFree(t) {
+            if (t < 0) return;
+            var grab = null; for (var i = 0; i < data.events.length; i++) if (data.events[i].type === 'eagleGrab') { grab = data.events[i]; break; }
+            var tt = Math.max(0, t), pos, left;
+            if (grab && t >= grab.t && t < grab.t + grab.dur) return;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
+            if (grab && t >= grab.t - EAGLE_SWOOP_MS && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
+                var p0 = eaglePatrol(grab.t - EAGLE_SWOOP_MS); if (!p0) return;
+                var k = (t - (grab.t - EAGLE_SWOOP_MS)) / EAGLE_SWOOP_MS, e = k * k;
+                pos = { x: p0.x + (grab.x - p0.x) * e, y: p0.y + (grab.y - 8 - p0.y) * e }; left = grab.x < p0.x;
+            } else if (grab && t >= grab.t + grab.dur && t < grab.t + grab.dur + EAGLE_RETURN_MS) {   // 복귀: 놓은 자리 → 순찰 자리
+                var k2 = (t - grab.t - grab.dur) / EAGLE_RETURN_MS, e2 = 1 - (1 - k2) * (1 - k2), p1 = eaglePatrol(grab.t + grab.dur + EAGLE_RETURN_MS); if (!p1) return;
+                pos = { x: grab.tx + (p1.x - grab.tx) * e2, y: grab.ty - 8 + (p1.y - grab.ty + 8) * e2 }; left = p1.x < grab.tx;
+            } else { pos = eaglePatrol(tt); if (!pos) return; left = pos.left; }
+            if (!visible(pos.y, 60)) return;
+            drawSprite('fx', 'eagle-shadow', pos.x, pos.y + EAGLE_PATROL_ABOVE, 128, 48, { alpha: 0.28, scale: 0.8 });
+            drawEagleSprite(pos.x, pos.y, left, tt);
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
@@ -1427,7 +1454,7 @@ var MarbleRender = (function () {
             drawStandBase(t);
             drawBalls(t);
             drawCheerStand(t);
-            drawBasketFront();
+            drawBasketFront(t);
             drawLastBall(t);
             drawFx(t);
             ctx.restore();
@@ -1435,7 +1462,7 @@ var MarbleRender = (function () {
             ctx.restore();
             if (t >= 0 && phase !== 'finale' && phase !== 'done' && hudInfo.remaining === 0) { phase = 'finale'; if (onFinaleCb) onFinaleCb(); }
             if (t >= 0 && phase === 'countdown') phase = 'play';
-            if (tPlay >= data.durationMs && phase !== 'done') { phase = 'done'; R.stop(); }
+            if (tPlay >= data.durationMs && phase !== 'done') phase = 'done';   // 끝나도 루프는 계속 — 스탠드 응원·수면·독수리 순찰 같은 배경 애니가 멈추지 않게(사용자 2026-09-21). 멈추는 건 방 리셋/퇴장(js/marble.js renderer.stop)
         };
 
         // 대기 화면 — 출발대 프리뷰. preview = 서버 marble:stateUpdated.preview { track, balls, frame } (준비한 사람의 동물이 출발대에 서 있음).
