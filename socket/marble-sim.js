@@ -151,6 +151,13 @@ const HOLE_PERIOD_FAR_MS = 1500;  // 골에서 가장 먼 구멍(왼쪽 끝)
 const HOLE_PERIOD_NEAR_MS = 4200; // 골에 가장 가까운 구멍(오른쪽 끝)
 const HOLE_LID_SLIDE_MS = 150;    // 여닫히는 데 걸리는 시간
 const HOLE_PHASE_STEP = 0.37;     // 구멍별 위상(주기 × i × 이 값) — 동시에 열리지 않게
+// 구멍 앞 몸싸움(연출, 순위 무관): 닫힌 뚜껑 위에 둘 이상이 멈춰 기다리면 구멍 중심에 가장 가까운 둘이 서서 밀어내기 → 뚜껑이 열리면 화들짝 낙하
+//   → 착지 후 SCUFFLE_DIZZY_MS 기절(걷기 시작만 늦어짐). 셋 이상이면 나머지는 공 그대로. 판정은 서버가 하고 scuffle/scuffleEnd 이벤트로 알린다
+const SCUFFLE_WAIT_MS = 250;      // 뚜껑 위에 이만큼 연속으로 머문 뒤에야 후보(착지 튕김 제외)
+const SCUFFLE_SPEED = 30;         // 이 속도(px/s) 아래여야 "멈춰 기다리는 중"
+const SCUFFLE_MIN_LEFT_MS = 700;  // 뚜껑이 이만큼은 더 닫혀 있어야 시작(열리기 직전에 붙어서 한 프레임 밀다 마는 깜빡임 방지)
+const SCUFFLE_GRACE_MS = 150;     // 밀려나거나 속도가 튀어도 이 안에 돌아오면 계속(뚜껑이 열리면 즉시 끝)
+const SCUFFLE_DIZZY_MS = 500;     // 화들짝 낙하 뒤 착지 기절 시간
 // ⑩ 집결 통로 = 마지막 경주 구간: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 제 속도로 달린다 — 추월 있음.
 //    골(x ≥ GOAL_X)에 들어간 순서가 곧 순위, 꼴찌 = 골에 마지막으로 들어간 놈 (사용자 확정 2026-09-20 밤, 그림으로).
 const WALK_SPEED_MIN = 60, WALK_SPEED_MAX = 140;   // px/s 걷는 속도 — 착지 순간 마리마다 시드 PRNG 로 뽑는다(종족 무관, 운)
@@ -429,6 +436,11 @@ function lidCover(h, t) {
     if (c > h.open - h.slide) return 1 - (h.open - c) / h.slide;
     return 0;
 }
+// 뚜껑이 닫힌 채로 남은 시간(ms). 열려 있거나 여닫히는 중이면 -1
+function lidClosedLeft(h, t) {
+    const c = ((t + h.phase) % h.period + h.period) % h.period;
+    return c >= h.open ? h.period - c : -1;
+}
 function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
 // 주기 장치(두더지·선풍기) 켜짐 판정: 주기 안 [0, on) 이 켜진 창. 클라(js/marble-render.js)와 같은 식
 function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.period; return c < (d.on != null ? d.on : d.up); }
@@ -437,7 +449,8 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleDrop|land|trip|doze|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleDrop|scuffle|scuffleEnd|land|trip|doze|finish
+ *              scuffle/scuffleEnd 는 ball 대신 { a, b, hole } (a = 왼쪽 공). scuffleEnd.startled = 뚜껑이 열려 떨어진 것(→ land.dizzy)
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -453,7 +466,7 @@ async function simulate(balls, seed, track) {
         napAt: 0, hasNapped: false,
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
         pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
-        stuckSince: 0, lidAt: -1e9, moleAt: -1e9, springAt: -1e9, springOnSince: -1, ffDone: false,
+        stuckSince: 0, lidAt: -1e9, lidHole: -1, lidSince: 0, scuffle: -1, scuffled: false, moleAt: -1e9, springAt: -1e9, springOnSince: -1, ffDone: false,
         warpDone: {}, warpUntil: 0, warpOut: null,
         carry: null, eagledBy: {}    // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 잡은 적 있는 독수리 index → true
     }));
@@ -461,6 +474,7 @@ async function simulate(balls, seed, track) {
     // 조각 분류
     const walls = [], stakes = [], muds = [], moles = [], belts = [], fans = [], warps = [], springs = [];
     let beehive = null, sun = null, dam = null, pit = null, seesaw = null, lane = null, windmill = null, holefield = null, flipflop = null;
+    const scufflePairs = [];   // 구멍 index → 지금 밀기 중인 { a: 왼쪽 공, b: 오른쪽 공, lostAt } | null
     for (const pc of track.pieces) {
         switch (pc.kind) {
             case 'wall': walls.push(pc); break;
@@ -688,7 +702,7 @@ async function simulate(balls, seed, track) {
                 const v = cands[Math.floor(rng() * cands.length)];
                 const side = rng() < 0.5 ? -1 : 1;
                 v.carry = { x0: v.x, y0: v.y, x1: TRACK_W / 2 + side * EAGLE_DROP_DX, y1: (seesaw ? seesaw.y : holefield.zone.y - 300) - EAGLE_DROP_ABOVE_SEESAW, t0: t, t1: t + EAGLE_FLY_MS };
-                v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.eagledBy[ei] = true;
+                v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.scuffled = false; v.eagledBy[ei] = true;
                 const alive = B.filter(b => b.state !== 'done').length;
                 eagleCount++; eg.nextAt = t + EAGLE_FLY_MS + (alive <= EAGLE_FINAL_ALIVE ? EAGLE_REST_FINAL_MS : EAGLE_REST_MS);
                 pushEvent(t, 'eagleGrab', v, { eagle: ei, x: Math.round(v.x), y: Math.round(v.y), tx: v.carry.x1, ty: v.carry.y1, dur: EAGLE_FLY_MS });
@@ -796,12 +810,16 @@ async function simulate(balls, seed, track) {
                 b.ffDone = true; ffDir = -ffDir; pushEvent(t, 'flip', b, { dir: ffDir });
             }
             if (holefield && Math.abs(b.y - holefield.floorY) < BALL_R + 4) {   // 구멍 뚜껑(닫힌 만큼만 벽)
-                for (const h of holefield.holes) {
+                for (let hi = 0; hi < holefield.holes.length; hi++) {
+                    const h = holefield.holes[hi];
                     const cover = lidCover(h, t); if (cover <= 0) continue;
                     const lx = h.x - h.w / 2, rx = lx + h.w * cover;
                     if (b.x < lx - BALL_R || b.x > rx + BALL_R) continue;
                     collideSegment(t, b, lx, h.y, rx, h.y, WALL_RESTITUTION);
-                    if (Math.abs(b.y - h.y) <= BALL_R + 0.5 && b.x >= lx && b.x <= rx) b.lidAt = t;   // 뚜껑 위에서 기다리는 중 — 갇힘 킥 제외
+                    if (Math.abs(b.y - h.y) <= BALL_R + 0.5 && b.x >= lx && b.x <= rx) {   // 뚜껑 위에서 기다리는 중 — 갇힘 킥 제외. 몸싸움 후보용으로 어느 구멍에 언제부터 머무는지도 기록
+                        if (b.lidHole !== hi || t - b.lidAt >= 50) { b.lidSince = t; b.scuffled = false; }   // 다시 뚜껑에 올라앉으면 화들짝 기억은 지운다
+                        b.lidAt = t; b.lidHole = hi;
+                    }
                 }
             }
             // 트랙 좌우 경계(안전망)
@@ -856,7 +874,9 @@ async function simulate(balls, seed, track) {
                 b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0;
                 b.walkSpeed = Math.round(WALK_SPEED_MIN + rng() * (WALK_SPEED_MAX - WALK_SPEED_MIN));
                 b.walkRow = Math.floor(rng() * lane.rows);
-                pushEvent(t, 'land', b, { speed: b.walkSpeed, row: b.walkRow });
+                const dizzy = b.scuffled;   // 몸싸움하다 화들짝 떨어진 놈만 착지 기절 — 걷기 시작이 SCUFFLE_DIZZY_MS 늦어질 뿐(순위는 통로 경주에서)
+                if (dizzy) { b.scuffled = false; b.stallKind = 'dizzy'; b.stallAt = t; b.stallUntil = t + SCUFFLE_DIZZY_MS; }
+                pushEvent(t, 'land', b, dizzy ? { speed: b.walkSpeed, row: b.walkRow, dizzy: true } : { speed: b.walkSpeed, row: b.walkRow });
                 continue;
             }
 
@@ -926,6 +946,32 @@ async function simulate(balls, seed, track) {
                 if (b.y < bd.y1 || b.y > bd.y2) continue;
                 if (b.x < bd.x1 + b.r) { b.x = bd.x1 + b.r; if (b.vx < 0) b.vx = 0; }
                 else if (b.x > bd.x2 - b.r) { b.x = bd.x2 - b.r; if (b.vx > 0) b.vx = 0; }
+            }
+        }
+
+        // ── 구멍 앞 몸싸움(연출): 구멍마다 닫힌 뚜껑 위에서 멈춰 기다리는 둘을 짝짓는다. 물리는 건드리지 않는다 ──
+        if (holefield) for (let hi = 0; hi < holefield.holes.length; hi++) {
+            const h = holefield.holes[hi];
+            const waiting = b => b.state === 'roll' && b.lidHole === hi && t - b.lidAt < 50 && t - b.lidSince >= SCUFFLE_WAIT_MS && Math.hypot(b.vx, b.vy) < SCUFFLE_SPEED;
+            const pair = scufflePairs[hi];
+            if (pair) {
+                const startled = lidCover(h, t) < 1;   // 뚜껑이 움직이기 시작 → 둘 다 화들짝(떨어진다). 아니면 밀려나거나 독수리에 채인 것 — 유예 뒤 조용히 끝
+                if (!startled && waiting(pair.a) && waiting(pair.b)) pair.lostAt = -1;
+                else if (!startled && pair.lostAt < 0) pair.lostAt = t;
+                if (startled || (pair.lostAt >= 0 && t - pair.lostAt >= SCUFFLE_GRACE_MS)) {
+                    for (const b of [pair.a, pair.b]) { b.scuffle = -1; if (startled && b.state === 'roll') b.scuffled = true; }
+                    pushEvent(t, 'scuffleEnd', null, { a: pair.a.id, b: pair.b.id, hole: hi, startled });
+                    scufflePairs[hi] = null;
+                }
+            }
+            if (!scufflePairs[hi] && lidClosedLeft(h, t) >= SCUFFLE_MIN_LEFT_MS) {
+                const cands = B.filter(b => b.scuffle < 0 && waiting(b)).sort((p, q) => (Math.abs(p.x - h.x) - Math.abs(q.x - h.x)) || (p.id - q.id));
+                if (cands.length >= 2) {
+                    const two = cands.slice(0, 2).sort((p, q) => p.x - q.x || p.id - q.id);   // a = 왼쪽(오른쪽을 보며 밀기), b = 오른쪽(클라가 반전)
+                    two[0].scuffle = two[1].id; two[1].scuffle = two[0].id;
+                    scufflePairs[hi] = { a: two[0], b: two[1], lostAt: -1 };
+                    pushEvent(t, 'scuffle', null, { a: two[0].id, b: two[1].id, hole: hi });
+                }
             }
         }
 

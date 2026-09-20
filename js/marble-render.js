@@ -67,6 +67,14 @@ var MarbleRender = (function () {
     var SUN_WALK_SPEED = 260;        // 햇볕 잔디 안에서 이 속도 미만이면 공을 풀고 서서 걷는 모습(시각 — 물리는 그대로 원)
     var SUN_UNCURL_MS = 240;         // 펴지는 전환 프레임 시간
     var WAKE_POSE_MS = 380;          // 깨어남 → 벌떡(sleep 시트 col 2·3) 후 다시 공
+    // 구멍 앞 몸싸움(6차 scuffle 스트립 4×2: 윗줄 밀기 4 / 아랫줄 화들짝·낙하·어지러움 A·B). 서버 scuffle/scuffleEnd 이벤트 + land.dizzy 로 그린다 — 물리 위치는 그대로, 연출만
+    var SCUFFLE_PUSH_MS = 130;       // 밀기 한 프레임
+    var SCUFFLE_WOBBLE_MS = 520, SCUFFLE_WOBBLE_PX = 2.5;   // 둘이 같이 밀렸다 돌아오는 x 흔들림(주기·진폭)
+    var SCUFFLE_STAND_DY = -8;       // 서 있는 스프라이트 중심 = 공 중심 + 이 값 (발이 뚜껑 윗면에 닿게)
+    var STARTLE_MS = 350;            // 뚜껑 열림 → 화들짝 포즈(⑤) 시간, 그 뒤 파이프 안에선 떨어지는 포즈(⑥)
+    var FALL_POSE_MS = 2500;         // 화들짝 뒤 이 시간 안에 구멍 아래(파이프·통로)에 있으면 떨어지는 포즈
+    var SCUFFLE_DIZZY_MS = 500;      // 착지 기절 — socket/marble-sim.js SCUFFLE_DIZZY_MS 와 동일
+    var DIZZY_SWAP_MS = 150;         // 어지러움 A/B·별 궤도 프레임 교대
     var GATE_TILE_SRC_W = 128, GATE_TILE_OVERLAP_SRC = 8;   // last-gate 타일 — 양 끝 기둥이 8px 겹치게
     var DAM_FRAMES = 5;              // beaver-dam.png 프레임 수 (2400×256, 셀 480×256): 온전/금 살짝/금 많이/금+물/터짐
 
@@ -81,6 +89,7 @@ var MarbleRender = (function () {
     var ASSETS = {
         creatures: { hedgehog: A + 'creatures/hedgehog.png', armadillo: A + 'creatures/armadillo.png', pillbug: A + 'creatures/pillbug.png', turtle: A + 'creatures/turtle.png', panda: A + 'creatures/panda.png' },
         sleep: { hedgehog: A + 'creatures/hedgehog-sleep.png', armadillo: A + 'creatures/armadillo-sleep.png', pillbug: A + 'creatures/pillbug-sleep.png', turtle: A + 'creatures/turtle-sleep.png', panda: A + 'creatures/panda-sleep.png' },   // 4×1, 셀 160: 누움/숨쉬기/깨어남/벌떡
+        scuffle: { hedgehog: A + 'creatures/hedgehog-scuffle.png', armadillo: A + 'creatures/armadillo-scuffle.png', pillbug: A + 'creatures/pillbug-scuffle.png', turtle: A + 'creatures/turtle-scuffle.png', panda: A + 'creatures/panda-scuffle.png' },   // 6차 4×2, 셀 160: 밀기 4 / 화들짝·떨어짐·어지러움 A·B (오른쪽 향함 — 왼쪽 놈은 코드 반전)
         pieces: {
             'start-platform-mid': A + 'pieces/start-platform-mid.png', 'start-platform-end': A + 'pieces/start-platform-end.png',
             'start-gate': A + 'pieces/start-gate.png', 'log-bumper': A + 'pieces/log-bumper.png', 'stake': A + 'pieces/stake.png',
@@ -108,12 +117,13 @@ var MarbleRender = (function () {
             'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
             'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png',
             'suck-swirl': A + 'fx/suck-swirl.png',   // 4차
-            'eagle-shadow': A + 'fx/eagle-shadow.png', 'mole-alert': A + 'fx/mole-alert.png', 'dam-burst-v2': A + 'fx/dam-burst-v2.png', 'geyser': A + 'fx/geyser.png'   // 5차
+            'eagle-shadow': A + 'fx/eagle-shadow.png', 'mole-alert': A + 'fx/mole-alert.png', 'dam-burst-v2': A + 'fx/dam-burst-v2.png', 'geyser': A + 'fx/geyser.png',   // 5차
+            'dizzy-swirl': A + 'fx/dizzy-swirl.png'   // 6차 — 48×48 ×2 별 궤도 A/B, 아래 중앙 앵커
         }
     };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
     var FX_CELL = { 'dust-puff': [80, 80], 'impact-star': [96, 96], 'mud-splash': [128, 96], 'curl-poof': [96, 96],
-        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96] };
+        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96], 'dizzy-swirl': [48, 48] };
     var DECOR_SIZE = { tree: [160, 224], 'bush-big': [128, 96], 'bush-small': [64, 48], rock: [64, 48], signpost: [64, 96],
         'flower-pink': [32, 32], 'flower-yellow': [32, 32], 'flower-white': [32, 32] };
 
@@ -207,7 +217,7 @@ var MarbleRender = (function () {
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
             balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
-                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0 }; });
+                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, scuffle: -1, scuffleAt: 0, scuffleLeft: true, startledAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
             var extras = balls.filter(function (b) { return b.num > 1; }).sort(function (a, c) { return a.num - c.num || a.id - c.id; });
@@ -245,7 +255,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; b.scuffle = -1; b.startledAt = -1e9; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -270,7 +280,22 @@ var MarbleRender = (function () {
                         fxList.push({ type: 'suck', ball: b.id, x: e.x, y: e.y, t0: e.t, dur: SUCK_FX_MS });
                         break;
                     case 'warpOut': b.state = 'roll'; fxList.push({ type: 'warpout', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
-                    case 'eagleGrab': b.state = 'carried'; b.walkKind = ''; b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t, dur: e.dur }; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'scuffle': {   // 구멍 뚜껑 앞 둘이 서서 밀기 — a 가 왼쪽(오른쪽 봄), b 가 오른쪽(반전)
+                        var sa = byId[e.a], sb = byId[e.b];
+                        sa.scuffle = e.b; sa.scuffleAt = e.t; sa.scuffleLeft = true;
+                        sb.scuffle = e.a; sb.scuffleAt = e.t; sb.scuffleLeft = false;
+                        break;
+                    }
+                    case 'scuffleEnd': {
+                        var ea = byId[e.a], eb = byId[e.b];
+                        ea.scuffle = -1; eb.scuffle = -1;
+                        if (e.startled) {   // 뚜껑이 열려 떨어짐: 화들짝 포즈 + '!' — 착지 땐 land.dizzy 로 기절
+                            ea.startledAt = e.t; eb.startledAt = e.t;
+                            fxList.push({ type: 'wake', ball: ea.id, t0: e.t, dur: WAKE_FX_MS }); fxList.push({ type: 'wake', ball: eb.id, t0: e.t, dur: WAKE_FX_MS });
+                        }
+                        break;
+                    }
+                    case 'eagleGrab': b.state = 'carried'; b.walkKind = ''; b.scuffle = -1; b.startledAt = -1e9; b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t, dur: e.dur }; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'eagleDrop': b.state = 'roll'; b.carry = null; b.wakeAt = e.t; fxList.push({ type: 'eagledrop', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'land':
                         if (data.cutMs != null && e.t >= data.cutMs && b.id === data.finishOrder[data.finishOrder.length - 1]) {   // 혼자 내려온 꼴찌: 착지 = 확정, 그 자리에 비석(drawLastBall). 자리는 착지 직후 샘플에서
@@ -280,7 +305,9 @@ var MarbleRender = (function () {
                             b.x = b.doneX; b.y = b.doneY;
                             break;
                         }
-                        b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                        b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; b.startledAt = -1e9; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS });
+                        if (e.dizzy) { b.walkKind = 'dizzy'; b.walkStallAt = e.t; }   // 몸싸움하다 떨어진 놈: 주저앉아 어지러움 → SCUFFLE_DIZZY_MS 뒤 걷기
+                        break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
                     case 'finish':   // 골(x ≥ goalX) 진입 또는 탈출 파이프 진입 = 도착. 여기서 순위 확정
@@ -1037,8 +1064,43 @@ var MarbleRender = (function () {
             ctx.restore();
         }
 
+        // 6차 scuffle 시트 한 셀(row 0 밀기 / row 1 화들짝·낙하·어지러움). flip = 왼쪽을 보게 좌우 반전. 시트 없으면 false
+        function drawScuffleFrame(b, row, col, x, y, flip) {
+            var im = img('scuffle', b.creature); if (!im) return false;
+            var sc = SRC_SCALE;
+            ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
+            ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
+            ctx.restore();
+            return true;
+        }
+        // 1차 시트 한 셀을 좌우 반전 옵션으로(폴백용)
+        function drawCreatureFlipped(b, row, col, x, y, flip) {
+            var im = img('creatures', b.creature);
+            if (!im) { drawCreatureFrame(b, row, col, x, y); return; }
+            var sc = SRC_SCALE;
+            ctx.save(); ctx.translate(x, toScreenY(y)); if (flip) ctx.scale(-1, 1);
+            ctx.drawImage(im, col * CELL, row * CELL, CELL, CELL, -CELL * sc / 2, -CELL * sc / 2, CELL * sc, CELL * sc);
+            ctx.restore();
+        }
+        // 뚜껑 위 밀기: 공 풀기(uncurl 2프레임) → 밀기 4프레임 루프. 둘이 같이 살짝 밀렸다 돌아오는 x 흔들림(연출 — 물리 위치는 그대로). 시트 없으면 idle 0·1 교대
+        function drawScuffler(b, t) {
+            var since = Math.max(0, t - b.scuffleAt), flip = !b.scuffleLeft;
+            var wob = Math.sin(since / SCUFFLE_WOBBLE_MS * Math.PI * 2) * SCUFFLE_WOBBLE_PX;
+            var x = b.x + wob, y = b.y + SCUFFLE_STAND_DY;
+            if (since < SUN_UNCURL_MS) { drawCreatureFlipped(b, 3, since < SUN_UNCURL_MS / 2 ? 0 : 1, x, y, flip); return; }
+            var col = Math.floor((since - SUN_UNCURL_MS) / SCUFFLE_PUSH_MS) % 4;
+            if (!drawScuffleFrame(b, 0, col, x, y, flip)) drawCreatureFlipped(b, 0, Math.floor(since / 200) % 2, x, y, flip);
+        }
+        // 착지 기절: 주저앉아 어지러움 A/B 교대 + 머리 위 별 궤도(6차 fx, 없으면 💫). 시트 없으면 faceplant col 3(별)
+        function drawDizzy(b, t) {
+            var since = Math.max(0, t - b.walkStallAt), fr = Math.floor(since / DIZZY_SWAP_MS) % 2;
+            if (!drawScuffleFrame(b, 1, 2 + fr, b.x, b.y + 6, false)) drawCreatureFrame(b, 4, 3, b.x, b.y - 4);
+            if (!drawSprite('fx', 'dizzy-swirl', b.x, b.y - 14, 48, 48, { sx: fr * 48, sw: 48, anchor: 'bottom', scale: 1.3 })) label('💫', b.x, b.y - 22, '#fff', 13);
+        }
+
         function drawBalls(t) {
             var i, b, mine;
+            var hf0 = (pieces.holefield || [])[0];
             // 그림자 먼저
             for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || b.state === 'warp' || b.state === 'carried' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
             // 후미 공(플레이어별) — 꼴찌 깃발 대상
@@ -1091,6 +1153,9 @@ var MarbleRender = (function () {
                     continue;
                 }
                 if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (충돌 없음 — 겹쳐서 제 속도로)
+                    if (b.walkKind === 'dizzy' && t - b.walkStallAt < SCUFFLE_DIZZY_MS) {   // 몸싸움 → 화들짝 낙하 → 착지 기절 0.5s
+                        drawDizzy(b, t); drawBadge(b, b.x, b.y, mine); continue;
+                    }
                     if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임만(col 1 은 정면으로 놀라는 그림이라 달리다 뒤돌아보는 것처럼 보였다)
                         drawShadow(b.x, b.y, BALL_R); drawCreatureFrame(b, 4, t - b.walkStallAt < 350 ? 0 : 2, b.x, b.y - 4);
                         drawBadge(b, b.x, b.y, mine); continue;
@@ -1116,6 +1181,13 @@ var MarbleRender = (function () {
                     continue;
                 }
                 if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawBadge(b, b.x, b.y, mine); continue; }
+                // 구멍 앞 몸싸움: 서서 밀기 → (뚜껑 열림) 화들짝 → 파이프 낙하 포즈. 서버 이벤트 기준, 위치는 프레임 그대로
+                if (b.scuffle >= 0 && t >= b.scuffleAt) { drawScuffler(b, t); drawBadge(b, b.x, b.y, mine); continue; }
+                if (t - b.startledAt < STARTLE_MS) {
+                    if (!drawScuffleFrame(b, 1, 0, b.x, b.y - 4, !b.scuffleLeft)) drawCreatureFrame(b, 4, 1, b.x, b.y - 4);   // 폴백: faceplant col 1(정면 놀람)
+                    drawBadge(b, b.x, b.y, mine); continue;
+                }
+                if (hf0 && t - b.startledAt < FALL_POSE_MS && b.y > hf0.floorY && drawScuffleFrame(b, 1, 1, b.x, b.y, !b.scuffleLeft)) { drawBadge(b, b.x, b.y, mine); continue; }   // 시트 없으면 공 그대로
                 // 깨어남 직후: sleep 시트 col 2(눈 번쩍) → col 3(벌떡) 후 다시 공
                 if (t - b.wakeAt < WAKE_POSE_MS && img('sleep', b.creature)) {
                     var wf = (t - b.wakeAt) < WAKE_POSE_MS / 2 ? 2 : 3;
