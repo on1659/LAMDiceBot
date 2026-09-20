@@ -33,6 +33,8 @@ var MarbleRender = (function () {
     var WARP_COLORS = ['#e23b3b', '#3b82e2', '#f2c014'];   // 짝 파이프 띠 색 (1↔6 빨강, 2↔5 파랑, 3↔4 노랑)
     var EAGLE_ARC = 140;             // 독수리 비행 곡선 높이 — socket/marble-sim.js EAGLE_ARC 와 동일(그림자 자리 계산)
     var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
+    var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
+    var DAM_WATER_MS = 180, BEAVER_TAP_MS = 300, PIT_SURFACE_MS = 220;   // 루프 프레임 간격(댐 수면 4·비버 두드리기 2·웅덩이 3)
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
     var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
     // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
@@ -86,7 +88,8 @@ var MarbleRender = (function () {
             'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png',
             'warp-pipe': A + 'pieces/warp-pipe.png', 'gravestone': A + 'pieces/gravestone.png', 'gap-mark': A + 'pieces/gap-mark.png',   // 4차(finale-d) — 도착 전엔 코드 도형
             'spring-plank': A + 'pieces/spring-plank.png',   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
-            'eagle': A + 'pieces/eagle.png'   // 5차 — 4셀 256×160 날갯짓(오른쪽 향함, 발톱 = 아래에서 16px)
+            'eagle': A + 'pieces/eagle.png',   // 5차 — 4셀 256×160 날갯짓(오른쪽 향함, 발톱 = 아래에서 16px)
+            'mole-v2': A + 'pieces/mole-v2.png', 'dam-water': A + 'pieces/dam-water.png', 'beaver-v2': A + 'pieces/beaver-v2.png', 'pit-surface': A + 'pieces/pit-surface.png'   // 5차
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -99,7 +102,7 @@ var MarbleRender = (function () {
             'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
             'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png',
             'suck-swirl': A + 'fx/suck-swirl.png',   // 4차
-            'eagle-shadow': A + 'fx/eagle-shadow.png'   // 5차 128×48
+            'eagle-shadow': A + 'fx/eagle-shadow.png', 'mole-alert': A + 'fx/mole-alert.png', 'dam-burst-v2': A + 'fx/dam-burst-v2.png', 'geyser': A + 'fx/geyser.png'   // 5차
         }
     };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
@@ -500,6 +503,7 @@ var MarbleRender = (function () {
             (pieces.pit || []).forEach(function (pt) {
                 var z = pt.zone; if (!visible(z.y + z.h / 2, z.h)) return;
                 if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h, 480, 160, { anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) })) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '간헐천', 14);
+                drawSprite('pieces', 'pit-surface', z.x + z.w / 2, z.y + z.h, 480, 160, { sx: (Math.floor(Math.max(0, t) / PIT_SURFACE_MS) % 3) * 480, sw: 480, anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) });   // 수면 보글 루프(5차, 없으면 생략)
             });
             (pieces.mud || []).forEach(function (m) {
                 if (!visible(m.y, 60)) return;
@@ -591,9 +595,11 @@ var MarbleRender = (function () {
                     ctx.fillStyle = 'rgba(40,25,10,0.9)'; ctx.beginPath(); ctx.ellipse(0, 0, m.r, m.r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
                     ctx.restore();
                 }
+                var mc = ((Math.max(0, t) + m.phase) % m.period + m.period) % m.period, toOn = m.period - mc;   // 다음 올라오기까지
+                if (!on && toOn < MOLE_ALERT_MS) drawSprite('fx', 'mole-alert', m.x, m.y - 34, 48, 48, { sx: (Math.floor(Math.max(0, t) / 100) % 2) * 48, sw: 48 });   // 예고 '!' (5차)
                 if (pop > 0.05) {
                     var mf = pop < 0.4 ? 0 : pop < 0.75 ? 1 : 2;
-                    if (!drawSprite('pieces', 'mole', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 })) {
+                    if (!drawSprite('pieces', 'mole-v2', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 }) && !drawSprite('pieces', 'mole', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 })) {   // v2(청회색·안전모) 우선, 없으면 3차 mole
                         var mh = 26 * pop;
                         ctx.save(); ctx.translate(m.x, toScreenY(m.y));
                         ctx.beginPath(); ctx.rect(-m.r - 4, -60, m.r * 2 + 8, 60 + 2); ctx.clip();
@@ -716,6 +722,7 @@ var MarbleRender = (function () {
                     ctx.restore();
                     label(burstEv ? '댐이 터졌다' : st > 0 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
                 }
+                if (!burstEv) drawSprite('pieces', 'dam-water', cx, d.y1 + 8, 480, 128, { sx: (Math.floor(Math.max(0, t) / DAM_WATER_MS) % 4) * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: 0.9 });   // 댐 위 고인 물 수면 루프(5차) — 기다리는 동물이 물에 뜬 것처럼
                 ctx.restore();
                 if (burstEv && t - burstE.t < DAM_FLOW_MS) {   // 터진 물이 채널을 타고 쏟아져 내려간다 — 앞머리는 아래로, 꼬리는 옅어지며 (t 파생 잔물결)
                     var fk = (t - burstE.t) / DAM_FLOW_MS, head = 60 + fk * 320, fa = 0.6 * (1 - fk * fk);
@@ -741,7 +748,8 @@ var MarbleRender = (function () {
                     label('틈!', gx, d.y1 - 40, '#dff4ff', 11);
                 }
                 if (!burstEv) label('부딪히면 크게 튕겨요', cx, d.y1 - 64, '#fff', 11);
-                if (!drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
+                var bvf = burstEv ? 3 : st > 0 ? 2 : Math.floor(Math.max(0, t) / BEAVER_TAP_MS) % 2;   // 두드리기 A/B 루프 → 금 가면 놀람 → 터지면 도망 (5차 beaver-v2)
+                if (!drawSprite('pieces', 'beaver-v2', d.beaverX, d.y1 + 26, 96, 96, { sx: bvf * 96, sw: 96, anchor: 'bottom', scale: 1.3 }) && !drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
                     ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(d.beaverX, toScreenY(d.y1) - 48, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
                 }
@@ -1227,8 +1235,13 @@ var MarbleRender = (function () {
                         label('벌 떼다!!', z.x + z.w / 2, z.y + 40, '#fff', 14);
                         break;
                     }
-                    case 'geyser': {   // 간헐천 분출: 물기둥(위로 늘어나며 옅어짐) + 물방울 + 흙먼지 + 라벨
+                    case 'geyser': {   // 간헐천 분출: 물기둥(5차 geyser 5프레임, 없으면 코드 그라데이션) + 물방울 + 흙먼지 + 라벨
                         if (!visible(y, 120)) return;
+                        if (drawSprite('fx', 'geyser', x, y + 6, 128, 256, { sx: Math.min(4, Math.floor(k * 5)) * 128, sw: 128, anchor: 'bottom', scale: 1.1 + Math.min(0.6, (f.count || 1) * 0.05) })) {
+                            drawSprite('fx', 'dust-puff', x - 24, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k, scale: 1.6 }); drawSprite('fx', 'dust-puff', x + 24, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k, scale: 1.6 });
+                            if (k < 0.6) label('펑!', x, y - 60 - k * 40, '#fff', 18);
+                            break;
+                        }
                         ctx.save();
                         var gh = 40 + k * 150, gw = 26 + Math.min(40, (f.count || 1) * 3);
                         var grd = ctx.createLinearGradient(0, toScreenY(y), 0, toScreenY(y) - gh);
@@ -1243,7 +1256,7 @@ var MarbleRender = (function () {
                     case 'damburst': {
                         var d = (pieces.dam || [])[0]; if (!d || !visible(d.y1, 80)) return;
                         var cx = (d.x1 + d.x2) / 2;
-                        if (!drawSprite('fx', 'dam-burst', cx, d.y1 - 10, 192, 128, { sx: frame * 192, sw: 192, alpha: 1 - k })) {
+                        if (!drawSprite('fx', 'dam-burst-v2', cx, d.y1 + 20, 192, 128, { sx: Math.min(5, Math.floor(k * 6)) * 192, sw: 192, anchor: 'bottom', alpha: 1 - k * k, scale: 1.4 }) && !drawSprite('fx', 'dam-burst', cx, d.y1 - 10, 192, 128, { sx: frame * 192, sw: 192, alpha: 1 - k })) {   // 5차 6프레임 물살 우선
                             for (var q = 0; q < 10; q++) { var ang = hash01(q + 3) * Math.PI * 2, dist = k * (40 + hash01(q + 9) * 60); ctx.fillStyle = q % 2 ? 'rgba(120,80,40,' + (1 - k) + ')' : 'rgba(120,190,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(cx + Math.cos(ang) * dist, toScreenY(d.y1) + Math.sin(ang) * dist * 0.6 + k * 30, 4, 0, Math.PI * 2); ctx.fill(); }
                             label('댐이 터졌다!', cx, d.y1 - 70, '#fff', 15);
                         }
