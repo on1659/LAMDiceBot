@@ -60,11 +60,17 @@ const SEESAW_LEN = 84, SEESAW_AMP_DEG = 25, SEESAW_PERIOD_MS = 2400;
 const HOLE_COUNT = 5;
 const HOLE_W = 44;                // 구멍 폭 (공 1.6개 — 동시에 둘이 끼지 못함)
 const HOLE_RIDGE_H = 16;          // 구멍 사이 바닥 지붕 높이
-const HOLE_PIPE_H = 70;           // 구멍 아래 파이프 길이 (goalY 는 그 안)
+const HOLE_PIPE_H = 60;           // 구멍 아래 파이프 길이
+// ⑩ 집결 통로: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 한 줄로 직접 걸어간다. 앞을 추월 못 함.
+const WALK_SPEED = 95;            // px/s 걷는 속도(전원 동일)
+const WALK_SPACING = 30;          // 앞 동물과 최소 간격
+const LANE_H = 60;                // 통로 높이
+const LANE_END_X = 745;           // 통로 끝 벽(판자벽)
+const GOAL_X = 700;               // 이 x 를 지나면 도착
 const FINALE_HOLD_MS = 3500;      // 마지막 공 골인 후 엎어짐·스포트라이트 여유(클라 재생 길이에 포함)
 // 슬로모 (Marble Roulette timeScale 차용): 마지막 남은 공이 골 앞 SLOW_ZONE_PX 에 들어오면 재생 속도 SLOW_RATE.
 // 서버·클라가 같은 타임라인으로 같은 시각을 계산해 durationMs 에 반영 → 2탭 동기·종료 타이머 일치.
-const SLOW_ZONE_PX = 70;          // 구멍 바로 위부터(마지막 낙하만) — 말뚝에서 튕기는 동안은 정속
+const SLOW_ZONE_PX = 60;          // 통로 골 앞 60px(마지막 걸음만) — 걷는 4~5초를 전부 늘리면 지루하다
 const SLOW_RATE = 0.3;
 
 // ─── 결정론 시드 PRNG (spin-arena와 동일) ───
@@ -142,10 +148,10 @@ function buildTrack(ballCount) {
     p.push({ kind: 'mud', x: 400, y: 4850, rx: 50, ry: 28 });
 
     // ⑨ 구멍밭 — 500폭 그대로. 말뚝 파칭코 → 바닥 골 구멍 5개(지붕 바닥이 구멍으로 유도) → 파이프
-    const HF = { x: 150, y: 4880, w: 500, h: 520 };        // 구역
-    const floorY = HF.y + HF.h;                             // 5400
+    const HF = { x: 150, y: 4880, w: 500, h: 440 };        // 구역
+    const floorY = HF.y + HF.h;                             // 5320
     wall(150, 4880, 150, floorY); wall(650, 4880, 650, floorY);
-    for (let r = 0; r < 6; r++) {
+    for (let r = 0; r < 5; r++) {
         const y = 4960 + r * 60, off = (r % 2) ? 25 : 0;
         for (let x = 200 + off; x <= 600; x += 50) p.push({ kind: 'stake', x, y, r: STAKE_R });
     }
@@ -167,9 +173,14 @@ function buildTrack(ballCount) {
     wall(holes[HOLE_COUNT - 1].x + HOLE_W / 2, floorY, HF.x + HF.w, floorY - HOLE_RIDGE_H);
     p.push({ kind: 'holefield', zone: HF, holes, floorY, pipeH: HOLE_PIPE_H });
 
-    // ⑩ 도착 스탠드 — 왼쪽부터 1, 2, 3… (클라가 finishOrder 로 배치) → 꼴찌는 판자벽 앞
-    p.push({ kind: 'stand', zone: { x: 150, y: floorY + HOLE_PIPE_H + 20, w: 500, h: 200 }, cols: 10 });
-    p.push({ kind: 'dumpwall', x: 400, y: floorY + HOLE_PIPE_H + 250 });
+    // ⑩ 집결 통로 → 도착 스탠드. 통로: 파이프 아래 y [laneTop, laneTop+LANE_H], 왼쪽 벽 ~ 오른쪽 판자벽. 골 = x ≥ GOAL_X
+    const laneTop = floorY + HOLE_PIPE_H, laneY = laneTop + LANE_H / 2;
+    wall(150, laneTop, 150, laneTop + LANE_H); wall(150, laneTop + LANE_H, LANE_END_X, laneTop + LANE_H);
+    wall(LANE_END_X, laneTop - 10, LANE_END_X, laneTop + LANE_H);
+    p.push({ kind: 'lane', x0: 150, x1: LANE_END_X, y: laneY, h: LANE_H, goalX: GOAL_X });
+    // 스탠드 — 통로 아래, 왼쪽부터 1, 2, 3… (클라가 finishOrder 로 배치). 꼴찌는 통로 끝 판자벽 앞에 엎어짐
+    p.push({ kind: 'stand', zone: { x: 150, y: laneTop + LANE_H + 24, w: 500, h: 180 }, cols: 10 });
+    p.push({ kind: 'dumpwall', x: LANE_END_X, y: laneY, facing: 'left' });
 
     // 장식(클라 전용, 물리 없음)
     const decor = [
@@ -180,7 +191,7 @@ function buildTrack(ballCount) {
     decor.forEach(([kind, x, y]) => p.push({ kind: 'decor', decor: kind, x, y }));
 
     return {
-        width: TRACK_W, startY: -startH, goalY: 5400 + HOLE_PIPE_H - 20, endY: 5400 + HOLE_PIPE_H + 300,
+        width: TRACK_W, startY: -startH, goalY: laneY, goalX: GOAL_X, endY: laneTop + LANE_H + 260,
         ballR: BALL_R, napR: NAP_R,
         pieces: p
     };
@@ -233,7 +244,7 @@ function seesawSegment(s, t) {
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|mud|mudEnd|bump|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|mud|mudEnd|bump|land|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -254,7 +265,7 @@ async function simulate(balls, seed, track) {
 
     // 조각 분류
     const walls = [], stakes = [], muds = [];
-    let beehive = null, sun = null, dam = null, pit = null, seesaw = null;
+    let beehive = null, sun = null, dam = null, pit = null, seesaw = null, lane = null;
     for (const pc of track.pieces) {
         switch (pc.kind) {
             case 'wall': walls.push(pc); break;
@@ -265,6 +276,7 @@ async function simulate(balls, seed, track) {
             case 'dam': dam = pc; break;
             case 'pit': pit = pc; break;
             case 'seesaw': seesaw = pc; break;
+            case 'lane': lane = pc; break;
         }
     }
     // 벽 y-밴드 브로드페이즈(200px 밴드)
@@ -400,9 +412,20 @@ async function simulate(balls, seed, track) {
             for (const b of B) if (b.state === 'pit') wakeBall(t, b, (rng() - 0.5) * 40, PIT_RISE_VY);
         }
 
+        // ── 집결 통로 걷기: 한 줄, 앞 추월 불가, 골 x 통과 시 도착 ──
+        if (lane) {
+            const walkers = B.filter(b => b.state === 'walk').sort((a, b) => b.x - a.x);
+            for (let i = 0; i < walkers.length; i++) {
+                const w = walkers[i];
+                w.x += WALK_SPEED * dt; w.y = lane.y; w.vx = WALK_SPEED; w.vy = 0;
+                if (i > 0) w.x = Math.min(w.x, walkers[i - 1].x - WALK_SPACING);
+                if (w.x >= lane.goalX) finishBall(t, w);
+            }
+        }
+
         // ── 공 적분 ──
         for (const b of B) {
-            if (b.state === 'done') continue;
+            if (b.state === 'done' || b.state === 'walk') continue;
             if (b.state === 'nap') {
                 if (t - b.napAt >= NAP_MAX_MS) wakeBall(t, b, 0, WAKE_KICK_Y);
                 else continue;
@@ -475,7 +498,7 @@ async function simulate(balls, seed, track) {
             if (b.state !== 'roll') continue;
 
             // 골인
-            if (b.y >= track.goalY) { finishBall(t, b); continue; }
+            if (lane && b.y >= lane.y) { b.state = 'walk'; b.x = Math.max(lane.x0 + BALL_R, b.x); b.y = lane.y; b.vx = 0; b.vy = 0; pushEvent(t, 'land', b); continue; }
 
             // 갇힘 방지
             const spd = Math.hypot(b.vx, b.vy);
@@ -489,13 +512,13 @@ async function simulate(balls, seed, track) {
         // ── 공-공 충돌(해시) ──
         const grid = new Map();
         for (const b of B) {
-            if (b.state === 'done') continue;
+            if (b.state === 'done' || b.state === 'walk') continue;
             const k = (Math.floor(b.x / CELL) + 4096) * 65536 + Math.floor((b.y + 8192) / CELL);
             if (!grid.has(k)) grid.set(k, []);
             grid.get(k).push(b);
         }
         for (const b of B) {
-            if (b.state === 'done') continue;
+            if (b.state === 'done' || b.state === 'walk') continue;
             const cx = Math.floor(b.x / CELL) + 4096, cy = Math.floor((b.y + 8192) / CELL);
             for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
                 const cell = grid.get((cx + ox) * 65536 + (cy + oy));
@@ -555,8 +578,8 @@ async function simulate(balls, seed, track) {
     const secondLastT = finishOrder.length >= 2 ? events.filter(e => e.type === 'finish' && e.ball === finishOrder[finishOrder.length - 2])[0].t : 0;
     let slowStartMs = simEndMs;
     for (let k = Math.ceil(secondLastT / sampleMs); k < frames.length; k++) {
-        const y = frames[k][lastId * 2 + 1];
-        if (y >= 0 && y >= track.goalY - SLOW_ZONE_PX) { slowStartMs = Math.max(secondLastT, k * sampleMs); break; }
+        const x = frames[k][lastId * 2], y = frames[k][lastId * 2 + 1];
+        if (x >= 0 && Math.abs(y - track.goalY) < 2 && x >= track.goalX - SLOW_ZONE_PX) { slowStartMs = Math.max(secondLastT, k * sampleMs); break; }   // 통로 위(걷는 중)에서 골 앞 SLOW_ZONE_PX
     }
     if (slowStartMs > simEndMs) slowStartMs = simEndMs;
     const slow = { startMs: slowStartMs, rate: SLOW_RATE, endMs: simEndMs };

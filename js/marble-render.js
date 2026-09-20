@@ -154,7 +154,7 @@ var MarbleRender = (function () {
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
             balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num,
-                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0 }; });
+                x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
             evCursor = 0; lastT = -1; fxList = []; cam.init = false;
@@ -185,7 +185,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -201,6 +201,7 @@ var MarbleRender = (function () {
                     case 'bees': fxList.push({ type: 'bees', t0: e.t, dur: BEE_MS }); break;
                     case 'damCrack': break;
                     case 'damBurst': fxList.push({ type: 'damburst', t0: e.t, dur: DAM_FX_MS }); break;
+                    case 'land': b.state = 'walk'; b.landAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'finish':
                         b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.indexOf(b.id);
                         fxList.push({ type: 'poof', ball: b.id, x: b.x, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
@@ -259,7 +260,8 @@ var MarbleRender = (function () {
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
             else if (!focus) { targetY = goalY + 40; targetX = TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
-                var top = hf.zone.y - 30, bottom = (wallP ? wallP.y : goalY) + 50;
+                var standP = (pieces.stand || [])[0];
+                var top = hf.zone.y - 30, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
                 targetY = (top + bottom) / 2; targetX = TRACK_W / 2;
                 targetZoom = clamp(view.h / (bottom - top), ZOOM_MIN, ZOOM_MAX);
                 if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
@@ -495,6 +497,17 @@ var MarbleRender = (function () {
                 });
                 label('🕳 골 구멍 — 마지막에 떨어지는 동물이 당첨', z.x + z.w / 2, z.y - 16, '#fff', 13);
             });
+            (pieces.lane || []).forEach(function (ln) {
+                if (!visible(ln.y, 80)) return;
+                // 흙길 + 골 선 + 안내
+                ctx.save();
+                ctx.fillStyle = 'rgba(150,115,70,0.55)'; ctx.fillRect(ln.x0, toScreenY(ln.y - ln.h / 2), ln.x1 - ln.x0, ln.h);
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(ln.goalX, toScreenY(ln.y - ln.h / 2)); ctx.lineTo(ln.goalX, toScreenY(ln.y + ln.h / 2)); ctx.stroke();
+                ctx.restore();
+                label('골', ln.goalX, ln.y - ln.h / 2 - 10, '#ffe08a', 12);
+                label('→ 떨어진 자리에서 골까지 한 줄로 걸어갑니다', (ln.x0 + ln.x1) / 2, ln.y + ln.h / 2 + 12, '#fff', 11);
+            });
             (pieces.startGate || []).forEach(function (g) {
                 if (!visible(g.y1, 40)) return;
                 var prog = t <= 0 ? 0 : clamp(t / GATE_ANIM_MS, 0, 1);
@@ -520,7 +533,9 @@ var MarbleRender = (function () {
             });
             (pieces.dumpwall || []).forEach(function (d) {
                 if (!visible(d.y, 60)) return;
-                if (!drawSprite('pieces', 'dump-wall', d.x, d.y + 30, 96, 160, { anchor: 'bottom', scale: BASKET_SCALE })) placeholderBox(d.x - 40, d.y - 10, 80, 20, '#8a6a4a', '#4a3420', '끝', 4);
+                // 통로 끝 판자벽(facing left): 통로 높이에 맞춰 1.2배, 바닥 = 통로 아래
+                var wsc = d.facing === 'left' ? 1.2 : BASKET_SCALE, wyy = d.facing === 'left' ? d.y + 34 : d.y + 30;
+                if (!drawSprite('pieces', 'dump-wall', d.x, wyy, 96, 160, { anchor: 'bottom', scale: wsc })) placeholderBox(d.x - 12, d.y - 30, 24, 60, '#8a6a4a', '#4a3420', '끝', 4);
             });
         }
 
@@ -615,6 +630,15 @@ var MarbleRender = (function () {
                     else drawSprite('fx', 'zz', b.x + 14, zy - 4, 48, 48, { sx: Math.floor(zt / 225) * 48, sw: 48, alpha: za, scale: 1.3 });
                     continue;
                 }
+                if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (앞을 추월 못 하는 한 줄)
+                    var ws = t - b.landAt;
+                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / 140) % 4;
+                    var wim = img('creatures', b.creature);
+                    if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
+                    else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
+                    drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    continue;
+                }
                 if (b.state === 'mud') { drawCreatureFrame(b, 2, 3, b.x, b.y); drawRing(b, b.x, b.y, BALL_R + 3, mine); continue; }
                 // 깨어남 직후: sleep 시트 col 2(눈 번쩍) → col 3(벌떡) 후 다시 공
                 if (t - b.wakeAt < WAKE_POSE_MS && img('sleep', b.creature)) {
@@ -702,10 +726,16 @@ var MarbleRender = (function () {
             if (!b || b.state !== 'done') return;
             var since = t - b.finishAt;
             var wall = (pieces.dumpwall || [])[0];
-            var wy = wall ? wall.y + 14 : data.track.goalY + 60;   // 판자벽 앞(아래)에 엎어짐
+            // 통로 끝: 골 x 에서 판자벽 앞까지 마저 걸어가 벽에 퍽 → 엎어짐
+            var wx = wall ? wall.x - 30 : b.x + 40, wy = data.track.goalY;
             var k = clamp(since / LAST_ROLL_MS, 0, 1);
-            var y = lerp(data.track.goalY, wy, k), x = lerp(b.x, wall ? wall.x : b.x, k);
-            if (k < 1) { drawShadow(x, y, BALL_R); drawCreatureFrame(b, 2, 2, x, y, b.angle + since / 40); drawRing(b, x, y, BALL_R + 3, b.owner === myName); return; }
+            var x = lerp(data.track.goalX || b.x, wx, k), y = wy;
+            if (k < 1) {
+                drawShadow(x, y, BALL_R);
+                var lim = img('creatures', b.creature);
+                if (lim) { ctx.save(); ctx.translate(x, toScreenY(y + 6)); ctx.drawImage(lim, Math.floor(since / 140) % 4 * CELL, 0, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
+                drawRing(b, x, y, BALL_R + 3, b.owner === myName); return;
+            }
             var fs = since - LAST_ROLL_MS;
             var frame = fs < 150 ? 0 : fs < 320 ? 1 : fs < 700 ? 2 : 2 + Math.floor(fs / 300) % 2;
             drawShadow(x, y, BALL_R + 2);
@@ -769,7 +799,7 @@ var MarbleRender = (function () {
         var MINIMAP_BANDS = [   // [y0, y1, color, 라벨] — socket/marble-sim.js buildTrack 구간과 동일
             [0, 300, '#b48a5a', '출발'], [300, 900, '#c9a26a', '말뚝'], [900, 1250, '#e6b73a', '벌집'], [1250, 1650, '#f2e27a', '햇볕'],
             [1650, 2030, '#7fa6d6', '댐'], [2030, 2200, '#6b4a2b', '구덩이'], [2200, 4120, '#8fd07a', '뱀길'], [4120, 4880, '#a07a4a', '범퍼·진흙'],
-            [4880, 5400, '#d98c3a', '구멍밭'], [5400, 5800, '#f2b134', '스탠드']
+            [4880, 5320, '#d98c3a', '구멍밭'], [5320, 5800, '#f2b134', '통로·스탠드']
         ];
         function drawMinimap(t) {
             var x0 = 12, y0 = 44, h = view.h - 60, w = MINIMAP_W;
