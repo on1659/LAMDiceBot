@@ -39,7 +39,9 @@ const STAKE_R = 8;
 const LOG_R = 20;
 const BEE_MS = 1800;              // 벌 떼 지속
 const BEE_ACCEL = 1600;           // px/s² 랜덤 가속(구역 안 전원)
-const SUN_DRAG = 4.0;             // 햇볕 잔디 추가 감쇠 /s → 구역 종단속도 ≈160
+// ④ 햇볕 잔디: 구역 전체가 아니라 잔디 '자리'(타원) 몇 군데만 — 밟은 놈만 느려지고 잠들 수 있다. 전원이 똑같이 겪는 감속은 두지 않는다(경쟁 게임).
+const SUN_SPOTS = [[230, 1340, 48, 55], [400, 1450, 48, 55], [570, 1560, 48, 55]];   // [x, y, rx, ry] — 폭 500 중 x 커버 ≈ 58%
+const SUN_DRAG = 10.0;            // 잔디 자리 안 추가 감쇠 /s → 종단속도 ≈70, 자리(110px) 통과에 ~1.4s
 const NAP_SPEED = 200;            // 이 속도 미만이면 잠들 수 있음
 const NAP_P = 0.007;              // 스텝(10ms)당 잠들 확률(시드 PRNG)
 const NAP_MIN_MS = 500, NAP_MAX_MS = 1800;
@@ -49,6 +51,17 @@ const DAM_FRACTION = 0.5;         // 전체 공의 이 비율이 쌓이면 터�
 const DAM_MIN_COUNT = 2;
 const DAM_MAX_HOLD_MS = 2500;     // 첫 접촉 후 이 시간이 지나면 무조건 터짐
 const DAM_BURST_VY = 320, DAM_BURST_VX = 120;
+const DAM_GAP_W = 56;             // 댐 한쪽 끝에 새는 틈(공 2개) — 틈 쪽으로 온 놈은 기다리지 않고 바로 빠진다. 쪽은 시드로
+// ⑦ 풍차: 날개 4개가 도는 회전 장애물 — 맞는 놈만 튕겨 나간다. 날개 끝 속도 ≈ 2π·len/period
+const WINDMILL_LEN = 72;          // 날개 길이(허브→끝). rotor 스프라이트 192px 를 3배(=144 표시)로 그린다
+const WINDMILL_PERIOD_MS = 2400;
+const WINDMILL_HUB_R = 8;
+const WINDMILL_POLE_H = 144;      // 기둥 높이(A자 다리 두 개가 물리 벽)
+// ⑦ 점프대: 경사로 위 발판. 밟은 놈만 위로 튀어 올라(≈190px) 다른 자리에 떨어진다
+const JUMP_LEN = 36;
+const JUMP_VY = 520;              // 위로 튀는 속도 → 최고 높이 JUMP_VY²/(2g) ≈ 193px
+const JUMP_VX = 120;              // 내리막 방향 살짝
+const JUMP_LIFT = 5;              // 경사로 면에서 발판을 띄우는 높이(공이 경사로보다 먼저 닿게)
 const PIT_FRACTION = 0.1, PIT_FILL_MIN = 1, PIT_FILL_MAX = 12;
 const PIT_PASS_MULT = 2;          // PIT_FILL × 2 마리 지나가면 깨어남
 const PIT_MAX_MS = 2200;
@@ -61,6 +74,13 @@ const HOLE_COUNT = 5;
 const HOLE_W = 44;                // 구멍 폭 (공 1.6개 — 동시에 둘이 끼지 못함)
 const HOLE_RIDGE_H = 16;          // 구멍 사이 바닥 지붕 높이
 const HOLE_PIPE_H = 60;           // 구멍 아래 파이프 길이
+// 구멍 뚜껑: 구멍마다 여닫힌다. 골(오른쪽 끝)에 가까운 구멍일수록 주기가 길어 가끔 열리고, 먼 구멍일수록 자주 열린다.
+//   열려 있는 시간은 전부 같고(HOLE_OPEN_MS) 주기만 왼쪽→오른쪽 선형. 뚜껑은 왼쪽으로 미끄러져 열린다. 클라는 hole 에 실린 값으로 같은 식을 그린다.
+const HOLE_OPEN_MS = 700;
+const HOLE_PERIOD_FAR_MS = 1500;  // 골에서 가장 먼 구멍(왼쪽 끝)
+const HOLE_PERIOD_NEAR_MS = 4200; // 골에 가장 가까운 구멍(오른쪽 끝)
+const HOLE_LID_SLIDE_MS = 150;    // 여닫히는 데 걸리는 시간
+const HOLE_PHASE_STEP = 0.37;     // 구멍별 위상(주기 × i × 이 값) — 동시에 열리지 않게
 // ⑩ 집결 통로: 파이프에서 떨어진 동물은 통로 바닥에 내려 오른쪽 끝(골)까지 한 줄로 직접 걸어간다. 앞을 추월 못 함.
 const WALK_SPEED_MIN = 60, WALK_SPEED_MAX = 140;   // px/s 걷는 속도 — 착지 순간 마리마다 시드 PRNG 로 뽑는다(종족 무관, 운). 앞이 느리면 갇힌다
 const WALK_SPACING = 28;          // 앞 동물과 최소 간격
@@ -96,7 +116,8 @@ function mulberry32(seed) {
 // 트랙 A — 10구간. y는 출발 문(0)부터 아래로. 출발대는 음수 y(공 수에 따라 높이 가변).
 // pieces 는 서버 물리와 클라 렌더가 같은 배열을 본다(reveal에 실어 보냄).
 // ═══════════════════════════════════════════════════════════
-function buildTrack(ballCount) {
+function buildTrack(ballCount, rng) {
+    rng = rng || (() => 0.75);   // rng 없으면(테스트·덤프) 댐 틈은 오른쪽
     const rows = Math.max(1, Math.ceil(ballCount / START_ROW_SIZE));
     const startH = rows * START_SPACING + 40;
     const p = [];
@@ -127,48 +148,59 @@ function buildTrack(ballCount) {
 
     // ④ 햇볕 잔디 (500폭)
     wall(150, 1250, 150, 1650); wall(650, 1250, 650, 1650);
-    p.push({ kind: 'sunpatch', zone: { x: 150, y: 1280, w: 500, h: 340 } });
+    p.push({ kind: 'sunpatch', zone: { x: 150, y: 1280, w: 500, h: 340 }, spots: SUN_SPOTS.map(([x, y, rx, ry]) => ({ x, y, rx, ry })) });
 
-    // ⑤ 비버 댐 (깔때기 → 160폭 채널)
+    // ⑤ 비버 댐 (깔때기 → 160폭 채널). 댐 한쪽 끝에 틈 — 틈 쪽 공은 바로 빠지고 나머지만 갇혀 기다린다
     wall(150, 1650, 320, 1760); wall(650, 1650, 480, 1760);
     wall(320, 1760, 320, 2200); wall(480, 1760, 480, 2200);
-    p.push({ kind: 'dam', x1: 320, y1: 1960, x2: 480, y2: 1960, beaverX: 400, zone: { x: 320, y: 1840, w: 160, h: 120 } });
+    const gapRight = rng() < 0.5;
+    const gap = gapRight ? { x1: 480 - DAM_GAP_W, x2: 480 } : { x1: 320, x2: 320 + DAM_GAP_W };
+    p.push({ kind: 'dam', x1: 320, y1: 1960, x2: 480, y2: 1960, beaverX: 400, gap, zone: { x: 320, y: 1840, w: 160, h: 120 } });
 
     // ⑥ 희생 다리(구덩이)
     p.push({ kind: 'pit', zone: { x: 320, y: 2060, w: 160, h: 60 } });   // 구덩이 스프라이트(480×160 → 채널 폭 160×53) 크기에 맞춤
 
-    // ⑦ 나선(뱀길) — 바깥 벽 + 선반 6단. 선반 끝 빈틈으로 다음 단에 떨어진다.
-    wall(100, 2200, 100, 4120); wall(700, 2200, 700, 4120);
-    for (let k = 0; k < 6; k++) {
-        const y0 = 2260 + k * 320, y1 = y0 + 280;
-        if (k % 2 === 0) wall(100, y0, 600, y1); else wall(700, y0, 200, y1);
-    }
+    // ⑦ 풍차 + 점프대 (깔때기 160 → 500폭). 뱀길(순위 변동 없는 긴 대각선)을 대신한다.
+    //   풍차: 채널 출구 바로 아래 한가운데 — 대부분 날개에 맞아 좌우로 튕기고, 옆으로 빠진 놈은 그냥 통과.
+    //   점프대: 경사로 2단(오른쪽 내리막 → 왼쪽 내리막) 위 발판 3개 — 밟은 놈만 튀어 올라 시간을 잃고 다른 자리에 떨어진다.
+    wall(320, 2200, 150, 2320); wall(480, 2200, 650, 2320);
+    wall(150, 2320, 150, 3800); wall(650, 2320, 650, 3800);
+    const WM = { x: 400, y: 2480 };
+    p.push({ kind: 'windmill', x: WM.x, y: WM.y, blades: 4, len: WINDMILL_LEN, period: WINDMILL_PERIOD_MS, hubR: WINDMILL_HUB_R, poleH: WINDMILL_POLE_H });
+    wall(WM.x, WM.y + 45, WM.x - 32, WM.y + WINDMILL_POLE_H); wall(WM.x, WM.y + 45, WM.x + 32, WM.y + WINDMILL_POLE_H);   // 기둥 A자 다리
+    const ramp = (x1, y1, x2, y2, pads) => {
+        wall(x1, y1, x2, y2);
+        const ang = Math.atan2(y2 - y1, x2 - x1), nx = Math.sin(ang), ny = -Math.cos(ang);   // 위쪽 법선
+        const dir = x2 > x1 ? 1 : -1;
+        pads.forEach(k => p.push({ kind: 'jumppad', x: x1 + (x2 - x1) * k + nx * JUMP_LIFT, y: y1 + (y2 - y1) * k + ny * JUMP_LIFT, len: JUMP_LEN, angle: ang, dir }));
+    };
+    ramp(150, 2700, 560, 2830, [0.3, 0.68]);   // 오른쪽 내리막, 끝(560~650)으로 떨어짐
+    ramp(650, 2910, 240, 3040, [0.5]);         // 왼쪽 내리막, 끝(150~240)으로 떨어짐
 
-    // ⑧ 통나무 범퍼 + 진흙·시소 (깔때기 → 500폭)
-    wall(100, 4120, 150, 4220); wall(700, 4120, 650, 4220);
-    wall(150, 4220, 150, 4880); wall(650, 4220, 650, 4880);
+    // ⑧ 통나무 범퍼 + 진흙·시소 (500폭)
     for (let r = 0; r < 3; r++) {
-        const y = 4300 + r * 120, off = (r % 2) ? 60 : 0;
+        const y = 3180 + r * 120, off = (r % 2) ? 60 : 0;
         for (let x = 220 + off; x <= 580; x += 120) p.push({ kind: 'log', x, y, r: LOG_R });
     }
-    p.push({ kind: 'seesaw', x: 400, y: 4640, len: SEESAW_LEN, period: SEESAW_PERIOD_MS, amp: SEESAW_AMP_DEG });
-    p.push({ kind: 'mud', x: 270, y: 4700, rx: 60, ry: 32 });
-    p.push({ kind: 'mud', x: 540, y: 4780, rx: 60, ry: 32 });
-    p.push({ kind: 'mud', x: 400, y: 4850, rx: 50, ry: 28 });
+    p.push({ kind: 'seesaw', x: 400, y: 3560, len: SEESAW_LEN, period: SEESAW_PERIOD_MS, amp: SEESAW_AMP_DEG });
+    p.push({ kind: 'mud', x: 270, y: 3620, rx: 60, ry: 32 });
+    p.push({ kind: 'mud', x: 540, y: 3700, rx: 60, ry: 32 });
+    p.push({ kind: 'mud', x: 400, y: 3770, rx: 50, ry: 28 });
 
-    // ⑨ 구멍밭 — 500폭 그대로. 말뚝 파칭코 → 바닥 골 구멍 5개(지붕 바닥이 구멍으로 유도) → 파이프
-    const HF = { x: 150, y: 4880, w: 500, h: 440 };        // 구역
-    const floorY = HF.y + HF.h;                             // 5320
-    wall(150, 4880, 150, floorY); wall(650, 4880, 650, floorY);
+    // ⑨ 구멍밭 — 500폭 그대로. 말뚝 파칭코 → 바닥 골 구멍 5개(지붕 바닥이 구멍으로 유도, 구멍마다 여닫는 뚜껑) → 파이프
+    const HF = { x: 150, y: 3800, w: 500, h: 440 };        // 구역
+    const floorY = HF.y + HF.h;                             // 4240
+    wall(150, HF.y, 150, floorY); wall(650, HF.y, 650, floorY);
     for (let r = 0; r < 5; r++) {
-        const y = 4960 + r * 60, off = (r % 2) ? 25 : 0;
+        const y = HF.y + 80 + r * 60, off = (r % 2) ? 25 : 0;
         for (let x = 200 + off; x <= 600; x += 50) p.push({ kind: 'stake', x, y, r: STAKE_R });
     }
     const holes = [];
     const pitch = HF.w / HOLE_COUNT;                        // 100
     for (let i = 0; i < HOLE_COUNT; i++) {
         const cx = HF.x + pitch * (i + 0.5);
-        holes.push({ x: cx, y: floorY, w: HOLE_W });
+        const period = Math.round(HOLE_PERIOD_FAR_MS + (HOLE_PERIOD_NEAR_MS - HOLE_PERIOD_FAR_MS) * i / (HOLE_COUNT - 1));   // 왼쪽(골에서 멂)=자주, 오른쪽(골 가까움)=가끔
+        holes.push({ x: cx, y: floorY, w: HOLE_W, period, open: HOLE_OPEN_MS, phase: Math.round(period * HOLE_PHASE_STEP * i), slide: HOLE_LID_SLIDE_MS });
         // 파이프 벽 (구멍 양옆 아래로)
         wall(cx - HOLE_W / 2, floorY, cx - HOLE_W / 2, floorY + HOLE_PIPE_H);
         wall(cx + HOLE_W / 2, floorY, cx + HOLE_W / 2, floorY + HOLE_PIPE_H);
@@ -195,8 +227,8 @@ function buildTrack(ballCount) {
     // 장식(클라 전용, 물리 없음)
     const decor = [
         ['tree', 60, 250], ['tree', 740, 700], ['bush-big', 80, 1100], ['bush-big', 720, 1500],
-        ['rock', 90, 1900], ['bush-small', 740, 2100], ['flower-pink', 60, 3000], ['flower-yellow', 740, 3700],
-        ['tree', 70, 4400], ['bush-big', 730, 4600], ['signpost', 700, 5000], ['flower-white', 100, 5300], ['tree', 730, 5500]
+        ['rock', 90, 1900], ['bush-small', 740, 2100], ['flower-pink', 60, 2600], ['flower-yellow', 740, 2950],
+        ['tree', 70, 3350], ['bush-big', 730, 3550], ['signpost', 700, 3920], ['flower-white', 100, 4220], ['tree', 730, 4450]
     ];
     decor.forEach(([kind, x, y]) => p.push({ kind: 'decor', decor: kind, x, y }));
 
@@ -249,12 +281,21 @@ function seesawSegment(s, t) {
     const hx = Math.cos(a) * s.len / 2, hy = Math.sin(a) * s.len / 2;
     return { x1: s.x - hx, y1: s.y - hy, x2: s.x + hx, y2: s.y + hy };
 }
+// 구멍 뚜껑이 덮은 비율 0(활짝)~1(닫힘). 주기 안 [0, open) 이 열린 창, 양 끝 slide 동안 미끄러진다. 클라(js/marble-render.js)와 같은 식.
+function lidCover(h, t) {
+    const c = ((t + h.phase) % h.period + h.period) % h.period;
+    if (c >= h.open) return 1;
+    if (c < h.slide) return 1 - c / h.slide;
+    if (c > h.open - h.slide) return 1 - (h.open - c) / h.slide;
+    return 0;
+}
+function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
 
 /**
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|mud|mudEnd|bump|land|trip|doze|pass|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|jump|mud|mudEnd|bump|land|trip|doze|pass|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -270,23 +311,26 @@ async function simulate(balls, seed, track) {
         napAt: 0, hasNapped: false,
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
         pitDone: false, inPit: false, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '', blockedSince: -1,
-        stuckSince: 0
+        stuckSince: 0, lidAt: -1e9
     }));
 
     // 조각 분류
-    const walls = [], stakes = [], muds = [];
-    let beehive = null, sun = null, dam = null, pit = null, seesaw = null, lane = null;
+    const walls = [], stakes = [], muds = [], pads = [];
+    let beehive = null, sun = null, dam = null, pit = null, seesaw = null, lane = null, windmill = null, holefield = null;
     for (const pc of track.pieces) {
         switch (pc.kind) {
             case 'wall': walls.push(pc); break;
             case 'stake': case 'log': stakes.push(pc); break;
             case 'mud': muds.push(pc); break;
+            case 'jumppad': pads.push(pc); break;
             case 'beehive': beehive = pc; break;
             case 'sunpatch': sun = pc; break;
             case 'dam': dam = pc; break;
             case 'pit': pit = pc; break;
             case 'seesaw': seesaw = pc; break;
             case 'lane': lane = pc; break;
+            case 'windmill': windmill = pc; break;
+            case 'holefield': holefield = pc; break;
         }
     }
     // 벽 y-밴드 브로드페이즈(200px 밴드)
@@ -371,6 +415,19 @@ async function simulate(balls, seed, track) {
         if (d < 1e-6) { nx = 0; ny = -1; d = 0; } else { nx /= d; ny /= d; }
         b.x += nx * (minD - d); b.y += ny * (minD - d);
         const vn = b.vx * nx + b.vy * ny;
+        if (vn < 0) { bump(t, b, -vn); b.vx -= (1 + e) * vn * nx; b.vy -= (1 + e) * vn * ny; }
+    };
+    // 공 vs 움직이는 선분(풍차 날개): (hx,hy) 중심으로 각속도 omega(rad/s) 회전 — 접점의 날개 속도를 뺀 상대 속도로 반사
+    const collideMovingSegment = (t, b, x1, y1, x2, y2, e, omega, hx, hy) => {
+        const c = closestOnSegment(b.x, b.y, x1, y1, x2, y2);
+        let nx = b.x - c.x, ny = b.y - c.y;
+        const d2 = nx * nx + ny * ny;
+        if (d2 >= b.r * b.r) return;
+        let d = Math.sqrt(d2);
+        if (d < 1e-6) { nx = 0; ny = -1; d = 0; } else { nx /= d; ny /= d; }
+        b.x += nx * (b.r - d); b.y += ny * (b.r - d);
+        const pvx = -omega * (c.y - hy), pvy = omega * (c.x - hx);
+        const vn = (b.vx - pvx) * nx + (b.vy - pvy) * ny;
         if (vn < 0) { bump(t, b, -vn); b.vx -= (1 + e) * vn * nx; b.vy -= (1 + e) * vn * ny; }
     };
 
@@ -477,7 +534,7 @@ async function simulate(balls, seed, track) {
                 ax += (rng() * 2 - 1) * BEE_ACCEL;
                 ay += (rng() * 2 - 1) * BEE_ACCEL * 0.5;
             }
-            const inSun = sun && inZone(b, sun.zone);
+            const inSun = !!sun && sun.spots.some(s => inEllipse(b, s));   // 잔디 '자리'를 밟은 놈만
             if (inSun) drag += SUN_DRAG;
             b.vx += (ax - drag * b.vx) * dt;
             b.vy += (ay - drag * b.vy) * dt;
@@ -491,8 +548,37 @@ async function simulate(balls, seed, track) {
             if (wl) for (const w of wl) collideSegment(t, b, w.x1, w.y1, w.x2, w.y2, WALL_RESTITUTION);
             const sl = stakeBands.get(bandKey(b.y));
             if (sl) for (const s of sl) collideCircle(t, b, s.x, s.y, s.r, WALL_RESTITUTION);
-            if (dam && damActive && Math.abs(b.y - dam.y1) < BALL_R + 4) collideSegment(t, b, dam.x1, dam.y1, dam.x2, dam.y2, WALL_RESTITUTION);
+            if (dam && damActive && Math.abs(b.y - dam.y1) < BALL_R + 4) {   // 틈(gap)은 비워 둔다
+                if (dam.gap.x1 > dam.x1) collideSegment(t, b, dam.x1, dam.y1, dam.gap.x1, dam.y1, WALL_RESTITUTION);
+                if (dam.gap.x2 < dam.x2) collideSegment(t, b, dam.gap.x2, dam.y1, dam.x2, dam.y2, WALL_RESTITUTION);
+            }
             if (ss && Math.abs(b.y - seesaw.y) < SEESAW_LEN) collideSegment(t, b, ss.x1, ss.y1, ss.x2, ss.y2, WALL_RESTITUTION);
+            if (windmill && Math.abs(b.y - windmill.y) < windmill.len + BALL_R) {
+                const a0 = windmillAngle(windmill, t), om = 2 * Math.PI * 1000 / windmill.period;
+                collideCircle(t, b, windmill.x, windmill.y, windmill.hubR, WALL_RESTITUTION);
+                for (let k = 0; k < windmill.blades; k++) {
+                    const a = a0 + k * 2 * Math.PI / windmill.blades;
+                    collideMovingSegment(t, b, windmill.x, windmill.y, windmill.x + Math.cos(a) * windmill.len, windmill.y + Math.sin(a) * windmill.len, WALL_RESTITUTION, om, windmill.x, windmill.y);
+                }
+            }
+            for (const jp of pads) {   // 점프대: 위에서 내려와 밟을 때만 발사
+                if (Math.abs(b.y - jp.y) > jp.len) continue;
+                const hx = Math.cos(jp.angle) * jp.len / 2, hy = Math.sin(jp.angle) * jp.len / 2;
+                const c = closestOnSegment(b.x, b.y, jp.x - hx, jp.y - hy, jp.x + hx, jp.y + hy);
+                const dx = b.x - c.x, dy = b.y - c.y;
+                if (dx * dx + dy * dy >= b.r * b.r || b.vy <= 0 || b.y > c.y) continue;
+                b.y = c.y - b.r; b.vx = b.vx * 0.3 + jp.dir * JUMP_VX; b.vy = -JUMP_VY; b.stuckSince = t;
+                pushEvent(t, 'jump', b, { x: Math.round(jp.x), y: Math.round(jp.y) });
+            }
+            if (holefield && Math.abs(b.y - holefield.floorY) < BALL_R + 4) {   // 구멍 뚜껑(닫힌 만큼만 벽)
+                for (const h of holefield.holes) {
+                    const cover = lidCover(h, t); if (cover <= 0) continue;
+                    const lx = h.x - h.w / 2, rx = lx + h.w * cover;
+                    if (b.x < lx - BALL_R || b.x > rx + BALL_R) continue;
+                    collideSegment(t, b, lx, h.y, rx, h.y, WALL_RESTITUTION);
+                    if (Math.abs(b.y - h.y) <= BALL_R + 0.5 && b.x >= lx && b.x <= rx) b.lidAt = t;   // 뚜껑 위에서 기다리는 중 — 갇힘 킥 제외
+                }
+            }
             // 트랙 좌우 경계(안전망)
             if (b.x < BALL_R) { b.x = BALL_R; if (b.vx < 0) b.vx = -b.vx * WALL_RESTITUTION; }
             if (b.x > TRACK_W - BALL_R) { b.x = TRACK_W - BALL_R; if (b.vx > 0) b.vx = -b.vx * WALL_RESTITUTION; }
@@ -542,7 +628,7 @@ async function simulate(balls, seed, track) {
             // 갇힘 방지
             const spd = Math.hypot(b.vx, b.vy);
             const waitingDam = dam && damActive && inZone(b, dam.zone);
-            if (spd > STUCK_SPEED || waitingDam) b.stuckSince = t;
+            if (spd > STUCK_SPEED || waitingDam || t - b.lidAt < 50) b.stuckSince = t;
             else if (t - b.stuckSince >= STUCK_MS) {
                 b.vx = (b.x < TRACK_W / 2 ? 1 : -1) * (STUCK_KICK_X_MIN + rng() * STUCK_KICK_X_RND); b.vy = STUCK_KICK_Y; b.stuckSince = t;
             }

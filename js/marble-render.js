@@ -63,7 +63,8 @@ var MarbleRender = (function () {
             'fence-mid': A + 'pieces/fence-mid.png', 'fence-post': A + 'pieces/fence-post.png',
             'goal-basket-back': A + 'pieces/goal-basket-back.png', 'goal-basket-front': A + 'pieces/goal-basket-front.png', 'dump-wall': A + 'pieces/dump-wall.png',
             'beehive': A + 'pieces/beehive.png', 'sun-patch': A + 'pieces/sun-patch.png', 'beaver-dam': A + 'pieces/beaver-dam.png', 'beaver': A + 'pieces/beaver.png',
-            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png'
+            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png',
+            'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png'
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -107,6 +108,15 @@ var MarbleRender = (function () {
     function lerp(a, b, k) { return a + (b - a) * k; }
     function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
     function seesawAngle(s, t) { return (s.amp * Math.PI / 180) * Math.sin(2 * Math.PI * t / s.period); }
+    // 구멍 뚜껑 덮인 비율 0~1 — socket/marble-sim.js lidCover 와 같은 식 (hole 에 period/open/phase/slide 가 실려 온다)
+    function lidCover(h, t) {
+        var c = ((t + h.phase) % h.period + h.period) % h.period;
+        if (c >= h.open) return 1;
+        if (c < h.slide) return 1 - c / h.slide;
+        if (c > h.open - h.slide) return 1 - (h.open - c) / h.slide;
+        return 0;
+    }
+    function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
     // 결정론 해시(파티클 분산용 — Math.random 대체)
     function hash01(n) { var x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
 
@@ -196,6 +206,7 @@ var MarbleRender = (function () {
                     case 'wake': if (b.state === 'walk') { b.walkKind = ''; } else if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
                     case 'pitFall': b.state = 'pit'; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitRise': break;
+                    case 'jump': fxList.push({ type: 'jump', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
                     case 'bump': fxList.push({ type: 'star', x: e.x, y: e.y, t0: e.t, dur: BUMP_FX_MS }); if (b) b.squashUntil = e.t + 160; break;
@@ -398,28 +409,33 @@ var MarbleRender = (function () {
             });
             (pieces.sunpatch || []).forEach(function (s) {
                 var z = s.zone; if (!visible(z.y + z.h / 2, z.h)) return;
-                // 햇볕 잔디: 스프라이트(256×128, 4배=64×32)를 2배 크기(128×64) 벽돌 패턴으로 깔아 구역을 채운다
+                // 햇볕 잔디 '자리'(서버 spots 타원)만 노랗게 — 밟은 놈만 느려진다. 자리마다 스프라이트(256×128) 두 장을 위아래로 겹쳐 타원(세로로 긴) 모양으로
                 var sp = img('pieces', 'sun-patch');
-                var glow = ctx.createRadialGradient(z.x + z.w / 2, toScreenY(z.y + z.h / 2), 30, z.x + z.w / 2, toScreenY(z.y + z.h / 2), z.w * 0.6);
-                glow.addColorStop(0, 'rgba(255,235,130,0.55)'); glow.addColorStop(1, 'rgba(255,235,130,0)');
-                ctx.fillStyle = glow; ctx.fillRect(z.x - 40, toScreenY(z.y) - 30, z.w + 80, z.h + 60);
-                if (sp) {
-                    var tw = 128, th = 64, row = 0;
-                    for (var yy = z.y - 10; yy < z.y + z.h - th * 0.6; yy += th * 0.55, row++) {
-                        for (var xx = z.x - 20 + (row % 2 ? tw * 0.35 : 0); xx < z.x + z.w - tw * 0.5; xx += tw * 0.7) ctx.drawImage(sp, 0, 0, 256, 128, xx, toScreenY(yy), tw, th);
-                    }
-                }
-                // 햇살 반짝임 (t 파생, 결정론)
-                for (var q = 0; q < 10; q++) {
-                    var ph = (t / 900 + hash01(q + 11)) % 1, a = Math.sin(ph * Math.PI);
-                    var px = z.x + 30 + hash01(q + 5) * (z.w - 60), py = z.y + 30 + hash01(q + 17) * (z.h - 60);
+                var spots = s.spots || [];
+                spots.forEach(function (o) {
+                    var cy = toScreenY(o.y);
+                    var glow = ctx.createRadialGradient(o.x, cy, 10, o.x, cy, o.rx * 1.7);
+                    glow.addColorStop(0, 'rgba(255,235,130,0.6)'); glow.addColorStop(1, 'rgba(255,235,130,0)');
+                    ctx.fillStyle = glow; ctx.fillRect(o.x - o.rx * 1.7, cy - o.ry * 1.7, o.rx * 3.4, o.ry * 3.4);
+                    if (sp) {
+                        var tw = o.rx * 2.3, th = tw / 2;
+                        ctx.drawImage(sp, 0, 0, 256, 128, o.x - tw / 2, cy - o.ry * 0.95 - th * 0.1, tw, th);
+                        ctx.drawImage(sp, 0, 0, 256, 128, o.x - tw / 2, cy + o.ry * 0.95 - th * 0.9, tw, th);
+                        ctx.drawImage(sp, 0, 0, 256, 128, o.x - tw / 2, cy - th / 2, tw, th);
+                    } else { ctx.fillStyle = 'rgba(255,230,120,0.55)'; ctx.beginPath(); ctx.ellipse(o.x, cy, o.rx, o.ry, 0, 0, Math.PI * 2); ctx.fill(); }
+                });
+                // 햇살 반짝임 (t 파생, 결정론) — 자리 위에서만
+                for (var q = 0; q < 12 && spots.length; q++) {
+                    var o2 = spots[q % spots.length];
+                    var ph = (Math.max(0, t) / 900 + hash01(q + 11)) % 1, a = Math.sin(ph * Math.PI);   // t<0(대기·시크)에서 음수 반지름 방지
+                    var px = o2.x + (hash01(q + 5) - 0.5) * o2.rx * 1.6, py = o2.y + (hash01(q + 17) - 0.5) * o2.ry * 1.6;
                     ctx.fillStyle = 'rgba(255,255,210,' + (0.85 * a).toFixed(2) + ')';
                     ctx.beginPath(); ctx.arc(px, toScreenY(py), 1.5 + a * 2, 0, Math.PI * 2); ctx.fill();
                 }
                 // 팻말: 구역 입구 왼쪽
                 drawSprite('stage', 'signpost', z.x + 26, z.y + 6, 64, 96, { anchor: 'bottom' });
                 label('☀ 햇볕 잔디', z.x + 26, z.y - 30, '#fff7c0', 12);
-                label('따뜻해서 걷다가 잠들어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
+                label('노란 자리를 밟으면 느려지고 잠들 수 있어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
             });
             (pieces.pit || []).forEach(function (pt) {
                 var z = pt.zone; if (!visible(z.y + z.h / 2, z.h)) return;
@@ -448,6 +464,35 @@ var MarbleRender = (function () {
                     ctx.save(); ctx.translate(s.x, toScreenY(s.y)); ctx.rotate(ang); ctx.fillStyle = '#b07a3a'; ctx.fillRect(-s.len / 2, -3, s.len, 6); ctx.restore();
                 }
             });
+            (pieces.windmill || []).forEach(function (wm) {
+                if (!visible(wm.y, wm.len + wm.poleH)) return;
+                // 기둥(A자) 먼저, 그 위에 회전 날개. 물리 날개 길이 len = rotor 반지름(96 소스) × 스케일
+                var wsc = wm.len / (96 * SRC_SCALE);
+                if (!drawSprite('pieces', 'windmill-pole', wm.x, wm.y + wm.poleH, 96, 192, { anchor: 'bottom', scale: wm.poleH / (192 * SRC_SCALE) })) {
+                    ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(wm.x, toScreenY(wm.y)); ctx.lineTo(wm.x - 32, toScreenY(wm.y + wm.poleH)); ctx.moveTo(wm.x, toScreenY(wm.y)); ctx.lineTo(wm.x + 32, toScreenY(wm.y + wm.poleH)); ctx.stroke();
+                }
+                var ang = windmillAngle(wm, Math.max(0, t));
+                if (!drawSprite('pieces', 'windmill-rotor', wm.x, wm.y, 192, 192, { rot: ang, scale: wsc })) {
+                    ctx.save(); ctx.translate(wm.x, toScreenY(wm.y)); ctx.rotate(ang); ctx.strokeStyle = '#b07a3a'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+                    for (var bi = 0; bi < wm.blades; bi++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(wm.len, 0); ctx.stroke(); ctx.rotate(Math.PI * 2 / wm.blades); }
+                    ctx.restore();
+                }
+                label('풍차 — 날개에 맞으면 튕겨요', wm.x, wm.y - wm.len - 16, '#fff', 12);
+            });
+            (pieces.jumppad || []).forEach(function (jp) {
+                if (!visible(jp.y, 40)) return;
+                // 점프대: 경사로 각도로 눕힌 노란 발판 + 아래 스프링. 방금 밟혔으면(jump fx) 눌린 모습
+                var pressed = fxList.some(function (f) { return f.type === 'jump' && f.x === jp.x && t - f.t0 < 180; });
+                ctx.save(); ctx.translate(jp.x, toScreenY(jp.y)); ctx.rotate(jp.angle);
+                ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 2; ctx.beginPath();
+                for (var si = -1; si <= 1; si++) { ctx.moveTo(si * 9 - 4, 3); ctx.lineTo(si * 9 + 4, pressed ? 6 : 10); }
+                ctx.stroke();
+                ctx.fillStyle = pressed ? '#ffd23a' : '#ffb01f'; roundRect(-jp.len / 2, pressed ? -1 : -4, jp.len, 7, 3); ctx.fill();
+                ctx.strokeStyle = '#8a5a10'; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.fillStyle = '#7a3a00'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('▲▲', 0, pressed ? 2.5 : -0.5);
+                ctx.restore();
+            });
             (pieces.beehive || []).forEach(function (h) {
                 if (!visible(h.y, 60)) return;
                 var shaking = fxList.some(function (f) { return f.type === 'bees'; });
@@ -472,14 +517,36 @@ var MarbleRender = (function () {
                 var pressure = clamp(inDam / damThreshold, 0, 1);
                 var st = burstEv ? DAM_FRAMES - 1 : Math.min(DAM_FRAMES - 2, Math.floor(pressure * (DAM_FRAMES - 1)));
                 var cx = (d.x1 + d.x2) / 2, w = d.x2 - d.x1;
+                var gap = d.gap || null;   // 새는 틈 — 이 x 범위는 댐을 그리지 않고(클립) 물줄기만
                 if (st < DAM_FRAMES - 1 || burst) {
                     var dsc = w / (480 * SRC_SCALE);   // 채널 폭에 맞춤. 벽 = 셀 상단 가장자리 → 바닥 앵커를 y1 + 셀높이 로
+                    ctx.save();
+                    if (gap && !burstEv) {
+                        ctx.beginPath();
+                        ctx.rect(-view.w, toScreenY(d.y1) - 200, gap.x1 + view.w, 400);
+                        ctx.rect(gap.x2, toScreenY(d.y1) - 200, view.w * 2, 400);
+                        ctx.clip();
+                    }
                     if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: burst ? 1 - (t - (data.events.find(function (e) { return e.type === 'damBurst'; }) || { t: t }).t) / DAM_FX_MS * 0.7 : 1 })) {
                         ctx.save(); ctx.globalAlpha = burst ? 0.4 : 1;
                         for (var li = 0; li < 4; li++) { ctx.fillStyle = li % 2 ? '#9c6a3a' : '#7d5330'; roundRect(d.x1 + 2, toScreenY(d.y1) - 6 - li * 9, w - 4, 8, 4); ctx.fill(); }
                         if (st > 0 && st < DAM_FRAMES - 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
                         ctx.restore();
                         label(st > 0 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
+                    }
+                    ctx.restore();
+                    if (gap && !burstEv) {   // 틈으로 새는 물줄기 (t 파생 흔들림)
+                        ctx.save();
+                        var gx = (gap.x1 + gap.x2) / 2, gw = gap.x2 - gap.x1;
+                        ctx.fillStyle = 'rgba(90,170,255,0.55)';
+                        ctx.fillRect(gap.x1 + 3, toScreenY(d.y1) - 30, gw - 6, 30);
+                        ctx.strokeStyle = 'rgba(230,245,255,0.85)'; ctx.lineWidth = 2;
+                        for (var wi = 0; wi < 3; wi++) {
+                            var wx = gap.x1 + 8 + wi * (gw - 16) / 2, wph = (t / 260 + wi * 0.33) % 1;
+                            ctx.beginPath(); ctx.moveTo(wx, toScreenY(d.y1) - 30 + wph * 10); ctx.lineTo(wx + 2, toScreenY(d.y1) + 6 + wph * 20); ctx.stroke();
+                        }
+                        ctx.restore();
+                        label('틈!', gx, d.y1 - 40, '#dff4ff', 11);
                     }
                 }
                 if (!drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
@@ -489,17 +556,25 @@ var MarbleRender = (function () {
             });
             (pieces.holefield || []).forEach(function (hf) {
                 var z = hf.zone; if (!visible(hf.floorY, z.h + 100)) return;
-                // 구멍 + 파이프: 어두운 구멍(타원) 위에 '골' 표시, 파이프 안쪽은 어둡게
+                // 구멍 + 파이프: 어두운 구멍(타원) 위에 '골' 표시, 파이프 안쪽은 어둡게. 뚜껑은 서버와 같은 lidCover 로 왼쪽부터 덮는다
                 hf.holes.forEach(function (h, i) {
                     ctx.save();
                     ctx.fillStyle = 'rgba(40,25,10,0.95)';
                     ctx.fillRect(h.x - h.w / 2 + 2, toScreenY(h.y), h.w - 4, hf.pipeH);
                     ctx.beginPath(); ctx.ellipse(h.x, toScreenY(h.y), h.w / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
                     ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.stroke();
+                    var cover = h.period ? lidCover(h, Math.max(0, t)) : 0;
+                    if (cover > 0) {   // 나무 뚜껑
+                        var lw = h.w * cover, lx = h.x - h.w / 2;
+                        ctx.fillStyle = '#c9944f'; roundRect(lx, toScreenY(h.y) - 5, lw, 10, 3); ctx.fill();
+                        ctx.strokeStyle = '#7a4d22'; ctx.lineWidth = 1.5; ctx.stroke();
+                        ctx.strokeStyle = 'rgba(120,70,30,0.5)'; ctx.beginPath(); for (var gx = lx + 8; gx < lx + lw - 4; gx += 10) { ctx.moveTo(gx, toScreenY(h.y) - 3); ctx.lineTo(gx, toScreenY(h.y) + 3); } ctx.stroke();
+                    }
                     ctx.restore();
-                    label('골', h.x, h.y - 14, '#ffe08a', 11);
+                    label(cover >= 1 ? '닫힘' : '골', h.x, h.y - 14, cover >= 1 ? '#ffb3a0' : '#ffe08a', 11);
+                    if (h.period) label(i === 0 ? '자주 열림' : i === hf.holes.length - 1 ? '가끔 열림' : '', h.x, h.y + hf.pipeH + 10, '#fff', 10);
                 });
-                label('🕳 골 구멍 — 마지막에 떨어지는 동물이 당첨', z.x + z.w / 2, z.y - 16, '#fff', 13);
+                label('🕳 골 구멍 — 골에 가까울수록 뚜껑이 가끔 열려요', z.x + z.w / 2, z.y - 16, '#fff', 13);
             });
             (pieces.lane || []).forEach(function (ln) {
                 if (!visible(ln.y, 80)) return;
@@ -569,6 +644,19 @@ var MarbleRender = (function () {
             ctx.fillText(String(b.num), x + r * 0.75, toScreenY(y) - r * 0.75 + 0.5);
             ctx.restore();
         }
+        // 서 있는 동물용 발밑 마커(카운트다운): 발 아래 타원 + 머리 옆 번호 배지 — 링 대신
+        function drawFootMarker(b, x, y, strong) {
+            ctx.save();
+            ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 3.5 : 2.5; ctx.globalAlpha = strong ? 1 : 0.85;
+            if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
+            ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + 24, 15, 5, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+            ctx.save();
+            ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(x + 14, toScreenY(y) - 10, 6.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(String(b.num), x + 14, toScreenY(y) - 9.5);
+            ctx.restore();
+        }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
         // 꼴찌 깃발 — 흰 천을 플레이어 색으로 틴트 (multiply 후 원본 알파 복원). (colorIdx, frame) 별 오프스크린 캐시
@@ -590,7 +678,11 @@ var MarbleRender = (function () {
             return true;
         }
         // 햇볕 잔디에서 느려진 동물: 공을 풀고(uncurl 2프레임) 서서 걷는다(idle 루프). 진행 방향으로 뒤집기.
-        function inSunZone(b) { var sz = (pieces.sunpatch || [])[0]; return !!sz && b.x >= sz.zone.x && b.x <= sz.zone.x + sz.zone.w && b.y >= sz.zone.y && b.y <= sz.zone.y + sz.zone.h; }
+        function inSunZone(b) {   // 잔디 '자리'(타원) 안에 있을 때만 — 서버 SUN_SPOTS 와 동일
+            var sz = (pieces.sunpatch || [])[0]; if (!sz || !sz.spots) return false;
+            for (var i = 0; i < sz.spots.length; i++) { var o = sz.spots[i], dx = (b.x - o.x) / o.rx, dy = (b.y - o.y) / o.ry; if (dx * dx + dy * dy < 1) return true; }
+            return false;
+        }
         function drawSunWalker(b, t) {
             var since = t - b.sunSince;
             var row, col;
@@ -616,10 +708,13 @@ var MarbleRender = (function () {
                 if (b.state === 'done' || !visible(b.y, 40)) continue;
                 mine = b.owner === myName;
                 if (t < 0) {
-                    // 카운트다운: 서 있음 → 웅크림
+                    // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
+                    // 공이 되기 전까지는 발밑 마커(플레이어 색 타원 + 번호)로, 완전히 말린 뒤에만 링을 그린다
+                    var curled = false;
                     if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, b.y + 8);
-                    else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); drawCreatureFrame(b, 1, cf, b.x, b.y + (cf === 3 ? 0 : 8)); }
-                    drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, b.y + (curled ? 0 : 8)); }
+                    if (curled) drawRing(b, b.x, b.y, BALL_R + 3, mine);
+                    else drawFootMarker(b, b.x, b.y, mine);
                     continue;
                 }
                 if (b.state === 'nap' || b.state === 'pit') {
@@ -783,6 +878,7 @@ var MarbleRender = (function () {
                     case 'star': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10 - k * 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); break;
                     case 'mud': if (!visible(y, 40)) return; if (!drawSprite('fx', 'mud-splash', x, y - 8, 128, 96, { sx: frame * 128, sw: 128 })) { ctx.fillStyle = 'rgba(90,60,30,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y) - 12 - k * 14, 6 - k * 4, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
+                    case 'jump': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('휙!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
                     case 'poof': if (!visible(y, 40)) return; if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 10 + k * 16, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'wake': if (!visible(y, 40)) return; if (!drawSprite('fx', 'wake', x, y - 26, 48, 48, { sx: frame * 48, sw: 48 })) label('!', x, y - 26 - k * 8, '#fff7a0', 18); break;
                     case 'bees': {
@@ -819,8 +915,8 @@ var MarbleRender = (function () {
         // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
         var MINIMAP_BANDS = [   // [y0, y1, color, 라벨] — socket/marble-sim.js buildTrack 구간과 동일
             [0, 300, '#b48a5a', '출발'], [300, 900, '#c9a26a', '말뚝'], [900, 1250, '#e6b73a', '벌집'], [1250, 1650, '#f2e27a', '햇볕'],
-            [1650, 2030, '#7fa6d6', '댐'], [2030, 2200, '#6b4a2b', '구덩이'], [2200, 4120, '#8fd07a', '뱀길'], [4120, 4880, '#a07a4a', '범퍼·진흙'],
-            [4880, 5320, '#d98c3a', '구멍밭'], [5320, 5800, '#f2b134', '통로·스탠드']
+            [1650, 2030, '#7fa6d6', '댐'], [2030, 2200, '#6b4a2b', '구덩이'], [2200, 2660, '#8fd07a', '풍차'], [2660, 3100, '#ffb01f', '점프대'],
+            [3100, 3800, '#a07a4a', '범퍼·진흙'], [3800, 4240, '#d98c3a', '구멍밭'], [4240, 4700, '#f2b134', '통로·스탠드']
         ];
         function drawMinimap(t) {
             var x0 = 12, y0 = 44, h = view.h - 60, w = MINIMAP_W;
