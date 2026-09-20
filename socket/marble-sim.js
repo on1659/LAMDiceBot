@@ -107,9 +107,12 @@ const SPRING_ARM_DELAY_MS = 120;  // 밟은 뒤 이만큼 있다 발사(판 위�
 //    후보가 처음 보인 뒤 EAGLE_WAIT_MS 지나면 그때 후보 중 하나 — 5s 대기 + 후보 비면 초기화로는 소인원 24판 중 9판이 독수리를 못 봤다(사용자 "안 나와")
 const EAGLE_WAIT_MS = 1500;       // 후보가 처음 생긴 뒤 이만큼 지나서 온다(중간에 후보가 비어도 초기화 안 함)
 const EAGLES_BY_CROWD = { few: 1, normal: 2, many: 3 };   // 마릿수 단계별 독수리 수(사용자 2026-09-21). 같은 독수리는 같은 놈을 두 번 안 잡지만 다른 독수리는 잡을 수 있다
-const EAGLE_MAX_MIN = 3, EAGLE_MAX_RATIO = 0.05;   // 독수리 한 마리당 한 판 최대 = max(3, floor(n × 0.05)) — 0.1 이면 200마리·독수리 3 에서 33회, 경주 90s
+// 예산(사용자 2026-09-21): 남은 동물이 EAGLE_FINAL_ALIVE 보다 많을 땐 독수리 전체 합쳐 EAGLE_MAX_EARLY 회 — 초반에 다 써서 막판에 못 움직이던 것.
+//    남은 동물이 EAGLE_FINAL_ALIVE 이하가 되는 순간 카운터를 0 으로 되돌리고 전체 EAGLE_MAX_FINAL 회. 같은 독수리는 같은 놈 재납치 금지(유지).
+//    (독수리당 4회로 하면 우르르 3마리 × 4 = 막판 12회 → 200마리 90s 대라 전체 합산으로)
+const EAGLE_MAX_EARLY = 2, EAGLE_MAX_FINAL = 4;
 const EAGLE_REST_MS = 2000, EAGLE_REST_FINAL_MS = 500;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE)
-const EAGLE_FINAL_ALIVE = 5;
+const EAGLE_FINAL_ALIVE = 4;
 const EAGLE_STAGGER_MS = 700;     // 독수리마다 첫 출격 시차
 const EAGLE_WALK_WEIGHT = 3;
 const EAGLE_FLY_MS = 2600;        // 채서 떨어뜨릴 때까지(공은 이 동안 독수리 발톱에 — 충돌 없음)
@@ -236,8 +239,10 @@ function buildTrack(ballCount, rng, crowd) {
     const WM = { x: 400, y: 2480 };
     p.push({ kind: 'windmill', x: WM.x, y: WM.y, blades: 4, len: WINDMILL_LEN, period: WINDMILL_PERIOD_MS, hubR: WINDMILL_HUB_R, poleH: WINDMILL_POLE_H });
     wall(WM.x, WM.y + 45, WM.x - 32, WM.y + WINDMILL_POLE_H); wall(WM.x, WM.y + 45, WM.x + 32, WM.y + WINDMILL_POLE_H);   // 기둥 A자 다리
-    const ramp = (x1, y1, x2, y2, ks, phase0) => {   // 경사로 + 두더지 구멍(경사로 위 ks 지점)
-        wall(x1, y1, x2, y2);
+    const ramp = (x1, y1, x2, y2, ks, phase0) => {   // 경사로 + 두더지 구멍(경사로 위 ks 지점) + 끝 60px 은 스프링 널빤지(사용자: "스프링 중간에 더")
+        const L = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / L, uy = (y2 - y1) / L, hx = x2 - ux * SPRING_LEN, hy = y2 - uy * SPRING_LEN;
+        wall(x1, y1, hx, hy);
+        p.push({ kind: 'spring', x: hx, y: hy, len: SPRING_LEN, angle: Math.atan2(uy, ux), cooldown: SPRING_COOLDOWN_MS });
         const ang = Math.atan2(y2 - y1, x2 - x1), dir = x2 > x1 ? 1 : -1;
         ks.forEach((k, i) => p.push({ kind: 'mole', x: x1 + (x2 - x1) * k, y: y1 + (y2 - y1) * k, angle: ang, dir, r: MOLE_R,
             period: MOLE_PERIOD_MS, up: MOLE_UP_MS, phase: Math.round(MOLE_PERIOD_MS * MOLE_PHASE_STEP * (i + phase0)) }));
@@ -490,8 +495,8 @@ async function simulate(balls, seed, track) {
     // 장치 상태
     const bounds = track.bounds || [];
     const damThreshold = Math.max(DAM_MIN_COUNT, Math.ceil(n * DAM_FRACTION));
-    const eagles = Array.from({ length: track.eagles || 1 }, () => ({ count: 0, nextAt: -1 }));
-    const eagleMaxEach = Math.max(EAGLE_MAX_MIN, Math.floor(n * EAGLE_MAX_RATIO));
+    const eagles = Array.from({ length: track.eagles || 1 }, () => ({ nextAt: -1 }));
+    let eagleFinal = false, eagleCount = 0;   // 결승전(남은 ≤ EAGLE_FINAL_ALIVE) 진입 여부 — 진입 순간 전체 카운터 리셋
     let damActive = !!dam, damFirstContact = -1, damCracked = false;
     let pitLastErupt = -1;   // 마지막 분출 시각(-1 = 아직 아무도 안 빠짐)
     let beesAt = -1;
@@ -665,8 +670,9 @@ async function simulate(balls, seed, track) {
         }
 
         // ── 독수리(마릿수 단계별 1~3마리): 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리씩 채 간다 ──
+        if (holefield && !eagleFinal && finishedCount >= n - EAGLE_FINAL_ALIVE) { eagleFinal = true; eagleCount = 0; }
         if (holefield) for (let ei = 0; ei < eagles.length; ei++) {
-            const eg = eagles[ei]; if (eg.count >= eagleMaxEach) continue;
+            const eg = eagles[ei]; if (eagleCount >= (eagleFinal ? EAGLE_MAX_FINAL : EAGLE_MAX_EARLY)) break;
             const cands = [];
             for (const b of B) {
                 if (b.eagledBy[ei]) continue;   // 내가 잡았던 놈은 다시 안 잡는다(다른 독수리는 상관없음)
@@ -680,7 +686,7 @@ async function simulate(balls, seed, track) {
                 v.carry = { x0: v.x, y0: v.y, x1: TRACK_W / 2 + side * EAGLE_DROP_DX, y1: (seesaw ? seesaw.y : holefield.zone.y - 300) - EAGLE_DROP_ABOVE_SEESAW, t0: t, t1: t + EAGLE_FLY_MS };
                 v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.eagledBy[ei] = true;
                 const alive = B.filter(b => b.state !== 'done').length;
-                eg.count++; eg.nextAt = t + EAGLE_FLY_MS + (alive <= EAGLE_FINAL_ALIVE ? EAGLE_REST_FINAL_MS : EAGLE_REST_MS);
+                eagleCount++; eg.nextAt = t + EAGLE_FLY_MS + (alive <= EAGLE_FINAL_ALIVE ? EAGLE_REST_FINAL_MS : EAGLE_REST_MS);
                 pushEvent(t, 'eagleGrab', v, { eagle: ei, x: Math.round(v.x), y: Math.round(v.y), tx: v.carry.x1, ty: v.carry.y1, dur: EAGLE_FLY_MS });
             }
         }
@@ -755,12 +761,13 @@ async function simulate(balls, seed, track) {
                 const a = sp.angle, ex = sp.x + Math.cos(a) * sp.len, ey = sp.y + Math.sin(a) * sp.len;
                 collideSegment(t, b, sp.x, sp.y, ex, ey, WALL_RESTITUTION);
                 if (t < ss.readyAt || t - b.springAt < SPRING_COOLDOWN_MS) continue;
-                const dx = b.x - sp.x, dy = b.y - sp.y, along = dx * Math.cos(a) + dy * Math.sin(a), above = -(dx * -Math.sin(a) + dy * Math.cos(a));   // 판 축 좌표(above>0 = 판 위)
+                const su = Math.cos(a) >= 0 ? 1 : -1;   // 경사로 방향(오른쪽↘ 1 / 왼쪽↙ -1) — '위' 법선과 발사 방향(뒤 = 경사로 시작 쪽)이 뒤집힌다
+                const dx = b.x - sp.x, dy = b.y - sp.y, along = dx * Math.cos(a) + dy * Math.sin(a), above = (dx * Math.sin(a) - dy * Math.cos(a)) * su;   // 판 축 좌표(above>0 = 판 위)
                 const onPlank = along >= -4 && along <= sp.len + 4 && above >= 0 && above <= BALL_R + 6;
                 if (!onPlank) { if (b.springOnSince < 0 || t - b.springOnSince > 60) b.springOnSince = -1; continue; }
                 if (b.springOnSince < 0) { b.springOnSince = t; continue; }
                 if (t - b.springOnSince < SPRING_ARM_DELAY_MS) continue;
-                b.vx = -SPRING_VX + (rng() - 0.5) * 60; b.vy = -SPRING_VY; b.springAt = t; b.springOnSince = -1; b.stuckSince = t;
+                b.vx = -su * SPRING_VX + (rng() - 0.5) * 60; b.vy = -SPRING_VY; b.springAt = t; b.springOnSince = -1; b.stuckSince = t;
                 ss.readyAt = t + sp.cooldown;
                 pushEvent(t, 'spring', b, { x: Math.round(ex), y: Math.round(ey), readyAt: ss.readyAt });
             }

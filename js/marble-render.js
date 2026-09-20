@@ -171,6 +171,7 @@ var MarbleRender = (function () {
         var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead' };
         var view = { w: TRACK_W, h: 600, scale: 1 };
         var pieces = {};          // kind → 조각 배열
+        var firstGrabT = null;    // 첫 독수리 납치 시각(카메라 추적은 이것만)
         var fxList = [];          // { type, x, y, t0, dur, ball? }
         var lastFrameWall = 0;
         var startWall = 0;        // 재생 기준 performance.now()
@@ -211,6 +212,7 @@ var MarbleRender = (function () {
             balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
+            firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
             evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
             hudInfo = { remaining: balls.length, worst: [] };
             R.resize();
@@ -335,7 +337,8 @@ var MarbleRender = (function () {
             cam.mode = frameMode ? 'frame' : (remaining <= finalK ? 'rear' : 'lead');
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
-            var carried = null; for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried') { carried = balls[ci]; break; }
+            var carried = null;   // 독수리 추적은 첫 납치 한 번만 — 그 뒤는 결승 프레임이 넓어 다 보인다(사용자 2026-09-21)
+            if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
             else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
             else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
@@ -531,14 +534,14 @@ var MarbleRender = (function () {
                 var tt = Math.max(0, t), fired = sp.firedAt != null ? sp.firedAt : -1e9, readyAt = sp.readyAt || 0;
                 var snapping = tt - fired < SPRING_SNAP_MS, cooling = !snapping && tt < readyAt;
                 var frame = snapping ? 3 : cooling ? 2 : 0, bendA = snapping ? -0.45 : cooling ? 0.3 : 0;   // 코드 도형용 각도(+=아래)
-                var im = img('pieces', 'spring-plank');
+                var im = img('pieces', 'spring-plank'), leftward = Math.cos(sp.angle) < 0;   // 왼쪽↙ 경사로 끝이면 좌우 반전(안 하면 판이 뒤집힌다)
                 ctx.save(); ctx.translate(sp.x, toScreenY(sp.y));
                 if (im) {   // 셀 왼쪽 끝 세로 중앙 = 경첩(0,32). 경사로 각도로만 회전 — 휨은 프레임
-                    ctx.rotate(sp.angle);
+                    if (leftward) { ctx.rotate(sp.angle + Math.PI); ctx.scale(-1, 1); } else ctx.rotate(sp.angle);
                     var cw = 240 * SRC_SCALE, ch = 64 * SRC_SCALE;
                     ctx.drawImage(im, frame * 240, 0, 240, 64, 0, -ch / 2, cw, ch);
                 } else {
-                    ctx.rotate(sp.angle + bendA);
+                    if (leftward) { ctx.rotate(sp.angle + Math.PI - bendA); ctx.scale(-1, 1); } else ctx.rotate(sp.angle + bendA);
                     ctx.fillStyle = '#6b4420'; ctx.fillRect(-4, -12, 8, 24);                                  // 경첩 기둥
                     ctx.fillStyle = cooling ? '#a8733a' : '#c8873a'; ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 1.5;
                     roundRect(0, -4, sp.len, 8, 3); ctx.fill(); ctx.stroke();                                 // 판
