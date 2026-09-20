@@ -112,7 +112,7 @@ const EAGLES_BY_CROWD = { few: 1, normal: 2, many: 3 };   // 마릿수 단계별
 //    (독수리당 4회로 하면 우르르 3마리 × 4 = 막판 12회 → 200마리 90s 대라 전체 합산으로)
 //    초반 예산은 마릿수에 비례(max(2, n×0.15)) — 2회면 4마리 남을 때까지 독수리가 논다 + 구멍밭에 몰려 못 내려가는 무리를 독수리가 덜어 준다(사용자 3차).
 //    초반엔 뚜껑 앞에서 기다리는 놈 우선(2배), 막판엔 달리는 놈 우선(3배)
-const EAGLE_MAX_EARLY_MIN = 2, EAGLE_MAX_EARLY_RATIO = 0.15, EAGLE_MAX_FINAL = 4;
+const EAGLE_MAX_EARLY_MIN = 4, EAGLE_MAX_EARLY_RATIO = 0.15, EAGLE_MAX_FINAL = 4;   // 최소 4 — 18마리 보통(0.15 → 2회)에서도 초반에 두 번은 더 움직이게
 const EAGLE_REST_MS = 1200, EAGLE_REST_FINAL_MS = 500;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE)
 const EAGLE_WAIT_WEIGHT_EARLY = 2;
 const EAGLE_FINAL_ALIVE = 4;
