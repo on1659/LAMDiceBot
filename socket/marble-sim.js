@@ -102,11 +102,14 @@ const SPRING_VX = 300, SPRING_VY = 640;   // 발사 속도(뒤·위) — 640 은
 const SPRING_COOLDOWN_MS = 3000;
 const SPRING_ARM_DELAY_MS = 120;  // 밟은 뒤 이만큼 있다 발사(판 위에 확실히 올라온 뒤) — 스치기만 한 놈은 안 쏨
 // 독수리(사용자 요청 ⑤): 결승 구멍밭에서 뚜껑을 기다리는 공·통로를 걷는 동물 중 시드로 한 마리를 채서 풍차 옆에 떨어뜨린다(다시 굴러 내려와야 함).
-//    마지막 한 마리도 채 간다(그 구간은 2배속 재생이라 12s 정도). 한 판 EAGLE_MAX 회(풍차에서 결승까지 다시 내려오는 데 ~25s 라 5초마다 오면
-//    24마리 경주가 50→90s, 200마리는 캡 — 그래서 1회, 같은 놈 두 번 안 채 감). 결정론(시드·주기).
+//    마지막 한 마리도 채 간다. 한 판 여러 번(같은 놈은 한 번만) — 낙하 지점이 시소 옆(손해 ≈10s)이라 감당됨. 남은 놈이 EAGLE_FINAL_ALIVE 이하인
+//    꼴찌 결정전에선 쉬는 시간을 짧게 해 바쁘게 움직이고, 통로에서 달리는 놈(walk)을 뚜껑 앞에서 기다리는 놈보다 3배 우선(사용자 2026-09-21 2차).
 //    후보가 처음 보인 뒤 EAGLE_WAIT_MS 지나면 그때 후보 중 하나 — 5s 대기 + 후보 비면 초기화로는 소인원 24판 중 9판이 독수리를 못 봤다(사용자 "안 나와")
 const EAGLE_WAIT_MS = 1500;       // 후보가 처음 생긴 뒤 이만큼 지나서 온다(중간에 후보가 비어도 초기화 안 함)
-const EAGLE_MAX = 1;
+const EAGLE_MAX_MIN = 3, EAGLE_MAX_RATIO = 0.15;   // 한 판 최대 = max(3, floor(n × 0.15))
+const EAGLE_REST_MS = 2000, EAGLE_REST_FINAL_MS = 600;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE)
+const EAGLE_FINAL_ALIVE = 3;
+const EAGLE_WALK_WEIGHT = 3;
 const EAGLE_FLY_MS = 2600;        // 채서 떨어뜨릴 때까지(공은 이 동안 독수리 발톱에 — 충돌 없음)
 const EAGLE_ARC = 140;            // 비행 중 곡선 높이(위로)
 const EAGLE_DROP_ABOVE_SEESAW = 70;   // 낙하 지점 = 결승 프레임 위쪽 시소 바로 위(시소 y − 이 값) — 풍차까지 올리면 25s 손해·화면 밖(사용자 2026-09-21: "가운데 돌아가는 거쯤")
@@ -658,15 +661,21 @@ async function simulate(balls, seed, track) {
         }
 
         // ── 독수리: 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리를 채 간다 ──
-        if (holefield && eagleCount < EAGLE_MAX) {
-            const cands = B.filter(b => !b.eagled && ((b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) || b.state === 'walk'));
+        if (holefield && eagleCount < Math.max(EAGLE_MAX_MIN, Math.floor(n * EAGLE_MAX_RATIO))) {
+            const cands = [];
+            for (const b of B) {
+                if (b.eagled) continue;
+                if (b.state === 'walk') { for (let w = 0; w < EAGLE_WALK_WEIGHT; w++) cands.push(b); }   // 달리는 놈 우선
+                else if (b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) cands.push(b);
+            }
             if (cands.length && eagleNextAt < 0) eagleNextAt = t + EAGLE_WAIT_MS;
             if (cands.length && eagleNextAt >= 0 && t >= eagleNextAt) {
                 const v = cands[Math.floor(rng() * cands.length)];
                 const side = rng() < 0.5 ? -1 : 1;
                 v.carry = { x0: v.x, y0: v.y, x1: TRACK_W / 2 + side * EAGLE_DROP_DX, y1: (seesaw ? seesaw.y : holefield.zone.y - 300) - EAGLE_DROP_ABOVE_SEESAW, t0: t, t1: t + EAGLE_FLY_MS };
                 v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.eagled = true;
-                eagleCount++; eagleNextAt = t + EAGLE_WAIT_MS;
+                const alive = B.filter(b => b.state !== 'done').length;
+                eagleCount++; eagleNextAt = t + EAGLE_FLY_MS + (alive <= EAGLE_FINAL_ALIVE ? EAGLE_REST_FINAL_MS : EAGLE_REST_MS);
                 pushEvent(t, 'eagleGrab', v, { x: Math.round(v.x), y: Math.round(v.y), tx: v.carry.x1, ty: v.carry.y1, dur: EAGLE_FLY_MS });
             }
         }

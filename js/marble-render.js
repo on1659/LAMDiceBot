@@ -36,7 +36,7 @@ var MarbleRender = (function () {
     var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
     var SPRING_SNAP_MS = 260;        // 발사 순간 판이 젖혀져 있는 시간
     var EAGLE_SWOOP_MS = 900, EAGLE_RETURN_MS = 1200;   // 순찰 → 목표로 급강하 / 놓고 순찰로 복귀
-    var EAGLE_PATROL_W = 210, EAGLE_PATROL_ABOVE = 90;   // 구멍밭 위 좌우 순찰 폭·높이
+    var EAGLE_PATROL_W = 210, EAGLE_PATROL_ABOVE = 40, EAGLE_PATROL_H = 130;   // 구멍밭 위 순찰: 좌우 폭·기준 높이·상하 폭(구멍밭~통로 위를 오르내림)
     var DAM_WATER_MS = 180, BEAVER_TAP_MS = 300, PIT_SURFACE_MS = 220;   // 루프 프레임 간격(댐 수면 4·비버 두드리기 2·웅덩이 3)
     var BEAVER_FLEE_MS = 1400;       // 터진 뒤 비버가 도망쳐 사라지는 시간
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
@@ -925,7 +925,7 @@ var MarbleRender = (function () {
         // 독수리 자유 비행(공을 안 쥔 동안): 구멍밭 위를 좌우로 순찰하다 잡기 EAGLE_SWOOP_MS 전에 목표로 급강하, 놓은 뒤 순찰로 복귀. 잡기 이벤트는 재생 데이터에 있어 미리 안다
         function eaglePatrol(tt) {
             var hf = (pieces.holefield || [])[0]; if (!hf) return null;
-            var px = TRACK_W / 2 + EAGLE_PATROL_W * Math.sin(tt / 1500), py = hf.zone.y - EAGLE_PATROL_ABOVE + 10 * Math.sin(tt / 700);
+            var px = TRACK_W / 2 + EAGLE_PATROL_W * Math.sin(tt / 1500), py = hf.zone.y - EAGLE_PATROL_ABOVE + EAGLE_PATROL_H * Math.sin(tt / 1100) + 8 * Math.sin(tt / 400);   // 리사주 — 상하좌우
             return { x: px, y: py, left: Math.cos(tt / 1500) < 0 };
         }
         function drawEagleSprite(x, y, faceLeft, tt) {
@@ -945,7 +945,8 @@ var MarbleRender = (function () {
         }
         function drawEagleFree(t) {
             if (t < 0) return;
-            var grab = null; for (var i = 0; i < data.events.length; i++) if (data.events[i].type === 'eagleGrab') { grab = data.events[i]; break; }
+            var grab = null;   // 지금 시각에 걸린(급강하 중·쥐고 있음·복귀 중) 잡기 — 한 판에 여러 번
+            for (var i = 0; i < data.events.length; i++) { var ge = data.events[i]; if (ge.type === 'eagleGrab' && t >= ge.t - EAGLE_SWOOP_MS && t < ge.t + ge.dur + EAGLE_RETURN_MS) { grab = ge; break; } }
             var tt = Math.max(0, t), pos, left;
             if (grab && t >= grab.t && t < grab.t + grab.dur) return;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
             if (grab && t >= grab.t - EAGLE_SWOOP_MS && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
@@ -957,7 +958,7 @@ var MarbleRender = (function () {
                 pos = { x: grab.tx + (p1.x - grab.tx) * e2, y: grab.ty - 8 + (p1.y - grab.ty + 8) * e2 }; left = p1.x < grab.tx;
             } else { pos = eaglePatrol(tt); if (!pos) return; left = pos.left; }
             if (!visible(pos.y, 60)) return;
-            drawSprite('fx', 'eagle-shadow', pos.x, pos.y + EAGLE_PATROL_ABOVE, 128, 48, { alpha: 0.28, scale: 0.8 });
+            drawSprite('fx', 'eagle-shadow', pos.x, pos.y + 70, 128, 48, { alpha: 0.28, scale: 0.8 });
             drawEagleSprite(pos.x, pos.y, left, tt);
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
