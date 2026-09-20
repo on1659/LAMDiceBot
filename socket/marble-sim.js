@@ -499,9 +499,11 @@ async function simulate(balls, seed, track) {
                     // 졸음: 최소 시간 지난 뒤 뒤에서 누가 붙으면 깸
                     const behind = walkers[i + 1];
                     if (w.stallKind === 'doze' && behind && behind.x >= w.x - WALK_SPACING - 2 && t - w.stallAt >= WALK_DOZE_BUMP_MS) {
-                        w.stallUntil = t; pushEvent(t, 'wake', w);
+                        w.stallUntil = t; w.stallKind = ''; pushEvent(t, 'wake', w);
                     } else { w.vx = 0; continue; }
                 }
+                // 졸음이 시간으로 끝난 경우도 wake 를 남긴다 — 클라는 이벤트로만 잠/깸을 알므로 없으면 자는 그림인 채 걸어간다
+                if (w.stallKind === 'doze') { w.stallKind = ''; pushEvent(t, 'wake', w); }
                 // 걷다가 넘어짐 / 졸음 (전원 동일 확률)
                 const r = rng();
                 if (r < WALK_TRIP_P * dt) { w.stallKind = 'trip'; w.stallAt = t; w.stallUntil = t + WALK_TRIP_MS; w.vx = 0; pushEvent(t, 'trip', w); continue; }
@@ -722,6 +724,18 @@ async function simulate(balls, seed, track) {
 
 // 참가자 순위: 각자 "가장 늦은 공"의 도착 순서로. 마지막 공의 주인 = selected(당첨).
 // successionList = worst→best (이탈자 대체용, spin-arena 패턴).
+// 꼴찌 = 구멍(통)에 마지막으로 들어간 공. 통로 걷기·골 도착 순서는 결과에 영향 없고 재생도 그 순간(cutMs)에 끝낸다
+// (사용자 결정 2026-09-20: 통에 들어가는 순간 확정이니 랭킹까지 기다릴 필요 없음). 캡까지 못 들어간 공은 정산 순서를 뒤에 붙인다.
+// 반환 { finishOrder, cutMs, durationMs } — 서버(socket/marble.js)와 덤프(AutoTest/marble-sim-dump.js)가 같이 쓴다.
+function holeEntryCut(result, ballCount) {
+    const lands = result.events.filter(e => e.type === 'land');
+    const landOrder = lands.map(e => e.ball);
+    const landed = new Set(landOrder);
+    const finishOrder = landOrder.concat(result.finishOrder.filter(id => !landed.has(id)));
+    const cutMs = (landOrder.length === ballCount && lands.length) ? lands[lands.length - 1].t : result.simEndMs;
+    return { finishOrder, cutMs, durationMs: cutMs + FINALE_HOLD_MS };
+}
+
 function rankPlayers(balls, finishOrder, participants) {
     const worst = {};
     finishOrder.forEach((ballId, idx) => { worst[balls[ballId].owner] = idx; });
@@ -744,7 +758,7 @@ function effectiveBallsPerPlayer(n, players) {
 }
 
 module.exports = {
-    buildTrack, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
+    buildTrack, layoutBalls, simulate, rankPlayers, holeEntryCut, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
     constants: {
         SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT, CROWD_PRESETS, CROWD_DEFAULT,
         BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, HOLE_COUNT, SLOW_ZONE_PX, SLOW_RATE

@@ -20,11 +20,12 @@ const out = process.argv[5] || path.join(__dirname, '..', 'game-lab', 'marble-ti
     const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9));   // 댐 틈 쪽 등 트랙 랜덤
     const t0 = Date.now();
     const r = await sim.simulate(balls, seed, track);
-    const rank = sim.rankPlayers(balls, r.finishOrder, participants);
+    const cut = sim.holeEntryCut(r, balls.length);   // 서버(socket/marble.js)와 동일: 꼴찌 = 통 진입 마지막, 재생은 그 순간까지
+    const rank = sim.rankPlayers(balls, cut.finishOrder, participants);
     const payload = {
-        durationMs: r.durationMs, sampleMs: r.sampleMs, track: r.track,
+        durationMs: cut.durationMs, sampleMs: r.sampleMs, track: r.track,
         balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num })),
-        frames: r.frames, events: r.events, finishOrder: r.finishOrder, slow: r.slow, result: rank
+        frames: r.frames, events: r.events, finishOrder: cut.finishOrder, slow: null, cutMs: cut.cutMs, result: rank
     };
     const json = JSON.stringify(payload);
     fs.writeFileSync(out, json);
@@ -32,6 +33,6 @@ const out = process.argv[5] || path.join(__dirname, '..', 'game-lab', 'marble-ti
     r.events.forEach(e => { evCount[e.type] = (evCount[e.type] || 0) + 1; });
     console.log(`balls=${balls.length} sim=${Date.now() - t0}ms simEnd=${r.simEndMs}ms frames=${r.frames.length} json=${(json.length / 1024).toFixed(0)}KB`);
     console.log('events:', JSON.stringify(evCount));
-    console.log('selected:', rank.selected, '| last ball:', JSON.stringify(balls[r.finishOrder[r.finishOrder.length - 1]]));
+    console.log('selected:', rank.selected, '| last ball(통 진입 마지막):', JSON.stringify(balls[cut.finishOrder[cut.finishOrder.length - 1]]), '| cut', cut.cutMs, 'ms');
     console.log('written:', out);
 })();

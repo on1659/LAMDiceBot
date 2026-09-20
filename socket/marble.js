@@ -78,12 +78,16 @@ async function startMarble(room, gameState, io, ctx) {
     }
     if (!ctx.rooms[room.roomId]) return;   // 비동기 시뮬 도중 방이 사라짐
 
-    const rank = sim.rankPlayers(balls, result.finishOrder, participants);
+    // 꼴찌 = 구멍(통)에 마지막으로 들어간 공. 그 뒤 통로 걷기·골 도착 순서는 결과에 영향 없고 재생도 그 순간에 끝낸다
+    // (사용자 결정 2026-09-20: 통에 들어가는 순간 확정이니 랭킹까지 기다릴 필요 없음). 캡까지 못 들어간 공은 sim 정산 순서를 뒤에 붙인다.
+    const cut = sim.holeEntryCut(result, balls.length);
+    const rank = sim.rankPlayers(balls, cut.finishOrder, participants);
     const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num }));
     const payload = {
-        durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
-        balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
-        slow: result.slow,            // { startMs, rate, endMs } — 클라 재생 속도 매핑(서버 durationMs 와 동일 계산)
+        durationMs: cut.durationMs, sampleMs: result.sampleMs, track: result.track,
+        balls: revealBalls, frames: result.frames, events: result.events, finishOrder: cut.finishOrder,
+        slow: null,                   // 슬로모는 골 앞(통로) 구간이라 컷 뒤 — 쓰지 않는다
+        cutMs: cut.cutMs,             // 마지막 공이 통에 들어간 시각 — 클라는 여기서 비석·정지
         ballsPerPlayer,
         result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
     };
@@ -91,13 +95,13 @@ async function startMarble(room, gameState, io, ctx) {
     mb.result = payload.result;
 
     io.to(room.roomId).emit('marble:reveal', payload);
-    console.log(`[마블런] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${result.durationMs}ms`);
+    console.log(`[마블런] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (통 진입 컷 ${cut.cutMs}ms, 골 기준 ${result.durationMs}ms)`);
 
     clearMarbleTimers(mb);
     mb.endTimeout = setTimeout(() => {
         if (!ctx.rooms[room.roomId]) return;
         endGame(room, gameState, io, ctx);
-    }, COUNTDOWN_MS + result.durationMs + RESULT_HOLD_MS);
+    }, COUNTDOWN_MS + payload.durationMs + RESULT_HOLD_MS);
 
     ctx.updateRoomsList();
 }

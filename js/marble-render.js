@@ -207,7 +207,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.passAt = -1e9; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.passAt = -1e9; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -224,7 +224,17 @@ var MarbleRender = (function () {
                     case 'bees': fxList.push({ type: 'bees', t0: e.t, dur: BEE_MS }); break;
                     case 'damCrack': break;
                     case 'damBurst': fxList.push({ type: 'damburst', t0: e.t, dur: DAM_FX_MS }); break;
-                    case 'land': b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'land':
+                        // 꼴찌(finishOrder 마지막 = 통에 마지막으로 들어간 공)는 통 아래 착지 자리에서 끝 — 걷지 않고 done, 그 자리에 비석(drawLastBall)
+                        if (b.id === data.finishOrder[data.finishOrder.length - 1]) {
+                            // 자리는 착지 직후 샘플에서 읽는다 — b.x/y 는 아직 이전 프레임(파이프 낙하 중)이라 위에 뜬다
+                            var lf = data.frames[Math.min(data.frames.length - 1, Math.ceil(e.t / data.sampleMs))];
+                            b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.length - 1;
+                            b.doneX = lf && lf[b.id * 2] >= 0 ? lf[b.id * 2] : b.x; b.doneY = lf && lf[b.id * 2] >= 0 ? lf[b.id * 2 + 1] : b.y;
+                            b.x = b.doneX; b.y = b.doneY;
+                            break;
+                        }
+                        b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
                     case 'pass': b.passAt = e.t; break;
@@ -250,7 +260,7 @@ var MarbleRender = (function () {
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i];
                 var x1 = f1[i * 2], y1 = f1[i * 2 + 1], x2 = f2[i * 2], y2 = f2[i * 2 + 1];
-                if (x1 < 0) continue;                // 이미 도착 — 마지막 위치 유지
+                if (x1 < 0 || b.state === 'done') continue;   // 이미 도착 — 마지막 위치 유지 (꼴찌는 통 진입 자리에 고정)
                 if (x2 < 0) { x2 = x1; y2 = y1; }
                 var nx = lerp(x1, x2, a), ny = lerp(y1, y2, a);
                 if (b.state === 'roll') {
@@ -276,6 +286,7 @@ var MarbleRender = (function () {
                 if (!rear || b.y < rear.y) rear = b;
             }
             var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
+            var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done');
             var hf = (pieces.holefield || [])[0];
             var wallP = (pieces.dumpwall || [])[0];
             // 결승 프레임: 선두가 구멍밭 근처(위 FRAME_ENTER_PX 이내)에 오면 구멍밭+스탠드+판자벽을 한 화면에 고정 — 이후 도착하는 공은 위에서 들어오고, 후미 추적 없이 전원이 보인다
@@ -284,7 +295,8 @@ var MarbleRender = (function () {
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
-            else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }   // 전원 도착: 비석(골 자리)이 보이게 — 트랙 폭 클램프가 오른쪽 끝을 맞춘다
+            else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : loserB.x; targetY = (loserB.doneY != null ? loserB.doneY : loserB.y) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 통 진입 자리의 비석으로
+            else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
                 var standP = (pieces.stand || [])[0];
                 var top = hf.zone.y - 30, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
@@ -862,7 +874,7 @@ var MarbleRender = (function () {
             var b = byId[lastId];
             if (!b || b.state !== 'done') return;
             var since = t - b.finishAt;
-            var x = data.track.goalX || b.x, y = data.track.goalY;
+            var x = b.doneX != null ? b.doneX : b.x, y = b.doneY != null ? b.doneY : b.y;   // 통에 들어간 그 자리
             // 동물은 엎어진 채 그 자리 (비석 왼쪽으로 얼굴이 삐져나오게)
             var frame = since < 150 ? 0 : since < 320 ? 1 : 2;
             drawShadow(x, y, BALL_R + 2);
@@ -880,7 +892,7 @@ var MarbleRender = (function () {
                 ctx.beginPath(); ctx.rect(-view.w, -view.h, view.w * 3, view.h * 3); ctx.arc(x, toScreenY(y), 70, 0, Math.PI * 2, true); ctx.fill();
                 ctx.restore();
                 label(b.owner + ' 님의 ' + (CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);
-                label('꼴찌 도착… 당첨!', x, y + 40, '#ffd166', 17);
+                label('꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);
             }
         }
         // 비석 (코드 도형): 둥근 머리 회색 돌 + "꼴찌". yBase = 바닥(월드). sinceLand<120ms 동안 착지 눌림
@@ -938,8 +950,10 @@ var MarbleRender = (function () {
         // ─── HUD ───
         function updateHud() {
             var rem = 0, rearByOwner = {};
+            var loser = byId[data.finishOrder[data.finishOrder.length - 1]];
             for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state === 'done') continue; rem++; if (!rearByOwner[b.owner] || b.y < rearByOwner[b.owner].y) rearByOwner[b.owner] = b; }
             var worst = Object.keys(rearByOwner).map(function (o) { return rearByOwner[o]; }).sort(function (a, b) { return a.y - b.y; }).slice(0, 5);
+            if (loser && loser.state === 'done') { rem = 0; worst = []; }   // 꼴찌 확정 = 피날레 (남은 공이 통로를 걷고 있어도 결과와 무관)
             hudInfo = { remaining: rem, worst: worst };
         }
         // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
@@ -981,7 +995,7 @@ var MarbleRender = (function () {
             ctx.save();
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
             var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
-            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '전원 도착!');
+            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '꼴찌 확정!');
             ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, ctx.measureText(txt).width + 20, 26, 8); ctx.fill();
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
             if (t >= 0 && hudInfo.worst.length) {
