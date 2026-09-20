@@ -26,7 +26,8 @@ var MarbleRender = (function () {
     var MUD_FX_MS = 520;
     var DAM_FX_MS = 900;
     var POOF_FX_MS = 420;
-    var LAST_ROLL_MS = 700;          // 마지막 공: 골 → 판자벽까지 굴러가는 시간
+    var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
+    var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
     // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
     // 골 앞 ZOOM_ZONE 안에 들어오면 줌인, 마지막 공은 서버가 준 slow 구간에서 슬로모.
     var CAM_LEAD = 0.22;             // 카메라 중심을 대상 공보다 아래(진행 방향)로 두는 비율(뷰 높이 기준)
@@ -283,7 +284,7 @@ var MarbleRender = (function () {
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
-            else if (!focus) { targetY = goalY + 40; targetX = TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
+            else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }   // 전원 도착: 비석(골 자리)이 보이게 — 트랙 폭 클램프가 오른쪽 끝을 맞춘다
             else if (frameMode) {
                 var standP = (pieces.stand || [])[0];
                 var top = hf.zone.y - 30, bottom = standP ? standP.zone.y + standP.zone.h + 10 : (wallP ? wallP.y : goalY) + 50;
@@ -836,7 +837,7 @@ var MarbleRender = (function () {
                 var b = balls[i2];
                 if (b.state !== 'done') continue;
                 var idx = b.finishIdx;
-                if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 판자벽 앞(drawLastBall)
+                if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 골 자리 비석(drawLastBall)
                 var row = Math.floor(idx / cols), col = idx % cols;
                 if (rowMap[row] == null) continue;
                 var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 8;
@@ -855,36 +856,46 @@ var MarbleRender = (function () {
                 }
             }
         }
+        // 꼴찌 연출: 골에 도착한 그 자리에 비석이 떨어진다. (판자벽까지 걸어가던 예전 연출은 x≈715 라 결승 카메라 밖이었다)
         function drawLastBall(t) {
             var lastId = data.finishOrder[data.finishOrder.length - 1];
             var b = byId[lastId];
             if (!b || b.state !== 'done') return;
             var since = t - b.finishAt;
-            var wall = (pieces.dumpwall || [])[0];
-            // 통로 끝: 골 x 에서 판자벽 앞까지 마저 걸어가 벽에 퍽 → 엎어짐
-            var wx = wall ? wall.x - 30 : b.x + 40, wy = data.track.goalY;
-            var k = clamp(since / LAST_ROLL_MS, 0, 1);
-            var x = lerp(data.track.goalX || b.x, wx, k), y = wy;
-            if (k < 1) {
-                drawShadow(x, y, BALL_R);
-                var lim = img('creatures', b.creature);
-                if (lim) { ctx.save(); ctx.translate(x, toScreenY(y + 6)); ctx.drawImage(lim, Math.floor(since / 140) % 4 * CELL, 0, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
-                drawRing(b, x, y, BALL_R + 3, b.owner === myName); return;
-            }
-            var fs = since - LAST_ROLL_MS;
-            var frame = fs < 150 ? 0 : fs < 320 ? 1 : fs < 700 ? 2 : 2 + Math.floor(fs / 300) % 2;
+            var x = data.track.goalX || b.x, y = data.track.goalY;
+            // 동물은 엎어진 채 그 자리 (비석 왼쪽으로 얼굴이 삐져나오게)
+            var frame = since < 150 ? 0 : since < 320 ? 1 : 2;
             drawShadow(x, y, BALL_R + 2);
-            drawCreatureFrame(b, 4, frame, x, y - 6, 0, 1.15);
-            drawRing(b, x, y, BALL_R + 6, true);
-            if (fs > 350) {
+            drawCreatureFrame(b, 4, frame, x - 12, y - 6, 0, 1.15);
+            // 비석: 위에서 가속 낙하 → 쿵(먼지)
+            var k = clamp(since / GRAVE_DROP_MS, 0, 1);
+            var drop = (1 - k) * (1 - k) * GRAVE_DROP_H;
+            if (!b.graveLanded && k >= 1) { b.graveLanded = true; fxList.push({ type: 'dust', x: x + 10, y: y + 6, t0: t, dur: POOF_FX_MS }); }
+            drawGravestone(x + 10, y + 8 - drop, since - GRAVE_DROP_MS);
+            drawNameTag(b, x, toScreenY(y) - 48, true);
+            if (since > GRAVE_DROP_MS + 250) {
                 // 스포트라이트 + 이름
                 ctx.save();
                 ctx.fillStyle = 'rgba(0,0,0,0.45)';
                 ctx.beginPath(); ctx.rect(-view.w, -view.h, view.w * 3, view.h * 3); ctx.arc(x, toScreenY(y), 70, 0, Math.PI * 2, true); ctx.fill();
                 ctx.restore();
-                label(b.owner + ' 님의 ' + (CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 44, '#fff', 15);
+                label(b.owner + ' 님의 ' + (CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);
                 label('꼴찌 도착… 당첨!', x, y + 40, '#ffd166', 17);
             }
+        }
+        // 비석 (코드 도형): 둥근 머리 회색 돌 + "꼴찌". yBase = 바닥(월드). sinceLand<120ms 동안 착지 눌림
+        function drawGravestone(x, yBase, sinceLand) {
+            var w = 30, h = 42;
+            var squash = (sinceLand >= 0 && sinceLand < 120) ? 1 - 0.18 * (1 - sinceLand / 120) : 1;
+            ctx.save();
+            ctx.translate(x, toScreenY(yBase)); ctx.scale(1 / Math.sqrt(squash), squash);
+            ctx.fillStyle = '#9aa1ab'; ctx.strokeStyle = '#3b4149'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h + w / 2); ctx.arc(0, -h + w / 2, w / 2, Math.PI, 0); ctx.lineTo(w / 2, 0); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#6f767f'; ctx.fillRect(-w / 2 - 4, -3, w + 8, 4);   // 받침돌
+            ctx.fillStyle = '#2b2f36'; ctx.font = 'bold 10px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('꼴찌', 0, -h / 2 + 2);
+            ctx.restore();
         }
 
         // ─── fx ───

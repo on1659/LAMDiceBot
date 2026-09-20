@@ -610,8 +610,11 @@ socket.on('roomCreated', function (data) {
 
 socket.on('roomJoined', function (data) {
     currentRoomId = data.roomId;
+    // 이름은 서버가 확정한 값(중복 시 변형 포함). 숨은 입력칸(localStorage 잔존값)을 우선하면 새로고침 재입장 때
+    // 옛 별명으로 currentUser 가 바뀌어 내 공·호스트 판정이 전부 어긋난다.
     var globalInput = document.getElementById('globalUserNameInput');
-    currentUser = (globalInput && globalInput.value) || data.userName || '';
+    currentUser = data.userName || (globalInput && globalInput.value) || '';
+    if (globalInput) globalInput.value = currentUser;
     window.isHost = !!data.isHost; isHost = !!data.isHost;
     isReady = data.isReady || false;
     readyUsers = data.readyUsers || [];
