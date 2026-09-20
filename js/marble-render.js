@@ -1061,8 +1061,8 @@ var MarbleRender = (function () {
                     continue;
                 }
                 if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (충돌 없음 — 겹쳐서 제 속도로)
-                    if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임
-                        drawShadow(b.x, b.y, BALL_R); drawCreatureFrame(b, 4, t - b.walkStallAt < 200 ? 1 : 2, b.x, b.y - 4);
+                    if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임만(col 1 은 정면으로 놀라는 그림이라 달리다 뒤돌아보는 것처럼 보였다)
+                        drawShadow(b.x, b.y, BALL_R); drawCreatureFrame(b, 4, t - b.walkStallAt < 350 ? 0 : 2, b.x, b.y - 4);
                         drawBadge(b, b.x, b.y, mine); continue;
                     }
                     if (b.walkKind === 'doze') {   // 졸음 — sleep 시트 + zz

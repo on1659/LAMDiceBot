@@ -110,8 +110,11 @@ const EAGLES_BY_CROWD = { few: 1, normal: 2, many: 3 };   // 마릿수 단계별
 // 예산(사용자 2026-09-21): 남은 동물이 EAGLE_FINAL_ALIVE 보다 많을 땐 독수리 전체 합쳐 EAGLE_MAX_EARLY 회 — 초반에 다 써서 막판에 못 움직이던 것.
 //    남은 동물이 EAGLE_FINAL_ALIVE 이하가 되는 순간 카운터를 0 으로 되돌리고 전체 EAGLE_MAX_FINAL 회. 같은 독수리는 같은 놈 재납치 금지(유지).
 //    (독수리당 4회로 하면 우르르 3마리 × 4 = 막판 12회 → 200마리 90s 대라 전체 합산으로)
-const EAGLE_MAX_EARLY = 2, EAGLE_MAX_FINAL = 4;
-const EAGLE_REST_MS = 2000, EAGLE_REST_FINAL_MS = 500;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE)
+//    초반 예산은 마릿수에 비례(max(2, n×0.15)) — 2회면 4마리 남을 때까지 독수리가 논다 + 구멍밭에 몰려 못 내려가는 무리를 독수리가 덜어 준다(사용자 3차).
+//    초반엔 뚜껑 앞에서 기다리는 놈 우선(2배), 막판엔 달리는 놈 우선(3배)
+const EAGLE_MAX_EARLY_MIN = 2, EAGLE_MAX_EARLY_RATIO = 0.15, EAGLE_MAX_FINAL = 4;
+const EAGLE_REST_MS = 1200, EAGLE_REST_FINAL_MS = 500;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE)
+const EAGLE_WAIT_WEIGHT_EARLY = 2;
 const EAGLE_FINAL_ALIVE = 4;
 const EAGLE_STAGGER_MS = 700;     // 독수리마다 첫 출격 시차
 const EAGLE_WALK_WEIGHT = 3;
@@ -672,12 +675,12 @@ async function simulate(balls, seed, track) {
         // ── 독수리(마릿수 단계별 1~3마리): 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리씩 채 간다 ──
         if (holefield && !eagleFinal && finishedCount >= n - EAGLE_FINAL_ALIVE) { eagleFinal = true; eagleCount = 0; }
         if (holefield) for (let ei = 0; ei < eagles.length; ei++) {
-            const eg = eagles[ei]; if (eagleCount >= (eagleFinal ? EAGLE_MAX_FINAL : EAGLE_MAX_EARLY)) break;
-            const cands = [];
+            const eg = eagles[ei]; if (eagleCount >= (eagleFinal ? EAGLE_MAX_FINAL : Math.max(EAGLE_MAX_EARLY_MIN, Math.floor(n * EAGLE_MAX_EARLY_RATIO)))) break;
+            const cands = [], wWalk = eagleFinal ? EAGLE_WALK_WEIGHT : 1, wWait = eagleFinal ? 1 : EAGLE_WAIT_WEIGHT_EARLY;
             for (const b of B) {
                 if (b.eagledBy[ei]) continue;   // 내가 잡았던 놈은 다시 안 잡는다(다른 독수리는 상관없음)
-                if (b.state === 'walk') { for (let w = 0; w < EAGLE_WALK_WEIGHT; w++) cands.push(b); }   // 달리는 놈 우선
-                else if (b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) cands.push(b);
+                if (b.state === 'walk') { for (let w = 0; w < wWalk; w++) cands.push(b); }   // 막판엔 달리는 놈 우선
+                else if (b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) { for (let w = 0; w < wWait; w++) cands.push(b); }   // 초반엔 몰린 놈 덜어 내기
             }
             if (cands.length && eg.nextAt < 0) eg.nextAt = t + EAGLE_WAIT_MS + ei * EAGLE_STAGGER_MS;
             if (cands.length && eg.nextAt >= 0 && t >= eg.nextAt) {
