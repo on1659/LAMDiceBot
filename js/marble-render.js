@@ -28,6 +28,9 @@ var MarbleRender = (function () {
     var FINAL_K_MIN = 3, FINAL_K_RATIO = 0.1;
     var ZOOM_ZONE = 700;             // 골 앞 이 거리부터 줌인 시작
     var ZOOM_MAX = 1.7;
+    var ZOOM_MIN = 0.7;              // 결승 프레임(수문+골)을 한 화면에 넣기 위한 줌아웃 하한
+    var FRAME_ENTER_PX = 200;        // 선두가 수문 위 이 거리 안에 들어오면 결승 프레임 모드
+    var MINIMAP_W = 22;
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var CHEER_ROWS = 12;
@@ -57,7 +60,8 @@ var MarbleRender = (function () {
             'fence-mid': A + 'pieces/fence-mid.png', 'fence-post': A + 'pieces/fence-post.png',
             'goal-basket-back': A + 'pieces/goal-basket-back.png', 'goal-basket-front': A + 'pieces/goal-basket-front.png', 'dump-wall': A + 'pieces/dump-wall.png',
             'beehive': A + 'pieces/beehive.png', 'sun-patch': A + 'pieces/sun-patch.png', 'beaver-dam': A + 'pieces/beaver-dam.png', 'beaver': A + 'pieces/beaver.png',
-            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png'
+            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png',
+            'windmill-rotor': A + 'pieces/windmill-rotor.png'   // 수문 회전판(수문장)
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -100,7 +104,6 @@ var MarbleRender = (function () {
 
     function lerp(a, b, k) { return a + (b - a) * k; }
     function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
-    function gateIsOpen(g, t) { var c = g.openMs + g.closedMs; var m = ((t + g.phaseMs) % c + c) % c; return m < g.openMs; }
     function seesawAngle(s, t) { return (s.amp * Math.PI / 180) * Math.sin(2 * Math.PI * t / s.period); }
     // 결정론 해시(파티클 분산용 — Math.random 대체)
     function hash01(n) { var x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
@@ -245,11 +248,25 @@ var MarbleRender = (function () {
                 if (!rear || b.y < rear.y) rear = b;
             }
             var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
-            cam.mode = remaining <= finalK ? 'rear' : 'lead';
+            var pen = (pieces.pen || [])[0];
+            var wallP = (pieces.dumpwall || [])[0];
+            // 결승 프레임: 선두가 수문 근처(위 FRAME_ENTER_PX 이내)에 오면 수문+골을 한 화면에 고정 — 이후 도착하는 공은 위에서 들어오고, 후미 추적 없이 전원이 보인다
+            var frameMode = pen && lead && lead.y >= pen.zone.y - FRAME_ENTER_PX;
+            cam.mode = frameMode ? 'frame' : (remaining <= finalK ? 'rear' : 'lead');
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
             else if (!focus) { targetY = goalY + 40; targetX = TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
+            else if (frameMode) {
+                var top = pen.zone.y - 40, bottom = (wallP ? wallP.y : goalY) + 60;
+                targetY = (top + bottom) / 2; targetX = TRACK_W / 2;
+                targetZoom = clamp(view.h / (bottom - top), ZOOM_MIN, ZOOM_MAX);
+                if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
+                    var kk = clamp((rear.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
+                    targetZoom = Math.max(targetZoom, 1 + (ZOOM_MAX - 1) * kk);
+                    if (kk > 0.3) { targetX = rear.x; targetY = rear.y + view.h * CAM_LEAD / targetZoom; }
+                }
+            }
             else {
                 targetY = focus.y + view.h * CAM_LEAD;
                 var k = clamp((focus.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
@@ -327,10 +344,10 @@ var MarbleRender = (function () {
             var ts = 1024 * SRC_SCALE;
             var topY = toScreenY(data.track.startY - 30);
             // 줌 시 가로 초점이 움직여도 빈 곳이 없도록 트랙 폭 밖으로 한 타일씩 더 깐다
-            var y0 = toScreenY(Math.floor(cam.y / ts) * ts - ts * 2);
-            ctx.save(); ctx.beginPath(); ctx.rect(-ts, Math.max(0, topY), view.w + ts * 2, view.h); ctx.clip();
+            var y0 = toScreenY(Math.floor(cam.y / ts) * ts - ts * 3);
+            ctx.save(); ctx.beginPath(); ctx.rect(-ts, Math.max(-view.h, topY), view.w + ts * 2, view.h * 3); ctx.clip();   // 줌아웃(zoom<1)에서도 아래가 비지 않게 넉넉히
             if (tile) {
-                for (var y = y0; y < view.h + ts; y += ts) for (var x = -ts; x < view.w + ts; x += ts) ctx.drawImage(tile, x, y, ts + 1, ts + 1);   // +1: 줌 배율에서 타일 이음새 방지
+                for (var y = y0; y < view.h * 1.6 + ts; y += ts) for (var x = -ts; x < view.w + ts; x += ts) ctx.drawImage(tile, x, y, ts + 1, ts + 1);   // +1: 줌 배율에서 타일 이음새 방지. 1.6배: 줌아웃 여유
             } else {
                 ctx.fillStyle = '#8fd07a'; ctx.fillRect(-ts, 0, view.w + ts * 2, view.h);
             }
@@ -454,16 +471,20 @@ var MarbleRender = (function () {
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
                 }
             });
-            (pieces.gate || []).forEach(function (g) {
-                if (!visible(g.y1, 60)) return;
-                var open = gateIsOpen(g, Math.max(0, t));
-                var cyc = g.openMs + g.closedMs, m = ((Math.max(0, t) + g.phaseMs) % cyc + cyc) % cyc;
-                var prog = open ? clamp(m / 250, 0, 1) : clamp(1 - (m - g.openMs) / 250, 0, 1);   // 0 닫힘 → 1 열림
+            (pieces.pen || []).forEach(function (pn) {
+                var z = pn.zone, g = pn.gate, sp = pn.spinner;
+                if (!visible(z.y + z.h / 2, z.h)) return;
+                var openT = penOpenT();
+                var open = openT >= 0 && t >= openT;
+                var prog = open ? clamp((t - openT) / 400, 0, 1) : 0;   // 0 닫힘 → 1 열림
                 var frame = Math.round(prog * 3);
                 var cx = (g.x1 + g.x2) / 2, w = g.x2 - g.x1;
+                // 웅덩이 바닥 흙(모이는 곳 표시)
+                ctx.save(); ctx.fillStyle = 'rgba(120,95,50,0.28)'; ctx.beginPath();
+                ctx.moveTo(z.x, toScreenY(z.y)); ctx.lineTo(z.x + z.w, toScreenY(z.y)); ctx.lineTo(z.x + z.w, toScreenY(z.y + z.h - 60)); ctx.lineTo(cx + w / 2, toScreenY(z.y + z.h)); ctx.lineTo(cx - w / 2, toScreenY(z.y + z.h)); ctx.lineTo(z.x, toScreenY(z.y + z.h - 60)); ctx.closePath(); ctx.fill(); ctx.restore();
+                // 바닥 문(틈) — last-gate 타일
                 var drawn = false;
                 if (img('pieces', 'last-gate')) {
-                    // 가로 타일: 양 끝 기둥 8px(소스) 겹침. n 장이 정확히 채널 폭을 채우도록 배율 계산
                     var tileW = GATE_TILE_SRC_W * SRC_SCALE, ov = GATE_TILE_OVERLAP_SRC * SRC_SCALE;
                     var nT = Math.max(1, Math.ceil((w - ov) / (tileW - ov)));
                     var gsc = (w + (nT - 1) * ov) / (nT * tileW);
@@ -471,12 +492,18 @@ var MarbleRender = (function () {
                     for (var ti = 0; ti < nT; ti++) drawSprite('pieces', 'last-gate', g.x1 + tileW * gsc / 2 + ti * step, g.y1 + 8, 128, 96, { sx: frame * 128, sw: 128, anchor: 'bottom', scale: gsc });
                     drawn = true;
                 }
-                if (!drawn) {
-                    var h = 22 * (1 - prog);
-                    ctx.fillStyle = '#c99a5b'; ctx.fillRect(g.x1, toScreenY(g.y1) - h, w, Math.max(4, h));
-                    ctx.fillStyle = '#6b4420'; ctx.fillRect(g.x1 - 4, toScreenY(g.y1) - 30, 6, 36); ctx.fillRect(g.x2 - 2, toScreenY(g.y1) - 30, 6, 36);
-                    label(open ? '마지막 문 — 열림' : '마지막 문 — 닫힘!', cx, g.y1 - 40, open ? '#c8ffc8' : '#ffd0d0', 12);
+                if (!drawn) { var h = 22 * (1 - prog); ctx.fillStyle = '#c99a5b'; ctx.fillRect(g.x1, toScreenY(g.y1) - h, w, Math.max(4, h)); }
+                // 회전판(수문장) — 1차 windmill-rotor, 열린 뒤 회전
+                var ang = open ? 2 * Math.PI * (t - openT) / sp.period : 0;
+                if (!drawSprite('pieces', 'windmill-rotor', sp.x, sp.y, 192, 192, { rot: ang, scale: (sp.r * 2) / (192 * SRC_SCALE) })) {
+                    ctx.save(); ctx.translate(sp.x, toScreenY(sp.y)); ctx.rotate(ang); ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+                    ctx.beginPath(); ctx.moveTo(-sp.r, 0); ctx.lineTo(sp.r, 0); ctx.moveTo(0, -sp.r); ctx.lineTo(0, sp.r); ctx.stroke(); ctx.restore();
                 }
+                // 안내: 모인 수 / 남은 수
+                var inside = 0, alive = 0;
+                for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state === 'done') continue; alive++; if (b.x >= z.x && b.x <= z.x + z.w && b.y >= z.y && b.y <= z.y + z.h) inside++; }
+                if (!open) label('🚧 수문 — 다 모이면 열려요  ' + inside + ' / ' + alive, cx, z.y - 16, '#fff', 13);
+                else if (t - openT < 1800) label('수문이 열렸다!', cx, z.y - 16, '#ffe08a', 15);
             });
             (pieces.startGate || []).forEach(function (g) {
                 if (!visible(g.y1, 40)) return;
@@ -554,6 +581,7 @@ var MarbleRender = (function () {
             return true;
         }
         // 햇볕 잔디에서 느려진 동물: 공을 풀고(uncurl 2프레임) 서서 걷는다(idle 루프). 진행 방향으로 뒤집기.
+        function penOpenT() { var e = data.events.find(function (ev) { return ev.type === 'penOpen'; }); return e ? e.t : -1; }
         function inSunZone(b) { var sz = (pieces.sunpatch || [])[0]; return !!sz && b.x >= sz.zone.x && b.x <= sz.zone.x + sz.zone.w && b.y >= sz.zone.y && b.y <= sz.zone.y + sz.zone.h; }
         function drawSunWalker(b, t) {
             var since = t - b.sunSince;
@@ -723,6 +751,41 @@ var MarbleRender = (function () {
             var worst = Object.keys(rearByOwner).map(function (o) { return rearByOwner[o]; }).sort(function (a, b) { return a.y - b.y; }).slice(0, 5);
             hudInfo = { remaining: rem, worst: worst };
         }
+        // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
+        var MINIMAP_BANDS = [   // [y0, y1, color, 라벨]
+            [0, 300, '#b48a5a', '출발'], [300, 900, '#c9a26a', '말뚝'], [900, 1250, '#e6b73a', '벌집'], [1250, 1650, '#f2e27a', '햇볕'],
+            [1650, 2030, '#7fa6d6', '댐'], [2030, 2200, '#6b4a2b', '구덩이'], [2200, 3200, '#8fd07a', '뱀길'], [3200, 3700, '#a07a4a', '진흙'],
+            [3700, 4010, '#d98c3a', '수문'], [4010, 4400, '#f2b134', '골']
+        ];
+        function drawMinimap(t) {
+            var x0 = 12, y0 = 44, h = view.h - 60, w = MINIMAP_W;
+            var startY = data.track.startY, endY = data.track.endY;
+            var sc = h / (endY - startY);
+            var my = function (wy) { return y0 + (wy - startY) * sc; };
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(x0 - 4, y0 - 4, w + 8, h + 8, 6); ctx.fill();
+            MINIMAP_BANDS.forEach(function (bd) {
+                var a = Math.max(startY, bd[0]), bb = Math.min(endY, bd[1]);
+                ctx.fillStyle = bd[2]; ctx.globalAlpha = 0.8; ctx.fillRect(x0, my(a), w, Math.max(1, my(bb) - my(a)));
+            });
+            ctx.globalAlpha = 1;
+            // 화면 범위
+            var vh = view.h / cam.zoom;
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(x0 - 2, my(cam.y - vh / 2), w + 4, Math.max(3, vh * sc));
+            // 공 점: 남의 공 작게, 내 공 크게(테두리)
+            for (var i = 0; i < balls.length; i++) {
+                var b = balls[i]; if (b.state === 'done' || t < 0) continue;
+                var px = x0 + 3 + (b.x / TRACK_W) * (w - 6), py = my(b.y);
+                ctx.fillStyle = ringColor(b);
+                ctx.beginPath(); ctx.arc(px, py, b.owner === myName ? 3.2 : 2, 0, Math.PI * 2); ctx.fill();
+                if (b.owner === myName) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
+            }
+            // 골 표시
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 9px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            ctx.fillText('골', x0 + w / 2, my(data.track.goalY) + 2);
+            ctx.restore();
+        }
+
         function drawHud(t) {
             ctx.save();
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
@@ -742,6 +805,7 @@ var MarbleRender = (function () {
                     ctx.fillText(name + ' ' + b.num + '번', view.w - w + 18, yy);
                 });
             }
+            drawMinimap(t);
             if (t < 0) {
                 var n = Math.ceil(-t / 1000);
                 ctx.font = 'bold 64px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
