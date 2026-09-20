@@ -79,16 +79,6 @@
         'marble':     'pendingMarbleJoin'
         // dice는 sessionStorage.diceActiveRoom을 사용 (게임 페이지 IIFE가 자동 joinRoom)
     };
-    var USERNAME_KEY_BY_TYPE = {
-        'dice':       'diceGameUserName',
-        'roulette':   'rouletteUserName',
-        'horse-race': 'horseRaceUserName',
-        'bridge':     'bridgeUserName',
-        'ladder':     'ladderUserName',
-        'spin-arena': 'spinArenaUserName',
-        'marble':     'marbleUserName'
-    };
-
     // 각 게임 페이지의 sessionStorage 활성 방 키 (fast path rejoin용)
     var SESSION_KEY_BY_TYPE = {
         'dice':       'diceActiveRoom',
@@ -141,6 +131,7 @@
     var nameModalSubmitHandler = null;
     var pendingGameAfterModal = null; // 만료 모달에서 사용
     var redirecting = false;          // ack 후 redirect 직전 가드
+    var afterNameConfirmed = null;    // 이름 확정(토스트/모달/"다른 이름") 후 이어질 동작 — 카드: 방 만들기, 링크: 합류
 
     // ─── Socket — 지연 초기화 ───────────────────
     var _socket = null;
@@ -251,14 +242,13 @@
         });
     }
 
-    // 이름 토스트 — 다른 이름 링크
+    // 이름 토스트 — 다른 이름 링크. 진입 경로가 정한 동작(afterNameConfirmed)을 그대로 잇는다
+    // (다이렉트 링크에서 새 방을 만들어 버리던 문제 방지).
     if (nameToastChange) {
         nameToastChange.addEventListener('click', function() {
             hideNameToast();
             var btnText = shortcodeFromPath ? '접속하기 →' : '방 만들기 →';
-            showNameModal(selectedGame, function(userName) {
-                completeAfterName(selectedGame, userName);
-            }, btnText);
+            showNameModal(selectedGame, afterNameConfirmed, btnText);
         });
     }
 
@@ -288,15 +278,12 @@
         });
         if (freeMain) freeMain.classList.add('matching');
 
+        afterNameConfirmed = function(userName) { completeAfterName(game, userName); };
         var storedName = getStoredUserName();
         if (storedName) {
-            showNameToast(storedName, function() {
-                completeAfterName(game, storedName);
-            });
+            showNameToast(storedName, function() { afterNameConfirmed(storedName); });
         } else {
-            showNameModal(game, function(userName) {
-                completeAfterName(game, userName);
-            }, '방 만들기 →');
+            showNameModal(game, afterNameConfirmed, '방 만들기 →');
         }
     }
 
@@ -329,21 +316,33 @@
             //   게임 페이지 IIFE가 sessionStorage 기반 자동 rejoin 처리 (~1초).
             if (tryFastPathRejoin(info)) return;
 
-            var storedName = getStoredUserName();
-            var isServerRoom = info.serverId != null;
-
-            function proceed(userName) {
-                if (isServerRoom) {
-                    handleServerRoomLink(info, userName, shortcode);
-                } else {
-                    joinExistingRoom(info, userName, shortcode);
+            // 서버 방 — 정체성은 로그인 계정 이름 하나. 자유 별명(freeUserName)은 절대 쓰지 않는다.
+            // 이름 토스트/"다른 이름"도 없다 (서버 정체성은 바꿀 수 있는 게 아니다).
+            if (info.serverId != null) {
+                var authedName = getAuthedName();
+                if (!authedName) {
+                    // 미로그인 — 로비(/game)로 보내 로그인 모달을 띄우고, 로그인/가입 성공 시 이 링크로 복귀한다
+                    // (server-select-shared.js가 sessionStorage.lamdice_returnAfterLogin을 소비).
+                    // diceSession/returnToLobby를 지워야 로비가 캐시된 자유 로비 대신 서버 선택 화면을 띄운다.
+                    try {
+                        sessionStorage.setItem('lamdice_returnAfterLogin', window.location.pathname);
+                        sessionStorage.removeItem('diceSession');
+                        sessionStorage.removeItem('returnToLobby');
+                    } catch (_) {}
+                    window.location.replace('/game');
+                    return;
                 }
+                handleServerRoomLink(info, authedName, shortcode);
+                return;
             }
 
+            // 자유 방 — 자유 별명으로 합류
+            afterNameConfirmed = function(userName) { joinExistingRoom(info, userName, shortcode); };
+            var storedName = getStoredUserName();
             if (storedName) {
-                showNameToast(storedName, function() { proceed(storedName); });
+                showNameToast(storedName, function() { afterNameConfirmed(storedName); });
             } else {
-                showNameModal(gameSlug, proceed, '접속하기 →');
+                showNameModal(gameSlug, afterNameConfirmed, '접속하기 →');
             }
         })
         .catch(function(err) {
@@ -438,10 +437,6 @@
         }
 
         var gameType = info.gameType;
-        var usernameKey = USERNAME_KEY_BY_TYPE[gameType];
-        if (usernameKey) {
-            try { localStorage.setItem(usernameKey, userName); } catch (_) {}
-        }
 
         if (gameType === 'dice') {
             // dice-game-multiplayer.html IIFE가 sessionStorage.diceSession 보고
@@ -458,7 +453,6 @@
                     serverId: null,
                     serverName: null
                 }));
-                localStorage.setItem('userName', userName);
             } catch (_) {}
             window.location.href = '/game?from=free&shortcode=' + encodeURIComponent(shortcode);
             return;
@@ -502,13 +496,7 @@
             return joinExistingRoom(info, userName, shortcode);
         }
         // 로딩 화면 유지 — 깜빡임 방지 (hideDirectLoading 호출 안 함)
-
-        // localStorage 이름 캐시 (게임 페이지에서 재사용)
-        try { localStorage.setItem('freeUserName', userName); } catch (_) {}
-        var usernameKey = USERNAME_KEY_BY_TYPE[info.gameType];
-        if (usernameKey) {
-            try { localStorage.setItem(usernameKey, userName); } catch (_) {}
-        }
+        // userName은 계정 이름 — 자유 별명 키(freeUserName)에 되쓰지 않는다 (사고의 되씀 경로 차단).
 
         // 멤버 상태 확인 — 비멤버에게 무심코 가입 신청 들어가는 일 방지
         fetch('/api/server/' + encodeURIComponent(info.serverId) + '/check-member?userName=' + encodeURIComponent(userName), {
@@ -645,7 +633,6 @@
                     serverId: serverId,
                     serverName: sName
                 }));
-                localStorage.setItem('userName', userName);
             } catch (_) {}
             window.location.href = '/game?from=free&shortcode=' + encodeURIComponent(shortcode);
             return;
@@ -681,10 +668,6 @@
         var gameType  = ack.gameType;
         var roomId    = ack.roomId;
         var shortcode = ack.shortcode;
-        var usernameKey = USERNAME_KEY_BY_TYPE[gameType];
-        if (usernameKey) {
-            try { localStorage.setItem(usernameKey, userName); } catch (_) {}
-        }
 
         if (gameType === 'dice') {
             try {
@@ -699,7 +682,6 @@
                     serverId: null,
                     serverName: null
                 }));
-                localStorage.setItem('userName', userName);
             } catch (_) {}
             window.location.href = '/game?from=free&shortcode=' + encodeURIComponent(shortcode);
             return;
@@ -744,8 +726,10 @@
             var style = document.createElement('style');
             style.id = 'freeDirectLoadingStyles';
             style.textContent = ''
+                // z-index 40 — 이름 토스트(.name-toast 50)와 모달(.modal-backdrop 1000)보다 아래.
+                // 같은 50이면 나중에 붙는 이 오버레이가 토스트를 가려 "다른 이름"을 누를 수 없다.
                 + '#freeDirectLoading {'
-                +   'position: fixed; inset: 0; z-index: 50;'
+                +   'position: fixed; inset: 0; z-index: 40;'
                 +   'display: flex; flex-direction: column;'
                 +   'align-items: center; justify-content: center;'
                 +   'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);'
@@ -1026,9 +1010,21 @@
     // =====================================================
     // 9. 유틸 — 이름 저장소 / 에러 / escapeHtml
     // =====================================================
+    // 자유 별명 — freeUserName 하나만 읽는다. 계정 이름(userAuth)이나 legacy userName으로 폴백하지 않는다
+    // (폴백이 서버 방 링크 멤버십 오판의 직접 원인이었다).
     function getStoredUserName() {
         try {
-            return localStorage.getItem('freeUserName') || localStorage.getItem('userName') || '';
+            return localStorage.getItem('freeUserName') || '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    // 로그인 계정 이름 — 서버 방 링크의 유일한 정체성. 미로그인이면 ''.
+    function getAuthedName() {
+        try {
+            var auth = JSON.parse(localStorage.getItem('userAuth') || 'null');
+            return (auth && auth.name) ? auth.name : '';
         } catch (_) {
             return '';
         }
