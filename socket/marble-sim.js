@@ -5,9 +5,9 @@
 'use strict';
 
 // ─── 시간축 ───
-const SIM_DT_MS = 10;             // 내부 스텝(100fps) — 고속(≤900px/s)에서 벽 터널링 방지
+const SIM_DT_MS = 5;              // 내부 스텝(200fps) — 자유낙하 속도(≤1400px/s = 스텝당 7px < 반지름)에서 벽 터널링 방지
 const SIM_CAP_MS = 90000;         // 하드 캡 — 이후 미도착 공은 진행도(y) 순으로 강제 정산
-const SIM_YIELD_EVERY = 100;      // 이 스텝마다 setImmediate (CPU 양보)
+const SIM_YIELD_EVERY = 200;      // 이 스텝마다 setImmediate (CPU 양보)
 const SAMPLE_MS_FEW = 40;         // 공 ≤ SAMPLE_FEW_MAX 이면 40ms 샘플 (SIM_DT_MS 배수여야 함)
 const SAMPLE_MS_MANY = 100;
 const SAMPLE_FEW_MAX = 60;
@@ -22,10 +22,10 @@ const START_SPACING = 30;
 const TRACK_W = 800;
 const BALL_R = 14;                // 표시 지름 28
 const GRAVITY = 700;              // px/s² (+y = 언덕 아래). Marble Roulette(box2d g=10m/s²≈300px/s², 공기저항 0)보다 공이 2배 커서 2배
-const DRAG = 0.35;                // 선형 감쇠 /s (약하게 — 속도는 MAX_SPEED 로 캡)
-const MAX_SPEED = 900;            // px/s 상한 (스텝당 9px < 공 반지름 → 터널링 없음)
+const DRAG = 0;                   // 공기저항 없음 — 그냥 중력으로 떨어진다(Marble Roulette 과 동일). 속도는 MAX_SPEED 안전 캡만
+const MAX_SPEED = 1400;           // px/s 상한 (스텝당 7px < 공 반지름 → 터널링 없음)
 const WALL_RESTITUTION = 0.45;
-const WALL_FRICTION = 0.03;       // 접촉 스텝당 접선 속도 손실 비율
+const WALL_FRICTION = 1.5;        // 접촉 중 접선 속도 손실 /s (스텝 수와 무관하게 dt 로 스케일 — 스텝당 상수면 200fps 에서 시소 위에 공이 눌러앉는다)
 const BALL_RESTITUTION = 0.5;
 const STATIC_RESTITUTION = 0.6;   // 정지 공(잠·구덩이)에 부딪힐 때
 const CELL = 32;                  // 공-공 브로드페이즈 해시 셀
@@ -310,7 +310,8 @@ async function simulate(balls, seed, track) {
         // 접선 마찰
         const tx = -ny, ty = nx;
         const vt = b.vx * tx + b.vy * ty;
-        b.vx -= vt * WALL_FRICTION * tx; b.vy -= vt * WALL_FRICTION * ty;
+        const fr = Math.min(1, WALL_FRICTION * dt);
+        b.vx -= vt * fr * tx; b.vy -= vt * fr * ty;
     };
     // 공 vs 정지 원(말뚝/통나무)
     const collideCircle = (t, b, cx, cy, cr, e) => {
