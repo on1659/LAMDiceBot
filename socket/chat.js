@@ -642,7 +642,7 @@ module.exports = (socket, io, ctx) => {
                         }
                     }
 
-                    // 마블런: 진짜 disconnect로 떠난 유저의 동물 선택 정리 (leaveRoom과 짝, C-19).
+                    // 데구리: 진짜 disconnect로 떠난 유저의 동물 선택 정리 (leaveRoom과 짝, C-19).
                     // idle일 때만 재브로드캐스트(진행 중 playing/finished는 손대지 않음).
                     if (gameState.marble && gameState.marble.picks &&
                         gameState.marble.picks[userName] !== undefined) {

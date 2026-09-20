@@ -251,7 +251,7 @@ module.exports = (socket, io, ctx) => {
         // 게임 타입 검증 (dice, roulette, horse-race, bridge, ladder 허용, 기본값은 'dice')
         const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'marble'].includes(gameType) ? gameType : 'dice';
 
-        // 미출시 게임(사다리타기·마블런)은 로컬 개발 서버 또는 DEV_GAMES=1 서비스에서만 방을 만들 수 있다
+        // 미출시 게임(사다리타기·데구리)은 로컬 개발 서버 또는 DEV_GAMES=1 서비스에서만 방을 만들 수 있다
         // 아래 leaveRoom(socket)보다 반드시 앞 — 거부하면서 기존 방에서 내보내면 안 된다
         if (DEV_GATED_GAMES[validGameType] && !DEV_GAMES_ENABLED) {
             socket.emit('roomError', DEV_GATED_GAMES[validGameType]);
@@ -1271,7 +1271,7 @@ module.exports = (socket, io, ctx) => {
                     io.to(roomId).emit('pirate:claimsUpdated', { claims: { ...pr.claims }, holeCount: pr.holeCount });
                 }
             }
-            // 🔧 퇴장한 사용자의 마블런 동물 선택 삭제 + idle이면 동기화 재emit
+            // 🔧 퇴장한 사용자의 데구리 동물 선택 삭제 + idle이면 동기화 재emit
             if (gameState.marble && gameState.marble.picks &&
                 gameState.marble.picks[socket.userName] !== undefined) {
                 delete gameState.marble.picks[socket.userName];

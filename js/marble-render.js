@@ -1,4 +1,4 @@
-/* 마블런(marble) 캔버스 렌더러 + 재생기.
+/* 데구리(marble) 캔버스 렌더러 + 재생기.
    소켓/DOM 상태 없음 — (타임라인, t) → 화면 의 순수 함수에 가깝다. js/marble.js 와 game-lab/marble-preview.html 이 공용.
    좌표계: 트랙 논리폭 800(서버 socket/marble-sim.js 와 동일), 카메라가 세로로 따라간다.
    에셋: assets/marble/ 1차+2차 배치(52장, 규격은 marble-run.manifest.json). ASSETS 값이 null 이거나 로드 실패면 코드 도형(라벨 포함)으로 그린다.
