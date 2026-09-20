@@ -104,6 +104,15 @@ const SPRING_UP_DEG = 28;         // 튕긴 순간 젖혀짐
 const SPRING_CHARGE_END = 0.72, SPRING_SNAP_END = 0.82;   // 위상: 0~0.72 처짐, 0.72~0.82 튕김(이 창에 판 위 공 발사), ~1 복귀
 const SPRING_VX = 300, SPRING_VY = 640;   // 발사 속도(뒤·위) — 640 은 ≈290px 올라간다(경사로 낙차 160 보다 위)
 const SPRING_COOLDOWN_MS = 600;
+// 독수리(사용자 요청 ⑤): 결승 구멍밭에서 뚜껑을 기다리는 공·통로를 걷는 동물 중 시드로 한 마리를 채서 풍차 옆에 떨어뜨린다(다시 굴러 내려와야 함).
+//    남은 동물이 1마리면 안 온다(끝없이 늘어지지 않게). 한 판 EAGLE_MAX 회(풍차에서 결승까지 다시 내려오는 데 ~25s 라 5초마다 오면
+//    24마리 경주가 50→90s, 200마리는 캡 — 그래서 1회, 같은 놈 두 번 안 채 감). 결정론(시드·주기).
+const EAGLE_WAIT_MS = 5000;       // 후보가 생긴 뒤 이만큼 지나서 온다
+const EAGLE_MAX = 1;
+const EAGLE_FLY_MS = 2600;        // 채서 떨어뜨릴 때까지(공은 이 동안 독수리 발톱에 — 충돌 없음)
+const EAGLE_ARC = 140;            // 비행 중 곡선 높이(위로)
+const EAGLE_DROP_Y = 2560;        // 풍차(y 2480) 옆, 두더지 경사로(2700) 위
+const EAGLE_DROP_DX = 130;        // 풍차 좌우 이만큼 떨어진 자리(쪽은 시드)
 const VALLEY_H = DEV_H + VAR_H;    // 두 골짜기 높이 합 → 아래 구간(범퍼·시소·진흙·구멍밭·통로·스탠드) 전부 이만큼 내려간다
 // ⑦-d 워프 파이프 방(갈래 골짜기 끊긴 경사로 아래, docs/goal/marble-warp-pipes.md): 마리오식 서 있는 파이프 6개가 한 화면에.
 //    윗줄 [1][2][3] / 통나무 한 줄 / 아랫줄 [4][5][6], 짝 1↔6·2↔5·3↔4(대각선 교차). 들어가면 짝 파이프에서 위로 뿅 튀어나온다 —
@@ -266,7 +275,7 @@ function buildTrack(ballCount, rng) {
         warps.forEach(w => {
             const pair = 5 - w.idx;   // 1↔6, 2↔5, 3↔4
             p.push({ kind: 'warp', x: w.x, y: w.y, idx: w.idx, pair, w: WARP_MOUTH_W, bodyW: WARP_BODY_W, bodyH: WARP_BODY_H, color: Math.min(w.idx, pair) });
-            wall(w.x - WARP_BODY_W / 2, w.y, w.x - WARP_BODY_W / 2, w.y + WARP_BODY_H); wall(w.x + WARP_BODY_W / 2, w.y, w.x + WARP_BODY_W / 2, w.y + WARP_BODY_H);
+            [-1, 1].forEach(sg => p.push({ kind: 'wall', x1: w.x + sg * WARP_BODY_W / 2, y1: w.y, x2: w.x + sg * WARP_BODY_W / 2, y2: w.y + WARP_BODY_H, hidden: true }));   // 몸통 양옆 벽 — 스프라이트가 대신 보이므로 클라는 안 그림
         });
         for (let x = 240; x <= 540; x += 100) p.push({ kind: 'log', x: Math.round(x + (rng() - 0.5) * 20), y: Math.round(V + WARP_TOP + WARP_LOG_Y + (rng() - 0.5) * 30), r: LOG_R });   // 줄 사이 통나무 — x 섞기. 통나무끼리 ≥ 40·벽과 ≥ 80 띄운다(좁으면 공이 쐐기로 낀다 — 600 자리는 벽과 22 라 캡)
     }
@@ -423,7 +432,7 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|land|trip|doze|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|spring|warp|warpOut|eagleGrab|eagleDrop|land|trip|doze|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -440,7 +449,8 @@ async function simulate(balls, seed, track) {
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
         pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
         stuckSince: 0, lidAt: -1e9, moleAt: -1e9, springAt: -1e9, ffDone: false,
-        warpDone: {}, warpUntil: 0, warpOut: null
+        warpDone: {}, warpUntil: 0, warpOut: null,
+        carry: null, eagled: false   // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 한 번 잡힌 적 있음
     }));
 
     // 조각 분류
@@ -484,6 +494,7 @@ async function simulate(balls, seed, track) {
     // 장치 상태
     const bounds = track.bounds || [];
     const damThreshold = Math.max(DAM_MIN_COUNT, Math.ceil(n * DAM_FRACTION));
+    let eagleCount = 0, eagleNextAt = -1;
     let damActive = !!dam, damFirstContact = -1, damCracked = false;
     let pitLastErupt = -1;   // 마지막 분출 시각(-1 = 아직 아무도 안 빠짐)
     let beesAt = -1;
@@ -656,9 +667,31 @@ async function simulate(balls, seed, track) {
             }
         }
 
+        // ── 독수리: 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리를 채 간다 ──
+        if (holefield && eagleCount < EAGLE_MAX) {
+            const alive = B.filter(b => b.state !== 'done').length;
+            const cands = alive >= 2 ? B.filter(b => !b.eagled && ((b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) || b.state === 'walk')) : [];
+            if (cands.length === 0) eagleNextAt = -1;
+            else if (eagleNextAt < 0) eagleNextAt = t + EAGLE_WAIT_MS;
+            else if (t >= eagleNextAt) {
+                const v = cands[Math.floor(rng() * cands.length)];
+                const side = rng() < 0.5 ? -1 : 1;
+                v.carry = { x0: v.x, y0: v.y, x1: TRACK_W / 2 + side * EAGLE_DROP_DX, y1: EAGLE_DROP_Y, t0: t, t1: t + EAGLE_FLY_MS };
+                v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.eagled = true;
+                eagleCount++; eagleNextAt = t + EAGLE_WAIT_MS;
+                pushEvent(t, 'eagleGrab', v, { x: Math.round(v.x), y: Math.round(v.y), tx: v.carry.x1, ty: v.carry.y1, dur: EAGLE_FLY_MS });
+            }
+        }
+
         // ── 공 적분 ──
         for (const b of B) {
             if (b.state === 'done' || b.state === 'walk') continue;
+            if (b.state === 'carried') {   // 독수리 발톱에: 곡선(위로 EAGLE_ARC)으로 떨어뜨릴 자리까지, 도착하면 놓는다
+                const c = b.carry, k = Math.min(1, (t - c.t0) / (c.t1 - c.t0)), e = k * k * (3 - 2 * k);
+                b.x = c.x0 + (c.x1 - c.x0) * e; b.y = c.y0 + (c.y1 - c.y0) * e - Math.sin(k * Math.PI) * EAGLE_ARC;
+                if (t >= c.t1) { b.state = 'roll'; b.carry = null; b.vx = 0; b.vy = 40; b.stuckSince = t; b.lidAt = -1e9; pushEvent(t, 'eagleDrop', b, { x: Math.round(b.x), y: Math.round(b.y) }); }
+                continue;
+            }
             if (b.state === 'nap') {
                 if (t - b.napAt >= NAP_MAX_MS) wakeBall(t, b, 0, WAKE_KICK_Y);
                 else continue;
@@ -822,13 +855,13 @@ async function simulate(balls, seed, track) {
         // ── 공-공 충돌(해시) ──
         const grid = new Map();
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp') continue;   // pit = 땅속(간헐천), warp = 파이프 속 — 장애물 아님
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp' || b.state === 'carried') continue;   // pit = 땅속(간헐천), warp = 파이프 속, carried = 독수리 발톱 — 장애물 아님
             const k = (Math.floor(b.x / CELL) + 4096) * 65536 + Math.floor((b.y + 8192) / CELL);
             if (!grid.has(k)) grid.set(k, []);
             grid.get(k).push(b);
         }
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp') continue;
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp' || b.state === 'carried') continue;
             const cx = Math.floor(b.x / CELL) + 4096, cy = Math.floor((b.y + 8192) / CELL);
             for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
                 const cell = grid.get((cx + ox) * 65536 + (cy + oy));

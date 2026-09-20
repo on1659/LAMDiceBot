@@ -31,6 +31,8 @@ var MarbleRender = (function () {
     var POOF_FX_MS = 420;
     var SUCK_FX_MS = 380;            // 워프 파이프에 빨려 들어가는 시간(공이 작아지며 회전)
     var WARP_COLORS = ['#e23b3b', '#3b82e2', '#f2c014'];   // 짝 파이프 띠 색 (1↔6 빨강, 2↔5 파랑, 3↔4 노랑)
+    var EAGLE_ARC = 140;             // 독수리 비행 곡선 높이 — socket/marble-sim.js EAGLE_ARC 와 동일(그림자 자리 계산)
+    var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
     var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
     // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
@@ -83,7 +85,8 @@ var MarbleRender = (function () {
             'mole-hole': A + 'pieces/mole-hole.png', 'mole': A + 'pieces/mole.png', 'flipflop-arm': A + 'pieces/flipflop-arm.png', 'flipflop-pivot': A + 'pieces/flipflop-pivot.png',
             'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png',
             'warp-pipe': A + 'pieces/warp-pipe.png', 'gravestone': A + 'pieces/gravestone.png', 'gap-mark': A + 'pieces/gap-mark.png',   // 4차(finale-d) — 도착 전엔 코드 도형
-            'spring-plank': A + 'pieces/spring-plank.png'   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
+            'spring-plank': A + 'pieces/spring-plank.png',   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
+            'eagle': A + 'pieces/eagle.png'   // 5차 — 4셀 256×160 날갯짓(오른쪽 향함, 발톱 = 아래에서 16px)
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -95,7 +98,8 @@ var MarbleRender = (function () {
         fx: {
             'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
             'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png',
-            'suck-swirl': A + 'fx/suck-swirl.png'   // 4차
+            'suck-swirl': A + 'fx/suck-swirl.png',   // 4차
+            'eagle-shadow': A + 'fx/eagle-shadow.png'   // 5차 128×48
         }
     };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
@@ -236,7 +240,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.graveLanded = false; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.graveLanded = false; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -260,6 +264,8 @@ var MarbleRender = (function () {
                         fxList.push({ type: 'suck', ball: b.id, x: e.x, y: e.y, t0: e.t, dur: SUCK_FX_MS });
                         break;
                     case 'warpOut': b.state = 'roll'; fxList.push({ type: 'warpout', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'eagleGrab': b.state = 'carried'; b.walkKind = ''; b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t, dur: e.dur }; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'eagleDrop': b.state = 'roll'; b.carry = null; b.wakeAt = e.t; fxList.push({ type: 'eagledrop', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'land':
                         b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
@@ -322,7 +328,9 @@ var MarbleRender = (function () {
             cam.mode = frameMode ? 'frame' : (remaining <= finalK ? 'rear' : 'lead');
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
+            var carried = null; for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried') { carried = balls[ci]; break; }
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
+            else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
             else if (loserDone) { targetX = data.track.goalX; targetY = goalY + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 골 앞 비석으로
             else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
@@ -499,7 +507,7 @@ var MarbleRender = (function () {
                     ctx.save(); ctx.fillStyle = '#6b4a2b'; ctx.beginPath(); ctx.ellipse(m.x, toScreenY(m.y), m.rx, m.ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
                 }
             });
-            (pieces.wall || []).forEach(function (w) { if (visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });
+            (pieces.wall || []).forEach(function (w) { if (!w.hidden && visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });   // hidden = 장치 몸통 벽(워프 파이프)
             // 끊긴 경사로의 틈(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
             (pieces.spring || []).forEach(function (sp) {   // 스프링 널빤지: 경첩(sp.x, sp.y)에 매달린 판. 에셋(4셀: 평평/살짝/많이 휨/튕김)이 오면 그 프레임, 없으면 각도대로 그린 코드 도형
                 if (!visible(sp.y, 80)) return;
@@ -511,7 +519,7 @@ var MarbleRender = (function () {
                 if (im) {   // 셀 왼쪽 끝 세로 중앙 = 경첩(의뢰서 §2-2). 경사로 각도로만 회전 — 휨은 프레임이 표현
                     ctx.rotate(sp.angle);
                     var cw = 240 * SRC_SCALE, ch = 64 * SRC_SCALE;
-                    ctx.drawImage(im, frame * 240, 0, 240, 64, -6, -ch / 2, cw, ch);
+                    ctx.drawImage(im, frame * 240, 0, 240, 64, 0, -ch / 2, cw, ch);   // 경첩 축 = 셀 (0,32) (배치 QA 확정)
                 } else {
                     ctx.rotate(a);
                     ctx.fillStyle = '#6b4420'; ctx.fillRect(-4, -12, 8, 24);                                  // 경첩 기둥
@@ -875,6 +883,29 @@ var MarbleRender = (function () {
             if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(sx, sy, r + 1.5, 0, Math.PI * 2); ctx.stroke(); }
             ctx.restore();
         }
+        // 독수리에 잡혀 가는 공: 땅 그림자(곡선 높이만큼 아래) + 공(말린 채) + 발톱이 공을 쥔 독수리(날갯짓 4프레임, 왼쪽으로 갈 땐 반전). 에셋 없으면 코드 실루엣
+        function drawEagleCarry(b, t, mine) {
+            var c = b.carry, k = c ? clamp((t - c.t0) / c.dur, 0, 1) : 0.5, lift = Math.sin(k * Math.PI) * EAGLE_ARC;
+            var faceLeft = c ? c.x1 < c.x0 : false, wing = Math.floor(Math.max(0, t) / EAGLE_WING_MS) % 4;
+            var gy = b.y + lift;   // 땅 자리
+            if (!drawSprite('fx', 'eagle-shadow', b.x, gy, 128, 48, { alpha: 0.35 + 0.3 * (1 - lift / EAGLE_ARC), scale: 1 - 0.3 * lift / EAGLE_ARC })) drawShadow(b.x, gy, BALL_R + 6);
+            drawCreatureFrame(b, 2, 0, b.x, b.y + 4, Math.sin(t / 120) * 0.15, 1);
+            drawRing(b, b.x, b.y + 4, BALL_R + 1, mine);
+            ctx.save(); ctx.translate(b.x, toScreenY(b.y - 8)); if (faceLeft) ctx.scale(-1, 1);
+            var im = img('pieces', 'eagle');
+            if (im) { var ew = 256 * SRC_SCALE, eh = 160 * SRC_SCALE; ctx.drawImage(im, wing * 256, 0, 256, 160, -ew / 2, -eh + 4, ew, eh); }   // 발톱(아래에서 16px 소스 = 4px) 이 공 위
+            else {
+                var flap = (wing === 0 || wing === 2) ? -10 : wing === 1 ? -2 : -16;
+                ctx.fillStyle = '#7a4b23'; ctx.strokeStyle = '#3b2412'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.ellipse(0, -14, 14, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();                       // 몸
+                ctx.beginPath(); ctx.moveTo(-6, -16); ctx.lineTo(-30, flap - 14); ctx.lineTo(-4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();   // 왼 날개
+                ctx.beginPath(); ctx.moveTo(6, -16); ctx.lineTo(30, flap - 14); ctx.lineTo(4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();      // 오른 날개
+                ctx.fillStyle = '#f2c014'; ctx.beginPath(); ctx.moveTo(14, -15); ctx.lineTo(21, -13); ctx.lineTo(14, -11); ctx.closePath(); ctx.fill();   // 부리
+            }
+            ctx.restore();
+            drawNameTag(b, b.x, toScreenY(b.y) - 44, mine);
+            if (k < 0.35) label('채 갔다!', b.x, b.y - 58, '#fff', 13);
+        }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
         // 꼴찌 깃발 — 흰 천을 플레이어 색으로 틴트 (multiply 후 원본 알파 복원). (colorIdx, frame) 별 오프스크린 캐시
@@ -917,7 +948,7 @@ var MarbleRender = (function () {
         function drawBalls(t) {
             var i, b, mine;
             // 그림자 먼저
-            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || b.state === 'warp' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
+            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || b.state === 'warp' || b.state === 'carried' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
             // 후미 공(플레이어별) — 꼴찌 깃발 대상
             var rearByOwner = {};
             for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done') continue; if (!rearByOwner[b.owner] || b.y < rearByOwner[b.owner].y) rearByOwner[b.owner] = b; }
@@ -925,6 +956,7 @@ var MarbleRender = (function () {
                 b = balls[i];
                 if (b.state === 'done' || b.state === 'warp' || !visible(b.y, 40)) continue;   // warp = 파이프 속(안 보임)
                 mine = b.owner === myName;
+                if (b.state === 'carried') { drawEagleCarry(b, t, mine); continue; }
                 if (t < 0) {
                     // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
                     // 공이 되기 전까지는 발밑 마커(플레이어 색 타원 + 번호)로, 완전히 말린 뒤에만 링을 그린다
@@ -1171,6 +1203,7 @@ var MarbleRender = (function () {
                         if (kk < 0.7) label('슝!', x, y - 28 - kk * 20, 'rgba(160,225,255,' + (1 - kk).toFixed(2) + ')', 13);
                         break;
                     }
+                    case 'eagledrop': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y + 8, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } label('툭!', x, y - 24 - k * 20, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 14); break;
                     case 'warpout':   // 짝 파이프에서 뿅
                         if (!visible(y, 40)) return;
                         if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); }
@@ -1244,7 +1277,7 @@ var MarbleRender = (function () {
             data.track.pieces.forEach(function (p) {
                 switch (p.kind) {
                     case 'platform': g.fillStyle = '#b48a5a'; g.fillRect(X(p.zone.x), Y(p.zone.y), p.zone.w * sc, p.zone.h * sc); break;
-                    case 'wall': g.strokeStyle = '#e0bd82'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
+                    case 'wall': if (p.hidden) break; g.strokeStyle = '#e0bd82'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
                     case 'stake': g.fillStyle = '#d9a35c'; g.fillRect(X(p.x) - 0.6, Y(p.y) - 0.6, 1.2, 1.2); break;
                     case 'log': g.fillStyle = '#a06a35'; dot(X(p.x), Y(p.y), Math.max(1.5, p.r * sc)); break;
                     case 'warp': g.fillStyle = WARP_COLORS[p.color % WARP_COLORS.length]; g.fillRect(X(p.x) - 1.5, Y(p.y), 3, Math.max(2, p.bodyH * sc)); break;
