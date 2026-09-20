@@ -81,22 +81,25 @@ var MarbleRender = (function () {
             'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png',
             'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png',
             'mole-hole': A + 'pieces/mole-hole.png', 'mole': A + 'pieces/mole.png', 'flipflop-arm': A + 'pieces/flipflop-arm.png', 'flipflop-pivot': A + 'pieces/flipflop-pivot.png',
-            'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png'
+            'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png',
+            'pipe-mouth': A + 'pieces/pipe-mouth.png', 'gravestone': A + 'pieces/gravestone.png', 'gap-mark': A + 'pieces/gap-mark.png'   // 4차(finale-d) — 도착 전엔 코드 도형
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
             'tree': A + 'stage/decor-tree.png', 'bush-big': A + 'stage/decor-bush-big.png', 'bush-small': A + 'stage/decor-bush-small.png',
             'rock': A + 'stage/decor-rock.png', 'signpost': A + 'stage/decor-signpost.png',
-            'flower-pink': A + 'stage/decor-flower-pink.png', 'flower-yellow': A + 'stage/decor-flower-yellow.png', 'flower-white': A + 'stage/decor-flower-white.png'
+            'flower-pink': A + 'stage/decor-flower-pink.png', 'flower-yellow': A + 'stage/decor-flower-yellow.png', 'flower-white': A + 'stage/decor-flower-white.png',
+            'lane-dirt': A + 'stage/lane-dirt.png'   // 4차
         },
         fx: {
             'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
-            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png'
+            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png',
+            'suck-swirl': A + 'fx/suck-swirl.png'   // 4차
         }
     };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
     var FX_CELL = { 'dust-puff': [80, 80], 'impact-star': [96, 96], 'mud-splash': [128, 96], 'curl-poof': [96, 96],
-        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48] };
+        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96] };
     var DECOR_SIZE = { tree: [160, 224], 'bush-big': [128, 96], 'bush-small': [64, 48], rock: [64, 48], signpost: [64, 96],
         'flower-pink': [32, 32], 'flower-yellow': [32, 32], 'flower-white': [32, 32] };
 
@@ -490,10 +493,12 @@ var MarbleRender = (function () {
             // 끊긴 경사로의 틈(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
             (pieces.zzhole || []).forEach(function (h) {
                 if (!visible(h.y, 40)) return;
-                ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
-                ctx.fillStyle = 'rgba(40,25,10,0.85)'; roundRect(-h.w / 2, -5, h.w, 10, 5); ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
-                ctx.restore();
+                if (!drawSprite('pieces', 'gap-mark', h.x, h.y, 176, 48, { rot: h.angle, scale: h.w / (176 * SRC_SCALE) })) {   // 틈 표시(4차) — 없으면 둥근 홈
+                    ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
+                    ctx.fillStyle = 'rgba(40,25,10,0.85)'; roundRect(-h.w / 2, -5, h.w, 10, 5); ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.restore();
+                }
                 label('↓', h.x, h.y - 16, '#ffe08a', 12);
             });
             (pieces.bowl || []).forEach(function (bw) {   // U자 그릇: 벽(호)은 wall 로 그려지고 여기선 안내와 바닥 틈만
@@ -506,13 +511,15 @@ var MarbleRender = (function () {
                 if (!visible(q.y, 40)) return;
                 var left = q.left != null ? q.left : q.cap, open = left > 0 || (q.closedAt && t < q.closedAt + SUCK_FX_MS);   // 마지막 놈이 다 빨려 들어간 뒤에 뚜껑
                 var sy = toScreenY(q.y);
-                ctx.save();
-                ctx.fillStyle = '#5a6a72'; ctx.beginPath(); ctx.ellipse(q.x, sy + 2, q.w / 2 + 8, 11, 0, 0, Math.PI * 2); ctx.fill();   // 테두리 관
-                ctx.fillStyle = open ? '#151a22' : '#7a5a3a'; ctx.beginPath(); ctx.ellipse(q.x, sy, q.w / 2 + 3, 8, 0, 0, Math.PI * 2); ctx.fill();   // 구멍 / 나무 뚜껑
-                if (open) { ctx.strokeStyle = 'rgba(120,200,255,0.5)'; ctx.lineWidth = 1.5; var sw = (Math.max(0, t) / 400) % 1; ctx.beginPath(); ctx.ellipse(q.x, sy, (q.w / 2 + 3) * (1 - sw), 8 * (1 - sw), 0, 0, Math.PI * 2); ctx.stroke(); }
-                else { ctx.strokeStyle = '#4a3520'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(q.x - q.w / 2, sy); ctx.lineTo(q.x + q.w / 2, sy); ctx.stroke(); }
-                ctx.fillStyle = '#8a9aa2'; ctx.fillRect(q.x - q.w / 2 - 3, sy - 12, 3, 14); ctx.fillRect(q.x + q.w / 2, sy - 12, 3, 14);   // 기둥
-                ctx.restore();
+                if (!drawSprite('pieces', 'pipe-mouth', q.x, q.y + 6, 224, 128, { sx: open ? 0 : 224, sw: 224, anchor: 'bottom' })) {   // 4차 에셋(열림/닫힘 2셀, 바닥선 = 소스 아래 24px) — 없으면 코드 도형
+                    ctx.save();
+                    ctx.fillStyle = '#5a6a72'; ctx.beginPath(); ctx.ellipse(q.x, sy + 2, q.w / 2 + 8, 11, 0, 0, Math.PI * 2); ctx.fill();   // 테두리 관
+                    ctx.fillStyle = open ? '#151a22' : '#7a5a3a'; ctx.beginPath(); ctx.ellipse(q.x, sy, q.w / 2 + 3, 8, 0, 0, Math.PI * 2); ctx.fill();   // 구멍 / 나무 뚜껑
+                    if (!open) { ctx.strokeStyle = '#4a3520'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(q.x - q.w / 2, sy); ctx.lineTo(q.x + q.w / 2, sy); ctx.stroke(); }
+                    ctx.fillStyle = '#8a9aa2'; ctx.fillRect(q.x - q.w / 2 - 3, sy - 12, 3, 14); ctx.fillRect(q.x + q.w / 2, sy - 12, 3, 14);   // 기둥
+                    ctx.restore();
+                }
+                if (open) { ctx.save(); ctx.strokeStyle = 'rgba(120,200,255,0.5)'; ctx.lineWidth = 1.5; var sw = (Math.max(0, t) / 400) % 1; ctx.beginPath(); ctx.ellipse(q.x, sy, (q.w / 2 + 3) * (1 - sw), 8 * (1 - sw), 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }   // 빨려드는 고리(공통)
                 label(open ? '탈출 ' + left : '닫힘', q.x, q.y - 22, open ? '#9fe0ff' : '#c9b8a0', 11);
             });
             (pieces.stake || []).forEach(function (s) {
@@ -737,7 +744,9 @@ var MarbleRender = (function () {
                 if (!visible(ln.y, 80)) return;
                 // 흙길 + 골 선 + 안내
                 ctx.save();
-                ctx.fillStyle = 'rgba(150,115,70,0.55)'; ctx.fillRect(ln.x0, toScreenY(ln.y - ln.h / 2), ln.x1 - ln.x0, ln.h);
+                var dirt = img('stage', 'lane-dirt'), lty = toScreenY(ln.y - ln.h / 2);   // 4차 흙길 타일(256×240 → 64×60 가로 반복) — 없으면 반투명 갈색
+                if (dirt) { ctx.beginPath(); ctx.rect(ln.x0, lty, ln.x1 - ln.x0, ln.h); ctx.clip(); for (var dx = ln.x0; dx < ln.x1; dx += 64) ctx.drawImage(dirt, 0, 0, 256, 240, dx, lty, 64, ln.h); }
+                else { ctx.fillStyle = 'rgba(150,115,70,0.55)'; ctx.fillRect(ln.x0, lty, ln.x1 - ln.x0, ln.h); }
                 ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(ln.goalX, toScreenY(ln.y - ln.h / 2)); ctx.lineTo(ln.goalX, toScreenY(ln.y + ln.h / 2)); ctx.stroke();
                 ctx.restore();
@@ -1100,10 +1109,14 @@ var MarbleRender = (function () {
             var squash = (sinceLand >= 0 && sinceLand < 120) ? 1 - 0.18 * (1 - sinceLand / 120) : 1;
             ctx.save();
             ctx.translate(x, toScreenY(yBase)); ctx.scale(1 / Math.sqrt(squash), squash);
-            ctx.fillStyle = '#9aa1ab'; ctx.strokeStyle = '#3b4149'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h + w / 2); ctx.arc(0, -h + w / 2, w / 2, Math.PI, 0); ctx.lineTo(w / 2, 0); ctx.closePath();
-            ctx.fill(); ctx.stroke();
-            ctx.fillStyle = '#6f767f'; ctx.fillRect(-w / 2 - 4, -3, w + 8, 4);   // 받침돌
+            var gim = img('pieces', 'gravestone');   // 4차 비석(128×160, 하단 정렬, 글자 없음) — 없으면 코드 도형
+            if (gim) { var gw = 128 * SRC_SCALE, gh = 160 * SRC_SCALE; ctx.drawImage(gim, 0, 0, 128, 160, -gw / 2, -gh, gw, gh); }
+            else {
+                ctx.fillStyle = '#9aa1ab'; ctx.strokeStyle = '#3b4149'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h + w / 2); ctx.arc(0, -h + w / 2, w / 2, Math.PI, 0); ctx.lineTo(w / 2, 0); ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#6f767f'; ctx.fillRect(-w / 2 - 4, -3, w + 8, 4);   // 받침돌
+            }
             ctx.fillStyle = '#2b2f36'; ctx.font = 'bold 10px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText('꼴찌', 0, -h / 2 + 2);
             ctx.restore();
@@ -1120,6 +1133,7 @@ var MarbleRender = (function () {
                         if (!visible(y, 40) || !b) return;
                         var kk = Math.min(1, k);
                         drawCreatureFrame(b, 2, 0, x, y + kk * 6, kk * Math.PI * 3, 1 - kk * 0.9);
+                        drawSprite('fx', 'suck-swirl', x, y - 4, 96, 96, { sx: frame * 96, sw: 96, alpha: 0.9 });   // 4차 소용돌이(없으면 생략)
                         if (kk < 0.7) label('슝!', x, y - 28 - kk * 20, 'rgba(160,225,255,' + (1 - kk).toFixed(2) + ')', 13);
                         break;
                     }

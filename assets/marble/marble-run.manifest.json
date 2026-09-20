@@ -1618,5 +1618,129 @@
         "qaStatus": "PASS"
       }
     }
+  },
+  "finaleD": {
+    "batch": "marble-run-finale-d-2026-09-20",
+    "status": "pending-request",
+    "request": "docs/spritemake-request/2026-09-20-marble-run-finale-d.md",
+    "note": "코드는 이미 연결됨(js/marble-render.js ASSETS 4차 키) — 파일이 없으면 코드 도형 폴백. 인수 시 md5/qaStatus 채우고 status 를 picked-up 으로",
+    "assets": {
+      "pipe-mouth": {
+        "image": "pieces/pipe-mouth.png",
+        "canvas": [
+          448,
+          128
+        ],
+        "grid": [
+          2,
+          1
+        ],
+        "cell": [
+          224,
+          128
+        ],
+        "anchor": [
+          112,
+          104
+        ],
+        "sourcePlaneY": 104,
+        "frames": [
+          "open",
+          "closed"
+        ],
+        "note": "하단 정렬, 바닥선 = 아래에서 24px. 표시 폭 56",
+        "targetGamePath": "assets/marble/pieces/pipe-mouth.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "suck-swirl": {
+        "image": "fx/suck-swirl.png",
+        "canvas": [
+          384,
+          96
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          96,
+          96
+        ],
+        "anchor": [
+          48,
+          48
+        ],
+        "frames": [
+          "wide",
+          "mid",
+          "tight",
+          "tightest"
+        ],
+        "note": "파이프 흡입 380ms 동안 4프레임, 중앙 정렬",
+        "targetGamePath": "assets/marble/fx/suck-swirl.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "gravestone": {
+        "image": "pieces/gravestone.png",
+        "canvas": [
+          128,
+          160
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          64,
+          160
+        ],
+        "sourcePlaneY": 160,
+        "note": "하단 정렬, 비석 면 비움(글자는 코드). 표시 32×40",
+        "targetGamePath": "assets/marble/pieces/gravestone.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "gap-mark": {
+        "image": "pieces/gap-mark.png",
+        "canvas": [
+          176,
+          48
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          88,
+          24
+        ],
+        "sourcePlaneY": 24,
+        "note": "경사 각도로 회전, 표시 44×12",
+        "targetGamePath": "assets/marble/pieces/gap-mark.png",
+        "md5": null,
+        "qaStatus": "pending"
+      },
+      "lane-dirt": {
+        "image": "stage/lane-dirt.png",
+        "canvas": [
+          256,
+          240
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          0,
+          0
+        ],
+        "note": "가로 이어붙이는 타일, 표시 64×60",
+        "targetGamePath": "assets/marble/stage/lane-dirt.png",
+        "md5": null,
+        "qaStatus": "pending"
+      }
+    }
   }
 }
