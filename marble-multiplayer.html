@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=5">
+    <link rel="stylesheet" href="/css/marble.css?v=8">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -227,15 +227,15 @@
                 <div class="schedule-open-row">
                     <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
                 </div>
-                <!-- 마릿수 3단계 — 인당 마릿수는 서버가 인원으로 환산(인원이 많으면 인당이 줄어 총량이 적당히 유지) -->
+                <!-- 마릿수 4단계(솔로=인당 1) — 인당 마릿수는 서버가 인원으로 환산(인원이 많으면 인당이 줄어 총량이 적당히 유지) -->
                 <div id="marbleHostSettings" class="marble-host-settings">
                     <label>동물 마릿수</label>
                     <div class="marble-crowd-group" role="group" aria-label="동물 마릿수">
-                        <button type="button" class="marble-crowd-btn" data-crowd="few" onclick="setMarbleCrowd('few')">🐾 조금</button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')">🐾🐾 보통</button>
-                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')">🐾🐾🐾 우르르</button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="solo" onclick="setMarbleCrowd('solo')">🐾 솔로</button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="few" onclick="setMarbleCrowd('few')">🐾🐾 조금</button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')">🐾🐾🐾 보통</button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')">🐾🐾🐾🐾 우르르</button>
                     </div>
-                    <span id="marbleBallsNote" class="marble-balls-note"></span>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startMarbleButton" onclick="startMarble()" disabled style="flex: 1;">🐾 경주 시작</button>
@@ -320,6 +320,10 @@
             </section>
             <!-- 경주 캔버스 -->
             <section id="marbleStage">
+                <!-- 캔버스 위 도구 줄: 내 동물 따라가기 스위치(보는 사람 설정 — 강조 + 카메라) -->
+                <div class="marble-stage-tools">
+                    <button type="button" class="marble-stage-btn" id="marbleHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true">🐾 내 동물 따라가는 중</button>
+                </div>
                 <div id="marbleCanvasBox">
                     <canvas id="marbleCanvas" width="800" height="600" aria-label="마블런 경주 캔버스"></canvas>
                     <div id="marbleHud"></div>
@@ -327,10 +331,13 @@
                     <div id="scheduledStartBadge" style="display: none;"></div>
                     <!-- 리플레이 중 채팅 오버레이 (경마 raceChatOverlay CSS 재사용 — 페이지별 link라 경마 무영향) -->
                     <div id="raceChatOverlay"></div>
+                    <!-- 다시 보기 중 표시 (나만 보임) -->
+                    <div id="marbleReplayBadge" style="display: none;">↺ 다시 보는 중 — 나만 보여요</div>
                     <button type="button" id="marbleFullscreenBtn" onclick="toggleMarbleFullscreen()" title="전체화면">⛶</button>
                 </div>
                 <!-- 경주 뒤: 결과 다시 보기 + (방장) 다음 판 준비. 마지막 화면은 방장이 걷을 때까지 남는다 -->
                 <div id="marbleAfterRace" class="marble-after-race" style="display: none;">
+                    <button type="button" class="marble-after-btn" id="marbleReplayButton" onclick="replayRace()">▶ 경주 다시 보기</button>
                     <button type="button" class="marble-after-btn" onclick="reopenResult()">🏆 순위 보기</button>
                     <button type="button" class="marble-after-btn marble-after-btn-host" id="marbleResetButton" onclick="resetMarbleRound()" style="display: none;">🔄 다음 판 준비</button>
                 </div>
@@ -435,8 +442,8 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/marble-render.js?v=20"></script>
-    <script src="/js/marble.js?v=8"></script>
+    <script src="/js/marble-render.js?v=41"></script>
+    <script src="/js/marble.js?v=12"></script>
 
     <script>
         // ============================================

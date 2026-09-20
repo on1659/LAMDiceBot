@@ -187,16 +187,35 @@
     opacity: 0.6;
     cursor: default;
 }
-.marble-balls-note {
-    flex: 1 1 100%;
-    font-size: 12px;
-    color: var(--text-muted);
-    min-height: 14px;
-}
 
 /* ===== 경주 캔버스 ===== */
 #marbleStage {
     margin: 0 0 20px;
+}
+/* 캔버스 위 도구 줄 (내 동물 강조 스위치) */
+.marble-stage-tools {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+}
+.marble-stage-btn {
+    width: auto;
+    margin: 0;
+    padding: 6px 11px;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 999px;
+    background: var(--bg-white);
+    color: var(--text-secondary);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.marble-stage-btn.is-on {
+    border-color: var(--yellow-400);
+    background: var(--yellow-400);
+    color: #4a3000;
 }
 .marble-after-race {
     display: flex;
@@ -220,6 +239,22 @@
 .marble-after-btn-host {
     background: var(--marble-gradient);
     color: var(--bg-white);
+}
+/* 다시 보기 배지 — 캔버스 하단 가운데, 클릭은 통과 */
+#marbleReplayBadge {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--bg-white);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 2;
 }
 
 #marbleCanvasBox {

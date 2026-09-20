@@ -29,6 +29,16 @@ var MarbleRender = (function () {
     var DAM_CRUMBLE_MS = 260;        // 마지막 금 프레임 → 터진 프레임 크로스페이드
     var GEYSER_FX_MS = 750;          // 간헐천 분출 물기둥
     var POOF_FX_MS = 420;
+    var SUCK_FX_MS = 380;            // 워프 파이프에 빨려 들어가는 시간(공이 작아지며 회전)
+    var WARP_COLORS = ['#e23b3b', '#3b82e2', '#f2c014'];   // 짝 파이프 띠 색 (1↔6 빨강, 2↔5 파랑, 3↔4 노랑)
+    var EAGLE_ARC = 140;             // 독수리 비행 곡선 높이 — socket/marble-sim.js EAGLE_ARC 와 동일(그림자 자리 계산)
+    var EAGLE_WING_MS = 110;         // 날갯짓 한 프레임
+    var MOLE_ALERT_MS = 300;         // 두더지 올라오기 전 '!' 예고
+    var SPRING_SNAP_MS = 260;        // 발사 순간 판이 젖혀져 있는 시간
+    var EAGLE_SWOOP_MS = 900, EAGLE_RETURN_MS = 1200;   // 순찰 → 목표로 급강하 / 놓고 순찰로 복귀
+    var EAGLE_PATROL_W = 210, EAGLE_PATROL_ABOVE = 40, EAGLE_PATROL_H = 130;   // 구멍밭 위 순찰: 좌우 폭·기준 높이·상하 폭(구멍밭~통로 위를 오르내림)
+    var DAM_WATER_MS = 180, BEAVER_TAP_MS = 300, PIT_SURFACE_MS = 220;   // 루프 프레임 간격(댐 수면 4·비버 두드리기 2·웅덩이 3)
+    var BEAVER_FLEE_MS = 1400;       // 터진 뒤 비버가 도망쳐 사라지는 시간
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
     var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
     // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
@@ -44,7 +54,9 @@ var MarbleRender = (function () {
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
     var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
-    var HUD_ICON_PX = 18;            // 꼴찌 후보 목록 동물 얼굴 아이콘 크기
+    var HUD_ICON_PX = 18;
+    var MY_RING = '#ffd54a', MY_RING_OUTER = '#ffffff';   // 내 동물 강조 모드: 참가자 색 대신 금색 굵은 링 + 흰 바깥 링(보는 사람 기준 — 내 화면에선 내 것이 늘 이 색)
+    var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도            // 꼴찌 후보 목록 동물 얼굴 아이콘 크기
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
@@ -77,22 +89,31 @@ var MarbleRender = (function () {
             'goal-basket-back': A + 'pieces/goal-basket-back.png', 'goal-basket-front': A + 'pieces/goal-basket-front.png', 'dump-wall': A + 'pieces/dump-wall.png',
             'beehive': A + 'pieces/beehive.png', 'sun-patch': A + 'pieces/sun-patch.png', 'beaver-dam': A + 'pieces/beaver-dam.png', 'beaver': A + 'pieces/beaver.png',
             'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png',
-            'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png'
+            'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png',
+            'mole-hole': A + 'pieces/mole-hole.png', 'mole': A + 'pieces/mole.png', 'flipflop-arm': A + 'pieces/flipflop-arm.png', 'flipflop-pivot': A + 'pieces/flipflop-pivot.png',
+            'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png',
+            'warp-pipe': A + 'pieces/warp-pipe.png', 'gravestone': A + 'pieces/gravestone.png', 'gap-mark': A + 'pieces/gap-mark.png',   // 4차(finale-d) — 도착 전엔 코드 도형
+            'spring-plank': A + 'pieces/spring-plank.png',   // 5차(events-e) — 4셀 240×64 평평/살짝/많이 휨/튕김
+            'eagle': A + 'pieces/eagle.png',   // 5차 — 4셀 256×160 날갯짓(오른쪽 향함, 발톱 = 아래에서 16px)
+            'mole-v2': A + 'pieces/mole-v2.png', 'dam-water': A + 'pieces/dam-water.png', 'beaver-v2': A + 'pieces/beaver-v2.png', 'pit-surface': A + 'pieces/pit-surface.png'   // 5차
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
             'tree': A + 'stage/decor-tree.png', 'bush-big': A + 'stage/decor-bush-big.png', 'bush-small': A + 'stage/decor-bush-small.png',
             'rock': A + 'stage/decor-rock.png', 'signpost': A + 'stage/decor-signpost.png',
-            'flower-pink': A + 'stage/decor-flower-pink.png', 'flower-yellow': A + 'stage/decor-flower-yellow.png', 'flower-white': A + 'stage/decor-flower-white.png'
+            'flower-pink': A + 'stage/decor-flower-pink.png', 'flower-yellow': A + 'stage/decor-flower-yellow.png', 'flower-white': A + 'stage/decor-flower-white.png',
+            'lane-dirt': A + 'stage/lane-dirt.png'   // 4차
         },
         fx: {
             'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
-            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png'
+            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png',
+            'suck-swirl': A + 'fx/suck-swirl.png',   // 4차
+            'eagle-shadow': A + 'fx/eagle-shadow.png', 'mole-alert': A + 'fx/mole-alert.png', 'dam-burst-v2': A + 'fx/dam-burst-v2.png', 'geyser': A + 'fx/geyser.png'   // 5차
         }
     };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
     var FX_CELL = { 'dust-puff': [80, 80], 'impact-star': [96, 96], 'mud-splash': [128, 96], 'curl-poof': [96, 96],
-        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96] };
+        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48], 'suck-swirl': [96, 96] };
     var DECOR_SIZE = { tree: [160, 224], 'bush-big': [128, 96], 'bush-small': [64, 48], rock: [64, 48], signpost: [64, 96],
         'flower-pink': [32, 32], 'flower-yellow': [32, 32], 'flower-white': [32, 32] };
 
@@ -130,6 +151,9 @@ var MarbleRender = (function () {
         return 0;
     }
     function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
+    // 주기 장치(두더지·선풍기) 켜짐 판정 — socket/marble-sim.js deviceOn 과 같은 식
+    function deviceOn(d, t) { var c = ((t + d.phase) % d.period + d.period) % d.period; return c < (d.on != null ? d.on : d.up); }
+    function devicePhase(d, t) { return (((t + d.phase) % d.period + d.period) % d.period) / (d.on != null ? d.on : d.up); }   // 켜진 창 안 진행도(0~1, 꺼져 있으면 >1)
     // 결정론 해시(파티클 분산용 — Math.random 대체)
     function hash01(n) { var x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
 
@@ -149,11 +173,14 @@ var MarbleRender = (function () {
         var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead' };
         var view = { w: TRACK_W, h: 600, scale: 1 };
         var pieces = {};          // kind → 조각 배열
+        var firstGrabT = null;    // 첫 독수리 납치 시각(카메라 추적은 이것만)
         var fxList = [];          // { type, x, y, t0, dur, ball? }
         var lastFrameWall = 0;
         var startWall = 0;        // 재생 기준 performance.now()
         var rafId = null;
         var hudInfo = { remaining: 0, worst: [] };
+        var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
+        var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
 
         R.loadAssets = loadAll;
@@ -188,11 +215,13 @@ var MarbleRender = (function () {
             balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
-            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null;
+            firstGrabT = null; for (var gi = 0; gi < (payload.events || []).length; gi++) if (payload.events[gi].type === 'eagleGrab') { firstGrabT = payload.events[gi].t; break; }
+            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
             hudInfo = { remaining: balls.length, worst: [] };
             R.resize();
         };
         R.setPhase = function (p) { phase = p; };
+        R.setHighlight = function (on) { highlightMine = !!on; };
         R.onFinale = function (cb) { onFinaleCb = cb; };
 
         // ─── 재생 ───
@@ -216,7 +245,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.carry = null; b.doneX = null; b.doneY = null; b.graveLanded = false; }); (pieces.spring || []).forEach(function (sp) { sp.firedAt = -1e9; sp.readyAt = 0; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -226,17 +255,25 @@ var MarbleRender = (function () {
                     case 'wake': if (b.state === 'walk') { b.walkKind = ''; } else if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
                     case 'pitFall': b.state = 'pit'; b.pitAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitErupt': fxList.push({ type: 'geyser', x: e.x, y: e.y, count: e.count || 1, t0: e.t, dur: GEYSER_FX_MS }); break;
-                    case 'jump': fxList.push({ type: 'jump', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
+                    case 'mole': fxList.push({ type: 'mole', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
+                    case 'spring': fxList.push({ type: 'spring', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160;
+                        (pieces.spring || []).forEach(function (sp) { if (Math.abs(sp.x + Math.cos(sp.angle) * sp.len - e.x) < 3) { sp.firedAt = e.t; sp.readyAt = e.readyAt || (e.t + sp.cooldown); } }); break;
+                    case 'flip': ffDir = e.dir; break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
                     case 'bump': fxList.push({ type: 'star', x: e.x, y: e.y, t0: e.t, dur: BUMP_FX_MS }); if (b) b.squashUntil = e.t + 160; break;
                     case 'bees': fxList.push({ type: 'bees', t0: e.t, dur: BEE_MS }); break;
                     case 'damCrack': break;
                     case 'damBurst': fxList.push({ type: 'damburst', t0: e.t, dur: DAM_FX_MS }); break;
+                    case 'warp':   // 워프 파이프에 빨려 들어감 — 짝 파이프에서 warpOut 으로 나올 때까지 안 그린다(프레임은 이미 출구 자리)
+                        b.state = 'warp';
+                        fxList.push({ type: 'suck', ball: b.id, x: e.x, y: e.y, t0: e.t, dur: SUCK_FX_MS });
+                        break;
+                    case 'warpOut': b.state = 'roll'; fxList.push({ type: 'warpout', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'eagleGrab': b.state = 'carried'; b.walkKind = ''; b.carry = { x0: e.x, y0: e.y, x1: e.tx, y1: e.ty, t0: e.t, dur: e.dur }; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
+                    case 'eagleDrop': b.state = 'roll'; b.carry = null; b.wakeAt = e.t; fxList.push({ type: 'eagledrop', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'land':
-                        // 꼴찌(finishOrder 마지막 = 통에 마지막으로 들어간 공)는 통 아래 착지 자리에서 끝 — 걷지 않고 done, 그 자리에 비석(drawLastBall)
-                        if (b.id === data.finishOrder[data.finishOrder.length - 1]) {
-                            // 자리는 착지 직후 샘플에서 읽는다 — b.x/y 는 아직 이전 프레임(파이프 낙하 중)이라 위에 뜬다
+                        if (data.cutMs != null && e.t >= data.cutMs && b.id === data.finishOrder[data.finishOrder.length - 1]) {   // 혼자 내려온 꼴찌: 착지 = 확정, 그 자리에 비석(drawLastBall). 자리는 착지 직후 샘플에서
                             var lf = data.frames[Math.min(data.frames.length - 1, Math.ceil(e.t / data.sampleMs))];
                             b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.length - 1;
                             b.doneX = lf && lf[b.id * 2] >= 0 ? lf[b.id * 2] : b.x; b.doneY = lf && lf[b.id * 2] >= 0 ? lf[b.id * 2 + 1] : b.y;
@@ -246,11 +283,9 @@ var MarbleRender = (function () {
                         b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
-                    case 'finish':
-                        if (b.state === 'done') break;   // 꼴찌는 land 에서 이미 done(비석 자리 고정)
+                    case 'finish':   // 골(x ≥ goalX) 진입 또는 탈출 파이프 진입 = 도착. 여기서 순위 확정
                         b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.indexOf(b.id);
-                        if (b.doneX == null) { var ff = data.frames[Math.min(data.frames.length - 1, Math.ceil(e.t / data.sampleMs))]; b.doneX = ff && ff[b.id * 2] >= 0 ? ff[b.id * 2] : b.x; }   // 홈통 출발 x = 착지 자리
-                        fxList.push({ type: 'poof', ball: b.id, x: b.doneX, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
+                        fxList.push({ type: 'poof', ball: b.id, x: data.track.goalX, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
                         break;
                 }
             }
@@ -270,7 +305,7 @@ var MarbleRender = (function () {
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i];
                 var x1 = f1[i * 2], y1 = f1[i * 2 + 1], x2 = f2[i * 2], y2 = f2[i * 2 + 1];
-                if (x1 < 0 || b.state === 'done') continue;   // 이미 도착 — 마지막 위치 유지 (꼴찌는 통 진입 자리에 고정)
+                if (x1 < 0 || b.state === 'done') continue;   // 이미 도착 — 마지막 위치 유지
                 if (x2 < 0) { x2 = x1; y2 = y1; }
                 var nx = lerp(x1, x2, a), ny = lerp(y1, y2, a);
                 if (b.state === 'roll') {
@@ -286,26 +321,46 @@ var MarbleRender = (function () {
         }
 
         // ─── 카메라 ───
+        // 진행도: 굴러오는 동안은 y, 통로에 내려 걷는 동안은 골 x 까지의 거리 (통로 안 동물은 y 가 모두 같다)
+        function progress(b) { return b.state === 'walk' ? data.track.goalY + b.x : b.y; }
         function updateCamera(t, dt) {
             var goalY = data.track.goalY;
             var focus = null, remaining = 0, lead = null, rear = null;
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i]; if (b.state === 'done') continue;
                 remaining++;
-                if (!lead || b.y > lead.y) lead = b;
-                if (!rear || b.y < rear.y) rear = b;
+                if (!lead || progress(b) > progress(lead)) lead = b;
+                if (!rear || progress(b) < progress(rear)) rear = b;
             }
             var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
             var loserB = byId[data.finishOrder[data.finishOrder.length - 1]], loserDone = !!(loserB && loserB.state === 'done');
             var hf = (pieces.holefield || [])[0];
+            // 내 동물 따라가기(강조 모드): 내 동물 중 선두를 따라가다가, 내 것이 하나라도 들어가면 그때부터 내 것 중 꼴찌를 따라간다.
+            // 내 것이 다 들어갔거나(myFocus 없음) 결승 프레임 구역에 들어오면 시스템 카메라로 돌아간다(프레임은 어차피 전원이 보인다)
+            var myFocus = null;
+            if (highlightMine && myName) {
+                var myLead = null, myRear = null, myDone = false;
+                for (var mi = 0; mi < balls.length; mi++) {
+                    var mb = balls[mi]; if (mb.owner !== myName) continue;
+                    if (mb.state === 'done') { myDone = true; continue; }
+                    if (!myLead || progress(mb) > progress(myLead)) myLead = mb;
+                    if (!myRear || progress(mb) < progress(myRear)) myRear = mb;
+                }
+                myFocus = myDone ? myRear : myLead;
+                if (myFocus && hf && myFocus.y >= hf.zone.y - FRAME_ABOVE_PX) myFocus = null;
+            }
             var wallP = (pieces.dumpwall || [])[0];
             // 결승 프레임: 선두가 구멍밭 위 FRAME_ABOVE_PX 안에 오면 (범퍼·시소·진흙)+구멍밭+스탠드를 한 화면에 고정 — 위에서 무슨 일이 벌어지는지 보이면서 후미 추적 없이 전원이 보인다
             var frameMode = hf && lead && lead.y >= hf.zone.y - FRAME_ABOVE_PX;
             cam.mode = frameMode ? 'frame' : (remaining <= finalK ? 'rear' : 'lead');
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
+            var carried = null;   // 독수리 추적은 첫 납치 한 번만 — 그 뒤는 결승 프레임이 넓어 다 보인다(사용자 2026-09-21)
+            if (firstGrabT != null) for (var ci = 0; ci < balls.length; ci++) if (balls[ci].state === 'carried' && balls[ci].carry && balls[ci].carry.t0 === firstGrabT) { carried = balls[ci]; break; }
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
-            else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : loserB.x; targetY = (loserB.doneY != null ? loserB.doneY : loserB.y) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 통 진입 자리의 비석으로
+            else if (carried) { targetX = carried.x; targetY = carried.y + 40; targetZoom = 1; cam.mode = 'eagle'; }   // 독수리가 채 가는 동안은 그걸 따라간다(결승 프레임보다 우선)
+            else if (myFocus) { cam.mode = 'mine'; targetY = myFocus.y + view.h * CAM_LEAD; targetX = TRACK_W / 2; targetZoom = 1; }   // 내 동물 따라가기
+            else if (loserDone) { targetX = loserB.doneX != null ? loserB.doneX : data.track.goalX; targetY = (loserB.doneY != null ? loserB.doneY : goalY) + 30; targetZoom = ZOOM_MAX * 0.8; }   // 꼴찌 확정: 비석 자리(착지 자리 또는 골 앞)로
             else if (!focus) { targetY = goalY + 40; targetX = data.track.goalX || TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
                 var standP = (pieces.stand || [])[0];
@@ -336,13 +391,22 @@ var MarbleRender = (function () {
             }
         }
         // 재생 시각(벽시계) → 시뮬 시각: 서버 slow 구간에서 rate 배 느리게 (서버 durationMs 와 같은 식)
+        // 구간(시뮬 시각 기준) [startMs, endMs] 를 rate 배로 재생: fast(2배속, 꼴찌 한 마리만 남은 동안) → slow(골 앞 0.3배). 서버 durationMs 와 같은 식
         function simTime(tPlay) {
-            var sl = data.slow;
-            if (!sl || tPlay <= sl.startMs) return tPlay;
-            var slowPlayLen = (sl.endMs - sl.startMs) / sl.rate;
-            if (tPlay <= sl.startMs + slowPlayLen) return sl.startMs + (tPlay - sl.startMs) * sl.rate;
-            return sl.endMs + (tPlay - sl.startMs - slowPlayLen);
+            var segs = []; if (data.fast) segs.push(data.fast); if (data.slow) segs.push(data.slow);
+            var play = 0, sim = 0;
+            for (var i = 0; i < segs.length; i++) {
+                var sg = segs[i]; if (sg.endMs <= sg.startMs) continue;
+                var gap = sg.startMs - sim;                       // 1배속 구간
+                if (tPlay <= play + gap) return sim + (tPlay - play);
+                play += gap; sim = sg.startMs;
+                var len = (sg.endMs - sg.startMs) / sg.rate;      // 이 구간의 재생 길이
+                if (tPlay <= play + len) return sim + (tPlay - play) * sg.rate;
+                play += len; sim = sg.endMs;
+            }
+            return sim + (tPlay - play);
         }
+        function inFast(simT) { return !!(data.fast && simT >= data.fast.startMs && simT < data.fast.endMs); }
 
         // ─── 그리기 유틸 ───
         function toScreenY(y) { return y - cam.y + view.h / 2; }
@@ -471,18 +535,10 @@ var MarbleRender = (function () {
                 label('☀ 햇볕 잔디', z.x + 26, z.y - 30, '#fff7c0', 12);
                 label('노란 자리를 밟으면 느려지고 잠들 수 있어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
             });
-            // 지그재그 경사로의 구멍(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
-            (pieces.zzhole || []).forEach(function (h) {
-                if (!visible(h.y, 40)) return;
-                ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
-                ctx.fillStyle = 'rgba(40,25,10,0.85)'; roundRect(-h.w / 2, -5, h.w, 10, 5); ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
-                ctx.restore();
-                label('↓', h.x, h.y - 16, '#ffe08a', 12);
-            });
             (pieces.pit || []).forEach(function (pt) {
                 var z = pt.zone; if (!visible(z.y + z.h / 2, z.h)) return;
                 if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h, 480, 160, { anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) })) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '간헐천', 14);
+                drawSprite('pieces', 'pit-surface', z.x + z.w / 2, z.y + z.h, 480, 160, { sx: (Math.floor(Math.max(0, t) / PIT_SURFACE_MS) % 3) * 480, sw: 480, anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) });   // 수면 보글 루프(5차, 없으면 생략)
             });
             (pieces.mud || []).forEach(function (m) {
                 if (!visible(m.y, 60)) return;
@@ -490,7 +546,52 @@ var MarbleRender = (function () {
                     ctx.save(); ctx.fillStyle = '#6b4a2b'; ctx.beginPath(); ctx.ellipse(m.x, toScreenY(m.y), m.rx, m.ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
                 }
             });
-            (pieces.wall || []).forEach(function (w) { if (visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });
+            (pieces.wall || []).forEach(function (w) { if (!w.hidden && visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });   // hidden = 장치 몸통 벽(워프 파이프)
+            // 끊긴 경사로의 틈(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
+            (pieces.spring || []).forEach(function (sp) {   // 스프링 널빤지: 장전(평평) → 밟으면 즉시 발사(젖혀짐) → 쿨타임 3·2·1(눌린 판) → 다시 장전. 에셋 4셀, 없으면 코드 도형
+                if (!visible(sp.y, 80)) return;
+                var tt = Math.max(0, t), fired = sp.firedAt != null ? sp.firedAt : -1e9, readyAt = sp.readyAt || 0;
+                var snapping = tt - fired < SPRING_SNAP_MS, cooling = !snapping && tt < readyAt;
+                var frame = snapping ? 3 : cooling ? 2 : 0, bendA = snapping ? -0.45 : cooling ? 0.3 : 0;   // 코드 도형용 각도(+=아래)
+                var im = img('pieces', 'spring-plank'), leftward = Math.cos(sp.angle) < 0;   // 왼쪽↙ 경사로 끝이면 좌우 반전(안 하면 판이 뒤집힌다)
+                ctx.save(); ctx.translate(sp.x, toScreenY(sp.y));
+                if (im) {   // 셀 왼쪽 끝 세로 중앙 = 경첩(0,32). 경사로 각도로만 회전 — 휨은 프레임
+                    if (leftward) { ctx.rotate(sp.angle + Math.PI); ctx.scale(-1, 1); } else ctx.rotate(sp.angle);
+                    var cw = 240 * SRC_SCALE, ch = 64 * SRC_SCALE;
+                    ctx.drawImage(im, frame * 240, 0, 240, 64, 0, -ch / 2, cw, ch);
+                } else {
+                    if (leftward) { ctx.rotate(sp.angle + Math.PI - bendA); ctx.scale(-1, 1); } else ctx.rotate(sp.angle + bendA);
+                    ctx.fillStyle = '#6b4420'; ctx.fillRect(-4, -12, 8, 24);                                  // 경첩 기둥
+                    ctx.fillStyle = cooling ? '#a8733a' : '#c8873a'; ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 1.5;
+                    roundRect(0, -4, sp.len, 8, 3); ctx.fill(); ctx.stroke();                                 // 판
+                    ctx.strokeStyle = '#8a9aa2'; ctx.lineWidth = 2; ctx.beginPath();                          // 스프링(지그재그, 쿨타임엔 눌림)
+                    var sx = sp.len * 0.6, sh = cooling ? 8 : 16;
+                    for (var zi = 0; zi <= 6; zi++) ctx.lineTo(sx + ((zi % 2) ? 5 : -5), 4 + sh * zi / 6); ctx.stroke();
+                    ctx.fillStyle = '#5a3416'; ctx.fillRect(sx - 8, 4 + sh, 16, 3);                          // 스프링 받침
+                }
+                ctx.restore();
+                var ex = sp.x + Math.cos(sp.angle) * sp.len, ey = sp.y + Math.sin(sp.angle) * sp.len;
+                if (snapping) { ctx.save(); ctx.strokeStyle = 'rgba(255,240,160,0.8)'; ctx.lineWidth = 2; var sey = toScreenY(ey); ctx.beginPath(); ctx.moveTo(ex - 6, sey - 14); ctx.lineTo(ex - 14, sey - 30); ctx.moveTo(ex + 4, sey - 16); ctx.lineTo(ex + 2, sey - 32); ctx.stroke(); ctx.restore(); }   // 발사 속도선
+                var mx = sp.x + Math.cos(sp.angle) * sp.len * 0.5, my = sp.y + Math.sin(sp.angle) * sp.len * 0.5;
+                if (cooling) label(String(Math.ceil((readyAt - tt) / 1000)), mx, my - 30, '#ffb347', 20);   // 3·2·1
+                else label(snapping ? '발사!' : '스프링', mx, my + 26, '#ffe08a', snapping ? 14 : 11);
+            });
+            (pieces.zzhole || []).forEach(function (h) {
+                if (!visible(h.y, 40)) return;
+                if (!drawSprite('pieces', 'gap-mark', h.x, h.y, 176, 48, { rot: h.angle, scale: h.w / (176 * SRC_SCALE) })) {   // 틈 표시(4차) — 없으면 둥근 홈
+                    ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
+                    ctx.fillStyle = 'rgba(40,25,10,0.85)'; roundRect(-h.w / 2, -5, h.w, 10, 5); ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.restore();
+                }
+                label('↓', h.x, h.y - 16, '#ffe08a', 12);
+            });
+            (pieces.bowl || []).forEach(function (bw) {   // U자 그릇: 벽(호)은 wall 로 그려지고 여기선 안내와 바닥 틈만
+                if (!visible(bw.y + bw.r, bw.r)) return;
+                ctx.save(); ctx.fillStyle = 'rgba(40,25,10,0.85)'; ctx.beginPath(); ctx.ellipse(bw.x, toScreenY(bw.y + bw.r), bw.gapW / 2, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+                label('그릇 — 바닥 틈으로만 빠져요', bw.x, bw.y + bw.r * 0.55, '#fff', 12);
+                label('↓', bw.x, bw.y + bw.r - 16, '#ffe08a', 12);
+            });
             (pieces.stake || []).forEach(function (s) {
                 if (!visible(s.y, 20)) return;
                 if (!drawSprite('pieces', 'stake', s.x, s.y, 32, 32, { scale: s.r * 2 / (32 * SRC_SCALE) })) { ctx.fillStyle = '#7a4d22'; ctx.beginPath(); ctx.arc(s.x, toScreenY(s.y), s.r, 0, Math.PI * 2); ctx.fill(); }
@@ -522,19 +623,100 @@ var MarbleRender = (function () {
                 }
                 label('풍차 — 날개에 맞으면 튕겨요', wm.x, wm.y - wm.len - 16, '#fff', 12);
             });
-            (pieces.jumppad || []).forEach(function (jp) {
-                if (!visible(jp.y, 40)) return;
-                // 점프대: 경사로 각도로 눕힌 노란 발판 + 아래 스프링. 방금 밟혔으면(jump fx) 눌린 모습
-                var pressed = fxList.some(function (f) { return f.type === 'jump' && f.x === jp.x && t - f.t0 < 180; });
-                ctx.save(); ctx.translate(jp.x, toScreenY(jp.y)); ctx.rotate(jp.angle);
-                ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 2; ctx.beginPath();
-                for (var si = -1; si <= 1; si++) { ctx.moveTo(si * 9 - 4, 3); ctx.lineTo(si * 9 + 4, pressed ? 6 : 10); }
-                ctx.stroke();
-                ctx.fillStyle = pressed ? '#ffd23a' : '#ffb01f'; roundRect(-jp.len / 2, pressed ? -1 : -4, jp.len, 7, 3); ctx.fill();
-                ctx.strokeStyle = '#8a5a10'; ctx.lineWidth = 1.5; ctx.stroke();
-                ctx.fillStyle = '#7a3a00'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText('▲▲', 0, pressed ? 2.5 : -0.5);
+            (pieces.mole || []).forEach(function (m) {
+                if (!visible(m.y, 50)) return;
+                // 두더지 구멍(경사로 각도로 회전) + 박자대로 올라오는 두더지(3프레임: 고개/반쯤/팔 벌림). 에셋 없으면 코드 도형
+                var on = deviceOn(m, Math.max(0, t)), ph = devicePhase(m, Math.max(0, t));
+                var pop = on ? Math.sin(Math.min(1, ph) * Math.PI) : 0;   // 올라왔다 내려감
+                if (!drawSprite('pieces', 'mole-hole', m.x, m.y, 192, 96, { rot: m.angle, scale: m.r * 2 / (192 * SRC_SCALE) })) {
+                    ctx.save(); ctx.translate(m.x, toScreenY(m.y)); ctx.rotate(m.angle);
+                    ctx.fillStyle = 'rgba(40,25,10,0.9)'; ctx.beginPath(); ctx.ellipse(0, 0, m.r, m.r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                }
+                var mc = ((Math.max(0, t) + m.phase) % m.period + m.period) % m.period, toOn = m.period - mc;   // 다음 올라오기까지
+                if (!on && toOn < MOLE_ALERT_MS) drawSprite('fx', 'mole-alert', m.x, m.y - 34, 48, 48, { sx: (Math.floor(Math.max(0, t) / 100) % 2) * 48, sw: 48 });   // 예고 '!' (5차)
+                if (pop > 0.05) {
+                    var mf = pop < 0.4 ? 0 : pop < 0.75 ? 1 : 2;
+                    if (!drawSprite('pieces', 'mole-v2', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 }) && !drawSprite('pieces', 'mole', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 })) {   // v2(청회색·안전모) 우선, 없으면 3차 mole
+                        var mh = 26 * pop;
+                        ctx.save(); ctx.translate(m.x, toScreenY(m.y));
+                        ctx.beginPath(); ctx.rect(-m.r - 4, -60, m.r * 2 + 8, 60 + 2); ctx.clip();
+                        ctx.fillStyle = '#6b4a2b'; ctx.beginPath(); ctx.ellipse(0, -mh + 10, 12, 16, 0, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#f2a1b0'; ctx.beginPath(); ctx.arc(0, -mh + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+                        ctx.restore();
+                    }
+                }
+            });
+            (pieces.flipflop || []).forEach(function (f) {
+                if (!visible(f.y, 80)) return;
+                // 팔: 축에서 아래로, ffDir 쪽으로 젖힘. 라벨로 지름길/돌아가는 길 표시
+                var a = f.angleDeg * Math.PI / 180, armIm = img('pieces', 'flipflop-arm');
+                ctx.save(); ctx.translate(f.x, toScreenY(f.y)); ctx.rotate(-ffDir * a);
+                if (armIm) ctx.drawImage(armIm, 0, 0, 40, 240, -5, -4, 10, 60);   // 축(20,16) → 표시 (0,0)
+                else { ctx.fillStyle = '#c9944f'; roundRect(-5, -4, 10, f.len + 4, 4); ctx.fill(); ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 1.5; ctx.stroke(); }
                 ctx.restore();
+                if (!drawSprite('pieces', 'flipflop-pivot', f.x, f.y, 48, 48)) { ctx.fillStyle = '#4a3420'; ctx.beginPath(); ctx.arc(f.x, toScreenY(f.y), 6, 0, Math.PI * 2); ctx.fill(); }
+                label(ffDir < 0 ? '◀ 이번엔 왼쪽' : '이번엔 오른쪽 ▶', f.x, f.y - 22, '#ffe08a', 12);
+                label('지름길', f.x - 125, f.y + 80, '#dfffd0', 12);
+                label('돌아가는 길', f.x + 125, f.y + 80, '#ffd0d0', 12);
+            });
+            (pieces.belt || []).forEach(function (bt) {
+                if (!visible(bt.y1, 30)) return;
+                // 컨베이어: 어두운 띠 + 이동 방향으로 흐르는 밝은 줄(t 파생). 에셋 오면 belt.png 4프레임 타일로 교체
+                var w = bt.x2 - bt.x1, sy = toScreenY(bt.y1);
+                var beltIm = img('pieces', 'belt');
+                if (beltIm) {
+                    var bf = Math.floor(Math.max(0, t) / 90) % 4, tw = 64 * SRC_SCALE, th = 56 * SRC_SCALE;
+                    ctx.save(); ctx.beginPath(); ctx.rect(bt.x1, sy - th / 2, w, th); ctx.clip();
+                    if (bt.speed < 0) { ctx.translate(bt.x1 + bt.x2, 0); ctx.scale(-1, 1); }   // 왼쪽 흐름 = 좌우 반전(프레임은 같은 순서)
+                    for (var tx = bt.x1; tx < bt.x2; tx += tw) ctx.drawImage(beltIm, bf * 64, 0, 64, 56, tx, sy - th / 2, tw + 0.5, th);
+                    ctx.restore();
+                    drawSprite('pieces', 'belt-end', bt.x1, bt.y1, 56, 56); drawSprite('pieces', 'belt-end', bt.x2, bt.y1, 56, 56);
+                    return;
+                }
+                ctx.save();
+                ctx.fillStyle = '#3b3b3b'; roundRect(bt.x1, sy - 7, w, 14, 5); ctx.fill();
+                ctx.beginPath(); ctx.rect(bt.x1 + 2, sy - 6, w - 4, 12); ctx.clip();
+                ctx.strokeStyle = 'rgba(255,220,120,0.8)'; ctx.lineWidth = 2;
+                var off = ((Math.max(0, t) / 1000 * bt.speed) % 16 + 16) % 16;
+                for (var sx = bt.x1 - 16 + off; sx < bt.x2 + 16; sx += 16) { ctx.beginPath(); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx + (bt.speed > 0 ? 6 : -6), sy); ctx.lineTo(sx, sy + 5); ctx.stroke(); }
+                ctx.restore();
+                ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(bt.x1, sy, 6, 0, Math.PI * 2); ctx.arc(bt.x2, sy, 6, 0, Math.PI * 2); ctx.fill();
+            });
+            (pieces.fan || []).forEach(function (f) {
+                if (!visible(f.y, f.band)) return;
+                // 선풍기: 벽에 붙은 둥근 몸통 + 도는 날개, 켜진 동안 바람 줄(띠 전체). 에셋 오면 fan.png 2프레임으로 교체
+                var on = deviceOn(f, Math.max(0, t)), sy = toScreenY(f.y), bx = f.x + f.dir * 22;
+                var fanIm = img('pieces', 'fan');
+                if (fanIm) {
+                    var ffr = on ? Math.floor(Math.max(0, t) / 50) % 2 : Math.floor(Math.max(0, t) / 400) % 2;
+                    ctx.save(); ctx.translate(bx, sy); if (f.dir < 0) ctx.scale(-1, 1);
+                    ctx.drawImage(fanIm, ffr * 128, 0, 128, 128, -20, -20, 40, 40);
+                    ctx.restore();
+                } else {
+                    ctx.save(); ctx.translate(bx, sy);
+                    ctx.fillStyle = '#5a6472'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+                    ctx.rotate(on ? Math.max(0, t) / 60 : Math.max(0, t) / 400); ctx.fillStyle = '#c8d0da';
+                    for (var bi = 0; bi < 3; bi++) { ctx.beginPath(); ctx.ellipse(0, -10, 5, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.rotate(Math.PI * 2 / 3); }
+                    ctx.restore();
+                }
+                if (on) {
+                    var windIm = img('fx', 'wind');
+                    if (windIm) {
+                        for (var wi = 0; wi < 8; wi++) {   // 띠 안에 바람 줄 8개 — 바람 방향으로 흐르고 멀수록 옅어짐(t 파생, 결정론)
+                            var wph = ((Math.max(0, t) / 900 + hash01(wi + 31)) % 1), wx = f.x + f.dir * (40 + wph * 440), wy = f.y + (hash01(wi + 7) - 0.5) * f.band * 0.9;
+                            var wfr = Math.floor(Math.max(0, t) / 110 + wi) % 4;
+                            ctx.save(); ctx.translate(wx, toScreenY(wy)); if (f.dir < 0) ctx.scale(-1, 1); ctx.globalAlpha = 0.9 * (1 - wph * 0.7);
+                            ctx.drawImage(windIm, wfr * 96, 0, 96, 48, -24, -12, 48, 24);
+                            ctx.restore();
+                        }
+                    } else {
+                        ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -(Math.max(0, t) / 4) * f.dir;
+                        for (var li = -2; li <= 2; li++) { var ly = sy + li * f.band / 5; ctx.beginPath(); ctx.moveTo(f.x + f.dir * 40, ly); ctx.lineTo(f.x + f.dir * 480, ly + (li % 2 ? 6 : -6)); ctx.stroke(); }
+                        ctx.restore();
+                    }
+                    label('바람!', bx + f.dir * 60, f.y - 26, '#fff', 13);
+                }
             });
             (pieces.beehive || []).forEach(function (h) {
                 if (!visible(h.y, 60)) return;
@@ -551,7 +733,7 @@ var MarbleRender = (function () {
             (pieces.dam || []).forEach(function (d) {
                 if (!visible(d.y1, 60)) return;
                 // 프레임 = 시간 진행. 서버 damHit(첫 접촉) → damBurst 사이를 [온전, 금 살짝, 금 많이, 금+물] 4단계로 나누고,
-                // 터진 뒤에는 마지막 프레임(부서진 잔해)이 그대로 남는다 — 물리(터질 때까지 벽, 터지면 통과)와 화면이 일치. 사라지는 페이드 없음
+                // 터진 뒤에는 부서진 잔해가 물살을 타고 채널 아래로 쓸려 내려가며 사라진다(DAM_FLOW_MS) — 그 자리에 가만히 남지 않는다(사용자 2026-09-21)
                 var hitEv = null, burstE = null;
                 for (var ei = 0; ei < data.events.length && !(hitEv && burstE); ei++) { var ee = data.events[ei]; if (ee.type === 'damHit') hitEv = ee; else if (ee.type === 'damBurst') burstE = ee; }
                 var burstEv = !!burstE && burstE.t <= t;
@@ -568,16 +750,18 @@ var MarbleRender = (function () {
                     ctx.rect(gap.x2, toScreenY(d.y1) - 200, view.w * 2, 400);
                     ctx.clip();
                 }
-                // 터지는 순간: 마지막 금 프레임 → 부서진 프레임을 DAM_CRUMBLE_MS 동안 크로스페이드 (툭 바뀌지 않게)
+                // 터지는 순간: 마지막 금 프레임 → 부서진 프레임을 DAM_CRUMBLE_MS 동안 크로스페이드 (툭 바뀌지 않게), 그 뒤 잔해는 물살 앞머리를 따라 내려가며 옅어진다
                 var crumble = burstEv ? clamp((t - burstE.t) / DAM_CRUMBLE_MS, 0, 1) : 1;
+                var wash = burstEv ? clamp((t - burstE.t) / DAM_FLOW_MS, 0, 1) : 0, washY = wash * wash * 300, washA = burstEv ? crumble * (1 - wash) * (1 - wash) : 1;
                 if (burstEv && crumble < 1) drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: (DAM_FRAMES - 2) * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: 1 - crumble });
-                if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: burstEv ? crumble : 1 })) {
+                if (wash < 1 && !drawSprite('pieces', 'beaver-dam', cx + Math.sin(wash * 9) * 6 * wash, d.y1 + 256 * SRC_SCALE * dsc + washY, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: washA, rot: Math.sin(wash * 7) * 0.12 * wash })) {
                     ctx.save(); ctx.globalAlpha = burstEv ? 0.4 : 1;
                     for (var li = 0; li < 4; li++) { ctx.fillStyle = li % 2 ? '#9c6a3a' : '#7d5330'; roundRect(d.x1 + 2, toScreenY(d.y1) - 6 - li * 9, w - 4, 8, 4); ctx.fill(); }
                     if (st > 0 && st < DAM_FRAMES - 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
                     ctx.restore();
                     label(burstEv ? '댐이 터졌다' : st > 0 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
                 }
+                if (!burstEv) drawSprite('pieces', 'dam-water', cx, d.y1 + 8, 480, 128, { sx: (Math.floor(Math.max(0, t) / DAM_WATER_MS) % 4) * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: 0.9 });   // 댐 위 고인 물 수면 루프(5차) — 기다리는 동물이 물에 뜬 것처럼
                 ctx.restore();
                 if (burstEv && t - burstE.t < DAM_FLOW_MS) {   // 터진 물이 채널을 타고 쏟아져 내려간다 — 앞머리는 아래로, 꼬리는 옅어지며 (t 파생 잔물결)
                     var fk = (t - burstE.t) / DAM_FLOW_MS, head = 60 + fk * 320, fa = 0.6 * (1 - fk * fk);
@@ -603,7 +787,9 @@ var MarbleRender = (function () {
                     label('틈!', gx, d.y1 - 40, '#dff4ff', 11);
                 }
                 if (!burstEv) label('부딪히면 크게 튕겨요', cx, d.y1 - 64, '#fff', 11);
-                if (!drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
+                var bvf = burstEv ? 3 : st > 0 ? 2 : Math.floor(Math.max(0, t) / BEAVER_TAP_MS) % 2;   // 두드리기 A/B 루프 → 금 가면 놀람 → 터지면 도망 (5차 beaver-v2)
+                var flee = burstEv ? clamp((t - burstE.t) / BEAVER_FLEE_MS, 0, 1) : 0;   // 터지면 오른쪽 벽 쪽으로 달려가 사라진다
+                if (flee < 1 && !drawSprite('pieces', 'beaver-v2', d.beaverX + flee * 110, d.y1 + 26 - Math.abs(Math.sin(flee * 18)) * 6 * (1 - flee), 96, 96, { sx: bvf * 96, sw: 96, anchor: 'bottom', scale: 1.3, alpha: 1 - flee * flee }) && !drawSprite('pieces', 'beaver', d.beaverX + flee * 110, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3, alpha: 1 - flee })) {
                     ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(d.beaverX, toScreenY(d.y1) - 48, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
                 }
@@ -634,12 +820,14 @@ var MarbleRender = (function () {
                 if (!visible(ln.y, 80)) return;
                 // 흙길 + 골 선 + 안내
                 ctx.save();
-                ctx.fillStyle = 'rgba(150,115,70,0.55)'; ctx.fillRect(ln.x0, toScreenY(ln.y - ln.h / 2), ln.x1 - ln.x0, ln.h);
+                var dirt = img('stage', 'lane-dirt'), lty = toScreenY(ln.y - ln.h / 2);   // 4차 흙길 타일(256×240 → 64×60 가로 반복) — 없으면 반투명 갈색
+                if (dirt) { ctx.beginPath(); ctx.rect(ln.x0, lty, ln.x1 - ln.x0, ln.h); ctx.clip(); for (var dx = ln.x0; dx < ln.x1; dx += 64) ctx.drawImage(dirt, 0, 0, 256, 240, dx, lty, 64, ln.h); }
+                else { ctx.fillStyle = 'rgba(150,115,70,0.55)'; ctx.fillRect(ln.x0, lty, ln.x1 - ln.x0, ln.h); }
                 ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(ln.goalX, toScreenY(ln.y - ln.h / 2)); ctx.lineTo(ln.goalX, toScreenY(ln.y + ln.h / 2)); ctx.stroke();
                 ctx.restore();
                 label('골', ln.goalX, ln.y - ln.h / 2 - 10, '#ffe08a', 12);
-                label('통에 들어온 순서대로 스탠드에 섭니다', (ln.x0 + ln.x1) / 2, ln.y + ln.h / 2 + 12, '#fff', 11);
+                label('→ 떨어진 자리에서 골까지 달려요 — 골에 들어간 순서가 순위', (ln.x0 + ln.x1) / 2, ln.y + ln.h / 2 + 12, '#fff', 11);
             });
             (pieces.startGate || []).forEach(function (g) {
                 if (!visible(g.y1, 40)) return;
@@ -659,7 +847,23 @@ var MarbleRender = (function () {
                 if (!drawSprite('stage', d.decor, d.x, d.y, sz[0], sz[1], { anchor: 'bottom' })) { ctx.fillStyle = '#4f9d4a'; ctx.beginPath(); ctx.arc(d.x, toScreenY(d.y) - 8, 10, 0, Math.PI * 2); ctx.fill(); }
             });
         }
-        function drawBasketFront() {
+        function drawBasketFront(t) {
+            drawEagleFree(t);
+            // 워프 파이프 — 공 위에 그려서 들어갈 때 파이프 속으로 사라지고 나올 때 파이프 안에서 솟는다. 몸통 48×56, 입구 위. 짝은 같은 색 띠 + 번호
+            (pieces.warp || []).forEach(function (q) {
+                if (!visible(q.y, 80)) return;
+                var col = WARP_COLORS[q.color % WARP_COLORS.length], top = toScreenY(q.y), bw = q.bodyW, bh = q.bodyH;
+                if (!drawSprite('pieces', 'warp-pipe', q.x, q.y + bh, 192, 224, { anchor: 'bottom' })) {   // 5차 에셋(녹색 마리오 파이프 1장) — 없으면 코드 도형
+                    ctx.save();
+                    ctx.fillStyle = '#2f9e44'; ctx.fillRect(q.x - bw / 2 + 3, top + 10, bw - 6, bh - 10);                 // 몸통
+                    ctx.fillStyle = '#1e7a33'; ctx.fillRect(q.x + bw / 2 - 11, top + 10, 8, bh - 10);                    // 몸통 그늘
+                    ctx.fillStyle = '#37b24d'; roundRect(q.x - bw / 2, top, bw, 12, 3); ctx.fill();                      // 입구 테
+                    ctx.fillStyle = '#0b1a10'; ctx.beginPath(); ctx.ellipse(q.x, top + 2, q.w / 2, 4, 0, 0, Math.PI * 2); ctx.fill();   // 구멍
+                    ctx.restore();
+                }
+                ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = col; ctx.fillRect(q.x - bw / 2 + 3, top + 20, bw - 6, 9); ctx.restore();   // 짝 색 띠(코드 틴트)
+                label(String(q.idx + 1), q.x, q.y + 42, '#fff', 13);
+            });
             (pieces.basket || []).forEach(function (bk) {
                 if (!visible(bk.y, 80)) return;
                 drawSprite('pieces', 'goal-basket-front', bk.x, bk.y + 20, 320, 120, { anchor: 'bottom', scale: BASKET_SCALE });
@@ -688,19 +892,30 @@ var MarbleRender = (function () {
         // 이름표: 공 옆에 주인 이름(플레이어 색 알약). 번호 대신 누구 동물인지 바로 읽히게. 긴 이름은 앞 6자 + …
         function drawNameTag(b, cx, cy, strong) {
             var name = String(b.owner || ''); if (name.length > 6) name = name.slice(0, 6) + '…';
+            var hl = highlightMine && strong;   // 강조 모드: 내 이름표는 금색, 남의 것은 옅게
             ctx.save();
+            if (highlightMine && !strong) ctx.globalAlpha = OTHER_RING_ALPHA;
             ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             var w = ctx.measureText(name).width + 8, h = 12;
-            ctx.fillStyle = ringColor(b); roundRect(cx - w / 2, cy - h / 2, w, h, 6); ctx.fill();
+            ctx.fillStyle = hl ? MY_RING : ringColor(b); roundRect(cx - w / 2, cy - h / 2, w, h, 6); ctx.fill();
             if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
-            ctx.fillStyle = '#fff'; ctx.fillText(name, cx, cy + 0.5);
+            ctx.fillStyle = hl ? '#4a3000' : '#fff'; ctx.fillText(name, cx, cy + 0.5);
             ctx.restore();
         }
         function drawRing(b, x, y, r, strong) {
             ctx.save();
-            ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 4 : 2.5; ctx.globalAlpha = strong ? 1 : 0.85;
-            if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
-            ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+            if (highlightMine && strong) {   // 내 동물: 금색 굵은 링 + 흰 바깥 링 + 글로우
+                ctx.shadowColor = MY_RING; ctx.shadowBlur = 12;
+                ctx.strokeStyle = MY_RING; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+                ctx.shadowBlur = 0; ctx.strokeStyle = MY_RING_OUTER; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, toScreenY(y), r + 3, 0, Math.PI * 2); ctx.stroke();
+            } else if (highlightMine) {      // 남의 동물: 얇고 옅게
+                ctx.strokeStyle = ringColor(b); ctx.lineWidth = 1.5; ctx.globalAlpha = OTHER_RING_ALPHA;
+                ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+            } else {
+                ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 4 : 2.5; ctx.globalAlpha = strong ? 1 : 0.85;
+                if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
+                ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+            }
             ctx.restore();
             drawNameTag(b, x, toScreenY(y) - r - 7, strong);
         }
@@ -727,6 +942,61 @@ var MarbleRender = (function () {
             }
             if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(sx, sy, r + 1.5, 0, Math.PI * 2); ctx.stroke(); }
             ctx.restore();
+        }
+        // 독수리에 잡혀 가는 공: 땅 그림자(곡선 높이만큼 아래) + 공(말린 채) + 발톱이 공을 쥔 독수리(날갯짓 4프레임, 왼쪽으로 갈 땐 반전). 에셋 없으면 코드 실루엣
+        function drawEagleCarry(b, t, mine) {
+            var c = b.carry, k = c ? clamp((t - c.t0) / c.dur, 0, 1) : 0.5, lift = Math.sin(k * Math.PI) * EAGLE_ARC;
+            var faceLeft = c ? c.x1 < c.x0 : false;
+            var gy = b.y + lift;   // 땅 자리
+            if (!drawSprite('fx', 'eagle-shadow', b.x, gy, 128, 48, { alpha: 0.35 + 0.3 * (1 - lift / EAGLE_ARC), scale: 1 - 0.3 * lift / EAGLE_ARC })) drawShadow(b.x, gy, BALL_R + 6);
+            drawCreatureFrame(b, 2, 0, b.x, b.y + 4, Math.sin(t / 120) * 0.15, 1);
+            drawRing(b, b.x, b.y + 4, BALL_R + 1, mine);
+            drawEagleSprite(b.x, b.y - 8, faceLeft, t);   // 발톱(아래에서 16px 소스 = 4px) 이 공 위
+            drawNameTag(b, b.x, toScreenY(b.y) - 44, mine);
+            if (k < 0.35) label('채 갔다!', b.x, b.y - 58, '#fff', 13);
+        }
+        // 독수리 자유 비행(공을 안 쥔 동안): 구멍밭 위를 좌우로 순찰하다 잡기 EAGLE_SWOOP_MS 전에 목표로 급강하, 놓은 뒤 순찰로 복귀. 잡기 이벤트는 재생 데이터에 있어 미리 안다
+        function eaglePatrol(tt, ei) {
+            var hf = (pieces.holefield || [])[0]; if (!hf) return null;
+            var ph = tt + (ei || 0) * 1900;   // 독수리마다 위상 차
+            var px = TRACK_W / 2 + EAGLE_PATROL_W * Math.sin(ph / 1500), py = hf.zone.y - EAGLE_PATROL_ABOVE + EAGLE_PATROL_H * Math.sin(ph / 1100) + 8 * Math.sin(ph / 400);   // 리사주 — 상하좌우
+            return { x: px, y: py, left: Math.cos(ph / 1500) < 0 };
+        }
+        function drawEagleSprite(x, y, faceLeft, tt) {
+            var wing = Math.floor(Math.max(0, tt) / EAGLE_WING_MS) % 4;
+            ctx.save(); ctx.translate(x, toScreenY(y)); if (faceLeft) ctx.scale(-1, 1);
+            var im = img('pieces', 'eagle');
+            if (im) { var ew = 256 * SRC_SCALE, eh = 160 * SRC_SCALE; ctx.drawImage(im, wing * 256, 0, 256, 160, -ew / 2, -eh + 4, ew, eh); }
+            else {
+                var flap = (wing === 0 || wing === 2) ? -10 : wing === 1 ? -2 : -16;
+                ctx.fillStyle = '#7a4b23'; ctx.strokeStyle = '#3b2412'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.ellipse(0, -14, 14, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-6, -16); ctx.lineTo(-30, flap - 14); ctx.lineTo(-4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(6, -16); ctx.lineTo(30, flap - 14); ctx.lineTo(4, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#f2c014'; ctx.beginPath(); ctx.moveTo(14, -15); ctx.lineTo(21, -13); ctx.lineTo(14, -11); ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+        }
+        function drawEagleFree(t) {
+            if (t < 0) return;
+            var count = data.track.eagles || 1, tt = Math.max(0, t);
+            for (var ei = 0; ei < count; ei++) {
+                var grab = null;   // 이 독수리가 지금 시각에 걸린(급강하 중·쥐고 있음·복귀 중) 잡기 — 한 판에 여러 번
+                for (var i = 0; i < data.events.length; i++) { var ge = data.events[i]; if (ge.type === 'eagleGrab' && (ge.eagle || 0) === ei && t >= ge.t - EAGLE_SWOOP_MS && t < ge.t + ge.dur + EAGLE_RETURN_MS) { grab = ge; break; } }
+                var pos, left;
+                if (grab && t >= grab.t && t < grab.t + grab.dur) continue;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
+                if (grab && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
+                    var p0 = eaglePatrol(grab.t - EAGLE_SWOOP_MS, ei); if (!p0) continue;
+                    var k = (t - (grab.t - EAGLE_SWOOP_MS)) / EAGLE_SWOOP_MS, e = k * k;
+                    pos = { x: p0.x + (grab.x - p0.x) * e, y: p0.y + (grab.y - 8 - p0.y) * e }; left = grab.x < p0.x;
+                } else if (grab) {   // 복귀: 놓은 자리 → 순찰 자리
+                    var k2 = (t - grab.t - grab.dur) / EAGLE_RETURN_MS, e2 = 1 - (1 - k2) * (1 - k2), p1 = eaglePatrol(grab.t + grab.dur + EAGLE_RETURN_MS, ei); if (!p1) continue;
+                    pos = { x: grab.tx + (p1.x - grab.tx) * e2, y: grab.ty - 8 + (p1.y - grab.ty + 8) * e2 }; left = p1.x < grab.tx;
+                } else { pos = eaglePatrol(tt, ei); if (!pos) continue; left = pos.left; }
+                if (!visible(pos.y, 60)) continue;
+                drawSprite('fx', 'eagle-shadow', pos.x, pos.y + 70, 128, 48, { alpha: 0.28, scale: 0.8 });
+                drawEagleSprite(pos.x, pos.y, left, tt + ei * 37);
+            }
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
@@ -770,14 +1040,15 @@ var MarbleRender = (function () {
         function drawBalls(t) {
             var i, b, mine;
             // 그림자 먼저
-            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
+            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || b.state === 'warp' || b.state === 'carried' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
             // 후미 공(플레이어별) — 꼴찌 깃발 대상
             var rearByOwner = {};
             for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done') continue; if (!rearByOwner[b.owner] || b.y < rearByOwner[b.owner].y) rearByOwner[b.owner] = b; }
             for (i = 0; i < balls.length; i++) {
                 b = balls[i];
-                if (b.state === 'done' || !visible(b.y, 40)) continue;
+                if (b.state === 'done' || b.state === 'warp' || !visible(b.y, 40)) continue;   // warp = 파이프 속(안 보임)
                 mine = b.owner === myName;
+                if (b.state === 'carried') { drawEagleCarry(b, t, mine); continue; }
                 if (t < 0) {
                     // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
                     // 공이 되기 전까지는 발밑 마커(플레이어 색 타원 + 번호)로, 완전히 말린 뒤에만 링을 그린다
@@ -820,8 +1091,8 @@ var MarbleRender = (function () {
                     continue;
                 }
                 if (b.state === 'walk') {   // 집결 통로: 펴져서 오른쪽으로 걷는다 (충돌 없음 — 겹쳐서 제 속도로)
-                    if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임
-                        drawShadow(b.x, b.y, BALL_R); drawCreatureFrame(b, 4, t - b.walkStallAt < 200 ? 1 : 2, b.x, b.y - 4);
+                    if (b.walkKind === 'trip' && t - b.walkStallAt < 700) {   // 넘어짐 — 엎어진 프레임만(col 1 은 정면으로 놀라는 그림이라 달리다 뒤돌아보는 것처럼 보였다)
+                        drawShadow(b.x, b.y, BALL_R); drawCreatureFrame(b, 4, t - b.walkStallAt < 350 ? 0 : 2, b.x, b.y - 4);
                         drawBadge(b, b.x, b.y, mine); continue;
                     }
                     if (b.walkKind === 'doze') {   // 졸음 — sleep 시트 + zz
@@ -835,7 +1106,7 @@ var MarbleRender = (function () {
                     }
                     var ws = t - b.landAt;
                     var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
-                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 4;
+                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 2;   // idle 행 0·1만(옆모습) — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다(사용자 2026-09-21)
                     var wim = img('creatures', b.creature);
                     if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);
@@ -927,25 +1198,28 @@ var MarbleRender = (function () {
                 var b = balls[i2];
                 if (b.state !== 'done') continue;
                 var idx = b.finishIdx;
-                if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 골 자리 비석(drawLastBall)
+                if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 골 앞 판자벽 자리 비석(drawLastBall)
                 var row = Math.floor(idx / cols), col = idx % cols;
                 if (rowMap[row] == null) continue;
                 var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 18;   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
                 var since = t - b.finishAt;
-                if (chute) {   // 홈통 이동 중이면 그 위치에 공으로 — 착지한 자리(통 아래)에서 내려가 홈통을 따라 자기 자리로(왼쪽·오른쪽 어느 쪽이든)
-                    var sx0 = b.doneX != null ? b.doneX : chute.x, dirC = x2 < sx0 ? -1 : 1;
-                    var d0 = chute.y - ln.y, d1 = Math.abs(sx0 - x2), d2 = (y2 - 6) - chute.y, dist = since / 1000 * CHUTE_SPEED;
-                    if (dist < d0 + d1 + d2) {
+                if (chute) {   // 홈통: 골 x 에서 내려가 왼쪽 끝까지 다 굴러간 뒤 자기 자리로 순간이동 — 자리에서 내리면 5등이 4등보다 먼저 앉아 보였다(사용자 2026-09-21)
+                    var endX = z.x + 4, d0 = chute.y - ln.y, d1 = chute.x - endX, dist = since / 1000 * CHUTE_SPEED;
+                    if (dist < d0 + d1) {
                         var px, py;
-                        if (dist < d0) { px = sx0; py = ln.y + dist; }
-                        else if (dist < d0 + d1) { px = sx0 + dirC * (dist - d0); py = chute.y; }
-                        else { px = x2; py = chute.y + (dist - d0 - d1); }
+                        if (dist < d0) { px = chute.x; py = ln.y + dist; }
+                        else { px = chute.x - (dist - d0); py = chute.y; }
                         if (!visible(py, 40)) continue;
                         drawCreatureFrame(b, 2, 0, px, py, -dist / BALL_R, 0.85);
                         drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === myName);
                         continue;
                     }
-                    since -= (d0 + d1 + d2) / CHUTE_SPEED * 1000;   // 자리에 떨어진 뒤 경과
+                    since -= (d0 + d1) / CHUTE_SPEED * 1000;   // 끝에 닿은 뒤 경과 = 자리에 나타난 뒤 경과
+                    if (since < POOF_FX_MS) {   // 순간이동 펑 (자리에 + 홈통 끝에)
+                        var pk = since / POOF_FX_MS, pf = Math.min(3, Math.floor(pk * 4));
+                        if (!drawSprite('fx', 'curl-poof', x2, y2 - 6, 96, 96, { sx: pf * 96, sw: 96, alpha: 1 - pk })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - pk) + ')'; ctx.beginPath(); ctx.arc(x2, toScreenY(y2 - 6), 8 + pk * 14, 0, Math.PI * 2); ctx.fill(); }
+                        drawSprite('fx', 'curl-poof', endX, chute.y, 96, 96, { sx: pf * 96, sw: 96, alpha: 0.7 * (1 - pk), scale: 0.7 });
+                    }
                 }
                 if (!visible(y2, 40)) continue;
                 var frame = since < 300 ? Math.min(1, Math.floor(since / 150)) : 2 + Math.floor((t / 260 + idx) % 2);
@@ -967,7 +1241,7 @@ var MarbleRender = (function () {
             var b = byId[lastId];
             if (!b || b.state !== 'done') return;
             var since = t - b.finishAt;
-            var x = b.doneX != null ? b.doneX : b.x, y = b.doneY != null ? b.doneY : b.y;   // 통에 들어간 그 자리
+            var x = b.doneX != null ? b.doneX : data.track.goalX + BALL_R, y = b.doneY != null ? b.doneY : data.track.goalY;   // 혼자 내려온 착지 자리, 아니면 골 선 넘어 판자벽 앞
             // 비석: 위에서 가속 낙하 → 쿵(먼지). 동물은 비석이 깔리기 전까지만 엎어져 있고, 깔리는 순간 펑 하고 사라진다(비석이 동물을 대신한다)
             var k = clamp(since / GRAVE_DROP_MS, 0, 1);
             var drop = (1 - k) * (1 - k) * GRAVE_DROP_H;
@@ -997,10 +1271,14 @@ var MarbleRender = (function () {
             var squash = (sinceLand >= 0 && sinceLand < 120) ? 1 - 0.18 * (1 - sinceLand / 120) : 1;
             ctx.save();
             ctx.translate(x, toScreenY(yBase)); ctx.scale(1 / Math.sqrt(squash), squash);
-            ctx.fillStyle = '#9aa1ab'; ctx.strokeStyle = '#3b4149'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h + w / 2); ctx.arc(0, -h + w / 2, w / 2, Math.PI, 0); ctx.lineTo(w / 2, 0); ctx.closePath();
-            ctx.fill(); ctx.stroke();
-            ctx.fillStyle = '#6f767f'; ctx.fillRect(-w / 2 - 4, -3, w + 8, 4);   // 받침돌
+            var gim = img('pieces', 'gravestone');   // 4차 비석(128×160, 하단 정렬, 글자 없음) — 없으면 코드 도형
+            if (gim) { var gw = 128 * SRC_SCALE, gh = 160 * SRC_SCALE; ctx.drawImage(gim, 0, 0, 128, 160, -gw / 2, -gh, gw, gh); }
+            else {
+                ctx.fillStyle = '#9aa1ab'; ctx.strokeStyle = '#3b4149'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h + w / 2); ctx.arc(0, -h + w / 2, w / 2, Math.PI, 0); ctx.lineTo(w / 2, 0); ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#6f767f'; ctx.fillRect(-w / 2 - 4, -3, w + 8, 4);   // 받침돌
+            }
             ctx.fillStyle = '#2b2f36'; ctx.font = 'bold 10px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText('꼴찌', 0, -h / 2 + 2);
             ctx.restore();
@@ -1013,10 +1291,25 @@ var MarbleRender = (function () {
                 var b = f.ball != null ? byId[f.ball] : null;
                 var x = f.x != null ? f.x : (b ? b.x : 0), y = f.y != null ? f.y : (b ? b.y : 0);
                 switch (f.type) {
+                    case 'suck': {   // 파이프에 빨려 들어감: 공이 돌며 작아지고 가라앉는다
+                        if (!visible(y, 40) || !b) return;
+                        var kk = Math.min(1, k);
+                        drawCreatureFrame(b, 2, 0, x, y + kk * 6, kk * Math.PI * 3, 1 - kk * 0.9);
+                        drawSprite('fx', 'suck-swirl', x, y - 4, 96, 96, { sx: frame * 96, sw: 96, alpha: 0.9 });   // 소용돌이(없으면 생략)
+                        if (kk < 0.7) label('슝!', x, y - 28 - kk * 20, 'rgba(160,225,255,' + (1 - kk).toFixed(2) + ')', 13);
+                        break;
+                    }
+                    case 'eagledrop': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y + 8, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } label('툭!', x, y - 24 - k * 20, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 14); break;
+                    case 'warpout':   // 짝 파이프에서 뿅
+                        if (!visible(y, 40)) return;
+                        if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); }
+                        label('뿅!', x, y - 26 - k * 20, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 14);
+                        break;
                     case 'star': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10 - k * 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); break;
                     case 'mud': if (!visible(y, 40)) return; if (!drawSprite('fx', 'mud-splash', x, y - 8, 128, 96, { sx: frame * 128, sw: 128 })) { ctx.fillStyle = 'rgba(90,60,30,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y) - 12 - k * 14, 6 - k * 4, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
-                    case 'jump': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('휙!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
+                    case 'mole': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('쿵!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
+                    case 'spring': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y - 6, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); label('튕!', x - 10, y - 26 - k * 30, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 15); break;
                     case 'poof': if (!visible(y, 40)) return; if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 10 + k * 16, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'wake': if (!visible(y, 40)) return; if (!drawSprite('fx', 'wake', x, y - 26, 48, 48, { sx: frame * 48, sw: 48 })) label('!', x, y - 26 - k * 8, '#fff7a0', 18); break;
                     case 'bees': {
@@ -1030,8 +1323,13 @@ var MarbleRender = (function () {
                         label('벌 떼다!!', z.x + z.w / 2, z.y + 40, '#fff', 14);
                         break;
                     }
-                    case 'geyser': {   // 간헐천 분출: 물기둥(위로 늘어나며 옅어짐) + 물방울 + 흙먼지 + 라벨
+                    case 'geyser': {   // 간헐천 분출: 물기둥(5차 geyser 5프레임, 없으면 코드 그라데이션) + 물방울 + 흙먼지 + 라벨
                         if (!visible(y, 120)) return;
+                        if (drawSprite('fx', 'geyser', x, y + 6, 128, 256, { sx: Math.min(4, Math.floor(k * 5)) * 128, sw: 128, anchor: 'bottom', scale: 1.1 + Math.min(0.6, (f.count || 1) * 0.05) })) {
+                            drawSprite('fx', 'dust-puff', x - 24, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k, scale: 1.6 }); drawSprite('fx', 'dust-puff', x + 24, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k, scale: 1.6 });
+                            if (k < 0.6) label('펑!', x, y - 60 - k * 40, '#fff', 18);
+                            break;
+                        }
                         ctx.save();
                         var gh = 40 + k * 150, gw = 26 + Math.min(40, (f.count || 1) * 3);
                         var grd = ctx.createLinearGradient(0, toScreenY(y), 0, toScreenY(y) - gh);
@@ -1046,7 +1344,7 @@ var MarbleRender = (function () {
                     case 'damburst': {
                         var d = (pieces.dam || [])[0]; if (!d || !visible(d.y1, 80)) return;
                         var cx = (d.x1 + d.x2) / 2;
-                        if (!drawSprite('fx', 'dam-burst', cx, d.y1 - 10, 192, 128, { sx: frame * 192, sw: 192, alpha: 1 - k })) {
+                        if (!drawSprite('fx', 'dam-burst-v2', cx, d.y1 + 20, 192, 128, { sx: Math.min(5, Math.floor(k * 6)) * 192, sw: 192, anchor: 'bottom', alpha: 1 - k * k, scale: 1.4 }) && !drawSprite('fx', 'dam-burst', cx, d.y1 - 10, 192, 128, { sx: frame * 192, sw: 192, alpha: 1 - k })) {   // 5차 6프레임 물살 우선
                             for (var q = 0; q < 10; q++) { var ang = hash01(q + 3) * Math.PI * 2, dist = k * (40 + hash01(q + 9) * 60); ctx.fillStyle = q % 2 ? 'rgba(120,80,40,' + (1 - k) + ')' : 'rgba(120,190,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(cx + Math.cos(ang) * dist, toScreenY(d.y1) + Math.sin(ang) * dist * 0.6 + k * 30, 4, 0, Math.PI * 2); ctx.fill(); }
                             label('댐이 터졌다!', cx, d.y1 - 70, '#fff', 15);
                         }
@@ -1060,9 +1358,9 @@ var MarbleRender = (function () {
         function updateHud() {
             var rem = 0, rearByOwner = {};
             var loser = byId[data.finishOrder[data.finishOrder.length - 1]];
-            for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state === 'done') continue; rem++; if (!rearByOwner[b.owner] || b.y < rearByOwner[b.owner].y) rearByOwner[b.owner] = b; }
-            var worst = Object.keys(rearByOwner).map(function (o) { return rearByOwner[o]; }).sort(function (a, b) { return a.y - b.y; }).slice(0, 5);
-            if (loser && loser.state === 'done') { rem = 0; worst = []; }   // 꼴찌 확정 = 피날레 (남은 공이 통로를 걷고 있어도 결과와 무관)
+            for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state === 'done') continue; rem++; if (!rearByOwner[b.owner] || progress(b) < progress(rearByOwner[b.owner])) rearByOwner[b.owner] = b; }
+            var worst = Object.keys(rearByOwner).map(function (o) { return rearByOwner[o]; }).sort(function (a, b) { return progress(a) - progress(b); }).slice(0, 5);
+            if (loser && loser.state === 'done') { rem = 0; worst = []; }   // 꼴찌(골에 마지막으로 들어간 놈) 확정 = 피날레
             hudInfo = { remaining: rem, worst: worst };
         }
         // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
@@ -1080,16 +1378,21 @@ var MarbleRender = (function () {
             data.track.pieces.forEach(function (p) {
                 switch (p.kind) {
                     case 'platform': g.fillStyle = '#b48a5a'; g.fillRect(X(p.zone.x), Y(p.zone.y), p.zone.w * sc, p.zone.h * sc); break;
-                    case 'wall': g.strokeStyle = '#e0bd82'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
+                    case 'wall': if (p.hidden) break; g.strokeStyle = '#e0bd82'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
                     case 'stake': g.fillStyle = '#d9a35c'; g.fillRect(X(p.x) - 0.6, Y(p.y) - 0.6, 1.2, 1.2); break;
                     case 'log': g.fillStyle = '#a06a35'; dot(X(p.x), Y(p.y), Math.max(1.5, p.r * sc)); break;
+                    case 'warp': g.fillStyle = WARP_COLORS[p.color % WARP_COLORS.length]; g.fillRect(X(p.x) - 1.5, Y(p.y), 3, Math.max(2, p.bodyH * sc)); break;
                     case 'mud': g.fillStyle = '#5a3d22'; ell(X(p.x), Y(p.y), p.rx * sc, p.ry * sc); break;
                     case 'sunpatch': g.fillStyle = '#f2e27a'; (p.spots || []).forEach(function (o) { ell(X(o.x), Y(o.y), o.rx * sc, o.ry * sc); }); break;
                     case 'beehive': g.fillStyle = '#e6b73a'; dot(X(p.x), Y(p.y), 2.5); break;
                     case 'dam': g.fillStyle = '#7fa6d6'; g.fillRect(X(p.x1), Y(p.y1) - 1.5, (p.x2 - p.x1) * sc, 3); if (p.gap) { g.fillStyle = '#bfefff'; g.fillRect(X(p.gap.x1), Y(p.y1) - 1.5, (p.gap.x2 - p.gap.x1) * sc, 3); } break;
                     case 'pit': g.fillStyle = '#2b1a0a'; ell(X(p.zone.x + p.zone.w / 2), Y(p.zone.y + p.zone.h / 2), p.zone.w * sc / 2, p.zone.h * sc / 2); break;
                     case 'windmill': g.strokeStyle = '#e0bd82'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len), Y(p.y)); g.lineTo(X(p.x + p.len), Y(p.y)); g.moveTo(X(p.x), Y(p.y - p.len)); g.lineTo(X(p.x), Y(p.y + p.len)); g.stroke(); break;
-                    case 'jumppad': g.fillStyle = '#ffb01f'; g.fillRect(X(p.x) - 2, Y(p.y) - 1, 4, 2); break;
+                    case 'mole': g.fillStyle = '#5a3d22'; dot(X(p.x), Y(p.y), 1.8); break;
+                    case 'spring': g.strokeStyle = '#ffd166'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x + Math.cos(p.angle) * p.len), Y(p.y + Math.sin(p.angle) * p.len)); g.stroke(); break;
+                    case 'flipflop': g.strokeStyle = '#ffe08a'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x - 20), Y(p.y + 40)); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x + 20), Y(p.y + 40)); g.stroke(); break;
+                    case 'belt': g.strokeStyle = '#ffd166'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
+                    case 'fan': g.fillStyle = '#c8d0da'; g.beginPath(); g.moveTo(X(p.x), Y(p.y - 12)); g.lineTo(X(p.x + p.dir * 24), Y(p.y)); g.lineTo(X(p.x), Y(p.y + 12)); g.closePath(); g.fill(); break;
                     case 'seesaw': g.strokeStyle = '#c9944f'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len / 2), Y(p.y)); g.lineTo(X(p.x + p.len / 2), Y(p.y)); g.stroke(); break;
                     case 'holefield': g.fillStyle = '#1e1208'; p.holes.forEach(function (hh) { g.fillRect(X(hh.x - hh.w / 2), Y(hh.y), Math.max(1.5, hh.w * sc), Math.max(2, p.pipeH * sc)); }); break;
                     case 'lane': g.fillStyle = 'rgba(150,115,70,0.85)'; g.fillRect(X(p.x0), Y(p.y - p.h / 2), (p.x1 - p.x0) * sc, Math.max(2, p.h * sc)); g.fillStyle = '#ffe08a'; g.fillRect(X(p.goalX) - 0.5, Y(p.y - p.h / 2), 1, Math.max(2, p.h * sc)); break;
@@ -1134,7 +1437,7 @@ var MarbleRender = (function () {
             ctx.save();
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
             var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
-            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '꼴찌 확정!');
+            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : '꼴찌 확정!');
             ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, ctx.measureText(txt).width + 20, 26, 8); ctx.fill();
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
             if (t >= 0 && hudInfo.worst.length) {
@@ -1172,7 +1475,7 @@ var MarbleRender = (function () {
             if (!data) return;
             dt = dt || 0.016;
             var t = tPlay < 0 ? tPlay : simTime(tPlay);
-            // 꼴찌 확정(cutMs) 뒤에는 세상을 그 순간에 멈춘다 — 통로를 걷던 놈들이 비석을 뚫고 지나가지 않게. 피날레 연출만 t 로 흐른다
+            // 조기 확정(cutMs) 뒤에는 세상을 그 순간에 멈춘다 — 피날레 연출(비석·스탠드)만 t 로 흐른다
             var tw = (data.cutMs != null && t > data.cutMs) ? data.cutMs : t;
             applyEventsUpTo(Math.max(0, tw));
             samplePositions(tw);
@@ -1189,7 +1492,7 @@ var MarbleRender = (function () {
             drawStandBase(t);
             drawBalls(t);
             drawCheerStand(t);
-            drawBasketFront();
+            drawBasketFront(t);
             drawLastBall(t);
             drawFx(t);
             ctx.restore();
@@ -1197,7 +1500,7 @@ var MarbleRender = (function () {
             ctx.restore();
             if (t >= 0 && phase !== 'finale' && phase !== 'done' && hudInfo.remaining === 0) { phase = 'finale'; if (onFinaleCb) onFinaleCb(); }
             if (t >= 0 && phase === 'countdown') phase = 'play';
-            if (tPlay >= data.durationMs && phase !== 'done') { phase = 'done'; R.stop(); }
+            if (tPlay >= data.durationMs && phase !== 'done') phase = 'done';   // 끝나도 루프는 계속 — 스탠드 응원·수면·독수리 순찰 같은 배경 애니가 멈추지 않게(사용자 2026-09-21). 멈추는 건 방 리셋/퇴장(js/marble.js renderer.stop)
         };
 
         // 대기 화면 — 출발대 프리뷰. preview = 서버 marble:stateUpdated.preview { track, balls, frame } (준비한 사람의 동물이 출발대에 서 있음).

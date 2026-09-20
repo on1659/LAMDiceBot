@@ -17,7 +17,7 @@ const { registerServerHandlers } = require('./server');
 const registerShopHandlers = require('./shop');
 const { getUserFlags, setFlag, getUserPrefs, setUserPref } = require('../db/auth');
 const { startScheduler } = require('./scheduled-start');
-const { IS_LOCAL_DEV } = require('../config');
+const { DEV_GAMES_ENABLED } = require('../config');
 
 function setupSocketHandlers(io, rooms) {
     // 방 목록 브로드캐스트 디바운싱 (200ms leading + trailing)
@@ -195,10 +195,10 @@ function setupSocketHandlers(io, rooms) {
             socket.emit('visitorStats', stats);
         });
 
-        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 여부 / 미출시 마블런 라벨 노출 — 로컬 개발 서버만)
+        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 / 미출시 마블런 라벨 노출 — 로컬 개발 서버 또는 DEV_GAMES=1 서비스)
         socket.on('getDevFlags', () => {
             if (!checkRateLimit()) return;
-            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV, marbleEnabled: IS_LOCAL_DEV });
+            socket.emit('devFlags', { ladderEnabled: DEV_GAMES_ENABLED, marbleEnabled: DEV_GAMES_ENABLED });
         });
 
         // 각 핸들러 등록

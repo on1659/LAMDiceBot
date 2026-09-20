@@ -65,7 +65,7 @@ async function startMarble(room, gameState, io, ctx) {
     let balls, result;
     try {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
-        const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9));   // 댐 틈 쪽 등 트랙 랜덤
+        const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9), mb.crowd);   // 댐 틈 쪽 등 트랙 랜덤, 독수리 수는 마릿수 단계
         result = await sim.simulate(balls, seed, track);
     } catch (e) {
         console.warn('[마블런] 시뮬 실패:', e.message);
@@ -77,16 +77,16 @@ async function startMarble(room, gameState, io, ctx) {
     }
     if (!ctx.rooms[room.roomId]) return;   // 비동기 시뮬 도중 방이 사라짐
 
-    // 꼴찌 = 구멍(통)에 마지막으로 들어간 공. 그 뒤 통로 걷기·골 도착 순서는 결과에 영향 없고 재생도 그 순간에 끝낸다
-    // (사용자 결정 2026-09-20: 통에 들어가는 순간 확정이니 랭킹까지 기다릴 필요 없음). 캡까지 못 들어간 공은 sim 정산 순서를 뒤에 붙인다.
-    const cut = sim.holeEntryCut(result, balls.length);
-    const rank = sim.rankPlayers(balls, cut.finishOrder, participants);
+    // 순위 = 통로 끝 골(x ≥ GOAL_X)에 들어간 순서(sim finishOrder). 꼴찌 = 골에 마지막으로 들어간 공 (사용자 확정 2026-09-20 밤).
+    // 통로 걷기도 경주 구간(추월 있음). 캡까지 못 들어간 공은 sim 이 진행도 순으로 정산해 뒤에 붙인다.
+    const rank = sim.rankPlayers(balls, result.finishOrder, participants);
     const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num }));
     const payload = {
-        durationMs: cut.durationMs, sampleMs: result.sampleMs, track: result.track,
-        balls: revealBalls, frames: result.frames, events: result.events, finishOrder: cut.finishOrder,
-        slow: null,                   // 슬로모는 골 앞(통로) 구간이라 컷 뒤 — 쓰지 않는다
-        cutMs: cut.cutMs,             // 마지막 공이 통에 들어간 시각 — 클라는 여기서 비석·정지
+        durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
+        balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
+        slow: result.slow,            // 마지막 공 골 앞 슬로모 {startMs, rate, endMs} — 2탭 동기용, durationMs 에 반영돼 있음
+        fast: result.fast,            // 꼴찌 한 마리만 남은 구간 2배속 {startMs, rate, endMs}
+        cutMs: result.cutMs,          // 꼴찌가 혼자 통로에 내려온 순간(나머지 전원 골인) — 클라는 여기서 세상을 멈추고 비석. null 이면 골 진입 때
         ballsPerPlayer,
         result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
     };
@@ -94,7 +94,7 @@ async function startMarble(room, gameState, io, ctx) {
     mb.result = payload.result;
 
     io.to(room.roomId).emit('marble:reveal', payload);
-    console.log(`[마블런] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (통 진입 컷 ${cut.cutMs}ms, 골 기준 ${result.durationMs}ms)`);
+    console.log(`[마블런] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${payload.durationMs}ms (시뮬 ${result.simEndMs}ms)`);
 
     clearMarbleTimers(mb);
     mb.endTimeout = setTimeout(() => {
@@ -199,7 +199,7 @@ module.exports = (socket, io, ctx) => {
         participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         return {
-            track: sim.buildTrack(Math.max(1, balls.length)),
+            track: sim.buildTrack(Math.max(1, balls.length), null, mb.crowd),
             balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner) })),
             frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
         };
@@ -225,7 +225,7 @@ module.exports = (socket, io, ctx) => {
         emitState(room, gameState);
     });
 
-    // 마릿수 단계 (호스트, idle) — few | normal | many. 인당 마릿수는 서버가 인원으로 환산(sim.crowdBallsPerPlayer)
+    // 마릿수 단계 (호스트, idle) — solo | few | normal | many. 인당 마릿수는 서버가 인원으로 환산(sim.crowdBallsPerPlayer)
     socket.on('marble:setCrowd', (data) => {
         if (!rateOk()) return;
         const gameState = getCurrentRoomGameState();

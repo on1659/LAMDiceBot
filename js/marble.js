@@ -7,8 +7,10 @@
 var MARBLE_MIN_PLAYERS = 2;
 var MARBLE_COUNTDOWN_MS = 4000;    // 3-2-1 카운트다운 (MarbleRender.COUNTDOWN_MS 와 동일)
 var FS_SETTLE_MS = 400;            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
-var MARBLE_CROWDS = ['few', 'normal', 'many'];   // 마릿수 3단계 — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
+var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
+var MARBLE_CROWDS = ['solo', 'few', 'normal', 'many'];   // 마릿수 4단계(솔로=인당 1) — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
+var MY_HIGHLIGHT_KEY = 'marbleMyHighlight';   // localStorage — 내 동물 강조 모드(보는 사람 설정, 기본 켬)
 
 // localhost 체크
 var isLocalhost = window.location.hostname === 'localhost' ||
@@ -58,7 +60,7 @@ var readyModuleInitialized = false;
 var marbleState = {
     phase: 'idle',           // idle | playing | finished
     picks: {},               // { userName: creatureId }
-    crowd: 'normal',         // 마릿수 단계 few|normal|many
+    crowd: 'normal',         // 마릿수 단계 solo|few|normal|many
     ballsPerPlayer: 1,       // 서버가 준비 인원으로 환산한 인당 마릿수 (안내용)
     reveal: null,            // 마지막 reveal 페이로드 (결과 오버레이 지연 표시용)
     preview: null            // 대기 화면 출발대 배치 (서버 stateUpdated.preview — 준비한 사람의 동물)
@@ -207,6 +209,8 @@ window.addEventListener('DOMContentLoaded', function () {
     var canvas = document.getElementById('marbleCanvas');
     if (canvas && typeof MarbleRender !== 'undefined') {
         renderer = MarbleRender.create(canvas);
+        renderer.setHighlight(getMyHighlight());
+        updateHighlightButton();
         MarbleRender.loadAssets(function () {
             assetsLoaded = true;
             document.querySelectorAll('.marble-creature-btn').forEach(function (btn) {
@@ -216,7 +220,7 @@ window.addEventListener('DOMContentLoaded', function () {
             if (!isMarbleActive) renderer.drawIdle(marbleState.preview, currentUser);
         });
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
-        var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
+        var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && !replaying && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
         window.addEventListener('resize', onResize);
         // 전체화면 진입·이탈: 이벤트 시점엔 창이 아직 애니메이션 중일 수 있어(macOS) 잠시 뒤 한 번 더 맞춘다. 사파리는 webkit 접두사
         var onFsChange = function () { onResize(); setTimeout(onResize, FS_SETTLE_MS); };
@@ -334,20 +338,10 @@ function updateStartButton() {
     }
     var locked = (marbleState.phase === 'playing' || isMarbleActive);
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.disabled = locked; });
-    renderBallsNote();
-}
-
-// "준비 N명 × M마리 = 총 K마리" — M 은 서버가 준비 인원으로 환산해 내려준 값(인원이 많으면 인당이 줄어든다)
-function renderBallsNote() {
-    var note = document.getElementById('marbleBallsNote');
-    if (!note) return;
-    var rc = Math.max(readyCount(), 1), n = marbleState.ballsPerPlayer;
-    note.textContent = '준비 ' + rc + '명 × ' + n + '마리 = 총 ' + (rc * n) + '마리 (인원이 늘면 인당 마릿수가 줄어요)';
 }
 
 function syncBallsControl() {
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.classList.toggle('selected', b.getAttribute('data-crowd') === marbleState.crowd); });
-    renderBallsNote();
 }
 
 // 피커: 내 선택 강조 + 동물별 선택 인원 배지 + 상태 문구
@@ -399,6 +393,65 @@ function resetMarbleRound() { socket.emit('marble:reset'); }
 window.reopenResult = reopenResult;
 window.resetMarbleRound = resetMarbleRound;
 
+// 내 동물 따라가기 스위치 — 켜면 내 동물은 금색 링·남의 동물은 옅게, 카메라도 내 동물을 따라간다(선두 → 하나 들어간 뒤엔 내 꼴찌 → 다 들어가면 시스템 카메라). 설정은 이 브라우저에만 저장
+function getMyHighlight() { try { return localStorage.getItem(MY_HIGHLIGHT_KEY) !== 'false'; } catch (e) { return true; } }
+function updateHighlightButton() {
+    var btn = document.getElementById('marbleHighlightBtn');
+    if (!btn) return;
+    var on = getMyHighlight();
+    btn.textContent = on ? '🐾 내 동물 따라가는 중' : '🐾 내 동물 따라가기';
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+function toggleMyHighlight() {
+    var on = !getMyHighlight();
+    try { localStorage.setItem(MY_HIGHLIGHT_KEY, on ? 'true' : 'false'); } catch (e) {}
+    if (renderer) {
+        renderer.setHighlight(on);
+        if (!renderer.isPlaying() && assetsLoaded) {   // 재생 중이면 다음 프레임에 반영, 멈춰 있으면 지금 다시 그린다
+            if (marbleState.reveal && (marbleState.phase === 'finished' || replaying)) renderer.render(marbleState.reveal.durationMs, 0.016);
+            else renderer.drawIdle(marbleState.preview, currentUser);
+        }
+    }
+    updateHighlightButton();
+}
+window.toggleMyHighlight = toggleMyHighlight;
+
+// 경주 다시 보기 — 서버가 보낸 타임라인(marbleState.reveal)을 카운트다운·소리 없이 혼자 다시 재생한다.
+// 방장이 다음 판을 준비(roundReset)하거나 새 reveal 이 오면 끝난다. 다른 사람 화면과 무관(나만 보임).
+var replaying = false, replayEndTimer = null;
+function setReplayUi(on) {
+    var btn = document.getElementById('marbleReplayButton');
+    if (btn) btn.textContent = on ? '■ 그만 보기' : '▶ 경주 다시 보기';
+    var badge = document.getElementById('marbleReplayBadge');
+    if (badge) badge.style.display = on ? '' : 'none';
+}
+function replayRace() {
+    if (!renderer || !marbleState.reveal) return;
+    if (replaying) { stopReplay(true); return; }
+    var data = marbleState.reveal;
+    replaying = true;
+    closeResultOverlay();
+    renderer.setTimeline(data, currentUser);
+    renderer.onFinale(function () {});
+    renderer.play(0);
+    setReplayUi(true);
+    clearTimeout(replayEndTimer);
+    replayEndTimer = setTimeout(function () { if (replaying) stopReplay(false); }, data.durationMs + REPLAY_END_GRACE_MS);   // 재생기가 끝에서 스스로 멈추면 버튼만 되돌린다
+    try { if (document.getElementById('marbleStage').scrollIntoView) document.getElementById('marbleStage').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+}
+// jumpToEnd: 도중에 끊었으면 마지막 화면(비석)으로 되돌린다
+function stopReplay(jumpToEnd) {
+    clearTimeout(replayEndTimer); replayEndTimer = null;
+    if (!replaying) return;
+    replaying = false;
+    setReplayUi(false);
+    if (!renderer) return;
+    renderer.stop();
+    if (jumpToEnd && marbleState.reveal) renderer.render(marbleState.reveal.durationMs, 0.016);
+}
+window.replayRace = replayRace;
+
 // 결과 오버레이 (gameEnd 도착 시)
 function showResultOverlay(data) {
     lastResult = data;
@@ -408,7 +461,7 @@ function showResultOverlay(data) {
         var html = '';
         if (data.selected) html += '<div class="marble-result-selected">🐾 당첨(벌칙): ' + escapeHtml(data.selected) + '</div>';
         else html += '<div class="marble-result-selected">당첨자가 없습니다</div>';
-        // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 통에 들어간 순서. 1위가 제일 안전, 마지막이 꼴찌(당첨)
+        // 순위: 서버 rankings [{name, rank}] — 자기 동물 중 제일 늦게 골에 들어간 순서. 1위가 제일 안전, 마지막이 꼴찌(당첨)
         var rk = (data.rankings || []).slice().sort(function (a, b) { return a.rank - b.rank; });
         if (rk.length) {
             html += '<ol class="marble-result-ranks">' + rk.map(function (r) {
@@ -873,6 +926,7 @@ socket.on('marble:stateUpdated', function (data) {
 // reveal → 카운트다운 포함 리플레이 시작. 결과 오버레이는 gameEnd(서버 타이머)에서.
 socket.on('marble:reveal', function (data) {
     if (!data || !renderer) return;
+    stopReplay(false);
     marbleState.phase = 'playing';
     marbleState.reveal = data;
     isMarbleActive = true;
@@ -922,6 +976,7 @@ socket.on('marble:gameAborted', function (data) {
 });
 
 socket.on('marble:roundReset', function () {
+    stopReplay(false);
     marbleState.phase = 'idle';
     marbleState.reveal = null;
     isMarbleActive = false;
