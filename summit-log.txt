@@ -1,4 +1,29 @@
 ========================================
+📋 Summit Log - 2026-09-21 (마블런 베타 공개 + 독수리 초반 빈도 −20% + 다시 보기·내 동물 따라가기·마릿수 4단계)
+========================================
+
+## 변경 파일
+- dice-game-multiplayer.html: #marbleLabel 의 인라인 display:none 제거(방 만들기에 항상 노출), 배지 NEW → 「베타」
+- marble-multiplayer.html: 캔버스 박스에 #marbleBetaBadge(🧪 베타 테스트, 전체화면 버튼 왼쪽), css ?v=9
+- css/marble.css: #marbleBetaBadge(빨강 바탕·흰 글씨, 전체화면 위치 보정)
+- socket/marble-sim.js: 독수리 초반 예산 EAGLE_MAX_EARLY_MIN 4→3, EAGLE_MAX_EARLY_RATIO 0.15→0.12, 쉬는 시간 EAGLE_REST_MS 1200→1500. 결승전(EAGLE_MAX_FINAL 4, EAGLE_REST_FINAL_MS 500)은 그대로
+- (이전 커밋, 같은 배포에 포함) js/marble.js·js/marble-render.js: 경주 다시 보기(replayRace), 내 동물 따라가기 스위치(R.setHighlight + updateCamera myFocus), 마릿수 4단계(solo 프리셋), 장치 골짜기·갈래 골짜기·에셋 8장, 구덩이·진흙 렌더 복구, 전체화면 리사이즈 보강
+
+## 상세 변경 내역
+
+### [마블런 베타 공개]
+- 서버는 원래 gameType 'marble' 을 허용(socket/rooms.js validGameType)했고 /marble 라우트도 열려 있었다. 로비 라벨만 devFlags(로컬/DEV_GAMES)에서만 보이게 숨겨 두었던 것을 제거해 실서버에서도 방 생성 가능.
+- 베타임을 두 곳에 표시: 로비 방 만들기 배지 「베타」, 게임 캔버스 우상단 「🧪 베타 테스트」(전체화면에서도 유지).
+
+### [독수리 빈도]
+- 사용자 "너무 열일" → 초반(남은 동물 > EAGLE_FINAL_ALIVE) 예산과 쉬는 시간만 20% 조정. 꼴찌 결정전 4회·500ms 는 유지(사용자 지시).
+
+### [배포 절차]
+- feature/marble-run 커밋 → 별도 worktree 에서 main 에 병합(--no-ff) → origin/main 푸시(= 실서버 배포). 소켓/시뮬 변경이라 실서버는 재시작 시 반영.
+
+========================================
+
+========================================
 📋 Summit Log - 2026-09-20 (자유 별명·계정 이름 완전 분리 + 서버 방 링크 로그인 복귀 + 랭킹 내 행 강조)
 ========================================
 
