@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=2">
+    <link rel="stylesheet" href="/css/marble.css?v=3">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -227,9 +227,14 @@
                 <div class="schedule-open-row">
                     <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
                 </div>
+                <!-- 마릿수 3단계 — 인당 마릿수는 서버가 인원으로 환산(인원이 많으면 인당이 줄어 총량이 적당히 유지) -->
                 <div id="marbleHostSettings" class="marble-host-settings">
-                    <label for="marbleBallsRange">1인당 동물 수 <strong id="marbleBallsValue">3</strong>마리</label>
-                    <input type="range" id="marbleBallsRange" min="1" max="10" value="3" oninput="onMarbleBallsInput(this.value)" onchange="setMarbleBalls(this.value)">
+                    <label>동물 마릿수</label>
+                    <div class="marble-crowd-group" role="group" aria-label="동물 마릿수">
+                        <button type="button" class="marble-crowd-btn" data-crowd="few" onclick="setMarbleCrowd('few')">🐾 조금</button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="normal" onclick="setMarbleCrowd('normal')">🐾🐾 보통</button>
+                        <button type="button" class="marble-crowd-btn" data-crowd="many" onclick="setMarbleCrowd('many')">🐾🐾🐾 우르르</button>
+                    </div>
                     <span id="marbleBallsNote" class="marble-balls-note"></span>
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -425,8 +430,8 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/marble-render.js?v=10"></script>
-    <script src="/js/marble.js?v=4"></script>
+    <script src="/js/marble-render.js?v=11"></script>
+    <script src="/js/marble.js?v=5"></script>
 
     <script>
         // ============================================

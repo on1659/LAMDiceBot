@@ -170,9 +170,9 @@ module.exports = (socket, io, ctx) => {
                     ? { phase: gameState.pirate.phase, claims: gameState.pirate.claims, holeCount: gameState.pirate.holeCount, participants: gameState.pirate.participants, timeLimitSec: gameState.pirate.timeLimitSec, deadlineTs: gameState.pirate.deadlineTs, round: gameState.pirate.round, history: gameState.pirate.history }
                     : undefined,
                 // 보안: marble.timeline / result / seed 등 결과 server-only 마스킹 (C-20, spinArena 패턴).
-                // reveal 전 결과 노출 = 공정성 위반. 재진입엔 동물 피커 복원용 phase/picks/ballsPerPlayer/round/history만 노출.
+                // reveal 전 결과 노출 = 공정성 위반. 재진입엔 동물 피커 복원용 phase/picks/crowd/round/history만 노출.
                 marble: gameState.marble
-                    ? { phase: gameState.marble.phase, picks: gameState.marble.picks, ballsPerPlayer: gameState.marble.ballsPerPlayer, round: gameState.marble.round, history: gameState.marble.history }
+                    ? { phase: gameState.marble.phase, picks: gameState.marble.picks, crowd: gameState.marble.crowd, round: gameState.marble.round, history: gameState.marble.history }
                     : undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
@@ -1276,7 +1276,7 @@ module.exports = (socket, io, ctx) => {
                 gameState.marble.picks[socket.userName] !== undefined) {
                 delete gameState.marble.picks[socket.userName];
                 if (gameState.marble.phase === 'idle') {
-                    io.to(roomId).emit('marble:stateUpdated', { picks: { ...gameState.marble.picks }, ballsPerPlayer: gameState.marble.ballsPerPlayer });
+                    io.to(roomId).emit('marble:stateUpdated', { picks: { ...gameState.marble.picks }, crowd: gameState.marble.crowd });
                 }
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.

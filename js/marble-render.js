@@ -13,6 +13,11 @@ var MarbleRender = (function () {
     var COUNTDOWN_MS = 4000;         // js/marble.js 카운트다운과 동일 — t<0 구간(서기 → 웅크림)
     var CURL_START_MS = -1100;       // 이 시각부터 curl 애니(4프레임 9fps ≈ 440ms) 후 공으로 대기
     var IDLE_T = -100000;            // 대기 화면 프레임 시각 — 카운트다운 전(서 있는 포즈) 구간을 그대로 쓴다
+    // 카운트다운 복제 연출: 사람당 1마리(num 1)는 대기 때부터 서 있고, 나머지는 이 구간에 순서대로 위에서 떨어져 마릿수를 보여준다
+    var SPAWN_START_MS = -COUNTDOWN_MS + 400;
+    var SPAWN_END_MS = CURL_START_MS - 350;   // 웅크리기 전에 전원 착지
+    var SPAWN_DROP_MS = 300;                  // 한 마리 낙하 시간
+    var SPAWN_DROP_H = 110;                   // 낙하 시작 높이(px)
     var GATE_ANIM_MS = 400;          // 출발 빗장 올라가는 시간
     var BEE_MS = 1800;
     var MUD_DIZZY_MS = 1000;
@@ -167,6 +172,11 @@ var MarbleRender = (function () {
             balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
                 x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, passAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
+            // 복제 연출 순서: 2번째 마리부터 번호순(같은 번호면 id순) — 프리뷰(전부 num 1)는 spawnAt=-Infinity 라 즉시 표시
+            var extras = balls.filter(function (b) { return b.num > 1; }).sort(function (a, c) { return a.num - c.num || a.id - c.id; });
+            var spawnIv = extras.length ? (SPAWN_END_MS - SPAWN_START_MS) / extras.length : 0;
+            balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
+            extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
             evCursor = 0; lastT = -1; fxList = []; cam.init = false;
             hudInfo = { remaining: balls.length, worst: [] };
@@ -699,7 +709,7 @@ var MarbleRender = (function () {
         function drawBalls(t) {
             var i, b, mine;
             // 그림자 먼저
-            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || !visible(b.y, 40)) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
+            for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done' || !visible(b.y, 40) || t < b.spawnAt) continue; drawShadow(b.x, b.y, b.state === 'roll' ? BALL_R : NAP_R); }
             // 후미 공(플레이어별) — 꼴찌 깃발 대상
             var rearByOwner = {};
             for (i = 0; i < balls.length; i++) { b = balls[i]; if (b.state === 'done') continue; if (!rearByOwner[b.owner] || b.y < rearByOwner[b.owner].y) rearByOwner[b.owner] = b; }
@@ -710,12 +720,17 @@ var MarbleRender = (function () {
                 if (t < 0) {
                     // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
                     // 공이 되기 전까지는 발밑 마커(플레이어 색 타원 + 번호)로, 완전히 말린 뒤에만 링을 그린다
+                    if (t < b.spawnAt) continue;   // 아직 안 나온 복제 마리
+                    var dropK = clamp((t - b.spawnAt) / SPAWN_DROP_MS, 0, 1);   // spawnAt=-Infinity → 1(착지 상태)
+                    var dropOff = (1 - dropK) * (1 - dropK) * SPAWN_DROP_H;     // 위에서 가속 낙하
+                    if (!b.landed && dropK >= 1) { b.landed = true; fxList.push({ type: 'dust', ball: b.id, t0: t, dur: POOF_FX_MS }); }
+                    var by = b.y - dropOff;
                     var curled = false;
                     if (b.dim) ctx.globalAlpha = 0.45;   // 대기 프리뷰: 동물은 골랐지만 아직 준비 안 한 사람(반투명)
-                    if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, b.y + 8);
-                    else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, b.y + (curled ? 0 : 8)); }
-                    if (curled) drawRing(b, b.x, b.y, BALL_R + 3, mine);
-                    else drawFootMarker(b, b.x, b.y, mine);
+                    if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, by + 8);
+                    else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, by + (curled ? 0 : 8)); }
+                    if (curled) drawRing(b, b.x, by, BALL_R + 3, mine);
+                    else drawFootMarker(b, b.x, by, mine);
                     ctx.globalAlpha = 1;
                     continue;
                 }
@@ -952,7 +967,8 @@ var MarbleRender = (function () {
         function drawHud(t) {
             ctx.save();
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
-            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비…' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '전원 도착!');
+            var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
+            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '전원 도착!');
             ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, ctx.measureText(txt).width + 20, 26, 8); ctx.fill();
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
             if (t >= 0 && hudInfo.worst.length) {

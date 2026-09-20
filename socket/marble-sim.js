@@ -15,6 +15,14 @@ const SAMPLE_FEW_MAX = 60;
 // ─── 인원/공 ───
 const MAX_BALLS = 200;
 const BALLS_PER_PLAYER_MIN = 1, BALLS_PER_PLAYER_MAX = 10, BALLS_PER_PLAYER_DEFAULT = 3;
+// 마릿수 3단계(호스트 선택). 인당 = clamp(floor(total / 인원), 1, perMax) — 인원이 많아지면 인당이 줄어 총 마릿수가 total 근처에 머문다.
+//   2명: 4 / 10 / 20마리, 10명: 20 / 50 / 100, 30명: 30 / 60 / 150, 100명: 100 / 100 / 100 (인당 최소 1)
+const CROWD_PRESETS = {
+    few:    { perMax: 2,  total: 30 },
+    normal: { perMax: 5,  total: 80 },
+    many:   { perMax: 10, total: 160 }
+};
+const CROWD_DEFAULT = 'normal';
 const START_ROW_SIZE = 13;        // 출발대 한 줄 공 수 (13 × 30 = 390 ≤ 출발대 폭 400)
 const START_SPACING = 30;
 
@@ -723,15 +731,22 @@ function rankPlayers(balls, finishOrder, participants) {
     return { rankings, successionList, selected: successionList[0] || null };
 }
 
+// 3단계 프리셋 → 인당 마릿수 (MAX_BALLS 캡 포함). 모르는 프리셋은 기본값.
+function crowdBallsPerPlayer(crowd, players) {
+    const p = CROWD_PRESETS[crowd] || CROWD_PRESETS[CROWD_DEFAULT];
+    const n = Math.max(1, Math.min(p.perMax, Math.floor(p.total / Math.max(1, players))));
+    return effectiveBallsPerPlayer(n, players);
+}
+
 function effectiveBallsPerPlayer(n, players) {
     const clamped = Math.max(BALLS_PER_PLAYER_MIN, Math.min(BALLS_PER_PLAYER_MAX, Math.floor(n) || BALLS_PER_PLAYER_DEFAULT));
     return Math.max(1, Math.min(clamped, Math.floor(MAX_BALLS / Math.max(1, players))));
 }
 
 module.exports = {
-    buildTrack, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, mulberry32,
+    buildTrack, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, crowdBallsPerPlayer, mulberry32,
     constants: {
-        SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT,
+        SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT, CROWD_PRESETS, CROWD_DEFAULT,
         BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, HOLE_COUNT, SLOW_ZONE_PX, SLOW_RATE
     }
 };

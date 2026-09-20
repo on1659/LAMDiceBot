@@ -54,7 +54,7 @@ async function startMarble(room, gameState, io, ctx) {
 
     const picks = {};
     participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
-    const ballsPerPlayer = sim.effectiveBallsPerPlayer(mb.ballsPerPlayer, participants.length);
+    const ballsPerPlayer = sim.crowdBallsPerPlayer(mb.crowd, participants.length);
     const seed = Math.floor(Math.random() * 2147483647);   // 서버 RNG 허용(시드 생성)
 
     clearMarbleTimers(mb);
@@ -161,7 +161,7 @@ function endGame(room, gameState, io, ctx) {
     ctx.updateRoomsList();
 }
 
-// 다음 판 리셋 — 동물 선택은 유지(같은 동물로 다시), ballsPerPlayer 유지
+// 다음 판 리셋 — 동물 선택은 유지(같은 동물로 다시), crowd 유지
 function resetMarble(mb) {
     clearMarbleTimers(mb);
     mb.phase = 'idle';
@@ -178,11 +178,13 @@ module.exports = (socket, io, ctx) => {
     const rateOk = () => (typeof ctx.checkRateLimit !== 'function') || ctx.checkRateLimit();
 
     // 상태 동기화 (server-only 정보 미포함). phase 는 경주 중 새로 들어온 사람이 "진행 중" 안내를 띄우는 용도.
-    // preview = 대기 화면용 출발대 배치(준비한 사람 × 마리 수). 결과와 무관한 순수 배치라 공정성 문제 없음 —
-    // 실제 시작은 별도 시드로 다시 섞는다. 준비 인원이 바뀌면 클라가 marble:requestState 로 다시 받는다.
+    // ballsPerPlayer = 현재 준비 인원 기준으로 crowd 프리셋을 환산한 인당 마릿수(안내용 — 시작 시점에 다시 계산).
+    // preview = 대기 화면용 출발대 배치(사람당 1마리 — 복제는 카운트다운 연출에서). 결과와 무관한 순수 배치라 공정성 문제 없음.
+    // 준비 인원이 바뀌면 클라가 marble:requestState 로 다시 받는다.
     function publicState(gameState) {
         const mb = gameState.marble;
-        return { phase: mb.phase, picks: { ...mb.picks }, ballsPerPlayer: mb.ballsPerPlayer, preview: idlePreview(gameState) };
+        const readyCount = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name)).length;
+        return { phase: mb.phase, picks: { ...mb.picks }, crowd: mb.crowd, ballsPerPlayer: sim.crowdBallsPerPlayer(mb.crowd, Math.max(1, readyCount)), preview: idlePreview(gameState) };
     }
     // 출발대에 서는 사람 = 준비했거나 동물을 고른 사람(고르면 바로 보이게). 준비 안 한 사람의 동물은 dim 표시.
     function idlePreview(gameState) {
@@ -192,8 +194,7 @@ module.exports = (socket, io, ctx) => {
         const participants = gameState.users.filter(u => ready.includes(u.name) || CREATURES.includes(mb.picks[u.name])).map(u => u.name);
         const picks = {};
         participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
-        const ballsPerPlayer = sim.effectiveBallsPerPlayer(mb.ballsPerPlayer, Math.max(1, participants.length));
-        const balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(PREVIEW_SEED));
+        const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         return {
             track: sim.buildTrack(Math.max(1, balls.length)),
             balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner) })),
@@ -221,8 +222,8 @@ module.exports = (socket, io, ctx) => {
         emitState(room, gameState);
     });
 
-    // 1인당 동물 수 (호스트, idle)
-    socket.on('marble:setBallsPerPlayer', (data) => {
+    // 마릿수 단계 (호스트, idle) — few | normal | many. 인당 마릿수는 서버가 인원으로 환산(sim.crowdBallsPerPlayer)
+    socket.on('marble:setCrowd', (data) => {
         if (!rateOk()) return;
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
@@ -231,10 +232,9 @@ module.exports = (socket, io, ctx) => {
         if (!user || !user.isHost) { socket.emit('marble:error', '방장만 바꿀 수 있습니다.'); return; }
         const mb = gameState.marble;
         if (mb.phase !== 'idle') { socket.emit('marble:error', '게임 시작 전에만 바꿀 수 있습니다.'); return; }
-        const n = parseInt(data && data.n, 10);
-        if (!Number.isFinite(n)) return;
-        const { BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX } = sim.constants;
-        mb.ballsPerPlayer = Math.max(BALLS_PER_PLAYER_MIN, Math.min(BALLS_PER_PLAYER_MAX, n));
+        const crowd = data && data.crowd;
+        if (!Object.prototype.hasOwnProperty.call(sim.constants.CROWD_PRESETS, crowd)) return;
+        mb.crowd = crowd;
         emitState(room, gameState);
     });
 

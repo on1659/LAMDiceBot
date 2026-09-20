@@ -6,7 +6,7 @@
 // ─── 공유 상수 (socket/marble.js 상단과 반드시 동일 값) ───
 var MARBLE_MIN_PLAYERS = 2;
 var MARBLE_COUNTDOWN_MS = 4000;    // 3-2-1 카운트다운 (MarbleRender.COUNTDOWN_MS 와 동일)
-var MARBLE_BALLS_MIN = 1, MARBLE_BALLS_MAX = 10, MARBLE_MAX_BALLS = 200;
+var MARBLE_CROWDS = ['few', 'normal', 'many'];   // 마릿수 3단계 — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
 
 // localhost 체크
@@ -57,7 +57,8 @@ var readyModuleInitialized = false;
 var marbleState = {
     phase: 'idle',           // idle | playing | finished
     picks: {},               // { userName: creatureId }
-    ballsPerPlayer: 3,
+    crowd: 'normal',         // 마릿수 단계 few|normal|many
+    ballsPerPlayer: 1,       // 서버가 준비 인원으로 환산한 인당 마릿수 (안내용)
     reveal: null,            // 마지막 reveal 페이로드 (결과 오버레이 지연 표시용)
     preview: null            // 대기 화면 출발대 배치 (서버 stateUpdated.preview — 준비한 사람의 동물)
 };
@@ -291,16 +292,9 @@ function pickCreature(id) {
     socket.emit('marble:pick', { creatureId: id });
     playMarbleSound('marble_bump', 0.5);
 }
-function onMarbleBallsInput(val) {
-    var label = document.getElementById('marbleBallsValue');
-    if (label) label.textContent = val;
-    renderBallsNote(parseInt(val, 10));
-}
-function setMarbleBalls(val) {
-    var n = parseInt(val, 10);
-    if (isNaN(n)) return;
-    n = Math.max(MARBLE_BALLS_MIN, Math.min(MARBLE_BALLS_MAX, n));
-    socket.emit('marble:setBallsPerPlayer', { n: n });
+function setMarbleCrowd(crowd) {
+    if (MARBLE_CROWDS.indexOf(crowd) < 0) return;
+    socket.emit('marble:setCrowd', { crowd: crowd });
 }
 function toggleMarbleFullscreen() {
     var box = document.getElementById('marbleCanvasBox');
@@ -311,8 +305,7 @@ function toggleMarbleFullscreen() {
 }
 window.startMarble = startMarble;
 window.pickCreature = pickCreature;
-window.onMarbleBallsInput = onMarbleBallsInput;
-window.setMarbleBalls = setMarbleBalls;
+window.setMarbleCrowd = setMarbleCrowd;
 window.toggleMarbleFullscreen = toggleMarbleFullscreen;
 
 function escapeHtml(str) {
@@ -335,28 +328,22 @@ function updateStartButton() {
         startBtn.disabled = !canStart;
         startBtn.textContent = rc < MARBLE_MIN_PLAYERS ? '🐾 경주 시작 (2명 이상 준비)' : '🐾 경주 시작';
     }
-    var range = document.getElementById('marbleBallsRange');
-    if (range) range.disabled = (marbleState.phase !== 'idle' || isMarbleActive);
-    renderBallsNote(marbleState.ballsPerPlayer);
+    var locked = (marbleState.phase !== 'idle' || isMarbleActive);
+    document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.disabled = locked; });
+    renderBallsNote();
 }
 
-// "1인당 N마리" 안내 — 준비 인원 × N 이 200을 넘으면 서버가 줄인다는 사실을 미리 보여준다
-function renderBallsNote(n) {
+// "준비 N명 × M마리 = 총 K마리" — M 은 서버가 준비 인원으로 환산해 내려준 값(인원이 많으면 인당이 줄어든다)
+function renderBallsNote() {
     var note = document.getElementById('marbleBallsNote');
     if (!note) return;
-    var rc = Math.max(readyCount(), 1);
-    var eff = Math.max(1, Math.min(n, Math.floor(MARBLE_MAX_BALLS / rc)));
-    note.textContent = eff < n
-        ? '준비 ' + rc + '명 × ' + n + '마리는 ' + MARBLE_MAX_BALLS + '마리를 넘어 ' + eff + '마리씩 달려요'
-        : '준비 ' + rc + '명 × ' + n + '마리 = 총 ' + (rc * n) + '마리';
+    var rc = Math.max(readyCount(), 1), n = marbleState.ballsPerPlayer;
+    note.textContent = '준비 ' + rc + '명 × ' + n + '마리 = 총 ' + (rc * n) + '마리 (인원이 늘면 인당 마릿수가 줄어요)';
 }
 
 function syncBallsControl() {
-    var range = document.getElementById('marbleBallsRange');
-    var label = document.getElementById('marbleBallsValue');
-    if (range) range.value = marbleState.ballsPerPlayer;
-    if (label) label.textContent = marbleState.ballsPerPlayer;
-    renderBallsNote(marbleState.ballsPerPlayer);
+    document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.classList.toggle('selected', b.getAttribute('data-crowd') === marbleState.crowd); });
+    renderBallsNote();
 }
 
 // 피커: 내 선택 강조 + 동물별 선택 인원 배지 + 상태 문구
@@ -379,7 +366,7 @@ function renderPickStatus() {
         var names = (typeof MarbleRender !== 'undefined') ? MarbleRender.CREATURE_NAMES : {};
         if (marbleState.phase !== 'idle') status.textContent = '경주 중에는 바꿀 수 없어요';
         else if (!mine) status.textContent = '동물을 고르면 출발대에 서요. 준비를 눌러야 경주에 나가요. 안 고르면 자동으로 배정돼요.';
-        else status.textContent = '내 동물: ' + (names[mine] || mine) + ' · 1인당 ' + marbleState.ballsPerPlayer + '마리';
+        else status.textContent = '내 동물: ' + (names[mine] || mine) + ' · ' + marbleState.ballsPerPlayer + '마리씩 달려요';
     }
 }
 
@@ -633,12 +620,12 @@ socket.on('roomJoined', function (data) {
 
     if (data.gameState) applyScheduledStart(data.gameState.scheduledStartAt, data.gameState.scheduledStartLabel);
 
-    // 재진입 복원 (서버 마스킹: phase/picks/ballsPerPlayer/round/history 만)
+    // 재진입 복원 (서버 마스킹: phase/picks/crowd/round/history 만)
     if (data.gameState && data.gameState.marble) {
         var mb = data.gameState.marble;
         marbleState.phase = mb.phase || 'idle';
         marbleState.picks = mb.picks || {};
-        if (typeof mb.ballsPerPlayer === 'number') marbleState.ballsPerPlayer = mb.ballsPerPlayer;
+        if (mb.crowd) marbleState.crowd = mb.crowd;
         localHistory = mb.history || [];
         renderHistory(localHistory);
         syncBallsControl();
@@ -841,6 +828,7 @@ socket.on('marble:error', function (message) {
 socket.on('marble:stateUpdated', function (data) {
     if (!data) return;
     marbleState.picks = data.picks || {};
+    if (data.crowd) marbleState.crowd = data.crowd;
     if (typeof data.ballsPerPlayer === 'number') marbleState.ballsPerPlayer = data.ballsPerPlayer;
     if (data.preview !== undefined) marbleState.preview = data.preview;
     // 경주 중 새로 들어온 사람(reveal 못 받음): 진행 중 안내만. 이미 재생 중이면 phase 는 reveal 이 관리한다.
