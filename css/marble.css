@@ -210,6 +210,7 @@
     font-size: 12px;
     font-weight: 800;
     white-space: nowrap;
+    min-height: 36px;              /* 터치 타깃 */
     cursor: pointer;
 }
 .marble-stage-btn.is-on {

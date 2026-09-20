@@ -6,7 +6,8 @@
 // ─── 공유 상수 (socket/marble.js 상단과 반드시 동일 값) ───
 var MARBLE_MIN_PLAYERS = 2;
 var MARBLE_COUNTDOWN_MS = 4000;    // 3-2-1 카운트다운 (MarbleRender.COUNTDOWN_MS 와 동일)
-var FS_SETTLE_MS = 400;            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
+var FS_SETTLE_MS = 400;
+var RESIZE_DEBOUNCE_MS = 120;      // resize/orientationchange 묶기            // 전체화면 이탈 애니메이션이 끝난 뒤 캔버스 크기를 다시 맞추는 지연
 var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
 var MARBLE_CROWDS = ['solo', 'few', 'normal', 'many'];   // 마릿수 4단계(솔로=인당 1) — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
@@ -221,7 +222,11 @@ window.addEventListener('DOMContentLoaded', function () {
         });
         // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
         var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && !replaying && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
-        window.addEventListener('resize', onResize);
+        var resizeTimer = null, onResizeDebounced = function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(onResize, RESIZE_DEBOUNCE_MS); };   // 폰 주소창 토글마다 미니맵 캐시 재생성 방지
+        window.addEventListener('resize', onResizeDebounced);
+        window.addEventListener('orientationchange', onResizeDebounced);
+        var fsBtn = document.getElementById('marbleFullscreenBtn');
+        if (fsBtn && !document.fullscreenEnabled && !document.webkitFullscreenEnabled) fsBtn.hidden = true;   // iPhone Safari: 전체화면 API 없음 — 눌러도 아무 일 없던 버튼 숨김
         // 전체화면 진입·이탈: 이벤트 시점엔 창이 아직 애니메이션 중일 수 있어(macOS) 잠시 뒤 한 번 더 맞춘다. 사파리는 webkit 접두사
         var onFsChange = function () { onResize(); setTimeout(onResize, FS_SETTLE_MS); };
         document.addEventListener('fullscreenchange', onFsChange);

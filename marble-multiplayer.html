@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=9">
+    <link rel="stylesheet" href="/css/marble.css?v=10">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -125,7 +125,7 @@
             font-size: 16px;
             font-weight: 700;
         }
-        @media (max-width: 480px) {
+        @media (max-width: 600px) {   /* css/marble.css·렌더러(NARROW_PX)와 같은 기준 */
             #scheduledStartBadge { font-size: 12px; padding: 5px 10px; }
             .schedule-preset-btn { font-size: 13px; padding: 9px 8px; }
         }
@@ -443,8 +443,8 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/marble-render.js?v=42"></script>
-    <script src="/js/marble.js?v=12"></script>
+    <script src="/js/marble-render.js?v=43"></script>
+    <script src="/js/marble.js?v=13"></script>
 
     <script>
         // ============================================
