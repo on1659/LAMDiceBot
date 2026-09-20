@@ -641,18 +641,24 @@ var MarbleRender = (function () {
                 ctx.fillStyle = '#c8b28c'; ctx.beginPath(); ctx.arc(x, toScreenY(y), BALL_R, 0, Math.PI * 2); ctx.fill();
             }
         }
+        // 이름표: 공 옆에 주인 이름(플레이어 색 알약). 번호 대신 누구 동물인지 바로 읽히게. 긴 이름은 앞 6자 + …
+        function drawNameTag(b, cx, cy, strong) {
+            var name = String(b.owner || ''); if (name.length > 6) name = name.slice(0, 6) + '…';
+            ctx.save();
+            ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            var w = ctx.measureText(name).width + 8, h = 12;
+            ctx.fillStyle = ringColor(b); roundRect(cx - w / 2, cy - h / 2, w, h, 6); ctx.fill();
+            if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+            ctx.fillStyle = '#fff'; ctx.fillText(name, cx, cy + 0.5);
+            ctx.restore();
+        }
         function drawRing(b, x, y, r, strong) {
             ctx.save();
             ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 4 : 2.5; ctx.globalAlpha = strong ? 1 : 0.85;
             if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
             ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
-            // 숫자 배지
-            ctx.save();
-            ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(x + r * 0.75, toScreenY(y) - r * 0.75, 6.5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(String(b.num), x + r * 0.75, toScreenY(y) - r * 0.75 + 0.5);
-            ctx.restore();
+            drawNameTag(b, x, toScreenY(y) - r - 7, strong);
         }
         // 서 있는 동물용 발밑 마커(카운트다운): 발 아래 타원 + 머리 옆 번호 배지 — 링 대신
         function drawFootMarker(b, x, y, strong) {
@@ -661,11 +667,7 @@ var MarbleRender = (function () {
             if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
             ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + 24, 15, 5, 0, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
-            ctx.save();
-            ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(x + 14, toScreenY(y) - 10, 6.5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(String(b.num), x + 14, toScreenY(y) - 9.5);
-            ctx.restore();
+            drawNameTag(b, x, toScreenY(y) - 22 - (b.id % 2) * 9, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 

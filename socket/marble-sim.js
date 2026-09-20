@@ -16,11 +16,11 @@ const SAMPLE_FEW_MAX = 60;
 const MAX_BALLS = 200;
 const BALLS_PER_PLAYER_MIN = 1, BALLS_PER_PLAYER_MAX = 10, BALLS_PER_PLAYER_DEFAULT = 3;
 // 마릿수 3단계(호스트 선택). 인당 = clamp(floor(total / 인원), 1, perMax) — 인원이 많아지면 인당이 줄어 총 마릿수가 total 근처에 머문다.
-//   2명: 4 / 10 / 20마리, 10명: 20 / 50 / 100, 30명: 30 / 60 / 150, 100명: 100 / 100 / 100 (인당 최소 1)
+//   2명: 4 / 8 / 16마리, 10명: 20 / 40 / 80, 30명: 30 / 30 / 90, 50명+: 인원수(인당 최소 1 — 사람마다 자기 동물이 하나는 있어야 하므로 하한)
 const CROWD_PRESETS = {
-    few:    { perMax: 2,  total: 30 },
-    normal: { perMax: 5,  total: 80 },
-    many:   { perMax: 10, total: 160 }
+    few:    { perMax: 2, total: 20 },
+    normal: { perMax: 4, total: 50 },
+    many:   { perMax: 8, total: 100 }
 };
 const CROWD_DEFAULT = 'normal';
 const START_ROW_SIZE = 13;        // 출발대 한 줄 공 수 (13 × 30 = 390 ≤ 출발대 폭 400)
