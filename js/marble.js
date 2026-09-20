@@ -378,7 +378,7 @@ function renderPickStatus() {
         var mine = picks[currentUser];
         var names = (typeof MarbleRender !== 'undefined') ? MarbleRender.CREATURE_NAMES : {};
         if (marbleState.phase !== 'idle') status.textContent = '경주 중에는 바꿀 수 없어요';
-        else if (!mine) status.textContent = '동물을 고른 뒤 준비를 누르세요. 안 고르면 자동으로 배정돼요.';
+        else if (!mine) status.textContent = '동물을 고르면 출발대에 서요. 준비를 눌러야 경주에 나가요. 안 고르면 자동으로 배정돼요.';
         else status.textContent = '내 동물: ' + (names[mine] || mine) + ' · 1인당 ' + marbleState.ballsPerPlayer + '마리';
     }
 }

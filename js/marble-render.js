@@ -164,7 +164,7 @@ var MarbleRender = (function () {
 
         R.setTimeline = function (payload, me) {
             data = payload; myName = me || '';
-            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num,
+            balls = payload.balls.map(function (b) { return { id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !!b.dim,
                 x: 0, y: 0, angle: 0, state: 'roll', stateAt: 0, dizzyUntil: 0, muddy: false, squashUntil: 0, finishIdx: -1, finishAt: 0, napAt: 0, wakeAt: -1e9, sunSince: -1, dir: 1, spd: 0, landAt: 0, walkKind: '', walkStallAt: 0, passAt: -1e9 }; });
             byId = {}; balls.forEach(function (b) { byId[b.id] = b; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
@@ -711,10 +711,12 @@ var MarbleRender = (function () {
                     // 카운트다운·대기 프리뷰: 서 있음 → 웅크림. 서 있는 프레임(≈32px 높이, 발이 y+25)은 공 링(r17)보다 커서 삐져나오므로
                     // 공이 되기 전까지는 발밑 마커(플레이어 색 타원 + 번호)로, 완전히 말린 뒤에만 링을 그린다
                     var curled = false;
+                    if (b.dim) ctx.globalAlpha = 0.45;   // 대기 프리뷰: 동물은 골랐지만 아직 준비 안 한 사람(반투명)
                     if (t < CURL_START_MS) drawCreatureFrame(b, 0, Math.floor((t + 100000) / 140) % 4, b.x, b.y + 8);
                     else { var cf = Math.min(3, Math.floor((t - CURL_START_MS) / 110)); curled = cf === 3; drawCreatureFrame(b, 1, cf, b.x, b.y + (curled ? 0 : 8)); }
                     if (curled) drawRing(b, b.x, b.y, BALL_R + 3, mine);
                     else drawFootMarker(b, b.x, b.y, mine);
+                    ctx.globalAlpha = 1;
                     continue;
                 }
                 if (b.state === 'nap' || b.state === 'pit') {

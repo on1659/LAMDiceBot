@@ -184,18 +184,19 @@ module.exports = (socket, io, ctx) => {
         const mb = gameState.marble;
         return { phase: mb.phase, picks: { ...mb.picks }, ballsPerPlayer: mb.ballsPerPlayer, preview: idlePreview(gameState) };
     }
+    // 출발대에 서는 사람 = 준비했거나 동물을 고른 사람(고르면 바로 보이게). 준비 안 한 사람의 동물은 dim 표시.
     function idlePreview(gameState) {
         const mb = gameState.marble;
         if (mb.phase !== 'idle') return null;
         const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
-        const participants = gameState.users.filter(u => ready.includes(u.name)).map(u => u.name);
+        const participants = gameState.users.filter(u => ready.includes(u.name) || CREATURES.includes(mb.picks[u.name])).map(u => u.name);
         const picks = {};
         participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
         const ballsPerPlayer = sim.effectiveBallsPerPlayer(mb.ballsPerPlayer, Math.max(1, participants.length));
         const balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(PREVIEW_SEED));
         return {
             track: sim.buildTrack(Math.max(1, balls.length)),
-            balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num })),
+            balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner) })),
             frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
         };
     }
