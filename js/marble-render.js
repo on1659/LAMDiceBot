@@ -41,7 +41,7 @@ var MarbleRender = (function () {
     var SUN_UNCURL_MS = 240;         // 펴지는 전환 프레임 시간
     var WAKE_POSE_MS = 380;          // 깨어남 → 벌떡(sleep 시트 col 2·3) 후 다시 공
     var GATE_TILE_SRC_W = 128, GATE_TILE_OVERLAP_SRC = 8;   // last-gate 타일 — 양 끝 기둥이 8px 겹치게
-    var DAM_FRAMES = 3;              // beaver-dam.png 프레임 수 (셀 480×256). 5프레임 에셋 도착 시 5로
+    var DAM_FRAMES = 5;              // beaver-dam.png 프레임 수 (2400×256, 셀 480×256): 온전/금 살짝/금 많이/금+물/터짐
 
     // 24색 플레이어 링 팔레트 (참가자 순서 index) — spin-arena 24색과 동일 hue 분포
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',

@@ -961,11 +961,11 @@
       "beaver-dam": {
         "image": "pieces/beaver-dam.png",
         "canvas": [
-          1440,
+          2400,
           256
         ],
         "grid": [
-          3,
+          5,
           1
         ],
         "cell": [
@@ -979,10 +979,20 @@
         "sourcePlaneY": 256,
         "frames": [
           "intact",
+          "crack-light",
+          "crack-heavy-droplets",
           "cracked-leaking",
           "burst"
         ],
-        "targetGamePath": "assets/marble/pieces/beaver-dam.png"
+        "targetGamePath": "assets/marble/pieces/beaver-dam.png",
+        "pressureStages": [
+          0,
+          0.25,
+          0.5,
+          0.75,
+          1
+        ],
+        "batch": "marble-run-dam-frames-2026-09-20"
       },
       "beehive": {
         "image": "pieces/beehive.png",
