@@ -73,6 +73,7 @@ var MarbleRender = (function () {
     var SUN_UNCURL_MS = 240;         // 펴지는 전환 프레임 시간
     var WAKE_POSE_MS = 380;          // 깨어남 → 벌떡(sleep 시트 col 2·3) 후 다시 공
     // 구멍 앞 몸싸움(6차 scuffle 스트립 4×2: 윗줄 밀기 4 / 아랫줄 화들짝·낙하·어지러움 A·B). 서버 scuffle/scuffleEnd 이벤트 + land.dizzy 로 그린다 — 물리 위치는 그대로, 연출만
+    var SCUFFLE_UNCURL_MS = 120;     // 밀기 전 공 풀기(uncurl 2프레임) — 만나면 바로 붙게 짧게
     var SCUFFLE_PUSH_MS = 130;       // 밀기 한 프레임
     var SCUFFLE_WOBBLE_MS = 520, SCUFFLE_WOBBLE_PX = 2.5;   // 둘이 같이 밀렸다 돌아오는 x 흔들림(주기·진폭)
     var SCUFFLE_STAND_DY = -8;       // 서 있는 스프라이트 중심 = 공 중심 + 이 값 (발이 뚜껑 윗면에 닿게)
@@ -1107,8 +1108,8 @@ var MarbleRender = (function () {
             var since = Math.max(0, t - b.scuffleAt), flip = !b.scuffleLeft;
             var wob = Math.sin(since / SCUFFLE_WOBBLE_MS * Math.PI * 2) * SCUFFLE_WOBBLE_PX;
             var x = b.x + wob, y = b.y + SCUFFLE_STAND_DY;
-            if (since < SUN_UNCURL_MS) { drawCreatureFlipped(b, 3, since < SUN_UNCURL_MS / 2 ? 0 : 1, x, y, flip); return; }
-            var col = Math.floor((since - SUN_UNCURL_MS) / SCUFFLE_PUSH_MS) % 4;
+            if (since < SCUFFLE_UNCURL_MS) { drawCreatureFlipped(b, 3, since < SCUFFLE_UNCURL_MS / 2 ? 0 : 1, x, y, flip); return; }
+            var col = Math.floor((since - SCUFFLE_UNCURL_MS) / SCUFFLE_PUSH_MS) % 4;
             if (!drawScuffleFrame(b, 0, col, x, y, flip)) drawCreatureFlipped(b, 0, Math.floor(since / 200) % 2, x, y, flip);
         }
         // 착지 기절: 주저앉아 어지러움 A/B 교대 + 머리 위 별 궤도(6차 fx, 없으면 💫). 시트 없으면 faceplant col 3(별)
