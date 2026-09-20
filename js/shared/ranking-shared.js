@@ -1016,9 +1016,10 @@ const RankingModule = (function () {
             { label: '🎲 주사위', key: 'dice', color: '#667eea' },
             { label: '🐎 경마', key: 'horse', color: '#e67e22' },
             { label: '🎰 룰렛', key: 'roulette', color: '#7c4dff' },
-            { label: '🪜 사다리타기', key: 'ladder', color: '#f59e0b' },
-            { label: '🐾 마블런', key: 'marble', color: '#3fa65b' }
+            { label: '🪜 사다리타기', key: 'ladder', color: '#f59e0b' }
         ];
+        // 마블런은 미출시(로비 라벨 devFlags) — 기록이 있거나 마블런 방에서 연 경우에만 탭을 보인다
+        if (marbleTabVisible(data)) gameTabs.push({ label: '🐾 마블런', key: 'marble', color: '#3fa65b' });
         if (data.orders) {
             gameTabs.push({ label: '🍜 주문', key: 'orders', color: '#e91e63' });
         }
@@ -1341,9 +1342,14 @@ const RankingModule = (function () {
     // ─── 스와이프 제스처 ───
 
     function getGameTabKeys() {
-        const keys = ['dice', 'horse', 'roulette', 'ladder', 'marble'];
+        const keys = ['dice', 'horse', 'roulette', 'ladder'];
+        if (marbleTabVisible(_cache)) keys.push('marble');
         if (_cache && _cache.orders) keys.push('orders');
         return keys;
+    }
+    function marbleTabVisible(data) {
+        const hasRecords = !!(data && data.marble && ((data.marble.winners || []).length || (data.marble.players || []).length));
+        return hasRecords || _currentGameTab === 'marble';
     }
 
     function setupGestures() {
