@@ -10,6 +10,7 @@ var FS_SETTLE_MS = 400;            // 전체화면 이탈 애니메이션이 끝
 var REPLAY_END_GRACE_MS = 300;     // 다시 보기 재생이 끝난 뒤 버튼을 되돌리기까지 여유
 var MARBLE_CROWDS = ['solo', 'few', 'normal', 'many'];   // 마릿수 4단계(솔로=인당 1) — 인당 수 환산은 서버(socket/marble-sim.js crowdBallsPerPlayer)
 var MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
+var MY_HIGHLIGHT_KEY = 'marbleMyHighlight';   // localStorage — 내 동물 강조 모드(보는 사람 설정, 기본 켬)
 
 // localhost 체크
 var isLocalhost = window.location.hostname === 'localhost' ||
@@ -208,6 +209,8 @@ window.addEventListener('DOMContentLoaded', function () {
     var canvas = document.getElementById('marbleCanvas');
     if (canvas && typeof MarbleRender !== 'undefined') {
         renderer = MarbleRender.create(canvas);
+        renderer.setHighlight(getMyHighlight());
+        updateHighlightButton();
         MarbleRender.loadAssets(function () {
             assetsLoaded = true;
             document.querySelectorAll('.marble-creature-btn').forEach(function (btn) {
@@ -389,6 +392,30 @@ function reopenResult() { if (lastResult) showResultOverlay(lastResult); }
 function resetMarbleRound() { socket.emit('marble:reset'); }
 window.reopenResult = reopenResult;
 window.resetMarbleRound = resetMarbleRound;
+
+// 내 동물 강조 스위치 — 내 화면에서 내 동물은 금색 링, 남의 동물은 옅게. 화면 위 버튼, 설정은 이 브라우저에만 저장
+function getMyHighlight() { try { return localStorage.getItem(MY_HIGHLIGHT_KEY) !== 'false'; } catch (e) { return true; } }
+function updateHighlightButton() {
+    var btn = document.getElementById('marbleHighlightBtn');
+    if (!btn) return;
+    var on = getMyHighlight();
+    btn.textContent = on ? '✨ 내 동물 강조 켬' : '내 동물 강조 끔';
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+function toggleMyHighlight() {
+    var on = !getMyHighlight();
+    try { localStorage.setItem(MY_HIGHLIGHT_KEY, on ? 'true' : 'false'); } catch (e) {}
+    if (renderer) {
+        renderer.setHighlight(on);
+        if (!renderer.isPlaying() && assetsLoaded) {   // 재생 중이면 다음 프레임에 반영, 멈춰 있으면 지금 다시 그린다
+            if (marbleState.reveal && (marbleState.phase === 'finished' || replaying)) renderer.render(marbleState.reveal.durationMs, 0.016);
+            else renderer.drawIdle(marbleState.preview, currentUser);
+        }
+    }
+    updateHighlightButton();
+}
+window.toggleMyHighlight = toggleMyHighlight;
 
 // 경주 다시 보기 — 서버가 보낸 타임라인(marbleState.reveal)을 카운트다운·소리 없이 혼자 다시 재생한다.
 // 방장이 다음 판을 준비(roundReset)하거나 새 reveal 이 오면 끝난다. 다른 사람 화면과 무관(나만 보임).

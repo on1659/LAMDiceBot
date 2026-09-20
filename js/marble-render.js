@@ -54,7 +54,9 @@ var MarbleRender = (function () {
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
     var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
     var MINIMAP_ICON_PX = 10;        // 미니맵 동물 얼굴 아이콘 크기
-    var HUD_ICON_PX = 18;            // 꼴찌 후보 목록 동물 얼굴 아이콘 크기
+    var HUD_ICON_PX = 18;
+    var MY_RING = '#ffd54a', MY_RING_OUTER = '#ffffff';   // 내 동물 강조 모드: 참가자 색 대신 금색 굵은 링 + 흰 바깥 링(보는 사람 기준 — 내 화면에선 내 것이 늘 이 색)
+    var OTHER_RING_ALPHA = 0.55;     // 강조 모드에서 남의 링·이름표 투명도            // 꼴찌 후보 목록 동물 얼굴 아이콘 크기
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
@@ -177,6 +179,7 @@ var MarbleRender = (function () {
         var startWall = 0;        // 재생 기준 performance.now()
         var rafId = null;
         var hudInfo = { remaining: 0, worst: [] };
+        var highlightMine = true;   // R.setHighlight — 내 동물 강조 모드(기본 켬)
         var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
 
@@ -218,6 +221,7 @@ var MarbleRender = (function () {
             R.resize();
         };
         R.setPhase = function (p) { phase = p; };
+        R.setHighlight = function (on) { highlightMine = !!on; };
         R.onFinale = function (cb) { onFinaleCb = cb; };
 
         // ─── 재생 ───
@@ -873,19 +877,30 @@ var MarbleRender = (function () {
         // 이름표: 공 옆에 주인 이름(플레이어 색 알약). 번호 대신 누구 동물인지 바로 읽히게. 긴 이름은 앞 6자 + …
         function drawNameTag(b, cx, cy, strong) {
             var name = String(b.owner || ''); if (name.length > 6) name = name.slice(0, 6) + '…';
+            var hl = highlightMine && strong;   // 강조 모드: 내 이름표는 금색, 남의 것은 옅게
             ctx.save();
+            if (highlightMine && !strong) ctx.globalAlpha = OTHER_RING_ALPHA;
             ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             var w = ctx.measureText(name).width + 8, h = 12;
-            ctx.fillStyle = ringColor(b); roundRect(cx - w / 2, cy - h / 2, w, h, 6); ctx.fill();
+            ctx.fillStyle = hl ? MY_RING : ringColor(b); roundRect(cx - w / 2, cy - h / 2, w, h, 6); ctx.fill();
             if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
-            ctx.fillStyle = '#fff'; ctx.fillText(name, cx, cy + 0.5);
+            ctx.fillStyle = hl ? '#4a3000' : '#fff'; ctx.fillText(name, cx, cy + 0.5);
             ctx.restore();
         }
         function drawRing(b, x, y, r, strong) {
             ctx.save();
-            ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 4 : 2.5; ctx.globalAlpha = strong ? 1 : 0.85;
-            if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
-            ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+            if (highlightMine && strong) {   // 내 동물: 금색 굵은 링 + 흰 바깥 링 + 글로우
+                ctx.shadowColor = MY_RING; ctx.shadowBlur = 12;
+                ctx.strokeStyle = MY_RING; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+                ctx.shadowBlur = 0; ctx.strokeStyle = MY_RING_OUTER; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, toScreenY(y), r + 3, 0, Math.PI * 2); ctx.stroke();
+            } else if (highlightMine) {      // 남의 동물: 얇고 옅게
+                ctx.strokeStyle = ringColor(b); ctx.lineWidth = 1.5; ctx.globalAlpha = OTHER_RING_ALPHA;
+                ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+            } else {
+                ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 4 : 2.5; ctx.globalAlpha = strong ? 1 : 0.85;
+                if (strong) { ctx.shadowColor = ringColor(b); ctx.shadowBlur = 8; }
+                ctx.beginPath(); ctx.arc(x, toScreenY(y), r, 0, Math.PI * 2); ctx.stroke();
+            }
             ctx.restore();
             drawNameTag(b, x, toScreenY(y) - r - 7, strong);
         }

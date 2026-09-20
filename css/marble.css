@@ -192,6 +192,31 @@
 #marbleStage {
     margin: 0 0 20px;
 }
+/* 캔버스 위 도구 줄 (내 동물 강조 스위치) */
+.marble-stage-tools {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+}
+.marble-stage-btn {
+    width: auto;
+    margin: 0;
+    padding: 6px 11px;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 999px;
+    background: var(--bg-white);
+    color: var(--text-secondary);
+    font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.marble-stage-btn.is-on {
+    border-color: var(--yellow-400);
+    background: var(--yellow-400);
+    color: #4a3000;
+}
 .marble-after-race {
     display: flex;
     gap: 10px;

@@ -38,7 +38,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- horse-race.css: .container, .game-section, .users-section, .chat-section 등 공통 레이아웃 -->
     <link rel="stylesheet" href="/css/horse-race.css">
-    <link rel="stylesheet" href="/css/marble.css?v=7">
+    <link rel="stylesheet" href="/css/marble.css?v=8">
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
@@ -320,6 +320,10 @@
             </section>
             <!-- 경주 캔버스 -->
             <section id="marbleStage">
+                <!-- 캔버스 위 도구 줄: 내 동물 강조 스위치(보는 사람 설정) -->
+                <div class="marble-stage-tools">
+                    <button type="button" class="marble-stage-btn" id="marbleHighlightBtn" onclick="toggleMyHighlight()" aria-pressed="true">✨ 내 동물 강조 켬</button>
+                </div>
                 <div id="marbleCanvasBox">
                     <canvas id="marbleCanvas" width="800" height="600" aria-label="마블런 경주 캔버스"></canvas>
                     <div id="marbleHud"></div>
@@ -438,8 +442,8 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/marble-render.js?v=39"></script>
-    <script src="/js/marble.js?v=10"></script>
+    <script src="/js/marble-render.js?v=40"></script>
+    <script src="/js/marble.js?v=11"></script>
 
     <script>
         // ============================================
