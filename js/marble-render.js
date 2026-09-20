@@ -130,6 +130,9 @@ var MarbleRender = (function () {
         return 0;
     }
     function windmillAngle(w, t) { return 2 * Math.PI * t / w.period; }
+    // 주기 장치(두더지·선풍기) 켜짐 판정 — socket/marble-sim.js deviceOn 과 같은 식
+    function deviceOn(d, t) { var c = ((t + d.phase) % d.period + d.period) % d.period; return c < (d.on != null ? d.on : d.up); }
+    function devicePhase(d, t) { return (((t + d.phase) % d.period + d.period) % d.period) / (d.on != null ? d.on : d.up); }   // 켜진 창 안 진행도(0~1, 꺼져 있으면 >1)
     // 결정론 해시(파티클 분산용 — Math.random 대체)
     function hash01(n) { var x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
 
@@ -154,6 +157,7 @@ var MarbleRender = (function () {
         var startWall = 0;        // 재생 기준 performance.now()
         var rafId = null;
         var hudInfo = { remaining: 0, worst: [] };
+        var ffDir = 1;             // 플립플롭 팔 방향 — flip 이벤트로 바뀐다(시크 시 조각 초기값으로 리셋)
         var onFinaleCb = null;
 
         R.loadAssets = loadAll;
@@ -188,7 +192,7 @@ var MarbleRender = (function () {
             balls.forEach(function (b) { b.spawnAt = -Infinity; b.landed = true; });
             extras.forEach(function (b, k) { b.spawnAt = SPAWN_START_MS + k * spawnIv; b.landed = false; });
             pieces = {}; payload.track.pieces.forEach(function (p) { (pieces[p.kind] = pieces[p.kind] || []).push(p); });
-            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null;
+            evCursor = 0; lastT = -1; fxList = []; cam.init = false; mmCache = null; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1;
             hudInfo = { remaining: balls.length, worst: [] };
             R.resize();
         };
@@ -216,7 +220,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.doneX = null; b.doneY = null; b.graveLanded = false; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -226,7 +230,8 @@ var MarbleRender = (function () {
                     case 'wake': if (b.state === 'walk') { b.walkKind = ''; } else if (b.state !== 'done') { b.state = 'roll'; b.wakeAt = e.t; } fxList.push({ type: 'wake', ball: b.id, t0: e.t, dur: WAKE_FX_MS }); break;
                     case 'pitFall': b.state = 'pit'; b.pitAt = e.t; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'pitErupt': fxList.push({ type: 'geyser', x: e.x, y: e.y, count: e.count || 1, t0: e.t, dur: GEYSER_FX_MS }); break;
-                    case 'jump': fxList.push({ type: 'jump', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
+                    case 'mole': fxList.push({ type: 'mole', x: e.x, y: e.y, t0: e.t, dur: POOF_FX_MS }); b.squashUntil = e.t + 160; break;
+                    case 'flip': ffDir = e.dir; break;
                     case 'mud': b.state = 'mud'; b.muddy = true; fxList.push({ type: 'mud', ball: b.id, t0: e.t, dur: MUD_FX_MS }); break;
                     case 'mudEnd': b.state = 'roll'; b.dizzyUntil = e.t + MUD_DIZZY_MS; break;
                     case 'bump': fxList.push({ type: 'star', x: e.x, y: e.y, t0: e.t, dur: BUMP_FX_MS }); if (b) b.squashUntil = e.t + 160; break;
@@ -471,25 +476,6 @@ var MarbleRender = (function () {
                 label('☀ 햇볕 잔디', z.x + 26, z.y - 30, '#fff7c0', 12);
                 label('노란 자리를 밟으면 느려지고 잠들 수 있어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
             });
-            // 지그재그 경사로의 구멍(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
-            (pieces.zzhole || []).forEach(function (h) {
-                if (!visible(h.y, 40)) return;
-                ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
-                ctx.fillStyle = 'rgba(40,25,10,0.85)'; roundRect(-h.w / 2, -5, h.w, 10, 5); ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
-                ctx.restore();
-                label('↓', h.x, h.y - 16, '#ffe08a', 12);
-            });
-            (pieces.pit || []).forEach(function (pt) {
-                var z = pt.zone; if (!visible(z.y + z.h / 2, z.h)) return;
-                if (!drawSprite('pieces', 'pit', z.x + z.w / 2, z.y + z.h, 480, 160, { anchor: 'bottom', scale: z.w / (480 * SRC_SCALE) })) placeholderBox(z.x, z.y, z.w, z.h, 'rgba(70,45,25,0.9)', '#3b2412', '간헐천', 14);
-            });
-            (pieces.mud || []).forEach(function (m) {
-                if (!visible(m.y, 60)) return;
-                if (!drawSprite('pieces', 'mud-puddle', m.x, m.y, 192, 80, { scale: m.rx * 2 / (192 * SRC_SCALE) })) {
-                    ctx.save(); ctx.fillStyle = '#6b4a2b'; ctx.beginPath(); ctx.ellipse(m.x, toScreenY(m.y), m.rx, m.ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-                }
-            });
             (pieces.wall || []).forEach(function (w) { if (visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });
             (pieces.stake || []).forEach(function (s) {
                 if (!visible(s.y, 20)) return;
@@ -522,19 +508,64 @@ var MarbleRender = (function () {
                 }
                 label('풍차 — 날개에 맞으면 튕겨요', wm.x, wm.y - wm.len - 16, '#fff', 12);
             });
-            (pieces.jumppad || []).forEach(function (jp) {
-                if (!visible(jp.y, 40)) return;
-                // 점프대: 경사로 각도로 눕힌 노란 발판 + 아래 스프링. 방금 밟혔으면(jump fx) 눌린 모습
-                var pressed = fxList.some(function (f) { return f.type === 'jump' && f.x === jp.x && t - f.t0 < 180; });
-                ctx.save(); ctx.translate(jp.x, toScreenY(jp.y)); ctx.rotate(jp.angle);
-                ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 2; ctx.beginPath();
-                for (var si = -1; si <= 1; si++) { ctx.moveTo(si * 9 - 4, 3); ctx.lineTo(si * 9 + 4, pressed ? 6 : 10); }
-                ctx.stroke();
-                ctx.fillStyle = pressed ? '#ffd23a' : '#ffb01f'; roundRect(-jp.len / 2, pressed ? -1 : -4, jp.len, 7, 3); ctx.fill();
-                ctx.strokeStyle = '#8a5a10'; ctx.lineWidth = 1.5; ctx.stroke();
-                ctx.fillStyle = '#7a3a00'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText('▲▲', 0, pressed ? 2.5 : -0.5);
+            (pieces.mole || []).forEach(function (m) {
+                if (!visible(m.y, 50)) return;
+                // 두더지 구멍(경사로 각도로 눕힌 타원) + 올라온 동안 갈색 두더지(분홍 코) — 코드 도형. 에셋 오면 mole.png 2프레임으로 교체
+                var on = deviceOn(m, Math.max(0, t)), ph = devicePhase(m, Math.max(0, t));
+                var pop = on ? Math.sin(Math.min(1, ph) * Math.PI) : 0;   // 올라왔다 내려감
+                ctx.save(); ctx.translate(m.x, toScreenY(m.y)); ctx.rotate(m.angle);
+                ctx.fillStyle = 'rgba(40,25,10,0.9)'; ctx.beginPath(); ctx.ellipse(0, 0, m.r, m.r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
+                if (pop > 0.05) {
+                    var mh = 26 * pop;
+                    ctx.save(); ctx.translate(m.x, toScreenY(m.y));
+                    ctx.beginPath(); ctx.rect(-m.r - 4, -60, m.r * 2 + 8, 60 + 2); ctx.clip();   // 구멍 위로만
+                    ctx.fillStyle = '#6b4a2b'; ctx.beginPath(); ctx.ellipse(0, -mh + 10, 12, 16, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#f2a1b0'; ctx.beginPath(); ctx.arc(0, -mh + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-5, -mh - 2, 1.6, 0, Math.PI * 2); ctx.arc(5, -mh - 2, 1.6, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                }
+            });
+            (pieces.flipflop || []).forEach(function (f) {
+                if (!visible(f.y, 80)) return;
+                // 팔: 축에서 아래로, ffDir 쪽으로 젖힘. 라벨로 지름길/돌아가는 길 표시
+                var a = f.angleDeg * Math.PI / 180;
+                ctx.save(); ctx.translate(f.x, toScreenY(f.y)); ctx.rotate(-ffDir * a);
+                ctx.fillStyle = '#c9944f'; roundRect(-5, -4, 10, f.len + 4, 4); ctx.fill(); ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.restore();
+                ctx.fillStyle = '#4a3420'; ctx.beginPath(); ctx.arc(f.x, toScreenY(f.y), 6, 0, Math.PI * 2); ctx.fill();
+                label(ffDir < 0 ? '◀ 이번엔 왼쪽' : '이번엔 오른쪽 ▶', f.x, f.y - 22, '#ffe08a', 12);
+                label('지름길', f.x - 125, f.y + 80, '#dfffd0', 12);
+                label('돌아가는 길', f.x + 125, f.y + 80, '#ffd0d0', 12);
+            });
+            (pieces.belt || []).forEach(function (bt) {
+                if (!visible(bt.y1, 30)) return;
+                // 컨베이어: 어두운 띠 + 이동 방향으로 흐르는 밝은 줄(t 파생). 에셋 오면 belt.png 4프레임 타일로 교체
+                var w = bt.x2 - bt.x1, sy = toScreenY(bt.y1);
+                ctx.save();
+                ctx.fillStyle = '#3b3b3b'; roundRect(bt.x1, sy - 7, w, 14, 5); ctx.fill();
+                ctx.beginPath(); ctx.rect(bt.x1 + 2, sy - 6, w - 4, 12); ctx.clip();
+                ctx.strokeStyle = 'rgba(255,220,120,0.8)'; ctx.lineWidth = 2;
+                var off = ((Math.max(0, t) / 1000 * bt.speed) % 16 + 16) % 16;
+                for (var sx = bt.x1 - 16 + off; sx < bt.x2 + 16; sx += 16) { ctx.beginPath(); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx + (bt.speed > 0 ? 6 : -6), sy); ctx.lineTo(sx, sy + 5); ctx.stroke(); }
+                ctx.restore();
+                ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(bt.x1, sy, 6, 0, Math.PI * 2); ctx.arc(bt.x2, sy, 6, 0, Math.PI * 2); ctx.fill();
+            });
+            (pieces.fan || []).forEach(function (f) {
+                if (!visible(f.y, f.band)) return;
+                // 선풍기: 벽에 붙은 둥근 몸통 + 도는 날개, 켜진 동안 바람 줄(띠 전체). 에셋 오면 fan.png 2프레임으로 교체
+                var on = deviceOn(f, Math.max(0, t)), sy = toScreenY(f.y), bx = f.x + f.dir * 22;
+                ctx.save(); ctx.translate(bx, sy);
+                ctx.fillStyle = '#5a6472'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+                ctx.rotate(on ? Math.max(0, t) / 60 : Math.max(0, t) / 400); ctx.fillStyle = '#c8d0da';
+                for (var bi = 0; bi < 3; bi++) { ctx.beginPath(); ctx.ellipse(0, -10, 5, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.rotate(Math.PI * 2 / 3); }
+                ctx.restore();
+                if (on) {
+                    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -(Math.max(0, t) / 4) * f.dir;
+                    for (var li = -2; li <= 2; li++) { var ly = sy + li * f.band / 5; ctx.beginPath(); ctx.moveTo(f.x + f.dir * 40, ly); ctx.lineTo(f.x + f.dir * 480, ly + (li % 2 ? 6 : -6)); ctx.stroke(); }
+                    ctx.restore();
+                    label('바람!', bx + f.dir * 60, f.y - 26, '#fff', 13);
+                }
             });
             (pieces.beehive || []).forEach(function (h) {
                 if (!visible(h.y, 60)) return;
@@ -1016,7 +1047,7 @@ var MarbleRender = (function () {
                     case 'star': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10 - k * 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); break;
                     case 'mud': if (!visible(y, 40)) return; if (!drawSprite('fx', 'mud-splash', x, y - 8, 128, 96, { sx: frame * 128, sw: 128 })) { ctx.fillStyle = 'rgba(90,60,30,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y) - 12 - k * 14, 6 - k * 4, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
-                    case 'jump': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('휙!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
+                    case 'mole': if (!visible(y, 40)) return; drawSprite('fx', 'dust-puff', x, y + 4, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k }); label('쿵!', x, y - 18 - k * 24, 'rgba(255,240,160,' + (1 - k).toFixed(2) + ')', 13); break;
                     case 'poof': if (!visible(y, 40)) return; if (!drawSprite('fx', 'curl-poof', x, y, 96, 96, { sx: frame * 96, sw: 96, alpha: 1 - k })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 10 + k * 16, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'wake': if (!visible(y, 40)) return; if (!drawSprite('fx', 'wake', x, y - 26, 48, 48, { sx: frame * 48, sw: 48 })) label('!', x, y - 26 - k * 8, '#fff7a0', 18); break;
                     case 'bees': {
@@ -1089,7 +1120,10 @@ var MarbleRender = (function () {
                     case 'dam': g.fillStyle = '#7fa6d6'; g.fillRect(X(p.x1), Y(p.y1) - 1.5, (p.x2 - p.x1) * sc, 3); if (p.gap) { g.fillStyle = '#bfefff'; g.fillRect(X(p.gap.x1), Y(p.y1) - 1.5, (p.gap.x2 - p.gap.x1) * sc, 3); } break;
                     case 'pit': g.fillStyle = '#2b1a0a'; ell(X(p.zone.x + p.zone.w / 2), Y(p.zone.y + p.zone.h / 2), p.zone.w * sc / 2, p.zone.h * sc / 2); break;
                     case 'windmill': g.strokeStyle = '#e0bd82'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len), Y(p.y)); g.lineTo(X(p.x + p.len), Y(p.y)); g.moveTo(X(p.x), Y(p.y - p.len)); g.lineTo(X(p.x), Y(p.y + p.len)); g.stroke(); break;
-                    case 'jumppad': g.fillStyle = '#ffb01f'; g.fillRect(X(p.x) - 2, Y(p.y) - 1, 4, 2); break;
+                    case 'mole': g.fillStyle = '#5a3d22'; dot(X(p.x), Y(p.y), 1.8); break;
+                    case 'flipflop': g.strokeStyle = '#ffe08a'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x - 20), Y(p.y + 40)); g.moveTo(X(p.x), Y(p.y)); g.lineTo(X(p.x + 20), Y(p.y + 40)); g.stroke(); break;
+                    case 'belt': g.strokeStyle = '#ffd166'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
+                    case 'fan': g.fillStyle = '#c8d0da'; g.beginPath(); g.moveTo(X(p.x), Y(p.y - 12)); g.lineTo(X(p.x + p.dir * 24), Y(p.y)); g.lineTo(X(p.x), Y(p.y + 12)); g.closePath(); g.fill(); break;
                     case 'seesaw': g.strokeStyle = '#c9944f'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(p.x - p.len / 2), Y(p.y)); g.lineTo(X(p.x + p.len / 2), Y(p.y)); g.stroke(); break;
                     case 'holefield': g.fillStyle = '#1e1208'; p.holes.forEach(function (hh) { g.fillRect(X(hh.x - hh.w / 2), Y(hh.y), Math.max(1.5, hh.w * sc), Math.max(2, p.pipeH * sc)); }); break;
                     case 'lane': g.fillStyle = 'rgba(150,115,70,0.85)'; g.fillRect(X(p.x0), Y(p.y - p.h / 2), (p.x1 - p.x0) * sc, Math.max(2, p.h * sc)); g.fillStyle = '#ffe08a'; g.fillRect(X(p.goalX) - 0.5, Y(p.y - p.h / 2), 1, Math.max(2, p.h * sc)); break;
