@@ -239,6 +239,7 @@
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="start-button" id="startMarbleButton" onclick="startMarble()" disabled style="flex: 1;">🐾 경주 시작</button>
+                    <button class="start-button" id="forceStartMarbleButton" onclick="forceStartMarble()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%);" title="동물을 안 고른 사람은 자동 배정하고 바로 시작">⚡ 강제 시작</button>
                     <button onclick="OrderModule.startOrder()" id="startOrderButton" style="flex: 1; background: linear-gradient(135deg, var(--btn-warning) 0%, var(--yellow-600) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 시작</button>
                     <button onclick="OrderModule.endOrder()" id="endOrderButton" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600; font-size: 16px; padding: 15px;">주문받기 종료</button>
                 </div>
@@ -444,7 +445,7 @@
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
     <script src="/js/marble-render.js?v=43"></script>
-    <script src="/js/marble.js?v=13"></script>
+    <script src="/js/marble.js?v=14"></script>
 
     <script>
         // ============================================

@@ -299,6 +299,13 @@ function closeResultOverlay() {
     if (overlay) overlay.classList.remove('visible');
 }
 function startMarble() { socket.emit('marble:start'); }
+// 방장 강제 시작 — 동물 안 고른 사람은 서버가 자동 배정(예약 시작과 같은 규칙)
+function forceStartMarble() { socket.emit('marble:start', { force: true }); }
+// 준비했는데 동물을 안 고른 사람(현재 방에 있는 사람만)
+function unpickedReadyNames() {
+    var picks = marbleState.picks || {};
+    return (readyUsers || []).filter(function (n) { return (currentUsers || []).some(function (u) { return u.name === n; }) && MARBLE_CREATURES.indexOf(picks[n]) < 0; });
+}
 function pickCreature(id) {
     if (MARBLE_CREATURES.indexOf(id) < 0) return;
     if (marbleState.phase === 'playing' || isMarbleActive) { showCustomAlert('경주 중에는 동물을 고를 수 없어요.', 'warning'); return; }
@@ -335,12 +342,16 @@ function readyCount() {
 
 function updateStartButton() {
     var startBtn = document.getElementById('startMarbleButton');
+    var forceBtn = document.getElementById('forceStartMarbleButton');
     var rc = readyCount();
+    var unpicked = unpickedReadyNames();
+    var canStart = isHost && marbleState.phase !== 'playing' && !isMarbleActive && rc >= MARBLE_MIN_PLAYERS;
     if (startBtn) {
-        var canStart = isHost && marbleState.phase !== 'playing' && !isMarbleActive && rc >= MARBLE_MIN_PLAYERS;
         startBtn.disabled = !canStart;
         startBtn.textContent = rc < MARBLE_MIN_PLAYERS ? '🐾 경주 시작 (2명 이상 준비)' : '🐾 경주 시작';
     }
+    // 안 고른 사람이 있을 때만 방장에게 강제 시작 버튼 — 보통 시작은 서버가 "○○님이 아직 동물을 안 골랐어요"로 거절한다
+    if (forceBtn) forceBtn.style.display = (canStart && unpicked.length) ? '' : 'none';
     var locked = (marbleState.phase === 'playing' || isMarbleActive);
     document.querySelectorAll('.marble-crowd-btn').forEach(function (b) { b.disabled = locked; });
 }
@@ -368,8 +379,10 @@ function renderPickStatus() {
         var mine = picks[currentUser];
         var names = (typeof MarbleRender !== 'undefined') ? MarbleRender.CREATURE_NAMES : {};
         if (marbleState.phase === 'playing' || isMarbleActive) status.textContent = '경주 중에는 바꿀 수 없어요';
-        else if (!mine) status.textContent = '동물을 고르면 출발대에 서요. 준비를 눌러야 경주에 나가요. 안 고르면 자동으로 배정돼요.';
+        else if (!mine) status.textContent = '동물을 고르면 출발대에 서요. 준비를 눌러야 경주에 나가요. 안 고르면 경주를 시작할 수 없어요(방장이 강제 시작하면 자동 배정).';
         else status.textContent = '내 동물: ' + (names[mine] || mine) + ' · ' + marbleState.ballsPerPlayer + '마리씩 달려요';
+        var unpickedNow = unpickedReadyNames();
+        if (unpickedNow.length && marbleState.phase !== 'playing' && !isMarbleActive) status.textContent += ' · 아직 안 고른 사람: ' + unpickedNow.join(', ');
     }
 }
 

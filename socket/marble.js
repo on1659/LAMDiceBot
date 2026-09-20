@@ -20,15 +20,28 @@ function clearMarbleTimers(mb) {
     if (mb.resetTimeout) { clearTimeout(mb.resetTimeout); mb.resetTimeout = null; }
 }
 
+// 준비했는데 동물을 안 고른 사람 (입장 순서)
+function unpickedNames(gameState) {
+    const mb = gameState.marble;
+    const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
+    return ready.filter(name => !CREATURES.includes(mb.picks[name]));
+}
+
 // 시작 검문 — 소켓 없이 판정한다(예약 스위퍼 socket/scheduled-start.js 가 그대로 호출).
 // 호스트 확인은 여기 넣지 않는다: 타이머에는 응답할 소켓이 없다.
-function canStartMarble(room, gameState) {
+// opts.scheduled(예약 발화)·opts.force(방장 강제 시작)면 동물 미선택자는 거절하지 않고 자동 배정한다.
+// 보통 시작은 안 고른 사람 이름을 돌려줘 방장이 챙기게 한다(경마와 같은 규칙, 사용자 2026-09-21).
+function canStartMarble(room, gameState, opts) {
     if (room.gameType !== 'marble') return '데구리 방이 아닙니다!';
     const mb = gameState.marble;
     if (!mb) return '데구리 방이 아닙니다!';
     if (mb.phase !== 'idle' && mb.phase !== 'finished') return '이미 게임이 진행 중입니다!';
     const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
     if (ready.length < MARBLE_MIN_PLAYERS) return `준비한 인원이 ${MARBLE_MIN_PLAYERS}명 이상이어야 합니다!`;
+    if (!(opts && (opts.scheduled || opts.force))) {
+        const unpicked = unpickedNames(gameState);
+        if (unpicked.length) return `${unpicked.join(', ')}님이 아직 동물을 안 골랐어요. (강제 시작하면 자동 배정)`;
+    }
     return null;
 }
 
@@ -263,15 +276,21 @@ module.exports = (socket, io, ctx) => {
     });
 
     // 게임 시작 (호스트) — 검문은 canStartMarble, 실행은 startMarble (예약 발화와 같은 경로)
-    socket.on('marble:start', async () => {
+    // data.force = 방장 강제 시작: 동물 안 고른 사람은 자동 배정하고 방 전체에 알린다(예약 발화와 같은 규칙)
+    socket.on('marble:start', async (data) => {
         if (!rateOk()) return;
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
         if (!gameState || !room) return;
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user || !user.isHost) { socket.emit('marble:error', '방장만 게임을 시작할 수 있습니다!'); return; }
-        const reason = canStartMarble(room, gameState);
+        const force = !!(data && data.force === true);
+        const reason = canStartMarble(room, gameState, { force });
         if (reason) { socket.emit('marble:error', reason); return; }
+        if (force) {
+            const unpicked = unpickedNames(gameState);
+            if (unpicked.length) require('./scheduled-start').roomNotice(io, room, gameState, `방장이 강제 시작했어요. ${unpicked.join(', ')}님 동물은 자동 배정됐어요.`);
+        }
         await startMarble(room, gameState, io, ctx);
     });
 
