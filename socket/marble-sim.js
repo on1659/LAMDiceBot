@@ -105,9 +105,10 @@ const SPRING_CHARGE_END = 0.72, SPRING_SNAP_END = 0.82;   // 위상: 0~0.72 처�
 const SPRING_VX = 300, SPRING_VY = 640;   // 발사 속도(뒤·위) — 640 은 ≈290px 올라간다(경사로 낙차 160 보다 위)
 const SPRING_COOLDOWN_MS = 600;
 // 독수리(사용자 요청 ⑤): 결승 구멍밭에서 뚜껑을 기다리는 공·통로를 걷는 동물 중 시드로 한 마리를 채서 풍차 옆에 떨어뜨린다(다시 굴러 내려와야 함).
-//    남은 동물이 1마리면 안 온다(끝없이 늘어지지 않게). 한 판 EAGLE_MAX 회(풍차에서 결승까지 다시 내려오는 데 ~25s 라 5초마다 오면
+//    마지막 한 마리도 채 간다(그 구간은 2배속 재생이라 12s 정도). 한 판 EAGLE_MAX 회(풍차에서 결승까지 다시 내려오는 데 ~25s 라 5초마다 오면
 //    24마리 경주가 50→90s, 200마리는 캡 — 그래서 1회, 같은 놈 두 번 안 채 감). 결정론(시드·주기).
-const EAGLE_WAIT_MS = 5000;       // 후보가 생긴 뒤 이만큼 지나서 온다
+//    후보가 처음 보인 뒤 EAGLE_WAIT_MS 지나면 그때 후보 중 하나 — 5s 대기 + 후보 비면 초기화로는 소인원 24판 중 9판이 독수리를 못 봤다(사용자 "안 나와")
+const EAGLE_WAIT_MS = 1500;       // 후보가 처음 생긴 뒤 이만큼 지나서 온다(중간에 후보가 비어도 초기화 안 함)
 const EAGLE_MAX = 1;
 const EAGLE_FLY_MS = 2600;        // 채서 떨어뜨릴 때까지(공은 이 동안 독수리 발톱에 — 충돌 없음)
 const EAGLE_ARC = 140;            // 비행 중 곡선 높이(위로)
@@ -158,6 +159,7 @@ const LANE_END_X = 745;           // 통로 끝 벽(판자벽)
 const GOAL_X = 700;               // 이 x 를 지나면 도착
 const CHUTE_H = 24;               // 통로 아래 홈통 높이(도착 동물이 굴러가는 파이프, 클라 연출)
 const STAND_ROW_H = 44, STAND_ROWS_MAX = 3;   // 스탠드 줄 높이·줄 수 (js/marble-render.js 와 동일 값) — 결승 프레임 높이에 들어감
+const STAND_GAP = 36;             // 홈통 아래 ~ 스탠드 첫 줄 사이(12 였을 땐 첫 줄 머리가 홈통·골 파이프에 겹쳤다, 사용자 2026-09-21)
 const FINALE_HOLD_MS = 3500;      // 마지막 공 골인 후 엎어짐·스포트라이트 여유(클라 재생 길이에 포함)
 // 슬로모 (Marble Roulette timeScale 차용): 마지막 남은 공이 골 앞 SLOW_ZONE_PX 에 들어오면 재생 속도 SLOW_RATE.
 // 서버·클라가 같은 타임라인으로 같은 시각을 계산해 durationMs 에 반영 → 2탭 동기·종료 타이머 일치.
@@ -343,7 +345,7 @@ function buildTrack(ballCount, rng) {
     p.push({ kind: 'lane', x0: 150, x1: LANE_END_X, y: laneY, h: LANE_H, goalX: GOAL_X, rows: laneRows, rowGap: LANE_ROW_GAP });
     // 스탠드 — 통로 아래, 왼쪽부터 1, 2, 3… (클라가 finishOrder 로 배치). 꼴찌는 통로 끝 판자벽 앞에 엎어짐
     // 골 x 에서 통로 바닥 아래 파이프로 떨어져 스탠드 위 홈통(chute)을 왼쪽으로 굴러가 자기 자리에 떨어진다(클라 연출 — 물리 없음)
-    p.push({ kind: 'stand', zone: { x: 150, y: laneTop + LANE_H + CHUTE_H + 12, w: 500, h: STAND_ROWS_MAX * STAND_ROW_H }, cols: 10, chuteY: laneTop + LANE_H + CHUTE_H / 2, chuteH: CHUTE_H, chuteX: GOAL_X });
+    p.push({ kind: 'stand', zone: { x: 150, y: laneTop + LANE_H + CHUTE_H + STAND_GAP, w: 500, h: STAND_ROWS_MAX * STAND_ROW_H }, cols: 10, chuteY: laneTop + LANE_H + CHUTE_H / 2, chuteH: CHUTE_H, chuteX: GOAL_X });
     p.push({ kind: 'dumpwall', x: LANE_END_X, y: laneY, facing: 'left' });
 
     // 장식(클라 전용, 물리 없음)
@@ -670,11 +672,9 @@ async function simulate(balls, seed, track) {
 
         // ── 독수리: 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리를 채 간다 ──
         if (holefield && eagleCount < EAGLE_MAX) {
-            const alive = B.filter(b => b.state !== 'done').length;
-            const cands = alive >= 2 ? B.filter(b => !b.eagled && ((b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) || b.state === 'walk')) : [];
-            if (cands.length === 0) eagleNextAt = -1;
-            else if (eagleNextAt < 0) eagleNextAt = t + EAGLE_WAIT_MS;
-            else if (t >= eagleNextAt) {
+            const cands = B.filter(b => !b.eagled && ((b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) || b.state === 'walk'));
+            if (cands.length && eagleNextAt < 0) eagleNextAt = t + EAGLE_WAIT_MS;
+            if (cands.length && eagleNextAt >= 0 && t >= eagleNextAt) {
                 const v = cands[Math.floor(rng() * cands.length)];
                 const side = rng() < 0.5 ? -1 : 1;
                 v.carry = { x0: v.x, y0: v.y, x1: TRACK_W / 2 + side * EAGLE_DROP_DX, y1: EAGLE_DROP_Y, t0: t, t1: t + EAGLE_FLY_MS };
