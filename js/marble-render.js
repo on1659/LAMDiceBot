@@ -42,6 +42,9 @@ var MarbleRender = (function () {
     var FRAME_ABOVE_PX = 400;        // 결승 프레임 위쪽 여유 — 구멍밭 위 이만큼(범퍼 3줄·시소·진흙)까지 보여 "갑자기 위에서 떨어지는" 느낌을 없앤다. 선두가 이 안에 들어오면 프레임 모드
     var MINIMAP_MAX_W = 96;          // 미니맵 최대 폭(논리 px) — 실제 트랙 배치를 축소해 그린다
     var CHUTE_SPEED = 320;           // 도착 파이프(골 → 홈통 → 자기 자리) 굴러가는 속도 px/s
+    var MINIMAP_ICON_MAX = 60;       // 이 마리 수까지는 미니맵 점을 동물 공 아이콘으로, 넘으면 색 점(겹쳐서 안 읽힘)
+    var MINIMAP_ICON_PX = 9;         // 미니맵 동물 아이콘 크기
+    var HUD_ICON_PX = 16;            // 꼴찌 후보 목록 동물 아이콘 크기
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
@@ -341,7 +344,8 @@ var MarbleRender = (function () {
 
         // ─── 그리기 유틸 ───
         function toScreenY(y) { return y - cam.y + view.h / 2; }
-        function visible(y, margin) { var sy = toScreenY(y); return sy > -margin && sy < view.h + margin; }
+        // 컬링은 줌을 반영한 실제 세로 시야로 — 줌아웃(결승 프레임 0.5x)에서 논리 뷰 높이로만 재면 스탠드처럼 아래쪽이 통째로 안 그려진다
+        function visible(y, margin) { var half = view.h / 2 / (cam.zoom || 1), dy = y - cam.y; return dy > -half - margin && dy < half + margin; }
         function drawSprite(group, name, x, y, w, h, opt) {
             // x,y = 표시 좌표(월드), w,h = 소스 크기. opt: {sx,sy,sw,sh, anchor:'bottom'|'center', rot, alpha}
             var im = img(group, name); if (!im) return false;
@@ -693,6 +697,21 @@ var MarbleRender = (function () {
         function drawBadge(b, x, y, strong) {
             drawNameTag(b, x, toScreenY(y) - 22 - (b.id % 2) * 9, strong);   // 출발대에서 옆 공과 이름표가 겹치지 않게 지그재그
         }
+        // 작은 동물 아이콘(HUD·미니맵용): 시트의 공 프레임(row 2, col 0)을 size px 로 축소 + 플레이어 색 테두리. 화면 좌표 그대로(toScreenY 없음)
+        function drawMiniIcon(b, sx, sy, size, strong) {
+            var im = img('creatures', b.creature);
+            ctx.save();
+            if (im) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.drawImage(im, 0, 2 * CELL, CELL, CELL, sx - size / 2, sy - size / 2, size, size);
+                ctx.strokeStyle = ringColor(b); ctx.lineWidth = strong ? 2 : 1.2;
+                ctx.beginPath(); ctx.arc(sx, sy, size * 0.36, 0, Math.PI * 2); ctx.stroke();
+            } else {
+                ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(sx, sy, size * 0.35, 0, Math.PI * 2); ctx.fill();
+            }
+            if (strong) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(sx, sy, size * 0.36 + 1.5, 0, Math.PI * 2); ctx.stroke(); }
+            ctx.restore();
+        }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
         // 꼴찌 깃발 — 흰 천을 플레이어 색으로 틴트 (multiply 후 원본 알파 복원). (colorIdx, frame) 별 오프스크린 캐시
@@ -941,14 +960,16 @@ var MarbleRender = (function () {
                 drawCreatureFrame(b, 4, frame, x, y - 6, 0, 1.15);
             }
             if (!b.graveLanded && k >= 1) { b.graveLanded = true; fxList.push({ type: 'dust', x: x, y: y + 6, t0: t, dur: POOF_FX_MS }); fxList.push({ type: 'poof', x: x, y: y - 6, t0: t, dur: POOF_FX_MS }); }
+            if (since > GRAVE_DROP_MS + 250) {   // 비석 뒤 은은한 빛 (먼저 그려 비석을 덮지 않게). 화면 전체를 어둡게 하는 스포트라이트는 통로·스탠드와 겹쳐 뺐다
+                ctx.save();
+                var glow = ctx.createRadialGradient(x, toScreenY(y - 10), 6, x, toScreenY(y - 10), 70);
+                glow.addColorStop(0, 'rgba(255,240,170,0.55)'); glow.addColorStop(1, 'rgba(255,240,170,0)');
+                ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, toScreenY(y - 10), 70, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
             drawGravestone(x, y + 8 - drop, since - GRAVE_DROP_MS);
             drawNameTag(b, x, toScreenY(y) - 48, true);
             if (since > GRAVE_DROP_MS + 250) {
-                // 스포트라이트 + 이름
-                ctx.save();
-                ctx.fillStyle = 'rgba(0,0,0,0.45)';
-                ctx.beginPath(); ctx.rect(-view.w, -view.h, view.w * 3, view.h * 3); ctx.arc(x, toScreenY(y), 70, 0, Math.PI * 2, true); ctx.fill();
-                ctx.restore();
                 label(b.owner + ' 님의 ' + (CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 62, '#fff', 15);
                 label('꼴찌 확정… 당첨!', x, y + 40, '#ffd166', 17);
             }
@@ -1070,12 +1091,19 @@ var MarbleRender = (function () {
             var mx = function (wx) { return x0 + wx * sc; }, my = function (wy) { return y0 + (wy - startY) * sc; };
             ctx.save();
             ctx.drawImage(mmCache.canvas, x0, y0, w, h);
-            // 공 점: 남의 공 작게, 내 공 크게(테두리)
+            // 공: 마리 수가 적으면 동물 공 아이콘(플레이어 색 테두리, 내 공은 흰 테두리 추가), 많으면 색 점. 내 공은 맨 위에
+            var useIcon = balls.length <= MINIMAP_ICON_MAX;
+            var mine = [];
             for (var i = 0; i < balls.length; i++) {
                 var b = balls[i]; if (b.state === 'done' || t < 0) continue;
-                ctx.fillStyle = ringColor(b);
-                ctx.beginPath(); ctx.arc(mx(b.x), my(b.y), b.owner === myName ? 2.8 : 1.7, 0, Math.PI * 2); ctx.fill();
-                if (b.owner === myName) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
+                if (b.owner === myName) { mine.push(b); continue; }
+                if (useIcon) drawMiniIcon(b, mx(b.x), my(b.y), MINIMAP_ICON_PX, false);
+                else { ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(mx(b.x), my(b.y), 1.7, 0, Math.PI * 2); ctx.fill(); }
+            }
+            for (var mi = 0; mi < mine.length; mi++) {
+                var mb = mine[mi];
+                if (useIcon) drawMiniIcon(mb, mx(mb.x), my(mb.y), MINIMAP_ICON_PX + 3, true);
+                else { ctx.fillStyle = ringColor(mb); ctx.beginPath(); ctx.arc(mx(mb.x), my(mb.y), 2.8, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
             }
             // 현재 화면 범위
             var vw = view.w / cam.zoom, vh = view.h / cam.zoom;
@@ -1099,7 +1127,7 @@ var MarbleRender = (function () {
                 ctx.fillStyle = '#ffd166'; ctx.fillText('🚩 꼴찌 후보', view.w - w, y + 5);
                 hudInfo.worst.forEach(function (b, i) {
                     var yy = y + 24 + i * 18;
-                    ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(view.w - w + 8, yy + 7, 5, 0, Math.PI * 2); ctx.fill();
+                    drawMiniIcon(b, view.w - w + 9, yy + 7, HUD_ICON_PX, b.owner === myName);
                     ctx.fillStyle = b.owner === myName ? '#fff' : '#e8e8e8';
                     var name = b.owner.length > 8 ? b.owner.slice(0, 8) + '…' : b.owner;
                     ctx.fillText(name + ' ' + b.num + '번', view.w - w + 18, yy);
@@ -1127,8 +1155,10 @@ var MarbleRender = (function () {
             if (!data) return;
             dt = dt || 0.016;
             var t = tPlay < 0 ? tPlay : simTime(tPlay);
-            applyEventsUpTo(Math.max(0, t));
-            samplePositions(t);
+            // 꼴찌 확정(cutMs) 뒤에는 세상을 그 순간에 멈춘다 — 통로를 걷던 놈들이 비석을 뚫고 지나가지 않게. 피날레 연출만 t 로 흐른다
+            var tw = (data.cutMs != null && t > data.cutMs) ? data.cutMs : t;
+            applyEventsUpTo(Math.max(0, tw));
+            samplePositions(tw);
             updateCamera(t, dt);
             updateHud();
             ctx.save();
