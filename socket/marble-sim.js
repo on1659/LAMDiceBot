@@ -88,7 +88,17 @@ const FF_LEN = 56, FF_ANGLE_DEG = 35;   // 플립플롭 팔 길이·수직에서
 const BELT_SPEED = 160;           // 컨베이어 표면 속도 px/s
 const BELT_GRIP = 8;              // 공이 벨트 속도에 붙는 세기 /s
 const FAN_PERIOD_MS = 2400, FAN_ON_MS = 900, FAN_ACCEL = 1600, FAN_BAND = 200;
-const DEV_H = 760;                // 구간 높이 → 아래 구간 전부 이만큼 내려간다
+const DEV_H = 760;                // 장치 골짜기 높이
+// ⑦-c 지그재그 골짜기(장치 골짜기 아래): 폭 500 을 가로지르는 긴 경사로 6단(오른쪽↘ → 왼쪽↙ → …). 맵이 일자로만 떨어지지 않게 대각선으로 흐르고,
+//    경사(≈21°, 가속 g·sin ≈ 250px/s²)라 한 단에 1~2초 걸려 경주가 길어진다. 경사로마다 구멍(공 1.6개) 하나 — 빠진 놈은 아랫단으로 지름길(순위 뒤집힘).
+//    끝에서 떨어져 다음 단으로. (경사로 위 장애물은 오르막 쪽에 쐐기가 생겨 두지 않는다)
+const ZZ_TOP = DEV_TOP + DEV_H;
+const ZZ_RAMPS = 6;
+const ZZ_STEP = 320;              // 한 단 세로 간격
+const ZZ_DROP = 170;              // 경사로 한 단의 낙차 (가로 440 → 약 21°)
+const ZZ_HOLE_W = 44;
+const ZZ_H = ZZ_RAMPS * ZZ_STEP + 60;
+const VALLEY_H = DEV_H + ZZ_H;    // 두 골짜기 높이 합 → 아래 구간(범퍼·시소·진흙·구멍밭·통로·스탠드) 전부 이만큼 내려간다
 // ⑨ 구멍밭: 폭 500 판에 말뚝(파칭코) + 바닥 골 구멍 HOLE_COUNT 개. 구멍 사이 바닥은 지붕처럼 솟아 공이 구멍으로 굴러 떨어진다.
 //   구멍 아래 파이프 안 goalY 를 지나면 도착. 물리만으로 읽히는 결승(가둬 두는 문·회전판 없음).
 const HOLE_COUNT = 5;
@@ -187,7 +197,7 @@ function buildTrack(ballCount, rng) {
     //   풍차: 채널 출구 바로 아래 한가운데 — 대부분 날개에 맞아 좌우로 튕기고, 옆으로 빠진 놈은 그냥 통과.
     //   점프대: 경사로 2단(오른쪽 내리막 → 왼쪽 내리막) 위 발판 3개 — 밟은 놈만 튀어 올라 시간을 잃고 다른 자리에 떨어진다.
     wall(320, 2200, 150, 2320); wall(480, 2200, 650, 2320);
-    wall(150, 2320, 150, 3720 + DEV_H); wall(650, 2320, 650, 3720 + DEV_H);
+    wall(150, 2320, 150, 3720 + VALLEY_H); wall(650, 2320, 650, 3720 + VALLEY_H);
     const WM = { x: 400, y: 2480 };
     p.push({ kind: 'windmill', x: WM.x, y: WM.y, blades: 4, len: WINDMILL_LEN, period: WINDMILL_PERIOD_MS, hubR: WINDMILL_HUB_R, poleH: WINDMILL_POLE_H });
     wall(WM.x, WM.y + 45, WM.x - 32, WM.y + WINDMILL_POLE_H); wall(WM.x, WM.y + 45, WM.x + 32, WM.y + WINDMILL_POLE_H);   // 기둥 A자 다리
@@ -206,27 +216,41 @@ function buildTrack(ballCount, rng) {
     p.push({ kind: 'flipflop', x: 400, y: DEV_TOP + 170, len: FF_LEN, angleDeg: FF_ANGLE_DEG, triggerY: DEV_TOP + 245, dir: rng() < 0.5 ? -1 : 1 });
     wall(400, DEV_TOP + 230, 400, DEV_TOP + 400);                                                   // 갈림 벽
     p.push({ kind: 'log', x: 275, y: DEV_TOP + 330, r: LOG_R });                                    // 지름길 범퍼
-    p.push({ kind: 'belt', x1: 410, y1: DEV_TOP + 300, x2: 610, y2: DEV_TOP + 300, speed: BELT_SPEED });    // → 오른쪽 끝(610~650)에서 아래로
+    p.push({ kind: 'belt', x1: 410, y1: DEV_TOP + 300, x2: 590, y2: DEV_TOP + 300, speed: BELT_SPEED });    // → 오른쪽 끝(590~650)에서 아래로. 틈 60(공 2개+) — 40이면 200마리 때 끝 롤러에 걸친 공과 벽에 기댄 공이 아치를 만들어 캡까지 막힌다
     p.push({ kind: 'belt', x1: 440, y1: DEV_TOP + 380, x2: 650, y2: DEV_TOP + 380, speed: -BELT_SPEED });   // ← 왼쪽 끝(400~440)에서 아래로
     // (b) 선풍기 — 왼쪽(오른쪽으로 붐) / 오른쪽(왼쪽으로 붐) 엇박
     p.push({ kind: 'fan', x: 150, y: DEV_TOP + 520, dir: 1, band: FAN_BAND, period: FAN_PERIOD_MS, on: FAN_ON_MS, phase: 0, accel: FAN_ACCEL });
     p.push({ kind: 'fan', x: 650, y: DEV_TOP + 680, dir: -1, band: FAN_BAND, period: FAN_PERIOD_MS, on: FAN_ON_MS, phase: Math.round(FAN_PERIOD_MS / 2), accel: FAN_ACCEL });
 
+    // ⑦-c 지그재그 골짜기 — 긴 대각선 경사로 6단 (구멍 지름길). 시드로 구멍 자리가 매판 다르다
+    for (let i = 0; i < ZZ_RAMPS; i++) {
+        const toRight = i % 2 === 0;
+        const y1 = ZZ_TOP + 60 + i * ZZ_STEP, y2 = y1 + ZZ_DROP;
+        const x1 = toRight ? 150 : 650, x2 = toRight ? 590 : 210;   // 끝 60px 은 트여 있어 아랫단으로 떨어진다
+        const hk = 0.3 + rng() * 0.4;                                  // 구멍 위치(경사로 30~70%)
+        const hx = x1 + (x2 - x1) * hk, hy = y1 + (y2 - y1) * hk;
+        const ux = (x2 - x1), uy = (y2 - y1), L = Math.hypot(ux, uy), hw = ZZ_HOLE_W / 2 / L;
+        wall(x1, y1, x1 + ux * (hk - hw), y1 + uy * (hk - hw));
+        wall(x1 + ux * (hk + hw), y1 + uy * (hk + hw), x2, y2);
+        p.push({ kind: 'zzhole', x: hx, y: hy, w: ZZ_HOLE_W, angle: Math.atan2(uy, ux) });   // 클라 연출용(물리는 벽의 빈 자리)
+        // 경사로 위 장애물(통나무·말뚝)은 두지 않는다 — 오르막 쪽 틈에 공이 쐐기처럼 끼어 영영 못 나온다(캡까지 갇힘). 흔들기는 구멍 지름길·낙차로
+    }
+
     // ⑧ 통나무 범퍼 + 진흙·시소 (500폭). 끝은 구멍밭 폭(360)으로 좁아지는 깔때기
     for (let r = 0; r < 3; r++) {
-        const y = 3180 + DEV_H + r * 120, off = (r % 2) ? 60 : 0;
+        const y = 3180 + VALLEY_H + r * 120, off = (r % 2) ? 60 : 0;
         for (let x = 220 + off; x <= 580; x += 120) p.push({ kind: 'log', x, y, r: LOG_R });
     }
-    p.push({ kind: 'seesaw', x: 400, y: 3560 + DEV_H, len: SEESAW_LEN, period: SEESAW_PERIOD_MS, amp: SEESAW_AMP_DEG });
-    p.push({ kind: 'mud', x: 270, y: 3620 + DEV_H, rx: 60, ry: 32 });
-    p.push({ kind: 'mud', x: 540, y: 3700 + DEV_H, rx: 60, ry: 32 });
-    p.push({ kind: 'mud', x: 400, y: 3770 + DEV_H, rx: 50, ry: 28 });
+    p.push({ kind: 'seesaw', x: 400, y: 3560 + VALLEY_H, len: SEESAW_LEN, period: SEESAW_PERIOD_MS, amp: SEESAW_AMP_DEG });
+    p.push({ kind: 'mud', x: 270, y: 3620 + VALLEY_H, rx: 60, ry: 32 });
+    p.push({ kind: 'mud', x: 540, y: 3700 + VALLEY_H, rx: 60, ry: 32 });
+    p.push({ kind: 'mud', x: 400, y: 3770 + VALLEY_H, rx: 50, ry: 28 });
 
     // ⑨ 구멍밭 — 얄쌍하고 짧게(420폭 × 280). 말뚝 3줄 → 바닥 골 구멍 5개(지붕 바닥이 구멍으로 유도, 구멍마다 여닫는 뚜껑) → 파이프
     //   결승 카메라가 위 구간(범퍼·시소·진흙)까지 한 화면에 담아야 하므로 구멍밭 자체는 작게.
-    const HF = { x: 190, y: 3800 + DEV_H, w: 420, h: 280 };   // 구역. 파이프 사이 간격(pitch−HOLE_W=44)이 공(28)보다 넉넉해야 200마리 때 바닥을 뚫고 샌 공이 끼지 않는다
+    const HF = { x: 190, y: 3800 + VALLEY_H, w: 420, h: 280 };   // 구역. 파이프 사이 간격(pitch−HOLE_W=44)이 공(28)보다 넉넉해야 200마리 때 바닥을 뚫고 샌 공이 끼지 않는다
     const floorY = HF.y + HF.h;
-    wall(150, 3720 + DEV_H, HF.x, HF.y); wall(650, 3720 + DEV_H, HF.x + HF.w, HF.y);   // 깔때기 500 → 420
+    wall(150, 3720 + VALLEY_H, HF.x, HF.y); wall(650, 3720 + VALLEY_H, HF.x + HF.w, HF.y);   // 깔때기 500 → 420
     wall(HF.x, HF.y, HF.x, floorY); wall(HF.x + HF.w, HF.y, HF.x + HF.w, floorY);
     for (let r = 0; r < 3; r++) {
         const y = HF.y + 60 + r * 60, off = (r % 2) ? 25 : 0;
@@ -268,14 +292,18 @@ function buildTrack(ballCount, rng) {
         ['tree', 60, 250], ['tree', 740, 700], ['bush-big', 80, 1100], ['bush-big', 720, 1500],
         ['rock', 90, 1900], ['bush-small', 740, 2100], ['flower-pink', 60, 2600], ['flower-yellow', 740, 2950],
         ['tree', 70, 3350], ['bush-big', 730, 3550], ['rock', 90, 3900], ['flower-pink', 730, 4150], ['tree', 60, 4350],
-        ['signpost', 700, 3920 + DEV_H], ['flower-white', 100, 4220 + DEV_H], ['tree', 730, 4450 + DEV_H]
+        ['bush-small', 740, 4700], ['tree', 60, 5050], ['rock', 740, 5400], ['flower-yellow', 70, 5700],
+        ['signpost', 700, 3920 + VALLEY_H], ['flower-white', 100, 4220 + VALLEY_H], ['tree', 730, 4450 + VALLEY_H]
     ];
     decor.forEach(([kind, x, y]) => p.push({ kind: 'decor', decor: kind, x, y }));
 
     return {
         width: TRACK_W, startY: -startH, goalY: laneY, goalX: GOAL_X, endY: laneTop + LANE_H + 260,
         ballR: BALL_R, napR: NAP_R,
-        pieces: p
+        pieces: p,
+        // 공-공 밀어내기 뒤 하드 클램프 구역 — 빽빽한 무리(댐 대기 100마리+)에서 한 스텝의 누적 밀림이 반지름을 넘으면 벽 반대편으로 나가 버리고,
+        // collideSegment 는 가까운 쪽으로 밀어내니 그대로 밖으로 샌다. 바깥벽(420 아래는 전부 150/650)과 댐 채널(320/480)만
+        bounds: [{ y1: 420, y2: laneTop, x1: 150, x2: 650 }, { y1: 1760, y2: 2200, x1: 320, x2: 480 }]
     };
 }
 
@@ -393,6 +421,7 @@ async function simulate(balls, seed, track) {
     });
 
     // 장치 상태
+    const bounds = track.bounds || [];
     const damThreshold = Math.max(DAM_MIN_COUNT, Math.ceil(n * DAM_FRACTION));
     let damActive = !!dam, damFirstContact = -1, damCracked = false;
     let pitLastErupt = -1;   // 마지막 분출 시각(-1 = 아직 아무도 안 빠짐)
@@ -751,6 +780,15 @@ async function simulate(balls, seed, track) {
                         }
                     }
                 }
+            }
+        }
+
+        for (const b of B) {   // 벽 밖으로 밀려난 공 되돌리기 (track.bounds 참고)
+            if (b.state !== 'roll') continue;
+            for (const bd of bounds) {
+                if (b.y < bd.y1 || b.y > bd.y2) continue;
+                if (b.x < bd.x1 + b.r) { b.x = bd.x1 + b.r; if (b.vx < 0) b.vx = 0; }
+                else if (b.x > bd.x2 - b.r) { b.x = bd.x2 - b.r; if (b.vx > 0) b.vx = 0; }
             }
         }
 

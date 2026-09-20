@@ -477,6 +477,15 @@ var MarbleRender = (function () {
                 label('노란 자리를 밟으면 느려지고 잠들 수 있어요', z.x + z.w / 2, z.y + z.h - 14, '#fff7c0', 12);
             });
             (pieces.wall || []).forEach(function (w) { if (visible((w.y1 + w.y2) / 2, Math.abs(w.y2 - w.y1) / 2 + 40)) drawWall(w); });
+            // 지그재그 경사로의 구멍(지름길) — 벽의 빈 자리를 어두운 홈으로 표시 (경사 각도대로 회전)
+            (pieces.zzhole || []).forEach(function (h) {
+                if (!visible(h.y, 40)) return;
+                ctx.save(); ctx.translate(h.x, toScreenY(h.y)); ctx.rotate(h.angle);
+                ctx.fillStyle = 'rgba(40,25,10,0.85)'; roundRect(-h.w / 2, -5, h.w, 10, 5); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+                ctx.restore();
+                label('↓', h.x, h.y - 16, '#ffe08a', 12);
+            });
             (pieces.stake || []).forEach(function (s) {
                 if (!visible(s.y, 20)) return;
                 if (!drawSprite('pieces', 'stake', s.x, s.y, 32, 32, { scale: s.r * 2 / (32 * SRC_SCALE) })) { ctx.fillStyle = '#7a4d22'; ctx.beginPath(); ctx.arc(s.x, toScreenY(s.y), s.r, 0, Math.PI * 2); ctx.fill(); }
