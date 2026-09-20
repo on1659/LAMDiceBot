@@ -29,6 +29,8 @@ var MarbleRender = (function () {
     var DAM_CRUMBLE_MS = 260;        // 마지막 금 프레임 → 터진 프레임 크로스페이드
     var GEYSER_FX_MS = 750;          // 간헐천 분출 물기둥
     var POOF_FX_MS = 420;
+    var SUCK_FX_MS = 380;            // 탈출 파이프에 빨려 들어가는 시간(공이 작아지며 회전)
+    var PIPE_TRAVEL_MS = 1200;       // 파이프 → 스탠드 홈통 땅속 이동(서버 pipe.travelMs 와 동일 기본값)
     var GRAVE_DROP_MS = 450;         // 꼴찌 비석 낙하 시간
     var GRAVE_DROP_H = 160;          // 비석 낙하 시작 높이(px)
     // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
@@ -222,7 +224,7 @@ var MarbleRender = (function () {
         // ─── 이벤트 → 공 상태 (t 까지) ───
         function applyEventsUpTo(t) {
             if (!data) return;
-            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.graveLanded = false; }); }
+            if (t < lastT) { evCursor = 0; fxList = []; ffDir = (pieces.flipflop && pieces.flipflop[0]) ? pieces.flipflop[0].dir : 1; balls.forEach(function (b) { b.state = 'roll'; b.finishIdx = -1; b.muddy = false; b.dizzyUntil = 0; b.wakeAt = -1e9; b.sunSince = -1; b.landAt = 0; b.walkKind = ''; b.escapeAt = 0; b.graveLanded = false; }); (pieces.pipe || []).forEach(function (q) { q.left = null; q.closedAt = 0; }); }
             var ev = data.events;
             while (evCursor < ev.length && ev[evCursor].t <= t) {
                 var e = ev[evCursor++];
@@ -240,13 +242,18 @@ var MarbleRender = (function () {
                     case 'bees': fxList.push({ type: 'bees', t0: e.t, dur: BEE_MS }); break;
                     case 'damCrack': break;
                     case 'damBurst': fxList.push({ type: 'damburst', t0: e.t, dur: DAM_FX_MS }); break;
+                    case 'escape':   // 탈출 파이프에 빨려 들어감 = 도착(바로 finish 가 따라온다). 땅속으로 스탠드 홈통까지 이동
+                        b.escapeAt = e.t; b.x = e.x; b.y = e.y;
+                        fxList.push({ type: 'suck', ball: b.id, x: e.x, y: e.y, t0: e.t, dur: SUCK_FX_MS });
+                        var pp = (pieces.pipe || []).filter(function (q) { return q.x === e.x && q.y === e.y; })[0]; if (pp) { pp.left = e.left; if (e.left === 0) pp.closedAt = e.t; }
+                        break;
                     case 'land':
                         b.state = 'walk'; b.landAt = e.t; b.walkSpeed = e.speed || 95; fxList.push({ type: 'dust', ball: b.id, t0: e.t, dur: POOF_FX_MS }); break;
                     case 'trip': b.walkKind = 'trip'; b.walkStallAt = e.t; fxList.push({ type: 'star', x: b.x, y: b.y, t0: e.t, dur: BUMP_FX_MS }); break;
                     case 'doze': b.walkKind = 'doze'; b.walkStallAt = e.t; b.napAt = e.t; break;
-                    case 'finish':   // 골(x ≥ goalX) 진입 = 도착. 여기서 순위 확정
+                    case 'finish':   // 골(x ≥ goalX) 진입 또는 탈출 파이프 진입 = 도착. 여기서 순위 확정
                         b.state = 'done'; b.finishAt = e.t; b.finishIdx = data.finishOrder.indexOf(b.id);
-                        fxList.push({ type: 'poof', ball: b.id, x: data.track.goalX, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
+                        if (!b.escapeAt) fxList.push({ type: 'poof', ball: b.id, x: data.track.goalX, y: data.track.goalY, t0: e.t, dur: POOF_FX_MS });
                         break;
                 }
             }
@@ -494,6 +501,19 @@ var MarbleRender = (function () {
                 ctx.save(); ctx.fillStyle = 'rgba(40,25,10,0.85)'; ctx.beginPath(); ctx.ellipse(bw.x, toScreenY(bw.y + bw.r), bw.gapW / 2, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
                 label('그릇 — 바닥 틈으로만 빠져요', bw.x, bw.y + bw.r * 0.55, '#fff', 12);
                 label('↓', bw.x, bw.y + bw.r - 16, '#ffe08a', 12);
+            });
+            (pieces.pipe || []).forEach(function (q) {   // 탈출 파이프 입구 (코드 도형 — 에셋 오면 drawSprite 로): 어두운 관 + 테두리, 남은 자리 / 닫힘 뚜껑
+                if (!visible(q.y, 40)) return;
+                var left = q.left != null ? q.left : q.cap, open = left > 0 || (q.closedAt && t < q.closedAt + SUCK_FX_MS);   // 마지막 놈이 다 빨려 들어간 뒤에 뚜껑
+                var sy = toScreenY(q.y);
+                ctx.save();
+                ctx.fillStyle = '#5a6a72'; ctx.beginPath(); ctx.ellipse(q.x, sy + 2, q.w / 2 + 8, 11, 0, 0, Math.PI * 2); ctx.fill();   // 테두리 관
+                ctx.fillStyle = open ? '#151a22' : '#7a5a3a'; ctx.beginPath(); ctx.ellipse(q.x, sy, q.w / 2 + 3, 8, 0, 0, Math.PI * 2); ctx.fill();   // 구멍 / 나무 뚜껑
+                if (open) { ctx.strokeStyle = 'rgba(120,200,255,0.5)'; ctx.lineWidth = 1.5; var sw = (Math.max(0, t) / 400) % 1; ctx.beginPath(); ctx.ellipse(q.x, sy, (q.w / 2 + 3) * (1 - sw), 8 * (1 - sw), 0, 0, Math.PI * 2); ctx.stroke(); }
+                else { ctx.strokeStyle = '#4a3520'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(q.x - q.w / 2, sy); ctx.lineTo(q.x + q.w / 2, sy); ctx.stroke(); }
+                ctx.fillStyle = '#8a9aa2'; ctx.fillRect(q.x - q.w / 2 - 3, sy - 12, 3, 14); ctx.fillRect(q.x + q.w / 2, sy - 12, 3, 14);   // 기둥
+                ctx.restore();
+                label(open ? '탈출 ' + left : '닫힘', q.x, q.y - 22, open ? '#9fe0ff' : '#c9b8a0', 11);
             });
             (pieces.stake || []).forEach(function (s) {
                 if (!visible(s.y, 20)) return;
@@ -1014,7 +1034,8 @@ var MarbleRender = (function () {
                 var row = Math.floor(idx / cols), col = idx % cols;
                 if (rowMap[row] == null) continue;
                 var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 18;   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
-                var since = t - b.finishAt;
+                var since = t - b.finishAt - (b.escapeAt ? PIPE_TRAVEL_MS : 0);   // 탈출 파이프로 온 놈은 땅속 이동만큼 늦게 홈통에 나타난다
+                if (since < 0) continue;
                 if (chute) {   // 홈통 이동 중이면 그 위치에 공으로 — 골 x 에서 내려가 홈통을 따라 왼쪽으로 굴러 자기 자리로
                     var d0 = chute.y - ln.y, d1 = chute.x - x2, d2 = (y2 - 6) - chute.y, dist = since / 1000 * CHUTE_SPEED;
                     if (dist < d0 + d1 + d2) {
@@ -1095,6 +1116,13 @@ var MarbleRender = (function () {
                 var b = f.ball != null ? byId[f.ball] : null;
                 var x = f.x != null ? f.x : (b ? b.x : 0), y = f.y != null ? f.y : (b ? b.y : 0);
                 switch (f.type) {
+                    case 'suck': {   // 파이프에 빨려 들어감: 공이 돌며 작아지고 가라앉는다
+                        if (!visible(y, 40) || !b) return;
+                        var kk = Math.min(1, k);
+                        drawCreatureFrame(b, 2, 0, x, y + kk * 6, kk * Math.PI * 3, 1 - kk * 0.9);
+                        if (kk < 0.7) label('슝!', x, y - 28 - kk * 20, 'rgba(160,225,255,' + (1 - kk).toFixed(2) + ')', 13);
+                        break;
+                    }
                     case 'star': if (!visible(y, 40)) return; if (!drawSprite('fx', 'impact-star', x, y, 96, 96, { sx: frame * 96, sw: 96 })) label('✦', x, y - 10 - k * 10, 'rgba(255,255,160,' + (1 - k).toFixed(2) + ')', 16); break;
                     case 'mud': if (!visible(y, 40)) return; if (!drawSprite('fx', 'mud-splash', x, y - 8, 128, 96, { sx: frame * 128, sw: 128 })) { ctx.fillStyle = 'rgba(90,60,30,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y) - 12 - k * 14, 6 - k * 4, 0, Math.PI * 2); ctx.fill(); } break;
                     case 'dust': if (!visible(y, 40)) return; if (!drawSprite('fx', 'dust-puff', x, y, 80, 80, { sx: frame * 80, sw: 80, alpha: 1 - k })) { ctx.fillStyle = 'rgba(230,220,200,' + (1 - k) + ')'; ctx.beginPath(); ctx.arc(x, toScreenY(y), 8 + k * 14, 0, Math.PI * 2); ctx.fill(); } break;
@@ -1165,6 +1193,7 @@ var MarbleRender = (function () {
                     case 'wall': g.strokeStyle = '#e0bd82'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(p.x1), Y(p.y1)); g.lineTo(X(p.x2), Y(p.y2)); g.stroke(); break;
                     case 'stake': g.fillStyle = '#d9a35c'; g.fillRect(X(p.x) - 0.6, Y(p.y) - 0.6, 1.2, 1.2); break;
                     case 'log': g.fillStyle = '#a06a35'; dot(X(p.x), Y(p.y), Math.max(1.5, p.r * sc)); break;
+                    case 'pipe': g.fillStyle = '#9fe0ff'; dot(X(p.x), Y(p.y), 1.8); break;
                     case 'mud': g.fillStyle = '#5a3d22'; ell(X(p.x), Y(p.y), p.rx * sc, p.ry * sc); break;
                     case 'sunpatch': g.fillStyle = '#f2e27a'; (p.spots || []).forEach(function (o) { ell(X(o.x), Y(o.y), o.rx * sc, o.ry * sc); }); break;
                     case 'beehive': g.fillStyle = '#e6b73a'; dot(X(p.x), Y(p.y), 2.5); break;
