@@ -518,13 +518,18 @@ async function simulate(balls, seed, track) {
         }
         // 간헐천 분출: 빠진 놈이 있고 주기가 찼으면 전원 위로 뿜어낸다
         if (pit && pitLastErupt >= 0 && t - pitLastErupt >= PIT_ERUPT_PERIOD_MS) {
-            const trapped = B.filter(b => b.state === 'pit');
+            const trapped = B.filter(b => b.state === 'pit').sort((a, c) => a.id - c.id);
             if (trapped.length) {
                 pushEvent(t, 'pitErupt', null, { x: pit.zone.x + pit.zone.w / 2, y: pit.zone.y + pit.zone.h / 2, count: trapped.length });
-                for (const b of trapped) {
-                    b.y = pit.zone.y;   // 구덩이 위쪽 가장자리에서 솟는다
+                // 같은 자리에 겹쳐 있던 공을 그대로 풀면 공끼리 밀어내기가 한 스텝에 수십 px 라 채널 벽을 뚫고 밖으로 샌다 →
+                // 격자(가로 5칸 × 위로 쌓기)로 펼쳐 놓고 띄운다. 채널 폭 160 안에서 32px 간격이면 겹침 없음
+                const cols = Math.max(1, Math.floor((pit.zone.w - 2 * BALL_R) / (2 * BALL_R + 4)));
+                trapped.forEach((b, i) => {
+                    const col = i % cols, row = Math.floor(i / cols);
+                    b.x = pit.zone.x + BALL_R + 2 + col * (2 * BALL_R + 4);
+                    b.y = pit.zone.y - row * (2 * BALL_R + 2);   // 구덩이 위쪽 가장자리에서 솟는다(많으면 위로 쌓아 순차적으로)
                     wakeBall(t, b, (rng() - 0.5) * 2 * PIT_ERUPT_VX, -(PIT_ERUPT_VY_MIN + rng() * (PIT_ERUPT_VY_MAX - PIT_ERUPT_VY_MIN)));
-                }
+                });
             }
             pitLastErupt = t;
         }
@@ -552,7 +557,7 @@ async function simulate(balls, seed, track) {
                 if (r < (WALK_TRIP_P + WALK_DOZE_P) * dt) { w.stallKind = 'doze'; w.stallAt = t; w.stallUntil = t + WALK_DOZE_MIN_MS + rng() * WALK_DOZE_RND_MS; w.vx = 0; pushEvent(t, 'doze', w); continue; }
                 w.x += w.walkSpeed * dt; w.vx = w.walkSpeed;
                 const ahead = walkers[i - 1];   // 줄 서기: 앞 동물과 WALK_SPACING 이하로 붙지 않는다(겹침 방지). 결과는 통 진입에서 이미 났으니 병목은 상관없다
-                if (ahead && w.x > ahead.x - WALK_SPACING) { w.x = ahead.x - WALK_SPACING; w.vx = ahead.vx; }
+                if (ahead && w.x > ahead.x - WALK_SPACING) { w.x = Math.max(lane.x0 + BALL_R, ahead.x - WALK_SPACING); w.vx = ahead.vx; }   // 줄이 통로 입구보다 길어지면(대인원) 밖으로 밀리지 않고 입구에서 겹친다
                 if (w.x >= lane.goalX) finishBall(t, w);
             }
             }
