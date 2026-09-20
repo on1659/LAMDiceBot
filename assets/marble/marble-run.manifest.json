@@ -1415,5 +1415,208 @@
         "targetGamePath": "assets/marble/fx/cheer.png"
       }
     }
+  },
+  "devicesC": {
+    "batch": "marble-run-devices-c-2026-09-20",
+    "status": "all-8-picked-up",
+    "generationPath": "codex-direct-model-unverified",
+    "sourceDir": "/Users/radar/Work/SpriteMake/output/marble-run-devices-c-2026-09-20/generated",
+    "request": "docs/spritemake-request/2026-09-20-marble-run-devices-c.md",
+    "assets": {
+      "mole-hole": {
+        "image": "pieces/mole-hole.png",
+        "canvas": [
+          192,
+          96
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          96,
+          48
+        ],
+        "sourcePlaneY": 48,
+        "note": "경사로 각도로 회전, 표시 지름 44",
+        "targetGamePath": "assets/marble/pieces/mole-hole.png",
+        "md5": "44a5c75d3e5334700e2e80bfbb8370f2",
+        "qaStatus": "PASS"
+      },
+      "mole": {
+        "image": "pieces/mole.png",
+        "canvas": [
+          288,
+          112
+        ],
+        "grid": [
+          3,
+          1
+        ],
+        "cell": [
+          96,
+          112
+        ],
+        "anchor": [
+          48,
+          112
+        ],
+        "sourcePlaneY": 112,
+        "frames": [
+          "head",
+          "half",
+          "arms-out"
+        ],
+        "targetGamePath": "assets/marble/pieces/mole.png",
+        "md5": "23f309d32754aff82d9d4da13e27040e",
+        "qaStatus": "PASS"
+      },
+      "flipflop-arm": {
+        "image": "pieces/flipflop-arm.png",
+        "canvas": [
+          40,
+          240
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          20,
+          16
+        ],
+        "sourcePlaneY": 16,
+        "note": "축(20,16) 기준 ±35° 회전",
+        "targetGamePath": "assets/marble/pieces/flipflop-arm.png",
+        "md5": "554719751762ddd019dab6e2452d2955",
+        "qaStatus": "PASS"
+      },
+      "flipflop-pivot": {
+        "image": "pieces/flipflop-pivot.png",
+        "canvas": [
+          48,
+          48
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          24,
+          24
+        ],
+        "sourcePlaneY": 24,
+        "targetGamePath": "assets/marble/pieces/flipflop-pivot.png",
+        "md5": "242f6c936df39c8cee697ec716b5899a",
+        "qaStatus": "PASS"
+      },
+      "belt": {
+        "image": "pieces/belt.png",
+        "canvas": [
+          256,
+          56
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          64,
+          56
+        ],
+        "anchor": [
+          32,
+          56
+        ],
+        "sourcePlaneY": 56,
+        "seam": "horizontal",
+        "frames": [
+          "flow-0",
+          "flow-1",
+          "flow-2",
+          "flow-3"
+        ],
+        "note": "오른쪽 흐름, 왼쪽 벨트는 코드가 좌우 반전",
+        "targetGamePath": "assets/marble/pieces/belt.png",
+        "md5": "4f583a95acf0c82ab9849de2673374c0",
+        "qaStatus": "PASS"
+      },
+      "belt-end": {
+        "image": "pieces/belt-end.png",
+        "canvas": [
+          56,
+          56
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          28,
+          28
+        ],
+        "sourcePlaneY": 56,
+        "targetGamePath": "assets/marble/pieces/belt-end.png",
+        "md5": "58b85c02eb03afc82feacad2fea6987c",
+        "qaStatus": "PASS"
+      },
+      "fan": {
+        "image": "pieces/fan.png",
+        "canvas": [
+          256,
+          128
+        ],
+        "grid": [
+          2,
+          1
+        ],
+        "cell": [
+          128,
+          128
+        ],
+        "anchor": [
+          64,
+          64
+        ],
+        "sourcePlaneY": 64,
+        "frames": [
+          "blade-0",
+          "blade-60deg"
+        ],
+        "note": "오른쪽을 향해 붐, 오른쪽 벽용은 코드가 좌우 반전",
+        "targetGamePath": "assets/marble/pieces/fan.png",
+        "md5": "b05ec4515fd00ae9e62bec6ae13f43e8",
+        "qaStatus": "PASS"
+      },
+      "wind": {
+        "image": "fx/wind.png",
+        "canvas": [
+          384,
+          48
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          96,
+          48
+        ],
+        "anchor": [
+          0,
+          24
+        ],
+        "sourcePlaneY": 24,
+        "frames": [
+          "w0",
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "targetGamePath": "assets/marble/fx/wind.png",
+        "md5": "057526b0f7b46bfcbba7dd01d088eb5a",
+        "qaStatus": "PASS"
+      }
+    }
   }
 }

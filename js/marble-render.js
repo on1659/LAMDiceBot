@@ -77,7 +77,9 @@ var MarbleRender = (function () {
             'goal-basket-back': A + 'pieces/goal-basket-back.png', 'goal-basket-front': A + 'pieces/goal-basket-front.png', 'dump-wall': A + 'pieces/dump-wall.png',
             'beehive': A + 'pieces/beehive.png', 'sun-patch': A + 'pieces/sun-patch.png', 'beaver-dam': A + 'pieces/beaver-dam.png', 'beaver': A + 'pieces/beaver.png',
             'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png',
-            'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png'
+            'windmill-pole': A + 'pieces/windmill-pole.png', 'windmill-rotor': A + 'pieces/windmill-rotor.png',
+            'mole-hole': A + 'pieces/mole-hole.png', 'mole': A + 'pieces/mole.png', 'flipflop-arm': A + 'pieces/flipflop-arm.png', 'flipflop-pivot': A + 'pieces/flipflop-pivot.png',
+            'belt': A + 'pieces/belt.png', 'belt-end': A + 'pieces/belt-end.png', 'fan': A + 'pieces/fan.png'
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -87,12 +89,12 @@ var MarbleRender = (function () {
         },
         fx: {
             'dust-puff': A + 'fx/dust-puff.png', 'impact-star': A + 'fx/impact-star.png', 'mud-splash': A + 'fx/mud-splash.png', 'curl-poof': A + 'fx/curl-poof.png',
-            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png'
+            'bee-swarm': A + 'fx/bee-swarm.png', 'zz': A + 'fx/zz.png', 'wake': A + 'fx/wake.png', 'dam-burst': A + 'fx/dam-burst.png', 'cheer': A + 'fx/cheer.png', 'wind': A + 'fx/wind.png'
         }
     };
     // 4열×1행 fx 아틀라스 셀 크기(소스) — 2차분은 의뢰서 규격
     var FX_CELL = { 'dust-puff': [80, 80], 'impact-star': [96, 96], 'mud-splash': [128, 96], 'curl-poof': [96, 96],
-        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96] };
+        'bee-swarm': [128, 96], 'zz': [48, 48], 'wake': [48, 48], 'dam-burst': [192, 128], 'cheer': [96, 96], 'wind': [96, 48] };
     var DECOR_SIZE = { tree: [160, 224], 'bush-big': [128, 96], 'bush-small': [64, 48], rock: [64, 48], signpost: [64, 96],
         'flower-pink': [32, 32], 'flower-yellow': [32, 32], 'flower-white': [32, 32] };
 
@@ -519,30 +521,35 @@ var MarbleRender = (function () {
             });
             (pieces.mole || []).forEach(function (m) {
                 if (!visible(m.y, 50)) return;
-                // 두더지 구멍(경사로 각도로 눕힌 타원) + 올라온 동안 갈색 두더지(분홍 코) — 코드 도형. 에셋 오면 mole.png 2프레임으로 교체
+                // 두더지 구멍(경사로 각도로 회전) + 박자대로 올라오는 두더지(3프레임: 고개/반쯤/팔 벌림). 에셋 없으면 코드 도형
                 var on = deviceOn(m, Math.max(0, t)), ph = devicePhase(m, Math.max(0, t));
                 var pop = on ? Math.sin(Math.min(1, ph) * Math.PI) : 0;   // 올라왔다 내려감
-                ctx.save(); ctx.translate(m.x, toScreenY(m.y)); ctx.rotate(m.angle);
-                ctx.fillStyle = 'rgba(40,25,10,0.9)'; ctx.beginPath(); ctx.ellipse(0, 0, m.r, m.r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.restore();
-                if (pop > 0.05) {
-                    var mh = 26 * pop;
-                    ctx.save(); ctx.translate(m.x, toScreenY(m.y));
-                    ctx.beginPath(); ctx.rect(-m.r - 4, -60, m.r * 2 + 8, 60 + 2); ctx.clip();   // 구멍 위로만
-                    ctx.fillStyle = '#6b4a2b'; ctx.beginPath(); ctx.ellipse(0, -mh + 10, 12, 16, 0, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#f2a1b0'; ctx.beginPath(); ctx.arc(0, -mh + 2, 3.5, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-5, -mh - 2, 1.6, 0, Math.PI * 2); ctx.arc(5, -mh - 2, 1.6, 0, Math.PI * 2); ctx.fill();
+                if (!drawSprite('pieces', 'mole-hole', m.x, m.y, 192, 96, { rot: m.angle, scale: m.r * 2 / (192 * SRC_SCALE) })) {
+                    ctx.save(); ctx.translate(m.x, toScreenY(m.y)); ctx.rotate(m.angle);
+                    ctx.fillStyle = 'rgba(40,25,10,0.9)'; ctx.beginPath(); ctx.ellipse(0, 0, m.r, m.r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
                     ctx.restore();
+                }
+                if (pop > 0.05) {
+                    var mf = pop < 0.4 ? 0 : pop < 0.75 ? 1 : 2;
+                    if (!drawSprite('pieces', 'mole', m.x, m.y + 8, 96, 112, { sx: mf * 96, sw: 96, anchor: 'bottom', scale: 1.3 })) {
+                        var mh = 26 * pop;
+                        ctx.save(); ctx.translate(m.x, toScreenY(m.y));
+                        ctx.beginPath(); ctx.rect(-m.r - 4, -60, m.r * 2 + 8, 60 + 2); ctx.clip();
+                        ctx.fillStyle = '#6b4a2b'; ctx.beginPath(); ctx.ellipse(0, -mh + 10, 12, 16, 0, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#f2a1b0'; ctx.beginPath(); ctx.arc(0, -mh + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+                        ctx.restore();
+                    }
                 }
             });
             (pieces.flipflop || []).forEach(function (f) {
                 if (!visible(f.y, 80)) return;
                 // 팔: 축에서 아래로, ffDir 쪽으로 젖힘. 라벨로 지름길/돌아가는 길 표시
-                var a = f.angleDeg * Math.PI / 180;
+                var a = f.angleDeg * Math.PI / 180, armIm = img('pieces', 'flipflop-arm');
                 ctx.save(); ctx.translate(f.x, toScreenY(f.y)); ctx.rotate(-ffDir * a);
-                ctx.fillStyle = '#c9944f'; roundRect(-5, -4, 10, f.len + 4, 4); ctx.fill(); ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 1.5; ctx.stroke();
+                if (armIm) ctx.drawImage(armIm, 0, 0, 40, 240, -5, -4, 10, 60);   // 축(20,16) → 표시 (0,0)
+                else { ctx.fillStyle = '#c9944f'; roundRect(-5, -4, 10, f.len + 4, 4); ctx.fill(); ctx.strokeStyle = '#6b4420'; ctx.lineWidth = 1.5; ctx.stroke(); }
                 ctx.restore();
-                ctx.fillStyle = '#4a3420'; ctx.beginPath(); ctx.arc(f.x, toScreenY(f.y), 6, 0, Math.PI * 2); ctx.fill();
+                if (!drawSprite('pieces', 'flipflop-pivot', f.x, f.y, 48, 48)) { ctx.fillStyle = '#4a3420'; ctx.beginPath(); ctx.arc(f.x, toScreenY(f.y), 6, 0, Math.PI * 2); ctx.fill(); }
                 label(ffDir < 0 ? '◀ 이번엔 왼쪽' : '이번엔 오른쪽 ▶', f.x, f.y - 22, '#ffe08a', 12);
                 label('지름길', f.x - 125, f.y + 80, '#dfffd0', 12);
                 label('돌아가는 길', f.x + 125, f.y + 80, '#ffd0d0', 12);
@@ -551,6 +558,16 @@ var MarbleRender = (function () {
                 if (!visible(bt.y1, 30)) return;
                 // 컨베이어: 어두운 띠 + 이동 방향으로 흐르는 밝은 줄(t 파생). 에셋 오면 belt.png 4프레임 타일로 교체
                 var w = bt.x2 - bt.x1, sy = toScreenY(bt.y1);
+                var beltIm = img('pieces', 'belt');
+                if (beltIm) {
+                    var bf = Math.floor(Math.max(0, t) / 90) % 4, tw = 64 * SRC_SCALE, th = 56 * SRC_SCALE;
+                    ctx.save(); ctx.beginPath(); ctx.rect(bt.x1, sy - th / 2, w, th); ctx.clip();
+                    if (bt.speed < 0) { ctx.translate(bt.x1 + bt.x2, 0); ctx.scale(-1, 1); }   // 왼쪽 흐름 = 좌우 반전(프레임은 같은 순서)
+                    for (var tx = bt.x1; tx < bt.x2; tx += tw) ctx.drawImage(beltIm, bf * 64, 0, 64, 56, tx, sy - th / 2, tw + 0.5, th);
+                    ctx.restore();
+                    drawSprite('pieces', 'belt-end', bt.x1, bt.y1, 56, 56); drawSprite('pieces', 'belt-end', bt.x2, bt.y1, 56, 56);
+                    return;
+                }
                 ctx.save();
                 ctx.fillStyle = '#3b3b3b'; roundRect(bt.x1, sy - 7, w, 14, 5); ctx.fill();
                 ctx.beginPath(); ctx.rect(bt.x1 + 2, sy - 6, w - 4, 12); ctx.clip();
@@ -564,15 +581,34 @@ var MarbleRender = (function () {
                 if (!visible(f.y, f.band)) return;
                 // 선풍기: 벽에 붙은 둥근 몸통 + 도는 날개, 켜진 동안 바람 줄(띠 전체). 에셋 오면 fan.png 2프레임으로 교체
                 var on = deviceOn(f, Math.max(0, t)), sy = toScreenY(f.y), bx = f.x + f.dir * 22;
-                ctx.save(); ctx.translate(bx, sy);
-                ctx.fillStyle = '#5a6472'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
-                ctx.rotate(on ? Math.max(0, t) / 60 : Math.max(0, t) / 400); ctx.fillStyle = '#c8d0da';
-                for (var bi = 0; bi < 3; bi++) { ctx.beginPath(); ctx.ellipse(0, -10, 5, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.rotate(Math.PI * 2 / 3); }
-                ctx.restore();
-                if (on) {
-                    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -(Math.max(0, t) / 4) * f.dir;
-                    for (var li = -2; li <= 2; li++) { var ly = sy + li * f.band / 5; ctx.beginPath(); ctx.moveTo(f.x + f.dir * 40, ly); ctx.lineTo(f.x + f.dir * 480, ly + (li % 2 ? 6 : -6)); ctx.stroke(); }
+                var fanIm = img('pieces', 'fan');
+                if (fanIm) {
+                    var ffr = on ? Math.floor(Math.max(0, t) / 50) % 2 : Math.floor(Math.max(0, t) / 400) % 2;
+                    ctx.save(); ctx.translate(bx, sy); if (f.dir < 0) ctx.scale(-1, 1);
+                    ctx.drawImage(fanIm, ffr * 128, 0, 128, 128, -20, -20, 40, 40);
                     ctx.restore();
+                } else {
+                    ctx.save(); ctx.translate(bx, sy);
+                    ctx.fillStyle = '#5a6472'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+                    ctx.rotate(on ? Math.max(0, t) / 60 : Math.max(0, t) / 400); ctx.fillStyle = '#c8d0da';
+                    for (var bi = 0; bi < 3; bi++) { ctx.beginPath(); ctx.ellipse(0, -10, 5, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.rotate(Math.PI * 2 / 3); }
+                    ctx.restore();
+                }
+                if (on) {
+                    var windIm = img('fx', 'wind');
+                    if (windIm) {
+                        for (var wi = 0; wi < 8; wi++) {   // 띠 안에 바람 줄 8개 — 바람 방향으로 흐르고 멀수록 옅어짐(t 파생, 결정론)
+                            var wph = ((Math.max(0, t) / 900 + hash01(wi + 31)) % 1), wx = f.x + f.dir * (40 + wph * 440), wy = f.y + (hash01(wi + 7) - 0.5) * f.band * 0.9;
+                            var wfr = Math.floor(Math.max(0, t) / 110 + wi) % 4;
+                            ctx.save(); ctx.translate(wx, toScreenY(wy)); if (f.dir < 0) ctx.scale(-1, 1); ctx.globalAlpha = 0.9 * (1 - wph * 0.7);
+                            ctx.drawImage(windIm, wfr * 96, 0, 96, 48, -24, -12, 48, 24);
+                            ctx.restore();
+                        }
+                    } else {
+                        ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -(Math.max(0, t) / 4) * f.dir;
+                        for (var li = -2; li <= 2; li++) { var ly = sy + li * f.band / 5; ctx.beginPath(); ctx.moveTo(f.x + f.dir * 40, ly); ctx.lineTo(f.x + f.dir * 480, ly + (li % 2 ? 6 : -6)); ctx.stroke(); }
+                        ctx.restore();
+                    }
                     label('바람!', bx + f.dir * 60, f.y - 26, '#fff', 13);
                 }
             });
