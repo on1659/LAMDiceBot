@@ -41,6 +41,7 @@ var MarbleRender = (function () {
     var SUN_UNCURL_MS = 240;         // 펴지는 전환 프레임 시간
     var WAKE_POSE_MS = 380;          // 깨어남 → 벌떡(sleep 시트 col 2·3) 후 다시 공
     var GATE_TILE_SRC_W = 128, GATE_TILE_OVERLAP_SRC = 8;   // last-gate 타일 — 양 끝 기둥이 8px 겹치게
+    var DAM_FRAMES = 3;              // beaver-dam.png 프레임 수 (셀 480×256). 5프레임 에셋 도착 시 5로
 
     // 24색 플레이어 링 팔레트 (참가자 순서 index) — spin-arena 24색과 동일 hue 분포
     var RING_COLORS = ['#e23b3b', '#3b82e2', '#2bb673', '#e2a23b', '#9b59e2', '#e23b8f', '#22c1d6', '#9ccf2f',
@@ -454,16 +455,23 @@ var MarbleRender = (function () {
             (pieces.dam || []).forEach(function (d) {
                 if (!visible(d.y1, 60)) return;
                 var burst = fxList.some(function (f) { return f.type === 'damburst'; });
-                var st = data.events.some(function (e) { return e.type === 'damBurst' && e.t <= t; }) ? 2 : (data.events.some(function (e) { return e.type === 'damCrack' && e.t <= t; }) ? 1 : 0);
+                // 프레임 = 압력 단계. 압력 = 댐 구역 안 미도착 공 수 / 서버 임계(max(2, ceil(전체×0.5)) — socket/marble-sim.js DAM_* 와 동일 값).
+                // DAM_FRAMES 3: [온전, 금+물, 터짐] / 5(2400×256 도착 시): [온전, 금 살짝, 금 많이, 금+물, 터짐] — 상수만 바꾸면 됨
+                var burstEv = data.events.some(function (e) { return e.type === 'damBurst' && e.t <= t; });
+                var inDam = 0;
+                for (var bi = 0; bi < balls.length; bi++) { var bb = balls[bi]; if (bb.state !== 'done' && bb.x >= d.zone.x && bb.x <= d.zone.x + d.zone.w && bb.y >= d.zone.y && bb.y <= d.zone.y + d.zone.h) inDam++; }
+                var damThreshold = Math.max(2, Math.ceil(balls.length * 0.5));
+                var pressure = clamp(inDam / damThreshold, 0, 1);
+                var st = burstEv ? DAM_FRAMES - 1 : Math.min(DAM_FRAMES - 2, Math.floor(pressure * (DAM_FRAMES - 1)));
                 var cx = (d.x1 + d.x2) / 2, w = d.x2 - d.x1;
-                if (st < 2 || burst) {
+                if (st < DAM_FRAMES - 1 || burst) {
                     var dsc = w / (480 * SRC_SCALE);   // 채널 폭에 맞춤. 벽 = 셀 상단 가장자리 → 바닥 앵커를 y1 + 셀높이 로
                     if (!drawSprite('pieces', 'beaver-dam', cx, d.y1 + 256 * SRC_SCALE * dsc, 480, 256, { sx: st * 480, sw: 480, anchor: 'bottom', scale: dsc, alpha: burst ? 1 - (t - (data.events.find(function (e) { return e.type === 'damBurst'; }) || { t: t }).t) / DAM_FX_MS * 0.7 : 1 })) {
                         ctx.save(); ctx.globalAlpha = burst ? 0.4 : 1;
                         for (var li = 0; li < 4; li++) { ctx.fillStyle = li % 2 ? '#9c6a3a' : '#7d5330'; roundRect(d.x1 + 2, toScreenY(d.y1) - 6 - li * 9, w - 4, 8, 4); ctx.fill(); }
-                        if (st === 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
+                        if (st > 0 && st < DAM_FRAMES - 1) { ctx.strokeStyle = '#3aa0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 6, toScreenY(d.y1) - 40); ctx.lineTo(cx + 4, toScreenY(d.y1) - 20); ctx.lineTo(cx - 2, toScreenY(d.y1)); ctx.stroke(); }
                         ctx.restore();
-                        label(st === 1 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
+                        label(st > 0 ? '비버 댐 — 금이 간다!' : '비버 댐', cx, d.y1 - 52, '#fff', 12);
                     }
                 }
                 if (!drawSprite('pieces', 'beaver', d.beaverX, d.y1 + 26, 96, 96, { sx: st > 0 ? 96 : 0, sw: 96, anchor: 'bottom', scale: 1.3 })) {
