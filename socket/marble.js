@@ -65,7 +65,7 @@ async function startMarble(room, gameState, io, ctx) {
     let balls, result;
     try {
         balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
-        const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9));   // 댐 틈 쪽 등 트랙 랜덤
+        const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9), mb.crowd);   // 댐 틈 쪽 등 트랙 랜덤, 독수리 수는 마릿수 단계
         result = await sim.simulate(balls, seed, track);
     } catch (e) {
         console.warn('[마블런] 시뮬 실패:', e.message);
@@ -199,7 +199,7 @@ module.exports = (socket, io, ctx) => {
         participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
         const balls = sim.layoutBalls(participants, picks, 1, sim.mulberry32(PREVIEW_SEED));
         return {
-            track: sim.buildTrack(Math.max(1, balls.length)),
+            track: sim.buildTrack(Math.max(1, balls.length), null, mb.crowd),
             balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num, dim: !ready.includes(b.owner) })),
             frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
         };

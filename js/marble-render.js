@@ -923,10 +923,11 @@ var MarbleRender = (function () {
             if (k < 0.35) label('채 갔다!', b.x, b.y - 58, '#fff', 13);
         }
         // 독수리 자유 비행(공을 안 쥔 동안): 구멍밭 위를 좌우로 순찰하다 잡기 EAGLE_SWOOP_MS 전에 목표로 급강하, 놓은 뒤 순찰로 복귀. 잡기 이벤트는 재생 데이터에 있어 미리 안다
-        function eaglePatrol(tt) {
+        function eaglePatrol(tt, ei) {
             var hf = (pieces.holefield || [])[0]; if (!hf) return null;
-            var px = TRACK_W / 2 + EAGLE_PATROL_W * Math.sin(tt / 1500), py = hf.zone.y - EAGLE_PATROL_ABOVE + EAGLE_PATROL_H * Math.sin(tt / 1100) + 8 * Math.sin(tt / 400);   // 리사주 — 상하좌우
-            return { x: px, y: py, left: Math.cos(tt / 1500) < 0 };
+            var ph = tt + (ei || 0) * 1900;   // 독수리마다 위상 차
+            var px = TRACK_W / 2 + EAGLE_PATROL_W * Math.sin(ph / 1500), py = hf.zone.y - EAGLE_PATROL_ABOVE + EAGLE_PATROL_H * Math.sin(ph / 1100) + 8 * Math.sin(ph / 400);   // 리사주 — 상하좌우
+            return { x: px, y: py, left: Math.cos(ph / 1500) < 0 };
         }
         function drawEagleSprite(x, y, faceLeft, tt) {
             var wing = Math.floor(Math.max(0, tt) / EAGLE_WING_MS) % 4;
@@ -945,21 +946,24 @@ var MarbleRender = (function () {
         }
         function drawEagleFree(t) {
             if (t < 0) return;
-            var grab = null;   // 지금 시각에 걸린(급강하 중·쥐고 있음·복귀 중) 잡기 — 한 판에 여러 번
-            for (var i = 0; i < data.events.length; i++) { var ge = data.events[i]; if (ge.type === 'eagleGrab' && t >= ge.t - EAGLE_SWOOP_MS && t < ge.t + ge.dur + EAGLE_RETURN_MS) { grab = ge; break; } }
-            var tt = Math.max(0, t), pos, left;
-            if (grab && t >= grab.t && t < grab.t + grab.dur) return;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
-            if (grab && t >= grab.t - EAGLE_SWOOP_MS && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
-                var p0 = eaglePatrol(grab.t - EAGLE_SWOOP_MS); if (!p0) return;
-                var k = (t - (grab.t - EAGLE_SWOOP_MS)) / EAGLE_SWOOP_MS, e = k * k;
-                pos = { x: p0.x + (grab.x - p0.x) * e, y: p0.y + (grab.y - 8 - p0.y) * e }; left = grab.x < p0.x;
-            } else if (grab && t >= grab.t + grab.dur && t < grab.t + grab.dur + EAGLE_RETURN_MS) {   // 복귀: 놓은 자리 → 순찰 자리
-                var k2 = (t - grab.t - grab.dur) / EAGLE_RETURN_MS, e2 = 1 - (1 - k2) * (1 - k2), p1 = eaglePatrol(grab.t + grab.dur + EAGLE_RETURN_MS); if (!p1) return;
-                pos = { x: grab.tx + (p1.x - grab.tx) * e2, y: grab.ty - 8 + (p1.y - grab.ty + 8) * e2 }; left = p1.x < grab.tx;
-            } else { pos = eaglePatrol(tt); if (!pos) return; left = pos.left; }
-            if (!visible(pos.y, 60)) return;
-            drawSprite('fx', 'eagle-shadow', pos.x, pos.y + 70, 128, 48, { alpha: 0.28, scale: 0.8 });
-            drawEagleSprite(pos.x, pos.y, left, tt);
+            var count = data.track.eagles || 1, tt = Math.max(0, t);
+            for (var ei = 0; ei < count; ei++) {
+                var grab = null;   // 이 독수리가 지금 시각에 걸린(급강하 중·쥐고 있음·복귀 중) 잡기 — 한 판에 여러 번
+                for (var i = 0; i < data.events.length; i++) { var ge = data.events[i]; if (ge.type === 'eagleGrab' && (ge.eagle || 0) === ei && t >= ge.t - EAGLE_SWOOP_MS && t < ge.t + ge.dur + EAGLE_RETURN_MS) { grab = ge; break; } }
+                var pos, left;
+                if (grab && t >= grab.t && t < grab.t + grab.dur) continue;   // 쥐고 나는 동안은 drawEagleCarry 가 그린다
+                if (grab && t < grab.t) {   // 급강하: 순찰 자리 → 목표(잡는 순간의 공 자리)
+                    var p0 = eaglePatrol(grab.t - EAGLE_SWOOP_MS, ei); if (!p0) continue;
+                    var k = (t - (grab.t - EAGLE_SWOOP_MS)) / EAGLE_SWOOP_MS, e = k * k;
+                    pos = { x: p0.x + (grab.x - p0.x) * e, y: p0.y + (grab.y - 8 - p0.y) * e }; left = grab.x < p0.x;
+                } else if (grab) {   // 복귀: 놓은 자리 → 순찰 자리
+                    var k2 = (t - grab.t - grab.dur) / EAGLE_RETURN_MS, e2 = 1 - (1 - k2) * (1 - k2), p1 = eaglePatrol(grab.t + grab.dur + EAGLE_RETURN_MS, ei); if (!p1) continue;
+                    pos = { x: grab.tx + (p1.x - grab.tx) * e2, y: grab.ty - 8 + (p1.y - grab.ty + 8) * e2 }; left = p1.x < grab.tx;
+                } else { pos = eaglePatrol(tt, ei); if (!pos) continue; left = pos.left; }
+                if (!visible(pos.y, 60)) continue;
+                drawSprite('fx', 'eagle-shadow', pos.x, pos.y + 70, 128, 48, { alpha: 0.28, scale: 0.8 });
+                drawEagleSprite(pos.x, pos.y, left, tt + ei * 37);
+            }
         }
         function drawShadow(x, y, r) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, toScreenY(y) + r * 0.75, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 
@@ -1069,7 +1073,7 @@ var MarbleRender = (function () {
                     }
                     var ws = t - b.landAt;
                     var stepMs = 140 * 95 / (b.walkSpeed || 95);   // 빠른 놈은 발을 빨리 구른다
-                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 4;
+                    var wrow = ws < SUN_UNCURL_MS ? 3 : 0, wcol = ws < SUN_UNCURL_MS ? (ws < SUN_UNCURL_MS / 2 ? 0 : 1) : Math.floor(ws / stepMs) % 2;   // idle 행 0·1만(옆모습) — 2·3은 정면으로 돌아보는 프레임이라 달리다 자꾸 뒤돌아보는 것처럼 보였다(사용자 2026-09-21)
                     var wim = img('creatures', b.creature);
                     if (wim) { ctx.save(); ctx.translate(b.x, toScreenY(b.y + 6)); ctx.drawImage(wim, wcol * CELL, wrow * CELL, CELL, CELL, -CELL * SRC_SCALE / 2, -CELL * SRC_SCALE / 2, CELL * SRC_SCALE, CELL * SRC_SCALE); ctx.restore(); }
                     else drawCreatureFrame(b, 2, 0, b.x, b.y, 0);

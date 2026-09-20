@@ -106,9 +106,11 @@ const SPRING_ARM_DELAY_MS = 120;  // 밟은 뒤 이만큼 있다 발사(판 위�
 //    꼴찌 결정전에선 쉬는 시간을 짧게 해 바쁘게 움직이고, 통로에서 달리는 놈(walk)을 뚜껑 앞에서 기다리는 놈보다 3배 우선(사용자 2026-09-21 2차).
 //    후보가 처음 보인 뒤 EAGLE_WAIT_MS 지나면 그때 후보 중 하나 — 5s 대기 + 후보 비면 초기화로는 소인원 24판 중 9판이 독수리를 못 봤다(사용자 "안 나와")
 const EAGLE_WAIT_MS = 1500;       // 후보가 처음 생긴 뒤 이만큼 지나서 온다(중간에 후보가 비어도 초기화 안 함)
-const EAGLE_MAX_MIN = 3, EAGLE_MAX_RATIO = 0.15;   // 한 판 최대 = max(3, floor(n × 0.15))
-const EAGLE_REST_MS = 2000, EAGLE_REST_FINAL_MS = 600;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE)
-const EAGLE_FINAL_ALIVE = 3;
+const EAGLES_BY_CROWD = { few: 1, normal: 2, many: 3 };   // 마릿수 단계별 독수리 수(사용자 2026-09-21). 같은 독수리는 같은 놈을 두 번 안 잡지만 다른 독수리는 잡을 수 있다
+const EAGLE_MAX_MIN = 3, EAGLE_MAX_RATIO = 0.05;   // 독수리 한 마리당 한 판 최대 = max(3, floor(n × 0.05)) — 0.1 이면 200마리·독수리 3 에서 33회, 경주 90s
+const EAGLE_REST_MS = 2000, EAGLE_REST_FINAL_MS = 500;   // 놓고 나서 다음 잡기까지(비행 시간 뒤) / 결승전(남은 ≤ EAGLE_FINAL_ALIVE)
+const EAGLE_FINAL_ALIVE = 5;
+const EAGLE_STAGGER_MS = 700;     // 독수리마다 첫 출격 시차
 const EAGLE_WALK_WEIGHT = 3;
 const EAGLE_FLY_MS = 2600;        // 채서 떨어뜨릴 때까지(공은 이 동안 독수리 발톱에 — 충돌 없음)
 const EAGLE_ARC = 140;            // 비행 중 곡선 높이(위로)
@@ -181,8 +183,9 @@ function mulberry32(seed) {
 // 트랙 A — 10구간. y는 출발 문(0)부터 아래로. 출발대는 음수 y(공 수에 따라 높이 가변).
 // pieces 는 서버 물리와 클라 렌더가 같은 배열을 본다(reveal에 실어 보냄).
 // ═══════════════════════════════════════════════════════════
-function buildTrack(ballCount, rng) {
+function buildTrack(ballCount, rng, crowd) {
     rng = rng || (() => 0.75);   // rng 없으면(테스트·덤프) 댐 틈은 오른쪽
+    const eagles = EAGLES_BY_CROWD[crowd] || EAGLES_BY_CROWD[CROWD_DEFAULT];
     const rows = Math.max(1, Math.ceil(ballCount / START_ROW_SIZE));
     const startH = rows * START_SPACING + 40;
     const p = [];
@@ -359,7 +362,7 @@ function buildTrack(ballCount, rng) {
 
     return {
         width: TRACK_W, startY: -startH, goalY: laneY, goalX: GOAL_X, endY: laneTop + LANE_H + 260,
-        ballR: BALL_R, napR: NAP_R,
+        ballR: BALL_R, napR: NAP_R, eagles,
         pieces: p,
         // 공-공 밀어내기 뒤 하드 클램프 구역 — 빽빽한 무리(댐 대기 100마리+)에서 한 스텝의 누적 밀림이 반지름을 넘으면 벽 반대편으로 나가 버리고,
         // collideSegment 는 가까운 쪽으로 밀어내니 그대로 밖으로 샌다. 바깥벽(420 아래는 전부 150/650)과 댐 채널(320/480)만
@@ -443,7 +446,7 @@ async function simulate(balls, seed, track) {
         pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
         stuckSince: 0, lidAt: -1e9, moleAt: -1e9, springAt: -1e9, springOnSince: -1, ffDone: false,
         warpDone: {}, warpUntil: 0, warpOut: null,
-        carry: null, eagled: false   // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 한 번 잡힌 적 있음
+        carry: null, eagledBy: {}    // 독수리에 잡힘 { x0, y0, x1, y1, t0, t1 } / 잡은 적 있는 독수리 index → true
     }));
 
     // 조각 분류
@@ -487,7 +490,8 @@ async function simulate(balls, seed, track) {
     // 장치 상태
     const bounds = track.bounds || [];
     const damThreshold = Math.max(DAM_MIN_COUNT, Math.ceil(n * DAM_FRACTION));
-    let eagleCount = 0, eagleNextAt = -1;
+    const eagles = Array.from({ length: track.eagles || 1 }, () => ({ count: 0, nextAt: -1 }));
+    const eagleMaxEach = Math.max(EAGLE_MAX_MIN, Math.floor(n * EAGLE_MAX_RATIO));
     let damActive = !!dam, damFirstContact = -1, damCracked = false;
     let pitLastErupt = -1;   // 마지막 분출 시각(-1 = 아직 아무도 안 빠짐)
     let beesAt = -1;
@@ -660,23 +664,24 @@ async function simulate(balls, seed, track) {
             }
         }
 
-        // ── 독수리: 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리를 채 간다 ──
-        if (holefield && eagleCount < Math.max(EAGLE_MAX_MIN, Math.floor(n * EAGLE_MAX_RATIO))) {
+        // ── 독수리(마릿수 단계별 1~3마리): 구멍밭 뚜껑 위에서 기다리는 공 + 통로 걷는 동물 중 한 마리씩 채 간다 ──
+        if (holefield) for (let ei = 0; ei < eagles.length; ei++) {
+            const eg = eagles[ei]; if (eg.count >= eagleMaxEach) continue;
             const cands = [];
             for (const b of B) {
-                if (b.eagled) continue;
+                if (b.eagledBy[ei]) continue;   // 내가 잡았던 놈은 다시 안 잡는다(다른 독수리는 상관없음)
                 if (b.state === 'walk') { for (let w = 0; w < EAGLE_WALK_WEIGHT; w++) cands.push(b); }   // 달리는 놈 우선
                 else if (b.state === 'roll' && t - b.lidAt < 50 && inZone(b, holefield.zone)) cands.push(b);
             }
-            if (cands.length && eagleNextAt < 0) eagleNextAt = t + EAGLE_WAIT_MS;
-            if (cands.length && eagleNextAt >= 0 && t >= eagleNextAt) {
+            if (cands.length && eg.nextAt < 0) eg.nextAt = t + EAGLE_WAIT_MS + ei * EAGLE_STAGGER_MS;
+            if (cands.length && eg.nextAt >= 0 && t >= eg.nextAt) {
                 const v = cands[Math.floor(rng() * cands.length)];
                 const side = rng() < 0.5 ? -1 : 1;
                 v.carry = { x0: v.x, y0: v.y, x1: TRACK_W / 2 + side * EAGLE_DROP_DX, y1: (seesaw ? seesaw.y : holefield.zone.y - 300) - EAGLE_DROP_ABOVE_SEESAW, t0: t, t1: t + EAGLE_FLY_MS };
-                v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.eagled = true;
+                v.state = 'carried'; v.vx = 0; v.vy = 0; v.stallUntil = 0; v.stallKind = ''; v.eagledBy[ei] = true;
                 const alive = B.filter(b => b.state !== 'done').length;
-                eagleCount++; eagleNextAt = t + EAGLE_FLY_MS + (alive <= EAGLE_FINAL_ALIVE ? EAGLE_REST_FINAL_MS : EAGLE_REST_MS);
-                pushEvent(t, 'eagleGrab', v, { x: Math.round(v.x), y: Math.round(v.y), tx: v.carry.x1, ty: v.carry.y1, dur: EAGLE_FLY_MS });
+                eg.count++; eg.nextAt = t + EAGLE_FLY_MS + (alive <= EAGLE_FINAL_ALIVE ? EAGLE_REST_FINAL_MS : EAGLE_REST_MS);
+                pushEvent(t, 'eagleGrab', v, { eagle: ei, x: Math.round(v.x), y: Math.round(v.y), tx: v.carry.x1, ty: v.carry.y1, dur: EAGLE_FLY_MS });
             }
         }
 
