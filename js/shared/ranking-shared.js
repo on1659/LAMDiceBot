@@ -890,6 +890,7 @@ const RankingModule = (function () {
                 case 'horse': _horseSubTab === 'vehicles' ? renderHorseVehicles(el) : renderHorseRank(el); break;
                 case 'roulette': renderGame(el, _cache.roulette, '룰렛'); break;
                 case 'ladder': renderGame(el, _cache.ladder, '사다리타기'); break;
+                case 'marble': renderGame(el, _cache.marble, '마블런'); break;
                 case 'orders': renderOrders(el); break;
             }
         });
@@ -995,7 +996,8 @@ const RankingModule = (function () {
             { label: '🎲 주사위', key: 'dice', color: '#667eea' },
             { label: '🐎 경마', key: 'horse', color: '#e67e22' },
             { label: '🎰 룰렛', key: 'roulette', color: '#7c4dff' },
-            { label: '🪜 사다리타기', key: 'ladder', color: '#f59e0b' }
+            { label: '🪜 사다리타기', key: 'ladder', color: '#f59e0b' },
+            { label: '🐾 마블런', key: 'marble', color: '#3fa65b' }
         ];
         if (data.orders) {
             gameTabs.push({ label: '🍜 주문', key: 'orders', color: '#e91e63' });
@@ -1313,7 +1315,7 @@ const RankingModule = (function () {
     // ─── 스와이프 제스처 ───
 
     function getGameTabKeys() {
-        const keys = ['dice', 'horse', 'roulette', 'ladder'];
+        const keys = ['dice', 'horse', 'roulette', 'ladder', 'marble'];
         if (_cache && _cache.orders) keys.push('orders');
         return keys;
     }

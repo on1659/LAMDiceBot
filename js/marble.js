@@ -58,7 +58,8 @@ var marbleState = {
     phase: 'idle',           // idle | playing | finished
     picks: {},               // { userName: creatureId }
     ballsPerPlayer: 3,
-    reveal: null             // 마지막 reveal 페이로드 (결과 오버레이 지연 표시용)
+    reveal: null,            // 마지막 reveal 페이로드 (결과 오버레이 지연 표시용)
+    preview: null            // 대기 화면 출발대 배치 (서버 stateUpdated.preview — 준비한 사람의 동물)
 };
 var renderer = null;
 var assetsLoaded = false;
@@ -210,10 +211,12 @@ window.addEventListener('DOMContentLoaded', function () {
                 var ic = btn.querySelector('.marble-creature-icon');
                 if (ic) renderer.drawCreatureIcon(ic, btn.getAttribute('data-creature'));
             });
-            if (!isMarbleActive) renderer.drawIdle();
+            if (!isMarbleActive) renderer.drawIdle(marbleState.preview, currentUser);
         });
-        window.addEventListener('resize', function () { if (renderer) renderer.resize(); });
-        document.addEventListener('fullscreenchange', function () { if (renderer) renderer.resize(); });
+        // 리사이즈는 캔버스를 비운다 — 재생 중엔 루프가 다시 그리지만 대기 화면은 한 프레임이라 직접 다시 그린다
+        var onResize = function () { if (!renderer) return; renderer.resize(); if (!isMarbleActive && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser); };
+        window.addEventListener('resize', onResize);
+        document.addEventListener('fullscreenchange', onResize);
     }
 });
 
@@ -385,10 +388,9 @@ function setGameStatus(text, cls) {
     if (el) { el.textContent = text; el.className = 'game-status ' + (cls || 'waiting'); }
 }
 
+// 트랙(캔버스)은 대기 중에도 보인다(출발대 프리뷰). 경주 중엔 동물 피커만 숨긴다.
 function showStage(show) {
-    var stage = document.getElementById('marbleStage');
     var pick = document.getElementById('marblePickSection');
-    if (stage) stage.style.display = show ? '' : 'none';
     if (pick) pick.style.display = show ? 'none' : '';
     if (show && renderer) renderer.resize();
 }
@@ -430,6 +432,181 @@ function renderHistory(history) {
 var localHistory = [];
 
 // ============================================
+// 예약 시작 — 방장이 건 시간에 서버가 [경주 시작]을 대신 눌러준다 (js/horse-race.js 와 같은 구조)
+// 예약은 시작 버튼을 대신 누를 뿐이다. 준비(readyUsers)에는 관여하지 않는다 — 발화 시점에 준비한 사람이 참가자.
+// 남은 시간은 서버가 준 절대 시각에서 현재 시각을 빼서 그린다 — 서버에 폴링하지 않는다.
+// ============================================
+var SCHEDULE_PRESET_MINUTES = [3, 5, 10, 30];   // 시/분 입력을 채우는 도우미 — 서버 상수와 맞출 필요 없음
+var SCHEDULE_PREFILL_OFFSET_MIN = 3;            // 팝업을 열 때 채워두는 기본 여유(분) — 서버 최소 여유와 같아야 바로 [예약]이 통과
+var SCHEDULE_NOTICE_MS = 5000;                  // 안내 문구를 배지에 띄워두는 시간
+var SCHEDULE_TICK_MS = 1000;                    // 남은 시간 갱신 주기
+
+var scheduledStartAt = null;      // 발화 시각(epoch ms) 또는 null
+var scheduledStartLabel = null;   // 서버가 만든 벽시계 표기("15:30") 또는 null — 클라가 계산하지 않는다
+var scheduleTickInterval = null;
+var scheduleNoticeTimer = null;   // 걸려 있으면 안내 문구 표시 중
+
+function renderSchedulePresets() {
+    var box = document.getElementById('scheduleModalPresets');
+    if (!box || box.childElementCount > 0) return;
+    SCHEDULE_PRESET_MINUTES.forEach(function (minutes) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'schedule-preset-btn';
+        btn.textContent = '+' + minutes + '분';
+        btn.onclick = function () { setScheduleTimeInputs(scheduleTargetAfter(minutes)); };
+        box.appendChild(btn);
+    });
+}
+
+// "지금 + N분"을 다음 분으로 올린다 — 분 단위 입력이라 초가 절삭되어 서버 최소 여유에 걸리지 않게
+function scheduleTargetAfter(minutes) {
+    var t = new Date(Date.now() + minutes * 60000);
+    if (t.getSeconds() > 0 || t.getMilliseconds() > 0) { t.setSeconds(0, 0); t.setMinutes(t.getMinutes() + 1); }
+    return t;
+}
+function schedulePad2(n) { return String(n).padStart(2, '0'); }
+
+// 시(00~23)·분(00~59) 드롭다운 채우기. 멱등.
+function renderScheduleTimeOptions() {
+    [['scheduleHourSelect', 24], ['scheduleMinuteSelect', 60]].forEach(function (pair) {
+        var sel = document.getElementById(pair[0]);
+        if (!sel || sel.childElementCount > 0) return;
+        for (var i = 0; i < pair[1]; i++) {
+            var opt = document.createElement('option');
+            opt.value = schedulePad2(i); opt.textContent = schedulePad2(i);
+            sel.appendChild(opt);
+        }
+    });
+}
+function setScheduleTimeInputs(date) {
+    var hourSel = document.getElementById('scheduleHourSelect');
+    var minSel = document.getElementById('scheduleMinuteSelect');
+    if (hourSel) hourSel.value = schedulePad2(date.getHours());
+    if (minSel) minSel.value = schedulePad2(date.getMinutes());
+}
+
+function openScheduleModal() {
+    renderScheduleTimeOptions();
+    renderSchedulePresets();
+    setScheduleTimeInputs(scheduleTargetAfter(SCHEDULE_PREFILL_OFFSET_MIN));
+    updateScheduleModal();
+    var modal = document.getElementById('scheduleModal');
+    if (modal) modal.style.display = 'flex';
+}
+function closeScheduleModal() {
+    var modal = document.getElementById('scheduleModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// 팝업 내용 — 예약 중이면 걸어둔 시각과 남은 시간을 보여주고 [예약 취소]를 띄운다
+function updateScheduleModal() {
+    var current = document.getElementById('scheduleModalCurrent');
+    var pickers = document.getElementById('scheduleModalPickers');
+    var cancelBtn = document.getElementById('scheduleModalCancelButton');
+    var timeEl = document.getElementById('scheduleModalTime');
+    var remainEl = document.getElementById('scheduleModalRemain');
+    var armed = !!scheduledStartAt;
+    if (current) current.style.display = armed ? 'block' : 'none';
+    if (pickers) pickers.style.display = armed ? 'none' : 'block';
+    if (cancelBtn) cancelBtn.style.display = armed ? 'block' : 'none';
+    if (armed && timeEl) timeEl.textContent = scheduledStartLabel || '예약됨';
+    if (armed && remainEl) remainEl.textContent = formatScheduleRemain(scheduledStartAt - Date.now());
+}
+
+// [예약] — 값은 "HH:MM" 문자열. 지난 시각 판정은 서버 몫(기기 시계 오차 배제).
+function scheduleStartAtTime() {
+    var hourSel = document.getElementById('scheduleHourSelect');
+    var minSel = document.getElementById('scheduleMinuteSelect');
+    var hour = hourSel ? hourSel.value : '', minute = minSel ? minSel.value : '';
+    if (!hour || !minute) { showCustomAlert('시간을 선택해주세요.', 'error'); return; }
+    socket.emit('scheduleStart', { at: hour + ':' + minute });
+}
+function cancelScheduledStart() { socket.emit('cancelScheduledStart'); }
+
+// 예약 중이면 버튼 글자에 걸어둔 시각을 박는다. 1분 미만이면 초 카운트다운을 덧붙인다.
+function updateScheduleControls() {
+    var openBtn = document.getElementById('scheduleOpenButton');
+    if (openBtn) {
+        var text = '⏰ 예약';
+        if (scheduledStartAt) {
+            text = '⏰ ' + (scheduledStartLabel || '예약됨');
+            var remainMs = scheduledStartAt - Date.now();
+            if (remainMs < SCHEDULE_TICK_MS * 60) text += ' · 시작 ' + Math.max(0, Math.ceil(remainMs / 1000)) + '초 전';
+        }
+        openBtn.textContent = text;
+        openBtn.classList.toggle('is-armed', !!scheduledStartAt);
+    }
+    updateScheduleModal();
+}
+
+function formatScheduleRemain(ms) {
+    var totalSec = Math.max(0, Math.ceil(ms / 1000));
+    var min = Math.floor(totalSec / 60), sec = totalSec % 60;
+    return min > 0 ? (min + '분 ' + sec + '초 후 시작') : (sec + '초 후 시작');
+}
+
+function renderScheduleBadge() {
+    var el = document.getElementById('scheduledStartBadge');
+    if (!el) return;
+    if (scheduleNoticeTimer) return;   // 안내 표시 중 — 같은 요소라 카운트다운이 덮어쓰면 안 된다
+    if (!scheduledStartAt) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.textContent = '⏰ ' + formatScheduleRemain(scheduledStartAt - Date.now()) + (scheduledStartLabel ? ' (' + scheduledStartLabel + ' 예정)' : '');
+    el.style.display = 'block';
+    updateScheduleControls();
+}
+function stopScheduleTick() {
+    if (scheduleTickInterval) { clearInterval(scheduleTickInterval); scheduleTickInterval = null; }
+}
+
+// 서버가 준 절대 시각 반영 — scheduledStartUpdated 와 입장/재입장 gameState 의 공통 진입점
+function applyScheduledStart(at, label) {
+    var wasArmed = !!scheduledStartAt;
+    scheduledStartAt = (typeof at === 'number' && isFinite(at) && at > 0) ? at : null;
+    scheduledStartLabel = (scheduledStartAt && typeof label === 'string' && label) ? label : null;
+    stopScheduleTick();
+    if (scheduledStartAt) scheduleTickInterval = setInterval(renderScheduleBadge, SCHEDULE_TICK_MS);
+    renderScheduleBadge();
+    updateScheduleControls();
+    if (!wasArmed && scheduledStartAt) closeScheduleModal();   // 방금 예약이 잡혔으면 팝업은 할 일이 끝났다
+}
+
+// 안내 문구를 카운트다운과 같은 요소에 잠깐 띄운다. 문구에 사용자 이름이 들어가므로 textContent 만.
+function showScheduleNotice(message) {
+    var el = document.getElementById('scheduledStartBadge');
+    if (!el) return;
+    if (scheduleNoticeTimer) clearTimeout(scheduleNoticeTimer);
+    el.textContent = message;
+    el.style.display = 'block';
+    scheduleNoticeTimer = setTimeout(function () { scheduleNoticeTimer = null; renderScheduleBadge(); }, SCHEDULE_NOTICE_MS);
+}
+
+// 방 이탈/페이지 이탈 — 인터벌이 남으면 로비로 나간 뒤에도 계속 돈다
+function clearScheduledStart() {
+    stopScheduleTick();
+    if (scheduleNoticeTimer) { clearTimeout(scheduleNoticeTimer); scheduleNoticeTimer = null; }
+    scheduledStartAt = null;
+    scheduledStartLabel = null;
+}
+window.addEventListener('pagehide', clearScheduledStart);
+
+window.openScheduleModal = openScheduleModal;
+window.closeScheduleModal = closeScheduleModal;
+window.scheduleStartAtTime = scheduleStartAtTime;
+window.cancelScheduledStart = cancelScheduledStart;
+
+socket.on('scheduledStartUpdated', function (data) {
+    applyScheduledStart(data && data.scheduledStartAt, data && data.scheduledStartLabel);
+});
+socket.on('scheduledStartNotice', function (data) {
+    if (data && typeof data.message === 'string' && data.message) showScheduleNotice(data.message);
+});
+// 요청한 방장에게만 오는 거절 사유
+socket.on('scheduledStartError', function (message) {
+    showCustomAlert((typeof message === 'string' && message) ? message : '예약에 실패했어요.', 'error');
+});
+
+// ============================================
 // 소켓 이벤트 — 공통
 // ============================================
 socket.on('roomCreated', function (data) {
@@ -454,6 +631,8 @@ socket.on('roomJoined', function (data) {
     sessionStorage.setItem('marbleActiveRoom', JSON.stringify({ roomId: data.roomId, userName: currentUser, serverId: currentServerId, serverName: currentServerName }));
     marbleInitModules();
 
+    if (data.gameState) applyScheduledStart(data.gameState.scheduledStartAt, data.gameState.scheduledStartLabel);
+
     // 재진입 복원 (서버 마스킹: phase/picks/ballsPerPlayer/round/history 만)
     if (data.gameState && data.gameState.marble) {
         var mb = data.gameState.marble;
@@ -469,7 +648,7 @@ socket.on('roomJoined', function (data) {
             isMarbleActive = true;
             showStage(true);
             setGameStatus('경주가 진행 중이에요 — 다음 판부터 함께 볼 수 있어요', 'active');
-            if (renderer) renderer.drawIdle();
+            if (renderer) renderer.drawIdle(null, currentUser);
         } else if (mb.phase === 'finished') {
             var last = localHistory.length ? localHistory[localHistory.length - 1].selected : null;
             setGameStatus('결과 발표 직후예요', 'active');
@@ -528,6 +707,19 @@ function renderUsersList(userArray) {
                 });
             });
         }
+        // 호스트 드래그 → 준비 목록에 놓으면 준비 처리 (ReadyModule 드롭 존이 source='users' 를 검사)
+        if (isHost && !isMarbleActive) {
+            tag.draggable = true;
+            tag.style.cursor = 'grab';
+            tag.setAttribute('data-user-name', user.name);
+            tag.addEventListener('dragstart', function (e) {
+                e.dataTransfer.setData('text/plain', user.name);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('source', 'users');
+                tag.style.opacity = '0.5';
+            });
+            tag.addEventListener('dragend', function () { tag.style.opacity = '1'; });
+        }
         usersList.appendChild(tag);
     });
 }
@@ -584,6 +776,7 @@ socket.on('sessionTakenOver', function (message) {
 });
 socket.on('roomLeft', function () {
     sessionStorage.removeItem('marbleActiveRoom');
+    clearScheduledStart();
     if (roomExpiryInterval) { clearInterval(roomExpiryInterval); roomExpiryInterval = null; }
     sessionStorage.setItem('returnToLobby', JSON.stringify({ serverId: currentServerId, serverName: currentServerName }));
     window.location.replace('/game');
@@ -631,7 +824,12 @@ socket.on('roomError', function (message) {
     sessionStorage.removeItem('marbleActiveRoom');
     setTimeout(function () { window.location.replace('/game'); }, 1500);
 });
-socket.on('readyUsersUpdated', function (rUsers) { readyUsers = rUsers || []; updateStartButton(); renderPickStatus(); });
+socket.on('readyUsersUpdated', function (rUsers) {
+    readyUsers = rUsers || [];
+    updateStartButton(); renderPickStatus();
+    // 출발대 프리뷰는 준비 인원으로 그린다 — 서버에 다시 받는다 (라운드 리셋 직후는 roundReset 이 요청)
+    if (marbleState.phase === 'idle' && !isMarbleActive) socket.emit('marble:requestState');
+});
 
 // ============================================
 // 소켓 이벤트 — 마블런 전용
@@ -644,6 +842,7 @@ socket.on('marble:stateUpdated', function (data) {
     if (!data) return;
     marbleState.picks = data.picks || {};
     if (typeof data.ballsPerPlayer === 'number') marbleState.ballsPerPlayer = data.ballsPerPlayer;
+    if (data.preview !== undefined) marbleState.preview = data.preview;
     // 경주 중 새로 들어온 사람(reveal 못 받음): 진행 중 안내만. 이미 재생 중이면 phase 는 reveal 이 관리한다.
     if (data.phase === 'playing' && !isMarbleActive) {
         marbleState.phase = 'playing';
@@ -652,6 +851,7 @@ socket.on('marble:stateUpdated', function (data) {
     syncBallsControl();
     renderPickStatus();
     updateStartButton();
+    if (marbleState.phase === 'idle' && !isMarbleActive && renderer && assetsLoaded) renderer.drawIdle(marbleState.preview, currentUser);
 });
 
 // reveal → 카운트다운 포함 리플레이 시작. 결과 오버레이는 gameEnd(서버 타이머)에서.
@@ -698,6 +898,7 @@ socket.on('marble:gameAborted', function (data) {
     setGameStatus((data && data.reason) || '게임이 중단되었습니다.', 'waiting');
     renderPickStatus();
     updateStartButton();
+    socket.emit('marble:requestState');   // 출발대 프리뷰 다시 받기
 });
 
 socket.on('marble:roundReset', function () {
@@ -705,11 +906,12 @@ socket.on('marble:roundReset', function () {
     marbleState.reveal = null;
     isMarbleActive = false;
     readyUsers = [];
-    if (renderer) { renderer.stop(); renderer.drawIdle(); }
+    if (renderer) renderer.stop();
     if (document.body) document.body.classList.remove('race-running');
     showStage(false);
     closeResultOverlay();
     setGameStatus('게임 대기 중...', 'waiting');
     renderPickStatus();
     updateStartButton();
+    socket.emit('marble:requestState');   // 출발대 프리뷰(준비 0명) 다시 받기 — 마지막 경주 프레임은 그때까지 남는다
 });

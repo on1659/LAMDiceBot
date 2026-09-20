@@ -12,6 +12,7 @@ var MarbleRender = (function () {
     var NAP_R = 17;
     var COUNTDOWN_MS = 4000;         // js/marble.js 카운트다운과 동일 — t<0 구간(서기 → 웅크림)
     var CURL_START_MS = -1100;       // 이 시각부터 curl 애니(4프레임 9fps ≈ 440ms) 후 공으로 대기
+    var IDLE_T = -100000;            // 대기 화면 프레임 시각 — 카운트다운 전(서 있는 포즈) 구간을 그대로 쓴다
     var GATE_ANIM_MS = 400;          // 출발 빗장 올라가는 시간
     var BEE_MS = 1800;
     var MUD_DIZZY_MS = 1000;
@@ -853,7 +854,7 @@ var MarbleRender = (function () {
         function drawHud(t) {
             ctx.save();
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
-            var txt = t < 0 ? '출발 준비…' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '전원 도착!');
+            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비…' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '전원 도착!');
             ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, ctx.measureText(txt).width + 20, 26, 8); ctx.fill();
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
             if (t >= 0 && hudInfo.worst.length) {
@@ -870,7 +871,13 @@ var MarbleRender = (function () {
                 });
             }
             drawMinimap(t);
-            if (t < 0) {
+            if (phase === 'idle') {
+                if (!balls.length) {
+                    ctx.font = 'bold 18px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
+                    ctx.strokeText('동물을 고르고 준비하면 출발대에 섭니다', view.w / 2, view.h * 0.6); ctx.fillText('동물을 고르고 준비하면 출발대에 섭니다', view.w / 2, view.h * 0.6);
+                }
+            } else if (t < 0) {
                 var n = Math.ceil(-t / 1000);
                 ctx.font = 'bold 64px "Jua", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#fff';
@@ -910,8 +917,17 @@ var MarbleRender = (function () {
             if (tPlay >= data.durationMs && phase !== 'done') { phase = 'done'; R.stop(); }
         };
 
-        // 대기 화면(타임라인 없을 때) — 출발대 프리뷰
-        R.drawIdle = function (previewBalls) {
+        // 대기 화면 — 출발대 프리뷰. preview = 서버 marble:stateUpdated.preview { track, balls, frame } (준비한 사람의 동물이 출발대에 서 있음).
+        // 카운트다운 전 구간(IDLE_T)을 한 프레임 그린다 — 재생 루프 없음. preview 가 없으면 하늘만.
+        R.drawIdle = function (preview, me) {
+            R.stop();
+            if (preview && preview.track) {
+                R.setTimeline({ track: preview.track, balls: preview.balls, frames: [preview.frame], sampleMs: 100, events: [], finishOrder: [], durationMs: 0, slow: null }, me);
+                phase = 'idle';
+                R.render(IDLE_T, 0);
+                return;
+            }
+            phase = 'idle'; data = null;
             R.resize();
             ctx.save(); ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
             var g = ctx.createLinearGradient(0, 0, 0, view.h); g.addColorStop(0, '#9fd8ff'); g.addColorStop(1, '#cdefc0');

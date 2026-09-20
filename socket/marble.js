@@ -11,23 +11,193 @@ const RESULT_HOLD_MS = 1500;      // 재생 끝(durationMs = 마지막 골인 + 
 const MARBLE_RESET_DELAY = 4500;  // gameEnd 후 다음 판 리셋까지
 const MARBLE_MIN_PLAYERS = 2;
 const HISTORY_MAX = 100;
+const PREVIEW_SEED = 1;           // 대기 화면 출발대 배치용 고정 시드 — 갱신 때마다 자리가 튀지 않게
 const CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
 
 function assignCreature(idx) { return CREATURES[idx % CREATURES.length]; }
 
+function clearMarbleTimers(mb) {
+    if (mb.endTimeout) { clearTimeout(mb.endTimeout); mb.endTimeout = null; }
+    if (mb.resetTimeout) { clearTimeout(mb.resetTimeout); mb.resetTimeout = null; }
+}
+
+// 시작 검문 — 소켓 없이 판정한다(예약 스위퍼 socket/scheduled-start.js 가 그대로 호출).
+// 호스트 확인은 여기 넣지 않는다: 타이머에는 응답할 소켓이 없다.
+function canStartMarble(room, gameState) {
+    if (room.gameType !== 'marble') return '마블런 방이 아닙니다!';
+    const mb = gameState.marble;
+    if (!mb) return '마블런 방이 아닙니다!';
+    if (mb.phase !== 'idle' && mb.phase !== 'finished') return '이미 게임이 진행 중입니다!';
+    const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
+    if (ready.length < MARBLE_MIN_PLAYERS) return `준비한 인원이 ${MARBLE_MIN_PLAYERS}명 이상이어야 합니다!`;
+    return null;
+}
+
+// 시작 실행 — 배치 + 시뮬 사전계산 + reveal. socket 을 참조하지 않는다(수동 시작과 예약 발화가 같은 경로).
+// ctx 는 { rooms, updateRoomsList } 만 보장된다(예약 발화 경로).
+async function startMarble(room, gameState, io, ctx) {
+    // 수동 시작이 예약을 앞질렀으면 예약을 풀고 방 전체에 알린다 (예약 발화 경로는 fire() 가 이미 비우고 들어온다)
+    if (gameState.scheduledStartAt) {
+        const scheduled = require('./scheduled-start');
+        const label = scheduled.formatWallClock(gameState.scheduledStartAt);
+        gameState.scheduledStartAt = null;
+        io.to(room.roomId).emit('scheduledStartUpdated', { scheduledStartAt: null });
+        scheduled.roomNotice(io, room, gameState, `${label} 예약을 취소하고 지금 바로 시작합니다.`);
+    }
+
+    const mb = gameState.marble;
+    // 참가자 = 현재 방에 있고 준비한 사용자 (입장 순서)
+    const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
+    const participants = gameState.users.filter(u => ready.includes(u.name)).map(u => u.name);
+
+    gameState.orderAutoTriggered = false;
+
+    const picks = {};
+    participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
+    const ballsPerPlayer = sim.effectiveBallsPerPlayer(mb.ballsPerPlayer, participants.length);
+    const seed = Math.floor(Math.random() * 2147483647);   // 서버 RNG 허용(시드 생성)
+
+    clearMarbleTimers(mb);
+    mb.phase = 'playing';
+    mb.isActive = true;
+    mb.participants = participants.slice();
+    mb.seed = seed;
+
+    let balls, result;
+    try {
+        balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
+        const track = sim.buildTrack(balls.length, sim.mulberry32(seed ^ 0x9e3779b9));   // 댐 틈 쪽 등 트랙 랜덤
+        result = await sim.simulate(balls, seed, track);
+    } catch (e) {
+        console.warn('[마블런] 시뮬 실패:', e.message);
+        mb.phase = 'idle'; mb.isActive = false;
+        // 방장 소켓이 없을 수도 있어(예약 발화) 방 전체에 알린다
+        io.to(room.roomId).emit('marble:error', '게임 준비 중 오류가 발생했습니다. 다시 시도해주세요.');
+        ctx.updateRoomsList();
+        return;
+    }
+    if (!ctx.rooms[room.roomId]) return;   // 비동기 시뮬 도중 방이 사라짐
+
+    const rank = sim.rankPlayers(balls, result.finishOrder, participants);
+    const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num }));
+    const payload = {
+        durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
+        balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
+        slow: result.slow,            // { startMs, rate, endMs } — 클라 재생 속도 매핑(서버 durationMs 와 동일 계산)
+        ballsPerPlayer,
+        result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
+    };
+    mb.timeline = payload;    // server-only (rooms.js 재진입 마스킹 화이트리스트 밖)
+    mb.result = payload.result;
+
+    io.to(room.roomId).emit('marble:reveal', payload);
+    console.log(`[마블런] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${result.durationMs}ms`);
+
+    clearMarbleTimers(mb);
+    mb.endTimeout = setTimeout(() => {
+        if (!ctx.rooms[room.roomId]) return;
+        endGame(room, gameState, io, ctx);
+    }, COUNTDOWN_MS + result.durationMs + RESULT_HOLD_MS);
+
+    ctx.updateRoomsList();
+}
+
+function endGame(room, gameState, io, ctx) {
+    const mb = gameState.marble;
+    clearMarbleTimers(mb);
+
+    // 당첨자 이탈 시 승계 목록(worst→best)의 "지금도 방에 있는 첫 항목"으로 대체 — 재계산 없음
+    const result = mb.result || { selected: null, rankings: [], successionList: [] };
+    const rankings = result.rankings || [];
+    const succession = result.successionList || (result.selected ? [result.selected] : []);
+    const selected = succession.find(name => gameState.users.some(u => u.name === name)) || null;
+
+    const dbPlayers = (mb.participants || []).filter(name => gameState.users.some(u => u.name === name));
+    if (dbPlayers.length === 0) {
+        mb.phase = 'idle'; mb.isActive = false;
+        io.to(room.roomId).emit('marble:gameAborted', { reason: '참가자가 모두 나갔습니다.' });
+        ctx.updateRoomsList();
+        return;
+    }
+
+    mb.phase = 'finished';
+    mb.isActive = false;
+    mb.round++;
+    mb.history.push({ round: mb.round, selected, timestamp: new Date().toISOString() });
+    if (mb.history.length > HISTORY_MAX) mb.history = mb.history.slice(-HISTORY_MAX);
+
+    io.to(room.roomId).emit('marble:gameEnd', { selected, rankings, round: mb.round });
+
+    recordGamePlay('marble', dbPlayers.length, room.serverId || null);
+    if (room.serverId) {
+        const sessionId = generateSessionId('marble', room.serverId);
+        Promise.all(dbPlayers.map(name => {
+            const isWinner = name !== selected;    // 당첨(꼴찌 주인) = 패자
+            const rank = isWinner ? 1 : 2;
+            return recordServerGame(room.serverId, name, rank, 'marble', isWinner, sessionId, rank);
+        })).then(() => recordGameSession({
+            serverId: room.serverId, sessionId, gameType: 'marble', gameRules: 'last-ball',
+            winnerName: dbPlayers.find(n => n !== selected) || null,
+            participantCount: dbPlayers.length
+        })).catch(e => console.warn('[마블런] DB 기록 실패:', e.message));
+    }
+
+    console.log(`[마블런] 방 ${room.roomName} 종료 - 당첨=${selected}`);
+    if (ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
+
+    mb.resetTimeout = setTimeout(() => {
+        const currentRoom = ctx.rooms[room.roomId];
+        if (!currentRoom) return;
+        const cur = currentRoom.gameState.marble;
+        resetMarble(cur);
+        const cg = currentRoom.gameState;
+        cg.readyUsers = [];
+        cg.users.forEach(u => { u.isReady = false; });
+        io.to(room.roomId).emit('readyUsersUpdated', cg.readyUsers);
+        io.to(room.roomId).emit('marble:roundReset');
+        ctx.updateRoomsList();
+    }, MARBLE_RESET_DELAY);
+
+    ctx.updateRoomsList();
+}
+
+// 다음 판 리셋 — 동물 선택은 유지(같은 동물로 다시), ballsPerPlayer 유지
+function resetMarble(mb) {
+    clearMarbleTimers(mb);
+    mb.phase = 'idle';
+    mb.participants = [];
+    mb.timeline = null;
+    mb.result = null;
+    mb.seed = 0;
+    mb.isActive = false;
+}
+
 module.exports = (socket, io, ctx) => {
-    const { updateRoomsList, getCurrentRoom, getCurrentRoomGameState } = ctx;
+    const { getCurrentRoom, getCurrentRoomGameState } = ctx;
     // 훅(security-guard)이 리터럴 ctx.checkRateLimit( 를 세므로 별칭 없이 직접 호출
     const rateOk = () => (typeof ctx.checkRateLimit !== 'function') || ctx.checkRateLimit();
 
-    function clearMarbleTimers(mb) {
-        if (mb.endTimeout) { clearTimeout(mb.endTimeout); mb.endTimeout = null; }
-        if (mb.resetTimeout) { clearTimeout(mb.resetTimeout); mb.resetTimeout = null; }
-    }
-
-    // 상태 동기화 (server-only 정보 미포함). phase 는 경주 중 새로 들어온 사람이 "진행 중" 안내를 띄우는 용도
+    // 상태 동기화 (server-only 정보 미포함). phase 는 경주 중 새로 들어온 사람이 "진행 중" 안내를 띄우는 용도.
+    // preview = 대기 화면용 출발대 배치(준비한 사람 × 마리 수). 결과와 무관한 순수 배치라 공정성 문제 없음 —
+    // 실제 시작은 별도 시드로 다시 섞는다. 준비 인원이 바뀌면 클라가 marble:requestState 로 다시 받는다.
     function publicState(gameState) {
-        return { phase: gameState.marble.phase, picks: { ...gameState.marble.picks }, ballsPerPlayer: gameState.marble.ballsPerPlayer };
+        const mb = gameState.marble;
+        return { phase: mb.phase, picks: { ...mb.picks }, ballsPerPlayer: mb.ballsPerPlayer, preview: idlePreview(gameState) };
+    }
+    function idlePreview(gameState) {
+        const mb = gameState.marble;
+        if (mb.phase !== 'idle') return null;
+        const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
+        const participants = gameState.users.filter(u => ready.includes(u.name)).map(u => u.name);
+        const picks = {};
+        participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
+        const ballsPerPlayer = sim.effectiveBallsPerPlayer(mb.ballsPerPlayer, Math.max(1, participants.length));
+        const balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(PREVIEW_SEED));
+        return {
+            track: sim.buildTrack(Math.max(1, balls.length)),
+            balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num })),
+            frame: balls.flatMap(b => [Math.round(b.x), Math.round(b.y)])
+        };
     }
     function emitState(room, gameState) {
         io.to(room.roomId).emit('marble:stateUpdated', publicState(gameState));
@@ -76,143 +246,18 @@ module.exports = (socket, io, ctx) => {
         socket.emit('marble:stateUpdated', publicState(gameState));
     });
 
-    // 게임 시작 (호스트) — 배치 + 시뮬 사전계산 + reveal
+    // 게임 시작 (호스트) — 검문은 canStartMarble, 실행은 startMarble (예약 발화와 같은 경로)
     socket.on('marble:start', async () => {
         if (!rateOk()) return;
         const gameState = getCurrentRoomGameState();
         const room = getCurrentRoom();
         if (!gameState || !room) return;
-        if (room.gameType !== 'marble') { socket.emit('marble:error', '마블런 방이 아닙니다!'); return; }
         const user = gameState.users.find(u => u.id === socket.id);
         if (!user || !user.isHost) { socket.emit('marble:error', '방장만 게임을 시작할 수 있습니다!'); return; }
-        const mb = gameState.marble;
-        if (mb.phase !== 'idle' && mb.phase !== 'finished') { socket.emit('marble:error', '이미 게임이 진행 중입니다!'); return; }
-
-        // 참가자 = 현재 방에 있고 준비한 사용자 (입장 순서)
-        const ready = (gameState.readyUsers || []).filter(name => gameState.users.some(u => u.name === name));
-        if (ready.length < MARBLE_MIN_PLAYERS) { socket.emit('marble:error', `준비한 인원이 ${MARBLE_MIN_PLAYERS}명 이상이어야 합니다!`); return; }
-        const participants = gameState.users.filter(u => ready.includes(u.name)).map(u => u.name);
-
-        gameState.orderAutoTriggered = false;
-
-        const picks = {};
-        participants.forEach((name, i) => { picks[name] = CREATURES.includes(mb.picks[name]) ? mb.picks[name] : assignCreature(i); });
-        const ballsPerPlayer = sim.effectiveBallsPerPlayer(mb.ballsPerPlayer, participants.length);
-        const seed = Math.floor(Math.random() * 2147483647);   // 서버 RNG 허용(시드 생성)
-
-        clearMarbleTimers(mb);
-        mb.phase = 'playing';
-        mb.isActive = true;
-        mb.participants = participants.slice();
-        mb.seed = seed;
-
-        let balls, result;
-        try {
-            balls = sim.layoutBalls(participants, picks, ballsPerPlayer, sim.mulberry32(seed));
-            const track = sim.buildTrack(balls.length);
-            result = await sim.simulate(balls, seed, track);
-        } catch (e) {
-            console.warn('[마블런] 시뮬 실패:', e.message);
-            mb.phase = 'idle'; mb.isActive = false;
-            socket.emit('marble:error', '게임 준비 중 오류가 발생했습니다. 다시 시도해주세요.');
-            updateRoomsList();
-            return;
-        }
-        if (!ctx.rooms[room.roomId]) return;   // 비동기 시뮬 도중 방이 사라짐
-
-        const rank = sim.rankPlayers(balls, result.finishOrder, participants);
-        const revealBalls = balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num }));
-        const payload = {
-            durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
-            balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
-            slow: result.slow,            // { startMs, rate, endMs } — 클라 재생 속도 매핑(서버 durationMs 와 동일 계산)
-            ballsPerPlayer,
-            result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
-        };
-        mb.timeline = payload;    // server-only (rooms.js 재진입 마스킹 화이트리스트 밖)
-        mb.result = payload.result;
-
-        io.to(room.roomId).emit('marble:reveal', payload);
-        console.log(`[마블런] 방 ${room.roomName} 공개 - 참가자 ${participants.length}명 × ${ballsPerPlayer}마리 / 당첨=${rank.selected} / 길이=${result.durationMs}ms`);
-
-        clearMarbleTimers(mb);
-        mb.endTimeout = setTimeout(() => {
-            if (!ctx.rooms[room.roomId]) return;
-            endGame(room, gameState);
-        }, COUNTDOWN_MS + result.durationMs + RESULT_HOLD_MS);
-
-        updateRoomsList();
+        const reason = canStartMarble(room, gameState);
+        if (reason) { socket.emit('marble:error', reason); return; }
+        await startMarble(room, gameState, io, ctx);
     });
-
-    function endGame(room, gameState) {
-        const mb = gameState.marble;
-        clearMarbleTimers(mb);
-
-        // 당첨자 이탈 시 승계 목록(worst→best)의 "지금도 방에 있는 첫 항목"으로 대체 — 재계산 없음
-        const result = mb.result || { selected: null, rankings: [], successionList: [] };
-        const rankings = result.rankings || [];
-        const succession = result.successionList || (result.selected ? [result.selected] : []);
-        const selected = succession.find(name => gameState.users.some(u => u.name === name)) || null;
-
-        const dbPlayers = (mb.participants || []).filter(name => gameState.users.some(u => u.name === name));
-        if (dbPlayers.length === 0) {
-            mb.phase = 'idle'; mb.isActive = false;
-            io.to(room.roomId).emit('marble:gameAborted', { reason: '참가자가 모두 나갔습니다.' });
-            updateRoomsList();
-            return;
-        }
-
-        mb.phase = 'finished';
-        mb.isActive = false;
-        mb.round++;
-        mb.history.push({ round: mb.round, selected, timestamp: new Date().toISOString() });
-        if (mb.history.length > HISTORY_MAX) mb.history = mb.history.slice(-HISTORY_MAX);
-
-        io.to(room.roomId).emit('marble:gameEnd', { selected, rankings, round: mb.round });
-
-        recordGamePlay('marble', dbPlayers.length, room.serverId || null);
-        if (room.serverId) {
-            const sessionId = generateSessionId('marble', room.serverId);
-            Promise.all(dbPlayers.map(name => {
-                const isWinner = name !== selected;    // 당첨(꼴찌 주인) = 패자
-                const rank = isWinner ? 1 : 2;
-                return recordServerGame(room.serverId, name, rank, 'marble', isWinner, sessionId, rank);
-            })).then(() => recordGameSession({
-                serverId: room.serverId, sessionId, gameType: 'marble', gameRules: 'last-ball',
-                winnerName: dbPlayers.find(n => n !== selected) || null,
-                participantCount: dbPlayers.length
-            })).catch(e => console.warn('[마블런] DB 기록 실패:', e.message));
-        }
-
-        console.log(`[마블런] 방 ${room.roomName} 종료 - 당첨=${selected}`);
-        if (ctx.triggerAutoOrder) ctx.triggerAutoOrder(gameState, room);
-
-        mb.resetTimeout = setTimeout(() => {
-            const currentRoom = ctx.rooms[room.roomId];
-            if (!currentRoom) return;
-            const cur = currentRoom.gameState.marble;
-            resetMarble(cur);
-            const cg = currentRoom.gameState;
-            cg.readyUsers = [];
-            cg.users.forEach(u => { u.isReady = false; });
-            io.to(room.roomId).emit('readyUsersUpdated', cg.readyUsers);
-            io.to(room.roomId).emit('marble:roundReset');
-            updateRoomsList();
-        }, MARBLE_RESET_DELAY);
-
-        updateRoomsList();
-    }
-
-    // 다음 판 리셋 — 동물 선택은 유지(같은 동물로 다시), ballsPerPlayer 유지
-    function resetMarble(mb) {
-        clearMarbleTimers(mb);
-        mb.phase = 'idle';
-        mb.participants = [];
-        mb.timeline = null;
-        mb.result = null;
-        mb.seed = 0;
-        mb.isActive = false;
-    }
 
     // 호스트 이탈 → grace 후 phase 분기 (spin-arena 복제: playing/finished는 타이머가 자연 처리)
     socket.on('disconnect', (reason) => {
@@ -233,3 +278,6 @@ module.exports = (socket, io, ctx) => {
 };
 
 module.exports.CREATURES = CREATURES;
+// 예약 스위퍼(socket/scheduled-start.js)가 소켓 없이 호출하는 진입점.
+module.exports.canStart = canStartMarble;
+module.exports.start = startMarble;

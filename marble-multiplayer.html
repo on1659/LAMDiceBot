@@ -43,6 +43,92 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
         @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* ═══ 예약 시작 (horse-race-multiplayer.html 과 같은 구조, 색만 마블런 토큰) ═══
+           배지는 #marbleCanvasBox 안에 있어 전체화면에서도 캔버스와 함께 보인다. */
+        #scheduledStartBadge {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: calc(100% - 16px);
+            z-index: 110;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--yellow-400);
+            background: rgba(0, 0, 0, 0.72);
+            color: var(--bg-white);
+            font-family: 'Jua', sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: keep-all;
+            pointer-events: none;
+        }
+        .schedule-open-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+        .schedule-open-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            width: auto;
+            margin: 0;
+            padding: 6px 11px;
+            border: 1.5px solid var(--marble-accent);
+            border-radius: 999px;
+            background: var(--bg-white);
+            color: var(--marble-accent);
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .schedule-open-btn.is-armed {
+            border-color: var(--btn-danger);
+            background: var(--btn-danger);
+            color: var(--bg-white);
+        }
+        .schedule-preset-btn {
+            width: auto;
+            margin: 0;
+            flex: 1 1 auto;
+            min-width: 64px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--marble-gradient);
+            color: var(--bg-white);
+        }
+        .schedule-time-select {
+            flex: 1 1 0;
+            min-width: 0;
+            margin: 0;
+            padding: 8px 10px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            font-family: 'Jua', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 16px;   /* 16px 미만이면 iOS 포커스 시 화면 확대 */
+        }
+        .schedule-time-select:focus {
+            border-color: var(--marble-accent);
+            outline: none;
+        }
+        .schedule-time-colon {
+            flex: 0 0 auto;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 700;
+        }
+        @media (max-width: 480px) {
+            #scheduledStartBadge { font-size: 12px; padding: 5px 10px; }
+            .schedule-preset-btn { font-size: 13px; padding: 9px 8px; }
+        }
     </style>
     <script type="application/ld+json">
     {
@@ -137,6 +223,10 @@
 
             <!-- 호스트 컨트롤 -->
             <div class="host-controls" id="hostControls" style="display: none; margin-bottom: 20px;">
+                <!-- 예약 — 정한 시간이 되면 서버가 [경주 시작]을 대신 눌러준다. 예약 중이면 글자가 "⏰ 22:45"로 바뀐다. -->
+                <div class="schedule-open-row">
+                    <button type="button" class="schedule-open-btn" id="scheduleOpenButton" onclick="openScheduleModal()">⏰ 예약</button>
+                </div>
                 <div id="marbleHostSettings" class="marble-host-settings">
                     <label for="marbleBallsRange">1인당 동물 수 <strong id="marbleBallsValue">3</strong>마리</label>
                     <input type="range" id="marbleBallsRange" min="1" max="10" value="3" oninput="onMarbleBallsInput(this.value)" onchange="setMarbleBalls(this.value)">
@@ -224,10 +314,12 @@
                 <div id="marblePickStatus" class="marble-pick-status"></div>
             </section>
             <!-- 경주 캔버스 -->
-            <section id="marbleStage" style="display: none;">
+            <section id="marbleStage">
                 <div id="marbleCanvasBox">
                     <canvas id="marbleCanvas" width="800" height="600" aria-label="마블런 경주 캔버스"></canvas>
                     <div id="marbleHud"></div>
+                    <!-- 예약 시작 배지 — 남은 시간과 발화 안내를 번갈아 보여주는 단일 요소 -->
+                    <div id="scheduledStartBadge" style="display: none;"></div>
                     <!-- 리플레이 중 채팅 오버레이 (경마 raceChatOverlay CSS 재사용 — 페이지별 link라 경마 무영향) -->
                     <div id="raceChatOverlay"></div>
                     <button type="button" id="marbleFullscreenBtn" onclick="toggleMarbleFullscreen()" title="전체화면">⛶</button>
@@ -275,6 +367,41 @@
         </div>
     </div>
 
+    <!-- 예약 시각 지정 팝업 — 방장이 [⏰ 예약]을 누르면 열린다 -->
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: var(--bg-white); padding: 24px; border-radius: 12px; max-width: 360px; width: 90%;">
+            <h3 style="color: var(--marble-accent); margin-bottom: 6px;">⏰ 시작 시간 예약</h3>
+            <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">시간이 되면 서버가 경주를 대신 시작합니다. 그때 준비한 사람이 참가자예요.</p>
+
+            <!-- 예약이 걸려 있을 때만 보인다 -->
+            <div id="scheduleModalCurrent" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; background: var(--bg-subtle, rgba(0,0,0,0.05)); text-align: center;">
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);" id="scheduleModalTime">--:--</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="scheduleModalRemain"></div>
+            </div>
+
+            <div id="scheduleModalPickers">
+                <!-- 프리셋은 빠른 입력 도우미다 — 누르면 아래 시/분만 채우고, 예약은 [예약] 버튼으로만 걸린다 -->
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">빠른 입력 (지금부터)</div>
+                <div id="scheduleModalPresets" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;"></div>
+
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">시작 시각</div>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;">
+                        <select id="scheduleHourSelect" class="schedule-time-select" aria-label="시작할 시"></select>
+                        <span class="schedule-time-colon">:</span>
+                        <select id="scheduleMinuteSelect" class="schedule-time-select" aria-label="시작할 분"></select>
+                    </div>
+                    <button type="button" class="schedule-preset-btn" onclick="scheduleStartAtTime()" style="flex: 0 0 auto;">예약</button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeScheduleModal()" style="background: var(--btn-neutral); flex: 1; color: var(--text-primary); font-weight: 600;">닫기</button>
+                <button type="button" id="scheduleModalCancelButton" onclick="cancelScheduledStart()" style="display: none; flex: 1; background: linear-gradient(135deg, var(--btn-danger) 0%, var(--red-400) 100%); color: var(--bg-white); font-weight: 600;">예약 취소</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 비밀번호 입력 모달 -->
     <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
@@ -298,8 +425,8 @@
     <script src="/js/shared/countdown-shared.js"></script>
     <script src="/assets/sounds/sound-manager.js"></script>
     <script src="/js/shared/tutorial-shared.js?v=3"></script>
-    <script src="/js/marble-render.js?v=8"></script>
-    <script src="/js/marble.js?v=2"></script>
+    <script src="/js/marble-render.js?v=9"></script>
+    <script src="/js/marble.js?v=3"></script>
 
     <script>
         // ============================================
