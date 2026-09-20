@@ -23,7 +23,8 @@
         '/horse-race': 'horse',
         '/bridge-cross': 'bridge',
         '/ladder': 'ladder',
-        '/spin-arena': 'spin-arena'
+        '/spin-arena': 'spin-arena',
+        '/marble': 'marble'
     };
 
     // 슬러그 → 게임 페이지 경로 (서버 방 다이렉트 링크용)
@@ -33,7 +34,8 @@
         'horse': '/horse-race',
         'bridge': '/bridge-cross',
         'ladder': '/ladder',
-        'spin-arena': '/spin-arena'
+        'spin-arena': '/spin-arena',
+        'marble': '/marble'
     };
 
     let initialized = false;

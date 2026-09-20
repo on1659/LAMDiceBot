@@ -288,7 +288,24 @@ const GAMES = [
             'spin-arena:roundReset': (b) => { b.info.skin = null; updateBotList(); },
         },
     },
+    {
+        type: 'marble', name: '마블런', emoji: '🐾', accent: '#3fa65b', maxBots: 49,
+        hint: '봇마다 동물 5종을 순환 선택합니다(안 골라도 서버가 자동 배정). 1인당 마리 수는 호스트 슬라이더, 총 200마리를 넘으면 서버가 줄입니다. 준비된 봇이 참가자이며 호스트가 경주를 시작하면 결과는 서버 시뮬로 즉시 확정됩니다.',
+        actions: [ { label: '동물 선택(5종 순환)', cls: 'btn-orange', fn: () => marblePickAll() } ],
+        quick: () => marblePickAll(),
+        info: (b) => b.info.creature ? `🐾 ${MARBLE_CREATURE_NAMES[b.info.creature] || b.info.creature}` : '',
+        events: {
+            'marble:stateUpdated': (b, d) => { const map = (d && d.picks) || {}; if (map[b.name]) { b.info.creature = map[b.name]; updateBotList(); } },
+            'marble:reveal': (b, d) => { if (isLead(b)) dlog(`공개 — ${d && d.balls ? d.balls.length : '?'}마리 / 길이 ${d && d.durationMs}ms / 당첨(꼴찌 주인)=${d && d.result && d.result.selected}`, 'event'); },
+            'marble:gameEnd': (b, d) => { if (isLead(b)) dlog(`게임 종료 — 당첨=${d && d.selected} (round ${d && d.round})`, 'event'); },
+            'marble:gameAborted': (b, d) => { if (isLead(b)) dlog(`게임 취소: ${d && d.reason || '?'}`, 'err'); },
+            'marble:error': (b, d) => { if (isLead(b)) dlog(`마블런 오류: ${d}`, 'err'); },
+        },
+    },
 ];
+// 마블런 동물 5종 (socket/marble.js CREATURES 와 동일 순서)
+const MARBLE_CREATURES = ['hedgehog', 'armadillo', 'pillbug', 'turtle', 'panda'];
+const MARBLE_CREATURE_NAMES = { hedgehog: '고슴도치', armadillo: '아르마딜로', pillbug: '공벌레', turtle: '거북이', panda: '판다' };
 function skinName(id) { const s = SPIN_SKINS.find(x => x.id === id); return s ? s.name : id; }
 function skinHex(id) { const s = SPIN_SKINS.find(x => x.id === id); return s ? s.hex : '#888'; }
 
@@ -625,6 +642,14 @@ function spinSkinAll() {
     if (!ready.length) { dlog('준비된 봇 없음 (먼저 입장/준비)', 'err'); return; }
     ready.forEach((b, i) => { const id = SPIN_SKINS[i % SPIN_SKINS.length].id; b.socket.emit('spin-arena:selectSkin', { skinId: id }); b.info.skin = id; });
     dlog(`${ready.length}봇 스킨 선택 (base 6색 순환)`, 'ok');
+    updateBotList();
+}
+// 마블런 — 선택은 준비 여부 무관(idle 이면 됨)
+function marblePickAll() {
+    const j = joined();
+    if (!j.length) { dlog('입장한 봇 없음', 'err'); return; }
+    j.forEach((b, i) => { const id = MARBLE_CREATURES[i % MARBLE_CREATURES.length]; b.socket.emit('marble:pick', { creatureId: id }); b.info.creature = id; });
+    dlog(`${j.length}봇 동물 선택 (5종 순환)`, 'ok');
     updateBotList();
 }
 

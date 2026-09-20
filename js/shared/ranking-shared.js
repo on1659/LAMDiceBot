@@ -31,7 +31,8 @@ const RankingModule = (function () {
         'ladder': '🪜 사다리타기',
         'pirate': '🏴‍☠️ 해적 룰렛',
         'spin-arena': '🌀 회전 칼날',
-        'bridge': '🌉 다리 건너기'
+        'bridge': '🌉 다리 건너기',
+        'marble': '🐾 마블런'
     };
     const CAL_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -909,6 +910,7 @@ const RankingModule = (function () {
                 case 'horse': _horseSubTab === 'vehicles' ? renderHorseVehicles(el) : renderHorseRank(el); break;
                 case 'roulette': renderGame(el, _cache.roulette, '룰렛'); break;
                 case 'ladder': renderGame(el, _cache.ladder, '사다리타기'); break;
+                case 'marble': renderGame(el, _cache.marble, '마블런'); break;
                 case 'orders': renderOrders(el); break;
             }
         });
@@ -1016,6 +1018,8 @@ const RankingModule = (function () {
             { label: '🎰 룰렛', key: 'roulette', color: '#7c4dff' },
             { label: '🪜 사다리타기', key: 'ladder', color: '#f59e0b' }
         ];
+        // 마블런은 미출시(로비 라벨 devFlags) — 기록이 있거나 마블런 방에서 연 경우에만 탭을 보인다
+        if (marbleTabVisible(data)) gameTabs.push({ label: '🐾 마블런', key: 'marble', color: '#3fa65b' });
         if (data.orders) {
             gameTabs.push({ label: '🍜 주문', key: 'orders', color: '#e91e63' });
         }
@@ -1339,8 +1343,13 @@ const RankingModule = (function () {
 
     function getGameTabKeys() {
         const keys = ['dice', 'horse', 'roulette', 'ladder'];
+        if (marbleTabVisible(_cache)) keys.push('marble');
         if (_cache && _cache.orders) keys.push('orders');
         return keys;
+    }
+    function marbleTabVisible(data) {
+        const hasRecords = !!(data && data.marble && ((data.marble.winners || []).length || (data.marble.players || []).length));
+        return hasRecords || _currentGameTab === 'marble';
     }
 
     function setupGestures() {

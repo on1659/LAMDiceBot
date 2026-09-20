@@ -169,6 +169,11 @@ module.exports = (socket, io, ctx) => {
                 pirate: gameState.pirate
                     ? { phase: gameState.pirate.phase, claims: gameState.pirate.claims, holeCount: gameState.pirate.holeCount, participants: gameState.pirate.participants, timeLimitSec: gameState.pirate.timeLimitSec, deadlineTs: gameState.pirate.deadlineTs, round: gameState.pirate.round, history: gameState.pirate.history }
                     : undefined,
+                // 보안: marble.timeline / result / seed 등 결과 server-only 마스킹 (C-20, spinArena 패턴).
+                // reveal 전 결과 노출 = 공정성 위반. 재진입엔 동물 피커 복원용 phase/picks/crowd/round/history만 노출.
+                marble: gameState.marble
+                    ? { phase: gameState.marble.phase, picks: gameState.marble.picks, crowd: gameState.marble.crowd, round: gameState.marble.round, history: gameState.marble.history }
+                    : undefined,
                 hasRolled: () => gameState.rolledUsers.includes(user.name),
                 myResult: myResult,
                 frequentMenus: gameState.frequentMenus,
@@ -244,7 +249,7 @@ module.exports = (socket, io, ctx) => {
         }
 
         // 게임 타입 검증 (dice, roulette, horse-race, bridge, ladder 허용, 기본값은 'dice')
-        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate'].includes(gameType) ? gameType : 'dice';
+        const validGameType = ['dice', 'roulette', 'horse-race', 'bridge', 'ladder', 'spin-arena', 'pirate', 'marble'].includes(gameType) ? gameType : 'dice';
 
         // 사다리타기는 로컬 개발 서버에서만 방을 만들 수 있다 (실서버 미출시)
         // 아래 leaveRoom(socket)보다 반드시 앞 — 거부하면서 기존 방에서 내보내면 안 된다
@@ -1264,6 +1269,14 @@ module.exports = (socket, io, ctx) => {
                 }
                 if (released && (pr.phase === 'idle' || pr.phase === 'selecting')) {
                     io.to(roomId).emit('pirate:claimsUpdated', { claims: { ...pr.claims }, holeCount: pr.holeCount });
+                }
+            }
+            // 🔧 퇴장한 사용자의 마블런 동물 선택 삭제 + idle이면 동기화 재emit
+            if (gameState.marble && gameState.marble.picks &&
+                gameState.marble.picks[socket.userName] !== undefined) {
+                delete gameState.marble.picks[socket.userName];
+                if (gameState.marble.phase === 'idle') {
+                    io.to(roomId).emit('marble:stateUpdated', { picks: { ...gameState.marble.picks }, crowd: gameState.marble.crowd });
                 }
             }
             // 0명 leave 후 dead timer 방지는 endScenario 0명 가드(socket/bridge-cross.js)가 차단.

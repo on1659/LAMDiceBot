@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마블런 프리뷰 (game-lab)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; background: #1e2a22; color: #eee; font-family: 'Jua', sans-serif; }
+        .bar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: #142018; flex-wrap: wrap; }
+        .bar button, .bar input { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid #4a6; background: #264; color: #fff; }
+        .bar input[type=range] { width: 320px; }
+        #box { position: relative; max-width: 800px; margin: 10px auto; }
+        canvas { width: 100%; display: block; border-radius: 10px; background: #bfe7ff; }
+        .hint { font-size: 13px; opacity: .75; padding: 0 12px 10px; }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <strong>🐾 마블런 프리뷰</strong>
+        <button onclick="play()">▶ 재생(카운트다운 포함)</button>
+        <button onclick="play(0)">▶ 바로 시작</button>
+        <button onclick="pause()">⏸ 정지</button>
+        <label>t <input type="range" id="seek" min="-4000" max="60000" value="0" step="40" oninput="seekTo(this.value)"> <span id="tlabel">0.00s</span></label>
+        <label>속도 <input type="number" id="rate" value="1" step="0.25" min="0.25" max="4" style="width:60px"></label>
+        <label>내 이름 <input type="text" id="me" value="플레이어1" style="width:100px" onchange="reload()"></label>
+        <label>src <input type="text" id="src" value="/game-lab/marble-timeline.json" style="width:240px" onchange="reload()"></label>
+    </div>
+    <div class="hint">타임라인 생성: <code>node AutoTest/marble-sim-dump.js [players] [ballsPerPlayer] [seed]</code> → game-lab/marble-timeline.json. 이 페이지는 렌더러(js/marble-render.js)만 검증한다 — 소켓/방 없음.</div>
+    <div id="box"><canvas id="cv" width="800" height="600"></canvas></div>
+    <script src="/js/marble-render.js"></script>
+    <script>
+        var R = MarbleRender.create(document.getElementById('cv'));
+        var data = null, raf = null, t = 0, lastWall = 0, playing = false;
+        function reload() {
+            fetch(document.getElementById('src').value + '?_=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
+                data = d;
+                R.setTimeline(d, document.getElementById('me').value);
+                document.getElementById('seek').max = d.durationMs;
+                R.render(t, 0.016);
+                console.log('timeline loaded', { balls: d.balls.length, durationMs: d.durationMs, sampleMs: d.sampleMs, selected: d.result.selected });
+            });
+        }
+        function frame() {
+            var now = performance.now();
+            if (playing) t += (now - lastWall) * parseFloat(document.getElementById('rate').value || 1);
+            lastWall = now;
+            R.render(t, 0.016);
+            document.getElementById('seek').value = Math.round(t);
+            document.getElementById('tlabel').textContent = (t / 1000).toFixed(2) + 's';
+            if (data && t > data.durationMs + 1000) playing = false;
+            raf = requestAnimationFrame(frame);
+        }
+        function play(from) { if (from != null) t = from; else t = -MarbleRender.COUNTDOWN_MS; playing = true; lastWall = performance.now(); if (!raf) raf = requestAnimationFrame(frame); }
+        function pause() { playing = false; }
+        function seekTo(v) { t = parseFloat(v); if (!raf) raf = requestAnimationFrame(frame); }
+        window.addEventListener('resize', function () { R.resize(); });
+        MarbleRender.loadAssets(function () { reload(); });
+    </script>
+</body>
+</html>

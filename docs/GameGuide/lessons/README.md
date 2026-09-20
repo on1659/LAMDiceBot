@@ -12,6 +12,7 @@
 | [dice.md](dice.md) | 주사위 작업 lesson |
 | [roulette.md](roulette.md) | 룰렛 작업 lesson |
 | [ladder.md](ladder.md) | 사다리타기 작업 lesson |
+| [marble.md](marble.md) | 마블런 작업 lesson |
 
 ## 자동 트리거 (사용자가 수동으로 호출할 필요 없음)
 

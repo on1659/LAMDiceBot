@@ -9,6 +9,7 @@ const registerBridgeCrossHandlers = require('./bridge-cross');
 const registerLadderHandlers = require('./ladder');
 const registerSpinArenaHandlers = require('./spin-arena');
 const registerPirateHandlers = require('./pirate');
+const registerMarbleHandlers = require('./marble');
 const registerFreeHandlers = require('./free');
 const registerChatHandlers = require('./chat');
 const registerBoardHandlers = require('./board');
@@ -194,10 +195,10 @@ function setupSocketHandlers(io, rooms) {
             socket.emit('visitorStats', stats);
         });
 
-        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 여부)
+        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 여부 / 미출시 마블런 라벨 노출 — 로컬 개발 서버만)
         socket.on('getDevFlags', () => {
             if (!checkRateLimit()) return;
-            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV });
+            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV, marbleEnabled: IS_LOCAL_DEV });
         });
 
         // 각 핸들러 등록
@@ -210,6 +211,7 @@ function setupSocketHandlers(io, rooms) {
         registerLadderHandlers(socket, io, ctx);
         registerSpinArenaHandlers(socket, io, ctx);
         registerPirateHandlers(socket, io, ctx);
+        registerMarbleHandlers(socket, io, ctx);
         registerFreeHandlers(socket, io, ctx);
         registerChatHandlers(socket, io, ctx);
         registerBoardHandlers(socket, io, ctx);

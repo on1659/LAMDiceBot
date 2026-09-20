@@ -154,6 +154,12 @@
   --pirate-600: #e8533f;
   --pirate-accent: #0f8a8a;
 
+  /* 마블런 게임 - 초록+노랑 (언덕/풀밭 느낌) */
+  --marble-500: #3fa65b;
+  --marble-500-rgb: 63, 166, 91;
+  --marble-600: #2f8a49;
+  --marble-accent: #f2b134;
+
   /* ============================================
      게임 타입 식별용 색상
      게임 선택 UI, 방 목록 등에서 사용
@@ -166,6 +172,7 @@
   --game-type-ladder: var(--ladder-500);
   --game-type-spin-arena: var(--spin-arena-500);
   --game-type-pirate: var(--pirate-500);
+  --game-type-marble: var(--marble-500);
 
   /* ============================================
      게임별 파스텔 배경 토큰
@@ -362,6 +369,12 @@
   --pirate-500-rgb: 255, 138, 125;
   --pirate-600: #ff6f61;
   --pirate-accent: #2dd4bf;
+
+  /* 마블런: 다크 모드 명도 높임 */
+  --marble-500: #5fc47a;
+  --marble-500-rgb: 95, 196, 122;
+  --marble-600: #3fa65b;
+  --marble-accent: #ffc857;
 
   /* RGB 채널 변수 (다크 모드) */
   --dice-500-rgb: 156, 127, 255;

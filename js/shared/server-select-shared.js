@@ -871,6 +871,7 @@ const ServerSelectModule = (function () {
         localStorage.setItem('ladderUserName', name);
         localStorage.setItem('spinArenaUserName', name);
         localStorage.setItem('pirateUserName', name);
+        localStorage.setItem('marbleUserName', name);
         const globalInput = document.getElementById('globalUserNameInput');
         // 서버 모드에서만 계정 이름 대입 + 잠금. 자유 모드 입력란은 자유 별명이라 손대지 않는다
         // (세션 복원 시점엔 _currentServer가 아직 null — 서버 모드 잠금은 dice 페이지 IIFE가 맡는다).
@@ -955,6 +956,7 @@ const ServerSelectModule = (function () {
         localStorage.removeItem('ladderUserName');
         localStorage.removeItem('spinArenaUserName');
         localStorage.removeItem('pirateUserName');
+        localStorage.removeItem('marbleUserName');
         const globalInput = document.getElementById('globalUserNameInput');
         if (globalInput) {
             globalInput.value = '';

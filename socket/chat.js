@@ -642,6 +642,16 @@ module.exports = (socket, io, ctx) => {
                         }
                     }
 
+                    // 마블런: 진짜 disconnect로 떠난 유저의 동물 선택 정리 (leaveRoom과 짝, C-19).
+                    // idle일 때만 재브로드캐스트(진행 중 playing/finished는 손대지 않음).
+                    if (gameState.marble && gameState.marble.picks &&
+                        gameState.marble.picks[userName] !== undefined) {
+                        delete gameState.marble.picks[userName];
+                        if (gameState.marble.phase === 'idle') {
+                            io.to(roomId).emit('marble:stateUpdated', { picks: { ...gameState.marble.picks }, ballsPerPlayer: gameState.marble.ballsPerPlayer });
+                        }
+                    }
+
                     // 광고 코스메틱(transient): 진짜 disconnect로 떠난 socket의 ad-장착 정리.
                     // leaveRoom(rooms.js)에만 있던 정리를 실제 이탈 대다수 경로(탭 닫기/네트워크 끊김)에도 추가.
                     if (room.adCosmetics && room.adCosmetics[socket.id]) {

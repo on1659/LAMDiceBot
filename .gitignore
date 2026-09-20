@@ -65,3 +65,6 @@ assets/backgrounds/vehicle-generated/
 
 # docs/는 협업 추적 폴더라 이그노어 X
 # AutoTest/는 dev 도구 폴더라 이그노어 X — 필요한 것만 git add
+
+# 마블런 프리뷰 타임라인 (AutoTest/marble-sim-dump.js 산출물)
+/game-lab/marble-timeline.json

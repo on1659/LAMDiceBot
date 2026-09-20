@@ -161,6 +161,7 @@
         .room-item.game-ladder { --accent: var(--game-type-ladder); --accent-rgb: var(--ladder-500-rgb); }
         .room-item.game-spin-arena { --accent: var(--game-type-spin-arena); --accent-rgb: var(--spin-arena-500-rgb); }
         .room-item.game-pirate { --accent: var(--game-type-pirate); --accent-rgb: var(--pirate-500-rgb); }
+        .room-item.game-marble { --accent: var(--game-type-marble); --accent-rgb: var(--marble-500-rgb); }
 
         .room-item:hover {
             border-color: var(--accent);
@@ -2060,7 +2061,7 @@
                         <span class="gt-name">Untitle</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--btn-warning, #f59e0b); color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(245,158,11,0.4);">개발 중</span>
                     </label>
-                    <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate)의 인라인 display:none을 제거하면 됨 -->
+                    <!-- 미출시/개발 중 게임 방생성 비노출 — 출시 시 해당 라벨(bridge/spin-arena/pirate/marble)의 인라인 display:none을 제거하면 됨 -->
                     <!-- 사다리타기: 기본은 선택 불가(개발 중). 서버가 devFlags로 로컬 개발 서버라고 알려줄 때만 해제 -->
                     <label id="ladderLabel" class="game-type-option" style="--gt-color: var(--game-type-ladder); --gt-rgb: var(--ladder-500-rgb); opacity: 0.6; cursor: not-allowed;">
                         <input type="radio" name="gameType" value="ladder" id="ladderRadio" disabled />
@@ -2079,6 +2080,12 @@
                         <input type="radio" name="gameType" value="pirate" id="pirateRadio" />
                         <span class="gt-emoji">🏴‍☠️</span>
                         <span class="gt-name">해적 룰렛</span>
+                        <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
+                    </label>
+                    <label id="marbleLabel" class="game-type-option" style="display: none; --gt-color: var(--game-type-marble); --gt-rgb: var(--marble-500-rgb);">
+                        <input type="radio" name="gameType" value="marble" id="marbleRadio" />
+                        <span class="gt-emoji">🐾</span>
+                        <span class="gt-name">마블런</span>
                         <span style="position: absolute; top: -8px; right: -8px; background: var(--red-500); color: var(--bg-white); font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; box-shadow: 0 2px 6px rgba(233,69,96,0.4); animation: newBadgePulse 2s ease-in-out infinite;">NEW</span>
                     </label>
                 </div>
@@ -3275,6 +3282,9 @@
                 } else if (room.gameType === 'pirate') {
                     gameTypeIcon = '🏴‍☠️';
                     gameTypeLabel = '해적 룰렛';
+                } else if (room.gameType === 'marble') {
+                    gameTypeIcon = '🐾';
+                    gameTypeLabel = '마블런';
                 }
                 
                 // 남은 시간 표시
@@ -3457,6 +3467,20 @@
                 return;
             }
 
+            // 마블런 방이면 마블런 페이지로 이동
+            if (room && room.gameType === 'marble') {
+                localStorage.setItem('marbleUserName', userName);
+                localStorage.setItem('pendingMarbleJoin', JSON.stringify({
+                    roomId: roomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/marble?joinRoom=true';
+                return;
+            }
+
             // 비공개 방인지 체크
             if (room && room.isPrivate) {
                 // 비공개 방이면 비밀번호 입력 모달 표시
@@ -3523,7 +3547,13 @@
         const LADDER_NOT_READY_MESSAGE = '사다리타기는 아직 준비 중이에요. 곧 만나요!';
 
         socket.on('devFlags', (flags) => {
-            if (!flags || !flags.ladderEnabled) return;
+            if (!flags) return;
+            // 마블런: 미출시(라벨 hidden). 로컬 개발 서버에서만 방 만들기 라벨을 보여준다.
+            if (flags.marbleEnabled) {
+                const marbleLabel = document.getElementById('marbleLabel');
+                if (marbleLabel) marbleLabel.style.display = '';
+            }
+            if (!flags.ladderEnabled) return;
 
             const ladderLabel = document.getElementById('ladderLabel');
             if (ladderLabel) {
@@ -4438,6 +4468,23 @@
                 return;
             }
 
+            // 마블런 게임이면 마블런 페이지로 이동
+            if (gameType === 'marble') {
+                localStorage.setItem('marbleUserName', hostName);
+                localStorage.setItem('pendingMarbleRoom', JSON.stringify({
+                    userName: hostName,
+                    roomName: roomName,
+                    isPrivate: isPrivate,
+                    password: isPrivate ? password : '',
+                    expiryHours: expiryHours,
+                    blockIPPerUser: blockIPPerUser,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/marble?createRoom=true';
+                return;
+            }
+
             // 방 생성 (방 제목은 클라이언트 입력)
             socket.emit('createRoom', {
                 userName: hostName,
@@ -4554,6 +4601,20 @@
                     serverName: currentServerName
                 }));
                 window.location.href = '/pirate?joinRoom=true';
+                return;
+            }
+
+            // 마블런 방이면 마블런 페이지로 이동
+            if (room && room.gameType === 'marble') {
+                localStorage.setItem('marbleUserName', userName);
+                localStorage.setItem('pendingMarbleJoin', JSON.stringify({
+                    roomId: selectedRoomId,
+                    userName: userName,
+                    isPrivate: room.isPrivate,
+                    serverId: currentServerId,
+                    serverName: currentServerName
+                }));
+                window.location.href = '/marble?joinRoom=true';
                 return;
             }
 
