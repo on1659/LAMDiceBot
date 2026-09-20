@@ -365,13 +365,22 @@ var MarbleRender = (function () {
             }
         }
         // 재생 시각(벽시계) → 시뮬 시각: 서버 slow 구간에서 rate 배 느리게 (서버 durationMs 와 같은 식)
+        // 구간(시뮬 시각 기준) [startMs, endMs] 를 rate 배로 재생: fast(2배속, 꼴찌 한 마리만 남은 동안) → slow(골 앞 0.3배). 서버 durationMs 와 같은 식
         function simTime(tPlay) {
-            var sl = data.slow;
-            if (!sl || tPlay <= sl.startMs) return tPlay;
-            var slowPlayLen = (sl.endMs - sl.startMs) / sl.rate;
-            if (tPlay <= sl.startMs + slowPlayLen) return sl.startMs + (tPlay - sl.startMs) * sl.rate;
-            return sl.endMs + (tPlay - sl.startMs - slowPlayLen);
+            var segs = []; if (data.fast) segs.push(data.fast); if (data.slow) segs.push(data.slow);
+            var play = 0, sim = 0;
+            for (var i = 0; i < segs.length; i++) {
+                var sg = segs[i]; if (sg.endMs <= sg.startMs) continue;
+                var gap = sg.startMs - sim;                       // 1배속 구간
+                if (tPlay <= play + gap) return sim + (tPlay - play);
+                play += gap; sim = sg.startMs;
+                var len = (sg.endMs - sg.startMs) / sg.rate;      // 이 구간의 재생 길이
+                if (tPlay <= play + len) return sim + (tPlay - play) * sg.rate;
+                play += len; sim = sg.endMs;
+            }
+            return sim + (tPlay - play);
         }
+        function inFast(simT) { return !!(data.fast && simT >= data.fast.startMs && simT < data.fast.endMs); }
 
         // ─── 그리기 유틸 ───
         function toScreenY(y) { return y - cam.y + view.h / 2; }
@@ -1119,19 +1128,23 @@ var MarbleRender = (function () {
                 if (rowMap[row] == null) continue;
                 var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 18;   // 홈통(스탠드 위) 아래, 판자(+22) 위에 서도록
                 var since = t - b.finishAt;
-                if (chute) {   // 홈통 이동 중이면 그 위치에 공으로 — 골 x 에서 내려가 홈통을 따라 왼쪽으로 굴러 자기 자리로
-                    var d0 = chute.y - ln.y, d1 = chute.x - x2, d2 = (y2 - 6) - chute.y, dist = since / 1000 * CHUTE_SPEED;
-                    if (dist < d0 + d1 + d2) {
+                if (chute) {   // 홈통: 골 x 에서 내려가 왼쪽 끝까지 다 굴러간 뒤 자기 자리로 순간이동 — 자리에서 내리면 5등이 4등보다 먼저 앉아 보였다(사용자 2026-09-21)
+                    var endX = z.x + 4, d0 = chute.y - ln.y, d1 = chute.x - endX, dist = since / 1000 * CHUTE_SPEED;
+                    if (dist < d0 + d1) {
                         var px, py;
                         if (dist < d0) { px = chute.x; py = ln.y + dist; }
-                        else if (dist < d0 + d1) { px = chute.x - (dist - d0); py = chute.y; }
-                        else { px = x2; py = chute.y + (dist - d0 - d1); }
+                        else { px = chute.x - (dist - d0); py = chute.y; }
                         if (!visible(py, 40)) continue;
                         drawCreatureFrame(b, 2, 0, px, py, -dist / BALL_R, 0.85);
                         drawRing(b, px, py, BALL_R * 0.85 + 1, b.owner === myName);
                         continue;
                     }
-                    since -= (d0 + d1 + d2) / CHUTE_SPEED * 1000;   // 자리에 떨어진 뒤 경과
+                    since -= (d0 + d1) / CHUTE_SPEED * 1000;   // 끝에 닿은 뒤 경과 = 자리에 나타난 뒤 경과
+                    if (since < POOF_FX_MS) {   // 순간이동 펑 (자리에 + 홈통 끝에)
+                        var pk = since / POOF_FX_MS, pf = Math.min(3, Math.floor(pk * 4));
+                        if (!drawSprite('fx', 'curl-poof', x2, y2 - 6, 96, 96, { sx: pf * 96, sw: 96, alpha: 1 - pk })) { ctx.fillStyle = 'rgba(255,255,255,' + (1 - pk) + ')'; ctx.beginPath(); ctx.arc(x2, toScreenY(y2 - 6), 8 + pk * 14, 0, Math.PI * 2); ctx.fill(); }
+                        drawSprite('fx', 'curl-poof', endX, chute.y, 96, 96, { sx: pf * 96, sw: 96, alpha: 0.7 * (1 - pk), scale: 0.7 });
+                    }
                 }
                 if (!visible(y2, 40)) continue;
                 var frame = since < 300 ? Math.min(1, Math.floor(since / 150)) : 2 + Math.floor((t / 260 + idx) % 2);
@@ -1349,7 +1362,7 @@ var MarbleRender = (function () {
             ctx.save();
             ctx.font = 'bold 14px "Jua", sans-serif'; ctx.textBaseline = 'top';
             var spawned = 0; if (t < 0) for (var si = 0; si < balls.length; si++) if (t >= balls[si].spawnAt) spawned++;
-            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? '남은 동물 ' + hudInfo.remaining + '마리' : '꼴찌 확정!');
+            var txt = phase === 'idle' ? (balls.length ? '출발대 대기 ' + balls.length + '마리' : '출발대') : t < 0 ? '출발 준비… ' + spawned + ' / ' + balls.length + '마리' : (hudInfo.remaining > 0 ? (inFast(t) ? '▷▷ 2배속 — 마지막 ' : '남은 동물 ') + hudInfo.remaining + '마리' : '꼴찌 확정!');
             ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(8, 8, ctx.measureText(txt).width + 20, 26, 8); ctx.fill();
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(txt, 18, 13);
             if (t >= 0 && hudInfo.worst.length) {

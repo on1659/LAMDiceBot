@@ -85,6 +85,7 @@ async function startMarble(room, gameState, io, ctx) {
         durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
         balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
         slow: result.slow,            // 마지막 공 골 앞 슬로모 {startMs, rate, endMs} — 2탭 동기용, durationMs 에 반영돼 있음
+        fast: result.fast,            // 꼴찌 한 마리만 남은 구간 2배속 {startMs, rate, endMs}
         ballsPerPlayer,
         result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
     };

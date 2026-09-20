@@ -163,6 +163,7 @@ const FINALE_HOLD_MS = 3500;      // 마지막 공 골인 후 엎어짐·스포�
 // 서버·클라가 같은 타임라인으로 같은 시각을 계산해 durationMs 에 반영 → 2탭 동기·종료 타이머 일치.
 const SLOW_ZONE_PX = 60;          // 통로 골 앞 60px(마지막 걸음만) — 걷는 4~5초를 전부 늘리면 지루하다
 const SLOW_RATE = 0.3;
+const FAST_RATE = 2;              // 꼴찌 한 마리만 남으면(뒤에서 두 번째 골인 ~ 슬로모 시작) 재생 2배속 — 혼자 25초 걷는 걸 그대로 보게 하지 않는다(사용자 2026-09-21)
 
 // ─── 결정론 시드 PRNG (spin-arena와 동일) ───
 function mulberry32(seed) {
@@ -936,7 +937,10 @@ async function simulate(balls, seed, track) {
     if (slowStartMs > simEndMs) slowStartMs = simEndMs;
     const slow = { startMs: slowStartMs, rate: SLOW_RATE, endMs: simEndMs };
     const slowExtra = (simEndMs - slowStartMs) * (1 / SLOW_RATE - 1);
-    return { track, sampleMs, frames, events, finishOrder, simEndMs, slow, durationMs: Math.round(simEndMs + slowExtra + FINALE_HOLD_MS) };
+    // 2배속 구간: 마지막 한 마리만 남은 순간(뒤에서 두 번째 골인)부터 슬로모 시작까지. 클라 simTime() 이 같은 식으로 재생 → 2탭 동기
+    const fast = (finishOrder.length >= 2 && slowStartMs - secondLastT > 500) ? { startMs: secondLastT, rate: FAST_RATE, endMs: slowStartMs } : null;
+    const fastSaved = fast ? (fast.endMs - fast.startMs) * (1 - 1 / FAST_RATE) : 0;
+    return { track, sampleMs, frames, events, finishOrder, simEndMs, slow, fast, durationMs: Math.round(simEndMs - fastSaved + slowExtra + FINALE_HOLD_MS) };
 }
 
 // 참가자 순위: 각자 "가장 늦은 공"의 도착 순서로. 마지막 공의 주인 = selected(당첨).
