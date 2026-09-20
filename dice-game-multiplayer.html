@@ -3546,7 +3546,13 @@
         const LADDER_NOT_READY_MESSAGE = '사다리타기는 아직 준비 중이에요. 곧 만나요!';
 
         socket.on('devFlags', (flags) => {
-            if (!flags || !flags.ladderEnabled) return;
+            if (!flags) return;
+            // 마블런: 미출시(라벨 hidden). 로컬 개발 서버에서만 방 만들기 라벨을 보여준다.
+            if (flags.marbleEnabled) {
+                const marbleLabel = document.getElementById('marbleLabel');
+                if (marbleLabel) marbleLabel.style.display = '';
+            }
+            if (!flags.ladderEnabled) return;
 
             const ladderLabel = document.getElementById('ladderLabel');
             if (ladderLabel) {

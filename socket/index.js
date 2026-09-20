@@ -195,10 +195,10 @@ function setupSocketHandlers(io, rooms) {
             socket.emit('visitorStats', stats);
         });
 
-        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 여부)
+        // 서버 환경 플래그 조회 (사다리타기 방 만들기 허용 여부 / 미출시 마블런 라벨 노출 — 로컬 개발 서버만)
         socket.on('getDevFlags', () => {
             if (!checkRateLimit()) return;
-            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV });
+            socket.emit('devFlags', { ladderEnabled: IS_LOCAL_DEV, marbleEnabled: IS_LOCAL_DEV });
         });
 
         // 각 핸들러 등록
