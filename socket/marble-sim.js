@@ -5,7 +5,7 @@
 'use strict';
 
 // ─── 시간축 ───
-const SIM_DT_MS = 20;             // 내부 스텝(50fps)
+const SIM_DT_MS = 10;             // 내부 스텝(100fps) — 고속(≤900px/s)에서 벽 터널링 방지
 const SIM_CAP_MS = 90000;         // 하드 캡 — 이후 미도착 공은 진행도(y) 순으로 강제 정산
 const SIM_YIELD_EVERY = 100;      // 이 스텝마다 setImmediate (CPU 양보)
 const SAMPLE_MS_FEW = 40;         // 공 ≤ SAMPLE_FEW_MAX 이면 40ms 샘플 (SIM_DT_MS 배수여야 함)
@@ -21,14 +21,15 @@ const START_SPACING = 30;
 // ─── 물리 ───
 const TRACK_W = 800;
 const BALL_R = 14;                // 표시 지름 28
-const GRAVITY = 360;              // px/s² (+y = 언덕 아래)
-const DRAG = 1.0;                 // 선형 감쇠 /s → 수직 종단속도 360
+const GRAVITY = 700;              // px/s² (+y = 언덕 아래). Marble Roulette(box2d g=10m/s²≈300px/s², 공기저항 0)보다 공이 2배 커서 2배
+const DRAG = 0.35;                // 선형 감쇠 /s (약하게 — 속도는 MAX_SPEED 로 캡)
+const MAX_SPEED = 900;            // px/s 상한 (스텝당 9px < 공 반지름 → 터널링 없음)
 const WALL_RESTITUTION = 0.45;
 const WALL_FRICTION = 0.03;       // 접촉 스텝당 접선 속도 손실 비율
 const BALL_RESTITUTION = 0.5;
 const STATIC_RESTITUTION = 0.6;   // 정지 공(잠·구덩이)에 부딪힐 때
 const CELL = 32;                  // 공-공 브로드페이즈 해시 셀
-const BUMP_SPEED = 220;           // 이 이상 충돌 속도면 impact fx 이벤트
+const BUMP_SPEED = 380;           // 이 이상 충돌 속도면 impact fx 이벤트
 const BUMP_MAX_PER_SAMPLE = 6;
 const STUCK_SPEED = 5, STUCK_MS = 2000;
 const STUCK_KICK_X_MIN = 80, STUCK_KICK_X_RND = 80, STUCK_KICK_Y = -140;   // 위로 튀어오르며 트랙 중앙 쪽으로 (쐐기 탈출)
@@ -37,25 +38,29 @@ const STUCK_KICK_X_MIN = 80, STUCK_KICK_X_RND = 80, STUCK_KICK_Y = -140;   // �
 const STAKE_R = 8;
 const LOG_R = 20;
 const BEE_MS = 1800;              // 벌 떼 지속
-const BEE_ACCEL = 900;            // px/s² 랜덤 가속(구역 안 전원)
-const SUN_DRAG = 3.0;             // 햇볕 잔디 추가 감쇠 /s → 구역 종단속도 90
-const NAP_SPEED = 110;            // 이 속도 미만이면 잠들 수 있음
-const NAP_P = 0.012;              // 스텝당 잠들 확률(시드 PRNG)
-const NAP_MIN_MS = 600, NAP_MAX_MS = 3000;
+const BEE_ACCEL = 1600;           // px/s² 랜덤 가속(구역 안 전원)
+const SUN_DRAG = 4.0;             // 햇볕 잔디 추가 감쇠 /s → 구역 종단속도 ≈160
+const NAP_SPEED = 200;            // 이 속도 미만이면 잠들 수 있음
+const NAP_P = 0.007;              // 스텝(10ms)당 잠들 확률(시드 PRNG)
+const NAP_MIN_MS = 500, NAP_MAX_MS = 1800;
 const NAP_R = 17;                 // 잠든 동물 = 정지 원 r17 (≈ 폭 35 선분)
 const WAKE_KICK_Y = 60;
 const DAM_FRACTION = 0.5;         // 전체 공의 이 비율이 쌓이면 터짐
 const DAM_MIN_COUNT = 2;
-const DAM_MAX_HOLD_MS = 4000;     // 첫 접촉 후 이 시간이 지나면 무조건 터짐
-const DAM_BURST_VY = 200, DAM_BURST_VX = 80;
+const DAM_MAX_HOLD_MS = 2500;     // 첫 접촉 후 이 시간이 지나면 무조건 터짐
+const DAM_BURST_VY = 320, DAM_BURST_VX = 120;
 const PIT_FRACTION = 0.1, PIT_FILL_MIN = 1, PIT_FILL_MAX = 12;
 const PIT_PASS_MULT = 2;          // PIT_FILL × 2 마리 지나가면 깨어남
-const PIT_MAX_MS = 3500;
-const PIT_RISE_VY = 80;
-const MUD_STALL_MS = 800, MUD_DIZZY_MS = 1000, MUD_RESUME_VY = 40;
+const PIT_MAX_MS = 2200;
+const PIT_RISE_VY = 120;
+const MUD_STALL_MS = 500, MUD_DIZZY_MS = 800, MUD_RESUME_VY = 60;
 const SEESAW_LEN = 84, SEESAW_AMP_DEG = 25, SEESAW_PERIOD_MS = 2400;
-const GATE_OPEN_MS = 2000, GATE_CLOSED_MS = 1500, GATE_PHASE_MS = 0;
+const GATE_OPEN_MS = 1500, GATE_CLOSED_MS = 1000, GATE_PHASE_MS = 0;
 const FINALE_HOLD_MS = 3500;      // 마지막 공 골인 후 엎어짐·스포트라이트 여유(클라 재생 길이에 포함)
+// 슬로모 (Marble Roulette timeScale 차용): 마지막 남은 공이 골 앞 SLOW_ZONE_PX 에 들어오면 재생 속도 SLOW_RATE.
+// 서버·클라가 같은 타임라인으로 같은 시각을 계산해 durationMs 에 반영 → 2탭 동기·종료 타이머 일치.
+const SLOW_ZONE_PX = 380;         // 마지막 문(골 -330) 바로 아래부터 — 문 앞 대기가 슬로모에 걸리지 않게
+const SLOW_RATE = 0.3;
 
 // ─── 결정론 시드 PRNG (spin-arena와 동일) ───
 function mulberry32(seed) {
@@ -114,9 +119,9 @@ function buildTrack(ballCount) {
 
     // ⑦ 나선(뱀길) — 바깥 벽 + 선반 3단. 선반 끝 빈틈으로 다음 단에 떨어진다.
     wall(100, 2200, 100, 3200); wall(700, 2200, 700, 3200);
-    wall(100, 2300, 600, 2520);
-    wall(700, 2600, 200, 2820);
-    wall(100, 2900, 600, 3120);
+    wall(100, 2260, 600, 2540);
+    wall(700, 2580, 200, 2860);
+    wall(100, 2900, 600, 3180);
 
     // ⑧ 진흙·시소 (깔때기 → 500폭)
     wall(100, 3200, 150, 3300); wall(700, 3200, 650, 3300);
@@ -394,6 +399,8 @@ async function simulate(balls, seed, track) {
             if (inSun) drag += SUN_DRAG;
             b.vx += (ax - drag * b.vx) * dt;
             b.vy += (ay - drag * b.vy) * dt;
+            const spd0 = Math.hypot(b.vx, b.vy);
+            if (spd0 > MAX_SPEED) { b.vx *= MAX_SPEED / spd0; b.vy *= MAX_SPEED / spd0; }
             b.x += b.vx * dt;
             b.y += b.vy * dt;
 
@@ -519,7 +526,18 @@ async function simulate(balls, seed, track) {
         record();
     }
 
-    return { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs: simEndMs + FINALE_HOLD_MS };
+    // 슬로모 시작 시각: 뒤에서 두 번째 공이 골인한 뒤, 마지막 공이 골 앞 SLOW_ZONE_PX 에 처음 들어온 샘플
+    const lastId = finishOrder[finishOrder.length - 1];
+    const secondLastT = finishOrder.length >= 2 ? events.filter(e => e.type === 'finish' && e.ball === finishOrder[finishOrder.length - 2])[0].t : 0;
+    let slowStartMs = simEndMs;
+    for (let k = Math.ceil(secondLastT / sampleMs); k < frames.length; k++) {
+        const y = frames[k][lastId * 2 + 1];
+        if (y >= 0 && y >= track.goalY - SLOW_ZONE_PX) { slowStartMs = Math.max(secondLastT, k * sampleMs); break; }
+    }
+    if (slowStartMs > simEndMs) slowStartMs = simEndMs;
+    const slow = { startMs: slowStartMs, rate: SLOW_RATE, endMs: simEndMs };
+    const slowExtra = (simEndMs - slowStartMs) * (1 / SLOW_RATE - 1);
+    return { track, sampleMs, frames, events, finishOrder, simEndMs, slow, durationMs: Math.round(simEndMs + slowExtra + FINALE_HOLD_MS) };
 }
 
 // 참가자 순위: 각자 "가장 늦은 공"의 도착 순서로. 마지막 공의 주인 = selected(당첨).
@@ -542,6 +560,6 @@ module.exports = {
     buildTrack, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, mulberry32,
     constants: {
         SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT,
-        BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, GATE_OPEN_MS, GATE_CLOSED_MS
+        BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, GATE_OPEN_MS, GATE_CLOSED_MS, SLOW_ZONE_PX, SLOW_RATE
     }
 };

@@ -22,8 +22,13 @@ var MarbleRender = (function () {
     var DAM_FX_MS = 900;
     var POOF_FX_MS = 420;
     var LAST_ROLL_MS = 700;          // 마지막 공: 골 → 판자벽까지 굴러가는 시간
-    var CAM_LEAD = 0.18;             // 카메라 중심을 후미 공보다 아래(진행 방향)로 두는 비율(뷰 높이 기준)
-    var CAM_SMOOTH = 3.2;            // /s
+    // 카메라 (Marble Roulette 차용): 평소엔 선두를 따라가고, 남은 동물이 FINAL_K 이하가 되면 판정 대상(후미)으로 전환.
+    // 골 앞 ZOOM_ZONE 안에 들어오면 줌인, 마지막 공은 서버가 준 slow 구간에서 슬로모.
+    var CAM_LEAD = 0.22;             // 카메라 중심을 대상 공보다 아래(진행 방향)로 두는 비율(뷰 높이 기준)
+    var CAM_SMOOTH = 6;              // /s
+    var FINAL_K_MIN = 3, FINAL_K_RATIO = 0.1;
+    var ZOOM_ZONE = 700;             // 골 앞 이 거리부터 줌인 시작
+    var ZOOM_MAX = 1.7;
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
     var CHEER_ROWS = 12;
@@ -109,7 +114,7 @@ var MarbleRender = (function () {
         var lastT = -1;
         var myName = '';
         var phase = 'idle';       // idle | countdown | play | finale | done
-        var cam = { y: 0, init: false };
+        var cam = { x: TRACK_W / 2, y: 0, zoom: 1, init: false, mode: 'lead' };
         var view = { w: TRACK_W, h: 600, scale: 1 };
         var pieces = {};          // kind → 조각 배열
         var fxList = [];          // { type, x, y, t0, dur, ball? }
@@ -120,7 +125,7 @@ var MarbleRender = (function () {
         var onFinaleCb = null;
 
         R.loadAssets = loadAll;
-        R.debug = function () { return { cam: cam, view: view, phase: phase, fx: fxList.length, evCursor: evCursor }; };
+        R.debug = function () { return { cam: cam, view: view, phase: phase, fx: fxList.length, evCursor: evCursor, simT: data && simTime(lastT) }; };
 
         // 캔버스 크기 → 논리 뷰
         R.resize = function () {
@@ -223,19 +228,43 @@ var MarbleRender = (function () {
 
         // ─── 카메라 ───
         function updateCamera(t, dt) {
-            var target;
             var goalY = data.track.goalY;
-            if (t < 0) target = data.track.startY * 0.5 + 60;
+            var focus = null, remaining = 0, lead = null, rear = null;
+            for (var i = 0; i < balls.length; i++) {
+                var b = balls[i]; if (b.state === 'done') continue;
+                remaining++;
+                if (!lead || b.y > lead.y) lead = b;
+                if (!rear || b.y < rear.y) rear = b;
+            }
+            var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
+            cam.mode = remaining <= finalK ? 'rear' : 'lead';
+            focus = cam.mode === 'rear' ? rear : lead;
+            var targetY, targetX = TRACK_W / 2, targetZoom = 1;
+            if (t < 0) targetY = data.track.startY * 0.5 + 60;
+            else if (!focus) { targetY = goalY + 40; targetX = TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else {
-                var rear = Infinity;
-                for (var i = 0; i < balls.length; i++) if (balls[i].state !== 'done' && balls[i].y < rear) rear = balls[i].y;
-                if (rear === Infinity) target = goalY + 40;
-                else target = rear + view.h * CAM_LEAD;
+                targetY = focus.y + view.h * CAM_LEAD;
+                var k = clamp((focus.y - (goalY - ZOOM_ZONE)) / ZOOM_ZONE, 0, 1);
+                targetZoom = 1 + (ZOOM_MAX - 1) * k;
+                if (targetZoom > 1.01) { targetX = focus.x; targetY = focus.y + view.h * CAM_LEAD / targetZoom; }
             }
             var minY = data.track.startY + view.h / 2 - 140, maxY = data.track.endY - view.h / 2 + 20;   // 출발대 위 140px(하늘 띠)까지
-            target = clamp(target, minY, maxY);
-            if (!cam.init) { cam.y = target; cam.init = true; }
-            else cam.y += (target - cam.y) * Math.min(1, dt * CAM_SMOOTH);
+            targetY = clamp(targetY, minY, maxY);
+            var halfW = view.w / 2 / targetZoom;
+            targetX = clamp(targetX, halfW, TRACK_W - halfW);
+            if (!cam.init) { cam.y = targetY; cam.x = targetX; cam.zoom = targetZoom; cam.init = true; }
+            else {
+                var k2 = Math.min(1, dt * CAM_SMOOTH);
+                cam.y += (targetY - cam.y) * k2; cam.x += (targetX - cam.x) * k2; cam.zoom += (targetZoom - cam.zoom) * Math.min(1, dt * 2.5);
+            }
+        }
+        // 재생 시각(벽시계) → 시뮬 시각: 서버 slow 구간에서 rate 배 느리게 (서버 durationMs 와 같은 식)
+        function simTime(tPlay) {
+            var sl = data.slow;
+            if (!sl || tPlay <= sl.startMs) return tPlay;
+            var slowPlayLen = (sl.endMs - sl.startMs) / sl.rate;
+            if (tPlay <= sl.startMs + slowPlayLen) return sl.startMs + (tPlay - sl.startMs) * sl.rate;
+            return sl.endMs + (tPlay - sl.startMs - slowPlayLen);
         }
 
         // ─── 그리기 유틸 ───
@@ -278,22 +307,23 @@ var MarbleRender = (function () {
                 // 1920×1080 을 뷰 폭에 맞춰, 카메라의 10% 만 따라감
                 var sc = view.w / 1920 * 1.0; var dh = 1080 * sc;
                 var off = -((cam.y * 0.08) % dh);
-                ctx.drawImage(sky, 0, off - dh, view.w, dh); ctx.drawImage(sky, 0, off, view.w, dh); ctx.drawImage(sky, 0, off + dh, view.w, dh);
+                ctx.drawImage(sky, -view.w / 2, off - dh, view.w * 2, dh * 2); ctx.drawImage(sky, -view.w / 2, off + dh, view.w * 2, dh * 2);
             } else {
                 var g = ctx.createLinearGradient(0, 0, 0, view.h);
                 g.addColorStop(0, '#9fd8ff'); g.addColorStop(1, '#dff3ff');
-                ctx.fillStyle = g; ctx.fillRect(0, 0, view.w, view.h);
+                ctx.fillStyle = g; ctx.fillRect(-view.w, -view.h, view.w * 3, view.h * 3);
             }
             // 초원은 출발대 위 80px 부터 — 그 위로는 하늘·먼 산이 보인다
             var tile = img('stage', 'meadow-tile');
             var ts = 1024 * SRC_SCALE;
             var topY = toScreenY(data.track.startY - 30);
+            // 줌 시 가로 초점이 움직여도 빈 곳이 없도록 트랙 폭 밖으로 한 타일씩 더 깐다
             var y0 = toScreenY(Math.floor(cam.y / ts) * ts - ts * 2);
-            ctx.save(); ctx.beginPath(); ctx.rect(0, Math.max(0, topY), view.w, view.h); ctx.clip();
+            ctx.save(); ctx.beginPath(); ctx.rect(-ts, Math.max(0, topY), view.w + ts * 2, view.h); ctx.clip();
             if (tile) {
-                for (var y = y0; y < view.h + ts; y += ts) for (var x = 0; x < view.w; x += ts) ctx.drawImage(tile, x, y, ts, ts);
+                for (var y = y0; y < view.h + ts; y += ts) for (var x = -ts; x < view.w + ts; x += ts) ctx.drawImage(tile, x, y, ts, ts);
             } else {
-                ctx.fillStyle = '#8fd07a'; ctx.fillRect(0, 0, view.w, view.h);
+                ctx.fillStyle = '#8fd07a'; ctx.fillRect(-ts, 0, view.w + ts * 2, view.h);
             }
             ctx.restore();
         }
@@ -561,7 +591,7 @@ var MarbleRender = (function () {
                 // 스포트라이트 + 이름
                 ctx.save();
                 ctx.fillStyle = 'rgba(0,0,0,0.45)';
-                ctx.beginPath(); ctx.rect(0, 0, view.w, view.h); ctx.arc(x, toScreenY(y), 70, 0, Math.PI * 2, true); ctx.fill();
+                ctx.beginPath(); ctx.rect(-view.w, -view.h, view.w * 3, view.h * 3); ctx.arc(x, toScreenY(y), 70, 0, Math.PI * 2, true); ctx.fill();
                 ctx.restore();
                 label(b.owner + ' 님의 ' + (CREATURE_NAMES[b.creature] || '') + ' ' + b.num + '번', x, y - 44, '#fff', 15);
                 label('꼴찌 도착… 당첨!', x, y + 40, '#ffd166', 17);
@@ -641,16 +671,20 @@ var MarbleRender = (function () {
         }
 
         // ─── 프레임 ───
-        R.render = function (t, dt) {
+        R.render = function (tPlay, dt) {
             if (!data) return;
             dt = dt || 0.016;
+            var t = tPlay < 0 ? tPlay : simTime(tPlay);
             applyEventsUpTo(Math.max(0, t));
             samplePositions(t);
             updateCamera(t, dt);
             updateHud();
             ctx.save();
             ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
-            ctx.imageSmoothingEnabled = view.scale % 1 !== 0;
+            ctx.imageSmoothingEnabled = (view.scale * cam.zoom) % 1 !== 0;
+            // 줌: 화면 중심 기준 확대 + 가로 초점 이동 (세로는 toScreenY 가 cam.y 로 처리)
+            ctx.save();
+            ctx.translate(view.w / 2, view.h / 2); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-cam.x, -view.h / 2);
             drawBackground(t);
             drawPieces(t);
             drawBalls(t);
@@ -658,11 +692,12 @@ var MarbleRender = (function () {
             drawBasketFront();
             drawLastBall(t);
             drawFx(t);
+            ctx.restore();
             drawHud(t);
             ctx.restore();
             if (t >= 0 && phase !== 'finale' && phase !== 'done' && hudInfo.remaining === 0) { phase = 'finale'; if (onFinaleCb) onFinaleCb(); }
             if (t >= 0 && phase === 'countdown') phase = 'play';
-            if (t >= data.durationMs && phase !== 'done') { phase = 'done'; R.stop(); }
+            if (tPlay >= data.durationMs && phase !== 'done') { phase = 'done'; R.stop(); }
         };
 
         // 대기 화면(타임라인 없을 때) — 출발대 프리뷰

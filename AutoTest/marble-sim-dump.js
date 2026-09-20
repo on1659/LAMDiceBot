@@ -24,7 +24,7 @@ const out = process.argv[5] || path.join(__dirname, '..', 'game-lab', 'marble-ti
     const payload = {
         durationMs: r.durationMs, sampleMs: r.sampleMs, track: r.track,
         balls: balls.map(b => ({ id: b.id, owner: b.owner, creature: b.creature, colorIdx: b.colorIdx, num: b.num })),
-        frames: r.frames, events: r.events, finishOrder: r.finishOrder, result: rank
+        frames: r.frames, events: r.events, finishOrder: r.finishOrder, slow: r.slow, result: rank
     };
     const json = JSON.stringify(payload);
     fs.writeFileSync(out, json);

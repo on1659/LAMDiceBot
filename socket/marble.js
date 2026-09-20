@@ -125,6 +125,7 @@ module.exports = (socket, io, ctx) => {
         const payload = {
             durationMs: result.durationMs, sampleMs: result.sampleMs, track: result.track,
             balls: revealBalls, frames: result.frames, events: result.events, finishOrder: result.finishOrder,
+            slow: result.slow,            // { startMs, rate, endMs } — 클라 재생 속도 매핑(서버 durationMs 와 동일 계산)
             ballsPerPlayer,
             result: { selected: rank.selected, rankings: rank.rankings, successionList: rank.successionList }
         };
