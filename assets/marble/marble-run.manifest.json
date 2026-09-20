@@ -1717,9 +1717,9 @@
   },
   "eventsE": {
     "batch": "marble-run-events-e-2026-09-20",
-    "status": "pending-request",
+    "status": "all-11-picked-up",
     "request": "docs/spritemake-request/2026-09-20-marble-run-events-e.md",
-    "note": "warp-pipe·spring-plank 코드 연결됨(없으면 코드 도형). 나머지(독수리·mole-v2·댐/간헐천 루프)는 기능 구현 때 키 추가",
+    "note": "SpriteMake 파이프라인이 final/ 을 assets/marble/ 로 직접 복사(2026-09-21 00:25). md5·크기·alpha1-7=0·내용 눈검사(Opus/Fable 세션) 완료. 코드 연결: warp-pipe·spring-plank 됨, 나머지는 과제 ②③⑤ 구현 때",
     "assets": {
       "warp-pipe": {
         "image": "pieces/warp-pipe.png",
@@ -1738,8 +1738,8 @@
         "sourcePlaneY": 224,
         "note": "하단 정렬, 표시 48×56, 짝 색 띠·번호는 코드",
         "targetGamePath": "assets/marble/pieces/warp-pipe.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "ba3aa4dbabe7356266f646ca56e383cc",
+        "qaStatus": "PASS"
       },
       "spring-plank": {
         "image": "pieces/spring-plank.png",
@@ -1767,9 +1767,261 @@
           "snap"
         ],
         "targetGamePath": "assets/marble/pieces/spring-plank.png",
-        "md5": null,
-        "qaStatus": "pending"
+        "md5": "f56033a252d5aa9859c4c86cea714558",
+        "qaStatus": "PASS"
+      },
+      "eagle": {
+        "image": "pieces/eagle.png",
+        "canvas": [
+          1024,
+          160
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          256,
+          160
+        ],
+        "anchor": [
+          128,
+          144
+        ],
+        "frames": [
+          "up",
+          "mid",
+          "down",
+          "mid"
+        ],
+        "note": "옆모습 오른쪽 향함, 발톱 끝 = 아래에서 16px. 표시 폭 64",
+        "targetGamePath": "assets/marble/pieces/eagle.png",
+        "md5": "be31d7b5f0d3f55ae326dab7e781a8a6",
+        "qaStatus": "PASS"
+      },
+      "eagle-shadow": {
+        "image": "fx/eagle-shadow.png",
+        "canvas": [
+          128,
+          48
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          64,
+          24
+        ],
+        "note": "땅 위 그림자",
+        "targetGamePath": "assets/marble/fx/eagle-shadow.png",
+        "md5": "d3d2608cf5571234fcc2c96a20b5f5e0",
+        "qaStatus": "PASS"
+      },
+      "mole-v2": {
+        "image": "pieces/mole-v2.png",
+        "canvas": [
+          288,
+          112
+        ],
+        "grid": [
+          3,
+          1
+        ],
+        "cell": [
+          96,
+          112
+        ],
+        "anchor": [
+          48,
+          112
+        ],
+        "frames": [
+          "head",
+          "half",
+          "arms-up"
+        ],
+        "note": "3차 mole 대체(청회색·안전모). 하단 정렬",
+        "targetGamePath": "assets/marble/pieces/mole-v2.png",
+        "md5": "07cd630839e83ba4be6df3f3c3eb9a1d",
+        "qaStatus": "PASS"
+      },
+      "mole-alert": {
+        "image": "fx/mole-alert.png",
+        "canvas": [
+          96,
+          48
+        ],
+        "grid": [
+          2,
+          1
+        ],
+        "cell": [
+          48,
+          48
+        ],
+        "anchor": [
+          24,
+          48
+        ],
+        "frames": [
+          "a",
+          "b"
+        ],
+        "note": "올라오기 0.3s 전 예고 !",
+        "targetGamePath": "assets/marble/fx/mole-alert.png",
+        "md5": "633fdc2af70fd52370626391de0eb9e3",
+        "qaStatus": "PASS"
+      },
+      "dam-water": {
+        "image": "pieces/dam-water.png",
+        "canvas": [
+          1920,
+          128
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          480,
+          128
+        ],
+        "anchor": [
+          240,
+          128
+        ],
+        "frames": [
+          "ripple-a",
+          "ripple-b",
+          "ripple-c",
+          "ripple-d"
+        ],
+        "note": "댐 위 고인 물(불투명 패널), 3연속 이음새 통과. 하단 정렬",
+        "targetGamePath": "assets/marble/pieces/dam-water.png",
+        "md5": "8f0a2ee19715688cb25ca3fba407bcd9",
+        "qaStatus": "PASS"
+      },
+      "beaver-v2": {
+        "image": "pieces/beaver-v2.png",
+        "canvas": [
+          384,
+          96
+        ],
+        "grid": [
+          4,
+          1
+        ],
+        "cell": [
+          96,
+          96
+        ],
+        "anchor": [
+          48,
+          96
+        ],
+        "frames": [
+          "tap-a",
+          "tap-b",
+          "alert",
+          "flee"
+        ],
+        "note": "beaver 대체. 하단 정렬",
+        "targetGamePath": "assets/marble/pieces/beaver-v2.png",
+        "md5": "bf3bcfcc0a1fe54603dbf4c74f2b3830",
+        "qaStatus": "PASS"
+      },
+      "dam-burst-v2": {
+        "image": "fx/dam-burst-v2.png",
+        "canvas": [
+          1152,
+          128
+        ],
+        "grid": [
+          6,
+          1
+        ],
+        "cell": [
+          192,
+          128
+        ],
+        "anchor": [
+          96,
+          128
+        ],
+        "frames": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "note": "터짐 물살 6프레임",
+        "targetGamePath": "assets/marble/fx/dam-burst-v2.png",
+        "md5": "a7f02f86adea9598e8ddca29e2de0ab6",
+        "qaStatus": "PASS"
+      },
+      "pit-surface": {
+        "image": "pieces/pit-surface.png",
+        "canvas": [
+          1440,
+          160
+        ],
+        "grid": [
+          3,
+          1
+        ],
+        "cell": [
+          480,
+          160
+        ],
+        "anchor": [
+          240,
+          160
+        ],
+        "frames": [
+          "a",
+          "b",
+          "c"
+        ],
+        "note": "웅덩이 수면 보글 루프. 하단 정렬",
+        "targetGamePath": "assets/marble/pieces/pit-surface.png",
+        "md5": "4d0a702a8dcfd3ac12141f40cc899223",
+        "qaStatus": "PASS"
+      },
+      "geyser": {
+        "image": "fx/geyser.png",
+        "canvas": [
+          640,
+          256
+        ],
+        "grid": [
+          5,
+          1
+        ],
+        "cell": [
+          128,
+          256
+        ],
+        "anchor": [
+          64,
+          256
+        ],
+        "frames": [
+          "rise",
+          "peak",
+          "peak-sway",
+          "bend",
+          "scatter"
+        ],
+        "note": "물기둥. 하단 정렬",
+        "targetGamePath": "assets/marble/fx/geyser.png",
+        "md5": "eedcf139e964c5e40a34607d1768c718",
+        "qaStatus": "PASS"
       }
-    }
+    },
+    "generationPath": "spritemake-direct-unverified-provenance",
+    "sourceDir": "/Users/radar/Work/SpriteMake/output/marble-run-events-e-2026-09-20/final"
   }
 }
