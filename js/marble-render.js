@@ -28,12 +28,13 @@ var MarbleRender = (function () {
     var FINAL_K_MIN = 3, FINAL_K_RATIO = 0.1;
     var ZOOM_ZONE = 700;             // 골 앞 이 거리부터 줌인 시작
     var ZOOM_MAX = 1.7;
-    var ZOOM_MIN = 0.7;              // 결승 프레임(수문+골)을 한 화면에 넣기 위한 줌아웃 하한
-    var FRAME_ENTER_PX = 200;        // 선두가 수문 위 이 거리 안에 들어오면 결승 프레임 모드
+    var ZOOM_MIN = 0.58;             // 결승 프레임(구멍밭+스탠드)을 한 화면에 넣기 위한 줌아웃 하한
+    var FRAME_ENTER_PX = 200;        // 선두가 구멍밭 위 이 거리 안에 들어오면 결승 프레임 모드
     var MINIMAP_W = 22;
     var SRC_SCALE = 0.25;            // 4x 소스 → 표시
     var CELL = 160;                  // 동물 시트 셀
-    var CHEER_ROWS = 12;
+    var STAND_ROW_H = 44;            // 도착 스탠드 한 줄 높이
+    var STAND_MAX_ROWS = 4;          // 스탠드에 보여줄 최대 줄 수 (넘치면 첫 줄 + 마지막 줄들)
     var WALL_SCALE = 1.5;            // 울타리 스프라이트 확대(128×40 소스 → 48×15)
     var SEESAW_SCALE = 1.5;
     var BASKET_SCALE = 2;            // 골 바구니·판자벽 — 결승 채널(160)을 채우게
@@ -61,8 +62,7 @@ var MarbleRender = (function () {
             'fence-mid': A + 'pieces/fence-mid.png', 'fence-post': A + 'pieces/fence-post.png',
             'goal-basket-back': A + 'pieces/goal-basket-back.png', 'goal-basket-front': A + 'pieces/goal-basket-front.png', 'dump-wall': A + 'pieces/dump-wall.png',
             'beehive': A + 'pieces/beehive.png', 'sun-patch': A + 'pieces/sun-patch.png', 'beaver-dam': A + 'pieces/beaver-dam.png', 'beaver': A + 'pieces/beaver.png',
-            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png',
-            'windmill-rotor': A + 'pieces/windmill-rotor.png'   // 수문 회전판(수문장)
+            'pit': A + 'pieces/pit.png', 'last-gate': A + 'pieces/last-gate.png', 'flag': A + 'pieces/flag.png'
         },
         stage: {
             'sky-far': A + 'stage/sky-far.png', 'meadow-tile': A + 'stage/meadow-tile.png',
@@ -249,17 +249,17 @@ var MarbleRender = (function () {
                 if (!rear || b.y < rear.y) rear = b;
             }
             var finalK = Math.max(FINAL_K_MIN, Math.ceil(balls.length * FINAL_K_RATIO));
-            var pen = (pieces.pen || [])[0];
+            var hf = (pieces.holefield || [])[0];
             var wallP = (pieces.dumpwall || [])[0];
-            // 결승 프레임: 선두가 수문 근처(위 FRAME_ENTER_PX 이내)에 오면 수문+골을 한 화면에 고정 — 이후 도착하는 공은 위에서 들어오고, 후미 추적 없이 전원이 보인다
-            var frameMode = pen && lead && lead.y >= pen.zone.y - FRAME_ENTER_PX;
+            // 결승 프레임: 선두가 구멍밭 근처(위 FRAME_ENTER_PX 이내)에 오면 구멍밭+스탠드+판자벽을 한 화면에 고정 — 이후 도착하는 공은 위에서 들어오고, 후미 추적 없이 전원이 보인다
+            var frameMode = hf && lead && lead.y >= hf.zone.y - FRAME_ENTER_PX;
             cam.mode = frameMode ? 'frame' : (remaining <= finalK ? 'rear' : 'lead');
             focus = cam.mode === 'rear' ? rear : lead;
             var targetY, targetX = TRACK_W / 2, targetZoom = 1;
             if (t < 0) targetY = data.track.startY * 0.5 + 60;
             else if (!focus) { targetY = goalY + 40; targetX = TRACK_W / 2; targetZoom = ZOOM_MAX * 0.8; }
             else if (frameMode) {
-                var top = pen.zone.y - 40, bottom = (wallP ? wallP.y : goalY) + 60;
+                var top = hf.zone.y - 30, bottom = (wallP ? wallP.y : goalY) + 50;
                 targetY = (top + bottom) / 2; targetX = TRACK_W / 2;
                 targetZoom = clamp(view.h / (bottom - top), ZOOM_MIN, ZOOM_MAX);
                 if (remaining <= 1 && rear) {   // 마지막 한 마리: 그 공으로 줌인
@@ -277,7 +277,7 @@ var MarbleRender = (function () {
             var minY = data.track.startY + view.h / 2 - 140, maxY = data.track.endY - view.h / 2 + 20;   // 출발대 위 140px(하늘 띠)까지
             targetY = clamp(targetY, minY, maxY);
             var halfW = view.w / 2 / targetZoom;
-            targetX = clamp(targetX, halfW, TRACK_W - halfW);
+            targetX = halfW >= TRACK_W / 2 ? TRACK_W / 2 : clamp(targetX, halfW, TRACK_W - halfW);   // 줌아웃으로 트랙보다 넓으면 중앙 고정
             if (!cam.init) { cam.y = targetY; cam.x = targetX; cam.zoom = targetZoom; cam.init = true; }
             else {
                 var k2 = Math.min(1, dt * CAM_SMOOTH);
@@ -334,7 +334,7 @@ var MarbleRender = (function () {
                 // 1920×1080 을 뷰 폭에 맞춰, 카메라의 10% 만 따라감
                 var sc = view.w / 1920 * 1.0; var dh = 1080 * sc;
                 var off = -((cam.y * 0.08) % dh);
-                ctx.drawImage(sky, -view.w / 2, off - dh, view.w * 2, dh * 2); ctx.drawImage(sky, -view.w / 2, off + dh, view.w * 2, dh * 2);
+                ctx.drawImage(sky, -view.w, off - dh, view.w * 3, dh * 3); ctx.drawImage(sky, -view.w, off + dh * 2, view.w * 3, dh * 3);
             } else {
                 var g = ctx.createLinearGradient(0, 0, 0, view.h);
                 g.addColorStop(0, '#9fd8ff'); g.addColorStop(1, '#dff3ff');
@@ -344,11 +344,13 @@ var MarbleRender = (function () {
             var tile = img('stage', 'meadow-tile');
             var ts = 1024 * SRC_SCALE;
             var topY = toScreenY(data.track.startY - 30);
+            // 줌아웃(zoom<1)이면 화면이 논리 뷰보다 넓다 — 덮어야 할 범위를 줌으로 늘린다
+            var padX = (view.w / cam.zoom - view.w) / 2 + ts, padY = (view.h / cam.zoom - view.h) / 2 + ts;
             // 줌 시 가로 초점이 움직여도 빈 곳이 없도록 트랙 폭 밖으로 한 타일씩 더 깐다
-            var y0 = toScreenY(Math.floor(cam.y / ts) * ts - ts * 3);
-            ctx.save(); ctx.beginPath(); ctx.rect(-ts, Math.max(-view.h, topY), view.w + ts * 2, view.h * 3); ctx.clip();   // 줌아웃(zoom<1)에서도 아래가 비지 않게 넉넉히
+            var y0 = toScreenY(Math.floor((cam.y - padY) / ts) * ts - ts);
+            ctx.save(); ctx.beginPath(); ctx.rect(-padX, Math.max(-padY, topY), view.w + padX * 2, view.h + padY * 2); ctx.clip();
             if (tile) {
-                for (var y = y0; y < view.h * 1.6 + ts; y += ts) for (var x = -ts; x < view.w + ts; x += ts) ctx.drawImage(tile, x, y, ts + 1, ts + 1);   // +1: 줌 배율에서 타일 이음새 방지. 1.6배: 줌아웃 여유
+                for (var y = y0; y < view.h + padY; y += ts) for (var x = -padX; x < view.w + padX; x += ts) ctx.drawImage(tile, x, y, ts + 1, ts + 1);   // +1: 줌 배율에서 타일 이음새 방지
             } else {
                 ctx.fillStyle = '#8fd07a'; ctx.fillRect(-ts, 0, view.w + ts * 2, view.h);
             }
@@ -479,39 +481,19 @@ var MarbleRender = (function () {
                     if (st > 0) label('!', d.beaverX, d.y1 - 68, '#fff', 14);
                 }
             });
-            (pieces.pen || []).forEach(function (pn) {
-                var z = pn.zone, g = pn.gate, sp = pn.spinner;
-                if (!visible(z.y + z.h / 2, z.h)) return;
-                var openT = penOpenT();
-                var open = openT >= 0 && t >= openT;
-                var prog = open ? clamp((t - openT) / 400, 0, 1) : 0;   // 0 닫힘 → 1 열림
-                var frame = Math.round(prog * 3);
-                var cx = (g.x1 + g.x2) / 2, w = g.x2 - g.x1;
-                // 웅덩이 바닥 흙(모이는 곳 표시)
-                ctx.save(); ctx.fillStyle = 'rgba(120,95,50,0.28)'; ctx.beginPath();
-                ctx.moveTo(z.x, toScreenY(z.y)); ctx.lineTo(z.x + z.w, toScreenY(z.y)); ctx.lineTo(z.x + z.w, toScreenY(z.y + z.h - 60)); ctx.lineTo(cx + w / 2, toScreenY(z.y + z.h)); ctx.lineTo(cx - w / 2, toScreenY(z.y + z.h)); ctx.lineTo(z.x, toScreenY(z.y + z.h - 60)); ctx.closePath(); ctx.fill(); ctx.restore();
-                // 바닥 문(틈) — last-gate 타일
-                var drawn = false;
-                if (img('pieces', 'last-gate')) {
-                    var tileW = GATE_TILE_SRC_W * SRC_SCALE, ov = GATE_TILE_OVERLAP_SRC * SRC_SCALE;
-                    var nT = Math.max(1, Math.ceil((w - ov) / (tileW - ov)));
-                    var gsc = (w + (nT - 1) * ov) / (nT * tileW);
-                    var step = tileW * gsc - ov * gsc;
-                    for (var ti = 0; ti < nT; ti++) drawSprite('pieces', 'last-gate', g.x1 + tileW * gsc / 2 + ti * step, g.y1 + 8, 128, 96, { sx: frame * 128, sw: 128, anchor: 'bottom', scale: gsc });
-                    drawn = true;
-                }
-                if (!drawn) { var h = 22 * (1 - prog); ctx.fillStyle = '#c99a5b'; ctx.fillRect(g.x1, toScreenY(g.y1) - h, w, Math.max(4, h)); }
-                // 회전판(수문장) — 1차 windmill-rotor, 열린 뒤 회전
-                var ang = open ? 2 * Math.PI * (t - openT) / sp.period : 0;
-                if (!drawSprite('pieces', 'windmill-rotor', sp.x, sp.y, 192, 192, { rot: ang, scale: (sp.r * 2) / (192 * SRC_SCALE) })) {
-                    ctx.save(); ctx.translate(sp.x, toScreenY(sp.y)); ctx.rotate(ang); ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 8; ctx.lineCap = 'round';
-                    ctx.beginPath(); ctx.moveTo(-sp.r, 0); ctx.lineTo(sp.r, 0); ctx.moveTo(0, -sp.r); ctx.lineTo(0, sp.r); ctx.stroke(); ctx.restore();
-                }
-                // 안내: 모인 수 / 남은 수
-                var inside = 0, alive = 0;
-                for (var i = 0; i < balls.length; i++) { var b = balls[i]; if (b.state === 'done') continue; alive++; if (b.x >= z.x && b.x <= z.x + z.w && b.y >= z.y && b.y <= z.y + z.h) inside++; }
-                if (!open) label('🚧 수문 — 다 모이면 열려요  ' + inside + ' / ' + alive, cx, z.y - 16, '#fff', 13);
-                else if (t - openT < 1800) label('수문이 열렸다!', cx, z.y - 16, '#ffe08a', 15);
+            (pieces.holefield || []).forEach(function (hf) {
+                var z = hf.zone; if (!visible(hf.floorY, z.h + 100)) return;
+                // 구멍 + 파이프: 어두운 구멍(타원) 위에 '골' 표시, 파이프 안쪽은 어둡게
+                hf.holes.forEach(function (h, i) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(40,25,10,0.95)';
+                    ctx.fillRect(h.x - h.w / 2 + 2, toScreenY(h.y), h.w - 4, hf.pipeH);
+                    ctx.beginPath(); ctx.ellipse(h.x, toScreenY(h.y), h.w / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.restore();
+                    label('골', h.x, h.y - 14, '#ffe08a', 11);
+                });
+                label('🕳 골 구멍 — 마지막에 떨어지는 동물이 당첨', z.x + z.w / 2, z.y - 16, '#fff', 13);
             });
             (pieces.startGate || []).forEach(function (g) {
                 if (!visible(g.y1, 40)) return;
@@ -589,7 +571,6 @@ var MarbleRender = (function () {
             return true;
         }
         // 햇볕 잔디에서 느려진 동물: 공을 풀고(uncurl 2프레임) 서서 걷는다(idle 루프). 진행 방향으로 뒤집기.
-        function penOpenT() { var e = data.events.find(function (ev) { return ev.type === 'penOpen'; }); return e ? e.t : -1; }
         function inSunZone(b) { var sz = (pieces.sunpatch || [])[0]; return !!sz && b.x >= sz.zone.x && b.x <= sz.zone.x + sz.zone.w && b.y >= sz.zone.y && b.y <= sz.zone.y + sz.zone.h; }
         function drawSunWalker(b, t) {
             var since = t - b.sunSince;
@@ -669,24 +650,49 @@ var MarbleRender = (function () {
         }
 
         // ─── 응원석 + 피날레 ───
+        // 도착 스탠드: finishOrder 순서대로 왼쪽부터 1, 2, 3… (한 줄 cols 마리). 줄이 넘치면 첫 줄 + 마지막 줄들만.
         function drawCheerStand(t) {
-            var cz = (pieces.cheer || [])[0]; if (!cz) return;
-            var z = cz.zone;
-            var lastId = data.finishOrder[data.finishOrder.length - 1];
-            for (var i = 0; i < balls.length; i++) {
-                var b = balls[i];
+            var st = (pieces.stand || [])[0]; if (!st) return;
+            var z = st.zone, cols = st.cols || 10, colW = z.w / cols;
+            var total = data.finishOrder.length;
+            var lastId = data.finishOrder[total - 1];
+            var finishedCount = 0;
+            for (var i = 0; i < balls.length; i++) if (balls[i].state === 'done') finishedCount++;
+            var rows = Math.ceil(Math.max(1, finishedCount) / cols);
+            // 보이는 줄 → 화면 줄 번호 매핑
+            var rowMap = {};
+            if (rows <= STAND_MAX_ROWS) { for (var r = 0; r < rows; r++) rowMap[r] = r; }
+            else { rowMap[0] = 0; for (var r2 = rows - (STAND_MAX_ROWS - 1); r2 < rows; r2++) rowMap[r2] = r2 - (rows - STAND_MAX_ROWS); }
+            var shownRows = Math.min(rows, STAND_MAX_ROWS);
+            // 나무 판 (start-platform-mid 타일) — 보이는 줄 수만큼
+            var mid = img('pieces', 'start-platform-mid');
+            for (var sr = 0; sr < shownRows; sr++) {
+                var py = z.y + sr * STAND_ROW_H;
+                if (!visible(py, STAND_ROW_H)) continue;
+                if (mid) { for (var x = z.x; x < z.x + z.w; x += 32) ctx.drawImage(mid, 0, 0, 128, 96, x, toScreenY(py + 10), Math.min(32, z.x + z.w - x), 24); }
+                else { ctx.fillStyle = 'rgba(160,110,60,0.85)'; ctx.fillRect(z.x, toScreenY(py + 10), z.w, 24); }
+            }
+            if (rows > STAND_MAX_ROWS) label('··· ' + (rows - STAND_MAX_ROWS) * cols + '마리 더 ···', z.x + z.w / 2, z.y + STAND_ROW_H - 4, '#fff', 11);
+            for (var i2 = 0; i2 < balls.length; i2++) {
+                var b = balls[i2];
                 if (b.state !== 'done') continue;
                 var idx = b.finishIdx;
-                var isLast = b.id === lastId && idx === data.finishOrder.length - 1;
-                if (isLast) continue;   // 마지막 공은 판자벽 위에 그린다(drawLastBall — drawBasketFront 뒤)
-                var side = idx % 2, row = Math.floor(idx / 2) % CHEER_ROWS;
-                var x = side ? z.x + z.w - 22 : z.x + 22, y = z.y + z.h - 10 - row * 18 + (Math.floor(idx / (CHEER_ROWS * 2)) % 2) * 9;
-                if (!visible(y, 40)) continue;
+                if (b.id === lastId && idx === total - 1) continue;   // 꼴찌는 판자벽 앞(drawLastBall)
+                var row = Math.floor(idx / cols), col = idx % cols;
+                if (rowMap[row] == null) continue;
+                var x2 = z.x + colW * (col + 0.5), y2 = z.y + rowMap[row] * STAND_ROW_H + 8;
+                if (!visible(y2, 40)) continue;
                 var since = t - b.finishAt;
                 var frame = since < 300 ? Math.min(1, Math.floor(since / 150)) : 2 + Math.floor((t / 260 + idx) % 2);
-                drawCreatureFrame(b, 3, frame, x, y - 6, 0, 0.85);
-                if (since > 400 && ((t / 700 + idx * 3) % 7) < 1) {   // 간헐 응원 fx
-                    if (!drawSprite('fx', 'cheer', x, y - 30, 96, 96, { sx: Math.floor(t / 120) % 4 * 96, sw: 96 })) label(idx % 3 === 0 ? '♪' : idx % 3 === 1 ? '★' : '♥', x + (idx % 2 ? 6 : -6), y - 30, ringColor(b), 12);
+                drawCreatureFrame(b, 3, frame, x2, y2 - 6, 0, 0.85);
+                // 순위 배지 (플레이어 색)
+                ctx.save();
+                ctx.fillStyle = ringColor(b); ctx.beginPath(); ctx.arc(x2 - 13, toScreenY(y2) - 20, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(String(idx + 1), x2 - 13, toScreenY(y2) - 19.5);
+                ctx.restore();
+                if (since > 400 && ((t / 700 + idx * 3) % 9) < 1) {   // 간헐 응원 fx
+                    if (!drawSprite('fx', 'cheer', x2, y2 - 30, 96, 96, { sx: Math.floor(t / 120) % 4 * 96, sw: 96 })) label('♪', x2 + 6, y2 - 30, ringColor(b), 12);
                 }
             }
         }
@@ -760,10 +766,10 @@ var MarbleRender = (function () {
             hudInfo = { remaining: rem, worst: worst };
         }
         // 미니맵 — 좌측 세로 스트립: 구간 띠 + 공 점(플레이어 색, 내 공 크게) + 현재 화면 범위. 리플레이 시각 기준이라 모든 클라 동일.
-        var MINIMAP_BANDS = [   // [y0, y1, color, 라벨]
+        var MINIMAP_BANDS = [   // [y0, y1, color, 라벨] — socket/marble-sim.js buildTrack 구간과 동일
             [0, 300, '#b48a5a', '출발'], [300, 900, '#c9a26a', '말뚝'], [900, 1250, '#e6b73a', '벌집'], [1250, 1650, '#f2e27a', '햇볕'],
-            [1650, 2030, '#7fa6d6', '댐'], [2030, 2200, '#6b4a2b', '구덩이'], [2200, 3200, '#8fd07a', '뱀길'], [3200, 3700, '#a07a4a', '진흙'],
-            [3700, 4010, '#d98c3a', '수문'], [4010, 4400, '#f2b134', '골']
+            [1650, 2030, '#7fa6d6', '댐'], [2030, 2200, '#6b4a2b', '구덩이'], [2200, 4120, '#8fd07a', '뱀길'], [4120, 4880, '#a07a4a', '범퍼·진흙'],
+            [4880, 5400, '#d98c3a', '구멍밭'], [5400, 5800, '#f2b134', '스탠드']
         ];
         function drawMinimap(t) {
             var x0 = 12, y0 = 44, h = view.h - 60, w = MINIMAP_W;

@@ -55,18 +55,16 @@ const PIT_MAX_MS = 2200;
 const PIT_RISE_VY = 120;
 const MUD_STALL_MS = 500, MUD_DIZZY_MS = 800, MUD_RESUME_VY = 60;
 const SEESAW_LEN = 84, SEESAW_AMP_DEG = 25, SEESAW_PERIOD_MS = 2400;
-// ⑨ 수문(sluice): 전원이 웅덩이에 모이면(또는 첫 도착 후 PEN_MAX_WAIT_MS) 바닥 문이 열리고 가운데 틈으로만 빠져나간다.
-//   틈 위 회전판(수문장, 1차 windmill-rotor)이 돌며 휘저어 막힘을 풀고 순서를 뒤섞는다 — Marble Roulette 결승 장치 차용.
-const PEN_MAX_WAIT_MS = 5000;     // 첫 도착 후 이 시간이 지나면 미도착자가 있어도 연다(잠·갇힘 안전망)
-const PEN_MIN_HOLD_MS = 1000;     // 전원 도착 후에도 최소 이만큼 닫아 둔다(모인 장면 보여주기)
-const PEN_GAP_W_MIN = 48, PEN_GAP_W_MAX = 120, PEN_GAP_PER_BALL = 0.5, PEN_GAP_FREE_BALLS = 20;   // 틈 폭 = 48 + (공 수-20)×0.5, 최대 120 — 많을수록 넓게(150마리 36s → ~15s)
-const PEN_SPIN_PERIOD_MS = 2400;  // 회전판 1회전
-const PEN_SPIN_R = 60;            // 회전판 반경(십자 2날개 = 선분 4개)
-const PEN_SHAKE_ACCEL = 350;      // 열린 뒤 웅덩이 안 공 전원에 주는 시드 흔들림(아치 막힘 방지)
+// ⑨ 구멍밭: 폭 500 판에 말뚝(파칭코) + 바닥 골 구멍 HOLE_COUNT 개. 구멍 사이 바닥은 지붕처럼 솟아 공이 구멍으로 굴러 떨어진다.
+//   구멍 아래 파이프 안 goalY 를 지나면 도착. 물리만으로 읽히는 결승(가둬 두는 문·회전판 없음).
+const HOLE_COUNT = 5;
+const HOLE_W = 44;                // 구멍 폭 (공 1.6개 — 동시에 둘이 끼지 못함)
+const HOLE_RIDGE_H = 16;          // 구멍 사이 바닥 지붕 높이
+const HOLE_PIPE_H = 70;           // 구멍 아래 파이프 길이 (goalY 는 그 안)
 const FINALE_HOLD_MS = 3500;      // 마지막 공 골인 후 엎어짐·스포트라이트 여유(클라 재생 길이에 포함)
 // 슬로모 (Marble Roulette timeScale 차용): 마지막 남은 공이 골 앞 SLOW_ZONE_PX 에 들어오면 재생 속도 SLOW_RATE.
 // 서버·클라가 같은 타임라인으로 같은 시각을 계산해 durationMs 에 반영 → 2탭 동기·종료 타이머 일치.
-const SLOW_ZONE_PX = 240;         // 수문 틈(골 -250) 바로 아래부터 — 웅덩이 대기가 슬로모에 걸리지 않게
+const SLOW_ZONE_PX = 70;          // 구멍 바로 위부터(마지막 낙하만) — 말뚝에서 튕기는 동안은 정속
 const SLOW_RATE = 0.3;
 
 // ─── 결정론 시드 PRNG (spin-arena와 동일) ───
@@ -86,7 +84,6 @@ function mulberry32(seed) {
 function buildTrack(ballCount) {
     const rows = Math.max(1, Math.ceil(ballCount / START_ROW_SIZE));
     const startH = rows * START_SPACING + 40;
-    const PEN_GAP_W = Math.min(PEN_GAP_W_MAX, PEN_GAP_W_MIN + Math.max(0, ballCount - PEN_GAP_FREE_BALLS) * PEN_GAP_PER_BALL);
     const p = [];
     const wall = (x1, y1, x2, y2) => p.push({ kind: 'wall', x1, y1, x2, y2 });
 
@@ -125,45 +122,65 @@ function buildTrack(ballCount) {
     // ⑥ 희생 다리(구덩이)
     p.push({ kind: 'pit', zone: { x: 320, y: 2060, w: 160, h: 60 } });   // 구덩이 스프라이트(480×160 → 채널 폭 160×53) 크기에 맞춤
 
-    // ⑦ 나선(뱀길) — 바깥 벽 + 선반 3단. 선반 끝 빈틈으로 다음 단에 떨어진다.
-    wall(100, 2200, 100, 3200); wall(700, 2200, 700, 3200);
-    wall(100, 2260, 600, 2540);
-    wall(700, 2580, 200, 2860);
-    wall(100, 2900, 600, 3180);
+    // ⑦ 나선(뱀길) — 바깥 벽 + 선반 6단. 선반 끝 빈틈으로 다음 단에 떨어진다.
+    wall(100, 2200, 100, 4120); wall(700, 2200, 700, 4120);
+    for (let k = 0; k < 6; k++) {
+        const y0 = 2260 + k * 320, y1 = y0 + 280;
+        if (k % 2 === 0) wall(100, y0, 600, y1); else wall(700, y0, 200, y1);
+    }
 
-    // ⑧ 진흙·시소 (깔때기 → 500폭)
-    wall(100, 3200, 150, 3300); wall(700, 3200, 650, 3300);
-    wall(150, 3300, 150, 3700); wall(650, 3300, 650, 3700);
-    p.push({ kind: 'seesaw', x: 400, y: 3400, len: SEESAW_LEN, period: SEESAW_PERIOD_MS, amp: SEESAW_AMP_DEG });
-    p.push({ kind: 'mud', x: 280, y: 3470, rx: 60, ry: 32 });
-    p.push({ kind: 'mud', x: 530, y: 3560, rx: 60, ry: 32 });
-    p.push({ kind: 'mud', x: 400, y: 3650, rx: 50, ry: 28 });
+    // ⑧ 통나무 범퍼 + 진흙·시소 (깔때기 → 500폭)
+    wall(100, 4120, 150, 4220); wall(700, 4120, 650, 4220);
+    wall(150, 4220, 150, 4880); wall(650, 4220, 650, 4880);
+    for (let r = 0; r < 3; r++) {
+        const y = 4300 + r * 120, off = (r % 2) ? 60 : 0;
+        for (let x = 220 + off; x <= 580; x += 120) p.push({ kind: 'log', x, y, r: LOG_R });
+    }
+    p.push({ kind: 'seesaw', x: 400, y: 4640, len: SEESAW_LEN, period: SEESAW_PERIOD_MS, amp: SEESAW_AMP_DEG });
+    p.push({ kind: 'mud', x: 270, y: 4700, rx: 60, ry: 32 });
+    p.push({ kind: 'mud', x: 540, y: 4780, rx: 60, ry: 32 });
+    p.push({ kind: 'mud', x: 400, y: 4850, rx: 50, ry: 28 });
 
-    // ⑨ 수문 — 깔때기 → 300폭 웅덩이(전원 집결) → V 바닥 가운데 48px 틈 + 회전판
-    wall(150, 3700, 250, 3780); wall(650, 3700, 550, 3780);
-    wall(250, 3780, 250, 3950); wall(550, 3780, 550, 3950);
-    wall(250, 3950, 400 - PEN_GAP_W / 2, 4010); wall(550, 3950, 400 + PEN_GAP_W / 2, 4010);
-    p.push({ kind: 'pen', zone: { x: 250, y: 3780, w: 300, h: 230 }, gate: { x1: 400 - PEN_GAP_W / 2, y1: 4010, x2: 400 + PEN_GAP_W / 2, y2: 4010 },
-        spinner: { x: 400, y: 3900, r: PEN_SPIN_R, period: PEN_SPIN_PERIOD_MS }, maxWaitMs: PEN_MAX_WAIT_MS });
+    // ⑨ 구멍밭 — 500폭 그대로. 말뚝 파칭코 → 바닥 골 구멍 5개(지붕 바닥이 구멍으로 유도) → 파이프
+    const HF = { x: 150, y: 4880, w: 500, h: 520 };        // 구역
+    const floorY = HF.y + HF.h;                             // 5400
+    wall(150, 4880, 150, floorY); wall(650, 4880, 650, floorY);
+    for (let r = 0; r < 6; r++) {
+        const y = 4960 + r * 60, off = (r % 2) ? 25 : 0;
+        for (let x = 200 + off; x <= 600; x += 50) p.push({ kind: 'stake', x, y, r: STAKE_R });
+    }
+    const holes = [];
+    const pitch = HF.w / HOLE_COUNT;                        // 100
+    for (let i = 0; i < HOLE_COUNT; i++) {
+        const cx = HF.x + pitch * (i + 0.5);
+        holes.push({ x: cx, y: floorY, w: HOLE_W });
+        // 파이프 벽 (구멍 양옆 아래로)
+        wall(cx - HOLE_W / 2, floorY, cx - HOLE_W / 2, floorY + HOLE_PIPE_H);
+        wall(cx + HOLE_W / 2, floorY, cx + HOLE_W / 2, floorY + HOLE_PIPE_H);
+    }
+    // 바닥: 구멍 사이는 지붕(가운데 솟음), 양 끝은 벽 쪽이 높은 경사
+    wall(HF.x, floorY - HOLE_RIDGE_H, holes[0].x - HOLE_W / 2, floorY);
+    for (let i = 0; i < HOLE_COUNT - 1; i++) {
+        const a = holes[i].x + HOLE_W / 2, b = holes[i + 1].x - HOLE_W / 2, m = (a + b) / 2;
+        wall(a, floorY, m, floorY - HOLE_RIDGE_H); wall(m, floorY - HOLE_RIDGE_H, b, floorY);
+    }
+    wall(holes[HOLE_COUNT - 1].x + HOLE_W / 2, floorY, HF.x + HF.w, floorY - HOLE_RIDGE_H);
+    p.push({ kind: 'holefield', zone: HF, holes, floorY, pipeH: HOLE_PIPE_H });
 
-    // ⑩ 응원석 결승 — 틈(48폭) → 160폭으로 벌어짐 → 골 바구니 → 판자벽
-    wall(400 - PEN_GAP_W / 2, 4010, 400 - PEN_GAP_W / 2, 4050); wall(400 + PEN_GAP_W / 2, 4010, 400 + PEN_GAP_W / 2, 4050);
-    wall(400 - PEN_GAP_W / 2, 4050, 320, 4100); wall(400 + PEN_GAP_W / 2, 4050, 480, 4100);
-    wall(320, 4100, 320, 4300); wall(480, 4100, 480, 4300);
-    p.push({ kind: 'cheer', zone: { x: 320, y: 4100, w: 160, h: 160 } });
-    p.push({ kind: 'basket', x: 400, y: 4290 });
-    p.push({ kind: 'dumpwall', x: 400, y: 4345 });
+    // ⑩ 도착 스탠드 — 왼쪽부터 1, 2, 3… (클라가 finishOrder 로 배치) → 꼴찌는 판자벽 앞
+    p.push({ kind: 'stand', zone: { x: 150, y: floorY + HOLE_PIPE_H + 20, w: 500, h: 200 }, cols: 10 });
+    p.push({ kind: 'dumpwall', x: 400, y: floorY + HOLE_PIPE_H + 250 });
 
     // 장식(클라 전용, 물리 없음)
     const decor = [
         ['tree', 60, 250], ['tree', 740, 700], ['bush-big', 80, 1100], ['bush-big', 720, 1500],
-        ['rock', 90, 1900], ['bush-small', 700, 2100], ['flower-pink', 60, 3000], ['flower-yellow', 730, 3350],
-        ['tree', 70, 3900], ['signpost', 560, 4230], ['flower-white', 120, 4300]
+        ['rock', 90, 1900], ['bush-small', 740, 2100], ['flower-pink', 60, 3000], ['flower-yellow', 740, 3700],
+        ['tree', 70, 4400], ['bush-big', 730, 4600], ['signpost', 700, 5000], ['flower-white', 100, 5300], ['tree', 730, 5500]
     ];
     decor.forEach(([kind, x, y]) => p.push({ kind: 'decor', decor: kind, x, y }));
 
     return {
-        width: TRACK_W, startY: -startH, goalY: 4260, endY: 4400,
+        width: TRACK_W, startY: -startH, goalY: 5400 + HOLE_PIPE_H - 20, endY: 5400 + HOLE_PIPE_H + 300,
         ballR: BALL_R, napR: NAP_R,
         pieces: p
     };
@@ -206,11 +223,6 @@ function closestOnSegment(px, py, x1, y1, x2, y2) {
 }
 function inZone(b, z) { return b.x >= z.x && b.x <= z.x + z.w && b.y >= z.y && b.y <= z.y + z.h; }
 function inEllipse(b, m) { const dx = (b.x - m.x) / m.rx, dy = (b.y - m.y) / m.ry; return dx * dx + dy * dy < 1; }
-function spinnerSegments(sp, angle) {   // 십자 2날개 → 중심에서 뻗는 선분 4개
-    const out = [];
-    for (let k = 0; k < 4; k++) { const a = angle + k * Math.PI / 2; out.push({ x1: sp.x, y1: sp.y, x2: sp.x + Math.cos(a) * sp.r, y2: sp.y + Math.sin(a) * sp.r }); }
-    return out;
-}
 function seesawSegment(s, t) {
     const a = (s.amp * Math.PI / 180) * Math.sin(2 * Math.PI * t / s.period);
     const hx = Math.cos(a) * s.len / 2, hy = Math.sin(a) * s.len / 2;
@@ -221,7 +233,7 @@ function seesawSegment(s, t) {
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|mud|mudEnd|bump|penOpen|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damCrack|damBurst|pitFall|pitRise|mud|mudEnd|bump|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -242,7 +254,7 @@ async function simulate(balls, seed, track) {
 
     // 조각 분류
     const walls = [], stakes = [], muds = [];
-    let beehive = null, sun = null, dam = null, pit = null, pen = null, seesaw = null;
+    let beehive = null, sun = null, dam = null, pit = null, seesaw = null;
     for (const pc of track.pieces) {
         switch (pc.kind) {
             case 'wall': walls.push(pc); break;
@@ -252,7 +264,6 @@ async function simulate(balls, seed, track) {
             case 'sunpatch': sun = pc; break;
             case 'dam': dam = pc; break;
             case 'pit': pit = pc; break;
-            case 'pen': pen = pc; break;
             case 'seesaw': seesaw = pc; break;
         }
     }
@@ -276,7 +287,6 @@ async function simulate(balls, seed, track) {
     const pitFill = Math.min(PIT_FILL_MAX, Math.max(PIT_FILL_MIN, Math.ceil(n * PIT_FRACTION)));
     let pitFallen = 0, pitPassed = 0, pitFirstFall = -1, pitReleased = false;
     let beesAt = -1;
-    let penFirstArrival = -1, penOpenAt = -1;
 
     const events = [{ t: 0, type: 'gateOpen' }];
     const frames = [];
@@ -363,17 +373,6 @@ async function simulate(balls, seed, track) {
         if (step % SIM_YIELD_EVERY === 0) await new Promise(r => setImmediate(r));
 
         // ── 장치 타이머(공 무관) ──
-        // 수문: 미도착(unfinished) 전원이 웅덩이 안이면(+최소 홀드) 또는 타임아웃이면 연다
-        if (pen && penOpenAt < 0) {
-            let inside = 0, alive = 0;
-            for (const b of B) { if (b.state === 'done') continue; alive++; if (inZone(b, pen.zone)) inside++; }
-            if (inside > 0 && penFirstArrival < 0) penFirstArrival = t;
-            if (penFirstArrival >= 0 && ((inside === alive && t - penFirstArrival >= PEN_MIN_HOLD_MS) || t - penFirstArrival >= pen.maxWaitMs)) {
-                penOpenAt = t; pushEvent(t, 'penOpen', null, { arrived: inside, alive });
-            }
-        }
-        const penOpen = !pen || penOpenAt >= 0;
-        const spin = (pen && penOpen) ? spinnerSegments(pen.spinner, 2 * Math.PI * (t - penOpenAt) / pen.spinner.period) : null;
         const ss = seesaw ? seesawSegment(seesaw, t) : null;
         const beesOn = beesAt >= 0 && t < beesAt + BEE_MS;
 
@@ -424,7 +423,6 @@ async function simulate(balls, seed, track) {
             }
             const inSun = sun && inZone(b, sun.zone);
             if (inSun) drag += SUN_DRAG;
-            if (spin && inZone(b, pen.zone)) ax += (rng() * 2 - 1) * PEN_SHAKE_ACCEL;   // 수문장이 흔든다(전원 동일 규칙)
             b.vx += (ax - drag * b.vx) * dt;
             b.vy += (ay - drag * b.vy) * dt;
             const spd0 = Math.hypot(b.vx, b.vy);
@@ -438,8 +436,6 @@ async function simulate(balls, seed, track) {
             const sl = stakeBands.get(bandKey(b.y));
             if (sl) for (const s of sl) collideCircle(t, b, s.x, s.y, s.r, WALL_RESTITUTION);
             if (dam && damActive && Math.abs(b.y - dam.y1) < BALL_R + 4) collideSegment(t, b, dam.x1, dam.y1, dam.x2, dam.y2, WALL_RESTITUTION);
-            if (pen && !penOpen && Math.abs(b.y - pen.gate.y1) < BALL_R + 4) collideSegment(t, b, pen.gate.x1, pen.gate.y1, pen.gate.x2, pen.gate.y2, WALL_RESTITUTION);
-            if (spin && Math.abs(b.y - pen.spinner.y) < PEN_SPIN_R + BALL_R && Math.abs(b.x - pen.spinner.x) < PEN_SPIN_R + BALL_R) for (const sg of spin) collideSegment(t, b, sg.x1, sg.y1, sg.x2, sg.y2, WALL_RESTITUTION);
             if (ss && Math.abs(b.y - seesaw.y) < SEESAW_LEN) collideSegment(t, b, ss.x1, ss.y1, ss.x2, ss.y2, WALL_RESTITUTION);
             // 트랙 좌우 경계(안전망)
             if (b.x < BALL_R) { b.x = BALL_R; if (b.vx < 0) b.vx = -b.vx * WALL_RESTITUTION; }
@@ -484,8 +480,7 @@ async function simulate(balls, seed, track) {
             // 갇힘 방지
             const spd = Math.hypot(b.vx, b.vy);
             const waitingDam = dam && damActive && inZone(b, dam.zone);
-            const waitingGate = pen && !penOpen && inZone(b, pen.zone);
-            if (spd > STUCK_SPEED || waitingDam || waitingGate) b.stuckSince = t;
+            if (spd > STUCK_SPEED || waitingDam) b.stuckSince = t;
             else if (t - b.stuckSince >= STUCK_MS) {
                 b.vx = (b.x < TRACK_W / 2 ? 1 : -1) * (STUCK_KICK_X_MIN + rng() * STUCK_KICK_X_RND); b.vy = STUCK_KICK_Y; b.stuckSince = t;
             }
@@ -589,6 +584,6 @@ module.exports = {
     buildTrack, layoutBalls, simulate, rankPlayers, effectiveBallsPerPlayer, mulberry32,
     constants: {
         SIM_DT_MS, SIM_CAP_MS, MAX_BALLS, BALLS_PER_PLAYER_MIN, BALLS_PER_PLAYER_MAX, BALLS_PER_PLAYER_DEFAULT,
-        BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, PEN_MAX_WAIT_MS, PEN_SPIN_PERIOD_MS, SLOW_ZONE_PX, SLOW_RATE
+        BALL_R, NAP_R, FINALE_HOLD_MS, MUD_DIZZY_MS, BEE_MS, HOLE_COUNT, SLOW_ZONE_PX, SLOW_RATE
     }
 };
