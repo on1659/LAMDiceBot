@@ -10,7 +10,7 @@ SpriteMake batch: `output/marble-run-events-e-2026-09-20/`
 > 게임: `docs/spritemake-request/applied/2026-09-19-marble-run-game-overview.md`
 > 스타일: `docs/spritemake-request/applied/2026-09-19-marble-run-roll-creatures.md` (봄 초원, 4x 소스, 투명 PNG)
 
-**4차(finale-d) 정정**: `pipe-mouth`·`suck-swirl` 은 **취소**(탈출 파이프 기능 삭제). `gravestone`·`gap-mark`·`lane-dirt` 3장만 진행.
+**4차(finale-d) 정정**: `pipe-mouth`(땅 구멍 입구)는 **취소** — 탈출 파이프가 아래 §2-0 **워프 파이프**로 바뀌었다. `suck-swirl` 은 **그대로 진행**(워프 들어갈 때 흡입 연출에 씀). `gravestone`·`gap-mark`·`lane-dirt` 도 그대로.
 
 ---
 
@@ -24,6 +24,14 @@ SpriteMake batch: `output/marble-run-events-e-2026-09-20/`
 코드는 에셋 없이 코드 도형/루프로 먼저 들어가고, 에셋이 오면 그림만 교체한다.
 
 ## 2. 에셋 목록 — 투명 PNG, 4x 소스 (1 표시px = 4 소스px)
+
+### 2-0. 워프 파이프 (신규 장치 — 탈출 파이프 대체)
+
+한 화면에 파이프 6개(윗줄 3·아랫줄 3, 사이에 통나무 한 줄). 들어가면 짝 파이프(1↔6·2↔5·3↔4)에서 위로 뿅 튀어나온다. 짝 표시 색 띠·번호는 코드가 그린다.
+
+| ID | 파일 | 소스 크기 | 프레임 | 그림 지시 |
+|---|---|---|---|---|
+| warp-pipe | pieces/warp-pipe.png | 192×224 | 1 | **마리오식 서 있는 녹색 파이프** 옆모습(살짝 위에서), 입구가 위. 위쪽 테(입구 링)가 몸통보다 조금 넓고, 입구 안은 어두운 타원. 몸통 오른쪽에 그늘 한 줄. 몸통 세로 중간(위에서 소스 80~116px)은 **민무늬 평평한 띠 자리** — 코드가 짝 색을 덧칠한다. 하단 정렬. 표시 48×56 |
 
 ### 2-1. 독수리 (신규 장치)
 
@@ -71,4 +79,5 @@ SpriteMake batch: `output/marble-run-events-e-2026-09-20/`
 - `mole-v2` — `pieces.mole` 블록의 `'mole'` 키를 `'mole-v2'` 로. `mole-alert` 는 올라오기 전 0.3s
 - `dam-water` — 댐 그리기 뒤 겹침(터지기 전까지), `beaver-v2` 는 상태(대기/금/터짐)→프레임, `dam-burst-v2` 는 `damburst` fx 6프레임
 - `pit-surface` — `pit` 위 겹침 루프, `geyser` 는 `case 'geyser'` 코드 그라데이션 대체
-`assets/marble/marble-run.manifest.json` 에 `eventsE` 섹션.
+- `warp-pipe` — `drawBasketFront` 안 `pieces.warp` 블록(코드 도형 녹색 파이프 → 스프라이트, 색 띠는 코드)
+`assets/marble/marble-run.manifest.json` 에 `eventsE` 섹션(warp-pipe 는 pending 으로 미리 있음).

@@ -1623,36 +1623,8 @@
     "batch": "marble-run-finale-d-2026-09-20",
     "status": "pending-request",
     "request": "docs/spritemake-request/2026-09-20-marble-run-finale-d.md",
-    "note": "코드는 이미 연결됨(js/marble-render.js ASSETS 4차 키) — 파일이 없으면 코드 도형 폴백. 인수 시 md5/qaStatus 채우고 status 를 picked-up 으로",
+    "note": "코드는 이미 연결됨(js/marble-render.js ASSETS 4차 키) — 파일이 없으면 코드 도형 폴백. pipe-mouth 는 취소(워프 파이프로 대체 → eventsE). 인수 시 md5/qaStatus 채우고 status 를 picked-up 으로",
     "assets": {
-      "pipe-mouth": {
-        "image": "pieces/pipe-mouth.png",
-        "canvas": [
-          448,
-          128
-        ],
-        "grid": [
-          2,
-          1
-        ],
-        "cell": [
-          224,
-          128
-        ],
-        "anchor": [
-          112,
-          104
-        ],
-        "sourcePlaneY": 104,
-        "frames": [
-          "open",
-          "closed"
-        ],
-        "note": "하단 정렬, 바닥선 = 아래에서 24px. 표시 폭 56",
-        "targetGamePath": "assets/marble/pieces/pipe-mouth.png",
-        "md5": null,
-        "qaStatus": "pending"
-      },
       "suck-swirl": {
         "image": "fx/suck-swirl.png",
         "canvas": [
@@ -1738,6 +1710,34 @@
         ],
         "note": "가로 이어붙이는 타일, 표시 64×60",
         "targetGamePath": "assets/marble/stage/lane-dirt.png",
+        "md5": null,
+        "qaStatus": "pending"
+      }
+    }
+  },
+  "eventsE": {
+    "batch": "marble-run-events-e-2026-09-20",
+    "status": "pending-request",
+    "request": "docs/spritemake-request/2026-09-20-marble-run-events-e.md",
+    "note": "warp-pipe 만 코드 연결됨(없으면 코드 도형). 나머지(독수리·스프링 널빤지·mole-v2·댐/간헐천 루프)는 기능 구현 때 키 추가",
+    "assets": {
+      "warp-pipe": {
+        "image": "pieces/warp-pipe.png",
+        "canvas": [
+          192,
+          224
+        ],
+        "grid": [
+          1,
+          1
+        ],
+        "anchor": [
+          96,
+          224
+        ],
+        "sourcePlaneY": 224,
+        "note": "하단 정렬, 표시 48×56, 짝 색 띠·번호는 코드",
+        "targetGamePath": "assets/marble/pieces/warp-pipe.png",
         "md5": null,
         "qaStatus": "pending"
       }

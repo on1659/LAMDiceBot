@@ -94,15 +94,21 @@ const DEV_H = 760;                // 장치 골짜기 높이
 const VAR_TOP = DEV_TOP + DEV_H;
 const VAR_GAP_W = 40;             // 끊긴 경사로 틈 폭(공 1.4개)
 const VAR_BOWL_R = 240, VAR_BOWL_SEGS = 14, VAR_BOWL_GAP_DEG = 11;   // 그릇 반지름·호 분할 수·바닥 틈 각도(≈2R·sin(5.5°) ≈ 46px)
-const VAR_H = 1000;               // 구간 높이
+const VAR_H = 1000 + 360;         // 구간 높이 (워프 방 WARP_H 만큼 늘어남 — 아래 const 는 이 위에 못 쓰므로 숫자로)
 const VALLEY_H = DEV_H + VAR_H;    // 두 골짜기 높이 합 → 아래 구간(범퍼·시소·진흙·구멍밭·통로·스탠드) 전부 이만큼 내려간다
-// 탈출 파이프(docs/goal/marble-escape-pipe.md): 빨려 들어간 순간 도착(순위 확정) — 도착 = 골 진입 또는 파이프 진입, 꼴찌 = 마지막 도착.
-//    파이프마다 정원: 전체 floor(n × ESCAPE_RATIO) 를 라운드로빈 배분, 차면 닫힘(그냥 지나침). 최소 70% 는 골까지 가므로 꼴찌는 항상 통로 골에서 난다.
-const PIPE_W = 40;                // 입구 폭(공 1.4개)
-const PIPE_POST_H = 12;           // 입구 양옆 짧은 기둥
-const PIPE_JITTER = 40;           // 자리 x 시드 흔들림 폭. 기둥과 바깥벽·이웃 기둥 사이는 항상 ≥ 44(공 28 + 여유) — 25 면 공이 쐐기처럼 끼어 캡까지 못 나온다(seed 16)
-const ESCAPE_RATIO = 0.3;
-const PIPE_TRAVEL_MS = 1200;      // 땅속으로 스탠드 홈통까지 가는 시간(클라 연출, js/marble-render.js 와 동일 값)
+// ⑦-d 워프 파이프 방(갈래 골짜기 끊긴 경사로 아래, docs/goal/marble-warp-pipes.md): 마리오식 서 있는 파이프 6개가 한 화면에.
+//    윗줄 [1][2][3] / 통나무 한 줄 / 아랫줄 [4][5][6], 짝 1↔6·2↔5·3↔4(대각선 교차). 들어가면 짝 파이프에서 위로 뿅 튀어나온다 —
+//    윗줄로 들어가면 범퍼를 건너뛰고 반대편으로(지름길), 아랫줄로 들어가면 윗줄로 되돌아가 범퍼를 다시(손해). 순위 규칙 예외 없음(위치 이동뿐).
+//    무한 핑퐁 방지: 공 1마리당 파이프 1회(들어간 것·나온 것 둘 다 소진) + 나올 때 트랙 가운데 쪽으로 차서 입구 위에 도로 안 떨어진다.
+const WARP_TOP = 330;             // 방 시작(V 기준). 윗줄 입구 y
+const WARP_ROW_GAP = 250;         // 윗줄 ↔ 아랫줄 입구 y 간격
+const WARP_H = 360;               // 방 높이 → 봉우리·그릇이 이만큼 내려간다
+const WARP_XS = [260, 400, 540];  // 줄 안 파이프 x (기둥과 바깥벽·이웃 사이 ≥ 44 — 좁으면 공이 쐐기로 낀다)
+const WARP_MOUTH_W = 40;          // 입구 폭(공 1.4개)
+const WARP_BODY_W = 48, WARP_BODY_H = 56;   // 파이프 몸통(양옆이 벽). 스프라이트 표시 크기와 같음
+const WARP_MS = 350;              // 들어가서 나올 때까지(숨어 있는 시간)
+const WARP_POP_VY = 380, WARP_POP_VX = 140;   // 나올 때 위로·가운데 쪽으로
+const WARP_LOG_Y = 125;           // 줄 사이 통나무(윗줄 입구 기준 아래로)
 // ⑨ 구멍밭: 폭 500 판에 말뚝(파칭코) + 바닥 골 구멍 HOLE_COUNT 개. 구멍 사이 바닥은 지붕처럼 솟아 공이 구멍으로 굴러 떨어진다.
 //   구멍 아래 파이프 안 goalY 를 지나면 도착. 물리만으로 읽히는 결승(가둬 두는 문·회전판 없음).
 const HOLE_COUNT = 5;
@@ -212,9 +218,6 @@ function buildTrack(ballCount, rng) {
         ks.forEach((k, i) => p.push({ kind: 'mole', x: x1 + (x2 - x1) * k, y: y1 + (y2 - y1) * k, angle: ang, dir, r: MOLE_R,
             period: MOLE_PERIOD_MS, up: MOLE_UP_MS, phase: Math.round(MOLE_PERIOD_MS * MOLE_PHASE_STEP * (i + phase0)) }));
     };
-    const pipeSlots = [];   // 파이프 자리 [x, y] — 정원은 마지막에 한꺼번에 배분
-    const pipe = (x0, y) => pipeSlots.push([Math.round(x0 + (rng() - 0.5) * PIPE_JITTER), y]);
-    pipe(255, 2620); pipe(545, 2620);   // 풍차 아래 좌우 — 날개에 튕겨 옆으로 간 놈이 먹힌다
     ramp(150, 2700, 560, 2830, [0.25, 0.5, 0.75], 0);   // 오른쪽 내리막, 끝(560~650)으로 떨어짐
     ramp(650, 2910, 240, 3040, [0.25, 0.5, 0.75], 1.5); // 왼쪽 내리막, 끝(150~240)으로 떨어짐
 
@@ -244,13 +247,22 @@ function buildTrack(ballCount, rng) {
         });
         wall(x1 + (x2 - x1) * from, y1 + (y2 - y1) * from, x2, y2);
     }
-    // (c) 탈출 파이프 밭: 끊긴 경사로에서 떨어진 놈들이 지나는 자리에 3개 (범퍼 밭 대신 — 튕김이 아니라 "남은 놈이 줄어드는" 규칙)
-    pipe(255, V + 450); pipe(400, V + 450); pipe(545, V + 450);
+    // (c) 워프 파이프 방: 윗줄 3 / 통나무 한 줄 / 아랫줄 3, 짝은 1↔6·2↔5·3↔4. 파이프 몸통 양옆은 벽(공이 옆에서 부딪히면 튕김), 입구는 센서
+    {
+        const warps = [];
+        [0, 1].forEach(row => WARP_XS.forEach((x, i) => warps.push({ x, y: V + WARP_TOP + row * WARP_ROW_GAP, idx: row * 3 + i })));
+        warps.forEach(w => {
+            const pair = 5 - w.idx;   // 1↔6, 2↔5, 3↔4
+            p.push({ kind: 'warp', x: w.x, y: w.y, idx: w.idx, pair, w: WARP_MOUTH_W, bodyW: WARP_BODY_W, bodyH: WARP_BODY_H, color: Math.min(w.idx, pair) });
+            wall(w.x - WARP_BODY_W / 2, w.y, w.x - WARP_BODY_W / 2, w.y + WARP_BODY_H); wall(w.x + WARP_BODY_W / 2, w.y, w.x + WARP_BODY_W / 2, w.y + WARP_BODY_H);
+        });
+        for (let x = 240; x <= 540; x += 100) p.push({ kind: 'log', x: Math.round(x + (rng() - 0.5) * 20), y: Math.round(V + WARP_TOP + WARP_LOG_Y + (rng() - 0.5) * 30), r: LOG_R });   // 줄 사이 통나무 — x 섞기. 통나무끼리 ≥ 40·벽과 ≥ 80 띄운다(좁으면 공이 쐐기로 낀다 — 600 자리는 벽과 22 라 캡)
+    }
     // (d) 봉우리 Λ 두 개 — 꼭대기에 맞으면 좌우로 갈린다(가운데 틈 120 · 양 옆 틈 30)
-    wall(180, V + 660, 260, V + 570); wall(260, V + 570, 340, V + 660);
-    wall(460, V + 660, 540, V + 570); wall(540, V + 570, 620, V + 660);
+    wall(180, V + WARP_H + 660, 260, V + WARP_H + 570); wall(260, V + WARP_H + 570, 340, V + WARP_H + 660);
+    wall(460, V + WARP_H + 660, 540, V + WARP_H + 570); wall(540, V + WARP_H + 570, 620, V + WARP_H + 660);
     {   // (e) U자 그릇: 반원 호(선분 분할). 굴러 들어와 왔다갔다 하다 바닥 가운데 틈으로만 빠진다 — 느린 놈이 먼저, 빠른 놈은 지나쳤다 돌아온다
-        const cx = 400, cy = V + 700, R = VAR_BOWL_R, N = VAR_BOWL_SEGS;
+        const cx = 400, cy = V + WARP_H + 700, R = VAR_BOWL_R, N = VAR_BOWL_SEGS;
         const a0 = Math.PI * 162 / 180, a1 = Math.PI * 18 / 180, gapHalf = VAR_BOWL_GAP_DEG / 2 * Math.PI / 180;
         let prev = null, prevA = 0;
         for (let i = 0; i <= N; i++) {
@@ -322,14 +334,6 @@ function buildTrack(ballCount, rng) {
     ];
     decor.forEach(([kind, x, y]) => p.push({ kind: 'decor', decor: kind, x, y }));
 
-    // 탈출 파이프 조각 + 정원 배분 (라운드로빈: 위쪽부터). 기둥은 벽
-    const escapeTotal = Math.floor(ballCount * ESCAPE_RATIO);
-    pipeSlots.forEach(([x, y], i) => {
-        const cap = Math.floor(escapeTotal / pipeSlots.length) + (i < escapeTotal % pipeSlots.length ? 1 : 0);
-        p.push({ kind: 'pipe', x, y, w: PIPE_W, cap, travelMs: PIPE_TRAVEL_MS });
-        wall(x - PIPE_W / 2, y - PIPE_POST_H, x - PIPE_W / 2, y); wall(x + PIPE_W / 2, y - PIPE_POST_H, x + PIPE_W / 2, y);
-    });
-
     return {
         width: TRACK_W, startY: -startH, goalY: laneY, goalX: GOAL_X, endY: laneTop + LANE_H + 260,
         ballR: BALL_R, napR: NAP_R,
@@ -398,7 +402,7 @@ function deviceOn(d, t) { const c = ((t + d.phase) % d.period + d.period) % d.pe
  * 시뮬레이션. balls = layoutBalls() 결과. 반환:
  * { track, sampleMs, frames, events, finishOrder, simEndMs, durationMs }
  *  frames[k] = [x0,y0,x1,y1,…] (정수, 도착/정지 무관 항상 기록. 도착한 공은 -1,-1)
- *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|escape|land|trip|doze|finish
+ *  events    = [{ t, type, ball?, x?, y? }] — gateOpen|bees|nap|wake|damHit|damCrack|damBurst|pitFall|pitErupt|mole|flip|mud|mudEnd|bump|warp|warpOut|land|trip|doze|finish
  */
 async function simulate(balls, seed, track) {
     const rng = mulberry32(seed ^ 0x5bd1e995);
@@ -414,11 +418,12 @@ async function simulate(balls, seed, track) {
         napAt: 0, hasNapped: false,
         mudAt: 0, mudDone: {}, dizzyUntil: 0,
         pitDone: false, damHold: 0, walkSpeed: 0, walkRow: 0, stallUntil: 0, stallAt: 0, stallKind: '',
-        stuckSince: 0, lidAt: -1e9, moleAt: -1e9, ffDone: false
+        stuckSince: 0, lidAt: -1e9, moleAt: -1e9, ffDone: false,
+        warpDone: {}, warpUntil: 0, warpOut: null
     }));
 
     // 조각 분류
-    const walls = [], stakes = [], muds = [], moles = [], belts = [], fans = [], pipes = [];
+    const walls = [], stakes = [], muds = [], moles = [], belts = [], fans = [], warps = [];
     let beehive = null, sun = null, dam = null, pit = null, seesaw = null, lane = null, windmill = null, holefield = null, flipflop = null;
     for (const pc of track.pieces) {
         switch (pc.kind) {
@@ -428,7 +433,7 @@ async function simulate(balls, seed, track) {
             case 'mole': moles.push(pc); break;
             case 'belt': belts.push(pc); break;
             case 'fan': fans.push(pc); break;
-            case 'pipe': pipes.push({ pc, taken: 0 }); break;
+            case 'warp': warps.push(pc); break;
             case 'flipflop': flipflop = pc; break;
             case 'beehive': beehive = pc; break;
             case 'sunpatch': sun = pc; break;
@@ -643,6 +648,12 @@ async function simulate(balls, seed, track) {
                 } else continue;
             }
             if (b.state === 'pit') continue;
+            if (b.state === 'warp') {   // 짝 파이프 안에 숨어 있다가 위로 뿅
+                if (t < b.warpUntil) continue;
+                const o = b.warpOut; b.state = 'roll'; b.x = o.x; b.y = o.y; b.vx = o.vx; b.vy = o.vy; b.stuckSince = t; b.warpOut = null;
+                pushEvent(t, 'warpOut', b, { x: Math.round(o.x), y: Math.round(o.y) });
+                continue;
+            }
 
             let ax = 0, ay = GRAVITY;
             let drag = DRAG;
@@ -726,17 +737,19 @@ async function simulate(balls, seed, track) {
                     continue;
                 }
             }
-            // 탈출 파이프: 입구 띠에 중심이 들어오면(정원 남았을 때) 그 자리에서 도착
-            let escaped = false;
-            for (const pp of pipes) {
-                const q = pp.pc;
-                if (pp.taken >= q.cap || Math.abs(b.x - q.x) > q.w / 2 || b.y < q.y - 4 || b.y > q.y + 16) continue;
-                pp.taken++; b.x = q.x; b.y = q.y;
-                pushEvent(t, 'escape', b, { x: q.x, y: q.y, left: q.cap - pp.taken });
-                finishBall(t, b);
-                escaped = true; break;
+            // 워프 파이프: 입구 띠에 중심이 들어오면 짝 파이프로. 들어간 것·나오는 것 둘 다 이 공에겐 소진(핑퐁 방지)
+            let warped = false;
+            for (const q of warps) {
+                if (b.warpDone[q.idx] || Math.abs(b.x - q.x) > q.w / 2 || b.y < q.y - 4 || b.y > q.y + 20) continue;
+                const o = warps.find(z => z.idx === q.pair);
+                b.warpDone[q.idx] = true; b.warpDone[o.idx] = true;
+                b.state = 'warp'; b.warpUntil = t + WARP_MS; b.vx = 0; b.vy = 0;
+                b.x = o.x; b.y = o.y - BALL_R;   // 숨어 있는 동안 프레임은 출구에 찍힌다(클라는 안 그림) — 보간 미끄러짐 방지
+                b.warpOut = { x: o.x, y: o.y - BALL_R - 2, vx: (o.x < TRACK_W / 2 ? 1 : -1) * WARP_POP_VX + (rng() - 0.5) * 60, vy: -WARP_POP_VY };
+                pushEvent(t, 'warp', b, { x: q.x, y: q.y, from: q.idx, to: o.idx });
+                warped = true; break;
             }
-            if (escaped) continue;
+            if (warped) continue;
             if (pit && !b.pitDone && inZone(b, pit.zone)) {
                 // 처음 온 놈은 무조건 빠진다(정원 없음). 다음 분출 때 튀어 오르고 그 뒤론 위를 굴러 지나간다
                 b.pitDone = true;
@@ -776,13 +789,13 @@ async function simulate(balls, seed, track) {
         // ── 공-공 충돌(해시) ──
         const grid = new Map();
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit') continue;   // pit = 땅속(간헐천) — 장애물 아님
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp') continue;   // pit = 땅속(간헐천), warp = 파이프 속 — 장애물 아님
             const k = (Math.floor(b.x / CELL) + 4096) * 65536 + Math.floor((b.y + 8192) / CELL);
             if (!grid.has(k)) grid.set(k, []);
             grid.get(k).push(b);
         }
         for (const b of B) {
-            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit') continue;
+            if (b.state === 'done' || b.state === 'walk' || b.state === 'pit' || b.state === 'warp') continue;
             const cx = Math.floor(b.x / CELL) + 4096, cy = Math.floor((b.y + 8192) / CELL);
             for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
                 const cell = grid.get((cx + ox) * 65536 + (cy + oy));
